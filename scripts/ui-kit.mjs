@@ -22,6 +22,8 @@
  *                                 this file without Foundry, as room-tile.mjs's class is made)
  *   kitTabs, kitTabBar, wireKitTabs, shownTab, formGrid, dataTable, helpText, stepper, stepperId, stepLabels,
  *   readStepper, wireSteppers, toggle, chip, chips, box, emptyOption, emptyState, scrollNote, kitNode, modeBar
+ *   checkList, CHECK_MARKS        one list of checks in five states (E46-C1: Season setup, Pre-season checks)
+ *   liveFooter(app, footer)       a drawn window's footer redrawn in place (E46-C1: the trial console's slots, E47)
  *   tile, launcher, launcherState, LAUNCH_STATES, pixelGlyph, sliderList, slider, frame, builtBy
  *                                 the A8 surfaces' DOM builders (E44 C6: the tiles, the launchers, "Who you hear",
  *                                 the Foundry tools frames), below
@@ -136,14 +138,92 @@ function dialogButtons(list) {
  */
 export function footerMarkup(footer = {}) {
     const list = footerButtons(footer);
-    const button = b => {
-        const role = BUTTON_ROLES[b.role];
-        const classes = [role.cls, role.face, b.class, b.default ? "default" : null].filter(Boolean).join(" ");
-        return `<button type="${b.type ?? "button"}" data-action="${esc(b.action)}" data-drpg-role="${b.role}" class="${classes}"`
-            + `${b.default ? " autofocus" : ""}${b.disabled ? " disabled" : ""}>${b.icon ? `<i class="${esc(b.icon)}" inert></i>` : ""}<span>${esc(b.label)}</span></button>`;
-    };
-    const side = s => list.filter(b => b.side === s).map(button).join("");
+    const side = s => list.filter(b => b.side === s).map(b => footerButton(b)).join("");
     return `<footer class="form-footer drpg-kit-footer"><div class="drpg-kit-right">${side("right")}</div><div class="drpg-kit-left">${side("left")}</div></footer>`;
+}
+
+/** One button of a kit footer, `footerButtons`'s `b`: its role's classes, `default` and `autofocus` on the default. */
+function footerButton(b, type = b.type ?? "button") {
+    const role = BUTTON_ROLES[b.role];
+    const classes = [role.cls, role.face, b.class, b.default ? "default" : null].filter(Boolean).join(" ");
+    return `<button type="${type}" data-action="${esc(b.action)}" data-drpg-role="${b.role}" class="${classes}"`
+        + `${b.default ? " autofocus" : ""}${b.disabled ? " disabled" : ""}>${b.icon ? `<i class="${esc(b.icon)}" inert></i>` : ""}<span>${esc(b.label)}</span></button>`;
+}
+
+/**
+ * A drawn window's footer redrawn IN PLACE from a footer spec of the shape `drpgWindow` takes (E46-C1, 09.11.2026; the
+ * owner's q-console: "the console's footer slots, `liveFooter`", docs/design/windows.md). The trial console and the vote
+ * window (E47-C1) keep their window while the trial's state moves, and only their footer changes. The
+ * `footer.drpg-kit-footer` element stays - a window's listeners and Foundry's own reference to it stay with it - and its
+ * two groups (`.drpg-kit-right`, `.drpg-kit-left`; made when a footer has none) get their buttons replaced, in the
+ * contract's order: the right group first in the tree, the primary first in it and `autofocus` (the header: Enter is the
+ * first submit button). The rules are `footerButtons`'s, so a footer that names a destructive default throws, before
+ * anything is drawn. Answers true when a button changed, false when the footer already stood so (the same spec twice
+ * draws nothing, and the GM's focus stays where it was) or the window has no kit footer (closed, or not drawn yet).
+ *
+ * HOW A BUTTON DRAWN LATER PRESSES. DialogV2 answers a press from its own `options.buttons` by the button's
+ * `data-action` (`_onSubmit`: an array in the harness's model, an object by action in v13's source), and a button it was
+ * not handed would answer nothing. So the new list is written there too, in the shape found, and kept on the app as
+ * `app.drpgActions` (a Map, action -> callback or null), which `drpgWindow` fills from the first footer; a later render
+ * of the window draws and dresses the footer of the last spec (`app.drpgFooter`). No click listener of the kit's: it
+ * would answer a press twice beside DialogV2's own. Foundry v14's own handling of a footer changed after its render
+ * (a render of its own, a field it keeps the buttons in) is not read here: it is a check at a table, E47's first live
+ * row (AUDIT 9.2's item 438, written by E47's end). A DrpgApp window's footer
+ * (`footerMarkup`) is redrawn the same way, its presses its own `actions`.
+ */
+export function liveFooter(app, footer = {}) {
+    const list = footerButtons(footer);
+    const el = app?.element?.querySelector?.("footer.drpg-kit-footer");
+    if (!el) return false;
+    const doc = el.ownerDocument;
+    const type = el.querySelector("button[data-action]")?.getAttribute("type") ?? (app.options?.buttons ? "submit" : "button");
+    const group = cls => {
+        let g = el.querySelector(`:scope > div.${cls}`);
+        if (!g) {
+            g = doc.createElement("div");
+            g.className = cls;
+            const right = cls === "drpg-kit-right" ? null : el.querySelector(":scope > div.drpg-kit-right");
+            if (right) right.after(g); else el.prepend(g);
+        }
+        return g;
+    };
+    const focused = el.contains(doc.activeElement) ? doc.activeElement?.dataset?.action ?? null : null;
+    let changed = false;
+    for (const [cls, side] of [["drpg-kit-right", "right"], ["drpg-kit-left", "left"]]) {
+        const g = group(cls);
+        const template = doc.createElement("template");
+        template.innerHTML = list.filter(b => b.side === side).map(b => footerButton(b, type)).join("");
+        const next = [...template.content.children];
+        const now = [...g.children];
+        if (now.length === next.length && now.every((b, i) => b.isEqualNode(next[i]))) continue;
+        g.replaceChildren(...next);
+        changed = true;
+    }
+    keepFooter(app, list);
+    if (changed && focused) {
+        const buttons = [...el.querySelectorAll("button[data-action]")];
+        (buttons.find(b => b.dataset.action === focused) ?? buttons.find(b => b.hasAttribute("autofocus")))?.focus?.();
+    }
+    return changed;
+}
+
+/** A footer's list on the app: its callbacks by action (`drpgActions`), DialogV2's own buttons, the list a re-render dresses. */
+function keepFooter(app, list) {
+    if (!app) return;
+    app.drpgFooter = list;
+    app.drpgActions = new Map(list.map(b => [b.action, b.callback ?? null]));
+    const own = app.options?.buttons;
+    if (!own || typeof own !== "object") return;
+    const specs = dialogButtons(list);
+    try {
+        if (Array.isArray(own)) own.splice(0, own.length, ...specs);
+        else {
+            for (const key of Object.keys(own)) delete own[key];
+            for (const spec of specs) own[spec.action] = spec;
+        }
+    } catch (err) {
+        error("A kit window's buttons could not be kept for its new footer", err);
+    }
 }
 
 /**
@@ -489,22 +569,75 @@ export function formGrid(rows) {
 }
 
 /**
- * A table on the kit: `columns` `[{ key, label, width, num, act }]`, `rows` `[{ key: cellMarkup }]` (cells are markup,
- * as every builder in the module writes them: escape what a person typed), `empty` the key of the words for no rows
- * (the kit's own by default), `caption` text. A `<colgroup>` (a `width` per column, a CSS length), the head sticky
- * in the scroll box that holds the table, the empty state one row across every column, and the scroll signal wired
- * by `wireKit` (`watchScroll`).
+ * A table on the kit: `columns` `[{ key, label, width, num, act, cls, lines }]`, `rows` `[{ key: cellMarkup }]` (cells
+ * are markup, as every builder in the module writes them: escape what a person typed), `empty` the key of the words for
+ * no rows (the kit's own by default), `caption` text. A `<colgroup>` (a `width` per column, a CSS length), the head
+ * sticky in the scroll box that holds the table, the empty state one row across every column, and the scroll signal
+ * wired by `wireKit` (`watchScroll`).
+ *
+ * WHAT E46-C1 ADDED (09.11.2026), for the GM's large windows of E46 and E47; a call that names none of it draws the
+ * markup it drew before, byte for byte (R2002):
+ *   - a row `{ group, count }` (text, escaped) is a heading row across every column, `tr.drpg-data-group >
+ *     th[scope="colgroup"][colspan]`, its count in a `<span>` (Sound's "n of m assigned", the Students window's groups).
+ *     A table with a column keyed `group` has no group rows: its rows are its cells;
+ *   - a column's `lines: 2` clamps its head to two lines (components.css, `-webkit-line-clamp`) and keeps the whole
+ *     label in the head's `title` and `aria-label` - a cut is always with its tooltip (the plan's risk), and drawn
+ *     whether it is cut or not, since jsdom cannot tell;
+ *   - a column's `cls`, a class name's tail, puts `drpg-data-col-<cls>` on its `<col>`, its head and its cells, for the
+ *     window's own width rule (Room setup's `ROOM_SETUP_COLUMN` kinds); a `cls` that is no class name throws;
+ *   - `rowAttrs(row)` answers a data row's `<tr>` attributes by name (`data-drpg-room` ...): a name as `stepper`'s
+ *     `attrs` takes one (lower case, a letter first, no `on...` handler), a value escaped, `true` a bare attribute,
+ *     null, undefined or false none;
+ *   - a cell may be `{ html, title }`: its markup, and its whole text in `title` (a cell a window clamps);
+ *   - `headGroups` `[{ label, span }]` is a head row above the columns' (`thead > tr.drpg-data-head-group >
+ *     th[scope="colgroup"][colspan]`, labels escaped, an empty label an empty cell): E47's project matrix, a group over
+ *     its player columns (E47-M's mockup O1a). The spans add up to the columns or it throws; the table then carries
+ *     `drpg-data-heads-2`, and its whole head sticks, not each cell (two rows of cells at `top: 0` would overlap).
  */
-export function dataTable({ columns, rows = [], empty = "DRPG.Kit.tableEmpty", caption = null } = {}) {
-    const cls = c => [c.num ? "num" : null, c.act ? "act" : null].filter(Boolean).join(" ");
-    const classAttr = c => (cls(c) ? ` class="${cls(c)}"` : "");
-    const cols = columns.map(c => `<col data-drpg-col="${esc(c.key)}"${c.width ? ` style="width: ${esc(c.width)}"` : ""}>`).join("");
-    const head = columns.map(c => `<th scope="col"${classAttr(c)}>${esc(c.label)}</th>`).join("");
+export function dataTable({ columns, rows = [], empty = "DRPG.Kit.tableEmpty", caption = null, rowAttrs = null, headGroups = null } = {}) {
+    for (const c of columns) if (c.cls !== undefined && c.cls !== null && !CLASS_TAIL.test(String(c.cls))) throw new Error(`ui-kit: a column's cls is a class name's tail, not "${c.cls}"`);
+    const colCls = c => (c.cls ? `drpg-data-col-${c.cls}` : null);
+    const cls = c => [c.num ? "num" : null, c.act ? "act" : null, colCls(c)].filter(Boolean).join(" ");
+    const classAttr = (c, extra = null) => { const all = [cls(c), extra].filter(Boolean).join(" "); return all ? ` class="${all}"` : ""; };
+    const cols = columns.map(c => `<col data-drpg-col="${esc(c.key)}"${c.cls ? ` class="${colCls(c)}"` : ""}${c.width ? ` style="width: ${esc(c.width)}"` : ""}>`).join("");
+    const head = columns.map(c => (c.lines === 2
+        ? `<th scope="col"${classAttr(c, "drpg-data-lines-2")} title="${esc(c.label)}" aria-label="${esc(c.label)}"><span class="drpg-data-clamp">${esc(c.label)}</span></th>`
+        : `<th scope="col"${classAttr(c)}>${esc(c.label)}</th>`)).join("");
+    const grouped = !columns.some(c => c.key === "group");
+    const cell = (c, v) => (v !== null && typeof v === "object"
+        ? `<td${classAttr(c)}${v.title ? ` title="${esc(v.title)}"` : ""}>${v.html ?? ""}</td>`
+        : `<td${classAttr(c)}>${v ?? ""}</td>`);
+    const row = r => {
+        if (grouped && r && Object.hasOwn(r, "group")) {
+            const count = r.count === null || r.count === undefined ? "" : ` <span>${esc(r.count)}</span>`;
+            return `<tr class="drpg-data-group"><th scope="colgroup" colspan="${columns.length}">${esc(r.group)}${count}</th></tr>`;
+        }
+        return `<tr${rowAttrs ? attrsMarkup(rowAttrs(r)) : ""}>${columns.map(c => cell(c, r[c.key])).join("")}</tr>`;
+    };
+    let above = "";
+    if (headGroups) {
+        const spans = headGroups.map(g => Number(g.span));
+        if (!spans.every(n => Number.isInteger(n) && n > 0) || spans.reduce((a, n) => a + n, 0) !== columns.length) {
+            throw new Error(`ui-kit: a table's head groups span ${spans.join(" + ")}, not its ${columns.length} column(s)`);
+        }
+        above = `<tr class="drpg-data-head-group">${headGroups.map(g => `<th scope="colgroup" colspan="${g.span}">${esc(g.label ?? "")}</th>`).join("")}</tr>`;
+    }
     const body = rows.length
-        ? rows.map(r => `<tr>${columns.map(c => `<td${classAttr(c)}>${r[c.key] ?? ""}</td>`).join("")}</tr>`).join("")
+        ? rows.map(row).join("")
         : `<tr><td class="drpg-data-empty" colspan="${columns.length}">${esc(localize(empty))}</td></tr>`;
-    return `<div class="drpg-data-table-box"><table class="drpg-data-table">${caption ? `<caption>${esc(caption)}</caption>` : ""}`
-        + `<colgroup>${cols}</colgroup><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>${scrollNote()}</div>`;
+    return `<div class="drpg-data-table-box"><table class="drpg-data-table${headGroups ? " drpg-data-heads-2" : ""}">${caption ? `<caption>${esc(caption)}</caption>` : ""}`
+        + `<colgroup>${cols}</colgroup><thead>${above}<tr>${head}</tr></thead><tbody>${body}</tbody></table>${scrollNote()}</div>`;
+}
+
+/* A class name's tail (`drpg-data-col-<cls>`) and an attribute's name a builder takes from its caller (`rowAttrs`):
+   lower case, a letter first; no event handler. */
+const CLASS_TAIL = /^[a-z][a-z0-9-]*$/;
+const ATTR_NAME = /^(?!on)[a-z][a-z0-9-]*$/;
+
+/** Attributes by name as markup, each name checked (ATTR_NAME) and each value escaped; `true` bare, null/undefined/false none. */
+function attrsMarkup(attrs) {
+    return Object.entries(attrs ?? {}).filter(([k, v]) => ATTR_NAME.test(k) && v !== null && v !== undefined && v !== false)
+        .map(([k, v]) => (v === true ? ` ${k}` : ` ${k}="${esc(v)}"`)).join("");
 }
 
 /**
@@ -551,18 +684,25 @@ export function stepperId() {
  * wrapping its control labels the first labelable element in it, and a button is one). A window that writes its own
  * label passes `id` (`stepperId()`) and points it there by `for`. `attrs` are the input's other attributes, by name
  * (a field's `style`, its `data-drpg-enter`), each escaped; they cannot replace the five above.
+ * `compact` (E46-C1, 09.11.2026) draws it on one line for a table cell (Room setup's Search Tokens, the Overflow's
+ * "by"): no message line beside it - the words that say a value is out of range go into the wrapper's `title` and a
+ * span inside it, visually hidden, that the input names by `aria-describedby` (`wireStepper` writes both, and clears
+ * them in range); the wrapper `drpg-kit-stepper-compact` beside `drpg-kit-stepper`, so every reader finds it as before.
  */
-export function stepper({ name, value = "", min = null, max = null, step = 1, label = null, id = null, attrs = {} } = {}) {
+export function stepper({ name, value = "", min = null, max = null, step = 1, label = null, id = null, attrs = {}, compact = false } = {}) {
     const inputId = id ?? stepperId();
     const words = stepLabels({ step });
     const attr = (k, v) => (v === null || v === undefined || v === "" ? "" : ` ${k}="${esc(v)}"`);
     const own = new Set(["type", "id", "name", "value", "min", "max", "step"]);
     const more = Object.entries(attrs ?? {}).filter(([k]) => !own.has(k) && /^[a-z][a-z0-9-]*$/.test(k)).map(([k, v]) => attr(k, v)).join("");
-    const field = `<span class="drpg-kit-stepper">`
-        + `<button type="button" class="drpg-step drpg-step-minus" data-drpg-step="-1" aria-label="${esc(words.down)}" data-tooltip="${esc(words.down)}">-</button>`
-        + `<input type="number" id="${esc(inputId)}"${attr("name", name)}${attr("value", value)}${attr("min", min)}${attr("max", max)}${attr("step", step)}${more}>`
-        + `<button type="button" class="drpg-step drpg-step-plus" data-drpg-step="1" aria-label="${esc(words.up)}" data-tooltip="${esc(words.up)}">+</button>`
-        + `</span><span class="drpg-field-msg" aria-live="polite"></span>`;
+    // One input spelling for both shapes: tier 0's R1127 counts every `type="number"` of the module.
+    const said = compact ? `${inputId}-said` : null;
+    const minus = `<button type="button" class="drpg-step drpg-step-minus" data-drpg-step="-1" aria-label="${esc(words.down)}" data-tooltip="${esc(words.down)}">-</button>`;
+    const plus = `<button type="button" class="drpg-step drpg-step-plus" data-drpg-step="1" aria-label="${esc(words.up)}" data-tooltip="${esc(words.up)}">+</button>`;
+    const input = `<input type="number" id="${esc(inputId)}"${attr("name", name)}${attr("value", value)}${attr("min", min)}${attr("max", max)}${attr("step", step)}${more}${said ? ` aria-describedby="${esc(said)}"` : ""}>`;
+    const field = compact
+        ? `<span class="drpg-kit-stepper drpg-kit-stepper-compact">${minus}${input}${plus}<span class="drpg-kit-sr" id="${esc(said)}" data-drpg-step-said aria-live="polite"></span></span>`
+        : `<span class="drpg-kit-stepper">${minus}${input}${plus}</span><span class="drpg-field-msg" aria-live="polite"></span>`;
     return label === null ? field : `<label class="drpg-kit-stepper-label" for="${esc(inputId)}"><span>${esc(label)}</span>${field}</label>`;
 }
 
@@ -588,6 +728,8 @@ function wireStepper(wrap) {
     wrap.dataset.drpgKitWired = "1";
     const input = wrap.querySelector(NUMBER_FIELD);
     const message = wrap.nextElementSibling?.matches(".drpg-field-msg") ? wrap.nextElementSibling : null;
+    // The compact stepper's words: the wrapper's title and its span for a screen reader (E46-C1).
+    const said = wrap.querySelector(":scope > [data-drpg-step-said]");
     if (!input) return;
     const check = () => {
         const value = Number(input.value);
@@ -595,9 +737,11 @@ function wireStepper(wrap) {
         const bad = input.value !== "" && Number.isFinite(value) && (value < min || value > max);
         input.classList.toggle("is-bad", bad);
         if (bad) input.setAttribute("aria-invalid", "true"); else input.removeAttribute("aria-invalid");
-        if (message) {
-            message.textContent = !bad ? ""
-                : value > max ? game.i18n.format("DRPG.Look.atMost", { n: max }) : game.i18n.format("DRPG.Look.atLeast", { n: min });
+        const words = !bad ? "" : value > max ? game.i18n.format("DRPG.Look.atMost", { n: max }) : game.i18n.format("DRPG.Look.atLeast", { n: min });
+        if (message) message.textContent = words;
+        if (said) {
+            said.textContent = words;
+            if (words) wrap.setAttribute("title", words); else wrap.removeAttribute("title");
         }
     };
     for (const button of wrap.querySelectorAll("button[data-drpg-step]")) {
@@ -644,6 +788,40 @@ const BOXES = ["info", "warning", "secret"];
 export function box(kind, body) {
     if (!BOXES.includes(kind)) throw new Error(`ui-kit: no box "${kind}" (boxes: ${BOXES.join(", ")})`);
     return `<div class="drpg-box" data-drpg-box="${kind}" role="note">${body ?? ""}</div>`;
+}
+
+/**
+ * The marks of a checkList's states (E46-C1): text, each named for a screen reader by `DRPG.Kit.check.<state>`; a
+ * row that waits has none.
+ */
+export const CHECK_MARKS = Object.freeze({ done: "\u2713", blocking: "\u2717", advisory: "-", warning: "!", waiting: "" });
+
+/**
+ * One list of checks (E46-C1, 09.11.2026): Season setup's rows and Pre-season checks' sections (E46-C5). `rows` is
+ * `[{ key, state, title, detail, action }]`: `state` one of CHECK_MARKS' - `done` (the evidence colour), `blocking` (the
+ * warning's red, and the only red: the owner's rule for these windows, S13-36), `advisory` (a neutral mark), `warning`
+ * (the warning box's ink and a "!": something is off and the GM decides), `waiting` (no mark, the fine print); `title`
+ * text, `detail` markup, `action` a button `{ action, label, role }` drawn with its role's classes (secondary by
+ * default) - `data-drpg-action`, not `data-action`, so ApplicationV2 dispatches nothing: the window wires it. `label`
+ * names the list for a screen reader. An unknown state throws. `ul.drpg-checklist > li.drpg-check-row`: not
+ * `drpg-check`, the checkbox label's class since before the kit (danganronpa.css, a line of its own that never wraps).
+ */
+export function checkList(rows, { label = null } = {}) {
+    const items = (rows ?? []).map(r => {
+        if (!Object.hasOwn(CHECK_MARKS, r?.state)) throw new Error(`ui-kit: no check state "${r?.state}" (states: ${Object.keys(CHECK_MARKS).join(", ")})`);
+        const mark = `<span class="drpg-check-mark" role="img" aria-label="${esc(localize(`DRPG.Kit.check.${r.state}`))}">${CHECK_MARKS[r.state]}</span>`;
+        const detail = r.detail ? `<span class="drpg-check-detail">${r.detail}</span>` : "";
+        let action = "";
+        if (r.action) {
+            const role = BUTTON_ROLES[r.action.role ?? "secondary"];
+            if (!role) throw new Error(`ui-kit: no button role "${r.action.role}"`);
+            action = `<button type="button" class="${[role.cls, role.face].filter(Boolean).join(" ")}" data-drpg-role="${r.action.role ?? "secondary"}"`
+                + ` data-drpg-action="${esc(r.action.action)}">${esc(r.action.label)}</button>`;
+        }
+        return `<li class="drpg-check-row" data-drpg-state="${r.state}"${r.key === null || r.key === undefined ? "" : ` data-drpg-key="${esc(r.key)}"`}>`
+            + `${mark}<span class="drpg-check-text"><span class="drpg-check-title">${esc(r.title)}</span>${detail}</span>${action}</li>`;
+    });
+    return `<ul class="drpg-checklist"${label ? ` aria-label="${esc(label)}"` : ""}>${items.join("")}</ul>`;
 }
 
 /**
@@ -902,9 +1080,11 @@ export function drpgWindow({ id = null, classes = [], title = "", body = "", tab
             const root = dialog?.element;
             try {
                 if (sized) stateWidth(root, sized);
+                keepFooter(dialog, list);
                 dressFrame(root, list, tabs, onMode, dialog);
-                // A later render of the same window draws Foundry's footer again: it is dressed again.
-                dialog.addEventListener?.("render", () => dressFrame(dialog.element, list, tabs, onMode, dialog));
+                // A later render of the same window draws Foundry's footer again: it is dressed again, as the last
+                // footer `liveFooter` drew (E46-C1).
+                dialog.addEventListener?.("render", () => dressFrame(dialog.element, dialog.drpgFooter ?? list, tabs, onMode, dialog));
             } catch (err) {
                 error("A kit window could not be dressed", err);
             }
@@ -945,7 +1125,11 @@ export const WINDOW_WIDTHS = Object.freeze({
     wide: Object.freeze({ cls: "drpg-kit-width-wide", rem: 44, legacy: true }),
     tables: Object.freeze({ cls: "drpg-kit-width-tables", rem: 58 }),
     panel: Object.freeze({ cls: "drpg-kit-width-panel", rem: 44, legacy: true, ultrawide: Object.freeze({ rem: 60, legacy: true, vw: 46 }) }),
-    matrix: Object.freeze({ cls: "drpg-kit-width-matrix", max: 1800 })
+    matrix: Object.freeze({ cls: "drpg-kit-width-matrix", max: 1800 }),
+    // E46-C1 (09.11.2026), for E47: the murder tracker's 520 px at the root's 16 px (E47-C2), and the trial console's
+    // fixed width (E47-C1; S12-51 and S04-38: it jumped with its content). Each window that states one loses `fit`.
+    tracker: Object.freeze({ cls: "drpg-kit-width-tracker", rem: 32.5, legacy: true }),
+    console: Object.freeze({ cls: "drpg-kit-width-console", rem: 44, legacy: true })
 });
 
 /** The class of every kit window that states its width (`width`), beside its name's `cls`: the popup width rules leave

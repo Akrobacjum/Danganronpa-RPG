@@ -1465,7 +1465,14 @@
       "cancel": "Cancel",
       "tableEmpty": "Nothing to show yet.",
       "scrollMore": "There is more below. Scroll to see it.",
-      "allThresholds": "All thresholds"
+      "allThresholds": "All thresholds",
+      "check": {
+        "done": "Done",
+        "blocking": "Required, not done yet",
+        "advisory": "Optional",
+        "warning": "Check this",
+        "waiting": "Waiting"
+      }
     },
     "Look": {
       "language": "Language",

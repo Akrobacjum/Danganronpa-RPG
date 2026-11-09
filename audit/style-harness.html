@@ -512,6 +512,59 @@
       body: K.modeBar([{ key: "debate", label: "Open debate" }, { key: "testimony", label: "Testimony" }, { key: "panic", label: "Panic round" }, { key: "closing", label: "Closing argument" }], { active: "panic" }),
       footer: { close: "close" }
     });
+    /* E46-C1 (09.11.2026): the additions for the GM's large windows of E46 and E47 - dataTable's group rows, a head
+       of two lines (its whole label in the tooltip) and a column's `cls`, the compact stepper in a cell in range and out
+       of range, checkList in its five states with an action, and a footer `liveFooter` redraws in place. */
+    frame("table-groups", "dataTable: group rows with their counts, a head of two lines, a cls column, compact steppers in a cell (the second out of range)", {
+      title: "dataTable", width: 480, footer: { close: "close" },
+      body: K.dataTable({
+        columns: [{ key: "room", label: "Room", cls: "room" }, { key: "tokens", label: "Search Tokens at the start of each day", lines: 2 }, { key: "note", label: "Note" }],
+        rows: [{ group: "Ground floor", count: "2 of 3" },
+          { room: "Cafeteria", tokens: K.stepper({ name: "tok-a", value: 2, min: 0, max: 5, compact: true, attrs: { "data-drpg-token": "Cafeteria" } }), note: { html: "Searched twice today", title: "Searched twice today" } },
+          { room: "Gym", tokens: K.stepper({ name: "tok-b", value: 7, min: 0, max: 5, compact: true, attrs: { "data-drpg-token": "Gym" } }), note: "-" },
+          { group: "Upstairs", count: "0 of 1" },
+          { room: "Library", tokens: K.stepper({ name: "tok-c", value: 0, min: 0, max: 5, compact: true, attrs: { "data-drpg-token": "Library" } }), note: "-" }],
+        rowAttrs: r => ({ "data-drpg-room": r.room })
+      })
+    });
+    /* The owner's answer to Q-E46-2 (09.11.2026): a head cut after its second line, its whole name in the tooltip, "but
+       consistent with the other tables" - one rule of the kit (`lines: 2`) for any table's head, shown here on an
+       ordinary table: three long heads cut, a short one on one line beside them. */
+    frame("table-heads", "dataTable: an ordinary table whose long heads are cut after two lines, the whole name in the tooltip", {
+      title: "dataTable", width: 440, footer: { close: "close" },
+      body: K.dataTable({
+        columns: [{ key: "who", label: "Student" }, { key: "bullets", label: "Truth Bullets held at the start of the trial", lines: 2, num: true },
+          { key: "keys", label: "Key Remnants found during the investigation", lines: 2, num: true }, { key: "un", label: "Unidentified", lines: 2, num: true }],
+        rows: [{ who: "Akane", bullets: "3", keys: "1", un: "0" }, { who: "Byakuya", bullets: "1", keys: "0", un: "2" }],
+        // a head-group row above the columns' (E47-M's project matrix, mockup O1a)
+        headGroups: [{ label: "", span: 1 }, { label: "Evidence", span: 3 }]
+      })
+    });
+    frame("checklist", "checkList: done, blocking with its action, advisory, warning, waiting", {
+      title: "checkList", width: 480, footer: { close: "close" },
+      body: K.checkList([
+        { key: "cast", state: "done", title: "The cast", detail: "6 students, each with a player" },
+        { key: "scenes", state: "blocking", title: "The trial's scene", detail: "No scene is chosen for the Class Trial.", action: { action: "open", label: "Open Room setup", role: "secondary" } },
+        { key: "voice", state: "advisory", title: "Voice", detail: "Voice chat is off. The table can play without it." },
+        { key: "split", state: "warning", title: "Despair split", detail: "Uneven: 2 / 1 / 0" },
+        { key: "monokuma", state: "waiting", title: "The Monokuma", detail: "Create the students first." }
+      ], { label: "Pre-season checks" })
+    });
+    let demo = null;
+    const footers = [
+      { primary: { action: "vote", label: "Start the vote" }, secondary: [{ action: "debate", label: "Open debate" }], destructive: [{ action: "end", label: "End the trial" }], close: "close" },
+      { primary: { action: "reveal", label: "Reveal the verdict" }, destructive: [{ action: "end", label: "End the trial" }], close: "close" }
+    ];
+    frame("live-footer", "liveFooter: the footer redrawn in place - the button below swaps it", {
+      title: "liveFooter", width: 520, footer: footers[0],
+      body: `<p><button type="button" data-drpg-kit-demo="0">Swap the footer</button></p>`,
+      render: (event, dialog) => { demo = dialog; }
+    });
+    shot.querySelector("[data-drpg-kit-demo]")?.addEventListener("click", event => {
+      const next = (Number(event.currentTarget.dataset.drpgKitDemo) + 1) % footers.length;
+      event.currentTarget.dataset.drpgKitDemo = String(next);
+      K.liveFooter(demo, footers[next]);
+    });
     await document.fonts?.ready;
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     document.body.removeAttribute("data-drpg-kit-pending");

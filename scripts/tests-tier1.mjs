@@ -41003,6 +41003,134 @@ const INVARIANTS = [
             "{save: [what the opener answered after Save, how many dashboards stand open]; newTrace: [the New trace window drawn, the dashboard drawn "
             + "again after it closed, the first copy still rendered, the opener still waiting on the new copy]}");
     }],
+
+    /* ---- E46-C1: the kit's additions for the GM's large windows (E46 + E47, release 1.2.102) ------------------------ */
+
+    ["R2004 - checkList (scripts/ui-kit.mjs; E46-C1): one list of checks, `ul.drpg-checklist[aria-label]` of `li.drpg-check-row[data-drpg-state][data-drpg-key]`, five states with their marks (done, blocking, advisory, warning, waiting: none) named for a screen reader by `DRPG.Kit.check.<state>` in both lang files, the title as text, the detail as markup, an action drawn with its role's classes, an unknown state refused; the cascade in both themes (tests-kit.mjs `styleCascade`): components.css colours each mark and title, and only `blocking`'s resolves to a red token", async () => {
+        /*
+         * E46-C1, 09.11.2026. Season setup and Pre-season checks (E46-C5) draw their rows here; the owner's rule for them
+         * (S13-36): red only for a row that blocks. The red is read as the token a colour comes to, followed through the
+         * kit's tokens on a body of each theme (`--drpg-crimson*` and `--drpg-eye*` under Legacy, `--drpg-sg-gm` and
+         * `--drpg-sg-despair` under the glass). Red first on 4de21046: no checkList. The mutant k2 (warning's mark on
+         * blocking's red) reads red here.
+         */
+        const K = await import("./ui-kit.mjs");
+        equal(typeof K.checkList, "function", "[ui-kit.mjs exports checkList]");
+        const STATES = ["done", "blocking", "advisory", "warning", "waiting"];
+        const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json());
+        const [en, pl] = await Promise.all([lang("en"), lang("pl")]);
+        const at = (file, key) => key.split(".").reduce((o, k) => o?.[k], file);
+        equal(stableJson(STATES.map(s => `DRPG.Kit.check.${s}`).filter(k => typeof at(en, k) !== "string" || typeof at(pl, k) !== "string")), "[]", "[a check state's word missing from lang/en.json or lang/pl.json]");
+        const L = key => game.i18n.localize(key);
+        const rows = STATES.map(s => ({ key: `k-${s}`, state: s, title: `T <${s}>`, detail: `<b>d ${s}</b>`, action: s === "blocking" ? { action: "fix", label: "Fix it", role: "secondary" } : null }));
+        const markup = K.checkList(rows, { label: "Checks" });
+        const d = document.createElement("div");
+        d.innerHTML = markup;
+        const list = d.firstElementChild;
+        const throws = (() => { try { K.checkList([{ key: "x", state: "red", title: "X" }]); return false; } catch { return true; } })();
+        equal(stableJson({
+            list: [list?.localName, list?.className, list?.getAttribute("aria-label"), d.children.length],
+            rows: [...(list?.children ?? [])].map(li => [li.localName, li.className, li.dataset.drpgState, li.dataset.drpgKey,
+                li.querySelector(".drpg-check-mark")?.textContent ?? null, li.querySelector(".drpg-check-mark")?.getAttribute("aria-label") ?? null,
+                li.querySelector(".drpg-check-title")?.textContent ?? null, li.querySelector(".drpg-check-detail")?.innerHTML ?? null,
+                [...li.querySelectorAll("button")].map(b => [b.type, b.dataset.drpgAction, b.dataset.drpgRole, b.classList.contains("drpg-role-secondary"), b.textContent])]),
+            throws
+        }), stableJson({
+            list: ["ul", "drpg-checklist", "Checks", 1],
+            rows: STATES.map(s => ["li", "drpg-check-row", s, `k-${s}`, { done: "✓", blocking: "✗", advisory: "-", warning: "!", waiting: "" }[s], L(`DRPG.Kit.check.${s}`),
+                `T <${s}>`, `<b>d ${s}</b>`, s === "blocking" ? [["button", "fix", "secondary", true, "Fix it"]] : []]),
+            throws: true
+        }), "{list: [tag, class, aria-label, elements drawn]; rows: [tag, class, state, key, the mark, its aria-label, the title's text, the detail's markup, its buttons (type, action, role, the role's class, label)]; throws: an unknown state}");
+
+        const C = await styleCascade();
+        const RED = /^--drpg-(crimson|eye|sg-gm|sg-despair)/;
+        const read = {};
+        for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-gm`;
+            html.append(body);
+            const root = document.createElement("div");
+            root.className = "application dialog drpg-window-r2004 drpg-ui drpg-panel";
+            root.innerHTML = `<section class="window-content"><form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-kit-body">${markup}</div></div></form></section>`;
+            body.append(root);
+            const onBody = C.on(body);
+            /* The tokens a value comes to: each var() followed on the body until it names one no kit rule defines. */
+            const tokens = value => {
+                const seen = [];
+                let v = String(value ?? "");
+                for (let i = 0; i < 8; i++) {
+                    const name = /var\((--[\w-]+)/.exec(v)?.[1];
+                    if (!name) break;
+                    seen.push(name);
+                    const w = onBody(name);
+                    if (!w) break;
+                    v = w.value;
+                }
+                return seen;
+            };
+            read[theme] = Object.fromEntries([...root.querySelectorAll("li.drpg-check-row")].map(li => [li.dataset.drpgState,
+                [".drpg-check-mark", ".drpg-check-title"].map(sel => {
+                    const w = C.on(li.querySelector(sel))("color");
+                    return [w?.file ?? "nobody", tokens(w?.value).some(t => RED.test(t))];
+                })]));
+        }
+        const want = Object.fromEntries(STATES.map(s => [s, [["styles/components.css", s === "blocking"], ["styles/components.css", s === "blocking"]]]));
+        equal(stableJson(read), stableJson({ "drpg-theme-monokuma-legacy": want, "drpg-theme-stained-glass": want }),
+            "{by theme, by state: [the mark's colour: the file whose rule wins it, a red token], [the same for the title]}");
+    }],
+
+    ["R2005 - liveFooter (scripts/ui-kit.mjs; E46-C1, q-console): on a drawn kit window (the harness's DialogV2) the footer is redrawn in place from a footer spec - the `footer.drpg-kit-footer` element kept, the buttons replaced in their groups (the right first in the tree, the primary first and autofocused), the callbacks on `app.drpgActions` and in the window's own buttons, so a button drawn later answers as one drawn first; a footer that names a destructive default throws and leaves the footer as it was; the same spec again changes nothing", async () => {
+        /*
+         * E46-C1, 09.11.2026. The trial console (E47-C1) and the vote window keep their window and swap their footer
+         * when the trial's state moves (the owner's q-console: "the footer slots, `liveFooter`"). DialogV2 answers a press
+         * from its own buttons by `data-action` (the harness models it on v13's `_onSubmit`; Foundry v14's own handling
+         * of a footer changed after its render is a check at a table: E47's first live row, AUDIT 9.2's item 438, written
+         * by E47's end), so liveFooter writes its buttons there too. Red first on
+         * 4de21046: no liveFooter. The mutants k3 (the footer element replaced) and k4 (a destructive default allowed)
+         * read red here.
+         */
+        needs(env.dialogs(), "the footer is redrawn on a drawn window");
+        const K = await import("./ui-kit.mjs");
+        equal(typeof K.liveFooter, "function", "[ui-kit.mjs exports liveFooter]");
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-r2005"));
+        must(of().length === 0, "an R2005 window stands open already");
+        const groups = footer => [...(footer?.children ?? [])].map(g => [g.className, [...g.children].map(b => [b.dataset.action, b.dataset.drpgRole, b.hasAttribute("autofocus")])]);
+        const got = {};
+        const answer = K.drpgWindow({ classes: ["drpg-window-r2005"], title: "R2005", body: "<p>R2005</p>",
+            footer: { primary: { action: "first", label: "First", callback: () => "first-answer" }, close: "close" } });
+        try {
+            await until(() => of().some(a => a.element?.querySelector("footer.drpg-kit-footer")), 6000);
+            const app = of()[0];
+            const footer = app?.element?.querySelector("footer.drpg-kit-footer") ?? null;
+            must(footer, "the R2005 window drew no kit footer");
+            got.first = { actions: [...(app.drpgActions?.keys?.() ?? [])], groups: groups(footer) };
+            const spec = { primary: { action: "later", label: "Later", callback: () => "later-answer" }, secondary: [{ action: "more", label: "More" }],
+                destructive: [{ action: "wipe", label: "Wipe" }], close: "close" };
+            got.changed = K.liveFooter(app, spec);
+            const now = app.element.querySelector("footer.drpg-kit-footer");
+            got.same = now === footer;
+            got.later = { groups: groups(now), firstInTree: now?.querySelector("button")?.dataset.action ?? null, actions: [...(app.drpgActions?.keys?.() ?? [])] };
+            got.again = K.liveFooter(app, spec);
+            let threw = null;
+            try { K.liveFooter(app, { destructive: [{ action: "wipe", label: "Wipe" }], close: "close", default: "wipe" }); } catch (err) { threw = /never be a window's default/.test(err.message); }
+            got.destructiveDefault = { threw, kept: groups(app.element.querySelector("footer.drpg-kit-footer")).flatMap(g => g[1].map(b => b[0])) };
+            app.element.querySelector("footer.drpg-kit-footer button[data-action=\"later\"]")?.click();
+            got.answer = await Promise.race([answer, wait(4000).then(() => "still waiting")]);
+        } finally {
+            for (const a of of()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(3000)]);
+        }
+        equal(stableJson(got), stableJson({
+            first: { actions: ["first", "close"], groups: [["drpg-kit-right", [["first", "primary", true]]], ["drpg-kit-left", [["close", "close", false]]]] },
+            changed: true, same: true,
+            later: { groups: [["drpg-kit-right", [["later", "primary", true]]], ["drpg-kit-left", [["close", "close", false], ["more", "secondary", false], ["wipe", "destructive", false]]]],
+                firstInTree: "later", actions: ["later", "close", "more", "wipe"] },
+            again: false,
+            destructiveDefault: { threw: true, kept: ["later", "close", "more", "wipe"] },
+            answer: "later-answer"
+        }), "{first: [drpgActions' keys, the groups (action, role, autofocus)]; changed: liveFooter's answer; same: the footer element kept; later: the groups, the first button in the tree, drpgActions' keys; "
+            + "again: the same spec once more; destructiveDefault: [it threw, the footer's actions after]; answer: what the window answered when the later button was pressed}");
+    }],
 ];
 
 /**

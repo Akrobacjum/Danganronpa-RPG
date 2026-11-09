@@ -140,6 +140,13 @@ body {
     --drpg-kit-seam: var(--drpg-kit-notice-seam);
     --drpg-kit-notice-sm-size: max(11px, var(--drpg-text-sm));
     --drpg-kit-notice-xs-size: max(11px, var(--drpg-text-xs));
+    /* checkList (E46-C1): a mark and its title by state - done in the evidence colour `.drpg-check-ok` draws, blocking
+       in the warning's red and the only red (S13-36), warning in the warning box's ink, advisory and waiting the fine
+       print */
+    --drpg-kit-check-done: var(--drpg-evidence);
+    --drpg-kit-check-blocking: var(--drpg-kit-warn-edge);
+    --drpg-kit-check-warning: var(--drpg-kit-ink);
+    --drpg-kit-check-quiet: var(--drpg-kit-help-ink);
 }
 /* ---- tokens: Stained Glass (the glass's own) ---- */
 body.drpg-theme-stained-glass {
@@ -186,6 +193,7 @@ body.drpg-theme-stained-glass {
     --drpg-kit-notice-seam-fear: var(--drpg-sg-despair);
     --drpg-kit-notice-seam-evidence: var(--drpg-sg-evidence);
     --drpg-kit-notice-seam-alarm: var(--drpg-sg-gm);
+    --drpg-kit-check-done: var(--drpg-sg-evidence);
 }
 
 /* ---- drpgWindow / DrpgApp: the frame. The screen's height less 8 px a side; the body scrolls, the tab bar and the
@@ -404,6 +412,35 @@ body .application.drpg-ui .drpg-data-table-box > table.drpg-data-table td.drpg-d
     white-space: nowrap;
 }
 
+/* ---- dataTable's additions (E46-C1, 09.11.2026): a group row across every column, a head clamped to two lines (its
+   whole label in `title` and `aria-label`, ui-kit.mjs), a column's `cls` left to the window's own width rule. ---- */
+/* a group row reads the same wherever it stands: under the glass the table rule draws a body's first row of heads as
+   the head (stained-glass.css `.drpg-panel table tr:first-child th`, 0,3,4), so the first group row was the head's
+   accent in capitals and the next one plain (the kit gallery at 1366x768, 09.11.2026); this one is 0,3,5 */
+body .drpg-data-table-box > table.drpg-data-table > tbody > tr.drpg-data-group > th {
+    text-align: start;
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: normal;
+    color: var(--drpg-kit-ink);
+    background: transparent;
+    border-bottom: 1px solid var(--drpg-kit-line);
+}
+body.drpg-theme-stained-glass .drpg-data-table-box > table.drpg-data-table > tbody > tr.drpg-data-group > th { padding: 4px 8px; }
+body .drpg-data-table-box > table.drpg-data-table > tbody > tr.drpg-data-group > th > span { color: var(--drpg-kit-help-ink); font-weight: 400; }
+/* a head of two rows (`headGroups`): the whole head sticks, its cells do not - each at `top: 0` would overlap */
+.drpg-data-table-box > table.drpg-data-table.drpg-data-heads-2 > thead { position: sticky; top: 0; z-index: 1; }
+.drpg-data-table-box > table.drpg-data-table.drpg-data-heads-2 > thead th { position: static; }
+body .drpg-data-table-box > table.drpg-data-table > thead > tr.drpg-data-head-group > th { text-align: center; }
+body .drpg-data-table-box > table.drpg-data-table > thead th > span.drpg-data-clamp {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    white-space: normal;
+}
+
 /* ---- helpText and the three boxes (info, warning, secret). ---- */
 /* 0,6,1: one place above the table windows' paragraph rule (danganronpa.css, `:has(.dialog-content table) :is(p, ...)`) */
 body .application.dialog.drpg-ui.drpg-panel .dialog-content .drpg-help { color: var(--drpg-kit-help-ink); margin: 0 0 8px; }
@@ -428,6 +465,32 @@ body .application .drpg-kit-stepper > button.drpg-step[data-drpg-step] { min-wid
 body:not(.drpg-theme-stained-glass) .application .drpg-kit-stepper > button.drpg-step[data-drpg-step] { padding: 0 6px; }
 /* under the glass its own `.drpg-field-msg:empty` rule hides the empty line */
 body:not(.drpg-theme-stained-glass) .drpg-kit-stepper + .drpg-field-msg:empty { display: none; }
+/* the compact stepper (E46-C1): one line in a table cell, its words in the wrapper's title and a span for a reader */
+.drpg-kit-stepper.drpg-kit-stepper-compact { position: relative; white-space: nowrap; }
+.drpg-kit-stepper.drpg-kit-stepper-compact > input[type="number"] { width: 3.5em; }
+body .application .drpg-kit-stepper.drpg-kit-stepper-compact > button.drpg-step[data-drpg-step] { min-width: 1.6em; }
+
+/* ---- checkList (E46-C1, 09.11.2026): a mark, the title over its detail, an action at the end; the mark and the title
+   in the state's colour - red for `blocking` alone (the tokens above). ---- */
+body .drpg-checklist { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; }
+body .drpg-checklist > li.drpg-check-row {
+    display: grid;
+    grid-template-columns: 1.5em minmax(0, 1fr) auto;
+    gap: 2px 8px;
+    align-items: baseline;
+    margin: 0;
+}
+body .drpg-checklist > li.drpg-check-row > .drpg-check-mark { text-align: center; font-weight: 700; color: var(--drpg-kit-check-quiet); }
+body .drpg-checklist > li.drpg-check-row > .drpg-check-text { display: flex; flex-direction: column; min-width: 0; }
+body .drpg-checklist > li.drpg-check-row > .drpg-check-text > .drpg-check-title { color: var(--drpg-kit-ink); }
+body .drpg-checklist > li.drpg-check-row > .drpg-check-text > .drpg-check-detail { color: var(--drpg-kit-help-ink); }
+body:not(.drpg-theme-stained-glass) .drpg-checklist > li.drpg-check-row > .drpg-check-text > .drpg-check-detail { font-size: var(--drpg-kit-help-size); line-height: 1.4; }
+body .drpg-checklist > li.drpg-check-row[data-drpg-state="done"] > .drpg-check-mark { color: var(--drpg-kit-check-done); }
+body .drpg-checklist > li.drpg-check-row[data-drpg-state="blocking"] > .drpg-check-mark,
+body .drpg-checklist > li.drpg-check-row[data-drpg-state="blocking"] > .drpg-check-text > .drpg-check-title { color: var(--drpg-kit-check-blocking); }
+body .drpg-checklist > li.drpg-check-row[data-drpg-state="warning"] > .drpg-check-mark,
+body .drpg-checklist > li.drpg-check-row[data-drpg-state="warning"] > .drpg-check-text > .drpg-check-title { color: var(--drpg-kit-check-warning); }
+body .drpg-checklist > li.drpg-check-row:is([data-drpg-state="advisory"], [data-drpg-state="waiting"]) > .drpg-check-text > .drpg-check-title { color: var(--drpg-kit-check-quiet); }
 
 /* ---- toggle: a checkbox drawn as a switch under Legacy; under the glass the glass's own checkbox (stained-glass.css,
    `.drpg-panel input[type="checkbox"]`), as the approved card drew it. Its row is `.drpg-panel label`'s. ---- */

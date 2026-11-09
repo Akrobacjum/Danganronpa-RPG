@@ -21171,6 +21171,126 @@ const REGRESSIONS = [
         equal(JSON.stringify(unattributed), "[]", "the quotes with no stage id before them on their line or the line above");
         ok(!stale.length, `${stale.length} stale quote(s) of ${quotes}: ${stale.slice(0, 6).join("; ")}${stale.length > 6 ? "; ..." : ""}`);
     }],
+
+    /* ---- E46-C1: the kit's additions for the GM's large windows (E46 + E47, release 1.2.102) ------------------------ */
+
+    ["R2002 - dataTable's additions (scripts/ui-kit.mjs; E46-C1, D31): a call with none of the new options draws 4de21046's markup byte for byte; a group row (`{ group, count }`) one heading across every column; a column's `lines: 2` clamps its head and keeps the whole label in `title` and `aria-label`; a column's `cls` on its `<col>`, its head and its cells; `rowAttrs(row)` on the `<tr>`, each name checked and each value escaped; a `{ html, title }` cell; `headGroups`, a head row of groups above the columns'", async () => {
+        /*
+         * E46-C1, 09.11.2026. The two stages' windows (Room setup, Sound's Effects, the Students window, WHO HAS WHAT)
+         * move onto dataTable, and none calls it at 4de21046 (git grep: 0 callers but the tier files), so its old output
+         * is held here as a string written from 4de21046's function (run in node on that tree, the words put in by key):
+         * every additional option changes nothing for a call that names none. Red first on 4de21046: the group row drew
+         * a row of empty cells, `lines`, `cls` and `rowAttrs` drew nothing, a `{ html, title }` cell drew "[object
+         * Object]". The mutant k1 (`lines: 2` without its `title`) reads red here.
+         */
+        const K = await import("./ui-kit.mjs");
+        const L = key => game.i18n.localize(key);
+        const E = v => foundry.utils.escapeHTML(String(v));
+        const note = `<span class="drpg-kit-sr" data-drpg-scroll-note hidden>${E(L("DRPG.Kit.scrollMore"))}</span>`;
+        const columns = [{ key: "a", label: "A & \"B\"", width: "8rem" }, { key: "n", label: "N", num: true }, { key: "x", label: "", act: true }, { key: "b", label: "Both", num: true, act: true }];
+        const rows = [{ a: "<b>x</b>", n: "1", x: "<button type=\"button\">y</button>", b: "2" }, { a: "z" }];
+        const OLD_FULL = "<div class=\"drpg-data-table-box\"><table class=\"drpg-data-table\"><caption>Cap &lt;1&gt;</caption><colgroup><col data-drpg-col=\"a\" style=\"width: 8rem\"><col data-drpg-col=\"n\"><col data-drpg-col=\"x\"><col data-drpg-col=\"b\"></colgroup><thead><tr><th scope=\"col\">A &amp; &quot;B&quot;</th><th scope=\"col\" class=\"num\">N</th><th scope=\"col\" class=\"act\"></th><th scope=\"col\" class=\"num act\">Both</th></tr></thead><tbody><tr><td><b>x</b></td><td class=\"num\">1</td><td class=\"act\"><button type=\"button\">y</button></td><td class=\"num act\">2</td></tr><tr><td>z</td><td class=\"num\"></td><td class=\"act\"></td><td class=\"num act\"></td></tr></tbody></table>NOTE</div>";
+        const OLD_EMPTY = "<div class=\"drpg-data-table-box\"><table class=\"drpg-data-table\"><colgroup><col data-drpg-col=\"a\" style=\"width: 8rem\"><col data-drpg-col=\"n\"></colgroup><thead><tr><th scope=\"col\">A &amp; &quot;B&quot;</th><th scope=\"col\" class=\"num\">N</th></tr></thead><tbody><tr><td class=\"drpg-data-empty\" colspan=\"2\">EMPTY</td></tr></tbody></table>NOTE</div>";
+        equal(K.dataTable({ columns, rows, caption: "Cap <1>" }), OLD_FULL.replace("NOTE", note), "[a table of four columns and two rows with a caption, none of the new options: 4de21046's markup]");
+        equal(K.dataTable({ columns: columns.slice(0, 2), rows: [], empty: "DRPG.Kit.scrollMore" }), OLD_EMPTY.replace("NOTE", note).replace("EMPTY", E(L("DRPG.Kit.scrollMore"))), "[an empty table in its own words: 4de21046's markup]");
+
+        const long = "Search Tokens at the start of each day";
+        const markup = K.dataTable({
+            columns: [{ key: "room", label: "Room", cls: "room" }, { key: "tokens", label: long, lines: 2, num: true }, { key: "note", label: "Note" }],
+            rows: [{ group: "Ground floor", count: "1 of 2" }, { room: "Gym", tokens: "2", note: { html: "<i>long</i>", title: "A \"long\" note" } }, { group: "Upstairs" }],
+            rowAttrs: row => ({ "data-drpg-room": `${row.room} "A" <b>`, onclick: "alert(1)", "Bad Name": "x", "data-drpg-none": null, "data-drpg-flag": true })
+        });
+        const d = document.createElement("div");
+        d.innerHTML = markup;
+        const groups = [...d.querySelectorAll("tbody > tr.drpg-data-group")];
+        const head = d.querySelector("thead th:nth-child(2)");
+        const data = d.querySelector("tbody > tr:not(.drpg-data-group)");
+        const throws = options => { try { K.dataTable(options); return false; } catch { return true; } };
+        equal(JSON.stringify({
+            groups: groups.map(g => [g.children.length, g.firstElementChild?.localName, g.firstElementChild?.getAttribute("scope"), g.firstElementChild?.getAttribute("colspan"),
+                g.firstElementChild?.textContent, g.querySelector("th > span")?.textContent ?? null, g.attributes.length]),
+            head: [head?.getAttribute("title"), head?.getAttribute("aria-label"), head?.className, head?.querySelector(":scope > span.drpg-data-clamp")?.textContent ?? null],
+            cls: [d.querySelector("col[data-drpg-col=\"room\"]")?.className, d.querySelector("thead th")?.className, data?.firstElementChild?.className],
+            row: markup.includes("<tr data-drpg-room=\"Gym &quot;A&quot; &lt;b&gt;\" data-drpg-flag>"), rowNames: data ? [...data.attributes].map(a => a.name) : null,
+            cell: [data?.lastElementChild?.getAttribute("title"), data?.lastElementChild?.innerHTML],
+            badCls: throws({ columns: [{ key: "a", label: "A", cls: "a b" }], rows: [] }),
+            /* E47-M's mockup O1a (the orchestrator, 09.11.2026): a head-group row over the columns */
+            headGroups: (() => {
+                const h = document.createElement("div");
+                h.innerHTML = K.dataTable({ columns: [{ key: "p", label: "Project" }, { key: "a", label: "Akane" }, { key: "b", label: "Byakuya" }], rows: [],
+                    headGroups: [{ label: "", span: 1 }, { label: "Players <2>", span: 2 }] });
+                return [h.querySelector("table")?.className, [...h.querySelectorAll("thead > tr")].map(tr => [tr.className, [...tr.children].map(th => [th.getAttribute("scope"), th.getAttribute("colspan"), th.textContent])]),
+                    throws({ columns: [{ key: "a", label: "A" }], rows: [], headGroups: [{ label: "G", span: 2 }] })];
+            })()
+        }), JSON.stringify({
+            groups: [[1, "th", "colgroup", "3", "Ground floor 1 of 2", "1 of 2", 1], [1, "th", "colgroup", "3", "Upstairs", null, 1]],
+            head: [long, long, "num drpg-data-lines-2", long],
+            cls: ["drpg-data-col-room", "drpg-data-col-room", "drpg-data-col-room"],
+            row: true, rowNames: ["data-drpg-room", "data-drpg-flag"],
+            cell: ["A \"long\" note", "<i>long</i>"],
+            badCls: true,
+            headGroups: ["drpg-data-table drpg-data-heads-2", [["drpg-data-head-group", [["colgroup", "1", ""], ["colgroup", "2", "Players <2>"]]],
+                ["", [["col", null, "Project"], ["col", null, "Akane"], ["col", null, "Byakuya"]]]], true]
+        }), "{groups: [cells, tag, scope, colspan, text, count, the row's attributes]; head: [title, aria-label, class, the clamped text]; cls: [col, th, td]; row: the escaped attributes on the tr; rowNames; cell: [title, markup]; badCls: a cls not a class name throws; headGroups: [the table's class, the head's rows (class, cells: scope, colspan, text), spans not adding up to the columns throw]}");
+    }],
+
+    ["R2003 - the compact stepper (scripts/ui-kit.mjs `stepper({ compact: true })`; E46-C1): one line for a table cell - no `.drpg-field-msg` beside it; the out-of-range message in the wrapper's `title` and a span the input names by `aria-describedby`, cleared in range; `readStepper` and `wireSteppers` read it as any stepper; a stepper without `compact` draws 4de21046's markup", async () => {
+        /*
+         * E46-C1, 09.11.2026. Room setup's Searching (the token cell) and the Overflow's "by" column draw a stepper in a
+         * table cell (STAGE.md "The shapes"), where a message line under it would make the row two lines. Red first on
+         * 4de21046: `compact` was not read, the message line stood beside the field.
+         */
+        const K = await import("./ui-kit.mjs");
+        const L = key => game.i18n.localize(key);
+        const E = v => foundry.utils.escapeHTML(String(v));
+        const OLD = `<span class="drpg-kit-stepper"><button type="button" class="drpg-step drpg-step-minus" data-drpg-step="-1" aria-label="${E(L("DRPG.Look.stepDown"))}" data-tooltip="${E(L("DRPG.Look.stepDown"))}">-</button><input type="number" id="r2003-old" name="s" value="3" min="0" max="5" step="1" data-drpg-token="Gym"><button type="button" class="drpg-step drpg-step-plus" data-drpg-step="1" aria-label="${E(L("DRPG.Look.stepUp"))}" data-tooltip="${E(L("DRPG.Look.stepUp"))}">+</button></span><span class="drpg-field-msg" aria-live="polite"></span>`;
+        equal(K.stepper({ name: "s", value: 3, min: 0, max: 5, id: "r2003-old", attrs: { "data-drpg-token": "Gym" } }), OLD, "[a stepper without compact: 4de21046's markup]");
+        const d = document.createElement("div");
+        d.innerHTML = K.stepper({ name: "tok", value: 7, min: 0, max: 5, compact: true, id: "r2003-c", attrs: { "data-drpg-token": "Gym" } });
+        const wrap = d.firstElementChild;
+        const input = d.querySelector("input[type=\"number\"]");
+        const said = input ? d.querySelector(`#${input.getAttribute("aria-describedby")}`) : null;
+        const before = { children: d.children.length, cls: wrap?.className, msg: Boolean(d.querySelector(".drpg-field-msg")), inside: Boolean(said && wrap?.contains(said)), token: input?.dataset.drpgToken };
+        K.wireSteppers(d);
+        const out = { title: wrap?.getAttribute("title") ?? null, said: said?.textContent ?? null, bad: input?.getAttribute("aria-invalid") ?? null };
+        if (input) { input.value = "3"; input.dispatchEvent(new Event("change", { bubbles: true })); }
+        const back = { title: wrap?.getAttribute("title") ?? null, said: said?.textContent ?? null, bad: input?.getAttribute("aria-invalid") ?? null, read: K.readStepper(d) };
+        d.querySelector("button[data-drpg-step=\"1\"]")?.click();
+        const atMost = game.i18n.format("DRPG.Look.atMost", { n: 5 });
+        equal(JSON.stringify({ before, out, back, plus: K.readStepper(wrap) }), JSON.stringify({
+            before: { children: 1, cls: "drpg-kit-stepper drpg-kit-stepper-compact", msg: false, inside: true, token: "Gym" },
+            out: { title: atMost, said: atMost, bad: "true" },
+            back: { title: null, said: "", bad: null, read: 3 },
+            plus: 4
+        }), "{before: [elements drawn, the wrapper's class, a message line, the described span inside the wrapper, the token kept]; out: [title, the span's words, aria-invalid] at 7 of 0-5; back: the same at 3 and readStepper; plus: + pressed}");
+    }],
+
+    ["R2006 - the kit gallery draws E46-C1's additions (audit/style-harness.html `?kit=1`; E46-C1): a dataTable with a group row, a head of two lines and a `cls` column, a compact stepper in a cell in range and out of range, a checkList of the five states with an action, a window whose footer `liveFooter` swaps on a button (`data-drpg-kit-demo`); WINDOW_WIDTHS `tracker` (32.5 rem) and `console` (44 rem), both by the Legacy slider", async () => {
+        /*
+         * E46-C1, 09.11.2026. The gallery is where the kit's components are seen in both themes before a window uses
+         * them (the style sweep's `kit-gallery` page, Chromium); its text is read here, the look by the sweep and the
+         * commit's screenshots. The widths: E47-C1 (the console, S12-51) and E47-C2 (the tracker) state them. Red first
+         * on 4de21046: none of them.
+         */
+        needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        const K = await import("./ui-kit.mjs");
+        const page = await fetch(`/modules/${MODULE_ID}/audit/style-harness.html`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
+        must(page.length > 10000, "audit/style-harness.html read nothing - this test would read nothing");
+        const kit = /\} else if \(q\.get\("kit"\)\) \{([\s\S]*?)\n {2}\} else \{/.exec(page)?.[1] ?? "";
+        must(kit.length > 2000, "the gallery's branch was not found in audit/style-harness.html");
+        const has = re => re.test(kit);
+        const states = ["done", "blocking", "advisory", "warning", "waiting"];
+        equal(JSON.stringify({
+            group: has(/group: "[^"]+", count:/), lines: has(/lines: 2/), cls: has(/cls: "[a-z]/),
+            compact: (kit.match(/compact: true/g) ?? []).length >= 2,
+            checkList: has(/K\.checkList\(/) && states.every(s => kit.includes(`state: "${s}"`)) && has(/action: \{ action: /),
+            liveFooter: has(/K\.liveFooter\(/) && has(/data-drpg-kit-demo/),
+            widths: [K.WINDOW_WIDTHS?.tracker, K.WINDOW_WIDTHS?.console]
+        }), JSON.stringify({
+            group: true, lines: true, cls: true, compact: true, checkList: true, liveFooter: true,
+            widths: [{ cls: "drpg-kit-width-tracker", rem: 32.5, legacy: true }, { cls: "drpg-kit-width-console", rem: 44, legacy: true }]
+        }), "{the gallery's kit branch draws: a group row, a head of two lines, a cls column, two compact steppers, a checkList of the five states with an action, a liveFooter swap; widths: [tracker, console]}");
+    }],
 ];
 
 

@@ -1550,7 +1550,14 @@
       "cancel": "Anuluj",
       "tableEmpty": "Na razie nie ma tu nic do pokazania.",
       "scrollMore": "Niżej jest więcej. Przewiń, żeby zobaczyć.",
-      "allThresholds": "Wszystkie progi"
+      "allThresholds": "Wszystkie progi",
+      "check": {
+        "done": "Gotowe",
+        "blocking": "Wymagane, jeszcze nie zrobione",
+        "advisory": "Opcjonalne",
+        "warning": "Do sprawdzenia",
+        "waiting": "Czeka"
+      }
     },
     "Look": {
       "language": "Język",
