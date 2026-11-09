@@ -38634,7 +38634,7 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify([true, true, 2, true, 1, ["0,0", true], 0]),
             "[a group a batch, each [old look, new look added on, old 1 -> 0, new 0 -> 1, on one delay]; the moving panes' new places rising under the moves, each from 0; the rising layers' ends (one); the curtain's held opacity, until that end; layers left after the cancel]");
     }],
-    ["R3121 - the voice tile beside Foundry's tab rail keeps its buttons on its own pane, and its pane is the tray column's tail (glass.mjs `buildColumn`, E96 C3; the owner on 1.2.101's top right, H102): for a GM at 2000x1072, 1920x1080 and 1366x768 with the right column pinned off the wall, every corner of the microphone and the speaker on the voice pane, the voice pane meeting the tray's along the seam, and the tile settled where 1.2.100 settled it", async () => {
+    ["R3121 - the voice tile beside Foundry's tab rail keeps its buttons on its own pane, and its pane is the tray column's tail (glass.mjs `buildColumn`, E96 C3; the owner on 1.2.101's top right, H102): for a GM at 2000x1072, 1920x1080 and 1366x768 with the right column pinned off the wall, every corner of the microphone and the speaker on the voice pane, the voice pane meeting the pane over it (the tray's, or since E96 C4 the one between them) along the seam, and the tile settled where E96 C4 settles it", async () => {
         /*
          * E96 C3, 09.11.2026. With Foundry's tab rail at the wall (`pinRightColumn` stands the right column 186 px off it
          * for a GM at 2000x1072), the voice tile is settled 6 px from that pin (`voiceWall`), and the column turns 8
@@ -38650,6 +38650,11 @@ const INVARIANTS = [
          * `drpgVoiceParts` read them there: 32 px from the tile's right side to 2 px in, 42 to 12 and 8 to 22 px down
          * from its top (they stand over its top, on the seam's lift, E78 fix r2-H3). The control: the same reader
          * on the tray's pane finds the buttons off it.
+         * E96 C4 (09.11.2026; R3122) brought the tile down to the middle of the side: here, with the pin and no band (the
+         * suite's host has no tab rail), it stands at the pin as before, 101 / 103 px lower at 2000x1072 / 1920x1080 and
+         * 15 / 16 px further right in the column's frame (the turn), with a pane between the tray's and its own; at
+         * 1366x768 the tray's rows keep it where it stood. The boxes below are that cut's, read through this road at
+         * the commit (41f18290 read [1656, 260, ...] and [1572, 260, ...] at the two larger sizes).
          */
         const G = await import("./glass.mjs");
         ok(typeof G.cutBoxes === "function", "glass.mjs gives a test no road into the cut");
@@ -38664,25 +38669,89 @@ const INVARIANTS = [
         const shared = (A, B) => Math.round(Math.max(0, ...A.map((a, i) => { const b = A[(i + 1) % A.length];
             return offEdge(B, a[0], a[1]) <= 1 && offEdge(B, b[0], b[1]) <= 1 ? Math.hypot(b[0] - a[0], b[1] - a[1]) : 0; })));
         const sizes = [
-            [2000, 1072, 186, [["hud", 16, 22, 265, 214], ["rail", 809, 44, 382, 91], ["three", 1468, 0, 340, 63], ["tray", 1468, 67, 340, 95], ["note-block", 16, 732, 318, 266], ["room-block", 417, 859, 318, 181], ["voice-block", 1617, 260, 191, 277], ["launch", 1884, 910, 94, 140]], [1656, 260, 191, 277]],
-            [1920, 1080, 187, [["hud", 16, 22, 265, 214], ["rail", 769, 44, 382, 91], ["three", 1387, 0, 340, 63], ["tray", 1387, 67, 340, 95], ["note-block", 16, 735, 323, 270], ["room-block", 422, 865, 323, 182], ["voice-block", 1533, 260, 194, 281], ["launch", 1804, 918, 94, 140]], [1572, 260, 194, 281]],
+            [2000, 1072, 186, [["hud", 16, 22, 265, 214], ["rail", 809, 44, 382, 91], ["three", 1468, 0, 340, 63], ["tray", 1468, 67, 340, 95], ["note-block", 16, 732, 318, 266], ["room-block", 417, 859, 318, 181], ["voice-block", 1617, 260, 191, 277], ["launch", 1884, 910, 94, 140]], [1671, 361, 191, 277]],
+            [1920, 1080, 187, [["hud", 16, 22, 265, 214], ["rail", 769, 44, 382, 91], ["three", 1387, 0, 340, 63], ["tray", 1387, 67, 340, 95], ["note-block", 16, 735, 323, 270], ["room-block", 422, 865, 323, 182], ["voice-block", 1533, 260, 194, 281], ["launch", 1804, 918, 94, 140]], [1587, 363, 194, 281]],
             [1366, 768, 155, [["hud", 16, 22, 265, 214], ["rail", 492, 44, 382, 91], ["three", 899, 0, 306, 63], ["tray", 899, 67, 306, 95], ["note-block", 16, 544, 301, 154], ["room-block", 385, 608, 301, 129], ["voice-block", 1024, 260, 181, 262], ["launch", 1250, 606, 94, 140]], [1024, 260, 181, 262]]];
         const read = [], control = [];
         for (const [W, H, rail, list, live] of sizes) {
             const cut = G.cutBoxes(W, H, list.map(([cls, x, y, w, h]) => ({ cls, x, y, w, h })), 1, { rail });
-            const mine = cut.panes.find(p => p.tone === "voice-block"), tray = cut.panes.find(p => p.tone === "tray"), v = cut.voice;
+            const mine = cut.panes.find(p => p.tone === "voice-block"), tray = cut.panes.find(p => p.tone === "tray"), v = cut.voice, over = cut.panes.find(p => p.voiceGap) ?? tray;
             const turn = cut.rotations.find(r => r.sel === "#drpg-voice-tile");
             if (!mine || !tray || !v || !turn) { read.push([`${W}x${H}`, "no voice pane, tray pane, voice box or turn"]); continue; }
             const phi = parseFloat(/rotate\(([-\d.e]+)rad\)/.exec(turn.transform)?.[1] ?? "0"), [ox, oy] = turn.origin.split(" ").map(parseFloat);
             const P = [v.x + ox, v.y + oy], cs = Math.cos(phi), sn = Math.sin(phi);
             const corners = [[v.w - 32, -42, v.w - 2, -12], [v.w - 32, -8, v.w - 2, 22]].flatMap(([x0, y0, x1, y1]) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]])
                 .map(([x, y]) => [v.x + x, v.y + y]).map(([x, y]) => [P[0] + (x - P[0]) * cs - (y - P[1]) * sn, P[1] + (x - P[0]) * sn + (y - P[1]) * cs]);
-            read.push([`${W}x${H}`, corners.filter(([x, y]) => !inside(mine.poly, x, y)).length, shared(mine.poly, tray.poly) >= v.w, [v.x, v.y, v.w, v.h].join(",") === live.join(",")]);
+            read.push([`${W}x${H}`, corners.filter(([x, y]) => !inside(mine.poly, x, y)).length, shared(mine.poly, over.poly) >= v.w, [v.x, v.y, v.w, v.h].join(",") === live.join(",")]);
             control.push(corners.filter(([x, y]) => !inside(tray.poly, x, y)).length);
         }
         equal(JSON.stringify(control.map(n => n > 0)), "[true,true,true]", "the reader finds the buttons off the tray's pane at each size - a reader that says yes to anything");
         equal(JSON.stringify(read), JSON.stringify([["2000x1072", 0, true, true], ["1920x1080", 0, true, true], ["1366x768", 0, true, true]]),
-            "per size [the buttons' corners off the voice pane, the voice pane meets the tray's along a seam at least the tile's width, the tile settled at the box 1.2.100 and f9eee981 settled in Chromium]");
+            "per size [the buttons' corners off the voice pane, the voice pane meets the pane over it along a seam at least the tile's width, the tile settled at the box E96 C4 settles]");
+    }],
+    ["R3122 - the voice tile as before 1.2.100, lower (glass.mjs `settleVoice`, `buildColumn`, `cutStrips`, E96 C4; the owner on C3's picture, H102): for a GM at 2000x1072, 1920x1080 and 1366x768, without Foundry's tab rail at the wall and with it, the tile's turned box is centred on the screen's height (or stands as high as the tray's five rows let it, where the centre is higher than that), its size as before, its top right corner at the wall or at the rail's band, both buttons' corners on its pane with the microphone in the pane's top right corner, no point of the screen bare from the tile's middle to the wall between the tray's pane and the tile's pane's foot, and the cut's self-check clean", async () => {
+        /*
+         * E96 C4, 09.11.2026. The owner on C3's picture (the glass harness, `?windows=off`): "Sam panel jest lepszy, ale
+         * jest za wysoko. Dodatkowo, miedzy nim a po prawej jest dziura w kurtynie, ktorej nie powinno byc. Raz jeszcze
+         * powtarzam: ma byc jak przed 1.2.100 ... Ma byc jak na screenie, tylko nizej", and asked how much lower, "Srodek
+         * prawej strony". The screenshot (a table before 1.2.100, 2000x1072 in CSS px): the tile's pane flush with the
+         * right wall, both buttons inside its top right corner, glass all the way to the wall. Read at 41f18290 in
+         * Chromium on the glass harness: the tile's turned box centred at 434 / 436 / 406 px on screens 1072 / 1080 / 768
+         * tall (default page) and 434 / 436 / 391 with the rail; with the rail, bare map from the tile's pane to the
+         * rail's strip at every size (3164 / 3233 / 1770 points of a 4 px grid right of the pane's left edge, rows 66 to
+         * 598). The blocks are the ones each page measured (`LAST.blocks`, the voice block before it is settled), the
+         * pins `#ui-right-column-1`'s `right`, the bands what `railBox` measured on the rail's page. The buttons' boxes
+         * in the tile's frame are the stylesheet's (`top: calc(7px - lift)`, `right: 2px`, a 4 px gap) at the 34 px
+         * Chromium drew them at 2000x1072. Only the cut is read: the name tag's place is a layout this suite cannot
+         * draw (read in Chromium for the commit: on the tile at all six).
+         */
+        const G = await import("./glass.mjs");
+        ok(typeof G.cutBoxes === "function", "glass.mjs gives a test no road into the cut");
+        if (typeof G.cutBoxes !== "function") return;
+        const inside = (P, x, y) => { let s = 0; for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length];
+            const cr = (b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0]); if (Math.abs(cr) < 0.5) continue;
+            if (s && Math.sign(cr) !== s) return false; s = Math.sign(cr); } return true; };
+        const blocks = {
+            "2000x1072": [["hud", 16, 22, 265, 214], ["rail", 809, 44, 382, 91], ["three", 1654, 0, 340, 63], ["tray", 1654, 67, 340, 95], ["note-block", 16, 772, 318, 226], ["room-block", 16, 256, 265, 364], ["voice-block", 1803, 260, 191, 277], ["launch", 1884, 910, 94, 140]],
+            "1920x1080": [["hud", 16, 22, 265, 214], ["rail", 769, 44, 382, 91], ["three", 1574, 0, 340, 63], ["tray", 1574, 67, 340, 95], ["note-block", 16, 773, 323, 232], ["room-block", 16, 256, 265, 364], ["voice-block", 1720, 260, 194, 281], ["launch", 1804, 918, 94, 140]],
+            "1366x768": [["hud", 16, 22, 265, 214], ["rail", 492, 44, 382, 91], ["three", 1020, 0, 340, 63], ["tray", 1020, 67, 340, 95], ["note-block", 16, 446, 301, 252], ["room-block", 385, 608, 301, 129], ["voice-block", 1179, 260, 181, 262], ["launch", 1250, 606, 94, 140]],
+            "2000x1072 rail": [["hud", 16, 22, 265, 214], ["rail", 809, 44, 382, 91], ["three", 1468, 0, 340, 63], ["tray", 1468, 67, 340, 95], ["note-block", 16, 732, 318, 266], ["room-block", 417, 859, 318, 181], ["voice-block", 1617, 260, 191, 277], ["launch", 1884, 910, 94, 140]],
+            "1920x1080 rail": [["hud", 16, 22, 265, 214], ["rail", 769, 44, 382, 91], ["three", 1387, 0, 340, 63], ["tray", 1387, 67, 340, 95], ["note-block", 16, 735, 323, 270], ["room-block", 422, 865, 323, 182], ["voice-block", 1533, 260, 194, 281], ["launch", 1804, 918, 94, 140]],
+            "1366x768 rail": [["hud", 16, 22, 265, 214], ["rail", 492, 44, 382, 91], ["three", 899, 0, 306, 63], ["tray", 899, 67, 306, 95], ["note-block", 16, 544, 301, 154], ["room-block", 385, 608, 301, 129], ["voice-block", 1024, 260, 181, 262], ["launch", 1250, 606, 94, 140]]
+        };
+        const band = (x0, x1, c0, c1, b) => ({ x0, y0: 41, x1, y1: 293, real: true, core: [c0, c1], centre: [(c0 + c1) / 2, 167], band: b, coreY: [30, 324], origin: [30, 145] });
+        const rails = { "2000x1072 rail": [186, band(1945, 2003, 1956, 1992, 1916)], "1920x1080 rail": [187, band(1865, 1923, 1876, 1912, 1836)], "1366x768 rail": [155, band(1311, 1369, 1322, 1358, 1282)] };
+        // the tile's height at 41f18290, read the same way: full at every size but the default page's 1366x768, cut by the corner's pane under it
+        const tall = { "2000x1072": 277, "1920x1080": 281, "1366x768": 218, "2000x1072 rail": 277, "1920x1080 rail": 281, "1366x768 rail": 262 };
+        const read = [];
+        for (const key of Object.keys(blocks)) {
+            const [W, H] = key.split(" ")[0].split("x").map(Number), [pin, rb] = rails[key] ?? [null, null];
+            const list = blocks[key], vb = list.find(b => b[0] === "voice-block");
+            const cut = G.cutBoxes(W, H, list.map(([cls, x, y, w, h]) => ({ cls, x, y, w, h })), 1, { rail: pin, band: rb });
+            const mine = cut.panes.find(p => p.tone === "voice-block"), tray = cut.panes.find(p => p.tone === "tray"), v = cut.voice;
+            const turn = cut.rotations.find(r => r.sel === "#drpg-voice-tile");
+            if (!mine || !tray || !v || !turn) { read.push([key, "no voice pane, tray pane, voice box or turn"]); continue; }
+            const phi = parseFloat(/rotate\(([-\d.e]+)rad\)/.exec(turn.transform)?.[1] ?? "0"), [ox, oy] = turn.origin.split(" ").map(parseFloat);
+            const P = [v.x + ox, v.y + oy], cs = Math.cos(phi), sn = Math.sin(phi);
+            const R = (x, y) => [P[0] + (x - P[0]) * cs - (y - P[1]) * sn, P[1] + (x - P[0]) * sn + (y - P[1]) * cs];
+            const cy = R(v.x + v.w / 2, v.y + v.h / 2)[1], off = Math.round(cy - H / 2);
+            const placed = Math.abs(cy - H / 2) <= 4 ? "centred" : v.y === vb[2] ? "as high as the tray lets it" : `off the middle by ${off}`;
+            const lift = v.lift ?? 0, btn = [[v.w - 36, 7 - lift, v.w - 2, 41 - lift], [v.w - 36, 45 - lift, v.w - 2, 79 - lift]];
+            const offPane = btn.flatMap(([x0, y0, x1, y1]) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]).map(([x, y]) => R(v.x + x, v.y + y)).filter(([x, y]) => !inside(mine.poly, x, y)).length;
+            const my = mine.poly.reduce((t, q) => t + q[1], 0) / mine.poly.length;
+            const tr = mine.poly.filter(q => q[1] < my).reduce((a, q) => (q[0] > a[0] ? q : a), [-Infinity, 0]), mic = R(v.x + v.w - 2, v.y + 7 - lift);
+            const corner = Math.hypot(tr[0] - mic[0], tr[1] - mic[1]) <= 24;
+            const wall = rb && R(v.x + v.w, v.y)[0] < W - 12 ? rb.band : W, atWall = R(v.x + v.w, v.y)[0] >= wall - 8;
+            const yA = Math.max(...tray.poly.map(q => q[1])), yB = mine.poly.map(q => q[1]).sort((a, b) => b - a)[1], xA = R(v.x + v.w / 2, v.y + v.h / 2)[0];
+            // to the higher of the foot's two corners: under a turned foot the open map begins, as it does under every column's
+            let bare = 0;
+            for (let y = Math.ceil(yA); y < yB; y += 4) for (let x = Math.ceil(xA); x < W - 1; x += 4) if (!cut.panes.some(p => inside(p.poly, x, y))) bare++;
+            const c = cut.check, faults = ["overlaps", "nonconvex", "blockFails", "edgeGaps", "openFails"].map(k => Array.isArray(c[k]) ? c[k].length : (c[k] ?? 0)).reduce((s, n) => s + n, 0);
+            read.push([key, placed, v.w === vb[3] && v.h === tall[key], atWall, offPane, corner, bare, faults]);
+        }
+        const want = Object.keys(blocks).map(k => [k, k.startsWith("1366") ? "as high as the tray lets it" : "centred", true, true, 0, true, 0, 0]);
+        equal(JSON.stringify(read), JSON.stringify(want),
+            "per page [centred on the screen's height or as high as the tray's rows let it, its size as before, its top right corner at the wall or the rail's band, the buttons' corners off its pane, the microphone in the pane's top right corner, bare points from the tile's middle to the wall between the tray's pane and the tile's pane's foot, the self-check's faults]");
     }],
     ["R1441 - the reserve census (E24 C0, E24-01; D5 option 1, \"everywhere the reserve\"): in scripts/ (the suite aside), every top-level function or table that reads Health or Sanity - `system.resources.hitPoints` or `.stress`, `resourceValue(_, \"hitPoints\"|\"stress\")`, a call of `marksOf(`, or the sheet's own bars (`.resources-section`) - either reads character.mjs `reserveView` or stands in the census's list of reads for rules, with its reason; every name on the list still reads; no file calls `marksOf` and character.mjs declares none; the curtain's files (glass.mjs, player-status.mjs, hud.mjs, room-tile.mjs) read none", async () => {
         /*
