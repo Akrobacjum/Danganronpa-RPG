@@ -21291,6 +21291,76 @@ const REGRESSIONS = [
             widths: [{ cls: "drpg-kit-width-tracker", rem: 32.5, legacy: true }, { cls: "drpg-kit-width-console", rem: 44, legacy: true }]
         }), "{the gallery's kit branch draws: a group row, a head of two lines, a cls column, two compact steppers, a checkList of the five states with an action, a liveFooter swap; widths: [tracker, console]}");
     }],
+
+    ["R2007 - dataTable's body cell on two lines (scripts/ui-kit.mjs; E46-C1f): a column's `cellLines: 2` puts every body cell of it in `td.drpg-data-cell-lines-2[title] > span.drpg-data-clamp`, the whole text in `title` (a `{ html, title }` cell's own title, else the cell's text, its markup read as text, a line break a space); an empty cell no title; the head and the other columns as before, and a table with no `cellLines` 4954917b's markup (R2002 holds it byte for byte)", async () => {
+        /*
+         * E46-C1f, 09.11.2026 (E46-C1's Open 3a). Sound's Effects (E46-C4: "clamped to two lines with the whole in the
+         * title") and WHO HAS WHAT's long cells (E47-C4) cut a body cell after two lines; the head's `lines: 2` (R2002)
+         * clamps only the head. The cut is CSS (components.css, `-webkit-line-clamp` on the span, as the head's); its
+         * tooltip is drawn whether the cell is cut or not, since jsdom cannot tell. Red first on 4954917b: no class, no
+         * span, no title (the cell as written).
+         */
+        const K = await import("./ui-kit.mjs");
+        const d = document.createElement("div");
+        d.innerHTML = K.dataTable({
+            columns: [{ key: "event", label: "Event", cellLines: 2, cls: "event" }, { key: "file", label: "File" }],
+            rows: [{ group: "Trial", count: "1 of 2" },
+                { event: "<b>Objection</b><br><span class=\"drpg-help\">Played when a student &amp; a \"Truth Bullet\" meet</span>", file: "a.ogg" },
+                { event: { html: "<b>Hangman</b>", title: "Hangman's Gambit <starts>" }, file: "b.ogg" },
+                { event: "", file: "c.ogg" }]
+        });
+        const cells = [...d.querySelectorAll("tbody > tr:not(.drpg-data-group) > td:first-child")];
+        const others = [...d.querySelectorAll("tbody > tr:not(.drpg-data-group) > td:last-child")];
+        equal(JSON.stringify({
+            cells: cells.map(td => [td.className, td.getAttribute("title"), td.children.length, td.firstElementChild?.localName ?? null, td.firstElementChild?.className ?? null,
+                td.querySelector(":scope > span.drpg-data-clamp")?.innerHTML ?? null]),
+            others: others.map(td => [td.className, td.hasAttribute("title"), td.innerHTML]),
+            head: [d.querySelector("thead th")?.className, d.querySelector("thead th")?.hasAttribute("title"), d.querySelector("thead th")?.innerHTML],
+            group: d.querySelector("tbody > tr.drpg-data-group > th")?.getAttribute("colspan") ?? null
+        }), JSON.stringify({
+            cells: [["drpg-data-col-event drpg-data-cell-lines-2", "Objection Played when a student & a \"Truth Bullet\" meet", 1, "span", "drpg-data-clamp",
+                "<b>Objection</b><br><span class=\"drpg-help\">Played when a student &amp; a \"Truth Bullet\" meet</span>"],
+                ["drpg-data-col-event drpg-data-cell-lines-2", "Hangman's Gambit <starts>", 1, "span", "drpg-data-clamp", "<b>Hangman</b>"],
+                ["drpg-data-col-event drpg-data-cell-lines-2", null, 1, "span", "drpg-data-clamp", ""]],
+            others: [["", false, "a.ogg"], ["", false, "b.ogg"], ["", false, "c.ogg"]],
+            head: ["drpg-data-col-event", false, "Event"],
+            group: "2"
+        }), "{cells: the cellLines column's cells [class, title, children, the child's tag and class, the clamped markup]; others: [class, has a title, markup]; head: the column's head [class, has a title, markup]; group: the group row's colspan}");
+    }],
+
+    ["R2009 - iconButton (scripts/ui-kit.mjs; E46-C1f): `button.drpg-kit-icon-button[type=button]` with its label in `aria-label` and the same words in `data-tooltip` (the module's icon buttons, the character sheet's controls), the icon `<i inert>`, the caller's classes and attributes (each name checked, none of the builder's own), `disabled`; no label throws; and the kit gallery (audit/style-harness.html `?kit=1`) draws E46-C1f's three: a `cellLines: 2` column, a footer button with its `tooltip`, icon buttons", async () => {
+        /*
+         * E46-C1f, 09.11.2026 (E46-C1's Open 3c). Sound's Test and Clear (E46-C4: "icon buttons with their labels in
+         * `aria-label` and the tooltip"): an icon is no name, so the label is required, and the tooltip says the same
+         * words a screen reader reads. `data-tooltip` is Foundry's tooltip, as the stepper's - and + carry it (R2003)
+         * and the character sheet's controls; the gallery draws no Foundry, so its tooltip there is the attribute alone.
+         * Red first on 4954917b: no iconButton; the gallery none of the three.
+         */
+        needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        const K = await import("./ui-kit.mjs");
+        equal(typeof K.iconButton, "function", "[ui-kit.mjs exports iconButton]");
+        const d = document.createElement("div");
+        d.innerHTML = K.iconButton({ icon: "fa-solid fa-play", label: "Test \"Objection\" <now>", cls: "drpg-sfx-test", attrs: { "data-drpg-sfx": "objection", onclick: "alert(1)" } })
+            + K.iconButton({ icon: "fa-solid fa-xmark", label: "Clear", disabled: true });
+        const throws = options => { try { K.iconButton(options); return false; } catch { return true; } };
+        const page = await fetch(`/modules/${MODULE_ID}/audit/style-harness.html`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
+        must(page.length > 10000, "audit/style-harness.html read nothing - this test would read nothing");
+        const kit = /\} else if \(q\.get\("kit"\)\) \{([\s\S]*?)\n {2}\} else \{/.exec(page)?.[1] ?? "";
+        must(kit.length > 2000, "the gallery's branch was not found in audit/style-harness.html");
+        equal(JSON.stringify({
+            buttons: [...d.children].map(b => [b.localName, b.getAttribute("type"), b.className, b.getAttribute("aria-label"), b.getAttribute("data-tooltip"), b.hasAttribute("title"),
+                b.disabled, [...b.attributes].map(a => a.name), b.children.length, b.firstElementChild?.className ?? null, b.firstElementChild?.hasAttribute("inert") ?? null, b.textContent]),
+            throws: [throws({ icon: "fa-solid fa-play" }), throws({ icon: "fa-solid fa-play", label: "" }), throws({ icon: "fa-solid fa-play", label: "A", attrs: { "aria-label": "B" } }),
+                throws({ icon: "fa-solid fa-play", label: "A", attrs: { class: "x" } })],
+            gallery: { cellLines: /cellLines: 2/.test(kit), tooltip: /disabled: true, tooltip: "[^"]+"/.test(kit), iconButton: (kit.match(/K\.iconButton\(/g) ?? []).length >= 2 }
+        }), JSON.stringify({
+            buttons: [["button", "button", "drpg-kit-icon-button drpg-sfx-test", "Test \"Objection\" <now>", "Test \"Objection\" <now>", false, false,
+                ["type", "class", "aria-label", "data-tooltip", "data-drpg-sfx"], 1, "fa-solid fa-play", true, ""],
+                ["button", "button", "drpg-kit-icon-button", "Clear", "Clear", false, true, ["type", "class", "aria-label", "data-tooltip", "disabled"], 1, "fa-solid fa-xmark", true, ""]],
+            throws: [true, true, true, true],
+            gallery: { cellLines: true, tooltip: true, iconButton: true }
+        }), "{buttons: [tag, type, class, aria-label, data-tooltip, has a title, disabled, the attributes in order, children, the icon's class, the icon inert, text]; throws: [no label, an empty label, attrs naming aria-label, attrs naming class]; gallery: the kit branch draws a cellLines column, a disabled footer button with its tooltip, two icon buttons}");
+    }],
 ];
 
 

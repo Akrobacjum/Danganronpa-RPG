@@ -432,7 +432,9 @@ body .drpg-data-table-box > table.drpg-data-table > tbody > tr.drpg-data-group >
 .drpg-data-table-box > table.drpg-data-table.drpg-data-heads-2 > thead { position: sticky; top: 0; z-index: 1; }
 .drpg-data-table-box > table.drpg-data-table.drpg-data-heads-2 > thead th { position: static; }
 body .drpg-data-table-box > table.drpg-data-table > thead > tr.drpg-data-head-group > th { text-align: center; }
-body .drpg-data-table-box > table.drpg-data-table > thead th > span.drpg-data-clamp {
+/* E46-C1f: a body cell of a `cellLines: 2` column is cut the same way, its whole text in the cell's `title` */
+body .drpg-data-table-box > table.drpg-data-table > thead th > span.drpg-data-clamp,
+body .drpg-data-table-box > table.drpg-data-table > tbody td.drpg-data-cell-lines-2 > span.drpg-data-clamp {
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -440,6 +442,12 @@ body .drpg-data-table-box > table.drpg-data-table > thead th > span.drpg-data-cl
     overflow: hidden;
     white-space: normal;
 }
+
+/* ---- iconButton (E46-C1f, 09.11.2026): an icon alone, its name in `aria-label` and its tooltip (ui-kit.mjs); as wide
+   as the stepper's - and +, and its icon with no gap beside a word it does not have. ---- */
+body .application .drpg-kit-icon-button { flex: 0 0 auto; min-width: 2em; }
+body:not(.drpg-theme-stained-glass) .application .drpg-kit-icon-button { padding: 0 6px; }
+body .application .drpg-kit-icon-button > i { margin: 0; }
 
 /* ---- helpText and the three boxes (info, warning, secret). ---- */
 /* 0,6,1: one place above the table windows' paragraph rule (danganronpa.css, `:has(.dialog-content table) :is(p, ...)`) */

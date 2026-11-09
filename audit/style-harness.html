@@ -445,7 +445,7 @@
       root.querySelector(".dialog-content").append(...config.content.childNodes);
       const foot = root.querySelector("footer");
       for (const b of config.buttons ?? []) {
-        foot.insertAdjacentHTML("beforeend", `<button type="submit" data-action="${escapeHTML(b.action)}" class="${b.default ? "default " : ""}${escapeHTML(b.class ?? "")}"${b.default ? " autofocus" : ""}><span>${escapeHTML(b.label)}</span></button>`);
+        foot.insertAdjacentHTML("beforeend", `<button type="submit" data-action="${escapeHTML(b.action)}" class="${b.default ? "default " : ""}${escapeHTML(b.class ?? "")}"${b.default ? " autofocus" : ""}${b.disabled ? " disabled" : ""}><span>${escapeHTML(b.label)}</span></button>`);
       }
       shot.append(root);
       config.render?.(new Event("render"), { element: root, addEventListener() {} });
@@ -549,6 +549,33 @@
         { key: "split", state: "warning", title: "Despair split", detail: "Uneven: 2 / 1 / 0" },
         { key: "monokuma", state: "waiting", title: "The Monokuma", detail: "Create the students first." }
       ], { label: "Pre-season checks" })
+    });
+    /* E46-C1f (09.11.2026): the three builders wave 1 asks of the kit - a column whose body cells are cut after two
+       lines (`cellLines: 2`, the whole text in the cell's tooltip; Sound's Effects, E46-C4), icon buttons named by
+       `aria-label` with the same words in their tooltip (Sound's Test and Clear), and a footer button's `tooltip` on a
+       disabled button (E47-C1's "Start the Final Trial" with its reason). This page loads no Font Awesome: the two icons
+       are drawn by the stand-in below, the gallery's alone. */
+    const icons = document.createElement("style");
+    icons.textContent = ".drpg-style-kit .drpg-kit-icon-button > i.fa-play::before { content: \"\\25B6\"; }"
+      + " .drpg-style-kit .drpg-kit-icon-button > i.fa-xmark::before { content: \"\\2715\"; }"
+      + " .drpg-style-kit .drpg-kit-icon-button > i { font-style: normal; }";
+    document.head.append(icons);
+    const sfx = (name, text, file) => ({ event: `<b>${escapeHTML(name)}</b><br><span class="drpg-help">${escapeHTML(text)}</span>`, file: escapeHTML(file),
+      act: K.iconButton({ icon: "fa-solid fa-play", label: `Test ${name}`, attrs: { "data-drpg-sfx-test": name } })
+        + K.iconButton({ icon: "fa-solid fa-xmark", label: `Clear ${name}`, attrs: { "data-drpg-sfx-clear": name }, disabled: !file }) });
+    frame("table-cells", "dataTable: a column whose cells are cut after two lines, the whole text in the tooltip; Test and Clear as icon buttons", {
+      title: "dataTable", width: 520, footer: { close: "close" },
+      body: K.dataTable({
+        columns: [{ key: "event", label: "Event", cellLines: 2 }, { key: "file", label: "File", width: "9rem" }, { key: "act", label: "", act: true, width: "5.5rem" }],
+        rows: [{ group: "Class Trial", count: "1 of 2" },
+          sfx("Objection", "Played when a student counters a statement with a Truth Bullet during the Nonstop Debate, and again when the counter lands", "objection.ogg"),
+          sfx("Hangman's Gambit", "The letters fall", "")]
+      })
+    });
+    frame("footer-tooltip", "footerButtons: a disabled button with its reason in the tooltip (title)", {
+      title: "footer tooltip", width: 560,
+      body: `<p>${escapeHTML("Start the Final Trial is disabled while no Mastermind is set; its reason is the button's tooltip.")}</p>`,
+      footer: { primary: { action: "vote", label: "Start the vote" }, destructive: [{ action: "final", label: "Start the Final Trial", disabled: true, tooltip: "No Mastermind is set. Choose one in the Mastermind window first." }], close: "close" }
     });
     let demo = null;
     const footers = [

@@ -41131,6 +41131,54 @@ const INVARIANTS = [
         }), "{first: [drpgActions' keys, the groups (action, role, autofocus)]; changed: liveFooter's answer; same: the footer element kept; later: the groups, the first button in the tree, drpgActions' keys; "
             + "again: the same spec once more; destructiveDefault: [it threw, the footer's actions after]; answer: what the window answered when the later button was pressed}");
     }],
+
+    ["R2008 - a footer button's tooltip (scripts/ui-kit.mjs; E46-C1f): a button spec's `tooltip` is the button's `title` - in `footerMarkup` (DrpgApp), on a drawn DialogV2 window's footer (`dressFooter`) and in a footer `liveFooter` redraws, a disabled button's included; the words escaped, a button with none no title, the closing word none; a footer with no tooltip 4954917b's markup byte for byte", async () => {
+        /*
+         * E46-C1f, 09.11.2026 (E46-C1's Open 3b). E47-C1's console stands "Start the Final Trial" disabled with its reason
+         * while no Mastermind is set (S13-36 (1): "the kit's disabled button and its tooltip"); footerButtons and DialogV2
+         * carried no title. A title, not Foundry's `data-tooltip`: the browser's own tooltip reads a disabled button, and
+         * on a button named by its text the title is its accessible description (HTML-AAM), so no `aria-describedby`.
+         * Foundry v14's tooltip over a disabled button was not tried. Red first on 4954917b: no title anywhere.
+         */
+        needs(env.dialogs(), "the footer is read on a drawn window");
+        const K = await import("./ui-kit.mjs");
+        const E = v => foundry.utils.escapeHTML(String(v));
+        const word = E(game.i18n.localize("DRPG.Kit.close"));
+        const plain = { primary: { action: "go", label: "Go <1>" }, secondary: [{ action: "more", label: "More", disabled: true }], destructive: [{ action: "wipe", label: "Wipe", icon: "fa-solid fa-trash" }], close: "close" };
+        const OLD = "<footer class=\"form-footer drpg-kit-footer\"><div class=\"drpg-kit-right\"><button type=\"button\" data-action=\"go\" data-drpg-role=\"primary\" class=\"drpg-role-primary default\" autofocus><span>Go &lt;1&gt;</span></button></div>"
+            + `<div class="drpg-kit-left"><button type="button" data-action="close" data-drpg-role="close" class="drpg-role-close"><span>${word}</span></button>`
+            + "<button type=\"button\" data-action=\"more\" data-drpg-role=\"secondary\" class=\"drpg-role-secondary\" disabled><span>More</span></button>"
+            + "<button type=\"button\" data-action=\"wipe\" data-drpg-role=\"destructive\" class=\"drpg-role-destructive drpg-destructive\"><i class=\"fa-solid fa-trash\" inert></i><span>Wipe</span></button></div></footer>";
+        const reason = "No Mastermind is set <yet> & \"none\"";
+        const titles = root => [...(root?.querySelectorAll("footer button[data-action]") ?? [])].map(b => [b.dataset.action, b.getAttribute("title"), b.disabled]);
+        const app = document.createElement("div");
+        app.innerHTML = K.footerMarkup({ ...plain, destructive: [{ action: "final", label: "Start the Final Trial", disabled: true, tooltip: reason }] });
+        const got = { old: K.footerMarkup(plain) === OLD, markup: titles(app) };
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-r2008"));
+        must(of().length === 0, "an R2008 window stands open already");
+        const answer = K.drpgWindow({ classes: ["drpg-window-r2008"], title: "R2008", body: "<p>R2008</p>",
+            footer: { primary: { action: "next", label: "Next", tooltip: "Open the vote" }, destructive: [{ action: "final", label: "Start the Final Trial", disabled: true, tooltip: reason }], close: "close" } });
+        try {
+            await until(() => of().some(a => a.element?.querySelector("footer.drpg-kit-footer")), 6000);
+            const win = of()[0];
+            got.drawn = titles(win.element).map(([a, t]) => [a, t]);
+            got.changed = K.liveFooter(win, { primary: { action: "reveal", label: "Reveal" }, secondary: [{ action: "debate", label: "Debate", tooltip: "Back to the debate" }], close: "close" });
+            got.live = titles(win.element).map(([a, t]) => [a, t]);
+            K.liveFooter(win, { primary: { action: "reveal", label: "Reveal" }, close: "close" });
+            got.none = titles(win.element).map(([a, t]) => [a, t]);
+        } finally {
+            for (const a of of()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(3000)]);
+        }
+        equal(stableJson(got), stableJson({
+            old: true,
+            markup: [["go", null, false], ["close", null, false], ["more", null, true], ["final", reason, true]],
+            drawn: [["next", "Open the vote"], ["close", null], ["final", reason]],
+            changed: true,
+            live: [["reveal", null], ["close", null], ["debate", "Back to the debate"]],
+            none: [["reveal", null], ["close", null]]
+        }), "{old: footerMarkup with no tooltip is 4954917b's markup; markup: footerMarkup's buttons [action, title, disabled]; drawn: a DialogV2 window's footer [action, title]; changed: liveFooter's answer; live: the redrawn footer; none: a footer with no tooltip redrawn}");
+    }],
 ];
 
 /**

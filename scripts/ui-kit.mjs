@@ -24,6 +24,8 @@
  *   readStepper, wireSteppers, toggle, chip, chips, box, emptyOption, emptyState, scrollNote, kitNode, modeBar
  *   checkList, CHECK_MARKS        one list of checks in five states (E46-C1: Season setup, Pre-season checks)
  *   liveFooter(app, footer)       a drawn window's footer redrawn in place (E46-C1: the trial console's slots, E47)
+ *   iconButton({ icon, label })   an icon button named by `aria-label`, the same words its tooltip (E46-C1f: Sound's Test
+ *                                 and Clear)
  *   tile, launcher, launcherState, LAUNCH_STATES, pixelGlyph, sliderList, slider, frame, builtBy
  *                                 the A8 surfaces' DOM builders (E44 C6: the tiles, the launchers, "Who you hear",
  *                                 the Foundry tools frames), below
@@ -79,7 +81,7 @@ export const BUTTON_ROLES = Object.freeze({
 const localize = key => game.i18n.localize(key);
 
 /**
- * A footer's buttons in the kit's order, each `{ role, side, action, label, callback, icon, disabled, default, class }`, from
+ * A footer's buttons in the kit's order, each `{ role, side, action, label, callback, icon, disabled, default, class, tooltip }`, from
  * `{ primary, secondary: [], destructive: [], gmRoute: [], close, default }`. `close` is "close", "cancel", or
  * `{ role: "close" | "cancel", action, callback, side }`; its label is the role's word whatever the caller wrote, and
  * `side: "right"` stands it on the right in a footer with no primary and no GM's road (the header). The tree
@@ -87,7 +89,13 @@ const localize = key => game.i18n.localize(key);
  * ones, the destructive ones) - see the header. `default` names the action that is the window's default; without one,
  * the primary, else the GM's road, else the closing word. Throws when the default is a role that may never be one. A
  * button's own `class` is written beside its role's (E21 C2a: the case dashboard's "A body is discovered" keeps
- * `drpg-state-change`, the face E09 C16 gave it); the role's classes are always there.
+ * `drpg-state-change`, the face E09 C16 gave it); the role's classes are always there. A button's own `tooltip` (text)
+ * is its `title` (E46-C1f, 09.11.2026; E47-C1's disabled "Start the Final Trial" with its reason): written by
+ * `footerButton` (DrpgApp's footer, `liveFooter`) and by `dressFooter` on a DialogV2's drawn button, since DialogV2 takes
+ * none. A title, not Foundry's `data-tooltip`: the browser's own tooltip reads a disabled button, and on a button named
+ * by its text the title is its accessible description (HTML-AAM), so no `aria-describedby` beside it. Foundry v14's
+ * tooltip over a disabled button was not tried. The closing word carries none. A footer that names no tooltip draws
+ * 4954917b's markup (R2008).
  * A CLOSING WORD WHOSE ACTION IS "close" CARRIES NO CALLBACK (E21 fix G2, 07.11.2026; the end review's correctness m2,
  * STATUS Open 41). The action defaults to the role ("close" for `close: "close"`), and ApplicationV2 dispatches
  * `data-action="close"` to its own close before DialogV2 sees the press (trial-floor-ui.mjs `openVoteDialog`'s note,
@@ -147,7 +155,7 @@ function footerButton(b, type = b.type ?? "button") {
     const role = BUTTON_ROLES[b.role];
     const classes = [role.cls, role.face, b.class, b.default ? "default" : null].filter(Boolean).join(" ");
     return `<button type="${type}" data-action="${esc(b.action)}" data-drpg-role="${b.role}" class="${classes}"`
-        + `${b.default ? " autofocus" : ""}${b.disabled ? " disabled" : ""}>${b.icon ? `<i class="${esc(b.icon)}" inert></i>` : ""}<span>${esc(b.label)}</span></button>`;
+        + `${b.default ? " autofocus" : ""}${b.disabled ? " disabled" : ""}${b.tooltip ? ` title="${esc(b.tooltip)}"` : ""}>${b.icon ? `<i class="${esc(b.icon)}" inert></i>` : ""}<span>${esc(b.label)}</span></button>`;
 }
 
 /**
@@ -251,6 +259,7 @@ function dressFooter(root, list) {
         for (const own of String(b.class ?? "").split(/\s+/).filter(Boolean)) el.classList.add(own);
         el.classList.toggle("default", b.default);
         if (b.default) el.setAttribute("autofocus", ""); else el.removeAttribute("autofocus");
+        if (b.tooltip) el.title = String(b.tooltip);
         (b.side === "right" ? right : left).append(el);
     }
     footer.prepend(right, left);
@@ -569,7 +578,7 @@ export function formGrid(rows) {
 }
 
 /**
- * A table on the kit: `columns` `[{ key, label, width, num, act, cls, lines }]`, `rows` `[{ key: cellMarkup }]` (cells
+ * A table on the kit: `columns` `[{ key, label, width, num, act, cls, lines, cellLines }]`, `rows` `[{ key: cellMarkup }]` (cells
  * are markup, as every builder in the module writes them: escape what a person typed), `empty` the key of the words for
  * no rows (the kit's own by default), `caption` text. A `<colgroup>` (a `width` per column, a CSS length), the head
  * sticky in the scroll box that holds the table, the empty state one row across every column, and the scroll signal
@@ -593,6 +602,12 @@ export function formGrid(rows) {
  *     th[scope="colgroup"][colspan]`, labels escaped, an empty label an empty cell): E47's project matrix, a group over
  *     its player columns (E47-M's mockup O1a). The spans add up to the columns or it throws; the table then carries
  *     `drpg-data-heads-2`, and its whole head sticks, not each cell (two rows of cells at `top: 0` would overlap).
+ * WHAT E46-C1f ADDED (09.11.2026; E46-C1's Open 3a), a call without it as before (R2002 holds the markup):
+ *   - a column's `cellLines: 2` clamps each of its body cells to two lines, as `lines: 2` its head:
+ *     `td.drpg-data-cell-lines-2[title] > span.drpg-data-clamp` (components.css), the whole text in the cell's `title` -
+ *     a `{ html, title }` cell's own title, else the cell's markup read as text (`textOf`); an empty cell no title.
+ *     Sound's Effects (E46-C4: the name and its description "clamped to two lines with the whole in the title"), WHO HAS
+ *     WHAT's long cells (E47-C4). The tooltip is drawn whether the cell is cut or not, since jsdom cannot tell (R2007).
  */
 export function dataTable({ columns, rows = [], empty = "DRPG.Kit.tableEmpty", caption = null, rowAttrs = null, headGroups = null } = {}) {
     for (const c of columns) if (c.cls !== undefined && c.cls !== null && !CLASS_TAIL.test(String(c.cls))) throw new Error(`ui-kit: a column's cls is a class name's tail, not "${c.cls}"`);
@@ -604,9 +619,16 @@ export function dataTable({ columns, rows = [], empty = "DRPG.Kit.tableEmpty", c
         ? `<th scope="col"${classAttr(c, "drpg-data-lines-2")} title="${esc(c.label)}" aria-label="${esc(c.label)}"><span class="drpg-data-clamp">${esc(c.label)}</span></th>`
         : `<th scope="col"${classAttr(c)}>${esc(c.label)}</th>`)).join("");
     const grouped = !columns.some(c => c.key === "group");
-    const cell = (c, v) => (v !== null && typeof v === "object"
-        ? `<td${classAttr(c)}${v.title ? ` title="${esc(v.title)}"` : ""}>${v.html ?? ""}</td>`
-        : `<td${classAttr(c)}>${v ?? ""}</td>`);
+    const cell = (c, v) => {
+        if (c.cellLines === 2) {
+            const html = v !== null && typeof v === "object" ? v.html ?? "" : v ?? "";
+            const title = v !== null && typeof v === "object" && v.title ? String(v.title) : textOf(html);
+            return `<td${classAttr(c, "drpg-data-cell-lines-2")}${title ? ` title="${esc(title)}"` : ""}><span class="drpg-data-clamp">${html}</span></td>`;
+        }
+        return v !== null && typeof v === "object"
+            ? `<td${classAttr(c)}${v.title ? ` title="${esc(v.title)}"` : ""}>${v.html ?? ""}</td>`
+            : `<td${classAttr(c)}>${v ?? ""}</td>`;
+    };
     const row = r => {
         if (grouped && r && Object.hasOwn(r, "group")) {
             const count = r.count === null || r.count === undefined ? "" : ` <span>${esc(r.count)}</span>`;
@@ -627,6 +649,18 @@ export function dataTable({ columns, rows = [], empty = "DRPG.Kit.tableEmpty", c
         : `<tr><td class="drpg-data-empty" colspan="${columns.length}">${esc(localize(empty))}</td></tr>`;
     return `<div class="drpg-data-table-box"><table class="drpg-data-table${headGroups ? " drpg-data-heads-2" : ""}">${caption ? `<caption>${esc(caption)}</caption>` : ""}`
         + `<colgroup>${cols}</colgroup><thead>${above}<tr>${head}</tr></thead><tbody>${body}</tbody></table>${scrollNote()}</div>`;
+}
+
+/* A cell's markup as the text a person reads (a clamped cell's `title`): through a template, a space after a line
+   break and a block (`<b>Objection</b><br><span>Played when...` reads "Objection Played when...", not "ObjectionPlayed"
+   - the kit gallery's Effects row, 09.11.2026), whitespace run together; with no document (node, nothing in the
+   module), the tags taken off. */
+function textOf(html) {
+    const t = globalThis.document?.createElement?.("template");
+    if (!t) return String(html).replace(/<br\s*\/?>|<\/(?:div|p|li)>/gi, " ").replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+    t.innerHTML = String(html);
+    for (const el of t.content.querySelectorAll("br, div, p, li")) el.after(" ");
+    return t.content.textContent.replace(/\s+/g, " ").trim();
 }
 
 /* A class name's tail (`drpg-data-col-<cls>`) and an attribute's name a builder takes from its caller (`rowAttrs`):
@@ -772,6 +806,23 @@ export function toggle({ name, checked = false, label, disabled = false } = {}) 
 export function chip({ label, pressed = false, count = null, disabled = false, value = null } = {}) {
     return `<button type="button" class="drpg-chip" aria-pressed="${Boolean(pressed)}"${value === null ? "" : ` data-drpg-chip="${esc(value)}"`}${disabled ? " disabled" : ""}>`
         + `${esc(label)}${count === null || count === undefined ? "" : `<b>${esc(count)}</b>`}</button>`;
+}
+
+/**
+ * An icon button (E46-C1f, 09.11.2026; E46-C1's Open 3c: Sound's Test and Clear, E46-C4): `button.drpg-kit-icon-button`,
+ * its `label` in `aria-label` and the same words in `data-tooltip` - Foundry's tooltip, as the stepper's - and + and the
+ * character sheet's controls carry it - so what a reader hears is what the tooltip shows. `icon` is the `<i>`'s classes
+ * (`inert`), `cls` the caller's classes beside the kit's, `attrs` its attributes by name (as `rowAttrs`: lower case, no
+ * `on...`; none of the builder's own - `type`, `class`, `aria-label`, `data-tooltip`, `title`, `disabled` - or it
+ * throws), `disabled`. An icon is no name: no label throws (R2009).
+ */
+export function iconButton({ icon, label, cls = null, attrs = {}, disabled = false } = {}) {
+    if (!label) throw new Error("ui-kit: an icon button with no label - its icon is no name");
+    const own = ["type", "class", "aria-label", "data-tooltip", "title", "disabled"].filter(k => Object.hasOwn(attrs ?? {}, k));
+    if (own.length) throw new Error(`ui-kit: an icon button's attrs name the builder's own ${own.join(", ")}`);
+    const classes = ["drpg-kit-icon-button", cls].filter(Boolean).join(" ");
+    return `<button type="button" class="${esc(classes)}" aria-label="${esc(label)}" data-tooltip="${esc(label)}"${attrsMarkup(attrs)}${disabled ? " disabled" : ""}>`
+        + `<i class="${esc(icon ?? "")}" inert></i></button>`;
 }
 
 /** A row of chips, a toolbar with its name for a screen reader. `list` is `chip`'s options, one each. */
