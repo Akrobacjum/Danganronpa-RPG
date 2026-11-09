@@ -6001,7 +6001,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    and New project and the player's proposal, the one label projects-ui.mjs `descriptionField` draws. As a row of
    `.drpg-panel label` the caption, the textarea and the note stood side by side: measured in Chromium at 52955be4 on a
    scratch page drawing both windows with the kit's `drpgWindow` under the module's sheets, the textarea 59 px of a 544 px
-   form under Stained Glass and 95 of 542 under Monokuma Legacy (R1492; at a table, Foundry's own sheet beside these). */
+   form under Stained Glass and 95 of 542 under Monokuma Legacy (R1492; at a table, Foundry's own sheet beside these: LIVE-E24-11). */
 .drpg-panel label.drpg-description-field {
     flex-direction: column;
     align-items: stretch;
@@ -14867,7 +14867,7 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
    the box keeps its padding and a 1 px clear edge, the size it had, because glass.mjs
    `gaugeFoot` stands the notice tile on its top. What Foundry's own sheet draws on
    `#players` itself is not read in this repository: the module's notes put core's frames
-   on `.players-list` and `#players-active`, both taken away here. R1466. */
+   on `.players-list` and `#players-active`, both taken away here. R1466; at a table, LIVE-E24-12. */
 #players .players-list,
 #players #players-inactive {
     display: none !important;

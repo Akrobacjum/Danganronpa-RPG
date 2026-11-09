@@ -108,7 +108,12 @@ export const UNCONFIRMED = [
     /* E45-C3b's (09.11.2026; AUDIT items 425-427): the wrapper's way out for a render signature it does not know (R1477 on
        stand-in arguments; 02), 71's parts A, B, F, H and I at a table (03) and a Monocub's Confusion tile after a Hope
        write (71 C; 04), each read headless on `renderApps` and the stand-in sheet, neither of them v14's. */
-    "LIVE-E45-02", "LIVE-E45-03", "LIVE-E45-04"
+    "LIVE-E45-02", "LIVE-E45-03", "LIVE-E45-04",
+    /* E24's, numbered after the fix groups (09.11.2026; AUDIT items 428-430): the project's description width read with
+       the module's sheets alone, no Foundry stylesheet (R1492; 11); Foundry's own `#players` under Monokuma Legacy read
+       on a planted list in the glass harness (R1466; 12); the `updateSetting` hook and `Setting#key` as v13 has them,
+       which states.mjs `automationChanged` reads (R1488 on a stand-in setting; 13). None is modelled from v14's source. */
+    "LIVE-E24-11", "LIVE-E24-12", "LIVE-E24-13"
 ];
 
 function readJson(file) {

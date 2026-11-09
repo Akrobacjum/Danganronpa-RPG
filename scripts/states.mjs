@@ -615,7 +615,7 @@ export function ownDeadIcon(effects, automation) {
  * `ownDeadIcon` at setup alone left a GM who set the icon back to its default during a session on the old icon until
  * a reload. Each client hears the setting's write (`updateSetting`) and puts the entry as the setting now says: ours
  * at the default, the GM's own in place of ours. Effects already made keep the image they were made with. The hook
- * and `Setting#key` as Foundry v13 has them, not read on v14's source. Exported, with `effects` and `automation`
+ * and `Setting#key` as Foundry v13 has them, not read on v14's source (LIVE-E24-13). Exported, with `effects` and `automation`
  * handed in, for R1488.
  */
 export function automationChanged(setting, effects = CONFIG.statusEffects, automation = automationSetting()) {

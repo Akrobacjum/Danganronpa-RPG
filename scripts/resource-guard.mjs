@@ -249,8 +249,8 @@ function prune(node) {
  * and to a player who owns the student only while "Lock player resources" is off. It is not in
  * `JUDGED`: a reason a player's write carried to the GMs would be read as evidence, and a typed number
  * is evidence of nothing - the GMs' audit treats the write exactly as it treated the system's field
- * (listed while the lock is off; flagged on a card with Undo and Keep should one reach it past the
- * lock). And
+ * (a gain listed, a fall standing unrecorded, while the lock is off - scenario 83 F1c; flagged on a card with Undo
+ * and Keep should one reach it past the lock). And
  * it is a HAND EDIT (`HAND_EDITS`): the road does not mark it as the module's, so this browser's own
  * guard above still cuts it from a player's write while the lock is on - a console that calls
  * `writeReserve` then writes nothing, as it wrote nothing through the system's field.
