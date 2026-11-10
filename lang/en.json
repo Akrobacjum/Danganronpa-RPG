@@ -2063,6 +2063,7 @@
       "cannotLeave": "You are in an incident. The only way out is a crisis action - Survive, Escape Together, a Finishing Blow, or, if you only walked in on it, Averted Eyes.",
       "oneAtATime": "There is already an incident running. It has to finish before another can start.",
       "crisisPrompt": "What are you doing about it?",
+      "crisisBrief": "One action a turn. A row that is shut says why.",
       "nothingToDo": "There is nothing left for you to do this round.",
       "actionsLocked": "You are in an incident. Everything you can do is behind {tile}; Hope Calls still work.",
       "thirdJoined": "{name} throws in with the killer and stays in the incident.",

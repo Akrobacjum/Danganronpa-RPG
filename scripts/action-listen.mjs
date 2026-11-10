@@ -20,7 +20,7 @@ import { resolveThreshold, whisperToOwner, plural } from "./utils.mjs";
 import { rollTrait, noteRollContext, abort, canAfford } from "./action-pipeline.mjs";
 import { rollCardFlags, rollHead } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { actionWindow } from "./action-menus.mjs";
 
 /**
  * THE DOORS, NOT THE ROOMS BEHIND THEM (22.09). The picker named every neighbouring room,
@@ -74,10 +74,12 @@ export async function performListen(actor, def, options) {
         .map((r, i) => `<option value="${i}">${foundry.utils.escapeHTML(labelOf.get(r))}</option>`)
         .join("");
 
-    const target = await drpgWindow({
+    // An action's window (E68 C12, action-menus.mjs `actionWindow`): the briefing on the left, the question on the right.
+    const target = await actionWindow({
         title: def.label,
         classes: ["drpg-panel"],
-        body: `${briefingBlock(actor, "listen", def)}<form>
+        brief: briefingBlock(actor, "listen", def),
+        ask: `<form>
             <p>${game.i18n.format("DRPG.Listen.prompt", { room: foundry.utils.escapeHTML(here ?? "-") })}</p>
             <label>${game.i18n.localize("DRPG.Listen.which")}
                 <select name="room">${options_}</select></label>

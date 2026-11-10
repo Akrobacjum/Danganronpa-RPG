@@ -95,6 +95,8 @@ export async function openCrisisMenu(actor) {
     const picked = await chooseVariant({
         actor,
         title: game.i18n.localize("DRPG.Murder.yourTurn"),
+        // The left column of every action's window (E68 C12, layout B): the menu had no briefing, so one sentence.
+        intro: `<div class="drpg-briefing-block"><p>${game.i18n.localize("DRPG.Murder.crisisBrief")}</p></div>`,
         prompt: game.i18n.localize("DRPG.Murder.crisisPrompt"),
         confirm: game.i18n.localize("DRPG.Murder.briefRoll"),
         options: options.map(({ key, def, threshold, free, hindered, blocked, locked, spent, lockedBy, denied, why }) => ({

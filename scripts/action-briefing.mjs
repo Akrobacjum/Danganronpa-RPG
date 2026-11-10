@@ -35,7 +35,7 @@ import { projectsAvailableIn, isIndirectMurder } from "./projects.mjs";
 import { error, plural, esc } from "./utils.mjs";
 import { equippedFor, tierOf } from "./use-items.mjs";
 import { toolRelief } from "./action-pipeline.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { actionWindow } from "./action-menus.mjs";
 
 /* ==========================================================================
  * BRIEFING
@@ -312,10 +312,11 @@ export async function briefing(actor, actionKey, def) {
         ? { primary: { action: "ok", label: game.i18n.localize("DRPG.Action.gotIt") } }
         : { primary: { action: "go", label: game.i18n.localize("DRPG.Action.proceed") }, close: "cancel" };
 
-    const result = await drpgWindow({
+    // An action's window (E68 C12, action-menus.mjs `actionWindow`): Move asks nothing, so it is the left column alone.
+    const result = await actionWindow({
         title: def.label,
         classes: ["drpg-panel", "drpg-briefing"],
-        body: briefingBlock(actor, actionKey, def),
+        brief: briefingBlock(actor, actionKey, def),
         footer,
         rejectClose: false
     });

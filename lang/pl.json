@@ -2214,6 +2214,7 @@
       "cannotLeave": "Jesteś w incydencie. Jedyne wyjście to akcja kryzysowa - Survive, Escape Together, Finishing Blow albo, jeśli to tylko przypadkowe wejście, Averted Eyes.",
       "oneAtATime": "Incydent już trwa. Musi się skończyć, zanim zacznie się kolejny.",
       "crisisPrompt": "Co z tym robisz?",
+      "crisisBrief": "Jedna akcja na turę. Zamknięty wiersz mówi, dlaczego.",
       "nothingToDo": "Nie zostało ci nic do zrobienia w tej rundzie.",
       "actionsLocked": "Jesteś w incydencie. Wszystko, co możesz zrobić, kryje się pod kafelkiem {tile}; Hope Calls wciąż działają.",
       "thirdJoined": "{name} staje po stronie zabójcy i zostaje w incydencie.",

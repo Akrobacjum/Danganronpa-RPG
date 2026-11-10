@@ -1591,11 +1591,13 @@
         "application",
         "dialog",
         "drpg-panel",
+        "drpg-action-window",
         "drpg-ui",
-        "drpg-prompt"
+        "drpg-prompt",
+        "drpg-kit-width"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 1008,
       "buttons": [
         {
           "action": "ok",
@@ -1620,11 +1622,13 @@
         "application",
         "dialog",
         "drpg-panel",
+        "drpg-action-window",
         "drpg-ui",
-        "drpg-prompt"
+        "drpg-prompt",
+        "drpg-kit-width"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 1008,
       "buttons": [
         {
           "action": "ok",
@@ -1649,11 +1653,13 @@
         "application",
         "dialog",
         "drpg-panel",
+        "drpg-action-window",
         "drpg-ui",
-        "drpg-prompt"
+        "drpg-prompt",
+        "drpg-kit-width"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 1008,
       "buttons": [
         {
           "action": "ok",
@@ -1678,11 +1684,13 @@
         "application",
         "dialog",
         "drpg-panel",
+        "drpg-action-window",
         "drpg-ui",
-        "drpg-prompt"
+        "drpg-prompt",
+        "drpg-kit-width"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 1008,
       "buttons": [
         {
           "action": "ok",
@@ -1707,11 +1715,13 @@
         "application",
         "dialog",
         "drpg-panel",
+        "drpg-action-window",
         "drpg-ui",
-        "drpg-prompt"
+        "drpg-prompt",
+        "drpg-kit-width"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 1008,
       "buttons": [
         {
           "action": "close",
@@ -1731,11 +1741,13 @@
         "application",
         "dialog",
         "drpg-panel",
+        "drpg-action-window",
         "drpg-ui",
-        "drpg-prompt"
+        "drpg-prompt",
+        "drpg-kit-width"
       ],
       "tag": "dialog",
-      "width": 400,
+      "width": 1008,
       "buttons": [
         {
           "action": "ok",

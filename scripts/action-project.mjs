@@ -47,7 +47,7 @@ import {
 } from "./action-pipeline.mjs";
 import { report } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
-import { chooseVariant, requestFieldHtml, readRequestField } from "./action-menus.mjs";
+import { actionWindow, chooseVariant, requestFieldHtml, readRequestField } from "./action-menus.mjs";
 import { listenLabels } from "./action-listen.mjs";
 import { drpgWindow, formGrid, helpText, box } from "./ui-kit.mjs";
 
@@ -882,14 +882,16 @@ async function projectTrait(actor, project) {
 async function chooseProject(list, promptKey, actor, def, { disableComplete = false } = {}) {
     const projectOptions = projectOptionsHtml(list, { disableComplete });
 
-    const result = await drpgWindow({
+    // An action's window (E68 C12, action-menus.mjs `actionWindow`).
+    const result = await actionWindow({
         title: game.i18n.localize("DRPG.Project.title"),
         classes: ["drpg-panel"],
         // No briefing here: Work-on-Project already showed one on the window
         // before this. Sabotage only reaches this dialog through the API's own
         // door (the Projects window picks its target itself, ROLL-12), and that
         // is when the briefing is shown.
-        body: `${def === ACTIONS.sabotage ? briefingBlock(actor, "sabotage", def) : ""}<form>
+        brief: def === ACTIONS.sabotage ? briefingBlock(actor, "sabotage", def) : "",
+        ask: `<form>
             <label>${game.i18n.localize(promptKey)}
                 <select name="project">${projectOptions}</select></label>
         </form>`,

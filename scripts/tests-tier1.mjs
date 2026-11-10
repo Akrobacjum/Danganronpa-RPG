@@ -9959,7 +9959,8 @@ const INVARIANTS = [
         const grep = new Set();
         const { GM_ROUTE_CLASS: GM_ROUTE } = await import("./utils.mjs");
         // E41 C3 (1.2.97): every file of the action family (the kit's ACTION_FAMILY), where action-rolls.mjs alone was read.
-        for (const file of ["day-summary.mjs", "popup.mjs", "secret.mjs", "messenger-app.mjs", "trial.mjs", "safeword.mjs", ...ACTION_FAMILY]) {
+        // E68 C12: ui-columns.mjs too, where the menu's row moved (`choiceRowHtml`) with the columns' own classes.
+        for (const file of ["day-summary.mjs", "popup.mjs", "secret.mjs", "messenger-app.mjs", "trial.mjs", "safeword.mjs", "ui-columns.mjs", ...ACTION_FAMILY]) {
             const src = stripComments(sources.get(file) ?? "");
             must(src.length > 0, `${file} was not read - the class grep would be measured on nothing`);
             for (const m of src.matchAll(/class=(["'])/g)) {
@@ -19047,7 +19048,7 @@ const INVARIANTS = [
         // One of each: a kit window carries `drpg-panel` twice, the caller's and the kit's (E21 C5a); `drpg-prompt` since E23 C5a,
         // an action's declaration (action-menus.mjs `chooseVariant`, R1404).
         equal(stableJson([[...new Set(palm.classes ?? [])], positions, classesOf("openAskWindow"), classesOf("askToForce"), icons.length, glyphless(icons), glyphless(["fa-r623-no-sprite"])]),
-            stableJson([["drpg-panel", "drpg-ui", "drpg-prompt"], [["sticky"], ["sticky"], []], ["drpg-panel"], ["drpg-panel"], 3, [], ["fa-r623-no-sprite"]]),
+            stableJson([["drpg-panel", "drpg-action-window", "drpg-ui", "drpg-prompt", "drpg-kit-width"], [["sticky"], ["sticky"], []], ["drpg-panel"], ["drpg-panel"], 3, [], ["fa-r623-no-sprite"]]),
             "[the Palm window's classes; the footer's position by each rule it matches: the Palm window with its Frisk ways, a table window, a short dialog (the controls); the classes of the target's ask and of 'Make them?'; the Palm rows' icons, those with no pixel glyph, and a name no sprite has (the control)]");
     }],
 
@@ -36470,7 +36471,7 @@ const INVARIANTS = [
         }), "[Observe: the ladders shown, All thresholds (open, its lines, its word); Analyze's bound rows; Tamper's bound facts and a second watchers line; "
             + "Observe's box with its two rows; the menu opens at its top; per theme: a plain fact, a bound one with its row picked and one with another row picked, the facts' size and ink]");
     }],
-    ["R1600 - the briefing beside the list (E21 fix G2; E21-04, the end review's B1), and no action asks for it since 1.2.102 (E96 C1: every action one layout, the owner's 09.11.2026): Observe's menu is drawn without `columns`; action-menus.mjs `chooseVariant` puts the briefing beside the question in a window of a stated width (the popup measure lifted) - and the stylesheets lay the two side by side, stacking them when the window is narrower than both, and show a row's line of explanation while that row is picked (an unavailable row keeps its reason), in both themes", async () => {
+    ["R1600 - the briefing beside the list (E21 fix G2; E21-04, the end review's B1), and every action has it since E68 C12 (layout B of round M for every action window, the owner's 10.11.2026): Observe's menu does not turn `columns` off; action-menus.mjs `chooseVariant` puts the briefing beside the question in a window of a stated width (the popup measure lifted) - and the stylesheets lay the two side by side, stacking them when the window is narrower than both, and show a row's line of explanation while that row is picked (an unavailable row keeps its reason), in both themes", async () => {
         /*
          * E21 fix G2, 07.11.2026. Observe scrolled at 1920x1080 (glass) and 1366x768 (both themes): 1140 px of body in a
          * window the glass held to 544 px, 571 px of it on screen at 1366x768 (measured in Chromium, the fit sweep's still
@@ -36485,19 +36486,24 @@ const INVARIANTS = [
          * the layout the other actions share (`asks` false: it scrolls at 1366x768 again, measured in STATUS E96-C1);
          * the `columns` drawing stays in `chooseVariant`, read here, for E68's one layout after its mockup round. Red on
          * 7175878b: `asks` true.
+         * E68 C12, 10.11.2026: round M drew both layouts and the owner took B, these columns, for every action window;
+         * `chooseVariant` draws them unless a caller asks `columns: false` (Level Up's two questions alone, R3200), and the
+         * window is action-menus.mjs `actionWindow` on ui-columns.mjs's blocks, whose columns carry `drpg-wide-col` too.
+         * `asks` now reads that Observe does not turn them off, and the menu is opened with no `columns` given. Red on
+         * d7dc9749: the default drew one column (no window width, no columns).
          */
         const M = await import("./action-menus.mjs");
         const K = await import("./ui-kit.mjs");
         const sources = new Map(await moduleSources());
         const code = stripComments(sources.get("action-observe.mjs") ?? "");
         must(code.length > 5000, "action-observe.mjs read nothing - this test would read nothing");
-        const read = { asks: /\bcolumns:\s*true\b/.test(fnSource(code, "askDeclaration") ?? "") };
+        const read = { asks: !/\bcolumns:\s*false\b/.test(fnSource(code, "askDeclaration") ?? "") };
         const D = foundry.applications.api.DialogV2;
         const own = Object.getOwnPropertyDescriptor(D, "wait");
         const seen = [];
         D.wait = async cfg => { seen.push(cfg); return null; };
         try {
-            await M.chooseVariant({ actor: null, title: "R1600", intro: '<div class="drpg-briefing-block"><p>R1600</p></div>', prompt: "R1600?", columns: true,
+            await M.chooseVariant({ actor: null, title: "R1600", intro: '<div class="drpg-briefing-block"><p>R1600</p></div>', prompt: "R1600?",
                 options: [{ value: "a", label: "A", hint: "a hint" }, { value: "b", label: "B", hint: "b hint" }] });
         } finally {
             if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
@@ -36527,11 +36533,11 @@ const INVARIANTS = [
         }));
         const yes = { measure: null, columns: ["flex", "wrap"], hints: [null, "none", null] };
         equal(stableJson(read), stableJson({
-            asks: false,
+            asks: true,
             // The stated 1120 px as this screen holds it (ui-kit.mjs `kitWidth`: under the screen less 16 px).
-            window: [K.kitWidth(1120), true, ["drpg-variant-brief", "drpg-variant-ask"], true, true],
+            window: [K.kitWidth(1120), true, ["drpg-wide-col drpg-variant-brief", "drpg-wide-col drpg-variant-ask"], true, true],
             paint: { "drpg-theme-stained-glass": yes, "drpg-theme-monokuma-legacy": yes }
-        }), "[askDeclaration asks for columns; the window chooseVariant asks (its width, the stated-width class, the columns, the briefing first, the list second); per theme: "
+        }), "[askDeclaration leaves the columns on; the window chooseVariant asks (its width, the stated-width class, the columns, the briefing first, the list second); per theme: "
             + "the popup measure on .dialog-content (null: none reaches it), the columns' display and wrap, the hints' display (picked, unpicked, unavailable; null: no rule hides it)]");
     }],
     ["R121 - A4, red is the GM's road and says so (E22 C5c; E22-02, E22-10, E22-12, audit S02-25, S05-49, S02-49, S03-26, S09-22): every menu row marked `gmRoute` and every footer button the module puts on the GM's road (a `gmRoute` slot, a question's `role: \"gmRoute\"`, `callWindow`'s `gmRoute`) stands in this census - the Tamper menu's Reshape a Trace and its two windows' Leave something else and Reshape it (Erase plain), Observe's two, Analyze's hint, Search's specific, the proposal's row and its one Send, the request window's Send, Experience and Ultimate (`needsGm` alone), Direct Murder's yes - and the sentence beside each names the GM in English and Polish; the Reshape's three say a refusal gives back nothing paid; `GM_ROUTE_CLASS` is utils.mjs's alone and the kit's gmRoute face; the Dynamic action's definition carries `callsGm`, read once, and its briefing says a GM judges it; Analyze's briefing says a GM judges it by the hint row alone, not over Identify, Find Stash or Find Passage, and Find Stash is plain (E22 fix G2, Open 60's default A); the sheet's tile of a Call a GM rules and a Tier 0 item's Use are red with the GM's word, by the flags their windows read; `stripeKindFor` answers the GM's road before a Sanity step", async () => {
@@ -37613,10 +37619,12 @@ const INVARIANTS = [
             const bare = stripStrings(code);
             if (/\bPROMPT_CLASS\b|drpg-prompt/.test(code)) naming.push(file);
             if (file !== "action-menus.mjs" && /\bchooseVariant\(\{/.test(bare)) menus.push(file);
-            for (const m of bare.matchAll(/\bdrpgWindow\(\{/g)) {
+            // `(columns ? actionWindow : drpgWindow)({`, `chooseVariant`'s one call since E68 C12 (its window an action's or,
+            // for Level Up, the plain one), is read as a drpgWindow call too: the scan starts at the "(" before the "{".
+            for (const m of bare.matchAll(/\bdrpgWindow\)?\(\{/g)) {
                 if (/function drpgWindow\($/.test(bare.slice(Math.max(0, m.index - 20), m.index + 11))) continue;
                 calls += 1;
-                let depth = 0, end = m.index + "drpgWindow".length;
+                let depth = 0, end = m.index + m[0].length - 2;
                 for (; end < bare.length; end++) {
                     if ("([{".includes(bare[end])) depth++;
                     else if (")]}".includes(bare[end]) && --depth === 0) break;

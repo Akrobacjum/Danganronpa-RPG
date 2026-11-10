@@ -225,6 +225,10 @@ const CELL_SPAN = /^[1-9]\d{0,2}$/;
  * `briefingBlock`, `drpg-briefing-all`);
  * 72 at E21 fix G2 (07.11.2026, counted in the list): the menu's two columns (action-menus.mjs `chooseVariant`,
  * `drpg-variant-brief`, `drpg-variant-ask`);
+ * E68 C12 (10.11.2026): the row moved to ui-columns.mjs (`choiceRowHtml`, read by the grep with the action family), the
+ * columns named by ui-columns.mjs (`drpg-wide-col`, `drpg-wide-section`, `drpg-wide-head`) and the left column's
+ * details (`drpg-variant-details`); `drpg-variant-brief` and `drpg-variant-ask` are handed to it as names, no longer
+ * written as a class attribute;
  * R294 runs the same grep and fails on a difference, so a class a card body gains is either added here or
  * drawn bare in the window.
  */
@@ -240,7 +244,7 @@ export const NOTICE_CLASSES = Object.freeze([
     "drpg-row-denied", "drpg-safeword-heading", "drpg-specific-note",
     "drpg-sum-action", "drpg-sum-crit", "drpg-sum-found", "drpg-sum-head", "drpg-sum-lede", "drpg-sum-left",
     "drpg-sum-list", "drpg-sum-room", "drpg-sum-row", "drpg-sum-sep", "drpg-sum-tail", "drpg-sum-total",
-    "drpg-sum-totals", "drpg-sum-who", "drpg-tb-badge", "drpg-tb-badges", "drpg-trait-field", "drpg-variant-ask", "drpg-variant-brief", "drpg-warning",
+    "drpg-sum-totals", "drpg-sum-who", "drpg-tb-badge", "drpg-tb-badges", "drpg-trait-field", "drpg-variant-details", "drpg-wide-col", "drpg-wide-head", "drpg-wide-section", "drpg-warning",
     "faint", "is-complete", "is-despair", "is-hope", "notes", "objection", "room", "type", "unavailable",
     "visibility"
 ]);

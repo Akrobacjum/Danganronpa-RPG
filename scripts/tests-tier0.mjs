@@ -20704,7 +20704,8 @@ const REGRESSIONS = [
         for (const [file, name] of [["action-menus.mjs", "chooseVariant"], ["call-pickers.mjs", "callWindow"]]) {
             const fn = topLevelFunction(blankComments(texts.get(file) ?? ""), name) ?? "";
             must(fn.length > 200, `${file} ${name} was not found - this would read nothing`);
-            wrappers[name] = { kit: /\bdrpgWindow\s*\(/.test(fn), dialogV2: /\bDialogV2\b/.test(fn) };
+            // `chooseVariant` opens `(columns ? actionWindow : drpgWindow)({` since E68 C12: actionWindow is on drpgWindow too (R3200).
+            wrappers[name] = { kit: /\bdrpgWindow\s*\)?\s*\(/.test(fn), dialogV2: /\bDialogV2\b/.test(fn) };
         }
         const calls = { chooseVariant: [], callWindow: [] };
         const wrong = [];
@@ -22067,6 +22068,67 @@ const REGRESSIONS = [
             order(announce, "recordBodyFound(", "await callBodyAnnounced("), order(discovery, "announceBody(", "gatherEveryone(")]),
         JSON.stringify([["chapter.mjs#BODY_ANNOUNCED_HOOK"], ["chapter.mjs#callBodyAnnounced"], ["chapter.mjs#announceArrivedBodies", "chapter.mjs#announceBody"], true, true]),
         "[where the hook's name is spelt, where it is called, who calls callBodyAnnounced, the stamp before the call in announceBody, the announcement before the gather in runDiscovery]");
+    }],
+    ["R3200 - every action window is built by action-menus.mjs `actionWindow` on ui-columns.mjs's wide window (E68 C12; layout B of round M, the owner's answers of 10.11.2026; R1110's shape): `actionWindow` is exported and opens through ui-columns.mjs `wideWindow`, `chooseVariant` opens through it unless asked `columns: false`, and only level-up.mjs asks that; each action's opener (Observe, Search, Analyze, Tamper, Rest, a project and the one to work on, the crisis menu, Palm, Listen, Move's briefing) calls `chooseVariant` or `actionWindow` and opens no window of its own; ui-columns.mjs exports the five blocks E49 reuses and imports nothing but utils.mjs and ui-kit.mjs", async () => {
+        /*
+         * E68 C12, 10.11.2026. Round M (S/stages/E68/mockups/NOTES.md) drew the actions' windows in two layouts; the owner
+         * took B, Observe's columns, for every action window ("layout B for every action window"), and asked the blocks of
+         * it kept in one file with no action in it for E49's settings window. Before C12, `chooseVariant` drew columns only
+         * when a caller asked (and none did since E96 C1), and Listen, Move's briefing and the project picker drew their
+         * own one-column windows through `drpgWindow`. Read here with comments blanked, as R1110 reads the Calls: the
+         * openers' top-level functions, the calls in them, the builder's own body and the blocks' file. The reader runs
+         * first on a planted source. Red at d7dc9749: no `actionWindow`, no ui-columns.mjs, three openers on
+         * `drpgWindow`. What the window then measures is Chromium's (`node audit/style-sweep.mjs --fit`).
+         */
+        const OPENS = /(?<![\w$.])(drpgWindow|DialogV2\.(?:wait|confirm|prompt|input)|new\s+(?:foundry\.applications\.api\.)?DialogV2)\s*\(/g;
+        const BUILDS = /(?<![\w$.])(chooseVariant|actionWindow)\s*\(\s*\{/g;
+        const read = (file, raw, only) => {
+            const blank = blankComments(raw);
+            const tops = [...blank.matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)\s*\(/gm)].map(m => ({ at: m.index, name: m[1] }));
+            const topAt = i => tops.findLast(t => t.at <= i)?.name ?? "(top level)";
+            const out = {};
+            for (const fn of only) out[fn] = { opens: [], builds: [], narrow: 0 };
+            for (const m of blank.matchAll(OPENS)) if (out[topAt(m.index)]) out[topAt(m.index)].opens.push(m[1].split(/[.\s(]/)[0]);
+            for (const m of blank.matchAll(BUILDS)) if (out[topAt(m.index)]) {
+                out[topAt(m.index)].builds.push(m[1]);
+                if (/^\{[^;]*?\bcolumns:\s*false\b/.test(blank.slice(m.index + m[0].length - 1, m.index + 600).split(/\n\s*\}\);/)[0])) out[topAt(m.index)].narrow++;
+            }
+            return out;
+        };
+        const planted = read("planted.mjs", 'async function a() { /* drpgWindow( */ return chooseVariant({ title: "x" }); }\n'
+            + 'async function b() { return drpgWindow({ body: "" }); }\nasync function c() { return chooseVariant({ columns: false }); }\n', ["a", "b", "c"]);
+        equal(JSON.stringify(planted), JSON.stringify({ a: { opens: [], builds: ["chooseVariant"], narrow: 0 }, b: { opens: ["drpgWindow"], builds: [], narrow: 0 },
+            c: { opens: [], builds: ["chooseVariant"], narrow: 1 } }), "the reader does not read the planted source as planted - the crawl below would measure the wrong calls");
+
+        const src = {};
+        const OPENERS = {
+            "action-observe.mjs": ["askDeclaration"], "action-search.mjs": ["chooseSearchCategory"], "action-analyze.mjs": ["askWhatToAnalyze"],
+            "action-tamper.mjs": ["chooseTamper"], "action-rest.mjs": ["performRest"], "action-project.mjs": ["performProject", "chooseProject"],
+            "action-murder.mjs": ["openCrisisMenu"], "palm.mjs": ["choosePalm"], "action-listen.mjs": ["performListen"], "action-briefing.mjs": ["briefing"]
+        };
+        for (const file of [...Object.keys(OPENERS), "action-menus.mjs", "ui-columns.mjs", "level-up.mjs"]) {
+            src[file] = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : ""));
+        }
+        must(Object.keys(OPENERS).every(f => src[f].length > 1000), "an action file was not served - this test reads nothing until it is");
+        const openers = Object.fromEntries(Object.entries(OPENERS).flatMap(([file, fns]) => Object.entries(read(file, src[file], fns)).map(([fn, r]) => [`${file}#${fn}`, r])));
+        const menus = blankComments(src["action-menus.mjs"]);
+        const builder = topLevelFunction(menus, "actionWindow") ?? "", menu = topLevelFunction(menus, "chooseVariant") ?? "";
+        const blocks = blankComments(src["ui-columns.mjs"]);
+        const narrowElsewhere = Object.entries({ ...openers, ...read("level-up.mjs", src["level-up.mjs"],
+            [...new Set([...blankComments(src["level-up.mjs"]).matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)/gm)].map(m => m[1]))]) })
+            .filter(([, r]) => r.narrow).map(([at, r]) => `${at.includes("#") ? at : `level-up.mjs#${at}`} ${r.narrow}`);
+        equal(JSON.stringify({
+            builder: [/^export function actionWindow\(/m.test(src["action-menus.mjs"]), /\bwideWindow\s*\(/.test(builder), /\bdrpgWindow\s*\(/.test(builder)],
+            menu: [/\bcolumns\s*=\s*true\b/.test(menu), /\(\s*columns\s*\?\s*actionWindow\s*:\s*drpgWindow\s*\)\s*\(/.test(menu)],
+            blocks: ["WIDE", "columnsHtml", "sectionHtml", "choiceRowHtml", "wideWindow"].filter(n => !new RegExp(`^export (?:const|function) ${n}\\b`, "m").test(blocks)),
+            imports: [...blocks.matchAll(/^import[^;]*?from\s+"([^"]+)"/gm)].map(m => m[1]).sort(),
+            outside: Object.entries(openers).filter(([, r]) => r.opens.length || !r.builds.length).map(([at, r]) => `${at} opens ${r.opens.join(",") || "-"} builds ${r.builds.join(",") || "-"}`),
+            narrow: narrowElsewhere.sort()
+        }), JSON.stringify({
+            builder: [true, true, false], menu: [true, true], blocks: [], imports: ["./ui-kit.mjs", "./utils.mjs"], outside: [],
+            narrow: ["level-up.mjs#openAdvancementFor 2"]
+        }), "[actionWindow exported, opening through wideWindow and not drpgWindow; chooseVariant's columns on by default and opening through "
+            + "actionWindow; a block ui-columns.mjs does not export; what it imports; an opener that opens a window of its own or builds none; who asks columns: false]");
     }],
 ];
 

@@ -5297,6 +5297,15 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     align-items: flex-start;
     gap: 0.75rem 16px;
 }
+/* E68 C12: every action window (action-menus.mjs `actionWindow`) and, from E49, the settings window, through
+   ui-columns.mjs: a column is `.drpg-wide-col`, a section of one `.drpg-wide-section` under its `.drpg-wide-head`. */
+.drpg-variant-columns > .drpg-wide-col { flex: 1 1 18rem; min-width: 0; }
+.drpg-wide-section + .drpg-wide-section { margin-top: 0.75rem; }
+.drpg-wide-head { margin: 0 0 0.35rem; font-size: 1em; border-bottom: 1px solid var(--drpg-line); }
+/* What the picked row unfolds, in an action's left column (action-menus.mjs `syncDetails`): the picked row's block. */
+.drpg-variant-details > .drpg-choice-details:not([hidden]) { display: block; padding-left: 0; }
+/* The statistic's slot under the rows (action-menus.mjs `TRAIT_SLOT`): nothing drawn while it holds nothing. */
+.drpg-action-trait:empty { display: none; }
 .drpg-variant-columns > .drpg-variant-brief { flex: 1 1 18rem; min-width: 0; }
 /* The right padding holds the glass's brush behind a row (stained-glass.css, `inset: 1px -5px`), which stood 4 px past
    the body and made it scroll sideways (measured: scrollWidth 970 against 966 at 1366x768). */
@@ -5358,6 +5367,40 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     border-color: var(--drpg-gold);
     background: rgba(var(--drpg-gold-rgb), 0.12);
 }
+
+/* THE PICKED ROW'S MARK (E68 C12, 10.11.2026; the owner's Q4 of round M: the look kept, the contrast corrected). The
+   radio was the browser's (Chromium's blue dot in the style harness) and, at the table, Foundry's grey square with a
+   black corner, which did not read as picked. Now the module's own: a ring in Bone at rest, the Gold ring and a Gold
+   dot on the ink box once picked; Foundry's own mark (`::after`) off, as the glass took it off in E96 C1. Measured in
+   Chromium (`node audit/style-sweep.mjs --selected`): before, "native mark"; after, the mark on its box in
+   S/stages/E68/STATUS.md E68-C12. */
+body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"] {
+    appearance: none;
+    -webkit-appearance: none;
+    flex: none;
+    box-sizing: border-box;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    padding: 0;
+    display: inline-grid;
+    place-content: center;
+    border: 2px solid var(--drpg-bone);
+    border-radius: 50%;
+    background: var(--drpg-ink);
+}
+body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]::after { content: none; }
+body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--drpg-gold);
+    transform: scale(0);
+}
+body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]:checked { border-color: var(--drpg-gold); }
+body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]:checked::before { transform: scale(1); }
+body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]:focus-visible { outline: 2px solid var(--drpg-bone); outline-offset: 1px; }
 
 .drpg-choice > i {
     flex: 0 0 1.1rem;

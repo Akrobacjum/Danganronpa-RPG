@@ -10,6 +10,7 @@
  *   node audit/style-sweep.mjs --write    the whole baseline written from this run (a new baseline, read before it is committed)
  *   node audit/style-sweep.mjs --shots <dir>   also a screenshot of every page at each size and theme, into <dir>
  *   node audit/style-sweep.mjs --only rooms-bedrooms   one page (repeatable); the baseline's other pages are not read
+ *   node audit/style-sweep.mjs --selected THE SELECTED ROW (E68 C12), below, instead of the style comparison
  *   node audit/style-sweep.mjs --fit      THE FIT PASS (E21 C1c), below, instead of the style comparison; with --only
  *                                         the pages named, with --shots <dir> a screenshot of each at 1366x768
  *
@@ -82,8 +83,9 @@ const THEMES = ["glass", "legacy"];
 /* --fit (E21 C1c): the plan's four sizes for every page, and a phone's for every window a player opens and the sheet. */
 const FIT_SIZES = [[1920, 1080], [1366, 768], [1280, 800], [1024, 768]];
 const FIT_PHONE = [390, 844];
-/* Pages that must not scroll at all at 1366x768 and above (the doneWhen: "Observe fits with no scrolling"). */
-const STILL = ["action-observe"];
+/* Pages that must not scroll at all at 1366x768 and above (the doneWhen: "Observe fits with no scrolling"); every action
+   window probe 08 captures since E68 C12 (one layout for every action, the owner's Q1 and Q4 of round M). */
+const STILL = ["action-observe", "action-search", "action-analyze", "action-tamper", "action-rest", "action-project"];
 /* From E21 C6 on, a page not on the kit fails; before it, it is E21's list (STAGE.md "The measure"). */
 const OUTSIDE_FAILS = false;
 
@@ -92,6 +94,7 @@ const opt = name => { const at = argv.indexOf(name); return at >= 0 ? argv[at + 
 const many = name => argv.flatMap((a, i) => (a === name ? [argv[i + 1]] : [])).filter(Boolean);
 const WRITE = argv.includes("--write");
 const FIT = argv.includes("--fit");
+const SELECTED = argv.includes("--selected");
 const ACCEPT = new Set(many("--accept"));
 const ONLY = new Set(many("--only"));
 const SHOTS = opt("--shots");
@@ -382,6 +385,100 @@ async function fitPass(browser) {
     return problems.length ? 1 : 0;
 }
 
+/*
+ * THE SELECTED ROW (`--selected`; E68 C12, 10.11.2026; the owner's Q4 of round M: "keep today's selected look - the brush
+ * stroke on the selected row - and correct only the contrast"). On Observe's capture (a player's, 1366x768), in each theme,
+ * the first row picked and then the GM's-road row ("specific") picked, it reads what Chromium computes and lays each part
+ * on the ground it stands on (the row's own background and its `::before` brush at their opacity, over the first opaque
+ * ground under the row): the title and the line of explanation (text, AA 4.5:1), the icon (a graphic, 3:1) and the
+ * control's mark against the control's own box (3:1; a control the browser or Foundry draws, `appearance` not `none`,
+ * reads "native mark", the grey square with a black corner the owner saw in Legacy at the table). Then the selected row,
+ * a row under the pointer, a row with the keyboard's focus and a row at rest must each look different (their background,
+ * edges, outline and brush). Exit 1 on any part below its ratio or two states alike. A planted control first: the page's
+ * selected text set to its own ground must read 1:1 and red.
+ */
+async function selectedPass(browser) {
+    const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+    const problems = [];
+    const read = pick => page.evaluate(async value => {
+        const parse = c => {
+            const m = String(c).match(/^rgba?\(([^)]+)\)$/), n = String(c).match(/^color\(srgb ([^)]+)\)$/);
+            if (m) { const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p[3] ?? 1]; }
+            if (n) { const p = n[1].split(/[\s/]+/).filter(Boolean).map(Number); return [p[0] * 255, p[1] * 255, p[2] * 255, p[3] ?? 1]; }
+            return [0, 0, 0, 0];
+        };
+        const over = (top, under, alpha = 1) => { const a = top[3] * alpha; return [0, 1, 2].map(i => top[i] * a + under[i] * (1 - a)).concat(1); };
+        const lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+        const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 100) / 100; };
+        const opacityTo = (el, stop) => { let o = 1; for (let e = el; e && e !== stop.parentElement; e = e.parentElement) o *= Number(globalThis.getComputedStyle(e).opacity); return o; };
+        const groundUnder = el => {
+            const chain = [];
+            for (let e = el; e; e = e.parentElement) { chain.push(parse(globalThis.getComputedStyle(e).backgroundColor)); if (chain.at(-1)[3] >= 1) break; }
+            let g = chain.at(-1)[3] >= 1 ? chain.pop() : [255, 255, 255, 1];
+            while (chain.length) g = over(chain.pop(), g);
+            return g;
+        };
+        const doc = globalThis.document;
+        const input = doc.querySelector(`.drpg-choice-list input[value="${value}"]`);
+        if (!input) return { error: `no row ${value}` };
+        input.checked = true;
+        input.dispatchEvent(new globalThis.Event("change", { bubbles: true }));
+        // The mark grows and the brush fades in on a transition (`--drpg-t-snap`): read once both have run.
+        await new Promise(r => setTimeout(r, 400));
+        const row = input.closest(".drpg-choice");
+        const brush = globalThis.getComputedStyle(row, "::before");
+        let ground = groundUnder(row);
+        if (brush.content !== "none") ground = over(parse(brush.backgroundColor), ground, Number(brush.opacity));
+        const part = sel => { const el = row.querySelector(sel); return el ? ratio(over(parse(globalThis.getComputedStyle(el).color), ground, opacityTo(el, row)), ground) : null; };
+        const cs = globalThis.getComputedStyle(input);
+        let mark = "native mark";
+        if (cs.appearance === "none") {
+            const box = over(parse(cs.backgroundColor), ground);
+            const dot = globalThis.getComputedStyle(input, "::before");
+            const scaled = /matrix\(0, 0, 0, 0/.test(dot.transform);
+            mark = dot.content === "none" || scaled ? "no mark" : ratio(over(parse(dot.backgroundColor), box, Number(dot.opacity)), box);
+        }
+        return { title: part("strong"), hint: part("small"), icon: part(":scope > i"), mark };
+    }, pick);
+    const look = () => page.evaluate(() => [...globalThis.document.querySelectorAll(".drpg-choice-list > .drpg-choice")].slice(0, 4).map(row => {
+        const s = globalThis.getComputedStyle(row), b = globalThis.getComputedStyle(row, "::before"), a = globalThis.getComputedStyle(row, "::after"), i = globalThis.getComputedStyle(row.querySelector("input"));
+        return [s.backgroundColor, s.borderColor, s.boxShadow, s.outlineStyle, s.outlineColor, b.opacity, a.opacity, a.backgroundColor, i.outlineStyle, i.backgroundColor].join(" | ");
+    }));
+    for (const theme of ["glass", "legacy"]) {
+        await load(page, withTheme("/audit/style-harness.html?w=action-observe&role=player", theme));
+        if (theme === "glass") {
+            await page.addStyleTag({ content: ".drpg-choice:has(input:checked) strong { color: rgb(7, 7, 10) !important; } .drpg-choice:has(input:checked)::before { background: rgb(7, 7, 10) !important; opacity: 1 !important; content: '' !important; }" });
+            const planted = await read("general");
+            const ok = planted.title === 1;
+            console.log(`style-sweep: --selected control (planted text on its own ground): title ${planted.title}:1 ${ok ? "read" : "NOT read"}`);
+            if (!ok) problems.push("control: a planted title on its own ground did not read 1:1");
+            await load(page, withTheme("/audit/style-harness.html?w=action-observe&role=player", theme));
+        }
+        for (const pick of ["general", "specific"]) {
+            const r = await read(pick);
+            if (r.error) { problems.push(`${theme} ${pick}: ${r.error}`); continue; }
+            const low = [["title", 4.5], ["hint", 4.5], ["icon", 3], ["mark", 3]].filter(([k, need]) => !(typeof r[k] === "number" && r[k] >= need)).map(([k, need]) => `${k} ${r[k]} (needs ${need})`);
+            console.log(`style-sweep: --selected ${theme} ${pick}: title ${r.title}, hint ${r.hint}, icon ${r.icon}, mark ${r.mark}${low.length ? ` - LOW: ${low.join("; ")}` : ""}`);
+            for (const l of low) problems.push(`${theme} ${pick}: ${l}`);
+        }
+        // The four states: row 1 picked, row 2 under the pointer, row 3 with the keyboard's focus, row 4 at rest.
+        await page.evaluate(() => { const i = globalThis.document.querySelector('.drpg-choice-list input[value="general"]'); i.checked = true; });
+        await page.keyboard.press("Tab");
+        await page.evaluate(() => globalThis.document.querySelectorAll(".drpg-choice-list > .drpg-choice input")[2].focus());
+        await page.hover(".drpg-choice-list > .drpg-choice:nth-of-type(2)");
+        await page.waitForTimeout(250);
+        const states = await look();
+        const names = ["selected", "hovered", "focused", "resting"];
+        const alike = [];
+        for (let x = 0; x < 4; x++) for (let y = x + 1; y < 4; y++) if (states[x] === states[y]) alike.push(`${names[x]} = ${names[y]}`);
+        console.log(`style-sweep: --selected ${theme} states: ${alike.length ? `ALIKE ${alike.join(", ")}` : "selected, hovered, focused and resting all differ"}`);
+        for (const a of alike) problems.push(`${theme} states: ${a}`);
+    }
+    await page.close();
+    console.log(`style-sweep: --selected ${problems.length ? `RED, ${problems.length} problem(s)` : "green"}`);
+    return problems.length ? 1 : 0;
+}
+
 async function main() {
     let server = null;
     if (!BASE) {
@@ -391,6 +488,10 @@ async function main() {
         for (let i = 0; i < 50; i++) { try { await fetch(`${BASE}/module.json`); break; } catch { await new Promise(r => setTimeout(r, 100)); } }
     }
     const browser = await chromium.launch(CHROMIUM ? { executablePath: CHROMIUM } : {});
+    if (SELECTED) {
+        try { process.exitCode = await selectedPass(browser); } finally { await browser.close(); server?.kill(); }
+        return;
+    }
     if (FIT) {
         try { process.exitCode = await fitPass(browser); } finally { await browser.close(); server?.kill(); }
         return;
