@@ -116,6 +116,13 @@ export function bodyTileOf(actor, { scenes = game.scenes ?? [] } = {}) {
  * it (`tokenPlace`, movement.mjs `gmPlaceOf`; `via: "token"`): that token's scene, floor and room, and whether the
  * token is hidden - the place every body was read at before E95. `scenes` and `tokenPlace` are handed in by tier 1
  * R3141 only.
+ *
+ * A HIDDEN TILE ON A PLAYER'S BROWSER (E95 C2; LIVE-E95-04). The loot window's greying asks this on the player's
+ * browser (anonymity.mjs `greyRefused` -> inventory.mjs `transferRefusal` -> frisk.mjs `personActionRefusal`), and the
+ * primary's gate asks it again on the press. Whether v14 sends a hidden tile to a player's browser was not read: if it
+ * does, the greying reads the tile and its `hidden` and greys as the gate refuses; if it does not, `bodyTileOf` finds
+ * no tile there and the greying reads the token's room instead, so a Take beside the token shows open and the gate
+ * refuses it on the press. Headless, the harness sends every tile to every client.
  */
 export function bodyPlaceOf(actor, { scenes = game.scenes ?? [], tokenPlace = gmPlaceOf } = {}) {
     const body = bodyTileOf(actor, { scenes });
@@ -136,4 +143,68 @@ export function bodyPlaceOf(actor, { scenes = game.scenes ?? [], tokenPlace = gm
 /** The room `actor`'s body lies in (`bodyPlaceOf`'s), or null. The one reader of "the body's room" (E72 amend[16]). */
 export function bodyRoomOf(actor, options = {}) {
     return bodyPlaceOf(actor, options)?.room ?? null;
+}
+
+/**
+ * The tile's own floor field, where this Foundry's Tile has one (`level`, else `levels`), else none (E95 C2): written
+ * beside the flag so Foundry shows the tile on the token's floor only. Not read on v14 (LIVE-E95-02): the field is
+ * asked of the Tile's schema here, not assumed, and the rules read the flag's floor whatever this writes.
+ */
+function floorFieldsOf(level) {
+    const id = floorId(level);
+    const fields = globalThis.CONFIG?.Tile?.documentClass?.schema?.fields ?? {};
+    if (!id) return {};
+    if ("level" in fields) return { level: id };
+    if ("levels" in fields) return { levels: [id] };
+    return {};
+}
+
+/**
+ * LEAVE THE BODY (E95 C2, 10.11.2026; DC6; QUESTIONS Q2 (a), Q3 (a)). Lays `actor`'s body on the map as a tile where
+ * their token stands, and answers the tile document, or null. GM only, on the GM's browser that made the Monocub
+ * (monocub.mjs `setMonocub`, its false-to-true edge; E72 will call it from the invitation's acceptance too); no bridge
+ * action and no socket, and core Foundry lets no player create a tile. None is laid:
+ *   - for a death that leaves no body (`isBodyDeath`: an execution, or a death in the Class Trial), or none recorded;
+ *   - when a tile of this death is there already (`bodyTileOf`) - made a Monocub twice, or unticked and ticked again;
+ *   - when the student has no token on a scene with rooms, read where the GMs read it (movement.mjs `gmPlaceOf`, which
+ *     looks on place scenes only): the GM is told (`DRPG.Body.noToken`), as a body with nowhere to lie is a body the
+ *     loot gate then reads at no place.
+ * The tile is the token's corner, size and picture (`bodyTileSpec`), unhidden, with the floor in the flag and in the
+ * tile's own floor field where it has one (`floorFieldsOf`). Two GMs making one Monocub at once can lay two; the
+ * readers take the earliest (`bodyTileOf`) and a revive or the reset removes both (`removeBodyTiles`).
+ */
+export async function leaveBody(actor, { at = Date.now() } = {}) {
+    if (!game.user?.isGM || !actor) return null;
+    const record = deathRecord(actor);
+    if (!isBodyDeath(record) || bodyTileOf(actor)) return null;
+    const place = gmPlaceOf(actor);
+    if (!place?.tokenDoc || !place.scene) {
+        ui.notifications?.warn(game.i18n.format("DRPG.Body.noToken", { name: actor.name }));
+        return null;
+    }
+    const data = { ...bodyTileSpec({ tokenDoc: place.tokenDoc, actorId: actor.id, record, level: place.level, at }), ...floorFieldsOf(place.level) };
+    const [tile] = await place.scene.createEmbeddedDocuments("Tile", [data]);
+    return tile ?? null;
+}
+
+/**
+ * Remove the body tiles of `actorId` from every scene, or every body tile when it is null, and answer how many (E95
+ * C2; QUESTIONS Q7, Q8). GM only. A revive takes the student's (chapter.mjs `reviveCharacter`: a student back alive
+ * has no body), the season reset's deaths group every one (chapter.mjs `clearSeasonDeaths`), a body whose student is
+ * gone from the world included. Stopping being a Monocub keeps the tile: the student is still dead. A tile with no
+ * body flag is never touched.
+ */
+export async function removeBodyTiles(actorId = null) {
+    if (!game.user?.isGM) return 0;
+    let removed = 0;
+    for (const scene of game.scenes ?? []) {
+        const ids = [...(scene?.tiles ?? [])].filter(doc => {
+            const mark = markOf(doc);
+            return mark && (actorId === null || mark.actorId === actorId);
+        }).map(doc => doc.id);
+        if (!ids.length) continue;
+        await scene.deleteEmbeddedDocuments("Tile", ids);
+        removed += ids.length;
+    }
+    return removed;
 }

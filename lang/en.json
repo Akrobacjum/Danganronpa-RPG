@@ -1090,6 +1090,9 @@
       "chooseOne": "- choose -",
       "setCategoryTier": "The tables do not say what this item is: choose its category and tier to give it."
     },
+    "Body": {
+      "noToken": "{name} has no token on a scene with rooms, so no body was left on the map."
+    },
     "Monocub": {
       "panelTitle": "Monocub",
       "tickFirst": "Tick Monocub first",
@@ -4980,7 +4983,7 @@
         "searchTokens": "Search tokens spent in each room",
         "discovered": "Which rooms have been discovered",
         "bodyFound": "The body waiting to be answered, and the record of which bodies were found",
-        "deaths": "Deaths and Monocubs - the dead come back, and every student's Health and Sanity whole again",
+        "deaths": "Deaths and Monocubs - the dead come back, the bodies left on the map go, and every student's Health and Sanity whole again",
         "items": "What the cast is carrying - each bedroom's key is handed back to its owner at once",
         "advancement": "Advancement - traits and maxima back to the starting sheet, and the experiences a Level Up added",
         "actions": "The action budget refilled, and each student's rests cleared",

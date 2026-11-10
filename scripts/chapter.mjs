@@ -51,6 +51,7 @@ import { registerSeasonState, everyPart } from "./season-reset.mjs";
 import { caseMark, deathStore, deferredOfferStore, lootTraceStore } from "./gm-stores.mjs";
 // A leaf (config.mjs alone): the scenes of the discovery window and a discovery handed no scene (E12 C5).
 import { placeScenes, roomNames, sceneOfRoom } from "./rooms.mjs";
+import { removeBodyTiles } from "./body-tile.mjs";
 
 /* ==========================================================================
  * DEATH
@@ -647,6 +648,14 @@ export async function reviveCharacter(actor, { quiet = false } = {}) {
         }
     }
 
+    // A student back alive has no body (E95 C2; QUESTIONS Q8): the body tiles they left as a Monocub go, of whichever
+    // death (body-tile.mjs `removeBodyTiles`). Tried on its own: the revive is done whether or not a tile could go.
+    try {
+        await removeBodyTiles(actor.id);
+    } catch (err) {
+        error(`Could not take ${actor.name}'s body off the map`, err);
+    }
+
     // `quiet`: the season reset revives every corpse in a row and deletes every
     // Truth Bullet anyway, so a toast per body said nothing (CORE-18).
     if (!quiet) ui.notifications.info(game.i18n.format("DRPG.Chapter.revived", { name: actor.name }));
@@ -657,12 +666,16 @@ export async function reviveCharacter(actor, { quiet = false } = {}) {
  * The season reset's deaths group (E42 C3; a run of season-setup.mjs `wipeSeason` until then): every student comes
  * back whole (season-wipe.mjs `wipeStudent`'s `deaths` part), and the deaths nobody found (E05 C10) - the group's
  * cut, written before every step, takes the GMs' rows on every GM and every player's copy; this drops what this
- * browser holds.
+ * browser holds. And every body left on the map (E95 C2; QUESTIONS Q7, the group "deaths"): a revive takes its
+ * student's, and this takes every one besides - a body whose student is gone from the world, or one a revive could not
+ * remove (body-tile.mjs `removeBodyTiles`). Each tried (`everyPart`): a tile that cannot go keeps no student dead.
  */
 export async function clearSeasonDeaths(ctx) {
-    await ctx.everyStudent("deaths");
-    if (isPrimaryGm()) await deathStore.clear();
-    else await deathStore.dropMany(Object.keys(deathStore.entries()));
+    await everyPart(async () => {
+        await ctx.everyStudent("deaths");
+        if (isPrimaryGm()) await deathStore.clear();
+        else await deathStore.dropMany(Object.keys(deathStore.entries()));
+    }, () => removeBodyTiles());
 }
 
 /** What the reset window counts of the deaths: the students dead for the GMs (season-setup.mjs `resetTally` until E42 C3). */

@@ -1124,6 +1124,9 @@
       "chooseOne": "- wybierz -",
       "setCategoryTier": "Tabele nie mówią, czym jest ten przedmiot: wybierz jego kategorię i Tier, by go dać."
     },
+    "Body": {
+      "noToken": "{name} nie ma tokenu na scenie z pokojami, więc na mapie nie zostało ciało."
+    },
     "Monocub": {
       "meddleRefused": "Confusion ich nie dosięga. Chwila minęła, zanim zdążyło zadziałać.",
       "tickFirst": "Najpierw zaznacz Monocub",
@@ -5518,7 +5521,7 @@
         "searchTokens": "Search Tokens wydane w każdym pokoju",
         "discovered": "Które pokoje zostały odkryte",
         "bodyFound": "Znalezione ciało, które czeka na odpowiedź, i zapis, czyje ciała znaleziono",
-        "deaths": "Śmierci i Monocuby - zmarli wracają, a Health i Sanity każdego ucznia są znów pełne",
+        "deaths": "Śmierci i Monocuby - zmarli wracają, ciała zostawione na mapie znikają, a Health i Sanity każdego ucznia są znów pełne",
         "items": "Co nosi obsada - klucz do każdej sypialni od razu wraca do jej właściciela",
         "advancement": "Level Upy - cechy i maksima z powrotem do startowego arkusza, i doświadczenia, które dodał Level Up",
         "actions": "Budżet akcji odnowiony, a odpoczynki każdego ucznia wyczyszczone",
