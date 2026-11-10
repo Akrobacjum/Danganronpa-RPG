@@ -5548,6 +5548,31 @@ body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]:focus-vis
     width: 100%;
 }
 
+/* TEXT FIELDS FILL THEIR COLUMN (E68 fix round, 10.11.2026; the owner's screenshot of the Dynamic Action window, its
+   description a third of the window wide). In an action window every textarea and text input takes its column's
+   width: Dynamic's textarea (a bare child of the form, no label's rule reached it, so it kept the browser's 20
+   columns), and the proposal's "How do you do it?" (`.drpg-trait-how`, a centred flex row under `.drpg-panel label`, its
+   input 119 px of a 544 px column; at 390 px 283 px wide from 138 px in, past its 334 px column). Read in Chromium by
+   `node audit/style-sweep.mjs --fields` on probe 08's captures. No action window has a numeric field or a short code. */
+.drpg-action-window :is(textarea, input:is([type="text"], [type="search"], :not([type]))) {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.drpg-panel label.drpg-trait-how {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+}
+
+.drpg-panel label.drpg-trait-how > input {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
 /* "Which statistic?" laid out as "Which project?" is (E16 part 2 C4, 26.10.2026; audit S02-35): the
    caption on the line above, the select the row's width, its note under it. As a centred flex row the
    select shrank to about 70 px and read "Hand (" with the bonus cut off, beside a column of the note

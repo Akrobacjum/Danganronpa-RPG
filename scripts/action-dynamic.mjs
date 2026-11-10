@@ -71,7 +71,9 @@ export async function performDynamic(actor, options) {
         // An empty description is no action for the GM to price (E18 C0, S10-52): asked again.
         required: true,
         // The statistic the player proposes (E68 C4; DA18), beside the words, which are its "how": the GM sets it.
-        extra: traitFieldHtml(actor, def.traits, { propose: true, how: false })
+        extra: traitFieldHtml(actor, def.traits, { propose: true, how: false }),
+        // The one layout of every action (E68 C12; the fix round): the briefing on the left, the words on the right.
+        columns: true
     });
     if (asked === null) return null;
     const description = typeof asked === "string" ? asked : asked.text;

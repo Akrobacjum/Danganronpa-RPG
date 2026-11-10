@@ -1177,20 +1177,26 @@ export async function settleCall(message, text, ruling = null, gmNote = null) {
  * `required`: the caller has nothing to send without words (Dynamic, a Tier 0 item's use), so
  * an empty request is not sent - the player is told so and the window opens again.
  */
-export async function askForRequest({ title, prompt, placeholder = "", intro = "", required = false, extra = "" } = {}) {
+export async function askForRequest({ title, prompt, placeholder = "", intro = "", required = false, extra = "", columns = false } = {}) {
+    /* `columns` (E68 fix round, 10.11.2026; the owner, 10.11, with a screenshot of the Dynamic Action window whose
+       description took about a third of the window and broke its sentence after three words): an action's window on
+       the one layout every action has since E68 C12 (action-menus.mjs `actionWindow`), the briefing (`intro`) in the left
+       column and the words in the right, the textarea its column's width (`node audit/style-sweep.mjs --fields`). */
+    const { actionWindow } = columns ? await import("./action-menus.mjs") : {};
+    const form = `<form>
+                    <p>${prompt}</p>
+                    <textarea name="request" rows="3" placeholder="${foundry.utils.escapeHTML(placeholder)}"></textarea>
+                    ${extra}
+                  </form>`;
     for (;;) {
         // On the kit's frame (E21 C5a): Send is the GM's road (D11) - the words go to a GM's card - and Cancel withdraws.
-        const answer = await drpgWindow({
+        const answer = await (columns ? actionWindow : drpgWindow)({
             classes: ["drpg-panel"],
             // An action's declaration in the player's own words, which the action waits on: kept above the sheet
             // (stacking.mjs; E23 fix G3, the owner's Q-E23-5, R1404).
             prompt: true,
             title,
-            body: `${intro}<form>
-                    <p>${prompt}</p>
-                    <textarea name="request" rows="3" placeholder="${foundry.utils.escapeHTML(placeholder)}"></textarea>
-                    ${extra}
-                  </form>`,
+            ...(columns ? { brief: intro, ask: form } : { body: `${intro}${form}` }),
             footer: {
                 gmRoute: [{
                     action: "send",
@@ -1215,12 +1221,12 @@ export async function askForRequest({ title, prompt, placeholder = "", intro = "
  * words typed, or null when nothing will be asked: no GM is connected (said, as `promptAndCallGm`
  * says it, before the window), or the player closed it. Posts nothing.
  */
-export async function promptForRequest({ title, prompt, placeholder = "", intro = "", required = false, what = CALL_GM_WHAT, extra = "" } = {}) {
+export async function promptForRequest({ title, prompt, placeholder = "", intro = "", required = false, what = CALL_GM_WHAT, extra = "", columns = false } = {}) {
     if (!gmOnline()) {
         sayNotDone(what, "noGm", { nothingSpent: true });
         return null;
     }
-    return askForRequest({ title, prompt, placeholder, intro, required, extra });
+    return askForRequest({ title, prompt, placeholder, intro, required, extra, columns });
 }
 
 /**

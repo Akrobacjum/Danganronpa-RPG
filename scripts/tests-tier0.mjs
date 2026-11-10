@@ -22158,7 +22158,7 @@ const REGRESSIONS = [
             "action-tamper.mjs": ["chooseTamper"], "action-rest.mjs": ["performRest"], "action-project.mjs": ["performProject", "chooseProject"],
             "action-murder.mjs": ["openCrisisMenu"], "palm.mjs": ["choosePalm"], "action-listen.mjs": ["performListen"], "action-briefing.mjs": ["briefing"]
         };
-        for (const file of [...Object.keys(OPENERS), "action-menus.mjs", "ui-columns.mjs", "level-up.mjs"]) {
+        for (const file of [...Object.keys(OPENERS), "action-menus.mjs", "ui-columns.mjs", "level-up.mjs", "call-gm.mjs", "action-dynamic.mjs"]) {
             src[file] = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : ""));
         }
         must(Object.keys(OPENERS).every(f => src[f].length > 1000), "an action file was not served - this test reads nothing until it is");
@@ -22175,12 +22175,17 @@ const REGRESSIONS = [
             blocks: ["WIDE", "columnsHtml", "sectionHtml", "choiceRowHtml", "wideWindow"].filter(n => !new RegExp(`^export (?:const|function) ${n}\\b`, "m").test(blocks)),
             imports: [...blocks.matchAll(/^import[^;]*?from\s+"([^"]+)"/gm)].map(m => m[1]).sort(),
             outside: Object.entries(openers).filter(([, r]) => r.opens.length || !r.builds.length).map(([at, r]) => `${at} opens ${r.opens.join(",") || "-"} builds ${r.builds.join(",") || "-"}`),
-            narrow: narrowElsewhere.sort()
+            narrow: narrowElsewhere.sort(),
+            /* Dynamic's window (E68 fix round): the player's words window opens through `actionWindow` when asked
+               `columns` (call-gm.mjs `askForRequest`), and `performDynamic` asks it. */
+            dynamic: [/\(\s*columns\s*\?\s*actionWindow\s*:\s*drpgWindow\s*\)\s*\(/.test(topLevelFunction(blankComments(src["call-gm.mjs"]), "askForRequest") ?? ""),
+                /promptForRequest\(\{[^;]*?\bcolumns:\s*true\b/.test(topLevelFunction(blankComments(src["action-dynamic.mjs"]), "performDynamic") ?? "")]
         }), JSON.stringify({
             builder: [true, true, false], menu: [true, true], blocks: [], imports: ["./ui-kit.mjs", "./utils.mjs"], outside: [],
-            narrow: ["level-up.mjs#openAdvancementFor 2"]
+            narrow: ["level-up.mjs#openAdvancementFor 2"], dynamic: [true, true]
         }), "[actionWindow exported, opening through wideWindow and not drpgWindow; chooseVariant's columns on by default and opening through "
-            + "actionWindow; a block ui-columns.mjs does not export; what it imports; an opener that opens a window of its own or builds none; who asks columns: false]");
+            + "actionWindow; a block ui-columns.mjs does not export; what it imports; an opener that opens a window of its own or builds none; who asks columns: false; "
+            + "Dynamic: askForRequest opens actionWindow on columns, performDynamic asks columns]");
     }],
 ];
 

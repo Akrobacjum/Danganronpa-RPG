@@ -74,7 +74,7 @@ const STUDENT = "const student = (await import(`${repoUrl}/scripts/monokuma.mjs`
 const ROOM_TABS = ["bedrooms", "doors", "passages", "search", "rest", "stashes", "description", "fog", "scenes"];
 /* The player's action windows (E21 C1c): `performAction` on the character p1 owns, each window dismissed. */
 const MINE = "game.actors.find(a => a.type === \"character\" && a.isOwner)";
-const ACTION_WINDOWS = ["observe", "search", "analyze", "tamper", "rest", "project", "palm"];
+const ACTION_WINDOWS = ["observe", "search", "analyze", "tamper", "rest", "project", "palm", "dynamic"];
 /* 250 notices recorded on p1 before its history is opened (E21 C1c, the 11.10 amend A7): its own browser's history. */
 const NOTICES_250 = "const h = await import(`${repoUrl}/scripts/notice-history.mjs`); for (let i = 1; i <= 250; i++) h.recordNotice({ kind: \"info\", source: \"mine\", state: i > 240 ? \"unread\" : \"read\", title: `Probe notice ${i}`, text: `The probe's notice number ${i}, one of 250.` });";
 export const WINDOWS = [

@@ -11,6 +11,7 @@
  *   node audit/style-sweep.mjs --shots <dir>   also a screenshot of every page at each size and theme, into <dir>
  *   node audit/style-sweep.mjs --only rooms-bedrooms   one page (repeatable); the baseline's other pages are not read
  *   node audit/style-sweep.mjs --selected THE SELECTED ROW (E68 C12), below, instead of the style comparison
+ *   node audit/style-sweep.mjs --fields   THE FIELDS PASS (E68 fix round), below: every action window's text field fills its column
  *   node audit/style-sweep.mjs --fit      THE FIT PASS (E21 C1c), below, instead of the style comparison; with --only
  *                                         the pages named, with --shots <dir> a screenshot of each at 1366x768
  *
@@ -85,7 +86,7 @@ const FIT_SIZES = [[1920, 1080], [1366, 768], [1280, 800], [1024, 768]];
 const FIT_PHONE = [390, 844];
 /* Pages that must not scroll at all at 1366x768 and above (the doneWhen: "Observe fits with no scrolling"); every action
    window probe 08 captures since E68 C12 (one layout for every action, the owner's Q1 and Q4 of round M). */
-const STILL = ["action-observe", "action-search", "action-analyze", "action-tamper", "action-rest", "action-project"];
+const STILL = ["action-observe", "action-search", "action-analyze", "action-tamper", "action-rest", "action-project", "action-dynamic"];
 /* From E21 C6 on, a page not on the kit fails; before it, it is E21's list (STAGE.md "The measure"). */
 const OUTSIDE_FAILS = false;
 
@@ -95,6 +96,7 @@ const many = name => argv.flatMap((a, i) => (a === name ? [argv[i + 1]] : [])).f
 const WRITE = argv.includes("--write");
 const FIT = argv.includes("--fit");
 const SELECTED = argv.includes("--selected");
+const FIELDS = argv.includes("--fields");
 const ACCEPT = new Set(many("--accept"));
 const ONLY = new Set(many("--only"));
 const SHOTS = opt("--shots");
@@ -502,6 +504,92 @@ async function selectedPass(browser) {
     return problems.length ? 1 : 0;
 }
 
+/*
+ * THE FIELDS PASS (`--fields`; E68 fix round, 10.11.2026; the owner, 10.11, with a screenshot of the Dynamic Action
+ * window whose description took about a third of the window and broke its sentence after three words). On every action
+ * window probe 08 captured (`action-*` in audit/windows/manifest.json), at FIT_SIZES and a phone's 390x844, in both
+ * themes, each shown textarea and text input (`input` of type text, search, email, url or none) is laid against its
+ * column: the nearest `.drpg-wide-col` (an action window's column since E68 C12), else the window's `.drpg-kit-body`.
+ * It must run from where it starts to the column's right content edge (4 px of slack) and not past it, and it must not
+ * start left of the column's content. Exempt, each by name: FIELD_EXEMPT (none at the fix round: no action window draws a
+ * numeric field or a short code; a `type="number"` field is never read). A planted control first, on Observe's capture
+ * at 1366x768: its textarea held to a third of its column must read "narrow", and pushed 300 px wider must read "wider".
+ * Exit 1 on any field that does not fill its column.
+ */
+const FIELD_EXEMPT = [];
+async function fieldsPass(browser) {
+    const manifest = JSON.parse(fs.readFileSync(path.join(REPO, "audit", "windows", "manifest.json"), "utf8"));
+    const list = manifest.windows.filter(w => w.captured && w.id.startsWith("action-") && (!ONLY.size || ONLY.has(w.id)))
+        .map(w => ({ id: w.id, url: `/audit/style-harness.html?w=${encodeURIComponent(w.id)}&fit=1&role=player` }));
+    if (!list.length) throw new Error("no action window to read for --fields");
+    // Each row picked in turn (a field shown with one row only, `data-drpg-when`, is read with that row), then the fields.
+    const picks = page => page.evaluate(() => [...globalThis.document.querySelectorAll('.drpg-choice-list input[name="variant"]:not(:disabled)')].map(i => i.value));
+    const pick = (page, value) => page.evaluate(async value => {
+        const i = globalThis.document.querySelector(`.drpg-choice-list input[name="variant"][value="${value}"]`);
+        if (!i) return;
+        i.checked = true;
+        i.dispatchEvent(new globalThis.Event("change", { bubbles: true }));
+        await new Promise(r => setTimeout(r, 60));
+    }, value);
+    const readAll = async (page, exempt) => {
+        const seen = new Map();
+        const values = await picks(page);
+        for (const value of values.length ? values : [null]) {
+            if (value !== null) await pick(page, value);
+            for (const r of await read(page, exempt)) if (!seen.has(`${r.name} ${r.what}`)) seen.set(`${r.name} ${r.what}`, { ...r, pick: value });
+        }
+        return [...seen.values()];
+    };
+    const read = (page, exempt) => page.evaluate(exempt => {
+        const doc = globalThis.document, out = [];
+        const fields = doc.querySelectorAll('textarea, input:is([type="text"], [type="search"], [type="email"], [type="url"], :not([type]))');
+        for (const el of fields) {
+            const name = el.getAttribute("name") ?? el.tagName.toLowerCase();
+            if (exempt.includes(name) || !el.getClientRects().length) continue;
+            const col = el.closest(".drpg-wide-col") ?? el.closest(".drpg-kit-body");
+            if (!col) { out.push({ name, what: "no column" }); continue; }
+            const c = col.getBoundingClientRect(), cs = globalThis.getComputedStyle(col), f = el.getBoundingClientRect();
+            const left = c.left + parseFloat(cs.paddingLeft) + parseFloat(cs.borderLeftWidth), right = c.right - parseFloat(cs.paddingRight) - parseFloat(cs.borderRightWidth);
+            const what = f.right > right + 1 ? "wider" : f.right < right - 4 ? "narrow" : f.left < left - 1 ? "starts outside" : "fills";
+            out.push({ name, what, field: Math.round(f.width), column: Math.round(right - left), at: `${Math.round(f.left - left)}..${Math.round(f.right - left)}` });
+        }
+        return out;
+    }, exempt);
+    const problems = [];
+    let readings = 0, fills = 0;
+    {
+        const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+        const ctl = async css => {
+            await load(page, "/audit/style-harness.html?w=action-observe&fit=1&role=player");
+            await page.addStyleTag({ content: css });
+            await pick(page, "specific");
+            return (await read(page, [])).find(r => r.name === "request")?.what ?? "no field";
+        };
+        const narrow = await ctl('textarea[name="request"] { width: 33% !important; }');
+        const wide = await ctl('textarea[name="request"] { width: calc(100% + 300px) !important; max-width: none !important; }');
+        console.log(`style-sweep: --fields control (a third of its column): ${narrow}; (300 px wider): ${wide}`);
+        if (narrow !== "narrow") problems.push(`control: a textarea at a third of its column read ${narrow}`);
+        if (wide !== "wider") problems.push(`control: a textarea 300 px wider than its column read ${wide}`);
+        await page.close();
+    }
+    for (const [w, h] of [...FIT_SIZES, FIT_PHONE]) for (const theme of THEMES) {
+        const page = await browser.newPage({ viewport: { width: w, height: h } });
+        for (const p of list) {
+            await load(page, withTheme(p.url, theme));
+            for (const r of await readAll(page, FIELD_EXEMPT)) {
+                readings++;
+                if (r.what === "fills") { fills++; continue; }
+                const line = `${p.id} ${w}x${h} ${theme}: ${r.name}${r.pick ? ` (row ${r.pick})` : ""} ${r.what} (field ${r.field} of column ${r.column}, at ${r.at})`;
+                console.log(`style-sweep: --fields ${line}`);
+                problems.push(line);
+            }
+        }
+        await page.close();
+    }
+    console.log(`style-sweep: --fields ${readings} field reading(s) of ${list.length} window(s): ${fills} fill their column, ${readings - fills} do not; ${problems.length ? "RED" : "green"}`);
+    return problems.length ? 1 : 0;
+}
+
 async function main() {
     let server = null;
     if (!BASE) {
@@ -511,6 +599,10 @@ async function main() {
         for (let i = 0; i < 50; i++) { try { await fetch(`${BASE}/module.json`); break; } catch { await new Promise(r => setTimeout(r, 100)); } }
     }
     const browser = await chromium.launch(CHROMIUM ? { executablePath: CHROMIUM } : {});
+    if (FIELDS) {
+        try { process.exitCode = await fieldsPass(browser); } finally { await browser.close(); server?.kill(); }
+        return;
+    }
     if (SELECTED) {
         try { process.exitCode = await selectedPass(browser); } finally { await browser.close(); server?.kill(); }
         return;
