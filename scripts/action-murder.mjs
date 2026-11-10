@@ -212,23 +212,31 @@ export async function performBetrayal(actor, partner, def, options = {}) {
     const dark = isEclipse();
     const cost = dark && !options.free ? def.cost : 0;
     if (cost > 0 && !canAfford(actor, cost)) return null;
-    // A question on the kit's frame (E21 C5a): yes the primary, Cancel withdraws it; true, false or null as confirm's.
+    /* THE BETRAYER PROPOSES THE OPENING'S STATISTIC (E68 C9, 10.11.2026; S18-10): the killer's opening lists Body and
+       Hand, and the confirmation asks which, pre-checked on the first (`traitFieldHtml`), with how outside an Eclipse (in
+       one, the declaration's sentence below says how). No GM's leave is asked for a betrayal, so the proposal goes with
+       the incident to the opening's window, where a GM approves or changes it (murder-rules.mjs `openingTraitFor`). */
+    const { listedTraits } = await import("./trait-ruling.mjs");
+    const listed = listedTraits({ kind: "opening", key: "killer" });
+    // A question on the kit's frame (E21 C5a): yes the primary, Cancel withdraws it; the proposal, false or null.
     const confirmed = await drpgConfirm({
-        yes: { label: game.i18n.localize("DRPG.Dialog.yes") },
+        yes: { label: game.i18n.localize("DRPG.Dialog.yes"), callback: (e, b, d) => readProposal(d.element, listed) },
         classes: ["drpg-panel"],
         title: game.i18n.localize("DRPG.Murder.betrayalTitle"),
         body: `<p>${game.i18n.format("DRPG.Murder.betrayalIntro", {
                 third: esc(actor.name), killer: esc(partner.name)
             })}</p>
             <p class="notes">${game.i18n.localize("DRPG.Murder.betrayalRule")}</p>${
+            traitFieldHtml(actor, listed, { propose: true, how: !dark })}${
             dark ? `<p>${game.i18n.localize("DRPG.Murder.betrayalConfirmEclipse")}</p>` : ""}`,
         rejectClose: false
     });
     if (!confirmed) return null;
+    const { proposed = null, note: how = "" } = typeof confirmed === "object" ? confirmed : {};
 
     const { requestBetrayal } = await import("./gm-bridge.mjs");
     if (!dark) {
-        const res = await requestBetrayal({ actorId: actor.id });
+        const res = await requestBetrayal({ actorId: actor.id, note: how, proposed });
         if (!res.ok) return null;
         return game.user.isGM ? res.value : { pending: true };
     }
@@ -248,7 +256,7 @@ export async function performBetrayal(actor, partner, def, options = {}) {
     });
 
     // A player's client is answered `true` once the GM's has parked it; a GM's own, the row.
-    const res = await requestBetrayal({ actorId: actor.id, note });
+    const res = await requestBetrayal({ actorId: actor.id, note, proposed });
     if (!res.ok || !res.value) return abort(actor, paid);
 
     await whisperToOwner(actor,
@@ -325,14 +333,19 @@ export async function performDirectMurder(actor, def, options) {
     const paid = cost > 0 ? await spendAction(actor, cost) : null;
     if (cost > 0 && !paid) return null;
 
-    const note = await promptForNote(actor, {
+    /* THE KILLER PROPOSES THE OPENING'S STATISTIC WITH THE DECLARATION (E68 C9, 10.11.2026; S18-10, DA18): Body or
+       Hand, above the sentence of how, and the GM's card answers "Allow: {stat}", "Change to: {stat}" or "Refuse"
+       (eclipse.mjs `askGmToAllow`). The statistic allowed is the opening's at the lights, with no second window. */
+    const { listedTraits } = await import("./trait-ruling.mjs");
+    const { note, proposed } = await promptForNote(actor, {
         title: def.label,
         prompt: game.i18n.localize("DRPG.Action.murderPromptParked"),
-        placeholder: game.i18n.localize("DRPG.Action.placeholder.directMurder")
+        placeholder: game.i18n.localize("DRPG.Action.placeholder.directMurder"),
+        traits: listedTraits({ kind: "opening", key: "killer" })
     });
 
     const { parkDirectMurder } = await import("./eclipse.mjs");
-    const parked = await parkDirectMurder({ killerId: actor.id, room, note });
+    const parked = await parkDirectMurder({ killerId: actor.id, room, note, proposed });
     if (!parked) {
         // The GM went away between the check and the write. Nothing was
         // declared, so nothing is owed - and a Burst that paid comes back as one.

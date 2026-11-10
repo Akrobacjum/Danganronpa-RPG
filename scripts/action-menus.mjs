@@ -301,8 +301,13 @@ function followConfirmLabel(dialog, confirmFor) {
  * Cancelling the box is not cancelling the attempt - the action is already
  * spent by the time this opens, and a dismissed dialog must never be a way to
  * get it back.
+ *
+ * `traits` (E68 C9; S18-10): the statistics the killer's opening lists, and the window asks which one they propose
+ * above the sentence (`traitFieldHtml`, the first checked; the sentence is the "how"). Then the answer is
+ * `{ note, proposed }` (`readProposal`), a closed window `{ note: "", proposed: null }`; without it, the sentence alone.
  */
-export async function promptForNote(actor, { title, prompt, placeholder }) {
+export async function promptForNote(actor, { title, prompt, placeholder, traits = null }) {
+    const propose = (traits ?? []).length > 1;
     // On the kit's frame (E21 C5a): one answer, the primary; a closed window answers "" below, as it did.
     const result = await drpgWindow({
         title,
@@ -310,6 +315,7 @@ export async function promptForNote(actor, { title, prompt, placeholder }) {
         // The second half of a declaration: a prompt, as `chooseVariant`'s window (E23 C5a).
         prompt: true,
         body: `<form>
+            ${propose ? traitFieldHtml(actor, traits, { propose: true, how: false }) : ""}
             <p>${prompt}</p>
             <textarea name="note" rows="3" placeholder="${
                 foundry.utils.escapeHTML(placeholder ?? "")}"></textarea>
@@ -317,10 +323,11 @@ export async function promptForNote(actor, { title, prompt, placeholder }) {
         footer: {
             primary: {
                 action: "ok", label: game.i18n.localize("DRPG.Action.murderParkedConfirm"),
-                callback: (e, b, d) => d.element.querySelector("[name=note]")?.value.trim() ?? ""
+                callback: (e, b, d) => propose ? readProposal(d.element, traits) : d.element.querySelector("[name=note]")?.value.trim() ?? ""
             }
         },
         rejectClose: false
     }).catch(() => "");
+    if (propose) return result && typeof result === "object" ? result : { note: "", proposed: null };
     return typeof result === "string" ? result : "";
 }

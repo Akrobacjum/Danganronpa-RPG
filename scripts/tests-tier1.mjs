@@ -7819,6 +7819,43 @@ const INVARIANTS = [
         equal(JSON.stringify([read, asked]), JSON.stringify([[{ trait: first, byGm: false }, { trait: first, byGm: false }, { trait: observe, byGm: false }], []]),
             "an armed Resolve asked somebody or did not leave the pick to the roll window (several on a player's browser, on a GM's, one; the asks)");
     }],
+    ["R3300 - the killer's opening is proposed with the declaration: the GM's card answers Allow on the proposal, Change to on the other listed statistic and Refuse, a declaration with none or with one off the list a button per listed statistic, and a trap victim's list is never proposed on (E68 C9; S18-10)", async () => {
+        /*
+         * E68 C9, 10.11.2026; S18-10, DA36 = 2. eclipse.mjs `murderAllowChoices` is the declaration's buttons, on C1's
+         * `proposalChoices` with the allowance's words: for a killer proposing Hand, "Allow: Hand (+v)" then "Change to:
+         * Body (+v)"; with no proposal, or Eye (not the killer's), "Allow: {stat}" for Body and Hand. And
+         * murder-rules.mjs `openingProposalFor`: the proposal reaches the killer's side of an opening only - a trap's
+         * victim's opening is the GM's pick (DA36). Pure. Red at 1a0ae5c7: neither function existed.
+         */
+        const E = await import("./eclipse.mjs");
+        const R = await import("./murder-rules.mjs");
+        const { traitWithValue } = await import("./trait-ruling.mjs");
+        const A = { id: "R3300ACTOR000001", name: "R3300", system: { traits: { strength: { value: 1 }, finesse: { value: 2 } } } };
+        const allow = t => game.i18n.format("DRPG.Action.murderAllow", { stat: traitWithValue(A, t) });
+        const change = t => game.i18n.format("DRPG.TraitRuling.change", { stat: traitWithValue(A, t) });
+        const read = choices => (choices ?? []).map(c => [c.trait, c.how, c.label]);
+        equal(JSON.stringify([read(await E.murderAllowChoices(A, "hand")), read(await E.murderAllowChoices(A, null)), read(await E.murderAllowChoices(A, "eye"))]),
+            JSON.stringify([[["hand", "approve", allow("hand")], ["body", "change", change("body")]],
+                [["body", "pick", allow("body")], ["hand", "pick", allow("hand")]], [["body", "pick", allow("body")], ["hand", "pick", allow("hand")]]]),
+            "the declaration's buttons are not Allow on the proposal then Change to, or a button per listed statistic with none or one off the list (Hand, none, Eye)");
+        const proposal = { proposed: "hand", note: "R3300 how" };
+        equal(JSON.stringify([await R.openingProposalFor("killer", proposal), await R.openingProposalFor("victim", proposal), await R.openingProposalFor("killer", { proposed: "eye" }),
+            await R.openingProposalFor("killer", null)]), JSON.stringify([proposal, {}, { proposed: null, note: "" }, {}]),
+            "the opening's proposal does not reach the killer's side alone, bounded to the killer's list (killer, trap victim, off the list, none)");
+    }],
+    ["R3301 - the declaration's proposal travels on the two murder rows: murder.park and murder.betrayal hand the run `proposed` with the rest, and nothing beyond (E68 C9)", async () => {
+        /*
+         * E68 C9, 10.11.2026. A Direct Murder declared in the dark and a betrayal carry the killer's proposal to the GM
+         * (bridge-asks.mjs `requestParkMurder`, `requestBetrayal`); the two rows' whitelists (bridge-table.mjs) pass it
+         * as text or null, and the GM's side reads it against the killer's list (`writeParkedMurder`, `openingProposalFor`).
+         * Read: each row's sanitize on a packet with an extra field. Red at 1a0ae5c7: neither passed `proposed`.
+         */
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const park = BRIDGE_ACTIONS["murder.park"]?.sanitize?.({ killerId: "R3301A", room: "Gym", note: "n", proposed: "hand", extra: 1 });
+        const betray = BRIDGE_ACTIONS["murder.betrayal"]?.sanitize?.({ actorId: "R3301A", note: "n", proposed: "body", extra: 1 });
+        equal(JSON.stringify([park, betray]), JSON.stringify([{ killerId: "R3301A", room: "Gym", note: "n", proposed: "hand" },
+            { actorId: "R3301A", note: "n", proposed: "body" }]), "a murder row dropped the proposal, or passed a field beyond its list (park, betrayal)");
+    }],
     ["R216 - a Reroll answered past its clock still counts, and a GM leaving is not the primary", async () => {
         /*
          * E08+E28 fix r1-G5, 04.10.2026; the round-1 review's m1 and m3.

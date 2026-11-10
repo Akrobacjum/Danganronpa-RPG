@@ -16,7 +16,7 @@
  * advance while one is running; it sits between them.
  */
 
-import { MODULE_ID, FLAGS, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT } from "./config.mjs";
+import { MODULE_ID, FLAGS, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, TRAITS } from "./config.mjs";
 import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, eclipseCountOf, eclipseInFlight, isDeceased, isDeadForGm, bodyDiscovery } from "./settings.mjs";
 // Defined in settings.mjs, the leaf every side of this file's import cycles can
 // reach (audit C3); re-exported so nothing that imports them from here has to
@@ -492,17 +492,17 @@ function pendingMurders(id = eclipseId()) {
 }
 
 /** Record a declaration. One per killer: declaring twice replaces the first. */
-export async function parkDirectMurder({ killerId, room = null, note = "" } = {}) {
+export async function parkDirectMurder({ killerId, room = null, note = "", proposed = null } = {}) {
     if (!killerId) return null;
     const { requestParkMurder } = await import("./gm-bridge.mjs");
-    const res = await requestParkMurder({ killerId, room, note });
+    const res = await requestParkMurder({ killerId, room, note, proposed });
     // A GM's own client answers the entry it wrote; a player's, that the GM has it.
     if (!res.ok) return null;
     return game.user.isGM ? res.value : { pending: true };
 }
 
 /** GM-side. The write itself, reached from the bridge or directly by a GM. */
-export async function writeParkedMurder({ killerId, room = null, note = "" } = {}) {
+export async function writeParkedMurder({ killerId, room = null, note = "", proposed = null } = {}) {
     // Only in an Eclipse (E05 fix r1-G3; review S1-m8): outside one the row would be named
     // for no Eclipse, nothing could rule on it and the GMs were asked all the same. The
     // bridge refuses a player's with its reason first (bridge-runs-acts.mjs `handleParkMurder`).
@@ -511,8 +511,10 @@ export async function writeParkedMurder({ killerId, room = null, note = "" } = {
     // named, so a second declaration by the same killer replaces the first whole.
     // `eclipse` is the name of the Eclipse it was made in; the lights of another
     // Eclipse drop it unjudged. `betrayal` is named null for the same reason as the
-    // rest: a murder declared after a betrayal by the same student replaces it whole.
-    const entry = { room, note, at: Date.now(), approved: null, eclipse: eclipseId(), betrayal: null };
+    // rest: a murder declared after a betrayal by the same student replaces it whole. `proposed` is the opening's
+    // statistic the killer proposed (E68 C9), one their opening lists or null; `trait` the one a GM allowed, none yet.
+    const { proposed: claim } = await openingProposalFor("killer", { proposed });
+    const entry = { room, note, at: Date.now(), approved: null, eclipse: eclipseId(), betrayal: null, proposed: claim ?? null, trait: null };
     await pendingMurderStore.patch(killerId, entry);
     log(`Direct murder declared in the dark by ${game.actors.get(killerId)?.name ?? killerId}.`);
 
@@ -530,10 +532,12 @@ export async function writeParkedMurder({ killerId, room = null, note = "" } = {
  * allow it and no card goes to the GMs now: the guide gives the betrayal to the newcomer, and
  * the GMs are told when it opens. GM-side.
  */
-export async function parkBetrayal({ thirdId, killerId, note = "", offer = null } = {}) {
+export async function parkBetrayal({ thirdId, killerId, note = "", offer = null, proposed = null } = {}) {
     if (!game.user.isGM || !thirdId || !killerId || !eclipseId()) return null;
+    // The betrayer's proposal for the opening (E68 C9), kept for the lights' opening window: no card asks for it here.
+    const { proposed: claim } = await openingProposalFor("killer", { proposed });
     const entry = { room: null, note, at: Date.now(), approved: null, eclipse: eclipseId(),
-        betrayal: { thirdId, killerId, chapter: offer?.chapter ?? null, day: offer?.day ?? null } };
+        betrayal: { thirdId, killerId, chapter: offer?.chapter ?? null, day: offer?.day ?? null }, proposed: claim ?? null, trait: null };
     await pendingMurderStore.patch(thirdId, entry);
     log(`Betrayal declared in the dark by ${game.actors.get(thirdId)?.name ?? thirdId}.`);
     return entry;
@@ -579,6 +583,16 @@ async function takeDeclaredBetrayals(id) {
  * placing and the room the killer ends up in is the whole question the Eclipse
  * exists to answer, so what the GM is being asked here is whether this player
  * may attempt it at all.
+ *
+ * AND ON WHICH STATISTIC THE OPENING ROLLS (E68 C9, 10.11.2026; S18-10, DA18). The killer's opening
+ * lists Body and Hand, and the GM picked one in a second window when the lights opened the incident
+ * (murder-rules.mjs `openingTraitFor`). The killer proposes one with the declaration now, and the card
+ * answers on C1's road (`murderAllowChoices`, trait-ruling.mjs `proposalChoices`): "Allow: {stat}" on
+ * the proposal, "Change to: {stat}" on the other listed, "Refuse"; a declaration with no proposal, a
+ * button "Allow: {stat}" per listed statistic. The statistic travels on the button (`trait`) and is
+ * read against the killer's list once more when it is pressed (`ruleOnParkedMurder`); the lights open
+ * the incident on it (`openMurder`'s `openingTrait`). No "I'll pass" after a change, as a roll's card
+ * has (DA46): the killer is told nothing of an allowance until the lights.
  */
 async function askGmToAllow(killerId, parked) {
     const killer = game.actors.get(killerId);
@@ -586,18 +600,16 @@ async function askGmToAllow(killerId, parked) {
 
     try {
         const { callGm } = await import("./gm-bridge.mjs");
+        const choices = await murderAllowChoices(killer, parked.proposed ?? null);
+        const said = parked.proposed ? ` ${game.i18n.format("DRPG.TraitRuling.proposed", { stat: TRAITS[parked.proposed]?.label ?? parked.proposed })}` : "";
         await callGm(killer, {
             gmOnly: true,
             title: game.i18n.localize("DRPG.Action.murderRulingTitle"),
-            body: game.i18n.localize("DRPG.Action.murderNeedsApproval"),
+            body: `${game.i18n.localize("DRPG.Action.murderNeedsApproval")}${said}`,
             request: parked.note ?? "",
             room: parked.room ?? null,
             actions: [
-                {
-                    action: "approveMurder",
-                    label: game.i18n.localize("DRPG.Action.murderApprove"),
-                    data: { killer: killerId }
-                },
+                ...choices.map(({ trait, label }) => ({ action: "approveMurder", label, data: { killer: killerId, trait } })),
                 {
                     action: "refuseMurder",
                     label: game.i18n.localize("DRPG.Action.murderRefuse"),
@@ -613,7 +625,24 @@ async function askGmToAllow(killerId, parked) {
 }
 
 /**
- * The GM's ruling on a parked declaration, from the card's two buttons.
+ * The answers a declaration's card and the lights' window offer (E68 C9): C1's `proposalChoices` on the killer's
+ * opening, the proposal's and a pick's worded "Allow: {stat}", a change's "Change to: {stat}". `{ trait, label, how }`.
+ */
+export async function murderAllowChoices(actor, proposed = null) {
+    const { listedTraits, proposalChoices, traitWithValue } = await import("./trait-ruling.mjs");
+    const allow = trait => game.i18n.format("DRPG.Action.murderAllow", { stat: traitWithValue(actor, trait) });
+    return proposalChoices(actor, listedTraits({ kind: "opening", key: "killer" }), proposed)
+        .map(c => c.how === "change" ? c : { ...c, label: allow(c.trait) });
+}
+
+/** The opening's proposal of `proposal` for `side`, on murder-rules.mjs's road (`openingProposalFor`). */
+async function openingProposalFor(side, proposal) {
+    const { openingProposalFor: read } = await import("./murder.mjs");
+    return read(side, proposal);
+}
+
+/**
+ * The GM's ruling on a parked declaration, from the card's buttons.
  *
  * Refusing DROPS the row rather than marking it refused. A refusal is not
  * a thing the judging step needs to reason about - there is nothing to judge -
@@ -637,7 +666,7 @@ async function askGmToAllow(killerId, parked) {
  * the log stay. A refusal is still told at once: its row is dropped, so the lights never
  * answer it a second time.
  */
-export async function ruleOnParkedMurder(killerId, allow) {
+export async function ruleOnParkedMurder(killerId, allow, trait = null) {
     if (!game.user.isGM || !killerId) return null;
 
     // The rows the other GMs hold first (E05 fix r1-G3; review M1), as E04's readers wait:
@@ -650,7 +679,11 @@ export async function ruleOnParkedMurder(killerId, allow) {
         return null;
     }
 
-    if (allow) await pendingMurderStore.patch(killerId, { approved: true });
+    // The statistic the button named, read against the killer's list (E68 C9); none - a card from before C9, a
+    // console - leaves the opening to the GM's window at the lights, with the proposal first, as before.
+    const { listedTraits } = await import("./trait-ruling.mjs");
+    const allowed = listedTraits({ kind: "opening", key: "killer" }).includes(trait) ? trait : null;
+    if (allow) await pendingMurderStore.patch(killerId, { approved: true, trait: allowed });
     else await pendingMurderStore.drop(killerId);
 
     if (killer && !allow) {
@@ -821,7 +854,7 @@ async function judgePendingMurders(id, taken = new Map()) {
          */
         if (parked.betrayal) {
             const { openParkedBetrayal } = await import("./murder.mjs");
-            if (!await openParkedBetrayal(killerId, parked.betrayal.killerId, taken.get(killerId) ?? null, parked.note ?? "")) {
+            if (!await openParkedBetrayal(killerId, parked.betrayal.killerId, taken.get(killerId) ?? null, parked.note ?? "", parked.proposed ?? null)) {
                 await say(game.i18n.localize("DRPG.Action.murderRefused"), "drpg-warning");
             }
             continue;
@@ -852,8 +885,9 @@ async function judgePendingMurders(id, taken = new Map()) {
 
         // Ruled on already, or ruled on now. Asked AFTER the room condition, so
         // the GM is never made to decide about an attempt that came to nothing
-        // on its own.
-        if (parked.approved !== true && !await askAtTheLights(killer, victim, room, parked)) {
+        // on its own. Either answer names the opening's statistic (E68 C9): the card's, or the window's.
+        const ruled = parked.approved === true ? (parked.trait ?? null) : await askAtTheLights(killer, victim, room, parked);
+        if (ruled === false) {
             await say(game.i18n.localize("DRPG.Action.murderRefused"), "drpg-warning");
             continue;
         }
@@ -867,7 +901,9 @@ async function judgePendingMurders(id, taken = new Map()) {
             })}</p>
             ${parked.note ? `<p class="notes">${foundry.utils.escapeHTML(parked.note)}</p>` : ""}`);
 
-        await openMurder({ killerId: killer.id, victimId: victim.id });
+        // On the statistic allowed, and no second window; allowed with none, the opening's window offers the proposal first.
+        await openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: ruled,
+            openingProposal: { proposed: parked.proposed ?? null, note: parked.note ?? "" } });
     }
 }
 
@@ -882,28 +918,36 @@ async function judgePendingMurders(id, taken = new Map()) {
  * Closing the window is a refusal. There is no third answer here - the
  * incident either opens now or it does not - and a dialog dismissed with the
  * escape key must not open one.
+ *
+ * The approval names the opening's statistic (E68 C9): the card's buttons, here - "Allow: {stat}" on the
+ * killer's proposal first, the default, then "Change to: {stat}" (`murderAllowChoices`). The answer is that
+ * statistic, or false.
  */
 async function askAtTheLights(killer, victim, room, parked) {
     try {
         /* Refuse the default, as it was (DialogV2.confirm's `no: { default: true }`): the approval on the right, Cancel on
            the left and focused - no field here, so Enter presses Cancel - and a closed window refuses. */
-        return Boolean(await drpgWindow({
+        const [first, ...rest] = (await murderAllowChoices(killer, parked.proposed ?? null)).map(({ trait, label }) => ({ action: trait, label, callback: () => trait }));
+        const said = parked.proposed ? `<p>${esc(game.i18n.format("DRPG.TraitRuling.proposed", { stat: TRAITS[parked.proposed]?.label ?? parked.proposed }))}</p>` : "";
+        const answer = await drpgWindow({
             classes: ["drpg-panel"],
             title: game.i18n.localize("DRPG.Action.murderOpensTitle"),
             body: `<div>
                 <p>${game.i18n.format("DRPG.Action.murderAsk", {
                     killer: esc(killer.name), victim: esc(victim.name), room: esc(room ?? "-")
                 })}</p>
-                ${parked.note ? `<blockquote>${esc(parked.note)}</blockquote>` : ""}
+                ${said}${parked.note ? `<blockquote>${esc(parked.note)}</blockquote>` : ""}
                 <p class="notes">${game.i18n.localize("DRPG.Action.murderAskNote")}</p>
             </div>`,
             footer: {
-                primary: { action: "yes", label: game.i18n.localize("DRPG.Action.murderApprove"), callback: () => true },
+                primary: first,
+                secondary: rest,
                 close: { role: "cancel", action: "no", callback: () => false },
                 default: "no"
             },
             rejectClose: false
-        }));
+        });
+        return [first, ...rest].some(b => b?.action === answer) ? answer : false;
     } catch (err) {
         // A dialog that could not open must not open an incident by accident.
         error("Could not ask the GM about the direct murder", err);
