@@ -44387,6 +44387,109 @@ const INVARIANTS = [
         }));
         equal(stableJson(read), stableJson({ glass: ["0", "14ch"], legacy: ["0", "0"] }), "{each theme: [the Look fieldset's min-width, its scale slider's]}");
     }],
+
+    ["R3141 - a body lies where its tile is, and where its token is when it has none (body-tile.mjs `bodyPlaceOf`, E95 C0): the current death's earliest tile, measured by its centre on the floor it stores, its `hidden` the tile's; an older death's tile, another student's and none fall back to the token", async () => {
+        /*
+         * E95 C0, 10.11.2026; DC6, E72 amend[16] ("bodyRoomOf (pokój kafla, a gdy GM kafel usunie, pokój tokenu)").
+         * Read on scenes of plain objects, so the answer is the reader's and not a world's: a Lab (0-400) on the
+         * ground floor, an Attic over it on the upper floor and a Hall (500-900) on every floor; the token's
+         * place handed in (`tokenPlace`, as movement.mjs `gmPlaceOf` answers it). The victim's death is D2. A
+         * tile of 100 px whose centre is in the Lab; the same tile on the upper floor; a 200 px tile whose
+         * corner is in the Lab and whose centre is on the Hall's edge (a tile's size is pixels, a token's
+         * squares: measured as squares it would read no room); a later tile of D2 in the Hall (two GMs at
+         * once: the earliest is the body); D1's tile in the Hall (an older death) and another student's.
+         * Red on 5307e1ad: there is no body-tile.mjs.
+         */
+        const B = await import("./body-tile.mjs").catch(() => null);
+        must(B && typeof B.bodyPlaceOf === "function" && typeof B.bodyTilesOf === "function" && typeof B.bodyRoomOf === "function",
+            "body-tile.mjs does not load or exports no bodyPlaceOf, bodyTilesOf or bodyRoomOf");
+        const R = await import("./rooms.mjs");
+        const L1 = "SUITER3141FLOOR1", L2 = "SUITER3141FLOOR2", V = "SUITER3141VICTIM", W = "SUITER3141OTHER0";
+        const piece = (name, x, levels) => ({ id: `${name}Id`, name, behaviors: [], levels: new Set(levels),
+            bounds: { x, y: 0, width: 400, height: 400 }, testPoint: p => p.x >= x && p.x <= x + 400 && p.y >= 0 && p.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const tile = (id, mark, { x = 100, y = 100, size = 100, hidden = false } = {}) => ({ id, x, y, width: size, height: size, elevation: 0, hidden,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.bodyOf ? mark : undefined) });
+        const scene = (...tiles) => ({ id: "SUITER3141SCENE0", grid: { size: 100 }, tiles,
+            regions: new Set([piece("Lab", 0, [L1]), piece("Attic", 0, [L2]), piece("Hall", 500, [])]) });
+        const actor = (id, record) => ({ id, type: "character", getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.deceased ? record : undefined) });
+        const victim = actor(V, { chapter: 1, phase: "investigation", deathId: "D2" });
+        const mark = (over = {}) => ({ actorId: V, deathId: "D2", level: L1, at: 2000, ...over });
+        const lab = tile("tLab", mark()), later = tile("tLater", mark({ at: 3000 }), { x: 600 }),
+            older = tile("tOlder", mark({ deathId: "D1", at: 1000 }), { x: 600 }), theirs = tile("tTheirs", mark({ actorId: W, at: 500 }), { x: 600 });
+        const token = { id: "SUITER3141TOKEN0", hidden: false };
+        const tokenPlace = (sc, hidden = false) => () => ({ tokenDoc: { ...token, hidden }, scene: sc, room: "Hall", level: L1 });
+        const read = (who, tiles, { hidden = false, place } = {}) => {
+            const sc = scene(...tiles);
+            const at = B.bodyPlaceOf(who, { scenes: [sc], tokenPlace: place ?? tokenPlace(sc, hidden) });
+            return at ? [at.via, at.room, at.hidden, at.level, at.scene === sc, at.doc?.id ?? null] : null;
+        };
+        const cases = {
+            tile: read(victim, [later, older, lab, theirs]),
+            hiddenTile: read(victim, [tile("tHid", mark(), { hidden: true })]),
+            upperFloor: read(victim, [tile("tUp", mark({ level: L2 }))]),
+            centreNotCorner: read(victim, [tile("tWide", mark(), { x: 400, size: 200 })]),
+            none: read(victim, []),
+            olderDeath: read(victim, [older]),
+            anotherStudent: read(victim, [theirs]),
+            hiddenToken: read(victim, [], { hidden: true }),
+            alive: read(actor(V, undefined), [lab]),
+            nowhere: read(victim, [], { place: () => null })
+        };
+        equal(stableJson(cases), stableJson({
+            tile: ["tile", "Lab", false, L1, true, "tLab"],
+            hiddenTile: ["tile", "Lab", true, L1, true, "tHid"],
+            upperFloor: ["tile", "Attic", false, L2, true, "tUp"],
+            centreNotCorner: ["tile", "Hall", false, L1, true, "tWide"],
+            none: ["token", "Hall", false, L1, true, token.id],
+            olderDeath: ["token", "Hall", false, L1, true, token.id],
+            anotherStudent: ["token", "Hall", false, L1, true, token.id],
+            hiddenToken: ["token", "Hall", true, L1, true, token.id],
+            alive: ["token", "Hall", false, L1, true, token.id],
+            nowhere: null
+        }), "{each case: [via, room, hidden, floor, on the scene, the document]}");
+        const sc = scene(later, older, lab, theirs);
+        equal(stableJson([V, W, "SUITER3141NOBODY"].map(id => B.bodyTilesOf(id, [sc]).map(t => t.doc.id).sort())),
+            stableJson([["tLab", "tLater", "tOlder"], ["tTheirs"], []]), "the tiles `bodyTilesOf` reads as [the victim's, the other student's, nobody's]");
+        equal(B.bodyRoomOf(victim, { scenes: [sc], tokenPlace: tokenPlace(sc) }), "Lab", "`bodyRoomOf` is not `bodyPlaceOf`'s room");
+    }],
+
+    ["R3142 - a body's tile is drawn from the token it leaves and only for a death that is not an execution (body-tile.mjs `bodyTileSpec`, `tileCentre`, `isBodyDeath`, E95 C0; the owner's default on Q2 (a)): the token's squares in pixels, its corner, height and picture, the flag `{ actorId, deathId, level, at }`; the file imports config, movement and settings only", async () => {
+        /*
+         * E95 C0, 10.11.2026; DC6 ("tylko ofiary morderstwa"; "stracony kafla nie dostaje"), QUESTIONS Q2 (a): every
+         * death whose `cause` is not "executed" and whose phase is not the Class Trial, the rule chapter.mjs
+         * `bodiesToDiscover` reads a body to find by. A 2x2 token on a 100 px grid is a 200 px tile with the
+         * token's centre, on a 150 px grid 300 px; the floor stored as its id whether handed as an id or as a
+         * Level. The imports, so the file can be read from frisk.mjs without closing a cycle (R161). Red on
+         * 5307e1ad: there is no body-tile.mjs.
+         */
+        const B = await import("./body-tile.mjs").catch(() => null);
+        must(B && ["bodyTileSpec", "tileCentre", "isBodyDeath"].every(name => typeof B[name] === "function"),
+            "body-tile.mjs does not load or exports no bodyTileSpec, tileCentre or isBodyDeath");
+        const tokenDoc = (size, level) => ({ x: 300, y: 400, width: 2, height: 2, elevation: 5, level, texture: { src: "icons/svg/skull.svg" },
+            parent: { grid: { size } } });
+        const read = spec => [spec.x, spec.y, spec.width, spec.height, spec.elevation, spec.texture?.src ?? null,
+            spec.flags?.[MODULE_ID]?.[FLAGS.bodyOf] ?? null];
+        const record = { chapter: 2, phase: "investigation", deathId: "SUITER3142DEATH0" };
+        const one = B.bodyTileSpec({ tokenDoc: tokenDoc(100), actorId: "SUITER3142VICTIM", record, level: "SUITER3142FLOOR1", at: 1234 });
+        const two = B.bodyTileSpec({ tokenDoc: tokenDoc(150), actorId: "SUITER3142VICTIM", record, level: { id: "SUITER3142FLOOR2" }, at: 99 });
+        const mark = (level, at) => ({ actorId: "SUITER3142VICTIM", deathId: "SUITER3142DEATH0", level, at });
+        equal(stableJson([read(one), read(two)]), stableJson([
+            [300, 400, 200, 200, 5, "icons/svg/skull.svg", mark("SUITER3142FLOOR1", 1234)],
+            [300, 400, 300, 300, 5, "icons/svg/skull.svg", mark("SUITER3142FLOOR2", 99)]
+        ]), "[the tile of a 2x2 token on a 100 px grid, on a 150 px grid]: [x, y, width, height, elevation, image, flag]");
+        equal(stableJson([B.tileCentre(one), B.tileCentre(two)]), stableJson([{ x: 400, y: 500 }, { x: 450, y: 550 }]),
+            "the tiles' centres are not the tokens' (x + width x grid / 2)");
+        const deaths = [{ cause: "executed", phase: "classTrial" }, { phase: "classTrial" }, { cause: "executed", phase: "investigation" },
+            { phase: "investigation", deathId: "x" }, { chapter: 1 }, null, undefined];
+        equal(stableJson(deaths.map(r => B.isBodyDeath(r))), stableJson([false, false, false, true, true, false, false]),
+            "whether [an execution, a death in the Class Trial, an execution outside it, a murder, a death with no phase, no record, none] leaves a body");
+        const res = await fetch(`/modules/${MODULE_ID}/scripts/body-tile.mjs`).catch(() => null);
+        must(res?.ok, "body-tile.mjs is not served - its imports cannot be read");
+        const { staticImports } = await import("./tests-kit.mjs");
+        equal(stableJson(staticImports(stripComments(await lfText(res))).sort()), stableJson(["config.mjs", "movement.mjs", "settings.mjs"]),
+            "body-tile.mjs imports something besides config.mjs, movement.mjs and settings.mjs");
+    }],
 ];
 
 /**

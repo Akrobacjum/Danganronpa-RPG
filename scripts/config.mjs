@@ -132,6 +132,15 @@ export const FLAGS = {
      */
     monocub: "monocub",
     /**
+     * Tile: this tile is a murdered student's body, left where their token stood when they became a Monocub
+     * (E95, 1.2.104; DC6; body-tile.mjs). `{ actorId, deathId, level, at }` - whose body, which death
+     * (the `deceased` record's `deathId`, so a later death's reader does not take an earlier one's tile),
+     * the floor it lies on (an id, or null on a scene of one floor; read by the rules, so they do not wait
+     * on v14's own tile floor field, LIVE-E95-02) and when it was laid (epoch ms; of two, the earliest is
+     * the body). The same word as the tests' source cutter `bodyOf` (tests-kit.mjs): a grep reads both.
+     */
+    bodyOf: "bodyOf",
+    /**
      * Character: locked out of discussing this crime until this chapter ends.
      *
      * Guide, p. 17: a Monocub who stumbles onto an incident "otrzymuje zakaz
