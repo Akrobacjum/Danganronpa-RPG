@@ -2578,7 +2578,7 @@ export const approveE15 = (gm, IDS, repoUrl, clicks) => gm.eval(`${E15_UNTIL}
         const form = app?.element?.querySelector("form");
         const box = form?.querySelector('[name="secret"]');
         out.window = { secret: box ? [box.checked, box.disabled] : null, to: form?.passageTo ? [...form.passageTo.options].map(o => o.value) : null,
-            from: app?.element?.querySelector("[data-drpg-passage-preset] .notes")?.textContent ?? null };
+            from: app?.element?.querySelector("[data-drpg-passage-preset] .drpg-help")?.textContent ?? null };
         app?.element?.querySelector("footer.form-footer button.default")?.click();
         await until(() => !windowOf());
         await new Promise(r => setTimeout(r, 300));

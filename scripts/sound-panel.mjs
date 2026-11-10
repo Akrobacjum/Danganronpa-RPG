@@ -27,7 +27,7 @@
 import { SITUATIONAL_PLAYLIST } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { error } from "./utils.mjs";
-import { emptyOption, box } from "./ui-kit.mjs";
+import { emptyOption, box, dataTable } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { MUSIC_STATES, musicMap, isCuePlaylist, saveMusicKey } from "./music-states.mjs";
 import { situationalPlaylist, playTrack, resetMusic } from "./music-play.mjs";
@@ -79,21 +79,36 @@ async function openPlayerSoundDialog({ drpgWindow, soundSlidersHtml, wireSoundPa
  * save in flight by it - live.mjs carries its state across, and `showSaveState` writes to the one drawn now.
  */
 export function musicMapRows(playlists) {
+    return musicMapTable(playlists).querySelector("tbody").innerHTML;
+}
+
+/* The Music tab's table on the kit (E46-C4, 09.11.2026; STAGE E46's Sound shape: "the rows a dataTable"): the When and
+   Plays columns, one row a state as `musicMapRows` has it, the body the live region `.drpg-music-map` (E44 C2b) - the
+   kit's `dataTable` draws a body with no class, so it is given one here. An element (the table's box), not markup: the
+   pane writes its `outerHTML`, the live region's build takes its body. D45's save model is the rows' own, unchanged:
+   each select saves its key (`wireMusicMap`, `saveMusicKey`) and its marker says how it went (`showSaveState`). */
+function musicMapTable(playlists) {
     const map = musicMap();
     const offered = playlists.filter(p => !isCuePlaylist(p));
-    return MUSIC_STATES.map(state => {
+    const esc = foundry.utils.escapeHTML;
+    const rows = MUSIC_STATES.map(state => {
         const label = state.label ?? game.i18n.localize(state.labelKey);
         const options = [emptyOption("DRPG.Music.notSet"), ...offered.map(p =>
-            `<option value="${p.id}"${map[state.key] === p.id ? " selected" : ""}>${
-                foundry.utils.escapeHTML(p.name)}</option>`)].join("");
-
-        return `<tr>
-            <td>${foundry.utils.escapeHTML(label)}</td>
-            <td><select name="state:${state.key}"
-                aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Music.playlist")}: ${label}`)}">${options}</select>
-                <span class="notes drpg-music-save" data-drpg-save="" data-drpg-key="${foundry.utils.escapeHTML(state.key)}" aria-live="polite"></span></td>
-        </tr>`;
-    }).join("");
+            `<option value="${p.id}"${map[state.key] === p.id ? " selected" : ""}>${esc(p.name)}</option>`)].join("");
+        return {
+            when: esc(label),
+            plays: `<select name="state:${state.key}"
+                aria-label="${esc(`${game.i18n.localize("DRPG.Music.playlist")}: ${label}`)}">${options}</select>
+                <span class="notes drpg-music-save" data-drpg-save="" data-drpg-key="${esc(state.key)}" aria-live="polite"></span>`
+        };
+    });
+    const t = document.createElement("template");
+    t.innerHTML = dataTable({
+        columns: [{ key: "when", label: game.i18n.localize("DRPG.Music.when"), cls: "music-when" }, { key: "plays", label: game.i18n.localize("DRPG.Music.playlist") }],
+        rows
+    });
+    t.content.querySelector("tbody")?.classList.add("drpg-music-map");
+    return t.content.firstElementChild;
 }
 
 // Three tabs, Play first (Dawid, 26.08): the cue controls a GM reaches
@@ -149,35 +164,43 @@ function soundPlayPane() {
                     // playlist is missing, and it disappears the moment there is
                     // one - which the rebuild on `createPlaylist` now does by itself.
                     // Information, not a warning (D11; audit S12-59, E22 C6b): the kit's neutral box.
-                    : `${box("info", `<p class="notes" data-drpg-no-cue>${game.i18n.format(
-                        "DRPG.Music.noSituational", { name: SITUATIONAL_PLAYLIST })}</p>`)}
-                    <button type="button" class="drpg-mini-button" data-drpg-make-cue>${
-                        game.i18n.format("DRPG.Music.makeSituational",
-                            { name: SITUATIONAL_PLAYLIST })}</button>`}
-                <button type="button" class="drpg-mini-button" data-drpg-play${
-                    playable ? "" : " disabled"}>${
-                    game.i18n.localize("DRPG.Music.play")}</button>
-                <button type="button" class="drpg-mini-button" data-drpg-reset-music>${
-                    game.i18n.localize("DRPG.Music.reset")}</button>
+                    // The button is the box's own action, under its line (E47-FC, 09.11.2026; the owner on comparison 2,
+                    // card bc025): it stood under the box, beside Play and Reset, and the line said "Create it below".
+                    : box("info", `<p class="notes" data-drpg-no-cue>${game.i18n.format(
+                        "DRPG.Music.noSituational", { name: SITUATIONAL_PLAYLIST })}</p>`, {
+                        action: `<button type="button" class="drpg-mini-button" data-drpg-make-cue>${
+                            game.i18n.format("DRPG.Music.makeSituational", { name: SITUATIONAL_PLAYLIST })}</button>` })}
+                <div class="drpg-music-now-actions">
+                    <button type="button" class="drpg-mini-button" data-drpg-play${
+                        playable ? "" : " disabled"}>${
+                        game.i18n.localize("DRPG.Music.play")}</button>
+                    <button type="button" class="drpg-mini-button" data-drpg-reset-music>${
+                        game.i18n.localize("DRPG.Music.reset")}</button>
+                </div>
             </fieldset>`;
 }
 
 /** The mapping tab: the intro, the notes, and the state-to-playlist table. A world with no playlists is told so in
  *  the kit's information box (E22 fix G1; the end review's SCREENS m2): it was a warning's red bar, and nothing is
  *  wrong - there is only nothing to map yet (D11, E22-07). */
-function soundPlaylistsPane(playlists, rows) {
+export function soundPlaylistsPane(playlists) {
+    /* ONE SENTENCE, THEN THE ORDER FOLDED (E46-C4, 09.11.2026; S13-36 (6), card M2): the tab opened on two sentences
+       of intro and four paragraphs of notes, three over the table and one under it (1595 px of body at 3c952c67, glass,
+       1366x768). The intro is one sentence now, and the four notes - which state wins, the trial's, the incident's and
+       the fades - are a closed `details` above the table, in their order. */
+    const offered = playlists.filter(p => !isCuePlaylist(p));
     return `
             <p>${game.i18n.localize("DRPG.Music.intro")}</p>
-            ${playlists.length ? "" : box("info", `<p class="notes">${
+            ${offered.length ? "" : box("info", `<p class="notes">${
                 game.i18n.localize("DRPG.Music.noPlaylists")}</p>`)}
-            <p class="notes">${game.i18n.localize("DRPG.Music.orderNote")}</p>
-            <p class="notes">${game.i18n.localize("DRPG.Music.trialNote")}</p>
-            <p class="notes">${game.i18n.localize("DRPG.Music.incidentNote")}</p>
-            <table class="drpg-vault-table"><thead><tr>
-                <th>${game.i18n.localize("DRPG.Music.when")}</th>
-                <th>${game.i18n.localize("DRPG.Music.playlist")}</th>
-            </tr></thead><tbody class="drpg-music-map">${rows}</tbody></table>
-            <p class="notes">${game.i18n.localize("DRPG.Music.fadeNote")}</p>`;
+            <details class="drpg-sound-order">
+                <summary>${game.i18n.localize("DRPG.Music.howOrder")}</summary>
+                <p class="drpg-help">${game.i18n.localize("DRPG.Music.orderNote")}</p>
+                <p class="drpg-help">${game.i18n.localize("DRPG.Music.trialNote")}</p>
+                <p class="drpg-help">${game.i18n.localize("DRPG.Music.incidentNote")}</p>
+                <p class="drpg-help">${game.i18n.localize("DRPG.Music.fadeNote")}</p>
+            </details>
+            ${musicMapTable(playlists).outerHTML}`;
 }
 
 /** A row's marker: its state as a data attribute and as words a screen reader is told. */
@@ -213,10 +236,7 @@ const sortedPlaylists = () => Array.from(game.playlists).sort((a, b) => a.name.l
 /* The Music tab's rows, drawn again as the live region's build (E44 C2b). A node, not markup: a `<tbody>` written
    into a `<div>` (live.mjs `toElement`) is dropped by the parser. */
 function musicMapBody() {
-    const body = document.createElement("tbody");
-    body.className = "drpg-music-map";
-    body.innerHTML = musicMapRows(sortedPlaylists());
-    return body;
+    return musicMapTable(sortedPlaylists()).querySelector("tbody");
 }
 
 /*
@@ -326,12 +346,10 @@ export async function openSoundDialog() {
      */
     const playlists = sortedPlaylists();
 
-    const rows = musicMapRows(playlists);
-
     // The cue pane reads its own playlist, because it is built again on every
     // playlist change (`soundPlayPane`, and the live region in `render` below).
     // The mapping's warning counts what it can offer, which is never the cue playlist.
-    const playlistsPane = soundPlaylistsPane(playlists.filter(p => !isCuePlaylist(p)), rows);
+    const playlistsPane = soundPlaylistsPane(playlists);
 
     await drpgWindow({
         title: game.i18n.localize("DRPG.Sound.title"),

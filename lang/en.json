@@ -304,6 +304,10 @@
         "name": "Pixel font",
         "hint": "Monokuma Legacy only, and on by default there: Press Start 2P on interface chrome - HUD, Despair, character name, statistic labels, tabs. Journals, chat and editable fields keep the normal face so long text stays readable. The Stained Glass theme has its own two faces and ignores this."
       },
+      "wideProjectWindows": {
+        "name": "Wide project windows",
+        "hint": "Create a project, Edit project and Propose a project open wider on this screen. Off, they open at the width they always had."
+      },
       "language": {
         "name": "Language",
         "hint": "This client only. The language of this module's own windows, cards and sheet. The game's proper names - Truth Bullets, Remnants, Despair - stay in English in every language. Takes effect after a reload."
@@ -1011,7 +1015,7 @@
       "tabCreateNew": "Create new",
       "pickTable": "Which table",
       "pickExisting": "Which item",
-      "existingNote": "Category and tier follow the item's table. Adjust them only when the table does not say - a room pool names neither.",
+      "existingNote": "Category and tier follow the item: a tier pool's own, or for a room pool what the tier pools say of its name. Where nothing says, choose them.",
       "existingEmpty": "No item tables in this world yet - the Item Tables tile on the GM panel builds them. Create new still works.",
       "recipient": "Give it to",
       "needsRecipient": "Nobody is selected to receive this.",
@@ -1082,7 +1086,9 @@
       "takeNote": "Anything they are holding or have stashed - Truth Bullets and keys to other people's rooms included.",
       "inStash": "in the stash",
       "carriesNothing": "{actor} is carrying nothing and has nothing stashed.",
-      "whichCharacterHub": "Which student"
+      "whichCharacterHub": "Which student",
+      "chooseOne": "- choose -",
+      "setCategoryTier": "The tables do not say what this item is: choose its category and tier to give it."
     },
     "Monocub": {
       "panelTitle": "Monocub",
@@ -1190,6 +1196,21 @@
       "finalPlacedIn": "Final Truth Remnant placed in {room}."
     },
     "Floor": {
+      "next": {
+        "start": "No Class Trial is running. Start the Class Trial.",
+        "openDebate": "The trial is in discussion. Open the debate when the room is ready for one.",
+        "openAgain": "An Objection was overruled after its exchange. Open the debate again with the time it had left.",
+        "reopen": "The exchange has closed the debate. Open the debate again with the same question.",
+        "closeDebate": "The debate is open. Close it when the room has argued it out.",
+        "endRound": "A round holds the floor. End the round once every speaker has had their turn.",
+        "endClosing": "The Closing Argument holds the floor. End it, then send the ballots.",
+        "vote": "The ballots are out. When they are back, Close and count in The vote.",
+        "verdict": "The vote is counted. Deliver the verdict.",
+        "finishVerdict": "The verdict stopped before every step was done. Finish the verdict.",
+        "finishElsewhere": "The verdict stopped before every step was done. Only {name} can finish it.",
+        "verdictElsewhere": "{name} is giving the verdict. End the chapter once it is done.",
+        "chapterEnd": "The verdict is in. End the chapter."
+      },
       "nobodyForTrial": "There is nobody alive to hold a Class Trial with.",
       "trialBegins": "The Class Trial begins",
       "debateOpenedTitle": "Nonstop Debate!",
@@ -1465,7 +1486,14 @@
       "cancel": "Cancel",
       "tableEmpty": "Nothing to show yet.",
       "scrollMore": "There is more below. Scroll to see it.",
-      "allThresholds": "All thresholds"
+      "allThresholds": "All thresholds",
+      "check": {
+        "done": "Done",
+        "blocking": "Required, not done yet",
+        "advisory": "Optional",
+        "warning": "Check this",
+        "waiting": "Waiting"
+      }
     },
     "Look": {
       "language": "Language",
@@ -1500,10 +1528,11 @@
       "tabEffects": "Effects",
       "volumes": "Volume",
       "volumeNote": "Both live in this browser only.",
-      "effectsIntro": "This module ships no audio, the same bargain the playlists make. Point an event at a file of your own; anything left blank stays silent, which is a choice rather than a fault.",
+      "effectsIntro": "This module ships no audio. Give an event a file of your own; an empty box means silence.",
       "assigned": { "one": "{n} of {total} events has a file.", "other": "{n} of {total} events have a file." },
       "event": "Event",
       "file": "File",
+      "rowButtons": "Test or clear",
       "notAssigned": "not assigned yet",
       "severalHint": "One file, or several split by | - one is picked, never twice running.",
       "fileCount": { "one": "{n} file", "other": "{n} files" },
@@ -1514,21 +1543,18 @@
       "choose": "Choose",
       "test": "Test",
       "clear": "Clear",
-      "chooseHint": "Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time.",
-      "testHint": "Play it here, now.",
-      "clearHint": "Empty this row: the event goes silent.",
       "groupAssigned": "{n} of {total} assigned",
       "autosave": "Changes save as you make them: this window has no Apply button.",
       "testFailed": "{label}: {why}",
       "why": {
-        "noEvent": "No such event. Known keys: {keys}",
-        "noFile": "No file is mapped to this event yet.",
-        "soundZero": "The Sound slider is at zero.",
-        "interfaceZero": "Foundry's own Interface volume is at zero.",
-        "locked": "This browser has not been allowed to play audio yet. Click anywhere on the page first, then try again.",
-        "refused": "The audio layer refused it.",
-        "timeout": "The file did not finish loading.",
-        "failed": "Foundry could not load that file."
+        "noEvent": "There is no event with that key. The events' keys are {keys}.",
+        "noFile": "This event has no file yet. Choose one in the File column.",
+        "soundZero": "The Sound slider is at zero. Raise it, then test again.",
+        "interfaceZero": "Foundry's own Interface volume is at zero. Raise it, then test again.",
+        "locked": "This browser plays no audio until you click the page. Click anywhere on it, then test again.",
+        "refused": "The sound did not start. Test again.",
+        "timeout": "The file did not finish loading. Check its path, then test again.",
+        "failed": "Foundry could not load that file. Check its path in the File column."
       }
     },
     "Vote": {
@@ -1664,7 +1690,8 @@
     },
     "Music": {
       "notSet": "- not set -",
-      "intro": "Pick which playlist plays when. The module never starts a playlist you have not chosen here, and ships no audio of its own.",
+      "intro": "Pick which playlist plays in each state; the module starts none you have not picked here.",
+      "howOrder": "How the order works",
       "orderNote": "The first state that applies wins, in the order listed. A Class Trial at night uses the trial's playlists; an Eclipse during one uses the Eclipse's.",
       "trialNote": "Objection beats the open debate, and the debate beats the trial merely being in session. A rebuttal has no row of its own: the Objection's music keeps playing through it. Each picks a random track when it takes over, never the one it played last. An Objection runs one minute, so give that playlist a short fade.",
       "incidentNote": "The murder row plays only in the browsers of the people in the incident and of the GMs, so nobody else learns from the music that a murder is happening. Leave it empty and whatever is playing keeps playing.",
@@ -1692,7 +1719,7 @@
       "noTrack": "Pick a track first.",
       "noTracks": "This playlist has no tracks",
       "playFailed": "That track would not play. See the console.",
-      "noSituational": "No playlist called “{name}”. Create it below.",
+      "noSituational": "No playlist called “{name}” yet.",
       "makeSituational": "Create the “{name}” playlist",
       "situationalMade": "“{name}” exists now. Put your scene tracks in it from the Playlists sidebar - stings, reveals, the quiet bits - and they will appear here.",
       "makeFailed": "The playlist could not be created. See the console.",
@@ -1789,8 +1816,8 @@
       "gmTitleFor": "Cleaning up - {name}",
       "gmNothingHere": "No traces in the room the killer is standing in.",
       "gmAttemptsLeft": {
-        "one": "Sanity left for {n} more attempt. Stage 6 ends when that runs out, or when you close the murder - closing destroys the Murder Weapon that was used; the cleaning tool goes when the body is found.",
-        "other": "Sanity left for {n} more attempts. Stage 6 ends when that runs out, or when you close the murder - closing destroys the Murder Weapon that was used; the cleaning tool goes when the body is found."
+        "one": "Sanity left for {n} more attempt. Stage 6 ends when that runs out, or when you end the murder - ending it destroys the Murder Weapon that was used; the cleaning tool goes when the body is found.",
+        "other": "Sanity left for {n} more attempts. Stage 6 ends when that runs out, or when you end the murder - ending it destroys the Murder Weapon that was used; the cleaning tool goes when the body is found."
       },
       "stressBack": "You get {n} Sanity back.",
       "refundUnheld": "{name}'s clean-up asked for {what} back, and the GMs' audit held no record here to check it was paid: nothing was given back. If it was paid, give it back by hand.",
@@ -1893,8 +1920,8 @@
       "openIntro": "One opening roll, then a turn-based incident. A direct murder opens on the killer's roll; a trap opens on the victim's.",
       "killer": "Killer",
       "victim": "Victim",
-      "indirect": "Indirect murder - the victim is alone, and the drain is doubled",
-      "indirectCost": "A trap is built as projects. Budget about {low}-{high} progress across them, roughly {fewest} to {actions}, or it costs more to set than it is worth.",
+      "indirect": "Indirect murder (a trap) - the victim faces it alone and loses twice the Sanity or Health each turn",
+      "indirectCost": "A trap is built as projects. Plan about {low}-{high} progress in total, roughly {fewest} to {actions}.",
       "openConfirm": "Open the incident",
       "needOne": "There must be at least one living student.",
       "openSelfNote": "One name in both seats: this opens as a death by their own hand. There is no Stage 5 - the opening roll decides whether they go through with it, and the incident goes straight to Stage 6.",
@@ -1909,13 +1936,20 @@
       "selfWentThrough": "<strong>You went through with it.</strong> There is no fight to have. Stage 6 is open on your sheet: whatever you leave the room as, you leave it as now.",
       "resolutionNoteSelf": "Stage 6, with nobody left to hide it from but the class. They can see and clean their own traces, and they are still alive to do it - closing the incident is what makes the death real.",
       "trackerStateSelf": "{stage} · no turns - Stage 5 does not run",
+      "trackerStateOver": "{stage} · the turns are over",
       "afterSelf": "By their own hand - nobody else was in the room, and the class has only the scene to go on.",
       "afterIntroSelf": "{name}, by their own hand. Everything below follows from what just happened, and the module has stopped tracking the incident itself.",
       "dayNote": "Not night, so the opening roll is unmodified.",
       "keyCount": { "one": "This case will leave {n} Key Remnant.", "other": "This case will leave {n} Key Remnants." },
-      "trackerCastGone": "This incident names somebody the world does not have any more ({who}). Nothing can move it on - Close the murder ends it.",
+      "trackerCastGone": "This incident names somebody the world does not have any more ({who}). Nothing can move it on - press End the murder.",
       "trackerTitle": "Incident tracker",
       "trackerOver": "This incident is over.",
+      "trackerOpenMurder": "Open a murder...",
+      "fact": {
+        "who": "Who",
+        "left": "Left",
+        "case": "Case"
+      },
       "ranOutTitle": "They ran out",
       "ranOut": "{name} is out of Health and out of Sanity. The incident ends and they are dead - no Finishing Blow was needed, and none was earned.",
       "rerollLost": "A Reroll of a crisis action was not replayed: there was no record of it here, or the incident closed or moved on first. Its first roll goes back on the card and the Hope is returned. If the incident closed while it was being taken back, check that action's Remnant and the sheets by hand.",
@@ -1936,7 +1970,7 @@
       "whoWalkedIn": "Who?",
       "nobodyElse": "There is nobody else alive to walk in.",
       "endMurder": "End the murder",
-      "endConfirm": "End this murder? The incident state is cleared. Nothing already applied is undone.",
+      "endConfirm": "Stop tracking this murder? Lost Health and Sanity, items, and Remnants stay as they are.",
       "afterTitle": "The incident is over - what now",
       "afterIntro": "{killer} against {victim}. Everything below follows from what just happened, and the module has stopped tracking the incident itself.",
       "afterRoom": "The body is in {room}.",
@@ -2326,7 +2360,9 @@
       "neighboursColumn": "Neighbours",
       "neighboursHint": "The rooms this one has a door to, separated by commas. Blank: its walls decide (the greyed names).",
       "neighboursNote": "“Neighbours” is where a door overrules the map: list the rooms this one opens into, separated by commas. Two rooms are connected when either lists the other, both ways. A room with a list is connected to nothing else, and a room beside it cannot walk in unless one of the two lists the other. Left blank, a room's neighbours are the rooms without a list whose walls share an edge with its own (a corner is not enough), and every room that lists it. A room the lists and the walls leave with no neighbour has no door out. A room that has no list, is in no list and touches no other room, not even at a corner, is not checked: a crossing from it may go to any room.",
-      "neighboursUnknown": "{room}: no room on this scene is named {names}. Kept in its Neighbours, where it connects nothing."
+      "neighboursUnknown": "{room}: no room on this scene is named {names}. Kept in its Neighbours, where it connects nothing.",
+      "imageLarge": "This picture is large and slow to load for every player: {size}.",
+      "imageBroken": "This picture does not load - pick the file again."
     },
     "Chapter": {
       "deathTitle": "A character dies",
@@ -2507,7 +2543,9 @@
         "other": "The trial hall has no token for {n} of the trial's cast, so the trial cannot show them: {names}. The module makes none for Monokuma, and one it could not make is in the console - place one for each on the hall's scene by hand."
       },
       "handPlaced": "{names}: no token in the trial hall, and the module makes none for Monokuma - place one by hand if the trial needs it.",
-      "placedByGm": "your token in the hall: shown or hidden, never deleted"
+      "placedByGm": "your token in the hall: shown or hidden, never deleted",
+      "castWho": "Takes part",
+      "castToken": "Token in the hall"
     },
     "Trial": {
       "presentTooltip": "Present - put this on the table for everyone to see.",
@@ -2640,7 +2678,7 @@
       "receivedBulletFrom": "{who} showed you {name}, and you have written down a copy.",
       "receivedItem": "You have been handed something",
       "receivedItemFrom": "{who} handed you {name}.",
-      "answerKeyMissing": "{name} cannot be handed over now: what it really is is not on the GM's browser. The GM can bring it back from a backup (Restore the case)."
+      "answerKeyMissing": "{name} cannot be handed over now: what it really is is not on the GM's browser. The GM can bring it back from a backup (GM panel, Diagnostics, The case: Restore from a file)."
     },
     "Observe": {
       "projectFoundDone": "The secret project you found is finished: {name}.",
@@ -2685,11 +2723,11 @@
       "rerollLost": "A Reroll arrived for an Observe with no record here. Score the new number against the same trace by hand, and take back the Truth Bullet if it no longer fits.",
       "alreadyHeld": "You already hold a Truth Bullet of this trace.",
       "alreadyDescribed": "This trace already has a name, and every observer is told the same one - two names for one object is a contradiction the trial has to spend itself resolving. A critical buys a bigger hint, not a new name: add it below.",
-      "generalHint": "Sweep the room for the easiest Remnant to spot, looking first among those tied to the crime. Your total alone decides what you find; you do not need to write anything. With nothing here to find, a GM rules on your roll.",
-      "nonObviousHint": "Aim for the hardest Remnant to spot, looking first among those tied to the crime. Only this way can you also notice a hidden secret project. Your total alone decides what you find; with nothing here to find, a GM rules on your roll.",
-      "followTracesHint": "Retrace your own steps and look for what you left behind.",
-      "specificHint": "Write what you are looking for; if you leave it blank, it counts as a sweep of the room. A GM, blind to your total, picks the Remnant in this room your search finds.",
-      "anythingHint": "Something that is not a trace - a person, a machine, the weather. The GM rules on it."
+      "generalHint": "The easiest Remnant to spot, those tied to the crime first. Your total decides; in an empty room a GM rules.",
+      "nonObviousHint": "As a sweep, but the hardest Remnant to spot; only this way finds a hidden secret project.",
+      "followTracesHint": "Find what you left behind.",
+      "specificHint": "Say what you seek; a GM, blind to your total, picks the Remnant. Blank is a sweep.",
+      "anythingHint": "Anything but a trace. A GM rules on it."
     },
     "TruthBullet": {
       "title": "Truth Bullet",
@@ -3053,6 +3091,9 @@
       },
       "suggestNone": "A suggestion appears here once the season has living students.",
       "amount": "by",
+      "colOn": "On",
+      "colWhat": "Effect",
+      "colDoes": "What it does",
       "floorNote": "None of these ever goes below one. A time of day with no actions, or a room with no search tokens, is not a harder game - it is a player with nothing to do until the clock moves.",
       "current": "Right now: {count} of {max}.",
       "currentDrawn": "Right now: {count} of {max}. This time of day is under {what}.",
@@ -3312,7 +3353,7 @@
         "murder": "Blade"
       },
       "delete": "Delete",
-      "deleteNote": "Tick Delete and Save to remove a project for good. Its progress and metadata do not come back.",
+      "deleteNote": "Delete in a project's row asks first, then removes the project for good. Its progress and metadata do not come back.",
       "saved": "Projects updated.",
       "savedWithDeletions": "Projects updated. {n} deleted.",
       "shareButton": "Share…",
@@ -3763,6 +3804,12 @@
       "poolCreated": "Room table “{name}” created. Point a room at it in Room Setup.",
       "renameTable": "Rename table",
       "deleteTable": "Delete table",
+      "col": {
+        "table": "Table",
+        "items": "Items",
+        "description": "Description",
+        "actions": "Actions"
+      },
       "createTable": "Create table",
       "installAction": "Install / reinstall",
       "renameNote": "A tier pool keeps a name of its category and tier. A room table can take any other name.",
@@ -3821,8 +3868,6 @@
       "goSeasonSetupButton": "Set the season up",
       "nextIncident": "An incident is running. Take it to the end before anything else.",
       "nextEclipse": "The Eclipse is open. Close it once everyone has placed.",
-      "nextNoFloor": "The trial is in discussion. Open the debate when the room is ready for one.",
-      "nextFloor": "The debate is open - {mode}.",
       "nextBodyFound": "A body has been found. Start the Investigation when the room is ready.",
       "nextKeysToPlace": {
         "one": "{n} Key Remnant of this case is not on the map yet. Place it from the Investigation window's Key Remnants tab.",
@@ -3913,17 +3958,24 @@
       "checksImagesPixels": "{width} x {height} px",
       "checksImagesBytes": "{mb} MB",
       "seasonChecks": "Pre-season checks",
-      "nextFloorHeld": "{mode} - {who} holds it.",
       "whoIsAlive": "Students",
-      "whoIsAliveNote": "The dropdown only moves the flags - the repair tool, for a mis-click. The buttons on the right run the real thing: a death destroys Truth Bullets, an invitation makes a Monocub.",
+      "whoIsAliveNote": "State only moves the flags, on Apply - the repair tool, for a mis-click. Role changes at once. The buttons run the real thing: a death destroys Truth Bullets, an invitation makes a Monocub.",
       "doColumn": "Do",
       "refundCrossing": "Refund last crossing",
       "refundCrossingNote": "{to} back to {from}",
-      "nextVerdict": "The vote is counted. Deliver the verdict.",
-      "nextChapterEnd": "The verdict is in. End the chapter.",
       "nextChapterEndStopped": "The end of the chapter stopped before every step was done. Finish it in End the chapter.",
       "nextTrialOutlived": "The chapter has moved on and the trial is still sitting. End the trial.",
-      "nextReady": "The players have been asked before the clock moves. Open the question again."
+      "nextReady": "The players have been asked before the clock moves. Open the question again.",
+      "roleColumn": "Role",
+      "role": {
+        "student": "Student"
+      },
+      "levelUpColumn": "Level Up",
+      "group": {
+        "students": "Students",
+        "monokumas": "Monokumas",
+        "notInClass": "Not in the class"
+      }
     },
     "Character": {
       "notACharacter": "That only works on a character.",
@@ -3960,7 +4012,7 @@
       "deferred": { "one": "After a wrong vote, your Reinforced Level Up waits for the class's next Level Up: you choose it, {n} pick, together with the class's own when a vote names the Blackened correctly, or at the Final Trial's verdict. It lapses if you die first.", "other": "After a wrong vote, your Reinforced Level Up waits for the class's next Level Up: you choose it, {n} picks, together with the class's own when a vote names the Blackened correctly, or at the Final Trial's verdict. It lapses if you die first." },
       "offerSent": "{name} has been told; the choice is theirs now.",
       "offerFailed": "The offer could not be written to that character.",
-      "notOfferedHere": "{player} asked to spend a Level Up on {name}, and this GM's browser holds no offer for them - it has not heard from the other GMs yet, or holds no offers at all. If one was made, offer it again, or restore the case from a backup (GM panel).",
+      "notOfferedHere": "{player} asked to spend a Level Up on {name}, and this GM's browser holds no offer for them - it has not heard from the other GMs yet, or holds no offers at all. If one was made, offer it again, or bring the case back from a backup (GM panel, Diagnostics, The case: Restore from a file).",
       "offerTooltip": "{kind} - press to choose what you take.",
       "whichKind": "Which Level Up did <strong>{actor}</strong> earn?",
       "kind": {
@@ -4961,6 +5013,7 @@
       "step.roomCount": "Enough rooms for the cast",
       "hint.roomCount": "About one and a half rooms per player, corridors and dormitories aside. Fewer works, but two private conversations cannot happen at once.",
       "waitingForCast": "Waiting for the cast: create the students first.",
+      "splitUneven": "Uneven: {counts}.",
       "fallsBackTo": "{name} (falls back to {pool})",
       "roomsUncovered": "{pct}% of {scene} belongs to no room: draw the missing rooms, or draw their regions out to the walls.",
       "roomsCheckErrors": {
@@ -5355,7 +5408,7 @@
       "backstop": "The guard on Daggerheart's GM relay could not take Daggerheart {version}'s own listener off the channel, so a fallback checks each change in front of it instead. Players' requests are still checked. Tell the module's author."
     },
     "GmStore": {
-      "saveFailed": "The GM store could not save \"{store}\" in this browser: {error}. What it holds stays in this window until it is closed, and the GMs connected now hold a copy. Back up the case now (GM panel, Between sessions).",
+      "saveFailed": "The GM store could not save \"{store}\" in this browser: {error}. What it holds stays in this window until it is closed, and the GMs connected now hold a copy. Back it up now (GM panel, Diagnostics, The case: Back up).",
       "syncTimedOut": "The GM store did not hear from {names}. It carries on with what this browser holds, and their copy is merged when it arrives.",
       "claimFailed": {
         "one": "The GM store could not take over this browser's old \"{store}\" ({n} row): {error}. Nothing was changed; the old copy is still here.",
@@ -5367,7 +5420,7 @@
         "other": "{n} GMs are not connected ({names}): their browsers drop what this reset clears the next time they open this world."
       },
       "resetCutFailed": "The season reset could not mark the clock with the moment of the reset ({error}). Nothing was cleared.",
-      "saveFailedAlone": "The GM store could not save \"{store}\" in this browser: {error}. What it holds stays in this window until it is closed, and no other GM is connected to hold a copy: back up the case now (GM panel, Between sessions).",
+      "saveFailedAlone": "The GM store could not save \"{store}\" in this browser: {error}. What it holds stays in this window until it is closed, and no other GM is connected to hold a copy: back it up now (GM panel, Diagnostics, The case: Back up).",
       "openFailed": "The GM store could not open on this browser: {error}. Until it does, an Analyze or a handover of a Truth Bullet is refused. Reload to try again; the console has the details.",
       "notOpen": "The GM store has not opened on this browser after {seconds} s: an Analyze or a handover of a Truth Bullet is refused until it does. Reload to try again."
     },
@@ -5431,8 +5484,9 @@
         "one": "The case was saved to a file: {n} row.",
         "other": "The case was saved to a file: {n} rows."
       },
-      "backupTile": "Back up the case",
-      "restoreTile": "Restore the case",
+      "backupNow": "Back up the case",
+      "tile": "The case",
+      "backup": "Back up",
       "backupNever": "last backup: never",
       "backupToday": "last backup: today",
       "backupAgo": {
@@ -5551,7 +5605,7 @@
       "healthNote": "Restore brings it back from a backup file; Continue carries on without it, and the GM panel keeps saying so until the case is whole.",
       "restoreFromFile": "Restore from a file",
       "continue": "Continue",
-      "continued": "The case is incomplete on this browser. Restore it from a backup file (GM panel, Restore the case).",
+      "continued": "The case is incomplete on this browser. Restore it from a backup file (GM panel, Diagnostics, The case: Restore from a file).",
       "panelWarning": "The case is incomplete on this browser:",
       "restoreTitle": "Restore the case",
       "previewStore": "{store}: {add} new, {refresh} refreshed, {kept} newer here, {cut} under the reset's cut, {remove} removed here",
@@ -5559,10 +5613,10 @@
       "beforeCut": "Restore anyway the rows the last reset removed (they come back freshly stamped).",
       "restoreNote": "A restore takes only what is newer than what this browser holds - a removal too, counted above. It never takes the file's reset cut, and a file of another world brings no removal.",
       "restore": "Restore",
-      "answerKeyMissing": "{actor}'s Truth Bullet \"{bullet}\" has no answer key on this browser, so its Analyze was refused. Restore the case from a backup (GM panel).",
+      "answerKeyMissing": "{actor}'s Truth Bullet \"{bullet}\" has no answer key on this browser, so its Analyze was refused. Restore it from a backup (GM panel, Diagnostics, The case: Restore from a file).",
       "chargeHeld": {
-        "one": "The charge for unfound Key Remnants is held: {n} Truth Bullet has no answer key on this browser, and the count would come out wrong. Restore the case and ask again.",
-        "other": "The charge for unfound Key Remnants is held: {n} Truth Bullets have no answer key on this browser, and the count would come out wrong. Restore the case and ask again."
+        "one": "The charge for unfound Key Remnants is held: {n} Truth Bullet has no answer key on this browser, and the count would come out wrong. Restore it from a backup (GM panel, Diagnostics, The case) and ask again.",
+        "other": "The charge for unfound Key Remnants is held: {n} Truth Bullets have no answer key on this browser, and the count would come out wrong. Restore them from a backup (GM panel, Diagnostics, The case) and ask again."
       },
       "fillFromTraces": "Fill from their Remnants ({n})",
       "filled": {

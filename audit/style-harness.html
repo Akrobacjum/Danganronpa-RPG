@@ -167,6 +167,57 @@
     const box = (win.querySelector(".window-content") ?? win).getBoundingClientRect(), r = stop.getBoundingClientRect();
     return inView(stop) && r.top >= box.top - 0.5 && r.bottom <= box.bottom + 0.5 && r.left >= box.left - 0.5 && r.right <= box.right + 0.5;
   };
+  /* WHAT A FIT READS INSIDE THE WINDOW (E47-FA, 09.11.2026; comparison 2's console, Murder and form cards). A footer
+     button counts out when it stands outside the WINDOW's box as well as the viewport's - a footer wider than its window
+     stood inside the screen and read fit - and when its words run past its own box or break inside a word onto a
+     second line (`cutText`). A checkbox or radio narrower than three quarters of its height has lost its box
+     (`shrunk`: Murder's "Indirect murder" read 5x13 px under Legacy). A formGrid label whose first line stands more than
+     LABEL_OFF px off its field's first line (`labelOff`: the label's first line against the control's first line of
+     text - its middle for a control of one line, the top of its content box for a taller one, `firstLine` - or the
+     field's first line of text) sits beside the wrong thing; a label on a row of its own (the grid's one column) is not
+     read. */
+  const LABEL_OFF = 4;
+  const inside = (el, win) => { const r = el.getBoundingClientRect(), w = win.getBoundingClientRect(); return r.left >= w.left - 0.5 && r.right <= w.right + 0.5 && r.top >= w.top - 0.5 && r.bottom <= w.bottom + 0.5; };
+  const lineRects = el => { const rg = document.createRange(); rg.selectNodeContents(el); return [...rg.getClientRects()].filter(t => t.width > 0); };
+  const brokenWord = el => {
+    const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+      for (const m of n.data.matchAll(/\S+/g)) {
+        const rg = document.createRange(); rg.setStart(n, m.index); rg.setEnd(n, m.index + m[0].length);
+        if (new Set([...rg.getClientRects()].filter(t => t.width > 0).map(t => Math.round(t.top))).size > 1) return true;
+      }
+    }
+    return false;
+  };
+  const cutText = b => { const r = b.getBoundingClientRect(); return lineRects(b).some(t => t.left < r.left - 0.5 || t.right > r.right + 0.5) || brokenWord(b); };
+  const shrunk = win => [...win.querySelectorAll('input:is([type="checkbox"], [type="radio"])')].filter(shown).filter(c => { const r = c.getBoundingClientRect(); return r.width < 0.75 * r.height; }).map(c => c.name || c.id || c.type);
+  /* A control's first line of text (E47-FA): a control of one line holds it in its middle; a taller one - a text area,
+     a list box, Legacy's select whose words wrap to a second line - at the top of its content box. */
+  const firstLine = c => {
+    const r = c.getBoundingClientRect(), cs = getComputedStyle(c);
+    const line = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2;
+    const top = r.top + parseFloat(cs.borderTopWidth) + parseFloat(cs.paddingTop);
+    const bottom = r.bottom - parseFloat(cs.borderBottomWidth) - parseFloat(cs.paddingBottom);
+    if (bottom - top > 1.5 * line) return { top, bottom: top + line, many: true };
+    const mid = (r.top + r.bottom) / 2;
+    return { top: mid - line / 2, bottom: mid + line / 2, many: false };
+  };
+  const labelOff = win => [...win.querySelectorAll(".drpg-form-grid > .drpg-form-label")].filter(shown).filter(l => {
+    const f = l.nextElementSibling;
+    if (!f || !shown(f)) return false;
+    const lb = lineRects(l)[0] ?? l.getBoundingClientRect();
+    if (f.getBoundingClientRect().top >= l.getBoundingClientRect().bottom - 0.5) return false;
+    const mid = (lb.top + lb.bottom) / 2;
+    const ctrl = [...f.querySelectorAll('input:not([type="hidden"]), select, textarea')].find(shown);
+    if (ctrl) {
+      // the label's first line against the control's first line: its middle for one line, within it for several
+      const band = firstLine(ctrl);
+      return band.many ? mid < band.top - LABEL_OFF || mid > band.bottom + LABEL_OFF : Math.abs(mid - (band.top + band.bottom) / 2) > LABEL_OFF;
+    }
+    const step = [...f.querySelectorAll(".drpg-kit-stepper")].find(shown);
+    const fb = step ? step.getBoundingClientRect() : lineRects(f)[0];
+    return fb ? Math.abs(mid - (fb.top + fb.bottom) / 2) > LABEL_OFF : false;
+  }).map(l => l.textContent.trim().slice(0, 40));
   const reading = (win, tab) => {
     const footer = win.querySelector("footer.form-footer");
     const nav = win.querySelector("nav.drpg-tabs");
@@ -182,12 +233,43 @@
     return {
       tab, box: box(win), window: inView(win),
       footer: footer ? inView(footer) : null,
-      buttonsOut: footer ? [...footer.querySelectorAll("button")].filter(shown).filter(b => !inView(b)).map(b => b.dataset.action ?? b.textContent.trim()) : [],
+      buttonsOut: footer ? [...footer.querySelectorAll("button")].filter(shown).filter(b => !inView(b) || !inside(b, win) || cutText(b)).map(b => b.dataset.action ?? b.textContent.trim()) : [],
+      shrunk: shrunk(win), labelsOff: labelOff(win),
       tabs: nav ? inView(nav) : null,
       // the kit's body taller than its box with nothing to scroll it: what it holds is cut off (the sweep's control b)
       cut: (() => { const b = win.querySelector(".drpg-kit-body"); return Boolean(b && b.scrollHeight > b.clientHeight + 1 && !/auto|scroll/.test(getComputedStyle(b).overflowY)); })(),
+      wide: wideReading(win),
       scrollers
     };
+  };
+  /* WIDER THAN ITS BOX (E47-FB, 09.11.2026). Since 1.2.102 the kit's body clips sideways (components.css `overflow-x:
+     clip`, E96 C1), so a table wider than the body is cut where it used to scroll - and a body that clips is not a
+     scroller, so `scrollers` above never saw it: comparison 2 showed columns and footer buttons cut while every fit
+     reading was green. Read here on the body and the footer, scrolled or clipped: the box's `scrollWidth` past its
+     `clientWidth` by more than a pixel, or a shown descendant's rectangle past the box's inner edges, left or right
+     (the trial console's footer was cut at both ends). A descendant inside a box that scrolls sideways itself is that
+     box's (counted by `scrollers` as a second scroller), and a field's own value is the field's. The box's own width
+     counts past 6 px: the glass's buttons draw a frame 5 px outside themselves (`::before`, inset -4px -5px), which
+     Chromium counts into `scrollWidth` (a footer of three buttons read 548/544 with nothing past its edge, 09.11.2026);
+     an element past the edge counts from 1 px, and text past it is past by more than a frame. */
+  const wideReading = win => {
+    const out = [];
+    for (const [sel, name] of [[".drpg-kit-body", "kit-body"], ["footer.form-footer", "footer"]]) {
+      const b = win.querySelector(sel);
+      if (!b || !shown(b)) continue;
+      const r = b.getBoundingClientRect();
+      const left = r.left + b.clientLeft, right = left + b.clientWidth;
+      const inner = el => { for (let p = el.parentElement; p && p !== b; p = p.parentElement) if (/auto|scroll/.test(getComputedStyle(p).overflowX)) return true; return false; };
+      const past = [...b.querySelectorAll("*")].filter(el => shown(el) && !inner(el) && !el.closest("option")).find(el => {
+        const e = el.getBoundingClientRect();
+        return e.right > right + 1 || e.left < left - 1;
+      });
+      if (b.scrollWidth > b.clientWidth + 6 || past) {
+        const e = past?.getBoundingClientRect();
+        out.push(`${name} ${b.scrollWidth}/${b.clientWidth}${past ? ` (${past.localName}${past.className && typeof past.className === "string" ? `.${past.className.trim().split(/\s+/).slice(0, 2).join(".")}` : ""} ${Math.round(e.left - left)}..${Math.round(e.right - left)})` : ""}`);
+      }
+    }
+    return out;
   };
   const switchByHand = (win, key) => {
     for (const t of win.querySelectorAll('nav.drpg-tabs > button[role="tab"]')) t.setAttribute("aria-selected", String(t.dataset.drpgTabKey === key));
@@ -445,7 +527,7 @@
       root.querySelector(".dialog-content").append(...config.content.childNodes);
       const foot = root.querySelector("footer");
       for (const b of config.buttons ?? []) {
-        foot.insertAdjacentHTML("beforeend", `<button type="submit" data-action="${escapeHTML(b.action)}" class="${b.default ? "default " : ""}${escapeHTML(b.class ?? "")}"${b.default ? " autofocus" : ""}><span>${escapeHTML(b.label)}</span></button>`);
+        foot.insertAdjacentHTML("beforeend", `<button type="submit" data-action="${escapeHTML(b.action)}" class="${b.default ? "default " : ""}${escapeHTML(b.class ?? "")}"${b.default ? " autofocus" : ""}${b.disabled ? " disabled" : ""}><span>${escapeHTML(b.label)}</span></button>`);
       }
       shot.append(root);
       config.render?.(new Event("render"), { element: root, addEventListener() {} });
@@ -511,6 +593,86 @@
       title: "modeBar", width: 560,
       body: K.modeBar([{ key: "debate", label: "Open debate" }, { key: "testimony", label: "Testimony" }, { key: "panic", label: "Panic round" }, { key: "closing", label: "Closing argument" }], { active: "panic" }),
       footer: { close: "close" }
+    });
+    /* E46-C1 (09.11.2026): the additions for the GM's large windows of E46 and E47 - dataTable's group rows, a head
+       of two lines (its whole label in the tooltip) and a column's `cls`, the compact stepper in a cell in range and out
+       of range, checkList in its five states with an action, and a footer `liveFooter` redraws in place. */
+    frame("table-groups", "dataTable: group rows with their counts, a head of two lines, a cls column, compact steppers in a cell (the second out of range)", {
+      title: "dataTable", width: 480, footer: { close: "close" },
+      body: K.dataTable({
+        columns: [{ key: "room", label: "Room", cls: "room" }, { key: "tokens", label: "Search Tokens at the start of each day", lines: 2 }, { key: "note", label: "Note" }],
+        rows: [{ group: "Ground floor", count: "2 of 3" },
+          { room: "Cafeteria", tokens: K.stepper({ name: "tok-a", value: 2, min: 0, max: 5, compact: true, attrs: { "data-drpg-token": "Cafeteria" } }), note: { html: "Searched twice today", title: "Searched twice today" } },
+          { room: "Gym", tokens: K.stepper({ name: "tok-b", value: 7, min: 0, max: 5, compact: true, attrs: { "data-drpg-token": "Gym" } }), note: "-" },
+          { group: "Upstairs", count: "0 of 1" },
+          { room: "Library", tokens: K.stepper({ name: "tok-c", value: 0, min: 0, max: 5, compact: true, attrs: { "data-drpg-token": "Library" } }), note: "-" }],
+        rowAttrs: r => ({ "data-drpg-room": r.room })
+      })
+    });
+    /* The owner's answer to Q-E46-2 (09.11.2026): a head cut after its second line, its whole name in the tooltip, "but
+       consistent with the other tables" - one rule of the kit (`lines: 2`) for any table's head, shown here on an
+       ordinary table: three long heads cut, a short one on one line beside them. */
+    frame("table-heads", "dataTable: an ordinary table whose long heads are cut after two lines, the whole name in the tooltip", {
+      title: "dataTable", width: 440, footer: { close: "close" },
+      body: K.dataTable({
+        columns: [{ key: "who", label: "Student" }, { key: "bullets", label: "Truth Bullets held at the start of the trial", lines: 2, num: true },
+          { key: "keys", label: "Key Remnants found during the investigation", lines: 2, num: true }, { key: "un", label: "Unidentified", lines: 2, num: true }],
+        rows: [{ who: "Akane", bullets: "3", keys: "1", un: "0" }, { who: "Byakuya", bullets: "1", keys: "0", un: "2" }],
+        // a head-group row above the columns' (E47-M's project matrix, mockup O1a)
+        headGroups: [{ label: "", span: 1 }, { label: "Evidence", span: 3 }]
+      })
+    });
+    frame("checklist", "checkList: done, blocking with its action, advisory, warning, waiting", {
+      title: "checkList", width: 480, footer: { close: "close" },
+      body: K.checkList([
+        { key: "cast", state: "done", title: "The cast", detail: "6 students, each with a player" },
+        { key: "scenes", state: "blocking", title: "The trial's scene", detail: "No scene is chosen for the Class Trial.", action: { action: "open", label: "Open Room setup", role: "secondary" } },
+        { key: "voice", state: "advisory", title: "Voice", detail: "Voice chat is off. The table can play without it." },
+        { key: "split", state: "warning", title: "Despair split", detail: "Uneven: 2 / 1 / 0" },
+        { key: "monokuma", state: "waiting", title: "The Monokuma", detail: "Create the students first." }
+      ], { label: "Pre-season checks" })
+    });
+    /* E46-C1f (09.11.2026): the three builders wave 1 asks of the kit - a column whose body cells are cut after two
+       lines (`cellLines: 2`, the whole text in the cell's tooltip; Sound's Effects, E46-C4), icon buttons named by
+       `aria-label` with the same words in their tooltip (Sound's Test and Clear), and a footer button's `tooltip` on a
+       disabled button (E47-C1's "Start the Final Trial" with its reason). This page loads no Font Awesome: the two icons
+       are drawn by the stand-in below, the gallery's alone. */
+    const icons = document.createElement("style");
+    icons.textContent = ".drpg-style-kit .drpg-kit-icon-button > i.fa-play::before { content: \"\\25B6\"; }"
+      + " .drpg-style-kit .drpg-kit-icon-button > i.fa-xmark::before { content: \"\\2715\"; }"
+      + " .drpg-style-kit .drpg-kit-icon-button > i { font-style: normal; }";
+    document.head.append(icons);
+    const sfx = (name, text, file) => ({ event: `<b>${escapeHTML(name)}</b><br><span class="drpg-help">${escapeHTML(text)}</span>`, file: escapeHTML(file),
+      act: K.iconButton({ icon: "fa-solid fa-play", label: `Test ${name}`, attrs: { "data-drpg-sfx-test": name } })
+        + K.iconButton({ icon: "fa-solid fa-xmark", label: `Clear ${name}`, attrs: { "data-drpg-sfx-clear": name }, disabled: !file }) });
+    frame("table-cells", "dataTable: a column whose cells are cut after two lines, the whole text in the tooltip; Test and Clear as icon buttons", {
+      title: "dataTable", width: 520, footer: { close: "close" },
+      body: K.dataTable({
+        columns: [{ key: "event", label: "Event", cellLines: 2 }, { key: "file", label: "File", width: "9rem" }, { key: "act", label: "", act: true, width: "5.5rem" }],
+        rows: [{ group: "Class Trial", count: "1 of 2" },
+          sfx("Objection", "Played when a student counters a statement with a Truth Bullet during the Nonstop Debate, and again when the counter lands", "objection.ogg"),
+          sfx("Hangman's Gambit", "The letters fall", "")]
+      })
+    });
+    frame("footer-tooltip", "footerButtons: a disabled button with its reason in the tooltip (title)", {
+      title: "footer tooltip", width: 560,
+      body: `<p>${escapeHTML("Start the Final Trial is disabled while no Mastermind is set; its reason is the button's tooltip.")}</p>`,
+      footer: { primary: { action: "vote", label: "Start the vote" }, destructive: [{ action: "final", label: "Start the Final Trial", disabled: true, tooltip: "No Mastermind is set. Choose one in the Mastermind window first." }], close: "close" }
+    });
+    let demo = null;
+    const footers = [
+      { primary: { action: "vote", label: "Start the vote" }, secondary: [{ action: "debate", label: "Open debate" }], destructive: [{ action: "end", label: "End the trial" }], close: "close" },
+      { primary: { action: "reveal", label: "Reveal the verdict" }, destructive: [{ action: "end", label: "End the trial" }], close: "close" }
+    ];
+    frame("live-footer", "liveFooter: the footer redrawn in place - the button below swaps it", {
+      title: "liveFooter", width: 520, footer: footers[0],
+      body: `<p><button type="button" data-drpg-kit-demo="0">Swap the footer</button></p>`,
+      render: (event, dialog) => { demo = dialog; }
+    });
+    shot.querySelector("[data-drpg-kit-demo]")?.addEventListener("click", event => {
+      const next = (Number(event.currentTarget.dataset.drpgKitDemo) + 1) % footers.length;
+      event.currentTarget.dataset.drpgKitDemo = String(next);
+      K.liveFooter(demo, footers[next]);
     });
     await document.fonts?.ready;
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));

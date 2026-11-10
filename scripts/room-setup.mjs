@@ -5,7 +5,7 @@
  * (`ROOM_SETUP_TABS`, `roomSetupTab` - the Passages tab's row among them, drawn
  * by passages-tab.mjs, which this file reaches by `import()`: passages-tab.mjs
  * stays a file of its own, A10), its columns and cells (`ROOM_SETUP_COLUMN`,
- * `roomSetupColumns`, `roomCells`, `roomSetupContent`), the fog's and the
+ * `roomCells`, `roomSetupContent`: kit `dataTable`s since E46-C2a), the fog's and the
  * tokens' rows (`fogMatrixRows`, `recountTokenCells`), the stash matrix
  * (`STASH_GLYPHS`, `stashState`, `stashMatrixRows`, `PLACE_STATES`,
  * `placeToggle`); the form read back (`readRoomSetupForm`) and wired
@@ -38,7 +38,7 @@ import {
     dialogContent, announce, plural, workingScene,
     forcedDeletion, wirePortraitPickers
 } from "./utils.mjs";
-import { kitTabs, wireKitTabs, emptyOption, drpgWindow, box } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, emptyOption, drpgWindow, box, dataTable, stepper, toggle, iconButton } from "./ui-kit.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
 import {
     ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomNames, roomRegions, flagOver,
@@ -73,11 +73,14 @@ import {
  * player's client is reflected instead of overwritten - which is the whole point of
  * having this run on somebody else's write as well as on the GM's own.
  */
+/* E46-C2a (09.11.2026): the count is a compact kit stepper's field (`roomCells`' `tokens`), and the recount writes
+   its value and the value it was drawn at (`data-drpg-shown`, what `wireTokenButtons` measures a step from) and
+   nothing else of the row - never the GM's ticks (`keepFresh` below). */
 function recountTokenCells(root, scene) {
-    for (const cell of root.querySelectorAll("[data-drpg-tokens]")) {
-        const left = SearchTokens.left(cell.dataset.drpgTokens, scene);
-        const text = String(left);
-        if (cell.textContent !== text) cell.textContent = text;
+    for (const input of root.querySelectorAll("input[data-drpg-token]")) {
+        const text = String(SearchTokens.left(input.dataset.drpgToken, scene));
+        if (input.value !== text) input.value = text;
+        input.dataset.drpgShown = text;
     }
 }
 
@@ -99,28 +102,26 @@ function recountTokenCells(root, scene) {
  * which way the table was laid out.
  */
 function fogMatrixRows(rooms, students, known) {
+    // A row a room for the kit's `dataTable` (E46-C2a): the room's cell under `name`, a student's under their id.
     return rooms.map(room => {
         const escRoom = foundry.utils.escapeHTML(room);
         // Both coordinates, as the input's name has them: a screen reader walking the
         // grid hears "Big IT Room - Player A", not "checkbox" seventy-two times.
-        const boxes = students.map(actor =>
-            `<td style="text-align:center"><input type="checkbox"
+        return Object.fromEntries([["name", `<strong>${escRoom}</strong>`], ...students.map(actor => [actor.id,
+            `<input type="checkbox"
                 aria-label="${escRoom} - ${foundry.utils.escapeHTML(actor.name)}"
                 name="fog:${escRoom}:${actor.id}" ${
-                known.get(actor.id)?.has(room) ? "checked" : ""} /></td>`).join("");
-        return `<tr><td><strong>${escRoom}</strong></td>${boxes}</tr>`;
-    }).join("");
+                known.get(actor.id)?.has(room) ? "checked" : ""} />`])]);
+    });
 }
 
-/* One column heading per student, for the two matrices. On one line and cut with an ellipsis
-   where the column ends, the whole name in the title (E12 C15, audit S12-23): the audit read the
-   student columns at 52-79 px beside a 1030 px Room column, and the names broke over two and three
-   lines, each aligned differently. */
-function studentHeads(students) {
-    return students.map(a => {
-        const name = foundry.utils.escapeHTML(a.name);
-        return `<th class="drpg-student-head" title="${name}">${name}</th>`;
-    }).join("");
+/* One column per student, for the two matrices: the kit's head cut after its second line, the whole name in its title
+   and its accessible name (`lines: 2`; E46-C2a, the owner's Q-E46-2 of 09.11.2026 - two lines, as every table of the
+   kit cuts a head). Until E46-C2a one line cut with an ellipsis (E12 C15, audit S12-23: the audit read the student
+   columns at 52-79 px beside a 1030 px Room column, and the names broke over two and three lines, each aligned
+   differently); at 1366x768 all four names of the suite's world were cut on that one line (probe/summary.txt). */
+function studentColumns(students) {
+    return students.map(a => ({ key: a.id, label: a.name, cls: "student", lines: 2 }));
 }
 
 /*
@@ -191,17 +192,16 @@ function stashMatrixRows(rooms, students, scene) {
             // The bedroom owner's CELL is shaded - one per bedroom row, not a column -
             // so a GM can see at a glance which stash appeared by itself when they
             // assigned the room (the legend above the table says so, E12 C15).
+            // On the cell's button since E46-C2a: the kit's `dataTable` dresses a cell by its column only.
             const own = bedroomOwner === actor.id ? " drpg-stash-bedroom" : "";
-            return `<td class="drpg-stash-cell${own}">
-                <input type="hidden" name="stash:${escRoom}:${actor.id}" value="${state}" data-drpg-drawn="${state}" />
-                <button type="button" class="drpg-stash-toggle"
+            return [actor.id, `<input type="hidden" name="stash:${escRoom}:${actor.id}" value="${state}" data-drpg-drawn="${state}" />
+                <button type="button" class="drpg-stash-toggle${own}"
                     data-drpg-stash="${escRoom}:${actor.id}"
                     title="${foundry.utils.escapeHTML(
-                        game.i18n.localize("DRPG.Vault.stashCycle"))}">${stashGlyph(state)}</button>
-            </td>`;
-        }).join("");
-        return `<tr><td><strong>${escRoom}</strong></td>${cells}</tr>`;
-    }).join("");
+                        game.i18n.localize("DRPG.Vault.stashCycle"))}">${stashGlyph(state)}</button>`];
+        });
+        return Object.fromEntries([["name", `<strong>${escRoom}</strong>`], ...cells]);
+    });
 }
 
 /* One pass gathers every fact about a room; the tabs then deal the same
@@ -209,6 +209,10 @@ function stashMatrixRows(rooms, students, scene) {
  * the Apply callback below, identical whichever table a cell sits in -
  * Apply reads the whole form and never asks which tab was showing. */
 function roomCells(rooms, { students, tables, categories, regions, scene, maxTokens, REST_FLAGS }) {
+    /* THE PLACEHOLDER ONCE (E46-C2a; audit S13-36 (4)): the example sentence stood in every empty description, eighteen
+       times on a school of eighteen rooms; it shows how to write one, so it stands in the first empty field alone. */
+    const words = new Map(rooms.map(room => [room, flagOver(regions.get(room) ?? [], VAULT_FLAGS.description) ?? ""]));
+    const firstEmpty = rooms.find(room => !words.get(room));
     return rooms.map(room => {
         // Off the pieces the form writes back (E12 C2a): the room readers read rooms only, and
         // this window lists every named region so that a GM can make one a room - a cell read
@@ -278,9 +282,12 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
         };
         const named = key => COLUMN[key]
             ? ` aria-label="${foundry.utils.escapeHTML(game.i18n.localize(COLUMN[key]))}: ${escRoom}"` : "";
-        const check = (name, on, title = "") => `<td style="text-align:center"${
-            title ? ` title="${title}"` : ""}><input type="checkbox" name="${name}:${escRoom}"${named(name)}
-                ${on ? "checked" : ""} /></td>`;
+        // A cell's markup for the kit's `dataTable` (E46-C2a); a hint is the cell's `title` (`{ html, title }`), centred by its column's rule.
+        const check = (name, on, title = "") => {
+            const html = `<input type="checkbox" name="${name}:${escRoom}"${named(name)}
+                ${on ? "checked" : ""} />`;
+            return title ? { html, title } : html;
+        };
         /*
          * THIS IS A ROOM (E12 C1, 11.10.2026; rooms.mjs). Every region of the name, since a room is
          * a name on a scene. Decided - every piece carries the flag - the box reads whether any
@@ -293,14 +300,20 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
         const possible = pieces.length > 0;
         const decided = pieces.length > 0 && pieces.every(roomDecided);
         const isRoomNow = decided ? pieces.some(piece => piece.getFlag(MODULE_ID, ROOM_FLAG) === true) : possible;
-        // Undecided, the box is a suggestion until Apply (E20 fix round, C-10): the ratio line counts it apart.
-        const undecidedMark = possible && !decided ? " data-drpg-undecided" : "";
+        // Undecided, the box is a suggestion until Apply (E20 fix round, C-10): the ratio line counts it apart (`data-drpg-undecided`).
 
         return {
-            name: `<td><strong>${escRoom}</strong></td>`,
-            owner: `<td><select name="owner:${escRoom}"${named("owner")}>${emptyOption("DRPG.Vault.noOwner")}${people}</select></td>`,
-            isroom: `<td style="text-align:center" title="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Vault.isRoomHint"))}"><input
-                type="checkbox" name="isroom:${escRoom}"${named("isroom")} ${isRoomNow ? "checked" : ""}${possible ? "" : " disabled"}${undecidedMark} /></td>`,
+            name: `<strong>${escRoom}</strong>`,
+            owner: `<select name="owner:${escRoom}"${named("owner")}>${emptyOption("DRPG.Vault.noOwner")}${people}</select>`,
+            /* The kit's switch (E46-C2a; E46's goal, "the 'This is a room' switch"): `toggle` draws the input and its
+               words, and the column's name and the room are its accessible name, as every control here says both;
+               `data-drpg-undecided` rides the input as it did, for `wireRoomRatio`. Both through the switch's `attrs`
+               since E47-KFa (written into the drawn input after `role="switch"` before it). */
+            isroom: {
+                html: toggle({ name: `isroom:${room}`, checked: isRoomNow, label: "", disabled: !possible,
+                    attrs: { "aria-label": `${game.i18n.localize(COLUMN.isroom)}: ${room}`, "data-drpg-undecided": possible && !decided } }),
+                title: game.i18n.localize("DRPG.Vault.isRoomHint")
+            },
             concealed: check("concealed", isConcealed(room, scene)),
             short: check("short", flagOver(pieces, REST_FLAGS.short)),
             long: check("long", flagOver(pieces, REST_FLAGS.long)),
@@ -314,49 +327,44 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
                 game.i18n.localize("DRPG.Vault.notSharedHint")),
             // The list every piece holds (E12 C14); greyed under it when blank, the rooms the
             // rules connect this one to now - its walls and the lists that name it.
-            neighbours: `<td><input type="text" name="neighbours:${escRoom}"${named("neighbours")}
+            neighbours: `<input type="text" name="neighbours:${escRoom}"${named("neighbours")}
                 value="${foundry.utils.escapeHTML(neighboursWritten(pieces))}"
                 placeholder="${foundry.utils.escapeHTML(neighbouringRooms(scene, room).join(", "))}"
-                title="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Vault.neighboursHint"))}" /></td>`,
-            /* [-] 2 / 3 [+] [refill] on one line (E12 C15, audit S08-26): the count between the two
-               buttons that move it, and all four in one inline row. A button is a block in
-               Foundry's own sheet, so the three of them stood one under another after the count
-               and a room's row was about 128 px tall in the audit's screenshot - 2200 px of
-               scrolling for 17 rooms. */
-            tokens: `<td class="drpg-token-cell" style="text-align:center"><span class="drpg-token-step">
-                <button type="button" class="drpg-mini-button" data-drpg-token="${escRoom}"
-                    data-drpg-token-by="-1" title="${
-                        game.i18n.localize("DRPG.SearchTokens.spendOne")}">−</button>
-                <span class="drpg-token-count"><span data-drpg-tokens="${escRoom}">${
-                    SearchTokens.left(room, scene)}</span> / ${maxTokens}</span>
-                <button type="button" class="drpg-mini-button" data-drpg-token="${escRoom}"
-                    data-drpg-token-by="1" title="${
-                        game.i18n.localize("DRPG.SearchTokens.giveOne")}">+</button>
-                <button type="button" class="drpg-mini-button" data-drpg-token="${escRoom}"
-                    data-drpg-token-by="max" title="${
-                        game.i18n.localize("DRPG.SearchTokens.refillRoom")}">↺</button>
-            </span></td>`,
-            table: `<td><select name="table:${escRoom}"${named("table")}>
+                title="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Vault.neighboursHint"))}" />`,
+            /* [-] 2 [+] / 3 [refill] on one line (E12 C15, audit S08-26; the kit's since E46-C2a): the count a compact kit
+               `stepper` in its cell - its - and + a step of one, read by `wireTokenButtons` as one write a click - its
+               cap after it and the refill an icon button. A button is a block in Foundry's own sheet, so until E12 C15
+               the three stood one under another after the count and a room's row was about 128 px tall in the audit's
+               screenshot - 2200 px of scrolling for 17 rooms; 88 px a row under the glass at 1366x768 before E46-C2a
+               (probe/summary.txt). The field has no name: Apply never reads it (the count acts at once). */
+            tokens: `<span class="drpg-token-step">${stepper({ value: SearchTokens.left(room, scene), min: 0, max: maxTokens, compact: true,
+                words: { down: game.i18n.localize("DRPG.SearchTokens.spendOne"), up: game.i18n.localize("DRPG.SearchTokens.giveOne") },
+                attrs: { "data-drpg-token": room, "aria-label": `${game.i18n.localize("DRPG.SearchTokens.title")}: ${room}` } })}<span
+                class="drpg-token-max">/ ${maxTokens}</span>${iconButton({ icon: "fa-solid fa-rotate-left",
+                label: game.i18n.localize("DRPG.SearchTokens.refillRoom"), attrs: { "data-drpg-token-refill": room } })}</span>`,
+            table: `<select name="table:${escRoom}"${named("table")}>
                 <option value="">${game.i18n.localize("DRPG.Vault.globalPool")}</option>
-                ${tableOptions}</select></td>`,
-            place: `<td><span class="drpg-place-switches">${placeSwitches}</span></td>`,
+                ${tableOptions}</select>`,
+            place: `<span class="drpg-place-switches">${placeSwitches}</span>`,
             // A textarea, not an input: these are sentences. The cell escapes
             // the wrapping-cell rule the rest of this table lives under - see
             // the `:has(input[type="text"], textarea)` exception in the
             // stylesheet - so the prose wraps instead of stretching the window.
-            description: `<td><textarea name="desc:${escRoom}" rows="5"${named("desc")}
-                placeholder="${game.i18n.localize("DRPG.Vault.descriptionPlaceholder")}"
-                >${foundry.utils.escapeHTML(flagOver(pieces, VAULT_FLAGS.description) ?? "")}</textarea></td>`,
+            description: `<textarea name="desc:${escRoom}" rows="5"${named("desc")}${room === firstEmpty
+                ? ` placeholder="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Vault.descriptionPlaceholder"))}"` : ""}
+                >${foundry.utils.escapeHTML(words.get(room))}</textarea>`,
             /* The picture (E77 C1): `wirePortraitPickers`' thumbnail and hidden field, keyed by the room's name
                as the description is, and a button that empties both. The thumbnail shows only what
                `safeRoomImage` accepts of the stored path - a value it refuses is drawn as no picture, and the
-               next Apply of the row writes what the window shows. */
-            image: `<td><img class="drpg-room-picture" data-drpg-portrait="${escRoom}" alt=""${
+               next Apply of the row writes what the window shows. Under it, since E46-C2a, the line that says the picture
+               is too large or does not load (`wirePictureWarnings`; the owner's 13.10 amend), empty until it is read. */
+            image: `<img class="drpg-room-picture" data-drpg-portrait="${escRoom}" alt=""${
                 picture ? ` src="${foundry.utils.escapeHTML(picture)}"` : ""}
                 title="${pickLabel}" aria-label="${pickLabel}: ${escRoom}" />
                 <input type="hidden" name="img:${escRoom}" value="${foundry.utils.escapeHTML(picture ?? "")}" />
                 <button type="button" class="drpg-mini-button" data-drpg-picture-clear
-                    title="${clearLabel}" aria-label="${clearLabel}: ${escRoom}">✕</button></td>`
+                    title="${clearLabel}" aria-label="${clearLabel}: ${escRoom}">✕</button>
+                <div class="drpg-room-picture-say" data-drpg-picture-say aria-live="polite"></div>`
         };
     });
 }
@@ -397,6 +405,10 @@ export function roomSetupTab(tab, holdsRooms) {
  * first, and the stylesheet gives each kind one width (`.drpg-col-*`, `table-layout: fixed`), so
  * the column of a checkbox is as wide on Doors as on Rests and every student's column on Stashes is
  * as wide as on Fog. What a column holds is the key below; the student matrices are "student".
+ *
+ * ON THE KIT (E46-C2a, 09.11.2026). Each table is the kit's `dataTable`, a kind its column's `cls`: the kit writes
+ * `drpg-data-col-<kind>` on the `<col>`, the head and every cell, and components.css's section "Room setup" gives the
+ * widths, the room's first ("room", the 220 px E12 C15 chose).
  */
 const ROOM_SETUP_COLUMN = {
     owner: "select", isroom: "check", locked: "check", startlocked: "check", notshared: "check",
@@ -404,42 +416,37 @@ const ROOM_SETUP_COLUMN = {
     short: "check", long: "check", description: "prose", image: "picture"
 };
 
-function roomSetupColumns(kinds) {
-    return `<colgroup><col class="drpg-col-room" />${
-        kinds.map(kind => `<col class="drpg-col-${kind}" />`).join("")}</colgroup>`;
-}
+/* Each column's heading, by the cell's key in `roomCells`. */
+const ROOM_SETUP_HEAD = {
+    owner: "DRPG.Vault.owner", isroom: "DRPG.Vault.isRoomColumn", locked: "DRPG.Vault.lockedColumn",
+    startlocked: "DRPG.Vault.lockedAtStartColumn", notshared: "DRPG.Vault.notSharedColumn", neighbours: "DRPG.Vault.neighboursColumn",
+    nosearch: "DRPG.SearchTokens.sealedColumn", tokens: "DRPG.SearchTokens.title", table: "DRPG.Vault.table",
+    place: "DRPG.Vault.placeColumn", short: "DRPG.Rest.shortColumn", long: "DRPG.Rest.longColumn",
+    description: "DRPG.Vault.descriptionColumn", image: "DRPG.Vault.imageColumn"
+};
 
 /** The window's body: the tab strip and one panel per tab, dealt from the same cells. */
 function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncovered, maxTokens, scenesPanel, passagesPanel = "" }) {
-    const th = key => `<th>${game.i18n.localize(key)}</th>`;
-    const TABLE = "drpg-vault-table drpg-room-setup-table";
-    const tableFor = (heads, cols) => `<table class="${TABLE}">${
-        roomSetupColumns(cols.map(k => ROOM_SETUP_COLUMN[k]))}<thead><tr>${
-        th("DRPG.Vault.room")}${heads.join("")}</tr></thead><tbody>${
-        cells.map(c => `<tr>${c.name}${cols.map(k => c[k]).join("")}</tr>`).join("")
-    }</tbody></table>`;
-    const matrix = rows => `<table class="${TABLE}">${
-        roomSetupColumns(students.map(() => "student"))}<thead><tr>
-            <th>${game.i18n.localize("DRPG.Vault.room")}</th>
-            ${studentHeads(students)}
-        </tr></thead><tbody>${rows}</tbody></table>`;
+    // The kit's tables (E46-C2a): the room first, its kind "room"; then the tab's columns in their order, or the students.
+    const roomColumn = { key: "name", label: game.i18n.localize("DRPG.Vault.room"), cls: "room" };
+    const tableFor = cols => dataTable({ columns: [roomColumn, ...cols.map(key =>
+        ({ key, label: game.i18n.localize(ROOM_SETUP_HEAD[key]), cls: ROOM_SETUP_COLUMN[key] }))], rows: cells });
+    const matrix = rows => dataTable({ columns: [roomColumn, ...studentColumns(students)], rows });
 
     // Each tab's pane, by its key; the bar and the panes are the kit's (`kitTabs`), in ROOM_SETUP_TABS's order.
     const panes = {
         bedrooms: `
             <p>${game.i18n.localize("DRPG.Vault.bedroomsIntro")}</p>
-            <p class="drpg-warning" data-drpg-two-rooms style="display:none"></p>
-            ${tableFor([th("DRPG.Vault.owner")], ["owner"])}
+            ${/* a warning box (E46-C2a; E21's carried site ~431), shown only while a student has two bedrooms */ ""}
+            <div data-drpg-two-rooms-box hidden>${box("warning", `<p data-drpg-two-rooms></p>`)}</div>
+            ${tableFor(["owner"])}
         `,
 
         doors: `
             <p>${game.i18n.localize("DRPG.Vault.doorsIntro")}</p>
             ${/* information, not a warning (D11; audit S06-59, E22 C6b): the count advises and changes no rule */ ""}
             ${box("info", `<p class="notes" data-drpg-ratio></p>`)}
-            ${tableFor([th("DRPG.Vault.isRoomColumn"), th("DRPG.Vault.lockedColumn"),
-                th("DRPG.Vault.lockedAtStartColumn"), th("DRPG.Vault.notSharedColumn"),
-                th("DRPG.Vault.neighboursColumn")],
-                ["isroom", "locked", "startlocked", "notshared", "neighbours"])}
+            ${tableFor(["isroom", "locked", "startlocked", "notshared", "neighbours"])}
             <p class="notes">${game.i18n.localize("DRPG.Vault.notSharedNote")}</p>
             <p class="notes">${game.i18n.localize("DRPG.Vault.neighboursNote")}</p>
         `,
@@ -448,10 +455,7 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
 
         search: `
             <p>${game.i18n.localize("DRPG.Vault.searchIntro")}</p>
-            ${tableFor([
-                th("DRPG.SearchTokens.sealedColumn"), th("DRPG.SearchTokens.title"),
-                th("DRPG.Vault.table"), th("DRPG.Vault.placeColumn")
-            ], ["nosearch", "tokens", "table", "place"])}
+            ${tableFor(["nosearch", "tokens", "table", "place"])}
             <p class="notes">${game.i18n.localize("DRPG.Vault.manageNote")}</p>
             <p class="notes">${game.i18n.format("DRPG.SearchTokens.roomSetupNote",
                 { max: maxTokens })}</p>
@@ -460,8 +464,7 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
 
         rest: `
             <p>${game.i18n.localize("DRPG.Rest.manageIntro")}</p>
-            ${tableFor([th("DRPG.Rest.shortColumn"), th("DRPG.Rest.longColumn")],
-                ["short", "long"])}
+            ${tableFor(["short", "long"])}
         `,
 
         stashes: `
@@ -473,14 +476,14 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
 
         description: `
             <p>${game.i18n.localize("DRPG.Vault.descriptionIntro")}</p>
-            ${tableFor([th("DRPG.Vault.descriptionColumn"), th("DRPG.Vault.imageColumn")], ["description", "image"])}
+            ${tableFor(["description", "image"])}
             <p class="notes">${game.i18n.localize("DRPG.Vault.descriptionNote")}</p>
         `,
 
         fog: `
             <p>${game.i18n.localize("DRPG.Vault.fogIntro")}</p>
-            ${uncovered > 0 ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vault.fogUncovered",
-                { pct: uncovered })}</p>` : ""}
+            ${uncovered > 0 ? box("warning", `<p>${game.i18n.format("DRPG.Vault.fogUncovered",
+                { pct: uncovered })}</p>`) : ""}
             <div class="drpg-fog-bulk">
                 <button type="button" class="drpg-mini-button" data-drpg-fog-all="discover">${
                     game.i18n.localize("DRPG.Vault.discoverAll")}</button>
@@ -496,7 +499,8 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
 
     return dialogContent(`<form>
             <p class="notes">${game.i18n.localize("DRPG.Vault.manageIntro")}</p>
-            ${cells.length ? "" : `<p class="drpg-warning">${game.i18n.localize("DRPG.Vault.noRooms")}</p>`}
+            ${/* information, not a warning (E46-C2a; E21's carried site ~499): a new map has no room yet */ ""}
+            ${cells.length ? "" : box("info", `<p>${game.i18n.localize("DRPG.Vault.noRooms")}</p>`)}
             ${kitTabs(ROOM_SETUP_TABS.map(([key, label]) => ({ key, label: game.i18n.localize(label), html: panes[key] })), { active: initial })}
         </form>`);
 }
@@ -680,19 +684,71 @@ function wirePlaceSwitches(root) {
 // count is re-read from `SearchTokens` after the write rather than
 // guessed from the cell, so a spend that arrived from a player's
 // client mid-edit is reflected instead of overwritten.
-function wireTokenButtons(root, scene, recount) {
-    for (const button of root.querySelectorAll("[data-drpg-token]")) {
-        button.addEventListener("click", async ev => {
-            ev.preventDefault();
-            const room = button.dataset.drpgToken;
-            const by = button.dataset.drpgTokenBy;
-            const now = SearchTokens.left(room, scene);
-            const want = by === "max" ? SearchTokens.max : now + Number(by);
-            await SearchTokens.setFor(room, want, scene);
+//
+// ONE WRITE A CLICK, ON THE KIT'S STEPPER (E46-C2a, 09.11.2026). The count is a compact kit stepper: its - and + set
+// the field one step and send one `change` (ui-kit.mjs `wireStepper`; its `input` is not listened to), so a click is
+// one write, as the three buttons of before were. The step is measured from the value the field was drawn or last
+// recounted at (`data-drpg-shown`) and added to the count read now, as `now + by` was: a spend a player made while the
+// GM clicked is kept, not overwritten. A number typed is a step of its difference, the same rule. Refill writes the
+// cap. `SearchTokens` is the window's own, handed in, so R2010 counts the writes on a stand-in.
+export function wireTokenButtons(root, scene, recount, { tokens = SearchTokens } = {}) {
+    for (const input of root.querySelectorAll("input[data-drpg-token]")) {
+        input.dataset.drpgShown ??= input.value;
+        input.addEventListener("change", async () => {
+            const room = input.dataset.drpgToken;
+            const was = Number(input.dataset.drpgShown);
+            const typed = Number(input.value);
+            if (!Number.isFinite(typed) || !Number.isFinite(was) || typed === was) return;
+            input.dataset.drpgShown = String(typed);
+            await tokens.setFor(room, tokens.left(room, scene) + (typed - was), scene);
             // The write comes back through `recount` below like anybody
             // else's, so there is no second copy of "what the cell says".
             recount(root);
         });
+    }
+    for (const button of root.querySelectorAll("button[data-drpg-token-refill]")) {
+        button.addEventListener("click", async ev => {
+            ev.preventDefault();
+            await tokens.setFor(button.dataset.drpgTokenRefill, tokens.max, scene);
+            recount(root);
+        });
+    }
+}
+
+/*
+ * THE PICTURE'S SIZE, SAID IN ITS CELL (E46-C2a; the owner's 13.10 amend). Pre-season checks say a room picture is over
+ * `ROOM_IMAGE_LIMITS` or does not load; the GM who picks one here was told nothing until they ran them. Each picture
+ * cell reads its picture once on open and again on every pick (the thumbnail's `src`, which the file picker and Remove
+ * the picture set - `wirePortraitPickers` sends no event), through room-tile.mjs `imageFacts`: the HEAD and the decode
+ * Pre-season checks make. The line is a warning box in the cell, in Pre-season checks' words for a size; it never holds
+ * Apply - the picture is the GM's choice, and a slow one still shows. `facts` is handed in for R2015.
+ */
+export function pictureWarning(facts) {
+    if (!facts) return "";
+    if (facts.gone) return game.i18n.localize("DRPG.Vault.imageBroken");
+    const sizes = [];
+    if (facts.pixels) sizes.push(game.i18n.format("DRPG.Panel.checksImagesPixels", { width: facts.width, height: facts.height }));
+    if (facts.heavy) sizes.push(game.i18n.format("DRPG.Panel.checksImagesBytes", { mb: (facts.bytes / 1048576).toFixed(1) }));
+    return sizes.length ? game.i18n.format("DRPG.Vault.imageLarge", { size: sizes.join(", ") }) : "";
+}
+
+export function wirePictureWarnings(root, { facts = null } = {}) {
+    const read = facts ?? (async src => (await import("./room-tile.mjs")).imageFacts(src));
+    for (const img of root.querySelectorAll("img[data-drpg-portrait]")) {
+        const say = img.closest("td")?.querySelector("[data-drpg-picture-say]");
+        if (!say) continue;
+        let asked = 0;
+        const paint = async () => {
+            const src = img.getAttribute("src") ?? "";
+            const mine = ++asked;
+            if (!src) { say.innerHTML = ""; return; }
+            let text = "";
+            try { text = pictureWarning(await read(src)); } catch { text = ""; }
+            if (mine !== asked) return;
+            say.innerHTML = text ? box("warning", `<p>${foundry.utils.escapeHTML(text)}</p>`) : "";
+        };
+        new MutationObserver(paint).observe(img, { attributes: true, attributeFilter: ["src"] });
+        paint();
     }
 }
 
@@ -753,7 +809,8 @@ function wireTwoRoomsCheck(root, rooms) {
         setApplyBlock(root, "bedrooms", text || null);
         if (twoRoomsNote) {
             twoRoomsNote.textContent = text;
-            twoRoomsNote.style.display = clash ? "" : "none";
+            const shown = twoRoomsNote.closest("[data-drpg-two-rooms-box]");
+            if (shown) shown.hidden = !clash;
         }
     };
     root.addEventListener("change", ev => {
@@ -1224,6 +1281,7 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
             // The picture column (E77 C1): the file picker on each thumbnail, its field named `img:<room>`
             // as the description's is `desc:<room>`, and the button that empties the cell it stands in.
             wirePortraitPickers(root, { prefix: "img:" });
+            wirePictureWarnings(root);
             for (const button of root.querySelectorAll("[data-drpg-picture-clear]")) {
                 button.addEventListener("click", () => {
                     const cell = button.closest("td");

@@ -26509,6 +26509,9 @@ const SCENARIOS = [
          * and the Really heading's tooltip. The widths themselves are the stylesheet's (R309) and
          * not measured here: no layout in the harness (LIVE-E09-04). Red at the parent: neither
          * builder exported, no mark, no tooltip.
+         * ON THE KIT (E47-C4, 09.11.2026): WHO HAS WHAT is a `dataTable`, its count cells and heads the kit's `num`
+         * (`drpg-num` until then) and its Breakdown cell the `case-breakdown` column's (a `notes` cell until then); the
+         * builders' rows are the tables' body rows, read the same way.
          */
         needs(env.dialogs(), "the Who has what heading is read off the drawn dashboard");
         const I = await import("./investigation.mjs");
@@ -26528,12 +26531,12 @@ const SCENARIOS = [
             const table = win.app.element.querySelector(".drpg-case-live table") ?? null;
             const ths = [...(table?.querySelectorAll("thead th") ?? [])];
             const really = ths.find(th => th.textContent.trim() === game.i18n.localize("DRPG.Investigation.breakdown"));
-            heads = [ths.filter(th => th.classList.contains("drpg-num")).length, Boolean(really?.dataset.tooltip)];
+            heads = [ths.filter(th => th.classList.contains("num")).length, Boolean(really?.dataset.tooltip)];
         } finally {
             await win.close();
         }
-        const breakdown = host.querySelector("td.notes")?.textContent ?? "";
-        equal(stableJson([host.querySelectorAll("td.drpg-num").length, /\(2\)/.test(breakdown) && !/×/.test(breakdown),
+        const breakdown = host.querySelector("td.drpg-data-col-case-breakdown")?.textContent ?? "";
+        equal(stableJson([host.querySelectorAll("td.num").length, /\(2\)/.test(breakdown) && !/×/.test(breakdown),
             hint("text").length > 0, hint("analysis").length > 0 && hint("analysis").length <= 30, heads]),
         stableJson([3, true, true, true, [3, true]]),
         "Who has what or the Traces tab still draws wide counts, a ×count, no description hint or a long analysis one, or a Really heading with no word on it (count cells, breakdown, description hint, analysis hint, [count headings, Really tooltip])");
@@ -29268,8 +29271,9 @@ const SCENARIOS = [
         }
         try {
             ok(input, "the Edit campaign window did not draw its day stepper");
-            const label = input.closest("label");
-            ok(label, "the day field is no longer inside its label");
+            // Inside its label, or (since E47-C2, Edit campaign on the kit's formGrid) the label column's, pointing at it by `for`.
+            const label = input.closest("label") ?? [...document.querySelectorAll("label[for]")].find(l => l.htmlFor === input.id) ?? null;
+            ok(label, "the day field has no label of its own");
             equal(label.control, input, "the day's label names something other than the day field");
             const was = input.value;
             label.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
@@ -38518,7 +38522,8 @@ const SCENARIOS = [
             let lines = null;
             if (sections.length) {
                 lines = 0;
-                for (let el = sections.at(-1).nextElementSibling; el; el = el.nextElementSibling) if (el.tagName === "P") lines++;
+                // A line is a paragraph or, since E47 C1, the kit's box: the ballots' "still out" is `box("info")` (E21's list).
+                for (let el = sections.at(-1).nextElementSibling; el; el = el.nextElementSibling) if (el.tagName === "P" || el.classList?.contains("drpg-box")) lines++;
             }
             return [buttons.filter(b => b.default).map(b => b.action), !voteButton ? "absent" : voteButton.disabled ? "closed" : "open",
                 content?.querySelector?.(".drpg-trial-lead")?.textContent?.trim() ?? null, sections.length, lines];
@@ -38679,10 +38684,14 @@ const SCENARIOS = [
             const now = V.trialProgress();
             await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...now,
                 vote: { ...now.vote, open: true, round: now.vote.round + 1, issued: [], openedAt: Date.now(), closedAt: null } });
-            await until(() => asked.length > before[1] && drawn().length > 0, 6000);
+            /* THE SAME WINDOW, ITS FOOTER REDRAWN IN PLACE (E47-C1, 09.11.2026): the window no longer closes and asks
+               DialogV2 again when a vote opens under it - `liveFooter` redraws the buttons and writes them into the
+               window's own `options.buttons` - so the footer is read there, and a second wait asked is a fault (the
+               count of waits after the first stays 0). Until this edit the test waited for that second wait and, with
+               none coming, read an empty footer ([false, false, []]): red on every CI run from 56517337 to 957ee3bd. */
+            await until(() => drawn().length > 0 && !status().includes(sendFirst), 6000);
             await settle();
-            const back = asked.length > before[1] ? asked.at(-1) : null;
-            reading = [alone, before, [drawn().length, footer(back), status().includes(sendFirst)]];
+            reading = [alone, before, [drawn().length, asked.length - before[1], footer(drawn()[0]?.options), status().includes(sendFirst)]];
         } finally {
             if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
             for (const app of drawn()) await app.close();
@@ -38694,11 +38703,11 @@ const SCENARIOS = [
         equal(stableJson(reading), stableJson([
             [[true, true, ["cancel"]], true],
             [1, 1, [true, none, none ? ["cancel"] : ["open"]], true, true],
-            [1, [false, none, ["cancel"]], false]
+            [1, 0, [false, none, ["cancel"]], false]
         ]), "the vote window opened twice, offered Close and count with no vote open, did not say whom a ballot goes to (or that "
             + "nobody is connected), or did not come back with its count open once a vote was (read: windows drawn, waits asked, "
             + "the footer - Close and count closed, Send closed, the defaults -, the line to send first, the recipients' line; then "
-            + "the windows, the footer and the line again; first, with nobody connected: the footer and the line saying so)");
+            + "the windows, the waits asked again (none: the footer redrawn in place), the footer and the line again; first, with nobody connected: the footer and the line saying so)");
     }],
 
     ["the console says Nonstop Debate while a debate runs", async () => {
@@ -38743,7 +38752,8 @@ const SCENARIOS = [
             const text = line?.textContent?.trim() ?? null;
             return {
                 line: normal(text), isDebate: Boolean(text) && text.startsWith(loc("DRPG.Floor.mode.debate")),
-                warning: line?.classList?.contains("drpg-warning") ?? null,
+                // Since E47 C1 the past-time line is the kit's information box (E21's list: an I site), not a warning.
+                warning: line ? (line.dataset?.drpgBox ?? (line.classList.contains("drpg-warning") ? "drpg-warning" : null)) : "no line",
                 notes: [...(content?.querySelectorAll?.("p.notes") ?? [])].map(p => p.textContent.trim())
             };
         };
@@ -38776,11 +38786,11 @@ const SCENARIOS = [
         const modeNote = game.i18n.format("DRPG.Floor.modeNote", { step: (await import("./config.mjs")).TRIAL.modes.gm.adjustSeconds }),
             objectionNote = loc("DRPG.Floor.objectionNote");
         equal(stableJson(readings), stableJson({
-            discussion: { line: normal(loc("DRPG.Floor.inDiscussion")), isDebate: false, warning: false, notes: [] },
-            debate: { line: normal(game.i18n.format("DRPG.Floor.holdingDebate", { seconds: 0 })), isDebate: true, warning: false, notes: [objectionNote] },
-            over: { line: normal(game.i18n.format("DRPG.Floor.holdingDebateOver", { seconds: 0, step: (await import("./config.mjs")).TRIAL.modes.gm.adjustSeconds })), isDebate: true, warning: true, notes: [objectionNote] },
+            discussion: { line: normal(loc("DRPG.Floor.inDiscussion")), isDebate: false, warning: null, notes: [] },
+            debate: { line: normal(game.i18n.format("DRPG.Floor.holdingDebate", { seconds: 0 })), isDebate: true, warning: null, notes: [objectionNote] },
+            over: { line: normal(game.i18n.format("DRPG.Floor.holdingDebateOver", { seconds: 0, step: (await import("./config.mjs")).TRIAL.modes.gm.adjustSeconds })), isDebate: true, warning: "info", notes: [objectionNote] },
             objection: { line: normal(game.i18n.format("DRPG.Floor.holdingObjection", { who: holder.name, target: target.name, seconds: 0 })),
-                isDebate: false, warning: false, notes: [modeNote] }
+                isDebate: false, warning: null, notes: [modeNote] }
         }), "the console's debate line does not carry the debate's name (or the discussion's does), or a line that states the "
             + "trial's state is a `notes` footnote again (read per state: the line under \"The debate\" with its seconds as N, "
             + "whether it begins with the mode's name, whether it is the warning, and every `notes` paragraph of the console)");
@@ -47258,8 +47268,8 @@ const SCENARIOS = [
                 const el = document.createElement("div");
                 if (typeof cfg?.content === "string") el.innerHTML = cfg.content;
                 else if (cfg?.content) el.append(cfg.content.cloneNode(true));
-                rows = [...el.querySelectorAll(".drpg-setup-step")].map(li => ({
-                    title: li.querySelector("strong")?.textContent ?? "",
+                rows = [...el.querySelectorAll("li.drpg-check-row")].map(li => ({
+                    title: li.querySelector(".drpg-check-title")?.textContent ?? "",
                     detail: li.querySelector(".drpg-setup-missing")?.textContent ?? ""
                 }));
                 return null;
@@ -58204,6 +58214,10 @@ const SCENARIOS = [
          * applied: the window is cancelled, and Room Setup writes on Apply only - but for the first room's refill,
          * pressed to read the counter again after its live recount; it acts at once on the search-token setting,
          * which the runner's restore puts back.
+         *
+         * E46-C2a (09.11.2026): read on the kit's tables - the counter a compact stepper in `td.drpg-data-col-step` (its
+         * - , field, + and the refill, one row), every table a `dataTable` in its box with a column a heading, the
+         * student heads the kit's two-line heads whose title is their whole name.
          */
         needs(env.dialogs(), "the window is drawn and its controls pressed");
         needs(world.atLeast("namedRooms", 1), "Room Setup lists the named regions of the scene on screen");
@@ -58224,16 +58238,17 @@ const SCENARIOS = [
                 footers[tab.dataset.drpgTabKey] = [...root.querySelectorAll("footer.form-footer button")]
                     .filter(button => button.style.display !== "none" && !button.hidden).map(button => button.dataset.action);
             }
-            const cell = root.querySelector(".drpg-token-cell");
+            // The counter on the kit since E46-C2a: the compact stepper's - , its field and its + , then the refill.
+            const cell = root.querySelector("td.drpg-data-col-step");
             const counter = () => {
-                const pieces = [...(cell?.querySelectorAll("[data-drpg-token-by], [data-drpg-tokens]") ?? [])];
+                const pieces = [...(cell?.querySelectorAll("button[data-drpg-step], input[data-drpg-token], button[data-drpg-token-refill]") ?? [])];
                 const step = cell?.querySelector(".drpg-token-step") ?? null;
-                return [pieces.map(piece => piece.dataset.drpgTokenBy ?? "count"), Boolean(step) && pieces.every(piece => step.contains(piece))];
+                return [pieces.map(piece => piece.dataset.drpgStep ?? (piece.matches("input") ? "count" : "max")), Boolean(step) && pieces.every(piece => step.contains(piece))];
             };
             const drawnFirst = counter();
             // And once more after the refill, which acts at once and is counted again in place (`recountTokenCells`):
             // the row is drawn by the window and rewritten by the count, and the count must leave it one row.
-            cell?.querySelector('[data-drpg-token-by="max"]')?.click();
+            cell?.querySelector("button[data-drpg-token-refill]")?.click();
             await settle();
             const recounted = counter();
             const boxes = [...root.querySelectorAll('input[name^="fav:"], input[name^="hin:"]')];
@@ -58251,7 +58266,7 @@ const SCENARIOS = [
                 }
                 clicks = [[...clicks].sort(), clicks[2] === was];
             }
-            const tables = [...root.querySelectorAll("table.drpg-vault-table")];
+            const tables = [...root.querySelectorAll("table.drpg-data-table")];
             const heads = [...root.querySelectorAll('[data-drpg-pane="stashes"] thead th, [data-drpg-pane="fog"] thead th')]
                 .filter(th => th.cellIndex > 0);
             const fogBoxes = () => [...root.querySelectorAll('input[type="checkbox"][name^="fog:"]')];
@@ -58267,7 +58282,7 @@ const SCENARIOS = [
                 counter: [drawnFirst, recounted],
                 place: [root.querySelectorAll("[data-drpg-place]").length * 2 === boxes.length && boxes.length > 0,
                     boxes.filter(box => !box.hidden).length, clicks],
-                tables: tables.map(table => table.classList.contains("drpg-room-setup-table")
+                tables: tables.map(table => Boolean(table.closest(".drpg-data-table-box"))
                     && table.querySelectorAll("col").length === table.querySelectorAll("thead th").length),
                 heads: heads.length > 0 && heads.every(th => th.title === th.textContent.trim()),
                 legend: [...root.querySelectorAll("[data-drpg-stash-legend] [data-drpg-stash-state]")].map(entry => entry.dataset.drpgStashState),
@@ -58618,7 +58633,7 @@ const SCENARIOS = [
             await settle();
             must(canvas?.scene === home && home !== floor, "the scene on screen moved - this would measure nothing");
             const drawn = await withFormAnswered(() => false, () => openSeasonSetup());
-            const row = [...(drawn[0]?.querySelectorAll(".drpg-setup-step") ?? [])].find(li => li.querySelector("strong")?.textContent === title);
+            const row = [...(drawn[0]?.querySelectorAll("li.drpg-check-row") ?? [])].find(li => li.querySelector(".drpg-check-title")?.textContent === title);
             must(row, "the checklist drew no row for the named regions - this would measure nothing");
             reading = [(row.querySelector(".drpg-setup-missing")?.textContent ?? "").includes(UNDECIDED)];
         } finally {
@@ -63766,7 +63781,8 @@ const SCENARIOS = [
         const windows = answerWindows((cfg, root) => {
             if ((cfg?.window?.title ?? "") !== createTitle) return null;
             const target = Number([...(root.querySelector('select[name="target"]')?.options ?? [])].find(o => o.selected)?.value ?? NaN);
-            drawn.push([Boolean(root.querySelector("[data-drpg-owned-preset] .drpg-warning")), target]);
+            // The refusal is the kit's warning box since E47-C6 (a `p.drpg-warning` before).
+            drawn.push([Boolean(root.querySelector('[data-drpg-owned-preset] .drpg-box[data-drpg-box="warning"]')), target]);
             return { name: cfg?.content?.querySelector?.('input[name="name"]')?.value || "SUITE E15 T17 approved", target, room: null, trait: "hand", murder: false,
                 condition: "", trigger: { kind: "manual", targetId: null, afterDark: false, notBuilder: false }, secret: false, viewers: [], was: [], img: null, glyph: null,
                 // A description since E44 C9 (required in the approval window): the preset's judgement is what this reads.
@@ -75658,7 +75674,8 @@ const SCENARIOS = [
             const root = document.createElement("div");
             root.innerHTML = await SS.preSessionReport?.() ?? "";
             text = root.textContent;
-            lines = [...root.querySelectorAll("p.drpg-check-report")].map(p => p.textContent);
+            // The pictures' rows (E46-C5b): the kit's checklist, a row's title its line, where each was `p.drpg-check-report`.
+            lines = [...root.querySelectorAll('[data-drpg-check-part="pictures"] li.drpg-check-row .drpg-check-title')].map(t => t.textContent);
         } finally {
             for (const [piece, was] of before) {
                 if (was === undefined || was === null) await piece.unsetFlag(MODULE_ID, VAULT_FLAGS.image);
@@ -83708,6 +83725,889 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson({ hope: [0, true, true], health: [0, true, true], cut: [true, 0], flag: 1 }),
             "[after a Hope-only write, after a Health write: the original's renders, the Hope pips, the Health row true; a Hope gain under Despair: the write cut, the renders; after a flag write: the renders]");
+    }],
+    /* ---- E46-C3 ------------------------------------------------------------------------------------------------------ */
+    ["E46-T2 - Give existing at the table (scripts/gm-items.mjs; E46-C3, S08-42): an Axe picked from a room pool and given at Tier 0 is a Murder Weapon with no second role; an entry picked from a tier pool is given as the pool's category and tier", async () => {
+        /*
+         * E46-C3, 09.11.2026; audit S08-42. Two tables of the suite's: "SUITE E46-T2 Room" (a room pool) holding "Axe" with
+         * the Tool role on its entry, and "SUITE E46-T2 mops", a Tier 1 Cleaning Tool pool by its flags. The Give window
+         * is drawn by a stand-in DialogV2.wait that runs its render on the content, picks as a GM would - the room pool,
+         * its Axe, then Tier 0; then the mops pool and its entry - and presses Give through the button's own callback
+         * (`readGiveForm`), with "tell the player" off. Read on the student's sheet: each given item's category, tier and
+         * roles (inventory.mjs `rolesOf`). Every table and item made here is taken away after. Red first at f7266b28:
+         * the Axe came with the Tool role at Tier 0, under the category the window opened with.
+         */
+        const G = await import("./gm-items.mjs");
+        const INV = await import("./inventory.mjs");
+        const [actor] = cast(1);
+        must(actor, "no student to give to - this would measure nothing");
+        const TAG = "SUITE E46-T2";
+        const TEXT = CONST.TABLE_RESULT_TYPES?.TEXT ?? "text";
+        const row = (name, roles) => ({ type: TEXT, name, text: name, description: name, range: [1, 1], weight: 1,
+            flags: { [MODULE_ID]: { roles } } });
+        const made = [], had = new Set(actor.items.map(i => i.id));
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const read = {};
+        try {
+            const room = await RollTable.create({ name: `${TAG} Room`, formula: "1d1", flags: { [MODULE_ID]: { roomPool: true } }, results: [row("Axe", ["tool"])] });
+            made.push(room);
+            const mops = await RollTable.create({ name: `${TAG} mops`, formula: "1d1", flags: { [MODULE_ID]: { category: "cleaningTool", tier: 1, goal: null } },
+                results: [row(`${TAG} mop`, [])] });
+            made.push(mops);
+            await settle();
+            const give = async (table, tier = null) => {
+                D.wait = async config => {
+                    const element = document.createElement("div");
+                    if (typeof config?.content === "string") element.innerHTML = config.content;
+                    else if (config?.content) element.append(config.content);
+                    config?.render?.(null, { element });
+                    const form = element.querySelector("form");
+                    const pick = (name, value) => { form.elements[name].value = value; form.elements[name].dispatchEvent(new Event("change")); };
+                    pick("exTable", table.id);
+                    pick("exItem", [...table.results][0].id);
+                    if (tier !== null) pick("exTier", String(tier));
+                    form.elements.tell.checked = false;
+                    const ok = (config.buttons ?? []).find(b => b.action === "ok");
+                    return ok?.callback?.(null, null, { element }) ?? "cancel";
+                };
+                const before = new Set(actor.items.map(i => i.id));
+                const gave = await G.gmGiveItemDialog(actor);
+                await settle();
+                const item = actor.items.find(i => !before.has(i.id));
+                return [gave, item?.getFlag(MODULE_ID, INV.ITEM_FLAGS.category) ?? null, item?.getFlag(MODULE_ID, INV.ITEM_FLAGS.tier) ?? null, item ? INV.rolesOf(item) : null];
+            };
+            read.axe = await give(room, 0);
+            read.mop = await give(mops);
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            for (const item of actor.items.filter(i => !had.has(i.id))) await item.delete().catch(() => {});
+            for (const table of made) if (game.tables.get(table.id)) await table.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ axe: [true, "crimeTool", 0, []], mop: [true, "cleaningTool", 1, []] }),
+            "Give existing hands over an entry as something other than what it is "
+            + "[the room pool's Axe at Tier 0, the mops pool's entry: given, the item's category, tier, roles]");
+    }],
+    ["E46-T3 - a Polish GM's Test on an event with no file (E46-C4; E46-14, S13-53): the Sound window drawn in Polish, its Effects tab one drawn row of the kit's table per `SFX_EVENTS` key in order; the Test of an event with no file warns `DRPG.Sound.testFailed` in Polish - the event's Polish name and `DRPG.Sound.why.noFile` - and plays nothing", async () => {
+        /*
+         * E46-C4, 09.11.2026. S13-53 (fixed by E50 C3, 50d9e9c6): a Polish GM's Test said why in English. Here, as the GM:
+         * the module's strings swapped to pl.json's for the reading (`game.i18n.translations`, the page's language, and
+         * the event's name in config.mjs's table as i18n.mjs `localizeConfig` writes it from pl.json), the window opened,
+         * its Effects rows read, the Test of the first event with no file pressed (one is cleared for the reading if
+         * every event has one, and put back) and `ui.notifications.warn` recorded (still shown); everything put back.
+         * Red first on f7266b28 (C1's tree under C0 and C1f): the rows are a hand table, not the kit's.
+         */
+        needs(env.dialogs(), "the Sound window is drawn and its Test pressed");
+        must(game.user.isGM, "the Effects tab is a GM's");
+        must(!document.querySelector(".drpg-window-sound"), "a Sound window is open - close it: this test opens its own");
+        const M = await import("./music.mjs"), X = await import("./sfx.mjs"), S = await import("./settings.mjs");
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const keys = Object.keys(SFX_EVENTS);
+        let key = keys.find(k => !X.soundFor(k)), cleared = null;
+        if (!key) { key = keys[0]; cleared = getSetting(SETTINGS.sfxMap)?.[key] ?? null; await X.setSoundFor(key, null); await settle(); }
+        must(!X.soundFor(key), `the event ${key} still has a file - the Test would play`);
+        const event = SFX_EVENTS[key], plName = pl.DRPG?.Config?.SFX_EVENTS?.[key]?.label;
+        must(typeof plName === "string" && plName.trim(), `pl.json has no name for the event ${key}`);
+        const own = game.i18n.translations, ownName = event.label, warns = [], realWarn = ui.notifications.warn;
+        const read = {};
+        let was = null, swapped = false, answer = null;
+        try {
+            game.i18n.translations = { ...own, DRPG: pl.DRPG };
+            was = S.setPageLanguage("pl");
+            swapped = true;
+            event.label = plName;
+            ui.notifications.warn = function (...args) { warns.push(String(args[0])); return realWarn.apply(this, args); };
+            answer = Promise.resolve().then(() => M.openSoundDialog()).catch(err => `threw: ${err.message}`);
+            const root = () => document.querySelector(".drpg-window-sound");
+            must(await until(() => root()?.querySelector("tr[data-drpg-sfx]"), 6000), "the Sound window did not open with its Effects rows");
+            root().querySelector('nav.drpg-tabs [data-drpg-tab-key="effects"]')?.click();
+            const rows = [...root().querySelectorAll("tr[data-drpg-sfx]")];
+            read.rows = [rows.map(tr => tr.dataset.drpgSfx).join(",") === keys.join(","), rows.every(tr => tr.closest("table.drpg-data-table")),
+                rows.every(tr => tr.closest("table") === rows[0]?.closest("table"))];
+            const test = root().querySelector(`tr[data-drpg-sfx="${key}"] button[data-drpg-sfx-test]`);
+            must(test, `the row of ${key} has no Test`);
+            test.click();
+            await until(() => warns.length > 0, 3000);
+            const want = String(pl.DRPG.Sound.testFailed).replace("{label}", plName).replace("{why}", pl.DRPG.Sound.why.noFile);
+            read.warns = warns.map(text => (text === want ? "the Polish warning" : text));
+            read.english = warns.some(text => text.includes(String(own?.DRPG?.Sound?.why?.noFile ?? "\u0000")) || /DRPG\./.test(text));
+            root().querySelector('footer.form-footer button[data-action="close"]')?.click();
+            await Promise.race([answer, wait(3000)]);
+        } finally {
+            ui.notifications.warn = realWarn;
+            event.label = ownName;
+            game.i18n.translations = own;
+            if (swapped) S.setPageLanguage(was);
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.classList?.contains("drpg-window-sound"))) await app.close();
+            if (answer) await Promise.race([answer, wait(3000)]);
+            if (cleared) { await X.setSoundFor(key, cleared); await settle(); }
+        }
+        equal(stableJson(read), stableJson({ rows: [true, true, true], warns: ["the Polish warning"], english: false }),
+            "{the Effects rows [one a SFX_EVENTS key in order, each in the kit's table, all in one table]; the warnings the Test gave; whether one holds "
+            + "the English reason or a raw key}");
+    }],
+    /* ---- E46-C2a (09.11.2026): Room setup on the kit, its writes held. ---- */
+    ["E46-T1 - Room setup opened on a scene while the GM views another (E46-C2a; E46-05, R119, near a road): Apply with nothing changed writes no region; one change on each room tab (Bedrooms' owner, Doors' lock, Searching's seal, Rests' short rest, Stashes' cell, Description's words, Fog's box) writes only its own field and only on the scene it was opened on; Apply with the Passages tab drawn writes no region (its buttons write at once), and the Scenes tab's school linked writes the scene roles and no region (E46-C2b); drawn on the GM, the footer is Apply and Cancel after every tab", async () => {
+        /*
+         * E46-C2a. Two scenes of the suite's own, each a room of one name (as R119's tier-2 test builds them), in a
+         * GM-store world of its own (`withGmStoreWorld`). Each Apply is answered as a GM answers it: the form handed to
+         * DialogV2.wait, one field set, the second scene viewed, Apply's own callback. Read per Apply: the region updates
+         * on each scene (an `updateRegion` hook) and the module flags they changed; the Fog box in the fog ledger
+         * (`discoveredFor`), on each scene. Red by the mutant m2 (Apply reading the camera's scene: `workingScene()` in
+         * `applyRoomRows`' place of the scene it was handed): the writes land on the second scene. The bedroom key Apply's
+         * sweep hands the owner is taken back.
+         * E46-C2b: two steps more. Passages - Apply with the tab's box drawn (`[data-drpg-passages]`) writes no region: its
+         * buttons write the GMs' store at once, never through Apply. Scenes - the school select set to the scene opened
+         * on: the scene roles hold it after Apply (`sceneRoles`), and no region is written; the roles as they were are put
+         * back before the two scenes go. Red by m2 as before.
+         */
+        needs(env.dialogs(), "the window is drawn and its tabs pressed");
+        needs(world.atLeast("namedRooms", 1), "Room setup lists the named regions of the scene on screen");
+        const [a, b] = cast(2);
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const F = await import("./fog.mjs");
+        const home = canvas?.scene ?? null;
+        const ROOM = "SUITE E46-T1 Lab", NAMES = ["SUITE E46-T1 opened on", "SUITE E46-T1 on screen at Apply"];
+        const ROLES = SETTINGS.sceneRoles;
+        must(game.settings.settings.has(`${MODULE_ID}.${ROLES}`), "the scene roles are not a setting - the Scenes step would link nothing");
+        const rolesBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, ROLES) ?? {});
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const keyFor = actor => actor.items.filter(i => i.getFlag(MODULE_ID, V.KEY_FLAG) === ROOM).map(i => i.id);
+        let reading = null;
+        await G.withGmStoreWorld(`suite-e46t1-${foundry.utils.randomID(8)}`, async () => {
+            const scenes = [];
+            const updates = [];
+            const hook = Hooks.on("updateRegion", (region, changed) => {
+                updates.push([region.parent?.id ?? null, Object.keys(foundry.utils.flattenObject(changed?.flags?.[MODULE_ID] ?? {})).map(k => k.split(".")[0])]);
+            });
+            try {
+                for (const name of NAMES) {
+                    const scene = await Scene.create({ name, width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                    scenes.push(scene);
+                    await scene.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                        flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                }
+                const [opened, other] = scenes;
+                // The room's module flags as stored, flattened: what an Apply changed is what differs after it. A row's first
+                // write stores its unset fields as their empties (an empty list, false, ""), as on 1.2.101: read as unset.
+                const empty = v => (v === undefined || v === null || v === false || v === "" || (Array.isArray(v) && !v.length) ? null : v);
+                const snap = scene => foundry.utils.flattenObject(foundry.utils.deepClone(scene.regions.find(r => r.name === ROOM)?.flags?.[MODULE_ID] ?? {}));
+                const applyWith = async change => {
+                    await opened.view();
+                    await settle();
+                    updates.length = 0;
+                    D.wait = async cfg => {
+                        const element = document.createElement("div"), form = document.createElement("form");
+                        if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
+                        else if (cfg?.content) form.append(cfg.content.cloneNode(true));
+                        element.append(form);
+                        const field = name => (name.startsWith("[") ? form.querySelector(name) : form.querySelector(`[name="${CSS.escape(name)}"]`));
+                        if (change) {
+                            const [name, set] = change;
+                            const el = field(name);
+                            must(el, `Room setup drew no "${name}" - the answer would change nothing`);
+                            set(el);
+                        }
+                        await other.view();
+                        await settle();
+                        const apply = (cfg.buttons ?? []).find(x => x.action === "ok");
+                        return apply.callback(new Event("click"), apply, { element });
+                    };
+                    const before = scenes.map(snap);
+                    try { await V.openRoomSetupDialog(); } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+                    await settle();
+                    const on = id => updates.filter(u => u[0] === id);
+                    const moved = scenes.map((scene, i) => { const now = snap(scene); return [...new Set([...Object.keys(now), ...Object.keys(before[i])])]
+                        .filter(k => stableJson(empty(now[k])) !== stableJson(empty(before[i][k]))).map(k => k.split(".")[0]).filter((k, j, all) => all.indexOf(k) === j).sort(); });
+                    return [on(opened.id).length > 0, on(other.id).length, ...moved];
+                };
+                const fogOf = scene => F.discoveredFor(scene.id, a.id).includes(ROOM);
+                const steps = {
+                    none: await applyWith(null),
+                    bedrooms: await applyWith([`owner:${ROOM}`, el => { el.value = a.id; }]),
+                    doors: await applyWith([`locked:${ROOM}`, el => { el.checked = true; }]),
+                    search: await applyWith([`nosearch:${ROOM}`, el => { el.checked = true; }]),
+                    rest: await applyWith([`short:${ROOM}`, el => { el.checked = true; }]),
+                    stashes: await applyWith([`stash:${ROOM}:${b.id}`, el => { el.value = "hidden"; }]),
+                    description: await applyWith([`desc:${ROOM}`, el => { el.value = "E46-T1 words"; }]),
+                    fog: await applyWith([`fog:${ROOM}:${a.id}`, el => { el.checked = !el.checked; }]),
+                    passages: await applyWith(["[data-drpg-pane=\"passages\"] [data-drpg-passages]", () => {}]),
+                    scenes: await applyWith(["scenes:school", el => { el.value = opened.id; }])
+                };
+                const linked = R.sceneRoles().school === opened.id;
+                steps.again = await applyWith(null);
+                reading = { steps, fog: scenes.map(fogOf), linked };
+            } finally {
+                Hooks.off("updateRegion", hook);
+                if (stableJson(game.settings.get(MODULE_ID, ROLES) ?? {}) !== stableJson(rolesBefore)) await game.settings.set(MODULE_ID, ROLES, rolesBefore);
+                if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+                for (const actor of [a, b]) {
+                    const keys = keyFor(actor);
+                    if (keys.length) await actor.deleteEmbeddedDocuments("Item", keys);
+                }
+                await home?.view();
+                for (const scene of scenes) await scene.delete();
+                await settle();
+            }
+        });
+        // The footer on every tab, the window drawn on this GM and cancelled: nothing applied.
+        const drawn = () => [...foundry.applications.instances.values()].filter(app => app.rendered && app.element?.classList?.contains("drpg-window-rooms"));
+        must(!drawn().length, "a Room setup window is open already, and a second is not drawn");
+        const answer = Promise.resolve().then(() => V.openRoomSetupDialog()).catch(() => "threw");
+        const footers = {};
+        try {
+            must(await until(() => drawn().length === 1, 6000), "Room setup drew no window");
+            await settle();
+            const root = drawn()[0].element;
+            for (const tab of root.querySelectorAll("nav.drpg-tabs [data-drpg-tab-key]")) {
+                tab.click();
+                footers[tab.dataset.drpgTabKey] = [...root.querySelectorAll("footer.form-footer button")]
+                    .filter(button => button.style.display !== "none" && !button.hidden && root.contains(button)).map(button => button.dataset.action);
+            }
+        } finally {
+            for (const app of drawn()) app.element.querySelector('footer.form-footer button[data-action="cancel"]')?.click();
+            await Promise.race([answer, wait(3000)]);
+            for (const app of drawn()) await app.close();
+        }
+        equal(stableJson({ ...reading, footers }), stableJson({
+            steps: { none: [false, 0, [], []], bedrooms: [true, 0, ["drpgStashes", "drpgVaultOwner"], []], doors: [true, 0, ["drpgLocked"], []],
+                search: [true, 0, ["drpgNoSearch"], []], rest: [true, 0, ["restShort"], []], stashes: [true, 0, ["drpgStashes"], []],
+                description: [true, 0, ["drpgRoomDescription"], []], fog: [false, 0, [], []], passages: [false, 0, [], []],
+                scenes: [false, 0, [], []], again: [false, 0, [], []] },
+            fog: [true, false], linked: true,
+            footers: Object.fromEntries(V.ROOM_SETUP_TABS.map(([tab]) => [tab, ["ok", "cancel"]]))
+        }), `{steps: per Apply [a region update on the scene opened on, the updates on the scene on screen, the module flags whose value changed on each]; fog: ${a.name}'s fog box on each scene; footers: the buttons after each tab}`);
+    }],
+
+    ["E46-T4 - Pre-season checks drawn on the GM (E46-C5b; card M4): the window holds its parts in today's order - the cast and the scenes always, the room pictures and the voice when they have a row, the contract, the dice look, the anonymity audit - each but the audit a kit checklist under its heading (or its one line, or the contract's unread rows folded); red only where a row is blocking, in a part whose rows may block (the cast, the scenes, the room pictures); no `pre`, no `p.drpg-check-report`, no mark of `checkMarks` outside the audit", async () => {
+        /*
+         * E46-C5b, 09.11.2026; card M4 (Approve: "red only for a blocking row"). R2033 reads `preSessionReport` with the
+         * facts handed in; this reads the window a GM opens (Season setup's Pre-season checks, `runPreSessionChecks`) over
+         * this world as it stands: its cast, its scenes and their pictures, the contract run here and this browser's dice
+         * look. It is closed with Close; nothing is written. Red first on c1046f5e: `runPreSessionChecks` is not exported
+         * (and the window drew `pre`).
+         */
+        needs(env.dialogs(), "Pre-season checks are read on a drawn window");
+        const SS = await import("./season-setup.mjs");
+        must(typeof SS.runPreSessionChecks === "function", "season-setup.mjs exports no runPreSessionChecks");
+        const ORDER = ["givenBack", "cast", "scenes", "pictures", "voice", "contract", "dice", "anonymity"];
+        const ALWAYS = ["cast", "scenes", "contract", "dice", "anonymity"];
+        const MAY_BLOCK = ["cast", "scenes", "pictures"];
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-preseason"));
+        must(of().length === 0, "a Pre-season checks window stands open already");
+        const run = SS.runPreSessionChecks();
+        let got = null;
+        try {
+            await until(() => of()[0]?.element?.querySelector('[data-drpg-check-part="anonymity"]'), 20000);
+            const el = of()[0]?.element;
+            must(el, "no Pre-season checks window was drawn - this would measure nothing");
+            const parts = [...el.querySelectorAll("[data-drpg-check-part]")];
+            const names = parts.map(p => p.dataset.drpgCheckPart);
+            got = {
+                order: names.every((name, i) => ORDER.includes(name) && (i === 0 || ORDER.indexOf(names[i - 1]) < ORDER.indexOf(name))),
+                always: ALWAYS.every(name => names.includes(name)),
+                listed: parts.filter(p => p.dataset.drpgCheckPart !== "anonymity")
+                    .every(p => p.querySelector(":scope > ul.drpg-checklist, :scope > .drpg-help, :scope > details.drpg-check-unknown")),
+                headed: parts.filter(p => p.dataset.drpgCheckPart !== "givenBack").every(p => p.querySelector(":scope > h3")?.textContent.trim()),
+                red: [...new Set([...el.querySelectorAll('li.drpg-check-row[data-drpg-state="blocking"]')]
+                    .map(li => li.closest("[data-drpg-check-part]")?.dataset.drpgCheckPart ?? null))].filter(p => !MAY_BLOCK.includes(p)),
+                old: el.querySelectorAll("pre, p.drpg-check-report").length,
+                marks: [...el.querySelectorAll(".drpg-check-ok, .drpg-check-bad")].filter(mark => !mark.closest("[data-drpg-anon]")).length
+            };
+        } finally {
+            for (const app of of()) await app.close().catch(() => {});
+            await Promise.race([run, wait(3000)]);
+        }
+        equal(stableJson(got), stableJson({ order: true, always: true, listed: true, headed: true, red: [], old: 0, marks: 0 }),
+            "Pre-season checks on the GM [its parts in today's order, the five that are always there, a checklist, a line or the contract's "
+            + "unread rows folded in each but the audit, a heading on each | parts with a blocking row that may not have one | pre and p.drpg-check-report left | checkMarks' "
+            + "marks outside the audit]");
+    }],
+
+    /* ---- E47 C1 (09.11.2026) ---- */
+
+    ["E47-T1 - the trial console through a trial (E47 C1; E47-01, E47-02): on this primary, a Class Trial with the console drawn - a debate (the window opens again: its family changed), an Objection, the debate's end, the ballots out, the count: one window through each family, its footer element kept and redrawn in place, the destructive zone the same slots in every state, the right slot the next step alone, Enter (the default and the first button in the tree) never on a destructive button, and the GM panel's Next line and the vote window's lead naming the console's step", async () => {
+        /*
+         * E47 C1, 09.11.2026. The console opened again whenever its footer would change (its signature held the next step,
+         * the count, the verdict, the flag and the table's door): with the ballots out a GM looking at it had it closed and
+         * redrawn under the pointer. Now only the trial's start and end and the floor's family reopen it, and the footer is
+         * redrawn in place (ui-kit.mjs `liveFooter`). The ballots are sent with the players' own handing stood in for
+         * (nobody is asked to vote; `vote.open` is swallowed), and counted with none in. The verdict itself is not given
+         * here (its window and its writes are E10's tests'): the state after the count is read with Deliver the verdict the
+         * step. Red first on f7266b28 (E46-C1's tree): a new window at the ballots and at the count.
+         * The clock, the floor, the trial's record and the cards are put back.
+         */
+        needs(env.dialogs(), "the console is drawn");
+        const F = await import("./trial-floor.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const V = await import("./vote.mjs");
+        const GP = await import("./gm-panel.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM - the floor and the vote are the primary's to write");
+        const [objector, target] = cast(2);
+        closeOpen("drpg-window-trial");
+        await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const socket = game.socket, ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
+        const consoles = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-trial"));
+        const footerOf = app => app?.element?.querySelector("footer.drpg-kit-footer") ?? null;
+        const state = app => {
+            const footer = footerOf(app);
+            const buttons = [...(footer?.querySelectorAll("button[data-action]") ?? [])];
+            const right = [...(footer?.querySelector(".drpg-kit-right")?.children ?? [])].map(b => b.dataset.action);
+            const left = [...(footer?.querySelector(".drpg-kit-left")?.children ?? [])];
+            const def = buttons.find(b => b.hasAttribute("autofocus")) ?? null;
+            // Guarded, so the tree before E47 C1 (none of the three) reads its windows rather than throwing.
+            const view = typeof F.trialStepView === "function" ? F.trialStepView() : null;
+            const step = view ? F.trialNextStep(view) : null;
+            const box = document.createElement("div");
+            box.innerHTML = view && typeof UI.voteLead === "function" ? UI.voteLead(view) : "";
+            const panel = GP.nextStep(getClock(), { setupList: [], incident: false, eclipse: false, round: null, endStopped: false });
+            return {
+                step, right, close: left[0]?.dataset.action ?? null,
+                zone: left.filter(b => b.dataset.drpgRole === "destructive").map(b => b.dataset.action),
+                enter: [def?.dataset.drpgRole ?? null, buttons[0]?.dataset.drpgRole ?? null].some(r => r === "destructive"),
+                panel: Boolean(view) && panel?.text === F.trialStepText(step, view), lead: box.querySelector(".drpg-vote-lead")?.dataset.drpgStep ?? null
+            };
+        };
+        const read = {};
+        try {
+            const send = socket.emit;
+            socket.emit = function (event, packet, ...rest) {
+                if (packet?.action === "vote.open") return true;
+                return send.call(this, event, packet, ...rest);
+            };
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, {});
+            await setClock({ ...clock, phase: "classTrial" });
+            await settle();
+            UI.manageClassTrial().catch(() => {});
+            await until(() => footerOf(consoles()[0]), 6000);
+            const first = consoles()[0] ?? null;
+            must(footerOf(first), "the trial console did not open");
+            read.discussion = state(first);
+            await F.startFloor({ seconds: 300 });
+            await until(() => consoles()[0] && consoles()[0] !== first && footerOf(consoles()[0]), 6000);
+            const debate = consoles()[0] ?? null;
+            const debateFooter = footerOf(debate);
+            read.debate = { ...state(debate), reopened: debate !== first, windows: consoles().length };
+            await F.openObjection(objector.id, target.id);
+            await settle();
+            await wait(1500);
+            read.objection = { ...state(consoles()[0]), same: consoles()[0] === debate && footerOf(debate) === debateFooter, windows: consoles().length };
+            await F.endFloor();
+            await until(() => consoles()[0] && consoles()[0] !== debate && footerOf(consoles()[0]), 6000);
+            const after = consoles()[0] ?? null;
+            const afterFooter = footerOf(after);
+            read.ended = { ...state(after), reopened: after !== debate, windows: consoles().length };
+            await V.openVote();
+            await settle();
+            await until(() => state(consoles()[0]).right.includes("vote"), 4000);
+            read.vote = { ...state(consoles()[0]), same: consoles()[0] === after && footerOf(after) === afterFooter, windows: consoles().length };
+            await V.closeVote();
+            await settle();
+            await until(() => state(consoles()[0]).right.includes("verdict"), 4000);
+            read.counted = { ...state(consoles()[0]), same: consoles()[0] === after && footerOf(after) === afterFooter, windows: consoles().length };
+        } finally {
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            closeOpen("drpg-window-trial");
+            await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+            if (F.trialFloor()) await F.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await setClock(clock);
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        const zone = ["chapterEnd", "end", "toggleFinal"];
+        const ended = read.ended?.step ?? "?";
+        equal(stableJson(read), stableJson({
+            discussion: { step: "openDebate", right: ["openDebate"], close: "close", zone, enter: false, panel: true, lead: "openDebate" },
+            debate: { step: "closeDebate", right: ["closeDebate"], close: "close", zone, enter: false, panel: true, lead: "closeDebate", reopened: true, windows: 1 },
+            objection: { step: "closeDebate", right: ["closeDebate"], close: "close", zone, enter: false, panel: true, lead: "closeDebate", same: true, windows: 1 },
+            ended: { step: ended, right: [ended], close: "close", zone, enter: false, panel: true, lead: ended, reopened: true, windows: 1 },
+            vote: { step: "vote", right: ["vote"], close: "close", zone, enter: false, panel: true, lead: "vote", same: true, windows: 1 },
+            counted: { step: "verdict", right: ["verdict"], close: "close", zone, enter: false, panel: true, lead: "verdict", same: true, windows: 1 }
+        }), "per state: the step, the right slot, the first on the left, the destructive zone, Enter on a destructive button, the panel's line says the step, the vote's lead names it; "
+            + "the window opened again (a family's change) or the same window and footer element (a state within one), how many consoles");
+        ok(["openDebate", "reopen", "openAgain"].includes(ended), `after the Objection's debate ended the step is ${ended}, not the debate again or a new one`);
+    }],
+
+    ["E47-T2 - the incident tracker keeps one stated width through a fight, its turn bar naming the side (E47-C2, E47-05; audit S04-38): a direct murder opened between two students with players, its invitation held; the tracker drawn at the opening, again after the opening roll lands and once the turn is passed, and at Stage 6 - each copy stating the tracker's width, `drpg-kit-width-tracker` and the same `position.width`, its live region opening on the turn bar of the side it waits for", async () => {
+        /*
+         * E47-C2, 09.11.2026. The tracker was a `fit` window (ui-kit.mjs `fitKitWidth`), so its width followed its widest
+         * table: S04-38 measured 629 px at the opening and 483 in the incident. It reopens itself when the stage changes
+         * (`incidentSignature`), so each stage is a new window: read each copy's stated width (`data-drpg-width`, its
+         * width class, `position.width`) and its turn bar. The widths in pixels are this page's; the layout itself is
+         * not measured headless (the screenshots of the commit are). Red on f7266b28: no stated width, no turn bar.
+         */
+        needs(env.dialogs(), "the tracker is a drawn window");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player the invitation goes to");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const copies = () => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-window-incident"));
+        const seen = new Set();
+        const fresh = () => copies().find(a => !seen.has(a));
+        const bar = app => app?.element?.querySelector(".drpg-incident-live > .drpg-turn-bar[data-drpg-side]:first-child")?.dataset.drpgSide ?? null;
+        const take = app => {
+            if (app) seen.add(app);
+            return app ? [app.element.dataset.drpgWidth ?? null, app.element.classList.contains("drpg-kit-width-tracker"), Math.round(Number(app.position?.width) || 0), bar(app)] : null;
+        };
+        const reads = [];
+        let opened = null;
+        try {
+            await heldInvitations(async () => {
+                await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+                must(M.murderState()?.stage === "openingRoll", `the fixture's opening is not waiting: ${stableJson(M.murderState())}`);
+                opened = Promise.resolve().then(() => M.openIncidentTracker()).catch(() => null);
+                await until(() => fresh(), 8000);
+                reads.push(take(fresh()));
+                await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+                await settle();
+                await until(() => fresh() && bar(fresh()), 8000);
+                const incident = fresh();
+                reads.push(take(incident));
+                await M.passTurn();
+                await settle();
+                await until(() => bar(incident) === "killer", 6000);
+                reads.push(take(incident));
+                must(await M.beginResolution("test"), "the GM could not take the fixture to Stage 6");
+                await settle();
+                await until(() => fresh(), 8000);
+                reads.push(take(fresh()));
+            });
+        } finally {
+            for (const app of copies()) await app.close().catch(() => {});
+            if (opened) await Promise.race([opened, wait(3000)]);
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+        }
+        const width = reads[0]?.[2] ?? 0;
+        must(width > 0, `the tracker at the opening states no width: ${stableJson(reads)}`);
+        equal(stableJson(reads), stableJson([["tracker", true, width, "killer"], ["tracker", true, width, "victim"], ["tracker", true, width, "killer"], ["tracker", true, width, "resolution"]]),
+            "[data-drpg-width, the width class, position.width, the turn bar's side] at the opening, in the incident, after Pass the turn, at Stage 6");
+    }],
+
+    /* ---- E47-C8 (09.11.2026; the owner's 09.11 ask): the Students window - a role, a Level Up and Items on every row ---- */
+
+    ["E47-T6 - the Students window's rows at the table (E47-C8; the owner's 09.11 ask): the GM marks a player's character Monokuma from its row - asked first, Cancel writes nothing and the select goes back, Yes writes the flag and clears the actions and Hope - and unmarks it; marks an unowned character Not in the class, whose Level Up goes, and back; a Level Up offered from a row stands on the player's character; Items from a row opens the hub on that character and the table comes back; the player's forged write of the flag is put back", async () => {
+        /*
+         * E47-C8, 09.11.2026. The window as the GM panel's tile opens it (gm-panel.mjs `openWhoIsAliveDialog`), on the
+         * module's own roads: the Role select through monokuma.mjs `markFromSheet` (its question drawn and answered by
+         * its own buttons), `setMonokuma` and `setNotInClass`; the Level Up through level-up.mjs `openAdvancementFor`
+         * (its two menus answered Standard and the player picks, every other window left to DialogV2); Items through
+         * gm-items.mjs `openItemManager` (the hub closed by hand). A character of the suite's own, owned by nobody, is
+         * the one marked out of the class. Then the player's own write of the Monokuma flag, as tier 2 makes one
+         * (`asPlayerWrite`): the GMs' audit puts it back (E24 fix G1, sheet-audit.mjs `GM_FLAGS`). Red first on
+         * f7266b28: no Role select, no Level Up, no Items on a row.
+         */
+        needs(env.dialogs(), "the window and its questions are answered drawn");
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the character marked first is a player's, so its mark is asked");
+        const GP = await import("./gm-panel.mjs");
+        const MK = await import("./monokuma.mjs");
+        const L = await import("./level-up.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { ACTIONS_RESOURCE } = await import("./config.mjs");
+        const { plural } = await import("./utils.mjs");
+        const { player, theirs } = playerAndCharacters();
+        must(MK.studentActors().includes(theirs), `${theirs.name} is no student - this would measure nothing`);
+        must(!S.offerStore.has(theirs.id), `${theirs.name} holds an offer already - this would read it, not the one made here`);
+        const HOPE = "system.resources.hope.value", ACTIONS = `system.resources.${ACTIONS_RESOURCE}.value`;
+        const putBack = sheetAsFound(theirs, [HOPE, ACTIONS]);
+        const kumaWas = theirs._source.flags?.[MODULE_ID]?.[FLAGS.monokuma];
+        const D = foundry.applications.api.DialogV2;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait"), realWait = D.wait;
+        const giveBackWait = () => { if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait; };
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-alive"));
+        const el = () => of()[0]?.element ?? null;
+        const select = actor => el()?.querySelector(`select[data-drpg-role-select="${CSS.escape(actor.id)}"]`) ?? null;
+        const question = () => [...foundry.applications.instances.values()].find(a => a.rendered && !a.options?.classes?.includes("drpg-window-alive")
+            && a.element?.querySelector("footer [data-action=\"yes\"]")) ?? null;
+        const choose = (actor, value) => { const s = select(actor); s.value = value; s.dispatchEvent(new Event("change", { bubbles: true })); };
+        const settled = actor => !select(actor)?.disabled;
+        let npc = null, answer = null;
+        const read = {};
+        try {
+            await theirs.update({ [HOPE]: 2, [ACTIONS]: 2 });
+            npc = await Actor.create({ name: "SUITE E47 T6 not in the class", type: "character" });
+            await settle();
+            answer = Promise.resolve().then(() => GP.openWhoIsAliveDialog()).catch(() => null);
+            await until(() => select(theirs) && select(npc), 6000);
+            must(select(theirs)?.value === "student", `${theirs.name}'s row does not read student - this would measure nothing`);
+
+            choose(theirs, "monokuma");
+            await until(() => question(), 3000);
+            const asked = Boolean(question());
+            question()?.element.querySelector("footer [data-action=\"cancel\"]")?.click();
+            await until(() => !question() && settled(theirs), 3000);
+            read.cancel = [asked, MK.isMonokuma(theirs), select(theirs)?.value ?? null];
+
+            choose(theirs, "monokuma");
+            await until(() => question(), 3000);
+            question()?.element.querySelector("footer [data-action=\"yes\"]")?.click();
+            await until(() => MK.isMonokuma(theirs) && select(theirs)?.value === "monokuma", 4000);
+            await settle();
+            read.yes = [MK.isMonokuma(theirs), Number(foundry.utils.getProperty(theirs, HOPE) ?? -1), Number(foundry.utils.getProperty(theirs, ACTIONS) ?? -1), select(theirs)?.value ?? null];
+
+            choose(theirs, "student");
+            await until(() => !MK.isMonokuma(theirs) && select(theirs)?.value === "student", 4000);
+            read.unmark = [MK.isMonokuma(theirs), Boolean(question()), select(theirs)?.value ?? null];
+
+            const levelUp = actor => Boolean(el()?.querySelector(`[data-drpg-levelup="${CSS.escape(actor.id)}"]`));
+            const npcHad = levelUp(npc);
+            choose(npc, "npc");
+            // The row is drawn again from the flag (`keepLive`): the select moved by hand reads "npc" before it is.
+            await until(() => MK.isNotInClass(npc) && select(npc)?.value === "npc" && !levelUp(npc), 4000);
+            read.out = [npcHad, MK.isNotInClass(npc), levelUp(npc), Boolean(question())];
+            choose(npc, "student");
+            await until(() => !MK.isNotInClass(npc) && select(npc)?.value === "student" && levelUp(npc), 4000);
+            read.backIn = [MK.isNotInClass(npc), levelUp(npc)];
+
+            // The Level Up's two menus answered; the Students window drawn again by DialogV2's own wait.
+            const menus = [];
+            D.wait = function (cfg) {
+                if ((cfg?.classes ?? []).includes("drpg-window-alive")) return realWait.call(this, cfg);
+                const markup = typeof cfg?.content === "string" ? cfg.content : (cfg?.content?.outerHTML ?? "");
+                const choices = [...markup.matchAll(/name="variant" value="([^"]*)"/g)].map(m => m[1]);
+                menus.push(choices.filter(v => !v.startsWith("take:")));
+                return Promise.resolve(choices.includes("standard") ? { value: "standard" } : choices.includes("player") ? { value: "player" } : null);
+            };
+            const first = of()[0];
+            el()?.querySelector(`[data-drpg-levelup="${CSS.escape(theirs.id)}"]`)?.click();
+            await until(() => L.standingOffers(theirs).length && of().some(a => a !== first && a.element?.querySelector(".drpg-alive-live")), 6000);
+            giveBackWait();
+            await settle();
+            const n = L.standingOffers(theirs).length;
+            read.levelUp = [menus, n, L.offersFor(player.id).offers?.[theirs.id] ? true : false,
+                el()?.querySelector(`[data-drpg-levelup="${CSS.escape(theirs.id)}"]`)?.textContent.trim() ?? null, n ? plural("DRPG.Advance.standing", { n }) : null];
+
+            const before = of()[0];
+            const hub = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-items")) ?? null;
+            el()?.querySelector(`[data-drpg-items="${CSS.escape(theirs.id)}"]`)?.click();
+            await until(() => hub(), 4000);
+            read.items = [hub()?.element?.querySelector("[name=who]")?.value ?? null, of().length];
+            await hub()?.close();
+            await until(() => of().some(a => a !== before && a.element?.querySelector(".drpg-alive-live")), 6000);
+            read.items.push(of().length);
+
+            const judged = await asPlayerWrite(theirs, { [`flags.${MODULE_ID}.${FLAGS.monokuma}`]: true }, player);
+            await until(() => !MK.isMonokuma(theirs), 3000);
+            await settle();
+            read.forged = [Boolean(judged), MK.isMonokuma(theirs), select(theirs)?.value ?? null];
+        } finally {
+            giveBackWait();
+            for (let round = 0; round < 3; round++) {
+                for (const a of [...foundry.applications.instances.values()].filter(a => a.rendered
+                    && (a.options?.classes ?? []).some(c => c === "drpg-window-alive" || c === "drpg-window-items"))) await a.close().catch(() => {});
+                await Promise.race([answer, wait(1000)]);
+            }
+            question()?.close().catch(() => {});
+            if (S.offerStore.has(theirs.id)) await S.offerStore.drop(theirs.id);
+            if (kumaWas === undefined) { if (theirs._source.flags?.[MODULE_ID]?.[FLAGS.monokuma] !== undefined) await theirs.unsetFlag(MODULE_ID, FLAGS.monokuma); }
+            else await theirs.setFlag(MODULE_ID, FLAGS.monokuma, kumaWas);
+            await npc?.delete();
+            await putBack();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            cancel: [true, false, "student"],
+            yes: [true, 0, 0, "monokuma"],
+            unmark: [false, false, "student"],
+            out: [true, true, false, false],
+            backIn: [false, true],
+            levelUp: [[["standard", "reinforced"], ["gm", "player"]], 1, true, plural("DRPG.Advance.standing", { n: 1 }), plural("DRPG.Advance.standing", { n: 1 })],
+            items: [theirs.id, 0, 1],
+            forged: [true, false, "student"]
+        }), "{cancel: [the mark asked, the flag, the select]; yes: [the flag, Hope, actions, the select]; unmark: [the flag, a question asked, the select]; "
+            + "out: [the NPC's Level Up before, the flag, its Level Up after, a question asked]; backIn: [the flag, its Level Up]; "
+            + "levelUp: [the menus' rows, the offers standing, the player told, the row's words, the words for them]; items: [the hub's character, Students windows while it ran, after it]; "
+            + "forged: [judged, the flag after the put-back, the select]}");
+    }],
+
+    /* ---- E47-C3 (09.11.2026): the GM panel's tiles and the case window (MARKED) ---- */
+
+    ["E47-T7 - Give > Create new gives each kind its own icon at once (scripts/gm-items.mjs `gmGiveItemDialog`, inventory.mjs `grantItem`, config.mjs `itemIcon`; E47-KFb, the owner's F3 on comparison 1): for every category the Create new tab offers, the item handed over carries that category's drawing, a usable kind its category's", async () => {
+        /*
+         * E47-KFb, 09.11.2026; the owner on comparison 1: "does Give -> Create new pick the right icon at once?". Read in the
+         * code: Create new hands `img: null` (gm-items.mjs `giveFromResult`), and `grantItem` writes `itemIcon(category)`,
+         * one drawing per category (config.mjs, Dawid 28.08: "one drawing per category, not per item") - a usable's kind
+         * (healing, ...) is its category's drawing. The window draws no icon before the press. Read here through the window
+         * as E46-T2 drives it: each option of the tab's category select picked, Tier 1, a name, Give pressed, the new item's
+         * picture. A hold, not a fix: green on b6133c75 (nothing in the road was wrong).
+         */
+        const G = await import("./gm-items.mjs");
+        const CFG = await import("./config.mjs");
+        const [actor] = cast(1);
+        must(actor, "no student to give to - this would measure nothing");
+        const TAG = "SUITE E47-T7";
+        const had = new Set(actor.items.map(i => i.id));
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const read = [], want = [];
+        let values = null;
+        try {
+            const give = async value => {
+                D.wait = async config => {
+                    const element = document.createElement("div");
+                    if (typeof config?.content === "string") element.innerHTML = config.content;
+                    else if (config?.content) element.append(config.content);
+                    config?.render?.(null, { element });
+                    element.querySelector('[data-drpg-tab-key="create"]')?.click();
+                    const form = element.querySelector("form");
+                    values ??= [...form.elements.category.options].map(o => o.value).filter(Boolean);
+                    if (value === null) return "cancel";
+                    form.elements.category.value = value;
+                    form.elements.category.dispatchEvent(new Event("change"));
+                    form.elements.tier.value = "1";
+                    form.elements.name.value = `${TAG} ${value}`;
+                    form.elements.tell.checked = false;
+                    const ok = (config.buttons ?? []).find(b => b.action === "ok");
+                    return ok?.callback?.(null, null, { element }) ?? "cancel";
+                };
+                const before = new Set(actor.items.map(i => i.id));
+                const gave = await G.gmGiveItemDialog(actor);
+                await settle();
+                const item = actor.items.find(i => !before.has(i.id));
+                return [value, gave, item?.img ?? null];
+            };
+            await give(null);
+            must(values?.length >= 3, `the Create new tab offered ${values?.length ?? 0} categories - this would measure little`);
+            for (const value of values) {
+                read.push(await give(value));
+                want.push([value, true, CFG.itemIcon(value.split(":")[0])]);
+            }
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            for (const item of actor.items.filter(i => !had.has(i.id))) await item.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson(want), "Create new hands over an item whose picture is not its category's [each category offered: given, the item's img]");
+    }],
+    ["E47-T3 - the GM panel's Murder tile in an Eclipse during an incident opens the incident tracker (E47-C3; audit S10-53): a direct murder opened between two students, then an Eclipse - the panel's Murder tile live, and pressed, the tracker", async () => {
+        /*
+         * E47-C3, 09.11.2026; audit S10-53. Here, on this GM's browser with real windows: an incident opened as E47-T2
+         * opens one (invitations held), then the clock's Eclipse turned on (an incident cannot open in one); the panel
+         * opened and its Murder tile read and pressed (the click the panel's delegated listener reads; the tile, not the Next
+         * line's "Open the incident", which carries the same `data-drpg-run`). Read: the tile's
+         * `disabled`, and the trackers standing after the press. The incident is ended and the clock put back. Red on
+         * 56517337: the tile disabled, and a press on it opens nothing.
+         */
+        needs(env.dialogs(), "the panel and the tracker are drawn windows");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player the invitation goes to");
+        must(game.user.isGM, "the GM panel is a GM's");
+        const M = await import("./murder.mjs");
+        const { openGmPanel } = await import("./gm-panel.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const drawn = cls => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes(cls));
+        must(!M.murderState(), "an incident runs - this test opens its own");
+        must(!drawn("drpg-window-panel").length && !drawn("drpg-window-incident").length, "a GM panel or a tracker is open - close it: this test opens its own");
+        const clockWas = game.settings.get(MODULE_ID, SETTINGS.clock);
+        must(!clockWas?.eclipse, "an Eclipse runs - this test starts its own");
+        const read = {};
+        const opened = [];
+        try {
+            await heldInvitations(async () => {
+                await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+                must(M.murderState()?.active, `the fixture's incident did not open: ${stableJson(M.murderState())}`);
+                await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clockWas, eclipse: true });
+                await settle();
+                opened.push(Promise.resolve().then(() => openGmPanel()).catch(() => null));
+                const tile = () => drawn("drpg-window-panel")[0]?.element?.querySelector('.drpg-gmp-button[data-drpg-run="murder"]') ?? null;
+                must(await until(() => tile(), 6000), "the GM panel did not open with its Murder tile");
+                read.state = [game.settings.get(MODULE_ID, SETTINGS.clock)?.eclipse === true, Boolean(M.murderState()?.active), drawn("drpg-window-incident").length];
+                read.disabled = tile().disabled;
+                tile().click();
+                await until(() => drawn("drpg-window-incident").length, 6000);
+                await wait(300);
+                read.trackers = drawn("drpg-window-incident").length;
+            });
+        } finally {
+            for (const cls of ["drpg-window-incident", "drpg-window-panel"]) for (const app of drawn(cls)) await app.close().catch(() => {});
+            await Promise.race([Promise.all(opened), wait(3000)]);
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
+            await settle();
+            for (const app of drawn("drpg-window-panel")) await app.close().catch(() => {});
+        }
+        equal(stableJson(read), stableJson({ state: [true, true, 0], disabled: false, trackers: 1 }),
+            "{state: [an Eclipse, an incident, trackers standing] when the panel stood; disabled: its Murder tile; trackers: the incident trackers standing after it was pressed}");
+    }],
+    ["E47-T4 - Back up, then Restore from a file, through the GM panel's one case window brings the stores back, the preview shown before anything is written (E47-C3, MARKED; the owner's 27.09)", async () => {
+        /*
+         * E47-C3, 09.11.2026; the owner's 27.09. Here, as the GM with real windows: two GM stores given a row each
+         * through their own writers (a parked declaration, an Eclipse's crossing - named for nothing that runs); the case
+         * tile pressed on the panel, its window's Back up pressed and the question's yes (the file taken from
+         * saveDataToFile); both stores forgotten on this browser (`forget`: memory only, written nowhere until the restore);
+         * the case window opened again, Restore from a file pressed (the file picker answered with that file: the input's
+         * click and `readTextFromFile` stood in for, so `openRestoreDialog`'s own road runs); its preview read while it
+         * stands - both rows still gone - and its Restore pressed. Read: the windows each press opened, the rows at the
+         * preview and after. Red on 56517337: no case tile. The mutant c3-m8 (the case window's Restore merging the
+         * file without the preview) reads red here: no preview window, the rows back before one.
+         */
+        needs(env.dialogs(), "the panel, the case window, the question and the preview are drawn and pressed");
+        must(game.user.isGM, "the case is a GM's");
+        const S = await import("./gm-stores.mjs");
+        const { openGmPanel } = await import("./gm-panel.mjs");
+        const [holder] = cast(1);
+        const drawn = cls => [...foundry.applications.instances.values()].filter(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes(cls));
+        const CLASSES = ["drpg-window-panel", "drpg-window-case-copy", "drpg-window-backup", "drpg-window-restore-case"];
+        must(CLASSES.every(cls => !drawn(cls).length), "a GM panel or a case window is open - close it: this test opens its own");
+        must(!S.pendingMurderStore.has(holder.id) && !S.eclipseMoveStore.has(holder.id), "the fixture's student has a row in a store this test writes - this would measure nothing");
+        const rows = () => [S.pendingMurderStore.get(holder.id)?.note ?? null, S.eclipseMoveStore.get(holder.id)?.eclipse ?? null];
+        const press = async (cls, action) => {
+            must(await until(() => drawn(cls)[0]?.element?.querySelector(`button[data-action="${action}"]`), 6000), `no ${cls} window with a ${action} button`);
+            drawn(cls)[0].element.querySelector(`button[data-action="${action}"]`).click();
+        };
+        const saveDataToFile = foundry.utils.saveDataToFile, readTextFromFile = foundry.utils.readTextFromFile;
+        const click = globalThis.HTMLInputElement.prototype.click;
+        let saved = null;
+        const read = {};
+        const opened = [];
+        try {
+            foundry.utils.saveDataToFile = data => { saved = data; };
+            foundry.utils.readTextFromFile = async () => saved;
+            globalThis.HTMLInputElement.prototype.click = function () {
+                if (this.type !== "file") return click.call(this);
+                Object.defineProperty(this, "files", { value: [new Blob([saved ?? ""])], configurable: true });
+                this.dispatchEvent(new Event("change"));
+            };
+            await S.pendingMurderStore.patch(holder.id, { room: "SUITE E47-T4 room", note: "SUITE E47-T4 declaration", at: 1, approved: null, eclipse: null });
+            await S.eclipseMoveStore.patch(holder.id, { used: 1, eclipse: "SUITE E47-T4 Eclipse" });
+            read.seeded = rows();
+            opened.push(Promise.resolve().then(() => openGmPanel()).catch(() => null));
+            const tile = () => drawn("drpg-window-panel")[0]?.element?.querySelector('.drpg-gmp-button[data-drpg-run="caseWindow"]') ?? null;
+            must(await until(() => tile(), 6000), "the GM panel did not open with a case tile");
+            tile().click();
+            await press("drpg-window-case-copy", "backup");
+            await press("drpg-window-backup", "yes");
+            read.saved = await until(() => saved, 6000) ? JSON.parse(saved).format === S.CASE_FORMAT : "no file";
+            await until(() => drawn("drpg-window-panel").length, 6000);
+            for (const app of drawn("drpg-window-panel")) await app.close();
+            await S.pendingMurderStore.forget();
+            await S.eclipseMoveStore.forget();
+            read.forgotten = rows();
+            opened.push(Promise.resolve().then(() => S.openCaseWindow()).catch(() => null));
+            await press("drpg-window-case-copy", "restore");
+            read.preview = await until(() => drawn("drpg-window-restore-case").length, 6000)
+                ? [drawn("drpg-window-restore-case")[0].element.querySelectorAll("li").length > 0, rows()] : ["no preview", rows()];
+            if (drawn("drpg-window-restore-case").length) await press("drpg-window-restore-case", "restore");
+            await until(() => rows()[0] && rows()[1], 6000);
+            await settle();
+            read.back = rows();
+        } finally {
+            foundry.utils.saveDataToFile = saveDataToFile;
+            foundry.utils.readTextFromFile = readTextFromFile;
+            globalThis.HTMLInputElement.prototype.click = click;
+            for (const cls of CLASSES) for (const app of drawn(cls)) await app.close().catch(() => {});
+            await Promise.race([Promise.all(opened), wait(3000)]);
+            for (const app of drawn("drpg-window-panel")) await app.close().catch(() => {});
+            if (S.pendingMurderStore.has(holder.id)) await S.pendingMurderStore.drop(holder.id);
+            if (S.eclipseMoveStore.has(holder.id)) await S.eclipseMoveStore.drop(holder.id);
+            await settle();
+        }
+        const rowsIn = ["SUITE E47-T4 declaration", "SUITE E47-T4 Eclipse"];
+        equal(stableJson(read), stableJson({ seeded: rowsIn, saved: true, forgotten: [null, null], preview: [true, [null, null]], back: rowsIn }),
+            "{seeded: the two rows; saved: the file a case file; forgotten: the rows after forget; preview: [its rows drawn, the rows while it stands]; back: the rows after its Restore}");
+    }],
+    ["E47-T5 - the E28 and E29 cards pressed as the chat draws them (E47-C5, MARKED): a flagged change's Undo puts the write back and its Keep leaves it, each deciding its row once; Grant all on a rolls card, pressed on two drawn copies at once, grants each stamped roll once", async () => {
+        /*
+         * E47-C5, 09.11.2026; MARKED (.claude/rules/trust-model.md: the E28 and E29 cards are judged on the primary GM, and
+         * a restyle that renames a button's attribute or wraps it where its handler does not find it leaves a judgement
+         * unmade). The tier-2 tests of the cards before this one decide through `decideWrite` and `decideUnwitnessed`;
+         * this presses the buttons: each card drawn as the chat log draws it (`renderChatMessageHTML` on its own content),
+         * the button found by its words and clicked. A heal by hand flagged, Undo pressed: the row decided "undo", the
+         * marks back; flagged again, Keep pressed: decided "keep", the heal stands; each button's kit role and its wrapper
+         * gone after the press. Then "Grant all grants each stamped roll once"'s two rolls of the player's character
+         * stamped, the card posted, drawn twice and Grant all pressed on both copies at once: the Hope from 0 is 1 and the
+         * critical's, each stamp granted. Red by the mutant m7 (the flagged card's `data-drpg-audit="undo"` renamed): the
+         * press decides nothing and the marks stay healed.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a connected player who plays a character");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const D = await import("./roll-draw.mjs");
+        const L = key => game.i18n.localize(key);
+        const waitFor = async (test, ms = 4000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await wait(100); return test(); };
+        const HP = "system.resources.hitPoints.value", marks = () => foundry.utils.getProperty(student._source, HP);
+        must(Number(student.system.resources?.hitPoints?.max) >= 2, "the student cannot hold two Health marks - the heal would measure nothing");
+        const drawn = message => {
+            const li = document.createElement("li");
+            li.innerHTML = `<div class="message-content">${contentOf(message)}</div>`;
+            Hooks.callAll("renderChatMessageHTML", message, li);
+            return li;
+        };
+        const press = async (li, words) => {
+            await wait(0);
+            const button = [...li.querySelectorAll("button")].find(b => b.textContent === words) ?? null;
+            const role = button?.dataset.drpgRole ?? null;
+            button?.click();
+            return [role, Boolean(li.querySelector(".drpg-audit-actions, .drpg-away-actions"))];
+        };
+        const flag = async () => {
+            const from = Date.now();
+            await student.update({ [HP]: 2 });
+            await auditFromScratch(student);
+            await asPlayerWrite(student, { [HP]: 0 }, player);
+            await sheetAuditIdle();
+            return Object.entries(sheetWriteStore.entries() ?? {}).find(([, r]) => r?.actorId === student.id && r.verdict === "flagged" && r.at >= from) ?? [];
+        };
+        const decided = async (id, words) => {
+            const message = game.messages.get(sheetWriteStore.get(id ?? "")?.messageId ?? "");
+            must(message, `no card of the flagged change for ${words} - this would measure nothing`);
+            const pressed = await press(drawn(message), words);
+            await waitFor(() => sheetWriteStore.get(id)?.decided);
+            await sheetAuditIdle();
+            await settle();
+            return [...pressed, sheetWriteStore.get(id)?.decided?.how ?? null, sheetWriteStore.get(id)?.decided?.by ?? null, marks()];
+        };
+        const [undoId] = await flag();
+        const undo = await decided(undoId, L("DRPG.Audit.undo"));
+        const [keepId] = await flag();
+        const keep = await decided(keepId, L("DRPG.Audit.keep"));
+        const { theirs } = playerAndCharacters();
+        const made = [];
+        let card = null, granted = null;
+        try {
+            for (const faces of [{ hope: 9, fear: 4 }, { hope: 7, fear: 7 }]) {
+                const { message } = await neutralRoll(theirs, { faces });
+                must(message, `no roll of ${theirs.name} was thrown - this would measure nothing`);
+                made.push(message.id);
+                await message.update({ author: player.id,
+                    [`flags.${MODULE_ID}.${D.UNWITNESSED_FLAG}`]: { nonce: foundry.utils.randomID(), actorId: theirs.id, at: Date.now() } });
+            }
+            card = await D.askAboutUnwitnessed(made.map(id => game.messages.get(id)));
+            await waitFor(() => Array.isArray(cardFlag(card, "awayRolls")));
+            await theirs.update({ "system.resources.hope.value": 0 });
+            granted = await withDhAutomation({ hopeFear: { players: true } }, async () => {
+                const copies = [drawn(card), drawn(card)];
+                const pressed = await Promise.all(copies.map(li => press(li, L("DRPG.Rolls.grantAll"))));
+                await waitFor(() => theirs.system.resources.hope.value === 1 + CRITICAL.hope);
+                await settle();
+                return [pressed, theirs.system.resources.hope.value, made.map(id => game.messages.get(id)?.getFlag(MODULE_ID, D.UNWITNESSED_FLAG)?.granted ?? null)];
+            });
+        } finally {
+            for (const id of made) await game.messages.get(id)?.delete();
+            if (card) await game.messages.get(card.id)?.delete();
+        }
+        equal(stableJson({ undo, keep, granted }), stableJson({ undo: ["gmRoute", false, "undo", game.user.id, 2], keep: ["secondary", false, "keep", game.user.id, 0],
+            granted: [[["gmRoute", false], ["gmRoute", false]], 1 + CRITICAL.hope, [true, true]] }),
+            "{undo, keep: [the button's role, its wrapper left, the row's decision, by, the marks after]; granted: [each copy's press [role, wrapper left], the Hope after, each stamp granted]}");
     }],
 ];
 

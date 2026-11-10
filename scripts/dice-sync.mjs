@@ -635,7 +635,7 @@ const plain = value => (value && typeof value === "object" ? foundry.utils.deepC
  * The look the source throws in, as every forced user must hold it. The appearance is the one DSN works out for
  * the source (`Dice3D.ALL_CUSTOMIZATION`, read in the 26.09 design: a GM with no flag of their own still has a
  * look, from their colour; absent from Dice So Nice 6.3 and later, where the diagnostic says so, `dsnApiMoved`, and
- * reading it there is E76's, row 1.2.122 - E60's fix round, FG5), or the raw flag where DSN is not built (no canvas; the harness, whose `game.dice3d`
+ * reading it there is E76's, row 1.2.125 - E60's fix round, FG5), or the raw flag where DSN is not built (no canvas; the harness, whose `game.dice3d`
  * has no such method). A library die's owner is written in where it is missing, since DSN looks the die up in
  * its owner's library and a player's own would not hold it. No special effect is part of it (H82 C1, the header): until
  * then the GM's effects were, all but those that run a macro, which would have run on every browser at a player's throw.

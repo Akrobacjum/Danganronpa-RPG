@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------------
  * The GM's window for correcting the clock and the campaign (`openClockDialog`),
  * the question it asks before a field that does more than correct
- * (`confirmCorrection`), and whether a change of the time of day or the session
+ * (`confirmCorrection`), what its Apply reads (`readClockForm`), and whether a change of the time of day or the session
  * is a correction rather than the hour passing, so that an assembly called for
  * the hour is called off first (`correctsTheHour`).
  *
@@ -20,7 +20,7 @@ import { getClock, setClock } from "./clock.mjs";
 import { resetAllActions } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { error, esc, wholeNumber } from "./utils.mjs";
-import { stepper, stepperId, drpgWindow } from "./ui-kit.mjs";
+import { stepper, stepperId, drpgWindow, formGrid, helpText } from "./ui-kit.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
 import { trialScene } from "./rooms.mjs";
 
@@ -68,6 +68,25 @@ async function confirmCorrection(titleKey, textKey, more = "") {
     return answer === "ok";
 }
 
+/**
+ * What Edit campaign's Apply hands back (E47-C2; exported for R2058): the name trimmed, the chapter, day and session
+ * whole numbers from 1, the chapter no higher than its stepper's `max` (the season's chapters, or the clock's chapter past
+ * them) - read as season-setup.mjs `readSeasonForm` reads its own chapter - and the phase, the time of day and the box.
+ */
+export function readClockForm(dialog) {
+    const form = dialog.element.querySelector("form");
+    const top = Math.max(CHAPTERS_PER_SEASON, Math.round(Number(form.chapter.max)) || 0);
+    return {
+        campaignName: form.campaignName.value.trim(),
+        chapter: wholeNumber(form.chapter.value, { min: 1, max: top, fallback: 1 }),
+        day: wholeNumber(form.day.value, { min: 1, fallback: 1 }),
+        phase: form.phase.value,
+        session: wholeNumber(form.session.value, { min: 1, fallback: 1 }),
+        timeOfDay: form.timeOfDay.value,
+        reset: form.reset.checked
+    };
+}
+
 export async function openClockDialog() {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
@@ -91,8 +110,9 @@ export async function openClockDialog() {
         .map(([key, p]) => `<option value="${key}"${key === clock.phase ? " selected" : ""}>${p.label}</option>`)
         .join("");
 
-    // Never shorter than the clock: a clock past the season's last chapter
-    // found no matching option, the browser selected "1", and Apply wrote it.
+    // Never shorter than the clock (the stepper's `max` since E47-C2, the select's list
+    // before it): a clock past the season's last chapter found no matching option, the
+    // browser selected "1", and Apply wrote it.
     //
     // COERCED ONCE AND USED TWICE (GMP-03). `n === clock.chapter` is a strict
     // compare, so a world holding the string "7" would have matched nothing and
@@ -100,59 +120,44 @@ export async function openClockDialog() {
     // rather than building a list of length NaN out of a world setting.
     const stated = Number(clock.chapter);
     const now = Number.isFinite(stated) && stated >= 1 ? Math.round(stated) : 1;
-    const chapters = Array.from({ length: Math.max(CHAPTERS_PER_SEASON, now) }, (_, i) => i + 1)
-        .map(n => `<option value="${n}"${n === now ? " selected" : ""}>${n}</option>`)
-        .join("");
 
-    const ids = { day: stepperId(), session: stepperId() };
+    /*
+     * ON THE KIT'S FORM GRID, THE CHAPTER A STEPPER (E47-C2, 09.11.2026; the owner's M7 card, Approve, and Q-E47-1; Q-E44-3
+     * kept it "a select until E47"). The six fields in their order beside the label column, each label pointing at its
+     * field by `for` (the 21.09 fault: never at a stepper's minus), then the refill box and its fine print across both
+     * columns. Until E47 four rules of danganronpa.css (E32+E07 C14) laid out `<label>Name <field></label>` rows as a
+     * grid. The chapter's stepper runs from 1 to the season's chapters, or to the clock's chapter past them - the range
+     * the select listed - and Apply reads it as Set the season up reads its own (`readClockForm`).
+     */
+    const ids = { name: stepperId(), chapter: stepperId(), phase: stepperId(), day: stepperId(), session: stepperId(), time: stepperId() };
+    const L = key => game.i18n.localize(key);
     const result = await drpgWindow({
         title: game.i18n.localize("DRPG.Panel.jump"),
         classes: ["drpg-panel", "drpg-window-clock"],
-        body: `<form>
-                    <label>${game.i18n.localize("DRPG.Clock.campaignName")}
-                        <input type="text" name="campaignName"
-                               value="${foundry.utils.escapeHTML(clock.campaignName ?? "")}"
-                               placeholder="${foundry.utils.escapeHTML(game.world?.title ?? "")}" />
-                    </label>
-                    <label>${game.i18n.localize("DRPG.Clock.chapter")}
-                        <select name="chapter">${chapters}</select>
-                    </label>
-                    <label>${game.i18n.localize("DRPG.Clock.phase")}
-                        <select name="phase">${phases}</select>
-                    </label>
-                    <label for="${ids.day}">${game.i18n.localize("DRPG.Clock.day")}
-                        ${stepper({ name: "day", value: clock.day ?? 1, min: 1, step: 1, id: ids.day })}
-                    </label>
-                    <label for="${ids.session}">${game.i18n.localize("DRPG.Clock.session")}
-                        ${stepper({ name: "session", value: clock.session, min: 1, step: 1, id: ids.session })}
-                    </label>
-                    <label>${game.i18n.localize("DRPG.Clock.timeOfDay")}
-                        <select name="timeOfDay">${times}</select>
-                    </label>
-                    <hr />
-                    <label class="drpg-checkbox">
+        body: `<form>${formGrid([
+            { label: L("DRPG.Clock.campaignName"), id: ids.name,
+              field: `<input type="text" name="campaignName" id="${ids.name}"
+                           value="${foundry.utils.escapeHTML(clock.campaignName ?? "")}"
+                           placeholder="${foundry.utils.escapeHTML(game.world?.title ?? "")}" />` },
+            { label: L("DRPG.Clock.chapter"), id: ids.chapter,
+              field: stepper({ name: "chapter", value: now, min: 1, max: Math.max(CHAPTERS_PER_SEASON, now), step: 1, id: ids.chapter }) },
+            { label: L("DRPG.Clock.phase"), id: ids.phase, field: `<select name="phase" id="${ids.phase}">${phases}</select>` },
+            { label: L("DRPG.Clock.day"), id: ids.day, field: stepper({ name: "day", value: clock.day ?? 1, min: 1, step: 1, id: ids.day }) },
+            { label: L("DRPG.Clock.session"), id: ids.session, field: stepper({ name: "session", value: clock.session, min: 1, step: 1, id: ids.session }) },
+            { label: L("DRPG.Clock.timeOfDay"), id: ids.time, field: `<select name="timeOfDay" id="${ids.time}">${times}</select>` },
+            { full: "<hr />" },
+            { full: `<label class="drpg-checkbox">
                         <input type="checkbox" name="reset" />
-                        ${game.i18n.localize("DRPG.Panel.alsoReset")}
-                    </label>
-                    <p class="notes">${game.i18n.localize("DRPG.Panel.resetHint")}</p>
-                  </form>`,
+                        ${L("DRPG.Panel.alsoReset")}
+                    </label>` },
+            { full: helpText("DRPG.Panel.resetHint") }
+        ])}</form>`,
         // Apply still to answer: Cancel (E21 rule 3), the answer "cancel" as before.
         footer: {
             primary: {
                 action: "ok",
                 label: game.i18n.localize("DRPG.Panel.apply"),
-                callback: (event, button, dialog) => {
-                    const form = dialog.element.querySelector("form");
-                    return {
-                        campaignName: form.campaignName.value.trim(),
-                        chapter: Number(form.chapter.value) || 1,
-                        day: wholeNumber(form.day.value, { min: 1, fallback: 1 }),
-                        phase: form.phase.value,
-                        session: wholeNumber(form.session.value, { min: 1, fallback: 1 }),
-                        timeOfDay: form.timeOfDay.value,
-                        reset: form.reset.checked
-                    };
-                }
+                callback: (event, button, dialog) => readClockForm(dialog)
             },
             close: { role: "cancel", action: "cancel" }
         },

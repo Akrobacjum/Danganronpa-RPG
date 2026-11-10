@@ -2041,7 +2041,8 @@ const REGRESSIONS = [
             + "button can put the room back into Daily Life");
         /* E11 C13 (11.10.2026): the window's form is `chapterEndForm`, whose `box(name, n)` helper writes the
            `<input name=...>` once for every box, so the box is named at its call and not in a literal. Since E22 C3b each
-           box is drawn by `option(name, n, words, ...)` (its reason when shut, its mark when permanent), which calls box. */
+           box is drawn by `option(name, n, words, ...)` (its reason when shut, its mark when permanent), which calls box;
+           since E46-C6 the helper is `tick(name, n)` (the kit's `box` draws the window's warnings). */
         ok(/name="endTrial"/.test(chapter) || /\b(?:box|option)\("endTrial"/.test(chapter),
             "the End of chapter screen has lost the checkbox that offers to close the "
             + "trial, so the step below can only be reached from the console");
@@ -3593,7 +3594,8 @@ const REGRESSIONS = [
         const tail = bodyOf(panel, "const chosen = await drpgWindow");
         ok(tail.indexOf("if (roundTrip) return roundTrip;") > 0,
             "the round trip is not returned, so the GM panel reopens itself over it");
-        ok(tail.indexOf("if (roundTrip)") < tail.indexOf('chosen === "items"'),
+        // E47-C8: the footer's Items and its branch went (Items is every row's), so the answer's first reader is the apply path.
+        ok(tail.indexOf("if (roundTrip)") > 0 && tail.indexOf("if (roundTrip)") < tail.indexOf("applyAliveStates(chosen)"),
             "the answer is read before the handover, so a row press falls into the apply path");
     }],
 
@@ -3730,13 +3732,15 @@ const REGRESSIONS = [
         const clockWin = bodyOf(panel, "export async function openClockDialog");
         const list = bodyOf(clockWin, "const stated", { until: "const result" });
         ok(list.length > 80, "the chapter list has moved or gone");
-        ok(/Math\.max\(CHAPTERS_PER_SEASON/.test(list),
+        ok(/Math\.max\(CHAPTERS_PER_SEASON/.test(clockWin),
             "the chapter list is six long whatever the clock says, so a campaign past "
             + "chapter 6 opens this window on chapter 1 and Apply writes it");
         ok(/Number\.isFinite/.test(list),
             "the length of that array comes straight out of a world setting");
-        ok(/n === now \?/.test(list),
-            "the selected test compares against the raw setting, so a chapter stored as a "
+        // E47-C2, 09.11.2026: the list is a kit stepper (the owner's Q-E47-1) whose value and `max` read the coerced `now`.
+        const chapterField = bodyOf(clockWin, 'stepper({ name: "chapter"', { length: 200 });
+        ok(/\bvalue:\s*now\b/.test(chapterField) && /\bmax:\s*Math\.max\(CHAPTERS_PER_SEASON,\s*now\)/.test(chapterField),
+            "the chapter field reads the raw setting, so a chapter stored as a "
             + "string widens nothing and matches nothing");
 
         // AND THE RULE REACHES THE OTHER WINDOW WITH THE SAME CAP. A number input
@@ -12387,18 +12391,21 @@ const REGRESSIONS = [
          * the class (investigation.mjs); and a trace's context line at Stained Glass's floor, where
          * `.notes` sets it in VT323 at Legacy's 11 px (S12-52). No browser lays the window out in the
          * harness, so how it looks is the live check LIVE-E09-04, not this.
+         * THE TABLES ON THE KIT (E47-C4, 09.11.2026): the count cells are the `case-count` column of WHO HAS WHAT's
+         * `dataTable` and the Key tab's boxes its planner's, so their rules are components.css's dashboard section
+         * (`.drpg-num` and `.drpg-key-table` went with the hand tables); the same two claims read there.
          */
         const css = await moduleStyles();
         const rules = [...css.matchAll(/([^{}]*)\{([^{}]*)\}/g)].map(m => [m[1].trim(), m[2]]);
         const bodies = re => rules.filter(([selector]) => re.test(selector)).map(([, body]) => body);
         const inv = stripComments(new Map(await otherSources()).get("investigation.mjs") ?? "");
         equal(JSON.stringify([
-            bodies(/\.drpg-num\b/).some(b => /\bwidth\s*:/.test(b) && /text-align\s*:\s*center/.test(b)),
+            bodies(/drpg-window-case table\.drpg-data-table \.drpg-data-col-case-count$/).some(b => /\bwidth\s*:/.test(b) && /text-align\s*:\s*center/.test(b)),
             bodies(/drpg-window-case .*::placeholder$/).some(b => /\bcolor\s*:\s*var\(--drpg-dim\)/.test(b)),
             bodies(/^\.drpg-trace-filters label$/).some(b => /align-items\s*:\s*flex-start/.test(b)),
             bodies(/^\.drpg-trace-filters \.notes$/).some(b => /margin-left\s*:\s*auto/.test(b)),
-            bodies(/^\.drpg-key-table textarea$/).some(b => /min-height\s*:\s*0\b/.test(b))
-                && bodies(/^\.drpg-key-table textarea:focus$/).some(b => /min-height\s*:/.test(b)),
+            bodies(/drpg-window-case \[data-drpg-pane="key"\] table\.drpg-data-table textarea$/).some(b => /min-height\s*:\s*0\b/.test(b))
+                && bodies(/drpg-window-case \[data-drpg-pane="key"\] table\.drpg-data-table textarea:focus$/).some(b => /min-height\s*:/.test(b)),
             bodies(/drpg-theme-stained-glass[^,]*\.drpg-state-change/).length > 0
                 && bodies(/^\.application\.dialog[^,]*\.drpg-state-change/).length > 0,
             /action:\s*"bodyFound"[^}]*class:\s*"drpg-state-change"/.test(inv),
@@ -12590,8 +12597,9 @@ const REGRESSIONS = [
             finishRunner: /const runner = verdictRunner\(progress\);\s*if \(runner && runner !== game\.user\.id\) \{\s*ui\.notifications\.warn\(game\.i18n\.format\("DRPG\.Vote\.finishOtherGm"/
                 .test(fnSource(vote, "finishVerdict"))
                 && /return by\?\.active \? by\.id : primaryGmId\(\);/.test(fnSource(vote, "verdictRunner"))
-                && /if \(progress\.verdictApplied && runner && runner !== game\.user\.id\) return stopped \? "finishElsewhere" : "verdictElsewhere";/
-                    .test(fnSource(floorUi, "trialNextStep")),
+                // The console's next step is trial-floor.mjs's table since E47 C1: the two rows of a verdict another GM runs.
+                && /\[view => view\.progress\.verdictApplied && notMine\(view\) && view\.stopped, "finishElsewhere"\],\s*\[view => view\.progress\.verdictApplied && notMine\(view\), "verdictElsewhere"\]/.test(floorCode)
+                && /const notMine = view => Boolean\(view\.runner\) && view\.runner !== game\.user\?\.id;/.test(floorCode),
             noRepeat: /if \(verdictCardPosted\(context\.record\)\) return;/.test(fnSource(vote, "verdictCard"))
                 && /given: context\.record\.given \?\? \[\]/.test(fnSource(vote, "verdictLevelUps"))
                 && /planned\.filter\(entry => !handled\.has\(entry\.actorId\)\)/.test(batch),
@@ -14288,14 +14296,23 @@ const REGRESSIONS = [
          * frame, the content's padding and the fit's 2 px of slack - the 34 a choice, not a reading: the harness lays
          * nothing out, and the frame is Foundry's (the theme's look and the window at a desk are the owner's, P1-22's
          * screenshot). A Legacy scale above 1 widens every Room Setup table alike and is not read. Red at b238929: 1540.
+         *
+         * E46-C2b (09.11.2026): the tab is the kit's `dataTable`, so its columns are read off passages-tab.mjs
+         * `PASSAGE_COLUMNS` (each `cls`, the kit's `drpg-data-col-<cls>`) and their widths off components.css's section
+         * "Room setup" (`col.drpg-data-col-<cls> { width: calc(Npx * ...) }`), where the hand table's `<col
+         * class="drpg-col-...">` and danganronpa.css's `.drpg-room-setup-table .drpg-col-...` stood. The sum is the one
+         * E80 fix r1-G5 chose, 1240 px; the window fits its widest tab (the kit's `fit`), under the same cap, and was
+         * 1124 px at 1366x768 on the room tabs alone (E46-C2a's Chromium reading, 09.11.2026).
          */
         const sources = await moduleSources();
-        const body = fnSource(sources.get("passages-tab.mjs") ?? "", "passagesTabBody");
-        const cols = [...body.matchAll(/<col class="(drpg-col-[\w-]+)"/g)].map(m => m[1]);
-        equal(cols.length, 8, "the Passages table's columns, read off passagesTabBody - the colgroup moved, and nothing below is read");
+        const T = await import("./passages-tab.mjs");
+        const cols = (T.PASSAGE_COLUMNS ?? []).map(c => `drpg-data-col-${c.cls}`);
+        equal(cols.length, 8, "the Passages table's columns, read off passages-tab.mjs PASSAGE_COLUMNS - and nothing below is read");
+        ok(/\bdataTable\(\{\s*columns: PASSAGE_COLUMNS\b/.test(stripComments(fnSource(sources.get("passages-tab.mjs") ?? "", "passagesTabBody"))),
+            "passagesTabBody draws its table from PASSAGE_COLUMNS");
         const css = await moduleStyles();
         const widthOf = cls => {
-            const m = css.match(new RegExp(`\\.drpg-room-setup-table\\s+\\.${cls}\\s*\\{\\s*width:\\s*calc\\((\\d+)px\\s*\\*\\s*var\\(--drpg-legacy-scale,\\s*1\\)\\)`));
+            const m = css.match(new RegExp(`\\.drpg-window-rooms\\s+table\\.drpg-data-table\\s+col\\.${cls}\\s*\\{\\s*width:\\s*calc\\((\\d+)px\\s*\\*\\s*var\\(--drpg-legacy-scale,\\s*1\\)\\)`));
             return m ? Number(m[1]) : null;
         };
         const widths = cols.map(widthOf);
@@ -14305,7 +14322,7 @@ const REGRESSIONS = [
         ok(Number.isFinite(cap), "the stylesheet's --drpg-window-max was not read");
         const room = Math.floor(Math.min(1366 * 0.94, cap)) - 34;
         const sum = widths.reduce((a, b) => a + b, 0);
-        ok(sum <= room, `the Passages table is ${sum} px at scale 1 (${cols.map((c, i) => `${c.slice(9)} ${widths[i]}`).join(", ")}) and Room Setup leaves it ${room} px at 1366x768 - its last columns are out of view`);
+        ok(sum <= room, `the Passages table is ${sum} px at scale 1 (${cols.map((c, i) => `${c.slice(14)} ${widths[i]}`).join(", ")}) and Room Setup leaves it ${room} px at 1366x768 - its last columns are out of view`);
         const actions = css.match(/\.drpg-passage-actions\s*\{([^}]*)\}/)?.[1] ?? "";
         ok(/flex-wrap:\s*wrap\b/.test(actions) && /display:\s*flex\b/.test(actions),
             `the buttons' cell (.drpg-passage-actions { ${actions.trim()} }) does not wrap inside its column - four buttons on one line run past it`);
@@ -14496,7 +14513,8 @@ const REGRESSIONS = [
                 && /finds a secret passage/.test(SFX_EVENTS.passageFound?.hint ?? "") && /showed it to them/.test(SFX_EVENTS.passageFound?.hint ?? ""),
             public: /export const makePassagePublic = \(passageId, \{ stores = PASSAGE_STORES \} = \{\}\) => setPublic\(passageId, true, stores\);/.test(gmSrc)
                 && /export const makePassageSecret = \(passageId, \{ stores = PASSAGE_STORES \} = \{\}\) => setPublic\(passageId, false, stores\);/.test(gmSrc),
-            columns: /\["rooms", "kind", "shape", "origin", "knows", "start", "state"\]/.test(code("passages-tab.mjs")),
+            // E46-C2b: the columns in passages-tab.mjs `PASSAGE_COLUMNS` (the kit's table), [key, width kind] each, in A10's order.
+            columns: /\["rooms", "room"\], \["kind", "kind"\], \["shape", "shape"\], \["origin", "origin"\], \["knows", "knows"\], \["start", "knows-start"\],\s*\["state", "state"\]/.test(code("passages-tab.mjs")),
             secretDoors: /key: "secretDoors",[\s\S]{0,200}fix: convertDoorsStep,\s*doKey: "DRPG\.Season\.convertDoors"/.test(season)
                 && /convertSecretDoors\(/.test(fnSource(season, "convertDoorsStep"))
                 && /findings\.push\(\.\.\.secretDoorRows\(scene\)\);/.test(fnSource(code("fog-diagnostics.mjs"), "checkRegions"))
@@ -16353,8 +16371,10 @@ const REGRESSIONS = [
          * the reader is shown a clean twin first, then the 1.2.79 signature with the mode. Red at f388d722: the
          * signature read `floor?.mode` and `restrictive`, and `trialNextStep` answered "now" by `restrictive`.
          */
-        const readOf = src => {
-            const sig = fnSource(src, "trialSignature"), next = fnSource(src, "trialNextStep"), buttons = fnSource(src, "trialButtons");
+        /* The next step is trial-floor.mjs's table since E47 C1 (`TRIAL_NEXT_STEPS` and its reader): read there, rows and all. */
+        const tableOf = text => (text.includes("export const TRIAL_NEXT_STEPS") ? bodyOf(text, "export const TRIAL_NEXT_STEPS", { until: "export function trialNextStep(" }) : "");
+        const readOf = (src, floorSrc = src) => {
+            const sig = fnSource(src, "trialSignature"), next = fnSource(floorSrc, "trialNextStep") + tableOf(floorSrc), buttons = fnSource(src, "trialButtons");
             const modal = /\.mode\b|\brestrictive\b|FLOOR_MODES/;
             return {
                 cut: [sig, next, buttons].every(body => body.length > 100),
@@ -16376,7 +16396,8 @@ const REGRESSIONS = [
         equal(JSON.stringify(readOf(old)), JSON.stringify({ ...all, signature: false, footer: false }),
             "the reader misses the mode in a planted signature or a mode's button in a planted footer");
         const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/trial-floor-ui.mjs`).then(lfText));
-        equal(JSON.stringify(readOf(src)), JSON.stringify(all),
+        const floorSrc = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(lfText));
+        equal(JSON.stringify(readOf(src, floorSrc)), JSON.stringify(all),
             "the console's signature, next step or footer reads the floor's mode again, so the console reopens at every Objection (read: cut, signature, next, footer)");
     }],
 
@@ -17707,12 +17728,14 @@ const REGRESSIONS = [
          * themes, chrome.mjs dressing none), so the census counts `stepper({` calls and the name each passes (a
          * shorthand `name` is the template's `${name}`), and the readers are the same lines as before. Comments blanked.
          * Red at C7's parent: no `wholeNumber` in utils.mjs and no reader asks it; at C4b's parent, the twelve bare inputs.
+         * E47-C2, 09.11.2026: Edit campaign's Chapter is a stepper (the owner's Q-E47-1), read in `readClockForm`.
          */
         const src = new Map((await otherSources()).map(([file, raw]) => [file, stripComments(raw)]));
         must(src.size > 50, "the module's sources were not read - this would measure nothing");
         const FIELDS = [
             ["call-pickers.mjs", "timesOfDay", /\[name=timesOfDay\]"\)\??\.value/g],
             // E41 C7a (1.2.97): the Students window's donation and Edit campaign's two fields, in their own files.
+            ["gm-campaign.mjs", "chapter", /\bform\.chapter\.value\b/g],
             ["gm-campaign.mjs", "day", /\bform\.day\.value\b/g],
             ["gm-campaign.mjs", "session", /\bform\.session\.value\b/g],
             ["gm-students.mjs", "amount:${a.id}", /\[name="amount:\$\{id\}"\]`\)\?\.value/g],
@@ -17890,7 +17913,7 @@ const REGRESSIONS = [
                 ["familyFormats", 9, 9], ["glossaryHits", 11, 11], ["itemQuotes", 3, 3], ["lengthOver", 8, 8], ["loanDeclension", 7, 7], ["loanGender", 7, 7],
                 ["localeCalls", 8, 8], ["mirror", 3, 3], ["monokumaVoice", 7, 7], ["naturalnessBefore", 2, 2], ["oxfordComma", 3, 3], ["pairParity", 5, 5], ["patterns", 22, 22], ["pluralForms", 4, 4],
                 ["renderChecks", 7, 7], ["retiredHits", 11, 11], ["ruleNumberWords", 9, 9], ["secondPersonToMany", 6, 6], ["tableWordProblems", 4, 4], ["telegraph", 3, 3], ["uiLiterals", 6, 6]],
-            baselines: [["dashesIn", 11], ["familyFormats", 0]],
+            baselines: [["dashesIn", 9], ["familyFormats", 0]],
             notDue: [["glossaryHits", 1, 1], ["retiredHits", 1, 1]],
             problems: [], caught: 2, ledgerBlind: 1, unlexed: ["dashesIn", "familyFormats", "itemQuotes", "lengthOver", "localeCalls", "monokumaVoice", "uiLiterals"],
             schemaStubs: [["glossarySchema", 1], ["budgetsSchema", 1]], pairsStub: 1, goneSeen: [1, 8], marksBlind: 3
@@ -17947,7 +17970,7 @@ const REGRESSIONS = [
         log(`R1059: ${runs.map(r => `${r.name} read ${r.read} found ${r.found.length} beyond its baseline, ${r.matched}/${r.sites} baseline site(s) filled`).join("; ")}; `
             + `en ${lang.en.size} keys, pl ${lang.pl.size}; ${scripts.size} scripts; ${docs.size} handbooks`);
         equal(JSON.stringify(runs.map(r => [r.name, r.read > 0, r.sites, r.found, r.gone])), JSON.stringify([
-            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 0, [], []], ["dashesIn", true, 9, [], []],
+            ["pluralForms", true, 0, [], []], ["pairParity", true, 0, [], []], ["familyFormats", true, 0, [], []], ["dashesIn", true, 7, [], []],
             ["localeCalls", true, 0, [], []]]),
         "[each FAIL detector that reads only what a table serves: its name, whether it read anything, the baseline sites judged here, "
             + "what it found that its baseline does not hold, the baseline rows nothing filled]");
@@ -18716,7 +18739,7 @@ const REGRESSIONS = [
          * Leave a Clue and Secure a Trace hints end "a critical leaves two" / „a krytyk zostawia dwa”, the entry's
          * `indirectVictim.count.critical`, and the digit rule cannot see a word. 2 to 12 only: "one" and „jeden” stand
          * in every other sentence as an article or a pronoun (Sprint's "one more" is section 13's, E71). Measured on
-         * this tree: these four places and no other. Their placeholder needs the owner's text change: E71 (row 1.2.121).
+         * this tree: these four places and no other. Their placeholder needs the owner's text change: E71 (row 1.2.124).
          */
         const NUMBER_WORDS = { en: ["", "", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"],
             pl: ["", "", "dwa|dwie|dwóch|dwoma|dwu", "trzy|trzech|trzema", "cztery|czterech", "pięć|pięciu", "sześć|sześciu", "siedem|siedmiu",
@@ -18848,13 +18871,13 @@ const REGRESSIONS = [
                 now: ["up to 1 connected room", "up to 5 connected rooms",
                     "2 actions each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs 1 action, a Long Rest 2 actions.",
                     "With no Health left you get 1 action instead of 2 actions, until somebody patches you up.",
-                    "You have 2 actions", "A trap is built as projects. Budget about 7-10 progress across them, roughly 4 to 5 actions, or it costs more to set than it is worth.",
+                    "You have 2 actions", "A trap is built as projects. Plan about 7-10 progress in total, roughly 4 to 5 actions.",
                     "Your own scene, tonight: no action, 1 Sanity each.", "-30 s", "+30 s", "-5 s", "The Closing Argument: who will sum up the case? Volunteer within 30 s; the GM confirms the speaker.",
                     "Nonstop Debate - 3 s over your budget. Everyone may speak; +30 s puts 30 s back on the clock."],
                 moved: ["up to 1 connected room", "up to 5 connected rooms",
                     "3 actions each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs 2 actions, a Long Rest 3 actions.",
                     "With no Health left you get 2 actions instead of 3 actions, until somebody patches you up.",
-                    "You have 3 actions", "A trap is built as projects. Budget about 9-14 progress across them, roughly 5 to 7 actions, or it costs more to set than it is worth.",
+                    "You have 3 actions", "A trap is built as projects. Plan about 9-14 progress in total, roughly 5 to 7 actions.",
                     "Your own scene, tonight: no action, 2 Sanity each.", "-45 s", "+45 s", "-5 s", "The Closing Argument: who will sum up the case? Volunteer within 40 s; the GM confirms the speaker.",
                     "Nonstop Debate - 3 s over your budget. Everyone may speak; +45 s puts 45 s back on the clock."],
                 left: 0
@@ -18863,13 +18886,13 @@ const REGRESSIONS = [
                 now: ["do 1 połączonego pokoju", "do 5 połączonych pokoi",
                     "2 akcje na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje 1 akcję, Long Rest 2 akcje.",
                     "Gdy nie zostało ci już Health, dostajesz 1 akcję zamiast 2 akcji, dopóki ktoś cię nie poskłada.",
-                    "Masz 2 akcje", "Pułapkę buduje się jako projekty. Zaplanuj około 7-10 postępu łącznie, mniej więcej 4 do 5 akcji, inaczej kosztuje więcej, niż jest warta.",
+                    "Masz 2 akcje", "Pułapkę buduje się jako projekty. Zaplanuj około 7-10 postępu łącznie, mniej więcej 4 do 5 akcji.",
                     "Twoja własna scena, tej nocy: bez akcji, 1 Sanity za każdy.", "-30 s", "+30 s", "-5 s", "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 30 s; GM zatwierdza mówcę.",
                     "Nonstop Debate - 3 s ponad budżet. Każdy może mówić; +30 s oddaje zegarowi 30 s."],
                 moved: ["do 1 połączonego pokoju", "do 5 połączonych pokoi",
                     "3 akcje na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje 2 akcje, Long Rest 3 akcje.",
                     "Gdy nie zostało ci już Health, dostajesz 2 akcje zamiast 3 akcji, dopóki ktoś cię nie poskłada.",
-                    "Masz 3 akcje", "Pułapkę buduje się jako projekty. Zaplanuj około 9-14 postępu łącznie, mniej więcej 5 do 7 akcji, inaczej kosztuje więcej, niż jest warta.",
+                    "Masz 3 akcje", "Pułapkę buduje się jako projekty. Zaplanuj około 9-14 postępu łącznie, mniej więcej 5 do 7 akcji.",
                     "Twoja własna scena, tej nocy: bez akcji, 2 Sanity za każdy.", "-45 s", "+45 s", "-5 s", "Closing Argument: kto podsumuje sprawę? Zgłoś się w ciągu 40 s; GM zatwierdza mówcę.",
                     "Nonstop Debate - 3 s ponad budżet. Każdy może mówić; +45 s oddaje zegarowi 45 s."],
                 left: 0
@@ -20027,7 +20050,7 @@ const REGRESSIONS = [
          * The queue is this browser's memory (`serialWrite`), so it holds one GM's browser to one copy (E60's fix round,
          * FG6; the end review's C-m8, S-m4): Observe's find, a hand-over, a Present and Monokuma's Reveal run on the
          * primary, and Give a Truth Bullet on whichever GM opened it - a give on a second GM's browser beside the
-         * primary's find of the same trace for the same receiver can still make two copies, and is E38's (row 1.2.127,
+         * primary's find of the same trace for the same receiver can still make two copies, and is E38's (row 1.2.130,
          * the stage of two GMs; STATUS Open 50).
          */
         const sources = await moduleSources();
@@ -20284,7 +20307,8 @@ const REGRESSIONS = [
          * `window-*` entry.
          */
         needs(env.tools(), "docs/design/, audit/ and docs/glossary.json are read from the repository (an installed module's zip leaves them out, as it leaves tools/)");
-        const CARDS = ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10", "M11", "M12", "M13", "M14", "M15", "i1", "i2"];
+        // M16-M19: the project windows, E47-M's round (E47-C6, 09.11.2026).
+        const CARDS = ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10", "M11", "M12", "M13", "M14", "M15", "i1", "i2", "M16", "M17", "M18", "M19"];
         const ASKS = ["q-grow", "q-console"];
         const get = async path => {
             try {
@@ -21078,6 +21102,907 @@ const REGRESSIONS = [
             readme: /render after a write/i.test(cannot) && /LIVE-E45-01/.test(cannot) && /renderApps/.test(cannot)
         }), JSON.stringify({ listed: true, model: true, cited: true, readme: true }),
             "{listed: in UNCONFIRMED; model: renderApps renders false with the context and data; cited: its note names the id; readme: the section names the model}");
+    }],
+    /* ==========================================================================
+     * E46 C0 (09.11.2026): the 1.2.102 train's ledger and probe 08 by window and language. E46-C1's tests sit apart.
+     * ========================================================================== */
+    ["R2000 - probe 08 captures the GM windows E46 and E47 change, one window at a time, in Polish and elsewhere (E46 C0, E46-02; STAGE E46 \"The before/after comparison\"): WINDOWS holds give, bullet, students and projects; its header and probes/README.md name DRPG_CAPTURE_ONLY, DRPG_CAPTURE_LANG and DRPG_CAPTURE_OUT and the probe reads each; `mergeManifest` on a fixture rewrites only the named windows' rows", async () => {
+        /* E46 C0, 09.11.2026. E46's and E47's groups work in parallel worktrees and each re-captures only its own windows
+           (STAGE E46 rule 8): a probe that rewrote the whole manifest would hand each group's merge the others' rows as a
+           conflict. The merge is the probe's own pure function, read from its text and run here on a fixture of two
+           windows kept, one re-captured (its tab gone) and one new, in the order a whole run writes; with no window named
+           it answers the run's rows alone. Red first on 4de21046: none of the four ids, no option, no `mergeManifest`. */
+        needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        const read = async path => {
+            try {
+                const res = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" });
+                return res.ok ? await lfText(res) : "";
+            } catch { return ""; }
+        };
+        const [probe, readme] = await Promise.all(["audit/harness/probes/08-capture-windows.mjs", "audit/harness/probes/README.md"].map(read));
+        must(probe.length > 5000 && readme.length > 1000, "probe 08 or probes/README.md read nothing - this test would read nothing");
+        // Read by pattern, not `bodyOf`: on a tree without them the answer is "absent", not a stop.
+        const list = /export const WINDOWS = \[([\s\S]*?)\n\];/.exec(probe)?.[1] ?? "";
+        const header = /^\/\*\*([\s\S]*?)\*\//.exec(probe)?.[1] ?? "";
+        const row = readme.split("\n").find(line => line.startsWith("| `08-capture-windows.mjs` |")) ?? "";
+        const OPTIONS = ["DRPG_CAPTURE_ONLY", "DRPG_CAPTURE_LANG", "DRPG_CAPTURE_OUT"];
+        const src = topLevelFunction(probe, "mergeManifest");
+        let merged = "absent";
+        if (src) {
+            const merge = new Function(`${src.replace(/^export /, "")}\nreturn mergeManifest;`)();
+            const old = [{ id: "a", run: 1 }, { id: "a--x", of: "a", run: 1 }, { id: "b", run: 1 }, { id: "b--y", of: "b", run: 1 }, { id: "gone", run: 1 }];
+            const fresh = [{ id: "b", run: 2 }, { id: "c", run: 2 }, { id: "c--z", of: "c", run: 2 }];
+            const ids = rows => rows.map(r => `${r.id}@${r.run}`).join(" ");
+            merged = { named: ids(merge(old, fresh, ["b", "c"], ["a", "b", "c"])), none: ids(merge(old, fresh, [], ["a", "b", "c"])) };
+        }
+        equal(JSON.stringify({
+            windows: ["give", "bullet", "students", "projects"].filter(id => new RegExp(`\\{ id: "${id}", module: "`).test(list)),
+            header: OPTIONS.filter(o => header.includes(o)),
+            readme: OPTIONS.filter(o => row.includes(o)),
+            read: OPTIONS.filter(o => new RegExp(`process\\.env\\.${o}\\b`).test(probe)),
+            merged
+        }), JSON.stringify({
+            windows: ["give", "bullet", "students", "projects"], header: OPTIONS, readme: OPTIONS, read: OPTIONS,
+            merged: { named: "a@1 a--x@1 b@2 c@2 c--z@2 gone@1", none: "b@2 c@2 c--z@2" }
+        }), "{windows: the four ids in WINDOWS; header, readme, read: the options each names; merged: mergeManifest on the fixture}");
+    }],
+    ["R2001 - every planned version quoted for a stage is the ledger's (E46 C0, E46-01; STAGE E46 \"The ledger rows\"): each \"row 1.2.N\" in docs/, scripts/ and the sheets names the version tools/stages.json plans for the stage it is quoted for - the nearest stage id before it, on its line or the line above", async () => {
+        /* E46 C0, 09.11.2026. A train that moves rows of the ledger (E46 and E47 into one release, every row after E47 one
+           version down) leaves every "(row ...)" quote of a moved stage naming a version nobody plans: the 1.2.101 train
+           moved 62 lines in 12 files by hand (6bf7fc76), with nothing to say when one was missed. The rule read here: a
+           quote is "row 1.2.N", and the stage it is quoted for is the last "E<nn>" before it on its line or on the line
+           above (a quote wrapped to the head of a comment line names its stage at the end of the one before); a quote with
+           no such id is unattributed, and fails, so it is rewritten as "E<nn> (row ...)". Where it is read: every script
+           module.mjs reaches (`moduleSources`), every sheet module.json names, and the 19 text files of docs/ (git ls-files
+           docs on 4de21046, the 6 pictures aside) - the tier lists no directory, so a new file under docs/ is read once
+           it is added to DOCS below. Red first: the ledger written, the quotes not yet moved - 56 stale. */
+        needs(env.tools(), "tools/stages.json and docs/ are read from the repository (an installed module's zip leaves them out, as it leaves tools/)");
+        const ledger = await stageLedger();
+        must(ledger && ledger.size > 80, `tools/stages.json read ${ledger?.size ?? 0} row(s) - this test would read nothing`);
+        const read = async path => {
+            try {
+                const res = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" });
+                return res.ok ? await lfText(res) : "";
+            } catch { return ""; }
+        };
+        const DOCS = ["changelog-1.2.0.md", "glossary.json", "text-budgets.json", "text-style.md",
+            "design/glass-recipe.js", "design/identity-audit-v13.html", "design/typography.md", "design/windows.md",
+            "dev/METHOD.md", "dev/R-REGISTRY.md", "dev/text-batch-B01a.json", "dev/text-pilot.json", "dev/text-review-E65.md",
+            ...["gm-handbook", "player-handbook", "player-brochure"].flatMap(book => ["en", "pl"].map(lang => `handbooks/${book}.${lang}.md`))]
+            .map(file => `docs/${file}`);
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const files = [
+            ...[...await moduleSources()].map(([file, text]) => [`scripts/${file}`, text]),
+            ...await Promise.all([...(manifest.styles ?? []), ...DOCS].map(async path => [path, await read(path)]))
+        ];
+        const empty = files.filter(([, text]) => !text).map(([path]) => path);
+        equal(JSON.stringify(empty), "[]", "the files this test reads that came back empty");
+        let quotes = 0;
+        const stale = [], unattributed = [];
+        for (const [path, text] of files) {
+            const lines = text.split("\n");
+            for (const [at, line] of lines.entries()) for (const m of line.matchAll(/\brow 1\.2\.(\d+)\b/g)) {
+                quotes++;
+                const ids = [...`${lines[at - 1] ?? ""}\n${line.slice(0, m.index)}`.matchAll(/\bE(\d{2})\b/g)];
+                const where = `${path}:${at + 1}`;
+                if (!ids.length) { unattributed.push(where); continue; }
+                const stage = `E${ids.at(-1)[1]}`;
+                const planned = ledger.get(stage)?.planned ?? null;
+                if (planned !== `1.2.${m[1]}`) stale.push(`${where} ${stage} quoted at 1.2.${m[1]}, the ledger ${planned ? `plans ${planned}` : "has no such row"}`);
+            }
+        }
+        must(quotes >= 50, `read ${quotes} quote(s), and 4de21046 held 57 - this test would read too little`);
+        equal(JSON.stringify(unattributed), "[]", "the quotes with no stage id before them on their line or the line above");
+        ok(!stale.length, `${stale.length} stale quote(s) of ${quotes}: ${stale.slice(0, 6).join("; ")}${stale.length > 6 ? "; ..." : ""}`);
+    }],
+
+    /* ---- E46-C1: the kit's additions for the GM's large windows (E46 + E47, release 1.2.102) ------------------------ */
+
+    ["R2002 - dataTable's additions (scripts/ui-kit.mjs; E46-C1, D31): a call with none of the new options draws 4de21046's markup byte for byte; a group row (`{ group, count }`) one heading across every column; a column's `lines: 2` clamps its head and keeps the whole label in `title` and `aria-label`; a column's `cls` on its `<col>`, its head and its cells; `rowAttrs(row)` on the `<tr>`, each name checked and each value escaped; a `{ html, title }` cell; `headGroups`, a head row of groups above the columns'", async () => {
+        /*
+         * E46-C1, 09.11.2026. The two stages' windows (Room setup, Sound's Effects, the Students window, WHO HAS WHAT)
+         * move onto dataTable, and none calls it at 4de21046 (git grep: 0 callers but the tier files), so its old output
+         * is held here as a string written from 4de21046's function (run in node on that tree, the words put in by key):
+         * every additional option changes nothing for a call that names none. Red first on 4de21046: the group row drew
+         * a row of empty cells, `lines`, `cls` and `rowAttrs` drew nothing, a `{ html, title }` cell drew "[object
+         * Object]". The mutant k1 (`lines: 2` without its `title`) reads red here.
+         */
+        const K = await import("./ui-kit.mjs");
+        const L = key => game.i18n.localize(key);
+        const E = v => foundry.utils.escapeHTML(String(v));
+        const note = `<span class="drpg-kit-sr" data-drpg-scroll-note hidden>${E(L("DRPG.Kit.scrollMore"))}</span>`;
+        const columns = [{ key: "a", label: "A & \"B\"", width: "8rem" }, { key: "n", label: "N", num: true }, { key: "x", label: "", act: true }, { key: "b", label: "Both", num: true, act: true }];
+        const rows = [{ a: "<b>x</b>", n: "1", x: "<button type=\"button\">y</button>", b: "2" }, { a: "z" }];
+        const OLD_FULL = "<div class=\"drpg-data-table-box\"><table class=\"drpg-data-table\"><caption>Cap &lt;1&gt;</caption><colgroup><col data-drpg-col=\"a\" style=\"width: 8rem\"><col data-drpg-col=\"n\"><col data-drpg-col=\"x\"><col data-drpg-col=\"b\"></colgroup><thead><tr><th scope=\"col\">A &amp; &quot;B&quot;</th><th scope=\"col\" class=\"num\">N</th><th scope=\"col\" class=\"act\"></th><th scope=\"col\" class=\"num act\">Both</th></tr></thead><tbody><tr><td><b>x</b></td><td class=\"num\">1</td><td class=\"act\"><button type=\"button\">y</button></td><td class=\"num act\">2</td></tr><tr><td>z</td><td class=\"num\"></td><td class=\"act\"></td><td class=\"num act\"></td></tr></tbody></table>NOTE</div>";
+        const OLD_EMPTY = "<div class=\"drpg-data-table-box\"><table class=\"drpg-data-table\"><colgroup><col data-drpg-col=\"a\" style=\"width: 8rem\"><col data-drpg-col=\"n\"></colgroup><thead><tr><th scope=\"col\">A &amp; &quot;B&quot;</th><th scope=\"col\" class=\"num\">N</th></tr></thead><tbody><tr><td class=\"drpg-data-empty\" colspan=\"2\">EMPTY</td></tr></tbody></table>NOTE</div>";
+        equal(K.dataTable({ columns, rows, caption: "Cap <1>" }), OLD_FULL.replace("NOTE", note), "[a table of four columns and two rows with a caption, none of the new options: 4de21046's markup]");
+        equal(K.dataTable({ columns: columns.slice(0, 2), rows: [], empty: "DRPG.Kit.scrollMore" }), OLD_EMPTY.replace("NOTE", note).replace("EMPTY", E(L("DRPG.Kit.scrollMore"))), "[an empty table in its own words: 4de21046's markup]");
+
+        const long = "Search Tokens at the start of each day";
+        const markup = K.dataTable({
+            columns: [{ key: "room", label: "Room", cls: "room" }, { key: "tokens", label: long, lines: 2, num: true }, { key: "note", label: "Note" }],
+            rows: [{ group: "Ground floor", count: "1 of 2" }, { room: "Gym", tokens: "2", note: { html: "<i>long</i>", title: "A \"long\" note" } }, { group: "Upstairs" }],
+            rowAttrs: row => ({ "data-drpg-room": `${row.room} "A" <b>`, onclick: "alert(1)", "Bad Name": "x", "data-drpg-none": null, "data-drpg-flag": true })
+        });
+        const d = document.createElement("div");
+        d.innerHTML = markup;
+        const groups = [...d.querySelectorAll("tbody > tr.drpg-data-group")];
+        const head = d.querySelector("thead th:nth-child(2)");
+        const data = d.querySelector("tbody > tr:not(.drpg-data-group)");
+        const throws = options => { try { K.dataTable(options); return false; } catch { return true; } };
+        equal(JSON.stringify({
+            groups: groups.map(g => [g.children.length, g.firstElementChild?.localName, g.firstElementChild?.getAttribute("scope"), g.firstElementChild?.getAttribute("colspan"),
+                g.firstElementChild?.textContent, g.querySelector("th > span")?.textContent ?? null, g.attributes.length]),
+            head: [head?.getAttribute("title"), head?.getAttribute("aria-label"), head?.className, head?.querySelector(":scope > span.drpg-data-clamp")?.textContent ?? null],
+            cls: [d.querySelector("col[data-drpg-col=\"room\"]")?.className, d.querySelector("thead th")?.className, data?.firstElementChild?.className],
+            row: markup.includes("<tr data-drpg-room=\"Gym &quot;A&quot; &lt;b&gt;\" data-drpg-flag>"), rowNames: data ? [...data.attributes].map(a => a.name) : null,
+            cell: [data?.lastElementChild?.getAttribute("title"), data?.lastElementChild?.innerHTML],
+            badCls: throws({ columns: [{ key: "a", label: "A", cls: "a b" }], rows: [] }),
+            /* E47-M's mockup O1a (the orchestrator, 09.11.2026): a head-group row over the columns */
+            headGroups: (() => {
+                const h = document.createElement("div");
+                h.innerHTML = K.dataTable({ columns: [{ key: "p", label: "Project" }, { key: "a", label: "Akane" }, { key: "b", label: "Byakuya" }], rows: [],
+                    headGroups: [{ label: "", span: 1 }, { label: "Players <2>", span: 2 }] });
+                return [h.querySelector("table")?.className, [...h.querySelectorAll("thead > tr")].map(tr => [tr.className, [...tr.children].map(th => [th.getAttribute("scope"), th.getAttribute("colspan"), th.textContent])]),
+                    throws({ columns: [{ key: "a", label: "A" }], rows: [], headGroups: [{ label: "G", span: 2 }] })];
+            })()
+        }), JSON.stringify({
+            groups: [[1, "th", "colgroup", "3", "Ground floor 1 of 2", "1 of 2", 1], [1, "th", "colgroup", "3", "Upstairs", null, 1]],
+            head: [long, long, "num drpg-data-lines-2", long],
+            cls: ["drpg-data-col-room", "drpg-data-col-room", "drpg-data-col-room"],
+            row: true, rowNames: ["data-drpg-room", "data-drpg-flag"],
+            cell: ["A \"long\" note", "<i>long</i>"],
+            badCls: true,
+            headGroups: ["drpg-data-table drpg-data-heads-2", [["drpg-data-head-group", [["colgroup", "1", ""], ["colgroup", "2", "Players <2>"]]],
+                ["", [["col", null, "Project"], ["col", null, "Akane"], ["col", null, "Byakuya"]]]], true]
+        }), "{groups: [cells, tag, scope, colspan, text, count, the row's attributes]; head: [title, aria-label, class, the clamped text]; cls: [col, th, td]; row: the escaped attributes on the tr; rowNames; cell: [title, markup]; badCls: a cls not a class name throws; headGroups: [the table's class, the head's rows (class, cells: scope, colspan, text), spans not adding up to the columns throw]}");
+    }],
+
+    ["R2003 - the compact stepper (scripts/ui-kit.mjs `stepper({ compact: true })`; E46-C1): one line for a table cell - no `.drpg-field-msg` beside it; the out-of-range message in the wrapper's `title` and a span the input names by `aria-describedby`, cleared in range; `readStepper` and `wireSteppers` read it as any stepper; a stepper without `compact` draws 4de21046's markup", async () => {
+        /*
+         * E46-C1, 09.11.2026. Room setup's Searching (the token cell) and the Overflow's "by" column draw a stepper in a
+         * table cell (STAGE.md "The shapes"), where a message line under it would make the row two lines. Red first on
+         * 4de21046: `compact` was not read, the message line stood beside the field.
+         */
+        const K = await import("./ui-kit.mjs");
+        const L = key => game.i18n.localize(key);
+        const E = v => foundry.utils.escapeHTML(String(v));
+        const OLD = `<span class="drpg-kit-stepper"><button type="button" class="drpg-step drpg-step-minus" data-drpg-step="-1" aria-label="${E(L("DRPG.Look.stepDown"))}" data-tooltip="${E(L("DRPG.Look.stepDown"))}">-</button><input type="number" id="r2003-old" name="s" value="3" min="0" max="5" step="1" data-drpg-token="Gym"><button type="button" class="drpg-step drpg-step-plus" data-drpg-step="1" aria-label="${E(L("DRPG.Look.stepUp"))}" data-tooltip="${E(L("DRPG.Look.stepUp"))}">+</button></span><span class="drpg-field-msg" aria-live="polite"></span>`;
+        equal(K.stepper({ name: "s", value: 3, min: 0, max: 5, id: "r2003-old", attrs: { "data-drpg-token": "Gym" } }), OLD, "[a stepper without compact: 4de21046's markup]");
+        const d = document.createElement("div");
+        d.innerHTML = K.stepper({ name: "tok", value: 7, min: 0, max: 5, compact: true, id: "r2003-c", attrs: { "data-drpg-token": "Gym" } });
+        const wrap = d.firstElementChild;
+        const input = d.querySelector("input[type=\"number\"]");
+        const said = input ? d.querySelector(`#${input.getAttribute("aria-describedby")}`) : null;
+        const before = { children: d.children.length, cls: wrap?.className, msg: Boolean(d.querySelector(".drpg-field-msg")), inside: Boolean(said && wrap?.contains(said)), token: input?.dataset.drpgToken };
+        K.wireSteppers(d);
+        const out = { title: wrap?.getAttribute("title") ?? null, said: said?.textContent ?? null, bad: input?.getAttribute("aria-invalid") ?? null };
+        if (input) { input.value = "3"; input.dispatchEvent(new Event("change", { bubbles: true })); }
+        const back = { title: wrap?.getAttribute("title") ?? null, said: said?.textContent ?? null, bad: input?.getAttribute("aria-invalid") ?? null, read: K.readStepper(d) };
+        d.querySelector("button[data-drpg-step=\"1\"]")?.click();
+        const atMost = game.i18n.format("DRPG.Look.atMost", { n: 5 });
+        equal(JSON.stringify({ before, out, back, plus: K.readStepper(wrap) }), JSON.stringify({
+            before: { children: 1, cls: "drpg-kit-stepper drpg-kit-stepper-compact", msg: false, inside: true, token: "Gym" },
+            out: { title: atMost, said: atMost, bad: "true" },
+            back: { title: null, said: "", bad: null, read: 3 },
+            plus: 4
+        }), "{before: [elements drawn, the wrapper's class, a message line, the described span inside the wrapper, the token kept]; out: [title, the span's words, aria-invalid] at 7 of 0-5; back: the same at 3 and readStepper; plus: + pressed}");
+    }],
+
+    ["R2006 - the kit gallery draws E46-C1's additions (audit/style-harness.html `?kit=1`; E46-C1): a dataTable with a group row, a head of two lines and a `cls` column, a compact stepper in a cell in range and out of range, a checkList of the five states with an action, a window whose footer `liveFooter` swaps on a button (`data-drpg-kit-demo`); WINDOW_WIDTHS `tracker` (32.5 rem) and `console` (44 rem), both by the Legacy slider", async () => {
+        /*
+         * E46-C1, 09.11.2026. The gallery is where the kit's components are seen in both themes before a window uses
+         * them (the style sweep's `kit-gallery` page, Chromium); its text is read here, the look by the sweep and the
+         * commit's screenshots. The widths: E47-C1 (the console, S12-51) and E47-C2 (the tracker) state them. Red first
+         * on 4de21046: none of them.
+         */
+        needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        const K = await import("./ui-kit.mjs");
+        const page = await fetch(`/modules/${MODULE_ID}/audit/style-harness.html`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
+        must(page.length > 10000, "audit/style-harness.html read nothing - this test would read nothing");
+        const kit = /\} else if \(q\.get\("kit"\)\) \{([\s\S]*?)\n {2}\} else \{/.exec(page)?.[1] ?? "";
+        must(kit.length > 2000, "the gallery's branch was not found in audit/style-harness.html");
+        const has = re => re.test(kit);
+        const states = ["done", "blocking", "advisory", "warning", "waiting"];
+        equal(JSON.stringify({
+            group: has(/group: "[^"]+", count:/), lines: has(/lines: 2/), cls: has(/cls: "[a-z]/),
+            compact: (kit.match(/compact: true/g) ?? []).length >= 2,
+            checkList: has(/K\.checkList\(/) && states.every(s => kit.includes(`state: "${s}"`)) && has(/action: \{ action: /),
+            liveFooter: has(/K\.liveFooter\(/) && has(/data-drpg-kit-demo/),
+            widths: [K.WINDOW_WIDTHS?.tracker, K.WINDOW_WIDTHS?.console]
+        }), JSON.stringify({
+            group: true, lines: true, cls: true, compact: true, checkList: true, liveFooter: true,
+            widths: [{ cls: "drpg-kit-width-tracker", rem: 32.5, legacy: true }, { cls: "drpg-kit-width-console", rem: 44, legacy: true }]
+        }), "{the gallery's kit branch draws: a group row, a head of two lines, a cls column, two compact steppers, a checkList of the five states with an action, a liveFooter swap; widths: [tracker, console]}");
+    }],
+
+    ["R2007 - dataTable's body cell on two lines (scripts/ui-kit.mjs; E46-C1f): a column's `cellLines: 2` puts every body cell of it in `td.drpg-data-cell-lines-2[title] > span.drpg-data-clamp`, the whole text in `title` (a `{ html, title }` cell's own title, else the cell's text, its markup read as text, a line break a space); an empty cell no title; the head and the other columns as before, and a table with no `cellLines` 4954917b's markup (R2002 holds it byte for byte)", async () => {
+        /*
+         * E46-C1f, 09.11.2026 (E46-C1's Open 3a). Sound's Effects (E46-C4: "clamped to two lines with the whole in the
+         * title") and WHO HAS WHAT's long cells (E47-C4) cut a body cell after two lines; the head's `lines: 2` (R2002)
+         * clamps only the head. The cut is CSS (components.css, `-webkit-line-clamp` on the span, as the head's); its
+         * tooltip is drawn whether the cell is cut or not, since jsdom cannot tell. Red first on 4954917b: no class, no
+         * span, no title (the cell as written).
+         */
+        const K = await import("./ui-kit.mjs");
+        const d = document.createElement("div");
+        d.innerHTML = K.dataTable({
+            columns: [{ key: "event", label: "Event", cellLines: 2, cls: "event" }, { key: "file", label: "File" }],
+            rows: [{ group: "Trial", count: "1 of 2" },
+                { event: "<b>Objection</b><br><span class=\"drpg-help\">Played when a student &amp; a \"Truth Bullet\" meet</span>", file: "a.ogg" },
+                { event: { html: "<b>Hangman</b>", title: "Hangman's Gambit <starts>" }, file: "b.ogg" },
+                { event: "", file: "c.ogg" }]
+        });
+        const cells = [...d.querySelectorAll("tbody > tr:not(.drpg-data-group) > td:first-child")];
+        const others = [...d.querySelectorAll("tbody > tr:not(.drpg-data-group) > td:last-child")];
+        equal(JSON.stringify({
+            cells: cells.map(td => [td.className, td.getAttribute("title"), td.children.length, td.firstElementChild?.localName ?? null, td.firstElementChild?.className ?? null,
+                td.querySelector(":scope > span.drpg-data-clamp")?.innerHTML ?? null]),
+            others: others.map(td => [td.className, td.hasAttribute("title"), td.innerHTML]),
+            head: [d.querySelector("thead th")?.className, d.querySelector("thead th")?.hasAttribute("title"), d.querySelector("thead th")?.innerHTML],
+            group: d.querySelector("tbody > tr.drpg-data-group > th")?.getAttribute("colspan") ?? null
+        }), JSON.stringify({
+            cells: [["drpg-data-col-event drpg-data-cell-lines-2", "Objection Played when a student & a \"Truth Bullet\" meet", 1, "span", "drpg-data-clamp",
+                "<b>Objection</b><br><span class=\"drpg-help\">Played when a student &amp; a \"Truth Bullet\" meet</span>"],
+                ["drpg-data-col-event drpg-data-cell-lines-2", "Hangman's Gambit <starts>", 1, "span", "drpg-data-clamp", "<b>Hangman</b>"],
+                ["drpg-data-col-event drpg-data-cell-lines-2", null, 1, "span", "drpg-data-clamp", ""]],
+            others: [["", false, "a.ogg"], ["", false, "b.ogg"], ["", false, "c.ogg"]],
+            head: ["drpg-data-col-event", false, "Event"],
+            group: "2"
+        }), "{cells: the cellLines column's cells [class, title, children, the child's tag and class, the clamped markup]; others: [class, has a title, markup]; head: the column's head [class, has a title, markup]; group: the group row's colspan}");
+    }],
+
+    ["R2009 - iconButton (scripts/ui-kit.mjs; E46-C1f): `button.drpg-kit-icon-button[type=button]` with its label in `aria-label` and the same words in `data-tooltip` (the module's icon buttons, the character sheet's controls), the icon `<i inert>`, the caller's classes and attributes (each name checked, none of the builder's own), `disabled`; no label throws; and the kit gallery (audit/style-harness.html `?kit=1`) draws E46-C1f's three: a `cellLines: 2` column, a footer button with its `tooltip`, icon buttons", async () => {
+        /*
+         * E46-C1f, 09.11.2026 (E46-C1's Open 3c). Sound's Test and Clear (E46-C4: "icon buttons with their labels in
+         * `aria-label` and the tooltip"): an icon is no name, so the label is required, and the tooltip says the same
+         * words a screen reader reads. `data-tooltip` is Foundry's tooltip, as the stepper's - and + carry it (R2003)
+         * and the character sheet's controls; the gallery draws no Foundry, so its tooltip there is the attribute alone.
+         * Red first on 4954917b: no iconButton; the gallery none of the three.
+         */
+        needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        const K = await import("./ui-kit.mjs");
+        equal(typeof K.iconButton, "function", "[ui-kit.mjs exports iconButton]");
+        const d = document.createElement("div");
+        d.innerHTML = K.iconButton({ icon: "fa-solid fa-play", label: "Test \"Objection\" <now>", cls: "drpg-sfx-test", attrs: { "data-drpg-sfx": "objection", onclick: "alert(1)" } })
+            + K.iconButton({ icon: "fa-solid fa-xmark", label: "Clear", disabled: true });
+        const throws = options => { try { K.iconButton(options); return false; } catch { return true; } };
+        const page = await fetch(`/modules/${MODULE_ID}/audit/style-harness.html`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
+        must(page.length > 10000, "audit/style-harness.html read nothing - this test would read nothing");
+        const kit = /\} else if \(q\.get\("kit"\)\) \{([\s\S]*?)\n {2}\} else \{/.exec(page)?.[1] ?? "";
+        must(kit.length > 2000, "the gallery's branch was not found in audit/style-harness.html");
+        equal(JSON.stringify({
+            buttons: [...d.children].map(b => [b.localName, b.getAttribute("type"), b.className, b.getAttribute("aria-label"), b.getAttribute("data-tooltip"), b.hasAttribute("title"),
+                b.disabled, [...b.attributes].map(a => a.name), b.children.length, b.firstElementChild?.className ?? null, b.firstElementChild?.hasAttribute("inert") ?? null, b.textContent]),
+            throws: [throws({ icon: "fa-solid fa-play" }), throws({ icon: "fa-solid fa-play", label: "" }), throws({ icon: "fa-solid fa-play", label: "A", attrs: { "aria-label": "B" } }),
+                throws({ icon: "fa-solid fa-play", label: "A", attrs: { class: "x" } })],
+            gallery: { cellLines: /cellLines: 2/.test(kit), tooltip: /disabled: true, tooltip: "[^"]+"/.test(kit), iconButton: (kit.match(/K\.iconButton\(/g) ?? []).length >= 2 }
+        }), JSON.stringify({
+            buttons: [["button", "button", "drpg-kit-icon-button drpg-sfx-test", "Test \"Objection\" <now>", "Test \"Objection\" <now>", false, false,
+                ["type", "class", "aria-label", "data-tooltip", "data-drpg-sfx"], 1, "fa-solid fa-play", true, ""],
+                ["button", "button", "drpg-kit-icon-button", "Clear", "Clear", false, true, ["type", "class", "aria-label", "data-tooltip", "disabled"], 1, "fa-solid fa-xmark", true, ""]],
+            throws: [true, true, true, true],
+            gallery: { cellLines: true, tooltip: true, iconButton: true }
+        }), "{buttons: [tag, type, class, aria-label, data-tooltip, has a title, disabled, the attributes in order, children, the icon's class, the icon inert, text]; throws: [no label, an empty label, attrs naming aria-label, attrs naming class]; gallery: the kit branch draws a cellLines column, a disabled footer button with its tooltip, two icon buttons}");
+    }],
+    ["R2029 - the Sound window's Test says why in the table's words (E46-C4; E46-14, S13-53 fixed by E50 C3): the eight `DRPG.Sound.why.*` stand in both lang files, Polish its own; every `why` sfx-play.mjs `testSfx` answers is one of them through game.i18n and no literal; the Test button's warning formats `DRPG.Sound.testFailed` with that `why`", async () => {
+        /*
+         * E46-C4, 09.11.2026; S13-53 (the Test's reasons were English sentences in the code), fixed by E50 C3 (50d9e9c6)
+         * and held here by name: R1070 reads every literal of the three bodies; this test reads the reasons themselves -
+         * each `why:` of `testSfx` (sfx-play.mjs, served, comments blanked) is `game.i18n.localize` or `.format` of a
+         * `DRPG.Sound.why.*` key, the set of them the eight, each in en.json and pl.json with the Polish not the English,
+         * noEvent's `{keys}` in both; and `wireSoundPanel`'s Test warns with `DRPG.Sound.testFailed` formatted with the
+         * answer's `why`, whose `{label}` and `{why}` stand in both files. The reader is run first on a planted body.
+         * Green on f7266b28 (the fix stands); red by mutant m4 - one reason written back as an English literal in
+         * `testSfx` - quoted in E46-C4's commit.
+         */
+        const WHY = ["noEvent", "noFile", "soundZero", "interfaceZero", "locked", "refused", "timeout", "failed"];
+        const served = new Map(await Promise.all(SFX_FAMILY.map(async file => [file, await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText)])));
+        const sfx = stripComments(sfxText(served));
+        must(sfx.length > 1000, "sfx.mjs and sfx-play.mjs were not served - this test reads nothing until they are");
+        const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json());
+        const [en, pl] = await Promise.all([lang("en"), lang("pl")]);
+        const reasons = body => [...String(body).matchAll(/\bwhy\s*:\s*([^\n]*)/g)].map(m => {
+            const key = /^game\.i18n\.(?:localize|format)\(\s*"DRPG\.Sound\.why\.(\w+)"/.exec(m[1].trim())?.[1];
+            return key ?? `literal: ${m[1].trim().slice(0, 60)}`;
+        });
+        const planted = reasons('return { played: false, why: game.i18n.localize("DRPG.Sound.why.noFile") };\n'
+            + 'return { why: "The file did not finish loading." };\nreturn { why: game.i18n.format("DRPG.Sound.why.noEvent", { keys }) };');
+        equal(JSON.stringify(planted), JSON.stringify(["noFile", "literal: \"The file did not finish loading.\" };", "noEvent"]),
+            "the reader does not tell a key from a literal on a planted body: it reads nothing it can be trusted on");
+        const test = fnSource(sfx, "testSfx") ?? "";
+        const found = reasons(test);
+        const wire = bodyOf(fnSource(sfx, "wireSoundPanel") ?? "", "[data-drpg-sfx-test]", { until: "[data-drpg-sfx-clear]" }) ?? "";
+        const word = (file, key) => file?.DRPG?.Sound?.why?.[key];
+        const read = {
+            reasons: [...new Set(found)].sort(),
+            literals: found.filter(r => r.startsWith("literal")),
+            files: WHY.filter(key => typeof word(en, key) !== "string" || typeof word(pl, key) !== "string" || !word(pl, key).trim() || word(pl, key) === word(en, key)),
+            keys: [word(en, "noEvent"), word(pl, "noEvent")].map(text => String(text ?? "").includes("{keys}")),
+            warning: /ui\.notifications\.warn\(\s*game\.i18n\.format\(\s*"DRPG\.Sound\.testFailed"\s*,\s*\{[^}]*\bwhy\s*:\s*result\?\.why\b/.test(wire),
+            format: [en, pl].map(file => ["{label}", "{why}"].every(hole => String(file?.DRPG?.Sound?.testFailed ?? "").includes(hole)))
+        };
+        equal(JSON.stringify(read), JSON.stringify({ reasons: [...WHY].sort(), literals: [], files: [], keys: [true, true], warning: true, format: [true, true] }),
+            "{the reasons testSfx answers, by key; those that are a literal; the keys missing from a file or Polish as the English; noEvent's {keys} [en, pl]; "
+            + "the Test's warning formats testFailed with the answer's why; testFailed's {label} and {why} [en, pl]}");
+    }],
+    /* ---- E46-C2a (09.11.2026): Room setup's old rules out of the base sheets. ---- */
+    ["R2016 - Room setup's room tabs' old rules are gone from styles/danganronpa.css, stained-glass.css and narrow.css (E46-C2a; E46-19): no rule of the three names the counter's (`drpg-token-step`, `drpg-token-cell`), the student heads' (`drpg-student-head`), the Stashes matrix's (`drpg-stash-cell`, `-bedroom`, `-toggle`, `-lock`, `-none`, `-legend`, `-swatch`), the picture's (`drpg-room-picture`) or the room tabs' column kinds (`drpg-col-check`, `-student`, `-select`, `-text`, `-step`, `-place`, `-prose`, `-picture`), nor the text field of `.drpg-room-setup-table`, and since E46-C2b none the Passages tab's (`.drpg-room-setup-table` itself, `drpg-passage-table`, `drpg-passage-chips`, `drpg-passage-chip-x`, its column kinds `drpg-col-room`, `-kind`, `-shape`, `-origin`, `-knows`, `-knows-start`, `-state`, `-actions`) or the Scenes tab's cast list (`drpg-cast-list`); their rules are components.css's section \"Room setup\"", async () => {
+        /*
+         * E46-C2a. Read on each sheet's text, comments blanked, by rule (tools/css-lint.mjs's reading: a selector before
+         * its `{`). Red first on C1's tree: 22 rules (danganronpa.css; the other two none). Passages' column kinds and
+         * `.drpg-room-setup-table` itself stay until E46-C2b puts the Passages tab on the kit; `.drpg-stash-group` is the
+         * sheet's (sheet.mjs), not this window's. E46-C2b: the Passages tab's ten (the table's own, its eight column kinds,
+         * its room cell's wrapping), its table's cell rule and its chips' and cross's, red on f90e89a7 (danganronpa.css 13 rules).
+         */
+        const OLD = /\.(drpg-token-step|drpg-token-cell|drpg-student-head|drpg-stash-(?:cell|bedroom|toggle|lock|none|legend|swatch)|drpg-room-picture|drpg-col-(?:check|student|select|text|step|place|prose|picture|room|kind|shape|origin|knows|knows-start|state|actions)|drpg-room-setup-table|drpg-passage-table|drpg-passage-chips|drpg-passage-chip-x|drpg-cast-list)(?![\w-])/;
+        const read = {};
+        let rules = 0;
+        for (const file of ["styles/danganronpa.css", "styles/stained-glass.css", "styles/narrow.css", "styles/components.css"]) {
+            const text = (await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+            const selectors = [...text.matchAll(/([^{};]+)\{/g)].map(m => m[1].trim()).filter(sel => sel && !sel.startsWith("@"));
+            rules += selectors.length;
+            read[file] = selectors.filter(sel => OLD.test(sel)).length;
+        }
+        must(rules > 1000, `${rules} rule(s) read - this would measure too little`);
+        const moved = read["styles/components.css"];
+        delete read["styles/components.css"];
+        equal(JSON.stringify(read), JSON.stringify({ "styles/danganronpa.css": 0, "styles/stained-glass.css": 0, "styles/narrow.css": 0 }),
+            "{each base sheet: its rules naming one of Room setup's room tabs' old classes}");
+        ok(moved >= 10, `components.css's section names ${moved} rule(s) of the old classes (the Stashes matrix's, the counter's, the picture's)`);
+    }],
+
+    ["R2034 - no en dash in season-setup.mjs, as a character or as an escape (E46-C5b; the house's dash is \"-\")", async () => {
+        /*
+         * E46-C5b, 09.11.2026. `setupRows` marked an optional row with the escape of U+2013 (c1046f5e, its line 924), and a
+         * comment above the rooms row quoted the character itself (462): the dash rule of CLAUDE.md, and the kit's checkList
+         * draws an optional row's mark ("-", ui-kit.mjs `CHECK_MARKS`). Read in the file's whole text, comments included.
+         * Red first on c1046f5e: lines 462 and 924.
+         */
+        const raw = await fetch(`/modules/${MODULE_ID}/scripts/season-setup.mjs`).then(lfText);
+        must(raw.includes("export function setupRows("), "season-setup.mjs was not read - this would measure nothing");
+        const dash = String.fromCharCode(0x2013);
+        const escape = new RegExp(["\\\\u2013", "\\\\u\\{2013\\}", "\\\\x96", "&ndash;", "&#8211;", "&#x2013;"].join("|"), "i");
+        const lines = raw.split("\n").map((line, i) => [i + 1, line]).filter(([, line]) => line.includes(dash) || escape.test(line)).map(([n]) => n);
+        equal(JSON.stringify(lines), "[]", "season-setup.mjs's lines with an en dash, as a character or an escape");
+    }],
+
+    /* ---- E47 C1 (09.11.2026) ---- */
+
+    ["R2054 - the slots E70 and E73 fill (E47 C1; E47-04, S18-89): trial-floor-ui.mjs `trialSignature` reads no mode and reads the floor's family (R1026 kept), the GM's bar (`trialBar`) is drawn inside the console's live region (`.drpg-trial-console`) and never in its footer (`trialButtons`, `trialFooter`, `consoleFooter`); and the window sites of the console, the vote and the verdict that E21 homed in E47 are on the kit's boxes (`box(\"warning\")`, `box(\"info\")`), no `drpg-warning` left in them", async () => {
+        /*
+         * E47 C1, 09.11.2026. The bar's buttons are the ones that depend on the floor's mode (E70 C1); in the live region
+         * they follow every second, in the footer they would move with the mode and bring the reopening back. Read in the
+         * sources, comments blanked. The reader is shown the bar planted in a footer first (mutant m5: red). The sites
+         * (STAGE "The carried warning sites"): their kinds by E21's list, read per function; verdict.mjs
+         * `verdictSummaryContent` is a whisper to the GMs (a chat card, where no kit box is styled), so it stays.
+         * Green on f7266b28 for the bar (E70 C1); red there for the sites: 18 `drpg-warning` in these functions.
+         */
+        const read = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        const ui = await read("trial-floor-ui.mjs"), verdict = await read("verdict.mjs"), vote = await read("vote.mjs");
+        const BAR = /trialBar\(|data-drpg-bar|action: "(?:skip|minus|plus|overrule|endMode|back|repoint)"/;
+        const barOf = src => {
+            const consoleHtml = fnSource(src, "trialConsoleHtml"), sig = fnSource(src, "trialSignature");
+            const footer = ["trialButtons", "trialFooter", "consoleFooter"].map(fn => fnSource(src, fn));
+            return {
+                cut: consoleHtml.length > 1000 && footer.every(f => f.length > 50) && sig.length > 50,
+                signature: !/\.mode\b|\brestrictive\b|FLOOR_MODES/.test(sig) && /\bfloorFamily\(floor\)/.test(sig),
+                live: /return `<div class="drpg-trial-console">[^]*\$\{trialBar\(view\)\}[^]*<\/div>`;\s*\}\s*$/.test(consoleHtml)
+                    && /region: "\.drpg-trial-console"/.test(fnSource(src, "manageClassTrial")),
+                footer: footer.every(f => !BAR.test(f))
+            };
+        };
+        const all = { cut: true, signature: true, live: true, footer: true };
+        const m5 = ui.replace("function trialFooter(state) {", "function trialFooter(state) {\n    const bar = trialBar(state);");
+        must(m5 !== ui, "the mutant m5 was not planted - trialFooter not found");
+        equal(JSON.stringify(barOf(m5)), JSON.stringify({ ...all, footer: false }), "the control: the bar planted in the footer (mutant m5) is not read as moved");
+        equal(JSON.stringify(barOf(ui)), JSON.stringify(all), "{cut: the functions read; signature: no mode, the family; live: the bar in the live region; footer: no bar in the footer}");
+        const sites = {
+            "trial-floor-ui.mjs:endClassTrial": [ui, "endClassTrial", 1, 1], "trial-floor-ui.mjs:confirmReveal": [ui, "confirmReveal", 1, 0],
+            "trial-floor-ui.mjs:trialConsoleHtml": [ui, "trialConsoleHtml", 2, 3], "trial-floor-ui.mjs:openVoteDialog": [ui, "openVoteDialog", 2, 2],
+            "verdict.mjs:openVerdictDialog": [verdict, "openVerdictDialog", 3, 0], "verdict.mjs:askBlackenedRule": [verdict, "askBlackenedRule", 1, 0],
+            "verdict.mjs:openFinalVerdictDialog": [verdict, "openFinalVerdictDialog", 0, 1], "vote.mjs:castBallot": [vote, "castBallot", 0, 1]
+        };
+        const count = (text, re) => (text.match(re) ?? []).length;
+        const got = {}, want = {};
+        for (const [name, [src, fn, w, i]] of Object.entries(sites)) {
+            const body = fnSource(src, fn);
+            got[name] = body.length > 200 ? [count(body, /box\("warning",/g), count(body, /box\("info",/g), count(body, /drpg-warning/g)] : "not read";
+            want[name] = [w, i, 0];
+        }
+        equal(JSON.stringify(got), JSON.stringify(want), "{file:function: [warning boxes, info boxes, drpg-warning left]}");
+    }],
+
+    ["R2059 - the murder windows' words by the guide (lang/en.json, lang/pl.json; E47-C2, E47-07; audit S13-38): the trap's box says what the doubled drain is, the trap's budget asks no guess of what it costs, End the murder's question says what stays, no tracker line names a button the window does not have, the GM's after-murder count of Key Remnants keeps its Polish few and many, and the tracker's new words stand in both files", async () => {
+        /*
+         * E47-C2, 09.11.2026. S13-38 read the murder windows' jargon: "the drain is doubled" said beside a checkbox to a GM
+         * who had not met the word, the trap's budget ended "or it costs more to set than it is worth" (a rationale, X2),
+         * End the murder asked "The incident state is cleared." (what the module does, not what the table keeps), and the
+         * tracker's cast warning and the clean-up's Sanity line named "Close the murder" - the button is End the murder
+         * since E22 C3b. Read in both files: each old phrase absent, each key present, the Polish count family whole. Red
+         * on f7266b28: every old phrase present, the new keys missing.
+         */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const at = (tree, key) => key.split(".").reduce((node, k) => node?.[k], tree);
+        const OLD = [
+            ["en", "DRPG.Murder.indirect", "the drain is doubled"], ["pl", "DRPG.Murder.indirect", "drenaż jest podwojony"],
+            ["en", "DRPG.Murder.indirectCost", "costs more to set than it is worth"], ["pl", "DRPG.Murder.indirectCost", "kosztuje więcej, niż jest warta"],
+            ["en", "DRPG.Murder.endConfirm", "The incident state is cleared"], ["pl", "DRPG.Murder.endConfirm", "Stan incydentu zostaje wyczyszczony"],
+            ["en", "DRPG.Murder.trackerCastGone", "Close the murder"], ["pl", "DRPG.Murder.trackerCastGone", "Zamknij morderstwo"],
+            ["en", "DRPG.Cleanup.gmAttemptsLeft.other", "close the murder"], ["pl", "DRPG.Cleanup.gmAttemptsLeft.other", "zamkniesz morderstwo"]
+        ];
+        const NEW = ["DRPG.Murder.trackerOpenMurder", "DRPG.Murder.fact.who", "DRPG.Murder.fact.left", "DRPG.Murder.fact.case"];
+        const files = { en, pl };
+        const old = OLD.filter(([lang, key, phrase]) => typeof at(files[lang], key) !== "string" || at(files[lang], key).includes(phrase))
+            .map(([lang, key]) => `${lang} ${key}`);
+        const missing = NEW.flatMap(key => ["en", "pl"].filter(lang => typeof at(files[lang], key) !== "string" || !at(files[lang], key).trim()).map(lang => `${lang} ${key}`));
+        const family = Object.keys(at(pl, "DRPG.Murder.afterKeys") ?? {}).sort();
+        const budget = [at(en, "DRPG.Murder.indirectCost"), at(pl, "DRPG.Murder.indirectCost")].map(t => ["{low}", "{high}", "{fewest}", "{actions}"].every(p => String(t).includes(p)));
+        equal(JSON.stringify({ old, missing, family, budget }), JSON.stringify({ old: [], missing: [], family: ["few", "many", "one", "other"], budget: [true, true] }),
+            "{old: a phrase S13-38 read still in its key; missing: the tracker's new words; family: Polish afterKeys; budget: the trap's budget keeps its four numbers}");
+    }],
+
+    ["R2077 - the project windows keep their content and order (E47-C6; E47-17, D31; cards M16-M19 of the E47-M mockup round, the owner's answers of 09.11.2026): drawn with every word the marker of its key, each window's label keys, its fields' names and its footer's actions in the approved card's order - Create a project, Edit project and Propose a project as they were (the grid moves nothing; the proposal's request field a line across the form), the manager as it was but for the owner's moves: the head's group label first (O1a, dataTable `headGroups`), Edit and Delete before the players (O2b), a group row per room (O3b), Delete a button where its box was read at Save (M16's note), and the kit's scroll note", async () => {
+        /*
+         * E47-C6. D31 (content and order unchanged) for the four windows the owner approved on E47-M's cards: what
+         * E47-M's mockup-check read on the pictures (keys 1:1, order: same), read here on the module's own windows, with
+         * DialogV2.wait stood in for (it answers null: nothing is created, nothing written) and game.i18n answering each
+         * key's marker. Consecutive repeats are one (an option list, a tick per player). The world's players and projects
+         * do not enter: the manager's body is drawn from two projects and two players made up here
+         * (`projectManagerBody`), the edit window from a project made up here, the proposal for a character standing where
+         * it offers no preset (a preset's rows, where the world offers one, are taken out before the compare). Red on
+         * f4a5083a: no `projectManagerBody` (the manager drew only from the world, and with no project there opened Create).
+         */
+        const UI = await import("./projects-ui.mjs");
+        const AP = await import("./action-project.mjs");
+        must(typeof UI.projectManagerBody === "function", "projects-ui.mjs has no projectManagerBody - the manager's body cannot be drawn here, so its order would not be read");
+        const actor = studentActors()[0] ?? null;
+        must(actor, "no student to draw the proposal for - its order would not be read");
+        const I = game.i18n, own = { localize: I.localize, format: I.format };
+        const D = foundry.applications.api.DialogV2, ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const runs = (list, i) => list.filter((k, n) => k !== list[n - 1]);
+        const read = (html, buttons = []) => ({
+            keys: runs([...String(html).matchAll(/\[\[k:([^\]]+)\]\]/g)].map(m => m[1])),
+            fields: runs([...String(html).matchAll(/ name="([^"]+)"/g)].map(m => m[1].replace(/\.R2077[A-Z0-9]+$/, ".<id>"))),
+            footer: buttons.map(b => b.action)
+        });
+        const got = {};
+        let seen = null;
+        try {
+            I.localize = key => `[[k:${key}]]`;
+            I.format = key => `[[k:${key}]]`;
+            D.wait = async cfg => { seen = cfg; return null; };
+            const drawn = () => read(typeof seen?.content === "string" ? seen.content : seen?.content?.outerHTML ?? "", seen?.buttons ?? []);
+            const projects = ["R2077PROJECTA", "R2077PROJECTB"].map((id, n) => ({ id, name: `R2077 project ${n}`, current: n, start: 4, img: "" }));
+            got.manager = read(UI.projectManagerBody(projects, ["R2077 Room"], { players: [{ id: "R2077U1", name: "R2077 one" }, { id: "R2077U2", name: "R2077 two" }] }));
+            seen = null;
+            await UI.openProjectDialog({ rooms: ["R2077 Room"] });
+            got.create = drawn();
+            seen = null;
+            await UI.openProjectDialog({ project: { id: "R2077EDITED", name: "R2077 edited", current: 1, start: 4, img: "" }, rooms: ["R2077 Room"] });
+            got.edit = drawn();
+            seen = null;
+            await AP.startProject(actor);
+            got.propose = drawn();
+        } finally {
+            Object.assign(I, own);
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+        }
+        // A preset's rows (the world's walls and items, not the window's order) out of the proposal before the compare.
+        const PRESET = /^DRPG\.Project\.(kind|kindOwn|preset\.|passageTo|passageNote|breachNote|sealWhich|sealNote|unbreachWhich|unbreachNote|repairWhich|repairNote|repairOption)/;
+        got.propose.keys = got.propose.keys.filter(k => !PRESET.test(k));
+        got.propose.fields = got.propose.fields.filter(f => !["preset", "to", "seal", "unbreach", "mend"].includes(f));
+        const want = {
+            manager: {
+                keys: ["DRPG.Project.manageIntro", "DRPG.Project.visibleTo", "DRPG.Project.title", "DRPG.Project.room", "DRPG.Project.indirect", "DRPG.Project.secret", "DRPG.Project.edit", "DRPG.Project.delete", "DRPG.Project.anyRoom", "DRPG.Project.changeImage", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.indirect", "DRPG.Project.secret", "DRPG.Project.editTitle", "DRPG.Project.delete", "DRPG.Project.everyone", "DRPG.Project.changeImage", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.indirect", "DRPG.Project.secret", "DRPG.Project.editTitle", "DRPG.Project.delete", "DRPG.Project.everyone", "DRPG.Kit.scrollMore", "DRPG.Project.secretNote", "DRPG.Project.deleteNote"],
+                fields: ["img.<id>", "room.<id>", "murder.<id>", "secret.<id>", "viewers.<id>", "img.<id>", "room.<id>", "murder.<id>", "secret.<id>", "viewers.<id>"],
+                footer: []
+            },
+            create: {
+                keys: ["DRPG.Project.changeImage", "DRPG.Project.name", "DRPG.Project.namePlaceholder", "DRPG.Project.description", "DRPG.Project.descriptionPlaceholder", "DRPG.Project.descriptionNote", "DRPG.Project.glyphLabel", "DRPG.Project.glyphDefault", "DRPG.Project.glyph.checklist", "DRPG.Project.glyph.gear", "DRPG.Project.glyph.tamper", "DRPG.Project.glyph.broom", "DRPG.Project.glyph.wand", "DRPG.Project.glyph.key", "DRPG.Project.glyph.lock", "DRPG.Project.glyph.door", "DRPG.Project.glyph.box", "DRPG.Project.glyph.gift", "DRPG.Project.glyph.envelope", "DRPG.Project.glyph.note", "DRPG.Project.glyph.calendar", "DRPG.Project.glyph.table", "DRPG.Project.glyph.scale", "DRPG.Project.glyph.barrier", "DRPG.Project.glyph.chain", "DRPG.Project.glyph.bug", "DRPG.Project.glyph.brain", "DRPG.Project.glyph.murder", "DRPG.Project.glyphNote", "DRPG.Project.scale", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.trait", "DRPG.Project.pickTrait", "DRPG.Project.indirect", "DRPG.Trap.watchFor", "DRPG.Trap.trigger.alone", "DRPG.Trap.trigger.enters", "DRPG.Trap.trigger.search", "DRPG.Trap.trigger.rest", "DRPG.Trap.trigger.item", "DRPG.Trap.trigger.project", "DRPG.Trap.trigger.sabotage", "DRPG.Trap.trigger.stash", "DRPG.Trap.trigger.passage", "DRPG.Trap.trigger.manual", "DRPG.Trap.watchNote", "DRPG.Trap.whichProject", "DRPG.Trap.noProject", "DRPG.Trap.afterDark", "DRPG.Trap.notBuilder", "DRPG.Project.condition", "DRPG.Project.conditionPlaceholder", "DRPG.Project.conditionNote", "DRPG.Project.secret", "DRPG.Project.visibleTo", "DRPG.Project.visibleToNote", "DRPG.Project.createNote"],
+                fields: ["img", "name", "description", "glyph", "target", "room", "trait", "murder", "trigger", "triggerTarget", "afterDark", "notBuilder", "condition", "secret", "viewers"],
+                footer: ["save", "cancel"]
+            },
+            edit: {
+                keys: ["DRPG.Project.changeImage", "DRPG.Project.name", "DRPG.Project.namePlaceholder", "DRPG.Project.description", "DRPG.Project.descriptionPlaceholder", "DRPG.Project.descriptionNote", "DRPG.Project.glyphLabel", "DRPG.Project.glyphDefault", "DRPG.Project.glyph.checklist", "DRPG.Project.glyph.gear", "DRPG.Project.glyph.tamper", "DRPG.Project.glyph.broom", "DRPG.Project.glyph.wand", "DRPG.Project.glyph.key", "DRPG.Project.glyph.lock", "DRPG.Project.glyph.door", "DRPG.Project.glyph.box", "DRPG.Project.glyph.gift", "DRPG.Project.glyph.envelope", "DRPG.Project.glyph.note", "DRPG.Project.glyph.calendar", "DRPG.Project.glyph.table", "DRPG.Project.glyph.scale", "DRPG.Project.glyph.barrier", "DRPG.Project.glyph.chain", "DRPG.Project.glyph.bug", "DRPG.Project.glyph.brain", "DRPG.Project.glyph.murder", "DRPG.Project.glyphNote", "DRPG.Project.scale", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.trait", "DRPG.Project.pickTrait", "DRPG.Project.indirect", "DRPG.Trap.watchFor", "DRPG.Trap.trigger.alone", "DRPG.Trap.trigger.enters", "DRPG.Trap.trigger.search", "DRPG.Trap.trigger.rest", "DRPG.Trap.trigger.item", "DRPG.Trap.trigger.project", "DRPG.Trap.trigger.sabotage", "DRPG.Trap.trigger.stash", "DRPG.Trap.trigger.passage", "DRPG.Trap.trigger.manual", "DRPG.Trap.watchNote", "DRPG.Trap.whichProject", "DRPG.Trap.noProject", "DRPG.Trap.afterDark", "DRPG.Trap.notBuilder", "DRPG.Project.condition", "DRPG.Project.conditionPlaceholder", "DRPG.Project.conditionNote", "DRPG.Project.secret", "DRPG.Project.visibleTo", "DRPG.Project.everyone", "DRPG.Project.editProgressNote", "DRPG.Project.createNote"],
+                fields: ["img", "name", "description", "glyph", "target", "room", "trait", "murder", "trigger", "triggerTarget", "afterDark", "notBuilder", "condition", "secret", "viewers"],
+                footer: ["save", "cancel", "delete"]
+            },
+            propose: {
+                keys: ["DRPG.Project.agreedWarning", "DRPG.Project.name", "DRPG.Project.namePlaceholder", "DRPG.Project.description", "DRPG.Project.descriptionPlaceholder", "DRPG.Project.descriptionNote", "DRPG.Project.scale", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.trait", "DRPG.Project.pickTrait", "DRPG.Project.indirectMine", "DRPG.Project.condition", "DRPG.Project.conditionPlaceholder", "DRPG.Project.conditionNote", "DRPG.Project.proposalPrompt", "DRPG.Project.proposalPlaceholder", "DRPG.Project.startNote"],
+                fields: ["name", "description", "target", "room", "trait", "murder", "condition", "request"],
+                footer: ["create", "cancel"]
+            }
+        };
+        equal(JSON.stringify(got), JSON.stringify(want), "{each window: its label keys in order, its fields' names in order, its footer's actions}");
+    }],
+
+    ["R2070 - styleSnapshot's rows for every new surface of E47 (scripts/style-snapshot.mjs; E47-C5, audit S17-43, A8, A9): each with its page and its selector, the kit's E46 parts and the GM panel's tiles among them", async () => {
+        /*
+         * E47-C5, 09.11.2026; audit S17-43 ("every new surface ... in styleSnapshot"), the 11.10 amends A8 and A9, and
+         * E46-C1's, E46-C1f's and E47-C3's Open items (the kit gallery's new parts, the GM panel's tiles). STYLE_SURFACES
+         * held 61 rows and none of these. Read: every row named here, in this order, with its role and selector. Red on
+         * fe685fa2: none of them.
+         */
+        const { STYLE_SURFACES } = await import("./style-snapshot.mjs");
+        const want = [
+            ["kit-table-group", "both", "table.drpg-data-table tr.drpg-data-group > th"], ["kit-table-head-group", "both", "table.drpg-data-table tr.drpg-data-head-group > th"],
+            ["kit-table-clamp", "both", "table.drpg-data-table .drpg-data-clamp"], ["kit-stepper-compact", "both", ".drpg-kit-stepper.drpg-kit-stepper-compact"],
+            ["kit-check-row", "both", "ul.drpg-checklist > li.drpg-check-row"], ["kit-check-mark", "both", "li.drpg-check-row > .drpg-check-mark"],
+            ["kit-icon-button", "both", ".drpg-kit-icon-button:not(:disabled)"], ["kit-disabled", "both", ".drpg-kit-footer button:disabled"],
+            ["gmp-section", "gm", ".drpg-gmp-section > summary"], ["gmp-tile", "gm", ".drpg-gmp-button:not(:disabled):not(.is-current)"],
+            ["gmp-tile-current", "gm", ".drpg-gmp-button.is-current"], ["gmp-tile-disabled", "gm", ".drpg-gmp-button:disabled"],
+            ["floor-switcher", "both", "#drpg-floors"], ["floor-button", "both", "#drpg-floors > button:not([aria-pressed=\"true\"])"],
+            ["floor-button-current", "both", "#drpg-floors > button[aria-pressed=\"true\"]"], ["roll-status", "both", ".drpg-box[data-drpg-roll-state]"],
+            ["away-card", "gm", ".drpg-away-card"], ["away-grant", "gm", ".drpg-away-actions > [data-drpg-away=\"grant\"]"],
+            ["away-none", "gm", ".drpg-away-actions > [data-drpg-away=\"none\"]"], ["audit-card", "gm", ".drpg-audit-card:not(.drpg-audit-away)"],
+            ["audit-undo", "gm", ".drpg-audit-actions > [data-drpg-audit=\"undo\"]"], ["audit-keep", "gm", ".drpg-audit-actions > [data-drpg-audit=\"keep\"]"],
+            ["audit-away-card", "gm", ".drpg-audit-card.drpg-audit-away"], ["audit-undo-all", "gm", ".drpg-audit-all > [data-drpg-audit-all=\"undo\"]"],
+            ["audit-accept-all", "gm", ".drpg-audit-all > [data-drpg-audit-all=\"keep\"]"], ["give-back-window", "gm", ".application.drpg-window-give-back"],
+            ["give-back-list", "gm", ".drpg-give-back-list"], ["give-back-state", "gm", ".drpg-give-back-state > .drpg-box"],
+            ["settings-module-row", "both", "#settings-config .form-group.drpg-settings-row"], ["settings-module-label", "both", "#settings-config .form-group.drpg-settings-row > label"],
+            ["settings-module-checkbox", "both", "#settings-config .drpg-settings-row input[type=\"checkbox\"]"], ["settings-module-range", "both", "#settings-config .drpg-settings-row input[type=\"range\"]"],
+            ["case-window", "gm", ".application.drpg-window-case-copy"], ["refund-button", "gm", "button[data-drpg-refund]"],
+            ["room-tile-open", "both", "#drpg-room-tile.is-open"], ["room-tile-open-prose", "both", "#drpg-room-tile.is-open > .drpg-room-tile-prose"],
+            ["room-window", "both", ".application.drpg-window-room"], ["room-window-body", "both", ".drpg-room-window-body"],
+            ["foundry-tools-frame", "gm", "#drpg-win-ftools"], ["map-tools-frame", "both", "#drpg-win-maptools"],
+            ["foundry-frame-themed", "both", ".drpg-foundry-window.themed"], ["voice-list", "both", "#drpg-voice-list"], ["voice-fieldset", "both", "fieldset.drpg-voice-panel"]
+        ];
+        const ids = new Set(want.map(([id]) => id));
+        const got = STYLE_SURFACES.filter(s => ids.has(s.id)).map(s => [s.id, s.role, s.selector]);
+        equal(JSON.stringify(got), JSON.stringify(want), "{the new rows in STYLE_SURFACES, in order: [id, role, selector]}");
+        const bad = want.filter(([, , selector]) => { try { document.querySelector(selector); return false; } catch { return true; } }).map(([id]) => id);
+        equal(JSON.stringify([STYLE_SURFACES.length, new Set(STYLE_SURFACES.map(s => s.id)).size, bad]), JSON.stringify([61 + want.length, 61 + want.length, []]),
+            "[rows, distinct ids, the new selectors a browser refuses]");
+    }],
+    ["R2071 - the floor test's list holds the new surfaces (scripts/style-snapshot.mjs FLOOR_SURFACES, tier 1 \"nothing in the chrome is set under the floor\"; E47-C5, A8, A9)", async () => {
+        /*
+         * E47-C5, 09.11.2026; the 11.10 amends A8 and A9 ("... join styleSnapshot and the floor test"). The floor test read
+         * the HUD, the pools, the player's status, the events, the countdowns, the module's windows and its planted sheet.
+         * Read: style-snapshot.mjs's FLOOR_SURFACES (the rows marked `floor`), and that the floor test's host list takes
+         * their selectors, each host read with its own words. Red on fe685fa2: no FLOOR_SURFACES, a list of seven hosts.
+         */
+        const M = await import("./style-snapshot.mjs");
+        equal(JSON.stringify(M.FLOOR_SURFACES ?? null), JSON.stringify(["floor-switcher", "roll-status", "away-card", "audit-card", "audit-away-card", "give-back-window",
+            "settings-module-row", "case-window", "refund-button", "room-tile-open", "room-window", "foundry-tools-frame", "map-tools-frame", "voice-list", "voice-fieldset"]),
+            "the floor test's surfaces (FLOOR_SURFACES)");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/tests-tier1.mjs`).then(lfText));
+        const body = src.match(/\["nothing in the chrome is set under the floor"[^]*?\n    \}\],/)?.[0] ?? "";
+        equal(JSON.stringify([body.length > 1000, /FLOOR_SURFACES\.includes\(s\.id\)\)\.map\(s => s\.selector\)/.test(body),
+            /"\.drpg-floor-sheet", \.\.\.added\]/.test(body), /added\.includes\(sel\) \? \[host, \.\.\.host\.querySelectorAll\("\*"\)\]/.test(body)]),
+            JSON.stringify([true, true, true, true]), "[the floor test read, its list takes FLOOR_SURFACES' selectors, after its own hosts, each new host read itself too]");
+    }],
+    ["R2072 - one roll status builder (scripts/roll-draw.mjs `rollStatus`; E47-C5, audit S17-43): a kit box of the state's kind with its state, used by every place that says a roll's state; the unwitnessed state drawn on a GM's card", async () => {
+        /*
+         * E47-C5, 09.11.2026; audit S17-43 ("one roll status component"). Each place wrote its own line: a `p.drpg-warning`
+         * for the build not drawn here and for the unwitnessed line, a bare list line on the GMs' card of rolls made with no
+         * GM, a toast for an action's roll that waits for a GM. Read: ROLL_STATES; `rollStatus` for each state (the box's
+         * kind, its `data-drpg-roll-state`, its words escaped) on this GM's browser - the unwitnessed state among them, which
+         * the mutant m10 (nothing drawn for it on a GM's card) turns red -; an unknown state refused; and the places, by
+         * source: `announceRollDraw`, `drawOrThrow` (the toast, `sayRollStatus`), `askAboutUnwitnessed` (each line by
+         * `awayState`), `onRenderUnwitnessed`, with no `drpg-warning` left in them. Red on fe685fa2: no rollStatus.
+         */
+        const D = await import("./roll-draw.mjs");
+        must(typeof D.rollStatus === "function" && D.ROLL_STATES, "roll-draw.mjs has no rollStatus");
+        must(game.user.isGM, "the suite is a GM's browser - the GM's card would measure nothing");
+        const drawn = {};
+        for (const state of Object.keys(D.ROLL_STATES)) {
+            const host = document.createElement("div");
+            host.innerHTML = D.rollStatus(state, "a <b> & c");
+            const el = host.firstElementChild;
+            drawn[state] = [host.children.length, el?.className ?? null, el?.dataset.drpgBox ?? null, el?.dataset.drpgRollState ?? null, el?.textContent ?? null, Boolean(D.ROLL_STATES[state].toast)];
+        }
+        const box = (kind, state, toast = false) => [1, "drpg-box", kind, state, "a <b> & c", toast];
+        equal(JSON.stringify(drawn), JSON.stringify({ notDrawn: box("warning", "notDrawn"), waitsForGm: box("warning", "waitsForGm", true), unwitnessed: box("warning", "unwitnessed"),
+            awayNothing: box("info", "awayNothing"), awayHope: box("info", "awayHope"), awayDespair: box("info", "awayDespair") }),
+            "{each state: [elements, class, the box's kind, its state, its words, said in a toast]}");
+        let refused = null;
+        try { D.rollStatus("noSuchState", "x"); } catch (err) { refused = err.message; }
+        ok(/no roll state "noSuchState"/.test(refused ?? ""), `an unknown state was not refused (${refused})`);
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/roll-draw.mjs`).then(lfText));
+        const places = { announceRollDraw: /rollStatus\("notDrawn", /, drawOrThrow: /sayRollStatus\("waitsForGm", /, askAboutUnwitnessed: /rollStatus\(awayState\(row\), /,
+            onRenderUnwitnessed: /rollStatus\("unwitnessed", /, awayState: /"awayNothing"[^]*"awayDespair"[^]*"awayHope"/ };
+        const got = Object.fromEntries(Object.entries(places).map(([fn, re]) => {
+            const body = fnSource(src, fn);
+            return [fn, body.length > 40 ? [re.test(body), (body.match(/drpg-warning/g) ?? []).length] : "not read"];
+        }));
+        equal(JSON.stringify(got), JSON.stringify(Object.fromEntries(Object.keys(places).map(fn => [fn, [true, 0]]))), "{each place: [it says the state through the builder, drpg-warning left]}");
+    }],
+    /* ---- E46 C6 (09.11.2026) ---- */
+
+    ["R2035 - the warning sites E21 homed are in their final state for E46 and E47 (E46-C6, E47-C7; E46-20, E47-18; STAGE E46 \"The carried warning sites\", E21 STATUS fix G2 item 10): each function of E46's and E47's windows draws its warnings with box(\"warning\") and its information lines with box(\"info\") and keeps no drpg-warning; each whispered chat card E47-C5's surfaces did not take keeps its drpg-warning, carried to E48, as do Item tables' install receipt and the verdict's summary; the window sites no E47 group took are named, left open", async () => {
+        /*
+         * E46-C6, 09.11.2026; the E47 rows E47-C7, 09.11.2026. E21's list (fix G2 item 10) homed 112 `drpg-warning` sites
+         * by window at 3c952c67 (W 87, I 25): E46's windows 19, E47's windows 36, the whispered chat cards 57 (46 W, 11 I).
+         * A row: file, function, stage, then [warning boxes, info boxes, drpg-warning] as the tree draws them - counted in
+         * the function's source with comments blanked: `box("warning", ` and gm-items.mjs's `kindNote("...")` (one such
+         * box, its own row) as warnings, `box("info", ` as information. Stage E46 and E47: the window's group converted
+         * them, no `drpg-warning` left (room-setup.mjs's second info box is the room count's line, E21 C5, R1373; the case's
+         * health is a checkList since E47-C3, so no box). Stage E48: a chat card - a whisper to the GMs or a card the table
+         * reads - which no E46 or E47 group rebuilt (E47-C5 took four: sheet-audit.mjs `awayCard` and `flaggedCard`,
+         * roll-draw.mjs `announceRollDraw` and `onRenderUnwitnessed`, now `rollStatus`), its sites counted as they stand
+         * and carried to the stage that rebuilds its card; Item tables' install receipt (E46-C6 Open 1) and the verdict's
+         * summary (E47-C1 Open 2) are such whispers. migrate.mjs's site stands in its `CLAUSES` table, read as the whole
+         * file ("*"). Stage "open": a site of a window E21 homed in E47 that no E47 group rebuilt, named in E47-C7's STATUS
+         * Open for the orchestrator. Red first: on db40a379 chapter.mjs `chapterEndForm` [0,0,3], `askStoppedEnd` [0,0,1],
+         * season-wipe.mjs `resetSeason` [0,0,2]; the E47 and E48 rows on 9aafad79 by two planted mutants (the panel's
+         * warning box drawn as info: [0,1,0]; installTables' class renamed: [0,0,0]). The
+         * windows' look at a table: LIVE-E46-07, LIVE-E47-10.
+         */
+        const SITES = [
+            ["chapter.mjs", "chapterEndForm", "E46", 3, 0, 0], ["chapter.mjs", "askStoppedEnd", "E46", 1, 0, 0],
+            ["gm-items.mjs", "giveExistingPane", "E46", 2, 0, 0], ["gm-items.mjs", "giveCreatePane", "E46", 1, 0, 0], ["gm-items.mjs", "kindNote", "E46", 1, 0, 0],
+            ["gm-team-dialog.mjs", "wireMonokumaLive", "E46", 1, 0, 0], ["room-setup.mjs", "roomSetupContent", "E46", 2, 2, 0],
+            ["season-wipe.mjs", "resetSeason", "E46", 2, 0, 0], ["tables-editor.mjs", "wireNewItemForm", "E46", 2, 0, 0],
+            ["gm-panel.mjs", "buildPanelContent", "E47", 1, 0, 0], ["gm-stores.mjs", "backupCase", "E47", 1, 0, 0], ["gm-stores.mjs", "runHealthCheck", "E47", 0, 0, 0],
+            ["investigation.mjs", "caseKeyPanel", "E47", 2, 0, 0], ["murder-ui.mjs", "openMurderDialog", "E47", 2, 1, 0], ["murder-ui.mjs", "incidentTrackerHtml", "E47", 1, 0, 0],
+            ["projects-ui.mjs", "guardDescription", "E47", 1, 0, 0], ["projects-ui.mjs", "ownedFieldset", "E47", 1, 0, 0], ["projects-ui.mjs", "passageFieldset", "E47", 1, 0, 0],
+            ["trial-floor-ui.mjs", "endClassTrial", "E47", 1, 1, 0], ["trial-floor-ui.mjs", "confirmReveal", "E47", 1, 0, 0],
+            ["trial-floor-ui.mjs", "trialConsoleHtml", "E47", 2, 3, 0], ["trial-floor-ui.mjs", "openVoteDialog", "E47", 2, 2, 0],
+            ["verdict.mjs", "openVerdictDialog", "E47", 3, 0, 0], ["verdict.mjs", "askBlackenedRule", "E47", 1, 0, 0], ["verdict.mjs", "openFinalVerdictDialog", "E47", 0, 1, 0],
+            ["vote.mjs", "castBallot", "E47", 0, 1, 0],
+            ["action-project.mjs", "startProject", "open", 1, 0, 1], ["call-pickers.mjs", "callHeader", "open", 0, 0, 1],
+            ["mastermind.mjs", "openMastermindDialog", "open", 0, 0, 1], ["reroll.mjs", "settleGmRuling", "open", 0, 0, 1],
+            ["roll-dialog.mjs", "announceFreeCritical", "open", 0, 0, 1], ["trial.mjs", "pickObjectionEvidence", "open", 0, 0, 1],
+            ["use-items.mjs", "confirmUse", "open", 0, 0, 1],
+            ["tables-editor.mjs", "installTables", "E48", 0, 0, 1], ["verdict.mjs", "verdictSummaryContent", "E48", 0, 0, 1],
+            ["analyze.mjs", "tellGmsKeyMissing", "E48", 0, 0, 1], ["anonymity.mjs", "lowerOwnership", "E48", 0, 0, 1],
+            ["bridge-runs-acts.mjs", "handleAdvancement", "E48", 0, 0, 1], ["call-effects.mjs", "tell", "E48", 0, 0, 1], ["call-gm.mjs", "callCardHtml", "E48", 0, 0, 1],
+            ["chapter.mjs", "runDiscovery", "E48", 0, 0, 1], ["chapter.mjs", "endChapterNow", "E48", 0, 0, 1], ["chapter.mjs", "runChapterEnd", "E48", 0, 0, 1],
+            ["chapter.mjs", "finishEndNow", "E48", 0, 0, 1], ["cleanup.mjs", "reshapeCardParts", "E48", 0, 0, 1], ["cleanup.mjs", "proposeReshape", "E48", 0, 0, 1],
+            ["cleanup.mjs", "undoLastCleanup", "E48", 0, 0, 2], ["cleanup.mjs", "paidBack", "E48", 0, 0, 1], ["eclipse.mjs", "ruleOnParkedMurder", "E48", 0, 0, 1],
+            ["eclipse.mjs", "judgePendingMurders", "E48", 0, 0, 4], ["inventory.mjs", "transferItem", "E48", 0, 0, 2], ["investigation.mjs", "chargeForUnfoundKeys", "E48", 0, 0, 1],
+            ["migrate.mjs", "*", "E48", 0, 0, 1], ["movement-audit.mjs", "auditMove", "E48", 0, 0, 2], ["movement.mjs", "keepRoomFlag", "E48", 0, 0, 1],
+            ["movement.mjs", "removeDrop", "E48", 0, 0, 1], ["movement.mjs", "tellUnlawful", "E48", 0, 0, 1], ["movement.mjs", "tellDropped", "E48", 0, 0, 1],
+            ["murder-rules.mjs", "resolveVictimOpening", "E48", 0, 0, 1], ["murder-rules.mjs", "applyCrisisAction", "E48", 0, 0, 1], ["murder-rules.mjs", "swapRoles", "E48", 0, 0, 1],
+            ["murder-rules.mjs", "refuseBetrayal", "E48", 0, 0, 1], ["murder-rules.mjs", "throwOpeningRoll", "E48", 0, 0, 1], ["observe.mjs", "resolveObserve", "E48", 0, 0, 2],
+            ["relay-guard.mjs", "reportRefusal", "E48", 0, 0, 1], ["relay-guard.mjs", "unknownSender", "E48", 0, 0, 1], ["relay-guard.mjs", "shapeWarning", "E48", 0, 0, 1],
+            ["relay-guard.mjs", "announce", "E48", 0, 0, 3], ["remnants.mjs", "dropRemnant", "E48", 0, 0, 1], ["reroll-receipts.mjs", "warnGms", "E48", 0, 0, 1],
+            ["roll-draw.mjs", "tellUnexpected", "E48", 0, 0, 1], ["rules.mjs", "setMotive", "E48", 0, 0, 1], ["rules.mjs", "dueCard", "E48", 0, 0, 1],
+            ["sheet-audit.mjs", "record", "E48", 0, 0, 1], ["sheet-audit.mjs", "onForgedCard", "E48", 0, 0, 1], ["steps.mjs", "stepsReport", "E48", 0, 0, 1],
+            ["truth-bullets.mjs", "revertPlayerBulletEdit", "E48", 0, 0, 1], ["use-items.mjs", "discardBroken", "E48", 0, 0, 1], ["vault-store.mjs", "clearSplitPiece", "E48", 0, 0, 1]
+        ];
+        const files = {};
+        for (const file of new Set(SITES.map(([file]) => file))) files[file] = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        const count = (text, re) => (text.match(re) ?? []).length;
+        const got = {}, want = {}, by = {};
+        for (const [file, fn, stage, w, i, d] of SITES) {
+            const body = fn === "*" ? files[file] : (topLevelFunction(files[file], fn) ?? "");
+            const name = `${file}:${fn} (${stage})`;
+            got[name] = body.length > 40 ? [count(body, /\bbox\("warning",/g) + count(body, /\bkindNote\("/g), count(body, /\bbox\("info",/g), count(body, /drpg-warning/g)] : "not read";
+            want[name] = [w, i, d];
+            by[stage] = (by[stage] ?? 0) + d;
+        }
+        // The carried sites, as E47-C7 counted them on 9aafad79 (STATUS E47-C7): 53 chat card sites (43 W, 10 I) and the
+        // two whispers, 55; 7 window sites left open.
+        equal(JSON.stringify({ E48: by.E48, open: by.open }), JSON.stringify({ E48: 55, open: 7 }), "{drpg-warning sites carried to E48, left open}");
+        equal(JSON.stringify(got), JSON.stringify(want), "{file:function (stage): [warning boxes, info boxes, drpg-warning left]}");
+    }],
+
+    ["R2036 - the GM handbook names E46's new labels in both languages (E46-C6; E46-21): the checklist's red and \"!\" states and the uneven split, Room setup's picture warnings and the hall's cast columns, Item tables' columns, Give existing's empty choice, Overflow's rules table, Sound's Effects column and a Test's reason, and Music's folded order - each read from lang/ and found in docs/handbooks/gm-handbook.<lang>.md, a label in bold, a sentence the window says in italics", async () => {
+        /*
+         * E46-C6, 09.11.2026. E46's windows drew new words (E46-C1 the checklist's states, C2a/C2b Room setup, C3 the item
+         * windows, C4 Sound, C5a/C5b Despair Flow and Season setup; their keys added between f7266b28 and 552d6d69). The
+         * handbook names a label as the window draws it: `**<label>**` for a column head, a button, a choice or a fold,
+         * `*<words>` for a sentence the window says, cut at its first placeholder (scenario 50-lang's rule for the trial's
+         * labels). Red first on db40a379: the handbooks named none of the 16 in either language.
+         */
+        const LABELS = [
+            ["Kit.check.blocking", "said"], ["Kit.check.warning", "said"], ["Season.splitUneven", "said"],
+            ["Vault.imageLarge", "said"], ["Vault.imageBroken", "said"], ["TrialScene.castWho", "label"], ["TrialScene.castToken", "label"],
+            ["Tables.col.table", "label"], ["Tables.col.actions", "label"], ["Items.chooseOne", "label"],
+            ["Overflow.colOn", "label"], ["Overflow.colWhat", "label"], ["Overflow.colDoes", "label"],
+            ["Sound.rowButtons", "label"], ["Sound.why.noFile", "said"], ["Music.howOrder", "label"]
+        ];
+        const missing = [];
+        let read = 0;
+        for (const lang of ["en", "pl"]) {
+            const strings = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const text = await fetch(`/modules/${MODULE_ID}/docs/handbooks/gm-handbook.${lang}.md`).then(lfText);
+            must(text.includes("## 17."), `docs/handbooks/gm-handbook.${lang}.md was not read - this would measure nothing`);
+            for (const [key, how] of LABELS) {
+                const label = `DRPG.${key}`.split(".").reduce((o, k) => o?.[k], strings);
+                if (typeof label !== "string") { missing.push(`${lang} has no DRPG.${key}`); continue; }
+                const words = label.split("{")[0].replace(/[\s(:]+$/, "");
+                read++;
+                if (!words || !text.includes(how === "label" ? `**${words}**` : `*${words}`)) missing.push(`${lang} ${key}: ${words}`);
+            }
+        }
+        equal(JSON.stringify({ read, missing }), JSON.stringify({ read: LABELS.length * 2, missing: [] }), "{labels read in both files, those the handbook of their language does not name}");
+    }],
+
+    ["R2078 - the handbooks name E47's new labels in both languages (E47-C7; E47-19): the console's footer - Start the Final Trial and its reason, End the trial - and the next step's words, the vote's Close and count, the tracker's facts and its empty state, Edit campaign's Chapter, the project manager's head and the wide project windows, the Students window's columns and the case window's tile - each read from lang/ and found in docs/handbooks/gm-handbook.<lang>.md, a label in bold, a sentence the window says in italics; the wide windows also in the player handbook", async () => {
+        /*
+         * E47-C7, 09.11.2026. E47's windows drew new words or moved old ones (E47-C1 the console's footer and the next step,
+         * C2 the tracker and Edit campaign, C3 the case window, C6 the project windows, C8 the Students window; keys added
+         * or moved between 552d6d69 and 9aafad79). The rule is R2036's: `**<label>**` for a column head, a button, a fact or
+         * a setting, `*<words>` for a sentence the window says, cut at its first placeholder. C3's and C8's labels were
+         * written by those groups and are read here, not rewritten. Red first on 9aafad79 (the handbooks before this commit):
+         * 27 of the 40 readings missing - 13 in English's GM handbook, 12 in Polish's, and the setting in both player handbooks.
+         */
+        const LABELS = [
+            ["Mastermind.startFinalTrial", "label"], ["Mastermind.noneSet", "said"], ["Floor.endTrial", "label"],
+            ["Floor.next.start", "said"], ["Floor.next.vote", "said"], ["Floor.next.chapterEnd", "said"], ["Vote.tally", "label"],
+            ["Murder.fact.who", "label"], ["Murder.fact.left", "label"], ["Murder.fact.case", "label"], ["Murder.none", "said"],
+            ["Murder.trackerOpenMurder", "label"], ["Clock.chapter", "label"], ["Project.visibleTo", "label"],
+            ["Settings.wideProjectWindows.name", "label"], ["Panel.roleColumn", "label"], ["Panel.levelUpColumn", "label"],
+            ["Case.tile", "label"], ["Case.backup", "label"]
+        ];
+        const PLAYER = ["Settings.wideProjectWindows.name"];
+        const missing = [];
+        let read = 0;
+        for (const lang of ["en", "pl"]) {
+            const strings = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const text = await fetch(`/modules/${MODULE_ID}/docs/handbooks/gm-handbook.${lang}.md`).then(lfText);
+            const player = await fetch(`/modules/${MODULE_ID}/docs/handbooks/player-handbook.${lang}.md`).then(lfText);
+            must(text.includes("## 17.") && player.length > 10000, `docs/handbooks/ (${lang}) was not read - this would measure nothing`);
+            const look = (book, key, how, where) => {
+                const label = `DRPG.${key}`.split(".").reduce((o, k) => o?.[k], strings);
+                if (typeof label !== "string") { missing.push(`${lang} has no DRPG.${key}`); return; }
+                const words = label.split("{")[0].replace(/[\s(:]+$/, "");
+                read++;
+                if (!words || !book.includes(how === "label" ? `**${words}**` : `*${words}`)) missing.push(`${lang} ${where} ${key}: ${words}`);
+            };
+            for (const [key, how] of LABELS) look(text, key, how, "gm");
+            for (const key of PLAYER) look(player, key, "label", "player");
+        }
+        equal(JSON.stringify({ read, missing }), JSON.stringify({ read: (LABELS.length + PLAYER.length) * 2, missing: [] }), "{labels read in both languages, those the handbook of their language does not name}");
+    }],
+
+    ["R2079 - the style baseline holds styleSnapshot's E46 and E47 pages in both themes at the four sizes, and reads each surface of the kit E46 built for them on the pages that draw it, at every one of those eight (E47-C7; E47-18; STAGE E46 \"Verification, per commit and once\"): a page the sweep never accepted, or a surface only its first run found, is a look nobody holds", async () => {
+        /*
+         * E47-C7, 09.11.2026. audit/style-sweep.mjs holds what Chromium computes for scripts/style-snapshot.mjs's surfaces to
+         * audit/style-baseline.json, page by page (`pages["<page>|<theme>|<w>x<h>"]`). The pages are the windows STAGE E46
+         * names per group (audit/windows/manifest.json ids, the kit gallery and the glass harness's two pages); the
+         * surfaces are the rows E46-C1 and E46-C1f added for the kit's new parts, each held on the pages that draw it (the
+         * list E47-C7's whole sweep read on 9aafad79, 09.11.2026). Until that sweep the baseline held none of them on those
+         * pages: each window group accepted only its own pages, so the kit's rows were read on the others as "found now,
+         * not before" (E46-C6 Open 2; 476 of the 556 differences, the other 80 the 1.2.102 clip and E47-KFa). Red first on
+         * 9aafad79: 476 readings unheld (clamp 120, compact stepper 104, icon button 96, disabled 80, group 24, check row
+         * 16, check mark 16); on 3c952c67's baseline, seven pages absent at all eight: give, give--create, bullet,
+         * bullet--create, students, projects and incident-tracker.
+         */
+        needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        let base = null;
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/audit/style-baseline.json`, { cache: "no-cache" });
+            base = res.ok ? await res.json() : null;
+        } catch { /* read as empty below */ }
+        must(base?.pages && Object.keys(base.pages).length > 100, "audit/style-baseline.json read nothing - this test would read nothing");
+        const PAGES = [
+            "kit-gallery", "rooms-bedrooms", "rooms-doors", "rooms-search", "rooms-rest", "rooms-stashes", "rooms-description", "rooms-fog",
+            "rooms-passages", "rooms-scenes", "item-tables", "item-tables--editRooms", "item-tables--newItem", "item-manager",
+            "item-manager--take", "give", "give--create", "bullet", "bullet--create", "sound", "sound--music", "sound--effects",
+            "sound-player", "despair-flow", "despair-flow--monokumas", "despair-flow--students", "despair-flow--overflow",
+            "season-setup", "pre-season-checks",
+            "class-trial", "vote", "trial-end", "reveal-confirm", "murder", "edit-campaign", "incident-tracker", "gm-panel",
+            "glass-gm", "students", "investigation", "investigation--key", "investigation--final", "glass-player", "room-window",
+            "look-gm", "look-player", "action-project", "projects"
+        ];
+        const KEYS = ["glass", "legacy"].flatMap(theme => ["1920x1080", "1366x768", "1024x768", "390x844"].map(size => `${theme}|${size}`));
+        const ROOMS = ["rooms-bedrooms", "rooms-description", "rooms-doors", "rooms-fog", "rooms-passages", "rooms-rest", "rooms-scenes", "rooms-search", "rooms-stashes"];
+        const SOUND = ["sound", "sound--effects", "sound--music"];
+        const FLOW = ["despair-flow", "despair-flow--monokumas", "despair-flow--overflow", "despair-flow--students"];
+        const SURFACES = {
+            "kit-table-group": SOUND,
+            "kit-table-clamp": ["investigation", "investigation--final", "investigation--key", ...ROOMS, ...SOUND],
+            "kit-stepper-compact": [...FLOW, ...ROOMS],
+            "kit-check-row": ["pre-season-checks", "season-setup"], "kit-check-mark": ["pre-season-checks", "season-setup"],
+            "kit-icon-button": [...ROOMS, ...SOUND],
+            "kit-disabled": [...FLOW.slice(0, 3), "item-manager", "item-manager--take", "item-tables", "item-tables--editRooms", "item-tables--newItem", "notices-gm", "notices-player"]
+        };
+        const absent = [];
+        for (const page of PAGES) for (const key of KEYS) if (!Object.keys(base.pages[`${page}|${key}`] ?? {}).length) absent.push(`${page}|${key}`);
+        const unheld = {};
+        for (const [surface, pages] of Object.entries(SURFACES)) {
+            const lack = pages.flatMap(page => KEYS.filter(key => !base.pages[`${page}|${key}`]?.[surface]).map(key => `${page}|${key}`));
+            if (lack.length) unheld[surface] = lack.length;
+        }
+        equal(JSON.stringify({ absent, unheld }), JSON.stringify({ absent: [], unheld: {} }), "{page|theme|size absent from the baseline, surface: page|theme|size readings that do not hold it}");
+    }],
+    ["R2092 - the fit sweep reads what is wrong INSIDE a window (audit/style-sweep.mjs `--fit`, audit/style-harness.html `reading`; E47-FA, comparison 2's console, Murder and form cards): a footer button outside the window's own box or cut by it, a checkbox narrower than three quarters of its height, a formGrid label off its field's first line, each with its control planted on the kit gallery", async () => {
+        /*
+         * E47-FA, 09.11.2026. Comparison 2 drew the trial console's footer cut at both ends (ac036-ac040), Murder's
+         * "Indirect murder" box as a dot under Legacy (ac044) and the form labels under their fields (ac042, ac060, ac075),
+         * and `--fit` read every one of those pages fit: it held a footer button to the VIEWPORT (a footer wider than its
+         * window stood inside the screen), and read no checkbox and no label. The console's footer as the module draws it
+         * (the kit's two groups, `dressFooter`) fits in every state measured (S/stages/E46/STATUS.md "## E47-FA"); the
+         * pictures' cut was the comparison tool's footer rebuilt flat, but the sweep could not have told either. "Fits" is a
+         * reading in Chromium; this holds the sweep's reach, as R1356 does: the reading's words in the harness, the
+         * misfits in the sweep, and the four controls that plant each fault. Red at a8ae16f6: none of it there.
+         */
+        needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        const read = async path => {
+            try {
+                const res = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" });
+                return res.ok ? await lfText(res) : "";
+            } catch { return ""; }
+        };
+        const [sweep, page] = await Promise.all(["audit/style-sweep.mjs", "audit/style-harness.html"].map(read));
+        must(sweep.length > 2000 && page.length > 2000, "the sweep or the style harness read nothing - this test would read nothing");
+        const reading = bodyOf(page, "const reading = (win, tab) => {", { until: "const switchByHand" });
+        const misfit = bodyOf(sweep, "function misfits(", { until: "\n}" });
+        equal(JSON.stringify({
+            box: /!inView\(b\) \|\| !inside\(b, win\) \|\| cutText\(b\)/.test(reading) && /const inside = \(el, win\)/.test(page),
+            cut: /const cutText = /.test(page) && /const brokenWord = /.test(page),
+            shrunk: /shrunk: shrunk\(win\)/.test(reading) && /r\.width < 0\.75 \* r\.height/.test(page),
+            labels: /labelsOff: labelOff\(win\)/.test(reading) && /const LABEL_OFF = \d+;/.test(page),
+            words: ["checkbox shrunk", "label off its field"].filter(w => misfit.includes(`\`${w}: `)),
+            controls: ["(e)-(h) ground", "(e) button past the window's edge", "(f) button cut", "(g) checkbox shrunk", "(h) label off its field"].filter(c => sweep.includes(`"${c}"`))
+        }), JSON.stringify({ box: true, cut: true, shrunk: true, labels: true, words: ["checkbox shrunk", "label off its field"],
+            controls: ["(e)-(h) ground", "(e) button past the window's edge", "(f) button cut", "(g) checkbox shrunk", "(h) label off its field"] }),
+            "{a footer button held to the window's box and its words; the checkbox reading; the label reading; the sweep's words for them; the controls}");
+    }],
+
+    /* ---- E47-FB (09.11.2026): comparison 2's fixes ---- */
+    ["R2096 - the fit sweep reads a body or a footer wider than its box even where it clips (E47-FB; comparison 2): style-harness.html's reading has `wide`, the kit body's and the footer's `scrollWidth` against their `clientWidth` and every shown descendant's rectangle against their inner edges, left and right; style-sweep.mjs's misfits say \"content wider than its box\" and its control (i) plants 3000 px of width in the gallery window's first pane and must read it", async () => {
+        /*
+         * E47-FB, 09.11.2026. Since 1.2.102 the kit's body clips sideways (components.css `overflow-x: clip`, E96 C1): a
+         * table wider than the body is cut where it scrolled, and a body that clips is no scroller, so `--fit` (which read
+         * scrollers, the footer's and the buttons' rectangles against the viewport) passed every page of E46 and E47
+         * while comparison 2's pictures showed columns and footer buttons cut. The sweep's reading now holds the width.
+         * In Chromium (quoted in the commit): control (i) "content wider than its box: kit-body 3000/544"; the whole pass on
+         * a8ae16f6 read action-analyze's textarea 6 px past its body, look-player at 390x844 and rooms-search's table at
+         * 1024x768 past theirs. Red on a8ae16f6: no `wide`, no words, no control (i).
+         */
+        needs(env.tools(), "audit/ is read from the repository (an installed module's zip leaves it out, as it leaves tools/)");
+        const read = async path => {
+            try {
+                const res = await fetch(`/modules/${MODULE_ID}/${path}`, { cache: "no-cache" });
+                return res.ok ? await lfText(res) : "";
+            } catch { return ""; }
+        };
+        const [sweep, page] = await Promise.all(["audit/style-sweep.mjs", "audit/style-harness.html"].map(read));
+        must(sweep.length > 2000 && page.length > 2000, "the sweep or the style harness read nothing - this test would read nothing");
+        const wide = (page.match(/const wideReading = win =>[\s\S]*?return out;/) ?? [""])[0];
+        equal(JSON.stringify({
+            reading: /wide: wideReading\(win\)/.test(page),
+            boxes: [".drpg-kit-body", "footer.form-footer"].filter(sel => wide.includes(`"${sel}"`)),
+            measures: ["scrollWidth", "clientWidth", "getBoundingClientRect", "e.right > right + 1", "e.left < left - 1"].filter(m => wide.includes(m)),
+            words: /if \(state\.wide\?\.length\) out\.push\(`content wider than its box: /.test(sweep),
+            control: sweep.includes('"(i) wider than the body"') && /width: 3000px/.test(sweep) && sweep.includes('w.startsWith("content wider than its box: kit-body")')
+        }), JSON.stringify({ reading: true, boxes: [".drpg-kit-body", "footer.form-footer"],
+            measures: ["scrollWidth", "clientWidth", "getBoundingClientRect", "e.right > right + 1", "e.left < left - 1"], words: true, control: true }),
+            "{the harness reads `wide`, the boxes it reads, what it measures, the sweep's words, control (i)}");
+    }],
+    ["R2098 - comparison 2's look fixes hold (E47-FB): the case dashboard's tables ask the fit for their ceiling less 5rem, not 3rem; the Traces table's ten columns each a share of their own and the shares 100 %; WHO HAS WHAT's count heads no word over 11 letters in English or Polish; the Key planner's status picker on one line; the Students table's cells 4 px a side; Create a project's Name field the rest of its row", async () => {
+        /*
+         * E47-FB, 09.11.2026; comparison 2's ac032-ac035, ac067-ac069, ac018-ac019, ac078. What each rule does was measured
+         * in Chromium (the commit and STATUS "## E47-FB"): at 1366x768 the dashboard's last column and Delete were 10 px past
+         * a 1226 px body under a frame padded as Foundry pads it, the Students table 20 px past its body (Legacy, a Monocub
+         * and a Monokuma character), Polish "Nieprzeanalizowane" broke mid-word in a 116 px head, "- no Remnant -" wrapped
+         * inside its select, the Name field stood at 120 px. Read here as the stylesheet and the languages state them (the
+         * last rule for a selector wins, as the cascade reads equal selectors). Red on a8ae16f6: 3rem, no shares of their
+         * own (sum read 0), "Nieprzeanalizowane", no nowrap, 6 px, no flex.
+         */
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/components.css`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, "");
+        must(css.length > 20000, "components.css read nothing - this would measure nothing");
+        const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => [m[1].trim().replace(/\s+/g, " "), m[2]]);
+        const last = (selector, prop) => {
+            let value = null;
+            for (const [sel, body] of rules) if (sel === selector) { const m = body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`)); if (m) value = m[1].trim(); }
+            return value;
+        };
+        const T = ".application.drpg-window-case table.drpg-data-table";
+        const minWidth = last(".application.drpg-window-case .drpg-data-table-box > table.drpg-data-table", "min-width") ?? "";
+        const slack = [...minWidth.matchAll(/- (\d+(?:\.\d+)?)rem/g)].map(m => Number(m[1]));
+        const keys = { "col.drpg-data-col-case-trace-name": 1, "col.drpg-data-col-case-text": 2, ...Object.fromEntries(["type", "vis", "faint", "crime", "reinf", "found", "delete"].map(k => [`col[data-drpg-col="${k}"]`, 1])) };
+        const shares = Object.entries(keys).map(([sel, n]) => [sel, parseFloat(last(`${T} ${sel}`, "width") ?? "0") * n]);
+        const sum = Math.round(shares.reduce((a, [, v]) => a + v, 0) * 10) / 10;
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const longest = code => Math.max(...["bullets", "keysHeld", "unidentified"].flatMap(k => String(lang[code].DRPG.Investigation[k] ?? "").split(/\s+/).map(w => w.length)));
+        equal(JSON.stringify({
+            slack: slack.length === 2 && slack.every(v => v >= 5),
+            ownShares: shares.filter(([, v]) => !(v > 0)).map(([sel]) => sel), sum,
+            heads: { en: longest("en") <= 11, pl: longest("pl") <= 11 },
+            keySelect: last(`body ${T} td.drpg-data-col-case-key-status select`, "white-space"),
+            cellsOfStudents: last(".drpg-window-alive .drpg-data-table :is(th, td)", "padding-inline"),
+            thAuto: last(`body ${T} :is(th, td)`, "width"),
+            name: last('body .application.drpg-project-form .drpg-project-image-row > label > input[name="name"]', "flex")
+        }), JSON.stringify({ slack: true, ownShares: [], sum: 100, heads: { en: true, pl: true }, keySelect: "nowrap", cellsOfStudents: "4px", thAuto: "auto", name: "1 1 auto" }),
+            "{the tables' min-width leaves 5rem or more, the Traces columns without a share of their own, the shares' sum, WHO HAS WHAT's count heads' longest word <= 11 letters, the status picker's white-space, the Students cells' inline padding, the dashboard's heads and cells width auto, the Name field's flex}");
     }],
 ];
 

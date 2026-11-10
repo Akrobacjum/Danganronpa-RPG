@@ -58,8 +58,10 @@
  * px planted in its third pane and the tab switched without the kit's code (`drpgFit({ byHand: true })`, the reposition
  * skipped) - the tallest tab reads "footer out" (and through the kit's code, fit); (d) on the sheet stand-in at
  * 1366x768, where the Stop stands in view, the Stop's sticky rule taken off (`position: static`, E21 C5a's rule in
- * danganronpa.css) - "Stop out": its place at the content's foot is below the sheet's box. Exit 1 on any failure; a page
- * `outside` is not one before C6.
+ * danganronpa.css) - "Stop out": its place at the content's foot is below the sheet's box; (i) E47-FB, 3000 px of width
+ * planted in the gallery window's first pane - "content wider than its box: kit-body" (the body clips sideways since
+ * 1.2.102, so it is no scroller; the harness reads the body's and the footer's width, `wide`). Exit 1 on any failure; a
+ * page `outside` is not one before C6.
  *
  * It serves the root itself (`python3 -m http.server` on a free port) or reads `--base http://127.0.0.1:8765`.
  * Playwright finds its Chromium through PLAYWRIGHT_BROWSERS_PATH; `--chromium <executable>` names one. CI installs no
@@ -215,11 +217,15 @@ function misfits(win, state, still) {
     if (!state.window) out.push("window out");
     if (state.footer === false) out.push("footer out");
     if (state.buttonsOut.length) out.push(`button(s) out: ${state.buttonsOut.join(", ")}`);
+    if (state.shrunk?.length) out.push(`checkbox shrunk: ${state.shrunk.join(", ")}`);
+    if (state.labelsOff?.length) out.push(`label off its field: ${state.labelsOff.join(", ")}`);
     if (state.tabs === false) out.push("tab bar out");
     const demo = DEMO_SCROLLERS[win?.window] ?? [];
     const others = state.scrollers.filter(s => s !== "kit-body" && !demo.includes(s));
     if (others.length) out.push(`a second scroller: ${others.join(", ")}`);
     if (state.cut) out.push("content cut: the body is taller than its box and nothing scrolls it");
+    // E47-FB: a body or footer wider than its box, cut sideways (the 1.2.102 clip) or scrolled (style-harness.html `wide`)
+    if (state.wide?.length) out.push(`content wider than its box: ${state.wide.join(", ")}`);
     if (still && state.scrollers.length) out.push(`scrolls (${state.scrollers.join(", ")}) where it must not`);
     return out;
 }
@@ -291,6 +297,16 @@ async function fitPass(browser) {
         await tall("three");
         const c = await tabsState({ byHand: true }, "three");
         say("(c) reposition skipped", c?.footer === false, `the tall third tab switched by hand reads ${c ? misfits(null, c, false).join("; ") || "fits" : "nothing"}`);
+        /* (i) E47-FB: 3000 px of width planted in the first pane - the body clips it sideways (1.2.102), so no scroller
+           reads it; the reading must say "content wider than its box". Its ground is the control "ground" above. */
+        await load(page, kit);
+        await page.evaluate(() => {
+            const p = globalThis.document.querySelector('[data-window="kit-tabs"] > .application [data-drpg-pane="one"]');
+            p?.insertAdjacentHTML("beforeend", '<div class="drpg-fit-planted" style="width: 3000px; height: 20px"></div>');
+        });
+        const i = await tabsState({}, "one");
+        const iWords = i ? misfits(null, i, false) : [];
+        say("(i) wider than the body", iWords.some(w => w.startsWith("content wider than its box: kit-body")), `3000 px of width in the first pane reads ${iWords.join("; ") || "fits"}`);
         await page.setViewportSize({ width: 1366, height: 768 });
         await load(page, "/audit/style-harness.html?sheet=1&fit=1&role=player");
         const d0 = (await page.evaluate(() => globalThis.drpgFit()))[0];
@@ -299,6 +315,26 @@ async function fitPass(browser) {
         await page.addStyleTag({ content: "html body .application.sheet.actor .drpg-safeword-button.drpg-safeword-button { position: static !important; }" });
         const d = (await page.evaluate(() => globalThis.drpgFit()))[0];
         say("(d) Stop's sticky rule off", d?.stop === false, `reads ${d?.stop ? "Stop in view" : "Stop out"}`);
+        /* (e)-(h), E47-FA (09.11.2026): what a fit reads inside the window (style-harness.html `cutText`, `shrunk`,
+           `labelOff`), each planted on the kit gallery at 1366x768 after its ground reads fit - a footer button moved
+           past the window's left edge (inside the screen), a button too narrow for its word, a switch 3 px wide, a
+           label moved 30 px under its field. */
+        const planted = async (id, css) => {
+            await load(page, kit);
+            if (css) await page.addStyleTag({ content: css });
+            const s = (await page.evaluate(o => globalThis.drpgFit(o), { only: id }))[0]?.states[0];
+            return s ? misfits(null, s, false) : ["no reading"];
+        };
+        const eGround = [...await planted("kit-form-wide", null), ...await planted("kit-controls", null)];
+        say("(e)-(h) ground", !eGround.length, `the gallery's form and controls windows read ${eGround.join("; ") || "fits"}`);
+        const e = await planted("kit-form-wide", '[data-window="kit-form-wide"] footer.form-footer button { margin-left: -120px !important; }');
+        say("(e) button past the window's edge", e.some(w => w.startsWith("button(s) out")), `reads ${e.join("; ") || "fits"}`);
+        const f = await planted("kit-form-wide", '[data-window="kit-form-wide"] footer.form-footer button { min-width: 0 !important; max-width: 2.5em !important; width: 2.5em !important; overflow: hidden !important; }');
+        say("(f) button cut", f.some(w => w.startsWith("button(s) out")), `reads ${f.join("; ") || "fits"}`);
+        const g = await planted("kit-controls", '[data-window="kit-controls"] input[name="t2"] { width: 3px !important; min-width: 0 !important; }');
+        say("(g) checkbox shrunk", g.some(w => w.startsWith("checkbox shrunk")), `reads ${g.join("; ") || "fits"}`);
+        const h = await planted("kit-form-wide", '[data-window="kit-form-wide"] .drpg-form-label { position: relative !important; top: 30px !important; }');
+        say("(h) label off its field", h.some(w => w.startsWith("label off its field")), `reads ${h.join("; ") || "fits"}`);
         await page.close();
     }
     const rows = [];

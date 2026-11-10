@@ -144,6 +144,7 @@ import { fogOffPatch } from "./fog.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
 import { gatherEveryone, carryAcross, clearCarriedFrom, CARRIED_FROM } from "./call-world.mjs";
 import { isPrimaryGm, whisperToGms, ownerIdsOf, plural, esc, log, error } from "./utils.mjs";
+import { formGrid, dataTable, toggle, box } from "./ui-kit.mjs";
 
 /** The hall's flag naming the scene that was active when the trial opened (`enterTrialScene`). */
 export const TRIAL_RETURN_FLAG = "trialReturnTo";
@@ -1245,9 +1246,11 @@ export function scenesReportOf(school, hall) {
         handPlaced: handPlacedActors(hall).map(actor => actor.name), dark: hallIsDark(hall) });
 }
 
+/* The report's lines in one kit warning box (E46-C2b, 09.11.2026), none when there is nothing to say; each line keeps
+   its `data-drpg-scene-warning` key (tier 2, scenario 41). Until C2b each was a `p.drpg-warning`. */
 function reportHtml(school, hall) {
-    return scenesReportOf(school, hall).map(row =>
-        `<p class="drpg-warning" data-drpg-scene-warning="${row.key}">${row.text}</p>`).join("");
+    const rows = scenesReportOf(school, hall);
+    return rows.length ? box("warning", rows.map(row => `<p data-drpg-scene-warning="${row.key}">${row.text}</p>`).join("")) : "";
 }
 
 /**
@@ -1257,6 +1260,12 @@ function reportHtml(school, hall) {
  * Monokuma with no token there gets the line the Scenes tab shows (`handPlaced`). One builder for the
  * Scenes tab and the Start window, which hands its own `heading`. The box carries the hall's id, so a
  * list drawn for another hall is not read as this one's.
+ *
+ * ON THE KIT (E46-C2b, 09.11.2026; E47's "Scenes and the hall's token pick (E13)"): a kit `dataTable`, a row an actor -
+ * its tick the kit's switch, named `cast:<actorId>` as before (`readCastPicker`), and the note of a token the GMs placed
+ * in the second column - in both windows. Until C2b a list of checkboxes (`ul.drpg-cast-list`). The two columns' kinds
+ * (`cast-who`, `cast-token`) are Room setup's widths (components.css, "Room setup"); the Start window lays them out by
+ * their content.
  */
 export function castPickerHtml(hall, { heading = "DRPG.TrialScene.castHeading" } = {}) {
     if (!hall?.tokens) return "";
@@ -1265,16 +1274,20 @@ export function castPickerHtml(hall, { heading = "DRPG.TrialScene.castHeading" }
     const placed = new Set(hall.tokens.filter(token => !recorded.has(token.id)).map(token => token.actorId));
     const actors = readCastActors();
     const note = `<span class="notes" data-drpg-cast-note="placedByGm">${game.i18n.localize("DRPG.TrialScene.placedByGm")}</span>`;
-    const rows = actors.map(actor => {
-        const reveal = actor.id in stored ? stored[actor.id] : defaultReveal(actor);
-        return `<li><label><input type="checkbox" name="cast:${esc(actor.id)}"${reveal ? " checked" : ""} /> ${esc(actor.name)}</label>${placed.has(actor.id) ? ` ${note}` : ""}</li>`;
+    const rows = actors.map(actor => ({
+        who: toggle({ name: `cast:${actor.id}`, checked: actor.id in stored ? stored[actor.id] : defaultReveal(actor), label: actor.name }),
+        token: placed.has(actor.id) ? note : ""
+    }));
+    const table = dataTable({
+        columns: [{ key: "who", cls: "cast-who", label: game.i18n.localize("DRPG.TrialScene.castWho") },
+            { key: "token", cls: "cast-token", label: game.i18n.localize("DRPG.TrialScene.castToken") }],
+        rows, empty: "DRPG.TrialScene.noCast"
     });
     const hand = actors.filter(actor => actor.monokuma && !hall.tokens.find(token => token.actorId === actor.id)).map(actor => esc(actor.name));
     return `<div data-drpg-cast="${esc(hall.id)}">
         <h4>${game.i18n.localize(heading)}</h4>
         <p class="notes">${game.i18n.localize("DRPG.TrialScene.reveal")}</p>
-        ${rows.length ? `<ul class="drpg-cast-list">${rows.join("")}</ul>`
-            : `<p class="notes">${game.i18n.localize("DRPG.TrialScene.noCast")}</p>`}
+        ${table}
         ${hand.length ? `<p class="notes" data-drpg-cast-note="handPlaced">${game.i18n.format("DRPG.TrialScene.handPlaced", { names: hand.join(", ") })}</p>` : ""}
     </div>`;
 }
@@ -1353,50 +1366,75 @@ export async function setHallRoom(hall, { name = "", picture = "", words = "" } 
     return next;
 }
 
-/** The tab's three fields for the hall's facts, filled from `hall` (`hallRoom`); disabled with no hall chosen. */
+/* A field's id in the Scenes tab, new each drawing (the hall's fields are drawn again when the hall select changes): a
+   kit `formGrid` label points at its field by id (E46-C2b). */
+let scenesFieldSerial = 0;
+const scenesFieldId = key => `drpg-scenes-${key}-${++scenesFieldSerial}`;
+
+/**
+ * The tab's three fields for the hall's facts, filled from `hall` (`hallRoom`); disabled with no hall chosen. Since
+ * E46-C2b a kit `formGrid` (a label column and a field column) under the fieldset's legend and hint; until then three
+ * labels around their fields.
+ */
 function hallRoomFields(hall) {
     const facts = hallRoom(hall);
     const off = hall ? "" : " disabled";
-    const say = key => esc(game.i18n.localize(`DRPG.TrialScene.hallRoom.${key}`));
+    const word = key => game.i18n.localize(`DRPG.TrialScene.hallRoom.${key}`);
     const pick = esc(game.i18n.localize("DRPG.Vault.imagePick"));
-    return `<legend>${say("legend")}</legend>
-            <p class="hint">${say("hint")}</p>
-            <label>${say("name")} <input type="text" name="scenes:hallName" value="${esc(facts.name)}"${off} /></label>
-            <label>${say("picture")} <input type="text" name="scenes:hallPicture" value="${esc(facts.picture ?? "")}"${off} />
-                <button type="button" class="drpg-mini-button" data-drpg-hall-picture title="${pick}" aria-label="${pick}"${off}><i class="fa-solid fa-image" aria-hidden="true"></i></button></label>
-            <label>${say("words")} <textarea name="scenes:hallWords" rows="3"${off}>${esc(facts.words)}</textarea></label>`;
+    const [name, picture, words] = ["name", "picture", "words"].map(scenesFieldId);
+    return `<legend>${esc(word("legend"))}</legend>
+            <p class="hint">${esc(word("hint"))}</p>
+            ${formGrid([
+        { label: word("name"), id: name, field: `<input type="text" id="${name}" name="scenes:hallName" value="${esc(facts.name)}"${off} />` },
+        { label: word("picture"), id: picture, field: `<input type="text" id="${picture}" name="scenes:hallPicture" value="${esc(facts.picture ?? "")}"${off} />
+                <button type="button" class="drpg-mini-button" data-drpg-hall-picture title="${pick}" aria-label="${pick}"${off}><i class="fa-solid fa-image" aria-hidden="true"></i></button>` },
+        { label: word("words"), id: words, field: `<textarea id="${words}" name="scenes:hallWords" rows="3"${off}>${esc(facts.words)}</textarea>` }
+    ])}`;
 }
 
 /** proximity-voice-chat's id: its `disabled` scene flag is the one this module's voice check reads (voice.mjs `competingModuleWarnings`). */
 const PROXIMITY_VOICE = "proximity-voice-chat";
 
 /**
- * The Scenes tab's panel: the two selects, the hall's name, picture and words for the room tile (E79 C11), the
- * warnings and the cast of the hall linked now, and "Prepare the hall".
+ * WHERE E73 PUTS ZONE A AND ZONE B (E46-C2b, 09.11.2026; E47's 05.10 point 5 and 27.10: "the Scenes tab on the kit keeps
+ * an empty row for E73's Zone A and Zone B"). A row of `scenesTabRows`, after the school and the hall: a list of kit
+ * `formGrid` rows spliced in where it stands, empty until E73 - so it draws nothing (R2018). E73 fills it with the two
+ * zones' selects (`scenes:zoneA`, `scenes:zoneB`) and reads them in `readScenesTab`; the rows' `sceneRoles` already has
+ * `zones` (rooms.mjs).
  */
-export function scenesTabHtml(roles = sceneRoles()) {
+export const SCENES_ZONE_SLOT = Object.freeze([]);
+
+/**
+ * The Scenes tab's rows, a kit `formGrid`'s (E46-C2b): the two selects, `SCENES_ZONE_SLOT`, the hall's name, picture
+ * and words for the room tile (E79 C11), the warnings and the cast of the hall linked now, and "Prepare the hall" -
+ * each but the selects a line across both columns. Until C2b the panel was labels around two selects and two fieldsets.
+ */
+export function scenesTabRows(roles = sceneRoles()) {
     const drawn = { school: drawnRole(roles, "school"), trial: drawnRole(roles, "trial") };
     const scenes = Array.from(game.scenes ?? []).sort((a, b) => a.name.localeCompare(b.name));
-    const select = role => `<select name="scenes:${role}" data-drawn="${esc(drawn[role])}">
+    const ids = { school: scenesFieldId("school"), trial: scenesFieldId("trial") };
+    const select = role => `<select id="${ids[role]}" name="scenes:${role}" data-drawn="${esc(drawn[role])}">
         <option value="">${game.i18n.localize("DRPG.TrialScene.noScene")}</option>
         ${scenes.map(scene => `<option value="${esc(scene.id)}"${scene.id === drawn[role] ? " selected" : ""}>${esc(scene.name)}</option>`).join("")}
     </select>`;
     const [school, hall] = [drawn.school, drawn.trial].map(id => (id ? game.scenes.get(id) : null) ?? null);
-    const voice = game.modules?.get?.(PROXIMITY_VOICE)?.active
-        ? `<label><input type="checkbox" name="scenes:prepareVoice" /> ${game.i18n.localize("DRPG.TrialScene.prepareVoice")}</label>` : "";
+    const prepare = ["prepare", "preparePlaylist", ...(game.modules?.get?.(PROXIMITY_VOICE)?.active ? ["prepareVoice"] : [])]
+        .map(key => toggle({ name: `scenes:${key}`, label: game.i18n.localize(`DRPG.TrialScene.${key}`) })).join("");
+    return [
+        { label: game.i18n.localize("DRPG.TrialScene.school"), id: ids.school, field: select("school") },
+        { label: game.i18n.localize("DRPG.TrialScene.hall"), id: ids.trial, field: select("trial") },
+        SCENES_ZONE_SLOT,
+        { full: `<fieldset class="drpg-scene-hall-room" data-drpg-hall-room>${hallRoomFields(hall)}</fieldset>` },
+        { full: `<div data-drpg-scenes-report>${reportHtml(school, hall)}</div>` },
+        { full: `<div data-drpg-cast-box>${castPickerHtml(hall)}</div>` },
+        { full: `<fieldset class="drpg-scene-prepare">${prepare}</fieldset>` }
+    ];
+}
+
+/** The Scenes tab's panel: its intro and `scenesTabRows` in a kit `formGrid`, a slot's rows where it stands. */
+export function scenesTabHtml(roles = sceneRoles()) {
     return `<p>${game.i18n.localize("DRPG.TrialScene.scenesIntro")}</p>
-        <div class="drpg-scene-roles">
-            <label>${game.i18n.localize("DRPG.TrialScene.school")} ${select("school")}</label>
-            <label>${game.i18n.localize("DRPG.TrialScene.hall")} ${select("trial")}</label>
-        </div>
-        <fieldset class="drpg-scene-hall-room" data-drpg-hall-room>${hallRoomFields(hall)}</fieldset>
-        <div data-drpg-scenes-report>${reportHtml(school, hall)}</div>
-        <div data-drpg-cast-box>${castPickerHtml(hall)}</div>
-        <fieldset class="drpg-scene-prepare">
-            <label><input type="checkbox" name="scenes:prepare" /> ${game.i18n.localize("DRPG.TrialScene.prepare")}</label>
-            <label><input type="checkbox" name="scenes:preparePlaylist" /> ${game.i18n.localize("DRPG.TrialScene.preparePlaylist")}</label>
-            ${voice}
-        </fieldset>`;
+        ${formGrid(scenesTabRows(roles).flatMap(row => (Array.isArray(row) ? row : [row])))}`;
 }
 
 /**

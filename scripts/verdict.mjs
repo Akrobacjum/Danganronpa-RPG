@@ -42,7 +42,7 @@ import { trialProgress, setTrialProgress, executionLines, executeAtExit } from "
 import { runSteps, stepsReport } from "./steps.mjs";
 // The kit's frame for the verdict's windows: the Final Trial's (E22 C3b), the ordinary verdict and the Blackened's rule
 // (E21 C4).
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, box } from "./ui-kit.mjs";
 
 /* ==========================================================================
  * CONSEQUENCES
@@ -152,12 +152,12 @@ export async function openVerdictDialog() {
         : "";
     const deadAccused = accusedIds.filter(id => dead.has(id));
     const deadLine = deadAccused.length
-        ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.accusedDead", {
-            names: deadAccused.map(id => esc(named(id))).join(", ") })}</p>`
+        ? box("warning", `${game.i18n.format("DRPG.Vote.accusedDead", {
+            names: deadAccused.map(id => esc(named(id))).join(", ") })}`)
         : "";
     const unfoundLine = unfound.length
-        ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.unfoundDead", {
-            names: unfound.map(a => esc(a.name)).join(", ") })}</p>`
+        ? box("warning", `${game.i18n.format("DRPG.Vote.unfoundDead", {
+            names: unfound.map(a => esc(a.name)).join(", ") })}`)
         : "";
     const executedOptions = `<option value="">${game.i18n.localize("DRPG.Vote.nobodyExecuted")}</option>${
         candidateOptions(verdictCandidates(students, { accusedIds, known: knownIds, dead }))}`;
@@ -192,8 +192,8 @@ export async function openVerdictDialog() {
                 <select name="blackened">${blackenedOptions}</select></label>`}
             <p class="notes">${game.i18n.localize(known.length
                 ? "DRPG.Vote.verdictNoteKnown" : "DRPG.Vote.verdictNote")}</p>
-            ${tiedVote ? `<p class="drpg-warning">${
-                game.i18n.localize("DRPG.Vote.tiedVerdictNote")}</p>` : ""}
+            ${tiedVote ? box("warning", `${
+                game.i18n.localize("DRPG.Vote.tiedVerdictNote")}`) : ""}
         </form>`,
         /*
          * CANCEL FIRST, AND THE ONLY DEFAULT (E10 C4, 1.2.71; audit S06-04). Enter in a DialogV2
@@ -308,8 +308,8 @@ function read(dialog, correct, known, dead = new Set()) {
 export async function askBlackenedRule(unfound = []) {
     let text = "";
     const unfoundLine = unfound.length
-        ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.blackenedRuleUnfound", {
-            names: unfound.map(actor => foundry.utils.escapeHTML(actor.name)).join(", ") })}</p>`
+        ? box("warning", `${game.i18n.format("DRPG.Vote.blackenedRuleUnfound", {
+            names: unfound.map(actor => foundry.utils.escapeHTML(actor.name)).join(", ") })}`)
         : "";
 
     try {
@@ -1060,7 +1060,7 @@ export async function openFinalVerdictDialog() {
         body: `<form>
             <p>${game.i18n.localize("DRPG.Mastermind.verdictIntro")}</p>
             ${alreadyDead
-                ? `<p class="drpg-warning">${game.i18n.localize("DRPG.Mastermind.alreadyDeadNote")}</p>`
+                ? box("info", `${game.i18n.localize("DRPG.Mastermind.alreadyDeadNote")}`)
                 : ""}
             <label>${game.i18n.localize("DRPG.Mastermind.whoWasAccused")}
                 <select name="accused">${options}</select></label>

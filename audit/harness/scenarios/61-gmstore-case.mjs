@@ -1803,8 +1803,8 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
             warning: Boolean(S.caseWarning()) };`);
     check("Z2: the empty browser, alone and so the primary, opens the health check naming the missing answer keys, and Continue leaves the warning up",
         seenOnGm3.primary && seenOnGm3.hydration === "alone" && seenOnGm3.dialogs.length === 1
-        && /3 Truth Bullets \(of 3\) have no answer key/.test(seenOnGm3.dialogs[0]?.content ?? "")
-        && /2 traces on the map \(of 2\) have no answer key/.test(seenOnGm3.dialogs[0]?.content ?? "") && seenOnGm3.warning, J(seenOnGm3));
+        && /3 Truth Bullets \(of 3\) have no answer key/.test(seenOnGm3.dialogs[0]?.text ?? "")
+        && /2 traces on the map \(of 2\) have no answer key/.test(seenOnGm3.dialogs[0]?.text ?? "") && seenOnGm3.warning, J(seenOnGm3));
     /* Z6 (E05 C6, 26.09.2026; audit S11-03): a note p1 saved while no GM was connected was kept on
        p1's browser, unsent, and answered "kept"; gm3, the next primary GM, with an empty browser, is
        sent it once its world has loaded (`drpgPrimaryReady`) and holds it, and p1's copy is sent. */

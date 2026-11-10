@@ -27,7 +27,7 @@
 import { MODULE_ID, ITEM_CATEGORIES, EQUIPPABLE, ITEM_TIERS, itemIcon } from "./config.mjs";
 import { whisperToGms, log, error, plural, esc}
     from "./utils.mjs";
-import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, drpgPrompt } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, drpgPrompt, dataTable, box } from "./ui-kit.mjs";
 import { pickableCategories } from "./inventory.mjs";
 import { alreadyOpen, reopen, RAISED } from "./live.mjs";
 import {
@@ -101,9 +101,10 @@ export async function installTables({ overwrite = false, prompt = true } = {}) {
             });
 
             if (!choice || choice === "cancel") return null;
+            /* KEEP MINE IS AN ANSWER, NOT A FAULT (E46-C3, S08-46): it said so as a warning and switched the sidebar to
+               the tables, as an install does, though nothing was installed - the GM stays where they were, told in blue. */
             if (choice === "keep") {
-                ui.notifications.warn(plural("DRPG.Tables.allPresent", { n: present.length }));
-                await openTablesTab();
+                ui.notifications.info(plural("DRPG.Tables.allPresent", { n: present.length }));
                 return { created: [], skipped: present.map(j => existingTableName(j.category, j.tier, j.goal)), failed: [] };
             }
             overwrite = true;
@@ -233,8 +234,7 @@ function tableItemsHtml(table) {
         const shape = poolShapeOf(table);
         const tier = shape?.tier ?? Number(table.getFlag(MODULE_ID, "tier"));
         const home = shape?.category ?? table.getFlag(MODULE_ID, "category");
-        return `<ul class="drpg-table-items">${
-            results.map(r => tableRowHtml(table, r, { home, tier })).join("")}</ul>`;
+        return entryTableHtml(table, results.map(r => tableRowHtml(table, r, { home, tier })));
     }
 
     const { chips, unfiledChip, body, unfiledHtml } = roomPoolGroupsHtml(table, results);
@@ -295,30 +295,49 @@ function tableRowHtml(table, r, { home = null, tier = NaN, badge = "" } = {}) {
                     rolesAllowed ? "" : " disabled"} />${
                     esc(ITEM_CATEGORIES[key]?.label ?? key)}</label>`).join("")}</span>`
             : "";
-        return `<li data-drpg-result="${r.id}" data-drpg-table="${table.id}">
-            <img src="${esc(r.img || DEFAULT_RESULT_IMG)}" alt="" class="drpg-table-item-icon"
+        /* A row of the kit's `dataTable` since E46-C3b (09.11.2026; it was an `li` of a grid of six areas): the icon,
+           the name and the "+n" of other pools in the name's cell, the description, the roles, place and remove in the
+           actions' cell - the same pieces in the same order. `entryTableHtml` puts `data-drpg-result` and
+           `data-drpg-table` on the `tr` (`rowAttrs`), where every handler of `wirePaneRows` looks for them. */
+        return { result: r.id, table: table.id, roles: roleBoxes,
+            name: `<span class="drpg-table-item-cell"><img src="${esc(r.img || DEFAULT_RESULT_IMG)}" alt="" class="drpg-table-item-icon"
                  data-drpg-result-img="${r.id}"
                  title="${esc(game.i18n.localize("DRPG.Tables.changeIcon"))}" />
             <input type="text" class="drpg-table-item-name" data-drpg-field="name"
                    aria-label="${esc(game.i18n.localize("DRPG.Items.name"))}"
                    data-drpg-owns-table="${table.id}" data-drpg-owns-result="${r.id}"
                    data-drpg-initial="${esc(name)}"
-                   value="${esc(name)}" />
-            <input type="text" class="drpg-table-item-note notes" data-drpg-field="description"
+                   value="${esc(name)}" />${badge}</span>`,
+            note: `<input type="text" class="drpg-table-item-note notes" data-drpg-field="description"
                    aria-label="${esc(game.i18n.localize("DRPG.Items.description"))}: ${esc(name)}"
                    data-drpg-owns-table="${table.id}" data-drpg-owns-result="${r.id}"
                    data-drpg-initial="${esc(note)}"
                    value="${esc(note)}"
-                   placeholder="${esc(game.i18n.localize("DRPG.Items.descriptionPlaceholder"))}" />
-            ${badge}
-            ${roleBoxes}
-            <button type="button" class="drpg-mini-button" data-drpg-place="${r.id}"
+                   placeholder="${esc(game.i18n.localize("DRPG.Items.descriptionPlaceholder"))}" />`,
+            act: `<button type="button" class="drpg-mini-button" data-drpg-place="${r.id}"
                 data-drpg-place-table="${table.id}" title="${
                     esc(game.i18n.localize("DRPG.Tables.placeTooltip"))}">⇄</button>
             <button type="button" class="drpg-mini-button" data-drpg-drop="${r.id}"
                 data-drpg-drop-table="${table.id}" title="${
-                    esc(game.i18n.localize("DRPG.Tables.removeItem"))}">✕</button>
-        </li>`;
+                    esc(game.i18n.localize("DRPG.Tables.removeItem"))}">✕</button>` };
+}
+
+/*
+ * A table's entries on the kit's `dataTable` (E46-C3b, 09.11.2026; S/stages/E46 "Item tables": name, description,
+ * roles, actions). `rows` are `tableRowHtml`'s cells, or a room pool's `{ group, count }` heading rows (a tier with
+ * its count). The roles' column only where a row has boxes: a pool of Usables or Keys has none, and a column of empty
+ * cells would be a column the window never had. The wrapper keeps `drpg-table-items`, the name every reader knew.
+ */
+function entryTableHtml(table, rows) {
+    const any = rows.some(r => r.roles);
+    const columns = [
+        { key: "name", label: game.i18n.localize("DRPG.Items.name") },
+        { key: "note", label: game.i18n.localize("DRPG.Tables.col.description") },
+        ...(any ? [{ key: "roles", label: game.i18n.localize("DRPG.Items.alsoServesAs") }] : []),
+        { key: "act", label: game.i18n.localize("DRPG.Tables.col.actions"), act: true }
+    ];
+    return `<div class="drpg-table-items">${dataTable({ columns, rows, empty: "DRPG.Tables.tableEmpty",
+        rowAttrs: r => ({ "data-drpg-result": r.result, "data-drpg-table": r.table }) })}</div>`;
 }
 
 // ---- a room pool: grouped ------------------------------------------
@@ -361,18 +380,16 @@ function roomPoolGroupsHtml(table, results) {
         const home = key.startsWith("usable:") ? "usable" : key;
         return `<section class="drpg-room-group" data-kind="${key}">
             <h5>${esc(groupLabel(key))}<span class="notes">${rows.length}</span></h5>
-            ${tiersOf(rows).map(([tier, mine]) => `<div class="drpg-room-tier">
-                <h6>${esc(game.i18n.format("DRPG.Items.tierN", { n: tier }))}
-                    <span class="notes">${mine.length}</span></h6>
-                <ul class="drpg-table-items">${mine.map(({ r, found }) => tableRowHtml(table, r, {
+            ${entryTableHtml(table, tiersOf(rows).flatMap(([tier, mine]) => [
+                { group: game.i18n.format("DRPG.Items.tierN", { n: tier }), count: mine.length },
+                ...mine.map(({ r, found }) => tableRowHtml(table, r, {
                     home, tier,
                     badge: found.others.length
                         ? `<span class="drpg-table-item-also" data-tooltip="${
                             esc(found.others.map(o => o.table ?? groupLabel(groupKeyOf(o)))
                                 .join(", "))}">+${found.others.length}</span>`
                         : ""
-                })).join("")}</ul>
-            </div>`).join("")}
+                }))]))}
         </section>`;
     }).join("");
 
@@ -387,8 +404,7 @@ function roomPoolGroupsHtml(table, results) {
             <h5>${esc(game.i18n.localize("DRPG.Tables.unfiled"))}<span class="notes">${
                 unfiled.length}</span></h5>
             <p class="notes">${game.i18n.localize("DRPG.Tables.unfiledNote")}</p>
-            <ul class="drpg-table-items">${
-                unfiled.map(({ r }) => tableRowHtml(table, r)).join("")}</ul>
+            ${entryTableHtml(table, unfiled.map(({ r }) => tableRowHtml(table, r)))}
         </section>`
         : "";
     return { chips, unfiledChip, body, unfiledHtml };
@@ -468,6 +484,30 @@ async function editResult(table, resultId, field, value) {
         error(`Could not edit "${table.name}"`, err);
         return false;
     }
+}
+
+/*
+ * AN EMPTIED NAME IS NOT WRITTEN (E46-C3, 09.11.2026; audit S08-46). A description may be emptied (above); a name may
+ * not: an entry with no name is drawn as nothing, and `editResult` wrote `{ name: "", text: "" }`. The field takes back
+ * the name it held (`data-drpg-initial`) with `DRPG.Tables.needsName` under it, and nothing is written. Answers whether
+ * it refused.
+ */
+function refuseEmptyName(field) {
+    if (field?.dataset?.drpgField !== "name" || field.value.trim()) return false;
+    field.value = field.dataset.drpgInitial ?? "";
+    let said = field.parentElement?.querySelector(":scope > [data-drpg-name-refused]") ?? null;
+    if (!said && field.parentElement) {
+        said = document.createElement("span");
+        said.className = "drpg-field-error";
+        said.dataset.drpgNameRefused = "";
+        said.id = `drpg-name-refused-${field.dataset.drpgOwnsResult ?? "entry"}`;
+        field.after(said);
+    }
+    if (said) {
+        said.textContent = game.i18n.localize("DRPG.Tables.needsName");
+        field.setAttribute("aria-describedby", said.id);
+    }
+    return true;
 }
 
 /** Take one entry out, and re-range what is left. Same reasoning as `addResult`. */
@@ -895,10 +935,10 @@ function newItemPaneHtml(preset, presetTargets, roomTablesList) {
                     <select name="newCategory">${categories}</select></label>
                 <label>${game.i18n.localize("DRPG.Items.tier")}
                     <select name="newTier">${tiers}</select></label>
-                <p class="notes" data-drpg-tier-target></p>
+                <div data-drpg-tier-target></div>
                 <div class="drpg-tables-roles">
-                    <span class="notes" data-drpg-roles-note>${
-                        game.i18n.localize("DRPG.Tables.rolesNote")}</span>
+                    <div class="notes" data-drpg-roles-note>${
+                        game.i18n.localize("DRPG.Tables.rolesNote")}</div>
                     ${roleChecks}
                 </div>
                 <div class="drpg-tables-targets">
@@ -943,15 +983,31 @@ function showPoolName(el, name) {
  * rule about what a new pool may be called - see `wirePoolPane`, which is also
  * written once and run twice.
  */
+/*
+ * THE PICK LIST ON THE KIT (E46-C3b, 09.11.2026): a `dataTable` of the pool's short name and its entries - the two
+ * things its row said. The slice's category and tier columns were drawn and taken out: in a left column of 20rem
+ * four columns did not fit (Chromium, 1366x768: under the glass the name broke letter by letter; under Legacy in
+ * Polish "Przedmioty" and "Narzędzie" ran into the next column), and a tier pool's name says both. The row's first
+ * cell is the pick button, as the `li` was: every handler finds it by `[data-drpg-table]` and the entries' count by
+ * `[data-drpg-table-count]` in its row.
+ */
+function poolListHtml(family, mine, first) {
+    const columns = [
+        { key: "name", label: game.i18n.localize("DRPG.Tables.col.table") },
+        { key: "count", label: game.i18n.localize("DRPG.Tables.col.items"), num: true }
+    ];
+    const rows = mine.map(t => ({
+        name: `<button type="button" class="drpg-table-pick${t.id === first?.id ? " active" : ""}" data-drpg-table="${
+            t.id}" title="${esc(t.name)}"><span>${esc(shortPoolName(t.name))}</span></button>`,
+        count: `<span data-drpg-table-count>${t.results.size}</span>`
+    }));
+    return dataTable({ columns, rows });
+}
+
 export function poolPaneHtml(family, mine, selected, refusal = null) {
     const first = mine.find(t => t.id === selected?.id) ?? mine[0] ?? null;
     const list = mine.length
-        ? `<ul class="drpg-tables-list">${mine.map(t =>
-            `<li><button type="button" class="drpg-table-pick${
-                t.id === first?.id ? " active" : ""}" data-drpg-table="${t.id}" title="${esc(t.name)}">
-                <span>${esc(shortPoolName(t.name))}</span>
-                <span class="notes">${t.results.size}</span>
-            </button></li>`).join("")}</ul>`
+        ? `<div class="drpg-tables-list">${poolListHtml(family, mine, first)}</div>`
         : `<p class="notes">${esc(game.i18n.localize(family === "tiers"
             ? "DRPG.Tables.noTierPools" : "DRPG.Tables.noRoomPools"))}</p>`;
 
@@ -1058,10 +1114,12 @@ function wireNewItemForm(root) {
         const form = root.querySelector("form");
         const id = tierTableIdFor(form?.newCategory?.value, Number(form?.newTier?.value));
         const table = id ? game.tables.get(id) : null;
-        tierLine.textContent = table
-            ? game.i18n.format("DRPG.Tables.tierTargetIs", { table: table.name })
+        const said = table
+            // The pool as the list names it (E46-C3, S13-36 (3)): "Goes into DRPG Usables (Healing) - Tier 2" read the prefix the list drops.
+            ? game.i18n.format("DRPG.Tables.tierTargetIs", { table: shortPoolName(table.name) })
             : game.i18n.localize("DRPG.Tables.tierTargetNone");
-        tierLine.classList.toggle("drpg-warning", !table);
+        // No pool to go into is the kit's warning box (E46-C3b; E21's carried warning site), a pool a plain line.
+        tierLine.innerHTML = table ? `<p class="notes">${esc(said)}</p>` : box("warning", esc(said));
     };
     root.querySelector("[name=newCategory]")?.addEventListener("change", paintTierTarget);
     root.querySelector("[name=newTier]")?.addEventListener("change", paintTierTarget);
@@ -1074,8 +1132,10 @@ function wireNewItemForm(root) {
             if (!allowed) box.checked = false;
             box.closest("label")?.classList.toggle("drpg-locked", !allowed);
         }
-        root.querySelector("[data-drpg-roles-note]")
-            ?.classList.toggle("drpg-warning", !allowed);
+        // Under the roles' tier the note is the kit's warning box (E46-C3b), at it the plain line it was.
+        const note = root.querySelector("[data-drpg-roles-note]");
+        if (note) note.innerHTML = allowed ? esc(game.i18n.localize("DRPG.Tables.rolesNote"))
+            : box("warning", esc(game.i18n.localize("DRPG.Tables.rolesNote")));
     };
     tierSelect?.addEventListener("change", gateRoles);
     // ONE EXTRA ROLE, NOT TWO. The home is a tag as well, so a second
@@ -1173,11 +1233,14 @@ function wirePaneHeading(pane, root, { current, show, nameEl }) {
             return;
         }
 
-        root.querySelector(`[data-drpg-table="${CSS.escape(gone.id)}"]`)
-            ?.closest("li")?.remove();
-        const next = pane.querySelector("[data-drpg-table]");
+        /* THE NEXT TABLE FROM THE LIST (E46-C3, S08-46): `[data-drpg-table]` alone also matched the deleted table's own
+           rows in the body (each row carries its table's id), so after the last table of a tab the pane "clicked" a row
+           of a table that no longer exists and kept showing it, Rename and Delete live over nothing. */
+        root.querySelector(`.drpg-tables-list [data-drpg-table="${CSS.escape(gone.id)}"]`)
+            ?.closest("li, tr")?.remove();
+        const next = pane.querySelector(".drpg-tables-list [data-drpg-table]");
         if (next) next.click();
-        else show(null);
+        else await show(null);
         ui.notifications.info(game.i18n.format("DRPG.Tables.deleted", { name: gone.name }));
     });
 }
@@ -1219,7 +1282,7 @@ function wirePaneRows(pane, root, show) {
                 // on screen is the one a GM is most likely to check next.
                 for (const button of root.querySelectorAll("[data-drpg-table]")) {
                     const t = game.tables.get(button.dataset.drpgTable);
-                    const badge = button.querySelector(".notes");
+                    const badge = button.closest("tr")?.querySelector("[data-drpg-table-count]");
                     if (t && badge) badge.textContent = t.results.size;
                 }
             }
@@ -1325,6 +1388,8 @@ function wirePaneRows(pane, root, show) {
          * write.
          */
         if (field.value.trim() === (field.dataset.drpgInitial ?? "")) return;
+        if (refuseEmptyName(field)) return;
+        field.parentElement?.querySelector(":scope > [data-drpg-name-refused]")?.remove();
 
         // The ids live on the FIELD as well as on the row. Switching
         // tables redraws the whole list, and a field that is blurred by
@@ -1381,6 +1446,10 @@ function wirePoolPane(pane, root) {
         for (const field of bodyEl.querySelectorAll("[data-drpg-field]")) {
             const value = field.value.trim();
             if (value === (field.dataset.drpgInitial ?? "")) continue;
+            if (refuseEmptyName(field)) {
+                ui.notifications.warn(game.i18n.localize("DRPG.Tables.needsName"));
+                continue;
+            }
             const table = game.tables.get(field.dataset.drpgOwnsTable);
             if (!table || !field.dataset.drpgOwnsResult) continue;
             await editResult(table, field.dataset.drpgOwnsResult,
@@ -1393,7 +1462,8 @@ function wirePoolPane(pane, root) {
         await flush();
         current = table ?? null;
         showPoolName(nameEl, table?.name ?? "");
-        bodyEl.innerHTML = table ? tableItemsHtml(table) : "";
+        bodyEl.innerHTML = table ? tableItemsHtml(table)
+            : `<p class="notes">${game.i18n.localize("DRPG.Tables.noneYet")}</p>`;
         // Nothing selected is a real state - an empty world has no
         // tables at all - and a live button over nothing is a trap.
         if (renameButton) renameButton.disabled = !table;
@@ -1484,8 +1554,11 @@ async function addItemFrom(action) {
         })) added++;
     }
 
-    log(`Item tables: "${action.name}" added to ${added} table(s).`);
-    ui.notifications.info(plural("DRPG.Tables.itemAdded", { name: action.name, n: added }));
+    log(`Item tables: "${action.name}" added to ${added} of ${action.tables.length} table(s).`);
+    /* FEWER THAN ASKED IS A FAILURE (E46-C3, S08-46): "added to 0 tables" came in blue, as a success. The tables it
+       could not write are in the console (`addResult`). */
+    if (added < action.tables.length) ui.notifications.warn(game.i18n.localize("DRPG.Items.failed"));
+    else ui.notifications.info(plural("DRPG.Tables.itemAdded", { name: action.name, n: added }));
 }
 
 /**

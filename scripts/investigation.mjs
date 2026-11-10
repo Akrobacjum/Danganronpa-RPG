@@ -39,7 +39,7 @@ import { livingStudentsForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs
 import {
     plural, wirePortraitPickers, whisperToGms, log, isPrimaryGm,
     workingScene, esc, placeRoomOptions, listOf, error } from "./utils.mjs";
-import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm, box } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm, box, dataTable } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, RAISED } from "./live.mjs";
 import { keyPlanStore, remnantStore } from "./gm-stores.mjs";
 import { murderState } from "./incident-store.mjs";
@@ -1657,24 +1657,66 @@ function readTracesAs(list, reading) {
  * Who has what: one row per student, shown whichever tab is open. Exported for the suite, which
  * hands it a synthetic student: every input is the argument.
  *
- * READ AT A GLANCE (E09 C16, 08.10.2026; audit S05-29, S12-52). The three counts are `drpg-num`
+ * READ AT A GLANCE (E09 C16, 08.10.2026; audit S05-29, S12-52). The three counts are number
  * cells - narrow and centred by the stylesheet, where they were columns of 150-420 px with a
- * digit lost in each - and a kind's count is "(2)", because "×2" in the theme's pixel face read
- * as part of the kind's name ("Neutral Truth Bullet X2").
+ * digit lost in each; the kit's `num` cells of the `case-count` column since E47-C4 (`drpg-num`
+ * until then) - and a kind's count is "(2)", because "×2" in the theme's pixel face read
+ * as part of the kind's name ("Neutral Truth Bullet X2"). The table's body rows since E47-C4
+ * (`caseStudentTable` draws the table).
  */
 export function caseStudentRows(students) {
-    return students.map(s => {
+    return students.length ? tableBody(caseStudentTable(students)) : "";
+}
+
+/* ---- the dashboard's three tables on the kit (E47-C4, 09.11.2026; card M5, S17-42) ----------------------------------
+   WHO HAS WHAT, the Traces tab's table and the Key Remnants planner are the kit's `dataTable`, their columns and their
+   order the hand tables' (D31), each input's `name` as before (`readDashboardForm` reads them). Every column carries a
+   `cls` (`drpg-data-col-case-*`): components.css's dashboard section states the narrow ones' widths and holds each table
+   to the window (under Legacy the Traces table was 1583 px in a 1284 px window at 1366x768, a sideways scroll - the
+   E46/E47 measure of 3c952c67). A long head is cut at two lines with its whole name in its tooltip (`lines: 2`), and the
+   two text cells - the Breakdown and Found by - at two lines with their whole text in `title` (`cellLines: 2`). The
+   `case*Rows` functions are each table's body rows, for the suite's builders' tests. R2067, R2068. */
+
+/** A dataTable's body rows: what lies between its `<tbody>` and `</tbody>` (cells escape what a person typed). */
+function tableBody(markup) {
+    const from = markup.indexOf("<tbody>");
+    return from < 0 ? "" : markup.slice(from + "<tbody>".length, markup.lastIndexOf("</tbody>"));
+}
+
+/**
+ * WHO HAS WHAT's columns, in the hand table's order: Student; Bullets, Keys held, Not analysed as numbers; Breakdown,
+ * the head "Really" with its tooltip (S12-52: it is what the bullets are by the GMs' answer key). Every head of the
+ * dashboard's tables is cut at two lines with its whole name in `title` (`lines: 2`; under Legacy's pixel face a one-word
+ * head such as "Reinforced" is as wide as the column) - but the Breakdown's, one short word whose tooltip is the
+ * sentence, not its name. Exported for R2067.
+ */
+export function caseStudentColumns() {
+    const L = key => game.i18n.localize(key);
+    return [
+        { key: "student", label: L("DRPG.Investigation.student"), cls: "case-student", lines: 2 },
+        { key: "bullets", label: L("DRPG.Investigation.bullets"), num: true, cls: "case-count", lines: 2 },
+        { key: "keys", label: L("DRPG.Investigation.keysHeld"), num: true, cls: "case-count", lines: 2 },
+        { key: "unidentified", label: L("DRPG.Investigation.unidentified"), num: true, cls: "case-count", lines: 2 },
+        { key: "breakdown", label: L("DRPG.Investigation.breakdown"), cls: "case-breakdown", cellLines: 2 }
+    ];
+}
+
+/**
+ * WHO HAS WHAT as the kit's table. "Really" read as nothing at a table (S12-52): its head carries the tooltip that says
+ * it is what the bullets are by the GMs' answer key, whatever their holders were shown - written on the kit's head (no
+ * builder of the kit names a head's tooltip; a dataTable head's markup is fixed, `<th scope="col" class="...">`).
+ * Exported for R2067.
+ */
+export function caseStudentTable(students) {
+    const rows = students.map(s => {
         const breakdown = Object.entries(s.types)
             .map(([type, n]) => `${esc(TRUTH_BULLET_TYPES[type]?.label ?? type)} (${n})`)
             .join(", ");
-        return `<tr>
-            <td>${esc(s.actor.name)}</td>
-            <td class="drpg-num">${s.total}</td>
-            <td class="drpg-num">${s.keys}</td>
-            <td class="drpg-num">${s.unidentified}</td>
-            <td class="notes">${breakdown || "-"}</td>
-        </tr>`;
-    }).join("");
+        return { student: esc(s.actor.name), bullets: String(s.total), keys: String(s.keys),
+            unidentified: String(s.unidentified), breakdown: `<span class="notes">${breakdown || "-"}</span>` };
+    });
+    // The Breakdown head's tooltip ("Really", S12-52) is its column's `tooltip` since E47-KFa (a string replace before it).
+    return dataTable({ columns: caseStudentColumns().map(c => (c.cls === "case-breakdown" ? { ...c, tooltip: game.i18n.localize("DRPG.Investigation.breakdownTooltip") } : c)), rows });
 }
 
 /**
@@ -1753,6 +1795,32 @@ function refusedAs(field, value, traces) {
  * description already written, and the analysis one was cut mid-sentence (S05-29).
  */
 export function caseTraceRows(shown, finders) {
+    return shown.length ? tableBody(caseTraceTable(shown, finders)) : "";
+}
+
+/** The Traces tab's columns, in the hand table's order (D31). Exported for R2067 and R2068. */
+export function caseTraceColumns() {
+    const L = key => game.i18n.localize(key);
+    return [
+        { key: "name", label: L("DRPG.Investigation.traceName"), cls: "case-trace-name", lines: 2 },
+        { key: "text", label: L("DRPG.Investigation.traceText"), cls: "case-text", lines: 2 },
+        { key: "analysis", label: L("DRPG.Investigation.traceAnalysis"), cls: "case-text", lines: 2 },
+        { key: "type", label: L("DRPG.Investigation.traceType"), cls: "case-pick", lines: 2 },
+        { key: "vis", label: L("DRPG.Investigation.visibility"), cls: "case-pick", lines: 2 },
+        { key: "faint", label: L("DRPG.Remnant.faintColumn"), cls: "case-check", lines: 2 },
+        { key: "crime", label: L("DRPG.Remnant.crimeColumn"), cls: "case-pick", lines: 2 },
+        { key: "reinf", label: L("DRPG.Remnant.reinforcedColumn"), cls: "case-check", lines: 2 },
+        { key: "found", label: L("DRPG.Investigation.foundBy"), cls: "case-found", cellLines: 2, lines: 2 },
+        { key: "delete", label: L("DRPG.Investigation.deleteTrace"), act: true, cls: "case-act", lines: 2 }
+    ];
+}
+
+/** The Traces tab's table: one editable row per trace the reader is shown. Exported for R2067 and R2068. */
+export function caseTraceTable(shown, finders) {
+    return dataTable({ columns: caseTraceColumns(), rows: caseTraceCells(shown, finders) });
+}
+
+function caseTraceCells(shown, finders) {
     return shown.map(({ token, data, scene }) => {
         const key = rowKey(scene.id, token.id);
         const shows = traceShows(data);
@@ -1766,59 +1834,58 @@ export function caseTraceRows(shown, finders) {
            scene with no traces, and the suite's own run had some. */
         const row = data.public?.name || traceContextLine(data) || key;
         const aria = column => ` aria-label="${esc(`${game.i18n.localize(column)}: ${row}`)}"`;
-        return `<tr>
-            <td>
+        return { name: `
                 <img src="${esc(shows.img)}" alt="" class="drpg-project-portrait"
                      data-drpg-portrait="${key}" />
                 <input type="hidden" name="img.${key}" value="${esc(shows.img)}" data-drpg-drawn="${esc(shows.img)}" />
                 <input type="text" name="name.${key}"${aria("DRPG.Investigation.traceName")} value="${esc(shows.name)}" />
-                <div class="notes drpg-trace-context">${esc(traceContextLine(data))}</div>
-            </td>
-            <td><textarea name="text.${key}" rows="2"${aria("DRPG.Investigation.traceText")}
-                placeholder="${game.i18n.localize("DRPG.Investigation.notePlaceholder")}">${esc(shows.text)}</textarea></td>
-            ${/* The second tier, edited in the same row as the first. Side by
-                  side on purpose: the two sentences describe one object and a
-                  GM writing the lab reading wants the observation in view, not
-                  on another tab. See TRUTH_BULLET_FLAGS.analyzedText for who
-                  ever gets to read this one. */ ""}
-            <td><textarea name="analysis.${key}" rows="2"${aria("DRPG.Investigation.traceAnalysis")}
+                <div class="notes drpg-trace-context">${esc(traceContextLine(data))}</div>`,
+            text: `<textarea name="text.${key}" rows="2"${aria("DRPG.Investigation.traceText")}
+                placeholder="${game.i18n.localize("DRPG.Investigation.notePlaceholder")}">${esc(shows.text)}</textarea>`,
+            /* The second tier, edited in the same row as the first. Side by
+               side on purpose: the two sentences describe one object and a
+               GM writing the lab reading wants the observation in view, not
+               on another tab. See TRUTH_BULLET_FLAGS.analyzedText for who
+               ever gets to read this one. */
+            analysis: `<textarea name="analysis.${key}" rows="2"${aria("DRPG.Investigation.traceAnalysis")}
                 placeholder="${game.i18n.localize("DRPG.Investigation.analysisPlaceholder")}"
-                >${esc(shows.analysis)}</textarea></td>
-            ${/* WHAT IT REALLY IS, CORRECTED BY HAND. The column that used to be
-                  free-text tags. The module decides the type from whatever action
-                  left the trace and gets the common cases right; the rest are
-                  judgements only the GM can make - the killer moved the body
-                  after the Search, the "cleaning" was actually preparation. The
-                  value written here reaches the answer key of every copy already
-                  in a player's pack (`propagateVerdicts`), and changes what they
-                  are SHOWN only where they have already analysed it.
+                >${esc(shows.analysis)}</textarea>`,
+            /* WHAT IT REALLY IS, CORRECTED BY HAND. The column that used to be
+               free-text tags. The module decides the type from whatever action
+               left the trace and gets the common cases right; the rest are
+               judgements only the GM can make - the killer moved the body
+               after the Search, the "cleaning" was actually preparation. The
+               value written here reaches the answer key of every copy already
+               in a player's pack (`propagateVerdicts`), and changes what they
+               are SHOWN only where they have already analysed it.
 
-                  THE KINDS "NEW TRACE" OFFERS, AND THE ROW'S OWN (E09 C13, 08.10.2026;
-                  audit S05-20). Every kind was listed, Autopsy among them, which "New
-                  trace" refuses because Observe has no number for it: a trace retyped
-                  here sat in its room behind a difficulty nothing rolls against (read in
-                  the code: Observe's list drops a kind with no number). A row
-                  already of such a kind keeps it in its list, so the select says what the
-                  trace is and a Save leaves it alone. */ ""}
-            <td><select name="type.${key}"${aria("DRPG.Investigation.traceType")}>${Object.entries(REMNANT_TYPES)
+               THE KINDS "NEW TRACE" OFFERS, AND THE ROW'S OWN (E09 C13, 08.10.2026;
+               audit S05-20). Every kind was listed, Autopsy among them, which "New
+               trace" refuses because Observe has no number for it: a trace retyped
+               here sat in its room behind a difficulty nothing rolls against (read in
+               the code: Observe's list drops a kind with no number). A row
+               already of such a kind keeps it in its list, so the select says what the
+               trace is and a Save leaves it alone. */
+            type: `<select name="type.${key}"${aria("DRPG.Investigation.traceType")}>${Object.entries(REMNANT_TYPES)
                 .filter(([value]) => findableKind(value) || value === shows.type).map(([value, def]) =>
                 `<option value="${esc(value)}"${value === shows.type ? " selected" : ""}>${
-                    esc(def.label)}</option>`).join("")}</select></td>
-            ${/* HOW HARD IT IS TO SPOT, FOR EVERY TRACE (E60 C4a, 03.11.2026; the owner's ask of 28.10, Q-E60-3's
-                  alternative): the band Observe reads its number from, found or not - a found trace's copies keep
-                  the band they were made with (remnants.mjs `setRemnantFlags`). */ ""}
-            <td><select name="vis.${key}"${aria("DRPG.Investigation.visibility")}>${bandOptions(shows.vis)}</select></td>
-            <td style="text-align:center"><input type="checkbox" name="faint.${key}"${aria("DRPG.Remnant.faintColumn")} ${shows.faint ? "checked" : ""} /></td>
-            <td><select name="crime.${key}"${aria("DRPG.Remnant.crimeColumn")}>${Object.entries(TIE_OPTIONS).map(([value, label]) =>
-                `<option value="${value}"${value === shows.crime ? " selected" : ""}>${esc(game.i18n.localize(label))}</option>`).join("")}</select></td>
-            <td style="text-align:center"><input type="checkbox" name="reinf.${key}"${aria("DRPG.Remnant.reinforcedColumn")} ${shows.reinf ? "checked" : ""} /></td>
-            <td>${found}</td>
-            ${/* DELETE, THE GM'S (E44 C8d): asked first, then the row and the token together (`deleteTraceRow`). A plain
-                  button, so it submits nothing: the form's Save is the window's own. */ ""}
-            <td><button type="button" class="drpg-trace-delete" data-drpg-trace-delete="${key}"${aria("DRPG.Investigation.deleteTrace")}>${
-                game.i18n.localize("DRPG.Investigation.deleteTrace")}</button></td>
-        </tr>`;
-    }).join("");
+                    esc(def.label)}</option>`).join("")}</select>`,
+            /* HOW HARD IT IS TO SPOT, FOR EVERY TRACE (E60 C4a, 03.11.2026; the owner's ask of 28.10, Q-E60-3's
+               alternative): the band Observe reads its number from, found or not - a found trace's copies keep
+               the band they were made with (remnants.mjs `setRemnantFlags`). */
+            vis: `<select name="vis.${key}"${aria("DRPG.Investigation.visibility")}>${bandOptions(shows.vis)}</select>`,
+            // the two checkboxes centred by the column's rule (components.css `drpg-data-col-case-check`), not inline
+            faint: `<input type="checkbox" name="faint.${key}"${aria("DRPG.Remnant.faintColumn")} ${shows.faint ? "checked" : ""} />`,
+            crime: `<select name="crime.${key}"${aria("DRPG.Remnant.crimeColumn")}>${Object.entries(TIE_OPTIONS).map(([value, label]) =>
+                `<option value="${value}"${value === shows.crime ? " selected" : ""}>${esc(game.i18n.localize(label))}</option>`).join("")}</select>`,
+            reinf: `<input type="checkbox" name="reinf.${key}"${aria("DRPG.Remnant.reinforcedColumn")} ${shows.reinf ? "checked" : ""} />`,
+            found,
+            /* DELETE, THE GM'S (E44 C8d): asked first, then the row and the token together (`deleteTraceRow`). A plain
+               button, so it submits nothing: the form's Save is the window's own. */
+            delete: `<button type="button" class="drpg-trace-delete" data-drpg-trace-delete="${key}"${aria("DRPG.Investigation.deleteTrace")}>${
+                game.i18n.localize("DRPG.Investigation.deleteTrace")}</button>`
+        };
+    });
 }
 
 /** The filter bar over the trace list, built from the traces themselves. */
@@ -1878,23 +1945,11 @@ function caseTraceFilters(traces, shown, reading) {
 
 /** The Traces tab's pane (the kit draws its frame, `kitTabs`): the filter bar, the rule, and the table or the reason it is empty. */
 function caseTracesPanel({ traces, shown, finders, reading }) {
-    const traceRows = caseTraceRows(shown, finders);
     return `
         ${caseTraceFilters(traces, shown, reading)}
         <p class="notes drpg-clue-rule">${
             game.i18n.localize("DRPG.Investigation.neverOnePerson")}</p>
-        ${shown.length ? `<table class="drpg-vault-table"><thead><tr>
-            <th>${game.i18n.localize("DRPG.Investigation.traceName")}</th>
-            <th>${game.i18n.localize("DRPG.Investigation.traceText")}</th>
-            <th>${game.i18n.localize("DRPG.Investigation.traceAnalysis")}</th>
-            <th>${game.i18n.localize("DRPG.Investigation.traceType")}</th>
-            <th>${game.i18n.localize("DRPG.Investigation.visibility")}</th>
-            <th>${game.i18n.localize("DRPG.Remnant.faintColumn")}</th>
-            <th>${game.i18n.localize("DRPG.Remnant.crimeColumn")}</th>
-            <th>${game.i18n.localize("DRPG.Remnant.reinforcedColumn")}</th>
-            <th>${game.i18n.localize("DRPG.Investigation.foundBy")}</th>
-            <th>${game.i18n.localize("DRPG.Investigation.deleteTrace")}</th>
-        </tr></thead><tbody>${traceRows}</tbody></table>`
+        ${shown.length ? caseTraceTable(shown, finders)
             : `<p class="notes">${game.i18n.localize(traces.length
                 ? "DRPG.Investigation.noneMatch" : "DRPG.Investigation.noTraces")}</p>`}`;
 }
@@ -1920,6 +1975,32 @@ function caseTracesPanel({ traces, shown, finders, reading }) {
  * draws the button `drpg-key-limited` and disabled, as it drew the two selects.
  */
 export function caseKeyRows({ plan, status, placed, limit }) {
+    return plan.entries.length ? tableBody(caseKeyTable({ plan, status, placed, limit })) : "";
+}
+
+/** The Key Remnants planner's columns, in the hand table's order (D31). Exported for R2067 and R2068. */
+export function caseKeyColumns() {
+    const L = key => game.i18n.localize(key);
+    return [
+        { key: "scale", label: L("DRPG.Investigation.difficulty"), cls: "case-scale", lines: 2 },
+        { key: "name", label: L("DRPG.Investigation.traceName"), cls: "case-key-name", lines: 2 },
+        { key: "text", label: L("DRPG.Investigation.traceText"), cls: "case-key-text", lines: 2 },
+        { key: "analysis", label: L("DRPG.Investigation.traceAnalysis"), cls: "case-key-text", lines: 2 },
+        { key: "note", label: L("DRPG.Investigation.keyNoteLabel"), cls: "case-key-note", lines: 2 },
+        { key: "status", label: L("DRPG.Investigation.keyStatus"), cls: "case-key-status", lines: 2 }
+    ];
+}
+
+/**
+ * The planner as the kit's table; a row past the opening roll's limit dimmed as the hand table dimmed it (its `<tr>`'s
+ * opacity, by `rowAttrs`). Exported for R2067 and R2068.
+ */
+export function caseKeyTable({ plan, status, placed, limit }) {
+    return dataTable({ columns: caseKeyColumns(), rows: caseKeyCells({ plan, status, placed, limit }),
+        rowAttrs: row => ({ style: row.overLimit ? "opacity:.6" : null }) });
+}
+
+function caseKeyCells({ plan, status, placed, limit }) {
     // The same six facts the trace rows carry, in the same order - see
     // `traceContextLine`. A GM picking which placed trace an entry means was
     // choosing between "Evident · Kitchen · note" lines that said nothing about
@@ -1963,23 +2044,24 @@ export function caseKeyRows({ plan, status, placed, limit }) {
            row is. The headers name them only for the eye (21.09, the a11y sweep). */
         const aria = (...keys) => ` aria-label="${esc(
             `${keys.map(k => game.i18n.localize(k)).join(": ")} - ${i + 1}`)}"`;
-        return `<tr${overLimit ? ' style="opacity:.6"' : ""}>
-            <td><strong>${esc(SCALE_LABELS[entry.scale] ?? entry.scale)}</strong></td>
-            <td><input type="text" name="keyname:${i}"${aria("DRPG.Investigation.traceName")} value="${esc(shows.name)}"
-                placeholder="${esc(traceLabel(null))}" /></td>
-            <td><textarea name="keytext:${i}" rows="1"${aria("DRPG.Investigation.traceText")}
+        return {
+            overLimit,
+            scale: `<strong>${esc(SCALE_LABELS[entry.scale] ?? entry.scale)}</strong>`,
+            name: `<input type="text" name="keyname:${i}"${aria("DRPG.Investigation.traceName")} value="${esc(shows.name)}"
+                placeholder="${esc(traceLabel(null))}" />`,
+            text: `<textarea name="keytext:${i}" rows="1"${aria("DRPG.Investigation.traceText")}
                 placeholder="${game.i18n.localize("DRPG.Investigation.notePlaceholder")}">${
                 esc(shows.text)}</textarea>
-                ${context ? `<div class="notes drpg-trace-context">${esc(context)}</div>` : ""}</td>
-            ${/* The second tier, as on the Traces tab (21.09). A placed row falls back
-                  on the trace's own reading: a plan saved before this column existed
-                  holds none, and an empty box would read as "nothing written". */ ""}
-            <td><textarea name="keyanalysis:${i}" rows="1"${aria("DRPG.Investigation.traceAnalysis")}
+                ${context ? `<div class="notes drpg-trace-context">${esc(context)}</div>` : ""}`,
+            /* The second tier, as on the Traces tab (21.09). A placed row falls back
+               on the trace's own reading: a plan saved before this column existed
+               holds none, and an empty box would read as "nothing written". */
+            analysis: `<textarea name="keyanalysis:${i}" rows="1"${aria("DRPG.Investigation.traceAnalysis")}
                 placeholder="${game.i18n.localize("DRPG.Investigation.analysisPlaceholder")}">${
-                esc(shows.analysis)}</textarea></td>
-            <td><input type="text" name="note:${i}"${aria("DRPG.Investigation.keyNoteLabel")} value="${esc(shows.note)}"
-                placeholder="${game.i18n.localize("DRPG.Investigation.keyNotePlaceholder")}" /></td>
-            <td class="drpg-key-status">
+                esc(shows.analysis)}</textarea>`,
+            note: `<input type="text" name="note:${i}"${aria("DRPG.Investigation.keyNoteLabel")} value="${esc(shows.note)}"
+                placeholder="${game.i18n.localize("DRPG.Investigation.keyNotePlaceholder")}" />`,
+            status: `
                 <div class="drpg-key-state">${state}</div>
                 <select name="token:${i}"${aria("DRPG.Investigation.onMap")}>
                     ${emptyOption("DRPG.Investigation.noRemnant", { selected: !live })}
@@ -1987,10 +2069,9 @@ export function caseKeyRows({ plan, status, placed, limit }) {
                 </select>
                 ${here ? "" : `<button type="button" name="place:${i}" data-drpg-key-place="${i}"${
                     aria("DRPG.Investigation.place")} class="drpg-key-place${overLimit ? " drpg-key-limited" : ""}"${
-                    overLimit ? " disabled" : ""}>${game.i18n.localize("DRPG.Investigation.place")}</button>`}
-            </td>
-        </tr>`;
-    }).join("");
+                    overLimit ? " disabled" : ""}>${game.i18n.localize("DRPG.Investigation.place")}</button>`}`
+        };
+    });
 }
 
 /** The Key Remnants tab: the planner and its warnings. */
@@ -2005,7 +2086,6 @@ export function tooThinLine(found) {
 }
 
 function caseKeyPanel({ plan, status, placed, limit }) {
-    const keyRows = caseKeyRows({ plan, status, placed, limit });
     // The guide's floor is three Key Remnants; the plan's own warning threshold
     // is one above it, so a GM is told the trial is getting thin BEFORE it is
     // actually unsolvable rather than at the moment it already is.
@@ -2023,20 +2103,14 @@ function caseKeyPanel({ plan, status, placed, limit }) {
             n: status.offPlan.length, bar,
             names: esc(listOf(status.offPlan.map(r => r.name || game.i18n.localize("DRPG.Remnant.cardTitle"))))
         })}</p>` : ""}
-        ${thin ? `<p class="drpg-warning">${tooThinLine(status.foundAny)}</p>` : ""}
+        ${/* a warning, in the kit's box (E47-C4; E21's carried sites, homed in E47 here): the trial is getting thin */ ""}
+        ${thin ? box("warning", `<p>${tooThinLine(status.foundAny)}</p>`) : ""}
         ${limit !== null ? `<p class="notes">${game.i18n.format("DRPG.Investigation.keyLimitLine", {
             used: Math.min(plan.entries.length, limit), limit, min: KEY_REMNANTS.minimum
         })}</p>
         <label><input type="checkbox" name="keyOverride" /> ${
             game.i18n.localize("DRPG.Investigation.keyLimitOverride")}</label>` : ""}
-        <table class="drpg-vault-table drpg-key-table"><thead><tr>
-            <th>${game.i18n.localize("DRPG.Investigation.difficulty")}</th>
-            <th>${game.i18n.localize("DRPG.Investigation.traceName")}</th>
-            <th>${game.i18n.localize("DRPG.Investigation.traceText")}</th>
-            <th>${game.i18n.localize("DRPG.Investigation.traceAnalysis")}</th>
-            <th>${game.i18n.localize("DRPG.Investigation.keyNoteLabel")}</th>
-            <th>${game.i18n.localize("DRPG.Investigation.keyStatus")}</th>
-        </tr></thead><tbody>${keyRows}</tbody></table>
+        ${caseKeyTable({ plan, status, placed, limit })}
         <p class="notes">${game.i18n.localize("DRPG.Investigation.createNote")}</p>
         <p class="notes">${game.i18n.format("DRPG.Investigation.keyDcNote", {
             // Read off OBSERVE_DC so the sentence cannot drift from the rule it
@@ -2058,8 +2132,8 @@ function caseKeyPanel({ plan, status, placed, limit }) {
                Last season's clue of the same chapter is a leftover too (E11 C12, `sameSeason`). */
             const old = placed.filter(r => r.data.chapter != null
                 && (r.data.chapter !== plan.chapter || !sameSeason(r.data))).length;
-            return old ? `<p class="notes drpg-warning">${
-                plural("DRPG.Investigation.leftoverKeys", { n: old })}</p>` : "";
+            // a warning in the kit's box since E47-C4 (E21's carried sites, homed in E47 here), a `drpg-warning` line before
+            return old ? box("warning", `<p>${plural("DRPG.Investigation.leftoverKeys", { n: old })}</p>`) : "";
         })()}`;
 }
 
@@ -2150,22 +2224,12 @@ function caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter }) {
         `<option value="${v}"${v === (chosen || "evident") ? " selected" : ""}>${
             esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("");
 
-    const studentRows = caseStudentRows(students);
     const shown = readTracesAs(traces, reading);
     const placed = placedKeyRemnants();
 
     return `<div class="drpg-case-live"><form>
         <h4>${game.i18n.localize("DRPG.Investigation.whoHasWhat")}</h4>
-        <table class="drpg-vault-table drpg-who-table"><thead><tr>
-            <th>${game.i18n.localize("DRPG.Investigation.student")}</th>
-            <th class="drpg-num">${game.i18n.localize("DRPG.Investigation.bullets")}</th>
-            <th class="drpg-num">${game.i18n.localize("DRPG.Investigation.keysHeld")}</th>
-            <th class="drpg-num">${game.i18n.localize("DRPG.Investigation.unidentified")}</th>
-            ${/* "Really" read as nothing at a table (S12-52): the tooltip says it is what the
-                  bullets are by the GMs' answer key, whatever their holders were shown. */ ""}
-            <th data-tooltip="${esc(game.i18n.localize("DRPG.Investigation.breakdownTooltip"))}">${
-                game.i18n.localize("DRPG.Investigation.breakdown")}</th>
-        </tr></thead><tbody>${studentRows}</tbody></table>
+        ${caseStudentTable(students)}
 
         ${kitTabs([
             { key: "traces", label: game.i18n.localize("DRPG.Investigation.tabTraces"),

@@ -1092,7 +1092,13 @@ async function text() {
         console.log(`text: batch: in this tree's files (a reading): ${state.read} text(s) read; still the before en ${state.before.en}, pl ${state.before.pl}; `
             + `the after landed en ${state.landed.en}, pl ${state.landed.pl}; changed since the batch ${state.changed.length}${state.changed.length ? ` (${state.changed.join(", ")})` : ""}`);
         const texts = Array.isArray(batch?.texts) ? batch.texts : [];
-        const approved = texts.filter(t => t?.owner?.verdict === "ok");
+        /* A text the owner later asked to change (text-render.mjs BATCH_LATER; E47-FC) is not held to its approved after;
+           each is named, and a key there that is no approved text of this batch is a problem. */
+        const later = Object.keys(textRender.BATCH_LATER ?? {});
+        const strayLater = later.filter(key => !texts.some(t => t?.key === key && t?.owner?.verdict === "ok"));
+        if (strayLater.length) problems.push(`batch: ${BATCH_FILE}: BATCH_LATER names ${strayLater.join(", ")}, no text of this batch the owner approved`);
+        if (later.length) console.log(`text: batch: the owner's later word supersedes the approved after of ${later.length} text(s): ${later.map(key => `${key} (${textRender.BATCH_LATER[key].page} ${textRender.BATCH_LATER[key].card}, ${textRender.BATCH_LATER[key].date})`).join(", ")}`);
+        const approved = texts.filter(t => t?.owner?.verdict === "ok" && !later.includes(t.key));
         const unlanded = approved.flatMap(t => {
             const one = textRender.batchState({ texts: [t] }, against);
             return ["en", "pl"].filter(lang => !one.landed[lang]).map(lang => `${t.key} ${lang}`);

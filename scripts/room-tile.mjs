@@ -613,6 +613,28 @@ async function headOfImage(src, { ms = ROOM_IMAGE_LIMITS.probeMs } = {}) {
 }
 
 /**
+ * What one picture is (E46-C2a, 09.11.2026; the owner's 13.10 amend - Room setup's picture cell says it): the decode
+ * and the HEAD `checkRoomImages` makes of each picture, read together. `width` and `height` the decode's (0 when it
+ * did not decode), `bytes` the server's length or null, `gone` when it does not decode or the server says it is not
+ * there (404, 410), `late` when the decode ran out of time and nothing says it is gone, `pixels` and `heavy` over
+ * `ROOM_IMAGE_LIMITS`' side and bytes (a late picture's pixels unread, so never `pixels`).
+ *
+ * @param {string} src  a path `safeRoomImage` accepted
+ * @param {object} [options]
+ * @param {number} [options.ms]  how long the decode and the HEAD may take
+ * @param {function(string): Promise<{status: number|null, bytes: number|null}>} [options.head]  the HEAD request
+ */
+export async function imageFacts(src, { ms = ROOM_IMAGE_LIMITS.probeMs, head = path => headOfImage(path, { ms }) } = {}) {
+    const [picture, answer] = await Promise.all([decodeImage(src, { ms }), head(src).catch(() => ({ status: null, bytes: null }))]);
+    const gone = (!picture.ok && !picture.late) || answer?.status === 404 || answer?.status === 410;
+    const bytes = Number.isFinite(answer?.bytes) ? answer.bytes : null;
+    const late = !gone && picture.late === true;
+    const { side, bytes: heavyBytes } = ROOM_IMAGE_LIMITS;
+    return { width: picture.width, height: picture.height, bytes, status: answer?.status ?? null, gone, late,
+        pixels: !gone && !late && (picture.width > side || picture.height > side), heavy: !gone && bytes !== null && bytes > heavyBytes };
+}
+
+/**
  * Every room picture of every scene, checked for Pre-season checks on the GM's browser (E20 C3; amend 11.10's
  * decode row, E77 D5's size warning, the owner's Q-7): each path once, whichever rooms show it. A picture does not
  * load when it does not decode or the server answers it is not there (404, 410 - the headless harness's Image has
@@ -644,11 +666,10 @@ export async function checkRoomImages({ scenes = game.scenes, probeMs = ROOM_IMA
         }
     }
     const { side, bytes: heavyBytes, atOnce } = ROOM_IMAGE_LIMITS;
+    // One picture's facts (`imageFacts`, E46-C2a: the same decode and HEAD, read in one place for Room setup as well).
     const probe = async ([path, rooms]) => {
-        const [picture, answer] = await Promise.all([decodeImage(path, { ms: probeMs }), head(path).catch(() => ({ status: null, bytes: null }))]);
-        const gone = (!picture.ok && !picture.late) || answer?.status === 404 || answer?.status === 410;
-        const bytes = Number.isFinite(answer?.bytes) ? answer.bytes : null;
-        return { path, rooms, width: picture.width, height: picture.height, bytes, gone, late: !gone && picture.late === true };
+        const { width, height, bytes, gone, late } = await imageFacts(path, { ms: probeMs, head });
+        return { path, rooms, width, height, bytes, gone, late };
     };
     // `atOnce` workers, each taking the next picture; `read` keeps the scenes' order.
     const all = [...byPath];

@@ -26,7 +26,7 @@ import {
 import { isMonokuma, setMonokuma, poolFor, setPools, studentCensus } from "./monokuma.mjs";
 import { students, assignments, monokumaFor, setAssignments, autoAssign, NO_MONOKUMA } from "./assignments.mjs";
 import { dialogContent, error } from "./utils.mjs";
-import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm } from "./ui-kit.mjs";
+import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, dataTable, box } from "./ui-kit.mjs";
 import { setOverflowRules, overflowSection, overflowNowLine, readOverflowForm, overflowStatus, clearOverflowAsGm, overflowSuggestionLine } from "./overflow.mjs";
 import { alreadyOpen, keepFresh, reopen, RAISED } from "./live.mjs";
 import { SETTINGS } from "./settings.mjs";
@@ -291,7 +291,10 @@ export async function openGmTeamDialog({ draft = null } = {}) {
         // line and the table's own spacing. All of them keyed off a class no
         // dialog carried, so this screen has been rendering unstyled.
         classes: ["drpg-panel", "drpg-projects", "drpg-monokuma-panel", "drpg-assign", "drpg-window-gmteam"],
-        // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
+        // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a),
+        // opening at the GM's managers' width (E46-C5a): the Overflow's rules table holds four columns and its "what it
+        // does" wraps, so a window opened narrower kept it in a 137 px column (Chromium, glass, 1366x768, 09.11.2026).
+        width: "wide",
         fit: true,
         body: buildContent(actors, gms, roster, candidates, removable).innerHTML,
         footer,
@@ -392,90 +395,91 @@ export async function openGmTeamDialog({ draft = null } = {}) {
  * ========================================================================== */
 
 function buildContent(actors, gms, roster, candidates, removable) {
-    const poolRows = gms.map(u => `
-        <tr>
-            <td>${foundry.utils.escapeHTML(u.name)}</td>
-            <td><input type="text" name="poolName.${u.id}" value="${foundry.utils.escapeHTML(poolLabel(u))}"
-                       aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Despair.poolName")}: ${u.name}`)}"
-                       placeholder="${foundry.utils.escapeHTML(u.name)}" /></td>
-        </tr>`).join("");
+    const L = key => game.i18n.localize(key);
+
+    /* THE THREE TABLES ARE THE KIT'S (E46-C5a, 09.11.2026; card M3, STAGE E46's Despair Flow shape). At 3c952c67
+       each tab drew a hand `<table>` with no class, its Monokuma column centred by an inline style; each is a
+       `dataTable` now (ui-kit.mjs), today's columns in today's order, the fields' names and data attributes as they
+       were - Save and the live wiring below read the same names (R2030). The columns' own rules are components.css's
+       Despair Flow section (`drpg-data-col-despair-*`). */
+    const poolTable = dataTable({
+        columns: [
+            { key: "account", label: L("DRPG.Despair.account") },
+            { key: "name", label: L("DRPG.Despair.poolName") }
+        ],
+        rows: gms.map(u => ({
+            account: foundry.utils.escapeHTML(u.name),
+            name: `<input type="text" name="poolName.${u.id}" value="${foundry.utils.escapeHTML(poolLabel(u))}"
+                       aria-label="${foundry.utils.escapeHTML(`${L("DRPG.Despair.poolName")}: ${u.name}`)}"
+                       placeholder="${foundry.utils.escapeHTML(u.name)}" />`
+        }))
+    });
 
     const addRow = candidates.length ? `
-        <label>${game.i18n.localize("DRPG.Despair.grantTo")}
+        <label>${L("DRPG.Despair.grantTo")}
             <select name="newPoolCandidate">${candidates.map(u =>
                 `<option value="${u.id}">${foundry.utils.escapeHTML(u.name)}</option>`).join("")}</select>
-        </label>` : `<p class="notes">${game.i18n.localize("DRPG.Despair.noCandidates")}</p>`;
+        </label>` : `<p class="notes">${L("DRPG.Despair.noCandidates")}</p>`;
 
     const removeRow = removable.length ? `
-        <label>${game.i18n.localize("DRPG.Despair.revokeFrom")}
+        <label>${L("DRPG.Despair.revokeFrom")}
             <select name="removePoolCandidate">${removable.map(u =>
                 `<option value="${u.id}">${foundry.utils.escapeHTML(poolLabel(u))}</option>`).join("")}</select>
         </label>` : "";
 
     const poolSection = `
-        <p>${game.i18n.localize("DRPG.Despair.poolsIntro")}</p>
-        <table>
-            <thead><tr>
-                <th>${game.i18n.localize("DRPG.Despair.account")}</th>
-                <th>${game.i18n.localize("DRPG.Despair.poolName")}</th>
-            </tr></thead>
-            <tbody>${poolRows}</tbody>
-        </table>
+        <p>${L("DRPG.Despair.poolsIntro")}</p>
+        ${poolTable}
         ${addRow}
         ${removeRow}`;
 
-    const mkRows = actors.map(actor => {
-        const marked = isMonokuma(actor);
-        const pool = poolFor(actor);
-
-        const options = [
-            `<option value="">${game.i18n.localize("DRPG.Monokuma.noPool")}</option>`,
-            ...gms.map(u => `<option value="${u.id}"${u.id === pool ? " selected" : ""}>${
-                foundry.utils.escapeHTML(poolLabel(u))
-            }</option>`)
-        ].join("");
-
-        return `<tr data-actor="${actor.id}"${marked ? ' class="drpg-is-monokuma"' : ""}>
-            <td>
-                <img src="${foundry.utils.escapeHTML(actor.img ?? "")}" alt="" class="drpg-monokuma-portrait" />
-                ${foundry.utils.escapeHTML(actor.name)}
-            </td>
-            <td style="text-align:center">
-                <input type="checkbox" name="mk.${actor.id}" data-drpg-mk ${marked ? "checked" : ""}
-                       aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Monokuma.isMonokuma")}: ${actor.name}`)}" />
-            </td>
-            <td>
-                <span class="drpg-cell-none" data-drpg-pool-none${marked ? " hidden" : ""}>-</span>
+    const mkTable = dataTable({
+        columns: [
+            { key: "who", label: L("DRPG.Panel.character"), cls: "despair-who" },
+            { key: "mark", label: L("DRPG.Monokuma.isMonokuma"), cls: "despair-mark" },
+            { key: "pool", label: L("DRPG.Monokuma.pool") }
+        ],
+        rows: actors.map(actor => {
+            const marked = isMonokuma(actor);
+            const pool = poolFor(actor);
+            const options = [
+                `<option value="">${L("DRPG.Monokuma.noPool")}</option>`,
+                ...gms.map(u => `<option value="${u.id}"${u.id === pool ? " selected" : ""}>${foundry.utils.escapeHTML(poolLabel(u))}</option>`)
+            ].join("");
+            return {
+                actorId: actor.id,
+                marked,
+                who: `<img src="${foundry.utils.escapeHTML(actor.img ?? "")}" alt="" class="drpg-monokuma-portrait" />${foundry.utils.escapeHTML(actor.name)}`,
+                mark: `<input type="checkbox" name="mk.${actor.id}" data-drpg-mk ${marked ? "checked" : ""}
+                       aria-label="${foundry.utils.escapeHTML(`${L("DRPG.Monokuma.isMonokuma")}: ${actor.name}`)}" />`,
+                pool: `<span class="drpg-cell-none" data-drpg-pool-none${marked ? " hidden" : ""}>-</span>
                 <select name="pool.${actor.id}" data-drpg-pool ${marked ? "" : "disabled hidden"}
-                        aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Monokuma.pool")}: ${actor.name}`)}">${options}</select>
-            </td>
-        </tr>`;
-    }).join("");
+                        aria-label="${foundry.utils.escapeHTML(`${L("DRPG.Monokuma.pool")}: ${actor.name}`)}">${options}</select>`
+            };
+        }),
+        rowAttrs: r => ({ "data-actor": r.actorId, class: r.marked ? "drpg-is-monokuma" : null })
+    });
 
+    // The shared pool's warning: a kit box, written by `wireMonokumaLive` while two ticked Monokumas share a pool,
+    // hidden while none do (E46-C5a; it was a red paragraph, E21's carried W site).
     const monokumaSection = `
-        <p>${game.i18n.localize("DRPG.Monokuma.panelIntro")}</p>
-        <div class="drpg-monokuma-warning"></div>
-        <table>
-            <thead><tr>
-                <th>${game.i18n.localize("DRPG.Panel.character")}</th>
-                <th>${game.i18n.localize("DRPG.Monokuma.isMonokuma")}</th>
-                <th>${game.i18n.localize("DRPG.Monokuma.pool")}</th>
-            </tr></thead>
-            <tbody>${mkRows}</tbody>
-        </table>
-        <p class="notes">${game.i18n.localize("DRPG.Monokuma.panelNote")}</p>`;
+        <p>${L("DRPG.Monokuma.panelIntro")}</p>
+        <div class="drpg-monokuma-warning" hidden></div>
+        ${mkTable}
+        <p class="notes">${L("DRPG.Monokuma.panelNote")}</p>`;
 
     const assignSection = roster.length ? `
-        <p>${game.i18n.localize("DRPG.Assign.intro")}</p>
+        <p>${L("DRPG.Assign.intro")}</p>
         <div class="drpg-assign-counts"></div>
-        <table>
-            <thead><tr>
-                <th>${game.i18n.localize("DRPG.Panel.character")}</th>
-                <th>${game.i18n.localize("DRPG.Assign.monokuma")}</th>
-            </tr></thead>
-            <tbody>${buildAssignRows(roster, gms)}</tbody>
-        </table>
-        <p class="notes">${game.i18n.localize("DRPG.Assign.footnote")}</p>` : "";
+        ${dataTable({
+            columns: [
+                { key: "who", label: L("DRPG.Panel.character"), cls: "despair-who" },
+                { key: "pool", label: L("DRPG.Assign.monokuma") }
+            ],
+            rows: buildAssignRows(roster, gms),
+            rowAttrs: r => ({ class: r.excluded ? "drpg-assign-excluded" : null })
+        })}
+        <p class="notes">${L("DRPG.Assign.footnote")}</p>` : "";
 
     // Three stacked sections made one long scroll; they are tabs now (Dawid,
     // 26.08). The mechanism is the kit's (ui-kit.mjs `kitTabs`/`wireKitTabs`)
@@ -560,14 +564,15 @@ function buildAssignRows(roster, gms) {
 
         // What the row held as it was drawn (S10-47): Save writes a row the GM changed or one the world
         // already held, and leaves a fallback a fallback (`readAssignmentForm`).
-        return `<tr${excluded ? ' class="drpg-assign-excluded"' : ""}>
-                    <td>${foundry.utils.escapeHTML(actor.name)}</td>
-                    <td><select name="assign.${actor.id}" data-drpg-assign data-drpg-was="${explicit ? assigned : FALLBACK_PICK}"
+        return {
+            excluded,
+            who: foundry.utils.escapeHTML(actor.name),
+            pool: `<select name="assign.${actor.id}" data-drpg-assign data-drpg-was="${explicit ? assigned : FALLBACK_PICK}"
                         data-drpg-fallback="${fallbackTo.id}" data-drpg-explicit="${explicit ? 1 : 0}"
                         ${explicit ? "" : `class="drpg-assign-fallback" data-tooltip="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Assign.implicitHint"))}"`}
-                        aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Assign.monokuma")}: ${actor.name}`)}">${shown}</select></td>
-                </tr>`;
-    }).join("");
+                        aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Assign.monokuma")}: ${actor.name}`)}">${shown}</select>`
+        };
+    });
 }
 
 /* ==========================================================================
@@ -608,12 +613,13 @@ function wireMonokumaLive(dialog) {
         if (!warning) return;
         const clashes = Array.from(used.entries()).filter(([, names]) => names.length > 1);
         warning.innerHTML = clashes.length
-            ? `<p class="drpg-warning">${clashes.map(([userId, names]) =>
+            ? box("warning", clashes.map(([userId, names]) =>
                   game.i18n.format("DRPG.Monokuma.sharedPool", {
                       name: foundry.utils.escapeHTML(poolLabel(game.users.get(userId))),
                       actors: foundry.utils.escapeHTML(names.join(", "))
-                  })).join("<br>")}</p>`
+                  })).join("<br>"))
             : "";
+        warning.hidden = !clashes.length;
     };
 
     root.querySelectorAll("[data-drpg-mk], [data-drpg-pool]")

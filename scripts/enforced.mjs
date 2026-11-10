@@ -66,7 +66,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 import { warn, error, isPrimaryGm, whisperToGms, esc } from "./utils.mjs";
-import { drpgWindow } from "./ui-kit.mjs";
+import { drpgWindow, box } from "./ui-kit.mjs";
 
 /**
  * @typedef {object} EnforcedRow
@@ -911,13 +911,15 @@ export function giveBackFacts({ kept = worldOriginals.get(), givenBack = foundry
  * The window's body: what the module changes, the given-back line while it is true, a line about the file
  * permissions while Give back would leave them as they are, a line that the automations' values from before the
  * module are not known when none is kept (the owner, 30.10), a full Gamemaster's line for an Assistant GM, and what
- * to do before switching the module off.
+ * to do before switching the module off. The given-back line is the kit's information box inside its
+ * `.drpg-give-back-state` (E47-C5, 09.11.2026; S01-44: a bare bold line in Foundry's own ink before); the words and their
+ * order are as they were.
  */
 export function giveBackContent({ givenBack = foundryGivenBack(), filesStay = false, automationUnknown = false, fullGm = true } = {}) {
     const t = key => esc(game.i18n.localize(key));
     return `<p>${t("DRPG.GiveBack.intro")}</p>
         <ul class="drpg-give-back-list">${FOUNDRY_WRITES.map(w => `<li>${t(w.text)}</li>`).join("")}</ul>
-        ${givenBack ? `<p class="drpg-give-back-state"><strong>${t("DRPG.GiveBack.givenBackState")}</strong></p>` : ""}
+        ${givenBack ? `<div class="drpg-give-back-state">${box("info", `<strong>${t("DRPG.GiveBack.givenBackState")}</strong>`)}</div>` : ""}
         ${!givenBack && automationUnknown ? `<p class="notes">${t("DRPG.GiveBack.automationUnknown")}</p>` : ""}
         ${!givenBack && filesStay ? `<p class="notes">${t("DRPG.GiveBack.filesStay")}</p>` : ""}
         ${fullGm ? "" : `<p class="notes">${t("DRPG.GiveBack.fullGmOnly")}</p>`}

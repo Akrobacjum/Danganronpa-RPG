@@ -41,7 +41,7 @@
  */
 
 import { error } from "./utils.mjs";
-import { drpgWindow, drpgConfirm } from "./ui-kit.mjs";
+import { drpgWindow, drpgConfirm, dataTable, chip as kitChip, chips } from "./ui-kit.mjs";
 import { keepFresh } from "./live.mjs";
 import {
     PASSAGE_STORES, listPassages, grantPassage, revokePassage, revokeWhenLeaving, setStartAccess, setPassageWay,
@@ -68,14 +68,28 @@ function nameOf(actorId, actors) {
     return actors?.get?.(actorId)?.name ?? t("DRPG.Passage.tab.unknown");
 }
 
-/** One chip of a column, with its cross: `act` is what the cross does, `how` the way the student learnt it (Who knows only). */
+/**
+ * One chip of a column (E46-C2b, 09.11.2026; the owner's A10 of 11.10: "the kit's access chips"): the kit's `chip`, pressed -
+ * the student has it - and its press is what the cross did before (`act`: revoke, or start-off), asked as before. `how` is
+ * the way the student learnt it (Who knows only), in the chip's `<b>`, and `leave` the room it closes on leaving. Until
+ * C2b a `span.drpg-room-chip` held the name and a cross button of its own; a kit chip is a button, which holds no other,
+ * so the chip is the cross now and the "x" a mark inside it (`aria-hidden`: its name says it). The module's class and
+ * attributes are the kit chip's `cls` and `attrs` since E47-KFa (written in after `class="drpg-chip"` before it); the
+ * leaving note and the mark are still put inside the drawn button, the chip's markup taking only its label and count;
+ * the readers' selectors (`.drpg-passage-chip[data-drpg-actor]`, `[data-drpg-passage-act][data-drpg-actor]`,
+ * `[data-drpg-passage-leave]` inside the chip) hold.
+ */
 function chip(actorId, { actors, act, how = null, leave = null, cross }) {
-    const name = esc(nameOf(actorId, actors));
-    const label = how ? ` <b>${esc(t(HOW[how] ?? HOW.gm))}</b>` : "";
+    const name = nameOf(actorId, actors);
     const until = leave ? ` <b data-drpg-passage-leave>${esc(tf("DRPG.Passage.tab.leaving", { room: leave }))}</b>` : "";
-    return `<span class="drpg-room-chip drpg-passage-chip"${how ? ` data-how="${esc(how)}"` : ""} data-drpg-actor="${esc(actorId)}">${
-        name}${label}${until}<button type="button" class="drpg-passage-chip-x" data-drpg-passage-act="${act}" data-drpg-actor="${esc(actorId)}"
-        aria-label="${esc(cross)}: ${name}" title="${esc(cross)}">x</button></span>`;
+    const attrs = { "data-how": how, "data-drpg-passage-act": act, "data-drpg-actor": actorId, "aria-label": `${cross}: ${name}`, title: cross };
+    return kitChip({ label: name, pressed: true, count: how ? t(HOW[how] ?? HOW.gm) : null, cls: "drpg-passage-chip", attrs })
+        .replace(/<\/button>$/, `${until}<span class="drpg-passage-chip-mark" aria-hidden="true">x</span></button>`);
+}
+
+/** A cell's chips and its '+': the kit's `chips` toolbar, named by its column, with the module's markup inside it. */
+function chipCell(column, inner) {
+    return chips([], { label: t(`DRPG.Passage.tab.${column}`) }).replace(/<\/div>$/, `${inner}</div>`);
 }
 
 /** '+' and the students it offers, hidden until it is pressed: the second click is the student's name. */
@@ -143,15 +157,15 @@ function rowHtml(passage, { stores, students, actors, users, told }) {
     const origin = passage.origin === "door" ? "originDoor" : passage.origin?.by === "project" ? "originProject" : "originGm";
     const reveal = kind === "public" ? "secret" : "public";
 
-    return `<tr data-drpg-passage="${esc(passage.id)}">
-        <td>${esc(passageTitle(passage))}</td>
-        <td><span class="drpg-passage-kind" data-kind="${kind}">${esc(t({ breach: "DRPG.Passage.tab.kindBreach", public: "DRPG.Passage.tab.kindPublic" }[kind] ?? "DRPG.Passage.tab.kindSecret"))}</span></td>
-        <td>${esc(t(`DRPG.Passage.tab.${shape}`))}${wayPicker(passage)}</td>
-        <td>${esc(t(`DRPG.Passage.tab.${origin}`))}</td>
-        <td><span class="drpg-passage-chips">${knowsCell}</span></td>
-        <td><span class="drpg-passage-chips">${startCell}</span></td>
-        <td class="drpg-passage-state-cell"><span class="drpg-passage-state" data-state="${state}">${esc(t(stateWord))}</span>${notes.join("")}</td>
-        <td class="act"><span class="drpg-passage-actions">
+    return { id: passage.id,
+        rooms: esc(passageTitle(passage)),
+        kind: `<span class="drpg-passage-kind" data-kind="${kind}">${esc(t({ breach: "DRPG.Passage.tab.kindBreach", public: "DRPG.Passage.tab.kindPublic" }[kind] ?? "DRPG.Passage.tab.kindSecret"))}</span>`,
+        shape: `${esc(t(`DRPG.Passage.tab.${shape}`))}${wayPicker(passage)}`,
+        origin: esc(t(`DRPG.Passage.tab.${origin}`)),
+        knows: chipCell("knows", knowsCell),
+        start: chipCell("start", startCell),
+        state: `<span class="drpg-passage-state" data-state="${state}">${esc(t(stateWord))}</span>${notes.join("")}`,
+        actions: `<span class="drpg-passage-actions">
             <button type="button" class="drpg-mini-button" data-drpg-passage-act="show">${esc(t("DRPG.Passage.tab.show"))}</button>${breach ? `
             <button type="button" class="drpg-mini-button" data-drpg-passage-act="closeBreach">${esc(t("DRPG.Passage.tab.closeBreach"))}</button>` : `${
                 state === "broken" ? `
@@ -159,9 +173,18 @@ function rowHtml(passage, { stores, students, actors, users, told }) {
             <button type="button" class="drpg-mini-button" data-drpg-passage-act="${toggle}"${state === "broken" ? " disabled" : ""}>${esc(t(toggle === "open" ? "DRPG.Passage.tab.open" : "DRPG.Passage.tab.close"))}</button>
             <button type="button" class="drpg-mini-button" data-drpg-passage-act="${reveal}">${esc(t(reveal === "public" ? "DRPG.Passage.tab.makePublic" : "DRPG.Passage.tab.makeSecret"))}</button>
             <button type="button" class="drpg-mini-button" data-drpg-passage-act="delete">${esc(t("DRPG.Passage.tab.delete"))}</button>`}
-        </span></td>
-    </tr>`;
+        </span>` };
 }
+
+/**
+ * The table's columns in the owner's A10 order (11.10: Rooms, Kind, Shape, Origin, Who knows, At season start, the
+ * state, the actions), each `cls` the kind components.css's section "Room setup" gives its width
+ * (`drpg-data-col-<kind>`; R606 sums them); the Rooms column is the room tabs' (`room`). The actions' head has no words.
+ */
+export const PASSAGE_COLUMNS = Object.freeze([
+    ["rooms", "room"], ["kind", "kind"], ["shape", "shape"], ["origin", "origin"], ["knows", "knows"], ["start", "knows-start"],
+    ["state", "state"], ["actions", "actions"]
+].map(([key, cls]) => Object.freeze({ key, cls, label: key === "actions" ? "" : `DRPG.Passage.tab.${key}`, act: key === "actions" })));
 
 /**
  * The tab's table and its notes for one scene, from the GMs' records: the inside of the
@@ -172,11 +195,15 @@ export function passagesTabBody(scene, { stores = PASSAGE_STORES, students = [],
     if (!game.user?.isGM) return "";
     const passages = listPassages({ stores }).filter(p => p.sceneId === scene?.id)
         .sort((a, b) => passageTitle(a).localeCompare(passageTitle(b)) || a.id.localeCompare(b.id));
-    const table = passages.length ? `<table class="drpg-vault-table drpg-room-setup-table drpg-passage-table">
-        <colgroup><col class="drpg-col-room" /><col class="drpg-col-kind" /><col class="drpg-col-shape" /><col class="drpg-col-origin" /><col class="drpg-col-knows" /><col class="drpg-col-knows-start" /><col class="drpg-col-state" /><col class="drpg-col-actions" /></colgroup>
-        <thead><tr>${["rooms", "kind", "shape", "origin", "knows", "start", "state"].map(k => `<th${
-            k === "start" ? ` title="${esc(t("DRPG.Passage.tab.startHint"))}"` : ""}>${esc(t(`DRPG.Passage.tab.${k}`))}</th>`).join("")}<th></th></tr></thead>
-        <tbody>${passages.map(p => rowHtml(p, { stores, students, actors, users, told })).join("")}</tbody></table>`
+    /* The kit's table (E46-C2b): its `rowAttrs` the row's passage, read by every button's handler. At season start's head
+       keeps its hint in `title` as the hand table had it: the column's `title` since E47-KFa (written in after the
+       column's class before it). */
+    const table = passages.length ? dataTable({
+        columns: PASSAGE_COLUMNS.map(c => ({ key: c.key, cls: c.cls, act: c.act, label: c.label ? t(c.label) : "",
+            title: c.cls === "knows-start" ? t("DRPG.Passage.tab.startHint") : null })),
+        rows: passages.map(p => rowHtml(p, { stores, students, actors, users, told })),
+        rowAttrs: row => ({ "data-drpg-passage": row.id })
+    })
         : `<p class="drpg-passage-none" data-drpg-passage-empty>${esc(t("DRPG.Passage.tab.empty"))}</p>`;
     // What "At season start" does (H81-05) and which way a passage goes (H81-02), after the rest of the footnote.
     return `${table}<p class="notes">${esc(t("DRPG.Passage.tab.footnote"))} ${esc(t("DRPG.Passage.tab.startHint"))} ${esc(t("DRPG.Passage.tab.wayHint"))}</p>`;

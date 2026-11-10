@@ -103,8 +103,63 @@ export const STYLE_SURFACES = [
     { id: "kit-chip", role: "both", selector: ".drpg-chips > .drpg-chip[aria-pressed=\"false\"]:not(:disabled)" },
     { id: "kit-chip-pressed", role: "both", selector: ".drpg-chips > .drpg-chip[aria-pressed=\"true\"]" },
     { id: "kit-mode", role: "both", selector: ".drpg-mode-bar > button[aria-pressed=\"false\"]" },
-    { id: "kit-mode-active", role: "both", selector: ".drpg-mode-bar > button[aria-pressed=\"true\"]" }
+    { id: "kit-mode-active", role: "both", selector: ".drpg-mode-bar > button[aria-pressed=\"true\"]" },
+    /* The kit's parts of E46-C1 and E46-C1f (the gallery's `table-groups`, `table-heads`, `table-cells`, `checklist`,
+       `footer-tooltip` frames) and the GM panel's tiles of E47-C3, which no row read before (E47-C5, 09.11.2026). */
+    { id: "kit-table-group", role: "both", selector: "table.drpg-data-table tr.drpg-data-group > th" },
+    { id: "kit-table-head-group", role: "both", selector: "table.drpg-data-table tr.drpg-data-head-group > th" },
+    { id: "kit-table-clamp", role: "both", selector: "table.drpg-data-table .drpg-data-clamp" },
+    { id: "kit-stepper-compact", role: "both", selector: ".drpg-kit-stepper.drpg-kit-stepper-compact" },
+    { id: "kit-check-row", role: "both", selector: "ul.drpg-checklist > li.drpg-check-row" },
+    { id: "kit-check-mark", role: "both", selector: "li.drpg-check-row > .drpg-check-mark" },
+    { id: "kit-icon-button", role: "both", selector: ".drpg-kit-icon-button:not(:disabled)" },
+    { id: "kit-disabled", role: "both", selector: ".drpg-kit-footer button:disabled" },
+    { id: "gmp-section", role: "gm", selector: ".drpg-gmp-section > summary" },
+    { id: "gmp-tile", role: "gm", selector: ".drpg-gmp-button:not(:disabled):not(.is-current)" },
+    { id: "gmp-tile-current", role: "gm", selector: ".drpg-gmp-button.is-current" },
+    { id: "gmp-tile-disabled", role: "gm", selector: ".drpg-gmp-button:disabled" },
+    /* THE NEW SURFACES (E47-C5, 09.11.2026; audit S17-43, the 11.10 amends A8 and A9): the floor switcher, a roll's
+       status, the E28 card of rolls made with no GM, the E29 cards of a flagged change and of the changes made with no
+       GM watching, the Give back window (enforced.mjs), Foundry's settings window's module rows, the case window
+       (E47-C3), the Students window's Refund (E47-C8), the room tile expanded, the narrow layout's description window,
+       the Foundry tools and Map tools frames and one carrying `#interface`'s theme classes, 'Who you hear' and the Voice
+       fieldset. `floor: true` puts a row in the floor test's list (FLOOR_SURFACES, tier 1 "nothing in the chrome is set
+       under the floor"). */
+    { id: "floor-switcher", role: "both", selector: "#drpg-floors", floor: true },
+    { id: "floor-button", role: "both", selector: "#drpg-floors > button:not([aria-pressed=\"true\"])" },
+    { id: "floor-button-current", role: "both", selector: "#drpg-floors > button[aria-pressed=\"true\"]" },
+    { id: "roll-status", role: "both", selector: ".drpg-box[data-drpg-roll-state]", floor: true },
+    { id: "away-card", role: "gm", selector: ".drpg-away-card", floor: true },
+    { id: "away-grant", role: "gm", selector: ".drpg-away-actions > [data-drpg-away=\"grant\"]" },
+    { id: "away-none", role: "gm", selector: ".drpg-away-actions > [data-drpg-away=\"none\"]" },
+    { id: "audit-card", role: "gm", selector: ".drpg-audit-card:not(.drpg-audit-away)", floor: true },
+    { id: "audit-undo", role: "gm", selector: ".drpg-audit-actions > [data-drpg-audit=\"undo\"]" },
+    { id: "audit-keep", role: "gm", selector: ".drpg-audit-actions > [data-drpg-audit=\"keep\"]" },
+    { id: "audit-away-card", role: "gm", selector: ".drpg-audit-card.drpg-audit-away", floor: true },
+    { id: "audit-undo-all", role: "gm", selector: ".drpg-audit-all > [data-drpg-audit-all=\"undo\"]" },
+    { id: "audit-accept-all", role: "gm", selector: ".drpg-audit-all > [data-drpg-audit-all=\"keep\"]" },
+    { id: "give-back-window", role: "gm", selector: ".application.drpg-window-give-back", floor: true },
+    { id: "give-back-list", role: "gm", selector: ".drpg-give-back-list" },
+    { id: "give-back-state", role: "gm", selector: ".drpg-give-back-state > .drpg-box" },
+    { id: "settings-module-row", role: "both", selector: "#settings-config .form-group.drpg-settings-row", floor: true },
+    { id: "settings-module-label", role: "both", selector: "#settings-config .form-group.drpg-settings-row > label" },
+    { id: "settings-module-checkbox", role: "both", selector: "#settings-config .drpg-settings-row input[type=\"checkbox\"]" },
+    { id: "settings-module-range", role: "both", selector: "#settings-config .drpg-settings-row input[type=\"range\"]" },
+    { id: "case-window", role: "gm", selector: ".application.drpg-window-case-copy", floor: true },
+    { id: "refund-button", role: "gm", selector: "button[data-drpg-refund]", floor: true },
+    { id: "room-tile-open", role: "both", selector: "#drpg-room-tile.is-open", floor: true },
+    { id: "room-tile-open-prose", role: "both", selector: "#drpg-room-tile.is-open > .drpg-room-tile-prose" },
+    { id: "room-window", role: "both", selector: ".application.drpg-window-room", floor: true },
+    { id: "room-window-body", role: "both", selector: ".drpg-room-window-body" },
+    { id: "foundry-tools-frame", role: "gm", selector: "#drpg-win-ftools", floor: true },
+    { id: "map-tools-frame", role: "both", selector: "#drpg-win-maptools", floor: true },
+    { id: "foundry-frame-themed", role: "both", selector: ".drpg-foundry-window.themed" },
+    { id: "voice-list", role: "both", selector: "#drpg-voice-list", floor: true },
+    { id: "voice-fieldset", role: "both", selector: "fieldset.drpg-voice-panel", floor: true }
 ];
+
+/** The ids of the rows the floor test reads (tier 1 "nothing in the chrome is set under the floor"; R2071). */
+export const FLOOR_SURFACES = Object.freeze(STYLE_SURFACES.filter(s => s.floor).map(s => s.id));
 
 /** This page's theme by the body's class: "stained-glass", "monokuma-legacy" or "none". */
 function themeOf(doc) {

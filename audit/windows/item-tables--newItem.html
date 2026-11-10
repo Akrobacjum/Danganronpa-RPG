@@ -1,4 +1,4 @@
-<dialog id="app-A2PCqbqU" class="application dialog drpg-panel drpg-projects drpg-window-tables drpg-ui drpg-kit-width drpg-kit-width-tables" open="" data-drpg-width="tables" style="left: 48px; top: 384px;" data-drpg-scaled="1@768" lang="en" data-drpg-text-guard="1"><form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-kit-body"><nav class="drpg-tabs" role="tablist" data-drpg-kit-wired="1"><button type="button" role="tab" data-drpg-tab-key="editTiers" aria-selected="false" data-drpg-named="own">Tier pools</button><button type="button" role="tab" data-drpg-tab-key="editRooms" aria-selected="false" data-drpg-named="own">Room pools</button><button type="button" role="tab" data-drpg-tab-key="newItem" aria-selected="true" data-drpg-named="own">Create an item</button></nav><section class="drpg-tab-pane" role="tabpanel" data-drpg-pane="editTiers" hidden=""><div data-drpg-pool-pane="tiers">
+<dialog id="app-a7y8ScN4" class="application dialog drpg-panel drpg-projects drpg-window-tables drpg-ui drpg-kit-width drpg-kit-width-tables" open="" style="z-index: 102; left: 48px; top: 384px;" data-drpg-width="tables" data-drpg-scaled="1@768" lang="en" data-drpg-text-guard="1"><form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-kit-body"><nav class="drpg-tabs" role="tablist" data-drpg-kit-wired="1"><button type="button" role="tab" data-drpg-tab-key="editTiers" aria-selected="false" data-drpg-named="own">Tier pools</button><button type="button" role="tab" data-drpg-tab-key="editRooms" aria-selected="false" data-drpg-named="own">Room pools</button><button type="button" role="tab" data-drpg-tab-key="newItem" aria-selected="true" data-drpg-named="own">Create an item</button></nav><section class="drpg-tab-pane" role="tabpanel" data-drpg-pane="editTiers" hidden=""><div data-drpg-pool-pane="tiers">
         <p class="notes">Everything a Search can turn up. Pick a table on the left to see what is in it; the form below adds one item to as many tables as you tick.</p>
         <div class="drpg-tables-layout">
             <div class="drpg-tables-left"><p class="notes">No tier pools yet. Install them with “Install / reinstall” below.</p></div>
@@ -8,7 +8,7 @@
                     <button type="button" class="drpg-mini-button" data-drpg-rename-table="" data-drpg-named="own" disabled="">Rename table</button>
                     <button type="button" class="drpg-mini-button" data-drpg-delete-table="" data-drpg-named="own" disabled="">Delete table</button>
                 </div>
-                <div data-drpg-table-body=""></div>
+                <div data-drpg-table-body=""><p class="notes">No item tables yet - create the default set below.</p></div>
             </div>
         </div>
         <fieldset class="drpg-tables-new">
@@ -29,7 +29,7 @@
                     <button type="button" class="drpg-mini-button" data-drpg-rename-table="" data-drpg-named="own" disabled="">Rename table</button>
                     <button type="button" class="drpg-mini-button" data-drpg-delete-table="" data-drpg-named="own" disabled="">Delete table</button>
                 </div>
-                <div data-drpg-table-body=""></div>
+                <div data-drpg-table-body=""><p class="notes">No item tables yet - create the default set below.</p></div>
             </div>
         </div>
         <fieldset class="drpg-tables-new">
@@ -94,9 +94,9 @@
                     <span class="drpg-select"><select name="newCategory" data-drpg-chrome="select" data-drpg-named="own"><option value="usable:healing">Usable - Healing</option><option value="usable:stress">Usable - Sanity Relief</option><option value="crimeTool">Murder Weapon</option><option value="cleaningTool">Cleaning Tool</option><option value="tool">Tool</option></select></span></label>
                 <label>Tier
                     <span class="drpg-select"><select name="newTier" data-drpg-chrome="select" data-drpg-named="own"><option value="0">Tier 0</option><option value="1">Tier 1</option><option value="2" selected="">Tier 2</option><option value="3">Tier 3</option></select></span></label>
-                <p class="notes drpg-warning" data-drpg-tier-target="">No tier pool exists for that category and tier - it will only live in the rooms you tick below. Install the pools from the Tier pools tab.</p>
+                <div data-drpg-tier-target=""><div class="drpg-box" data-drpg-box="warning" role="note">No tier pool exists for that category and tier - it will only live in the rooms you tick below. Install the pools from the Tier pools tab.</div></div>
                 <div class="drpg-tables-roles">
-                    <span class="notes" data-drpg-roles-note="">Also works as - tick anything this entry can do besides its own category. A screwdriver under Tools that is also a Murder Weapon gives advantage on an attack as well as on project work, and still takes one slot.</span>
+                    <div class="notes" data-drpg-roles-note="">Also works as - tick anything this entry can do besides its own category. A screwdriver under Tools that is also a Murder Weapon gives advantage on an attack as well as on project work, and still takes one slot.</div>
                     <label class="drpg-check"><input type="checkbox" name="role:crimeTool" data-drpg-named="own">
             Murder Weapon</label><label class="drpg-check"><input type="checkbox" name="role:cleaningTool" data-drpg-named="own">
             Cleaning Tool</label><label class="drpg-check"><input type="checkbox" name="role:tool" data-drpg-named="own">

@@ -74,6 +74,7 @@ import { MODULE_ID, FLAGS, SFX_EVENTS, SFX_CATEGORIES, SFX_SLIDERS, SFX_VARIATIO
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 import { log, error, ownerOf, esc, plural, markLanguage } from "./utils.mjs";
 import { wordsOf, secretHtml, isVeiled, SECRET_FLAG } from "./secret.mjs";
+import { dataTable, iconButton } from "./ui-kit.mjs";
 import {
     SFX_ACTION, reportedMissing, droppedWhileLocked, soundFor, soundsFor, decoded, lastRates, lastGains, setSoundFor,
     volumeToSlider, sliderToVolume, sfxVolume, setSfxVolume, playSfx, soundFromMessage, testSfx
@@ -574,78 +575,84 @@ export function soundSlidersHtml() {
 }
 
 /**
- * One icon button of a row (E19 C6, audit S11-21): the GM's screenshot showed 47 rows of three word
- * buttons of the same weight in a column with no heading. The word is the button's name for a screen
- * reader and the tooltip says what it does.
+ * The Effects tab on the kit (E46-C4, 09.11.2026; card M2, Approve 04.11; STAGE E46's Sound shape). One `dataTable`:
+ * a group row per category, its "n of m assigned" in the kit's count and its line under it, then one row per event in
+ * `SFX_EVENTS`' order - the name, its chips and its description in one cell cut after two lines, the whole in the
+ * cell's title (`cellLines: 2`); the file box with its Choose; Test and Clear, the kit's icon buttons, their words in
+ * `aria-label` and the tooltip. Three buttons a row, as before (E19 C6 made the word buttons icons, audit S11-21).
+ * Measured at 3c952c67 (glass, 1366x768): 60 hand rows of a median 118 px (the largest 227), a body of 7171 px, and
+ * under Legacy the 60 descriptions at 10.83 px (`small.notes`, the browser's `smaller`); the kit's fine print takes the
+ * floor (R2027). The chooseHint, testHint and clearHint tooltips went with the owner's "Test and Clear as buttons whose
+ * words are in aria-label and the tooltip"; the file box keeps its title (`DRPG.Sound.severalHint`). GM only.
  */
-function sfxIconButton(data, icon, label, tip) {
-    return `<button type="button" class="drpg-mini-button drpg-sfx-icon" ${data}
-        aria-label="${esc(game.i18n.localize(label))}" data-tooltip="${esc(game.i18n.localize(tip))}"><i class="fa-solid ${icon}" inert></i></button>`;
-}
-
-/** The mapping table: one row per event, grouped by category. GM only. */
 export function soundEffectsHtml() {
+    const L = key => game.i18n.localize(key);
     const keys = Object.keys(SFX_EVENTS);
+    const groups = Object.entries(SFX_CATEGORIES).map(([category, meta]) => ({ group: meta.label, count: groupCountLine(category), category, hint: meta.hint }));
+    const rows = groups.flatMap(group => [group, ...keys.filter(key => SFX_EVENTS[key].category === group.category).map(effectRow)]);
+    const table = dataTable({
+        columns: [
+            { key: "event", label: L("DRPG.Sound.event"), cellLines: 2, cls: "sound-event" },
+            { key: "file", label: L("DRPG.Sound.file"), cls: "sound-file", width: "32%" },
+            { key: "act", label: L("DRPG.Sound.rowButtons"), act: true, cls: "sound-act", width: "9em", lines: 2 }
+        ],
+        rows,
+        rowAttrs: row => ({ "data-drpg-sfx": row.key })
+    });
 
-    const body = Object.entries(SFX_CATEGORIES).map(([category, meta]) => {
-        const rows = keys.filter(key => SFX_EVENTS[key].category === category).map(key => {
-            const event = SFX_EVENTS[key];
-            const src = soundFor(key) ?? "";
-            const many = soundsFor(key).length;
-            // Two badges, and both answer a question the row could not before:
-            // how many files this event draws from, and whether it bends.
-            const badges = [
-                many > 1
-                    ? `<span class="drpg-sfx-badge">${plural("DRPG.Sound.fileCount", { n: many })}</span>`
-                    : "",
-                event.vary
-                    ? `<span class="drpg-sfx-badge" data-tooltip="${esc(game.i18n.localize(
-                        "DRPG.Sound.variesHint"))}">${esc(game.i18n.localize(
-                        "DRPG.Sound.varies"))}</span>`
-                    : ""
-            ].join("");
-            return `<tr data-drpg-sfx="${key}">
-                <td>
-                    <strong>${esc(event.label)}</strong>${badges}<br>
-                    <small class="notes">${esc(event.hint)}</small>
-                </td>
-                <td><div class="drpg-sfx-file">
-                    <input type="text" name="sfx:${key}" value="${esc(src)}"
-                        title="${esc(game.i18n.localize("DRPG.Sound.severalHint"))}"
-                        placeholder="${esc(game.i18n.localize("DRPG.Sound.notAssigned"))}" />
-                    <span class="drpg-sfx-actions">
-                        ${sfxIconButton("data-drpg-sfx-pick", "fa-folder-open", "DRPG.Sound.choose", "DRPG.Sound.chooseHint")}
-                        ${sfxIconButton("data-drpg-sfx-test", "fa-play", "DRPG.Sound.test", "DRPG.Sound.testHint")}
-                        ${sfxIconButton("data-drpg-sfx-clear", "fa-xmark", "DRPG.Sound.clear", "DRPG.Sound.clearHint")}
-                    </span>
-                </div></td>
-            </tr>`;
-        }).join("");
-
-        return `<tr class="drpg-sfx-group"><td colspan="2">
-            <strong>${esc(meta.label)}</strong>
-            <span class="drpg-sfx-group-count" data-drpg-sfx-group-count="${category}">${esc(groupCountLine(category))}</span>
-            <small class="notes">${esc(meta.hint)}</small>
-        </td></tr>${rows}`;
-    }).join("");
-
-    // What the "varies" badge means, said once above the table rather than in a hover on each badge.
+    // What the "varies" chip means, said once above the table rather than in a hover on each chip.
     const legend = Object.values(SFX_EVENTS).some(event => event.vary)
-        ? `<p class="notes" data-drpg-sfx-legend><span class="drpg-sfx-badge">${esc(game.i18n.localize(
-            "DRPG.Sound.varies"))}</span> ${esc(game.i18n.localize("DRPG.Sound.variesHint"))}</p>`
+        ? `<p class="drpg-help" data-drpg-sfx-legend><span class="drpg-sound-chip">${esc(L("DRPG.Sound.varies"))}</span> ${esc(L("DRPG.Sound.variesHint"))}</p>`
         : "";
 
     // This tab has no Apply (see `wireSoundPanel`), and a GM who typed paths into it closed the
     // window believing nothing was saved: the sentence says so before the table.
     return `
-        <p class="notes">${game.i18n.localize("DRPG.Sound.effectsIntro")}</p>
-        <p class="notes">${game.i18n.localize("DRPG.Sound.autosave")}</p>
-        <p class="notes" data-drpg-sfx-count>${countLine()}</p>
+        <p class="drpg-help">${L("DRPG.Sound.effectsIntro")}</p>
+        <p class="drpg-help">${L("DRPG.Sound.autosave")}</p>
+        <p class="drpg-help" data-drpg-sfx-count>${countLine()}</p>
         ${legend}
-        <table class="drpg-vault-table drpg-sfx-table"><thead><tr>
-            <th>${game.i18n.localize("DRPG.Sound.event")}</th>
-            <th>${game.i18n.localize("DRPG.Sound.file")}</th>
-        </tr></thead><tbody>${body}</tbody></table>`;
+        ${markGroups(table, groups)}`;
+}
+
+/* One event's row for `soundEffectsHtml`: the cell of its name, chips and description, the file box with Choose, and
+   Test and Clear. Two chips, each answering what a bare path cannot: how many files the event draws from, and
+   whether it bends. */
+function effectRow(key) {
+    const L = name => game.i18n.localize(name);
+    const event = SFX_EVENTS[key];
+    const many = soundsFor(key).length;
+    const chips = [
+        many > 1 ? `<span class="drpg-sound-chip" data-drpg-sfx-files>${plural("DRPG.Sound.fileCount", { n: many })}</span>` : "",
+        event.vary ? `<span class="drpg-sound-chip" data-drpg-sfx-varies data-tooltip="${esc(L("DRPG.Sound.variesHint"))}">${esc(L("DRPG.Sound.varies"))}</span>` : ""
+    ].join("");
+    return {
+        key,
+        event: `<strong>${esc(event.label)}</strong>${chips}<br><span class="drpg-help">${esc(event.hint)}</span>`,
+        file: `<div class="drpg-sound-file"><input type="text" name="sfx:${key}" value="${esc(soundFor(key) ?? "")}"
+            title="${esc(L("DRPG.Sound.severalHint"))}" placeholder="${esc(L("DRPG.Sound.notAssigned"))}" />${
+            iconButton({ icon: "fa-solid fa-folder-open", label: L("DRPG.Sound.choose"), attrs: { "data-drpg-sfx-pick": true } })}</div>`,
+        act: `<div class="drpg-sound-act">${iconButton({ icon: "fa-solid fa-play", label: L("DRPG.Sound.test"), attrs: { "data-drpg-sfx-test": true } })}${
+            iconButton({ icon: "fa-solid fa-xmark", label: L("DRPG.Sound.clear"), attrs: { "data-drpg-sfx-clear": true } })}</div>`
+    };
+}
+
+/* The kit's group rows, in `groups`' order, marked for `wireSoundPanel`'s recount (the count's `data-drpg-sfx-group-
+   count`) and given their category's line as fine print under the name - the kit's group row draws a name and a count
+   only (ui-kit.mjs `dataTable`), and the line was the group's before (D31: content unchanged). */
+function markGroups(table, groups) {
+    const t = document.createElement("template");
+    t.innerHTML = table;
+    [...t.content.querySelectorAll("tr.drpg-data-group > th")].forEach((th, i) => {
+        const group = groups[i];
+        if (!group) return;
+        th.querySelector(":scope > span")?.setAttribute("data-drpg-sfx-group-count", group.category);
+        const line = document.createElement("span");
+        line.className = "drpg-help drpg-sound-group-line";
+        line.textContent = group.hint;
+        th.append(line);
+    });
+    return t.innerHTML;
 }
 
 /** "3 of 11 assigned" - one group's empty state, beside its name. */

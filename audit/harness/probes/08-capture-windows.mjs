@@ -20,8 +20,29 @@
  * character p1 owns (Observe, Search, Analyze, Tamper, Rest, Projects, Palm), as `chooseVariant` draws them, and closed
  * unanswered (dismissed: no roll, no price). The notice history is kept again on p1 with 250 notices recorded first
  * (`before`; this browser's own history, no world write), and the room's description window as a phone opens it
- * (room-tile.mjs `openRoomWindow`). The incident tracker stays not captured: it opens on an incident, and opening one
- * writes the world, which this probe leaves as it found it.
+ * (room-tile.mjs `openRoomWindow`). The incident tracker is captured as this world has it, with no incident: its empty
+ * state since E47-C2 (until then it opened nothing without one, and opening one writes the world, which this probe
+ * leaves as it found it).
+ *
+ * BY WINDOW, BY LANGUAGE, ELSEWHERE (E46 C0, 09.11.2026; E46-02: E46's and E47's groups each re-capture only their own
+ * windows, and the comparison of STAGE E46 draws each window in Polish too). Three environment options:
+ *     DRPG_CAPTURE_ONLY=give,bullet   only the windows of WINDOWS with those ids (a window's tabs come with it); the
+ *                                     manifest's other rows are kept as they were and the named windows' rows rewritten,
+ *                                     in WINDOWS's order (`mergeManifest`), and a file the named window no longer draws is
+ *                                     removed - so two groups working in parallel each commit only their own rows. An id
+ *                                     not in WINDOWS stops the run before the first window.
+ *     DRPG_CAPTURE_LANG=pl            the module's language set to Polish on each capturing client first, as scenario
+ *                                     50-lang does (`game.settings.set(MOD, "language", "pl")`, then i18n.mjs
+ *                                     `applyModuleLanguage()`), and the setting put back to English after the last window
+ *                                     (the strings stay Polish until the page reloads, as at a table); each row says
+ *                                     `lang`. English is the default; a language other than English needs
+ *                                     DRPG_CAPTURE_OUT, so the committed English captures are never overwritten.
+ *     DRPG_CAPTURE_OUT=<dir>          the files and manifest.json written into <dir> (resolved from audit/harness) instead
+ *                                     of audit/windows; with DRPG_CAPTURE_ONLY the manifest merged is <dir>'s own.
+ * E46 C0 also adds four GM windows, each opened on the first student (monokuma.mjs `studentActors`) where it takes one,
+ * with no state built and closed unanswered: the Give window (gm-items.mjs `gmGiveItemDialog`, kept per tab, so its
+ * Give existing tab is `give--existing`), Give a Truth Bullet (`giveTruthBulletDialog`, per tab), the Students window
+ * (gm-students.mjs `openWhoIsAliveDialog`) and the project manager (projects-ui.mjs `openProjectManager`).
  *
  * Read by audit/style-harness.html (one window a page, inside the module's sheets) and by E44's mockup round, whose
  * "today" is these captures. WHAT A CAPTURE IS NOT: the harness's DialogV2 draws its form and footer with no window
@@ -35,7 +56,13 @@ import url from "node:url";
 export const layers = ["probe"];
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-const OUT = path.resolve(HERE, "..", "..", "windows");
+const MOD = "danganronpa-rpg";
+/* The three options of the header (E46 C0). */
+const ONLY = (process.env.DRPG_CAPTURE_ONLY ?? "").split(",").map(id => id.trim()).filter(Boolean);
+const LANG = (process.env.DRPG_CAPTURE_LANG ?? "").trim() || "en";
+const OUT = process.env.DRPG_CAPTURE_OUT ? path.resolve(process.env.DRPG_CAPTURE_OUT) : path.resolve(HERE, "..", "..", "windows");
+/* The first student, for the windows opened on one (E46 C0). */
+const STUDENT = "const student = (await import(`${repoUrl}/scripts/monokuma.mjs`)).studentActors()[0];";
 
 /*
  * The windows, each `{ id, client, module, call, press }`: the opener's module under scripts/ and the call made on it
@@ -72,6 +99,11 @@ export const WINDOWS = [
     { id: "look-gm", module: "look.mjs", call: "m.openLookDialog()" },
     { id: "notices-gm", module: "notice-history-app.mjs", call: "m.openNotices()" },
     { id: "gm-panel", module: "gm-panel.mjs", call: "m.openGmPanel()" },
+    // E46 C0: the four GM windows E46 and E47 change that open with no state built.
+    { id: "give", module: "gm-items.mjs", before: STUDENT, call: "m.gmGiveItemDialog(student)" },
+    { id: "bullet", module: "gm-items.mjs", before: STUDENT, call: "m.giveTruthBulletDialog(student)" },
+    { id: "students", module: "gm-students.mjs", call: "m.openWhoIsAliveDialog()" },
+    { id: "projects", module: "projects-ui.mjs", call: "m.openProjectManager()" },
     { id: "sound-player", client: "p1", module: "sound-panel.mjs", call: "m.openSoundDialog()" },
     { id: "look-player", client: "p1", module: "look.mjs", call: "m.openLookDialog()" },
     { id: "notices-player", client: "p1", module: "notice-history-app.mjs", call: "m.openNotices()" },
@@ -146,10 +178,39 @@ const capture = (repoUrl, w) => `
     return out;
 `;
 
+/*
+ * The manifest after a run (E46 C0): every row of this run when no window was named; with DRPG_CAPTURE_ONLY, the old
+ * manifest's rows of every other window as they were and this run's rows of the named ones, window by window in
+ * `order` (WINDOWS's ids, the order a whole run writes), then the old rows of a window no longer in WINDOWS. A row is
+ * its window's by `of` (a tab's row) or its `id`. Pure: R2000 runs it on a fixture.
+ */
+export function mergeManifest(old, fresh, only, order) {
+    if (!only.length) return fresh;
+    const windowOf = row => row.of ?? row.id;
+    const rowsOf = id => (only.includes(id) ? fresh : old).filter(row => windowOf(row) === id);
+    return [...order.flatMap(rowsOf), ...old.filter(row => !order.includes(windowOf(row)))];
+}
+
 export async function run({ gm, p1, note, settle, repoUrl }) {
     const clients = { gm, p1 };
+    const unknown = ONLY.filter(id => !WINDOWS.some(w => w.id === id));
+    if (unknown.length) throw new Error(`DRPG_CAPTURE_ONLY names no window of WINDOWS: ${unknown.join(", ")}`);
+    if (!["en", "pl"].includes(LANG)) throw new Error(`DRPG_CAPTURE_LANG is "${LANG}": the module has en and pl`);
+    if (LANG !== "en" && !process.env.DRPG_CAPTURE_OUT) throw new Error("DRPG_CAPTURE_LANG other than en needs DRPG_CAPTURE_OUT: the committed captures are English");
+    const list = ONLY.length ? WINDOWS.filter(w => ONLY.includes(w.id)) : WINDOWS;
     fs.mkdirSync(OUT, { recursive: true });
+    const manifestFile = path.join(OUT, "manifest.json");
+    const old = ONLY.length && fs.existsSync(manifestFile) ? JSON.parse(fs.readFileSync(manifestFile, "utf8")).windows ?? [] : [];
     const manifest = [];
+    /* The module's language on each client that captures (E46 C0), as 50-lang sets it; back to English after. */
+    const speakers = [...new Set(list.map(w => w.client ?? "gm"))];
+    if (LANG !== "en") {
+        for (const who of speakers) {
+            const r = await clients[who].eval(`await game.settings.set("${MOD}", "language", ${JSON.stringify(LANG)}); const I = await import("${repoUrl}/scripts/i18n.mjs"); return { applied: await I.applyModuleLanguage(), lang: I.moduleLanguage() };`, { timeout: 30000 });
+            note(`language on ${who}`, `${r.lang}, the file applied: ${r.applied}`);
+            if (!r.applied || r.lang !== LANG) throw new Error(`the ${LANG} file did not apply on ${who}: ${JSON.stringify(r)}`);
+        }
+    }
     /* The world before and after, as the suite reads it (tests-kit.mjs worldDump): a window closed unanswered is read as
        dismissed by its opener, and the difference, if any, is written down rather than assumed away. */
     const dump = `const K = await import("${repoUrl}/scripts/tests-kit.mjs"); globalThis.__probe08 ??= {}; const d = await K.worldDump();`;
@@ -163,11 +224,11 @@ export async function run({ gm, p1, note, settle, repoUrl }) {
     /* The module's own en dash, em dash and minus sign as character references: the same page once parsed, and no such
        character in a line the repository adds (the house rule on dashes; the line's pre-push check). */
     const keep = (id, html) => fs.writeFileSync(path.join(OUT, `${id}.html`), `${html.replace(/[\u2013\u2014\u2212]/g, c => `&#${c.codePointAt(0)};`)}\n`);
-    for (const w of WINDOWS) {
+    for (const w of list) {
         const client = clients[w.client ?? "gm"];
         let got;
         try { got = await client.eval(capture(repoUrl, w)); } catch (err) { got = { captured: false, threw: String(err?.message ?? err).slice(0, 400) }; }
-        const row = { id: w.id, client: w.client ?? "gm", opener: `${w.module} ${w.call}` };
+        const row = { id: w.id, client: w.client ?? "gm", opener: `${w.module} ${w.call}`, ...(LANG === "en" ? {} : { lang: LANG }) };
         if (got?.captured) {
             keep(w.id, got.html);
             Object.assign(row, { captured: true, title: got.title, classes: got.classes, tag: got.tag, width: got.width, buttons: got.buttons, file: `${w.id}.html` });
@@ -177,14 +238,22 @@ export async function run({ gm, p1, note, settle, repoUrl }) {
         for (const t of got?.tabs ?? []) {
             const id = `${w.id}--${t.key}`;
             keep(id, t.html);
-            manifest.push({ id, client: row.client, opener: row.opener, of: w.id, tab: t.key, captured: true, title: row.title, classes: row.classes, tag: row.tag, width: row.width, buttons: t.buttons, file: `${id}.html` });
+            manifest.push({ id, client: row.client, opener: row.opener, ...(LANG === "en" ? {} : { lang: LANG }), of: w.id, tab: t.key, captured: true, title: row.title, classes: row.classes, tag: row.tag, width: row.width, buttons: t.buttons, file: `${id}.html` });
         }
     }
     const changed = await gm.eval(`${dump} const diff = K.dumpDiff(globalThis.__probe08.before, d).map(x => x.unit); delete globalThis.__probe08; return diff;`);
     note("the world", changed.length ? `${changed.length} unit(s) differ after the windows: ${changed.slice(0, 8).join(", ")}` : "the world dump is equal before and after");
-    fs.writeFileSync(path.join(OUT, "manifest.json"), `${JSON.stringify({
+    if (LANG !== "en") {
+        for (const who of speakers) await clients[who].eval(`await game.settings.set("${MOD}", "language", "en"); return true;`);
+    }
+    /* A file a named window drew before and not in this run (a tab gone): removed, so no page outlives its row. */
+    for (const row of old) {
+        if (ONLY.includes(row.of ?? row.id) && row.file && !manifest.some(r => r.file === row.file)) fs.rmSync(path.join(OUT, row.file), { force: true });
+    }
+    const rows = mergeManifest(old, manifest, ONLY, WINDOWS.map(w => w.id));
+    fs.writeFileSync(manifestFile, `${JSON.stringify({
         about: "The module's windows as the harness drew them (probe 08, audit/harness/probes/08-capture-windows.mjs): one file a window, its element's HTML; each row its opener, its title, classes and buttons, or why it was not captured. Written by the probe from a run, never by hand.",
-        windows: manifest
+        windows: rows
     }, null, 2)}\n`);
-    return { captured: manifest.filter(r => r.captured).length, of: manifest.length, worldChanged: changed, windows: manifest.map(r => ({ id: r.id, captured: r.captured })) };
+    return { captured: manifest.filter(r => r.captured).length, of: manifest.length, rows: rows.length, only: ONLY, lang: LANG, out: OUT, worldChanged: changed, windows: manifest.map(r => ({ id: r.id, captured: r.captured })) };
 }

@@ -2058,8 +2058,11 @@ const INVARIANTS = [
             .replace(/\/\*[\s\S]*?\*\//g, " ");
         ok(/\.drpg-gmp-advance \{[^}]*display: inline-flex/.test(css),
             "the Next time of day button is a block of its own again");
-        const head = bodyOf(css, ".drpg-viewer-head > span {", { until: ".drpg-viewer-tick {" });
-        ok(head.length > 0 && !/writing-mode/.test(head), "the players' names stand on end again");
+        // Since E47-C6 the matrix is the kit's `dataTable` and a player's head its `drpg-data-col-viewer` column, whose
+        // rule is the project windows' section of components.css.
+        const components = (await fetch(`/modules/${MODULE_ID}/styles/components.css`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+        const head = /th\.drpg-data-col-viewer > span\.drpg-data-clamp \{([^}]*)\}/.exec(components)?.[1] ?? "";
+        ok(head.length > 0 && !/writing-mode/.test(head + css.match(/drpg-data-col-viewer[^{]*\{[^}]*\}/g)?.join(" ")), "the players' names stand on end again");
         ok(/fa-music/.test(src("hud.mjs")), "the track band has lost its notes");
         // The CALL, with its semicolon: `holdActionsTab(app, element)` alone also matches
         // the definition's own signature, and passed with the call deleted. Since E24 C3b the
@@ -2107,7 +2110,7 @@ const INVARIANTS = [
 
         // Who knows a project is a matrix, one column per player, in counting order.
         const projects = src("projects-ui.mjs");
-        ok(/function viewerTicks\(/.test(projects) && /drpg-viewer-head/.test(projects),
+        ok(/function viewerTicks\(/.test(projects) && /label: u\.name, lines: 2, cls: "viewer"/.test(projects),
             "the project manager lists viewers as a run of labels again");
         ok(/numeric: true/.test(projects), "players are listed in creation order, not counting order");
 
@@ -2286,10 +2289,15 @@ const INVARIANTS = [
             + `<textarea data-drpg-field="biography" class="drpg-biography-text" rows="3">Floor test backstory</textarea></fieldset></div></section></section>`;
         document.body.append(sheet);
         const sheetRead = [];
+        /* THE NEW SURFACES (E47-C5, 09.11.2026; audit S17-43, A8, A9): style-snapshot.mjs's rows marked `floor`
+           (FLOOR_SURFACES; R2071 holds the list) are read too, each with its own words, since a roll's status or a
+           Refund button holds its text itself. */
+        const { STYLE_SURFACES, FLOOR_SURFACES } = await import("./style-snapshot.mjs");
+        const added = STYLE_SURFACES.filter(s => FLOOR_SURFACES.includes(s.id)).map(s => s.selector);
         try {
-            for (const sel of ["#drpg-hud", "#drpg-despair", "#drpg-player-status", "#drpg-events", "#countdowns", ".drpg-panel", ".drpg-floor-sheet"]) {
+            for (const sel of ["#drpg-hud", "#drpg-despair", "#drpg-player-status", "#drpg-events", "#countdowns", ".drpg-panel", ".drpg-floor-sheet", ...added]) {
                 for (const host of document.querySelectorAll(sel)) {
-                    for (const el of host.querySelectorAll("*")) {
+                    for (const el of added.includes(sel) ? [host, ...host.querySelectorAll("*")] : host.querySelectorAll("*")) {
                         const words = el.matches("input, textarea") ? String(el.value ?? "") : el.textContent;
                         if (!el.offsetWidth || !words.trim() || el.matches("i, [class*='fa-']")) continue;
                         measured++;
@@ -7868,7 +7876,9 @@ const INVARIANTS = [
         const firstAwait = perform.search(/\bawait\b/);
         const passes = (/\bconst THROWS_NO_DICE = new Set\(\[([^\]]*)\]\);/.exec(rolls)?.[1] ?? "").match(/"\w+"/g)?.map(s => s.slice(1, -1)).sort() ?? [];
         const throwOrRefuse = fnSource(draw, "drawOrThrow");
-        const atDraw = /^\s*if \(awayFromGms\(config\)\) \{\s*if \(config\[DRPG_ACTION_ROLL\] === true\) return void ui\.notifications\?\.warn\(game\.i18n\.localize\("DRPG\.Rolls\.waitsForGm"\)\);\s*return throwUnwitnessed\(cls, original, config, message\);\s*\}/m.test(throwOrRefuse);
+        /* The refusal's toast is said through the roll status's table since E47-C5 (roll-draw.mjs `sayRollStatus`, a
+           warning's toast as before; R2072). */
+        const atDraw = /^\s*if \(awayFromGms\(config\)\) \{\s*if \(config\[DRPG_ACTION_ROLL\] === true\) return void sayRollStatus\("waitsForGm", game\.i18n\.localize\("DRPG\.Rolls\.waitsForGm"\)\);\s*return throwUnwitnessed\(cls, original, config, message\);\s*\}/m.test(throwOrRefuse);
         const away = /if \(game\.user\?\.isGM \|\| primaryGmId\(\)\) return false;/.test(fnSource(draw, "awayFromGms"));
         equal(JSON.stringify([refusal > 0, firstAwait > refusal, passes, atDraw, away]),
             JSON.stringify([true, true, ["directMurder", "move", "rest"], true, true]),
@@ -22210,8 +22220,9 @@ const INVARIANTS = [
         const iconRows = rows.filter(row => {
             const buttons = [...row.querySelectorAll("button")];
             const cell = row.querySelector('input[type="text"]')?.closest("td");
+            // E46-C4: Choose stays beside the file box, Test and Clear stand in a cell of their own (the kit's table)
             return buttons.length === 3 && buttons.every(b => b.querySelector("i[class*='fa-']") && b.dataset.tooltip?.trim()
-                && b.getAttribute("aria-label")?.trim() && !b.textContent.trim() && b.closest("td") === cell);
+                && b.getAttribute("aria-label")?.trim() && !b.textContent.trim()) && row.querySelector("[data-drpg-sfx-pick]")?.closest("td") === cell;
         }).length;
         const heads = [...root.querySelectorAll("thead th")].map(th => th.textContent.trim().length > 0);
         const groups = Object.entries(SFX_CATEGORIES).map(([category]) => {
@@ -22222,7 +22233,7 @@ const INVARIANTS = [
         const table = root.querySelector("table");
         const before = node => Boolean(node && table && (node.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING));
         const legend = root.querySelector("[data-drpg-sfx-legend]");
-        const legendSays = Boolean(legend?.querySelector(".drpg-sfx-badge")) && legend.textContent.includes(game.i18n.localize("DRPG.Sound.variesHint"));
+        const legendSays = Boolean(legend?.querySelector(".drpg-sound-chip")) && legend.textContent.includes(game.i18n.localize("DRPG.Sound.variesHint"));
         const autosave = [...root.querySelectorAll("p")].find(p => p.textContent.trim() === game.i18n.localize("DRPG.Sound.autosave"));
         const varies = Object.values(SFX_EVENTS).some(event => event.vary);
         const sfx = stripComments((await moduleSources()).get("sfx.mjs") ?? "");
@@ -22231,7 +22242,7 @@ const INVARIANTS = [
             ["the legend above the table", varies && before(legend) && legendSays], ["the autosave sentence above it", before(autosave)], ["a change recounts the groups", recounts]]),
         stableJson([["icon rows", rows.length], ["every heading has a name", heads.map(() => true)], ["group counts", groups.map(([c]) => [c, true])],
             ["the legend above the table", true], ["the autosave sentence above it", true], ["a change recounts the groups", true]]),
-        "[rows whose three buttons are icons with a tooltip and an aria-label, in the file's cell]; [no empty heading]; [each group's count]; "
+        "[rows whose three buttons are icons with a tooltip and an aria-label, Choose in the file's cell]; [no empty heading]; [each group's count]; "
             + "[the varies legend before the table]; [DRPG.Sound.autosave before the table]; [wireSoundPanel updates the group counts]");
     }],
     ["R838 - a request to the GM is the words typed: `cancel` typed is sent, Cancel and a closed window send nothing, an empty one is asked again where the caller needs words (Dynamic, a Tier 0 item), and the card's body is one div.drpg-call-body; the GM's Reply takes `cancel` as words too (E18; S10-52, S11-60)", async () => {
@@ -25282,20 +25293,18 @@ const INVARIANTS = [
         const pool = { id: "r974pool", name: "DRPG Tools - Tier 2", results: new Set([entry]),
             getFlag: (scope, key) => (scope === MODULE_ID ? { category: "tool", tier: 2 }[key] : undefined) };
         const paneFrame = frameOf(tablesAsk, T.poolPaneHtml("tiers", [pool], pool));
-        const row = paneFrame.querySelector(".drpg-table-items > li");
-        must(row, "the pane drew no entry row - this would measure nothing");
-        const cells = [".drpg-table-item-icon", ".drpg-table-item-name", ".drpg-table-item-note", ".drpg-table-item-roles", "[data-drpg-place]", "[data-drpg-drop]"]
-            .map(sel => won(row.querySelector(`:scope > ${sel}`), "grid-area"));
-        const list = paneFrame.querySelector(".drpg-tables-list");
-        const pick = list?.querySelector(".drpg-table-pick");
-        /* The list's row is at least one row tall, and taller when a pool's name wraps (E44 C4a, S12-56: it was exactly
-           one row while a second rule cut the name to one line; R1326). */
-        equal(stableJson([won(row, "display"), cells, /var\(--drpg-pick-h\)/.test(won(list, "max-height") ?? ""), [won(pick, "height"), won(pick, "min-height")],
-            won(paneFrame.querySelector("p.notes"), "text-align")]),
-            stableJson(["grid", ["icon", "name", "note", "roles", "place", "drop"], true, ["auto", "var(--drpg-pick-h)"], "left"]),
-            "the tables window's entry row is not one grid row with its buttons in their own columns, its list is not in whole rows, "
-            + "or its help is centred [row display, grid areas of icon, name, description, roles, place, remove; list height in rows; "
-            + "row height and its floor of one row; the help's alignment]");
+        /* On the kit's dataTables since E46-C3b (09.11.2026): the entries a table laid out fixed, the name's cell the icon,
+           the field and the "+n" in one row; the pick list's box at most 26rem, a row the pick (the button's reach is
+           its row's: `position: relative` on the row). Before, an entry was one grid row of six areas (E14-48). */
+        const table = paneFrame.querySelector(".drpg-table-items table.drpg-data-table");
+        must(table?.querySelector("tr[data-drpg-result]"), "the pane drew no entry row - this would measure nothing");
+        const list = paneFrame.querySelector(".drpg-tables-list > .drpg-data-table-box");
+        const pickRow = list?.querySelector("tbody > tr");
+        equal(stableJson([won(table, "table-layout"), won(table.querySelector(".drpg-table-item-cell"), "display"), won(list, "max-height"),
+            won(pickRow, "position"), won(paneFrame.querySelector("p.notes"), "text-align")]),
+            stableJson(["fixed", "flex", "26rem", "relative", "left"]),
+            "the tables window's entries are not a fixed table with the name's pieces in one row, its list not held to its height, "
+            + "its row not the pick, or its help centred [the table's layout, the name cell's display, the list's height, the pick row's position, the help's alignment]");
 
         const tablesFrame = frameOf(tablesAsk);
         const caption = sel => tablesFrame.querySelector(`[data-drpg-pane="newItem"] ${sel} > .notes:first-child`);
@@ -25316,16 +25325,17 @@ const INVARIANTS = [
         must(open, "Give an item has no Create new tab - this would measure nothing");
         for (const section of giveFrame.querySelectorAll(".drpg-tab-pane")) section.hidden = section !== open;
         const closed = giveFrame.querySelector(".drpg-tab-pane[hidden]");
-        const rowsOf = parent => [...(parent?.querySelectorAll(":scope > label:not(.drpg-checkbox)") ?? [])]
-            .filter(l => l.querySelector("select, textarea, input:not([type=checkbox])"));
-        const giveRows = [...rowsOf(open), ...rowsOf(giveFrame.querySelector(".dialog-content"))];
+        /* Give's fields on the kit's formGrid since E46-C3b (09.11.2026): the open tab's grid and the one under the tabs
+           (the recipient, the tell switch, the note), each a grid of the same two columns, so every field starts at one edge. */
+        const grids = [open.querySelector(":scope > .drpg-form-grid"),
+            [...giveFrame.querySelectorAll(".drpg-form-grid")].find(g => !g.closest(".drpg-tab-pane")) ?? null];
         const hubRoles = (hubAsk.buttons ?? []).map(b => [b.action, /\bdrpg-role-(\w[\w-]*)/.exec(b.class ?? "")?.[1] ?? null]);
-        equal(stableJson([giveRows.length > 1 && giveRows.map(l => won(l, "grid-template-columns")),
-            won(open, "grid-template-columns"), won(closed, "display"), hubRoles]),
-            stableJson([giveRows.map(() => "subgrid"), "11rem minmax(0, 1fr)", "none",
+        const kitColumns = "11rem minmax(0, 1fr)";   // components.css, the Give and bullet windows' one label column
+        equal(stableJson([grids.map(g => won(g, "display")), grids.map(g => won(g, "grid-template-columns")), won(closed, "display"), hubRoles]),
+            stableJson([["grid", "grid"], [kitColumns, kitColumns], "none",
                 [["cancel", "close"], ...["give", "bullet", "key", "take", "takeBullet", "takeKey"].map(a => [a, "secondary"])]]),
-            "Give an item's fields are not in one grid, a closed tab is opened by it, or the hub's footer is not the kit's "
-            + "[each field row, the open tab's columns, the closed tab's display, the hub's buttons in tree order: action, role]");
+            "Give an item's fields are not on the kit's formGrid, a closed tab is opened by it, or the hub's footer is not the kit's "
+            + "[the open tab's and the lower grid's display and columns, the closed tab's display, the hub's buttons in tree order: action, role]");
     }],
     ["R975 - the item tables window's help names a button or a tab that is there, the gear group has one Polish word wherever it is read, and a stash out of reach says where it is (E14-49, S08-29, S08-48, S13-21)", async () => {
         /*
@@ -27623,14 +27633,14 @@ const INVARIANTS = [
         let SS = null, D = null, A = null, K = null;
         try { [SS, D, A, K] = await Promise.all(["./season-setup.mjs", "./despair.mjs", "./assignments.mjs", "./tests-kit.mjs"].map(p => import(p))); } catch { SS = null; }
         ok(typeof SS?.setupRows === "function" && typeof SS?.cursorRoles === "function", "season-setup.mjs exports no setupRows or cursorRoles");
-        const DASH = String.fromCharCode(0x2013);
         const over = ["resources", "ultimate", "experiences", "items", "assignments", "despairSplit", "roomCount"];
         const empty = SS.steps({ roster: [], scenes: [], roomScene: null, assigned: {}, lastChecks: new Map() });
         const pick = key => empty.find(r => r.key === key);
-        const box = document.createElement("ul");
+        const box = document.createElement("div");
         box.innerHTML = SS.setupRows(over.map(pick).filter(Boolean));
-        const drawn = [...box.querySelectorAll(".drpg-setup-step")].map(li => [li.querySelector(".drpg-setup-mark")?.textContent,
-            li.classList.contains("waiting"), li.querySelector(".drpg-setup-missing")?.textContent ?? null, Boolean(li.querySelector("button"))]);
+        // The kit's checklist since E46-C5b: a row that waits is `waiting`, with no mark (an en dash before).
+        const drawn = [...box.querySelectorAll("li.drpg-check-row")].map(li => [li.querySelector(".drpg-check-mark")?.textContent,
+            li.dataset.drpgState === "waiting", li.querySelector(".drpg-setup-missing")?.textContent ?? null, Boolean(li.querySelector("button"))]);
         const R = CONST.USER_ROLES;
         const cursor = [SS.cursorRoles({}, { SHOW_CURSOR: [R.PLAYER, R.TRUSTED, R.ASSISTANT, R.GAMEMASTER] }),
             SS.cursorRoles({ SHOW_CURSOR: [R.PLAYER] }, { SHOW_CURSOR: [R.PLAYER, R.GAMEMASTER] })];
@@ -27654,7 +27664,7 @@ const INVARIANTS = [
                 watch({ [loose.id]: pool.id, [byHand.id]: pool.id, [nobody.id]: A.NO_MONOKUMA })]
         }), stableJson({
             waiting: over.map(k => [k, false, true]),
-            drawn: over.map(() => [DASH, true, game.i18n.localize("DRPG.Season.waitingForCast"), false]),
+            drawn: over.map(() => ["", true, game.i18n.localize("DRPG.Season.waitingForCast"), false]),
             rooms: [false, false, [game.i18n.localize("DRPG.Season.noNamedRegions")]],
             cursor: [[R.PLAYER, R.TRUSTED, R.ASSISTANT, R.GAMEMASTER], [R.PLAYER]], readsInForce: true,
             watch: [[false, [game.i18n.format("DRPG.Season.fallsBackTo", { name: loose.name, pool: pool.name })]], [true, []]]
@@ -27947,9 +27957,10 @@ const INVARIANTS = [
             const html = document.createElement("html"), body = document.createElement("body");
             body.className = theme;
             html.append(body);
-            body.innerHTML = `<div class="application drpg-panel drpg-kit-width drpg-kit-width-wide"><section class="window-content"><div>
-                <h3>R1509</h3><pre class="drpg-check-report">R1509</pre></div></section></div>`;
-            const pre = body.querySelector("pre");
+            // The cast's part as drawn since E46-C5b (a kit checklist in its section, where it was `pre.drpg-check-report`).
+            body.innerHTML = `<div class="application drpg-panel drpg-window-preseason drpg-kit-width drpg-kit-width-wide"><section class="window-content"><div>
+                <section class="drpg-check-part" data-drpg-check-part="cast"><h3>R1509</h3><ul class="drpg-checklist"><li class="drpg-check-row" data-drpg-state="done">R1509</li></ul></section></div></section></div>`;
+            const pre = body.querySelector("ul.drpg-checklist");
             const value = names => C.winner(pre, names)?.value ?? null;
             return [value("max-height"), value(["overflow", "overflow-y"])];
         };
@@ -28188,7 +28199,7 @@ const INVARIANTS = [
         const root = document.createElement("div");
         root.className = "application dialog drpg-window-season";
         root.innerHTML = `<section class="window-content"><form><p>R1514</p>${SS.campaignFieldsHtml({ campaignName: "R1514" }, "R1514word")}
-            <ul class="drpg-setup-list"><li><button type="button">R1514 row</button></li></ul></form></section>
+            <ul class="drpg-checklist"><li class="drpg-check-row"><button type="button">R1514 row</button></li></ul></form></section>
             <footer class="form-footer"><button type="submit" data-action="save" autofocus>R1514 save</button></footer>`;
         let opening = null;
         document.body.append(root);
@@ -28214,7 +28225,7 @@ const INVARIANTS = [
         must(src.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
         const open = fnSource(src, "openSeasonSetup"), wire = fnSource(src, "wireSetupSteps");
         equal(stableJson({
-            opening, fields, blockFirst: open.indexOf("campaignFieldsHtml(") >= 0 && open.indexOf("campaignFieldsHtml(") < open.indexOf("drpg-setup-list"),
+            opening, fields, blockFirst: open.indexOf("campaignFieldsHtml(") >= 0 && open.indexOf("campaignFieldsHtml(") < open.indexOf("${rows}"),
             opened, raised, counts: apps.map(a => a.raised),
             // E20 fix round (C-2): the opener hands the place a round trip carried as a second argument (R1524).
             wired: [/seasonOpening\(dialog\.element\b/.test(open), /raiseOpened\(/.test(open), /windowStack\(\)/.test(wire)]
@@ -28238,42 +28249,46 @@ const INVARIANTS = [
          * box; the hint's colour, each theme's dim. Contrast and the drawn sizes are not measured here (no layout). Red at the parent: the hint at
          * text-sm and centred, the names line at text-xs in red on both rows, the done row at opacity 0.55.
          */
+        const SS = await import("./season-setup.mjs");
         const C = await styleCascade();
         const read = theme => {
             const html = document.createElement("html"), body = document.createElement("body");
             body.className = theme;
             html.append(body);
             // The kit's frame since E21 C2b: the body that scrolls is `.drpg-kit-body` (ui-kit.mjs `drpgWindow`).
+            // The rows as `setupRows` draws them since E46-C5b (the kit's checklist): done, blocking with its line, waiting with its line.
             body.innerHTML = `<div class="application dialog drpg-ui drpg-panel drpg-kit-width drpg-kit-width-wide drpg-window-season"><section class="window-content">
-                <form class="dialog-form"><div class="dialog-content"><div class="drpg-kit-body"><p class="r1515intro">R1515</p><ul class="drpg-setup-list">
-                <li class="drpg-setup-step done"><span class="drpg-setup-mark">R</span><div class="drpg-setup-body"><strong>R1515</strong><div class="notes">R1515</div></div></li>
-                <li class="drpg-setup-step r1515missing"><span class="drpg-setup-mark">R</span><div class="drpg-setup-body"><strong>R1515</strong><div class="notes">R1515</div>
-                    <div class="drpg-setup-missing">R1515</div></div></li>
-                <li class="drpg-setup-step optional waiting"><span class="drpg-setup-mark">R</span><div class="drpg-setup-body"><strong>R1515</strong>
-                    <div class="drpg-setup-missing">R1515</div></div></li>
-                </ul></div></div></form></section></div>`;
+                <form class="dialog-form"><div class="dialog-content"><div class="drpg-kit-body"><p class="r1515intro">R1515</p>${SS.setupRows([
+                    { key: "cast", done: true, missing: () => [] }, { key: "rooms", done: false, missing: () => ["R1515"] },
+                    { key: "overflow", optional: true, waiting: true, done: false, missing: () => [] }])}</div></div></form></section></div>`;
             const q = s => body.querySelector(s);
             const value = (el, names) => C.winner(el, names)?.value ?? null;
-            const hint = q(".r1515missing .notes"), done = q(".drpg-setup-step.done");
+            // What an element inherits where no rule names it (the kit states the detail's ink on the detail).
+            const up = (el, names) => { for (let n = el; n && n !== body; n = n.parentElement) { const v = value(n, names); if (v !== null) return v; } return null; };
+            const hint = q('[data-drpg-key="rooms"] .drpg-setup-hint'), done = q('li.drpg-check-row[data-drpg-state="done"]');
             return {
                 intro: value(q(".r1515intro"), "text-align"),
-                hint: [value(hint, "font-size"), value(hint, "text-align"), value(hint, "color")],
-                names: [value(q(".r1515missing .drpg-setup-missing"), "font-size"), value(q(".r1515missing .drpg-setup-missing"), "color"),
-                    value(q(".waiting .drpg-setup-missing"), "color")],
-                done: [value(done, "opacity"), value(done.querySelector("strong"), "color"), value(done.querySelector(".drpg-setup-mark"), "opacity"),
-                    value(done.querySelector(".notes"), "font-size")],
+                hint: [value(hint, "font-size"), up(hint, "text-align"), up(hint, "color")],
+                names: [value(q('[data-drpg-key="rooms"] .drpg-setup-missing'), "font-size"), value(q('[data-drpg-key="rooms"] .drpg-setup-missing'), "color"),
+                    up(q('[data-drpg-state="waiting"] .drpg-setup-missing'), "color")],
+                done: [value(done, "opacity"), value(done?.querySelector(".drpg-check-title"), "color"), value(done?.querySelector(".drpg-check-mark"), "color"),
+                    value(done?.querySelector(".drpg-setup-hint"), "font-size")],
                 scroll: [value(q(".drpg-kit-body"), ["overflow-y", "overflow"]), value(q(".drpg-kit-body"), "scrollbar-gutter")]
             };
         };
         const themes = ["drpg-theme-monokuma-legacy drpg-gm", "drpg-theme-stained-glass drpg-gm"].map(read);
-        const want = (hintColour) => ({
+        /* E46-C5b: the kit's checklist - the hint and the waiting row's line in the kit's fine-print ink (each theme's
+           dim bone under the glass, as before), a blocking row's line in the kit's red, a done row's title in its quiet
+           ink and its mark in the kit's evidence colour (0.55 opacity before). The hint is a block of the row's detail, no
+           longer a `.notes` paragraph: no rule of either sheet aligns it or an element above it (null: the start). */
+        const want = () => ({
             intro: "left",
-            hint: ["var(--drpg-text-base)", "left", hintColour],
-            names: ["var(--drpg-text-sm)", "var(--drpg-eye-light)", "var(--drpg-dim)"],
-            done: [null, "var(--drpg-dim)", "0.55", "var(--drpg-text-base)"],
+            hint: ["var(--drpg-text-base)", null, "var(--drpg-kit-help-ink)"],
+            names: ["var(--drpg-text-sm)", "var(--drpg-kit-check-blocking)", "var(--drpg-kit-help-ink)"],
+            done: [null, "var(--drpg-kit-check-quiet)", "var(--drpg-kit-check-done)", "var(--drpg-text-base)"],
             scroll: ["auto", "stable"]
         });
-        equal(stableJson(themes), stableJson([want("var(--drpg-dim)"), want("var(--drpg-sg-bone-dim)")]),
+        equal(stableJson(themes), stableJson([want(), want()]),
             "Set the season up is small, centred or faded whole [Monokuma Legacy, Stained Glass: the intro's alignment | a hint's size, alignment, colour | the "
             + "names line's size and colour on a missing row, its colour on a waiting row | a done row's opacity, its title's colour, its mark's opacity, "
             + "its hint's size | the content box's overflow, its scrollbar gutter]");
@@ -28656,7 +28671,7 @@ const INVARIANTS = [
         equal(stableJson({
             secret: [Boolean(secret), secret?.external === true, secret?.done ?? null],
             first: SS.firstOutstandingStep(rest)?.key ?? null,
-            mark: drawn.querySelector(".drpg-setup-mark")?.textContent ?? null,
+            mark: drawn.querySelector(".drpg-check-mark")?.textContent ?? null,
             tavern: list({ serverType: "tavern", password: "R1523secret" }).some(r => r.key === "liveKitSecret"),
             school
         }), stableJson({
@@ -28686,7 +28701,7 @@ const INVARIANTS = [
             const root = document.createElement("div");
             root.className = "application dialog drpg-window-season";
             root.innerHTML = `<section class="window-content"><form>${SS.campaignFieldsHtml({ campaignName: "R1524" }, "R1524word")}
-                <ul class="drpg-setup-list">${SS.setupRows(rows)}</ul></form></section>
+                ${SS.setupRows(rows)}</form></section>
                 <footer class="form-footer"><button type="submit" data-action="save" autofocus>R1524 save</button><button type="button" data-action="checks">R1524 checks</button></footer>`;
             document.body.append(root);
             return root;
@@ -28700,7 +28715,8 @@ const INVARIANTS = [
             const opened = place => {
                 const back = make(); made.push(back);
                 const focused = SS.seasonOpening(back, place);
-                return [focused?.dataset?.step ?? focused?.dataset?.action ?? focused?.name ?? null, document.activeElement === focused,
+                // A row's button is the kit's (E46-C5b): its step is the row's key.
+                return [focused?.closest?.("li.drpg-check-row")?.dataset?.drpgKey ?? focused?.dataset?.action ?? focused?.name ?? null, document.activeElement === focused,
                     back.querySelector(".window-content").scrollTop, Boolean(back.querySelector("footer [autofocus]"))];
             };
             out = { place: [row?.place ?? null, checks?.place ?? null], fields: [row?.campaignName, row?.safeword],
@@ -28789,12 +28805,12 @@ const INVARIANTS = [
         const full = fx.scene("R1526 full", [fx.region("R1526a", "R1526 Hall", { rect: [0, 0, 4000, 3000] })]);
         const roomsRow = lastChecks => SS.steps({ roster: [], scenes: [full], roomScene: full, assigned: {}, lastChecks }).find(r => r.key === "rooms");
         const done = roomsRow(new Map()), faulty = roomsRow(new Map([[full.id, FD.roomCheckProblems([f("warning", "adrift")])]]));
-        const list = document.createElement("ul");
+        const list = document.createElement("div");
         list.innerHTML = SS.setupRows([done]);
-        const li = list.querySelector(".drpg-setup-step");
+        const li = list.querySelector("li.drpg-check-row");
         const out = li?.querySelector("[data-drpg-check-out]");
         if (out) out.innerHTML = "<p>R1526 findings</p>";
-        const was = [li?.querySelector(".drpg-setup-mark")?.textContent ?? null, Boolean(li?.querySelector(":scope > .drpg-setup-do"))];
+        const was = [li?.querySelector(".drpg-check-mark")?.textContent ?? null, Boolean(li?.querySelector(":scope > button[data-drpg-action]"))];
         SS.repaintStep(li, faulty);
         const sources = await moduleSources();
         const src = stripComments(sources.get("season-setup.mjs") ?? "");
@@ -28804,10 +28820,12 @@ const INVARIANTS = [
             count: [FD.roomCheckProblems(counted), FD.roomCheckProblems(advice), FD.roomCheckProblems([...counted, ...advice])],
             rows: [done?.done, faulty?.done, faulty?.done ? [] : faulty?.missing?.()],
             was,
-            now: [li?.dataset?.drpgStep ?? null, li?.querySelector(".drpg-setup-mark")?.textContent ?? null, li?.classList.contains("done"),
-                li?.querySelector(":scope > .drpg-setup-body > .drpg-setup-missing")?.textContent ?? null,
-                li?.querySelector(":scope > .drpg-setup-do")?.dataset?.step ?? null, li?.querySelector("[data-drpg-check-out]") === out && out?.textContent === "R1526 findings"],
-            wired: [/roomCheckProblems\(findings\)/.test(check), /repaintStep\(/.test(check), /closest\?\.\("\.drpg-setup-do"\)/.test(wire)]
+            // The kit's checklist since E46-C5b: the key, the state, the line in the detail, the button's action; the list's one listener.
+            now: [li?.dataset?.drpgKey ?? null, li?.querySelector(".drpg-check-mark")?.textContent ?? null, li?.dataset?.drpgState === "done",
+                li?.querySelector(":scope > .drpg-check-text > .drpg-check-detail > .drpg-setup-missing")?.textContent ?? null,
+                li?.querySelector(":scope > button[data-drpg-action]")?.closest("li.drpg-check-row")?.dataset?.drpgKey ?? null,
+                li?.querySelector("[data-drpg-check-out]") === out && out?.textContent === "R1526 findings"],
+            wired: [/roomCheckProblems\(findings\)/.test(check), /repaintStep\(/.test(check), /closest\?\.\("li\.drpg-check-row > button\[data-drpg-action\]"\)/.test(wire)]
         }), stableJson({
             count: [5, 0, 5],
             rows: [true, false, [U.plural("DRPG.Season.roomsCheckErrors", { n: 1, scene: full.name })]],
@@ -28904,10 +28922,15 @@ const INVARIANTS = [
             const html = document.createElement("html"), body = document.createElement("body");
             body.className = theme;
             html.append(body);
-            body.innerHTML = `<div class="application dialog drpg-panel drpg-kit-width drpg-kit-width-wide"><section class="window-content"><pre class="drpg-check-report">${SS.checkMarks("✓ ✗")}</pre>
-                <div data-drpg-anon>${SS.checkMarks("<p>✓ R1530</p>")}</div></section></div>`;
+            /* Since E46-C5b the report's other parts are the kit's checklist (a done row's mark in the kit's evidence token, a
+               blocking row's in its red) and `checkMarks` marks the anonymity audit alone (anonymity.mjs draws it again in place). */
+            body.innerHTML = `<div class="application dialog drpg-panel drpg-window-preseason drpg-kit-width drpg-kit-width-wide"><section class="window-content">
+                <ul class="drpg-checklist"><li class="drpg-check-row" data-drpg-state="done"><span class="drpg-check-mark">✓</span></li>
+                <li class="drpg-check-row" data-drpg-state="blocking"><span class="drpg-check-mark">✗</span></li></ul>
+                <div data-drpg-anon>${SS.checkMarks("<p>✓ R1530 ✗</p>")}</div></section></div>`;
             const colour = el => C.winner(el, "color")?.value ?? null;
-            return [colour(body.querySelector("pre .drpg-check-ok")), colour(body.querySelector("pre .drpg-check-bad")), colour(body.querySelector("[data-drpg-anon] .drpg-check-ok"))];
+            return [colour(body.querySelector('[data-drpg-state="done"] > .drpg-check-mark')), colour(body.querySelector('[data-drpg-state="blocking"] > .drpg-check-mark')),
+                colour(body.querySelector("[data-drpg-anon] .drpg-check-ok")), colour(body.querySelector("[data-drpg-anon] .drpg-check-bad"))];
         };
         const sources = await moduleSources();
         const src = stripComments(sources.get("season-setup.mjs") ?? "");
@@ -28921,13 +28944,13 @@ const INVARIANTS = [
         }), stableJson({
             text: ["✓ R1530 <a>\n   ✗ R1530 b - ✓", 2, 1],
             attr: ["✓ R1530", 1],
-            looks: [["var(--drpg-evidence)", "var(--drpg-eye-light)", "var(--drpg-evidence)"],
-                ["var(--drpg-sg-evidence)", "var(--drpg-sg-gm-light)", "var(--drpg-sg-evidence)"]],
+            looks: [["var(--drpg-kit-check-done)", "var(--drpg-kit-check-blocking)", "var(--drpg-evidence)", "var(--drpg-eye-light)"],
+                ["var(--drpg-kit-check-done)", "var(--drpg-kit-check-blocking)", "var(--drpg-sg-evidence)", "var(--drpg-sg-gm-light)"]],
             ready: true,
-            report: 3
+            report: 1
         }), "Pre-season's marks are uncoloured, or the ready line promises a green report [escaped text: kept, checks, crosses | a mark in an attribute: "
-            + "kept, the text's | colour of a check, a cross, the audit's check: Monokuma Legacy, Stained Glass | the ready line names Pre-season checks "
-            + "as more | the report's three blocks marked]");
+            + "kept, the text's | colour of a done row's mark, a blocking row's, the audit's check, its cross: Monokuma Legacy, Stained Glass | the ready "
+            + "line names Pre-season checks as more | the report's blocks marked by checkMarks: the audit's]");
     }],
     ["R1531 - the Give back window says plainly what it cannot know and what it does not give back, and only a full Gamemaster gives back (E20 fix round; the owner's answer of 30.10 on the automations, the goal review's G-7, the correctness review's C-6): with no value of Daggerheart's automations kept it says the values from before the module are not known; it names the one dice look and says nobody's own look comes back; an Assistant GM reads that a full Gamemaster gives them back; a part not written stays kept", async () => {
         /*
@@ -31249,11 +31272,12 @@ const INVARIANTS = [
         const box = document.createElement("div");
         box.innerHTML = typeof SS.firstSessionHtml === "function" ? SS.firstSessionHtml(list(false, true)) : "";
         const section = box.querySelector('section[data-drpg-group="firstSession"]');
-        const drawn = [...(section?.querySelectorAll("li[data-drpg-step]") ?? [])].map(li => [li.dataset.drpgStep,
-            li.querySelector(".drpg-setup-mark")?.textContent ?? null, Boolean(li.querySelector(".drpg-setup-do")),
+        // The kit's checklist since E46-C5b: an optional row not done is advisory, marked "-" (an en dash before).
+        const drawn = [...(section?.querySelectorAll("li.drpg-check-row[data-drpg-key]") ?? [])].map(li => [li.dataset.drpgKey,
+            li.querySelector(".drpg-check-mark")?.textContent ?? null, Boolean(li.querySelector(":scope > button[data-drpg-action]")),
             li.querySelector(".drpg-setup-missing")?.textContent ?? null]);
         const modules = Boolean(foundry.applications?.sidebar?.apps?.ModuleManagement);
-        const DASH = String.fromCharCode(0x2013);
+        const DASH = "-";
         const sources = await moduleSources();
         must(sources.get("season-setup.mjs")?.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
         const code = stripComments(sources.get("season-setup.mjs"));
@@ -31263,8 +31287,8 @@ const INVARIANTS = [
             keys: off.map(r => r.key), optional: off.every(r => r.optional === true),
             state: [off.map(r => r.done), on.map(r => r.done)],
             heading: section?.querySelector("h3")?.textContent ?? null, drawn,
-            window: [/setupRows\(list\.filter\(step => step\.group !== FIRST_SESSION\)\)/.test(opener), /\$\{firstSessionHtml\(list\)\}/.test(opener),
-                /querySelectorAll\("\.drpg-setup-list"\)/.test(wiring)]
+            window: [/setupRows\(list\.filter\(step => step\.group !== FIRST_SESSION\)[,)]/.test(opener), /\$\{firstSessionHtml\(list\)\}/.test(opener),
+                /querySelectorAll\("ul\.drpg-checklist"\)/.test(wiring)]
         }), JSON.stringify({
             keys: ["hallTokens", "scenes", "foundryHeld", "diceSoNice"], optional: true,
             state: [[false, Boolean(SS.steps().find(r => r.key === "scenes")?.done), false, false], [false, Boolean(SS.steps().find(r => r.key === "scenes")?.done), true, true]],
@@ -33365,7 +33389,10 @@ const INVARIANTS = [
         const here = await draw();
         const others = game.users.contents.filter(u => u.id !== game.user.id)
             .map(u => game.i18n.format("DRPG.DiceLook.diag.finding.otherBrowser", { name: u.name }));
-        const marked = report => [...report.el.querySelectorAll("p.drpg-check-report")].map(p => p.textContent.trim()).filter(t => t.includes("R1300") || t.includes(clean));
+        // The part's rows on the kit's checklist since E46-C5b: a finding a warning ("!"), none a check.
+        const marked = report => [...report.el.querySelectorAll('[data-drpg-check-part="dice"] li.drpg-check-row')]
+            .map(li => `${li.querySelector(".drpg-check-mark")?.textContent ?? ""} ${li.querySelector(".drpg-check-title")?.textContent ?? ""}`.trim())
+            .filter(t => t.includes("R1300") || t.includes(clean));
         equal(JSON.stringify({
             panel: ["diceLook", "diagnoseDiceLook", "DRPG.DiceLook.diag.tile"].filter(name => panel.includes(name)),
             en: keys(lang.en), pl: keys(lang.pl),
@@ -33375,7 +33402,7 @@ const INVARIANTS = [
             here: [here.heads.includes(title), here.button, others.filter(words => here.text.includes(words)).length]
         }), JSON.stringify({
             panel: [], en: ["open"], pl: ["open"], season: [true, true],
-            found: [true, ["✗ R1300 shows only their own dice"], open],
+            found: [true, ["! R1300 shows only their own dice"], open],
             none: [true, [`✓ ${clean}`], open],
             here: [true, open, 0]
         }), "[the panel's family's names of the dice look; DRPG.DiceLook.diag's tile and open keys in English and in Polish; season-setup.mjs "
@@ -34232,7 +34259,7 @@ const INVARIANTS = [
         must(checked > 150, `${checked} property reading(s) made - the kit's elements matched no rule`);
         equal(stableJson(problems), "{}", "[by theme: a kit element's property, or a token on the body, not won by components.css - element property: the winner]");
     }],
-    ["R1325 - the kit's tab bar wins its cascade in every tabbed window (tests-kit.mjs `styleCascade`; E44 C4a, E44-14, S12-50): in each window of the tab census, drawn with its own classes on a body of each theme, the bar's and each tab's properties stated by styles/components.css - the bar's equal columns, a tab's case, spacing, ink, ground and edge, the selected tab's - are won by components.css across all the module's sheets", async () => {
+    ["R1325 - the kit's tab bar wins its cascade in every tabbed window (tests-kit.mjs `styleCascade`; E44 C4a, E44-14, S12-50): in each window of the tab census, drawn with its own classes on a body of each theme, the bar's and each tab's properties stated by styles/components.css - the bar's equal columns when it is fitted on one row and its wrap when it is not, a tab's case, spacing, ink, ground and edge, the selected tab's - are won by components.css across all the module's sheets", async () => {
         /*
          * E44 C4a, 04.11.2026; the plan's risk ("a kit rule can lose to an old rule carrying !important and the test
          * still pass while the screen does not change"). R1323 reads the kit inside the kit's own frame (`drpg-ui`); the
@@ -34242,6 +34269,10 @@ const INVARIANTS = [
          * shorthand is read with its longhands, as R1323 does. Red before C4a: the kit's tab rules named `.drpg-ui`, so
          * no tab of these windows took the kit's case, ink, ground or edge (and the old bar rules, `!important` under
          * Legacy, painted them). The mutant c4a-m1 (stained-glass.css's bar rule left in for the new bar) reads red.
+         * E47-KFb (09.11.2026, the owner's F1 on comparison 1): the bar is a wrapping flex row, its equal grid only where
+         * `fitKitTabs` fitted it on one row (`data-drpg-tab-fit="one"`), so each window is read twice, the bar marked
+         * "wrap" (as an unfitted bar draws) and "one": "wrap" states and wins `flex-wrap: wrap`, "one" equal columns.
+         * Red on 33787e0e with the grid alone asked for: every window's bar "grid-template-columns" missing.
          */
         const K = await import("./ui-kit.mjs");
         const C = await styleCascade();
@@ -34290,13 +34321,15 @@ const INVARIANTS = [
         const problems = {}, missing = [];
         let checked = 0;
         for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
-            for (const [id, spec] of Object.entries(WINDOWS)) {
+            for (const [id, spec] of Object.entries(WINDOWS)) for (const fit of ["wrap", "one"]) {
                 const html = document.createElement("html"), body = document.createElement("body");
                 body.className = `${theme} drpg-gm`;
                 html.append(body);
                 const root = frame(spec);
                 body.append(root);
                 const nav = root.querySelector("nav.drpg-tabs");
+                nav.dataset.drpgTabFit = fit;
+                if (fit === "one") nav.style.setProperty("--drpg-kit-tab-n", "3");
                 const lost = [];
                 for (const el of [nav, ...nav.querySelectorAll('button[role="tab"]')]) {
                     const stated = new Set();
@@ -34307,25 +34340,30 @@ const INVARIANTS = [
                         if (hit) for (const d of rule.decls) if (!d.property.startsWith("--") || d.property === "--brush-ink") stated.add(d.property);
                     }
                     const label = el === nav ? "bar" : el.getAttribute("aria-selected") === "true" ? "selected tab" : "tab";
-                    if (el !== nav) for (const p of WANT_TAB) if (!stated.has(p)) missing.push(`${theme} ${id} ${label}: ${p}`);
-                    if (el === nav && !stated.has("grid-template-columns")) missing.push(`${theme} ${id} bar: grid-template-columns`);
+                    if (el !== nav) for (const p of WANT_TAB) if (!stated.has(p)) missing.push(`${theme} ${id} ${fit} ${label}: ${p}`);
+                    const barProp = fit === "one" ? "grid-template-columns" : "flex-wrap";
+                    if (el === nav && !stated.has(barProp)) missing.push(`${theme} ${id} ${fit} bar: ${barProp}`);
                     const onEl = C.on(el);
                     for (const prop of stated) {
                         checked++;
                         const w = onEl(names(prop));
                         if (w?.file !== "styles/components.css") lost.push(`${label} ${prop}: ${w ? `${w.file} ${w.selector}${w.important ? " !important" : ""}` : "nobody"}`);
                     }
-                    if (el === nav) {
-                        const cols = onEl("grid-template-columns")?.value ?? "";
-                        if (!/\b1fr\b/.test(cols)) lost.push(`bar grid-template-columns not equal columns: ${cols || "nobody"}`);
+                    if (el === nav && fit === "one") {
+                        const cols = onEl("grid-template-columns")?.value ?? "", shown = onEl("display")?.value ?? "";
+                        if (!/\b1fr\b/.test(cols) || shown !== "grid") lost.push(`bar not equal columns: display ${shown || "nobody"}, grid-template-columns ${cols || "nobody"}`);
+                    }
+                    if (el === nav && fit === "wrap") {
+                        const wrapped = onEl("flex-wrap")?.value ?? "", shown = onEl("display")?.value ?? "";
+                        if (wrapped !== "wrap" || shown !== "flex") lost.push(`bar not a wrapping row: display ${shown || "nobody"}, flex-wrap ${wrapped || "nobody"}`);
                     }
                 }
-                if (lost.length) problems[`${theme} ${id}`] = lost;
+                if (lost.length) problems[`${theme} ${id} ${fit}`] = lost;
             }
         }
-        equal(JSON.stringify(missing), "[]", "components.css states none of these on a tab bar in these windows - its tab rules do not reach them [theme window element: property]");
+        equal(JSON.stringify(missing), "[]", "components.css states none of these on a tab bar in these windows - its tab rules do not reach them [theme window fit element: property]");
         must(checked > 300, `${checked} property reading(s) made - the windows' bars matched too few rules`);
-        equal(stableJson(problems), "{}", "[by theme and window: a kit tab bar's property not won by components.css - element property: the winner]");
+        equal(stableJson(problems), "{}", "[by theme, window and fit: a kit tab bar's property not won by components.css - element property: the winner]");
     }],
     ["R1326 - Item tables (E44 C4a; E44-15, S12-56): a pool's name wraps in both themes - its `white-space` is not `nowrap`, its overflow is not hidden and it carries no ellipsis, and danganronpa.css holds one `.drpg-table-pick > span:first-child` rule, not the second that undid the first - and the window's layout follows the window: the tables window states `container-type: inline-size` and `.drpg-tables-layout` collapses under `@container (max-width: 40rem)`, not under `@media`", async () => {
         /*
@@ -34360,11 +34398,13 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson(Object.fromEntries(["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"].map(theme =>
             [theme, { whiteSpace: "normal", overflow: null, ellipsis: null, container: "inline-size" }]))),
             "a pool's name does not wrap, or the tables window is no container [by theme: the name's white-space, overflow, text-overflow; the window's container-type]");
-        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
-        const picks = (css.match(/(^|[}\s,])\.drpg-table-pick > span:first-child\s*\{/g) ?? []).length;
-        equal(JSON.stringify([picks, /@container\s*\(max-width:\s*40rem\)\s*\{\s*\.drpg-tables-layout\s*\{\s*grid-template-columns:\s*1fr/.test(css),
-            /@media\s*\(max-width:\s*40rem\)\s*\{\s*\.drpg-tables-layout/.test(css)]), JSON.stringify([1, true, false]),
-            "[the rules of `.drpg-table-pick > span:first-child`, the layout's `@container` collapse, an `@media` one] are not one, yes, no");
+        /* The window's rules are components.css's since E46-C3b (09.11.2026): read there, and none left in danganronpa.css. */
+        const sheet = async name => (await fetch(`/modules/${MODULE_ID}/styles/${name}.css`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+        const [css, base] = [await sheet("components"), await sheet("danganronpa")];
+        const picks = text => (text.match(/(^|[}\s,])\.drpg-table-pick > span:first-child\s*\{/g) ?? []).length;
+        equal(JSON.stringify([picks(css), picks(base), /@container\s*\(max-width:\s*40rem\)\s*\{\s*\.drpg-tables-layout\s*\{\s*grid-template-columns:\s*1fr/.test(css),
+            /@media\s*\(max-width:\s*40rem\)\s*\{\s*\.drpg-tables-layout/.test(css + base)]), JSON.stringify([1, 0, true, false]),
+            "[the rules of `.drpg-table-pick > span:first-child` in components.css and in danganronpa.css, the layout's `@container` collapse, an `@media` one] are not one, none, yes, no");
     }],
     ["R1327 - one number control in both themes (E44 C4b; E44-16, S10-66): a field drawn by ui-kit.mjs `stepper` in a module window, after chrome.mjs `dressChrome` (what Foundry's render hook runs on every window), steps by its own `step` inside its `min` and `max` on - and +, says under itself when a typed value is out of range, and its label points at the input, not at the minus; `dressChrome` wires it before its theme gate, so Monokuma Legacy gets the same control; and no module file but ui-kit.mjs makes a `drpg-step` element", async () => {
         /*
@@ -34894,6 +34934,9 @@ const INVARIANTS = [
            phantom `#drpg-settings-launcher` from its selector list - the same rule, the same value, another selector.
            The GM's hexagon's three since E23 C1d (14.10, R1382): its border's colour under Stained Glass transparent,
            won by the same components.css rule, and the hover rule no longer states one - 1:426d4aa5 -> 1:934c4f73.
+           The hexagon's three again since E46-C5b (09.11.2026): stained-glass.css's chrome-font sweep that wins its
+           font lost `.drpg-check-report` from its list (Pre-season's report is the kit's checklist) - the same rule, the
+           same value, another selector - 1:934c4f73 -> 1:ae4eb686.
            The room tile's, the voice tile's and Foundry tools' eighteen since E24 C4a (S12-26, the owner's A7 and A8):
            danganronpa.css's DARK-FIRST list names the three roots by their ids, and a property it states on them (its
            `color-scheme`, its re-declared text colours) is won there now, over components.css's class rules or nothing -
@@ -34903,18 +34946,18 @@ const INVARIANTS = [
             "curtain|monokuma-legacy|foundry-tools": "1:d635e754", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:999f5b79",
             "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:cf9e2a77", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
             "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:7268133b", "curtain|stained-glass|foundry-tools": "1:83b739cf",
-            "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:934c4f73", "curtain|stained-glass|room-art": "1:b38f7ef7",
+            "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:ae4eb686", "curtain|stained-glass|room-art": "1:b38f7ef7",
             "curtain|stained-glass|room-tile": "1:e4f711c4", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
             "curtain|stained-glass|voice-tile": "2:7c097704", "desk|monokuma-legacy|foundry-tools": "1:d635e754", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
             "desk|monokuma-legacy|gm-launcher": "1:999f5b79", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:3a251bf8",
             "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:cfb69a33",
-            "desk|stained-glass|foundry-tools": "1:83b739cf", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:934c4f73",
+            "desk|stained-glass|foundry-tools": "1:83b739cf", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:ae4eb686",
             "desk|stained-glass|room-art": "1:b38f7ef7", "desk|stained-glass|room-tile": "1:df847626", "desk|stained-glass|voice-art": "1:393b7dc4",
             "desk|stained-glass|voice-list": "1:e9f9c48e", "desk|stained-glass|voice-tile": "1:9028bf8f", "stacked|monokuma-legacy|foundry-tools": "1:d635e754",
             "stacked|monokuma-legacy|foundry-window": "2:3ad17c49", "stacked|monokuma-legacy|gm-launcher": "1:999f5b79", "stacked|monokuma-legacy|room-art": "1:b38f7ef7",
             "stacked|monokuma-legacy|room-tile": "1:164e7a4a", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:4671c967",
             "stacked|monokuma-legacy|voice-tile": "1:66481022", "stacked|stained-glass|foundry-tools": "1:83b739cf", "stacked|stained-glass|foundry-window": "2:8b75b7bd",
-            "stacked|stained-glass|gm-launcher": "1:934c4f73", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:e821c8f8",
+            "stacked|stained-glass|gm-launcher": "1:ae4eb686", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:e821c8f8",
             "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:e9f9c48e", "stacked|stained-glass|voice-tile": "1:4a4823b1"
         };
         equal(stableJson({ left: [...left].sort(), prints, sectionMedia }), stableJson({ left: [], prints: C5, sectionMedia: [] }),
@@ -34945,7 +34988,9 @@ const INVARIANTS = [
         const road = fnSource(inv, "deleteTraceRow");
         const at = re => { const m = re.exec(road); return m ? m.index : -1; };
         const reads = {
-            head: /localize\("DRPG\.Investigation\.deleteTrace"\)\}<\/th>/.test(panel),
+            // the tab's table a dataTable since E47-C4: its head is a column of `caseTraceColumns`, not a `<th>` of the panel's
+            head: /localize\("DRPG\.Investigation\.deleteTrace"\)\}<\/th>/.test(panel)
+                || /key:\s*"delete",\s*label:\s*L\("DRPG\.Investigation\.deleteTrace"\)/.test(fnSource(inv, "caseTraceColumns")),
             bound: /querySelectorAll\("\[data-drpg-trace-delete\]"\)/.test(wire) && /deleteTraceRow\(button\.dataset\.drpgTraceDelete\)/.test(wire),
             gmFirst: /^[^{]*\{\s*if \(!game\.user\.isGM\b/.test(road),
             // The question is the kit's since E21 C3a (ui-kit.mjs `drpgConfirm`), DialogV2.confirm's until then.
@@ -34998,7 +35043,9 @@ const INVARIANTS = [
         const table = ["", "  \n\t ", null, "a", "a".repeat(1000), ` ${"a".repeat(1000)}\n`, "a".repeat(1001)].map(text => problem(text));
 
         const form = document.createElement("form");
-        form.innerHTML = typeof UI.descriptionField === "function" ? UI.descriptionField("a <i>draft</i>") : "";
+        // A row of the kit's formGrid since E47-C6 (`{ label, id, field }`), drawn in one as both windows draw it.
+        const row = typeof UI.descriptionField === "function" ? UI.descriptionField("a <i>draft</i>") : "";
+        form.innerHTML = typeof row === "string" ? row : (await import("./ui-kit.mjs")).formGrid([row]);
         const areas = [...form.querySelectorAll("textarea")];
         const field = { areas: areas.map(a => [a.name, a.value, a.hasAttribute("maxlength"), a.required]) };
 
@@ -35414,7 +35461,8 @@ const INVARIANTS = [
             panes: [["a", false, ""], ["b", true, ""], ["c", true, ""]],
             fields: ["r1353a", "r1353b", "r1353c"],
             clamped: [`${innerHeight - 8}px`, "8px"],
-            fits: [[1, 21, "421px", "400"], [2, 2, 0, "421px"]]
+            // the second bar wraps since E47-KFb (two rows of the tabs' own widths, no columns); a 2 x 2 grid before it
+            fits: [[1, 21, "421px", "400"], [2, null, 0, "421px"]]
         }), `[positions asked on the first draw; after each of three presses (b, c, a): what was asked, with the pane shown, the footer's shown buttons and the tabs onSwitch was told then (${asked.length} reposition(s) after 3 presses); the panes (key, hidden, inline display); the form's fields; the tops a page with no application clamped (5000 px, -50 px); the first fit (rows, grew, width, first width) and the second (rows, columns, grew, width)]`);
     }],
     ["R1355 - an on-screen keyboard does not switch the layout (scripts/settings.mjs `layoutHeight`, `shortScreen`, `keyboardUp`; E21 C1d, E21-17; the owner's 26.09 amend and A7): with focus in a text field a fall of the height alone keeps `shortScreen` and `narrowScreen` as they were and `keyboardUp` says so; the height risen, a fall with no field focused and a change of the width are taken; glass.mjs cuts nothing while the keyboard is up, and the keyboard is asked to overlay the page where the browser lets it", async () => {
@@ -35582,14 +35630,16 @@ const INVARIANTS = [
         const source = {};
         for (const [file, fn] of SOURCE) {
             const body = fnSource(stripComments(sources.get(file) ?? ""), fn);
-            source[`${file} ${fn}`] = !body ? "gone" : [/\bdrpgWindow\(\{/.test(body), /\bfit: true\b/.test(body), /\bfooter\b/.test(body), /\bbuttons:\s*\[/.test(body)];
+            // Fit, or a width the window states (E47-C2: the tracker's `width: "tracker"`, the kit's fixed width in place of the fit).
+            source[`${file} ${fn}`] = !body ? "gone" : [/\bdrpgWindow\(\{/.test(body), /\bfit: true\b|\bwidth: "[a-z]+"/.test(body), /\bfooter\b/.test(body), /\bbuttons:\s*\[/.test(body)];
         }
         /* Each opener with its window's class, the role per footer action, and the actions it must show. Give back's
            and Hold them again's windows share a class; Despair Flow's pool buttons depend on the world's accounts. */
         const OPEN = [
             ["./enforced.mjs", "openGiveBackFoundry", undefined, "drpg-window-give-back", { give: "secondary", hold: "secondary", close: "close" }, ["close"]],
             ["./enforced.mjs", "offerHoldAgain", { user: game.user, givenBack: true, hold: async () => {} }, "drpg-window-give-back", { hold: "primary", close: "cancel" }, ["hold", "close"]],
-            ["./gm-students.mjs", "openWhoIsAliveDialog", undefined, "drpg-window-alive", { save: "primary", items: "secondary", cancel: "cancel" }, ["save", "items", "cancel"]],
+            // E47-C8 (the owner's 09.11 ask): Items left the footer for every row (R2083).
+            ["./gm-students.mjs", "openWhoIsAliveDialog", undefined, "drpg-window-alive", { save: "primary", cancel: "cancel" }, ["save", "cancel"]],
             ["./gm-team-dialog.mjs", "openGmTeamDialog", undefined, "drpg-window-gmteam", { save: "primary", addPool: "secondary", removePool: "secondary", auto: "secondary", cancel: "cancel" }, ["save", "cancel"]],
             ["./investigation.mjs", "openInvestigationDashboard", undefined, "drpg-window-case",
                 { save: "primary", newTrace: "secondary", autopsy: "secondary", log: "secondary", bodyFound: "secondary", clearFaint: "destructive", sweepBullets: "destructive", close: "cancel" },
@@ -36152,7 +36202,8 @@ const INVARIANTS = [
         const closeAnswers = ["trial-floor-ui.mjs", "trial.mjs", "verdict.mjs", "trial-prompt.mjs", "trait-ruling.mjs"]
             .flatMap(f => [...stripComments(src.get(f) ?? "").matchAll(/\{\s*action:\s*"close"(?![^}]*role:\s*"close")[^}]*\}/g)].map(m => `${f}: ${m[0].slice(0, 80)}`));
         const destructiveCancel = text => /destructive:\s*\[/.test(text) && /default:\s*"cancel"/.test(text);
-        const vote = fnSource(ui, "openVoteDialog");
+        // The vote window's footer is `voteFooter`'s since E47 C1 (redrawn in place by liveFooter): read with the window.
+        const vote = fnSource(ui, "openVoteDialog") + fnSource(ui, "voteFooter");
         const sources = {
             bar: ROLE.test(bar),
             newTrial: destructiveCancel(fnSource(ui, "confirmNewTrial")),
@@ -41193,7 +41244,7 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ "stained-glass": { ...want, mark: "32px" }, "monokuma-legacy": { ...want, mark: "16px" } }),
             "{per theme: the row's winning width / display / grid-template-columns; the list's display; the value's text-align; name: its overflow-wrap; mark: the value's background size; own: the value's winning background names an SVG under the module's icons/; served; grid: a 16x16 view; crisp: crispEdges; rects: whole-pixel rects only; palette: every colour the item icons'; inkAndOne: the ink and exactly one other; text: the value's font-size not nothing}");
     }],
-    ["R1492 - a project's description takes the form's width (projects-ui.mjs `descriptionField`; E24 C6, the owner's A8 of 09.11.2026): in the GM's Edit project and the player's proposal, under both themes, its label is a column - the caption, then the textarea stretched to the row's width, then the note under it", async () => {
+    ["R1492 - a project's description takes the form's width (projects-ui.mjs `descriptionField`; E24 C6, the owner's A8 of 09.11.2026): in the GM's Edit project and the player's proposal, under both themes, its field cell of the kit's `formGrid` (E47-C6; a column of its own label until then) holds the textarea at the cell's width and the note under it", async () => {
         /*
          * E24 C6. The owner, 09.11.2026: "Opis okna projects - za waskie", with a screenshot of Edit project: the
          * Description textarea about a third of the window, its placeholder wrapping, the note beside it on the right.
@@ -41209,30 +41260,33 @@ const INVARIANTS = [
          */
         const C = await styleCascade();
         const UI = await import("./projects-ui.mjs");
+        const K = await import("./ui-kit.mjs");
         must(typeof UI.descriptionField === "function", "projects-ui.mjs has no descriptionField - nothing to read");
+        /* E47-C6 (09.11.2026; cards M17-M19, approved): the field is a row of the kit's `formGrid` since, its caption in
+           the label column; what this holds is the field cell's - the textarea the cell's width, the note under it. */
         const drawn = theme => {
             const html = document.createElement("html"), body = document.createElement("body");
             body.className = `${theme} drpg-gm`;
             const app = document.createElement("div");
-            app.className = "application dialog drpg-panel drpg-ui";
+            app.className = "application dialog drpg-panel drpg-ui drpg-project-form";
             app.innerHTML = `<section class="window-content"><form class="dialog-form standard-form"><div class="dialog-content standard-form">`
-                + `<div class="drpg-kit-body"><form>${UI.descriptionField("")}</form></div></div></form></section>`;
+                + `<div class="drpg-kit-body"><form>${K.formGrid([UI.descriptionField("")])}</form></div></div></form></section>`;
             html.append(body);
             body.append(app);
-            return app.querySelector('textarea[name="description"]')?.closest("label") ?? null;
+            return app.querySelector('textarea[name="description"]')?.closest(".drpg-form-field") ?? null;
         };
         const got = {}, want = {};
         for (const theme of ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"]) {
             const label = drawn(theme);
-            must(label, `the field drew no textarea in a label under ${theme}`);
-            const area = label.querySelector("textarea"), note = label.querySelector("small.notes");
+            must(label, `the field drew no textarea in a formGrid field cell under ${theme}`);
+            const area = label.querySelector("textarea"), note = label.querySelector("p.drpg-help");
             got[theme] = {
-                direction: C.winner(label, "flex-direction")?.value ?? null, align: C.winner(label, "align-items")?.value ?? null,
-                width: C.winner(area, "width")?.value ?? null, maxWidth: C.winner(area, "max-width")?.value ?? null,
+                labelled: label.previousElementSibling?.htmlFor === area?.id, wrap: C.winner(label, "flex-wrap")?.value ?? null,
+                width: C.winner(area, "width")?.value ?? null, basis: C.winner(area, "flex")?.value ?? null, noteBasis: note ? C.winner(note, "flex")?.value ?? null : "missing",
                 parts: [...label.children].map(e => e.tagName.toLowerCase()),
                 order: [area, note].map(e => (e ? C.winner(e, "order")?.value ?? null : "missing"))
             };
-            want[theme] = { direction: "column", align: "stretch", width: "100%", maxWidth: null, parts: ["textarea", "small"], order: [null, null] };
+            want[theme] = { labelled: true, wrap: "wrap", width: "100%", basis: "1 1 100%", noteBasis: "1 0 100%", parts: ["textarea", "p"], order: [null, null] };
         }
         equal(stableJson(got), stableJson(want),
             "[per theme, the description's label in a drpg-panel window: its winning flex-direction and align-items; the textarea's winning width and "
@@ -41290,7 +41344,3116 @@ const INVARIANTS = [
             "{save: [what the opener answered after Save, how many dashboards stand open]; newTrace: [the New trace window drawn, the dashboard drawn "
             + "again after it closed, the first copy still rendered, the opener still waiting on the new copy]}");
     }],
+
+    /* ---- E46-C1: the kit's additions for the GM's large windows (E46 + E47, release 1.2.102) ------------------------ */
+
+    ["R2004 - checkList (scripts/ui-kit.mjs; E46-C1): one list of checks, `ul.drpg-checklist[aria-label]` of `li.drpg-check-row[data-drpg-state][data-drpg-key]`, five states with their marks (done, blocking, advisory, warning, waiting: none) named for a screen reader by `DRPG.Kit.check.<state>` in both lang files, the title as text, the detail as markup, an action drawn with its role's classes, an unknown state refused; the cascade in both themes (tests-kit.mjs `styleCascade`): components.css colours each mark and title, and only `blocking`'s resolves to a red token", async () => {
+        /*
+         * E46-C1, 09.11.2026. Season setup and Pre-season checks (E46-C5) draw their rows here; the owner's rule for them
+         * (S13-36): red only for a row that blocks. The red is read as the token a colour comes to, followed through the
+         * kit's tokens on a body of each theme (`--drpg-crimson*` and `--drpg-eye*` under Legacy, `--drpg-sg-gm` and
+         * `--drpg-sg-despair` under the glass). Red first on 4de21046: no checkList. The mutant k2 (warning's mark on
+         * blocking's red) reads red here.
+         */
+        const K = await import("./ui-kit.mjs");
+        equal(typeof K.checkList, "function", "[ui-kit.mjs exports checkList]");
+        const STATES = ["done", "blocking", "advisory", "warning", "waiting"];
+        const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json());
+        const [en, pl] = await Promise.all([lang("en"), lang("pl")]);
+        const at = (file, key) => key.split(".").reduce((o, k) => o?.[k], file);
+        equal(stableJson(STATES.map(s => `DRPG.Kit.check.${s}`).filter(k => typeof at(en, k) !== "string" || typeof at(pl, k) !== "string")), "[]", "[a check state's word missing from lang/en.json or lang/pl.json]");
+        const L = key => game.i18n.localize(key);
+        const rows = STATES.map(s => ({ key: `k-${s}`, state: s, title: `T <${s}>`, detail: `<b>d ${s}</b>`, action: s === "blocking" ? { action: "fix", label: "Fix it", role: "secondary" } : null }));
+        const markup = K.checkList(rows, { label: "Checks" });
+        const d = document.createElement("div");
+        d.innerHTML = markup;
+        const list = d.firstElementChild;
+        const throws = (() => { try { K.checkList([{ key: "x", state: "red", title: "X" }]); return false; } catch { return true; } })();
+        equal(stableJson({
+            list: [list?.localName, list?.className, list?.getAttribute("aria-label"), d.children.length],
+            rows: [...(list?.children ?? [])].map(li => [li.localName, li.className, li.dataset.drpgState, li.dataset.drpgKey,
+                li.querySelector(".drpg-check-mark")?.textContent ?? null, li.querySelector(".drpg-check-mark")?.getAttribute("aria-label") ?? null,
+                li.querySelector(".drpg-check-title")?.textContent ?? null, li.querySelector(".drpg-check-detail")?.innerHTML ?? null,
+                [...li.querySelectorAll("button")].map(b => [b.type, b.dataset.drpgAction, b.dataset.drpgRole, b.classList.contains("drpg-role-secondary"), b.textContent])]),
+            throws
+        }), stableJson({
+            list: ["ul", "drpg-checklist", "Checks", 1],
+            rows: STATES.map(s => ["li", "drpg-check-row", s, `k-${s}`, { done: "✓", blocking: "✗", advisory: "-", warning: "!", waiting: "" }[s], L(`DRPG.Kit.check.${s}`),
+                `T <${s}>`, `<b>d ${s}</b>`, s === "blocking" ? [["button", "fix", "secondary", true, "Fix it"]] : []]),
+            throws: true
+        }), "{list: [tag, class, aria-label, elements drawn]; rows: [tag, class, state, key, the mark, its aria-label, the title's text, the detail's markup, its buttons (type, action, role, the role's class, label)]; throws: an unknown state}");
+
+        const C = await styleCascade();
+        const RED = /^--drpg-(crimson|eye|sg-gm|sg-despair)/;
+        const read = {};
+        for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-gm`;
+            html.append(body);
+            const root = document.createElement("div");
+            root.className = "application dialog drpg-window-r2004 drpg-ui drpg-panel";
+            root.innerHTML = `<section class="window-content"><form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-kit-body">${markup}</div></div></form></section>`;
+            body.append(root);
+            const onBody = C.on(body);
+            /* The tokens a value comes to: each var() followed on the body until it names one no kit rule defines. */
+            const tokens = value => {
+                const seen = [];
+                let v = String(value ?? "");
+                for (let i = 0; i < 8; i++) {
+                    const name = /var\((--[\w-]+)/.exec(v)?.[1];
+                    if (!name) break;
+                    seen.push(name);
+                    const w = onBody(name);
+                    if (!w) break;
+                    v = w.value;
+                }
+                return seen;
+            };
+            read[theme] = Object.fromEntries([...root.querySelectorAll("li.drpg-check-row")].map(li => [li.dataset.drpgState,
+                [".drpg-check-mark", ".drpg-check-title"].map(sel => {
+                    const w = C.on(li.querySelector(sel))("color");
+                    return [w?.file ?? "nobody", tokens(w?.value).some(t => RED.test(t))];
+                })]));
+        }
+        const want = Object.fromEntries(STATES.map(s => [s, [["styles/components.css", s === "blocking"], ["styles/components.css", s === "blocking"]]]));
+        equal(stableJson(read), stableJson({ "drpg-theme-monokuma-legacy": want, "drpg-theme-stained-glass": want }),
+            "{by theme, by state: [the mark's colour: the file whose rule wins it, a red token], [the same for the title]}");
+    }],
+
+    ["R2005 - liveFooter (scripts/ui-kit.mjs; E46-C1, q-console): on a drawn kit window (the harness's DialogV2) the footer is redrawn in place from a footer spec - the `footer.drpg-kit-footer` element kept, the buttons replaced in their groups (the right first in the tree, the primary first and autofocused), the callbacks on `app.drpgActions` and in the window's own buttons, so a button drawn later answers as one drawn first; a footer that names a destructive default throws and leaves the footer as it was; the same spec again changes nothing", async () => {
+        /*
+         * E46-C1, 09.11.2026. The trial console (E47-C1) and the vote window keep their window and swap their footer
+         * when the trial's state moves (the owner's q-console: "the footer slots, `liveFooter`"). DialogV2 answers a press
+         * from its own buttons by `data-action` (the harness models it on v13's `_onSubmit`; Foundry v14's own handling
+         * of a footer changed after its render is a check at a table: E47's first live row, LIVE-E47-01, AUDIT 9.2's item
+         * 438), so liveFooter writes its buttons there too. Red first on
+         * 4de21046: no liveFooter. The mutants k3 (the footer element replaced) and k4 (a destructive default allowed)
+         * read red here.
+         */
+        needs(env.dialogs(), "the footer is redrawn on a drawn window");
+        const K = await import("./ui-kit.mjs");
+        equal(typeof K.liveFooter, "function", "[ui-kit.mjs exports liveFooter]");
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-r2005"));
+        must(of().length === 0, "an R2005 window stands open already");
+        const groups = footer => [...(footer?.children ?? [])].map(g => [g.className, [...g.children].map(b => [b.dataset.action, b.dataset.drpgRole, b.hasAttribute("autofocus")])]);
+        const got = {};
+        const answer = K.drpgWindow({ classes: ["drpg-window-r2005"], title: "R2005", body: "<p>R2005</p>",
+            footer: { primary: { action: "first", label: "First", callback: () => "first-answer" }, close: "close" } });
+        try {
+            await until(() => of().some(a => a.element?.querySelector("footer.drpg-kit-footer")), 6000);
+            const app = of()[0];
+            const footer = app?.element?.querySelector("footer.drpg-kit-footer") ?? null;
+            must(footer, "the R2005 window drew no kit footer");
+            got.first = { actions: [...(app.drpgActions?.keys?.() ?? [])], groups: groups(footer) };
+            const spec = { primary: { action: "later", label: "Later", callback: () => "later-answer" }, secondary: [{ action: "more", label: "More" }],
+                destructive: [{ action: "wipe", label: "Wipe" }], close: "close" };
+            got.changed = K.liveFooter(app, spec);
+            const now = app.element.querySelector("footer.drpg-kit-footer");
+            got.same = now === footer;
+            got.later = { groups: groups(now), firstInTree: now?.querySelector("button")?.dataset.action ?? null, actions: [...(app.drpgActions?.keys?.() ?? [])] };
+            got.again = K.liveFooter(app, spec);
+            let threw = null;
+            try { K.liveFooter(app, { destructive: [{ action: "wipe", label: "Wipe" }], close: "close", default: "wipe" }); } catch (err) { threw = /never be a window's default/.test(err.message); }
+            got.destructiveDefault = { threw, kept: groups(app.element.querySelector("footer.drpg-kit-footer")).flatMap(g => g[1].map(b => b[0])) };
+            app.element.querySelector("footer.drpg-kit-footer button[data-action=\"later\"]")?.click();
+            got.answer = await Promise.race([answer, wait(4000).then(() => "still waiting")]);
+        } finally {
+            for (const a of of()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(3000)]);
+        }
+        equal(stableJson(got), stableJson({
+            first: { actions: ["first", "close"], groups: [["drpg-kit-right", [["first", "primary", true]]], ["drpg-kit-left", [["close", "close", false]]]] },
+            changed: true, same: true,
+            later: { groups: [["drpg-kit-right", [["later", "primary", true]]], ["drpg-kit-left", [["close", "close", false], ["more", "secondary", false], ["wipe", "destructive", false]]]],
+                firstInTree: "later", actions: ["later", "close", "more", "wipe"] },
+            again: false,
+            destructiveDefault: { threw: true, kept: ["later", "close", "more", "wipe"] },
+            answer: "later-answer"
+        }), "{first: [drpgActions' keys, the groups (action, role, autofocus)]; changed: liveFooter's answer; same: the footer element kept; later: the groups, the first button in the tree, drpgActions' keys; "
+            + "again: the same spec once more; destructiveDefault: [it threw, the footer's actions after]; answer: what the window answered when the later button was pressed}");
+    }],
+
+    ["R2008 - a footer button's tooltip (scripts/ui-kit.mjs; E46-C1f): a button spec's `tooltip` is the button's `title` - in `footerMarkup` (DrpgApp), on a drawn DialogV2 window's footer (`dressFooter`) and in a footer `liveFooter` redraws, a disabled button's included; the words escaped, a button with none no title, the closing word none; a footer with no tooltip 4954917b's markup byte for byte", async () => {
+        /*
+         * E46-C1f, 09.11.2026 (E46-C1's Open 3b). E47-C1's console stands "Start the Final Trial" disabled with its reason
+         * while no Mastermind is set (S13-36 (1): "the kit's disabled button and its tooltip"); footerButtons and DialogV2
+         * carried no title. A title, not Foundry's `data-tooltip`: the browser's own tooltip reads a disabled button, and
+         * on a button named by its text the title is its accessible description (HTML-AAM), so no `aria-describedby`.
+         * Foundry v14's tooltip over a disabled button was not tried. Red first on 4954917b: no title anywhere.
+         */
+        needs(env.dialogs(), "the footer is read on a drawn window");
+        const K = await import("./ui-kit.mjs");
+        const E = v => foundry.utils.escapeHTML(String(v));
+        const word = E(game.i18n.localize("DRPG.Kit.close"));
+        const plain = { primary: { action: "go", label: "Go <1>" }, secondary: [{ action: "more", label: "More", disabled: true }], destructive: [{ action: "wipe", label: "Wipe", icon: "fa-solid fa-trash" }], close: "close" };
+        const OLD = "<footer class=\"form-footer drpg-kit-footer\"><div class=\"drpg-kit-right\"><button type=\"button\" data-action=\"go\" data-drpg-role=\"primary\" class=\"drpg-role-primary default\" autofocus><span>Go &lt;1&gt;</span></button></div>"
+            + `<div class="drpg-kit-left"><button type="button" data-action="close" data-drpg-role="close" class="drpg-role-close"><span>${word}</span></button>`
+            + "<button type=\"button\" data-action=\"more\" data-drpg-role=\"secondary\" class=\"drpg-role-secondary\" disabled><span>More</span></button>"
+            + "<button type=\"button\" data-action=\"wipe\" data-drpg-role=\"destructive\" class=\"drpg-role-destructive drpg-destructive\"><i class=\"fa-solid fa-trash\" inert></i><span>Wipe</span></button></div></footer>";
+        const reason = "No Mastermind is set <yet> & \"none\"";
+        const titles = root => [...(root?.querySelectorAll("footer button[data-action]") ?? [])].map(b => [b.dataset.action, b.getAttribute("title"), b.disabled]);
+        const app = document.createElement("div");
+        app.innerHTML = K.footerMarkup({ ...plain, destructive: [{ action: "final", label: "Start the Final Trial", disabled: true, tooltip: reason }] });
+        const got = { old: K.footerMarkup(plain) === OLD, markup: titles(app) };
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-r2008"));
+        must(of().length === 0, "an R2008 window stands open already");
+        const answer = K.drpgWindow({ classes: ["drpg-window-r2008"], title: "R2008", body: "<p>R2008</p>",
+            footer: { primary: { action: "next", label: "Next", tooltip: "Open the vote" }, destructive: [{ action: "final", label: "Start the Final Trial", disabled: true, tooltip: reason }], close: "close" } });
+        try {
+            await until(() => of().some(a => a.element?.querySelector("footer.drpg-kit-footer")), 6000);
+            const win = of()[0];
+            got.drawn = titles(win.element).map(([a, t]) => [a, t]);
+            got.changed = K.liveFooter(win, { primary: { action: "reveal", label: "Reveal" }, secondary: [{ action: "debate", label: "Debate", tooltip: "Back to the debate" }], close: "close" });
+            got.live = titles(win.element).map(([a, t]) => [a, t]);
+            K.liveFooter(win, { primary: { action: "reveal", label: "Reveal" }, close: "close" });
+            got.none = titles(win.element).map(([a, t]) => [a, t]);
+        } finally {
+            for (const a of of()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(3000)]);
+        }
+        equal(stableJson(got), stableJson({
+            old: true,
+            markup: [["go", null, false], ["close", null, false], ["more", null, true], ["final", reason, true]],
+            drawn: [["next", "Open the vote"], ["close", null], ["final", reason]],
+            changed: true,
+            live: [["reveal", null], ["close", null], ["debate", "Back to the debate"]],
+            none: [["reveal", null], ["close", null]]
+        }), "{old: footerMarkup with no tooltip is 4954917b's markup; markup: footerMarkup's buttons [action, title, disabled]; drawn: a DialogV2 window's footer [action, title]; changed: liveFooter's answer; live: the redrawn footer; none: a footer with no tooltip redrawn}");
+    }],
+    /* ---- E46-C3: Item tables, Give existing, Give a Truth Bullet and the item manager (R2021-R2025) ---------------------- */
+    ["R2021 - the Item tables editor's states tell the truth (scripts/tables-editor.mjs; E46-C3, S08-46): after deleting the last table of a tab the pane shows its empty state with Rename and Delete disabled; an emptied entry name is not written, in the flush and at the field, which takes the name back with DRPG.Tables.needsName under it; Install's Keep mine is an info and leaves the sidebar; an item written to fewer tables than asked says DRPG.Items.failed as a warning", async () => {
+        /*
+         * E46-C3, 09.11.2026; audit S08-46, four faults read on stand-in tables (plain objects in this browser's memory,
+         * answered by `game.tables` through `c3Tables` for the length of the test; nothing written) and the windows'
+         * own markup and wiring, drawn by a stand-in DialogV2.wait (`c3Wait`) that runs each window's render on its
+         * content and answers as the GM would. Red first at f7266b28: the deleted table still shown with Rename and
+         * Delete live; the name "" written (`{ name: "", text: "" }`) and the field left empty; Keep mine a warning and the
+         * sidebar switched; "added to 1 table" in blue for 1 of 2.
+         */
+        const T = await import("./tables.mjs");
+        const read = {};
+        const toasts = [];
+        const said = kind => (...args) => { toasts.push([kind, String(args[0] ?? "")]); };
+        const one = c3Table({ id: "r2021a", name: "DRPG Tools - Tier 1", flags: { category: "tool", tier: 1 }, entries: [{ name: "R2021 wrench" }] });
+        const two = c3Table({ id: "r2021b", name: "DRPG Tools - Tier 2", flags: { category: "tool", tier: 2 }, entries: [{ name: "R2021 crowbar" }] });
+        await c3Shadow(ui.notifications, { info: said("info"), warn: said("warn"), error: said("error") }, async () => {
+            // (1) the last table of a tab deleted
+            await c3Tables([one], () => c3Wait(async (config, element) => {
+                if (config?.classes?.includes("drpg-window-delete-table")) return true;
+                if (!config?.classes?.includes("drpg-window-tables")) return "close";
+                const pane = element.querySelector('[data-drpg-pool-pane="tiers"]');
+                pane.querySelector("[data-drpg-delete-table]").click();
+                await until(() => one.deleted, 3000);
+                await settle();
+                read.deleted = [pane.querySelector("[data-drpg-table-name]")?.textContent ?? null,
+                    pane.querySelector("[data-drpg-table-body]")?.textContent.trim() === game.i18n.localize("DRPG.Tables.noneYet"),
+                    pane.querySelector("[data-drpg-rename-table]")?.disabled, pane.querySelector("[data-drpg-delete-table]")?.disabled];
+                return "close";
+            }, () => T.openItemTables()));
+            // (2) an emptied name: the flush (another table picked) and the field's own commit
+            await c3Tables([c3Table({ ...one.spec, deleted: false }), two], tables => c3Wait(async (config, element) => {
+                if (!config?.classes?.includes("drpg-window-tables")) return "close";
+                const [a, b] = tables;
+                const pane = element.querySelector('[data-drpg-pool-pane="tiers"]');
+                const nameOf = id => pane.querySelector(`[data-drpg-field="name"][data-drpg-owns-table="${id}"]`);
+                pane.querySelector(`.drpg-tables-list [data-drpg-table="${a.id}"]`)?.click();
+                await settle();
+                nameOf(a.id).value = "";
+                pane.querySelector(`.drpg-tables-list [data-drpg-table="${b.id}"]`)?.click();
+                await settle();
+                const field = nameOf(b.id);
+                field.value = "  ";
+                field.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+                await settle();
+                read.emptied = { flush: [a.entries[0].updates, toasts.some(([k, t]) => k === "warn" && t === game.i18n.localize("DRPG.Tables.needsName"))],
+                    field: [b.entries[0].updates, field.value, field.parentElement?.querySelector("[data-drpg-name-refused]")?.textContent ?? null] };
+                return "close";
+            }, () => T.openItemTables()));
+            // (3) Keep mine
+            toasts.length = 0;
+            const tabs = [];
+            const sidebar = ui.sidebar ?? null;
+            if (!sidebar) ui.sidebar = { changeTab: (...a) => { tabs.push(a); } };
+            try {
+                await c3Shadow(ui.sidebar, { changeTab: (...a) => { tabs.push(a); } }, () => c3Shadow(game.tables, { getName: name => ({ name }) },
+                    () => c3Wait(async config => (config?.classes?.includes("drpg-window-install-tables") ? "keep" : "close"), async () => {
+                        const answer = await T.installTables();
+                        read.keep = [answer?.created?.length ?? null, toasts.map(([k]) => k), tabs.length];
+                    })));
+            } finally {
+                if (!sidebar) delete ui.sidebar;
+            }
+            // (4) an item written to fewer tables than asked
+            toasts.length = 0;
+            const broken = c3Table({ id: "r2021c", name: "DRPG Tools - Tier 3", flags: { category: "tool", tier: 3 }, entries: [], failAdd: true });
+            let asked = 0;
+            await c3Tables([c3Table({ ...one.spec, deleted: false }), broken], tables => c3Wait(async config => {
+                if (!config?.classes?.includes("drpg-window-tables")) return "close";
+                if (asked++) return "close";
+                return { name: "R2021 thing", description: "", img: "", category: "tool", tier: 1, roles: [], tables: tables.map(t => t.id) };
+            }, () => T.openItemTables()));
+            read.fewer = toasts.map(([k, t]) => [k, t === game.i18n.localize("DRPG.Items.failed")]);
+        });
+        equal(stableJson(read), stableJson({
+            deleted: ["", true, true, true],
+            emptied: { flush: [[], true], field: [[], "R2021 crowbar", game.i18n.localize("DRPG.Tables.needsName")] },
+            keep: [0, ["info"], 0],
+            fewer: [["warn", true]]
+        }), "{deleted: the pane after its last table went [heading, body is the empty state, Rename disabled, Delete disabled]; emptied: the flush [the entry's writes, the needsName warning], the field [its entry's writes, the field's value, the line under it]; keep: Keep mine [created, the toasts' kinds, sidebar switches]; fewer: 1 of 2 tables written, the toasts [kind, it is DRPG.Items.failed]}");
+    }],
+
+    ["R2022 - Give existing (scripts/gm-items.mjs, tables-pools.mjs `entryAs`; E46-C3, S08-42): the category and tier follow the picked entry as a draw reads it - a room pool's by the tier pools' filing of its name or the table's name, a tier pool's by its flags; where nothing says, both read \"- choose -\", marked, with DRPG.Items.setCategoryTier under them and Give disabled; the roles travel only from MULTI_ROLE_TIER up", async () => {
+        /*
+         * E46-C3, 09.11.2026; audit S08-42. On stand-in tables (`c3Tables`; nothing written): a room pool "R2022 Room"
+         * (roomPool) holding an unfiled name and "Axe", a "R2022 Room - Tier 1" holding the unfiled name, a Tier 1
+         * Cleaning Tool pool. Read: `entryAs` of each; the Give window drawn by a stand-in DialogV2.wait (`c3Wait`), its
+         * footer's Give added as DialogV2 draws it, after picking the pool then the room's unfiled entry then the Axe
+         * [category, tier, each marked, the line hidden, Give disabled]; `giveFromResult`'s roles of the Axe at Tier 0
+         * and 2, and its answer with no tier. Red first at f7266b28: no entryAs; the room's entries kept the pool's
+         * "cleaningTool" and "1", nothing marked; no giveFromResult export.
+         */
+        const T = await import("./tables.mjs");
+        const G = await import("./gm-items.mjs");
+        must(T.ITEM_POOLS.crimeTool[2].includes("Axe"), "\"Axe\" is no Tier 2 Murder Weapon of the built-in pools - this would read nothing");
+        const ODD = "R2022 odd thing";
+        const room = c3Table({ id: "r2022room", name: "R2022 Room", flags: { roomPool: true }, entries: [{ name: ODD }, { name: "Axe", roles: ["tool"] }] });
+        const roomTier = c3Table({ id: "r2022tier", name: "R2022 Room - Tier 1", flags: { roomPool: true }, entries: [{ name: ODD }] });
+        const pool = c3Table({ id: "r2022pool", name: "R2022 mops", flags: { category: "cleaningTool", tier: 1 }, entries: [{ name: "R2022 mop" }] });
+        const read = {};
+        const toasts = [];
+        await c3Shadow(ui.notifications, { warn: (...a) => { toasts.push(String(a[0])); } }, () => c3Tables([room, roomTier, pool], async () => {
+            const at = t => T.entryAs(t, t.entries.at(-1).doc);
+            read.entryAs = typeof T.entryAs === "function"
+                ? [T.entryAs(room, room.entries[0].doc), at(room), at(roomTier), at(pool)] : "no entryAs";
+            await c3Wait(async (config, element) => {
+                if (config?.window?.title !== game.i18n.localize("DRPG.Items.give")) return "cancel";
+                const form = element.querySelector("form");
+                const pick = (name, value) => { form.elements[name].value = value; form.elements[name].dispatchEvent(new Event("change")); };
+                const state = () => [form.elements.exCategory.value, form.elements.exTier.value,
+                    form.elements.exCategory.getAttribute("aria-invalid"), form.elements.exTier.getAttribute("aria-invalid"),
+                    form.querySelector("[data-drpg-to-set]")?.hidden ?? "no line", element.querySelector('footer button[data-action="ok"]')?.disabled];
+                pick("exTable", pool.id);
+                read.pool = state();
+                pick("exTable", room.id);
+                read.unfiled = state();
+                pick("exItem", room.entries[1].id);
+                read.axe = state();
+                return "cancel";
+            }, () => G.gmGiveItemDialog(null), { footer: ["ok"] });
+            const give = tier => (typeof G.giveFromResult === "function"
+                ? G.giveFromResult({ mode: "existing", tableId: room.id, resultId: room.entries[1].id, category: "crimeTool", kind: null, tier }, game.tables)
+                : "no giveFromResult");
+            read.roles = [give(0)?.roles ?? null, give(2)?.roles ?? null, give(NaN), toasts.includes(game.i18n.localize("DRPG.Items.setCategoryTier"))];
+        }));
+        equal(stableJson(read), stableJson({
+            entryAs: [{ category: null, tier: null, goal: null }, { category: "crimeTool", tier: 2, goal: null },
+                { category: null, tier: 1, goal: null }, { category: "cleaningTool", tier: 1, goal: null }],
+            pool: ["cleaningTool", "1", null, null, true, false],
+            unfiled: ["", "", "true", "true", false, true],
+            axe: ["crimeTool", "2", null, null, true, false],
+            roles: [[], ["tool"], null, true]
+        }), "{entryAs: the room's unfiled entry, its Axe, the room's Tier 1 table's unfiled entry, the pool's entry; pool, unfiled, axe: the Give window after each pick [category, tier, category marked, tier marked, the line hidden, Give disabled]; roles: giveFromResult's roles of the Axe at Tier 0 and 2, its answer with no tier, the setCategoryTier warning}");
+    }],
+
+    ["R2023 - a Truth Bullet from an unnamed trace (scripts/gm-items.mjs `bulletFromRemnant`; E46-C3, S08-40 held): a trace with no name, handed over under the word its box showed (DRPG.Remnant.tokenName, \"Remnant\" in EN and PL), writes neither a name nor the edited mark; renamed, it writes both", async () => {
+        /*
+         * E46-C3, 09.11.2026; S08-40, fixed by E51 C5 (0c8ace17): the name was compared with the trace's public name,
+         * empty on a trace nobody described, so every bullet from one wrote "Remnant" back and marked the trace edited.
+         * `bulletFromRemnant` takes its writers as arguments; here they only record their calls. Green on f7266b28's
+         * comparison; red with mutant m3 (`pub?.name` planted back for `entry.label ?? pub?.name`).
+         */
+        const G = await import("./gm-items.mjs");
+        must(typeof G.bulletFromRemnant === "function", "gm-items.mjs exports no bulletFromRemnant - this would measure nothing");
+        const words = {};
+        for (const lang of ["en", "pl"]) {
+            const file = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            words[lang] = file?.DRPG?.Remnant?.tokenName ?? null;
+        }
+        const label = game.i18n.localize("DRPG.Remnant.tokenName");
+        const trace = { token: { id: "r2023t", parent: { id: "r2023s" } }, label,
+            data: { type: "neutral", visibility: "evident", public: { name: "", playerText: "" } } };
+        const run = async name => {
+            const calls = { name: [], edited: [] };
+            const bullet = await G.bulletFromRemnant({ remnantId: "r2023t", sceneId: "r2023s", name, shown: "auto" }, [trace], {
+                setRemnantPublicById: async (...a) => { calls.name.push(a); }, markRemnantEditedById: async (...a) => { calls.edited.push(a); },
+                tieForCopy: () => null });
+            return [bullet?.name ?? null, calls.name, calls.edited];
+        };
+        equal(stableJson({ words, unnamed: await run(label), renamed: await run("R2023 knife") }), stableJson({
+            words: { en: "Remnant", pl: "Remnant" },
+            unnamed: [label, [], []],
+            renamed: ["R2023 knife", [["r2023s", "r2023t", { name: "R2023 knife" }]], [["r2023s", "r2023t"]]]
+        }), "{words: DRPG.Remnant.tokenName in en.json and pl.json; unnamed, renamed: [the bullet's name, the name writes, the edited marks]}");
+    }],
+
+    ["R2024 - Create an item names its tier pool as the list does (scripts/tables-editor.mjs `paintTierTarget`; E46-C3, S13-36 (3)): DRPG.Tables.tierTargetIs with the pool's short name, \"Usables (Healing) - Tier 2\", not \"DRPG Usables (Healing) - Tier 2\"", async () => {
+        /*
+         * E46-C3, 09.11.2026; S13-36 (3). The line under the category and tier said "Goes into DRPG Usables (Healing) -
+         * Tier 2" beside a list that names the pool "Usables (Healing) - Tier 2". Read on a stand-in pool (`c3Tables`)
+         * in the window's own markup, drawn by a stand-in DialogV2.wait: Usable - Healing at Tier 2 picked. Red first at
+         * f7266b28: the whole name.
+         */
+        const T = await import("./tables.mjs");
+        const pool = c3Table({ id: "r2024pool", name: "DRPG Usables (Healing) - Tier 2", flags: { category: "usable", tier: 2, goal: "healing" }, entries: [{ name: "R2024 plaster" }] });
+        let line = "no window";
+        await c3Tables([pool], () => c3Wait(async (config, element) => {
+            if (!config?.classes?.includes("drpg-window-tables")) return "close";
+            const form = element.querySelector("form");
+            for (const [name, value] of [["newCategory", "usable:healing"], ["newTier", "2"]]) {
+                form.elements[name].value = value;
+                form.elements[name].dispatchEvent(new Event("change"));
+            }
+            line = element.querySelector("[data-drpg-tier-target]")?.textContent.trim() ?? "no line";
+            return "close";
+        }, () => T.openItemTables()));
+        equal(line, game.i18n.format("DRPG.Tables.tierTargetIs", { table: "Usables (Healing) - Tier 2" }),
+            "the line under Create an item's category and tier does not name the pool as the list does");
+    }],
+
+    ["R2025 - the item manager's holdings (scripts/gm-items.mjs `holdingsHtml`; E46-C3, S13-36 (5)): the summary is a paragraph in the body's ink, not fine print, and each group's heading is its category's plural (ITEM_CATEGORIES[*].plural, which pl.json's DRPG.Config.ITEM_CATEGORIES.*.plural holds in Polish)", async () => {
+        /*
+         * E46-C3, 09.11.2026; S13-36 (5): the summary over a student's things was `p.notes` (the fine print) and each
+         * group was headed in the singular ("Tool" over three tools). Read on a stand-in student holding two tools and a
+         * Murder Weapon (plain objects; nothing written), and pl.json's plurals beside its labels. Red first at f7266b28:
+         * `p.notes`, the singular labels.
+         */
+        const G = await import("./gm-items.mjs");
+        const C = await import("./config.mjs");
+        must(typeof G.holdingsHtml === "function", "gm-items.mjs exports no holdingsHtml - this would measure nothing");
+        const item = (name, category, tier) => ({ name, getFlag: (scope, key) => (scope === MODULE_ID ? { category, tier }[key] : undefined) });
+        const who = { id: "r2025", name: "R2025 student", items: [item("R2025 wrench", "tool", 1), item("R2025 rope", "tool", 0), item("R2025 knife", "crimeTool", 2)] };
+        const box = document.createElement("div");
+        box.innerHTML = G.holdingsHtml(who);
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const words = pl?.DRPG?.Config?.ITEM_CATEGORIES ?? {};
+        equal(stableJson({
+            summary: [box.firstElementChild?.tagName ?? null, box.firstElementChild?.classList.contains("notes") ?? null],
+            heads: [...box.querySelectorAll(".drpg-holdings-group h4")].map(h => h.textContent),
+            pl: ["crimeTool", "tool"].map(key => [Boolean(words[key]?.plural), words[key]?.plural !== words[key]?.label])
+        }), stableJson({
+            summary: ["P", false],
+            heads: [C.ITEM_CATEGORIES.crimeTool.plural, C.ITEM_CATEGORIES.tool.plural],
+            pl: [[true, true], [true, true]]
+        }), "{summary: [the first element, it is fine print]; heads: the groups' headings; pl: pl.json's crimeTool and tool [a plural, it differs from the label]}");
+    }],
+    ["R2020 - Item tables' pick list and a pool's entries are the kit's dataTables (scripts/tables-editor.mjs `poolPaneHtml`; E46-C3b): the list a table of the short name and the entries, its row's first cell the pick button; the entries a table of name, description, roles and actions, each row a `tr` with the entry's and the table's ids; a room pool's tiers its group rows", async () => {
+        /*
+         * E46-C3b, 09.11.2026 (S/stages/E46 "Item tables"; acceptance E46-09). Read on two stand-in tables (`c3Table`,
+         * in this browser's memory; `game.tables` answers them alone through `c3Tables`, so a room pool's entry finds
+         * its tier pool): a Murder Weapons pool at Tier 0 with one entry and a room pool holding "Axe" (a name the
+         * module's own lists sort: one tier, one group row with its count) and one name nothing knows (the unfiled
+         * section's table, no group row). Red first at 26396cd0: the list a `ul` of `li > button`, the entries a `ul` of `li`, a room's tier
+         * an `h6`.
+         */
+        const T = await import("./tables.mjs");
+        const C = await import("./config.mjs");
+        must(typeof T.poolPaneHtml === "function", "tables.mjs exports no poolPaneHtml - this would measure nothing");
+        const pool = c3Table({ id: "r2020t", name: "DRPG R2020 weapons - Tier 0", flags: { category: "crimeTool", tier: 0 }, entries: [{ name: "R2020 axe", roles: [] }] });
+        const room = c3Table({ id: "r2020r", name: "R2020 kitchen", flags: { roomPool: true }, entries: [{ name: "Axe", roles: [] }, { name: "R2020 nobody's", roles: [] }] });
+        const L = key => game.i18n.localize(key);
+        const heads = el => [...(el?.querySelectorAll("table.drpg-data-table > thead th") ?? [])].map(th => th.textContent.trim());
+        const read = await c3Tables([pool, room], async () => {
+            const tiers = document.createElement("div"), rooms = document.createElement("div");
+            tiers.innerHTML = T.poolPaneHtml("tiers", [pool], pool);
+            rooms.innerHTML = T.poolPaneHtml("rooms", [room], room);
+            const list = tiers.querySelector(".drpg-tables-list");
+            const first = list?.querySelector("table.drpg-data-table > tbody > tr");
+            const cells = [...(first?.cells ?? [])];
+            const entries = tiers.querySelector("[data-drpg-table-body] .drpg-table-items");
+            const rowsOf = el => [...(el?.querySelectorAll("table.drpg-data-table > tbody > tr[data-drpg-result]") ?? [])];
+            const body = rooms.querySelector("[data-drpg-table-body]");
+            return {
+                list: [Boolean(list?.querySelector("table.drpg-data-table")), heads(list),
+                    cells[0]?.querySelector(":scope > button.drpg-table-pick")?.dataset.drpgTable ?? null,
+                    cells.slice(1).map(td => td.textContent.trim())],
+                entries: [heads(entries), rowsOf(entries).map(tr => [tr.dataset.drpgResult, tr.dataset.drpgTable,
+                    Boolean(tr.cells[0]?.querySelector("[data-drpg-field=name]")), Boolean(tr.querySelector("td.act [data-drpg-drop]"))])],
+                room: [[...(body?.querySelectorAll("tr.drpg-data-group > th") ?? [])].map(th => /^\d+$/.test(th.querySelector(":scope > span")?.textContent ?? "")),
+                    rowsOf(body).map(tr => tr.dataset.drpgResult)],
+                lists: [tiers, rooms].map(el => el.querySelectorAll("[data-drpg-table-body] li, .drpg-tables-list li").length)
+            };
+        });
+        const roles = C.EQUIPPABLE.includes("crimeTool") ? [L("DRPG.Items.alsoServesAs")] : [];
+        equal(stableJson(read), stableJson({
+            list: [true, [L("DRPG.Tables.col.table"), L("DRPG.Tables.col.items")], "r2020t", ["1"]],
+            entries: [[L("DRPG.Items.name"), L("DRPG.Tables.col.description"), ...roles, L("DRPG.Tables.col.actions")], [["r2020te0", "r2020t", true, true]]],
+            room: [[true], ["r2020re0", "r2020re1"]],
+            lists: [0, 0]
+        }), "{list: [a dataTable, its heads, the first row's pick button's table, the other cells]; entries: [heads, each row: result, table, the name field in the first cell, remove in the actions' cell]; room: [each group row has its count, its entry rows]; lists: the li left in each pane}");
+    }],
+    ["R2026 - Sound > Effects on the kit (E46-C4; E46-13, card M2): one `dataTable` whose body is a group row per `SFX_CATEGORIES` entry with its \"n of m assigned\", each followed by its events in `SFX_EVENTS`' order (`tr[data-drpg-sfx]`); an event's name, its chips and its description in one cell cut after two lines with the whole in its title; the file box with its Choose; at most three buttons a row, Test and Clear the kit's icon buttons", async () => {
+        /*
+         * E46-C4, 09.11.2026; card M2 (Approve, 04.11) and STAGE E46's Sound shape. Measured at 3c952c67 (glass,
+         * 1366x768): the tab drew 60 hand rows (55 events, 5 group rows) of a median 118 px, the largest 227, a body of
+         * 7171 px, with 165 buttons in its rows (Choose, Test and Clear in the file's cell). Drawn here from
+         * `soundEffectsHtml` into a template (the world's own mapping, read; nothing written): the body's rows in order,
+         * each group's name, count and line, each event's cell, its file box and its buttons. Red first on f7266b28: one
+         * hand table, no group row the kit draws, no clamped cell, no icon button of the kit.
+         */
+        const { soundEffectsHtml, soundFor } = await import("./sfx.mjs");
+        const tpl = document.createElement("template");
+        tpl.innerHTML = soundEffectsHtml();
+        const root = tpl.content;
+        const L = key => game.i18n.localize(key);
+        const keys = Object.keys(SFX_EVENTS);
+        const inCategory = category => keys.filter(key => SFX_EVENTS[key].category === category);
+        const tables = [...root.querySelectorAll("table")];
+        const body = [...(tables[0]?.tBodies[0]?.rows ?? [])];
+        const groupOf = tr => tr.querySelector("[data-drpg-sfx-group-count]")?.dataset.drpgSfxGroupCount ?? "?";
+        const isGroup = tr => tr.classList.contains("drpg-data-group");
+        const read = {
+            tables: tables.length,
+            kit: Boolean(tables[0]?.classList.contains("drpg-data-table") && tables[0].closest(".drpg-data-table-box")),
+            order: body.map(tr => (isGroup(tr) ? `group:${groupOf(tr)}` : tr.dataset.drpgSfx ?? "?")),
+            groups: body.filter(isGroup).map(tr => {
+                const category = groupOf(tr), meta = SFX_CATEGORIES[category] ?? {}, own = inCategory(category);
+                const th = tr.querySelector(":scope > th[scope=colgroup]");
+                return [th?.firstChild?.textContent.trim() === meta.label,
+                    tr.querySelector("[data-drpg-sfx-group-count]")?.textContent.trim()
+                        === game.i18n.format("DRPG.Sound.groupAssigned", { n: own.filter(key => soundFor(key)).length, total: own.length }),
+                    th?.querySelector(".drpg-help")?.textContent.trim() === meta.hint];
+            }),
+            rows: body.filter(tr => tr.dataset.drpgSfx).map(tr => {
+                const key = tr.dataset.drpgSfx, event = SFX_EVENTS[key] ?? {};
+                const cell = tr.cells[0], clamp = cell?.querySelector(":scope > span.drpg-data-clamp");
+                const icon = (attr, word) => {
+                    const b = tr.querySelector(`button.drpg-kit-icon-button[${attr}]`);
+                    return Boolean(b && b.getAttribute("aria-label") === L(word) && b.dataset.tooltip === L(word) && !b.textContent.trim() && b.querySelector("i[class*='fa-']"));
+                };
+                return [
+                    Boolean(cell?.classList.contains("drpg-data-cell-lines-2") && clamp?.querySelector("strong")?.textContent === event.label
+                        && clamp.querySelector(".drpg-help")?.textContent === event.hint && cell.title.includes(event.label) && cell.title.includes(event.hint)),
+                    Boolean(event.vary) === Boolean(clamp?.querySelector("[data-drpg-sfx-varies]")),
+                    Boolean(tr.cells[1]?.querySelector(`input[name="sfx:${key}"]`) && icon("data-drpg-sfx-pick", "DRPG.Sound.choose")
+                        && tr.cells[1].querySelector("[data-drpg-sfx-pick]")),
+                    tr.querySelectorAll("button").length <= 3,
+                    icon("data-drpg-sfx-test", "DRPG.Sound.test") && icon("data-drpg-sfx-clear", "DRPG.Sound.clear")
+                ];
+            }),
+            buttons: root.querySelectorAll("button").length
+        };
+        const want = Object.keys(SFX_CATEGORIES).flatMap(category => [`group:${category}`, ...inCategory(category)]);
+        equal(stableJson(read), stableJson({
+            tables: 1, kit: true, order: want, groups: Object.keys(SFX_CATEGORIES).map(() => [true, true, true]),
+            rows: keys.map(() => [true, true, true, true, true]), buttons: keys.length * 3
+        }), "{tables in the tab; the one a kit dataTable; the body's rows in order (group:<category> or the event's key); per group [its name, "
+            + "its count, its line]; per event [name and description in one clamped cell with the whole in its title, the Varies chip where the event "
+            + "varies, the file box and Choose in the File cell, at most three buttons, Test and Clear the kit's icon buttons]; the buttons in the tab}");
+    }],
+    ["R2027 - Sound's text on the floor in both themes (E46-C4; E46-13): in a stand-in of the Sound window built on a body of each theme, the font size every one of its own text parts takes - an event's description and its chips, a group's line and count, the tab's lines above the table, the Music tab's notes - comes to a size of at least 11 px (styleCascade; Chromium's floor reads the rest)", async () => {
+        /*
+         * E46-C4, 09.11.2026. Measured at 3c952c67 (Legacy, 1366x768): the Effects tab's 60 descriptions, `small.notes`,
+         * at 10.83 px - no rule of the module's sheets sized a `<small>`, so the browser's `smaller` of 13 px drew them.
+         * Read here: the winner of `font-size` on each part (`styleCascade`), each `var()` followed to the token it names on
+         * the body (one hop at a time, at most eight), and the size it comes to held to the floor: a `max(11px, ...)`,
+         * the glass's floor (`--drpg-sg-floor`, 21 px at the glass's scale, or a multiple of it of 1 or more) or a size the
+         * module's scale writes at 11 px or more at 100 % (`--drpg-text-sm`, `--drpg-text-md`). A part no rule sizes takes
+         * its parent's; a `small` no rule sizes is the browser's `smaller`, and is red. Chromium
+         * reads the px (the measure probe, `WANT='^sound'`). Red first on f7266b28: the descriptions are no rule's.
+         */
+        const { soundEffectsHtml } = await import("./sfx.mjs");
+        const P = await import("./sound-panel.mjs");
+        const C = await styleCascade();
+        const FLOOR = /^(?:max\(\s*(?:11px|var\(--drpg-sg-floor\))|var\(--drpg-(?:text-(?:sm|md)|sg-floor)\)$|calc\(var\(--drpg-sg-floor\)\s*\*\s*1(?:\.\d+)?\)$)/;
+        const read = {};
+        for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-gm`;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-panel drpg-projects drpg-sound drpg-window-sound drpg-ui"><section class="window-content">`
+                + `<form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-kit-body">`
+                + `<section class="drpg-tab-pane" data-drpg-pane="music">${typeof P.soundPlaylistsPane === "function" ? P.soundPlaylistsPane([]) : ""}</section>`
+                + `<section class="drpg-tab-pane" data-drpg-pane="effects">${soundEffectsHtml()}</section></div></div></form></section></div>`;
+            const effects = body.querySelector('[data-drpg-pane="effects"]'), music = body.querySelector('[data-drpg-pane="music"]');
+            const varies = Object.keys(SFX_EVENTS).find(key => SFX_EVENTS[key].vary);
+            const parts = {
+                description: effects.querySelector("tr[data-drpg-sfx] td .drpg-help") ?? effects.querySelector("tr[data-drpg-sfx] small"),
+                chip: effects.querySelector(`tr[data-drpg-sfx="${varies}"] [data-drpg-sfx-varies]`) ?? effects.querySelector(`tr[data-drpg-sfx="${varies}"] .drpg-sfx-badge`),
+                groupLine: effects.querySelector("tr.drpg-data-group .drpg-help") ?? effects.querySelector(".drpg-sfx-group .notes"),
+                groupCount: effects.querySelector("[data-drpg-sfx-group-count]"),
+                lineAbove: effects.querySelector("[data-drpg-sfx-count]"),
+                musicNote: music.querySelector("details p") ?? music.querySelectorAll("p")[1]
+            };
+            const windowRoot = body.firstElementChild;
+            const sizeOf = el => {
+                if (!el) return "(not drawn)";
+                // no rule on the part: it inherits its parent's size - but a `small` (`sub`, `sup`) takes the browser's `smaller`
+                let at = el, value = null;
+                while (at && !(value = C.winner(at, "font-size")?.value ?? null) && !/^(?:small|sub|sup)$/.test(at.localName) && at !== windowRoot) at = at.parentElement;
+                if (!value) return `(no rule: the browser's, ${at?.localName})`;
+                for (let hop = 0; hop < 8; hop++) {
+                    const token = /^var\((--[\w-]+)\)$/.exec(value.trim())?.[1];
+                    if (!token || /^--drpg-(?:text-(?:sm|md)|sg-floor)$/.test(token)) break;
+                    value = C.winner(body, token)?.value ?? C.winner(html, token)?.value ?? `(${token} unset)`;
+                }
+                return value.trim();
+            };
+            read[theme] = Object.fromEntries(Object.entries(parts).map(([name, el]) => {
+                const size = sizeOf(el);
+                return [name, FLOOR.test(size) ? true : size];
+            }));
+        }
+        const yes = { description: true, chip: true, groupLine: true, groupCount: true, lineAbove: true, musicNote: true };
+        equal(stableJson(read), stableJson({ "drpg-theme-monokuma-legacy": yes, "drpg-theme-stained-glass": yes }),
+            "{per theme, per part: true when its size comes to the floor, else the size it comes to}");
+    }],
+    ["R2028 - Sound > Music on the kit (E46-C4; E46-13, S13-36 (6), D45): one sentence of intro, the four notes on the order folded into a closed `details` \"How the order works\", the rows a `dataTable` whose body is the live region `.drpg-music-map` (one row a state); no Apply anywhere and one Close on each tab", async () => {
+        /*
+         * E46-C4, 09.11.2026; S13-36 (6): the Music tab opened on a sentence of intro and three paragraphs of notes over
+         * the table and a fourth under it (1595 px of body at 3c952c67, glass, 1366x768). Here, as the GM, the window
+         * opened on the harness's DialogV2 (nothing chosen, nothing written), the Music pane read, each tab pressed and its
+         * footer read, then closed; the intro read as one sentence in both lang files. D45's save model is E50-T1's and
+         * E44-T2's, which read the same rows. Red first on f7266b28: two sentences, four loose paragraphs, a hand table.
+         */
+        needs(env.dialogs(), "the Sound window is drawn and its tabs pressed");
+        must(game.user.isGM, "the Music tab is a GM's");
+        must(!document.querySelector(".drpg-window-sound"), "a Sound window is open - close it: this test opens its own");
+        const M = await import("./music.mjs");
+        const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json());
+        const [en, pl] = await Promise.all([lang("en"), lang("pl")]);
+        const sentences = text => String(text ?? "").split(/(?<=[.!?])\s+(?=\S)/).filter(s => s.trim()).length;
+        const L = key => game.i18n.localize(key);
+        const NOTES = ["orderNote", "trialNote", "incidentNote", "fadeNote"].map(k => L(`DRPG.Music.${k}`));
+        const read = { intro: [sentences(en.DRPG?.Music?.intro), sentences(pl.DRPG?.Music?.intro)] };
+        let answer = null;
+        try {
+            answer = Promise.resolve().then(() => M.openSoundDialog()).catch(err => `threw: ${err.message}`);
+            const root = () => document.querySelector(".drpg-window-sound");
+            must(await until(() => root()?.querySelector("select[name^='state:']"), 6000), "the Sound window did not open with its Music tab");
+            const pane = root().querySelector("select[name^='state:']").closest("[data-drpg-pane], .drpg-tab-pane, section");
+            const details = [...pane.querySelectorAll("details")];
+            const loose = [...pane.querySelectorAll("p")].filter(p => !p.closest("details") && !p.closest(".drpg-box")).map(p => p.textContent.trim());
+            const table = pane.querySelector("table");
+            read.pane = {
+                loose: loose.map(t => (t === L("DRPG.Music.intro") ? "intro" : t.slice(0, 40))),
+                details: details.map(d => [d.open, d.querySelector("summary")?.textContent.trim() === L("DRPG.Music.howOrder"),
+                    [...d.querySelectorAll("p")].map(p => NOTES.indexOf(p.textContent.trim()))]),
+                table: [Boolean(table?.classList.contains("drpg-data-table")), table?.tBodies[0]?.classList.contains("drpg-music-map") ?? false,
+                    table?.tBodies[0]?.querySelectorAll("select[name^='state:']").length === M.MUSIC_STATES.length]
+            };
+            const footer = () => [...root().querySelectorAll("footer.form-footer button[data-action]")].filter(b => !b.hidden).map(b => b.dataset.action);
+            read.tabs = {};
+            for (const tab of ["play", "music", "effects"]) {
+                root().querySelector(`nav.drpg-tabs [data-drpg-tab-key="${tab}"]`)?.click();
+                read.tabs[tab] = footer();
+            }
+            read.save = root().querySelectorAll('[data-action="save"], [data-action="apply"]').length;
+            root().querySelector('footer.form-footer button[data-action="close"]')?.click();
+            read.closed = (await Promise.race([answer, wait(3000).then(() => "still open")])) !== "still open";
+        } finally {
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.classList?.contains("drpg-window-sound"))) await app.close();
+            if (answer) await Promise.race([answer, wait(3000)]);
+        }
+        equal(stableJson(read), stableJson({
+            intro: [1, 1],
+            pane: { loose: ["intro"], details: [[false, true, [0, 1, 2, 3]]], table: [true, true, true] },
+            tabs: { play: ["close"], music: ["close"], effects: ["close"] }, save: 0, closed: true
+        }), "{the intro's sentences [en, pl]; the Music pane: its paragraphs outside a details or a box, each details [open, its summary How the order "
+            + "works, its paragraphs as the four notes' places], the table [a kit dataTable, its body the live region, one select a state]; each tab's "
+            + "footer; Apply buttons; Close closes}");
+    }],
+    /* ---- E46-C2a (09.11.2026): Room setup's room tabs on the kit. Each test draws the window on this GM with
+       DialogV2.wait stood in for (nothing written: the stand-in answers null, the opener's "closed"), through
+       `roomSetupDrawn` below, and reads the markup it was handed. ---- */
+    ["R2010 - Room setup's room tabs on the kit (E46-C2a; E46-04, card M1): each of Bedrooms, Doors, Searching, Rests, Stashes, Description and Fog holds one kit `dataTable` and no other table, the room's column first (`drpg-data-col-room`) and the others' kinds in `ROOM_SETUP_COLUMN`'s order; Searching's token cell a compact kit stepper of the room (`data-drpg-token`) with its cap and a refill icon button, no button of the old counter; `wireTokenButtons` on a stand-in `SearchTokens` writes once a click - minus the count read now less one, plus the count read now plus one (a spend made since the draw kept), refill the cap", async () => {
+        /*
+         * E46-C2a. Red first on C1's tree (f7266b28): hand tables (`table.drpg-room-setup-table`), the counter three
+         * `drpg-mini-button`s, `wireTokenButtons` not exported. The mutant m-c (the token field listening to `input` as
+         * well as `change`, a click written twice) reads `writes` two a click here.
+         */
+        needs(world.atLeast("namedRooms", 1), "Room setup lists the named regions of the scene on screen");
+        const { root, pane } = await roomSetupDrawn();
+        const R = await import("./room-setup.mjs");
+        const K = await import("./ui-kit.mjs");
+        const KINDS = {
+            bedrooms: ["room", "select"], doors: ["room", "check", "check", "check", "check", "text"],
+            search: ["room", "check", "step", "select", "place"], rest: ["room", "check", "check"],
+            stashes: null, description: ["room", "prose", "picture"], fog: null
+        };
+        const students = studentActors();
+        const tables = {};
+        for (const [tab, kinds] of Object.entries(KINDS)) {
+            const p = pane(tab);
+            const all = [...(p?.querySelectorAll("table") ?? [])];
+            tables[tab] = [all.length, all.filter(t => t.matches(".drpg-data-table-box > table.drpg-data-table")).length,
+                [...(all[0]?.querySelectorAll("col") ?? [])].map(col => /drpg-data-col-([\w-]+)/.exec(col.className)?.[1] ?? null)];
+        }
+        const { SearchTokens } = await import("./search-tokens.mjs");
+        const cells = [...(pane("search")?.querySelectorAll("tbody td.drpg-data-col-step") ?? [])];
+        const shape = cells.map(td => [Boolean(td.querySelector(".drpg-kit-stepper.drpg-kit-stepper-compact > input[type=\"number\"][data-drpg-token]")),
+            td.querySelectorAll("button[data-drpg-token-refill].drpg-kit-icon-button").length, td.querySelectorAll("[data-drpg-token-by]").length,
+            td.querySelector("input[data-drpg-token]")?.max === String(SearchTokens.max)]);
+        must(cells.length > 0, "Searching drew no token cell - nothing below is read");
+        // The stand-in: two tokens a room, the cap 3; a write recorded, the count it leaves read back.
+        const counts = new Map(), writes = [];
+        const tokens = { max: 3, left: room => counts.get(room) ?? 0, setFor: async (room, n) => { writes.push([room, n]); counts.set(room, n); } };
+        const td = cells[0];
+        const input = td.querySelector("input[data-drpg-token]");
+        const room = input.dataset.drpgToken;
+        input.max = "3"; input.value = "2"; input.dataset.drpgShown = "2"; counts.set(room, 2);
+        const recount = where => { for (const i of where.querySelectorAll("input[data-drpg-token]")) { i.value = String(tokens.left(i.dataset.drpgToken)); i.dataset.drpgShown = i.value; } };
+        K.wireSteppers(td);
+        R.wireTokenButtons(td, null, recount, { tokens });
+        const press = async el => { el.click(); await settle(); return writes.splice(0); };
+        const minus = await press(td.querySelector('button[data-drpg-step="-1"]'));
+        counts.set(room, 0); // a player's spend since: the cell still reads 1
+        const plus = await press(td.querySelector('button[data-drpg-step="1"]'));
+        const refill = await press(td.querySelector("button[data-drpg-token-refill]"));
+        equal(stableJson({ tables, shape: [...new Set(shape.map(s => stableJson(s)))], minus, plus, refill }), stableJson({
+            tables: Object.fromEntries(Object.entries(KINDS).map(([tab, kinds]) => [tab, [1, 1, kinds ?? ["room", ...students.map(() => "student")]]])),
+            shape: [stableJson([true, 1, 0, true])], minus: [[room, 1]], plus: [[room, 1]], refill: [[room, 3]]
+        }), "{tables: per tab [tables, kit tables, the first one's column kinds]; shape: each token cell [a compact stepper of the room, refill icon buttons, old counter buttons, its max the cap]; the writes of one minus, one plus after a spend to 0 seen as 1, one refill}");
+    }],
+
+    ["R2011 - Room setup's form keeps every input name it had at 3c952c67 (E46-C2a; E46-05, near a road: Apply reads the form by name): drawn on this GM, every room of the window has each of the twelve names a room had in 3c952c67's audit/windows/rooms-*.html (desc, img, isroom, locked, long, neighbours, nosearch, notshared, owner, short, startlocked, table), `fav:` and `hin:` for each category a room can favour, `fog:` and `stash:` for each student, and the Scenes tab its seven", async () => {
+        /*
+         * E46-C2a. The list is written from 3c952c67's captures of the window (audit/windows/rooms-bedrooms.html ...
+         * rooms-scenes.html, 175 names on probe 08's world: 6 rooms x 12, 6 x 4 categories x 2, 6 x 4 students x 2, and
+         * scenes:hallName, hallPicture, hallWords, prepare, preparePlaylist, school, trial), by shape: a name with a room
+         * in it is asked of every room this world's window lists. Red by the mutant m1 (`locked:` written `lock:` in
+         * `roomCells`): every room's `locked` missing.
+         */
+        needs(world.atLeast("namedRooms", 1), "Room setup lists the named regions of the scene on screen");
+        const { root } = await roomSetupDrawn();
+        const names = new Set([...root.querySelectorAll("[name]")].map(el => el.getAttribute("name")));
+        const ROOM = ["desc", "img", "isroom", "locked", "long", "neighbours", "nosearch", "notshared", "owner", "short", "startlocked", "table"];
+        const SCENES = ["hallName", "hallPicture", "hallWords", "prepare", "preparePlaylist", "school", "trial"];
+        const rooms = [...root.querySelectorAll('[data-drpg-pane="bedrooms"] tbody td.drpg-data-col-room, [data-drpg-pane="bedrooms"] tbody tr > td:first-child')]
+            .map(td => td.textContent.trim()).filter((r, i, a) => r && a.indexOf(r) === i);
+        must(rooms.length > 0, "the Bedrooms tab listed no room - nothing below is read");
+        const { pickableCategories } = await import("./inventory.mjs");
+        const cats = pickableCategories({ splitUsables: false }).map(c => c.key);
+        const students = studentActors();
+        const missing = [
+            ...rooms.flatMap(room => ROOM.map(p => `${p}:${room}`)),
+            ...rooms.flatMap(room => cats.flatMap(c => [`fav:${room}:${c}`, `hin:${room}:${c}`])),
+            ...rooms.flatMap(room => students.flatMap(a => [`fog:${room}:${a.id}`, `stash:${room}:${a.id}`])),
+            ...SCENES.map(n => `scenes:${n}`)
+        ].filter(n => !names.has(n));
+        ok(names.size >= rooms.length * ROOM.length, `${names.size} name(s) read on the form`);
+        equal(stableJson(missing), "[]", `[the names of 3c952c67's form missing on ${rooms.length} room(s), ${cats.length} categories, ${students.length} student(s)]`);
+    }],
+
+    ["R2012 - Stashes' and Fog's student heads are the kit's two-line heads (E46-C2a; E46-04, the owner's Q-E46-2): `th.drpg-data-lines-2` with the whole name in `title` and `aria-label` and the clamp's span, no one-line `drpg-student-head`; the room's column, drawn with the window's classes on a body of each theme, takes its width (220 px at scale 1) and its wrapping from styles/components.css, and the clamp from it (tests-kit.mjs `styleCascade`)", async () => {
+        /*
+         * E46-C2a. Red first on C1's tree: `th.drpg-student-head` (nowrap, an ellipsis), the width danganronpa.css's
+         * `.drpg-room-setup-table .drpg-col-room`.
+         */
+        needs(world.atLeast("namedRooms", 1), "Room setup lists the named regions of the scene on screen");
+        const students = studentActors();
+        must(students.length > 0, "the matrices have no student's column - nothing below is read");
+        const { root, pane } = await roomSetupDrawn();
+        const heads = ["stashes", "fog"].map(tab => [...(pane(tab)?.querySelectorAll("thead th") ?? [])].slice(1)
+            .map(th => [th.classList.contains("drpg-data-lines-2"), th.title, th.getAttribute("aria-label"), th.querySelector(":scope > span.drpg-data-clamp")?.textContent ?? null,
+                th.classList.contains("drpg-student-head")]));
+        const C = await styleCascade();
+        const read = {};
+        for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-gm`;
+            html.append(body);
+            const app = document.createElement("div");
+            app.className = "application dialog drpg-panel drpg-projects drpg-room-setup drpg-window-rooms drpg-ui drpg-kit-fit";
+            app.innerHTML = `<section class="window-content"><form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-kit-body">${pane("stashes")?.outerHTML ?? ""}</div></div></form></section>`;
+            body.append(app);
+            const col = app.querySelector("col.drpg-data-col-room"), td = app.querySelector("tbody td.drpg-data-col-room"), table = app.querySelector("table.drpg-data-table");
+            const span = app.querySelector("thead th.drpg-data-lines-2 > span.drpg-data-clamp");
+            const w = (el, p) => { const v = el ? C.winner(el, p) : null; return v ? [v.file, v.value] : null; };
+            read[theme] = { width: w(col, "width"), wrap: w(td, "white-space"), layout: w(table, "table-layout"), clamp: w(span, "-webkit-line-clamp") };
+        }
+        const want = { width: ["styles/components.css", "calc(220px * var(--drpg-legacy-scale, 1))"], wrap: ["styles/components.css", "normal"],
+            layout: ["styles/components.css", "fixed"], clamp: ["styles/components.css", "2"] };
+        equal(stableJson({ heads, read }), stableJson({
+            heads: [students.map(a => [true, a.name, a.name, a.name, false]), students.map(a => [true, a.name, a.name, a.name, false])],
+            read: { "drpg-theme-monokuma-legacy": want, "drpg-theme-stained-glass": want }
+        }), "{heads: Stashes' then Fog's student heads [two-line, title, aria-label, the clamp's text, the old class]; read: per theme the winner [file, value] of the Room column's width, its cell's white-space, the table's layout and a head's clamp}");
+    }],
+
+    ["R2013 - Doors' \"This is a room\" is the kit's switch (E46-C2a; E46-04, E46's goal): for each room an `input[role=switch]` named `isroom:<room>` in `label.drpg-toggle`, named for a screen reader by its column and its room, disabled exactly when no piece of the name may be a room, `data-drpg-undecided` exactly when one may and not every piece is decided, ticked as `roomCells` reads it", async () => {
+        /*
+         * E46-C2a. Red first on C1's tree: a plain checkbox (no role, no `drpg-toggle`). Expected read from the world:
+         * the scene's regions of each name that may be rooms (rooms.mjs `canBeRoom`), decided by `roomDecided`.
+         */
+        needs(world.atLeast("namedRooms", 1), "Room setup lists the named regions of the scene on screen");
+        const { root, pane } = await roomSetupDrawn();
+        const Rm = await import("./rooms.mjs");
+        const { workingScene } = await import("./utils.mjs");
+        let scene = workingScene();
+        if (Rm.isTrialScene(scene)) scene = Rm.homeScene();
+        const players = Rm.playerRegionIds();
+        const label = game.i18n.localize("DRPG.Vault.isRoomColumn");
+        const boxes = [...(pane("doors")?.querySelectorAll('input[name^="isroom:"]') ?? [])];
+        must(boxes.length > 0, "Doors drew no \"This is a room\" - nothing below is read");
+        const read = boxes.map(b => {
+            const room = b.name.slice("isroom:".length);
+            const pieces = Rm.namedRegions(scene).filter(r => r.name === room && Rm.canBeRoom(r, players));
+            const possible = pieces.length > 0, decided = possible && pieces.every(Rm.roomDecided);
+            const on = decided ? pieces.some(p => p.getFlag(MODULE_ID, Rm.ROOM_FLAG) === true) : possible;
+            return [room, [b.type, b.getAttribute("role"), Boolean(b.closest("label.drpg-toggle")), b.getAttribute("aria-label"), b.disabled, b.hasAttribute("data-drpg-undecided"), b.checked],
+                ["checkbox", "switch", true, `${label}: ${room}`, !possible, possible && !decided, on]];
+        });
+        equal(stableJson(read.map(([room, got]) => [room, got])), stableJson(read.map(([room, , want]) => [room, want])),
+            "[each room: its switch's type, role, in the kit's toggle, accessible name, disabled, undecided, ticked]");
+    }],
+
+    ["R2014 - the description's example sentence stands in the first empty field only (E46-C2a; E46-06, audit S13-36 (4)): drawn on this GM, the Description tab's textareas with a placeholder are the first one with no text, or none; a field with text has none", async () => {
+        /*
+         * E46-C2a. Red first on C1's tree: the placeholder on every field (on this world's empty ones). Read on the
+         * window drawn, and on `roomSetupDrawn`'s second drawing with every stored description stood in empty, so a world
+         * whose rooms all have words still reads two empty fields.
+         */
+        needs(world.atLeast("namedRooms", 2), "two rooms, so the first empty field is one of several");
+        const read = async () => {
+            const { pane } = await roomSetupDrawn();
+            const areas = [...(pane("description")?.querySelectorAll('textarea[name^="desc:"]') ?? [])];
+            const first = areas.find(a => !a.value) ?? null;
+            return [areas.length, areas.filter(a => a.hasAttribute("placeholder")).map(a => a.name), first ? [first.name] : [], areas.filter(a => !a.value).length];
+        };
+        const drawn = await read();
+        const R = await import("./vault-store.mjs");
+        const flag = R.VAULT_FLAGS.description;
+        // Every region's description read as none, for the second drawing only (the getter on the regions, put back).
+        const regions = [...(game.scenes ?? [])].flatMap(s => [...(s.regions ?? [])]);
+        const kept = regions.map(r => [r, r.getFlag]);
+        for (const r of regions) r.getFlag = function (scope, key) { return scope === MODULE_ID && key === flag ? undefined : kept.find(k => k[0] === this)[1].call(this, scope, key); };
+        let empty;
+        try { empty = await read(); } finally { for (const [r, f] of kept) r.getFlag = f; }
+        ok(empty[3] >= 2, `${empty[3]} empty description(s) drawn with none stored`);
+        equal(stableJson([drawn[1], empty[1]]), stableJson([drawn[2], empty[2]]),
+            `[the fields with a placeholder, as drawn (${drawn[0]} fields, ${drawn[3]} empty) and with no description stored] against the first empty field`);
+    }],
+
+    ["R2015 - the picture cell says a picture is too large or does not load (E46-C2a; E46-06, the owner's 13.10 amend): room-setup.mjs `wirePictureWarnings` on a stand-in `imageFacts` writes a warning box in the cell naming the pixels and the bytes in Pre-season checks' words, one that does not load says so, a fitting one says nothing, a new `src` is read again; room-tile.mjs `imageFacts` reads the HEAD's length against `ROOM_IMAGE_LIMITS`; nothing of it holds Apply", async () => {
+        /*
+         * E46-C2a. Red first on C1's tree: no `wirePictureWarnings`, no `imageFacts` (no warning anywhere in Room setup).
+         */
+        const R = await import("./room-setup.mjs");
+        const T = await import("./room-tile.mjs");
+        const { ROOM_IMAGE_LIMITS } = await import("./config.mjs");
+        equal(stableJson([typeof R.wirePictureWarnings, typeof R.pictureWarning, typeof T.imageFacts]), stableJson(["function", "function", "function"]), "[the three exported]");
+        const FACTS = {
+            "big.webp": { width: 5000, height: 3000, bytes: 9437184, gone: false, late: false, pixels: true, heavy: true },
+            "gone.webp": { width: 0, height: 0, bytes: null, gone: true, late: false, pixels: false, heavy: false },
+            "fine.webp": { width: 1920, height: 1080, bytes: 400000, gone: false, late: false, pixels: false, heavy: false }
+        };
+        const root = document.createElement("div");
+        root.innerHTML = `<table><tbody>${Object.keys(FACTS).map(src => `<tr><td><img data-drpg-portrait="${src}" src="${src}"><div data-drpg-picture-say></div></td></tr>`).join("")}</tbody></table>`;
+        const asked = [];
+        R.wirePictureWarnings(root, { facts: async src => { asked.push(src); return FACTS[src]; } });
+        await settle();
+        const said = () => [...root.querySelectorAll("[data-drpg-picture-say]")].map(s => [s.querySelector('.drpg-box[data-drpg-box="warning"]') ? "warning" : null, s.textContent.trim()]);
+        const first = said();
+        root.querySelector('[data-drpg-portrait="big.webp"]').setAttribute("src", "fine.webp");
+        await settle();
+        const after = said();
+        const L = (k, d) => game.i18n.format(k, d);
+        const big = L("DRPG.Vault.imageLarge", { size: `${L("DRPG.Panel.checksImagesPixels", { width: 5000, height: 3000 })}, ${L("DRPG.Panel.checksImagesBytes", { mb: "9.0" })}` });
+        const facts = await T.imageFacts("rooms/x.webp", { ms: 30, head: async () => ({ status: 200, bytes: ROOM_IMAGE_LIMITS.bytes + 1 }) });
+        const missing = await T.imageFacts("rooms/x.webp", { ms: 30, head: async () => ({ status: 404, bytes: null }) });
+        const src = stripComments(fnSource(await fetch(`/modules/${MODULE_ID}/scripts/room-setup.mjs`).then(lfText), "wirePictureWarnings")
+            + fnSource(await fetch(`/modules/${MODULE_ID}/scripts/room-setup.mjs`).then(lfText), "pictureWarning"));
+        equal(stableJson({ first, after, asked, heavy: [facts.heavy, facts.gone], missing: missing.gone, holds: /setApplyBlock|disabled/.test(src) }), stableJson({
+            first: [["warning", big], ["warning", game.i18n.localize("DRPG.Vault.imageBroken")], [null, ""]],
+            after: [[null, ""], ["warning", game.i18n.localize("DRPG.Vault.imageBroken")], [null, ""]],
+            asked: ["big.webp", "gone.webp", "fine.webp", "fine.webp"],
+            heavy: [true, false], missing: true, holds: false
+        }), "{first: each cell [a warning box, its words] for a picture too large, one that does not load, one that fits; after: the first given the fitting picture; asked: the pictures read; imageFacts over the bytes [heavy, gone]; a 404 gone; whether the warning touches Apply}");
+    }],
+
+    /* ---- E46-C2b (09.11.2026): Room setup's Passages and Scenes on the kit. ---- */
+    ["R2017 - Room setup's Passages tab on the kit (E46-C2b; E46-07, the owner's A10 of 11.10): passages-tab.mjs `passagesTabBody` draws one kit `dataTable`, its columns in A10's order (Rooms, Kind, Shape, Origin, Who knows, At season start, the state, the actions) by kind (`drpg-data-col-<kind>`), the At season start head still titled with its hint, and each student who knows a passage or starts with it a kit chip in a kit `chips` toolbar - pressed, its press the cross that takes it back (`data-drpg-passage-act` revoke or start-off), with no cross of its own", async () => {
+        /*
+         * E46-C2b. Red first on C2a's tree (f90e89a7): a hand `table.drpg-room-setup-table` with `col.drpg-col-*`, the chips
+         * `span.drpg-room-chip` with a cross button `.drpg-passage-chip-x` in `span.drpg-passage-chips`. Two passages of the
+         * suite's own on a stand-in scene, in stores of the suite's own (R561's engine): A knows the first (the GM's grant),
+         * B starts the season with it; nothing of the world's is written.
+         */
+        needs(world.atLeast("livingStudents", 2), "two students to know a passage and to start the season with it");
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const T = await import("./passages-tab.mjs");
+        let now = 9_100_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R2017GM", isGM: () => true, isPrimary: () => true, worldId: () => "R2017WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R2017GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r2017${name}`, key: `r2017${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r2017mm", key: "r2017mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const [A, B] = studentActors();
+        const scene = { id: "R2017SCENE", grid: { size: 100 }, levels: [], regions: [] };
+        const [P1, P2] = [1, 2].map(n => `${scene.id}.r2017p${n}`);
+        const row = (wall, x) => ({ sceneId: scene.id, level: null, shape: "wall", passageWallId: wall,
+            passageSeg: { x1: x, y1: 400, x2: x + 66, y2: 400 }, rooms: ["R2017 Kitchen", "R2017 Hall"], state: "secret", startAccess: [] });
+        await stores.map.patchMany({ [P1]: { ...row("R2017WALL1", 1234.5), startAccess: [B.id] }, [P2]: row("R2017WALL2", 1500.5) });
+        await stores.access.patchMany({ [`${P1}/${A.id}`]: { how: "gm", at: 1, by: { R2017GM: 1 } } });
+        const root = document.createElement("div");
+        root.innerHTML = T.passagesTabBody(scene, { stores, students: [A, B], actors: game.actors, users: [], told: new Map() });
+        const tables = [...root.querySelectorAll("table")];
+        const t = k => game.i18n.localize(`DRPG.Passage.tab.${k}`);
+        const P = id => root.querySelector(`tr[data-drpg-passage="${id}"]`);
+        const chipOf = (id, kind, actor) => {
+            const c = P(id)?.querySelector(`td.drpg-data-col-${kind} .drpg-chips[role="toolbar"] > button.drpg-chip.drpg-passage-chip[data-drpg-actor="${actor}"]`);
+            return c ? [c.dataset.drpgPassageAct ?? null, c.getAttribute("aria-pressed"), Boolean(c.getAttribute("aria-label")), Boolean(c.querySelector("[data-drpg-passage-act]"))] : null;
+        };
+        equal(stableJson({
+            tables: [tables.length, tables.filter(x => x.matches(".drpg-data-table-box > table.drpg-data-table")).length],
+            kinds: [...(tables[0]?.querySelectorAll("col") ?? [])].map(col => /drpg-data-col-([\w-]+)/.exec(col.className)?.[1] ?? null),
+            heads: [...(tables[0]?.querySelectorAll("thead th") ?? [])].map(th => th.textContent.trim()),
+            hint: tables[0]?.querySelector("thead th.drpg-data-col-knows-start")?.getAttribute("title") ?? null,
+            rows: [...(tables[0]?.querySelectorAll("tbody tr[data-drpg-passage]") ?? [])].map(tr => tr.dataset.drpgPassage),
+            knows: chipOf(P1, "knows", A.id), start: chipOf(P1, "knows-start", B.id),
+            toolbars: [...(tables[0]?.querySelectorAll("tbody .drpg-chips[role=\"toolbar\"][aria-label]") ?? [])].length,
+            old: root.querySelectorAll(".drpg-room-setup-table, [class*=\"drpg-col-\"], .drpg-passage-chip-x, .drpg-passage-chips, .drpg-room-chip").length
+        }), stableJson({
+            tables: [1, 1],
+            kinds: ["room", "kind", "shape", "origin", "knows", "knows-start", "state", "actions"],
+            heads: [t("rooms"), t("kind"), t("shape"), t("origin"), t("knows"), t("start"), t("state"), ""],
+            hint: t("startHint"), rows: [P1, P2],
+            knows: ["revoke", "true", true, false], start: ["start-off", "true", true, false],
+            toolbars: 4, old: 0
+        }), "{tables: [tables, kit tables]; kinds: the columns by kind; heads; hint: At season start's title; rows: the passages; knows and start: the chip of A who knows the first and of B who starts with it [its press, aria-pressed, named, a cross inside]; toolbars: the four chip cells; old: the hand table's classes left}");
+    }],
+
+    ["R2018 - Room setup's Scenes tab on the kit (E46-C2b; E46-08, E47's 05.10 point 5): trial-scene.mjs `scenesTabHtml` is a kit `formGrid` (the school and the hall selects, each its label's `for`), the hall's name, picture and words a `formGrid` of their own, the warnings a `box(\"warning\")`, the prepare ticks kit switches, `SCENES_ZONE_SLOT` a row of `scenesTabRows` that draws nothing (where E73 puts Zone A and Zone B), the hall's cast pick (`castPickerHtml`) a kit `dataTable` with a switch an actor; `readScenesTab`'s answer for a seeded form the one it gave before", async () => {
+        /*
+         * E46-C2b. Red first on C2a's tree (f90e89a7): labels around the selects, a list of checkboxes, `p.drpg-warning`, no
+         * `SCENES_ZONE_SLOT` and no `scenesTabRows`; `readScenesTab`'s part green there (the answer written below is the one
+         * f90e89a7 gave). The cast pick is drawn for a stand-in hall of no token and no stored choice (each tick
+         * `defaultReveal`'s), nothing written.
+         */
+        needs(world.atLeast("livingStudents", 1), "the cast pick lists the world's students");
+        const T = await import("./trial-scene.mjs");
+        const root = document.createElement("div");
+        root.innerHTML = `<form>${T.scenesTabHtml()}</form>`;
+        const grid = root.querySelector("form > .drpg-form-grid");
+        const labelled = name => {
+            const field = root.querySelector(`[name="${name}"]`);
+            return Boolean(field?.id) && root.querySelector(`label.drpg-form-label[for="${field.id}"]`)?.closest(".drpg-form-grid") === field.closest(".drpg-form-grid")
+                && Boolean(field.closest(".drpg-form-field"));
+        };
+        const switchOf = name => Boolean(root.querySelector(`label.drpg-toggle > input[type="checkbox"][role="switch"][name="${name}"]`));
+        const rows = typeof T.scenesTabRows === "function" ? T.scenesTabRows() : [];
+        const drawnRows = rows.filter(r => r !== T.SCENES_ZONE_SLOT);
+        const cells = grid ? grid.children.length : -1;
+        const slot = { exported: T.SCENES_ZONE_SLOT !== undefined, inRows: rows.includes(T.SCENES_ZONE_SLOT), empty: Array.isArray(T.SCENES_ZONE_SLOT) && T.SCENES_ZONE_SLOT.length === 0 && Object.isFrozen(T.SCENES_ZONE_SLOT),
+            draws: cells === drawnRows.reduce((n, r) => n + (r.full !== undefined ? 1 : 2), 0), afterHall: rows.indexOf(T.SCENES_ZONE_SLOT) === 2 };
+        // The warnings: both selects on no scene (the school's warning, whatever this world links), redrawn by the tab's
+        // own wiring, in one warning box.
+        for (const role of ["school", "trial"]) root.querySelector(`[name="scenes:${role}"]`).value = "";
+        T.wireScenesTab(root, () => {});
+        const report = root.querySelector("[data-drpg-scenes-report]");
+        const warn = [Boolean(report?.querySelector('.drpg-box[data-drpg-box="warning"] [data-drpg-scene-warning]')), report?.querySelectorAll("p.drpg-warning").length ?? -1];
+        // The cast pick, for a stand-in hall, in the tab's cast box.
+        const hall = { id: "R2018HALL", name: "R2018 hall", tokens: [], getFlag: () => undefined };
+        root.querySelector("[data-drpg-cast-box]").innerHTML = T.castPickerHtml(hall);
+        const actors = T.readCastActors();
+        const castTable = root.querySelector('[data-drpg-cast="R2018HALL"] .drpg-data-table-box > table.drpg-data-table');
+        const castRows = [...(castTable?.querySelectorAll("tbody tr") ?? [])];
+        const cast = [Boolean(castTable), castRows.length === actors.length && actors.length > 0,
+            castRows.every(tr => tr.querySelector('label.drpg-toggle > input[type="checkbox"][role="switch"][name^="cast:"]')),
+            root.querySelectorAll('[data-drpg-cast] ul, [data-drpg-cast] li').length];
+        // A seeded form: the school picked, the hall's three fields typed, the first actor's tick turned, prepare and the playlist on.
+        const school = root.querySelector('[name="scenes:school"]');
+        const first = game.scenes.contents[0] ?? null;
+        if (first) school.value = first.id;
+        const set = (name, value) => { const f = root.querySelector(`[name="scenes:${name}"]`); if (f) { f.disabled = false; f.value = value; } };
+        set("hallName", "R2018 Gallery"); set("hallPicture", "r2018/hall.webp"); set("hallWords", "R2018 words");
+        const tick = root.querySelector(`[name="cast:${actors[0]?.id}"]`);
+        const was = tick?.checked ?? null;
+        if (tick) tick.checked = !tick.checked;
+        root.querySelector('[name="scenes:prepare"]').checked = true;
+        root.querySelector('[name="scenes:preparePlaylist"]').checked = true;
+        const read = T.readScenesTab(root);
+        const drawn = { school: school.dataset.drawn ?? "", trial: root.querySelector('[name="scenes:trial"]').dataset.drawn ?? "" };
+        equal(stableJson({
+            grid: [Boolean(grid), labelled("scenes:school"), labelled("scenes:trial"), ["hallName", "hallPicture", "hallWords"].map(n => labelled(`scenes:${n}`))],
+            switches: [switchOf("scenes:prepare"), switchOf("scenes:preparePlaylist")], slot, warn, cast, read
+        }), stableJson({
+            grid: [true, true, true, [true, true, true]], switches: [true, true],
+            slot: { exported: true, inRows: true, empty: true, draws: true, afterHall: true }, warn: [true, 0], cast: [true, true, true, 0],
+            read: { school: first?.id ?? "", trial: "", drawn,
+                cast: { sceneId: "R2018HALL", changes: actors[0] ? { [actors[0].id]: !was } : {} },
+                hallRoom: { name: "R2018 Gallery", picture: "r2018/hall.webp", words: "R2018 words" },
+                prepare: { playlist: true, voice: false } }
+        }), "{grid: [the tab a formGrid, the school's and the hall's selects labelled in it, the hall's three fields labelled]; switches: prepare and the playlist; slot: SCENES_ZONE_SLOT [exported, in the rows, an empty frozen list, the grid drawing nothing for it, after the two selects]; warn: [the report in a warning box, old warning lines]; cast: [a kit table, a row an actor, a switch a row, list items left]; read: readScenesTab's answer}");
+    }],
+
+    ["R2030 - Despair Flow's three tables on the kit (E46-C5a; E46-15, card M3): Pools, Monokumas and Students each one `dataTable` in its tab, today's columns in today's order, one row per account, character and student, the fields' names unchanged; two Monokumas ticked onto one pool are said in a `box(\"warning\")` above the Monokumas' table", async () => {
+        /*
+         * E46-C5a, 09.11.2026; card M3 (Approve) and STAGE E46's Despair Flow shape. At 3c952c67 the three tabs drew
+         * three hand tables (`<table>` with no class, the Monokuma column centred by an inline style) and the shared
+         * pool's warning as `p.drpg-warning` in red (E21's carried W site ~611). Drawn here on the harness's DialogV2,
+         * as a GM opens it; two characters are ticked and put on one pool in the form only - the window is closed with
+         * Close, so nothing is written (tier 1 reads). Red first on f7266b28: no kit table, a red paragraph.
+         */
+        needs(env.dialogs(), "Despair Flow is read on a drawn window");
+        needs(world.atLeast("livingStudents", 2), "two characters to put on one pool");
+        const T = await import("./gm-team-dialog.mjs");
+        const { monokumas } = await import("./despair.mjs");
+        const { students } = await import("./assignments.mjs");
+        const L = key => game.i18n.localize(key);
+        const gms = monokumas();
+        const actors = game.actors.filter(a => a.type === "character");
+        const roster = students();
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-gmteam"));
+        must(of().length === 0, "a Despair Flow window stands open already");
+        const answer = Promise.resolve().then(() => T.openGmTeamDialog()).catch(() => null);
+        const got = {};
+        try {
+            await until(() => of()[0]?.element?.querySelector('[data-drpg-pane="overflow"]'), 6000);
+            const root = of()[0]?.element;
+            must(root, "Despair Flow did not open - this would measure nothing");
+            const pane = key => root.querySelector(`[data-drpg-pane="${key}"]`);
+            const table = key => {
+                const p = pane(key);
+                const all = [...(p?.querySelectorAll("table") ?? [])];
+                const kit = all.filter(t => t.matches(".drpg-data-table-box > table.drpg-data-table"));
+                return { tables: all.length, kit: kit.length, heads: [...(kit[0]?.tHead?.rows[0]?.cells ?? [])].map(th => th.textContent.trim()),
+                    rows: kit[0]?.tBodies[0]?.rows.length ?? 0 };
+            };
+            got.pools = { ...table("pools"), names: [...pane("pools").querySelectorAll("tbody input[name^='poolName.']")].map(i => i.name) };
+            got.monokumas = { ...table("monokumas"), names: [...pane("monokumas").querySelectorAll("tbody tr")].map(tr => [
+                tr.dataset.actor ?? null, tr.querySelector("[data-drpg-mk]")?.name ?? null, tr.querySelector("[data-drpg-pool]")?.name ?? null]),
+                inlineStyle: pane("monokumas").querySelectorAll("[style]").length };
+            got.students = pane("students") ? { ...table("students"), names: [...pane("students").querySelectorAll("tbody select[data-drpg-assign]")].map(s => s.name) } : null;
+            const [a, b] = [...pane("monokumas").querySelectorAll("tbody tr")].slice(0, 2);
+            for (const tr of [a, b]) {
+                const mk = tr.querySelector("[data-drpg-mk]");
+                mk.checked = true;
+                mk.dispatchEvent(new Event("change", { bubbles: true }));
+                const select = tr.querySelector("[data-drpg-pool]");
+                select.value = gms[0].id;
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+            const warn = pane("monokumas").querySelector(".drpg-monokuma-warning");
+            const kitTable = pane("monokumas").querySelector("table.drpg-data-table");
+            got.warning = { box: warn?.querySelector('.drpg-box[data-drpg-box="warning"]') ? true : false, shown: Boolean(warn && !warn.hidden),
+                red: Boolean(warn?.querySelector(".drpg-warning")), above: Boolean(warn && kitTable && (warn.compareDocumentPosition(kitTable) & Node.DOCUMENT_POSITION_FOLLOWING)),
+                names: [a, b].every(tr => warn?.textContent.includes(tr.querySelector("td")?.textContent.trim() ?? "?")) };
+            for (const tr of [a, b]) {
+                const mk = tr.querySelector("[data-drpg-mk]");
+                mk.checked = false;
+                mk.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+            got.warning.goneWithIt = Boolean(warn?.hidden);
+        } finally {
+            for (const app of of()) await app.close().catch(() => {});
+            await Promise.race([answer, wait(3000)]);
+        }
+        const sorted = [...actors].sort((x, y) => x.name.localeCompare(y.name));
+        equal(stableJson(got), stableJson({
+            pools: { tables: 1, kit: 1, heads: [L("DRPG.Despair.account"), L("DRPG.Despair.poolName")], rows: gms.length, names: gms.map(u => `poolName.${u.id}`) },
+            monokumas: { tables: 1, kit: 1, heads: [L("DRPG.Panel.character"), L("DRPG.Monokuma.isMonokuma"), L("DRPG.Monokuma.pool")], rows: sorted.length,
+                names: sorted.map(x => [x.id, `mk.${x.id}`, `pool.${x.id}`]), inlineStyle: 0 },
+            students: roster.length ? { tables: 1, kit: 1, heads: [L("DRPG.Panel.character"), L("DRPG.Assign.monokuma")], rows: roster.length, names: roster.map(x => `assign.${x.id}`) } : null,
+            warning: { box: true, shown: true, red: false, above: true, names: true, goneWithIt: true }
+        }), "{pools, monokumas, students: [tables in the tab, of them the kit's, the kit table's heads, its rows, the fields' names]; warning: two ticked on one pool - a warning box, shown, no red paragraph, above the table, both names; unticked - hidden}");
+    }],
+    ["R2031 - Despair Flow's Overflow tab on the kit (E46-C5a; E46-15): the threshold a `formGrid` row with its suggestion and its range as fine print in its field; \"Right now\" body text, Clear beside it; what can be drawn and the one-offs each a `dataTable` of rules in `OVERFLOW.effects`' order - on (a `toggle`, `ovf-<key>-on`), what, by (a compact `stepper`, `ovf-<key>-by`, only where the rule has a size), what it does (fine print); `readOverflowForm` reads the drawn tab back as the rules stand", async () => {
+        /*
+         * E46-C5a, 09.11.2026. At 3c952c67 the tab was a label over the threshold, three `p.notes`, and two `ul` lists
+         * of eight rules, each a checkbox, a stepper with its own label "by" and a `div.notes` (1845 px under the glass,
+         * no table). Drawn here from `overflowSection` into a template, with a suggestion line handed in as the window
+         * hands it; read back with `readOverflowForm`, which must answer the rules as stored (nothing typed). Red first
+         * on f7266b28: no form grid, no table.
+         */
+        const O = await import("./overflow.mjs");
+        const tpl = document.createElement("template");
+        tpl.innerHTML = `<div>${O.overflowSection({ suggestion: "SUGGESTED LINE" })}</div>`;
+        const root = tpl.content.firstElementChild;
+        const status = O.overflowStatus();
+        const { min, max } = OVERFLOW.range;
+        const kind = k => Object.entries(OVERFLOW.effects).filter(([, r]) => r.kind === k).map(([key]) => key);
+        const grid = root.querySelector(".drpg-form-grid");
+        const field = grid?.querySelector('.drpg-form-field input[name="ovf-threshold"]')?.closest(".drpg-form-field");
+        const label = grid?.querySelector(".drpg-form-label");
+        const help = [...(field?.querySelectorAll(".drpg-help") ?? [])].map(p => p.textContent.trim());
+        const tables = [...root.querySelectorAll("table")];
+        const kit = tables.filter(t => t.matches(".drpg-data-table-box > table.drpg-data-table"));
+        const readRow = tr => {
+            const key = tr.dataset.drpgOvf ?? "?";
+            const cells = [...tr.cells];
+            const on = cells[0]?.querySelector('label.drpg-toggle > input[type="checkbox"][role="switch"]');
+            const by = cells[2]?.querySelector('.drpg-kit-stepper.drpg-kit-stepper-compact > input[type="number"]');
+            return [key, on?.name ?? null, on?.checked ?? null, cells[1]?.textContent.trim() ?? null, by?.name ?? null,
+                cells[3]?.querySelector(".drpg-help")?.textContent.trim() ?? null];
+        };
+        const want = key => {
+            const rule = status.rules.effects[key];
+            return [key, `ovf-${key}-on`, Boolean(rule.on), game.i18n.localize(`DRPG.Overflow.name.${key}`),
+                rule.by === undefined ? null : `ovf-${key}-by`, O.overflowWhat(key, rule)];
+        };
+        const now = root.querySelector(".drpg-overflow-now");
+        const clear = root.querySelector("[data-drpg-overflow-clear]");
+        const got = {
+            threshold: [label?.textContent.trim() ?? null, label?.getAttribute("for") === field?.querySelector("input")?.id, help],
+            now: [now?.textContent.trim() ?? null, now?.classList.contains("notes") ?? null, Boolean(now && clear && (now.compareDocumentPosition(clear) & Node.DOCUMENT_POSITION_FOLLOWING))],
+            tables: [tables.length, kit.length],
+            heads: kit.map(t => [...t.tHead.rows[0].cells].map(th => th.textContent.trim())),
+            rows: kit.map(t => [...t.tBodies[0].rows].map(readRow)),
+            lists: root.querySelectorAll("ul, li").length,
+            read: O.readOverflowForm(root)
+        };
+        const head = ["DRPG.Overflow.colOn", "DRPG.Overflow.colWhat", "DRPG.Overflow.amount", "DRPG.Overflow.colDoes"].map(k => game.i18n.localize(k));
+        const stored = { threshold: status.threshold, effects: Object.fromEntries(Object.keys(OVERFLOW.effects).map(key => {
+            const rule = status.rules.effects[key];
+            return [key, { on: Boolean(rule.on), ...(rule.by === undefined ? {} : { by: rule.by }) }];
+        })) };
+        equal(stableJson(got), stableJson({
+            threshold: [game.i18n.localize("DRPG.Overflow.threshold"), true, ["SUGGESTED LINE", game.i18n.format("DRPG.Overflow.thresholdHint", { min, max })]],
+            now: [O.overflowNowLine(), false, true],
+            tables: [2, 2],
+            heads: [head, head],
+            rows: [kind("state").map(want), kind("event").map(want)],
+            lists: 0,
+            read: stored
+        }), "{threshold: [the grid's label, it points at the field, the field's fine print]; now: [the line, fine print?, Clear after it]; tables: [all, the kit's]; heads; rows: [key, on's name, checked, what, by's name, what it does]; lists: ul/li left; read: readOverflowForm = the rules stored}");
+    }],
+    ["R2032 - Season setup's rows on the kit's checkList (E46-C5b; card M4, S13-36): `setupRows` draws one `ul.drpg-checklist` of `li.drpg-check-row[data-drpg-key]` - a done row `done`, a required row not done `blocking` (the only red), an optional one `advisory`, one that waits for the cast `waiting`, the uneven Despair split a `warning` that says its counts; the row's Do it, Open it or Show the item's action; no dash for a mark; `repaintStep` redraws a row through the same builder and keeps the rest of it", async () => {
+        /*
+         * E46-C5b, 09.11.2026; card M4 (Approve: "red only for a blocking row"), S13-36 (2). At c1046f5e a row was
+         * `li.drpg-setup-step` marked with a check, a cross or an en dash written as an escape, its state in the classes
+         * `done`, `optional` and `waiting`, and the uneven split an optional row's dash beside its bare counts. Drawn on a
+         * detached element from rows of the suite's own and the world's despairSplit row with its counts handed in;
+         * nothing is written. Red first on c1046f5e: no checklist, the dash.
+         */
+        const SS = await import("./season-setup.mjs");
+        const { listOf } = await import("./utils.mjs");
+        const L = key => game.i18n.localize(key);
+        const real = SS.steps().find(step => step.key === "despairSplit");
+        must(real, "steps() has no despairSplit row - this would measure nothing");
+        const counts = ["R2032 A: 2", "R2032 B: 0"];
+        const uneven = game.i18n.format("DRPG.Season.splitUneven", { counts: listOf(counts) });
+        const noop = async () => 0;
+        const rows = [
+            { key: "cast", done: true, missing: () => ["R2032 never"] },
+            { key: "rooms", done: false, missing: () => ["R2032 x", "R2032 y"], fix: noop },
+            { key: "mastermind", optional: true, done: false, missing: () => [], open: noop },
+            { key: "overflow", optional: true, waiting: true, done: false, missing: () => ["R2032 never"], open: noop },
+            { ...real, waiting: false, done: false, missing: () => counts },
+            { key: "rulers", optional: true, done: true, missing: () => [], fix: noop, undo: noop, doKey: "DRPG.Season.hideRulers", undoKey: "DRPG.Season.showRulers" }
+        ];
+        const box = document.createElement("div");
+        box.innerHTML = SS.setupRows(rows, { label: "R2032" });
+        const lists = box.querySelectorAll("ul.drpg-checklist");
+        const button = li => li?.querySelector(":scope > button[data-drpg-action]") ?? null;
+        const drawn = [...box.querySelectorAll("ul.drpg-checklist > li.drpg-check-row")].map(li => [li.dataset.drpgKey ?? null, li.dataset.drpgState ?? null,
+            li.querySelector(".drpg-check-mark")?.textContent ?? null, li.querySelector(".drpg-check-title")?.textContent ?? null,
+            li.querySelector(".drpg-check-detail > .drpg-setup-missing")?.textContent ?? null, button(li)?.dataset.drpgAction ?? null, button(li)?.textContent ?? null]);
+        // The blocking row drawn again done: its state, its mark (and the mark's name), the line of what it waited on and its
+        // button follow; what else the row holds (Check rooms' findings, in the window) stays.
+        const li = box.querySelector('li.drpg-check-row[data-drpg-key="rooms"]');
+        li?.querySelector(".drpg-check-detail")?.insertAdjacentHTML("beforeend", "<span data-r2032-kept>R2032 kept</span>");
+        SS.repaintStep(li, { ...rows[1], done: true });
+        const again = [li?.dataset.drpgState ?? null, li?.querySelector(".drpg-check-mark")?.textContent ?? null,
+            li?.querySelector(".drpg-check-mark")?.getAttribute("aria-label") ?? null, Boolean(li?.querySelector(".drpg-setup-missing")),
+            Boolean(button(li)), Boolean(li?.querySelector("[data-r2032-kept]"))];
+        const step = key => L(`DRPG.Season.step.${key}`);
+        ok(!uneven.startsWith("DRPG."), "DRPG.Season.splitUneven has no text");
+        equal(stableJson({ lists: lists.length, label: lists[0]?.getAttribute("aria-label") ?? null,
+            old: box.querySelectorAll(".drpg-setup-step, .drpg-setup-mark, .drpg-setup-do").length,
+            dash: box.innerHTML.includes(String.fromCharCode(0x2013)), drawn, again }), stableJson({
+            lists: 1, label: "R2032", old: 0, dash: false,
+            drawn: [
+                ["cast", "done", "✓", step("cast"), null, null, null],
+                ["rooms", "blocking", "✗", step("rooms"), "R2032 x, R2032 y", "do", L("DRPG.Season.openIt")],
+                ["mastermind", "advisory", "-", step("mastermind"), null, "do", L("DRPG.Season.openIt")],
+                ["overflow", "waiting", "", step("overflow"), L("DRPG.Season.waitingForCast"), null, null],
+                ["despairSplit", "warning", "!", step("despairSplit"), uneven, "do", L("DRPG.Season.openIt")],
+                ["rulers", "done", "✓", step("rulers"), null, "undo", L("DRPG.Season.showRulers")]
+            ],
+            again: ["done", "✓", L("DRPG.Kit.check.done"), false, false, true]
+        }), "Season setup's rows [lists, the list's name, rows of the old markup, a dash anywhere | each row: key, state, mark, title, "
+            + "what it waits on, its button's action and word | the rooms row repainted done: state, mark, the mark's name, a line of what "
+            + "it waits on, a button, the rest of the row kept]");
+    }],
+    ["R2033 - Pre-season checks on the kit's checkList (E46-C5b; card M4): each part a `ul.drpg-checklist` under its heading in today's order - the cast, the scenes, the room pictures (the decode row and the size row), the voice, the contract (a failed row named, the unread folded under it), the dice look - and the anonymity audit's own markup with its marks (R1530); red only for a blocking row (a student not set up, a scene not ready, a picture that does not load), every other finding a `warning`; no `pre`, no `p.drpg-check-report`", async () => {
+        /*
+         * E46-C5b, 09.11.2026; card M4 (Approve: "red only for a blocking row"; A/V off with the voice tile on is one of
+         * its rows). At c1046f5e the cast and the scenes were each a `pre.drpg-check-report` of marked text and every other
+         * line a `p.drpg-check-report`, each cross red whatever it said - a dice look's overlay as red as a scene the
+         * players see black. `preSessionReport` with the facts handed in: A/V off with the tile on, a school of the
+         * suite's own with two room pictures (one that does not decode, one 6000 px wide), a contract with one failed row
+         * and one nobody could read, one dice look finding. The world is read (the cast, the scenes, the audit), nothing
+         * is written. Red first on c1046f5e: `pre`.
+         */
+        needs(world.atLeast("livingStudents", 1), "a cast for the cast's part to list");
+        const SS = await import("./season-setup.mjs");
+        const { runContract } = await import("./patches.mjs");
+        const { diagnoseCharacters } = await import("./diagnostics.mjs");
+        const L = key => game.i18n.localize(key);
+        const { DISABLED = 0 } = foundry.av?.AVSettings?.AV_MODES ?? {};
+        const fx = await e20Fixture();
+        const scene = fx.scene("R2033 school", [
+            fx.region("R2033a", "R2033 Hall", { rect: [0, 0, 1000, 1000], image: "worlds/suite/r2033-big.webp" }),
+            fx.region("R2033b", "R2033 Gym", { rect: [1000, 0, 1000, 1000], image: "worlds/suite/r2033-gone.webp" })]);
+        const row = (id, probe) => ({ id, kind: "override", target: `R2033 target ${id}`, owner: "foundry", file: "fog.mjs",
+            symbol: "registerDoorControls", why: "R2033", when: "always", fallback: `R2033 fallback ${id}`, probe });
+        const contract = runContract({ rows: [row("gone", () => ({ present: false, ours: null })), row("blind", () => ({ present: null, ours: null }))] });
+        const RealImage = globalThis.Image;
+        const root = document.createElement("div");
+        try {
+            globalThis.Image = class {
+                set src(path) { this.path = path; this.naturalWidth = path.includes("big") ? 6000 : 1200; this.naturalHeight = 800; }
+                async decode() { if (this.path.includes("gone")) throw new Error("R2033: the stand-in does not decode"); }
+            };
+            root.innerHTML = await SS.preSessionReport({ av: { mode: DISABLED, on: true, available: false }, scenes: [scene],
+                head: async () => ({ status: 200, bytes: 400000 }), contract, diceLook: [{ code: "r2033", words: "R2033 dice" }], givenBack: false }) ?? "";
+        } finally {
+            globalThis.Image = RealImage;
+        }
+        const parts = [...root.querySelectorAll("[data-drpg-check-part]")];
+        const part = name => parts.find(p => p.dataset.drpgCheckPart === name) ?? null;
+        const rowsOf = p => [...(p?.querySelectorAll("ul.drpg-checklist > li.drpg-check-row") ?? [])];
+        const states = p => [...new Set(rowsOf(p).map(li => li.dataset.drpgState))].sort();
+        const keyed = p => rowsOf(p).map(li => [li.dataset.drpgKey ?? null, li.dataset.drpgState]);
+        const cast = diagnoseCharacters({ toChat: false });
+        const castMarked = cast.split("\n").filter(line => /^\s*[✓✗] /.test(line)).length;
+        const castCrossed = cast.split("\n").filter(line => /^\s*✗ /.test(line)).length;
+        const big = part("pictures")?.querySelector('li.drpg-check-row[data-drpg-key="large"] .drpg-check-title')?.textContent ?? "";
+        const gone = part("pictures")?.querySelector('li.drpg-check-row[data-drpg-key="missing"] .drpg-check-title')?.textContent ?? "";
+        const contractText = part("contract")?.textContent ?? "";
+        const blocking = [...root.querySelectorAll('li.drpg-check-row[data-drpg-state="blocking"]')].map(li => li.closest("[data-drpg-check-part]")?.dataset.drpgCheckPart ?? null);
+        equal(stableJson({
+            order: parts.map(p => p.dataset.drpgCheckPart),
+            heads: parts.map(p => p.querySelector(":scope > h3")?.textContent ?? null),
+            listed: parts.map(p => p.querySelectorAll(":scope > ul.drpg-checklist").length > 0),
+            cast: [rowsOf(part("cast")).filter(li => li.dataset.drpgKey !== "classCandidates").length === castMarked,
+                rowsOf(part("cast")).filter(li => li.dataset.drpgState === "blocking").length === castCrossed,
+                rowsOf(part("cast")).every(li => !/^[✓✗]/.test(li.querySelector(".drpg-check-title")?.textContent ?? ""))],
+            scenes: states(part("scenes")).every(s => s === "done" || s === "blocking"),
+            pictures: [keyed(part("pictures")), gone.includes("R2033 Gym"), big.includes("R2033 Hall") && big.includes("6000")],
+            voice: keyed(part("voice")),
+            contract: [keyed(part("contract")), contractText.includes("R2033 target gone") && contractText.includes("R2033 fallback gone"),
+                Boolean(part("contract")?.querySelector(":scope > details.drpg-check-unknown")) && contractText.includes("R2033 target blind")],
+            dice: [keyed(part("dice")), part("dice")?.querySelector(".drpg-check-title")?.textContent ?? null, Boolean(part("dice")?.querySelector("[data-drpg-dice-look]"))],
+            anon: [Boolean(part("anonymity")?.querySelector(":scope > [data-drpg-anon]")),
+                [...root.querySelectorAll(".drpg-check-ok, .drpg-check-bad")].every(mark => mark.closest("[data-drpg-anon]"))],
+            red: [...new Set(blocking)].filter(p => !["cast", "scenes", "pictures"].includes(p)),
+            old: root.querySelectorAll("pre, p.drpg-check-report").length
+        }), stableJson({
+            order: ["cast", "scenes", "pictures", "voice", "contract", "dice", "anonymity"],
+            heads: [L("DRPG.Panel.checksSetup"), L("DRPG.Fog.checksScenes"), L("DRPG.Panel.checksImages"), L("DRPG.Voice.panel.legend"),
+                L("DRPG.Contract.checksTitle"), L("DRPG.DiceLook.diag.title"), L("DRPG.Anonymity.audit.title")],
+            listed: [true, true, true, true, true, true, false],
+            cast: [true, true, true],
+            scenes: true,
+            pictures: [[["missing", "blocking"], ["large", "warning"]], true, true],
+            voice: [["checksAvOff", "warning"]],
+            contract: [[["gone", "warning"]], true, true],
+            dice: [[["r2033", "warning"]], "R2033 dice", true],
+            anon: [true, true],
+            red: [],
+            old: 0
+        }), "Pre-season checks [the parts in order, their headings, a checklist in each | the cast: a row a marked line, blocking a crossed "
+            + "one, no mark left in a title | the scenes done or blocking | the pictures' rows (key, state), the Gym that does not decode, "
+            + "the Hall's 6000 px | the voice's rows | the contract's rows, the failed one named, the unread folded | the dice look's rows, "
+            + "its finding, its button | the audit's own markup, every checkMarks mark inside it | parts with a blocking row that may not "
+            + "have one | pre and p.drpg-check-report left]");
+    }],
+
+    /* ---- E47 C1 (09.11.2026): the Class Trial console, the vote and the GM panel's Next line on one trialNextStep ---- */
+
+    ["R2050 - the trial's next step is one table (E47 C1; the owner's 05.10 amend, 11.10 and 27.10; S18-89): trial-floor.mjs `TRIAL_NEXT_STEPS` an ordered list of [when(view), step] rows, the first that holds answers (`trialNextStep`, read off trial-floor-ui.mjs too); 31 views answer as the chain it replaced did (f7266b28); a planted wrong row changes an answer; E73's Scrum Debate row slot written; every step its one text, EN and PL", async () => {
+        /*
+         * E47 C1, 09.11.2026. The views and their answers were written into this test from f7266b28's `trialNextStep` (the
+         * chain of E10 C14 and E70 C1-C8) before it became a table, evaluated with the floor families of trial-floor.mjs
+         * (scratch views.mjs): every step it can answer, a debate in each mode, the Closing's exchange, the verdict on this
+         * GM and on another, an ended trial with its record. The control: the same table with a wrong row planted first
+         * reads differently (the reader is not blind to the order). Red first on f7266b28: no TRIAL_NEXT_STEPS.
+         */
+        const F = await import("./trial-floor.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        equal(stableJson([Array.isArray(F.TRIAL_NEXT_STEPS), typeof F.trialNextStep, UI.trialNextStep === F.trialNextStep]), stableJson([true, "function", true]),
+            "[trial-floor.mjs exports the table, its reader, the console's module exports the same reader]");
+        if (!Array.isArray(F.TRIAL_NEXT_STEPS)) return;
+        const rows = F.TRIAL_NEXT_STEPS;
+        ok(rows.length >= 13 && rows.every(r => Array.isArray(r) && typeof r[0] === "function" && typeof r[1] === "string"), "a row of the table is not [when(view), step]");
+        const VIEWS = [
+            ["no trial", null, false, false, {}, null, null],
+            ["no trial, a debate floor left", "debate", false, false, {}, null, null],
+            ["no trial, a vote open", null, false, false, { vote: true }, null, null],
+            ["discussion", null, true, true, {}, null, null],
+            ["discussion after an exchange", null, true, true, { debateAgain: true }, null, null],
+            ["discussion after an Overrule", null, true, true, { againAfterOverrule: true }, null, null],
+            ["after an Overrule and an exchange", null, true, true, { againAfterOverrule: true, debateAgain: true }, null, null],
+            ["a debate", "debate", true, true, {}, null, null],
+            ["an Objection", "objection", true, true, {}, null, null],
+            ["a rebuttal", "rebuttal", true, true, {}, null, null],
+            ["a Testimony round", "testimony", true, true, {}, null, null],
+            ["a Panic round", "panic", true, true, {}, null, null],
+            ["the Closing", "closing", true, true, {}, null, null],
+            ["an Objection in the Closing", "closingX", true, true, {}, null, null],
+            ["a debate with the vote open", "debate", true, true, { vote: true }, null, null],
+            ["the vote open", null, true, true, { vote: true }, null, null],
+            ["the vote open after an exchange", null, true, true, { vote: true, debateAgain: true }, null, null],
+            ["the vote counted", null, true, true, { voteClosed: true }, null, null],
+            ["the vote counted, a debate open", "debate", true, true, { voteClosed: true }, null, null],
+            ["the verdict given", null, true, true, { voteClosed: true, verdictApplied: true }, null, null],
+            ["the verdict given by me", null, true, true, { voteClosed: true, verdictApplied: true }, null, "me"],
+            ["the verdict given by another GM", null, true, true, { voteClosed: true, verdictApplied: true }, null, "other"],
+            ["the verdict stopped", null, true, true, { voteClosed: true, verdictApplied: true }, "Level Ups", null],
+            ["the verdict stopped on me", null, true, true, { voteClosed: true, verdictApplied: true }, "Level Ups", "me"],
+            ["the verdict stopped on another GM", null, true, true, { voteClosed: true, verdictApplied: true }, "Level Ups", "other"],
+            ["ended, the vote counted", null, false, true, { voteClosed: true }, null, null],
+            ["ended, the verdict given", null, false, true, { voteClosed: true, verdictApplied: true }, null, null],
+            ["ended, the verdict stopped", null, false, true, { voteClosed: true, verdictApplied: true }, "Level Ups", null],
+            ["ended, the verdict another GM gives", null, false, true, { voteClosed: true, verdictApplied: true }, null, "other"],
+            ["ended, a floor left, the vote counted", "debate", false, true, { voteClosed: true }, null, null],
+            ["a debate, the verdict given", "debate", true, true, { voteClosed: true, verdictApplied: true }, null, null]
+        ];
+        const viewOf = ([, mode, running, afterwards, p, stopped, runner]) => ({
+            floor: mode === null ? null : mode === "closingX" ? { mode: "objection", closing: { phase: "speak" } } : { mode },
+            running, afterwards, stopped, runner: runner === "me" ? game.user.id : runner === "other" ? "otherGM000000000" : null,
+            progress: { voteClosed: Boolean(p.voteClosed), verdictApplied: Boolean(p.verdictApplied), debateAgain: Boolean(p.debateAgain),
+                againAfterOverrule: p.againAfterOverrule ? { messageId: "cardR2050AAAAAAA", seconds: 90 } : null, vote: { open: Boolean(p.vote) } }
+        });
+        const HEAD = {
+            "no trial": "start",
+            "no trial, a debate floor left": "start",
+            "no trial, a vote open": "start",
+            "discussion": "openDebate",
+            "discussion after an exchange": "reopen",
+            "discussion after an Overrule": "openAgain",
+            "after an Overrule and an exchange": "openAgain",
+            "a debate": "closeDebate",
+            "an Objection": "closeDebate",
+            "a rebuttal": "closeDebate",
+            "a Testimony round": "endRound",
+            "a Panic round": "endRound",
+            "the Closing": "endClosing",
+            "an Objection in the Closing": "endClosing",
+            "a debate with the vote open": "closeDebate",
+            "the vote open": "vote",
+            "the vote open after an exchange": "vote",
+            "the vote counted": "verdict",
+            "the vote counted, a debate open": "closeDebate",
+            "the verdict given": "chapterEnd",
+            "the verdict given by me": "chapterEnd",
+            "the verdict given by another GM": "verdictElsewhere",
+            "the verdict stopped": "finishVerdict",
+            "the verdict stopped on me": "finishVerdict",
+            "the verdict stopped on another GM": "finishElsewhere",
+            "ended, the vote counted": "verdict",
+            "ended, the verdict given": "chapterEnd",
+            "ended, the verdict stopped": "finishVerdict",
+            "ended, the verdict another GM gives": "verdictElsewhere",
+            "ended, a floor left, the vote counted": "verdict",
+            "a debate, the verdict given": "closeDebate"
+        };
+        const first = (table, view) => table.find(([when]) => when(view))?.[1] ?? null;
+        const read = Object.fromEntries(VIEWS.map(v => [v[0], F.trialNextStep(viewOf(v))]));
+        equal(stableJson(read), stableJson(HEAD), "{view: the step} - the table does not answer as the chain it replaced (f7266b28)");
+        equal(VIEWS.filter(v => first(rows, viewOf(v)) !== read[v[0]]).length, 0, "trialNextStep is not the first row that holds");
+        const planted = [[view => Boolean(view.progress.vote?.open), "vote"], ...rows];
+        ok(VIEWS.some(v => first(planted, viewOf(v)) !== HEAD[v[0]]), "the control: a wrong row planted first changes no answer - this would measure nothing");
+        const raw = await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(lfText);
+        const src = stripComments(raw);
+        const table = bodyOf(raw, "export const TRIAL_NEXT_STEPS", { until: "export function trialNextStep(" });
+        ok(table.length > 300 && /Scrum Debate/.test(table) && /\/\/ \[view => [^\n]*"scrum"\]/.test(table), "the table holds no commented row slot for E73's Scrum Debate after a split in the Straw Poll");
+        ok(!/"closeTrial"|"endTrial"|"end"\]/.test(stripComments(table)) && src.length > 2000, "a row of the table closes the trial (05.10, topic C: the sentence after the verdict is E70's)");
+        const steps = [...new Set(Object.values(HEAD))].sort();
+        equal(steps.length, 13, "the views do not reach every step");
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG?.Floor?.next ?? {});
+        equal(stableJson(["en", "pl"].map(code => steps.filter(s => !(typeof lang[code][s] === "string" && lang[code][s].length > 10)))), stableJson([[], []]),
+            "[EN, PL]: the steps with no text of their own (DRPG.Floor.next.<step>)");
+    }],
+
+    ["R2051 - one next step for three readers (E47 C1; the owner's 05.10 D (4)): for each running view of R2050's list the GM panel's Next line (gm-panel.mjs `nextStep`, classTrial) says the console's step's text (`DRPG.Floor.next.<step>`, `trialStepText`) with the console's road (End the chapter its own, else the console), and the vote window's lead (`voteLead`) names the same step", async () => {
+        /*
+         * E47 C1, 09.11.2026. The panel's line had its own chain (the verdict, the count, then the floor), so with the ballots
+         * out it said "Open the debate" while the console named the vote, and with a verdict stopped it said End the chapter.
+         * The views are handed to `nextStep` (`trial`), so nothing of this world is read but the clock's chapter. Red first
+         * on f7266b28: the panel's own branch (its text for the world, not the view), no `voteLead`.
+         */
+        const F = await import("./trial-floor.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const GP = await import("./gm-panel.mjs");
+        const views = [
+            [{ floor: null }, {}], [{ floor: null }, { debateAgain: true }], [{ floor: null }, { againAfterOverrule: { messageId: "cardR2051AAAAAAA", seconds: 90 } }],
+            [{ floor: { mode: "debate" } }, {}], [{ floor: { mode: "objection" } }, { vote: { open: true } }], [{ floor: { mode: "testimony" } }, {}],
+            [{ floor: { mode: "closing" } }, {}], [{ floor: null }, { vote: { open: true } }], [{ floor: null }, { voteClosed: true }],
+            [{ floor: null }, { voteClosed: true, verdictApplied: true }], [{ floor: null, stopped: "Level Ups" }, { voteClosed: true, verdictApplied: true }],
+            [{ floor: null, runner: "otherGM000000000" }, { voteClosed: true, verdictApplied: true }],
+            [{ floor: null, runner: "otherGM000000000", stopped: "Level Ups" }, { voteClosed: true, verdictApplied: true }]
+        ].map(([over, p]) => ({ running: true, afterwards: true, stopped: null, runner: null, ...over,
+            progress: { voteClosed: false, verdictApplied: false, debateAgain: false, againAfterOverrule: null, vote: { open: false }, ...p } }));
+        const was = game.drpg?.trialProgressChapter?.() ?? null;
+        const clock = { ...getClock(), phase: "classTrial", chapter: was ?? getClock().chapter };
+        must(typeof F.trialNextStep === "function", "trial-floor.mjs has no trialNextStep - see R2050");
+        const box = document.createElement("div");
+        const read = views.map(view => {
+            const step = F.trialNextStep(view);
+            const line = GP.nextStep(clock, { setupList: [], incident: false, eclipse: false, round: null, endStopped: false, trial: view });
+            box.innerHTML = typeof UI.voteLead === "function" ? UI.voteLead(view) : "";
+            const lead = box.querySelector(".drpg-vote-lead");
+            const text = typeof F.trialStepText === "function" ? F.trialStepText(step, view) : null;
+            return [step, line?.text === text, line?.action ?? null, lead?.dataset.drpgStep ?? null, lead?.innerHTML === text];
+        });
+        equal(stableJson(read), stableJson(views.map(view => {
+            const step = F.trialNextStep(view);
+            return [step, true, step === "chapterEnd" ? "chapterEnd" : "trial", step, true];
+        })), "per view: [the console's step, the panel's line says its text, the line's road, the step the vote's lead names, the lead says its text]");
+        equal(new Set(read.map(r => r[0])).size, 12, "the views do not reach the twelve steps of a running trial - this would measure less than it says");
+    }],
+
+    ["R2052 - the console's footer slots (E47 C1; the owner's 05.10 D (2), E47-02; S13-36 (1)): `consoleFooter` across a family's states keeps Close first on the left and the destructive zone - End of chapter, End the trial, Start the Final Trial - last, never the default; the right slot holds the next step alone (the primary), Close the default while an Objection runs; Start the Final Trial greyed with its reason while no Mastermind is set; the console redraws the footer in place (`liveFooter`) and reopens only on its signature, which reads the trial's start and the floor's family alone", async () => {
+        /*
+         * E47 C1, 09.11.2026. Pure: the footer of a reading (`consoleFooter`) through ui-kit.mjs `footerButtons`, in the
+         * running trial's states with no floor (discussion, after an exchange, the vote, the count, the verdict, the verdict
+         * stopped, the verdict another GM gives) and in the debate's (a debate, an Objection), the Final Trial running and
+         * no Mastermind. Then the source: the console's live `after` redraws the footer and the signature names no step.
+         * Red first on f7266b28: no consoleFooter; the window reopened on every change of `next` (its signature), and in
+         * an Objection the step left the primary's slot (no default, so `trialFooter` filed it with the secondaries).
+         */
+        const UI = await import("./trial-floor-ui.mjs");
+        const K = await import("./ui-kit.mjs");
+        equal(typeof UI.consoleFooter, "function", "[trial-floor-ui.mjs exports consoleFooter]");
+        if (typeof UI.consoleFooter !== "function") return;
+        const F = await import("./trial-floor.mjs");
+        const view = (over, p = {}) => {
+            const v = { floor: null, running: true, afterwards: true, finalNow: false, mastermind: true, stopped: null, runner: null, table: null, restrictive: false, ...over,
+                progress: { voteClosed: false, verdictApplied: false, debateAgain: false, againAfterOverrule: null, closing: null, vote: { open: false }, ...p } };
+            v.restrictive = Boolean(v.floor) && v.floor.mode !== "debate";
+            v.next = F.trialNextStep(v);
+            return v;
+        };
+        const slots = v => {
+            const list = K.footerButtons(UI.consoleFooter(v));
+            return { right: list.filter(b => b.side === "right").map(b => b.action), left: list.filter(b => b.side === "left").map(b => [b.action, b.role]),
+                def: list.find(b => b.default)?.action ?? null, defRole: list.find(b => b.default)?.role ?? null, next: v.next };
+        };
+        const none = {
+            discussion: slots(view({})), again: slots(view({}, { debateAgain: true })), vote: slots(view({}, { vote: { open: true } })),
+            counted: slots(view({}, { voteClosed: true })), verdict: slots(view({}, { voteClosed: true, verdictApplied: true })),
+            stopped: slots(view({ stopped: "Level Ups" }, { voteClosed: true, verdictApplied: true })),
+            elsewhere: slots(view({ runner: "otherGM000000000" }, { voteClosed: true, verdictApplied: true }))
+        };
+        const debate = { debate: slots(view({ floor: { mode: "debate" } })), objection: slots(view({ floor: { mode: "objection" } })) };
+        const all = { ...none, ...debate };
+        const tail = s => s.left.filter(([, role]) => role === "destructive").map(([a]) => a);
+        equal(stableJson(Object.fromEntries(Object.entries(all).map(([k, s]) => [k, [s.left[0]?.[0] ?? null, tail(s), s.left.slice(-3).every(([, r]) => r === "destructive")]]))),
+            stableJson(Object.fromEntries(Object.keys(all).map(k => [k, ["close", ["chapterEnd", "end", "toggleFinal"], true]]))),
+            "{state: [the first button on the left, the destructive zone, the zone last on the left]}");
+        equal(stableJson(Object.fromEntries(Object.entries(all).map(([k, s]) => [k, [s.right, s.def, s.defRole === "destructive"]]))), stableJson({
+            discussion: [["openDebate"], "openDebate", false], again: [["reopen"], "reopen", false], vote: [["vote"], "vote", false],
+            counted: [["verdict"], "verdict", false], verdict: [[], "close", false], stopped: [["finishVerdict"], "finishVerdict", false],
+            elsewhere: [[], "close", false], debate: [["closeDebate"], "closeDebate", false], objection: [["closeDebate"], "close", false]
+        }), "{state: [the right slot, the default, the default destructive]}");
+        // The same set of buttons in every state of the family with no floor: only which one stands on the right changes.
+        const set = s => [...s.right, ...s.left.map(([a]) => a)].sort().join(",");
+        equal(new Set(["discussion", "again", "vote", "counted"].map(k => set(none[k]).replace(/openDebate|reopen/, "debate"))).size, 1,
+            "the buttons of the family with no floor are not the same set in each state (a button came or went, not only moved)");
+        const final = K.footerButtons(UI.consoleFooter(view({ mastermind: false }))).find(b => b.action === "toggleFinal");
+        const set2 = K.footerButtons(UI.consoleFooter(view({ mastermind: true }))).find(b => b.action === "toggleFinal");
+        const running = K.footerButtons(UI.consoleFooter(view({ finalNow: true, mastermind: false }))).find(b => b.action === "toggleFinal");
+        equal(stableJson([[final?.role, final?.disabled ?? false, final?.tooltip ?? null], [set2?.disabled ?? false, set2?.tooltip ?? null], [running?.role, running?.disabled ?? false]]),
+            stableJson([["destructive", true, game.i18n.localize("DRPG.Mastermind.noneSet")], [false, null], ["secondary", false]]),
+            "[no Mastermind: Start the Final Trial's role, greyed, its reason; a Mastermind set: greyed, reason; the Final Trial running: End the Final Trial's role, greyed]");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/trial-floor-ui.mjs`).then(lfText));
+        const manage = fnSource(src, "manageClassTrial"), sig = fnSource(src, "trialSignature");
+        equal(stableJson({ live: /liveFooter\(dialog, consoleFooter\(now\)\)/.test(manage), opensWith: /footer: consoleFooter\(view\)/.test(manage),
+            signature: /return \[running, floorFamily\(floor\)\]\.join\("\|"\);/.test(sig) && !/\bnext\b|finalNow|voteClosed|verdictApplied|table/.test(sig) }),
+            stableJson({ live: true, opensWith: true, signature: true }),
+            "{live: the console's live region redraws its footer by liveFooter; opensWith: it opens with the same footer; signature: the trial's start and the floor's family alone}");
+    }],
+
+    ["R2053 - the console's text full width (E47 C1; S12-51): drawn, the trial console states `width: \"console\"` (ui-kit.mjs WINDOW_WIDTHS, drpg-kit-width-console) and its lines and headings take no 74ch cap under either theme (the glass's prose rung, stained-glass.css), read by the sheets' cascade", async () => {
+        /*
+         * E47 C1, 09.11.2026. The audit read the console's text column 140 px short of its body (S12-51): the glass's prose
+         * rung caps every paragraph of a module window at 74ch. The console is opened on this GM (it writes nothing) and its
+         * root's classes read; the cascade (`styleCascade`) is read on a stand-in of its tree under each theme's body class.
+         * Red first on f7266b28: no width class, max-width 74ch under Stained Glass.
+         */
+        needs(env.dialogs(), "the window is drawn");
+        must(game.user.isGM, "the console is a GM's - this would measure nothing");
+        const UI = await import("./trial-floor-ui.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        closeOpen("drpg-window-trial");
+        await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+        const consoles = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-trial"));
+        let classes = null;
+        try {
+            UI.manageClassTrial().catch(() => {});
+            await until(() => consoles()[0]?.element, 6000);
+            classes = [...(consoles()[0]?.element?.classList ?? [])];
+        } finally {
+            closeOpen("drpg-window-trial");
+            await until(() => !document.querySelector(".drpg-window-trial"), 5000);
+        }
+        must(classes, "the console did not open - this would measure nothing");
+        const C = await styleCascade();
+        const cap = (theme, tag) => {
+            const body = document.createElement("body");
+            body.className = theme;
+            const win = body.appendChild(document.createElement("div"));
+            win.className = "application drpg-ui drpg-panel drpg-window-trial drpg-kit-width drpg-kit-width-console";
+            const kit = win.appendChild(document.createElement("div"));
+            kit.className = "window-content";
+            const live = kit.appendChild(document.createElement("div"));
+            live.className = "drpg-trial-console";
+            const el = live.appendChild(document.createElement(tag));
+            return C.winner(el, ["max-width"])?.value ?? "none";
+        };
+        // The control: a paragraph of another module window under the glass keeps its cap - the reader sees the rule.
+        const control = (() => {
+            const body = document.createElement("body");
+            body.className = "drpg-theme-stained-glass";
+            const win = body.appendChild(document.createElement("div"));
+            win.className = "application drpg-ui drpg-panel";
+            return C.winner(win.appendChild(document.createElement("p")), ["max-width"])?.value ?? "none";
+        })();
+        equal(stableJson({ width: ["drpg-kit-width", "drpg-kit-width-console"].every(c => classes.includes(c)), control,
+            glass: [cap("drpg-theme-stained-glass", "p"), cap("drpg-theme-stained-glass", "h4")], legacy: [cap("drpg-theme-monokuma-legacy", "p"), cap("drpg-theme-monokuma-legacy", "h4")] }),
+            stableJson({ width: true, control: "74ch", glass: ["none", "none"], legacy: ["none", "none"] }),
+            "{width: the console states the console width; control: another window's paragraph under the glass; glass, legacy: [a line's, a heading's max-width]}");
+    }],
+
+    ["R2055 - the vote window on the same table and slots (E47 C1; the owner's 05.10 D (2), (4)): `voteFooter` keeps its buttons as 1.2.101 drew them by state (Send the primary before a vote with somebody to send to, Close and count destructive and never the default, Cancel the closing word); drawn, its footer is redrawn in place (`liveFooter`), not reopened, and its first line is the trial's next step (`voteLead`)", async () => {
+        /*
+         * E47 C1, 09.11.2026. The vote window closed and opened again when a vote opened or closed, the first player
+         * connected or the last ballot came back (its own signature). Now its live status redraws the footer in place, and
+         * the lead says the console's step. The window is opened on this GM (nothing is written) and closed. Red first on
+         * f7266b28: no voteFooter, no lead, the reopen in its `after`.
+         */
+        needs(env.dialogs(), "the window is drawn");
+        must(game.user.isGM, "the vote window is a GM's - this would measure nothing");
+        const UI = await import("./trial-floor-ui.mjs");
+        const K = await import("./ui-kit.mjs");
+        const F = await import("./trial-floor.mjs");
+        equal(stableJson([typeof UI.voteFooter, typeof UI.voteLead]), stableJson(["function", "function"]), "[trial-floor-ui.mjs exports voteFooter, voteLead]");
+        if (typeof UI.voteFooter !== "function") return;
+        const tree = f => K.footerButtons(f).map(b => [b.action, b.role, b.default, Boolean(b.disabled)]);
+        const two = [{ name: "A" }, { name: "B" }];
+        equal(stableJson({ nobody: tree(UI.voteFooter({ pending: null, recipients: 0 })), before: tree(UI.voteFooter({ pending: null, recipients: 2 })),
+            out: tree(UI.voteFooter({ pending: two, recipients: 2 })), allIn: tree(UI.voteFooter({ pending: [], recipients: 2 })) }), stableJson({
+            nobody: [["cancel", "cancel", true, false], ["open", "secondary", false, true], ["tally", "destructive", false, true]],
+            before: [["open", "primary", true, false], ["cancel", "cancel", false, false], ["tally", "destructive", false, true]],
+            out: [["cancel", "cancel", true, false], ["open", "secondary", false, false], ["remind", "secondary", false, false], ["tally", "destructive", false, false]],
+            allIn: [["cancel", "cancel", true, false], ["open", "secondary", false, false], ["tally", "destructive", false, false]]
+        }), "{state: [action, role, default, greyed] in the tree's order}");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/trial-floor-ui.mjs`).then(lfText));
+        const vote = fnSource(src, "openVoteDialog");
+        equal(stableJson({ live: /liveFooter\(dialog, voteFooter\(/.test(vote), reopen: /dialog\.close\(\)/.test(vote), lead: /voteLead\(trialStepView\(\)\)/.test(vote) }),
+            stableJson({ live: true, reopen: false, lead: true }), "{live: the footer redrawn by liveFooter; reopen: the window closed to open again; lead: the status leads with the step}");
+        const { closeOpen } = await import("./live.mjs");
+        closeOpen("drpg-window-vote");
+        await until(() => !document.querySelector(".drpg-window-vote"), 5000);
+        const wins = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-vote"));
+        let drawn = null;
+        try {
+            UI.openVoteDialog().catch(() => {});
+            await until(() => wins()[0]?.element?.querySelector("footer.drpg-kit-footer"), 6000);
+            const el = wins()[0]?.element;
+            drawn = { step: el?.querySelector(".drpg-vote-status .drpg-vote-lead")?.dataset.drpgStep ?? null, footer: Boolean(el?.querySelector("footer.drpg-kit-footer")) };
+        } finally {
+            closeOpen("drpg-window-vote");
+            await until(() => !document.querySelector(".drpg-window-vote"), 5000);
+        }
+        equal(stableJson(drawn), stableJson({ step: F.trialNextStep(F.trialStepView()), footer: true }),
+            "{step: the step the drawn window's lead names, against the table's for this world; footer: a kit footer}");
+    }],
+
+    ["R2056 - the incident tracker at one width, its turn bar first (murder-ui.mjs `openIncidentTracker`, `incidentTrackerHtml`; E47-C2, E47-05; audit S04-38): the window states `width: \"tracker\"` and no `fit`; the live region opens on `div.drpg-turn-bar[data-drpg-side]` - the side whose roll the opening waits for, the side to act in the incident, `resolution` at Stage 6; at most three of the last turns; the victim's line from `reserveView`, as the sheet reads what is left", async () => {
+        /*
+         * E47-C2, 09.11.2026. The tracker was drawn `fit` (as wide as its widest table: S04-38 measured 629 px at the
+         * opening and 483 in the incident) and its state was one line among six. Read off the opener's source (comments
+         * blanked) and off the builder for five fights between two of the world's students (read only: nothing is
+         * written, and the world read as one with no incident, so the clean-up section reads none). Red on f7266b28: `fit: true`, the
+         * first child a `<p>`, five turns listed.
+         */
+        needs(world.atLeast("livingStudents", 2), "two students for a fight's two sides");
+        const MU = await import("./murder-ui.mjs");
+        const { reserveView } = await import("./character.mjs");
+        const opener = fnSource(stripComments((await moduleSources()).get("murder-ui.mjs") ?? ""), "openIncidentTracker") ?? "";
+        must(opener.length > 500, "openIncidentTracker was not found in murder-ui.mjs - this would measure nothing");
+        const [killer, victim] = studentActors();
+        const turn = n => ({ turn: n, side: n % 2 ? "victim" : "killer", key: "strike", band: "despair", success: false, changes: [] });
+        const fight = { stage: "incident", turn: 6, turnSide: "victim", killerId: killer.id, victimId: victim.id, recent: [1, 2, 3, 4, 5].map(turn), keyRemnants: 1 };
+        const read = state => {
+            const root = document.createElement("div");
+            root.innerHTML = MU.incidentTrackerHtml(state, null);
+            const live = root.querySelector(".drpg-incident-live");
+            const first = live?.firstElementChild ?? null;
+            return { first: first?.matches("div.drpg-turn-bar[data-drpg-side]") ? first.dataset.drpgSide : first?.tagName ?? null,
+                turns: live?.querySelectorAll(".drpg-incident-recent > li").length ?? null, text: (live?.textContent ?? "").replace(/\s+/g, " ") };
+        };
+        const hp = reserveView(victim, "hitPoints"), sanity = reserveView(victim, "stress");
+        const line = game.i18n.format("DRPG.Events.reserveVictim", { name: victim.name, hp: hp.left, hpMax: hp.max, sanity: sanity.left, sanityMax: sanity.max }).replace(/\s+/g, " ");
+        // The clean-up section asks the world's incident for its stage: read as a world with none (`quietWorld`).
+        const { inFight, sides } = quietWorld(() => ({ inFight: read(fight), sides: [read({ ...fight, stage: "openingRoll", turn: 0, recent: [] }).first,
+            read({ ...fight, stage: "openingRoll", turn: 0, indirect: true, recent: [] }).first, read(fight).first, read({ ...fight, turnSide: "killer" }).first,
+            read({ ...fight, stage: "resolution" }).first] }));
+        equal(stableJson({ width: [/\bwidth:\s*"tracker"/.test(opener), /\bfit:\s*true\b/.test(opener)], sides, turns: inFight.turns, reserve: inFight.text.includes(line) }),
+            stableJson({ width: [true, false], sides: ["killer", "victim", "victim", "killer", "resolution"], turns: 3, reserve: true }),
+            `{width: [the opener states "tracker", the opener fits], sides: the live region's first child (direct opening, trap opening, the victim's turn, the killer's, Stage 6), turns: listed of 5, reserve: the line is reserveView's (${line})}: ${inFight.text.slice(0, 400)}`);
+    }],
+    ["R2057 - with no murder the tracker opens on its empty state (murder-ui.mjs `openIncidentTracker`; E47-C2, E47-05; audit S04-38): `drpg-window-incident` at the tracker's width, the kit's empty state in its live region, Open a murder... the primary and the default with Close beside it, no warning toast; Open a murder... opens the murder window", async () => {
+        /*
+         * E47-C2, 09.11.2026. With no incident the tile's road warned "No murder is running." and opened nothing. Read on
+         * this GM with DialogV2's `wait` answering for the window (the first "open", then nothing), so nothing is written,
+         * and the world read as one with no incident and no Eclipse (`quietWorld`, so a table with a fight can run it):
+         * the tracker's config, then whether a second window came and is the murder window. Red on f7266b28: one warning,
+         * no window.
+         */
+        const MU = await import("./murder-ui.mjs");
+        needs(world.atLeast("livingStudents", 1), "a living student, for the murder window Open a murder... opens");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const warnWas = ui.notifications.warn;
+        const configs = [], warned = [];
+        let answer = "open";
+        D.wait = async cfg => { configs.push(cfg); const a = answer; answer = null; return a; };
+        ui.notifications.warn = (...args) => { warned.push(String(args[0])); };
+        try {
+            await quietWorld(() => MU.openIncidentTracker());
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            ui.notifications.warn = warnWas;
+        }
+        const [tracker, next] = configs;
+        const root = document.createElement("div");
+        root.innerHTML = tracker?.content?.outerHTML ?? String(tracker?.content ?? "");
+        const roleOf = b => /\bdrpg-role-([\w-]+)/.exec(String(b.class ?? ""))?.[1] ?? null;
+        equal(stableJson({
+            classes: ["drpg-window-incident", "drpg-kit-width-tracker"].map(c => Boolean(tracker?.classes?.includes(c))),
+            empty: root.querySelector(".drpg-incident-live .drpg-kit-empty")?.textContent.trim() ?? null,
+            buttons: (tracker?.buttons ?? []).map(b => [b.action, roleOf(b), Boolean(b.default), b.label]),
+            warned, next: next?.classes?.includes("drpg-window-murder") ?? null
+        }), stableJson({
+            classes: [true, true], empty: game.i18n.localize("DRPG.Murder.none"),
+            buttons: [["open", "primary", true, game.i18n.localize("DRPG.Murder.trackerOpenMurder")], ["close", "close", false, game.i18n.localize("DRPG.Kit.close")]],
+            warned: [], next: true
+        }), "{classes: [the tracker's, its width's], empty: the empty state's words, buttons: [action, role, default, label], warned: the toasts, next: Open a murder... opened the murder window}");
+    }],
+    ["R2058 - Murder and Edit campaign on formGrid, Edit campaign's Chapter a stepper (murder-ui.mjs `openMurderDialog`, gm-campaign.mjs `openClockDialog` and `readClockForm`; E47-C2, E47-06; the owner's Q-E47-1): each field in its order beside a `label.drpg-form-label` that points at it by `for`; the Chapter `input[type=number]` of a kit stepper from 1 to the season's chapters or the clock's past them, read as season-setup.mjs `readSeasonForm` reads its own", async () => {
+        /*
+         * E47-C2, 09.11.2026. Both windows were columns of `<label>Name <select></label>`, laid out by four rules of
+         * danganronpa.css (E32+E07 C14), and Edit campaign's Chapter was a `<select>` of the season's chapters (Q-E44-3:
+         * "a select until E47"). Read on this GM with DialogV2's `wait` answering nothing (no write), then Edit campaign's
+         * reader on its own form with five typed chapters, beside `readSeasonForm` on a form with the same `max`. Red on
+         * f7266b28: no form grid, the chapter a select, no `readClockForm`.
+         */
+        const M = await import("./murder.mjs");
+        const { CHAPTERS_PER_SEASON } = await import("./config.mjs");
+        const { getClock } = await import("./clock.mjs");
+        const GC = await import("./gm-campaign.mjs");
+        const { readSeasonForm } = await import("./season-setup.mjs");
+        needs(world.atLeast("livingStudents", 1), "a living student, for the murder window's lists");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const configs = [];
+        D.wait = async cfg => { configs.push(cfg); return null; };
+        try {
+            await GC.openClockDialog();
+            // Read as a world with no incident and no Eclipse (`quietWorld`): either would open something else.
+            await quietWorld(() => M.openMurderDialog());
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        const drawn = cls => {
+            const cfg = configs.find(c => c.classes?.includes(cls));
+            const root = document.createElement("div");
+            root.innerHTML = cfg?.content?.outerHTML ?? String(cfg?.content ?? "");
+            return root;
+        };
+        const fields = root => [...root.querySelectorAll(".drpg-form-grid > label.drpg-form-label")].map(l => {
+            const field = l.htmlFor ? [...root.querySelectorAll("[id]")].find(el => el.id === l.htmlFor) ?? null : null;
+            return [l.textContent.trim(), field?.name ?? null, field?.tagName.toLowerCase() ?? null];
+        });
+        const clock = drawn("drpg-window-clock"), murder = drawn("drpg-window-murder");
+        const L = key => game.i18n.localize(key);
+        const stated = Number(getClock().chapter);
+        const top = Math.max(CHAPTERS_PER_SEASON, Number.isFinite(stated) && stated >= 1 ? Math.round(stated) : 1);
+        const chapter = clock.querySelector('.drpg-kit-stepper > input[type="number"][name="chapter"]');
+        const typed = ["99", "0", "-2", "2.5", ""];
+        const seasonRead = v => {
+            const season = document.createElement("div");
+            season.innerHTML = `<form><input name="campaignName" value=""><input type="number" name="chapter" min="1" max="${top}" value="${v}"><input name="safeword" value=""></form>`;
+            return readSeasonForm({ element: season }).chapter;
+        };
+        const season = typed.map(seasonRead);
+        must(season[0] === top && season[1] === 1 && season[4] === 1, `readSeasonForm no longer holds the chapter to 1..${top}: ${stableJson(season)}`);
+        const reads = typeof GC.readClockForm !== "function" || !chapter ? null : typed.map((v, i) => {
+            chapter.value = v;
+            return [GC.readClockForm({ element: clock }).chapter, season[i]];
+        });
+        equal(stableJson({
+            clock: fields(clock), murder: fields(murder), select: Boolean(clock.querySelector('select[name="chapter"]')),
+            stepper: chapter ? [chapter.min, chapter.max] : null, reads, wrapped: [clock, murder].map(r => r.querySelectorAll("label > select, label > .drpg-kit-stepper").length)
+        }), stableJson({
+            clock: [[L("DRPG.Clock.campaignName"), "campaignName", "input"], [L("DRPG.Clock.chapter"), "chapter", "input"], [L("DRPG.Clock.phase"), "phase", "select"],
+                [L("DRPG.Clock.day"), "day", "input"], [L("DRPG.Clock.session"), "session", "input"], [L("DRPG.Clock.timeOfDay"), "timeOfDay", "select"]],
+            murder: [[L("DRPG.Murder.killer"), "killer", "select"], [L("DRPG.Murder.victim"), "victim", "select"], [L("DRPG.Murder.openingStatistic"), "openingTrait", "select"]],
+            select: false, stepper: ["1", String(top)], reads: season.map(n => [n, n]),
+            wrapped: [0, 0]
+        }), "{clock, murder: [label, the field it points at, its tag] in order; select: the chapter still a select; stepper: [min, max]; reads: [readClockForm, readSeasonForm] for 99, 0, -2, 2.5 and empty; wrapped: a label still wrapping its field}");
+    }],
+
+    /* ---- E47-C4: the Investigation dashboard's tables on the kit (E46 + E47, release 1.2.102) ----------------------- */
+
+    ["R2067 - the Investigation dashboard's three tables on the kit (investigation.mjs; E47-C4, E47-13): WHO HAS WHAT on the drawn dashboard, the Traces tab's table (`caseTraceTable`) and the Key Remnants planner (`caseKeyTable`) each a `dataTable` (`table.drpg-data-table`), their columns the hand tables' in their order (D31) by head and by `col[data-drpg-col]`; WHO HAS WHAT's Student, Bullets, Keys held and Not analysed as number cells (`num`), its Breakdown head carrying `DRPG.Investigation.breakdownTooltip` (S12-52); every field's `name` the hand tables' (`readDashboardForm` reads them)", async () => {
+        /*
+         * E47-C4, 09.11.2026; card M5 (Approve, no note), S17-42, the plan's E47-13. The hand tables' columns, read at
+         * f7266b28 (investigation.mjs `caseHtml` ~2158, `caseTracesPanel` ~1886, `caseKeyPanel` ~2032), are the list
+         * below in their order, by their keys' words; the fields' names are the ones `readDashboardForm` and Save read
+         * (`img.`, `name.`, `text.`, `analysis.`, `type.`, `vis.`, `faint.`, `crime.`, `reinf.` with a trace's row key;
+         * `keyname:`, `keytext:`, `keyanalysis:`, `note:`, `token:`, `place:` with a slot), read off a synthetic trace and
+         * a synthetic plan of one slot (every input of the builders is an argument: nothing is written to the world).
+         * WHO HAS WHAT is read off the dashboard a GM opens. Red at f7266b28: three hand tables (`drpg-vault-table`), no
+         * `caseTraceTable` or `caseKeyTable`.
+         */
+        needs(env.dialogs(), "WHO HAS WHAT is read off the drawn dashboard");
+        must(game.user.isGM, "the dashboard is a GM's window");
+        const I = await import("./investigation.mjs");
+        const L = key => game.i18n.localize(key);
+        const host = markup => { const div = document.createElement("div"); div.innerHTML = markup; return div; };
+        const shape = root => {
+            const table = root?.querySelector("table") ?? null;
+            if (!table) return "no table";
+            return { kit: table.classList.contains("drpg-data-table"),
+                cols: [...table.querySelectorAll("col")].map(c => c.dataset.drpgCol ?? null),
+                heads: [...table.querySelectorAll("thead th")].map(th => th.textContent.trim()) };
+        };
+        const KEY = "SCN0000000002067__TOK0000000002067";
+        const trace = [{ token: { id: "TOK0000000002067" }, scene: { id: "SCN0000000002067" }, data: { type: "neutral", public: {} } }];
+        const plan = { chapter: 1, entries: [{ scale: "standard", name: "", text: "", note: "", tokenId: null, sceneId: null }] };
+        const status = { entries: [{ placed: false, found: false, finders: [] }], foundAny: 0, offPlan: [] };
+        const traces = typeof I.caseTraceTable === "function" ? host(I.caseTraceTable(trace, new Map())) : null;
+        const keys = typeof I.caseKeyTable === "function" ? host(I.caseKeyTable({ plan, status, placed: [], limit: null })) : null;
+        const names = root => [...(root?.querySelectorAll("[name]") ?? [])].map(el => el.getAttribute("name").replace(KEY, "K"));
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
+        must(open().length === 0, "a dashboard stands open already - nothing here would be read cleanly");
+        const answer = Promise.resolve().then(() => I.openInvestigationDashboard()).catch(e => `threw: ${e?.message ?? e}`);
+        let who = null;
+        try {
+            await until(() => open().some(a => a.element), 6000);
+            const table = open()[0]?.element?.querySelector(".drpg-case-live table") ?? null;
+            must(table, "the dashboard drew no WHO HAS WHAT");
+            const box = table.closest(".drpg-data-table-box") ?? table.parentElement;
+            const ths = [...table.querySelectorAll("thead th")];
+            who = { ...shape(box), num: ths.map(th => th.classList.contains("num")),
+                tooltip: ths.find(th => th.textContent.trim() === L("DRPG.Investigation.breakdown"))?.dataset.tooltip ?? null };
+        } finally {
+            for (const a of open()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(3000)]);
+        }
+        equal(stableJson({ who, traces: shape(traces), traceNames: names(traces), keys: shape(keys), keyNames: names(keys) }), stableJson({
+            who: { kit: true, cols: ["student", "bullets", "keys", "unidentified", "breakdown"],
+                heads: ["DRPG.Investigation.student", "DRPG.Investigation.bullets", "DRPG.Investigation.keysHeld", "DRPG.Investigation.unidentified", "DRPG.Investigation.breakdown"].map(L),
+                num: [false, true, true, true, false], tooltip: L("DRPG.Investigation.breakdownTooltip") },
+            traces: { kit: true, cols: ["name", "text", "analysis", "type", "vis", "faint", "crime", "reinf", "found", "delete"],
+                heads: ["DRPG.Investigation.traceName", "DRPG.Investigation.traceText", "DRPG.Investigation.traceAnalysis", "DRPG.Investigation.traceType", "DRPG.Investigation.visibility",
+                    "DRPG.Remnant.faintColumn", "DRPG.Remnant.crimeColumn", "DRPG.Remnant.reinforcedColumn", "DRPG.Investigation.foundBy", "DRPG.Investigation.deleteTrace"].map(L) },
+            traceNames: ["img.K", "name.K", "text.K", "analysis.K", "type.K", "vis.K", "faint.K", "crime.K", "reinf.K"],
+            keys: { kit: true, cols: ["scale", "name", "text", "analysis", "note", "status"],
+                heads: ["DRPG.Investigation.difficulty", "DRPG.Investigation.traceName", "DRPG.Investigation.traceText", "DRPG.Investigation.traceAnalysis", "DRPG.Investigation.keyNoteLabel", "DRPG.Investigation.keyStatus"].map(L) },
+            keyNames: ["keyname:0", "keytext:0", "keyanalysis:0", "note:0", "token:0", "place:0"]
+        }), "{who: WHO HAS WHAT on the drawn dashboard [a dataTable, its columns' keys, its heads' words, each head a number head, the Breakdown head's tooltip]; traces, keys: "
+            + "the Traces tab's and the planner's tables [a dataTable, columns, heads]; traceNames, keyNames: their fields' names (a trace's row key as K)}");
+    }],
+
+    ["R2068 - no table of the Investigation dashboard wider than its window (E47-C4, E47-13; S17-42): each of the three tables' columns carries a `cls` (`drpg-data-col-case-*`); in a stand-in of the window on a body of each theme the tables are the window's width (`width: 100%`) under a `min-width` the screen bounds (`vw`), in a fixed layout, every column's width stated as its share (a percentage; a table's shares adding up to 100), their fields at their column's width (`width: 100%`), all from components.css; the long cells - WHO HAS WHAT's Breakdown and the Traces tab's Found by - clamped to two lines with their whole text in `title`; the long heads cut at two lines with their name in `title`", async () => {
+        /*
+         * E47-C4, 09.11.2026. Under Legacy the Traces tab's table was 1583 px in the 1284 px window at 1366x768, a
+         * sideways scroll (STAGE E47, S17-42: the E46/E47 measure of 3c952c67, probe/summary47.txt): its fields kept
+         * their own widths and no column stated one. jsdom lays nothing out, so this reads the markup and the cascade
+         * (`styleCascade`, the rules a layout would apply, which declaration wins and from which file); the widths a
+         * browser draws are read in Chromium by the commit's measure (each table's width against the window's body at
+         * 1366x768 and 1920x1080, both themes, English and Polish), quoted there and in STATUS, not here. Red at
+         * f7266b28: no `cls` on a hand table's columns, no rule of components.css for any of them. A first draft gave the
+         * narrow columns a width in rem and left the layout automatic: the two description columns came to 40 px each
+         * under Legacy at 1366x768 (Chromium, the commit's screenshot), so the columns are shares of a fixed layout.
+         */
+        const I = await import("./investigation.mjs");
+        const C = await styleCascade();
+        const has = name => typeof I[name] === "function";
+        const trace = [{ token: { id: "TOK0000000002068" }, scene: { id: "SCN0000000002068" }, data: { type: "neutral", public: {} } }];
+        const finders = new Map([["TOK0000000002068", new Set(["SUITE R2068 a student with a long name", "SUITE R2068 another"])]]);
+        const plan = { chapter: 1, entries: [{ scale: "standard", name: "", text: "", note: "", tokenId: null, sceneId: null }] };
+        const status = { entries: [{ placed: false, found: false, finders: [] }], foundAny: 0, offPlan: [] };
+        const students = [{ actor: { name: "SUITE R2068 student" }, total: 3, keys: 1, unidentified: 2, types: { neutral: 2, key: 1 } }];
+        const tables = {
+            who: has("caseStudentTable") ? I.caseStudentTable(students) : `<table class="drpg-vault-table"><tbody>${I.caseStudentRows(students)}</tbody></table>`,
+            traces: has("caseTraceTable") ? I.caseTraceTable(trace, finders) : `<table class="drpg-vault-table"><tbody>${I.caseTraceRows(trace, finders)}</tbody></table>`,
+            keys: has("caseKeyTable") ? I.caseKeyTable({ plan, status, placed: [], limit: null }) : `<table class="drpg-vault-table"><tbody>${I.caseKeyRows({ plan, status, placed: [], limit: null })}</tbody></table>`
+        };
+        const CLAMPED = { who: "breakdown", traces: "found" };
+        const read = {};
+        for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-gm`;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-panel drpg-projects drpg-window-case drpg-ui drpg-kit-fit"><section class="window-content">`
+                + `<form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-kit-body"><div class="drpg-case-live"><form>`
+                + `<div data-drpg-part="who">${tables.who}</div>`
+                + `<section class="drpg-tab-pane" data-drpg-pane="traces">${tables.traces}</section>`
+                + `<section class="drpg-tab-pane" data-drpg-pane="key">${tables.keys}</section></form></div></div></div></form></section></div>`;
+            const parts = { who: body.querySelector('[data-drpg-part="who"]'), traces: body.querySelector('[data-drpg-pane="traces"]'), keys: body.querySelector('[data-drpg-pane="key"]') };
+            const from = (el, prop) => { const w = el ? C.winner(el, prop) : null; return w ? `${w.value.trim()} (${String(w.file).split("/").pop()})` : null; };
+            read[theme] = Object.fromEntries(Object.entries(parts).map(([part, root]) => {
+                const table = root.querySelector("table");
+                const cols = [...table.querySelectorAll("col")];
+                const keyOf = col => col.dataset.drpgCol;
+                const cell = key => {
+                    const i = cols.findIndex(c => keyOf(c) === key);
+                    return i < 0 ? null : table.querySelector(`tbody tr`)?.children[i] ?? null;
+                };
+                const fields = [...table.querySelectorAll("tbody :is(input[type=\"text\"], textarea, select)")];
+                const shares = cols.map(col => /^(\d+(?:\.\d+)?)% \(components\.css\)$/.exec(from(col, "width") ?? "")?.[1] ?? null);
+                const clamp = CLAMPED[part] ? cell(CLAMPED[part]) : null;
+                const longHeads = [...table.querySelectorAll("thead th")].filter(th => th.textContent.trim().length > 12);
+                return [part, {
+                    cls: cols.length > 0 && cols.every(c => /^drpg-data-col-case-[a-z-]+$/.test(c.className)),
+                    width: from(table, "width"), layout: from(table, "table-layout"), minWidth: /^min\(.*vw.*\) \(components\.css\)$/.test(from(table, "min-width") ?? "") ? "min(.., vw)" : from(table, "min-width"),
+                    fields: fields.length ? fields.every(el => from(el, "width") === "100% (components.css)") : "none",
+                    shares: shares.every(Boolean) ? shares.reduce((a, n) => a + Number(n), 0) : shares.map(n => n ?? "none").join(","),
+                    ...(clamp ? { clamped: [clamp.classList.contains("drpg-data-cell-lines-2"), (clamp.getAttribute("title") ?? "").length > 0 && Boolean(clamp.querySelector("span.drpg-data-clamp"))] } : {}),
+                    heads: longHeads.every(th => th.classList.contains("drpg-data-lines-2") && th.getAttribute("title") === th.textContent.trim())
+                }];
+            }));
+        }
+        const each = {
+            who: { cls: true, width: "100% (components.css)", layout: "fixed (components.css)", minWidth: "min(.., vw)", fields: "none", shares: 100, clamped: [true, true], heads: true },
+            traces: { cls: true, width: "100% (components.css)", layout: "fixed (components.css)", minWidth: "min(.., vw)", fields: true, shares: 100, clamped: [true, true], heads: true },
+            keys: { cls: true, width: "100% (components.css)", layout: "fixed (components.css)", minWidth: "min(.., vw)", fields: true, shares: 100, heads: true }
+        };
+        equal(stableJson(read), stableJson({ "drpg-theme-monokuma-legacy": each, "drpg-theme-stained-glass": each }),
+            "{per theme, per table: every column a drpg-data-col-case-* class; the table's width, layout and min-width (and file); its fields at 100% from components.css; "
+            + "the columns' shares from components.css, added up (or each one's, none where a column states none); the long cell clamped [class, title and clamp span]; every long head cut with its title}");
+    }],
+
+    ["R2076 - the project windows on the kit as approved (E47-C6; E47-17; cards M16-M19 of E47-M, the owner's answers of 09.11.2026): the manager a `dataTable` with the head on two rows (O1a), Edit and Delete before the players (O2b), a group row per room (O3b), each player's head cut at two lines with the whole name in its title, Delete a button that asks the delete question (Cancel deletes nothing) and no box read at Save, the notes the kit's fine print in one block; Create a project, Edit project and Propose a project on `formGrid` (each caption its field's `for`), the proposal's request field a line across the form, the warnings the kit's warning box, the description's refusal one in the field's cell; the fields' names as before; the client setting `wideProjectWindows` opens the three at today's width (off) and at the kit's `wide` (on)", async () => {
+        /*
+         * E47-C6. Drawn with DialogV2.wait stood in for (nothing is created or written; the delete question is answered
+         * Cancel), from projects and players made up here, so the world's own do not enter. The setting (this browser's, scope
+         * client) is answered both ways by a stand-in for `game.settings.get`, nothing written. Red on f4a5083a: no `projectManagerBody`, no `wireManagerDeletes`,
+         * no setting; the forms a run of labels, the warnings `p.drpg-warning`.
+         */
+        const UI = await import("./projects-ui.mjs");
+        const AP = await import("./action-project.mjs");
+        must(typeof UI.projectManagerBody === "function" && typeof UI.wireManagerDeletes === "function",
+            "projects-ui.mjs has no projectManagerBody or wireManagerDeletes - the manager's table is drawn only from the world");
+        const actor = studentActors()[0] ?? null;
+        must(actor, "no student to draw the proposal for");
+        const D = foundry.applications.api.DialogV2, ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        // The setting is read through a stand-in for `game.settings.get` (a tier-1 test writes no setting, a client one either).
+        const settings = game.settings, ownGet = settings.get;
+        let wideNow = false;
+        const got = {};
+        const asked = [];
+        const form = cfg => { const el = document.createElement("div"); el.innerHTML = typeof cfg?.content === "string" ? cfg.content : cfg?.content?.outerHTML ?? ""; return el; };
+        const grid = root => {
+            const labels = [...root.querySelectorAll(".drpg-form-grid > label.drpg-form-label")];
+            return { grid: labels.length > 0, labelled: labels.every(l => root.querySelector(`#${CSS.escape(l.htmlFor)}`)?.closest(".drpg-form-field") === l.nextElementSibling),
+                fields: [...root.querySelectorAll("[name]")].map(f => f.name).filter((n, i, a) => n !== a[i - 1]),
+                oldWarnings: root.querySelectorAll(".drpg-warning").length };
+        };
+        try {
+            const projects = ["R2076PROJECTA", "R2076PROJECTB"].map((id, n) => ({ id, name: `R2076 project ${n}`, current: n, start: 4, img: "" }));
+            const root = document.createElement("div");
+            root.innerHTML = UI.projectManagerBody(projects, ["R2076 Room"], { players: [{ id: "R2076U1", name: "R2076 player with a long name" }, { id: "R2076U2", name: "R2076 two" }] });
+            const table = root.querySelector(".drpg-data-table-box > table.drpg-data-table.drpg-data-heads-2");
+            got.manager = {
+                table: Boolean(table),
+                group: [...root.querySelectorAll("thead > tr.drpg-data-head-group > th")].map(th => [th.textContent, th.colSpan]),
+                heads: [...root.querySelectorAll("thead > tr:last-child > th")].map(th => th.getAttribute("title") ?? th.textContent.trim()),
+                cut: [...root.querySelectorAll("thead th.drpg-data-col-viewer")].map(th => th.matches(".drpg-data-lines-2[title][aria-label]")),
+                rooms: [...root.querySelectorAll("tbody > tr.drpg-data-group > th")].map(th => [th.firstChild?.textContent.trim(), th.querySelector("span")?.textContent]),
+                rows: [...root.querySelectorAll("tbody > tr[data-project]")].map(tr => tr.dataset.project),
+                fields: [...root.querySelectorAll('tr[data-project="R2076PROJECTA"] [name]')].map(f => f.name).filter((n, i, a) => n !== a[i - 1]),
+                deleteButtons: [...root.querySelectorAll("button.drpg-kit-icon-button.drpg-role-destructive[data-drpg-delete]")].map(b => b.getAttribute("aria-label")),
+                deleteBoxes: root.querySelectorAll('input[name^="delete."]').length,
+                notes: [...root.querySelectorAll(".drpg-project-notes > p.drpg-help")].length
+            };
+            D.wait = async cfg => { asked.push(cfg); return null; };
+            UI.wireManagerDeletes(root, projects);
+            root.querySelector('[data-drpg-delete="R2076PROJECTA"]').click();
+            for (let n = 0; n < 40 && !asked.length; n++) await wait(25);
+            const ask = asked[0] ?? null;
+            const yes = (ask?.buttons ?? []).find(b => b.action === "delete") ?? null;
+            got.ask = { asked: Boolean(ask), yes: yes ? [yes.class.includes("drpg-role-destructive"), Boolean(yes.default)] : null,
+                named: form(ask).textContent.includes("R2076 project 0"), left: root.querySelectorAll("tr[data-project]").length };
+
+            const widths = {};
+            for (const wide of [false, true]) {
+                wideNow = wide;
+                settings.get = function (scope, key, ...rest) { return scope === MODULE_ID && key === SETTINGS.wideProjectWindows ? wideNow : ownGet.call(this, scope, key, ...rest); };
+                asked.length = 0;
+                await UI.openProjectDialog({ rooms: ["R2076 Room"] });
+                const create = asked[0];
+                await UI.openProjectDialog({ project: { id: "R2076EDITED", name: "R2076 edited", current: 1, start: 4, img: "" }, rooms: ["R2076 Room"] });
+                const edit = asked[1];
+                await AP.startProject(actor);
+                const propose = asked[2];
+                widths[wide ? "on" : "off"] = [create, edit, propose].map(c => [c?.classes?.includes("drpg-kit-width-wide") ?? null, Boolean(c?.position?.width)]);
+                if (!wide) {
+                    const [c, e, p] = [create, edit, propose].map(form);
+                    got.create = grid(c);
+                    got.edit = { ...grid(e), when: [...e.querySelectorAll("[data-drpg-when-trigger]")].map(el => el.className) };
+                    got.propose = { ...grid(p), first: p.querySelector(".drpg-form-grid > .drpg-form-full > .drpg-box[data-drpg-box=\"warning\"]") === p.querySelector(".drpg-form-grid").firstElementChild?.firstElementChild,
+                        request: Boolean(p.querySelector(".drpg-form-grid > .drpg-form-full > label.drpg-specific-note > textarea[name=\"request\"]")) };
+                    // The description's refusal: the kit's warning box in the field's cell, an alert pointed at by the field.
+                    e.insertAdjacentHTML("beforeend", '<button type="button" data-action="save">save</button>');
+                    UI.guardDescription(e, "save");
+                    e.querySelector('textarea[name="description"]').value = "";
+                    e.querySelector('button[data-action="save"]').click();
+                    const said = e.querySelector(".drpg-field-error");
+                    got.refusal = said ? [said.matches('.drpg-box[data-drpg-box="warning"][role="alert"]'), said.parentElement?.matches(".drpg-form-field") ?? false,
+                        e.querySelector('textarea[name="description"]').getAttribute("aria-describedby") === said.id] : null;
+                }
+            }
+            got.widths = widths;
+        } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            settings.get = ownGet;
+        }
+        const createFields = ["img", "name", "description", "glyph", "target", "room", "trait", "murder", "trigger", "triggerTarget", "afterDark", "notBuilder", "condition", "secret"];
+        const t = key => game.i18n.localize(key);
+        const viewers = game.users.some(u => !u.isGM) ? ["viewers"] : [];
+        equal(stableJson(got), stableJson({
+            manager: { table: true, group: [["", 7], [t("DRPG.Project.visibleTo"), 2]],
+                heads: ["", t("DRPG.Project.title"), t("DRPG.Project.room"), t("DRPG.Project.indirect"), t("DRPG.Project.secret"), t("DRPG.Project.edit"), t("DRPG.Project.delete"), "R2076 player with a long name", "R2076 two"],
+                cut: [true, true], rooms: [[t("DRPG.Project.anyRoom"), "2"]], rows: ["R2076PROJECTA", "R2076PROJECTB"],
+                fields: ["img.R2076PROJECTA", "room.R2076PROJECTA", "murder.R2076PROJECTA", "secret.R2076PROJECTA", "viewers.R2076PROJECTA"],
+                deleteButtons: [`${t("DRPG.Project.delete")}: R2076 project 0`, `${t("DRPG.Project.delete")}: R2076 project 1`], deleteBoxes: 0, notes: 2 },
+            ask: { asked: true, yes: [true, false], named: true, left: 2 },
+            create: { grid: true, labelled: true, fields: [...createFields, ...viewers], oldWarnings: 0 },
+            edit: { grid: true, labelled: true, fields: [...createFields, ...viewers], oldWarnings: 0, when: ["drpg-form-label", "drpg-form-field"] },
+            propose: { grid: true, labelled: true, fields: ["name", "description", "target", "room", "trait", "murder", "condition", "request"], oldWarnings: 0, first: true, request: true },
+            refusal: [true, true, true],
+            widths: { off: [[false, false], [false, false], [false, false]], on: [[true, true], [true, true], [true, true]] }
+        }), "{the manager: its table, head groups, heads in order, cut players' heads, room groups, rows, a row's fields, Delete buttons, Delete boxes, notes; the delete question: asked, its yes destructive and not the default, the project named, rows left; each form: a grid, every caption its field's, the fields' names, old warnings; the edit's rows shown with the trigger; the proposal's warning first and its request across the form; the description's refusal: a warning box, in the field's cell, pointed at; each window's width class and opening width with the setting off and on}");
+    }],
+
+    /* ---- E47-C8 (09.11.2026; the owner's 09.11 ask): the Students window - a role, a Level Up and Items on every row, on the kit ---- */
+
+    ["R2080 - the Students window's table a dataTable (scripts/gm-students.mjs; E47-C8): Character (the name and the row's Items), Role, State, the Monocub columns while a Monocub exists, Level Up, Do; every character a row - the students first, then the Monokumas, then the characters not in the class, under group rows when more than one group has a row; a non-student's row its name, Items, Role and the Level Up its sheet gives, no State and nothing to do; the footer Apply and Cancel, no Items", async () => {
+        /*
+         * E47-C8, 09.11.2026 (the owner's 09.11 ask, Q-E47-3: "the roster lists every character ... each with its Role,
+         * Items and Level Up, so a mark made here can be undone here"). The window is drawn on this GM (the harness's
+         * DialogV2 draws it; at a table Foundry's) and read: the heads in order, the group rows, each character's row
+         * as [Items beside the name, the Role select's value, a State select, the Level Up's words or null, the Do
+         * cell's buttons] - the last for a non-student only, whose Do is empty; a student's Do is the state's own (the
+         * tier-2 tests click it). The Level Up is read against sheet.mjs `sheetMode` itself and its words against
+         * level-up.mjs `standingOffers`, so a later gate change follows. Red first on f7266b28: a hand table, no Role
+         * or Level Up, the footer's one Items.
+         */
+        needs(env.dialogs(), "the Students window is read drawn");
+        const { isMonokuma, isNotInClass } = await import("./monokuma.mjs");
+        const { isMonocub } = await import("./monocub.mjs");
+        const { sheetMode } = await import("./sheet.mjs");
+        const L = await import("./level-up.mjs");
+        const { plural } = await import("./utils.mjs");
+        const students = studentActors();
+        must(students.length > 0, "no student in this world - this would measure nothing");
+        const ids = new Set(students.map(a => a.id));
+        const others = game.actors.filter(a => a.type === "character" && !ids.has(a.id));
+        const kumas = others.filter(a => isMonokuma(a)), npcs = others.filter(a => !isMonokuma(a) && isNotInClass(a));
+        const T = key => game.i18n.localize(key);
+        const levelWords = a => {
+            if (!sheetMode(a, game.user).levelUp) return null;
+            const n = L.standingOffers(a).length;
+            return n ? plural("DRPG.Advance.standing", { n }) : T("DRPG.Advance.buttonTooltip");
+        };
+        const cubs = students.some(a => isMonocub(a));
+        const w = await studentsWindow();
+        let got = null;
+        try {
+            const table = w.app?.element?.querySelector(".drpg-alive-live table") ?? null;
+            must(table, "the Students window drew no table");
+            const row = id => {
+                const tr = table.querySelector(`tbody tr[data-actor="${CSS.escape(id)}"]`);
+                if (!tr) return null;
+                const cells = [...tr.children];
+                return [Boolean(cells[0]?.querySelector(`[data-drpg-items="${CSS.escape(id)}"]`)),
+                    tr.querySelector("select[data-drpg-role-select]")?.value ?? null,
+                    Boolean(tr.querySelector(`select[name="state.${CSS.escape(id)}"]`)),
+                    tr.querySelector(`[data-drpg-levelup="${CSS.escape(id)}"]`)?.textContent.trim() ?? null,
+                    cells.length];
+            };
+            got = {
+                kit: table.classList.contains("drpg-data-table"),
+                heads: [...table.querySelectorAll("thead th")].map(th => th.textContent.trim()),
+                groups: [...table.querySelectorAll("tbody tr.drpg-data-group > th")].map(th => th.textContent.trim()),
+                students: students.map(a => row(a.id)),
+                others: others.map(a => { const r = row(a.id); const tr = table.querySelector(`tbody tr[data-actor="${CSS.escape(a.id)}"]`); return r && [...r, tr.lastElementChild?.querySelectorAll("button").length ?? null]; }),
+                order: [...table.querySelectorAll("tbody tr[data-actor]")].map(tr => tr.dataset.actor),
+                footer: [...(w.app.element.querySelectorAll("footer [data-action]") ?? [])].map(b => b.dataset.action)
+            };
+        } finally {
+            await w.close();
+        }
+        const heads = [T("DRPG.Panel.character"), T("DRPG.Panel.roleColumn"), T("DRPG.Panel.stateColumn"),
+            ...(cubs ? [T("DRPG.Monocub.hope"), T("DRPG.Monocub.giveHopeColumn"), T("DRPG.Monocub.silenced")] : []),
+            T("DRPG.Panel.levelUpColumn"), T("DRPG.Panel.doColumn")];
+        const shown = [["students", students], ["monokumas", kumas], ["notInClass", npcs]].filter(([, list]) => list.length);
+        equal(stableJson(got), stableJson({
+            kit: true,
+            heads,
+            groups: shown.length > 1 ? shown.map(([key, list]) => `${T(`DRPG.Panel.group.${key}`)} ${list.length}`) : [],
+            students: students.map(a => [true, "student", true, levelWords(a), heads.length]),
+            others: others.map(a => [true, isMonokuma(a) ? "monokuma" : "npc", false, levelWords(a), heads.length, 0]),
+            order: [...students, ...kumas, ...npcs].map(a => a.id),
+            footer: ["save", "cancel"]
+        }), "{kit: the table a dataTable; heads; groups: each group row's words and count; students and others: [Items beside the name, the Role's value, a State select, "
+            + "the Level Up's words, the cells] (and for a non-student the Do cell's buttons); order: the rows' actors; footer: its actions}");
+    }],
+
+    ["R2081 - the Students window's Role (scripts/gm-students.mjs `changeRole`; E47-C8): each change calls its road with that row's actor - to Monokuma monokuma.mjs `markFromSheet`, back `setMonokuma(actor, false)`, to Not in the class `setNotInClass(actor, true)`, back `setNotInClass(actor, false)`, Monokuma to Not in the class the two in order, Not in the class to Monokuma the mark first; a Cancel of the ask writes nothing more and the drawn select goes back", async () => {
+        /*
+         * E47-C8, 09.11.2026 (the owner's 09.11 ask: the role "through the existing roads ... keeping their
+         * confirmations"). Stand-ins for the three roads record their arguments and answer as the roads do (the
+         * actor, or null where `markFromSheet`'s ask was cancelled); the characters are stand-ins with their flags, so
+         * nothing is written. Then the drawn window: a student's select moved to Not in the class and then to Monokuma
+         * with the ask cancelled - each its road with that row's actor, and the select back on the role the actor holds.
+         * NOT IN THE CLASS TO MONOKUMA MARKS FIRST: STAGE.md's order (unmark out, then mark) wrote the unmark before
+         * the ask, so a Cancel left an NPC a student; the mark asks first, and the unmark follows a yes. Red first on
+         * f7266b28: no `changeRole`, no select.
+         */
+        needs(env.dialogs(), "the select is changed on a drawn window");
+        const GS = await import("./gm-students.mjs");
+        equal(typeof GS.changeRole, "function", "[gm-students.mjs exports changeRole]");
+        const calls = [];
+        let yes = true;
+        const record = (name, answer = a => a) => async (actor, ...args) => { calls.push([name, actor.id, ...args]); return answer(actor); };
+        const roads = { markFromSheet: record("markFromSheet", a => (yes ? a : null)), setMonokuma: record("setMonokuma"), setNotInClass: record("setNotInClass") };
+        const standIn = (id, flags = {}) => ({ id, name: id, type: "character", getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const student = standIn("R2081-student"), kuma = standIn("R2081-kuma", { [FLAGS.monokuma]: true }), npc = standIn("R2081-npc", { [FLAGS.notInClass]: true });
+        const step = async (actor, to, ask = true) => { calls.length = 0; yes = ask; const moved = await GS.changeRole(actor, to, roads); return [moved, calls.map(c => c.join(" "))]; };
+        const got = {
+            toMonokuma: await step(student, "monokuma"), backFromMonokuma: await step(kuma, "student"),
+            out: await step(student, "npc"), backIn: await step(npc, "student"),
+            monokumaOut: await step(kuma, "npc"), npcToMonokuma: await step(npc, "monokuma"),
+            cancelled: await step(student, "monokuma", false), npcCancelled: await step(npc, "monokuma", false),
+            same: await step(kuma, "monokuma"), unknown: await step(student, "teacher")
+        };
+        const [first] = studentActors();
+        must(first, "no student in this world - the drawn select would measure nothing");
+        calls.length = 0;
+        const w = await studentsWindow(roads);
+        try {
+            const select = () => w.app?.element?.querySelector(`select[data-drpg-role-select="${CSS.escape(first.id)}"]`) ?? null;
+            must(select(), "the student's row drew no Role select");
+            const change = async (value, ask) => {
+                yes = ask;
+                const before = calls.length;
+                select().value = value;
+                select().dispatchEvent(new Event("change", { bubbles: true }));
+                await until(() => calls.length > before && !select()?.disabled, 3000);
+                return select()?.value ?? null;
+            };
+            got.drawn = [await change("npc", true), await change("monokuma", false), calls.map(c => c.join(" "))];
+        } finally {
+            await w.close();
+        }
+        equal(stableJson(got), stableJson({
+            toMonokuma: [true, ["markFromSheet R2081-student"]],
+            backFromMonokuma: [true, ["setMonokuma R2081-kuma false"]],
+            out: [true, ["setNotInClass R2081-student true"]],
+            backIn: [true, ["setNotInClass R2081-npc false"]],
+            monokumaOut: [true, ["setMonokuma R2081-kuma false", "setNotInClass R2081-kuma true"]],
+            npcToMonokuma: [true, ["markFromSheet R2081-npc", "setNotInClass R2081-npc false"]],
+            cancelled: [false, ["markFromSheet R2081-student"]],
+            npcCancelled: [false, ["markFromSheet R2081-npc"]],
+            same: [false, []],
+            unknown: [false, []],
+            drawn: ["npc", "student", [`setNotInClass ${first.id} true`, `markFromSheet ${first.id}`]]
+        }), "{each change: [changeRole's answer, the roads called with their arguments]; drawn: [the select after Not in the class (the stand-in wrote nothing, so it stands), "
+            + "after a cancelled Monokuma (back on the role the actor holds), the roads called]}");
+    }],
+
+    ["R2082 - the Students window's Level Up (scripts/gm-students.mjs; E47-C8): a button exactly on the rows sheet.mjs `sheetMode(actor, game.user).levelUp` holds, its words the standing offers' count (`DRPG.Advance.standing`) or Level Up; its click is level-up.mjs `openAdvancementFor` with that row's actor, and the window comes back after", async () => {
+        /*
+         * E47-C8, 09.11.2026 (the owner's 09.11 ask: "a Level Up control per row, reusing the road a GM uses today, no
+         * new road" - the sheet's GM button, sheet.mjs `injectAdvanceButton`, opens `openAdvancementFor`). Read against
+         * `sheetMode` itself on every row the window draws; a world with no character out of the class has no row
+         * whose button the gate takes away (E47-T6 marks one and reads it). The road a stand-in that answers at once,
+         * so the round trip (`wireAliveRow`: close, run, open again) ends in a second window. Red first on f7266b28: no
+         * button.
+         */
+        needs(env.dialogs(), "the Level Up is clicked on a drawn window");
+        const { sheetMode } = await import("./sheet.mjs");
+        const L = await import("./level-up.mjs");
+        const { plural } = await import("./utils.mjs");
+        const calls = [];
+        const roads = { openAdvancementFor: async actor => { calls.push(actor.id); return null; } };
+        const characters = game.actors.filter(a => a.type === "character");
+        const [first] = studentActors().filter(a => sheetMode(a, game.user).levelUp);
+        must(first, "no student whose sheet gives a Level Up - this would measure nothing");
+        const words = a => {
+            if (!sheetMode(a, game.user).levelUp) return null;
+            const n = L.standingOffers(a).length;
+            return n ? plural("DRPG.Advance.standing", { n }) : game.i18n.localize("DRPG.Advance.buttonTooltip");
+        };
+        const w = await studentsWindow(roads);
+        let got = null;
+        try {
+            const el = () => w.of()[0]?.element ?? null;
+            const drawn = characters.map(a => el()?.querySelector(`[data-drpg-levelup="${CSS.escape(a.id)}"]`)?.textContent.trim() ?? null);
+            const firstWindow = w.of()[0];
+            el()?.querySelector(`[data-drpg-levelup="${CSS.escape(first.id)}"]`)?.click();
+            await until(() => calls.length && w.of().some(a => a !== firstWindow && a.element?.querySelector(".drpg-alive-live")), 6000);
+            got = { drawn, calls: [...calls], back: w.of().some(a => a !== firstWindow), firstClosed: !firstWindow.rendered };
+        } finally {
+            await w.close();
+        }
+        equal(stableJson(got), stableJson({ drawn: characters.map(words), calls: [first.id], back: true, firstClosed: true }),
+            "{drawn: each character's Level Up words, or null where it has none; calls: the actors openAdvancementFor was called with; back: the window drawn again after; firstClosed: the first window closed for the trip}");
+    }],
+
+    ["R2083 - the Students window's Items (scripts/gm-students.mjs; E47-C8): a button beside every row's name, its click gm-items.mjs `openItemManager` with that row's actor - the window closes, the hub runs to its own Close and the table comes back; the footer has no Items", async () => {
+        /*
+         * E47-C8, 09.11.2026. The owner's 09.11 ask reverses the note "ITEMS FROM THE FOOTER, NOT FROM EVERY ROW (Dawid,
+         * 03.09)": "no single Items button that then asks which student - each row its own Items button beside the
+         * name, opening gm-items.mjs `openItemManager(actor)` for that student, with the round trip the current button
+         * makes (the table comes back after)". The hub a stand-in that resolves when it is let go, so the window stays
+         * closed while it runs. Red first on f7266b28: the footer's one Items, which opened the hub with nobody.
+         */
+        needs(env.dialogs(), "the Items button is clicked on a drawn window");
+        const calls = [];
+        let release = null;
+        const roads = { openItemManager: actor => { calls.push(actor.id); return new Promise(resolve => { release = resolve; }); } };
+        const rows = game.actors.filter(a => a.type === "character");
+        const [first] = studentActors();
+        must(first, "no student in this world - this would measure nothing");
+        const w = await studentsWindow(roads);
+        let got = null;
+        try {
+            const el = () => w.of()[0]?.element ?? null;
+            const beside = rows.map(a => Boolean(el()?.querySelector(`tr[data-actor="${CSS.escape(a.id)}"] > td:first-child [data-drpg-items="${CSS.escape(a.id)}"]`)));
+            const footer = [...(el()?.querySelectorAll("footer [data-action]") ?? [])].map(b => b.dataset.action);
+            const firstWindow = w.of()[0];
+            el()?.querySelector(`[data-drpg-items="${CSS.escape(first.id)}"]`)?.click();
+            await until(() => calls.length && !firstWindow.rendered, 3000);
+            const whileHub = w.of().length;
+            release?.(null);
+            await until(() => w.of().some(a => a !== firstWindow && a.element?.querySelector(".drpg-alive-live")), 6000);
+            got = { beside, footer, calls: [...calls], whileHub, back: w.of().some(a => a !== firstWindow) };
+        } finally {
+            release?.(null);
+            await w.close();
+        }
+        equal(stableJson(got), stableJson({ beside: rows.map(() => true), footer: ["save", "cancel"], calls: [first.id], whileHub: 0, back: true }),
+            "{beside: an Items button in each row's first cell; footer: its actions; calls: the actors openItemManager was called with; whileHub: Students windows drawn while the hub ran; back: the window drawn again after}");
+    }],
+
+    ["R2084 - the Students window is a GM's (scripts/gm-students.mjs; E47-C8): on a player's browser `openWhoIsAliveDialog` opens nothing, and the Role's roads called from it write nothing (monokuma.mjs `setMonokuma` and `setNotInClass` refuse on `game.user.isGM`, `markFromSheet` through them); Refund last crossing on the kit's secondary role", async () => {
+        /*
+         * E47-C8, 09.11.2026. Not MARKED (STAGE.md "Trust and MARKED"): the window adds no road, and each road it calls
+         * refuses a player itself. Read with this GM's `isGM` taken away for the call: no Students window drawn, and
+         * `changeRole` over the module's own roads on stand-in characters that record a write - every change answers
+         * false and nothing is written. Mutant m11 (the roads' `game.user.isGM` gate removed) turns the writes red.
+         * Refund (E17) on the kit: its button carries the secondary role's class and `data-drpg-role`, read in its
+         * source (a crossing the GMs hold is a world write, tier 2's E17-T6). Red first on f7266b28: the window opened on
+         * a player, no `changeRole`, Refund a bare mini button.
+         */
+        needs(env.dialogs(), "a window drawn on a player would be seen");
+        const GS = await import("./gm-students.mjs");
+        const K = await import("./ui-kit.mjs");
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-alive"));
+        must(of().length === 0, "a Students window stands open already");
+        const writes = [];
+        const standIn = (id, flags = {}) => ({ id, name: id, type: "character", getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined),
+            setFlag: async (scope, key, value) => { writes.push(["set", id, key, value]); }, unsetFlag: async (scope, key) => { writes.push(["unset", id, key]); },
+            update: async data => { writes.push(["update", id]); } });
+        const got = {};
+        Object.defineProperty(game.user, "isGM", { value: false, configurable: true });
+        let answer = null;
+        try {
+            answer = await Promise.race([GS.openWhoIsAliveDialog(), wait(1500).then(() => "still waiting")]);
+            got.opened = of().length;
+            got.changes = typeof GS.changeRole !== "function" ? "no changeRole" : [
+                await GS.changeRole(standIn("R2084-student"), "monokuma"), await GS.changeRole(standIn("R2084-kuma", { [FLAGS.monokuma]: true }), "student"),
+                await GS.changeRole(standIn("R2084-other"), "npc"), await GS.changeRole(standIn("R2084-npc", { [FLAGS.notInClass]: true }), "student")];
+        } finally {
+            delete game.user.isGM;
+            for (const a of of()) await a.close().catch(() => {});
+        }
+        got.answer = answer === "still waiting" ? answer : answer ?? null;
+        got.writes = writes;
+        const sources = new Map(await moduleSources());
+        const refund = fnSource(stripComments(sources.get("gm-students.mjs") ?? ""), "refundButton") ?? "";
+        // drawn by the kit's `roleButton` since E47-KFa (by hand from BUTTON_ROLES before it)
+        got.refund = [/roleButton\(\{ role: "secondary"/.test(refund), /cls: "drpg-mini-button"/.test(refund), K.BUTTON_ROLES.secondary.cls];
+        equal(stableJson(got), stableJson({ opened: 0, changes: [false, false, false, false], answer: null, writes: [], refund: [true, true, "drpg-role-secondary"] }),
+            "{opened: Students windows drawn on a player; changes: changeRole's answers from a player; answer: openWhoIsAliveDialog's; writes: the stand-ins' writes; "
+            + "refund: [Refund the kit's roleButton on the secondary role, with the mini button's class, the role's class]}");
+    }],
+
+    /* ---- E47-C3 (09.11.2026): the GM panel's tiles and the case window (MARKED) ---- */
+
+    ["R2060 - the GM panel's Murder tile in an Eclipse: live while an incident runs (it opens the tracker), disabled with its reason while none does (E47-C3; audit S10-53)", async () => {
+        /*
+         * E47-C3, 09.11.2026; audit S10-53. The tile asked `isEclipse()` alone, so a GM in an Eclipse with a fight
+         * running could not reach the incident tracker from the panel - the one window that fight needs. Now it is
+         * disabled only in an Eclipse with no incident (`openMurderDialog` opens the tracker while a murder stands, and
+         * `openMurder` still refuses a new murder in an Eclipse). Read through `buildSections` in a world read as each
+         * state (`panelUnder`: `game.settings.get` answers the clock and the murder's world half, nothing written): the
+         * tile's `disabled`, its `title`, and the text its `aria-describedby` names. Red on 56517337: disabled in both
+         * Eclipse states, with no aria-describedby.
+         */
+        const reason = game.i18n.localize("DRPG.Eclipse.panelLocked");
+        const read = state => panelUnder(state, root => {
+            const tile = root.querySelector('[data-drpg-run="murder"]');
+            if (!tile) return "no tile";
+            const said = tile.getAttribute("aria-describedby");
+            return [tile.disabled, tile.getAttribute("title"), said ? root.querySelector(`[id="${said}"]`)?.textContent?.trim() ?? "no element" : null];
+        });
+        equal(stableJson({ incident: await read({ eclipse: true, incident: true }), none: await read({ eclipse: true }), day: await read({}) }),
+            stableJson({ incident: [false, null, null], none: [true, reason, reason], day: [false, null, null] }),
+            "{incident: an Eclipse with an incident; none: an Eclipse with none; day: neither} each [the tile disabled, its title, the text its aria-describedby names]");
+    }],
+    ["R2061 - a GM panel tile that cannot be pressed is drawn so in both themes - a dashed edge, its icon dimmed, its reason in aria-describedby - and the phase's tile is current with the pressed look (E47-C3; audit S10-64)", async () => {
+        /*
+         * E47-C3, 09.11.2026; audit S10-64. A disabled tile was only faded (Legacy) or dashed by the glass's shared button
+         * rule, its reason in `title` alone; no tile said which one the table was on. Read: the tiles marked current in
+         * each phase (`panelUnder`); then the cascade of the module's sheets (`styleCascade`, from their text) on the
+         * Murder tile drawn disabled in an Eclipse with no incident, inside the panel's window classes, in each theme: its
+         * edge's style (the rule in components.css, after the glass's route rule, and outranking the glass's shared button
+         * rule, 0,5,2), its icon's opacity; and a current tile's pressed look -
+         * the kit's on-ground under Legacy, the glass's brush on under Stained Glass (no new colour). Red on 56517337: no
+         * current tile, no aria-describedby, the Legacy edge solid (`!important`), no rule of the tile's in components.css.
+         */
+        const marks = async state => panelUnder(state, root => [...root.querySelectorAll(".is-current")].map(t => [t.dataset.drpgRun, t.getAttribute("aria-current")]));
+        equal(stableJson({ day: await marks({}), incident: await marks({ eclipse: true, incident: true }), investigation: await marks({ phase: "investigation", incident: true }),
+            trial: await marks({ phase: "classTrial" }) }),
+            stableJson({ day: [], incident: [["murder", "true"]], investigation: [["investigation", "true"]], trial: [["trial", "true"]] }),
+            "{in each state: the tiles drawn is-current with their aria-current} - Daily Life with no incident, an Eclipse with one, Investigation, a Class Trial");
+        const drawn = await panelUnder({ eclipse: true }, root => root.innerHTML);
+        const C = await styleCascade();
+        const v = (el, names) => {
+            const w = el ? C.winner(el, names) : null;
+            return w ? `${w.value}${w.important ? " !important" : ""} | ${w.file}` : null;
+        };
+        const read = theme => {
+            const html = document.createElement("html"), body = document.createElement("body"), app = document.createElement("div"), inner = document.createElement("div");
+            body.className = theme;
+            app.className = "application dialog drpg-ui drpg-panel drpg-gm-panel-window drpg-window-panel";
+            inner.className = "drpg-gm-panel";
+            inner.innerHTML = drawn;
+            app.append(inner);
+            body.append(app);
+            html.append(body);
+            const murder = inner.querySelector('[data-drpg-run="murder"]');
+            const current = inner.querySelector('[data-drpg-run="investigation"]')?.cloneNode(true);
+            current?.classList.add("is-current");
+            if (current) inner.querySelector('[data-drpg-run="investigation"]').after(current);
+            const said = murder?.getAttribute("aria-describedby");
+            return {
+                disabled: Boolean(murder?.disabled), said: said ? inner.querySelector(`[id="${said}"]`)?.textContent?.trim() ?? "no element" : null,
+                edge: v(murder, ["border", "border-style"]), icon: v(murder?.querySelector("i"), "opacity"),
+                current: theme.includes("legacy") ? [v(current, ["background", "background-color"]), v(current, ["border", "border-color"]), v(current, "color")] : [v(current, "--brush-on"), v(current, "--brush-ink")]
+            };
+        };
+        const reason = game.i18n.localize("DRPG.Eclipse.panelLocked");
+        const sheet = "styles/components.css";
+        const both = { disabled: true, said: reason, edge: `dashed | ${sheet}`, icon: `0.45 | ${sheet}` };
+        equal(stableJson({ legacy: read("drpg-theme-monokuma-legacy"), glass: read("drpg-theme-stained-glass") }), stableJson({
+            legacy: { ...both, current: [`var(--drpg-kit-btn-on-bg) | ${sheet}`, `var(--drpg-kit-btn-on-edge) | ${sheet}`, `var(--drpg-kit-btn-on-ink) | ${sheet}`] },
+            glass: { ...both, current: [`1 | ${sheet}`, `var(--drpg-sg-ink) | ${sheet}`] }
+        }), "{per theme: the Murder tile disabled, the text its aria-describedby names, its edge's style (the winning value | its sheet), its icon's opacity, "
+            + "a current tile's look (Legacy: ground, edge, ink; Stained Glass: the brush on, its ink)}");
+    }],
+    ["R2062 - the GM panel's tiles hold their content centred in both themes: icon and label in a row centred across it under Legacy, stacked and centred along it under Stained Glass (E47-C3; the owner's 27.09)", async () => {
+        /*
+         * E47-C3, 09.11.2026; the owner's 27.09 ("on the GM panel's taller tiles the icon and the label stand centred
+         * vertically too ... equal space above and below in every tile of a row"). Measured on 56517337 before this commit
+         * in Chromium (probe 08's gm-panel page, S/stages/E46/scratch/e47-c3/shots/before-measure.json): every one of the 19
+         * tiles drawn had the same space above and below its content in both themes, at 1366x768 and 1920x1080 (glass 11/11
+         * px in rows 80-172 px tall; Legacy 10/10 to 26.6/26.6 px) - the ask held already, so this holds it: the cascade of
+         * the tile's flex rules (`styleCascade`) in each theme. Green on 56517337; red by the planted c3-m1 (the glass's
+         * `justify-content: center` taken out of its tile rule).
+         */
+        const C = await styleCascade();
+        const read = theme => {
+            const html = document.createElement("html"), body = document.createElement("body"), app = document.createElement("div"), inner = document.createElement("div");
+            body.className = theme;
+            app.className = "application dialog drpg-ui drpg-panel drpg-gm-panel-window drpg-window-panel";
+            inner.className = "drpg-gm-panel";
+            inner.innerHTML = `<div class="drpg-gmp-sections"><details class="drpg-gmp-section" open><summary>S</summary><div class="drpg-gmp-grid">`
+                + `<button type="button" class="drpg-gmp-button" data-drpg-run="x"><i class="fa-solid fa-skull" inert></i><span>X</span></button></div></details></div>`;
+            app.append(inner);
+            body.append(app);
+            html.append(body);
+            const tile = inner.querySelector("button");
+            return ["display", "flex-direction", "align-items", "justify-content"].map(p => C.winner(tile, p)?.value ?? null);
+        };
+        equal(stableJson({ legacy: read("drpg-theme-monokuma-legacy"), glass: read("drpg-theme-stained-glass") }),
+            stableJson({ legacy: ["flex", null, "center", null], glass: ["flex", "column", "center", "center"] }),
+            "{per theme: the tile's display, flex-direction, align-items, justify-content as the sheets' cascade wins them (null: none declared, the row and its start)}");
+    }],
+    ["R2063 - one case tile in the GM panel's Diagnostics with the last copy's age; Back up the case and Restore the case gone from every section; diagnostics.mjs and every lang text name the new tile (E47-C3; the owner's 27.09)", async () => {
+        /*
+         * E47-C3, 09.11.2026; the owner's 27.09: "Back up the case and Restore the case become one tile in the Diagnostics
+         * section (key `fixes`), opening one window with both actions and the last copy's age". Read: every section's tiles
+         * in order (D31: 56517337's order, the two tiles taken out of Between sessions and the one case tile last in
+         * Diagnostics); the case tile's section, label and second line (`backupAge`'s words from the world's case mark);
+         * diagnostics.mjs's lines naming the GM panel's backup; every lang text in either file naming the old tiles (the
+         * two windows' own titles, the chapter's end's own button, its reminder and gmOnly are not tiles), and the two old
+         * keys. Red on 56517337: two tiles in Between sessions, none in Diagnostics, the hints "(Back up the case)". The
+         * mutant c3-m9 (an old tile left in PANEL_SECTIONS) reads red here.
+         */
+        const S = await import("./gm-stores.mjs");
+        const { plural } = await import("./utils.mjs");
+        const tiles = await panelUnder({}, root => [...root.querySelectorAll(".drpg-gmp-section")].map(s => [s.dataset.drpgKey, [...s.querySelectorAll("[data-drpg-run]")].map(t => t.dataset.drpgRun)]));
+        const caseTile = await panelUnder({}, root => {
+            const t = root.querySelector('[data-drpg-run="caseWindow"]');
+            return t ? [t.closest("details")?.dataset.drpgKey ?? null, t.querySelector("span")?.textContent?.trim(), t.querySelector("small.notes")?.textContent?.trim() ?? null] : null;
+        });
+        const at = S.caseMark().lastBackupAt;
+        const days = at ? Math.floor((Date.now() - at) / 86400000) : null;
+        const age = !at ? game.i18n.localize("DRPG.Case.backupNever") : days < 1 ? game.i18n.localize("DRPG.Case.backupToday") : plural("DRPG.Case.backupAgo", { n: days });
+        const sources = new Map(await moduleSources());
+        const diag = stripComments(sources.get("diagnostics.mjs") ?? "");
+        const lang = async code => {
+            const flat = {};
+            const walk = (o, p) => { for (const [k, x] of Object.entries(o)) typeof x === "string" ? (flat[p + k] = x) : walk(x, `${p}${k}.`); };
+            walk(await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()), "");
+            return flat;
+        };
+        const NOT_TILES = ["DRPG.Case.backupTitle", "DRPG.Case.restoreTitle", "DRPG.Case.backupNow", "DRPG.Case.chapterReminder", "DRPG.Case.gmOnly"];
+        const naming = (flat, re) => Object.entries(flat).filter(([k, x]) => re.test(x) && !NOT_TILES.includes(k)).map(([k]) => k);
+        const en = await lang("en"), pl = await lang("pl");
+        const where = `${en["DRPG.Panel.section.fixes"]}, ${en["DRPG.Case.tile"]}`;
+        equal(stableJson({
+            tiles, caseTile, diag: [(diag.match(/\(Back up the case\)/g) ?? []).length, diag.split(where).length - 1],
+            en: naming(en, /back up the case|restore the case/i), pl: naming(pl, /Kopia sprawy|kopię sprawy|Przywróć sprawę/),
+            keys: ["DRPG.Case.backupTile", "DRPG.Case.restoreTile"].map(k => [k in en, k in pl])
+        }), stableJson({
+            tiles: [["now", ["whoIsAlive", "projects", "sound", "rules"]], ["case", ["murder", "investigation", "trial"]],
+                ["between", ["jump", "gmTeam", "roomSetup", "tables", "voiceReset", "seasonSetup", "mastermind", "chapterEndTile", "seasonReset"]],
+                ["fixes", ["failureLog", "caseWindow"]]],
+            caseTile: ["fixes", en["DRPG.Case.tile"] === undefined ? "?" : game.i18n.localize("DRPG.Case.tile"), age],
+            diag: [0, 2], en: [], pl: [], keys: [[false, false], [false, false]]
+        }), "{tiles: every section's tiles in order; caseTile: [its section, label, second line]; diag: [diagnostics.mjs's \"(Back up the case)\", its lines naming "
+            + "\"Diagnostics, The case\"]; en, pl: the lang texts naming the old tiles; keys: [the old tile keys in en, in pl]}");
+    }],
+    ["R2064 - the case's health window on the kit's checkList, a missing row blocking and a conflict a warning, info rows out; E81's notice history its own information row; gmStoreStatus leaves noticeHistory out of the 3 MiB sum (E47-C3; A7, the owner's 11.10)", async () => {
+        /*
+         * E47-C3, 09.11.2026; A7 (the owner's 11.10: "moving the case's windows (copy, health) onto the kit, E81's notice
+         * history row stays a separate information row, and the key `noticeHistory` stays subtracted from the sum the 3 MiB
+         * conflict is counted from"). Read: `runHealthCheck`'s source (no `drpg-warning` row, the body from `healthBody`);
+         * `healthBody` on a report of three rows (missing, conflict, info); this world's report's `notices` and `bytes`
+         * rows; `gmStoreStatus` over a stand-in storage holding the history, another key of the module and another
+         * module's key. Red on 56517337: `li.drpg-warning`, no healthBody. The sum is green on 56517337 and red by the
+         * mutant c3-m6 (the history counted in `total`).
+         */
+        const S = await import("./gm-stores.mjs");
+        const run = stripComments(fnSource(stripComments(new Map(await moduleSources()).get("gm-stores.mjs") ?? ""), "runHealthCheck") ?? "");
+        const report = { missing: 1, rows: [
+            { id: "gone", level: "missing", key: "DRPG.Case.row.unseen", data: {} },
+            { id: "twice", level: "conflict", key: "DRPG.Case.row.unseen", data: {} },
+            { id: "notices", level: "info", key: "DRPG.Case.row.notices", data: { notices: 1 } }
+        ] };
+        let body = "no healthBody";
+        if (typeof S.healthBody === "function") {
+            const root = document.createElement("div");
+            root.innerHTML = S.healthBody(report, { restorable: true });
+            body = [root.querySelectorAll("ul.drpg-checklist").length, [...root.querySelectorAll("li.drpg-check-row")].map(li => [li.dataset.drpgKey, li.dataset.drpgState]),
+                root.querySelectorAll(".drpg-warning").length, root.querySelector("p.notes")?.textContent?.trim() === game.i18n.localize("DRPG.Case.healthNote")];
+        }
+        const health = await S.gmStoreHealth();
+        const rowOf = id => health?.rows?.find(r => r.id === id) ?? null;
+        const history = `${MODULE_ID}.${SETTINGS.noticeHistory}`, other = `${MODULE_ID}.suiteR2064`;
+        const held = { [history]: "n".repeat(5000), [other]: "o".repeat(10), "another-module.suiteR2064": "x".repeat(700) };
+        const keys = Object.keys(held);
+        const client = { length: keys.length, key: i => keys[i], getItem: k => held[k] ?? null };
+        const status = S.gmStoreStatus(client);
+        equal(stableJson({
+            source: [/drpg-warning/.test(run), /healthBody\(/.test(run)], body,
+            rows: [rowOf("notices")?.level ?? null, rowOf("bytes") ? "own row" : null],
+            sum: [status.total, status.notices]
+        }), stableJson({
+            source: [false, true], body: [1, [["gone", "blocking"], ["twice", "warning"]], 0, true],
+            rows: ["info", "own row"], sum: [other.length + 10, history.length + 5000]
+        }), "{source: [runHealthCheck draws a drpg-warning row, its body from healthBody]; body: [checklists, rows [key, state], drpg-warning, the note]; "
+            + "rows: [the notice history row's level, the bytes row apart]; sum: [gmStoreStatus total, notices] over a stand-in storage}");
+    }],
+    ["R2073 - the E28 and E29 cards on the kit (scripts/roll-draw.mjs `awayRollsCard`, scripts/sheet-audit.mjs `flaggedCard`, `awayCard`; E47-C5, MARKED): their lines and buttons in order, each button's role, and the attributes and wrappers the handlers read unchanged", async () => {
+        /*
+         * E47-C5, 09.11.2026; audit S17-43; MARKED (.claude/rules/trust-model.md: the cards are judged on the primary GM, and
+         * a restyle that renames a button's attribute or wraps it where its handler does not find it leaves a judgement
+         * unmade). Read: each card's buttons in order - words, the attributes a handler reads, the kit's role and its class -
+         * its warning box and its wrappers; then each handler's selectors by source (`onRenderUnwitnessed`, `onRenderFlagged`,
+         * `wireAwayCard`, `drawSwept`), and every one of them found in the drawn cards, the buttons' values as the handlers
+         * compare them. Red on fe685fa2: no role on any button, a `p.drpg-warning`, no `awayRollsCard`; red by the mutant m7
+         * (the flagged card's `data-drpg-audit="undo"` renamed: the handler's `[data-drpg-audit]` finds Keep alone).
+         */
+        const D = await import("./roll-draw.mjs"), A = await import("./sheet-audit.mjs");
+        must(typeof D.awayRollsCard === "function" && typeof A.flaggedCard === "function" && typeof A.awayCard === "function", "the cards' builders are not exported");
+        const actor = game.actors.contents[0], user = game.users.find(u => !u.isGM) ?? game.user;
+        must(actor, "no actor to name on the cards - this would measure nothing");
+        const HP = "system.resources.hitPoints.value";
+        const node = html => Object.assign(document.createElement("div"), { innerHTML: html });
+        const buttons = root => [...root.querySelectorAll("button")].map(b => [b.textContent, Object.entries(b.dataset).filter(([k]) => k !== "drpgRole").map(([k, v]) => `${k}=${v}`).join(" "),
+            b.dataset.drpgRole ?? null, b.classList.contains(b.dataset.drpgRole === "gmRoute" ? "drpg-role-gm-route" : "drpg-role-secondary")]);
+        const L = key => game.i18n.localize(key);
+        const away = node(D.awayRollsCard("<li>line</li>"));
+        const flagged = node(A.flaggedCard({ actorId: actor.id, userId: user.id, change: { [HP]: [2, 0] } }));
+        const list = node(A.awayCard([["r1", { verdict: "putBack", actorId: actor.id, change: { [HP]: [1, 0] } }], ["r2", { verdict: "flagged", actorId: actor.id, change: { [HP]: [2, 0] } }],
+            ["r3", { verdict: "flagged", actorId: actor.id, change: { [HP]: [3, 1] }, decided: { how: "keep", by: game.user.id } }]]));
+        const shape = root => [root.querySelectorAll(".drpg-box[data-drpg-box=\"warning\"]").length, root.querySelectorAll(".drpg-warning").length,
+            [...root.querySelectorAll(".drpg-away-actions, .drpg-audit-actions, .drpg-audit-all")].map(el => `${el.localName}.${el.className}`)];
+        equal(JSON.stringify({ away: [buttons(away), shape(away)], flagged: [buttons(flagged), shape(flagged)], list: [buttons(list), shape(list)] }), JSON.stringify({
+            away: [[[L("DRPG.Rolls.grantAll"), "drpgAway=grant", "gmRoute", true], [L("DRPG.Rolls.grantNone"), "drpgAway=none", "secondary", true]], [0, 0, ["div.drpg-away-actions"]]],
+            flagged: [[[L("DRPG.Audit.undo"), "drpgAudit=undo", "gmRoute", true], [L("DRPG.Audit.keep"), "drpgAudit=keep", "secondary", true]], [1, 0, ["div.drpg-audit-actions"]]],
+            list: [[[L("DRPG.Audit.undo"), "drpgAudit=undo drpgRow=r2", "gmRoute", true], [L("DRPG.Audit.keep"), "drpgAudit=keep drpgRow=r2", "secondary", true],
+                [L("DRPG.Audit.undoAll"), "drpgAuditAll=undo", "gmRoute", true], [L("DRPG.Audit.acceptAll"), "drpgAuditAll=keep", "secondary", true]],
+            [1, 0, ["span.drpg-audit-actions", "div.drpg-audit-all"]]]
+        }), "{each card: [its buttons in order: words, the attributes a handler reads, the kit's role, the role's class], [warning boxes, drpg-warning left, the wrappers]}");
+        const roll = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/roll-draw.mjs`).then(lfText));
+        const audit = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/sheet-audit.mjs`).then(lfText));
+        const reads = {
+            onRenderUnwitnessed: [roll, ["closest?.(\"[data-drpg-away]\")", "\".drpg-away-actions\"", "button.dataset.drpgAway === \"grant\""]],
+            onRenderFlagged: [audit, ["closest?.(\"[data-drpg-audit]\")", "\".drpg-audit-actions\"", "button.dataset.drpgAudit === \"keep\""]],
+            wireAwayCard: [audit, ["closest?.(\"[data-drpg-audit], [data-drpg-audit-all]\")", "button.dataset.drpgRow", "closest(\".drpg-audit-actions\")", "\".drpg-audit-actions, .drpg-audit-all\"", "button.dataset.drpgAuditAll === \"keep\""]],
+            drawSwept: [audit, ["\".drpg-audit-actions, .drpg-audit-all\"", "\".drpg-audit-expired\"", "\".drpg-audit-card\""]]
+        };
+        const missing = Object.entries(reads).flatMap(([fn, [src, needles]]) => needles.filter(n => !fnSource(src, fn).includes(n)).map(n => `${fn}: ${n}`));
+        equal(JSON.stringify(missing), "[]", "the handlers' selectors not found in their source");
+        const found = {
+            away: [...away.querySelectorAll("[data-drpg-away]")].map(b => b.dataset.drpgAway === "grant"),
+            flagged: [...flagged.querySelectorAll("[data-drpg-audit]")].map(b => b.dataset.drpgAudit === "keep"),
+            listRows: [...list.querySelectorAll("[data-drpg-audit], [data-drpg-audit-all]")].map(b => [b.dataset.drpgRow ?? null, (b.dataset.drpgAudit ?? b.dataset.drpgAuditAll) === "keep",
+                Boolean(b.closest(".drpg-audit-actions, .drpg-audit-all"))])
+        };
+        equal(JSON.stringify(found), JSON.stringify({ away: [true, false], flagged: [false, true],
+            listRows: [["r2", false, true], ["r2", true, true], [null, false, true], [null, true, true]] }),
+            "{what each handler finds in its drawn card: the buttons its selector matches, in order, read as it reads them (grant / keep), a row's id and its wrapper}");
+    }],
+    ["R2074 - Foundry's settings window's module rows (scripts/settings.mjs `renderSettingsConfig`, components.css; E47-C5, audit S01-44): marked, their label column wider with lines 1.2 high, their checkboxes, range and focus rings through the module's token in both themes", async () => {
+        /*
+         * E47-C5, 09.11.2026; audit S01-44 ("a name breaks onto two lines about 32 px apart and reads as two settings; the
+         * checkboxes and the range are in Foundry's amber"). styles/ held no rule for `#settings-config`. Read: the render
+         * hook on a settings form of the test's own (two of the module's fields, a menu's button and a core field), which
+         * rows it marks; then the cascade of the module's sheets (`styleCascade`) on a marked row and on the core row in each
+         * theme. Foundry's own sheet is not loaded here: what v14 draws is a live check (LIVE-E47-06). Red on fe685fa2: no row marked,
+         * no rule.
+         */
+        const root = document.createElement("form");
+        root.id = "settings-config";
+        root.className = "application";
+        const row = (field, label) => `<div class="form-group"><label>${label}</label><div class="form-fields">${field}</div></div>`;
+        root.innerHTML = `<section class="tab category active">${row(`<input type="checkbox" name="${MODULE_ID}.${SETTINGS.glassPulse}">`, "A")}`
+            + `${row(`<input type="range" name="${MODULE_ID}.${SETTINGS.searchTokensPerRoom}">`, "B")}`
+            + `${row(`<button type="button" data-key="${MODULE_ID}.giveBackFoundry">C</button>`, "C")}${row(`<input type="checkbox" name="core.noCanvas">`, "D")}</section>`;
+        Hooks.callAll("renderSettingsConfig", {}, root);
+        const marked = [...root.querySelectorAll(".form-group")].map(r => [r.querySelector("label").textContent, r.classList.contains("drpg-settings-row")]);
+        const C = await styleCascade();
+        const v = (el, names) => { const w = el ? C.winner(el, names) : null; return w ? `${w.value} | ${w.file}` : null; };
+        const read = theme => {
+            const html = document.createElement("html"), body = document.createElement("body"), copy = root.cloneNode(true);
+            body.className = theme;
+            body.append(copy);
+            html.append(body);
+            const [mod, , , core] = copy.querySelectorAll(".form-group");
+            return { label: [v(mod.querySelector("label"), "line-height"), v(mod.querySelector("label"), "flex")],
+                row: ["accent-color", "--checkbox-checked-color", "--button-focus-outline-color"].map(p => v(mod, p)),
+                core: [v(core.querySelector("label"), "line-height"), v(core, "accent-color")] };
+        };
+        const sheet = "styles/components.css", token = `var(--drpg-kit-role-primary) | ${sheet}`;
+        const each = { label: [`1.2 | ${sheet}`, `3 1 0 | ${sheet}`], row: [token, token, token], core: [null, null] };
+        equal(JSON.stringify({ marked, legacy: read("drpg-theme-monokuma-legacy"), glass: read("drpg-theme-stained-glass") }),
+            JSON.stringify({ marked: [["A", true], ["B", true], ["C", true], ["D", false]], legacy: each, glass: each }),
+            "{the rows marked as the module's; per theme: a module row's label (line height, flex), the row's accent-color, checkbox and focus colours, the core row's (the winning value | its sheet)}");
+    }],
+    ["R2075 - the Give back window (scripts/enforced.mjs `giveBackContent`; E47-C5, audit S01-44) without Foundry's amber in both themes: its given-back line the kit's information box, its checkbox and focus colours the module's token (the cascade read)", async () => {
+        /*
+         * E47-C5, 09.11.2026; audit S01-44. The given-back line was a bare bold paragraph and nothing of the window named
+         * a colour of the module's, so whatever Foundry's sheet gives a dialog's ticks and focus rings (its amber) stood.
+         * Read: the body drawn given back, inside the window's classes, and the cascade of the module's sheets
+         * (`styleCascade`) in each theme: the box and its edge, and the window's accent, checkbox and focus colours. Foundry's
+         * own sheet is not loaded here (a live check, LIVE-E47-06). Red on fe685fa2: no box, no colour of the module's.
+         */
+        const E = await import("./enforced.mjs");
+        const drawn = E.giveBackContent({ givenBack: true, filesStay: false, automationUnknown: false, fullGm: true });
+        const C = await styleCascade();
+        const v = (el, names) => { const w = el ? C.winner(el, names) : null; return w ? `${w.value} | ${w.file}` : null; };
+        const read = theme => {
+            const html = document.createElement("html"), body = document.createElement("body"), app = document.createElement("div");
+            body.className = theme;
+            app.className = "application dialog drpg-ui drpg-panel drpg-window-give-back";
+            app.innerHTML = `<div class="window-content"><form>${drawn}</form></div>`;
+            body.append(app);
+            html.append(body);
+            const box = app.querySelector(".drpg-give-back-state > .drpg-box");
+            return { box: [box?.dataset.drpgBox ?? null, box?.textContent.trim() ?? null, v(box, ["border-left", "border-left-color"])],
+                window: ["accent-color", "--checkbox-checked-color", "--button-focus-outline-color", "--input-focus-outline-color"].map(p => v(app, p)) };
+            /* the field's focus ring stays the panels' gold (danganronpa.css, every `drpg-panel`), already the module's */
+        };
+        const sheet = "styles/components.css", token = `var(--drpg-kit-role-primary) | ${sheet}`;
+        const each = { box: ["info", game.i18n.localize("DRPG.GiveBack.givenBackState"), `3px solid var(--drpg-kit-info-edge) | ${sheet}`], window: [token, token, token, "var(--drpg-gold) | styles/danganronpa.css"] };
+        equal(JSON.stringify({ legacy: read("drpg-theme-monokuma-legacy"), glass: read("drpg-theme-stained-glass") }), JSON.stringify({ legacy: each, glass: each }),
+            "{per theme: the given-back line [its box, its words, its edge (the winning value | its sheet)], the window's accent, checkbox, button focus and field focus colours}");
+    }],
+    ["R2086 - the kit's builders take a caller's attributes and words (scripts/ui-kit.mjs `toggle` and `chip` attrs, `stepper` words, formGrid's row attrs, a dataTable column's tooltip and title; E47-KFa): each where the caller's string edit put it, the builder's own refused, a call without them as before", async () => {
+        /*
+         * E47-KFa, 09.11.2026; STATUS E46-C2 Open 2, E46-C2b Open 1, E47-C4 Open 1, E47-C6 Open 1, E47-C8 Open 1. Five
+         * callers wrote into a kit builder's markup after the draw because the builder took no attribute or word of
+         * theirs. Read: each builder's markup with them and without them, and a builder's own attribute named in `attrs`
+         * (it throws). Red on b6133c75: the switch, the chip and the grid row draw none of the attributes, the stepper
+         * says "One fewer", a head no tooltip or title.
+         */
+        const K = await import("./ui-kit.mjs");
+        const L = key => game.i18n.localize(key);
+        const throws = f => { try { f(); return false; } catch { return true; } };
+        const sw = K.toggle({ name: "isroom:A", checked: true, label: "", attrs: { "aria-label": "Room: A & B", "data-drpg-undecided": true, "data-no": false } });
+        const swBare = K.toggle({ name: "x", label: "X" });
+        const ch = K.chip({ label: "Ann", pressed: true, count: "GM", cls: "drpg-passage-chip", attrs: { "data-drpg-actor": "a1", "aria-label": "Take back: Ann", title: "Take back" } });
+        const chBare = K.chip({ label: "Ann", value: "a1" });
+        const st = K.kitNode(K.stepper({ value: 2, min: 0, max: 3, compact: true, words: { down: "Spend one", up: "Give one back" } }));
+        const stHalf = K.kitNode(K.stepper({ value: 2, words: { up: "More" } }));
+        const said = el => [...el.querySelectorAll("button[data-drpg-step]")].map(b => `${b.getAttribute("aria-label")}|${b.dataset.tooltip}`);
+        const grid = K.kitNode(K.formGrid([{ label: "Which", id: "w1", field: "<select id=\"w1\"></select>", attrs: { "data-drpg-when-trigger": "project sabotage" } },
+            { label: "Plain", id: "p1", field: "<input id=\"p1\">" }, { full: "<p>x</p>", attrs: { "data-k": "1" } }]));
+        const host = document.createElement("div");
+        host.innerHTML = K.dataTable({ columns: [{ key: "a", label: "A", tooltip: "Tip <a>", cls: "a" }, { key: "b", label: "B", title: "Hint" },
+            { key: "c", label: "Long head", lines: 2, tooltip: "T" }, { key: "d", label: "D" }], rows: [] });
+        const heads = [...host.querySelectorAll("thead th")].map(th => [th.dataset.tooltip ?? null, th.getAttribute("title")]);
+        equal(stableJson({
+            sw, swBare, ch, chBare, st: said(st), stHalf: said(stHalf),
+            grid: [...grid.children].map(c => `${c.tagName.toLowerCase()}:${c.getAttribute("data-drpg-when-trigger") ?? c.getAttribute("data-k") ?? "-"}`),
+            heads,
+            refused: [throws(() => K.toggle({ name: "n", label: "", attrs: { role: "checkbox" } })), throws(() => K.chip({ label: "c", attrs: { "aria-pressed": "true" } })),
+                throws(() => K.chip({ label: "c", attrs: { class: "x" } })), throws(() => K.iconButton({ icon: "i", label: "l", attrs: { title: "t" } }))]
+        }), stableJson({
+            sw: '<label class="drpg-toggle"><input type="checkbox" role="switch" aria-label="Room: A &amp; B" data-drpg-undecided name="isroom:A" checked><span></span></label>',
+            swBare: '<label class="drpg-toggle"><input type="checkbox" role="switch" name="x"><span>X</span></label>',
+            ch: '<button type="button" class="drpg-chip drpg-passage-chip" data-drpg-actor="a1" aria-label="Take back: Ann" title="Take back" aria-pressed="true">Ann<b>GM</b></button>',
+            chBare: '<button type="button" class="drpg-chip" aria-pressed="false" data-drpg-chip="a1">Ann</button>',
+            st: ["Spend one|Spend one", "Give one back|Give one back"],
+            stHalf: [`${L("DRPG.Look.stepDown")}|${L("DRPG.Look.stepDown")}`, "More|More"],
+            grid: ["label:project sabotage", "div:project sabotage", "label:-", "div:-", "div:1"],
+            heads: [["Tip <a>", null], [null, "Hint"], ["T", "Long head"], [null, null]],
+            refused: [true, true, true, true]
+        }), "[the switch with attrs and bare; the chip with cls and attrs and bare; the compact stepper's - and + with both words and the plain one's with one; the grid's halves' attributes; the heads' [data-tooltip, title]; four builders' own attributes named in attrs, each refused]");
+    }],
+    ["R2087 - the callers that wrote into the kit's markup after the draw use the kit's options (scripts/room-setup.mjs, passages-tab.mjs, investigation.mjs, gm-students.mjs, projects-ui.mjs; E47-KFa): no string edit of a builder's markup is left, and each option is named where the edit was", async () => {
+        /*
+         * E47-KFa, 09.11.2026. The five string edits R2086's options replace, by source: Room setup's switch
+         * (`.replace('role="switch"'`) and its counter's words (`tokenStepper`), Passages' chip (`.replace('class="drpg-chip"'`)
+         * and its head (`startHead`), WHO HAS WHAT's head (`.replace(head`), the Students window's Silenced head
+         * (`silenced.dataset.tooltip`), the trap form's row (`rowWhen(`). What each draws is held by its own tests (R1338's
+         * Room setup, E46-C2b's R2043, E47-C4's, E47-C8's, E47-C6's R2076), which read the drawn markup unchanged. Red on
+         * b6133c75: every edit is there and no option.
+         */
+        const read = async f => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(lfText));
+        const files = Object.fromEntries(await Promise.all(["room-setup.mjs", "passages-tab.mjs", "investigation.mjs", "gm-students.mjs", "projects-ui.mjs"].map(async f => [f, await read(f)])));
+        const edits = { "room-setup.mjs": [".replace('role=\"switch\"'", "tokenStepper("], "passages-tab.mjs": [".replace('class=\"drpg-chip\"'", "startHead"],
+            "investigation.mjs": [".replace(head"], "gm-students.mjs": ["silenced.dataset.tooltip"], "projects-ui.mjs": ["rowWhen("] };
+        const options = { "room-setup.mjs": ["words: {", "\"data-drpg-undecided\":"], "passages-tab.mjs": ["cls: \"drpg-passage-chip\"", "title: c.cls === \"knows-start\""],
+            "investigation.mjs": ["tooltip: game.i18n.localize(\"DRPG.Investigation.breakdownTooltip\")"], "gm-students.mjs": ["tooltip: L(\"DRPG.Monocub.silencedNote\")"],
+            "projects-ui.mjs": ["attrs: { \"data-drpg-when-trigger\": \"project sabotage\" }"] };
+        const left = Object.entries(edits).flatMap(([f, list]) => list.filter(s => files[f].includes(s)).map(s => `${f}: ${s}`));
+        const missing = Object.entries(options).flatMap(([f, list]) => list.filter(s => !files[f].includes(s)).map(s => `${f}: ${s}`));
+        must(Object.values(files).every(t => t.length > 1000), "a caller's source read empty - this would measure nothing");
+        equal(stableJson({ left, missing }), stableJson({ left: [], missing: [] }), "[the string edits still in the callers; the kit's options not named where they were]");
+    }],
+    ["R2088 - a kit footer's disabled button is drawn disabled in a DialogV2 window (scripts/ui-kit.mjs `dressFooter`; E47-KFa, E47-C1's Open 3): the harness's DialogV2 draws no `disabled`, and the kit writes it as `footerButton` does", async () => {
+        /*
+         * E47-KFa, 09.11.2026; STATUS E47-C1 Open 3: the captured console's Start the Final Trial and the vote's Close and
+         * count looked enabled. Read as R1353 reads a kit window: drpgWindow's config handed to DialogV2.wait, its footer
+         * drawn as the harness's DialogV2 draws one (no `disabled`), the render callback run. Red on b6133c75: the disabled
+         * primary and secondary are enabled; the others stay enabled before and after.
+         */
+        const K = await import("./ui-kit.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let config = null;
+        D.wait = async cfg => { config = cfg; return null; };
+        try {
+            await K.drpgWindow({ title: "R2088", classes: ["drpg-window-r2088"], body: "<p>x</p>",
+                footer: { primary: { action: "final", label: "Final", disabled: true, tooltip: "Not yet" }, secondary: [{ action: "count", label: "Count", disabled: true }, { action: "other", label: "Other" }], close: "close" } });
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        must(config?.render, "drpgWindow handed DialogV2.wait no render callback - this would read nothing");
+        const root = document.createElement("div");
+        root.className = config.classes.join(" ");
+        root.innerHTML = `<section class="window-content"><form class="dialog-form standard-form"><div class="dialog-content standard-form">${config.content.innerHTML}</div>`
+            + `<footer class="form-footer">${config.buttons.map(b => `<button type="submit" data-action="${b.action}">${b.label}</button>`).join("")}</footer></form></section>`;
+        config.render(new Event("render"), { element: root, setPosition: () => ({}), addEventListener: () => {} });
+        const read = [...root.querySelectorAll("footer button[data-action]")].map(b => `${b.dataset.action}:${b.disabled}:${b.getAttribute("title") ?? "-"}`).sort();
+        equal(stableJson(read), stableJson(["close:false:-", "count:true:-", "final:true:Not yet", "other:false:-"]), "[each footer button: action, disabled, title]");
+    }],
+    ["R2089 - a kit button outside a footer is the kit's `roleButton` (scripts/ui-kit.mjs; roll-draw.mjs, sheet-audit.mjs, gm-students.mjs, the checklist's action; E47-KFa, E47-C5's Open 10): its role's classes, `data-drpg-role`, the caller's class and attributes, no hand-written role button left", async () => {
+        /*
+         * E47-KFa, 09.11.2026. roll-draw.mjs `cardButton`, sheet-audit.mjs `auditButton`, gm-students.mjs's Refund and
+         * Level Up and checkList's row action each wrote a role's button from BUTTON_ROLES by hand. Read: `roleButton`'s
+         * markup for the GM's road and a secondary with attributes, a role that is none and an own attribute refused, and
+         * by source no `BUTTON_ROLES[` left in the three callers. The away card's and the audit cards' buttons, and their
+         * handlers' attributes, are R2073's and E47-T5's. Red on b6133c75: no `roleButton`.
+         */
+        const K = await import("./ui-kit.mjs");
+        must(typeof K.roleButton === "function", "ui-kit.mjs exports no roleButton");
+        const R = K.BUTTON_ROLES;
+        const throws = f => { try { f(); return false; } catch { return true; } };
+        const read = async f => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${f}`).then(lfText));
+        const hand = [];
+        for (const f of ["roll-draw.mjs", "sheet-audit.mjs", "gm-students.mjs"]) if ((await read(f)).includes("BUTTON_ROLES")) hand.push(f);
+        equal(stableJson({
+            route: K.roleButton({ role: "gmRoute", label: "Grant all", attrs: { "data-drpg-away": "grant" } }),
+            second: K.roleButton({ role: "secondary", label: "Refund <x>", cls: "drpg-mini-button", attrs: { "data-drpg-refund": "a1", "data-tooltip": "n", "data-drpg-row": null } }),
+            refused: [throws(() => K.roleButton({ role: "nope", label: "x" })), throws(() => K.roleButton({ role: "primary", label: "x", attrs: { "data-drpg-role": "close" } }))],
+            hand
+        }), stableJson({
+            route: `<button type="button" class="${[R.gmRoute.cls, R.gmRoute.face].filter(Boolean).join(" ")}" data-drpg-role="gmRoute" data-drpg-away="grant">Grant all</button>`,
+            second: `<button type="button" class="${R.secondary.cls} drpg-mini-button" data-drpg-role="secondary" data-drpg-refund="a1" data-tooltip="n">Refund &lt;x&gt;</button>`,
+            refused: [true, true],
+            hand: []
+        }), "[the GM's road with an attribute; a secondary with the caller's class and attributes, a null one left out; a role that is none and an own attribute, refused; the callers still naming BUTTON_ROLES]");
+    }],
+    ["R2090 - a kit tab bar that cannot hold its tabs on one line wraps them left to right at their own widths, never a grid of columns (scripts/ui-kit.mjs `fitKitTabs`, components.css `.drpg-tabs`; E47-KFb, the owner's F1 on comparison 1)", async () => {
+        /*
+         * E47-KFb, 09.11.2026; the owner on comparison 1: "the tab switches - once in a row, now stacked on each other";
+         * Room setup's nine tabs were a two-column grid (5 rows of 2, 191 px under the glass at 1366x768) and stand in one
+         * row of their own widths after (41 px; Chromium, the style harness, both themes, 1366x768 and 1920x1080). Read
+         * here, with stated widths as R1353 reads the fit: nine tabs of 90-160 px in 500 px of room, no window to grow,
+         * then three of 100 px in 400 px (one line of equal columns, as before). And by source the bar's rule: a flex row
+         * that wraps, the equal columns only on a bar fitted to one line. Red on b6133c75: a grid of columns
+         * (`data-drpg-tab-fit="rows"`, `--drpg-kit-tab-n` 3), the bar's rule `repeat(auto-fit, ...)`.
+         */
+        const K = await import("./ui-kit.mjs");
+        const bar = (widths, room) => {
+            const host = document.createElement("div");
+            host.innerHTML = K.kitTabBar(widths.map((w, i) => ({ key: `t${i}`, label: `T${i}` })));
+            const nav = host.querySelector("nav.drpg-tabs");
+            nav.style.setProperty("column-gap", "0px", "important");
+            nav.style.setProperty("padding", "0px", "important");
+            Object.defineProperty(nav, "clientWidth", { get: () => room, configurable: true });
+            [...nav.querySelectorAll("button")].forEach((b, i) => { b.style.fontSize = "13px"; b.getBoundingClientRect = () => ({ width: widths[i], height: 20, top: 0, left: 0 }); });
+            document.body.append(host);
+            try {
+                const fit = K.fitKitTabs(nav);
+                return [fit?.rows, fit?.cols ?? null, nav.dataset.drpgTabFit ?? null, nav.style.getPropertyValue("--drpg-kit-tab-n") || null, nav.style.getPropertyValue("--drpg-kit-tab-fit-size") || null];
+            } finally { host.remove(); }
+        };
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/components.css`).then(lfText));
+        equal(stableJson({
+            nine: bar([130, 100, 130, 140, 100, 120, 160, 90, 110], 500),
+            three: bar([100, 100, 100], 400),
+            base: /\n\.drpg-tabs \{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/.test(css),
+            autoFit: css.includes("repeat(auto-fit, minmax(min(100%, 8em), 1fr))"),
+            one: /\.drpg-tabs\[data-drpg-tab-fit="one"\]\s*\{\s*display:\s*grid;/.test(css)
+        }), stableJson({
+            nine: [3, null, "wrap", null, null],
+            three: [1, 3, "one", "3", "13px"],
+            base: true, autoFit: false, one: true
+        }), "[nine tabs in 500 px: rows, cols, the bar's fit, its column count, its fitted size; three in 400 px the same; the bar's rule a wrapping flex row; the old column grid's rule; the equal columns on a one-line bar only]");
+    }],
+    ["R2091 - Give / take items opened for a character who is no student names that character (scripts/gm-items.mjs `recipientOptions`; E47-KFb, E47-C8's Open 3): its select on them, first, the students after; opened for a student, the students alone as before", async () => {
+        /*
+         * E47-KFb, 09.11.2026; STATUS E47-C8 Open 3: the Students window's Items on a Monokuma's or an NPC's row opened the
+         * hub with its "who" select listing students only, so it named the first student, which the hub's doors then read.
+         * Read: the hub's markup as DialogV2.wait is handed it, opened for the world's NPC (the seed's Remnant) and for a
+         * student. Red on b6133c75: the NPC is in no option and the first student is selected.
+         */
+        const G = await import("./gm-items.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const students = studentActors();
+        const other = game.actors.find(a => !students.some(s => s.id === a.id));
+        must(students.length >= 2 && other, "no two students and a character who is none - this would measure nothing");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const read = async actor => {
+            let config = null;
+            D.wait = async cfg => { config = cfg; return null; };
+            try { await G.openItemManager(actor); } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+            const host = document.createElement("div");
+            host.innerHTML = typeof config?.content === "string" ? config.content : config?.content?.outerHTML ?? "";
+            const select = host.querySelector('select[name="who"]');
+            return select ? [select.value, [...select.options].map(o => o.value)] : null;
+        };
+        equal(stableJson({ other: await read(other), student: await read(students[1]) }),
+            stableJson({ other: [other.id, [other.id, ...students.map(s => s.id)]], student: [students[1].id, students.map(s => s.id)] }),
+            "[the hub's who select opened for the NPC and for the second student: its value, its options]");
+    }],
+    ["R2093 - a formGrid label stands on its field's first line (components.css `.drpg-form-grid`, the kit's rule; E47-FA, comparison 2's ac015-ac017, ac042, ac044, ac060, ac075, ac078): the grid aligns its cells by their first baselines, under both themes", async () => {
+        /*
+         * E47-FA, 09.11.2026. The grid stood each label at the top of its row with a 0.3em pad: under the glass at
+         * 1366x768 a label's middle stood 6 px under a select's, 12 px under a text field's and 9 px under the
+         * tracker's facts; under Legacy 1, 7 and 3 px over (the comparison's pages, read in Chromium). By baseline the
+         * label's text is on the line of the control's text or of the fact. Read from the sheets' text (`styleCascade`)
+         * on a grid built on a body of each theme; in Chromium the fit sweep's `labelOff` (R2092). Red at a8ae16f6:
+         * "start" in both.
+         */
+        const C = await styleCascade();
+        const read = Object.fromEntries(Object.entries({ glass: "drpg-theme-stained-glass drpg-gm", legacy: "drpg-theme-monokuma-legacy drpg-gm" }).map(([dress, classes]) => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = classes;
+            html.append(body);
+            body.innerHTML = `<div class="application drpg-ui drpg-panel dialog"><div class="drpg-form-grid"><label class="drpg-form-label">Who</label><div class="drpg-form-field"><span>Aiko</span></div></div></div>`;
+            return [dress, C.winner(body.querySelector(".drpg-form-grid"), "align-items")?.value ?? null];
+        }));
+        equal(JSON.stringify(read), JSON.stringify({ glass: "baseline", legacy: "baseline" }), "{the grid's align-items under each theme}");
+    }],
+    ["R2094 - a checkbox in a formGrid keeps its box (components.css; E47-FA, comparison 2's ac044-ac046, ac075): the grid's `min-width: 0` for its fields leaves a checkbox and a radio out, so a long label beside one in a flex row does not shrink it", async () => {
+        /*
+         * E47-FA, 09.11.2026. Murder's "Indirect murder" box read 5x13 px under Legacy at 1366x768 (Chromium, the
+         * comparison's page): the grid's rule gave every input a least width of 0, and the label's flex row shrank the
+         * box beside its long words. Read on Murder's own markup (a full row's `label.drpg-checkbox`) in both themes,
+         * and a text field beside it keeps its 0 (the rule's own reason, M7's fields in a 274 px cell). Red at a8ae16f6:
+         * the box's min-width "0" in both.
+         */
+        const C = await styleCascade();
+        const read = Object.fromEntries(Object.entries({ glass: "drpg-theme-stained-glass drpg-gm", legacy: "drpg-theme-monokuma-legacy drpg-gm" }).map(([dress, classes]) => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = classes;
+            html.append(body);
+            body.innerHTML = `<div class="application drpg-ui drpg-panel dialog drpg-window-murder"><div class="drpg-form-grid"><label class="drpg-form-label" for="n">Name</label><div class="drpg-form-field"><input type="text" id="n"></div>`
+                + `<div class="drpg-form-full"><label class="drpg-checkbox"><input type="checkbox" name="indirect"><span>Indirect murder (a trap) - the long words of the row</span></label></div></div></div>`;
+            const box = body.querySelector('input[type="checkbox"]'), text = body.querySelector('input[type="text"]');
+            return [dress, [C.winner(box, "min-width")?.value ?? null, C.winner(text, "min-width")?.value ?? null]];
+        }));
+        equal(JSON.stringify(read), JSON.stringify({ glass: ["auto", "0"], legacy: ["auto", "0"] }), "{each theme: [the checkbox's min-width, the text field's]}");
+    }],
+    ["R2095 - the kit's box keeps no paragraph's margins inside it (components.css, the E47-FA section; E46-C6 Open 5, the owner's default on comparison 2): its first child takes no top margin and its last no bottom one, under both themes", async () => {
+        /*
+         * E47-FA, 09.11.2026. End of chapter's and the reset's warnings write a paragraph into `box()`, and the
+         * paragraph's own margins stood inside the box's padding, a blank line above and below the words. Read from the
+         * sheets' text on a warning box of two paragraphs in a kit window of each theme. Red at a8ae16f6: no rule of the
+         * module's sheets set them (null).
+         */
+        const C = await styleCascade();
+        const read = Object.fromEntries(Object.entries({ glass: "drpg-theme-stained-glass drpg-gm", legacy: "drpg-theme-monokuma-legacy drpg-gm" }).map(([dress, classes]) => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = classes;
+            html.append(body);
+            body.innerHTML = `<div class="application drpg-ui drpg-panel dialog"><div class="drpg-box" data-drpg-box="warning" role="note"><p>One.</p><p>Two.</p></div></div>`;
+            const [first, last] = body.querySelectorAll(".drpg-box > p");
+            return [dress, [C.winner(first, "margin-top")?.value ?? null, C.winner(last, "margin-bottom")?.value ?? null]];
+        }));
+        equal(JSON.stringify(read), JSON.stringify({ glass: ["0", "0"], legacy: ["0", "0"] }), "{each theme: [the first paragraph's margin-top, the last one's margin-bottom]}");
+    }],
+    ["R3123 - at Stage 6 the incident tracker says the turns are over (murder-ui.mjs `incidentTrackerHtml`, DRPG.Murder.trackerStateOver; E47-FA, E47-C2 Open 4, comparison 2's ac016), and a killer with no traces to clean reads one line, not the kit's empty state", async () => {
+        /*
+         * E47-FA, 09.11.2026. The turn bar read "Resolution · turn 1 · victim to act" at Stage 6 - the fight's last
+         * fields over a fight that ended (E47-C2 Open 4, E47-C7 Open 2; the owner's default on comparison 2: fix it). Read
+         * on two of the world's students, the tracker's HTML built for an incident at "resolution" (a builder: nothing is
+         * written), and at "incident" for the ground. The clean-up section with no trace is read from the source:
+         * `killerCleanup`'s branch for none draws a help line, not `emptyState` (its band of 28 px above and below stood
+         * one sentence in the middle of an empty block, ac016). Red at a8ae16f6: the bar held "turn" at Stage 6, and the
+         * branch drew `emptyState`.
+         */
+        needs(world.atLeast("livingStudents", 2), "two students for a fight's two sides");
+        const MU = await import("./murder-ui.mjs");
+        const [killer, victim] = studentActors();
+        const bar = stage => {
+            const root = document.createElement("div");
+            root.innerHTML = MU.incidentTrackerHtml({ stage, turn: 1, turnSide: "victim", killerId: killer.id, victimId: victim.id, recent: [], keyRemnants: 0 }, null);
+            return root.querySelector(".drpg-turn-bar")?.textContent.trim() ?? null;
+        };
+        const stageWord = s => game.i18n.localize(`DRPG.Murder.stage.${s}`);
+        const over = game.i18n.has("DRPG.Murder.trackerStateOver") ? game.i18n.format("DRPG.Murder.trackerStateOver", { stage: stageWord("resolution") }) : "(no key)";
+        const fight = game.i18n.format("DRPG.Murder.trackerState", { stage: stageWord("incident"), turn: 1, side: game.i18n.localize("DRPG.Murder.side.victim") });
+        const src = (await moduleSources()).get("murder-ui.mjs") ?? "";
+        const branch = bodyOf(src, "function killerCleanup(", { until: "const rows = traces.map" });
+        must(branch.includes("gmNothingHere"), "killerCleanup's branch for no trace was not found - this would read nothing");
+        equal(JSON.stringify({ stage6: bar("resolution"), incident: bar("incident"), empty: /emptyState\(\s*"DRPG\.Cleanup\.gmNothingHere"/.test(branch) }),
+            JSON.stringify({ stage6: over, incident: fight, empty: false }),
+            "{the turn bar at Stage 6, at the incident; the no-trace line drawn as the kit's empty state}");
+    }],
+
+    /* ---- E47-FB (09.11.2026): comparison 2's fixes ---- */
+    ["R2097 - the project action's Work row names the room it looked in (E47-FB; comparison 2's ac049): for a student standing in a room with no project started, action-project.mjs `performProject` draws Work on a project shut with `DRPG.Project.noneHere` formatted with that room's name, no raw \"{room}\" in the window", async () => {
+        /*
+         * E47-FB, 09.11.2026. The row's reason was `game.i18n.localize("DRPG.Project.noneHere")`, and the key carries
+         * `{room}` ("There is no project started in {room}." / "W: {room} nie zaczęto żadnego projektu."): probe 08's
+         * capture and the comparison's pictures showed the raw placeholder in both languages, on 1.2.101 as on a8ae16f6.
+         * Driven on this GM: `performProject` for the first student `locateActor` puts in a named room where
+         * `projectsAvailableIn` lists nothing, the window caught at `DialogV2.wait` (answered null, nothing drawn or
+         * written), the Work row's reason read off its markup. Red on a8ae16f6: the row read the key's raw "{room}".
+         */
+        needs(world.atLeast("studentsInRooms", 1), "a student standing in a room is the one whose Work row is read");
+        const AP = await import("./action-project.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { projectsAvailableIn } = await import("./projects.mjs");
+        must(typeof AP.performProject === "function" && ACTIONS.project, "action-project.mjs exports no performProject - this would measure nothing");
+        const actor = studentActors().find(a => { const place = locateActor(a); return place?.room && !projectsAvailableIn(place).length; });
+        must(actor, "no student stands in a room where no project is started - this would measure nothing");
+        const room = locateActor(actor).room;
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let config = null;
+        D.wait = async cfg => { config = cfg; return null; };
+        try { await AP.performProject(actor, ACTIONS.project, {}); } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+        const host = document.createElement("div");
+        host.innerHTML = typeof config?.content === "string" ? config.content : config?.content?.outerHTML ?? "";
+        const row = host.querySelector('input[name="variant"][value="work"]')?.closest("label");
+        must(row, "no Work row in the project window - this would measure nothing");
+        equal(stableJson({ disabled: row.querySelector("input").disabled, why: row.querySelector("small")?.textContent.trim() ?? null,
+            raw: host.textContent.includes("{room}") }),
+            stableJson({ disabled: true, why: game.i18n.format("DRPG.Project.noneHere", { room }), raw: false }),
+            "{the Work row shut, its reason, a raw {room} anywhere in the window}");
+    }],    /* ---- E47-FC (09.11.2026): the owner on comparison 2 - Sound's Play tab (bc019, bc025), the kit box's action,
+       Give > Create new's icon preview (q-create-icon), Observe's captions (bc047). ---- */
+    ["R3133 - Sound's Play tab: Play and Reset music side by side on one row, and the missing cue playlist's Create button inside the box that says so, its line no longer pointing below (scripts/sound-panel.mjs `soundPlayPane`, components.css; E47-FC, the owner on comparison 2, cards bc019 and bc025): the window drawn with a cue playlist and without", async () => {
+        /*
+         * E47-FC, 09.11.2026; the owner on comparison 2: bc019 "Play music i reset music chcialbym w jednym rzedzie",
+         * bc025 "Przycisk proponuje na szarym polu pod napisem 'utworz ja'". Read here on this GM's real window, opened
+         * twice: once with the world's playlists seen through a stand-in `game.playlists.find` that answers a one-track
+         * cue playlist (nothing written: the stand-in is a client's method, put back in `finally`), once with the cue
+         * playlist hidden. Each time: Play's and Reset's parent, its children, its winning `display` and `flex-direction`
+         * (the cascade of the module's stylesheets, `styleCascade`); the Create button's box, its row in it and its place
+         * after the box's line. The line in en.json and pl.json read for "below" / "poniżej". Red on a8ae16f6: Play and
+         * Reset are children of the fieldset (a grid: two rows), the Create button stands under the box, the line says
+         * "Create it below." / "Utwórz ją poniżej."
+         */
+        needs(env.dialogs(), "the Sound window is drawn");
+        must(game.user.isGM, "the Play tab is a GM's");
+        must(!document.querySelector(".drpg-window-sound"), "a Sound window is open - close it: this test opens its own");
+        const M = await import("./music.mjs");
+        const { SITUATIONAL_PLAYLIST } = await import("./config.mjs");
+        const C = await styleCascade();
+        const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json());
+        const [en, pl] = await Promise.all([lang("en"), lang("pl")]);
+        const P = game.playlists;
+        const ownFind = Object.getOwnPropertyDescriptor(P, "find");
+        const find = P.find;
+        const fake = { id: "drpgR3133cue", name: SITUATIONAL_PLAYLIST, sounds: Object.assign([{ id: "drpgR3133a", name: "Discovery" }], { size: 1 }) };
+        const draw = async withCue => {
+            P.find = function (fn, ...rest) {
+                let wanted = false;
+                try { wanted = Boolean(fn(fake)); } catch { wanted = false; }
+                if (wanted) return withCue ? fake : null;
+                return find.call(this, p => !(String(p?.name ?? "").trim().toLowerCase() === SITUATIONAL_PLAYLIST.trim().toLowerCase()) && fn(p), ...rest);
+            };
+            let answer = null;
+            try {
+                answer = Promise.resolve().then(() => M.openSoundDialog()).catch(err => `threw: ${err.message}`);
+                const root = () => document.querySelector(".drpg-window-sound");
+                must(await until(() => root()?.querySelector("[data-drpg-play]"), 6000), "the Sound window did not open with its Play tab");
+                const el = root();
+                const play = el.querySelector("[data-drpg-play]"), reset = el.querySelector("[data-drpg-reset-music]");
+                const row = play.parentElement;
+                const make = el.querySelector("[data-drpg-make-cue]");
+                const line = el.querySelector("[data-drpg-no-cue]");
+                const box = make?.closest(".drpg-box") ?? null;
+                const read = {
+                    row: [row === reset?.parentElement, row.classList.contains("drpg-music-now-actions"),
+                        [...row.children].map(c => (c === play ? "play" : c === reset ? "reset" : c.tagName.toLowerCase())),
+                        C.winner(row, ["display"])?.value ?? null, C.winner(row, ["flex-direction"])?.value ?? "row"],
+                    make: make ? [box?.dataset.drpgBox ?? null, make.parentElement?.classList.contains("drpg-box-action") ?? false,
+                        Boolean(line && box?.contains(line) && (line.compareDocumentPosition(make) & Node.DOCUMENT_POSITION_FOLLOWING)),
+                        C.winner(make.parentElement, ["display"])?.value ?? null] : null
+                };
+                el.querySelector('footer.form-footer button[data-action="close"]')?.click();
+                await Promise.race([answer, wait(3000)]);
+                return read;
+            } finally {
+                for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.classList?.contains("drpg-window-sound"))) await app.close();
+                if (answer) await Promise.race([answer, wait(3000)]);
+                if (ownFind) Object.defineProperty(P, "find", ownFind); else delete P.find;
+            }
+        };
+        const row = [true, true, ["play", "reset"], "flex", "row"];
+        const said = [en, pl].map(l => /\bbelow\b|poni[zż]ej|ni[zż]ej/i.test(l?.DRPG?.Music?.noSituational ?? "below"));
+        equal(stableJson({ cue: await draw(true), none: await draw(false), said }),
+            stableJson({ cue: { row, make: null }, none: { row, make: ["info", true, true, "flex"] }, said: [false, false] }),
+            "{with a cue playlist and without: Play and Reset [one parent, it is .drpg-music-now-actions, its children, its display, its "
+                + "flex-direction]; the Create button [its box's kind, in the box's action row, after the box's line, the row's display]; the line "
+                + "says below [en, pl]}");
+    }],
+    ["R3134 - the kit's box takes an optional action (scripts/ui-kit.mjs `box(kind, body, { action })`, components.css; E47-FC, card bc025): the action's markup inside the box after its words, in `div.drpg-box-action`, a flex row; a box with none draws a8ae16f6's markup byte for byte", async () => {
+        /*
+         * E47-FC, 09.11.2026: a kit change for the owner's bc025 (Sound's Create button inside the box). Read: `box` called
+         * with and without an action; the action's row read through the module's stylesheets' cascade inside a kit
+         * window's element. Red on a8ae16f6: `box` ignores its third argument (the box holds the words alone).
+         */
+        const K = await import("./ui-kit.mjs");
+        const C = await styleCascade();
+        const host = document.createElement("div");
+        host.className = "application drpg-ui";
+        document.body.append(host);
+        try {
+            host.innerHTML = K.box("info", "<p>words</p>", { action: '<button type="button" data-drpg-r3134>Do it</button>' });
+            const box = host.firstElementChild;
+            const act = box?.querySelector(".drpg-box-action");
+            const read = {
+                box: [box?.dataset.drpgBox ?? null, box?.getAttribute("role") ?? null, [...(box?.children ?? [])].map(c => `${c.tagName.toLowerCase()}${c.className ? `.${c.className}` : ""}`)],
+                action: act ? [act.querySelector("[data-drpg-r3134]")?.textContent ?? null, C.winner(act, ["display"])?.value ?? null] : null,
+                plain: [K.box("warning", "<p>x</p>"), K.box("info", "x", {}), K.box("secret", "x", { action: null }), K.box("info", null)]
+            };
+            equal(stableJson(read), stableJson({
+                box: ["info", "note", ["p", "div.drpg-box-action"]],
+                action: ["Do it", "flex"],
+                plain: ['<div class="drpg-box" data-drpg-box="warning" role="note"><p>x</p></div>', '<div class="drpg-box" data-drpg-box="info" role="note">x</div>',
+                    '<div class="drpg-box" data-drpg-box="secret" role="note">x</div>', '<div class="drpg-box" data-drpg-box="info" role="note"></div>']
+            }), "{a box with an action [its kind, its role, its children]; the action [its button's words, its row's display]; boxes with none, as drawn}");
+        } finally {
+            host.remove();
+        }
+    }],
+    ["R3135 - Give > Create new shows the icon the new item will get beside its category select, before any press, and repaints it on every change (scripts/gm-items.mjs `giveCreatePane`, `wireGiveForm`, config.mjs `itemIcon`; E47-FC, the owner on comparison 2, q-create-icon): each category offered picked, the picture's src its category's drawing", async () => {
+        /*
+         * E47-FC, 09.11.2026; the owner on comparison 2, question q-create-icon: Change - the preview is wanted. The item
+         * Create new hands over takes `itemIcon(category)` (E47-T7); the window drew no picture before Give. Read here
+         * through the window as E47-T7 drives it, with DialogV2.wait stood in for (nothing given: the stand-in answers
+         * "cancel"): the Create new tab pressed, the picture's src as drawn, then each option of the category select
+         * picked and `change` sent, the src read after each; and whether the picture shares the select's field cell.
+         * Red on a8ae16f6: no `[data-drpg-give-icon]`.
+         */
+        const G = await import("./gm-items.mjs");
+        const CFG = await import("./config.mjs");
+        const [actor] = studentActors();
+        must(actor, "no student to give to - this would measure nothing");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let read = null;
+        try {
+            D.wait = async config => {
+                const element = document.createElement("div");
+                if (typeof config?.content === "string") element.innerHTML = config.content;
+                else if (config?.content) element.append(config.content);
+                config?.render?.(null, { element });
+                element.querySelector('[data-drpg-tab-key="create"]')?.click();
+                const form = element.querySelector("form");
+                const select = form.elements.category;
+                const img = form.querySelector("[data-drpg-give-icon]");
+                const values = [...select.options].map(o => o.value).filter(Boolean);
+                read = {
+                    values,
+                    cell: img ? img.closest(".drpg-form-field") === select.closest(".drpg-form-field") : null,
+                    alt: img?.getAttribute("alt") ?? null,
+                    first: img?.getAttribute("src") ?? null,
+                    picked: values.map(value => {
+                        select.value = value;
+                        select.dispatchEvent(new Event("change"));
+                        return [value, img?.getAttribute("src") ?? null];
+                    })
+                };
+                return "cancel";
+            };
+            await G.gmGiveItemDialog(actor);
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        must(read?.values?.length >= 3, `the Create new tab offered ${read?.values?.length ?? 0} categories - this would measure little`);
+        const icon = value => CFG.itemIcon(value.split(":")[0]);
+        must(new Set(read.values.map(icon)).size >= 2, "every category offered has the same drawing - a repaint would show nothing");
+        equal(stableJson({ cell: read.cell, alt: read.alt, first: read.first, picked: read.picked }),
+            stableJson({ cell: true, alt: "", first: icon(read.values[0]), picked: read.values.map(v => [v, icon(v)]) }),
+            "{the picture in the category select's field cell, its alt, its src as drawn, its src after each category picked}");
+    }],
+    ["R3136 - Observe's five captions are a half of their length or less, in English and Polish, and keep what each choice does (lang/en.json, lang/pl.json `DRPG.Observe.*Hint`; E47-FC, the owner on comparison 2, card bc047: \"Podpisy sa 2-3x za dlugie\")", async () => {
+        /*
+         * E47-FC, 09.11.2026; the owner on comparison 2, bc047: the captions under Observe's choices are two to three times
+         * too long. Each is held to half its length at a8ae16f6 (BEFORE, in characters, frozen here) or less, and to the
+         * facts a player chooses by: the sweep and the look past the obvious settled by the total (a GM in an empty room
+         * - the second "as a sweep"), the secret project the second alone can find, Focus your gaze's GM who picks and its
+         * blank field a sweep, a point of interest ruled by a GM. Observe only: the other actions' captions are E68's (one
+         * layout for every action). Red on a8ae16f6: every caption at its full length.
+         */
+        const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json());
+        const [en, pl] = await Promise.all([lang("en"), lang("pl")]);
+        const KEYS = ["generalHint", "nonObviousHint", "followTracesHint", "specificHint", "anythingHint"];
+        const BEFORE = { en: [219, 232, 57, 165, 85], pl: [214, 261, 62, 185, 67] };
+        const FACTS = {
+            en: [/crime/i, /secret project/i, /left behind/i, /GM/, /GM/],
+            pl: [/zbrodni/i, /tajny projekt/i, /zosta/i, /GM/, /GM/]
+        };
+        const SWEEP = { en: [/total/i, /sweep/i, null, /sweep/i, /trace/i], pl: [/wynik/i, /rozgl[aą]dani/i, null, /rozgl[aą]dani/i, /[sś]lad/i] };
+        const read = {}, want = {};
+        for (const [code, file] of [["en", en], ["pl", pl]]) {
+            read[code] = KEYS.map((key, i) => {
+                const text = String(file?.DRPG?.Observe?.[key] ?? "");
+                return [key, text.length <= Math.ceil(BEFORE[code][i] / 2), FACTS[code][i].test(text), SWEEP[code][i] ? SWEEP[code][i].test(text) : true];
+            });
+            want[code] = KEYS.map(key => [key, true, true, true]);
+        }
+        equal(stableJson(read), stableJson(want), "{each caption [its key, at most half its length at a8ae16f6, its fact, its second fact]}");
+    }],
+    /* ---- E47-FD (10.11.2026): the owner's defaults on comparison 3 - a disabled role button under the glass
+       (q-disabled) and three windows really cut (q-cuts) ---- */
+    ["R3137 - under the glass a disabled role button looks disabled, the destructive one included (components.css, the E47-FD section; the owner's default on comparison 3, q-disabled): every role of the kit's footer, disabled, is grey and faded by the kit's one rule, an enabled one is not, and Legacy keeps its own dialog footer's grey", async () => {
+        /*
+         * E47-FD, 10.11.2026. Under Stained Glass the vote's "Close and count" before any ballot and the trial console's
+         * "Start the Final Trial" with no Mastermind wore the destructive face whole - light-red ink, red edge, the
+         * raster - because the glass's destructive rule states them with `!important` at the footer's disabled rule's
+         * weight and later (stained-glass.css, "3. the footer row"; the comparison's M6 vote card at 1366x768). Read
+         * from the sheets' text (`styleCascade`) on a kit footer of every role (ui-kit.mjs BUTTON_ROLES), drawn as the
+         * vote's window is, on a body of each theme: under the glass each disabled button's opacity and filter, and an
+         * enabled destructive one's; under Legacy each disabled button's ink, from danganronpa.css's dialog footer rule.
+         * In Chromium (10.11.2026) the disabled "Close and count" computed opacity 1 and no filter on 35a6f3b0, 0.6 and
+         * grayscale(1) after. Red on 35a6f3b0: the glass's opacity "1" (the brush rule's) and no filter.
+         */
+        const { BUTTON_ROLES } = await import("./ui-kit.mjs");
+        const roles = Object.keys(BUTTON_ROLES);
+        must(roles.includes("destructive") && roles.length >= 5, "ui-kit.mjs's BUTTON_ROLES has no destructive role - this would measure nothing");
+        const C = await styleCascade();
+        const read = {};
+        for (const [dress, classes] of Object.entries({ glass: "drpg-theme-stained-glass drpg-gm", legacy: "drpg-theme-monokuma-legacy drpg-gm" })) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = classes;
+            html.append(body);
+            const buttons = roles.map(role => `<button type="submit" data-action="${role}" data-drpg-role="${role}" class="${[BUTTON_ROLES[role].cls, BUTTON_ROLES[role].face].filter(Boolean).join(" ")}" disabled>${role}</button>`).join("");
+            body.innerHTML = `<div class="application dialog drpg-panel drpg-window-vote drpg-ui"><form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-kit-body"><p>Body.</p></div></div>`
+                + `<footer class="form-footer drpg-kit-footer"><div class="drpg-kit-left">${buttons}<button type="submit" data-action="live" data-drpg-role="destructive" class="drpg-role-destructive drpg-destructive">live</button></div></footer></form></div>`;
+            const value = (el, p) => C.winner(el, p)?.value ?? null;
+            const live = body.querySelector('button[data-action="live"]');
+            read[dress] = {
+                disabled: roles.map(role => {
+                    const b = body.querySelector(`button[data-action="${role}"]`);
+                    return dress === "glass" ? [role, value(b, "opacity"), value(b, "filter")] : [role, value(b, "color")];
+                }),
+                enabled: dress === "glass" ? [value(live, "opacity"), value(live, "filter")] : [value(live, "color") !== value(body.querySelector('button[data-action="destructive"]'), "color")]
+            };
+        }
+        equal(stableJson(read), stableJson({
+            glass: { disabled: roles.map(role => [role, "0.6", "grayscale(1)"]), enabled: ["1", null] },
+            legacy: { disabled: roles.map(role => [role, "var(--drpg-dim)"]), enabled: [true] }
+        }), "{glass: each disabled role [role, opacity, filter], an enabled destructive [opacity, filter]; legacy: each disabled role [role, its ink], an enabled destructive's ink not the disabled one's}");
+    }],
+    ["R3138 - Room setup's Search tab fits a small screen (components.css, the place column; the owner's default on comparison 3, q-cuts; E47-FB Open 2): the place column takes what the window's ceiling leaves after the other four columns, at most its 360 px, and its switches wrap their words in both themes", async () => {
+        /*
+         * E47-FD, 10.11.2026. The tab's five fixed columns were 1088 px, and at 1024x768 the window stops at 94 % of the
+         * screen: the table stood 1088 px in a 929 px body, the place column cut (Chromium on probe 08's rooms-search,
+         * both themes; the fit sweep's `wide` reading, E47-FB). After: the column 155 px there, the table 883 px in an
+         * 885 px body, 360 px from 1280x800 up (the same page). Read from the sheets' text on the tab's table drawn with
+         * the window's classes on a body of each theme: the place column's width names the ceiling (`94vw`, the
+         * window's `--drpg-window-max`), the other four columns' widths as their own rules state them (written out
+         * in it one by one, so a change to one of them that leaves this stale is red here) and its 360 px; a switch
+         * `white-space: normal`. Red on 35a6f3b0: `calc(360px * ...)` and "nowrap" (the glass's panel button rule).
+         */
+        const C = await styleCascade();
+        const read = {}, want = {};
+        for (const [dress, classes] of Object.entries({ glass: "drpg-theme-stained-glass drpg-gm", legacy: "drpg-theme-monokuma-legacy drpg-gm" })) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = classes;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-panel drpg-projects drpg-room-setup drpg-window-rooms drpg-ui drpg-kit-fit"><div class="drpg-kit-body"><section class="drpg-tab-pane" data-drpg-pane="search"><div class="drpg-data-table-box"><table class="drpg-data-table">`
+                + `<colgroup><col class="drpg-data-col-room"><col class="drpg-data-col-check"><col class="drpg-data-col-step"><col class="drpg-data-col-select"><col class="drpg-data-col-place"></colgroup>`
+                + `<tbody><tr><td class="drpg-data-col-room">Gym</td><td class="drpg-data-col-check"></td><td class="drpg-data-col-step"></td><td class="drpg-data-col-select"></td>`
+                + `<td class="drpg-data-col-place act"><span class="drpg-place-switches"><span class="drpg-place-switch"><button type="button" class="drpg-place-toggle" data-drpg-place="">Murder Weapon</button></span></span></td></tr></tbody></table></div></section></div></div>`;
+            const width = cls => C.winner(body.querySelector(`col.drpg-data-col-${cls}`), "width")?.value ?? "";
+            const others = ["room", "check", "step", "select"].map(cls => Number(/^calc\((\d+)px \* var\(--drpg-legacy-scale, 1\)\)$/.exec(width(cls))?.[1] ?? NaN));
+            must(others.every(Number.isFinite), `the other columns' widths were not read: ${others.join(", ")} - this would measure nothing`);
+            const sum = others.reduce((a, b) => a + b, 0);
+            const place = width("place");
+            const toggle = C.winner(body.querySelector(".drpg-place-toggle"), "white-space");
+            read[dress] = { sum, ceiling: place.includes("94vw") && place.includes("var(--drpg-window-max)"), others: place.includes(`(${others.map(n => `${n}px`).join(" + ")}) * var(--drpg-legacy-scale, 1)`),
+                most: place.includes("calc(360px * var(--drpg-legacy-scale, 1))"), wraps: [toggle?.file ?? null, toggle?.value ?? null] };
+            want[dress] = { sum: 728, ceiling: true, others: true, most: true, wraps: ["styles/components.css", "normal"] };
+        }
+        equal(stableJson(read), stableJson(want), "{each theme: the other four columns' sum, the place column's width names the ceiling, those four widths, its 360 px; a switch's white-space [file, value]}");
+    }],
+    ["R3139 - a specific note's field is the note's width with its edges (components.css, the E47-FD section; the owner's default on comparison 3, q-cuts; E47-FB Open 2): Analyze's request and every action's caption-over-field control take `box-sizing: border-box` beside their `width: 100%`, in both themes", async () => {
+        /*
+         * E47-FD, 10.11.2026. danganronpa.css gives the control `width: 100%`, and a text area measures its content:
+         * Analyze's request stood 6 px past the body at every size, both themes (550/544 glass and 516/510 Legacy at
+         * 1366x768, Chromium on probe 08's action-analyze); after, its right edge is the body's (955/955, 938/938). Read
+         * from the sheets' text on the note as action-menus.mjs draws it, in a kit window of each theme: the text
+         * area's, a select's and a text field's width and box-sizing. Red on 35a6f3b0: no rule set the box-sizing (null).
+         */
+        const C = await styleCascade();
+        const read = Object.fromEntries(Object.entries({ glass: "drpg-theme-stained-glass drpg-gm", legacy: "drpg-theme-monokuma-legacy drpg-gm" }).map(([dress, classes]) => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = classes;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-panel drpg-ui drpg-prompt"><div class="drpg-kit-body"><div class="drpg-choice-list"><label class="drpg-choice"><input type="radio" name="variant" value="hint" checked></label></div>`
+                + `<label class="drpg-specific-note" data-drpg-when="hint"><span>Analyze</span><textarea name="request" rows="2"></textarea><select name="s"></select><input type="text" name="t"><small class="notes">Optional.</small></label></div></div>`;
+            return [dress, ["textarea", "select", "input"].map(tag => {
+                const el = body.querySelector(`label.drpg-specific-note > ${tag}`);
+                return [tag, C.winner(el, "width")?.value ?? null, C.winner(el, "box-sizing")?.value ?? null];
+            })];
+        }));
+        const want = [["textarea", "100%", "border-box"], ["select", "100%", "border-box"], ["input", "100%", "border-box"]];
+        equal(stableJson(read), stableJson({ glass: want, legacy: want }), "{each theme: [the control, its width, its box-sizing]}");
+    }],
+    ["R3140 - the Look window's fieldset holds to a phone (components.css, the E47-FD section; the owner's default on comparison 3, q-cuts; E47-FB Open 2): the Look fieldset's least width is 0, not its rows' least, and its scale slider shrinks into its row - the glass's 14ch least kept, Legacy's none", async () => {
+        /*
+         * E47-FD, 10.11.2026. A fieldset is at least as wide as its content's least width, and the Interface scale
+         * row's least was the slider's own 129 px beside the name column and the percentage: at 390x844 the Look
+         * fieldset ran 2..354 in a 333 px body under the glass, 2..376 under Legacy (Chromium on probe 08's
+         * look-player); after, both inside. Read from the sheets' text on the fieldset as sound-panel.mjs draws it in
+         * the Look window's kit frame, on a body of each theme. Red on 35a6f3b0: the fieldset's min-width null (the
+         * browser's min-content), Legacy's slider null.
+         */
+        const C = await styleCascade();
+        const read = Object.fromEntries(Object.entries({ glass: "drpg-theme-stained-glass drpg-gm", legacy: "drpg-theme-monokuma-legacy drpg-gm" }).map(([dress, classes]) => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = classes;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-panel drpg-projects drpg-sound drpg-sound-player drpg-window-look drpg-ui drpg-kit-fit"><div class="drpg-kit-body"><fieldset class="drpg-look"><legend>Look</legend>`
+                + `<label><span>Interface scale</span><input type="range" name="look:uiScale" min="0.8" max="1.4" step="0.05" value="1"><output>100%</output></label></fieldset></div></div>`;
+            return [dress, [C.winner(body.querySelector("fieldset.drpg-look"), "min-width")?.value ?? null, C.winner(body.querySelector('.drpg-look input[type="range"]'), "min-width")?.value ?? null]];
+        }));
+        equal(stableJson(read), stableJson({ glass: ["0", "14ch"], legacy: ["0", "0"] }), "{each theme: [the Look fieldset's min-width, its scale slider's]}");
+    }],
 ];
+
+/**
+ * The GM panel's tiles as `buildSections` draws them in a world read as `state` (E47-C3, for R2060-R2063):
+ * `game.settings.get` answers the clock's `eclipse` and `phase` and the murder's world half (`active`) as asked while the
+ * tiles are built, the settings themselves untouched (tier 1 writes nothing). `read(root)` reads the drawn markup.
+ */
+async function panelUnder({ eclipse = false, incident = false, phase = "dailyLife" } = {}, read) {
+    const P = await import("./gm-panel.mjs");
+    must(typeof P.buildSections === "function", "gm-panel.mjs exports no buildSections - this would measure nothing");
+    const real = game.settings.get;
+    game.settings.get = function (scope, key, ...rest) {
+        const value = real.call(this, scope, key, ...rest);
+        if (scope !== MODULE_ID) return value;
+        if (key === SETTINGS.murderState) return incident ? { ...(value ?? {}), active: true } : { active: false };
+        if (key === SETTINGS.clock) return { ...(value ?? {}), eclipse, phase };
+        return value;
+    };
+    let markup;
+    try { markup = P.buildSections(); } finally { game.settings.get = real; }
+    const root = document.createElement("div");
+    root.innerHTML = markup;
+    return read(root);
+}
+
+/**
+ * A world read as one with no incident and no Eclipse (E47-C2, for R2056-R2058): `game.settings.get` answers the
+ * murder's world half inactive and the clock's `eclipse` false while `run` runs (a promise is awaited), the setting
+ * itself untouched - so a tier-1 reading of the murder windows needs no skip at a table where a fight is running.
+ */
+function quietWorld(run) {
+    const real = game.settings.get;
+    game.settings.get = function (scope, key, ...rest) {
+        const value = real.call(this, scope, key, ...rest);
+        if (scope !== MODULE_ID) return value;
+        if (key === SETTINGS.murderState) return { active: false };
+        if (key === SETTINGS.clock) return { ...(value ?? {}), eclipse: false };
+        return value;
+    };
+    let out;
+    try { out = run(); } catch (err) { game.settings.get = real; throw err; }
+    if (out && typeof out.then === "function") return out.finally(() => { game.settings.get = real; });
+    game.settings.get = real;
+    return out;
+}
+
+/**
+ * The Students window drawn on this GM for E47-C8's tests (R2080-R2083): gm-students.mjs `openWhoIsAliveDialog` with
+ * `roads`, the stand-ins a test hands for the roads its rows call (`markFromSheet`, `setMonokuma`, `setNotInClass`,
+ * `openAdvancementFor`, `openItemManager`). Answers `{ of, app, answer, close }`: the drawn Students windows, the first
+ * one, the opener's promise, and a close of every one of them that waits for that promise.
+ */
+async function studentsWindow(roads = undefined) {
+    const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-alive"));
+    must(of().length === 0, "a Students window stands open already");
+    const GS = await import("./gm-students.mjs");
+    const answer = Promise.resolve().then(() => GS.openWhoIsAliveDialog(roads ? { roads } : undefined)).catch(err => err);
+    await until(() => of().some(a => a.element?.querySelector(".drpg-alive-live")), 6000);
+    const close = async () => {
+        for (let round = 0; round < 3 && of().length; round++) {
+            for (const a of of()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(1000)]);
+        }
+        await Promise.race([answer, wait(2000)]);
+    };
+    return { of, app: of()[0] ?? null, answer, close };
+}
 
 /**
  * The translation keys R1 cannot see, because no file spells them out: each is
@@ -41941,6 +45104,94 @@ async function e45Held(actor, held, run) {
             if (own) Object.defineProperty(node, field, own); else delete node[field];
         }
     }
+}
+
+/* E46-C3's stand-ins (R2021-R2025): a table as the tables windows read one, in this browser's memory only. `entries`
+   `[{ name, roles }]`; each entry records the patches `update` was handed; `failAdd` refuses `createEmbeddedDocuments`
+   (the entry a write could not add); `delete` only marks the stand-in. `spec` makes a fresh copy. */
+function c3Table(spec) {
+    const { id, name, flags = {}, entries = [], failAdd = false } = spec;
+    const values = list => { const m = new Map(list.map(x => [x.id, x])); Object.defineProperty(m, Symbol.iterator, { value: () => m.values() }); return m; };
+    const made = entries.map((e, i) => {
+        const doc = { id: `${id}e${i}`, name: e.name, text: e.name, description: e.name, img: "", updates: [],
+            getFlag: (scope, key) => (scope === MODULE_ID && key === "roles" ? e.roles : undefined),
+            update: async patch => { doc.updates.push(patch); Object.assign(doc, patch); return doc; }, setFlag: async () => doc };
+        return { id: doc.id, doc, updates: doc.updates };
+    });
+    const table = {
+        spec, id, name, deleted: false, entries: made, results: values(made.map(e => e.doc)),
+        getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined),
+        delete: async () => { table.deleted = true; return table; }, update: async patch => Object.assign(table, patch),
+        createEmbeddedDocuments: async () => { if (failAdd) throw new Error("R2021: a stand-in that takes no entry"); return []; },
+        normalize: async () => table
+    };
+    return table;
+}
+
+/* `run` with `obj`'s `props` laid over it as own properties, each put back (or taken away) after. */
+async function c3Shadow(obj, props, run) {
+    const keys = Reflect.ownKeys(props);   // the symbols too: `Symbol.iterator` is how `Array.from` reads a collection
+    const kept = keys.map(key => [key, Object.getOwnPropertyDescriptor(obj, key)]);
+    try {
+        for (const key of keys) Object.defineProperty(obj, key, { configurable: true, writable: true, value: props[key] });
+        return await run();
+    } finally {
+        for (const [key, own] of kept) { if (own) Object.defineProperty(obj, key, own); else delete obj[key]; }
+    }
+}
+
+/* `run(tables)` with `game.tables` answering the stand-ins alone - `get`, `getName`, iteration, `contents`, `filter`,
+   `find`, `some`, `map`, `size` - read only. */
+async function c3Tables(tables, run) {
+    const it = () => tables.values();
+    const props = { get: id => tables.find(t => t.id === id), getName: name => tables.find(t => t.name === name), [Symbol.iterator]: it,
+        filter: fn => tables.filter(fn), find: fn => tables.find(fn), some: fn => tables.some(fn), map: fn => tables.map(fn) };
+    const kept = ["contents", "size"].map(key => [key, Object.getOwnPropertyDescriptor(game.tables, key)]);
+    try {
+        Object.defineProperty(game.tables, "contents", { configurable: true, get: () => [...tables] });
+        Object.defineProperty(game.tables, "size", { configurable: true, get: () => tables.length });
+        return await c3Shadow(game.tables, props, () => run(tables));
+    } finally {
+        for (const [key, own] of kept) { if (own) Object.defineProperty(game.tables, key, own); else delete game.tables[key]; }
+    }
+}
+
+/* `run()` with DialogV2.wait answered by `answer(config, element)`: the window's content drawn in a detached element
+   (a `<footer>` with a button per `footer` action, as DialogV2 draws them), its render run on it; put back after. */
+async function c3Wait(answer, run, { footer = [] } = {}) {
+    const D = foundry.applications.api.DialogV2;
+    return c3Shadow(D, { wait: async config => {
+        const element = document.createElement("div");
+        if (typeof config?.content === "string") element.innerHTML = config.content;
+        else if (config?.content) element.append(config.content);
+        if (footer.length) {
+            const bar = document.createElement("footer");
+            for (const action of footer) { const b = document.createElement("button"); b.dataset.action = action; bar.append(b); }
+            element.append(bar);
+        }
+        config?.render?.(null, { element });
+        return answer(config, element);
+    } }, run);
+}
+
+/* Room setup drawn on this GM with DialogV2.wait stood in for (E46-C2a: R2010-R2015): the opener runs to its window and
+   the stand-in answers null, which it reads as closed - nothing written. `root` holds the window's content, `pane(key)` a
+   tab's pane. */
+async function roomSetupDrawn() {
+    const D = foundry.applications.api.DialogV2;
+    const own = Object.getOwnPropertyDescriptor(D, "wait");
+    let cfg = null;
+    D.wait = async c => { cfg = c; return null; };
+    try {
+        await (await import("./room-setup.mjs")).openRoomSetupDialog();
+    } finally {
+        if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+    }
+    must(cfg, "Room setup opened no window on this GM");
+    const root = document.createElement("div");
+    const c = cfg.content;
+    root.innerHTML = typeof c === "string" ? c : (c?.outerHTML ?? "");
+    return { cfg, root, pane: key => root.querySelector(`[data-drpg-pane="${key}"]`) };
 }
 
 export { INVARIANTS };

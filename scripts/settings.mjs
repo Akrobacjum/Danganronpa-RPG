@@ -145,6 +145,8 @@ export const SETTINGS = {
     restrictions: "restrictions",
     hideSystemFear: "hideSystemFear",
     pixelFont: "pixelFont",
+    /** The create, edit and propose project windows at the kit's `wide` width on this browser (E47-C6; the owner's O4, 09.11.2026). */
+    wideProjectWindows: "wideProjectWindows",
     theme: "theme",
     /** This browser's language for the module's own strings - see i18n.mjs. */
     language: "language",
@@ -1406,6 +1408,19 @@ export function registerSettings() {
         type: Boolean,
         default: true,
         onChange: () => applyTheme()
+    });
+
+    /* WIDE PROJECT WINDOWS (E47-C6, 09.11.2026; the owner's O4 of the E47-M mockup round, "Moze jako ustawienie w panelu
+       ustawien?", and its scope, "Kazdy dla siebie": each person's own). Off by default: Create a project, Edit project
+       and Propose a project open at the width they had; on, at the kit's `wide` (projects-ui.mjs `projectWindowWidth`).
+       Read when a window opens, so no onChange. */
+    game.settings.register(MODULE_ID, SETTINGS.wideProjectWindows, {
+        name: "DRPG.Settings.wideProjectWindows.name",
+        hint: "DRPG.Settings.wideProjectWindows.hint",
+        scope: "client",
+        config: true,
+        type: Boolean,
+        default: false
     });
 
     /* ---- the language of this layer, per browser. English by default, and
@@ -4186,6 +4201,13 @@ Hooks.on("renderSettingsConfig", (_app, element) => {
     if (!settingsRegistered()) return;
     const root = element instanceof HTMLElement ? element : element?.[0];
     if (!root) return;
+    /* THE MODULE'S ROWS MARKED (E47-C5, 09.11.2026; audit S01-44). components.css widens their label column, sets
+       the label's line height and takes Foundry's amber off their checkboxes, range and buttons; it reaches them by this
+       class, since how v14 names a category's section was not read here (a live check, LIVE-E47-06). A row is the module's when a
+       field of its own or a menu's button names the module's key. */
+    for (const field of root.querySelectorAll(`[name^="${MODULE_ID}."], button[data-key^="${MODULE_ID}."]`)) {
+        field.closest(".form-group")?.classList.add("drpg-settings-row");
+    }
     const themeField = root.querySelector(`[name="${MODULE_ID}.${SETTINGS.theme}"]`);
     const show = (key, on) => {
         const field = root.querySelector(`[name="${MODULE_ID}.${key}"]`);

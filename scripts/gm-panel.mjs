@@ -18,7 +18,7 @@ import { isEclipse } from "./eclipse.mjs";
 import { studentActors, actingStudents } from "./monokuma.mjs";
 import { error, plural, esc, primaryGmId } from "./utils.mjs";
 import { keepLive, alreadyOpen, RAISED } from "./live.mjs";
-import { launcher, drpgWindow } from "./ui-kit.mjs";
+import { launcher, drpgWindow, box } from "./ui-kit.mjs";
 import { SETTINGS, bodyDiscovery, bodyFoundSinceTrial, seasonEpoch, sameSeason } from "./settings.mjs";
 import { bodiesToDiscover, announcedIn, chapterEndStopped } from "./chapter.mjs";
 import { flagsHeldNow, itemsHeldNow } from "./sheet-audit.mjs";
@@ -28,6 +28,7 @@ import { isTruthBullet, secretOf } from "./truth-bullets.mjs";
 import { caseMark, caseWarning, healthLine, keyPlanStore } from "./gm-stores.mjs";
 import { firstOutstandingStep } from "./season-setup.mjs";
 import { roundOf, readyRecord } from "./boundary.mjs";
+import { trialNextStep, trialStepView, trialStepText } from "./trial-floor.mjs";
 import { openWhoIsAliveDialog } from "./gm-students.mjs";
 import { openClockDialog } from "./gm-campaign.mjs";
 export { openWhoIsAliveDialog, applyAliveStates } from "./gm-students.mjs";
@@ -242,8 +243,12 @@ const PANEL_SECTIONS = [
             // `judgePendingMurders` still opens a parked Direct Murder once the
             // Eclipse it was declared in has ended - that path never goes
             // through this tile.
+            // LIVE WHILE AN INCIDENT RUNS, EVEN IN AN ECLIPSE (E47-C3, 09.11.2026; audit S10-53): with a murder standing
+            // the tile opens the incident tracker (murder-ui.mjs `openMurderDialog`: `murderState()` first), which is
+            // what a GM needs during the fight, and the Eclipse has no opinion about a fight in progress - only a new
+            // murder is refused, by `openMurder` itself. Greyed during an Eclipse with no incident, as before.
             { key: "murder", icon: "fa-skull", labelKey: "DRPG.Murder.openTitle",
-              disabled: () => isEclipse(), disabledReason: "DRPG.Eclipse.panelLocked",
+              disabled: () => isEclipse() && !incidentRuns(), disabledReason: "DRPG.Eclipse.panelLocked",
               // Destructive, not the GM's road (E22 C2b, D11; S10-67): on a GM's screen red names no road through a GM,
               // and a murder is the one tile here that ends a student.
               run: () => import("./murder.mjs").then(m => m.openMurderDialog()), destructive: true },
@@ -310,13 +315,8 @@ const PANEL_SECTIONS = [
             // on screen at all: the trial console's button waited on a verdict.
             { key: "chapterEndTile", icon: "fa-flag-checkered", labelKey: "DRPG.Chapter.endTitle",
               run: () => import("./chapter.mjs").then(m => m.openChapterEndDialog()) },
-            // THE CASE (E04): what lives only in GM browsers - the answer keys, the
-            // traces, the cast, the Mastermind - to one file and back. Before the
-            // reset, which is the thing a backup is most often taken against.
-            { key: "backupCase", icon: "fa-box-archive", labelKey: "DRPG.Case.backupTile", subtitle: () => backupAge(),
-              run: () => import("./gm-stores.mjs").then(m => m.backupCase({ ask: true })) },
-            { key: "restoreCase", icon: "fa-box-open", labelKey: "DRPG.Case.restoreTile",
-              run: () => import("./gm-stores.mjs").then(m => m.openRestoreDialog()) },
+            // THE CASE (E04) moved to Diagnostics as one tile (E47-C3, the owner's 27.09): see `fixes` below. The
+            // chapter's end keeps its own backup button (chapter.mjs); the reset window has none (the owner accepts it).
             // Last in the section and destructive: it is the only control here that
             // destroys anything, and it destroys a chapter's worth at once. Not the GM's
             // road as well (E22 C2b, D11): on a GM's screen `drpg-gm-route` names no button.
@@ -333,6 +333,13 @@ const PANEL_SECTIONS = [
             // What has gone wrong since this page loaded. See `openFailureLog`.
             { key: "failureLog", icon: "fa-bug", labelKey: "DRPG.Failures.title",
               run: () => openFailureLog() },
+            // THE CASE (E04; one tile since E47-C3, the owner's 27.09: "Back up the case and Restore the case become one
+            // tile in the Diagnostics section, opening one window with both actions and the last copy's age"): what
+            // lives only in GM browsers - the answer keys, the traces, the cast, the Mastermind - to one file and back.
+            // gm-stores.mjs `openCaseWindow`: Back up (`backupCase({ ask: true })`) and Restore from a file
+            // (`openRestoreDialog`, its preview first), the same functions the two tiles called.
+            { key: "caseWindow", icon: "fa-box-archive", labelKey: "DRPG.Case.tile", subtitle: () => backupAge(),
+              run: () => import("./gm-stores.mjs").then(m => m.openCaseWindow()) },
             // GONE FROM HERE: the search-token report is two columns in Room
             // Setup, editing a Remnant's flags is the dashboard's Traces tab,
             // and "Alive / dead / Monocub" is the top section's Player status.
@@ -425,30 +432,55 @@ const EXTRA_ACTIONS = {
  * GM's folded sections back after a rebuild. Without it the fold state is keyed
  * positionally, which is fine until a section is added or removed.
  */
-function buildSections() {
+export function buildSections() {
     // The clock decides what opens. See the note on PANEL_SECTIONS.
     const phase = getClock().phase;
+    const current = currentTile(phase);
     return `<div class="drpg-gmp-sections">${PANEL_SECTIONS.map(section => {
         const inSeason = section.always || section.phases?.includes(phase);
         const open = inSeason && !section.collapsed;
+        const title = esc(game.i18n.localize(`DRPG.Panel.section.${section.key}`));
         return `
         <details class="drpg-gmp-section${section.dim ? " dim" : ""}${
             inSeason ? " in-season" : ""}" data-drpg-key="${section.key}"${open ? " open" : ""}>
-            <summary>${game.i18n.localize(`DRPG.Panel.section.${section.key}`)}</summary>
+            <summary>${section.dim ? `<em class="drpg-gmp-dim">${title}</em>` : title}</summary>
             <div class="drpg-gmp-grid">${section.items.map(item => {
                 const blocked = Boolean(item.disabled?.());
+                const reason = blocked ? esc(game.i18n.localize(item.disabledReason)) : "";
+                const why = `drpg-gmp-why-${item.key}`;
                 return `
                 <button type="button" class="drpg-gmp-button${
                     item.destructive ? " drpg-destructive" : ""}${
-                    blocked ? " drpg-disabled" : ""}" data-drpg-run="${item.key}"${
-                    blocked ? ` disabled title="${foundry.utils.escapeHTML(game.i18n.localize(item.disabledReason))}"` : ""}>
+                    blocked ? " drpg-disabled" : ""}${
+                    item.key === current ? " is-current" : ""}" data-drpg-run="${item.key}"${
+                    item.key === current ? ` aria-current="true"` : ""}${
+                    blocked ? ` disabled title="${reason}" aria-describedby="${why}"` : ""}>
                     <i class="fa-solid ${item.icon}" inert></i>
                     <span>${game.i18n.localize(item.labelKey)}</span>${
-                    item.subtitle ? `<small class="notes">${esc(item.subtitle())}</small>` : ""}
+                    item.subtitle ? `<small class="notes">${esc(item.subtitle())}</small>` : ""}${
+                    blocked ? `<span class="drpg-kit-sr" id="${why}">${reason}</span>` : ""}
                 </button>`;
             }).join("")}</div>
         </details>`;
     }).join("")}</div>`;
+}
+
+/** Whether an incident runs: the murder's world half (`murderState`, through the API as `nextStep` reads it). */
+function incidentRuns() {
+    return Boolean(game.drpg?.murderState?.()?.active);
+}
+
+/**
+ * THE TILE OF THE PHASE THE TABLE IS IN (E47-C3, 09.11.2026; audit S10-64): drawn `is-current` with the pressed look
+ * (components.css's panel section) and `aria-current` - the trial's during a Class Trial, the dashboard's during an
+ * Investigation, Murder while an incident runs in any other phase; none otherwise. Only tiles that exist: the panel has
+ * no tile for Daily Life itself. One at most, the phase first: an incident still standing in Investigation leaves the
+ * dashboard the current tile.
+ */
+function currentTile(phase) {
+    if (phase === "classTrial") return "trial";
+    if (phase === "investigation") return "investigation";
+    return incidentRuns() ? "murder" : null;
 }
 
 /** Open the panel. */
@@ -579,8 +611,9 @@ function keepPanelFresh(dialog) {
 
     /* THE TILES WAKE ON THEIR OWN KEYS (E44 C2b, 04.11.2026; audit S10-58). Without `settings` every write of a
        module setting redrew forty buttons, a player's action among them. What the tiles print is the clock (the
-       phase opens a section, `clock.eclipse` shuts the murder tile: `isEclipse`) and the case's backup mark (the
-       Back up tile's age, `backupAge`), read by `buildSections` and nothing else, in every state; R1317 builds the
+       phase opens a section, `clock.eclipse` shuts the murder tile: `isEclipse`), the incident (since E47-C3 it keeps
+       the murder tile live in an Eclipse and marks it current: `murderState`) and the case's backup mark (the case
+       tile's age, `backupAge`), read by `buildSections` and nothing else, in every state; R1317 builds the
        region with `game.settings.get` counted and holds the reads to this list.
        The standing block above keeps no list, deliberately: `nextStep` reads a different setting on each of its
        branches (the incident, the readiness round, a stopped chapter's end, the trial's progress and floor, the
@@ -589,7 +622,7 @@ function keepPanelFresh(dialog) {
     keepLive(dialog, {
         region: ".drpg-gmp-sections",
         build: () => buildSections(),
-        watch: { settings: [SETTINGS.clock, SETTINGS.caseMark] }
+        watch: { settings: [SETTINGS.clock, SETTINGS.murderState, SETTINGS.caseMark] }
     });
 }
 
@@ -727,7 +760,7 @@ async function openFailureLog() {
  * @returns {{text: string, action: string|null}}
  */
 export function nextStep(clock, { setupList, incident = game.drpg?.murderState?.()?.active, eclipse = isEclipse(), round = roundOf(readyRecord(), clock),
-    endStopped = Boolean(chapterEndStopped()) } = {}) {
+    endStopped = Boolean(chapterEndStopped()), trial = null } = {}) {
     const students = actingStudents();
     const stillActing = students.filter(a => actionsLeft(a) > 0);
 
@@ -775,35 +808,15 @@ export function nextStep(clock, { setupList, incident = game.drpg?.murderState?.
             return { text: game.i18n.localize("DRPG.Panel.nextTrialOutlived"), action: "trial" };
         }
 
-        // THE TRIAL HAS AN ORDER NOW, so this line follows it rather than
-        // asking for a debate for the rest of the trial. The two finished steps
-        // are read from the trial's own progress record; see vote.mjs.
-        const progress = game.drpg?.trialProgress?.() ?? {};
-        if (progress.verdictApplied) {
-            return { text: game.i18n.localize("DRPG.Panel.nextChapterEnd"), action: "chapterEnd" };
-        }
-        if (progress.voteClosed) {
-            return { text: game.i18n.localize("DRPG.Panel.nextVerdict"), action: "trial" };
-        }
-
-        const floor = game.drpg?.trialFloor?.() ?? null;
-        if (!floor) {
-            return { text: game.i18n.localize("DRPG.Panel.nextNoFloor"), action: "trial" };
-        }
-        // The floor no longer has a single "speaker" to name - in a discussion
-        // everybody may talk, and in the two restrictive modes the interesting
-        // fact is the mode itself, not one name. So the line reports the mode,
-        // and adds who holds it only when somebody actually does.
-        const holder = game.drpg?.trialHolder?.()?.name ?? null;
-        const mode = game.i18n.localize(`DRPG.Floor.mode.${floor.mode}`);
-        return {
-            text: holder
-                // Escaped: the panel is drawn with `innerHTML`, and the holder's name
-                // is their player's to write (E02, audit S10-13).
-                ? game.i18n.format("DRPG.Panel.nextFloorHeld", { mode, who: esc(holder) })
-                : game.i18n.format("DRPG.Panel.nextFloor", { mode }),
-            action: "trial"
-        };
+        /* THE CONSOLE'S NEXT STEP, SAID ONCE (E47 C1, 09.11.2026; the owner's 05.10 D (4)). This line had its own
+           chain - the verdict, the count, then the floor - and said "Open the debate" with the ballots out, and the
+           chapter's end with a verdict stopped halfway, while the console named the vote and Finish the verdict. It
+           reads the console's table now (trial-floor.mjs `TRIAL_NEXT_STEPS`) and says the step's one text; its "Do it"
+           opens the console, whose primary is that step, and End the chapter opens that window, as the console's
+           button does. `trial` is the view the table reads, this GM's unless handed (R2051). */
+        const view = trial ?? trialStepView({ clock });
+        const step = trialNextStep(view);
+        return { text: trialStepText(step, view), action: step === "chapterEnd" ? "chapterEnd" : "trial" };
     }
 
     /* A body found and not yet answered. The phase has deliberately NOT moved (D5), so nothing
@@ -1083,9 +1096,10 @@ function buildPanelContent() {
     // found a row missing and the GM chose Continue. It stays, at the top, until
     // a check passes - a restore, or the next load with the copy in place.
     const warning = caseWarning();
+    // A kit box since E47-C3 (E21's carried warning site, homed in E47): the GMs' words, never red.
     const caseLine = warning
-        ? `<p class="drpg-warning">${esc(game.i18n.localize("DRPG.Case.panelWarning"))} ${esc(warning.rows
-            .filter(r => r.level === "missing").map(healthLine).join(" "))}</p>`
+        ? box("warning", `<p>${esc(game.i18n.localize("DRPG.Case.panelWarning"))} ${esc(warning.rows
+            .filter(r => r.level === "missing").map(healthLine).join(" "))}</p>`)
         : "";
 
     return `<div class="drpg-gmp-standing">
@@ -1099,7 +1113,7 @@ function buildPanelContent() {
             </div>`;
 }
 
-/** The Back up tile's second line: when the case was last backed up, from the world's case mark (E04). */
+/** The case tile's second line (E47-C3; the Back up tile's before it): when the case was last backed up, from the world's case mark (E04). */
 function backupAge() {
     const at = caseMark().lastBackupAt;
     if (!at) return game.i18n.localize("DRPG.Case.backupNever");

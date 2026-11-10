@@ -284,6 +284,34 @@ and player pages, at 1920x1080, 1366x768, 1024x768 and 390x844 in both themes,
 against `audit/style-baseline.json`. The captures are this harness's frame and
 seeded world, with no Foundry stylesheet: a shape to hold, not a table's picture.
 
+**One window, and in Polish** (E46 C0). Three options of probe 08 narrow a run: `DRPG_CAPTURE_ONLY=give,bullet` captures
+only the windows of its list with those ids (a window's tabs come with it) and rewrites only their rows of
+`manifest.json`, the others kept; `DRPG_CAPTURE_LANG=pl` sets the module's language to Polish on each capturing client
+first, as scenario 50 does, and needs `DRPG_CAPTURE_OUT=<dir>`, which writes the files and the manifest into `<dir>`
+instead of `audit/windows/`, so the committed captures stay English. E46 C0 added four windows to the list - `give`
+and `give--create` (Give an item, opened on its Give existing tab), `bullet` and `bullet--create` (Give a Truth
+Bullet, opened on its from-a-Remnant tab), `students` and `projects` (Create a project: the seeded world has no
+project, so the manager with rows is not drawn) - and each E46 and E47 group re-captured only its own windows. What
+these captures cannot say of E46's windows: Foundry's own frame and stylesheet around them (the frame is the
+harness's DialogV2), the item tables a world with installed tables shows (the probe's world has none), a picture's
+size read from a real server's HEAD, and how long a Polish label is in the fonts a table loads - LIVE-E46-01, -02,
+-04 and -07 (AUDIT-1.2.42.md 9.2, items 431-437). The End of chapter and Reset the season windows, whose warnings E46
+C6 moved onto the kit's box, are not in the list.
+
+**E47's windows, and what the harness cannot read of them** (E47 C7). Probe 08 captures E47's windows as it opens
+them: the console with no trial running (`class-trial`), `vote`, `trial-end`, `reveal-confirm`, `murder`,
+`edit-campaign`, `incident-tracker` (no murder runs in the seeded world, so it is the tracker's empty state),
+`gm-panel`, `students`, `investigation` with its two tabs, `action-project` and `projects`. The states it does not
+open - the tracker at an opening, a turn and Stage 6, the console in a debate, an Objection, the vote and the Closing,
+the Students window with a Monocub and a Monokuma character - were drawn for the stages' before/after comparison by
+E44's capture tool, which is kept outside the repository, not by a probe. What the harness cannot read of E47's
+windows: Foundry's own frame and stylesheet around them (the frame is the harness's DialogV2, so a footer redrawn in
+place is read on that stand-in, LIVE-E47-01), Foundry's settings window and its module section (none is drawn,
+LIVE-E47-06), a roll's status card (no roll carries a server's stamp headless, LIVE-E47-05), the theme classes Foundry
+puts on the Foundry tools and Map tools frames (LIVE-E47-07), and what a second client sees on a real server (the case
+window's Restore, LIVE-E47-04; the Students window with a player connected, LIVE-E47-08) - AUDIT-1.2.42.md 9.2, items
+438-447.
+
 **The sheet stand-in's parts** (`audit/style-harness.html?sheet=parts`, E24 C0 and C4a). The same frame as `?sheet=1`
 with the parts the module fills drawn inside it: both layouts of Daggerheart 2.10.5's Health and Sanity (its
 resource-bar.hbs and sidebar.hbs, read as text at that tag), what sheet.mjs writes into them by its own literals (R1440

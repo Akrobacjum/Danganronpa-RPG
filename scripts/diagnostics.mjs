@@ -1225,7 +1225,7 @@ export function diagnoseTruthBullets({ toChat = true } = {}) {
         lines.push(`   entries whose bullet is gone: ${orphans.length}${
             orphans.length ? "  ← harmless, but dropSecret() was missed somewhere" : ""
         }`);
-        lines.push("It lives in GM browsers, not the world: back the case up from the GM panel (Back up the case),");
+        lines.push("It lives in GM browsers, not the world: back the case up from the GM panel (Diagnostics, The case: Back up),");
         lines.push("   and see game.drpg.diagnoseGmStores() for every GM store on this browser.");
     }
 
@@ -1314,7 +1314,7 @@ export async function diagnoseGmStores() {
     if (report?.counts?.bullets?.fillable) {
         lines.push(`   ${report.counts.bullets.fillable} of the bullets with no real type can take it from their trace: game.drpg.fillBulletsFromTraces()`);
     }
-    lines.push("Back the case up from the GM panel (Back up the case), or game.drpg.backupCase().");
+    lines.push("Back the case up from the GM panel (Diagnostics, The case: Back up), or game.drpg.backupCase().");
     log(lines.join("\n"));
     return lines.join("\n");
 }
