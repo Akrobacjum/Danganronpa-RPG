@@ -44496,6 +44496,65 @@ const INVARIANTS = [
         }
         equal(stableJson(read), stableJson(want), "{each caption [its key, at most half its length at a8ae16f6, its fact, its second fact]}");
     }],
+    /* ---- E68 C13 (10.11.2026): the other actions' captions, about one sentence (the owner's Q5 of round M) ---- */
+    ["R3201 - the other actions' captions are about one sentence, no longer than Observe's, in English and Polish, and keep what each choice does (lang/en.json, lang/pl.json; config.mjs CRISIS_ACTIONS `short`, its Polish in lang/pl.json `DRPG.Config.CRISIS_ACTIONS.*.short`; E68 C13, the owner's Q5 of round M: \"podobnej dlugosci - ok 1 zdanie\"; R3136's shape)", async () => {
+        /*
+         * E68 C13, 10.11.2026; the owner's answer Q5 to round M: each action's caption about one sentence, as long as
+         * Observe's (57-116 characters after E47-FC, R3136). Each caption below is held to 116 characters or fewer, to
+         * fewer than it had at 1.2.103 (BEFORE, the longest of a key's plural forms, frozen here, read on d7dc9749), and to
+         * the facts a player picks by. The rest of a caption is the handbook's (C14) - or, for the crisis menu, the row's
+         * `details` on the left column: a row's caption is CRISIS_ACTIONS' `short`, and its full `hint` stands first in
+         * the picked row's details (action-murder.mjs `crisisDetails`). The crisis menu's own reason: at 1366x768 under
+         * the glass it scrolled 37-62 px with C12's layout and 1.2.103's hints, and the statistic field stays in the
+         * right column (Q3); measured in Chromium, S/stages/E68/STATUS-e68ui.md E68-C13. The config's live text is the
+         * language in use (i18n.mjs swaps it at init); the Polish is read from pl.json. Rest's rows (cost and room) and
+         * the captions already one short sentence (Search's goals but the tool, Ask for a hint, Start a new project,
+         * Work on one, Frisk) are not listed. Red on 5beeb4bb (C12 with the line merged): every caption at its 1.2.103 length.
+         */
+        const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json());
+        const [en, pl] = await Promise.all([lang("en"), lang("pl")]);
+        const at = (file, key) => key.split(".").reduce((node, part) => node?.[part], file);
+        const MAX = 116;
+        // [key, BEFORE en, BEFORE pl, facts en, facts pl]
+        const KEYS = [
+            ["DRPG.Action.goalToolHint", 100, 120, [/advantage/, /weapon/], [/przewag/, /broń/]],
+            ["DRPG.Analyze.findPassageHint", 110, 128, [/\{n\}\+/, /secret passage/], [/\{n\}\+/, /tajne przejście/]],
+            ["DRPG.Analyze.findStashHint", 163, 164, [/\{n\}/, /stash/, /whose/], [/\{n\}/, /skrytk/, /czyja/]],
+            ["DRPG.Analyze.analyseBulletHint", 152, 182, [/Head/, /Truth Bullet/, /chapter/], [/Head/, /Truth Bullet/, /rozdziału/]],
+            ["DRPG.Cleanup.transformActionHint", 233, 279, [/Reinforced/, /GM/, /Tamper Remnant/], [/Reinforced/, /GM/, /Tamper Remnant/]],
+            ["DRPG.Cleanup.moveHint", 122, 114, [/\{n\} Sanity/, /Evident/], [/\{n\} Sanity/, /Evident/]],
+            ["DRPG.Tamper.frameHint", 249, 270, [/false Remnant/, /\{n\}/], [/fałszywy Remnant/, /\{n\}/]],
+            ["DRPG.Tamper.coverHint", 195, 203, [/Erase/, /Remnant/, /visible/], [/Wymaż/, /Remnant/, /zauważyć/]],
+            ["DRPG.Steal.takeHint", 164, 207, [/random/, /critical/, /notice/], [/losow/, /krytyk/, /zauważy/]],
+            ["DRPG.Steal.plantHint", 145, 152, [/pocket/, /taking/], [/kieszeni/, /wyjmowaniu/]],
+            ["DRPG.Project.sabotageHint", 144, 140, [/repair/, /Remnant/], [/napraw/, /Remnant/]]
+        ];
+        const forms = value => (value && typeof value === "object" ? Object.entries(value) : [["", value]]);
+        const read = [], want = [];
+        for (const [key, beforeEn, beforePl, factsEn, factsPl] of KEYS) {
+            for (const [code, file, before, facts] of [["en", en, beforeEn, factsEn], ["pl", pl, beforePl, factsPl]]) {
+                for (const [form, text] of forms(at(file, key))) {
+                    const t = String(text ?? "");
+                    read.push([key, code, form, t.length > 0 && t.length <= MAX && t.length < before, facts.every(re => re.test(t))]);
+                    want.push([key, code, form, true, true]);
+                }
+            }
+        }
+        const { CRISIS_ACTIONS } = await import("./config.mjs");
+        must(Object.keys(CRISIS_ACTIONS).length >= 15, "config.mjs's CRISIS_ACTIONS is not the crisis menu's fifteen actions - this reads nothing");
+        for (const [key, def] of Object.entries(CRISIS_ACTIONS)) {
+            const plDef = at(pl, `DRPG.Config.CRISIS_ACTIONS.${key}`) ?? {};
+            // The row's caption: `short`, or a `hint` short enough to be one; a long hint keeps its words for the details.
+            const live = String(def.short ?? def.hint ?? ""), polish = String(plDef.short ?? plDef.hint ?? "");
+            read.push([`CRISIS_ACTIONS.${key}`, live.length <= MAX, polish.length <= MAX, Boolean(def.short) === Boolean(plDef.short),
+                !def.short || Boolean(def.hint && plDef.hint)]);
+            want.push([`CRISIS_ACTIONS.${key}`, true, true, true, true]);
+        }
+        const murder = await fetch(`/modules/${MODULE_ID}/scripts/action-murder.mjs`).then(lfText);
+        read.push(["action-murder.mjs", /proseOf\(def, "short"\)/.test(murder), /function crisisDetails[\s\S]*?proseOf\(def, "hint"\)[\s\S]*?\n\}/.test(murder)]);
+        want.push(["action-murder.mjs", true, true]);
+        equal(stableJson(read), stableJson(want), "{each caption [its key, language, form, at most 116 characters and shorter than at 1.2.103, its facts]; each crisis action [key, its row's caption at most 116 live, in Polish, a short in both or neither, a short keeps its hint]; action-murder.mjs [the row reads short, the details the hint]}");
+    }],
     /* ---- E47-FD (10.11.2026): the owner's defaults on comparison 3 - a disabled role button under the glass
        (q-disabled) and three windows really cut (q-cuts) ---- */
     ["R3137 - under the glass a disabled role button looks disabled, the destructive one included (components.css, the E47-FD section; the owner's default on comparison 3, q-disabled): every role of the kit's footer, disabled, is grey and faded by the kit's one rule, an enabled one is not, and Legacy keeps its own dialog footer's grey", async () => {

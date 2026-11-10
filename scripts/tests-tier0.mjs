@@ -18812,7 +18812,8 @@ const REGRESSIONS = [
             callEffect: [...sources.keys()].filter(f => f.endsWith(".mjs") && !f.startsWith("tests") && f !== "config.mjs" && /\bcallEffect\(/.test(src(f))),
             proseOf: [["calls.mjs", /proseOf\(call, "effect"\)/g, 3], ["call-pickers.mjs", /proseOf\(call, "effect"\)/g, 1], ["despair.mjs", /proseOf\(call, "effect"\)/g, 1],
                 ["sheet.mjs", /proseOf\(call, "effect"\)/g, 1], ["murder-rules.mjs", /proseOf\(def, "effect"\) \|\| proseOf\(def, "hint"\)/g, 1],
-                ["action-murder.mjs", /proseOf\(def, "(hint|failure)"\)/g, 2], ["explain.mjs", /proseOf\(PHASES\[key\], "hint"\)/g, 1], ["level-up.mjs", /proseOf\(opt, "label"\)/g, 1]]
+                // E68 C13: the crisis row reads `short`, and `crisisDetails` the whole hint the row gave up (four reads).
+                ["action-murder.mjs", /proseOf\(def, "(hint|failure|short)"\)/g, 4], ["explain.mjs", /proseOf\(PHASES\[key\], "hint"\)/g, 1], ["level-up.mjs", /proseOf\(opt, "label"\)/g, 1]]
                 .filter(([file, re, n]) => (src(file).match(re) ?? []).length !== n).map(([file]) => file),
             // E41 C4 (1.2.97): `crisisDetails` (and the menu's hint beside it) moved into action-murder.mjs.
             raw: [/\bdef\.failure\b(?![^\n]*proseOf)/.test(fnSource(src("action-murder.mjs"), "crisisDetails") ?? "x def.failure"),

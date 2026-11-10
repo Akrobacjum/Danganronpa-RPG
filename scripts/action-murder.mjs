@@ -116,7 +116,8 @@ export async function openCrisisMenu(actor) {
                 : threshold === null || threshold === undefined
                     ? game.i18n.localize("DRPG.Murder.noRollNeeded")
                     : game.i18n.format("DRPG.Murder.thresholdShort", { n: threshold })}${
-                def.hint ? ` - ${proseOf(def, "hint")}` : ""}${
+                // The row's one sentence (E68 C13; the owner's Q5 of round M): `short`, its full hint first in the details.
+                def.short ? ` - ${proseOf(def, "short")}` : def.hint ? ` - ${proseOf(def, "hint")}` : ""}${
                 hindered && !free ? ` · ${game.i18n.localize("DRPG.Murder.actionHindered")}` : ""}`,
             details: crisisDetails(def, { free, brokenDown, youPick, traits: listed[key] }),
             // The player's proposal, for the row that asks a GM (E68 C4; DA18): the first listed checked. In the right
@@ -183,8 +184,11 @@ function crisisDetails(def, { free, brokenDown, youPick, traits }) {
         if (brokenDown) facts.push(game.i18n.localize("DRPG.Murder.breakdownDisadvantage"));
         if (def.failure) facts.push(game.i18n.format("DRPG.Murder.onAMiss", { text: esc(proseOf(def, "failure")) }));
     }
-    return facts.length
-        ? `<ul class="drpg-briefing-facts">${facts.map(f => `<li>${f}</li>`).join("")}</ul>` : "";
+    // What a row's one-sentence caption gave up (E68 C13): the action's whole hint, first in the picked row's details,
+    // which stand in the left column under the briefing (E68 C12).
+    const whole = def.short && def.hint ? `<p>${esc(proseOf(def, "hint"))}</p>` : "";
+    return whole + (facts.length
+        ? `<ul class="drpg-briefing-facts">${facts.map(f => `<li>${f}</li>`).join("")}</ul>` : "");
 }
 
 /**

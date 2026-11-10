@@ -886,7 +886,7 @@
       "goalCleaningHint": "Narzędzie do sprzątania. Zostawia Prep Remnant.",
       "substitute": "Nie to, czego szukasz - to, co miał ten pokój.",
       "goalTool": "Coś do pracy",
-      "goalToolHint": "Narzędzie. Daje przewagę przy pracy nad projektem - i nie zostawia śladu, chyba że to, co się znajdzie, jest też bronią.",
+      "goalToolHint": "Narzędzie: przewaga przy pracy nad projektem i brak śladu, chyba że to też broń.",
       "goalSpecific": "Coś konkretnego",
       "goalSpecificHint": "Opisz to. GM orzeka, co naprawdę tu było.",
       "goalSpecificPrompt": "Czego szukasz?",
@@ -998,17 +998,17 @@
       "critPrompt": "{actor} rozpoznaje {name} jako {type} - i to na krytyku, więc należy się do tego solidna podpowiedź.",
       "critNothingMore": "Nic więcej do dodania",
       "analyseBulletHint": {
-        "one": "Wybierz jedyny Truth Bullet, który możesz teraz przeanalizować. Rzucasz Head: trafienie ujawnia, czym naprawdę jest ten Truth Bullet, a pudło blokuje ci go do końca rozdziału.",
-        "few": "Wybierz jeden z {n} Truth Bulletów, które możesz teraz przeanalizować. Rzucasz Head: trafienie ujawnia, czym naprawdę jest ten Truth Bullet, a pudło blokuje ci go do końca rozdziału.",
-        "many": "Wybierz jeden z {n} Truth Bulletów, które możesz teraz przeanalizować. Rzucasz Head: trafienie ujawnia, czym naprawdę jest ten Truth Bullet, a pudło blokuje ci go do końca rozdziału.",
-        "other": "Wybierz jeden z {n} Truth Bulletów, które możesz teraz przeanalizować. Rzucasz Head: trafienie ujawnia, czym naprawdę jest ten Truth Bullet, a pudło blokuje ci go do końca rozdziału."
+        "one": "Rzuć Head, by poznać, czym naprawdę jest twój jedyny Truth Bullet; pudło blokuje go do końca rozdziału.",
+        "few": "Rzuć Head, by poznać, czym naprawdę jest jeden z {n} Truth Bulletów; pudło blokuje go do końca rozdziału.",
+        "many": "Rzuć Head, by poznać, czym naprawdę jest jeden z {n} Truth Bulletów; pudło blokuje go do końca rozdziału.",
+        "other": "Rzuć Head, by poznać, czym naprawdę jest jeden z {n} Truth Bulletów; pudło blokuje go do końca rozdziału."
       },
       "askHintHint": "Brak dowodów w ręku - poproś GM-a, by cię gdzieś skierował.",
       "findStash": "Find Stash",
-      "findStashHint": "Szukaj w tym pokoju ukrytej skrytki innego ucznia. Przy wyniku co najmniej {n} albo krytyku znajdujesz jedną z tych, których jeszcze nie znasz, i wiesz, czyja jest.",
+      "findStashHint": "Szukaj tu skrytki innego ucznia; {n}+ albo krytyk znajduje nową i mówi, czyja jest.",
       "stashNothing": "Przeczesujesz pokój i nie znajdujesz niczego, co ktoś próbował schować.",
       "findPassage": "Find Passage",
-      "findPassageHint": "Przejrzyj ściany tego pokoju w poszukiwaniu drogi, której nikt nie pokazuje. {n}+ otwiera przed tobą jedno tajne przejście stąd.",
+      "findPassageHint": "Przejrzyj ściany pokoju w poszukiwaniu ukrytej drogi; {n}+ otwiera ci jedno tajne przejście.",
       "passageSent": "Przeglądasz ściany pokoju w poszukiwaniu przejścia.",
       "passageNothing": "Nie znajdujesz tu tajnego przejścia.",
       "passageFound": "W tym pokoju jest tajne przejście do: {to}. Gdzie droga jest otwarta, mapa ci je pokazuje.",
@@ -1909,7 +1909,7 @@
       "trailWho": "Wrób",
       "trailNobody": "Nie ma już kogo wrobić.",
       "moveAction": "Move the Body",
-      "moveHint": "Wydaj {n} Sanity, by wynieść ciało z tego pokoju. Zawsze zostawia Evident ślad - ciała nie da się wywlec po cichu.",
+      "moveHint": "Wydaj {n} Sanity, by wynieść ciało z tego pokoju; zawsze zostawia Evident ślad.",
       "bodyNotHere": "Ciała nie ma w tym pokoju. Musisz nad nim stać, by je gdziekolwiek zanieść.",
       "nothingHere": "W tym pokoju nie ma czego sprzątać.",
       "allReinforced": "Każdy ślad tutaj jest Reinforced. Nic z tego nie schodzi.",
@@ -1967,7 +1967,7 @@
       "bodyNowhere": "Nie ma gdzie go zanieść - żaden pokój nie łączy się z tym albo łączą się tylko sypialnie.",
       "toolsBroken": "{items} jest zniszczony. Wciąż leży w twoim ekwipunku i wciąż jest dowodem.",
       "transformAction": "Reshape a Trace",
-      "transformActionHint": "Nadaj Remnantowi nową nazwę i opis; zatwierdza je GM, a po odmowie rzut i koszt przepadają. Próg jest niższy niż przy wymazywaniu, a Reinforced Remnantu nie przekształcisz. Po zatwierdzeniu zmienia się w Tamper Remnant. Krytyk sprawia, że trudniej go zauważyć, i zwraca ci koszt.",
+      "transformActionHint": "Nadaj nową nazwę Remnantowi, który nie jest Reinforced: zgoda GM-a daje Tamper Remnant, po odmowie koszt przepada.",
       "transformActionIntro": "Nie usuwasz tego. Sprawiasz, że czyta się jak coś innego. Napisz, co znajdzie następna osoba, która wejdzie przez drzwi.",
       "reshapeName": "Nazwij to",
       "reshapeNamePlaceholder": "Rozlana farba",
@@ -3716,10 +3716,10 @@
       },
       "startNewHint": "Opisz coś nowego. Nic nie istnieje, dopóki GM nie zatwierdzi.",
       "sabotageHint": {
-        "one": "Zepsuj jedyny projekt w tym pokoju, który nadaje się do sabotażu, żeby wymagał projektu naprawy. Wydajesz akcję i zawsze zostawiasz Remnant.",
-        "few": "Zepsuj jeden z {n} projektów w tym pokoju, żeby wymagał projektu naprawy. Wydajesz akcję i zawsze zostawiasz Remnant.",
-        "many": "Zepsuj jeden z {n} projektów w tym pokoju, żeby wymagał projektu naprawy. Wydajesz akcję i zawsze zostawiasz Remnant.",
-        "other": "Zepsuj jeden z {n} projektów w tym pokoju, żeby wymagał projektu naprawy. Wydajesz akcję i zawsze zostawiasz Remnant."
+        "one": "Zepsuj jedyny projekt w tym pokoju, który da się sabotować, by wymagał naprawy; zostawiasz Remnant.",
+        "few": "Zepsuj jeden z {n} projektów w tym pokoju, by wymagał naprawy; zawsze zostawiasz Remnant.",
+        "many": "Zepsuj jeden z {n} projektów w tym pokoju, by wymagał naprawy; zawsze zostawiasz Remnant.",
+        "other": "Zepsuj jeden z {n} projektów w tym pokoju, by wymagał naprawy; zawsze zostawiasz Remnant."
       },
       "completeTag": "Ukończony",
       "alreadyComplete": "{name} jest ukończony. Nie ma w nim już pracy.",
@@ -4607,15 +4607,15 @@
       "prompt": "Co robisz z dowodami?",
       "cover": "Erase a Trace",
       "coverHint": {
-        "one": "Wymaż jedyny znany ci tu Remnant, który nie jest Reinforced. Im łatwiej go zauważyć, tym trudniej go usunąć; pomaga narzędzie do sprzątania w ręku i świeże miejsce zbrodni przed Investigation.",
-        "few": "Wymaż jeden z {n} znanych ci tu Remnantów, które nie są Reinforced. Im łatwiej któryś zauważyć, tym trudniej go usunąć; pomaga narzędzie do sprzątania w ręku i świeże miejsce zbrodni przed Investigation.",
-        "many": "Wymaż jeden z {n} znanych ci tu Remnantów, które nie są Reinforced. Im łatwiej któryś zauważyć, tym trudniej go usunąć; pomaga narzędzie do sprzątania w ręku i świeże miejsce zbrodni przed Investigation.",
-        "other": "Wymaż jeden z {n} znanych ci tu Remnantów, które nie są Reinforced. Im łatwiej któryś zauważyć, tym trudniej go usunąć; pomaga narzędzie do sprzątania w ręku i świeże miejsce zbrodni przed Investigation."
+        "one": "Wymaż jedyny znany ci tu Remnant, który nie jest Reinforced; im łatwiej go zauważyć, tym trudniej usunąć.",
+        "few": "Wymaż jeden z {n} znanych ci tu Remnantów; im łatwiej któryś zauważyć, tym trudniej go usunąć.",
+        "many": "Wymaż jeden z {n} znanych ci tu Remnantów; im łatwiej któryś zauważyć, tym trudniej go usunąć.",
+        "other": "Wymaż jeden z {n} znanych ci tu Remnantów; im łatwiej któryś zauważyć, tym trudniej go usunąć."
       },
       "nothingOfYours": "Nie znasz tu żadnego śladu.",
       "onlyReinforced": "Każdy ślad, który tu znasz, siedzi za głęboko, by go usunąć.",
       "frame": "Misleading Trail",
-      "frameHint": "Podłóż fałszywy Remnant wskazujący na kogoś innego; potrzebujesz wyniku co najmniej {n}. Przy trafieniu Remnant jest Evident z Hope, Subtle z Despair, a przy krytyku Obvious; krytyk oddaje ci też Sanity. Pudło z Hope też podkłada Remnant Hidden i Faint, a z Despair nic.",
+      "frameHint": "Podłóż fałszywy Remnant wskazujący na kogoś innego przy wyniku {n}+; pudło z Despair nic nie podkłada.",
       "whichTrace": "Który Remnant",
       "yourCopy": "{name} (twoja kopia)",
       "coverAction": "Erase a Trace",
@@ -4633,13 +4633,13 @@
       "nobodyHere": "W tym pokoju nie ma nikogo w zasięgu ręki.",
       "whichWay": "W którą stronę idzie twoja ręka?",
       "takeLabel": "Weź coś",
-      "takeHint": "Wyjmij coś z czyjejś kieszeni. Dostajesz losową rzecz; wybrać pozwala tylko krytyk. Wydajesz akcję, Hand decyduje, czy się uda, a Shadow, czy ta osoba zauważy; jeśli tak, dowie się, kto to był i co zniknęło.",
+      "takeHint": "Wyjmij komuś z kieszeni losową rzecz, a przy krytyku wybraną; jeśli zauważy, dowie się, że to ty.",
       "plantLabel": "Zostaw coś",
       "plantHint": {
-        "one": "Podrzuć komuś do kieszeni jedyną rzecz, którą nosisz. To łatwiejsze niż wyjmowanie: Hand i Shadow mają niższe progi. Wydajesz akcję przed rzutami.",
-        "few": "Podrzuć komuś do kieszeni jedną z {n} rzeczy, które nosisz. To łatwiejsze niż wyjmowanie: Hand i Shadow mają niższe progi. Wydajesz akcję przed rzutami.",
-        "many": "Podrzuć komuś do kieszeni jedną z {n} rzeczy, które nosisz. To łatwiejsze niż wyjmowanie: Hand i Shadow mają niższe progi. Wydajesz akcję przed rzutami.",
-        "other": "Podrzuć komuś do kieszeni jedną z {n} rzeczy, które nosisz. To łatwiejsze niż wyjmowanie: Hand i Shadow mają niższe progi. Wydajesz akcję przed rzutami."
+        "one": "Podrzuć komuś do kieszeni jedyną rzecz, którą nosisz; oba progi są niższe niż przy wyjmowaniu.",
+        "few": "Podrzuć komuś do kieszeni jedną z {n} rzeczy, które nosisz; oba progi są niższe niż przy wyjmowaniu.",
+        "many": "Podrzuć komuś do kieszeni jedną z {n} rzeczy, które nosisz; oba progi są niższe niż przy wyjmowaniu.",
+        "other": "Podrzuć komuś do kieszeni jedną z {n} rzeczy, które nosisz; oba progi są niższe niż przy wyjmowaniu."
       },
       "nothingToPlant": "Nie nosisz niczego, co dałoby się komuś podrzucić.",
       "whatToPlant": "Co zostawić",
@@ -6556,21 +6556,25 @@
         "useItem": {
           "label": "Use an Item",
           "hint": "Użyj przedmiotu w trakcie incydentu przyciskiem przy nim na arkuszu postaci. Działa przy krytyku albo przy trafieniu z Hope; przy trafieniu z Despair nie zadziała. Każde trafienie zostawia Remnant.",
+          "short": "Przedmiotu używasz przyciskiem przy nim na arkuszu; każde trafienie zostawia Remnant.",
           "failure": "Zostaje w kieszeni."
         },
         "leaveClue": {
           "label": "Leave a Clue",
           "hint": "Zostaw na miejscu Remnant powiązany ze zbrodnią. Przy trafieniu z Hope Remnant jest Evident, z Despair Subtle, a przy krytyku Obvious i Reinforced; krytyk nie kończy też twojej tury. Przy pośrednim morderstwie jest Reinforced już z Hope, a krytyk zostawia dwa.",
+          "short": "Przy trafieniu zostawiasz na miejscu Remnant powiązany ze zbrodnią.",
           "failure": "Bez Remnantu, ale przewaga przy następnej próbie. Tylko przy porażce z Hope."
         },
         "secureTrace": {
           "label": "Secure a Trace",
           "hint": "Przy trafieniu zabezpieczasz Remnant powiązany ze zbrodnią: z Hope jest Evident, z Despair Subtle, a przy krytyku Obvious i Reinforced; krytyk nie kończy też twojej tury. Przy pośrednim morderstwie jest Reinforced już z Hope, a krytyk zostawia dwa.",
+          "short": "Przy trafieniu zabierasz ze sobą Remnant powiązany ze zbrodnią.",
           "failure": "Bez Remnantu, ale przewaga przy następnej próbie. Tylko przy porażce z Hope."
         },
         "selfDefence": {
           "label": "Self-Defense",
           "hint": "Trafienie z Hope odblokowuje Survive i Role Reversal, z Despair tylko Role Reversal, o ile incydent jej nie odebrał. Krytyk odblokowuje obie, zatrzymuje utratę Health i Sanity i pozwala ci w tej turze wziąć jedną z nich bez rzutu. Broń w ręku daje przewagę.",
+          "short": "Trafienie otwiera Survive i Role Reversal; broń w ręku daje przewagę.",
           "hope": "Trzymasz się na nogach. Survive i Role Reversal stoją teraz przed tobą otworem.",
           "despair": "Trzymasz się na nogach, ale ledwo - Role Reversal stoi teraz przed tobą otworem.",
           "critical": "Tamujesz krwawienie. Obie drogi wyjścia są otwarte i możesz wybrać jedną w tej turze bez rzutu.",
@@ -6579,6 +6583,7 @@
         "survive": {
           "label": "Survive",
           "hint": "Wycofaj się z incydentu: trafienie go kończy i przestajesz tracić Health i Sanity. Z Despair dostajesz też podpowiedź, kto jest zabójcą, a krytyk daje podpowiedź i odporność do końca tego i następnego rozdziału.",
+          "short": "Wycofaj się: trafienie kończy incydent i zatrzymuje utratę Health i Sanity.",
           "hope": "Incydent się kończy i drenaż ustaje.",
           "despair": "Incydent się kończy i drenaż ustaje. Dostajesz podpowiedź, kto to był.",
           "critical": "Incydent się kończy, dostajesz podpowiedź, kto to był, i nietykalność na ten i następny rozdział.",
@@ -6587,6 +6592,7 @@
         "roleReversal": {
           "label": "Role Reversal",
           "hint": "Odwróć role: przy trafieniu stajesz się zabójcą, a odtąd Health i Sanity traci druga strona. Z Hope odzyskujesz całe Health i Sanity, a krytyk do tego od razu zabija drugą stronę i zostawia Incident Remnant (Evident, Reinforced). Broń w ręku daje przewagę.",
+          "short": "Odwróć role: przy trafieniu stajesz się zabójcą, a tracić zaczyna druga strona.",
           "hope": "Zostajesz zabójcą i odzyskujesz całe Health i Sanity.",
           "despair": "Zostajesz zabójcą.",
           "critical": "Zabijasz ich od razu. Nie mogą już nic zrobić. Odzyskujesz całe Health i Sanity i zostawiasz jeden Evident, Reinforced Incident Remnant.",
@@ -6595,19 +6601,23 @@
         "strike": {
           "label": "Strike",
           "hint": "Zadaj cios: przy trafieniu ofiara traci {hp} Health i {stress} Sanity, a ty zostawiasz Remnant, z Hope Hidden, z Despair Subtle. Przy krytyku cały cios spada na Health albo na Sanity, jak wybierzesz, i nie zostawiasz Remnantu.",
+          "short": "Trafienie odbiera ofierze Health i Sanity i zostawia Remnant.",
           "failure": "Nic przy porażce z Hope. Przy Despair wciąż zdejmujesz im {stress} Sanity i zostawiasz Evident Remnant."
         },
         "pin": {
           "label": "Pin Them Down",
-          "hint": "Przytrzymaj ofiarę: przez jej {turns} Leave a Clue i Survive mają utrudnienie, a przy krytyku są zablokowane. Z Despair trafienie zostawia Subtle Remnant, a pudło Evident Remnant."
+          "hint": "Przytrzymaj ofiarę: przez jej {turns} Leave a Clue i Survive mają utrudnienie, a przy krytyku są zablokowane. Z Despair trafienie zostawia Subtle Remnant, a pudło Evident Remnant.",
+          "short": "Utrudnij ofierze Leave a Clue i Survive; krytyk blokuje oba."
         },
         "keepDistance": {
           "label": "Keep Your Distance",
-          "hint": "Trzymaj ofiarę na dystans: przez jej {turns} Secure a Trace i Role Reversal mają utrudnienie, a przy krytyku są zablokowane. Z Despair trafienie zostawia Subtle Remnant, a pudło Evident Remnant."
+          "hint": "Trzymaj ofiarę na dystans: przez jej {turns} Secure a Trace i Role Reversal mają utrudnienie, a przy krytyku są zablokowane. Z Despair trafienie zostawia Subtle Remnant, a pudło Evident Remnant.",
+          "short": "Utrudnij ofierze Secure a Trace i Role Reversal; krytyk blokuje oba."
         },
         "weaponAttack": {
           "label": "Attack with a Weapon",
           "hint": "Zaatakuj bronią: trafienie odbiera ofierze Health, tym więcej, im wyższy tier broni, a przy krytyku jeszcze więcej. Bez broni w ręku rzucasz z utrudnieniem, a jeśli nie masz żadnej, trafienie daje ci improwizowaną. Remnanty broni, której użyjesz, zostają powiązane ze zbrodnią.",
+          "short": "Trafienie odbiera ofierze Health, tym więcej, im wyższy tier broni.",
           "unarmedImprovises": {
             "name": "Improwizowana broń"
           }
@@ -6615,6 +6625,7 @@
         "finishingBlow": {
           "label": "Finishing Blow",
           "hint": "Zakończ incydent. Próg to pozostałe Health ofiary razy {mult}, więc gdy ofiara nie ma już Health, wynosi 0. Trafienie z Despair zostawia Evident Remnant, a krytyk sprawia, że twoja pierwsza próba sprzątania nie kosztuje Sanity.",
+          "short": "Zakończ incydent; próg rośnie z pozostałym Health ofiary.",
           "hope": "Incydent się kończy.",
           "despair": "Incydent się kończy i zostawia jeden Incident Remnant.",
           "critical": "Incydent się kończy, a twoja pierwsza próba sprzątania nie kosztuje Sanity."
@@ -6622,6 +6633,7 @@
         "sharedEscape": {
           "label": "Escape Together",
           "hint": "Wyprowadź ofiarę ze sobą: trafienie kończy incydent, a z Hope albo przy krytyku ofiara odzyskuje też Health i Sanity. Krytyk dodatkowo daje tobie i ofierze odporność do końca tego i następnego rozdziału.",
+          "short": "Wyprowadź ofiarę ze sobą: trafienie kończy incydent.",
           "hope": "Oboje uciekacie. Health i Sanity ofiary są przywrócone.",
           "despair": "Oboje uciekacie, ale Health i Sanity ofiary nie są przywrócone.",
           "critical": "Oboje uciekacie z nietykalnością na ten i następny rozdział, a Health i Sanity ofiary są przywrócone.",
@@ -6630,11 +6642,13 @@
         "doubleRoleReversal": {
           "label": "Double Role Reversal",
           "hint": "Odwróć role razem z ofiarą: ty i ofiara stajecie się zabójcami, a dotychczasowy zabójca zaczyna tracić Health i Sanity i nie może już wziąć Role Reversal. Zostawiasz Evident Remnant. Odtąd działasz w turach zabójców, chyba że to pośrednie morderstwo: wtedy już nie działasz.",
+          "short": "Stań po stronie ofiary: oboje stajecie się zabójcami, a ty zostawiasz Evident Remnant.",
           "effect": "Ofiara i trzecia osoba stają się zabójcami. Pierwotny zabójca zaczyna krwawić, a jego przeżycie jest niemal niemożliwe."
         },
         "crimePartners": {
           "label": "Partners in Crime",
           "hint": "Stań po stronie zabójcy. Ofiara nie może już wziąć Role Reversal. Zostawiasz Subtle Remnant. Odtąd działasz w turach zabójców, chyba że to pośrednie morderstwo: wtedy już nie działasz.",
+          "short": "Stań po stronie zabójcy; zostawiasz Subtle Remnant.",
           "effect": "Trzecia osoba dołącza do zabójcy. Przeżycie pierwotnej ofiary jest niemal niemożliwe."
         },
         "avertedEyes": {
