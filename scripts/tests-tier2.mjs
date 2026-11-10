@@ -9776,8 +9776,9 @@ const SCENARIOS = [
         /*
          * E29 C8, 05.10.2026; the plan's 3.3. A player's Call on their own character is bought on the
          * GM now, as a Support on somebody else's is (gm-bridge.mjs `call.arm`). A player's Resolve (3
-         * Hope) for their own character, as their browser asks it, handed to the bridge's runner with
-         * the player's id: at 2 Hope, then at 3. The packet says it was armed at 1 (a time the GM did
+         * Hope; 2 since E68 C7, DA37 = 1, so its price is read off config.mjs) for their own character, as
+         * their browser asks it, handed to the bridge's runner with the player's id: at one Hope short of
+         * the price, then at the price. The packet says it was armed at 1 (a time the GM did
          * not write is a claim). Read: the reply, the character's Hope, and the entry the GM armed with
          * its time. Until C8 the GM refused the own character's Call as no Support whatever the Hope
          * (the player's browser armed and paid for it itself).
@@ -9791,9 +9792,10 @@ const SCENARIOS = [
         const HOPE = "system.resources.hope.value";
         const hopeWas = theirs.system.resources.hope.value;
         must(!E.armedCallsShown(theirs).some(c => c.grants === "trait"), `${theirs.name} already holds a Resolve - a second is refused for that, and this would measure it`);
+        const cost = (await import("./config.mjs")).HOPE_CALLS.determination.cost;
         const t0 = Date.now(), read = [], nonces = ["E29C8RESOLVE0001", "E29C8RESOLVE0002"];
         try {
-            for (const [hope, nonce] of [[2, nonces[0]], [3, nonces[1]]]) {
+            for (const [hope, nonce] of [[cost - 1, nonces[0]], [cost, nonces[1]]]) {
                 await trustedWrite(theirs, { [HOPE]: hope }, { reason: "gmRuling" });
                 const sent = [];
                 await G.judge(BRIDGE_ACTIONS, { action: "call.arm", requestId: `E29C8${nonce}`, actorId: theirs.id,
@@ -9809,7 +9811,7 @@ const SCENARIOS = [
             await E.consumeCallsByNonce(theirs, nonces);
             if (theirs.system.resources.hope.value !== hopeWas) await trustedWrite(theirs, { [HOPE]: hopeWas }, { reason: "gmRuling" });
         }
-        equal(stableJson(read), stableJson([["bridge.refused", "notEnoughHope", 2, null], ["bridge.done", null, 0, ["trait", true]]]),
+        equal(stableJson(read), stableJson([["bridge.refused", "notEnoughHope", cost - 1, null], ["bridge.done", null, 0, ["trait", true]]]),
             "a Call on the buyer's own character was paid or armed with too little Hope, not paid and armed by the GM with enough, or kept the packet's time (per ask: answer, reason, Hope after, entry armed and its time the GM's)");
     }],
 
@@ -21570,7 +21572,8 @@ const SCENARIOS = [
                 await press("leg");
                 await until(() => cardFlag(card, "settled"));
             });
-            const record = { type: "trait", actorId: killer.id, kind: "crisis", key: "weaponAttack", variant: null, trait: "leg" };
+            // Since E68 C1 (DA18) the ruling says how it was made: "picked" where no proposal came (messenger-app.mjs `rulePickTrait`).
+            const record = { type: "trait", actorId: killer.id, kind: "crisis", key: "weaponAttack", variant: null, trait: "leg", how: "picked" };
             equal(stableJson([forged, done, cardFlag(card, "ruling") ?? null, readers.filter(w => w.id === card.id && w.to.includes(mine.id)).map(w => w.meta?.ruling ?? null)]),
                 stableJson([[0, false], [[[mine.id], "leg"]], record, [record]]),
                 "a trait the action does not list was answered, or the pick did not go to the asker alone, or the card did not keep it, or its player was not sent it (after the forged press, answers, the card's record, the player's)");
@@ -41758,7 +41761,9 @@ const SCENARIOS = [
          * (Body / Hand / Leg), whose GM's window is answered Leg. The character's own `rollTrait`
          * notes the trait and the GM's mark and throws nothing, as a closed roll window does.
          * Read: the windows each press opened, in order, and the throws. Until C15 each press
-         * opened a confirm between the menu and the rest.
+         * opened a confirm between the menu and the rest. Since E68 C4 (DA18) the menu's row proposes
+         * its first listed statistic, Body, unless the player changes it, so the GM's Leg is a "Change to"
+         * and the roll's mark says "changed" (trait-ruling.mjs `traitFor`), not true; Pin, one statistic, false.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         const { TRAIT_BY_GM } = await import("./action-rolls.mjs");
@@ -41766,12 +41771,12 @@ const SCENARIOS = [
         const { killer, putBack } = await swingFixture();
         const thrown = [];
         try {
-            killer.rollTrait = async (dh, config) => { thrown.push([dh, config?.[TRAIT_BY_GM] === true]); return null; };
+            killer.rollTrait = async (dh, config) => { thrown.push([dh, config?.[TRAIT_BY_GM] ?? false]); return null; };
             const pin = await pressCrisisTile(killer, { choose: () => "pin" });
             const attack = await pressCrisisTile(killer, { choose: () => "weaponAttack", pick: () => "leg" });
             const menu = game.i18n.localize("DRPG.Murder.yourTurn"), ruling = game.i18n.localize("DRPG.TraitRuling.title");
             equal(stableJson([pin.asked, attack.asked, thrown]),
-                stableJson([[menu], [menu, ruling], [[TRAITS.body.dh, false], [TRAITS.leg.dh, true]]]),
+                stableJson([[menu], [menu, ruling], [[TRAITS.body.dh, false], [TRAITS.leg.dh, "changed"]]]),
                 "a crisis action opened a window between the menu and the roll, the GM was not asked where the action lists several, or the throws did not follow (Pin's windows, the attack's, throws)");
         } finally {
             delete killer.rollTrait;
@@ -51897,8 +51902,9 @@ const SCENARIOS = [
      * leaves this browser (`heardWhilePaid`).
      */
     ["a Call bought on the GM is paid from the Hope the GMs hold, and a forged Hope heard while it is paid is judged after it", async () => {
-        /* A player's Resolve (3 Hope) on their own character, handed to the bridge's runner with the player's
-           id three times: the GMs at 2 under a forged 5; at 3 under a forged 5; at 3 under a forged 5 heard
+        /* A player's Resolve (3 Hope; 2 since E68 C7, DA37 = 1: its price is read off config.mjs, and "short" and
+           "the price" below are one Hope under it and it) on their own character, handed to the bridge's runner with the player's
+           id three times: the GMs one short under a forged 5; at the price under a forged 5; at the price under a forged 5 heard
            while the GM's payment leaves. Read per ask: the answer and its reason, the character's Hope, the
            GMs' mark of it, and whether the forged Hope was heard. At 6c7f9d2 (05.10.2026, e29run/r1g5red) the
            GM paid all three from the forged 5: the first two bought with 2 left in both the sheet and the
@@ -51916,10 +51922,12 @@ const SCENARIOS = [
         const hopeWas = theirs.system.resources.hope.value;
         must(Number(theirs.system.resources.hope.max) >= 5, `${theirs.name}'s Hope cannot reach 5 - the forged Hope would be clamped and measure nothing`);
         must(!E.armedCallsShown(theirs).some(c => c.grants === "trait"), `${theirs.name} already holds a Resolve - a second is refused for that, and this would measure it`);
+        const cost = (await import("./config.mjs")).HOPE_CALLS.determination.cost;
+        must(cost < 5, `a Resolve costs ${cost} Hope - the forged 5 would pay for it and measure nothing`);
         const read = [], nonces = ["E29G5RESOLVE0001", "E29G5RESOLVE0002", "E29G5RESOLVE0003"];
         let heard = null;
         try {
-            for (const [held, nonce, meanwhile] of [[2, nonces[0], false], [3, nonces[1], false], [3, nonces[2], true]]) {
+            for (const [held, nonce, meanwhile] of [[cost - 1, nonces[0], false], [cost, nonces[1], false], [cost, nonces[2], true]]) {
                 await trustedWrite(theirs, { [HOPE]: held }, { reason: "gmRuling" });
                 await sheetAuditIdle();
                 await theirs.update({ [HOPE]: 5 }, { [AUDIT_ASIDE]: true });
@@ -51946,7 +51954,7 @@ const SCENARIOS = [
             if (foundry.utils.getProperty(theirs._source, HOPE) !== hopeWas) await trustedWrite(theirs, { [HOPE]: hopeWas }, { reason: "gmRuling" });
             await sheetAuditIdle();
         }
-        equal(stableJson(read), stableJson([["bridge.refused", "notEnoughHope", 5, 2, null], ["bridge.done", null, 0, 0, null], ["bridge.done", null, 0, 0, true]]),
+        equal(stableJson(read), stableJson([["bridge.refused", "notEnoughHope", 5, cost - 1, null], ["bridge.done", null, 0, 0, null], ["bridge.done", null, 0, 0, true]]),
             "a Call bought on the GM was paid from a forged Hope, or a forged Hope heard while it was paid was put back over the payment "
                 + "(per ask: answer, reason, the sheet's Hope, the mark's, the forged Hope heard)");
     }],
