@@ -22004,6 +22004,40 @@ const REGRESSIONS = [
         }), JSON.stringify({ slack: true, ownShares: [], sum: 100, heads: { en: true, pl: true }, keySelect: "nowrap", cellsOfStudents: "4px", thAuto: "auto", name: "1 1 auto" }),
             "{the tables' min-width leaves 5rem or more, the Traces columns without a share of their own, the shares' sum, WHO HAS WHAT's count heads' longest word <= 11 letters, the status picker's white-space, the Students cells' inline padding, the dashboard's heads and cells width auto, the Name field's flex}");
     }],
+
+    ["R3143 - a body's loot is judged where its body lies, by the one gate and no second (E95 C1; E72 amend[16]): frisk.mjs `personActionRefusal` reads the body's place through body-tile.mjs `bodyPlaceOf` and its hidden flag from it, the living road the token's (`gmPlaceOf`); handover.mjs `lootBody`, inventory.mjs's loot and anonymity.mjs's greying read no room of their own and ask the one gate", async () => {
+        /*
+         * E95 C1, 10.11.2026; E72 item (1): "bramka pokoju grabieży ciała w polityce transferItem ... od E67 bodyRoomOf
+         * (pokój kafla, a gdy GM kafel usunie, pokój tokenu), bez drugiej bramki w handover.mjs". Read off the served
+         * source with its comments taken out. The reader of room calls is shown a planted text first. What each piece
+         * does is tier 2's ("a body's loot is judged where the body lies"); this holds where it is asked. Red at E95 C0:
+         * the gate read `gmPlaceOf(target)` for both roads and `there.tokenDoc?.hidden`, and frisk.mjs did not import
+         * body-tile.mjs.
+         */
+        const ROOM_READERS = /\b(gmPlaceOf|bodyPlaceOf|bodyRoomOf|locateActor|roomOfActor|roomOfToken|lawfulRoomOf|sameRoom|roomAt|gmSpotOf)\s*\(/g;
+        const calls = text => [...text.matchAll(ROOM_READERS)].map(m => m[1]);
+        equal(JSON.stringify(calls("a(); gmPlaceOf(x); y.sameRoom (a, b); bodyPlaceOfX(z); bodyRoomOf(q); roomAtSpot(s)")), JSON.stringify(["gmPlaceOf", "sameRoom", "bodyRoomOf"]),
+            "the reader of room calls does not find exactly the three planted for it");
+        const sources = await moduleSources();
+        const src = file => { must(sources.has(file), `${file} is not served - this test reads nothing until it is`); return stripComments(sources.get(file)); };
+        const gate = fnSource(src("frisk.mjs"), "personActionRefusal");
+        const read = {
+            gateReads: calls(gate),
+            bodyBranch: /\bbody\s*\?\s*bodyPlaceOf\(target\)\s*:\s*gmPlaceOf\(target\)/.test(gate),
+            hiddenFromPlace: /\bbody\s*\?\s*there\?\.hidden\s*:\s*there\?\.tokenDoc\?\.hidden/.test(gate),
+            friskImports: staticImports(src("frisk.mjs")).includes("body-tile.mjs"),
+            lootBody: calls(fnSource(src("handover.mjs"), "lootBody")),
+            lootAsks: /transferRefusal\(body, taker, \{ mode: "loot", asker \}\)/.test(fnSource(src("handover.mjs"), "lootBody")),
+            transferLoot: /if \(mode === "loot"\) return personActionRefusal\(actor, other, \{ body: true, user \}\);/.test(fnSource(src("inventory.mjs"), "transferRefusal")),
+            transferReads: calls(fnSource(src("inventory.mjs"), "transferRefusal")),
+            greyReads: calls(fnSource(src("anonymity.mjs"), "greyRefused")),
+            greyAsks: /transferRefusal\(body, taker, \{ mode: "loot", asker: game\.user \}\)/.test(fnSource(src("anonymity.mjs"), "greyRefused"))
+        };
+        equal(JSON.stringify(read), JSON.stringify({
+            gateReads: ["gmPlaceOf", "bodyPlaceOf", "gmPlaceOf"], bodyBranch: true, hiddenFromPlace: true, friskImports: true,
+            lootBody: [], lootAsks: true, transferLoot: true, transferReads: ["sameRoom"], greyReads: [], greyAsks: true
+        }), "{the gate's room reads, its body branch on bodyPlaceOf, its hidden read from the place, frisk.mjs importing body-tile.mjs; lootBody's room reads and its ask; transferRefusal's loot line and room reads; greyRefused's room reads and its ask}");
+    }],
 ];
 
 

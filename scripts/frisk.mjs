@@ -15,6 +15,7 @@
 import { SETTINGS, getSetting, getClock, isEclipse, isDeadForGm, isDeceased, incidentParticipants } from "./settings.mjs";
 import { MODULE_ID, FLAGS, ITEM_CATEGORIES, TIMING } from "./config.mjs";
 import { gmPlaceOf, lawfulRoomOf } from "./movement.mjs";
+import { bodyPlaceOf } from "./body-tile.mjs";
 import { witnessesOf } from "./chapter.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { flagsHeldNow } from "./sheet-audit.mjs";
@@ -131,6 +132,14 @@ const floorKey = level => level?.id ?? level ?? null;
  * ("that cannot be done now"), asked before the room, so the two read alike whatever else holds. And the incident is no
  * bar: its sides are the very ones 26.09 lets search the body. The target's Monocub mark is no bar either: what lies on
  * a Monocub's body is the body's (D15). A11's two-argument calls read as they did.
+ *
+ * WHERE THE BODY LIES (E95 C1, 10.11.2026; E72 amend[16]: "bodyRoomOf (pokój kafla, a gdy GM kafel usunie, pokój
+ * tokenu), bez drugiej bramki w handover.mjs"). With `{ body: true }` the target's place is body-tile.mjs `bodyPlaceOf`:
+ * the tile a murdered student's body left when they became a Monocub - its scene, the floor its flag stores, the room
+ * its centre falls in, refused while the tile is hidden - and the token as the GMs read it (`gmPlaceOf`) when it has
+ * none. Until E95 it was the token, so a Monocub's body was searched wherever the Monocub walked. The three askers -
+ * handover.mjs `lootBody`, inventory.mjs `transferItem` and anonymity.mjs's greying - read it through this one gate
+ * (tier 0 R3143). The living road keeps the token.
  */
 export function personActionRefusal(asker, target, { body = false, user = null } = {}) {
     if (!asker || !target || asker.type !== "character" || target.type !== "character") return "no such character";
@@ -144,8 +153,11 @@ export function personActionRefusal(asker, target, { body = false, user = null }
     if (!here?.room) return "the character has no token on a scene";
     // A Monokuma on the map is the GM standing there, and a hidden token is nobody the room can see: neither is
     // somebody in the room, as movement.mjs `othersInRoom` offers the asker's window its targets.
-    const there = theirs.getFlag(MODULE_ID, FLAGS.monokuma) ? null : gmPlaceOf(target);
-    if (!there?.room || there.tokenDoc?.hidden || there.scene?.id !== here.scene?.id || floorKey(there.level) !== floorKey(here.level)
+    // A body is where it lies (E95 C1; E72 amend[16]): its tile, or its token when it has none (body-tile.mjs
+    // `bodyPlaceOf`), the tile's `hidden` for the token's. The living road - a Frisk, a steal, a Plant - reads the token.
+    const there = theirs.getFlag(MODULE_ID, FLAGS.monokuma) ? null : body ? bodyPlaceOf(target) : gmPlaceOf(target);
+    const hidden = body ? there?.hidden : there?.tokenDoc?.hidden;
+    if (!there?.room || hidden || there.scene?.id !== here.scene?.id || floorKey(there.level) !== floorKey(here.level)
         || there.room !== here.room) return "the character is not in that room";
     if (isEclipse()) return "an Eclipse is running";
     if (inClassTrial()) return "that waits until the Class Trial is over";

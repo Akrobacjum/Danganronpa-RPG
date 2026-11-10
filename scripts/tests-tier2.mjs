@@ -2423,6 +2423,73 @@ async function whileDead(actor, run) {
 }
 
 /**
+ * A body with its tile in another room than its token, for the length of `run` (E95 C1): two students alone together in
+ * a room of the scene on screen (`aloneTogether`), the second dead on a published death (`whileDead`), and a tile of its
+ * body made by the suite in another room, the data body-tile.mjs `bodyTileSpec` gives (what E95 C2's `leaveBody` will
+ * lay), on the token's floor. `run` gets the two, a player who owns neither, the tile, the two rooms, `standTaker(room)`
+ * (the taker's token stood in a room, waited for) and `drawn()` (the loot window's Take for the taker: [greyed, its
+ * words]). The tile is deleted after, whatever `run` did with it, and the tokens put back.
+ */
+async function withBodyTile(run) {
+    const { isPrimaryGm } = await import("./utils.mjs");
+    must(isPrimaryGm(), "this client is not the primary GM, whose reading the gate is - this would measure nothing");
+    needs(world.atLeast("studentTokensOnScreen", 2), "the taker and the body, each a token on the scene on screen");
+    needs(world.atLeast("namedRooms", 2), "a room for the two and another to lay the tile in");
+    const Mv = await import("./movement.mjs");
+    const B = await import("./body-tile.mjs");
+    const INV = await import("./inventory.mjs");
+    const A = await import("./anonymity.mjs");
+    const { levelOf } = await import("./rooms.mjs");
+    const { deathRecord } = await import("./settings.mjs");
+    const { livingStudents } = await import("./chapter.mjs");
+    const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+    const scene = canvas.scene, PLACE = { teleport: true, movementAction: "displace", animate: false };
+    const [taker, body] = livingStudents().filter(a => scene?.tokens?.some(t => t.actorId === a.id));
+    const player = game.users.find(u => !u.isGM && !body?.testUserPermission(u, "OWNER") && !taker?.testUserPermission(u, "OWNER")) ?? null;
+    must(taker && body && player, "no two students on the scene, or no player who owns neither - this would measure nothing");
+    const fixture = await aloneTogether(taker, body);
+    const tileRoom = Mv.allRooms(scene).find(r => r !== fixture.room);
+    const takerToken = scene.tokens.find(t => t.actorId === taker.id), bodyToken = scene.tokens.find(t => t.actorId === body.id);
+    const standTaker = async room => {
+        await takerToken.update(Mv.positionIn(room, takerToken), PLACE);
+        await settle();
+        must(Mv.roomOfToken(takerToken) === room, `the taker could not be stood in ${room} - this would measure nothing`);
+    };
+    const NAME = "SUITE E95 C1 a lighter on the body";
+    const drawn = async () => {
+        const root = document.createElement("div");
+        root.innerHTML = `<a data-tab="inventory"></a><section class="tab" data-tab="inventory"></section>`;
+        const item = await INV.grantItem(body, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+        await sheetAuditIdle();
+        await A.buildBodyLoot?.(root, body, taker);
+        const take = root.querySelector(".drpg-loot-take");
+        if (item) await item.delete();
+        await sheetAuditIdle();
+        return take ? [take.disabled, take.dataset.tooltip ?? ""] : null;
+    };
+    let tile = null;
+    try {
+        must(tileRoom, "the scene on screen has one room - the tile has nowhere else to lie");
+        await whileDead(body, async () => {
+            const spot = Mv.positionIn(tileRoom, bodyToken);
+            const data = B.bodyTileSpec({ tokenDoc: { x: spot.x, y: spot.y, width: bodyToken.width, height: bodyToken.height,
+                elevation: bodyToken.elevation, texture: { src: bodyToken.texture?.src ?? null }, parent: scene },
+            actorId: body.id, record: deathRecord(body), level: levelOf(bodyToken), at: Date.now() });
+            [tile] = await scene.createEmbeddedDocuments("Tile", [data]);
+            await settle();
+            must(tile && B.bodyRoomOf(body) === tileRoom && Mv.roomOfToken(bodyToken) === fixture.room,
+                `the body's tile could not be laid in ${tileRoom} with its token in ${fixture.room} - this would measure nothing`);
+            await run({ taker, body, player, tile, room: fixture.room, tileRoom, standTaker, drawn });
+        });
+    } finally {
+        if (tile && scene.tiles?.has(tile.id)) await tile.delete();
+        for (const i of body.items.filter(i => i.name === NAME)) await i.delete();
+        await fixture.back();
+        await sheetAuditIdle();
+    }
+}
+
+/**
  * A stash of `owner`'s in `room` on the scene on screen for the length of `run(scene)` (E35 C0): made where the room
  * holds none of theirs, and the room's list put back as it was after - an absent list is not an empty one (the note
  * in "a stash with something in it cannot be taken away"). Answers what `run` answers.
@@ -84608,6 +84675,64 @@ const SCENARIOS = [
         equal(stableJson({ undo, keep, granted }), stableJson({ undo: ["gmRoute", false, "undo", game.user.id, 2], keep: ["secondary", false, "keep", game.user.id, 0],
             granted: [[["gmRoute", false], ["gmRoute", false]], 1 + CRITICAL.hope, [true, true]] }),
             "{undo, keep: [the button's role, its wrapper left, the row's decision, by, the marks after]; granted: [each copy's press [role, wrapper left], the Hope after, each stamp granted]}");
+    }],
+    ["a body's loot is judged where the body lies (E95 C1; E72 amend[16]): with its tile in another room than its token, the loot gate refuses a taker beside the token and lets one beside the tile through, the tile hidden refuses, the tile deleted reads the token again, and the loot window greys its Take in agreement", async () => {
+        /*
+         * E95 C1, 10.11.2026; E72 amend[16] and item (1) ("bramka pokoju grabieży ciała ... od E67 bodyRoomOf (pokój
+         * kafla, a gdy GM kafel usunie, pokój tokenu), bez drugiej bramki w handover.mjs"). A taker and a body alone
+         * together in one room, the body dead on a published death, and a tile of its body laid by the suite in another
+         * room (body-tile.mjs `bodyTileSpec`, as E95 C2's `leaveBody` will): the room a Monocub walked out of. Read: the
+         * gate handover.mjs `lootBody` and inventory.mjs `transferItem` ask (inventory.mjs `transferRefusal`, mode "loot",
+         * asked for a player who owns neither) as "ok" or the code of its refusal, and the loot window's Take
+         * (anonymity.mjs `buildBodyLoot` for the taker): [greyed, its words]. Red at E95 C0: the gate read the token's
+         * room, so the taker beside the token looted and the one beside the tile was "notThere", the hidden tile
+         * changed nothing, and the window agreed with the token.
+         */
+        await withBodyTile(async ({ taker, body, player, tile, room, tileRoom, standTaker, drawn }) => {
+            const INV = await import("./inventory.mjs");
+            const { reasonOf } = await import("./bridge-guards.mjs");
+            const gate = async () => { const why = await INV.transferRefusal(body, taker, { mode: "loot", asker: player }); return why ? reasonOf(why) : "ok"; };
+            const read = {};
+            read.besideToken = [await gate(), await drawn()];
+            await standTaker(tileRoom);
+            read.besideTile = [await gate(), await drawn()];
+            await tile.update({ hidden: true });
+            await settle();
+            read.tileHidden = await gate();
+            await tile.update({ hidden: false });
+            await settle();
+            await tile.delete();
+            await settle();
+            read.deletedBesideTile = await gate();
+            await standTaker(room);
+            read.deletedBesideToken = [await gate(), await drawn()];
+            const notThere = game.i18n.localize("DRPG.Bridge.why.notThere"), take = game.i18n.localize("DRPG.Loot.takeTooltip");
+            equal(stableJson(read), stableJson({
+                besideToken: ["notThere", [true, notThere]], besideTile: ["ok", [false, take]], tileHidden: "notThere",
+                deletedBesideTile: "notThere", deletedBesideToken: ["ok", [false, take]]
+            }), "the loot gate and the loot window's Take [greyed, words], per case: the taker beside the token, beside the tile, the tile hidden, the tile deleted with the taker beside where it lay, and beside the token");
+        });
+    }],
+
+    ["a body's tile moves no living road (E95 C1): with a dead student's tile in another room than their token, the person gate a Frisk, a steal and a Plant ask reads the token, not the tile", async () => {
+        /*
+         * E95 C1, 10.11.2026; STAGE E95 C1 ("`body: false` (steal, plant, Frisk) keeps the token"). The same fixture as
+         * the test above: frisk.mjs `personActionRefusal(taker, body)` without `{ body: true }`, the gate a Frisk asks
+         * whole and a steal and a Plant ask first (inventory.mjs `transferRefusal`), with the taker beside the token and
+         * beside the tile. It does not ask whether the target is dead (its header: that would answer a question a player
+         * may not ask), so beside the token it lets the taker through and beside the tile refuses - the token's room,
+         * as before E95. Green before C1 and after: the guard that the body branch's change is the body branch's alone.
+         */
+        await withBodyTile(async ({ taker, body, tileRoom, standTaker }) => {
+            const F = await import("./frisk.mjs");
+            const { reasonOf } = await import("./bridge-guards.mjs");
+            const gate = () => { const why = F.personActionRefusal(taker, body); return why ? reasonOf(why) : "ok"; };
+            const read = { besideToken: gate() };
+            await standTaker(tileRoom);
+            read.besideTile = gate();
+            equal(stableJson(read), stableJson({ besideToken: "ok", besideTile: "notThere" }),
+                "the living road's person gate, per case: the taker beside the token, beside the tile");
+        });
     }],
 ];
 
