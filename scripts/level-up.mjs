@@ -63,6 +63,8 @@ export async function openAdvancementFor(actor) {
 
     const picked = await chooseVariant({
         actor,
+        // Level Up keeps its one column (E68 C12; Q12: a reward, not an action of the table).
+        columns: false,
         title: game.i18n.format("DRPG.Advance.title", { actor: actor.name }),
         prompt: game.i18n.format("DRPG.Advance.whichKind", {
             actor: foundry.utils.escapeHTML(actor.name)
@@ -98,6 +100,8 @@ export async function openAdvancementFor(actor) {
      */
     const who = await chooseVariant({
         actor,
+        // Level Up keeps its one column (E68 C12; Q12: a reward, not an action of the table).
+        columns: false,
         title: game.i18n.format("DRPG.Advance.title", { actor: actor.name }),
         prompt: game.i18n.format("DRPG.Advance.whoPicks", {
             actor: foundry.utils.escapeHTML(actor.name)

@@ -98,6 +98,8 @@ export async function openCrisisMenu(actor) {
     const picked = await chooseVariant({
         actor,
         title: game.i18n.localize("DRPG.Murder.yourTurn"),
+        // The left column of every action's window (E68 C12, layout B): the menu had no briefing, so one sentence.
+        intro: `<div class="drpg-briefing-block"><p>${game.i18n.localize("DRPG.Murder.crisisBrief")}</p></div>`,
         prompt: game.i18n.localize("DRPG.Murder.crisisPrompt"),
         confirm: game.i18n.localize("DRPG.Murder.briefRoll"),
         options: options.map(({ key, def, threshold, free, hindered, blocked, locked, spent, lockedBy, denied, why }) => ({
@@ -114,11 +116,14 @@ export async function openCrisisMenu(actor) {
                 : threshold === null || threshold === undefined
                     ? game.i18n.localize("DRPG.Murder.noRollNeeded")
                     : game.i18n.format("DRPG.Murder.thresholdShort", { n: threshold })}${
-                def.hint ? ` - ${proseOf(def, "hint")}` : ""}${
+                // The row's one sentence (E68 C13; the owner's Q5 of round M): `short`, its full hint first in the details.
+                def.short ? ` - ${proseOf(def, "short")}` : def.hint ? ` - ${proseOf(def, "hint")}` : ""}${
                 hindered && !free ? ` · ${game.i18n.localize("DRPG.Murder.actionHindered")}` : ""}`,
-            details: crisisDetails(def, { free, brokenDown, youPick, traits: listed[key] })
-                // The player's proposal, under the row that asks a GM (E68 C4; DA18): the first listed checked.
-                + (asks({ key, def, free }) ? traitFieldHtml(actor, listed[key], { propose: true }) : ""),
+            details: crisisDetails(def, { free, brokenDown, youPick, traits: listed[key] }),
+            // The player's proposal, for the row that asks a GM (E68 C4; DA18): the first listed checked. In the right
+            // column's statistic slot while the row is picked (E68 C13's merge; the owner's Q3 of round M), not with
+            // the row's details on the left.
+            field: asks({ key, def, free }) ? traitFieldHtml(actor, listed[key], { propose: true }) : "",
             // A roll that sends a card wears the GM's road (D11; utils.mjs `GM_ROUTE_CLASS`), as a project's does.
             gmRoute: asks({ key, def, free }),
             confirm: game.i18n.localize(free || def.noRoll ? "DRPG.Murder.briefTake" : "DRPG.Murder.briefRoll"),
@@ -139,7 +144,7 @@ export async function openCrisisMenu(actor) {
     });
 
     if (!picked) return null;
-    const scope = picked.form?.querySelector(`.drpg-choice-details[data-drpg-for="${picked.value}"]`) ?? null;
+    const scope = picked.form?.querySelector(`[data-drpg-field="${picked.value}"]`) ?? null;
     // A pass after a GM's "Change to" spends nothing and gives the turn's choice back (QUESTIONS.md Q11): the menu again.
     let passed = false;
     const done = await takeCrisisAction(actor, picked.value, { ...readProposal(scope, listed[picked.value]), onPass: () => { passed = true; } });
@@ -179,8 +184,11 @@ function crisisDetails(def, { free, brokenDown, youPick, traits }) {
         if (brokenDown) facts.push(game.i18n.localize("DRPG.Murder.breakdownDisadvantage"));
         if (def.failure) facts.push(game.i18n.format("DRPG.Murder.onAMiss", { text: esc(proseOf(def, "failure")) }));
     }
-    return facts.length
-        ? `<ul class="drpg-briefing-facts">${facts.map(f => `<li>${f}</li>`).join("")}</ul>` : "";
+    // What a row's one-sentence caption gave up (E68 C13): the action's whole hint, first in the picked row's details,
+    // which stand in the left column under the briefing (E68 C12).
+    const whole = def.short && def.hint ? `<p>${esc(proseOf(def, "hint"))}</p>` : "";
+    return whole + (facts.length
+        ? `<ul class="drpg-briefing-facts">${facts.map(f => `<li>${f}</li>`).join("")}</ul>` : "");
 }
 
 /**

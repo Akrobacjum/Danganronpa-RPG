@@ -3414,6 +3414,8 @@ export const CRISIS_ACTIONS = {
         usesItem: true,
         hint: "Use an item during the incident with its Use button on your sheet. A hit with Hope, or a critical, puts "
             + "it to use; a hit with Despair does not. Every hit leaves a Remnant.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "Use an item with its Use button on your sheet; every hit leaves a Remnant.",
         remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
         criticalReinforced: true,
         // The guide gives the direct victim a second action and the indirect one
@@ -3431,6 +3433,8 @@ export const CRISIS_ACTIONS = {
         hint: "On a hit, leave a Remnant tied to the crime at the scene: Evident with Hope, Subtle with Despair, "
             + "Obvious and Reinforced on a critical, and your turn goes on. In an indirect murder, it is Reinforced "
             + "with Hope, and a critical leaves two.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "On a hit, leave a Remnant tied to the crime at the scene.",
         remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
         criticalReinforced: true,
         // G-17: a critical does not end the turn. Same field and same mechanism
@@ -3470,6 +3474,8 @@ export const CRISIS_ACTIONS = {
         hint: "On a hit, you secure a Remnant tied to the crime: Evident with Hope, Subtle with Despair, Obvious and "
             + "Reinforced on a critical, and your turn goes on. In an indirect murder, it is Reinforced with Hope, and "
             + "a critical leaves two.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "On a hit, take a Remnant tied to the crime with you.",
         remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
         criticalReinforced: true,
         // G-17, as on Leave a clue.
@@ -3507,6 +3513,8 @@ export const CRISIS_ACTIONS = {
         hint: "A hit with Hope unlocks Survive and Role Reversal; with Despair, only Role Reversal, unless the "
             + "incident denies it. A critical unlocks both, stops your Health and Sanity loss, and lets you take one "
             + "this turn without a roll. A readied weapon gives advantage.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "A hit opens Survive and Role Reversal; a readied weapon gives advantage.",
         weaponAdvantage: true,
         /** Which resolution actions a success opens, per duality band. */
         unlocks: {
@@ -3563,6 +3571,8 @@ export const CRISIS_ACTIONS = {
         hint: "Withdraw from the incident. A hit ends it and stops your Health and Sanity loss; with Despair, you also "
             + "get a hint about who the killer is. A critical gives that hint and immunity for this chapter and the "
             + "next.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "Withdraw: a hit ends the incident and stops your Health and Sanity loss.",
         hope: "The incident ends and the drain stops.",
         despair: "The incident ends and the drain stops. You get a hint about who they were.",
         critical: "The incident ends, you get a hint about who they were, and immunity for this "
@@ -3578,6 +3588,8 @@ export const CRISIS_ACTIONS = {
         hint: "Turn the tables. On a hit, you become the killer and your attacker loses Health and Sanity instead; "
             + "with Hope, you recover all yours. A critical kills your attacker, restores you, and leaves an Incident "
             + "Remnant (Evident, Reinforced). A readied weapon gives advantage.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "Turn the tables: on a hit, you become the killer and your attacker loses instead.",
         weaponAdvantage: true,
         hope: "You become the killer and recover all Health and Sanity.",
         despair: "You become the killer.",
@@ -3615,6 +3627,8 @@ export const CRISIS_ACTIONS = {
         hint: "A hit takes {hp} Health and {stress} Sanity off the victim and leaves a Remnant, Hidden with Hope and "
             + "Subtle with Despair. On a critical, the whole blow lands on Health or on Sanity, as you choose, and you "
             + "leave no Remnant.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "A hit takes Health and Sanity off the victim and leaves a Remnant.",
         damage: {
             hope: { hp: 1, stress: 1 }, despair: { hp: 1, stress: 1 },
             // A critical is the same two marks, but the killer says where both
@@ -3635,6 +3649,8 @@ export const CRISIS_ACTIONS = {
         threshold: 12, traits: ["body"],
         hint: "Put the victim's Leave a Clue and Survive at disadvantage for their {turns}, or block both on a "
             + "critical. With Despair, a hit leaves a Subtle Remnant, and a miss leaves an Evident one.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "Put the victim's Leave a Clue and Survive at disadvantage; a critical blocks both.",
         hinders: { actions: ["leaveClue", "survive"], turns: 2 },
         remnant: { despair: "subtle" },
         failureRemnant: { despair: "evident", critical: "obvious" }
@@ -3644,6 +3660,8 @@ export const CRISIS_ACTIONS = {
         threshold: 12, traits: ["leg"],
         hint: "Put the victim's Secure a Trace and Role Reversal at disadvantage for their {turns}, or block both on a "
             + "critical. With Despair, a hit leaves a Subtle Remnant, and a miss leaves an Evident one.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "Put the victim's Secure a Trace and Role Reversal at disadvantage; a critical blocks both.",
         hinders: { actions: ["secureTrace", "roleReversal"], turns: 2 },
         remnant: { despair: "subtle" },
         failureRemnant: { despair: "evident", critical: "obvious" }
@@ -3654,6 +3672,8 @@ export const CRISIS_ACTIONS = {
         hint: "A hit takes Health off the victim, more with a higher-tier weapon and on a critical. Without a readied "
             + "weapon you roll at disadvantage, and if you carry none, a hit gives you an improvised one. The weapon's "
             + "Remnants become tied to the crime.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "A hit takes Health off the victim, more with a higher-tier weapon.",
         /** 1 + tier/2 rounded up on a normal hit; 1 + full tier on a critical. */
         weaponDamage: { normal: tier => 1 + Math.ceil(tier / 2), critical: tier => 1 + tier },
         unarmedDisadvantage: true,
@@ -3698,6 +3718,8 @@ export const CRISIS_ACTIONS = {
         hint: "End the incident now. The number to beat is {mult} times the victim's remaining Health, so it is 0 once "
             + "they have none. A hit with Despair leaves an Evident Remnant, and a critical makes your first clean-up "
             + "attempt cost no Sanity.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "End the incident now; the number to beat grows with the victim's remaining Health.",
         endsIncident: true,
         hope: "The incident ends.",
         despair: "The incident ends and leaves one Incident Remnant.",
@@ -3731,6 +3753,8 @@ export const CRISIS_ACTIONS = {
         threshold: 15, traits: ["leg"], kind: "resolution",
         hint: "Get the victim out with you. A hit ends the incident, and with Hope or on a critical it also restores "
             + "their Health and Sanity; a critical gives you and the victim immunity for this chapter and the next.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "Get the victim out with you: a hit ends the incident.",
         hope: "Both of you escape. The victim's Health and Sanity are restored.",
         despair: "Both of you escape, but the victim's Health and Sanity are not restored.",
         critical: "Both of you escape with immunity for this chapter and the next, and the "
@@ -3771,6 +3795,8 @@ export const CRISIS_ACTIONS = {
         hint: "Side with the victim against the killer: you both become killers, and the original killer now loses "
             + "Health and Sanity and cannot take Role Reversal. This leaves an Evident Remnant, and you then take the "
             + "killers' turns, except in an indirect murder.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "Side with the victim: you both become killers, and you leave an Evident Remnant.",
         effect: "The victim and the third party become the killers. The original killer "
             + "starts bleeding and their survival is close to impossible.",
         swapsRoles: true,
@@ -3791,6 +3817,8 @@ export const CRISIS_ACTIONS = {
         kind: "resolution", noRoll: true,
         hint: "Join the killer's side; the victim can no longer take Role Reversal. This leaves a Subtle Remnant, and "
             + "you then take the killers' turns, except in an indirect murder.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "Join the killer's side; you leave a Subtle Remnant.",
         effect: "The third party joins the killer. The original victim's survival is "
             + "close to impossible.",
         joinsKiller: true,

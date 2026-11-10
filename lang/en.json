@@ -866,7 +866,7 @@
       "goalCleaningHint": "A cleaning tool. Leaves a Prep Remnant.",
       "substitute": "Not what you were looking for - it is what this room had.",
       "goalTool": "Something to work with",
-      "goalToolHint": "A tool. Gives advantage on project work - and leaves no trace unless what turns up is also a weapon.",
+      "goalToolHint": "A tool: advantage on project work, and no trace unless it is also a weapon.",
       "goalSpecific": "Something specific",
       "goalSpecificHint": "Describe it. The GM rules on what was really there.",
       "goalSpecificPrompt": "What are you looking for?",
@@ -966,15 +966,15 @@
       "critPrompt": "{actor} identified {name} as {a} {type} on a critical - they have earned a substantial hint on top of it.",
       "critNothingMore": "Nothing more to add",
       "analyseBulletHint": {
-        "one": "Roll Head to learn what the one Truth Bullet you can analyze now really is. On a miss, you cannot analyze it again until the chapter ends.",
-        "other": "Roll Head to learn what one of the {n} Truth Bullets you can analyze now really is. On a miss, you cannot analyze that one again until the chapter ends."
+        "one": "Roll Head to learn what your one Truth Bullet really is; a miss locks it until the chapter ends.",
+        "other": "Roll Head to learn what one of your {n} Truth Bullets really is; a miss locks it until the chapter ends."
       },
       "askHintHint": "No evidence in hand - ask the GM to point you somewhere instead.",
       "findStash": "Find Stash",
-      "findStashHint": "Look for a stash another student has hidden in this room. With a total of {n} or more, or a critical, you find one you have not found before and learn whose it is.",
+      "findStashHint": "Look for another student's stash here; {n}+ or a critical finds a new one and whose it is.",
       "stashNothing": "You go over the room and find nothing anybody has tried to hide.",
       "findPassage": "Find Passage",
-      "findPassageHint": "Go over the walls of this room for a way through that nobody shows. {n}+ opens one secret passage here to you.",
+      "findPassageHint": "Search this room's walls for a hidden way through; {n}+ opens one secret passage to you.",
       "passageSent": "You go over the walls of the room, looking for a way through.",
       "passageNothing": "You find no hidden passage here.",
       "passageFound": "There is a secret passage in this room, to {to}. Where the way is open, your map shows it.",
@@ -1792,7 +1792,7 @@
       "trailWho": "Frame",
       "trailNobody": "There is nobody left to frame.",
       "moveAction": "Move the Body",
-      "moveHint": "Spend {n} Sanity to carry the body out of this room. It always leaves an Evident trace - a body cannot be dragged quietly.",
+      "moveHint": "Spend {n} Sanity to carry the body out of this room; it always leaves an Evident trace.",
       "bodyNotHere": "The body is not in this room. You have to be standing over it to carry it anywhere.",
       "nothingHere": "Nothing to clean up in this room.",
       "allReinforced": "Every trace here is reinforced. None of it comes off.",
@@ -1848,7 +1848,7 @@
       "bodyNowhere": "There is nowhere to take it - no room connects to this one, or the only ones that do are bedrooms.",
       "toolsBroken": "{items} is ruined. It is still in your inventory, and it is still evidence.",
       "transformAction": "Reshape a Trace",
-      "transformActionHint": "Give a non-Reinforced Remnant a new name and description, with an easier roll than Erase a Trace. If a GM approves, it becomes a Tamper Remnant; if not, you get nothing back. A critical also hides it better and refunds what you paid.",
+      "transformActionHint": "Rename a non-Reinforced Remnant: a GM's approval makes it a Tamper Remnant, a refusal gives nothing back.",
       "transformActionIntro": "You are not removing this. You are making it read as something else. Write what the next person through the door will find.",
       "reshapeName": "Call it",
       "reshapeNamePlaceholder": "Spilled paint",
@@ -2067,6 +2067,7 @@
       "cannotLeave": "You are in an incident. The only way out is a crisis action - Survive, Escape Together, a Finishing Blow, or, if you only walked in on it, Averted Eyes.",
       "oneAtATime": "There is already an incident running. It has to finish before another can start.",
       "crisisPrompt": "What are you doing about it?",
+      "crisisBrief": "One action a turn. A row that is shut says why.",
       "nothingToDo": "There is nothing left for you to do this round.",
       "actionsLocked": "You are in an incident. Everything you can do is behind {tile}; Hope Calls still work.",
       "thirdJoined": "{name} throws in with the killer and stays in the incident.",
@@ -3412,8 +3413,8 @@
       },
       "startNewHint": "Describe something new. Nothing exists until the GM approves it.",
       "sabotageHint": {
-        "one": "This room has one project you can break. On a hit, it needs a repair project. It costs an action, and you always leave a Remnant.",
-        "other": "This room has {n} projects you can break. On a hit, the one you pick needs a repair project. It costs an action, and you always leave a Remnant."
+        "one": "Break this room's one breakable project so it needs a repair; you always leave a Remnant.",
+        "other": "Break one of this room's {n} projects so it needs a repair; you always leave a Remnant."
       },
       "completeTag": "Complete",
       "alreadyComplete": "{name} is finished. There is no work left in it.",
@@ -4224,13 +4225,13 @@
       "prompt": "What are you doing to the evidence?",
       "cover": "Erase a Trace",
       "coverHint": {
-        "one": "You know of one Remnant here that you can erase. The more visible it is, the harder it is to remove; a readied cleaning tool, or doing it before the Investigation starts, makes it easier.",
-        "other": "You know of {n} Remnants here that you can erase. The more visible a Remnant is, the harder it is to remove; a readied cleaning tool, or doing it before the Investigation starts, makes it easier."
+        "one": "Erase the one Remnant you know of here; the more visible it is, the harder it is to remove.",
+        "other": "Erase one of the {n} Remnants you know of here; the more visible it is, the harder it is to remove."
       },
       "nothingOfYours": "You know of no trace in this room.",
       "onlyReinforced": "Every trace you know of here is too deeply set to remove.",
       "frame": "Misleading Trail",
-      "frameHint": "Plant a false Remnant pointing at another student; you need {n} or more. On a hit it is Evident with Hope, Subtle with Despair, Obvious on a critical, which gives back Sanity. A miss with Hope still plants a Faint, Hidden one; with Despair, nothing.",
+      "frameHint": "Plant a false Remnant pointing at another student with {n}+; a miss with Despair plants nothing.",
       "whichTrace": "Which Remnant",
       "yourCopy": "{name} (your copy)",
       "coverAction": "Erase a Trace",
@@ -4246,11 +4247,11 @@
       "nobodyHere": "There is nobody in this room to reach.",
       "whichWay": "Which way is your hand going?",
       "takeLabel": "Take something",
-      "takeHint": "Lift one thing, picked at random, out of their pockets; a critical lets you choose. It costs an action, and if they notice, they learn who it was and what you took.",
+      "takeHint": "Lift one random thing from their pockets, or pick it on a critical; if they notice, they learn it was you.",
       "plantLabel": "Leave something",
       "plantHint": {
-        "one": "Slip the one thing you carry into their pocket. It costs an action, and both rolls, Hand and Shadow, need a lower total than taking does.",
-        "other": "Slip one of the {n} things you carry into their pocket. It costs an action, and both rolls, Hand and Shadow, need a lower total than taking does."
+        "one": "Slip the one thing you carry into their pocket; both rolls need less than taking does.",
+        "other": "Slip one of the {n} things you carry into their pocket; both rolls need less than taking does."
       },
       "nothingToPlant": "You are carrying nothing you could leave on somebody.",
       "whatToPlant": "What to leave",

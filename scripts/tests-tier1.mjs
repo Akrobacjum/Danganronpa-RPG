@@ -10161,7 +10161,8 @@ const INVARIANTS = [
         const grep = new Set();
         const { GM_ROUTE_CLASS: GM_ROUTE } = await import("./utils.mjs");
         // E41 C3 (1.2.97): every file of the action family (the kit's ACTION_FAMILY), where action-rolls.mjs alone was read.
-        for (const file of ["day-summary.mjs", "popup.mjs", "secret.mjs", "messenger-app.mjs", "trial.mjs", "safeword.mjs", ...ACTION_FAMILY]) {
+        // E68 C12: ui-columns.mjs too, where the menu's row moved (`choiceRowHtml`) with the columns' own classes.
+        for (const file of ["day-summary.mjs", "popup.mjs", "secret.mjs", "messenger-app.mjs", "trial.mjs", "safeword.mjs", "ui-columns.mjs", ...ACTION_FAMILY]) {
             const src = stripComments(sources.get(file) ?? "");
             must(src.length > 0, `${file} was not read - the class grep would be measured on nothing`);
             for (const m of src.matchAll(/class=(["'])/g)) {
@@ -19249,7 +19250,7 @@ const INVARIANTS = [
         // One of each: a kit window carries `drpg-panel` twice, the caller's and the kit's (E21 C5a); `drpg-prompt` since E23 C5a,
         // an action's declaration (action-menus.mjs `chooseVariant`, R1404).
         equal(stableJson([[...new Set(palm.classes ?? [])], positions, classesOf("openAskWindow"), classesOf("askToForce"), icons.length, glyphless(icons), glyphless(["fa-r623-no-sprite"])]),
-            stableJson([["drpg-panel", "drpg-ui", "drpg-prompt"], [["sticky"], ["sticky"], []], ["drpg-panel"], ["drpg-panel"], 3, [], ["fa-r623-no-sprite"]]),
+            stableJson([["drpg-panel", "drpg-action-window", "drpg-ui", "drpg-prompt", "drpg-kit-width"], [["sticky"], ["sticky"], []], ["drpg-panel"], ["drpg-panel"], 3, [], ["fa-r623-no-sprite"]]),
             "[the Palm window's classes; the footer's position by each rule it matches: the Palm window with its Frisk ways, a table window, a short dialog (the controls); the classes of the target's ask and of 'Make them?'; the Palm rows' icons, those with no pixel glyph, and a name no sprite has (the control)]");
     }],
 
@@ -36672,7 +36673,7 @@ const INVARIANTS = [
         }), "[Observe: the ladders shown, All thresholds (open, its lines, its word); Analyze's bound rows; Tamper's bound facts and a second watchers line; "
             + "Observe's box with its two rows; the menu opens at its top; per theme: a plain fact, a bound one with its row picked and one with another row picked, the facts' size and ink]");
     }],
-    ["R1600 - the briefing beside the list (E21 fix G2; E21-04, the end review's B1), and no action asks for it since 1.2.102 (E96 C1: every action one layout, the owner's 09.11.2026): Observe's menu is drawn without `columns`; action-menus.mjs `chooseVariant` puts the briefing beside the question in a window of a stated width (the popup measure lifted) - and the stylesheets lay the two side by side, stacking them when the window is narrower than both, and show a row's line of explanation while that row is picked (an unavailable row keeps its reason), in both themes", async () => {
+    ["R1600 - the briefing beside the list (E21 fix G2; E21-04, the end review's B1), and every action has it since E68 C12 (layout B of round M for every action window, the owner's 10.11.2026): Observe's menu does not turn `columns` off; action-menus.mjs `chooseVariant` puts the briefing beside the question in a window of a stated width (the popup measure lifted) - and the stylesheets lay the two side by side, stacking them when the window is narrower than both, and show a row's line of explanation while that row is picked (an unavailable row keeps its reason), in both themes", async () => {
         /*
          * E21 fix G2, 07.11.2026. Observe scrolled at 1920x1080 (glass) and 1366x768 (both themes): 1140 px of body in a
          * window the glass held to 544 px, 571 px of it on screen at 1366x768 (measured in Chromium, the fit sweep's still
@@ -36687,19 +36688,24 @@ const INVARIANTS = [
          * the layout the other actions share (`asks` false: it scrolls at 1366x768 again, measured in STATUS E96-C1);
          * the `columns` drawing stays in `chooseVariant`, read here, for E68's one layout after its mockup round. Red on
          * 7175878b: `asks` true.
+         * E68 C12, 10.11.2026: round M drew both layouts and the owner took B, these columns, for every action window;
+         * `chooseVariant` draws them unless a caller asks `columns: false` (Level Up's two questions alone, R3200), and the
+         * window is action-menus.mjs `actionWindow` on ui-columns.mjs's blocks, whose columns carry `drpg-wide-col` too.
+         * `asks` now reads that Observe does not turn them off, and the menu is opened with no `columns` given. Red on
+         * d7dc9749: the default drew one column (no window width, no columns).
          */
         const M = await import("./action-menus.mjs");
         const K = await import("./ui-kit.mjs");
         const sources = new Map(await moduleSources());
         const code = stripComments(sources.get("action-observe.mjs") ?? "");
         must(code.length > 5000, "action-observe.mjs read nothing - this test would read nothing");
-        const read = { asks: /\bcolumns:\s*true\b/.test(fnSource(code, "askDeclaration") ?? "") };
+        const read = { asks: !/\bcolumns:\s*false\b/.test(fnSource(code, "askDeclaration") ?? "") };
         const D = foundry.applications.api.DialogV2;
         const own = Object.getOwnPropertyDescriptor(D, "wait");
         const seen = [];
         D.wait = async cfg => { seen.push(cfg); return null; };
         try {
-            await M.chooseVariant({ actor: null, title: "R1600", intro: '<div class="drpg-briefing-block"><p>R1600</p></div>', prompt: "R1600?", columns: true,
+            await M.chooseVariant({ actor: null, title: "R1600", intro: '<div class="drpg-briefing-block"><p>R1600</p></div>', prompt: "R1600?",
                 options: [{ value: "a", label: "A", hint: "a hint" }, { value: "b", label: "B", hint: "b hint" }] });
         } finally {
             if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
@@ -36729,11 +36735,11 @@ const INVARIANTS = [
         }));
         const yes = { measure: null, columns: ["flex", "wrap"], hints: [null, "none", null] };
         equal(stableJson(read), stableJson({
-            asks: false,
+            asks: true,
             // The stated 1120 px as this screen holds it (ui-kit.mjs `kitWidth`: under the screen less 16 px).
-            window: [K.kitWidth(1120), true, ["drpg-variant-brief", "drpg-variant-ask"], true, true],
+            window: [K.kitWidth(1120), true, ["drpg-wide-col drpg-variant-brief", "drpg-wide-col drpg-variant-ask"], true, true],
             paint: { "drpg-theme-stained-glass": yes, "drpg-theme-monokuma-legacy": yes }
-        }), "[askDeclaration asks for columns; the window chooseVariant asks (its width, the stated-width class, the columns, the briefing first, the list second); per theme: "
+        }), "[askDeclaration leaves the columns on; the window chooseVariant asks (its width, the stated-width class, the columns, the briefing first, the list second); per theme: "
             + "the popup measure on .dialog-content (null: none reaches it), the columns' display and wrap, the hints' display (picked, unpicked, unavailable; null: no rule hides it)]");
     }],
     ["R121 - A4, red is the GM's road and says so (E22 C5c; E22-02, E22-10, E22-12, audit S02-25, S05-49, S02-49, S03-26, S09-22): every menu row marked `gmRoute` and every footer button the module puts on the GM's road (a `gmRoute` slot, a question's `role: \"gmRoute\"`, `callWindow`'s `gmRoute`) stands in this census - the Tamper menu's Reshape a Trace and its two windows' Leave something else and Reshape it (Erase plain), Observe's two, Analyze's hint, Search's specific, the proposal's row and its one Send, the request window's Send, a crisis row that asks a GM for the statistic and a project's statistic proposal (E68 C4), Experience and Ultimate (`needsGm` alone), Direct Murder's yes - and the sentence beside each names the GM in English and Polish; the Reshape's three say a refusal gives back nothing paid; `GM_ROUTE_CLASS` is utils.mjs's alone and the kit's gmRoute face; the Dynamic action's definition carries `callsGm`, read once, and its briefing says a GM judges it; Analyze's briefing says a GM judges it by the hint row alone, not over Identify, Find Stash or Find Passage, and Find Stash is plain (E22 fix G2, Open 60's default A); the sheet's tile of a Call a GM rules and a Tier 0 item's Use are red with the GM's word, by the flags their windows read; `stripeKindFor` answers the GM's road before a Sanity step", async () => {
@@ -37818,10 +37824,12 @@ const INVARIANTS = [
             const bare = stripStrings(code);
             if (/\bPROMPT_CLASS\b|drpg-prompt/.test(code)) naming.push(file);
             if (file !== "action-menus.mjs" && /\bchooseVariant\(\{/.test(bare)) menus.push(file);
-            for (const m of bare.matchAll(/\bdrpgWindow\(\{/g)) {
+            // `(columns ? actionWindow : drpgWindow)({`, `chooseVariant`'s one call since E68 C12 (its window an action's or,
+            // for Level Up, the plain one), is read as a drpgWindow call too: the scan starts at the "(" before the "{".
+            for (const m of bare.matchAll(/\bdrpgWindow\)?\(\{/g)) {
                 if (/function drpgWindow\($/.test(bare.slice(Math.max(0, m.index - 20), m.index + 11))) continue;
                 calls += 1;
-                let depth = 0, end = m.index + "drpgWindow".length;
+                let depth = 0, end = m.index + m[0].length - 2;
                 for (; end < bare.length; end++) {
                     if ("([{".includes(bare[end])) depth++;
                     else if (")]}".includes(bare[end]) && --depth === 0) break;
@@ -44487,6 +44495,65 @@ const INVARIANTS = [
             want[code] = KEYS.map(key => [key, true, true, true]);
         }
         equal(stableJson(read), stableJson(want), "{each caption [its key, at most half its length at a8ae16f6, its fact, its second fact]}");
+    }],
+    /* ---- E68 C13 (10.11.2026): the other actions' captions, about one sentence (the owner's Q5 of round M) ---- */
+    ["R3201 - the other actions' captions are about one sentence, no longer than Observe's, in English and Polish, and keep what each choice does (lang/en.json, lang/pl.json; config.mjs CRISIS_ACTIONS `short`, its Polish in lang/pl.json `DRPG.Config.CRISIS_ACTIONS.*.short`; E68 C13, the owner's Q5 of round M: \"podobnej dlugosci - ok 1 zdanie\"; R3136's shape)", async () => {
+        /*
+         * E68 C13, 10.11.2026; the owner's answer Q5 to round M: each action's caption about one sentence, as long as
+         * Observe's (57-116 characters after E47-FC, R3136). Each caption below is held to 116 characters or fewer, to
+         * fewer than it had at 1.2.103 (BEFORE, the longest of a key's plural forms, frozen here, read on d7dc9749), and to
+         * the facts a player picks by. The rest of a caption is the handbook's (C14) - or, for the crisis menu, the row's
+         * `details` on the left column: a row's caption is CRISIS_ACTIONS' `short`, and its full `hint` stands first in
+         * the picked row's details (action-murder.mjs `crisisDetails`). The crisis menu's own reason: at 1366x768 under
+         * the glass it scrolled 37-62 px with C12's layout and 1.2.103's hints, and the statistic field stays in the
+         * right column (Q3); measured in Chromium, S/stages/E68/STATUS-e68ui.md E68-C13. The config's live text is the
+         * language in use (i18n.mjs swaps it at init); the Polish is read from pl.json. Rest's rows (cost and room) and
+         * the captions already one short sentence (Search's goals but the tool, Ask for a hint, Start a new project,
+         * Work on one, Frisk) are not listed. Red on 5beeb4bb (C12 with the line merged): every caption at its 1.2.103 length.
+         */
+        const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json());
+        const [en, pl] = await Promise.all([lang("en"), lang("pl")]);
+        const at = (file, key) => key.split(".").reduce((node, part) => node?.[part], file);
+        const MAX = 116;
+        // [key, BEFORE en, BEFORE pl, facts en, facts pl]
+        const KEYS = [
+            ["DRPG.Action.goalToolHint", 100, 120, [/advantage/, /weapon/], [/przewag/, /broń/]],
+            ["DRPG.Analyze.findPassageHint", 110, 128, [/\{n\}\+/, /secret passage/], [/\{n\}\+/, /tajne przejście/]],
+            ["DRPG.Analyze.findStashHint", 163, 164, [/\{n\}/, /stash/, /whose/], [/\{n\}/, /skrytk/, /czyja/]],
+            ["DRPG.Analyze.analyseBulletHint", 152, 182, [/Head/, /Truth Bullet/, /chapter/], [/Head/, /Truth Bullet/, /rozdziału/]],
+            ["DRPG.Cleanup.transformActionHint", 233, 279, [/Reinforced/, /GM/, /Tamper Remnant/], [/Reinforced/, /GM/, /Tamper Remnant/]],
+            ["DRPG.Cleanup.moveHint", 122, 114, [/\{n\} Sanity/, /Evident/], [/\{n\} Sanity/, /Evident/]],
+            ["DRPG.Tamper.frameHint", 249, 270, [/false Remnant/, /\{n\}/], [/fałszywy Remnant/, /\{n\}/]],
+            ["DRPG.Tamper.coverHint", 195, 203, [/Erase/, /Remnant/, /visible/], [/Wymaż/, /Remnant/, /zauważyć/]],
+            ["DRPG.Steal.takeHint", 164, 207, [/random/, /critical/, /notice/], [/losow/, /krytyk/, /zauważy/]],
+            ["DRPG.Steal.plantHint", 145, 152, [/pocket/, /taking/], [/kieszeni/, /wyjmowaniu/]],
+            ["DRPG.Project.sabotageHint", 144, 140, [/repair/, /Remnant/], [/napraw/, /Remnant/]]
+        ];
+        const forms = value => (value && typeof value === "object" ? Object.entries(value) : [["", value]]);
+        const read = [], want = [];
+        for (const [key, beforeEn, beforePl, factsEn, factsPl] of KEYS) {
+            for (const [code, file, before, facts] of [["en", en, beforeEn, factsEn], ["pl", pl, beforePl, factsPl]]) {
+                for (const [form, text] of forms(at(file, key))) {
+                    const t = String(text ?? "");
+                    read.push([key, code, form, t.length > 0 && t.length <= MAX && t.length < before, facts.every(re => re.test(t))]);
+                    want.push([key, code, form, true, true]);
+                }
+            }
+        }
+        const { CRISIS_ACTIONS } = await import("./config.mjs");
+        must(Object.keys(CRISIS_ACTIONS).length >= 15, "config.mjs's CRISIS_ACTIONS is not the crisis menu's fifteen actions - this reads nothing");
+        for (const [key, def] of Object.entries(CRISIS_ACTIONS)) {
+            const plDef = at(pl, `DRPG.Config.CRISIS_ACTIONS.${key}`) ?? {};
+            // The row's caption: `short`, or a `hint` short enough to be one; a long hint keeps its words for the details.
+            const live = String(def.short ?? def.hint ?? ""), polish = String(plDef.short ?? plDef.hint ?? "");
+            read.push([`CRISIS_ACTIONS.${key}`, live.length <= MAX, polish.length <= MAX, Boolean(def.short) === Boolean(plDef.short),
+                !def.short || Boolean(def.hint && plDef.hint)]);
+            want.push([`CRISIS_ACTIONS.${key}`, true, true, true, true]);
+        }
+        const murder = await fetch(`/modules/${MODULE_ID}/scripts/action-murder.mjs`).then(lfText);
+        read.push(["action-murder.mjs", /proseOf\(def, "short"\)/.test(murder), /function crisisDetails[\s\S]*?proseOf\(def, "hint"\)[\s\S]*?\n\}/.test(murder)]);
+        want.push(["action-murder.mjs", true, true]);
+        equal(stableJson(read), stableJson(want), "{each caption [its key, language, form, at most 116 characters and shorter than at 1.2.103, its facts]; each crisis action [key, its row's caption at most 116 live, in Polish, a short in both or neither, a short keeps its hint]; action-murder.mjs [the row reads short, the details the hint]}");
     }],
     /* ---- E47-FD (10.11.2026): the owner's defaults on comparison 3 - a disabled role button under the glass
        (q-disabled) and three windows really cut (q-cuts) ---- */

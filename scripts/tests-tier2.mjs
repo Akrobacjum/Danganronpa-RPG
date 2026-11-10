@@ -41802,7 +41802,8 @@ const SCENARIOS = [
         const thrown = [], seen = [];
         const WORDS = "SUITE E68 C4: a feint, then the blade";
         const fill = (root, value) => {
-            const row = root.querySelector(`.drpg-choice-details[data-drpg-for="${value}"]`);
+            // The row's proposal stands in the right column's statistic slot since E68 C13's merge (Q3 of round M).
+            const row = root.querySelector(`.drpg-action-trait > [data-drpg-field="${value}"]`);
             const select = row?.querySelector("select[name=proposed]"), words = row?.querySelector("input[name=note]");
             const label = root.querySelector(`input[name="variant"][value="${value}"]`)?.closest("label");
             seen.push([Boolean(label?.classList.contains(GM_ROUTE_CLASS)), Boolean(select), Boolean(words)]);

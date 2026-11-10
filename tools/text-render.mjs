@@ -555,9 +555,18 @@ export const B01A_AMENDED = Object.freeze({
  * of these texts (E47-FD). The entries still quote the comparison-2 card that asked for the change; what the code does
  * with them is unchanged.
  */
-export const BATCH_LATER = Object.freeze(Object.fromEntries(["DRPG.Observe.generalHint", "DRPG.Observe.nonObviousHint",
-    "DRPG.Observe.specificHint"].map(key => [key, Object.freeze({ by: "E47-FC", date: "09.11.2026", page: "E46-CMP2", card: "bc047",
-    text: "Podpisy sa 2-3x za dlugie pod podtypami akcji" })])));
+/*
+ * E68 C13 (10.11.2026): the other actions' captions held to about one sentence, Observe's length - the owner's answer Q5
+ * to round M (S/stages/E68/mockups/NOTES.md, given 10.11.2026). The eight below are batch texts the owner approved; the
+ * others C13 shortened (Search's tool, Find a Passage, Move the Body) are not batch texts. R3201 holds their lengths.
+ */
+const LATER_E68 = Object.freeze({ by: "E68-C13", date: "10.11.2026", page: "E68-M", card: "Q5", text: "podobnej dlugosci - ok 1 zdanie" });
+export const BATCH_LATER = Object.freeze(Object.fromEntries([
+    ...["DRPG.Observe.generalHint", "DRPG.Observe.nonObviousHint", "DRPG.Observe.specificHint"].map(key => [key, Object.freeze({
+        by: "E47-FC", date: "09.11.2026", page: "E46-CMP2", card: "bc047", text: "Podpisy sa 2-3x za dlugie pod podtypami akcji" })]),
+    ...["DRPG.Analyze.analyseBulletHint", "DRPG.Analyze.findStashHint", "DRPG.Cleanup.transformActionHint", "DRPG.Tamper.frameHint",
+        "DRPG.Tamper.coverHint", "DRPG.Steal.takeHint", "DRPG.Steal.plantHint", "DRPG.Project.sabotageHint"].map(key => [key, LATER_E68])
+]));
 /* The pilot's approved after with the owner's amendments of B01A_AMENDED applied, or null when a row's words are not
    found exactly once in it (the pilot's after moved: the row no longer says what it replaces). */
 function amendedAfter(key, lang, after) {

@@ -1812,6 +1812,24 @@ body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-m
    brush the radio's ring and mark the ink, which reads on the kind's colour */
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode) { --drpg-sg-check: var(--kind); }
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):has(input:checked) input[type="radio"] { --drpg-sg-check: var(--drpg-sg-ink); }
+/* THE PICKED ROW'S PARTS ON ITS BRUSH (E68 C12, 10.11.2026; the owner's Q4 of round M: the brush kept, the contrast
+   corrected; `node audit/style-sweep.mjs --selected`). Before: on the GM's road the icon took the brush's own red (1:1)
+   and the radio's ink mark sat on a box of ink at 55% over the brush (2.07:1; 3.49:1 on the accent). Now the icon is ink
+   like the words, and the radio an ink box with its mark in the brush's colour, both read at the ink's ratio on that
+   colour (6.46:1 on the GM's light red, the lowest). The numbers: S/stages/E68/STATUS.md E68-C12. */
+/* AN ACTION WINDOW'S ROWS CLOSER (E68 C12, 10.11.2026; the owner's Q3 of round M: the crisis menu to stop scrolling
+   under the glass at 1366x768 with the statistic field kept under its rows). The glass's rows stood 3 px of margin
+   apart inside the list's own 3 px gap, at 6 px of padding top and bottom; in an action's window (`actionWindow`) the
+   margin goes (the gap stays) and the padding is 4 px. Measured on the round's page with C12's markup: the crisis menu
+   under the glass at 1366x768 scrolled 22 px with C13's captions, and 0 with this (S/stages/E68/STATUS.md E68-C12). */
+body.drpg-theme-stained-glass .drpg-action-window .drpg-choice-list > .drpg-choice { margin: 0; padding-top: 4px; padding-bottom: 4px; }
+/* the panel's class in front: "THE GM PANEL'S ICONS" below (0,4,1) gives a GM's-road glyph the light red, the brush's */
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup) :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):has(input:checked) > i { color: var(--drpg-sg-ink); }
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .application.sheet.actor) :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):has(input:checked) input[type="radio"] {
+    --drpg-sg-check: var(--kind);
+    background: var(--drpg-sg-ink);
+    border-color: var(--drpg-sg-ink);
+}
 /* unavailable: a dashed edge and no brush, like every disabled thing under the theme */
 body.drpg-theme-stained-glass .drpg-choice.unavailable {
     border-style: dashed;
