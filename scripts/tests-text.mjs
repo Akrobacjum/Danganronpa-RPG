@@ -3415,19 +3415,20 @@ export const BASELINE_FIXTURE = Object.freeze({
         ]
     },
     rows: [
-        { file: "fx/a.mjs", keys: ["K1"], issue: "S00-01", empties: "E99" },
-        { in: "script", file: "fx/b.mjs", quote: "\u2212", issue: "S00-02", empties: "E99" },
-        { in: "script", file: "fx/b.mjs", quote: "p \u2212", issue: "S00-03", empties: "E99" },
-        { in: "script", file: "fx/b.mjs", quote: "gone", issue: "S00-04", empties: "E99" },
-        { in: "prose", file: "fx/config.mjs", key: "P", issue: "S00-05", empties: "E99" },
-        { in: "pl", file: "fx/c.json", key: "Y", issue: "S00-06", empties: "E99" }
+        { file: "fx/a.mjs", keys: ["K1"], issue: "S00-01", empties: "E00" },
+        { in: "script", file: "fx/b.mjs", quote: "\u2212", issue: "S00-02", empties: "E00" },
+        { in: "script", file: "fx/b.mjs", quote: "p \u2212", issue: "S00-03", empties: "E00" },
+        { in: "script", file: "fx/b.mjs", quote: "gone", issue: "S00-04", empties: "E00" },
+        { in: "prose", file: "fx/config.mjs", key: "P", issue: "S00-05", empties: "E00" },
+        { in: "pl", file: "fx/c.json", key: "Y", issue: "S00-06", empties: "E00" }
     ],
     want: { left: ["fx/a.mjs K1", "fx/c.json Z"], stale: ["fx/b.mjs gone", "fx/c.json Y"], matched: 3, rows: 5 }
 });
 
 /**
  * `glossarySchema`'s own case (E65-10): one whole entry and one whole retired row that pass,
- * then one fault each - an entry with no `stage`, one whose stage is no ledger row ("E99"),
+ * then one fault each - an entry with no `stage`, one whose stage is no ledger row ("E00"; "E99" until E47-FD,
+ * 10.11.2026, when the case map's E99 became a row),
  * an id used twice, a field the file does not know, a scope it does not know, an open entry
  * that forbids something, a variant that is neither a phrase nor a stem with endings, a
  * source that is no decision, and a retired row that reads keys and names no prefix - each
@@ -3442,7 +3443,7 @@ export const GLOSSARY_SCHEMA_FIXTURE = Object.freeze({
                 forbidden: { en: { variants: ["trace"], scope: ["ui"] }, pl: { variants: [{ stem: "ślad", endings: ["", "u"] }], scope: ["ui", "handbooks"] } } },
             { id: "fx-no-stage", en: "A", pl: "A", gender: null, inflection: null, source: ["DB1"],
                 forbidden: { en: { variants: [], scope: ["ui"] }, pl: { variants: [], scope: ["ui"] } } },
-            { id: "fx-e99", en: "B", pl: "B", gender: null, inflection: null, stage: "E99", source: ["DB2"],
+            { id: "fx-e00", en: "B", pl: "B", gender: null, inflection: null, stage: "E00", source: ["DB2"],
                 forbidden: { en: { variants: [], scope: ["ui"] }, pl: { variants: [], scope: ["ui"] } } },
             { id: "fx-ok", en: "C", pl: "C", gender: "x", inflection: null, stage: "E01", source: ["DB3"], colour: "red",
                 forbidden: { en: { variants: [], scope: ["menus"] }, pl: { variants: [], scope: ["ui"] } } },
@@ -3456,7 +3457,7 @@ export const GLOSSARY_SCHEMA_FIXTURE = Object.freeze({
     },
     want: [
         "entry 2 (fx-no-stage) has no \"stage\"",
-        "entry 3 (fx-e99)'s stage \"E99\" is no row of tools/stages.json",
+        "entry 3 (fx-e00)'s stage \"E00\" is no row of tools/stages.json",
         "entry 4 (fx-ok) has a field \"colour\" the glossary does not know",
         "entry 4 (fx-ok): the id \"fx-ok\" is used twice",
         "entry 4 (fx-ok)'s gender \"x\" is not m, f, n or null",
@@ -3490,7 +3491,7 @@ export const BUDGETS_SCHEMA_FIXTURE = Object.freeze({
             "fx-label": { target: 3, limit: 5, what: "a label", fail: "E01" },
             "fx-diag": { target: 60, limit: null, what: "reported only", fail: null },
             "fx-tight": { target: 4, limit: 4, what: "a limit at its target", fail: null },
-            "fx-loose": { target: 4, limit: 9, what: "a limit over twice its target", fail: "E99" },
+            "fx-loose": { target: 4, limit: 9, what: "a limit over twice its target", fail: "E00" },
             "fx-none": { limit: 6, what: "no target", colour: "red", fail: null },
             "fx-unread": { target: 10, limit: 15, what: "no rule names it" },
             "fx-never": { target: 60, limit: null, what: "reported only, and red", fail: "E01" }
@@ -3507,7 +3508,7 @@ export const BUDGETS_SCHEMA_FIXTURE = Object.freeze({
         allow: [
             { key: "DRPG.Fx.ok", rule: "T4", why: "a reason", until: "E01" },
             { key: "DRPG.Fx.noWhy", rule: "X3", until: "E01" },
-            { key: "DRPG.Fx.late", rule: "X22", why: "a reason", until: "E99" },
+            { key: "DRPG.Fx.late", rule: "X22", why: "a reason", until: "E00" },
             { key: "DRPG.Fx.ok", rule: "T4", why: "again", until: "E01" },
             { key: "DRPG.Fx.second", rule: "T16", why: "T16 has no allow list", until: "E01" }
         ]
@@ -3516,7 +3517,7 @@ export const BUDGETS_SCHEMA_FIXTURE = Object.freeze({
         "docs/text-budgets.json has a field \"extra\" the budgets do not know",
         "surface fx-tight's limit 4 is not above its target 4 and at most twice it (DB11: about 1.5 times)",
         "surface fx-loose's limit 9 is not above its target 4 and at most twice it (DB11: about 1.5 times)",
-        "surface fx-loose's fail \"E99\" is neither a row of tools/stages.json nor null",
+        "surface fx-loose's fail \"E00\" is neither a row of tools/stages.json nor null",
         "surface fx-none has no \"target\"",
         "surface fx-none has a field \"colour\" the budgets do not know",
         "surface fx-unread has no \"fail\"",
@@ -3528,7 +3529,7 @@ export const BUDGETS_SCHEMA_FIXTURE = Object.freeze({
         "surface fx-unread is named by no rule - no key can reach its budget",
         "allow 2 (DRPG.Fx.noWhy) has no \"why\"",
         "allow 3 (DRPG.Fx.late)'s rule \"X22\" is not T4 or an X rule (X1 to X21)",
-        "allow 3 (DRPG.Fx.late)'s until \"E99\" is no row of tools/stages.json",
+        "allow 3 (DRPG.Fx.late)'s until \"E00\" is no row of tools/stages.json",
         "allow 4 (DRPG.Fx.ok): the key \"DRPG.Fx.ok\" is allowed twice for T4",
         "allow 5 (DRPG.Fx.second)'s rule \"T16\" is not T4 or an X rule (X1 to X21)"
     ]

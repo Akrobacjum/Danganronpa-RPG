@@ -44270,6 +44270,123 @@ const INVARIANTS = [
         }
         equal(stableJson(read), stableJson(want), "{each caption [its key, at most half its length at a8ae16f6, its fact, its second fact]}");
     }],
+    /* ---- E47-FD (10.11.2026): the owner's defaults on comparison 3 - a disabled role button under the glass
+       (q-disabled) and three windows really cut (q-cuts) ---- */
+    ["R3137 - under the glass a disabled role button looks disabled, the destructive one included (components.css, the E47-FD section; the owner's default on comparison 3, q-disabled): every role of the kit's footer, disabled, is grey and faded by the kit's one rule, an enabled one is not, and Legacy keeps its own dialog footer's grey", async () => {
+        /*
+         * E47-FD, 10.11.2026. Under Stained Glass the vote's "Close and count" before any ballot and the trial console's
+         * "Start the Final Trial" with no Mastermind wore the destructive face whole - light-red ink, red edge, the
+         * raster - because the glass's destructive rule states them with `!important` at the footer's disabled rule's
+         * weight and later (stained-glass.css, "3. the footer row"; the comparison's M6 vote card at 1366x768). Read
+         * from the sheets' text (`styleCascade`) on a kit footer of every role (ui-kit.mjs BUTTON_ROLES), drawn as the
+         * vote's window is, on a body of each theme: under the glass each disabled button's opacity and filter, and an
+         * enabled destructive one's; under Legacy each disabled button's ink, from danganronpa.css's dialog footer rule.
+         * In Chromium (10.11.2026) the disabled "Close and count" computed opacity 1 and no filter on 35a6f3b0, 0.6 and
+         * grayscale(1) after. Red on 35a6f3b0: the glass's opacity "1" (the brush rule's) and no filter.
+         */
+        const { BUTTON_ROLES } = await import("./ui-kit.mjs");
+        const roles = Object.keys(BUTTON_ROLES);
+        must(roles.includes("destructive") && roles.length >= 5, "ui-kit.mjs's BUTTON_ROLES has no destructive role - this would measure nothing");
+        const C = await styleCascade();
+        const read = {};
+        for (const [dress, classes] of Object.entries({ glass: "drpg-theme-stained-glass drpg-gm", legacy: "drpg-theme-monokuma-legacy drpg-gm" })) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = classes;
+            html.append(body);
+            const buttons = roles.map(role => `<button type="submit" data-action="${role}" data-drpg-role="${role}" class="${[BUTTON_ROLES[role].cls, BUTTON_ROLES[role].face].filter(Boolean).join(" ")}" disabled>${role}</button>`).join("");
+            body.innerHTML = `<div class="application dialog drpg-panel drpg-window-vote drpg-ui"><form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-kit-body"><p>Body.</p></div></div>`
+                + `<footer class="form-footer drpg-kit-footer"><div class="drpg-kit-left">${buttons}<button type="submit" data-action="live" data-drpg-role="destructive" class="drpg-role-destructive drpg-destructive">live</button></div></footer></form></div>`;
+            const value = (el, p) => C.winner(el, p)?.value ?? null;
+            const live = body.querySelector('button[data-action="live"]');
+            read[dress] = {
+                disabled: roles.map(role => {
+                    const b = body.querySelector(`button[data-action="${role}"]`);
+                    return dress === "glass" ? [role, value(b, "opacity"), value(b, "filter")] : [role, value(b, "color")];
+                }),
+                enabled: dress === "glass" ? [value(live, "opacity"), value(live, "filter")] : [value(live, "color") !== value(body.querySelector('button[data-action="destructive"]'), "color")]
+            };
+        }
+        equal(stableJson(read), stableJson({
+            glass: { disabled: roles.map(role => [role, "0.6", "grayscale(1)"]), enabled: ["1", null] },
+            legacy: { disabled: roles.map(role => [role, "var(--drpg-dim)"]), enabled: [true] }
+        }), "{glass: each disabled role [role, opacity, filter], an enabled destructive [opacity, filter]; legacy: each disabled role [role, its ink], an enabled destructive's ink not the disabled one's}");
+    }],
+    ["R3138 - Room setup's Search tab fits a small screen (components.css, the place column; the owner's default on comparison 3, q-cuts; E47-FB Open 2): the place column takes what the window's ceiling leaves after the other four columns, at most its 360 px, and its switches wrap their words in both themes", async () => {
+        /*
+         * E47-FD, 10.11.2026. The tab's five fixed columns were 1088 px, and at 1024x768 the window stops at 94 % of the
+         * screen: the table stood 1088 px in a 929 px body, the place column cut (Chromium on probe 08's rooms-search,
+         * both themes; the fit sweep's `wide` reading, E47-FB). After: the column 155 px there, the table 883 px in an
+         * 885 px body, 360 px from 1280x800 up (the same page). Read from the sheets' text on the tab's table drawn with
+         * the window's classes on a body of each theme: the place column's width names the ceiling (`94vw`, the
+         * window's `--drpg-window-max`), the other four columns' widths as their own rules state them (written out
+         * in it one by one, so a change to one of them that leaves this stale is red here) and its 360 px; a switch
+         * `white-space: normal`. Red on 35a6f3b0: `calc(360px * ...)` and "nowrap" (the glass's panel button rule).
+         */
+        const C = await styleCascade();
+        const read = {}, want = {};
+        for (const [dress, classes] of Object.entries({ glass: "drpg-theme-stained-glass drpg-gm", legacy: "drpg-theme-monokuma-legacy drpg-gm" })) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = classes;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-panel drpg-projects drpg-room-setup drpg-window-rooms drpg-ui drpg-kit-fit"><div class="drpg-kit-body"><section class="drpg-tab-pane" data-drpg-pane="search"><div class="drpg-data-table-box"><table class="drpg-data-table">`
+                + `<colgroup><col class="drpg-data-col-room"><col class="drpg-data-col-check"><col class="drpg-data-col-step"><col class="drpg-data-col-select"><col class="drpg-data-col-place"></colgroup>`
+                + `<tbody><tr><td class="drpg-data-col-room">Gym</td><td class="drpg-data-col-check"></td><td class="drpg-data-col-step"></td><td class="drpg-data-col-select"></td>`
+                + `<td class="drpg-data-col-place act"><span class="drpg-place-switches"><span class="drpg-place-switch"><button type="button" class="drpg-place-toggle" data-drpg-place="">Murder Weapon</button></span></span></td></tr></tbody></table></div></section></div></div>`;
+            const width = cls => C.winner(body.querySelector(`col.drpg-data-col-${cls}`), "width")?.value ?? "";
+            const others = ["room", "check", "step", "select"].map(cls => Number(/^calc\((\d+)px \* var\(--drpg-legacy-scale, 1\)\)$/.exec(width(cls))?.[1] ?? NaN));
+            must(others.every(Number.isFinite), `the other columns' widths were not read: ${others.join(", ")} - this would measure nothing`);
+            const sum = others.reduce((a, b) => a + b, 0);
+            const place = width("place");
+            const toggle = C.winner(body.querySelector(".drpg-place-toggle"), "white-space");
+            read[dress] = { sum, ceiling: place.includes("94vw") && place.includes("var(--drpg-window-max)"), others: place.includes(`(${others.map(n => `${n}px`).join(" + ")}) * var(--drpg-legacy-scale, 1)`),
+                most: place.includes("calc(360px * var(--drpg-legacy-scale, 1))"), wraps: [toggle?.file ?? null, toggle?.value ?? null] };
+            want[dress] = { sum: 728, ceiling: true, others: true, most: true, wraps: ["styles/components.css", "normal"] };
+        }
+        equal(stableJson(read), stableJson(want), "{each theme: the other four columns' sum, the place column's width names the ceiling, those four widths, its 360 px; a switch's white-space [file, value]}");
+    }],
+    ["R3139 - a specific note's field is the note's width with its edges (components.css, the E47-FD section; the owner's default on comparison 3, q-cuts; E47-FB Open 2): Analyze's request and every action's caption-over-field control take `box-sizing: border-box` beside their `width: 100%`, in both themes", async () => {
+        /*
+         * E47-FD, 10.11.2026. danganronpa.css gives the control `width: 100%`, and a text area measures its content:
+         * Analyze's request stood 6 px past the body at every size, both themes (550/544 glass and 516/510 Legacy at
+         * 1366x768, Chromium on probe 08's action-analyze); after, its right edge is the body's (955/955, 938/938). Read
+         * from the sheets' text on the note as action-menus.mjs draws it, in a kit window of each theme: the text
+         * area's, a select's and a text field's width and box-sizing. Red on 35a6f3b0: no rule set the box-sizing (null).
+         */
+        const C = await styleCascade();
+        const read = Object.fromEntries(Object.entries({ glass: "drpg-theme-stained-glass drpg-gm", legacy: "drpg-theme-monokuma-legacy drpg-gm" }).map(([dress, classes]) => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = classes;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-panel drpg-ui drpg-prompt"><div class="drpg-kit-body"><div class="drpg-choice-list"><label class="drpg-choice"><input type="radio" name="variant" value="hint" checked></label></div>`
+                + `<label class="drpg-specific-note" data-drpg-when="hint"><span>Analyze</span><textarea name="request" rows="2"></textarea><select name="s"></select><input type="text" name="t"><small class="notes">Optional.</small></label></div></div>`;
+            return [dress, ["textarea", "select", "input"].map(tag => {
+                const el = body.querySelector(`label.drpg-specific-note > ${tag}`);
+                return [tag, C.winner(el, "width")?.value ?? null, C.winner(el, "box-sizing")?.value ?? null];
+            })];
+        }));
+        const want = [["textarea", "100%", "border-box"], ["select", "100%", "border-box"], ["input", "100%", "border-box"]];
+        equal(stableJson(read), stableJson({ glass: want, legacy: want }), "{each theme: [the control, its width, its box-sizing]}");
+    }],
+    ["R3140 - the Look window's fieldset holds to a phone (components.css, the E47-FD section; the owner's default on comparison 3, q-cuts; E47-FB Open 2): the Look fieldset's least width is 0, not its rows' least, and its scale slider shrinks into its row - the glass's 14ch least kept, Legacy's none", async () => {
+        /*
+         * E47-FD, 10.11.2026. A fieldset is at least as wide as its content's least width, and the Interface scale
+         * row's least was the slider's own 129 px beside the name column and the percentage: at 390x844 the Look
+         * fieldset ran 2..354 in a 333 px body under the glass, 2..376 under Legacy (Chromium on probe 08's
+         * look-player); after, both inside. Read from the sheets' text on the fieldset as sound-panel.mjs draws it in
+         * the Look window's kit frame, on a body of each theme. Red on 35a6f3b0: the fieldset's min-width null (the
+         * browser's min-content), Legacy's slider null.
+         */
+        const C = await styleCascade();
+        const read = Object.fromEntries(Object.entries({ glass: "drpg-theme-stained-glass drpg-gm", legacy: "drpg-theme-monokuma-legacy drpg-gm" }).map(([dress, classes]) => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = classes;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-panel drpg-projects drpg-sound drpg-sound-player drpg-window-look drpg-ui drpg-kit-fit"><div class="drpg-kit-body"><fieldset class="drpg-look"><legend>Look</legend>`
+                + `<label><span>Interface scale</span><input type="range" name="look:uiScale" min="0.8" max="1.4" step="0.05" value="1"><output>100%</output></label></fieldset></div></div>`;
+            return [dress, [C.winner(body.querySelector("fieldset.drpg-look"), "min-width")?.value ?? null, C.winner(body.querySelector('.drpg-look input[type="range"]'), "min-width")?.value ?? null]];
+        }));
+        equal(stableJson(read), stableJson({ glass: ["0", "14ch"], legacy: ["0", "0"] }), "{each theme: [the Look fieldset's min-width, its scale slider's]}");
+    }],
 ];
 
 /**

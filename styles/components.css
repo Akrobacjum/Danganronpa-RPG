@@ -2274,7 +2274,23 @@ body .application.drpg-window-rooms table.drpg-data-table col:is(.drpg-data-col-
 body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-select { width: calc(180px * var(--drpg-legacy-scale, 1)); }
 body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-text { width: calc(220px * var(--drpg-legacy-scale, 1)); }
 body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-step { width: calc(232px * var(--drpg-legacy-scale, 1)); }
-body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-place { width: calc(360px * var(--drpg-legacy-scale, 1)); }
+/* THE PLACE COLUMN GIVES WAY ON A SMALL SCREEN (E47-FD; the owner's default on comparison 3, q-cuts; E47-FB Open 2). The
+   Search tab's five columns are 1088 px (220 + 96 + 232 + 180 + 360), and at 1024x768 the window stops at its ceiling,
+   94 % of the screen (`windowWidthFor`): the table stood 1088 px in a 929 px body, its last column cut (Chromium, probe
+   08's rooms-search). The place column takes what the ceiling leaves - the ceiling less 5rem for the frame (the case
+   dashboard's allowance, E47-FB) less the other four columns - at most its 360 px and at least 9rem; its switches wrap
+   their words (below). The four are the rules' widths above, written out one by one and read against them by R3138
+   (their sum, 728 px, would be a width over the kit's 390 px to R1322). */
+body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-place {
+    width: clamp(9rem, calc(min(var(--drpg-window-max), 94vw) - 5rem - (220px + 96px + 232px + 180px) * var(--drpg-legacy-scale, 1)), calc(360px * var(--drpg-legacy-scale, 1)));
+}
+/* the switch's words wrap in the column's width: under the glass its panel button rule keeps every button on one line
+   (stained-glass.css, 0,7,2: "MURDER WEAPON" 189 px stood 35 px past a 154 px column at 1024x768); this is 0,7,4 */
+body .application.drpg-window-rooms table.drpg-data-table td.drpg-data-col-place .drpg-place-switches > .drpg-place-switch > button.drpg-place-toggle {
+    white-space: normal;
+    max-width: 100%;
+    text-align: start;
+}
 /* the description 390 px, the kit's widest (R1322, the 26.09 amend; 560 px in danganronpa.css before E46-C2a) */
 body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-prose { width: calc(390px * var(--drpg-legacy-scale, 1)); }
 body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-picture { width: calc(150px * var(--drpg-legacy-scale, 1)); }
@@ -3091,3 +3107,35 @@ body .application.drpg-ui .drpg-form-grid > .drpg-form-field > .drpg-give-icon {
 @container (max-width: 28rem) {
     body .application.drpg-ui .drpg-form-grid > .drpg-form-field > .drpg-give-icon { position: static; transform: none; }
 }
+
+/* ---- E47-FD (10.11.2026; the owner's defaults on comparison 3: q-disabled, q-cuts) ----
+   A DISABLED ROLE BUTTON LOOKS DISABLED UNDER THE GLASS. The glass's destructive answer (stained-glass.css, "3. the
+   footer row") states its light-red ink, its edge and its raster with `!important` at the weight of the footer's own
+   disabled rule and later, so a disabled "Close and count" (the vote before any ballot) and "Start the Final Trial"
+   (the console with no Mastermind) kept the enabled face: 1366x768, the comparison's M6 vote card. The kit holds no
+   `!important` (R1323's budget), so it dims the whole button instead of its colours: every role, the destructive one
+   included, grey and faded as the voice row's blocked button is (above: `grayscale(1)`, 0.6), a role's own disabled
+   look (the dashed edge, the dim ink) kept under it. Under Legacy danganronpa.css's dialog footer rule greys every
+   disabled button already (its Bone wash, the dim ink), and this rule does not read there. Every reading of this
+   section is Chromium's on probe 08's pages, without Foundry's frame or sheet: at a table, LIVE-E47-11. */
+body.drpg-theme-stained-glass .application.drpg-ui button[data-drpg-role]:disabled {
+    opacity: 0.6;
+    filter: grayscale(1);
+    cursor: not-allowed;
+}
+
+/* A SPECIFIC NOTE'S FIELD IS THE NOTE'S WIDTH, ITS EDGES INCLUDED (q-cuts; E47-FB Open 2). danganronpa.css gives the
+   caption-over-field's control `width: 100%`, and a text area's box is its content's: Analyze's request stood 6 px past
+   the body at every size, both themes (550/544 glass, 516/510 Legacy at 1366x768; 346/340 and 331/325 at 390x844 -
+   2 px of padding and 1 px of border a side, Chromium on probe 08's page). Every action's note (Search, Tamper, Palm,
+   Projects) shares the rule; a select is drawn border-box already. */
+body .drpg-panel label.drpg-specific-note > :is(select, textarea, input) { box-sizing: border-box; }
+
+/* THE LOOK WINDOW'S FIELDSET HOLDS TO A PHONE (q-cuts; E47-FB Open 2). A fieldset is at least as wide as its content's
+   least width (the browser's `min-inline-size: min-content`), and the Interface scale row's least is the slider's own
+   129 px beside the name column and the percentage: at 390x844 the fieldset ran 2..354 in a 333 px body under the
+   glass and 2..376 under Legacy (Chromium on probe 08's look-player). The fieldset takes the body's width; the slider
+   shrinks into its row - the glass keeps its 14ch least (stained-glass.css, "4. The Look window fits its rows"), Legacy
+   had none and takes the rest of the row. */
+body .application.drpg-ui fieldset.drpg-look { min-width: 0; }
+body:not(.drpg-theme-stained-glass) .application.drpg-ui .drpg-look input[type="range"] { min-width: 0; }

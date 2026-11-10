@@ -550,6 +550,10 @@ export const B01A_AMENDED = Object.freeze({
  * page and card it was given on. check.mjs's landed rule (E66-28: an approved after is the text of lang/) does not hold
  * such a text to its approved after - the later word supersedes it - and names each one; `batchState` still reads it as
  * "changed since the batch". A key here that is not a batch text the owner approved is a problem (check.mjs).
+ * The three Observe captions below were re-approved as they now read: the owner accepted comparison 3 (page E46-CMP3,
+ * 10.11.2026), its question q-batch with its default - the answer on the action-observe card stands as the new approval
+ * of these texts (E47-FD). The entries still quote the comparison-2 card that asked for the change; what the code does
+ * with them is unchanged.
  */
 export const BATCH_LATER = Object.freeze(Object.fromEntries(["DRPG.Observe.generalHint", "DRPG.Observe.nonObviousHint",
     "DRPG.Observe.specificHint"].map(key => [key, Object.freeze({ by: "E47-FC", date: "09.11.2026", page: "E46-CMP2", card: "bc047",
