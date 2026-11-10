@@ -690,8 +690,25 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
             await (await import("${SCRIPT("sheet-audit")}")).sheetAuditIdle(); return globalThis.drpg83e35.dead;`, { timeout: 30000 });
         await settle(500);
         mark = await readings();
-        const l16 = await p3.eval(`const B = await import("${SCRIPT("gm-bridge")}");
-            const r = await B.requestBodyLoot({ takerId: "${chie}", bodyId: "${ids.daichi}", itemId: "${e35Set.pick}" }); return { ok: r?.ok ?? null };`, { timeout: 60000 });
+        /* E68 fix CI a5ebfeaa: the Take as p3 makes it, from the body's list (anonymity.mjs `buildBodyLoot`) and its row's
+           Take, which since E68 C10 throws the Hand roll ("loot") and, with Aiko and Botan in the room, the cover's Shadow
+           ("lootCover") before it asks (`takeFromBody`). Until then this road called `requestBodyLoot` with no roll, which
+           the GM's client now refuses "rollUnknown": a Take the module's control could no longer send. */
+        const l16 = await p3.eval(`const A = await import("${SCRIPT("anonymity")}");
+            const body = game.actors.get("${ids.daichi}"), taker = game.actors.get("${chie}");
+            const until = async (test, ms) => { const end = Date.now() + ms; while (Date.now() < end) { if (await test()) return true; await new Promise(r => setTimeout(r, 100)); } return false; };
+            await until(() => game.drpg.isDeadForGm(body) && body.items.has("${e35Set.pick}"), 8000);
+            const root = document.createElement("div"); root.id = "drpg83-loot";
+            root.innerHTML = '<a data-tab="inventory"></a><section class="tab" data-tab="inventory"></section>';
+            document.body.append(root);
+            try {
+                await A.buildBodyLoot(root, body, taker);
+                const take = root.querySelector('.drpg-loot-list li .drpg-loot-pick[value="${e35Set.pick}"]')?.closest("li")?.querySelector(".drpg-loot-take") ?? null;
+                const open = take ? !take.disabled : null;
+                take?.click();
+                const left = await until(() => !body.items.has("${e35Set.pick}"), 30000);
+                return { ok: Boolean(take && open && left), open, left };
+            } finally { root.remove(); }`, { timeout: 60000 });
         const r16 = await mark.since();
         const l16Held = await holds(`({ daichi: ${heldOf(ids.daichi, "lockpick")}, chie: ${heldOf(chie, "lockpick")} })`);
         road("L16", "Chie takes the lockpick off Daichi's body", dead && l16.ok !== false && J(l16Held) === J({ daichi: [], chie: [[1, false]] }),

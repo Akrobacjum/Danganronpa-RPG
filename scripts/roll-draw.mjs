@@ -832,6 +832,8 @@ const ROLLED_TOGETHER = Object.freeze([Object.freeze(["palm", "steal"]), Object.
 const RIDES_ONLY = Object.freeze(["rummage", "frisk"]);
 /** The parts only the GM claims (`claimTicket`), never drawn: a draw named so would make a second ask's ticket a force could ride. */
 const CLAIMED_ONLY = Object.freeze(["friskAsk"]);
+/** The rolls of an act that costs no action, drawn on no ticket (`drawRefusal`): a Take's Hand and its cover's Shadow (E68 C10). */
+const PAID_BY_NOTHING = Object.freeze(["loot", "lootCover"]);
 /** The price chain an action's roll is paid by, where it has one (PRICE_CHAINS; cleanup.mjs `chargeTamper`). */
 const CHAIN_OF = Object.freeze({ analyze: "analyze", cleanup: "tamper" });
 /** Each character's tickets on this GM: `{ at, pay, kinds, size }`, `kinds` the rolls drawn on it (or `call`, a Hope Call's progress: `takeCallPayment`), `size` how much it paid. */
@@ -1013,6 +1015,14 @@ async function drawRefusal(actor, key, context) {
     // An open Frisk's force only while that searcher has one open (E80 part 2 C0): else a Body roll on an ask's ticket is a
     // free roll. frisk.mjs is imported here, late, as murder.mjs is above: it will import this file (the design's risk 14).
     if (CLAIMED_ONLY.includes(key) || (key === "frisk" && !(await import("./frisk.mjs")).friskForceOpen(actor.id))) return "that cannot be done now";
+    /* A TAKE FROM THE BODY PAYS NOTHING (E68 fix CI a5ebfeaa). Since E68 C10 a Take rolls Hand ("loot") and, with a
+       witness, Shadow ("lootCover"), and spends no action (anonymity.mjs `takeFromBody`), so no payment of the taker's
+       ever stood for either roll and every player's Take was refused here: "The GM's client saw no action paid for that
+       roll" (87-messenger-sound E1 and E3, measured 10.11.2026 at a5ebfeaa; tier 2 loots on the GM, which draws no
+       ticket). Drawn with no ticket, as a roll that names no action is. What holds them: the newest roll of each replaces
+       the taker's older unsettled one (`keepRecord`), one Take settles it (bridge-guards.mjs `rollsFor`), and the GM's
+       run asks the one gate before anything moves (handover.mjs `lootBody`). */
+    if (PAID_BY_NOTHING.includes(key)) return null;
     for (const end = Date.now() + PAY_WAIT_MS; !ticketFor(actor.id, key) && Date.now() < end;) {
         await new Promise(resolve => setTimeout(resolve, 100));
     }

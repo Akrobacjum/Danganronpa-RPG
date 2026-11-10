@@ -52,7 +52,7 @@ import { SETTINGS } from "./settings.mjs";
 import { isDeadForGm, isDeceased, BODY_ANNOUNCED_HOOK } from "./chapter.mjs";
 import { isStashed } from "./inventory.mjs";
 import { isTruthBullet } from "./truth-bullets.mjs";
-import { whisperToGms, gmReport, isPrimaryGm, debug, error, plural } from "./utils.mjs";
+import { whisperToGms, gmReport, isPrimaryGm, activeGmIds, debug, error, plural } from "./utils.mjs";
 import { sheetMode } from "./sheet.mjs";
 
 const NONE = 0;     // CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE
@@ -391,6 +391,19 @@ async function takeFromBody(body, items) {
     }
     const list = [].concat(items).filter(Boolean);
     if (!list.length) return false;
+    const { requestBodyLoot } = await import("./gm-bridge.mjs");
+    const one = list.length === 1;
+    const picked = one ? { itemId: list[0].id } : { itemIds: list.map(item => item.id) };
+
+    /* NO GM, NO DICE (E68 fix CI a5ebfeaa). A player's roll is the primary's to draw (roll-draw.mjs), so with no GM
+       connected the Hand roll below was not made and said "An action roll waits for a GM" - not the Take's own
+       sentence, and 87-messenger-sound E2 measured it so at a5ebfeaa. The request is asked as before the roll was:
+       with no GM the bridge sends nothing and says once, in its sentence, that no GM is connected (bridge-guards.mjs
+       `bridgeRequest`, `noGm`); nothing is thrown. */
+    if (!game.user.isGM && !activeGmIds().length) {
+        await requestBodyLoot({ takerId: taker.id, bodyId: body.id, ...picked });
+        return false;
+    }
 
     /* THE TAKE ROLLS HAND (E68 C10; config.mjs `LOOT`): once for the items it takes, no action spent; the total says how
        plain the body's trace reads (handover.mjs `lootVisibilityOf`), and the primary reads it off its record of the
@@ -409,10 +422,8 @@ async function takeFromBody(body, items) {
         if (shadow) cover = { rollId: idOf(shadow), total: shadow.total, isCritical: shadow.isCritical, withHope: shadow.withHope };
     }
 
-    const { requestBodyLoot } = await import("./gm-bridge.mjs");
-    const one = list.length === 1;
     const res = await requestBodyLoot({
-        takerId: taker.id, bodyId: body.id, ...(one ? { itemId: list[0].id } : { itemIds: list.map(item => item.id) }),
+        takerId: taker.id, bodyId: body.id, ...picked,
         hand: { rollId: idOf(hand), total: hand.total, isCritical: hand.isCritical, withHope: hand.withHope }, cover
     });
     // Only what the GM has: a refusal has been said, and "you took it" beside it would be two answers.
