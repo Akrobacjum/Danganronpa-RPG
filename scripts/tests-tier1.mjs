@@ -7819,6 +7819,72 @@ const INVARIANTS = [
         equal(JSON.stringify([read, asked]), JSON.stringify([[{ trait: first, byGm: false }, { trait: first, byGm: false }, { trait: observe, byGm: false }], []]),
             "an armed Resolve asked somebody or did not leave the pick to the roll window (several on a player's browser, on a GM's, one; the asks)");
     }],
+    ["R3330 - the handbooks' statistic tables say what config.mjs lists: the ten tiles' Statistic column, the who-picks table's statistics and the crisis table's rolls, in both languages (E68 C14)", async () => {
+        /*
+         * E68 C14, 10.11.2026. The ten tiles' table in GM handbook ch. 5 had said Search rolled Eye for a year after E68 C6
+         * gave it six, and nothing read it. Held to config.mjs here, in English and in Polish, by position (the Polish table
+         * has Polish names): the tiles' Statistic column (one listed statistic: that one's name; Search: its first, with
+         * six listed behind "another"; Palm: its cover, then its hand; Project, Dynamic, Rest and Direct Murder name none),
+         * the who-picks table (Search's count and its first; the openings' two lists; the clean-up's and Move the Body's
+         * statistic; a Take from a body's row is not read: `LOOT` is e68-body's), and the crisis table's Roll column
+         * against `CRISIS_ACTIONS` in config order (the statistics joined by "/", the threshold after a space, "no roll"
+         * where none). Read off the files the module serves, not the tree.
+         */
+        const C = await import("./config.mjs");
+        const { MODULE_ID, ACTIONS, CRISIS_ACTIONS, MURDER_OPENING, CLEANUP } = C;
+        const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
+        const NAMES = ["Eye", "Head", "Body", "Leg", "Hand", "Shadow"];
+        const named = cell => NAMES.filter(n => new RegExp(`\\b${n}\\b`).test(cell));
+        const tableAfter = (text, headerStart) => {
+            const lines = text.split("\n"), at = lines.findIndex(l => l.startsWith(headerStart));
+            must(at >= 0, `no table whose header starts "${headerStart}"`);
+            const out = [];
+            for (let i = at + 2; i < lines.length && lines[i].startsWith("|"); i++) out.push(lines[i].split("|").slice(1, -1).map(c => c.trim()));
+            return out;
+        };
+        const wrong = [];
+        let read = 0;
+        for (const lang of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/gm-handbook.${lang}.md`);
+            must(res.ok, `gm-handbook.${lang}.md did not load`);
+            const text = await lfText(res);
+            const word = lang === "en" ? { then: "then", another: "another" } : { then: "potem", another: "inna" };
+            // The ten tiles.
+            const keys = ["search", "observe", "analyze", "project", "dynamic", "rest", "listen", "palm", "tamper", "directMurder"];
+            const tiles = tableAfter(text, lang === "en" ? "| Action | Statistic |" : "| Akcja | Statystyka |");
+            if (tiles.length !== keys.length) wrong.push(`${lang}: ${tiles.length} tile rows, expected ${keys.length}`);
+            keys.forEach((key, i) => {
+                const cell = tiles[i]?.[1] ?? "", traits = ACTIONS[key]?.traits ?? [];
+                read++;
+                if (key === "palm") { if (!cell.startsWith(`${cap(ACTIONS.palm.unseen.trait)}, ${word.then} ${cap(traits[0])}`)) wrong.push(`${lang} ${key}: "${cell}"`); }
+                else if (key === "search") { if (!(cell.startsWith(cap(traits[0])) && traits.length > 1 && cell.includes(word.another))) wrong.push(`${lang} ${key}: "${cell}" for ${traits.length} listed, first ${traits[0]}`); }
+                else if (traits.length === 1) { if (cell !== cap(traits[0])) wrong.push(`${lang} ${key}: "${cell}", config lists ${traits[0]}`); }
+                else if (named(cell).length) wrong.push(`${lang} ${key}: "${cell}" names a statistic`);
+            });
+            // Who picks.
+            const picks = tableAfter(text, lang === "en" ? "| Roll | Statistics it lists |" : "| Rzut | Wymieniane statystyki |");
+            const rowOf = n => picks[n]?.[1] ?? "";
+            read += 4;
+            if (ACTIONS.search.traits.length !== 6 || !/six|sześć/.test(rowOf(0)) || named(rowOf(0)).join() !== cap(ACTIONS.search.traits[0])) wrong.push(`${lang} who-picks Search: "${rowOf(0)}" for ${ACTIONS.search.traits.length} listed, first ${ACTIONS.search.traits[0]}`);
+            const opening = rowOf(4);
+            for (const [who, def] of [["killer", MURDER_OPENING.killer], ["victim", MURDER_OPENING.victim]]) {
+                if (!def.traits.every(t => opening.includes(cap(t))) || named(opening).length !== 4) wrong.push(`${lang} who-picks opening ${who}: "${opening}"`);
+            }
+            const clean = rowOf(5);
+            if (!clean.includes(cap(CLEANUP.traits[0])) || !clean.includes(cap(CLEANUP.actions.moveBody.traits[0])) || named(clean).length !== 2) wrong.push(`${lang} who-picks clean-up: "${clean}"`);
+            // The crisis table, in config order.
+            const crisis = tableAfter(text, lang === "en" ? "| Side | Action | Roll |" : "| Strona | Akcja | Rzut |");
+            const defs = Object.values(CRISIS_ACTIONS);
+            if (crisis.length !== defs.length) wrong.push(`${lang}: ${crisis.length} crisis rows, config has ${defs.length}`);
+            defs.forEach((def, i) => {
+                read++;
+                const want = def.traits ? `${def.traits.map(cap).join("/")}${def.threshold ? ` ${def.threshold}` : ""}` : null, cell = crisis[i]?.[2] ?? "";
+                if (want ? cell !== want : !/^(no roll|bez rzutu)$/.test(cell)) wrong.push(`${lang} crisis ${i + 1}: "${cell}", config says ${want ?? "no roll"}`);
+            });
+        }
+        must(read >= 2 * (10 + 4 + Object.keys(CRISIS_ACTIONS).length), `only ${read} cells were read - this would measure nothing`);
+        equal(JSON.stringify(wrong), JSON.stringify([]), "a handbook table's statistics differ from config.mjs (tiles, who picks, crisis rolls)");
+    }],
     ["R216 - a Reroll answered past its clock still counts, and a GM leaving is not the primary", async () => {
         /*
          * E08+E28 fix r1-G5, 04.10.2026; the round-1 review's m1 and m3.
