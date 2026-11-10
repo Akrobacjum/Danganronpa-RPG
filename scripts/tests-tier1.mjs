@@ -7671,6 +7671,48 @@ const INVARIANTS = [
         JSON.stringify([true, true]),
             "a road that holds the proposal is missing (rulePickTrait holds the trait to the list before it answers, the bridge's row passes proposed and note)");
     }],
+    ["R3150 - the valve approves a proposal only with its setting on, in Daily Life, outside the incident and for its scope, by the click's road, and its ruling says so", async () => {
+        /*
+         * E68 C2, 10.11.2026; DA41 = 2, DA50 = 1 (the planned R-next (a)). The world setting `autoApproveTraits`, off by
+         * default, approves a player's proposal of a statistic with no GM's press (trait-ruling.mjs `autoApprovableIn`).
+         * Read: the setting is registered for the world, off; the valve's answer for each of seven definitions in Daily
+         * Life with the setting on - a Search and a project, its scope; a crisis action, a trap victim's table, an opening,
+         * a clean-up and an action of the generic table, outside it - and a Search with the setting off, in the
+         * Investigation, in the Night Eclipse and in an incident; `traitFor` on a GM's browser with the valve open takes
+         * the proposal with no window, and with it shut opens the window; and in the source the primary presses the card
+         * only behind `autoApprovable` and through `pressCard`, and `rulePickTrait` writes `auto` only from the valve's own
+         * call (`data.auto === "1"`). Pure; nothing is written. Red at C1's tip: `autoApprovableIn` is not exported.
+         */
+        const T = await import("./trait-ruling.mjs");
+        const { SETTINGS } = await import("./settings.mjs");
+        const { MODULE_ID } = await import("./config.mjs");
+        const setting = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.autoApproveTraits}`) ?? null;
+        const day = { on: true, phase: "dailyLife", eclipse: false, incident: false };
+        const search = { kind: "action", key: "search" };
+        const specs = [search, { kind: "project", key: "P" }, { kind: "crisis", key: "weaponAttack" }, { kind: "crisis", key: "leaveClue", variant: "indirectVictim" },
+            { kind: "opening", key: "killer" }, { kind: "cleanup", key: "cleanup" }, { kind: "generic", key: "search" }];
+        const states = [{ ...day, on: false }, { ...day, phase: "investigation" }, { ...day, eclipse: true }, { ...day, incident: true }];
+        equal(JSON.stringify([setting?.scope ?? null, setting?.default ?? null, specs.map(s => T.autoApprovableIn(s, day)), states.map(st => T.autoApprovableIn(search, st))]),
+            JSON.stringify(["world", false, [true, true, false, false, false, false, false], [false, false, false, false]]),
+            "the valve's setting is not a world setting off by default, or it approves outside its scope, or outside Daily Life with the setting on (scope, default; per definition in the day; a Search with it off, in the Investigation, the Eclipse, an incident)");
+
+        const A = { id: "R3150ACTOR000001", name: "R3150" };
+        const windows = [];
+        const seams = open => ({ isGm: true, resolveArmed: () => false, autoApprovable: async () => open, proposed: "hand",
+            pickHere: async () => { windows.push(open); return "leg"; } });
+        const attack = { kind: "crisis", key: "weaponAttack" };
+        equal(JSON.stringify([await T.traitFor(A, attack, seams(true)), await T.traitFor(A, attack, seams(false)), windows]),
+            JSON.stringify([{ trait: "hand", byGm: "approved" }, { trait: "leg", byGm: "changed" }, [false]]),
+            "a GM's own proposal with the valve open opened a window or was not approved, or with it shut was not asked (open, shut, windows opened)");
+
+        const sources = new Map(await otherSources());
+        const clean = file => stripComments(sources.get(file) ?? "");
+        const card = fnSource(clean("call-gm.mjs"), "askTraitByCard"), rule = fnSource(clean("messenger-app.mjs"), "rulePickTrait");
+        equal(JSON.stringify([/const auto = Boolean\(proposed\) && \(await autoApprovable\(spec\)\)/.test(card), /if \(!auto[^)]*\) return;[\s\S]*pressCard\(message, "pickTrait"/.test(card),
+            /const auto = data\.auto === "1";/.test(rule), /\.\.\.\(auto \? \{ auto: true \} : \{\}\)/.test(rule)]),
+        JSON.stringify([true, true, true, true]),
+            "the primary presses a card past the valve or by another road, or the ruling's auto is read from anything but the valve's own call (asked, pressed by pressCard, auto read, auto kept)");
+    }],
     ["R216 - a Reroll answered past its clock still counts, and a GM leaving is not the primary", async () => {
         /*
          * E08+E28 fix r1-G5, 04.10.2026; the round-1 review's m1 and m3.

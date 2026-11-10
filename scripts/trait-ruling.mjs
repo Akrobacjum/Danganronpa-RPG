@@ -56,6 +56,17 @@
  * says which it was (roll-dialog.mjs `lockTrait`): `byGm` is "approved" or "changed" where a
  * proposal was made, true where the GM picked with none. Without a proposal the card is the one
  * C11b drew: a button per listed statistic and Refuse. Which callers propose is C4's.
+ *
+ * THE VALVE (E68 C2, 10.11.2026; DA41 = 2, DA50 = 1). A world setting, off by default
+ * (`autoApproveTraits`), approves a proposal with no GM's press in Daily Life - the clock's phase
+ * Daily Life, no Night Eclipse and no incident running - for the definitions of its scope: a
+ * Search (`{ kind: "action", key: "search" }`, which lists Eye alone until C6 and so asks nobody
+ * yet) and a project stored without a statistic (kind `project`). Never a crisis action, a
+ * clean-up, an opening, a Dynamic action (its own card) or Resolve (which asks nobody):
+ * `autoApprovable`. On a player's ask the primary GM posts the card as for any proposal and then
+ * presses its "Approve" by the click's road (messenger-app.mjs `pressCard`: claimed, ruled by
+ * `rulePickTrait`, settled), so the answer, the card's line ("Approved automatically.") and the
+ * ruling it keeps (`auto: true`) are the ones a press makes; on a GM's own browser no window opens.
  */
 import { TRAITS, CRISIS_ACTIONS, MURDER_OPENING, CLEANUP, ACTIONS } from "./config.mjs";
 import { pendingCalls } from "./call-effects.mjs";
@@ -174,12 +185,42 @@ export async function traitFor(actor, spec, seams = {}) {
     // The proposal, where the caller has one: a statistic the definition lists, and the player's words, bounded.
     const proposal = proposalOf(seams, listed);
     const isGm = seams.isGm ?? Boolean(game.user?.isGM);
+    // The valve (C2): a GM's own proposal of its scope is approved here, with no window; a player's, on the primary.
+    if (isGm && proposal.proposed && (await (seams.autoApprovable ?? autoApprovable)(spec))) {
+        await keepProjectPick(spec, proposal.proposed);
+        return { trait: proposal.proposed, byGm: "approved" };
+    }
     const picked = isGm ? await (seams.pickHere ?? pickHere)(actor, spec, listed, proposal)
         : await (seams.askGms ?? askGms)(actor, spec, proposal);
     if (!listed.includes(picked)) return null;
     // A player's pick is kept by the GM who answered the card (messenger-app.mjs `rulePickTrait`).
     if (isGm) await keepProjectPick(spec, picked);
     return { trait: picked, byGm: !proposal.proposed ? true : picked === proposal.proposed ? "approved" : "changed" };
+}
+
+/** The definitions the valve may approve (C2), by kind and key; a key of null is any key of that kind. */
+const AUTO_SCOPE = Object.freeze([Object.freeze({ kind: "action", key: "search" }), Object.freeze({ kind: "project", key: null })]);
+
+/**
+ * Whether the valve approves a proposal for `spec` in the state named (C2): the setting `on`, the clock's `phase`
+ * "dailyLife", no Night Eclipse (`eclipse`) and no incident (`incident`), and a definition of `AUTO_SCOPE` with no
+ * variant. Pure, for the suite (R3150); `autoApprovable` reads the state off this world.
+ */
+export function autoApprovableIn(spec = {}, { on = false, phase = null, eclipse = false, incident = false } = {}) {
+    if (on !== true || phase !== "dailyLife" || eclipse || incident || spec?.variant) return false;
+    return AUTO_SCOPE.some(row => row.kind === spec?.kind && (row.key === null || row.key === spec?.key));
+}
+
+/** The same, on this world: the setting, the clock, the Eclipse and the incident as this browser holds them. */
+export async function autoApprovable(spec = {}) {
+    try {
+        const { SETTINGS, getSetting, getClock, isEclipse } = await import("./settings.mjs");
+        const { murderState } = await import("./murder.mjs");
+        return autoApprovableIn(spec, { on: getSetting(SETTINGS.autoApproveTraits) === true, phase: getClock()?.phase ?? null,
+            eclipse: Boolean(isEclipse()), incident: Boolean(murderState()?.active) });
+    } catch {
+        return false;
+    }
 }
 
 /** The longest note of how a proposal is carried out, in characters: a sentence or two, said on the GM's card. */

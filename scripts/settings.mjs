@@ -60,6 +60,8 @@ export const SETTINGS = {
     /** Whether an open Frisk may be forced after a refusal or no answer (E80 part 2; frisk.mjs `friskForceOpen`). */
     friskForce: "friskForce",
     lockPlayerResources: "lockPlayerResources",
+    /** Whether a proposal of a statistic in Daily Life is approved with no GM's press (E68 C2; trait-ruling.mjs `autoApprovable`). */
+    autoApproveTraits: "autoApproveTraits",
     roomVisibility: "roomVisibility",
     lockRollDialog: "lockRollDialog",
     /**
@@ -1019,7 +1021,7 @@ const TABLE_SETTINGS = [
     SETTINGS.foundryBefore, SETTINGS.foundryGivenBack, SETTINGS.musicEnabled, SETTINGS.sfxVary, SETTINGS.safeword,
     SETTINGS.migratedVersion, SETTINGS.caseMark, SETTINGS.moveAudit, SETTINGS.foundryToolWindows, SETTINGS.isoTokenShield,
     SETTINGS.regionFog, SETTINGS.despairFromRolls, SETTINGS.lockRollDialog, SETTINGS.roomVisibility, SETTINGS.lockPlayerResources,
-    SETTINGS.friskForce, SETTINGS.chargeMovement, SETTINGS.legacyKeyRemnantPlan, SETTINGS.legacyPendingMurders, SETTINGS.legacyEclipseMoves
+    SETTINGS.friskForce, SETTINGS.autoApproveTraits, SETTINGS.chargeMovement, SETTINGS.legacyKeyRemnantPlan, SETTINGS.legacyPendingMurders, SETTINGS.legacyEclipseMoves
 ];
 /** Every world setting the module registers, by its key -> "season", "campaign" or "table" (above). */
 export const WORLD_LIFETIMES = Object.freeze(Object.fromEntries([
@@ -2658,6 +2660,20 @@ export function registerSettings() {
         default: true,
         // The stylesheet's half of the lock follows at once (E03; audit S01-40).
         onChange: value => document.body.classList.toggle("drpg-resources-locked", Boolean(value))
+    });
+
+    /* THE PROPOSAL APPROVES ITSELF IN DAILY LIFE (E68 C2, 10.11.2026; DA41 = 2, DA50 = 1). Off by default: on, a
+       player's proposal of a statistic for a roll outside the incident that a Daily Life asks about - a Search, a
+       project stored without a statistic - is approved on the primary GM as a press of "Approve" would be, and the
+       card in the thread says so ("Approved automatically"). Never the incident, an opening, a Dynamic action or a
+       Resolve (trait-ruling.mjs `autoApprovable`). A world setting, which only a GM writes. */
+    game.settings.register(MODULE_ID, SETTINGS.autoApproveTraits, {
+        name: "DRPG.Settings.autoApproveTraits.name",
+        hint: "DRPG.Settings.autoApproveTraits.hint",
+        scope: "world",
+        config: true,
+        type: Boolean,
+        default: false
     });
 
     /* The GMs' switch on forcing a Frisk after a refusal (the A11 design's step 1; DA39, the family of

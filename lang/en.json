@@ -268,6 +268,10 @@
         "name": "Players cannot edit Actions, Hope, Health, Sanity or statistics",
         "hint": "Those move through play - spend an action, take a rest, earn a Level Up. On, a player's own edits of them are put back or flagged to the GMs, and their pips are display-only for players; off, they are only listed for the GMs. Items and effects are judged either way, and so is what changed while no GM was connected, when one returns. GMs are unaffected."
       },
+      "autoApproveTraits": {
+        "name": "Approve statistic proposals in Daily Life automatically",
+        "hint": "On, a player's proposed statistic for a Search or a project without a statistic is approved without a GM's press, and the card in their thread says so. Fights, openings, Dynamic actions and Resolve always ask a GM."
+      },
       "friskForce": {
         "name": "Frisk: forcing after a refusal",
         "hint": "When off, an open Frisk only asks: a refusal or no answer ends it."
@@ -3442,7 +3446,8 @@
       "changedBody": "You proposed {proposed}. The GM changed it to {stat}. Nothing has been spent yet.",
       "rollIt": "Roll {stat}",
       "pass": "I'll pass (nothing spent)",
-      "passedLine": "I'll pass on the roll ({stat}). Nothing was spent."
+      "passedLine": "I'll pass on the roll ({stat}). Nothing was spent.",
+      "autoApproved": "Approved automatically."
     },
     "DiceLook": {
       "setByGm": "Your dice look is set by the GM.",

@@ -776,6 +776,19 @@ export function wireCallActions(body, message = null) {
 }
 
 /**
+ * One of a card's actions run on this GM's browser by the road a press takes (E68 C2): claimed on the primary,
+ * ruled, and the card settled with the ruling's line - what `wireCallActions` does for a click, with no button.
+ * The valve's (call-gm.mjs `askTraitByCard`). Answers what the ruling answered, or null when it was not this GM's.
+ */
+export async function pressCard(message, action, data = {}) {
+    if (!message?.id || !game.user?.isGM) return null;
+    const { claimCard, settleCall } = await import("./gm-bridge.mjs");
+    const outcome = await claimCard(message, () => runCallAction(action, { ...data }, message));
+    if (outcome?.settled && !outcome.held) await settleCall(message, outcome.settled, outcome.ruling ?? null);
+    return outcome;
+}
+
+/**
  * A ruling that is now made, and the line the card should carry instead of
  * "Awaiting a ruling."
  *
@@ -873,6 +886,8 @@ async function ruleRefuseDynamic(action, data, message = null) {
     // "Change to" off the list is refused here as any pick is. The ruling keeps the proposal and
     // `how` ("approved", "changed", or "picked" with none), read as the button's data says it.
 async function rulePickTrait(action, data) {
+    // The valve's press (E68 C2; call-gm.mjs `askTraitByCard`): no card's button carries `auto`, only the primary's own call.
+    const auto = data.auto === "1";
     const { listedTraits, keepProjectPick } = await import("./trait-ruling.mjs");
     const spec = { kind: data.kind ?? "", key: data.key ?? "", variant: data.variant || null };
     if (!game.actors.get(data.by ?? "") || !listedTraits(spec).includes(data.trait)) {
@@ -884,8 +899,8 @@ async function rulePickTrait(action, data) {
     if (!answerTraitRuling(data.rid, data.asker, data.trait)) return null;
     const proposed = listedTraits(spec).includes(data.proposed) ? data.proposed : null;
     const how = !proposed ? "picked" : proposed === data.trait ? "approved" : "changed";
-    return { ...settled("DRPG.Bridge.settledAnswered"),
-        ruling: { type: "trait", actorId: data.by, ...spec, trait: data.trait, ...(proposed ? { proposed } : {}), how } };
+    return { ...(auto ? { settled: game.i18n.localize("DRPG.TraitRuling.autoApproved") } : settled("DRPG.Bridge.settledAnswered")),
+        ruling: { type: "trait", actorId: data.by, ...spec, trait: data.trait, ...(proposed ? { proposed } : {}), how, ...(auto ? { auto: true } : {}) } };
 }
 
     // Refuse: the action is not taken, and nothing was spent for it.

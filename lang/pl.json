@@ -268,6 +268,10 @@
         "name": "Gracze nie edytują akcji, Hope, Health, Sanity ani statystyk",
         "hint": "Te zmieniają się przez grę - wydaj akcję, odpocznij, zdobądź Level Up. Włączone: ręczne zmiany gracza są cofane albo zgłaszane GM-om, a ich pola są dla graczy tylko do odczytu; wyłączone: są tylko odnotowywane dla GM-ów. Przedmioty i efekty są oceniane zawsze, tak samo jak to, co zmieniło się bez połączonego GM-a - gdy któryś wróci. GM-ów to nie dotyczy."
       },
+      "autoApproveTraits": {
+        "name": "Zatwierdzaj propozycje statystyk w Daily Life automatycznie",
+        "hint": "Włączone: statystyka, którą gracz proponuje do Search albo do projektu bez statystyki, jest zatwierdzana bez kliknięcia GM-a, a karta w jego wątku to mówi. Walka, otwarcia, akcje Dynamic i Resolve zawsze pytają GM-a."
+      },
       "friskForce": {
         "name": "Frisk: zmuszanie po odmowie",
         "hint": "Wyłączone: jawny Frisk tylko prosi, a odmowa albo brak odpowiedzi go kończy."
@@ -3764,7 +3768,8 @@
       "changedBody": "Twoja propozycja: {proposed}. GM zmienił ją na {stat}. Nic jeszcze nie zeszło.",
       "rollIt": "Rzuć: {stat}",
       "pass": "Rezygnuję (nic nie schodzi)",
-      "passedLine": "Rezygnuję z rzutu ({stat}). Nic nie zeszło."
+      "passedLine": "Rezygnuję z rzutu ({stat}). Nic nie zeszło.",
+      "autoApproved": "Zatwierdzone automatycznie."
     },
     "DiceLook": {
       "setByGm": "Twój wygląd kości ustala GM.",

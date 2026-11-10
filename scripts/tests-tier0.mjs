@@ -15316,7 +15316,8 @@ const REGRESSIONS = [
          * the three names are still read there. Amend 3: the claim does not take over Overrule or the Closing's approve - neither stands on this line at
          * 19.10.2026 (no `Overrule` and no Closing button in scripts/ or lang/), so what is read is that the card's
          * buttons (messenger-app.mjs `wireCallActions`) are the claim's only caller, and that they claim before the
-         * ruling runs. Read in the module's files with comments and literals blanked.
+         * ruling runs. Read in the module's files with comments and literals blanked. Since E68 C2 the valve's
+         * `pressCard` is the second caller: a proposal's Approve pressed on the primary by the same road, with no button.
          */
         const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
         const row = BRIDGE_ACTIONS["card.claim"] ?? null;
@@ -15345,7 +15346,8 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify([
             ["gmOnly", { messageId: "id", step: "oneOf" }, ["messageId", "step"], "reply"],
             ["E67", "E68", "E72"],
-            ["messenger-app.mjs#wireCallActions"],
+            // E68 C2: the valve's press of a proposal's Approve, by the road a click takes (messenger-app.mjs `pressCard`).
+            ["messenger-app.mjs#wireCallActions", "messenger-app.mjs#pressCard"],
             true
         ]), "[the row's first guard, its fields, its claims, its answer], the stages claimCard's doc names, who calls claimCard, whether the card's buttons claim before the ruling runs");
     }],
@@ -19824,9 +19826,10 @@ const REGRESSIONS = [
             season: ["bodiesFound", "bodyFound", "chapterEnd", "clock", "despairPools", "discoveredRooms", "gmAssignments", "killingGameRules",
                 "motive", "murderState", "overflow", "pendingGather", "projectMeta", "readyRound", "restrictions", "sealedRooms", "searchTokens",
                 "trialProgress", "trialQueue"],
-            // 35 table settings since E60 C5d: `diceDualityLook`, the table's Hope and Despair dice, outlives a season.
-            counts: [19, 11, 35], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
-        }), "the season's settings are not the nineteen the reset clears, the lifetimes do not count 19, 11 and 35, the clock's entry does not "
+            // 35 table settings since E60 C5d: `diceDualityLook`, the table's Hope and Despair dice, outlives a season;
+            // 36 since E68 C2: `autoApproveTraits`, the valve, a rule of play the GM switches.
+            counts: [19, 11, 36], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
+        }), "the season's settings are not the nineteen the reset clears, the lifetimes do not count 19, 11 and 36, the clock's entry does not "
             + "name the readiness round and the End of chapter's record, the assignments' entry does not name gmAssignments, or the reset's own record is not kept as the campaign's");
     }],
 

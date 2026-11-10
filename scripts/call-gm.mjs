@@ -295,10 +295,12 @@ export async function askDynamicByCard(payload, ctx) {
  * statistic, and Refuse (trait-ruling.mjs `proposalChoices`); the note is quoted as the
  * player's words. The guard has refused a proposal off the list; one that is not read
  * again here as the answer - the button's trait is, and `rulePickTrait` holds it to the list.
+ * Since E68 C2 a proposal the valve approves (trait-ruling.mjs `autoApprovable`) is pressed
+ * here, as soon as the card is up, by the click's road (messenger-app.mjs `pressCard`).
  */
 export async function askTraitByCard(payload, ctx) {
     if (!ctx.requestId) return { later: true };
-    const { listedTraits, rulingLabel, proposalOf, proposalChoices } = await import("./trait-ruling.mjs");
+    const { listedTraits, rulingLabel, proposalOf, proposalChoices, autoApprovable } = await import("./trait-ruling.mjs");
     const spec = { kind: payload.kind, key: payload.key, variant: payload.variant ?? null };
     const listed = listedTraits(spec);
     if (listed.length < 2) return { refused: "nothing was carried out: the roll lists one statistic or none" };
@@ -309,9 +311,16 @@ export async function askTraitByCard(payload, ctx) {
     if (again) return again;
     askedByCard.add(ctx.requestId);
     const expires = serverNow() + TIMING.rulingMs;
-    const onPosted = holdAsk(traitAsks, ctx.requestId, held, expires);
+    const keep = holdAsk(traitAsks, ctx.requestId, held, expires);
     const actor = game.actors.get(payload.actorId ?? "");
     const { proposed, note } = proposalOf({ proposed: payload.proposed, note: payload.note }, listed);
+    const auto = Boolean(proposed) && (await autoApprovable(spec));
+    const onPosted = message => {
+        keep(message);
+        if (!auto || !message?.id) return;
+        import("./messenger-app.mjs").then(({ pressCard }) => pressCard(message, "pickTrait", { ...data(proposed), auto: "1" }))
+            .catch(err => warn("The valve could not approve the proposal on its card.", err));
+    };
     const data = trait => ({
         rid: ctx.requestId, asker: ctx.asker, by: payload.actorId ?? "", kind: spec.kind, key: spec.key,
         variant: spec.variant ?? "", ...(trait ? { trait } : {}), ...(proposed ? { proposed } : {})

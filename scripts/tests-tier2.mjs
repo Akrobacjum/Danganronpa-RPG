@@ -32556,6 +32556,91 @@ const SCENARIOS = [
             "two presses at once did not make one answer and one ruling (the first's), or a press after the ruling was not turned away (answers sent, the ruling kept, refusals shown)");
     }],
 
+    ["the valve's setting approves a proposal for a project stored without a statistic on its own, and an incident's proposal still waits on a card (E68 C2)", async () => {
+        /*
+         * E68 C2, 10.11.2026; DA41 = 2, DA50 = 1. With `autoApproveTraits` on, in Daily Life, a player's proposal of Hand
+         * for a Work on a project stored without a statistic is answered by the primary with no GM's press: the card goes
+         * up and is pressed by the click's road (messenger-app.mjs `pressCard`). Then in a fight (`swingFixture`) the
+         * killer's proposal of Hand for an Attack with a weapon gets its card and nothing else. Each packet is handed to
+         * the bridge's runner as Foundry names its sender and the answers to the asker are caught at the socket. Read: the
+         * answers sent, the card's line and the ruling it keeps (trait, how, auto), and the project's statistic after; the
+         * fight's answers and whether its card is still open. Search on Head, the stage's own example, waits for C6: a
+         * Search lists Eye alone until then and asks nobody. The setting, the project and the cards are put back after.
+         * Red at C1's tip: the project's card waited for a press like any other.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the ask is a player's, and Foundry names only a connected one");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the student alone");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which holds the asks - this would measure nothing");
+        const { getClock, isEclipse } = await import("./settings.mjs");
+        const { murderState } = await import("./murder.mjs");
+        must(getClock()?.phase === "dailyLife" && !isEclipse() && !murderState()?.active, `the world is not in Daily Life outside an incident (${getClock()?.phase}) - this would measure nothing`);
+        const G = await import("./bridge-guards.mjs");
+        const P = await import("./projects.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const AUTO = game.i18n.localize("DRPG.TraitRuling.autoApproved");
+        const { player, theirs } = playerAndCharacters();
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const was = game.settings.get(MODULE_ID, SETTINGS.autoApproveTraits);
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const done = new Map();
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "bridge.done" && String(packet.requestId ?? "").startsWith("E68C2T")) {
+                done.set(packet.requestId, [...(done.get(packet.requestId) ?? []), packet.value ?? null]);
+                return undefined;
+            }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const ask = async (user, actor, spec) => {
+            const rid = `E68C2T${foundry.utils.randomID(10)}`;
+            const before = new Set(game.messages.contents.map(m => m.id));
+            await G.judge(BRIDGE_ACTIONS, { action: "trait.ruling", requestId: rid, variant: null, ...spec, actorId: actor.id, proposed: "hand", note: "E68 C2" },
+                user.id, { send: () => null });
+            await settle();
+            const card = () => game.messages.contents.find(m => !before.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="refuseTrait"'))
+                ?? game.messages.contents.find(m => !before.has(m.id) && cardFlag(m, "rid")?.kind === "trait") ?? null;
+            return { rid, card };
+        };
+        const read = [];
+        let projectId = null, stood = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.autoApproveTraits, true);
+            // Stood in a room, as a Work is asked from one (bridge-guards.mjs `projectWithinReach`); the project has no room of its own.
+            stood = await standAlone(theirs);
+            projectId = (await P.createProject({ name: "SUITE E68 C2 project", target: 6, room: null, trait: null }))?.id ?? null;
+            must(projectId, "a project stored without a statistic was not made - this would measure nothing");
+            const work = await ask(player, theirs, { kind: "project", key: projectId });
+            await until(() => Boolean(work.card() && cardFlag(game.messages.get(work.card().id), "settled")), 4000);
+            const card = work.card() ? game.messages.get(work.card().id) : null;
+            const ruling = card ? cardFlag(card, "ruling") : null;
+            read.push([done.get(work.rid) ?? [], Boolean(card) && String(contentOf(card) ?? "").includes(AUTO),
+                ruling ? [ruling.trait ?? null, ruling.how ?? null, ruling.auto ?? null] : null, P.allProjects().find(p => p.id === projectId)?.trait ?? null]);
+            const { killer, putBack } = await swingFixture();
+            try {
+                const mine = game.users.find(u => !u.isGM && u.active && killer.testUserPermission(u, "OWNER"));
+                const swing = await ask(mine, killer, { kind: "crisis", key: "weaponAttack" });
+                await settle(800);
+                const open = swing.card() ? game.messages.get(swing.card().id) : null;
+                read.push([done.get(swing.rid) ?? [], Boolean(open), Boolean(open && cardFlag(open, "settled"))]);
+            } finally {
+                await putBack();
+            }
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            await game.settings.set(MODULE_ID, SETTINGS.autoApproveTraits, was);
+            if (projectId) await P.deleteProject(projectId).catch(() => {});
+            await stood?.back?.();
+            for (const message of game.messages.contents.filter(m => !had.has(m.id))) await message.delete().catch(() => {});
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[["hand"], true, ["hand", "approved", true], "hand"], [[], true, false]]),
+            "[the project's ask: answers sent, the card's line says approved automatically, the ruling (trait, how, auto), the project's statistic after], [the fight's ask: answers sent, a card posted, the card settled]");
+    }],
+
     ["a Search for something specific and an Observe of anything whose last GM left during the roll post nothing, hand the action back and take none of the room's search tokens (E18 fix e1-G5)", async () => {
         /*
          * E18 fix e1-G5, 24.10.2026; the end review's E18-END-6, E18-END-2, E18-END-7 and F8 (STATUS's C0 gaps 1 and 2).
