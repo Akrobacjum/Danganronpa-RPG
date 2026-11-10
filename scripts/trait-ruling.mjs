@@ -40,11 +40,27 @@
  * performer of its own, the kind `generic` that roll-draw.mjs and bridge-guards.mjs name -
  * would ask when its definition lists several; every key has a performer of its own
  * (`OWN_PERFORMERS`), so the table is empty (E41 C1a deleted its fallback, R1230).
+ *
+ * THE PLAYER PROPOSES, THE GM APPROVES (E68 C1, 10.11.2026; DA18 of 05.10.2026: "Wszedzie gracz
+ * ma proponowac, a DM zatwierdzac lub zmieniac"). A caller may hand `traitFor` the statistic the
+ * player proposes and a few words of how (`{ proposed, note }`, beside the seams). The proposal is
+ * a claim like any packet field: one the definition does not list is dropped here and refused on
+ * the GM (`guardTraitRuling`), and the card's buttons are read from the GM's config, never from
+ * the packet (`guardTraitRuling`, by `PROPOSAL_NOTE_MAX`). The GM's card then holds three answers: "Approve: {stat}" (the proposal), "Change
+ * to: {stat}" (each other listed statistic, only from the list) and "Refuse"; any GM may press
+ * one, and one press rules (bridge-asks.mjs `claimCard`, as every card since E18 C3). A GM's own
+ * window offers the same, the proposal first. Nothing is spent before the answer and a refusal
+ * costs nothing, as before. After a "Change to" the player may still say no (DA46; QUESTIONS.md
+ * Q11): their window shows "Roll {stat}" and "I'll pass (nothing spent)", and a pass writes one
+ * line in their thread, which the GM reads under the card, and answers null. The roll window
+ * says which it was (roll-dialog.mjs `lockTrait`): `byGm` is "approved" or "changed" where a
+ * proposal was made, true where the GM picked with none. Without a proposal the card is the one
+ * C11b drew: a button per listed statistic and Refuse. Which callers propose is C4's.
  */
 import { TRAITS, CRISIS_ACTIONS, MURDER_OPENING, CLEANUP, ACTIONS } from "./config.mjs";
 import { pendingCalls } from "./call-effects.mjs";
 import { allProjects } from "./projects.mjs";
-import { esc } from "./utils.mjs";
+import { esc, warn } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 
 /**
@@ -155,13 +171,42 @@ export async function traitFor(actor, spec, seams = {}) {
     const armed = seams.resolveArmed ?? resolveArmed;
     if (armed(actor)) return { trait: listed[0], byGm: false };
 
+    // The proposal, where the caller has one: a statistic the definition lists, and the player's words, bounded.
+    const proposal = proposalOf(seams, listed);
     const isGm = seams.isGm ?? Boolean(game.user?.isGM);
-    const picked = isGm ? await (seams.pickHere ?? pickHere)(actor, spec, listed)
-        : await (seams.askGms ?? askGms)(actor, spec);
+    const picked = isGm ? await (seams.pickHere ?? pickHere)(actor, spec, listed, proposal)
+        : await (seams.askGms ?? askGms)(actor, spec, proposal);
     if (!listed.includes(picked)) return null;
     // A player's pick is kept by the GM who answered the card (messenger-app.mjs `rulePickTrait`).
     if (isGm) await keepProjectPick(spec, picked);
-    return { trait: picked, byGm: true };
+    return { trait: picked, byGm: !proposal.proposed ? true : picked === proposal.proposed ? "approved" : "changed" };
+}
+
+/** The longest note of how a proposal is carried out, in characters: a sentence or two, said on the GM's card. */
+export const PROPOSAL_NOTE_MAX = 280;
+
+/**
+ * `{ proposed, note }` as a ruling carries them: `proposed` a statistic `listed` names, else null; `note` the
+ * player's words trimmed to `PROPOSAL_NOTE_MAX`, else "". Read on both sides: the asker drops what it would
+ * be refused for, and the GM's guard refuses a packet whose proposal is off the list or whose note is longer
+ * (bridge-guards.mjs `guardTraitRuling`).
+ */
+export function proposalOf({ proposed = null, note = "" } = {}, listed = []) {
+    const trait = typeof proposed === "string" && listed.includes(proposed) ? proposed : null;
+    const words = typeof note === "string" ? note.trim().slice(0, PROPOSAL_NOTE_MAX) : "";
+    return { proposed: trait, note: words };
+}
+
+/**
+ * The buttons a proposal's answer offers, in order, for the GM's window and the card: "Approve: {stat}" first,
+ * then "Change to: {stat}" for each other listed statistic; with no proposal a button per listed statistic.
+ * `{ trait, label, how }`, `how` "approve", "change" or "pick".
+ */
+export function proposalChoices(actor, listed, proposed = null) {
+    const stat = trait => traitWithValue(actor, trait);
+    if (!proposed || !listed.includes(proposed)) return listed.map(trait => ({ trait, label: stat(trait), how: "pick" }));
+    return [{ trait: proposed, label: game.i18n.format("DRPG.TraitRuling.approve", { stat: stat(proposed) }), how: "approve" },
+        ...listed.filter(t => t !== proposed).map(trait => ({ trait, label: game.i18n.format("DRPG.TraitRuling.change", { stat: stat(trait) }), how: "change" }))];
 }
 
 /**
@@ -178,20 +223,51 @@ export async function keepProjectPick(spec, trait) {
 }
 
 /** A player's client: the request, and the notice that stays up while a GM reads the thread. */
-async function askGms(actor, { kind, key, variant = null }) {
+async function askGms(actor, { kind, key, variant = null }, { proposed = null, note = "" } = {}) {
     const { showWaiting } = await import("./popup.mjs");
     const waiting = showWaiting(game.i18n.localize("DRPG.TraitRuling.waiting"), game.i18n.localize("DRPG.TraitRuling.title"));
+    let answer = null;
     try {
         // Never from a GM's client, which `traitFor` sends to its own window: the packet would go to itself (R6).
         if (game.user?.isGM) return null;
         const { requestTraitRuling } = await import("./gm-bridge.mjs");
-        const res = await requestTraitRuling({ actorId: actor.id, kind, key, variant });
+        const res = await requestTraitRuling({ actorId: actor.id, kind, key, variant, proposed, note });
         // `false` is the GM's Refuse; a request not carried out has been told already, by the bridge.
         if (res.ok && res.value === false) ui.notifications.info(game.i18n.localize("DRPG.TraitRuling.refused"));
-        return res.ok && typeof res.value === "string" ? res.value : null;
+        answer = res.ok && typeof res.value === "string" ? res.value : null;
     } finally {
         waiting();
     }
+    // A "Change to": the player rolls the GM's statistic or passes, and nothing was spent either way (DA46, Q11).
+    if (answer && proposed && answer !== proposed && !(await rollChanged(actor, proposed, answer))) return null;
+    return answer;
+}
+
+/**
+ * The player's window after a GM's "Change to" (DA46; QUESTIONS.md Q11): "Roll {stat}" or "I'll pass (nothing
+ * spent)". True to roll. A pass, or the window closed, is a pass: one line in the player's thread says it, so
+ * the GM reads it under the card (messenger.mjs `sendMessage`, the thread's own road), and the caller does nothing.
+ */
+async function rollChanged(actor, proposed, trait) {
+    const stat = t => TRAITS[t]?.label ?? t;
+    const chosen = await drpgWindow({
+        classes: ["drpg-panel", "drpg-narrow", "drpg-trait-changed"],
+        prompt: true,
+        title: game.i18n.localize("DRPG.TraitRuling.changedTitle"),
+        body: `<p><strong>${esc(actor?.name ?? "?")}</strong></p>
+            <p>${esc(game.i18n.format("DRPG.TraitRuling.changedBody", { proposed: stat(proposed), stat: stat(trait) }))}</p>`,
+        footer: { primary: { action: "roll", label: game.i18n.format("DRPG.TraitRuling.rollIt", { stat: stat(trait) }) },
+            secondary: [{ action: "pass", label: game.i18n.localize("DRPG.TraitRuling.pass") }], close: "pass" },
+        rejectClose: false
+    });
+    if (chosen === "roll") return true;
+    try {
+        const { sendMessage } = await import("./messenger.mjs");
+        await sendMessage(game.user.id, game.i18n.format("DRPG.TraitRuling.passedLine", { stat: stat(trait) }));
+    } catch (err) {
+        warn("The pass after a GM's change of statistic could not be written in the thread.", err);
+    }
+    return false;
 }
 
 /** What the ruling is about, for the GM's window and card: the definition's label. */
@@ -221,15 +297,17 @@ export const pickWindowClass = kind => `drpg-trait-pick-${kind}`;
  * A GM's client: a button per listed trait, and Cancel. The first is the default: on the kit (E21 C4) the primary, on the
  * right and the first submit button; the others secondaries on the left, after Cancel, in the list's order.
  */
-async function pickHere(actor, spec, listed) {
-    const [first, ...rest] = listed.map(trait => ({ action: trait, label: traitWithValue(actor, trait) }));
+async function pickHere(actor, spec, listed, { proposed = null, note = "" } = {}) {
+    const [first, ...rest] = proposalChoices(actor, listed, proposed).map(({ trait, label }) => ({ action: trait, label }));
+    const said = proposed ? `<p>${esc(game.i18n.format("DRPG.TraitRuling.proposed", { stat: TRAITS[proposed]?.label ?? proposed }))}${
+        note ? ` · <em>${esc(note)}</em>` : ""}</p>` : "";
     const picked = await drpgWindow({
         classes: ["drpg-panel", "drpg-narrow", pickWindowClass(spec.kind)],
         // A GM's ruling the roll waits on: kept above the sheet (stacking.mjs; E23 C5a).
         prompt: true,
         title: game.i18n.localize("DRPG.TraitRuling.title"),
-        body: `<p><strong>${esc(actor?.name ?? "?")}</strong> · ${esc(rulingLabel(spec))}</p>
-            <p class="notes">${game.i18n.localize("DRPG.TraitRuling.gmBody")}</p>`,
+        body: `<p><strong>${esc(actor?.name ?? "?")}</strong> · ${esc(rulingLabel(spec))}</p>${said}
+            <p class="notes">${game.i18n.localize(proposed ? "DRPG.TraitRuling.gmBodyProposed" : "DRPG.TraitRuling.gmBody")}</p>`,
         footer: { primary: first, secondary: rest, close: "cancel" },
         rejectClose: false
     });

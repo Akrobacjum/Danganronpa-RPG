@@ -648,12 +648,13 @@ export function requestDynamicDifficulty({ description, actorName, room, actorId
  * (trait-ruling.mjs `traitFor`). A human reading a thread, so the clock is the
  * ruling's, there is none for the "got it", and it is asked again when a GM's
  * world has loaded; nothing has been paid on this side, so a failure says
- * "Nothing was spent."
+ * "Nothing was spent." Since E68 C1 (DA18) with the player's proposal and their words of how
+ * (`proposed`, `note`; trait-ruling.mjs `proposalOf` has dropped what the GM would refuse).
  *
  * @returns {Promise<object>} the bridge's result; `value` the trait, or false when the GM refused.
  */
-export function requestTraitRuling({ actorId, kind, key, variant = null }) {
-    return ask(ACTION_TRAIT_RULING, { actorId, kind, key, variant }, { nothingSpent: true,
+export function requestTraitRuling({ actorId, kind, key, variant = null, proposed = null, note = "" }) {
+    return ask(ACTION_TRAIT_RULING, { actorId, kind, key, variant, proposed, note }, { nothingSpent: true,
         expired: ACTION_RULING_EXPIRED, received: ACTION_RULING_RECEIVED });
 }
 

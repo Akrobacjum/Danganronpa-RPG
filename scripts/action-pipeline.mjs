@@ -121,8 +121,8 @@ function suiteRolling() {
  *   an action name it could not act on - which reads exactly like Reroll not
  *   working on Search at all.
  *
- * @param {boolean} [options.byGm]  The trait is a GM's pick (`TRAIT_BY_GM`), and the
- *   window says so on its locked select.
+ * @param {boolean|string} [options.byGm]  The trait is a GM's pick (`TRAIT_BY_GM`), and the
+ *   window says so on its locked select: "approved" or "changed" a proposal (E68 C1), else true.
  * @param {number} [options.situational]  This roll's own advantage (+) or disadvantage
  *   (-) in dice, which a supporting roll's shield does not hide (call-effects.mjs
  *   `armOwnSituational`): the Night's die on a murder's opening roll, its one caller.
@@ -243,8 +243,9 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
         // The roll the Loaded Die was bought for, marked on the roll itself -
         // see `LOADED_DIE` in forced-roll.mjs.
         ...(free ? { [LOADED_DIE]: armed?.nonce ?? foundry.utils.randomID() } : {}),
-        // A GM picked the trait: the window's select stays locked and says so.
-        ...(byGm ? { [TRAIT_BY_GM]: true } : {}),
+        // A GM picked the trait: the window's select stays locked and says so - "approved" or "changed" where the
+        // player proposed one (E68 C1, trait-ruling.mjs `traitFor`), else true.
+        ...(byGm ? { [TRAIT_BY_GM]: byGm === "approved" || byGm === "changed" ? byGm : true } : {}),
         // Say what the roll is FOR.
         //
         // Left alone, Daggerheart titles the window from the trait - "Body

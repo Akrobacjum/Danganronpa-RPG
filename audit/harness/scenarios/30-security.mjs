@@ -649,22 +649,25 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
        function, for Botan's Strike - not Aiko's to ask for - for Aiko's own with no incident
        running, and for an opening's statistic, which only a GM's own client picks. Each is
        refused on the GM and told to p1 with its reason; no card goes up and the harness's GM
-       presses nothing (client-entry.mjs `__traitRulings`). */
+       presses nothing (client-entry.mjs `__traitRulings`). Since E68 C1 (DA18) a fourth: Aiko's own Strike with a
+       proposal of Eye, which Strike does not list (Hand / Leg / Body) - a forged proposal, refused on the GM before
+       anything else of the ask is read (bridge-guards.mjs `guardTraitRuling`, trait-ruling.mjs `proposalRefusal`). */
     phase("a statistic ruling nobody may ask", { flow: "trait-ruling" });
     const rulingMark = await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures();
         globalThis.__traitRulings.length = 0;
         return game.messages.contents.length;`);
     const rulingAsked = await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
         if (typeof B.requestTraitRuling !== "function") return "no requestTraitRuling";
-        const ask = async (actorId, kind, key) => { const r = await B.requestTraitRuling({ actorId, kind, key }); return [r?.ok ?? null, r?.reason ?? null]; };
-        return [await ask("${ids.botan}", "crisis", "strike"), await ask("${ids.aiko}", "crisis", "strike"), await ask("${ids.aiko}", "opening", "killer")];`,
+        const ask = async (actorId, kind, key, more = {}) => { const r = await B.requestTraitRuling({ actorId, kind, key, ...more }); return [r?.ok ?? null, r?.reason ?? null]; };
+        return [await ask("${ids.botan}", "crisis", "strike"), await ask("${ids.aiko}", "crisis", "strike"), await ask("${ids.aiko}", "opening", "killer"),
+            await ask("${ids.aiko}", "crisis", "strike", { proposed: "eye", note: "30: a proposal off the list" })];`,
         { timeout: 60000 });
     await settle(600);
     const rulingAfter = await gm.eval(`return { cards: game.messages.contents.length - ${Number(rulingMark) || 0}, pressed: globalThis.__traitRulings.length,
         logged: (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures().filter(e => e.message.includes('Refused a "trait.ruling"')).length };`);
-    check("SECURITY: a statistic ruling for another player's character, for a crisis action with no incident, or for an opening is refused on the GM, told, and puts no card up",
-        JSON.stringify(rulingAsked) === JSON.stringify([[false, "notYours"], [false, "notInIncident"], [false, "gmOnly"]])
-            && rulingAfter.cards === 0 && rulingAfter.pressed === 0 && rulingAfter.logged === 3,
+    check("SECURITY: a statistic ruling for another player's character, for a crisis action with no incident, for an opening, or proposing a statistic the action does not list is refused on the GM, told, and puts no card up",
+        JSON.stringify(rulingAsked) === JSON.stringify([[false, "notYours"], [false, "notInIncident"], [false, "gmOnly"], [false, "badRequest"]])
+            && rulingAfter.cards === 0 && rulingAfter.pressed === 0 && rulingAfter.logged === 4,
         JSON.stringify({ rulingAsked, rulingAfter }), { flow: "trait-ruling" });
 
     /*

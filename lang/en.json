@@ -3432,7 +3432,17 @@
       "waiting": "The GM is choosing the statistic. Tell them in your thread what you do.",
       "refused": "The GM turned the action down. Nothing was spent.",
       "openingKiller": "The GM is choosing the statistic for your opening. Tell them in your thread how you go about it.",
-      "openingVictim": "The GM is setting up a roll for you."
+      "openingVictim": "The GM is setting up a roll for you.",
+      "gmBodyProposed": "The player proposes a statistic. Approve it, change it to another on the list, or refuse.",
+      "proposed": "Proposed: {stat}",
+      "approve": "Approve: {stat}",
+      "change": "Change to: {stat}",
+      "refuse": "Refuse",
+      "changedTitle": "The GM changed the statistic",
+      "changedBody": "You proposed {proposed}. The GM changed it to {stat}. Nothing has been spent yet.",
+      "rollIt": "Roll {stat}",
+      "pass": "I'll pass (nothing spent)",
+      "passedLine": "I'll pass on the roll ({stat}). Nothing was spent."
     },
     "DiceLook": {
       "setByGm": "Your dice look is set by the GM.",
@@ -3500,6 +3510,8 @@
       "diceFixed": "Fixed at d12 by the rules.",
       "traitFixed": "Chosen before this window opened.",
       "traitByGm": "Chosen by the GM.",
+      "traitApproved": "Approved by the GM.",
+      "traitChanged": "Changed by the GM.",
       "advantageLocked": "Advantage and disadvantage come from Calls, not from here.",
       "pickOneExperience": "Pick the one experience this roll relates to. Clicking another moves the choice.",
       "experienceLocked": "Using an experience is the Experience Hope Call - ask the GM to spend it.",

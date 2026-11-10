@@ -341,7 +341,7 @@ export const FLOWS = Object.freeze([
     // C11d a project stored without a statistic, once (40-flow drives a player's first and second Work on one).
     // Covered at the 1.2.66 release: 40-flow's player asks, the GM picks on the card, the roll takes the pick and the
     // project keeps it on both browsers.
-    { id: "trait-ruling", what: "A roll that lists several statistics: the player asks, a GM picks on the card in their thread, the roll takes the pick",
+    { id: "trait-ruling", what: "A roll that lists several statistics: the player asks, proposing one and how (E68 C1, DA18), a GM approves it, changes it to another listed one or refuses on the card in their thread, and the roll takes the answer",
         entry: { bridge: ["trait.ruling"] }, scenarios: ["13-murder-signals", "30-security", "33-bridge-paths", "40-flow", "61-gmstore-case"], status: "covered", stage: "1.2.66" },
     { id: "trap-fire", what: "A trap: a crossing reported to the GM, the trap sprung once",
         entry: { bridge: ["trap.event"], sockets: ["traps.mjs"] }, scenarios: ["13-murder-signals", "30-security", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E39" },

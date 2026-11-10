@@ -32413,6 +32413,149 @@ const SCENARIOS = [
             "[the statistic's card: its mark's kind, a time shown, ended, as expired], the answers sent after its expiry and a later Leg, [the Observe's card: the same], what a pick after its expiry answered, the answers sent to its asker - an ask stayed open past its asker's clock, or a pick after it was taken");
     }],
 
+    ["a proposal is approved, changed or refused on one card: Approve and each Change to come from the list, the player's words are on it, and the answer and the ruling say which (E68 C1)", async () => {
+        /*
+         * E68 C1, 10.11.2026; DA18 (the player proposes, the GM approves or changes). Driven on this primary as the E18
+         * fix e1-G4 test drives a statistic's card: the killer's player (`swingFixture`) asks which statistic its Attack
+         * with a weapon rolls, proposing Hand with a few words, four times, each packet handed to the bridge's runner as
+         * Foundry names its sender, and the answers sent to the asker are caught at the socket. Read per ask: the card's
+         * buttons (their trait and whether the label is an Approve or a Change to), whether the words are on the card,
+         * and after a press - Approve, Change to Leg, Refuse - the answer sent and the ruling the card keeps; the fourth
+         * proposes Eye, which the action does not list: refused on the GM with its code, and no card. Put back after.
+         * Red at c431138a: the card offered a button per statistic and no Approve.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which holds the asks - this would measure nothing");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const APPROVE = game.i18n.format("DRPG.TraitRuling.approve", { stat: "" }).trim(), CHANGE = game.i18n.format("DRPG.TraitRuling.change", { stat: "" }).trim();
+        const WORDS = "E68 C1 through the gap in the railing";
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const read = [];
+        const { killer, putBack } = await swingFixture();
+        const mine = player(killer);
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const done = new Map();
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "bridge.done" && String(packet.requestId ?? "").startsWith("E68C1T")) {
+                done.set(packet.requestId, [...(done.get(packet.requestId) ?? []), packet.value ?? null]);
+                return undefined;
+            }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        try {
+            for (const [proposed, press] of [["hand", "hand"], ["hand", "leg"], ["hand", "refuse"], ["eye", null]]) {
+                const rid = `E68C1T${foundry.utils.randomID(10)}`;
+                const told = [];
+                const before = new Set(game.messages.contents.map(m => m.id));
+                await G.judge(BRIDGE_ACTIONS, { action: "trait.ruling", requestId: rid, actorId: killer.id, kind: "crisis", key: "weaponAttack", variant: null,
+                    proposed, note: WORDS }, mine.id, { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
+                await settle();
+                const card = game.messages.contents.find(m => !before.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="refuseTrait"'));
+                if (!press) { read.push([proposed, told, Boolean(card)]); continue; }
+                must(card, `no statistic card was posted for the proposal of ${proposed} - this would measure nothing`);
+                const body = document.createElement("div");
+                body.innerHTML = contentOf(card);
+                wireCallActions(body, card);
+                const picks = [...body.querySelectorAll('[data-drpg-call="pickTrait"]')];
+                const buttons = picks.map(b => [b.dataset.trait, b.textContent.trim().startsWith(APPROVE) ? "approve" : b.textContent.trim().startsWith(CHANGE) ? "change" : "other"]);
+                const target = press === "refuse" ? body.querySelector('[data-drpg-call="refuseTrait"]') : picks.find(b => b.dataset.trait === press);
+                must(target, `the card's drawing carries no ${press} - this would measure nothing`);
+                target.click();
+                await until(() => Boolean(cardFlag(game.messages.get(card.id), "settled")), 3000);
+                await settle(300);
+                const ruling = cardFlag(game.messages.get(card.id), "ruling");
+                read.push([proposed, press, buttons, String(contentOf(card) ?? "").includes(WORDS), done.get(rid) ?? [],
+                    ruling ? [ruling.trait ?? null, ruling.proposed ?? null, ruling.how ?? null] : null]);
+            }
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            await putBack();
+            for (const message of game.messages.contents.filter(m => !had.has(m.id))) await message.delete().catch(() => {});
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            await settle();
+        }
+        const offered = [["hand", "approve"], ["body", "change"], ["leg", "change"]];
+        equal(stableJson(read), stableJson([
+            ["hand", "hand", offered, true, ["hand"], ["hand", "hand", "approved"]],
+            ["hand", "leg", offered, true, ["leg"], ["leg", "hand", "changed"]],
+            ["hand", "refuse", offered, true, [false], null],
+            ["eye", ["badRequest"], false]
+        ]), "per ask [the proposal, the press, the card's buttons (trait, Approve or Change to), the words on the card, the answers sent, the ruling kept (trait, proposal, how)], and the Eye's [proposal, refusals told, a card posted]");
+    }],
+
+    ["two presses of one proposal card at once, Approve on one drawing and Change to on another, make one ruling and one answer, and a later press is turned away (E68 C1)", async () => {
+        /*
+         * E68 C1, 10.11.2026; DA18 and the stage's "two GMs press one proposal card, one ruling". A card's press is claimed
+         * on the primary before it rules (bridge-asks.mjs `claimCard`, E18 C3), keyed by the card, so the proposal card's
+         * three answers are held as every card's are. Driven on this one GM's browser: two drawings of one proposal card,
+         * Approve pressed on one and Change to Leg on the other in the same tick, then Approve again once it is ruled. Read:
+         * the answers sent to the asker, the ruling the card keeps, and the refusal the later press shows. A second GM's
+         * browser is not driven here (one GM at the suite); the scenario E68 adds with gm2 is where two browsers press.
+         * Red at c431138a: the card carried no Approve.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which holds the asks - this would measure nothing");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const APPROVE = game.i18n.format("DRPG.TraitRuling.approve", { stat: "" }).trim();
+        const RULED = game.i18n.format("DRPG.Bridge.alreadyRuled", { gm: game.user.name });
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const { killer, putBack } = await swingFixture();
+        const mine = player(killer);
+        const rid = `E68C1D${foundry.utils.randomID(10)}`;
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const done = [];
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "bridge.done" && packet.requestId === rid) { done.push(packet.value ?? null); return undefined; }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        let read = null;
+        try {
+            await G.judge(BRIDGE_ACTIONS, { action: "trait.ruling", requestId: rid, actorId: killer.id, kind: "crisis", key: "weaponAttack", variant: null,
+                proposed: "hand", note: "" }, mine.id, { send: () => null });
+            await settle();
+            const card = game.messages.contents.find(m => !had.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="refuseTrait"'));
+            must(card, "no statistic card was posted for the proposal - this would measure nothing");
+            const drawing = () => {
+                const body = document.createElement("div");
+                body.innerHTML = contentOf(card);
+                wireCallActions(body, card);
+                return [...body.querySelectorAll('[data-drpg-call="pickTrait"]')];
+            };
+            const [one, two, three] = [drawing(), drawing(), drawing()];
+            const approve = one.find(b => b.textContent.trim().startsWith(APPROVE) && b.dataset.trait === "hand");
+            const change = two.find(b => b.dataset.trait === "leg");
+            must(approve && change, "a drawing carries no Approve: Hand or no Change to: Leg - this would measure nothing");
+            approve.click();
+            change.click();
+            await until(() => Boolean(cardFlag(game.messages.get(card.id), "settled")), 3000);
+            await settle(500);
+            const ruling = cardFlag(game.messages.get(card.id), "ruling");
+            const said = () => [...document.querySelectorAll(".drpg-popup")].map(n => n.textContent).join(" ");
+            const saidBefore = said().split(RULED).length;
+            three.find(b => b.dataset.trait === "hand")?.click();
+            await settle(800);
+            read = [done, ruling ? [ruling.trait, ruling.how] : null, said().split(RULED).length - saidBefore];
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            await putBack();
+            for (const message of game.messages.contents.filter(m => !had.has(m.id))) await message.delete().catch(() => {});
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            await settle();
+        }
+        equal(stableJson(read), stableJson([["hand"], ["hand", "approved"], 1]),
+            "two presses at once did not make one answer and one ruling (the first's), or a press after the ruling was not turned away (answers sent, the ruling kept, refusals shown)");
+    }],
+
     ["a Search for something specific and an Observe of anything whose last GM left during the roll post nothing, hand the action back and take none of the room's search tokens (E18 fix e1-G5)", async () => {
         /*
          * E18 fix e1-G5, 24.10.2026; the end review's E18-END-6, E18-END-2, E18-END-7 and F8 (STATUS's C0 gaps 1 and 2).

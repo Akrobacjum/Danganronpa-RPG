@@ -7579,7 +7579,7 @@ const INVARIANTS = [
             "a denied reversal was let through or refused for another reason, or the third's offered one was refused, or the list was not asked of the state given");
     }],
 
-    ["R212 - a roll that lists several statistics asks a GM, and only then", async () => {
+    ["R212 - a roll that lists several statistics asks a GM, and only then; the player's proposal is held to the list and the GM approves or changes it", async () => {
         /*
          * E32+E07 C11b, 02.10.2026; audit S04-23 (the owner's Q4 as corrected on 28.09).
          * `traitFor` (trait-ruling.mjs) decides who picks a roll's statistic: one listed
@@ -7590,6 +7590,18 @@ const INVARIANTS = [
          * asking, each noting that it was asked), with the lists read from config: Pin (Body),
          * Attack with a weapon (Body / Hand / Leg), a trap victim's Leave a clue (Body / Hand /
          * Leg, Body first since E16 part 2 C5), and a kind that is none. Pure; nothing is written.
+         * Rewritten in E68 C1 (10.11.2026; DA18, the player proposes and the GM approves): the
+         * same eight answers, and then (1) a proposal handed beside the seams reaches whoever is
+         * asked, off the list dropped and its words trimmed to `PROPOSAL_NOTE_MAX`, and the answer
+         * says "approved" or "changed" (`byGm`) - Hand proposed, the GM's Hand and Leg, on both
+         * browsers; (2) the GM's judgement of a packet's proposal (bridge-guards.mjs
+         * `guardTraitRuling`, asked as a player's ask about a character of this world, which reads
+         * the world and writes nothing): one off the list and words past the bound are refused with
+         * their reasons, an honest one goes on to the guard's other checks; (3) the buttons the card
+         * and the GM's window offer (`proposalChoices`): "Approve: Hand" first, then "Change to" Body
+         * and Leg, and with no proposal one per statistic; (4) read in the source, the two roads that
+         * hold it: `rulePickTrait` holds the pressed trait to the list before it answers, and the
+         * bridge's row passes `proposed` and `note`. Red at c431138a (E95 C4's tip): the proposal's functions are not exported.
          */
         const T = await import("./trait-ruling.mjs");
         const A = { id: "R212ACTOR0000001", name: "R212" };
@@ -7616,6 +7628,48 @@ const INVARIANTS = [
             [pick("body", false), pick("leg", true), pick("body", false), pick("hand", true), null, null, pick("body", true), null],
             [["gms", "weaponAttack"], ["here", "weaponAttack"]]
         ]), "a roll did not take its one trait, or several did not go to a GM, or Resolve was asked, or an answer off the list was rolled (answers, who was asked)");
+
+        const heard = [];
+        const hear = answer => async (actor, spec, listed, proposal) => { heard.push(proposal ?? listed); return answer; };
+        const long = "x".repeat(T.PROPOSAL_NOTE_MAX + 40);
+        const proposed = [
+            await T.traitFor(A, attack, seams({ proposed: "hand", note: "  through the gap  ", askGms: async (a, s, p) => { heard.push(p); return "hand"; } })),
+            await T.traitFor(A, attack, seams({ proposed: "hand", note: long, askGms: async (a, s, p) => { heard.push(p); return "leg"; } })),
+            await T.traitFor(A, attack, seams({ proposed: "hand", isGm: true, pickHere: hear("hand") })),
+            await T.traitFor(A, attack, seams({ proposed: "hand", isGm: true, pickHere: hear("body") })),
+            await T.traitFor(A, attack, seams({ proposed: "eye", askGms: async (a, s, p) => { heard.push(p); return "body"; } }))
+        ];
+        equal(JSON.stringify([proposed, heard.map(p => [p.proposed, p.note.length])]), JSON.stringify([
+            [pick("hand", "approved"), pick("leg", "changed"), pick("hand", "approved"), pick("body", "changed"), pick("body", true)],
+            [["hand", 15], ["hand", T.PROPOSAL_NOTE_MAX], ["hand", 0], ["hand", 0], [null, 0]]
+        ]), "a proposal did not reach whoever was asked as it should (off the list dropped, the words trimmed), or the answer did not say approved or changed (answers; proposal and words' length heard)");
+
+        const listed = ["body", "hand", "leg"];
+        const { guardTraitRuling } = await import("./bridge-guards.mjs");
+        const someone = game.actors.find(a => a.type === "character") ?? null;
+        must(someone, "the world holds no character to ask about - this would measure nothing");
+        const OFF = "that statistic is not one the roll lists", LONG = "the note is longer than a player's words may be";
+        const judge = more => guardTraitRuling({ isGM: false, id: "R212PLAYER000001" }, { actorId: someone.id, kind: "crisis", key: "weaponAttack", variant: null, ...more }, {});
+        const judged = [await judge({ proposed: "eye" }), await judge({ proposed: "hand", note: long }), await judge({ proposed: "hand", note: "quietly" }),
+            await judge({ proposed: null, note: null })];
+        equal(JSON.stringify([judged[0], judged[1], judged.slice(2).map(why => why !== OFF && why !== LONG)]), JSON.stringify([OFF, LONG, [true, true]]),
+            "the GM's guard let a proposal off the list or words past the bound through, or refused an honest one for them (off the list, long; honest and none past both)");
+
+        const choices = list => list.map(c => [c.trait, c.how, c.label.startsWith(game.i18n.format("DRPG.TraitRuling.approve", { stat: "" }).trim())
+            || c.label.startsWith(game.i18n.format("DRPG.TraitRuling.change", { stat: "" }).trim())]);
+        equal(JSON.stringify([choices(T.proposalChoices(A, listed, "hand")), choices(T.proposalChoices(A, listed, null)), choices(T.proposalChoices(A, listed, "eye"))]),
+            JSON.stringify([[["hand", "approve", true], ["body", "change", true], ["leg", "change", true]],
+                [["body", "pick", false], ["hand", "pick", false], ["leg", "pick", false]], [["body", "pick", false], ["hand", "pick", false], ["leg", "pick", false]]]),
+            "the card's buttons are not Approve first and a Change to for each other listed statistic, or one per statistic with no proposal (Hand proposed, none, Eye off the list)");
+
+        const sources = new Map(await otherSources());
+        const clean = file => stripComments(sources.get(file) ?? "");
+        const ruleFn = fnSource(clean("messenger-app.mjs"), "rulePickTrait");
+        const listGuard = ruleFn.indexOf("listedTraits(spec).includes(data.trait)"), answered = ruleFn.indexOf("answerTraitRuling(");
+        const row = bodyOf(clean("bridge-table.mjs"), "[ACTION_TRAIT_RULING]: {", { until: "run: handleTraitRuling" });
+        equal(JSON.stringify([listGuard > -1 && answered > listGuard, /proposed:\s*as\.maybeText/.test(row) && /note:\s*as\.maybeText/.test(row)]),
+        JSON.stringify([true, true]),
+            "a road that holds the proposal is missing (rulePickTrait holds the trait to the list before it answers, the bridge's row passes proposed and note)");
     }],
     ["R216 - a Reroll answered past its clock still counts, and a GM leaving is not the primary", async () => {
         /*
@@ -37675,7 +37729,7 @@ const INVARIANTS = [
             kit: [[false, false], [true, false]],
             asking: ["action-menus.mjs chooseVariant", "action-menus.mjs promptForNote", "call-gm.mjs askForRequest", "frisk.mjs askToForce", "frisk.mjs openAskWindow",
                 "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement", "observe.mjs askWhichRemnant", "observe.mjs describeFind", "trait-ruling.mjs pickHere",
-                "trial-prompt.mjs promptClaim", "trial-prompt.mjs promptTurn", "vote.mjs castBallot"],
+                "trait-ruling.mjs rollChanged", "trial-prompt.mjs promptClaim", "trial-prompt.mjs promptTurn", "vote.mjs castBallot"],
             naming: ["roll-dialog.mjs", "stacking.mjs", "ui-kit.mjs"],
             menus: ["action-analyze.mjs", "action-murder.mjs", "action-observe.mjs", "action-project.mjs", "action-rest.mjs", "action-search.mjs", "action-tamper.mjs",
                 "level-up.mjs", "palm.mjs"],

@@ -290,10 +290,15 @@ export async function askDynamicByCard(payload, ctx) {
  * (E06 C8) because the action it names is the incident's: the document names nobody
  * and its words go to the thread's player and the GMs. The traits are read from this
  * GM's config for the definition the guard checked, never from the packet.
+ * Since E68 C1 (DA18) a packet may carry the player's proposal and a note of how: the card
+ * then says both and offers "Approve: {stat}", "Change to: {stat}" for each other listed
+ * statistic, and Refuse (trait-ruling.mjs `proposalChoices`); the note is quoted as the
+ * player's words. The guard has refused a proposal off the list; one that is not read
+ * again here as the answer - the button's trait is, and `rulePickTrait` holds it to the list.
  */
 export async function askTraitByCard(payload, ctx) {
     if (!ctx.requestId) return { later: true };
-    const { listedTraits, rulingLabel, traitWithValue } = await import("./trait-ruling.mjs");
+    const { listedTraits, rulingLabel, proposalOf, proposalChoices } = await import("./trait-ruling.mjs");
     const spec = { kind: payload.kind, key: payload.key, variant: payload.variant ?? null };
     const listed = listedTraits(spec);
     if (listed.length < 2) return { refused: "nothing was carried out: the roll lists one statistic or none" };
@@ -306,18 +311,21 @@ export async function askTraitByCard(payload, ctx) {
     const expires = serverNow() + TIMING.rulingMs;
     const onPosted = holdAsk(traitAsks, ctx.requestId, held, expires);
     const actor = game.actors.get(payload.actorId ?? "");
+    const { proposed, note } = proposalOf({ proposed: payload.proposed, note: payload.note }, listed);
     const data = trait => ({
         rid: ctx.requestId, asker: ctx.asker, by: payload.actorId ?? "", kind: spec.kind, key: spec.key,
-        variant: spec.variant ?? "", ...(trait ? { trait } : {})
+        variant: spec.variant ?? "", ...(trait ? { trait } : {}), ...(proposed ? { proposed } : {})
     });
+    const said = proposed ? `<br>${esc(game.i18n.format("DRPG.TraitRuling.proposed", { stat: TRAITS[proposed]?.label ?? proposed }))}` : "";
     const posted = await callGm(actor, {
         title: game.i18n.localize("DRPG.TraitRuling.title"),
         body: `<strong>${esc(rulingLabel(spec))}</strong> · ${esc(game.i18n.format("DRPG.Action.usesTrait", {
-            traits: listed.map(t => TRAITS[t]?.label ?? t).join(" / ") }))}`,
-        gmBody: game.i18n.localize("DRPG.TraitRuling.gmBody"),
+            traits: listed.map(t => TRAITS[t]?.label ?? t).join(" / ") }))}${said}`,
+        request: note,
+        gmBody: game.i18n.localize(proposed ? "DRPG.TraitRuling.gmBodyProposed" : "DRPG.TraitRuling.gmBody"),
         actions: [
-            ...listed.map(trait => ({ action: "pickTrait", label: traitWithValue(actor, trait), data: data(trait) })),
-            { action: "refuseTrait", label: game.i18n.localize("DRPG.Action.dynamicRefuse"), data: data(null) }
+            ...proposalChoices(actor, listed, proposed).map(({ trait, label }) => ({ action: "pickTrait", label, data: data(trait) })),
+            { action: "refuseTrait", label: game.i18n.localize(proposed ? "DRPG.TraitRuling.refuse" : "DRPG.Action.dynamicRefuse"), data: data(null) }
         ],
         veiled: true,
         onPosted,

@@ -219,7 +219,7 @@ Next free: R3146. Reserved and unused: none.
 | R209 | 1 | E32 | a card's words are cut for each reader: the line for them, never the other one, and no marker naming a user |
 | R210 | 1 | E32 | a copy that holds the betrayal offer alone is weighed on the seats, as "not in it" is |
 | R211 | 1 | E32 | the GM refuses a crisis action the side is not offered |
-| R212 | 1 | E32 | a roll that lists several statistics asks a GM, and only then |
+| R212 | 1 | E32 | a roll that lists several statistics asks a GM, and only then; the player's proposal is held to the list and the GM approves or changes it |
 | R213 | 0 | E32 | no several-trait roll escapes the GM: nothing takes a list's first trait but a list of one, and every definition that lists several is a ruling's |
 | R214 | 0 | E32 | the hidden stash's step is the old count's die, exactly: every window from -3 to 3, every die and every draw |
 | R215 | 0 | E08 | no player packet carries an undo |

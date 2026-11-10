@@ -512,7 +512,8 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_TRAIT_RULING]: {
         label: "DRPG.Bridge.what.trait.ruling",
         guards: [knownSender, owns("actorId", "sender does not own that character"), guardTraitRuling],
-        sanitize: pick({ actorId: as.id, kind: as.text, key: as.text, variant: as.maybeText }),
+        // E68 C1 (DA18): the player's proposal and their words; the guard holds the one to the list, the other to its length.
+        sanitize: pick({ actorId: as.id, kind: as.text, key: as.text, variant: as.maybeText, proposed: as.maybeText, note: as.maybeText }),
         run: handleTraitRuling,
         answer: "reply", patient: true, resend: true, timeoutMs: TIMING.rulingMs
     },

@@ -868,7 +868,10 @@ async function ruleRefuseDynamic(action, data, message = null) {
     // trait not on it is refused here: the button's data is the card's, and the card is
     // a document. The pick goes to the asker alone and is kept in the card's meta. A project
     // stored without a statistic is given this one before the answer leaves (C11d), so the
-    // roll it is for is the last that asks.
+    // roll it is for is the last that asks. Since E68 C1 (DA18) the card may answer a proposal:
+    // "Approve" and each "Change to" are this one action, and the list's guard holds both - a
+    // "Change to" off the list is refused here as any pick is. The ruling keeps the proposal and
+    // `how` ("approved", "changed", or "picked" with none), read as the button's data says it.
 async function rulePickTrait(action, data) {
     const { listedTraits, keepProjectPick } = await import("./trait-ruling.mjs");
     const spec = { kind: data.kind ?? "", key: data.key ?? "", variant: data.variant || null };
@@ -879,8 +882,10 @@ async function rulePickTrait(action, data) {
     await keepProjectPick(spec, data.trait);
     const { answerTraitRuling } = await import("./gm-bridge.mjs");
     if (!answerTraitRuling(data.rid, data.asker, data.trait)) return null;
+    const proposed = listedTraits(spec).includes(data.proposed) ? data.proposed : null;
+    const how = !proposed ? "picked" : proposed === data.trait ? "approved" : "changed";
     return { ...settled("DRPG.Bridge.settledAnswered"),
-        ruling: { type: "trait", actorId: data.by, ...spec, trait: data.trait } };
+        ruling: { type: "trait", actorId: data.by, ...spec, trait: data.trait, ...(proposed ? { proposed } : {}), how } };
 }
 
     // Refuse: the action is not taken, and nothing was spent for it.

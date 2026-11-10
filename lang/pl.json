@@ -3754,7 +3754,17 @@
       "waiting": "GM wybiera statystykę. Napisz mu w swoim wątku, co robisz.",
       "refused": "GM nie dopuścił tej akcji. Nic nie zostało wydane.",
       "openingKiller": "GM wybiera statystykę do twojego rzutu otwarcia. Napisz mu w swoim wątku, jak się do tego zabierasz.",
-      "openingVictim": "GM przygotowuje dla ciebie rzut."
+      "openingVictim": "GM przygotowuje dla ciebie rzut.",
+      "gmBodyProposed": "Gracz proponuje statystykę. Zatwierdź ją, zmień na inną z listy albo odmów.",
+      "proposed": "Propozycja: {stat}",
+      "approve": "Zatwierdź: {stat}",
+      "change": "Zmień na: {stat}",
+      "refuse": "Odmów",
+      "changedTitle": "GM zmienił statystykę",
+      "changedBody": "Twoja propozycja: {proposed}. GM zmienił ją na {stat}. Nic jeszcze nie zeszło.",
+      "rollIt": "Rzuć: {stat}",
+      "pass": "Rezygnuję (nic nie schodzi)",
+      "passedLine": "Rezygnuję z rzutu ({stat}). Nic nie zeszło."
     },
     "DiceLook": {
       "setByGm": "Twój wygląd kości ustala GM.",
@@ -3822,6 +3832,8 @@
       "diceFixed": "Ustalone na d12 przez zasady.",
       "traitFixed": "Wybrane, zanim to okno się otworzyło.",
       "traitByGm": "Wybrane przez GM-a.",
+      "traitApproved": "Zatwierdzone przez GM-a.",
+      "traitChanged": "Zmienione przez GM-a.",
       "advantageLocked": "Przewaga i utrudnienie biorą się z Calli, nie stąd.",
       "pickOneExperience": "Wybierz jedno doświadczenie, którego dotyczy ten rzut. Kliknięcie innego przenosi wybór.",
       "experienceLocked": "Użycie doświadczenia to Hope Call „Experience” - poproś GM-a, by je wydać.",
