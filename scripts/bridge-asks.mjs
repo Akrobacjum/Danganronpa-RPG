@@ -83,9 +83,16 @@ export function requestCardPost(card) {
  * own. ONE request rather than three, because three would have intermediate
  * states in which the knife has left the body and arrived nowhere.
  */
-export function requestBodyLoot({ takerId, bodyId, itemId }) {
-    return ask(ACTION_LOOT, { takerId, bodyId, itemId }, {
-        local: () => import("./handover.mjs").then(m => m.lootBody({ takerId, bodyId, itemId }))
+export function requestBodyLoot({ takerId, bodyId, itemId = null, itemIds = null, hand = null, cover = null }) {
+    // E68 C10: the Take's Hand roll (`hand`: rollId, total, isCritical, withHope) and the cover's Shadow roll where the
+    // taker's browser saw somebody watching (`cover`, the same fields); the primary reads both off its record of them.
+    const rolls = {
+        rollId: hand?.rollId ?? null, total: hand?.total ?? 0, isCritical: Boolean(hand?.isCritical), withHope: Boolean(hand?.withHope),
+        ...(cover ? { coverRollId: cover.rollId ?? null, coverTotal: cover.total ?? 0, coverCritical: Boolean(cover.isCritical),
+            coverHope: Boolean(cover.withHope) } : {})
+    };
+    return ask(ACTION_LOOT, { takerId, bodyId, itemId, itemIds, ...rolls }, {
+        local: () => import("./handover.mjs").then(m => m.lootBody({ takerId, bodyId, itemId, itemIds, hand, cover }))
     });
 }
 

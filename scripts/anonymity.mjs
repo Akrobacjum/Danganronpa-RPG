@@ -47,9 +47,9 @@
  * writing down: nothing may sit behind this whose leak would spoil the game.
  */
 
-import { MODULE_ID, FLAGS } from "./config.mjs";
+import { MODULE_ID, FLAGS, LOOT } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isDeadForGm, isDeceased } from "./chapter.mjs";
+import { isDeadForGm, isDeceased, BODY_ANNOUNCED_HOOK } from "./chapter.mjs";
 import { isStashed } from "./inventory.mjs";
 import { isTruthBullet } from "./truth-bullets.mjs";
 import { whisperToGms, gmReport, isPrimaryGm, debug, error, plural } from "./utils.mjs";
@@ -82,6 +82,9 @@ export function registerAnonymity() {
         if (id && document.querySelector(`.drpg-loot-list[data-drpg-taker="${CSS.escape(id)}"], .drpg-loot-list[data-drpg-body="${CSS.escape(id)}"]`)) regreyOpenLoot();
     });
     Hooks.on("updateSetting", setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.clock}`) regreyOpenLoot(); });
+    /* AND WHEN A BODY IS ANNOUNCED (E68 C10; audit D006, E14p1/STATUS.md:96): the gate reads whether the taker knows of
+       the death, and an open list kept the Takes it drew before the announcement until the sheet was drawn again. */
+    Hooks.on(BODY_ANNOUNCED_HOOK, () => { if (document.querySelector(".drpg-loot-list[data-drpg-taker]")) regreyOpenLoot(); });
     /* AND WHEN THE BODY'S TILE IS LAID, HIDDEN, MOVED OR DELETED (E95 C3, 10.11.2026; STATUS E95 Open 2). From E95 C1
        the gate reads a body where its tile lies (body-tile.mjs `bodyPlaceOf`), and a GM's write on the tile moved the
        gate with no token written, so an open window kept a Take the gate now refused, or shut one it now allowed, until
@@ -291,7 +294,7 @@ export function buildBodyLoot(root, actor, taker = myCharacter()) {
             // object twice.
             take.disabled = true;
             take.dataset.drpgTaken = "true";
-            if (await takeFromBody(actor, item)) return;
+            if (await takeFromBody(actor, [item])) return;
             /* NOTHING TAKEN, SO THE TAKE IS OPEN AGAIN (E50 C4; audit S11-36). Until C4 a Take the primary refused (the
                taker gone from the room, the body looted by somebody else meanwhile), one no GM answered and one with no
                character stayed shut, marked as pressed, until the sheet was drawn again, and the gate's re-reading
@@ -302,11 +305,43 @@ export function buildBodyLoot(root, actor, taker = myCharacter()) {
             take.removeAttribute("aria-disabled");
             if (taker) await greyRefused(list, actor, taker);
         });
+        /* SEVERAL UNDER ONE ROLL (E68 C10): a tick per row, and one Take for the ticked below the list - one Hand roll
+           for all of them, as the row's own Take rolls one for its item. */
+        const pick = document.createElement("input");
+        pick.type = "checkbox";
+        pick.className = "drpg-loot-pick";
+        pick.value = item.id;
+        pick.setAttribute("aria-label", item.name);
+        row.prepend(pick);
         row.append(take);
         list.append(row);
     }
 
-    box.append(list);
+    const foot = document.createElement("p");
+    foot.className = "drpg-loot-foot";
+    const many = document.createElement("button");
+    many.type = "button";
+    many.className = "drpg-mini-button drpg-loot-take-picked";
+    many.textContent = game.i18n.localize("DRPG.Loot.takePicked");
+    many.dataset.tooltip = game.i18n.localize("DRPG.Loot.takePickedTooltip");
+    many.addEventListener("click", async event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const ids = [...list.querySelectorAll(".drpg-loot-pick:checked")].map(box => box.value);
+        const picked = ids.map(id => actor.items.get(id)).filter(Boolean);
+        if (!picked.length) {
+            ui.notifications.info(game.i18n.localize("DRPG.Loot.pickNone"));
+            return;
+        }
+        many.disabled = true;
+        const took = await takeFromBody(actor, picked);
+        many.disabled = false;
+        if (took) for (const box of list.querySelectorAll(".drpg-loot-pick:checked")) box.closest("li")?.remove();
+        else if (taker) await greyRefused(list, actor, taker);
+    });
+    foot.append(many);
+
+    box.append(list, foot);
     pane.replaceChildren(box);
     return taker ? greyRefused(list, actor, taker) : undefined;
 }
@@ -320,7 +355,7 @@ async function greyRefused(list, body, taker) {
     const why = await transferRefusal(body, taker, { mode: "loot", asker: game.user });
     const { reasonOf } = await import("./bridge-guards.mjs");
     const said = why ? game.i18n.localize(`DRPG.Bridge.why.${reasonOf(why)}`) : game.i18n.localize("DRPG.Loot.takeTooltip");
-    for (const take of list.querySelectorAll(".drpg-loot-take")) {
+    for (const take of list.parentElement?.querySelectorAll(".drpg-loot-take, .drpg-loot-take-picked") ?? list.querySelectorAll(".drpg-loot-take")) {
         if (take.dataset.drpgTaken) continue;
         take.disabled = Boolean(why);
         if (why) take.setAttribute("aria-disabled", "true");
@@ -348,19 +383,43 @@ function regreyOpenLoot() {
  * Answers whether something was taken (E50 C4): true only on the GM's answer that took it, so the Take opens again
  * on a refusal, on no GM answering and with no character (`buildBodyLoot`).
  */
-async function takeFromBody(body, item) {
+async function takeFromBody(body, items) {
     const taker = myCharacter();
     if (!taker) {
         ui.notifications.warn(game.i18n.localize("DRPG.Loot.noCharacter"));
         return false;
     }
+    const list = [].concat(items).filter(Boolean);
+    if (!list.length) return false;
+
+    /* THE TAKE ROLLS HAND (E68 C10; config.mjs `LOOT`): once for the items it takes, no action spent; the total says how
+       plain the body's trace reads (handover.mjs `lootVisibilityOf`), and the primary reads it off its record of the
+       roll. With somebody else in the room as this browser sees it, a Shadow roll covers it; the primary counts who
+       watches itself (handover.mjs `lootCover`). A closed window takes nothing. */
+    const { rollTrait } = await import("./action-rolls.mjs");
+    const idOf = roll => roll?.raw?.message?.id ?? roll?.raw?.message?._id ?? null;
+    const hand = await rollTrait(taker, LOOT.trait, { actionKey: "loot", title: game.i18n.localize("DRPG.Loot.rollTitle") });
+    if (!hand) return false;
+    let cover = null;
+    const { othersInRoom } = await import("./movement.mjs");
+    if (othersInRoom(taker).some(other => other?.id !== body.id)) {
+        const shadow = await rollTrait(taker, LOOT.cover.trait, {
+            remember: false, actionKey: "lootCover", title: game.i18n.localize("DRPG.Loot.coverTitle"), dc: LOOT.cover.threshold
+        });
+        if (shadow) cover = { rollId: idOf(shadow), total: shadow.total, isCritical: shadow.isCritical, withHope: shadow.withHope };
+    }
 
     const { requestBodyLoot } = await import("./gm-bridge.mjs");
-    const res = await requestBodyLoot({ takerId: taker.id, bodyId: body.id, itemId: item.id });
+    const one = list.length === 1;
+    const res = await requestBodyLoot({
+        takerId: taker.id, bodyId: body.id, ...(one ? { itemId: list[0].id } : { itemIds: list.map(item => item.id) }),
+        hand: { rollId: idOf(hand), total: hand.total, isCritical: hand.isCritical, withHope: hand.withHope }, cover
+    });
     // Only what the GM has: a refusal has been said, and "you took it" beside it would be two answers.
     // Off a body nobody has found, the Truth Bullet waits for the death to be known (E05 fix r2-F0b).
     const took = Boolean(res.ok && !res.value?.refused);
-    if (res.ok && !res.value?.refused) ui.notifications.info(game.i18n.format(isDeceased(body) ? "DRPG.Loot.took" : "DRPG.Loot.tookUnfound", { item: item.name }));
+    const names = list.map(item => item.name).join(", ");
+    if (took) ui.notifications.info(game.i18n.format(isDeceased(body) ? "DRPG.Loot.took" : "DRPG.Loot.tookUnfound", { item: names }));
     return took;
 }
 

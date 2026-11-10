@@ -4452,7 +4452,17 @@
       "traceNote": "Ktoś przeszukał to ciało. Brakuje: {items}.",
       "noCharacter": "Nie grasz postacią, którą moduł zna, więc nie ma gdzie tego umieścić.",
       "took": "Bierzesz „{item}”. Warto pamiętać, skąd - to teraz twój dowód.",
-      "tookUnfound": "Bierzesz „{item}”. Nikt jeszcze nie znalazł tego ciała: Truth Bullet tej rzeczy trafi do twoich dowodów, gdy śmierć wyjdzie na jaw."
+      "tookUnfound": "Bierzesz „{item}”. Nikt jeszcze nie znalazł tego ciała: Truth Bullet tej rzeczy trafi do twoich dowodów, gdy śmierć wyjdzie na jaw.",
+      "takePicked": "Weź zaznaczone",
+      "takePickedTooltip": "Weź wszystkie zaznaczone przedmioty jednym rzutem na Hand. Nie kosztuje akcji.",
+      "pickNone": "Najpierw zaznacz, co chcesz wziąć.",
+      "rollTitle": "Zabranie z ciała - Hand",
+      "coverTitle": "Zabranie z ciała - Shadow",
+      "coverHeld": "Nikt w pomieszczeniu nie widzi, co bierzesz.",
+      "coverMissed": "Ktoś w pomieszczeniu widzi, jak przeszukujesz ciało.",
+      "seenAtBody": "{actor} przeszukuje kieszenie ciała: {body}.",
+      "seenTaking": "{actor} przeszukuje kieszenie ciała: {body}, i bierze: {items}.",
+      "handsFull": "Nosisz już najwięcej rzeczy z kategorii {category}, ile możesz ({limit}), i nie masz skrytki: „{item}” zostaje przy ciele."
     },
     "Redacted": {
       "tabLocked": "To oni mają ci powiedzieć, nie ty przeczytać.",
@@ -4777,7 +4787,8 @@
       "actionTakenBack": "Krytyk zniknął, więc akcja, którą oddał, znów jest wydana.",
       "actionOwed": "Krytyk zniknął, ale akcja, którą oddał, jest już zużyta. Zostajesz na minusie o jedną.",
       "gmReasked": "GM został poproszony o ponowną decyzję na podstawie nowego wyniku.",
-      "rulingVoid": "Reroll: {old} już nie obowiązuje, wynik to teraz {new}. Zdecyduj ponownie."
+      "rulingVoid": "Reroll: {old} już nie obowiązuje, wynik to teraz {new}. Zdecyduj ponownie.",
+      "lootStands": "Kości przepisano, ale chwila nie. Zabrane rzeczy są już u ciebie, a ciało wygląda tak jak wcześniej."
     },
     "Audit": {
       "putBack": "Ręczna zmiana karty postaci {name} od {player} - klient GM-a ją cofnął:",

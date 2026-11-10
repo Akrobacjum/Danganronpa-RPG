@@ -7419,7 +7419,9 @@ const REGRESSIONS = [
             "vault.steal": ["viaSearch", "clumsy"] };
         const WAITING = [];
         const THROWN_AS = { steal: "palm", rummage: "palm", frisk: "palm" };
-        const TABLES = { crisis: CRISIS_ACTIONS, cleanup: CLEANUP.actions, murderOpening: MURDER_OPENING };
+        // A Take from the Body's two rolls (E68 C10): its Hand and its cover, both of config.mjs `LOOT`.
+        const { LOOT } = await import("./config.mjs");
+        const TABLES = { crisis: CRISIS_ACTIONS, cleanup: CLEANUP.actions, murderOpening: MURDER_OPENING, loot: LOOT, lootCover: LOOT?.cover };
         const takes = (action, decl) => Object.keys(decl.sanitize?.fields ?? {})
             .filter(field => RESULT.includes(field) || (DERIVED[action] ?? []).includes(field));
         const problemsOf = (all, waiting) => {
@@ -15451,7 +15453,7 @@ const REGRESSIONS = [
             "sheet-audit.mjs#decideNow": "one sheet: the GM's Undo on a flagged change puts back an item the student's own write created or deleted, on the actor the row names (E29 C7)"
         };
         const ROADS = {
-            "handover.mjs#giveItem": "give", "handover.mjs#lootBody": "loot", "stash-reach.mjs#stealFromVault": "rifle",
+            "handover.mjs#giveItem": "give", "handover.mjs#lootOne": "loot", "stash-reach.mjs#stealFromVault": "rifle",
             "palm.mjs#stealFromPerson": "steal", "palm.mjs#plantOnPerson": "plant"
         };
         const DECL = /^(?:export\s+)?(?:async\s+)?(?:function\s*\*?\s*([\w$]+)|(?:const|let|var|class)\s+([\w$]+))/gm;

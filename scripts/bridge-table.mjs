@@ -702,14 +702,27 @@ export const BRIDGE_ACTIONS = table({
         // You may fill your own pockets and nobody else's. Without this, "move
         // that knife onto whoever I like" was a single socket emit away.
         guards: [knownSender, owns("takerId", "sender does not own the character doing the taking")],
-        sanitize: pick({ takerId: as.id, bodyId: as.id, itemId: as.id }),
+        // E68 C10: several items under one Take (`itemIds`, the run keeps the ids among them), and the Take's Hand roll
+        // with the cover's Shadow roll, thrown only where the taker's browser saw a student watching (`coverRollId`).
+        sanitize: pick({ takerId: as.id, bodyId: as.id, itemId: as.id, itemIds: as.raw, rollId: as.id, total: as.num,
+            isCritical: as.bool, withHope: as.bool, coverRollId: as.id, coverTotal: as.num, coverCritical: as.bool, coverHope: as.bool }),
         run: handleLoot,
         answer: "reply",
+        // Both rolls on the GMs' record of each (E68 C10; Palm's `palmRolls` the model): the Hand of every Take, and the cover
+        // when the packet names one.
+        rolled: [
+            { field: "rollId", actor: "takerId", kind: "loot" },
+            { field: "coverRollId", actor: "takerId", kind: "lootCover", when: "coverRollId",
+                into: { total: "coverTotal", isCritical: "coverCritical", withHope: "coverHope" } }
+        ],
         // Where the taker stands is asked since E14 part 1 C1 (audit S08-01, S11-06): until then it was not (the E31
         // design's map of the GM side, row 30), and a body across the school was looted from a bedroom.
         claims: {
             bodyId: "lootBody (handover.mjs) on the one gate (inventory.mjs transferRefusal, mode loot; frisk.mjs personActionRefusal with { body: true }): a dead body whose death the sender knows, not hidden where it lies (its tile, or its token when it has none: body-tile.mjs bodyPlaceOf), in the room the GMs read the taker in, a living taker that is not the body, outside an Eclipse and a Class Trial; an unknown death is refused as a living body is",
-            itemId: "lootBody (handover.mjs) takes only an item on that body that is not a Truth Bullet"
+            itemId: "lootBody (handover.mjs) takes only an item on that body that is not a Truth Bullet",
+            itemIds: "lootBody (handover.mjs), each as itemId is, at most LOOT_MOST",
+            rollId: "the Take's Hand roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the taker's Take",
+            coverRollId: "the cover's Shadow roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the taker's Take"
         }
     },
     [ACTION_ARM]: {

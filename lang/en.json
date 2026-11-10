@@ -4072,7 +4072,17 @@
       "traceNote": "Somebody has been through this body. Gone: {items}.",
       "noCharacter": "You are not playing a character the module knows about, so there is nowhere for this to go.",
       "took": "You take “{item}”. Where you found it is worth remembering - it is in your evidence now.",
-      "tookUnfound": "You take “{item}”. Nobody has found this body yet: its Truth Bullet joins your evidence once the death is known."
+      "tookUnfound": "You take “{item}”. Nobody has found this body yet: its Truth Bullet joins your evidence once the death is known.",
+      "takePicked": "Take the ticked",
+      "takePickedTooltip": "Take every ticked item with one Hand roll. It costs no action.",
+      "pickNone": "Tick what you want to take first.",
+      "rollTitle": "Take from the body - Hand",
+      "coverTitle": "Take from the body - Shadow",
+      "coverHeld": "Nobody in the room sees what you take.",
+      "coverMissed": "Somebody in the room sees you going through the body.",
+      "seenAtBody": "{actor} goes through {body}'s pockets.",
+      "seenTaking": "{actor} goes through {body}'s pockets and takes {items}.",
+      "handsFull": "You already carry the most {category} you can ({limit}), and you have no stash: “{item}” stays on the body."
     },
     "Redacted": {
       "tabLocked": "Theirs to tell you, not yours to read.",
@@ -4369,7 +4379,8 @@
       "actionTakenBack": "The critical is gone, so the action it returned is spent again.",
       "actionOwed": "The critical is gone, but the action it returned is already used. You owe one.",
       "gmReasked": "The GM has been asked to rule again on the new result.",
-      "rulingVoid": "Rerolled: {old} no longer stands, the result is now {new}. Please rule again."
+      "rulingVoid": "Rerolled: {old} no longer stands, the result is now {new}. Please rule again.",
+      "lootStands": "The dice are rewritten, but the moment is not. What you took is in your hands, and the body looks as it did."
     },
     "Audit": {
       "putBack": "{player} changed {name}'s sheet by hand; the GM's client put it back:",

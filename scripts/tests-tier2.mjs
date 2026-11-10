@@ -2443,6 +2443,84 @@ async function whileDead(actor, run) {
  * (the taker's token stood in a room, waited for) and `drawn()` (the loot window's Take for the taker: [greyed, its
  * words]). The tile is deleted after, whatever `run` did with it, and the tokens put back.
  */
+/**
+ * A body's tile in another room, the taker stood beside it, and a Take of named items off the body (E68 C10; the three
+ * tier-2 tests of Take from the Body). `loot(names, hand, { one, cover })` puts the items on the body and takes them
+ * through handover.mjs `lootBody` - `itemIds`, or `itemId` with `one`, let go of after (`drop`) - with the Hand roll `hand`
+ * and the cover `cover`;
+ * `traceRow()` is the body's trace row with its visibility from the Remnant ledger, `traceRoom()` the room its token
+ * stands in, `names(list)` the names as the body's row keeps them, `standIn(room)` stands a third living student there
+ * (put back after), and `cards()` the cards since the start naming the body that say it was seen. Put back after: the
+ * items, the trace, its row, the messages, the third student.
+ */
+async function withLootTrace(run) {
+    await withBodyTile(async ({ taker, body, tileRoom, standTaker }) => {
+        const INV = await import("./inventory.mjs");
+        const H = await import("./handover.mjs");
+        const R = await import("./remnants.mjs");
+        const Mv = await import("./movement.mjs");
+        const { lootTraceStore, remnantStore } = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const scene = canvas.scene, PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const had = new Set(taker.items.map(i => i.id));
+        const since = new Set(game.messages.contents.map(m => m.id));
+        const traceDoc = () => {
+            const row = lootTraceStore.get(body.id);
+            return row?.tokenId ? game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null : null;
+        };
+        let moved = null;
+        try {
+            await standTaker(tileRoom);
+            await run({
+                taker, body, tileRoom,
+                loot: async (list, hand, { one = false, cover = null, drop = one } = {}) => {
+                    const put = [];
+                    for (const name of list) put.push(await INV.grantItem(body, { name, category: "tool", tier: 1, override: true, quiet: true }));
+                    must(put.every(Boolean), "the fixture items were not put on the body - this would measure nothing");
+                    const got = await H.lootBody({ takerId: taker.id, bodyId: body.id, ...(one ? { itemId: put[0].id } : { itemIds: put.map(i => i.id) }),
+                        hand: { isCritical: false, withHope: true, ...hand }, cover });
+                    await settle();
+                    // A Take of one is let go of after, so a taker's hands do not fill over three Takes (`drop`).
+                    if (drop) for (const item of taker.items.filter(i => !had.has(i.id))) { try { await item.delete(); } catch { /* already gone */ } }
+                    return got;
+                },
+                traceRow: () => {
+                    const row = lootTraceStore.get(body.id), doc = traceDoc();
+                    return row ? { ...row, visibility: doc ? remnantStore.get(`${doc.parent.id}.${doc.id}`)?.visibility ?? null : null } : null;
+                },
+                traceRoom: () => { const doc = traceDoc(); return doc ? Mv.roomOfToken(doc) : null; },
+                names: list => list,
+                standIn: async room => {
+                    const other = livingStudents().find(a => a.id !== taker.id && a.id !== body.id && scene.tokens.some(t => t.actorId === a.id));
+                    must(other, "no third student with a token on the scene - this would measure nothing");
+                    const token = scene.tokens.find(t => t.actorId === other.id);
+                    moved = { token, was: { x: token.x, y: token.y } };
+                    await token.update(Mv.positionIn(room, token), PLACE);
+                    await settle();
+                    must(Mv.roomOfToken(token) === room, `the third student could not be stood in ${room} - this would measure nothing`);
+                    return other;
+                },
+                // A card with readers keeps its words off the document (secret.mjs `STUB`): read as this GM holds them.
+                cards: () => game.messages.contents.filter(m => !since.has(m.id) && contentOf(m).includes(foundry.utils.escapeHTML(body.name))
+                    && /<em>/.test(contentOf(m)))
+            });
+        } finally {
+            if (moved) { await moved.token.update(moved.was, PLACE); await settle(); }
+            for (const m of game.messages.contents.filter(m => !since.has(m.id))) { try { await m.delete(); } catch { /* already gone */ } }
+            for (const item of taker.items.filter(i => !had.has(i.id))) { try { await item.delete(); } catch { /* already gone */ } }
+            for (const item of body.items.filter(i => i.name.startsWith("SUITE E68 C10"))) { try { await item.delete(); } catch { /* already gone */ } }
+            const doc = traceDoc();
+            if (doc) {
+                try { await R.dropRemnantSecret(doc); } catch { /* nothing filed */ }
+                try { await doc.delete(); } catch { /* already gone */ }
+            }
+            if (lootTraceStore.has(body.id)) await lootTraceStore.drop(body.id);
+            await settle();
+        }
+    });
+}
+
 async function withBodyTile(run) {
     const { isPrimaryGm } = await import("./utils.mjs");
     must(isPrimaryGm(), "this client is not the primary GM, whose reading the gate is - this would measure nothing");
@@ -29545,6 +29623,72 @@ const SCENARIOS = [
             }
             await settle();
         }
+    }],
+
+    ["one Hand roll takes several items off a body, and the body keeps one Remnant at the roll's visibility", async () => {
+        /*
+         * E68 C10, 10.11.2026. A Take took one item and rolled nothing (handover.mjs `lootBody`); it takes the ticked items
+         * under one Hand roll now (`itemIds`), and the roll says how plain the body's one Remnant reads (config.mjs `LOOT`).
+         * Two items off a body whose tile lies in another room, the taker beside the tile, a Hand of 20: both taken, one
+         * Remnant naming both, Hidden. Red at d7dc9749: a Take naming `itemIds` took nothing.
+         */
+        await withLootTrace(async ({ loot, traceRow, names }) => {
+            const got = await loot(["SUITE E68 C10 a torch", "SUITE E68 C10 a rope"], { total: 20 });
+            const row = traceRow();
+            equal(stableJson([Array.isArray(got) ? got.length : null, row?.taken ?? null, row?.visibility ?? null]),
+                stableJson([2, names(["SUITE E68 C10 a torch", "SUITE E68 C10 a rope"]), "hidden"]),
+                "[how many the Take took, what the body's row says left it, the Remnant's visibility]");
+        });
+    }],
+
+    ["the loot's Remnant only rises and lies at the body's tile", async () => {
+        /*
+         * E68 C10, 10.11.2026; the owner's Q8 (every Take rolls again, in the same time of day too) and Q9 (a Remnant already
+         * laid stays where it is). Three Takes off one body whose tile lies in another room: Hand 20, then 5, then 19. The
+         * Remnant goes down Hidden, rises to Evident, and stays Evident, in the tile's room each time. Red at d7dc9749:
+         * every loot's Remnant was Subtle, laid at the token in the other room.
+         */
+        await withLootTrace(async ({ loot, traceRow, traceRoom, tileRoom }) => {
+            const seen = [];
+            for (const [name, total] of [["SUITE E68 C10 a torch", 20], ["SUITE E68 C10 a rope", 5], ["SUITE E68 C10 a key ring", 19]]) {
+                ok(await loot([name], { total }, { one: true }), `the Take of ${name} took nothing`);
+                seen.push([traceRow()?.visibility ?? null, traceRoom() === tileRoom]);
+            }
+            equal(stableJson(seen), stableJson([["hidden", true], ["evident", true], ["evident", true]]),
+                "[the Remnant's visibility, whether it lies in the tile's room] after each Take");
+        });
+    }],
+
+    ["the cover asks only with witnesses and costs no Sanity", async () => {
+        /*
+         * E68 C10, 10.11.2026; DA16, DA17, DA40. A Take whose cover missed with Despair, first with nobody else in the
+         * room, then with a third student stood beside the tile: alone, no card; watched, one card naming the taker, the
+         * body and the item, to the witness's owners and the GMs; the taker's Sanity the same throughout. Red at
+         * d7dc9749: `lootBody` read no cover and told nobody.
+         */
+        await withLootTrace(async ({ loot, taker, body, tileRoom, standIn, cards }) => {
+            const { resourceValue } = await import("./character.mjs");
+            const { ownerIdsOf, gmIds } = await import("./utils.mjs");
+            const { contentOf } = await import("./secret.mjs");
+            const stress = resourceValue(taker, "stress");
+            const { roomWitnessesOnGm } = await import("./frisk.mjs");
+            must(!roomWitnessesOnGm(tileRoom, canvas.scene, { except: [taker.id, body.id] }).length,
+                `somebody already stands in ${tileRoom} - the Take alone would measure nothing`);
+            const miss = { total: 5, isCritical: false, withHope: false };
+            ok(await loot(["SUITE E68 C10 a torch"], { total: 14 }, { one: true, cover: miss }), "the first Take took nothing");
+            const alone = cards().length;
+            const witness = await standIn(tileRoom);
+            ok(await loot(["SUITE E68 C10 a rope"], { total: 14 }, { one: true, cover: miss }), "the second Take took nothing");
+            const seen = cards();
+            const readers = seen[0]?.whisper ?? [];
+            const owners = ownerIdsOf(witness).filter(id => !game.users.get(id)?.isGM);
+            equal(stableJson([alone, seen.length, seen[0] ? contentOf(seen[0]).includes(foundry.utils.escapeHTML(taker.name)) : false,
+                seen[0] ? contentOf(seen[0]).includes("SUITE E68 C10 a rope") : false, owners.every(id => readers.includes(id)),
+                gmIds().every(id => readers.includes(id)), resourceValue(taker, "stress") === stress]),
+            stableJson([0, 1, true, true, true, true, true]),
+            "[cards with nobody watching, cards with a witness, the card names the taker, names the item, reaches the witness's owners, reaches the GMs, the taker's Sanity unchanged]");
+            void body;
+        });
     }],
 
     ["a looted body's trace and what left it are the GMs' row, and the body carries no flag of it", async () => {

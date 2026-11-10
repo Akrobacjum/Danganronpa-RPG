@@ -44525,6 +44525,22 @@ const INVARIANTS = [
         equal(stableJson([kit.appearedBodyTiles(scene, new Set(["tHeld"])), kit.appearedBodyTiles(scene, null), kit.appearedBodyTiles({}, new Set())]),
             stableJson([["tNewBody"], [], []]), "the tiles the restore deletes [with the snapshot's set, with none, on a scene with no tiles]");
     }],
+    ["R3250 - a Take from the Body's Hand roll leaves the body's Remnant at its band (config.mjs `LOOT`, handover.mjs `lootVisibilityOf`, E68 C10): below 12 Evident, 12-17 Subtle, 18 and up and a critical Hidden", async () => {
+        /*
+         * E68 C10, 10.11.2026; the plan's E68 goal ("Hand: ponizej 12 Evident, 12-17 Subtle, 18+ i krytyk Hidden"). Until
+         * C10 a loot rolled nothing and its Remnant was always Subtle. Read on the edges of each band, a critical on a low
+         * total, and the numbers as config.mjs holds them. Red at d7dc9749: config.mjs has no `LOOT`, handover.mjs no
+         * `lootVisibilityOf`.
+         */
+        const C = await import("./config.mjs");
+        const H = await import("./handover.mjs");
+        must(C.LOOT && typeof H.lootVisibilityOf === "function", "config.mjs has no LOOT or handover.mjs no lootVisibilityOf");
+        const at = [[2, false], [11, false], [12, false], [17, false], [18, false], [24, false], [3, true]]
+            .map(([total, isCritical]) => H.lootVisibilityOf({ total, isCritical }));
+        equal(stableJson([at, C.LOOT.trait, C.LOOT.cover.trait, C.LOOT.cover.threshold]),
+            stableJson([["evident", "evident", "subtle", "subtle", "hidden", "hidden", "hidden"], "hand", "shadow", 16]),
+            "the Remnant's visibility at 2, 11, 12, 17, 18, 24 and a critical 3; the roll's statistic, the cover's and its number");
+    }],
 
     ["R3144 - a body's tile wears its caption and the dead sign (body-tile.mjs `drawBodyMark`, E95 C3; QUESTIONS Q4): \"{name}'s body\" / \"Ciało: {name}\" under the tile at max(20, grid x 0.36) over a keyline of max(4, grid x 0.07), the dead status's picture over its centre; drawn once per redraw, at half alpha on a hidden tile on a GM's browser and not at all on a player's, and taken off a tile that lost its flag", async () => {
         /*

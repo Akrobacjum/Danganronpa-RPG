@@ -1067,6 +1067,8 @@ async function replayAction(actor, bookmark, after, done, rerolled = null, befor
             // it); the replay is the same as a Steal's.
             case "palm":
             case "steal": return await settleSteal(actor, bookmark, after, done);
+            // A Take from the Body (E68 C10): as a Palm's, the moment stands - the trace only ever rose with it.
+            case "loot": return settleLoot(done);
             // A Frisk's hand (E80 part 2 C4): the cover is a supporting roll and keeps no row.
             case "rummage": return await settleRummage(actor, bookmark, after, done);
             case "frisk": return settleForce(done);
@@ -1696,6 +1698,12 @@ async function settleSteal(actor, bookmark, after, done) {
     // refused there. A sentence that is true whether or not anything moved is
     // worth more than two that are each right half the time.
     done.push(game.i18n.localize("DRPG.Reroll.stealStands"));
+    return {};
+}
+
+/** A Take from the Body rerolled (E68 C10): the items have moved and the trace stands as the first roll left it. */
+function settleLoot(done) {
+    done.push(game.i18n.localize("DRPG.Reroll.lootStands"));
     return {};
 }
 
