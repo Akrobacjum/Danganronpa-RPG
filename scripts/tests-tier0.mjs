@@ -7183,7 +7183,7 @@ const REGRESSIONS = [
         ok(!blind.length, `a transition writes without saying what it read, or goes on when the write is refused: ${blind.join(", ")}`);
     }],
 
-    ["R213 - no several-trait roll escapes the GM: nothing takes a list's first trait but a list of one, and every definition that lists several is a ruling's", async () => {
+    ["R213 - no several-trait roll escapes the GM: nothing takes a list's first trait but a list of one, every definition that lists several is a ruling's, and every caller of the ruling hands it the player's proposal or is a named exception", async () => {
         /*
          * E32+E07 C11d, 02.10.2026; audit S04-23 and the owner's rules of 28.09.2026. Wherever a
          * definition lists several traits a GM picks (trait-ruling.mjs `traitFor`), Resolve
@@ -7198,7 +7198,13 @@ const REGRESSIONS = [
          *      `ruledDefinitions()`, by identity;
          *   3. `OWN_PERFORMERS`, the actions trait-ruling.mjs keeps out of the generic kind, are
          *      the cases of `performAction`'s switch - a new case left out of it would be asked
-         *      about as a generic action, one in it and not the switch never would.
+         *      about as a generic action, one in it and not the switch never would;
+         *   4. (E68 C4, 10.11.2026; DA18 "the player proposes, the GM approves") every call of
+         *      `traitFor(` in the served sources hands it a third argument that names `proposed`,
+         *      or stands in a function of EXCEPTIONS, each with why. Read first on planted text.
+         *      Red at C3's tip: `takeCrisisAction` and `projectTrait` asked with no proposal. The
+         *      two windows that ask the proposal outside `traitFor` are read by name: the crisis
+         *      menu draws the field under its rows, and a Dynamic action's GM editor checks it.
          */
         const T = await import("./trait-ruling.mjs");
         const C = await import("./config.mjs");
@@ -7261,6 +7267,46 @@ const REGRESSIONS = [
         const cases = [...dispatch.matchAll(/\bcase "(\w+)":/g)].map(m => m[1]);
         equal(JSON.stringify([...cases].sort()), JSON.stringify([...T.OWN_PERFORMERS].sort()),
             "trait-ruling.mjs OWN_PERFORMERS is not the list of performAction's own performers");
+
+        // 4. Who proposes. The call's arguments read to its closing parenthesis, strings and comments blanked.
+        const callsIn = text => {
+            const code = blankComments(text), blank = blankLiterals(code);
+            const fns = [...code.matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)];
+            return [...blank.matchAll(/\btraitFor\(/g)].filter(m => !/function\s+$/.test(blank.slice(Math.max(0, m.index - 20), m.index))).map(m => {
+                let depth = 0, end = m.index + "traitFor".length;
+                for (; end < blank.length; end++) {
+                    if (blank[end] === "(") depth++;
+                    else if (blank[end] === ")" && --depth === 0) break;
+                }
+                return [fns.filter(f => f.index < m.index).pop()?.[1] ?? "(top level)", /\bproposed\b/.test(blank.slice(m.index, end))];
+            });
+        };
+        const PLANTED_CALLS = "async function asks() {\n    return traitFor(actor, { kind: \"crisis\", key }, { proposed, note });\n}\n"
+            + "async function silent() {\n    // traitFor(actor, spec, { proposed })\n    return traitFor(actor, { kind: \"project\", key: \"proposed\" });\n}";
+        equal(JSON.stringify(callsIn(PLANTED_CALLS)), JSON.stringify([["asks", true], ["silent", false]]),
+            "the caller reader does not find the two planted calls, reads the comment's, or takes the string's word for a proposal");
+        const EXCEPTIONS = {
+            // DA36 = 2: a trap victim's opening is the GM's pick, on the GM's own browser; the killer's proposes from C9.
+            "murder-rules.mjs openingTraitFor": "the opening",
+            // Stage 6's rolls: C5 puts them on Shadow alone (DA4), one statistic, which asks nobody.
+            "cleanup.mjs cleanupTrait": "Stage 6"
+        };
+        const callers = [];
+        for (const [file, text] of await otherSources()) {
+            if (file === "trait-ruling.mjs") continue;
+            for (const [fn, proposes] of callsIn(text)) callers.push([`${file} ${fn}`, proposes]);
+        }
+        ok(callers.length >= 4, `the reader found ${callers.length} callers of traitFor - too few to trust`);
+        log(`R213: ${callers.length} calls of traitFor, ${callers.filter(([, p]) => p).length} with a proposal`);
+        const silent = callers.filter(([at, proposes]) => !proposes && !Object.hasOwn(EXCEPTIONS, at)).map(([at]) => at);
+        ok(!silent.length, `a caller asks the GM for a statistic with no proposal of the player's and is no named exception: ${silent.join(", ")}`);
+        const sources = new Map(await otherSources());
+        const menu = fnSource(stripComments(sources.get("action-murder.mjs") ?? ""), "openCrisisMenu");
+        ok(/traitFieldHtml\([^)]*propose: true/.test(menu) && /readProposal\(/.test(menu),
+            "the crisis menu draws no proposal field under its rows, or does not read it back");
+        const dynamic = stripComments(sources.get("action-dynamic.mjs") ?? "");
+        ok(/traitFieldHtml\([^)]*propose: true/.test(fnSource(dynamic, "performDynamic")) && /\bproposed\b/.test(fnSource(dynamic, "askDynamicDifficulty")),
+            "a Dynamic action does not ask the player's proposal, or its GM editor does not read it");
     }],
 
     ["R214 - the hidden stash's step is the old count's die, exactly: every window from -3 to 3, every die and every draw", async () => {

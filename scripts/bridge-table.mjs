@@ -459,7 +459,7 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_DIFFICULTY]: {
         label: "DRPG.Bridge.what.dynamic.difficulty",
         guards: [knownSender, owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id, description: as.text, actorName: as.text, room: as.maybeText }),
+        sanitize: pick({ actorId: as.id, description: as.text, actorName: as.text, room: as.maybeText, proposed: as.maybeText }),
         run: handleDifficulty,
         // Not patient, as the Hope Call's (E18 C2, R840).
         answer: "reply", resend: true

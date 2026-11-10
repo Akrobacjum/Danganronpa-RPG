@@ -2113,7 +2113,7 @@
       "onAMiss": "On a miss: {text}",
       "noRollItWorks": "No roll - it works",
       "breakdownDisadvantage": "You are in Breakdown, so this roll is at disadvantage until some Sanity comes back.",
-      "gmPicksTrait": "Rolls: {traits} - the GM picks one. Tell them in your thread what you do.",
+      "gmPicksTrait": "Rolls: {traits} - you propose one below, the GM approves or changes it.",
       "youPickTrait": "Rolls: {traits} - Resolve is armed, so you pick one in the roll window.",
       "criticalChoiceTitle": "A clean hit",
       "criticalChoiceIntro": "The blow lands exactly where you wanted it. Both points come off the same reserve - their body, or their nerve.",
@@ -3447,7 +3447,11 @@
       "rollIt": "Roll {stat}",
       "pass": "I'll pass (nothing spent)",
       "passedLine": "I'll pass on the roll ({stat}). Nothing was spent.",
-      "autoApproved": "Approved automatically."
+      "autoApproved": "Approved automatically.",
+      "proposeLabel": "Which statistic do you propose?",
+      "howLabel": "How do you do it? (optional)",
+      "projectBody": "This project was stored without a statistic. Propose one: the GM approves or changes it, and it stays the project's.",
+      "propose": "Propose"
     },
     "DiceLook": {
       "setByGm": "Your dice look is set by the GM.",

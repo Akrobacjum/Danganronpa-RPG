@@ -864,7 +864,7 @@ async function ruleApproveCallOrRefuseCall(action, data, message = null) {
 async function ruleSetDifficulty(action, data, message = null) {
     const { askDynamicDifficulty } = await import("./action-rolls.mjs");
     const ruling = await askDynamicDifficulty({
-        description: data.desc ?? "", actorName: data.name ?? "?", room: data.room || null
+        description: data.desc ?? "", actorName: data.name ?? "?", room: data.room || null, proposed: data.proposed || null
     });
     if (!ruling) return null;   // The editor was closed; the card stays open.
     const { answerDynamic } = await import("./gm-bridge.mjs");

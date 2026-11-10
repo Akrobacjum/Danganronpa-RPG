@@ -55,7 +55,16 @@
  * line in their thread, which the GM reads under the card, and answers null. The roll window
  * says which it was (roll-dialog.mjs `lockTrait`): `byGm` is "approved" or "changed" where a
  * proposal was made, true where the GM picked with none. Without a proposal the card is the one
- * C11b drew: a button per listed statistic and Refuse. Which callers propose is C4's.
+ * C11b drew: a button per listed statistic and Refuse.
+ *
+ * THE CALLERS PROPOSE (E68 C4, 10.11.2026). The crisis menu asks for the proposal under the picked row
+ * (action-murder.mjs `openCrisisMenu`, the field action-menus.mjs `traitFieldHtml` draws: "Which statistic do
+ * you propose?" and "How do you do it? (optional)"), a trap victim's table pre-checked on Body, its first; a
+ * project stored without a statistic asks it before its roll (action-project.mjs `projectTrait`), and a
+ * Dynamic action carries it to its own card (action-dynamic.mjs `askDynamicDifficulty`). The three exceptions:
+ * a trap victim's opening, which a GM picks on its own browser (murder-rules.mjs `openingTraitFor`; the killer's
+ * opening proposes from C9), an armed Resolve (above, the roll window's picker) and Search on Eye (one listed
+ * statistic until C6, no card on Eye after it). R213 holds every caller of `traitFor` to one or the other.
  *
  * THE VALVE (E68 C2, 10.11.2026; DA41 = 2, DA50 = 1). A world setting, off by default
  * (`autoApproveTraits`), approves a proposal with no GM's press in Daily Life - the clock's phase
@@ -190,8 +199,10 @@ export async function traitFor(actor, spec, seams = {}) {
         await keepProjectPick(spec, proposal.proposed);
         return { trait: proposal.proposed, byGm: "approved" };
     }
+    // `onPass` (E68 C4): told when the player passes after a "Change to", which answers null as a refusal does -
+    // the crisis menu opens again on it (QUESTIONS.md Q11), and a refusal ends the turn's choice as before.
     const picked = isGm ? await (seams.pickHere ?? pickHere)(actor, spec, listed, proposal)
-        : await (seams.askGms ?? askGms)(actor, spec, proposal);
+        : await (seams.askGms ?? askGms)(actor, spec, { ...proposal, onPass: seams.onPass });
     if (!listed.includes(picked)) return null;
     // A player's pick is kept by the GM who answered the card (messenger-app.mjs `rulePickTrait`).
     if (isGm) await keepProjectPick(spec, picked);
@@ -264,7 +275,7 @@ export async function keepProjectPick(spec, trait) {
 }
 
 /** A player's client: the request, and the notice that stays up while a GM reads the thread. */
-async function askGms(actor, { kind, key, variant = null }, { proposed = null, note = "" } = {}) {
+async function askGms(actor, { kind, key, variant = null }, { proposed = null, note = "", onPass = null } = {}) {
     const { showWaiting } = await import("./popup.mjs");
     const waiting = showWaiting(game.i18n.localize("DRPG.TraitRuling.waiting"), game.i18n.localize("DRPG.TraitRuling.title"));
     let answer = null;
@@ -280,7 +291,10 @@ async function askGms(actor, { kind, key, variant = null }, { proposed = null, n
         waiting();
     }
     // A "Change to": the player rolls the GM's statistic or passes, and nothing was spent either way (DA46, Q11).
-    if (answer && proposed && answer !== proposed && !(await rollChanged(actor, proposed, answer))) return null;
+    if (answer && proposed && answer !== proposed && !(await rollChanged(actor, proposed, answer))) {
+        onPass?.();
+        return null;
+    }
     return answer;
 }
 

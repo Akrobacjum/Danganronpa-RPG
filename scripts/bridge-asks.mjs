@@ -638,8 +638,9 @@ export function requestHopeCallApproval(
  *
  * @returns {Promise<object>} the bridge's result; `value` `{tier, trait}`, or false when the GM refused.
  */
-export function requestDynamicDifficulty({ description, actorName, room, actorId = null }, timeoutMs = TIMING.rulingMs) {
-    return ask(ACTION_DIFFICULTY, { description, actorName, room, actorId }, { timeoutMs, nothingSpent: true,
+export function requestDynamicDifficulty({ description, actorName, room, actorId = null, proposed = null }, timeoutMs = TIMING.rulingMs) {
+    // `proposed` (E68 C4): the statistic the player proposes; the card says it, the GM's editor checks it first.
+    return ask(ACTION_DIFFICULTY, { description, actorName, room, actorId, proposed }, { timeoutMs, nothingSpent: true,
         expired: ACTION_RULING_EXPIRED, received: ACTION_RULING_RECEIVED });
 }
 

@@ -2305,9 +2305,11 @@ async function rollWindow(actor, config = {}) {
  * `pick(offered)`, any other closed; a `DialogV2.confirm` is answered yes, as the harness's
  * own is. `asked` is every window in order (a confirm as "confirm: <title>"); `menu` the menu
  * as built: its default button as [action, label], the others' actions, and each row as
- * { value, disabled, hint, details } - the text of the block it unfolds, or null.
+ * { value, disabled, hint, details } - the text of the block it unfolds, or null. Since E68 C4
+ * `fill(root, value)` answers the picked row's own fields before the button, and `picker(root)` sees
+ * the GM's statistic window as drawn.
  */
-async function pressCrisisTile(actor, { choose = () => null, pick = offered => offered[0] } = {}) {
+async function pressCrisisTile(actor, { choose = () => null, pick = offered => offered[0], fill = () => {}, picker = () => {} } = {}) {
     const { performAction } = await import("./action-rolls.mjs");
     const D = foundry.applications.api.DialogV2;
     const own = Object.getOwnPropertyDescriptor(D, "confirm");
@@ -2319,7 +2321,11 @@ async function pressCrisisTile(actor, { choose = () => null, pick = offered => o
     const windows = answerWindows((cfg, root) => {
         const title = cfg?.window?.title ?? "";
         asked.push(title);
-        if (title === traitTitle) return pick((cfg.buttons ?? []).map(b => b.action).filter(action => action !== "cancel"));
+        if (title === traitTitle) {
+            // `picker(root)`: the GM's window as drawn, before `pick` answers it (E68 C4).
+            picker(root);
+            return pick((cfg.buttons ?? []).map(b => b.action).filter(action => action !== "cancel"));
+        }
         if (title !== menuTitle) return null;
         const button = (cfg.buttons ?? []).find(b => b.default) ?? null;
         menu = {
@@ -2335,6 +2341,8 @@ async function pressCrisisTile(actor, { choose = () => null, pick = offered => o
         const input = value ? root.querySelector(`input[name="variant"][value="${value}"]`) : null;
         if (!input) return null;
         input.checked = true;
+        // `fill(root, value)`: the picked row's own fields, answered before the menu's button (E68 C4: the proposal).
+        fill(root, value);
         return press(cfg, root);
     });
     D.confirm = async cfg => {
@@ -41694,6 +41702,47 @@ const SCENARIOS = [
         }
     }],
 
+    ["a crisis action rolls what the GM approved: the player proposes under the row, the GM's window offers Approve on it first with the words, and the roll is the approved or the changed statistic (E68 C4)", async () => {
+        /*
+         * E68 C4, 10.11.2026; DA18. At the killer's turn (`swingFixture`), on this GM's browser, the tile is pressed
+         * twice (`pressCrisisTile`) on Attack with a weapon (Body / Hand / Leg): the row's proposal is set to Hand with
+         * a few words, and the GM's window (trait-ruling.mjs `pickHere`, a GM's own) is answered with its first button,
+         * then with Leg. The character's own `rollTrait` notes the trait and the GM's mark and throws nothing, as a
+         * closed roll window does. Read: whether the row wears the GM's road and draws the field, the GM's window's
+         * buttons and whether it quotes the words, and the throws. Red at C3's tip: the row had no field, the window
+         * offered the list in its own order with no proposal, and both throws were marked `true` (picked, none proposed).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { TRAIT_BY_GM } = await import("./action-rolls.mjs");
+        const { TRAITS } = await import("./config.mjs");
+        const { GM_ROUTE_CLASS } = await import("./utils.mjs");
+        const { killer, putBack } = await swingFixture();
+        const thrown = [], seen = [];
+        const WORDS = "SUITE E68 C4: a feint, then the blade";
+        const fill = (root, value) => {
+            const row = root.querySelector(`.drpg-choice-details[data-drpg-for="${value}"]`);
+            const select = row?.querySelector("select[name=proposed]"), words = row?.querySelector("input[name=note]");
+            const label = root.querySelector(`input[name="variant"][value="${value}"]`)?.closest("label");
+            seen.push([Boolean(label?.classList.contains(GM_ROUTE_CLASS)), Boolean(select), Boolean(words)]);
+            if (select) select.value = "hand";
+            if (words) words.value = WORDS;
+        };
+        const offered = [];
+        const picker = root => offered.push(root.textContent.includes(WORDS));
+        try {
+            killer.rollTrait = async (dh, config) => { thrown.push([dh, config?.[TRAIT_BY_GM] ?? null]); return null; };
+            await pressCrisisTile(killer, { choose: () => "weaponAttack", fill, picker, pick: list => { offered.push(list); return list[0]; } });
+            await pressCrisisTile(killer, { choose: () => "weaponAttack", fill, picker, pick: list => { offered.push(list); return "leg"; } });
+        } finally {
+            delete killer.rollTrait;
+            await putBack();
+        }
+        equal(stableJson([seen, offered, thrown]),
+            stableJson([[[true, true, true], [true, true, true]], [true, ["hand", "body", "leg"], true, ["hand", "body", "leg"]],
+                [[TRAITS.hand.dh, "approved"], [TRAITS.leg.dh, "changed"]]]),
+            "[the row: on the GM's road, a proposal select, a words field] twice, [the GM's window: quotes the words, its buttons] twice, the throws (trait, the GM's mark)");
+    }],
+
     ["Roll it is the default", async () => {
         /*
          * E32+E07 C15, 03.10.2026; audit S04-27. The menu's button said "Proceed", and the
@@ -41798,7 +41847,7 @@ const SCENARIOS = [
         }
     }],
 
-    ["the crisis menu says who picks the statistic: the GM among several, the player with Resolve armed", async () => {
+    ["the crisis menu says who picks the statistic: the player proposes among several and the GM approves, the player picks with Resolve armed", async () => {
         /*
          * E32+E07 C15, 03.10.2026; the owner's Q4 as corrected on 28.09. The GM picks among
          * an action's several statistics from what the player says in their thread, and a
@@ -41828,7 +41877,7 @@ const SCENARIOS = [
             equal(stableJson([has(pin, "DRPG.Action.usesTrait", { traits: TRAITS.body.label }), has(attack, "DRPG.Murder.gmPicksTrait", { traits: several }),
                 has(armed, "DRPG.Murder.youPickTrait", { traits: several }), strike.includes(miss)]),
             stableJson([true, true, true, true]),
-            "the menu does not name Pin's one statistic, does not say the GM picks among several, does not say Resolve's pick, or does not label a miss (Pin, the attack, armed, Strike's miss)");
+            "the menu does not name Pin's one statistic, does not say the player proposes among several, does not say Resolve's pick, or does not label a miss (Pin, the attack, armed, Strike's miss)");
         } finally {
             await C.consumeCalls(killer);
             await putBack();

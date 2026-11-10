@@ -263,13 +263,16 @@ export async function askDynamicByCard(payload, ctx) {
     const expires = serverNow() + TIMING.rulingMs;
     const onPosted = holdAsk(dynamicAsks, ctx.requestId, held, expires);
     const actor = game.actors.get(payload.actorId ?? "");
+    // The player's proposal (E68 C4; DA18): a statistic of TRAITS or nothing, said on the card and checked in the GM's editor.
+    const proposed = Object.hasOwn(TRAITS, payload.proposed ?? "") ? payload.proposed : "";
     const data = {
         rid: ctx.requestId, asker: ctx.asker, by: payload.actorId ?? "",
-        room: payload.room ?? "", desc: payload.description ?? "", name: payload.actorName ?? ""
+        room: payload.room ?? "", desc: payload.description ?? "", name: payload.actorName ?? "", proposed
     };
     const posted = await callGm(actor, {
         title: game.i18n.localize("DRPG.Action.dynamicTitle"),
         request: payload.description ?? "",
+        ...(proposed ? { body: `<p>${esc(game.i18n.format("DRPG.TraitRuling.proposed", { stat: TRAITS[proposed].label }))}</p>` } : {}),
         room: payload.room ?? null,
         actions: [
             { action: "setDifficulty", label: game.i18n.localize("DRPG.Action.dynamicSet"), data },
@@ -1133,7 +1136,7 @@ export async function settleCall(message, text, ruling = null, gmNote = null) {
  * `required`: the caller has nothing to send without words (Dynamic, a Tier 0 item's use), so
  * an empty request is not sent - the player is told so and the window opens again.
  */
-export async function askForRequest({ title, prompt, placeholder = "", intro = "", required = false } = {}) {
+export async function askForRequest({ title, prompt, placeholder = "", intro = "", required = false, extra = "" } = {}) {
     for (;;) {
         // On the kit's frame (E21 C5a): Send is the GM's road (D11) - the words go to a GM's card - and Cancel withdraws.
         const answer = await drpgWindow({
@@ -1145,19 +1148,22 @@ export async function askForRequest({ title, prompt, placeholder = "", intro = "
             body: `${intro}<form>
                     <p>${prompt}</p>
                     <textarea name="request" rows="3" placeholder="${foundry.utils.escapeHTML(placeholder)}"></textarea>
+                    ${extra}
                   </form>`,
             footer: {
                 gmRoute: [{
                     action: "send",
                     label: game.i18n.localize("DRPG.Bridge.send"),
-                    callback: (event, button, dialog) => ({ text: dialog.element.querySelector("[name=request]").value.trim() })
+                    callback: (event, button, dialog) => ({ text: dialog.element.querySelector("[name=request]").value.trim(),
+                        form: dialog.element.querySelector("form") })
                 }],
                 close: "cancel"
             },
             rejectClose: false
         });
         if (typeof answer?.text !== "string") return null;
-        if (answer.text || !required) return answer.text;
+        // With `extra` fields (E68 C4: a Dynamic action's proposal) the form comes back beside the words, for the caller to read.
+        if (answer.text || !required) return extra ? { text: answer.text, form: answer.form } : answer.text;
         sayRefusedHere(game.i18n.localize("DRPG.Bridge.emptyRequest"));
     }
 }
@@ -1168,12 +1174,12 @@ export async function askForRequest({ title, prompt, placeholder = "", intro = "
  * words typed, or null when nothing will be asked: no GM is connected (said, as `promptAndCallGm`
  * says it, before the window), or the player closed it. Posts nothing.
  */
-export async function promptForRequest({ title, prompt, placeholder = "", intro = "", required = false, what = CALL_GM_WHAT } = {}) {
+export async function promptForRequest({ title, prompt, placeholder = "", intro = "", required = false, what = CALL_GM_WHAT, extra = "" } = {}) {
     if (!gmOnline()) {
         sayNotDone(what, "noGm", { nothingSpent: true });
         return null;
     }
-    return askForRequest({ title, prompt, placeholder, intro, required });
+    return askForRequest({ title, prompt, placeholder, intro, required, extra });
 }
 
 /**

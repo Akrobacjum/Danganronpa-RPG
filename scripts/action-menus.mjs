@@ -21,6 +21,7 @@
 import { TRAITS } from "./config.mjs";
 import { esc, GM_ROUTE_CLASS } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
+import { PROPOSAL_NOTE_MAX } from "./trait-ruling.mjs";
 
 /**
  * The "which statistic?" field, as HTML to drop into somebody else's form.
@@ -32,8 +33,15 @@ import { drpgWindow } from "./ui-kit.mjs";
  *
  * Returns "" when there is nothing to choose - one allowed trait, or none -
  * and the caller falls back to it without a field. See `readTraitField`.
+ *
+ * THE PLAYER'S PROPOSAL (E68 C4, 10.11.2026; DA18). With `propose` the select is the statistic the player
+ * proposes to a GM (trait-ruling.mjs `traitFor`), named `proposed` so it is never read as a pick of the
+ * roller's own, and `how` adds "How do you do it? (optional)", the words the GM's card quotes, bounded by
+ * `PROPOSAL_NOTE_MAX`. The first listed statistic is checked, so a trap victim's table proposes Body unless
+ * the player changes it. Read back by `readProposal`. Exported for the callers outside this file that ask a
+ * proposal in a window of their own (action-murder.mjs, action-project.mjs, action-dynamic.mjs).
  */
-function traitFieldHtml(actor, traits, { note = "" } = {}) {
+export function traitFieldHtml(actor, traits, { note = "", propose = false, how = propose } = {}) {
     const allowed = traits ?? [];
     if (allowed.length < 2) return "";
 
@@ -43,10 +51,12 @@ function traitFieldHtml(actor, traits, { note = "" } = {}) {
         return `<option value="${key}">${t.label} (${value > 0 ? "+" : ""}${value})</option>`;
     }).join("");
 
-    return `<label class="drpg-trait-field"><span>${game.i18n.localize("DRPG.Advance.whichTrait")}</span>
-        <select name="trait">${options}</select>
+    const words = how ? `<label class="drpg-trait-how"><span>${game.i18n.localize("DRPG.TraitRuling.howLabel")}</span>
+        <input type="text" name="note" maxlength="${PROPOSAL_NOTE_MAX}"></label>` : "";
+    return `<label class="drpg-trait-field"><span>${game.i18n.localize(propose ? "DRPG.TraitRuling.proposeLabel" : "DRPG.Advance.whichTrait")}</span>
+        <select name="${propose ? "proposed" : "trait"}">${options}</select>
         ${note ? `<small class="notes">${note}</small>` : ""}
-    </label>`;
+    </label>${words}`;
 }
 
 /** The other half of `traitFieldHtml`: what the form says, or the only option. */
@@ -55,6 +65,13 @@ function readTraitField(element, traits) {
     if (!allowed.length) return null;
     if (allowed.length === 1) return allowed[0];
     return element.querySelector("[name=trait]")?.value ?? allowed[0];
+}
+
+/** A proposal field's answer under `root`, as `traitFor` takes it: `{ proposed, note }`, the statistic one `traits` lists or null. */
+export function readProposal(root, traits) {
+    const proposed = root?.querySelector("[name=proposed]")?.value ?? null;
+    return { proposed: (traits ?? []).includes(proposed) ? proposed : null,
+        note: String(root?.querySelector("[name=note]")?.value ?? "").trim().slice(0, PROPOSAL_NOTE_MAX) };
 }
 
 /* ==========================================================================

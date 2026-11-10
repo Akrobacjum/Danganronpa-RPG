@@ -24,7 +24,7 @@ import { roomOfActor } from "./movement.mjs";
 import { whisperToOwner, cardHead, esc, proseOf } from "./utils.mjs";
 import { abort, canAfford } from "./action-pipeline.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
-import { chooseVariant, promptForNote } from "./action-menus.mjs";
+import { chooseVariant, promptForNote, traitFieldHtml, readProposal } from "./action-menus.mjs";
 import { drpgConfirm } from "./ui-kit.mjs";
 
 /**
@@ -92,6 +92,9 @@ export async function openCrisisMenu(actor) {
 
     const brokenDown = isBrokenDown(actor);
     const youPick = resolveArmed(actor);
+    // What each row lists (a trap victim's own table where the incident gives one), and whether its roll asks a GM.
+    const listed = Object.fromEntries(options.map(({ key }) => [key, listedTraits({ kind: "crisis", key, variant: crisisVariant(actor, key) })]));
+    const asks = ({ key, def, free }) => !free && !def.noRoll && !youPick && listed[key].length > 1;
     const picked = await chooseVariant({
         actor,
         title: game.i18n.localize("DRPG.Murder.yourTurn"),
@@ -113,10 +116,11 @@ export async function openCrisisMenu(actor) {
                     : game.i18n.format("DRPG.Murder.thresholdShort", { n: threshold })}${
                 def.hint ? ` - ${proseOf(def, "hint")}` : ""}${
                 hindered && !free ? ` · ${game.i18n.localize("DRPG.Murder.actionHindered")}` : ""}`,
-            details: crisisDetails(def, {
-                free, brokenDown, youPick,
-                traits: listedTraits({ kind: "crisis", key, variant: crisisVariant(actor, key) })
-            }),
+            details: crisisDetails(def, { free, brokenDown, youPick, traits: listed[key] })
+                // The player's proposal, under the row that asks a GM (E68 C4; DA18): the first listed checked.
+                + (asks({ key, def, free }) ? traitFieldHtml(actor, listed[key], { propose: true }) : ""),
+            // A roll that sends a card wears the GM's road (D11; utils.mjs `GM_ROUTE_CLASS`), as a project's does.
+            gmRoute: asks({ key, def, free }),
             confirm: game.i18n.localize(free || def.noRoll ? "DRPG.Murder.briefTake" : "DRPG.Murder.briefRoll"),
             disabled: blocked,
             // Taken away by the incident (`deniedToVictim`): drawn struck through, with why (E51 C1; S02-51 (g)).
@@ -135,7 +139,11 @@ export async function openCrisisMenu(actor) {
     });
 
     if (!picked) return null;
-    return takeCrisisAction(actor, picked.value);
+    const scope = picked.form?.querySelector(`.drpg-choice-details[data-drpg-for="${picked.value}"]`) ?? null;
+    // A pass after a GM's "Change to" spends nothing and gives the turn's choice back (QUESTIONS.md Q11): the menu again.
+    let passed = false;
+    const done = await takeCrisisAction(actor, picked.value, { ...readProposal(scope, listed[picked.value]), onPass: () => { passed = true; } });
+    return passed ? openCrisisMenu(actor) : done;
 }
 
 /**
@@ -146,9 +154,9 @@ export async function openCrisisMenu(actor) {
  *
  *   - what the action costs: a resolution action's Sanity, a free take's too - the
  *     critical buys certainty about the dice, not the price (`takeCrisisAction`);
- *   - the statistics it lists, and who picks among several: the GM, from what the
- *     player says in their thread (trait-ruling.mjs `traitFor`), or the player in the
- *     roll window with Resolve armed;
+ *   - the statistics it lists, and who picks among several: the player proposes one
+ *     under the row and the GM approves or changes it (trait-ruling.mjs `traitFor`; E68
+ *     C4, DA18), or the player picks in the roll window with Resolve armed;
  *   - Breakdown's disadvantage (S02-31): `stateGrant` in roll-dialog.mjs sets it on
  *     every roll of a character with no Sanity left - a Despair opening fills the
  *     victim's - and the roll window showed it locked with nothing here saying why;

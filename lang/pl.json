@@ -2271,7 +2271,7 @@
       "onAMiss": "Przy porażce: {text}",
       "noRollItWorks": "Bez rzutu - to się udaje",
       "breakdownDisadvantage": "Jesteś w Breakdown, więc ten rzut idzie z utrudnieniem, dopóki nie wróci trochę Sanity.",
-      "gmPicksTrait": "Rzut: {traits} - wybiera GM. Napisz mu w swoim wątku, co robisz.",
+      "gmPicksTrait": "Rzut: {traits} - proponujesz jedną poniżej, GM ją zatwierdza albo zmienia.",
       "youPickTrait": "Rzut: {traits} - masz uzbrojone Resolve, więc wybierasz sam w oknie rzutu.",
       "criticalChoiceTitle": "Czyste trafienie",
       "criticalChoiceIntro": "Cios trafia dokładnie tam, gdzie miał trafić. Oba punkty schodzą z tego samego zapasu - z ciała albo z nerwów.",
@@ -3769,7 +3769,11 @@
       "rollIt": "Rzuć: {stat}",
       "pass": "Rezygnuję (nic nie schodzi)",
       "passedLine": "Rezygnuję z rzutu ({stat}). Nic nie zeszło.",
-      "autoApproved": "Zatwierdzone automatycznie."
+      "autoApproved": "Zatwierdzone automatycznie.",
+      "proposeLabel": "Którą statystykę proponujesz?",
+      "howLabel": "Jak to robisz? (opcjonalnie)",
+      "projectBody": "Ten projekt zapisano bez statystyki. Zaproponuj jedną: GM ją zatwierdza albo zmienia i zostaje ona statystyką projektu.",
+      "propose": "Zaproponuj"
     },
     "DiceLook": {
       "setByGm": "Twój wygląd kości ustala GM.",

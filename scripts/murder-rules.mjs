@@ -961,7 +961,7 @@ export function crisisVariant(actor, key, state = murderState()) {
  * Called from the actor's own client - it is their roll - but every world write
  * it produces goes through the GM, same as the rest of the module.
  */
-export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
+export async function takeCrisisAction(actor, key, { itemId = null, proposed = null, note = "", onPass = null } = {}) {
     const state = murderState();
     const side = sideOf(actor);
     const def = CRISIS_ACTIONS[key];
@@ -1043,7 +1043,8 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
      * `crisisVariant`, which the GM checks again.
      */
     const { traitFor } = await import("./trait-ruling.mjs");
-    const ruled = await traitFor(actor, { kind: "crisis", key, variant: crisisVariant(actor, key, state) });
+    // The player's proposal from the menu (E68 C4; DA18), and `onPass` told when they pass after a "Change to".
+    const ruled = await traitFor(actor, { kind: "crisis", key, variant: crisisVariant(actor, key, state) }, { proposed, note, onPass });
     if (!ruled) return null;
 
     const { rollTrait } = await import("./action-rolls.mjs");
