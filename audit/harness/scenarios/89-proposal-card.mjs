@@ -38,7 +38,7 @@ const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
 const WORDS = "S89 through the loose floorboard";
 
-export async function run({ gm, gm2, p1, p2, check, phase, settle, repoUrl }) {
+export async function run({ gm, gm2, p1, p2, check, note, phase, settle, repoUrl }) {
     const UNTIL = `const until = async (test, ms = 8000) => { const end = Date.now() + ms; while (!(await test()) && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };`;
     for (const c of [gm, gm2]) await c.eval(`globalThis.__traitRulingAuto = false; globalThis.__dialogAuto = false; return true;`);
     for (const c of [p1, p2]) await c.eval(`globalThis.__dialogAuto = false; globalThis.__s89Words = [];
@@ -145,10 +145,26 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, repoUrl }) {
         J({ e0: e0.card, eAnswer, eRuling }));
 
     phase("F: the incident's card, and a pass after Change to opens the crisis menu again", { flow: "trait-ruling" });
+    /* THE INCIDENT IS WAITED FOR, NOT SLEPT FOR (E68 fix of CI 20218b05, 10.11.2026). `openMurder` returns at the
+       opening's start: the killer's opening roll is a round trip to Chie's owner (p3) and the stage is "incident" only
+       once the primary has resolved it (murder-rules.mjs `rollOpening`, `resolveOpening`). F slept 1200 ms and 800 ms
+       and read nothing; CI's run 42918312530 (89 whole in 20.5 s, 13.2 s here at f65e0594) reached p1's Direct Murder
+       before the opening had resolved: no window on p1 (fP1 windows []) and no card for 8 s. The same F with both sleeps
+       at 0, here: the same two reds, the same details, p1's stage at the press "openingRoll" and its one toast "Only
+       during an Eclipse..." (`performAction`, no incident on p1's page). So the stage on gm, then the incident and
+       Aiko's turn on p1's own copy, each waited for and returned, with the milliseconds each took: 407 ms on gm, 0 more
+       on p1, here (11/11 in 7.3 s). */
     await gm.eval(`await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.aiko}", openingTrait: "body" }); return true;`, { timeout: 60000 });
-    await settle(1200);
-    await gm.eval(`const M = await import("${repoUrl}/scripts/murder.mjs"); if (!M.isTheirTurn(game.actors.get("${ids.aiko}"))) await M.passTurn(); return true;`, { timeout: 60000 });
-    await settle(800);
+    const fOpen = await gm.eval(`${UNTIL} const M = await import("${repoUrl}/scripts/murder.mjs"); const t0 = Date.now();
+        await until(() => M.murderState()?.stage === "incident", 30000);
+        const ms = Date.now() - t0;
+        if (M.murderState()?.stage === "incident" && !M.isTheirTurn(game.actors.get("${ids.aiko}"))) await M.passTurn();
+        return { stage: M.murderState()?.stage ?? null, ms };`, { timeout: 60000 });
+    const fTurn = await p1.eval(`${UNTIL} const M = await import("${repoUrl}/scripts/murder.mjs"); const t0 = Date.now();
+        const aiko = game.actors.get("${ids.aiko}");
+        await until(() => M.murderState()?.stage === "incident" && M.isTheirTurn(aiko), 20000);
+        return { stage: M.murderState()?.stage ?? null, mine: M.isTheirTurn(aiko), ms: Date.now() - t0 };`, { timeout: 60000 });
+    note("F: the opening resolved on gm, then Aiko's turn on p1's page, in ms", J({ fOpen, fTurn }));
     const fWordsBefore = await p2.eval(`return globalThis.__s89Words.length;`);
     await p1.eval(`${UNTIL}
         const A = await import("${repoUrl}/scripts/action-rolls.mjs");
@@ -174,7 +190,8 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, repoUrl }) {
         return { done: globalThis.__s89F.done, windows: globalThis.__dialogLog.slice(globalThis.__s89F.log).map(d => d.title),
             menu: game.i18n.localize("DRPG.Murder.yourTurn"), changed: game.i18n.localize("DRPG.TraitRuling.changedTitle") };`);
     check("F: in the incident, a pass after gm's Change to: Leg opens the crisis menu again on p1 (the menu, the changed window, the menu)",
-        f.pressed && fP1.done && J(fP1.windows.slice(0, 3)) === J([fP1.menu, fP1.changed, fP1.menu]), J({ f, fP1 }));
+        fOpen.stage === "incident" && fTurn.mine && f.pressed && fP1.done && J(fP1.windows.slice(0, 3)) === J([fP1.menu, fP1.changed, fP1.menu]),
+        J({ fOpen, fTurn, f, fP1 }));
     const fSeen = await p2.eval(`const d = game.messages.get(${J(f.card)})?.toObject() ?? null;
         return { words: globalThis.__s89Words.length - ${fWordsBefore}, named: d ? /${ids.aiko}|Aiko Hoshino|Leave a Clue/i.test(J(d)) : null };
         function J(v) { return JSON.stringify([v.speaker, v.system, v.flags, v.content]); }`);
