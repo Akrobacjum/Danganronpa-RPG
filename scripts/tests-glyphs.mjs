@@ -339,7 +339,279 @@ export function selfCheck(files) {
         }
         if (!got.some(p => p.includes(words))) misses.push(`planted "${what}" was not seen (wanted a problem with "${words}"; read: ${got.slice(0, 2).join(" | ") || "nothing"})`);
     }
-    return { misses, plants: plants.length };
+    /* THE CONTROL (the owner, 10.11: Glass on 24, Legacy keeps its 12 and 8): one name in `glass` on 24 and in
+       `legacy` on 12 is no fault, and each theme finds its own. */
+    const two = structuredClone(data.glyphs.filter(g => g.family === "chrome" && g.grid === 12).slice(0, 1));
+    if (two.length) {
+        const legacy = { ...two[0], family: "legacy", same: `chrome:${two[0].name}`, sheet: undefined, rule: undefined, key: undefined };
+        const glass = { family: "glass", name: two[0].name, grid: 24, from: "control", rows: Array.from({ length: 24 }, (_, y) => (y === 12 ? "#" : ".").repeat(24)) };
+        const both = [...data.glyphs, JSON.parse(JSON.stringify(legacy)), glass];
+        if (dataProblems(both).length) misses.push(`one name drawn for glass on 24 and for legacy on 12 reads as a fault: ${dataProblems(both)[0]}`);
+        if (drawingOf(both, two[0].name, "glass")?.grid !== 24 || drawingOf(both, two[0].name, "legacy")?.grid !== 12) misses.push("a theme does not find its own drawing of one name");
+    } else misses.push("no 12-grid chrome row to build the two-theme control from");
+    return { misses, plants: plants.length + 1 };
+}
+
+/* ------------------------------ the map (E48 G2) ---------------------------- */
+
+/*
+ * WHAT EACH ELEMENT WEARS, BY MEANING (E48 G2, 10.11.2026). Four tables and the gaps they measure, which the drawing
+ * rounds close (STAGE M): `mapProblems` is the structure - red in `node tools/check.mjs glyphs` - and `mapGaps` the
+ * gaps, printed there and held by R3333-R3338, each `expectedRed("E48")` until its last gap is drawn.
+ *
+ * A name is drawn when a row of that name is in one of the families a theme wears, looked up in THEMES's order, so
+ * one element can carry a Stained Glass drawing and a Monokuma Legacy drawing on different grids under one name
+ * (the owner, 10.11: Glass all on 24, Legacy keeps its 12- and 8-grid drawings; option A). Today every hand family is
+ * unscoped, so both themes wear them; `glass` and `legacy` are the families the rounds and G4 add.
+ */
+export const THEMES = {
+    glass: ["glass", "px", "pix", "g", "r", "chrome"],
+    legacy: ["legacy", "pix", "g", "r", "chrome", "px"]
+};
+
+/** The keyed elements: config.mjs's ACTIONS, HOPE_CALLS, DESPAIR_CALLS, CRISIS_ACTIONS, MONOCUB, TRAP_TRIGGERS (the
+ *  room triggers) and CLEANUP, each entry with an `icon`, and gm-panel.mjs's tiles (`{ key: "...", icon: "fa-..." }`,
+ *  as `gm.<key>`) -> the glyph each wears, by meaning. Today's glyph where the FA table has one (83 on 10.11.2026);
+ *  where it has none, the name the drawing rounds draw (10, gaps). */
+export const ELEMENTS = {
+    "ACTIONS.search": "search", "ACTIONS.observe": "observe", "ACTIONS.analyze": "brain",
+    "ACTIONS.project": "hourglass", "ACTIONS.rest": "rest", "ACTIONS.listen": "listen", "ACTIONS.palm": "palm",
+    "ACTIONS.tamper": "broom", "ACTIONS.directMurder": "skull", "ACTIONS.move": "move", "ACTIONS.sabotage": "tamper",
+    "HOPE_CALLS.support": "support", "HOPE_CALLS.experience": "cap", "HOPE_CALLS.ultimate": "star",
+    "HOPE_CALLS.contribution": "tamper", "HOPE_CALLS.reroll": "reroll", "HOPE_CALLS.sprint": "sprint",
+    "HOPE_CALLS.burst": "dynamic", "HOPE_CALLS.relief": "relief", "HOPE_CALLS.determination": "fist",
+    "HOPE_CALLS.freeCrit": "loaded", "DESPAIR_CALLS.obstacle": "barrier", "DESPAIR_CALLS.forTheGame": "gift",
+    "DESPAIR_CALLS.behindClosedDoors": "door", "DESPAIR_CALLS.thisWillHurt": "heartcrack",
+    "DESPAIR_CALLS.paranoia": "brain", "DESPAIR_CALLS.chained": "chain", "DESPAIR_CALLS.silence": "silence",
+    "DESPAIR_CALLS.fuelTheCub": "cub", "DESPAIR_CALLS.gameProtection": "trend-down",
+    "DESPAIR_CALLS.favoriteProject": "trend-up", "DESPAIR_CALLS.feedOverflow": "wave",
+    "DESPAIR_CALLS.contraband": "trash", "DESPAIR_CALLS.publicAnnouncement": "horn",
+    "DESPAIR_CALLS.motive": "envelope", "DESPAIR_CALLS.newRule": "gavel", "CRISIS_ACTIONS.useItem": "analyze",
+    "CRISIS_ACTIONS.leaveClue": "lens", "CRISIS_ACTIONS.secureTrace": "palm", "CRISIS_ACTIONS.selfDefence": "shield",
+    "CRISIS_ACTIONS.survive": "sprint", "CRISIS_ACTIONS.roleReversal": "reroll", "CRISIS_ACTIONS.strike": "fist",
+    "CRISIS_ACTIONS.pin": "down", "CRISIS_ACTIONS.keepDistance": "swap", "CRISIS_ACTIONS.weaponAttack": "murder",
+    "CRISIS_ACTIONS.finishingBlow": "skull", "CRISIS_ACTIONS.sharedEscape": "door",
+    "CRISIS_ACTIONS.doubleRoleReversal": "reroll", "CRISIS_ACTIONS.crimePartners": "support",
+    "CRISIS_ACTIONS.avertedEyes": "eye-slash", "MONOCUB.abilities.meddle": "palm", "TRAP_TRIGGERS.alone": "alone",
+    "TRAP_TRIGGERS.enters": "door", "TRAP_TRIGGERS.search": "search", "TRAP_TRIGGERS.rest": "rest",
+    "TRAP_TRIGGERS.item": "item-used", "TRAP_TRIGGERS.project": "hourglass", "TRAP_TRIGGERS.sabotage": "tamper",
+    "TRAP_TRIGGERS.stash": "stash", "TRAP_TRIGGERS.passage": "passage", "TRAP_TRIGGERS.manual": "observe",
+    "CLEANUP.actions.eraseTrace": "erase-trace", "CLEANUP.actions.misleadingTrail": "misleading-trail",
+    "CLEANUP.actions.moveBody": "move-body", "gm.whoIsAlive": "pulse", "gm.projects": "checklist", "gm.sound": "sound",
+    "gm.rules": "gavel", "gm.murder": "skull", "gm.investigation": "lens", "gm.trial": "scale", "gm.jump": "calendar",
+    "gm.gmTeam": "team", "gm.roomSetup": "door", "gm.tables": "table", "gm.voiceReset": "voice-reset",
+    "gm.seasonSetup": "wand", "gm.mastermind": "mask", "gm.chapterEndTile": "end-chapter", "gm.seasonReset": "trash",
+    "gm.failureLog": "bug", "gm.caseWindow": "case-backup"
+};
+
+/** What later stages build, by the inventory (S/stages/E48/GLYPH-INVENTORY.md, 10.11.2026): [row, stage, element,
+ *  glyph or [two glyphs]]. A row's id is `F<row>`, a two-glyph row's halves `F<row>a` and `F<row>b`. */
+export const FUTURE = [
+    [1, "E48", "Notice history button", "history-12"],
+    [2, "E48", "Microphone", "mic"],
+    [3, "E48", "Microphone off", "mic-off"],
+    [4, "E48", "Sound off", "sound-off"],
+    [5, "E48", "Lock (manual GM mic lock)", "lock"],
+    [6, "E48", "Photo", "photo"],
+    [7, "E48", "Chevron (description toggle)", "chevron"],
+    [8, "E48", "Sound launcher gear", "gear"],
+    [9, "E48", "Sound panel speaker", "speaker"],
+    [10, "E48", "Handbooks book launcher", "book"],
+    [11, "E48", "GM launcher glyph", "gm"],
+    [12, "E48", "Voice reset", "voice-reset"],
+    [13, "E48", "End chapter", "end-chapter"],
+    [14, "E48", "Find Passage (row)", "find-passage"],
+    [15, "E48", "Show the passage", "show-passage"],
+    [16, "E48", "Go through", "go-through"],
+    [17, "E48", "Tunnel exit mark", "tunnel-exit"],
+    [18, "E48", "Frisk (row)", "frisk"],
+    [19, "E48", "Frisk target-window buttons", "frisk-target"],
+    [20, "E48", "Mode bar: Skip (turn/question)", "skip"],
+    [21, "E48", "Mode bar: -30 s / +30 s (Panic -5/+5)", ["time-minus", "time-plus"]],
+    [22, "E48", "Mode bar: Overrule", "overrule"],
+    [23, "E48", "Mode bar: End mode", "end-mode"],
+    [24, "E48", "Closing: Approve", "approve"],
+    [25, "E48", "Closing: Pick someone else", "pick-other"],
+    [26, "E48", "Closing: Resume", "resume"],
+    [27, "E48", "Back to debate", "back-to-debate"],
+    [28, "E97", "Case window launcher (Sprawa)", "case"],
+    [29, "E97", "Run realization", "run"],
+    [30, "E97", "Undo realization", "undo"],
+    [31, "E97", "Realization marker", "made"],
+    [32, "E97", "Column order arrows", ["arrow-up", "arrow-down"]],
+    [33, "E98", "Map view toggle", "map"],
+    [34, "E98", "Table view toggle", "table"],
+    [35, "E98", "Murder-bound toggle", "murder-bound"],
+    [36, "E98", "Who has what (list)", "who-has"],
+    [37, "E99", "Case schema button (console frame)", "case-map"],
+    [38, "E99", "Node check box (conclusion, counter, solution)", "check"],
+    [39, "E99", "Show summary", "summary"],
+    [40, "E92", "Spectator badge (HUD / card)", "spectator"],
+    [41, "E92", "Assign Spectator (Students window)", "spectator"],
+    [42, "E92", "Observers' talk switch", "spectators-talk"],
+    [43, "E92", "Spectator token marker", "ghost-token"],
+    [44, "E93", "Facilities tile (was Rest)", "facilities"],
+    [45, "E69", "Infiltrate tile", "infiltrate"],
+    [46, "E69", "Listen (row)", "listen"],
+    [47, "E69", "Tail Someone", "tail"],
+    [48, "E69", "Dash", "dash"],
+    [49, "E69", "Echoes", "echoes"],
+    [50, "E69", "Stop listening button", "stop-listening"],
+    [51, "E69", "Eavesdropper marker in GM voice panel", "listening"],
+    [52, "E74", "Shut the Door", "shut-door"],
+    [53, "E74", "Force the Door", "force-door"],
+    [54, "E74", "Pick the Lock", "pick-lock"],
+    [55, "E74", "Keep Watch", "keep-watch"],
+    [56, "E74", "Repair the Lock (project preset)", "repair-lock"],
+    [57, "E74", "Barricaded flag on room", "barricade"],
+    [58, "E74", "Broken lock mark / Room Setup column", "broken-lock"],
+    [59, "E74", "Door list entries (closed, sealed)", "door"],
+    [60, "E73", "Zone A / Zone B choice buttons", ["zone-a", "zone-b"]],
+    [61, "E73", "Straw Poll", "straw-poll"],
+    [62, "E73", "Logic Dive", "logic-dive"],
+    [63, "E73", "Scrum Debate", "scrum"],
+    [64, "E73", "Bar: Count now", "count-now"],
+    [65, "E73", "Bar: Skip question", "skip"],
+    [66, "E73", "Bar: Skip in Scrum", "skip"],
+    [67, "E73", "Finding entry marks (Monokuma confirms / Class thinks)", "finding"],
+    [68, "E72", "Monocub tile: Move", "move"],
+    [69, "E72", "Monocub tile: Confusion", "confusion"],
+    [70, "E72", "Monocub tile: Redeem", "redeem"],
+    [71, "E72", "Monocub tile: Ask for Hope", "ask-hope"],
+    [72, "E72", "Monocub tile: Ghost Bet", "ghost-bet"],
+    [73, "E72", "Tinker (second Confusion target / row)", "tinker"],
+    [74, "E72", "Bribe (Hope Call)", "bribe"],
+    [75, "E72", "Bounty (reward)", "bounty"],
+    [76, "E72", "Invite as Monocub", "monocub-invite"],
+    [77, "E72", "Revoke Monocub role", "monocub-revoke"],
+    [78, "E72", "Give 1 / Give 2 / Not now (gmAsk card)", "give-hope"],
+    [79, "E72", "Crime witness badge", "crime-witness"],
+    [80, "E72", "Body tile marker (Ciało: ...)", "body"],
+    [81, "E72", "Monocub HUD badge (Hope, proposals)", "monocub-badge"],
+    [82, "E72", "Redeem waits (Events panel)", "redeem-wait"]
+];
+
+/** One function in two places, which may share one drawing (the owner, 10.11: "każda akcja/funkcja miała unikalną
+ *  ikonkę, bez powtarzania, chyba że oznacza to samo"): [ids, why]. Any other two elements that wear one drawing are
+ *  a gap. */
+export const SAME = [
+    [["ACTIONS.search", "TRAP_TRIGGERS.search"], "the room trigger waits for that action: one Search in two places"],
+    [["ACTIONS.project", "TRAP_TRIGGERS.project"], "the room trigger waits for work on a project: one Project"],
+    [["ACTIONS.rest", "TRAP_TRIGGERS.rest"], "the room trigger waits for a Rest: one Rest"],
+    [["ACTIONS.sabotage", "TRAP_TRIGGERS.sabotage"], "the room trigger waits for a Sabotage: one Sabotage"],
+    [["ACTIONS.listen", "F46"], "the inventory's Listen row is this action's tile"],
+    [["ACTIONS.move", "F68"], "Move, for the Monocub as for a student"],
+    [["F20", "F65", "F66"], "Skip: one function in the mode bar, the question bar and the Scrum"],
+    [["F40", "F41"], "the Spectator: the badge and the button that makes one wear one mark"]
+];
+
+/** The Font Awesome classes markup carries where it has no element key -> the glyph (Q5: no markup change in E48).
+ *  Today the FA table whole; batch 2 adds the names of scripts/ it lacks (Q4), and G3 generates the glass rules
+ *  from it. */
+export const FACES = FA;
+
+/** Pairs that mean opposite things and must never look alike (S02-73). */
+export const OPPOSITES = [
+    ["ACTIONS.sabotage", "HOPE_CALLS.contribution"], ["ACTIONS.analyze", "DESPAIR_CALLS.paranoia"],
+    ["ACTIONS.palm", "MONOCUB.abilities.meddle"], ["F2", "F3"], ["gm.sound", "F4"], ["F21a", "F21b"], ["F32a", "F32b"],
+    ["F60a", "F60b"], ["F29", "F30"], ["F76", "F77"]
+];
+
+/** The keyed elements of the tree: [[id, icon]], from config.mjs's namespace and gm-panel.mjs's text. */
+export function keyedElements(config, gmPanelSource) {
+    const out = [];
+    const walk = (o, p, d) => {
+        if (!o || typeof o !== "object" || d > 4) return;
+        if (typeof o.icon === "string") out.push([p, o.icon]);
+        for (const [k, v] of Object.entries(o)) if (k !== "icon" && v && typeof v === "object") walk(v, `${p}.${k}`, d + 1);
+    };
+    for (const set of ["ACTIONS", "HOPE_CALLS", "DESPAIR_CALLS", "CRISIS_ACTIONS", "MONOCUB", "TRAP_TRIGGERS", "CLEANUP"]) walk(config[set], set, 0);
+    for (const m of String(gmPanelSource).matchAll(/\{ key: "([a-zA-Z]+)", icon: "fa-([a-z0-9-]+)"/g)) out.push([`gm.${m[1]}`, `fa-${m[2]}`]);
+    return out;
+}
+
+/** Every element id with its glyph name: the keyed ones, then FUTURE's. */
+export function mapEntries() {
+    const out = Object.entries(ELEMENTS).map(([id, glyph]) => ({ id, glyph }));
+    for (const [n, stage, element, glyph] of FUTURE) {
+        if (Array.isArray(glyph)) glyph.forEach((g, i) => out.push({ id: `F${n}${"ab"[i]}`, glyph: g, stage, element }));
+        else out.push({ id: `F${n}`, glyph, stage, element });
+    }
+    return out;
+}
+
+/** The row a theme wears for a name, or null. */
+export function drawingOf(glyphs, name, theme = "glass") {
+    for (const family of THEMES[theme] ?? []) {
+        const g = glyphs.find(r => r.family === family && r.name === name);
+        if (g) return g;
+    }
+    return null;
+}
+
+/** The map's structure: red, always (it is not a gap the drawing rounds close). */
+export function mapProblems(keyed) {
+    const out = [], ids = new Set(mapEntries().map(e => e.id));
+    const tree = new Set(keyed.map(([id]) => id));
+    const missing = [...tree].filter(id => !(id in ELEMENTS)), stale = Object.keys(ELEMENTS).filter(id => !tree.has(id));
+    if (missing.length) out.push(`ELEMENTS has no row for these keyed elements: ${missing.join(", ")}`);
+    if (stale.length) out.push(`ELEMENTS names elements the tree no longer has: ${stale.join(", ")}`);
+    if (tree.size < 60) out.push(`only ${tree.size} keyed element(s) read - config.mjs or gm-panel.mjs was not read`);
+    const rows = FUTURE.map(r => r[0]);
+    if (new Set(rows).size !== rows.length || rows.some((n, i) => n !== i + 1)) out.push("FUTURE's rows are not 1..N once each");
+    for (const [list, why] of SAME) {
+        if (!(list.length > 1) || !why) out.push(`SAME ${list}: a row is two ids or more and a reason`);
+        for (const id of list) if (!ids.has(id)) out.push(`SAME names ${id}, which is no element`);
+    }
+    for (const pair of OPPOSITES) {
+        for (const id of pair) if (!ids.has(id)) out.push(`OPPOSITES names ${id}, which is no element`);
+        if (SAME.some(([list]) => pair.every(id => list.includes(id)))) out.push(`${pair.join(" and ")} are opposites and SAME at once`);
+    }
+    for (const e of mapEntries()) if (!/^[a-z0-9][a-z0-9-]*$/.test(e.glyph)) out.push(`${e.id}: "${e.glyph}" is not a glyph name`);
+    return out;
+}
+
+/**
+ * The gaps, each a list the drawing rounds empty: keyed elements no theme-glass row draws; GM tiles the sheet still
+ * draws that gm-panel.mjs no longer has (`data-drpg-run="..."` in danganronpa.css); opposite pairs drawn alike; FUTURE
+ * glyphs with no row; elements wearing one drawing that SAME does not join; and the drawings Stained Glass wears off
+ * the 24 grid (no `glass` row of the name on 24 yet).
+ */
+export function mapGaps(glyphs, { keyed, danganronpaCss = "" }) {
+    const entries = mapEntries();
+    const drawn = new Map(entries.map(e => [e.id, drawingOf(glyphs, e.glyph, "glass")]));
+    const sig = g => `${g.grid}|${g.rows.join("")}`;
+    const keyedIds = new Set(keyed.map(([id]) => id));
+    const keyedUndrawn = entries.filter(e => keyedIds.has(e.id) && !drawn.get(e.id)).map(e => `${e.id} (${e.glyph})`);
+    const futureUndrawn = [...new Set(entries.filter(e => e.id.startsWith("F") && !drawn.get(e.id)).map(e => e.glyph))];
+    const tiles = new Set(keyed.filter(([id]) => id.startsWith("gm.")).map(([id]) => id.slice(3)));
+    const ran = new Set([...blankComments(lf(danganronpaCss)).matchAll(/data-drpg-run="([a-zA-Z]+)"/g)].map(m => m[1]));
+    const deadTiles = [...ran].filter(k => !tiles.has(k));
+    const opposites = OPPOSITES.filter(([a, b]) => drawn.get(a) && drawn.get(b) && sig(drawn.get(a)) === sig(drawn.get(b)))
+        .map(([a, b]) => `${a} and ${b} (${id(drawn.get(a))})`);
+    const groups = new Map();
+    for (const e of entries) {
+        const g = drawn.get(e.id);
+        if (!g) continue;
+        if (!groups.has(sig(g))) groups.set(sig(g), { glyph: id(g), ids: [] });
+        groups.get(sig(g)).ids.push(e.id);
+    }
+    const shared = [], joined = [];
+    for (const { glyph, ids } of groups.values()) {
+        if (ids.length < 2) continue;
+        const classes = [];
+        for (const one of ids) {
+            const row = SAME.find(([list]) => list.includes(one));
+            const cls = classes.find(c => row && c.row === row);
+            if (cls) cls.ids.push(one); else classes.push({ row, ids: [one] });
+        }
+        if (classes.length > 1) shared.push(`${glyph}: ${classes.map(c => c.ids.join(" + ")).join(" | ")}`);
+        else joined.push(glyph);
+    }
+    const offGrid = glyphs.filter(g => THEMES.glass.includes(g.family) && g.grid !== 24
+        && !glyphs.some(o => o.family === "glass" && o.name === g.name && o.grid === 24)).map(id);
+    return { keyedUndrawn, deadTiles, opposites, futureUndrawn, shared, offGrid,
+        counts: { keyed: keyedIds.size, future: FUTURE.length, sharedToday: shared.length + joined.length, sameJoined: joined.length } };
 }
 
 /* ------------------------------ the chrome section ------------------------- */

@@ -201,7 +201,11 @@
  *             with no glyph), red unless each is named - then tools/glyphs.json
  *             against the sprite, pixel-icons.css, the audit page's symbols,
  *             every SVG data URI of danganronpa.css and stained-glass.css and
- *             the chrome section tools/chrome-icons.mjs writes. Bare Node.
+ *             the chrome section tools/chrome-icons.mjs writes; then the map
+ *             (E48 G2: ELEMENTS against config.mjs's keyed sets and
+ *             gm-panel.mjs's tiles, FUTURE, SAME, OPPOSITES), its structure
+ *             red, its gaps printed - R3333-R3338 hold them red until the
+ *             drawing rounds close them. Bare Node.
  */
 
 import fs from "node:fs";
@@ -1191,7 +1195,19 @@ async function glyphs() {
         + `${counts.same} same; generated ${counts.generated}, fa ${counts.fa}, ${counts.current}/3 generated file(s) current; `
         + `${counts.sheetHeld}/${counts.sheetRows} sheet drawing(s) equal to their rows; chrome section ${counts.chrome}` : "nothing read"}; `
         + `self-check ${plants - misses.length}/${plants} plant(s) seen; ${problems.length + misses.length} problem(s)`);
-    return [...misses, ...problems];
+    /* THE MAP (E48 G2): its structure is red here; its gaps are a reading, each held red by its own test (R3333-R3338)
+       until the drawing rounds empty it. */
+    const C = await import(url.pathToFileURL(path.join(REPO, "scripts", "config.mjs")).href);
+    const keyed = G.keyedElements(C, read("scripts/gm-panel.mjs"));
+    const structure = G.mapProblems(keyed);
+    const { glyphs: rows } = G.parseGlyphs(files["tools/glyphs.json"] ?? "");
+    const gaps = G.mapGaps(rows, { keyed, danganronpaCss: files["styles/danganronpa.css"] ?? "" });
+    console.log(`glyphs: map: ${keyed.length} keyed element(s), ${G.FUTURE.length} FUTURE row(s), ${G.SAME.length} SAME, `
+        + `${G.OPPOSITES.length} OPPOSITES; ${structure.length} structure problem(s); gaps (the drawing rounds close them): `
+        + `keyed undrawn ${gaps.keyedUndrawn.length}, dead tiles ${gaps.deadTiles.length}, opposites alike ${gaps.opposites.length}, `
+        + `FUTURE undrawn ${gaps.futureUndrawn.length}, shared not SAME ${gaps.shared.length} (of ${gaps.counts.sharedToday} shared, `
+        + `${gaps.counts.sameJoined} joined), Glass off the 24 grid ${gaps.offGrid.length}`);
+    return [...misses, ...problems, ...structure];
 }
 
 const PARTS = { stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode, live, text, css, contrast, glyphs };
