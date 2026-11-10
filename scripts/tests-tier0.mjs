@@ -518,6 +518,37 @@ const REGRESSIONS = [
         equal(JSON.stringify(cssBudgetProblems(counts, budget, { atMost: true })), "[]", "a served sheet is above its budget, or the budget and module.json disagree");
     }],
 
+    ["R3332 - the pixel glyphs come from one source: each row of tools/glyphs.json `grid` cells wide and tall, no two drawing the same pixels unless one says `same`, the sprite, pixel-icons.css and the audit page's symbols what tools/glyph-map.mjs writes from them, every SVG data URI of danganronpa.css and stained-glass.css its row's drawing pixel for pixel, the chrome section what tools/chrome-icons.mjs writes, and each planted drift seen (E48 G1)", async () => {
+        /*
+         * E48 G1, 10.11.2026. The drawings lived in six places (tools/pixel-icons.py and its base file, chrome-icons.mjs's
+         * art, the stylesheets' custom properties and masks); they are rows of one file now, and this is glyph-map.mjs's
+         * `--check` (tests-glyphs.mjs `glyphProblems`, `selfCheck`) on the files Foundry serves, the same functions `node tools/check.mjs
+         * glyphs` runs. A drawing the sheets still hold by hand (until G4 generates them) is held to its row by its pixels,
+         * not its text: the sheets spell one rectangle three ways. Red before G1: no tools/glyphs.json; red on a planted
+         * drift (one pixel of a row of the generated set flipped: "icons/pixel-sprite.svg is not what tools/glyph-map.mjs
+         * writes (line 2 differs)"), and `selfCheck` plants nine kinds of drift in copies and wants each named.
+         */
+        needs(env.tools(), "tools/glyphs.json and its generator are read from the repository's tools/ (an installed module's zip leaves it out)");
+        const files = {};
+        for (const file of ["tools/glyphs.json", "icons/pixel-sprite.svg", "styles/pixel-icons.css", "docs/design/identity-audit-v13.html", "styles/danganronpa.css", "styles/stained-glass.css"]) {
+            try {
+                const res = await fetch(`/modules/${MODULE_ID}/${file}`, { cache: "no-cache" });
+                files[file] = res.ok ? await lfText(res) : null;
+            } catch { files[file] = null; /* the assertions below name what is missing */ }
+        }
+        ok(files["tools/glyphs.json"] != null, "tools/glyphs.json is missing: the glyphs have no one source");
+        if (files["tools/glyphs.json"] == null) return;
+        const G = await import("./tests-glyphs.mjs");
+        equal(JSON.stringify(G.GLYPH_FILES.filter(f => !(f in files))), "[]", "glyph-map.mjs reads a file this test does not fetch");
+        const { problems, counts } = G.glyphProblems(files);
+        must(counts && counts.glyphs >= 240 && counts.sheetRows >= 150, `glyphs.json read ${JSON.stringify(counts)} - the check would hold nothing`);
+        equal(JSON.stringify(problems.slice(0, 6)), "[]", `${problems.length} problem(s) between tools/glyphs.json and the files it draws`);
+        equal(counts.chrome, "current", "danganronpa.css's chrome section was not compared with tools/chrome-icons.mjs's");
+        const { misses, plants } = G.selfCheck(files);
+        must(plants >= 9, `${plants} plant(s) - the self-check would prove little`);
+        equal(JSON.stringify(misses), "[]", "a planted drift went unseen");
+    }],
+
     ["R1313 - CONTRIBUTING.md's \"The CSS contract\" names each detector of the CSS lint (importantCount, colourLiterals, strayCommentEnds, duplicateRules, deadClasses), the floor (21 px scaled under Stained Glass, 10 px a rung under Monokuma Legacy), the 390 px rule and the three commands - node tools/check.mjs css, node tools/check.mjs contrast, node audit/style-sweep.mjs (E44 C1c; E44-04)", async () => {
         /*
          * E44 C1c, 04.11.2026 (audit S17-35: no CSS contract). The section is what a contributor reads before
@@ -9958,7 +9989,7 @@ const REGRESSIONS = [
          * plain white squares. There the harness's copy of the tile wore no mask, and `.drpg-pxi` with no mask is a
          * square of its own colour (danganronpa.css). voice-tile.mjs `glyph` writes `--drpg-px-<name>` on each glyph it
          * builds, so a name with no sprite is the same square at a table: this reads each literal name the tile's
-         * builders are given against the sprites the generated sheet states (tools/pixel-icons.py). The drawn mask is
+         * builders are given against the sprites the generated sheet states (tools/glyph-map.mjs). The drawn mask is
          * the glass harness's `drpgVoiceParts`, in Chromium. THE CONTROL: a name with no sprite is found missing.
          */
         const src = stripComments(new Map(await otherSources()).get("voice-tile.mjs") ?? "");

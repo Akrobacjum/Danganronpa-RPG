@@ -1459,7 +1459,7 @@ export function objectionControl(actor = viewerActor(), given = {}) {
     if (given.unless && given.unless === key) return false;
     const name = game.i18n.localize("DRPG.Trial.objection");
     /* THE TILE'S HEXAGON (E70 C11): the voice tile's controls are the corner's 30 px mini buttons with a pixel glyph
-       (the kit's mini launcher since E44 C6, as voice-tile.mjs `miniButton`'s; 'hand' is 'palm' in pixel-icons.py's map),
+       (the kit's mini launcher since E44 C6, as voice-tile.mjs `miniButton`'s; 'hand' is 'palm' in glyph-map.mjs's map),
        and Foundry's tooltip there is `data-tooltip-text`, as the tile's other two set it. The row keeps the Font Awesome
        hand it has had since E79. */
     let button;

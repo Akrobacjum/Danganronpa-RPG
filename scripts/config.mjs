@@ -2781,12 +2781,12 @@ export const PROJECT_SCALE = {
  * So the GM chooses one. Each entry names a FONT AWESOME icon and not a
  * sprite, because that is the module's one way of drawing an icon: the base
  * sheet draws the Font Awesome glyph, and Stained Glass masks that same
- * element to the pixel sprite (tools/pixel-icons.py's FA table, emitted as the
+ * element to the pixel sprite (tools/glyph-map.mjs's FA table, emitted as the
  * rules in pixel-icons.css). Naming the FA icon therefore gets both looks for
  * free and makes it impossible for the picker's swatch and the tray's row to
  * draw different pictures. `key` is the sprite name the tray's mask needs.
  *
- * Adding one: the FA name must be in tools/pixel-icons.py's `FA` map, or the
+ * Adding one: the FA name must be in tools/glyph-map.mjs's `FA` map, or the
  * swatch stays Font Awesome under a theme where everything else is pixels.
  * That is why `vault`, `bag` and `trap` are not offered although their sprites
  * exist - add them to `FA`, regenerate, and they can be.

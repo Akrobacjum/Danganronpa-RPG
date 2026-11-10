@@ -1022,7 +1022,7 @@ export function tile({ id = null, className, label, data = {} } = {}) {
     return madeBy(el, "tile");
 }
 
-/** One of the module's pixel glyphs (tools/pixel-icons.py), masked in the current colour and never read aloud. */
+/** One of the module's pixel glyphs (tools/glyphs.json), masked in the current colour and never read aloud. */
 export function pixelGlyph(name) {
     const icon = document.createElement("i");
     icon.className = "drpg-pxi";

@@ -191,6 +191,17 @@
  *             small, 3 large) unless written `known` at that ratio, red on a
  *             `known` that no longer reads; a pair Node cannot resolve printed
  *             as not measured. Bare Node.
+ *   glyphs    the pixel glyphs from one source (E48 G1; tools/glyph-map.mjs,
+ *             whose header says what it holds; the arithmetic is
+ *             scripts/tests-glyphs.mjs's): its self-check first - nine
+ *             drifts planted in copies (a pixel of the generated set, a short
+ *             row, two rows alike with no `same`, a false `same`, a sheet's
+ *             custom property and a chrome rule apart from their rows, a sheet
+ *             drawing with no row, pixel-icons.css edited by hand, an FA name
+ *             with no glyph), red unless each is named - then tools/glyphs.json
+ *             against the sprite, pixel-icons.css, the audit page's symbols,
+ *             every SVG data URI of danganronpa.css and stained-glass.css and
+ *             the chrome section tools/chrome-icons.mjs writes. Bare Node.
  */
 
 import fs from "node:fs";
@@ -1167,7 +1178,23 @@ async function contrast() {
     return problems;
 }
 
-const PARTS = { stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode, live, text, css, contrast };
+/* --------------------------------- glyphs --------------------------------- */
+
+/* ONE SOURCE FOR THE GLYPHS (E48 G1, 10.11.2026): scripts/tests-glyphs.mjs's `glyphProblems` and `selfCheck` (tools/glyph-map.mjs's
+   `--check`), which R3332 runs on the files Foundry serves. */
+async function glyphs() {
+    const G = await import(url.pathToFileURL(path.join(REPO, "scripts", "tests-glyphs.mjs")).href);
+    const files = Object.fromEntries(G.GLYPH_FILES.map(f => [f, exists(f) ? read(f) : null]));
+    const { misses, plants } = G.selfCheck(files);
+    const { problems, counts } = G.glyphProblems(files);
+    console.log(`glyphs: ${counts ? `${counts.glyphs} glyph(s) (${Object.entries(counts.families).map(([f, n]) => `${f} ${n}`).join(", ")}), `
+        + `${counts.same} same; generated ${counts.generated}, fa ${counts.fa}, ${counts.current}/3 generated file(s) current; `
+        + `${counts.sheetHeld}/${counts.sheetRows} sheet drawing(s) equal to their rows; chrome section ${counts.chrome}` : "nothing read"}; `
+        + `self-check ${plants - misses.length}/${plants} plant(s) seen; ${problems.length + misses.length} problem(s)`);
+    return [...misses, ...problems];
+}
+
+const PARTS = { stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode, live, text, css, contrast, glyphs };
 
 const asked = argv.filter((a, i) => !a.startsWith("--") && !(releaseAt >= 0 && i === releaseAt + 1) && !(langAt >= 0 && i === langAt + 1));
 if (RELEASE === "" || (RELEASE !== null && !/^v\d+\.\d+\.\d+$/.test(RELEASE))) {
