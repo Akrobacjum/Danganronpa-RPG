@@ -1142,15 +1142,15 @@ export const PATCHES = [
         }
     },
     {
-        id: "breakdown-icon-private",
+        id: "state-icons-off-token",
         kind: "override",
         target: "DhTokenPlaceable.prototype._drawEffect (Daggerheart's token class, CONFIG.Token.objectClass)",
         owner: "daggerheart",
         file: "states.mjs",
         symbol: "wrapEffectIcons",
-        why: "A student's Breakdown icon is drawn only for whom their Sanity is shown, the owner and the GMs (E24 C1b; the owner's 08.11).",
+        why: "Breakdown's and Wounded's icons are drawn on no token, for nobody; the character sheet says both states to every reader (E95 C5; the owner's 10.11; E24 C1b to E95 C4 hid Breakdown alone from other players).",
         when: "always, from setup",
-        fallback: "not installed: a student's Breakdown icon shows on their token to every player",
+        fallback: "not installed: Breakdown's and Wounded's icons show on every token, to everybody",
         probe: () => {
             const floor = foundry.canvas?.placeables?.Token?.prototype ?? null;
             const proto = CONFIG.Token?.objectClass?.prototype ?? null;

@@ -40365,8 +40365,13 @@ const INVARIANTS = [
         equal(stableJson([text.includes(line.replace(/\s+/g, " ")), text.includes(marks), /marked|zaznaczon/i.test(text), pair !== null && text.includes(pair)]), stableJson([true, false, false, true]),
             `[the line is the reserve (${line}), the marks ${marks} stand in it, a "marked", the pair (${pair}) as the cards write it]: ${text.slice(0, 600)}`);
     }],
-    ["R1485 - the Breakdown icon is drawn only for whom the student's Sanity is shown (states.mjs `wrapEffectIcons`; E24 C1b, STAGE.md Amend 08.11 A1; the owner's 08.11 \"ikone tez ukrywamy\"): on a stand-in token, the owner and a GM see a student's Breakdown icon, another player and an Observer-only player do not; Wounded and `dead` drawn for everybody; a Monokuma's and an NPC's as a student's (E24 fix G2A, review m4); the wrapper marked and not stacked, and its contract row", async () => {
+    ["R1485 - Breakdown's and Wounded's icons are drawn on no token (states.mjs `wrapEffectIcons`; E95 C5, the owner's 10.11 \"nie wyswietlaly sie na tokenie na mapie wcale - TYLKO na karcie postaci\"; E24 C1b before it): on a stand-in token neither is drawn for the owner, a GM, another player or an Observer-only player, handed its effect or matched by its image on an actor holding it; `dead` and another status drawn for everybody; a Monokuma's and an NPC's as a student's; the wrapper marked and not stacked, and its contract row", async () => {
         /*
+         * E95 C5, 10.11.2026: rewritten. Until E95 C4 the wrapper hid Breakdown only from a reader who may not read the
+         * Sanity and drew Wounded for all (the notes below are E24's, kept for the shape of the test); the owner now
+         * wants neither icon on any token, the sheet saying both (sheet.mjs `paintStateBadges`). Red on bc750112: the
+         * owner's and a GM's Breakdown, everybody's Wounded, drawn.
+         *
          * E24 C1b, 08.11.2026. states.mjs puts Breakdown on with `toggleStatusEffect`, so Daggerheart's token (2.10.5
          * module/canvas/placeables/token.mjs `_drawEffects`, which hands `_drawEffect(src, tint, effect)` each icon's
          * effect) drew the icon on every client's canvas: it told another player what the Sanity bar no longer does. A
@@ -40384,13 +40389,13 @@ const INVARIANTS = [
         const monokuma = Object.assign(reserveActor({ id: `r1485m${stamp}`, stress: 6 }), { getFlag: (scope, key) => key === FLAGS.monokuma });
         const npc = Object.assign(reserveActor({ id: `r1485n${stamp}`, stress: 6 }), { getFlag: (scope, key) => key === FLAGS.notInClass });
         const effect = id => ({ img: `icons/r1485/${id}.webp`, statuses: new Set([id]) });
-        const EFFECTS = [effect(STATES.breakdown.id), effect(STATES.wounded.id), effect("dead")];
+        const EFFECTS = [effect(STATES.breakdown.id), effect(STATES.wounded.id), effect("dead"), effect("r1485-other")];
         let seen = null, wrap = null, refused = null;
         if (typeof ST.effectIconShown === "function") {
             seen = {};
             const drawn = (actor, user) => EFFECTS.map(fx => ST.effectIconShown(actor, fx, user));
             for (const [who, user] of [["owner", owner], ["gm", game.user], ["player", viewer], ["observer", observer]]) seen[who] = drawn(student, user);
-            // As a student's, the sheet's one meaning (E24 fix G2A, review m4): hidden from another player, a GM's view.
+            // As a student's: hidden from every reader.
             seen.monokuma = drawn(monokuma, viewer);
             seen.npc = [drawn(npc, viewer), drawn(npc, game.user)];
         }
@@ -40402,6 +40407,7 @@ const INVARIANTS = [
             const token = Object.assign(Object.create(proto), { actor: student });
             const src = stripComments((await moduleSources()).get("states.mjs") ?? "");
             wrap = [Boolean(first[Symbol.for("drpgBreakdownIcon")]), proto._drawEffect === first,
+                Boolean((await token._drawEffect(EFFECTS[2].img, null, EFFECTS[2]))?.drawn),
                 Boolean((await token._drawEffect(EFFECTS[0].img, null, EFFECTS[0]))?.drawn), /\beffectIconShown\(this\.actor/.test(fnSource(src, "wrapEffectIcons"))];
             /*
              * THE WRAPPER'S REFUSAL, DRIVEN (E24 fix G3, 09.11.2026; the end review's m5). Until this fix the wrapper
@@ -40412,7 +40418,7 @@ const INVARIANTS = [
              * the Breakdown status, each icon drawn once handed its effect and once with no effect argument (the
              * wrapper's fallback, which matches the Breakdown image on an actor holding the status).
              */
-            const held = () => new Set([STATES.breakdown.id]);
+            const held = () => new Set([STATES.breakdown.id, STATES.wounded.id]);
             const me = game.user.id;
             const watched = reserveActor({ id: `r1485w${stamp}`, stress: 6 });
             watched.testUserPermission = (user, level) => Boolean(user?.isGM) || (user?.id === me && level !== "OWNER");
@@ -40425,25 +40431,32 @@ const INVARIANTS = [
                 Boolean((await t._drawEffect(EFFECTS[0].img, null, EFFECTS[0]))?.drawn),
                 Boolean((await t._drawEffect(STATES.breakdown.img, null))?.drawn),
                 Boolean((await t._drawEffect(EFFECTS[1].img, null, EFFECTS[1]))?.drawn),
-                Boolean((await t._drawEffect(EFFECTS[1].img, null))?.drawn)
+                Boolean((await t._drawEffect(STATES.wounded.img, null))?.drawn),
+                Boolean((await t._drawEffect(EFFECTS[2].img, null, EFFECTS[2]))?.drawn)
             ];
+            // Matched by its image only on an actor that holds the status: a token holding neither draws Wounded's image.
+            const bare = Object.assign(Object.create(proto), { actor: reserveActor({ id: `r1485b${stamp}`, stress: 0, owner: me }) });
             refused = {};
             await e24AsRole("owner", async () => {
                 must(game.user.isGM === false, "this browser's user is still a GM - the refusal would measure nothing");
                 for (const [who, t] of Object.entries(tokens)) refused[who] = await four(t);
             });
-            refused.gm = Boolean((await tokens.player._drawEffect(STATES.breakdown.img, null))?.drawn);
+            refused.gm = [Boolean((await tokens.player._drawEffect(STATES.breakdown.img, null))?.drawn),
+                Boolean((await tokens.player._drawEffect(STATES.wounded.img, null))?.drawn)];
+            refused.bare = Boolean((await bare._drawEffect(STATES.wounded.img, null))?.drawn);
         }
-        const row = PATCHES.find(r => r.id === "breakdown-icon-private") ?? null;
-        equal(stableJson({ refused }), stableJson({
-            refused: { player: [false, false, true, true], observer: [false, false, true, true], own: [true, true, true, true], gm: true } }),
-        "{refused: each token's [Breakdown handed its effect, Breakdown with no effect, Wounded handed its effect, Wounded with no effect] drawn through the wrapper with "
-            + "this browser's user a player - on another player's student, on one it may only observe, on its own - and gm: the Breakdown with no effect drawn for a GM}");
+        const row = PATCHES.find(r => r.id === "state-icons-off-token") ?? null;
+        const none = [false, false, false, false, true];
+        equal(stableJson({ refused }), stableJson({ refused: { player: none, observer: none, own: none, gm: [false, false], bare: true } }),
+        "{refused: each token's [Breakdown handed its effect, Breakdown by its image, Wounded handed its effect, Wounded by its image, dead handed its effect] drawn through the wrapper with "
+            + "this browser's user a player - on another player's student, on one it may only observe, on its own - gm: [Breakdown, Wounded] by their image drawn for a GM; "
+            + "bare: Wounded's image drawn on a token whose actor holds neither status}");
+        const hidden = [false, false, true, true];
         equal(stableJson({ seen, wrap, row: row ? [row.kind, row.owner, row.file] : null }), stableJson({
-            seen: { owner: [true, true, true], gm: [true, true, true], player: [false, true, true], observer: [false, true, true], monokuma: [false, true, true], npc: [[false, true, true], [true, true, true]] },
-            wrap: [true, true, true, true], row: ["override", "daggerheart", "states.mjs"] }),
-        "{seen: [Breakdown, Wounded, dead] drawn on a student's token for its owner, a GM, another player and an Observer-only player, on a Monokuma's for another player, on an NPC's for another player and a GM; "
-            + "wrap: [marked, a second wrap stacks nothing, a GM's Breakdown drawn through it, it asks effectIconShown with the token's actor]; the contract's row [kind, owner, file]}");
+            seen: { owner: hidden, gm: hidden, player: hidden, observer: hidden, monokuma: hidden, npc: [hidden, hidden] },
+            wrap: [true, true, true, false, true], row: ["override", "daggerheart", "states.mjs"] }),
+        "{seen: [Breakdown, Wounded, dead, another status] drawn on a student's token for its owner, a GM, another player and an Observer-only player, on a Monokuma's for another player, on an NPC's for another player and a GM; "
+            + "wrap: [marked, a second wrap stacks nothing, a GM's dead drawn through it, a GM's Breakdown drawn through it, it asks effectIconShown with the token's actor]; the contract's row [kind, owner, file]}");
     }],
     ["R1456 - one step at a time (sheet.mjs `SHEET_STEPS`; E24 C3b, E24-21; audit S03-42): a step that throws - `tidyBiography` on a biography part whose lookup throws - is logged as \"Sheet step tidyBiography failed\" and every other step runs, `removeSystemCreators` first (Daggerheart's \"+\" gone, the inventory's groups and the Rules tab drawn); the primary GM is told once a load, by one notice naming the step; a player never", async () => {
         /*
@@ -43503,7 +43516,7 @@ const INVARIANTS = [
             heads,
             groups: shown.length > 1 ? shown.map(([key, list]) => `${T(`DRPG.Panel.group.${key}`)} ${list.length}`) : [],
             students: students.map(a => [true, "student", true, levelWords(a), heads.length]),
-            others: others.map(a => [true, isMonokuma(a) ? "monokuma" : "npc", false, levelWords(a), heads.length, 0]),
+            others: others.map(a => [!isMonokuma(a), isMonokuma(a) ? "monokuma" : "npc", false, levelWords(a), heads.length, 0]),
             order: [...students, ...kumas, ...npcs].map(a => a.id),
             footer: ["save", "cancel"]
         }), "{kit: the table a dataTable; heads; groups: each group row's words and count; students and others: [Items beside the name, the Role's value, a State select, "
@@ -43644,8 +43657,8 @@ const INVARIANTS = [
             release?.(null);
             await w.close();
         }
-        equal(stableJson(got), stableJson({ beside: rows.map(() => true), footer: ["save", "cancel"], calls: [first.id], whileHub: 0, back: true }),
-            "{beside: an Items button in each row's first cell; footer: its actions; calls: the actors openItemManager was called with; whileHub: Students windows drawn while the hub ran; back: the window drawn again after}");
+        equal(stableJson(got), stableJson({ beside: rows.map(a => a.getFlag(MODULE_ID, "monokuma") !== true), footer: ["save", "cancel"], calls: [first.id], whileHub: 0, back: true }),
+            "{beside: an Items button in each row's first cell but a Monokuma's (E95 C7); footer: its actions; calls: the actors openItemManager was called with; whileHub: Students windows drawn while the hub ran; back: the window drawn again after}");
     }],
 
     ["R2084 - the Students window is a GM's (scripts/gm-students.mjs; E47-C8): on a player's browser `openWhoIsAliveDialog` opens nothing, and the Role's roads called from it write nothing (monokuma.mjs `setMonokuma` and `setNotInClass` refuse on `game.user.isGM`, `markFromSheet` through them); Refund last crossing on the kit's secondary role", async () => {
@@ -44683,6 +44696,10 @@ const INVARIANTS = [
             [300, 400, 200, 200, 5, "icons/svg/skull.svg", mark("SUITER3142FLOOR1", 1234)],
             [300, 400, 300, 300, 5, "icons/svg/skull.svg", mark("SUITER3142FLOOR2", 99)]
         ]), "[the tile of a 2x2 token on a 100 px grid, on a 150 px grid]: [x, y, width, height, elevation, image, flag]");
+        /* E95 fix RV-3 (10.11.2026): the tile is hidden when the token it is laid from is, so a body the GM had hidden is
+           not shown, captioned and searchable once its student becomes a Monocub. Red at c431138a: every tile unhidden. */
+        const shut = B.bodyTileSpec({ tokenDoc: { ...tokenDoc(100), hidden: true }, actorId: "SUITER3142VICTIM", record, level: null, at: 1 });
+        equal(stableJson([one.hidden, shut.hidden]), stableJson([false, true]), "the tile's `hidden` [from a token shown, from a token hidden] is not the token's");
         equal(stableJson([B.tileCentre(one), B.tileCentre(two)]), stableJson([{ x: 400, y: 500 }, { x: 450, y: 550 }]),
             "the tiles' centres are not the tokens' (x + width x grid / 2)");
         const deaths = [{ cause: "executed", phase: "classTrial" }, { phase: "classTrial" }, { cause: "executed", phase: "investigation" },
@@ -44696,7 +44713,25 @@ const INVARIANTS = [
             "body-tile.mjs imports something besides config.mjs, movement.mjs and settings.mjs");
     }],
 
-    ["R3144 - a body's tile wears its caption and the dead sign (body-tile.mjs `drawBodyMark`, E95 C3; QUESTIONS Q4): \"{name}'s body\" / \"Ciało: {name}\" under the tile at max(20, grid x 0.36) over a keyline of max(4, grid x 0.07), the dead status's picture over its centre; drawn once per redraw, at half alpha on a hidden tile, and taken off a tile that lost its flag", async () => {
+    ["R3146 - tier 2's restore takes off only the body tiles that appeared (tests-kit.mjs `appearedBodyTiles`, E95 fix RV-4): a tile with the body flag that the snapshot did not hold, never one it held and never a tile with no body flag", async () => {
+        /*
+         * E95 fix RV-4, 10.11.2026. tests-tier2.mjs `restore` deleted every tile that appeared on a scene the snapshot
+         * knew (936a9944), so the world dump, which found E51-T21's leak as "tiles.<id> appeared", could see no tile a
+         * tier-2 test left. It now deletes only the body tiles a Monocub's edge lays (body-tile.mjs `leaveBody`); any
+         * other tile that appears stays for the dump to name. Read on a scene of plain objects: a body tile the snapshot
+         * held, a body tile and a plain tile that appeared, a tile whose flag is not an object, and no known set (a scene
+         * that appeared goes whole with the documents). Red at c431138a: tests-kit.mjs has no `appearedBodyTiles`.
+         */
+        const kit = await import("./tests-kit.mjs");
+        must(typeof kit.appearedBodyTiles === "function", "tests-kit.mjs exports no appearedBodyTiles");
+        const tile = (id, flag) => ({ id, getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.bodyOf ? flag : undefined) });
+        const body = { actorId: "SUITER3146VICTIM", deathId: null, level: null, at: 1 };
+        const scene = { tiles: [tile("tHeld", body), tile("tNewBody", body), tile("tNewPlain", undefined), tile("tNewOdd", "x")] };
+        equal(stableJson([kit.appearedBodyTiles(scene, new Set(["tHeld"])), kit.appearedBodyTiles(scene, null), kit.appearedBodyTiles({}, new Set())]),
+            stableJson([["tNewBody"], [], []]), "the tiles the restore deletes [with the snapshot's set, with none, on a scene with no tiles]");
+    }],
+
+    ["R3144 - a body's tile wears its caption and the dead sign (body-tile.mjs `drawBodyMark`, E95 C3; QUESTIONS Q4): \"{name}'s body\" / \"Ciało: {name}\" under the tile at max(20, grid x 0.36) over a keyline of max(4, grid x 0.07), the dead status's picture over its centre; drawn once per redraw, at half alpha on a hidden tile on a GM's browser and not at all on a player's, and taken off a tile that lost its flag", async () => {
         /*
          * E95 C3, 10.11.2026; QUESTIONS Q4 (the default: the caption and the sign in E95). The harm: a body tile beside
          * a Monocub's token that still wears Foundry's dead overlay reads as a second copy of the student, and a refresh
@@ -44734,8 +44769,19 @@ const INVARIANTS = [
         const renamed = B.drawBodyMark(tile, { actors });
         cases.renamed = [renamed !== first, marks(tile).length, marks(tile)[0]?.children.find(c => c instanceof PIXI.Text)?.text ?? null];
         const hidden = placeable(flag, { width: 100, height: 100, hidden: true });
-        B.drawBodyMark(hidden, { actors });
+        B.drawBodyMark(hidden, { actors, gm: true });
         cases.hidden = marks(hidden).map(m => m.alpha);
+        /* E95 fix RV-5 (10.11.2026): on a player's browser a hidden tile wears no mark, drawn before or not - the caption
+           names the body, and whether v14 hides a hidden tile's children from a player is LIVE-E95-01's. Red at c431138a:
+           the mark at half alpha there too. */
+        const forPlayer = placeable(flag, { hidden: true });
+        cases.hiddenForPlayer = [B.drawBodyMark(forPlayer, { actors, gm: false }) === null, marks(forPlayer).length];
+        const later = placeable(flag);
+        B.drawBodyMark(later, { actors, gm: false });
+        const shown = marks(later).length;
+        later.document.hidden = true;
+        B.drawBodyMark(later, { actors, gm: false });
+        cases.hiddenLater = [shown, marks(later).length];
         const plain = placeable(undefined);
         cases.plain = [B.drawBodyMark(plain, { actors }), marks(plain).length];
         tile.document.getFlag = () => undefined;
@@ -44751,12 +44797,14 @@ const INVARIANTS = [
             sameMark: true,
             renamed: [true, 1, words("R3144 Daichi Renamed")],
             hidden: [0.5],
+            hiddenForPlayer: [true, 0],
+            hiddenLater: [1, 0],
             plain: [null, 0],
             lostFlag: [null, 0],
             orphan: [["sign"]],
             langs: ["{name}'s body", "Ciało: {name}"]
-        }), "{the mark as [alpha, its children]; drawn twice one mark; renamed [a new mark, how many, its words]; hidden alpha; "
-            + "a tile with no flag [answer, marks]; the flag gone [answer, marks]; a student gone from the world; the words in English and Polish}");
+        }), "{the mark as [alpha, its children]; drawn twice one mark; renamed [a new mark, how many, its words]; hidden alpha on a GM's; "
+            + "hidden on a player's [answered none, marks]; a player's mark on a tile shown, then hidden [marks]; a tile with no flag [answer, marks]; the flag gone [answer, marks]; a student gone from the world; the words in English and Polish}");
     }],
 ];
 

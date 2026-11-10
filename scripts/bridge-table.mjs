@@ -709,7 +709,7 @@ export const BRIDGE_ACTIONS = table({
         // Where the taker stands is asked since E14 part 1 C1 (audit S08-01, S11-06): until then it was not (the E31
         // design's map of the GM side, row 30), and a body across the school was looted from a bedroom.
         claims: {
-            bodyId: "lootBody (handover.mjs) on the one gate (inventory.mjs transferRefusal, mode loot; frisk.mjs personActionRefusal with { body: true }): a dead body whose death the sender knows, its token not hidden, in the room the GMs read the taker in, a living taker that is not the body, outside an Eclipse and a Class Trial; an unknown death is refused as a living body is",
+            bodyId: "lootBody (handover.mjs) on the one gate (inventory.mjs transferRefusal, mode loot; frisk.mjs personActionRefusal with { body: true }): a dead body whose death the sender knows, not hidden where it lies (its tile, or its token when it has none: body-tile.mjs bodyPlaceOf), in the room the GMs read the taker in, a living taker that is not the body, outside an Eclipse and a Class Trial; an unknown death is refused as a living body is",
             itemId: "lootBody (handover.mjs) takes only an item on that body that is not a Truth Bullet"
         }
     },

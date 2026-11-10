@@ -15,7 +15,7 @@ import {
     MODULE_ID, FLAGS, ACTIONS, STARTING, ITEM_CATEGORIES, LIMIT_GROUPS, USABLE_KINDS, MONOCUB,
     ECLIPSE_MOVES, TIMES_OF_DAY,
     EQUIPPABLE,
-    BEDROOM_KEY_FLAG, HOPE_CALLS, DESPAIR_CALLS, PRICE_CHAINS, SHEET_SIZE } from "./config.mjs";
+    BEDROOM_KEY_FLAG, HOPE_CALLS, DESPAIR_CALLS, PRICE_CHAINS, SHEET_SIZE, STATES } from "./config.mjs";
 import { SETTINGS, isMutedDead } from "./settings.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
     canPayFor, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
@@ -78,6 +78,7 @@ import { drpgConfirm } from "./ui-kit.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { announceSheetSteps } from "./requirements.mjs";
 import { overflowBlocksCalls, overflowBlocksFreeMove } from "./overflow.mjs";
+import { stateHeld } from "./states.mjs";
 
 /*
  * ONE SHEET MODE (E45 C1, 08.11.2026; audit S17-37, S03-33; the owner's A8 of 11.10). The gates of the sheet asked
@@ -142,7 +143,7 @@ export function sheetMode(actor, user = game.user, { app = null, editable, facts
         levelUp: !npc, offers: owner, init: gm && !monokuma, itemButton: gm && !monokuma, classControls: gm,
         pipEdit: gm, realBullets: gm, otherRemove: gm && canEdit, creators: gm,
         // A Monokuma's sheet is no student's (S03-33): no student groups, no Equipped or Experience, no biography.
-        groups: !monokuma, equipped: !monokuma, experience: !monokuma, biography: !monokuma,
+        groups: !monokuma, equipped: !monokuma, experience: !monokuma, biography: !monokuma, inventory: !monokuma,
         passages: owner && !monokuma, mastermind: gm && isMastermindActor(actor),
         present,
         get presentShown() {
@@ -221,10 +222,27 @@ function hideSidebarSection(element, name) {
 }
 
 function dropBiographyTab(app, element, part) {
+    dropTab(app, element, part, "biography");
+}
+
+/*
+ * NO INVENTORY ON A MONOKUMA'S SHEET (E95 C7, 10.11.2026; the owner: "Usunmy z karty postaci monokumy zakladke
+ * inventory"). The same drop as the Biography's: the link leaves the tab bar, the part is emptied (what `groupInventory`
+ * drew goes with it), a sheet that came up on it moves to the Actions tab. Nothing is deleted or moved in the data: a
+ * character marked Monokuma keeps what it held and the tab, with the items, is back when it is unmarked. A step of its
+ * own, after the ones that draw into the part.
+ */
+function tidyInventoryTab(app, element, mode = modeOf(app)) {
+    if (mode.inventory) return;
+    const part = element?.querySelector?.('section[data-application-part="inventory"]');
+    if (part) dropTab(app, element, part, "inventory");
+}
+
+function dropTab(app, element, part, name) {
     const root = element instanceof HTMLElement ? element : element?.[0];
     if (!root) return;
     const group = part.dataset.group || "primary";
-    if (part.classList.contains("active") || app?.tabGroups?.[group] === "biography") {
+    if (part.classList.contains("active") || app?.tabGroups?.[group] === name) {
         if (typeof app?.changeTab === "function") {
             app.changeTab("features", group, { force: true, updatePosition: false });
         } else {
@@ -234,7 +252,7 @@ function dropBiographyTab(app, element, part) {
             if (app?.tabGroups) app.tabGroups[group] = "features";
         }
     }
-    root.querySelectorAll('nav [data-tab="biography"], .sheet-tabs [data-tab="biography"]').forEach(link => link.remove());
+    root.querySelectorAll(`nav [data-tab="${name}"], .sheet-tabs [data-tab="${name}"]`).forEach(link => link.remove());
     part.replaceChildren();
 }
 
@@ -993,6 +1011,7 @@ export const SHEET_STEPS = [
     ["injectSafeword", ({ app, element }) => injectSafeword(app, element)],
     ["tidyBiography", ({ app, element, mode }) => tidyBiography(app, element, mode)],
     ["groupInventory", ({ app, element, mode }) => groupInventory(app, element, mode)],
+    ["tidyInventoryTab", ({ app, element, mode }) => tidyInventoryTab(app, element, mode)],
     ["replaceEffectsTab", ({ app, element }) => replaceEffectsTab(app, element)],
     // The render's own decision, installed once per sheet (E45 C2; "THE FLICKER").
     ["installRenderPlan", ({ app }) => installRenderPlan(app)],
@@ -2241,6 +2260,47 @@ export function paintReserves(app, element, actor = app?.document, user = game.u
         if (!view.shown) emptyReserveControls(block);
         paintReserveRow(block, view, actor, editor);
     }
+    paintStateBadges(section, actor);
+}
+
+/*
+ * THE TWO STATES ARE PUBLIC ON THE SHEET (E95 C5, 10.11.2026; the owner's "Breakdown i wounded maja byc publiczne w
+ * karcie postaci, tak jak np. imie albo hp"). The same commit took both icons off every token (states.mjs
+ * `effectIconShown`), so the sheet is where a table reads them. Measured on bc750112 before (STATUS E95-C5): no reader
+ * of either layout - the owner, a GM, another player, an Observer - found Breakdown anywhere on the sheet, and Wounded
+ * only as the Actions label's class and tooltip. Now a badge of each state the character is in stands under the
+ * reserves, for every reader, a student's, a Monokuma's and an NPC's alike: its icon, its name and a tooltip saying
+ * what it does (`DRPG.States.<id>.description`). The row sits after the reserves' section, outside every reserve's
+ * block, so anonymity.mjs `redactValues`, which strips the Sanity block's tooltips, leaves it whole: the state is
+ * public, the Sanity number is not ("?" as before), though a Breakdown badge tells another player Sanity is gone (the
+ * owner asked for that). Read from the rule (`stateHeld`, the reading `syncOnce` writes the status from), so a sheet
+ * drawn before the status lands already says it; redrawn by every paint, so a repaint takes a lifted state off. The row
+ * itself is never taken off (E95 C5 fix): its height is reserved, so no state moves the sheet.
+ */
+function paintStateBadges(section, actor) {
+    const held = Object.values(STATES).filter(state => stateHeld(actor, state));
+    // The row stays in every state, empty when none is held, and the stylesheet gives it its height either way: a badge
+    // that comes or goes moves nothing below it (E95 C5 fix; the owner's 10.11: "layout karty powinien uwzgledac puste miejsce").
+    let row = section.parentElement?.querySelector(":scope > .drpg-state-badges") ?? null;
+    if (!row) {
+        row = document.createElement("div");
+        row.className = "drpg-state-badges";
+        section.after(row);
+    }
+    row.replaceChildren(...held.map(state => {
+        const badge = document.createElement("span");
+        badge.className = "drpg-state-badge";
+        badge.dataset.drpgState = state.id;
+        badge.dataset.tooltip = game.i18n.localize(`DRPG.States.${state.id}.description`);
+        badge.tabIndex = 0;
+        const icon = document.createElement("img");
+        icon.src = state.img;
+        icon.alt = "";
+        const name = document.createElement("span");
+        name.textContent = game.i18n.localize(`DRPG.States.${state.id}.name`);
+        badge.append(icon, name);
+        return badge;
+    }));
 }
 
 /**

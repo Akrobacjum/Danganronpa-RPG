@@ -2242,6 +2242,21 @@ function clientStored() {
 }
 
 /**
+ * The ids of the body tiles on `scene` that `known` (the snapshot's set of its tile ids) did not hold: what tier 2's
+ * `restore` deletes (E95 fix RV-4, 10.11.2026; tier 1 R3146). A tile is a body tile by its `FLAGS.bodyOf` object, the
+ * one a Monocub's edge lays (body-tile.mjs `leaveBody`) where a test marks a death by its flag alone and takes the flag
+ * back with no revive (E51-T21). Any other tile that appeared is left for the world dump to name ("tiles.<id>
+ * appeared"), as it named that leak. No `known` (a scene that appeared, which goes whole): none.
+ */
+function appearedBodyTiles(scene, known) {
+    if (!known) return [];
+    return [...(scene?.tiles ?? [])].filter(tile => {
+        const mark = tile?.getFlag?.(MODULE_ID, FLAGS.bodyOf);
+        return !known.has(tile.id) && mark !== null && typeof mark === "object";
+    }).map(tile => tile.id);
+}
+
+/**
  * Each key of a `clientStored()` reading back as stored or not stored: a copy this browser did not have is
  * taken out, one it had and lost is written back as its text. Called after the values were put back with
  * `game.settings.set` (whose onChange redraws what reads them), so taking a copy out leaves the value the
@@ -2530,7 +2545,7 @@ export {
     textTableWords, textLegacyLists,
     cssDeadClasses, cssSelfCheck, cssLintCounts, cssBudgetProblems, CSS_DETECTORS, CSS_FIXTURES,
     cssThemeTokens, cssContrastOf, cssContrastRatio, cssContrastSelfCheck, cssKitSheetProblems,
-    stringLiterals, STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, watchWrites, watchLog, cast,
+    stringLiterals, STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, appearedBodyTiles, watchWrites, watchLog, cast,
     kitQuestion, kitQuestions,
     worldDump, dumpDiff, describeDiff, hashText, dumpOf, dumpPathsOf, DUMP_RULES, DUMP_FOREIGN_SETTINGS
 };

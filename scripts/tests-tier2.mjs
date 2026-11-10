@@ -16,7 +16,7 @@ import { forcedDeletion } from "./utils.mjs";
 import { gmStoresIdle, gmStoreNow } from "./gm-store.mjs";
 import {
     ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource,
-    STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, watchLog, cast, systemSheetsAvailable, lfText, expectedRed,
+    STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, appearedBodyTiles, watchLog, cast, systemSheetsAvailable, lfText, expectedRed,
     bridgeFn, bridgeText, actionText, kitQuestion, kitQuestions
 } from "./tests-kit.mjs";
 import { GRID } from "./tests-grid.mjs";
@@ -140,7 +140,8 @@ async function snapshot(cast) {
            and a test that marks a death by its flag alone and takes the flag back after ("E51-T21") leaves the tile:
            no revive runs, and the revive is what takes a body off the map. The restore removed the embedded documents
            that appeared only as traces' tokens, so the dump read "restore left: Scene ... tiles.<id> appeared". Recorded
-           as ids, as the traces are, so the restore removes exactly the tiles that appeared. */
+           as ids, as the traces are. The restore removes the body tiles among those that appeared, and no other (E95 fix
+           RV-4): a tile a test leaves that is not a body is still the dump's to name. */
         tiles: new Map(game.scenes.map(scene => [scene.id, new Set((scene.tiles ?? []).map(t => t.id))])),
         /* EVERY OTHER WORLD DOCUMENT THAT EXISTED, by collection (E30, 24.09.2026). The
            dump's first run found two actors the module makes when it first needs them
@@ -247,10 +248,10 @@ async function restore(snap) {
         // The refs that carry a token (E60 C1b): a row of a trace that appeared is the store hold's to put back.
         const strays = remnantsOn(scene).filter(r => r.document && !snap.remnants.has(r.key)).map(r => r.id);
         if (strays.length) await scene.deleteEmbeddedDocuments("Token", strays);
-        // The tiles that appeared on a scene the snapshot knew (E95 C2 fix: a Monocub's body tile, `snapshot`'s note);
-        // a scene that appeared goes whole with the documents below.
-        const known = snap.tiles?.get(scene.id);
-        const tiles = known ? [...(scene.tiles ?? [])].filter(t => !known.has(t.id)).map(t => t.id) : [];
+        // The body tiles that appeared on a scene the snapshot knew (E95 C2 fix: a Monocub's body tile, `snapshot`'s
+        // note), and no other tile: one that is not a body is left for the dump to name (E95 fix RV-4, tests-kit.mjs
+        // `appearedBodyTiles`). A scene that appeared goes whole with the documents below.
+        const tiles = appearedBodyTiles(scene, snap.tiles?.get(scene.id));
         if (tiles.length) await scene.deleteEmbeddedDocuments("Tile", tiles);
     }
     await gmStoresIdle();
@@ -84721,6 +84722,16 @@ const SCENARIOS = [
             answer = Promise.resolve().then(() => GP.openWhoIsAliveDialog()).catch(() => null);
             await until(() => select(theirs) && select(npc), 6000);
             must(select(theirs)?.value === "student", `${theirs.name}'s row does not read student - this would measure nothing`);
+            // The row's sheet button (E95 C6): [drawn, its aria-label and tooltip the character's], on a student's, a Monokuma's and an NPC's row.
+            const sheetButton = actor => {
+                const b = el()?.querySelector(`button[data-drpg-sheet="${CSS.escape(actor.id)}"]`);
+                const words = game.i18n.format("DRPG.Panel.openSheet", { name: actor.name });
+                return [Boolean(b), b?.getAttribute("aria-label") === words && b?.dataset.tooltip === words];
+            };
+            read.sheetRows = { student: sheetButton(theirs) };
+            // The Items control (E95 C7): on a student's and an NPC's row, not on a Monokuma's.
+            const itemsButton = actor => Boolean(el()?.querySelector(`button[data-drpg-items="${CSS.escape(actor.id)}"]`));
+            read.itemsRows = { student: itemsButton(theirs) };
 
             choose(theirs, "monokuma");
             await until(() => question(), 3000);
@@ -84735,6 +84746,8 @@ const SCENARIOS = [
             await until(() => MK.isMonokuma(theirs) && select(theirs)?.value === "monokuma", 4000);
             await settle();
             read.yes = [MK.isMonokuma(theirs), Number(foundry.utils.getProperty(theirs, HOPE) ?? -1), Number(foundry.utils.getProperty(theirs, ACTIONS) ?? -1), select(theirs)?.value ?? null];
+            read.sheetRows.monokuma = sheetButton(theirs);
+            read.itemsRows.monokuma = itemsButton(theirs);
 
             choose(theirs, "student");
             await until(() => !MK.isMonokuma(theirs) && select(theirs)?.value === "student", 4000);
@@ -84746,6 +84759,8 @@ const SCENARIOS = [
             // The row is drawn again from the flag (`keepLive`): the select moved by hand reads "npc" before it is.
             await until(() => MK.isNotInClass(npc) && select(npc)?.value === "npc" && !levelUp(npc), 4000);
             read.out = [npcHad, MK.isNotInClass(npc), levelUp(npc), Boolean(question())];
+            read.sheetRows.npc = sheetButton(npc);
+            read.itemsRows.npc = itemsButton(npc);
             choose(npc, "student");
             await until(() => !MK.isNotInClass(npc) && select(npc)?.value === "student" && levelUp(npc), 4000);
             read.backIn = [MK.isNotInClass(npc), levelUp(npc)];
@@ -84804,11 +84819,13 @@ const SCENARIOS = [
             backIn: [false, true],
             levelUp: [[["standard", "reinforced"], ["gm", "player"]], 1, true, plural("DRPG.Advance.standing", { n: 1 }), plural("DRPG.Advance.standing", { n: 1 })],
             items: [theirs.id, 0, 1],
-            forged: [true, false, "student"]
+            forged: [true, false, "student"],
+            sheetRows: { student: [true, true], monokuma: [true, true], npc: [true, true] },
+            itemsRows: { student: true, monokuma: false, npc: true }
         }), "{cancel: [the mark asked, the flag, the select]; yes: [the flag, Hope, actions, the select]; unmark: [the flag, a question asked, the select]; "
             + "out: [the NPC's Level Up before, the flag, its Level Up after, a question asked]; backIn: [the flag, its Level Up]; "
             + "levelUp: [the menus' rows, the offers standing, the player told, the row's words, the words for them]; items: [the hub's character, Students windows while it ran, after it]; "
-            + "forged: [judged, the flag after the put-back, the select]}");
+            + "forged: [judged, the flag after the put-back, the select]; sheetRows: each row's sheet button [drawn, its words the character's] (E95 C6)}");
     }],
 
     /* ---- E47-C3 (09.11.2026): the GM panel's tiles and the case window (MARKED) ---- */
@@ -85145,6 +85162,46 @@ const SCENARIOS = [
         });
     }],
 
+    ["a player's forged death id moves neither the loot gate nor the body (E95 fix RV-6): while the dead student's own write of their `deceased` flag's `deathId` waits for its put-back, the primary reads the body's tile by the GMs' mark - a taker beside the tile still loots, and `leaveBody` lays no second tile", async () => {
+        /*
+         * E95 fix RV-6, 10.11.2026. body-tile.mjs `bodyTileOf` matched a tile to the death the actor document's
+         * `deceased` flag records, and its player may write that flag on their own actor; the audit puts it back, and
+         * until then the rest of the primary's gate reads the GMs' mark (frisk.mjs `personActionRefusal`:
+         * `flagsHeldNow`). The fixture of "a body's loot is judged where the body lies" (`withBodyTile`), the taker
+         * beside the tile; then the body's own player's write of `deathId` judged a put-back with the put-back held off
+         * (`inConsoleWindow`, the window a console's write leaves), and in that window the loot gate asked for a player
+         * who owns neither, and `leaveBody` called as a Monocub's tick would. Read: [the forged id on the sheet, the
+         * gate, the id stamped on a tile `leaveBody` laid, or null for none]. Red at c431138a: the gate read the token
+         * ("notThere") and `leaveBody` laid a second tile stamped with the forged id.
+         */
+        await withBodyTile(async ({ taker, body, player, tileRoom, standTaker }) => {
+            const INV = await import("./inventory.mjs");
+            const B = await import("./body-tile.mjs");
+            const { reasonOf } = await import("./bridge-guards.mjs");
+            const owner = game.users.find(u => !u.isGM && body.testUserPermission(u, "OWNER")) ?? null;
+            must(owner, `no player owns ${body.name} - nobody to write their death's id`);
+            const gate = async () => { const why = await INV.transferRefusal(body, taker, { mode: "loot", asker: player }); return why ? reasonOf(why) : "ok"; };
+            const PATH = `flags.${MODULE_ID}.${FLAGS.deceased}.deathId`, FORGED = "SUITEE95FIXFORGED";
+            await standTaker(tileRoom);
+            const read = { before: await gate() };
+            const laid = [];
+            try {
+                await inConsoleWindow(body, owner, { forged: { [PATH]: FORGED }, paths: [PATH] }, async () => {
+                    const onSheet = foundry.utils.getProperty(body._source, PATH) === FORGED;
+                    const why = await gate();
+                    const second = await B.leaveBody(body);
+                    if (second) laid.push(second);
+                    read.during = [onSheet, why, second ? (second.getFlag(MODULE_ID, FLAGS.bodyOf)?.deathId ?? null) : null];
+                });
+            } finally {
+                for (const t of laid) if (t.parent?.tiles?.has(t.id)) await t.delete();
+                await settle();
+            }
+            equal(stableJson(read), stableJson({ before: "ok", during: [true, "ok", null] }),
+                "the loot gate beside the tile [before; in the forged write's window: the forged id on the sheet, the gate, the id on a tile leaveBody laid]");
+        });
+    }],
+
     ["a Monocub leaves their body where their token stood (E95 C2; DC6, Q3): `setMonocub` lays one tile of the body at the token's corner, its size in pixels, its picture and floor, flagged with the death; made again it lays none, unticked it keeps the tile, ticked again it lays no second; an execution leaves none, and a student with no token on a scene with rooms leaves none and the GM is told", async () => {
         /*
          * E95 C2, 10.11.2026; DC6 ("Ciało zostaje na miejscu śmierci jako kafel"), QUESTIONS Q2 (a), Q3 (a), Q8. On this
@@ -85254,6 +85311,15 @@ const SCENARIOS = [
          * (season-reset.mjs `seasonStateFor("deaths").clear`, chapter.mjs `clearSeasonDeaths`) run with its other parts
          * held: `everyStudent` recorded and not run (it would revive and wipe every student), the GMs' store of deaths
          * nobody found recorded and not cleared. Read: which tiles are left. Red at E95 C1: both kept every tile.
+         *
+         * NOT THE TABLE'S BODIES (E95 fix RV-1, 10.11.2026). The deaths entry's tile part, `removeBodyTiles()`, takes
+         * every body tile on every scene, and this test ran it for real: at a table it deleted a Monocub's body for good
+         * (the restore removes tiles that appeared and cannot bring one back). It is now held as the other parts are -
+         * handed in the reset's context (`ctx.removeBodyTiles`), counted, and run on this test's own tiles alone
+         * (`removeBodyTiles(null, { only })`), so the filter that chooses a body tile is still the real one. The guard:
+         * every body tile the world held when the test began, and one the test lays at the start for a student who is not
+         * in the world (standing in for the table's), is still there after the reset. Red at c431138a: the reset took the
+         * stand-in, and the entry called no part of the context's for the tiles.
          */
         needs(world.atLeast("studentTokensOnScreen", 1), "a student with a token on the scene on screen, whose body is laid");
         const B = await import("./body-tile.mjs");
@@ -85268,7 +85334,9 @@ const SCENARIOS = [
         const who = C.livingStudents().find(a => scene?.tokens?.some(t => t.actorId === a.id));
         const token = scene?.tokens?.find(t => t.actorId === who?.id);
         must(who && token, "no living student with a token on the scene on screen - this would measure nothing");
-        const ORPHAN = "SUITEE95C2GONE00";
+        const ORPHAN = "SUITEE95C2GONE00", TABLE = "SUITEE95FIXTABLE";
+        const bodiesNow = () => [...game.scenes].flatMap(s => [...(s.tiles ?? [])].filter(t => t.getFlag(MODULE_ID, FLAGS.bodyOf)).map(t => `${s.id}.${t.id}`));
+        const tableBodies = bodiesNow();
         const lay = async (actorId, record) => {
             const [tile] = await scene.createEmbeddedDocuments("Tile", [B.bodyTileSpec({ tokenDoc: token, actorId, record, level: levelOf(token), at: Date.now() })]);
             return tile;
@@ -85276,10 +85344,14 @@ const SCENARIOS = [
         const made = new Set();
         const left = () => [...scene.tiles].filter(t => made.has(t.id)).map(t => t.getFlag(MODULE_ID, FLAGS.bodyOf)?.actorId === who.id ? "student"
             : t.getFlag(MODULE_ID, FLAGS.bodyOf)?.actorId === ORPHAN ? "orphan" : "plain").sort();
-        const held = { everyStudent: [], clear: 0, dropMany: 0 };
+        const held = { everyStudent: [], clear: 0, dropMany: 0, removeBodyTiles: 0 };
         const { clear, dropMany } = deathStore;
         const read = {};
+        let bystander = null;
         try {
+            bystander = await lay(TABLE, null);
+            must(bystander, "the stand-in for the table's body tile could not be laid - the guard would measure nothing");
+            tableBodies.push(`${scene.id}.${bystander.id}`);
             must(await C.killCharacter(who, { secret: false, keepBullets: true }), `${who.name}'s death could not be published - this would measure nothing`);
             await settle();
             for (const tile of [await lay(who.id, deathRecord(who)), await lay(ORPHAN, null),
@@ -85299,22 +85371,27 @@ const SCENARIOS = [
             const entry = seasonStateFor("deaths");
             deathStore.clear = async () => { held.clear++; };
             deathStore.dropMany = async () => { held.dropMany++; };
-            await entry.clear({ everyStudent: async key => { held.everyStudent.push(key); } });
+            await entry.clear({ everyStudent: async key => { held.everyStudent.push(key); },
+                removeBodyTiles: async () => { held.removeBodyTiles++; return B.removeBodyTiles(null, { only: made }); } });
             await settle();
             read.reset = [left(), entry.clear === C.clearSeasonDeaths, held];
+            const now = new Set(bodiesNow());
+            read.tableGone = tableBodies.filter(key => !now.has(key)).map(key => (key.endsWith(`.${bystander.id}`) ? "stand-in" : key));
         } finally {
             deathStore.clear = clear;
             deathStore.dropMany = dropMany;
             if (C.isDeadForGm(who)) await C.reviveCharacter(who, { quiet: true });
-            const ids = [...made].filter(id => id && scene.tiles.has(id));
+            const ids = [...made, bystander?.id].filter(id => id && scene.tiles.has(id));
             if (ids.length) await scene.deleteEmbeddedDocuments("Tile", ids);
             await settle();
         }
         equal(stableJson(read), stableJson({
             before: ["orphan", "plain", "student"],
             revived: [["orphan", "plain"], false],
-            reset: [["plain"], true, { everyStudent: ["deaths"], clear: 1, dropMany: 0 }]
-        }), "the tiles left [laid; after the revive, and dead; after the reset's deaths group, the entry chapter.mjs's, its other parts as called]");
+            reset: [["plain"], true, { everyStudent: ["deaths"], clear: 1, dropMany: 0, removeBodyTiles: 1 }],
+            tableGone: []
+        }), "the tiles left [laid; after the revive, and dead; after the reset's deaths group, the entry chapter.mjs's, its other parts as called]; "
+            + "the body tiles the world held, and the stand-in, gone after the reset");
     }],
 
     ["an open body's loot window reads the gate again when a GM hides, moves or deletes the body's tile (E95 C3; STATUS E95 Open 2): beside the tile its Take greys when the tile is hidden, opens when it is shown, greys when the tile is moved into the token's room, opens when it is moved back, and greys when the tile is deleted", async () => {
@@ -85456,17 +85533,25 @@ const SCENARIOS = [
          * type]; on the writer whether the hook came before `announceBody` answered, how long it waited and whether the
          * 300 ms promise had settled by then; the payload's fields against the stamp in this browser's setting. The two
          * settings put back as they were. Red at E95 C3: no hook, nothing heard.
+         *
+         * E95 fix, 10.11.2026. RV-12: every stamp the suite writes carries `rehearsal: true`, and so every payload the
+         * suite wakes the hook with, on the writer and on every browser the setting reaches - the hook's header tells a
+         * listener to ignore one, so E69's Tail and E72's bet window do not run on a fake discovery at a table. RV-11: a
+         * row this browser never saw whose `at` is older than its `ready` less 60 s (a whole-setting write handing old
+         * rows back) is announced never; the other GM's row is stamped now. RV-7: a promise handed `waitUntil` after the
+         * listener's first `await` is not waited for, and the call does not throw. Red at c431138a: the payload had no
+         * `rehearsal`, and the old row was announced.
          */
         const C = await import("./chapter.mjs");
         const St = await import("./settings.mjs");
-        const { isPrimaryGm } = await import("./utils.mjs");
+        const { isPrimaryGm, serverNow } = await import("./utils.mjs");
         must(isPrimaryGm(), "this client is not the primary GM, whose discovery writes the stamp - this would measure nothing");
         const stampsWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
         const holdWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
         const CHAPTER = 97, epoch = St.seasonEpoch(), key = `${epoch}:${CHAPTER}`;
         const sceneId = canvas.scene?.id ?? null, ROOM = "SUITE E95 C4 room";
         const row = at => ({ chapter: CHAPTER, epoch, at, room: ROOM, sceneId, victimIds: ["SUITEE95C4BODY00", "SUITEE95C4BODY00"],
-            deaths: {}, by: "witnesses", day: 1, timeOfDay: "morning" });
+            deaths: {}, by: "witnesses", day: 1, timeOfDay: "morning", rehearsal: true });
         const heard = [];
         let hand = null;
         const id = Hooks.on("drpgBodyAnnounced", payload => {
@@ -85496,11 +85581,19 @@ const SCENARIOS = [
             read.waited = [calls(slow.from), slow.before, settled, slow.waited >= 300];
             const never = await timed(3000, p => p.waitUntil(new Promise(() => {})));
             read.bound = [calls(never.from), never.waited >= 1400 && never.waited < 3000];
+            let threw = null;
+            const late = await timed(3500, async p => { await null; try { p.waitUntil(new Promise(() => {})); threw = false; } catch { threw = true; } });
+            read.late = [calls(late.from), late.waited < 1400, threw];
             let from = heard.length;
             const all = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
-            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, { ...all, [key]: [...(all[key] ?? []), { ...row(4000), victimIds: ["SUITEE95C4BODY01"] }] });
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, { ...all, [key]: [...(all[key] ?? []), { ...row(serverNow()), victimIds: ["SUITEE95C4BODY01"] }] });
             await settle();
             read.otherGm = calls(from);
+            from = heard.length;
+            const more = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, { ...more, [key]: [...(more[key] ?? []), { ...row(4500), victimIds: ["SUITEE95C4BODY02"] }] });
+            await settle();
+            read.oldRow = calls(from);
             from = heard.length;
             await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, { ...foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound)), [`${epoch}:96`]: [] });
             await settle();
@@ -85516,6 +85609,7 @@ const SCENARIOS = [
             await C.clearSeasonBodies();
             await settle();
             read.reset = calls(from);
+            read.rehearsal = [heard.length > 0, heard.every(h => h.payload.rehearsal === true)];
         } finally {
             Hooks.off("drpgBodyAnnounced", id);
             await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsWas);
@@ -85524,17 +85618,349 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson({
             plain: [true, [[true, "function"]], true],
-            payload: [["at", "by", "chapter", "epoch", "room", "sceneId", "victimIds", "waitUntil", "writer"], true],
+            payload: [["at", "by", "chapter", "epoch", "rehearsal", "room", "sceneId", "victimIds", "waitUntil", "writer"], true],
             waited: [[[true, "function"]], true, true, true],
             bound: [[[true, "function"]], true],
+            late: [[[true, "function"]], true, false],
             otherGm: [[false, "undefined"]],
+            oldRow: [],
             noNewRow: [],
             renamed: [true, []],
             failed: [null, []],
-            reset: []
+            reset: [],
+            rehearsal: [true, true]
         }), "the calls heard as [writer, waitUntil] per case - announced [stamped, calls, before it answered]; the payload [its fields, the stamp's]; "
-            + "a promise of 300 ms [calls, before, settled, waited 300 ms]; one never settling [calls, waited 1.4-3 s]; another GM's stamp; a write with no new row; "
-            + "a rename [moved, calls]; a failed stamp [answer, calls]; the reset's clear");
+            + "a promise of 300 ms [calls, before, settled, waited 300 ms]; one never settling [calls, waited 1.4-3 s]; "
+            + "one handed after an await [calls, answered under 1.4 s, threw]; another GM's stamp; a row older than ready less 60 s; a write with no new row; "
+            + "a rename [moved, calls]; a failed stamp [answer, calls]; the reset's clear; [heard any, every payload a rehearsal]");
+    }],
+    ["Breakdown and Wounded are public on the sheet (E95 C5 amend; the owner's 10.11 \"publiczne w karcie postaci, tak jak np. imie albo hp\"): a student in both states, read on the stand-in sheet in the bar and the pip layout by its owner, a GM, another player and an Observer - each reads a badge of each state beside the reserves, its name and its tooltip, the Actions label still marked Wounded, and Sanity still \"?\" for the two who may not read it; a student in neither state wears no badge", async () => {
+        /*
+         * E95 C5, 10.11.2026. Measured on bc750112 before the change (STATUS E95-C5 "Measured before"): no reader of
+         * either layout found Breakdown on the sheet at all - not a word, a tooltip or a class - and Wounded only as the
+         * Actions label's class and tooltip ("No Health left - one action per time of day."), for all four. The readers
+         * are the world's own users put in `game.user` in turn (the GM's own User, then three players' User documents),
+         * so `sheetMode`, `reserveView` and anonymity.mjs read each as they would on that player's browser; the Observer
+         * is a player given OBSERVER on the student for the test. The student is put in both states by marking every
+         * point of Health and Sanity, and each sheet is drawn through the module's own hook as Foundry calls it. Put
+         * back in a finally: the reserves, the ownership, `game.user`.
+         */
+        const { STATES } = await import("./config.mjs");
+        const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
+        const players = game.users.filter(u => !u.isGM);
+        const student = cast(3).find(a => players.some(u => a.testUserPermission(u, "OWNER")));
+        must(student, "no living student a player owns - this would measure nothing");
+        const owner = players.find(u => student.testUserPermission(u, "OWNER"));
+        const [player, observer] = players.filter(u => !student.testUserPermission(u, "OWNER"));
+        must(player && observer, "fewer than two players who do not own the student - this would measure nothing");
+        const HP = "system.resources.hitPoints", SAN = "system.resources.stress";
+        const get = path => Number(foundry.utils.getProperty(student, path) ?? 0);
+        const was = { hp: get(`${HP}.value`), san: get(`${SAN}.value`), own: { ...(student.ownership ?? {}) } };
+        must(get(`${HP}.max`) > 0 && get(`${SAN}.max`) > 0, "the student has no Health or Sanity to mark - this would measure nothing");
+        must(was.hp < get(`${HP}.max`) && was.san < get(`${SAN}.max`), "the student is already Wounded or in Breakdown - the calm pass would measure nothing");
+        const pips = root => {
+            const section = root.querySelector(".resources-section");
+            section.closest(".info-section").classList.add("pip-display");
+            const block = (key, label, action) => {
+                let slots = "";
+                for (let n = 1; n <= get(`${key === "hitPoints" ? HP : SAN}.max`); n++) slots += `<span class="slot" data-action="${action}" data-value="${n}"></span>`;
+                return `<div class="slot-value"><div class="slot-bar">${slots}</div><div class="slot-label"><span class="label">${label}</span><span class="value"></span></div></div>`;
+            };
+            section.innerHTML = block("hitPoints", "Health", "toggleHitPoints") + block("stress", "Sanity", "toggleStress");
+            return root;
+        };
+        const said = (root, word) => {
+            const re = new RegExp(`\\b${word}\\b`, "i");
+            return re.test(root.textContent) || [...root.querySelectorAll("*")].some(el => [...el.attributes].some(a => re.test(a.value)));
+        };
+        const look = (user, layout) => {
+            const root = layout === "pips" ? pips(e45SheetRoot()) : e45SheetRoot();
+            document.body.append(root);
+            try {
+                Hooks.callAll("renderCharacterSheet", { document: student, isEditable: student.testUserPermission(user, "OWNER"), element: root, rendered: true },
+                    root, {}, { isFirstRender: true });
+                const badge = id => {
+                    const el = root.querySelector(`.character-sidebar-sheet .drpg-state-badge[data-drpg-state="${id}"]`);
+                    return el ? [el.textContent.trim(), el.dataset.tooltip ?? null] : null;
+                };
+                const label = root.querySelector(".drpg-actions-section .drpg-actions h4");
+                const sanity = root.querySelector("[data-drpg-reserve='stress'] .drpg-reserve-row");
+                return {
+                    breakdown: badge(STATES.breakdown.id), wounded: badge(STATES.wounded.id),
+                    actions: [Boolean(label?.classList.contains("drpg-wounded")), label?.dataset.tooltip ?? null],
+                    sanityHidden: sanity ? sanity.textContent.trim() === "?" && !sanity.querySelector("input") : null,
+                    said: [said(root, game.i18n.localize("DRPG.States.drpgBreakdown.name")), said(root, game.i18n.localize("DRPG.States.drpgWounded.name"))]
+                };
+            } finally {
+                root.remove();
+            }
+        };
+        const readers = [["owner", owner], ["gm", game.user], ["player", player], ["observer", observer]];
+        const realUser = game.user;
+        const kept = Object.getOwnPropertyDescriptor(game, "user");
+        const asUser = (user, run) => {
+            Object.defineProperty(game, "user", { value: user, configurable: true, writable: true });
+            try { return run(); } finally {
+                if (kept) Object.defineProperty(game, "user", kept);
+                else delete game.user;
+            }
+        };
+        const read = { calm: null, held: {} };
+        try {
+            await student.update({ [`ownership.${observer.id}`]: L.OBSERVER });
+            await settle();
+            read.calm = asUser(player, () => look(player, "bars"));
+            await student.update({ [`${HP}.value`]: get(`${HP}.max`), [`${SAN}.value`]: get(`${SAN}.max`) });
+            await settle();
+            for (const layout of ["bars", "pips"]) {
+                for (const [who, user] of readers) read.held[`${who}/${layout}`] = asUser(user, () => look(user, layout));
+            }
+        } finally {
+            must(game.user === realUser, "game.user was not put back");
+            await student.update({ [`${HP}.value`]: was.hp, [`${SAN}.value`]: was.san,
+                [`ownership.${observer.id}`]: observer.id in was.own ? was.own[observer.id] : forcedDeletion() });
+            await settle();
+        }
+        const BD = [game.i18n.localize("DRPG.States.drpgBreakdown.name"), game.i18n.localize("DRPG.States.drpgBreakdown.description")];
+        const WD = [game.i18n.localize("DRPG.States.drpgWounded.name"), game.i18n.localize("DRPG.States.drpgWounded.description")];
+        const want = { calm: { breakdown: null, wounded: null, actions: [false, null], sanityHidden: true, said: [false, false] }, held: {} };
+        for (const layout of ["bars", "pips"]) {
+            for (const [who] of readers) {
+                want.held[`${who}/${layout}`] = { breakdown: BD, wounded: WD, actions: [true, game.i18n.localize("DRPG.Actions.woundedTooltip")],
+                    sanityHidden: who === "player" || who === "observer", said: [true, true] };
+            }
+        }
+        equal(stableJson(read), stableJson(want),
+            "{calm: another player's sheet of the student in neither state; held: each reader's sheet (owner, GM, another player, Observer) in each layout (bars, pips) of the student "
+            + "in Breakdown and Wounded} - [badge name, tooltip] of each state beside the reserves, the Actions label's [Wounded class, tooltip], Sanity's row \"?\", [Breakdown, Wounded] said anywhere on the sheet");
+    }],
+    ["a Monokuma's sheet shows no state badge (E95 C5 fix; the orchestrator's reading of 10.11): `stateHeld` is the rule `syncOnce` writes the status from, and `syncOnce` skips a Monokuma - so a Monokuma whose Health and Sanity are marked through draws neither badge, and a student with both gone draws both", async () => {
+        /*
+         * E95 C5 fix, 10.11.2026. `stateHeld` (states.mjs) was `shouldHave`, which skips the dead and a Monocub but not a
+         * Monokuma, while `syncStates` returns for a Monokuma at its first line. Read here on the GM's own sheet (the stand-in
+         * of E45-T2) of the world's student: put in both states by marking every point of Health and Sanity (the badges
+         * both), then marked a Monokuma by `setMonokuma` itself (its own writes: the flag, Actions and Hope zeroed) with
+         * the marks left as they were. Put back in a finally: the marks, Hope, Actions, the flag.
+         */
+        const SH = await import("./sheet.mjs");
+        const { STATES, ACTIONS_RESOURCE } = await import("./config.mjs");
+        const { setMonokuma } = await import("./monokuma.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        must(typeof SH.sheetMode === "function", "sheet.mjs exports no sheetMode - this would measure nothing");
+        const student = cast(3).at(-1);
+        must(student && !student.getFlag(MODULE_ID, FLAGS.monokuma) && !student.getFlag(MODULE_ID, FLAGS.deceased) && !student.getFlag(MODULE_ID, FLAGS.monocub),
+            "no living student outside every special state - this would measure nothing");
+        const HP = "system.resources.hitPoints", SAN = "system.resources.stress", HOPE = "system.resources.hope.value", ACT = `system.resources.${ACTIONS_RESOURCE}.value`;
+        const get = path => Number(foundry.utils.getProperty(student, path) ?? 0);
+        const was = { hp: get(`${HP}.value`), san: get(`${SAN}.value`), hope: get(HOPE), act: get(ACT), flag: student.getFlag(MODULE_ID, FLAGS.monokuma) };
+        must(get(`${HP}.max`) > 0 && get(`${SAN}.max`) > 0, "the student has no Health or Sanity to mark - this would measure nothing");
+        const look = () => {
+            const root = e45SheetRoot();
+            document.body.append(root);
+            try {
+                Hooks.callAll("renderCharacterSheet", { document: student, isEditable: true, element: root, rendered: true }, root, {}, { isFirstRender: true });
+                return [...root.querySelectorAll(".character-sidebar-sheet .drpg-state-badge")].map(el => el.dataset.drpgState).sort();
+            } finally {
+                root.remove();
+            }
+        };
+        const read = {};
+        try {
+            await student.update({ [`${HP}.value`]: get(`${HP}.max`), [`${SAN}.value`]: get(`${SAN}.max`) });
+            await settle();
+            read.student = look();
+            await setMonokuma(student, true);
+            await settle();
+            read.monokuma = look();
+            read.monokumaMode = SH.sheetMode(student, game.user).mode;
+        } finally {
+            await setMonokuma(student, false);
+            if (was.flag === undefined) await student.unsetFlag(MODULE_ID, FLAGS.monokuma);
+            await trustedWrite(student, { [HOPE]: was.hope, [ACT]: was.act }, { reason: "setup" });
+            await student.update({ [`${HP}.value`]: was.hp, [`${SAN}.value`]: was.san });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ student: [STATES.breakdown.id, STATES.wounded.id].sort(), monokuma: [], monokumaMode: "monokuma" }),
+            "{the student with every point of Health and Sanity marked: the badges; the same character marked a Monokuma, the marks left: the badges, and the sheet's mode}");
+    }],
+    ["the state row keeps its place on the sheet (E95 C5 fix; the owner's 10.11: \"Breakdown i wounded nigdy nie powinny przesuwac nic na karcie\", \"health i sanity ... zawsze obok siebie\"): the row is in the sheet with no state, one state and both, and the stylesheet holds its height, does not wrap it, and puts the two reserves in one row", async () => {
+        /*
+         * E95 C5 fix, 10.11.2026. No layout headless, so the two halves are read where they can be: the sheet drawn through
+         * the module's own hook with the student in no state, in Breakdown alone and in both (the row must be in the sheet
+         * each time, its badges one, then two), and the stylesheet's own rules for the row, its badges and the reserves'
+         * section. The tops themselves were measured in Chromium (audit/style-harness.html ?sheet=parts, both themes, both
+         * layouts; STATUS E95-C5 fix). Red first on 09709763: the row was taken off the sheet when no state was held, and
+         * neither rule existed.
+         */
+        const { STATES } = await import("./config.mjs");
+        const student = cast(3).at(-1);
+        must(student && !student.getFlag(MODULE_ID, FLAGS.monokuma) && !student.getFlag(MODULE_ID, FLAGS.deceased) && !student.getFlag(MODULE_ID, FLAGS.monocub),
+            "no living student outside every special state - this would measure nothing");
+        const HP = "system.resources.hitPoints", SAN = "system.resources.stress";
+        const get = path => Number(foundry.utils.getProperty(student, path) ?? 0);
+        const was = { hp: get(`${HP}.value`), san: get(`${SAN}.value`) };
+        must(get(`${HP}.max`) > 0 && get(`${SAN}.max`) > 0 && was.hp < get(`${HP}.max`) && was.san < get(`${SAN}.max`), "the student is in a state already, or has no tracks - this would measure nothing");
+        const look = () => {
+            const root = e45SheetRoot();
+            document.body.append(root);
+            try {
+                Hooks.callAll("renderCharacterSheet", { document: student, isEditable: true, element: root, rendered: true }, root, {}, { isFirstRender: true });
+                const rows = root.querySelectorAll(".character-sidebar-sheet > .drpg-state-badges, .character-sidebar-sheet .drpg-state-badges");
+                // The row stands after the reserves' section, whatever it holds.
+                const after = root.querySelector(".resources-section")?.nextElementSibling?.classList.contains("drpg-state-badges") ?? false;
+                return [rows.length, rows[0]?.querySelectorAll(".drpg-state-badge").length ?? null, after];
+            } finally {
+                root.remove();
+            }
+        };
+        const read = {};
+        try {
+            read.none = look();
+            await student.update({ [`${SAN}.value`]: get(`${SAN}.max`) });
+            await settle();
+            read.one = look();
+            await student.update({ [`${HP}.value`]: get(`${HP}.max`) });
+            await settle();
+            read.both = look();
+        } finally {
+            await student.update({ [`${HP}.value`]: was.hp, [`${SAN}.value`]: was.san });
+            await settle();
+        }
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+        const rule = selector => new RegExp(`${selector.replace(/[.>]/g, "\\$&")} \\{([^}]*)\\}`).exec(css)?.[1] ?? "";
+        const SB = ".application.sheet.actor .character-sidebar-sheet";
+        const row = rule(`${SB} .drpg-state-badges`), badge = rule(`${SB} .drpg-state-badges > .drpg-state-badge`), section = rule(`${SB} .resources-section`);
+        read.css = {
+            rowHeight: /\bheight:\s*24px/.test(row) && /flex-wrap:\s*nowrap/.test(row),
+            badgeHeight: /\bheight:\s*24px/.test(badge) && /overflow:\s*hidden/.test(badge),
+            reserves: /display:\s*flex/.test(section) && /flex-direction:\s*row/.test(section) && /flex-wrap:\s*nowrap/.test(section)
+        };
+        equal(stableJson(read), stableJson({ none: [1, 0, true], one: [1, 1, true], both: [1, 2, true], css: { rowHeight: true, badgeHeight: true, reserves: true } }),
+            "{the sheet with no state, with Breakdown alone and with both: [rows, badges, the row right after the reserves' section]; the stylesheet's row (a fixed height, no wrap), its badge (the same height, clipped) and the reserves' section (one row)}");
+    }],
+    ["a Monokuma's sheet has no Inventory tab (E95 C7; the owner's 10.11: \"Usunmy z karty postaci monokumy zakladke inventory\"): the link leaves the tab bar and the part is emptied for a Monokuma, a sheet that came up on it moves to the Actions tab, a student's, an NPC's and a Monocub's keep both, and what the Monokuma held stays in its data", async () => {
+        /*
+         * E95 C7, 10.11.2026. The sheet drawn through the module's own hook on the stand-in root (E45-T2's) with the tab
+         * bar added (a `nav` of two links, as `dropBiographyTab` finds the Biography's), for the world's student as it
+         * stands, marked a Monokuma by `setMonokuma` itself, then taken back, and as an NPC and a Monocub by the flags
+         * E45-T1 writes. The sheet that "came up on Inventory" is an app stand-in whose `tabGroups.primary` reads
+         * `inventory` and whose `changeTab` records the call. Put back in a finally: the flags, Hope, Actions.
+         */
+        const { ACTIONS_RESOURCE } = await import("./config.mjs");
+        const { setMonokuma } = await import("./monokuma.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const student = cast(3).at(-1);
+        must(student && !student.getFlag(MODULE_ID, FLAGS.monokuma) && !student.getFlag(MODULE_ID, FLAGS.deceased) && !student.getFlag(MODULE_ID, FLAGS.monocub)
+            && !student.getFlag(MODULE_ID, "notInClass"), "no living student outside every special state - this would measure nothing");
+        const HOPE = "system.resources.hope.value", ACT = `system.resources.${ACTIONS_RESOURCE}.value`;
+        const was = { hope: Number(foundry.utils.getProperty(student, HOPE) ?? 0), act: Number(foundry.utils.getProperty(student, ACT) ?? 0), flag: student.getFlag(MODULE_ID, FLAGS.monokuma) };
+        const held = student.items.size;
+        const look = onInventory => {
+            const root = e45SheetRoot();
+            root.insertAdjacentHTML("afterbegin", `<nav class="sheet-tabs tabs"><a data-tab="features" data-group="primary">Actions</a><a data-tab="inventory" data-group="primary">Inventory</a></nav>`);
+            const part = root.querySelector('section[data-application-part="inventory"]');
+            part.dataset.group = "primary";
+            if (onInventory) part.classList.add("active");
+            const moved = [];
+            const app = { document: student, isEditable: true, element: root, rendered: true, tabGroups: { primary: onInventory ? "inventory" : "features" },
+                changeTab: (tab, group) => { moved.push([tab, group]); } };
+            document.body.append(root);
+            try {
+                Hooks.callAll("renderCharacterSheet", app, root, {}, { isFirstRender: true });
+                return { link: Boolean(root.querySelector('nav [data-tab="inventory"]')), filled: part.children.length > 0, moved };
+            } finally {
+                root.remove();
+            }
+        };
+        const read = {};
+        try {
+            read.student = look(false);
+            read.studentOpen = look(true);
+            await setMonokuma(student, true);
+            await settle();
+            read.monokuma = look(false);
+            read.monokumaOpen = look(true);
+            read.kept = student.items.size === held;
+            await setMonokuma(student, false);
+            await settle();
+            read.back = look(false);
+            await student.setFlag(MODULE_ID, "notInClass", true);
+            await settle();
+            read.npc = look(false);
+            await student.unsetFlag(MODULE_ID, "notInClass");
+            await student.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await settle();
+            read.monocub = look(false);
+        } finally {
+            await setMonokuma(student, false);
+            if (was.flag === undefined) await student.unsetFlag(MODULE_ID, FLAGS.monokuma);
+            if (student.getFlag(MODULE_ID, "notInClass") !== undefined) await student.unsetFlag(MODULE_ID, "notInClass");
+            if (student.getFlag(MODULE_ID, FLAGS.monocub) !== undefined) await student.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await trustedWrite(student, { [HOPE]: was.hope, [ACT]: was.act }, { reason: "setup" });
+            await settle();
+        }
+        const whole = { link: true, filled: true, moved: [] }, bare = { link: false, filled: false, moved: [] };
+        equal(stableJson(read), stableJson({
+            student: whole, studentOpen: whole, monokuma: bare, monokumaOpen: { ...bare, moved: [["features", "primary"]] },
+            kept: true, back: whole, npc: whole, monocub: whole
+        }), "{the sheet as it is drawn for each character: [the Inventory link in the tab bar, the part holding anything, the tabs the sheet was moved to]; a Monokuma keeps what it held}");
+    }],
+    ["a Students row opens that character's sheet (E95 C6; the owner's 10.11): the GM presses a row's sheet button twice - each press renders that actor's own sheet with force, the same window both times, the Students window stays open, and no other actor's sheet is asked", async () => {
+        /*
+         * E95 C6, 10.11.2026. The window as the GM panel's tile opens it (gm-panel.mjs `openWhoIsAliveDialog`), on its
+         * own roads: the button's road is the actor's `sheet.render(true)`. Read through the sheet's own `render`, wrapped
+         * for the test and put back in a finally (the harness's sheet draws nothing; at a table it opens, and is closed
+         * after unless it was open before). Red first on af5cdcfc: no sheet button on a row.
+         */
+        needs(env.dialogs(), "the window is answered drawn");
+        const GP = await import("./gm-panel.mjs");
+        const { theirs } = playerAndCharacters();
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-alive"));
+        const button = () => of()[0]?.element?.querySelector(`button[data-drpg-sheet="${CSS.escape(theirs.id)}"]`) ?? null;
+        const sheet = theirs.sheet;
+        must(sheet && typeof sheet.render === "function", `${theirs.name} has no sheet to render - this would measure nothing`);
+        const wasOpen = Boolean(sheet.rendered);
+        const own = Object.getOwnPropertyDescriptor(sheet, "render");
+        const calls = [];
+        const others = [];
+        const otherSheets = game.actors.filter(a => a.id !== theirs.id).map(a => a.sheet).filter(Boolean);
+        const kept = otherSheets.map(s => [s, Object.getOwnPropertyDescriptor(s, "render")]);
+        sheet.render = function (...args) { calls.push([this === sheet, args[0] === true || args[0]?.force === true]); return (own?.value ?? Object.getPrototypeOf(sheet).render).apply(this, args); };
+        for (const [s] of kept) {
+            const real = s.render;
+            s.render = function (...args) { others.push(args); return real.apply(this, args); };
+        }
+        const read = {};
+        try {
+            const answer = Promise.resolve().then(() => GP.openWhoIsAliveDialog()).catch(() => null);
+            await until(() => button(), 6000);
+            read.drawn = Boolean(button());
+            button()?.click();
+            await until(() => calls.length >= 1, 3000);
+            await settle();
+            button()?.click();
+            await until(() => calls.length >= 2, 3000);
+            await settle();
+            read.calls = calls;
+            read.stays = of().length;
+            read.others = others.length;
+            read.windows = [...foundry.applications.instances.values()].filter(a => a.rendered && a.document === theirs).length <= 1;
+            for (const a of of()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(1000)]);
+        } finally {
+            if (own) Object.defineProperty(sheet, "render", own);
+            else delete sheet.render;
+            for (const [s, d] of kept) {
+                if (d) Object.defineProperty(s, "render", d);
+                else delete s.render;
+            }
+            if (!wasOpen && sheet.rendered) await sheet.close().catch(() => {});
+            for (const a of of()) await a.close().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ drawn: true, calls: [[true, true], [true, true]], stays: 1, others: 0, windows: true }),
+            "{drawn: the row's sheet button; calls: each press's [the actor's own sheet, forced]; stays: Students windows open after both; "
+            + "others: renders asked of any other actor's sheet; windows: at most one rendered window of the actor's sheet}");
     }],
 ];
 

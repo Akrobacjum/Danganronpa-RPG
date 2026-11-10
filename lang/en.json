@@ -1095,7 +1095,7 @@
       "setCategoryTier": "The tables do not say what this item is: choose its category and tier to give it."
     },
     "Body": {
-      "noToken": "{name} has no token on a scene with rooms, so no body was left on the map.",
+      "noToken": "The GMs cannot place {name}'s token on a scene with rooms (there is none, or a put-back of it is still on its way), so no body was left on the map. Untick Monocub and tick it again once the token stands.",
       "tile": "{name}'s body"
     },
     "Monocub": {
@@ -3993,6 +3993,7 @@
       "nextTrialOutlived": "The chapter has moved on and the trial is still sitting. End the trial.",
       "nextReady": "The players have been asked before the clock moves. Open the question again.",
       "roleColumn": "Role",
+      "openSheet": "Open {name}'s sheet",
       "role": {
         "student": "Student"
       },
@@ -5380,7 +5381,7 @@
         "hook-livekit-initialized": "the voice rooms, the voice tile and the trial's speakers do not follow the voice client",
         "hook-image-popout-header": "a room picture's window shows Foundry's share control and any a module adds",
         "token-bars-reserve": "a student's token bars fill up as they are hurt, as Daggerheart draws them, and another player sees their Sanity bar",
-        "breakdown-icon-private": "a student's Breakdown icon shows on their token to every player",
+        "state-icons-off-token": "Breakdown's and Wounded's icons show on every token, to everybody",
         "dead-icon-own": "the dead overlay is Daggerheart's tombstone",
         "hook-party-sheet-render": "the Party sheet counts what each member has lost, as Daggerheart draws it, and shows every member's Sanity to every player",
         "user-permission-broadcast-audio": "nobody's microphone is blocked: the GM's button says why, and so does the trial",

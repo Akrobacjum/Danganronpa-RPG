@@ -16,7 +16,10 @@
  * WHICH TILE IS THE BODY. The current death's (`deathId` the `deceased` record's, so a student who died, came back and
  * died again is not read on the first death's tile a GM forgot), and of two the earliest laid (`at`): two GMs making
  * one Monocub at once can lay two (the stage's risk 4), and both readers then read one. A record with no `deathId`
- * matches a tile with none - the deaths written before deathId existed.
+ * matches a tile with none - the deaths written before deathId existed. The record is read through `held` (E95 fix
+ * RV-6): the GMs' roads hand sheet-audit.mjs `flagsHeldNow`, so on the primary the death is the GMs' mark and not the
+ * value a player wrote on their own actor before its put-back (frisk.mjs `personActionRefusal`, `leaveBody`); a
+ * caller that hands nothing reads the document, which is what a player's browser holds.
  *
  * THE TILE'S ROOM. By its centre on the floor its flag stores, through movement.mjs `roomAt`, the one hit test. A
  * tile's width and height are pixels and a token's are squares (Foundry's model as remembered, not read on v14:
@@ -51,9 +54,12 @@ export function isBodyDeath(record) {
 
 /**
  * The data of the tile `tokenDoc` leaves as `actorId`'s body for `record` (pure; E95 C2 creates it): the token's corner,
- * its squares in pixels on its scene's grid, its height and its picture, unhidden, and the flag `{ actorId, deathId,
- * level, at }` - the floor as an id (`level` handed as an id or a Level), `at` epoch ms. The caption and the death sign
- * are drawn over it (E95 C3), not baked into the picture.
+ * its squares in pixels on its scene's grid, its height and its picture, hidden as the token is, and the flag `{ actorId,
+ * deathId, level, at }` - the floor as an id (`level` handed as an id or a Level), `at` epoch ms. The caption and the
+ * death sign are drawn over it (E95 C3), not baked into the picture. HIDDEN AS THE TOKEN (E95 fix RV-3, 10.11.2026):
+ * before E95 a hidden body token refused the loot; a tile laid unhidden turned a body the GM had hidden into a visible,
+ * captioned one searchable from its room. A hidden tile refuses the loot as the hidden token did (frisk.mjs
+ * `personActionRefusal` reads the tile's `hidden`), and the GM shows it as any tile.
  */
 export function bodyTileSpec({ tokenDoc, actorId, record = null, level = null, at = Date.now() } = {}) {
     const size = gridOf(tokenDoc?.parent);
@@ -64,7 +70,7 @@ export function bodyTileSpec({ tokenDoc, actorId, record = null, level = null, a
         height: (Number(tokenDoc?.height) || 1) * size,
         elevation: Number.isFinite(tokenDoc?.elevation) ? tokenDoc.elevation : 0,
         texture: { src: tokenDoc?.texture?.src ?? null },
-        hidden: false,
+        hidden: Boolean(tokenDoc?.hidden),
         flags: { [MODULE_ID]: { [FLAGS.bodyOf]: { actorId: actorId ?? null, deathId: record?.deathId ?? null, level: floorId(level), at } } }
     };
 }
@@ -98,10 +104,12 @@ export function bodyTilesOf(actorId, scenes = game.scenes ?? []) {
 
 /**
  * The tile that is `actor`'s body now, as `bodyTilesOf` hands it, or null: a tile of the death the `deceased` flag
- * records (its `deathId`), the earliest laid of two. Null for a student the table does not know dead.
+ * records (its `deathId`), the earliest laid of two. Null for a student the table does not know dead. The flag is read
+ * off `held(actor)`: the document by default, the GMs' mark where a GM's road hands sheet-audit.mjs `flagsHeldNow`
+ * (E95 fix RV-6; the header's WHICH TILE).
  */
-export function bodyTileOf(actor, { scenes = game.scenes ?? [] } = {}) {
-    const record = deathRecord(actor);
+export function bodyTileOf(actor, { scenes = game.scenes ?? [], held = null } = {}) {
+    const record = deathRecord(held ? held(actor) : actor);
     if (!record) return null;
     const deathId = record.deathId ?? null;
     const mine = bodyTilesOf(actor?.id, scenes).filter(({ mark }) => (mark.deathId ?? null) === deathId);
@@ -115,7 +123,7 @@ export function bodyTileOf(actor, { scenes = game.scenes ?? [] } = {}) {
  * `roomAt` on a stand-in of the tile's size in squares), whether the tile is hidden. Else its token where the GMs read
  * it (`tokenPlace`, movement.mjs `gmPlaceOf`; `via: "token"`): that token's scene, floor and room, and whether the
  * token is hidden - the place every body was read at before E95. `scenes` and `tokenPlace` are handed in by tier 1
- * R3141 only.
+ * R3141 only; `held`, the reader of the death (`bodyTileOf`), by frisk.mjs `personActionRefusal` (E95 fix RV-6).
  *
  * A HIDDEN TILE ON A PLAYER'S BROWSER (E95 C2; LIVE-E95-04). The loot window's greying asks this on the player's
  * browser (anonymity.mjs `greyRefused` -> inventory.mjs `transferRefusal` -> frisk.mjs `personActionRefusal`), and the
@@ -124,8 +132,8 @@ export function bodyTileOf(actor, { scenes = game.scenes ?? [] } = {}) {
  * no tile there and the greying reads the token's room instead, so a Take beside the token shows open and the gate
  * refuses it on the press. Headless, the harness sends every tile to every client.
  */
-export function bodyPlaceOf(actor, { scenes = game.scenes ?? [], tokenPlace = gmPlaceOf } = {}) {
-    const body = bodyTileOf(actor, { scenes });
+export function bodyPlaceOf(actor, { scenes = game.scenes ?? [], tokenPlace = gmPlaceOf, held = null } = {}) {
+    const body = bodyTileOf(actor, { scenes, held });
     if (body) {
         const { doc, scene, mark } = body;
         const size = gridOf(scene);
@@ -166,17 +174,28 @@ function floorFieldsOf(level) {
  * action and no socket, and core Foundry lets no player create a tile. None is laid:
  *   - for a death that leaves no body (`isBodyDeath`: an execution, or a death in the Class Trial), or none recorded;
  *   - when a tile of this death is there already (`bodyTileOf`) - made a Monocub twice, or unticked and ticked again;
- *   - when the student has no token on a scene with rooms, read where the GMs read it (movement.mjs `gmPlaceOf`, which
- *     looks on place scenes only): the GM is told (`DRPG.Body.noToken`), as a body with nowhere to lie is a body the
- *     loot gate then reads at no place.
- * The tile is the token's corner, size and picture (`bodyTileSpec`), unhidden, with the floor in the flag and in the
+ *   - when the GMs read the student's token nowhere on a scene with rooms (movement.mjs `gmPlaceOf`, which looks on place
+ *     scenes only and answers null too while a put-back of the token is on its way or the judge holds it where the
+ *     rules refuse, `gmSpotWhy`): the GM is told (`DRPG.Body.noToken`, which names both and says to untick and tick Monocub again
+ *     once the token stands - nothing here tries again: E95 fix RV-8), as a body with nowhere to lie is a body the loot
+ *     gate then reads at no place.
+ * The tile is the token's corner, size, picture and `hidden` (`bodyTileSpec`), with the floor in the flag and in the
  * tile's own floor field where it has one (`floorFieldsOf`). Two GMs making one Monocub at once can lay two; the
  * readers take the earliest (`bodyTileOf`) and a revive or the reset removes both (`removeBodyTiles`).
+ *
+ * THE DEATH AS THE GMS HOLD IT (E95 fix RV-6, 10.11.2026). The record and the tile already there are read off
+ * sheet-audit.mjs `flagsHeldNow` (imported when called: the file's static imports stay R3142's three), so a
+ * player's write of their own `deathId` before its put-back neither stamps the tile with it nor hides the tile there.
+ *
+ * A TILE THE GM DELETED (the review's RV-2, kept): the guard against a second tile is the tile itself, so once the GM
+ * deletes it, the next false-to-true edge lays a new one where the Monocub's token stands then. The GM handbook says so;
+ * E72, which lays the tile from the invitation's acceptance, revisits it (STATUS E95 Open).
  */
 export async function leaveBody(actor, { at = Date.now() } = {}) {
     if (!game.user?.isGM || !actor) return null;
-    const record = deathRecord(actor);
-    if (!isBodyDeath(record) || bodyTileOf(actor)) return null;
+    const { flagsHeldNow } = await import("./sheet-audit.mjs");
+    const record = deathRecord(flagsHeldNow(actor));
+    if (!isBodyDeath(record) || bodyTileOf(actor, { held: flagsHeldNow })) return null;
     const place = gmPlaceOf(actor);
     if (!place?.tokenDoc || !place.scene) {
         ui.notifications?.warn(game.i18n.format("DRPG.Body.noToken", { name: actor.name }));
@@ -189,18 +208,19 @@ export async function leaveBody(actor, { at = Date.now() } = {}) {
 
 /**
  * Remove the body tiles of `actorId` from every scene, or every body tile when it is null, and answer how many (E95
- * C2; QUESTIONS Q7, Q8). GM only. A revive takes the student's (chapter.mjs `reviveCharacter`: a student back alive
+ * C2; QUESTIONS Q7, Q8). GM only. `only`, a set of tile ids, narrows it to those (E95 fix RV-1: tier 2 runs the reset's
+ * deaths entry on its own tiles alone, so a GM's suite at a table deletes no body the table holds). A revive takes the student's (chapter.mjs `reviveCharacter`: a student back alive
  * has no body), the season reset's deaths group every one (chapter.mjs `clearSeasonDeaths`), a body whose student is
  * gone from the world included. Stopping being a Monocub keeps the tile: the student is still dead. A tile with no
  * body flag is never touched.
  */
-export async function removeBodyTiles(actorId = null) {
+export async function removeBodyTiles(actorId = null, { only = null } = {}) {
     if (!game.user?.isGM) return 0;
     let removed = 0;
     for (const scene of game.scenes ?? []) {
         const ids = [...(scene?.tiles ?? [])].filter(doc => {
             const mark = markOf(doc);
-            return mark && (actorId === null || mark.actorId === actorId);
+            return mark && (actorId === null || mark.actorId === actorId) && (!only || only.has(doc.id));
         }).map(doc => doc.id);
         if (!ids.length) continue;
         await scene.deleteEmbeddedDocuments("Tile", ids);
@@ -232,7 +252,10 @@ function deadIconOf() {
  *     (H81-06, fog-doorways.mjs `addTunnelMarks`: `max(20, grid * 0.36)` over a keyline of `max(4, grid * 0.07)`):
  *     white over the ink keyline in both themes, as the map is not themed. No name (a student gone from the world):
  *     the sign alone;
- *   - a hidden tile, which Foundry draws for the GMs only: the mark at half alpha.
+ *   - a hidden tile: on a GM's browser the mark at half alpha; on any other browser no mark, and one drawn before it was
+ *     hidden is taken off (E95 fix RV-5, 10.11.2026: the caption names the body, and whether Foundry v14 hides a hidden
+ *     Tile placeable's children from a player was not read - LIVE-E95-01 item (4) - so it is not left to it). `gm` is
+ *     handed in by tier 1 R3144 only.
  * ONCE PER REDRAW. Refresh runs often (a hover, a move), so the mark is one container named `BODY_MARK_NAME` with the
  * inputs it was drawn from as its key: the same inputs keep it (its alpha set again), changed ones replace it, and a
  * tile that lost its flag loses its mark. Answers the mark, or null where none is drawn. The sizes are chosen, not
@@ -240,10 +263,10 @@ function deadIconOf() {
  * whether a child of the placeable shows while the Tiles layer is not the one in use was not read: LIVE-E95-01. Tier 1
  * R3144 draws on a stub; Foundry's draw and refresh hooks are not in the harness.
  */
-export function drawBodyMark(tile, { actors = game.actors } = {}) {
+export function drawBodyMark(tile, { actors = game.actors, gm = Boolean(game.user?.isGM) } = {}) {
     if (!tile || tile.destroyed || typeof tile.addChild !== "function" || !globalThis.PIXI) return null;
     const doc = tile.document ?? null;
-    const mark = markOf(doc);
+    const mark = doc?.hidden && !gm ? null : markOf(doc);
     const grid = gridOf(doc?.parent);
     const width = Number(doc?.width) || grid, height = Number(doc?.height) || grid;
     const name = mark ? (actors?.get?.(mark.actorId)?.name ?? "") : "";

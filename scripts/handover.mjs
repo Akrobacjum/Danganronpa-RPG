@@ -294,7 +294,7 @@ export async function mintCopy(from, to, item, { analysis = true, quiet = false 
        `observeFindKey` (`mintFindCopy`), as Monokuma's Reveal does (trial-modes.mjs `revealInStep`), and so does
        this now: the second reads the first's copy. Tier 0 R1289 holds every such bullet to the queue - on one GM's
        browser: the queue is that browser's memory (a hand-over and a Present run on the primary; a GM's Give on another
-       GM's browser races it still, E38's, row 1.2.130; E60's fix round, FG6). */
+       GM's browser races it still, E38's, row 1.2.128; E60's fix round, FG6). */
     const { copiedRemnants } = await import("./truth-bullets.mjs");
     const { observeFindKey } = await import("./observe.mjs");
     const copy = await serialWrite(observeFindKey(to.id), () => secret.remnantId && copiedRemnants(to).has(secret.remnantId) ? HELD_COPY : createTruthBullet(to, {
@@ -407,7 +407,8 @@ export async function lootBody({ takerId, bodyId, itemId, askedBy = null } = {})
        C1; audit S08-01, S11-06). A body nobody has found may be searched by whoever knows of the death - the incident's
        players, the victim's own, a student alone with it, a GM - asked of the GMs' record by the user who sent the
        request (`askedBy`, Foundry's sender; a GM's own button sends none), never of the public fact. That rule and the
-       rest - the taker alive and standing in the body's room as the GMs read both, the body's token not hidden, no
+       rest - the taker alive and standing in the body's room as the GMs read both, the body not hidden where it lies
+       (its tile, or its token when it has none: body-tile.mjs `bodyPlaceOf`, E95 C1), no
        Eclipse, no Class Trial, the taker not the body - are the one gate's (inventory.mjs `transferRefusal`, mode
        "loot": frisk.mjs `personActionRefusal(taker, body, { body: true })`), asked here before the trace and again by
        `transferItem`. An unknown death is refused in the words a living body is. The item moving between two sheets is

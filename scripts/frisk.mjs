@@ -155,7 +155,9 @@ export function personActionRefusal(asker, target, { body = false, user = null }
     // somebody in the room, as movement.mjs `othersInRoom` offers the asker's window its targets.
     // A body is where it lies (E95 C1; E72 amend[16]): its tile, or its token when it has none (body-tile.mjs
     // `bodyPlaceOf`), the tile's `hidden` for the token's. The living road - a Frisk, a steal, a Plant - reads the token.
-    const there = theirs.getFlag(MODULE_ID, FLAGS.monokuma) ? null : body ? bodyPlaceOf(target) : gmPlaceOf(target);
+    // The tile is the one of the death the GMs hold (`flagsHeldNow`, as `theirs` above; E95 fix RV-6), not of a
+    // `deathId` the body's player wrote on their own actor before its put-back.
+    const there = theirs.getFlag(MODULE_ID, FLAGS.monokuma) ? null : body ? bodyPlaceOf(target, { held: flagsHeldNow }) : gmPlaceOf(target);
     const hidden = body ? there?.hidden : there?.tokenDoc?.hidden;
     if (!there?.room || hidden || there.scene?.id !== here.scene?.id || floorKey(there.level) !== floorKey(here.level)
         || there.room !== here.room) return "the character is not in that room";
