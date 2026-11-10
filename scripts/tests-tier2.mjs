@@ -85444,6 +85444,9 @@ const SCENARIOS = [
             && a.element?.querySelector("footer [data-action=\"yes\"]")) ?? null;
         const choose = (actor, value) => { const s = select(actor); s.value = value; s.dispatchEvent(new Event("change", { bubbles: true })); };
         const settled = actor => !select(actor)?.disabled;
+        // A question an earlier test left open would take this test's Cancel (E68 T6: the E70 fix p1-G1 test's "End the murder").
+        const foreign = question();
+        must(!foreign, `a window with a Yes button is open before this test, and its Cancel would answer it in place of the mark's question: "${foreign?.title ?? ""}" (${(foreign?.options?.classes ?? []).join(" ")})`);
         let npc = null, answer = null;
         const read = {};
         try {
