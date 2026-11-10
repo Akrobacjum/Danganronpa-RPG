@@ -45068,6 +45068,82 @@ const INVARIANTS = [
         }), "{the mark as [alpha, its children]; drawn twice one mark; renamed [a new mark, how many, its words]; hidden alpha on a GM's; "
             + "hidden on a player's [answered none, marks]; a player's mark on a tile shown, then hidden [marks]; a tile with no flag [answer, marks]; the flag gone [answer, marks]; a student gone from the world; the words in English and Polish}");
     }],
+    ["R3331 - no chooseVariant row's details holds a form control (input, select, textarea): they stand in the left column, outside the window's <form>, so nothing in them is read back", async () => {
+        /*
+         * E68 fix round, 10.11.2026; the trap of E68 C12 (S/stages/E68/STATUS.md "E68 fix CI 77d3e66a"). Since C12 an
+         * action window's row `details` stand in the left column under the briefing, outside the <form> whose fields the
+         * caller reads off the answer's `form` (action-menus.mjs `chooseVariant`). Palm's Frisk ways (`friskModes`,
+         * radios) stood there from C12 on, and every Unseen was read as Openly; the fix handed them as the row's `field`.
+         * Read, in every module script but the suite's: each `details:` key, its expression and, for a call, the
+         * function it names in the same file (two calls deep) - none may write `<input`, `<select` or `<textarea`, nor
+         * call a function of the module that does (a maker: `friskModes`, `traitFieldHtml`, `requestFieldHtml`,
+         * `choiceRowHtml`, ...). A bare name is followed to its `const`/`let` in the file. Not read: details handed in
+         * through a spread or built in another file under another key (none at a5ebfeaa). The scanner is held first to
+         * three planted sources - Frisk's ways as details (C12's shape), a literal <select>, and a details of text alone,
+         * which must pass - and the real scan must find the crisis menu's details (action-murder.mjs `crisisDetails`),
+         * or it measured nothing. Red in a copy of the tree with Palm's `field: friskModes(def)` put back as `details:`.
+         */
+        const CONTROL = /<\s*(?:input|select|textarea)\b/i;
+        const exprAt = (src, from) => {
+            let depth = 0, i = from, tick = false;
+            for (; i < src.length; i++) {
+                const c = src[i];
+                if (c === "`") tick = !tick;
+                if (tick) continue;
+                if ("([{".includes(c)) depth++;
+                else if (")]}".includes(c)) { if (!depth) break; depth--; }
+                else if ((c === "," || c === ";") && !depth) break;
+            }
+            return src.slice(from, i).trim();
+        };
+        const functionsOf = src => new Map([...src.matchAll(/^(?:export )?(?:async )?function\s+([\w$]+)/gm)]
+            .map(m => [m[1], topLevelFunction(src, m[1]) ?? ""]));
+        const scan = files => {
+            const makers = new Set();
+            for (const [, src] of files) for (const [name, body] of functionsOf(src)) if (CONTROL.test(body)) makers.add(name);
+            const rows = [], bad = [];
+            for (const [file, src] of files) {
+                const own = functionsOf(src);
+                const holds = (expr, depth) => {
+                    if (CONTROL.test(expr)) return "a control written in it";
+                    const bare = /^[\w$]+$/.test(expr) ? new RegExp(`(?:const|let)\\s+${expr}\\s*=\\s*`).exec(src) : null;
+                    if (bare) return holds(exprAt(src, bare.index + bare[0].length), depth);
+                    for (const [, name] of expr.matchAll(/\b([\w$]+)\s*\(/g)) {
+                        if (makers.has(name)) return `calls ${name}, which writes a control`;
+                        if (depth < 2 && own.has(name)) {
+                            const deeper = holds(own.get(name), depth + 1);
+                            if (deeper) return `${name}: ${deeper}`;
+                        }
+                    }
+                    return null;
+                };
+                for (const m of src.matchAll(/(?<![\w$.])details\s*:\s*/g)) {
+                    const expr = exprAt(src, m.index + m[0].length);
+                    rows.push(`${file}: ${expr.slice(0, 40)}`);
+                    const why = holds(expr, 0);
+                    if (why) bad.push(`${file}: details: ${expr.slice(0, 40)} - ${why}`);
+                }
+            }
+            return { rows, bad };
+        };
+
+        const planted = [
+            ["frisk.mjs", "function ways(def) {\n    return `<label><input type=\"radio\" name=\"friskMode\" value=\"unseen\"></label>`;\n}\n"
+                + "export function menu(def) {\n    return chooseVariant({ options: [{ value: \"frisk\", details: ways(def) }] });\n}\n"],
+            ["literal.mjs", "export function menu() {\n    return chooseVariant({ options: [{ value: \"a\", details: `<p>x</p><select name=\"b\"></select>` }] });\n}\n"],
+            ["text.mjs", "function facts(def) {\n    return `<p>${def.hint}</p>`;\n}\n"
+                + "export function menu(def) {\n    return chooseVariant({ options: [{ value: \"a\", details: facts(def) }] });\n}\n"]
+        ];
+        const control = planted.map(row => scan([row]).bad.length);
+        equal(JSON.stringify(control), JSON.stringify([1, 1, 0]),
+            "the scanner does not see a control in a row's details, or sees one in text alone (planted: Frisk's ways as details, a literal select, text)");
+
+        const real = scan((await otherSources()).map(([file, src]) => [file, stripComments(src)]));
+        ok(real.rows.some(r => r.startsWith("action-murder.mjs: crisisDetails(")),
+            `the scan found no crisis menu's details, so it reads nothing (rows: ${JSON.stringify(real.rows)})`);
+        equal(JSON.stringify(real.bad), "[]",
+            "a chooseVariant row's details hold a form control, which stands outside the <form> and is never read: hand it as the row's `field`");
+    }],
 ];
 
 /**
