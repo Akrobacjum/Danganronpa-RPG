@@ -7302,6 +7302,7 @@
         "overflow": "Licznik Despair overflow",
         "despairOwed": "Despair, który każda pula jest winna za zamiany na Hope",
         "lootTraces": "Co zabrano z każdego ciała, i jego ślad",
+        "lootRolls": "Pierwszy rzut na Hand i Shadow każdej osoby do jej następnego zabrania z każdego ciała",
         "rifles": "Którą skrytkę każda postać przetrząsnęła, i o jakiej porze dnia",
         "clockBeat": "Kiedy główny GM był ostatnio przy stole, żeby przerwa między sesjami nie liczyła się do pory dnia",
         "takeBack": "Co dał ostatni początek pory dnia, przez pięć minut, żeby pomyłkę dało się cofnąć",

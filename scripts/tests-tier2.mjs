@@ -29831,6 +29831,55 @@ const SCENARIOS = [
         });
     }],
 
+    ["every Take rolls once and only its first roll counts", async () => {
+        /*
+         * E68 C10 loot bind, 10.11.2026; the owner's Q8 "nie" (every Take rolls Hand again, in the same time of day too). A
+         * Take's rolls are drawn on no payment (roll-draw.mjs `PAID_BY_NOTHING`), so a console could throw "loot" again and
+         * again before a Take and send the best. Now the first Hand drawn for a taker at a body since their last Take of it
+         * is the one their next Take counts (handover.mjs `bindLootRoll`, `lootRollsBound`), and a Take that moves something
+         * clears it (`releaseLootRolls`, as bridge-runs-records.mjs `handleLoot` calls it). Two Takes of one body in one time
+         * of day, each after two Hands drawn for a player's character on this GM: the first Take's first Hand bound, the
+         * second ignored; the binding released as the first Take's settlement releases it; the second Take's first Hand bound,
+         * its second ignored; a Hand naming no body refused. The Takes themselves are not made here - the bind, its release
+         * and the refusal are; scenario 83 L18 makes a player's Take through the bridge. Red at 120a8003: no body travelled
+         * with the draw and nothing was bound.
+         */
+        const { livingStudents } = await import("./chapter.mjs");
+        const H = await import("./handover.mjs");
+        const { lootRollStore } = await import("./gm-stores.mjs");
+        needs(world.atLeast("playersWithCharacter", 1), "a player who owns a student, whose Hand is drawn on this GM");
+        const player = game.users.find(u => !u.isGM && livingStudents().some(a => a.testUserPermission(u, "OWNER"))) ?? null;
+        must(player, "no player owns a living student - this would measure nothing");
+        const taker = livingStudents().find(a => a.testUserPermission(player, "OWNER"));
+        const body = game.actors.find(a => a.type === "character" && a.id !== taker.id) ?? null;
+        must(body, "no second character to name as the body - this would measure nothing");
+        must(typeof H.lootRollsBound === "function" && typeof H.releaseLootRolls === "function", "handover.mjs binds no Take's roll (lootRollsBound, releaseLootRolls)");
+        const key = `${taker.id}:${body.id}`, draws = [];
+        const draw = async (faces, context = { bodyId: body.id }) => {
+            const d = await drawnForPlayer(player, taker, { actionKey: "loot", faces, pay: false, trait: "hand", edit: p => ({ ...p, context }) });
+            draws.push(d);
+            return d.value?.messageId ?? null;
+        };
+        const bound = async () => (await H.lootRollsBound(taker.id, body.id))?.loot?.messageId ?? null;
+        try {
+            if (lootRollStore.has(key)) await lootRollStore.drop(key);
+            const first = [await draw({ hope: 2, fear: 1 }), await draw({ hope: 12, fear: 11 })];
+            const firstBound = await bound();
+            await H.releaseLootRolls(taker.id, body.id);
+            const cleared = await bound();
+            const second = [await draw({ hope: 7, fear: 4 }), await draw({ hope: 12, fear: 10 })];
+            const secondBound = await bound();
+            const none = await draw({ hope: 6, fear: 5 }, {});
+            equal(stableJson([first.every(Boolean), firstBound === first[0], cleared, second.every(Boolean), secondBound === second[0], none]),
+                stableJson([true, true, null, true, true, null]),
+                "[both Hands before the first Take drawn, the first of them bound, the binding after that Take, both before the second drawn, the first of them bound, the bodiless Hand's message]");
+        } finally {
+            for (const d of draws) await d.putBack();
+            if (lootRollStore.has(key)) await lootRollStore.drop(key);
+            await settle();
+        }
+    }],
+
     ["the loot's Remnant only rises and lies at the body's tile", async () => {
         /*
          * E68 C10, 10.11.2026; the owner's Q8 (every Take rolls again, in the same time of day too) and Q9 (a Remnant already

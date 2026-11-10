@@ -5578,6 +5578,7 @@
         "overflow": "The Despair overflow's count",
         "despairOwed": "The Despair each pool owes for its conversions to Hope",
         "lootTraces": "What has been taken off each body, and its trace",
+        "lootRolls": "The first Hand and Shadow roll each taker made for their next Take from each body",
         "rifles": "Which stash each character has gone through, and in which time of day",
         "clockBeat": "When the primary GM was last at the table, so the gap between two sessions is no time of day",
         "takeBack": "What the last start of a time of day gave, for five minutes, so a misclick can be taken back",

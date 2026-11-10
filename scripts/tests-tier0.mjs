@@ -6062,6 +6062,7 @@ const REGRESSIONS = [
             // E80 C3: a Find Passage, judged on the primary (passages-gm.mjs), its reasons by code.
             resolvePassageSearch: "refused",
             // E80 part 2 C1: one student acting on another in their room, the primary's gate (frisk.mjs); C2 and C3 ask it.
+            lootDrawRefusal: "returns",
             personActionRefusal: "returns",
             // E80 part 2 C3: an open Frisk's ask, answer and force, judged on the primary (frisk.mjs), whose runs pass their
             // `{ refused }` on, and a force's roll held to its ask (bridge-runs-acts.mjs `friskForceRoll`, a `derive`).

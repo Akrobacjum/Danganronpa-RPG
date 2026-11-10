@@ -584,17 +584,17 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     /* A TAKE AS A PLAYER MAKES IT (E68 fix CI a5ebfeaa). Since E68 C10 a Take rolls Hand, and Shadow for its cover where
        the taker's browser sees somebody else in the room, and the GM's client takes nothing on a packet that names no
        roll it drew for the taker (bridge-table.mjs `body.loot` `rolled`; "rollUnknown"). The page throws them as
-       anonymity.mjs `takeFromBody` does - `rollTrait` with actionKey "loot", then "lootCover" - and asks with their
-       ids; the answer is the GM's, as the request's was before. */
+       anonymity.mjs `takeFromBody` does - `rollTrait` with actionKey "loot", then "lootCover", each naming the body
+       (`context.bodyId`, the E68 loot bind) - and asks with their ids; the answer is the GM's, as the request's was before. */
     const lootRoad = (takerId, bodyId, itemId) => `const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
         const { rollTrait } = await import("${repoUrl}/scripts/action-rolls.mjs"), { LOOT } = await import("${repoUrl}/scripts/config.mjs");
         const { othersInRoom } = await import("${repoUrl}/scripts/movement.mjs");
         const taker = game.actors.get("${takerId}"), idOf = r => r?.raw?.message?.id ?? r?.raw?.message?._id ?? null;
-        const hand = await rollTrait(taker, LOOT.trait, { actionKey: "loot", title: game.i18n.localize("DRPG.Loot.rollTitle") });
+        const hand = await rollTrait(taker, LOOT.trait, { actionKey: "loot", context: { bodyId: "${bodyId}" }, title: game.i18n.localize("DRPG.Loot.rollTitle") });
         if (!hand) return { ok: false, rolled: false };
         let cover = null;
         if (othersInRoom(taker).some(other => other?.id !== "${bodyId}")) {
-            const shadow = await rollTrait(taker, LOOT.cover.trait, { remember: false, actionKey: "lootCover", title: game.i18n.localize("DRPG.Loot.coverTitle"), dc: LOOT.cover.threshold });
+            const shadow = await rollTrait(taker, LOOT.cover.trait, { remember: false, actionKey: "lootCover", context: { bodyId: "${bodyId}" }, title: game.i18n.localize("DRPG.Loot.coverTitle"), dc: LOOT.cover.threshold });
             if (shadow) cover = { rollId: idOf(shadow), total: shadow.total, isCritical: shadow.isCritical, withHope: shadow.withHope };
         }
         return await B.requestBodyLoot({ takerId: "${takerId}", bodyId: "${bodyId}", itemId: "${itemId ?? "none"}",

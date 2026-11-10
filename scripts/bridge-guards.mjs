@@ -365,6 +365,9 @@ export const REASON_PATTERNS = Object.freeze([
     // E08+E28 fix r2-H1: a settlement takes the newest roll of its action (rollRefusal), and a draw is an
     // action's, made once (roll-draw.mjs `drawRefusal`, `drawOnGm`), its window's costs its experiences' Hope (guardDrawnCosts).
     ["rollReplaced", /^a later roll of that action has replaced that roll$/],
+    // E68 C10 loot bind: a Take's roll drawn naming no body (roll-draw.mjs `lootDrawRefusal`), and a Take with no Hand bound (`handleLoot`).
+    ["badRequest", /^no body is named for that roll$/],
+    ["rollUnknown", /^no Hand roll of that character's stands for that Take$/],
     ["notPaid", /^no payment of that character's stands for that roll$/],
     ["rollThrown", /^that character's roll of that action has been thrown already$/],
     ["rollThrown", /^a roll of that action is being thrown already$/],

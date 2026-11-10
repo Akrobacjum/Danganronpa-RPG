@@ -409,26 +409,47 @@ async function takeFromBody(body, items) {
        plain the body's trace reads (handover.mjs `lootVisibilityOf`), and the primary reads it off its record of the
        roll. With somebody else in the room as this browser sees it, a Shadow roll covers it; the primary counts who
        watches itself (handover.mjs `lootCover`). A closed window takes nothing. */
+    /* EVERY TAKE ROLLS, AND ONLY ITS FIRST ROLL COUNTS (E68 C10 loot bind, 10.11.2026; the owner's Q8 "nie": every Take
+       rolls Hand again, in the same time of day too; roll-draw.mjs `lootDrawRefusal`). Each roll names the body
+       (`context.bodyId`), and the primary counts, for this taker's next Take of this body, the first Hand and the first
+       Shadow drawn since their last Take that moved something (bridge-runs-records.mjs `handleLoot`); a later roll
+       before that Take settles nothing. So this window rolls for every Take, as before. A Take the GM refused (the wrong
+       room) keeps its roll for the next try, and that try's new dice count for nothing. The GM's answer says so (`again`), and
+       the page says nothing of it: a Take that lands says one thing, that it was taken (87-messenger-sound E3, after E1's
+       refused try). */
     const { rollTrait } = await import("./action-rolls.mjs");
     const idOf = roll => roll?.raw?.message?.id ?? roll?.raw?.message?._id ?? null;
-    const hand = await rollTrait(taker, LOOT.trait, { actionKey: "loot", title: game.i18n.localize("DRPG.Loot.rollTitle") });
-    if (!hand) return false;
+    const context = { bodyId: body.id };
+    const roll = await rollTrait(taker, LOOT.trait, { actionKey: "loot", context, title: game.i18n.localize("DRPG.Loot.rollTitle") });
+    if (!roll) return false;
+    const hand = { rollId: idOf(roll), total: roll.total, isCritical: roll.isCritical, withHope: roll.withHope };
     let cover = null;
     const { othersInRoom } = await import("./movement.mjs");
     if (othersInRoom(taker).some(other => other?.id !== body.id)) {
         const shadow = await rollTrait(taker, LOOT.cover.trait, {
-            remember: false, actionKey: "lootCover", title: game.i18n.localize("DRPG.Loot.coverTitle"), dc: LOOT.cover.threshold
+            remember: false, actionKey: "lootCover", context, title: game.i18n.localize("DRPG.Loot.coverTitle"), dc: LOOT.cover.threshold
         });
         if (shadow) cover = { rollId: idOf(shadow), total: shadow.total, isCritical: shadow.isCritical, withHope: shadow.withHope };
     }
 
-    const res = await requestBodyLoot({
-        takerId: taker.id, bodyId: body.id, ...picked,
-        hand: { rollId: idOf(hand), total: hand.total, isCritical: hand.isCritical, withHope: hand.withHope }, cover
-    });
+    // What this Take reads of the bridge's answer: whether it went, its value and its reason.
+    const ask = async (handNamed, coverNamed) => {
+        const out = await requestBodyLoot({ takerId: taker.id, bodyId: body.id, ...picked, hand: handNamed, cover: coverNamed });
+        return { ok: out.ok, value: out.value ?? null, reason: out.reason ?? null };
+    };
+    let res = await ask(hand, cover);
+    // The primary counts a watcher this page did not, and holds no Shadow for this Take (E68 review R1, handover.mjs
+    // `lootBody`): the Shadow is rolled now and the Take asked again on the Hand already bound. Closed, nothing is taken.
+    if (res.ok && res.value?.coverNeeded && !game.user.isGM) {
+        const shadow = await rollTrait(taker, LOOT.cover.trait, {
+            remember: false, actionKey: "lootCover", context, title: game.i18n.localize("DRPG.Loot.coverTitle"), dc: LOOT.cover.threshold
+        });
+        if (!shadow) return false;
+        res = await ask(null, { rollId: idOf(shadow), total: shadow.total, isCritical: shadow.isCritical, withHope: shadow.withHope });
+    }
     // Only what the GM has: a refusal has been said, and "you took it" beside it would be two answers.
     // Off a body nobody has found, the Truth Bullet waits for the death to be known (E05 fix r2-F0b).
-    const took = Boolean(res.ok && !res.value?.refused);
+    const took = Boolean(res.ok && !res.value?.refused && !res.value?.coverNeeded);
     const names = list.map(item => item.name).join(", ");
     if (took) ui.notifications.info(game.i18n.format(isDeceased(body) ? "DRPG.Loot.took" : "DRPG.Loot.tookUnfound", { item: names }));
     return took;
