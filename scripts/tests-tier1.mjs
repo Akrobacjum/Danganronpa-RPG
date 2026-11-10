@@ -7671,6 +7671,31 @@ const INVARIANTS = [
         JSON.stringify([true, true]),
             "a road that holds the proposal is missing (rulePickTrait holds the trait to the list before it answers, the bridge's row passes proposed and note)");
     }],
+    ["R3332 - a statistic card under the kind action is asked only for an action a card is read for: Search, and no other", async () => {
+        /*
+         * E68 review R7, 10.11.2026. Kind `action` was opened for Search (E68 C6), and the GMs' guard
+         * (bridge-guards.mjs `guardTraitRuling`) took any action of the table that lists two statistics or more
+         * under it, so a console's `trait.ruling { kind: "action", key: "project" }` put a "Work on Project" card
+         * with four buttons in its thread, which no roll reads (roll-draw.mjs `pickSpecOf` names a project by kind
+         * `project`). The guard judged for a player on a character of the world: kind `action` with Search, a
+         * Project, a Sabotage and Search as `generic` (the control: another kind, not this rule's); the reason
+         * Project's refusal gives, as the bridge's table names it. Pure; nothing is posted. Red at 0e13ee8f:
+         * Project and Sabotage passed the guard (null, or the clock's "that cannot be done now").
+         */
+        const { guardTraitRuling, REASON_PATTERNS } = await import("./bridge-guards.mjs");
+        const { CARD_ACTIONS } = await import("./trait-ruling.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const someone = game.actors.find(a => a.type === "character") ?? null;
+        must(someone, "the world holds no character to ask about - this would measure nothing");
+        must((ACTIONS.project?.traits ?? []).length > 1 && (ACTIONS.sabotage?.traits ?? []).length > 1,
+            "a Project or a Sabotage lists one statistic here - the guard's list check would refuse it alone, and this would measure nothing");
+        const OFF = "that action is not one a card picks a statistic for";
+        const judge = (kind, key) => guardTraitRuling({ isGM: false, id: "R3332PLAYER00001" }, { actorId: someone.id, kind, key, variant: null }, {});
+        const judged = [await judge("action", "search"), await judge("action", "project"), await judge("action", "sabotage"), await judge("generic", "search")];
+        const kindOf = why => REASON_PATTERNS.find(([, re]) => re.test(why))?.[0] ?? null;
+        equal(JSON.stringify([CARD_ACTIONS, judged.map(why => why === OFF), kindOf(OFF)]), JSON.stringify([["search"], [false, true, true, false], "badRequest"]),
+            "the guard took a statistic card under the kind action for an action other than Search, or refused Search, or its reason is not the bridge's (the keys a card is read for; per ask, refused as not one; the reason's kind)");
+    }],
     ["R3150 - the valve approves a proposal only with its setting on, in Daily Life, outside the incident and for its scope, by the click's road, and its ruling says so", async () => {
         /*
          * E68 C2, 10.11.2026; DA41 = 2, DA50 = 1 (the planned R-next (a)). The world setting `autoApproveTraits`, off by

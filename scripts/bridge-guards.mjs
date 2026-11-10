@@ -209,6 +209,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["badRequest", /^that is not the table the character rolls$/],
     // E68 C1: a statistic ruling whose proposal the roll does not list (guardTraitRuling).
     ["badRequest", /^that statistic is not one the roll lists$/],
+    // E68 review R7: a statistic ruling under the kind `action` for an action no card is read for (guardTraitRuling).
+    ["badRequest", /^that action is not one a card picks a statistic for$/],
     ["badRequest", /^that plant was handed to somebody else$/],
     ["badRequest", /^that token was spent by somebody else$/],
     // E05: a pre-session note past the player text cap (bridge-runs-records.mjs handleNoteSave).
@@ -646,8 +648,11 @@ export async function guardTraitRuling(sender, payload, ctx) {
     if (sender.isGM) return null;
     const actor = game.actors.get(payload.actorId);
     if (!actor) return "no such character";
-    const { listedTraits, PROPOSAL_NOTE_MAX } = await import("./trait-ruling.mjs");
+    const { listedTraits, PROPOSAL_NOTE_MAX, CARD_ACTIONS } = await import("./trait-ruling.mjs");
     const variant = payload.variant ?? null;
+    // Kind `action` is Search's (E68 C6): a Project's or a Sabotage's statistic is asked under `project`, and a card for
+    // any other action of the table would be read by no roll (E68 review R7, R3332).
+    if (payload.kind === "action" && !CARD_ACTIONS.includes(payload.key)) return "that action is not one a card picks a statistic for";
     if (payload.kind === "project" && !(await projectWithinReach(actor, payload.key, sender))) {
         return "that project is not one the character can work on or break here";
     }

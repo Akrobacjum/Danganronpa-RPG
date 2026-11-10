@@ -138,6 +138,14 @@ export function listedTraits(spec = {}) {
 }
 
 /**
+ * The actions of the table a statistic card is asked for under the kind `action` (E68 C6): Search, the one whose
+ * card a roll reads (roll-draw.mjs, the `search` row). A Project's or a Sabotage's statistic is asked under the kind
+ * `project` (`pickSpecOf`), so the GMs' guard refuses kind `action` for any other key (bridge-guards.mjs
+ * `guardTraitRuling`; E68 review R7, R3332).
+ */
+export const CARD_ACTIONS = Object.freeze(["search"]);
+
+/**
  * Every definition of config a ruling can be asked about, by identity, for R213: a
  * definition that lists several traits and is not here would be rolled without a GM.
  * Sabotage beside Projects: a Sabotage rolls the statistic of the project it targets,
@@ -149,7 +157,7 @@ export function ruledDefinitions() {
         ...Object.keys(MURDER_OPENING).map(key => ({ kind: "opening", key })),
         ...["cleanup", ...Object.keys(CLEANUP.actions ?? {})].map(key => ({ kind: "cleanup", key })),
         // Search on six (E68 C6): its own definition, ruled under the kind `action`.
-        { kind: "action", key: "search" },
+        ...CARD_ACTIONS.map(key => ({ kind: "action", key })),
         ...Object.keys(ACTIONS).map(key => ({ kind: "generic", key }))
     ];
     const defs = new Set([...specs.map(definitionOf), ACTIONS.project, ACTIONS.sabotage]);
