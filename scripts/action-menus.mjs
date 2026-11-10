@@ -189,6 +189,8 @@ export async function chooseVariant({
     // A row's own statistic field (`field`: the crisis menu's proposal, E68 C4) stands in the right column's slot, not
     // with its details on the left: the owner's Q3 of round M keeps the field under the rows. One block a row, the
     // picked row's alone shown (`syncDetails`); no class of its own, so the hidden attribute alone shuts it.
+    // Whatever a caller reads back off the answer's `form` goes here, never in `details`: the left column is outside
+    // the <form>. A Frisk's ways stood there from C12 to E68 fix CI 77d3e66a and were read as Openly every time.
     const fields = options.map(o => (o.field && !o.disabled
         ? `<div data-drpg-field="${esc(o.value)}"${o.value !== first ? " hidden" : ""}>${o.field}</div>` : "")).join("");
 

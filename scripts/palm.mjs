@@ -131,7 +131,12 @@ export async function choosePalm(actor, def, targets, mine) {
                 value: "frisk", icon: "fa-hand-pointer",
                 label: game.i18n.localize("DRPG.Frisk.rowLabel"),
                 hint: game.i18n.localize("DRPG.Frisk.rowHint"),
-                details: friskModes(def),
+                // A row's `field`, not its `details` (E68 fix CI 77d3e66a, 10.11.2026): since E68 C12 a row's details
+                // stand in the left column, outside the window's <form>, and `performPalm` reads the mode off that form
+                // (`friskModeOf(picked.form)`), so an Unseen picked there was read as Openly - the tier-2 "a GM's own
+                // unseen Frisk opens one window" threw no dice (CI run 42850906186, shard 5). `field` stands in the
+                // form's slot under the rows, the picked row's alone shown, as the crisis menu's proposal does.
+                field: friskModes(def),
                 confirm: root => friskModeOf(root) === "unseen" ? game.i18n.localize("DRPG.Action.roll") : game.i18n.localize("DRPG.Action.proceed")
             }
         ],
@@ -148,7 +153,8 @@ export async function choosePalm(actor, def, targets, mine) {
 }
 
 /**
- * The ways a Frisk can go, under its row of the Palm window (E80 part 2 C2, C3): Openly, checked - the ask, which
+ * The ways a Frisk can go, in the Palm window's form while its row is picked (E80 part 2 C2, C3; the row's `field`
+ * since E68 fix CI 77d3e66a, so the form `performPalm` reads holds them): Openly, checked - the ask, which
  * throws no dice, so two clicks never start an attempt that tells the target who tried - and Unseen, each with its
  * numbers read off `ACTIONS.palm` (the force's Body, the cover's Shadow and the hand's). Openly's line says the force
  * only while the GMs' `friskForce` is on. A `friskMode` radio, so the confirm button follows it (`followConfirmLabel`):
