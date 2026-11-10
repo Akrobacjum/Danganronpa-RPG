@@ -11328,9 +11328,6 @@ body.drpg-stacked .application.sheet.actor.character {
 .chat-message .message-header-main > .subtitle > .whisper-to {
     flex: 0 1 auto;
     min-width: 0;
-    box-sizing: border-box;
-    height: 24px;
-    min-height: 0;
     overflow: hidden;
     text-overflow: ellipsis;
 }
