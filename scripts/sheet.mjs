@@ -2256,15 +2256,14 @@ export function paintReserves(app, element, actor = app?.document, user = game.u
  * block, so anonymity.mjs `redactValues`, which strips the Sanity block's tooltips, leaves it whole: the state is
  * public, the Sanity number is not ("?" as before), though a Breakdown badge tells another player Sanity is gone (the
  * owner asked for that). Read from the rule (`stateHeld`, the reading `syncOnce` writes the status from), so a sheet
- * drawn before the status lands already says it; redrawn by every paint, so a repaint takes a lifted state off.
+ * drawn before the status lands already says it; redrawn by every paint, so a repaint takes a lifted state off. The row
+ * itself is never taken off (E95 C5 fix): its height is reserved, so no state moves the sheet.
  */
 function paintStateBadges(section, actor) {
     const held = Object.values(STATES).filter(state => stateHeld(actor, state));
+    // The row stays in every state, empty when none is held, and the stylesheet gives it its height either way: a badge
+    // that comes or goes moves nothing below it (E95 C5 fix; the owner's 10.11: "layout karty powinien uwzgledac puste miejsce").
     let row = section.parentElement?.querySelector(":scope > .drpg-state-badges") ?? null;
-    if (!held.length) {
-        row?.remove();
-        return;
-    }
     if (!row) {
         row = document.createElement("div");
         row.className = "drpg-state-badges";

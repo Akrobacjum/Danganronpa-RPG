@@ -8866,12 +8866,41 @@ body.drpg-reduced-motion .application.sheet.actor .character-sidebar-sheet .drpg
 /* The states the character is in, public on the sheet (E95 C5; sheet.mjs `paintStateBadges`): a row of badges under the
    reserves, each the state's pixel icon and its name, in the kit's chip shape and tokens, so both themes draw it from
    their own `--drpg-kit-*`. Not a button: it is focusable only for its tooltip. */
+/* THE ROW'S SPACE IS ALWAYS THERE (E95 C5 fix; the owner's 10.11): the row is in the sheet with no state held, one badge
+   high, and the badges do not wrap (each shrinks and clips its name), so a Breakdown or a Wounded that comes or goes
+   moves nothing below it. */
 .application.sheet.actor .character-sidebar-sheet .drpg-state-badges {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: center;
     gap: 4px;
     margin: 4px 0;
+    height: 24px;
+    box-sizing: border-box;
+}
+.application.sheet.actor .character-sidebar-sheet .drpg-state-badges > .drpg-state-badge {
+    flex: 0 1 auto;
+    min-width: 0;
+    box-sizing: border-box;
+    height: 24px;
+    min-height: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+/* Health and Sanity always side by side (E95 C5 fix; the owner's 10.11), whatever the system's own grid does at the
+   sidebar's width: one row, the two blocks sharing it. */
+.application.sheet.actor .character-sidebar-sheet .resources-section {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 4px;
+}
+.application.sheet.actor .character-sidebar-sheet .resources-section > .status-bar,
+.application.sheet.actor .character-sidebar-sheet .resources-section > .slot-value {
+    flex: 1 1 0;
+    min-width: 0;
 }
 .application.sheet.actor .character-sidebar-sheet .drpg-state-badge {
     display: inline-flex;
@@ -11299,6 +11328,9 @@ body.drpg-stacked .application.sheet.actor.character {
 .chat-message .message-header-main > .subtitle > .whisper-to {
     flex: 0 1 auto;
     min-width: 0;
+    box-sizing: border-box;
+    height: 24px;
+    min-height: 0;
     overflow: hidden;
     text-overflow: ellipsis;
 }

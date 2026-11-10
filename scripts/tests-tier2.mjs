@@ -85330,6 +85330,110 @@ const SCENARIOS = [
             "{calm: another player's sheet of the student in neither state; held: each reader's sheet (owner, GM, another player, Observer) in each layout (bars, pips) of the student "
             + "in Breakdown and Wounded} - [badge name, tooltip] of each state beside the reserves, the Actions label's [Wounded class, tooltip], Sanity's row \"?\", [Breakdown, Wounded] said anywhere on the sheet");
     }],
+    ["a Monokuma's sheet shows no state badge (E95 C5 fix; the orchestrator's reading of 10.11): `stateHeld` is the rule `syncOnce` writes the status from, and `syncOnce` skips a Monokuma - so a Monokuma whose Health and Sanity are marked through draws neither badge, and a student with both gone draws both", async () => {
+        /*
+         * E95 C5 fix, 10.11.2026. `stateHeld` (states.mjs) was `shouldHave`, which skips the dead and a Monocub but not a
+         * Monokuma, while `syncStates` returns for a Monokuma at its first line. Read here on the GM's own sheet (the stand-in
+         * of E45-T2) of the world's student: put in both states by marking every point of Health and Sanity (the badges
+         * both), then marked a Monokuma by `setMonokuma` itself (its own writes: the flag, Actions and Hope zeroed) with
+         * the marks left as they were. Put back in a finally: the marks, Hope, Actions, the flag.
+         */
+        const SH = await import("./sheet.mjs");
+        const { STATES, ACTIONS_RESOURCE } = await import("./config.mjs");
+        const { setMonokuma } = await import("./monokuma.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        must(typeof SH.sheetMode === "function", "sheet.mjs exports no sheetMode - this would measure nothing");
+        const student = cast(3).at(-1);
+        must(student && !student.getFlag(MODULE_ID, FLAGS.monokuma) && !student.getFlag(MODULE_ID, FLAGS.deceased) && !student.getFlag(MODULE_ID, FLAGS.monocub),
+            "no living student outside every special state - this would measure nothing");
+        const HP = "system.resources.hitPoints", SAN = "system.resources.stress", HOPE = "system.resources.hope.value", ACT = `system.resources.${ACTIONS_RESOURCE}.value`;
+        const get = path => Number(foundry.utils.getProperty(student, path) ?? 0);
+        const was = { hp: get(`${HP}.value`), san: get(`${SAN}.value`), hope: get(HOPE), act: get(ACT), flag: student.getFlag(MODULE_ID, FLAGS.monokuma) };
+        must(get(`${HP}.max`) > 0 && get(`${SAN}.max`) > 0, "the student has no Health or Sanity to mark - this would measure nothing");
+        const look = () => {
+            const root = e45SheetRoot();
+            document.body.append(root);
+            try {
+                Hooks.callAll("renderCharacterSheet", { document: student, isEditable: true, element: root, rendered: true }, root, {}, { isFirstRender: true });
+                return [...root.querySelectorAll(".character-sidebar-sheet .drpg-state-badge")].map(el => el.dataset.drpgState).sort();
+            } finally {
+                root.remove();
+            }
+        };
+        const read = {};
+        try {
+            await student.update({ [`${HP}.value`]: get(`${HP}.max`), [`${SAN}.value`]: get(`${SAN}.max`) });
+            await settle();
+            read.student = look();
+            await setMonokuma(student, true);
+            await settle();
+            read.monokuma = look();
+            read.monokumaMode = SH.sheetMode(student, game.user).mode;
+        } finally {
+            await setMonokuma(student, false);
+            if (was.flag === undefined) await student.unsetFlag(MODULE_ID, FLAGS.monokuma);
+            await trustedWrite(student, { [HOPE]: was.hope, [ACT]: was.act }, { reason: "setup" });
+            await student.update({ [`${HP}.value`]: was.hp, [`${SAN}.value`]: was.san });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ student: [STATES.breakdown.id, STATES.wounded.id].sort(), monokuma: [], monokumaMode: "monokuma" }),
+            "{the student with every point of Health and Sanity marked: the badges; the same character marked a Monokuma, the marks left: the badges, and the sheet's mode}");
+    }],
+    ["the state row keeps its place on the sheet (E95 C5 fix; the owner's 10.11: \"Breakdown i wounded nigdy nie powinny przesuwac nic na karcie\", \"health i sanity ... zawsze obok siebie\"): the row is in the sheet with no state, one state and both, and the stylesheet holds its height, does not wrap it, and puts the two reserves in one row", async () => {
+        /*
+         * E95 C5 fix, 10.11.2026. No layout headless, so the two halves are read where they can be: the sheet drawn through
+         * the module's own hook with the student in no state, in Breakdown alone and in both (the row must be in the sheet
+         * each time, its badges one, then two), and the stylesheet's own rules for the row, its badges and the reserves'
+         * section. The tops themselves were measured in Chromium (audit/style-harness.html ?sheet=parts, both themes, both
+         * layouts; STATUS E95-C5 fix). Red first on 09709763: the row was taken off the sheet when no state was held, and
+         * neither rule existed.
+         */
+        const { STATES } = await import("./config.mjs");
+        const student = cast(3).at(-1);
+        must(student && !student.getFlag(MODULE_ID, FLAGS.monokuma) && !student.getFlag(MODULE_ID, FLAGS.deceased) && !student.getFlag(MODULE_ID, FLAGS.monocub),
+            "no living student outside every special state - this would measure nothing");
+        const HP = "system.resources.hitPoints", SAN = "system.resources.stress";
+        const get = path => Number(foundry.utils.getProperty(student, path) ?? 0);
+        const was = { hp: get(`${HP}.value`), san: get(`${SAN}.value`) };
+        must(get(`${HP}.max`) > 0 && get(`${SAN}.max`) > 0 && was.hp < get(`${HP}.max`) && was.san < get(`${SAN}.max`), "the student is in a state already, or has no tracks - this would measure nothing");
+        const look = () => {
+            const root = e45SheetRoot();
+            document.body.append(root);
+            try {
+                Hooks.callAll("renderCharacterSheet", { document: student, isEditable: true, element: root, rendered: true }, root, {}, { isFirstRender: true });
+                const rows = root.querySelectorAll(".character-sidebar-sheet > .drpg-state-badges, .character-sidebar-sheet .drpg-state-badges");
+                // The row stands after the reserves' section, whatever it holds.
+                const after = root.querySelector(".resources-section")?.nextElementSibling?.classList.contains("drpg-state-badges") ?? false;
+                return [rows.length, rows[0]?.querySelectorAll(".drpg-state-badge").length ?? null, after];
+            } finally {
+                root.remove();
+            }
+        };
+        const read = {};
+        try {
+            read.none = look();
+            await student.update({ [`${SAN}.value`]: get(`${SAN}.max`) });
+            await settle();
+            read.one = look();
+            await student.update({ [`${HP}.value`]: get(`${HP}.max`) });
+            await settle();
+            read.both = look();
+        } finally {
+            await student.update({ [`${HP}.value`]: was.hp, [`${SAN}.value`]: was.san });
+            await settle();
+        }
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+        const rule = selector => new RegExp(`${selector.replace(/[.>]/g, "\\$&")} \\{([^}]*)\\}`).exec(css)?.[1] ?? "";
+        const SB = ".application.sheet.actor .character-sidebar-sheet";
+        const row = rule(`${SB} .drpg-state-badges`), badge = rule(`${SB} .drpg-state-badges > .drpg-state-badge`), section = rule(`${SB} .resources-section`);
+        read.css = {
+            rowHeight: /\bheight:\s*24px/.test(row) && /flex-wrap:\s*nowrap/.test(row),
+            badgeHeight: /\bheight:\s*24px/.test(badge) && /overflow:\s*hidden/.test(badge),
+            reserves: /display:\s*flex/.test(section) && /flex-direction:\s*row/.test(section) && /flex-wrap:\s*nowrap/.test(section)
+        };
+        equal(stableJson(read), stableJson({ none: [1, 0, true], one: [1, 1, true], both: [1, 2, true], css: { rowHeight: true, badgeHeight: true, reserves: true } }),
+            "{the sheet with no state, with Breakdown alone and with both: [rows, badges, the row right after the reserves' section]; the stylesheet's row (a fixed height, no wrap), its badge (the same height, clipped) and the reserves' section (one row)}");
+    }],
     ["a Students row opens that character's sheet (E95 C6; the owner's 10.11): the GM presses a row's sheet button twice - each press renders that actor's own sheet with force, the same window both times, the Students window stays open, and no other actor's sheet is asked", async () => {
         /*
          * E95 C6, 10.11.2026. The window as the GM panel's tile opens it (gm-panel.mjs `openWhoIsAliveDialog`), on its

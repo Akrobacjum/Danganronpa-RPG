@@ -298,7 +298,9 @@ function shouldHave(actor, state) {
  * says what the reserves already say.
  */
 export function stateHeld(actor, state) {
-    return Boolean(state) && shouldHave(actor, state);
+    // A Monokuma is skipped outright by `syncStates` (below), whatever its marks say, so its sheet draws no badge either
+    // (E95 C5 fix: with Health and Sanity marked through, the badge row showed both on a Monokuma, a status it never gets).
+    return Boolean(state) && !isMonokuma(actor) && shouldHave(actor, state);
 }
 
 /*
