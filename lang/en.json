@@ -5358,7 +5358,7 @@
         "hook-livekit-initialized": "the voice rooms, the voice tile and the trial's speakers do not follow the voice client",
         "hook-image-popout-header": "a room picture's window shows Foundry's share control and any a module adds",
         "token-bars-reserve": "a student's token bars fill up as they are hurt, as Daggerheart draws them, and another player sees their Sanity bar",
-        "breakdown-icon-private": "a student's Breakdown icon shows on their token to every player",
+        "state-icons-off-token": "Breakdown's and Wounded's icons show on every token, to everybody",
         "dead-icon-own": "the dead overlay is Daggerheart's tombstone",
         "hook-party-sheet-render": "the Party sheet counts what each member has lost, as Daggerheart draws it, and shows every member's Sanity to every player",
         "user-permission-broadcast-audio": "nobody's microphone is blocked: the GM's button says why, and so does the trial",

@@ -292,6 +292,15 @@ function shouldHave(actor, state) {
     return !heldNone(actor) && remaining(actor, state.resource) <= 0;
 }
 
+/**
+ * Whether `actor` is in `state` (one of `STATES`) as the rule has it, the reading `syncOnce` writes the status from:
+ * the sheet's state badges read it (sheet.mjs `paintStateBadges`, E95 C5), so a sheet drawn before the status lands
+ * says what the reserves already say.
+ */
+export function stateHeld(actor, state) {
+    return Boolean(state) && shouldHave(actor, state);
+}
+
 /*
  * THE DEAD CARRY NO STATES, AND A MONOCUB NEITHER (E15 C4, 25.10.2026; audit S03-10). A body beside
  * the "dead" overlay wore Wounded or Breakdown, and a Monocub made from a victim who bled out was
@@ -458,14 +467,19 @@ export async function syncAll() {
  * both ask `getBarAttribute`, and `Actor#modifyTokenAttribute` reads the system data
  * itself. A table's check (E24's live row of the token bars, AUDIT 9.2).
  *
- * THE BREAKDOWN ICON. `syncOnce` puts Breakdown on with `toggleStatusEffect`, and
- * Daggerheart's `_drawEffects` draws each status's icon on every client's token -
- * telling another player a student's Sanity is gone (the owner's 08.11: "ikone tez
- * ukrywamy"). Its `_drawEffect(src, tint, effect)` is wrapped (row
- * `breakdown-icon-private`, an override of Daggerheart's): the icon of a
- * `drpgBreakdown` effect is not drawn for a user who may not read the student's
- * Sanity. A view on this browser, not a data change: the status stays on the actor
- * every client holds, and a console reads it. A table's check (E24's live row of the icon, AUDIT 9.2).
+ * THE STATE ICONS ARE NOT ON THE TOKEN (E95 C5, 10.11.2026; the owner's "ikony breakdown i
+ * wounded nie wyswietlaly sie na tokenie na mapie wcale - TYLKO na karcie postaci").
+ * `syncOnce` puts Breakdown and Wounded on with `toggleStatusEffect`, and Daggerheart's
+ * `_drawEffects` draws each status's icon on every client's token. Its
+ * `_drawEffect(src, tint, effect)` is wrapped (row `state-icons-off-token`, an override
+ * of Daggerheart's): the icon of a `drpgBreakdown` or `drpgWounded` effect is drawn for
+ * nobody - a GM, the owner, another player, an Observer - on any character. From E24 C1b
+ * (08.11) to E95 C4 the wrapper hid Breakdown only from a user who may not read the
+ * Sanity and drew Wounded for all. The sheet says both instead, to every reader
+ * (sheet.mjs `paintStateBadges`). A view on this browser, not a data change: the
+ * statuses stay on the actor every client holds, every rule reads them as before, and a
+ * console reads them. The token HUD's status palette lists statuses, not the token's
+ * drawn icons, and is not changed. A table's check (LIVE-E95-05, AUDIT 9.2).
  * ========================================================================== */
 
 /*
@@ -473,8 +487,9 @@ export async function syncAll() {
  * sheet's: `paintReserves` draws "n / max" ("Left: n / max" until 1.2.102) and hides Sanity on any character's sheet, a Monokuma's and an NPC's
  * not in the class among them, while this asked for a student alone, so an NPC that had taken 3 of 4 Health read
  * "Left: 1 / 4" on its sheet beside a token bar 3/4 full, and its Sanity bar and Breakdown icon (`syncStates` still
- * gives an NPC Breakdown) showed to every player. Now its bars are the reserve, its Sanity bar and Breakdown icon the
- * owner's and the GMs', and its HUD inputs off as a student's are (R1447, R1485; red on 52955be4: as Foundry's).
+ * gives an NPC Breakdown) showed to every player. Now its bars are the reserve, its Sanity bar (and, until E95 C5 took
+ * both state icons off every token, its Breakdown icon) the owner's and the GMs', and its HUD inputs off as a student's
+ * are (R1447, R1485; red on 52955be4: as Foundry's).
  */
 /** A character, for the token's reserves: a student, a Monokuma or an NPC not in the class alike. */
 function reserveCharacter(actor) {
@@ -520,22 +535,24 @@ function installReserveBars() {
     return wrapBarAttribute(proto);
 }
 
+/** The statuses whose icon no token draws (E95 C5): Breakdown and Wounded. */
+const OFF_TOKEN = Object.freeze([STATES.breakdown, STATES.wounded]);
+
 /**
- * Whether `user` is shown the icon of `effect` on `actor`'s token: not a character's Breakdown (a student's, a
- * Monokuma's, an NPC's) to a user `reserveView` does not show that character's Sanity to (another player, an
- * Observer); every other icon, a GM's and the owner's view, and another actor's, as Foundry draws them. Exported for R1485.
+ * Whether `user` is shown the icon of `effect` on `actor`'s token: never an effect holding Breakdown or Wounded, for
+ * any user on any actor (E95 C5; the old effects `reimageStates` reimaged and one still on Foundry's core image are
+ * matched by the status, not the image); every other icon, the dead overlay among them, as Foundry draws it. `actor`
+ * and `user` stay in the signature for the callers and R1485, which hands each reader. Exported for R1485.
  */
 export function effectIconShown(actor, effect, user = game.user) {
-    if (!effect?.statuses?.has?.(STATES.breakdown.id)) return true;
-    if (!reserveCharacter(actor)) return true;
-    return reserveView(actor, "stress", user).shown;
+    return !OFF_TOKEN.some(state => effect?.statuses?.has?.(state.id));
 }
 
 /**
  * Wrap `proto._drawEffect(src, tint, effect)` (Daggerheart 2.10.5's token hands it each icon's effect): an icon
  * `effectIconShown` refuses is not drawn, answered as a draw with nothing to draw (a settled null, which its
- * `_drawEffects` and `_drawOverlay` read as no icon). An effect it is not handed is matched by the Breakdown image
- * on an actor that holds the status. Marked so a second call stacks nothing. Exported for R1485.
+ * `_drawEffects` and `_drawOverlay` read as no icon). An effect it is not handed is matched by its image, Breakdown's
+ * or Wounded's, on an actor that holds that status. Marked so a second call stacks nothing. Exported for R1485.
  */
 export function wrapEffectIcons(proto) {
     const original = proto?._drawEffect;
@@ -543,8 +560,7 @@ export function wrapEffectIcons(proto) {
     function drpgBreakdownIcon(src, tint, effect, ...rest) {
         const shown = effect
             ? effectIconShown(this.actor, effect)
-            : !(src === STATES.breakdown.img && this.actor?.statuses?.has?.(STATES.breakdown.id))
-                || effectIconShown(this.actor, { statuses: new Set([STATES.breakdown.id]) });
+            : !OFF_TOKEN.some(state => src === state.img && this.actor?.statuses?.has?.(state.id));
         if (!shown) return Promise.resolve(null);
         return original.call(this, src, tint, effect, ...rest);
     }
@@ -559,7 +575,7 @@ const BREAKDOWN_ICON = Symbol.for("drpgBreakdownIcon");
 function installEffectIcons() {
     const proto = CONFIG.Token?.objectClass?.prototype ?? null;
     if (!proto || proto === Object.prototype || typeof proto._drawEffect !== "function") {
-        debug("No token class drawing effect icons here - a student's Breakdown icon is drawn as Foundry draws it");
+        debug("No token class drawing effect icons here - Breakdown's and Wounded's icons are drawn as Foundry draws them");
         return false;
     }
     return wrapEffectIcons(proto);

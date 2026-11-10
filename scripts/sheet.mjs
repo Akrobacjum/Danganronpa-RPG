@@ -15,7 +15,7 @@ import {
     MODULE_ID, FLAGS, ACTIONS, STARTING, ITEM_CATEGORIES, LIMIT_GROUPS, USABLE_KINDS, MONOCUB,
     ECLIPSE_MOVES, TIMES_OF_DAY,
     EQUIPPABLE,
-    BEDROOM_KEY_FLAG, HOPE_CALLS, DESPAIR_CALLS, PRICE_CHAINS, SHEET_SIZE } from "./config.mjs";
+    BEDROOM_KEY_FLAG, HOPE_CALLS, DESPAIR_CALLS, PRICE_CHAINS, SHEET_SIZE, STATES } from "./config.mjs";
 import { SETTINGS, isMutedDead } from "./settings.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
     canPayFor, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
@@ -78,6 +78,7 @@ import { drpgConfirm } from "./ui-kit.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { announceSheetSteps } from "./requirements.mjs";
 import { overflowBlocksCalls, overflowBlocksFreeMove } from "./overflow.mjs";
+import { stateHeld } from "./states.mjs";
 
 /*
  * ONE SHEET MODE (E45 C1, 08.11.2026; audit S17-37, S03-33; the owner's A8 of 11.10). The gates of the sheet asked
@@ -2241,6 +2242,48 @@ export function paintReserves(app, element, actor = app?.document, user = game.u
         if (!view.shown) emptyReserveControls(block);
         paintReserveRow(block, view, actor, editor);
     }
+    paintStateBadges(section, actor);
+}
+
+/*
+ * THE TWO STATES ARE PUBLIC ON THE SHEET (E95 C5, 10.11.2026; the owner's "Breakdown i wounded maja byc publiczne w
+ * karcie postaci, tak jak np. imie albo hp"). The same commit took both icons off every token (states.mjs
+ * `effectIconShown`), so the sheet is where a table reads them. Measured on bc750112 before (STATUS E95-C5): no reader
+ * of either layout - the owner, a GM, another player, an Observer - found Breakdown anywhere on the sheet, and Wounded
+ * only as the Actions label's class and tooltip. Now a badge of each state the character is in stands under the
+ * reserves, for every reader, a student's, a Monokuma's and an NPC's alike: its icon, its name and a tooltip saying
+ * what it does (`DRPG.States.<id>.description`). The row sits after the reserves' section, outside every reserve's
+ * block, so anonymity.mjs `redactValues`, which strips the Sanity block's tooltips, leaves it whole: the state is
+ * public, the Sanity number is not ("?" as before), though a Breakdown badge tells another player Sanity is gone (the
+ * owner asked for that). Read from the rule (`stateHeld`, the reading `syncOnce` writes the status from), so a sheet
+ * drawn before the status lands already says it; redrawn by every paint, so a repaint takes a lifted state off.
+ */
+function paintStateBadges(section, actor) {
+    const held = Object.values(STATES).filter(state => stateHeld(actor, state));
+    let row = section.parentElement?.querySelector(":scope > .drpg-state-badges") ?? null;
+    if (!held.length) {
+        row?.remove();
+        return;
+    }
+    if (!row) {
+        row = document.createElement("div");
+        row.className = "drpg-state-badges";
+        section.after(row);
+    }
+    row.replaceChildren(...held.map(state => {
+        const badge = document.createElement("span");
+        badge.className = "drpg-state-badge";
+        badge.dataset.drpgState = state.id;
+        badge.dataset.tooltip = game.i18n.localize(`DRPG.States.${state.id}.description`);
+        badge.tabIndex = 0;
+        const icon = document.createElement("img");
+        icon.src = state.img;
+        icon.alt = "";
+        const name = document.createElement("span");
+        name.textContent = game.i18n.localize(`DRPG.States.${state.id}.name`);
+        badge.append(icon, name);
+        return badge;
+    }));
 }
 
 /**

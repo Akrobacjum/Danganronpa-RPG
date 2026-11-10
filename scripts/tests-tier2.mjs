@@ -85220,6 +85220,106 @@ const SCENARIOS = [
             + "one handed after an await [calls, answered under 1.4 s, threw]; another GM's stamp; a row older than ready less 60 s; a write with no new row; "
             + "a rename [moved, calls]; a failed stamp [answer, calls]; the reset's clear; [heard any, every payload a rehearsal]");
     }],
+    ["Breakdown and Wounded are public on the sheet (E95 C5 amend; the owner's 10.11 \"publiczne w karcie postaci, tak jak np. imie albo hp\"): a student in both states, read on the stand-in sheet in the bar and the pip layout by its owner, a GM, another player and an Observer - each reads a badge of each state beside the reserves, its name and its tooltip, the Actions label still marked Wounded, and Sanity still \"?\" for the two who may not read it; a student in neither state wears no badge", async () => {
+        /*
+         * E95 C5, 10.11.2026. Measured on bc750112 before the change (STATUS E95-C5 "Measured before"): no reader of
+         * either layout found Breakdown on the sheet at all - not a word, a tooltip or a class - and Wounded only as the
+         * Actions label's class and tooltip ("No Health left - one action per time of day."), for all four. The readers
+         * are the world's own users put in `game.user` in turn (the GM's own User, then three players' User documents),
+         * so `sheetMode`, `reserveView` and anonymity.mjs read each as they would on that player's browser; the Observer
+         * is a player given OBSERVER on the student for the test. The student is put in both states by marking every
+         * point of Health and Sanity, and each sheet is drawn through the module's own hook as Foundry calls it. Put
+         * back in a finally: the reserves, the ownership, `game.user`.
+         */
+        const { STATES } = await import("./config.mjs");
+        const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
+        const players = game.users.filter(u => !u.isGM);
+        const student = cast(3).find(a => players.some(u => a.testUserPermission(u, "OWNER")));
+        must(student, "no living student a player owns - this would measure nothing");
+        const owner = players.find(u => student.testUserPermission(u, "OWNER"));
+        const [player, observer] = players.filter(u => !student.testUserPermission(u, "OWNER"));
+        must(player && observer, "fewer than two players who do not own the student - this would measure nothing");
+        const HP = "system.resources.hitPoints", SAN = "system.resources.stress";
+        const get = path => Number(foundry.utils.getProperty(student, path) ?? 0);
+        const was = { hp: get(`${HP}.value`), san: get(`${SAN}.value`), own: { ...(student.ownership ?? {}) } };
+        must(get(`${HP}.max`) > 0 && get(`${SAN}.max`) > 0, "the student has no Health or Sanity to mark - this would measure nothing");
+        must(was.hp < get(`${HP}.max`) && was.san < get(`${SAN}.max`), "the student is already Wounded or in Breakdown - the calm pass would measure nothing");
+        const pips = root => {
+            const section = root.querySelector(".resources-section");
+            section.closest(".info-section").classList.add("pip-display");
+            const block = (key, label, action) => {
+                let slots = "";
+                for (let n = 1; n <= get(`${key === "hitPoints" ? HP : SAN}.max`); n++) slots += `<span class="slot" data-action="${action}" data-value="${n}"></span>`;
+                return `<div class="slot-value"><div class="slot-bar">${slots}</div><div class="slot-label"><span class="label">${label}</span><span class="value"></span></div></div>`;
+            };
+            section.innerHTML = block("hitPoints", "Health", "toggleHitPoints") + block("stress", "Sanity", "toggleStress");
+            return root;
+        };
+        const said = (root, word) => {
+            const re = new RegExp(`\\b${word}\\b`, "i");
+            return re.test(root.textContent) || [...root.querySelectorAll("*")].some(el => [...el.attributes].some(a => re.test(a.value)));
+        };
+        const look = (user, layout) => {
+            const root = layout === "pips" ? pips(e45SheetRoot()) : e45SheetRoot();
+            document.body.append(root);
+            try {
+                Hooks.callAll("renderCharacterSheet", { document: student, isEditable: student.testUserPermission(user, "OWNER"), element: root, rendered: true },
+                    root, {}, { isFirstRender: true });
+                const badge = id => {
+                    const el = root.querySelector(`.character-sidebar-sheet .drpg-state-badge[data-drpg-state="${id}"]`);
+                    return el ? [el.textContent.trim(), el.dataset.tooltip ?? null] : null;
+                };
+                const label = root.querySelector(".drpg-actions-section .drpg-actions h4");
+                const sanity = root.querySelector("[data-drpg-reserve='stress'] .drpg-reserve-row");
+                return {
+                    breakdown: badge(STATES.breakdown.id), wounded: badge(STATES.wounded.id),
+                    actions: [Boolean(label?.classList.contains("drpg-wounded")), label?.dataset.tooltip ?? null],
+                    sanityHidden: sanity ? sanity.textContent.trim() === "?" && !sanity.querySelector("input") : null,
+                    said: [said(root, game.i18n.localize("DRPG.States.drpgBreakdown.name")), said(root, game.i18n.localize("DRPG.States.drpgWounded.name"))]
+                };
+            } finally {
+                root.remove();
+            }
+        };
+        const readers = [["owner", owner], ["gm", game.user], ["player", player], ["observer", observer]];
+        const realUser = game.user;
+        const kept = Object.getOwnPropertyDescriptor(game, "user");
+        const asUser = (user, run) => {
+            Object.defineProperty(game, "user", { value: user, configurable: true, writable: true });
+            try { return run(); } finally {
+                if (kept) Object.defineProperty(game, "user", kept);
+                else delete game.user;
+            }
+        };
+        const read = { calm: null, held: {} };
+        try {
+            await student.update({ [`ownership.${observer.id}`]: L.OBSERVER });
+            await settle();
+            read.calm = asUser(player, () => look(player, "bars"));
+            await student.update({ [`${HP}.value`]: get(`${HP}.max`), [`${SAN}.value`]: get(`${SAN}.max`) });
+            await settle();
+            for (const layout of ["bars", "pips"]) {
+                for (const [who, user] of readers) read.held[`${who}/${layout}`] = asUser(user, () => look(user, layout));
+            }
+        } finally {
+            must(game.user === realUser, "game.user was not put back");
+            await student.update({ [`${HP}.value`]: was.hp, [`${SAN}.value`]: was.san,
+                [`ownership.${observer.id}`]: observer.id in was.own ? was.own[observer.id] : forcedDeletion() });
+            await settle();
+        }
+        const BD = [game.i18n.localize("DRPG.States.drpgBreakdown.name"), game.i18n.localize("DRPG.States.drpgBreakdown.description")];
+        const WD = [game.i18n.localize("DRPG.States.drpgWounded.name"), game.i18n.localize("DRPG.States.drpgWounded.description")];
+        const want = { calm: { breakdown: null, wounded: null, actions: [false, null], sanityHidden: true, said: [false, false] }, held: {} };
+        for (const layout of ["bars", "pips"]) {
+            for (const [who] of readers) {
+                want.held[`${who}/${layout}`] = { breakdown: BD, wounded: WD, actions: [true, game.i18n.localize("DRPG.Actions.woundedTooltip")],
+                    sanityHidden: who === "player" || who === "observer", said: [true, true] };
+            }
+        }
+        equal(stableJson(read), stableJson(want),
+            "{calm: another player's sheet of the student in neither state; held: each reader's sheet (owner, GM, another player, Observer) in each layout (bars, pips) of the student "
+            + "in Breakdown and Wounded} - [badge name, tooltip] of each state beside the reserves, the Actions label's [Wounded class, tooltip], Sanity's row \"?\", [Breakdown, Wounded] said anywhere on the sheet");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

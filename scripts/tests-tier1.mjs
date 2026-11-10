@@ -40160,8 +40160,13 @@ const INVARIANTS = [
         equal(stableJson([text.includes(line.replace(/\s+/g, " ")), text.includes(marks), /marked|zaznaczon/i.test(text), pair !== null && text.includes(pair)]), stableJson([true, false, false, true]),
             `[the line is the reserve (${line}), the marks ${marks} stand in it, a "marked", the pair (${pair}) as the cards write it]: ${text.slice(0, 600)}`);
     }],
-    ["R1485 - the Breakdown icon is drawn only for whom the student's Sanity is shown (states.mjs `wrapEffectIcons`; E24 C1b, STAGE.md Amend 08.11 A1; the owner's 08.11 \"ikone tez ukrywamy\"): on a stand-in token, the owner and a GM see a student's Breakdown icon, another player and an Observer-only player do not; Wounded and `dead` drawn for everybody; a Monokuma's and an NPC's as a student's (E24 fix G2A, review m4); the wrapper marked and not stacked, and its contract row", async () => {
+    ["R1485 - Breakdown's and Wounded's icons are drawn on no token (states.mjs `wrapEffectIcons`; E95 C5, the owner's 10.11 \"nie wyswietlaly sie na tokenie na mapie wcale - TYLKO na karcie postaci\"; E24 C1b before it): on a stand-in token neither is drawn for the owner, a GM, another player or an Observer-only player, handed its effect or matched by its image on an actor holding it; `dead` and another status drawn for everybody; a Monokuma's and an NPC's as a student's; the wrapper marked and not stacked, and its contract row", async () => {
         /*
+         * E95 C5, 10.11.2026: rewritten. Until E95 C4 the wrapper hid Breakdown only from a reader who may not read the
+         * Sanity and drew Wounded for all (the notes below are E24's, kept for the shape of the test); the owner now
+         * wants neither icon on any token, the sheet saying both (sheet.mjs `paintStateBadges`). Red on bc750112: the
+         * owner's and a GM's Breakdown, everybody's Wounded, drawn.
+         *
          * E24 C1b, 08.11.2026. states.mjs puts Breakdown on with `toggleStatusEffect`, so Daggerheart's token (2.10.5
          * module/canvas/placeables/token.mjs `_drawEffects`, which hands `_drawEffect(src, tint, effect)` each icon's
          * effect) drew the icon on every client's canvas: it told another player what the Sanity bar no longer does. A
@@ -40179,13 +40184,13 @@ const INVARIANTS = [
         const monokuma = Object.assign(reserveActor({ id: `r1485m${stamp}`, stress: 6 }), { getFlag: (scope, key) => key === FLAGS.monokuma });
         const npc = Object.assign(reserveActor({ id: `r1485n${stamp}`, stress: 6 }), { getFlag: (scope, key) => key === FLAGS.notInClass });
         const effect = id => ({ img: `icons/r1485/${id}.webp`, statuses: new Set([id]) });
-        const EFFECTS = [effect(STATES.breakdown.id), effect(STATES.wounded.id), effect("dead")];
+        const EFFECTS = [effect(STATES.breakdown.id), effect(STATES.wounded.id), effect("dead"), effect("r1485-other")];
         let seen = null, wrap = null, refused = null;
         if (typeof ST.effectIconShown === "function") {
             seen = {};
             const drawn = (actor, user) => EFFECTS.map(fx => ST.effectIconShown(actor, fx, user));
             for (const [who, user] of [["owner", owner], ["gm", game.user], ["player", viewer], ["observer", observer]]) seen[who] = drawn(student, user);
-            // As a student's, the sheet's one meaning (E24 fix G2A, review m4): hidden from another player, a GM's view.
+            // As a student's: hidden from every reader.
             seen.monokuma = drawn(monokuma, viewer);
             seen.npc = [drawn(npc, viewer), drawn(npc, game.user)];
         }
@@ -40197,6 +40202,7 @@ const INVARIANTS = [
             const token = Object.assign(Object.create(proto), { actor: student });
             const src = stripComments((await moduleSources()).get("states.mjs") ?? "");
             wrap = [Boolean(first[Symbol.for("drpgBreakdownIcon")]), proto._drawEffect === first,
+                Boolean((await token._drawEffect(EFFECTS[2].img, null, EFFECTS[2]))?.drawn),
                 Boolean((await token._drawEffect(EFFECTS[0].img, null, EFFECTS[0]))?.drawn), /\beffectIconShown\(this\.actor/.test(fnSource(src, "wrapEffectIcons"))];
             /*
              * THE WRAPPER'S REFUSAL, DRIVEN (E24 fix G3, 09.11.2026; the end review's m5). Until this fix the wrapper
@@ -40207,7 +40213,7 @@ const INVARIANTS = [
              * the Breakdown status, each icon drawn once handed its effect and once with no effect argument (the
              * wrapper's fallback, which matches the Breakdown image on an actor holding the status).
              */
-            const held = () => new Set([STATES.breakdown.id]);
+            const held = () => new Set([STATES.breakdown.id, STATES.wounded.id]);
             const me = game.user.id;
             const watched = reserveActor({ id: `r1485w${stamp}`, stress: 6 });
             watched.testUserPermission = (user, level) => Boolean(user?.isGM) || (user?.id === me && level !== "OWNER");
@@ -40220,25 +40226,32 @@ const INVARIANTS = [
                 Boolean((await t._drawEffect(EFFECTS[0].img, null, EFFECTS[0]))?.drawn),
                 Boolean((await t._drawEffect(STATES.breakdown.img, null))?.drawn),
                 Boolean((await t._drawEffect(EFFECTS[1].img, null, EFFECTS[1]))?.drawn),
-                Boolean((await t._drawEffect(EFFECTS[1].img, null))?.drawn)
+                Boolean((await t._drawEffect(STATES.wounded.img, null))?.drawn),
+                Boolean((await t._drawEffect(EFFECTS[2].img, null, EFFECTS[2]))?.drawn)
             ];
+            // Matched by its image only on an actor that holds the status: a token holding neither draws Wounded's image.
+            const bare = Object.assign(Object.create(proto), { actor: reserveActor({ id: `r1485b${stamp}`, stress: 0, owner: me }) });
             refused = {};
             await e24AsRole("owner", async () => {
                 must(game.user.isGM === false, "this browser's user is still a GM - the refusal would measure nothing");
                 for (const [who, t] of Object.entries(tokens)) refused[who] = await four(t);
             });
-            refused.gm = Boolean((await tokens.player._drawEffect(STATES.breakdown.img, null))?.drawn);
+            refused.gm = [Boolean((await tokens.player._drawEffect(STATES.breakdown.img, null))?.drawn),
+                Boolean((await tokens.player._drawEffect(STATES.wounded.img, null))?.drawn)];
+            refused.bare = Boolean((await bare._drawEffect(STATES.wounded.img, null))?.drawn);
         }
-        const row = PATCHES.find(r => r.id === "breakdown-icon-private") ?? null;
-        equal(stableJson({ refused }), stableJson({
-            refused: { player: [false, false, true, true], observer: [false, false, true, true], own: [true, true, true, true], gm: true } }),
-        "{refused: each token's [Breakdown handed its effect, Breakdown with no effect, Wounded handed its effect, Wounded with no effect] drawn through the wrapper with "
-            + "this browser's user a player - on another player's student, on one it may only observe, on its own - and gm: the Breakdown with no effect drawn for a GM}");
+        const row = PATCHES.find(r => r.id === "state-icons-off-token") ?? null;
+        const none = [false, false, false, false, true];
+        equal(stableJson({ refused }), stableJson({ refused: { player: none, observer: none, own: none, gm: [false, false], bare: true } }),
+        "{refused: each token's [Breakdown handed its effect, Breakdown by its image, Wounded handed its effect, Wounded by its image, dead handed its effect] drawn through the wrapper with "
+            + "this browser's user a player - on another player's student, on one it may only observe, on its own - gm: [Breakdown, Wounded] by their image drawn for a GM; "
+            + "bare: Wounded's image drawn on a token whose actor holds neither status}");
+        const hidden = [false, false, true, true];
         equal(stableJson({ seen, wrap, row: row ? [row.kind, row.owner, row.file] : null }), stableJson({
-            seen: { owner: [true, true, true], gm: [true, true, true], player: [false, true, true], observer: [false, true, true], monokuma: [false, true, true], npc: [[false, true, true], [true, true, true]] },
-            wrap: [true, true, true, true], row: ["override", "daggerheart", "states.mjs"] }),
-        "{seen: [Breakdown, Wounded, dead] drawn on a student's token for its owner, a GM, another player and an Observer-only player, on a Monokuma's for another player, on an NPC's for another player and a GM; "
-            + "wrap: [marked, a second wrap stacks nothing, a GM's Breakdown drawn through it, it asks effectIconShown with the token's actor]; the contract's row [kind, owner, file]}");
+            seen: { owner: hidden, gm: hidden, player: hidden, observer: hidden, monokuma: hidden, npc: [hidden, hidden] },
+            wrap: [true, true, true, false, true], row: ["override", "daggerheart", "states.mjs"] }),
+        "{seen: [Breakdown, Wounded, dead, another status] drawn on a student's token for its owner, a GM, another player and an Observer-only player, on a Monokuma's for another player, on an NPC's for another player and a GM; "
+            + "wrap: [marked, a second wrap stacks nothing, a GM's dead drawn through it, a GM's Breakdown drawn through it, it asks effectIconShown with the token's actor]; the contract's row [kind, owner, file]}");
     }],
     ["R1456 - one step at a time (sheet.mjs `SHEET_STEPS`; E24 C3b, E24-21; audit S03-42): a step that throws - `tidyBiography` on a biography part whose lookup throws - is logged as \"Sheet step tidyBiography failed\" and every other step runs, `removeSystemCreators` first (Daggerheart's \"+\" gone, the inventory's groups and the Rules tab drawn); the primary GM is told once a load, by one notice naming the step; a player never", async () => {
         /*
