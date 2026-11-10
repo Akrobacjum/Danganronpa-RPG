@@ -85044,6 +85044,100 @@ const SCENARIOS = [
                 + "the captions drawn on [the fixture's tile, the second]; after the revive [the fixture's tile there, the second there, the body tiles left]");
         });
     }],
+
+    ["the body's announcement is one hook, called once on the writer before `announceBody` answers (E95 C4; Q5 (a), Q6): its payload the stamp's fields, `waitUntil` held to at most 1500 ms, a stamp another GM writes called once with writer false, and a renamed room, a no-op write, a failed stamp and the reset's clear called never", async () => {
+        /*
+         * E95 C4, 10.11.2026; E72 amend[16], item (2) ("woła tu nazwany hook drpgBodyAnnounced z rozdziałem i id
+         * ofiary"); QUESTIONS Q5 (a) (every browser) and Q6 (`waitUntil`, at most 1500 ms, chosen, not measured). On
+         * this GM, the primary, with a listener of the suite's own on `drpgBodyAnnounced`: chapter.mjs `announceBody`
+         * with stamps of chapter 97 of this season (a chapter no world reaches), plain, with a listener's promise that
+         * settles at 300 ms, and with one that never settles; then the setting written as another GM's stamp would
+         * arrive (a row added by a plain write), written again with no new row, a room renamed (settings.mjs
+         * `carryBodyRooms`), a stamp that cannot be written (no chapter: `recordBodyFound` answers null) and the
+         * reset's clear (chapter.mjs `clearSeasonBodies`). Read: the calls heard after each, as [writer, waitUntil's
+         * type]; on the writer whether the hook came before `announceBody` answered, how long it waited and whether the
+         * 300 ms promise had settled by then; the payload's fields against the stamp in this browser's setting. The two
+         * settings put back as they were. Red at E95 C3: no hook, nothing heard.
+         */
+        const C = await import("./chapter.mjs");
+        const St = await import("./settings.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose discovery writes the stamp - this would measure nothing");
+        const stampsWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+        const holdWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
+        const CHAPTER = 97, epoch = St.seasonEpoch(), key = `${epoch}:${CHAPTER}`;
+        const sceneId = canvas.scene?.id ?? null, ROOM = "SUITE E95 C4 room";
+        const row = at => ({ chapter: CHAPTER, epoch, at, room: ROOM, sceneId, victimIds: ["SUITEE95C4BODY00", "SUITEE95C4BODY00"],
+            deaths: {}, by: "witnesses", day: 1, timeOfDay: "morning" });
+        const heard = [];
+        let hand = null;
+        const id = Hooks.on("drpgBodyAnnounced", payload => {
+            heard.push({ payload: { ...payload }, t: Date.now() });
+            if (hand) hand(payload);
+        });
+        const calls = from => heard.slice(from).map(h => [h.payload.writer ?? null, typeof h.payload.waitUntil]);
+        const timed = async (at, handWith = null) => {
+            hand = handWith;
+            const from = heard.length, t0 = Date.now();
+            const stamp = await C.announceBody(row(at));
+            const answered = Date.now();
+            hand = null;
+            await settle();
+            return { from, stamp, waited: answered - t0, before: heard[from] ? heard[from].t <= answered : null };
+        };
+        const read = {};
+        try {
+            const plain = await timed(1000);
+            const fields = heard[plain.from]?.payload ?? {};
+            const held = (game.settings.get(MODULE_ID, SETTINGS.bodiesFound)?.[key] ?? []).find(r => r.at === 1000) ?? null;
+            read.plain = [plain.stamp !== null, calls(plain.from), plain.before];
+            read.payload = [Object.keys(fields).sort(), stableJson([fields.chapter, fields.epoch, fields.victimIds, fields.room, fields.sceneId, fields.at, fields.by])
+                === stableJson([CHAPTER, epoch, held?.victimIds, held?.room, held?.sceneId, held?.at, held?.by])];
+            let settled = false;
+            const slow = await timed(2000, p => p.waitUntil(new Promise(resolve => setTimeout(() => { settled = true; resolve(); }, 300))));
+            read.waited = [calls(slow.from), slow.before, settled, slow.waited >= 300];
+            const never = await timed(3000, p => p.waitUntil(new Promise(() => {})));
+            read.bound = [calls(never.from), never.waited >= 1400 && never.waited < 3000];
+            let from = heard.length;
+            const all = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, { ...all, [key]: [...(all[key] ?? []), { ...row(4000), victimIds: ["SUITEE95C4BODY01"] }] });
+            await settle();
+            read.otherGm = calls(from);
+            from = heard.length;
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, { ...foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound)), [`${epoch}:96`]: [] });
+            await settle();
+            read.noNewRow = calls(from);
+            from = heard.length;
+            const moved = await St.carryBodyRooms(sceneId, ROOM, `${ROOM} renamed`);
+            await settle();
+            read.renamed = [moved > 0, calls(from)];
+            from = heard.length;
+            read.failed = [await C.announceBody({ ...row(5000), chapter: "none" }), calls(from)];
+            await settle();
+            from = heard.length;
+            await C.clearSeasonBodies();
+            await settle();
+            read.reset = calls(from);
+        } finally {
+            Hooks.off("drpgBodyAnnounced", id);
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsWas);
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, holdWas);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            plain: [true, [[true, "function"]], true],
+            payload: [["at", "by", "chapter", "epoch", "room", "sceneId", "victimIds", "waitUntil", "writer"], true],
+            waited: [[[true, "function"]], true, true, true],
+            bound: [[[true, "function"]], true],
+            otherGm: [[false, "undefined"]],
+            noNewRow: [],
+            renamed: [true, []],
+            failed: [null, []],
+            reset: []
+        }), "the calls heard as [writer, waitUntil] per case - announced [stamped, calls, before it answered]; the payload [its fields, the stamp's]; "
+            + "a promise of 300 ms [calls, before, settled, waited 300 ms]; one never settling [calls, waited 1.4-3 s]; another GM's stamp; a write with no new row; "
+            + "a rename [moved, calls]; a failed stamp [answer, calls]; the reset's clear");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

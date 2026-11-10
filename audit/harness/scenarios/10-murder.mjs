@@ -6,10 +6,16 @@
  * the GM's, and on no bystander's, with every player's socket handed back while the cast is told again.
  */
 export const layers = ["ci"];
+/* E95 C4: a second GM, connected only around the body's discovery, to hear the announcement as a GM that did not write
+   the stamp (as 62-investigation declares it). */
+export const accounts = [
+    { who: "gm2", id: "USERGM2000000000", name: "Second GM", role: 4, character: null, color: "#66aaff", late: true }
+];
+const J10 = value => JSON.stringify(value);
 
 const MOD = "danganronpa-rpg";
 
-export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canary }) {
+export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, repoUrl, canary, connect, disconnect, storageOf }) {
     // This scenario drives the incident from the GM's client and measures state between its
     // own steps; the killer's player client answering an opening roll it was sent would race it.
     // The players' module socket handlers are PUT ASIDE, not thrown away: the vote in step 6
@@ -373,6 +379,25 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
             && sixAsked === true && sixAfter.stands === false && sixAfter.record?.total === 13
             && JSON.stringify(sixAfter.record.versions) === JSON.stringify([sixFirst.record.total]),
         JSON.stringify({ sixCast, sixSet, sixThrown, sixFirst, sixAsked, sixAfter }), { flow: "murder-incident" });
+    /* THE BODY'S ANNOUNCEMENT ON EVERY BROWSER (E95 C4, 10.11.2026; QUESTIONS Q5 (a); LIVE-E95-03). A second GM, `gm2`,
+       joins before the discovery (connected as 62 connects it), and the GM, gm2 and the three players each listen to
+       `drpgBodyAnnounced` with a listener of the scenario's own. Read after the discovery below: the calls each heard,
+       as [writer, waitUntil's type], and whether each payload's fields are its own browser's stamp in `bodiesFound` -
+       what a player's browser already holds. Then gm2 is a page loaded after the discovery: disconnected, connected
+       again, listening, and the GM writes the stamps with no new row (an empty key, then the stamps as they were):
+       the late page and the players hear nothing. gm2 leaves before the vote. */
+    await gm.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs"); await E.gmStoresIdle(); return true;`);
+    await connect("gm2", { storage: await storageOf("gm") });
+    await settle(400);
+    const LISTEN = `globalThis.__e95Heard = []; globalThis.__e95Hook = Hooks.on("drpgBodyAnnounced", p => globalThis.__e95Heard.push({ ...p, waitUntil: typeof p.waitUntil })); return true;`;
+    const HEARD = `const heard = globalThis.__e95Heard ?? []; Hooks.off("drpgBodyAnnounced", globalThis.__e95Hook);
+        const all = game.settings.get("${MOD}", "bodiesFound") ?? {};
+        const own = p => (all[p.epoch + ":" + p.chapter] ?? []).find(r => r.at === p.at) ?? null;
+        const same = p => { const r = own(p); return Boolean(r) && JSON.stringify([p.victimIds, p.room, p.sceneId, p.at, p.by])
+            === JSON.stringify([r.victimIds, r.room ?? null, r.sceneId ?? null, r.at ?? null, r.by ?? null]); };
+        return { calls: heard.map(p => [p.writer, p.waitUntil]), same: heard.map(same), keys: [...new Set(heard.flatMap(p => Object.keys(p)))].sort() };`;
+    const hearers = [gm, gm2, p1, p2, p3];
+    for (const c of hearers) await c.eval(LISTEN);
     const found = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
         const C = await import("${repoUrl}/scripts/chapter.mjs");
         const daichi = game.actors.get("${ids.daichi}"), botan = game.actors.get("${ids.botan}");
@@ -400,6 +425,28 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     const deadOnP1After = await p1.eval(`return game.drpg.isDeceased(game.actors.get("${ids.daichi}"));`);
     check("p1: the body's discovery makes the death the table's, on p1's client too - both bodies in the room, on the body's scene while the GM looks at another",
         found.found === found.room && found.flag === true && found.botan === true && deadOnP1After === true, JSON.stringify({ found, deadOnP1After }));
+    const heardOn = {};
+    for (const c of hearers) heardOn[c.who] = await c.eval(HEARD);
+    const PAYLOAD = ["at", "by", "chapter", "epoch", "room", "sceneId", "victimIds", "waitUntil", "writer"];
+    const heardOnce = (who, writer) => J10(heardOn[who]?.calls) === J10([[writer, writer ? "function" : "undefined"]])
+        && J10(heardOn[who]?.same) === J10([true]) && (heardOn[who]?.keys ?? []).every(k => PAYLOAD.includes(k));
+    check("every browser: the body's discovery is announced once on each - the GM as its writer, gm2 and the three players from the stamp's arrival - with the stamp's fields that browser holds and nothing else (E95 C4)",
+        heardOnce("gm", true) && ["gm2", "p1", "p2", "p3"].every(who => heardOnce(who, false)), J10(heardOn), { flow: "body-discovery" });
+    await disconnect("gm2");
+    await connect("gm2", { storage: await storageOf("gm") });
+    await settle(400);
+    for (const c of [gm2, p1]) await c.eval(LISTEN);
+    await gm.eval(`const all = foundry.utils.deepClone(game.settings.get("${MOD}", "bodiesFound") ?? {});
+        await game.settings.set("${MOD}", "bodiesFound", { ...all, "E95S10:0": [] });
+        await new Promise(r => setTimeout(r, 300));
+        await game.settings.set("${MOD}", "bodiesFound", all);
+        return true;`);
+    await settle(500);
+    const late = { gm2: await gm2.eval(HEARD), p1: await p1.eval(HEARD) };
+    check("gm2, loaded after the discovery, and p1 hear no announcement when the stamps are written with no new row (E95 C4)",
+        J10(late.gm2.calls) === "[]" && J10(late.p1.calls) === "[]", J10(late), { flow: "body-discovery" });
+    await disconnect("gm2");
+    await settle(300);
     const tieFlagAfter = await tieFlagOnP1();
     check("p1: the death's tie reaches p1's identified copy when the body is found", tieFlagAfter === true,
         JSON.stringify({ tieSet, tieFlagAfter }), { flow: "body-discovery" });

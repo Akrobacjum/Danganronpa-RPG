@@ -22041,6 +22041,33 @@ const REGRESSIONS = [
             lootBody: [], lootAsks: true, transferLoot: true, transferReads: ["sameRoom"], greyReads: [], greyAsks: true
         }), "{the gate's room reads, its body branch on bodyPlaceOf, its hidden read from the place, frisk.mjs importing body-tile.mjs; lootBody's room reads and its ask; transferRefusal's loot line and room reads; greyRefused's room reads and its ask}");
     }],
+
+    ["R3145 - the body's announcement is spelt once and called from the stamp alone (chapter.mjs `BODY_ANNOUNCED_HOOK`, E95 C4): the hook's name stands in one place of the module's code, it is called in `callBodyAnnounced` alone, which `announceBody` awaits after the stamp is written and `announceArrivedBodies` calls, and `runDiscovery` announces before it gathers everyone", async () => {
+        /*
+         * E95 C4, 10.11.2026; E72 amend[16] ("woła tu nazwany hook drpgBodyAnnounced"), QUESTIONS Q5, Q6. The harm: a
+         * second spelling is a second hook a listener of E62, E69 or E72 does not hear, and a call before the stamp, or
+         * after the gather, breaks E69's "before the gather". Read in every module source but the suite's, comments
+         * stripped: where the name's string stands, where `Hooks.callAll(BODY_ANNOUNCED_HOOK` stands and who calls
+         * `callBodyAnnounced`, by the top-level function each stands in (as R349 reads the stamp's writer); in
+         * `announceBody` whether `recordBodyFound(` comes before `await callBodyAnnounced(`; in `runDiscovery` whether
+         * `announceBody(` comes before `gatherEveryone(`. R349 holds the stamp's writers, unchanged. Red at E95 C3: the
+         * name stood nowhere.
+         */
+        const sources = new Map(await otherSources());
+        const where = pattern => [...sources].flatMap(([file, text]) => {
+            const code = stripComments(text);
+            const tops = [...code.matchAll(/^(?:export\s+)?(?:const|(?:async\s+)?function)\s+([\w$]+)/gm)].map(m => ({ at: m.index, name: m[1] }));
+            return [...code.matchAll(pattern)].map(m => `${file}#${tops.filter(t => t.at <= m.index).at(-1)?.name ?? "(top)"}`);
+        });
+        const chapter = stripComments(sources.get("chapter.mjs") ?? "");
+        const announce = fnSource(chapter, "announceBody") ?? "", discovery = fnSource(chapter, "runDiscovery") ?? "";
+        const order = (text, a, b) => text.indexOf(a) >= 0 && text.indexOf(b) > text.indexOf(a);
+        equal(JSON.stringify([where(/["'`]drpgBodyAnnounced["'`]/g), where(/Hooks\.callAll\(\s*BODY_ANNOUNCED_HOOK\b/g),
+            where(/\bcallBodyAnnounced\s*\(/g).filter(w => w !== "chapter.mjs#callBodyAnnounced").sort(),
+            order(announce, "recordBodyFound(", "await callBodyAnnounced("), order(discovery, "announceBody(", "gatherEveryone(")]),
+        JSON.stringify([["chapter.mjs#BODY_ANNOUNCED_HOOK"], ["chapter.mjs#callBodyAnnounced"], ["chapter.mjs#announceArrivedBodies", "chapter.mjs#announceBody"], true, true]),
+        "[where the hook's name is spelt, where it is called, who calls callBodyAnnounced, the stamp before the call in announceBody, the announcement before the gather in runDiscovery]");
+    }],
 ];
 
 

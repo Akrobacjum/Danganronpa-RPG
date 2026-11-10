@@ -1220,19 +1220,120 @@ async function publishFoundBodies(room, victim, scene, { clock = getClock(), epo
  * chapter and season (settings.mjs `recordBodyFound`; tier 0 R349 holds that nothing else calls
  * it). Who walked in is not in it - the GMs' log has it (`checkBodyFound`). E19's channel, E13's
  * trial room and E70 read the stamp through `bodiesFoundIn`, `bodyAnnounced` and
- * `chapterBodyFound`; the hook of E72 (part A, formerly E67) goes here. Answers the stamp, or null when it could not be
- * written - logged, and the discovery goes on: its deaths are already the table's.
+ * `chapterBodyFound`. Answers the stamp, or null when it could not be written - logged, and the discovery goes on: its
+ * deaths are already the table's.
+ *
+ * AND THE BODY'S ANNOUNCEMENT, ONE NAMED HOOK (E95 C4, 10.11.2026; E72 amend[16], item (2); QUESTIONS Q5 (a), Q6).
+ * Once the stamp is written, and before this answers - so before `runDiscovery` gathers everyone - this browser calls
+ * `BODY_ANNOUNCED_HOOK` with the stamp's fields (`bodyAnnouncedPayload`) and `writer: true`, and waits for what its
+ * listeners handed `waitUntil(promise)`, at most `BODY_ANNOUNCED_WAIT_MS`: E69 ends a Tail there before the gather,
+ * E72 opens its bet window on the primary. Every other browser calls it from the stamp's arrival
+ * (`registerBodyAnnounced`), `writer: false`, with no `waitUntil`. A failed stamp calls nothing. The row is marked
+ * seen before the write, so the stamp's `updateSetting` on this browser does not call it a second time.
  */
 export async function announceBody(row) {
     if (!game.user.isGM || !row) return null;
+    const key = `${Number.isFinite(row.epoch) ? row.epoch : seasonEpoch()}:${row.chapter}`;
+    const seen = announcedRowKey(key, { at: row.at, victimIds: [...new Set(row.victimIds ?? [])] });
+    announcedSeen.add(seen);
+    let stamp = null;
     try {
-        const stamp = await recordBodyFound(row);
+        stamp = await recordBodyFound(row);
         if (stamp) log(`The discovery in ${row.room} is stamped for chapter ${row.chapter}: ${stamp.victimIds.length} bod(ies), by ${row.by}.`);
-        return stamp;
     } catch (err) {
         error("Could not stamp the body's discovery", err);
+    }
+    if (!stamp) {
+        announcedSeen.delete(seen);
         return null;
     }
+    await callBodyAnnounced(bodyAnnouncedPayload(key, stamp), { writer: true });
+    return stamp;
+}
+
+/*
+ * THE BODY'S ANNOUNCEMENT ON EVERY BROWSER (E95 C4, 10.11.2026; QUESTIONS Q5 (a), Q6). One name, spelt here only
+ * (tier 0 R3145). Its payload is `{ chapter, epoch, victimIds, room, sceneId, at, by, writer }` and, on the writer,
+ * `waitUntil`: the stamp's own fields and its key's, which every browser holds in the world setting `bodiesFound`
+ * already (tier 2 and scenario 10 compare the two), so a listener learns nothing its browser could not read.
+ *
+ * A ROW IS ITS KEY, `at` AND `victimIds` (`announcedRowKey`). A browser marks every row the setting holds at `ready`
+ * as seen, and calls the hook for each row it has not seen when the setting is written (`bodiesFound`'s
+ * `updateSetting`): a renamed room (settings.mjs `carryBodyRooms` changes `room` alone), the reset's clear (rows
+ * gone), a stamp that failed (no write) and a page loaded after the discovery (its rows seen at `ready`) call nothing.
+ * The hook and `Setting#key` as Foundry v13 has them, the setting's arrival on the other browsers as the harness
+ * models it (LIVE-E95-03).
+ *
+ * THE WAIT (Q6). A Foundry hook cannot be awaited, so the writer's payload carries `waitUntil(promise)` and
+ * `announceBody` waits for every promise handed it, settled or not, at most 1500 ms - chosen, not measured: long
+ * enough for one write on the primary (a Tail's end), short enough that the gather's card is not held up for long when
+ * a listener never settles. The gather waits by at most that much. A listener that throws is Foundry's to log
+ * (`Hooks.callAll`) and stops nobody else's.
+ */
+export const BODY_ANNOUNCED_HOOK = "drpgBodyAnnounced";
+export const BODY_ANNOUNCED_WAIT_MS = 1500;
+const announcedSeen = new Set();
+let announcedPrimed = false;
+
+/** A stamp's identity: its `<epoch>:<chapter>` key, its `at` and its bodies, as one string (E95 C4). */
+function announcedRowKey(key, row) {
+    return JSON.stringify([key, Number(row?.at) || 0, [...(row?.victimIds ?? [])].map(String).sort()]);
+}
+
+/** The hook's payload for `row`, filed under `key` (E95 C4): the stamp's fields and its key's, nothing else. */
+export function bodyAnnouncedPayload(key, row) {
+    const [epoch, chapter] = String(key).split(":").map(Number);
+    return { chapter, epoch, victimIds: [...(row?.victimIds ?? [])], room: row?.room ?? null, sceneId: row?.sceneId ?? null,
+        at: row?.at ?? null, by: row?.by ?? null };
+}
+
+/** Call `BODY_ANNOUNCED_HOOK` with `payload`; on the writer, wait for what was handed `waitUntil`, at most the bound. */
+async function callBodyAnnounced(payload, { writer }) {
+    const waits = [];
+    const data = { ...payload, writer };
+    if (writer) data.waitUntil = promise => { if (promise && typeof promise.then === "function") waits.push(promise); };
+    Hooks.callAll(BODY_ANNOUNCED_HOOK, data);
+    if (!waits.length) return 0;
+    let timer = null;
+    await Promise.race([Promise.allSettled(waits), new Promise(resolve => { timer = setTimeout(resolve, BODY_ANNOUNCED_WAIT_MS); })]);
+    clearTimeout(timer);
+    return waits.length;
+}
+
+/** Every stamp the world setting holds on this browser, each as `[key, row]`. */
+function stampsHeld() {
+    let all = {};
+    try { all = game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {}; } catch { all = {}; }
+    return Object.entries(all && typeof all === "object" ? all : {})
+        .flatMap(([key, rows]) => (Array.isArray(rows) ? rows.filter(row => row && typeof row === "object").map(row => [key, row]) : []));
+}
+
+/**
+ * The stamps that arrived on this browser and were not seen, each announced once (E95 C4; `registerBodyAnnounced`).
+ * Answers how many it announced. Before `ready` has marked the rows already held it announces none.
+ */
+export function announceArrivedBodies() {
+    if (!announcedPrimed) return 0;
+    let called = 0;
+    for (const [key, row] of stampsHeld()) {
+        const seen = announcedRowKey(key, row);
+        if (announcedSeen.has(seen)) continue;
+        announcedSeen.add(seen);
+        callBodyAnnounced(bodyAnnouncedPayload(key, row), { writer: false });
+        called++;
+    }
+    return called;
+}
+
+/** The announcement's listeners on this browser (E95 C4; module.mjs `init`): the rows held at `ready`, then each arrival. */
+export function registerBodyAnnounced() {
+    Hooks.once("ready", () => {
+        for (const [key, row] of stampsHeld()) announcedSeen.add(announcedRowKey(key, row));
+        announcedPrimed = true;
+    });
+    Hooks.on("updateSetting", setting => {
+        if (setting?.key === `${MODULE_ID}.${SETTINGS.bodiesFound}`) announceArrivedBodies();
+    });
 }
 
 /*
