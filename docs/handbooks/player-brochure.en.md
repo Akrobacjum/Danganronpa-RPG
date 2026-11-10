@@ -39,7 +39,7 @@
 | **Contribution** | 2 | |
 | **Sprint** | 2 | One free crossing. |
 | **Reroll** | 3 | |
-| **Resolve** | 3 | Pick your own statistic. |
+| **Resolve** | 2 | Pick any statistic yourself. |
 | **Burst** | 4 | Next action free. |
 | **Relief** | 4 | A Short Rest right now. |
 | **Loaded Die** | 6 | One die set to 12. |

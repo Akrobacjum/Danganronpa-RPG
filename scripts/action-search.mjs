@@ -39,7 +39,7 @@ import {
 } from "./action-pipeline.mjs";
 import { report } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
-import { chooseVariant } from "./action-menus.mjs";
+import { chooseVariant, traitFieldHtml, readProposal } from "./action-menus.mjs";
 
 /* ==========================================================================
  * SEARCH
@@ -729,8 +729,7 @@ export async function performSearch(actor, def, options) {
 
     const goal = await chooseSearchCategory(actor, def);
     if (!goal) return null;
-    const { category, goal: goalKey, request, trait } = goal;
-    if (!trait) return null;
+    const { category, goal: goalKey, request } = goal;
 
     // Refuse early when the room is already spent, so the player is not walked
     // through a roll only to be told there was nothing left.
@@ -738,6 +737,10 @@ export async function performSearch(actor, def, options) {
         ui.notifications.warn(game.i18n.localize("DRPG.SearchTokens.exhausted"));
         return null;
     }
+    // Eye asks nobody; another statistic waits for the GM here, before the action and the room's token are spent.
+    const ruled = await searchTrait(actor, goal);
+    if (!ruled) return null;
+    const { trait, byGm } = ruled;
 
     const { situational, stashDie, stashOwner, stashLoot } = searchOdds(actor, room, category, await import("./vault.mjs"));
 
@@ -769,12 +772,15 @@ export async function performSearch(actor, def, options) {
      * window used to offer Eye or Hand here - "a careful look or a quick rummage"
      * (Dawid, 29.08) - which let the searcher pick their own better statistic. A
      * Search rolls Eye alone now (ACTIONS.search), its select locked like any fixed
-     * trait; Resolve still buys the whole picker, as for every roll.
+     * trait; Resolve still buys the whole picker, as for every roll. Since E68 C6
+     * (DA2) a Search lists six: Eye with nobody asked, or the statistic a GM approved
+     * or changed to (`searchTrait`), locked either way and said which (`byGm`).
      */
     let roll;
     try {
         roll = await rollTrait(actor, trait, {
             actionKey: "search",
+            byGm,
             dc: (def.thresholds ?? []).map(t => t.min).join(" / "),
             // Recorded before anything can bail out below, so a Reroll always
             // knows what was being looked for and where.
@@ -912,8 +918,8 @@ async function chooseSearchCategory(actor, def = ACTIONS.search) {
         intro: briefingBlock(actor, "search", ACTIONS.search),
         prompt: game.i18n.localize("DRPG.Action.searchGoalHint"),
         confirm: game.i18n.localize("DRPG.Action.roll"),
-        // NO STATISTIC HERE (Dawid, 29.08): this window asks what you are looking
-        // for. Since 1.2.66 there is no "how" to ask either - a Search rolls Eye.
+        // NO PICK OF THE ROLLER'S OWN HERE (Dawid, 29.08): since E68 C6 (DA2) the statistic is the
+        // player's proposal, Eye checked, in `extra` below - Eye asks nobody (DA49), another a GM.
         traits: null,
         options: options.map(o => ({
             value: o.value,
@@ -926,7 +932,7 @@ async function chooseSearchCategory(actor, def = ACTIONS.search) {
                 <span>${game.i18n.localize("DRPG.Action.goalSpecificPrompt")}</span>
                 <textarea name="request" rows="2"
                     placeholder="${game.i18n.localize("DRPG.Action.goalSpecificPlaceholder")}"></textarea>
-            </label>`
+            </label>${traitFieldHtml(actor, def.traits, { propose: true, howLabel: "DRPG.TraitRuling.howSearch" })}`
     });
 
     if (!picked) return null;
@@ -939,12 +945,24 @@ async function chooseSearchCategory(actor, def = ACTIONS.search) {
         return null;
     }
 
-    // The one trait the catalogue lists (Eye since 1.2.66): `def.traits[0]` rather
-    // than the literal, so the catalogue stays the one place that decides - and R213
-    // holds that list to one trait, since a first of several would be a choice made
-    // for the player without a GM.
-    return {
-        goal: picked.value, category: option?.category, request,
-        trait: def.traits?.[0] ?? "eye"
-    };
+    // The proposal (E68 C6): a statistic the catalogue lists, and the player's words of how; `searchTrait` rules on it.
+    return { goal: picked.value, category: option?.category, request, ...readProposal(picked.form, def.traits) };
+}
+
+/** The statistic a Search is checked against and needs no card for (DA49). */
+export const SEARCH_DEFAULT = "eye";
+
+/**
+ * The statistic a Search rolls, `{ trait, byGm }`, or null when it is not to be rolled (E68 C6, 10.11.2026; DA2, DA49).
+ * Eye - the default, and what a window with no field answers - asks nobody and waits for nothing; any other listed
+ * statistic is the player's proposal, ruled on a GM's card (trait-ruling.mjs `traitFor`, `{ kind: "action", key:
+ * "search" }`, the valve's scope), with the player's words. Nothing is spent before it: the caller pays after.
+ */
+async function searchTrait(actor, { proposed = null, note = "" } = {}) {
+    const listed = ACTIONS.search.traits ?? [];
+    if (!proposed || proposed === SEARCH_DEFAULT || !listed.includes(proposed)) {
+        return listed.includes(SEARCH_DEFAULT) ? { trait: SEARCH_DEFAULT, byGm: false } : null;
+    }
+    const { traitFor } = await import("./trait-ruling.mjs");
+    return traitFor(actor, { kind: "action", key: "search" }, { proposed, note });
 }

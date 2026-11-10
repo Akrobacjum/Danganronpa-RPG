@@ -263,13 +263,16 @@ export async function askDynamicByCard(payload, ctx) {
     const expires = serverNow() + TIMING.rulingMs;
     const onPosted = holdAsk(dynamicAsks, ctx.requestId, held, expires);
     const actor = game.actors.get(payload.actorId ?? "");
+    // The player's proposal (E68 C4; DA18): a statistic of TRAITS or nothing, said on the card and checked in the GM's editor.
+    const proposed = Object.hasOwn(TRAITS, payload.proposed ?? "") ? payload.proposed : "";
     const data = {
         rid: ctx.requestId, asker: ctx.asker, by: payload.actorId ?? "",
-        room: payload.room ?? "", desc: payload.description ?? "", name: payload.actorName ?? ""
+        room: payload.room ?? "", desc: payload.description ?? "", name: payload.actorName ?? "", proposed
     };
     const posted = await callGm(actor, {
         title: game.i18n.localize("DRPG.Action.dynamicTitle"),
         request: payload.description ?? "",
+        ...(proposed ? { body: `<p>${esc(game.i18n.format("DRPG.TraitRuling.proposed", { stat: TRAITS[proposed].label }))}</p>` } : {}),
         room: payload.room ?? null,
         actions: [
             { action: "setDifficulty", label: game.i18n.localize("DRPG.Action.dynamicSet"), data },
@@ -290,10 +293,17 @@ export async function askDynamicByCard(payload, ctx) {
  * (E06 C8) because the action it names is the incident's: the document names nobody
  * and its words go to the thread's player and the GMs. The traits are read from this
  * GM's config for the definition the guard checked, never from the packet.
+ * Since E68 C1 (DA18) a packet may carry the player's proposal and a note of how: the card
+ * then says both and offers "Approve: {stat}", "Change to: {stat}" for each other listed
+ * statistic, and Refuse (trait-ruling.mjs `proposalChoices`); the note is quoted as the
+ * player's words. The guard has refused a proposal off the list; one that is not read
+ * again here as the answer - the button's trait is, and `rulePickTrait` holds it to the list.
+ * Since E68 C2 a proposal the valve approves (trait-ruling.mjs `autoApprovable`) is pressed
+ * here, as soon as the card is up, by the click's road (messenger-app.mjs `pressCard`).
  */
 export async function askTraitByCard(payload, ctx) {
     if (!ctx.requestId) return { later: true };
-    const { listedTraits, rulingLabel, traitWithValue } = await import("./trait-ruling.mjs");
+    const { listedTraits, rulingLabel, proposalOf, proposalChoices, autoApprovable } = await import("./trait-ruling.mjs");
     const spec = { kind: payload.kind, key: payload.key, variant: payload.variant ?? null };
     const listed = listedTraits(spec);
     if (listed.length < 2) return { refused: "nothing was carried out: the roll lists one statistic or none" };
@@ -304,20 +314,30 @@ export async function askTraitByCard(payload, ctx) {
     if (again) return again;
     askedByCard.add(ctx.requestId);
     const expires = serverNow() + TIMING.rulingMs;
-    const onPosted = holdAsk(traitAsks, ctx.requestId, held, expires);
+    const keep = holdAsk(traitAsks, ctx.requestId, held, expires);
     const actor = game.actors.get(payload.actorId ?? "");
+    const { proposed, note } = proposalOf({ proposed: payload.proposed, note: payload.note }, listed);
+    const auto = Boolean(proposed) && (await autoApprovable(spec));
+    const onPosted = message => {
+        keep(message);
+        if (!auto || !message?.id) return;
+        import("./messenger-app.mjs").then(({ pressCard }) => pressCard(message, "pickTrait", { ...data(proposed), auto: "1" }))
+            .catch(err => warn("The valve could not approve the proposal on its card.", err));
+    };
     const data = trait => ({
         rid: ctx.requestId, asker: ctx.asker, by: payload.actorId ?? "", kind: spec.kind, key: spec.key,
-        variant: spec.variant ?? "", ...(trait ? { trait } : {})
+        variant: spec.variant ?? "", ...(trait ? { trait } : {}), ...(proposed ? { proposed } : {})
     });
+    const said = proposed ? `<br>${esc(game.i18n.format("DRPG.TraitRuling.proposed", { stat: TRAITS[proposed]?.label ?? proposed }))}` : "";
     const posted = await callGm(actor, {
         title: game.i18n.localize("DRPG.TraitRuling.title"),
         body: `<strong>${esc(rulingLabel(spec))}</strong> · ${esc(game.i18n.format("DRPG.Action.usesTrait", {
-            traits: listed.map(t => TRAITS[t]?.label ?? t).join(" / ") }))}`,
-        gmBody: game.i18n.localize("DRPG.TraitRuling.gmBody"),
+            traits: listed.map(t => TRAITS[t]?.label ?? t).join(" / ") }))}${said}`,
+        request: note,
+        gmBody: game.i18n.localize(proposed ? "DRPG.TraitRuling.gmBodyProposed" : "DRPG.TraitRuling.gmBody"),
         actions: [
-            ...listed.map(trait => ({ action: "pickTrait", label: traitWithValue(actor, trait), data: data(trait) })),
-            { action: "refuseTrait", label: game.i18n.localize("DRPG.Action.dynamicRefuse"), data: data(null) }
+            ...proposalChoices(actor, listed, proposed).map(({ trait, label }) => ({ action: "pickTrait", label, data: data(trait) })),
+            { action: "refuseTrait", label: game.i18n.localize(proposed ? "DRPG.TraitRuling.refuse" : "DRPG.Action.dynamicRefuse"), data: data(null) }
         ],
         veiled: true,
         onPosted,
@@ -1116,7 +1136,7 @@ export async function settleCall(message, text, ruling = null, gmNote = null) {
  * `required`: the caller has nothing to send without words (Dynamic, a Tier 0 item's use), so
  * an empty request is not sent - the player is told so and the window opens again.
  */
-export async function askForRequest({ title, prompt, placeholder = "", intro = "", required = false } = {}) {
+export async function askForRequest({ title, prompt, placeholder = "", intro = "", required = false, extra = "" } = {}) {
     for (;;) {
         // On the kit's frame (E21 C5a): Send is the GM's road (D11) - the words go to a GM's card - and Cancel withdraws.
         const answer = await drpgWindow({
@@ -1128,19 +1148,22 @@ export async function askForRequest({ title, prompt, placeholder = "", intro = "
             body: `${intro}<form>
                     <p>${prompt}</p>
                     <textarea name="request" rows="3" placeholder="${foundry.utils.escapeHTML(placeholder)}"></textarea>
+                    ${extra}
                   </form>`,
             footer: {
                 gmRoute: [{
                     action: "send",
                     label: game.i18n.localize("DRPG.Bridge.send"),
-                    callback: (event, button, dialog) => ({ text: dialog.element.querySelector("[name=request]").value.trim() })
+                    callback: (event, button, dialog) => ({ text: dialog.element.querySelector("[name=request]").value.trim(),
+                        form: dialog.element.querySelector("form") })
                 }],
                 close: "cancel"
             },
             rejectClose: false
         });
         if (typeof answer?.text !== "string") return null;
-        if (answer.text || !required) return answer.text;
+        // With `extra` fields (E68 C4: a Dynamic action's proposal) the form comes back beside the words, for the caller to read.
+        if (answer.text || !required) return extra ? { text: answer.text, form: answer.form } : answer.text;
         sayRefusedHere(game.i18n.localize("DRPG.Bridge.emptyRequest"));
     }
 }
@@ -1151,12 +1174,12 @@ export async function askForRequest({ title, prompt, placeholder = "", intro = "
  * words typed, or null when nothing will be asked: no GM is connected (said, as `promptAndCallGm`
  * says it, before the window), or the player closed it. Posts nothing.
  */
-export async function promptForRequest({ title, prompt, placeholder = "", intro = "", required = false, what = CALL_GM_WHAT } = {}) {
+export async function promptForRequest({ title, prompt, placeholder = "", intro = "", required = false, what = CALL_GM_WHAT, extra = "" } = {}) {
     if (!gmOnline()) {
         sayNotDone(what, "noGm", { nothingSpent: true });
         return null;
     }
-    return askForRequest({ title, prompt, placeholder, intro, required });
+    return askForRequest({ title, prompt, placeholder, intro, required, extra });
 }
 
 /**

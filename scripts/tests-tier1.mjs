@@ -7579,7 +7579,7 @@ const INVARIANTS = [
             "a denied reversal was let through or refused for another reason, or the third's offered one was refused, or the list was not asked of the state given");
     }],
 
-    ["R212 - a roll that lists several statistics asks a GM, and only then", async () => {
+    ["R212 - a roll that lists several statistics asks a GM, and only then; the player's proposal is held to the list and the GM approves or changes it", async () => {
         /*
          * E32+E07 C11b, 02.10.2026; audit S04-23 (the owner's Q4 as corrected on 28.09).
          * `traitFor` (trait-ruling.mjs) decides who picks a roll's statistic: one listed
@@ -7590,6 +7590,18 @@ const INVARIANTS = [
          * asking, each noting that it was asked), with the lists read from config: Pin (Body),
          * Attack with a weapon (Body / Hand / Leg), a trap victim's Leave a clue (Body / Hand /
          * Leg, Body first since E16 part 2 C5), and a kind that is none. Pure; nothing is written.
+         * Rewritten in E68 C1 (10.11.2026; DA18, the player proposes and the GM approves): the
+         * same eight answers, and then (1) a proposal handed beside the seams reaches whoever is
+         * asked, off the list dropped and its words trimmed to `PROPOSAL_NOTE_MAX`, and the answer
+         * says "approved" or "changed" (`byGm`) - Hand proposed, the GM's Hand and Leg, on both
+         * browsers; (2) the GM's judgement of a packet's proposal (bridge-guards.mjs
+         * `guardTraitRuling`, asked as a player's ask about a character of this world, which reads
+         * the world and writes nothing): one off the list and words past the bound are refused with
+         * their reasons, an honest one goes on to the guard's other checks; (3) the buttons the card
+         * and the GM's window offer (`proposalChoices`): "Approve: Hand" first, then "Change to" Body
+         * and Leg, and with no proposal one per statistic; (4) read in the source, the two roads that
+         * hold it: `rulePickTrait` holds the pressed trait to the list before it answers, and the
+         * bridge's row passes `proposed` and `note`. Red at c431138a (E95 C4's tip): the proposal's functions are not exported.
          */
         const T = await import("./trait-ruling.mjs");
         const A = { id: "R212ACTOR0000001", name: "R212" };
@@ -7616,6 +7628,196 @@ const INVARIANTS = [
             [pick("body", false), pick("leg", true), pick("body", false), pick("hand", true), null, null, pick("body", true), null],
             [["gms", "weaponAttack"], ["here", "weaponAttack"]]
         ]), "a roll did not take its one trait, or several did not go to a GM, or Resolve was asked, or an answer off the list was rolled (answers, who was asked)");
+
+        const heard = [];
+        const hear = answer => async (actor, spec, listed, proposal) => { heard.push(proposal ?? listed); return answer; };
+        const long = "x".repeat(T.PROPOSAL_NOTE_MAX + 40);
+        const proposed = [
+            await T.traitFor(A, attack, seams({ proposed: "hand", note: "  through the gap  ", askGms: async (a, s, p) => { heard.push(p); return "hand"; } })),
+            await T.traitFor(A, attack, seams({ proposed: "hand", note: long, askGms: async (a, s, p) => { heard.push(p); return "leg"; } })),
+            await T.traitFor(A, attack, seams({ proposed: "hand", isGm: true, pickHere: hear("hand") })),
+            await T.traitFor(A, attack, seams({ proposed: "hand", isGm: true, pickHere: hear("body") })),
+            await T.traitFor(A, attack, seams({ proposed: "eye", askGms: async (a, s, p) => { heard.push(p); return "body"; } }))
+        ];
+        equal(JSON.stringify([proposed, heard.map(p => [p.proposed, p.note.length])]), JSON.stringify([
+            [pick("hand", "approved"), pick("leg", "changed"), pick("hand", "approved"), pick("body", "changed"), pick("body", true)],
+            [["hand", 15], ["hand", T.PROPOSAL_NOTE_MAX], ["hand", 0], ["hand", 0], [null, 0]]
+        ]), "a proposal did not reach whoever was asked as it should (off the list dropped, the words trimmed), or the answer did not say approved or changed (answers; proposal and words' length heard)");
+
+        const listed = ["body", "hand", "leg"];
+        const { guardTraitRuling } = await import("./bridge-guards.mjs");
+        const someone = game.actors.find(a => a.type === "character") ?? null;
+        must(someone, "the world holds no character to ask about - this would measure nothing");
+        const OFF = "that statistic is not one the roll lists", LONG = "the note is longer than a player's words may be";
+        const judge = more => guardTraitRuling({ isGM: false, id: "R212PLAYER000001" }, { actorId: someone.id, kind: "crisis", key: "weaponAttack", variant: null, ...more }, {});
+        const judged = [await judge({ proposed: "eye" }), await judge({ proposed: "hand", note: long }), await judge({ proposed: "hand", note: "quietly" }),
+            await judge({ proposed: null, note: null })];
+        equal(JSON.stringify([judged[0], judged[1], judged.slice(2).map(why => why !== OFF && why !== LONG)]), JSON.stringify([OFF, LONG, [true, true]]),
+            "the GM's guard let a proposal off the list or words past the bound through, or refused an honest one for them (off the list, long; honest and none past both)");
+
+        const choices = list => list.map(c => [c.trait, c.how, c.label.startsWith(game.i18n.format("DRPG.TraitRuling.approve", { stat: "" }).trim())
+            || c.label.startsWith(game.i18n.format("DRPG.TraitRuling.change", { stat: "" }).trim())]);
+        equal(JSON.stringify([choices(T.proposalChoices(A, listed, "hand")), choices(T.proposalChoices(A, listed, null)), choices(T.proposalChoices(A, listed, "eye"))]),
+            JSON.stringify([[["hand", "approve", true], ["body", "change", true], ["leg", "change", true]],
+                [["body", "pick", false], ["hand", "pick", false], ["leg", "pick", false]], [["body", "pick", false], ["hand", "pick", false], ["leg", "pick", false]]]),
+            "the card's buttons are not Approve first and a Change to for each other listed statistic, or one per statistic with no proposal (Hand proposed, none, Eye off the list)");
+
+        const sources = new Map(await otherSources());
+        const clean = file => stripComments(sources.get(file) ?? "");
+        const ruleFn = fnSource(clean("messenger-app.mjs"), "rulePickTrait");
+        const listGuard = ruleFn.indexOf("listedTraits(spec).includes(data.trait)"), answered = ruleFn.indexOf("answerTraitRuling(");
+        const row = bodyOf(clean("bridge-table.mjs"), "[ACTION_TRAIT_RULING]: {", { until: "run: handleTraitRuling" });
+        equal(JSON.stringify([listGuard > -1 && answered > listGuard, /proposed:\s*as\.maybeText/.test(row) && /note:\s*as\.maybeText/.test(row)]),
+        JSON.stringify([true, true]),
+            "a road that holds the proposal is missing (rulePickTrait holds the trait to the list before it answers, the bridge's row passes proposed and note)");
+    }],
+    ["R3150 - the valve approves a proposal only with its setting on, in Daily Life, outside the incident and for its scope, by the click's road, and its ruling says so", async () => {
+        /*
+         * E68 C2, 10.11.2026; DA41 = 2, DA50 = 1 (the planned R-next (a)). The world setting `autoApproveTraits`, off by
+         * default, approves a player's proposal of a statistic with no GM's press (trait-ruling.mjs `autoApprovableIn`).
+         * Read: the setting is registered for the world, off; the valve's answer for each of seven definitions in Daily
+         * Life with the setting on - a Search and a project, its scope; a crisis action, a trap victim's table, an opening,
+         * a clean-up and an action of the generic table, outside it - and a Search with the setting off, in the
+         * Investigation, in the Night Eclipse and in an incident; `traitFor` on a GM's browser with the valve open takes
+         * the proposal with no window, and with it shut opens the window; and in the source the primary presses the card
+         * only behind `autoApprovable` and through `pressCard`, and `rulePickTrait` writes `auto` only from the valve's own
+         * call (`data.auto === "1"`). Pure; nothing is written. Red at C1's tip: `autoApprovableIn` is not exported.
+         */
+        const T = await import("./trait-ruling.mjs");
+        const { SETTINGS } = await import("./settings.mjs");
+        const { MODULE_ID } = await import("./config.mjs");
+        const setting = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.autoApproveTraits}`) ?? null;
+        const day = { on: true, phase: "dailyLife", eclipse: false, incident: false };
+        const search = { kind: "action", key: "search" };
+        const specs = [search, { kind: "project", key: "P" }, { kind: "crisis", key: "weaponAttack" }, { kind: "crisis", key: "leaveClue", variant: "indirectVictim" },
+            { kind: "opening", key: "killer" }, { kind: "cleanup", key: "cleanup" }, { kind: "generic", key: "search" }];
+        const states = [{ ...day, on: false }, { ...day, phase: "investigation" }, { ...day, eclipse: true }, { ...day, incident: true }];
+        equal(JSON.stringify([setting?.scope ?? null, setting?.default ?? null, specs.map(s => T.autoApprovableIn(s, day)), states.map(st => T.autoApprovableIn(search, st))]),
+            JSON.stringify(["world", false, [true, true, false, false, false, false, false], [false, false, false, false]]),
+            "the valve's setting is not a world setting off by default, or it approves outside its scope, or outside Daily Life with the setting on (scope, default; per definition in the day; a Search with it off, in the Investigation, the Eclipse, an incident)");
+
+        const A = { id: "R3150ACTOR000001", name: "R3150" };
+        const windows = [];
+        const seams = open => ({ isGm: true, resolveArmed: () => false, autoApprovable: async () => open, proposed: "hand",
+            pickHere: async () => { windows.push(open); return "leg"; } });
+        const attack = { kind: "crisis", key: "weaponAttack" };
+        equal(JSON.stringify([await T.traitFor(A, attack, seams(true)), await T.traitFor(A, attack, seams(false)), windows]),
+            JSON.stringify([{ trait: "hand", byGm: "approved" }, { trait: "leg", byGm: "changed" }, [false]]),
+            "a GM's own proposal with the valve open opened a window or was not approved, or with it shut was not asked (open, shut, windows opened)");
+
+        const sources = new Map(await otherSources());
+        const clean = file => stripComments(sources.get(file) ?? "");
+        const card = fnSource(clean("call-gm.mjs"), "askTraitByCard"), rule = fnSource(clean("messenger-app.mjs"), "rulePickTrait");
+        equal(JSON.stringify([/const auto = Boolean\(proposed\) && \(await autoApprovable\(spec\)\)/.test(card), /if \(!auto[^)]*\) return;[\s\S]*pressCard\(message, "pickTrait"/.test(card),
+            /const auto = data\.auto === "1";/.test(rule), /\.\.\.\(auto \? \{ auto: true \} : \{\}\)/.test(rule)]),
+        JSON.stringify([true, true, true, true]),
+            "the primary presses a card past the valve or by another road, or the ruling's auto is read from anything but the valve's own call (asked, pressed by pressCard, auto read, auto kept)");
+    }],
+    ["R3151 - where a roll's statistic comes from, per source: Search Eye with no card, a Find Passage Head, a part only where its action names one, a told part over the packet's, Resolve any", async () => {
+        /*
+         * E68 C3, 10.11.2026; DA18, DA49, amend [0] (the planned R-next (b)). The GM's reading of what a drawn roll's
+         * statistic must be (roll-draw.mjs `expectedFor`, its `TRAIT_SOURCES`), asked of a character of this world for
+         * roll shapes that need no card: a Search (`search`, Eye), an Analyze thrown as a Find Passage (`fixed`, Head),
+         * an Analyze and an Observe naming a part their action does not have (`fixed`, the action whole), an Analyze
+         * naming a part that names Eye - planted on this browser's config for the test and taken off after, since no
+         * action outside a Palm has one at 1.2.104 - (`fixed`, Eye), a Palm's cover told as "palm" naming the rummage's
+         * part (`fixed`, Shadow: `TOLD_AS` over the packet), and an Observe with Resolve applied (`resolve`, any). And in
+         * the source: the packet's context carries `part`, a Search's card is asked under `{ kind: "action", key:
+         * "search" }`, and the `search` row reads a GM's card (`gmPickOf`). What a card makes of a Search is tier 2's
+         * ("a Search's statistic ..."). Reads only; the planted part is in memory. Red at C2's tip: the planted part was
+         * not read (Head).
+         */
+        const D = await import("./roll-draw.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const actor = game.actors.find(a => a.type === "character") ?? null;
+        must(actor, "the world holds no character to read - this would measure nothing");
+        const of = async (actionKey, context = {}, applied = []) => {
+            const e = await D.expectedFor(actor, { actionKey, context, applied });
+            return [e.trait ?? null, e.traitFrom ?? null];
+        };
+        const had = Object.hasOwn(ACTIONS.analyze, "r3151Part");
+        must(!had, "config already has the part this test plants - this would measure nothing");
+        let read;
+        ACTIONS.analyze.r3151Part = { trait: "eye" };
+        try {
+            read = [await of("search"), await of("analyze", { findPassage: true }), await of("analyze", { part: "unseen" }), await of("observe", { part: "nonsense" }),
+                await of("analyze", { part: "r3151Part" }), await of("palm", { part: "rummage" }), await of("observe", {}, [{ grants: "trait" }])];
+        } finally {
+            delete ACTIONS.analyze.r3151Part;
+        }
+        equal(JSON.stringify(read), JSON.stringify([["eye", "search"], ["head", "fixed"], ["head", "fixed"], ["eye", "fixed"], ["eye", "fixed"],
+            ["shadow", "fixed"], [null, "resolve"]]),
+            "a roll's statistic was not read from its source (Search, Find Passage, a part the action lacks twice, a part that names one, a told part, Resolve)");
+
+        const sources = new Map(await otherSources());
+        const src = stripComments(sources.get("roll-draw.mjs") ?? "");
+        const sent = bodyOf(src, "const CONTEXT_SENT = Object.freeze({", { until: "});" });
+        const spec = fnSource(src, "pickSpecOf");
+        const search = bodyOf(src, '{ from: "search", read:', { until: '{ from: "project"' });
+        equal(JSON.stringify([/\bpart: "text"/.test(sent), /key === "search"\) return \{ kind: "action", key: "search"/.test(spec), /gmPickOf\(actor, spec, listed\)/.test(search)]),
+            JSON.stringify([true, true, true]),
+            "the packet's context does not carry part, or a Search's card is asked under another definition, or the search row reads no card (part sent, the spec, the card read)");
+    }],
+    ["R3152 - Stage 6 rolls Shadow and asks nobody: every clean-up step but Move the Body lists Shadow alone, the ruling answers it with no card and no window on a player's browser and a GM's, Move the Body stays Body, and the GM's draw holds a clean-up to Shadow (E68 C5; DA4)", async () => {
+        /*
+         * E68 C5, 10.11.2026; DA4 (the planned R-next (c)). The definitions a clean-up is asked under (trait-ruling.mjs
+         * `listedTraits`, kind `cleanup`: the clean-up itself and each of `CLEANUP.actions`), and `traitFor` for each with
+         * the two ways of asking replaced by seams that note any ask - as a player's browser and as a GM's, Resolve not
+         * armed. Then what the GM's draw expects of a clean-up (roll-draw.mjs `expectedFor`): an erase and a trail, each
+         * Shadow from the `fixed` row, so a claim of Hand is flagged. Pure; nothing is written. Red at C4's tip: the steps
+         * listed Shadow / Hand / Head and both browsers asked.
+         */
+        const T = await import("./trait-ruling.mjs");
+        const D = await import("./roll-draw.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        const actor = game.actors.find(a => a.type === "character") ?? null;
+        must(actor, "the world holds no character to read - this would measure nothing");
+        const keys = ["cleanup", ...Object.keys(CLEANUP.actions ?? {}).filter(k => CLEANUP.actions[k]?.label)];
+        must(keys.includes("eraseTrace") && keys.includes("moveBody"), `the clean-up's steps are ${keys.join(", ")} - this would measure nothing`);
+        const asked = [];
+        const seams = isGm => ({ isGm, resolveArmed: () => false, autoApprovable: async () => false,
+            askGms: async (a, spec) => { asked.push(["player", spec.key]); return "hand"; },
+            pickHere: async (a, spec) => { asked.push(["gm", spec.key]); return "hand"; } });
+        const read = [];
+        for (const key of keys) {
+            const spec = { kind: "cleanup", key };
+            read.push([key, T.listedTraits(spec), await T.traitFor(actor, spec, seams(false)), await T.traitFor(actor, spec, seams(true))]);
+        }
+        const expected = keys.map(key => [key, key === "moveBody" ? ["body"] : ["shadow"],
+            { trait: key === "moveBody" ? "body" : "shadow", byGm: false }, { trait: key === "moveBody" ? "body" : "shadow", byGm: false }]);
+        equal(JSON.stringify([read, asked]), JSON.stringify([expected, []]),
+            "a clean-up step does not list Shadow alone (Move the Body Body), or the ruling asked a GM for one (per step: listed, a player's answer, a GM's; the asks)");
+        const of = async cleanupKey => {
+            const e = await D.expectedFor(actor, { actionKey: "cleanup", context: { cleanupKey } });
+            return [e.trait ?? null, e.traitFrom ?? null];
+        };
+        equal(JSON.stringify([await of("eraseTrace"), await of("misleadingTrail")]), JSON.stringify([["shadow", "fixed"], ["shadow", "fixed"]]),
+            "the GM's draw does not hold an erase or a trail to Shadow from the fixed row, so Hand would not be flagged (erase, trail)");
+    }],
+    ["R3153 - Resolve costs 2 Hope and asks nobody: no GM rules it, it grants the statistic, its effect says any statistic with nobody asked in both languages, and armed it answers a definition of several and one of one with no card or window (E68 C7; DA37)", async () => {
+        /*
+         * E68 C7, 10.11.2026; DA37 = 1 (the planned R-next (d)). config.mjs HOPE_CALLS.determination: its price, its
+         * `grants`, no `needsGm`; the effect's English (config) and Polish (lang, `DRPG.Config.HOPE_CALLS.determination.effect`)
+         * name any statistic and nobody asked. Then `traitFor` with Resolve armed (the seam) for Attack with a weapon
+         * (three listed) and for Observe (one): the first listed, `byGm` false, and neither way of asking called. Pure.
+         * Red at C6's tip: the price was 3 and the effect said "choose which statistic to add".
+         */
+        const T = await import("./trait-ruling.mjs");
+        const { HOPE_CALLS, MODULE_ID } = await import("./config.mjs");
+        const call = HOPE_CALLS.determination;
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const polish = pl?.DRPG?.Config?.HOPE_CALLS?.determination?.effect ?? "";
+        equal(JSON.stringify([call?.cost, call?.grants, Boolean(call?.needsGm), /any statistic/.test(call?.effect ?? "") && /nobody is asked/.test(call?.effect ?? ""),
+            /dowoln/.test(polish) && /nikt nie jest pytany/.test(polish)]), JSON.stringify([2, "trait", false, true, true]),
+            "Resolve's price is not 2, it grants no statistic, a GM rules it, or its effect does not say any statistic with nobody asked (cost, grants, needsGm, English, Polish)");
+        const asked = [];
+        const seams = { resolveArmed: () => true, askGms: async () => { asked.push("player"); return null; }, pickHere: async () => { asked.push("gm"); return null; } };
+        const A = { id: "R3153ACTOR000001", name: "R3153" };
+        const read = [await T.traitFor(A, { kind: "crisis", key: "weaponAttack" }, { ...seams, isGm: false, proposed: "leg" }),
+            await T.traitFor(A, { kind: "crisis", key: "weaponAttack" }, { ...seams, isGm: true }), await T.traitFor(A, { kind: "action", key: "observe" }, { ...seams, isGm: false })];
+        const first = T.listedTraits({ kind: "crisis", key: "weaponAttack" })[0], observe = T.listedTraits({ kind: "action", key: "observe" })[0];
+        equal(JSON.stringify([read, asked]), JSON.stringify([[{ trait: first, byGm: false }, { trait: first, byGm: false }, { trait: observe, byGm: false }], []]),
+            "an armed Resolve asked somebody or did not leave the pick to the roll window (several on a player's browser, on a GM's, one; the asks)");
     }],
     ["R216 - a Reroll answered past its clock still counts, and a GM leaving is not the primary", async () => {
         /*
@@ -36540,7 +36742,7 @@ const INVARIANTS = [
         }), "[askDeclaration leaves the columns on; the window chooseVariant asks (its width, the stated-width class, the columns, the briefing first, the list second); per theme: "
             + "the popup measure on .dialog-content (null: none reaches it), the columns' display and wrap, the hints' display (picked, unpicked, unavailable; null: no rule hides it)]");
     }],
-    ["R121 - A4, red is the GM's road and says so (E22 C5c; E22-02, E22-10, E22-12, audit S02-25, S05-49, S02-49, S03-26, S09-22): every menu row marked `gmRoute` and every footer button the module puts on the GM's road (a `gmRoute` slot, a question's `role: \"gmRoute\"`, `callWindow`'s `gmRoute`) stands in this census - the Tamper menu's Reshape a Trace and its two windows' Leave something else and Reshape it (Erase plain), Observe's two, Analyze's hint, Search's specific, the proposal's row and its one Send, the request window's Send, Experience and Ultimate (`needsGm` alone), Direct Murder's yes - and the sentence beside each names the GM in English and Polish; the Reshape's three say a refusal gives back nothing paid; `GM_ROUTE_CLASS` is utils.mjs's alone and the kit's gmRoute face; the Dynamic action's definition carries `callsGm`, read once, and its briefing says a GM judges it; Analyze's briefing says a GM judges it by the hint row alone, not over Identify, Find Stash or Find Passage, and Find Stash is plain (E22 fix G2, Open 60's default A); the sheet's tile of a Call a GM rules and a Tier 0 item's Use are red with the GM's word, by the flags their windows read; `stripeKindFor` answers the GM's road before a Sanity step", async () => {
+    ["R121 - A4, red is the GM's road and says so (E22 C5c; E22-02, E22-10, E22-12, audit S02-25, S05-49, S02-49, S03-26, S09-22): every menu row marked `gmRoute` and every footer button the module puts on the GM's road (a `gmRoute` slot, a question's `role: \"gmRoute\"`, `callWindow`'s `gmRoute`) stands in this census - the Tamper menu's Reshape a Trace and its two windows' Leave something else and Reshape it (Erase plain), Observe's two, Analyze's hint, Search's specific, the proposal's row and its one Send, the request window's Send, a crisis row that asks a GM for the statistic and a project's statistic proposal (E68 C4), Experience and Ultimate (`needsGm` alone), Direct Murder's yes - and the sentence beside each names the GM in English and Polish; the Reshape's three say a refusal gives back nothing paid; `GM_ROUTE_CLASS` is utils.mjs's alone and the kit's gmRoute face; the Dynamic action's definition carries `callsGm`, read once, and its briefing says a GM judges it; Analyze's briefing says a GM judges it by the hint row alone, not over Identify, Find Stash or Find Passage, and Find Stash is plain (E22 fix G2, Open 60's default A); the sheet's tile of a Call a GM rules and a Tier 0 item's Use are red with the GM's word, by the flags their windows read; `stripeKindFor` answers the GM's road before a Sanity step", async () => {
         /*
          * E22 C5c, 07.11.2026; A4 (the owner's, confirmed live), D11. The Reshape row and its buttons were not red though a
          * GM approves a reshape since N-3, and their texts promised the change at once; `GM_ROUTE_CLASS` was a const of
@@ -36580,6 +36782,9 @@ const INVARIANTS = [
             ["cleanup.mjs#askTransformChange", /gmRoute: \[\{\s*action: "go",\s*label: game\.i18n\.localize\("DRPG\.Cleanup\.transformGo"\)/, "DRPG.Cleanup.transformActionNote"],
             ["action-murder.mjs#performDirectMurder", /yes: \{ role: "gmRoute", label: game\.i18n\.localize\("DRPG\.Dialog\.yes"\) \}/, "DRPG.Action.murderConfirmEclipse"],
             ["calls.mjs#confirmCall", /gmRoute: Boolean\(call\.needsGm\),/, "DRPG.Calls.waitsForGm"],
+            // E68 C4: a crisis row whose statistic a GM approves, and a project's statistic proposal; each sentence says the GM approves.
+            ["action-murder.mjs#openCrisisMenu", /gmRoute: asks\(\{ key, def, free \}\),/, "DRPG.Murder.gmPicksTrait"],
+            ["action-project.mjs#proposeProjectTrait", /gmRoute: \[\{\s*action: "propose",\s*label: game\.i18n\.localize\("DRPG\.TraitRuling\.propose"\)/, "DRPG.TraitRuling.projectBody"],
             // E22 C5d: the safeword's Stop it (R1369); its note says every GM is told.
             ["safeword.mjs#safewordDialog", /gmRoute: \[\{\s*action: "yes",\s*label: game\.i18n\.localize\("DRPG\.Safeword\.stopIt"\)/, "DRPG.Safeword.confirmNote"]
         ];
@@ -37681,9 +37886,9 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({
             keep: [".application.drpg-prompt", "drpg-prompt", false],
             kit: [[false, false], [true, false]],
-            asking: ["action-menus.mjs chooseVariant", "action-menus.mjs promptForNote", "call-gm.mjs askForRequest", "frisk.mjs askToForce", "frisk.mjs openAskWindow",
+            asking: ["action-menus.mjs chooseVariant", "action-menus.mjs promptForNote", "action-project.mjs proposeProjectTrait", "call-gm.mjs askForRequest", "frisk.mjs askToForce", "frisk.mjs openAskWindow",
                 "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement", "observe.mjs askWhichRemnant", "observe.mjs describeFind", "trait-ruling.mjs pickHere",
-                "trial-prompt.mjs promptClaim", "trial-prompt.mjs promptTurn", "vote.mjs castBallot"],
+                "trait-ruling.mjs rollChanged", "trial-prompt.mjs promptClaim", "trial-prompt.mjs promptTurn", "vote.mjs castBallot"],
             naming: ["roll-dialog.mjs", "stacking.mjs", "ui-kit.mjs"],
             menus: ["action-analyze.mjs", "action-murder.mjs", "action-observe.mjs", "action-project.mjs", "action-rest.mjs", "action-search.mjs", "action-tamper.mjs",
                 "level-up.mjs", "palm.mjs"],

@@ -1473,7 +1473,10 @@ export const ACTIONS = {
         kind: "universal",
         label: "Search",
         icon: "fa-magnifying-glass",
-        traits: ["eye"],
+        /* SIX STATISTICS, EYE THE DEFAULT (E68 C6, 10.11.2026; DA2, DA49). Eye first: a Search on Eye asks nobody and waits
+           for nothing (action-search.mjs `searchTrait`; roll-draw.mjs, the `search` row, waits for a card only on a claim
+           that is not Eye). Any other is the player's proposal to a GM, on a card (trait-ruling.mjs `traitFor`). */
+        traits: ["eye", "head", "body", "hand", "leg", "shadow"],
         cost: 1,
         // The count of searches a room allows is a WORLD SETTING (0-10), not the
         // three this sentence used to promise. The briefing reads the real
@@ -2277,9 +2280,15 @@ export const HOPE_CALLS = {
          * THE KEY STAYS `determination`. It is an identity, not a name: every
          * armed Call, sound mapping and flag in a live world is written against
          * it, and none of them is text anybody reads.
+         *
+         * TWO HOPE, AND ANY STATISTIC (E68 C7, 10.11.2026; DA37 = 1). Since the player proposes and
+         * the GM approves wherever several statistics are listed (DA18), Resolve is the one road
+         * that asks nobody: armed, `traitFor` answers with no card and the roll window's picker is
+         * open (trait-ruling.mjs, roll-dialog.mjs `lockTrait`), on a roll of one statistic too. It
+         * was 3 Hope; DA37 makes it 2, the price of skipping the card. No GM rules it (no `needsGm`).
          */
-        label: "Resolve", icon: "fa-hand-fist", cost: 3, target: "none", grants: "trait",
-        effect: "For one roll, choose which statistic to add yourself."
+        label: "Resolve", icon: "fa-hand-fist", cost: 2, target: "none", grants: "trait",
+        effect: "For one roll, pick any statistic yourself: nobody is asked, even where the action lists several."
     },
     freeCrit: {
         // NOT A CRITICAL, A LOADED DIE (Dawid, 31.08) - see forced-roll.mjs.
@@ -4017,17 +4026,21 @@ export const CLEANUP = {
     /**
      * Covering your tracks is a Shadow job.
      *
-     * The FIRST entry is what is actually rolled - the same convention
-     * `takeCrisisAction` follows for `CRISIS_ACTIONS[key].traits`. The rest of
-     * the list documents what else a GM could reasonably allow, and is the
-     * single place to change it.
+     * SHADOW ALONE (E68 C5, 10.11.2026; DA4). From E32+E07 C11c the list was Shadow / Hand /
+     * Head and a GM picked one on a card for every erase, reshape and trail (trait-ruling.mjs
+     * `traitFor`). The owner's DA4: Stage 6 rolls Shadow. One listed statistic asks nobody
+     * (`traitFor` answers it with no card), the roll window shows it fixed, and the GM's
+     * draw holds a clean-up to it (roll-draw.mjs `listedFor`, the `fixed` row) - so a clean-up
+     * claimed on Hand is flagged. Moving the body keeps its own Body (`actions.moveBody`), and
+     * Tamper's door was Shadow already (`ACTIONS.tamper`). With Resolve armed the roll window's
+     * picker opens, as for any roll.
      *
      * This rolled Hand until the guide was read against it: every one of Stage
      * 6's three actions prints "Stat: Cień", and so does the concealment roll
      * that covers them. Wiping a room down is not dexterity, it is not being
      * seen to have been there.
      */
-    traits: ["shadow", "hand", "head"],
+    traits: ["shadow"],
 
     /**
      * An equipped Cleaning Tool grants advantage and takes its tier off the

@@ -22,6 +22,7 @@ import { TRAITS } from "./config.mjs";
 import { esc } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 import { WIDE, choiceRowHtml, wideWindow } from "./ui-columns.mjs";
+import { PROPOSAL_NOTE_MAX } from "./trait-ruling.mjs";
 
 /**
  * The "which statistic?" field, as HTML to drop into somebody else's form.
@@ -33,8 +34,17 @@ import { WIDE, choiceRowHtml, wideWindow } from "./ui-columns.mjs";
  *
  * Returns "" when there is nothing to choose - one allowed trait, or none -
  * and the caller falls back to it without a field. See `readTraitField`.
+ *
+ * THE PLAYER'S PROPOSAL (E68 C4, 10.11.2026; DA18). With `propose` the select is the statistic the player
+ * proposes to a GM (trait-ruling.mjs `traitFor`), named `proposed` so it is never read as a pick of the
+ * roller's own, and `how` adds "How do you do it? (optional)", the words the GM's card quotes, bounded by
+ * `PROPOSAL_NOTE_MAX`. The first listed statistic is checked, so a trap victim's table proposes Body unless
+ * the player changes it. Read back by `readProposal`. Exported for the callers outside this file that ask a
+ * proposal in a window of their own (action-murder.mjs, action-project.mjs, action-dynamic.mjs, action-search.mjs).
+ * A proposal is one container, `drpg-trait-proposal` (E68 C7, 10.11.2026): the select and the words together, so a
+ * layout can place the field as one block (the orchestrator's note for E68 C12's right column).
  */
-function traitFieldHtml(actor, traits, { note = "" } = {}) {
+export function traitFieldHtml(actor, traits, { note = "", propose = false, how = propose, howLabel = "DRPG.TraitRuling.howLabel" } = {}) {
     const allowed = traits ?? [];
     if (allowed.length < 2) return "";
 
@@ -44,10 +54,13 @@ function traitFieldHtml(actor, traits, { note = "" } = {}) {
         return `<option value="${key}">${t.label} (${value > 0 ? "+" : ""}${value})</option>`;
     }).join("");
 
-    return `<label class="drpg-trait-field"><span>${game.i18n.localize("DRPG.Advance.whichTrait")}</span>
-        <select name="trait">${options}</select>
+    const words = how ? `<label class="drpg-trait-how"><span>${game.i18n.localize(howLabel)}</span>
+        <input type="text" name="note" maxlength="${PROPOSAL_NOTE_MAX}"></label>` : "";
+    const field = `<label class="drpg-trait-field"><span>${game.i18n.localize(propose ? "DRPG.TraitRuling.proposeLabel" : "DRPG.Advance.whichTrait")}</span>
+        <select name="${propose ? "proposed" : "trait"}">${options}</select>
         ${note ? `<small class="notes">${note}</small>` : ""}
     </label>`;
+    return propose ? `<div class="drpg-trait-proposal">${field}${words}</div>` : `${field}${words}`;
 }
 
 /** The other half of `traitFieldHtml`: what the form says, or the only option. */
@@ -56,6 +69,13 @@ function readTraitField(element, traits) {
     if (!allowed.length) return null;
     if (allowed.length === 1) return allowed[0];
     return element.querySelector("[name=trait]")?.value ?? allowed[0];
+}
+
+/** A proposal field's answer under `root`, as `traitFor` takes it: `{ proposed, note }`, the statistic one `traits` lists or null. */
+export function readProposal(root, traits) {
+    const proposed = root?.querySelector("[name=proposed]")?.value ?? null;
+    return { proposed: (traits ?? []).includes(proposed) ? proposed : null,
+        note: String(root?.querySelector("[name=note]")?.value ?? "").trim().slice(0, PROPOSAL_NOTE_MAX) };
 }
 
 /* ==========================================================================
@@ -92,7 +112,10 @@ function readTraitField(element, traits) {
  *                                        `details` is markup, already escaped,
  *                                        unfolded under the row while it is the
  *                                        one picked; `confirm` names the confirm
- *                                        button while that row is picked.
+ *                                        button while that row is picked;
+ *                                        `field` is markup for the statistic's
+ *                                        slot while that row is picked (the
+ *                                        crisis menu's proposal, E68 C13).
  * @param {string[]} [config.traits]   Show a trait picker for these.
  * @param {string}   [config.extra]    Extra HTML inside the form, under the list.
  * @param {string}   [config.confirm]  Label for the confirm button.
@@ -163,6 +186,11 @@ export async function chooseVariant({
         ? `<div class="drpg-choice-details" data-drpg-for="${esc(o.value)}"${columns && o.value !== first ? " hidden" : ""}>${o.details}</div>` : "");
     const rows = options.map(o => `${choiceRowHtml(o, { checked: o.value === first })}${columns ? "" : detailsOf(o)}`).join("");
     const beside = columns ? options.map(detailsOf).join("") : "";
+    // A row's own statistic field (`field`: the crisis menu's proposal, E68 C4) stands in the right column's slot, not
+    // with its details on the left: the owner's Q3 of round M keeps the field under the rows. One block a row, the
+    // picked row's alone shown (`syncDetails`); no class of its own, so the hidden attribute alone shuts it.
+    const fields = options.map(o => (o.field && !o.disabled
+        ? `<div data-drpg-field="${esc(o.value)}"${o.value !== first ? " hidden" : ""}>${o.field}</div>` : "")).join("");
 
     const fallback = confirm ?? game.i18n.localize("DRPG.Action.proceed");
     // A row's `confirm` is its label, or a function of the drawn window that reads the row's own fields (a Frisk's mode).
@@ -178,7 +206,7 @@ export async function chooseVariant({
             ${prompt ? `<p>${prompt}</p>` : ""}
             <div class="drpg-choice-list">${rows}</div>
             ${extra}
-            <div class="${TRAIT_SLOT}">${traits?.length ? traitFieldHtml(actor, traits, { note: traitNote })
+            <div class="${TRAIT_SLOT}">${fields}${traits?.length ? traitFieldHtml(actor, traits, { note: traitNote })
                 // A window that asks no statistic still says its note (fix r2-G3, 03.10.2026; the
                 // round-2 review's C2-m9 (b)): the Tamper menu's readied Cleaning Tool was only ever
                 // drawn inside the trait field it does not have, so no Tamper window showed it.
@@ -196,7 +224,7 @@ export async function chooseVariant({
             : { body: `${intro}${form}` }),
         render: (event, dialog) => {
             if (options.some(o => o.confirm)) followConfirmLabel(dialog, confirmFor);
-            if (beside) syncDetails(dialog);
+            if (beside || fields) syncDetails(dialog);
             atTop(dialog);
         },
         footer: !usable.length ? { close: "close" } : {
@@ -269,6 +297,9 @@ function syncDetails(dialog) {
         if (event.target?.name !== "variant") return;
         for (const block of root.querySelectorAll(".drpg-variant-details > .drpg-choice-details")) {
             block.hidden = block.dataset.drpgFor !== event.target.value;
+        }
+        for (const block of root.querySelectorAll(`.${TRAIT_SLOT} > [data-drpg-field]`)) {
+            block.hidden = block.dataset.drpgField !== event.target.value;
         }
     });
 }

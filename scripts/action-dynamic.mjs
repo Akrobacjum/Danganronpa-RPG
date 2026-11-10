@@ -22,6 +22,7 @@ import { spendAction } from "./actions.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { callGm, promptForRequest } from "./gm-bridge.mjs";
 import { whisperToOwner, esc } from "./utils.mjs";
+import { traitFieldHtml, readProposal } from "./action-menus.mjs";
 import { rollTrait, rollInHand, remnantRef, noteRollContext, abort, canAfford } from "./action-pipeline.mjs";
 import { report } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
@@ -62,15 +63,19 @@ export async function performDynamic(actor, options) {
      * card is the difficulty's; a GM's own action is ruled in a window and posts none. Tier 2's
      * E16-T25 counts the cards.
      */
-    const description = await promptForRequest({
+    const asked = await promptForRequest({
         title: def.label,
         intro: briefingBlock(actor, "dynamic", def),
         prompt: game.i18n.localize("DRPG.Action.dynamicDescribe"),
         placeholder: game.i18n.localize("DRPG.Action.dynamicPlaceholder"),
         // An empty description is no action for the GM to price (E18 C0, S10-52): asked again.
-        required: true
+        required: true,
+        // The statistic the player proposes (E68 C4; DA18), beside the words, which are its "how": the GM sets it.
+        extra: traitFieldHtml(actor, def.traits, { propose: true, how: false })
     });
-    if (description === null) return null;
+    if (asked === null) return null;
+    const description = typeof asked === "string" ? asked : asked.text;
+    const { proposed } = typeof asked === "string" ? { proposed: null } : readProposal(asked.form, def.traits);
 
     // The GM sets the difficulty, never the player. A GM running their own
     // character answers their own dialog; everyone else waits on the socket.
@@ -78,7 +83,8 @@ export async function performDynamic(actor, options) {
         description,
         actorName: actor.name,
         actorId: actor.id,
-        room: roomOfActor(actor)
+        room: roomOfActor(actor),
+        proposed
     };
 
     // The sticky "waiting" card (COMM-04), raised before the fork so the GM
@@ -280,7 +286,7 @@ export function dynamicBar(band) {
  *
  * @returns {Promise<{tier: number, trait: string}|null>}
  */
-export async function askDynamicDifficulty({ description, actorName, room } = {}) {
+export async function askDynamicDifficulty({ description, actorName, room, proposed = null } = {}) {
     const rows = DYNAMIC_THRESHOLDS.map((t, i) =>
         `<option value="${i}">${game.i18n.format("DRPG.Action.beat", { n: dynamicBar(t) })} · ${t.difficulty}</option>`).join("");
 
@@ -294,11 +300,12 @@ export async function askDynamicDifficulty({ description, actorName, room } = {}
                         room: foundry.utils.escapeHTML(room ?? "-")
                     })}</p>
                     <blockquote>${foundry.utils.escapeHTML(description ?? "")}</blockquote>
+                    ${Object.hasOwn(TRAITS, proposed ?? "") ? `<p>${esc(game.i18n.format("DRPG.TraitRuling.proposed", { stat: TRAITS[proposed].label }))}</p>` : ""}
                     <label>${game.i18n.localize("DRPG.Action.difficulty")}
                         <select name="tier">${rows}</select></label>
                     <label>${game.i18n.localize("DRPG.Advance.whichTrait")}
                         <select name="trait">${Object.entries(TRAITS)
-                            .map(([k, t]) => `<option value="${k}">${t.label}</option>`).join("")}</select></label>
+                            .map(([k, t]) => `<option value="${k}"${k === proposed ? " selected" : ""}>${t.label}</option>`).join("")}</select></label>
                   </form>`,
         footer: {
             primary: {

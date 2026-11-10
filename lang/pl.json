@@ -268,6 +268,10 @@
         "name": "Gracze nie edytują akcji, Hope, Health, Sanity ani statystyk",
         "hint": "Te zmieniają się przez grę - wydaj akcję, odpocznij, zdobądź Level Up. Włączone: ręczne zmiany gracza są cofane albo zgłaszane GM-om, a ich pola są dla graczy tylko do odczytu; wyłączone: są tylko odnotowywane dla GM-ów. Przedmioty i efekty są oceniane zawsze, tak samo jak to, co zmieniło się bez połączonego GM-a - gdy któryś wróci. GM-ów to nie dotyczy."
       },
+      "autoApproveTraits": {
+        "name": "Zatwierdzaj propozycje statystyk w Daily Life automatycznie",
+        "hint": "Włączone: statystyka, którą gracz proponuje do Search albo do projektu bez statystyki, jest zatwierdzana bez kliknięcia GM-a, a karta w jego wątku to mówi. Walka, otwarcia, akcje Dynamic i Resolve zawsze pytają GM-a."
+      },
       "friskForce": {
         "name": "Frisk: zmuszanie po odmowie",
         "hint": "Wyłączone: jawny Frisk tylko prosi, a odmowa albo brak odpowiedzi go kończy."
@@ -2268,7 +2272,7 @@
       "onAMiss": "Przy porażce: {text}",
       "noRollItWorks": "Bez rzutu - to się udaje",
       "breakdownDisadvantage": "Jesteś w Breakdown, więc ten rzut idzie z utrudnieniem, dopóki nie wróci trochę Sanity.",
-      "gmPicksTrait": "Rzut: {traits} - wybiera GM. Napisz mu w swoim wątku, co robisz.",
+      "gmPicksTrait": "Rzut: {traits} - proponujesz jedną poniżej, GM ją zatwierdza albo zmienia.",
       "youPickTrait": "Rzut: {traits} - masz uzbrojone Resolve, więc wybierasz sam w oknie rzutu.",
       "criticalChoiceTitle": "Czyste trafienie",
       "criticalChoiceIntro": "Cios trafia dokładnie tam, gdzie miał trafić. Oba punkty schodzą z tego samego zapasu - z ciała albo z nerwów.",
@@ -3755,7 +3759,23 @@
       "waiting": "GM wybiera statystykę. Napisz mu w swoim wątku, co robisz.",
       "refused": "GM nie dopuścił tej akcji. Nic nie zostało wydane.",
       "openingKiller": "GM wybiera statystykę do twojego rzutu otwarcia. Napisz mu w swoim wątku, jak się do tego zabierasz.",
-      "openingVictim": "GM przygotowuje dla ciebie rzut."
+      "openingVictim": "GM przygotowuje dla ciebie rzut.",
+      "gmBodyProposed": "Gracz proponuje statystykę. Zatwierdź ją, zmień na inną z listy albo odmów.",
+      "proposed": "Propozycja: {stat}",
+      "approve": "Zatwierdź: {stat}",
+      "change": "Zmień na: {stat}",
+      "refuse": "Odmów",
+      "changedTitle": "GM zmienił statystykę",
+      "changedBody": "Twoja propozycja: {proposed}. GM zmienił ją na {stat}. Nic jeszcze nie zeszło.",
+      "rollIt": "Rzuć: {stat}",
+      "pass": "Rezygnuję (nic nie schodzi)",
+      "passedLine": "Rezygnuję z rzutu ({stat}). Nic nie zeszło.",
+      "autoApproved": "Zatwierdzone automatycznie.",
+      "proposeLabel": "Którą statystykę proponujesz?",
+      "howLabel": "Jak to robisz? (opcjonalnie)",
+      "projectBody": "Ten projekt zapisano bez statystyki. Zaproponuj jedną: GM ją zatwierdza albo zmienia i zostaje ona statystyką projektu.",
+      "propose": "Zaproponuj",
+      "howSearch": "Jak szukasz? (opcjonalnie)"
     },
     "DiceLook": {
       "setByGm": "Twój wygląd kości ustala GM.",
@@ -3823,6 +3843,8 @@
       "diceFixed": "Ustalone na d12 przez zasady.",
       "traitFixed": "Wybrane, zanim to okno się otworzyło.",
       "traitByGm": "Wybrane przez GM-a.",
+      "traitApproved": "Zatwierdzone przez GM-a.",
+      "traitChanged": "Zmienione przez GM-a.",
       "advantageLocked": "Przewaga i utrudnienie biorą się z Calli, nie stąd.",
       "pickOneExperience": "Wybierz jedno doświadczenie, którego dotyczy ten rzut. Kliknięcie innego przenosi wybór.",
       "experienceLocked": "Użycie doświadczenia to Hope Call „Experience” - poproś GM-a, by je wydać.",
@@ -6254,7 +6276,7 @@
         },
         "determination": {
           "label": "Resolve",
-          "effect": "Na jeden rzut sam(a) wybierasz, którą statystykę dodać."
+          "effect": "Na jeden rzut sam(a) wybierasz dowolną statystykę: nikt nie jest pytany, także gdy akcja wymienia kilka."
         },
         "freeCrit": {
           "label": "Loaded Die",

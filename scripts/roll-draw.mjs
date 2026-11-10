@@ -432,14 +432,15 @@ function startOnMessage(message) {
  * check reads (a Search's category, goal and stash, a project's id, an opening's side, the crisis
  * action a crisis roll is thrown for - fix r2-H1 - and since E29 C9 a clean-up's step and whether it
  * came through Tamper's door, which decide its statistic and its tool's die - `CONTEXT_SENT`; the goal
- * since E29 fix r1-G8);
+ * since E29 fix r1-G8; and since E68 C3 the part of an action a roll is, `part`, which `listedFor` honours only
+ * for a part of its action's definition that names a statistic, and never over `TOLD_AS`);
  * and the situation's dice as this browser armed them (call-effects.mjs `situationalAdvantage`),
  * which the GM no longer reads: it reads every action's situation for itself (E29 C9,
  * `LEGAL_READERS`). The field still travels; nothing on the GM reads it.
  */
 export const DRAWN_OPTIONS = Object.freeze([ROLL_NONCE, "actionType", "roll", "experiences", "guaranteedCritical", "extraFormula", "data"]);
 const CONTEXT_SENT = Object.freeze({ category: "text", goal: "text", stashDie: "bool", projectId: "id", targetProjectId: "id", side: "text",
-    crisis: "text", cleanupKey: "text", cleanupVia: "bool", findPassage: "bool" });
+    crisis: "text", cleanupKey: "text", cleanupVia: "bool", findPassage: "bool", part: "text" });
 const LISTED_MAX = 16;
 
 /** The context fields a check on the GM reads, plain; nothing else of the action's context leaves. */
@@ -1489,7 +1490,7 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     const held = await armedCallsHeld(actor);
     const applied = appliedCalls(actor, calls, held);
     const hostile = hostileCalls(actor, applied, held, { key, claimed });
-    const expected = await expectedFor(actor, { actionKey: key, applied, hostile, context: told.context, claimed, loaded,
+    const expected = await expectedFor(actor, { actionKey: key, applied, hostile, context: told.context, claimed, loaded, told: told.trait,
         actionType: json?.options?.actionType ?? null });
     // The roll this GM throws is the one it builds from its list (`legalRollOf`, E29 C10); the packet's is a claim.
     const legal = await legalRollOf(json, actor, expected, told, { key, claimed, nonce });
@@ -1744,7 +1745,19 @@ async function listedFor(actor, key, context) {
         return (ACTIONS.tamper?.traits ?? []).slice(0, 1);
     }
     if (key === "cleanup") return listedTraits({ kind: "cleanup", key: cleanupStepOf(context) });
-    return listedTraits({ kind: "action", ...(Object.hasOwn(TOLD_AS, key ?? "") ? TOLD_AS[key] : { key }) });
+    if (Object.hasOwn(TOLD_AS, key ?? "")) return listedTraits({ kind: "action", ...TOLD_AS[key] });
+    /*
+     * THE PART A PACKET NAMES (E68 C3, 10.11.2026; S18-01's `part`). A roll told under its action's own key may say
+     * which part of it it is (`context.part`, a claim like the rest): honoured only where the action's definition has
+     * that part and the part names a statistic of its own, else the action whole - so a part this GM does not know
+     * cannot leave a roll held to no statistic. A key told by `TOLD_AS` keeps its part whatever the packet says
+     * (above). At 1.2.104 only a Palm has parts that name a statistic, and every one of its rolls is told by
+     * `TOLD_AS`, so no honest roll sends a part yet. A Find Passage (an Analyze, `context.findPassage`) is the
+     * `fixed` row's: Analyze lists Head alone (amend [0]), read here as any Analyze is.
+     */
+    const part = typeof context?.part === "string" ? context.part : null;
+    const piece = part && Object.hasOwn(ACTIONS[key ?? ""] ?? {}, part) ? ACTIONS[key][part] : null;
+    return listedTraits({ kind: "action", key, ...(typeof piece?.trait === "string" ? { part } : {}) });
 }
 
 /** The clean-up's step a packet's context names (cleanup.mjs `cleanupKey`): one of Stage 6's actions, else the clean-up itself. */
@@ -1766,6 +1779,8 @@ async function pickSpecOf(actor, key, context) {
     }
     if (key === "project" || key === "sabotage") return { kind: "project", key: projectNamed(key, context), variant: null };
     if (key === "cleanup") return { kind: "cleanup", key: pickKeyOf("cleanup", cleanupStepOf(context)), variant: null };
+    // A Search's card names the action (E68 C3; trait-ruling.mjs `autoApprovable`'s scope): what C6's card asks under.
+    if (key === "search") return { kind: "action", key: "search", variant: null };
     return { kind: "generic", key, variant: null };
 }
 
@@ -1795,6 +1810,8 @@ const pickKeyOf = (kind, key) => (kind === "cleanup" && !CLEANUP.actions?.[key]?
  * does not list - e29run/r2h2red). Now a card counts only where a GM wrote it (secret.mjs
  * `cardWriter`, as the away card's buttons are read below), for this definition - its kind, its
  * key (`pickKeyOf`) and its variant the roll's - naming a statistic the definition lists.
+ * A ruling the valve made (E68 C2, `auto: true`) is such a card: the primary GM wrote it by the
+ * road a press takes (messenger-app.mjs `pressCard`), so it is read as a press is, with no row of its own.
  */
 function gmPickOf(actor, spec, listed) {
     const since = Date.now() - TIMING.rerollWindowMinutes * 60_000;
@@ -1830,7 +1847,11 @@ const lowestOf = (sheet, listed) => listed.reduce((low, trait) => ((sheet.traits
  *   - `resolve`: an armed Resolve's roll is the player's pick;
  *   - `opening`: the opening's statistic as the GM picked it, for the side this GM sees rolling it;
  *   - `search`: Search's one statistic - the `fixed` rule's case under the name its record has
- *     carried since E08+E28 C12b, which a later stage gives a rule of its own (S18-09);
+ *     carried since E08+E28 C12b, which a later stage gives a rule of its own (S18-09). Since E68 C3
+ *     (DA49) the rule: Eye with no card, and where a GM's card - pressed, or approved by the valve
+ *     (C2), both written by a GM - names another statistic Search lists, that one (`gmPickOf` under
+ *     `{ kind: "action", key: "search" }`), waited for as the `gm` row waits once Search lists more
+ *     than one (C6); while it lists Eye alone, Eye;
  *   - `project`: the project's own, for a Work on it or a Sabotage of it;
  *   - `gm`: where the definition lists several, the newest pick card a GM wrote for this character
  *     and this definition no drawn roll has used yet (`gmPickOf`), waited for a moment as the
@@ -1859,7 +1880,20 @@ const TRAIT_SOURCES = Object.freeze([
         const state = murderState();
         return openingSideOf(actor, context, state) ? { trait: traitKeyOf(state.openingTrait) } : null;
     } },
-    { from: "search", read: (actor, { key, listed }) => (key === "search" && listed.length === 1 ? { trait: listed[0] } : null) },
+    { from: "search", read: async (actor, { key, listed, told }) => {
+        if (key !== "search" || !listed.length) return null;
+        const eye = { trait: listed.includes("eye") ? "eye" : listed[0] };
+        // A roll claimed on Eye waits for no card (E68 C6; DA49): Eye is what it is held to with or without one, so the
+        // claim decides only the wait - the most common Search is drawn at once. A claim of another waits as before.
+        if (listed.length < 2 || told === eye.trait) return eye;
+        const spec = { kind: "action", key: "search", variant: null };
+        let found = gmPickOf(actor, spec, listed);
+        for (const end = Date.now() + PICK_WAIT_MS; !found && Date.now() < end;) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            found = gmPickOf(actor, spec, listed);
+        }
+        return found ?? eye;
+    } },
     { from: "project", read: async (actor, { key, context }) => {
         if (key !== "project" && key !== "sabotage") return null;
         const { allProjects } = await import("./projects.mjs");
@@ -2034,8 +2068,9 @@ async function readyFor(actor, draw) {
  * or none is known here; `traitFrom` says which. `read` is each row's reading, `sheet` the
  * character's numbers read with them. Exported for the suite.
  */
-export async function expectedFor(actor, { actionKey = null, applied = [], hostile = [], context = {}, claimed = true, loaded = null, actionType = null } = {}) {
-    const draw = { key: actionKey, claimed, actionType, applied, hostile, context, loaded };
+export async function expectedFor(actor, { actionKey = null, applied = [], hostile = [], context = {}, claimed = true, loaded = null, actionType = null, told = null } = {}) {
+    // `told`: the statistic the packet claims, read by the `search` row alone, and only to know whether to wait (E68 C6).
+    const draw = { key: actionKey, claimed, actionType, applied, hostile, context, loaded, told };
     draw.ready = await readyFor(actor, draw);
     await draw.ready.judgedFor(actor?.id);
     draw.sheet = sheetOf(actor);

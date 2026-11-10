@@ -1,7 +1,7 @@
-<dialog id="app-nuOFWfNi" class="application dialog drpg-panel drpg-action-window drpg-ui drpg-prompt drpg-kit-width" open="" style="z-index: 102; left: 8px; top: 384px;" data-drpg-width="1120" data-drpg-scaled="1@768" lang="en" data-drpg-text-guard="1"><form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-kit-body"><div class="drpg-variant-columns"><div class="drpg-wide-col drpg-variant-brief"><div class="drpg-briefing-block">
+<dialog id="app-l41fS8H4" class="application dialog drpg-panel drpg-action-window drpg-ui drpg-prompt drpg-kit-width" open="" style="z-index: 102; left: 8px; top: 384px;" data-drpg-width="1120" data-drpg-scaled="1@768" lang="en" data-drpg-text-guard="1"><form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-kit-body"><div class="drpg-variant-columns"><div class="drpg-wide-col drpg-variant-brief"><div class="drpg-briefing-block">
         <p>Roll Eye: the higher the total, the better the find, and a low total finds nothing. If what you find counts as a Murder Weapon or a cleaning tool, your search leaves a Remnant.</p>
         
-        <ul class="drpg-briefing-facts"><li>Action cost 1. You have 3.</li><li>Rolls: Eye</li><li>You are in: Dorm A</li><li>Searches left here: 3 of 3.</li><li>What you find, by your total: 8+ a thing of tier 0 · 12+ a thing of tier 1 · 18+ a thing of tier 2. The higher the tier, the better the thing; a critical finds one tier better.</li></ul>
+        <ul class="drpg-briefing-facts"><li>Action cost 1. You have 3.</li><li>Rolls: Eye / Head / Body / Hand / Leg / Shadow</li><li>You are in: Dorm A</li><li>Searches left here: 3 of 3.</li><li>What you find, by your total: 8+ a thing of tier 0 · 12+ a thing of tier 1 · 18+ a thing of tier 2. The higher the tier, the better the thing; a critical finds one tier better.</li></ul>
         
     </div></div><div class="drpg-wide-col drpg-variant-ask">
             <p>What turns up depends on the room and the roll.</p>
@@ -57,6 +57,10 @@
             <label class="drpg-specific-note" data-drpg-when="specific">
                 <span>What are you looking for?</span>
                 <textarea name="request" rows="2" placeholder="e.g. anything belonging to the victim" data-drpg-named="own"></textarea>
-            </label>
+            </label><div class="drpg-trait-proposal"><label class="drpg-trait-field"><span>Which statistic do you propose?</span>
+        <span class="drpg-select"><select name="proposed" data-drpg-chrome="select" data-drpg-named="own"><option value="eye">Eye (0)</option><option value="head">Head (0)</option><option value="body">Body (0)</option><option value="hand">Hand (+1)</option><option value="leg">Leg (+1)</option><option value="shadow">Shadow (+1)</option></select></span>
+        
+    </label><label class="drpg-trait-how"><span>How do you search? (optional)</span>
+        <input type="text" name="note" maxlength="280" data-drpg-named="own"></label></div>
             <div class="drpg-action-trait"></div>
         </div></div></div></div><footer class="form-footer drpg-kit-footer"><div class="drpg-kit-right"><button type="submit" data-action="ok" class="default drpg-role-primary" data-drpg-role="primary" autofocus="" data-drpg-named="own">Roll</button></div><div class="drpg-kit-left"><button type="submit" data-action="cancel" data-drpg-role="cancel" class="drpg-role-cancel" data-drpg-named="own">Cancel</button></div></footer></form></dialog>

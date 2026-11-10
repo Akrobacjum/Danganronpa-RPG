@@ -557,7 +557,9 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
        Botan (p2) opens on Chie (p3) and, at his turn, his player asks for Attack with a weapon's
        statistic through the honest request function. The card goes up in p2's thread, the primary
        GM presses its first trait (the harness's GM, client-entry.mjs `__traitRulingAuto`), and the
-       answer comes back once, refused nowhere. Chie's Health and Sanity are put back after. */
+       answer comes back once, refused nowhere. Chie's Health and Sanity are put back after. Since E68 C1 (DA18) his
+       player proposes Hand and says how: the card's first button is "Approve: Hand", which the harness's GM presses,
+       so the answer is the proposal - a legal proposal, refused nowhere. */
     phase("a statistic ruling", { flow: "trait-ruling" });
     const chieWas = await gm.eval(`const r = game.actors.get("${IDS.chie}").system.resources;
         return { hp: r.hitPoints.value, stress: r.stress.value };`);
@@ -571,7 +573,7 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     mark = await refusedCount(p2);
     const a11answer = await p2.eval(`const B = ${bridge};
         return typeof B.requestTraitRuling === "function"
-            ? await B.requestTraitRuling({ actorId: "${IDS.botan}", kind: "crisis", key: "weaponAttack" }) : "no requestTraitRuling";`,
+            ? await B.requestTraitRuling({ actorId: "${IDS.botan}", kind: "crisis", key: "weaponAttack", proposed: "hand", note: "33: a low swing" }) : "no requestTraitRuling";`,
         { timeout: 60000 });
     await settle(900);
     const a11 = { fightOpen, answer: a11answer, ruled: await gm.eval(`return globalThis.__traitRulings.slice();`),
@@ -580,9 +582,9 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         await game.actors.get("${IDS.chie}").update({ "system.resources.hitPoints.value": ${Number(chieWas?.hp) || 0},
             "system.resources.stress.value": ${Number(chieWas?.stress) || 0} });
         return true;`, { timeout: 60000 });
-    check("A11: a crisis action's statistic, asked by the killer's own player at his turn, is put to the GMs once, picked on the card and answered - refused nowhere",
-        fightOpen.stage === "incident" && fightOpen.turn === true && a11answer?.ok === true && a11answer.value === "body"
-        && a11.ruled.length === 1 && a11.ruled[0].picked === "body" && !a11.logged.length && !a11.told.length, JSON.stringify(a11));
+    check("A11: a crisis action's statistic, proposed by the killer's own player at his turn, is put to the GMs once, approved on the card and answered - refused nowhere",
+        fightOpen.stage === "incident" && fightOpen.turn === true && a11answer?.ok === true && a11answer.value === "hand"
+        && a11.ruled.length === 1 && a11.ruled[0].picked === "hand" && a11.ruled[0].offered?.[0] === "hand" && !a11.logged.length && !a11.told.length, JSON.stringify(a11));
 
     /* A12. A ROLL'S BOOKMARK (E08+E28 C2, 03.10.2026). The roller's browser tells the GMs what it
        rolled for the Reroll's bookmark (`roll.bookmark`), after the roll and before its action

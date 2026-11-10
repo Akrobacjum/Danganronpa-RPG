@@ -459,7 +459,7 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_DIFFICULTY]: {
         label: "DRPG.Bridge.what.dynamic.difficulty",
         guards: [knownSender, owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id, description: as.text, actorName: as.text, room: as.maybeText }),
+        sanitize: pick({ actorId: as.id, description: as.text, actorName: as.text, room: as.maybeText, proposed: as.maybeText }),
         run: handleDifficulty,
         // Not patient, as the Hope Call's (E18 C2, R840).
         answer: "reply", resend: true
@@ -512,7 +512,8 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_TRAIT_RULING]: {
         label: "DRPG.Bridge.what.trait.ruling",
         guards: [knownSender, owns("actorId", "sender does not own that character"), guardTraitRuling],
-        sanitize: pick({ actorId: as.id, kind: as.text, key: as.text, variant: as.maybeText }),
+        // E68 C1 (DA18): the player's proposal and their words; the guard holds the one to the list, the other to its length.
+        sanitize: pick({ actorId: as.id, kind: as.text, key: as.text, variant: as.maybeText, proposed: as.maybeText, note: as.maybeText }),
         run: handleTraitRuling,
         answer: "reply", patient: true, resend: true, timeoutMs: TIMING.rulingMs
     },
