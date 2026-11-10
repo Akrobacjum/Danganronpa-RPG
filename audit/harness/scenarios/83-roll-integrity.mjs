@@ -1343,6 +1343,50 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
         trace: p1Rows(rf8, "forged", names.aiko).some(x => x.change.includes(`flags.${MOD}.drawn`) && x.change.includes(`flags.${MOD}.rollId`)) && rf8.gm.audit.length === 1,
         details: { f8, drawn: f8Drawn, cards: f8Cards, refused: f8Refused } });
 
-    const forgeries = ["F1", "F1b", "F2", "F3", "F5a", "F7", "F4", "F4b", "F4c", "F6a", "F6b", "F5c", "F5b", "F8"];
+    /* ------------- L17 and F9. every action of one statistic, on it and on another ------------- */
+
+    /* E68 C3 (10.11.2026; DA18's `fixed` source, amend [0]): every action of the table whose definition lists one
+       statistic and is told under its own key - read off the GM's config, so a new one joins - and a Find Passage
+       (an Analyze with `findPassage`, Head), each thrown from p1's page on Aiko after an action she paid there
+       (actions.mjs `spendAction`, the honest payment): once on its own statistic (L17, a legal road: nothing new),
+       once on another (F9: the GM throws its own and flags the claim - a flag naming p1, the GMs' card and p1's
+       "not counted" line, three a roll). Search is L1's, a Palm's two and Tamper's door are told under other keys
+       (tier 2's "every definition and part that lists one statistic ..." holds those, and the crisis actions and
+       Stage 6's steps, which need an incident). */
+    phase("L17 and F9: every action of one statistic, on it and on another", { flow: "gm-rolls-total" });
+    const singles = await gm.eval(`const { ACTIONS, TRAITS } = await import("${SCRIPT("config")}");
+        const one = d => (Array.isArray(d?.traits) ? d.traits : []).filter(t => Object.hasOwn(TRAITS, t));
+        const out = Object.entries(ACTIONS).filter(([k, d]) => one(d).length === 1 && !["search", "palm", "tamper"].includes(k))
+            .map(([k, d]) => ({ name: k, actionKey: k, trait: one(d)[0], context: {} }));
+        out.push({ name: "analyze as Find Passage", actionKey: "analyze", trait: one(ACTIONS.analyze)[0], context: { findPassage: true } });
+        return out;`);
+    const other = t => (t === "eye" ? "hand" : "eye");
+    const throwAs = async (c, trait) => {
+        await refill(aiko);
+        return p1.eval(`const A = await import("${SCRIPT("action-rolls")}"), { spendAction } = await import("${SCRIPT("actions")}");
+            const a = game.actors.get("${aiko}");
+            await spendAction(a, 1, { quiet: true });
+            const r = await A.rollTrait(a, ${J(trait)}, { actionKey: ${J(c.actionKey)}, context: ${J(c.context)} });
+            return { total: r?.total ?? r?.raw?.total ?? null };`, { timeout: 90000 });
+    };
+    const l17 = [], f9 = [];
+    mark = await readings();
+    for (const c of singles) l17.push([c.name, await throwAs(c, c.trait)]);
+    const r17 = await mark.since();
+    road("L17", "each action of one statistic is drawn once on its own statistic, after a payment of Aiko's",
+        singles.length >= 3 && rollsOf(r17, aiko).length === singles.length, r17, { singles, l17, rolls: rollsOf(r17, aiko) });
+    mark = await readings();
+    for (const c of singles) f9.push([c.name, await throwAs(c, other(c.trait))]);
+    const rf9 = await mark.since();
+    const f9Flags = rf9.gm.flagRows.filter(x => x.player === names.p1 && x.character === names.aiko);
+    forgery("F9", { ran: "each action of one statistic was drawn once, claiming another statistic",
+        undone: "the GM threw each on its own statistic, the claim not counted", trace: "a flag naming p1 for each, and p1's \"not counted\" line for each" },
+    { owns: 3 * singles.length, did: singles.length >= 3 && rollsOf(rf9, aiko).length === singles.length,
+        undone: f9Flags.length === singles.length && f9Flags.every(x => /^statistic \w+, expected \w+$/.test(String(x.flags))),
+        trace: f9Flags.length === singles.length && rf9.p1.notCounted.length === singles.length, r: rf9,
+        own: x => x.startsWith(`flag: ${names.aiko} `) || x.startsWith("unexpected card: ") || x.startsWith("p1 not counted: "),
+        details: { singles, f9, flags: f9Flags } });
+
+    const forgeries = ["F1", "F1b", "F2", "F3", "F5a", "F7", "F4", "F4b", "F4c", "F6a", "F6b", "F5c", "F5b", "F8", "F9"];
     note("the forgeries that ran", J(forgeries.map(k => `${k}: ${forged[k] ? "ran" : "DID NOT RUN"}`)));
 }

@@ -32641,6 +32641,51 @@ const SCENARIOS = [
             "[the project's ask: answers sent, the card's line says approved automatically, the ruling (trait, how, auto), the project's statistic after], [the fight's ask: answers sent, a card posted, the card settled]");
     }],
 
+    ["a Search's statistic is Eye with no card, and a GM's card's - pressed or the valve's - once Search lists more than one (E68 C3)", async () => {
+        /*
+         * E68 C3, 10.11.2026; DA49 (Search on Eye asks nobody, another statistic goes through the card) and DA41's valve.
+         * Search lists Eye alone until C6, so the test lists Eye and Head on this browser's config for its length and
+         * puts the list back after. Read with the GM's own reading (roll-draw.mjs `expectedFor`) for a character with a
+         * player: with no card (Eye, after the `search` row's wait); with a card this GM wrote for that character's Search
+         * naming Head as the valve writes it (`auto: true`); and with a card naming Head that a player wrote (Eye: a pick
+         * is a GM's card). Each card is deleted after it is
+         * read. Red at C2's tip: with two listed the Search fell to the `gm` row, which matched no card and held it to
+         * the lowest.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a character with a player");
+        const D = await import("./roll-draw.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { theirs, player } = playerAndCharacters();
+        const was = ACTIONS.search.traits;
+        const made = [];
+        const of = async () => { const e = await D.expectedFor(theirs, { actionKey: "search", context: {} }); return [e.trait ?? null, e.traitFrom ?? null]; };
+        const ruling = { type: "trait", actorId: theirs.id, kind: "action", key: "search", variant: null, trait: "head", proposed: "head", how: "approved", auto: true };
+        const read = [];
+        try {
+            ACTIONS.search.traits = ["eye", "head"];
+            read.push(await of());
+            const { whisperToGms } = await import("./utils.mjs");
+            const { settleCall } = await import("./gm-bridge.mjs");
+            const card = await whisperToGms("<p>SUITE E68 C3 Search card</p>");
+            must(card, "no card to settle a pick on - this would measure nothing");
+            made.push(card);
+            await settleCall(card, "SUITE E68 C3", ruling);
+            read.push(await of());
+            await card.delete();
+            const forged = await ChatMessage.create({ author: player.id, content: "<p>SUITE E68 C3 a player's Search card</p>", whisper: [game.user.id],
+                flags: { [MODULE_ID]: { ruling } } });
+            must(forged && forged.author?.id === player.id, "no card of the player's to read - this would measure nothing");
+            made.push(forged);
+            read.push(await of());
+        } finally {
+            ACTIONS.search.traits = was;
+            for (const m of made) await m.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson([["eye", "search"], ["head", "search"], ["eye", "search"]]),
+            "a Search was not held to Eye with no card, to a GM's card's Head (the valve's), or was held to a card a player wrote (no card, the GM's, the player's)");
+    }],
+
     ["a Search for something specific and an Observe of anything whose last GM left during the roll post nothing, hand the action back and take none of the room's search tokens (E18 fix e1-G5)", async () => {
         /*
          * E18 fix e1-G5, 24.10.2026; the end review's E18-END-6, E18-END-2, E18-END-7 and F8 (STATUS's C0 gaps 1 and 2).

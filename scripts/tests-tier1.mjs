@@ -7713,6 +7713,51 @@ const INVARIANTS = [
         JSON.stringify([true, true, true, true]),
             "the primary presses a card past the valve or by another road, or the ruling's auto is read from anything but the valve's own call (asked, pressed by pressCard, auto read, auto kept)");
     }],
+    ["R3151 - where a roll's statistic comes from, per source: Search Eye with no card, a Find Passage Head, a part only where its action names one, a told part over the packet's, Resolve any", async () => {
+        /*
+         * E68 C3, 10.11.2026; DA18, DA49, amend [0] (the planned R-next (b)). The GM's reading of what a drawn roll's
+         * statistic must be (roll-draw.mjs `expectedFor`, its `TRAIT_SOURCES`), asked of a character of this world for
+         * roll shapes that need no card: a Search (`search`, Eye), an Analyze thrown as a Find Passage (`fixed`, Head),
+         * an Analyze and an Observe naming a part their action does not have (`fixed`, the action whole), an Analyze
+         * naming a part that names Eye - planted on this browser's config for the test and taken off after, since no
+         * action outside a Palm has one at 1.2.104 - (`fixed`, Eye), a Palm's cover told as "palm" naming the rummage's
+         * part (`fixed`, Shadow: `TOLD_AS` over the packet), and an Observe with Resolve applied (`resolve`, any). And in
+         * the source: the packet's context carries `part`, a Search's card is asked under `{ kind: "action", key:
+         * "search" }`, and the `search` row reads a GM's card (`gmPickOf`). What a card makes of a Search is tier 2's
+         * ("a Search's statistic ..."). Reads only; the planted part is in memory. Red at C2's tip: the planted part was
+         * not read (Head).
+         */
+        const D = await import("./roll-draw.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const actor = game.actors.find(a => a.type === "character") ?? null;
+        must(actor, "the world holds no character to read - this would measure nothing");
+        const of = async (actionKey, context = {}, applied = []) => {
+            const e = await D.expectedFor(actor, { actionKey, context, applied });
+            return [e.trait ?? null, e.traitFrom ?? null];
+        };
+        const had = Object.hasOwn(ACTIONS.analyze, "r3151Part");
+        must(!had, "config already has the part this test plants - this would measure nothing");
+        let read;
+        ACTIONS.analyze.r3151Part = { trait: "eye" };
+        try {
+            read = [await of("search"), await of("analyze", { findPassage: true }), await of("analyze", { part: "unseen" }), await of("observe", { part: "nonsense" }),
+                await of("analyze", { part: "r3151Part" }), await of("palm", { part: "rummage" }), await of("observe", {}, [{ grants: "trait" }])];
+        } finally {
+            delete ACTIONS.analyze.r3151Part;
+        }
+        equal(JSON.stringify(read), JSON.stringify([["eye", "search"], ["head", "fixed"], ["head", "fixed"], ["eye", "fixed"], ["eye", "fixed"],
+            ["shadow", "fixed"], [null, "resolve"]]),
+            "a roll's statistic was not read from its source (Search, Find Passage, a part the action lacks twice, a part that names one, a told part, Resolve)");
+
+        const sources = new Map(await otherSources());
+        const src = stripComments(sources.get("roll-draw.mjs") ?? "");
+        const sent = bodyOf(src, "const CONTEXT_SENT = Object.freeze({", { until: "});" });
+        const spec = fnSource(src, "pickSpecOf");
+        const search = bodyOf(src, '{ from: "search", read:', { until: '{ from: "project"' });
+        equal(JSON.stringify([/\bpart: "text"/.test(sent), /key === "search"\) return \{ kind: "action", key: "search"/.test(spec), /gmPickOf\(actor, spec, listed\)/.test(search)]),
+            JSON.stringify([true, true, true]),
+            "the packet's context does not carry part, or a Search's card is asked under another definition, or the search row reads no card (part sent, the spec, the card read)");
+    }],
     ["R216 - a Reroll answered past its clock still counts, and a GM leaving is not the primary", async () => {
         /*
          * E08+E28 fix r1-G5, 04.10.2026; the round-1 review's m1 and m3.
