@@ -68,7 +68,7 @@ import {
     USABLE_EFFECTS
 } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
-import { isDeadForGm } from "./settings.mjs";
+import { isDeadForGm, SETTINGS } from "./settings.mjs";
 import { isMoveChange } from "./rooms.mjs";
 import { castStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
@@ -3033,15 +3033,34 @@ async function killerFell({ pass = true } = {}) {
     noKillerTold = state.openedAt;
     const words = game.i18n.localize("DRPG.Murder.noKillerLeft");
     await whisperToGms(`<p>${words}</p>`);
-    // End the murder, as the tracker asks it (E22 C3b): destructive, Cancel the default and first under Enter.
-    const sure = await drpgConfirm({
-        yes: { role: "destructive", label: game.i18n.localize("DRPG.Murder.endMurder") },
-        no: "cancel",
-        classes: ["drpg-panel"],
-        title: game.i18n.localize("DRPG.Murder.endMurder"),
-        body: `<p>${words}</p><p>${game.i18n.localize("DRPG.Murder.endConfirm")}</p>`,
-        rejectClose: false
-    });
+    /* THE QUESTION GOES WITH ITS INCIDENT (E68 T6, 10.11.2026; STATUS E95 Open 15). Until then the window stayed on
+       screen after the incident it asks about was closed by any other road - the tracker's Close, a betrayal, tier 2's
+       restore - asking to end a murder that was over; its Yes then did nothing (the check below). Found by the suite
+       (tier 2's tests up to it and E47-T6 by `--only`, 10.11.2026): the test "the trial lists no living victim of an
+       open incident" kills its killer and leaves the close to tier 2's restore; this was the one window any of those
+       tests left open, and E47-T6's Cancel answered it in place of the Monokuma mark's question, about 660 tests
+       later in the whole order. So the window is closed, unanswered, once the world's half of the incident says it
+       is not this one at its incident stage: on the setting's update, which every client hears whichever GM wrote
+       it (measured headless on this GM's own close only). */
+    const asked = () => { const now = murderState(); return now?.stage === "incident" && now.openedAt === state.openedAt; };
+    let question = null;
+    const shut = dialog => { if (dialog && !asked()) dialog.close()?.catch?.(err => debug("Could not close the question of a closed incident", err)); };
+    const watch = Hooks.on("updateSetting", setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.murderState}`) shut(question); });
+    let sure = null;
+    try {
+        // End the murder, as the tracker asks it (E22 C3b): destructive, Cancel the default and first under Enter.
+        sure = await drpgConfirm({
+            yes: { role: "destructive", label: game.i18n.localize("DRPG.Murder.endMurder") },
+            no: "cancel",
+            classes: ["drpg-panel"],
+            title: game.i18n.localize("DRPG.Murder.endMurder"),
+            body: `<p>${words}</p><p>${game.i18n.localize("DRPG.Murder.endConfirm")}</p>`,
+            rejectClose: false,
+            render: (_event, dialog) => { question = dialog; shut(dialog); }
+        });
+    } finally {
+        Hooks.off("updateSetting", watch);
+    }
     const now = murderState();
     if (sure && now?.stage === "incident" && now.openedAt === state.openedAt) await endMurder();
 }
