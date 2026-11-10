@@ -19073,8 +19073,10 @@ const INVARIANTS = [
             root.insertAdjacentHTML("beforeend", `<footer><button type="button" data-action="ok"><span>${foundry.utils.escapeHTML(cfg.buttons?.[0]?.label ?? "")}</span></button></footer>`);
             cfg.render?.(null, { element: root });
             const button = () => root.querySelector('footer button[data-action="ok"]').textContent;
-            // The ways as drawn, before a radio below is pressed.
-            const modes = [...root.querySelectorAll('.drpg-choice-details[data-drpg-for="frisk"] input[name="friskMode"]')]
+            // The ways as drawn, before a radio below is pressed - inside the window's <form>, which is what palm.mjs
+            // `performPalm` reads the way off (E68 fix CI 77d3e66a: from E68 C12 they stood in the left column's
+            // details, outside the form, and every Unseen was read as Openly).
+            const modes = [...root.querySelectorAll('form [data-drpg-field="frisk"] input[name="friskMode"]')]
                 .map(r => [r.value, r.checked, r.closest("label")?.querySelector("small")?.textContent ?? null]);
             const labels = [];
             for (const radio of root.querySelectorAll('input[name="variant"]')) {
