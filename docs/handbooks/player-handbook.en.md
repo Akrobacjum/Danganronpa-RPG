@@ -573,7 +573,7 @@ There is exactly one, and the kind of murder decides whose it is.
 
 **Direct murder:** the killer rolls (Body or Hand, against **8**; advantage at Night). The GM picks which of the two; while they do, the killer is told so, and says in their thread how they go about it.
 
-<!-- E68 C14 top-up: C9, the killer's opening proposes --> You propose the opening's statistic when you declare the murder (being built; this paragraph is filled in when its code lands): the GM allows Body or Hand from your proposal on one card, or refuses, and the opening rolls on the one they allow. A betrayal is declared the same way.
+**You propose the statistic.** When you declare a Direct Murder in an Eclipse, the window asks *Which statistic do you propose?* - Body or Hand, Body to start - under your sentence of how. The GM answers on one card: allow your proposal, change it to the other, or refuse. You hear nothing until the lights; the opening then rolls on the statistic the GM allowed, with no second window and nothing to pass. A betrayal's confirmation asks the same (and *How do you do it?* outside an Eclipse); the GM rules on it as the opening rolls, and you are told *The GM is ruling on the statistic you proposed for your opening.* A trap's victim proposes nothing: the GM picks.
 
 | Killer's roll | What happens |
 |---|---|
