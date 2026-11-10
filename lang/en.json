@@ -729,7 +729,12 @@
         "passageBuiltShared": "A secret passage opens to you: {from} - {to}.",
         "passageBuilt": "Your secret passage is finished: {from} - {to}. You can walk through it.",
         "shown": "{giver} shows you a secret passage: {from} - {to}.",
-        "done": "You show {target} the secret passage."
+        "done": "You show {target} the secret passage.",
+        "repick": "Choose the target again",
+        "repickTitle": "{name}: choose the target again",
+        "repickIntro": "{name} is finished, but what it was to make could not be made. Pick its target again, and it is made at once, as at any completion.",
+        "repickDone": "Target chosen again by {name}.",
+        "repickGone": "{name} cannot be finished this way any more: it was taken back, removed or finished already."
       },
       "gm": {
         "found": "{actor} finds the secret passage {from} - {to}.",
@@ -4317,7 +4322,8 @@
       "gmKept": { "one": "{who} asks {target} to turn out their pockets. {target} is a body you keep, so nobody is asked: in {s} second {who} hears that there is no answer. You may open the discovery yourself.", "other": "{who} asks {target} to turn out their pockets. {target} is a body you keep, so nobody is asked: in {s} seconds {who} hears that there is no answer. You may open the discovery yourself." },
       "gmIncident": { "one": "{who} asks {target} to turn out their pockets. {target} is in the incident, so nobody is asked: in {s} second {who} hears that there is no answer.", "other": "{who} asks {target} to turn out their pockets. {target} is in the incident, so nobody is asked: in {s} seconds {who} hears that there is no answer." },
       "gmKeptNow": "{who} asks {target} to turn out their pockets. {target} is a body you keep, and their player is not here, so nobody is asked: {who} hears at once that there is no answer. You may open the discovery yourself.",
-      "gmIncidentNow": "{who} asks {target} to turn out their pockets. {target} is in the incident, and their player is not here, so nobody is asked: {who} hears at once that there is no answer."
+      "gmIncidentNow": "{who} asks {target} to turn out their pockets. {target} is in the incident, and their player is not here, so nobody is asked: {who} hears at once that there is no answer.",
+      "noReceipt": "{who}'s player's browser did not confirm the answer to the Frisk of {target}, so the ask ends as 'Leave it'."
     },
     "Reroll": {
       "lastRoll": "Your {action} roll: {total} {duality}.",

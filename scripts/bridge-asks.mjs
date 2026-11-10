@@ -1013,10 +1013,12 @@ export function requestFriskAsk({ searcherId, targetId }) {
            when the only GM leaves or reloads, the wait runs its clock, friskAnswerMs + friskMarginMs (75 s), and the
            clock hands the action back (E18 fix c7-G1, the review's C7-R1; R1006 drives both). A wait that runs out tells
            the primary, which ends the ask so a yes after it is not kept (`expired`, frisk.mjs `expireFriskAsk`, which
-           judges that claim). No receipt: the ask's end is its cards, posted before its answer goes, and with a force
-           open the follow is the searcher's next word. */
+           judges that claim). The answer's receipt (E68 C11; D084): an answer that leaves a force open waits `TIMING.ackMs`
+           on the primary for it, and with none ends as 'Leave it' (frisk.mjs `answerSearcher`); any other answer ended
+           the ask with its cards, posted before it went, and its receipt finds nothing. */
         untilPrimaryLeaves: true,
         expired: ACTION_RULING_EXPIRED,
+        received: ACTION_RULING_RECEIVED,
         lateMs: TIMING.friskMarginMs,
         late: value => debug("A Frisk's ask was answered after this browser stopped waiting", value),
         local: () => import("./frisk.mjs").then(m => m.askToFriskHere({ searcherId, targetId }, game.user)).then(out => {

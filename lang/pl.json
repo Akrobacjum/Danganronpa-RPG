@@ -740,7 +740,12 @@
         "passageBuiltShared": "Poznajesz tajne przejście: {from} - {to}.",
         "passageBuilt": "Twoje tajne przejście jest gotowe: {from} - {to}. Możesz przez nie przechodzić.",
         "shown": "{giver} pokazuje ci tajne przejście: {from} - {to}.",
-        "done": "Pokazujesz postaci {target} tajne przejście."
+        "done": "Pokazujesz postaci {target} tajne przejście.",
+        "repick": "Wybierz cel ponownie",
+        "repickTitle": "{name}: wybierz cel ponownie",
+        "repickIntro": "Projekt {name} jest ukończony, ale tego, co miał zrobić, nie udało się zrobić. Wybierz jego cel jeszcze raz, a zostanie zrobiony od razu, jak przy każdym ukończeniu.",
+        "repickDone": "Cel wybrany ponownie przez: {name}.",
+        "repickGone": "Projektu {name} nie da się już tak ukończyć: cofnięto go, usunięto albo już go ukończono."
       },
       "gm": {
         "found": "{actor} znajduje tajne przejście {from} - {to}.",
@@ -4725,7 +4730,8 @@
         "other": "{who} prosi o pokazanie kieszeni: {target}. Ta osoba jest w incydencie, więc nikt nie dostaje pytania: za {s} s {who} usłyszy, że nie ma odpowiedzi."
       },
       "gmKeptNow": "{who} prosi o pokazanie kieszeni: {target}. To ciało, którego śmierć trzymasz, a gracza tej postaci nie ma, więc nikt nie dostaje pytania: {who} od razu słyszy, że nie ma odpowiedzi. Odkrycie możesz otworzyć ręcznie.",
-      "gmIncidentNow": "{who} prosi o pokazanie kieszeni: {target}. Ta osoba jest w incydencie, a jej gracza nie ma, więc nikt nie dostaje pytania: {who} od razu słyszy, że nie ma odpowiedzi."
+      "gmIncidentNow": "{who} prosi o pokazanie kieszeni: {target}. Ta osoba jest w incydencie, a jej gracza nie ma, więc nikt nie dostaje pytania: {who} od razu słyszy, że nie ma odpowiedzi.",
+      "noReceipt": "Przeglądarka gracza postaci {who} nie potwierdziła odpowiedzi na przeszukanie postaci {target}, więc prośba kończy się jak 'Odpuść'."
     },
     "Reroll": {
       "lastRoll": "Twój rzut ({action}): {total} {duality}.",

@@ -15251,6 +15251,7 @@ const REGRESSIONS = [
             ["eclipse.mjs#askGmToAllow", "gm", null, "`writeParkedMurder` runs on a GM: the run of `murder.park`, or a GM's own (`local`)"],
             ["projects.mjs#announceTrapReady", "gm", null, "`addProgress` asks a GM on a player's browser and runs this on a GM's"],
             ["projects.mjs#announceTrapReady (2)", "gm", null, "the same, the manual trap's card"],
+            ["projects.mjs#offerRepick", "gm", null, "a refused completion's card (E68 C11; D023): the primary's, in the completion's `after`"],
             ["reroll.mjs#settleGmRuling", "gm", null, "a Reroll is replayed on a GM (`rerollOnGm`)"],
             ["traps.mjs#alert", "gm", null, "the trap relay's alert, on a GM"],
             ["gm-bridge.mjs#askHopeCallByCard", "gm", null, "the run of `call.approve`, on the primary GM"],

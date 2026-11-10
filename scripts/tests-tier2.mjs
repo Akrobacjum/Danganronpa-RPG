@@ -32987,6 +32987,118 @@ const SCENARIOS = [
         }), "[an ask: its state, held after the answerer's expiry, after the searcher's of another id, after the searcher's own at once, after its 'Leave it' while asking (refused), after it once the wait could have run out; the cards, the windows withdrawn, the searcher's answers; the yes after it], [a refusal with its force open, then the searcher's expiry], [an ask, then this GM's socket back: its state, the listener, held, what was posted, the yes after it], [the wait names the expiry and ends with the primary]");
     }],
 
+    ["an open Frisk's answer that leaves its force open waits for the searcher's receipt as the other asks do: the searcher's receipt keeps the ask, another user's is not taken, and none within the receipt's time ends it as 'Leave it' with the GMs told (E68 C11; D084)", async () => {
+        /*
+         * E68 C11, 10.11.2026; D084 (E18 C7's gap "no receipt for a Frisk ask"), the owner's default of 10.11: "a Frisk
+         * ask gets the same 'received' as the other asks, and one with no receipt in the usual time ends as 'Leave it', the
+         * GM told". A refusal with the force on answers the searcher and keeps the ask open for its force; the answer went
+         * to a browser that may have closed, and nothing said whether it arrived. The searcher's wait names the receipt
+         * now (bridge-asks.mjs `requestFriskAsk`), the primary takes it by call-gm.mjs `receivedOnPrimary` for the ask held
+         * under that request id for that sender (frisk.mjs `receivedFriskAsk`), and with none within `TIMING.ackMs` the ask
+         * ends as 'Leave it' would (`unreceivedFriskAsk`), the GMs told on a card of their own. Driven as E18 C7's test
+         * drives the asks: through the bridge's judge, the force on, the two alone in a room. Phases: an ask refused, the
+         * searcher's receipt, then the receipt's time and a margin; a second ask refused, the answerer's receipt (another
+         * user's), then the same wait. Read: whether each ask is held, the cards, and the wait's options. Red at d5c0a8fb:
+         * the receipt finds nothing, the first ask is held and so is the second, with no card to anybody, and the wait
+         * names no receipt.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the ask is a connected player's, as Foundry names only those");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const F = await import("./frisk.mjs");
+        const S = await import("./secret.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const answerer = ownerIdsOf(other).find(id => game.users.get(id)?.active) ?? null;
+        must(answerer, `${other.name} has no connected player - this would measure nothing`);
+        const ACT = "system.resources.actions.value";
+        const putBack = sheetAsFound(theirs, [ACT]);
+        const top = Math.max(1, actionsLeft(theirs));
+        const asPlayer = { [(await import("./roll-draw.mjs")).PAID_AS_PLAYER]: true };
+        const pay = async () => {
+            await trustedWrite(theirs, { [ACT]: top }, { reason: "gmRuling", ...asPlayer });
+            await trustedWrite(theirs, { [ACT]: top - 1 }, { reason: "gmRuling", ...asPlayer });
+        };
+        const forceKey = `${MODULE_ID}.friskForce`, force = game.settings.settings.has(forceKey) ? game.settings.get(MODULE_ID, "friskForce") : null;
+        const clockWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.clock));
+        const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
+        const line = (key, data = {}) => game.i18n.format(key, Object.fromEntries(Object.entries(data).map(([k, v]) => [k, esc(v)])));
+        const KINDS = [["refused", "DRPG.Frisk.refused", { who: other.name }], ["toTarget letGo", "DRPG.Frisk.letGo", { who: theirs.name }],
+            ["gms noReceipt", "DRPG.Frisk.noReceipt", { who: theirs.name, target: other.name }]];
+        const kindOf = words => KINDS.find(([, key, data]) => words.includes(line(key, data)))?.[0] ?? "other";
+        const made = [];
+        const hook = Hooks.on("createChatMessage", message => made.push(message));
+        let mark = 0;
+        const cards = () => {
+            const out = made.slice(mark).map(message => S.secretHtml(message)).filter(words => words !== null).map(kindOf).filter(k => k !== "other");
+            mark = made.length;
+            return out;
+        };
+        const judged = async (action, fields, from, requestId = `E68D84${foundry.utils.randomID(8)}`) => {
+            const out = [];
+            await G.judge(BRIDGE_ACTIONS, { action, requestId, ...fields }, from,
+                { send: (to, reply) => { if (reply?.action !== "bridge.ack") out.push(reply?.action === "bridge.refused" ? reply.reason : reply?.value?.outcome ?? reply?.value ?? null); } });
+            await settle();
+            return out;
+        };
+        const rowOf = searcherId => [...F.friskAsks.values()].find(row => row.searcherId === searcherId) ?? null;
+        const holds = row => Boolean(row && F.friskAsks.has(row.askId));
+        const refusedAsk = async rid => {
+            F.forgetFriskAsks();
+            await pay();
+            await judged("action.friskAsk", { searcherId: theirs.id, targetId: other.id }, player.id, rid);
+            const row = rowOf(theirs.id);
+            const no = await judged("action.friskAnswer", { askId: row?.askId ?? null, allow: false }, answerer);
+            return { row, no, state: row?.state ?? null };
+        };
+        const seen = {};
+        let stood = null;
+        try {
+            if (clockWas.eclipse || clockWas.phase === "classTrial") {
+                await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clockWas, eclipse: false, phase: "dailyLife" });
+                await settle();
+            }
+            stood = await aloneTogether(theirs, other);
+            await (await import("./remnants.mjs")).flushTraceDigest();
+            await settle();
+            if (force !== null) await game.settings.set(MODULE_ID, "friskForce", true);
+            mark = made.length;
+            const ridA = `E68D84a${foundry.utils.randomID(8)}`;
+            const a = await refusedAsk(ridA);
+            await judged("ruling.received", { rid: ridA }, player.id);
+            await wait(TIMING.ackMs + 1500);
+            await settle();
+            seen.received = { no: a.no, state: a.state, held: holds(a.row), cards: cards() };
+            const ridB = `E68D84b${foundry.utils.randomID(8)}`;
+            const b = await refusedAsk(ridB);
+            await judged("ruling.received", { rid: ridB }, answerer);
+            const heldAtOnce = holds(b.row);
+            await wait(TIMING.ackMs + 1500);
+            await settle();
+            seen.none = { no: b.no, state: b.state, heldAtOnce, held: holds(b.row), cards: cards() };
+            const askWait = bridgeFn(new Map(await otherSources()), "requestFriskAsk");
+            seen.wait = [/\breceived:\s*ACTION_RULING_RECEIVED\b/.test(askWait), /\bexpired:\s*ACTION_RULING_EXPIRED\b/.test(askWait)];
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            F.forgetFriskAsks();
+            if (force !== null && game.settings.get(MODULE_ID, "friskForce") !== force) await game.settings.set(MODULE_ID, "friskForce", force);
+            await putBack();
+            (await import("./roll-draw.mjs")).forgetPayments?.(theirs.id);
+            if (stood) await stood.back();
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.clock)) !== stableJson(clockWas)) await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
+            await settle();
+        }
+        equal(stableJson(seen), stableJson({
+            received: { no: ["refused"], state: "refused", held: true, cards: ["refused"] },
+            none: { no: ["refused"], state: "refused", heldAtOnce: true, held: false, cards: ["refused", "toTarget letGo", "gms noReceipt"] },
+            wait: [true, true]
+        }), "[an ask refused with the force on, then the searcher's receipt: the answer, its state, held after the receipt's time, the cards; another ask refused, then the answerer's receipt: the answer, its state, held at once, held after the receipt's time, the cards; the wait names the receipt and the expiry] - a Frisk's answer is not received as the other asks', or one with no receipt keeps its force open");
+    }],
+
     ["a Sabotage asked again under its request id answers what it answered the first time: one freeze, one repair, the same reply, while another player's packet under that id and the saboteur's under another are judged as new (E18 C7)", async () => {
         /*
          * E18 C7, 26.10.2026; audit S10-43 part 2, the stage's row E18-32. A player's Sabotage is asked again with its
@@ -63134,6 +63246,163 @@ const SCENARIOS = [
         equal(J(read?.released?.slice(0, 1).concat(read?.released?.slice(5))), J([1, false, null]),
             "[the passages, the project, kept for] once the bookmark names another roll - the kept project stays, or its passage goes with it");
     }],
+    ["a Secret Passage whose completion is refused stays full and in place, the GMs alone get a card with the reason and 'Choose the target again', and the approval's pick it opens completes the project as a completion does (E68 C11; D023)", async () => {
+        /*
+         * E68 C11, 10.11.2026; D023 (E15 part 2's C2 gap: "a refusal at the completion leaves the bar full ... and nothing
+         * offers to pick again"), the owner's default of 10.11. On a scene of the test's own - a Dorm with a Gym beyond one
+         * wall and a Bath beyond another, as E15-T12's - the builder Hana (the first player's) in the Dorm, a Secret
+         * Passage approved on the Dorm-Gym wall, and a GM's own passage drawn on that stretch before it is finished, so
+         * the completion is refused (passages-gm.mjs `builtPassageRow`: taken). The GM stores are a world of the test's own
+         * (`withGmStoreWorld`). Read: after the refused completion, the project (still there, full, not kept for a Reroll,
+         * its refusal held for a new pick), the card (its button, its readers - the GMs alone -, the reason's words); then
+         * the card's button pressed as a GM presses it (messenger-app.mjs `wireCallActions`), the window it draws (the
+         * approval's box: the room beyond offered and chosen, the pick), the Bath chosen and a stretch of the Dorm-Bath wall
+         * put where the pick puts it, and the window's button: the passage made on that wall for Hana, the project kept
+         * for the Reroll of the roll that finished it as a completion keeps it, the builder's card, the done card not
+         * posted again, the card settled; and a second pick asked of the step, refused. Red at d5c0a8fb: the refused
+         * completion removes the project and posts a card with no button.
+         */
+        needs(env.dialogs(), "the card's button opens a window drawn on this GM");
+        const P = await import("./passages-gm.mjs");
+        const PR = await import("./projects.mjs");
+        const S = await import("./gm-stores.mjs");
+        const E = await import("./gm-store.mjs");
+        const R = await import("./rooms.mjs");
+        const { ownerOf, isPrimaryGm } = await import("./utils.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const J = v => JSON.stringify(v);
+        must(isPrimaryGm(), "this GM is not the primary, whose browser makes the completion - run the suite on the primary GM");
+        const [hanaOf] = cast(1);
+        needs(world.ownedByPlayer(hanaOf), "the builder is a player's, and the suite's players own the cast");
+        const builderUser = ownerOf(hanaOf);
+        const clock = foundry.utils.deepClone(getClock() ?? {});
+        const DORM = "SUITE E68 D023 Dorm", GYM = "SUITE E68 D023 Gym", BATH = "SUITE E68 D023 Bath";
+        const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x, y) => ({ name, shapes: [{ type: "rectangle", x, y, width: 600, height: 600 }], flags: mark, behaviors: [] });
+        const OWNER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+        let scene = null, read = null, projectId = null;
+        const actors = [], posted = [];
+        const heard = Hooks.on("createChatMessage", message => { posted.push(message); });
+        const repickWindow = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-project-repick")) ?? null;
+        try {
+            if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            scene = await Scene.create({ name: "SUITE E68 D023 a refused passage", width: 2000, height: 1400, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room(DORM, 0, 0), room(GYM, 600, 0), room(BATH, 0, 600)]);
+            await scene.createEmbeddedDocuments("Wall", [{ c: [600, 0, 600, 600] }, { c: [0, 600, 600, 600] }]);
+            read = await E.withGmStoreWorld(`suite-e68-d023-${foundry.utils.randomID(8)}`, async () => {
+                const hana = await Actor.create({ name: "SUITE E68 D023 Hana", type: "character", ownership: { default: 0, [builderUser.id]: OWNER } });
+                actors.push(hana);
+                await scene.createEmbeddedDocuments("Token", [{ actorId: hana.id, actorLink: true, name: hana.name, x: 100, y: 200, width: 1, height: 1 }]);
+                await settle();
+                // The board's own view stands in (E15-T12's `site`): the pick does not change the scene this GM views.
+                const site = new Proxy(scene, { get: (target, key) => (key === "view" ? async () => true : Reflect.get(target, key, target)) });
+                const pick = async rooms => {
+                    let board = null;
+                    const picking = P.startPassagePick(site, { between: { rooms, level: null }, preview: () => {}, notify: () => {},
+                        board: handlers => { board = handlers; return () => { board = null; }; },
+                        prompt: () => ({ step: () => {}, refuse: () => {}, close: () => {} }) });
+                    for (let i = 0; i < 100 && !board; i++) await new Promise(r => setTimeout(r, 5));
+                    must(board, "the pick put nothing on the board - this would measure nothing");
+                    if (rooms.includes(GYM)) {
+                        await board.click({ x: 602, y: 150 });
+                        await board.click({ x: 598, y: 400 });
+                    } else {
+                        await board.click({ x: 150, y: 602 });
+                        await board.click({ x: 400, y: 598 });
+                    }
+                    return picking;
+                };
+                const toGym = await pick([DORM, GYM]);
+                const toBath = await pick([DORM, BATH]);
+                must(toGym?.wallId && toBath?.wallId, "the pick made no stretch - this would measure nothing");
+                const made = await PR.createProject({ name: "SUITE E68 D023 Secret Passage", target: 6, room: DORM, trait: "hand", secret: false, by: hana.id,
+                    viewers: [], presetTarget: { preset: "secretPassage", room: GYM }, passage: toGym });
+                projectId = made?.id ?? null;
+                must(projectId, "the project was not made - this would measure nothing");
+                // A GM draws a passage on the same stretch before it is finished: the completion's stretch is taken.
+                const drawn = await P.createPassage({ sceneId: scene.id, wallId: toGym.wallId, seg: toGym.seg, rooms: toGym.rooms, level: null });
+                must(typeof drawn === "string" && drawn, "the GM's own passage on the stretch was not drawn - the completion would not be refused");
+                const ours = () => Object.entries(S.passageSeasonStore.entries()).filter(([, row]) => row?.origin?.projectId === projectId);
+                // Whatever the run reached, the passages on the test's scene and the project go before the store world does.
+                const tidy = async out => {
+                    for (const id of Object.keys(S.passageSeasonStore.entries())) if (S.passageSeasonStore.get(id)?.sceneId === scene.id) await P.deletePassage(id).catch(() => {});
+                    if (projectId) await PR.deleteProject(projectId).catch(() => {});
+                    projectId = null;
+                    return out;
+                };
+                const by = { kind: "player", userId: builderUser.id, actorId: hana.id };
+                await S.rerollBookmarkStore.patch(hana.id, { messageId: "SUITEE68D023MSG1" });
+                const doneWords = game.i18n.localize("DRPG.Project.doneTitle");
+                const before = posted.length;
+                const done = await PR.applyProjectChange(projectId, { delta: 6 }, { by });
+                await settle();
+                const project = () => PR.allProjects().find(p => p.id === projectId) ?? null;
+                const card = posted.slice(before).find(m => String(contentOf(m) ?? "").includes('data-drpg-call="repickProjectTarget"')) ?? null;
+                const words = card ? String(contentOf(card) ?? "") : "";
+                const out = {};
+                out.refused = [done?.crossed ?? null, Boolean(project()), project()?.current ?? null, ours().length,
+                    S.projectSecretStore.get(projectId)?.keptFor ?? null, Boolean(S.projectSecretStore.get(projectId)?.repick)];
+                out.card = card ? [Boolean(card.whisper?.length) && card.whisper.every(id => game.users.get(id)?.isGM),
+                    words.includes(`data-project="${projectId}"`), words.includes(game.i18n.localize("DRPG.Passage.card.repick")),
+                    words.includes(foundry.utils.escapeHTML(game.i18n.format("DRPG.Passage.card.notBuilt", { name: "SUITE E68 D023 Secret Passage", why: "" })).slice(0, 30))] : null;
+                if (!card) return tidy(out);
+                // The button, as a GM presses it, and its window.
+                const body = document.createElement("div");
+                body.innerHTML = words;
+                wireCallActions(body, card);
+                const doneBefore = posted.filter(m => String(contentOf(m) ?? "").includes(doneWords)).length;
+                const mid = posted.length;
+                body.querySelector('[data-drpg-call="repickProjectTarget"]')?.click();
+                await until(() => repickWindow()?.element, 6000);
+                const app = repickWindow();
+                const form = app?.element?.querySelector("form") ?? null;
+                const select = form?.querySelector('select[name="passageTo"]') ?? null;
+                out.window = [Boolean(app), select ? [...select.options].map(o => o.value) : null, select?.value ?? null,
+                    Boolean(form?.querySelector("[data-drpg-passage-pick]")), Boolean(form?.querySelector('input[name="passage"]'))];
+                if (!form || !select) return tidy(out);
+                select.value = BATH;
+                select.dispatchEvent(new Event("change"));
+                form.querySelector('input[name="passage"]').value = JSON.stringify(toBath);
+                app.element.querySelector('footer button[data-action="repick"]')?.click();
+                await until(() => !repickWindow() && ours().length > 0, 8000);
+                await until(() => cardFlag(game.messages.get(card.id), "settled"), 6000);
+                await settle();
+                const [pid = null, row = null] = ours()[0] ?? [];
+                const fresh = posted.slice(mid);
+                out.repicked = [ours().length, row ? [...row.rooms].sort() : null, pid ? S.passageAccessStore.get(`${pid}/${hana.id}`)?.how ?? null : null,
+                    Boolean(project()), S.projectSecretStore.get(projectId)?.keptFor?.messageId ?? null, S.projectSecretStore.get(projectId)?.repick ?? null,
+                    fresh.some(m => (m.whisper ?? []).includes(builderUser.id) && String(contentOf(m) ?? "").includes(game.i18n.format("DRPG.Passage.card.passageBuilt", { from: "", to: "" }).split("{")[0].slice(0, 20))),
+                    posted.filter(m => String(contentOf(m) ?? "").includes(doneWords)).length - doneBefore,
+                    Boolean(cardFlag(game.messages.get(card.id), "settled"))];
+                // A second pick, asked of the step: nothing waits for one now.
+                const again = await PR.applyProjectChange(projectId, { repick: { passage: toBath, room: BATH } }, { by: { kind: "gm" } });
+                out.again = [again?.changed ?? null, again?.reason ?? null, ours().length];
+                return tidy(out);
+            });
+        } finally {
+            Hooks.off("createChatMessage", heard);
+            for (const a of foundry.applications.instances.values()) if (a.options?.classes?.includes("drpg-project-repick")) await a.close().catch(() => {});
+            if (projectId) await PR.deleteProject(projectId).catch(() => {});
+            for (const actor of actors) await actor.delete().catch(() => {});
+            for (const message of posted) await game.messages.get(message.id)?.delete().catch(() => {});
+            await scene?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        equal(J(read?.refused), J([true, true, 6, 0, null, true]),
+            "[crossed; the project still there; its bar; the passages it made; kept for; its refusal held for a new pick] - a refused completion removes the project, or keeps it for the Reroll, so nothing can pick again");
+        equal(J(read?.card), J([true, true, true, true]),
+            "[the card read by the GMs alone, its button names the project, its label, the reason's words] - the GMs get no card with the button, or a player reads it");
+        equal(J(read?.window), J([true, [BATH, GYM], GYM, true, true]),
+            "[the window drawn, the rooms beyond offered, the one chosen, the pick's button, the stretch's field] - the button does not open the approval's pick");
+        equal(J(read?.repicked), J([1, [BATH, DORM].sort(), "built", true, "SUITEE68D023MSG1", null, true, 0, true]),
+            "[the passages the project made, its rooms, Hana's way of knowing it, the project kept, kept for, the refusal held, the builder told, done cards posted again, the card settled] - the new pick does not complete the project as a completion does");
+        equal(J(read?.again), J([false, "DRPG.Passage.card.repickGone", 1]),
+            "[a second pick: changed, why, the passages] - a target is chosen again for a project nothing waits on");
+    }],
+
     ["E15-T13 - Breach the Wall, the cut: a finished breach cuts the real wall in three - the wall itself before the stretch, a hole that stops nothing and alone holds the breach's flag (no actor, user or project id), a copy after it -, moves the passages on that wall to the piece that holds them and makes the one the hole touches public; a move through the hole is clear and through the rest is judged as before; one breach to a wall; the Reroll's undo, the GMs' Close the breach and the season's reset each give the wall back byte for byte; Make public writes no wall and tells nobody; a wall deleted meanwhile is reported, not rebuilt", async () => {
         /*
          * E15 part 2 C3 (25.10.2026; A10's S16-17, step 15; the stage's E15-46 to E15-49 and its write roads "a wall: the

@@ -501,7 +501,7 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ rid: as.text }),
         run: handleRulingReceived,
         answer: "none", quiet: true,
-        claims: { rid: "receivedOnPrimary (call-gm.mjs) writes only a ruling this primary sent under that id to the sender" }
+        claims: { rid: "receivedOnPrimary (call-gm.mjs) writes only a ruling this primary sent under that id to the sender - a card's, or an open Frisk's answer that left its force open (frisk.mjs receivedFriskAsk: the ask held under that id, asked by the sender, waiting for its receipt)" }
     },
     /*
      * THE GM PICKS THE STATISTIC (E32+E07 C11b, 02.10.2026; audit S04-23). Judged on

@@ -696,7 +696,9 @@ export async function receivedOnPrimary(requestId, senderId) {
         answeredElsewhere.asks.delete(requestId);
         return true;
     }
-    return false;
+    // An open Frisk's answer, held by its request id and its asker in frisk.mjs's memory, as its expiry is (E68 C11; D084).
+    const { receivedFriskAsk } = await import("./frisk.mjs");
+    return receivedFriskAsk(requestId, senderId);
 }
 
 /* ==========================================================================

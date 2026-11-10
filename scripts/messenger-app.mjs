@@ -969,6 +969,14 @@ async function ruleFireTrap(action, data) {
     return opened ? settled("DRPG.Bridge.settledHandled") : null;
 }
 
+async function ruleRepickProjectTarget(action, data) {
+    // A Secret Passage's or a breach's completion refused (E68 C11; D023, projects.mjs `offerRepick`): the approval's pick
+    // again, and the completion made on the primary with the new target. Closed with nothing chosen, the card stays open.
+    const { openTargetRepick } = await import("./projects-ui.mjs");
+    const done = await openTargetRepick(data.project);
+    return done ? settled("DRPG.Passage.card.repickDone") : null;
+}
+
 async function ruleApproveProject(action, data) {
     // Prefilled, not applied. The GM asked for a proposal so they could
     // change it - approving straight into existence would be the old
@@ -1354,6 +1362,7 @@ const CARD_ACTIONS = {
     rearmTrap: ruleRearmTrap,
     fireTrap: ruleFireTrap,
     approveProject: ruleApproveProject,
+    repickProjectTarget: ruleRepickProjectTarget,
     declineProject: ruleDeclineProject,
     approveReshape: ruleApproveReshape,
     declineReshape: ruleDeclineReshape,

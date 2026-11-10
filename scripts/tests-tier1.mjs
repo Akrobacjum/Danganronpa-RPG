@@ -44542,6 +44542,65 @@ const INVARIANTS = [
             "the Remnant's visibility at 2, 11, 12, 17, 18, 24 and a critical 3; the roll's statistic, the cover's and its number");
     }],
 
+    ["R3251 - a refused completion's new target is a change the project's step knows (projects.mjs `cleanProjectChange`, E68 C11; D023): `{ repick }` with a stretch and a room is kept as a copy, one with no stretch, no room or a stretch that is not an object is dropped, and nothing else of the change is lost", async () => {
+        /*
+         * E68 C11, 10.11.2026; D023 (the owner's default: "Choose the target again" opens the approval's pick, and a pick
+         * that succeeds completes the project). The pick is made on the GM whose card's button was pressed and written on
+         * the primary as the change `{ repick }` - another GM's goes there by `project.change`, whose packet is cut by
+         * `cleanProjectChange` - so a change the cut does not know is never made. Read on plain values. Red at d5c0a8fb:
+         * the cut drops `repick`.
+         */
+        const PR = await import("./projects.mjs");
+        const stretch = { sceneId: "SUITER3251SCENE", wallId: "SUITER3251WALL", level: null, seg: { x1: 600, y1: 150, x2: 600, y2: 400 }, rooms: ["Dorm", "Bath"] };
+        const kept = PR.cleanProjectChange({ repick: { passage: stretch, room: "Bath", extra: 1 } });
+        const copied = kept?.repick?.passage !== stretch;
+        const dropped = [{ repick: { passage: stretch } }, { repick: { room: "Bath" } }, { repick: { passage: "x", room: "Bath" } }, { repick: [stretch] }]
+            .map(change => PR.cleanProjectChange(change));
+        const beside = PR.cleanProjectChange({ delta: 1, repick: { passage: stretch, room: "" } });
+        equal(stableJson([kept, copied, dropped, beside]),
+            stableJson([{ repick: { passage: stretch, room: "Bath" } }, true, [null, null, null, null], { delta: 1 }]),
+            "[a stretch and a room kept, as a copy; four malformed ones; one beside a delta] - the step never hears the new pick, or takes a malformed one");
+    }],
+
+    ["R3252 - an open Frisk's answer is received as the other asks' are (call-gm.mjs `receivedOnPrimary`, frisk.mjs `receivedFriskAsk`, E68 C11; D084): a receipt under the ask's request id from its asker ends the wait for it, one from another user, under another id, for an ask not answered or not waiting is not taken", async () => {
+        /*
+         * E68 C11, 10.11.2026; D084 (E18 C7's gap: no receipt for a Frisk ask), the owner's default of 10.11. The
+         * searcher's `ruling.received` reaches `receivedOnPrimary`, which held only a card's asks and answered false for a
+         * Frisk's, so the primary could not tell an answer that arrived from one that did not. Read on asks planted in this
+         * GM's memory (frisk.mjs `friskAsks`) with a receipt's clock that is never let run, taken out after; nothing is
+         * written. Red at d5c0a8fb: the asker's receipt is not taken.
+         */
+        const F = await import("./frisk.mjs");
+        const C = await import("./call-gm.mjs");
+        const timers = [];
+        const plant = (askId, fields) => {
+            const receiptTimer = setTimeout(() => {}, 600000);
+            timers.push(receiptTimer);
+            const row = { askId, requestId: `${askId}rid`, asker: "SUITER3252ASKER", replied: true, state: "refused", receiptTimer, ...fields };
+            F.friskAsks.set(askId, row);
+            return row;
+        };
+        const rows = [plant("SUITER3252A", {}), plant("SUITER3252B", { replied: false }), plant("SUITER3252C", { receiptTimer: null })];
+        let out = null;
+        try {
+            out = [
+                await C.receivedOnPrimary("SUITER3252Arid", "SUITER3252OTHER"),
+                await C.receivedOnPrimary("SUITER3252Xrid", "SUITER3252ASKER"),
+                await C.receivedOnPrimary("SUITER3252Brid", "SUITER3252ASKER"),
+                await C.receivedOnPrimary("SUITER3252Crid", "SUITER3252ASKER"),
+                Boolean(rows[0].receiptTimer),
+                await C.receivedOnPrimary("SUITER3252Arid", "SUITER3252ASKER"),
+                rows[0].receiptTimer ?? null,
+                await C.receivedOnPrimary("SUITER3252Arid", "SUITER3252ASKER")
+            ];
+        } finally {
+            for (const row of rows) F.friskAsks.delete(row.askId);
+            for (const timer of timers) clearTimeout(timer);
+        }
+        equal(stableJson(out), stableJson([false, false, false, false, true, true, null, false]),
+            "[another user's receipt, one under another id, one for an ask not answered, one for an ask not waiting; still waiting; the asker's receipt; its clock after; the same receipt again] - a Frisk's answer is not received, or a receipt nobody was sent is taken");
+    }],
+
     ["R3144 - a body's tile wears its caption and the dead sign (body-tile.mjs `drawBodyMark`, E95 C3; QUESTIONS Q4): \"{name}'s body\" / \"Ciało: {name}\" under the tile at max(20, grid x 0.36) over a keyline of max(4, grid x 0.07), the dead status's picture over its centre; drawn once per redraw, at half alpha on a hidden tile on a GM's browser and not at all on a player's, and taken off a tile that lost its flag", async () => {
         /*
          * E95 C3, 10.11.2026; QUESTIONS Q4 (the default: the caption and the sign in E95). The harm: a body tile beside
