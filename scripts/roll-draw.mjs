@@ -1825,6 +1825,12 @@ const pickKeyOf = (kind, key) => (kind === "cleanup" && !CLEANUP.actions?.[key]?
  * key (`pickKeyOf`) and its variant the roll's - naming a statistic the definition lists.
  * A ruling the valve made (E68 C2, `auto: true`) is such a card: the primary GM wrote it by the
  * road a press takes (messenger-app.mjs `pressCard`), so it is read as a press is, with no row of its own.
+ *
+ * A PASS ENDS THE CARD BEFORE IT (E68 review R3, 10.11.2026; DA46). A player's pass after a GM's "Change to" is a
+ * line of their thread carrying the definition it passes on (`traitPass`, trait-ruling.mjs `rollChanged`); met
+ * before a card for that character and definition - newer than it - written by the character's owner or a GM, it
+ * leaves no pick: the roll is read as one with no card. A pass only takes a pick away, so a player who writes one
+ * gains nothing by it.
  */
 function gmPickOf(actor, spec, listed) {
     const since = Date.now() - TIMING.rerollWindowMinutes * 60_000;
@@ -1834,6 +1840,12 @@ function gmPickOf(actor, spec, listed) {
     for (let i = messages.length - 1; i >= 0; i--) {
         const message = messages[i];
         if (typeof message.timestamp === "number" && message.timestamp < since) break;
+        const pass = cardFlag(message, "traitPass");
+        if (pass?.actorId === actor.id && pass.kind === spec.kind && pickKeyOf(pass.kind, pass.key) === spec.key
+            && (pass.variant || null) === (spec.variant ?? null)) {
+            const writer = cardWriter(message);
+            if (writer?.isGM || (writer && actor.testUserPermission?.(writer, "OWNER"))) return null;
+        }
         const ruling = cardFlag(message, "ruling");
         if (ruling?.type !== "trait" || ruling.actorId !== actor.id || ruling.kind !== spec.kind || !cardWriter(message)?.isGM) continue;
         if (pickKeyOf(ruling.kind, ruling.key) !== spec.key || (ruling.variant || null) !== (spec.variant ?? null)) continue;
