@@ -43311,7 +43311,7 @@ const INVARIANTS = [
             heads,
             groups: shown.length > 1 ? shown.map(([key, list]) => `${T(`DRPG.Panel.group.${key}`)} ${list.length}`) : [],
             students: students.map(a => [true, "student", true, levelWords(a), heads.length]),
-            others: others.map(a => [true, isMonokuma(a) ? "monokuma" : "npc", false, levelWords(a), heads.length, 0]),
+            others: others.map(a => [!isMonokuma(a), isMonokuma(a) ? "monokuma" : "npc", false, levelWords(a), heads.length, 0]),
             order: [...students, ...kumas, ...npcs].map(a => a.id),
             footer: ["save", "cancel"]
         }), "{kit: the table a dataTable; heads; groups: each group row's words and count; students and others: [Items beside the name, the Role's value, a State select, "
@@ -43452,8 +43452,8 @@ const INVARIANTS = [
             release?.(null);
             await w.close();
         }
-        equal(stableJson(got), stableJson({ beside: rows.map(() => true), footer: ["save", "cancel"], calls: [first.id], whileHub: 0, back: true }),
-            "{beside: an Items button in each row's first cell; footer: its actions; calls: the actors openItemManager was called with; whileHub: Students windows drawn while the hub ran; back: the window drawn again after}");
+        equal(stableJson(got), stableJson({ beside: rows.map(a => a.getFlag(MODULE_ID, "monokuma") !== true), footer: ["save", "cancel"], calls: [first.id], whileHub: 0, back: true }),
+            "{beside: an Items button in each row's first cell but a Monokuma's (E95 C7); footer: its actions; calls: the actors openItemManager was called with; whileHub: Students windows drawn while the hub ran; back: the window drawn again after}");
     }],
 
     ["R2084 - the Students window is a GM's (scripts/gm-students.mjs; E47-C8): on a player's browser `openWhoIsAliveDialog` opens nothing, and the Role's roads called from it write nothing (monokuma.mjs `setMonokuma` and `setNotInClass` refuse on `game.user.isGM`, `markFromSheet` through them); Refund last crossing on the kit's secondary role", async () => {

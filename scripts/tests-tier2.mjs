@@ -84331,6 +84331,9 @@ const SCENARIOS = [
                 return [Boolean(b), b?.getAttribute("aria-label") === words && b?.dataset.tooltip === words];
             };
             read.sheetRows = { student: sheetButton(theirs) };
+            // The Items control (E95 C7): on a student's and an NPC's row, not on a Monokuma's.
+            const itemsButton = actor => Boolean(el()?.querySelector(`button[data-drpg-items="${CSS.escape(actor.id)}"]`));
+            read.itemsRows = { student: itemsButton(theirs) };
 
             choose(theirs, "monokuma");
             await until(() => question(), 3000);
@@ -84346,6 +84349,7 @@ const SCENARIOS = [
             await settle();
             read.yes = [MK.isMonokuma(theirs), Number(foundry.utils.getProperty(theirs, HOPE) ?? -1), Number(foundry.utils.getProperty(theirs, ACTIONS) ?? -1), select(theirs)?.value ?? null];
             read.sheetRows.monokuma = sheetButton(theirs);
+            read.itemsRows.monokuma = itemsButton(theirs);
 
             choose(theirs, "student");
             await until(() => !MK.isMonokuma(theirs) && select(theirs)?.value === "student", 4000);
@@ -84358,6 +84362,7 @@ const SCENARIOS = [
             await until(() => MK.isNotInClass(npc) && select(npc)?.value === "npc" && !levelUp(npc), 4000);
             read.out = [npcHad, MK.isNotInClass(npc), levelUp(npc), Boolean(question())];
             read.sheetRows.npc = sheetButton(npc);
+            read.itemsRows.npc = itemsButton(npc);
             choose(npc, "student");
             await until(() => !MK.isNotInClass(npc) && select(npc)?.value === "student" && levelUp(npc), 4000);
             read.backIn = [MK.isNotInClass(npc), levelUp(npc)];
@@ -84417,7 +84422,8 @@ const SCENARIOS = [
             levelUp: [[["standard", "reinforced"], ["gm", "player"]], 1, true, plural("DRPG.Advance.standing", { n: 1 }), plural("DRPG.Advance.standing", { n: 1 })],
             items: [theirs.id, 0, 1],
             forged: [true, false, "student"],
-            sheetRows: { student: [true, true], monokuma: [true, true], npc: [true, true] }
+            sheetRows: { student: [true, true], monokuma: [true, true], npc: [true, true] },
+            itemsRows: { student: true, monokuma: false, npc: true }
         }), "{cancel: [the mark asked, the flag, the select]; yes: [the flag, Hope, actions, the select]; unmark: [the flag, a question asked, the select]; "
             + "out: [the NPC's Level Up before, the flag, its Level Up after, a question asked]; backIn: [the flag, its Level Up]; "
             + "levelUp: [the menus' rows, the offers standing, the player told, the row's words, the words for them]; items: [the hub's character, Students windows while it ran, after it]; "
@@ -85433,6 +85439,73 @@ const SCENARIOS = [
         };
         equal(stableJson(read), stableJson({ none: [1, 0, true], one: [1, 1, true], both: [1, 2, true], css: { rowHeight: true, badgeHeight: true, reserves: true } }),
             "{the sheet with no state, with Breakdown alone and with both: [rows, badges, the row right after the reserves' section]; the stylesheet's row (a fixed height, no wrap), its badge (the same height, clipped) and the reserves' section (one row)}");
+    }],
+    ["a Monokuma's sheet has no Inventory tab (E95 C7; the owner's 10.11: \"Usunmy z karty postaci monokumy zakladke inventory\"): the link leaves the tab bar and the part is emptied for a Monokuma, a sheet that came up on it moves to the Actions tab, a student's, an NPC's and a Monocub's keep both, and what the Monokuma held stays in its data", async () => {
+        /*
+         * E95 C7, 10.11.2026. The sheet drawn through the module's own hook on the stand-in root (E45-T2's) with the tab
+         * bar added (a `nav` of two links, as `dropBiographyTab` finds the Biography's), for the world's student as it
+         * stands, marked a Monokuma by `setMonokuma` itself, then taken back, and as an NPC and a Monocub by the flags
+         * E45-T1 writes. The sheet that "came up on Inventory" is an app stand-in whose `tabGroups.primary` reads
+         * `inventory` and whose `changeTab` records the call. Put back in a finally: the flags, Hope, Actions.
+         */
+        const { ACTIONS_RESOURCE } = await import("./config.mjs");
+        const { setMonokuma } = await import("./monokuma.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const student = cast(3).at(-1);
+        must(student && !student.getFlag(MODULE_ID, FLAGS.monokuma) && !student.getFlag(MODULE_ID, FLAGS.deceased) && !student.getFlag(MODULE_ID, FLAGS.monocub)
+            && !student.getFlag(MODULE_ID, "notInClass"), "no living student outside every special state - this would measure nothing");
+        const HOPE = "system.resources.hope.value", ACT = `system.resources.${ACTIONS_RESOURCE}.value`;
+        const was = { hope: Number(foundry.utils.getProperty(student, HOPE) ?? 0), act: Number(foundry.utils.getProperty(student, ACT) ?? 0), flag: student.getFlag(MODULE_ID, FLAGS.monokuma) };
+        const held = student.items.size;
+        const look = onInventory => {
+            const root = e45SheetRoot();
+            root.insertAdjacentHTML("afterbegin", `<nav class="sheet-tabs tabs"><a data-tab="features" data-group="primary">Actions</a><a data-tab="inventory" data-group="primary">Inventory</a></nav>`);
+            const part = root.querySelector('section[data-application-part="inventory"]');
+            part.dataset.group = "primary";
+            if (onInventory) part.classList.add("active");
+            const moved = [];
+            const app = { document: student, isEditable: true, element: root, rendered: true, tabGroups: { primary: onInventory ? "inventory" : "features" },
+                changeTab: (tab, group) => { moved.push([tab, group]); } };
+            document.body.append(root);
+            try {
+                Hooks.callAll("renderCharacterSheet", app, root, {}, { isFirstRender: true });
+                return { link: Boolean(root.querySelector('nav [data-tab="inventory"]')), filled: part.children.length > 0, moved };
+            } finally {
+                root.remove();
+            }
+        };
+        const read = {};
+        try {
+            read.student = look(false);
+            read.studentOpen = look(true);
+            await setMonokuma(student, true);
+            await settle();
+            read.monokuma = look(false);
+            read.monokumaOpen = look(true);
+            read.kept = student.items.size === held;
+            await setMonokuma(student, false);
+            await settle();
+            read.back = look(false);
+            await student.setFlag(MODULE_ID, "notInClass", true);
+            await settle();
+            read.npc = look(false);
+            await student.unsetFlag(MODULE_ID, "notInClass");
+            await student.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await settle();
+            read.monocub = look(false);
+        } finally {
+            await setMonokuma(student, false);
+            if (was.flag === undefined) await student.unsetFlag(MODULE_ID, FLAGS.monokuma);
+            if (student.getFlag(MODULE_ID, "notInClass") !== undefined) await student.unsetFlag(MODULE_ID, "notInClass");
+            if (student.getFlag(MODULE_ID, FLAGS.monocub) !== undefined) await student.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await trustedWrite(student, { [HOPE]: was.hope, [ACT]: was.act }, { reason: "setup" });
+            await settle();
+        }
+        const whole = { link: true, filled: true, moved: [] }, bare = { link: false, filled: false, moved: [] };
+        equal(stableJson(read), stableJson({
+            student: whole, studentOpen: whole, monokuma: bare, monokumaOpen: { ...bare, moved: [["features", "primary"]] },
+            kept: true, back: whole, npc: whole, monocub: whole
+        }), "{the sheet as it is drawn for each character: [the Inventory link in the tab bar, the part holding anything, the tabs the sheet was moved to]; a Monokuma keeps what it held}");
     }],
     ["a Students row opens that character's sheet (E95 C6; the owner's 10.11): the GM presses a row's sheet button twice - each press renders that actor's own sheet with force, the same window both times, the Students window stays open, and no other actor's sheet is asked", async () => {
         /*

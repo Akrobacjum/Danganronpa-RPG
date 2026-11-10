@@ -143,7 +143,7 @@ export function sheetMode(actor, user = game.user, { app = null, editable, facts
         levelUp: !npc, offers: owner, init: gm && !monokuma, itemButton: gm && !monokuma, classControls: gm,
         pipEdit: gm, realBullets: gm, otherRemove: gm && canEdit, creators: gm,
         // A Monokuma's sheet is no student's (S03-33): no student groups, no Equipped or Experience, no biography.
-        groups: !monokuma, equipped: !monokuma, experience: !monokuma, biography: !monokuma,
+        groups: !monokuma, equipped: !monokuma, experience: !monokuma, biography: !monokuma, inventory: !monokuma,
         passages: owner && !monokuma, mastermind: gm && isMastermindActor(actor),
         present,
         get presentShown() {
@@ -222,10 +222,27 @@ function hideSidebarSection(element, name) {
 }
 
 function dropBiographyTab(app, element, part) {
+    dropTab(app, element, part, "biography");
+}
+
+/*
+ * NO INVENTORY ON A MONOKUMA'S SHEET (E95 C7, 10.11.2026; the owner: "Usunmy z karty postaci monokumy zakladke
+ * inventory"). The same drop as the Biography's: the link leaves the tab bar, the part is emptied (what `groupInventory`
+ * drew goes with it), a sheet that came up on it moves to the Actions tab. Nothing is deleted or moved in the data: a
+ * character marked Monokuma keeps what it held and the tab, with the items, is back when it is unmarked. A step of its
+ * own, after the ones that draw into the part.
+ */
+function tidyInventoryTab(app, element, mode = modeOf(app)) {
+    if (mode.inventory) return;
+    const part = element?.querySelector?.('section[data-application-part="inventory"]');
+    if (part) dropTab(app, element, part, "inventory");
+}
+
+function dropTab(app, element, part, name) {
     const root = element instanceof HTMLElement ? element : element?.[0];
     if (!root) return;
     const group = part.dataset.group || "primary";
-    if (part.classList.contains("active") || app?.tabGroups?.[group] === "biography") {
+    if (part.classList.contains("active") || app?.tabGroups?.[group] === name) {
         if (typeof app?.changeTab === "function") {
             app.changeTab("features", group, { force: true, updatePosition: false });
         } else {
@@ -235,7 +252,7 @@ function dropBiographyTab(app, element, part) {
             if (app?.tabGroups) app.tabGroups[group] = "features";
         }
     }
-    root.querySelectorAll('nav [data-tab="biography"], .sheet-tabs [data-tab="biography"]').forEach(link => link.remove());
+    root.querySelectorAll(`nav [data-tab="${name}"], .sheet-tabs [data-tab="${name}"]`).forEach(link => link.remove());
     part.replaceChildren();
 }
 
@@ -994,6 +1011,7 @@ export const SHEET_STEPS = [
     ["injectSafeword", ({ app, element }) => injectSafeword(app, element)],
     ["tidyBiography", ({ app, element, mode }) => tidyBiography(app, element, mode)],
     ["groupInventory", ({ app, element, mode }) => groupInventory(app, element, mode)],
+    ["tidyInventoryTab", ({ app, element, mode }) => tidyInventoryTab(app, element, mode)],
     ["replaceEffectsTab", ({ app, element }) => replaceEffectsTab(app, element)],
     // The render's own decision, installed once per sheet (E45 C2; "THE FLICKER").
     ["installRenderPlan", ({ app }) => installRenderPlan(app)],

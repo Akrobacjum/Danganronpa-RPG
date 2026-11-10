@@ -132,7 +132,8 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, reso
     const otherRow = a => ({ id: a.id, ...shared(a), state: "", hope: "", give: "", silenced: "", do: "" });
 
     /*
-     * What every row carries: the name with its sheet and its Items, the Role, the Level Up. THE SHEET FROM THE ROW
+     * What every row carries: the name with its sheet and its Items, the Role, the Level Up. NO ITEMS ON A MONOKUMA'S ROW (E95 C7; the owner's 10.11): its sheet has no Inventory tab, so no road opens one.
+     THE SHEET FROM THE ROW
      * (E95 C6; the owner's 10.11): an icon button beside the name opens that character's sheet (`openSheet`, the
      * actor's own `sheet.render(true)`, so a second press brings the one window forward instead of drawing another),
      * a student's, a Monokuma's and an NPC's alike; its label, the tooltip and the aria-label, names the character.
@@ -142,8 +143,8 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, reso
         const n = offers(a);
         return {
             name: `${esc(a.name)} ${iconButton({ icon: "fa-solid fa-id-card", label: game.i18n.format("DRPG.Panel.openSheet", { name: a.name }),
-                cls: "drpg-mini-button", attrs: { "data-drpg-sheet": a.id } })} ${iconButton({ icon: "fa-solid fa-box-open", label: L("DRPG.Items.hubButton"),
-                cls: "drpg-mini-button", attrs: { "data-drpg-items": a.id } })}`,
+                cls: "drpg-mini-button", attrs: { "data-drpg-sheet": a.id } })}${role === "monokuma" ? "" : ` ${iconButton({ icon: "fa-solid fa-box-open", label: L("DRPG.Items.hubButton"),
+                cls: "drpg-mini-button", attrs: { "data-drpg-items": a.id } })}`}`,
             role: `<select name="role:${a.id}" data-drpg-role-select="${a.id}" aria-label="${esc(`${a.name}: ${L("DRPG.Panel.roleColumn")}`)}">${
                 ROLES.map(r => `<option value="${r}"${r === role ? " selected" : ""}>${L(ROLE_WORDS[r])}</option>`).join("")}</select>`,
             levelUp: !levelUp(a) ? "" : roleButton({ role: "secondary", cls: "drpg-mini-button", attrs: { "data-drpg-levelup": a.id },
