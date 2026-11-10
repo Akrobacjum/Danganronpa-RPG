@@ -135,6 +135,13 @@ async function snapshot(cast) {
             return ids;
         }, [])),
         messages: new Set(game.messages.map(m => m.id)),
+        /* EVERY SCENE'S TILES, by scene (E95 C2 fix, 10.11.2026; CI run 42748964937, suite 2/8). From E95 C2 a
+           Monocub's false-to-true edge lays a body tile (body-tile.mjs `leaveBody`), as a trace's roll drops a token,
+           and a test that marks a death by its flag alone and takes the flag back after ("E51-T21") leaves the tile:
+           no revive runs, and the revive is what takes a body off the map. The restore removed the embedded documents
+           that appeared only as traces' tokens, so the dump read "restore left: Scene ... tiles.<id> appeared". Recorded
+           as ids, as the traces are, so the restore removes exactly the tiles that appeared. */
+        tiles: new Map(game.scenes.map(scene => [scene.id, new Set((scene.tiles ?? []).map(t => t.id))])),
         /* EVERY OTHER WORLD DOCUMENT THAT EXISTED, by collection (E30, 24.09.2026). The
            dump's first run found two actors the module makes when it first needs them
            - "Remnant", under the traces, and "DRPG Project", under project tokens -
@@ -240,6 +247,11 @@ async function restore(snap) {
         // The refs that carry a token (E60 C1b): a row of a trace that appeared is the store hold's to put back.
         const strays = remnantsOn(scene).filter(r => r.document && !snap.remnants.has(r.key)).map(r => r.id);
         if (strays.length) await scene.deleteEmbeddedDocuments("Token", strays);
+        // The tiles that appeared on a scene the snapshot knew (E95 C2 fix: a Monocub's body tile, `snapshot`'s note);
+        // a scene that appeared goes whole with the documents below.
+        const known = snap.tiles?.get(scene.id);
+        const tiles = known ? [...(scene.tiles ?? [])].filter(t => !known.has(t.id)).map(t => t.id) : [];
+        if (tiles.length) await scene.deleteEmbeddedDocuments("Tile", tiles);
     }
     await gmStoresIdle();
     // The world's copy of the GMs' dice looks a full Gamemaster's overlay write has in flight (dice-sync.mjs, E16 fix
