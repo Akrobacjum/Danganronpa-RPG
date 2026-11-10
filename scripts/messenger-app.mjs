@@ -947,10 +947,12 @@ async function ruleOpenMurder(action, data) {
 
     // The two halves of the direct-murder gate. The declaration is already
     // parked and the action already spent; what these decide is whether it is
-    // allowed to become an incident when the lights come up.
+    // allowed to become an incident when the lights come up - and, since E68 C9, on which
+    // statistic its opening rolls: each Allow and Change to names one (`data.trait`), which
+    // `ruleOnParkedMurder` reads against the killer's list.
 async function ruleApproveMurderOrRefuseMurder(action, data) {
     const { ruleOnParkedMurder } = await import("./eclipse.mjs");
-    const ruled = await ruleOnParkedMurder(data.killer, action === "approveMurder");
+    const ruled = await ruleOnParkedMurder(data.killer, action === "approveMurder", action === "approveMurder" ? data.trait ?? null : null);
     // `false` is a refusal that went through; `null` is nothing happening
     // at all, and only that leaves the card open.
     if (ruled === null || ruled === undefined) return null;

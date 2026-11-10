@@ -346,26 +346,40 @@ function followConfirmLabel(dialog, confirmFor) {
  * Cancelling the box is not cancelling the attempt - the action is already
  * spent by the time this opens, and a dismissed dialog must never be a way to
  * get it back.
+ *
+ * `traits` (E68 C9; S18-10): the statistics the killer's opening lists, and the window asks which one they propose
+ * (`traitFieldHtml`, the first checked; the sentence is the "how"). Then the answer is `{ note, proposed }`
+ * (`readProposal`), a closed window `{ note: "", proposed: null }`; without it, the sentence alone.
+ *
+ * Such a window is an action's (the merge of E68 C9 into the line, 10.11.2026): it opens through `actionWindow`, the
+ * caller's `brief` in the left column and the question in the right - the sentence, then the statistic's slot
+ * (`TRAIT_SLOT`) under it, where every proposal stands since C12 (the owner's Q3 of round M: the field stays in the
+ * right column). C9 had drawn the field above the sentence, in one column. Without `traits` the window is the one
+ * column it was.
  */
-export async function promptForNote(actor, { title, prompt, placeholder }) {
+export async function promptForNote(actor, { title, prompt, placeholder, traits = null, brief = "" }) {
+    const propose = (traits ?? []).length > 1;
+    const form = `<form>
+            <p>${prompt}</p>
+            <textarea name="note" rows="3" placeholder="${
+                foundry.utils.escapeHTML(placeholder ?? "")}"></textarea>
+            ${propose ? `<div class="${TRAIT_SLOT}">${traitFieldHtml(actor, traits, { propose: true, how: false })}</div>` : ""}
+        </form>`;
     // On the kit's frame (E21 C5a): one answer, the primary; a closed window answers "" below, as it did.
-    const result = await drpgWindow({
+    const result = await (propose ? actionWindow : drpgWindow)({
         title,
         classes: ["drpg-panel"],
         // The second half of a declaration: a prompt, as `chooseVariant`'s window (E23 C5a).
         prompt: true,
-        body: `<form>
-            <p>${prompt}</p>
-            <textarea name="note" rows="3" placeholder="${
-                foundry.utils.escapeHTML(placeholder ?? "")}"></textarea>
-        </form>`,
+        ...(propose ? { brief, ask: form } : { body: form }),
         footer: {
             primary: {
                 action: "ok", label: game.i18n.localize("DRPG.Action.murderParkedConfirm"),
-                callback: (e, b, d) => d.element.querySelector("[name=note]")?.value.trim() ?? ""
+                callback: (e, b, d) => propose ? readProposal(d.element, traits) : d.element.querySelector("[name=note]")?.value.trim() ?? ""
             }
         },
         rejectClose: false
     }).catch(() => "");
+    if (propose) return result && typeof result === "object" ? result : { note: "", proposed: null };
     return typeof result === "string" ? result : "";
 }

@@ -909,9 +909,10 @@ export function requestCleanup({
 }
 
 /** Record a direct murder declared during an Eclipse. See eclipse.mjs. */
-export function requestParkMurder({ killerId, room = null, note = "" }) {
-    return ask(ACTION_PARK_MURDER, { killerId, room, note }, {
-        local: () => import("./eclipse.mjs").then(m => m.writeParkedMurder({ killerId, room, note }))
+export function requestParkMurder({ killerId, room = null, note = "", proposed = null }) {
+    // `proposed` (E68 C9): the opening's statistic the killer proposes, read against their list on the GM.
+    return ask(ACTION_PARK_MURDER, { killerId, room, note, proposed }, {
+        local: () => import("./eclipse.mjs").then(m => m.writeParkedMurder({ killerId, room, note, proposed }))
     });
 }
 
@@ -922,9 +923,10 @@ export function requestParkMurder({ killerId, room = null, note = "" }) {
  * No dice and no numbers travel - this is a declaration, and whether it opens is
  * re-derived from the incident on the GM's side (`betrayAsPlayer`).
  */
-export function requestBetrayal({ actorId, note = "" }) {
-    return ask(ACTION_BETRAYAL, { actorId, note }, {
-        local: () => import("./murder.mjs").then(m => m.betrayAsPlayer(actorId, { note }))
+export function requestBetrayal({ actorId, note = "", proposed = null }) {
+    // `proposed` (E68 C9): the opening's statistic the betrayer proposes, for the GM's opening window.
+    return ask(ACTION_BETRAYAL, { actorId, note, proposed }, {
+        local: () => import("./murder.mjs").then(m => m.betrayAsPlayer(actorId, { note, proposed }))
     });
 }
 

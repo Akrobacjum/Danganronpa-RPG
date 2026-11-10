@@ -379,14 +379,14 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_PARK_MURDER]: {
         label: "DRPG.Bridge.what.murder.park",
         guards: [knownSender, owns("killerId", "sender does not own that character")],
-        sanitize: pick({ killerId: as.id, room: as.maybeText, note: as.text }),
+        sanitize: pick({ killerId: as.id, room: as.maybeText, note: as.text, proposed: as.maybeText }),
         run: handleParkMurder,
         answer: "reply"
     },
     [ACTION_BETRAYAL]: {
         label: "DRPG.Bridge.what.murder.betrayal",
         guards: [knownSender, owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id, note: as.text }),
+        sanitize: pick({ actorId: as.id, note: as.text, proposed: as.maybeText }),
         run: handleBetrayal,
         // Answered once carried out (E32 C5b): in an Eclipse the asker has paid an action
         // and needs to know whether the declaration was parked.

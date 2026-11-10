@@ -231,11 +231,13 @@ const CELL_SPAN = /^[1-9]\d{0,2}$/;
  * written as a class attribute (74 on C12's line);
  * 73 at E68 C4 (10.11.2026): the proposal's "How do you do it?" (action-menus.mjs `traitFieldHtml`, `drpg-trait-how`);
  * 74 at E68 C7: the proposal's one container (`drpg-trait-proposal`); 76 once the two lines met (E68 C13's merge);
+ * 77 at E68 C9's merge (10.11.2026): the statistic's slot written as a class in the betrayal's confirmation
+ * (action-murder.mjs `performBetrayal`, `drpg-action-trait`; action-menus.mjs writes it by name, `TRAIT_SLOT`);
  * R294 runs the same grep and fails on a difference, so a class a card body gains is either added here or
  * drawn bare in the window.
  */
 export const NOTICE_CLASSES = Object.freeze([
-    "chapter", "drpg-briefing-all", "drpg-briefing-block", "drpg-briefing-facts", "drpg-briefing-instruction", "drpg-check", "drpg-checkbox",
+    "chapter", "drpg-action-trait", "drpg-briefing-all", "drpg-briefing-block", "drpg-briefing-facts", "drpg-briefing-instruction", "drpg-check", "drpg-checkbox",
     "drpg-choice", "drpg-choice-details", "drpg-choice-list", "drpg-choice-text", "drpg-day-summary",
     "drpg-duality", "drpg-duality-badge", "drpg-duality-die", "drpg-duality-formula", "drpg-duality-mod",
     "drpg-duality-op", "drpg-duality-result", "drpg-duality-stat", "drpg-duality-total",

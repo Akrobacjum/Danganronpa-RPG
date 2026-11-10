@@ -24809,6 +24809,110 @@ const SCENARIOS = [
         }
     }],
 
+    ["an approved opening opens on its statistic with no second window (E68 C9)", async () => {
+        /*
+         * E68 C9, 10.11.2026; S18-10, DA18. The killer's opening lists Body and Hand, and until C9 the GM allowed a direct
+         * murder declared in the dark on a card of "Allow it" and "Refuse", and then picked the opening's statistic in a
+         * second window when the lights opened it (murder-rules.mjs `openingTraitFor`). The killer proposes now, with the
+         * declaration (action-murder.mjs `performDirectMurder` -> eclipse.mjs `parkDirectMurder` `proposed`), and the GM's
+         * card holds "Allow: {stat}" (the proposal), "Change to: {stat}" (the other listed) and "Refuse"; the allowance
+         * keeps the statistic, and the lights open the incident on it. Driven through the game's own calls: the Eclipse
+         * opens, a declaration proposing Hand is parked, the card's buttons are read and its "Allow: Hand" pressed by the
+         * click's road (messenger-app.mjs `pressCard`); the two stand alone, the Eclipse ends. Read: the card's buttons
+         * (action, statistic, label), the row's ruling, the incident's opening statistic and every statistic window asked
+         * on this GM (`answerTraitWindows`, which would answer Body, the first listed). Red at 1a0ae5c7: the card's two
+         * buttons carried no statistic, and the opening asked a window which answered Body.
+         */
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const murder = await import("./murder.mjs");
+        const { pressCard } = await import("./messenger-app.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { traitWithValue } = await import("./trait-ruling.mjs");
+        const [killer, victim] = cast(2);
+        equal(murder.murderState(), null, "an incident was already running when this scenario started");
+        const stood = await aloneTogether(killer, victim);
+        const NOTE = "SUITE E68 C9 proposes Hand";
+        const from = game.messages.size;
+        const windows = answerTraitWindows();
+        try {
+            await E.startEclipse();
+            await settle();
+            await E.parkDirectMurder({ killerId: killer.id, room: stood.room, note: NOTE, proposed: "hand" });
+            await settle();
+            const card = game.messages.contents.slice(from).find(m => contentOf(m).includes(NOTE));
+            must(card, "the declaration's card was not posted in the GMs' log");
+            const root = document.createElement("div");
+            root.innerHTML = contentOf(card);
+            const buttons = [...root.querySelectorAll("button.drpg-call-action")]
+                .map(b => [b.dataset.drpgCall, b.dataset.trait ?? null, b.textContent.trim()]);
+            equal(stableJson(buttons), stableJson([
+                ["approveMurder", "hand", game.i18n.format("DRPG.Action.murderAllow", { stat: traitWithValue(killer, "hand") })],
+                ["approveMurder", "body", game.i18n.format("DRPG.TraitRuling.change", { stat: traitWithValue(killer, "body") })],
+                ["refuseMurder", null, game.i18n.localize("DRPG.Action.murderRefuse")]]),
+                "the declaration's card does not hold Allow on the proposal, Change to on the other listed statistic and Refuse (action, statistic, label)");
+            const allow = root.querySelector('button[data-drpg-call="approveMurder"][data-trait="hand"]');
+            await pressCard(card, "approveMurder", { ...allow.dataset });
+            await settle();
+            const row = S.pendingMurderStore.get(killer.id);
+            equal(stableJson([row?.approved ?? null, row?.trait ?? null, row?.proposed ?? null]), stableJson([true, "hand", "hand"]),
+                "the allowance did not keep the statistic the card named (approved, trait, proposed)");
+            await E.endEclipse({ advance: false });
+            await settle();
+            await until(() => murder.murderState()?.openingTrait, 5000);
+            const state = murder.murderState();
+            equal(stableJson([state?.killerId ?? null, state?.victimId ?? null, state?.openingTrait ?? null, windows.asked]),
+                stableJson([killer.id, victim.id, "hand", []]),
+                "the lights did not open the incident on the allowed statistic, or asked the GM for it in a second window (killer, victim, opening statistic, windows asked)");
+        } finally {
+            windows.restore();
+            // A row left unallowed would ask the lights' window, which nobody here presses.
+            if (S.pendingMurderStore.has(killer.id)) await S.pendingMurderStore.drop(killer.id);
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (murder.murderState()) await murder.endMurder({ reason: "test", followUp: false });
+            await stood.back();
+        }
+    }],
+
+    ["a betrayal's proposal is the first answer in the GM's opening window, and a trap victim's opening asks with none (E68 C9)", async () => {
+        /*
+         * E68 C9, 10.11.2026; S18-10, DA36 = 2. A betrayal asks no GM's leave (`parkBetrayal`, `openBetrayal`), so its
+         * proposal - the betrayer's, pre-checked on Body in the tile's confirmation (action-murder.mjs `performBetrayal`) -
+         * goes with the incident to the opening's window, on C1's road: `traitFor` with the proposal, the GM's window
+         * offering "Approve: {stat}" first. A trap victim's opening is the GM's pick, with no proposal. Three students with
+         * players: the accomplice at Stage 6 turns on the killer proposing Hand (`betrayAsPlayer`, what the tile's request
+         * runs on the GM); then the opening of an indirect murder, re-asked for its victim (`rollOpening`). Read: each window's
+         * answers, in order, and the betrayal's opening statistic. Red at 1a0ae5c7: the betrayal's window offered Body first.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and an accomplice, each with a player");
+        const M = await import("./murder.mjs");
+        const { MURDER_OPENING } = await import("./config.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        const windows = answerTraitWindows();
+        try {
+            await accompliceAtStageSix(M, killer, victim, third);
+            const start = windows.asked.length;
+            await M.betrayAsPlayer(third.id, { proposed: "hand" });
+            await settle();
+            await until(() => M.murderState()?.openingTrait, 5000);
+            const betrayal = [M.murderState()?.killerId ?? null, M.murderState()?.openingTrait ?? null];
+            await M.endMurder({ reason: "test", followUp: false });
+            const trap = M.freshIncidentState({ killerId: killer.id, victimId: third.id, indirect: true });
+            const before = windows.asked.length;
+            await M.rollOpening("victim", trap).catch(() => null);
+            equal(stableJson([betrayal, windows.asked[start] ?? null, windows.asked.slice(before)]),
+                stableJson([[third.id, "hand"], ["hand", "body"], [MURDER_OPENING.victim.traits]]),
+                "the betrayal's window did not offer the betrayer's proposal first, the incident did not open on it, or the trap victim's window was not the GM's pick of the victim's list "
+                + "(the betrayal's killer and statistic, its window, the trap's window)");
+        } finally {
+            windows.restore();
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+        }
+    }],
+
     ["a declaration from another Eclipse is dropped, not judged", async () => {
         /*
          * E05 C3, 26.09.2026. Each declaration is named for the Eclipse it was made in, and the
