@@ -533,21 +533,56 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
  * on a roll the player was not shown, and on a choice the window did not offer.
  *
  * The roll is the one this browser threw last for the character (action-pipeline.mjs `rollInHand`):
- * the GMs keep their own row of it and take that one back. After a reload this browser has none
- * and says nothing of it, rather than guess.
+ * the GMs keep their own row of it and take that one back. After a reload this browser has none,
+ * and `rollAfterReload` below says what it can read instead (E68 C11; D047).
  */
 async function callAbout(call, actor) {
     if (call?.grants === "trait") return game.i18n.localize("DRPG.Calls.resolveNext");
     if (!call?.reroll || !actor) return "";
     const { rollInHand } = await import("./action-rolls.mjs");
     const last = rollInHand(actor);
-    if (typeof last?.total !== "number") return "";
+    if (typeof last?.total !== "number") return rollAfterReload(actor);
     const duality = game.i18n.localize(last.isCritical ? "DRPG.Action.duality.critical"
         : last.withFear ? "DRPG.Action.duality.despair" : "DRPG.Action.duality.hope");
     const action = ACTIONS[last.actionKey]?.label ?? null;
     return action
         ? game.i18n.format("DRPG.Reroll.lastRoll", { action, total: last.total, duality })
         : game.i18n.format("DRPG.Reroll.lastRollPlain", { total: last.total, duality });
+}
+
+/**
+ * THE ROLL A RELOAD FORGOT (E68 C11, 10.11.2026; D047, the owner's amend [3] of 31.10: "okno Rerolla po przeladowaniu
+ * nazywa rzut i mowi o wierszu GM-ow"). The roll in hand lives in this browser's memory and a reload empties it, so the
+ * Reroll's window said nothing of what three Hope would buy. What is read instead: on a GM, the GMs' own row
+ * (`rerollBookmarkStore`, the row a Reroll takes back), its action and the dice its message holds now; on a player, who
+ * cannot read that row, the newest roll of the character in the chat this browser holds, named as the chat's and
+ * followed by the sentence that the GMs' row decides - a later roll the chat does not show, or a roll the GMs kept no
+ * row of, is theirs to know. Neither: only that sentence. `gm` is the reader's role; the suite asks a player's reading
+ * on a GM. Answers one line, or "" with no character. Tier 2's "the Reroll's window after a reload names the roll ...".
+ */
+export async function rollAfterReload(actor, { gm = Boolean(game.user?.isGM) } = {}) {
+    if (!actor?.id) return "";
+    const { dualityOfRoll } = await import("./reroll.mjs");
+    const named = roll => {
+        const read = dualityOfRoll(roll);
+        return game.i18n.localize(read.isCritical ? "DRPG.Action.duality.critical"
+            : read.withFear ? "DRPG.Action.duality.despair" : "DRPG.Action.duality.hope");
+    };
+    const duality = roll => roll && typeof roll.total === "number" && (roll.dHope || typeof roll.withHope === "boolean");
+    if (gm) {
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const row = rerollBookmarkStore.get(actor.id);
+        const roll = game.messages?.get(row?.messageId ?? "")?.rolls?.[0] ?? null;
+        if (!duality(roll)) return game.i18n.localize("DRPG.Reroll.nothingToReroll");
+        return game.i18n.format("DRPG.Reroll.lastRollGmRow", { name: actor.name,
+            action: ACTIONS[row.actionKey]?.label ?? row.actionKey ?? "?", total: roll.total, duality: named(roll) });
+    }
+    // The character as its card's speaker, or as the roll's source (Daggerheart's `source.actor`, the actor's uuid).
+    const of = m => m.speaker?.actor === actor.id || String(m.rolls?.[0]?.options?.source?.actor ?? "").endsWith(actor.id);
+    const message = (game.messages?.contents ?? []).filter(m => m.visible !== false && duality(m.rolls?.[0]) && of(m)).at(-1) ?? null;
+    if (!message) return game.i18n.localize("DRPG.Reroll.noRollHere");
+    const roll = message.rolls[0];
+    return game.i18n.format("DRPG.Reroll.lastRollReload", { total: roll.total, duality: named(roll) });
 }
 
 /**

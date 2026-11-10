@@ -21,7 +21,7 @@ import { MODULE_ID, TRAITS, DYNAMIC_THRESHOLDS } from "./config.mjs";
 import { spendAction } from "./actions.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { callGm, promptForRequest } from "./gm-bridge.mjs";
-import { whisperToOwner, esc } from "./utils.mjs";
+import { whisperToOwner, whisperToGms, esc } from "./utils.mjs";
 import { traitFieldHtml, readProposal } from "./action-menus.mjs";
 import { rollTrait, rollInHand, remnantRef, noteRollContext, abort, canAfford } from "./action-pipeline.mjs";
 import { report } from "./action-report.mjs";
@@ -208,8 +208,11 @@ export async function offerDynamicFind(actor, { success = true, tier, room = nul
         request: description,
         roll,
         room,
+        // The success's paragraph names its roll and its character (`data-drpg-dynamic`, `data-drpg-by`): an answer takes
+        // the buttons off, and a Reroll that misses still finds the card it answered (`withdrawDynamicFind`; E68 C11, D054).
         gmBody: success
-            ? `<p>${game.i18n.format("DRPG.Action.dynamicFound", { tier })} <em>${
+            ? `<p data-drpg-dynamic="${esc(rollId ?? "")}" data-drpg-by="${esc(actor?.id ?? "")}">${
+                game.i18n.format("DRPG.Action.dynamicFound", { tier })} <em>${
                 game.i18n.localize("DRPG.Bridge.createItemStays")}</em></p>${needed}`
             : `<p>${game.i18n.localize("DRPG.Action.dynamicMissedGm")}</p>${needed}`,
         receipt: !success,
@@ -241,10 +244,19 @@ export async function offerDynamicFind(actor, { success = true, tier, room = nul
  * the line that the success no longer stands. A card already answered is left as it was: what a GM gave on it is the
  * GMs' to take back. A card a player's console wrote naming the roll is that player's own, and ends the same way.
  * Answers how many cards it ended. Tier 2's E16-T26 reads it.
+ *
+ * GREYED, AND A GM WHO ANSWERED IS TOLD (E68 C11, 10.11.2026; D048 and D054, the owner's amend [3] of 31.10). The ended
+ * card's line is written with its key (`settleCall`'s `{ key }`, `data-drpg-line`), which the stylesheet greys the card's
+ * other words by and every reader writes in its own language (secret.mjs `CARD_LINES`); the miss's own card is posted
+ * after it by reroll.mjs `settleDynamic`, so the two stand side by side. A card already answered keeps its words, and the
+ * GMs are told in one card that a GM had answered a success that no longer stands (`DRPG.Action.dynamicAnsweredMissed`,
+ * the character and the player's words); it is found by its paragraph's roll (`data-drpg-dynamic`, written by
+ * `offerDynamicFind` since this commit - a card posted before it has none and is told nothing). A second Reroll that
+ * misses the same roll again after one that hit tells it again. Tier 2's "a Dynamic success a Reroll turns into a miss ...".
  */
 export async function withdrawDynamicFind(actor, rollId) {
     if (!game.user?.isGM || !actor?.id || !rollId) return 0;
-    const { contentOf } = await import("./secret.mjs");
+    const { contentOf, cardFlag } = await import("./secret.mjs");
     const { MESSENGER_FLAGS } = await import("./messenger.mjs");
     const { settleCall } = await import("./gm-bridge.mjs");
     const names = message => {
@@ -255,8 +267,23 @@ export async function withdrawDynamicFind(actor, rollId) {
         return [...box.content.querySelectorAll('[data-drpg-call="createItem"]')]
             .some(button => button.dataset.by === actor.id && button.dataset.roll === rollId);
     };
-    const cards = (game.messages?.contents ?? []).filter(m => !m.getFlag?.(MODULE_ID, MESSENGER_FLAGS.settled) && names(m));
-    for (const card of cards) await settleCall(card, game.i18n.localize("DRPG.Action.dynamicRerollMissed"));
+    const answeredOn = message => {
+        const words = String(contentOf(message) ?? "");
+        if (!words.includes(rollId)) return null;
+        const box = document.createElement("template");
+        box.innerHTML = words;
+        const mark = [...box.content.querySelectorAll("[data-drpg-dynamic]")]
+            .find(p => p.dataset.drpgDynamic === rollId && p.dataset.drpgBy === actor.id);
+        return mark ? (box.content.querySelector("blockquote")?.textContent ?? "") : null;
+    };
+    const all = game.messages?.contents ?? [];
+    const cards = all.filter(m => !m.getFlag?.(MODULE_ID, MESSENGER_FLAGS.settled) && names(m));
+    // `cardFlag`: a private card's `settled` travels in the meta its readers keep, not on the document (E06 C7a).
+    const answered = all.filter(m => cardFlag(m, MESSENGER_FLAGS.settled)).map(answeredOn).filter(what => what !== null);
+    for (const card of cards) await settleCall(card, { key: "DRPG.Action.dynamicRerollMissed" });
+    for (const what of answered) {
+        await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Action.dynamicAnsweredMissed", { name: actor.name, what }))}</p>`);
+    }
     return cards.length;
 }
 

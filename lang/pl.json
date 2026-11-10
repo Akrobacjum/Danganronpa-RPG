@@ -744,7 +744,12 @@
         "passageBuiltShared": "Poznajesz tajne przejście: {from} - {to}.",
         "passageBuilt": "Twoje tajne przejście jest gotowe: {from} - {to}. Możesz przez nie przechodzić.",
         "shown": "{giver} pokazuje ci tajne przejście: {from} - {to}.",
-        "done": "Pokazujesz postaci {target} tajne przejście."
+        "done": "Pokazujesz postaci {target} tajne przejście.",
+        "repick": "Wybierz cel ponownie",
+        "repickTitle": "{name}: wybierz cel ponownie",
+        "repickIntro": "Projekt {name} jest ukończony, ale tego, co miał zrobić, nie udało się zrobić. Wybierz jego cel jeszcze raz, a zostanie zrobiony od razu, jak przy każdym ukończeniu.",
+        "repickDone": "Cel wybrany ponownie przez: {name}.",
+        "repickGone": "Projektu {name} nie da się już tak ukończyć: cofnięto go, usunięto albo już go ukończono."
       },
       "gm": {
         "found": "{actor} znajduje tajne przejście {from} - {to}.",
@@ -868,6 +873,7 @@
       "dynamicSuccess": "Sukces - GM zdecyduje, co daje ci wynik Tier {tier}.",
       "dynamicFound": "Rzut się udał na Tier {tier}. Zdecyduj, co daje: przedmiot albo coś, co powiesz.",
       "dynamicRerollMissed": "Reroll zmienił ten rzut w chybienie: sukces już nie obowiązuje i nic nie daje.",
+      "dynamicAnsweredMissed": "Reroll zmienił sukces Dynamic postaci {name} w chybienie, gdy GM już odpowiedział na jego kartę („{what}”). To, co na niej dano, zostaje; cofnąć to mogą GM-owie.",
       "leavesRemnant": "Zostawia Remnant.",
       "tokensLeft": {
         "one": "{room}: został {n} Search Token o tej porze dnia.",
@@ -4476,7 +4482,17 @@
       "traceNote": "Ktoś przeszukał to ciało. Brakuje: {items}.",
       "noCharacter": "Nie grasz postacią, którą moduł zna, więc nie ma gdzie tego umieścić.",
       "took": "Bierzesz „{item}”. Warto pamiętać, skąd - to teraz twój dowód.",
-      "tookUnfound": "Bierzesz „{item}”. Nikt jeszcze nie znalazł tego ciała: Truth Bullet tej rzeczy trafi do twoich dowodów, gdy śmierć wyjdzie na jaw."
+      "tookUnfound": "Bierzesz „{item}”. Nikt jeszcze nie znalazł tego ciała: Truth Bullet tej rzeczy trafi do twoich dowodów, gdy śmierć wyjdzie na jaw.",
+      "takePicked": "Weź zaznaczone",
+      "takePickedTooltip": "Weź wszystkie zaznaczone przedmioty jednym rzutem na Hand. Nie kosztuje akcji.",
+      "pickNone": "Najpierw zaznacz, co chcesz wziąć.",
+      "rollTitle": "Zabranie z ciała - Hand",
+      "coverTitle": "Zabranie z ciała - Shadow",
+      "coverHeld": "Nikt w pomieszczeniu nie widzi, co bierzesz.",
+      "coverMissed": "Ktoś w pomieszczeniu widzi, jak przeszukujesz ciało.",
+      "seenAtBody": "{actor} przeszukuje kieszenie ciała: {body}.",
+      "seenTaking": "{actor} przeszukuje kieszenie ciała: {body}, i bierze: {items}.",
+      "handsFull": "Nosisz już najwięcej rzeczy z kategorii {category}, ile możesz ({limit}), i nie masz skrytki: „{item}” zostaje przy ciele."
     },
     "Redacted": {
       "tabLocked": "To oni mają ci powiedzieć, nie ty przeczytać.",
@@ -4738,11 +4754,15 @@
         "other": "{who} prosi o pokazanie kieszeni: {target}. Ta osoba jest w incydencie, więc nikt nie dostaje pytania: za {s} s {who} usłyszy, że nie ma odpowiedzi."
       },
       "gmKeptNow": "{who} prosi o pokazanie kieszeni: {target}. To ciało, którego śmierć trzymasz, a gracza tej postaci nie ma, więc nikt nie dostaje pytania: {who} od razu słyszy, że nie ma odpowiedzi. Odkrycie możesz otworzyć ręcznie.",
-      "gmIncidentNow": "{who} prosi o pokazanie kieszeni: {target}. Ta osoba jest w incydencie, a jej gracza nie ma, więc nikt nie dostaje pytania: {who} od razu słyszy, że nie ma odpowiedzi."
+      "gmIncidentNow": "{who} prosi o pokazanie kieszeni: {target}. Ta osoba jest w incydencie, a jej gracza nie ma, więc nikt nie dostaje pytania: {who} od razu słyszy, że nie ma odpowiedzi.",
+      "noReceipt": "Przeglądarka gracza postaci {who} nie potwierdziła odpowiedzi na przeszukanie postaci {target}, więc prośba kończy się jak 'Odpuść'."
     },
     "Reroll": {
       "lastRoll": "Twój rzut ({action}): {total} {duality}.",
       "lastRollPlain": "Twój ostatni rzut: {total} {duality}.",
+      "lastRollGmRow": "Wiersz GM-ów dla {name} trzyma rzut ({action}): {total} {duality}. Reroll cofa właśnie ten rzut.",
+      "lastRollReload": "Twój ostatni rzut na czacie: {total} {duality}. Reroll cofa rzut, który GM-owie trzymają dla ciebie w swoim wierszu; ta przeglądarka od przeładowania go nie widzi.",
+      "noRollHere": "Ta przeglądarka od przeładowania nie trzyma żadnego twojego rzutu. Reroll cofa rzut, który GM-owie trzymają dla ciebie w swoim wierszu.",
       "searchNeverRan": "Pokój nie został przeszukany - Search Token odmówiono - więc nie ma czego losować ponownie.",
       "searchStashStands": "Znalezisko ze skrytki zostaje: nowe kości nie otwierają skrytki drugi raz.",
       "passageFound": "Nowy wynik znajduje w tamtym pokoju tajne przejście do: {to}. Gdzie droga jest otwarta, mapa ci je pokazuje.",
@@ -4801,7 +4821,8 @@
       "actionTakenBack": "Krytyk zniknął, więc akcja, którą oddał, znów jest wydana.",
       "actionOwed": "Krytyk zniknął, ale akcja, którą oddał, jest już zużyta. Zostajesz na minusie o jedną.",
       "gmReasked": "GM został poproszony o ponowną decyzję na podstawie nowego wyniku.",
-      "rulingVoid": "Reroll: {old} już nie obowiązuje, wynik to teraz {new}. Zdecyduj ponownie."
+      "rulingVoid": "Reroll: {old} już nie obowiązuje, wynik to teraz {new}. Zdecyduj ponownie.",
+      "lootStands": "Kości przepisano, ale chwila nie. Zabrane rzeczy są już u ciebie, a ciało wygląda tak jak wcześniej."
     },
     "Audit": {
       "putBack": "Ręczna zmiana karty postaci {name} od {player} - klient GM-a ją cofnął:",

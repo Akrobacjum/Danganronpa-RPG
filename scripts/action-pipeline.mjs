@@ -346,6 +346,14 @@ export function rollInHand(actor) {
     return actor?.id ? rollsInHand.get(actor.id) ?? null : null;
 }
 
+/**
+ * Forget the roll this browser holds for `actor`, as a reload forgets it (E68 C11; D047). The suite's reload: the
+ * Reroll's window then reads what calls.mjs `rollAfterReload` can.
+ */
+export function forgetRollInHand(actor) {
+    if (actor?.id) rollsInHand.delete(actor.id);
+}
+
 /** The retired client setting `rollBookmarks`, out of this browser's client storage (E08+E28 C4a). At ready. */
 export function forgetRollBookmarks() {
     const storage = game.settings?.storage?.get?.("client");

@@ -459,8 +459,13 @@ export async function handleLoot(payload, sender, ctx) {
     // their reason and are told by its code. It answers null when it took nothing for any
     // other reason (a Truth Bullet, full hands with no stash), with its reason on the GM's
     // console, and the asker is told only that nothing was carried out (E31 review).
+    // E68 C10: the items under one Take and its rolls, on the GMs' record of each (the declaration's `rolled`).
+    const itemIds = Array.isArray(payload.itemIds) ? payload.itemIds.filter(id => typeof id === "string") : null;
     const taken = await lootBody({
-        takerId: payload.takerId, bodyId: payload.bodyId, itemId: payload.itemId, askedBy: sender.isGM ? null : sender.id
+        takerId: payload.takerId, bodyId: payload.bodyId, itemId: payload.itemId, itemIds,
+        hand: { total: payload.total, isCritical: payload.isCritical, withHope: payload.withHope },
+        cover: payload.coverRollId ? { total: payload.coverTotal, isCritical: payload.coverCritical, withHope: payload.coverHope } : null,
+        askedBy: sender.isGM ? null : sender.id
     });
     if (taken?.refused) return { refused: taken.refused };
     if (!taken) return { refused: "nothing was carried out: lootBody took nothing" };

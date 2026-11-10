@@ -7464,7 +7464,9 @@ const REGRESSIONS = [
             "vault.steal": ["viaSearch", "clumsy"] };
         const WAITING = [];
         const THROWN_AS = { steal: "palm", rummage: "palm", frisk: "palm" };
-        const TABLES = { crisis: CRISIS_ACTIONS, cleanup: CLEANUP.actions, murderOpening: MURDER_OPENING };
+        // A Take from the Body's two rolls (E68 C10): its Hand and its cover, both of config.mjs `LOOT`.
+        const { LOOT } = await import("./config.mjs");
+        const TABLES = { crisis: CRISIS_ACTIONS, cleanup: CLEANUP.actions, murderOpening: MURDER_OPENING, loot: LOOT, lootCover: LOOT?.cover };
         const takes = (action, decl) => Object.keys(decl.sanitize?.fields ?? {})
             .filter(field => RESULT.includes(field) || (DERIVED[action] ?? []).includes(field));
         const problemsOf = (all, waiting) => {
@@ -15294,6 +15296,7 @@ const REGRESSIONS = [
             ["eclipse.mjs#askGmToAllow", "gm", null, "`writeParkedMurder` runs on a GM: the run of `murder.park`, or a GM's own (`local`)"],
             ["projects.mjs#announceTrapReady", "gm", null, "`addProgress` asks a GM on a player's browser and runs this on a GM's"],
             ["projects.mjs#announceTrapReady (2)", "gm", null, "the same, the manual trap's card"],
+            ["projects.mjs#offerRepick", "gm", null, "a refused completion's card (E68 C11; D023): the primary's, in the completion's `after`"],
             ["reroll.mjs#settleGmRuling", "gm", null, "a Reroll is replayed on a GM (`rerollOnGm`)"],
             ["traps.mjs#alert", "gm", null, "the trap relay's alert, on a GM"],
             ["gm-bridge.mjs#askHopeCallByCard", "gm", null, "the run of `call.approve`, on the primary GM"],
@@ -15498,7 +15501,7 @@ const REGRESSIONS = [
             "sheet-audit.mjs#decideNow": "one sheet: the GM's Undo on a flagged change puts back an item the student's own write created or deleted, on the actor the row names (E29 C7)"
         };
         const ROADS = {
-            "handover.mjs#giveItem": "give", "handover.mjs#lootBody": "loot", "stash-reach.mjs#stealFromVault": "rifle",
+            "handover.mjs#giveItem": "give", "handover.mjs#lootOne": "loot", "stash-reach.mjs#stealFromVault": "rifle",
             "palm.mjs#stealFromPerson": "steal", "palm.mjs#plantOnPerson": "plant"
         };
         const DECL = /^(?:export\s+)?(?:async\s+)?(?:function\s*\*?\s*([\w$]+)|(?:const|let|var|class)\s+([\w$]+))/gm;

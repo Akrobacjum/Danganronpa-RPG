@@ -83,9 +83,16 @@ export function requestCardPost(card) {
  * own. ONE request rather than three, because three would have intermediate
  * states in which the knife has left the body and arrived nowhere.
  */
-export function requestBodyLoot({ takerId, bodyId, itemId }) {
-    return ask(ACTION_LOOT, { takerId, bodyId, itemId }, {
-        local: () => import("./handover.mjs").then(m => m.lootBody({ takerId, bodyId, itemId }))
+export function requestBodyLoot({ takerId, bodyId, itemId = null, itemIds = null, hand = null, cover = null }) {
+    // E68 C10: the Take's Hand roll (`hand`: rollId, total, isCritical, withHope) and the cover's Shadow roll where the
+    // taker's browser saw somebody watching (`cover`, the same fields); the primary reads both off its record of them.
+    const rolls = {
+        rollId: hand?.rollId ?? null, total: hand?.total ?? 0, isCritical: Boolean(hand?.isCritical), withHope: Boolean(hand?.withHope),
+        ...(cover ? { coverRollId: cover.rollId ?? null, coverTotal: cover.total ?? 0, coverCritical: Boolean(cover.isCritical),
+            coverHope: Boolean(cover.withHope) } : {})
+    };
+    return ask(ACTION_LOOT, { takerId, bodyId, itemId, itemIds, ...rolls }, {
+        local: () => import("./handover.mjs").then(m => m.lootBody({ takerId, bodyId, itemId, itemIds, hand, cover }))
     });
 }
 
@@ -1010,10 +1017,12 @@ export function requestFriskAsk({ searcherId, targetId }) {
            when the only GM leaves or reloads, the wait runs its clock, friskAnswerMs + friskMarginMs (75 s), and the
            clock hands the action back (E18 fix c7-G1, the review's C7-R1; R1006 drives both). A wait that runs out tells
            the primary, which ends the ask so a yes after it is not kept (`expired`, frisk.mjs `expireFriskAsk`, which
-           judges that claim). No receipt: the ask's end is its cards, posted before its answer goes, and with a force
-           open the follow is the searcher's next word. */
+           judges that claim). The answer's receipt (E68 C11; D084): an answer that leaves a force open waits `TIMING.ackMs`
+           on the primary for it, and with none ends as 'Leave it' (frisk.mjs `answerSearcher`); any other answer ended
+           the ask with its cards, posted before it went, and its receipt finds nothing. */
         untilPrimaryLeaves: true,
         expired: ACTION_RULING_EXPIRED,
+        received: ACTION_RULING_RECEIVED,
         lateMs: TIMING.friskMarginMs,
         late: value => debug("A Frisk's ask was answered after this browser stopped waiting", value),
         local: () => import("./frisk.mjs").then(m => m.askToFriskHere({ searcherId, targetId }, game.user)).then(out => {

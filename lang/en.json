@@ -733,7 +733,12 @@
         "passageBuiltShared": "A secret passage opens to you: {from} - {to}.",
         "passageBuilt": "Your secret passage is finished: {from} - {to}. You can walk through it.",
         "shown": "{giver} shows you a secret passage: {from} - {to}.",
-        "done": "You show {target} the secret passage."
+        "done": "You show {target} the secret passage.",
+        "repick": "Choose the target again",
+        "repickTitle": "{name}: choose the target again",
+        "repickIntro": "{name} is finished, but what it was to make could not be made. Pick its target again, and it is made at once, as at any completion.",
+        "repickDone": "Target chosen again by {name}.",
+        "repickGone": "{name} cannot be finished this way any more: it was taken back, removed or finished already."
       },
       "gm": {
         "found": "{actor} finds the secret passage {from} - {to}.",
@@ -850,6 +855,7 @@
       "dynamicSuccess": "Success - the GM decides what a Tier {tier} result gives you.",
       "dynamicFound": "The roll succeeded at Tier {tier}. Decide what it gives: an item, or something said.",
       "dynamicRerollMissed": "A Reroll turned this roll into a miss: the success no longer stands, and it gives nothing.",
+      "dynamicAnsweredMissed": "A Reroll turned {name}'s Dynamic success into a miss after a GM had answered its card (\"{what}\"). What was given on it stands; it is the GMs' to take back.",
       "leavesRemnant": "Leaves a Remnant behind.",
       "tokensLeft": {
         "one": "{room}: {n} search token left this time of day.",
@@ -4096,7 +4102,17 @@
       "traceNote": "Somebody has been through this body. Gone: {items}.",
       "noCharacter": "You are not playing a character the module knows about, so there is nowhere for this to go.",
       "took": "You take “{item}”. Where you found it is worth remembering - it is in your evidence now.",
-      "tookUnfound": "You take “{item}”. Nobody has found this body yet: its Truth Bullet joins your evidence once the death is known."
+      "tookUnfound": "You take “{item}”. Nobody has found this body yet: its Truth Bullet joins your evidence once the death is known.",
+      "takePicked": "Take the ticked",
+      "takePickedTooltip": "Take every ticked item with one Hand roll. It costs no action.",
+      "pickNone": "Tick what you want to take first.",
+      "rollTitle": "Take from the body - Hand",
+      "coverTitle": "Take from the body - Shadow",
+      "coverHeld": "Nobody in the room sees what you take.",
+      "coverMissed": "Somebody in the room sees you going through the body.",
+      "seenAtBody": "{actor} goes through {body}'s pockets.",
+      "seenTaking": "{actor} goes through {body}'s pockets and takes {items}.",
+      "handsFull": "You already carry the most {category} you can ({limit}), and you have no stash: “{item}” stays on the body."
     },
     "Redacted": {
       "tabLocked": "Theirs to tell you, not yours to read.",
@@ -4330,11 +4346,15 @@
       "gmKept": { "one": "{who} asks {target} to turn out their pockets. {target} is a body you keep, so nobody is asked: in {s} second {who} hears that there is no answer. You may open the discovery yourself.", "other": "{who} asks {target} to turn out their pockets. {target} is a body you keep, so nobody is asked: in {s} seconds {who} hears that there is no answer. You may open the discovery yourself." },
       "gmIncident": { "one": "{who} asks {target} to turn out their pockets. {target} is in the incident, so nobody is asked: in {s} second {who} hears that there is no answer.", "other": "{who} asks {target} to turn out their pockets. {target} is in the incident, so nobody is asked: in {s} seconds {who} hears that there is no answer." },
       "gmKeptNow": "{who} asks {target} to turn out their pockets. {target} is a body you keep, and their player is not here, so nobody is asked: {who} hears at once that there is no answer. You may open the discovery yourself.",
-      "gmIncidentNow": "{who} asks {target} to turn out their pockets. {target} is in the incident, and their player is not here, so nobody is asked: {who} hears at once that there is no answer."
+      "gmIncidentNow": "{who} asks {target} to turn out their pockets. {target} is in the incident, and their player is not here, so nobody is asked: {who} hears at once that there is no answer.",
+      "noReceipt": "{who}'s player's browser did not confirm the answer to the Frisk of {target}, so the ask ends as 'Leave it'."
     },
     "Reroll": {
       "lastRoll": "Your {action} roll: {total} {duality}.",
       "lastRollPlain": "Your last roll: {total} {duality}.",
+      "lastRollGmRow": "The GMs' row for {name} holds a {action} roll: {total} {duality}. A Reroll takes back that roll.",
+      "lastRollReload": "Your last roll in the chat: {total} {duality}. A Reroll takes back the roll the GMs keep on their row for you, which this browser cannot read since the reload.",
+      "noRollHere": "This browser holds no roll of yours since the reload. A Reroll takes back the roll the GMs keep on their row for you.",
       "searchNeverRan": "The room was never searched - the search token was refused - so there is nothing to draw again.",
       "searchStashStands": "The stash find stands: new dice do not open the stash twice.",
       "passageFound": "The new result finds a secret passage in that room, to {to}. Where the way is open, your map shows it.",
@@ -4393,7 +4413,8 @@
       "actionTakenBack": "The critical is gone, so the action it returned is spent again.",
       "actionOwed": "The critical is gone, but the action it returned is already used. You owe one.",
       "gmReasked": "The GM has been asked to rule again on the new result.",
-      "rulingVoid": "Rerolled: {old} no longer stands, the result is now {new}. Please rule again."
+      "rulingVoid": "Rerolled: {old} no longer stands, the result is now {new}. Please rule again.",
+      "lootStands": "The dice are rewritten, but the moment is not. What you took is in your hands, and the body looks as it did."
     },
     "Audit": {
       "putBack": "{player} changed {name}'s sheet by hand; the GM's client put it back:",

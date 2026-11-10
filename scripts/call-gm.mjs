@@ -568,9 +568,44 @@ function sendOnFromPrimary(requestId, held, value, { text, by, yes = null, rulin
     sent.timer = setTimeout(() => void unreceivedOnPrimary(requestId), TIMING.ackMs);
 }
 
-/** A card ends as its ask's player no longer waiting: the line for everyone, and the GMs' own - by key, which each reader writes in its language. */
-function endExpired(messageId) {
+/**
+ * A card ends as its ask's player no longer waiting: the line for everyone, and the GMs' own - by key, which each reader
+ * writes in its language.
+ *
+ * NOT UNDER A GM'S HAND (E68 C11; D075, E18 C3's gap). The expiry - the card's time on this primary, or its asker's
+ * `ruling.expired` - read only whether the card was settled, so a GM whose review of it was open (`claimCard`, held here
+ * in `claimsInProgress`, or a pending row of a GM who is here, `ruledCardStore`) found it ended "Nobody answered in time"
+ * under the window, and that GM's ruling then settled it a second time. The end waits for the claim now
+ * (`expiryWaiting`): when it ends - the ruling made, backed out of, or its GM gone (`releaseClaimsOf`) - the card is
+ * ended as expired unless the ruling settled it (`endAskCard` reads `settled`). The ask itself is over as before: its
+ * held entry is dropped by the caller, so a ruling made after it sends nothing on.
+ */
+const expiryWaiting = new Set();
+
+async function endExpired(messageId) {
+    if (await underClaim(messageId)) {
+        expiryWaiting.add(messageId);
+        debug("An ask's card ran out while a GM is ruling on it: it ends once that GM's ruling does.");
+        return null;
+    }
+    expiryWaiting.delete(messageId);
     return endAskCard(messageId, { key: "DRPG.Bridge.settledExpired" }, { gmNote: { key: "DRPG.Bridge.settledGone" } });
+}
+
+/** Whether a GM's ruling on this card is under way, as the primary reads it (`claimOnPrimary`'s "busy"). */
+async function underClaim(messageId) {
+    if (!messageId) return false;
+    if (claimsInProgress.has(messageId)) return true;
+    const { ruledCardStore } = await import("./gm-stores.mjs");
+    const row = ruledCardStore.get(messageId);
+    return Boolean(row?.pending && game.users.get(row.by ?? "")?.active);
+}
+
+/** A claim on a card ended: an expiry that waited for it (`endExpired`) ends the card now, unless the ruling settled it. */
+function expiryAfterClaim(messageId) {
+    if (!expiryWaiting.has(messageId)) return;
+    expiryWaiting.delete(messageId);
+    void endExpired(messageId).catch(err => debug("A card that ran out under a GM's ruling could not be ended", err));
 }
 
 /**
@@ -681,7 +716,9 @@ export async function receivedOnPrimary(requestId, senderId) {
         answeredElsewhere.asks.delete(requestId);
         return true;
     }
-    return false;
+    // An open Frisk's answer, held by its request id and its asker in frisk.mjs's memory, as its expiry is (E68 C11; D084).
+    const { receivedFriskAsk } = await import("./frisk.mjs");
+    return receivedFriskAsk(requestId, senderId);
 }
 
 /* ==========================================================================
@@ -973,11 +1010,13 @@ export const claimsInProgress = new Map();
  * rows that say a claim is under way (fix e1-G1).
  */
 export function releaseClaimsOf(userId) {
-    for (const [messageId, by] of claimsInProgress) if (by === userId) claimsInProgress.delete(messageId);
+    const freed = [];
+    for (const [messageId, by] of claimsInProgress) if (by === userId) { claimsInProgress.delete(messageId); freed.push(messageId); }
     if (!isPrimaryGm({ leaving: userId })) return;
-    import("./gm-stores.mjs").then(({ ruledCardStore }) => {
+    import("./gm-stores.mjs").then(async ({ ruledCardStore }) => {
         const held = Object.entries(ruledCardStore.entries() ?? {}).filter(([, row]) => row?.pending && row.by === userId).map(([id]) => id);
-        return held.length ? ruledCardStore.dropMany(held) : null;
+        if (held.length) await ruledCardStore.dropMany(held);
+        for (const messageId of new Set([...freed, ...held])) expiryAfterClaim(messageId);
     }).catch(err => debug("Could not drop a leaving GM's claims", err));
 }
 
@@ -1012,9 +1051,11 @@ export async function claimOnPrimary(messageId, step, by) {
         const own = row?.pending && row.by === by;
         if (step !== "done" || !message) {
             if (own) await ruledCardStore.drop(messageId);
+            expiryAfterClaim(messageId);
             return { taken: false, why: message ? "dropped" : "gone", by };
         }
         if (!row || own) await ruledCardStore.patch(messageId, { by, at: serverNow(), pending: false });
+        expiryAfterClaim(messageId);
         return { taken: true, by: ruledCardStore.get(messageId)?.by ?? by };
     }
     if (!message) return { taken: false, why: "gone", by: null };

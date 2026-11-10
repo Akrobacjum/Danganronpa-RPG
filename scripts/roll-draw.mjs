@@ -48,7 +48,7 @@
  * There is no world switch: the owner's Q2 (a), 03.10.2026.
  */
 
-import { MODULE_ID, FLAGS, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING, CRITICAL, CRISIS_ACTIONS, PRICE_CHAINS, CLEANUP, LEGAL_ROLL_MODIFIERS } from "./config.mjs";
+import { MODULE_ID, FLAGS, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING, CRITICAL, CRISIS_ACTIONS, PRICE_CHAINS, CLEANUP, LEGAL_ROLL_MODIFIERS, LOOT } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { primaryGmId, isPrimaryGm, announce, whisperToGms, debug, warn, error, esc, listOf } from "./utils.mjs";
 import { bridgeRequest, ownsActor } from "./bridge-guards.mjs";
@@ -1745,6 +1745,9 @@ async function listedFor(actor, key, context) {
         return (ACTIONS.tamper?.traits ?? []).slice(0, 1);
     }
     if (key === "cleanup") return listedTraits({ kind: "cleanup", key: cleanupStepOf(context) });
+    // Take from the Body (E68 C10): its Hand and its cover's Shadow, one statistic each (config.mjs `LOOT`).
+    if (key === "loot") return [LOOT.trait];
+    if (key === "lootCover") return [LOOT.cover.trait];
     if (Object.hasOwn(TOLD_AS, key ?? "")) return listedTraits({ kind: "action", ...TOLD_AS[key] });
     /*
      * THE PART A PACKET NAMES (E68 C3, 10.11.2026; S18-01's `part`). A roll told under its action's own key may say

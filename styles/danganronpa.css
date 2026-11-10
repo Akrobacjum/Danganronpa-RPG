@@ -11757,6 +11757,15 @@ body.drpg-stacked .application.sheet.actor.character {
     color: var(--drpg-bone);
 }
 
+/* A Dynamic success a Reroll took back (E68 C11, 10.11.2026; D048, the owner's amend [3] of 31.10: "pierwsza karta
+   sukcesu u GM-ow wyszarzona, obok druga z Rerolla"): the card's words greyed above its line, wherever the card is drawn
+   (the chat log, the messenger's bubble), hung on the line's own key (call-gm.mjs `settleCall`, action-dynamic.mjs
+   `withdrawDynamicFind`); the miss's card stands after it. Not drawn headless: jsdom lays nothing out. */
+:has(> .drpg-call-settled[data-drpg-line="DRPG.Action.dynamicRerollMissed"]) > :not(.drpg-call-settled) {
+    opacity: 0.55;
+    filter: grayscale(1);
+}
+
 /* The report's marks in their state's colour (E20 fix round, the goal review's G-8): a check in the evidence
    colour, a cross in the alarm, where both were the text's own colour (season-setup.mjs `checkMarks`; R1530
    reads both themes). */

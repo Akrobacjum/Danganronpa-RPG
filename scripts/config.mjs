@@ -4370,6 +4370,23 @@ export const CLEANUP = {
 };
 
 /*
+ * TAKE FROM THE BODY ROLLS HAND (E68 C10, 10.11.2026; the plan's E68 goal: "`LOOT` w config.mjs (Hand: ponizej 12
+ * Evident, 12-17 Subtle, 18+ i krytyk Hidden)"; DA16, DA17, DA40). Every Take rolls `trait` once for the items it takes,
+ * and costs no action: the roll says only how plain the body's one Remnant reads - below the first `below` Evident,
+ * below the second Subtle, from there and on a critical Hidden (handover.mjs `lootVisibilityOf`). The owner's Q8 (10.11):
+ * every Take rolls again, in the same time of day too, and the Remnant's visibility only ever rises (handover.mjs
+ * `markBodyDisturbed`), so a second roll can make the trace easier to find and never harder - no free Reroll.
+ * `cover`: with a student watching (frisk.mjs `roomWitnessesOnGm`, counted by the primary GM when it judges the Take),
+ * a Shadow roll at `threshold` keeps them from seeing it; no Sanity either way, unlike Stage 6's `CLEANUP.conceal`.
+ */
+export const LOOT = Object.freeze({
+    trait: "hand",
+    bands: Object.freeze([Object.freeze({ below: 12, visibility: "evident" }), Object.freeze({ below: 18, visibility: "subtle" })]),
+    top: "hidden",
+    cover: Object.freeze({ trait: "shadow", threshold: 16 })
+});
+
+/*
  * WHAT MAY ADD TO A DRAWN ROLL (E29 C9, 05.10.2026; audit S17-12, its second half; the stage plan's 3.2).
  * Until 1.2.68 what a roll the GM draws for a player may add up to lived in two functions'
  * bodies (roll-draw.mjs `expectedFor` and `checkRoll`), and half of it was the roller's word: a
@@ -5031,6 +5048,7 @@ export const DRPG = {
     TRIAL,
     RESOLUTION_STRESS_COST,
     CLEANUP,
+    LOOT,
     SITUATIONAL_PLAYLIST,
     GAME_WINDOWS,
     SFX_CATEGORIES,

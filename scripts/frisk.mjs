@@ -540,6 +540,7 @@ async function endAsk(row, outcome) {
         endedAsks.delete(old);
     }
     clearTimeout(row.timer);
+    clearTimeout(row.receiptTimer);
     if (row.state === "asking" || row.state === "opening") emitTo(row.answerUserIds, { action: FRISK_CANCEL, askId: row.askId });
     await closeTicket(row);
     const searcher = game.actors.get(row.searcherId) ?? null;
@@ -577,7 +578,20 @@ async function closeTicket(row) {
     return endTicket(row.searcherId, "friskAsk");
 }
 
-/** The searcher's wait on its ask, answered once (`row.reply`, the bridge's late answer or a GM's own promise). */
+/**
+ * The searcher's wait on its ask, answered once (`row.reply`, the bridge's late answer or a GM's own promise).
+ *
+ * THE ANSWER IS RECEIVED, AS EVERY OTHER ASK'S IS (E68 C11; D084, E18 C7's gap "no receipt for a Frisk ask"; the owner's
+ * default of 10.11). A Call's or a Dynamic ruling's asker reports `ruling.received` once the answer is on its browser
+ * (bridge-guards.mjs `createWaiter`'s `received`), and the primary ends the card by it; a Frisk's asker reported nothing,
+ * so an answer that left a force open (a refusal, or no answer, with `friskForce` on) to a browser that had closed kept the
+ * force open, with nobody left to press 'Make them' or 'Leave it', until the force's clock ran. The searcher's wait names
+ * the receipt now (bridge-asks.mjs `requestFriskAsk`), call-gm.mjs `receivedOnPrimary` hands a Frisk's here
+ * (`receivedFriskAsk`), and an answer over the bridge (`requestId`) that leaves the ask open waits `TIMING.ackMs` for it:
+ * none, and the ask ends as the searcher's 'Leave it' would, the GMs told (`unreceivedFriskAsk`). An answer that ends the
+ * ask has nothing left to end: its receipt finds no ask and is dropped, as the bridge row's `quiet` answer drops it. A
+ * GM's own ask on the primary answers a promise, not a browser, and waits for no receipt.
+ */
 function answerSearcher(row, value) {
     if (row.replied || typeof row.reply !== "function") return;
     row.replied = true;
@@ -586,6 +600,38 @@ function answerSearcher(row, value) {
     } catch (err) {
         error("Could not answer a Frisk's ask", err);
     }
+    if (row.requestId && value?.forceMs && friskAsks.has(row.askId) && !row.ending) {
+        clearTimeout(row.receiptTimer);
+        row.receiptTimer = setTimeout(() => void unreceivedFriskAsk(row.askId).catch(err => error("Could not end a Frisk's ask", err)), TIMING.ackMs);
+    }
+}
+
+/**
+ * The searcher's browser has the answer (`ruling.received`, by call-gm.mjs `receivedOnPrimary`): the ask held under that
+ * request id, asked by that sender - Foundry's, never the packet's -, answered and waiting for its receipt, waits no more.
+ * Answers whether it was one; another user's receipt, or one for no such ask, does nothing.
+ */
+export function receivedFriskAsk(requestId, senderId) {
+    if (typeof requestId !== "string" || !requestId || !senderId) return false;
+    const row = [...friskAsks.values()].find(held => held.requestId === requestId && held.asker === senderId) ?? null;
+    if (!row || row.ending || !row.replied || !row.receiptTimer) return false;
+    clearTimeout(row.receiptTimer);
+    row.receiptTimer = null;
+    return true;
+}
+
+/** No receipt within `TIMING.ackMs` (`answerSearcher`): the ask ends as its 'Leave it' would (`followFrisk`), the GMs told. */
+async function unreceivedFriskAsk(askId) {
+    const row = friskAsks.get(askId ?? "");
+    if (!row || row.ending || !row.receiptTimer || !FORCEABLE.includes(row.state)) return false;
+    row.receiptTimer = null;
+    const moved = standing(row);
+    const outcome = moved === "gone" || moved === "interrupted" ? moved : "letGo";
+    const searcher = game.actors.get(row.searcherId) ?? null, target = game.actors.get(row.targetId) ?? null;
+    log(`No receipt came for the answer to ${searcher?.name ?? "?"}'s Frisk's ask of ${target?.name ?? "?"}: it ends as 'Leave it' would, ${outcome}.`);
+    const ended = await endAsk(row, outcome);
+    if (ended) await cardToGms(say("DRPG.Frisk.noReceipt", { who: searcher?.name, target: target?.name }));
+    return ended;
 }
 
 /**
@@ -696,7 +742,7 @@ export async function askToFrisk({ searcherId, targetId } = {}, { asker = null, 
     const row = { askId, asker: asker?.id ?? null, requestId: typeof requestId === "string" && requestId ? requestId : null,
         searcherId: searcher.id, targetId: target.id, state: "opening", reply, replied: false,
         sceneId: place.scene?.id ?? null, level: floorKey(place.level), room: place.room, answerUserIds: [], byGms: false, silent: null,
-        at: Date.now(), expiresAt: Infinity, forceUntil: null, lines: [], claimed: false, timer: null };
+        at: Date.now(), expiresAt: Infinity, forceUntil: null, lines: [], claimed: false, timer: null, receiptTimer: null };
     friskAsks.set(askId, row);
     askedPairs.set(pair, now);
     const { claimTicket } = await import("./roll-draw.mjs");
@@ -909,6 +955,7 @@ async function dropFriskAsks(why = "This GM is no longer the primary") {
     for (const row of rows) {
         if (!friskAsks.has(row.askId) || row.ending) continue;
         clearTimeout(row.timer);
+        clearTimeout(row.receiptTimer);
         friskAsks.delete(row.askId);
         await closeTicket(row);
     }
@@ -937,7 +984,10 @@ export function friskSocketBack() {
 
 /** For the suite: every ask this primary holds and every pair asked forgotten, their clocks stopped, nothing posted. */
 export function forgetFriskAsks() {
-    for (const row of friskAsks.values()) clearTimeout(row.timer);
+    for (const row of friskAsks.values()) {
+        clearTimeout(row.timer);
+        clearTimeout(row.receiptTimer);
+    }
     friskAsks.clear();
     endedAsks.clear();
     askedPairs.clear();
