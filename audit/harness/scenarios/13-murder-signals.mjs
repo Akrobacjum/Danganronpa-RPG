@@ -480,7 +480,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
        checked and whose default button is pressed by the queued answer; nothing else is queued,
        so a second window - the confirmation the menu was followed by until C15 - is closed, as a
        player who sits still closes it. `windows` is every window the press opened, in order. */
-    /* `proposed` (E68 C4; DA18): the statistic the row proposes under it, set before the menu's button; null keeps the
+    /* `proposed` (E68 C4; DA18): the statistic the row proposes, set before the menu's button - since E68 C12/C13 in the
+       right column's statistic slot (action-menus.mjs `TRAIT_SLOT`, one `[data-drpg-field]` block per row); null keeps the
        menu's own, its first listed. The throw's mark is the roll's `TRAIT_BY_GM` as it stands: "approved" or "changed"
        where a proposal was ruled, true where a GM picked with none (trait-ruling.mjs `traitFor`). */
     const ACT = (actorId, key, faces, proposed = null) => `const M = await import("${repoUrl}/scripts/murder.mjs");
@@ -497,7 +498,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
             if (!row) return null;
             row.checked = true;
             const proposal = ${JSON.stringify(proposed)} === null ? null
-                : cfg.content.querySelector('.drpg-choice-details[data-drpg-for="${key}"] select[name="proposed"]');
+                : cfg.content.querySelector('.drpg-action-trait > [data-drpg-field="${key}"] select[name="proposed"]');
             if (proposal) proposal.value = ${JSON.stringify(proposed)};
             return (cfg.buttons ?? []).find(b => b.default)?.callback?.(null, null, { element: cfg.content }) ?? null;
         });
