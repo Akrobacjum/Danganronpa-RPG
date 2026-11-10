@@ -3971,6 +3971,7 @@
       "nextTrialOutlived": "The chapter has moved on and the trial is still sitting. End the trial.",
       "nextReady": "The players have been asked before the clock moves. Open the question again.",
       "roleColumn": "Role",
+      "openSheet": "Open {name}'s sheet",
       "role": {
         "student": "Student"
       },

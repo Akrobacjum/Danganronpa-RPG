@@ -84324,6 +84324,13 @@ const SCENARIOS = [
             answer = Promise.resolve().then(() => GP.openWhoIsAliveDialog()).catch(() => null);
             await until(() => select(theirs) && select(npc), 6000);
             must(select(theirs)?.value === "student", `${theirs.name}'s row does not read student - this would measure nothing`);
+            // The row's sheet button (E95 C6): [drawn, its aria-label and tooltip the character's], on a student's, a Monokuma's and an NPC's row.
+            const sheetButton = actor => {
+                const b = el()?.querySelector(`button[data-drpg-sheet="${CSS.escape(actor.id)}"]`);
+                const words = game.i18n.format("DRPG.Panel.openSheet", { name: actor.name });
+                return [Boolean(b), b?.getAttribute("aria-label") === words && b?.dataset.tooltip === words];
+            };
+            read.sheetRows = { student: sheetButton(theirs) };
 
             choose(theirs, "monokuma");
             await until(() => question(), 3000);
@@ -84338,6 +84345,7 @@ const SCENARIOS = [
             await until(() => MK.isMonokuma(theirs) && select(theirs)?.value === "monokuma", 4000);
             await settle();
             read.yes = [MK.isMonokuma(theirs), Number(foundry.utils.getProperty(theirs, HOPE) ?? -1), Number(foundry.utils.getProperty(theirs, ACTIONS) ?? -1), select(theirs)?.value ?? null];
+            read.sheetRows.monokuma = sheetButton(theirs);
 
             choose(theirs, "student");
             await until(() => !MK.isMonokuma(theirs) && select(theirs)?.value === "student", 4000);
@@ -84349,6 +84357,7 @@ const SCENARIOS = [
             // The row is drawn again from the flag (`keepLive`): the select moved by hand reads "npc" before it is.
             await until(() => MK.isNotInClass(npc) && select(npc)?.value === "npc" && !levelUp(npc), 4000);
             read.out = [npcHad, MK.isNotInClass(npc), levelUp(npc), Boolean(question())];
+            read.sheetRows.npc = sheetButton(npc);
             choose(npc, "student");
             await until(() => !MK.isNotInClass(npc) && select(npc)?.value === "student" && levelUp(npc), 4000);
             read.backIn = [MK.isNotInClass(npc), levelUp(npc)];
@@ -84407,11 +84416,12 @@ const SCENARIOS = [
             backIn: [false, true],
             levelUp: [[["standard", "reinforced"], ["gm", "player"]], 1, true, plural("DRPG.Advance.standing", { n: 1 }), plural("DRPG.Advance.standing", { n: 1 })],
             items: [theirs.id, 0, 1],
-            forged: [true, false, "student"]
+            forged: [true, false, "student"],
+            sheetRows: { student: [true, true], monokuma: [true, true], npc: [true, true] }
         }), "{cancel: [the mark asked, the flag, the select]; yes: [the flag, Hope, actions, the select]; unmark: [the flag, a question asked, the select]; "
             + "out: [the NPC's Level Up before, the flag, its Level Up after, a question asked]; backIn: [the flag, its Level Up]; "
             + "levelUp: [the menus' rows, the offers standing, the player told, the row's words, the words for them]; items: [the hub's character, Students windows while it ran, after it]; "
-            + "forged: [judged, the flag after the put-back, the select]}");
+            + "forged: [judged, the flag after the put-back, the select]; sheetRows: each row's sheet button [drawn, its words the character's] (E95 C6)}");
     }],
 
     /* ---- E47-C3 (09.11.2026): the GM panel's tiles and the case window (MARKED) ---- */
@@ -85319,6 +85329,63 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson(want),
             "{calm: another player's sheet of the student in neither state; held: each reader's sheet (owner, GM, another player, Observer) in each layout (bars, pips) of the student "
             + "in Breakdown and Wounded} - [badge name, tooltip] of each state beside the reserves, the Actions label's [Wounded class, tooltip], Sanity's row \"?\", [Breakdown, Wounded] said anywhere on the sheet");
+    }],
+    ["a Students row opens that character's sheet (E95 C6; the owner's 10.11): the GM presses a row's sheet button twice - each press renders that actor's own sheet with force, the same window both times, the Students window stays open, and no other actor's sheet is asked", async () => {
+        /*
+         * E95 C6, 10.11.2026. The window as the GM panel's tile opens it (gm-panel.mjs `openWhoIsAliveDialog`), on its
+         * own roads: the button's road is the actor's `sheet.render(true)`. Read through the sheet's own `render`, wrapped
+         * for the test and put back in a finally (the harness's sheet draws nothing; at a table it opens, and is closed
+         * after unless it was open before). Red first on af5cdcfc: no sheet button on a row.
+         */
+        needs(env.dialogs(), "the window is answered drawn");
+        const GP = await import("./gm-panel.mjs");
+        const { theirs } = playerAndCharacters();
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-alive"));
+        const button = () => of()[0]?.element?.querySelector(`button[data-drpg-sheet="${CSS.escape(theirs.id)}"]`) ?? null;
+        const sheet = theirs.sheet;
+        must(sheet && typeof sheet.render === "function", `${theirs.name} has no sheet to render - this would measure nothing`);
+        const wasOpen = Boolean(sheet.rendered);
+        const own = Object.getOwnPropertyDescriptor(sheet, "render");
+        const calls = [];
+        const others = [];
+        const otherSheets = game.actors.filter(a => a.id !== theirs.id).map(a => a.sheet).filter(Boolean);
+        const kept = otherSheets.map(s => [s, Object.getOwnPropertyDescriptor(s, "render")]);
+        sheet.render = function (...args) { calls.push([this === sheet, args[0] === true || args[0]?.force === true]); return (own?.value ?? Object.getPrototypeOf(sheet).render).apply(this, args); };
+        for (const [s] of kept) {
+            const real = s.render;
+            s.render = function (...args) { others.push(args); return real.apply(this, args); };
+        }
+        const read = {};
+        try {
+            const answer = Promise.resolve().then(() => GP.openWhoIsAliveDialog()).catch(() => null);
+            await until(() => button(), 6000);
+            read.drawn = Boolean(button());
+            button()?.click();
+            await until(() => calls.length >= 1, 3000);
+            await settle();
+            button()?.click();
+            await until(() => calls.length >= 2, 3000);
+            await settle();
+            read.calls = calls;
+            read.stays = of().length;
+            read.others = others.length;
+            read.windows = [...foundry.applications.instances.values()].filter(a => a.rendered && a.document === theirs).length <= 1;
+            for (const a of of()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(1000)]);
+        } finally {
+            if (own) Object.defineProperty(sheet, "render", own);
+            else delete sheet.render;
+            for (const [s, d] of kept) {
+                if (d) Object.defineProperty(s, "render", d);
+                else delete s.render;
+            }
+            if (!wasOpen && sheet.rendered) await sheet.close().catch(() => {});
+            for (const a of of()) await a.close().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ drawn: true, calls: [[true, true], [true, true]], stays: 1, others: 0, windows: true }),
+            "{drawn: the row's sheet button; calls: each press's [the actor's own sheet, forced]; stays: Students windows open after both; "
+            + "others: renders asked of any other actor's sheet; windows: at most one rendered window of the actor's sheet}");
     }],
 ];
 

@@ -4337,6 +4337,7 @@
       "refilled": "Akcje i Search Tokens odnowione. Motive, pieczęcie i overflow zostały nietknięte, a na czat nie trafiła karta pory dnia.",
       "nextReady": "Gracze dostali pytanie przed przesunięciem zegara. Otwórz je ponownie.",
       "roleColumn": "Rola",
+      "openSheet": "Otwórz arkusz: {name}",
       "role": {
         "student": "Uczeń"
       },
