@@ -39,7 +39,7 @@
 | **Contribution** | 2 | |
 | **Sprint** | 2 | Jedno darmowe przejście. |
 | **Reroll** | 3 | |
-| **Resolve** | 3 | Sam wybierasz statystykę. |
+| **Resolve** | 2 | Sam wybierasz dowolną statystykę. |
 | **Burst** | 4 | Następna akcja za darmo. |
 | **Relief** | 4 | Short Rest od razu. |
 | **Loaded Die** | 6 | Jedna kość ustawiona na 12. |

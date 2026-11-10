@@ -39,7 +39,9 @@ import { PROPOSAL_NOTE_MAX } from "./trait-ruling.mjs";
  * roller's own, and `how` adds "How do you do it? (optional)", the words the GM's card quotes, bounded by
  * `PROPOSAL_NOTE_MAX`. The first listed statistic is checked, so a trap victim's table proposes Body unless
  * the player changes it. Read back by `readProposal`. Exported for the callers outside this file that ask a
- * proposal in a window of their own (action-murder.mjs, action-project.mjs, action-dynamic.mjs).
+ * proposal in a window of their own (action-murder.mjs, action-project.mjs, action-dynamic.mjs, action-search.mjs).
+ * A proposal is one container, `drpg-trait-proposal` (E68 C7, 10.11.2026): the select and the words together, so a
+ * layout can place the field as one block (the orchestrator's note for E68 C12's right column).
  */
 export function traitFieldHtml(actor, traits, { note = "", propose = false, how = propose, howLabel = "DRPG.TraitRuling.howLabel" } = {}) {
     const allowed = traits ?? [];
@@ -53,10 +55,11 @@ export function traitFieldHtml(actor, traits, { note = "", propose = false, how 
 
     const words = how ? `<label class="drpg-trait-how"><span>${game.i18n.localize(howLabel)}</span>
         <input type="text" name="note" maxlength="${PROPOSAL_NOTE_MAX}"></label>` : "";
-    return `<label class="drpg-trait-field"><span>${game.i18n.localize(propose ? "DRPG.TraitRuling.proposeLabel" : "DRPG.Advance.whichTrait")}</span>
+    const field = `<label class="drpg-trait-field"><span>${game.i18n.localize(propose ? "DRPG.TraitRuling.proposeLabel" : "DRPG.Advance.whichTrait")}</span>
         <select name="${propose ? "proposed" : "trait"}">${options}</select>
         ${note ? `<small class="notes">${note}</small>` : ""}
-    </label>${words}`;
+    </label>`;
+    return propose ? `<div class="drpg-trait-proposal">${field}${words}</div>` : `${field}${words}`;
 }
 
 /** The other half of `traitFieldHtml`: what the form says, or the only option. */

@@ -2280,9 +2280,15 @@ export const HOPE_CALLS = {
          * THE KEY STAYS `determination`. It is an identity, not a name: every
          * armed Call, sound mapping and flag in a live world is written against
          * it, and none of them is text anybody reads.
+         *
+         * TWO HOPE, AND ANY STATISTIC (E68 C7, 10.11.2026; DA37 = 1). Since the player proposes and
+         * the GM approves wherever several statistics are listed (DA18), Resolve is the one road
+         * that asks nobody: armed, `traitFor` answers with no card and the roll window's picker is
+         * open (trait-ruling.mjs, roll-dialog.mjs `lockTrait`), on a roll of one statistic too. It
+         * was 3 Hope; DA37 makes it 2, the price of skipping the card. No GM rules it (no `needsGm`).
          */
-        label: "Resolve", icon: "fa-hand-fist", cost: 3, target: "none", grants: "trait",
-        effect: "For one roll, choose which statistic to add yourself."
+        label: "Resolve", icon: "fa-hand-fist", cost: 2, target: "none", grants: "trait",
+        effect: "For one roll, pick any statistic yourself: nobody is asked, even where the action lists several."
     },
     freeCrit: {
         // NOT A CRITICAL, A LOADED DIE (Dawid, 31.08) - see forced-roll.mjs.

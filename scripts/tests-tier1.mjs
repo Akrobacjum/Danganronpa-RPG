@@ -7794,6 +7794,31 @@ const INVARIANTS = [
         equal(JSON.stringify([await of("eraseTrace"), await of("misleadingTrail")]), JSON.stringify([["shadow", "fixed"], ["shadow", "fixed"]]),
             "the GM's draw does not hold an erase or a trail to Shadow from the fixed row, so Hand would not be flagged (erase, trail)");
     }],
+    ["R3153 - Resolve costs 2 Hope and asks nobody: no GM rules it, it grants the statistic, its effect says any statistic with nobody asked in both languages, and armed it answers a definition of several and one of one with no card or window (E68 C7; DA37)", async () => {
+        /*
+         * E68 C7, 10.11.2026; DA37 = 1 (the planned R-next (d)). config.mjs HOPE_CALLS.determination: its price, its
+         * `grants`, no `needsGm`; the effect's English (config) and Polish (lang, `DRPG.Config.HOPE_CALLS.determination.effect`)
+         * name any statistic and nobody asked. Then `traitFor` with Resolve armed (the seam) for Attack with a weapon
+         * (three listed) and for Observe (one): the first listed, `byGm` false, and neither way of asking called. Pure.
+         * Red at C6's tip: the price was 3 and the effect said "choose which statistic to add".
+         */
+        const T = await import("./trait-ruling.mjs");
+        const { HOPE_CALLS, MODULE_ID } = await import("./config.mjs");
+        const call = HOPE_CALLS.determination;
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const polish = pl?.DRPG?.Config?.HOPE_CALLS?.determination?.effect ?? "";
+        equal(JSON.stringify([call?.cost, call?.grants, Boolean(call?.needsGm), /any statistic/.test(call?.effect ?? "") && /nobody is asked/.test(call?.effect ?? ""),
+            /dowoln/.test(polish) && /nikt nie jest pytany/.test(polish)]), JSON.stringify([2, "trait", false, true, true]),
+            "Resolve's price is not 2, it grants no statistic, a GM rules it, or its effect does not say any statistic with nobody asked (cost, grants, needsGm, English, Polish)");
+        const asked = [];
+        const seams = { resolveArmed: () => true, askGms: async () => { asked.push("player"); return null; }, pickHere: async () => { asked.push("gm"); return null; } };
+        const A = { id: "R3153ACTOR000001", name: "R3153" };
+        const read = [await T.traitFor(A, { kind: "crisis", key: "weaponAttack" }, { ...seams, isGm: false, proposed: "leg" }),
+            await T.traitFor(A, { kind: "crisis", key: "weaponAttack" }, { ...seams, isGm: true }), await T.traitFor(A, { kind: "action", key: "observe" }, { ...seams, isGm: false })];
+        const first = T.listedTraits({ kind: "crisis", key: "weaponAttack" })[0], observe = T.listedTraits({ kind: "action", key: "observe" })[0];
+        equal(JSON.stringify([read, asked]), JSON.stringify([[{ trait: first, byGm: false }, { trait: first, byGm: false }, { trait: observe, byGm: false }], []]),
+            "an armed Resolve asked somebody or did not leave the pick to the roll window (several on a player's browser, on a GM's, one; the asks)");
+    }],
     ["R216 - a Reroll answered past its clock still counts, and a GM leaving is not the primary", async () => {
         /*
          * E08+E28 fix r1-G5, 04.10.2026; the round-1 review's m1 and m3.

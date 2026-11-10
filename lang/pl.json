@@ -6274,7 +6274,7 @@
         },
         "determination": {
           "label": "Resolve",
-          "effect": "Na jeden rzut sam(a) wybierasz, którą statystykę dodać."
+          "effect": "Na jeden rzut sam(a) wybierasz dowolną statystykę: nikt nie jest pytany, także gdy akcja wymienia kilka."
         },
         "freeCrit": {
           "label": "Loaded Die",
