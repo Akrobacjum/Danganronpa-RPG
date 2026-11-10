@@ -578,7 +578,16 @@ function sendOnFromPrimary(requestId, held, value, { text, by, yes = null, rulin
  * under the window, and that GM's ruling then settled it a second time. The end waits for the claim now
  * (`expiryWaiting`): when it ends - the ruling made, backed out of, or its GM gone (`releaseClaimsOf`) - the card is
  * ended as expired unless the ruling settled it (`endAskCard` reads `settled`). The ask itself is over as before: its
- * held entry is dropped by the caller, so a ruling made after it sends nothing on.
+ * held entry is dropped by the caller, so a Dynamic's or a Hope Call's ruling made after it sends nothing on, and its
+ * claim ends with "drop".
+ *
+ * "DONE" ENDS NOTHING (E68 review R2, 10.11.2026). A claim that ends with "done" made a ruling, and the card's line is
+ * that ruling's: `claimCard` sends "done" in its `finally`, before its caller writes the line (`settleCall`), so an
+ * expiry ended there read `settled` still unwritten and put "Nobody answered in time - ask again." on the card, under
+ * the ruling's own line. A statistic's ruling made after the expiry is sent on all the same (messenger-app.mjs
+ * `rulePickTrait` keeps a project's pick, and `answerTraitRuling` reads no held entry), so its line is the true one.
+ * The waiting expiry is dropped on "done" (`expiryAfterClaim(id, { ruled: true })`). Tier 2's "an expiry under a
+ * claim that ends in a ruling" reads it.
  */
 const expiryWaiting = new Set();
 
@@ -601,10 +610,14 @@ async function underClaim(messageId) {
     return Boolean(row?.pending && game.users.get(row.by ?? "")?.active);
 }
 
-/** A claim on a card ended: an expiry that waited for it (`endExpired`) ends the card now, unless the ruling settled it. */
-function expiryAfterClaim(messageId) {
+/**
+ * A claim on a card ended: an expiry that waited for it (`endExpired`) ends the card now - unless `ruled`, the claim's
+ * "done", whose caller writes the card's line next.
+ */
+function expiryAfterClaim(messageId, { ruled = false } = {}) {
     if (!expiryWaiting.has(messageId)) return;
     expiryWaiting.delete(messageId);
+    if (ruled) return;
     void endExpired(messageId).catch(err => debug("A card that ran out under a GM's ruling could not be ended", err));
 }
 
@@ -1055,7 +1068,7 @@ export async function claimOnPrimary(messageId, step, by) {
             return { taken: false, why: message ? "dropped" : "gone", by };
         }
         if (!row || own) await ruledCardStore.patch(messageId, { by, at: serverNow(), pending: false });
-        expiryAfterClaim(messageId);
+        expiryAfterClaim(messageId, { ruled: true });
         return { taken: true, by: ruledCardStore.get(messageId)?.by ?? by };
     }
     if (!message) return { taken: false, why: "gone", by: null };

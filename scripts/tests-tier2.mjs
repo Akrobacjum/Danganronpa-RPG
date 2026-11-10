@@ -32643,6 +32643,62 @@ const SCENARIOS = [
             "[this GM's take, the card ended while this GM held it, ended once the claim was dropped, its closing lines for the table]");
     }],
 
+    ["an expiry under a claim that ends in a ruling leaves the card to that ruling's line: one closing line, not the expiry's (E68 review R2)", async () => {
+        /*
+         * E68 review R2, 10.11.2026; D075's other road. The D075 test above backs out of the ruling ("drop"). On "done"
+         * the primary ended a waiting expiry at once (call-gm.mjs `expiryAfterClaim`), and `claimCard` sends "done" in its
+         * `finally`, before its caller writes the ruling's line (`settleCall`): the expiry read the card unsettled and
+         * wrote "Nobody answered in time - ask again." beside, or over, the ruling's "Answered by". Read on this primary,
+         * each packet handed to the bridge's runner with the user Foundry names: a player's Dynamic ask puts its card up;
+         * this GM's ruling runs under `claimCard`, and inside it the asker's expiry; the ruling answers `{ settled }` and
+         * its line is written as `pressCard` writes it. Read: whether the card ended while the ruling ran, its closing
+         * lines for the table, and whether one of them is the expiry's. The card is deleted after.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the ask is a player's, and Foundry names only a connected one");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which holds the asks and the claims - this would measure nothing");
+        const { player, theirs } = playerAndCharacters();
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const EXPIRED = game.i18n.localize("DRPG.Bridge.settledExpired");
+        const judged = (action, fields, from, requestId = null) =>
+            G.judge(B.BRIDGE_ACTIONS, { action, ...(requestId ? { requestId } : {}), ...fields }, from, { send: () => {} });
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [];
+        const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        const read = [];
+        let card = null;
+        try {
+            const rid = foundry.utils.randomID(16);
+            await judged("dynamic.difficulty", { actorId: theirs.id, description: "E68 R2 a card ruled under its expiry", actorName: theirs.name, room: null }, player.id, rid);
+            must(await until(() => created.length > 0, 5000), "the ask put no card up - this would measure nothing");
+            card = game.messages.get(created[0].id);
+            const ended = () => Boolean(cardFlag(game.messages.get(card.id), "settled"));
+            const outcome = await B.claimCard(card, async () => {
+                await judged("ruling.expired", { rid }, player.id);
+                await settle(500);
+                read.push(ended());
+                return { settled: "E68 R2 answered" };
+            });
+            must(outcome?.settled, "the ruling did not run under its claim - this would measure nothing");
+            await B.settleCall(game.messages.get(card.id), outcome.settled, null);
+            await settle(1500);
+            const wrap = document.createElement("template");
+            wrap.innerHTML = contentOf(game.messages.get(card.id));
+            const lines = [...wrap.content.querySelectorAll(".drpg-call-settled")].filter(el => !el.closest(".drpg-gm-only"));
+            read.push(lines.length, lines.some(el => el.textContent.trim() === EXPIRED));
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const message of created) await message.delete().catch(() => {});
+            await settle(300);
+            if (card && S.ruledCardStore.has(card.id)) await S.ruledCardStore.drop(card.id);
+        }
+        equal(stableJson(read), stableJson([false, 1, false]),
+            "[the card ended while this GM's ruling ran, its closing lines for the table, one of them the expiry's]");
+    }],
+
     ["a statistic's ask and an Observe's end as the other asks do: each card shows its time and carries its ask's mark, its asker's expiry ends it, and a pick after that is not taken (E18 fix e1-G4)", async () => {
         /*
          * E18 fix e1-G4, 24.10.2026; the end review's F1 and E18-END-5 (STATUS's C1 and C2 gaps). A statistic's card
