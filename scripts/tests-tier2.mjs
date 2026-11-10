@@ -32477,6 +32477,56 @@ const SCENARIOS = [
             "[this GM's take, the row], the row after its drop, [another GM's take of a card this GM's pending row holds: taken, why, by this GM], [this GM's take of a card a GM not here holds, the row], the row after the drop - a claim under way was not the GMs' row, or a pending row of a GM not here held the card");
     }],
 
+    ["an ask's card that runs out while a GM is ruling on it waits for that ruling, and ends once (E68 C11; D075)", async () => {
+        /*
+         * E68 C11, 10.11.2026; D075 (E18 C3's gap). The primary's end of an ask's card - its time, or its asker's
+         * `ruling.expired` - read only whether the card was settled, so a GM whose ruling on it was under way (a claim,
+         * call-gm.mjs `claimOnPrimary`) found it ended under the window, and the ruling then settled it again. Read on this
+         * primary, each packet handed to the bridge's runner with the user Foundry names: a player's Dynamic ask puts its
+         * card up; this GM takes the card; the asker's expiry; then this GM backs out of the ruling (the claim's "drop").
+         * Read: the take, whether the card ended while it was held, whether it ended after the drop, and how many closing
+         * lines it carries. The card is deleted after.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the ask is a player's, and Foundry names only a connected one");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which holds the asks and the claims - this would measure nothing");
+        const { player, theirs } = playerAndCharacters();
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const judged = (action, fields, from, requestId = null) =>
+            G.judge(B.BRIDGE_ACTIONS, { action, ...(requestId ? { requestId } : {}), ...fields }, from, { send: () => {} });
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [];
+        const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        const read = [];
+        let card = null;
+        try {
+            const rid = foundry.utils.randomID(16);
+            await judged("dynamic.difficulty", { actorId: theirs.id, description: "E68 C11 a card under a GM's hand", actorName: theirs.name, room: null }, player.id, rid);
+            must(await until(() => created.length > 0, 5000), "the ask put no card up - this would measure nothing");
+            card = game.messages.get(created[0].id);
+            const ended = () => Boolean(cardFlag(game.messages.get(card.id), "settled"));
+            read.push((await B.claimOnPrimary(card.id, "take", game.user.id))?.taken ?? null);
+            await judged("ruling.expired", { rid }, player.id);
+            await settle(500);
+            read.push(ended());
+            await B.claimOnPrimary(card.id, "drop", game.user.id);
+            read.push(await until(ended, 3000));
+            const wrap = document.createElement("template");
+            wrap.innerHTML = contentOf(game.messages.get(card.id));
+            read.push([...wrap.content.querySelectorAll(".drpg-call-settled")].filter(el => !el.closest(".drpg-gm-only")).length);
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const message of created) await message.delete().catch(() => {});
+            await settle(300);
+            if (card && S.ruledCardStore.has(card.id)) await S.ruledCardStore.drop(card.id);
+        }
+        equal(stableJson(read), stableJson([true, false, true, 1]),
+            "[this GM's take, the card ended while this GM held it, ended once the claim was dropped, its closing lines for the table]");
+    }],
+
     ["a statistic's ask and an Observe's end as the other asks do: each card shows its time and carries its ask's mark, its asker's expiry ends it, and a pick after that is not taken (E18 fix e1-G4)", async () => {
         /*
          * E18 fix e1-G4, 24.10.2026; the end review's F1 and E18-END-5 (STATUS's C1 and C2 gaps). A statistic's card
