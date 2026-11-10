@@ -407,7 +407,8 @@ export async function lootBody({ takerId, bodyId, itemId, askedBy = null } = {})
        C1; audit S08-01, S11-06). A body nobody has found may be searched by whoever knows of the death - the incident's
        players, the victim's own, a student alone with it, a GM - asked of the GMs' record by the user who sent the
        request (`askedBy`, Foundry's sender; a GM's own button sends none), never of the public fact. That rule and the
-       rest - the taker alive and standing in the body's room as the GMs read both, the body's token not hidden, no
+       rest - the taker alive and standing in the body's room as the GMs read both, the body not hidden where it lies
+       (its tile, or its token when it has none: body-tile.mjs `bodyPlaceOf`, E95 C1), no
        Eclipse, no Class Trial, the taker not the body - are the one gate's (inventory.mjs `transferRefusal`, mode
        "loot": frisk.mjs `personActionRefusal(taker, body, { body: true })`), asked here before the trace and again by
        `transferItem`. An unknown death is refused in the words a living body is. The item moving between two sheets is

@@ -44478,6 +44478,10 @@ const INVARIANTS = [
             [300, 400, 200, 200, 5, "icons/svg/skull.svg", mark("SUITER3142FLOOR1", 1234)],
             [300, 400, 300, 300, 5, "icons/svg/skull.svg", mark("SUITER3142FLOOR2", 99)]
         ]), "[the tile of a 2x2 token on a 100 px grid, on a 150 px grid]: [x, y, width, height, elevation, image, flag]");
+        /* E95 fix RV-3 (10.11.2026): the tile is hidden when the token it is laid from is, so a body the GM had hidden is
+           not shown, captioned and searchable once its student becomes a Monocub. Red at c431138a: every tile unhidden. */
+        const shut = B.bodyTileSpec({ tokenDoc: { ...tokenDoc(100), hidden: true }, actorId: "SUITER3142VICTIM", record, level: null, at: 1 });
+        equal(stableJson([one.hidden, shut.hidden]), stableJson([false, true]), "the tile's `hidden` [from a token shown, from a token hidden] is not the token's");
         equal(stableJson([B.tileCentre(one), B.tileCentre(two)]), stableJson([{ x: 400, y: 500 }, { x: 450, y: 550 }]),
             "the tiles' centres are not the tokens' (x + width x grid / 2)");
         const deaths = [{ cause: "executed", phase: "classTrial" }, { phase: "classTrial" }, { cause: "executed", phase: "investigation" },
@@ -44491,7 +44495,25 @@ const INVARIANTS = [
             "body-tile.mjs imports something besides config.mjs, movement.mjs and settings.mjs");
     }],
 
-    ["R3144 - a body's tile wears its caption and the dead sign (body-tile.mjs `drawBodyMark`, E95 C3; QUESTIONS Q4): \"{name}'s body\" / \"Ciało: {name}\" under the tile at max(20, grid x 0.36) over a keyline of max(4, grid x 0.07), the dead status's picture over its centre; drawn once per redraw, at half alpha on a hidden tile, and taken off a tile that lost its flag", async () => {
+    ["R3146 - tier 2's restore takes off only the body tiles that appeared (tests-kit.mjs `appearedBodyTiles`, E95 fix RV-4): a tile with the body flag that the snapshot did not hold, never one it held and never a tile with no body flag", async () => {
+        /*
+         * E95 fix RV-4, 10.11.2026. tests-tier2.mjs `restore` deleted every tile that appeared on a scene the snapshot
+         * knew (936a9944), so the world dump, which found E51-T21's leak as "tiles.<id> appeared", could see no tile a
+         * tier-2 test left. It now deletes only the body tiles a Monocub's edge lays (body-tile.mjs `leaveBody`); any
+         * other tile that appears stays for the dump to name. Read on a scene of plain objects: a body tile the snapshot
+         * held, a body tile and a plain tile that appeared, a tile whose flag is not an object, and no known set (a scene
+         * that appeared goes whole with the documents). Red at c431138a: tests-kit.mjs has no `appearedBodyTiles`.
+         */
+        const kit = await import("./tests-kit.mjs");
+        must(typeof kit.appearedBodyTiles === "function", "tests-kit.mjs exports no appearedBodyTiles");
+        const tile = (id, flag) => ({ id, getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.bodyOf ? flag : undefined) });
+        const body = { actorId: "SUITER3146VICTIM", deathId: null, level: null, at: 1 };
+        const scene = { tiles: [tile("tHeld", body), tile("tNewBody", body), tile("tNewPlain", undefined), tile("tNewOdd", "x")] };
+        equal(stableJson([kit.appearedBodyTiles(scene, new Set(["tHeld"])), kit.appearedBodyTiles(scene, null), kit.appearedBodyTiles({}, new Set())]),
+            stableJson([["tNewBody"], [], []]), "the tiles the restore deletes [with the snapshot's set, with none, on a scene with no tiles]");
+    }],
+
+    ["R3144 - a body's tile wears its caption and the dead sign (body-tile.mjs `drawBodyMark`, E95 C3; QUESTIONS Q4): \"{name}'s body\" / \"Ciało: {name}\" under the tile at max(20, grid x 0.36) over a keyline of max(4, grid x 0.07), the dead status's picture over its centre; drawn once per redraw, at half alpha on a hidden tile on a GM's browser and not at all on a player's, and taken off a tile that lost its flag", async () => {
         /*
          * E95 C3, 10.11.2026; QUESTIONS Q4 (the default: the caption and the sign in E95). The harm: a body tile beside
          * a Monocub's token that still wears Foundry's dead overlay reads as a second copy of the student, and a refresh
@@ -44529,8 +44551,19 @@ const INVARIANTS = [
         const renamed = B.drawBodyMark(tile, { actors });
         cases.renamed = [renamed !== first, marks(tile).length, marks(tile)[0]?.children.find(c => c instanceof PIXI.Text)?.text ?? null];
         const hidden = placeable(flag, { width: 100, height: 100, hidden: true });
-        B.drawBodyMark(hidden, { actors });
+        B.drawBodyMark(hidden, { actors, gm: true });
         cases.hidden = marks(hidden).map(m => m.alpha);
+        /* E95 fix RV-5 (10.11.2026): on a player's browser a hidden tile wears no mark, drawn before or not - the caption
+           names the body, and whether v14 hides a hidden tile's children from a player is LIVE-E95-01's. Red at c431138a:
+           the mark at half alpha there too. */
+        const forPlayer = placeable(flag, { hidden: true });
+        cases.hiddenForPlayer = [B.drawBodyMark(forPlayer, { actors, gm: false }) === null, marks(forPlayer).length];
+        const later = placeable(flag);
+        B.drawBodyMark(later, { actors, gm: false });
+        const shown = marks(later).length;
+        later.document.hidden = true;
+        B.drawBodyMark(later, { actors, gm: false });
+        cases.hiddenLater = [shown, marks(later).length];
         const plain = placeable(undefined);
         cases.plain = [B.drawBodyMark(plain, { actors }), marks(plain).length];
         tile.document.getFlag = () => undefined;
@@ -44546,12 +44579,14 @@ const INVARIANTS = [
             sameMark: true,
             renamed: [true, 1, words("R3144 Daichi Renamed")],
             hidden: [0.5],
+            hiddenForPlayer: [true, 0],
+            hiddenLater: [1, 0],
             plain: [null, 0],
             lostFlag: [null, 0],
             orphan: [["sign"]],
             langs: ["{name}'s body", "Ciało: {name}"]
-        }), "{the mark as [alpha, its children]; drawn twice one mark; renamed [a new mark, how many, its words]; hidden alpha; "
-            + "a tile with no flag [answer, marks]; the flag gone [answer, marks]; a student gone from the world; the words in English and Polish}");
+        }), "{the mark as [alpha, its children]; drawn twice one mark; renamed [a new mark, how many, its words]; hidden alpha on a GM's; "
+            + "hidden on a player's [answered none, marks]; a player's mark on a tile shown, then hidden [marks]; a tile with no flag [answer, marks]; the flag gone [answer, marks]; a student gone from the world; the words in English and Polish}");
     }],
 ];
 

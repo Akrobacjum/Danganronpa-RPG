@@ -22026,7 +22026,7 @@ const REGRESSIONS = [
         const gate = fnSource(src("frisk.mjs"), "personActionRefusal");
         const read = {
             gateReads: calls(gate),
-            bodyBranch: /\bbody\s*\?\s*bodyPlaceOf\(target\)\s*:\s*gmPlaceOf\(target\)/.test(gate),
+            bodyBranch: /\bbody\s*\?\s*bodyPlaceOf\(target,\s*\{\s*held:\s*flagsHeldNow\s*\}\)\s*:\s*gmPlaceOf\(target\)/.test(gate),
             hiddenFromPlace: /\bbody\s*\?\s*there\?\.hidden\s*:\s*there\?\.tokenDoc\?\.hidden/.test(gate),
             friskImports: staticImports(src("frisk.mjs")).includes("body-tile.mjs"),
             lootBody: calls(fnSource(src("handover.mjs"), "lootBody")),

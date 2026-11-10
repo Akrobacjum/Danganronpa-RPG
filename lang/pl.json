@@ -1125,7 +1125,7 @@
       "setCategoryTier": "Tabele nie mówią, czym jest ten przedmiot: wybierz jego kategorię i Tier, by go dać."
     },
     "Body": {
-      "noToken": "{name} nie ma tokenu na scenie z pokojami, więc na mapie nie zostało ciało.",
+      "noToken": "GMowie nie mogą umieścić tokenu postaci {name} na scenie z pokojami (nie ma go albo jego cofnięcie jest jeszcze w drodze), więc na mapie nie zostało ciało. Odznacz Monocuba i zaznacz go znowu, gdy token stanie.",
       "tile": "Ciało: {name}"
     },
     "Monocub": {

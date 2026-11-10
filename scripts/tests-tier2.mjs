@@ -16,7 +16,7 @@ import { forcedDeletion } from "./utils.mjs";
 import { gmStoresIdle, gmStoreNow } from "./gm-store.mjs";
 import {
     ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource,
-    STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, watchLog, cast, systemSheetsAvailable, lfText, expectedRed,
+    STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, appearedBodyTiles, watchLog, cast, systemSheetsAvailable, lfText, expectedRed,
     bridgeFn, bridgeText, actionText, kitQuestion, kitQuestions
 } from "./tests-kit.mjs";
 import { GRID } from "./tests-grid.mjs";
@@ -140,7 +140,8 @@ async function snapshot(cast) {
            and a test that marks a death by its flag alone and takes the flag back after ("E51-T21") leaves the tile:
            no revive runs, and the revive is what takes a body off the map. The restore removed the embedded documents
            that appeared only as traces' tokens, so the dump read "restore left: Scene ... tiles.<id> appeared". Recorded
-           as ids, as the traces are, so the restore removes exactly the tiles that appeared. */
+           as ids, as the traces are. The restore removes the body tiles among those that appeared, and no other (E95 fix
+           RV-4): a tile a test leaves that is not a body is still the dump's to name. */
         tiles: new Map(game.scenes.map(scene => [scene.id, new Set((scene.tiles ?? []).map(t => t.id))])),
         /* EVERY OTHER WORLD DOCUMENT THAT EXISTED, by collection (E30, 24.09.2026). The
            dump's first run found two actors the module makes when it first needs them
@@ -247,10 +248,10 @@ async function restore(snap) {
         // The refs that carry a token (E60 C1b): a row of a trace that appeared is the store hold's to put back.
         const strays = remnantsOn(scene).filter(r => r.document && !snap.remnants.has(r.key)).map(r => r.id);
         if (strays.length) await scene.deleteEmbeddedDocuments("Token", strays);
-        // The tiles that appeared on a scene the snapshot knew (E95 C2 fix: a Monocub's body tile, `snapshot`'s note);
-        // a scene that appeared goes whole with the documents below.
-        const known = snap.tiles?.get(scene.id);
-        const tiles = known ? [...(scene.tiles ?? [])].filter(t => !known.has(t.id)).map(t => t.id) : [];
+        // The body tiles that appeared on a scene the snapshot knew (E95 C2 fix: a Monocub's body tile, `snapshot`'s
+        // note), and no other tile: one that is not a body is left for the dump to name (E95 fix RV-4, tests-kit.mjs
+        // `appearedBodyTiles`). A scene that appeared goes whole with the documents below.
+        const tiles = appearedBodyTiles(scene, snap.tiles?.get(scene.id));
         if (tiles.length) await scene.deleteEmbeddedDocuments("Tile", tiles);
     }
     await gmStoresIdle();
@@ -84747,6 +84748,46 @@ const SCENARIOS = [
         });
     }],
 
+    ["a player's forged death id moves neither the loot gate nor the body (E95 fix RV-6): while the dead student's own write of their `deceased` flag's `deathId` waits for its put-back, the primary reads the body's tile by the GMs' mark - a taker beside the tile still loots, and `leaveBody` lays no second tile", async () => {
+        /*
+         * E95 fix RV-6, 10.11.2026. body-tile.mjs `bodyTileOf` matched a tile to the death the actor document's
+         * `deceased` flag records, and its player may write that flag on their own actor; the audit puts it back, and
+         * until then the rest of the primary's gate reads the GMs' mark (frisk.mjs `personActionRefusal`:
+         * `flagsHeldNow`). The fixture of "a body's loot is judged where the body lies" (`withBodyTile`), the taker
+         * beside the tile; then the body's own player's write of `deathId` judged a put-back with the put-back held off
+         * (`inConsoleWindow`, the window a console's write leaves), and in that window the loot gate asked for a player
+         * who owns neither, and `leaveBody` called as a Monocub's tick would. Read: [the forged id on the sheet, the
+         * gate, the id stamped on a tile `leaveBody` laid, or null for none]. Red at c431138a: the gate read the token
+         * ("notThere") and `leaveBody` laid a second tile stamped with the forged id.
+         */
+        await withBodyTile(async ({ taker, body, player, tileRoom, standTaker }) => {
+            const INV = await import("./inventory.mjs");
+            const B = await import("./body-tile.mjs");
+            const { reasonOf } = await import("./bridge-guards.mjs");
+            const owner = game.users.find(u => !u.isGM && body.testUserPermission(u, "OWNER")) ?? null;
+            must(owner, `no player owns ${body.name} - nobody to write their death's id`);
+            const gate = async () => { const why = await INV.transferRefusal(body, taker, { mode: "loot", asker: player }); return why ? reasonOf(why) : "ok"; };
+            const PATH = `flags.${MODULE_ID}.${FLAGS.deceased}.deathId`, FORGED = "SUITEE95FIXFORGED";
+            await standTaker(tileRoom);
+            const read = { before: await gate() };
+            const laid = [];
+            try {
+                await inConsoleWindow(body, owner, { forged: { [PATH]: FORGED }, paths: [PATH] }, async () => {
+                    const onSheet = foundry.utils.getProperty(body._source, PATH) === FORGED;
+                    const why = await gate();
+                    const second = await B.leaveBody(body);
+                    if (second) laid.push(second);
+                    read.during = [onSheet, why, second ? (second.getFlag(MODULE_ID, FLAGS.bodyOf)?.deathId ?? null) : null];
+                });
+            } finally {
+                for (const t of laid) if (t.parent?.tiles?.has(t.id)) await t.delete();
+                await settle();
+            }
+            equal(stableJson(read), stableJson({ before: "ok", during: [true, "ok", null] }),
+                "the loot gate beside the tile [before; in the forged write's window: the forged id on the sheet, the gate, the id on a tile leaveBody laid]");
+        });
+    }],
+
     ["a Monocub leaves their body where their token stood (E95 C2; DC6, Q3): `setMonocub` lays one tile of the body at the token's corner, its size in pixels, its picture and floor, flagged with the death; made again it lays none, unticked it keeps the tile, ticked again it lays no second; an execution leaves none, and a student with no token on a scene with rooms leaves none and the GM is told", async () => {
         /*
          * E95 C2, 10.11.2026; DC6 ("Ciało zostaje na miejscu śmierci jako kafel"), QUESTIONS Q2 (a), Q3 (a), Q8. On this
@@ -84856,6 +84897,15 @@ const SCENARIOS = [
          * (season-reset.mjs `seasonStateFor("deaths").clear`, chapter.mjs `clearSeasonDeaths`) run with its other parts
          * held: `everyStudent` recorded and not run (it would revive and wipe every student), the GMs' store of deaths
          * nobody found recorded and not cleared. Read: which tiles are left. Red at E95 C1: both kept every tile.
+         *
+         * NOT THE TABLE'S BODIES (E95 fix RV-1, 10.11.2026). The deaths entry's tile part, `removeBodyTiles()`, takes
+         * every body tile on every scene, and this test ran it for real: at a table it deleted a Monocub's body for good
+         * (the restore removes tiles that appeared and cannot bring one back). It is now held as the other parts are -
+         * handed in the reset's context (`ctx.removeBodyTiles`), counted, and run on this test's own tiles alone
+         * (`removeBodyTiles(null, { only })`), so the filter that chooses a body tile is still the real one. The guard:
+         * every body tile the world held when the test began, and one the test lays at the start for a student who is not
+         * in the world (standing in for the table's), is still there after the reset. Red at c431138a: the reset took the
+         * stand-in, and the entry called no part of the context's for the tiles.
          */
         needs(world.atLeast("studentTokensOnScreen", 1), "a student with a token on the scene on screen, whose body is laid");
         const B = await import("./body-tile.mjs");
@@ -84870,7 +84920,9 @@ const SCENARIOS = [
         const who = C.livingStudents().find(a => scene?.tokens?.some(t => t.actorId === a.id));
         const token = scene?.tokens?.find(t => t.actorId === who?.id);
         must(who && token, "no living student with a token on the scene on screen - this would measure nothing");
-        const ORPHAN = "SUITEE95C2GONE00";
+        const ORPHAN = "SUITEE95C2GONE00", TABLE = "SUITEE95FIXTABLE";
+        const bodiesNow = () => [...game.scenes].flatMap(s => [...(s.tiles ?? [])].filter(t => t.getFlag(MODULE_ID, FLAGS.bodyOf)).map(t => `${s.id}.${t.id}`));
+        const tableBodies = bodiesNow();
         const lay = async (actorId, record) => {
             const [tile] = await scene.createEmbeddedDocuments("Tile", [B.bodyTileSpec({ tokenDoc: token, actorId, record, level: levelOf(token), at: Date.now() })]);
             return tile;
@@ -84878,10 +84930,14 @@ const SCENARIOS = [
         const made = new Set();
         const left = () => [...scene.tiles].filter(t => made.has(t.id)).map(t => t.getFlag(MODULE_ID, FLAGS.bodyOf)?.actorId === who.id ? "student"
             : t.getFlag(MODULE_ID, FLAGS.bodyOf)?.actorId === ORPHAN ? "orphan" : "plain").sort();
-        const held = { everyStudent: [], clear: 0, dropMany: 0 };
+        const held = { everyStudent: [], clear: 0, dropMany: 0, removeBodyTiles: 0 };
         const { clear, dropMany } = deathStore;
         const read = {};
+        let bystander = null;
         try {
+            bystander = await lay(TABLE, null);
+            must(bystander, "the stand-in for the table's body tile could not be laid - the guard would measure nothing");
+            tableBodies.push(`${scene.id}.${bystander.id}`);
             must(await C.killCharacter(who, { secret: false, keepBullets: true }), `${who.name}'s death could not be published - this would measure nothing`);
             await settle();
             for (const tile of [await lay(who.id, deathRecord(who)), await lay(ORPHAN, null),
@@ -84901,22 +84957,27 @@ const SCENARIOS = [
             const entry = seasonStateFor("deaths");
             deathStore.clear = async () => { held.clear++; };
             deathStore.dropMany = async () => { held.dropMany++; };
-            await entry.clear({ everyStudent: async key => { held.everyStudent.push(key); } });
+            await entry.clear({ everyStudent: async key => { held.everyStudent.push(key); },
+                removeBodyTiles: async () => { held.removeBodyTiles++; return B.removeBodyTiles(null, { only: made }); } });
             await settle();
             read.reset = [left(), entry.clear === C.clearSeasonDeaths, held];
+            const now = new Set(bodiesNow());
+            read.tableGone = tableBodies.filter(key => !now.has(key)).map(key => (key.endsWith(`.${bystander.id}`) ? "stand-in" : key));
         } finally {
             deathStore.clear = clear;
             deathStore.dropMany = dropMany;
             if (C.isDeadForGm(who)) await C.reviveCharacter(who, { quiet: true });
-            const ids = [...made].filter(id => id && scene.tiles.has(id));
+            const ids = [...made, bystander?.id].filter(id => id && scene.tiles.has(id));
             if (ids.length) await scene.deleteEmbeddedDocuments("Tile", ids);
             await settle();
         }
         equal(stableJson(read), stableJson({
             before: ["orphan", "plain", "student"],
             revived: [["orphan", "plain"], false],
-            reset: [["plain"], true, { everyStudent: ["deaths"], clear: 1, dropMany: 0 }]
-        }), "the tiles left [laid; after the revive, and dead; after the reset's deaths group, the entry chapter.mjs's, its other parts as called]");
+            reset: [["plain"], true, { everyStudent: ["deaths"], clear: 1, dropMany: 0, removeBodyTiles: 1 }],
+            tableGone: []
+        }), "the tiles left [laid; after the revive, and dead; after the reset's deaths group, the entry chapter.mjs's, its other parts as called]; "
+            + "the body tiles the world held, and the stand-in, gone after the reset");
     }],
 
     ["an open body's loot window reads the gate again when a GM hides, moves or deletes the body's tile (E95 C3; STATUS E95 Open 2): beside the tile its Take greys when the tile is hidden, opens when it is shown, greys when the tile is moved into the token's room, opens when it is moved back, and greys when the tile is deleted", async () => {
@@ -85058,17 +85119,25 @@ const SCENARIOS = [
          * type]; on the writer whether the hook came before `announceBody` answered, how long it waited and whether the
          * 300 ms promise had settled by then; the payload's fields against the stamp in this browser's setting. The two
          * settings put back as they were. Red at E95 C3: no hook, nothing heard.
+         *
+         * E95 fix, 10.11.2026. RV-12: every stamp the suite writes carries `rehearsal: true`, and so every payload the
+         * suite wakes the hook with, on the writer and on every browser the setting reaches - the hook's header tells a
+         * listener to ignore one, so E69's Tail and E72's bet window do not run on a fake discovery at a table. RV-11: a
+         * row this browser never saw whose `at` is older than its `ready` less 60 s (a whole-setting write handing old
+         * rows back) is announced never; the other GM's row is stamped now. RV-7: a promise handed `waitUntil` after the
+         * listener's first `await` is not waited for, and the call does not throw. Red at c431138a: the payload had no
+         * `rehearsal`, and the old row was announced.
          */
         const C = await import("./chapter.mjs");
         const St = await import("./settings.mjs");
-        const { isPrimaryGm } = await import("./utils.mjs");
+        const { isPrimaryGm, serverNow } = await import("./utils.mjs");
         must(isPrimaryGm(), "this client is not the primary GM, whose discovery writes the stamp - this would measure nothing");
         const stampsWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
         const holdWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
         const CHAPTER = 97, epoch = St.seasonEpoch(), key = `${epoch}:${CHAPTER}`;
         const sceneId = canvas.scene?.id ?? null, ROOM = "SUITE E95 C4 room";
         const row = at => ({ chapter: CHAPTER, epoch, at, room: ROOM, sceneId, victimIds: ["SUITEE95C4BODY00", "SUITEE95C4BODY00"],
-            deaths: {}, by: "witnesses", day: 1, timeOfDay: "morning" });
+            deaths: {}, by: "witnesses", day: 1, timeOfDay: "morning", rehearsal: true });
         const heard = [];
         let hand = null;
         const id = Hooks.on("drpgBodyAnnounced", payload => {
@@ -85098,11 +85167,19 @@ const SCENARIOS = [
             read.waited = [calls(slow.from), slow.before, settled, slow.waited >= 300];
             const never = await timed(3000, p => p.waitUntil(new Promise(() => {})));
             read.bound = [calls(never.from), never.waited >= 1400 && never.waited < 3000];
+            let threw = null;
+            const late = await timed(3500, async p => { await null; try { p.waitUntil(new Promise(() => {})); threw = false; } catch { threw = true; } });
+            read.late = [calls(late.from), late.waited < 1400, threw];
             let from = heard.length;
             const all = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
-            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, { ...all, [key]: [...(all[key] ?? []), { ...row(4000), victimIds: ["SUITEE95C4BODY01"] }] });
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, { ...all, [key]: [...(all[key] ?? []), { ...row(serverNow()), victimIds: ["SUITEE95C4BODY01"] }] });
             await settle();
             read.otherGm = calls(from);
+            from = heard.length;
+            const more = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, { ...more, [key]: [...(more[key] ?? []), { ...row(4500), victimIds: ["SUITEE95C4BODY02"] }] });
+            await settle();
+            read.oldRow = calls(from);
             from = heard.length;
             await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, { ...foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound)), [`${epoch}:96`]: [] });
             await settle();
@@ -85118,6 +85195,7 @@ const SCENARIOS = [
             await C.clearSeasonBodies();
             await settle();
             read.reset = calls(from);
+            read.rehearsal = [heard.length > 0, heard.every(h => h.payload.rehearsal === true)];
         } finally {
             Hooks.off("drpgBodyAnnounced", id);
             await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsWas);
@@ -85126,17 +85204,21 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson({
             plain: [true, [[true, "function"]], true],
-            payload: [["at", "by", "chapter", "epoch", "room", "sceneId", "victimIds", "waitUntil", "writer"], true],
+            payload: [["at", "by", "chapter", "epoch", "rehearsal", "room", "sceneId", "victimIds", "waitUntil", "writer"], true],
             waited: [[[true, "function"]], true, true, true],
             bound: [[[true, "function"]], true],
+            late: [[[true, "function"]], true, false],
             otherGm: [[false, "undefined"]],
+            oldRow: [],
             noNewRow: [],
             renamed: [true, []],
             failed: [null, []],
-            reset: []
+            reset: [],
+            rehearsal: [true, true]
         }), "the calls heard as [writer, waitUntil] per case - announced [stamped, calls, before it answered]; the payload [its fields, the stamp's]; "
-            + "a promise of 300 ms [calls, before, settled, waited 300 ms]; one never settling [calls, waited 1.4-3 s]; another GM's stamp; a write with no new row; "
-            + "a rename [moved, calls]; a failed stamp [answer, calls]; the reset's clear");
+            + "a promise of 300 ms [calls, before, settled, waited 300 ms]; one never settling [calls, waited 1.4-3 s]; "
+            + "one handed after an await [calls, answered under 1.4 s, threw]; another GM's stamp; a row older than ready less 60 s; a write with no new row; "
+            + "a rename [moved, calls]; a failed stamp [answer, calls]; the reset's clear; [heard any, every payload a rehearsal]");
     }],
 ];
 
