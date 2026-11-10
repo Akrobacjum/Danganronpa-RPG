@@ -7712,6 +7712,17 @@ const INVARIANTS = [
             /const auto = data\.auto === "1";/.test(rule), /\.\.\.\(auto \? \{ auto: true \} : \{\}\)/.test(rule)]),
         JSON.stringify([true, true, true, true]),
             "the primary presses a card past the valve or by another road, or the ruling's auto is read from anything but the valve's own call (asked, pressed by pressCard, auto read, auto kept)");
+
+        /*
+         * E68 fix round, 10.11.2026: the setting's hint told a GM "Resolve always asks a GM", but an armed Resolve asks
+         * nobody (C7; the GM handbook's who-picks table). Read in both languages: the hint does not put Resolve among
+         * what asks a GM, and says Resolve asks nobody. Red at a5ebfeaa: both hints listed Resolve with the fights.
+         */
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const hints = [game.i18n.localize("DRPG.Settings.autoApproveTraits.hint"), pl?.DRPG?.Settings?.autoApproveTraits?.hint ?? ""];
+        equal(JSON.stringify(hints.map((h, i) => [/Resolve[^.;]*(always ask|zawsze pyta)/i.test(h), (i ? /Resolve nie pyta nikogo/ : /Resolve asks nobody/).test(h)])),
+            JSON.stringify([[false, true], [false, true]]),
+            "the valve's hint says Resolve asks a GM, or does not say it asks nobody (EN, PL: [asks a GM, asks nobody])");
     }],
     ["R3151 - where a roll's statistic comes from, per source: Search Eye with no card, a Find Passage Head, a part only where its action names one, a told part over the packet's, Resolve any", async () => {
         /*

@@ -270,7 +270,7 @@
       },
       "autoApproveTraits": {
         "name": "Zatwierdzaj propozycje statystyk w Daily Life automatycznie",
-        "hint": "Włączone: statystyka, którą gracz proponuje do Search albo do projektu bez statystyki, jest zatwierdzana bez kliknięcia GM-a, a karta w jego wątku to mówi. Walka, otwarcia, akcje Dynamic i Resolve zawsze pytają GM-a."
+        "hint": "Włączone: statystyka, którą gracz proponuje do Search albo do projektu bez statystyki, jest zatwierdzana bez kliknięcia GM-a, a karta w jego wątku to mówi. Walka, otwarcia i akcje Dynamic zawsze pytają GM-a; Resolve nie pyta nikogo."
       },
       "friskForce": {
         "name": "Frisk: zmuszanie po odmowie",
