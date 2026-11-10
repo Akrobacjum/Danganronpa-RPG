@@ -72810,6 +72810,161 @@ const SCENARIOS = [
             + "cards with Create an item left, cards ended; a critical under the band's number: success, cards; a miss rerolled into a critical: stood, cards]");
     }],
 
+    ["a Dynamic success a Reroll turns into a miss is greyed for the GMs beside the miss's card, and a GM who had answered it is told (E68 C11; D048, D054)", async () => {
+        /*
+         * E68 C11, 10.11.2026; the owner's amend [3] of 31.10 (D048: "Reroll, ktory zmienia sukces w porazke: pierwsza karta
+         * sukcesu u GM-ow wyszarzona, obok druga z Rerolla"; D054: "karta sukcesu Dynamic, na ktora GM odpowiedzial, zanim
+         * Reroll chybil - GM dostaje o tym informacje"). This GM takes a free Dynamic action for a player's character in a
+         * room at the first band (beat 8) on 8 and 5, a success, and rerolls it into 2 and 1, a miss; then takes a second,
+         * answers its card as a reply ends one (`settleCall` with the answered line), and rerolls that into 2 and 1. Read for
+         * the first: the Reroll stood, the card settled, no Create an item left on it, the mark its greyed look hangs on
+         * (the settled line's `data-drpg-line`), and the miss's card posted after it. For the second: the Reroll stood, the
+         * answered card left as it was, and one card to the GMs alone that says a GM had answered it. Red at 05dc2e29: the
+         * first card's line carries no mark, and nobody is told of the answered one.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the action's trace is placed where the character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the character is a connected player's, as the other tests' are");
+        const R = await import("./reroll.mjs");
+        const { performAction } = await import("./action-rolls.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { MESSENGER_FLAGS } = await import("./messenger.mjs");
+        const { settleCall } = await import("./gm-bridge.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const { actor, where } = await playerInRoom();
+        const scene = where.scene, had = new Set(scene.tokens.map(t => t.id)), seen = new Set(game.messages.map(m => m.id));
+        const bookmark = rerollBookmarkStore.get(actor.id) ? foundry.utils.deepClone(rerollBookmarkStore.get(actor.id)) : null;
+        const hope = actor.system.resources.hope.value;
+        const WORDS = "E68-C11 a key filed out of a spoon";
+        const windows = answerWindows((cfg, root) => {
+            const request = root.querySelector("[name=request]"), tier = root.querySelector("select[name=tier]");
+            if (request) request.value = WORDS;
+            if (tier) tier.value = "0";
+            return press(cfg, root);
+        });
+        const boxOf = m => { const box = document.createElement("div"); box.innerHTML = String(contentOf(m) ?? ""); return box; };
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const forceBack = () => { if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll; };
+        const thrown = async () => {
+            const since = new Set(game.messages.map(m => m.id));
+            globalThis.__forceRoll = { hope: 8, fear: 5 };
+            let out;
+            try { out = await performAction(actor, "dynamic", { free: true }); } finally { forceBack(); }
+            await settle();
+            const cards = game.messages.filter(m => !since.has(m.id) && boxOf(m).querySelector('[data-drpg-call="createItem"]'));
+            must(out?.success === true && cards.length === 1, `the Dynamic action did not succeed with one card - this would measure nothing: ${stableJson([out?.success, cards.length])}`);
+            return cards[0];
+        };
+        const reroll = async () => {
+            const row = rerollBookmarkStore.get(actor.id);
+            const message = game.messages.get(row?.messageId ?? "");
+            must(row?.actionKey === "dynamic" && message, `the Dynamic action was not kept on its row - this would measure nothing: ${stableJson(row)}`);
+            const stand = rerollableRoll(message, { first: { hope: 8, fear: 5 }, next: { hope: 2, fear: 1 } });
+            try {
+                await trustedWrite(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) }, { reason: "gmRuling" });
+                const before = new Set(game.messages.map(m => m.id));
+                const out = await R.rerollOnGm(actor, game.user);
+                await settle();
+                return { stood: Array.isArray(out?.lines), before };
+            } finally { stand.putBack(); }
+        };
+        const read = {};
+        try {
+            const first = await thrown();
+            const one = await reroll();
+            const now = game.messages.get(first.id), box = boxOf(now);
+            const missed = game.i18n.localize("DRPG.Action.dynamicMissedGm");
+            const misses = game.messages.filter(m => !one.before.has(m.id) && boxOf(m).textContent.includes(missed));
+            read.unanswered = [one.stood, Boolean(cardFlag(now, MESSENGER_FLAGS.settled)),
+                Boolean(box.querySelector('[data-drpg-call="createItem"]')), box.querySelector(".drpg-call-settled")?.dataset.drpgLine ?? null,
+                misses.length, misses.every(m => (m.timestamp ?? 0) >= (now?.timestamp ?? 0))];
+            const second = await thrown();
+            await settleCall(second, { key: "DRPG.Bridge.settledAnswered", name: game.user.name });
+            await settle();
+            const answered = String(contentOf(game.messages.get(second.id)) ?? "");
+            const two = await reroll();
+            const line = game.i18n.format("DRPG.Action.dynamicAnsweredMissed", { name: actor.name, what: WORDS });
+            const told = game.messages.filter(m => !two.before.has(m.id) && boxOf(m).textContent.includes(line));
+            read.answered = [two.stood, String(contentOf(game.messages.get(second.id)) ?? "") === answered, told.length,
+                told.every(m => (m.whisper ?? []).length > 0 && (m.whisper ?? []).every(id => game.users.get(id)?.isGM))];
+        } finally {
+            forceBack();
+            windows.restore();
+            for (const t of scene.tokens.filter(t => !had.has(t.id))) await t.delete();
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            if (bookmark) await rerollBookmarkStore.patch(actor.id, bookmark);
+            else if (rerollBookmarkStore.has(actor.id)) await rerollBookmarkStore.drop(actor.id);
+            await trustedWrite(actor, { "system.resources.hope.value": hope }, { reason: "gmRuling" });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ unanswered: [true, true, false, "DRPG.Action.dynamicRerollMissed", 1, true], answered: [true, true, 1, true] }),
+            "a success a Reroll turned into a miss was not greyed beside the miss's card, or a GM who had answered it was not told [unanswered: "
+            + "stood, settled, Create an item left, the settled line's mark, the miss's cards, each after the first; answered: stood, the card "
+            + "left as it was, the cards that tell it, each to the GMs alone]");
+    }],
+
+    ["the Reroll's window after a reload names the roll, from the GMs' row on a GM and from the chat on a player, and says the GMs' row is the one taken back (E68 C11; D047)", async () => {
+        /*
+         * E68 C11, 10.11.2026; the owner's amend [3] of 31.10 (D047: "okno Rerolla po przeladowaniu nazywa rzut i mowi o
+         * wierszu GM-ow"). E16 part 2 C0's line named the roll this browser holds in memory (`rollInHand`), and after a
+         * reload it said nothing. A student's Search roll is thrown on this GM on 9 and 2; then the browser's roll is
+         * forgotten as a reload forgets it (`forgetRollInHand`), the Reroll's window opened and read, and the player's
+         * reading of the same roll asked of `rollAfterReload` with `gm: false` (the chat's newest roll of the character, on a
+         * card posted with the row's roll and the character as its speaker, as a player's own throw speaks).
+         * Red at 05dc2e29: no forgetting, and neither line.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the roll is a student's, as an action's is");
+        const rolls = await import("./action-rolls.mjs");
+        const pipe = await import("./action-pipeline.mjs");
+        const C = await import("./calls.mjs");
+        const { HOPE_CALLS, ACTIONS } = await import("./config.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const who = livingStudents().find(a => game.users.some(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER")));
+        must(who, "no living student with a connected player - this would measure nothing");
+        const bookmark = rerollBookmarkStore.get(who.id) ? foundry.utils.deepClone(rerollBookmarkStore.get(who.id)) : null;
+        const seen = new Set(game.messages.map(m => m.id));
+        const said = [];
+        const windows = answerWindows((cfg, root) => { said.push(root.textContent.replace(/\s+/g, " ").trim()); return "cancel"; });
+        let total = null, forgot = false, held = true, asPlayer = null;
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        try {
+            globalThis.__forceRoll = { hope: 9, fear: 2 };
+            const outcome = await rolls.rollTrait(who, "eye", { remember: true, actionKey: "search" });
+            if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
+            await settle();
+            total = outcome?.total ?? null;
+            must(typeof total === "number" && rerollBookmarkStore.get(who.id)?.actionKey === "search", "no Search roll of the student is on the GMs' row - this would measure nothing");
+            forgot = typeof pipe.forgetRollInHand === "function";
+            if (forgot) pipe.forgetRollInHand(who);
+            held = rolls.rollInHand(who) !== null;
+            await C.confirmCall(HOPE_CALLS.reroll, { kind: "hope", held: 9, actor: who });
+            // A player reads the chat: this GM's throw speaks as the GM, so the character's own card is posted here as a
+            // player's throw speaks (its speaker the character), with the row's roll.
+            const thrownAs = game.messages.get(rerollBookmarkStore.get(who.id)?.messageId ?? "");
+            await ChatMessage.create({ speaker: { actor: who.id, alias: who.name }, rolls: [thrownAs.rolls[0]] });
+            await settle();
+            asPlayer = typeof C.rollAfterReload === "function" ? await C.rollAfterReload(who, { gm: false }) : null;
+        } finally {
+            if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
+            windows.restore();
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            if (bookmark) await rerollBookmarkStore.patch(who.id, bookmark);
+            else if (rerollBookmarkStore.has(who.id)) await rerollBookmarkStore.drop(who.id);
+            if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+            await settle();
+        }
+        const duality = game.i18n.localize("DRPG.Action.duality.hope");
+        const gmLine = game.i18n.format("DRPG.Reroll.lastRollGmRow", { name: who.name, action: ACTIONS.search.label, total, duality });
+        const playerLine = game.i18n.format("DRPG.Reroll.lastRollReload", { total, duality });
+        equal(stableJson([forgot, held, said.length, said[0]?.includes(gmLine) ?? false, asPlayer]),
+            stableJson([true, false, 1, true, playerLine]),
+            `the Reroll's window after a reload does not name the roll [forgotten, still held, windows, the GMs' row named ("${gmLine}"), the player's line]: ${stableJson([said, asPlayer])}`);
+    }],
+
     ["E16-T27 - in a Class Trial Analyze offers only what identifies Truth Bullets, from one list of conditions, and outside one no row is greyed (audit S02-70, the owner's D16)", async () => {
         /*
          * E16 part 2 C3, 26.10.2026; E16-47, E16-49. In a Class Trial Analyze's picker offered a GM's hint and a stash

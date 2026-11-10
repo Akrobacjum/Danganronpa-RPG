@@ -846,6 +846,7 @@
       "dynamicSuccess": "Success - the GM decides what a Tier {tier} result gives you.",
       "dynamicFound": "The roll succeeded at Tier {tier}. Decide what it gives: an item, or something said.",
       "dynamicRerollMissed": "A Reroll turned this roll into a miss: the success no longer stands, and it gives nothing.",
+      "dynamicAnsweredMissed": "A Reroll turned {name}'s Dynamic success into a miss after a GM had answered its card (\"{what}\"). What was given on it stands; it is the GMs' to take back.",
       "leavesRemnant": "Leaves a Remnant behind.",
       "tokensLeft": {
         "one": "{room}: {n} search token left this time of day.",
@@ -4321,6 +4322,9 @@
     "Reroll": {
       "lastRoll": "Your {action} roll: {total} {duality}.",
       "lastRollPlain": "Your last roll: {total} {duality}.",
+      "lastRollGmRow": "The GMs' row for {name} holds a {action} roll: {total} {duality}. A Reroll takes back that roll.",
+      "lastRollReload": "Your last roll in the chat: {total} {duality}. A Reroll takes back the roll the GMs keep on their row for you, which this browser cannot read since the reload.",
+      "noRollHere": "This browser holds no roll of yours since the reload. A Reroll takes back the roll the GMs keep on their row for you.",
       "searchNeverRan": "The room was never searched - the search token was refused - so there is nothing to draw again.",
       "searchStashStands": "The stash find stands: new dice do not open the stash twice.",
       "passageFound": "The new result finds a secret passage in that room, to {to}. Where the way is open, your map shows it.",

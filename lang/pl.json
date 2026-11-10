@@ -864,6 +864,7 @@
       "dynamicSuccess": "Sukces - GM zdecyduje, co daje ci wynik Tier {tier}.",
       "dynamicFound": "Rzut się udał na Tier {tier}. Zdecyduj, co daje: przedmiot albo coś, co powiesz.",
       "dynamicRerollMissed": "Reroll zmienił ten rzut w chybienie: sukces już nie obowiązuje i nic nie daje.",
+      "dynamicAnsweredMissed": "Reroll zmienił sukces Dynamic postaci {name} w chybienie, gdy GM już odpowiedział na jego kartę („{what}”). To, co na niej dano, zostaje; cofnąć to mogą GM-owie.",
       "leavesRemnant": "Zostawia Remnant.",
       "tokensLeft": {
         "one": "{room}: został {n} Search Token o tej porze dnia.",
@@ -4729,6 +4730,9 @@
     "Reroll": {
       "lastRoll": "Twój rzut ({action}): {total} {duality}.",
       "lastRollPlain": "Twój ostatni rzut: {total} {duality}.",
+      "lastRollGmRow": "Wiersz GM-ów dla {name} trzyma rzut ({action}): {total} {duality}. Reroll cofa właśnie ten rzut.",
+      "lastRollReload": "Twój ostatni rzut na czacie: {total} {duality}. Reroll cofa rzut, który GM-owie trzymają dla ciebie w swoim wierszu; ta przeglądarka od przeładowania go nie widzi.",
+      "noRollHere": "Ta przeglądarka od przeładowania nie trzyma żadnego twojego rzutu. Reroll cofa rzut, który GM-owie trzymają dla ciebie w swoim wierszu.",
       "searchNeverRan": "Pokój nie został przeszukany - Search Token odmówiono - więc nie ma czego losować ponownie.",
       "searchStashStands": "Znalezisko ze skrytki zostaje: nowe kości nie otwierają skrytki drugi raz.",
       "passageFound": "Nowy wynik znajduje w tamtym pokoju tajne przejście do: {to}. Gdzie droga jest otwarta, mapa ci je pokazuje.",
