@@ -44490,6 +44490,69 @@ const INVARIANTS = [
         equal(stableJson(staticImports(stripComments(await lfText(res))).sort()), stableJson(["config.mjs", "movement.mjs", "settings.mjs"]),
             "body-tile.mjs imports something besides config.mjs, movement.mjs and settings.mjs");
     }],
+
+    ["R3144 - a body's tile wears its caption and the dead sign (body-tile.mjs `drawBodyMark`, E95 C3; QUESTIONS Q4): \"{name}'s body\" / \"Ciało: {name}\" under the tile at max(20, grid x 0.36) over a keyline of max(4, grid x 0.07), the dead status's picture over its centre; drawn once per redraw, at half alpha on a hidden tile, and taken off a tile that lost its flag", async () => {
+        /*
+         * E95 C3, 10.11.2026; QUESTIONS Q4 (the default: the caption and the sign in E95). The harm: a body tile beside
+         * a Monocub's token that still wears Foundry's dead overlay reads as a second copy of the student, and a refresh
+         * that stacked a mark per hover would draw a pile of them. Read on a tile placeable of the test's own (a PIXI
+         * container with a document of plain fields; Foundry's `drawTile` and `refreshTile` are not in the harness),
+         * the actors handed in: the mark's children, the caption's words, size and keyline and place under the tile,
+         * the sign's picture, size and centre; the same mark after a second draw, a new one after the name changed, half
+         * alpha when hidden, none on a tile with no flag and none left on one that lost it. Both languages' words off
+         * the served files, as R903 reads the tunnel marks'. How it looks on a real canvas is LIVE-E95-01's. Red at E95
+         * C2: body-tile.mjs exports no `drawBodyMark`.
+         */
+        const B = await import("./body-tile.mjs");
+        must(typeof B.drawBodyMark === "function" && typeof B.BODY_MARK_NAME === "string", "body-tile.mjs exports no drawBodyMark or BODY_MARK_NAME");
+        const grid = 100, V = "SUITER3144VICTIM";
+        let name = "R3144 Daichi";
+        const actors = { get: id => (id === V ? { name } : undefined) };
+        const placeable = (flag, { width = 200, height = 100, hidden = false } = {}) => {
+            const tile = new PIXI.Container();
+            tile.document = { width, height, hidden, parent: { grid: { size: grid } },
+                getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.bodyOf ? flag : undefined) };
+            return tile;
+        };
+        const marks = tile => tile.children.filter(c => c?.name === B.BODY_MARK_NAME);
+        const read = tile => marks(tile).map(m => [m.alpha, m.children.map(c => (c instanceof PIXI.Text
+            ? ["text", c.text, c.style?.fontSize, c.style?.strokeThickness, c.position.x, c.position.y]
+            : ["sign", c.texture?.src ?? null, c.width, c.height, c.position.x, c.position.y]))]);
+        const dead = (CONFIG.statusEffects ?? []).find(e => e?.id === "dead");
+        const icon = dead?.img ?? dead?.icon ?? CONFIG.controlIcons?.defeated ?? "icons/svg/skull.svg";
+        const flag = { actorId: V, deathId: "SUITER3144DEATH0", level: null, at: 1 };
+        const tile = placeable(flag);
+        const first = B.drawBodyMark(tile, { actors });
+        const again = B.drawBodyMark(tile, { actors });
+        const cases = { drawn: read(tile), sameMark: first !== null && first === again };
+        name = "R3144 Daichi Renamed";
+        const renamed = B.drawBodyMark(tile, { actors });
+        cases.renamed = [renamed !== first, marks(tile).length, marks(tile)[0]?.children.find(c => c instanceof PIXI.Text)?.text ?? null];
+        const hidden = placeable(flag, { width: 100, height: 100, hidden: true });
+        B.drawBodyMark(hidden, { actors });
+        cases.hidden = marks(hidden).map(m => m.alpha);
+        const plain = placeable(undefined);
+        cases.plain = [B.drawBodyMark(plain, { actors }), marks(plain).length];
+        tile.document.getFlag = () => undefined;
+        cases.lostFlag = [B.drawBodyMark(tile, { actors }), marks(tile).length];
+        const orphan = placeable({ ...flag, actorId: "SUITER3144GONE00" });
+        B.drawBodyMark(orphan, { actors });
+        cases.orphan = read(orphan).map(([, kids]) => kids.map(k => k[0]));
+        const size = [Math.max(20, Math.round(grid * 0.36)), Math.max(4, Math.round(grid * 0.07))];
+        const words = n => game.i18n.format("DRPG.Body.tile", { name: n });
+        const [en, pl] = await Promise.all(["en", "pl"].map(lang => fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json())));
+        equal(stableJson({ ...cases, langs: [en?.DRPG?.Body?.tile, pl?.DRPG?.Body?.tile] }), stableJson({
+            drawn: [[1, [["sign", icon, 60, 60, 100, 50], ["text", words("R3144 Daichi"), ...size, 100, 105]]]],
+            sameMark: true,
+            renamed: [true, 1, words("R3144 Daichi Renamed")],
+            hidden: [0.5],
+            plain: [null, 0],
+            lostFlag: [null, 0],
+            orphan: [["sign"]],
+            langs: ["{name}'s body", "Ciało: {name}"]
+        }), "{the mark as [alpha, its children]; drawn twice one mark; renamed [a new mark, how many, its words]; hidden alpha; "
+            + "a tile with no flag [answer, marks]; the flag gone [answer, marks]; a student gone from the world; the words in English and Polish}");
+    }],
 ];
 
 /**

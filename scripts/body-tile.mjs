@@ -208,3 +208,91 @@ export async function removeBodyTiles(actorId = null) {
     }
     return removed;
 }
+
+/** The name the body's mark carries on its tile (E95 C3): a redraw finds its own by it, and touches nothing else. */
+export const BODY_MARK_NAME = "drpg-body-mark";
+
+/** The dead status's picture as this browser has it (states.mjs `ownDeadIcon` may have put the module's on it). */
+function deadIconOf() {
+    const dead = (globalThis.CONFIG?.statusEffects ?? []).find(entry => entry?.id === "dead");
+    return dead?.img ?? dead?.icon ?? globalThis.CONFIG?.controlIcons?.defeated ?? "icons/svg/skull.svg";
+}
+
+/**
+ * THE BODY'S CAPTION AND DEATH SIGN (E95 C3, 10.11.2026; QUESTIONS Q4, the default: in E95). Until E72 the Monocub's
+ * token keeps Foundry's `dead` overlay, so a tile with only the victim's picture beside it read as a second copy of the
+ * same student; the caption says which one is the body. Drawn over a flagged tile placeable (`tile`, its document
+ * `tile.document`) on every browser that draws it, from Foundry's `drawTile` and `refreshTile` (`registerBodyMarks`):
+ * a display only - nothing is written, and a player's browser draws what its own copy of the tile and the actors hold
+ * (a tile is laid only for a death already public, its name on the discovery's card).
+ *   - the sign: the `dead` status's picture (`deadIconOf`), over the tile's centre at six tenths of its shorter side,
+ *     at 0.85 alpha - the overlay a dead token wears, smaller, so the picture under it still reads;
+ *   - the caption `DRPG.Body.tile` ("{name}'s body" / "Ciało: {name}") with the student's name as this browser's
+ *     actors hold it, in this browser's language, under the tile's bottom edge at the size of the tunnel marks' words
+ *     (H81-06, fog-doorways.mjs `addTunnelMarks`: `max(20, grid * 0.36)` over a keyline of `max(4, grid * 0.07)`):
+ *     white over the ink keyline in both themes, as the map is not themed. No name (a student gone from the world):
+ *     the sign alone;
+ *   - a hidden tile, which Foundry draws for the GMs only: the mark at half alpha.
+ * ONCE PER REDRAW. Refresh runs often (a hover, a move), so the mark is one container named `BODY_MARK_NAME` with the
+ * inputs it was drawn from as its key: the same inputs keep it (its alpha set again), changed ones replace it, and a
+ * tile that lost its flag loses its mark. Answers the mark, or null where none is drawn. The sizes are chosen, not
+ * measured; the local coordinates (0, 0)-(width, height) are Foundry's Tile placeable's as remembered from v12, and
+ * whether a child of the placeable shows while the Tiles layer is not the one in use was not read: LIVE-E95-01. Tier 1
+ * R3144 draws on a stub; Foundry's draw and refresh hooks are not in the harness.
+ */
+export function drawBodyMark(tile, { actors = game.actors } = {}) {
+    if (!tile || tile.destroyed || typeof tile.addChild !== "function" || !globalThis.PIXI) return null;
+    const doc = tile.document ?? null;
+    const mark = markOf(doc);
+    const grid = gridOf(doc?.parent);
+    const width = Number(doc?.width) || grid, height = Number(doc?.height) || grid;
+    const name = mark ? (actors?.get?.(mark.actorId)?.name ?? "") : "";
+    const icon = deadIconOf();
+    const key = mark ? JSON.stringify([name, width, height, grid, game.i18n?.lang ?? null, icon]) : null;
+    const drawn = (tile.children ?? []).filter(child => child?.name === BODY_MARK_NAME);
+    const kept = drawn.find(child => !child.destroyed && child.drpgKey === key) ?? null;
+    for (const child of drawn) {
+        if (child === kept) continue;
+        tile.removeChild(child);
+        child.destroy?.({ children: true });
+    }
+    if (!mark) return null;
+    const group = kept ?? new PIXI.Container();
+    group.alpha = doc?.hidden ? 0.5 : 1;
+    if (kept) return kept;
+    group.name = BODY_MARK_NAME;
+    group.drpgKey = key;
+    const sign = PIXI.Sprite.from(icon);
+    const side = Math.round(Math.min(width, height) * 0.6);
+    sign.width = side;
+    sign.height = side;
+    sign.anchor.set(0.5, 0.5);
+    sign.position.set(width / 2, height / 2);
+    sign.alpha = 0.85;
+    group.addChild(sign);
+    if (name) {
+        const text = new PIXI.Text(game.i18n.format("DRPG.Body.tile", { name }), {
+            fontFamily: '"Special Elite", "Courier New", monospace',
+            fontSize: Math.max(20, Math.round(grid * 0.36)),
+            fill: 0xffffff,
+            stroke: 0x1a1620,
+            strokeThickness: Math.max(4, Math.round(grid * 0.07)),
+            align: "center"
+        });
+        text.resolution = 2;
+        text.anchor.set(0.5, 0);
+        text.position.set(width / 2, height + Math.round(grid * 0.05));
+        group.addChild(text);
+    }
+    tile.addChild(group);
+    return group;
+}
+
+/**
+ * The body's mark on every browser (E95 C3; module.mjs `init`): Foundry's `drawTile` and `refreshTile` hand the Tile
+ * placeable, as v12 and v13 name them (not read on v14: LIVE-E95-01). Draws only (`drawBodyMark`).
+ */
+export function registerBodyMarks() {
+    Hooks.on("drawTile", tile => { drawBodyMark(tile); });
+    Hooks.on("refreshTile", tile => { drawBodyMark(tile); });
+}

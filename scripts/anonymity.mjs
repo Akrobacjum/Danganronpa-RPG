@@ -47,7 +47,7 @@
  * writing down: nothing may sit behind this whose leak would spoil the game.
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, FLAGS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { isDeadForGm, isDeceased } from "./chapter.mjs";
 import { isStashed } from "./inventory.mjs";
@@ -82,6 +82,20 @@ export function registerAnonymity() {
         if (id && document.querySelector(`.drpg-loot-list[data-drpg-taker="${CSS.escape(id)}"], .drpg-loot-list[data-drpg-body="${CSS.escape(id)}"]`)) regreyOpenLoot();
     });
     Hooks.on("updateSetting", setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.clock}`) regreyOpenLoot(); });
+    /* AND WHEN THE BODY'S TILE IS LAID, HIDDEN, MOVED OR DELETED (E95 C3, 10.11.2026; STATUS E95 Open 2). From E95 C1
+       the gate reads a body where its tile lies (body-tile.mjs `bodyPlaceOf`), and a GM's write on the tile moved the
+       gate with no token written, so an open window kept a Take the gate now refused, or shut one it now allowed, until
+       the sheet was drawn again. A tile that carries a body's flag, or whose write touched the module's flags (a flag
+       taken off), reads the gate again for the open lists of that body, or of every body when the flag is gone. */
+    const onBodyTile = (tile, changes) => {
+        const id = tile?.getFlag?.(MODULE_ID, FLAGS.bodyOf)?.actorId ?? null;
+        if (!id && !changes?.flags?.[MODULE_ID]) return;
+        const lists = id ? `.drpg-loot-list[data-drpg-body="${CSS.escape(id)}"]` : ".drpg-loot-list[data-drpg-body]";
+        if (document.querySelector(lists)) regreyOpenLoot();
+    };
+    Hooks.on("createTile", tile => onBodyTile(tile));
+    Hooks.on("updateTile", (tile, changes) => onBodyTile(tile, changes));
+    Hooks.on("deleteTile", tile => onBodyTile(tile));
 }
 
 /**
@@ -226,9 +240,9 @@ function redactTabs(root) {
  * where it needs to be" (and one who walked out, or whose Class Trial began, found them open) until the sheet was
  * opened again, which nothing told them to do. The list carries the body and the taker (`data-drpg-body`,
  * `data-drpg-taker`), and `regreyOpenLoot` reads the gate again for every list on the page when either one's token is
- * written or the clock is (registerAnonymity's hooks), opening a Take it no longer refuses. A Take already pressed stays
- * shut. `taker` is the viewer's character (`myCharacter`); a test hands its own. Answers the greying's promise, or
- * undefined where there is no Take.
+ * written, the body's tile is (E95 C3) or the clock is (registerAnonymity's hooks), opening a Take it no longer
+ * refuses. A Take already pressed stays shut. `taker` is the viewer's character (`myCharacter`); a test hands its own.
+ * Answers the greying's promise, or undefined where there is no Take.
  */
 export function buildBodyLoot(root, actor, taker = myCharacter()) {
     // A body this browser knows of (E05 C10, the owner's Q2): the table's, or one nobody has

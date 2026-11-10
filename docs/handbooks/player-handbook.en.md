@@ -760,7 +760,7 @@ Once your own Class Trial has ended, you may join the GMs as a **Monocub**. Same
 
 - You start with 0 Hope and all your Health and Sanity left, and have the same action budget as an unwounded living student - Wounded never takes one from a Monocub. You see only your own room. Your rolls are shown to everyone standing in it.
 - **Confusion** costs **1 action and 1 Hope**, and your Hope exists only because a Monokuma converted Despair into it (Fuel a Monocub). It is a flat 2d12 with no statistic. Pick somebody in your room and help or hinder their next roll (see the table below). They are told something steadied or rattled them, never who - but everyone in your room sees you roll, so they may work out it was you.
-- Your body stays where you died, as a tile with your character's picture, and what it carried is searched there.
+- Your body stays where you died, as a tile with your character's picture, the dead marker over it and your name under it ("{name}'s body"), and what it carried is searched there.
 - A Monocub who stumbles onto the crime scene is sworn to silence about it until the chapter ends. Confusion still works.
 
 | Confusion roll | Help | Hinder |

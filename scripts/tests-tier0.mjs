@@ -16938,7 +16938,8 @@ const REGRESSIONS = [
         const words = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         const files = row => String(row.file ?? "").split(/\s*,\s*/).filter(Boolean);
         const overrides = PATCHES.filter(r => r.kind === "override"), hookRows = PATCHES.filter(r => r.kind === "hook");
-        const DOCS = ["Actor", "Item", "Token", "ChatMessage", "Setting", "User", "Scene", "Region", "RegionBehavior", "Wall", "ActiveEffect", "Playlist", "PlaylistSound"];
+        const DOCS = ["Actor", "Item", "Token", "ChatMessage", "Setting", "User", "Scene", "Region", "RegionBehavior", "Wall", "ActiveEffect", "Playlist", "PlaylistSound",
+            "Tile"];
         const APPS = ["ApplicationV2", "Application", "ActorSheetV2", "ItemSheetV2", "DocumentSheetV2", "DialogV2", "SceneControls", "CameraViews", "UserConfig",
             "TokenHUD", "SettingsConfig", "FilePicker", "AVConfig", "DocumentOwnershipConfig", "ImagePopout", "Sidebar"];
         /* Foundry's own hooks the module listens to: its lifecycle, the canvas, a document's events and an application's of
@@ -16947,6 +16948,8 @@ const REGRESSIONS = [
         const FOUNDRY_HOOKS = new Set([
             "init", "i18nInit", "setup", "ready", "canvasReady", "canvasPan", "canvasTearDown", "sightRefresh", "pauseGame", "userConnected",
             "clientSettingChanged", "rtcSettingsChanged", "collapseSidebar", "refreshToken", "renderChatMessageHTML",
+            // A placeable's draw and refresh, as `refreshToken` is (E95 C3: body-tile.mjs draws the body's mark on its tile).
+            "drawTile", "refreshTile",
             "getUserContextOptions", "getChatMessageContextOptions", "getActorContextOptions",
             ...DOCS.flatMap(d => ["preCreate", "create", "preUpdate", "update", "preDelete", "delete"].map(e => `${e}${d}`)),
             ...APPS.flatMap(a => ["render", "close", "getHeaderControls"].map(e => `${e}${a}`))

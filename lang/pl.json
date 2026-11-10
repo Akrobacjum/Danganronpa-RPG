@@ -1125,7 +1125,8 @@
       "setCategoryTier": "Tabele nie mówią, czym jest ten przedmiot: wybierz jego kategorię i Tier, by go dać."
     },
     "Body": {
-      "noToken": "{name} nie ma tokenu na scenie z pokojami, więc na mapie nie zostało ciało."
+      "noToken": "{name} nie ma tokenu na scenie z pokojami, więc na mapie nie zostało ciało.",
+      "tile": "Ciało: {name}"
     },
     "Monocub": {
       "meddleRefused": "Confusion ich nie dosięga. Chwila minęła, zanim zdążyło zadziałać.",

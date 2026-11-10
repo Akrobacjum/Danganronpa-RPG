@@ -84918,6 +84918,132 @@ const SCENARIOS = [
             reset: [["plain"], true, { everyStudent: ["deaths"], clear: 1, dropMany: 0 }]
         }), "the tiles left [laid; after the revive, and dead; after the reset's deaths group, the entry chapter.mjs's, its other parts as called]");
     }],
+
+    ["an open body's loot window reads the gate again when a GM hides, moves or deletes the body's tile (E95 C3; STATUS E95 Open 2): beside the tile its Take greys when the tile is hidden, opens when it is shown, greys when the tile is moved into the token's room, opens when it is moved back, and greys when the tile is deleted", async () => {
+        /*
+         * E95 C3, 10.11.2026; STATUS E95 "## Open" item 2. From E95 C1 the loot gate reads a body where its tile lies
+         * (body-tile.mjs `bodyPlaceOf`), and anonymity.mjs `regreyOpenLoot` heard the taker's and the body's token and
+         * the clock: a GM's write on the tile moved the gate and the open window kept the Take it had. The fixture of
+         * the C1 tests (`withBodyTile`), the taker stood beside the tile, a loot window for the taker put on the page
+         * (anonymity.mjs `buildBodyLoot` into a root in the document, where `regreyOpenLoot` looks), and five writes on
+         * the tile by this GM. Read: whether the Take is greyed after each, waited for up to 2 s (the greying imports
+         * and asks the gate after the hook). Red at E95 C2: no write on a tile re-read the gate, so the Take stayed open
+         * after every one.
+         */
+        await withBodyTile(async ({ taker, body, tile, room, tileRoom, standTaker }) => {
+            const A = await import("./anonymity.mjs");
+            const INV = await import("./inventory.mjs");
+            const Mv = await import("./movement.mjs");
+            const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+            const NAME = "SUITE E95 C3 a lighter on the body";
+            const bodyToken = canvas.scene.tokens.find(t => t.actorId === body.id);
+            const spot = Mv.positionIn(room, bodyToken);
+            must(spot, `no spot in ${room} to move the tile to - this would measure nothing`);
+            const root = document.createElement("div");
+            root.innerHTML = `<a data-tab="inventory"></a><section class="tab" data-tab="inventory"></section>`;
+            document.body.append(root);
+            const read = {};
+            let item = null;
+            try {
+                await standTaker(tileRoom);
+                item = await INV.grantItem(body, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+                await sheetAuditIdle();
+                must(item, "the item on the body was not made - this would measure nothing");
+                await A.buildBodyLoot(root, body, taker);
+                const take = root.querySelector(".drpg-loot-take");
+                must(take && !take.disabled, "the Take beside the tile is not open before the tile is written - this would measure nothing");
+                const after = async (write, shut) => {
+                    await write();
+                    await settle();
+                    await until(() => take.disabled === shut, 2000);
+                    return take.disabled;
+                };
+                const back = { x: tile.x, y: tile.y };
+                read.hidden = await after(() => tile.update({ hidden: true }), true);
+                read.shown = await after(() => tile.update({ hidden: false }), false);
+                read.moved = await after(() => tile.update({ x: spot.x, y: spot.y }), true);
+                read.movedBack = await after(() => tile.update(back), false);
+                read.deleted = await after(() => tile.delete(), true);
+            } finally {
+                root.remove();
+                if (item && body.items.has(item.id)) await item.delete();
+                await sheetAuditIdle();
+            }
+            equal(stableJson(read), stableJson({ hidden: true, shown: false, moved: true, movedBack: false, deleted: true }),
+                "the open loot window's Take greyed, beside the tile, after the GM [hid the tile, showed it, moved it into the token's room, moved it back, deleted it]");
+        });
+    }],
+
+    ["two body tiles of one death (E95 C3; risk 4, STATUS E95 Open 7): the loot gate reads the one laid first by its `at`, whichever was made first, both wear the caption, and a revive removes both", async () => {
+        /*
+         * E95 C3, 10.11.2026; STAGE E95 risk 4 ("Two GMs making one Monocub at once can lay two tiles; readers take the
+         * earliest; revive and reset remove all"), untested until now. The fixture of the C1 tests (`withBodyTile`: a
+         * tile in another room than the token) and a second tile of the same death laid by the suite in the token's
+         * room, `at` a minute after the first; then its `at` set a minute before the first's. Read each time: whether
+         * `bodyTileOf` is the earliest, the body's room (`bodyRoomOf`), and the loot gate (inventory.mjs
+         * `transferRefusal`, mode "loot", for a player who owns neither) with the taker beside the token and beside the
+         * fixture's tile. What C3 draws: the mark of each tile (body-tile.mjs `drawBodyMark` on a stand-in placeable
+         * holding the tile's document; Foundry's draw hook is not in the harness) - both captioned, as each tile is a
+         * flagged tile; which of the two is the body is the gate's and not the drawing's. Then chapter.mjs
+         * `reviveCharacter`: the tiles left. Red at E95 C2: there is no `drawBodyMark` (the gate and the revive were
+         * C0-C2's and read the same then).
+         */
+        await withBodyTile(async ({ taker, body, player, tile, room, tileRoom, standTaker }) => {
+            const B = await import("./body-tile.mjs");
+            const INV = await import("./inventory.mjs");
+            const Mv = await import("./movement.mjs");
+            const C = await import("./chapter.mjs");
+            const { reasonOf } = await import("./bridge-guards.mjs");
+            const { levelOf } = await import("./rooms.mjs");
+            const { deathRecord } = await import("./settings.mjs");
+            const scene = canvas.scene;
+            const bodyToken = scene.tokens.find(t => t.actorId === body.id);
+            const spot = Mv.positionIn(room, bodyToken);
+            must(spot, `no spot in ${room} to lay the second tile in - this would measure nothing`);
+            const gate = async () => { const why = await INV.transferRefusal(body, taker, { mode: "loot", asker: player }); return why ? reasonOf(why) : "ok"; };
+            const at = Number(tile.getFlag(MODULE_ID, FLAGS.bodyOf)?.at) || Date.now();
+            const reading = async firstId => {
+                await standTaker(room);
+                const besideToken = await gate();
+                await standTaker(tileRoom);
+                return [B.bodyTileOf(body)?.doc?.id === firstId, B.bodyRoomOf(body), besideToken, await gate()];
+            };
+            const read = {};
+            let second = null;
+            try {
+                [second] = await scene.createEmbeddedDocuments("Tile", [B.bodyTileSpec({ tokenDoc: { x: spot.x, y: spot.y, width: bodyToken.width,
+                    height: bodyToken.height, elevation: bodyToken.elevation, texture: { src: bodyToken.texture?.src ?? null }, parent: scene },
+                actorId: body.id, record: deathRecord(body), level: levelOf(bodyToken), at: at + 60000 })]);
+                await settle();
+                must(second && B.bodyTilesOf(body.id).length === 2, "the second body tile could not be laid - this would measure nothing");
+                read.secondLater = await reading(tile.id);
+                await second.setFlag(MODULE_ID, FLAGS.bodyOf, { ...second.getFlag(MODULE_ID, FLAGS.bodyOf), at: at - 60000 });
+                await settle();
+                read.secondEarlier = await reading(second.id);
+                read.drawn = typeof B.drawBodyMark === "function"
+                    ? [tile, second].map(doc => {
+                        const stand = new PIXI.Container();
+                        stand.document = doc;
+                        return (B.drawBodyMark(stand)?.children ?? []).filter(c => c instanceof PIXI.Text).map(c => c.text);
+                    })
+                    : "body-tile.mjs has no drawBodyMark";
+                await C.reviveCharacter(body, { quiet: true });
+                await settle();
+                read.revived = [scene.tiles.has(tile.id), scene.tiles.has(second.id), B.bodyTilesOf(body.id).length];
+            } finally {
+                if (second && scene.tiles.has(second.id)) await second.delete();
+                await settle();
+            }
+            const words = [game.i18n.format("DRPG.Body.tile", { name: body.name })];
+            equal(stableJson(read), stableJson({
+                secondLater: [true, tileRoom, "notThere", "ok"],
+                secondEarlier: [true, room, "ok", "notThere"],
+                drawn: [words, words],
+                revived: [false, false, 0]
+            }), "per case [the body is the earliest tile, the body's room, the gate beside the token, beside the fixture's tile]: the second tile laid later, then earlier; "
+                + "the captions drawn on [the fixture's tile, the second]; after the revive [the fixture's tile there, the second there, the body tiles left]");
+        });
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

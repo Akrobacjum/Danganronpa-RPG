@@ -1091,7 +1091,8 @@
       "setCategoryTier": "The tables do not say what this item is: choose its category and tier to give it."
     },
     "Body": {
-      "noToken": "{name} has no token on a scene with rooms, so no body was left on the map."
+      "noToken": "{name} has no token on a scene with rooms, so no body was left on the map.",
+      "tile": "{name}'s body"
     },
     "Monocub": {
       "panelTitle": "Monocub",
