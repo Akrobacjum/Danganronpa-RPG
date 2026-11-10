@@ -438,8 +438,24 @@ async function selectedPass(browser) {
             const scaled = /matrix\(0, 0, 0, 0/.test(dot.transform);
             mark = dot.content === "none" || scaled ? "no mark" : ratio(over(parse(dot.backgroundColor), box, Number(dot.opacity)), box);
         }
-        return { title: part("strong"), hint: part("small"), icon: part(":scope > i"), mark };
+        // The brush itself (E68 fix round): drawn, opaque, light, and over the row's whole height.
+        const rowBox = row.getBoundingClientRect();
+        const fill = parse(brush.backgroundColor);
+        const drawn = brush.content !== "none" && brush.display !== "none";
+        const brushRead = drawn ? { opacity: Number(brush.opacity), alpha: fill[3], light: Math.round(lum(fill) * 100) / 100,
+            cover: Math.round(parseFloat(brush.height) / rowBox.height * 100) / 100 } : null;
+        return { title: part("strong"), hint: part("small"), icon: part(":scope > i"), mark, brush: brushRead };
     }, pick);
+    /* The owner, 10.11.2026, after round M's overview-selected.png: "pozbycie sie pociagniecia pedzla na zaznaczonych
+       elementach - to musi zostac". In Stained Glass the picked row keeps 1.2.103's full light brush (`::before`, the
+       brush filter): drawn, at full opacity, an opaque fill as light as 1.2.103's (relative luminance, read on c431138a's
+       Observe with this pass: the first row's rgb(255, 211, 143) 0.7, the GM's-road row's accent brush 0.29; within
+       0.05), over 90% of the row's height or more (c431138a 0.96, 4a027d8f 0.95: the glass row's padding went 6 to 4 px
+       in C12, and the brush with it). */
+    const BRUSH_1_2_103 = { general: 0.7, specific: 0.29 };
+    const brushLow = (b, pick = "general") => (!b ? ["brush not drawn"] : [b.opacity < 0.9 && `brush opacity ${b.opacity}`, b.alpha < 1 && `brush fill alpha ${b.alpha}`,
+        Math.abs(b.light - BRUSH_1_2_103[pick]) > 0.05 && `brush fill luminance ${b.light} (1.2.103: ${BRUSH_1_2_103[pick]})`,
+        b.cover < 0.9 && `brush covers ${b.cover} of the row`].filter(Boolean));
     const look = () => page.evaluate(() => [...globalThis.document.querySelectorAll(".drpg-choice-list > .drpg-choice")].slice(0, 4).map(row => {
         const s = globalThis.getComputedStyle(row), b = globalThis.getComputedStyle(row, "::before"), a = globalThis.getComputedStyle(row, "::after"), i = globalThis.getComputedStyle(row.querySelector("input"));
         return [s.backgroundColor, s.borderColor, s.boxShadow, s.outlineStyle, s.outlineColor, b.opacity, a.opacity, a.backgroundColor, i.outlineStyle, i.backgroundColor].join(" | ");
@@ -453,12 +469,19 @@ async function selectedPass(browser) {
             console.log(`style-sweep: --selected control (planted text on its own ground): title ${planted.title}:1 ${ok ? "read" : "NOT read"}`);
             if (!ok) problems.push("control: a planted title on its own ground did not read 1:1");
             await load(page, withTheme("/audit/style-harness.html?w=action-observe&role=player", theme));
+            // The brush taken off the picked row: it must read as missing, or the brush check below reads nothing.
+            await page.addStyleTag({ content: ".drpg-choice:has(input:checked)::before { content: none !important; }" });
+            const bare = brushLow((await read("general")).brush);
+            console.log(`style-sweep: --selected control (the brush taken off): ${bare.length ? `read (${bare.join("; ")})` : "NOT read"}`);
+            if (!bare.length) problems.push("control: a picked row with its brush taken off read as brushed");
+            await load(page, withTheme("/audit/style-harness.html?w=action-observe&role=player", theme));
         }
         for (const pick of ["general", "specific"]) {
             const r = await read(pick);
             if (r.error) { problems.push(`${theme} ${pick}: ${r.error}`); continue; }
             const low = [["title", 4.5], ["hint", 4.5], ["icon", 3], ["mark", 3]].filter(([k, need]) => !(typeof r[k] === "number" && r[k] >= need)).map(([k, need]) => `${k} ${r[k]} (needs ${need})`);
-            console.log(`style-sweep: --selected ${theme} ${pick}: title ${r.title}, hint ${r.hint}, icon ${r.icon}, mark ${r.mark}${low.length ? ` - LOW: ${low.join("; ")}` : ""}`);
+            if (theme === "glass") low.push(...brushLow(r.brush, pick));
+            console.log(`style-sweep: --selected ${theme} ${pick}: title ${r.title}, hint ${r.hint}, icon ${r.icon}, mark ${r.mark}, brush ${JSON.stringify(r.brush)}${low.length ? ` - LOW: ${low.join("; ")}` : ""}`);
             for (const l of low) problems.push(`${theme} ${pick}: ${l}`);
         }
         // The four states: row 1 picked, row 2 under the pointer, row 3 with the keyboard's focus, row 4 at rest.
