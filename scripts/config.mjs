@@ -1473,7 +1473,10 @@ export const ACTIONS = {
         kind: "universal",
         label: "Search",
         icon: "fa-magnifying-glass",
-        traits: ["eye"],
+        /* SIX STATISTICS, EYE THE DEFAULT (E68 C6, 10.11.2026; DA2, DA49). Eye first: a Search on Eye asks nobody and waits
+           for nothing (action-search.mjs `searchTrait`; roll-draw.mjs, the `search` row, waits for a card only on a claim
+           that is not Eye). Any other is the player's proposal to a GM, on a card (trait-ruling.mjs `traitFor`). */
+        traits: ["eye", "head", "body", "hand", "leg", "shadow"],
         cost: 1,
         // The count of searches a room allows is a WORLD SETTING (0-10), not the
         // three this sentence used to promise. The briefing reads the real

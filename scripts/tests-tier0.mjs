@@ -7230,7 +7230,6 @@ const REGRESSIONS = [
         // E51 C1 added `palmHand`, the hand's statistic in a Palm's window title (`palmTitle`), off Palm's one trait.
         // E41 C4 (1.2.97): keyed by the files the three moved into (action-search.mjs, palm.mjs).
         const FIRSTS = {
-            "action-search.mjs chooseSearchCategory": ACTIONS.search,
             "palm.mjs palmHand": ACTIONS.palm,
             "palm.mjs performPalm": ACTIONS.palm,
             "cleanup.mjs cleanupTrait": ACTIONS.tamper

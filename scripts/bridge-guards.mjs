@@ -664,7 +664,8 @@ export async function guardTraitRuling(sender, payload, ctx) {
         if (crisisVariant(actor, payload.key) !== variant) return "that is not the table the character rolls";
         return crisisRefusal(actor, payload.key)?.why ?? null;
     }
-    if (payload.kind === "project" || payload.kind === "generic") {
+    // A Search on another statistic than Eye (E68 C6; kind `action`, the one action that lists several) keeps the same clock.
+    if (payload.kind === "project" || payload.kind === "generic" || payload.kind === "action") {
         const { isEclipse, getClock } = await import("./settings.mjs");
         return isEclipse() || getClock()?.phase === "classTrial" ? "that cannot be done now" : null;
     }

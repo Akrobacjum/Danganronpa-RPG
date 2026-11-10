@@ -1490,7 +1490,7 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     const held = await armedCallsHeld(actor);
     const applied = appliedCalls(actor, calls, held);
     const hostile = hostileCalls(actor, applied, held, { key, claimed });
-    const expected = await expectedFor(actor, { actionKey: key, applied, hostile, context: told.context, claimed, loaded,
+    const expected = await expectedFor(actor, { actionKey: key, applied, hostile, context: told.context, claimed, loaded, told: told.trait,
         actionType: json?.options?.actionType ?? null });
     // The roll this GM throws is the one it builds from its list (`legalRollOf`, E29 C10); the packet's is a claim.
     const legal = await legalRollOf(json, actor, expected, told, { key, claimed, nonce });
@@ -1880,10 +1880,12 @@ const TRAIT_SOURCES = Object.freeze([
         const state = murderState();
         return openingSideOf(actor, context, state) ? { trait: traitKeyOf(state.openingTrait) } : null;
     } },
-    { from: "search", read: async (actor, { key, listed }) => {
+    { from: "search", read: async (actor, { key, listed, told }) => {
         if (key !== "search" || !listed.length) return null;
         const eye = { trait: listed.includes("eye") ? "eye" : listed[0] };
-        if (listed.length < 2) return eye;
+        // A roll claimed on Eye waits for no card (E68 C6; DA49): Eye is what it is held to with or without one, so the
+        // claim decides only the wait - the most common Search is drawn at once. A claim of another waits as before.
+        if (listed.length < 2 || told === eye.trait) return eye;
         const spec = { kind: "action", key: "search", variant: null };
         let found = gmPickOf(actor, spec, listed);
         for (const end = Date.now() + PICK_WAIT_MS; !found && Date.now() < end;) {
@@ -2066,8 +2068,9 @@ async function readyFor(actor, draw) {
  * or none is known here; `traitFrom` says which. `read` is each row's reading, `sheet` the
  * character's numbers read with them. Exported for the suite.
  */
-export async function expectedFor(actor, { actionKey = null, applied = [], hostile = [], context = {}, claimed = true, loaded = null, actionType = null } = {}) {
-    const draw = { key: actionKey, claimed, actionType, applied, hostile, context, loaded };
+export async function expectedFor(actor, { actionKey = null, applied = [], hostile = [], context = {}, claimed = true, loaded = null, actionType = null, told = null } = {}) {
+    // `told`: the statistic the packet claims, read by the `search` row alone, and only to know whether to wait (E68 C6).
+    const draw = { key: actionKey, claimed, actionType, applied, hostile, context, loaded, told };
     draw.ready = await readyFor(actor, draw);
     await draw.ready.judgedFor(actor?.id);
     draw.sheet = sheetOf(actor);

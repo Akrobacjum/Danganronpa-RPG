@@ -148,6 +148,8 @@ export function ruledDefinitions() {
         ...Object.keys(CRISIS_ACTIONS).flatMap(key => [{ kind: "crisis", key }, { kind: "crisis", key, variant: "indirectVictim" }]),
         ...Object.keys(MURDER_OPENING).map(key => ({ kind: "opening", key })),
         ...["cleanup", ...Object.keys(CLEANUP.actions ?? {})].map(key => ({ kind: "cleanup", key })),
+        // Search on six (E68 C6): its own definition, ruled under the kind `action`.
+        { kind: "action", key: "search" },
         ...Object.keys(ACTIONS).map(key => ({ kind: "generic", key }))
     ];
     const defs = new Set([...specs.map(definitionOf), ACTIONS.project, ACTIONS.sabotage]);
@@ -331,7 +333,7 @@ export function rulingLabel({ kind, key }) {
     if (kind === "opening") return MURDER_OPENING[key]?.label ?? key ?? "";
     if (kind === "cleanup") return key === "cleanup" ? CLEANUP.label ?? key : CLEANUP.actions?.[key]?.label ?? key ?? "";
     if (kind === "project") return allProjects().find(p => p.id === key)?.name ?? key ?? "";
-    if (kind === "generic") return ACTIONS[key]?.label ?? key ?? "";
+    if (kind === "generic" || kind === "action") return ACTIONS[key]?.label ?? key ?? "";
     return key ?? "";
 }
 

@@ -3773,7 +3773,8 @@
       "proposeLabel": "Którą statystykę proponujesz?",
       "howLabel": "Jak to robisz? (opcjonalnie)",
       "projectBody": "Ten projekt zapisano bez statystyki. Zaproponuj jedną: GM ją zatwierdza albo zmienia i zostaje ona statystyką projektu.",
-      "propose": "Zaproponuj"
+      "propose": "Zaproponuj",
+      "howSearch": "Jak szukasz? (opcjonalnie)"
     },
     "DiceLook": {
       "setByGm": "Twój wygląd kości ustala GM.",

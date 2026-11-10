@@ -41,7 +41,7 @@ import { PROPOSAL_NOTE_MAX } from "./trait-ruling.mjs";
  * the player changes it. Read back by `readProposal`. Exported for the callers outside this file that ask a
  * proposal in a window of their own (action-murder.mjs, action-project.mjs, action-dynamic.mjs).
  */
-export function traitFieldHtml(actor, traits, { note = "", propose = false, how = propose } = {}) {
+export function traitFieldHtml(actor, traits, { note = "", propose = false, how = propose, howLabel = "DRPG.TraitRuling.howLabel" } = {}) {
     const allowed = traits ?? [];
     if (allowed.length < 2) return "";
 
@@ -51,7 +51,7 @@ export function traitFieldHtml(actor, traits, { note = "", propose = false, how 
         return `<option value="${key}">${t.label} (${value > 0 ? "+" : ""}${value})</option>`;
     }).join("");
 
-    const words = how ? `<label class="drpg-trait-how"><span>${game.i18n.localize("DRPG.TraitRuling.howLabel")}</span>
+    const words = how ? `<label class="drpg-trait-how"><span>${game.i18n.localize(howLabel)}</span>
         <input type="text" name="note" maxlength="${PROPOSAL_NOTE_MAX}"></label>` : "";
     return `<label class="drpg-trait-field"><span>${game.i18n.localize(propose ? "DRPG.TraitRuling.proposeLabel" : "DRPG.Advance.whichTrait")}</span>
         <select name="${propose ? "proposed" : "trait"}">${options}</select>

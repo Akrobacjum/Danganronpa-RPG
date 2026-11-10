@@ -32695,6 +32695,81 @@ const SCENARIOS = [
             "a Search was not held to Eye with no card, to a GM's card's Head (the valve's), or was held to a card a player wrote (no card, the GM's, the player's)");
     }],
 
+    ["Search on Eye asks nobody and waits for nothing, on Head waits for the GM's answer and spends nothing before it (E68 C6)", async () => {
+        /*
+         * E68 C6, 10.11.2026; DA2 (Search on six), DA49 (Eye asks nobody). A student with a player and a token, stood
+         * alone in a room (`standAlone`), with at least one action, searches for something to heal twice on this GM's
+         * browser, the windows answered as the player would: the menu's proposal left on Eye, then set to Head, whose
+         * GM's window (trait-ruling.mjs `pickHere`) is pressed on its default, Approve. The character's `rollTrait` notes
+         * the statistic, the GM's mark and the time since the press, and throws nothing, so the action comes back. Read:
+         * the GM's windows each Search opened, the actions and the room's tokens when the GM's window was up (nothing
+         * spent), the throws, and what the GM's draw waits for a Search claimed on Eye and on Head with no card
+         * (roll-draw.mjs `expectedFor`, `told`). Red at C5's tip: no proposal field, both Searches Eye, no window.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a Search of a student with a player");
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the student alone");
+        const { ACTIONS_RESOURCE, MODULE_ID, TRAITS } = await import("./config.mjs");
+        const { SETTINGS } = await import("./settings.mjs");
+        const { TRAIT_BY_GM, performAction } = await import("./action-rolls.mjs");
+        const D = await import("./roll-draw.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const student = livingStudents().find(a => player(a) && canvas?.scene?.tokens?.some(t => t.actorId === a.id));
+        must(student, "no living student with a connected player has a token on the scene on screen");
+        const ACTS = `system.resources.${ACTIONS_RESOURCE}.value`;
+        const had = foundry.utils.getProperty(student, ACTS);
+        const tokensNow = () => stableJson(game.settings.get(MODULE_ID, SETTINGS.searchTokens) ?? {});
+        const tokens = foundry.utils.duplicate(game.settings.get(MODULE_ID, SETTINGS.searchTokens) ?? {});
+        const ruling = game.i18n.localize("DRPG.TraitRuling.title");
+        let proposal = "eye", pressed = 0, before = null, at = [];
+        const thrown = [];
+        const windows = answerWindows((cfg, root) => {
+            if ((cfg?.window?.title ?? "") === ruling) {
+                at.push([foundry.utils.getProperty(student, ACTS), tokensNow() === before]);
+                return press(cfg, root);
+            }
+            const pick = root.querySelector('input[name="variant"][value="healing"]');
+            if (pick) {
+                for (const each of root.querySelectorAll('input[name="variant"]')) each.checked = each === pick;
+                const select = root.querySelector("select[name=proposed]");
+                if (select) select.value = proposal;
+            }
+            return press(cfg, root);
+        });
+        const stood = await standAlone(student);
+        const read = [], waited = [];
+        try {
+            await student.update({ [ACTS]: Math.max(Number(had) || 0, 1) });
+            student.rollTrait = async (dh, config) => { thrown.push([dh, config?.[TRAIT_BY_GM] ?? null, Date.now() - pressed < 1500]); return null; };
+            for (const p of ["eye", "head"]) {
+                proposal = p;
+                at = [];
+                before = tokensNow();
+                const asked = windows.asked.length;
+                pressed = Date.now();
+                await performAction(student, "search");
+                read.push([windows.asked.slice(asked).filter(w => w.title === ruling).length, at]);
+            }
+            for (const told of ["eye", "head"]) {
+                const t0 = Date.now();
+                await D.expectedFor(student, { actionKey: "search", context: {}, told });
+                waited.push(Date.now() - t0);
+            }
+            read.push([waited[0] < 500, waited[1] >= 1500]);
+        } finally {
+            windows.restore();
+            delete student.rollTrait;
+            await student.update({ [ACTS]: had });
+            if (tokensNow() !== stableJson(tokens)) await game.settings.set(MODULE_ID, SETTINGS.searchTokens, tokens);
+            await stood?.back?.();
+            await settle();
+        }
+        equal(stableJson([read, thrown]), stableJson([[[0, []], [1, [[Math.max(Number(had) || 0, 1), true]]], [true, true]],
+            [[TRAITS.eye.dh, null, true], [TRAITS.head.dh, "approved", true]]]),
+            `[per Search: the GM's windows, (actions, tokens untouched) at the window; the draw's waits: Eye at once, Head the card's wait], the throws (statistic, the GM's mark, within 1.5 s of the press); the draw waited ${waited.join(" ms and ")} ms (Eye, Head)`);
+    }],
+
     ["a Search for something specific and an Observe of anything whose last GM left during the roll post nothing, hand the action back and take none of the room's search tokens (E18 fix e1-G5)", async () => {
         /*
          * E18 fix e1-G5, 24.10.2026; the end review's E18-END-6, E18-END-2, E18-END-7 and F8 (STATUS's C0 gaps 1 and 2).

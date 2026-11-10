@@ -3451,7 +3451,8 @@
       "proposeLabel": "Which statistic do you propose?",
       "howLabel": "How do you do it? (optional)",
       "projectBody": "This project was stored without a statistic. Propose one: the GM approves or changes it, and it stays the project's.",
-      "propose": "Propose"
+      "propose": "Propose",
+      "howSearch": "How do you search? (optional)"
     },
     "DiceLook": {
       "setByGm": "Your dice look is set by the GM.",
