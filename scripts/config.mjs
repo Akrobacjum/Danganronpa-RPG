@@ -4017,17 +4017,21 @@ export const CLEANUP = {
     /**
      * Covering your tracks is a Shadow job.
      *
-     * The FIRST entry is what is actually rolled - the same convention
-     * `takeCrisisAction` follows for `CRISIS_ACTIONS[key].traits`. The rest of
-     * the list documents what else a GM could reasonably allow, and is the
-     * single place to change it.
+     * SHADOW ALONE (E68 C5, 10.11.2026; DA4). From E32+E07 C11c the list was Shadow / Hand /
+     * Head and a GM picked one on a card for every erase, reshape and trail (trait-ruling.mjs
+     * `traitFor`). The owner's DA4: Stage 6 rolls Shadow. One listed statistic asks nobody
+     * (`traitFor` answers it with no card), the roll window shows it fixed, and the GM's
+     * draw holds a clean-up to it (roll-draw.mjs `listedFor`, the `fixed` row) - so a clean-up
+     * claimed on Hand is flagged. Moving the body keeps its own Body (`actions.moveBody`), and
+     * Tamper's door was Shadow already (`ACTIONS.tamper`). With Resolve armed the roll window's
+     * picker opens, as for any roll.
      *
      * This rolled Hand until the guide was read against it: every one of Stage
      * 6's three actions prints "Stat: Cień", and so does the concealment roll
      * that covers them. Wiping a room down is not dexterity, it is not being
      * seen to have been there.
      */
-    traits: ["shadow", "hand", "head"],
+    traits: ["shadow"],
 
     /**
      * An equipped Cleaning Tool grants advantage and takes its tier off the

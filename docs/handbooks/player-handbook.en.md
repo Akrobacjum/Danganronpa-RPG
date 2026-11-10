@@ -640,7 +640,7 @@ Then the **clean-up**. Your Tamper tile now lists every trace in the room you ar
 
 A Misleading Trail or a moved body that succeeds puts the Truth Bullet of the trace it left on your sheet at once, as if you had found it (*You know this trace: it is on your sheet.*); a failure, an erased trace and a reshaped one give you none, and a Reroll of that roll takes the Truth Bullet back.
 
-Tonight, at your own scene, the clean-up costs no action. Erasing, reshaping and the Misleading Trail list Shadow, Hand and Head: the GM picks one from what you say you do. A Cleaning Tool in hand gives advantage and takes its tier off the number. Witnesses in the room mean the same Shadow-16 concealment roll, and the same Sanity for being caught - except for Move the Body, which rolls no concealment.
+Tonight, at your own scene, the clean-up costs no action. Erasing, reshaping and the Misleading Trail roll Shadow, and nobody is asked. A Cleaning Tool in hand gives advantage and takes its tier off the number. Witnesses in the room mean the same Shadow-16 concealment roll, and the same Sanity for being caught - except for Move the Body, which rolls no concealment.
 
 > [!WARNING]
 > Every Murder Weapon you swung in the fight is destroyed when an incident that reached the clean-up closes (a Finishing Blow swings nothing); every Cleaning Tool you wore for a clean-up attempt is destroyed when your victim's body is found, even if you have put it away since - not if you stashed it; if you never cleaned up, the Cleaning Tool in your hand at that moment is destroyed instead. Both stay in your inventory as broken evidence.

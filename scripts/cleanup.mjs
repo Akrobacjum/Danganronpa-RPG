@@ -487,13 +487,12 @@ function findRemnantToken(tokenId) {
  * ========================================================================== */
 
 /**
- * THE STATISTIC A CLEAN-UP ROLLS IS THE GM'S PICK (E32+E07 C11c, 02.10.2026; audit S04-23,
- * the owner's Q4 as corrected on 28.09). Stage 6's rolls list three - Shadow / Hand / Head
- * (`CLEANUP.traits`), which an erase and a misleading trail roll - and threw the first,
- * Shadow, with nobody asked; moving the body lists its own Body alone. A GM picks now
- * (trait-ruling.mjs `traitFor`: a card in the player's thread, or a window on a GM's
- * browser; with Resolve armed the roll window's picker), and the caller asks before the
- * concealment and the price, so a refusal costs nothing. The same rolls
+ * THE STATISTIC A CLEAN-UP ROLLS (E32+E07 C11c, 02.10.2026; E68 C5, 10.11.2026). Stage 6's
+ * rolls listed three - Shadow / Hand / Head (`CLEANUP.traits`) - and from C11c a GM picked one
+ * on a card; since E68 C5 (DA4) they list Shadow alone, so `traitFor` answers Shadow with no
+ * card and no window, and moving the body lists its own Body alone. Still asked through
+ * `traitFor`, before the concealment and the price, so the rule stays the one rule: a list of
+ * several would ask a GM again (R213 names this caller an exception for its one statistic). The same rolls
  * through Tamper's door (`viaAction`, any afternoon) are Tamper's, which lists Shadow
  * alone (`ACTIONS.tamper`): nobody is asked - and the GM's judgement of a ruling
  * (bridge-guards.mjs `guardTraitRuling`) takes one for Stage 6's cleaner alone.

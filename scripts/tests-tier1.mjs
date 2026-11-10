@@ -7758,6 +7758,42 @@ const INVARIANTS = [
             JSON.stringify([true, true, true]),
             "the packet's context does not carry part, or a Search's card is asked under another definition, or the search row reads no card (part sent, the spec, the card read)");
     }],
+    ["R3152 - Stage 6 rolls Shadow and asks nobody: every clean-up step but Move the Body lists Shadow alone, the ruling answers it with no card and no window on a player's browser and a GM's, Move the Body stays Body, and the GM's draw holds a clean-up to Shadow (E68 C5; DA4)", async () => {
+        /*
+         * E68 C5, 10.11.2026; DA4 (the planned R-next (c)). The definitions a clean-up is asked under (trait-ruling.mjs
+         * `listedTraits`, kind `cleanup`: the clean-up itself and each of `CLEANUP.actions`), and `traitFor` for each with
+         * the two ways of asking replaced by seams that note any ask - as a player's browser and as a GM's, Resolve not
+         * armed. Then what the GM's draw expects of a clean-up (roll-draw.mjs `expectedFor`): an erase and a trail, each
+         * Shadow from the `fixed` row, so a claim of Hand is flagged. Pure; nothing is written. Red at C4's tip: the steps
+         * listed Shadow / Hand / Head and both browsers asked.
+         */
+        const T = await import("./trait-ruling.mjs");
+        const D = await import("./roll-draw.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        const actor = game.actors.find(a => a.type === "character") ?? null;
+        must(actor, "the world holds no character to read - this would measure nothing");
+        const keys = ["cleanup", ...Object.keys(CLEANUP.actions ?? {}).filter(k => CLEANUP.actions[k]?.label)];
+        must(keys.includes("eraseTrace") && keys.includes("moveBody"), `the clean-up's steps are ${keys.join(", ")} - this would measure nothing`);
+        const asked = [];
+        const seams = isGm => ({ isGm, resolveArmed: () => false, autoApprovable: async () => false,
+            askGms: async (a, spec) => { asked.push(["player", spec.key]); return "hand"; },
+            pickHere: async (a, spec) => { asked.push(["gm", spec.key]); return "hand"; } });
+        const read = [];
+        for (const key of keys) {
+            const spec = { kind: "cleanup", key };
+            read.push([key, T.listedTraits(spec), await T.traitFor(actor, spec, seams(false)), await T.traitFor(actor, spec, seams(true))]);
+        }
+        const expected = keys.map(key => [key, key === "moveBody" ? ["body"] : ["shadow"],
+            { trait: key === "moveBody" ? "body" : "shadow", byGm: false }, { trait: key === "moveBody" ? "body" : "shadow", byGm: false }]);
+        equal(JSON.stringify([read, asked]), JSON.stringify([expected, []]),
+            "a clean-up step does not list Shadow alone (Move the Body Body), or the ruling asked a GM for one (per step: listed, a player's answer, a GM's; the asks)");
+        const of = async cleanupKey => {
+            const e = await D.expectedFor(actor, { actionKey: "cleanup", context: { cleanupKey } });
+            return [e.trait ?? null, e.traitFrom ?? null];
+        };
+        equal(JSON.stringify([await of("eraseTrace"), await of("misleadingTrail")]), JSON.stringify([["shadow", "fixed"], ["shadow", "fixed"]]),
+            "the GM's draw does not hold an erase or a trail to Shadow from the fixed row, so Hand would not be flagged (erase, trail)");
+    }],
     ["R216 - a Reroll answered past its clock still counts, and a GM leaving is not the primary", async () => {
         /*
          * E08+E28 fix r1-G5, 04.10.2026; the round-1 review's m1 and m3.

@@ -28,7 +28,7 @@
  * The crisis actions ask (C11b), and so do the openings and Stage 6's rolls
  * (C11c): an opening on a GM's browser alone, since a GM sends it (murder-rules.mjs
  * `rollOpening`; `guardTraitRuling` refuses one from a player), and a clean-up
- * from whoever throws it.
+ * from whoever throws it - until E68 C5 (DA4) put Stage 6 on Shadow alone, which asks nobody.
  *
  * OUTSIDE THE INCIDENT NOTHING ASKS (C11d; the owner's rules of 28.09.2026). Search
  * rolls Eye alone, and a Project's roll - Work on it, or a Sabotage of it - the one

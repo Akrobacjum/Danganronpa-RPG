@@ -8839,7 +8839,7 @@ const SCENARIOS = [
             "a pick card a player wrote, a GM's for another project or naming a statistic a project does not list held the Work, a GM's own pick did not, a roll with no pick was thrown on its claim rather than the lowest it lists, or a player's difficulty card was read over the GM's (per Work: statistic flags, thrown, whose card; the difficulty)");
     }],
 
-    ["a clean-up's statistic is Stage 6's to pick: Tamper's door is the packet's word only for a roller who is not the cleaner, and a GM's pick holds the step it was asked for", async () => {
+    ["a clean-up rolls Shadow on every road: through Tamper's door, as Stage 6's cleaner and as its victim, and a GM's card naming Hand or Head does not move it (E68 C5)", async () => {
         /*
          * E29 fix r2-H2, 05.10.2026; the round-2 reviews' sec m2 = cor m5, and m1's match by action.
          * The GM held any clean-up whose packet said it came through Tamper's door (`cleanupVia`) to
@@ -8856,6 +8856,9 @@ const SCENARIOS = [
          * At a4a7f25's runtime (e29run/r2h2red) the cleaner's erase said to come through the door was
          * held to Tamper's Shadow, nobody asked; the two picks held their rolls then too, a card's kind
          * alone being matched: [["shadow","fixed"],["shadow","fixed"],["shadow","fixed"],["shadow","gm"],["hand","gm"]].
+         * E68 C5, 10.11.2026 (DA4): Stage 6 lists Shadow alone (`CLEANUP.traits`), so every reading is Shadow from the
+         * `fixed` row, and a GM's card naming Hand for an erase or Head for a trail - which no honest browser asks now -
+         * is not read: a clean-up claimed on either is flagged. Red at C4's tip: the clean-up listed three.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a Stage 6 is a fight's, so a killer and a victim, each with a player");
         const M = await import("./murder.mjs");
@@ -8872,10 +8875,10 @@ const SCENARIOS = [
         const had = new Set(game.messages.contents.map(m => m.id));
         const value = t => Number(killer.system.traits?.[TRAITS[t]?.dh]?.value) || 0;
         const listed = CLEANUP.traits.filter(t => Object.hasOwn(TRAITS, t));
-        const lowest = listed.reduce((low, t) => (value(t) < value(low) ? t : low));
-        const [erased, trailed] = listed.filter(t => t !== lowest);
         const [door] = ACTIONS.tamper.traits;
-        must(listed.length === 3 && erased && trailed, `the clean-up lists ${listed.length} statistic(s) - this would measure nothing`);
+        must(value && door === "shadow", `Tamper's door rolls ${door} - this would measure nothing`);
+        must(stableJson(listed) === stableJson(["shadow"]), `the clean-up lists ${stableJson(listed)}, not Shadow alone`);
+        const [erased, trailed] = ["hand", "head"];
         const expected = async (actor, context) => {
             const e = await D.expectedFor(actor, { actionKey: "cleanup", context });
             return [e.trait ?? null, e.traitFrom ?? null];
@@ -8909,8 +8912,8 @@ const SCENARIOS = [
                 if (changed.length) await trustedWrite(a, Object.fromEntries(changed.map(([k, v]) => [`system.resources.${k}.value`, v])), { reason: "gmRuling" });
             }
         }
-        equal(stableJson(read), stableJson([[door, "fixed"], [lowest, "gm"], [door, "fixed"], [erased, "gm"], [trailed, "gm"]]),
-            "a clean-up said to come through Tamper's door was held to Tamper's statistic for the cleaner or not for another, or a GM's pick asked as an erase or a trail is asked did not hold that roll (per reading: statistic, row)");
+        equal(stableJson(read), stableJson([[door, "fixed"], ["shadow", "fixed"], [door, "fixed"], ["shadow", "fixed"], ["shadow", "fixed"]]),
+            "a clean-up was not held to Shadow through Tamper's door, as the cleaner or as the victim, or a GM's card naming Hand or Head moved an erase or a trail (per reading: statistic, row)");
     }],
 
     ["what a drawn roll throws is the GMs' record once its waits are over: a critical and a statistic a player's write puts on during the pick's wait are not thrown", async () => {
@@ -21758,7 +21761,7 @@ const SCENARIOS = [
         }
     }],
 
-    ["a clean-up roll waits for the GM's pick, and nothing is paid before it", async () => {
+    ["a Stage 6 roll asks nobody and throws Shadow, and a roll window closed keeps no price (E68 C5)", async () => {
         /*
          * E32+E07 C11c, 02.10.2026; audit S04-23. Stage 6's rolls list Shadow / Hand / Head
          * and threw Shadow, with nobody asked. The killer, alone with the victim in a room
@@ -21769,6 +21772,9 @@ const SCENARIOS = [
          * window does, so the price is handed back (`releaseTamper`). Read: the windows, the
          * throws, what the cancelled attempt answered, and the killer's Sanity before and after.
          * Until C11c: no window, and Shadow (`presence`) thrown three times, the Cancel too.
+         * E68 C5, 10.11.2026 (DA4): Stage 6 lists Shadow alone, so the trail and the erase open no GM's window and
+         * throw Shadow unmarked; the price is still handed back when the roll window closes. Red at C4's tip: three
+         * windows, and Head and Hand thrown on the GM's mark.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         const M = await import("./murder.mjs");
@@ -21791,17 +21797,12 @@ const SCENARIOS = [
             const sanity = () => killer.system.resources.stress.value;
             const before = sanity();
             killer.rollTrait = async (dh, config) => { thrown.push([dh, config?.[TRAIT_BY_GM] === true]); return null; };
-            traits.pick = () => "cancel";
-            const cancelled = await Cl.attemptStageSix(killer, "misleadingTrail", victim.id);
-            const afterCancel = [thrown.length, sanity()];
             traits.pick = () => "head";
             await Cl.attemptStageSix(killer, "misleadingTrail", victim.id);
-            traits.pick = () => "hand";
             await Cl.attemptCleanup(killer, "SUITEC11CNOTRACE");
-            equal(stableJson([traits.asked, cancelled, afterCancel, thrown, sanity()]),
-                stableJson([[["shadow", "hand", "head"], ["shadow", "hand", "head"], ["shadow", "hand", "head"]], null, [0, before],
-                    [["knowledge", true], ["finesse", true]], before]),
-                "a clean-up roll did not ask the GM, threw before the pick or after a Cancel, threw another statistic or unmarked, or kept a price (windows, cancelled, after the Cancel, throws, Sanity)");
+            equal(stableJson([traits.asked, thrown, sanity()]),
+                stableJson([[], [["presence", false], ["presence", false]], before]),
+                "a Stage 6 roll asked the GM, threw another statistic than Shadow or on the GM's mark, or kept a price (windows, throws, Sanity)");
         } finally {
             traits.restore();
             delete killer.rollTrait;
