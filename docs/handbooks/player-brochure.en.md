@@ -18,11 +18,11 @@
 
 | Action | Roll | In short |
 |---|---|---|
-| **Search** | Eye | Name what you want. 8+ Tier 0, 12+ Tier 1, 18+ Tier 2, crit +1 tier. Spends a search token. Taking a weapon or a cleaning tool leaves a trace. |
+| **Search** | Eye, or another the GM approves | Name what you want. 8+ Tier 0, 12+ Tier 1, 18+ Tier 2, crit +1 tier. Spends a search token. Taking a weapon or a cleaning tool leaves a trace. |
 | **Observe** | Eye | Copies a Remnant into your inventory as a Neutral Truth Bullet. A miss costs 1 Sanity. |
 | **Analyze** | Head | Identify a Truth Bullet (a miss locks it until the chapter ends), ask the GM for a hint (14+ / 18+), Find Stash (16+) or Find Passage (16+). |
 | **Projects** | The project's | 12+ = +1 progress, 18+ = +2, crit = +2 and the action back. Propose new ones to the GM. Sabotage lives here too and always leaves a trace. |
-| **Dynamic** | GM picks | Describe anything; the GM sets the difficulty. Gentler thresholds - the reward for inventing something. |
+| **Dynamic** | You propose, the GM sets | Describe anything; the GM sets the difficulty. Gentler thresholds - the reward for inventing something. |
 | **Rest** | - | Short: 1 action, pick 1, once per time of day. Long: 2 actions, pick 2, once per session. Sleep = Health, Meal = Sanity, Breath = Hope. Only in rooms marked for it. |
 | **Listen** | Shadow | 14+ how many are next door, 18+ who, crit every adjacent room. Rooms you have not been in stay unnamed (Unexplored room 1, 2...). |
 | **Palm** | Hand + Shadow | Take (10+, unseen 15+) or plant (8+, unseen 13+) something in somebody's pocket. Or see what they carry: ask first, Body 12+ after a refusal; unseen Shadow 15+ then Hand 10+. |
@@ -67,7 +67,7 @@ Bottom-left of your sheet: your table's word, shown on the button (**Safe Word**
 ## When it goes wrong
 
 - **Murder.** A trap asks you to roll (Eye vs 20) - being asked is the warning. A direct attack begins with your turn: Leave a Clue (12), Secure a Trace (15), Self-Defense (18, unlocks Survive and Role Reversal), Use an Item (15). Every turn after your first costs Sanity, then Health. Walking in on one gives you one free choice: escape together, take a side, or look away.
-- **Investigation.** Everyone gets the Autopsy Truth Bullet. Observe, Analyze, share. Three to five Key Remnants exist; together they narrow the suspects to 2-4. Take what the body carries from its sheet: you also get a Truth Bullet of what you took, and the body keeps one trace of the looting. What nobody finds costs Despair, and Monokuma may reveal it at the trial.
+- **Investigation.** Everyone gets the Autopsy Truth Bullet. Observe, Analyze, share. Three to five Key Remnants exist; together they narrow the suspects to 2-4. Take what the body carries from its sheet - no action, one Hand roll for the lot: you also get a Truth Bullet of what you took, and the body keeps one trace of the looting, easier to find the lower you rolled. What nobody finds costs Despair, and Monokuma may reveal it at the trial.
 - **Class Trial.** It opens with a fresh set of actions, and nobody leaves the room; only Analyze stays open, plus Hope Calls and items. Open discussion; Present Truth Bullets from your inventory, free. Present shows a Truth Bullet with your Analyze result or without it, and everyone else gets a copy as shown; there is no Share in a trial. When the GM opens the Nonstop Debate, **OBJECTION!** on your voice tile interrupts whoever is speaking (or spoke last); then you have 30 s to choose your Truth Bullet, or it is withdrawn and the price is not given back. Then 60 s only you, then a 120 s rebuttal with the person it was aimed at. An Objection, like Analyze in a trial, costs 1 action, else 1 Hope, else 1 Sanity. In Testimony and a Panic Round everyone speaks in turn (Done, Pass); in the Closing Argument the GM confirms one volunteer for 300 s; in these only the speaker presents, and a Panic Round has no Objection. Then the secret vote - <ins>more than half of the ballots</ins> convicts, a tie counts as wrong. Right: the Blackened is executed when the trial ends, survivors Level Up. Wrong: the accused dies when the trial ends, the Blackened stays with a Reinforced Level Up, which waits for the class's next Level Up.
 - **Death.** Your Truth Bullets die with you once your death is known, the rest stays on the body. Until somebody finds you, only the GMs and whoever was there know, and once the incident is over you talk only with the other dead. After your trial you may join the GMs as a Monocub: Move and Confusion.
 

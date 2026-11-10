@@ -178,7 +178,9 @@ Every room has a number of **search tokens** per time of day (the default is **3
 
 You get **2 actions** per time of day (1 while Wounded). The action grid on your sheet has ten tiles.
 
-Every action's briefing shows its cost, the statistics it rolls, the room you are in, the numbers it will be scored against (worked out for you as you stand), and anything that will cost you Sanity.
+Every action's briefing shows its cost, the statistics it rolls, the room you are in, the numbers it will be scored against (worked out for you as you stand), and anything that will cost you Sanity. Every action opens one window with the same layout: the briefing on the left, the choices on the right, and under the choices, where the roll lists several statistics, the statistic you propose and a line to say how you do it; the buttons are along the bottom.
+
+<!-- E68 C14 top-up: C13, the captions --> The caption under each choice of Search, Analyze, Tamper, Rest, Project, Palm, Frisk and the crisis menu is one sentence, about as long as Observe's (being built; this paragraph is filled in when its code lands).
 
 > [!NOTE]
 > A tile with a GM mark on it hands the turn to a human: your roll and your request go into your messenger thread and you wait for a ruling.
@@ -186,7 +188,7 @@ Every action's briefing shows its cost, the statistics it rolls, the room you ar
 
 ### Search - Eye, 1 action
 
-Loot the room for something you name. Spends one of the room's search tokens.
+Loot the room for something you name. Spends one of the room's search tokens. Eye is its statistic and asks nobody. Any other - Head, Body, Hand, Leg or Shadow, whichever fits how you search - is your proposal: you pick it in the window, say in a line how you search (optional), and the GM approves it, changes it to another statistic or refuses on a card in your thread. Nothing is spent until they answer.
 
 | Roll | Result |
 |---|---|
@@ -260,7 +262,7 @@ The slow game: many actions over many times of day, and the one thing that can c
 - A project lives in a room. Only somebody standing there can work on it.
 - **Proposing a project** costs no action and sends a card to the GM. Nothing exists until they approve it, and they may change the scale, the room or the wording first. **Wide project windows**, in this module's section of Foundry's settings, opens Propose a project wider on your screen (your browser alone; off by default).
 - **Description** (since 1.2.99). A proposal needs one, at most 1000 characters: what the project is, in your words. Choosing a project of a set kind (below) writes the kind's name in the field, and you may change it. The GM reads it on the card and may change it before approving; after that only the GMs change it. Everyone who knows the project reads it on its token's card.
-- A project demands one statistic, given when it is made, and every roll on it takes that one - yours, and a saboteur's. A project made without one asks the GM on its first roll and keeps their pick.
+- A project demands one statistic, given when it is made, and every roll on it takes that one - yours, and a saboteur's. A project made without one - an old one - has you propose one before its first roll; the GM approves or changes it on a card, and it stays the project's.
 - A **Tool held ready** gives advantage and takes its tier off every threshold on the roll.
 - **Projects that change a wall or an item.** In **Propose a project**, **Kind** offers five besides a project of your own, each with its statistic and size set, offered only where it can be done:
   - **Secret Passage** (Hand, Complex 6, always secret): through a wall of the room you stand in to the room beyond, named as you know it. The GM picks the stretch of wall. When it is finished you know the passage, and so do the people you shared the project with before then.
@@ -279,7 +281,7 @@ The slow game: many actions over many times of day, and the one thing that can c
 
 ### Dynamic Action - any statistic, 1 action
 
-Anything at all, provided you describe it in detail. The GM sets the difficulty and the statistic, or refuses (nothing is spent). Your roll window says the number to beat: a band is passed from its lower number. On a success your card reads "Success - the GM decides what a Tier N result gives you", and the GM gets a card that makes the item. Dynamic thresholds are gentler than the standard actions, as a deliberate reward for inventing something:
+Anything at all, provided you describe it in detail. You may propose the statistic as you describe it; the GM sets the difficulty and the statistic, or refuses (nothing is spent). Your roll window says the number to beat: a band is passed from its lower number. On a success your card reads "Success - the GM decides what a Tier N result gives you", and the GM gets a card that makes the item. Dynamic thresholds are gentler than the standard actions, as a deliberate reward for inventing something:
 
 | Difficulty | Beat | Item tier it can yield | Remnant it leaves |
 |---|---|---|---|
@@ -563,13 +565,15 @@ A **planted item** arrives as whatever the finder was searching for. It only spr
 
 What follows is what a player is allowed to know. Who is doing what to whom is the incident's business, not yours, until a body is found.
 
-Where a roll below lists more than one statistic, the GM picks one from what you say your character does: tell them in your messenger thread, and the roll window opens on their pick. With the Resolve Hope Call armed you pick it yourself in the roll window - in the fight and the clean-up; the opening roll is always the GM's pick.
+Where a roll below lists more than one statistic, you propose one: pick it in the window under the choices, say in a line how your character does it (optional), and the GM approves it, changes it to another statistic on the list, or refuses, on a card in your thread. Nothing is spent before they answer, and a refusal costs nothing. After a change your window says what it was changed to and offers to roll it or *I'll pass (nothing spent)*; in a fight a pass opens the crisis menu again. The roll window then opens on the answer, locked. With the Resolve Hope Call armed you pick it yourself in the roll window and nobody is asked. A trap victim's opening roll is the GM's pick, and the clean-up rolls Shadow with nobody asked. A GM may switch on approving a Search's or a project's proposal by itself in Daily Life; the card then says *Approved automatically.*
 
 ### The opening roll
 
 There is exactly one, and the kind of murder decides whose it is.
 
 **Direct murder:** the killer rolls (Body or Hand, against **8**; advantage at Night). The GM picks which of the two; while they do, the killer is told so, and says in their thread how they go about it.
+
+<!-- E68 C14 top-up: C9, the killer's opening proposes --> You propose the opening's statistic when you declare the murder (being built; this paragraph is filled in when its code lands): the GM allows Body or Hand from your proposal on one card, or refuses, and the opening rolls on the one they allow. A betrayal is declared the same way.
 
 | Killer's roll | What happens |
 |---|---|
@@ -676,7 +680,7 @@ Until somebody finds the body, the death is the GMs' to keep: the table is not t
 - Every living student receives an **Autopsy Truth Bullet** - time of discovery, cause of death, what the body shows. No roll.
 - **Observe** the traces on the map, **Analyze** what you collect, **Share** copies with people in your room. Remnants tied to the crime are shown first.
 - The GMs prepared **Key Remnants** for this case - up to five, never fewer than three, and the better the killer's opening roll went, the fewer there are. Together they narrow the suspects to two to four people; a clue narrows the circle, it never names a name.
-- The **body** can be searched: open the dead student's sheet and press *Take* on what they carried. You get the thing itself, plus a Truth Bullet recording what you took and off whom - and the body gets a trace that somebody has been through the pockets (one per body, however many things leave it).
+- The **body** can be searched: open the dead student's sheet, tick what they carried and press *Take the ticked* (or *Take* on one thing). It costs no action. You roll **Hand** once for what you take, every time you take: the lower the roll, the easier the trace you leave is to find - under 12 it is easy to find, 12 to 17 harder, 18 or more or a critical hardest. With anyone else in the room you also roll **Shadow** against **16** to go unnoticed: a miss tells the others in the room and the GMs that you went through the body's pockets - after a Despair, what you took - and costs no Sanity. You get the thing itself, plus a Truth Bullet recording what you took and off whom - and the body gets one trace that somebody has been through the pockets, however many things leave it; later Takes can make that trace easier to find, never harder.
 - Investigators and killers alike can **Tamper**. A too-clean patch is evidence of tidying.
 - A Key Remnant nobody finds costs Despair (below), and at the trial Monokuma may reveal it to everyone taking part as a Key Remnant found - its kind and its text, to Analyze as usual.
 
@@ -783,9 +787,9 @@ Everything that needs a human lands in the same thread: an Observe aimed at a po
 
 **Read only when you look** (since 1.2.94). A message counts as read only while the thread's window is in front, on its Chat tab, and the game's browser tab is the one you are looking at. One that comes while the window is behind another, on the Note tab, or while you are in another browser tab shows its card and stays unread until you bring the window forward. A window folded to its title bar counts as behind: what came meanwhile is read when you open it again (since 1.2.99). A message that fails to send stays in the box. One refused before it went (too long, no GM connected) says only why; one that did not go says "Your message was not sent. It is still in the box - try again.". During a killing your message is posted by the GM's browser, and when its answer does not come in time you see "Your message may not have been sent. It is still in the box - look at the thread before you send it again.": the GMs may have it all the same. A message a GM deletes leaves your open window too.
 
-**A question you wait on** - an Experience or Ultimate Call, a Dynamic Action, the statistic a roll lists two of, an Observe aimed at a point of interest - says on its card until when it is open ("Open until 21:40."): five minutes for a Call, three for the others. The time is written by your own browser, in your time zone and language, and so is the line the card ends with. If no GM's browser takes a Call or a Dynamic Action within eight seconds, you are told at once that the GM did not answer, instead of waiting out the card. If nobody answers before the card's time, the card ends for everyone with "Nobody answered in time - ask again." and nothing is spent; an answer a GM gives after that is not kept, so ask again if you still want it. A Call's or a Dynamic Action's card says a ruling only once your browser has it, or once you have used it - a Call armed on the yes, a Dynamic roll thrown on the difficulty. A difficulty your browser did not confirm ends "Answered by ... - not confirmed as received.": it stands, so do not ask again. If you reload while you wait, the GM's browser still ends the card shortly after its time. If the GM's browser reloads, or another GM takes over, while you wait, your browser asks again - three times at most - and the question keeps its one card.
+**A question you wait on** - an Experience or Ultimate Call, a Dynamic Action, the statistic a roll lists several of, an Observe aimed at a point of interest - says on its card until when it is open ("Open until 21:40."): five minutes for a Call, three for the others. The time is written by your own browser, in your time zone and language, and so is the line the card ends with. If no GM's browser takes a Call or a Dynamic Action within eight seconds, you are told at once that the GM did not answer, instead of waiting out the card. If nobody answers before the card's time, the card ends for everyone with "Nobody answered in time - ask again." and nothing is spent; an answer a GM gives after that is not kept, so ask again if you still want it. A Call's or a Dynamic Action's card says a ruling only once your browser has it, or once you have used it - a Call armed on the yes, a Dynamic roll thrown on the difficulty. A difficulty your browser did not confirm ends "Answered by ... - not confirmed as received.": it stands, so do not ask again. If you reload while you wait, the GM's browser still ends the card shortly after its time. If the GM's browser reloads, or another GM takes over, while you wait, your browser asks again - three times at most - and the question keeps its one card.
 
-**Private cards.** A card meant for you alone - a Listen's answer, a find, a ruling's line - is read by every player who owns your character and by the GMs, never by a player who only observes it. So do your character's private rolls. GM Chat's thread is one account's: a question you ask and wait on - a Call, a Dynamic Action, the statistic a roll lists two of, an Observe aimed at a point of interest - lands in your own thread, and the other cards to the GM about your character land in one owner's thread only. If you were away when a private card was sent, or open the game in another browser, its words come back once a GM is connected. A card no GM can fill reads "A private card - its words were sent to another browser and are not kept on the server."
+**Private cards.** A card meant for you alone - a Listen's answer, a find, a ruling's line - is read by every player who owns your character and by the GMs, never by a player who only observes it. So do your character's private rolls. GM Chat's thread is one account's: a question you ask and wait on - a Call, a Dynamic Action, the statistic a roll lists several of, an Observe aimed at a point of interest - lands in your own thread, and the other cards to the GM about your character land in one owner's thread only. If you were away when a private card was sent, or open the game in another browser, its words come back once a GM is connected. A card no GM can fill reads "A private card - its words were sent to another browser and are not kept on the server."
 
 The messenger also has a **Note** tab: your plans for the session, for the GMs to read before it. It is for the GMs only: its words go to their browsers and stay on yours, and no other player's browser holds them. Saved while no GM is online, it says "Kept here until a GM connects." and goes when one does. If a GM changed it after you opened it, Save keeps your text and tells you; Save again to put yours in place of theirs. A note kept here waits as you wrote it: when a GM connects, it goes in place of whatever a GM changed meanwhile. The template asks seven questions:
 
