@@ -711,9 +711,8 @@ export const BRIDGE_ACTIONS = table({
         answer: "reply",
         // Both rolls on the GMs' record of each (E68 C10; Palm's `palmRolls` the model): the Hand when the packet names one,
         // and the cover when it names one, each drawn for this body (`named`, roll-draw.mjs `lootDrawRefusal`). Since the
-        // loot bind what a player's Take counts is the first of each drawn for the taker and the body in that time of day
-        // (handover.mjs `lootRollsBound`, `handleLoot`): a Take that names no Hand is a second Take of that time of day,
-        // refused where none is bound.
+        // loot bind what a player's Take counts is the first of each drawn for the taker and the body since their last Take
+        // of it (handover.mjs `lootRollsBound`, `handleLoot`): a Take that names no Hand reads the one bound, refused with none.
         rolled: [
             { field: "rollId", actor: "takerId", kind: "loot", when: "rollId", named: { body: "bodyId" } },
             { field: "coverRollId", actor: "takerId", kind: "lootCover", when: "coverRollId", named: { body: "bodyId" },
@@ -725,8 +724,8 @@ export const BRIDGE_ACTIONS = table({
             bodyId: "lootBody (handover.mjs) on the one gate (inventory.mjs transferRefusal, mode loot; frisk.mjs personActionRefusal with { body: true }): a dead body whose death the sender knows, not hidden where it lies (its tile, or its token when it has none: body-tile.mjs bodyPlaceOf), in the room the GMs read the taker in, a living taker that is not the body, outside an Eclipse and a Class Trial; an unknown death is refused as a living body is",
             itemId: "lootBody (handover.mjs) takes only an item on that body that is not a Truth Bullet",
             itemIds: "lootBody (handover.mjs), each as itemId is, at most LOOT_MOST",
-            rollId: "a Hand roll the GM drew for the taker's Take of this body (bridge-guards.mjs rollRefusal); a player's Take counts the first one drawn for that taker and body in that time of day, named or not (handleLoot, handover.mjs lootRollsBound), and is refused with none",
-            coverRollId: "a Shadow roll the GM drew for the taker's Take of this body (bridge-guards.mjs rollRefusal); a player's Take counts the first one drawn for that taker and body in that time of day (handleLoot)"
+            rollId: "a Hand roll the GM drew for the taker's Take of this body (bridge-guards.mjs rollRefusal); a player's Take counts the first one drawn for that taker and body since their last Take of it, named or not (handleLoot, handover.mjs lootRollsBound), and is refused with none",
+            coverRollId: "a Shadow roll the GM drew for the taker's Take of this body (bridge-guards.mjs rollRefusal); a player's Take counts the first one drawn for that taker and body since their last Take of it (handleLoot)"
         }
     },
     [ACTION_ARM]: {

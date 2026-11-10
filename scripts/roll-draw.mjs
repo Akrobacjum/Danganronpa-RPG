@@ -1020,7 +1020,7 @@ async function drawRefusal(actor, key, context) {
        ever stood for either roll and every player's Take was refused here: "The GM's client saw no action paid for that
        roll" (87-messenger-sound E1 and E3, measured 10.11.2026 at a5ebfeaa; tier 2 loots on the GM, which draws no
        ticket). Drawn with no ticket, as a roll that names no action is. What holds them: each names its body, and the first
-       of each for a taker, a body and a time of day is the one every Take of theirs reads (`lootDrawRefusal` below, the
+       of each for a taker and a body since their last Take of it is the one their next Take reads (`lootDrawRefusal` below, the
        loot bind); the GM's run asks the one gate before anything moves (handover.mjs `lootBody`). */
     if (PAID_BY_NOTHING.includes(key)) return lootDrawRefusal(actor, context);
     for (const end = Date.now() + PAY_WAIT_MS; !ticketFor(actor.id, key) && Date.now() < end;) {
@@ -1036,23 +1036,24 @@ async function drawRefusal(actor, key, context) {
 }
 
 /*
- * A TAKE'S ROLLS NAME THEIR BODY, AND THE FIRST OF EACH COUNTS (E68 C10 loot bind, 10.11.2026; the owner's words in E68
- * STAGE.md C10: "z jednym zestawem rzutów na osobę, ciało i porę dnia"). Drawn on no ticket since 18d7c470, a Take's Hand
+ * A TAKE'S ROLLS NAME THEIR BODY, AND THE FIRST OF EACH COUNTS (E68 C10 loot bind, 10.11.2026; the owner's Q8 "nie", E68
+ * QUESTIONS.md: every Take rolls Hand again, in the same time of day too). Drawn on no ticket since 18d7c470, a Take's Hand
  * was held only by `keepRecord`'s newest-replaces-older, so a player's console could throw "loot" again and again, read
  * each total and send `body.loot` once the newest read Hidden (18+): read in code by the orchestrator, 10.11; scenario
  * 83 L17 measures it. Now a draw of either names the body (`context.bodyId`, anonymity.mjs `takeFromBody`), refused
  * when it names none, the taker, or no actor of this world. Not whether that actor is dead: a death nobody has found is
  * this GM's secret, and a draw refused for a living actor and drawn for a secretly dead one would tell a console which
  * students are dead - the one gate answers both alike, in the asker's knowledge, at the Take (handover.mjs `lootBody`).
- * And not the one gate itself: a Take it refuses (the wrong room) still spends the time of day's roll, as the owner's
- * "one set per time of day" reads. The first draw of each for a taker, a body and a time of day is bound in the GMs' store (handover.mjs `bindLootRoll`, in `drawOnGm` below) and is the one
- * `body.loot` reads for every Take of theirs in it (bridge-runs-records.mjs `handleLoot`).
+ * And not the one gate itself: a Take it refuses (the wrong room) keeps its roll for the next try. The first draw of each
+ * for a taker and a body since their last Take of it that moved something is bound in the GMs' store (handover.mjs
+ * `bindLootRoll`, in `drawOnGm` below), the one their next Take reads (bridge-runs-records.mjs `handleLoot`), which
+ * clears it as it moves something: every Take rolls, and counts its own first roll (the owner's Q8 "nie": every Take
+ * rolls Hand again, in the same time of day too; the Remnant only rises, so a new Take's roll is no Reroll).
  *
- * A LATER DRAW IS DRAWN AND IGNORED, NOT REFUSED. Refused, a taker whose browser forgot its first roll (a reload: the
- * window's memory is that page's, anonymity.mjs `lootRolled`) could make no Take at all in that time of day - the
- * draw refused, `rollTrait` null, nothing asked, every press the same. Drawn, its dice settle nothing: the GM's answer
- * to that Take says the first roll counted, and the player reads it. A console that keeps throwing learns totals that
- * count for nothing.
+ * A LATER DRAW IS DRAWN AND IGNORED, NOT REFUSED. Refused, a taker whose Take the gate refused could make no next try:
+ * its window rolls again for every Take, the draw would be refused, `rollTrait` null, nothing asked. Drawn, its dice
+ * settle nothing: the GM's answer to that Take says an earlier roll counted, and the player reads it. A console that
+ * keeps throwing before a Take learns totals that count for nothing.
  */
 function lootDrawRefusal(actor, context) {
     const body = typeof context?.bodyId === "string" ? game.actors.get(context.bodyId) ?? null : null;
@@ -1165,7 +1166,7 @@ export async function drawOnGm(packet, sender) {
         const state = murderState();
         let written = null;
         const out = await throwDrawn(packet, sender, state?.active ? turnOf(state) : null, () => { written = performance.now() - arrived; });
-        // A Take's roll, the first of its kind for that taker, body and time of day: bound (`lootDrawRefusal` above).
+        // A Take's roll, the first of its kind for that taker and body since their last Take of it: bound (`lootDrawRefusal` above).
         if (out?.reply && !sender?.isGM && PAID_BY_NOTHING.includes(key)) {
             await (await import("./handover.mjs")).bindLootRoll(actor.id, contextSent(packet.context).bodyId, key, rollStore.get(out.reply.rollId));
         }

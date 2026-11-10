@@ -427,8 +427,8 @@ export const SETTINGS = {
     gmLootTraces: "gmLootTraces",
     /**
      * A TAKE'S ROLLS (E68 C10 loot bind, 10.11.2026): a GM store (gm-stores.mjs `lootRollStore`), a row per taker and
-     * body `{ mark, loot, lootCover }` - the first Hand and Shadow drawn for them in that time of day (handover.mjs
-     * `lootMark`), which every player's Take of that body in it reads. Synced, not backed up; no player copy.
+     * body `{ mark, loot, lootCover }` - the first Hand and Shadow drawn for them since their last Take of that
+     * body (handover.mjs `lootMark`), which their next Take reads and clears. Synced, not backed up; no player copy.
      */
     gmLootRolls: "gmLootRolls",
     /**

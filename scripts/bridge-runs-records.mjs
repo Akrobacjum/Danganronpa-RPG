@@ -462,13 +462,14 @@ export async function handleLoot(payload, sender, ctx) {
     // E68 C10: the items under one Take and its rolls, on the GMs' record of each (the declaration's `rolled`).
     const itemIds = Array.isArray(payload.itemIds) ? payload.itemIds.filter(id => typeof id === "string") : null;
     /* THE FIRST ROLLS COUNT (E68 C10 loot bind, 10.11.2026; roll-draw.mjs `lootDrawRefusal`). A player's Take reads the
-       first Hand and the first Shadow the primary drew for the taker at this body in this time of day (handover.mjs
-       `lootRollsBound`), whichever roll the packet names: the packet's own was held to this taker and body above
+       first Hand and the first Shadow the primary drew for the taker at this body since their last Take of it that moved
+       something (handover.mjs `lootRollsBound`), whichever roll the packet names, and clears them once it moves
+       something (`releaseLootRolls`), so every Take rolls and counts its own first roll (the owner's Q8): the packet's own was held to this taker and body above
        (`rolled`, `named`), and a later one settles nothing. No Hand bound is refused - a Take with no roll laid the
-       Remnant Subtle until C10. A GM's own button sends the GM's roll, as before: the GM rules. `again` tells the
-       player that this Take counted an earlier roll (anonymity.mjs `takeFromBody`, `DRPG.Loot.sameRoll`). */
+       Remnant Subtle until C10. A GM's own button sends the GM's roll, as before: the GM rules. `again` says that
+       this Take counted an earlier roll (a try refused kept it); the taker's page says nothing of it (anonymity.mjs `takeFromBody`). */
     const bound = sender.isGM ? null : await (await import("./handover.mjs")).lootRollsBound(payload.takerId, payload.bodyId);
-    if (!sender.isGM && !bound?.loot) return { refused: "no Hand roll of that character's stands for that body in this time of day" };
+    if (!sender.isGM && !bound?.loot) return { refused: "no Hand roll of that character's stands for that Take" };
     const taken = await lootBody({
         takerId: payload.takerId, bodyId: payload.bodyId, itemId: payload.itemId, itemIds,
         hand: bound ? bound.loot : { total: payload.total, isCritical: payload.isCritical, withHope: payload.withHope },
@@ -480,6 +481,7 @@ export async function handleLoot(payload, sender, ctx) {
     // Watched, and no Shadow bound (E68 review R1, handover.mjs `lootBody`): nothing moved; the taker's window rolls it and asks again.
     if (taken?.coverNeeded) return { reply: { coverNeeded: true } };
     if (!taken) return { refused: "nothing was carried out: lootBody took nothing" };
+    if (bound) await (await import("./handover.mjs")).releaseLootRolls(payload.takerId, payload.bodyId);
     if (bound && payload.rollId !== bound.loot.messageId) return { reply: { again: true } };
 }
 

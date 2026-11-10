@@ -29757,14 +29757,18 @@ const SCENARIOS = [
         });
     }],
 
-    ["a Take's Hand roll counts once for a taker, a body and a time of day, and again in the next", async () => {
+    ["every Take rolls once and only its first roll counts", async () => {
         /*
-         * E68 C10 loot bind, 10.11.2026; the owner's "z jednym zestawem rzutów na osobę, ciało i porę dnia". A Take's rolls
-         * are drawn on no payment (roll-draw.mjs `PAID_BY_NOTHING`), and the first Hand drawn for a taker at a body in a time
-         * of day is the one every Take of theirs there counts (handover.mjs `bindLootRoll`, `lootRollsBound`). Two Hands
-         * drawn for a player's character at one body, the first at low faces and the second at high: both drawn, the
-         * first bound; the row moved to another time of day, a third Hand is bound in its place; a Hand naming no body is
-         * refused. Red at 120a8003: no body travelled with the draw and nothing was bound (`lootRollsBound` absent).
+         * E68 C10 loot bind, 10.11.2026; the owner's Q8 "nie" (every Take rolls Hand again, in the same time of day too). A
+         * Take's rolls are drawn on no payment (roll-draw.mjs `PAID_BY_NOTHING`), so a console could throw "loot" again and
+         * again before a Take and send the best. Now the first Hand drawn for a taker at a body since their last Take of it
+         * is the one their next Take counts (handover.mjs `bindLootRoll`, `lootRollsBound`), and a Take that moves something
+         * clears it (`releaseLootRolls`, as bridge-runs-records.mjs `handleLoot` calls it). Two Takes of one body in one time
+         * of day, each after two Hands drawn for a player's character on this GM: the first Take's first Hand bound, the
+         * second ignored; the binding released as the first Take's settlement releases it; the second Take's first Hand bound,
+         * its second ignored; a Hand naming no body refused. The Takes themselves are not made here - the bind, its release
+         * and the refusal are; scenario 83 L18 makes a player's Take through the bridge. Red at 120a8003: no body travelled
+         * with the draw and nothing was bound.
          */
         const { livingStudents } = await import("./chapter.mjs");
         const H = await import("./handover.mjs");
@@ -29775,26 +29779,26 @@ const SCENARIOS = [
         const taker = livingStudents().find(a => a.testUserPermission(player, "OWNER"));
         const body = game.actors.find(a => a.type === "character" && a.id !== taker.id) ?? null;
         must(body, "no second character to name as the body - this would measure nothing");
-        must(typeof H.lootRollsBound === "function" && typeof H.lootMark === "function", "handover.mjs binds no Take's roll (lootRollsBound, lootMark)");
+        must(typeof H.lootRollsBound === "function" && typeof H.releaseLootRolls === "function", "handover.mjs binds no Take's roll (lootRollsBound, releaseLootRolls)");
         const key = `${taker.id}:${body.id}`, draws = [];
-        const draw = async (faces, context) => {
+        const draw = async (faces, context = { bodyId: body.id }) => {
             const d = await drawnForPlayer(player, taker, { actionKey: "loot", faces, pay: false, trait: "hand", edit: p => ({ ...p, context }) });
             draws.push(d);
-            return d;
+            return d.value?.messageId ?? null;
         };
+        const bound = async () => (await H.lootRollsBound(taker.id, body.id))?.loot?.messageId ?? null;
         try {
             if (lootRollStore.has(key)) await lootRollStore.drop(key);
-            const first = await draw({ hope: 2, fear: 1 }, { bodyId: body.id });
-            const second = await draw({ hope: 12, fear: 11 }, { bodyId: body.id });
-            const bound = async () => (await H.lootRollsBound(taker.id, body.id))?.loot?.messageId ?? null;
-            const once = [Boolean(first.value?.messageId), Boolean(second.value?.messageId), (await bound()) === first.value?.messageId];
-            const c = getClock();
-            await lootRollStore.patch(key, { mark: H.lootMark({ ...c, timeOfDay: c.timeOfDay === "night" ? "morning" : "night" }) });
-            const third = await draw({ hope: 7, fear: 4 }, { bodyId: body.id });
+            const first = [await draw({ hope: 2, fear: 1 }), await draw({ hope: 12, fear: 11 })];
+            const firstBound = await bound();
+            await H.releaseLootRolls(taker.id, body.id);
+            const cleared = await bound();
+            const second = [await draw({ hope: 7, fear: 4 }), await draw({ hope: 12, fear: 10 })];
+            const secondBound = await bound();
             const none = await draw({ hope: 6, fear: 5 }, {});
-            equal(stableJson([...once, (await bound()) === third.value?.messageId, none.value?.messageId ?? null, none.record?.body ?? null]),
-                stableJson([true, true, true, true, null, null]),
-                "[the first Hand drawn, the second drawn, the first bound, the next time of day's Hand bound, the bodiless Hand's message, its record's body]");
+            equal(stableJson([first.every(Boolean), firstBound === first[0], cleared, second.every(Boolean), secondBound === second[0], none]),
+                stableJson([true, true, null, true, true, null]),
+                "[both Hands before the first Take drawn, the first of them bound, the binding after that Take, both before the second drawn, the first of them bound, the bodiless Hand's message]");
         } finally {
             for (const d of draws) await d.putBack();
             if (lootRollStore.has(key)) await lootRollStore.drop(key);

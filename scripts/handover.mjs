@@ -432,7 +432,8 @@ export async function lootBody({ takerId, bodyId, itemId = null, itemIds = null,
        saw nobody got a miss with no roll. Now the primary decides: a player's Take (`coverRequired`, bridge-runs-records.mjs
        `handleLoot`) that it reads watched and that brings no Shadow bound for this taker, body and time of day moves
        nothing and answers `{ coverNeeded }`; the taker's window rolls Shadow and asks again on the same Hand
-       (anonymity.mjs `takeFromBody`). A taker who closes that window takes nothing, and the Hand stays spent. The answer
+       (anonymity.mjs `takeFromBody`). A taker who closes that window takes nothing, and the Hand stays bound for their
+       next try. The answer
        tells the taker's browser that the GMs count a watcher there, as the Shadow window it opens would. */
     if (coverRequired && !cover && (await lootWitnesses(taker, body)).length) return { coverNeeded: true };
     const { itemAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
@@ -475,13 +476,15 @@ export async function lootBody({ takerId, bodyId, itemId = null, itemIds = null,
 }
 
 /*
- * ONE SET OF ROLLS A TAKER, A BODY AND A TIME OF DAY (E68 C10 loot bind, 10.11.2026; gm-stores.mjs `lootRollStore`,
- * roll-draw.mjs `lootDrawRefusal`). `lootMark` is the time of day a Take's roll counts for: the season's epoch (as
- * stash-reach.mjs `rifleMark` keeps it, so a reset that keeps a row does not carry it into the new season), the
- * chapter, the day and the time of day - the owner's (taker, body, chapter, day, time of day), with no session: a
- * session that ends and opens again in the same time of day is the same time of day. Pure, but for the clock's default.
- * `bindLootRoll` keeps the first Hand ("loot") and the first Shadow ("lootCover") the primary drew for a taker and a
- * body in that mark, and nothing after; `lootRollsBound` answers the row of the mark that stands, or null.
+ * ONE ROLL PER TAKE, AND ITS FIRST (E68 C10 loot bind, 10.11.2026; gm-stores.mjs `lootRollStore`, roll-draw.mjs
+ * `lootDrawRefusal`; the owner's Q8 "nie": every Take rolls Hand again, in the same time of day too). `bindLootRoll`
+ * keeps the first Hand ("loot") and the first Shadow ("lootCover") the primary drew for a taker at a body since their
+ * last Take of it that moved something, and nothing drawn after; `lootRollsBound` answers them for the next Take, and
+ * `releaseLootRolls` clears them once that Take has moved something (bridge-runs-records.mjs `handleLoot`), so the next
+ * Take rolls anew. A Take refused (the one gate, the cover asked for) leaves them for the next try. `lootMark` is the time
+ * of day they were bound in - the season's epoch (as stash-reach.mjs `rifleMark` keeps it), the chapter, the day and the
+ * time of day - and what it adds is an end: a roll thrown and never taken counts for no Take of a later time of day,
+ * where without it a console could throw one in a quiet hour and hold it for days. Pure, but for the clock's default.
  */
 export function lootMark(clock = getClock()) {
     return [clock?.seasonStartedAt ?? 0, clock?.chapter ?? 1, clock?.day ?? 1, clock?.timeOfDay ?? ""].join(".");
@@ -501,6 +504,13 @@ export async function bindLootRoll(takerId, bodyId, kind, record) {
         withHope: Boolean(record.withHope) };
     await lootRollStore.patch(key, standing ? { [kind]: roll } : { mark, loot: null, lootCover: null, [kind]: roll });
     return true;
+}
+
+/** Clear `takerId`'s rolls bound at `bodyId`: their Take has moved something, and the next rolls anew. */
+export async function releaseLootRolls(takerId, bodyId) {
+    await lootRollStore.whenHydrated();
+    const key = `${takerId}:${bodyId}`;
+    if (lootRollStore.has(key)) await lootRollStore.drop(key);
 }
 
 /** The rolls bound for `takerId` at `bodyId` in the time of day that stands (`{ loot, lootCover }`, each or null), or null. */

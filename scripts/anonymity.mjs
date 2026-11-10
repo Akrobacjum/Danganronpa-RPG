@@ -409,37 +409,27 @@ async function takeFromBody(body, items) {
        plain the body's trace reads (handover.mjs `lootVisibilityOf`), and the primary reads it off its record of the
        roll. With somebody else in the room as this browser sees it, a Shadow roll covers it; the primary counts who
        watches itself (handover.mjs `lootCover`). A closed window takes nothing. */
-    /* ONE SET OF ROLLS A BODY AND A TIME OF DAY (E68 C10 loot bind, 10.11.2026; roll-draw.mjs `lootDrawRefusal`). Each roll
-       names the body (`context.bodyId`), and the primary counts the first Hand and the first Shadow drawn for this taker
-       at this body in this time of day for every Take of it (bridge-runs-records.mjs `handleLoot`). So a second Take here
-       rolls nothing it rolled already (`lootRolled`, this page's memory of it) and asks with no roll; a Shadow is still
-       thrown where this time of day's first Take had nobody watching and this one has. A Take the GM refused (the wrong
-       room) spent its roll all the same. The player is told once when the Take counted an earlier roll (`again`). */
+    /* EVERY TAKE ROLLS, AND ONLY ITS FIRST ROLL COUNTS (E68 C10 loot bind, 10.11.2026; the owner's Q8 "nie": every Take
+       rolls Hand again, in the same time of day too; roll-draw.mjs `lootDrawRefusal`). Each roll names the body
+       (`context.bodyId`), and the primary counts, for this taker's next Take of this body, the first Hand and the first
+       Shadow drawn since their last Take that moved something (bridge-runs-records.mjs `handleLoot`); a later roll
+       before that Take settles nothing. So this window rolls for every Take, as before. A Take the GM refused (the wrong
+       room) keeps its roll for the next try, and that try's new dice count for nothing. The GM's answer says so (`again`), and
+       the page says nothing of it: a Take that lands says one thing, that it was taken (87-messenger-sound E3, after E1's
+       refused try). */
     const { rollTrait } = await import("./action-rolls.mjs");
-    const { lootMark } = await import("./handover.mjs");
     const idOf = roll => roll?.raw?.message?.id ?? roll?.raw?.message?._id ?? null;
-    const memoryKey = `${taker.id}:${body.id}`, mark = lootMark();
-    if (lootRolled.get(memoryKey)?.mark !== mark) lootRolled.set(memoryKey, { mark, loot: false, lootCover: false });
-    // A GM's own button rolls every time: its roll is the GM's ruling, which lootBody reads as sent (`handleLoot`).
-    const rolled = game.user.isGM ? { mark, loot: false, lootCover: false } : lootRolled.get(memoryKey);
     const context = { bodyId: body.id };
-    let hand = null;
-    if (!rolled.loot) {
-        const roll = await rollTrait(taker, LOOT.trait, { actionKey: "loot", context, title: game.i18n.localize("DRPG.Loot.rollTitle") });
-        if (!roll) return false;
-        rolled.loot = true;
-        hand = { rollId: idOf(roll), total: roll.total, isCritical: roll.isCritical, withHope: roll.withHope };
-    }
+    const roll = await rollTrait(taker, LOOT.trait, { actionKey: "loot", context, title: game.i18n.localize("DRPG.Loot.rollTitle") });
+    if (!roll) return false;
+    const hand = { rollId: idOf(roll), total: roll.total, isCritical: roll.isCritical, withHope: roll.withHope };
     let cover = null;
     const { othersInRoom } = await import("./movement.mjs");
-    if (!rolled.lootCover && othersInRoom(taker).some(other => other?.id !== body.id)) {
+    if (othersInRoom(taker).some(other => other?.id !== body.id)) {
         const shadow = await rollTrait(taker, LOOT.cover.trait, {
             remember: false, actionKey: "lootCover", context, title: game.i18n.localize("DRPG.Loot.coverTitle"), dc: LOOT.cover.threshold
         });
-        if (shadow) {
-            rolled.lootCover = true;
-            cover = { rollId: idOf(shadow), total: shadow.total, isCritical: shadow.isCritical, withHope: shadow.withHope };
-        }
+        if (shadow) cover = { rollId: idOf(shadow), total: shadow.total, isCritical: shadow.isCritical, withHope: shadow.withHope };
     }
 
     // What this Take reads of the bridge's answer: whether it went, its value and its reason.
@@ -447,32 +437,23 @@ async function takeFromBody(body, items) {
         const out = await requestBodyLoot({ takerId: taker.id, bodyId: body.id, ...picked, hand: handNamed, cover: coverNamed });
         return { ok: out.ok, value: out.value ?? null, reason: out.reason ?? null };
     };
-    let res = await ask(hand, cover), retried = false;
-    // The primary counts a watcher this page did not, and holds no Shadow of this time of day (E68 review R1, handover.mjs
+    let res = await ask(hand, cover);
+    // The primary counts a watcher this page did not, and holds no Shadow for this Take (E68 review R1, handover.mjs
     // `lootBody`): the Shadow is rolled now and the Take asked again on the Hand already bound. Closed, nothing is taken.
     if (res.ok && res.value?.coverNeeded && !game.user.isGM) {
         const shadow = await rollTrait(taker, LOOT.cover.trait, {
             remember: false, actionKey: "lootCover", context, title: game.i18n.localize("DRPG.Loot.coverTitle"), dc: LOOT.cover.threshold
         });
         if (!shadow) return false;
-        rolled.lootCover = true;
-        retried = true;
         res = await ask(null, { rollId: idOf(shadow), total: shadow.total, isCritical: shadow.isCritical, withHope: shadow.withHope });
     }
     // Only what the GM has: a refusal has been said, and "you took it" beside it would be two answers.
     // Off a body nobody has found, the Truth Bullet waits for the death to be known (E05 fix r2-F0b).
     const took = Boolean(res.ok && !res.value?.refused && !res.value?.coverNeeded);
     const names = list.map(item => item.name).join(", ");
-    // An earlier roll counted: not this call's own Hand asked again with its Shadow (`hand`, then `retried`).
-    if (took && res.value?.again && !(hand && retried)) ui.notifications.info(game.i18n.localize("DRPG.Loot.sameRoll"));
     if (took) ui.notifications.info(game.i18n.format(isDeceased(body) ? "DRPG.Loot.took" : "DRPG.Loot.tookUnfound", { item: names }));
-    // No roll of this time of day stands on the GM's side (its clock moved, or another GM's store holds none): the next press rolls.
-    if (!took && !hand && res.reason === "rollUnknown") lootRolled.delete(memoryKey);
     return took;
 }
-
-/** This page's memory of the Take's rolls it threw, by taker and body: `{ mark, loot, lootCover }` (`takeFromBody`). */
-const lootRolled = new Map();
 
 /**
  * The character this viewer is playing.
