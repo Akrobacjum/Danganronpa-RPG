@@ -180,7 +180,7 @@ You get **2 actions** per time of day (1 while Wounded). The action grid on your
 
 Every action's briefing shows its cost, the statistics it rolls, the room you are in, the numbers it will be scored against (worked out for you as you stand), and anything that will cost you Sanity. Every action opens one window with the same layout: the briefing on the left, the choices on the right, and under the choices, where the roll lists several statistics, the statistic you propose and a line to say how you do it; the buttons are along the bottom.
 
-<!-- E68 C14 top-up: C13, the captions --> The caption under each choice of Search, Analyze, Tamper, Rest, Project, Palm, Frisk and the crisis menu is one sentence, about as long as Observe's (being built; this paragraph is filled in when its code lands).
+The caption under each choice of Search, Analyze, Tamper, Rest, Project, Palm, Frisk and the crisis menu is one sentence, about as long as Observe's. What it leaves out - what an attempt costs, the numbers it needs, what a critical or a miss does - is in that action's section of this chapter. In the crisis menu the picked action's whole description stands at the top of the left column, under the briefing, with its cost, the statistics it rolls and what a miss does.
 
 > [!NOTE]
 > A tile with a GM mark on it hands the turn to a human: your roll and your request go into your messenger thread and you wait for a ruling.

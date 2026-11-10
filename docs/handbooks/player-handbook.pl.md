@@ -180,7 +180,7 @@ Masz **2 akcje** na porę dnia (1, gdy jesteś Wounded). Siatka akcji na arkuszu
 
 Opis każdej akcji pokazuje jej koszt, statystyki, którymi rzuca, pokój, w którym jesteś, liczby, z którymi zmierzy się rzut (wyliczone dla ciebie, tu i teraz), i wszystko, co będzie kosztować Sanity. Każda akcja otwiera jedno okno o tym samym układzie: opis po lewej, wybory po prawej, a pod wyborami, gdy rzut wymienia kilka statystyk, statystyka, którą proponujesz, i linia, w której mówisz, jak to robisz; przyciski są na dole.
 
-<!-- E68 C14 top-up: C13, the captions --> Podpis pod każdym wyborem w Search, Analyze, Tamper, Rest, Project, Palm, Frisk i w menu kryzysowym to jedno zdanie, mniej więcej tak długie jak w Observe (w budowie; ten akapit uzupełni się, gdy pojawi się kod).
+Podpis pod każdym wyborem w Search, Analyze, Tamper, Rest, Project, Palm, Frisk i w menu kryzysowym to jedno zdanie, mniej więcej tak długie jak w Observe. To, czego w nim nie ma - ile kosztuje próba, ile trzeba wyrzucić, co daje krytyk albo porażka - jest w części tego rozdziału o tej akcji. W menu kryzysowym pełny opis wybranej akcji stoi na górze lewej kolumny, pod opisem sytuacji, razem z kosztem, statystykami, którymi rzuca, i tym, co robi porażka.
 
 > [!NOTE]
 > Kafelek ze znakiem GMa oddaje ruch człowiekowi: twój rzut i prośba trafiają do twojego wątku w komunikatorze i czekasz na decyzję.
