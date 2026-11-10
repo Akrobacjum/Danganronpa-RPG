@@ -25,7 +25,8 @@ import { capacityLabel, isStashed, transferItem, transferRefusal } from "./inven
 import { createTruthBullet, truthBulletData, secretOf, isTruthBullet, bulletAsHeld, unanalysedType } from "./truth-bullets.mjs";
 import { whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion, plural, serialWrite, ownerIdsOf, gmIds, announce, whisperToGms } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
-import { answerKeysRefusal, lootTraceStore, deathStore } from "./gm-stores.mjs";
+import { answerKeysRefusal, lootTraceStore, deathStore, lootRollStore } from "./gm-stores.mjs";
+import { getClock } from "./settings.mjs";
 
 
 /* ==========================================================================
@@ -395,7 +396,7 @@ export async function mintCopy(from, to, item, { analysis = true, quiet = false 
  * bypassed all of it. The trace does not take the suppression away - it prices
  * it, in the machinery that already exists.
  */
-export async function lootBody({ takerId, bodyId, itemId = null, itemIds = null, hand = null, cover = null, askedBy = null } = {}) {
+export async function lootBody({ takerId, bodyId, itemId = null, itemIds = null, hand = null, cover = null, askedBy = null, coverRequired = false } = {}) {
     if (!game.user.isGM) return null;
 
     const taker = game.actors.get(takerId);
@@ -424,6 +425,16 @@ export async function lootBody({ takerId, bodyId, itemId = null, itemIds = null,
         warn(`Refused to loot ${body.name} for ${taker.name}: ${why}.`);
         return { refused: why };
     }
+    /* A WITNESS MEANS A ROLL (E68 review R1, 10.11.2026). Until this a player's Take that came with no cover roll was judged
+       by `lootCover` as a miss with Hope - the items never named - so a taker who closed the Shadow window, or a console
+       that left the cover out, chose the kinder miss; and the taker's browser (movement.mjs `othersInRoom`) and the
+       primary (frisk.mjs `roomWitnessesOnGm`: a Monocub, the GMs' marks) count witnesses apart, so an honest taker who
+       saw nobody got a miss with no roll. Now the primary decides: a player's Take (`coverRequired`, bridge-runs-records.mjs
+       `handleLoot`) that it reads watched and that brings no Shadow bound for this taker, body and time of day moves
+       nothing and answers `{ coverNeeded }`; the taker's window rolls Shadow and asks again on the same Hand
+       (anonymity.mjs `takeFromBody`). A taker who closes that window takes nothing, and the Hand stays spent. The answer
+       tells the taker's browser that the GMs count a watcher there, as the Shadow window it opens would. */
+    if (coverRequired && !cover && (await lootWitnesses(taker, body)).length) return { coverNeeded: true };
     const { itemAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
     const got = [];
     let refused = null;
@@ -461,6 +472,42 @@ export async function lootBody({ takerId, bodyId, itemId = null, itemIds = null,
     log(`${taker.name} took ${names.map(n => `"${n}"`).join(", ")} from ${body.name}'s body.`);
     // One Take of one item answers what the taker holds of it, as before C10; several answer the list.
     return got.length === 1 && !itemIds ? got[0].taken : got.map(one => one.taken);
+}
+
+/*
+ * ONE SET OF ROLLS A TAKER, A BODY AND A TIME OF DAY (E68 C10 loot bind, 10.11.2026; gm-stores.mjs `lootRollStore`,
+ * roll-draw.mjs `lootDrawRefusal`). `lootMark` is the time of day a Take's roll counts for: the season's epoch (as
+ * stash-reach.mjs `rifleMark` keeps it, so a reset that keeps a row does not carry it into the new season), the
+ * chapter, the day and the time of day - the owner's (taker, body, chapter, day, time of day), with no session: a
+ * session that ends and opens again in the same time of day is the same time of day. Pure, but for the clock's default.
+ * `bindLootRoll` keeps the first Hand ("loot") and the first Shadow ("lootCover") the primary drew for a taker and a
+ * body in that mark, and nothing after; `lootRollsBound` answers the row of the mark that stands, or null.
+ */
+export function lootMark(clock = getClock()) {
+    return [clock?.seasonStartedAt ?? 0, clock?.chapter ?? 1, clock?.day ?? 1, clock?.timeOfDay ?? ""].join(".");
+}
+
+const LOOT_ROLL_KEYS = Object.freeze(["loot", "lootCover"]);
+
+/** Bind `record` (the GMs' record of a drawn roll) as `takerId`'s `kind` roll at `bodyId`, unless one is bound in this mark; true when bound. */
+export async function bindLootRoll(takerId, bodyId, kind, record) {
+    if (!game.user.isGM || !LOOT_ROLL_KEYS.includes(kind) || typeof takerId !== "string" || typeof bodyId !== "string" || !record) return false;
+    await lootRollStore.whenHydrated();
+    const key = `${takerId}:${bodyId}`, mark = lootMark();
+    const row = lootRollStore.get(key);
+    const standing = row?.mark === mark ? row : null;
+    if (standing?.[kind]) return false;
+    const roll = { messageId: record.messageId ?? null, total: Number(record.total) || 0, isCritical: Boolean(record.isCritical),
+        withHope: Boolean(record.withHope) };
+    await lootRollStore.patch(key, standing ? { [kind]: roll } : { mark, loot: null, lootCover: null, [kind]: roll });
+    return true;
+}
+
+/** The rolls bound for `takerId` at `bodyId` in the time of day that stands (`{ loot, lootCover }`, each or null), or null. */
+export async function lootRollsBound(takerId, bodyId) {
+    await lootRollStore.whenHydrated();
+    const row = lootRollStore.get(`${takerId}:${bodyId}`);
+    return row?.mark === lootMark() ? { loot: row.loot ?? null, lootCover: row.lootCover ?? null } : null;
 }
 
 /**
@@ -618,13 +665,12 @@ function plainer(next, now) {
  * is told to the GMs alone, so the card tells no death nobody was told of (E05 Q2). Answers the card's readers, or [].
  */
 async function lootCover(taker, body, names, cover) {
-    const { bodyPlaceOf } = await import("./body-tile.mjs");
-    const { roomWitnessesOnGm } = await import("./frisk.mjs");
-    const { gmPlaceOf } = await import("./movement.mjs");
-    const place = gmPlaceOf(taker) ?? bodyPlaceOf(body);
-    const watching = roomWitnessesOnGm(place?.room ?? null, place?.scene ?? null, { except: [taker.id, body.id] });
+    const watching = await lootWitnesses(taker, body);
     if (!watching.length) return [];
     const rolled = cover && Number.isFinite(Number(cover.total));
+    // No roll is judged as no miss (E68 review R1): a player's Take never gets here without one (`lootBody`,
+    // `coverRequired`), and a GM's own button with its Shadow window closed is the GM's ruling, said to nobody.
+    if (!rolled) return [];
     const held = rolled && (Boolean(cover.isCritical) || Number(cover.total) >= LOOT.cover.threshold);
     const esc = foundry.utils.escapeHTML;
     await whisperToOwner(taker, `<p>${game.i18n.localize(held ? "DRPG.Loot.coverHeld" : "DRPG.Loot.coverMissed")}</p>`);
@@ -641,6 +687,15 @@ async function lootCover(taker, body, names, cover) {
     const readers = [...new Set([...watching.flatMap(actor => ownerIdsOf(actor)), ...gmIds()])];
     await announce({ content: line, whisper: readers, flags: { [MODULE_ID]: { drpgMessage: true } } });
     return readers;
+}
+
+/** The students the primary counts watching `taker` at `body` (frisk.mjs `roomWitnessesOnGm`, where the GMs read the taker). */
+async function lootWitnesses(taker, body) {
+    const { bodyPlaceOf } = await import("./body-tile.mjs");
+    const { roomWitnessesOnGm } = await import("./frisk.mjs");
+    const { gmPlaceOf } = await import("./movement.mjs");
+    const place = gmPlaceOf(taker) ?? bodyPlaceOf(body);
+    return roomWitnessesOnGm(place?.room ?? null, place?.scene ?? null, { except: [taker.id, body.id] });
 }
 
 /**

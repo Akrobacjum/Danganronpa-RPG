@@ -902,6 +902,26 @@ export const traceDigestStore = defineGmStore({
 });
 
 /**
+ * THE TAKE'S ROLLS, ONE SET A TAKER, A BODY AND A TIME OF DAY (E68 C10 loot bind, 10.11.2026; the owner's words in E68
+ * STAGE.md C10, "z jednym zestawem rzutów na osobę, ciało i porę dnia (stempel w GmStore)"). A row per taker and body,
+ * keyed `<taker>:<body>`: `mark`, the time of day it was bound in (handover.mjs `lootMark`: the season's epoch, the
+ * chapter, the day and the time of day), and `loot` and `lootCover`, each the first Hand and the first Shadow the
+ * primary drew for that taker and body in it (`{ messageId, total, isCritical, withHope }`, or null), bound as they are
+ * drawn (roll-draw.mjs `drawOnGm`, handover.mjs `bindLootRoll`) and read by every player's Take of that body in that
+ * time of day (bridge-runs-records.mjs `handleLoot`). A row of another mark counts nothing and the next draw writes
+ * over it whole, so the time of day moving on clears it by its key alone. The totals are kept here, not the roll's id
+ * alone: the GMs' record of a roll is swept after a Reroll's reach (roll-draw.mjs `keepRecord`), a time of day is
+ * longer. Synced, so a second GM serves the next Take alike; not backed up, as the rifles are not: a row is worth one
+ * time of day, and a restore that lost one gives one roll back. Cut by the reset's "deaths" group with the loot stamps
+ * of the deaths' rows. No player copy - nothing on a player's client reads it - and no old key, so no migration.
+ */
+export const lootRollStore = defineGmStore({
+    name: "lootRolls", key: SETTINGS.gmLootRolls,
+    kind: "ledger", resetGroup: "deaths", backup: false, sync: true,
+    exists: key => Boolean(game.actors?.has(String(key).split(":")[0]))
+});
+
+/**
  * THE STASHES RIFLED (E14 part 1 C4, 24.10.2026; audit S08-06, the owner's D15: one rifle a character, a stash and a
  * time of day). A row per thief and stash, keyed `<thief>:<owner>:<scene>:<room>` (stash-reach.mjs `rifleKey`): `{ at }`, the
  * time of day of the thief's last free reach into that stash (`rifleMark`: the season, chapter, session, day and time

@@ -426,6 +426,12 @@ export const SETTINGS = {
      */
     gmLootTraces: "gmLootTraces",
     /**
+     * A TAKE'S ROLLS (E68 C10 loot bind, 10.11.2026): a GM store (gm-stores.mjs `lootRollStore`), a row per taker and
+     * body `{ mark, loot, lootCover }` - the first Hand and Shadow drawn for them in that time of day (handover.mjs
+     * `lootMark`), which every player's Take of that body in it reads. Synced, not backed up; no player copy.
+     */
+    gmLootRolls: "gmLootRolls",
+    /**
      * THE STASHES RIFLED (E14 part 1 C4, 24.10.2026; audit S08-06, D15): a GM store (gm-stores.mjs `rifleStore`),
      * a row per thief, stash owner, scene and room `{ at }` - the time of day of that thief's last free reach into
      * that stash (stash-reach.mjs `rifleMark`). Synced, not backed up; no player copy.
@@ -1968,6 +1974,14 @@ export function registerSettings() {
     // What has been taken off each body (E05 C14): no `onChange`, as nothing on any screen
     // shows it - read by the next loot of the same body, on the GM that serves it.
     game.settings.register(MODULE_ID, SETTINGS.gmLootTraces, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // A Take's rolls (E68 C10 loot bind): no `onChange` - shown nowhere, read by the next Take of the same body, on the
+    // GM that serves it (bridge-runs-records.mjs `handleLoot`).
+    game.settings.register(MODULE_ID, SETTINGS.gmLootRolls, {
         scope: "client",
         config: false,
         type: Object,

@@ -1044,7 +1044,7 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     // read in 83-roll-integrity.
     phase("a loot the GM's client carried out nothing of", { flow: "give-take-stash" });
     const handRolled = await p1.eval(`const { rollTrait } = await import("${repoUrl}/scripts/action-rolls.mjs"), { LOOT } = await import("${repoUrl}/scripts/config.mjs");
-        const hand = await rollTrait(game.actors.get("${IDS.aiko}"), LOOT.trait, { actionKey: "loot", title: game.i18n.localize("DRPG.Loot.rollTitle") });
+        const hand = await rollTrait(game.actors.get("${IDS.aiko}"), LOOT.trait, { actionKey: "loot", context: { bodyId: "${IDS.botan}" }, title: game.i18n.localize("DRPG.Loot.rollTitle") });
         return hand ? { rollId: hand.raw?.message?.id ?? hand.raw?.message?._id ?? null, total: hand.total, isCritical: hand.isCritical, withHope: hand.withHope } : null;`,
         { timeout: 60000 });
     await settle(500);

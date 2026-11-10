@@ -440,7 +440,7 @@ function startOnMessage(message) {
  */
 export const DRAWN_OPTIONS = Object.freeze([ROLL_NONCE, "actionType", "roll", "experiences", "guaranteedCritical", "extraFormula", "data"]);
 const CONTEXT_SENT = Object.freeze({ category: "text", goal: "text", stashDie: "bool", projectId: "id", targetProjectId: "id", side: "text",
-    crisis: "text", cleanupKey: "text", cleanupVia: "bool", findPassage: "bool", part: "text" });
+    crisis: "text", cleanupKey: "text", cleanupVia: "bool", findPassage: "bool", part: "text", bodyId: "id" });
 const LISTED_MAX = 16;
 
 /** The context fields a check on the GM reads, plain; nothing else of the action's context leaves. */
@@ -1019,10 +1019,10 @@ async function drawRefusal(actor, key, context) {
        witness, Shadow ("lootCover"), and spends no action (anonymity.mjs `takeFromBody`), so no payment of the taker's
        ever stood for either roll and every player's Take was refused here: "The GM's client saw no action paid for that
        roll" (87-messenger-sound E1 and E3, measured 10.11.2026 at a5ebfeaa; tier 2 loots on the GM, which draws no
-       ticket). Drawn with no ticket, as a roll that names no action is. What holds them: the newest roll of each replaces
-       the taker's older unsettled one (`keepRecord`), one Take settles it (bridge-guards.mjs `rollsFor`), and the GM's
-       run asks the one gate before anything moves (handover.mjs `lootBody`). */
-    if (PAID_BY_NOTHING.includes(key)) return null;
+       ticket). Drawn with no ticket, as a roll that names no action is. What holds them: each names its body, and the first
+       of each for a taker, a body and a time of day is the one every Take of theirs reads (`lootDrawRefusal` below, the
+       loot bind); the GM's run asks the one gate before anything moves (handover.mjs `lootBody`). */
+    if (PAID_BY_NOTHING.includes(key)) return lootDrawRefusal(actor, context);
     for (const end = Date.now() + PAY_WAIT_MS; !ticketFor(actor.id, key) && Date.now() < end;) {
         await new Promise(resolve => setTimeout(resolve, 100));
     }
@@ -1033,6 +1033,30 @@ async function drawRefusal(actor, key, context) {
     if (handed) ticket.kinds.push(handed.cover);
     ticket.kinds.push(key);
     return null;
+}
+
+/*
+ * A TAKE'S ROLLS NAME THEIR BODY, AND THE FIRST OF EACH COUNTS (E68 C10 loot bind, 10.11.2026; the owner's words in E68
+ * STAGE.md C10: "z jednym zestawem rzutów na osobę, ciało i porę dnia"). Drawn on no ticket since 18d7c470, a Take's Hand
+ * was held only by `keepRecord`'s newest-replaces-older, so a player's console could throw "loot" again and again, read
+ * each total and send `body.loot` once the newest read Hidden (18+): read in code by the orchestrator, 10.11; scenario
+ * 83 L17 measures it. Now a draw of either names the body (`context.bodyId`, anonymity.mjs `takeFromBody`), refused
+ * when it names none, the taker, or no actor of this world. Not whether that actor is dead: a death nobody has found is
+ * this GM's secret, and a draw refused for a living actor and drawn for a secretly dead one would tell a console which
+ * students are dead - the one gate answers both alike, in the asker's knowledge, at the Take (handover.mjs `lootBody`).
+ * And not the one gate itself: a Take it refuses (the wrong room) still spends the time of day's roll, as the owner's
+ * "one set per time of day" reads. The first draw of each for a taker, a body and a time of day is bound in the GMs' store (handover.mjs `bindLootRoll`, in `drawOnGm` below) and is the one
+ * `body.loot` reads for every Take of theirs in it (bridge-runs-records.mjs `handleLoot`).
+ *
+ * A LATER DRAW IS DRAWN AND IGNORED, NOT REFUSED. Refused, a taker whose browser forgot its first roll (a reload: the
+ * window's memory is that page's, anonymity.mjs `lootRolled`) could make no Take at all in that time of day - the
+ * draw refused, `rollTrait` null, nothing asked, every press the same. Drawn, its dice settle nothing: the GM's answer
+ * to that Take says the first roll counted, and the player reads it. A console that keeps throwing learns totals that
+ * count for nothing.
+ */
+function lootDrawRefusal(actor, context) {
+    const body = typeof context?.bodyId === "string" ? game.actors.get(context.bodyId) ?? null : null;
+    return !body || body.id === actor.id ? "no body is named for that roll" : null;
 }
 
 /**
@@ -1141,6 +1165,10 @@ export async function drawOnGm(packet, sender) {
         const state = murderState();
         let written = null;
         const out = await throwDrawn(packet, sender, state?.active ? turnOf(state) : null, () => { written = performance.now() - arrived; });
+        // A Take's roll, the first of its kind for that taker, body and time of day: bound (`lootDrawRefusal` above).
+        if (out?.reply && !sender?.isGM && PAID_BY_NOTHING.includes(key)) {
+            await (await import("./handover.mjs")).bindLootRoll(actor.id, contextSent(packet.context).bodyId, key, rollStore.get(out.reply.rollId));
+        }
         if (out?.reply) keepTrip("drew", { at: Date.now(), written, answered: performance.now() - arrived });
         return out;
     } finally {
@@ -1566,6 +1594,8 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
         goal: key === "search" ? told.context.goal ?? null : null,
         // Whether an Analyze was thrown as a Find Passage (E80 C3), which gm-bridge.mjs `passage.find` holds its roll to.
         findPassage: key === "analyze" ? told.context.findPassage === true : null,
+        // The body a Take's roll was drawn for (E68 loot bind), which `body.loot` holds its packet's `bodyId` to (`named`).
+        body: PAID_BY_NOTHING.includes(key) ? told.context.bodyId ?? null : null,
         incident, superseded: null, at: Date.now(),
         // The GM that drew it: a part that only rides reads a handover off it (`handedOver`, E80 fix r1-G3).
         drawnBy: game.user?.id ?? null

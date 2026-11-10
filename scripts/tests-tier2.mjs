@@ -29757,6 +29757,51 @@ const SCENARIOS = [
         });
     }],
 
+    ["a Take's Hand roll counts once for a taker, a body and a time of day, and again in the next", async () => {
+        /*
+         * E68 C10 loot bind, 10.11.2026; the owner's "z jednym zestawem rzutów na osobę, ciało i porę dnia". A Take's rolls
+         * are drawn on no payment (roll-draw.mjs `PAID_BY_NOTHING`), and the first Hand drawn for a taker at a body in a time
+         * of day is the one every Take of theirs there counts (handover.mjs `bindLootRoll`, `lootRollsBound`). Two Hands
+         * drawn for a player's character at one body, the first at low faces and the second at high: both drawn, the
+         * first bound; the row moved to another time of day, a third Hand is bound in its place; a Hand naming no body is
+         * refused. Red at 120a8003: no body travelled with the draw and nothing was bound (`lootRollsBound` absent).
+         */
+        const { livingStudents } = await import("./chapter.mjs");
+        const H = await import("./handover.mjs");
+        const { lootRollStore } = await import("./gm-stores.mjs");
+        needs(world.atLeast("playersWithCharacter", 1), "a player who owns a student, whose Hand is drawn on this GM");
+        const player = game.users.find(u => !u.isGM && livingStudents().some(a => a.testUserPermission(u, "OWNER"))) ?? null;
+        must(player, "no player owns a living student - this would measure nothing");
+        const taker = livingStudents().find(a => a.testUserPermission(player, "OWNER"));
+        const body = game.actors.find(a => a.type === "character" && a.id !== taker.id) ?? null;
+        must(body, "no second character to name as the body - this would measure nothing");
+        must(typeof H.lootRollsBound === "function" && typeof H.lootMark === "function", "handover.mjs binds no Take's roll (lootRollsBound, lootMark)");
+        const key = `${taker.id}:${body.id}`, draws = [];
+        const draw = async (faces, context) => {
+            const d = await drawnForPlayer(player, taker, { actionKey: "loot", faces, pay: false, trait: "hand", edit: p => ({ ...p, context }) });
+            draws.push(d);
+            return d;
+        };
+        try {
+            if (lootRollStore.has(key)) await lootRollStore.drop(key);
+            const first = await draw({ hope: 2, fear: 1 }, { bodyId: body.id });
+            const second = await draw({ hope: 12, fear: 11 }, { bodyId: body.id });
+            const bound = async () => (await H.lootRollsBound(taker.id, body.id))?.loot?.messageId ?? null;
+            const once = [Boolean(first.value?.messageId), Boolean(second.value?.messageId), (await bound()) === first.value?.messageId];
+            const c = getClock();
+            await lootRollStore.patch(key, { mark: H.lootMark({ ...c, timeOfDay: c.timeOfDay === "night" ? "morning" : "night" }) });
+            const third = await draw({ hope: 7, fear: 4 }, { bodyId: body.id });
+            const none = await draw({ hope: 6, fear: 5 }, {});
+            equal(stableJson([...once, (await bound()) === third.value?.messageId, none.value?.messageId ?? null, none.record?.body ?? null]),
+                stableJson([true, true, true, true, null, null]),
+                "[the first Hand drawn, the second drawn, the first bound, the next time of day's Hand bound, the bodiless Hand's message, its record's body]");
+        } finally {
+            for (const d of draws) await d.putBack();
+            if (lootRollStore.has(key)) await lootRollStore.drop(key);
+            await settle();
+        }
+    }],
+
     ["the loot's Remnant only rises and lies at the body's tile", async () => {
         /*
          * E68 C10, 10.11.2026; the owner's Q8 (every Take rolls again, in the same time of day too) and Q9 (a Remnant already
