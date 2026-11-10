@@ -8918,6 +8918,80 @@ const SCENARIOS = [
             "a pick card a player wrote, a GM's for another project or naming a statistic a project does not list held the Work, a GM's own pick did not, a roll with no pick was thrown on its claim rather than the lowest it lists, or a player's difficulty card was read over the GM's (per Work: statistic flags, thrown, whose card; the difficulty)");
     }],
 
+    ["a pass after a GM's \"Change to\" voids that card's ruling: a later roll is held to no pick, a Search to Eye, and a pass for another definition voids nothing (E68 review R3)", async () => {
+        /*
+         * E68 review R3, 10.11.2026; DA46. A player's pass after "Change to" (trait-ruling.mjs `rollChanged`) wrote a line
+         * in the thread and answered null, and the GM's card naming the changed statistic stayed an unused pick for the
+         * Reroll's window (roll-draw.mjs `gmPickOf`): a roll drawn later on that statistic, with no new ask, was held to
+         * it and not flagged. The pass's line carries the definition it passes on now (`traitPass`), and a pick card
+         * older than a pass for its character and definition, written by the character's owner, is not read. Driven on
+         * this GM, with the pass lines written as the player's (author: the player), as the r2-H2 test writes its cards:
+         * (1) a GM's card for a project stored without a statistic, naming the highest of the four it lists, then a pass
+         * for another project, then a Work claimed on that highest - the control; (2) a new card for the same project,
+         * a pass for it, the same Work; (3) a GM's card for a Search naming Body, a pass for Search, a Search claimed
+         * on Body. Read per draw: the statistic thrown and whose card held it. Red at f32c36a7:
+         * [[highest,"GM"],[highest,"GM again"],["body","search"]].
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const P = await import("./projects.mjs");
+        const D = await import("./roll-draw.mjs");
+        const { ACTIONS, TRAITS } = await import("./config.mjs");
+        const { whisperToGms } = await import("./utils.mjs");
+        const { settleCall } = await import("./gm-bridge.mjs");
+        const value = t => Number(theirs.system.traits?.[TRAITS[t]?.dh]?.value) || 0;
+        const listed = ACTIONS.project.traits.filter(t => Object.hasOwn(TRAITS, t));
+        const highest = listed.reduce((high, t) => (value(t) > value(high) ? t : high));
+        const lowest = listed.reduce((low, t) => (value(t) < value(low) ? t : low));
+        must(value(highest) > value(lowest), `${theirs.name}'s statistics a project lists are all equal - the pick and the lowest would read the same`);
+        must(ACTIONS.search.traits.includes("body") && ACTIONS.search.traits.includes("eye"), "Search lists no Body or no Eye here - this would measure nothing");
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const made = [], drawn = [], cards = {};
+        const gmCard = async (label, ruling) => {
+            const m = await whisperToGms("<p>SUITE R3 pick</p>");
+            must(m, "no card to settle a pick on - this would measure nothing");
+            await settleCall(m, "SUITE R3", ruling);
+            cards[m.id] = label;
+        };
+        const passed = async (kind, key) => {
+            const m = await ChatMessage.create({ content: "<p>SUITE R3 pass</p>", author: player.id, whisper: [game.user.id],
+                flags: { [MODULE_ID]: { traitPass: { actorId: theirs.id, kind, key, variant: null } } } });
+            must(m && m.author?.id === player.id, "no pass line of the player's to read - this would measure nothing");
+        };
+        const pick = (kind, key, trait) => ({ type: "trait", actorId: theirs.id, kind, key, variant: null, trait });
+        const read = [];
+        const draw = async (actionKey, trait, projectId = null) => {
+            const F = await drawnForPlayer(player, theirs, { actionKey, trait,
+                ...(projectId ? { edit: p => ({ ...p, context: { ...(p.context ?? {}), projectId } }) } : {}) });
+            drawn.push(F);
+            must(F.record, `the GM kept no record of the ${actionKey} (${F.verdict}) - this would measure nothing`);
+            read.push([F.record.scored?.trait ?? null, cards[F.record.legal?.pick] ?? F.record.legal?.pick ?? null]);
+        };
+        try {
+            for (const name of ["SUITE R3 project", "SUITE R3 another project"]) {
+                made.push((await P.createProject({ name, target: 6, room: null, trait: null }))?.id ?? null);
+            }
+            must(made.every(Boolean), "a project stored without a statistic was not made - this would measure nothing");
+            const [mine, another] = made;
+            await gmCard("GM", pick("project", mine, highest));
+            await passed("project", another);
+            await draw("project", highest, mine);
+            await gmCard("GM again", pick("project", mine, highest));
+            await passed("project", mine);
+            await draw("project", highest, mine);
+            await gmCard("search", pick("action", "search", "body"));
+            await passed("action", "search");
+            await draw("search", "body");
+        } finally {
+            for (const F of [...drawn].reverse()) await F.putBack();
+            D.forgetPayments?.(theirs.id);
+            for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+            for (const id of made.filter(Boolean)) await P.deleteProject(id).catch(() => {});
+        }
+        equal(stableJson(read), stableJson([[highest, "GM"], [lowest, null], ["eye", null]]),
+            "a pass voided a card for another project, or a card older than a pass for its own definition still held the roll (per draw: the statistic thrown, whose card held it)");
+    }],
+
     ["a clean-up rolls Shadow on every road: through Tamper's door, as Stage 6's cleaner and as its victim, and a GM's card naming Hand or Head does not move it (E68 C5)", async () => {
         /*
          * E29 fix r2-H2, 05.10.2026; the round-2 reviews' sec m2 = cor m5, and m1's match by action.
@@ -32641,6 +32715,62 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([true, false, true, 1]),
             "[this GM's take, the card ended while this GM held it, ended once the claim was dropped, its closing lines for the table]");
+    }],
+
+    ["an expiry under a claim that ends in a ruling leaves the card to that ruling's line: one closing line, not the expiry's (E68 review R2)", async () => {
+        /*
+         * E68 review R2, 10.11.2026; D075's other road. The D075 test above backs out of the ruling ("drop"). On "done"
+         * the primary ended a waiting expiry at once (call-gm.mjs `expiryAfterClaim`), and `claimCard` sends "done" in its
+         * `finally`, before its caller writes the ruling's line (`settleCall`): the expiry read the card unsettled and
+         * wrote "Nobody answered in time - ask again." beside, or over, the ruling's "Answered by". Read on this primary,
+         * each packet handed to the bridge's runner with the user Foundry names: a player's Dynamic ask puts its card up;
+         * this GM's ruling runs under `claimCard`, and inside it the asker's expiry; the ruling answers `{ settled }` and
+         * its line is written as `pressCard` writes it. Read: whether the card ended while the ruling ran, its closing
+         * lines for the table, and whether one of them is the expiry's. The card is deleted after.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the ask is a player's, and Foundry names only a connected one");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which holds the asks and the claims - this would measure nothing");
+        const { player, theirs } = playerAndCharacters();
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const EXPIRED = game.i18n.localize("DRPG.Bridge.settledExpired");
+        const judged = (action, fields, from, requestId = null) =>
+            G.judge(B.BRIDGE_ACTIONS, { action, ...(requestId ? { requestId } : {}), ...fields }, from, { send: () => {} });
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [];
+        const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        const read = [];
+        let card = null;
+        try {
+            const rid = foundry.utils.randomID(16);
+            await judged("dynamic.difficulty", { actorId: theirs.id, description: "E68 R2 a card ruled under its expiry", actorName: theirs.name, room: null }, player.id, rid);
+            must(await until(() => created.length > 0, 5000), "the ask put no card up - this would measure nothing");
+            card = game.messages.get(created[0].id);
+            const ended = () => Boolean(cardFlag(game.messages.get(card.id), "settled"));
+            const outcome = await B.claimCard(card, async () => {
+                await judged("ruling.expired", { rid }, player.id);
+                await settle(500);
+                read.push(ended());
+                return { settled: "E68 R2 answered" };
+            });
+            must(outcome?.settled, "the ruling did not run under its claim - this would measure nothing");
+            await B.settleCall(game.messages.get(card.id), outcome.settled, null);
+            await settle(1500);
+            const wrap = document.createElement("template");
+            wrap.innerHTML = contentOf(game.messages.get(card.id));
+            const lines = [...wrap.content.querySelectorAll(".drpg-call-settled")].filter(el => !el.closest(".drpg-gm-only"));
+            read.push(lines.length, lines.some(el => el.textContent.trim() === EXPIRED));
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const message of created) await message.delete().catch(() => {});
+            await settle(300);
+            if (card && S.ruledCardStore.has(card.id)) await S.ruledCardStore.drop(card.id);
+        }
+        equal(stableJson(read), stableJson([false, 1, false]),
+            "[the card ended while this GM's ruling ran, its closing lines for the table, one of them the expiry's]");
     }],
 
     ["a statistic's ask and an Observe's end as the other asks do: each card shows its time and carries its ask's mark, its asker's expiry ends it, and a pick after that is not taken (E18 fix e1-G4)", async () => {

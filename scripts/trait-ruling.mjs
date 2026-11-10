@@ -138,6 +138,14 @@ export function listedTraits(spec = {}) {
 }
 
 /**
+ * The actions of the table a statistic card is asked for under the kind `action` (E68 C6): Search, the one whose
+ * card a roll reads (roll-draw.mjs, the `search` row). A Project's or a Sabotage's statistic is asked under the kind
+ * `project` (`pickSpecOf`), so the GMs' guard refuses kind `action` for any other key (bridge-guards.mjs
+ * `guardTraitRuling`; E68 review R7, R3332).
+ */
+export const CARD_ACTIONS = Object.freeze(["search"]);
+
+/**
  * Every definition of config a ruling can be asked about, by identity, for R213: a
  * definition that lists several traits and is not here would be rolled without a GM.
  * Sabotage beside Projects: a Sabotage rolls the statistic of the project it targets,
@@ -149,7 +157,7 @@ export function ruledDefinitions() {
         ...Object.keys(MURDER_OPENING).map(key => ({ kind: "opening", key })),
         ...["cleanup", ...Object.keys(CLEANUP.actions ?? {})].map(key => ({ kind: "cleanup", key })),
         // Search on six (E68 C6): its own definition, ruled under the kind `action`.
-        { kind: "action", key: "search" },
+        ...CARD_ACTIONS.map(key => ({ kind: "action", key })),
         ...Object.keys(ACTIONS).map(key => ({ kind: "generic", key }))
     ];
     const defs = new Set([...specs.map(definitionOf), ACTIONS.project, ACTIONS.sabotage]);
@@ -293,7 +301,7 @@ async function askGms(actor, { kind, key, variant = null }, { proposed = null, n
         waiting();
     }
     // A "Change to": the player rolls the GM's statistic or passes, and nothing was spent either way (DA46, Q11).
-    if (answer && proposed && answer !== proposed && !(await rollChanged(actor, proposed, answer))) {
+    if (answer && proposed && answer !== proposed && !(await rollChanged(actor, proposed, answer, { kind, key, variant }))) {
         onPass?.();
         return null;
     }
@@ -304,8 +312,16 @@ async function askGms(actor, { kind, key, variant = null }, { proposed = null, n
  * The player's window after a GM's "Change to" (DA46; QUESTIONS.md Q11): "Roll {stat}" or "I'll pass (nothing
  * spent)". True to roll. A pass, or the window closed, is a pass: one line in the player's thread says it, so
  * the GM reads it under the card (messenger.mjs `sendMessage`, the thread's own road), and the caller does nothing.
+ *
+ * A PASS VOIDS THE RULING (E68 review R3, 10.11.2026). The card naming the changed statistic stayed an unused pick
+ * for the Reroll's window, so a roll drawn later on it with no new ask - a console's, a Search or a crisis action on a
+ * later turn - was held to it, unflagged. The pass's line carries the definition it passes on (`traitPass`, `spec`'s
+ * kind, key and variant, in the line's meta), and roll-draw.mjs `gmPickOf` reads no pick card older than a pass of
+ * the character's owner for that definition. The line voids a pick only - a roll it touches is thrown on the lowest,
+ * or a Search on Eye, and flagged - so a pass a player writes gains them nothing. Tier 2's "a pass after a GM's
+ * "Change to" voids that card's ruling" reads it.
  */
-async function rollChanged(actor, proposed, trait) {
+async function rollChanged(actor, proposed, trait, { kind = null, key = null, variant = null } = {}) {
     const stat = t => TRAITS[t]?.label ?? t;
     const chosen = await drpgWindow({
         classes: ["drpg-panel", "drpg-narrow", "drpg-trait-changed"],
@@ -320,7 +336,8 @@ async function rollChanged(actor, proposed, trait) {
     if (chosen === "roll") return true;
     try {
         const { sendMessage } = await import("./messenger.mjs");
-        await sendMessage(game.user.id, game.i18n.format("DRPG.TraitRuling.passedLine", { stat: stat(trait) }));
+        await sendMessage(game.user.id, game.i18n.format("DRPG.TraitRuling.passedLine", { stat: stat(trait) }),
+            { traitPass: { actorId: actor?.id ?? null, kind, key, variant: variant ?? null } });
     } catch (err) {
         warn("The pass after a GM's change of statistic could not be written in the thread.", err);
     }

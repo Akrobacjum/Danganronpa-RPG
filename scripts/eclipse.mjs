@@ -920,8 +920,8 @@ async function judgePendingMurders(id, taken = new Map()) {
  * escape key must not open one.
  *
  * The approval names the opening's statistic (E68 C9): the card's buttons, here - "Allow: {stat}" on the
- * killer's proposal first, the default, then "Change to: {stat}" (`murderAllowChoices`). The answer is that
- * statistic, or false.
+ * killer's proposal first, then "Change to: {stat}" (`murderAllowChoices`). None of them is the default: Cancel
+ * is (`default: "no"`), as the comment in the body says. The answer is that statistic, or false.
  */
 async function askAtTheLights(killer, victim, room, parked) {
     try {

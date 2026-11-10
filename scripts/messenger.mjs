@@ -237,8 +237,11 @@ export function totalUnread() {
  * is always the full roster, so there is only ever one copy of the message.
  * `outcome`: filled on the way to a null, as `postSecret` fills it (secret.mjs;
  * E50 fix FG2), for the window to say what is known of a send that failed.
+ * `traitPass`: the definition a player's pass after a GM's "Change to" is for
+ * (trait-ruling.mjs `rollChanged`; E68 review R3), carried in the line's meta,
+ * where roll-draw.mjs `gmPickOf` reads it.
  */
-export async function sendMessage(playerUserId, text, { kind = THREAD_KIND.dm, outcome = null } = {}) {
+export async function sendMessage(playerUserId, text, { kind = THREAD_KIND.dm, outcome = null, traitPass = null } = {}) {
     const body = String(text ?? "").trim();
     if (!body) return null;
     if (!isThreadUser(playerUserId)) {
@@ -247,7 +250,7 @@ export async function sendMessage(playerUserId, text, { kind = THREAD_KIND.dm, o
     }
 
     const esc = foundry.utils.escapeHTML(body).replace(/\n/g, "<br>");
-    return createThreadMessage(playerUserId, `<p>${esc}</p>`, kind, false, false, null, outcome);
+    return createThreadMessage(playerUserId, `<p>${esc}</p>`, kind, false, false, null, outcome, traitPass);
 }
 
 /*
@@ -273,7 +276,7 @@ export async function postToThread(playerUserId, html, { kind = THREAD_KIND.acti
     return createThreadMessage(playerUserId, html, kind, gmAsk, veiled, rid);
 }
 
-async function createThreadMessage(playerUserId, content, kind, gmAsk = false, veiled = false, rid = null, outcome = null) {
+async function createThreadMessage(playerUserId, content, kind, gmAsk = false, veiled = false, rid = null, outcome = null, traitPass = null) {
     const whisper = Array.from(new Set([playerUserId, ...gmIds()]));
 
     // The SENDER's sound, and it is deliberately not carried on the message:
@@ -305,7 +308,8 @@ async function createThreadMessage(playerUserId, content, kind, gmAsk = false, v
                     [MESSENGER_FLAGS.thread]: playerUserId,
                     [MESSENGER_FLAGS.kind]: kind,
                     ...(gmAsk ? { [MESSENGER_FLAGS.gmAsk]: true } : {}),
-                    ...(rid ? { rid } : {})
+                    ...(rid ? { rid } : {}),
+                    ...(traitPass ? { traitPass } : {})
                 }
             }
         }, { outcome });
