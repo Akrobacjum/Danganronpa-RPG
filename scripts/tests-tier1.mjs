@@ -7826,12 +7826,14 @@ const INVARIANTS = [
          * has Polish names): the tiles' Statistic column (one listed statistic: that one's name; Search: its first, with
          * six listed behind "another"; Palm: its cover, then its hand; Project, Dynamic, Rest and Direct Murder name none),
          * the who-picks table (Search's count and its first; the openings' two lists; the clean-up's and Move the Body's
-         * statistic; a Take from a body's row is not read: `LOOT` is e68-body's), and the crisis table's Roll column
+         * statistic; a Take from a body's roll and its cover's statistic and threshold, `LOOT`, read since e68-body's merge),
+         * and the crisis table's Roll column
          * against `CRISIS_ACTIONS` in config order (the statistics joined by "/", the threshold after a space, "no roll"
          * where none). Read off the files the module serves, not the tree.
          */
         const C = await import("./config.mjs");
-        const { MODULE_ID, ACTIONS, CRISIS_ACTIONS, MURDER_OPENING, CLEANUP } = C;
+        const { MODULE_ID, ACTIONS, CRISIS_ACTIONS, MURDER_OPENING, CLEANUP, LOOT } = C;
+        must(LOOT?.trait && LOOT.cover?.trait && LOOT.cover.threshold, "config.mjs has no LOOT with a roll and a cover - this would measure nothing");
         const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
         const NAMES = ["Eye", "Head", "Body", "Leg", "Hand", "Shadow"];
         const named = cell => NAMES.filter(n => new RegExp(`\\b${n}\\b`).test(cell));
@@ -7864,7 +7866,7 @@ const INVARIANTS = [
             // Who picks.
             const picks = tableAfter(text, lang === "en" ? "| Roll | Statistics it lists |" : "| Rzut | Wymieniane statystyki |");
             const rowOf = n => picks[n]?.[1] ?? "";
-            read += 4;
+            read += 5;
             if (ACTIONS.search.traits.length !== 6 || !/six|sześć/.test(rowOf(0)) || named(rowOf(0)).join() !== cap(ACTIONS.search.traits[0])) wrong.push(`${lang} who-picks Search: "${rowOf(0)}" for ${ACTIONS.search.traits.length} listed, first ${ACTIONS.search.traits[0]}`);
             const opening = rowOf(4);
             for (const [who, def] of [["killer", MURDER_OPENING.killer], ["victim", MURDER_OPENING.victim]]) {
@@ -7872,6 +7874,8 @@ const INVARIANTS = [
             }
             const clean = rowOf(5);
             if (!clean.includes(cap(CLEANUP.traits[0])) || !clean.includes(cap(CLEANUP.actions.moveBody.traits[0])) || named(clean).length !== 2) wrong.push(`${lang} who-picks clean-up: "${clean}"`);
+            const loot = rowOf(6), lootWant = [cap(LOOT.trait), cap(LOOT.cover.trait)];
+            if (named(loot).sort().join() !== lootWant.sort().join() || !new RegExp(`\\b${cap(LOOT.cover.trait)} ${LOOT.cover.threshold}\\b`).test(loot)) wrong.push(`${lang} who-picks Take from the Body: "${loot}", config says ${LOOT.trait}, cover ${LOOT.cover.trait} ${LOOT.cover.threshold}`);
             // The crisis table, in config order.
             const crisis = tableAfter(text, lang === "en" ? "| Side | Action | Roll |" : "| Strona | Akcja | Rzut |");
             const defs = Object.values(CRISIS_ACTIONS);
@@ -7882,7 +7886,7 @@ const INVARIANTS = [
                 if (want ? cell !== want : !/^(no roll|bez rzutu)$/.test(cell)) wrong.push(`${lang} crisis ${i + 1}: "${cell}", config says ${want ?? "no roll"}`);
             });
         }
-        must(read >= 2 * (10 + 4 + Object.keys(CRISIS_ACTIONS).length), `only ${read} cells were read - this would measure nothing`);
+        must(read >= 2 * (10 + 5 + Object.keys(CRISIS_ACTIONS).length), `only ${read} cells were read - this would measure nothing`);
         equal(JSON.stringify(wrong), JSON.stringify([]), "a handbook table's statistics differ from config.mjs (tiles, who picks, crisis rolls)");
     }],
     ["R3300 - the killer's opening is proposed with the declaration: the GM's card answers Allow on the proposal, Change to on the other listed statistic and Refuse, a declaration with none or with one off the list a button per listed statistic, and a trap victim's list is never proposed on (E68 C9; S18-10)", async () => {
