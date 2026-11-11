@@ -46743,6 +46743,41 @@ const INVARIANTS = [
         equal(/body:not\(\.drpg-theme-stained-glass\) \.application\.drpg-ui\.drpg-panel > \.window-content:has\(> \.drpg-notices-body\)\s*\{[^}]*background:\s*var\(--drpg-kit-notice-ground\)/.test(css) && /--drpg-kit-notice-ground:\s*var\(--drpg-panel-ground\)/.test(css), true,
             "the notice history window has no ground of Legacy's own");
     }],
+    ["R3498 - a character sheet opens below the curtain's band (scripts/settings.mjs `sheetBandFoot`, `scaleWindow`; E49 B leftover, S03-30): on its first render a character's sheet stands its top 8 px under the lowest of Despair's pools and the Event panel, its height cut to the screen under it; a later render moves nothing, and with no band drawn the sheet keeps Foundry's place", async () => {
+        /*
+         * E48 K6's run, 11.11.2026 (the B1/B2 leftovers E49's STATUS names). S03-30: "the sheet opens on the curtain: it
+         * covers the Despair pools, the debate's timer and the incident's turn signal" - the remedy "the sheet's default
+         * place below the curtain's band, its height fitted to the screen". jsdom lays nothing out, so the band's box is
+         * handed in (the glass harness's Legacy pools at 1366x768: 22-118) and `scaleWindow` is called as the render hook
+         * calls it, with a stand-in application whose `setPosition` is read.
+         */
+        const M = await import("./settings.mjs");
+        ok(typeof M.sheetBandFoot === "function", "settings.mjs exports no sheetBandFoot");
+        if (typeof M.sheetBandFoot !== "function") return;
+        const planted = !document.getElementById("drpg-despair");
+        const band = document.getElementById("drpg-despair") ?? Object.assign(document.createElement("div"), { id: "drpg-despair" });
+        if (planted) document.body.append(band);
+        const asked = [];
+        const app = () => ({ document: { type: "character" }, options: { position: { width: 850, height: 800 } }, setPosition: p => asked.push(p) });
+        const read = {};
+        try {
+            Object.defineProperty(band, "offsetWidth", { configurable: true, get: () => 448 });
+            Object.defineProperty(band, "offsetHeight", { configurable: true, get: () => 96 });
+            band.getBoundingClientRect = () => ({ left: 459, top: 22, right: 907, bottom: 118, width: 448, height: 96 });
+            read.foot = M.sheetBandFoot();
+            M.scaleWindow(app(), document.createElement("div"), {}, { isFirstRender: true });
+            M.scaleWindow(app(), document.createElement("div"), {}, { isFirstRender: false });
+            read.first = asked[0] ? { top: asked[0].top ?? null, fits: asked[0].height <= innerHeight - 126 - 8 } : null;
+            read.later = asked[1] ? asked[1].top ?? null : "none";
+            Object.defineProperty(band, "offsetWidth", { configurable: true, get: () => 0 });
+            read.none = M.sheetBandFoot();
+        } finally {
+            delete band.offsetWidth; delete band.offsetHeight; delete band.getBoundingClientRect;
+            if (planted) band.remove();
+        }
+        equal(stableJson(read), stableJson({ first: { fits: true, top: 126 }, foot: 126, later: null, none: null }),
+            "{foot: the band's foot; first: the first render's top and height; later: a later render's top; none: the foot with no band} - a sheet must open below the band");
+    }],
 ];
 
 /**
