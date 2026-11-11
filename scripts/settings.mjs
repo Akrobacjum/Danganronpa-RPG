@@ -1,9 +1,9 @@
 /**
  * Danganronpa RPG - world settings.
  * ---------------------------------------------------------------------------
- * Registered during `init`. Anything the GM should be able to flip lives here
- * with `config: true`; internal state is stored with `config: false` so it
- * never clutters the settings window.
+ * Registered during `init`. Every setting is `config: false` since E49 A1: what a GM or a
+ * player may flip is a row of the DRPG Settings window (settings-window.mjs `SETTINGS_SECTIONS`),
+ * the one button the module keeps in Foundry's settings window; internal state is in no window.
  */
 
 import { MODULE_ID, FLAGS, ROOMS, TIMES_OF_DAY, SFX_VOLUME_KEYS, SHEET_SIZE } from "./config.mjs";
@@ -192,8 +192,8 @@ export const SETTINGS = {
      * Q-5): `foundryBefore` the world's (Daggerheart's automations, the file permissions; world, `config: false`, no
      * secret - Foundry's own values), `foundryBeforeClient` this browser's (the held client settings, by full key),
      * `foundryGivenBack` true once a GM pressed Give back Foundry's settings, after which the module writes none of
-     * them until a GM holds them again (enforced.mjs `giveBackFoundry`). The settings window's button is a menu,
-     * registered beside them under its own key (`GIVE_BACK_MENU`), not a setting.
+     * them until a GM holds them again (enforced.mjs `giveBackFoundry`). Its button is a row of the DRPG Settings window's
+     * Technical section since E49 A1 (a menu of Configure Settings, `giveBackFoundry`, until then), not a setting.
      */
     foundryBefore: "foundryBefore",
     foundryBeforeClient: "foundryBeforeClient",
@@ -1196,8 +1196,13 @@ export const DEFAULT_CLOCK = {
     resetCuts: Object.freeze({})
 };
 
-/** The settings window's Give back Foundry's settings button: a menu's key, not a setting (E20 C6). */
-const GIVE_BACK_MENU = "giveBackFoundry";
+/**
+ * The one button of the module's in Configure Settings (E49 A1, 11.11.2026; the owner's [11] and Q3): DRPG Settings, a
+ * menu's key, not a setting. It opens settings-window.mjs's window, which holds every setting this file registered
+ * with `config: true` until E49 (35 of them, each `config: false` since) and Give back Foundry's settings, a menu of its
+ * own here from E20 C6 until E49 (its key, "giveBackFoundry", is no longer registered).
+ */
+const SETTINGS_MENU = "drpgSettings";
 
 /**
  * Silences a browser may still hold for windows the module no longer has (E52 C4, E52-16; S01-62): the
@@ -1238,7 +1243,7 @@ export function registerSettings() {
         name: "DRPG.Settings.forcePrivateRolls.name",
         hint: "DRPG.Settings.forcePrivateRolls.hint",
         scope: "world",
-        config: true,
+        config: false,
         type: Boolean,
         default: true
     });
@@ -1248,7 +1253,7 @@ export function registerSettings() {
         name: "DRPG.Settings.forceDiceLook.name",
         hint: "DRPG.Settings.forceDiceLook.hint",
         scope: "world",
-        config: true,
+        config: false,
         type: Boolean,
         default: true,
         requiresReload: true
@@ -1282,7 +1287,7 @@ export function registerSettings() {
         name: "DRPG.Settings.enforceAnonymity.name",
         hint: "DRPG.Settings.enforceAnonymity.hint",
         scope: "world",
-        config: true,
+        config: false,
         type: Boolean,
         default: true
     });
@@ -1291,7 +1296,7 @@ export function registerSettings() {
         name: "DRPG.Settings.searchTokensPerRoom.name",
         hint: "DRPG.Settings.searchTokensPerRoom.hint",
         scope: "world",
-        config: true,
+        config: false,
         type: Number,
         default: ROOMS.searchTokensPerRoom,
         range: { min: 0, max: 10, step: 1 }
@@ -1308,7 +1313,7 @@ export function registerSettings() {
         name: "DRPG.Settings.enforceIsoWelcome.name",
         hint: "DRPG.Settings.enforceIsoWelcome.hint",
         scope: "world",
-        config: true,
+        config: false,
         type: Boolean,
         default: true,
         onChange: () => import("./enforced.mjs")
@@ -1322,7 +1327,7 @@ export function registerSettings() {
         name: "DRPG.Settings.enforceDhWelcome.name",
         hint: "DRPG.Settings.enforceDhWelcome.hint",
         scope: "world",
-        config: true,
+        config: false,
         type: Boolean,
         default: true,
         onChange: () => import("./enforced.mjs")
@@ -1334,7 +1339,7 @@ export function registerSettings() {
         name: "DRPG.Settings.enforcePlayerFiles.name",
         hint: "DRPG.Settings.enforcePlayerFiles.hint",
         scope: "world",
-        config: true,
+        config: false,
         type: Boolean,
         default: true,
         onChange: () => import("./enforced.mjs")
@@ -1349,7 +1354,7 @@ export function registerSettings() {
         name: "DRPG.Settings.liveKitInFoundry.name",
         hint: "DRPG.Settings.liveKitInFoundry.hint",
         scope: "world",
-        config: true,
+        config: false,
         type: Boolean,
         default: true,
         requiresReload: true,
@@ -1362,7 +1367,7 @@ export function registerSettings() {
         name: "DRPG.Settings.hideSystemFear.name",
         hint: "DRPG.Settings.hideSystemFear.hint",
         scope: "world",
-        config: true,
+        config: false,
         type: Boolean,
         default: true,
         onChange: () => document.body.classList.toggle("drpg-hide-system-fear", getSetting(SETTINGS.hideSystemFear))
@@ -1414,7 +1419,7 @@ export function registerSettings() {
         name: "DRPG.Settings.pixelFont.name",
         hint: "DRPG.Settings.pixelFont.hint",
         scope: "client",
-        config: true,
+        config: false,
         type: Boolean,
         default: true,
         onChange: () => applyTheme()
@@ -1439,7 +1444,7 @@ export function registerSettings() {
         name: "DRPG.Settings.wideProjectWindows.name",
         hint: "DRPG.Settings.wideProjectWindows.hint",
         scope: "client",
-        config: true,
+        config: false,
         type: Boolean,
         default: false
     });
@@ -1455,7 +1460,7 @@ export function registerSettings() {
         name: "DRPG.Settings.language.name",
         hint: "DRPG.Settings.language.hint",
         scope: "client",
-        config: true,
+        config: false,
         type: String,
         choices: { ...LANGUAGES },
         default: "en",
@@ -1488,7 +1493,7 @@ export function registerSettings() {
         name: "DRPG.Settings.theme.name",
         hint: "DRPG.Settings.theme.hint",
         scope: "client",
-        config: true,
+        config: false,
         type: String,
         choices: {
             stainedGlass: "DRPG.Settings.theme.stainedGlass",
@@ -1505,7 +1510,7 @@ export function registerSettings() {
         name: "DRPG.Settings.glassPulse.name",
         hint: "DRPG.Settings.glassPulse.hint",
         scope: "client",
-        config: true,
+        config: false,
         type: Boolean,
         default: true,
         onChange: () => applyTheme()
@@ -1545,7 +1550,7 @@ export function registerSettings() {
         name: "DRPG.Settings.glassBlur.name",
         hint: "DRPG.Settings.glassBlur.hint",
         scope: "client",
-        config: true,
+        config: false,
         type: Boolean,
         default: true,
         onChange: () => applyTheme()
@@ -1555,7 +1560,7 @@ export function registerSettings() {
         name: "DRPG.Settings.reducedMotion.name",
         hint: "DRPG.Settings.reducedMotion.hint",
         scope: "client",
-        config: true,
+        config: false,
         type: Boolean,
         default: false,
         onChange: () => applyTheme()
@@ -1572,7 +1577,7 @@ export function registerSettings() {
         name: "DRPG.Settings.highContrast.name",
         hint: "DRPG.Settings.highContrast.hint",
         scope: "client",
-        config: true,
+        config: false,
         type: Boolean,
         default: false,
         onChange: () => applyTheme()
@@ -1582,7 +1587,7 @@ export function registerSettings() {
         name: "DRPG.Settings.hudTicker.name",
         hint: "DRPG.Settings.hudTicker.hint",
         scope: "client",
-        config: true,
+        config: false,
         type: Boolean,
         default: true,
         onChange: () => applyTheme()
@@ -1592,7 +1597,7 @@ export function registerSettings() {
         name: "DRPG.Settings.messengerSound.name",
         hint: "DRPG.Settings.messengerSound.hint",
         scope: "client",
-        config: true,
+        config: false,
         type: Boolean,
         default: true
     });
@@ -1601,7 +1606,7 @@ export function registerSettings() {
         name: "DRPG.Settings.uiScale.name",
         hint: "DRPG.Settings.uiScale.hint",
         scope: "client",
-        config: true,
+        config: false,
         type: Number,
         range: { min: 0.8, max: 1.4, step: 0.05 },
         default: 1,
@@ -1612,7 +1617,7 @@ export function registerSettings() {
         name: "DRPG.Settings.debug.name",
         hint: "DRPG.Settings.debug.hint",
         scope: "client",
-        config: true,
+        config: false,
         type: Boolean,
         default: false
     });
@@ -1621,7 +1626,7 @@ export function registerSettings() {
         name: "DRPG.Settings.voiceEnabled.name",
         hint: "DRPG.Settings.voiceEnabled.hint",
         scope: "world",
-        config: true,
+        config: false,
         type: Boolean,
         default: false,
         onChange: value => {
@@ -1647,7 +1652,7 @@ export function registerSettings() {
         name: "DRPG.Settings.voiceTile.name",
         hint: "DRPG.Settings.voiceTile.hint",
         scope: "world",
-        config: true,
+        config: false,
         type: Boolean,
         default: true,
         // On every client that receives the change: the tile drawn or taken away, the dock hidden or given back,
@@ -1697,31 +1702,32 @@ export function registerSettings() {
             .then(m => m.onGivenBackChanged())
             .catch(err => console.error("danganronpa-rpg | Could not give back or hold Foundry's settings", err))
     });
-    /* The settings window's button. Foundry renders the menu's class; this one opens the module's own window instead
-       (enforced.mjs `openGiveBackFoundry`). How v14's settings window constructs and renders a menu's class is not
-       measured here: the harness's `registerMenu` is a no-op. */
+    /* Configure Settings' one row of the module's (E49 A1): Foundry renders the menu's class; this one opens the
+       module's own window instead (settings-window.mjs `openSettingsWindow`), for every user - a player's holds the
+       client settings alone (Q2). How v14's settings window constructs and renders a menu's class is not measured here:
+       the harness's `registerMenu` is a no-op (LIVE-E49-02). Give back Foundry's settings, the menu E20 C6 registered
+       here, is a row of the window's Technical section since (Q3), enforced.mjs's gates unchanged. */
     const Base = foundry.applications?.api?.ApplicationV2 ?? class {};
-    class GiveBackFoundryMenu extends Base {
+    class DrpgSettingsMenu extends Base {
         render() {
-            import("./enforced.mjs").then(m => m.openGiveBackFoundry())
-                .catch(err => console.error("danganronpa-rpg | Could not open Give back Foundry's settings", err));
+            import("./settings-window.mjs").then(m => m.openSettingsWindow())
+                .catch(err => console.error("danganronpa-rpg | Could not open the DRPG Settings window", err));
             return this;
         }
     }
-    game.settings.registerMenu?.(MODULE_ID, GIVE_BACK_MENU, {
-        name: "DRPG.GiveBack.menuName",
-        label: "DRPG.GiveBack.menuLabel",
-        hint: "DRPG.GiveBack.menuHint",
-        icon: "fa-solid fa-rotate-left",
-        type: GiveBackFoundryMenu,
-        restricted: true
+    game.settings.registerMenu?.(MODULE_ID, SETTINGS_MENU, {
+        name: "DRPG.SettingsWindow.menuName",
+        label: "DRPG.SettingsWindow.menuLabel",
+        icon: "fa-solid fa-sliders",
+        type: DrpgSettingsMenu,
+        restricted: false
     });
 
     game.settings.register(MODULE_ID, SETTINGS.musicEnabled, {
         name: "DRPG.Settings.musicEnabled.name",
         hint: "DRPG.Settings.musicEnabled.hint",
         scope: "world",
-        config: true,
+        config: false,
         type: Boolean,
         default: false,
         onChange: () => {
@@ -2175,7 +2181,7 @@ export function registerSettings() {
         name: "DRPG.Settings.moveAudit.name",
         hint: "DRPG.Settings.moveAudit.hint",
         scope: "world",
-        config: true,
+        config: false,
         type: String,
         choices: {
             log: "DRPG.Settings.moveAudit.log",
@@ -2188,7 +2194,7 @@ export function registerSettings() {
         name: "DRPG.Settings.foundryToolWindows.name",
         hint: "DRPG.Settings.foundryToolWindows.hint",
         scope: "world",
-        config: true,
+        config: false,
         type: Boolean,
         default: true,
         requiresReload: true
@@ -2569,7 +2575,7 @@ export function registerSettings() {
         name: "DRPG.Settings.isoTokenShield.name",
         hint: "DRPG.Settings.isoTokenShield.hint",
         scope: "world",
-        config: true,
+        config: false,
         type: Boolean,
         default: true,
         onChange: async () => {
@@ -2634,7 +2640,7 @@ export function registerSettings() {
         name: "DRPG.Settings.regionFog.name",
         hint: "DRPG.Settings.regionFog.hint",
         scope: "world",
-        config: true,
+        config: false,
         type: Boolean,
         default: true,
         onChange: () => {
@@ -2646,7 +2652,7 @@ export function registerSettings() {
         name: "DRPG.Settings.despairFromRolls.name",
         hint: "DRPG.Settings.despairFromRolls.hint",
         scope: "world",
-        config: true,
+        config: false,
         type: Boolean,
         default: true
     });
@@ -2655,7 +2661,7 @@ export function registerSettings() {
         name: "DRPG.Settings.lockRollDialog.name",
         hint: "DRPG.Settings.lockRollDialog.hint",
         scope: "world",
-        config: true,
+        config: false,
         type: Boolean,
         default: true
     });
@@ -2664,7 +2670,7 @@ export function registerSettings() {
         name: "DRPG.Settings.roomVisibility.name",
         hint: "DRPG.Settings.roomVisibility.hint",
         scope: "world",
-        config: true,
+        config: false,
         type: Boolean,
         default: true,
         onChange: () => {
@@ -2682,7 +2688,7 @@ export function registerSettings() {
         name: "DRPG.Settings.lockPlayerResources.name",
         hint: "DRPG.Settings.lockPlayerResources.hint",
         scope: "world",
-        config: true,
+        config: false,
         type: Boolean,
         default: true,
         // The stylesheet's half of the lock follows at once (E03; audit S01-40).
@@ -2698,7 +2704,7 @@ export function registerSettings() {
         name: "DRPG.Settings.autoApproveTraits.name",
         hint: "DRPG.Settings.autoApproveTraits.hint",
         scope: "world",
-        config: true,
+        config: false,
         type: Boolean,
         default: false
     });
@@ -2709,7 +2715,7 @@ export function registerSettings() {
         name: "DRPG.Settings.friskForce.name",
         hint: "DRPG.Settings.friskForce.hint",
         scope: "world",
-        config: true,
+        config: false,
         type: Boolean,
         default: true
     });
@@ -2718,7 +2724,7 @@ export function registerSettings() {
         name: "DRPG.Settings.chargeMovement.name",
         hint: "DRPG.Settings.chargeMovement.hint",
         scope: "world",
-        config: true,
+        config: false,
         type: Boolean,
         default: true
     });
@@ -4244,30 +4250,11 @@ Hooks.on("renderSettingsConfig", (_app, element) => {
     if (!settingsRegistered()) return;
     const root = element instanceof HTMLElement ? element : element?.[0];
     if (!root) return;
-    /* THE MODULE'S ROWS MARKED (E47-C5, 09.11.2026; audit S01-44). components.css widens their label column, sets
-       the label's line height and takes Foundry's amber off their checkboxes, range and buttons; it reaches them by this
-       class, since how v14 names a category's section was not read here (a live check, LIVE-E47-06). A row is the module's when a
-       field of its own or a menu's button names the module's key. */
+    /* THE MODULE'S ROW MARKED (E47-C5, 09.11.2026; audit S01-44): components.css reaches it by this class, since how
+       v14 names a category's section was not read here (a live check, LIVE-E47-06). Since E49 A1 the module's one row
+       there is the DRPG Settings button (`SETTINGS_MENU`): every setting is `config: false`, so the theme's show and
+       hide of the glass-only and the pixel switches went with them (look.mjs `themeOnlyKeys`, read by the window). */
     for (const field of root.querySelectorAll(`[name^="${MODULE_ID}."], button[data-key^="${MODULE_ID}."]`)) {
         field.closest(".form-group")?.classList.add("drpg-settings-row");
     }
-    const themeField = root.querySelector(`[name="${MODULE_ID}.${SETTINGS.theme}"]`);
-    const show = (key, on) => {
-        const field = root.querySelector(`[name="${MODULE_ID}.${key}"]`);
-        const row = field?.closest(".form-group");
-        /* Inline, not a class: `.form-group` is `display: flex` in Foundry's own sheet,
-           which outranks the `[hidden]` attribute's `display: none`. */
-        if (row) row.style.display = on ? "" : "none";
-    };
-    const sync = () => {
-        const glass = (themeField?.value ?? getSetting(SETTINGS.theme)) === "stainedGlass";
-        /* The other theme's switches, hidden: the pulse, the ticker and the blur are
-           the glass's alone. Reduced motion is NOT among them (W-3, 16.09 - see
-           look.mjs): motion.css zeroes every motion token of the module under
-           `drpg-reduced-motion`, popups and flares included, whichever theme is on. */
-        for (const key of [SETTINGS.glassPulse, SETTINGS.hudTicker, SETTINGS.glassBlur]) show(key, glass);
-        show(SETTINGS.pixelFont, !glass);
-    };
-    sync();
-    themeField?.addEventListener("change", sync);
 });

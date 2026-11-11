@@ -385,6 +385,26 @@
         "hint": "On, the camera dock leaves every screen and the number on the voice tile's speaker shows how many others are in your channel, speaking or not. Foundry's dock is also kept folded, and no camera opens in a window of its own. Off brings Foundry's camera dock back for everyone, folded or open as each browser had it before the tile hid it."
       }
     },
+    "SettingsWindow": {
+      "menuName": "DRPG Settings",
+      "menuLabel": "Open DRPG Settings",
+      "title": "DRPG Settings",
+      "sectionsLabel": "Sections",
+      "save": "Save changes",
+      "scopeClient": "This browser only",
+      "scopeWorld": "The whole table",
+      "glassOnly": "Stained Glass only: pick that theme to change it.",
+      "legacyOnly": "Monokuma Legacy only: pick that theme to change it.",
+      "sections": {
+        "look": "Look",
+        "effects": "Effects and accessibility",
+        "sound": "Sound and voice",
+        "rules": "Rules at the table",
+        "privacy": "Rolls and privacy",
+        "gm": "GM tools and map",
+        "tech": "Technical"
+      }
+    },
     "SearchTokens": {
       "title": "Search Tokens",
       "allFull": { "one": "Every room still holds its {max} token.", "other": "Every room still holds all {max} tokens." },

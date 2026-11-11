@@ -13433,8 +13433,8 @@ const INVARIANTS = [
         const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.foundryToolWindows}`);
         equal(JSON.stringify([SETTINGS.foundryToolWindows ?? null, reg?.scope ?? null, reg?.config ?? null, reg?.type === Boolean, reg?.default ?? null,
             reg?.requiresReload ?? null, [reg?.name, reg?.hint].map(key => typeof key === "string" && game.i18n.has(key))]),
-            JSON.stringify(["foundryToolWindows", "world", true, true, true, true, [true, true]]),
-            "[the setting's key, scope, shown in the settings, a Boolean, its default, asks for a reload, its name and hint in the lang file]");
+            JSON.stringify(["foundryToolWindows", "world", false, true, true, true, [true, true]]),
+            "[the setting's key, scope, shown in Foundry's settings (no: in the DRPG Settings window since E49 A1, R3420), a Boolean, its default, asks for a reload, its name and hint in the lang file]");
         const settings = game.settings, had = Object.getOwnPropertyDescriptor(settings, "get"), get0 = settings.get;
         const answer = value => {
             Object.defineProperty(settings, "get", { configurable: true, writable: true, value(module, key, ...rest) {
@@ -15841,8 +15841,8 @@ const INVARIANTS = [
 
         // The world switch, and the one road back with walls ignored.
         const setting = game.settings.settings.get(`${MODULE_ID}.moveAudit`);
-        equal(J([setting?.scope, setting?.config, setting?.default, Object.keys(setting?.choices ?? {})]), J(["world", true, "log", ["log", "sendBack"]]),
-            "[the setting's scope, shown in the settings, its default, its choices]");
+        equal(J([setting?.scope, setting?.config, setting?.default, Object.keys(setting?.choices ?? {})]), J(["world", false, "log", ["log", "sendBack"]]),
+            "[the setting's scope, shown in Foundry's settings (no: in the DRPG Settings window since E49 A1, R3420), its default, its choices]");
         const src = file => fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText).then(stripComments);
         const [movement, own] = await Promise.all([src("movement.mjs"), src("movement-audit.mjs")]);
         // E41 C2b: the bridge's family, served as the module's sources.
@@ -19180,7 +19180,7 @@ const INVARIANTS = [
         const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.friskForce ?? "friskForce"}`);
         equal(J([SETTINGS.friskForce ?? null, reg?.scope ?? null, reg?.config ?? null, reg?.type === Boolean, reg?.default ?? null,
             typeof reg?.name === "string" && reg.name.startsWith("DRPG.Settings.friskForce")]),
-        J(["friskForce", "world", true, true, true, true]), "[the key, its scope, in the settings window, a Boolean, its default, its name a key of the lang files]");
+        J(["friskForce", "world", false, true, true, true]), "[the key, its scope, in Foundry's settings window (no: the DRPG Settings window's since E49 A1, R3420), a Boolean, its default, its name a key of the lang files]");
     }],
 
     ["R618 - a theft draws from and a Frisk lists one pool (A11-6's exclusions): what is carried, in the order of the module's categories, never a Truth Bullet, an item in a stash or one with no category of the module's, a broken item kept; and a Frisk's list, given what no GM has decided on, leaves that out too", async () => {

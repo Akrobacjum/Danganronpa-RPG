@@ -47,6 +47,18 @@ function scaleNote(slider) {
     });
 }
 
+/**
+ * The settings that are one theme's alone (E49 A1): the glass's pulse, clock ticker and blur under Stained Glass, the
+ * pixel face under Monokuma Legacy, by SETTINGS name; [] for a theme with none. The one statement of the rule both
+ * windows read: the Look window shows a setting another theme claims to nobody (as it did), the DRPG Settings window
+ * (settings-window.mjs) draws it in its place, disabled. Reduced motion and high contrast are every theme's (W-3, W-7).
+ */
+export function themeOnlyKeys(theme) {
+    if (theme === "stainedGlass") return [SETTINGS.glassPulse, SETTINGS.hudTicker, SETTINGS.glassBlur];
+    if (theme === "monokumaLegacy") return [SETTINGS.pixelFont];
+    return [];
+}
+
 function lookFieldset() {
     const t = key => game.i18n.localize(`DRPG.Look.${key}`);
     const theme = getSetting(SETTINGS.theme);
@@ -55,23 +67,27 @@ function lookFieldset() {
        so the switch is only shown to a browser wearing that theme. Under Stained Glass it
        would be a switch that does nothing (settings.mjs `pixelFontOn`). */
     const legacy = theme !== "stainedGlass";
-    const check = (key, setting, on) => `<label><span>${t(key)}</span>
-            <input type="checkbox" name="look:${setting}"${on ? " checked" : ""}></label>`;
-    const pixel = legacy ? check("pixelFont", SETTINGS.pixelFont, getSetting(SETTINGS.pixelFont) !== false) : "";
+    /* Since E49 A1 by `themeOnlyKeys`: a switch another theme claims is not drawn here (the theme a browser wears is
+       "monokumaLegacy" whenever it is not the glass, as `legacy` reads it). */
+    const mine = new Set(themeOnlyKeys(legacy ? "monokumaLegacy" : "stainedGlass"));
+    const claimed = new Set([...themeOnlyKeys("stainedGlass"), ...themeOnlyKeys("monokumaLegacy")]);
+    const shown = setting => !claimed.has(setting) || mine.has(setting);
+    const check = (key, setting, on) => (shown(setting) ? `<label><span>${t(key)}</span>
+            <input type="checkbox" name="look:${setting}"${on ? " checked" : ""}></label>` : "");
+    const pixel = check("pixelFont", SETTINGS.pixelFont, getSetting(SETTINGS.pixelFont) !== false);
     /* The glass's own switches - the pulse, the ticker and the blur - are shown to the
        browsers that have glass, and to nobody else.
        The messenger sounds went the other way, to the Volume fieldset above (sfx.mjs),
        which is where a sound switch is looked for.
-       Foundry's own settings window hides the same three through `renderSettingsConfig`
-       in settings.mjs; the two windows show the same set.
+       The DRPG Settings window (E49 A1) reads the same rule, `themeOnlyKeys`, and draws the
+       three there disabled under the other theme rather than hiding them.
 
        REDUCED MOTION IS FOR EVERY THEME AGAIN (Dawid, 16.09, W-3). It sat in this group from
        08.09 on the grounds that Legacy had nothing for it to damp. Legacy has the popups, the
        flares, the clock's turn-over and windows that grow in and fade out, and an
        accessibility switch should not depend on which look a player picked - so it is added
        after the group, outside the theme test, and both windows show it under both themes. */
-    const glassOnly = (legacy ? "" :
-        check("pulse", SETTINGS.glassPulse, getSetting(SETTINGS.glassPulse) !== false)
+    const glassOnly = (check("pulse", SETTINGS.glassPulse, getSetting(SETTINGS.glassPulse) !== false)
         + check("ticker", SETTINGS.hudTicker, getSetting(SETTINGS.hudTicker) !== false)
         /* The blur is in this group because it is glass-only, and last in it because it
            is the only row here that is about what the machine can draw rather than what
