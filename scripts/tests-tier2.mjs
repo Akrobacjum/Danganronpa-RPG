@@ -86875,6 +86875,108 @@ const SCENARIOS = [
             "{drawn: the row's sheet button; calls: each press's [the actor's own sheet, forced]; stays: Students windows open after both; "
             + "others: renders asked of any other actor's sheet; windows: at most one rendered window of the actor's sheet}");
     }],
+    ["Students shows each acting student's actions and Free Move (scripts/gm-students.mjs `aliveTableHtml`, gm-panel.mjs `studentsLeftHtml`; E49 A2; the owner's Q6: two columns of each row): sixteen students seeded with 0, 1 and 2 actions left and the free Move spent on every other one - each row's Actions reads actions.mjs's left / maximum and its Free Move the footprint's state, and the panel's line counts the ones with an action left", async () => {
+        /*
+         * E49 A2, 10.11.2026. The GM panel's table went for one line, and its two figures are columns of Students (Q6's
+         * default, the mockup's). Sixteen students made for the test (the plan's "16 seeded"), so the reading does not lean
+         * on the world's cast: student k has k % 3 actions left and, for an odd k, the free Move spent (the flag the
+         * crossing writes, set here by the GM). Read: each seeded row's two cells beside what actions.mjs answers for
+         * that actor, the set of readings (a column that drew one value for all sixteen would read one), and the panel's
+         * line built over the same sixteen. The actors are deleted in a finally. Red on b84d1170: no such columns.
+         */
+        needs(env.dialogs(), "the Students window is read drawn");
+        const ACT = await import("./actions.mjs");
+        const GP = await import("./gm-panel.mjs");
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-alive"));
+        must(of().length === 0, "a Students window stands open already");
+        const made = [];
+        let read = null;
+        try {
+            for (let k = 0; k < 16; k++) made.push(await Actor.create({ name: `SUITE E49 A2 student ${String(k + 1).padStart(2, "0")}`, type: "character" }));
+            must(made.length === 16 && made.every(Boolean), "the sixteen students were not made - this would measure nothing");
+            for (const [k, actor] of made.entries()) {
+                await ACT.setActions(actor, k % 3);
+                if (k % 2) await actor.setFlag(MODULE_ID, FLAGS.freeMoveUsed, true);
+            }
+            await settle();
+            const answer = Promise.resolve().then(() => GP.openWhoIsAliveDialog()).catch(err => err);
+            await until(() => made.every(a => of()[0]?.element?.querySelector(`tr[data-actor="${CSS.escape(a.id)}"]`)), 8000);
+            const root = of()[0]?.element ?? null;
+            must(root, "the Students window was not drawn - this would measure nothing");
+            const heads = [...root.querySelectorAll(".drpg-alive-live thead th")].map(th => th.textContent.trim());
+            const col = name => heads.indexOf(game.i18n.localize(name));
+            const cell = (a, at) => root.querySelector(`tr[data-actor="${CSS.escape(a.id)}"]`)?.children?.[at] ?? null;
+            const rows = made.map(a => [cell(a, col("DRPG.Actions.label"))?.textContent.trim() ?? null,
+                cell(a, col("DRPG.Panel.freeMove"))?.querySelector("[data-drpg-free-move]")?.dataset.drpgFreeMove ?? null]);
+            const box = document.createElement("div");
+            box.innerHTML = GP.studentsLeftHtml(made);
+            read = { rows, kinds: new Set(rows.map(r => r.join(" "))).size, line: [box.querySelector("[data-drpg-students-left]")?.dataset.drpgStudentsLeft ?? null,
+                box.querySelector('button[data-drpg-run="whoIsAlive"]') ? true : false] };
+            for (const a of of()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(1000)]);
+        } finally {
+            for (const a of of()) await a.close().catch(() => {});
+            for (const a of made) await a?.delete?.().catch(() => {});
+            await settle();
+        }
+        const rows = made.map(a => [`${ACT.actionsLeft(a)} / ${ACT.actionsMax(a)}`, ACT.hasFreeMove(a) ? "yes" : "no"]);
+        equal(stableJson(read), stableJson({ rows, kinds: new Set(rows.map(r => r.join(" "))).size,
+            line: [String(made.filter(a => ACT.actionsLeft(a) > 0).length), true] }),
+        "{rows: each seeded student's [Actions cell, Free Move's state]; kinds: the distinct readings; line: [the panel's count over the sixteen, its door to Students]}");
+    }],
+    ["End the chapter from Edit campaign runs the chapter's end once after its confirm, and Cancel at the question writes nothing (scripts/gm-campaign.mjs `openClockDialog`, `endTheChapter`; E49 A2; the owner's 10.11 [12] and [16])", async () => {
+        /*
+         * E49 A2, 10.11.2026. End the chapter left the panel for the foot of Edit campaign: a warning box apart from the
+         * form, a destructive button, a question (Cancel the default), then the chapter's end. Edit campaign is drawn by
+         * DialogV2's own wait; the question is answered by a stand-in for every other window (no, then yes) and the
+         * chapter's end is the window's `roads.endChapter`, counting its runs, so nothing of a real end is written. A
+         * campaign name typed before the press shows the press does not apply the form. Red on b84d1170: no end part.
+         */
+        needs(env.dialogs(), "Edit campaign is answered drawn");
+        const GC = await import("./gm-campaign.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const realWait = D.wait;
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-clock"));
+        must(of().length === 0, "an Edit campaign window stands open already");
+        const asked = [], runs = [];
+        let answer = false;
+        const clockWas = stableJson(getClock());
+        const round = async yes => {
+            answer = yes;
+            const before = runs.length;
+            const done = Promise.resolve().then(() => GC.openClockDialog({ roads: { endChapter: async () => { runs.push(true); return "ended"; } } }))
+                .catch(err => `threw: ${err?.message}`);
+            await until(() => of()[0]?.element?.querySelector("[data-drpg-end-chapter]"), 6000);
+            const root = of()[0]?.element ?? null;
+            const button = root?.querySelector("[data-drpg-end-chapter]") ?? null;
+            const name = root?.querySelector('input[name="campaignName"]');
+            if (name) name.value = "SUITE E49 A2 never applied";
+            const at = { frame: button?.closest("[data-drpg-box]")?.dataset.drpgBox ?? null, fields: button?.closest("[data-drpg-box]")?.querySelectorAll("input, select, textarea").length ?? null, role: button?.dataset.drpgRole ?? null };
+            button?.click();
+            const got = await Promise.race([done, wait(6000).then(() => "timeout")]);
+            return { ...at, got, runs: runs.length - before, open: of().length, clock: stableJson(getClock()) === clockWas };
+        };
+        const read = {};
+        try {
+            D.wait = function (cfg) {
+                if ((cfg?.classes ?? []).includes("drpg-window-clock")) return realWait.call(this, cfg);
+                asked.push((cfg?.buttons ?? []).map(b => [b.action, b.default === true, /\bdrpg-role-destructive\b/.test(b.class ?? "")]));
+                return Promise.resolve(answer);
+            };
+            read.cancel = await round(false);
+            read.yes = await round(true);
+        } finally {
+            D.wait = realWait;
+            for (const a of of()) await a.close().catch(() => {});
+            await settle();
+        }
+        read.asked = asked;
+        const part = { frame: "warning", fields: 0, role: "destructive", open: 0, clock: true };
+        const question = [["cancel", true, false], ["yes", false, true]];
+        equal(stableJson(read), stableJson({ cancel: { ...part, got: null, runs: 0 }, yes: { ...part, got: "ended", runs: 1 }, asked: [question, question] }),
+            "{cancel, yes: the question answered no, then yes - [the button's box, the fields inside that box (none: it stands apart from the form), its role, what the window answered, the chapter's end runs, Edit campaign windows open after, the clock as before]; "
+            + "asked: each question's buttons [action, the default, destructive]}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

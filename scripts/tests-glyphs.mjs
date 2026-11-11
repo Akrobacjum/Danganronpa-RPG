@@ -400,7 +400,7 @@ export const ELEMENTS = {
     "CLEANUP.actions.moveBody": "move-body", "gm.whoIsAlive": "pulse", "gm.projects": "checklist", "gm.sound": "sound",
     "gm.rules": "gavel", "gm.murder": "skull", "gm.investigation": "lens", "gm.trial": "scale", "gm.jump": "calendar",
     "gm.gmTeam": "team", "gm.roomSetup": "door", "gm.tables": "table", "gm.voiceReset": "voice-reset",
-    "gm.seasonSetup": "wand", "gm.mastermind": "mask", "gm.chapterEndTile": "end-chapter", "gm.seasonReset": "trash",
+    "gm.seasonSetup": "wand", "gm.mastermind": "mask", "gm.seasonReset": "trash",
     "gm.failureLog": "bug", "gm.caseWindow": "case-backup"
 };
 

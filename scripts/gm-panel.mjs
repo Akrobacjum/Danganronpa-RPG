@@ -11,9 +11,9 @@
  * imports this file as before.
  */
 
-import { MODULE_ID, moduleVersion, FLAGS, TIMES_OF_DAY } from "./config.mjs";
+import { MODULE_ID, moduleVersion, TIMES_OF_DAY } from "./config.mjs";
 import { getClock, clockSummary, phaseLabel, campaignName } from "./clock.mjs";
-import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
+import { actionsLeft } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { studentActors, actingStudents } from "./monokuma.mjs";
 import { error, plural, esc, primaryGmId } from "./utils.mjs";
@@ -202,10 +202,10 @@ const PANEL_SECTIONS = [
             // tab of sound-effect files and the two volume sliders, so naming
             // the tile after one of its three tabs stopped being true.
             { key: "sound", icon: "fa-volume-high", labelKey: "DRPG.Sound.title",
-              run: () => import("./music.mjs").then(m => m.openSoundDialog()) },
-            { key: "rules", icon: "fa-gavel", labelKey: "DRPG.Rules.manageTitle",
-              run: () => import("./rules.mjs").then(m => m.openRulesManager()) }
+              run: () => import("./music.mjs").then(m => m.openSoundDialog()) }
             // GONE FROM HERE:
+            //   Killing game rules - to Between sessions (E49 A2; the owner, 10.11.2026: "Killing game rules wrzucmy do
+            //     between sessions"): the rules are agreed before a session, not changed in the middle of a scene.
             //   Public roll - removed (the owner, 03.11.2026: "Usunmy funkcje public roll
             //     z gm panel"; E60 C5a). E33 C12 put it here with its window; the roll
             //     itself stays a GM's macro, `game.drpg.publicRoll` (private-rolls.mjs).
@@ -285,20 +285,9 @@ const PANEL_SECTIONS = [
             // first minute is editing.
             { key: "tables", icon: "fa-table-list", labelKey: "DRPG.Tables.editorTitle",
               run: () => import("./tables.mjs").then(m => m.openItemTables()) },
-            // "Re-send everybody's voice room" - the one button the removed eavesdrop
-            // window also carried, kept as its own tile. A resync since E19 C4
-            // (voice.mjs `resetAllVoice`), no longer everybody to the main room.
-            { key: "voiceReset", icon: "fa-microphone-lines", labelKey: "DRPG.Panel.voiceReset",
-              run: async () => {
-                  const { resetAllVoice } = await import("./voice.mjs");
-                  const { avclientActive } = await import("./voice-client.mjs");
-                  const n = await resetAllVoice();
-                  if (n !== null) return ui.notifications.info(plural("DRPG.Voice.resetDone", { n }));
-                  const name = game.users.get(primaryGmId())?.name ?? "";
-                  ui.notifications.warn(avclientActive()
-                      ? game.i18n.format("DRPG.Voice.resetRefused.primary", { name })
-                      : game.i18n.localize("DRPG.Voice.resetRefused.livekit"));
-              } },
+            // From Right now (E49 A2; the owner's 10.11 words above, at the tile's old place).
+            { key: "rules", icon: "fa-gavel", labelKey: "DRPG.Rules.manageTitle",
+              run: () => import("./rules.mjs").then(m => m.openRulesManager()) },
             // Beside the checks it answers: the season checklist carries the
             // pre-session diagnostics as a button now, because "what is missing"
             // and "fix it" are the same list read from the two ends.
@@ -310,11 +299,11 @@ const PANEL_SECTIONS = [
             // Final Key Remnants, all on one window.
             { key: "mastermind", icon: "fa-user-secret", labelKey: "DRPG.Mastermind.dialogTitle",
               run: () => import("./mastermind.mjs").then(m => m.openMastermindDialog()) },
-            // A chapter that ends without a verdict - stretched because nobody
-            // died, closed on a confession, a one-chapter season - had no door
-            // on screen at all: the trial console's button waited on a verdict.
-            { key: "chapterEndTile", icon: "fa-flag-checkered", labelKey: "DRPG.Chapter.endTitle",
-              run: () => import("./chapter.mjs").then(m => m.openChapterEndDialog()) },
+            // END THE CHAPTER IS NO TILE SINCE E49 A2 (the owner, 10.11.2026: "End the chapter wrzucmy do edit
+            // campaign"). A chapter that ends without a verdict - stretched because nobody died, closed on a
+            // confession, a one-chapter season - still has its door: the part apart at the bottom of Edit campaign
+            // (gm-campaign.mjs `openClockDialog`), in a warning frame, asking first. After a verdict the Next line
+            // offers it as before (`nextStep`'s chapterEnd, EXTRA_ACTIONS), and the trial console's button stays.
             // THE CASE (E04) moved to Diagnostics as one tile (E47-C3, the owner's 27.09): see `fixes` below. The
             // chapter's end keeps its own backup button (chapter.mjs); the reset window has none (the owner accepts it).
             // Last in the section and destructive: it is the only control here that
@@ -333,6 +322,22 @@ const PANEL_SECTIONS = [
             // What has gone wrong since this page loaded. See `openFailureLog`.
             { key: "failureLog", icon: "fa-bug", labelKey: "DRPG.Failures.title",
               run: () => openFailureLog() },
+            // "Re-send everybody's voice room" - the one button the removed eavesdrop
+            // window also carried, kept as its own tile. A resync since E19 C4
+            // (voice.mjs `resetAllVoice`), no longer everybody to the main room.
+            // Here since E49 A2 (the owner, 10.11.2026: "Re-send everybody's voice room wrzucmy do diagnostics"): it
+            // repairs a voice room that went wrong, which is what this section is for; it was in Between sessions.
+            { key: "voiceReset", icon: "fa-microphone-lines", labelKey: "DRPG.Panel.voiceReset",
+              run: async () => {
+                  const { resetAllVoice } = await import("./voice.mjs");
+                  const { avclientActive } = await import("./voice-client.mjs");
+                  const n = await resetAllVoice();
+                  if (n !== null) return ui.notifications.info(plural("DRPG.Voice.resetDone", { n }));
+                  const name = game.users.get(primaryGmId())?.name ?? "";
+                  ui.notifications.warn(avclientActive()
+                      ? game.i18n.format("DRPG.Voice.resetRefused.primary", { name })
+                      : game.i18n.localize("DRPG.Voice.resetRefused.livekit"));
+              } },
             // THE CASE (E04; one tile since E47-C3, the owner's 27.09: "Back up the case and Restore the case become one
             // tile in the Diagnostics section, opening one window with both actions and the last copy's age"): what
             // lives only in GM browsers - the answer keys, the traces, the cast, the Mastermind - to one file and back.
@@ -1034,50 +1039,6 @@ function autopsyIssued(chapter) {
 function buildPanelContent() {
     const clock = getClock();
 
-    // The living cast, and only them.
-    //
-    // This listed every `character` actor, which meant the GM's own Monokumas
-    // sat in the middle of it reading "0 / 0" - they have no action economy by
-    // design - and so did every corpse. The one question this table answers is
-    // "who still has actions left", and neither of those can have any. A
-    // Monocub stays: they spend a real budget on Move and Meddle.
-    const roster = actingStudents();
-
-    const rows = roster
-        .map(a => {
-            const left = actionsLeft(a);
-            const max = actionsMax(a);
-            // The sheet says this with a PAIR - solid when the free Move is
-            // there, outline when it has been used - exactly as the action pips
-            // do with `fa-circle`. This column used to answer with a footprint
-            // or an em dash, which is a second language for the same fact. An
-            // empty outline says "used" in the one the rest of the interface
-            // already speaks.
-            const move = `<i class="${hasFreeMove(a) ? "fa-solid" : "fa-regular"} `
-                + `fa-shoe-prints drpg-pix-foot" title="${esc(game.i18n.localize(
-                    hasFreeMove(a) ? "DRPG.Actions.freeMoveAvailable" : "DRPG.Actions.freeMoveSpent"))}"></i>`;
-            const cub = a.getFlag(MODULE_ID, FLAGS.monocub)
-                ? ` <span class="notes">(${game.i18n.localize("DRPG.Monocub.isOne")})</span>` : "";
-            const low = left === 0 ? ' style="opacity:.55"' : "";
-            return `<tr${low}>
-                        <td>${foundry.utils.escapeHTML(a.name)}${cub}</td>
-                        <td style="text-align:center">${left} / ${max}</td>
-                        <td style="text-align:center">${move}</td>
-                    </tr>`;
-        })
-        .join("");
-
-    const table = rows
-        ? `<table>
-             <thead><tr>
-               <th>${game.i18n.localize("DRPG.Panel.character")}</th>
-               <th style="text-align:center">${game.i18n.localize("DRPG.Actions.label")}</th>
-               <th style="text-align:center">${game.i18n.localize("DRPG.Panel.freeMove")}</th>
-             </tr></thead>
-             <tbody>${rows}</tbody>
-           </table>`
-        : `<p>${game.i18n.localize("DRPG.Panel.noCharacters")}</p>`;
-
     // The suggestion sits ABOVE the standing, because it is the thing being
     // looked for. Its button carries an ordinary `data-drpg-run`, so the panel's
     // existing delegate runs it and reopens the panel afterwards like any tile.
@@ -1109,8 +1070,25 @@ function buildPanelContent() {
                    <span class="drpg-gmp-phase">${phaseLabel(clock.phase)}</span>
                    ${advance}</p>
                 ${suggestion}
-                ${table}
+                ${studentsLeftHtml()}
             </div>`;
+}
+
+/**
+ * THE STUDENTS LINE (E49 A2, 10.11.2026; the owner's [16] "tak" to the mockup's "N students still have actions"; Q6).
+ * The table that stood here - a row per acting student, its actions and its free Move - is two columns of the Students
+ * window now (gm-students.mjs `aliveTableHtml`), and the panel keeps the one number a GM reads it for: how many of the
+ * living cast, a Monocub included (monokuma.mjs `actingStudents`, as `nextStep` counts them), still have an action this
+ * time of day, `plural()`'s words, and beside it the door to Students - the tile's own key, so the panel's delegate runs
+ * it and the panel comes back after it as after any tile. ONE LINE IN EVERY STATE: nobody left, everybody left and an
+ * empty cast draw the same paragraph and the same button, only the number changes (the owner's 10.11 rule: a state
+ * changes look, never layout). Exported for R3345 and the tier-2 reading.
+ */
+export function studentsLeftHtml(roster = actingStudents()) {
+    const n = roster.filter(a => actionsLeft(a) > 0).length;
+    return `<p class="drpg-gmp-students" data-drpg-students-left="${n}">${esc(plural("DRPG.Panel.studentsLeft", { n }))}
+                <button type="button" class="drpg-gmp-next-go" data-drpg-run="whoIsAlive">
+                    <i class="fa-solid fa-heart-pulse" inert></i> ${esc(game.i18n.localize("DRPG.Panel.whoIsAlive"))}</button></p>`;
 }
 
 /** The case tile's second line (E47-C3; the Back up tile's before it): when the case was last backed up, from the world's case mark (E04). */

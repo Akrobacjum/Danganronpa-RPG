@@ -155,7 +155,7 @@ GM może wyłączyć cenę przejść; wtedy to, które pokoje się łączą, raz
 - Widzisz tylko osoby stojące w twoim pokoju. Nikogo innego dla ciebie na mapie nie ma.
 - **Kafelek pokoju** stoi pod zegarem - albo, gdy ekran nie zostawia tam miejsca, na prawo od powiadomień - i pokazuje pokój, w którym stoi twoja własna postać, nigdy inny: jego nazwę, jego Search Tokens z liczbą przeszukań, które zostały (**2/3 przeszukań**), **Możesz tu pracować nad projektem**, gdy jest w nim projekt, nad którym możesz pracować, zdjęcie pokoju od GMa pod nimi i opis od GMa, schowany za małą strzałką w prawym górnym rogu kafelka: strzałka (**Czytaj dalej**) rozwija opis nad zdjęciem, a obrócona do góry (**Zwiń opis**) zwija go z powrotem. Kliknij zdjęcie, by zobaczyć je w dużym rozmiarze, tylko na swoim ekranie. Podczas Class Trialu kafelek pokazuje salę rozpraw: nazwę, zdjęcie i opis od GMa albo "Class Trial". Na wąskim ekranie jest jednym wierszem stosu: małe zdjęcie (kliknij, by zobaczyć duże), nazwa, Search Tokens i przycisk **Opis**, który otwiera opis w oknie. Gdy tę samą postać ma dwóch graczy, kafelek na ekranie jednego z nich może nadążyć za ruchem przez kilka punktów trasy mniej więcej półtorej sekundy później.
 - Zegar w lewej kolumnie da się kliknąć: tłumaczy fazę, porę dnia, gdzie jesteś, i wypisuje opis pokoju, jeśli GM go napisał.
-- Karta innego gracza otwiera się ocenzurowana: imię, portret, Ultimate, Health (i ? w miejscu Sanity), to, co trzyma w rękach, i ile ma doświadczeń. Nic więcej.
+- Karta innego gracza otwiera się ocenzurowana: imię, portret, Ultimate, Health (i ? w miejscu Sanity), to, co trzyma w rękach, i ile ma doświadczeń. Nic więcej. Hope i Sanity innego ucznia to '?', bez maksimum.
 
 ### Głos
 

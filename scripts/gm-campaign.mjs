@@ -1,7 +1,8 @@
 /**
  * Danganronpa RPG - Edit campaign.
  * ---------------------------------------------------------------------------
- * The GM's window for correcting the clock and the campaign (`openClockDialog`),
+ * The GM's window for correcting the clock and the campaign (`openClockDialog`), with End the chapter apart at its
+ * foot (`endChapterPart`, `endTheChapter`; E49 A2),
  * the question it asks before a field that does more than correct
  * (`confirmCorrection`), what its Apply reads (`readClockForm`), and whether a change of the time of day or the session
  * is a correction rather than the hour passing, so that an assembly called for
@@ -20,7 +21,7 @@ import { getClock, setClock } from "./clock.mjs";
 import { resetAllActions } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { error, esc, wholeNumber } from "./utils.mjs";
-import { stepper, stepperId, drpgWindow, formGrid, helpText } from "./ui-kit.mjs";
+import { stepper, stepperId, drpgWindow, drpgConfirm, formGrid, helpText, box, roleButton } from "./ui-kit.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
 import { trialScene } from "./rooms.mjs";
 
@@ -87,7 +88,39 @@ export function readClockForm(dialog) {
     };
 }
 
-export async function openClockDialog() {
+/*
+ * END THE CHAPTER, APART (E49 A2, 10.11.2026; the owner's [12] "End the chapter wrzucmy do edit campaign" and [16] "tak"
+ * to its confirm and warning frame). The panel's tile went; its door is the last part of this window, under the form, in
+ * the kit's warning box, with a destructive button of its own: what it starts reveals, sweeps and names the Blackened,
+ * which is everything the chapter field above says it does not do. The button closes this window WITHOUT its Apply - an
+ * end and a correction in one press would write the clock twice, and the end reads the clock as it stands - then asks
+ * once more (`endTheChapter`, Cancel the default), and only a yes opens chapter.mjs `openChapterEndDialog`, which asks
+ * its own questions and runs the end once. Cancel at either step writes nothing. The part is drawn in every state of
+ * the clock (the owner's rule: a state changes look, never layout); `openChapterEndDialog` refuses what it refuses.
+ */
+function endChapterPart() {
+    const L = key => game.i18n.localize(key);
+    return box("warning", `<p>${esc(L("DRPG.Clock.endChapterNote"))}</p>`, {
+        action: roleButton({ role: "destructive", label: L("DRPG.Chapter.endTitle"), attrs: { "data-drpg-end-chapter": "1" } })
+    });
+}
+
+/* The question between the button and the chapter's end (see above): the yes destructive, Cancel the default. `run` is
+   chapter.mjs `openChapterEndDialog`, or the suite's stand-in (`roads.endChapter`). */
+async function endTheChapter(run) {
+    const yes = await drpgConfirm({
+        title: game.i18n.localize("DRPG.Chapter.endTitle"),
+        classes: ["drpg-panel", "drpg-narrow", "drpg-window-chapter-end-ask"],
+        body: `<p>${esc(game.i18n.localize("DRPG.Clock.endChapterAsk"))}</p>`,
+        yes: { role: "destructive", label: game.i18n.localize("DRPG.Chapter.endTitle") },
+        rejectClose: false
+    });
+    if (yes !== true) return null;
+    return run();
+}
+
+/** Edit campaign. `roads.endChapter` stands in for chapter.mjs `openChapterEndDialog` (the suite's; E49 A2). */
+export async function openClockDialog({ roads = {} } = {}) {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
@@ -131,6 +164,7 @@ export async function openClockDialog() {
      */
     const ids = { name: stepperId(), chapter: stepperId(), phase: stepperId(), day: stepperId(), session: stepperId(), time: stepperId() };
     const L = key => game.i18n.localize(key);
+    let endAsked = false;
     const result = await drpgWindow({
         title: game.i18n.localize("DRPG.Panel.jump"),
         classes: ["drpg-panel", "drpg-window-clock"],
@@ -151,7 +185,14 @@ export async function openClockDialog() {
                         ${L("DRPG.Panel.alsoReset")}
                     </label>` },
             { full: helpText("DRPG.Panel.resetHint") }
-        ])}</form>`,
+        ])}</form>${endChapterPart()}`,
+        render: (event, dialog) => {
+            dialog.element.querySelector("[data-drpg-end-chapter]")?.addEventListener("click", ev => {
+                ev.preventDefault();
+                endAsked = true;
+                dialog.close();
+            });
+        },
         // Apply still to answer: Cancel (E21 rule 3), the answer "cancel" as before.
         footer: {
             primary: {
@@ -164,6 +205,7 @@ export async function openClockDialog() {
         rejectClose: false
     });
 
+    if (endAsked) return endTheChapter(roads.endChapter ?? (() => import("./chapter.mjs").then(m => m.openChapterEndDialog())));
     if (!result || result === "cancel") return;
 
     /*
