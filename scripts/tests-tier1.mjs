@@ -45274,6 +45274,45 @@ const INVARIANTS = [
             [300, 400, 5, "F1", false, "SUITER3403TILE00", true]]),
         "the patch [x, y, elevation, the flag's floor, size in it, the tile's id, hidden] for [a move to F2, a floor change as a Level, a rename, a tile there already, a tile with no body flag, the token hidden where the tile lies]");
     }],
+    ["R3405 - a 1.2.104 world's open case is read by the Monocub's own rule without its Monocub gate, and owes a body to each dead public non-Monocub of it with no tile of the death (E63 C3; QUESTIONS E63 Q6): monocub.mjs `caseOpen` against `ownCaseOpen`'s cases, migrate.mjs `bodiesToLay`", async () => {
+        /*
+         * E63 C3, 11.11.2026; STAGE E63 item 8. `caseOpen(death, clock, record, epoch)`, cut out of `ownCaseOpen`, for
+         * the clock at chapter 3 of epoch 7: no verdict; the verdict before the death (`sinceVerdict` names it); a later
+         * verdict; a record of another chapter; another chapter's death; another epoch; a record with no `sinceVerdict`
+         * under a verdict and under none; an execution. Then `ownCaseOpen` on a Monocub stand-in agreeing with each.
+         * `bodiesToLay` over six stand-ins: the one owed (dead, public, not a Monocub, open, no tile), a Monocub, a kept
+         * death (not deceased), an earlier chapter's death, a death with its tile, and a death whose tile is of an older
+         * death (owed). Red at 2e0f8331 (C3a cut `caseOpen`): there is no `bodiesToLay`.
+         */
+        const Mo = await import("./monocub.mjs").catch(() => null);
+        const Mi = await import("./migrate.mjs").catch(() => null);
+        must(Mo && Mi, "monocub.mjs or migrate.mjs does not load");
+        const clock = { chapter: 3 }, epoch = 7;
+        const d = extra => ({ chapter: 3, epoch: 7, deathId: "D", ...extra });
+        const cases = [
+            [d({ sinceVerdict: null }), { chapter: 3 }],
+            [d({ sinceVerdict: 100 }), { chapter: 3, lastVerdictAt: 100 }],
+            [d({ sinceVerdict: 100 }), { chapter: 3, lastVerdictAt: 200 }],
+            [d({ sinceVerdict: 100 }), { chapter: 2, lastVerdictAt: 200 }],
+            [d({ chapter: 2 }), { chapter: 3 }],
+            [d({ epoch: 6 }), { chapter: 3 }],
+            [d({}), { chapter: 3, lastVerdictAt: 200 }],
+            [d({}), { chapter: 3 }],
+            [d({ cause: "executed" }), { chapter: 3 }]
+        ];
+        const pure = typeof Mo.caseOpen === "function" ? cases.map(([death, record]) => Mo.caseOpen(death, clock, record, epoch)) : null;
+        const stand = death => ({ getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.monocub ? true : scope === MODULE_ID && key === FLAGS.deceased ? death : undefined),
+            flags: { [MODULE_ID]: { [FLAGS.monocub]: true, [FLAGS.deceased]: death } } });
+        const own = cases.map(([death, record]) => Mo.ownCaseOpen(stand(death), { clock, record, epoch }));
+        const actors = ["owed", "cub", "kept", "early", "tiled", "older"].map(id => ({ id, name: id }));
+        const deaths = { owed: d({}), cub: d({}), kept: d({}), early: d({ chapter: 2 }), tiled: d({}), older: d({}) };
+        const tiles = { tiled: [{ mark: { deathId: "D" } }], older: [{ mark: { deathId: "OLD" } }] };
+        const picked = typeof Mi.bodiesToLay === "function" ? Mi.bodiesToLay(actors, { deceased: a => a.id !== "kept", monocub: a => a.id === "cub",
+            deathOf: a => deaths[a.id], open: death => Mo.caseOpen(death, clock, { chapter: 3 }, epoch), tilesOf: id => tiles[id] ?? [] }).map(a => a.id) : null;
+        equal(stableJson({ pure, agrees: pure ? pure.every((v, i) => v === own[i]) : null, picked }), stableJson({
+            pure: [true, true, false, true, false, false, false, true, false], agrees: true, picked: ["owed", "older"] }),
+        "{pure: caseOpen for [no verdict, the verdict before, a later verdict, another chapter's record, another chapter's death, another epoch, no sinceVerdict under a verdict, under none, an execution]; agrees: ownCaseOpen on a Monocub the same; picked: bodiesToLay's}");
+    }],
 ];
 
 /**

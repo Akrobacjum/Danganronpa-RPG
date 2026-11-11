@@ -86439,6 +86439,64 @@ const SCENARIOS = [
             "{fenced: tier 2 holds a fence; ended: [the student's tiles before, after the trial's end, the table's stand-in still there]; after: the fence as found}");
     }],
 
+    ["a 1.2.104 world gets the open case's bodies once (E63 C3; QUESTIONS E63 Q6): the clause `openCaseBodies` lays one tile at the token of each student dead and public, not a Monocub, of the open case with no tile of the death; run again it lays none; a world stamped 1.2.105 skips it; a 1.2.104 Monocub's tile is kept; `migrationStatus` names it", async () => {
+        /*
+         * E63 C3, 11.11.2026; STAGE E63 item 8. On the primary GM, two living students with tokens on the scene on screen,
+         * each made dead in public as 1.2.104 left them: their `deceased` flag and the dead status written by hand
+         * (chapter.mjs `markDeceased` would lay the tile now), with the clock's chapter and epoch; the second also a
+         * Monocub, with a 1.2.104 tile laid by the suite at their token (body-tile.mjs `bodyTileSpec`). Then migrate.mjs
+         * `layOpenCaseBodies` (the clause's pass): the report and each one's tiles; again: the report; then the stamp
+         * set to 1.2.105 and `migrate1_2_0({ only: ["openCaseBodies"] })`: whether it skipped it, and the tiles. Red at
+         * 2e0f8331: no clause and no pass. Put back: the stamp, the students revived (their tiles with it), the Monocub flag.
+         */
+        needs(env.primaryGm(), "the clause runs on the primary GM");
+        needs(world.atLeast("studentTokensOnScreen", 2), "two students with tokens on the scene on screen, whose bodies are laid");
+        const Mi = await import("./migrate.mjs");
+        const B = await import("./body-tile.mjs");
+        const C = await import("./chapter.mjs");
+        const { levelOf } = await import("./rooms.mjs");
+        const scene = canvas.scene;
+        const [a, b] = C.livingStudents().filter(x => scene?.tokens?.some(t => t.actorId === x.id));
+        must(a && b, "no two living students with tokens on the scene on screen - this would measure nothing");
+        const tokenOf = x => scene.tokens.find(t => t.actorId === x.id);
+        const stamp = getSetting(SETTINGS.migratedVersion);
+        const monoWas = b._source.flags?.[MODULE_ID]?.[FLAGS.monocub];
+        const clock = getClock(), trial = getSetting(SETTINGS.trialProgress) ?? {};
+        // As chapter.mjs `verdictBefore` writes it: the chapter's last verdict, or null.
+        const death = () => ({ chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay, phase: clock.phase, epoch: seasonEpoch(),
+            deathId: foundry.utils.randomID(), sinceVerdict: trial?.chapter === clock.chapter ? (trial.lastVerdictAt ?? null) : null });
+        const at = x => B.bodyTilesOf(x.id).map(({ doc }) => doc.x === tokenOf(x).x && doc.y === tokenOf(x).y);
+        const read = {};
+        try {
+            for (const x of [a, b]) {
+                await x.setFlag(MODULE_ID, FLAGS.deceased, death());
+                await x.toggleStatusEffect("dead", { active: true, overlay: true });
+            }
+            await b.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await scene.createEmbeddedDocuments("Tile", [B.bodyTileSpec({ tokenDoc: tokenOf(b), actorId: b.id, record: b.getFlag(MODULE_ID, FLAGS.deceased),
+                level: levelOf(tokenOf(b)), at: Date.now() })]);
+            await settle();
+            must(C.isDeceased(a) && C.isDeceased(b) && !at(a).length && at(b).length === 1, "the 1.2.104 world could not be stood up - this would measure nothing");
+            const first = typeof Mi.layOpenCaseBodies === "function" ? await Mi.layOpenCaseBodies() : "no pass";
+            await settle();
+            read.first = [first, at(a), at(b)];
+            read.again = typeof Mi.layOpenCaseBodies === "function" ? await Mi.layOpenCaseBodies() : "no pass";
+            await game.settings.set(MODULE_ID, SETTINGS.migratedVersion, "1.2.105");
+            const report = await Mi.migrate1_2_0({ only: ["openCaseBodies"], quiet: true });
+            await settle();
+            read.stamped = [report?.skipped?.includes("openCaseBodies") ?? null, at(a).length, at(b).length];
+            read.status = Mi.migrationStatus().clauses.some(c => c.key === "openCaseBodies" && c.since === "1.2.105");
+        } finally {
+            for (const x of [a, b]) if (C.isDeadForGm(x)) await C.reviveCharacter(x, { quiet: true });
+            if (monoWas === undefined) await b.unsetFlag(MODULE_ID, FLAGS.monocub);
+            else await b.setFlag(MODULE_ID, FLAGS.monocub, monoWas);
+            await game.settings.set(MODULE_ID, SETTINGS.migratedVersion, stamp);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ first: [{ laid: [a.name], none: [] }, [true], [true]], again: null, stamped: [true, 1, 1], status: true }),
+            "{first: [the pass's report, A's tiles at the token, the Monocub's]; again: the report; stamped: [1.2.105 skipped it, A's, the Monocub's tiles]; status: migrationStatus names it}");
+    }],
+
     ["the body follows its corpse token, not its Monocub (E63 C1; QUESTIONS E63 Q3): a GM's drag of a dead student's token into another room takes their tile there and the body is read in that room; a teleport as Stage 6's Move the body makes takes it back; a move another user wrote moves nothing on this browser; made a Monocub, their token walks and the tile stays", async () => {
         /*
          * E63 C1, 11.11.2026; STAGE E63 item 6. On this GM: a student with a token on the scene on screen killed in public

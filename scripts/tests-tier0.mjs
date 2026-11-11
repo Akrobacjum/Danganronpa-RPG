@@ -22312,7 +22312,7 @@ const REGRESSIONS = [
             + "line: [plural's words, the door to Students, the acting cast, counted by actions left]; columns: [Actions, Free Move, read from actions.mjs]; "
             + "end: [the part in Edit campaign, a warning box with a destructive button, the press goes to the question, the question destructive with Cancel writing nothing, the chapter's end after it]}");
     }],
-    ["R3400 - the death lays the body, and nothing else does (E63 C0; the owner's 11.11.2026, E95 Q3: \"gdy postać umiera ... Nie gdy zostaje Monocubem\"): body-tile.mjs `leaveBody` is called from chapter.mjs `markDeceased` alone, the one function every public death passes, handed the record it just wrote; monocub.mjs imports nothing from body-tile.mjs; `recordSecretDeath` names no export of body-tile.mjs", async () => {
+    ["R3400 - the death lays the body, and nothing else does (E63 C0; the owner's 11.11.2026, E95 Q3: \"gdy postać umiera ... Nie gdy zostaje Monocubem\"): body-tile.mjs `leaveBody` is called from chapter.mjs `markDeceased`, the one function every public death passes, handed the record it just wrote, and from migrate.mjs's pass for a 1.2.104 world (E63 C3) alone; monocub.mjs imports nothing from body-tile.mjs; `recordSecretDeath` names no export of body-tile.mjs", async () => {
         /*
          * E63 C0, 11.11.2026; STAGE E63 items 1, 3 and 5. Read off the served sources with their comments taken out:
          * every `leaveBody(` call outside body-tile.mjs's own definition, as [file, the top-level function it stands in],
@@ -22349,7 +22349,7 @@ const REGRESSIONS = [
             handsRecord: /\bleaveBody\(actor,\s*\{\s*record\s*\}\)/.test(mark),
             monocubImports: staticImports(code("monocub.mjs")).includes("body-tile.mjs"),
             secretNames: exported.filter(name => new RegExp(`\\b${name}\\b`).test(secret))
-        }), JSON.stringify({ calls: [["chapter.mjs", "markDeceased"]], handsRecord: true, monocubImports: false, secretNames: [] }),
+        }), JSON.stringify({ calls: [["chapter.mjs", "markDeceased"], ["migrate.mjs", "layOpenCaseBodies"]], handsRecord: true, monocubImports: false, secretNames: [] }),
             "{calls: every leaveBody call as [file, function]; handsRecord: markDeceased's call hands its record; monocubImports: monocub.mjs imports body-tile.mjs; secretNames: body-tile.mjs's exports recordSecretDeath names}");
     }],
     ["R3402 - the body follows its corpse after the write, on the mover's GM browser alone (E63 C1; QUESTIONS E63 Q3): body-tile.mjs `followBody` is registered on `updateToken` and never `preUpdateToken`, tests `game.user.isGM` and `userId === game.user.id` before its one write, asks movement.mjs `isCorpse`; module.mjs registers it", async () => {
