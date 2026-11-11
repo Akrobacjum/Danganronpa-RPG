@@ -714,6 +714,8 @@
         "stateSecret": "Otwarte",
         "stateClosed": "Zamknięte",
         "stateBroken": "Ściana się przesunęła - wskaż tajne przejście jeszcze raz",
+        "repickHeld": "Ponownie wskazuje się tylko tajne przejście, którego ściana się przesunęła.",
+        "toggleHeld": "Ściana się przesunęła: wskaż tajne przejście jeszcze raz, zanim je zamkniesz albo otworzysz.",
         "pending": "Jeszcze nie dostarczone: {names}",
         "shared": "{players} grają postacią {student} i każdy z nich poznaje to tajne przejście.",
         "show": "Pokaż",

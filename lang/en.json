@@ -703,6 +703,8 @@
         "stateSecret": "Open",
         "stateClosed": "Closed",
         "stateBroken": "The wall moved - pick it again",
+        "repickHeld": "Only a passage whose wall moved is picked again.",
+        "toggleHeld": "The wall moved: pick the passage again before you close or open it.",
         "pending": "Not yet delivered: {names}",
         "shared": "{players} all play {student}, and each of them learns this passage.",
         "show": "Show",

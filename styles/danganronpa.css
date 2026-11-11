@@ -3735,7 +3735,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 .drpg-passage-state[data-state="closed"] { color: var(--drpg-dim); }
 .drpg-passage-state[data-state="broken"] { color: var(--drpg-red); }
 .drpg-passage-state:is([data-state="pending"], [data-state="shared"]) { color: var(--drpg-dim); font-size: 0.9em; }
-.drpg-passage-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.drpg-passage-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; align-items: stretch; }
 /* 'New passage' over the table, its line beside it, and the pick's window (E79 C6) with its one
    button at the right, as the mockup drew them; a refused click's line in red. */
 .drpg-passage-bar { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; }
