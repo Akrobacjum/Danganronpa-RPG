@@ -35578,22 +35578,27 @@ const INVARIANTS = [
            re-measured headless; Legacy's, the desk's and the stacked screen's, `left` and the @media rules as they were.
            And since the E48 mic lock's stroke (11.11.2026, R3511): the GM's lock under the glass draws no blocked stroke on
            the mic's `::after` (components.css), so the same place's print moves again - 2:1b6f197e -> 2:c7b2c17b,
-           re-measured headless; every other print, `left` and the @media rules as they were. */
+           re-measured headless; every other print, `left` and the @media rules as they were.
+           Foundry tools' three Stained Glass prints since E49 (11.11.2026; the owner's "Tak" to E105 compare2's badge, S11-49's
+           follow-up): components.css's glass rule sets the tools' z-index to 69, one under the corner's 70, so the
+           messenger's unread badge paints over their hexagon (R3543) - 1:9978c959 -> 1:d0296c9e at each place, re-measured
+           headless; Legacy's, every other print, `left` (none: the rule stands in components.css, not stained-glass.css)
+           and the @media rules as they were. */
         const C5 = {
             "curtain|monokuma-legacy|foundry-tools": "1:742fc6be", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:999f5b79",
             "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:cf9e2a77", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
-            "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:7268133b", "curtain|stained-glass|foundry-tools": "1:9978c959",
+            "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:7268133b", "curtain|stained-glass|foundry-tools": "1:d0296c9e",
             "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:ae4eb686", "curtain|stained-glass|room-art": "1:b38f7ef7",
             "curtain|stained-glass|room-tile": "1:7a2b083d", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
             "curtain|stained-glass|voice-tile": "2:c7b2c17b", "desk|monokuma-legacy|foundry-tools": "1:742fc6be", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
             "desk|monokuma-legacy|gm-launcher": "1:999f5b79", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:3a251bf8",
             "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:cfb69a33",
-            "desk|stained-glass|foundry-tools": "1:9978c959", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:ae4eb686",
+            "desk|stained-glass|foundry-tools": "1:d0296c9e", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:ae4eb686",
             "desk|stained-glass|room-art": "1:b38f7ef7", "desk|stained-glass|room-tile": "1:ae49e2fb", "desk|stained-glass|voice-art": "1:393b7dc4",
             "desk|stained-glass|voice-list": "1:e9f9c48e", "desk|stained-glass|voice-tile": "1:9028bf8f", "stacked|monokuma-legacy|foundry-tools": "1:742fc6be",
             "stacked|monokuma-legacy|foundry-window": "2:3ad17c49", "stacked|monokuma-legacy|gm-launcher": "1:999f5b79", "stacked|monokuma-legacy|room-art": "1:b38f7ef7",
             "stacked|monokuma-legacy|room-tile": "1:164e7a4a", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:4671c967",
-            "stacked|monokuma-legacy|voice-tile": "1:66481022", "stacked|stained-glass|foundry-tools": "1:9978c959", "stacked|stained-glass|foundry-window": "2:8b75b7bd",
+            "stacked|monokuma-legacy|voice-tile": "1:66481022", "stacked|stained-glass|foundry-tools": "1:d0296c9e", "stacked|stained-glass|foundry-window": "2:8b75b7bd",
             "stacked|stained-glass|gm-launcher": "1:ae4eb686", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:af1b01b1",
             "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:e9f9c48e", "stacked|stained-glass|voice-tile": "1:4a4823b1"
         };
@@ -43986,7 +43991,7 @@ const INVARIANTS = [
             stableJson({ reads: ["var(--drpg-kit-tab-on-ink)", "var(--drpg-kit-tab-on-bg)", "var(--drpg-kit-tab-on-edge)"], bar: "inset 3px 0 0 var(--drpg-kit-tab-on-edge)", sized: [], crisis: [] }),
             "{reads: the picked section's ink, ground and frame; bar: Legacy's edge bar; sized: properties its rule sets besides those; crisis: crisis rules reading a tab token} - Legacy's picked section must not be filled red");
     }],
-    ["R3543 - under Stained Glass the messenger's unread badge is drawn over Foundry tools' hex (styles/stained-glass.css; E49, the owner's \"Tak\" to E105 compare2's finding): Foundry tools stand at 69, one under the corner's 70, so the messenger and its badge paint over them; the launcher keeps 70 (the expanded chat's 71 stays above the cluster, R1405), and nothing of the badge's or the hex's build changes", async () => {
+    ["R3543 - under Stained Glass the messenger's unread badge is drawn over Foundry tools' hex (styles/components.css; E49, the owner's \"Tak\" to E105 compare2's finding): Foundry tools stand at 69, one under the corner's 70, so the messenger and its badge paint over them; the launcher keeps 70 (the expanded chat's 71 stays above the cluster, R1405), and nothing of the badge's or the hex's build changes", async () => {
         /*
          * E49, 11.11.2026. E105 compare2, GM's page under the glass at 1366x768: elementFromPoint at the badge's top read
          * `#drpg-foundry-tools`; every corner button stood at 70 and the tools, later in the body, painted over the
@@ -44017,18 +44022,22 @@ const INVARIANTS = [
         stableJson({ tools: "69", messenger: "70", legacyTools: "70", badgePointer: "auto" }),
             "{Foundry tools' z-index under the glass, the messenger launcher's, Foundry tools' outside the glass, the badge's pointer} - the badge must paint over the tools' hex under the glass");
     }],
-    ["R3544 - the critical's line reads apart wherever it is drawn, not only in a notice (styles/danganronpa.css; E49, the owner's \"Tak\" to E105 compare2's \"Critical successAiko Hoshino\"): the line's five rules are scoped to the notice, the history's kept snapshot and a chat message at (0,2,0), and the words keep their flex row and its 8 px gap; the duality total stays hidden in the notice alone", async () => {
+    ["R3544 - the critical's line reads apart wherever it is drawn, not only in a notice (styles/danganronpa.css; E49, the owner's \"Tak\" to E105 compare2's \"Critical successAiko Hoshino\"): the line's five rules are scoped to the notice and a chat message (danganronpa.css) and to the history's kept snapshot (components.css, the history's parts' one sheet, R1330), each at (0,2,0), and the words keep their flex row and its 8 px gap; the duality total stays hidden in the notice alone", async () => {
         /*
          * E49, 11.11.2026. E105 compare2's chat stand-in drew the notice's body in a chat message: the words ran together
          * ("Critical successAiko Hoshino"), both themes, because every rule of the line named `.drpg-popup`. Red first on
          * 6421cc08: the five rules read `.drpg-popup` only. Then a line of `critLine`'s shape is drawn in a stand-in chat
          * message and in a history snapshot and its words' `display` and `column-gap` read by getComputedStyle (the
-         * cascade this page loaded), and removed.
+         * cascade this page loaded), and removed. The snapshot's half moved to components.css the same day (R1330: the
+         * history's parts are that sheet's alone; red on 7d59dcfe, the merge with e49set).
          */
-        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
-        const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
-        const SCOPE = ":is(.drpg-popup, .drpg-notice-snapshot, .chat-message)";
-        const scoped = ["crit-line", "crit-glyph", "crit-words", "crit-result", "crit-who"].map(c => rules.some(r => r.sel === `${SCOPE} .drpg-${c}`));
+        const read = async file => [...stripComments(await fetch(`/modules/${MODULE_ID}/styles/${file}`).then(lfText)).matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+            .map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const rules = await read("danganronpa.css"), kit = await read("components.css");
+        const scoped = ["crit-line", "crit-glyph", "crit-words", "crit-result", "crit-who"].map(c => {
+            const here = rules.find(r => r.sel === `:is(.drpg-popup, .chat-message) .drpg-${c}`), there = kit.find(r => r.sel === `.drpg-notice-snapshot .drpg-${c}`);
+            return Boolean(here && there) && here.body.replace(/\s+/g, " ").trim() === there.body.replace(/\s+/g, " ").trim();
+        });
         const duality = rules.some(r => r.sel === ".drpg-popup .drpg-crit-line ~ .drpg-duality .drpg-duality-result" && /display:\s*none/.test(r.body));
         const line = `<div class="drpg-crit-line" data-drpg-crit=""><i class="fa-solid fa-burst drpg-crit-glyph" aria-hidden="true"></i><span class="drpg-crit-words"><strong class="drpg-crit-result">Critical success</strong><span class="drpg-crit-who">Aiko</span></span></div>`;
         const host = document.createElement("div");
@@ -44040,7 +44049,7 @@ const INVARIANTS = [
             drawn = [...host.querySelectorAll(".drpg-crit-words")].map(w => { const s = getComputedStyle(w); return `${s.display} ${s.columnGap}`; });
         } finally { host.remove(); }
         equal(stableJson({ scoped, duality, drawn }), stableJson({ scoped: [true, true, true, true, true], duality: true, drawn: ["flex 8px", "flex 8px"] }),
-            "{scoped: the line's, glyph's, words', result's and who's rule on the notice, the snapshot and a chat message; duality: the total hidden in the notice; drawn: the words' display and gap in a chat message and in a snapshot} - the critical's line must read apart outside a notice");
+            "{scoped: the line's, glyph's, words', result's and who's rule on the notice and a chat message, and the same declarations on the snapshot in components.css; duality: the total hidden in the notice; drawn: the words' display and gap in a chat message and in a snapshot} - the critical's line must read apart outside a notice");
     }],
     ["R2018 - Room setup's Scenes tab on the kit (E46-C2b; E46-08, E47's 05.10 point 5): trial-scene.mjs `scenesTabHtml` is a kit `formGrid` (the school and the hall selects, each its label's `for`), the hall's name, picture and words a `formGrid` of their own, the warnings a `box(\"warning\")`, the prepare ticks kit switches, `SCENES_ZONE_SLOT` a row of `scenesTabRows` that draws nothing (where E73 puts Zone A and Zone B), the hall's cast pick (`castPickerHtml`) a kit `dataTable` with a switch an actor; `readScenesTab`'s answer for a seeded form the one it gave before", async () => {
         /*

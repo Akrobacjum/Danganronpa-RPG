@@ -10799,10 +10799,12 @@ body.drpg-theme-monokuma-legacy .drpg-action-button:disabled[data-drpg-cost-kind
    copy of the card (popup.mjs `showPopup`, a new `div` from the message's HTML), so the chat message the module posts
    does not carry it; the notice history's kept snapshot does (notice-history.mjs `noticeSnapshot`, a
    `.drpg-notice-snapshot` opened in the history window), and the comparison's chat stand-in drew the notice's body in
-   a `.chat-message`. The line reads apart in all three, at the weight it had (0,2,0). The duality total's rule below
+   a `.chat-message`. The line reads apart in all three, at the weight it had (0,2,0): the notice and a chat message
+   here, the snapshot in components.css with the history's other parts (R1330: no other sheet styles them), the same
+   declarations. The duality total's rule below
    stays the notice's: it is about the corner tile's room. Read in Chromium on the comparison's chat stand-in, both
    themes: S/stages/E49/pan-shots/index.txt; R3544 holds the scope. */
-:is(.drpg-popup, .drpg-notice-snapshot, .chat-message) .drpg-crit-line {
+:is(.drpg-popup, .chat-message) .drpg-crit-line {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -10812,13 +10814,13 @@ body.drpg-theme-monokuma-legacy .drpg-action-button:disabled[data-drpg-cost-kind
     color: var(--drpg-critical);
 }
 
-:is(.drpg-popup, .drpg-notice-snapshot, .chat-message) .drpg-crit-glyph {
+:is(.drpg-popup, .chat-message) .drpg-crit-glyph {
     flex: none;
     font-size: 1.3em;
     color: var(--drpg-critical);
 }
 
-:is(.drpg-popup, .drpg-notice-snapshot, .chat-message) .drpg-crit-words {
+:is(.drpg-popup, .chat-message) .drpg-crit-words {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
@@ -10827,13 +10829,13 @@ body.drpg-theme-monokuma-legacy .drpg-action-button:disabled[data-drpg-cost-kind
     line-height: 1.2;
 }
 
-:is(.drpg-popup, .drpg-notice-snapshot, .chat-message) .drpg-crit-result {
+:is(.drpg-popup, .chat-message) .drpg-crit-result {
     color: var(--drpg-critical);
     letter-spacing: 0.06em;
     text-transform: uppercase;
 }
 
-:is(.drpg-popup, .drpg-notice-snapshot, .chat-message) .drpg-crit-who {
+:is(.drpg-popup, .chat-message) .drpg-crit-who {
     color: var(--drpg-bone);
     font-size: 0.85em;
 }
