@@ -1026,7 +1026,7 @@ export function tile({ id = null, className, label, data = {} } = {}) {
 export function pixelGlyph(name) {
     const icon = document.createElement("i");
     icon.className = "drpg-pxi";
-    icon.style.setProperty("--drpg-px-mask", `var(--drpg-px-${name})`);
+    icon.style.setProperty("--drpg-glyph", `var(--drpg-pix-${name})`);
     icon.setAttribute("aria-hidden", "true");
     icon.inert = true;
     return madeBy(icon, "glyph");

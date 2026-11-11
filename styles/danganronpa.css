@@ -229,17 +229,12 @@
        where the hook has not run yet. */
     --drpg-bar-pct: 0%;
 
-    /* The fold marker on a collapsible section. */
-    --drpg-g-chevron:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 8h3v1H3zM4 9h3v1H4zM5 10h3v1H5zM6 11h3v1H6zM7 12h3v1H7zM8 13h3v1H8zM9 14h3v1H9zM10 15h4v1H10zM12 14h3v1H12zM13 13h3v1H13zM14 12h3v1H14zM15 11h3v1H15zM16 10h3v1H16zM17 9h3v1H17zM18 8h3v1H18z'/%3E%3C/svg%3E");
-
-    /* 8x8 pixel diamond, filled and hollow - Hope */
-    --drpg-pix-diamond: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 0h2v1H3zM2 1h4v1H2zM1 2h6v1H1zM0 3h8v2H0zM1 5h6v1H1zM2 6h4v1H2zM3 7h2v1H3z'/%3E%3C/svg%3E");
-    --drpg-pix-diamond-empty: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 0h2v1H3zM2 1h1v1H2zM5 1h1v1H5zM1 2h1v1H1zM6 2h1v1H6zM0 3h1v2H0zM7 3h1v2H7zM1 5h1v1H1zM6 5h1v1H6zM2 6h1v1H2zM5 6h1v1H5zM3 7h2v1H3z'/%3E%3C/svg%3E");
-
-    /* 8x8 pixel dot, filled and hollow - Actions, Despair */
-    --drpg-pix-dot: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 0h4v1H2zM1 1h6v1H1zM0 2h8v4H0zM1 6h6v1H1zM2 7h4v1H2z'/%3E%3C/svg%3E");
-    --drpg-pix-dot-empty: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 0h4v1H2zM1 1h1v1H1zM6 1h1v1H6zM0 2h1v4H0zM7 2h1v4H7zM1 6h1v1H1zM6 6h1v1H6zM2 7h4v1H2z'/%3E%3C/svg%3E");
+    /* THE GLYPHS ARE NOT HERE (E48 G4, 11.11.2026). The 89 drawings this :root held by hand - the fold chevron, the
+       Hope diamonds, the pips, the Despair skull and query, the launchers' speaker, book and history stack, the d12,
+       the action, Call, crisis and GM tiles and the sheet's row buttons - are tools/glyphs.json's family legacy, and
+       tools/glyph-map.mjs declares each on the body in styles/pixel-icons.css as --drpg-pix-<name>, pixel for pixel
+       what stood here; each comment that stood above one is its row's `note`. Stained Glass declares its own set over
+       the same names. */
 
     /* --- the four phases ----------------------------------------------------
        The clock is the one thing on screen the whole table looks at, and until
@@ -263,44 +258,6 @@
     --drpg-phase-investigation-rgb: 87, 182, 255;
     --drpg-phase-trial: #ff5566;
     --drpg-phase-trial-rgb: 255, 85, 102;
-
-    /* 8x8 pixel skull - Despair */
-    --drpg-pix-skull: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 0h4v1H2zM1 1h6v1H1zM1 2h1v1H1zM3 2h2v1H3zM6 2h1v1H6zM1 3h1v1H1zM3 3h2v1H3zM6 3h1v1H6zM1 4h6v1H1zM2 5h4v1H2zM2 6h1v1H2zM3 6h2v1H3zM5 6h1v1H5zM2 7h1v1H2zM5 7h1v1H5z'/%3E%3C/svg%3E");
-
-    /* 8x8 pixel question mark - the skull as a player sees it.
-       Drawn rather than typed. It used to be `content: "?"` in the pixel font,
-       which made it the one glyph in this module that depended on a font file
-       arriving: every other icon here is a mask. On a host where that file does
-       not arrive, a character can come out as an empty box, and an empty box in
-       a row of pips is indistinguishable from a broken pip. A mask cannot do
-       that. It also fills the pip exactly as the skull does, so the row keeps
-       its rhythm instead of dropping to a smaller type size. */
-    --drpg-pix-query: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 0h4v1H2zM1 1h2v1H1zM5 1h2v1H5zM5 2h2v1H5zM4 3h2v1H4zM3 4h2v1H3zM3 5h2v1H3zM3 7h2v1H3z'/%3E%3C/svg%3E");
-
-    /* 24x24 pixel speaker - the sound launcher, and the Sound panel's own
-       heading. Drawn rather than borrowed from Font Awesome for the same
-       reason the query mark above is: every icon this module puts on the map
-       is a mask, so none of them depends on a font file arriving. */
-    --drpg-pix-speaker: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 4h2v1H11zM18 4h2v1H18zM10 5h3v1H10zM18 5h2v1H18zM9 6h4v1H9zM19 6h2v1H19zM8 7h5v1H8zM19 7h2v1H19zM8 8h5v1H8zM15 8h2v1H15zM20 8h2v1H20zM3 9h10v1H3zM15 9h2v1H15zM20 9h2v1H20zM3 10h10v1H3zM16 10h2v1H16zM20 10h2v1H20zM3 11h10v1H3zM16 11h2v1H16zM20 11h2v1H20zM3 12h10v1H3zM16 12h2v1H16zM20 12h2v1H20zM3 13h10v1H3zM16 13h2v1H16zM20 13h2v1H20zM3 14h10v1H3zM15 14h2v1H15zM20 14h2v1H20zM8 15h5v1H8zM15 15h2v1H15zM20 15h2v1H20zM8 16h5v1H8zM19 16h2v1H19zM9 17h4v1H9zM19 17h2v1H19zM10 18h3v1H10zM18 18h2v1H18zM11 19h2v1H11zM18 19h2v1H18z'/%3E%3C/svg%3E");
-
-    /* 24x24 pixel open book - the handbooks launcher (handbooks.mjs). Two
-       pages bending to the spine, four lines of text on each, the cover's
-       edge under them; drawn on the speaker's grid for the same reason. */
-    --drpg-pix-book: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 3h3v1h-3zM20 3h3v1h-3zM1 4h6v1h-6zM17 4h6v1h-6zM1 5h9v1h-9zM14 5h9v1h-9zM1 6h2v1h-2zM4 6h7v1h-7zM13 6h7v1h-7zM21 6h2v1h-2zM1 7h3v1h-3zM7 7h4v1h-4zM13 7h4v1h-4zM20 7h3v1h-3zM1 8h2v1h-2zM4 8h3v1h-3zM9 8h2v1h-2zM13 8h2v1h-2zM17 8h3v1h-3zM21 8h2v1h-2zM1 9h3v1h-3zM7 9h4v1h-4zM13 9h4v1h-4zM20 9h3v1h-3zM1 10h2v1h-2zM4 10h3v1h-3zM9 10h2v1h-2zM13 10h2v1h-2zM17 10h3v1h-3zM21 10h2v1h-2zM1 11h3v1h-3zM7 11h4v1h-4zM13 11h4v1h-4zM20 11h3v1h-3zM1 12h2v1h-2zM4 12h3v1h-3zM9 12h2v1h-2zM13 12h2v1h-2zM17 12h3v1h-3zM21 12h2v1h-2zM1 13h3v1h-3zM7 13h4v1h-4zM13 13h4v1h-4zM20 13h3v1h-3zM1 14h6v1h-6zM9 14h2v1h-2zM13 14h2v1h-2zM17 14h6v1h-6zM1 15h10v1h-10zM13 15h10v1h-10zM0 16h1v1h-1zM4 16h7v1h-7zM13 16h7v1h-7zM23 16h1v1h-1zM0 17h4v1h-4zM7 17h4v1h-4zM13 17h4v1h-4zM20 17h4v1h-4zM4 18h3v1h-3zM10 18h1v1h-1zM13 18h1v1h-1zM17 18h3v1h-3zM7 19h3v1h-3zM11 19h2v1h-2zM14 19h3v1h-3zM10 20h4v1h-4z'/%3E%3C/svg%3E");
-
-    /* 12x12 pixel stack of two sheets - the notice history's button in the corner of
-       the notice tile (E81 C8). Twelve cells, half the launchers' grid, because the
-       button is 28 px and not 40: one CSS pixel to a cell, sharp at that size too. */
-    --drpg-pix-history-12: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 1h8v1H3zM3 2h1v2H3zM10 2h1v6h-1zM9 7h1v1H9zM1 4h8v1H1zM1 5h1v5H1zM8 5h1v5H8zM1 10h8v1H1zM3 6h4v1H3zM3 8h3v1H3z'/%3E%3C/svg%3E");
-
-    /* 24x24 pixel line-art d12 - a dodecahedron face-on: decagon silhouette,
-       pentagon face, five spokes. Drawn for the roll dialog (the two duality
-       dice and the Roll button), where the system's rendered SVG dice and
-       Font Awesome's d6 pair were the last icons in the module's most-used
-       window not speaking pixel. Generated by gen-d12.mjs (Bresenham onto the
-       grid, encoded as runs) rather than placed by hand - regenerate there,
-       do not edit the path. */
-    --drpg-g-die-d12: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 0h2v1H11zM9 1h6v1H9zM7 2h2v1H7zM11 2h2v1H11zM15 2h2v1H15zM5 3h2v1H5zM11 3h2v1H11zM17 3h2v1H17zM4 4h1v1H4zM11 4h2v1H11zM19 4h1v1H19zM3 5h1v1H3zM11 5h2v1H11zM20 5h1v1H20zM3 6h1v1H3zM11 6h2v1H11zM20 6h1v1H20zM2 7h1v1H2zM10 7h1v1H10zM13 7h1v1H13zM21 7h1v1H21zM1 8h2v1H1zM8 8h2v1H8zM14 8h2v1H14zM21 8h2v1H21zM1 9h1v1H1zM3 9h2v1H3zM7 9h1v1H7zM16 9h1v1H16zM19 9h2v1H19zM22 9h1v1H22zM1 10h1v1H1zM5 10h2v1H5zM17 10h2v1H17zM22 10h1v1H22zM1 11h1v1H1zM6 11h1v1H6zM17 11h1v1H17zM22 11h1v1H22zM1 12h1v1H1zM7 12h1v1H7zM16 12h1v1H16zM22 12h1v1H22zM1 13h1v1H1zM7 13h1v1H7zM16 13h1v1H16zM22 13h1v1H22zM1 14h1v1H1zM7 14h1v1H7zM16 14h1v1H16zM22 14h1v1H22zM1 15h1v1H1zM8 15h1v1H8zM15 15h1v1H15zM22 15h1v1H22zM2 16h1v1H2zM8 16h8v1H8zM21 16h1v1H21zM3 17h1v1H3zM7 17h1v1H7zM16 17h1v1H16zM20 17h1v1H20zM3 18h1v1H3zM6 18h1v1H6zM17 18h1v1H17zM20 18h1v1H20zM4 19h1v1H4zM6 19h1v1H6zM17 19h1v1H17zM19 19h1v1H19zM5 20h1v1H5zM18 20h1v1H18zM6 21h2v1H6zM16 21h2v1H16zM8 22h2v1H8zM14 22h2v1H14zM10 23h4v1H10z'/%3E%3C/svg%3E");
 
     /* ---- Tokens added by later stages, merged here: one :root, last value wins. ---- */
 
@@ -425,128 +382,6 @@
     --drpg-overlay-max: 1280px;
     --drpg-window-max: 1400px;
 
-    --drpg-g-move:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 2h3v1H6zM10 2h3v1H10zM14 2h3v1H14zM18 2h2v1H18zM6 3h3v1H6zM10 3h3v1H10zM14 3h3v1H14zM18 3h2v1H18zM6 5h13v1H6zM5 6h15v1H5zM5 7h15v1H5zM5 8h15v1H5zM6 9h13v1H6zM7 10h11v1H7zM8 11h9v1H8zM9 12h7v1H9zM9 13h7v1H9zM7 14h11v1H7zM6 15h13v1H6zM6 16h13v1H6zM7 17h11v1H7zM8 18h9v1H8z'/%3E%3C/svg%3E");
-    --drpg-g-search:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 2h7v1H7zM5 3h3v1H5zM13 3h3v1H13zM4 4h2v1H4zM14 4h2v1H14zM3 5h2v1H3zM15 5h2v1H15zM3 6h2v1H3zM15 6h2v1H15zM2 7h2v1H2zM16 7h2v1H16zM2 8h2v1H2zM16 8h2v1H16zM2 9h2v1H2zM16 9h2v1H16zM3 10h2v1H3zM15 10h2v1H15zM3 11h2v1H3zM15 11h2v1H15zM4 12h2v1H4zM14 12h2v1H14zM5 13h3v1H5zM13 13h3v1H13zM7 14h7v1H7zM13 15h3v1H13zM14 16h3v1H14zM15 17h3v1H15zM16 18h3v1H16zM17 19h3v1H17zM18 20h3v1H18z'/%3E%3C/svg%3E");
-    --drpg-g-observe:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 7h8v1H8zM5 8h3v1H5zM16 8h3v1H16zM3 9h2v1H3zM10 9h4v1H10zM19 9h2v1H19zM2 10h2v1H2zM9 10h6v1H9zM20 10h2v1H20zM2 11h2v1H2zM9 11h6v1H9zM20 11h2v1H20zM3 12h2v1H3zM10 12h4v1H10zM19 12h2v1H19zM5 13h3v1H5zM16 13h3v1H16zM8 14h8v1H8z'/%3E%3C/svg%3E");
-    --drpg-g-analyze:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 2h4v1H10zM8 3h8v1H8zM7 4h10v1H7zM6 5h12v1H6zM6 6h12v1H6zM6 7h12v1H6zM6 8h12v1H6zM7 9h10v1H7zM7 10h10v1H7zM8 11h8v1H8zM9 12h6v1H9zM9 14h6v1H9zM9 16h6v1H9zM10 18h4v1H10zM10 19h4v1H10z'/%3E%3C/svg%3E");
-    --drpg-g-listen:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 9h4v1H3zM3 10h4v1H3zM3 11h4v1H3zM3 12h4v1H3zM3 13h4v1H3zM10 9h2v1H10zM11 10h2v1H11zM11 11h2v1H11zM11 12h2v1H11zM10 13h2v1H10zM14 7h2v1H14zM15 8h2v1H15zM16 9h2v1H16zM17 10h2v1H17zM17 11h2v1H17zM17 12h2v1H17zM16 13h2v1H16zM15 14h2v1H15zM14 15h2v1H14z'/%3E%3C/svg%3E");
-    --drpg-g-project:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 4h14v1H6zM6 5h14v1H6zM4 6h16v1H4zM4 7h3v1H4zM11 7h9v1H11zM4 8h3v1H4zM11 8h9v1H11zM4 9h3v1H4zM11 9h9v1H11zM12 10h4v1H12zM12 11h4v1H12zM12 12h4v1H12zM12 13h4v1H12zM12 14h4v1H12zM12 15h4v1H12zM12 16h4v1H12zM12 17h4v1H12zM12 18h4v1H12zM12 19h4v1H12zM12 20h4v1H12zM12 21h4v1H12z'/%3E%3C/svg%3E");
-    --drpg-g-sabotage:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M17 1h3v1H17zM16 2h2v1H16zM15 3h2v1H15zM14 4h2v1H14zM13 5h2v1H13zM8 7h8v1H8zM6 8h12v1H6zM5 9h14v1H5zM4 10h16v1H4zM4 11h16v1H4zM4 12h16v1H4zM4 13h16v1H4zM5 14h14v1H5zM6 15h12v1H6zM8 16h8v1H8z'/%3E%3C/svg%3E");
-    --drpg-g-rest:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 7h3v1H2zM2 8h3v1H2zM5 8h5v1H5zM2 9h3v1H2zM5 9h5v1H5zM2 10h20v1H2zM2 11h20v1H2zM2 12h20v1H2zM2 13h2v1H2zM20 13h2v1H20zM2 14h2v1H2zM20 14h2v1H20zM2 15h2v1H2zM20 15h2v1H20z'/%3E%3C/svg%3E");
-    --drpg-g-direct-murder:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 3h10v1H7zM5 4h14v1H5zM4 5h16v1H4zM4 6h16v1H4zM3 7h18v1H3zM3 8h4v1H3zM9 8h6v1H9zM17 8h4v1H17zM3 9h3v1H3zM8 9h8v1H8zM18 9h3v1H18zM3 10h3v1H3zM8 10h8v1H8zM18 10h3v1H18zM3 11h4v1H3zM9 11h6v1H9zM17 11h4v1H17zM3 12h18v1H3zM4 13h16v1H4zM5 14h5v1H5zM11 14h3v1H11zM16 14h5v1H16zM5 15h14v1H5zM6 16h12v1H6zM6 17h12v1H6zM6 18h2v1H6zM9 18h2v1H9zM12 18h2v1H12zM15 18h2v1H15z'/%3E%3C/svg%3E");
-    --drpg-g-dynamic:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 1h2v1H11zM11 2h2v1H11zM11 3h2v1H11zM10 4h4v1H10zM5 5h2v1H5zM11 5h2v1H11zM17 5h2v1H17zM6 6h2v1H6zM10 6h4v1H10zM16 6h2v1H16zM7 7h2v1H7zM10 7h4v1H10zM15 7h2v1H15zM9 8h6v1H9zM2 9h20v1H2zM2 10h20v1H2zM9 11h6v1H9zM7 12h2v1H7zM10 12h4v1H10zM15 12h2v1H15zM6 13h2v1H6zM10 13h4v1H10zM16 13h2v1H16zM5 14h2v1H5zM11 14h2v1H11zM17 14h2v1H17zM10 15h4v1H10zM11 16h2v1H11zM11 17h2v1H11zM11 18h2v1H11z'/%3E%3C/svg%3E");
-    --drpg-g-cleanup:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M16 2h3v1H16zM15 3h3v1H15zM14 4h3v1H14zM13 5h3v1H13zM12 6h3v1H12zM11 7h3v1H11zM10 8h3v1H10zM9 9h3v1H9zM6 10h9v1H6zM5 11h11v1H5zM4 12h13v1H4zM4 13h2v1H4zM7 13h2v1H7zM10 13h2v1H10zM13 13h2v1H13zM16 13h1v1H16zM4 14h2v1H4zM7 14h2v1H7zM10 14h2v1H10zM13 14h2v1H13zM16 14h1v1H16zM3 15h2v1H3zM7 15h2v1H7zM10 15h2v1H10zM14 15h2v1H14zM17 15h1v1H17zM3 16h2v1H3zM7 16h2v1H7zM10 16h2v1H10zM14 16h2v1H14zM17 16h1v1H17z'/%3E%3C/svg%3E");
-
-    --drpg-g-sprint:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 5h1v1H2zM12 5h1v1H12zM2 6h2v1H2zM12 6h2v1H12zM2 7h3v1H2zM12 7h3v1H12zM2 8h4v1H2zM12 8h4v1H12zM2 9h5v1H2zM12 9h5v1H12zM2 10h6v1H2zM12 10h6v1H12zM2 11h7v1H2zM12 11h7v1H12zM2 12h7v1H2zM12 12h7v1H12zM2 13h6v1H2zM12 13h6v1H12zM2 14h5v1H2zM12 14h5v1H12zM2 15h4v1H2zM12 15h4v1H12zM2 16h3v1H2zM12 16h3v1H12zM2 17h2v1H2zM12 17h2v1H12zM2 18h1v1H2zM12 18h1v1H12z'/%3E%3C/svg%3E");
-    --drpg-g-burst:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M13 1h5v1H13zM11 2h6v1H11zM10 3h6v1H10zM9 4h6v1H9zM8 5h6v1H8zM7 6h7v1H7zM6 7h10v1H6zM5 8h10v1H5zM10 9h7v1H10zM9 10h6v1H9zM8 11h6v1H8zM7 12h6v1H7zM6 13h6v1H6zM5 14h6v1H5zM4 15h6v1H4zM4 16h4v1H4zM5 17h2v1H5z'/%3E%3C/svg%3E");
-    --drpg-g-relief:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 5h13v1H3zM3 6h13v1H3zM4 7h11v1H4zM4 8h11v1H4zM4 9h11v1H4zM16 9h3v1H16zM4 10h11v1H4zM17 10h2v1H17zM4 11h11v1H4zM17 11h2v1H17zM4 12h11v1H4zM16 12h3v1H16zM4 13h11v1H4zM4 14h11v1H4zM4 15h11v1H4zM4 16h11v1H4zM5 17h9v1H5zM5 18h9v1H5z'/%3E%3C/svg%3E");
-    --drpg-g-palm:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 3h2v1H8zM11 3h2v1H11zM14 3h2v1H14zM8 4h2v1H8zM11 4h2v1H11zM14 4h2v1H14zM8 5h2v1H8zM11 5h2v1H11zM14 5h2v1H14zM8 6h9v1H8zM6 7h11v1H6zM5 8h12v1H5zM5 9h13v1H5zM5 10h13v1H5zM5 11h13v1H5zM6 12h12v1H6zM6 13h12v1H6zM7 14h10v1H7zM8 15h8v1H8zM9 16h6v1H9z'/%3E%3C/svg%3E");
-
-    --drpg-g-support:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM8 4h8v1H8zM8 5h8v1H8zM8 6h8v1H8zM10 7h4v1H10zM2 11h3v1H2zM19 11h3v1H19zM2 12h4v1H2zM18 12h4v1H18zM3 13h5v1H3zM16 13h5v1H16zM4 14h7v1H4zM13 14h7v1H13zM6 15h12v1H6zM8 16h8v1H8z'/%3E%3C/svg%3E");
-    --drpg-g-experience:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 3h2v1H11zM9 4h6v1H9zM7 5h10v1H7zM5 6h14v1H5zM3 7h18v1H3zM1 8h22v1H1zM3 9h18v1H3zM5 10h14v1H5zM7 11h10v1H7zM8 12h8v1H8zM8 13h8v1H8zM9 14h6v1H9zM10 15h4v1H10zM20 10h2v1H20zM20 11h2v1H20zM20 12h2v1H20zM19 13h3v1H19zM19 14h3v1H19z'/%3E%3C/svg%3E");
-    --drpg-g-ultimate:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 1h2v1H11zM11 2h2v1H11zM10 3h4v1H10zM10 4h4v1H10zM9 5h6v1H9zM2 6h20v1H2zM3 7h18v1H3zM4 8h16v1H4zM5 9h14v1H5zM5 10h14v1H5zM4 11h16v1H4zM4 12h6v1H4zM14 12h6v1H14zM3 13h5v1H3zM16 13h5v1H16zM3 14h4v1H3zM17 14h4v1H17zM2 15h4v1H2zM18 15h4v1H18z'/%3E%3C/svg%3E");
-    --drpg-g-contribution:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 1h6v1H9zM9 2h6v1H9zM3 3h4v1H3zM9 3h6v1H9zM17 3h4v1H17zM3 4h4v1H3zM9 4h6v1H9zM17 4h4v1H17zM3 5h18v1H3zM3 6h18v1H3zM5 7h14v1H5zM5 8h5v1H5zM14 8h5v1H14zM1 9h8v1H1zM15 9h8v1H15zM1 10h7v1H1zM16 10h7v1H16zM1 11h7v1H1zM16 11h7v1H16zM1 12h7v1H1zM16 12h7v1H16zM1 13h7v1H1zM16 13h7v1H16zM1 14h8v1H1zM15 14h8v1H15zM5 15h5v1H5zM14 15h5v1H14zM5 16h14v1H5zM3 17h18v1H3zM3 18h18v1H3zM3 19h4v1H3zM9 19h6v1H9zM17 19h4v1H17zM3 20h4v1H3zM9 20h6v1H9zM17 20h4v1H17zM9 21h6v1H9zM9 22h6v1H9z'/%3E%3C/svg%3E");
-    --drpg-g-reroll:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 3h6v1H9zM7 4h10v1H7zM6 5h12v1H6zM5 6h5v1H5zM14 6h5v1H14zM5 7h3v1H5zM16 7h3v1H16zM4 8h4v1H4zM16 8h4v1H16zM4 9h3v1H4zM17 9h3v1H17zM4 10h3v1H4zM17 10h3v1H17zM4 11h3v1H4zM17 11h3v1H17zM4 12h3v1H4zM17 12h3v1H17zM4 13h3v1H4zM17 13h3v1H17zM1 14h9v1H1zM17 14h3v1H17zM1 15h9v1H1zM17 15h3v1H17zM2 16h7v1H2zM17 16h3v1H17zM3 17h5v1H3zM17 17h3v1H17zM4 18h3v1H4zM17 18h3v1H17zM17 19h3v1H17z'/%3E%3C/svg%3E");
-    --drpg-g-determination:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 3h2v1H11zM10 4h4v1H10zM10 5h4v1H10zM9 6h6v1H9zM8 7h8v1H8zM8 8h8v1H8zM7 9h10v1H7zM6 10h12v1H6zM6 11h12v1H6zM5 12h14v1H5zM5 13h14v1H5zM5 14h14v1H5zM6 15h12v1H6zM7 16h10v1H7zM9 17h6v1H9z'/%3E%3C/svg%3E");
-    --drpg-g-free-crit:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM8 4h8v1H8zM6 5h12v1H6zM5 6h6v1H5zM13 6h6v1H13zM4 7h7v1H4zM13 7h7v1H13zM4 8h7v1H4zM13 8h7v1H13zM4 9h7v1H4zM13 9h7v1H13zM4 10h7v1H4zM13 10h7v1H13zM4 11h7v1H4zM13 11h7v1H13zM4 12h6v1H4zM11 12h2v1H11zM14 12h6v1H14zM4 13h5v1H4zM10 13h4v1H10zM15 13h5v1H15zM4 14h4v1H4zM9 14h6v1H9zM16 14h4v1H16zM4 15h3v1H4zM8 15h8v1H8zM17 15h3v1H17zM5 16h14v1H5zM6 17h12v1H6zM8 18h8v1H8zM10 19h4v1H10z'/%3E%3C/svg%3E");
-
-    --drpg-g-obstacle:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 5h20v1H2zM2 6h20v1H2zM2 7h20v1H2zM4 8h3v1H4zM17 8h3v1H17zM4 9h3v1H4zM17 9h3v1H17zM2 10h20v1H2zM2 11h20v1H2zM2 12h20v1H2zM4 13h3v1H4zM17 13h3v1H17zM4 14h3v1H4zM17 14h3v1H17zM4 15h3v1H4zM17 15h3v1H17zM4 16h3v1H4zM17 16h3v1H17z'/%3E%3C/svg%3E");
-    --drpg-g-for-the-game:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 3h4v1H6zM14 3h4v1H14zM5 4h6v1H5zM13 4h6v1H13zM8 5h8v1H8zM3 6h18v1H3zM3 7h18v1H3zM4 8h7v1H4zM13 8h7v1H13zM4 9h7v1H4zM13 9h7v1H13zM4 10h7v1H4zM13 10h7v1H13zM4 11h7v1H4zM13 11h7v1H13zM4 12h7v1H4zM13 12h7v1H13zM4 13h7v1H4zM13 13h7v1H13zM4 14h7v1H4zM13 14h7v1H13zM4 15h7v1H4zM13 15h7v1H13zM4 16h7v1H4zM13 16h7v1H13zM4 17h7v1H4zM13 17h7v1H13z'/%3E%3C/svg%3E");
-    --drpg-g-behind-closed-doors:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 2h16v1H4zM4 3h16v1H4zM4 4h3v1H4zM17 4h3v1H17zM4 5h3v1H4zM17 5h3v1H17zM4 6h3v1H4zM17 6h3v1H17zM4 7h3v1H4zM17 7h3v1H17zM4 8h3v1H4zM17 8h3v1H17zM4 9h3v1H4zM17 9h3v1H17zM4 10h3v1H4zM14 10h2v1H14zM17 10h3v1H17zM4 11h3v1H4zM14 11h2v1H14zM17 11h3v1H17zM4 12h3v1H4zM17 12h3v1H17zM4 13h3v1H4zM17 13h3v1H17zM4 14h3v1H4zM17 14h3v1H17zM4 15h3v1H4zM17 15h3v1H17zM4 16h3v1H4zM17 16h3v1H17zM4 17h3v1H4zM17 17h3v1H17zM4 18h16v1H4zM4 19h16v1H4z'/%3E%3C/svg%3E");
-    --drpg-g-this-will-hurt:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 4h6v1H4zM14 4h6v1H14zM3 5h8v1H3zM13 5h8v1H13zM2 6h9v1H2zM13 6h9v1H13zM2 7h9v1H2zM12 7h10v1H12zM2 8h10v1H2zM13 8h9v1H13zM3 9h9v1H3zM12 9h9v1H12zM4 10h8v1H4zM13 10h7v1H13zM5 11h7v1H5zM12 11h7v1H12zM6 12h6v1H6zM13 12h5v1H13zM7 13h5v1H7zM12 13h5v1H12zM8 14h4v1H8zM13 14h3v1H13zM9 15h3v1H9zM12 15h3v1H12zM10 16h4v1H10zM11 17h2v1H11z'/%3E%3C/svg%3E");
-    --drpg-g-paranoia:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 3h8v1H8zM5 4h4v1H5zM15 4h4v1H15zM4 5h3v1H4zM17 5h3v1H17zM3 6h3v1H3zM18 6h3v1H18zM3 7h3v1H3zM9 7h6v1H9zM18 7h3v1H18zM3 8h3v1H3zM8 8h3v1H8zM13 8h3v1H13zM18 8h3v1H18zM3 9h3v1H3zM8 9h3v1H8zM13 9h3v1H13zM18 9h3v1H18zM3 10h3v1H3zM8 10h3v1H8zM13 10h3v1H13zM18 10h3v1H18zM3 11h3v1H3zM9 11h6v1H9zM18 11h3v1H18zM3 12h3v1H3zM18 12h3v1H18zM4 13h3v1H4zM17 13h3v1H17zM5 14h4v1H5zM15 14h4v1H15zM8 15h8v1H8z'/%3E%3C/svg%3E");
-    --drpg-g-chained:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h8v1H8zM7 3h3v1H7zM14 3h3v1H14zM7 4h3v1H7zM14 4h3v1H14zM7 5h3v1H7zM14 5h3v1H14zM8 6h8v1H8zM8 8h8v1H8zM7 9h3v1H7zM14 9h3v1H14zM7 10h3v1H7zM14 10h3v1H14zM7 11h3v1H7zM14 11h3v1H14zM8 12h8v1H8zM8 14h8v1H8zM7 15h3v1H7zM14 15h3v1H14zM7 16h3v1H7zM14 16h3v1H14zM7 17h3v1H7zM14 17h3v1H14zM8 18h8v1H8z'/%3E%3C/svg%3E");
-    --drpg-g-silence:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 3h13v1H5zM3 4h13v1H3zM19 4h2v1H19zM2 5h12v1H2zM17 5h5v1H17zM2 6h10v1H2zM15 6h7v1H15zM2 7h8v1H2zM13 7h9v1H13zM2 8h6v1H2zM11 8h11v1H11zM3 9h3v1H3zM9 9h12v1H9zM7 10h12v1H7zM7 11h4v1H7zM7 12h3v1H7zM7 13h2v1H7z'/%3E%3C/svg%3E");
-    --drpg-g-fuel-the-cub:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 3h4v1H6zM13 3h4v1H13zM5 4h6v1H5zM12 4h6v1H12zM4 5h14v1H4zM4 6h14v1H4zM5 7h12v1H5zM6 8h10v1H6zM7 9h8v1H7zM8 10h6v1H8zM9 11h4v1H9zM3 14h18v1H3zM2 15h20v1H2zM3 16h18v1H3zM5 17h14v1H5z'/%3E%3C/svg%3E");
-    --drpg-g-favorite-project:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 4h2v1H11zM10 5h4v1H10zM9 6h6v1H9zM8 7h8v1H8zM7 8h10v1H7zM6 9h12v1H6zM5 10h14v1H5zM4 11h16v1H4zM9 12h6v1H9zM9 13h6v1H9zM9 14h6v1H9zM9 15h6v1H9zM9 16h6v1H9zM9 17h6v1H9zM9 18h6v1H9zM9 19h6v1H9z'/%3E%3C/svg%3E");
-    /* Feed the Overflow: water, because that is what the Call is named after
-       and what the counter does. Three waves, the middle one in counter-phase,
-       running edge to edge - at 24px a stack of identical lines reads as
-       stripes, and the phase shift is the whole difference between stripes and
-       current. */
-    --drpg-g-feed-overflow:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M0 4h3v1H0zM9 4h6v1H9zM21 4h3v1H21zM0 5h4v1H0zM8 5h8v1H8zM20 5h4v1H20zM3 6h6v1H3zM15 6h6v1H15zM4 7h4v1H4zM16 7h4v1H16zM3 10h6v1H3zM15 10h6v1H15zM2 11h8v1H2zM14 11h8v1H14zM0 12h3v1H0zM9 12h6v1H9zM21 12h3v1H21zM0 13h2v1H0zM10 13h4v1H10zM22 13h2v1H22zM0 16h3v1H0zM9 16h6v1H9zM21 16h3v1H21zM0 17h4v1H0zM8 17h8v1H8zM20 17h4v1H20zM3 18h6v1H3zM15 18h6v1H15zM4 19h4v1H4zM16 19h4v1H16z'/%3E%3C/svg%3E");
-    --drpg-g-contraband:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h6v1H9zM3 3h18v1H3zM3 4h18v1H3zM4 5h16v1H4zM4 6h3v1H4zM9 6h2v1H9zM13 6h2v1H13zM17 6h3v1H17zM4 7h3v1H4zM9 7h2v1H9zM13 7h2v1H13zM17 7h3v1H17zM4 8h3v1H4zM9 8h2v1H9zM13 8h2v1H13zM17 8h3v1H17zM4 9h3v1H4zM9 9h2v1H9zM13 9h2v1H13zM17 9h3v1H17zM4 10h3v1H4zM9 10h2v1H9zM13 10h2v1H13zM17 10h3v1H17zM4 11h3v1H4zM9 11h2v1H9zM13 11h2v1H13zM17 11h3v1H17zM4 12h3v1H4zM9 12h2v1H9zM13 12h2v1H13zM17 12h3v1H17zM4 13h3v1H4zM9 13h2v1H9zM13 13h2v1H13zM17 13h3v1H17zM4 14h3v1H4zM9 14h2v1H9zM13 14h2v1H13zM17 14h3v1H17zM4 15h3v1H4zM9 15h2v1H9zM13 15h2v1H13zM17 15h3v1H17zM5 16h14v1H5zM6 17h12v1H6z'/%3E%3C/svg%3E");
-    --drpg-g-public-announcement:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 8h4v1H2zM2 9h4v1H2zM2 10h4v1H2zM2 11h4v1H2zM6 7h3v1H6zM6 8h3v1H6zM6 9h3v1H6zM6 10h3v1H6zM6 11h3v1H6zM6 12h3v1H6zM9 6h3v1H9zM9 7h3v1H9zM9 8h3v1H9zM9 9h3v1H9zM9 10h3v1H9zM9 11h3v1H9zM9 12h3v1H9zM9 13h3v1H9zM12 4h3v1H12zM12 5h3v1H12zM12 6h3v1H12zM12 7h3v1H12zM12 8h3v1H12zM12 9h3v1H12zM12 10h3v1H12zM12 11h3v1H12zM12 12h3v1H12zM12 13h3v1H12zM12 14h3v1H12zM12 15h3v1H12zM18 7h2v1H18zM19 9h2v1H19zM19 11h2v1H19zM18 13h2v1H18z'/%3E%3C/svg%3E");
-    --drpg-g-new-rule:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 3h10v1H3zM3 4h10v1H3zM3 5h10v1H3zM3 6h10v1H3zM8 7h4v1H8zM9 8h4v1H9zM10 9h4v1H10zM11 10h4v1H11zM12 11h4v1H12zM13 12h4v1H13zM14 13h4v1H14zM4 16h16v1H4zM3 17h18v1H3zM3 18h18v1H3z'/%3E%3C/svg%3E");
-    /* The falling arrow, on the Call that Dawid renamed Game Integrity
-       on 29.08. The eraser that used to live above this line went with
-       the project wipe - a variable nothing draws is a drawing somebody
-       will eventually wire to the wrong tile. */
-    --drpg-g-game-protection:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h6v1H9zM9 3h6v1H9zM9 4h6v1H9zM9 5h6v1H9zM9 6h6v1H9zM9 7h6v1H9zM9 8h6v1H9zM9 9h6v1H9zM9 10h6v1H9zM9 11h6v1H9zM4 12h16v1H4zM5 13h14v1H5zM6 14h12v1H6zM7 15h10v1H7zM8 16h8v1H8zM9 17h6v1H9zM10 18h4v1H10zM11 19h2v1H11z'/%3E%3C/svg%3E");
-    /* The motive: a sealed envelope, its flap a V-shaped GAP rather than
-       a stroke - the rule this whole set follows, and the reason Silence
-       reads at all. Distinct from every other tile in the Despair grid at
-       24px, which a clock face or an hourglass would not have been: the
-       HUD row carries the countdown, the tile only has to say "Monokuma
-       has handed something out". */
-    --drpg-g-motive:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 7h1v1H3zM5 7h14v1H5zM20 7h1v1H20zM3 8h2v1H3zM6 8h12v1H6zM19 8h2v1H19zM3 9h3v1H3zM7 9h10v1H7zM18 9h3v1H18zM3 10h4v1H3zM8 10h8v1H8zM17 10h4v1H17zM3 11h5v1H3zM9 11h6v1H9zM16 11h5v1H16zM3 12h6v1H3zM10 12h4v1H10zM15 12h6v1H15zM3 13h7v1H3zM11 13h2v1H11zM14 13h7v1H14zM3 14h8v1H3zM13 14h8v1H13zM3 15h18v1H3zM3 16h18v1H3zM3 17h18v1H3zM3 18h18v1H3z'/%3E%3C/svg%3E");
-
-    --drpg-g-leave-clue:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 3h8v1H8zM5 4h4v1H5zM15 4h4v1H15zM4 5h3v1H4zM17 5h3v1H17zM3 6h3v1H3zM8 6h8v1H8zM18 6h3v1H18zM3 7h3v1H3zM7 7h3v1H7zM14 7h3v1H14zM18 7h3v1H18zM3 8h3v1H3zM6 8h3v1H6zM10 8h4v1H10zM15 8h3v1H15zM18 8h3v1H18zM3 9h3v1H3zM6 9h3v1H6zM10 9h4v1H10zM15 9h3v1H15zM18 9h3v1H18zM3 10h3v1H3zM6 10h3v1H6zM10 10h4v1H10zM15 10h3v1H15zM18 10h3v1H18zM3 11h3v1H3zM7 11h3v1H7zM10 11h4v1H10zM14 11h3v1H14zM18 11h3v1H18zM4 12h3v1H4zM8 12h8v1H8zM17 12h3v1H17zM5 13h4v1H5zM15 13h4v1H15zM7 14h10v1H7z'/%3E%3C/svg%3E");
-    --drpg-g-secure-trace:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM9 4h6v1H9zM9 5h6v1H9zM10 6h4v1H10zM2 9h4v1H2zM2 10h5v1H2zM3 11h5v1H3zM4 12h6v1H4zM5 13h7v1H5zM18 9h4v1H18zM17 10h5v1H17zM16 11h5v1H16zM14 12h6v1H14zM12 13h7v1H12zM6 14h12v1H6zM7 15h10v1H7zM9 16h6v1H9z'/%3E%3C/svg%3E");
-    --drpg-g-self-defence:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 2h16v1H4zM3 3h18v1H3zM3 4h18v1H3zM3 5h18v1H3zM3 6h18v1H3zM3 7h18v1H3zM3 8h18v1H3zM4 9h16v1H4zM4 10h16v1H4zM5 11h14v1H5zM6 12h12v1H6zM7 13h10v1H7zM8 14h8v1H8zM9 15h6v1H9zM10 16h4v1H10zM11 17h2v1H11z'/%3E%3C/svg%3E");
-    --drpg-g-survive:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M12 2h4v1H12zM11 3h5v1H11zM12 4h4v1H12zM8 6h8v1H8zM6 7h12v1H6zM5 8h6v1H5zM13 8h6v1H13zM7 9h4v1H7zM15 9h4v1H15zM8 10h4v1H8zM9 11h4v1H9zM10 12h4v1H10zM6 13h5v1H6zM13 13h4v1H13zM4 14h5v1H4zM14 14h4v1H14zM3 15h4v1H3zM15 15h5v1H15zM2 16h4v1H2zM17 16h4v1H17zM2 17h4v1H2zM18 17h4v1H18z'/%3E%3C/svg%3E");
-    --drpg-g-role-reversal:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M16 4h2v1H16zM16 5h4v1H16zM2 6h20v1H2zM2 7h20v1H2zM2 8h20v1H2zM16 9h4v1H16zM16 10h2v1H16zM6 13h2v1H6zM4 14h4v1H4zM2 15h20v1H2zM2 16h20v1H2zM2 17h20v1H2zM4 18h4v1H4zM6 19h2v1H6z'/%3E%3C/svg%3E");
-    --drpg-g-strike:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 2h3v1H4zM5 3h3v1H5zM6 4h3v1H6zM7 5h3v1H7zM17 2h3v1H17zM16 3h3v1H16zM15 4h3v1H15zM14 5h3v1H14zM9 7h6v1H9zM7 8h10v1H7zM6 9h12v1H6zM6 10h12v1H6zM7 11h10v1H7zM9 12h6v1H9zM7 14h3v1H7zM6 15h3v1H6zM5 16h3v1H5zM4 17h3v1H4zM14 14h3v1H14zM15 15h3v1H15zM16 16h3v1H16zM17 17h3v1H17z'/%3E%3C/svg%3E");
-    --drpg-g-pin:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 2h4v1H10zM10 3h4v1H10zM10 4h4v1H10zM10 5h4v1H10zM10 6h4v1H10zM5 7h14v1H5zM6 8h12v1H6zM7 9h10v1H7zM8 10h8v1H8zM9 11h6v1H9zM10 12h4v1H10zM2 15h20v1H2zM2 16h20v1H2zM2 17h20v1H2z'/%3E%3C/svg%3E");
-    --drpg-g-keep-distance:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 9h3v1H2zM2 10h3v1H2zM2 11h3v1H2zM2 12h3v1H2zM19 9h3v1H19zM19 10h3v1H19zM19 11h3v1H19zM19 12h3v1H19zM7 8h3v1H7zM6 9h4v1H6zM5 10h5v1H5zM6 11h4v1H6zM7 12h3v1H7zM14 8h3v1H14zM14 9h4v1H14zM14 10h5v1H14zM14 11h4v1H14zM14 12h3v1H14z'/%3E%3C/svg%3E");
-    --drpg-g-weapon-attack:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M15 1h4v1H15zM14 2h5v1H14zM13 3h5v1H13zM12 4h5v1H12zM11 5h5v1H11zM10 6h5v1H10zM9 7h5v1H9zM8 8h5v1H8zM7 9h5v1H7zM6 10h5v1H6zM5 11h5v1H5zM4 12h5v1H4zM3 13h6v1H3zM2 14h6v1H2zM4 15h5v1H4zM5 16h4v1H5zM3 17h7v1H3zM2 18h4v1H2z'/%3E%3C/svg%3E");
-    --drpg-g-finishing-blow:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h8v1H8zM6 3h12v1H6zM5 4h14v1H5zM5 5h14v1H5zM5 6h3v1H5zM10 6h4v1H10zM16 6h3v1H16zM5 7h3v1H5zM10 7h4v1H10zM16 7h3v1H16zM5 8h14v1H5zM6 9h12v1H6zM7 10h3v1H7zM11 10h2v1H11zM14 10h3v1H14zM2 13h4v1H2zM18 13h4v1H18zM3 14h5v1H3zM16 14h5v1H16zM5 15h14v1H5zM5 16h14v1H5zM3 17h5v1H3zM16 17h5v1H16zM2 18h4v1H2zM18 18h4v1H18z'/%3E%3C/svg%3E");
-    --drpg-g-shared-escape:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 2h12v1H3zM3 3h3v1H3zM12 3h3v1H12zM3 4h3v1H3zM12 4h3v1H12zM3 5h3v1H3zM12 5h3v1H12zM3 6h3v1H3zM12 6h3v1H12zM3 7h3v1H3zM12 7h3v1H12zM3 8h3v1H3zM12 8h3v1H12zM3 9h3v1H3zM12 9h3v1H12zM3 10h3v1H3zM10 10h2v1H10zM12 10h3v1H12zM3 11h3v1H3zM12 11h3v1H12zM3 12h3v1H3zM12 12h3v1H12zM3 13h3v1H3zM12 13h3v1H12zM3 14h3v1H3zM12 14h3v1H12zM3 15h3v1H3zM12 15h3v1H12zM3 16h3v1H3zM12 16h3v1H12zM3 17h12v1H3zM17 8h4v1H17zM16 9h6v1H16zM16 10h6v1H16zM17 11h4v1H17zM17 12h4v1H17zM16 13h6v1H16z'/%3E%3C/svg%3E");
-    --drpg-g-double-role-reversal:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 4h14v1H3zM3 5h3v1H3zM3 6h3v1H3zM14 3h3v1H14zM13 4h5v1H13zM12 5h7v1H12zM3 10h3v1H3zM3 11h3v1H3zM3 12h14v1H3zM12 10h7v1H12zM13 11h5v1H13zM14 12h3v1H14zM3 16h14v1H3zM3 15h3v1H3zM3 17h3v1H3zM14 15h3v1H14zM13 16h5v1H13zM12 17h7v1H12z'/%3E%3C/svg%3E");
-    --drpg-g-crime-partners:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 3h5v1H4zM3 4h7v1H3zM3 5h7v1H3zM4 6h5v1H4zM15 3h5v1H15zM14 4h7v1H14zM14 5h7v1H14zM15 6h5v1H15zM3 9h7v1H3zM2 10h9v1H2zM2 11h9v1H2zM2 12h9v1H2zM2 13h9v1H2zM2 14h9v1H2zM2 15h9v1H2zM14 9h7v1H14zM13 10h9v1H13zM13 11h9v1H13zM13 12h9v1H13zM13 13h9v1H13zM13 14h9v1H13zM13 15h9v1H13z'/%3E%3C/svg%3E");
-    --drpg-g-averted-eyes:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 8h8v1H8zM5 9h3v1H5zM16 9h3v1H16zM3 10h2v1H3zM20 10h2v1H20zM2 11h20v1H2zM3 12h18v1H3zM6 13h12v1H6zM9 14h6v1H9zM4 16h3v1H4zM10 16h4v1H10zM17 16h3v1H17z'/%3E%3C/svg%3E");
-
     --drpg-panel-ground: light-dark(rgba(var(--drpg-bone-rgb), 0.85), rgba(var(--drpg-deep-rgb), 0.78));
     --drpg-panel-radius: 6px;
     /* `none` since the ground went opaque at the end of this file: a
@@ -565,62 +400,6 @@
         rgb(var(--drpg-ink-rgb))
     );
 
-    --drpg-g-projects:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h2v1H8zM7 3h3v1H7zM2 4h2v1H2zM6 4h3v1H6zM12 4h10v1H12zM2 5h6v1H2zM12 5h10v1H12zM3 6h4v1H3zM4 7h2v1H4zM8 9h2v1H8zM7 10h3v1H7zM2 11h2v1H2zM6 11h3v1H6zM12 11h10v1H12zM2 12h6v1H2zM12 12h10v1H12zM3 13h4v1H3zM4 14h2v1H4zM8 16h2v1H8zM7 17h3v1H7zM2 18h2v1H2zM6 18h3v1H6zM12 18h10v1H12zM2 19h6v1H2zM12 19h10v1H12zM3 20h4v1H3zM4 21h2v1H4z'/%3E%3C/svg%3E");
-    --drpg-g-jump:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 1h2v1H6zM16 1h2v1H16zM6 2h2v1H6zM16 2h2v1H16zM1 3h22v1H1zM1 4h22v1H1zM1 5h22v1H1zM1 6h22v1H1zM1 7h22v1H1zM1 8h2v1H1zM21 8h2v1H21zM1 9h2v1H1zM21 9h2v1H21zM1 10h2v1H1zM5 10h2v1H5zM9 10h2v1H9zM13 10h2v1H13zM17 10h2v1H17zM21 10h2v1H21zM1 11h2v1H1zM5 11h2v1H5zM9 11h2v1H9zM13 11h2v1H13zM17 11h2v1H17zM21 11h2v1H21zM1 12h2v1H1zM21 12h2v1H21zM1 13h2v1H1zM21 13h2v1H21zM1 14h2v1H1zM5 14h2v1H5zM9 14h2v1H9zM13 14h2v1H13zM17 14h2v1H17zM21 14h2v1H21zM1 15h2v1H1zM5 15h2v1H5zM9 15h2v1H9zM13 15h2v1H13zM17 15h2v1H17zM21 15h2v1H21zM1 16h2v1H1zM21 16h2v1H21zM1 17h2v1H1zM21 17h2v1H21zM1 18h2v1H1zM21 18h2v1H21zM1 19h2v1H1zM21 19h2v1H21zM1 20h22v1H1zM1 21h22v1H1z'/%3E%3C/svg%3E");
-    --drpg-g-items:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 4h22v1H1zM1 5h22v1H1zM1 6h22v1H1zM1 7h22v1H1zM1 8h22v1H1zM3 9h18v1H3zM3 10h2v1H3zM10 10h4v1H10zM19 10h2v1H19zM3 11h2v1H3zM10 11h4v1H10zM19 11h2v1H19zM3 12h2v1H3zM10 12h4v1H10zM19 12h2v1H19zM3 13h2v1H3zM10 13h4v1H10zM19 13h2v1H19zM3 14h2v1H3zM19 14h2v1H19zM3 15h2v1H3zM19 15h2v1H19zM3 16h2v1H3zM19 16h2v1H19zM3 17h2v1H3zM19 17h2v1H19zM3 18h2v1H3zM19 18h2v1H19zM3 19h2v1H3zM19 19h2v1H19zM3 20h18v1H3zM3 21h18v1H3z'/%3E%3C/svg%3E");
-    --drpg-g-music:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h13v1H9zM9 3h13v1H9zM9 4h13v1H9zM9 5h13v1H9zM9 6h13v1H9zM9 7h2v1H9zM20 7h2v1H20zM9 8h2v1H9zM20 8h2v1H20zM9 9h2v1H9zM20 9h2v1H20zM9 10h2v1H9zM20 10h2v1H20zM9 11h2v1H9zM20 11h2v1H20zM9 12h2v1H9zM14 12h8v1H14zM9 13h2v1H9zM14 13h8v1H14zM9 14h2v1H9zM14 14h7v1H14zM3 15h8v1H3zM15 15h5v1H15zM3 16h8v1H3zM3 17h7v1H3zM4 18h5v1H4z'/%3E%3C/svg%3E");
-    --drpg-g-who-is-alive:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 4h4v1H5zM15 4h4v1H15zM4 5h8v1H4zM14 5h6v1H14zM3 6h18v1H3zM3 7h18v1H3zM3 8h18v1H3zM3 9h6v1H3zM11 9h10v1H11zM3 10h6v1H3zM11 10h10v1H11zM11 11h2v1H11zM11 12h2v1H11zM6 13h5v1H6zM13 13h5v1H13zM7 14h4v1H7zM13 14h4v1H13zM8 15h3v1H8zM13 15h3v1H13zM9 16h6v1H9zM10 17h4v1H10zM11 18h2v1H11z'/%3E%3C/svg%3E");
-    --drpg-g-investigation:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 1h6v1H7zM5 2h10v1H5zM4 3h12v1H4zM3 4h14v1H3zM3 5h3v1H3zM9 5h8v1H9zM2 6h4v1H2zM9 6h9v1H9zM2 7h4v1H2zM8 7h10v1H8zM2 8h4v1H2zM8 8h10v1H8zM2 9h16v1H2zM2 10h16v1H2zM2 11h16v1H2zM3 12h14v1H3zM3 13h14v1H3zM4 14h14v1H4zM5 15h14v1H5zM7 16h6v1H7zM15 16h5v1H15zM16 17h5v1H16zM17 18h5v1H17zM18 19h5v1H18zM19 20h4v1H19zM20 21h3v1H20z'/%3E%3C/svg%3E");
-    --drpg-g-trial:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 4h2v1H11zM2 5h21v1H2zM2 6h21v1H2zM2 7h21v1H2zM4 8h2v1H4zM11 8h2v1H11zM18 8h2v1H18zM4 9h2v1H4zM11 9h2v1H11zM18 9h2v1H18zM1 10h8v1H1zM11 10h2v1H11zM15 10h8v1H15zM1 11h8v1H1zM11 11h2v1H11zM15 11h8v1H15zM2 12h6v1H2zM11 12h2v1H11zM16 12h6v1H16zM2 13h6v1H2zM11 13h2v1H11zM16 13h6v1H16zM3 14h4v1H3zM11 14h2v1H11zM17 14h4v1H17zM4 15h2v1H4zM11 15h2v1H11zM18 15h2v1H18zM11 16h2v1H11zM11 17h2v1H11zM11 18h2v1H11zM6 19h13v1H6zM6 20h13v1H6zM6 21h13v1H6z'/%3E%3C/svg%3E");
-    --drpg-g-gm-team:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 4h4v1H6zM5 5h6v1H5zM4 6h8v1H4zM15 6h4v1H15zM4 7h8v1H4zM14 7h6v1H14zM4 8h8v1H4zM14 8h6v1H14zM4 9h8v1H4zM14 9h6v1H14zM5 10h6v1H5zM14 10h6v1H14zM6 11h4v1H6zM15 11h4v1H15zM4 12h8v1H4zM3 13h10v1H3zM15 13h6v1H15zM2 14h20v1H2zM2 15h21v1H2zM2 16h21v1H2zM2 17h21v1H2z'/%3E%3C/svg%3E");
-    --drpg-g-room-setup:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 2h20v1H2zM2 3h20v1H2zM2 4h20v1H2zM2 5h3v1H2zM10 5h3v1H10zM19 5h3v1H19zM2 6h3v1H2zM10 6h3v1H10zM19 6h3v1H19zM2 7h3v1H2zM10 7h3v1H10zM19 7h3v1H19zM2 8h3v1H2zM10 8h3v1H10zM19 8h3v1H19zM2 9h3v1H2zM10 9h3v1H10zM19 9h3v1H19zM2 10h3v1H2zM10 10h3v1H10zM19 10h3v1H19zM2 11h3v1H2zM10 11h3v1H10zM19 11h3v1H19zM2 12h3v1H2zM10 12h3v1H10zM19 12h3v1H19zM2 13h3v1H2zM10 13h3v1H10zM19 13h3v1H19zM2 14h3v1H2zM10 14h3v1H10zM19 14h3v1H19zM2 15h3v1H2zM19 15h3v1H19zM2 16h3v1H2zM19 16h3v1H19zM2 17h3v1H2zM19 17h3v1H19zM2 18h3v1H2zM19 18h3v1H19zM2 19h6v1H2zM14 19h8v1H14zM2 20h6v1H2zM14 20h8v1H14zM2 21h6v1H2zM14 21h8v1H14z'/%3E%3C/svg%3E");
-    --drpg-g-tables:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 3h22v1H1zM1 4h22v1H1zM1 5h22v1H1zM1 6h22v1H1zM1 7h22v1H1zM1 8h22v1H1zM1 9h2v1H1zM10 9h3v1H10zM21 9h2v1H21zM1 10h2v1H1zM10 10h3v1H10zM21 10h2v1H21zM1 11h2v1H1zM10 11h3v1H10zM21 11h2v1H21zM1 12h2v1H1zM10 12h3v1H10zM21 12h2v1H21zM1 13h22v1H1zM1 14h22v1H1zM1 15h2v1H1zM10 15h3v1H10zM21 15h2v1H21zM1 16h2v1H1zM10 16h3v1H10zM21 16h2v1H21zM1 17h2v1H1zM10 17h3v1H10zM21 17h2v1H21zM1 18h2v1H1zM10 18h3v1H10zM21 18h2v1H21zM1 19h22v1H1zM1 20h22v1H1z'/%3E%3C/svg%3E");
-    --drpg-g-season-setup:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M17 1h2v1H17zM4 2h2v1H4zM17 2h2v1H17zM4 3h2v1H4zM15 3h6v1H15zM2 4h6v1H2zM14 4h8v1H14zM2 5h6v1H2zM14 5h8v1H14zM4 6h2v1H4zM15 6h6v1H15zM4 7h2v1H4zM17 7h2v1H17zM15 8h4v1H15zM14 9h4v1H14zM13 10h5v1H13zM12 11h5v1H12zM11 12h5v1H11zM10 13h5v1H10zM9 14h5v1H9zM8 15h5v1H8zM7 16h5v1H7zM2 17h9v1H2zM2 18h8v1H2zM2 19h7v1H2zM2 20h6v1H2zM2 21h6v1H2zM3 22h3v1H3z'/%3E%3C/svg%3E");
-    --drpg-g-mastermind:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 1h10v1H7zM7 2h10v1H7zM7 3h10v1H7zM7 4h10v1H7zM7 5h10v1H7zM1 6h22v1H1zM1 7h22v1H1zM1 8h22v1H1zM1 9h22v1H1zM7 10h8v1H7zM6 11h10v1H6zM6 12h10v1H6zM6 13h10v1H6zM6 14h10v1H6zM7 15h8v1H7zM7 16h8v1H7zM9 17h4v1H9zM6 18h12v1H6zM5 19h14v1H5zM4 20h16v1H4zM4 21h16v1H4z'/%3E%3C/svg%3E");
-    --drpg-g-season-reset:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 2h4v1H10zM10 3h4v1H10zM10 4h4v1H10zM6 5h2v1H6zM10 5h4v1H10zM5 6h3v1H5zM10 6h4v1H10zM16 6h1v1H16zM4 7h4v1H4zM10 7h4v1H10zM16 7h2v1H16zM3 8h4v1H3zM10 8h4v1H10zM16 8h3v1H16zM3 9h3v1H3zM10 9h4v1H10zM16 9h3v1H16zM2 10h4v1H2zM10 10h4v1H10zM16 10h4v1H16zM2 11h3v1H2zM10 11h4v1H10zM17 11h3v1H17zM2 12h3v1H2zM10 12h4v1H10zM17 12h3v1H17zM2 13h3v1H2zM10 13h4v1H10zM17 13h3v1H17zM2 14h3v1H2zM17 14h3v1H17zM2 15h4v1H2zM16 15h4v1H16zM3 16h3v1H3zM16 16h3v1H16zM3 17h4v1H3zM15 17h4v1H15zM4 18h5v1H4zM13 18h5v1H13zM5 19h12v1H5zM6 20h10v1H6zM8 21h6v1H8z'/%3E%3C/svg%3E");
-    --drpg-g-failure-log:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 2h2v1H5zM18 2h2v1H18zM5 3h2v1H5zM17 3h3v1H17zM5 4h3v1H5zM16 4h3v1H16zM6 5h12v1H6zM7 6h10v1H7zM7 7h10v1H7zM7 8h10v1H7zM6 9h12v1H6zM1 10h10v1H1zM13 10h10v1H13zM1 11h10v1H1zM13 11h10v1H13zM6 12h5v1H6zM13 12h5v1H13zM1 13h10v1H1zM13 13h10v1H13zM1 14h10v1H1zM13 14h10v1H13zM6 15h5v1H6zM13 15h5v1H13zM1 16h10v1H1zM13 16h10v1H13zM1 17h10v1H1zM13 17h10v1H13zM6 18h5v1H6zM13 18h5v1H13zM6 19h12v1H6zM10 20h4v1H10z'/%3E%3C/svg%3E");
-    --drpg-g-clock:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 0h6v1H8zM5 1h12v1H5zM4 2h14v1H4zM3 3h5v1H3zM14 3h5v1H14zM2 4h4v1H2zM16 4h4v1H16zM1 5h4v1H1zM10 5h3v1H10zM17 5h4v1H17zM1 6h3v1H1zM10 6h3v1H10zM18 6h3v1H18zM1 7h3v1H1zM10 7h3v1H10zM18 7h3v1H18zM0 8h3v1H0zM10 8h3v1H10zM19 8h3v1H19zM0 9h3v1H0zM10 9h3v1H10zM19 9h3v1H19zM0 10h3v1H0zM10 10h3v1H10zM19 10h3v1H19zM0 11h3v1H0zM10 11h7v1H10zM19 11h3v1H19zM0 12h3v1H0zM10 12h7v1H10zM19 12h3v1H19zM0 13h3v1H0zM10 13h7v1H10zM19 13h3v1H19zM1 14h3v1H1zM18 14h3v1H18zM1 15h3v1H1zM18 15h3v1H18zM1 16h4v1H1zM17 16h4v1H17zM2 17h4v1H2zM16 17h4v1H16zM3 18h5v1H3zM14 18h5v1H14zM4 19h14v1H4zM5 20h12v1H5zM8 21h6v1H8z'/%3E%3C/svg%3E");
-
-    --drpg-g-confusion:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M19 1h2v1H19zM19 2h2v1H19zM17 3h6v1H17zM17 4h6v1H17zM10 5h2v1H10zM19 5h2v1H19zM10 6h2v1H10zM19 6h2v1H19zM6 7h2v1H6zM10 7h2v1H10zM14 7h2v1H14zM6 8h2v1H6zM10 8h2v1H10zM14 8h2v1H14zM6 9h2v1H6zM10 9h2v1H10zM14 9h2v1H14zM19 9h2v1H19zM6 10h2v1H6zM10 10h2v1H10zM14 10h2v1H14zM18 10h4v1H18zM6 11h2v1H6zM10 11h2v1H10zM14 11h2v1H14zM18 11h4v1H18zM3 12h5v1H3zM10 12h2v1H10zM14 12h2v1H14zM19 12h2v1H19zM3 13h5v1H3zM10 13h2v1H10zM14 13h2v1H14zM3 14h5v1H3zM10 14h2v1H10zM14 14h2v1H14zM3 15h13v1H3zM3 16h13v1H3zM3 17h13v1H3zM6 18h10v1H6zM6 19h10v1H6zM6 20h10v1H6z'/%3E%3C/svg%3E");
-    --drpg-g-misleading-trail:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h3v1H10zM10 4h3v1H10zM4 5h16v1H4zM4 6h17v1H4zM4 7h18v1H4zM4 8h18v1H4zM4 9h17v1H4zM4 10h16v1H4zM10 11h3v1H10zM10 12h3v1H10zM4 13h17v1H4zM3 14h18v1H3zM2 15h19v1H2zM2 16h19v1H2zM3 17h18v1H3zM4 18h17v1H4zM10 19h3v1H10zM10 20h3v1H10zM10 21h3v1H10z'/%3E%3C/svg%3E");
-    --drpg-g-move-body:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 3h4v1H3zM2 4h16v1H2zM1 5h17v1H1zM1 6h17v1H1zM1 7h17v1H1zM1 8h17v1H1zM2 9h16v1H2zM3 10h19v1H3zM14 11h8v1H14zM14 12h8v1H14zM14 13h8v1H14zM16 16h2v1H16zM16 17h4v1H16zM2 18h19v1H2zM2 19h18v1H2zM16 20h2v1H16z'/%3E%3C/svg%3E");
-    --drpg-g-betrayal:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 3h4v1H3zM16 3h4v1H16zM2 4h6v1H2zM15 4h6v1H15zM1 5h8v1H1zM14 5h8v1H14zM1 6h8v1H1zM14 6h8v1H14zM1 7h8v1H1zM14 7h8v1H14zM1 8h8v1H1zM14 8h8v1H14zM2 9h6v1H2zM15 9h6v1H15zM3 10h4v1H3zM16 10h4v1H16zM3 13h6v1H3zM16 13h6v1H16zM2 14h8v1H2zM15 14h8v1H15zM1 15h10v1H1zM14 15h10v1H14zM1 16h10v1H1zM14 16h10v1H14zM1 17h10v1H1zM14 17h10v1H14zM1 20h10v1H1zM14 20h9v1H14zM1 21h10v1H1zM14 21h9v1H14z'/%3E%3C/svg%3E");
-
-    --drpg-g-monokuma-eye: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h7v1H2zM1 17h3v1H1zM8 17h1v1H8zM0 18h2v1H0z'/%3E%3C/svg%3E");
-
-    --drpg-r-flask:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 3h10v1H7zM7 4h10v1H7zM10 5h4v1H10zM10 6h4v1H10zM10 7h4v1H10zM10 8h4v1H10zM9 9h6v1H9zM8 10h2v1H8zM14 10h2v1H14zM7 11h2v1H7zM15 11h2v1H15zM6 12h2v1H6zM16 12h2v1H16zM5 13h2v1H5zM17 13h2v1H17zM4 14h2v1H4zM18 14h2v1H18zM4 15h2v1H4zM18 15h2v1H18zM3 16h18v1H3zM2 17h20v1H2zM2 18h20v1H2zM2 19h20v1H2zM3 20h18v1H3z'/%3E%3C/svg%3E");
-    --drpg-r-fist:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 7h4v1H3zM9 7h4v1H9zM15 7h4v1H15zM3 8h4v1H3zM9 8h4v1H9zM15 8h4v1H15zM3 9h16v1H3zM3 10h16v1H3zM3 11h16v1H3zM3 12h16v1H3zM3 13h16v1H3zM4 14h14v1H4zM5 15h12v1H5zM6 16h10v1H6z'/%3E%3C/svg%3E");
-    --drpg-r-trash:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 4h6v1H9zM4 5h16v1H4zM4 6h16v1H4zM6 8h12v1H6zM6 9h12v1H6zM6 10h12v1H6zM6 11h12v1H6zM6 12h12v1H6zM6 13h12v1H6zM7 14h10v1H7zM7 15h10v1H7zM7 16h10v1H7zM7 17h10v1H7zM7 18h10v1H7z'/%3E%3C/svg%3E");
-    --drpg-r-stow:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM10 4h4v1H10zM10 5h4v1H10zM6 6h12v1H6zM7 7h10v1H7zM8 8h8v1H8zM9 9h6v1H9zM10 10h4v1H10zM11 11h2v1H11zM3 13h18v1H3zM3 14h18v1H3zM3 16h18v1H3zM3 17h18v1H3zM3 18h18v1H3zM3 19h18v1H3z'/%3E%3C/svg%3E");
-    --drpg-r-retrieve:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 3h2v1H11zM10 4h4v1H10zM9 5h6v1H9zM8 6h8v1H8zM7 7h10v1H7zM6 8h12v1H6zM10 9h4v1H10zM10 10h4v1H10zM10 11h4v1H10zM3 13h18v1H3zM3 14h18v1H3zM3 16h18v1H3zM3 17h18v1H3zM3 18h18v1H3zM3 19h18v1H3z'/%3E%3C/svg%3E");
-    --drpg-r-share:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M16 0h6v1H16zM16 1h6v1H16zM16 2h6v1H16zM16 3h6v1H16zM16 4h6v1H16zM14 5h8v1H14zM12 6h2v1H12zM10 7h2v1H10zM8 8h2v1H8zM0 9h8v1H0zM0 10h6v1H0zM0 11h6v1H0zM0 12h6v1H0zM0 13h6v1H0zM0 14h8v1H0zM8 15h2v1H8zM10 16h2v1H10zM12 17h2v1H12zM14 18h8v1H14zM16 19h6v1H16zM16 20h6v1H16zM16 21h6v1H16zM16 22h6v1H16zM16 23h6v1H16z'/%3E%3C/svg%3E");
-    --drpg-r-give:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 4h6v1H9zM9 5h6v1H9zM9 6h6v1H9zM9 7h6v1H9zM2 10h2v1H2zM20 10h2v1H20zM2 11h2v1H2zM20 11h2v1H20zM2 12h3v1H2zM19 12h3v1H19zM3 13h3v1H3zM18 13h3v1H18zM4 14h4v1H4zM16 14h4v1H16zM6 15h4v1H6zM14 15h4v1H14zM8 16h8v1H8zM8 17h8v1H8zM10 18h4v1H10zM10 19h4v1H10z'/%3E%3C/svg%3E");
 }
 
 /* THE CORNER'S PLACES, DERIVED (E81 C12, 12.10.2026). Declared on `body`, not in :root,
@@ -3529,15 +3308,15 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     image-rendering: pixelated;
 }
 
-.drpg-remnant-glyph[data-drpg-act="search"] { -webkit-mask-image: var(--drpg-g-search); mask-image: var(--drpg-g-search); }
-.drpg-remnant-glyph[data-drpg-act="project"] { -webkit-mask-image: var(--drpg-g-project); mask-image: var(--drpg-g-project); }
-.drpg-remnant-glyph[data-drpg-act="sabotage"] { -webkit-mask-image: var(--drpg-g-sabotage); mask-image: var(--drpg-g-sabotage); }
-.drpg-remnant-glyph[data-drpg-act="dynamic"] { -webkit-mask-image: var(--drpg-g-dynamic); mask-image: var(--drpg-g-dynamic); }
-.drpg-remnant-glyph[data-drpg-act="resolution"] { -webkit-mask-image: var(--drpg-g-cleanup); mask-image: var(--drpg-g-cleanup); }
-.drpg-remnant-glyph[data-drpg-act="incident"] { -webkit-mask-image: var(--drpg-g-direct-murder); mask-image: var(--drpg-g-direct-murder); }
-.drpg-remnant-glyph[data-drpg-act="discard"] { -webkit-mask-image: var(--drpg-r-trash); mask-image: var(--drpg-r-trash); }
-.drpg-remnant-glyph[data-drpg-act="manual"] { -webkit-mask-image: var(--drpg-g-monokuma-eye); mask-image: var(--drpg-g-monokuma-eye); }
-.drpg-remnant-glyph[data-drpg-act="loot"] { -webkit-mask-image: var(--drpg-g-palm); mask-image: var(--drpg-g-palm); }
+.drpg-remnant-glyph[data-drpg-act="search"] { -webkit-mask-image: var(--drpg-pix-search); mask-image: var(--drpg-pix-search); }
+.drpg-remnant-glyph[data-drpg-act="project"] { -webkit-mask-image: var(--drpg-pix-project); mask-image: var(--drpg-pix-project); }
+.drpg-remnant-glyph[data-drpg-act="sabotage"] { -webkit-mask-image: var(--drpg-pix-sabotage); mask-image: var(--drpg-pix-sabotage); }
+.drpg-remnant-glyph[data-drpg-act="dynamic"] { -webkit-mask-image: var(--drpg-pix-dynamic); mask-image: var(--drpg-pix-dynamic); }
+.drpg-remnant-glyph[data-drpg-act="resolution"] { -webkit-mask-image: var(--drpg-pix-cleanup); mask-image: var(--drpg-pix-cleanup); }
+.drpg-remnant-glyph[data-drpg-act="incident"] { -webkit-mask-image: var(--drpg-pix-direct-murder); mask-image: var(--drpg-pix-direct-murder); }
+.drpg-remnant-glyph[data-drpg-act="discard"] { -webkit-mask-image: var(--drpg-pix-trash); mask-image: var(--drpg-pix-trash); }
+.drpg-remnant-glyph[data-drpg-act="manual"] { -webkit-mask-image: var(--drpg-pix-monokuma-eye); mask-image: var(--drpg-pix-monokuma-eye); }
+.drpg-remnant-glyph[data-drpg-act="loot"] { -webkit-mask-image: var(--drpg-pix-palm-action); mask-image: var(--drpg-pix-palm-action); }
 
 .drpg-remnant-title {
     display: grid;
@@ -6815,7 +6594,7 @@ body.drpg-theme-stained-glass .application.roll-selection:not(.drpg-panel) > .wi
    The two duality dice were the system's rendered SVGs (`hope/d12.svg`,
    `fear/d12.svg`) and the Roll button's die was Font Awesome's d6 pair - the
    last icons in the module's most-opened window not speaking its sprite
-   language. All three are now the `--drpg-g-die-d12` line-art mask, which
+   language. All three are now the `--drpg-pix-die-d12` line-art mask, which
    also puts the dice in the PALETTE's Hope gold and Despair blood instead of
    the system's amber and navy.
 
@@ -6836,8 +6615,8 @@ body.drpg-theme-stained-glass .application.roll-selection:not(.drpg-panel) > .wi
     height: 64px;
     margin-inline: auto;
     background-color: var(--drpg-bone);
-    -webkit-mask-image: var(--drpg-g-die-d12);
-    mask-image: var(--drpg-g-die-d12);
+    -webkit-mask-image: var(--drpg-pix-die-d12);
+    mask-image: var(--drpg-pix-die-d12);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -6860,8 +6639,8 @@ body.drpg-theme-stained-glass .application.roll-selection:not(.drpg-panel) > .wi
     display: inline-block;
     vertical-align: -0.1em;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-die-d12);
-    mask-image: var(--drpg-g-die-d12);
+    -webkit-mask-image: var(--drpg-pix-die-d12);
+    mask-image: var(--drpg-pix-die-d12);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -9251,58 +9030,58 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
 }
 
 .drpg-action-button[data-drpg-action="move"] .drpg-action-icon {
-    -webkit-mask-image: var(--drpg-g-move);
-    mask-image: var(--drpg-g-move);
+    -webkit-mask-image: var(--drpg-pix-move);
+    mask-image: var(--drpg-pix-move);
 }
 
 .drpg-action-button[data-drpg-action="search"] .drpg-action-icon {
-    -webkit-mask-image: var(--drpg-g-search);
-    mask-image: var(--drpg-g-search);
+    -webkit-mask-image: var(--drpg-pix-search);
+    mask-image: var(--drpg-pix-search);
 }
 
 .drpg-action-button[data-drpg-action="observe"] .drpg-action-icon {
-    -webkit-mask-image: var(--drpg-g-observe);
-    mask-image: var(--drpg-g-observe);
+    -webkit-mask-image: var(--drpg-pix-observe);
+    mask-image: var(--drpg-pix-observe);
 }
 
 .drpg-action-button[data-drpg-action="analyze"] .drpg-action-icon {
-    -webkit-mask-image: var(--drpg-g-analyze);
-    mask-image: var(--drpg-g-analyze);
+    -webkit-mask-image: var(--drpg-pix-analyze);
+    mask-image: var(--drpg-pix-analyze);
 }
 
 .drpg-action-button[data-drpg-action="listen"] .drpg-action-icon {
-    -webkit-mask-image: var(--drpg-g-listen);
-    mask-image: var(--drpg-g-listen);
+    -webkit-mask-image: var(--drpg-pix-listen);
+    mask-image: var(--drpg-pix-listen);
 }
 
 .drpg-action-button[data-drpg-action="project"] .drpg-action-icon {
-    -webkit-mask-image: var(--drpg-g-project);
-    mask-image: var(--drpg-g-project);
+    -webkit-mask-image: var(--drpg-pix-project);
+    mask-image: var(--drpg-pix-project);
 }
 
 .drpg-action-button[data-drpg-action="sabotage"] .drpg-action-icon {
-    -webkit-mask-image: var(--drpg-g-sabotage);
-    mask-image: var(--drpg-g-sabotage);
+    -webkit-mask-image: var(--drpg-pix-sabotage);
+    mask-image: var(--drpg-pix-sabotage);
 }
 
 .drpg-action-button[data-drpg-action="rest"] .drpg-action-icon {
-    -webkit-mask-image: var(--drpg-g-rest);
-    mask-image: var(--drpg-g-rest);
+    -webkit-mask-image: var(--drpg-pix-rest);
+    mask-image: var(--drpg-pix-rest);
 }
 
 .drpg-action-button[data-drpg-action="directMurder"] .drpg-action-icon {
-    -webkit-mask-image: var(--drpg-g-direct-murder);
-    mask-image: var(--drpg-g-direct-murder);
+    -webkit-mask-image: var(--drpg-pix-direct-murder);
+    mask-image: var(--drpg-pix-direct-murder);
 }
 
 .drpg-action-button[data-drpg-action="dynamic"] .drpg-action-icon {
-    -webkit-mask-image: var(--drpg-g-dynamic);
-    mask-image: var(--drpg-g-dynamic);
+    -webkit-mask-image: var(--drpg-pix-dynamic);
+    mask-image: var(--drpg-pix-dynamic);
 }
 
 .drpg-action-button i.fa-broom {
-    -webkit-mask-image: var(--drpg-g-cleanup);
-    mask-image: var(--drpg-g-cleanup);
+    -webkit-mask-image: var(--drpg-pix-cleanup);
+    mask-image: var(--drpg-pix-cleanup);
 }
 
 /* ==========================================================================
@@ -9361,31 +9140,31 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
 }
 
 .drpg-call-button[data-drpg-call="sprint"] .drpg-action-icon {
-    -webkit-mask-image: var(--drpg-g-sprint);
-    mask-image: var(--drpg-g-sprint);
+    -webkit-mask-image: var(--drpg-pix-sprint);
+    mask-image: var(--drpg-pix-sprint);
 }
 
 .drpg-call-button[data-drpg-call="burst"] .drpg-action-icon {
-    -webkit-mask-image: var(--drpg-g-burst);
-    mask-image: var(--drpg-g-burst);
+    -webkit-mask-image: var(--drpg-pix-burst);
+    mask-image: var(--drpg-pix-burst);
 }
 
 .drpg-call-button[data-drpg-call="relief"] .drpg-action-icon {
-    -webkit-mask-image: var(--drpg-g-relief);
-    mask-image: var(--drpg-g-relief);
+    -webkit-mask-image: var(--drpg-pix-relief);
+    mask-image: var(--drpg-pix-relief);
 }
 
 /* The two tiles E12 added, keyed the way the other ten are. `palm` outranks the
    `i.fa-hand-sparkles` rule below it by specificity, which is what takes
    Confusion's glyph back off the theft tile. */
 .drpg-action-button[data-drpg-action="palm"] .drpg-action-icon {
-    -webkit-mask-image: var(--drpg-g-palm);
-    mask-image: var(--drpg-g-palm);
+    -webkit-mask-image: var(--drpg-pix-palm-action);
+    mask-image: var(--drpg-pix-palm-action);
 }
 
 .drpg-action-button[data-drpg-action="tamper"] .drpg-action-icon {
-    -webkit-mask-image: var(--drpg-g-cleanup);
-    mask-image: var(--drpg-g-cleanup);
+    -webkit-mask-image: var(--drpg-pix-cleanup);
+    mask-image: var(--drpg-pix-cleanup);
 }
 
 /* ==========================================================================
@@ -9548,8 +9327,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-support);
-    mask-image: var(--drpg-g-support);
+    -webkit-mask-image: var(--drpg-pix-support);
+    mask-image: var(--drpg-pix-support);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -9566,8 +9345,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-experience);
-    mask-image: var(--drpg-g-experience);
+    -webkit-mask-image: var(--drpg-pix-experience);
+    mask-image: var(--drpg-pix-experience);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -9584,8 +9363,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-ultimate);
-    mask-image: var(--drpg-g-ultimate);
+    -webkit-mask-image: var(--drpg-pix-ultimate);
+    mask-image: var(--drpg-pix-ultimate);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -9602,8 +9381,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-contribution);
-    mask-image: var(--drpg-g-contribution);
+    -webkit-mask-image: var(--drpg-pix-contribution);
+    mask-image: var(--drpg-pix-contribution);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -9620,8 +9399,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-reroll);
-    mask-image: var(--drpg-g-reroll);
+    -webkit-mask-image: var(--drpg-pix-reroll);
+    mask-image: var(--drpg-pix-reroll);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -9638,8 +9417,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-determination);
-    mask-image: var(--drpg-g-determination);
+    -webkit-mask-image: var(--drpg-pix-determination);
+    mask-image: var(--drpg-pix-determination);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -9656,8 +9435,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-free-crit);
-    mask-image: var(--drpg-g-free-crit);
+    -webkit-mask-image: var(--drpg-pix-free-crit);
+    mask-image: var(--drpg-pix-free-crit);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -9684,8 +9463,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-obstacle);
-    mask-image: var(--drpg-g-obstacle);
+    -webkit-mask-image: var(--drpg-pix-obstacle);
+    mask-image: var(--drpg-pix-obstacle);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -9702,8 +9481,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-for-the-game);
-    mask-image: var(--drpg-g-for-the-game);
+    -webkit-mask-image: var(--drpg-pix-for-the-game);
+    mask-image: var(--drpg-pix-for-the-game);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -9720,8 +9499,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-behind-closed-doors);
-    mask-image: var(--drpg-g-behind-closed-doors);
+    -webkit-mask-image: var(--drpg-pix-behind-closed-doors);
+    mask-image: var(--drpg-pix-behind-closed-doors);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -9738,8 +9517,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-this-will-hurt);
-    mask-image: var(--drpg-g-this-will-hurt);
+    -webkit-mask-image: var(--drpg-pix-this-will-hurt);
+    mask-image: var(--drpg-pix-this-will-hurt);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -9756,8 +9535,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-paranoia);
-    mask-image: var(--drpg-g-paranoia);
+    -webkit-mask-image: var(--drpg-pix-paranoia);
+    mask-image: var(--drpg-pix-paranoia);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -9774,8 +9553,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-chained);
-    mask-image: var(--drpg-g-chained);
+    -webkit-mask-image: var(--drpg-pix-chained);
+    mask-image: var(--drpg-pix-chained);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -9792,8 +9571,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-silence);
-    mask-image: var(--drpg-g-silence);
+    -webkit-mask-image: var(--drpg-pix-silence);
+    mask-image: var(--drpg-pix-silence);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -9810,8 +9589,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-fuel-the-cub);
-    mask-image: var(--drpg-g-fuel-the-cub);
+    -webkit-mask-image: var(--drpg-pix-fuel-the-cub);
+    mask-image: var(--drpg-pix-fuel-the-cub);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -9828,8 +9607,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-feed-overflow);
-    mask-image: var(--drpg-g-feed-overflow);
+    -webkit-mask-image: var(--drpg-pix-feed-overflow);
+    mask-image: var(--drpg-pix-feed-overflow);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -9846,8 +9625,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-favorite-project);
-    mask-image: var(--drpg-g-favorite-project);
+    -webkit-mask-image: var(--drpg-pix-favorite-project);
+    mask-image: var(--drpg-pix-favorite-project);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -9864,8 +9643,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-contraband);
-    mask-image: var(--drpg-g-contraband);
+    -webkit-mask-image: var(--drpg-pix-contraband);
+    mask-image: var(--drpg-pix-contraband);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -9882,8 +9661,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-public-announcement);
-    mask-image: var(--drpg-g-public-announcement);
+    -webkit-mask-image: var(--drpg-pix-public-announcement);
+    mask-image: var(--drpg-pix-public-announcement);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -9900,8 +9679,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-new-rule);
-    mask-image: var(--drpg-g-new-rule);
+    -webkit-mask-image: var(--drpg-pix-new-rule);
+    mask-image: var(--drpg-pix-new-rule);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -9918,8 +9697,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-game-protection);
-    mask-image: var(--drpg-g-game-protection);
+    -webkit-mask-image: var(--drpg-pix-game-protection);
+    mask-image: var(--drpg-pix-game-protection);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -9936,8 +9715,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-motive);
-    mask-image: var(--drpg-g-motive);
+    -webkit-mask-image: var(--drpg-pix-motive);
+    mask-image: var(--drpg-pix-motive);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -9995,7 +9774,7 @@ body.drpg-reduced-motion .drpg-call-button.drpg-call-pending::after { animation:
    pixel-icons.css masks Font Awesome where the module already draws an icon.
    This is for the places where it draws none and the audit page does: the phase
    on the clock, and the kind of an event. One class, and the sprite comes from
-   `--drpg-px-mask`.
+   `--drpg-glyph`.
 
    HERE RATHER THAN IN pixel-icons.css, which is generated and would eat it, and
    not in stained-glass.css, where it lived until 1.2.47: both places that use it
@@ -10010,8 +9789,8 @@ body.drpg-reduced-motion .drpg-call-button.drpg-call-pending::after { animation:
     flex: 0 0 auto;
     vertical-align: -0.22em;
     background-color: currentColor;
-    -webkit-mask: var(--drpg-px-mask) center / contain no-repeat;
-    mask: var(--drpg-px-mask) center / contain no-repeat;
+    -webkit-mask: var(--drpg-glyph) center / contain no-repeat;
+    mask: var(--drpg-glyph) center / contain no-repeat;
     image-rendering: pixelated;
 }
 
@@ -10021,24 +9800,24 @@ body.drpg-reduced-motion .drpg-call-button.drpg-call-pending::after { animation:
    and Monokuma Legacy is the pixel-art theme - if either of the two had the
    weaker claim to a pixel sprite it was not that one. Size and colour stay with
    each theme. */
-.drpg-hud-phase-glyph { --drpg-px-mask: var(--drpg-px-sun); }
-body[data-drpg-time="noon"] .drpg-hud-phase-glyph { --drpg-px-mask: var(--drpg-px-noon); }
-body[data-drpg-time="afternoon"] .drpg-hud-phase-glyph { --drpg-px-mask: var(--drpg-px-afternoon); }
-body[data-drpg-time="evening"] .drpg-hud-phase-glyph { --drpg-px-mask: var(--drpg-px-sunset); }
-body[data-drpg-time="night"] .drpg-hud-phase-glyph { --drpg-px-mask: var(--drpg-px-moon); }
-body[data-drpg-phase="investigation"] .drpg-hud-phase-glyph { --drpg-px-mask: var(--drpg-px-lens); }
-body[data-drpg-phase="classTrial"] .drpg-hud-phase-glyph { --drpg-px-mask: var(--drpg-px-gavel); }
-body[data-drpg-phase="eclipse"] .drpg-hud-phase-glyph { --drpg-px-mask: var(--drpg-px-eclipse); }
+.drpg-hud-phase-glyph { --drpg-glyph: var(--drpg-pix-sun); }
+body[data-drpg-time="noon"] .drpg-hud-phase-glyph { --drpg-glyph: var(--drpg-pix-noon); }
+body[data-drpg-time="afternoon"] .drpg-hud-phase-glyph { --drpg-glyph: var(--drpg-pix-afternoon); }
+body[data-drpg-time="evening"] .drpg-hud-phase-glyph { --drpg-glyph: var(--drpg-pix-sunset); }
+body[data-drpg-time="night"] .drpg-hud-phase-glyph { --drpg-glyph: var(--drpg-pix-moon); }
+body[data-drpg-phase="investigation"] .drpg-hud-phase-glyph { --drpg-glyph: var(--drpg-pix-lens); }
+body[data-drpg-phase="classTrial"] .drpg-hud-phase-glyph { --drpg-glyph: var(--drpg-pix-gavel); }
+body[data-drpg-phase="eclipse"] .drpg-hud-phase-glyph { --drpg-glyph: var(--drpg-pix-eclipse); }
 
-.drpg-event-glyph { --drpg-px-mask: var(--drpg-px-bell); }
+.drpg-event-glyph { --drpg-glyph: var(--drpg-pix-bell); }
 /* The barrier, not the skull: a safeword is a hand up, not a death. */
-.drpg-event[data-kind="safeword"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-barrier); }
-.drpg-event[data-kind="incident"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-murder); }
-.drpg-event[data-kind="body"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-murder); }
-.drpg-event[data-kind="motive"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-envelope); }
-.drpg-event[data-kind="assembly"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-horn); }
-.drpg-event[data-kind="trial"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-gavel); }
-.drpg-event[data-kind="overflow"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-heartcrack); }
+.drpg-event[data-kind="safeword"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-barrier); }
+.drpg-event[data-kind="incident"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-murder); }
+.drpg-event[data-kind="body"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-murder); }
+.drpg-event[data-kind="motive"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-envelope); }
+.drpg-event[data-kind="assembly"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-horn); }
+.drpg-event[data-kind="trial"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-gavel); }
+.drpg-event[data-kind="overflow"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-heartcrack); }
 
 /* --- the Event panel, in both themes --------------------------------------
    `.drpg-hud-motive` and `.drpg-hud-assembly` were here: two rows of the clock
@@ -10226,8 +10005,8 @@ body.drpg-reduced-motion .drpg-event.mine .drpg-event-meta { animation: none; }
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-leave-clue);
-    mask-image: var(--drpg-g-leave-clue);
+    -webkit-mask-image: var(--drpg-pix-leave-clue);
+    mask-image: var(--drpg-pix-leave-clue);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -10244,8 +10023,8 @@ body.drpg-reduced-motion .drpg-event.mine .drpg-event-meta { animation: none; }
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-secure-trace);
-    mask-image: var(--drpg-g-secure-trace);
+    -webkit-mask-image: var(--drpg-pix-secure-trace);
+    mask-image: var(--drpg-pix-secure-trace);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -10262,8 +10041,8 @@ body.drpg-reduced-motion .drpg-event.mine .drpg-event-meta { animation: none; }
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-self-defence);
-    mask-image: var(--drpg-g-self-defence);
+    -webkit-mask-image: var(--drpg-pix-self-defence);
+    mask-image: var(--drpg-pix-self-defence);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -10280,8 +10059,8 @@ body.drpg-reduced-motion .drpg-event.mine .drpg-event-meta { animation: none; }
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-survive);
-    mask-image: var(--drpg-g-survive);
+    -webkit-mask-image: var(--drpg-pix-survive);
+    mask-image: var(--drpg-pix-survive);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -10298,8 +10077,8 @@ body.drpg-reduced-motion .drpg-event.mine .drpg-event-meta { animation: none; }
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-role-reversal);
-    mask-image: var(--drpg-g-role-reversal);
+    -webkit-mask-image: var(--drpg-pix-role-reversal);
+    mask-image: var(--drpg-pix-role-reversal);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -10316,8 +10095,8 @@ body.drpg-reduced-motion .drpg-event.mine .drpg-event-meta { animation: none; }
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-strike);
-    mask-image: var(--drpg-g-strike);
+    -webkit-mask-image: var(--drpg-pix-strike);
+    mask-image: var(--drpg-pix-strike);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -10334,8 +10113,8 @@ body.drpg-reduced-motion .drpg-event.mine .drpg-event-meta { animation: none; }
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-pin);
-    mask-image: var(--drpg-g-pin);
+    -webkit-mask-image: var(--drpg-pix-pin);
+    mask-image: var(--drpg-pix-pin);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -10352,8 +10131,8 @@ body.drpg-reduced-motion .drpg-event.mine .drpg-event-meta { animation: none; }
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-keep-distance);
-    mask-image: var(--drpg-g-keep-distance);
+    -webkit-mask-image: var(--drpg-pix-keep-distance);
+    mask-image: var(--drpg-pix-keep-distance);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -10370,8 +10149,8 @@ body.drpg-reduced-motion .drpg-event.mine .drpg-event-meta { animation: none; }
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-weapon-attack);
-    mask-image: var(--drpg-g-weapon-attack);
+    -webkit-mask-image: var(--drpg-pix-weapon-attack);
+    mask-image: var(--drpg-pix-weapon-attack);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -10388,8 +10167,8 @@ body.drpg-reduced-motion .drpg-event.mine .drpg-event-meta { animation: none; }
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-finishing-blow);
-    mask-image: var(--drpg-g-finishing-blow);
+    -webkit-mask-image: var(--drpg-pix-finishing-blow);
+    mask-image: var(--drpg-pix-finishing-blow);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -10406,8 +10185,8 @@ body.drpg-reduced-motion .drpg-event.mine .drpg-event-meta { animation: none; }
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-shared-escape);
-    mask-image: var(--drpg-g-shared-escape);
+    -webkit-mask-image: var(--drpg-pix-shared-escape);
+    mask-image: var(--drpg-pix-shared-escape);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -10424,8 +10203,8 @@ body.drpg-reduced-motion .drpg-event.mine .drpg-event-meta { animation: none; }
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-double-role-reversal);
-    mask-image: var(--drpg-g-double-role-reversal);
+    -webkit-mask-image: var(--drpg-pix-double-role-reversal);
+    mask-image: var(--drpg-pix-double-role-reversal);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -10442,8 +10221,8 @@ body.drpg-reduced-motion .drpg-event.mine .drpg-event-meta { animation: none; }
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-crime-partners);
-    mask-image: var(--drpg-g-crime-partners);
+    -webkit-mask-image: var(--drpg-pix-crime-partners);
+    mask-image: var(--drpg-pix-crime-partners);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -10460,8 +10239,8 @@ body.drpg-reduced-motion .drpg-event.mine .drpg-event-meta { animation: none; }
     height: 24px;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-averted-eyes);
-    mask-image: var(--drpg-g-averted-eyes);
+    -webkit-mask-image: var(--drpg-pix-averted-eyes);
+    mask-image: var(--drpg-pix-averted-eyes);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -10568,8 +10347,8 @@ details.drpg-calls-panel > summary::after {
     height: 10px;
     flex: 0 0 auto;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-chevron);
-    mask-image: var(--drpg-g-chevron);
+    -webkit-mask-image: var(--drpg-pix-chevron);
+    mask-image: var(--drpg-pix-chevron);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -15458,8 +15237,6 @@ body.drpg-theme-monokuma-legacy .drpg-window-tables fieldset.drpg-tables-new > .
 .drpg-gmp-button[data-drpg-run="projects"] > i,
 .drpg-gmp-button[data-drpg-run="jump"] > i,
 .drpg-gmp-button[data-drpg-run="rules"] > i,
-.drpg-gmp-button[data-drpg-run="items"] > i,
-.drpg-gmp-button[data-drpg-run="music"] > i,
 .drpg-gmp-button[data-drpg-run="whoIsAlive"] > i,
 .drpg-gmp-button[data-drpg-run="murder"] > i,
 .drpg-gmp-button[data-drpg-run="investigation"] > i,
@@ -15489,8 +15266,6 @@ i.drpg-pix-foot {
 .drpg-gmp-button[data-drpg-run="projects"] > i::before,
 .drpg-gmp-button[data-drpg-run="jump"] > i::before,
 .drpg-gmp-button[data-drpg-run="rules"] > i::before,
-.drpg-gmp-button[data-drpg-run="items"] > i::before,
-.drpg-gmp-button[data-drpg-run="music"] > i::before,
 .drpg-gmp-button[data-drpg-run="whoIsAlive"] > i::before,
 .drpg-gmp-button[data-drpg-run="murder"] > i::before,
 .drpg-gmp-button[data-drpg-run="investigation"] > i::before,
@@ -15507,83 +15282,73 @@ i.drpg-pix-foot::before {
 }
 
 .drpg-gmp-button[data-drpg-run="projects"] > i {
-    -webkit-mask-image: var(--drpg-g-projects);
-    mask-image: var(--drpg-g-projects);
+    -webkit-mask-image: var(--drpg-pix-projects);
+    mask-image: var(--drpg-pix-projects);
 }
 
 .drpg-gmp-button[data-drpg-run="jump"] > i {
-    -webkit-mask-image: var(--drpg-g-jump);
-    mask-image: var(--drpg-g-jump);
+    -webkit-mask-image: var(--drpg-pix-jump);
+    mask-image: var(--drpg-pix-jump);
 }
 
 .drpg-gmp-button[data-drpg-run="rules"] > i {
-    -webkit-mask-image: var(--drpg-g-new-rule);
-    mask-image: var(--drpg-g-new-rule);
-}
-
-.drpg-gmp-button[data-drpg-run="items"] > i {
-    -webkit-mask-image: var(--drpg-g-items);
-    mask-image: var(--drpg-g-items);
-}
-
-.drpg-gmp-button[data-drpg-run="music"] > i {
-    -webkit-mask-image: var(--drpg-g-music);
-    mask-image: var(--drpg-g-music);
+    -webkit-mask-image: var(--drpg-pix-new-rule);
+    mask-image: var(--drpg-pix-new-rule);
 }
 
 .drpg-gmp-button[data-drpg-run="whoIsAlive"] > i {
-    -webkit-mask-image: var(--drpg-g-who-is-alive);
-    mask-image: var(--drpg-g-who-is-alive);
+    -webkit-mask-image: var(--drpg-pix-who-is-alive);
+    mask-image: var(--drpg-pix-who-is-alive);
 }
 
 .drpg-gmp-button[data-drpg-run="murder"] > i {
-    -webkit-mask-image: var(--drpg-g-direct-murder);
-    mask-image: var(--drpg-g-direct-murder);
+    -webkit-mask-image: var(--drpg-pix-direct-murder);
+    mask-image: var(--drpg-pix-direct-murder);
 }
 
 .drpg-gmp-button[data-drpg-run="investigation"] > i {
-    -webkit-mask-image: var(--drpg-g-investigation);
-    mask-image: var(--drpg-g-investigation);
+    -webkit-mask-image: var(--drpg-pix-investigation);
+    mask-image: var(--drpg-pix-investigation);
 }
 
 .drpg-gmp-button[data-drpg-run="trial"] > i {
-    -webkit-mask-image: var(--drpg-g-trial);
-    mask-image: var(--drpg-g-trial);
+    -webkit-mask-image: var(--drpg-pix-trial);
+    mask-image: var(--drpg-pix-trial);
 }
 
 .drpg-gmp-button[data-drpg-run="gmTeam"] > i {
-    -webkit-mask-image: var(--drpg-g-gm-team);
-    mask-image: var(--drpg-g-gm-team);
+    -webkit-mask-image: var(--drpg-pix-gm-team);
+    mask-image: var(--drpg-pix-gm-team);
 }
 
 .drpg-gmp-button[data-drpg-run="roomSetup"] > i {
-    -webkit-mask-image: var(--drpg-g-room-setup);
-    mask-image: var(--drpg-g-room-setup);
+    -webkit-mask-image: var(--drpg-pix-room-setup);
+    mask-image: var(--drpg-pix-room-setup);
 }
 
 .drpg-gmp-button[data-drpg-run="tables"] > i {
-    -webkit-mask-image: var(--drpg-g-tables);
-    mask-image: var(--drpg-g-tables);
+    -webkit-mask-image: var(--drpg-pix-tables);
+    mask-image: var(--drpg-pix-tables);
 }
 
 .drpg-gmp-button[data-drpg-run="seasonSetup"] > i {
-    -webkit-mask-image: var(--drpg-g-season-setup);
-    mask-image: var(--drpg-g-season-setup);
+    -webkit-mask-image: var(--drpg-pix-season-setup);
+    mask-image: var(--drpg-pix-season-setup);
 }
 
 .drpg-gmp-button[data-drpg-run="mastermind"] > i {
-    -webkit-mask-image: var(--drpg-g-mastermind);
-    mask-image: var(--drpg-g-mastermind);
+    -webkit-mask-image: var(--drpg-pix-mastermind);
+    mask-image: var(--drpg-pix-mastermind);
 }
 
 .drpg-gmp-button[data-drpg-run="seasonReset"] > i {
-    -webkit-mask-image: var(--drpg-g-season-reset);
-    mask-image: var(--drpg-g-season-reset);
+    -webkit-mask-image: var(--drpg-pix-season-reset);
+    mask-image: var(--drpg-pix-season-reset);
 }
 
 .drpg-gmp-button[data-drpg-run="failureLog"] > i {
-    -webkit-mask-image: var(--drpg-g-failure-log);
-    mask-image: var(--drpg-g-failure-log);
+    -webkit-mask-image: var(--drpg-pix-failure-log);
+    mask-image: var(--drpg-pix-failure-log);
 }
 
 /* The token toolbar's own button - the module's front door.
@@ -15597,8 +15362,8 @@ i.drpg-pix-foot::before {
     width: 24px;
     height: 24px;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-clock);
-    mask-image: var(--drpg-g-clock);
+    -webkit-mask-image: var(--drpg-pix-clock);
+    mask-image: var(--drpg-pix-clock);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -15611,8 +15376,8 @@ i.drpg-pix-foot::before {
 /* And the free Move in the "who is still standing" roster, which is the same
    footprint the action bar and the tray draw. */
 i.drpg-pix-foot {
-    -webkit-mask-image: var(--drpg-g-move);
-    mask-image: var(--drpg-g-move);
+    -webkit-mask-image: var(--drpg-pix-move);
+    mask-image: var(--drpg-pix-move);
     display: inline-block;
     vertical-align: -5px;
 }
@@ -15668,23 +15433,23 @@ i.drpg-pix-foot {
 }
 
 .drpg-action-button i.fa-hand-sparkles {
-    -webkit-mask-image: var(--drpg-g-confusion);
-    mask-image: var(--drpg-g-confusion);
+    -webkit-mask-image: var(--drpg-pix-confusion);
+    mask-image: var(--drpg-pix-confusion);
 }
 
 .drpg-action-button i.fa-signs-post {
-    -webkit-mask-image: var(--drpg-g-misleading-trail);
-    mask-image: var(--drpg-g-misleading-trail);
+    -webkit-mask-image: var(--drpg-pix-misleading-trail);
+    mask-image: var(--drpg-pix-misleading-trail);
 }
 
 .drpg-action-button i.fa-person-falling {
-    -webkit-mask-image: var(--drpg-g-move-body);
-    mask-image: var(--drpg-g-move-body);
+    -webkit-mask-image: var(--drpg-pix-move-body);
+    mask-image: var(--drpg-pix-move-body);
 }
 
 .drpg-action-button i.fa-user-slash {
-    -webkit-mask-image: var(--drpg-g-betrayal);
-    mask-image: var(--drpg-g-betrayal);
+    -webkit-mask-image: var(--drpg-pix-betrayal);
+    mask-image: var(--drpg-pix-betrayal);
 }
 
 /* ==========================================================================
@@ -15718,7 +15483,7 @@ i.drpg-pix-foot {
    launcher, mapped by the Font Awesome class each button already carries. A
    button with no sprite here keeps its vector glyph, so another module's tool
    degrades gracefully instead of turning into a blank square. To change an
-   icon, edit its ASCII art in the tool and re-run it.
+   icon, edit its rows in tools/glyphs.json (family chrome) and re-run the tool.
    ========================================================================== */
 
 #scene-controls button.ui-control.fa-user-large::before,
@@ -16413,48 +16178,48 @@ i.drpg-pix-foot {
 }
 
 .drpg-row-use i {
-    -webkit-mask-image: var(--drpg-r-flask);
-    mask-image: var(--drpg-r-flask);
+    -webkit-mask-image: var(--drpg-pix-flask);
+    mask-image: var(--drpg-pix-flask);
 }
 
 .drpg-row-equip i {
-    -webkit-mask-image: var(--drpg-r-fist);
-    mask-image: var(--drpg-r-fist);
+    -webkit-mask-image: var(--drpg-pix-fist);
+    mask-image: var(--drpg-pix-fist);
 }
 
 .drpg-row-discard i {
-    -webkit-mask-image: var(--drpg-r-trash);
-    mask-image: var(--drpg-r-trash);
+    -webkit-mask-image: var(--drpg-pix-trash);
+    mask-image: var(--drpg-pix-trash);
 }
 
 .drpg-row-stash i.fa-box-archive {
-    -webkit-mask-image: var(--drpg-r-stow);
-    mask-image: var(--drpg-r-stow);
+    -webkit-mask-image: var(--drpg-pix-stow);
+    mask-image: var(--drpg-pix-stow);
 }
 
 .drpg-row-stash i.fa-hand-back-fist {
-    -webkit-mask-image: var(--drpg-r-retrieve);
-    mask-image: var(--drpg-r-retrieve);
+    -webkit-mask-image: var(--drpg-pix-retrieve);
+    mask-image: var(--drpg-pix-retrieve);
 }
 
 .drpg-tb-analyze i {
-    -webkit-mask-image: var(--drpg-g-analyze);
-    mask-image: var(--drpg-g-analyze);
+    -webkit-mask-image: var(--drpg-pix-analyze);
+    mask-image: var(--drpg-pix-analyze);
 }
 
 .drpg-row-handover i.fa-share-nodes {
-    -webkit-mask-image: var(--drpg-r-share);
-    mask-image: var(--drpg-r-share);
+    -webkit-mask-image: var(--drpg-pix-share);
+    mask-image: var(--drpg-pix-share);
 }
 
 .drpg-row-handover i.fa-hand-holding {
-    -webkit-mask-image: var(--drpg-r-give);
-    mask-image: var(--drpg-r-give);
+    -webkit-mask-image: var(--drpg-pix-give);
+    mask-image: var(--drpg-pix-give);
 }
 
 .drpg-row-present i {
-    -webkit-mask-image: var(--drpg-g-new-rule);
-    mask-image: var(--drpg-g-new-rule);
+    -webkit-mask-image: var(--drpg-pix-new-rule);
+    mask-image: var(--drpg-pix-new-rule);
 }
 
 /* ==========================================================================

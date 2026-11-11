@@ -80,7 +80,7 @@
  * variant B grid): one click opens both windows, the next closes both (`toggleFoundryTools`), and `aria-pressed`
  * says whether either is open. Like the GM's red button it is a child of the body that joins the cluster through
  * `data-drpg-cluster` and carries no `drpg-` class (pixel-icons.css paints under any such ancestor). Its face is
- * one inert `i` with no class, which danganronpa.css masks with the module's pixel anvil (`--drpg-px-anvil`,
+ * one inert `i` with no class, which danganronpa.css masks with the module's pixel anvil (`--drpg-pix-anvil`,
  * tools/glyphs.json) in the button's colour under both themes, as the handbooks' book is masked (R548). It has no
  * Font Awesome name, and every selector of pixel-icons.css names one, so that sheet paints nothing on it whatever
  * class stood above it (read in the generated selectors, 14.10.2026).

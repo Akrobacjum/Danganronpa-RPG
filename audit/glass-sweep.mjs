@@ -1475,10 +1475,10 @@ async function plantVoice() {
         res.short = { ok: r.ok, why: r.why, pass: !r.ok && /outside the tile/.test(r.why) };
     }
     {   // bare
-        const i = tile.querySelector(".drpg-voice-speaker > .drpg-pxi"), was = i?.style.getPropertyValue("--drpg-px-mask") ?? "";
-        i?.style.removeProperty("--drpg-px-mask");
+        const i = tile.querySelector(".drpg-voice-speaker > .drpg-pxi"), was = i?.style.getPropertyValue("--drpg-glyph") ?? "";
+        i?.style.removeProperty("--drpg-glyph");
         const r = await window.drpgVoiceCheck({ cuts: false });
-        if (was) i.style.setProperty("--drpg-px-mask", was);
+        if (was) i.style.setProperty("--drpg-glyph", was);
         res.bare = { ok: r.ok, why: r.why, pass: !r.ok && /no glyph/.test(r.why) };
     }
     {   // inward (E78 fix r2-H3): the buttons side by side where 60741cf stood them, 69 px under the pane's top

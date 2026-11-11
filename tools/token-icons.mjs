@@ -7,7 +7,7 @@
  * texture: the same 8x8 question mark the Despair pool shows (Dawid, 26.08:
  * "ten sam, co w despair pool").
  *
- * The art is NOT drawn here. Every glyph already exists in danganronpa.css as
+ * The art is NOT drawn here. Every glyph already exists in the stylesheets as
  * a CSS mask sprite - the action tiles, the row buttons, the Monokuma eye -
  * and this tool re-publishes those exact data URIs as standalone files a
  * token texture can load. One drawing per glyph, wherever it appears: editing
@@ -37,22 +37,27 @@ const SOURCES = {
     unknown: { var: "--drpg-pix-query" },
 
     // One per `action` a Remnant can record - see REMNANT_FLAGS.action.
-    search: { var: "--drpg-g-search" },
-    project: { var: "--drpg-g-project" },
-    sabotage: { var: "--drpg-g-sabotage" },
-    dynamic: { var: "--drpg-g-dynamic" },
-    resolution: { var: "--drpg-g-cleanup" },
-    incident: { var: "--drpg-g-direct-murder" },
-    discard: { var: "--drpg-r-trash" },
+    search: { var: "--drpg-pix-search" },
+    project: { var: "--drpg-pix-project" },
+    sabotage: { var: "--drpg-pix-sabotage" },
+    dynamic: { var: "--drpg-pix-dynamic" },
+    resolution: { var: "--drpg-pix-cleanup" },
+    incident: { var: "--drpg-pix-direct-murder" },
+    discard: { var: "--drpg-pix-trash" },
     // Taking something off a body (handover.mjs, `lootBody`) - the hand that Palm uses.
-    loot: { var: "--drpg-g-palm" },
+    loot: { var: "--drpg-pix-palm-action" },
     // A GM-placed trace (Key Remnants, the Final Truth) was left by Monokuma's
     // own hand, and says so.
     manual: { selector: "#drpg-gm-launcher i::before" }
 };
 
 const here = dirname(fileURLToPath(import.meta.url));
-const css = await readFile(join(here, "..", "styles", "danganronpa.css"), "utf8");
+/* Since E48 G4 the custom properties are tools/glyph-map.mjs's, on the body in pixel-icons.css (Monokuma Legacy's
+   drawings first, then Stained Glass's over the same names: the first match is Legacy's, the one these files carried),
+   and the chrome rule the eye comes from is danganronpa.css's generated section. Re-run, the files' path text comes out
+   in the generator's spelling (M0 0h3v1h-3z, not the hand sheets' H0z): the same pixels. */
+const css = (await readFile(join(here, "..", "styles", "pixel-icons.css"), "utf8"))
+    + (await readFile(join(here, "..", "styles", "danganronpa.css"), "utf8"));
 
 function dataUriFor(source) {
     const pattern = source.var

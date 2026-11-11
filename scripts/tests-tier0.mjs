@@ -541,7 +541,9 @@ const REGRESSIONS = [
         const G = await import("./tests-glyphs.mjs");
         equal(JSON.stringify(G.GLYPH_FILES.filter(f => !(f in files))), "[]", "glyph-map.mjs reads a file this test does not fetch");
         const { problems, counts } = G.glyphProblems(files);
-        must(counts && counts.glyphs >= 240 && counts.sheetRows >= 150, `glyphs.json read ${JSON.stringify(counts)} - the check would hold nothing`);
+        /* 154 sheet rows until E48 G4, which made the 89 hand-drawn declarations generated rows (family legacy): the 63
+           chrome masks are the sheet rows left. */
+        must(counts && counts.glyphs >= 400 && counts.sheetRows >= 60 && (counts.families?.legacy ?? 0) >= 100, `glyphs.json read ${JSON.stringify(counts)} - the check would hold nothing`);
         equal(JSON.stringify(problems.slice(0, 6)), "[]", `${problems.length} problem(s) between tools/glyphs.json and the files it draws`);
         equal(counts.chrome, "current", "danganronpa.css's chrome section was not compared with tools/chrome-icons.mjs's");
         const { misses, plants } = G.selfCheck(files);
@@ -570,7 +572,8 @@ const REGRESSIONS = [
         const { gaps, keyed } = await glyphMapInputs();
         must(keyed.some(([k]) => k.startsWith("gm.")), "no GM tile read from gm-panel.mjs");
         equal(JSON.stringify(gaps.deadTiles), "[]", "danganronpa.css draws these tiles, which the panel no longer has");
-    }, expectedRed("E48", "danganronpa.css still draws the items and music tiles; G4 moves the sheets' drawings into the generator and drops them")],
+        /* Green since E48 G4 (11.11.2026): the items and music tiles' rules and drawings went with the hand masks. */
+    }],
 
     ["R3336 - each OPPOSITES pair draws apart: Sabotage and Contribution, Analyze and Paranoia, Palm and the Monocub's meddle, and the future pairs once drawn (E48 G2; S02-73)", async () => {
         const { G, gaps } = await glyphMapInputs();
@@ -596,6 +599,32 @@ const REGRESSIONS = [
         must(glyphs.length >= 240, `${glyphs.length} glyph(s) read`);
         equal(JSON.stringify(gaps.offGrid), "[]", "drawings Stained Glass wears off the 24 grid with no `glass` row of the name on 24");
     }, expectedRed("E48", "66 drawings Stained Glass wears are on 8 or 12 (pix diamond, diamond-empty, dot, dot-empty, skull, query and 60 chrome masks); the rounds drew no 24 version of them")],
+
+    ["R3349 - one glyph prefix: no stylesheet of module.json, nor a script that writes or names a glyph, holds the retired px, g or r prefix, and every --drpg-pix- glyph they read (a sheet's var(), the kit's pixelGlyph and launcher names, config.mjs PROJECT_GLYPHS) is a legacy row of tools/glyphs.json, declared on the body for both themes (E48 G4)", async () => {
+        /*
+         * E48 G4, 11.11.2026 (STAGE G4: the px and g prefixes "gone (grep 0)"). Legacy's drawings are declared once, by
+         * the generator, as --drpg-pix-<name> on the body; Stained Glass declares its own set over the same names. A read
+         * of a name no legacy row holds resolves to nothing under Monokuma Legacy - an icon element with an undefined mask
+         * is a solid square of its colour (pixel-icons.css's 1.2.47 note) - so each read is held to a legacy row, and the
+         * names scripts build at run time are read off their calls (tests-glyphs.mjs namedGlyphReads) and PROJECT_GLYPHS.
+         * THE CONTROL: the same check on the files with one read renamed to a name no row has, and one old prefix planted
+         * in a comment, must name both.
+         */
+        const { G, glyphs } = await glyphMapInputs();
+        const C = await import("./config.mjs");
+        const text = async file => fetch(`/modules/${MODULE_ID}/${file}`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : null));
+        const styles = JSON.parse(await text("module.json") ?? "{}").styles ?? [];
+        must(styles.length >= 5, `module.json names ${styles.length} stylesheet(s)`);
+        const texts = {};
+        for (const f of [...styles, ...G.GLYPH_READERS]) texts[f] = await text(f);
+        const names = [...G.namedGlyphReads(texts), ...Object.keys(C.PROJECT_GLYPHS ?? {})];
+        must(names.length >= 20 && ["mic", "lock", "hourglass"].every(n => names.includes(n)), `${names.length} glyph name(s) read off the scripts: ${names.join(", ")}`);
+        const problems = G.prefixProblems(glyphs, texts, names);
+        const planted = { ...texts, "styles/danganronpa.css": `${texts["styles/danganronpa.css"]}\n/* --drpg-` + `g-plant */ .x { mask-image: var(--drpg-pix-no-such-glyph); }` };
+        const seen = G.prefixProblems(glyphs, planted, names);
+        equal(JSON.stringify(["g-plant", "no-such-glyph"].filter(w => !seen.some(p => p.includes(w)))), "[]", "the control's two plants not seen");
+        equal(JSON.stringify(problems.slice(0, 40)), "[]", `the one prefix (${problems.length} problem(s), ${Object.keys(texts).length} file(s), ${names.length} named glyph(s))`);
+    }],
 
     ["R1313 - CONTRIBUTING.md's \"The CSS contract\" names each detector of the CSS lint (importantCount, colourLiterals, strayCommentEnds, duplicateRules, deadClasses), the floor (21 px scaled under Stained Glass, 10 px a rung under Monokuma Legacy), the 390 px rule and the three commands - node tools/check.mjs css, node tools/check.mjs contrast, node audit/style-sweep.mjs (E44 C1c; E44-04)", async () => {
         /*
@@ -10036,7 +10065,7 @@ const REGRESSIONS = [
         /*
          * E78 fix r2-H1, 14.10.2026. The orchestrator on G3's glass harness shots (14.10): the tile's two buttons drew as
          * plain white squares. There the harness's copy of the tile wore no mask, and `.drpg-pxi` with no mask is a
-         * square of its own colour (danganronpa.css). voice-tile.mjs `glyph` writes `--drpg-px-<name>` on each glyph it
+         * square of its own colour (danganronpa.css). voice-tile.mjs `glyph` writes `--drpg-pix-<name>` on each glyph it
          * builds, so a name with no sprite is the same square at a table: this reads each literal name the tile's
          * builders are given against the sprites the generated sheet states (tools/glyph-map.mjs). The drawn mask is
          * the glass harness's `drpgVoiceParts`, in Chromium. THE CONTROL: a name with no sprite is found missing.
@@ -10044,7 +10073,7 @@ const REGRESSIONS = [
         const src = stripComments(new Map(await otherSources()).get("voice-tile.mjs") ?? "");
         const css = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
         const names = [...src.matchAll(/\b(?:miniButton|rowButton)\(\s*"[^"]*",\s*"([\w-]+)"|\bglyph\(\s*"([\w-]+)"\s*\)/g)].map(m => m[1] ?? m[2]);
-        const missing = list => list.filter(n => !new RegExp(`--drpg-px-${n}:\\s*url\\(`).test(css));
+        const missing = list => list.filter(n => !new RegExp(`--drpg-pix-${n}:\\s*url\\(`).test(css));
         equal(JSON.stringify([[...new Set(names)].sort(), missing(names), missing(["no-such-sprite"])]), JSON.stringify([["lock", "mic", "sound"], [], ["no-such-sprite"]]),
             "[the glyph names voice-tile.mjs draws, those with no sprite in pixel-icons.css, the control's]");
     }],

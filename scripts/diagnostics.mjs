@@ -223,11 +223,13 @@ export function diagnoseDespair({ toChat = true } = {}) {
 /* The tokens the rest of the stylesheet is built out of. If the `:root` block
    is on the page at all, every one of these resolves; if the file was truncated,
    replaced or never attached, they come back empty together. Colours and one
-   sprite, because a sprite is a `url()` and fails differently from a hex. */
+   sprite, because a sprite is a `url()` and fails differently from a hex. Since
+   E48 G4 the sprites are pixel-icons.css's (tools/glyph-map.mjs declares them on
+   the body), so the three of them read that sheet's arrival, the colours this one's. */
 const LOAD_BEARING_TOKENS = [
     "--drpg-ink", "--drpg-bone", "--drpg-line",
     "--drpg-eye", "--drpg-blood", "--drpg-gold", "--drpg-evidence",
-    "--drpg-pix-skull", "--drpg-pix-query", "--drpg-g-move"
+    "--drpg-pix-skull", "--drpg-pix-query", "--drpg-pix-move"
 ];
 
 /* Foundry does not give module CSS its own `<link>`. It writes one inline sheet

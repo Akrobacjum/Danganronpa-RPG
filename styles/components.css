@@ -697,17 +697,17 @@ details.drpg-notice-entry > summary::-webkit-details-marker { display: none; }
     margin-top: 2px;
     background: currentColor;
     opacity: 0.85;
-    -webkit-mask: var(--drpg-px-mask) center / contain no-repeat;
-    mask: var(--drpg-px-mask) center / contain no-repeat;
-    --drpg-px-mask: var(--drpg-px-note);
+    -webkit-mask: var(--drpg-glyph) center / contain no-repeat;
+    mask: var(--drpg-glyph) center / contain no-repeat;
+    --drpg-glyph: var(--drpg-pix-note);
 }
-.drpg-src-public .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-bell); }
-.drpg-src-player .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-team); }
-.drpg-src-messenger .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-chat); }
-.drpg-src-evidence .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-bullet); }
-.drpg-src-summary .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-calendar); }
-.drpg-src-safeword .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-shield); }
-.drpg-src-notDone .drpg-notice-glyph { --drpg-px-mask: var(--drpg-px-checklist); }
+.drpg-src-public .drpg-notice-glyph { --drpg-glyph: var(--drpg-pix-bell); }
+.drpg-src-player .drpg-notice-glyph { --drpg-glyph: var(--drpg-pix-team); }
+.drpg-src-messenger .drpg-notice-glyph { --drpg-glyph: var(--drpg-pix-chat); }
+.drpg-src-evidence .drpg-notice-glyph { --drpg-glyph: var(--drpg-pix-bullet); }
+.drpg-src-summary .drpg-notice-glyph { --drpg-glyph: var(--drpg-pix-calendar); }
+.drpg-src-safeword .drpg-notice-glyph { --drpg-glyph: var(--drpg-pix-shield); }
+.drpg-src-notDone .drpg-notice-glyph { --drpg-glyph: var(--drpg-pix-checklist); }
 .drpg-notice-title { line-height: 1.3; overflow-wrap: anywhere; }
 body.drpg-theme-stained-glass .drpg-notice-title { letter-spacing: 0.02em; }
 /* under the glass the weight is its type sweep's */
@@ -1765,8 +1765,8 @@ body:not(.drpg-stacked) .drpg-room-tile > .drpg-hud-room-project {
     width: 24px;
     height: 24px;
     background: currentColor;
-    -webkit-mask-image: var(--drpg-px-anvil);
-    mask-image: var(--drpg-px-anvil);
+    -webkit-mask-image: var(--drpg-pix-anvil);
+    mask-image: var(--drpg-pix-anvil);
     -webkit-mask-size: contain;
     mask-size: contain;
     -webkit-mask-repeat: no-repeat;

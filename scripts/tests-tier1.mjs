@@ -3337,10 +3337,12 @@ const INVARIANTS = [
         /*
          * E48 G3, 11.11.2026 (STAGE (d)). The list was recorded headless at 7b5b4da9 - the 1.2.105 line's tip, which
          * holds 120a8003's icons and E49 A2's move of End the chapter - before G3 changed a file, from the same probes and
-         * reader as R3347 (each id -> a token such as `--drpg-g-search`, or `fa:<class>` where nothing masks it). In a
+         * reader as R3347 (each id -> a token such as `--drpg-pix-search`, or `fa:<class>` where nothing masks it). In a
          * browser a mask is a url(...), and it matches when the recorded token is among the body's properties holding
-         * that url. THE CONTROL: the Search tile's icon given an inline mask of --drpg-pix-search must read differently
-         * from its record, so a reader that echoed the list would be red here. G4 runs this again against G3's tip.
+         * that url. THE CONTROL: the Search tile's icon given an inline mask of --drpg-pix-observe must read differently
+         * from its record, so a reader that echoed the list would be red here. E48 G4 (11.11.2026) renamed every hand-drawn token
+         * to the one prefix: the record's 60 token readings name the new tokens, mapped one for one (LEGACY_ICONS's note),
+         * and the legacy rows draw what the old tokens drew, pixel for pixel (measured at G4 against G3's tip, b654947b).
          */
         needs(env.tools(), "the readings are named against tools/glyphs.json (an installed module's zip leaves tools/ out)");
         const G = await import("./tests-glyphs.mjs");
@@ -3365,8 +3367,10 @@ const INVARIANTS = [
             const tokens = G.glyphTokens(body, window, glyphs);
             for (const [id] of probes) readings[id] = G.glyphReading(host.querySelector(`[data-drpg-probe-id="${id}"] [data-drpg-probe]`), window, tokens);
             const search = host.querySelector('[data-drpg-probe-id="ACTIONS.search"] [data-drpg-probe]');
-            search.style.setProperty("mask-image", "var(--drpg-pix-search)");
-            search.style.setProperty("-webkit-mask-image", "var(--drpg-pix-search)");
+            /* --drpg-pix-observe, not -search: since E48 G4 the record's own token for this tile is --drpg-pix-search, so
+               the plant is another legacy token, which a reader that echoed the list would still read as the record. */
+            search.style.setProperty("mask-image", "var(--drpg-pix-observe)");
+            search.style.setProperty("-webkit-mask-image", "var(--drpg-pix-observe)");
             control = G.readingMatches(G.LEGACY_ICONS["ACTIONS.search"], G.glyphReading(search, window, tokens));
         } finally {
             host.remove();
@@ -3380,10 +3384,10 @@ const INVARIANTS = [
             else if (!G.readingMatches(G.LEGACY_ICONS[id], readings[id])) wrong.push(`${id}: ${readings[id]}, recorded ${G.LEGACY_ICONS[id]}`);
         }
         equal(stableJson(wrong), "[]", `Legacy's icons (${Object.keys(readings).length}) that differ from the record`);
-        equal(control, false, "the Search tile's icon given --drpg-pix-search inline matches its record (the control)");
+        equal(control, false, "the Search tile's icon given --drpg-pix-observe inline matches its record (the control)");
     }],
 
-    ["R548 - Foundry tools wears the module's pixel anvil in both themes: its one child is an inert, classless i masked with --drpg-px-anvil in the colour the handbooks' book is drawn in, and no Foundry logo is on the page or in the module's stylesheets", async () => {
+    ["R548 - Foundry tools wears the module's pixel anvil in both themes: its one child is an inert, classless i masked with --drpg-pix-anvil in the colour the handbooks' book is drawn in, and no Foundry logo is on the page or in the module's stylesheets", async () => {
         /*
          * E78 fix h76-HF3, 14.10.2026; the owner at The Forge on 1.2.76 (13.10): the corner's Foundry tools button wore
          * Foundry's own logo, `icons/fvtt.png` from Foundry's core files through a lightening filter - read at the table
@@ -3393,9 +3397,9 @@ const INVARIANTS = [
          * Font Awesome name for pixel-icons.css to repaint) and no text. THE SHEETS: the module's stylesheets, comments
          * blanked (`moduleStyles`), name no Foundry logo - R509's pattern, `fvtt` or "foundry" beside "logo" - so the
          * picture cannot come back as a background or a `content` the page check would not see. THE GLYPH, under each theme in turn: the face's
-         * mask-image names the anvil - in a browser its resolved value is `--drpg-px-anvil`'s own on the body, headless
+         * mask-image names the anvil - in a browser its resolved value is `--drpg-pix-anvil`'s own on the body, headless
          * the cascade leaves a standard property made of var() unresolved (tests-kit.mjs `cascadeAvailable`), so there
-         * it reads `var(--drpg-px-anvil)` - and the token itself is the module's data URL on the body; the face's
+         * it reads `var(--drpg-pix-anvil)` - and the token itself is the module's data URL on the body; the face's
          * background-color is the handbooks' glyph's. THE CONTROL: an inline `mask-image: none` on the face must turn
          * the reading off the anvil, so a reader that answered "anvil" for anything would be red here. Everything is
          * put back as it was found.
@@ -3414,8 +3418,8 @@ const INVARIANTS = [
             "[the Foundry logos the module's stylesheets name]");
         const body = document.body, CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], classWas = CLASSES.map(name => body.classList.contains(name));
         const mask = el => { const s = getComputedStyle(el); return s.getPropertyValue("mask-image") || s.getPropertyValue("-webkit-mask-image") || "none"; };
-        const anvil = () => getComputedStyle(body).getPropertyValue("--drpg-px-anvil").trim();
-        const names = value => value.replace(/\s+/g, "") === "var(--drpg-px-anvil)" || (anvil() !== "" && value.trim() === anvil());
+        const anvil = () => getComputedStyle(body).getPropertyValue("--drpg-pix-anvil").trim();
+        const names = value => value.replace(/\s+/g, "") === "var(--drpg-pix-anvil)" || (anvil() !== "" && value.trim() === anvil());
         const seen = {};
         try {
             for (const glass of [true, false]) {
@@ -3435,7 +3439,7 @@ const INVARIANTS = [
             CLASSES.forEach((name, i) => body.classList.toggle(name, classWas[i]));
         }
         equal(stableJson(seen), stableJson({ "Monokuma Legacy": [true, true, true, false], "Stained Glass": [true, true, true, false] }),
-            `[per theme: --drpg-px-anvil a data URL on the body, the face's mask naming it, its colour the book glyph's, the mask read again with the `
+            `[per theme: --drpg-pix-anvil a data URL on the body, the face's mask naming it, its colour the book glyph's, the mask read again with the `
             + `face's own set to none] - the face's mask read ${JSON.stringify(mask(face))}`);
     }],
     ["R543 - the voice tile on the curtain keeps its box whatever is said, fills its pane and wears the game state's colour: the tile stands at the box the cut settled, a long name moves nothing, the portrait is cut to the pane's own outline, the caption's brush is `--drpg-glass-accent`, no pane covers `voice-left` and no spare strip stands at a right wall with no rail", async () => {
@@ -19503,7 +19507,7 @@ const INVARIANTS = [
         };
 
         const css = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
-        const glyphless = names => names.filter(name => !new RegExp(`\\.${name}:is\\(i, span\\) \\{ --drpg-px-mask: var\\(--drpg-pix-[\\w-]+\\); \\}`).test(css));
+        const glyphless = names => names.filter(name => !new RegExp(`\\.${name}:is\\(i, span\\) \\{ --drpg-glyph: var\\(--drpg-pix-[\\w-]+\\); \\}`).test(css));
         const icons = [...palm.content.querySelectorAll(".drpg-choice i")].map(i => [...i.classList].find(c => c.startsWith("fa-") && c !== "fa-solid") ?? null);
 
         // One of each: a kit window carries `drpg-panel` twice, the caller's and the kit's (E21 C5a); `drpg-prompt` since E23 C5a,
@@ -35407,22 +35411,26 @@ const INVARIANTS = [
            The room tile's three Stained Glass prints since E48 G3 (11.11.2026): the description button's fa-align-left
            is a FACES class now, so pixel-icons.css's glass rule masks it with the glass set's `description` glyph -
            curtain 1:e4f711c4 -> 1:7a2b083d, desk 1:df847626 -> 1:ae49e2fb, stacked 1:e821c8f8 -> 1:af1b01b1, re-measured
-           headless; every other print, `left` and the @media rules as they were. */
+           headless; every other print, `left` and the @media rules as they were.
+           Foundry tools' six since E48 G4 (11.11.2026): its face's mask names the anvil by the one prefix now
+           (`--drpg-pix-anvil`, the same drawing, legacy:anvil same px:anvil), and a print hashes the winning value's text -
+           Legacy 1:d635e754 -> 1:742fc6be, Stained Glass 1:83b739cf -> 1:9978c959 at each place, re-measured headless;
+           every other print, `left` and the @media rules as they were. */
         const C5 = {
-            "curtain|monokuma-legacy|foundry-tools": "1:d635e754", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:999f5b79",
+            "curtain|monokuma-legacy|foundry-tools": "1:742fc6be", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:999f5b79",
             "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:cf9e2a77", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
-            "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:7268133b", "curtain|stained-glass|foundry-tools": "1:83b739cf",
+            "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:7268133b", "curtain|stained-glass|foundry-tools": "1:9978c959",
             "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:ae4eb686", "curtain|stained-glass|room-art": "1:b38f7ef7",
             "curtain|stained-glass|room-tile": "1:7a2b083d", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
-            "curtain|stained-glass|voice-tile": "2:7c097704", "desk|monokuma-legacy|foundry-tools": "1:d635e754", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
+            "curtain|stained-glass|voice-tile": "2:7c097704", "desk|monokuma-legacy|foundry-tools": "1:742fc6be", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
             "desk|monokuma-legacy|gm-launcher": "1:999f5b79", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:3a251bf8",
             "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:cfb69a33",
-            "desk|stained-glass|foundry-tools": "1:83b739cf", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:ae4eb686",
+            "desk|stained-glass|foundry-tools": "1:9978c959", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:ae4eb686",
             "desk|stained-glass|room-art": "1:b38f7ef7", "desk|stained-glass|room-tile": "1:ae49e2fb", "desk|stained-glass|voice-art": "1:393b7dc4",
-            "desk|stained-glass|voice-list": "1:e9f9c48e", "desk|stained-glass|voice-tile": "1:9028bf8f", "stacked|monokuma-legacy|foundry-tools": "1:d635e754",
+            "desk|stained-glass|voice-list": "1:e9f9c48e", "desk|stained-glass|voice-tile": "1:9028bf8f", "stacked|monokuma-legacy|foundry-tools": "1:742fc6be",
             "stacked|monokuma-legacy|foundry-window": "2:3ad17c49", "stacked|monokuma-legacy|gm-launcher": "1:999f5b79", "stacked|monokuma-legacy|room-art": "1:b38f7ef7",
             "stacked|monokuma-legacy|room-tile": "1:164e7a4a", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:4671c967",
-            "stacked|monokuma-legacy|voice-tile": "1:66481022", "stacked|stained-glass|foundry-tools": "1:83b739cf", "stacked|stained-glass|foundry-window": "2:8b75b7bd",
+            "stacked|monokuma-legacy|voice-tile": "1:66481022", "stacked|stained-glass|foundry-tools": "1:9978c959", "stacked|stained-glass|foundry-window": "2:8b75b7bd",
             "stacked|stained-glass|gm-launcher": "1:ae4eb686", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:af1b01b1",
             "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:e9f9c48e", "stacked|stained-glass|voice-tile": "1:4a4823b1"
         };
@@ -37826,8 +37834,8 @@ const INVARIANTS = [
         const MASK = ["mask", "-webkit-mask", "mask-image", "-webkit-mask-image"];
         const slot = el => { const [lo, hi] = [band(value(el, "width")), band(value(el, "height"))].map(b => (Array.isArray(b) && b[0] >= 12 && b[1] <= 16 ? "12-16" : b)); return [lo, hi]; };
         const look = {
-            held: { slot: slot(held), mask: /--drpg-px-star\)/.test(value(held, MASK, "::before") ?? "") },
-            empty: { slot: slot(empty), mask: /--drpg-px-star-outline\)/.test(value(empty, MASK, "::before") ?? ""), colour: value(empty, ["background-color", "background"], "::before"),
+            held: { slot: slot(held), mask: /--drpg-pix-star\)/.test(value(held, MASK, "::before") ?? "") },
+            empty: { slot: slot(empty), mask: /--drpg-pix-star-outline\)/.test(value(empty, MASK, "::before") ?? ""), colour: value(empty, ["background-color", "background"], "::before"),
                 opacity: value(empty, "opacity", "::before"), slotOpacity: value(empty, "opacity") }
         };
         const PS = await import("./player-status.mjs");

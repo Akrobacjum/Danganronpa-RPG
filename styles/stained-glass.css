@@ -246,9 +246,6 @@ body.drpg-theme-stained-glass {
        is no arrangement that makes it cheap - it is on or it is not. */
     --drpg-glass-backdrop: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
 }
-body {
-    --drpg-pix-gear: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 1h2v1h-2zM14 1h2v1h-2zM6 2h4v1h-4zM14 2h4v1h-4zM6 3h4v1h-4zM11 3h2v1h-2zM14 3h4v1h-4zM7 4h10v1h-10zM6 5h12v1h-12zM2 6h2v1h-2zM5 6h14v1h-14zM20 6h2v1h-2zM2 7h7v1h-7zM15 7h7v1h-7zM1 8h7v1h-7zM16 8h7v1h-7zM1 9h6v1h-6zM17 9h6v1h-6zM4 10h3v1h-3zM17 10h3v1h-3zM3 11h4v1h-4zM17 11h4v1h-4zM3 12h4v1h-4zM17 12h4v1h-4zM4 13h3v1h-3zM17 13h3v1h-3zM1 14h6v1h-6zM17 14h6v1h-6zM1 15h7v1h-7zM16 15h7v1h-7zM2 16h7v1h-7zM15 16h7v1h-7zM2 17h2v1h-2zM5 17h14v1h-14zM20 17h2v1h-2zM6 18h12v1h-12zM7 19h10v1h-10zM6 20h4v1h-4zM11 20h2v1h-2zM14 20h4v1h-4zM6 21h4v1h-4zM14 21h4v1h-4zM8 22h2v1h-2zM14 22h2v1h-2z'/%3E%3C/svg%3E");
-}
 body.drpg-theme-stained-glass[data-drpg-time="morning"] { --drpg-glass-accent: var(--drpg-sg-morning); }
 body.drpg-theme-stained-glass[data-drpg-time="noon"] { --drpg-glass-accent: var(--drpg-sg-noon); }
 body.drpg-theme-stained-glass[data-drpg-time="afternoon"] { --drpg-glass-accent: var(--drpg-sg-afternoon); }
@@ -2379,14 +2376,14 @@ body.drpg-theme-stained-glass #drpg-despair .drpg-despair-name { color: var(--dr
    theme saying which one, and in what colour. */
 /* Hope is a star, not a diamond: the one glyph swap the audit page calls for by name. */
 body.drpg-theme-stained-glass .character-header-sheet .hope-section .hope-value::before {
-    -webkit-mask-image: var(--drpg-px-star);
-    mask-image: var(--drpg-px-star);
+    -webkit-mask-image: var(--drpg-pix-star);
+    mask-image: var(--drpg-pix-star);
     background-color: var(--drpg-sg-hope);
     opacity: 0.25;
 }
 body.drpg-theme-stained-glass .character-header-sheet .hope-section .hope-value:has(> i.fa-solid)::before {
-    -webkit-mask-image: var(--drpg-px-star);
-    mask-image: var(--drpg-px-star);
+    -webkit-mask-image: var(--drpg-pix-star);
+    mask-image: var(--drpg-pix-star);
     opacity: 1;
 }
 /* AND THE SAME STAR IN THE CORNER, which is the other place Hope is drawn.
@@ -2409,8 +2406,8 @@ body.drpg-theme-stained-glass .character-header-sheet .hope-section .hope-value:
    the edges hard. */
 body.drpg-theme-stained-glass #drpg-player-status .drpg-status-hope-pip::before,
 body.drpg-theme-stained-glass #drpg-player-status .drpg-status-hope-pip.filled::before {
-    -webkit-mask: var(--drpg-px-star) center / contain no-repeat;
-    mask: var(--drpg-px-star) center / contain no-repeat;
+    -webkit-mask: var(--drpg-pix-star) center / contain no-repeat;
+    mask: var(--drpg-pix-star) center / contain no-repeat;
 }
 /* AND THE STARS ARE BIG ENOUGH TO COUNT (E23 C3a, 07.11.2026; S10-63). The slots were the base sheet's 0.72rem,
    11.5 px, and the contained 24 px star drew at 7-8 px; an empty one was the same star at the slot's 0.45 over
@@ -2419,13 +2416,12 @@ body.drpg-theme-stained-glass #drpg-player-status .drpg-status-hope-pip.filled::
    same 24 px sprite less its inside, one unit of the sprite wide) in Bone Dim at 40 %, a held one the solid
    star as before. R1392 reads both. */
 body.drpg-theme-stained-glass #drpg-player-status .drpg-status-hope-pip {
-    --drpg-px-star-outline: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 3h2v1h-2zM11 4h2v1h-2zM11 5h2v1h-2zM10 6h4v1h-4zM10 7h1v1h-1zM13 7h1v1h-1zM10 8h1v1h-1zM13 8h1v1h-1zM2 9h9v1h-9zM13 9h9v1h-9zM3 10h3v1h-3zM18 10h3v1h-3zM5 11h2v1h-2zM17 11h2v1h-2zM6 12h2v1h-2zM16 12h2v1h-2zM7 13h2v1h-2zM15 13h2v1h-2zM8 14h1v1h-1zM15 14h1v1h-1zM7 15h2v1h-2zM15 15h2v1h-2zM7 16h1v1h-1zM10 16h4v1h-4zM16 16h1v1h-1zM7 17h1v1h-1zM9 17h2v1h-2zM13 17h2v1h-2zM16 17h1v1h-1zM6 18h4v1h-4zM14 18h4v1h-4zM6 19h2v1h-2zM16 19h2v1h-2zM6 20h1v1h-1zM17 20h1v1h-1zM5 21h1v1h-1zM18 21h1v1h-1z'/%3E%3C/svg%3E");
     width: clamp(12px, calc(16px * var(--drpg-sg-scale)), 16px);
     height: clamp(12px, calc(16px * var(--drpg-sg-scale)), 16px);
 }
 body.drpg-theme-stained-glass #drpg-player-status .drpg-status-hope-pip:not(.filled)::before {
-    -webkit-mask: var(--drpg-px-star-outline) center / contain no-repeat;
-    mask: var(--drpg-px-star-outline) center / contain no-repeat;
+    -webkit-mask: var(--drpg-pix-star-outline) center / contain no-repeat;
+    mask: var(--drpg-pix-star-outline) center / contain no-repeat;
     background-color: var(--drpg-sg-bone-dim);
     opacity: 0.4;
 }
@@ -2533,8 +2529,8 @@ body.drpg-theme-stained-glass .drpg-select::after {
     height: 12px;
     pointer-events: none;
     background-color: var(--drpg-glass-accent);
-    -webkit-mask: var(--drpg-px-sort) center / contain no-repeat;
-    mask: var(--drpg-px-sort) center / contain no-repeat;
+    -webkit-mask: var(--drpg-pix-sort) center / contain no-repeat;
+    mask: var(--drpg-pix-sort) center / contain no-repeat;
     image-rendering: pixelated;
 }
 
@@ -2720,7 +2716,7 @@ body.drpg-no-ticker .drpg-event-ticker { display: none; }
 body.drpg-reduced-motion .drpg-event-ticker > span { animation: none; }
 /* the body-found card is the killing seen from outside: the GM's red, like the incident */
 body.drpg-theme-stained-glass .drpg-event[data-kind="body"] { --acc: var(--drpg-sg-gm-light); }
-body.drpg-theme-stained-glass .drpg-event[data-kind="body"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-murder); }
+body.drpg-theme-stained-glass .drpg-event[data-kind="body"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-murder); }
 
 /* ---- the right-hand column stands still --------------------------------------------------
    glass.mjs pins `#ui-right-column-1` (position, right, z-index inline) so an opening sidebar
@@ -3004,8 +3000,8 @@ body.drpg-theme-stained-glass #countdowns .countdown-container::before {
     width: calc(16px * var(--drpg-sg-scale));
     height: calc(16px * var(--drpg-sg-scale));
     background-color: var(--drpg-glass-accent);
-    -webkit-mask: var(--drpg-project-glyph, var(--drpg-px-hourglass)) center / contain no-repeat;
-    mask: var(--drpg-project-glyph, var(--drpg-px-hourglass)) center / contain no-repeat;
+    -webkit-mask: var(--drpg-project-glyph, var(--drpg-pix-hourglass)) center / contain no-repeat;
+    mask: var(--drpg-project-glyph, var(--drpg-pix-hourglass)) center / contain no-repeat;
     image-rendering: pixelated;
 }
 body.drpg-theme-stained-glass #countdowns .countdown-main-container,
@@ -3774,8 +3770,8 @@ body.drpg-theme-stained-glass [class*="drpg-"] .fa-diamond:is(i, span) {
     height: max(1.15em, 22px);
     vertical-align: -0.2em;
     background-color: currentColor;
-    -webkit-mask: var(--drpg-px-star) center / contain no-repeat;
-    mask: var(--drpg-px-star) center / contain no-repeat;
+    -webkit-mask: var(--drpg-pix-star) center / contain no-repeat;
+    mask: var(--drpg-pix-star) center / contain no-repeat;
     image-rendering: pixelated;
 }
 body.drpg-theme-stained-glass [class*="drpg-"] i.fa-diamond::before,
@@ -4028,8 +4024,8 @@ body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger, .ap
     width: 15px;
     height: 15px;
     background-color: var(--drpg-sg-ink);
-    -webkit-mask: var(--drpg-px-check) center / contain no-repeat;
-    mask: var(--drpg-px-check) center / contain no-repeat;
+    -webkit-mask: var(--drpg-pix-check) center / contain no-repeat;
+    mask: var(--drpg-pix-check) center / contain no-repeat;
     image-rendering: pixelated;
     transform: scale(0);
     transition: transform var(--drpg-t-snap, 90ms) var(--drpg-ease-arrive, ease-out);
@@ -4613,8 +4609,8 @@ body.drpg-theme-stained-glass :is(.hope-section, #drpg-player-status .is-hope) :
    what is on screen; the `<i>` inside it was already masked to a star and was not what was
    showing. Same star on the slot's own mark, and a spent slot is the same star at a third. */
 body.drpg-theme-stained-glass :is(.hope-section, #drpg-player-status .is-hope) .hope-value::before {
-    -webkit-mask: var(--drpg-px-star) center / contain no-repeat;
-    mask: var(--drpg-px-star) center / contain no-repeat;
+    -webkit-mask: var(--drpg-pix-star) center / contain no-repeat;
+    mask: var(--drpg-pix-star) center / contain no-repeat;
     border-radius: 0 !important;
     image-rendering: pixelated;
 }

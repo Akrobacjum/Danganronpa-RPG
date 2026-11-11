@@ -4,20 +4,23 @@
  *     node tools/glyph-map.mjs           writes the generated files from tools/glyphs.json
  *     node tools/glyph-map.mjs --check   writes nothing; exit 1 on any problem below
  *
- * tools/glyphs.json holds every drawing the module wears - 240 on 10.11.2026: the 86 of the generated px set, the
- * stylesheets' 73 `--drpg-g-`, 7 `--drpg-r-`, 10 `--drpg-pix-` and one `--drpg-px-star-outline`, and the 63 chrome
- * masks - each as rows of "." and "#", one string a row. Its header says what each field means.
+ * tools/glyphs.json holds every drawing the module wears - 470 rows on 11.11.2026 (E48 G4): the 86 of the generated px
+ * set (the sprite's, and Stained Glass's fallback), 131 legacy (Monokuma Legacy's drawings as they were: the 89 the
+ * stylesheets held by hand until G4 - 71 action, Call, crisis and GM tiles, 7 sheet row buttons, 10 pips, markers and
+ * launcher faces, one star outline - and 42 px drawings a sheet or a script reads by name), 190 glass (the drawing
+ * rounds' approved set) and the 63 chrome masks - each as rows of "." and "#", one string a row. Its header says what
+ * each field means.
  *
- * WHAT IT WRITES, from the rows of family px that name no sheet, in the file's order: icons/pixel-sprite.svg (each as
- * `<symbol id="px-NAME">`), styles/pixel-icons.css (each as `--drpg-px-NAME` on the body, then `FA` below masked to
- * its glyph under Stained Glass) and the `<symbol>` block of docs/design/identity-audit-v13.html. These are the three
- * tools/pixel-icons.py wrote; since E48 G3 (11.11.2026) the sprite also holds every `glass` row as `<symbol
- * id="pix-NAME">` and pixel-icons.css ends in the glass section (`glassCssOf`): each glyph Stained Glass wears declared
- * as `--drpg-pix-NAME` on the theme's body, keyed on the element (`glassRules`), and FACES's FA classes masked to it.
- * At G1 the text was that script's, line for line, so the move changed no byte but
+ * WHAT IT WRITES: icons/pixel-sprite.svg (each px row as `<symbol id="px-NAME">`, each glass row as `pix-NAME`), the
+ * audit page's symbols, and styles/pixel-icons.css: every legacy row as `--drpg-pix-NAME` on the body, for both themes;
+ * then FACES's Font Awesome classes masked to their glass glyph under Stained Glass through the `--drpg-glyph` slot;
+ * then the glass section (`glassCssOf`), each glyph Stained Glass wears declared as `--drpg-pix-NAME` on the theme's
+ * body over Legacy's of the same name, keyed on the element (`glassRules`). THE ONE PREFIX (G4): no rule reads a
+ * glyph under any other; R3349 holds it, and that every name a sheet or a script reads is a legacy row.
+ * At G1 the text was tools/pixel-icons.py's, line for line, so the move changed no byte but
  * pixel-icons.css's first line (the generator's name): measured at E48 G1 against 120a8003, the sprite and the audit
  * page byte-equal, pixel-icons.css different in line 1 alone. The chrome rows are tools/chrome-icons.mjs's art; that
- * tool writes danganronpa.css's chrome section from them (`chromeCss`).
+ * tool writes danganronpa.css's chrome section from them (`chromeCss`), the one block of data URIs a sheet still holds.
  *
  * WHAT `--check` HOLDS (`glyphProblems`, which the suite's R3333 runs on the files Foundry serves):
  *   - each row of glyphs.json: a known shape of fields, a name unique in its family, `grid` rows each `grid` wide of
@@ -25,10 +28,10 @@
  *     naming the other, and a `same` that names a row drawing other pixels is a fault;
  *   - the three generated files equal to what this writes (the first differing line is named);
  *   - every `FA` name maps to a glyph of the generated set;
- *   - every SVG data URI in danganronpa.css and stained-glass.css equal to its row pixel for pixel: a custom property
- *     `--drpg-<family>-<name>: url(...)` to the row whose `prop` it is, a rule's `mask-image` and `-webkit-mask-image`
- *     (the two the same) to the row whose `rule` is the rule's first selector; a URI with no row, and a row whose URI
- *     the sheet no longer holds, are faults. Pixel for pixel, not byte for byte: the sheets spell their rectangles
+ *   - every SVG data URI in danganronpa.css and stained-glass.css equal to its row pixel for pixel: a rule's
+ *     `mask-image` and `-webkit-mask-image` (the two the same) to the row whose `rule` is the rule's first selector (a
+ *     custom property's URI to the row whose `prop` it is, none since G4); a URI with no row, and a row whose URI the
+ *     sheet no longer holds, are faults. Pixel for pixel, not byte for byte: the sheets spell their rectangles
  *     several ways (`h-3z`, `H3z`, `v2`), and what the eye sees is the pixels;
  *   - danganronpa.css's chrome section equal to what chrome-icons.mjs writes from the chrome rows.
  * `selfCheck` plants a drift of each kind in a copy and is red unless each is seen; `node tools/check.mjs glyphs` runs
