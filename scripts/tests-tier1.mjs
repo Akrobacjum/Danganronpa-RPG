@@ -11562,7 +11562,7 @@ const INVARIANTS = [
             + "the cards' own clicks run, '+N' left, the history button's badge and the unread count; each card where it is and its state after, against "
             + "parked: gone and unread, shown: leaving and read, sticky: shown and open]");
         equal(J([
-            /\.drpg-popup-close:focus-visible,\s*\.drpg-popup-more:focus-visible,[^{]*\{[^}]*outline: 2px solid var\(--drpg-gold\);/.test(styles),
+            /\.drpg-popup-close:focus-visible,\s*\.drpg-popup-more:focus-visible,[^{]*\{[^}]*outline: 2px solid var\(--drpg-attention\);/.test(styles), // E48 K1: the focus ring left Hope's gold
             /\.drpg-popup-title button\.drpg-popup-more \{[^}]*height: 1\.6rem;[^}]*cursor: pointer;/.test(styles),
             /body\.drpg-theme-stained-glass \.drpg-popup-title :is\(button, i\) \{ color:/.test(styles)
         ]), J([true, true, true]), "[the '+N' button's focus ring is the close button's; its target the close button's height, with a pointer; under Stained Glass its colour the close button's]");
@@ -37910,7 +37910,7 @@ const INVARIANTS = [
         const won = Object.fromEntries([...body.querySelectorAll(".drpg-event")].map(card => [card.dataset.kind, C.winner(card, ["--acc"])]));
         const hour = kinds.filter(k => !won[k] || !won[k].selector.includes(`[data-kind="${k}"]`) || /--drpg-glass-accent/.test(won[k].value));
         equal(stableJson({ hour, safeword: won.safeword?.value ?? null, assembly: won.assembly?.value ?? null }),
-            stableJson({ hour: [], safeword: "var(--drpg-sg-gm-light)", assembly: "var(--drpg-sg-hope)" }),
+            stableJson({ hour: [], safeword: "var(--drpg-sg-gm-light)", assembly: "var(--drpg-sg-evidence)" }), // Hope's gold until E48 K1: the base sheet's antique is Evidence's
             "{hour: the kinds whose `--acc` under Stained Glass is the hour's or no rule of their own; the safeword's and the assembly's accent}");
     }],
     ["R1394 - the Event panel is one box whatever it says (E23 C3b, E23-18; the owner's 04.10, audit S10-35, S12-30): its width and height are two tokens, a length each, stated for Monokuma Legacy, for the glass and for the glass's stack, and what is taller scrolls inside it, the panel never shrunk and a card never shrunk below its words; an incident's meta is two lines, whose turn and then the state, and no meta wears a frame or a glowing box (under Monokuma Legacy its lines 1.25 apart or more); the ticker runs in the glyph's band, under no word, and is not drawn on a stacked screen", async () => {
@@ -40842,7 +40842,7 @@ const INVARIANTS = [
         }
         equal(stableJson(got), stableJson({
             "drpg-theme-monokuma-legacy": { picker: "0", chosen: "color-mix(in srgb, var(--drpg-eye) 28%, var(--drpg-ink))", tick: "var(--drpg-eye-light)" },
-            "drpg-theme-stained-glass": { picker: "3px", chosen: "color-mix(in srgb, var(--drpg-gold) 18%, var(--drpg-ink))", tick: "var(--drpg-gold)" }
+            "drpg-theme-stained-glass": { picker: "3px", chosen: "color-mix(in srgb, var(--drpg-attention) 18%, var(--drpg-ink))", tick: "var(--drpg-attention)" } // E48 K1: Hope's gold until then
         }), "[per theme, a .drpg-panel select open: the picker's border-radius, the chosen row's background, the tick's colour]");
     }],
     ["R1446 - the incident card by seat (events.mjs `incidentLines`, murder-ui.mjs `reserveLine`; E24 C1b, E24-07; S10-36, D5 option 1): the victim reads both reserves in the second person, the killer's side \"Waiting for\" the one who acts and the victim's Health alone, a GM both after \"Victim\"; none of them a mark; a bystander gets no card; the card's meta is still two parts", async () => {
@@ -44634,7 +44634,7 @@ const INVARIANTS = [
             /* the field's focus ring stays the panels' gold (danganronpa.css, every `drpg-panel`), already the module's */
         };
         const sheet = "styles/components.css", token = `var(--drpg-kit-role-primary) | ${sheet}`;
-        const each = { box: ["info", game.i18n.localize("DRPG.GiveBack.givenBackState"), `3px solid var(--drpg-kit-info-edge) | ${sheet}`], window: [token, token, token, "var(--drpg-gold) | styles/danganronpa.css"] };
+        const each = { box: ["info", game.i18n.localize("DRPG.GiveBack.givenBackState"), `3px solid var(--drpg-kit-info-edge) | ${sheet}`], window: [token, token, token, "var(--drpg-attention) | styles/danganronpa.css"] }; // the field focus: Hope's gold until E48 K1
         equal(JSON.stringify({ legacy: read("drpg-theme-monokuma-legacy"), glass: read("drpg-theme-stained-glass") }), JSON.stringify({ legacy: each, glass: each }),
             "{per theme: the given-back line [its box, its words, its edge (the winning value | its sheet)], the window's accent, checkbox, button focus and field focus colours}");
     }],

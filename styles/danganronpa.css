@@ -106,6 +106,18 @@
     --drpg-gold-antique-rgb: var(--drpg-evidence-rgb);
     --drpg-gold-shadow-rgb: 180, 140, 0;
 
+    /* --- attention: focus and selection (E48 K1, 11.11.2026; Q6) ----------
+       Where the keyboard is, what is picked, what is offered or asks to be
+       looked at. It was Hope's gold in 42 rules, so a focused tile, a chosen
+       crisis row and a Hope star were one colour saying three things. Bone in
+       both themes (the owner's Q6, "tak"): the state colour was the other
+       choice, and it moves with the hour, which D30 takes off every control.
+       Stained Glass points it at its own Bone where it redefines Bone, so the
+       value follows the theme; tools/css-lint.mjs's MEANING names where it is
+       read. */
+    --drpg-attention: var(--drpg-bone);
+    --drpg-attention-rgb: var(--drpg-bone-rgb);
+
     /* --- crimson: refusal, a critical, the whisper stripe ------------------ */
     /* Kept deliberately distinct from Eye, and left at its old value for now.
        `.drpg-popup-info` and `.drpg-popup-error` are separated by nothing but
@@ -1456,7 +1468,7 @@ body.drpg-hide-system-fear #resource-fear {
 .drpg-popup-more:focus-visible,
 .character-header-sheet .drpg-action-pip.gm-editable:focus-visible,
 #drpg-despair.gm-editable .drpg-despair-pip:focus-visible {
-    outline: 2px solid var(--drpg-gold);
+    outline: 2px solid var(--drpg-attention);
     outline-offset: 2px;
     border-radius: 3px;
 }
@@ -2436,13 +2448,14 @@ body.drpg-pixel-font .drpg-call-button .drpg-action-cost {
 
 /* A control a Call has paid for: lit up rather than greyed. */
 .roll-selection .drpg-call-unlocked {
-    outline: 1px solid var(--drpg-gold);
+    outline: 1px solid var(--drpg-attention);
     outline-offset: 1px;
     opacity: 1;
     filter: none;
 }
 
-/* Forced by a Call: on, and not up for discussion. Gold and fully opaque so it
+/* Forced by a Call: on, and not up for discussion. In the attention colour (Hope's gold
+   until E48 K1) and fully opaque so it
    never reads as the greyed-out "you may not touch this" state, even though it
    is disabled for exactly the same reason. */
 .roll-selection .drpg-call-unlocked.selected,
@@ -2451,8 +2464,8 @@ body.drpg-pixel-font .drpg-call-button .drpg-action-cost {
     opacity: 1;
     filter: none;
     cursor: default;
-    background: rgba(var(--drpg-gold-rgb), 0.15);
-    color: var(--drpg-gold);
+    background: rgba(var(--drpg-attention-rgb), 0.15);
+    color: var(--drpg-attention);
 }
 
 /* How many dice, on the chip itself (E7).
@@ -2469,8 +2482,8 @@ body.drpg-pixel-font .drpg-call-button .drpg-action-cost {
     font-size: var(--drpg-text-xs) !important;
     font-weight: 700 !important;
     line-height: 1.4 !important;
-    background: rgba(var(--drpg-gold-rgb), 0.28) !important;
-    color: var(--drpg-gold) !important;
+    background: rgba(var(--drpg-bone-rgb), 0.28) !important;
+    color: var(--drpg-bone) !important;
 }
 
 .drpg-free-crit-banner {
@@ -2786,7 +2799,7 @@ body.drpg-pixel-font .character-sidebar-sheet .bar-label {
 }
 
 #pause figcaption {
-    color: var(--drpg-gold);
+    color: var(--drpg-bone);
     /* Big enough to read across a room, and `clamp` rather than a fixed size
        because this is the one piece of UI whose width is the whole viewport -
        a number that looks right on a 27" monitor runs off the edge of a laptop.
@@ -2945,24 +2958,25 @@ body.drpg-pixel-font [contenteditable] {
    slow pulse rather than a bright one: it has to be noticed on a sheet that is
    open anyway, not compete with a Despair Call landing.
 
-   The pulse stops under reduced motion and leaves the gold behind it - the
+   The pulse stops under reduced motion and leaves the glow behind it - the
    colour is the message, the movement is only how it is noticed. */
 /* NEVER LIT, UNTIL 21.09 (review of stage D). This block read `--drpg-hope`, a
    variable declared nowhere, so its border, its colour and its pulse all resolved
    to nothing - and the sheet's chip rule below paints every header button bone and
-   ink with `!important` anyway. The gold is the chip's FILL now (section 5b of the
-   sheet chips, further down), and the pulse is gold. */
+   ink with `!important` anyway. The attention colour is the chip's FILL now (section 5b
+   of the sheet chips, further down), and the pulse is the same; both were Hope's gold
+   until E48 K1 (11.11.2026): a level up waiting is not Hope. */
 .character-header-sheet .name-row .drpg-advance-button.is-offered {
     animation: drpg-advance-offered 2.4s ease-in-out infinite;
 }
 @keyframes drpg-advance-offered {
-    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--drpg-gold) 55%, transparent); }
-    50% { box-shadow: 0 0 6px 2px color-mix(in srgb, var(--drpg-gold) 45%, transparent); }
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--drpg-attention) 55%, transparent); }
+    50% { box-shadow: 0 0 6px 2px color-mix(in srgb, var(--drpg-attention) 45%, transparent); }
 }
 /* Specific enough to outrank the glass brush's `box-shadow: none` on header buttons. */
 body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-row .drpg-advance-button.is-offered {
     animation: none;
-    box-shadow: 0 0 6px 1px color-mix(in srgb, var(--drpg-gold) 45%, transparent);
+    box-shadow: 0 0 6px 1px color-mix(in srgb, var(--drpg-attention) 45%, transparent);
 }
 body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.is-offered { animation: none; }
 
@@ -2973,13 +2987,13 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
    removes itself once they are there. So it reads as a warning rather than as
    a third tool sitting permanently next to the other two. */
 .character-header-sheet .name-row .drpg-init-button {
-    border-color: var(--drpg-gold);
-    color: var(--drpg-gold);
-    box-shadow: 0 0 6px rgba(var(--drpg-gold-rgb), 0.35);
+    border-color: var(--drpg-attention);
+    color: var(--drpg-attention);
+    box-shadow: 0 0 6px rgba(var(--drpg-attention-rgb), 0.35);
 }
 
 .character-header-sheet .name-row .drpg-init-button:hover {
-    filter: drop-shadow(0 0 4px var(--drpg-gold));
+    filter: drop-shadow(0 0 4px var(--drpg-attention));
 }
 
 .drpg-advance .drpg-advance-pick {
@@ -3168,7 +3182,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 }
 
 .drpg-failure.warn {
-    border-left-color: var(--drpg-gold);
+    border-left-color: var(--drpg-attention);
 }
 
 .drpg-failure-head {
@@ -3352,7 +3366,9 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 .drpg-project-card-bar > span {
     display: block;
     height: 100%;
-    background: var(--drpg-glass-accent, var(--drpg-gold-antique));
+    /* Evidence's antique in Legacy, as it always was (Legacy declares no --drpg-glass-accent); Stained Glass read the
+       hour here until E48 K2 and reads Bone (stained-glass.css: D30, the time of day never colours a bar) */
+    background: var(--drpg-gold-antique);
 }
 
 .drpg-project-card-actions {
@@ -4136,7 +4152,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 .drpg-flat-crit {
     margin: 2px 0 0;
     text-align: center;
-    color: var(--drpg-gold);
+    color: var(--drpg-crimson-light);
 }
 
 /*
@@ -5101,8 +5117,8 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 }
 
 .drpg-rest-option:has(input:checked) {
-    border-color: var(--drpg-gold);
-    background: rgba(var(--drpg-gold-rgb), 0.12);
+    border-color: var(--drpg-attention);
+    background: rgba(var(--drpg-attention-rgb), 0.12);
 }
 
 .drpg-choice {
@@ -5126,8 +5142,8 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 }
 
 .drpg-choice:has(input:checked) {
-    border-color: var(--drpg-gold);
-    background: rgba(var(--drpg-gold-rgb), 0.12);
+    border-color: var(--drpg-attention);
+    background: rgba(var(--drpg-attention-rgb), 0.12);
 }
 
 /* THE PICKED ROW'S MARK (E68 C12, 10.11.2026; the owner's Q4 of round M: the look kept, the contrast corrected). The
@@ -5157,17 +5173,17 @@ body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]::before {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--drpg-gold);
+    background: var(--drpg-attention);
     transform: scale(0);
 }
-body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]:checked { border-color: var(--drpg-gold); }
+body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]:checked { border-color: var(--drpg-attention); }
 body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]:checked::before { transform: scale(1); }
 body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]:focus-visible { outline: 2px solid var(--drpg-bone); outline-offset: 1px; }
 
 .drpg-choice > i {
     flex: 0 0 1.1rem;
     text-align: center;
-    color: var(--drpg-gold);
+    color: var(--drpg-bone);
 }
 
 .drpg-choice-text {
@@ -5234,8 +5250,8 @@ body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]:focus-vis
 }
 
 .drpg-frisk-mode:has(input:checked) {
-    border-color: var(--drpg-gold);
-    background: rgba(var(--drpg-gold-rgb), 0.12);
+    border-color: var(--drpg-attention);
+    background: rgba(var(--drpg-attention-rgb), 0.12);
 }
 
 .drpg-frisk-mode small {
@@ -6150,7 +6166,7 @@ body.drpg-pixel-font .drpg-popup-title {
 
 .drpg-camera-dock .camera-view .av-control:hover,
 .drpg-camera-dock .camera-view .control-bar a:hover {
-    color: var(--drpg-gold);
+    color: var(--drpg-attention);
 }
 
 body.drpg-pixel-font .drpg-camera-dock .camera-view .player-name,
@@ -6693,7 +6709,7 @@ body.drpg-theme-stained-glass .application.roll-selection:not(.drpg-panel) > .wi
 }
 
 .drpg-hud-elapsed.past-first {
-    color: var(--drpg-gold);
+    color: var(--drpg-attention);
     opacity: 0.95;
 }
 
@@ -7085,8 +7101,8 @@ body[data-drpg-phase] :is(#drpg-player-status, #countdowns) {
 
 #drpg-hud .drpg-hud-time.is-debate,
 #drpg-hud .drpg-hud-time.is-rebuttal {
-    color: var(--drpg-gold);
-    text-shadow: 0 0 8px rgba(var(--drpg-gold-rgb), 0.35);
+    color: var(--drpg-attention);
+    text-shadow: 0 0 8px rgba(var(--drpg-attention-rgb), 0.35);
 }
 
 #drpg-hud .drpg-hud-time.is-objection {
@@ -7236,13 +7252,15 @@ body.drpg-pixel-font .drpg-safeword-button {
 
 /* The note's tab is the kit's (ui-kit.mjs `kitTabBar`, styles/components.css: E44 C4a). */
 /* A note that has something in it says so without spelling it out. */
+/* S11-50 (E48 K1): 6 px, not 5 - at 5 the unread dot was a speck beside the tab's label;
+   in the attention colour, not Hope's gold. */
 .drpg-messenger-tab-dot {
     display: inline-block;
-    width: 5px;
-    height: 5px;
+    width: 6px;
+    height: 6px;
     margin-left: 5px;
     border-radius: 50%;
-    background: var(--drpg-gold);
+    background: var(--drpg-attention);
     vertical-align: middle;
 }
 
@@ -10474,9 +10492,10 @@ body.drpg-theme-monokuma-legacy .drpg-action-button:disabled[data-drpg-cost-kind
 /* "The result is the answer, and takes the colour of what happened" - which it
    did not: every answer was gold, which is the same as taking no colour at all
    and, worse, told a reader that something found and a critical were the same
-   kind of event. A caller that knows says so; one that does not keeps gold. */
+   kind of event. A caller that knows says so; one that does not keeps Bone (it kept
+   Hope's gold until E48 K1, 11.11.2026, which said Hope about every answer). */
 .drpg-card-head .drpg-card-result {
-    color: var(--drpg-gold);
+    color: var(--drpg-bone);
 }
 
 .drpg-card-head .drpg-card-result[data-kind="evidence"] {
@@ -10871,7 +10890,7 @@ body.drpg-theme-monokuma-legacy .drpg-action-button:disabled[data-drpg-cost-kind
 
 /* What you gained and what it cost you, in the colours those two things have
    everywhere else on the sheet. */
-.drpg-sum-found { color: var(--drpg-gold); }
+.drpg-sum-found { color: var(--drpg-evidence); }
 .drpg-sum-left  { color: var(--drpg-blood); }
 .drpg-sum-crit  { color: var(--drpg-eye-light); }
 
@@ -11061,15 +11080,16 @@ body.drpg-stacked .application.sheet.actor.character {
 }
 
 /* 5b. A LEVEL UP WAITING TO BE SPENT (N-2) is the one chip that asks to be pressed.
-   Gold as the FILL, the ink glyph on it (about 12:1), not a gold glyph on bone; the
+   The attention colour as the FILL (Bone; gold until E48 K1), the ink glyph on it, not a
+   bright glyph on bone; the
    hover keeps the chip's own red. No clip: the brush's clip-path would cut the
    pulse's glow off at the chip's edge. */
 .application.sheet.actor .character-header-sheet .name-row .drpg-advance-button.is-offered {
     clip-path: none;
 }
 .application.sheet.actor .character-header-sheet .name-row .drpg-advance-button.is-offered:not(:hover) {
-    background: var(--drpg-gold) !important;
-    border-color: var(--drpg-gold) !important;
+    background: var(--drpg-attention) !important;
+    border-color: var(--drpg-attention) !important;
 }
 
 /* --- 6. the GM marker that gives the grey stripe a meaning --------------- */
@@ -11997,7 +12017,7 @@ body.drpg-theme-stained-glass .application.dialog.drpg-window-body
 #countdowns .drpg-projects-fold:hover {
     opacity: 1;
     background: none;
-    color: var(--drpg-gold);
+    color: var(--drpg-attention);
 }
 
 /* Folded away: the title bar stays, everything under it goes. */
@@ -12590,7 +12610,7 @@ body.drpg-theme-monokuma-legacy #countdowns .countdown-tools {
 
 /* The same brief "that landed" mark the other fields in this window use. */
 .drpg-check.drpg-saved {
-    color: var(--drpg-gold);
+    color: var(--drpg-attention);
 }
 
 /* ==========================================================================
@@ -13505,7 +13525,7 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
 .drpg-handbook-text li + li { margin-top: 0.2em; }
 
 .drpg-handbook-text strong {
-    color: var(--drpg-gold-light);
+    color: var(--drpg-bone);
     font-weight: 700;
 }
 
@@ -14015,7 +14035,7 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
     padding: 0.35em 0.9em;
 }
 
-/* THE DOUBLE GOLD FRAME IS MONOKUMA LEGACY'S, AND ONLY ITS.
+/* THE DOUBLE FRAME IS MONOKUMA LEGACY'S, AND ONLY ITS.
    --------------------------------------------------------------------------
    Two rules with the ground between them, which is how every title card in this
    game's source material is drawn. Built from one border and one shadow rather
@@ -14025,13 +14045,14 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
    It was written unscoped, so Stained Glass wore it too - and Foundry starts
    PAUSED, which made a 3 px gold frame with a gold ring the first thing anybody
    saw of a theme whose whole grammar is one-pixel seams and no radius (audit,
-   08.09). It also spent Hope's gold on something that is not Hope. The theme has
-   its own pane for this now; see stained-glass.css. */
+   08.09). It also spent Hope's gold on something that is not Hope, which Legacy's
+   frame did too until E48 K1 (11.11.2026): its two rules are the attention colour now.
+   The theme has its own pane for this now; see stained-glass.css. */
 body.drpg-theme-monokuma-legacy #pause.paused figcaption {
-    border: 3px solid var(--drpg-gold);
+    border: 3px solid var(--drpg-attention);
     box-shadow:
         0 0 0 3px rgba(var(--drpg-veil-rgb), 0.95),
-        0 0 0 6px var(--drpg-gold),
+        0 0 0 6px var(--drpg-attention),
         0 8px 32px rgba(var(--drpg-shadow-rgb), 0.75);
     background: rgba(var(--drpg-veil-rgb), 0.72);
 }
@@ -14056,8 +14077,8 @@ body.drpg-pixel-font #pause.paused figcaption {
     background: linear-gradient(
         90deg,
         transparent,
-        var(--drpg-gold) 15%,
-        var(--drpg-gold) 85%,
+        var(--drpg-attention) 15%,
+        var(--drpg-attention) 85%,
         transparent
     );
     animation: drpg-pause-breathe 4s ease-in-out infinite;
@@ -14257,7 +14278,7 @@ body.drpg-reduced-motion #pause.paused figcaption::after {
 #countdowns .drpg-projects-gear:hover i,
 #countdowns .drpg-projects-fold:hover,
 #countdowns .drpg-projects-fold:hover i {
-    color: var(--drpg-gold) !important;
+    color: var(--drpg-attention) !important;
 }
 
 /* ==========================================================================
@@ -14284,7 +14305,7 @@ body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="
 
 body.drpg-theme-monokuma-legacy .drpg-projects :is(input, select, textarea):focus-visible,
 body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="number"], select, textarea):focus-visible {
-    outline: 2px solid var(--drpg-gold);
+    outline: 2px solid var(--drpg-attention);
     outline-offset: 1px;
 }
 
@@ -14328,7 +14349,7 @@ body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="
     --input-background-color: rgba(var(--drpg-ink-rgb), 0.55);
     --input-border-color: var(--drpg-line-strong);
     --input-text-color: var(--drpg-bone);
-    --input-focus-outline-color: var(--drpg-gold);
+    --input-focus-outline-color: var(--drpg-attention);
     --color-select-option-bg: var(--drpg-ink);
 }
 
@@ -14340,7 +14361,7 @@ body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="
 .application.sheet.actor select,
 .application.roll-selection select {
     color-scheme: dark;
-    accent-color: var(--drpg-gold);
+    accent-color: var(--drpg-attention);
 }
 
 .drpg-projects select option,
@@ -14459,7 +14480,7 @@ body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="
 
     :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
         .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select option:checked {
-        background: color-mix(in srgb, var(--drpg-gold) 18%, var(--drpg-ink));
+        background: color-mix(in srgb, var(--drpg-attention) 18%, var(--drpg-ink));
     }
 
     /* A PROJECT THAT IS ALREADY FULL.
@@ -14480,12 +14501,13 @@ body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="
         opacity: 0.5;
     }
 
-    /* The tick the picker puts against the chosen row. Gold, and reserving its
+    /* The tick the picker puts against the chosen row. The attention colour (gold
+       until E48 K1), and reserving its
        space on every row so the list does not shuffle sideways as the choice
        moves down it. */
     :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
         .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select option::checkmark {
-        color: var(--drpg-gold);
+        color: var(--drpg-attention);
         font-size: 0.75em;
     }
 
@@ -14651,7 +14673,7 @@ body.drpg-theme-stained-glass .application.sheet.actor .drpg-inventory-group .dr
 
 #interface #countdowns .drpg-projects-fold:hover,
 #interface #countdowns .drpg-projects-fold:hover i {
-    color: var(--drpg-gold) !important;
+    color: var(--drpg-attention) !important;
 }
 
 /* Whatever else lives in that header - Daggerheart's own buttons for adding a

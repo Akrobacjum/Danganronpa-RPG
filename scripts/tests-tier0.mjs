@@ -18,7 +18,7 @@ import {
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
     TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists, cssDeadClasses, cssLintCounts, cssBudgetProblems, CSS_DETECTORS,
-    cssKitSheetProblems
+    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssThemeTokens, cssHourDistances, cssDeltaE00Check
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -516,6 +516,80 @@ const REGRESSIONS = [
         must(dead.inSheet > 200, `${dead.inSheet} classes read in the sheets - the dead-class count would read nothing`);
         must(Object.values(counts).reduce((n, c) => n + c.important, 0) > 0, "no `!important` counted in any sheet - the counts read nothing");
         equal(JSON.stringify(cssBudgetProblems(counts, budget, { atMost: true })), "[]", "a served sheet is above its budget, or the budget and module.json disagree");
+    }],
+
+    ["R3410 - gold means Hope alone: no served sheet reads a gold token (`--drpg-gold`, its light, deep, shadow and -rgb, `--drpg-sg-hope`) in a rule whose selector names no Hope word, nor `--drpg-attention` outside focus and selection, the check finds the two faults planted in its fixture and one planted in a served sheet, and `--drpg-attention` is Bone in both themes (E48 K1; Q6)", async () => {
+        /*
+         * E48 K1, 11.11.2026 (the plan's "złoto zostaje wyłącznie dla Hope"; S12-61). tests-css.mjs `meaningReads`, the
+         * function `node tools/check.mjs css` runs, on the files Foundry serves. Red before K1: "54 read(s) of a meaning
+         * token outside its selectors", first "styles/danganronpa.css: .drpg-action-button:focus-visible, ... { outline }
+         * reads --drpg-gold" - the focus ring, the chosen crisis row, the Frisk mode, the card's default result,
+         * `.drpg-sum-found`, the messenger's dot and the rest of 42 rules. `--drpg-gold-antique` is Evidence's
+         * (`var(--drpg-evidence)`) and is not a gold token here.
+         */
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const sheets = [];
+        for (const file of manifest.styles ?? []) sheets.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)]);
+        must(sheets.length >= 6, `module.json serves ${sheets.length} sheet(s) - this test would hold nothing`);
+        equal(JSON.stringify(cssMeaningSelfCheck()), "[]", "the meaning check does not read its own fixture as written");
+        const all = cssMeaningReads(sheets), read = all.read;
+        const found = all.found.filter(f => / \((?:hope|attention): /.test(f)); // the hour's row is R3412's (E48 K2)
+        must(read >= 40, `${read} read(s) of a meaning token in the served sheets - the sheets did not load, or the check reads nothing`);
+        ok(!found.length, `${found.length} read(s) of a meaning token outside its selectors: ${found.slice(0, 6).join(" | ")}`);
+        const planted = sheets.map(([file, text], i) => [file, i ? text : `${text}\n.drpg-planted-control:focus-visible { outline: 2px solid var(--drpg-gold); }\n`]);
+        equal(cssMeaningReads(planted).found.length, all.found.length + 1, "a gold focus ring planted in a served sheet is not seen");
+        const tokens = cssThemeTokens(sheets);
+        for (const theme of ["monokuma-legacy", "stained-glass"]) {
+            equal(tokens[theme].get("--drpg-attention"), "var(--drpg-bone)", `${theme}: --drpg-attention is not the theme's Bone`);
+            equal(tokens[theme].get("--drpg-attention-rgb"), "var(--drpg-bone-rgb)", `${theme}: --drpg-attention-rgb is not the theme's Bone`);
+        }
+    }],
+
+    ["R3411 - no hour reads as a state: each of Stained Glass's five hour tokens is at least tools/contrast-pairs.json's threshold (CIEDE2000 15, Q7) from each meaning colour - Investigation, Hope, the GM's red and light, Eclipse, Despair, Evidence, Health, Sanity - every token resolves, and CIEDE2000 reads Sharma, Wu and Dalal's test pairs as published (E48 K2; D30 = 2)", async () => {
+        /*
+         * E48 K2, 11.11.2026. tests-css.mjs `hourDistances`, the arithmetic `node tools/check.mjs contrast` prints, on the
+         * files Foundry serves. Red before K2: "hours: --drpg-sg-afternoon is 10.92 from Hope (--drpg-sg-hope), under 15",
+         * evening 11.66 from Health, night 10.39 from Eclipse; noon, the designer's guess (16.5 from Investigation), was not
+         * under it. The threshold is chosen, not measured: the tool prints all 45 pairs.
+         */
+        needs(env.tools(), "tools/contrast-pairs.json is read from the repository's tools/ (an installed module's zip leaves it out)");
+        equal(JSON.stringify(cssDeltaE00Check()), "[]", "CIEDE2000 does not read its published test pairs");
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const sheets = [];
+        for (const file of manifest.styles ?? []) sheets.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)]);
+        let spec = null;
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/tools/contrast-pairs.json`, { cache: "no-cache" });
+            if (res.ok) spec = (await res.json()).hours ?? null;
+        } catch { /* the assertion below says it is missing */ }
+        ok(spec && spec.threshold > 0, "tools/contrast-pairs.json has no `hours` with a threshold");
+        if (!spec) return;
+        const { rows, problems } = cssHourDistances(spec, cssThemeTokens(sheets));
+        must(rows.length >= 40 && rows.every(r => r.de !== null), `${rows.length} pair(s) read, ${rows.filter(r => r.de === null).length} unresolved - the hours would vouch for nothing`);
+        equal(JSON.stringify(problems), "[]", "an hour is under the threshold from a meaning colour, or a token does not resolve");
+        const planted = cssHourDistances({ ...spec, hours: [...spec.hours, spec.meanings.Hope] }, cssThemeTokens(sheets));
+        ok(planted.problems.some(p => p.includes("0.00 from Hope")), "Hope's own colour planted as an hour is not read as Hope's");
+    }],
+
+    ["R3412 - the hour colours the panes and never a card, a bar or a button: no served sheet reads `--drpg-glass-accent` or an hour token in a rule outside the hour's list (the panes, the curtain, the ticker and clock, the room and voice tiles, the corner's launchers and frames, and what K2 left), nor in the Event panel's cards, the action and Call tiles, the panel's and sheet's buttons and tabs or the state bars at all, and one planted there is seen (E48 K2; D30)", async () => {
+        /*
+         * E48 K2, 11.11.2026. tests-css.mjs `meaningReads`, MEANING's `hour` row (its comment lists the families). Red
+         * before K2: "16 read(s) of the hour outside its list", first "styles/danganronpa.css: .drpg-project-card-bar > span
+         * { background } reads --drpg-glass-accent", then the Event panel's card, the panel's buttons, the action and Call
+         * tiles, the sheet's tabs, the picking rows' `--kind`, the resource bars and fills, the status bars and the two
+         * badges that took an hour's hue.
+         */
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const sheets = [];
+        for (const file of manifest.styles ?? []) sheets.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)]);
+        must(sheets.length >= 6, `module.json serves ${sheets.length} sheet(s) - this test would hold nothing`);
+        const hourOf = list => list.filter(f => / \(hour: /.test(f));
+        const { found } = cssMeaningReads(sheets);
+        const glass = sheets.find(([file]) => file.endsWith("stained-glass.css"));
+        must(glass && (glass[1].match(/var\(--drpg-glass-accent\)/g) ?? []).length >= 50, "stained-glass.css reads the accent fewer than 50 times - the sheet did not load");
+        ok(!hourOf(found).length, `${hourOf(found).length} read(s) of the hour outside its list: ${hourOf(found).slice(0, 6).join(" | ")}`);
+        const planted = sheets.map(([file, text]) => [file, file === glass[0] ? `${text}\nbody.drpg-theme-stained-glass .drpg-call-button:hover { --brush: var(--drpg-glass-accent); }\n` : text]);
+        equal(hourOf(cssMeaningReads(planted).found).length, hourOf(found).length + 1, "the hour planted on a Call tile is not seen");
     }],
 
     ["R3333 - the pixel glyphs come from one source: each row of tools/glyphs.json `grid` cells wide and tall, no two drawing the same pixels unless one says `same`, the sprite, pixel-icons.css and the audit page's symbols what tools/glyph-map.mjs writes from them, every SVG data URI of danganronpa.css and stained-glass.css its row's drawing pixel for pixel, the chrome section what tools/chrome-icons.mjs writes, and each planted drift seen (E48 G1)", async () => {
@@ -14209,10 +14283,11 @@ const REGRESSIONS = [
             ?? await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText));
         must(css.length > 10000 && css.includes(BASE), "stained-glass.css or its dice rule is not among the module's sources - this would measure nothing");
         const planted = (from, to) => { must(css.includes(from), `the sheet has no "${from}"`); return css.replace(from, to); };
-        const base = bodyOf(css, `${BASE} {`, { until: "}" });
-        const plate = /background:\s*[^;]+;/.exec(base)?.[0] ?? "";
-        must(plate.length > 0, "the dice rule states no background");
-        const accent = reading(css.replace(base, base.replace(plate, "background: var(--drpg-glass-accent);")));
+        // E48 K1: the Hope plate stands on its own `.is-hope` rule (gold is read only by a rule naming Hope), so the plant
+        // puts the accent back there, where the base rule held it before.
+        const hopeRule = `${BASE}.is-hope { background: var(--drpg-sg-hope); }`;
+        must(css.includes(hopeRule), "the Hope die's plate rule states no background");
+        const accent = reading(css.replace(hopeRule, `${BASE}.is-hope { background: var(--drpg-glass-accent); }`));
         const critical = reading(planted(`${BASE} {`,
             `body.drpg-theme-stained-glass .drpg-duality[data-side="critical"] .drpg-duality-die { background: var(--drpg-sg-hope); }\n${BASE} {`));
         equal(J([accent[0], critical[2]]), J([["var(--drpg-glass-accent)"], ['body.drpg-theme-stained-glass .drpg-duality[data-side="critical"] .drpg-duality-die']]),
