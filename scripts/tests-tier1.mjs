@@ -40181,6 +40181,44 @@ const INVARIANTS = [
             "[drawn; the stacks, the bound fields, those in a stack, the two in one; the unbound field in the form and before the stack; at each pick a field shut, unlit or lit wrongly; "
             + "the sheets: the stack's display and its fields' cell, the slot's display and its fields' cell]");
     }],
+    ["R3385 - in an action window a row's second line and Details' toggle hold their look in both themes (the stylesheet's E49 A8 block; E49 A8.4, the rule of 10.11: no state may add, remove or shift a control; states change look, never layout): `chooseVariant` gives the rows' list a floor (ui-hold.mjs `holdRowLines`, a pure-DOM module) when drawn and once the fonts are in; while it measures, an unpicked row's line is drawn `visibility: hidden` (not `display: none`), the picked row's and an unavailable row's reason as ever; the toggle has a ground, an edge and an ink of the kit's own, not the browser's button face", async () => {
+        /*
+         * E49 A8.4, 11.11.2026. With the request boxes held (A8.3) the window still moved by pick: the picked row's line
+         * shown and the others `display: none` (E68 C12), Observe 591.7-616.9 px under the glass at 1366x768, Search
+         * 702.4-727.5, Analyze 447-459.8 under Legacy (style-sweep `--details --every-pick`). And Details' toggle under
+         * Legacy read 3.99:1: it had no ground of its own, so Chromium drew its dark-scheme ButtonFace (rgb(107, 107,
+         * 107)) - no module rule set one (a probe of every sheet's rules matching it, A8.4). Every line kept in place was
+         * measured too: Observe's body scrolled 16 px, Search's 102 (glass, 1366x768), so the list keeps a floor instead,
+         * read in the window as drawn; what it gives is style-sweep `--details --every-pick`'s reading, which runs
+         * `holdRowLines` itself in Chromium (jsdom lays nothing out, and the function sets nothing there). Read here: the
+         * menu's render calls it, and the cascade of the sheets on a stand-in action window being measured, in each
+         * theme (`styleCascade`). Red at fa442f77: no call, the line `none` while measured, no ground.
+         */
+        const menu = stripComments(fnSource(stripComments(actionText(await moduleSources())), "chooseVariant") ?? "");
+        const calls = [/\bholdRowLines\(dialog\.element\)/.test(menu), /fonts\?\.ready\?\.then\(\(\) => holdRowLines/.test(menu)];
+        const C = await styleCascade();
+        const read = Object.fromEntries(["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"].map(theme => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-player`;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-ui drpg-panel drpg-action-window"><section class="window-content"><form class="dialog-form"><div class="dialog-content"><div class="drpg-kit-body">`
+                + `<div class="drpg-variant-columns"><div class="drpg-variant-brief"><div class="drpg-action-details"><button type="button" class="drpg-action-details-toggle" aria-expanded="false"></button></div></div>`
+                + `<div class="drpg-variant-ask"><div class="drpg-choice-list drpg-lines-measured">`
+                + `<label class="drpg-choice"><input type="radio" name="variant" value="a" checked><span class="drpg-choice-text"><strong>A</strong><small>a</small></span></label>`
+                + `<label class="drpg-choice"><input type="radio" name="variant" value="b"><span class="drpg-choice-text"><strong>B</strong><small>b</small></span></label>`
+                + `<label class="drpg-choice unavailable"><input type="radio" name="variant" value="c" disabled><span class="drpg-choice-text"><strong>C</strong><small>why</small></span></label>`
+                + `</div></div></div></div></div></form></section></div>`;
+            const [picked, other, shut] = body.querySelectorAll(".drpg-choice-text small");
+            const v = (el, prop) => C.winner(el, prop)?.value ?? null;
+            const toggle = body.querySelector(".drpg-action-details-toggle");
+            return [theme, { hints: [[v(picked, "display"), v(picked, "visibility")], [v(other, "display"), v(other, "visibility")], [v(shut, "display"), v(shut, "visibility")]],
+                toggle: [v(toggle, "background-color") ?? v(toggle, "background"), v(toggle, "border-top-style") ?? v(toggle, "border"), v(toggle, "color")].map(x => x !== null) }];
+        }));
+        const yes = { hints: [["revert", "hidden"], ["revert", "hidden"], [null, null]], toggle: [true, true, true] };
+        read.calls = calls;
+        equal(JSON.stringify(read), JSON.stringify({ "drpg-theme-stained-glass": yes, "drpg-theme-monokuma-legacy": yes, calls: [true, true] }),
+            "[per theme, the list being measured: the display and visibility of the picked row's line, an unpicked row's and an unavailable row's reason; the toggle's ground, edge and ink set by a rule; the menu's render: the floor when drawn and once the fonts are in]");
+    }],
     ["R1497 - the reserve's field is the mode's (sheet.mjs `sheetMode(...).reserveField`, `paintReserves`; E24 fix G2B, general m1 and n3; E24-04): on stand-in roots of a living student, a Monocub, an NPC not in the class, the dead and a Monokuma, the field is drawn for a GM and for the owner with Lock player resources off, on a sheet its app says is editable, never on the dead's or a Monokuma's, never for another player; the mode answers what is drawn, and a repaint draws for the sheet it repaints; and a write that comes back with nothing to write leaves a field being typed into as it is", async () => {
         /*
          * E24 fix G2B, 08.11.2026. The review's m1: `mayEditReserve` asked `user?.isGM` and `testUserPermission?.(`

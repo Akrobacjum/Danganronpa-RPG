@@ -603,18 +603,14 @@ async function fieldsPass(browser) {
  * window's size differs shut and open at a pick, a shut box drawn, an open one hidden, a line outside, a sideways
  * scroll, the body scrolling more open than shut, a contrast under 4.5. With `--every-pick` (A8.3) also the right
  * column's held fields (the summed height of its held stacks - the request boxes, the selects a row shows - and of the
- * statistic's slot) at every pick against the first, and no row-bound field outside a stack. The rows themselves still differ by pick - the picked row's second line
- * (danganronpa.css `.drpg-variant-columns .drpg-choice ... small`, E68 C12) - and the window's heights are printed so,
- * not held: the owner's answer 4 named the request box (A8.3 measured 25.1 px under the glass at 1366x768 on Search).
+ * statistic's slot) at every pick against the first, no row-bound field outside a stack, and (A8.4) the window's
+ * outer size at every pick against the first: the rows' second lines hold their place too (the rule of 10.11).
  * THE CONTROL FIRST (the stackShapes lesson): on Observe at 1366x768 under the glass, a rule planted that lets the open
  * box grow past its cap (900 px) - the size must read as differing - or the run is red.
  */
 const DETAILS_SIZES = [[1366, 768], [1280, 800], [1920, 1080], [1024, 768]];
 const EVERY_PICK = argv.includes("--every-pick");
-/* The toggle is the theme's own button (A8-details.md 7): under Legacy its bone on the grey bar read 3.99:1 at A8.2, the
-   pair every Legacy button of the kit draws (tools/check.mjs contrast lists Legacy's button pairs as E48's, known), so it
-   is held at what it reads rather than at AA until E48 changes the button; under the glass AA. */
-const KNOWN_TOGGLE = { legacy: 3.99 };
+
 
 async function detailsRead(page) {
     return page.evaluate(async () => {
@@ -641,6 +637,9 @@ async function detailsRead(page) {
         const box = toggle && win.querySelector(`[id="${toggle.getAttribute("aria-controls")}"]`);
         if (!box) return { error: "no Details" };
         const body = win.querySelector(".drpg-kit-body");
+        // The rows' floor as `chooseVariant` sets it once drawn (E49 A8.4): the module's own function, run here.
+        const { holdRowLines } = await import("/scripts/ui-hold.mjs");
+        holdRowLines(win);
         const values = [...win.querySelectorAll('.drpg-choice-list input[name="variant"]')].filter(i => !i.disabled).map(i => i.value);
         const pick = value => {
             const input = win.querySelector(`.drpg-choice-list input[name="variant"][value="${value}"]`);
@@ -707,8 +706,9 @@ async function detailsPass(browser) {
                     if (open.sideways > 0) bad.push(`${shut.value}: the box scrolls ${open.sideways} px sideways`);
                     if (open.body > shut.body) bad.push(`${shut.value}: the body scrolls ${open.body} px open, ${shut.body} shut`);
                     if (open.lines !== null && open.lines < 4.5) bad.push(`${shut.value}: a line at ${open.lines}:1`);
-                    if (open.toggle < (KNOWN_TOGGLE[theme] ?? 4.5)) bad.push(`${shut.value}: the toggle at ${open.toggle}:1`);
+                    if (open.toggle < 4.5) bad.push(`${shut.value}: the toggle at ${open.toggle}:1`);
                     if (EVERY_PICK && i && Math.abs(shut.rest - r.rows[0].rest) > 0.5) bad.push(`${shut.value}: the held fields ${shut.rest} px, ${r.rows[0].value} ${r.rows[0].rest}`);
+                    if (EVERY_PICK && i && (Math.abs(shut.h - r.rows[0].h) > 0.5 || Math.abs(shut.w - r.rows[0].w) > 0.5)) bad.push(`${shut.value}: the window ${shut.w}x${shut.h}, ${r.rows[0].value} ${r.rows[0].w}x${r.rows[0].h}`);
                     if (EVERY_PICK && shut.loose) bad.push(`${shut.value}: ${shut.loose} row-bound field(s) outside a held stack`);
                 }
                 const hs = [...new Set(r.rows.map(x => x.h))];

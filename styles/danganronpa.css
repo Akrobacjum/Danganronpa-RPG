@@ -17244,3 +17244,20 @@ body:not(.drpg-theme-stained-glass):not(.drpg-stacked) #drpg-popups:not(:has(> .
 .drpg-action-window .drpg-held-stack > [data-drpg-when] { grid-area: 1 / 1; display: flex; min-width: 0; }
 .drpg-action-window .drpg-action-trait:not(:empty) { display: grid; grid-template-columns: minmax(0, 1fr); }
 .drpg-action-window .drpg-action-trait > [data-drpg-field] { grid-area: 1 / 1; min-width: 0; }
+/* E49 A8.4: the rows hold their place too (the rule of 10.11). While ui-hold.mjs `holdRowLines` measures the list,
+   every row's second line is drawn but not seen, so its height can be read; the list then keeps a floor of its height
+   with the tallest line, and the class comes off. */
+.drpg-action-window .drpg-variant-columns .drpg-choice-list.drpg-lines-measured .drpg-choice:not(.unavailable) .drpg-choice-text small {
+    display: revert;
+    visibility: hidden;
+}
+/* Details' toggle wears the kit's face (the footer's, `--drpg-kit-face-*` and its fallbacks): with no ground of its own
+   Chromium drew it on its dark-scheme ButtonFace under Legacy, rgb(107, 107, 107), the bone on it 3.99:1 (A8.4's probe of
+   every sheet's rules on it: only `.drpg-panel button ... { color: var(--drpg-bone) }` matched). The glass draws its own. */
+body:not(.drpg-theme-stained-glass) .application.drpg-action-window button.drpg-action-details-toggle {
+    background: var(--drpg-kit-face-bg, var(--drpg-fill));
+    border: 1px solid var(--drpg-kit-face-edge, var(--drpg-line-strong));
+    border-radius: 2px;
+    color: var(--drpg-kit-face-ink, var(--drpg-bone));
+    box-shadow: none;
+}

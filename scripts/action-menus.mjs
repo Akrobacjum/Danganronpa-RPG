@@ -24,6 +24,7 @@ import { esc } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 import { WIDE, choiceRowHtml, wideWindow } from "./ui-columns.mjs";
 import { PROPOSAL_NOTE_MAX } from "./trait-ruling.mjs";
+import { holdRowLines } from "./ui-hold.mjs";
 
 /**
  * The "which statistic?" field, as HTML to drop into somebody else's form.
@@ -237,7 +238,13 @@ export async function chooseVariant({
             : { body: `${intro}${form}` }),
         render: (event, dialog) => {
             if (options.some(o => o.confirm)) followConfirmLabel(dialog, confirmFor);
-            if (columns) { holdFields(dialog); syncDetails(dialog, first); }
+            if (columns) {
+                holdFields(dialog);
+                syncDetails(dialog, first);
+                // The rows' floor (E49 A8.4), read once drawn and again once the fonts are in (a line's height is the font's).
+                holdRowLines(dialog.element);
+                globalThis.document?.fonts?.ready?.then(() => holdRowLines(dialog.element)).catch(() => {});
+            }
             atTop(dialog);
         },
         footer: !usable.length ? { close: "close" } : {
