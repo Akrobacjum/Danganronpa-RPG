@@ -3139,3 +3139,14 @@ body .drpg-panel label.drpg-specific-note > :is(select, textarea, input) { box-s
    had none and takes the rest of the row. */
 body .application.drpg-ui fieldset.drpg-look { min-width: 0; }
 body:not(.drpg-theme-stained-glass) .application.drpg-ui .drpg-look input[type="range"] { min-width: 0; }
+
+/* ---- E49 A8: Details' lines in a kit window (11.11.2026; the owner's answer 5: 13 px) ----
+   Inside an action window's Details (action-menus.mjs `detailsHtml`) the facts and the sub-heading are at the small
+   size, `--drpg-text-sm` (13 px in both themes at 1366x768, Legacy by `--drpg-legacy-scale`, the glass at its floor),
+   in the bone ink the kit's facts have (`--drpg-kit-brief-ink`), not the dim one: smaller, so the ink stays strong (AA
+   4.5, read by style-sweep `--details`). The facts elsewhere keep the kit's brief size (the rule above, R1366). */
+.application.drpg-ui .drpg-action-details-box .drpg-briefing-facts,
+.application.drpg-ui .drpg-action-details-box > .drpg-action-details-sub {
+    font-size: var(--drpg-text-sm);
+    color: var(--drpg-kit-brief-ink);
+}

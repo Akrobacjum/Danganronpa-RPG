@@ -1585,7 +1585,8 @@
       "cancel": "Anuluj",
       "tableEmpty": "Na razie nie ma tu nic do pokazania.",
       "scrollMore": "Niżej jest więcej. Przewiń, żeby zobaczyć.",
-      "allThresholds": "Wszystkie progi",
+      "details": "Szczegóły",
+      "thresholds": "Progi",
       "check": {
         "done": "Gotowe",
         "blocking": "Wymagane, jeszcze nie zrobione",

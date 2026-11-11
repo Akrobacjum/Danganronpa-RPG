@@ -1500,7 +1500,8 @@
       "cancel": "Cancel",
       "tableEmpty": "Nothing to show yet.",
       "scrollMore": "There is more below. Scroll to see it.",
-      "allThresholds": "All thresholds",
+      "details": "Details",
+      "thresholds": "Thresholds",
       "check": {
         "done": "Done",
         "blocking": "Required, not done yet",
