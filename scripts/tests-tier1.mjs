@@ -24616,7 +24616,7 @@ const INVARIANTS = [
             ["drpg-theme-monokuma-legacy", "var(--drpg-text-xs)", "styles/danganronpa.css"],
             ["drpg-theme-monokuma-legacy drpg-pixel-font", "var(--drpg-text-xs)", "styles/danganronpa.css"],
             ["drpg-theme-stained-glass", "max(var(--drpg-sg-floor), calc(14px * var(--drpg-sg-scale)))", "styles/stained-glass.css"],
-            "max(min(10px, 0.6875rem), calc(0.6875rem * var(--drpg-legacy-scale, 1)))",
+            "max(min(11px, 0.6875rem), calc(0.6875rem * var(--drpg-legacy-scale, 1)))",
             true, [true, "Body found"]
         ]), "[the bar's winning font-size and its sheet under Legacy, Legacy with the pixel face and Stained Glass; the module's floor token; "
             + "the body's discovery posted as an objection with its title before the banner; the title's key]");
@@ -38701,7 +38701,7 @@ const INVARIANTS = [
             C.winner(sg, "font-synthesis")?.value ?? null, C.winner(bodyOf("drpg-theme-monokuma-legacy"), "font-synthesis")?.value ?? null,
             declared, C.winner(button, "font-weight")?.value ?? null
         ]), stableJson([
-            "none", null, ["body.drpg-theme-stained-glass = none"], "400"
+            "none", null, ["body.drpg-pixel-font:not(.drpg-theme-stained-glass) = none", "body.drpg-theme-stained-glass = none"], "400"
         ]), "[the glass's body font-synthesis, Monokuma Legacy's; every font-synthesis the module's sheets declare; the safeword button's weight under the glass]");
     }],
     ["R1409 - an action tile's look by state (E23 C5b; E23-29, audit S12-03): under the glass a tile that cannot be pressed - unaffordable or disabled - shows no brush and one look whatever its cost kind (a dashed edge, an opaque ground of ink, the dim bone ink, the icon with it); Monokuma Legacy dims the stripe to 0.35 as before, and high contrast's 0.75 stands over Legacy only", async () => {
@@ -46668,7 +46668,7 @@ const INVARIANTS = [
         equal(stableJson({ cards, edge: both !== null && hc !== null && both > hc }), stableJson({ cards: true, edge: true }),
             "{cards: a tooltip card and the clock take the pointer; edge: the incident's red edge after high contrast's Bone} - Legacy must keep both signals");
     }],
-    ["R3494 - Legacy's sheet tiles and notice X match the glass's (styles/danganronpa.css; E48 K6, S12-43 and S12-55, the halves E49 B2 left): under the theme that is not glass a sheet's tile is at most 110 px tall, its icon's 1.15em box 24-32 px, and the notice's X ink at full opacity", async () => {
+    ["R3494 - Legacy's sheet tiles and notice X match the glass's (styles/danganronpa.css; E48 K6, S12-43 and S12-55, the halves E49 B2 left): under the theme that is not glass a sheet's tile is at most 110 px tall, its icon's 1.15em box 24-32 px (the slider's factor between), and the notice's X ink at full opacity", async () => {
         /*
          * E48 K6, 11.11.2026. Chromium at 1366x768 on the style harness's sheet parts (the stage's probe): Legacy's tile
          * 163 px tall before (a square of its column), the X rgb(29, 26, 33) at opacity 0.7 on the gold band.
@@ -46677,7 +46677,7 @@ const INVARIANTS = [
         const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
         const tile = "body:not(.drpg-theme-stained-glass) .application.sheet.actor :is(.drpg-action-button, .drpg-call-button)";
         const cap = rules.find(r => r.sel === tile)?.body.match(/max-height:\s*(\d+)px/)?.[1] ?? null;
-        const clamp = rules.find(r => r.sel === `${tile} .drpg-action-icon`)?.body.match(/font-size:\s*clamp\(([\d.]+)px,\s*[^,]+,\s*([\d.]+)px\)/);
+        const clamp = rules.find(r => r.sel === `${tile} .drpg-action-icon`)?.body.match(/font-size:\s*max\(([\d.]+)px,\s*min\(([\d.]+)px,\s*calc\(1\.5rem \* var\(--drpg-legacy-scale, 1\)\)\)\)/);
         const box = clamp ? [Number(clamp[1]) * 1.15, Number(clamp[2]) * 1.15].map(n => Math.round(n)) : null;
         const x = rules.find(r => r.sel === "body:not(.drpg-theme-stained-glass) .drpg-popup-title .drpg-popup-close")?.body ?? "";
         equal(stableJson({ cap, box, ink: /color:\s*var\(--drpg-ink\)/.test(x), full: /opacity:\s*1\b/.test(x) }), stableJson({ cap: "110", box: [24, 32], ink: true, full: true }),
@@ -46733,14 +46733,14 @@ const INVARIANTS = [
         equal(stableJson({ read, seat, glow }), stableJson({ read: [{ place: "tray", y: 204, right: 22 }, null], seat: true, glow: true }),
             "{read: the placement with the tray drawn and with none; seat: the sheet's rule; glow: the room tile's phase glow} - Legacy's tiles must stand at Stained Glass's anchors");
     }],
-    ["R3497 - the notice history window wears the active theme's ground (styles/danganronpa.css; E48 K6, S12-100): under the theme that is not glass its content is `--drpg-panel-ground`, Legacy's panel ground", async () => {
+    ["R3497 - the notice history window wears the active theme's ground (styles/components.css; E48 K6, S12-100): under the theme that is not glass its content is the kit's `--drpg-kit-notice-ground`, Legacy's panel ground", async () => {
         /*
          * E48 K6, 11.11.2026. S12-100, the owner's game of 02.11: "the notice panel has Stained Glass's ground under
          * Monokuma Legacy". Chromium, the style harness's notices-player window at 1366x768 before: under Legacy the
          * window and its content transparent (Foundry's frosted window shows at a table), under the glass its own pane.
          */
-        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
-        equal(/body:not\(\.drpg-theme-stained-glass\) \.application\.drpg-window-notices > \.window-content\s*\{[^}]*background:\s*var\(--drpg-panel-ground\)/.test(css), true,
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/components.css`).then(lfText));
+        equal(/body:not\(\.drpg-theme-stained-glass\) \.application\.drpg-ui\.drpg-panel > \.window-content:has\(> \.drpg-notices-body\)\s*\{[^}]*background:\s*var\(--drpg-kit-notice-ground\)/.test(css) && /--drpg-kit-notice-ground:\s*var\(--drpg-panel-ground\)/.test(css), true,
             "the notice history window has no ground of Legacy's own");
     }],
 ];

@@ -17138,7 +17138,8 @@ body:not(.drpg-theme-stained-glass) .application.drpg-action-window button.drpg-
    Each rule below is scoped to the theme that is not Stained Glass, and each answers one finding of the audit,
    read in Chromium on the glass and style harnesses at 1366x768 before and after (the stage's probes; the readings
    are in each test's comment). Stained Glass reads none of these rules. The 11 px floor of `--drpg-text-xs` and
-   the four small rungs (S12-41) is at the top of this file and on the Legacy body's rungs, where those tokens live.
+   the four small rungs (S12-41) is at the top of this file and on the Legacy body's rungs, where those tokens live;
+   S12-100's notice window ground is in components.css, with the window's parts (R1330).
    ========================================================================== */
 
 /* S12-25, S03-20 and the owner's Q13 ("tak", 10.11): the sheet's active tab was Bone on Eye, 3.63:1 at 11 px,
@@ -17191,7 +17192,7 @@ body:not(.drpg-theme-stained-glass) .application.sheet.actor :is(.drpg-action-bu
     max-height: 110px;
 }
 body:not(.drpg-theme-stained-glass) .application.sheet.actor :is(.drpg-action-button, .drpg-call-button) .drpg-action-icon {
-    font-size: clamp(21px, 1.5rem, 27.8px);
+    font-size: max(21px, min(27.8px, calc(1.5rem * var(--drpg-legacy-scale, 1))));
 }
 
 /* S12-55, the Legacy half (E49 B2 inked the glass's): the notice's X was its band's ink at 0.7 opacity on the gold
@@ -17233,11 +17234,6 @@ body:not(.drpg-theme-stained-glass) .application.sheet.actor .tab-body {
     scrollbar-width: thin;
 }
 
-/* S12-100: the notice history window had no ground of this theme (Chromium, the style harness: its window and
-   content transparent), so at a table it wore Foundry's frosted window. The theme's panel ground. */
-body:not(.drpg-theme-stained-glass) .application.drpg-window-notices > .window-content {
-    background: var(--drpg-panel-ground);
-}
 
 /* S12-98: the room tile glows in the time of day's colour as the clock does (`#drpg-hud[data-drpg-phase]`), read
    off the body's `data-drpg-phase` (hud.mjs); and the voice tile stands right under the Projects tray
