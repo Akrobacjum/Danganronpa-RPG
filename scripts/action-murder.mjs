@@ -173,7 +173,7 @@ export async function openCrisisMenu(actor) {
  *
  * TWO HALVES SINCE E49 A8.1 (11.11.2026): `crisisFacts` the lines, which go into the window's Details as the row's
  * layer (`chooseVariant`'s `facts`), and `crisisDetails` the whole hint alone, which the menu stacks under the lead
- * (its `details`, `drpg-variant-details`). Both exported for R3349.
+ * (its `details`, `drpg-variant-details`). Both exported for R3382.
  */
 export function crisisFacts(def, { free, brokenDown, youPick, traits }) {
     const facts = [];

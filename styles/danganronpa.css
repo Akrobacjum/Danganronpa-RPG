@@ -17174,7 +17174,7 @@ body:not(.drpg-theme-stained-glass):not(.drpg-stacked) #drpg-popups:not(:has(> .
  * `visibility: hidden` (and `inert`, from the script) - so it holds its place: its content's height, more if the right
  * column leaves more, never past the cap (`--drpg-details-cap`), past which it scrolls in itself. A row's lines and
  * the crisis menu's whole hints are layers of one grid cell, the unpicked ones `visibility: hidden` (`drpg-unpicked`):
- * the box and the column are as tall as their tallest row. Never `display: none` or `hidden` for any of them (R3350).
+ * the box and the column are as tall as their tallest row. Never `display: none` or `hidden` for any of them (R3383).
  * Measured in Chromium on probe 08's captures (style-sweep `--details`, 1366x768 and three more sizes, both themes):
  * S/stages/E49/STATUS.md A8; the mockup's numbers, S/stages/E49/A8-details.md 5.
  * ========================================================================== */
@@ -17237,3 +17237,10 @@ body:not(.drpg-theme-stained-glass):not(.drpg-stacked) #drpg-popups:not(:has(> .
 }
 /* Tamper's watchers, on top under the lead (the owner's answer 3): the price a player can still walk away from. */
 .drpg-briefing-block > .drpg-briefing-watched { margin: 0.5rem 0 0; font-weight: 600; }
+/* E49 A8.3: the right column holds its place too (the owner's answer 4). A run of fields a row shows stands in one
+   stack (action-menus.mjs `holdFields`), a row's own field in the statistic's slot likewise, all in one grid cell and
+   the unpicked ones `drpg-unpicked` (above): the column is as tall as its tallest field, whatever is picked. */
+.drpg-action-window .drpg-held-stack { display: grid; grid-template-columns: minmax(0, 1fr); }
+.drpg-action-window .drpg-held-stack > [data-drpg-when] { grid-area: 1 / 1; display: flex; min-width: 0; }
+.drpg-action-window .drpg-action-trait:not(:empty) { display: grid; grid-template-columns: minmax(0, 1fr); }
+.drpg-action-window .drpg-action-trait > [data-drpg-field] { grid-area: 1 / 1; min-width: 0; }

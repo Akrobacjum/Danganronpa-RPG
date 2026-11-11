@@ -601,9 +601,13 @@ async function fieldsPass(browser) {
  * window's outer size, the box's visibility, every shown line inside the box's sides, the box not scrolling sideways,
  * the kit body's scroll, and with Details open the lines' and the toggle's contrast on their ground (AA 4.5). Red: the
  * window's size differs shut and open at a pick, a shut box drawn, an open one hidden, a line outside, a sideways
- * scroll, the body scrolling more open than shut, a contrast under 4.5. With `--every-pick` (A8.3) also the size at
- * every pick against the first. THE CONTROL FIRST (the stackShapes lesson): on Observe at 1366x768 under the glass, a
- * rule planted that draws the shut box `display: none` - the size must read as differing - or the run is red.
+ * scroll, the body scrolling more open than shut, a contrast under 4.5. With `--every-pick` (A8.3) also the right
+ * column's held fields (the summed height of its held stacks - the request boxes, the selects a row shows - and of the
+ * statistic's slot) at every pick against the first, and no row-bound field outside a stack. The rows themselves still differ by pick - the picked row's second line
+ * (danganronpa.css `.drpg-variant-columns .drpg-choice ... small`, E68 C12) - and the window's heights are printed so,
+ * not held: the owner's answer 4 named the request box (A8.3 measured 25.1 px under the glass at 1366x768 on Search).
+ * THE CONTROL FIRST (the stackShapes lesson): on Observe at 1366x768 under the glass, a rule planted that lets the open
+ * box grow past its cap (900 px) - the size must read as differing - or the run is red.
  */
 const DETAILS_SIZES = [[1366, 768], [1280, 800], [1920, 1080], [1024, 768]];
 const EVERY_PICK = argv.includes("--every-pick");
@@ -644,6 +648,8 @@ async function detailsRead(page) {
             input.dispatchEvent(new globalThis.Event("change", { bubbles: true }));
             for (const b of win.querySelectorAll(".drpg-variant-details > .drpg-choice-details")) b.classList.toggle("drpg-unpicked", b.dataset.drpgFor !== value);
             for (const l of win.querySelectorAll(".drpg-action-details-box .drpg-details-layer")) l.classList.toggle("drpg-unpicked", !String(l.dataset.drpgWhen ?? "").split(/\s+/).includes(value));
+            for (const f of win.querySelectorAll(".drpg-held-stack > [data-drpg-when]")) f.classList.toggle("drpg-unpicked", !String(f.dataset.drpgWhen ?? "").split(/\s+/).includes(value));
+            for (const f of win.querySelectorAll(".drpg-action-trait > [data-drpg-field]")) f.classList.toggle("drpg-unpicked", f.dataset.drpgField !== value);
         };
         const frame = () => new Promise(r => globalThis.requestAnimationFrame(() => globalThis.requestAnimationFrame(r)));
         const out = [];
@@ -654,8 +660,11 @@ async function detailsRead(page) {
                 box.toggleAttribute("inert", !open);
                 await frame();
                 const r = win.getBoundingClientRect(), bb = box.getBoundingClientRect();
+                const held = [...win.querySelectorAll(".drpg-variant-ask .drpg-held-stack, .drpg-variant-ask .drpg-action-trait")];
+                const loose = [...win.querySelectorAll(".drpg-variant-ask [data-drpg-when]")].filter(el => !el.parentElement?.classList.contains("drpg-held-stack")).length;
                 const lines = [...box.querySelectorAll("li, .drpg-action-details-sub")].filter(el => cs(el).visibility !== "hidden");
                 out.push({ value, open, w: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10, box: Math.round(bb.height), vis: cs(box).visibility,
+                    rest: Math.round(held.reduce((n, el) => n + el.getBoundingClientRect().height, 0) * 10) / 10, loose,
                     outside: lines.filter(el => { const q = el.getBoundingClientRect(); return q.left < bb.left - 0.5 || q.right > bb.right + 0.5; }).length,
                     sideways: box.scrollWidth - box.clientWidth, inner: box.scrollHeight - box.clientHeight, body: body ? body.scrollHeight - body.clientHeight : 0,
                     lines: open && lines.length ? Math.min(...lines.map(contrast)) : null, toggle: contrast(toggle) });
@@ -672,12 +681,12 @@ async function detailsPass(browser) {
     {
         const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
         await load(page, "/audit/style-harness.html?w=action-observe&role=player");
-        await page.addStyleTag({ content: '.drpg-action-details-toggle[aria-expanded="false"] + .drpg-action-details-box { display: none !important; }' });
+        await page.addStyleTag({ content: '.drpg-action-details-toggle[aria-expanded="true"] + .drpg-action-details-box { min-height: 900px !important; max-height: none !important; }' });
         const planted = await detailsRead(page);
         const rows = planted.rows ?? [];
         const seen = rows.some((r, i) => i % 2 === 1 && Math.abs(r.h - rows[i - 1].h) > 0.5);
-        console.log(`style-sweep: --details control (the shut box planted display: none): ${seen ? "read" : "NOT read"}`);
-        if (!seen) problems.push("control: a shut box taken out of the flow read as no change");
+        console.log(`style-sweep: --details control (the open box planted past its cap): ${seen ? "read" : "NOT read"}`);
+        if (!seen) problems.push("control: an open box grown past its cap read as no change");
         await page.close();
     }
     for (const [w, h] of DETAILS_SIZES) {
@@ -699,10 +708,12 @@ async function detailsPass(browser) {
                     if (open.body > shut.body) bad.push(`${shut.value}: the body scrolls ${open.body} px open, ${shut.body} shut`);
                     if (open.lines !== null && open.lines < 4.5) bad.push(`${shut.value}: a line at ${open.lines}:1`);
                     if (open.toggle < (KNOWN_TOGGLE[theme] ?? 4.5)) bad.push(`${shut.value}: the toggle at ${open.toggle}:1`);
-                    if (EVERY_PICK && i && (Math.abs(shut.h - r.rows[0].h) > 0.5 || Math.abs(shut.w - r.rows[0].w) > 0.5)) bad.push(`${shut.value}: ${shut.w}x${shut.h}, ${r.rows[0].value} ${r.rows[0].w}x${r.rows[0].h}`);
+                    if (EVERY_PICK && i && Math.abs(shut.rest - r.rows[0].rest) > 0.5) bad.push(`${shut.value}: the held fields ${shut.rest} px, ${r.rows[0].value} ${r.rows[0].rest}`);
+                    if (EVERY_PICK && shut.loose) bad.push(`${shut.value}: ${shut.loose} row-bound field(s) outside a held stack`);
                 }
                 const hs = [...new Set(r.rows.map(x => x.h))];
-                console.log(`style-sweep: --details ${where}: ${r.rows.length / 2} pick(s), height ${hs.join("/")}, box ${Math.max(...r.rows.map(x => x.box))}, inner scroll ${Math.max(...r.rows.map(x => x.inner))}, body scroll ${Math.max(...r.rows.map(x => x.body))}, lines ${Math.min(...r.rows.filter(x => x.lines !== null).map(x => x.lines))}:1, toggle ${Math.min(...r.rows.map(x => x.toggle))}:1${bad.length ? ` - RED: ${bad.join("; ")}` : ""}`);
+                const rests = [...new Set(r.rows.map(x => x.rest))];
+                console.log(`style-sweep: --details ${where}: ${r.rows.length / 2} pick(s), height ${hs.join("/")}, held fields ${rests.join("/")}, box ${Math.max(...r.rows.map(x => x.box))}, inner scroll ${Math.max(...r.rows.map(x => x.inner))}, body scroll ${Math.max(...r.rows.map(x => x.body))}, lines ${Math.min(...r.rows.filter(x => x.lines !== null).map(x => x.lines))}:1, toggle ${Math.min(...r.rows.map(x => x.toggle))}:1${bad.length ? ` - RED: ${bad.join("; ")}` : ""}`);
                 problems.push(...bad.map(b => `${where}: ${b}`));
             }
             await page.close();

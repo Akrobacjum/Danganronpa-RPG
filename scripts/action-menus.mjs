@@ -197,12 +197,13 @@ export async function chooseVariant({
     const brief = !rowFacts ? lead
         : lead.includes(DETAILS_ROWS) ? lead.replace(DETAILS_ROWS, () => rowFacts) : `${lead}${detailsHtml(rowFacts)}`;
     // A row's own statistic field (`field`: the crisis menu's proposal, E68 C4) stands in the right column's slot, not
-    // with its details on the left: the owner's Q3 of round M keeps the field under the rows. One block a row, the
-    // picked row's alone shown (`syncDetails`); no class of its own, so the hidden attribute alone shuts it.
+    // with its details on the left: the owner's Q3 of round M keeps the field under the rows. One block a row, stacked
+    // in one place and the picked row's alone lit (`syncDetails`; E49 A8.3: `hidden` until then, which made the slot as
+    // tall as the picked row's field).
     // Whatever a caller reads back off the answer's `form` goes here, never in `details`: the left column is outside
     // the <form>. A Frisk's ways stood there from C12 to E68 fix CI 77d3e66a and were read as Openly every time.
     const fields = options.map(o => (o.field && !o.disabled
-        ? `<div data-drpg-field="${esc(o.value)}"${o.value !== first ? " hidden" : ""}>${o.field}</div>` : "")).join("");
+        ? `<div data-drpg-field="${esc(o.value)}"${o.value !== first ? ` class="${UNPICKED}"` : ""}>${o.field}</div>` : "")).join("");
 
     const fallback = confirm ?? game.i18n.localize("DRPG.Action.proceed");
     // A row's `confirm` is its label, or a function of the drawn window that reads the row's own fields (a Frisk's mode).
@@ -236,7 +237,7 @@ export async function chooseVariant({
             : { body: `${intro}${form}` }),
         render: (event, dialog) => {
             if (options.some(o => o.confirm)) followConfirmLabel(dialog, confirmFor);
-            if (columns) syncDetails(dialog, first);
+            if (columns) { holdFields(dialog); syncDetails(dialog, first); }
             atTop(dialog);
         },
         footer: !usable.length ? { close: "close" } : {
@@ -391,8 +392,9 @@ function wireDetails(dialog) {
 }
 
 /**
- * The left column follows the picked row (E68 C12; E49 A8.1): the picked row's block and Details layers lit, the others
- * `UNPICKED` in their place. The statistic's slot in the right column still shows the picked row's field alone (`hidden`).
+ * The window follows the picked row (E68 C12; E49 A8.1, A8.3): in the left column the picked row's block and Details
+ * layers lit, in the right the fields that row shows (`holdFields`' stacks) and its own field in the statistic's slot;
+ * every other one `UNPICKED` in its place, never `hidden`.
  */
 function syncDetails(dialog, first = null) {
     const root = dialog?.element;
@@ -404,14 +406,47 @@ function syncDetails(dialog, first = null) {
         for (const layer of root.querySelectorAll(".drpg-action-details-box .drpg-details-layer")) {
             layer.classList.toggle(UNPICKED, !String(layer.dataset.drpgWhen ?? "").split(/\s+/).includes(value));
         }
+        for (const field of root.querySelectorAll(`.${HELD} > [data-drpg-when]`)) {
+            field.classList.toggle(UNPICKED, !String(field.dataset.drpgWhen ?? "").split(/\s+/).includes(value));
+        }
         for (const block of root.querySelectorAll(`.${TRAIT_SLOT} > [data-drpg-field]`)) {
-            block.hidden = block.dataset.drpgField !== value;
+            block.classList.toggle(UNPICKED, block.dataset.drpgField !== value);
         }
     };
     pick(root.querySelector('input[name="variant"]:checked')?.value ?? first);
     root.addEventListener("change", event => {
         if (event.target?.name === "variant") pick(event.target.value);
     });
+}
+
+/** A run of the right column's row-bound fields, held in one place (`holdFields`). */
+const HELD = "drpg-held-stack";
+
+/**
+ * THE RIGHT COLUMN HOLDS ITS PLACE TOO (E49 A8.3, 11.11.2026; the owner's answer 4: "tak"). A field a row shows - the
+ * request box of Observe's two rows and of Search's Something specific, Analyze's hint box, Tamper's three selects,
+ * Palm's plant, a project's two - carries `data-drpg-when` after the rows, and the stylesheet's sibling rules showed it
+ * (`display`) with its row alone: measured at A8.2 under the glass at 1366x768 (style-sweep `--details --every-pick`),
+ * Observe 584.4 to 612.1 px, Search 621.7 to 692.8, Analyze 486.1 to 543.6 by the pick. Each run of such fields is put
+ * in one stack when the window is drawn (the callers write them as markup in `extra`, so the run is found in the tree,
+ * not in the string), all of it in one grid cell, the picked row's lit and the others `UNPICKED` (`syncDetails`): the
+ * column is as tall as its tallest field. A field that shows with every row stays where it was, outside the stack.
+ */
+function holdFields(dialog) {
+    const root = dialog?.element;
+    // The right column's own <form>, or the column itself where the window's form swallowed it (a nested form is dropped).
+    const holder = root?.querySelector(".drpg-variant-ask > form") ?? root?.querySelector(".drpg-variant-ask");
+    if (!holder) return;
+    let stack = null;
+    for (const child of [...holder.children]) {
+        if (!child.matches("[data-drpg-when]")) { stack = null; continue; }
+        if (!stack) {
+            stack = document.createElement("div");
+            stack.className = HELD;
+            child.before(stack);
+        }
+        stack.append(child);
+    }
 }
 
 /**
