@@ -3021,8 +3021,9 @@ body.drpg-theme-stained-glass #players {
 }
 /* the tray's rows: the project's portrait is a dark square on the pane; the theme draws
    the row with the project's own chosen glyph instead (below), and the row's own boxes
-   are already clear. The portrait is still set and still shown under Monokuma Legacy -
-   it is this theme that swaps a picture for a glyph in the state colour. */
+   are already clear. The portrait is still set; since E49 FT batch 3 Monokuma Legacy
+   hides it too unless it is a file of the module's own, and draws the glyph in Bone
+   (danganronpa.css, "NO FOUNDRY OR DAGGERHEART PICTURE ON A ROW"). */
 body.drpg-theme-stained-glass #countdowns .countdown-container img { display: none !important; }
 
 /* ---- 4. The Projects tray as the audit page draws it -------------------------------------

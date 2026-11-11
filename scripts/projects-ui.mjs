@@ -466,9 +466,11 @@ export function projectWindowWidth() {
  * browser, in the window and in a column of the manager. The module's own glyph (`glyphGrid`, PROJECT_GLYPHS, the
  * sprite the tray paints) is the project's icon, so both went: the window keeps the picture as a hidden field only,
  * holding and saving exactly what it held (a new project still gets core's webp as before, an edited one keeps its own,
- * so Daggerheart's tray - which draws the countdown's `img` under Monokuma Legacy and hides it under the glass - shows
- * what it showed); the manager neither draws nor reads it, so its Save no longer writes a picture at all (it wrote one
- * only when the thumbnail had been changed). Stored data is not touched.
+ * so what Daggerheart's tray is given is what it was given); the manager neither draws nor reads it, so its Save no
+ * longer writes a picture at all (it wrote one only when the thumbnail had been changed). Stored data is not touched.
+ * The tray draws that picture in neither theme since the owner's next word the same night: a row's picture outside the
+ * module's folder is hidden and the row draws its glyph (danganronpa.css, "NO FOUNDRY OR DAGGERHEART PICTURE ON A ROW";
+ * R3578).
  */
 const DEFAULT_PROJECT_IMG = "icons/magic/time/hourglass-yellow-green.webp";
 

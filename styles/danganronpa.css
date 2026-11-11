@@ -17682,6 +17682,29 @@ body.drpg-theme-monokuma-legacy #countdowns .countdown-tools .progress-tag {
     font-variant-numeric: tabular-nums;
 }
 body.drpg-theme-monokuma-legacy #countdowns :is(.countdowns-header > i, .countdown-tool-icons i) { color: var(--drpg-bone-dim); }
+/* NO FOUNDRY OR DAGGERHEART PICTURE ON A ROW, EITHER THEME (E49 FT batch 3; the owner, 11.11.2026 night: "Projects tray
+   picture: Foundry/Daggerheart picture removed; the DRPG icon kept"). Daggerheart 2.10.11's countdowns.hbs draws every
+   row's stored `img`, and what is stored is, read in its source and ours: core's icons/magic/time/hourglass-yellow-green.webp
+   (its countdown model's initial and `defaultCountdown`, and the module's own default for a project made without one,
+   projects.mjs `createProject`); before 90c32902 whatever file a GM browsed to; on a row made by the system, its own. The
+   glass never drew it (stained-glass.css, "the tray's rows", `!important`); Legacy did, at 34 px. Now a picture outside
+   the module's folder is hidden in both themes, and Legacy draws in its place what the glass draws: the module's own
+   drawing of the row's glyph (`--drpg-project-glyph`, written by projects-tray.mjs `paintProgress`; the hourglass where
+   none is chosen), from the legacy set on :root (pixel-icons.css), in Bone, 24 px (two device pixels a cell at a scale
+   of 2) centred in the picture's own box, so a row's name starts where it did and where a kept picture's does (the
+   shots of 11.11 night: in a 24 px box the names stood 10 px left of a kept picture's). A picture in the module's folder
+   is the module's own and stays, with no glyph beside it. Only what is drawn: the stored `img` is not touched (R3578). */
+#countdowns .countdown-container img:not([src^="modules/danganronpa-rpg/"], [src^="/modules/danganronpa-rpg/"]) { display: none; }
+body.drpg-theme-monokuma-legacy #countdowns .countdown-main-container:not(:has(> img:is([src^="modules/danganronpa-rpg/"], [src^="/modules/danganronpa-rpg/"])))::before {
+    content: "";
+    flex: 0 0 auto;
+    width: var(--drpg-project-row);
+    height: var(--drpg-project-row);
+    background-color: var(--drpg-bone);
+    -webkit-mask: var(--drpg-project-glyph, var(--drpg-pix-hourglass)) center / 24px 24px no-repeat;
+    mask: var(--drpg-project-glyph, var(--drpg-pix-hourglass)) center / 24px 24px no-repeat;
+    image-rendering: pixelated;
+}
 /* The glass's links had their colour (the hour's, stained-glass.css) but no hover and no keyboard ring of their own: the
    survey's measure read hover and focus open on each of the four (glass-gm, 7d59dcfe). Bone under the pointer, the
    attention ring on the keyboard. */

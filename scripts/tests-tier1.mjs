@@ -44297,6 +44297,69 @@ const INVARIANTS = [
             hidden: true, corner: true
         }), "{dice: each die's colour by picture or select, each theme's Hope and Despair token; windows: a framed core window's ground, title band, field and button under Legacy, button and edge under the glass, the FilePicker's picked row, no layout property in any of these rules; hidden: the hotbar's rule hides the combat tab, pane and window and the effects display; corner: a stand-in core confirm's button wears this theme's corner}");
     }],
+    ["R3578 - the Projects tray shows no Foundry or Daggerheart picture, in either theme (E49 FT batch 3; the owner, 11.11.2026 night: the tray's stored picture still drawn under Monokuma Legacy - Foundry's or Daggerheart's removed, the module's own project icon kept): a row's `img` whose path is not in the module's own folder (core's hourglass webp, which is Daggerheart's countdown default and the module's stored default; any other core or system file; a world's own file; none) is hidden in both themes, and under Monokuma Legacy the row draws the module's own pixel drawing of its glyph in its place - `--drpg-project-glyph`, the hourglass where none is chosen, as the glass does; a picture in the module's folder stays and draws no glyph beside it; every glyph the tray can name is declared on :root, so it resolves under Legacy; painting the tray leaves each row's `src` and the stored projects as they were", async () => {
+        /*
+         * E49 FT batch 3, the owner's question 6 of 11.11.2026 night, decided: "Projects tray picture: Foundry/Daggerheart
+         * picture removed; the DRPG icon kept". What the tray can show was read, not guessed: Daggerheart 2.10.11's
+         * countdowns.hbs draws `<img src="{{countdown.img}}">` on every row, and its countdown model's `img` is a
+         * FilePathField whose initial is core's icons/magic/time/hourglass-yellow-green.webp, as its `defaultCountdown`;
+         * the module stores the same file for a project made without one (projects.mjs `createProject`,
+         * `applyProjectChange`'s create) and, until 90c32902, offered the file browser for any other. The module's own
+         * project icon is its glyph (config.mjs PROJECT_GLYPHS): the pixel drawing tools/glyphs.json's legacy rows put on
+         * :root for both themes, which Stained Glass already draws in the state colour in place of the picture
+         * (stained-glass.css, "the tray's rows"). Read here by the sheets' cascade (`styleCascade`) on Daggerheart's row
+         * built on a body of its own per theme, five pictures a row each, and projects-tray.mjs `paintProgress` on a
+         * planted row. Red first on 90c32902: under Legacy every picture drawn (no rule hides one) and no row draws a
+         * glyph. Nothing is written.
+         */
+        const C = await styleCascade();
+        const { PROJECT_GLYPHS } = await import("./config.mjs");
+        const { allProjects } = await import("./projects.mjs");
+        const OWN = `modules/${MODULE_ID}/icons/remnant-project.svg`;
+        const PICTURES = { core: "icons/magic/time/hourglass-yellow-green.webp", system: "systems/daggerheart/assets/icons/countdown.webp",
+            world: "worlds/stand-in/project.png", none: null, own: OWN };
+        const rowOf = (key, src) => `<div class="countdown-container" data-countdown="r3578${key}"><div class="countdown-main-container">`
+            + `<img alt=""${src === null ? "" : ` src="${src}"`}><div class="countdown-content"><header>R3578 ${key}</header><div class="countdown-tools">`
+            + `<div class="countdown-tool-controls"><div class="progress-tag">1/4</div></div><div class="countdown-tool-icons"></div></div></div></div></div>`;
+        const read = {};
+        for (const [theme, cls] of [["legacy", "drpg-theme-monokuma-legacy"], ["glass", "drpg-theme-stained-glass"]]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${cls} drpg-gm`;
+            html.append(body);
+            body.innerHTML = `<div id="countdowns"><div class="countdowns-container"><div class="countdown-category-container">${
+                Object.entries(PICTURES).map(([key, src]) => rowOf(key, src)).join("")}</div></div></div>`;
+            read[theme] = {};
+            for (const key of Object.keys(PICTURES)) {
+                const row = body.querySelector(`[data-countdown="r3578${key}"]`);
+                const drawn = (C.winner(row.querySelector("img"), "display")?.value ?? "").trim() !== "none";
+                const main = row.querySelector(".countdown-main-container");
+                const content = C.winner(main, "content", "::before")?.value?.trim() ?? null;
+                const mask = C.winner(main, ["mask", "mask-image"], "::before")?.value?.replace(/\s+/g, " ") ?? null;
+                read[theme][key] = { drawn, glyph: content !== null && content !== "none" ? mask : null };
+            }
+        }
+        const GLYPH = "var(--drpg-project-glyph, var(--drpg-pix-hourglass)) center / 24px 24px no-repeat";
+        const legacyRow = drawn => ({ drawn, glyph: drawn ? null : GLYPH });
+        const rootDeclares = Object.keys(PROJECT_GLYPHS).filter(key => !C.winner(document.documentElement, `--drpg-pix-${key}`));
+
+        const PT = await import("./projects-tray.mjs");
+        const before = stableJson(allProjects().map(p => [p.id, p.img ?? null, p.glyph ?? null]));
+        const root = document.createElement("div");
+        root.innerHTML = `<div class="countdowns-container"><div class="countdown-category-container">${rowOf("core", PICTURES.core)}${rowOf("own", OWN)}</div></div>`;
+        PT.paintProgress(root);
+        const kept = {
+            src: [...root.querySelectorAll("img")].map(img => img.getAttribute("src")),
+            stored: stableJson(allProjects().map(p => [p.id, p.img ?? null, p.glyph ?? null])) === before
+        };
+        equal(stableJson({ legacy: read.legacy, glass: read.glass, rootDeclares, kept }), stableJson({
+            legacy: { core: legacyRow(false), system: legacyRow(false), world: legacyRow(false), none: legacyRow(false), own: legacyRow(true) },
+            glass: Object.fromEntries(Object.keys(PICTURES).map(key => [key, { drawn: false, glyph: null }])),
+            rootDeclares: [],
+            kept: { src: [PICTURES.core, OWN], stored: true }
+        }), "{legacy / glass: per picture (core's hourglass webp, a system file, a world's file, none, the module's own), whether the img is drawn and the "
+            + "mask the row's content box draws before it (null: none); rootDeclares: PROJECT_GLYPHS keys with no --drpg-pix- token on :root; kept: the planted "
+            + "rows' src after paintProgress, and the stored projects' [id, img, glyph] unchanged}");
+    }],
     ["R2018 - Room setup's Scenes tab on the kit (E46-C2b; E46-08, E47's 05.10 point 5): trial-scene.mjs `scenesTabHtml` is a kit `formGrid` (the school and the hall selects, each its label's `for`), the hall's name, picture and words a `formGrid` of their own, the warnings a `box(\"warning\")`, the prepare ticks kit switches, `SCENES_ZONE_SLOT` a row of `scenesTabRows` that draws nothing (where E73 puts Zone A and Zone B), the hall's cast pick (`castPickerHtml`) a kit `dataTable` with a switch an actor; `readScenesTab`'s answer for a seeded form the one it gave before", async () => {
         /*
          * E46-C2b. Red first on C2a's tree (f90e89a7): labels around the selects, a list of checkboxes, `p.drpg-warning`, no
