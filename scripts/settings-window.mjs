@@ -173,10 +173,18 @@ export function settingRowHtml(key, { theme = getSetting(SETTINGS.theme) } = {})
         owner ? ` data-drpg-theme-only="${esc(owner)}"` : ""}${off ? ` title="${esc(localize(THEME_WORDS[owner]))}"` : ""}>`
         + `<div class="drpg-settings-control">${controlHtml(key, reg, value, off)}`
         + `<i class="fa-solid ${world ? "fa-users-gear" : "fa-gear"} drpg-settings-scope" role="img" aria-label="${esc(scope)}" data-tooltip="${esc(scope)}"></i></div>`
-        + `<div class="drpg-settings-hint"${rest ? ` data-tooltip="${esc(rest)}"` : ""}>${esc(firstSentence(hint))}</div></div>`;
+        + `<div class="drpg-settings-hint"${rest ? ` data-tooltip="${esc(rest)}"` : ""}>${esc(firstSentence(hint))}</div>${scaleLine(key, value)}</div>`;
 }
 
-/* Give back Foundry's settings, in Technical (Q3): the menu's words, the button that opened it from Configure Settings. */
+/* Under Interface scale, the Look window's line (look.mjs `scaleNote`): what this screen's factor and the slider make,
+   in the row itself, so it stands under the field it reads (E49 A1d's shots: as a line of the section it fell under the
+   section's last row). The window's render keeps it following the field before Save. */
+function scaleLine(key, value) {
+    if ((SETTINGS[key] ?? key) !== SETTINGS.uiScale) return "";
+    return `<div class="drpg-settings-hint drpg-settings-note" data-drpg-scale-note>${esc(scaleNote(Number(value) || 1))}</div>`;
+}
+
+/* Give back Foundry's settings, in Foundry and the system (Q3; Technical until A1d): the menu's words, the button that opened it from Configure Settings. */
 function giveBackRowHtml() {
     const hint = localize("DRPG.GiveBack.menuHint");
     const rest = restOf(hint);
@@ -187,15 +195,13 @@ function giveBackRowHtml() {
 }
 
 /**
- * What a section draws besides its settings' rows, as `{ html, count }`: the scale's line under Interface scale (the
- * Look window's, look.mjs `scaleNote`), the system's own contrast line where it asks for more (look.mjs
- * `systemWantsContrast`), the volumes, their line and the Voice section's place (`voice`: whether one was built), and
+ * What a section draws besides its settings' rows, as `{ html, count }`: the system's own contrast line where it asks
+ * for more (look.mjs `systemWantsContrast`), the volumes, their line and the Voice section's place (`voice`: whether one was built), and
  * Give back in Foundry and the system. `count` is what the section's number in the list adds: a volume one each, the
  * Voice section one, Give back one; a line none.
  */
 function extrasOf(key, { voice = false } = {}) {
     const note = text => `<div class="drpg-settings-note" data-drpg-settings-note>${esc(text)}</div>`;
-    if (key === "look") return { html: `<div class="drpg-settings-note" data-drpg-scale-note>${esc(scaleNote(Number(getSetting(SETTINGS.uiScale)) || 1))}</div>`, count: 0 };
     if (key === "effects") return { html: systemWantsContrast() ? note(localize("DRPG.Look.contrastAuto")) : "", count: 0 };
     if (key === "sound") {
         const rows = volumeSliders().map(v => {
