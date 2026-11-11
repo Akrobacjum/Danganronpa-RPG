@@ -43,8 +43,19 @@ body {
     --drpg-kit-tab-bg: rgba(var(--drpg-bone-rgb), 0.08);
     --drpg-kit-tab-ink: var(--drpg-bone);
     --drpg-kit-tab-hover: rgba(var(--drpg-eye-rgb), 0.15);
-    --drpg-kit-tab-on-bg: rgba(var(--drpg-eye-rgb), 0.25);
-    --drpg-kit-tab-on-edge: var(--drpg-eye);
+    /* the selected tab (and the DRPG Settings window's picked section, which reads the same three): Bone on Ink with
+       the attention edge since E48 Q13 (the owner's "tak", 10.11; "Zrobmy to juz", 11.11) - it was Bone on the Eye at
+       0.25, and red is the GM's road (D11). The edge is the frame and a 2 px bar (the tabs' bottom, the section
+       list's start: the rules below), so the tab keeps its size. WCAG 2 by the tokens' hex: Bone #e4ded8 on Ink
+       #1d1a21 12.88:1 (AA small 4.5:1); the edge, Bone on Ink, the same 12.88:1 (non-text 3:1); before, Bone on the
+       Eye's 0.25 over Ink (78, 26, 37) 10.50:1 - readable, but a red fill. Chromium on the style harness at 1366x768
+       (Despair Flow's tabs, the DRPG Settings window's list) read the same: before rgba(224, 24, 47, 0.25) over the
+       window's Ink, 10.50:1; after rgb(29, 26, 33) under rgb(228, 222, 216), 12.88:1, the edge rgb(228, 222, 216); each
+       tab's and section's box the same to the pixel before and after. The edge is attention's (a selection: tests-css.mjs MEANING), named as one so the meaning check
+       reads it (a token whose name says "selected" may hold it; `--drpg-kit-tab-on-edge` says nothing). */
+    --drpg-kit-tab-selected-edge: var(--drpg-attention);
+    --drpg-kit-tab-on-bg: var(--drpg-ink);
+    --drpg-kit-tab-on-edge: var(--drpg-kit-tab-selected-edge);
     --drpg-kit-tab-on-ink: var(--drpg-bone);
     --drpg-kit-tab-bar: transparent;
     --drpg-kit-tab-radius: 3px;
@@ -366,6 +377,11 @@ body.drpg-theme-stained-glass .application .drpg-tabs[role="tablist"] > button[d
     --brush-edge: var(--brush);
 }
 body:not(.drpg-theme-stained-glass) .application .drpg-tabs[role="tablist"] > button[data-drpg-tab-key][role="tab"]:hover:not([aria-selected="true"]) { background: var(--drpg-kit-tab-hover); }
+/* Q13's edge under Legacy (the tokens above): a 2 px bar along the selected tab's foot, inset, as the sheet's tab
+   (danganronpa.css, E48 K6) - a shadow, so the tab's box is the one it had. */
+body:not(.drpg-theme-stained-glass) .application .drpg-tabs[role="tablist"] > button[data-drpg-tab-key][role="tab"][aria-selected="true"] {
+    box-shadow: inset 0 -2px 0 var(--drpg-kit-tab-on-edge);
+}
 body .application .drpg-tabs[role="tablist"] > button[data-drpg-tab-key][role="tab"][aria-selected="true"] {
     color: var(--drpg-kit-tab-on-ink);
     background: var(--drpg-kit-tab-on-bg);
@@ -2992,9 +3008,14 @@ body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button 
     border-radius: 4px;
     box-shadow: none;
 }
-/* The case tile's second line beside its label under Legacy (a row): the line takes the width of its longest word and
-   wraps, so the label keeps its own - "Sprawa" broke into "Spra / wa" against "ostatnia kopia: nigdy" (Chromium, 1366x768). */
-body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button > small.notes { flex: 0 1 min-content; }
+/* The case tile's second line beside its label under Legacy (a row). It was `flex: 0 1 min-content`, so the label kept
+   its word - "Sprawa" broke into "Spra / wa" against "ostatnia kopia: nigdy" (Chromium, 1366x768) - but the line took
+   the width of its longest word and stood as a three-line column at the tile's right (E105 gmtabs, "last backup: never",
+   E49 11.11). Now the label does not shrink (`flex: none`, its word whole) and the line takes the room left, wrapping
+   only where that room ends (Chromium on the style harness at 1366x768 and 1920x1080, English: "last backup: never" three
+   rows 91 px wide before, two rows 167 px wide after, the tile 69 px tall before and 53 px after; index.txt). The tile's box is the grid cell's, as before. */
+body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button:has(> small.notes) > span { flex: none; }
+body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button > small.notes { flex: 0 1 auto; min-width: 0; }
 body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button:hover:not(:disabled) {
     background: var(--drpg-gmp-hover-bg);
     border-color: var(--drpg-eye-light);
@@ -3065,6 +3086,19 @@ body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-advance:disabled {
     border-style: dashed;
     cursor: not-allowed;
 }
+/* THE PANEL'S TOP PART CENTRED (E49, 11.11.2026; the owner on the E105 comparison: "Panel gma - wysrodkujmy gorna
+   czesc", a one-off layout change he asked for). The top part is the standing block above the sections
+   (gm-panel.mjs `buildPanelContent`, `.drpg-gmp-standing`): the campaign's name, the clock's line with the phase and
+   the advance button, and the students line with its door to Students. Each was flush left in both themes (the
+   comparison's after-gm-panel-as-opened shots, 1366x768 and 1920x1080). Centred by `text-align` on those three lines
+   alone - the heading and the two paragraphs, the standing block's direct children - so nothing changes size: the
+   lines keep the block's full width, the buttons are inline (the advance `inline-flex`, danganronpa.css "ON THE LINE,
+   OR UNDER IT"; the students door flows with its sentence) and travel with their words, and a line that wraps
+   centres each of its rows. The Next line (`.drpg-gmp-next`, a flex box of its own) and the case warning (a kit box)
+   are divs, not reached: they already span the block and keep their own alignment; the sections below are another
+   region. Read in Chromium on the glass harness's GM page at 1366x768 and 1920x1080, both themes, before and after
+   (S/stages/E49/pan-shots); R3540 holds the rule and that it names no other child. */
+body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-standing > :is(h3, p) { text-align: center; }
 
 /* DIAGNOSTICS LIKE THE OTHER SECTIONS (S10-64): its summary the others' plate and face; only its words dimmed (the
    section was faded whole under Legacy, and its plate the dim bone under the glass). An `em`, not a `span`: the glass
@@ -3072,6 +3106,24 @@ body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-advance:disabled {
 body .application.drpg-window-panel .drpg-gmp-section > summary > em.drpg-gmp-dim {
     font-style: normal;
     opacity: 0.6;
+}
+/* Under Legacy the section bars are Ink on Bone (danganronpa.css), and Ink at 0.6 over Bone is (109, 104, 106) on
+   (228, 222, 216): 4.10:1 by WCAG 2 at 11 px, under AA (E105 gmtabs, "dim grey on a light bar", E49 11.11). At 0.75 it is
+   (79, 75, 79), 6.42:1 - still the one bar dimmer than the others (Ink on Bone, 12.88:1). Chromium's reading: index.txt. */
+body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-section > summary > em.drpg-gmp-dim { opacity: 0.75; }
+/* THE TOP BLOCK UNDER LEGACY (E49, 11.11.2026; E105 gmtabs at 54493dbf, Legacy): the Next line's two lines all but met -
+   the pixel face's line box is its size (`line-height` 1, read 13 px rows for 13 px glyphs in Chromium) - and the phase
+   followed the time of day with no gap and no mark ("Morning Daily Life"), so it read as the clock's last word. The Next
+   line's words take 1.3 (the prose rule's step, danganronpa.css R3522, which reaches `p` and not this span); the phase
+   is a stamp as under the glass - a gap, a frame in the kit's strong line, the kit tab's corners - in Legacy's own ink.
+   Look, not layout: both are drawn in every state. */
+body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-next-text { line-height: 1.3; }
+body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-phase {
+    display: inline-block;
+    margin-inline-start: 8px;
+    padding: 0 6px;
+    border: 1px solid var(--drpg-kit-line-strong);
+    border-radius: var(--drpg-kit-tab-radius);
 }
 
 /* ---- the new surfaces (E47-C5, 09.11.2026; audit S17-43, S01-44): a roll's status and the E28 and E29 cards in the
@@ -3271,6 +3323,11 @@ body.drpg-theme-stained-glass .application.drpg-ui.drpg-panel.drpg-window-settin
     --brush-on: 1;
     --brush-ink: var(--drpg-kit-tab-on-ink);
     --brush-edge: var(--brush);
+}
+/* Q13's edge on the picked section under Legacy: a 3 px bar along its start, inset (a column's mark, as the item
+   tables' picked row, `.drpg-tables-list`), so the button's box is the one it had. */
+body:not(.drpg-theme-stained-glass) .application.drpg-ui.drpg-panel.drpg-window-settings .drpg-variant-columns .drpg-settings-sections > button.drpg-settings-tab[type="button"][aria-pressed="true"] {
+    box-shadow: inset 3px 0 0 var(--drpg-kit-tab-on-edge);
 }
 .drpg-window-settings .drpg-settings-tab:focus-visible { outline: 2px solid var(--drpg-kit-tab-on-edge); outline-offset: -2px; }
 .drpg-window-settings .drpg-settings-panes { display: grid; }
