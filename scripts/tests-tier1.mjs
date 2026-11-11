@@ -45307,7 +45307,7 @@ const INVARIANTS = [
         const actors = ["owed", "cub", "kept", "early", "tiled", "older"].map(id => ({ id, name: id }));
         const deaths = { owed: d({}), cub: d({}), kept: d({}), early: d({ chapter: 2 }), tiled: d({}), older: d({}) };
         const tiles = { tiled: [{ mark: { deathId: "D" } }], older: [{ mark: { deathId: "OLD" } }] };
-        const picked = typeof Mi.bodiesToLay === "function" ? Mi.bodiesToLay(actors, { deceased: a => a.id !== "kept", monocub: a => a.id === "cub",
+        const picked = typeof Mi.bodiesToLay === "function" ? Mi.bodiesToLay(actors, { dead: a => a.id !== "kept", monocub: a => a.id === "cub",
             deathOf: a => deaths[a.id], open: death => Mo.caseOpen(death, clock, { chapter: 3 }, epoch), tilesOf: id => tiles[id] ?? [] }).map(a => a.id) : null;
         equal(stableJson({ pure, agrees: pure ? pure.every((v, i) => v === own[i]) : null, picked }), stableJson({
             pure: [true, true, false, true, false, false, false, true, false], agrees: true, picked: ["owed", "older"] }),

@@ -1059,12 +1059,12 @@ const CLAUSES = [
 
 /**
  * The students a 1.2.104 world owes a body (pure; E63 C3, tier 1 R3405): of `actors`, each dead and public
- * (`deceased`), not a Monocub (`monocub`), whose death (`deathOf`, the record as the GMs hold it) is of the open case
+ * (`dead`, chapter.mjs `isDeceased`: R192 holds the flag's name to the predicates), not a Monocub (`monocub`), whose death (`deathOf`, the record as the GMs hold it) is of the open case
  * (`open(death)`) and has no tile of its `deathId` (`tilesOf`, body-tile.mjs `bodyTilesOf`'s rows).
  */
-export function bodiesToLay(actors, { deceased, monocub, deathOf, open, tilesOf }) {
+export function bodiesToLay(actors, { dead, monocub, deathOf, open, tilesOf }) {
     return [...(actors ?? [])].filter(actor => {
-        if (!deceased(actor) || monocub(actor)) return false;
+        if (!dead(actor) || monocub(actor)) return false;
         const death = deathOf(actor);
         if (!death || !open(death)) return false;
         const id = death.deathId ?? null;
@@ -1086,7 +1086,7 @@ export async function layOpenCaseBodies() {
     const { studentActors } = await import("./monokuma.mjs");
     const { getClock } = await import("./clock.mjs");
     const clock = getClock(), record = getSetting(SETTINGS.trialProgress) ?? {}, epoch = seasonEpoch();
-    const owed = bodiesToLay(studentActors(), { deceased: isDeceased, monocub: isMonocub, deathOf: actor => deathRecord(flagsHeldNow(actor)),
+    const owed = bodiesToLay(studentActors(), { dead: isDeceased, monocub: isMonocub, deathOf: actor => deathRecord(flagsHeldNow(actor)),
         open: death => caseOpen(death, clock, record, epoch), tilesOf: bodyTilesOf });
     if (!owed.length) return null;
     const laid = [], none = [];
