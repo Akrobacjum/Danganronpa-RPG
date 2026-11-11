@@ -2701,6 +2701,16 @@ body .application.drpg-window-season li.drpg-check-row[data-drpg-state="blocking
 body .application.drpg-window-season li.drpg-check-row[data-drpg-state="warning"] .drpg-check-detail > .drpg-setup-missing { color: var(--drpg-kit-check-warning); }
 body .application.drpg-window-season li.drpg-check-row > button[data-drpg-action] { align-self: center; white-space: nowrap; }
 body .application.drpg-window-season .drpg-kit-body { scrollbar-gutter: stable; }
+/* The row of windows under Edit campaign's block (E49 A1e, 11.11.2026; season-setup.mjs `seasonWindowsHtml`): Despair Flow,
+   The Mastermind, Killing game rules and Pre-season checks, the kit's secondary buttons in one row, each grown from its
+   label's width to share it. MEASURED in Chromium on probe 08's capture (the style harness, the window at 928 px, the row
+   879 px, 11.11.2026): a row that wrapped at the labels' widths put Pre-season checks on a second row under Legacy in
+   Polish, and four equal columns cut "KONTROLA PRZED SEZONEM" under the glass, whose buttons do not wrap (252 px of label
+   in a 214 px button). The glass's four labels take 758 px (EN) and 780 px (PL) on one line with the gaps, so they stand
+   in one line each; Legacy's take 902 and 927 px, so its buttons shrink and the labels wrap to two lines inside them
+   (Mastermind alone stays one line in Polish). */
+body .application.drpg-window-season .drpg-season-windows { display: flex; gap: 8px; margin: 10px 0 12px; }
+body .application.drpg-window-season .drpg-season-windows > button { flex: 1 1 auto; min-width: 0; }
 body .application.drpg-window-preseason .drpg-check-detail > .drpg-check-line { display: block; overflow-wrap: anywhere; }
 body .application.drpg-window-preseason .drpg-check-title { overflow-wrap: anywhere; }
 body .application.drpg-window-preseason .drpg-check-unknown > summary { cursor: pointer; }

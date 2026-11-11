@@ -30,7 +30,6 @@ import { firstOutstandingStep } from "./season-setup.mjs";
 import { roundOf, readyRecord } from "./boundary.mjs";
 import { trialNextStep, trialStepView, trialStepText } from "./trial-floor.mjs";
 import { openWhoIsAliveDialog } from "./gm-students.mjs";
-import { openClockDialog } from "./gm-campaign.mjs";
 export { openWhoIsAliveDialog, applyAliveStates } from "./gm-students.mjs";
 export { correctsTheHour, openClockDialog } from "./gm-campaign.mjs";
 
@@ -269,12 +268,14 @@ const PANEL_SECTIONS = [
         key: "between",
         collapsed: true,
         items: [
-            // Down from "Right now" (Dawid, 03.09): the campaign's name and the
-            // clock are things a GM sets between sessions, not mid-scene.
-            { key: "jump", icon: "fa-calendar-days", labelKey: "DRPG.Panel.jump",
-              run: () => openClockDialog() },
-            { key: "gmTeam", icon: "fa-users-gear", labelKey: "DRPG.Panel.despairFlow",
-              run: () => import("./gm-team-dialog.mjs").then(m => m.openGmTeamDialog()) },
+            // EDIT CAMPAIGN, DESPAIR FLOW, KILLING GAME RULES AND THE MASTERMIND ARE NO TILES SINCE E49 A1e (the owner,
+            // 11.11.2026: Season setup "becomes the one place for setting up the season" - Edit campaign at its top, a row
+            // of buttons under it for Despair Flow, The Mastermind, Killing game rules and Pre-season checks - and their
+            // tiles leave Between sessions). Each window is the one its tile opened, by the same call: Edit campaign's
+            // fields and Apply are gm-campaign.mjs's (`campaignRows`, `applyCampaignForm`), drawn and run by season-setup.mjs
+            // `openSeasonSetup`; the three others are its `SEASON_WINDOWS`. The other doors stay: api.mjs's
+            // `game.drpg.editClock` (Edit campaign's own window), `gmTeamPanel`, `mastermindDialog` and `rulesManager`,
+            // and the checklist rows' Open for Despair Flow and The Mastermind.
             // Room Setup carries the locks and the search-token counters now, so
             // the two quick toggles that used to live in the panel are columns
             // on the table that already says everything else about a room.
@@ -285,16 +286,6 @@ const PANEL_SECTIONS = [
             // first minute is editing.
             { key: "tables", icon: "fa-table-list", labelKey: "DRPG.Tables.editorTitle",
               run: () => import("./tables.mjs").then(m => m.openItemTables()) },
-            // From Right now (E49 A2; the owner's 10.11 words above, at the tile's old place).
-            { key: "rules", icon: "fa-gavel", labelKey: "DRPG.Rules.manageTitle",
-              run: () => import("./rules.mjs").then(m => m.openRulesManager()) },
-            // Before Season setup since E49 A1d (the owner, 11.11.2026: "zamieniamy miejscami the mastermind z ustawienia
-            // sezonu"). Moved out of the trial-only section it used to sit in. The
-            // endgame is prepared between sessions, and this is the one place
-            // it is edited: the Mastermind's identity, the Final Trial and the
-            // Final Key Remnants, all on one window.
-            { key: "mastermind", icon: "fa-user-secret", labelKey: "DRPG.Mastermind.dialogTitle",
-              run: () => import("./mastermind.mjs").then(m => m.openMastermindDialog()) },
             // Beside the checks it answers: the season checklist carries the
             // pre-session diagnostics as a button now, because "what is missing"
             // and "fix it" are the same list read from the two ends.
@@ -303,7 +294,8 @@ const PANEL_SECTIONS = [
             // END THE CHAPTER IS NO TILE SINCE E49 A2 (the owner, 10.11.2026: "End the chapter wrzucmy do edit
             // campaign"). A chapter that ends without a verdict - stretched because nobody died, closed on a
             // confession, a one-chapter season - still has its door: the part apart at the bottom of Edit campaign
-            // (gm-campaign.mjs `openClockDialog`), in a warning frame, asking first. After a verdict the Next line
+            // (gm-campaign.mjs `openClockDialog`; and of Season setup's Edit campaign block since E49 A1e), in a
+            // warning frame, asking first. After a verdict the Next line
             // offers it as before (`nextStep`'s chapterEnd, EXTRA_ACTIONS), and the trial console's button stays.
             // THE CASE (E04) moved to Diagnostics as one tile (E47-C3, the owner's 27.09): see `fixes` below. The
             // chapter's end keeps its own backup button (chapter.mjs); the reset window has none (the owner accepts it).

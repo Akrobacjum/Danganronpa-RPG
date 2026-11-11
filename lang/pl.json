@@ -5331,9 +5331,6 @@
       "title": "Ustawienia sezonu",
       "introOutstanding": "Jeszcze {n} do zrobienia. Sezon może ruszyć bez nich; każdy brak ujawni się w chwili, gdy zacznie mieć znaczenie.",
       "introReady": "Każdy wiersz, którego ta lista wymaga, jest zrobiony. Kontrola przed sezonem sprawdza więcej niż ta lista - obrazy pokoi, głos, kto może otworzyć karty - więc uruchom ją przed pierwszą sesją.",
-      "campaignName": "Nazwa kampanii",
-      "campaignPlaceholder": "Hope's Peak: Utopione lato",
-      "chapter": "Rozdział",
       "note": "Każdy wiersz to coś, czego sezon potrzebuje, w kolejności, w jakiej sezon naprawdę się buduje.",
       "resourcesButton": "Nadaj zasoby startowe",
       "cursorButton": "Ukryj kursor GM-ów",
@@ -5510,7 +5507,7 @@
       "firstSessionNote": "Ustawiane raz, przed pierwszą sesją: gdzie odbywa się rozprawa, co moduł trzyma z Foundry i kości.",
       "safeword": "Safeword",
       "safewordNote": "Słowo, które zatrzymuje scenę, wydrukowane na każdym arkuszu postaci. Wybierz coś, czego stół nie pomyli z niczym innym. Zostaw puste, by użyć domyślnego.",
-      "campaignBlock": "Ta kampania",
+      "windows": "Okna sezonu",
       "startHereTitle": "Od czego zacząć",
       "startHereText": "Zacznij tutaj: panel GM-a > Ustawienia sezonu. Jego lista prowadzi przez sezon w kolejności, w jakiej się go buduje, a linia Dalej w panelu GM-a podaje pierwszą rzecz, która została do zrobienia.",
       "fixedCursor": {

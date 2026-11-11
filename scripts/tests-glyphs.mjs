@@ -408,10 +408,13 @@ export const ELEMENTS = {
     "TRAP_TRIGGERS.stash": "stash", "TRAP_TRIGGERS.passage": "passage", "TRAP_TRIGGERS.manual": "trap-manual",
     "CLEANUP.actions.eraseTrace": "erase-trace", "CLEANUP.actions.misleadingTrail": "misleading-trail",
     "CLEANUP.actions.moveBody": "move-body", "gm.whoIsAlive": "pulse", "gm.projects": "checklist", "gm.sound": "sound",
-    "gm.rules": "rules", "gm.murder": "gm-murder", "gm.investigation": "lens", "gm.trial": "scale", "gm.jump": "calendar",
-    "gm.gmTeam": "team", "gm.roomSetup": "room-setup", "gm.tables": "table", "gm.voiceReset": "voice-reset",
-    "gm.seasonSetup": "wand", "gm.mastermind": "mask", "gm.settings": "gear",
+    "gm.murder": "gm-murder", "gm.investigation": "lens", "gm.trial": "scale",
+    "gm.roomSetup": "room-setup", "gm.tables": "table", "gm.voiceReset": "voice-reset",
+    "gm.seasonSetup": "wand", "gm.settings": "gear",
     "gm.failureLog": "bug", "gm.caseWindow": "case-backup"
+    /* E49 A1e (11.11.2026): gm.jump, gm.gmTeam, gm.rules and gm.mastermind left with their tiles (Edit campaign, Despair
+       Flow, Killing game rules and The Mastermind, now Season setup's); Season setup's buttons for three of them are the
+       kit's text buttons, which wear no glyph. */
 };
 
 /** What later stages build, by the inventory (S/stages/E48/GLYPH-INVENTORY.md, 10.11.2026): [row, stage, element,
@@ -1056,7 +1059,9 @@ ${perIcon.join("\n\n")}
  *  E48 G4 (11.11.2026) renamed the 60 token readings to the one prefix and changed no reading: each named a g-prefixed
  *  token (59) or the r-prefixed `trash` and now names `--drpg-pix-<n>` of the legacy row that took that drawing over, pixel for pixel
  *  (tools/glyphs.json's `from` names the old token; `palm` alone was renamed, to `palm-action`, because the px hand the
- *  objection launcher reads keeps `palm`); the 139 `fa:` readings are as recorded. */
+ *  objection launcher reads keeps `palm`); the 139 `fa:` readings are as recorded. E49 A1e (11.11.2026) took out the
+ *  four GM tiles that left the panel for Season setup (gm.jump, gm.gmTeam, gm.rules, gm.mastermind: no such probe now);
+ *  no other reading changed. */
 export const LEGACY_ICONS = {
     "ACTIONS.search": "--drpg-pix-search",
     "ACTIONS.observe": "--drpg-pix-observe",
@@ -1113,17 +1118,13 @@ export const LEGACY_ICONS = {
     "gm.whoIsAlive": "--drpg-pix-who-is-alive",
     "gm.projects": "--drpg-pix-projects",
     "gm.sound": "fa:fa-volume-high",
-    "gm.rules": "--drpg-pix-new-rule",
     "gm.murder": "--drpg-pix-direct-murder",
     "gm.investigation": "--drpg-pix-investigation",
     "gm.trial": "--drpg-pix-trial",
-    "gm.jump": "--drpg-pix-jump",
-    "gm.gmTeam": "--drpg-pix-gm-team",
     "gm.roomSetup": "--drpg-pix-room-setup",
     "gm.tables": "--drpg-pix-tables",
     "gm.voiceReset": "fa:fa-microphone-lines",
     "gm.seasonSetup": "--drpg-pix-season-setup",
-    "gm.mastermind": "--drpg-pix-mastermind",
     "gm.settings": "--drpg-pix-gear",
     "gm.failureLog": "--drpg-pix-failure-log",
     "gm.caseWindow": "fa:fa-box-archive",

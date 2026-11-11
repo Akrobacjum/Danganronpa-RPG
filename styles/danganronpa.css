@@ -15362,23 +15362,23 @@ body.drpg-theme-monokuma-legacy .drpg-window-tables fieldset.drpg-tables-new > .
    The reset is scoped per key, exactly as the Call tiles are: a tile added
    later without a glyph keeps its Font Awesome icon rather than rendering as
    an empty square.
+
+   Edit campaign, Despair Flow, Killing game rules and The Mastermind left the
+   panel for Season setup in E49 A1e (11.11.2026), and their four rules went
+   with their tiles; their drawings stay rows of tools/glyphs.json.
    ========================================================================== */
 
 /* The icon slot becomes a mask box. Font Awesome still ships the element, so
    its glyph is switched off explicitly - and the box needs a length rather
    than the `1.1em` it had, because `font-size: 0` makes an em zero. */
 .drpg-gmp-button[data-drpg-run="projects"] > i,
-.drpg-gmp-button[data-drpg-run="jump"] > i,
-.drpg-gmp-button[data-drpg-run="rules"] > i,
 .drpg-gmp-button[data-drpg-run="whoIsAlive"] > i,
 .drpg-gmp-button[data-drpg-run="murder"] > i,
 .drpg-gmp-button[data-drpg-run="investigation"] > i,
 .drpg-gmp-button[data-drpg-run="trial"] > i,
-.drpg-gmp-button[data-drpg-run="gmTeam"] > i,
 .drpg-gmp-button[data-drpg-run="roomSetup"] > i,
 .drpg-gmp-button[data-drpg-run="tables"] > i,
 .drpg-gmp-button[data-drpg-run="seasonSetup"] > i,
-.drpg-gmp-button[data-drpg-run="mastermind"] > i,
 .drpg-gmp-button[data-drpg-run="settings"] > i,
 .drpg-gmp-button[data-drpg-run="failureLog"] > i,
 i.drpg-pix-foot {
@@ -15397,17 +15397,13 @@ i.drpg-pix-foot {
 }
 
 .drpg-gmp-button[data-drpg-run="projects"] > i::before,
-.drpg-gmp-button[data-drpg-run="jump"] > i::before,
-.drpg-gmp-button[data-drpg-run="rules"] > i::before,
 .drpg-gmp-button[data-drpg-run="whoIsAlive"] > i::before,
 .drpg-gmp-button[data-drpg-run="murder"] > i::before,
 .drpg-gmp-button[data-drpg-run="investigation"] > i::before,
 .drpg-gmp-button[data-drpg-run="trial"] > i::before,
-.drpg-gmp-button[data-drpg-run="gmTeam"] > i::before,
 .drpg-gmp-button[data-drpg-run="roomSetup"] > i::before,
 .drpg-gmp-button[data-drpg-run="tables"] > i::before,
 .drpg-gmp-button[data-drpg-run="seasonSetup"] > i::before,
-.drpg-gmp-button[data-drpg-run="mastermind"] > i::before,
 .drpg-gmp-button[data-drpg-run="settings"] > i::before,
 .drpg-gmp-button[data-drpg-run="failureLog"] > i::before,
 i.drpg-pix-foot::before {
@@ -15417,16 +15413,6 @@ i.drpg-pix-foot::before {
 .drpg-gmp-button[data-drpg-run="projects"] > i {
     -webkit-mask-image: var(--drpg-pix-projects);
     mask-image: var(--drpg-pix-projects);
-}
-
-.drpg-gmp-button[data-drpg-run="jump"] > i {
-    -webkit-mask-image: var(--drpg-pix-jump);
-    mask-image: var(--drpg-pix-jump);
-}
-
-.drpg-gmp-button[data-drpg-run="rules"] > i {
-    -webkit-mask-image: var(--drpg-pix-new-rule);
-    mask-image: var(--drpg-pix-new-rule);
 }
 
 .drpg-gmp-button[data-drpg-run="whoIsAlive"] > i {
@@ -15449,11 +15435,6 @@ i.drpg-pix-foot::before {
     mask-image: var(--drpg-pix-trial);
 }
 
-.drpg-gmp-button[data-drpg-run="gmTeam"] > i {
-    -webkit-mask-image: var(--drpg-pix-gm-team);
-    mask-image: var(--drpg-pix-gm-team);
-}
-
 .drpg-gmp-button[data-drpg-run="roomSetup"] > i {
     -webkit-mask-image: var(--drpg-pix-room-setup);
     mask-image: var(--drpg-pix-room-setup);
@@ -15467,11 +15448,6 @@ i.drpg-pix-foot::before {
 .drpg-gmp-button[data-drpg-run="seasonSetup"] > i {
     -webkit-mask-image: var(--drpg-pix-season-setup);
     mask-image: var(--drpg-pix-season-setup);
-}
-
-.drpg-gmp-button[data-drpg-run="mastermind"] > i {
-    -webkit-mask-image: var(--drpg-pix-mastermind);
-    mask-image: var(--drpg-pix-mastermind);
 }
 
 .drpg-gmp-button[data-drpg-run="settings"] > i {

@@ -32,11 +32,11 @@
 // live in `roomsWantedFor`, so both screens that print it agree by
 // construction (audit A21).
 import {
-    MODULE_ID, STARTING, CHAPTERS_PER_SEASON, UNCOVERED_LIMIT_PCT, ROOM_IMAGE_LIMITS
+    MODULE_ID, STARTING, UNCOVERED_LIMIT_PCT, ROOM_IMAGE_LIMITS
 } from "./config.mjs";
-import { SETTINGS, DEFAULT_SAFEWORD, setSetting, isDeadForGm, isEclipse } from "./settings.mjs";
+import { SETTINGS, DEFAULT_SAFEWORD, setSetting, isDeadForGm } from "./settings.mjs";
 import { safeword } from "./safeword.mjs";
-import { getClock, setClock } from "./clock.mjs";
+import { getClock } from "./clock.mjs";
 import { studentActors, isMonokuma, studentCensus, classCandidates } from "./monokuma.mjs";
 import { monokumaFor, feedsNobody, explicitPool, assignments } from "./assignments.mjs";
 import { listExperiences, initCharacter, needsStartingResources } from "./character.mjs";
@@ -57,8 +57,10 @@ import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { foundryGivenBack, openGiveBackFoundry } from "./enforced.mjs";
 // The hall's report, the one the Scenes tab prints (E51 C8, the First session screen): trial-scene.mjs never reaches back here.
 import { scenesReportOf } from "./trial-scene.mjs";
-import { log, error, plural, workingScene, esc, wholeNumber, localeFormat, listOf } from "./utils.mjs";
-import { stepper, stepperId, drpgWindow, checkList } from "./ui-kit.mjs";
+import { log, error, plural, workingScene, esc, localeFormat, listOf } from "./utils.mjs";
+import { stepperId, drpgWindow, checkList, formGrid, roleButton } from "./ui-kit.mjs";
+// Edit campaign's fields, reader, writes and End the chapter part (E49 A1e): gm-campaign.mjs never reaches back here.
+import { campaignRows, readClockForm, applyCampaignForm, endChapterPart, endTheChapter } from "./gm-campaign.mjs";
 import { alreadyOpen, handOff, RAISED } from "./live.mjs";
 // Foundry's secret doors and the players' rulers (E80 C5): the doors as the map holds them, their
 // conversion, and the permissions in force where `core.permissions` names none.
@@ -795,32 +797,54 @@ export function raiseOpened(before, apps = foundry.applications.instances.values
 }
 
 /**
- * The campaign's three fields, in one block at the top of the window (E20 C4, S06-30): Save writes them, and a GM who
- * presses it should have them in sight. The name field carries `autofocus`, so the window's own focusing lands on it
- * rather than on the footer's Save (S01-19).
+ * EDIT CAMPAIGN AT THE TOP (E49 A1e, 11.11.2026; the owner: "Season setup becomes the one place for setting up the
+ * season", Edit campaign's content the first thing seen, and the fields this window had of its own - the name, the
+ * chapter and the safeword, two of them Edit campaign's too - each once). One block, `fieldset.drpg-setup-campaign`
+ * (E20 C4, S06-30: Save writes it, and a GM who presses Save has it in sight): Edit campaign's rows as that window draws
+ * them (gm-campaign.mjs `campaignRows`) - the name, the chapter, the phase, the day, the session, the time of day, the
+ * refill box - with the safeword after the six, then End the chapter apart at its foot (`endChapterPart`), as at the foot
+ * of Edit campaign. The name field carries `autofocus`, so the window's own focusing lands on it rather than on the
+ * footer's Save (S01-19). Read back by `readSeasonForm`, written by `applyCampaignForm`, as Edit campaign's Apply writes.
  */
 export function campaignFieldsHtml(clock, word) {
-    const chapterId = stepperId();
+    const L = key => game.i18n.localize(key);
+    const wordId = stepperId();
+    /*
+      E15: the safeword, next to the campaign's name and not buried in a settings menu. It is a decision a table makes
+      once, at the same moment it decides what the campaign is called - and a safety tool filed under configuration is
+      a safety tool nobody has read.
+    */
+    const safewordRows = [
+        { label: L("DRPG.Season.safeword"), id: wordId,
+          field: `<input type="text" name="safeword" id="${wordId}" value="${esc(word ?? "")}" placeholder="${esc(DEFAULT_SAFEWORD)}" />` },
+        { full: `<p class="notes">${esc(L("DRPG.Season.safewordNote"))}</p>` }
+    ];
     return `<fieldset class="drpg-setup-campaign">
-            <legend>${esc(game.i18n.localize("DRPG.Season.campaignBlock"))}</legend>
-            <label>${esc(game.i18n.localize("DRPG.Season.campaignName"))}
-                <input type="text" name="campaignName" autofocus
-                       value="${esc(clock?.campaignName ?? "")}"
-                       placeholder="${esc(game.i18n.localize("DRPG.Season.campaignPlaceholder"))}" /></label>
-            <label for="${chapterId}">${esc(game.i18n.localize("DRPG.Season.chapter"))}
-                ${stepper({ name: "chapter", value: Number(clock?.chapter) || 1, min: 1, max: Math.max(CHAPTERS_PER_SEASON, Number(clock?.chapter) || 1), id: chapterId })}</label>
-            <!--
-              E15: the safeword, next to the campaign's name and not buried in a
-              settings menu. It is a decision a table makes once, at the same
-              moment it decides what the campaign is called - and a safety tool
-              filed under configuration is a safety tool nobody has read.
-            -->
-            <label>${esc(game.i18n.localize("DRPG.Season.safeword"))}
-                <input type="text" name="safeword"
-                       value="${esc(word ?? "")}"
-                       placeholder="${esc(DEFAULT_SAFEWORD)}" /></label>
-            <p class="notes">${esc(game.i18n.localize("DRPG.Season.safewordNote"))}</p>
+            <legend>${esc(L("DRPG.Panel.jump"))}</legend>
+            ${formGrid(campaignRows(clock ?? {}, { extra: safewordRows, autofocus: true }))}
+            ${endChapterPart()}
         </fieldset>`;
+}
+
+/**
+ * THE WINDOWS A SEASON IS SET UP IN, A ROW OF BUTTONS UNDER EDIT CAMPAIGN (E49 A1e, 11.11.2026; the owner: Despair
+ * Flow, The Mastermind, Killing game rules and Pre-season checks below it, their tiles out of the GM panel's Between
+ * sessions). Each opens the window its tile opened, by the same call (`game.drpg.gmTeamPanel`, `mastermindDialog`,
+ * `rulesManager` stay as they were); Pre-season checks was this window's footer button until then. A press is a round
+ * trip like a row's Open (`wireSeasonWindows`). Exported for R3580.
+ */
+export const SEASON_WINDOWS = Object.freeze([
+    Object.freeze({ key: "gmTeam", labelKey: "DRPG.Panel.despairFlow", open: () => import("./gm-team-dialog.mjs").then(m => m.openGmTeamDialog()) }),
+    Object.freeze({ key: "mastermind", labelKey: "DRPG.Mastermind.dialogTitle", open: () => import("./mastermind.mjs").then(m => m.openMastermindDialog()) }),
+    Object.freeze({ key: "rules", labelKey: "DRPG.Rules.manageTitle", open: () => import("./rules.mjs").then(m => m.openRulesManager()) }),
+    Object.freeze({ key: "checks", labelKey: "DRPG.Panel.seasonChecks", open: () => runPreSessionChecks() })
+]);
+
+/** The row of SEASON_WINDOWS' buttons: the kit's secondary role, `data-drpg-open` the row's key, a group named for a reader. */
+export function seasonWindowsHtml() {
+    const L = key => game.i18n.localize(key);
+    return `<div class="drpg-season-windows" role="group" aria-label="${esc(L("DRPG.Season.windows"))}">${
+        SEASON_WINDOWS.map(w => roleButton({ role: "secondary", label: L(w.labelKey), attrs: { "data-drpg-open": w.key } })).join("")}</div>`;
 }
 
 /**
@@ -845,7 +869,9 @@ export function seasonOpening(root, place = null) {
     const focus = el => { try { el?.focus({ preventScroll: true }); } catch { /* a control that cannot take the focus */ } };
     if (place) {
         const row = place.step ? root.querySelector(`li.drpg-check-row[data-drpg-key="${CSS.escape(String(place.step))}"]`) : null;
-        const target = place.action ? root.querySelector(`footer [data-action="${CSS.escape(String(place.action))}"]`)
+        // A footer button, or one of the row of windows under Edit campaign (E49 A1e: Pre-season checks among them).
+        const action = place.action ? CSS.escape(String(place.action)) : null;
+        const target = action ? root.querySelector(`footer [data-action="${action}"], .drpg-season-windows > button[data-drpg-open="${action}"]`)
             : row?.querySelector(":scope > button[data-drpg-action]") ?? null;
         focus(target);
         if (content) content.scrollTop = Number(place.scrollTop) || 0;
@@ -865,24 +891,28 @@ const scroller = root => root?.querySelector?.(".drpg-kit-body") ?? root?.queryS
  * ========================================================================== */
 
 /**
- * The three fields this window collects, as they stand on screen (SEASON-02, 20.09).
+ * The fields this window collects, as they stand on screen (SEASON-02, 20.09): since E49 A1e Edit campaign's six, its
+ * refill box and the safeword.
  *
  * A checklist row that acts closes this window and opens it again so the marks are
  * current, and the copy that comes back is built from the WORLD - so anything typed
  * and not yet applied was thrown away by the act of fixing the row above it. Read
  * before the close, painted back after the reopen.
  *
- * Only these three, by name: everything else in the window is a read-out, and the
+ * Only these, by name: everything else in the window is a read-out, and the
  * reset panel is its own window with its own confirmation.
  *
  * And where the GM was (E20 fix round, C-2): `place`, the content's scroll and the row acted on (`step`) or the
- * footer button pressed (`action`), which `seasonOpening` puts back on the copy that comes back. Exported for R1524.
+ * footer button or window button pressed (`action`), which `seasonOpening` puts back on the copy that comes back.
+ * Exported for R1524. The refill box carries its tick (`reset`, true or false; null where there is no box).
  */
 export function readDraft(root, { step = null, action = null } = {}) {
     if (!root) return null;
     const value = name => root.querySelector(`[name="${name}"]`)?.value ?? null;
+    const box = root.querySelector('input[type="checkbox"][name="reset"]');
     const scrollTop = Number(scroller(root)?.scrollTop) || 0;
-    return { campaignName: value("campaignName"), chapter: value("chapter"), safeword: value("safeword"),
+    return { campaignName: value("campaignName"), chapter: value("chapter"), phase: value("phase"), day: value("day"),
+        session: value("session"), timeOfDay: value("timeOfDay"), safeword: value("safeword"), reset: box ? box.checked : null,
         place: { scrollTop, step, action } };
 }
 
@@ -893,8 +923,9 @@ function paintDraft(root, draft) {
         if (value === null || name === "place") continue;
         const field = root.querySelector(`[name="${name}"]`);
         // The value the GM typed, including a deliberately emptied field - which is
-        // why this writes whatever came back rather than only non-empty strings.
-        if (field) field.value = value;
+        // why this writes whatever came back rather than only non-empty strings. The refill box its tick (E49 A1e).
+        if (field?.type === "checkbox") field.checked = Boolean(value);
+        else if (field) field.value = value;
     }
 }
 
@@ -933,17 +964,18 @@ export function setupRows(list, { label = null } = {}) {
 }
 
 /**
- * What Save hands back: the campaign name, the chapter and the safeword. Exported for R1125.
+ * What Save hands back: Edit campaign's reading of its fields (gm-campaign.mjs `readClockForm`: the name trimmed, the
+ * chapter, day and session whole numbers from 1, the chapter no higher than its field's `max`, the phase, the time of
+ * day and the refill box) and the safeword. Exported for R1125.
  *
  * THE CHAPTER HELD TO THE SEASON (E51 C6, 31.10.2026; audit S06-46; E51-38): a whole number from 1 to the field's own
- * `max` (the season's chapters, or the clock's chapter past them), where "-2" and "2.5" were written as they came.
+ * `max` (the season's chapters, or the clock's chapter past them), where "-2" and "2.5" were written as they came - read
+ * since E49 A1e by Edit campaign's reader, which held it the same way (R2058).
  */
 export function readSeasonForm(d) {
     const f = d.element.querySelector("form");
-    const top = Math.max(CHAPTERS_PER_SEASON, Math.round(Number(f.chapter.max)) || 0);
     return {
-        campaignName: f.campaignName.value.trim(),
-        chapter: wholeNumber(f.chapter.value, { min: 1, max: top, fallback: 1 }),
+        ...readClockForm(d),
         // Blank means "put the default back", which is what
         // `safeword()` reads an empty setting as. Written blank
         // rather than filled in here so the two agree.
@@ -1066,6 +1098,31 @@ function wireSetupSteps(dialog, onHandOff) {
     });
 }
 
+/**
+ * The row of windows under Edit campaign (`SEASON_WINDOWS`, E49 A1e): a press opens its window as a row's Open does - in
+ * front of this one, which stays until that window answers, then closes and comes back built from the world (what the
+ * window changed may change a row: Despair Flow the pools' rows, The Mastermind its own) with the fields as typed and the
+ * focus on the button pressed (`readDraft`'s `action`), and what was opened raised in front of it (S06-30). The same
+ * `handOff` as a row's (SEASON-02): the tile that opened this window waits for the real end of the round trip.
+ */
+function wireSeasonWindows(dialog, onHandOff) {
+    const row = dialog.element.querySelector(".drpg-season-windows");
+    row?.addEventListener("click", async ev => {
+        const button = ev.target?.closest?.("button[data-drpg-open]");
+        const entry = SEASON_WINDOWS.find(w => w.key === button?.dataset.drpgOpen);
+        if (!entry || !row.contains(button)) return;
+        ev.preventDefault();
+        const before = windowStack();
+        try {
+            await entry.open();
+        } catch (err) {
+            error(`Could not open "${entry.key}" from Season setup`, err);
+        }
+        const draft = readDraft(dialog.element, { action: entry.key });
+        onHandOff(handOff(dialog, () => openSeasonSetup({ draft, opened: before })));
+    });
+}
+
 export async function openSeasonSetup({ draft = null, opened = null } = {}) {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
@@ -1088,9 +1145,11 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
     const outstanding = list.filter(s => !s.done && !s.optional).length;
 
     // A row button's round trip, if one is running: this window did not answer, it
-    // handed over (SEASON-02). Set by `wireSetupSteps` through the callback the
-    // render below gives it, and read after the wait.
+    // handed over (SEASON-02). Set by `wireSetupSteps` (and since E49 A1e `wireSeasonWindows`)
+    // through the callback the render below gives it, and read after the wait.
     let roundTrip = null;
+    // End the chapter, pressed at the foot of Edit campaign's block: this window closes unsaved, as Edit campaign does.
+    let endAsked = false;
 
     const result = await drpgWindow({
         classes: ["drpg-panel", "drpg-window-season"],
@@ -1098,23 +1157,29 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
            the screen at 1366x768). With Reset the season the footer holds four buttons; at "wide" (44rem, 704 px) they
            wrapped to two rows in both themes and both languages (Chromium on probe 08's capture, the style harness:
            Cancel 136, Pre-season checks 201-307, Reset the season 171-227, Save 136 px, Polish under Legacy 780 px in
-           all), the window 36 px taller. R3533. */
+           all), the window 36 px taller. R3533. KEPT WITH EDIT CAMPAIGN AT ITS TOP (E49 A1e): the footer three buttons since
+           Pre-season checks went to the row of windows, which holds four; the width is the one the owner approved. */
         width: "tables",
         title: game.i18n.localize("DRPG.Season.title"),
+        /* EDIT CAMPAIGN FIRST, THEN THE ROW OF WINDOWS, THEN THE LIST (E49 A1e, 11.11.2026; the owner: Edit campaign "the
+           first thing seen", the buttons below it, whatever else the window holds below the buttons). */
         body: `<form>
+            ${campaignFieldsHtml(clock, safeword())}
+
+            ${seasonWindowsHtml()}
+
             <p>${esc(game.i18n.format(outstanding
                 ? "DRPG.Season.introOutstanding"
                 : "DRPG.Season.introReady", { n: outstanding }))}</p>
-
-            ${campaignFieldsHtml(clock, safeword())}
 
             ${rows}
             ${firstSessionHtml(list)}
             <p class="notes">${esc(game.i18n.localize("DRPG.Season.note"))}</p>
         </form>`,
-        /* THE FOOTER BY ROLE (E21 C2b): Save the primary; Pre-season checks secondary; Cancel, since Save is still to
-           answer (E21 rule 3), its answer "close" as before. RESET THE SEASON, DESTRUCTIVE, ON THE LEFT (E49 A1d,
-           11.11.2026; the owner: "Chcialbym wrzucic season reset w set the season up, a calosc przemianowac na
+        /* THE FOOTER BY ROLE (E21 C2b): Save the primary; Cancel, since Save is still to answer (E21 rule 3), its answer
+           "close" as before. PRE-SEASON CHECKS LEFT IT FOR THE ROW OF WINDOWS UNDER EDIT CAMPAIGN (E49 A1e; the owner:
+           Despair Flow, The Mastermind, Killing game rules, Pre-season checks), the same window by the same call.
+           RESET THE SEASON, DESTRUCTIVE, ON THE LEFT (E49 A1d, 11.11.2026; the owner: "Chcialbym wrzucic season reset w set the season up, a calosc przemianowac na
            "season setup". W wolne miejsce wejda nowe ustawienia gma jako "Settings""): the GM panel's tile of its own
            until then. The press answers "reset" and nothing of the form is written; the window closes and the reset
            runs as the tile ran it, season-wipe.mjs `resetSeason` with its own window and every question it asks
@@ -1124,17 +1189,6 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
                 action: "save", label: game.i18n.localize("DRPG.Assign.save"),
                 callback: (e, b, d) => readSeasonForm(d)
             },
-            secondary: [
-            // The other end of this same list. "What is missing" and "fix it"
-            // are one errand, and the checks used to be a GM-panel tile of
-            // their own next to this one - one door fewer, same two answers.
-            // The checks are a read-out, so the fields come back with the window:
-            // read here, while the form is still on screen. A bare action would
-            // answer the string "checks", which carries no fields at all.
-            {
-                action: "checks", label: game.i18n.localize("DRPG.Panel.seasonChecks"),
-                callback: (e, b, d) => ({ checks: true, draft: readDraft(d.element, { action: "checks" }) })
-            }],
             destructive: [{ action: "reset", label: game.i18n.localize("DRPG.Season.resetTitle") }],
             close: { role: "cancel", action: "close" }
         },
@@ -1153,6 +1207,13 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
              */
             wireRoomCheck(dialog);
             wireSetupSteps(dialog, trip => { roundTrip = trip; });
+            wireSeasonWindows(dialog, trip => { roundTrip = trip; });
+            // End the chapter (Edit campaign's part): the window closes without its Save, then the question.
+            dialog.element.querySelector("[data-drpg-end-chapter]")?.addEventListener("click", ev => {
+                ev.preventDefault();
+                endAsked = true;
+                dialog.close();
+            });
             // At its top, on its first field (S01-19), or where the copy that closed was (C-2); then what a row's Open
             // opened, in front of it (S06-30).
             seasonOpening(dialog.element, draft?.place ?? null);
@@ -1161,21 +1222,17 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
         rejectClose: false
     });
 
+    if (endAsked) return endTheChapter(() => import("./chapter.mjs").then(m => m.openChapterEndDialog()));
     if (roundTrip) return roundTrip;
     if (!result || result === "close") return null;
     if (result === "reset") return (await import("./season-wipe.mjs")).resetSeason();
 
-    if (result.checks) {
-        await runPreSessionChecks();
-        return openSeasonSetup({ draft: result.draft });
-    }
-
-    const chapterWas = Number(getClock().chapter);
-    await setClock({ campaignName: result.campaignName, chapter: result.chapter });
-    /* AND IT SAYS WHEN AN ECLIPSE STILL RUNS (E51 C6; audit S06-46), as Edit campaign does (gm-campaign.mjs
-       `openClockDialog`): a chapter moved here leaves the Eclipse on - placing freely, refusing murders - and this
-       window has no switch for it. */
-    if (Number(result.chapter) !== chapterWas && isEclipse()) ui.notifications.warn(game.i18n.localize("DRPG.Clock.eclipseStillOn"));
+    /* EDIT CAMPAIGN'S APPLY, AS IT IS (E49 A1e; the owner: "keep its data writes exactly as they are"): gm-campaign.mjs
+       `applyCampaignForm`, the function Edit campaign's Apply runs - its questions (a chapter moved, the trial entered),
+       the assembly called off for a corrected hour, `setClock`, the Eclipse's warning when the clock moved, the refill
+       only when ticked. Until E49 A1e this window wrote the name and the chapter itself with `setClock`, asking nothing,
+       and warned of an Eclipse when the chapter moved (E51 C6); the warning is Edit campaign's now, said once. */
+    await applyCampaignForm(result);
 
     // Only when it moved. Every write to this setting redraws every open sheet
     // (see its `onChange`), and pressing Save on this window is something a GM

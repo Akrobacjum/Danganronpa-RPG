@@ -4876,9 +4876,6 @@
       "title": "Season setup",
       "introOutstanding": "{n} still to do. A season can start without them; each missing piece shows up the moment it matters.",
       "introReady": "Every row this list needs is done. Pre-season checks look at more than this list - room pictures, voice, who can open the sheets - so run them before the first session.",
-      "campaignName": "Campaign name",
-      "campaignPlaceholder": "Hope's Peak: Drowned Summer",
-      "chapter": "Chapter",
       "note": "Every row is something a season needs, in the order a season is actually built.",
       "resourcesButton": "Give the starting resources",
       "cursorButton": "Hide the GMs' cursor",
@@ -5124,7 +5121,7 @@
       "firstSessionNote": "Set once, before the first session: where the trial is held, what the module holds of Foundry, and the dice.",
       "safeword": "Safeword",
       "safewordNote": "The word that stops the scene, printed on every character sheet. Pick something your table will not mistake for anything else. Leave it blank to use the default.",
-      "campaignBlock": "This campaign",
+      "windows": "The season's windows",
       "startHereTitle": "Where to start",
       "startHereText": "Start here: GM panel > Season setup. Its list walks you through a season in the order it is built, and the GM panel's Next line names the first thing still to do."
     },

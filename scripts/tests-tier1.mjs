@@ -3288,7 +3288,8 @@ const INVARIANTS = [
         const text = async file => fetch(`/modules/${MODULE_ID}/${file}`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
         const glyphs = G.parseGlyphs(await text("tools/glyphs.json")).glyphs;
         const keyed = G.keyedElements(C, await text("scripts/gm-panel.mjs"));
-        must(keyed.length >= 80 && glyphs.length >= 400, `${keyed.length} keyed element(s), ${glyphs.length} glyph row(s) read`);
+        // 70, not 80, since E49 A1e: four GM tiles left the panel for Season setup (78 keyed elements read on 11.11.2026).
+        must(keyed.length >= 70 && glyphs.length >= 400, `${keyed.length} keyed element(s), ${glyphs.length} glyph row(s) read`);
         const icon = new Map(keyed);
         equal(stableJson(Object.entries(G.KEY_ICONS).filter(([id, fa]) => icon.get(id) !== fa).map(([id, fa]) => [id, fa, icon.get(id) ?? null])), "[]",
             "[the rules' FA class against config.mjs's icon: id, the rule's, config's]");
@@ -3350,7 +3351,8 @@ const INVARIANTS = [
         const text = async file => fetch(`/modules/${MODULE_ID}/${file}`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
         const glyphs = G.parseGlyphs(await text("tools/glyphs.json")).glyphs;
         const keyed = G.keyedElements(C, await text("scripts/gm-panel.mjs"));
-        must(keyed.length >= 80 && glyphs.length >= 400, `${keyed.length} keyed element(s), ${glyphs.length} glyph row(s) read`);
+        // 70, not 80, since E49 A1e: four GM tiles left the panel for Season setup (78 keyed elements read on 11.11.2026).
+        must(keyed.length >= 70 && glyphs.length >= 400, `${keyed.length} keyed element(s), ${glyphs.length} glyph row(s) read`);
         const body = document.body, CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], classWas = CLASSES.map(n => body.classList.contains(n));
         const host = document.createElement("div");
         host.className = "drpg-glyph-probes";
@@ -9444,7 +9446,8 @@ const INVARIANTS = [
         must(["trial-floor-ui.mjs", "gm-panel.mjs", "trial-scene.mjs"].every(file => files.has(file)), "the files the window and the doors live in are not served - this would measure nothing");
         // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
         const ui = stripComments(files.get("trial-floor-ui.mjs")), panel = stripComments(panelText(files));
-        const start = fnSource(ui, "startClassTrial"), edit = fnSource(panel, "openClockDialog");
+        // E49 A1e: Edit campaign's Apply runs `applyCampaignForm` (Season setup's Save too), where the trial's question now stands.
+        const start = fnSource(ui, "startClassTrial"), edit = fnSource(panel, "openClockDialog") + fnSource(panel, "applyCampaignForm");
         const at = text => start.indexOf(text);
         // Where Start's window opens: the kit's `drpgWindow` since E21 C4, DialogV2.wait before.
         const OPEN = start.includes("drpgWindow(") ? "drpgWindow(" : "DialogV2.wait(";
@@ -17267,7 +17270,7 @@ const INVARIANTS = [
             "{tiles: [a seasonReset tile anywhere, Between sessions' last tile]; tile: [Settings opens the game's window, disabled without the permission]; "
             + "footer: [Season setup's destructive reset, its answer runs resetSeason]; words: [Season setup en, pl, Settings en, pl]}");
     }],
-    ["R3533 - Season setup's footer stands in one row on a 1366x768 screen, and The Mastermind comes before Season setup (E49 A1d; the owner's approval of 11.11.2026): season-setup.mjs `openSeasonSetup` states the kit's `tables` width, at least the widest four buttons measured (780 px), and its footer is Save, Pre-season checks, Reset the season (destructive) and Cancel; in gm-panel.mjs's Between sessions The Mastermind is right before Season setup", async () => {
+    ["R3533 - Season setup's footer stands in one row on a 1366x768 screen (E49 A1d; the owner's approval of 11.11.2026): season-setup.mjs `openSeasonSetup` states the kit's `tables` width, at least the widest four buttons measured (780 px), and its footer is Save, Reset the season (destructive) and Cancel, Pre-season checks gone from it to the row of windows (E49 A1e, R3580); The Mastermind, right before Season setup in Between sessions until E49 A1e, is no tile there (R3582)", async () => {
         /*
          * E49 A1d, 11.11.2026. The owner: "zamieniamy miejscami the mastermind z ustawienia sezonu", and Season setup at
          * 1366x768 with its footer in one row and the window on the screen. MEASURED in Chromium (probe 08's capture on
@@ -17277,6 +17280,9 @@ const INVARIANTS = [
          * row, the window 0..752 px in a 768 px viewport, in all four. Headless there is no layout, so this holds the
          * cause: the width stated and named in ui-kit.mjs, at least the widest row measured (780 px, PL Legacy, without
          * the gaps), and the four buttons. Red at d2dc9bc9: "wide", Season setup before The Mastermind.
+         * E49 A1e, 11.11.2026 (the owner: Season setup the one place for setting up the season): Pre-season checks went
+         * from the footer to the row of windows under Edit campaign and The Mastermind's tile into it, so this holds the
+         * footer's three and no Mastermind tile; the width stays the one approved (the row and the order are R3580's).
          */
         const K = await import("./ui-kit.mjs");
         const sources = new Map(await moduleSources());
@@ -17287,11 +17293,171 @@ const INVARIANTS = [
         const width = /\bwidth:\s*"(\w+)"/.exec(open)?.[1] ?? null;
         const read = {
             width, px: width && K.WINDOW_WIDTHS[width]?.rem ? K.WINDOW_WIDTHS[width].rem * 16 >= 780 : false,
+            // E49 A1e: Pre-season checks left the footer (no `checks` action in the opener) and The Mastermind the panel.
             footer: [/primary:\s*\{\s*action:\s*"save"/.test(open), /action:\s*"checks"/.test(open), /destructive:\s*\[\{\s*action:\s*"reset"/.test(open), /close:\s*\{\s*role:\s*"cancel"/.test(open)],
-            order: keys.indexOf("seasonSetup") - keys.indexOf("mastermind")
+            order: [keys.includes("seasonSetup"), keys.includes("mastermind")]
         };
-        equal(JSON.stringify(read), JSON.stringify({ width: "tables", px: true, footer: [true, true, true, true], order: 1 }),
-            "{the width Season setup states; it at the root's 16 px is at least 780 px; [Save, Pre-season checks, Reset the season destructive, Cancel]; Season setup's place less The Mastermind's}");
+        equal(JSON.stringify(read), JSON.stringify({ width: "tables", px: true, footer: [true, false, true, true], order: [true, false] }),
+            "{the width Season setup states; it at the root's 16 px is at least 780 px; [Save, a Pre-season checks button in the footer, Reset the season destructive, Cancel]; [a Season setup tile, a Mastermind tile]}");
+    }],
+    ["R3580 - Season setup is the one place a season is set up, in its order (E49 A1e; the owner, 11.11.2026): season-setup.mjs `openSeasonSetup` draws Edit campaign first - one block, `fieldset.drpg-setup-campaign` named \"Edit campaign\", holding Edit campaign's six fields in their order, the safeword, the refill box and End the chapter's destructive button at its foot, each field once in the window - then the row of windows (Despair Flow, The Mastermind, Killing game rules, Pre-season checks: the kit's secondary buttons under the windows' own titles), then the checklist; the footer is Save (primary), Reset the season (destructive) and Cancel, and nothing else", async () => {
+        /*
+         * E49 A1e, 11.11.2026. The owner: Season setup "becomes the one place for setting up the season": at its top Edit
+         * campaign, "the first thing seen", with the fields Season setup had of its own that Edit campaign has too (the
+         * name, the chapter) drawn once; under it a row of buttons for Despair Flow, The Mastermind, Killing game rules and
+         * Pre-season checks; the footer Save / Cancel and Reset the season. Read on this GM with DialogV2's `wait` stood in
+         * for (it answers null, read as Cancel: nothing written), the window's content drawn detached: the order of its
+         * parts, the block's named fields, the row's buttons and the footer's buttons with their roles. Red at ecba3f21:
+         * the block "This campaign" with three fields, no row of windows, Pre-season checks in the footer.
+         */
+        const SS = await import("./season-setup.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const seen = [];
+        D.wait = async cfg => { seen.push(cfg); return null; };
+        try { await SS.openSeasonSetup(); } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+        const cfg = seen.find(c => (c.classes ?? []).includes("drpg-window-season")) ?? null;
+        must(cfg, "Season setup opened no window on this GM - this would measure nothing");
+        const root = document.createElement("div");
+        root.innerHTML = cfg.content?.outerHTML ?? String(cfg.content ?? "");
+        const form = root.querySelector("form");
+        const L = key => game.i18n.localize(key);
+        const part = el => el.matches("fieldset.drpg-setup-campaign") ? "campaign" : el.matches(".drpg-season-windows") ? "windows"
+            : el.matches("ul.drpg-checklist") ? "checklist" : el.matches('section[data-drpg-group="firstSession"]') ? "firstSession" : el.tagName.toLowerCase();
+        const block = form?.querySelector("fieldset.drpg-setup-campaign") ?? null;
+        const names = [...(form?.querySelectorAll("[name]") ?? [])].map(el => el.name);
+        const roleOf = b => /\bdrpg-role-([\w-]+)/.exec(String(b.class ?? ""))?.[1] ?? null;
+        const end = block?.querySelector("[data-drpg-end-chapter]") ?? null;
+        equal(stableJson({
+            parts: form ? [...form.children].map(part) : null,
+            legend: block?.querySelector(":scope > legend")?.textContent?.trim() ?? null,
+            fields: [...(block?.querySelectorAll("[name]") ?? [])].map(el => el.name),
+            once: ["campaignName", "chapter", "safeword"].map(n => names.filter(x => x === n).length),
+            end: [end?.dataset?.drpgRole ?? null, Boolean(end && [...block.querySelectorAll("[name]")].every(f => f.compareDocumentPosition(end) & Node.DOCUMENT_POSITION_FOLLOWING))],
+            windows: [...root.querySelectorAll(".drpg-season-windows > button")].map(b => [b.dataset.drpgOpen ?? null, b.dataset.drpgRole ?? null, b.textContent.trim()]),
+            group: root.querySelector(".drpg-season-windows")?.getAttribute("aria-label") ?? null,
+            footer: (cfg.buttons ?? []).map(b => [b.action, roleOf(b)]).sort()
+        }), stableJson({
+            parts: ["campaign", "windows", "p", "checklist", "firstSession", "p"],
+            legend: L("DRPG.Panel.jump"),
+            fields: ["campaignName", "chapter", "phase", "day", "session", "timeOfDay", "safeword", "reset"],
+            once: [1, 1, 1],
+            end: ["destructive", true],
+            windows: [["gmTeam", "secondary", L("DRPG.Panel.despairFlow")], ["mastermind", "secondary", L("DRPG.Mastermind.dialogTitle")],
+                ["rules", "secondary", L("DRPG.Rules.manageTitle")], ["checks", "secondary", L("DRPG.Panel.seasonChecks")]],
+            group: L("DRPG.Season.windows"),
+            footer: [["close", "cancel"], ["reset", "destructive"], ["save", "primary"]]
+        }), "{parts: the form's parts in order; legend: the block's name; fields: the block's named fields in order; once: how often the name, the chapter "
+            + "and the safeword stand in the window; end: [End the chapter's role, after every field]; windows: the row's buttons [key, role, label]; group: the "
+            + "row's name; footer: [action, role] sorted}");
+    }],
+    ["R3581 - each button of Season setup's row of windows opens its window (E49 A1e): Despair Flow gm-team-dialog.mjs `openGmTeamDialog`, The Mastermind mastermind.mjs `openMastermindDialog`, Killing game rules rules.mjs `openRulesManager`, Pre-season checks `runPreSessionChecks`, each pressed on the drawn window through its own wiring; then Season setup closes and comes back, its fields as typed and the focus on the button pressed", async () => {
+        /*
+         * E49 A1e, 11.11.2026. The buttons stand where the tiles stood for three of these windows (the GM panel's Between
+         * sessions) and where Pre-season checks stood (Season setup's footer). Read on this GM with DialogV2's `wait` stood
+         * in for (every window answers null, read as dismissed: nothing written): Season setup opened, its render run on
+         * the drawn content in a stand-in window attached to the page (closed by the round trip, counted), a name typed,
+         * each button clicked, and the windows asked for after the press read by their classes; the copy that comes back
+         * read for the typed name and its focused button. A window of the four already open on this browser is raised
+         * rather than opened (`alreadyOpen`), so a press finding one open counts it as opened. Red at ecba3f21: no row.
+         */
+        const SS = await import("./season-setup.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const seen = [];
+        D.wait = async cfg => { seen.push(cfg); return null; };
+        const CLASSES = { gmTeam: "drpg-window-gmteam", mastermind: "drpg-window-mastermind", rules: "drpg-window-rules", checks: "drpg-window-preseason" };
+        const openAlready = cls => [...foundry.applications.instances.values()].some(a => a.rendered && (a.options?.classes ?? []).includes(cls));
+        const read = {};
+        const roots = [];
+        try {
+            for (const key of Object.keys(CLASSES)) {
+                seen.length = 0;
+                await SS.openSeasonSetup();
+                const cfg = seen.find(c => (c.classes ?? []).includes("drpg-window-season"));
+                must(cfg && typeof cfg.render === "function", "Season setup opened no window with a render - this would measure nothing");
+                const root = document.createElement("div");
+                root.className = "application dialog drpg-window-season";
+                root.append(cfg.content instanceof HTMLElement ? cfg.content : Object.assign(document.createElement("div"), { innerHTML: String(cfg.content ?? "") }));
+                document.body.append(root);
+                roots.push(root);
+                let closed = 0;
+                cfg.render(null, { element: root, close: async () => { closed++; root.remove(); }, addEventListener: () => {} });
+                root.querySelector('[name="campaignName"]').value = `R3581 ${key}`;
+                const before = openAlready(CLASSES[key]);
+                seen.length = 0;
+                root.querySelector(`.drpg-season-windows > button[data-drpg-open="${key}"]`)?.click();
+                const back = await until(() => closed > 0 && seen.some(c => (c.classes ?? []).includes("drpg-window-season")), 8000);
+                const again = seen.find(c => (c.classes ?? []).includes("drpg-window-season")) ?? null;
+                let name = null, focus = null;
+                if (again) {
+                    const copy = document.createElement("div");
+                    copy.className = "application dialog drpg-window-season";
+                    copy.append(again.content instanceof HTMLElement ? again.content : Object.assign(document.createElement("div"), { innerHTML: String(again.content ?? "") }));
+                    document.body.append(copy);
+                    roots.push(copy);
+                    again.render(null, { element: copy, close: async () => copy.remove(), addEventListener: () => {} });
+                    name = copy.querySelector('[name="campaignName"]')?.value ?? null;
+                    focus = document.activeElement?.dataset?.drpgOpen ?? null;
+                }
+                read[key] = [before || seen.some(c => (c.classes ?? []).includes(CLASSES[key])), Boolean(back), closed, name, focus];
+            }
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            for (const root of roots) root.remove();
+        }
+        equal(stableJson(read), stableJson(Object.fromEntries(Object.keys(CLASSES).map(key => [key, [true, true, 1, `R3581 ${key}`, key]]))),
+            "{per button: [its window asked for (or already open), Season setup back, the copy that closed closed once, the name typed carried back, the button focused on the copy back]}");
+    }],
+    ["R3582 - the GM panel's Between sessions keeps Room Setup, Item tables, Season setup and Settings, in that order, and no tile for Edit campaign, Despair Flow, Killing game rules or The Mastermind anywhere (E49 A1e; the owner, 11.11.2026); every other door to the four stays: game.drpg's `editClock`, `gmTeamPanel`, `mastermindDialog` and `rulesManager` are the windows' own openers, and Season setup's row opens the three (`SEASON_WINDOWS`)", async () => {
+        /*
+         * E49 A1e, 11.11.2026. The owner: the GM panel's "Between sessions" loses the separate tiles for Edit campaign,
+         * Despair Flow, The Mastermind and Killing game rules; what stays is Room Setup, Item tables, Season setup, Settings
+         * and anything else not named; every other route to those windows stays, so nothing becomes unreachable. Read: the
+         * panel's sections as `buildSections` draws them (`panelUnder`, nothing written), game.drpg's four calls compared
+         * with the openers by identity, and Season setup's table of windows. Red at ecba3f21: the four tiles in Between
+         * sessions, no `SEASON_WINDOWS`.
+         */
+        const tiles = await panelUnder({}, root => [...root.querySelectorAll(".drpg-gmp-section")].map(s => [s.dataset.drpgKey, [...s.querySelectorAll("[data-drpg-run]")].map(t => t.dataset.drpgRun)]));
+        must(tiles.length >= 4, `the panel drew ${tiles.length} section(s) - this would measure nothing`);
+        const [GC, GT, M, R, SS] = await Promise.all(["./gm-campaign.mjs", "./gm-team-dialog.mjs", "./mastermind.mjs", "./rules.mjs", "./season-setup.mjs"].map(f => import(f)));
+        const gone = ["jump", "gmTeam", "rules", "mastermind"];
+        equal(stableJson({
+            between: tiles.find(([k]) => k === "between")?.[1] ?? null,
+            gone: tiles.flatMap(([, keys]) => keys).filter(k => gone.includes(k)),
+            api: [game.drpg?.editClock === GC.openClockDialog, game.drpg?.gmTeamPanel === GT.openGmTeamDialog,
+                game.drpg?.mastermindDialog === M.openMastermindDialog, game.drpg?.rulesManager === R.openRulesManager],
+            hub: (SS.SEASON_WINDOWS ?? []).map(w => [w.key, typeof w.open])
+        }), stableJson({
+            between: ["roomSetup", "tables", "seasonSetup", "settings"], gone: [], api: [true, true, true, true],
+            hub: [["gmTeam", "function"], ["mastermind", "function"], ["rules", "function"], ["checks", "function"]]
+        }), "{between: Between sessions' tiles in order; gone: any of the four tiles in any section; api: game.drpg's editClock, gmTeamPanel, "
+            + "mastermindDialog, rulesManager are the openers; hub: Season setup's row [key, its opener]}");
+    }],
+    ["R3583 - Edit campaign's writes have one writer, whichever window: gm-campaign.mjs `openClockDialog` and season-setup.mjs `openSeasonSetup` both hand their form to `applyCampaignForm`, the one function of the two files that calls `setClock`, and Season setup reads its form through Edit campaign's `readClockForm` (E49 A1e; the owner: \"keep its data writes exactly as they are\")", async () => {
+        /*
+         * E49 A1e, 11.11.2026. The owner's condition on the merge: Edit campaign's data writes as they are - the same
+         * store, the same writer, the same rules - and a stop if the merge changed what is written or who writes it. Edit
+         * campaign's Apply was the tail of `openClockDialog`; it is `applyCampaignForm` now, moved unchanged, which Edit
+         * campaign's Apply and Season setup's Save both call. Read in source with comments taken out: each opener's call,
+         * the `setClock(` calls of both files by the top-level function they stand in, the readers. Tier 2 "E49-A1e -
+         * Season setup's Save writes what Edit campaign's Apply writes" runs the two windows on one world and compares the
+         * clock each leaves. Red at ecba3f21: no `applyCampaignForm`, Season setup's own `setClock`.
+         */
+        const sources = new Map(await moduleSources());
+        const campaign = stripComments(sources.get("gm-campaign.mjs") ?? ""), season = stripComments(sources.get("season-setup.mjs") ?? "");
+        must(campaign.length > 2000 && season.length > 2000, "gm-campaign.mjs or season-setup.mjs was not read - this would measure nothing");
+        const writers = text => [...text.matchAll(/\bsetClock\(/g)].map(m => {
+            const head = text.slice(0, m.index).match(/^(?:export\s+)?(?:async\s+)?function\s+(\w+)/gm);
+            return head ? head.at(-1).replace(/^(?:export\s+)?(?:async\s+)?function\s+/, "") : "(top)";
+        });
+        equal(stableJson({
+            clock: /return applyCampaignForm\(result\);/.test(fnSource(campaign, "openClockDialog")),
+            season: /await applyCampaignForm\(result\);/.test(fnSource(season, "openSeasonSetup")),
+            writers: { campaign: writers(campaign), season: writers(season) },
+            readers: [/\.\.\.readClockForm\(d\)/.test(fnSource(season, "readSeasonForm")), /readClockForm\(dialog\)/.test(fnSource(campaign, "openClockDialog"))]
+        }), stableJson({ clock: true, season: true, writers: { campaign: ["applyCampaignForm"], season: [] }, readers: [true, true] }),
+            "{clock: Edit campaign's Apply hands its form on; season: Season setup's Save does; writers: the functions calling setClock in each file; readers: [Season setup reads through readClockForm, Edit campaign does]}");
     }],
     ["R588 - the voice tile names its state in one word, as the Room says it: Connecting while LiveKit connects or reconnects or the module moves the Room, Disconnected with no Room or a lost one, Connected only when the Room says connected, Eclipsed in either Eclipse hold, Blocked, Own window, whether or not a speaker is drawn (H81-10), and while one is, a connected Room's sentence is not 'Nobody is speaking' and the live text is hidden; the word runs in two aria-hidden copies, the sentence is the word's title and a visually hidden live text, and the word stays, still, under reduced motion and with the ticker off, in English and in Polish", async () => {
         /*
@@ -28990,7 +29156,8 @@ const INVARIANTS = [
             wired: [/seasonOpening\(dialog\.element\b/.test(open), /raiseOpened\(/.test(open), /windowStack\(\)/.test(wire)]
         }), stableJson({
             opening: ["campaignName", "campaignName", null],
-            fields: [["campaignName", true], ["chapter", false], ["safeword", false]], blockFirst: true,
+            // E49 A1e: Edit campaign's fields (the selects are not inputs: phase, time of day), the safeword, the refill box.
+            fields: [["campaignName", true], ["chapter", false], ["day", false], ["session", false], ["safeword", false], ["reset", false]], blockFirst: true,
             opened: ["r1514old", "r1514sheet"], raised: ["r1514old", "r1514sheet"], counts: [0, 1, 1, 0, 0],
             wired: [true, true, true]
         }), "Set the season up opens away from its top, or a row's Open stays behind it [the opening: focused, the page's focus, an autofocus left in "
@@ -29459,9 +29626,10 @@ const INVARIANTS = [
         const make = () => {
             const root = document.createElement("div");
             root.className = "application dialog drpg-window-season";
+            // E49 A1e: Pre-season checks is a button of the row of windows under Edit campaign, not the footer's.
             root.innerHTML = `<section class="window-content"><form>${SS.campaignFieldsHtml({ campaignName: "R1524" }, "R1524word")}
-                ${SS.setupRows(rows)}</form></section>
-                <footer class="form-footer"><button type="submit" data-action="save" autofocus>R1524 save</button><button type="button" data-action="checks">R1524 checks</button></footer>`;
+                ${SS.seasonWindowsHtml()}${SS.setupRows(rows)}</form></section>
+                <footer class="form-footer"><button type="submit" data-action="save" autofocus>R1524 save</button></footer>`;
             document.body.append(root);
             return root;
         };
@@ -29475,7 +29643,7 @@ const INVARIANTS = [
                 const back = make(); made.push(back);
                 const focused = SS.seasonOpening(back, place);
                 // A row's button is the kit's (E46-C5b): its step is the row's key.
-                return [focused?.closest?.("li.drpg-check-row")?.dataset?.drpgKey ?? focused?.dataset?.action ?? focused?.name ?? null, document.activeElement === focused,
+                return [focused?.closest?.("li.drpg-check-row")?.dataset?.drpgKey ?? focused?.dataset?.action ?? focused?.dataset?.drpgOpen ?? focused?.name ?? null, document.activeElement === focused,
                     back.querySelector(".window-content").scrollTop, Boolean(back.querySelector("footer [autofocus]"))];
             };
             out = { place: [row?.place ?? null, checks?.place ?? null], fields: [row?.campaignName, row?.safeword],
@@ -29487,7 +29655,7 @@ const INVARIANTS = [
         const src = stripComments(sources.get("season-setup.mjs") ?? "");
         must(src.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
         const wired = [/readDraft\(dialog\.element, \{ step: step\.key \}\)/.test(fnSource(src, "wireSetupSteps")),
-            /readDraft\(d\.element, \{ action: "checks" \}\)/.test(fnSource(src, "openSeasonSetup")),
+            /readDraft\(dialog\.element, \{ action: entry\.key \}\)/.test(fnSource(src, "wireSeasonWindows")),
             /seasonOpening\(dialog\.element, draft\?\.place \?\? null\)/.test(fnSource(src, "openSeasonSetup"))];
         equal(stableJson({ ...out, wired }), stableJson({
             place: [{ scrollTop: 420, step: "items", action: null }, { scrollTop: 420, step: null, action: "checks" }],
@@ -36508,8 +36676,9 @@ const INVARIANTS = [
         for (const [file, fn, pattern] of DESTRUCTIVE) destructiveB[`${file} ${fn}`] = pattern.test(fnSource(stripComments(sources.get(file) ?? ""), fn) ?? "");
         const OPEN_B = [
             ["./gm-panel.mjs", "openGmPanel", undefined, "drpg-window-panel", { close: "close" }, ["close"]],
-            // E49 A1d: Reset the season moved in from its tile, destructive (R3532).
-            ["./season-setup.mjs", "openSeasonSetup", undefined, "drpg-window-season", { save: "primary", checks: "secondary", reset: "destructive", close: "cancel" }, ["save", "reset", "close"]],
+            // E49 A1d: Reset the season moved in from its tile, destructive (R3532). E49 A1e: Pre-season checks left the footer
+            // for the row of windows under Edit campaign (R3580).
+            ["./season-setup.mjs", "openSeasonSetup", undefined, "drpg-window-season", { save: "primary", reset: "destructive", close: "cancel" }, ["save", "reset", "close"]],
             ["./season-setup.mjs", "resetSeason", undefined, "drpg-window-season-reset", { reset: "destructive", cancel: "cancel" }, ["reset", "cancel"]],
             ["./gm-campaign.mjs", "openClockDialog", undefined, "drpg-window-clock", { ok: "primary", cancel: "cancel" }, ["ok", "cancel"]],
             ["./gm-items.mjs", "openItemManager", undefined, "drpg-window-items",
@@ -44755,7 +44924,7 @@ const INVARIANTS = [
         const { CHAPTERS_PER_SEASON } = await import("./config.mjs");
         const { getClock } = await import("./clock.mjs");
         const GC = await import("./gm-campaign.mjs");
-        const { readSeasonForm } = await import("./season-setup.mjs");
+        const { readSeasonForm, campaignFieldsHtml } = await import("./season-setup.mjs");
         needs(world.atLeast("livingStudents", 1), "a living student, for the murder window's lists");
         const D = foundry.applications.api.DialogV2;
         const own = Object.getOwnPropertyDescriptor(D, "wait");
@@ -44785,9 +44954,12 @@ const INVARIANTS = [
         const chapter = clock.querySelector('.drpg-kit-stepper > input[type="number"][name="chapter"]');
         const typed = ["99", "0", "-2", "2.5", ""];
         const seasonRead = v => {
+            // E49 A1e: Season setup's form is Edit campaign's rows with the safeword (`campaignFieldsHtml`), its chapter's `max` the same.
             const season = document.createElement("div");
-            season.innerHTML = `<form><input name="campaignName" value=""><input type="number" name="chapter" min="1" max="${top}" value="${v}"><input name="safeword" value=""></form>`;
-            return readSeasonForm({ element: season }).chapter;
+            season.innerHTML = `<form>${campaignFieldsHtml(getClock(), "")}</form>`;
+            const field = season.querySelector('[name="chapter"]');
+            if (field) field.value = v;
+            return Number(field?.max) === top ? readSeasonForm({ element: season }).chapter : null;
         };
         const season = typed.map(seasonRead);
         must(season[0] === top && season[1] === 1 && season[4] === 1, `readSeasonForm no longer holds the chapter to 1..${top}: ${stableJson(season)}`);
@@ -45441,8 +45613,9 @@ const INVARIANTS = [
         }), stableJson({
             // E49 A2 moved three tiles and took one out (R3345 holds the four moves): the order as it stands after them.
             tiles: [["now", ["whoIsAlive", "projects", "sound"]], ["case", ["murder", "investigation", "trial"]],
-                // E49 A1d: Reset the season into Season setup, Settings in its place (R3532), The Mastermind before Season setup (R3533).
-                ["between", ["jump", "gmTeam", "roomSetup", "tables", "rules", "mastermind", "seasonSetup", "settings"]],
+                // E49 A1d: Reset the season into Season setup, Settings in its place (R3532). E49 A1e: Edit campaign, Despair Flow,
+                // Killing game rules and The Mastermind into Season setup (R3582).
+                ["between", ["roomSetup", "tables", "seasonSetup", "settings"]],
                 ["fixes", ["failureLog", "voiceReset", "caseWindow"]]],
             caseTile: ["fixes", en["DRPG.Case.tile"] === undefined ? "?" : game.i18n.localize("DRPG.Case.tile"), age],
             diag: [0, 2], en: [], pl: [], keys: [[false, false], [false, false]]
