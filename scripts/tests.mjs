@@ -62,7 +62,7 @@ import { REGRESSIONS } from "./tests-tier0.mjs";
 import { INVARIANTS } from "./tests-tier1.mjs";
 import { SCENARIOS, snapshot, restore } from "./tests-tier2.mjs";
 import { gmStoreHold, gmStoresIdle, gmStoreHandles, gmCopyNames, gmCopySpec } from "./gm-store.mjs";
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, FLAGS } from "./config.mjs";
 import { holdNoticeHistory } from "./notice-history.mjs";
 
 // Every tier, for the tests that read the suite itself (R155): see registerSuite.
@@ -434,6 +434,11 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
              * hello, which re-exchanges with the other GMs.
              */
             gmStoreHold(true);
+            /* THE TABLE'S BODIES ARE FENCED FOR THE RUN (E63 C2): from E63 every trial's end takes every body tile, and
+               tier 2 ends trials in about a hundred places; the tiles the world holds now stay through every such end on
+               this browser (body-tile.mjs `holdBodyTiles`), released in the `finally`. */
+            (await import("./body-tile.mjs")).holdBodyTiles(game.scenes.contents.flatMap(scene => [...(scene.tiles ?? [])]
+                .filter(tile => tile.getFlag(MODULE_ID, FLAGS.bodyOf)).map(tile => tile.id)));
             /*
              * SO IS THIS BROWSER'S NOTICE HISTORY (E81 C1, 12.10.2026; the A7 plan's 2.4). It is the record of
              * what this browser showed its user, and tier 2 shows cards: held, what a test records stays in
@@ -549,6 +554,7 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
         writes.stop();
         // Released whatever happened above; a hold the suite never took is released as a no-op.
         gmStoreHold(false);
+        (await import("./body-tile.mjs")).holdBodyTiles(null);
         holdNoticeHistory(false);
         if (noticesFound !== null) {
             const left = noticeHistoryText();

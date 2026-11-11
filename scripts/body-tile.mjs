@@ -222,21 +222,44 @@ export async function leaveBody(actor, { record: handed = null, at = Date.now() 
     return tile ?? null;
 }
 
+/** The body tiles a removal of every body leaves on this browser (`holdBodyTiles`), or null for none held. */
+let heldTiles = null;
+
+/**
+ * THE SUITE'S FENCE (E63 C2, 11.11.2026; the lesson of E95 fix RV-1). Tier 2 ends trials in about a hundred places and
+ * runs at real tables, and from E63 every trial's end takes every body tile (clock.mjs `reconcilePhase`). tests.mjs
+ * hands the ids of every body tile the world holds before tier 2 (`ids`), and null after it: in between, a removal of
+ * every body on this browser (`removeBodyTiles` with no actor) leaves those, unless it is asked with `held: false` (the
+ * season reset's own deaths group, chapter.mjs `clearSeasonDeaths`, which at a table does take every body). A removal
+ * of one student's tiles (a revive) is not fenced. Answers the set held, or null.
+ */
+export function holdBodyTiles(ids = null) {
+    heldTiles = ids ? new Set(ids) : null;
+    return heldTiles;
+}
+
+/** The ids `holdBodyTiles` holds on this browser, or null (E63 C2; tier 2 reads it). */
+export function heldBodyTiles() {
+    return heldTiles ? [...heldTiles] : null;
+}
+
 /**
  * Remove the body tiles of `actorId` from every scene, or every body tile when it is null, and answer how many (E95
- * C2; QUESTIONS Q7, Q8). GM only. `only`, a set of tile ids, narrows it to those (E95 fix RV-1: tier 2 runs the reset's
+ * C2; QUESTIONS Q7, Q8; E63 C2: and at every Class Trial's end, clock.mjs `reconcilePhase`). GM only. With no actor, a
+ * tile `holdBodyTiles` holds stays unless `held` is false (the suite's fence, above). `only`, a set of tile ids, narrows it to those (E95 fix RV-1: tier 2 runs the reset's
  * deaths entry on its own tiles alone, so a GM's suite at a table deletes no body the table holds). A revive takes the student's (chapter.mjs `reviveCharacter`: a student back alive
  * has no body), the season reset's deaths group every one (chapter.mjs `clearSeasonDeaths`), a body whose student is
  * gone from the world included. Stopping being a Monocub keeps the tile: the student is still dead. A tile with no
  * body flag is never touched.
  */
-export async function removeBodyTiles(actorId = null, { only = null } = {}) {
+export async function removeBodyTiles(actorId = null, { only = null, held = true } = {}) {
     if (!game.user?.isGM) return 0;
+    const fenced = actorId === null && held && heldTiles ? heldTiles : null;
     let removed = 0;
     for (const scene of game.scenes ?? []) {
         const ids = [...(scene?.tiles ?? [])].filter(doc => {
             const mark = markOf(doc);
-            return mark && (actorId === null || mark.actorId === actorId) && (!only || only.has(doc.id));
+            return mark && (actorId === null || mark.actorId === actorId) && (!only || only.has(doc.id)) && !fenced?.has(doc.id);
         }).map(doc => doc.id);
         if (!ids.length) continue;
         await scene.deleteEmbeddedDocuments("Tile", ids);

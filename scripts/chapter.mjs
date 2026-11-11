@@ -688,7 +688,7 @@ export async function clearSeasonDeaths(ctx) {
         await ctx.everyStudent("deaths");
         if (isPrimaryGm()) await deathStore.clear();
         else await deathStore.dropMany(Object.keys(deathStore.entries()));
-    }, () => (typeof ctx?.removeBodyTiles === "function" ? ctx.removeBodyTiles() : removeBodyTiles()));
+    }, () => (typeof ctx?.removeBodyTiles === "function" ? ctx.removeBodyTiles() : removeBodyTiles(null, { held: false })));
 }
 
 /** What the reset window counts of the deaths: the students dead for the GMs (season-setup.mjs `resetTally` until E42 C3). */

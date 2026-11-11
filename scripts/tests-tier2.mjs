@@ -86305,6 +86305,140 @@ const SCENARIOS = [
             "the student's body tiles [the death's tile deleted, then made a Monocub: count, a Monocub; dead again: count; ticked, unticked, ticked: counts]");
     }],
 
+    ["the Class Trial's end takes every body off the map (E63 C2; the owner's 11.11.2026 on E95 Q2 and Q8; QUESTIONS E63 Q2): with a murdered student's tile, a Monocub's tile, a plain tile and a sentence of a third student, the phase moved out of the trial (clock.mjs `setClock`, the write End the trial and Edit campaign make) takes every body tile - the executed's laid by the sentence and taken in the same write - and keeps the plain one; a sentence retried in Daily Life takes the executed's tile alone, and a body of the new death stays", async () => {
+        /*
+         * E63 C2, 11.11.2026; STAGE E63 item 7. On the primary GM, three living students with tokens on the scene on screen:
+         * A killed in public, B killed and made a Monocub (their deaths lay the tiles, E63 C0), a tile with no body flag,
+         * the clock moved into the trial by its raw setting and a correct verdict sentencing C (vote.mjs `applyVerdict`);
+         * then `setClock({ phase: "dailyLife" })`, which runs `reconcilePhase` out of the trial (`endFloor`, the voices, the
+         * sentence, the bodies). Read: each student's body tiles, the plain tile, C dead of the execution, and C's tile
+         * created and deleted (the createTile and deleteTile hooks). Then, revived, a sentence of C that failed (the record
+         * `execution.failed` holding C), A killed again, and the phase moved within Daily Life's side
+         * (`setClock({ phase: "investigation" })`, the retry branch): A's tile kept, C dead and C's tile laid and gone. The
+         * fence tests.mjs holds the table's tiles with is not in the way: these tiles were laid inside tier 2. Red at C1:
+         * every tile kept. Put back: the clock, the queue and the trial's record, the students revived, B's Monocub flag
+         * and resources, the plain tile.
+         */
+        needs(env.primaryGm(), "the sentence and the reconcile run on the primary GM");
+        needs(world.atLeast("studentTokensOnScreen", 3), "three students with tokens on the scene on screen: the murdered, the Monocub, the sentenced");
+        const B = await import("./body-tile.mjs");
+        const V = await import("./vote.mjs");
+        const C = await import("./chapter.mjs");
+        const M = await import("./monocub.mjs");
+        const { deathRecord } = await import("./settings.mjs");
+        const { deferredOfferStore, offerStore } = await import("./gm-stores.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const scene = canvas.scene;
+        const [a, b, c] = C.livingStudents().filter(x => scene?.tokens?.some(t => t.actorId === x.id));
+        must(a && b && c, "no three living students with tokens on the scene on screen - this would measure nothing");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const R = "system.resources", keys = ["hope", "hitPoints", "stress"];
+        const res = Object.fromEntries(keys.map(k => [k, foundry.utils.deepClone(foundry.utils.getProperty(b._source, `${R}.${k}`) ?? null)]));
+        const monoWas = b._source.flags?.[MODULE_ID]?.[FLAGS.monocub];
+        const rawClock = patch => game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), ...patch });
+        const count = x => B.bodyTilesOf(x.id).length;
+        const ofC = { created: 0, deleted: 0 };
+        const isC = tile => tile?.getFlag?.(MODULE_ID, FLAGS.bodyOf)?.actorId === c.id;
+        const onCreate = Hooks.on("createTile", tile => { if (isC(tile)) ofC.created++; });
+        const onDelete = Hooks.on("deleteTile", tile => { if (isC(tile)) ofC.deleted++; });
+        let plain = null;
+        const read = {};
+        try {
+            const chapter = clock.chapter;
+            for (const x of [a, b]) must(await C.killCharacter(x, { secret: false, keepBullets: true }), `${x.name}'s death could not be published - this would measure nothing`);
+            await M.setMonocub(b, true, { quiet: true });
+            [plain] = await scene.createEmbeddedDocuments("Tile", [{ x: 0, y: 0, width: 100, height: 100, texture: { src: null } }]);
+            await settle();
+            must(count(a) === 1 && count(b) === 1 && plain, "the murdered's, the Monocub's or the plain tile is not there - this would measure nothing");
+            await rawClock({ phase: "classTrial" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter, verdictApplied: false, verdict: null, executedAt: null, execution: null });
+            await withAdvanceWindows(() => null, () => V.applyVerdict({ correct: true, executedIds: [c.id], blackenedIds: [c.id] }));
+            await settle();
+            must(!C.isDeadForGm(c), `${c.name} died at the verdict, not at the trial's end - this would measure nothing`);
+            await setClock({ phase: "dailyLife" });
+            await settle();
+            read.ended = [count(a), count(b), count(c), scene.tiles.has(plain.id), C.isDeceased(c), deathRecord(c)?.cause ?? null, ofC.created, ofC.deleted];
+            await M.setMonocub(b, false, { quiet: true });
+            for (const x of [a, b, c]) if (C.isDeadForGm(x)) await C.reviveCharacter(x, { quiet: true });
+            await settle();
+            ofC.created = 0; ofC.deleted = 0;
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter, verdictApplied: true,
+                verdict: { stage: "done", correct: true, executedIds: [c.id], sentenced: [c.id], by: game.user.id, at: Date.now(), done: ["sentence", "card"], failed: [] },
+                executedAt: null, execution: { done: [], failed: [c.id] } });
+            must(await C.killCharacter(a, { secret: false, keepBullets: true }), `${a.name}'s second death could not be published - this would measure nothing`);
+            await settle();
+            await setClock({ phase: "investigation" });
+            await settle();
+            read.retried = [count(a), count(c), C.isDeceased(c), ofC.created, ofC.deleted];
+        } finally {
+            Hooks.off("createTile", onCreate);
+            Hooks.off("deleteTile", onDelete);
+            if (M.isMonocub(b)) await M.setMonocub(b, false, { quiet: true });
+            for (const x of [a, b, c]) if (C.isDeadForGm(x)) await C.reviveCharacter(x, { quiet: true });
+            if (monoWas === undefined) await b.unsetFlag(MODULE_ID, FLAGS.monocub);
+            else await b.setFlag(MODULE_ID, FLAGS.monocub, monoWas);
+            await b.update(Object.fromEntries(keys.filter(k => res[k] !== null).map(k => [`${R}.${k}`, res[k]])));
+            if (plain && scene.tiles.has(plain.id)) await plain.delete();
+            for (const x of studentActors()) {
+                if (offerStore.has(x.id)) await offerStore.drop(x.id);
+                if (deferredOfferStore.has(x.id)) await deferredOfferStore.drop(x.id);
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await gmStoresIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ ended: [0, 0, 0, true, true, "executed", 1, 1], retried: [1, 0, true, 1, 1] }),
+            "the bodies [ended: A's, B's, C's tiles, the plain tile kept, C dead, of what, C's tile created, deleted; retried: A's, C's tiles, C dead, C's tile created, deleted]");
+    }],
+
+    ["a suite's trial end leaves the table's bodies (E63 C2; the lesson of E95 fix RV-1): tier 2 holds every body tile the world held before it (body-tile.mjs `holdBodyTiles`), and a trial ended inside tier 2 takes the test's own body tiles and leaves a held one", async () => {
+        /*
+         * E63 C2, 11.11.2026; STAGE E63 item 7's fence. tests.mjs hands `holdBodyTiles` the body tiles the world holds
+         * before tier 2. Here: whether a fence is up (`heldBodyTiles`), a stand-in for the table's body (a body tile of a
+         * student who is not in the world) laid and added to the fence as tests.mjs would have, a student killed in public
+         * (the test's own tile), the clock moved into the trial by its raw setting and out of it by `setClock`. Read: the
+         * stand-in, the student's tiles; and the fence after (the test's own set put back as it found it). Red at C1:
+         * there was no fence, and the trial's end took no tile at all.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student with a token on the scene on screen, whose body is the test's own");
+        const B = await import("./body-tile.mjs");
+        const C = await import("./chapter.mjs");
+        const { levelOf } = await import("./rooms.mjs");
+        const scene = canvas.scene;
+        const who = C.livingStudents().find(x => scene?.tokens?.some(t => t.actorId === x.id));
+        const token = scene?.tokens?.find(t => t.actorId === who?.id);
+        must(who && token, "no living student with a token on the scene on screen - this would measure nothing");
+        const clock = foundry.utils.deepClone(getClock());
+        const fence = typeof B.heldBodyTiles === "function" ? B.heldBodyTiles() : null;
+        let standIn = null;
+        const read = { fenced: Array.isArray(fence) };
+        try {
+            [standIn] = await scene.createEmbeddedDocuments("Tile", [B.bodyTileSpec({ tokenDoc: token, actorId: "SUITEE63C2TABLE0", record: null, level: levelOf(token), at: Date.now() })]);
+            must(standIn, "the stand-in for the table's body could not be laid - this would measure nothing");
+            if (typeof B.holdBodyTiles === "function") B.holdBodyTiles([...(fence ?? []), standIn.id]);
+            must(await C.killCharacter(who, { secret: false, keepBullets: true }), `${who.name}'s death could not be published - this would measure nothing`);
+            await settle();
+            const own = B.bodyTilesOf(who.id).length;
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), phase: "classTrial" });
+            await setClock({ phase: "dailyLife" });
+            await settle();
+            read.ended = [own, B.bodyTilesOf(who.id).length, scene.tiles.has(standIn.id)];
+        } finally {
+            if (typeof B.holdBodyTiles === "function") B.holdBodyTiles(fence);
+            if (C.isDeadForGm(who)) await C.reviveCharacter(who, { quiet: true });
+            if (standIn && scene.tiles.has(standIn.id)) await standIn.delete();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await settle();
+        }
+        read.after = typeof B.heldBodyTiles === "function" ? stableJson(B.heldBodyTiles()) === stableJson(fence) : null;
+        equal(stableJson(read), stableJson({ fenced: true, ended: [1, 0, true], after: true }),
+            "{fenced: tier 2 holds a fence; ended: [the student's tiles before, after the trial's end, the table's stand-in still there]; after: the fence as found}");
+    }],
+
     ["the body follows its corpse token, not its Monocub (E63 C1; QUESTIONS E63 Q3): a GM's drag of a dead student's token into another room takes their tile there and the body is read in that room; a teleport as Stage 6's Move the body makes takes it back; a move another user wrote moves nothing on this browser; made a Monocub, their token walks and the tile stays", async () => {
         /*
          * E63 C1, 11.11.2026; STAGE E63 item 6. On this GM: a student with a token on the scene on screen killed in public
