@@ -74,10 +74,19 @@ export function isMonocub(actor) {
  */
 export function ownCaseOpen(actor, { clock = getClock(), record, epoch = seasonEpoch() } = {}) {
     if (!isMonocub(actor)) return false;
-    const death = deathRecord(actor);
+    const stored = record === undefined ? (getSetting(SETTINGS.trialProgress) ?? {}) : (record ?? {});
+    return caseOpen(deathRecord(actor), clock, stored, epoch);
+}
+
+/**
+ * Whether the case of the death `death` is open (pure; cut out of `ownCaseOpen` by E63 C3, 11.11.2026, which reads it
+ * without the Monocub gate for a 1.2.104 world's bodies, migrate.mjs `bodiesToLay`): a death in the clock's chapter and
+ * the season `epoch`, not by an execution, whose chapter has no verdict in the stored trial record `record` after it.
+ */
+export function caseOpen(death, clock, record, epoch) {
     if (!death || death.cause === "executed" || death.chapter !== clock?.chapter) return false;
     if (death.epoch !== undefined && death.epoch !== null && death.epoch !== epoch) return false;
-    const stored = record === undefined ? (getSetting(SETTINGS.trialProgress) ?? {}) : (record ?? {});
+    const stored = record ?? {};
     const verdict = stored.chapter === clock.chapter ? (stored.lastVerdictAt ?? null) : null;
     // A death that names the verdict before it (E70 fix p1-G3, chapter.mjs `verdictBefore`): open while no later verdict
     // came; an older record, written before the field, as before - open only in a chapter with no verdict yet.
