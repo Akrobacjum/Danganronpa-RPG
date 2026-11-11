@@ -573,8 +573,15 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
        drawn (fog-reveal.mjs `flashOutline`, into a container of the scenario's own) and struck again (`rewidth`). */
     phase("the seams' light drawn once (E88 C1)");
     const FR = `const FR = await import("${repoUrl}/scripts/fog-reveal.mjs");`;
-    const STAND = `${FR} const H = globalThis.__s86halo = { renders: 0, io: FR.HALO_IO.renderer };
-        FR.HALO_IO.renderer = () => ({ resolution: 1, render: () => { H.renders++; } });`;
+    /* RENDERS BY WHAT THEY DRAW (E49 B4 fix, 11.11.2026). Since E49 B4 (S07-34) a turn of the hour strokes the standing
+       outline's light again in the hour's colour and draws its picture once more (fog-reveal.mjs `recolour`, through
+       `bakeOutlineHalo`); until then that light kept the colour of the hour it was drawn in. That render is the outline's,
+       not the students' rings': the stand-in counts each render under the name of what it draws (`bakeTexture` hands the
+       renderer a wrapper whose one child is the Graphics drawn - the outline's light by its name, a ring's unnamed), so C1
+       holds the rings to their keys and the outline to one picture per colour, each by its own count. */
+    const STAND = `${FR} const H = globalThis.__s86halo = { renders: 0, outline: 0, io: FR.HALO_IO.renderer };
+        FR.HALO_IO.renderer = () => ({ resolution: 1, render: wrap => { H.renders++;
+            if (FR.HALO_NAMES.outlineLive.includes(wrap?.children?.[0]?.name)) H.outline++; } });`;
     const WORN = `${FR} const c = await game.drpg.counters();
         const worn = { own: [], remnant: [] };
         for (const t of canvas.tokens.placeables) for (const [kind, ring] of [["own", "drpgOwnRing"], ["remnant", "drpgRemnantRing"]]) {
@@ -584,7 +591,9 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
         const textures = list => new Set(list.map(s => s.texture));
         const H = globalThis.__s86halo;
         H.remnantTexture ??= worn.remnant[0]?.texture ?? null;
+        const standing = FR.roomOutline && !FR.roomOutline.group?.destroyed ? FR.roomOutline : null;
         return { ringBlurs: (c.live.byName.drpgOwnRingGlow ?? 0) + (c.live.byName.drpgRemnantRingGlow ?? 0), renders: H.renders, halos: c.halos,
+            outlineRenders: H.outline, outline: standing ? { glass: Boolean(standing.glass), colour: standing.colour } : null,
             own: worn.own.length, ownTextures: textures(worn.own).size, ownKeys: new Set(worn.own.map(s => s.drpgHaloKey)).size,
             remnant: worn.remnant.length, remnantTextures: textures(worn.remnant).size, remnantKept: worn.remnant.every(s => s.texture === H.remnantTexture),
             ownKey: worn.own[0]?.drpgHaloKey?.split("|").slice(0, 3).join("|") ?? null };`;
@@ -617,8 +626,12 @@ export async function run({ gm, p1, p2, p3, p4, check, note, phase, settle, IDS,
     const hour = await gm.eval(WORN);
     note("C1 clock, GM", J(hour));
     check("C1: the clock moved on the GM's browser draws the students' light again in the hour's colour and not the Remnants'; still no live blur",
-        hour?.ringBlurs === 0 && hour.remnantKept && hour.remnantTextures === 1 && hour.renders - baked.renders === (hour.ownKey !== baked.ownKey ? hour.ownKeys : 0),
+        hour?.ringBlurs === 0 && hour.remnantKept && hour.remnantTextures === 1
+            && (hour.renders - hour.outlineRenders) - (baked.renders - baked.outlineRenders) === (hour.ownKey !== baked.ownKey ? hour.ownKeys : 0),
         J({ baked, hour }));
+    check("C1: the clock moved on the GM's browser draws the standing outline's light once again in the hour's colour, and no more (E49 B4; S07-34)",
+        hour?.outlineRenders - baked.outlineRenders === (hour.outline?.glass && baked.outline && hour.outline.colour !== baked.outline.colour ? 1 : 0),
+        J({ baked: [baked.outlineRenders, baked.outline], hour: [hour.outlineRenders, hour.outline] }));
     await gm.eval(`const C = await import("${repoUrl}/scripts/clock.mjs"); await C.setClock(globalThis.__s86clock); delete globalThis.__s86clock; return true;`, { timeout: 60000 });
     await settle(1200);
     const outline = await p1.eval(`${STAND} ${ACADEMY}
