@@ -1985,6 +1985,14 @@ body.drpg-reduced-motion .drpg-bullet-group > summary .drpg-bullet-group-name::b
     opacity: 1;
 }
 
+/* In a fight the row says whose turn it is (sheet.mjs `budgetLine`, E49 B2's turn line; S03-30): the same row, so
+   nothing moves when the incident starts or ends, and lit at full ink in the turn that is yours - the light, not a
+   colour, since red is the GM's and gold is Hope's. */
+.drpg-action-panel .drpg-budget-line.drpg-budget-mine {
+    font-weight: bold;
+    opacity: 1;
+}
+
 /* "You are carrying one but holding none." A hint, not a warning - nothing is
    wrong, there is just a click that would change what happens in an incident. */
 .drpg-inventory-group .drpg-equip-nudge {

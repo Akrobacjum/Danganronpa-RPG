@@ -43769,6 +43769,39 @@ const INVARIANTS = [
         "{heading: h3s on the Actions panel; first: the budget its first row; named: its aria-label; rulesTitle: the Rules panel's h3; tab: the tab's word; pad: the Actions and Rules panels' padding} - the panels must not repeat their tab and must sit alike");
         ok(L("DRPG.Rules.sheetTitle") !== L("DRPG.Rules.tab"), "the Rules panel's title is still the tab's word");
     }],
+    ["R3520 - in a fight the sheet's budget row says whose turn it is, in the incident card's words (sheet.mjs `budgetLine`, events.mjs `incidentTurnText`, `actingActor`; E49 B2's turn line, audit S03-30): the victim on their turn and the killer on theirs read \"your turn\" lit (`drpg-budget-mine`), the killer waiting reads the victim's name as the card does, the victim waiting \"their turn\"; the same one row in every state (a `p.drpg-budget-line`), and outside an incident the budget as before", async () => {
+        /*
+         * E49 B2's leftover, 11.11.2026. S03-30: "the victim at the start of their turn sees only the sheet and nothing
+         * says 'your turn'"; its fix: "in an incident, the turn's banner in the sheet itself". The row is the budget's (the
+         * owner's rule of 10.11: a state changes the look, never the layout). Read on stand-in states of two of this
+         * world's students - nothing written; the incident card's own line is asked for the same seat to show they agree.
+         */
+        needs(world.atLeast("livingStudents", 2), "a victim and a killer from this world's students");
+        const S = await import("./sheet.mjs");
+        const E = await import("./events.mjs");
+        const [V, K] = studentActors();
+        const L = k => game.i18n.localize(k);
+        const read = (actor, state) => {
+            if (typeof S.budgetLine !== "function") return null;
+            const p = S.budgetLine(actor, state);
+            return { tag: p.tagName, cls: [...p.classList].join(" "), text: p.textContent };
+        };
+        const base = { active: true, stage: "incident", killerId: K.id, victimId: V.id, turn: 1 };
+        const victims = { ...base, turnSide: "victim" }, killers = { ...base, turnSide: "killer" };
+        const row = "notes drpg-keep drpg-budget-line drpg-budget-turn";
+        const got = { victimOnTheirs: read(V, victims), killerWaiting: read(K, victims), killerOnTheirs: read(K, killers), victimWaiting: read(V, killers) };
+        equal(stableJson(got), stableJson({
+            victimOnTheirs: { tag: "P", cls: `${row} drpg-budget-mine`, text: L("DRPG.Murder.yourTurn") },
+            killerWaiting: { tag: "P", cls: row, text: game.i18n.format("DRPG.Events.waitingFor", { name: V.name }) },
+            killerOnTheirs: { tag: "P", cls: `${row} drpg-budget-mine`, text: L("DRPG.Murder.yourTurn") },
+            victimWaiting: { tag: "P", cls: row, text: L("DRPG.Murder.theirTurn") }
+        }), "{seat on whose turn: the row's tag, classes and words} - in a fight the budget row must say whose turn it is, lit on yours");
+        const card = typeof E.incidentTurnText === "function" ? E.incidentLines({ state: victims, mine: K.id, myTurn: false, victim: V, acting: E.actingActor(victims) }).turn : null;
+        equal(card, got.killerWaiting?.text ?? null, "the incident card's turn line and the sheet's row must say the same thing to the same seat");
+        const out = read(V, null);
+        ok(out && out.tag === "P" && out.cls.startsWith("notes drpg-keep drpg-budget-line") && !out.cls.includes("drpg-budget-turn")
+            && out.text !== L("DRPG.Murder.yourTurn"), `outside an incident the row is the budget: ${JSON.stringify(out)}`);
+    }],
     ["R2018 - Room setup's Scenes tab on the kit (E46-C2b; E46-08, E47's 05.10 point 5): trial-scene.mjs `scenesTabHtml` is a kit `formGrid` (the school and the hall selects, each its label's `for`), the hall's name, picture and words a `formGrid` of their own, the warnings a `box(\"warning\")`, the prepare ticks kit switches, `SCENES_ZONE_SLOT` a row of `scenesTabRows` that draws nothing (where E73 puts Zone A and Zone B), the hall's cast pick (`castPickerHtml`) a kit `dataTable` with a switch an actor; `readScenesTab`'s answer for a seeded form the one it gave before", async () => {
         /*
          * E46-C2b. Red first on C2a's tree (f90e89a7): labels around the selects, a list of checkboxes, `p.drpg-warning`, no

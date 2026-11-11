@@ -37,6 +37,7 @@ import { restShutReason } from "./rest.mjs";
 // `availableCrisisActions` and `isTheirTurn` went to the Direct Murder tile's
 // menu with the crisis grid - see `openCrisisMenu` in action-murder.mjs.
 import { murderState, sideOf, betrayalTarget, isTheirTurn, crisisTileLabel } from "./murder.mjs";
+import { incidentTurnText, actingActor } from "./events.mjs";
 // Two different rules, each under its own name since 1.2.69 (E33 C9, D39): the
 // crime-witness marker on a Monocub (information only - it refuses nothing) and
 // the Despair Call "Silence" on a living student (no Hope Calls until the time of
@@ -4765,9 +4766,27 @@ function abilityButton(actor, key, def) {
  * and a player who does not know they still have it will pay an action for a
  * door they could have walked through.
  */
-function budgetLine(actor) {
+export function budgetLine(actor, state = murderState()) {
     const line = document.createElement("p");
     line.className = "notes drpg-keep drpg-budget-line";
+
+    /*
+     * IN A FIGHT THIS ROW SAYS WHOSE TURN IT IS (E49 B2's turn line; audit S03-30, "the victim, at the start of their
+     * turn, sees only the sheet and nothing says 'your turn'"; its fix: "in an incident, the turn's banner in the sheet
+     * itself"). The same row, not a new one: the owner's rule of 10.11 is that a state changes the look and never the
+     * layout, and in an incident the budget has nothing to say - every tile but the fight's is shut and a crisis action
+     * spends no action (`costOf`). The words are the incident card's (events.mjs `incidentTurnText`), so the card and
+     * the sheet cannot disagree; the light is `isTheirTurn`'s, the predicate that dims the fight's tile under it. Every
+     * seat `sideOf` names (a third party who walked in too: their tiles are shut as well) reads it; anyone outside the
+     * incident reads the budget as before.
+     */
+    if (state?.stage === "incident" && sideOf(actor, state)) {
+        const mine = isTheirTurn(actor, state);
+        line.textContent = incidentTurnText({ state, mine: actor.id, myTurn: mine, acting: actingActor(state) });
+        line.classList.add("drpg-budget-turn");
+        if (mine) line.classList.add("drpg-budget-mine");
+        return line;
+    }
 
     const left = actionsLeft(actor);
     const parts = [plural("DRPG.Actions.leftOf", {
