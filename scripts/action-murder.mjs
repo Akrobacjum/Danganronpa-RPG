@@ -120,7 +120,7 @@ export async function openCrisisMenu(actor) {
                 def.short ? ` - ${proseOf(def, "short")}` : def.hint ? ` - ${proseOf(def, "hint")}` : ""}${
                 hindered && !free ? ` · ${game.i18n.localize("DRPG.Murder.actionHindered")}` : ""}`,
             // The whole hint stacked under the lead, the facts in the window's Details by row (E49 A8.1).
-            details: crisisDetails(def),
+            details: crisisDetails(def, { free, brokenDown }),
             facts: crisisFacts(def, { free, brokenDown, youPick, traits: listed[key] }),
             // The player's proposal, for the row that asks a GM (E68 C4; DA18): the first listed checked. In the right
             // column's statistic slot while the row is picked (E68 C13's merge; the owner's Q3 of round M), not with
@@ -175,7 +175,7 @@ export async function openCrisisMenu(actor) {
  * layer (`chooseVariant`'s `facts`), and `crisisDetails` the whole hint alone, which the menu stacks under the lead
  * (its `details`, `drpg-variant-details`). Both exported for R3382.
  */
-export function crisisFacts(def, { free, brokenDown, youPick, traits }) {
+export function crisisFacts(def, { free, youPick, traits }) {
     const facts = [];
     if (def.kind === "resolution" && !def.noRoll) {
         facts.push(game.i18n.format("DRPG.Murder.briefCostStress", { n: RESOLUTION_STRESS_COST }));
@@ -187,7 +187,6 @@ export function crisisFacts(def, { free, brokenDown, youPick, traits }) {
         } else if (traits.length) {
             facts.push(game.i18n.format("DRPG.Action.usesTrait", { traits: named }));
         }
-        if (brokenDown) facts.push(game.i18n.localize("DRPG.Murder.breakdownDisadvantage"));
         if (def.failure) facts.push(game.i18n.format("DRPG.Murder.onAMiss", { text: esc(proseOf(def, "failure")) }));
     }
     return facts;
@@ -196,10 +195,16 @@ export function crisisFacts(def, { free, brokenDown, youPick, traits }) {
 /**
  * What a row's one-sentence caption gave up (E68 C13): the action's whole hint, the picked row's details, which stand in
  * the left column under the briefing (E68 C12), stacked with the other rows' (E49 A8.1); or "".
+ *
+ * BREAKDOWN'S DISADVANTAGE STAYS IN SIGHT (E49 A8 fix, 11.11.2026; CI on 470eb255): A8.1 put it with the row's facts in
+ * Details, shut by default, and a player chose a roll without reading that it would be thrown at disadvantage. It is
+ * a condition that changes the roll about to be made, as Tamper's watchers are a price about to be paid (the owner's
+ * answer 3 of 11.11: on top), so it stands here, under the lead, in the picked row's block, for a row that rolls.
  */
-export function crisisDetails(def) {
+export function crisisDetails(def, { free = false, brokenDown = false } = {}) {
     const whole = def.short && def.hint ? `<p>${esc(proseOf(def, "hint"))}</p>` : "";
-    return whole;
+    const rolls = !free && !def.noRoll;
+    return whole + (brokenDown && rolls ? `<p class="drpg-briefing-watched">${esc(game.i18n.localize("DRPG.Murder.breakdownDisadvantage"))}</p>` : "");
 }
 
 /**

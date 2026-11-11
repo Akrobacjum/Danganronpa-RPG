@@ -2335,7 +2335,12 @@ async function pressCrisisTile(actor, { choose = () => null, pick = offered => o
             rows: [...root.querySelectorAll('input[name="variant"]')].map(input => ({
                 value: input.value, disabled: input.disabled,
                 hint: text(input.closest("label")?.querySelector("small")),
-                details: text(root.querySelector(`.drpg-choice-details[data-drpg-for="${input.value}"]`))
+                // The row's block under the lead and, since E49 A8.1, its facts in the window's Details (the row's layer).
+                details: [root.querySelector(`.drpg-choice-details[data-drpg-for="${input.value}"]`),
+                    root.querySelector(`.drpg-action-details-box .drpg-details-layer[data-drpg-when="${input.value}"]`)]
+                    .map(text).filter(Boolean).join(" ") || null,
+                lead: text(root.querySelector(`.drpg-choice-details[data-drpg-for="${input.value}"]`)),
+                inDetails: text(root.querySelector(`.drpg-action-details-box .drpg-details-layer[data-drpg-when="${input.value}"]`))
             }))
         };
         const value = choose(menu.rows);
@@ -42509,7 +42514,9 @@ const SCENARIOS = [
         const said = async () => {
             const { menu } = await pressCrisisTile(killer);
             const row = menu?.rows.find(r => r.value === "weaponAttack");
-            return row?.details?.includes(game.i18n.localize("DRPG.Murder.breakdownDisadvantage")) ?? null;
+            // Under the lead, outside Details (E49 A8 fix: shut by default, Details hid it before the choice).
+            const words = game.i18n.localize("DRPG.Murder.breakdownDisadvantage");
+            return row ? Boolean(row.lead?.includes(words)) && !row.inDetails?.includes(words) : null;
         };
         try {
             await killer.update({ "system.resources.stress.value": 0 });

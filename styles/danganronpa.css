@@ -17001,7 +17001,8 @@ body:not(.drpg-theme-stained-glass):not(.drpg-stacked) #drpg-popups:not(:has(> .
     line-height: 1.4;
 }
 /* Tamper's watchers, on top under the lead (the owner's answer 3): the price a player can still walk away from. */
-.drpg-briefing-block > .drpg-briefing-watched { margin: 0.5rem 0 0; font-weight: 600; }
+/* And Breakdown's disadvantage in the crisis menu's picked row block (E49 A8 fix: a condition on the roll, in sight). */
+:is(.drpg-briefing-block, .drpg-choice-details) > .drpg-briefing-watched { margin: 0.5rem 0 0; font-weight: 600; }
 /* E49 A8.3: the right column holds its place too (the owner's answer 4). A run of fields a row shows stands in one
    stack (action-menus.mjs `holdFields`), a row's own field in the statistic's slot likewise, all in one grid cell and
    the unpicked ones `drpg-unpicked` (above): the column is as tall as its tallest field, whatever is picked. */
