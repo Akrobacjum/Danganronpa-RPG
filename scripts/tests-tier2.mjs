@@ -43122,7 +43122,13 @@ const SCENARIOS = [
         ok(before.curtains > 0 && before.observers > 0 && before.loop, `the control, Stained Glass before the switch: ${stableJson(before)} - no curtain, observer or loop to take down`);
         equal(stableJson(legacy), stableJson({ curtains: 0, observers: 0, loop: false, probe: false, sheet: false, bands: 0, nodes: 0, on: false }),
             "Monokuma Legacy after the switch: [curtains, observers, the loop, the probe, the rotation sheet, the windows' bands, the curtain's nodes, drpg-curtain-on]");
-        equal(stableJson({ ...after, bands: null }), stableJson({ ...before, bands: null }), "Stained Glass again: the curtain as it stood before the switch, the windows' bands aside");
+        /* The colour probe is the bands' and the panes' (glass.mjs `resolveAcc` makes it the first time an accent is asked,
+           a window band's paint above all), not the curtain's: after the switch back it stands again only once a band
+           has painted. In CI's shard 2 (11.11.2026, d70d8569) the tests before this one left windows open, so `before`
+           read `probe: true` and `after`, with no band painted yet, `probe: false` - reproduced locally on that shard,
+           while the test alone passed. So the probe is set aside here with the bands; under Legacy it is still held
+           to gone (above). */
+        equal(stableJson({ ...after, bands: null, probe: null }), stableJson({ ...before, bands: null, probe: null }), "Stained Glass again: the curtain as it stood before the switch, the windows' bands and the colour probe (theirs) aside");
     }],
 
     ["E48-K4 - the a11y observer sees a host born after ready and no chat keystroke starts a sweep: a module window's body drawn after ready has its nameless button named from its tooltip within a frame or two, as does a button added to it later, while a keystroke's change in the chat starts no sweep", async () => {
