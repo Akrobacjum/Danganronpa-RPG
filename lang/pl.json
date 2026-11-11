@@ -6857,8 +6857,8 @@
           "hint": "Pasek się zapełnił. Słyszy ten, kto go zaproponował, i GM-owie, nigdy publicznie, bo projekt może być tajny - naprawa i uzbrojona pułapka mają własne, głośniejsze ogłoszenia."
         },
         "critical": {
-          "label": "Rzut krytyczny",
-          "hint": "Słyszy ten, kto go wyrzucił. Jedyny moment rzutu, na który czeka cały stół, a dotąd jedyny z kolorem karty i bez dźwięku."
+          "label": "Krytyk",
+          "hint": "Gra przy krytyku, gdy powiadomienie wjeżdża cięciem. Słyszy ten, kto go wyrzucił."
         },
         "searchNothing": {
           "label": "Przeszukanie nic nie znajduje",

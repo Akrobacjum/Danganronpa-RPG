@@ -40,7 +40,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { MESSAGE_FLAG, plural, debug, markLanguage } from "./utils.mjs";
-import { play, BEAT, ARRIVE, SNAP } from "./motion.mjs";
+import { play, BEAT, ARRIVE, SNAP, reducedMotion } from "./motion.mjs";
 import { recordNotice, updateNotice, noticeUnread, onNoticeHistoryChange } from "./notice-history.mjs";
 
 import { contentOf, wordsOf, secretHtml, isVeiled, cardFlag, cardWriter, SECRET_FLAG } from "./secret.mjs";
@@ -716,6 +716,28 @@ const KINDS = ["info", "error", "evidence", "objection"];
 const TONES = ["hope", "fear", "critical"];
 
 /*
+ * THE CUT IS THE CRITICAL'S ALONE (E48 K7, 11.11.2026; amend [14], decision 6, Q8: private-rolls.mjs no longer slashes
+ * the reaction cards in). The notice of a critical action result - `tone: "critical"`, which only action-report.mjs
+ * `rollTone` writes (`popupTone` on the action's card) - lands on a diagonal wipe over `CRIT_CUT_MS`, `clip-path` only
+ * (no layout read or written; the Web Animations API leaves no clip behind); under reduced motion (`reducedMotion`: the
+ * Look window's switch or the system's) the card is drawn still. `data-drpg-cut` says which ("cut" or "still") for the
+ * suite. Its sound is the existing `SFX_EVENTS.critical` slot, which action-report.mjs `report` plays on the roller's
+ * client as the card is posted; nothing here plays a second one. The 700 ms are the stage's figure (STAGE K7, "about
+ * 700 ms"), not a measurement; LIVE-E48-02 is the table's look at it.
+ */
+const CRIT_CUT_MS = 700;
+
+function cutCritical(card) {
+    const still = reducedMotion();
+    card.dataset.drpgCut = still ? "still" : "cut";
+    if (still) return;
+    play(card, [
+        { clipPath: "polygon(0% 0%, 0% 0%, -20% 100%, -20% 100%)" },
+        { clipPath: "polygon(0% 0%, 120% 0%, 100% 100%, 0% 100%)" }
+    ], CRIT_CUT_MS, ARRIVE());
+}
+
+/*
  * THE SNAPSHOT FOLLOWS THE CARD (E81 C3; the A7 design's P3-2). A card's body is not done when it
  * is drawn: a private card's words arrive by socket, a messenger card is redrawn, a trial's evidence
  * fills in. One MutationObserver per kept card watches its body, in the corner tile and on the
@@ -839,6 +861,7 @@ export function showPopup(bodyHtml, {
         first.remove();
     }
     if (!title) title = kindWord;
+    const critical = tone === "critical";
     const kept = () => lifted + body.innerHTML;
 
     {
@@ -895,6 +918,7 @@ export function showPopup(bodyHtml, {
        an objection is read AFTER the presentation it answers. */
     if (host.id === EVIDENCE_ID) host.append(card);
     else host.prepend(card);
+    if (critical) cutCritical(card);
 
     /* AN OBJECTION COMES TO THE FRONT UNTIL IT IS TOUCHED (E10 C16, 1.2.71; the owner's amend
        of 04.10). The stage sits under the windows on purpose - evidence stands for minutes and

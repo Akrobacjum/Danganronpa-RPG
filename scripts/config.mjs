@@ -4769,9 +4769,11 @@ export const SFX_EVENTS = {
         hint: "The bar filled. Heard by whoever proposed it and by the GMs, never publicly, because a project can be secret - a repair and an armed trap have louder announcements of their own.",
         category: "world"
     },
+    /* The owner's "Krytyk" slot (E48 K7; amend [14], 10.11): the key it always had, so a file mapped to it stays mapped; its
+       words say when it plays now that the critical's notice cuts in (popup.mjs `cutCritical`). */
     critical: {
-        label: "A critical roll",
-        hint: "Heard by whoever rolled it. The one moment at a roll that the whole table waits for, and until now the only one with a card colour and no sound.",
+        label: "Critical",
+        hint: "Plays when a roll is a critical, as its notice cuts in. Heard by whoever rolled it.",
         category: "world"
     },
     searchNothing: {

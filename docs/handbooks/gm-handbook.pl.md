@@ -1049,6 +1049,8 @@ Katalog według kategorii:
 
 Odbiorcy każdego zdarzenia są ustalone w katalogu - śmierć słyszą tylko GMowie i uczestnicy; znalezione ciało wszyscy; rebuttal cały stół, raz, gdy się zaczyna, niezależnie od tego, czy minęła minuta Objection, czy otworzyłeś go ty.
 
+**Krytyk**: gra przy krytyku, gdy powiadomienie wjeżdża cięciem. Od 1.2.105 powiadomienie o krytycznym wyniku akcji jest jedyną kartą, która wjeżdża cięciem, i zaczyna się od wyniku słowami, glifu krytyka oraz tego, kto rzucał i jaką akcją; karty rzutów na czacie wchodzą zwyczajnie.
+
 Przeglądarka nie gra niczego, dopóki nie zostanie kliknięta; moduł takie dźwięki porzuca, zamiast kolejkować. `game.drpg.diagnoseSfx()` liczy porzucone i wymienia, co jest przypisane, wyciszone albo już zawiodło; `game.drpg.testSfx(key)` mówi, czemu dźwięk nie zagrał; `game.drpg.diagnoseMusic()` drukuje każdy stan, czy obowiązuje i do czego jest przypisany.
 
 ---

@@ -43187,6 +43187,57 @@ const SCENARIOS = [
             "{first: the born host's button's aria-label; adopted: hosts the watch took on; later: a button added to it; chatSweeps: sweeps a chat keystroke started; hostSweeps: the control, a change in the host}");
     }],
 
+    ["E48-K7 - a critical action result's notice cuts in and no other does: the card of a critical (`popupTone` \"critical\", as action-report.mjs `rollTone` writes it) lands on one clip-path wipe of about 700 ms and reads data-drpg-cut \"cut\"; a Hope result's card none; under reduced motion the critical's card stands still (\"still\", no wipe)", async () => {
+        /*
+         * E48 K7, 11.11.2026 (STAGE, tier 2; amend [14], decision 6, Q8). On the GM's page, three cards posted as an
+         * action's card is posted (`whisperToOwner`, its title and tone in the flags) and forced onto the GM's screen
+         * (`popupForce`, a GM's: without it the GM, copied on a player's card, is shown no notice - popup.mjs's rule): a
+         * critical, a Hope result, and a critical with `drpg-reduced-motion` on the body (the Look window's switch). Each
+         * notice is found by its title and read: `data-drpg-cut` and the animations started on it. `Element#animate` is
+         * wrapped for the test (and stood in for where the page has none, as jsdom has none), so what is counted is
+         * the cut's call, not what a browser paints of it. Who sees the notice at all is the card's whisper (owner and
+         * GMs; a GM none): read by a two-client probe, not here (STATUS K7). Red before K7: no card was cut, so the
+         * critical read [null, 0].
+         */
+        const [actor] = cast(1);
+        must(actor, "no student - this would measure nothing");
+        const { whisperToOwner } = await import("./utils.mjs");
+        const proto = Element.prototype, own = Object.prototype.hasOwnProperty.call(proto, "animate"), animate = proto.animate;
+        const cuts = [];
+        proto.animate = function (keyframes, options) {
+            if (this.classList?.contains("drpg-popup")) cuts.push({ seq: this.dataset.drpgSeq ?? null, clip: (keyframes ?? []).some(k => "clipPath" in k), ms: options?.duration ?? null });
+            if (typeof animate === "function") return animate.call(this, keyframes, options);
+            return { cancel() {}, finish() {}, finished: Promise.resolve(), addEventListener() {} };
+        };
+        const messages = [];
+        const still = document.body.classList.contains("drpg-reduced-motion");
+        const STAMP = Date.now() % 100000;
+        const post = async (title, tone) => {
+            const message = await whisperToOwner(actor, `<p>Suite: ${title}</p>`, { flags: { [MODULE_ID]: { popupTitle: title, popupTone: tone, popupForce: true } } });
+            must(message, "the card was not posted - this would measure nothing");
+            messages.push(message);
+            const card = () => [...document.querySelectorAll(".drpg-popup")].find(c => c.querySelector(".drpg-popup-title")?.textContent?.includes(title)) ?? null;
+            await until(() => card(), 4000);
+            const el = card();
+            return [el?.dataset.drpgCut ?? null, cuts.filter(c => c.seq === (el?.dataset.drpgSeq ?? "none") && c.clip && c.ms >= 500 && c.ms <= 900).length];
+        };
+        const read = {};
+        try {
+            document.body.classList.remove("drpg-reduced-motion");
+            read.critical = await post(`K7 critical ${STAMP}`, "critical");
+            read.hope = await post(`K7 hope ${STAMP}`, "hope");
+            document.body.classList.add("drpg-reduced-motion");
+            read.still = await post(`K7 still ${STAMP}`, "critical");
+        } finally {
+            if (own) proto.animate = animate; else delete proto.animate;
+            document.body.classList.toggle("drpg-reduced-motion", still);
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            for (const message of messages) await message.delete();
+        }
+        equal(stableJson(read), stableJson({ critical: ["cut", 1], hope: [null, 0], still: ["still", 0] }),
+            "{each card: [its data-drpg-cut, the clip-path wipes of 500-900 ms started on it]}");
+    }],
+
     ["a window still answers for one tick after it was answered", async () => {
         /*
          * LIVE-REOPEN-01's measurement, kept as a test because the whole finding rests

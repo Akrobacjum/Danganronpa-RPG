@@ -22654,6 +22654,34 @@ const REGRESSIONS = [
             "[the shut box's visibility; rules hiding Details' parts by display: none; the cap, its value and the box's scroll; the stack's grid, its layers' cell and an unpicked one; "
             + "the columns stretched and the left one a column; the lines' size and ink and the sub-heading's size; E21's bound-li rules left]");
     }],
+    ["R3464 - the cut is the critical's alone and its slot says so in both languages (E48 K7; Q8, amend [14]): private-rolls.mjs starts no animation on a chat card (no call of motion.mjs `play`, no clip-path, no `cutIn`); popup.mjs cuts a card only when its tone is \"critical\" (`cutCritical`), with a clip-path wipe and still under `reducedMotion()`; config.mjs `SFX_EVENTS.critical` reads \"Critical\" and its hint the notice's cut, and lang/pl.json's twin \"Krytyk\"", async () => {
+        /*
+         * E48 K7, 11.11.2026. Read as text (comments stripped): the module's sources as module.mjs loads them, and
+         * lang/pl.json. The slot is the key the Sound window always had (a file mapped to it stays mapped); config.mjs
+         * is read as source, not as `SFX_EVENTS`, because a Polish client has swapped its words for pl.json's at
+         * `i18nInit`. What the cut does on a page: tier 2's E48-K7. Red before K7: the reaction cards' `cutIn`, no
+         * `cutCritical`, and the slot "A critical roll" / "Rzut krytyczny".
+         */
+        const sources = await moduleSources();
+        const rolls = stripComments(sources.get("private-rolls.mjs") ?? "");
+        const popup = stripComments(sources.get("popup.mjs") ?? "");
+        const config = stripComments(sources.get("config.mjs") ?? "");
+        must(rolls.length > 10000 && popup.length > 10000 && config.length > 10000, "private-rolls.mjs, popup.mjs or config.mjs read nothing - this would measure nothing");
+        const res = await fetch(`/modules/${MODULE_ID}/lang/pl.json`);
+        must(res.ok, `pl.json: HTTP ${res.status}`);
+        const pl = await res.json();
+        const cut = /\bfunction cutCritical\(/.test(popup) ? fnSource(popup, "cutCritical") : "";
+        const slot = /\n {4}critical: \{\s*label: "([^"]*)",\s*hint: "([^"]*)"/.exec(config);
+        const read = {
+            rollCards: [/(^|[^.\w])play\(/.test(rolls), /clipPath|clip-path/.test(rolls), /\bcutIn\b/.test(rolls)],
+            notice: [/const critical = tone === "critical";/.test(popup), /if \(critical\) cutCritical\(card\);/.test(popup),
+                /reducedMotion\(\)/.test(cut), /clipPath/.test(cut), (popup.match(/cutCritical\(/g) ?? []).length],
+            slot: [slot?.[1] ?? null, /notice cuts in/.test(slot?.[2] ?? ""), pl?.DRPG?.Config?.SFX_EVENTS?.critical?.label ?? null,
+                /powiadomienie wjeżdża cięciem/.test(pl?.DRPG?.Config?.SFX_EVENTS?.critical?.hint ?? "")]
+        };
+        equal(JSON.stringify(read), JSON.stringify({ rollCards: [false, false, false], notice: [true, true, true, true, 2], slot: ["Critical", true, "Krytyk", true] }),
+            "{rollCards: private-rolls.mjs plays, clips, cuts; notice: the tone's flag, the call under it, still under reduced motion, a clip-path wipe, cutCritical's mentions (its declaration and one call); slot: the English label, its hint names the cut, the Polish label, its hint}");
+    }],
     ["R3420 - every setting Foundry's list showed is in the DRPG Settings window, once (E49 A1; the owner's [11], [16], Q3, Q4): each of the 35 keys registered with `config: true` at 20218b05 (a frozen list) is in exactly one of settings-window.mjs's seven `SETTINGS_SECTIONS`, which name no other key; no setting of the module is `config: true`; the module's one menu is DRPG Settings, not restricted, and Give back's is gone; each key's `.name` and `.hint` are in lang/en.json and lang/pl.json and its hint's `firstSentence` is not empty in either; the seven sections' names in both", async () => {
         /*
          * E49 A1, 11.11.2026. The frozen list is 20218b05's (STAGE E49 "What HEAD does": 35 distinct `config: true`, 23
