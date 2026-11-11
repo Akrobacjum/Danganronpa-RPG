@@ -881,19 +881,21 @@ body:not(.drpg-theme-stained-glass) .application:is(.drpg-ui.drpg-panel:not(.dia
    The edge's style and colour, not its width: with `1px` the boxes shrank by the browser's 2 px edge (Chromium, the
    style harness, 1366x768, Legacy: Season setup's Open 69.3x19 to 67.3x17, Place 82.6x19 to 80.6x17, the notice
    history's Close and Clear 75x24 to 73x24), so the width stays whoever's it was - Foundry's at a table, which the
-   harness cannot read - and every box reads as before. */
-:where(body:not(.drpg-theme-stained-glass) .application.drpg-ui .window-content button) {
+   harness cannot read - and every box reads as before. Named by where they stand, a kit body and anywhere in an
+   ApplicationV2's content (the notice history's unread banner stands outside its scrolling body), never a dialog's footer: there danganronpa.css's footer rule draws every role (`!important`), and a kit rule
+   that loses on an element is one R1323 refuses (the first QUICK of this batch: 14 readings of a dialog footer's
+   buttons, their edge, radius and ink, won by that rule). The ink is not stated: `.drpg-panel button` gives the Bone. */
+:where(body:not(.drpg-theme-stained-glass) :is(.application.drpg-ui .drpg-kit-body, .application.drpg-ui:not(.dialog) .window-content) button) {
     background-color: var(--drpg-kit-btn-bg);
     border-style: solid;
     border-color: var(--drpg-kit-btn-edge);
     border-radius: var(--drpg-kit-btn-radius);
-    color: var(--drpg-kit-btn-ink);
 }
-:where(body:not(.drpg-theme-stained-glass) .application.drpg-ui .window-content button:hover:not(:disabled)) {
+:where(body:not(.drpg-theme-stained-glass) :is(.application.drpg-ui .drpg-kit-body, .application.drpg-ui:not(.dialog) .window-content) button:hover:not(:disabled)) {
     background-color: var(--drpg-kit-hover-bg);
     border-color: var(--drpg-kit-hover-edge);
 }
-:where(body:not(.drpg-theme-stained-glass) .application.drpg-ui .window-content button:disabled) {
+:where(body:not(.drpg-theme-stained-glass) :is(.application.drpg-ui .drpg-kit-body, .application.drpg-ui:not(.dialog) .window-content) button:disabled) {
     opacity: 0.45;
     cursor: not-allowed;
 }
@@ -909,6 +911,16 @@ body:not(.drpg-theme-stained-glass) .application:is(.drpg-ui.drpg-panel:not(.dia
 :where(body:not(.drpg-theme-stained-glass) .application.drpg-ui:not(.dialog) .drpg-kit-footer .drpg-role-destructive:hover:not(:disabled)) {
     background-color: var(--drpg-kit-destructive-hover-bg);
     border-color: var(--drpg-kit-destructive-hover-edge);
+}
+
+/* FT-04: the notice history's search under Legacy - the panels' field (danganronpa.css "THE PROJECT WINDOWS": that
+   rule names no search field, and the window's parts are styled here alone, R1330), the edge's colour and style only;
+   its ink is the window's (above, `color: inherit`), its ring the focus rule's below. */
+body:not(.drpg-theme-stained-glass) .drpg-notices-search input {
+    background-color: var(--drpg-kit-field-bg);
+    border-style: solid;
+    border-color: var(--drpg-kit-btn-edge);
+    border-radius: var(--drpg-kit-btn-radius);
 }
 
 /* FT-07, FT-25: the keyboard's place in every module control - the step buttons, the chips, the toggles, the checkboxes,

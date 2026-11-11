@@ -14458,13 +14458,10 @@ body.drpg-reduced-motion #pause.paused figcaption::after {
    Same three tokens as everywhere else - Ink under, Bone over, one rule
    colour - applied to the controls rather than to the window, because the
    window itself already takes the dialog ground from the block above.
-
-   A search field is one of them (E105 FT-04, 11.11.2026): the notice history's search took Foundry's field (the
-   browser's in the harness: no module ground, edge or focus ring under Legacy), the one `type="search"` in a panel.
    ========================================================================== */
 
 body.drpg-theme-monokuma-legacy .drpg-projects :is(input, select, textarea),
-body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="number"], input[type="search"], select, textarea) {
+body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="number"], select, textarea) {
     background: rgba(var(--drpg-ink-rgb), 0.55) !important;
     background-image: none !important;
     border: 1px solid var(--drpg-line-strong) !important;
@@ -14473,7 +14470,7 @@ body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="
 }
 
 body.drpg-theme-monokuma-legacy .drpg-projects :is(input, select, textarea):focus-visible,
-body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="number"], input[type="search"], select, textarea):focus-visible {
+body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="number"], select, textarea):focus-visible {
     outline: 2px solid var(--drpg-attention);
     outline-offset: 1px;
 }
