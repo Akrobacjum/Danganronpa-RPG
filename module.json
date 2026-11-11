@@ -48,11 +48,11 @@
     "scripts/module.mjs"
   ],
   "styles": [
+    "styles/base.css",
     "styles/motion.css",
     "styles/danganronpa.css",
     "styles/stained-glass.css",
     "styles/pixel-icons.css",
-    "styles/messenger.css",
     "styles/components.css",
     "styles/narrow.css"
   ],

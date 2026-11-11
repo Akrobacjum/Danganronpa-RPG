@@ -14,7 +14,7 @@
    A button's own face in a kit window stays today's panel button rule (danganronpa.css, stained-glass.css "the
    brush") until E22: a kit window keeps `.drpg-panel` on its root, and the kit sets where each button stands.
 
-   HOW IT WINS WITHOUT `!important`. Loaded after messenger.css and before narrow.css (module.json), so a tie in
+   HOW IT WINS WITHOUT `!important`. Loaded after the themes and before narrow.css (module.json; base.css, the messenger's, first since E49 B3), so a tie in
    specificity goes to the kit and narrow.css still has the last word. Where an older rule is more specific - the
    dialog footer's buttons (`.application.dialog:is(.drpg-panel, ...) footer.form-footer button`, 0,4,2) and the
    frame (`.application.dialog:is(...) .window-content`, 0,4,0) - the kit's selector is written one class or one
