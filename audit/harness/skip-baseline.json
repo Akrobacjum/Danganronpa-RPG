@@ -26,6 +26,7 @@
     { "test": "the slider moves the type under Monokuma Legacy and moves nothing under the glass", "probe": "env.cascade" },
     { "test": "a prose window's box follows the slider under Monokuma Legacy", "probe": "env.cascade" },
     { "test": "a found trace's token keeps the neutral name", "probe": "env.canvas" },
+    { "test": "the standing outline's light is drawn again when the hour turns, on a real canvas (E49 B4; S07-34, LIVE-E49-04)", "probe": "env.canvas" },
     { "test": "E49-A8-T1 - Details opens without moving the window (E49 A8.2; LIVE-E49-A8-01)", "probe": "env.layout" },
     { "test": "the panel's tiles in a row are one height and each icon and label reads in every state (scripts/gm-panel.mjs `buildSections`, styles/components.css E49 A3; LIVE-E49-01)", "probe": "env.layout" }
   ]
