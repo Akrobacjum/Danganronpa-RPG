@@ -1264,6 +1264,36 @@
       "file": "look-gm.html"
     },
     {
+      "id": "drpg-settings",
+      "client": "gm",
+      "opener": "settings-window.mjs m.openSettingsWindow()",
+      "captured": true,
+      "title": "DRPG Settings",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-window-settings",
+        "drpg-ui",
+        "drpg-panel",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Save changes",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "drpg-settings.html"
+    },
+    {
       "id": "notices-gm",
       "client": "gm",
       "opener": "notice-history-app.mjs m.openNotices()",
@@ -1552,6 +1582,36 @@
         }
       ],
       "file": "look-player.html"
+    },
+    {
+      "id": "drpg-settings-player",
+      "client": "p1",
+      "opener": "settings-window.mjs m.openSettingsWindow()",
+      "captured": true,
+      "title": "DRPG Settings",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-window-settings",
+        "drpg-ui",
+        "drpg-panel",
+        "drpg-kit-width"
+      ],
+      "tag": "dialog",
+      "width": 1008,
+      "buttons": [
+        {
+          "action": "save",
+          "label": "Save changes",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "drpg-settings-player.html"
     },
     {
       "id": "notices-player",

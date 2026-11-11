@@ -385,6 +385,26 @@
         "hint": "Jaśniejszy drobny tekst, pełne cienkie linie, nieprzezroczyste panele i żadnego rozmycia za elementami interfejsu. Rozmiar tekstu ustawia Skala interfejsu, nie ten przełącznik, a mapy to nie dotyczy. Włącza się sam, gdy twój system prosi o większy kontrast. Tylko ten klient."
       }
     },
+    "SettingsWindow": {
+      "menuName": "Ustawienia DRPG",
+      "menuLabel": "Otwórz ustawienia DRPG",
+      "title": "Ustawienia DRPG",
+      "sectionsLabel": "Sekcje",
+      "save": "Zapisz zmiany",
+      "scopeClient": "Tylko ta przeglądarka",
+      "scopeWorld": "Cały stół",
+      "glassOnly": "Tylko Stained Glass: wybierz ten motyw, by to zmienić.",
+      "legacyOnly": "Tylko Monokuma Legacy: wybierz ten motyw, by to zmienić.",
+      "sections": {
+        "look": "Wygląd",
+        "effects": "Efekty i dostępność",
+        "sound": "Dźwięk i głos",
+        "rules": "Zasady przy stole",
+        "privacy": "Rzuty i prywatność",
+        "gm": "Narzędzia GM-a i mapa",
+        "tech": "Techniczne"
+      }
+    },
     "SearchTokens": {
       "title": "Search Tokens",
       "allFull": {

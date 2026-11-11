@@ -87471,6 +87471,83 @@ const SCENARIOS = [
         equal(JSON.stringify(read), JSON.stringify({ rest: yes, current: yes, disabled: yes }),
             "[per state: every grid row's tiles within 1 px of one height, every tile where it stood at rest, the lowest label at 4.5:1 or more, the lowest icon at 3:1 or more]");
     }],
+    ["the DRPG Settings window saves as Foundry's form did: a world Boolean, a client range and the language, each read back as saved, each `onChange` once, the reload asked once for the language's `requiresReload`; Save with nothing changed and Cancel write nothing (scripts/settings-window.mjs `saveSettings`, `openSettingsWindow`; E49 A1; STAGE E49 Risks 2)", async () => {
+        /*
+         * E49 A1, 11.11.2026. Foundry's Configure Settings wrote a changed setting by `game.settings.set` (its `onChange`
+         * then runs) and none it left as it was, and asked `SettingsConfig.reloadConfirm({ world })` once after the last
+         * write when one of them had `requiresReload` (v13's `#onSubmit`, read as text). The window drawn by its own wait on
+         * this GM, three fields changed - despairFromRolls (world, a switch), uiScale (client, a stepper with a range), the
+         * language (client, `requiresReload`) - then Save pressed; each setting's `onChange` wrapped to count its runs (the
+         * language and despairFromRolls have none: Foundry would call one if there were); `reloadConfirm` stood in for
+         * Foundry's, counting (no reload). Then Save with nothing changed, and Cancel after a change: nothing written, no
+         * reload. Every value put back after. Red on 13531607: settings-window.mjs does not exist.
+         */
+        needs(env.dialogs(), "the window is drawn and its buttons pressed");
+        const W = await import("./settings-window.mjs");
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-settings"));
+        must(of().length === 0, "a DRPG Settings window stands open already");
+        const keys = ["despairFromRolls", "uiScale", "language"];
+        const get = k => game.settings.get(MODULE_ID, k);
+        const was = Object.fromEntries(keys.map(k => [k, get(k)]));
+        const want = { despairFromRolls: !was.despairFromRolls, uiScale: was.uiScale === 1.1 ? 1 : 1.1, language: was.language === "pl" ? "en" : "pl" };
+        const asStored = clientStored();
+        const defs = Object.fromEntries(keys.map(k => [k, game.settings.settings.get(`${MODULE_ID}.${k}`)]));
+        const own = Object.fromEntries(keys.map(k => [k, Object.hasOwn(defs[k], "onChange") ? defs[k].onChange : undefined]));
+        const runs = Object.fromEntries(keys.map(k => [k, 0]));
+        const reloads = [];
+        const apps = foundry.applications;
+        const hadSettings = Object.hasOwn(apps, "settings");
+        const SC = apps.settings?.SettingsConfig;
+        const realConfirm = SC?.reloadConfirm;
+        const round = async ({ change, press }) => {
+            const done = Promise.resolve().then(() => W.openSettingsWindow()).catch(err => `threw: ${err?.message}`);
+            await until(() => of()[0]?.element?.querySelector('[name="despairFromRolls"]'), 6000);
+            const root = of()[0]?.element ?? null;
+            if (change) {
+                const box = root?.querySelector('[name="despairFromRolls"]');
+                if (box) box.checked = want.despairFromRolls;
+                const scale = root?.querySelector('[name="uiScale"]');
+                if (scale) scale.value = String(want.uiScale);
+                const lang = root?.querySelector('[name="language"]');
+                if (lang) lang.value = want.language;
+            }
+            root?.querySelector(`footer button[data-action="${press}"]`)?.click();
+            const got = await Promise.race([done, wait(6000).then(() => "timeout")]);
+            await settle();
+            return { got: typeof got === "string" ? got : stableJson(got), values: keys.map(get), runs: keys.map(k => runs[k]), reloads: reloads.length, open: of().length };
+        };
+        const read = {};
+        try {
+            for (const k of keys) defs[k].onChange = (...args) => { runs[k] += 1; return own[k]?.(...args); };
+            const confirm = async options => { reloads.push(stableJson(options ?? null)); return false; };
+            if (SC) SC.reloadConfirm = confirm;
+            else apps.settings = { SettingsConfig: { reloadConfirm: confirm } };
+            read.saved = await round({ change: true, press: "save" });
+            await until(() => keys.every(k => get(k) === want[k]), 4000);
+            read.saved.values = keys.map(get);
+            read.asked = [...reloads];
+            read.unchanged = await round({ change: false, press: "save" });
+            read.cancelled = await round({ change: true, press: "cancel" });
+        } finally {
+            for (const a of of()) await a.close().catch(() => {});
+            for (const k of keys) {
+                if (own[k] === undefined) delete defs[k].onChange;
+                else defs[k].onChange = own[k];
+            }
+            if (SC) SC.reloadConfirm = realConfirm;
+            else if (!hadSettings) delete apps.settings;
+            await game.settings.set(MODULE_ID, "despairFromRolls", was.despairFromRolls);
+            putBackStored(asStored);
+            await settle();
+        }
+        const after = keys.map(k => want[k]);
+        equal(stableJson(read), stableJson({
+            saved: { got: "save", values: after, runs: [1, 1, 1], reloads: 1, open: 0 },
+            asked: [stableJson({ world: false })],
+            unchanged: { got: "save", values: after, runs: [1, 1, 1], reloads: 1, open: 0 },
+            cancelled: { got: "cancel", values: after, runs: [1, 1, 1], reloads: 1, open: 0 }
+        }), "{saved, unchanged, cancelled: [what the window answered, the three values after, each onChange's runs so far, reloads asked so far, windows open]; asked: the reload's options}");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

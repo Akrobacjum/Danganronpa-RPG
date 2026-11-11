@@ -17910,6 +17910,8 @@ const REGRESSIONS = [
             ["overflow.mjs", "ovf-${key}-by", /\bby\.value\b/g],
             ["overflow.mjs", "ovf-threshold", /\[name="ovf-threshold"\]'\)\?\.value/g],
             ["season-setup.mjs", "chapter", /\bf\.chapter\.value\b/g],
+            // E49 A1: the DRPG Settings window's two number settings (Search Tokens per room, Interface scale), by the setting's key.
+            ["settings-window.mjs", "${name}", /\bNumber\(field\.value\)/g],
             ["trial-floor-ui.mjs", "seconds", /\("form"\)\.seconds\.value\b/g],
             ["trial-floor-ui.mjs", "seconds", /\[name=seconds\]"\)\?\.value/g]
         ];
@@ -21879,7 +21881,7 @@ const REGRESSIONS = [
     }],
     /* ---- E46 C6 (09.11.2026) ---- */
 
-    ["R2035 - the warning sites E21 homed are in their final state for E46 and E47 (E46-C6, E47-C7; E46-20, E47-18; STAGE E46 \"The carried warning sites\", E21 STATUS fix G2 item 10): each function of E46's and E47's windows draws its warnings with box(\"warning\") and its information lines with box(\"info\") and keeps no drpg-warning; each whispered chat card E47-C5's surfaces did not take keeps its drpg-warning, carried to E48, as do Item tables' install receipt and the verdict's summary; the window sites no E47 group took are named, left open", async () => {
+    ["R2035 - the warning sites E21 homed are in their final state for E46 and E47 (E46-C6, E47-C7; E46-20, E47-18; STAGE E46 \"The carried warning sites\", E21 STATUS fix G2 item 10): each function of E46's and E47's windows draws its warnings with box(\"warning\") and its information lines with box(\"info\") and keeps no drpg-warning; each whispered chat card E47-C5's surfaces did not take keeps its drpg-warning, carried to E49 (E49 A0), as do Item tables' install receipt and the verdict's summary; the window sites no E47 group took are named, left open", async () => {
         /*
          * E46-C6, 09.11.2026; the E47 rows E47-C7, 09.11.2026. E21's list (fix G2 item 10) homed 112 `drpg-warning` sites
          * by window at 3c952c67 (W 87, I 25): E46's windows 19, E47's windows 36, the whispered chat cards 57 (46 W, 11 I).
@@ -21887,7 +21889,7 @@ const REGRESSIONS = [
          * the function's source with comments blanked: `box("warning", ` and gm-items.mjs's `kindNote("...")` (one such
          * box, its own row) as warnings, `box("info", ` as information. Stage E46 and E47: the window's group converted
          * them, no `drpg-warning` left (room-setup.mjs's second info box is the room count's line, E21 C5, R1373; the case's
-         * health is a checkList since E47-C3, so no box). Stage E48: a chat card - a whisper to the GMs or a card the table
+         * health is a checkList since E47-C3, so no box). Stage E49 (E48 until E49 A0, 11.11.2026: the chat cards are E49 B5's, E48 Q9): a chat card - a whisper to the GMs or a card the table
          * reads - which no E46 or E47 group rebuilt (E47-C5 took four: sheet-audit.mjs `awayCard` and `flaggedCard`,
          * roll-draw.mjs `announceRollDraw` and `onRenderUnwitnessed`, now `rollStatus`), its sites counted as they stand
          * and carried to the stage that rebuilds its card; Item tables' install receipt (E46-C6 Open 1) and the verdict's
@@ -21914,22 +21916,22 @@ const REGRESSIONS = [
             ["mastermind.mjs", "openMastermindDialog", "open", 0, 0, 1], ["reroll.mjs", "settleGmRuling", "open", 0, 0, 1],
             ["roll-dialog.mjs", "announceFreeCritical", "open", 0, 0, 1], ["trial.mjs", "pickObjectionEvidence", "open", 0, 0, 1],
             ["use-items.mjs", "confirmUse", "open", 0, 0, 1],
-            ["tables-editor.mjs", "installTables", "E48", 0, 0, 1], ["verdict.mjs", "verdictSummaryContent", "E48", 0, 0, 1],
-            ["analyze.mjs", "tellGmsKeyMissing", "E48", 0, 0, 1], ["anonymity.mjs", "lowerOwnership", "E48", 0, 0, 1],
-            ["bridge-runs-acts.mjs", "handleAdvancement", "E48", 0, 0, 1], ["call-effects.mjs", "tell", "E48", 0, 0, 1], ["call-gm.mjs", "callCardHtml", "E48", 0, 0, 1],
-            ["chapter.mjs", "runDiscovery", "E48", 0, 0, 1], ["chapter.mjs", "endChapterNow", "E48", 0, 0, 1], ["chapter.mjs", "runChapterEnd", "E48", 0, 0, 1],
-            ["chapter.mjs", "finishEndNow", "E48", 0, 0, 1], ["cleanup.mjs", "reshapeCardParts", "E48", 0, 0, 1], ["cleanup.mjs", "proposeReshape", "E48", 0, 0, 1],
-            ["cleanup.mjs", "undoLastCleanup", "E48", 0, 0, 2], ["cleanup.mjs", "paidBack", "E48", 0, 0, 1], ["eclipse.mjs", "ruleOnParkedMurder", "E48", 0, 0, 1],
-            ["eclipse.mjs", "judgePendingMurders", "E48", 0, 0, 4], ["inventory.mjs", "transferItem", "E48", 0, 0, 2], ["investigation.mjs", "chargeForUnfoundKeys", "E48", 0, 0, 1],
-            ["migrate.mjs", "*", "E48", 0, 0, 1], ["movement-audit.mjs", "auditMove", "E48", 0, 0, 2], ["movement.mjs", "keepRoomFlag", "E48", 0, 0, 1],
-            ["movement.mjs", "removeDrop", "E48", 0, 0, 1], ["movement.mjs", "tellUnlawful", "E48", 0, 0, 1], ["movement.mjs", "tellDropped", "E48", 0, 0, 1],
-            ["murder-rules.mjs", "resolveVictimOpening", "E48", 0, 0, 1], ["murder-rules.mjs", "applyCrisisAction", "E48", 0, 0, 1], ["murder-rules.mjs", "swapRoles", "E48", 0, 0, 1],
-            ["murder-rules.mjs", "refuseBetrayal", "E48", 0, 0, 1], ["murder-rules.mjs", "throwOpeningRoll", "E48", 0, 0, 1], ["observe.mjs", "resolveObserve", "E48", 0, 0, 2],
-            ["relay-guard.mjs", "reportRefusal", "E48", 0, 0, 1], ["relay-guard.mjs", "unknownSender", "E48", 0, 0, 1], ["relay-guard.mjs", "shapeWarning", "E48", 0, 0, 1],
-            ["relay-guard.mjs", "announce", "E48", 0, 0, 3], ["remnants.mjs", "dropRemnant", "E48", 0, 0, 1], ["reroll-receipts.mjs", "warnGms", "E48", 0, 0, 1],
-            ["roll-draw.mjs", "tellUnexpected", "E48", 0, 0, 1], ["rules.mjs", "setMotive", "E48", 0, 0, 1], ["rules.mjs", "dueCard", "E48", 0, 0, 1],
-            ["sheet-audit.mjs", "record", "E48", 0, 0, 1], ["sheet-audit.mjs", "onForgedCard", "E48", 0, 0, 1], ["steps.mjs", "stepsReport", "E48", 0, 0, 1],
-            ["truth-bullets.mjs", "revertPlayerBulletEdit", "E48", 0, 0, 1], ["use-items.mjs", "discardBroken", "E48", 0, 0, 1], ["vault-store.mjs", "clearSplitPiece", "E48", 0, 0, 1]
+            ["tables-editor.mjs", "installTables", "E49", 0, 0, 1], ["verdict.mjs", "verdictSummaryContent", "E49", 0, 0, 1],
+            ["analyze.mjs", "tellGmsKeyMissing", "E49", 0, 0, 1], ["anonymity.mjs", "lowerOwnership", "E49", 0, 0, 1],
+            ["bridge-runs-acts.mjs", "handleAdvancement", "E49", 0, 0, 1], ["call-effects.mjs", "tell", "E49", 0, 0, 1], ["call-gm.mjs", "callCardHtml", "E49", 0, 0, 1],
+            ["chapter.mjs", "runDiscovery", "E49", 0, 0, 1], ["chapter.mjs", "endChapterNow", "E49", 0, 0, 1], ["chapter.mjs", "runChapterEnd", "E49", 0, 0, 1],
+            ["chapter.mjs", "finishEndNow", "E49", 0, 0, 1], ["cleanup.mjs", "reshapeCardParts", "E49", 0, 0, 1], ["cleanup.mjs", "proposeReshape", "E49", 0, 0, 1],
+            ["cleanup.mjs", "undoLastCleanup", "E49", 0, 0, 2], ["cleanup.mjs", "paidBack", "E49", 0, 0, 1], ["eclipse.mjs", "ruleOnParkedMurder", "E49", 0, 0, 1],
+            ["eclipse.mjs", "judgePendingMurders", "E49", 0, 0, 4], ["inventory.mjs", "transferItem", "E49", 0, 0, 2], ["investigation.mjs", "chargeForUnfoundKeys", "E49", 0, 0, 1],
+            ["migrate.mjs", "*", "E49", 0, 0, 1], ["movement-audit.mjs", "auditMove", "E49", 0, 0, 2], ["movement.mjs", "keepRoomFlag", "E49", 0, 0, 1],
+            ["movement.mjs", "removeDrop", "E49", 0, 0, 1], ["movement.mjs", "tellUnlawful", "E49", 0, 0, 1], ["movement.mjs", "tellDropped", "E49", 0, 0, 1],
+            ["murder-rules.mjs", "resolveVictimOpening", "E49", 0, 0, 1], ["murder-rules.mjs", "applyCrisisAction", "E49", 0, 0, 1], ["murder-rules.mjs", "swapRoles", "E49", 0, 0, 1],
+            ["murder-rules.mjs", "refuseBetrayal", "E49", 0, 0, 1], ["murder-rules.mjs", "throwOpeningRoll", "E49", 0, 0, 1], ["observe.mjs", "resolveObserve", "E49", 0, 0, 2],
+            ["relay-guard.mjs", "reportRefusal", "E49", 0, 0, 1], ["relay-guard.mjs", "unknownSender", "E49", 0, 0, 1], ["relay-guard.mjs", "shapeWarning", "E49", 0, 0, 1],
+            ["relay-guard.mjs", "announce", "E49", 0, 0, 3], ["remnants.mjs", "dropRemnant", "E49", 0, 0, 1], ["reroll-receipts.mjs", "warnGms", "E49", 0, 0, 1],
+            ["roll-draw.mjs", "tellUnexpected", "E49", 0, 0, 1], ["rules.mjs", "setMotive", "E49", 0, 0, 1], ["rules.mjs", "dueCard", "E49", 0, 0, 1],
+            ["sheet-audit.mjs", "record", "E49", 0, 0, 1], ["sheet-audit.mjs", "onForgedCard", "E49", 0, 0, 1], ["steps.mjs", "stepsReport", "E49", 0, 0, 1],
+            ["truth-bullets.mjs", "revertPlayerBulletEdit", "E49", 0, 0, 1], ["use-items.mjs", "discardBroken", "E49", 0, 0, 1], ["vault-store.mjs", "clearSplitPiece", "E49", 0, 0, 1]
         ];
         const files = {};
         for (const file of new Set(SITES.map(([file]) => file))) files[file] = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
@@ -21943,8 +21945,8 @@ const REGRESSIONS = [
             by[stage] = (by[stage] ?? 0) + d;
         }
         // The carried sites, as E47-C7 counted them on 9aafad79 (STATUS E47-C7): 53 chat card sites (43 W, 10 I) and the
-        // two whispers, 55; 7 window sites left open.
-        equal(JSON.stringify({ E48: by.E48, open: by.open }), JSON.stringify({ E48: 55, open: 7 }), "{drpg-warning sites carried to E48, left open}");
+        // two whispers, 55; 7 window sites left open. Carried to E49 by E49 A0 (the same 55).
+        equal(JSON.stringify({ E49: by.E49, open: by.open }), JSON.stringify({ E49: 55, open: 7 }), "{drpg-warning sites carried to E49, left open}");
         equal(JSON.stringify(got), JSON.stringify(want), "{file:function (stage): [warning boxes, info boxes, drpg-warning left]}");
     }],
 
@@ -22522,6 +22524,58 @@ const REGRESSIONS = [
             lines: [["var(--drpg-text-sm)"], ["var(--drpg-kit-brief-ink)"], ["var(--drpg-text-sm)"]], oldBound: 0 }),
             "[the shut box's visibility; rules hiding Details' parts by display: none; the cap, its value and the box's scroll; the stack's grid, its layers' cell and an unpicked one; "
             + "the columns stretched and the left one a column; the lines' size and ink and the sub-heading's size; E21's bound-li rules left]");
+    }],
+    ["R3420 - every setting Foundry's list showed is in the DRPG Settings window, once (E49 A1; the owner's [11], [16], Q3, Q4): each of the 35 keys registered with `config: true` at 20218b05 (a frozen list) is in exactly one of settings-window.mjs's seven `SETTINGS_SECTIONS`, which name no other key; no setting of the module is `config: true`; the module's one menu is DRPG Settings, not restricted, and Give back's is gone; each key's `.name` and `.hint` are in lang/en.json and lang/pl.json and its hint's `firstSentence` is not empty in either; the seven sections' names in both", async () => {
+        /*
+         * E49 A1, 11.11.2026. The frozen list is 20218b05's (STAGE E49 "What HEAD does": 35 distinct `config: true`, 23
+         * world, 12 client; glassPulse's block carried the flag twice, design-notes.md), read by a script over settings.mjs's
+         * `register(MODULE_ID, SETTINGS.x, {` blocks. Red on 13531607: settings-window.mjs does not exist (the import
+         * throws) and the 35 are `config: true`. What a GM and a player see on v14: LIVE-E49-02.
+         */
+        const FROZEN = ["forcePrivateRolls", "forceDiceLook", "enforceAnonymity", "searchTokensPerRoom", "enforceIsoWelcome", "enforceDhWelcome",
+            "enforcePlayerFiles", "liveKitInFoundry", "hideSystemFear", "pixelFont", "wideProjectWindows", "language", "theme", "glassPulse", "glassBlur",
+            "reducedMotion", "highContrast", "hudTicker", "messengerSound", "uiScale", "debug", "voiceEnabled", "voiceTile", "musicEnabled", "moveAudit",
+            "foundryToolWindows", "isoTokenShield", "regionFog", "despairFromRolls", "lockRollDialog", "roomVisibility", "lockPlayerResources",
+            "autoApproveTraits", "friskForce", "chargeMovement"];
+        let W = null;
+        try { W = await import("./settings-window.mjs"); } catch (err) { W = { failed: String(err?.message ?? err) }; }
+        const sections = Array.isArray(W?.SETTINGS_SECTIONS) ? W.SETTINGS_SECTIONS : [];
+        const seen = FROZEN.map(k => sections.filter(s => s.keys.includes(SETTINGS[k] ?? k)).length);
+        const named = sections.flatMap(s => s.keys);
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const at = (tree, key) => key.split(".").reduce((o, part) => (o && typeof o === "object" ? o[part] : undefined), tree);
+        const first = typeof W?.firstSentence === "function" ? W.firstSentence : () => "";
+        const words = FROZEN.filter(k => {
+            const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS[k] ?? k}`);
+            return !reg || [reg.name, reg.hint].some(key => typeof key !== "string" || typeof at(en, key) !== "string" || typeof at(pl, key) !== "string")
+                || !first(at(en, reg.hint)) || !first(at(pl, reg.hint));
+        });
+        const shown = [...game.settings.settings.entries()].filter(([full, r]) => full.startsWith(`${MODULE_ID}.`) && r?.config === true).map(([full]) => full);
+        const menus = [...(game.settings.menus?.entries?.() ?? [])].filter(([key]) => key.startsWith(`${MODULE_ID}.`));
+        const src = stripComments((await moduleSources()).get("settings.mjs") ?? "");
+        must(src.length > 10000, "settings.mjs was not read - this reads nothing of its registrations");
+        const menuCalls = [...src.matchAll(/registerMenu\??\.?\(\s*MODULE_ID\s*,\s*(\w+)/g)].map(m => m[1]);
+        const read = {
+            loaded: W?.failed ?? true,
+            sections: sections.map(s => [s.key, s.keys.length, typeof s.icon === "string" && s.icon.startsWith("fa-")]),
+            once: FROZEN.filter((k, i) => seen[i] !== 1),
+            others: named.filter(k => !FROZEN.includes(k)),
+            configTrue: shown,
+            menuCalls,
+            menuRestricted: /registerMenu\??\.?\(\s*MODULE_ID\s*,\s*SETTINGS_MENU\s*,\s*\{[^}]*restricted:\s*false/.test(src),
+            menus: menus.length ? menus.map(([key, m]) => [key, m.restricted ?? null]) : "not modelled",
+            words,
+            sectionWords: sections.map(s => [en, pl].every(t => typeof at(t, `DRPG.SettingsWindow.sections.${s.key}`) === "string"))
+        };
+        equal(JSON.stringify(read), JSON.stringify({
+            loaded: true,
+            sections: [["look", 5, true], ["effects", 5, true], ["sound", 5, true], ["rules", 7, true], ["privacy", 6, true], ["gm", 4, true], ["tech", 3, true]],
+            once: [], others: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
+            menus: read.menus === "not modelled" ? "not modelled" : [[`${MODULE_ID}.drpgSettings`, false]],
+            words: [], sectionWords: [true, true, true, true, true, true, true]
+        }), "[the window's module loads; its sections (key, size, an icon); keys not in exactly one; keys no frozen one; settings still config: true; "
+            + "the menus registered in settings.mjs; DRPG Settings not restricted; the menus Foundry holds; keys missing a name, a hint or a first sentence in en or pl; the sections' names in both]");
     }],
 ];
 

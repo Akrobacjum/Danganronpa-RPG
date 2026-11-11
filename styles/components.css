@@ -3186,3 +3186,102 @@ body:not(.drpg-theme-stained-glass) .application.drpg-ui .drpg-look input[type="
     font-size: var(--drpg-text-sm);
     color: var(--drpg-kit-brief-ink);
 }
+
+/* ---- THE SETTINGS WINDOW (E49 A1, 11.11.2026; the owner's [11], [16] variant A, and his rule of 10.11: "no state may
+   add, remove or shift a control") ----
+   settings-window.mjs draws every section when the window opens, the ones not picked `hidden`. ONE SIZE AT EVERY PICK:
+   the panes share one grid cell and a hidden one keeps its box, invisible (`visibility` takes it out of the focus order
+   and the accessibility tree as `display: none` did), so the cell is the tallest section's at every pick - read by
+   style-sweep `--settings` (its control: the panes `display: none` again reads as a change). Left, the sections' list
+   (the kit tab's ground and ink, a column); right, the picked section's rows in two columns, each row its control on one
+   line and the first sentence of its hint under it in the kit's help ink (under the glass at its chrome rung, 21 px: a
+   caption; the nav's buttons outrank the glass's nowrap panel button, (0,7,2), so a section's name wraps). A setting of the other theme stays in its
+   place, dimmed. */
+body .application.drpg-window-settings .drpg-variant-columns { align-items: stretch; gap: 12px; }
+body .application.drpg-window-settings .drpg-variant-columns > .drpg-settings-nav { flex: 0 0 15rem; min-width: 0; }
+body .application.drpg-window-settings .drpg-variant-columns > .drpg-settings-main { flex: 1 1 0; min-width: 0; }
+.drpg-window-settings .drpg-settings-sections { display: flex; flex-direction: column; gap: 4px; }
+body .application.drpg-ui.drpg-panel.drpg-window-settings .drpg-variant-columns .drpg-settings-sections > button.drpg-settings-tab[type="button"] {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    height: auto;
+    min-height: 32px;
+    margin: 0;
+    padding: 4px 10px;
+    text-align: start;
+    white-space: normal;
+    letter-spacing: 0.04em;
+    line-height: 1.15;
+    background: var(--drpg-kit-tab-bg);
+    border: 1px solid var(--drpg-kit-line);
+}
+.drpg-window-settings .drpg-settings-tab > span { flex: 1 1 auto; min-width: 0; text-align: start; }
+.drpg-window-settings .drpg-settings-tab > b { font-variant-numeric: tabular-nums; opacity: 0.8; }
+.drpg-window-settings .drpg-settings-tab > i { width: 1.2em; text-align: center; }
+body:not(.drpg-theme-stained-glass) .application.drpg-ui.drpg-panel.drpg-window-settings .drpg-variant-columns .drpg-settings-sections > button.drpg-settings-tab[type="button"]:hover:not([aria-pressed="true"]) { background: var(--drpg-kit-tab-hover); }
+body .application.drpg-ui.drpg-panel.drpg-window-settings .drpg-variant-columns .drpg-settings-sections > button.drpg-settings-tab[type="button"][aria-pressed="true"] {
+    color: var(--drpg-kit-tab-on-ink);
+    background: var(--drpg-kit-tab-on-bg);
+    border-color: var(--drpg-kit-tab-on-edge);
+}
+body.drpg-theme-stained-glass .application.drpg-ui.drpg-panel.drpg-window-settings .drpg-variant-columns .drpg-settings-sections > button.drpg-settings-tab[type="button"][aria-pressed="true"] {
+    --brush-on: 1;
+    --brush-ink: var(--drpg-kit-tab-on-ink);
+    --brush-edge: var(--brush);
+}
+.drpg-window-settings .drpg-settings-tab:focus-visible { outline: 2px solid var(--drpg-kit-tab-on-edge); outline-offset: -2px; }
+.drpg-window-settings .drpg-settings-panes { display: grid; }
+.drpg-window-settings .drpg-settings-panes > .drpg-settings-pane { grid-area: 1 / 1; min-width: 0; }
+.drpg-window-settings .drpg-settings-panes > .drpg-settings-pane[hidden] { display: block; visibility: hidden; }
+.drpg-window-settings .drpg-settings-rows {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: row dense;
+    gap: 2px 16px;
+    align-content: start;
+}
+.drpg-window-settings .drpg-settings-row { min-width: 0; padding: 3px 0 5px; border-bottom: 1px solid var(--drpg-kit-line); }
+.drpg-window-settings .drpg-settings-row.is-off { opacity: 0.5; }
+.drpg-window-settings .drpg-settings-control { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 28px; }
+.drpg-window-settings .drpg-settings-control > :is(.drpg-toggle, .drpg-settings-label) { flex: 1 1 auto; min-width: 0; margin: 0; }
+/* chrome.mjs wraps the select in `.drpg-select` (the rule at the kit's formGrid, above), so both are sized here. */
+body .drpg-window-settings .drpg-settings-control > :is(select, .drpg-select) { flex: 1 1 14rem; min-width: 0; width: auto; max-width: 100%; }
+body .drpg-window-settings .drpg-settings-control:has(> .drpg-select, > select) > .drpg-settings-label { flex: 1 1 8rem; }
+body .drpg-window-settings .drpg-settings-control > .drpg-select { display: flex; }
+body .drpg-window-settings .drpg-settings-control > .drpg-select > select { flex: 1 1 auto; width: 100%; max-width: 100%; }
+.drpg-window-settings .drpg-settings-control > .drpg-kit-stepper { flex: 0 0 auto; }
+.drpg-window-settings .drpg-settings-control > .drpg-field-msg:empty { display: none; }
+.drpg-window-settings .drpg-settings-control > .drpg-settings-scope { flex: 0 0 auto; color: var(--drpg-kit-help-ink); font-size: var(--drpg-kit-help-size); }
+.drpg-window-settings .drpg-settings-hint {
+    margin: 2px 0 0;
+    line-height: 1.2;
+    color: var(--drpg-kit-help-ink);
+}
+.drpg-window-settings .drpg-settings-giveback > .drpg-settings-control { flex-wrap: wrap; }
+.drpg-window-settings .drpg-settings-giveback > .drpg-settings-control > .drpg-settings-label { flex: 1 0 100%; }
+body .application.drpg-ui.drpg-panel.drpg-window-settings .drpg-variant-columns .drpg-settings-giveback button[data-drpg-give-back][type="button"] {
+    flex: 0 1 auto;
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    margin: 0;
+    padding: 2px 10px;
+    white-space: normal;
+}
+body:not(.drpg-theme-stained-glass) .drpg-window-settings .drpg-settings-hint { font-size: var(--drpg-kit-help-size); }
+/* E49 A1c (11.11.2026; the orchestrator's review of A1's shots). THE ICON WEARS ITS LABEL'S INK in every state, as E49 A3
+   gave the GM panel's tiles: under the glass the picked section's gold icon stood on the gold lit row, 1.05:1 picked,
+   hovered and focused (style-sweep `--settings`). Under Legacy the list's ink is the kit's (the glass's panel button
+   keeps its own, which its brush answers on hover). A SELECT HOLDS ITS LONGEST CHOICE (the move audit's choice stood in
+   129 of its 202 px under the glass,
+   148 of 312 under Legacy; the theme's in 184 of 195 under Legacy, whose `appearance: base-select` sizes a select to
+   the choice it shows, so a pick would move it). So a select's width is the row's, never its content's: the name 8rem
+   and the select 14rem, both growing into the line, the same whatever is picked; the move audit's row, whose Polish
+   choice is 429 px under Legacy (more than a column), spans both columns, the next row filling the gap it leaves
+   (`dense`; every row with a select spanning made the glass window 37 px taller than 1366x768 holds). */
+body:not(.drpg-theme-stained-glass) .application.drpg-ui.drpg-panel.drpg-window-settings .drpg-variant-columns .drpg-settings-sections > button.drpg-settings-tab[type="button"]:not([aria-pressed="true"]) { color: var(--drpg-kit-ink); }
+body .application.drpg-ui.drpg-panel.drpg-window-settings .drpg-variant-columns .drpg-settings-sections > button.drpg-settings-tab[type="button"] > i { color: inherit; opacity: 1; }
+.drpg-window-settings .drpg-settings-rows > .drpg-settings-row[data-drpg-setting="moveAudit"] { grid-column: 1 / -1; }
+

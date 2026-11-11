@@ -97,6 +97,8 @@ export const WINDOWS = [
     { id: "item-manager", module: "gm-items.mjs", call: "m.openItemManager()" },
     { id: "item-tables", module: "tables-editor.mjs", call: "m.openItemTables()" },
     { id: "look-gm", module: "look.mjs", call: "m.openLookDialog()" },
+    // E49 A1: the DRPG Settings window, every section drawn (one shown), as a GM and as a player (the client rows alone).
+    { id: "drpg-settings", module: "settings-window.mjs", call: "m.openSettingsWindow()" },
     { id: "notices-gm", module: "notice-history-app.mjs", call: "m.openNotices()" },
     { id: "gm-panel", module: "gm-panel.mjs", call: "m.openGmPanel()" },
     // E46 C0: the four GM windows E46 and E47 change that open with no state built.
@@ -106,6 +108,7 @@ export const WINDOWS = [
     { id: "projects", module: "projects-ui.mjs", call: "m.openProjectManager()" },
     { id: "sound-player", client: "p1", module: "sound-panel.mjs", call: "m.openSoundDialog()" },
     { id: "look-player", client: "p1", module: "look.mjs", call: "m.openLookDialog()" },
+    { id: "drpg-settings-player", client: "p1", module: "settings-window.mjs", call: "m.openSettingsWindow()" },
     { id: "notices-player", client: "p1", module: "notice-history-app.mjs", call: "m.openNotices()" },
     ...ACTION_WINDOWS.map(key => ({ id: `action-${key}`, client: "p1", module: "action-rolls.mjs", call: `m.performAction(${MINE}, ${JSON.stringify(key)})` })),
     { id: "notices-player-250", client: "p1", module: "notice-history-app.mjs", before: NOTICES_250, call: "m.openNotices()" },
