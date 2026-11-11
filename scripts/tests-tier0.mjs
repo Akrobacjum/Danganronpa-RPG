@@ -518,7 +518,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(cssBudgetProblems(counts, budget, { atMost: true })), "[]", "a served sheet is above its budget, or the budget and module.json disagree");
     }],
 
-    ["R3410 - gold means Hope alone: no served sheet reads a gold token (`--drpg-gold`, its light, deep, shadow and -rgb, `--drpg-sg-hope`) in a rule whose selector names no Hope word, nor holds a meaning token's own value under another name, nor `--drpg-attention` outside focus and selection; the check finds the three faults planted in its fixture and one planted in a served sheet and a planted copy of gold's value; `--drpg-attention` is Bone in both themes and the clock's Daily Life reads it (E48 K1, K2b; Q6)", async () => {
+    ["R3410 - gold means Hope alone: no served sheet reads a gold token (`--drpg-gold`, its light, deep, shadow and -rgb, `--drpg-sg-hope`) in a rule whose selector names no Hope word, nor holds a meaning token's own value under another name, nor `--drpg-attention` outside focus and selection, nor `--drpg-critical` outside a critical; the check finds the three faults planted in its fixture and one planted in a served sheet and a planted copy of gold's value; `--drpg-attention` is Bone in both themes and the clock's Daily Life reads it, and `--drpg-critical` is the critical's light red, read by the flat roll's critical line (E48 K1, K2b; Q6)", async () => {
         /*
          * E48 K1, 11.11.2026 (the plan's "złoto zostaje wyłącznie dla Hope"; S12-61). tests-css.mjs `meaningReads`, the
          * function `node tools/check.mjs css` runs, on the files Foundry serves. Red before K1: "54 read(s) of a meaning
@@ -529,7 +529,8 @@ const REGRESSIONS = [
          * E48 K2b, 11.11.2026 (the owner's defaults on K1's and K2's opens). Red before K2b: "2 read(s) of a meaning token
          * outside its selectors: styles/danganronpa.css: :root { --drpg-phase-daily } holds #ffd23f, the value of
          * --drpg-gold (hope: ...)" and its -rgb twin - Hope's gold under the clock's name, which the check could not see
-         * while it read only `var()`.
+         * while it read only `var()`. Then (its own commit) "--drpg-critical is undefined" for the critical's row: K1 sent
+         * `.drpg-flat-crit` to the critical's light red, a fifth destination; K2b names it the critical's own.
          */
         const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
         const sheets = [];
@@ -537,7 +538,7 @@ const REGRESSIONS = [
         must(sheets.length >= 6, `module.json serves ${sheets.length} sheet(s) - this test would hold nothing`);
         equal(JSON.stringify(cssMeaningSelfCheck()), "[]", "the meaning check does not read its own fixture as written");
         const all = cssMeaningReads(sheets), read = all.read;
-        const found = all.found.filter(f => / \((?:hope|attention): /.test(f)); // the hour's row is R3412's (E48 K2)
+        const found = all.found.filter(f => / \((?:hope|attention|critical): /.test(f)); // the hour's row is R3412's (E48 K2)
         must(read >= 40, `${read} read(s) of a meaning token in the served sheets - the sheets did not load, or the check reads nothing`);
         ok(!found.length, `${found.length} read(s) of a meaning token outside its selectors: ${found.slice(0, 6).join(" | ")}`);
         const planted = sheets.map(([file, text], i) => [file, i ? text : `${text}\n.drpg-planted-control:focus-visible { outline: 2px solid var(--drpg-gold); }\n`]);
@@ -547,9 +548,12 @@ const REGRESSIONS = [
             equal(tokens[theme].get("--drpg-attention"), "var(--drpg-bone)", `${theme}: --drpg-attention is not the theme's Bone`);
             equal(tokens[theme].get("--drpg-attention-rgb"), "var(--drpg-bone-rgb)", `${theme}: --drpg-attention-rgb is not the theme's Bone`);
             equal(tokens[theme].get("--drpg-phase-daily"), "var(--drpg-attention)", `${theme}: the clock's Daily Life is not the attention colour`);
+            equal(tokens[theme].get("--drpg-critical") ?? `${theme}: --drpg-critical is undefined`, "var(--drpg-crimson-light)", `${theme}: --drpg-critical is not the critical's light red`);
         }
         const copied = sheets.map(([file, text], i) => [file, i ? text : `${text}\n.drpg-planted-clock { --drpg-planted-day: #FFD23F; }\n`]);
         equal(cssMeaningReads(copied).found.length, all.found.length + 1, "Hope's gold copied as a literal under another name is not seen");
+        const crit = sheets.find(([file]) => file.endsWith("danganronpa.css"));
+        ok(/\.drpg-flat-crit\s*\{[^}]*color:\s*var\(--drpg-critical\)/.test(crit?.[1] ?? ""), "the flat roll's critical line does not read --drpg-critical");
     }],
 
     ["R3411 - no hour reads as a state: each of Stained Glass's five hour tokens is at least tools/contrast-pairs.json's threshold (CIEDE2000 15, Q7) from each meaning colour - Investigation, Hope, the GM's red and light, Eclipse, Despair, Evidence, Health, Sanity - every token resolves, and CIEDE2000 reads Sharma, Wu and Dalal's test pairs as published (E48 K2; D30 = 2)", async () => {

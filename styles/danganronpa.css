@@ -128,6 +128,10 @@
     --drpg-crimson-rgb: 179, 50, 74;
     --drpg-crimson-deep: #b30f2f;
     --drpg-crimson-light: #ff8fa3;     /* a critical on a dark card */
+    /* the critical's own (E48 K2b, the owner's default on K1's open, to be seen before it is decided): the light red
+       above, read only by rules that say "crit" (tests-css.mjs MEANING.critical); the light red itself stays the
+       module's for errors, OBJECTION and the overrun. */
+    --drpg-critical: var(--drpg-crimson-light);
     --drpg-red: #e5484d;
     --drpg-red-rgb: 229, 72, 77;
 
@@ -4155,7 +4159,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 .drpg-flat-crit {
     margin: 2px 0 0;
     text-align: center;
-    color: var(--drpg-crimson-light);
+    color: var(--drpg-critical);
 }
 
 /*

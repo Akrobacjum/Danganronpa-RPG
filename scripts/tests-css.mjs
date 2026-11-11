@@ -412,6 +412,18 @@ export const MEANING = {
         get words() { return new RegExp(HOUR_KEPT.flatMap(k => k.words).join("|"), "i"); },
         never: /drpg-event\b|drpg-action-button|drpg-call-button|\.drpg-panel button|sheet-tabs a|-bar\b|-fill\b|bar-fill|drpg-choice|rest-option|frisk-mode|drpg-hud-button|drpg-gmp-section|(?:input|select|textarea|\]|-text)\)?:focus/i,
         why: "the hour colours the panes, the curtain's accent and the ticker, never a card, a bar or a button"
+    },
+    /*
+     * THE CRITICAL (E48 K2b, 11.11.2026; the owner's default on K1's open). `.drpg-flat-crit` went from gold to the
+     * critical's light red in K1, a fifth destination outside the stage's four; K2b names it: `--drpg-critical` is the
+     * critical's own (`var(--drpg-crimson-light)`, "a critical on a dark card"), read by the rules that say "crit".
+     * `--drpg-crimson-light` itself stays the module's light red for errors, OBJECTION and the overrun, which are not
+     * the critical and do not read this token.
+     */
+    critical: {
+        tokens: /^--drpg-critical(?:-rgb)?$/,
+        words: /crit/i,
+        why: "the critical's light red is the critical's alone"
     }
 };
 
