@@ -46983,6 +46983,186 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ first: { fits: true, top: 126 }, foot: 126, later: null, none: null }),
             "{foot: the band's foot; first: the first render's top and height; later: a later render's top; none: the foot with no band} - a sheet must open below the band");
     }],
+    ["R3550 - the wrench's window hides exactly the statistics the module does not use (dh-settings.mjs `dressCharacterSettings`, `SETTINGS_FIELDS`; E49, the owner's 11.11.2026 on Daggerheart's character settings window): on Daggerheart 2.6.5's Details and Experiences drawn as Foundry frames them (tests-kit.mjs `dhSettingsStandIn`), Scars, Proficiency and Max Evasion Increase stand in a hidden cell and nothing else does - the six statistics, Max Health, Max Sanity and each experience's name, value and description shown; the hidden three are `UNUSED_FIELDS`, and outside dh-settings.mjs no module code names proficiency or evasion, and scars only sheet-audit.mjs, which holds them for Hope's maximum, while each shown field is read", async () => {
+        /*
+         * E49, 11.11.2026. The owner: "sa tam statystyki nieuzywane przez modul" - the window the character sheet's wrench
+         * opens (Daggerheart's DHCharacterSettings) shows statistics the module does not use. Which are "used" is read off
+         * the module's code (comments stripped, the suite's own files left out): Scars, Proficiency and Max Evasion Increase
+         * are named by no rule of the game. Red at 54493dbf: no dh-settings.mjs, so nothing was hidden.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs has no `dressCharacterSettings` - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const source = {
+            traits: { agility: { value: 1 }, strength: { value: 0 }, finesse: { value: 1 }, instinct: { value: 2 }, presence: { value: 1 }, knowledge: { value: -1 } },
+            resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 2, proficiency: 3, evasion: 1,
+            experiences: { r3550a: { name: "R3550 one", value: 2, description: "d" }, r3550b: { name: "R3550 two", value: 2, description: "" } }
+        };
+        const win = K.dhSettingsStandIn(source, { name: "R3550" });
+        const said = D.dressCharacterSettings(win);
+        const fields = [...win.querySelectorAll("[name]")];
+        must(fields.length === 17, `${fields.length} named field(s) in the stand-in, and Daggerheart 2.6.5 draws 17 with two experiences - this would measure nothing`);
+        const sorted = list => [...list].sort();
+        const read = {
+            hidden: sorted(fields.filter(el => el.closest("[hidden]")).map(el => el.name)),
+            said: sorted(said),
+            unused: sorted(D.UNUSED_FIELDS),
+            shown: fields.filter(el => !el.closest("[hidden]")).length
+        };
+        const code = new Map((await otherSources()).map(([file, text]) => [file, stripComments(text)]));
+        must(code.has("dh-settings.mjs") && code.has("character.mjs"), "the module's sources were not read - this would measure nothing");
+        const readers = word => [...code].filter(([file, text]) => file !== "dh-settings.mjs" && text.includes(word)).map(([file]) => file).sort();
+        read.code = {
+            proficiency: readers("proficiency"), evasion: readers("evasion"), scars: readers("scars"),
+            read: ["system.traits", "system.resources.hitPoints.max", "system.resources.stress.max", "system.experiences"].filter(path => readers(path).length === 0)
+        };
+        const three = ["system.evasion", "system.proficiency", "system.scars"];
+        equal(stableJson(read), stableJson({ hidden: three, said: three, unused: three, shown: 14,
+            code: { proficiency: [], evasion: [], scars: ["sheet-audit.mjs"], read: [] } }),
+            "hidden: the named fields in a hidden cell; said: what the dressing answered; unused: UNUSED_FIELDS; shown: the fields not hidden (six statistics, two maxima, two experiences' three each); "
+            + "code: the module files that name each unused word, and the shown paths no file reads");
+    }],
+    ["R3551 - the wrench's window is dressed through Foundry's render, on the kit, and no other window is (dh-settings.mjs `registerDhSettings`, `isCharacterSettings`, `settingsWidth`; module.mjs; E49): a window drawn by ApplicationV2's render with Daggerheart's classes `daggerheart dh-style dialog character-settings` over a character carries `drpg-ui`, `drpg-panel`, the window's `drpg-window-dh-settings` and the kit's `drpg-kit-width`, its three unused cells hidden, and opens at `settingsWidth()`; Daggerheart's adversary settings and a `character-settings` window of another package carry none of them", async () => {
+        /*
+         * E49, 11.11.2026. The hook is Foundry's `renderApplicationV2`, registered in module.mjs's init; the windows here are
+         * ApplicationV2s of the suite's own whose `_renderHTML` hands over Daggerheart's markup (tests-kit.mjs
+         * `dhSettingsMarkup`) - Daggerheart's own class is not drawn by the harness. The width: Daggerheart opens it at 455 px,
+         * the kit at the module's popup width (`settingsWidth`). Red at 54493dbf: no hook dressed it.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.settingsWidth === "function", "dh-settings.mjs has no `settingsWidth` - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const { ApplicationV2 } = foundry.applications.api;
+        const source = { traits: { instinct: { value: 1 } }, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 1, evasion: 0, experiences: {} };
+        const markup = K.dhSettingsMarkup(source, { name: "R3551" });
+        const windowOf = classes => class DHCharacterSettings extends ApplicationV2 {
+            static DEFAULT_OPTIONS = { tag: "form", classes, position: { width: 455 }, window: { title: "R3551" } };
+            async _renderHTML() { return markup; }
+            _replaceHTML(html, target) { target.innerHTML = html; }
+        };
+        const OURS = ["drpg-ui", "drpg-panel", "drpg-window-dh-settings", "drpg-kit-width"];
+        const cases = {
+            character: [["daggerheart", "dh-style", "dialog", "character-settings"], { documentName: "Actor", type: "character" }],
+            adversary: [["daggerheart", "dh-style", "dialog", "adversary-settings"], { documentName: "Actor", type: "adversary" }],
+            elsewhere: [["dialog", "character-settings"], { documentName: "Actor", type: "character" }]
+        };
+        const read = {};
+        for (const [key, [classes, doc]] of Object.entries(cases)) {
+            const app = new (windowOf(classes))({ id: `r3551-${key}-${Date.now().toString(36)}` });
+            app.document = doc;
+            try {
+                await app.render({ force: true });
+                const el = app.element;
+                must(el?.querySelector?.('[name="system.scars"]'), `the ${key} window drew no fields - this would measure nothing`);
+                read[key] = { classes: OURS.filter(name => el.classList.contains(name)), hidden: el.querySelectorAll("[hidden]").length,
+                    width: key === "character" ? app.position?.width === D.settingsWidth() : null };
+            } finally {
+                await app.close();
+            }
+        }
+        equal(stableJson(read), stableJson({ character: { classes: OURS, hidden: 3, width: true },
+            adversary: { classes: [], hidden: 0, width: null }, elsewhere: { classes: [], hidden: 0, width: null } }),
+            "per window: the module's classes it carries, its hidden cells, and (the character's) whether it opened at settingsWidth()");
+    }],
+    ["R3552 - a hidden field goes with every save at the value it holds (dh-settings.mjs; E49; the owner's rule: hidden, never deleted): the dressed window's form read as Foundry reads a sheet's form on submit (`FormDataExtended` where Foundry has it, else each named field by its type) holds Scars 2, Proficiency 3 and Max Evasion Increase 1 as the actor holds them, beside a statistic just changed in the window", async () => {
+        /*
+         * E49, 11.11.2026. Daggerheart's window submits the whole form on every change (`form.submitOnChange`), and a
+         * submit's data is the update - so a hidden field must stand in the form at its stored value, never be emptied or
+         * taken out (the save itself, on a character of the suite's own, is tier 2's "the character settings window keeps
+         * a hidden field's value through a save"). The harness has no FormDataExtended; there each named field is read as it
+         * reads one: a number field or `data-dtype="Number"` as a number. Red at 54493dbf: no dh-settings.mjs.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs has no `dressCharacterSettings` - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const source = { traits: { instinct: { value: 0 }, knowledge: { value: 1 } }, resources: { hitPoints: { max: 6 }, stress: { max: 5 } },
+            scars: 2, proficiency: 3, evasion: 1, experiences: { r3552: { name: "R3552", value: 2, description: "" } } };
+        const win = K.dhSettingsStandIn(source, { name: "R3552" });
+        D.dressCharacterSettings(win);
+        must(win.querySelectorAll("[hidden]").length === 3, "the dressing hid no cell - this would measure nothing");
+        win.querySelector('[name="system.traits.instinct.value"]').value = "2";
+        const FDE = foundry.applications?.ux?.FormDataExtended ?? globalThis.FormDataExtended;
+        const flat = FDE ? new FDE(win).object : Object.fromEntries([...win.querySelectorAll("[name]")].map(el =>
+            [el.name, el.type === "number" || el.dataset.dtype === "Number" ? (el.value === "" ? null : Number(el.value)) : el.value]));
+        const data = foundry.utils.expandObject(flat);
+        equal(stableJson({ scars: data.system?.scars, proficiency: data.system?.proficiency, evasion: data.system?.evasion,
+            instinct: data.system?.traits?.instinct?.value, health: data.system?.resources?.hitPoints?.max }),
+            stableJson({ scars: 2, proficiency: 3, evasion: 1, instinct: 2, health: 6 }),
+            "the submit's data: the three hidden fields, the statistic changed in the window, Max Health");
+    }],
+    ["R3553 - the wrench's window is the kit's in both themes (styles/components.css, the block of `drpg-window-dh-settings`; E49): read through the suite's cascade (tests-kit.mjs `styleCascade`, the module's sheets as module.json loads them) on the dressed stand-in under Monokuma Legacy and under Stained Glass, every declaration the block states for a part wins there, and each part - the name, the tabs (the selected one and the other), each group and its heading, a statistic's cell, name and field, Max Health's label and field, New, an experience's box, its fields and its bin, the description, the window's body - takes its colour, ground, edge and type from a rule of the module; the hidden cells are `display: none` and a number field shows no spinner", async () => {
+        /*
+         * E49, 11.11.2026. What the cascade reads is the module's sheets alone: Daggerheart's and Foundry's are not loaded
+         * here, so "from a rule of the module" is the module stating the property, and a rule of theirs that would outrank
+         * it is not seen (the block is written one class above Daggerheart's selectors, read off its compiled 2.6.5 sheet,
+         * which no test reads). Red at 54493dbf: no block, and no class to hang one on.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs has no `dressCharacterSettings` - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const C = await styleCascade();
+        const block = C.rules.filter(rule => rule.file === "styles/components.css" && rule.selector.includes("drpg-window-dh-settings"));
+        must(block.length > 20, `${block.length} rule(s) of components.css name the window - the block was not read`);
+        const LONG = { background: ["background-color", "background-image"], border: ["border-color", "border-width", "border-style", "border-top", "border-bottom", "border-left", "border-right", "border-bottom-width"],
+            font: ["font-size", "font-family", "font-weight"] };
+        const names = prop => [prop, ...(LONG[prop] ?? [])];
+        const source = { traits: { instinct: { value: 1 } }, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 1, evasion: 0,
+            experiences: { r3553: { name: "R3553", value: 2, description: "" } } };
+        const PARTS = {
+            name: [".dialog-header h1", ["color", "font-size"]],
+            tab: ["nav.sheet-tabs > a:not(.active)", ["color", "background", "border", "font-size"]],
+            tabOn: ["nav.sheet-tabs > a.active", ["color", "background", "border"]],
+            group: ["fieldset", ["border", "background"]],
+            heading: ["fieldset > legend", ["color", "font-size"]],
+            cell: [".trait-container", ["background", "border"]],
+            cellName: [".trait-container span", ["color", "font-size"]],
+            cellField: [".trait-container input", ["color", "background", "border", "font-size"]],
+            label: [".two-columns .form-group:not([hidden]) > label", ["color", "font-size"]],
+            field: [".two-columns .form-group:not([hidden]) input", ["color", "background", "border", "font-size"]],
+            add: [".add-experience-btn", ["color", "background"]],
+            entry: [".experience-item", ["border"]],
+            entryField: [".experience-item input.name", ["color", "background", "border", "font-size"]],
+            bin: [".experience-item a[data-action='removeExperience']", ["color"]],
+            description: [".experience-item textarea", ["color", "background", "border", "font-size"]],
+            body: [":scope > .window-content", ["scrollbar-color"]]
+        };
+        const problems = {};
+        let checked = 0;
+        for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-player`;
+            html.append(body);
+            const lost = [];
+            for (const tab of ["details", "experiences"]) {
+                const win = K.dhSettingsStandIn(source, { name: "R3553", tab });
+                body.append(win);
+                D.dressCharacterSettings(win);
+                for (const el of [win, ...win.querySelectorAll("*")]) {
+                    const onEl = C.on(el);
+                    for (const rule of block) {
+                        if (!rule.selector.split(/,(?![^(]*\))/).some(sel => { try { return el.matches(sel.trim()); } catch { return false; } })) continue;
+                        for (const d of rule.decls) {
+                            checked++;
+                            const w = onEl(names(d.property));
+                            if (w?.file !== "styles/components.css") lost.push(`${tab} ${el.localName}.${[...el.classList].join(".")} ${d.property}: ${w ? `${w.file} ${w.selector}` : "nobody"}`);
+                        }
+                    }
+                }
+                for (const [part, [selector, props]] of Object.entries(PARTS)) {
+                    const els = selector.startsWith(":scope") ? [win.querySelector(selector)] : [...win.querySelectorAll(selector)];
+                    if (!els.length || !els[0]) { lost.push(`${tab} ${part}: not drawn`); continue; }
+                    for (const prop of props) { checked++; if (!C.winner(els[0], names(prop))) lost.push(`${tab} ${part} ${prop}: no rule of the module`); }
+                }
+                const unused = [...win.querySelectorAll(".drpg-dh-unused")].map(el => C.winner(el, ["display"])?.value ?? "none stated");
+                const spin = C.winner(win.querySelector('input[type="number"]'), ["appearance"])?.value ?? "none stated";
+                if (stableJson(unused) !== stableJson(["none", "none", "none"]) || spin !== "textfield") lost.push(`${tab} hidden cells ${stableJson(unused)}, number field appearance ${spin}`);
+                win.remove();
+            }
+            if (lost.length) problems[theme] = lost;
+        }
+        ok(checked > 200, `${checked} reading(s) - the stand-in's parts were not read`);
+        equal(stableJson(problems), "{}", "per theme: a declaration of the block won by another rule, or a part of the window no rule of the module dresses");
+    }],
 ];
 
 /**

@@ -87827,6 +87827,41 @@ const SCENARIOS = [
             if (was?.fx && !was.fx.destroyed && was.region) FR.flashOutline(was.fx, was.region, was.rect, was.level, { actor: was.actor ?? null, elevation: was.elevation ?? null, quiet: true });
         }
     }],
+    ["the character settings window keeps a hidden field's value through a save (E49; dh-settings.mjs, R3550-R3552; the owner's rule: hidden, never deleted): on a character of the suite's own holding Scars 2, Proficiency 3 and Max Evasion Increase 1, Daggerheart's window drawn from its source and dressed, a statistic changed in it and the form saved as the window saves it (its data the actor's update) leaves the three as they were and the statistic changed", async () => {
+        /*
+         * E49, 11.11.2026. Daggerheart's window submits the whole form on every change; its data goes to `actor.update`
+         * (DocumentSheetV2's `_processSubmitData`). The form is read as R3552 reads it - Foundry's FormDataExtended where it
+         * is, else each named field by its type - and the character is the suite's own, made and deleted here. Red at
+         * 54493dbf: no dh-settings.mjs to dress the window.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs has no `dressCharacterSettings` - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        let actor = null;
+        let read = null;
+        try {
+            actor = await Actor.create({ name: "SUITE E49 settings", type: "character", ownership: { default: 0 }, system: {
+                traits: { instinct: { value: 0 }, knowledge: { value: 1 } }, resources: { hitPoints: { value: 0, max: 6 }, stress: { value: 0, max: 6 } },
+                scars: 2, proficiency: 3, evasion: 1, experiences: { e49save: { name: "E49 save", value: 2, description: "" } } } });
+            must(actor, "the suite's character was not made - this would measure nothing");
+            const win = K.dhSettingsStandIn(foundry.utils.deepClone(actor._source.system), { name: actor.name });
+            D.dressCharacterSettings(win);
+            must(win.querySelectorAll("[hidden]").length === 3, "the dressing hid no cell - this would measure nothing");
+            win.querySelector('[name="system.traits.instinct.value"]').value = "2";
+            const FDE = foundry.applications?.ux?.FormDataExtended ?? globalThis.FormDataExtended;
+            const flat = FDE ? new FDE(win).object : Object.fromEntries([...win.querySelectorAll("[name]")].map(el =>
+                [el.name, el.type === "number" || el.dataset.dtype === "Number" ? (el.value === "" ? null : Number(el.value)) : el.value]));
+            await actor.update(foundry.utils.expandObject(flat));
+            await settle();
+            const s = game.actors.get(actor.id)?._source?.system ?? {};
+            read = { scars: s.scars, proficiency: s.proficiency, evasion: s.evasion, instinct: s.traits?.instinct?.value, experience: s.experiences?.e49save?.name };
+        } finally {
+            await actor?.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ scars: 2, proficiency: 3, evasion: 1, instinct: 2, experience: "E49 save" }),
+            "the character after the save: the three hidden fields, the statistic changed in the window, the experience");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).
