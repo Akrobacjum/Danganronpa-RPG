@@ -135,9 +135,9 @@ export const WORLD_SECRET_RULES = Object.freeze({
         })
     }),
     everySetting: Object.freeze({
-        fields: Object.freeze(["sourceActor", "realType", "pointsAt", "dc", "tiedToCrime", "analysis", "analyzedText", "note", "tokenId"]),
-        since: "R9; analysis, analyzedText, note and tokenId since E05 C5",
-        why: "a trace's answer key: what it really is, who left it, what it points at, how hard it is to read, what its analysis says, the GM's note on it, and which token on the map it is",
+        fields: Object.freeze(["sourceActor", "realType", "pointsAt", "dc", "tiedToCrime", "analysis", "analyzedText", "note", "tokenId", "leftBy"]),
+        since: "R9; analysis, analyzedText, note and tokenId since E05 C5; leftBy since E97 C1",
+        why: "a trace's answer key: what it really is, who left it (a bullet's key names them as leftBy), what it points at, how hard it is to read, what its analysis says, the GM's note on it, and which token on the map it is",
         /* ONE SETTING MAY HOLD tokenId, AND WHY (E05 C5, 26.09.2026). projectMeta names each
            project's own map token, `tokenId` beside `tokenScene` (projects-map.mjs
            `placeProjectToken`). That token is a world document every browser holds, and it
@@ -180,7 +180,8 @@ export const WORLD_SECRET_RULES = Object.freeze({
         // its owner's copy (`mineBulletRefs`); the bullet's `remnantRef` flag, which told every
         // console which traces had been found and by whom, is gone - a `null` one as well
         // (truth-bullets.mjs `liftBulletRefs`; S05-39 (2)). An item on a sheet or in the sidebar.
-        Item: Object.freeze(["remnantRef"])
+        // E97 C1: who left the trace a bullet came from is its answer key's (truth-bullets.mjs `leftByOf`; Q1), never the item's.
+        Item: Object.freeze(["remnantRef", "leftBy", "leftByName"])
     }),
     messages: Object.freeze([
         /* E06 C5b: a roll the module threw (`supersedingRoll` stamps the flag) is emptied as it

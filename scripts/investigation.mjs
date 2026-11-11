@@ -31,7 +31,7 @@ import { getClock } from "./clock.mjs";
 import {
     remnantsOn, remnantById, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited,
     confirmClearFaint, shownBand, bandOptions, removeRemnant,
-    traceContextLine, traceLabel
+    traceContextLine, traceLabel, authorOptions
 } from "./remnants.mjs";
 import { bulletsOf, isTruthBullet, secretOf, truthBulletData } from "./truth-bullets.mjs";
 import { studentActors } from "./monokuma.mjs";
@@ -1049,6 +1049,8 @@ export async function openNewTrace({ room = null, sceneId = null } = {}) {
                 <select name="room">${roomOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.traceType")}
                 <select name="type">${typeOptions}</select></label>
+            <label>${game.i18n.localize("DRPG.Remnant.authorLabel")}
+                <select name="author">${authorOptions(null, studentActors())}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.difficulty")}
                 <select name="vis">${visOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.traceName")}
@@ -1087,7 +1089,8 @@ export async function openNewTrace({ room = null, sceneId = null } = {}) {
                         analysis: f.tanalysis.value.trim(),
                         note: f.note.value.trim(),
                         tied: f.tied.value,
-                        reinforced: f.reinforced.checked
+                        reinforced: f.reinforced.checked,
+                        author: f.author?.value ?? ""
                     };
                 }
             },
@@ -1116,6 +1119,8 @@ export async function openNewTrace({ room = null, sceneId = null } = {}) {
     const spot = randomPointIn(region, scene);
     const { placeRemnant } = await import("./remnants.mjs");
     const clock = getClock();
+    // Who left it, as the GM says (E97 C1; Q6: "- unknown -" is nobody, the default).
+    const author = result.author ? game.actors.get(result.author) ?? null : null;
     const token = await placeRemnant({
         x: spot.x,
         y: spot.y,
@@ -1136,6 +1141,8 @@ export async function openNewTrace({ room = null, sceneId = null } = {}) {
         // this one by chapter and `traceContextLine` has a room to print. No
         // `action`: nobody performed one, exactly as for a planned clue.
         room: result.room,
+        sourceActor: author?.id ?? null,
+        sourceName: author?.name ?? "",
         chapter: clock.chapter,
         day: clock.day,
         timeOfDay: clock.timeOfDay
@@ -1213,6 +1220,9 @@ async function createKeyRemnant(row, scene) {
         tiedToCrime: true,
         reinforced: true,
         note: row.note,
+        // Who left it, as the GM says on the Observe card's window (E97 C1); a Key row's Place names nobody.
+        sourceActor: row.author || null,
+        sourceName: (row.author && game.actors.get(row.author)?.name) || "",
         /* NO `subject`, AND NO `action`. Both were carrying the wrong kind of thing.
            `subject` elsewhere says what a Search was ABOUT, and this put the difficulty label
            in it - so the trace card read "Subject: Standardowa", and worse, `createFind` in
@@ -1314,6 +1324,8 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
                 <select name="room">${roomOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.visibility")}
                 <select name="vis">${visOptions}</select></label>
+            <label>${game.i18n.localize("DRPG.Remnant.authorLabel")}
+                <select name="author">${authorOptions(null, studentActors())}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.traceName")}
                 <input type="text" name="keyname" value=""
                        placeholder="${esc(traceLabel(null))}" /></label>
@@ -1348,6 +1360,7 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
                         text: f.keytext?.value.trim() ?? "",
                         analysis: f.keyanalysis?.value.trim() ?? "",
                         note: f.note.value.trim(),
+                        author: f.author?.value ?? "",
                         slot: f.slot.value === "" ? null : Number(f.slot.value)
                     };
                 }
@@ -1374,7 +1387,7 @@ async function placeInSlot(plan, scene, result) {
 
     const token = await createKeyRemnant({
         createIn: result.room, visibility: result.visibility,
-        name: result.name, text: result.text, analysis: result.analysis, note: result.note, scale
+        name: result.name, text: result.text, analysis: result.analysis, note: result.note, scale, author: result.author ?? ""
     }, scene);
     if (!token) return null;
 
@@ -2183,6 +2196,8 @@ export function caseFinalPanel({ roomOptions, visOptions, finalRemnants, finalTr
             </select></label>
         <label>${game.i18n.localize("DRPG.Investigation.visibility")}
             <select name="finalVis">${visOptions}</select></label>
+        <label>${game.i18n.localize("DRPG.Remnant.authorLabel")}
+            <select name="finalAuthor">${authorOptions(null, studentActors())}</select></label>
         <label>${game.i18n.localize("DRPG.Investigation.traceName")}
             <input type="text" name="finalName" value=""
                 placeholder="${esc(game.i18n.localize("DRPG.Remnant.finalSubject"))}" /></label>
@@ -2295,6 +2310,7 @@ function readDashboardForm(d) {
         finalRoom: q("finalRoom")?.value ?? "",
         finalSceneId: q("finalRoom")?.selectedOptions?.[0]?.dataset.scene ?? "",
         finalVis: q("finalVis")?.value || "evident",
+        finalAuthor: q("finalAuthor")?.value ?? "",
         finalName: q("finalName")?.value.trim() ?? "",
         finalText: q("finalText")?.value.trim() ?? "",
         finalAnalysis: q("finalAnalysis")?.value.trim() ?? "",
@@ -2497,7 +2513,7 @@ async function placeFinalFromDashboard(action) {
     const { placeFinalRemnant } = await import("./mastermind.mjs");
     const placedFinal = await placeFinalRemnant({
         room: action.finalRoom, scene: game.scenes.get(action.finalSceneId) ?? null, visibility: action.finalVis, note: action.finalNote,
-        name: action.finalName, text: action.finalText, analysis: action.finalAnalysis
+        name: action.finalName, text: action.finalText, analysis: action.finalAnalysis, author: action.finalAuthor ?? ""
     });
     if (placedFinal) {
         ui.notifications.info(game.i18n.format("DRPG.Mastermind.finalPlacedIn",

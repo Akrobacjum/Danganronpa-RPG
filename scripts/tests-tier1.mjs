@@ -6840,7 +6840,8 @@ const INVARIANTS = [
                 s => { s.settings.projectMeta.R190PROJECT00001[f] = "R190 the plan, in the killer's words"; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             // E05 C5 added the last four: the Key Remnant plan held all of them.
-            ...["sourceActor", "realType", "pointsAt", "dc", "tiedToCrime", "analysis", "analyzedText", "note", "tokenId"].map(f => [`every setting: ${f}`,
+            // E97 C1: and `leftBy`, the author a Truth Bullet's answer key names (truth-bullets.mjs `leftByOf`).
+            ...["sourceActor", "realType", "pointsAt", "dc", "tiedToCrime", "analysis", "analyzedText", "note", "tokenId", "leftBy"].map(f => [`every setting: ${f}`,
                 s => { s.settings.clock.deep = { [f]: 1 }; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "clock" && h.path === `deep.${f}`]),
             // E05 C3: the declarations' old world key holds nothing - an entry under any key is found.
@@ -6925,6 +6926,10 @@ const INVARIANTS = [
             ["Item flag remnantRef",
                 s => { s.items[0].flags[MOD].remnantRef = null; },
                 h => h.kind === "flag" && h.doc === "Item" && h.id === "R190BYSTANDER001.items.R190ITEM00000001" && h.path === `flags.${MOD}.remnantRef`],
+            // E97 C1: who left the trace a bullet came from is its answer key's, never the item's.
+            ...["leftBy", "leftByName"].map(f => [`Item flag ${f}`,
+                s => { s.items[0].flags[MOD][f] = "R190"; },
+                h => h.kind === "flag" && h.doc === "Item" && h.id === "R190BYSTANDER001.items.R190ITEM00000001" && h.path === `flags.${MOD}.${f}`]),
             // E70 C5: the trial's list of the dead outside the trial - an empty one is found as well; in it, nothing (below).
             ["trialProgress.mutedDead",
                 s => { s.settings.trialProgress = { chapter: 2, mutedDead: [] }; s.settings.clock.phase = "dailyLife"; },
@@ -7855,6 +7860,120 @@ const INVARIANTS = [
         equal(JSON.stringify([listGuard > -1 && answered > listGuard, /proposed:\s*as\.maybeText/.test(row) && /note:\s*as\.maybeText/.test(row)]),
         JSON.stringify([true, true]),
             "a road that holds the proposal is missing (rulePickTrait holds the trait to the list before it answers, the bridge's row passes proposed and note)");
+    }],
+    ["R3370 - who left a trace is the GMs' alone (E97 C1; Q1): remnants.mjs `setRemnantAuthor` writes `sourceActor` and `sourceName` together, as `authorPatch` words them, on the trace's ledger row and nowhere else, on a GM only; the world-secrets rule finds `leftBy` in any setting and `leftBy`, `leftByName` on an item, and the token's answer-key list keeps both of the trace's fields", async () => {
+        /*
+         * E97 C1, 11.11.2026. The owner's Q1: "Nigdy i bez opcji analyze. To tylko info dla gma" - who left a trace is
+         * information for the GMs, never revealed by play. The author already lives in the ledger for a player's trace
+         * (`dropRemnant`, `narrowPlayerRemnant`); C1 gives a GM the write, and a bullet the copy (R3371). This holds the
+         * write to one patch of both fields, through the ledger (`setRemnantSecret`, which amends a live row only), and
+         * the rule a player's browser is read against (world-secrets.mjs; R9, R190, 72-canary) to the two names the
+         * bullet's answer key uses, so a later road that put them on an item or a setting is found. Pure, and a read of
+         * the source; nothing is written. Red at b97028e1: no `setRemnantAuthor`, no `authorPatch`, and the rule does
+         * not name `leftBy`.
+         */
+        const R = await import("./remnants.mjs");
+        const W = await import("./world-secrets.mjs");
+        const MOD = W.WORLD_SECRET_MODULE;
+        must(typeof R.authorPatch === "function" && typeof R.setRemnantAuthor === "function",
+            "remnants.mjs exports no authorPatch or setRemnantAuthor - there is no GM's write of a trace's author to read");
+        const someone = { id: "R3370STUDENT0001", name: "R3370 Student" };
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/remnants.mjs`).then(lfText));
+        const write = fnSource(src, "setRemnantAuthor");
+        const plant = (where) => {
+            const s = { settings: { clock: { chapter: 1 } }, items: [{ id: "R3370ACTOR000001.items.R3370ITEM0000001", flags: { [MOD]: { isTruthBullet: true } } }] };
+            if (where === "setting") s.settings.clock.deep = { leftBy: someone.id };
+            else s.items[0].flags[MOD][where] = where === "leftBy" ? someone.id : someone.name;
+            return W.findWorldSecrets(s).map(h => `${h.kind}:${h.doc}:${h.path}`);
+        };
+        equal(JSON.stringify({
+            patch: [R.authorPatch(someone), R.authorPatch(null)],
+            write: [/game\.user\??\.isGM/.test(write), /setRemnantSecret\([^;]*authorPatch\(/.test(write), /ifLive:\s*true/.test(write),
+                /\.(?:setFlag|update|updateEmbeddedDocuments|createEmbeddedDocuments)\(/.test(write)],
+            found: [plant("setting"), plant("leftBy"), plant("leftByName")],
+            token: ["sourceActor", "sourceName"].map(f => R.ANSWER_KEY_FLAGS.includes(f))
+        }), JSON.stringify({
+            patch: [{ sourceActor: someone.id, sourceName: someone.name }, { sourceActor: null, sourceName: "" }],
+            write: [true, true, true, false],
+            found: [["field:setting:deep.leftBy"], [`flag:Item:flags.${MOD}.leftBy`], [`flag:Item:flags.${MOD}.leftByName`]],
+            token: [true, true]
+        }), "[the patch for a student and for nobody; setRemnantAuthor: asks for a GM, writes authorPatch through setRemnantSecret, amends a live row only, writes a document; the rule's hits for leftBy in a setting and leftBy, leftByName on an item; the token's answer-key list names sourceActor, sourceName]");
+    }],
+    ["R3371 - a Truth Bullet's answer key names who left its trace (E97 C1): truth-bullets.mjs `leftByOf` reads `leftBy`, `leftByName` off a trace's row and null off a row with none; `createTruthBullet` writes them into the bullet's row only when there is an author, and a copy (handover.mjs `mintCopy`) hands on its giver's; reading the author of every trace on the map writes no stamp", async () => {
+        /*
+         * E97 C1, 11.11.2026; STAGE C1 "bullet carries leftBy; an old row reads null, stamp unchanged". The case map
+         * (C5-C7) shows who left each Remnant beside who holds it, and E99 reads the bullet's author once the trace is
+         * gone, so the bullet's answer key (`bulletStore`, GM-only) carries it: off the trace's row at the find, off the
+         * giver's key at a hand-over (the trace may be gone by then). A row with no author - every trace a GM placed
+         * before 1.2.106, Q6 - reads null and nothing is written for it: no migration, so the reading is held to leave
+         * each trace's newest stamp as it was. Pure and a read of the source; the world's traces are read, not written.
+         * Red at b97028e1: no `leftByOf`, and neither road names the author.
+         */
+        needs(world.atLeast("remnantTokens", 1), "the stamp half reads the traces on the map");
+        const T = await import("./truth-bullets.mjs");
+        const R = await import("./remnants.mjs");
+        const { remnantStore } = await import("./gm-stores.mjs");
+        must(typeof T.leftByOf === "function", "truth-bullets.mjs exports no leftByOf - a bullet's answer key names nobody who left its trace");
+        const strip = file => fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText).then(stripComments);
+        const create = fnSource(await strip("truth-bullets.mjs"), "createTruthBullet");
+        const mint = fnSource(await strip("handover.mjs"), "mintCopy");
+        const traces = [...game.scenes].flatMap(scene => R.remnantsOn(scene));
+        const before = traces.map(t => remnantStore.stampOf(R.keyOf(t)) ?? null);
+        const read = traces.map(t => T.leftByOf(R.remnantData(t)));
+        const after = traces.map(t => remnantStore.stampOf(R.keyOf(t)) ?? null);
+        equal(JSON.stringify({
+            rows: [T.leftByOf({ sourceActor: "R3371A", sourceName: "R3371 Ann" }), T.leftByOf({ sourceActor: null, sourceName: "" }), T.leftByOf({}), T.leftByOf(null)],
+            create: [/leftByOf\(/.test(create), /\.\.\.\(\s*author\.leftBy\s*\?\s*author\s*:\s*\{\}\s*\)/.test(create)],
+            mint: [/leftBy:\s*secret\.leftBy\b/.test(mint), /leftByName:\s*secret\.leftByName\b/.test(mint)],
+            read: read.every(r => r && Object.keys(r).join() === "leftBy,leftByName"),
+            stamps: JSON.stringify(after) === JSON.stringify(before)
+        }), JSON.stringify({
+            rows: [{ leftBy: "R3371A", leftByName: "R3371 Ann" }, { leftBy: null, leftByName: "" }, { leftBy: null, leftByName: "" }, { leftBy: null, leftByName: "" }],
+            create: [true, true], mint: [true, true], read: true, stamps: true
+        }), "[leftByOf of a row with an author, with nobody, of an empty row, of none; createTruthBullet reads leftByOf and writes the author only when there is one; mintCopy hands on the giver's leftBy, leftByName; every trace's author read; no stamp moved by the reading]");
+    }],
+    ["R3372 - the GMs' author select (E97 C1; Q2, Q6): remnants.mjs `authorOptions` draws \"- unknown -\" first, chosen for a trace with none, then every student living and dead by name, the trace's own chosen; New trace, Create Key Remnant here, the Final Truth form and the GM's card of a trace draw it and hand the choice to the placement or to `setRemnantAuthor`, the card asking first when an author is replaced; a player's card draws no author", async () => {
+        /*
+         * E97 C1, 11.11.2026. The GM's roads that place a trace - New trace (investigation.mjs `openNewTrace`), a Key
+         * Remnant from an Observe card (`openKeyRemnantHere`, through `createKeyRemnant`), the Final Truth form
+         * (`caseFinalPanel`, placed by mastermind.mjs `placeFinalRemnant`) - named nobody, and the GM's card of a trace
+         * (remnant-ring.mjs `gmRemnantCard`) printed the author without a way to change it. Q6: "- nieznany -" first,
+         * old traces stay without one. Q2: an author a GM sets acts as a player's (Observe, an incident's tie, Tamper
+         * read it), so the card asks before it replaces one. The options are drawn here for the world's students and
+         * read; the windows' bodies are read in the source. Nothing is opened or written. Red at b97028e1: no
+         * `authorOptions`, and none of the four draws an author select.
+         */
+        needs(world.atLeast("livingStudents", 1), "the options are read for the world's students");
+        const R = await import("./remnants.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        must(typeof R.authorOptions === "function", "remnants.mjs exports no authorOptions - no window draws an author to choose");
+        const students = studentActors();
+        const opts = html => {
+            const t = document.createElement("template");
+            t.innerHTML = `<select>${html}</select>`;
+            return [...t.content.querySelectorAll("option")].map(o => [o.value, o.textContent.trim(), o.selected]);
+        };
+        const none = opts(R.authorOptions(null, students));
+        const chosen = opts(R.authorOptions(students[0].id, students));
+        const inv = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/investigation.mjs`).then(lfText));
+        const mm = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/mastermind.mjs`).then(lfText));
+        const ring = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/remnant-ring.mjs`).then(lfText));
+        const { caseFinalPanel } = await import("./investigation.mjs");
+        const final = caseFinalPanel({ roomOptions: "", visOptions: "", finalRemnants: () => [], finalTruthPlacedThisChapter: () => true });
+        const wire = fnSource(ring, "wireCardEditing");
+        equal(JSON.stringify({
+            first: none[0], firstChosen: chosen[0][2], rest: none.slice(1).map(([id, name, sel]) => [id, name, sel]), chosen: chosen.filter(o => o[2]).map(o => o[0]),
+            newTrace: [/authorOptions\(/.test(fnSource(inv, "openNewTrace")), /sourceActor:\s*author\b/.test(fnSource(inv, "openNewTrace"))],
+            keyHere: [/authorOptions\(/.test(fnSource(inv, "openKeyRemnantHere")), /sourceActor:\s*row\.author\b/.test(fnSource(inv, "createKeyRemnant"))],
+            final: [/name="finalAuthor"/.test(final), /author:\s*action\.finalAuthor\b/.test(fnSource(inv, "placeFinalFromDashboard")), /sourceActor:\s*author\b/.test(fnSource(mm, "placeFinalRemnant"))],
+            card: [/data-drpg-author/.test(fnSource(ring, "gmRemnantCard")) && /authorOptions\(/.test(fnSource(ring, "gmRemnantCard")),
+                /drpgConfirm\(/.test(wire), /setRemnantAuthor\(/.test(wire)],
+            player: /author|sourceName|sourceActor/i.test(fnSource(ring, "playerRemnantCard"))
+        }), JSON.stringify({
+            first: ["", game.i18n.localize("DRPG.Remnant.authorUnknown"), true], firstChosen: false,
+            rest: students.map(a => [a.id, a.name, false]), chosen: [students[0].id],
+            newTrace: [true, true], keyHere: [true, true], final: [true, true, true], card: [true, true, true], player: false
+        }), "[the first option, unchosen once a student is; every student by id and name; the student chosen; New trace draws it and places with it; Create Key Remnant here draws it and createKeyRemnant places with it; the Final form draws finalAuthor, its Save hands it on, the placement writes it; the GM's card draws it, asks first, writes through setRemnantAuthor; a player's card names no author]");
     }],
     ["R3332 - a statistic card under the kind action is asked only for an action a card is read for: Search, and no other", async () => {
         /*
