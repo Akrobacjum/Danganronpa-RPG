@@ -4,7 +4,7 @@
   "tools/glyph-map.mjs writes icons/pixel-sprite.svg, styles/pixel-icons.css and the audit page's symbols from them,",
   "and tools/chrome-icons.mjs writes danganronpa.css's chrome section from the rows of family chrome (the one hand",
   "sheet's data URIs left, each held to its row pixel for pixel by `node tools/glyph-map.mjs --check`). Every glyph a",
-  "rule reads is `--drpg-pix-<name>` (E48 G4: the one prefix): family legacy declared on the body for both themes",
+  "rule reads is `--drpg-pix-<name>` (E48 G4: the one prefix): family legacy declared on :root for both themes",
   "(Monokuma Legacy's drawings as they were - the stylesheets' hand-drawn g, r and pix tokens and the px drawings",
   "read by name), family glass declared under Stained Glass over them (the drawing rounds' approved set). Fields:",
   "family (px the generated sprite set and the glass theme's fallback, legacy, glass, chrome Foundry's chrome masks),",

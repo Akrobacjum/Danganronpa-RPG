@@ -225,7 +225,7 @@ export function diagnoseDespair({ toChat = true } = {}) {
    replaced or never attached, they come back empty together. Colours and one
    sprite, because a sprite is a `url()` and fails differently from a hex. Since
    E48 G4 the sprites are pixel-icons.css's (tools/glyph-map.mjs declares them on
-   the body), so the three of them read that sheet's arrival, the colours this one's. */
+   :root, where this sheet held them), so the three of them read that sheet's arrival, the colours this one's. */
 const LOAD_BEARING_TOKENS = [
     "--drpg-ink", "--drpg-bone", "--drpg-line",
     "--drpg-eye", "--drpg-blood", "--drpg-gold", "--drpg-evidence",

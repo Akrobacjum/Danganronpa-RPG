@@ -52,7 +52,7 @@ const SOURCES = {
 };
 
 const here = dirname(fileURLToPath(import.meta.url));
-/* Since E48 G4 the custom properties are tools/glyph-map.mjs's, on the body in pixel-icons.css (Monokuma Legacy's
+/* Since E48 G4 the custom properties are tools/glyph-map.mjs's, on :root in pixel-icons.css (Monokuma Legacy's
    drawings first, then Stained Glass's over the same names: the first match is Legacy's, the one these files carried),
    and the chrome rule the eye comes from is danganronpa.css's generated section. Re-run, the files' path text comes out
    in the generator's spelling (M0 0h3v1h-3z, not the hand sheets' H0z): the same pixels. */

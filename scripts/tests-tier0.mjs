@@ -600,10 +600,10 @@ const REGRESSIONS = [
         equal(JSON.stringify(gaps.offGrid), "[]", "drawings Stained Glass wears off the 24 grid with no `glass` row of the name on 24");
     }, expectedRed("E48", "66 drawings Stained Glass wears are on 8 or 12 (pix diamond, diamond-empty, dot, dot-empty, skull, query and 60 chrome masks); the rounds drew no 24 version of them")],
 
-    ["R3349 - one glyph prefix: no stylesheet of module.json, nor a script that writes or names a glyph, holds the retired px, g or r prefix, and every --drpg-pix- glyph they read (a sheet's var(), the kit's pixelGlyph and launcher names, config.mjs PROJECT_GLYPHS) is a legacy row of tools/glyphs.json, declared on the body for both themes (E48 G4)", async () => {
+    ["R3349 - one glyph prefix: no stylesheet of module.json, nor a script that writes or names a glyph, holds the retired px, g or r prefix, and every --drpg-pix- glyph they read (a sheet's var(), the kit's pixelGlyph and launcher names, config.mjs PROJECT_GLYPHS) is a legacy row of tools/glyphs.json, declared on :root for both themes (E48 G4)", async () => {
         /*
          * E48 G4, 11.11.2026 (STAGE G4: the px and g prefixes "gone (grep 0)"). Legacy's drawings are declared once, by
-         * the generator, as --drpg-pix-<name> on the body; Stained Glass declares its own set over the same names. A read
+         * the generator, as --drpg-pix-<name> on :root; Stained Glass declares its own set over the same names. A read
          * of a name no legacy row holds resolves to nothing under Monokuma Legacy - an icon element with an undefined mask
          * is a solid square of its colour (pixel-icons.css's 1.2.47 note) - so each read is held to a legacy row, and the
          * names scripts build at run time are read off their calls (tests-glyphs.mjs namedGlyphReads) and PROJECT_GLYPHS.

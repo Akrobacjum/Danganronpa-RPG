@@ -12,7 +12,7 @@
  * each field means.
  *
  * WHAT IT WRITES: icons/pixel-sprite.svg (each px row as `<symbol id="px-NAME">`, each glass row as `pix-NAME`), the
- * audit page's symbols, and styles/pixel-icons.css: every legacy row as `--drpg-pix-NAME` on the body, for both themes;
+ * audit page's symbols, and styles/pixel-icons.css: every legacy row as `--drpg-pix-NAME` on :root, for both themes;
  * then FACES's Font Awesome classes masked to their glass glyph under Stained Glass through the `--drpg-glyph` slot;
  * then the glass section (`glassCssOf`), each glyph Stained Glass wears declared as `--drpg-pix-NAME` on the theme's
  * body over Legacy's of the same name, keyed on the element (`glassRules`). THE ONE PREFIX (G4): no rule reads a

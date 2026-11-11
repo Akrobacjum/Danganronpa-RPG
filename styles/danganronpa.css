@@ -232,7 +232,7 @@
     /* THE GLYPHS ARE NOT HERE (E48 G4, 11.11.2026). The 89 drawings this :root held by hand - the fold chevron, the
        Hope diamonds, the pips, the Despair skull and query, the launchers' speaker, book and history stack, the d12,
        the action, Call, crisis and GM tiles and the sheet's row buttons - are tools/glyphs.json's family legacy, and
-       tools/glyph-map.mjs declares each on the body in styles/pixel-icons.css as --drpg-pix-<name>, pixel for pixel
+       tools/glyph-map.mjs declares each on :root in styles/pixel-icons.css as --drpg-pix-<name>, pixel for pixel
        what stood here; each comment that stood above one is its row's `note`. Stained Glass declares its own set over
        the same names. */
 
@@ -9779,7 +9779,7 @@ body.drpg-reduced-motion .drpg-call-button.drpg-call-pending::after { animation:
    HERE RATHER THAN IN pixel-icons.css, which is generated and would eat it, and
    not in stained-glass.css, where it lived until 1.2.47: both places that use it
    are in both themes now, and under Legacy an unmasked `.drpg-pxi` came out as a
-   solid square of its own colour. The sprite TOKENS are on the body (the
+   solid square of its own colour. The sprite TOKENS are on :root since E48 G4 (the
    generator states them unscoped for the same reason); the masking of Foundry's
    own icons stays Stained Glass only. */
 .drpg-pxi {
