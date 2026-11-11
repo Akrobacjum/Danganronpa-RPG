@@ -43232,6 +43232,76 @@ const INVARIANTS = [
             stableJson({ lighter: true, emptyKind: "empty", content: { base: 0.55, tint: 0, black: 0.12, pulse: 0.42, kind: "content" }, fillerPulse: 0.72 }),
             "{lighter: an empty pane under half the filler's black, black-over and pulse; emptyKind: an empty pane asked as stained still reads empty; content: a pane with content as before} - an empty pane must let the map through");
     }],
+    ["R3483 - every Call's window states one width (scripts/call-pickers.mjs `callWindow`, ui-kit.mjs WINDOW_WIDTHS `call`; E49 B2, S12-90): a Hope Call's and a Despair Call's window, a short body and a long one, open with the kit's width class and the same inline width, 36.25 rem by the Legacy slider", async () => {
+        /*
+         * E49 B2, 11.11.2026. S12-90: "the Hope Call windows are 544 and 578 px wide, so the buttons jump". Under Stained
+         * Glass the popup rule is `width: fit-content` from 544 px: Chromium read 544 and 678 px for two bodies at
+         * 1366x768 (E49 B2's probe). Read here: the config `drpgWindow` hands DialogV2, DialogV2.wait stood in for
+         * the four opens (nothing drawn, nothing written).
+         */
+        const K = await import("./ui-kit.mjs");
+        const { callWindow } = await import("./call-pickers.mjs");
+        const DialogV2 = foundry.applications.api.DialogV2;
+        const real = DialogV2.wait, seen = [];
+        DialogV2.wait = async config => { seen.push(config); return null; };
+        try {
+            for (const kind of ["hope", "despair"]) for (const body of ["<p>Spend 1 Hope.</p>", `<p>${"A statistic of your choice on your next roll. ".repeat(6)}</p>`])
+                await callWindow({ kind, title: "R3483", body, footer: { primary: { label: "Spend", action: "spend" } } });
+        } finally { DialogV2.wait = real; }
+        const read = seen.map(c => [c.classes.includes(K.WIDTH_CLASS) && c.classes.includes(K.WINDOW_WIDTHS.call?.cls), c.position?.width ?? null]);
+        equal(stableJson({ row: K.WINDOW_WIDTHS.call ?? null, read }),
+            stableJson({ row: { cls: "drpg-kit-width-call", rem: 36.25, legacy: true }, read: Array(4).fill([true, K.kitWidth("call")]) }),
+            "{row: WINDOW_WIDTHS.call; read: [the kit's width classes, the inline width] per window: hope short, hope long, despair short, despair long} - every Call's window must open at one width");
+    }],
+    ["R3484 - the notice tile's X is ink on its Bone band (styles/stained-glass.css; E49 B2, S12-55's colour): under Stained Glass the close button and its glyph are `--drpg-sg-ink` at full opacity, outranking the band's 0.65 ink and the base sheet's 0.7", async () => {
+        /*
+         * E49 B2, 11.11.2026. S12-55: "a grey X on bone". Chromium at 1366x768 read the X rgba(7, 7, 10, 0.65) at opacity
+         * 0.7 before (E49 B2's probe), rgb(7, 7, 10) at 1 after. Read here off the sheet's text: the
+         * rule, its two properties, and that it comes after the band's own `:is(button, i)` rule of the same weight.
+         */
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText));
+        const band = css.indexOf("body.drpg-theme-stained-glass .drpg-popup-title :is(button, i) {");
+        const found = css.match(/body\.drpg-theme-stained-glass \.drpg-popup-title \.drpg-popup-close,\s*body\.drpg-theme-stained-glass \.drpg-popup-title \.drpg-popup-close i \{([^}]*)\}/);
+        const at = found ? found.index : -1, decl = found?.[1] ?? "";
+        equal(stableJson({ rule: at >= 0, after: at > band && band >= 0, ink: /color:\s*var\(--drpg-sg-ink\)/.test(decl), full: /opacity:\s*1\b/.test(decl) }),
+            stableJson({ rule: true, after: true, ink: true, full: true }),
+            "{rule: the X's rule; after: below the band's; ink: --drpg-sg-ink; full: opacity 1} - the notice's X must be ink, not grey");
+    }],
+    ["R3485 - the sheet's Ultimate line and name carry no dead stamp or gold-letter rule (styles/stained-glass.css; E49 B2, S12-66): no rule of the glass gives `.drpg-ultimate-label` a stamp (`--stamp`, a `::before`/`::after` blot, a Hope plate, a clip) and none sets `.name-row h1::first-letter`; the line's own rule (Bone Dim, no plate) and the accent's first-letter rule stand", async () => {
+        /*
+         * E49 B2, 11.11.2026. S12-66: "the Ultimate's gold stamp and the name's gold first letter do not work - restore the
+         * effect or remove the dead rules". Removed: Milestone 10 made the line text on purpose ("the ink blot belongs to the
+         * Hope Call of that name") with `!important` and `content: none`, and E48 K1 keeps gold for Hope alone. Chromium at
+         * 1366x768 read the same before and after the cut (E49 B2's probe): the label's background transparent, its
+         * `::before` none, its colour Bone Dim, the name's first letter the accent.
+         */
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText));
+        const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim(), body: m[2] }));
+        const on = rules.filter(r => r.sel.includes(".drpg-ultimate-label"));
+        const stamp = on.filter(r => /::(before|after)|--stamp|background:\s*var\(--drpg-sg-hope\)|clip-path:\s*polygon/.test(r.sel + r.body)).map(r => r.sel.slice(0, 80));
+        const gold = rules.filter(r => /\.name-row h1::first-letter/.test(r.sel)).map(r => r.sel.slice(0, 80));
+        const line = on.some(r => r.sel.includes(".application.sheet.actor") && /color:\s*var\(--drpg-sg-bone-dim\)\s*!important/.test(r.body));
+        const accent = rules.some(r => r.sel.includes(":is(h1.actor-name, .actor-name):not(.drpg-lone-initial)::first-letter") && /--drpg-glass-accent/.test(r.body));
+        equal(stableJson({ stamp, gold, line, accent }), stableJson({ stamp: [], gold: [], line: true, accent: true }),
+            "{stamp: rules that dress the Ultimate's label as a stamp; gold: rules on the name row's first letter; line: the line's own Bone Dim rule; accent: the accent's first-letter rule} - no dead rule may stand");
+    }],
+    ["R3486 - a sheet's action and Call tiles are at most 110 px tall and their icons 24-32 px (styles/stained-glass.css; E49 B2, S12-43): under Stained Glass a tile of the sheet carries `max-height: 110px` and its icon a font size clamped so the 1.15em box stays between 24 and 32 px", async () => {
+        /*
+         * E49 B2, 11.11.2026. S12-43: "small icons and labels in large tiles; the Calls' second row cut", the finding's
+         * remedy "tiles lower (about 110 px), icons 24-32 px". A tile is a square of its grid column: Chromium on the sheet
+         * stand-in at 1366x768 read a tile 217 px tall before and 110 after, the icon 33 px before and 32 after
+         * (E49 B2's probe). jsdom lays nothing out, so this reads the two rules and the clamp's arithmetic.
+         */
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText));
+        const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim(), body: m[2] }));
+        const tile = ":is(.drpg-action-button, .drpg-call-button)";
+        const cap = rules.find(r => r.sel === `body.drpg-theme-stained-glass .application.sheet.actor ${tile}`)?.body.match(/max-height:\s*(\d+)px/)?.[1] ?? null;
+        const clamp = rules.find(r => r.sel === `body.drpg-theme-stained-glass .application.sheet.actor ${tile} .drpg-action-icon`)?.body
+            .match(/font-size:\s*clamp\(([\d.]+)px,\s*var\(--drpg-sg-title\),\s*([\d.]+)px\)/);
+        const box = clamp ? [Number(clamp[1]) * 1.15, Number(clamp[2]) * 1.15].map(n => Math.round(n * 10) / 10) : null;
+        equal(stableJson({ cap: cap && Number(cap), inRange: Boolean(box) && box[0] >= 24 && box[1] <= 32 }), stableJson({ cap: 110, inRange: true }),
+            `{cap: the sheet tile's max-height; inRange: the icon's 1.15em box between 24 and 32 px (read ${stableJson(box)})} - a tile must stay 110 px and its icon 24-32 px`);
+    }],
     ["R2018 - Room setup's Scenes tab on the kit (E46-C2b; E46-08, E47's 05.10 point 5): trial-scene.mjs `scenesTabHtml` is a kit `formGrid` (the school and the hall selects, each its label's `for`), the hall's name, picture and words a `formGrid` of their own, the warnings a `box(\"warning\")`, the prepare ticks kit switches, `SCENES_ZONE_SLOT` a row of `scenesTabRows` that draws nothing (where E73 puts Zone A and Zone B), the hall's cast pick (`castPickerHtml`) a kit `dataTable` with a switch an actor; `readScenesTab`'s answer for a seeded form the one it gave before", async () => {
         /*
          * E46-C2b. Red first on C2a's tree (f90e89a7): labels around the selects, a list of checkboxes, `p.drpg-warning`, no

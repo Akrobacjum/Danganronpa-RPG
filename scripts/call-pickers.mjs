@@ -103,6 +103,8 @@ export async function callWindow({
         title: title ?? call?.label ?? "",
         classes: ["drpg-panel", kind === "hope" ? "drpg-hope-dialog" : "drpg-despair-dialog", ...(once ? [once] : [])],
         body: `${header}${body}`,
+        // One width for every Call (ui-kit.mjs WINDOW_WIDTHS `call`; E49 B2, S12-90): the buttons stand still between them.
+        width: "call",
         footer: slots,
         ...(drawn ? { render: drawn } : {}),
         ...(modal !== undefined ? { modal } : {}),
