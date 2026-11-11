@@ -776,6 +776,19 @@ export function wireCallActions(body, message = null) {
 }
 
 /**
+ * One of a card's actions run on this GM's browser by the road a press takes (E68 C2): claimed on the primary,
+ * ruled, and the card settled with the ruling's line - what `wireCallActions` does for a click, with no button.
+ * The valve's (call-gm.mjs `askTraitByCard`). Answers what the ruling answered, or null when it was not this GM's.
+ */
+export async function pressCard(message, action, data = {}) {
+    if (!message?.id || !game.user?.isGM) return null;
+    const { claimCard, settleCall } = await import("./gm-bridge.mjs");
+    const outcome = await claimCard(message, () => runCallAction(action, { ...data }, message));
+    if (outcome?.settled && !outcome.held) await settleCall(message, outcome.settled, outcome.ruling ?? null);
+    return outcome;
+}
+
+/**
  * A ruling that is now made, and the line the card should carry instead of
  * "Awaiting a ruling."
  *
@@ -851,7 +864,7 @@ async function ruleApproveCallOrRefuseCall(action, data, message = null) {
 async function ruleSetDifficulty(action, data, message = null) {
     const { askDynamicDifficulty } = await import("./action-rolls.mjs");
     const ruling = await askDynamicDifficulty({
-        description: data.desc ?? "", actorName: data.name ?? "?", room: data.room || null
+        description: data.desc ?? "", actorName: data.name ?? "?", room: data.room || null, proposed: data.proposed || null
     });
     if (!ruling) return null;   // The editor was closed; the card stays open.
     const { answerDynamic } = await import("./gm-bridge.mjs");
@@ -868,8 +881,13 @@ async function ruleRefuseDynamic(action, data, message = null) {
     // trait not on it is refused here: the button's data is the card's, and the card is
     // a document. The pick goes to the asker alone and is kept in the card's meta. A project
     // stored without a statistic is given this one before the answer leaves (C11d), so the
-    // roll it is for is the last that asks.
+    // roll it is for is the last that asks. Since E68 C1 (DA18) the card may answer a proposal:
+    // "Approve" and each "Change to" are this one action, and the list's guard holds both - a
+    // "Change to" off the list is refused here as any pick is. The ruling keeps the proposal and
+    // `how` ("approved", "changed", or "picked" with none), read as the button's data says it.
 async function rulePickTrait(action, data) {
+    // The valve's press (E68 C2; call-gm.mjs `askTraitByCard`): no card's button carries `auto`, only the primary's own call.
+    const auto = data.auto === "1";
     const { listedTraits, keepProjectPick } = await import("./trait-ruling.mjs");
     const spec = { kind: data.kind ?? "", key: data.key ?? "", variant: data.variant || null };
     if (!game.actors.get(data.by ?? "") || !listedTraits(spec).includes(data.trait)) {
@@ -879,8 +897,10 @@ async function rulePickTrait(action, data) {
     await keepProjectPick(spec, data.trait);
     const { answerTraitRuling } = await import("./gm-bridge.mjs");
     if (!answerTraitRuling(data.rid, data.asker, data.trait)) return null;
-    return { ...settled("DRPG.Bridge.settledAnswered"),
-        ruling: { type: "trait", actorId: data.by, ...spec, trait: data.trait } };
+    const proposed = listedTraits(spec).includes(data.proposed) ? data.proposed : null;
+    const how = !proposed ? "picked" : proposed === data.trait ? "approved" : "changed";
+    return { ...(auto ? { settled: game.i18n.localize("DRPG.TraitRuling.autoApproved") } : settled("DRPG.Bridge.settledAnswered")),
+        ruling: { type: "trait", actorId: data.by, ...spec, trait: data.trait, ...(proposed ? { proposed } : {}), how, ...(auto ? { auto: true } : {}) } };
 }
 
     // Refuse: the action is not taken, and nothing was spent for it.
@@ -927,10 +947,12 @@ async function ruleOpenMurder(action, data) {
 
     // The two halves of the direct-murder gate. The declaration is already
     // parked and the action already spent; what these decide is whether it is
-    // allowed to become an incident when the lights come up.
+    // allowed to become an incident when the lights come up - and, since E68 C9, on which
+    // statistic its opening rolls: each Allow and Change to names one (`data.trait`), which
+    // `ruleOnParkedMurder` reads against the killer's list.
 async function ruleApproveMurderOrRefuseMurder(action, data) {
     const { ruleOnParkedMurder } = await import("./eclipse.mjs");
-    const ruled = await ruleOnParkedMurder(data.killer, action === "approveMurder");
+    const ruled = await ruleOnParkedMurder(data.killer, action === "approveMurder", action === "approveMurder" ? data.trait ?? null : null);
     // `false` is a refusal that went through; `null` is nothing happening
     // at all, and only that leaves the card open.
     if (ruled === null || ruled === undefined) return null;
@@ -967,6 +989,14 @@ async function ruleFireTrap(action, data) {
     const { openMurderDialog } = await import("./murder.mjs");
     const opened = await openMurderDialog({ killerId: data.killer, victimId: data.victim || null, indirect: true });
     return opened ? settled("DRPG.Bridge.settledHandled") : null;
+}
+
+async function ruleRepickProjectTarget(action, data) {
+    // A Secret Passage's or a breach's completion refused (E68 C11; D023, projects.mjs `offerRepick`): the approval's pick
+    // again, and the completion made on the primary with the new target. Closed with nothing chosen, the card stays open.
+    const { openTargetRepick } = await import("./projects-ui.mjs");
+    const done = await openTargetRepick(data.project);
+    return done ? settled("DRPG.Passage.card.repickDone") : null;
 }
 
 async function ruleApproveProject(action, data) {
@@ -1354,6 +1384,7 @@ const CARD_ACTIONS = {
     rearmTrap: ruleRearmTrap,
     fireTrap: ruleFireTrap,
     approveProject: ruleApproveProject,
+    repickProjectTarget: ruleRepickProjectTarget,
     declineProject: ruleDeclineProject,
     approveReshape: ruleApproveReshape,
     declineReshape: ruleDeclineReshape,

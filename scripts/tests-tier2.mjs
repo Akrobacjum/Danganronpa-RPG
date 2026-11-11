@@ -16,7 +16,7 @@ import { forcedDeletion } from "./utils.mjs";
 import { gmStoresIdle, gmStoreNow } from "./gm-store.mjs";
 import {
     ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource,
-    STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, watchLog, cast, systemSheetsAvailable, lfText, expectedRed,
+    STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, appearedBodyTiles, watchLog, cast, systemSheetsAvailable, lfText, expectedRed,
     bridgeFn, bridgeText, actionText, kitQuestion, kitQuestions
 } from "./tests-kit.mjs";
 import { GRID } from "./tests-grid.mjs";
@@ -135,6 +135,14 @@ async function snapshot(cast) {
             return ids;
         }, [])),
         messages: new Set(game.messages.map(m => m.id)),
+        /* EVERY SCENE'S TILES, by scene (E95 C2 fix, 10.11.2026; CI run 42748964937, suite 2/8). From E95 C2 a
+           Monocub's false-to-true edge lays a body tile (body-tile.mjs `leaveBody`), as a trace's roll drops a token,
+           and a test that marks a death by its flag alone and takes the flag back after ("E51-T21") leaves the tile:
+           no revive runs, and the revive is what takes a body off the map. The restore removed the embedded documents
+           that appeared only as traces' tokens, so the dump read "restore left: Scene ... tiles.<id> appeared". Recorded
+           as ids, as the traces are. The restore removes the body tiles among those that appeared, and no other (E95 fix
+           RV-4): a tile a test leaves that is not a body is still the dump's to name. */
+        tiles: new Map(game.scenes.map(scene => [scene.id, new Set((scene.tiles ?? []).map(t => t.id))])),
         /* EVERY OTHER WORLD DOCUMENT THAT EXISTED, by collection (E30, 24.09.2026). The
            dump's first run found two actors the module makes when it first needs them
            - "Remnant", under the traces, and "DRPG Project", under project tokens -
@@ -240,6 +248,11 @@ async function restore(snap) {
         // The refs that carry a token (E60 C1b): a row of a trace that appeared is the store hold's to put back.
         const strays = remnantsOn(scene).filter(r => r.document && !snap.remnants.has(r.key)).map(r => r.id);
         if (strays.length) await scene.deleteEmbeddedDocuments("Token", strays);
+        // The body tiles that appeared on a scene the snapshot knew (E95 C2 fix: a Monocub's body tile, `snapshot`'s
+        // note), and no other tile: one that is not a body is left for the dump to name (E95 fix RV-4, tests-kit.mjs
+        // `appearedBodyTiles`). A scene that appeared goes whole with the documents below.
+        const tiles = appearedBodyTiles(scene, snap.tiles?.get(scene.id));
+        if (tiles.length) await scene.deleteEmbeddedDocuments("Tile", tiles);
     }
     await gmStoresIdle();
     // The world's copy of the GMs' dice looks a full Gamemaster's overlay write has in flight (dice-sync.mjs, E16 fix
@@ -2293,9 +2306,11 @@ async function rollWindow(actor, config = {}) {
  * `pick(offered)`, any other closed; a `DialogV2.confirm` is answered yes, as the harness's
  * own is. `asked` is every window in order (a confirm as "confirm: <title>"); `menu` the menu
  * as built: its default button as [action, label], the others' actions, and each row as
- * { value, disabled, hint, details } - the text of the block it unfolds, or null.
+ * { value, disabled, hint, details } - the text of the block it unfolds, or null. Since E68 C4
+ * `fill(root, value)` answers the picked row's own fields before the button, and `picker(root)` sees
+ * the GM's statistic window as drawn.
  */
-async function pressCrisisTile(actor, { choose = () => null, pick = offered => offered[0] } = {}) {
+async function pressCrisisTile(actor, { choose = () => null, pick = offered => offered[0], fill = () => {}, picker = () => {} } = {}) {
     const { performAction } = await import("./action-rolls.mjs");
     const D = foundry.applications.api.DialogV2;
     const own = Object.getOwnPropertyDescriptor(D, "confirm");
@@ -2307,7 +2322,11 @@ async function pressCrisisTile(actor, { choose = () => null, pick = offered => o
     const windows = answerWindows((cfg, root) => {
         const title = cfg?.window?.title ?? "";
         asked.push(title);
-        if (title === traitTitle) return pick((cfg.buttons ?? []).map(b => b.action).filter(action => action !== "cancel"));
+        if (title === traitTitle) {
+            // `picker(root)`: the GM's window as drawn, before `pick` answers it (E68 C4).
+            picker(root);
+            return pick((cfg.buttons ?? []).map(b => b.action).filter(action => action !== "cancel"));
+        }
         if (title !== menuTitle) return null;
         const button = (cfg.buttons ?? []).find(b => b.default) ?? null;
         menu = {
@@ -2323,6 +2342,8 @@ async function pressCrisisTile(actor, { choose = () => null, pick = offered => o
         const input = value ? root.querySelector(`input[name="variant"][value="${value}"]`) : null;
         if (!input) return null;
         input.checked = true;
+        // `fill(root, value)`: the picked row's own fields, answered before the menu's button (E68 C4: the proposal).
+        fill(root, value);
         return press(cfg, root);
     });
     D.confirm = async cfg => {
@@ -2419,6 +2440,151 @@ async function whileDead(actor, run) {
     } finally {
         await reviveCharacter(actor, { quiet: true });
         await settle();
+    }
+}
+
+/**
+ * A body with its tile in another room than its token, for the length of `run` (E95 C1): two students alone together in
+ * a room of the scene on screen (`aloneTogether`), the second dead on a published death (`whileDead`), and a tile of its
+ * body made by the suite in another room, the data body-tile.mjs `bodyTileSpec` gives (what E95 C2's `leaveBody` will
+ * lay), on the token's floor. `run` gets the two, a player who owns neither, the tile, the two rooms, `standTaker(room)`
+ * (the taker's token stood in a room, waited for) and `drawn()` (the loot window's Take for the taker: [greyed, its
+ * words]). The tile is deleted after, whatever `run` did with it, and the tokens put back.
+ */
+/**
+ * A body's tile in another room, the taker stood beside it, and a Take of named items off the body (E68 C10; the three
+ * tier-2 tests of Take from the Body). `loot(names, hand, { one, cover })` puts the items on the body and takes them
+ * through handover.mjs `lootBody` - `itemIds`, or `itemId` with `one`, let go of after (`drop`) - with the Hand roll `hand`
+ * and the cover `cover`;
+ * `traceRow()` is the body's trace row with its visibility from the Remnant ledger, `traceRoom()` the room its token
+ * stands in, `names(list)` the names as the body's row keeps them, `standIn(room)` stands a third living student there
+ * (put back after), and `cards()` the cards since the start naming the body that say it was seen. Put back after: the
+ * items, the trace, its row, the messages, the third student.
+ */
+async function withLootTrace(run) {
+    await withBodyTile(async ({ taker, body, tileRoom, standTaker }) => {
+        const INV = await import("./inventory.mjs");
+        const H = await import("./handover.mjs");
+        const R = await import("./remnants.mjs");
+        const Mv = await import("./movement.mjs");
+        const { lootTraceStore, remnantStore } = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const scene = canvas.scene, PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const had = new Set(taker.items.map(i => i.id));
+        const since = new Set(game.messages.contents.map(m => m.id));
+        const traceDoc = () => {
+            const row = lootTraceStore.get(body.id);
+            return row?.tokenId ? game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null : null;
+        };
+        let moved = null;
+        try {
+            await standTaker(tileRoom);
+            await run({
+                taker, body, tileRoom,
+                loot: async (list, hand, { one = false, cover = null, drop = one } = {}) => {
+                    const put = [];
+                    for (const name of list) put.push(await INV.grantItem(body, { name, category: "tool", tier: 1, override: true, quiet: true }));
+                    must(put.every(Boolean), "the fixture items were not put on the body - this would measure nothing");
+                    const got = await H.lootBody({ takerId: taker.id, bodyId: body.id, ...(one ? { itemId: put[0].id } : { itemIds: put.map(i => i.id) }),
+                        hand: { isCritical: false, withHope: true, ...hand }, cover });
+                    await settle();
+                    // A Take of one is let go of after, so a taker's hands do not fill over three Takes (`drop`).
+                    if (drop) for (const item of taker.items.filter(i => !had.has(i.id))) { try { await item.delete(); } catch { /* already gone */ } }
+                    return got;
+                },
+                traceRow: () => {
+                    const row = lootTraceStore.get(body.id), doc = traceDoc();
+                    return row ? { ...row, visibility: doc ? remnantStore.get(`${doc.parent.id}.${doc.id}`)?.visibility ?? null : null } : null;
+                },
+                traceRoom: () => { const doc = traceDoc(); return doc ? Mv.roomOfToken(doc) : null; },
+                names: list => list,
+                standIn: async room => {
+                    const other = livingStudents().find(a => a.id !== taker.id && a.id !== body.id && scene.tokens.some(t => t.actorId === a.id));
+                    must(other, "no third student with a token on the scene - this would measure nothing");
+                    const token = scene.tokens.find(t => t.actorId === other.id);
+                    moved = { token, was: { x: token.x, y: token.y } };
+                    await token.update(Mv.positionIn(room, token), PLACE);
+                    await settle();
+                    must(Mv.roomOfToken(token) === room, `the third student could not be stood in ${room} - this would measure nothing`);
+                    return other;
+                },
+                // A card with readers keeps its words off the document (secret.mjs `STUB`): read as this GM holds them.
+                cards: () => game.messages.contents.filter(m => !since.has(m.id) && contentOf(m).includes(foundry.utils.escapeHTML(body.name))
+                    && /<em>/.test(contentOf(m)))
+            });
+        } finally {
+            if (moved) { await moved.token.update(moved.was, PLACE); await settle(); }
+            for (const m of game.messages.contents.filter(m => !since.has(m.id))) { try { await m.delete(); } catch { /* already gone */ } }
+            for (const item of taker.items.filter(i => !had.has(i.id))) { try { await item.delete(); } catch { /* already gone */ } }
+            for (const item of body.items.filter(i => i.name.startsWith("SUITE E68 C10"))) { try { await item.delete(); } catch { /* already gone */ } }
+            const doc = traceDoc();
+            if (doc) {
+                try { await R.dropRemnantSecret(doc); } catch { /* nothing filed */ }
+                try { await doc.delete(); } catch { /* already gone */ }
+            }
+            if (lootTraceStore.has(body.id)) await lootTraceStore.drop(body.id);
+            await settle();
+        }
+    });
+}
+
+async function withBodyTile(run) {
+    const { isPrimaryGm } = await import("./utils.mjs");
+    must(isPrimaryGm(), "this client is not the primary GM, whose reading the gate is - this would measure nothing");
+    needs(world.atLeast("studentTokensOnScreen", 2), "the taker and the body, each a token on the scene on screen");
+    needs(world.atLeast("namedRooms", 2), "a room for the two and another to lay the tile in");
+    const Mv = await import("./movement.mjs");
+    const B = await import("./body-tile.mjs");
+    const INV = await import("./inventory.mjs");
+    const A = await import("./anonymity.mjs");
+    const { levelOf } = await import("./rooms.mjs");
+    const { deathRecord } = await import("./settings.mjs");
+    const { livingStudents } = await import("./chapter.mjs");
+    const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+    const scene = canvas.scene, PLACE = { teleport: true, movementAction: "displace", animate: false };
+    const [taker, body] = livingStudents().filter(a => scene?.tokens?.some(t => t.actorId === a.id));
+    const player = game.users.find(u => !u.isGM && !body?.testUserPermission(u, "OWNER") && !taker?.testUserPermission(u, "OWNER")) ?? null;
+    must(taker && body && player, "no two students on the scene, or no player who owns neither - this would measure nothing");
+    const fixture = await aloneTogether(taker, body);
+    const tileRoom = Mv.allRooms(scene).find(r => r !== fixture.room);
+    const takerToken = scene.tokens.find(t => t.actorId === taker.id), bodyToken = scene.tokens.find(t => t.actorId === body.id);
+    const standTaker = async room => {
+        await takerToken.update(Mv.positionIn(room, takerToken), PLACE);
+        await settle();
+        must(Mv.roomOfToken(takerToken) === room, `the taker could not be stood in ${room} - this would measure nothing`);
+    };
+    const NAME = "SUITE E95 C1 a lighter on the body";
+    const drawn = async () => {
+        const root = document.createElement("div");
+        root.innerHTML = `<a data-tab="inventory"></a><section class="tab" data-tab="inventory"></section>`;
+        const item = await INV.grantItem(body, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+        await sheetAuditIdle();
+        await A.buildBodyLoot?.(root, body, taker);
+        const take = root.querySelector(".drpg-loot-take");
+        if (item) await item.delete();
+        await sheetAuditIdle();
+        return take ? [take.disabled, take.dataset.tooltip ?? ""] : null;
+    };
+    let tile = null;
+    try {
+        must(tileRoom, "the scene on screen has one room - the tile has nowhere else to lie");
+        await whileDead(body, async () => {
+            const spot = Mv.positionIn(tileRoom, bodyToken);
+            const data = B.bodyTileSpec({ tokenDoc: { x: spot.x, y: spot.y, width: bodyToken.width, height: bodyToken.height,
+                elevation: bodyToken.elevation, texture: { src: bodyToken.texture?.src ?? null }, parent: scene },
+            actorId: body.id, record: deathRecord(body), level: levelOf(bodyToken), at: Date.now() });
+            [tile] = await scene.createEmbeddedDocuments("Tile", [data]);
+            await settle();
+            must(tile && B.bodyRoomOf(body) === tileRoom && Mv.roomOfToken(bodyToken) === fixture.room,
+                `the body's tile could not be laid in ${tileRoom} with its token in ${fixture.room} - this would measure nothing`);
+            await run({ taker, body, player, tile, room: fixture.room, tileRoom, standTaker, drawn });
+        });
+    } finally {
+        if (tile && scene.tiles?.has(tile.id)) await tile.delete();
+        for (const i of body.items.filter(i => i.name === NAME)) await i.delete();
+        await fixture.back();
+        await sheetAuditIdle();
     }
 }
 
@@ -8752,7 +8918,81 @@ const SCENARIOS = [
             "a pick card a player wrote, a GM's for another project or naming a statistic a project does not list held the Work, a GM's own pick did not, a roll with no pick was thrown on its claim rather than the lowest it lists, or a player's difficulty card was read over the GM's (per Work: statistic flags, thrown, whose card; the difficulty)");
     }],
 
-    ["a clean-up's statistic is Stage 6's to pick: Tamper's door is the packet's word only for a roller who is not the cleaner, and a GM's pick holds the step it was asked for", async () => {
+    ["a pass after a GM's \"Change to\" voids that card's ruling: a later roll is held to no pick, a Search to Eye, and a pass for another definition voids nothing (E68 review R3)", async () => {
+        /*
+         * E68 review R3, 10.11.2026; DA46. A player's pass after "Change to" (trait-ruling.mjs `rollChanged`) wrote a line
+         * in the thread and answered null, and the GM's card naming the changed statistic stayed an unused pick for the
+         * Reroll's window (roll-draw.mjs `gmPickOf`): a roll drawn later on that statistic, with no new ask, was held to
+         * it and not flagged. The pass's line carries the definition it passes on now (`traitPass`), and a pick card
+         * older than a pass for its character and definition, written by the character's owner, is not read. Driven on
+         * this GM, with the pass lines written as the player's (author: the player), as the r2-H2 test writes its cards:
+         * (1) a GM's card for a project stored without a statistic, naming the highest of the four it lists, then a pass
+         * for another project, then a Work claimed on that highest - the control; (2) a new card for the same project,
+         * a pass for it, the same Work; (3) a GM's card for a Search naming Body, a pass for Search, a Search claimed
+         * on Body. Read per draw: the statistic thrown and whose card held it. Red at f32c36a7:
+         * [[highest,"GM"],[highest,"GM again"],["body","search"]].
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const P = await import("./projects.mjs");
+        const D = await import("./roll-draw.mjs");
+        const { ACTIONS, TRAITS } = await import("./config.mjs");
+        const { whisperToGms } = await import("./utils.mjs");
+        const { settleCall } = await import("./gm-bridge.mjs");
+        const value = t => Number(theirs.system.traits?.[TRAITS[t]?.dh]?.value) || 0;
+        const listed = ACTIONS.project.traits.filter(t => Object.hasOwn(TRAITS, t));
+        const highest = listed.reduce((high, t) => (value(t) > value(high) ? t : high));
+        const lowest = listed.reduce((low, t) => (value(t) < value(low) ? t : low));
+        must(value(highest) > value(lowest), `${theirs.name}'s statistics a project lists are all equal - the pick and the lowest would read the same`);
+        must(ACTIONS.search.traits.includes("body") && ACTIONS.search.traits.includes("eye"), "Search lists no Body or no Eye here - this would measure nothing");
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const made = [], drawn = [], cards = {};
+        const gmCard = async (label, ruling) => {
+            const m = await whisperToGms("<p>SUITE R3 pick</p>");
+            must(m, "no card to settle a pick on - this would measure nothing");
+            await settleCall(m, "SUITE R3", ruling);
+            cards[m.id] = label;
+        };
+        const passed = async (kind, key) => {
+            const m = await ChatMessage.create({ content: "<p>SUITE R3 pass</p>", author: player.id, whisper: [game.user.id],
+                flags: { [MODULE_ID]: { traitPass: { actorId: theirs.id, kind, key, variant: null } } } });
+            must(m && m.author?.id === player.id, "no pass line of the player's to read - this would measure nothing");
+        };
+        const pick = (kind, key, trait) => ({ type: "trait", actorId: theirs.id, kind, key, variant: null, trait });
+        const read = [];
+        const draw = async (actionKey, trait, projectId = null) => {
+            const F = await drawnForPlayer(player, theirs, { actionKey, trait,
+                ...(projectId ? { edit: p => ({ ...p, context: { ...(p.context ?? {}), projectId } }) } : {}) });
+            drawn.push(F);
+            must(F.record, `the GM kept no record of the ${actionKey} (${F.verdict}) - this would measure nothing`);
+            read.push([F.record.scored?.trait ?? null, cards[F.record.legal?.pick] ?? F.record.legal?.pick ?? null]);
+        };
+        try {
+            for (const name of ["SUITE R3 project", "SUITE R3 another project"]) {
+                made.push((await P.createProject({ name, target: 6, room: null, trait: null }))?.id ?? null);
+            }
+            must(made.every(Boolean), "a project stored without a statistic was not made - this would measure nothing");
+            const [mine, another] = made;
+            await gmCard("GM", pick("project", mine, highest));
+            await passed("project", another);
+            await draw("project", highest, mine);
+            await gmCard("GM again", pick("project", mine, highest));
+            await passed("project", mine);
+            await draw("project", highest, mine);
+            await gmCard("search", pick("action", "search", "body"));
+            await passed("action", "search");
+            await draw("search", "body");
+        } finally {
+            for (const F of [...drawn].reverse()) await F.putBack();
+            D.forgetPayments?.(theirs.id);
+            for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+            for (const id of made.filter(Boolean)) await P.deleteProject(id).catch(() => {});
+        }
+        equal(stableJson(read), stableJson([[highest, "GM"], [lowest, null], ["eye", null]]),
+            "a pass voided a card for another project, or a card older than a pass for its own definition still held the roll (per draw: the statistic thrown, whose card held it)");
+    }],
+
+    ["a clean-up rolls Shadow on every road: through Tamper's door, as Stage 6's cleaner and as its victim, and a GM's card naming Hand or Head does not move it (E68 C5)", async () => {
         /*
          * E29 fix r2-H2, 05.10.2026; the round-2 reviews' sec m2 = cor m5, and m1's match by action.
          * The GM held any clean-up whose packet said it came through Tamper's door (`cleanupVia`) to
@@ -8769,6 +9009,9 @@ const SCENARIOS = [
          * At a4a7f25's runtime (e29run/r2h2red) the cleaner's erase said to come through the door was
          * held to Tamper's Shadow, nobody asked; the two picks held their rolls then too, a card's kind
          * alone being matched: [["shadow","fixed"],["shadow","fixed"],["shadow","fixed"],["shadow","gm"],["hand","gm"]].
+         * E68 C5, 10.11.2026 (DA4): Stage 6 lists Shadow alone (`CLEANUP.traits`), so every reading is Shadow from the
+         * `fixed` row, and a GM's card naming Hand for an erase or Head for a trail - which no honest browser asks now -
+         * is not read: a clean-up claimed on either is flagged. Red at C4's tip: the clean-up listed three.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a Stage 6 is a fight's, so a killer and a victim, each with a player");
         const M = await import("./murder.mjs");
@@ -8785,10 +9028,10 @@ const SCENARIOS = [
         const had = new Set(game.messages.contents.map(m => m.id));
         const value = t => Number(killer.system.traits?.[TRAITS[t]?.dh]?.value) || 0;
         const listed = CLEANUP.traits.filter(t => Object.hasOwn(TRAITS, t));
-        const lowest = listed.reduce((low, t) => (value(t) < value(low) ? t : low));
-        const [erased, trailed] = listed.filter(t => t !== lowest);
         const [door] = ACTIONS.tamper.traits;
-        must(listed.length === 3 && erased && trailed, `the clean-up lists ${listed.length} statistic(s) - this would measure nothing`);
+        must(value && door === "shadow", `Tamper's door rolls ${door} - this would measure nothing`);
+        must(stableJson(listed) === stableJson(["shadow"]), `the clean-up lists ${stableJson(listed)}, not Shadow alone`);
+        const [erased, trailed] = ["hand", "head"];
         const expected = async (actor, context) => {
             const e = await D.expectedFor(actor, { actionKey: "cleanup", context });
             return [e.trait ?? null, e.traitFrom ?? null];
@@ -8822,8 +9065,8 @@ const SCENARIOS = [
                 if (changed.length) await trustedWrite(a, Object.fromEntries(changed.map(([k, v]) => [`system.resources.${k}.value`, v])), { reason: "gmRuling" });
             }
         }
-        equal(stableJson(read), stableJson([[door, "fixed"], [lowest, "gm"], [door, "fixed"], [erased, "gm"], [trailed, "gm"]]),
-            "a clean-up said to come through Tamper's door was held to Tamper's statistic for the cleaner or not for another, or a GM's pick asked as an erase or a trail is asked did not hold that roll (per reading: statistic, row)");
+        equal(stableJson(read), stableJson([[door, "fixed"], ["shadow", "fixed"], [door, "fixed"], ["shadow", "fixed"], ["shadow", "fixed"]]),
+            "a clean-up was not held to Shadow through Tamper's door, as the cleaner or as the victim, or a GM's card naming Hand or Head moved an erase or a trail (per reading: statistic, row)");
     }],
 
     ["what a drawn roll throws is the GMs' record once its waits are over: a critical and a statistic a player's write puts on during the pick's wait are not thrown", async () => {
@@ -9685,8 +9928,9 @@ const SCENARIOS = [
         /*
          * E29 C8, 05.10.2026; the plan's 3.3. A player's Call on their own character is bought on the
          * GM now, as a Support on somebody else's is (gm-bridge.mjs `call.arm`). A player's Resolve (3
-         * Hope) for their own character, as their browser asks it, handed to the bridge's runner with
-         * the player's id: at 2 Hope, then at 3. The packet says it was armed at 1 (a time the GM did
+         * Hope; 2 since E68 C7, DA37 = 1, so its price is read off config.mjs) for their own character, as
+         * their browser asks it, handed to the bridge's runner with the player's id: at one Hope short of
+         * the price, then at the price. The packet says it was armed at 1 (a time the GM did
          * not write is a claim). Read: the reply, the character's Hope, and the entry the GM armed with
          * its time. Until C8 the GM refused the own character's Call as no Support whatever the Hope
          * (the player's browser armed and paid for it itself).
@@ -9700,9 +9944,10 @@ const SCENARIOS = [
         const HOPE = "system.resources.hope.value";
         const hopeWas = theirs.system.resources.hope.value;
         must(!E.armedCallsShown(theirs).some(c => c.grants === "trait"), `${theirs.name} already holds a Resolve - a second is refused for that, and this would measure it`);
+        const cost = (await import("./config.mjs")).HOPE_CALLS.determination.cost;
         const t0 = Date.now(), read = [], nonces = ["E29C8RESOLVE0001", "E29C8RESOLVE0002"];
         try {
-            for (const [hope, nonce] of [[2, nonces[0]], [3, nonces[1]]]) {
+            for (const [hope, nonce] of [[cost - 1, nonces[0]], [cost, nonces[1]]]) {
                 await trustedWrite(theirs, { [HOPE]: hope }, { reason: "gmRuling" });
                 const sent = [];
                 await G.judge(BRIDGE_ACTIONS, { action: "call.arm", requestId: `E29C8${nonce}`, actorId: theirs.id,
@@ -9718,7 +9963,7 @@ const SCENARIOS = [
             await E.consumeCallsByNonce(theirs, nonces);
             if (theirs.system.resources.hope.value !== hopeWas) await trustedWrite(theirs, { [HOPE]: hopeWas }, { reason: "gmRuling" });
         }
-        equal(stableJson(read), stableJson([["bridge.refused", "notEnoughHope", 2, null], ["bridge.done", null, 0, ["trait", true]]]),
+        equal(stableJson(read), stableJson([["bridge.refused", "notEnoughHope", cost - 1, null], ["bridge.done", null, 0, ["trait", true]]]),
             "a Call on the buyer's own character was paid or armed with too little Hope, not paid and armed by the GM with enough, or kept the packet's time (per ask: answer, reason, Hope after, entry armed and its time the GM's)");
     }],
 
@@ -21479,7 +21724,8 @@ const SCENARIOS = [
                 await press("leg");
                 await until(() => cardFlag(card, "settled"));
             });
-            const record = { type: "trait", actorId: killer.id, kind: "crisis", key: "weaponAttack", variant: null, trait: "leg" };
+            // Since E68 C1 (DA18) the ruling says how it was made: "picked" where no proposal came (messenger-app.mjs `rulePickTrait`).
+            const record = { type: "trait", actorId: killer.id, kind: "crisis", key: "weaponAttack", variant: null, trait: "leg", how: "picked" };
             equal(stableJson([forged, done, cardFlag(card, "ruling") ?? null, readers.filter(w => w.id === card.id && w.to.includes(mine.id)).map(w => w.meta?.ruling ?? null)]),
                 stableJson([[0, false], [[[mine.id], "leg"]], record, [record]]),
                 "a trait the action does not list was answered, or the pick did not go to the asker alone, or the card did not keep it, or its player was not sent it (after the forged press, answers, the card's record, the player's)");
@@ -21671,7 +21917,7 @@ const SCENARIOS = [
         }
     }],
 
-    ["a clean-up roll waits for the GM's pick, and nothing is paid before it", async () => {
+    ["a Stage 6 roll asks nobody and throws Shadow, and a roll window closed keeps no price (E68 C5)", async () => {
         /*
          * E32+E07 C11c, 02.10.2026; audit S04-23. Stage 6's rolls list Shadow / Hand / Head
          * and threw Shadow, with nobody asked. The killer, alone with the victim in a room
@@ -21682,6 +21928,9 @@ const SCENARIOS = [
          * window does, so the price is handed back (`releaseTamper`). Read: the windows, the
          * throws, what the cancelled attempt answered, and the killer's Sanity before and after.
          * Until C11c: no window, and Shadow (`presence`) thrown three times, the Cancel too.
+         * E68 C5, 10.11.2026 (DA4): Stage 6 lists Shadow alone, so the trail and the erase open no GM's window and
+         * throw Shadow unmarked; the price is still handed back when the roll window closes. Red at C4's tip: three
+         * windows, and Head and Hand thrown on the GM's mark.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         const M = await import("./murder.mjs");
@@ -21704,17 +21953,12 @@ const SCENARIOS = [
             const sanity = () => killer.system.resources.stress.value;
             const before = sanity();
             killer.rollTrait = async (dh, config) => { thrown.push([dh, config?.[TRAIT_BY_GM] === true]); return null; };
-            traits.pick = () => "cancel";
-            const cancelled = await Cl.attemptStageSix(killer, "misleadingTrail", victim.id);
-            const afterCancel = [thrown.length, sanity()];
             traits.pick = () => "head";
             await Cl.attemptStageSix(killer, "misleadingTrail", victim.id);
-            traits.pick = () => "hand";
             await Cl.attemptCleanup(killer, "SUITEC11CNOTRACE");
-            equal(stableJson([traits.asked, cancelled, afterCancel, thrown, sanity()]),
-                stableJson([[["shadow", "hand", "head"], ["shadow", "hand", "head"], ["shadow", "hand", "head"]], null, [0, before],
-                    [["knowledge", true], ["finesse", true]], before]),
-                "a clean-up roll did not ask the GM, threw before the pick or after a Cancel, threw another statistic or unmarked, or kept a price (windows, cancelled, after the Cancel, throws, Sanity)");
+            equal(stableJson([traits.asked, thrown, sanity()]),
+                stableJson([[], [["presence", false], ["presence", false]], before]),
+                "a Stage 6 roll asked the GM, threw another statistic than Shadow or on the GM's mark, or kept a price (windows, throws, Sanity)");
         } finally {
             traits.restore();
             delete killer.rollTrait;
@@ -24714,6 +24958,110 @@ const SCENARIOS = [
             if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
             if (murder.murderState()) await murder.endMurder({ reason: "test", followUp: false });
             await stood.back();
+        }
+    }],
+
+    ["an approved opening opens on its statistic with no second window (E68 C9)", async () => {
+        /*
+         * E68 C9, 10.11.2026; S18-10, DA18. The killer's opening lists Body and Hand, and until C9 the GM allowed a direct
+         * murder declared in the dark on a card of "Allow it" and "Refuse", and then picked the opening's statistic in a
+         * second window when the lights opened it (murder-rules.mjs `openingTraitFor`). The killer proposes now, with the
+         * declaration (action-murder.mjs `performDirectMurder` -> eclipse.mjs `parkDirectMurder` `proposed`), and the GM's
+         * card holds "Allow: {stat}" (the proposal), "Change to: {stat}" (the other listed) and "Refuse"; the allowance
+         * keeps the statistic, and the lights open the incident on it. Driven through the game's own calls: the Eclipse
+         * opens, a declaration proposing Hand is parked, the card's buttons are read and its "Allow: Hand" pressed by the
+         * click's road (messenger-app.mjs `pressCard`); the two stand alone, the Eclipse ends. Read: the card's buttons
+         * (action, statistic, label), the row's ruling, the incident's opening statistic and every statistic window asked
+         * on this GM (`answerTraitWindows`, which would answer Body, the first listed). Red at 1a0ae5c7: the card's two
+         * buttons carried no statistic, and the opening asked a window which answered Body.
+         */
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const murder = await import("./murder.mjs");
+        const { pressCard } = await import("./messenger-app.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { traitWithValue } = await import("./trait-ruling.mjs");
+        const [killer, victim] = cast(2);
+        equal(murder.murderState(), null, "an incident was already running when this scenario started");
+        const stood = await aloneTogether(killer, victim);
+        const NOTE = "SUITE E68 C9 proposes Hand";
+        const from = game.messages.size;
+        const windows = answerTraitWindows();
+        try {
+            await E.startEclipse();
+            await settle();
+            await E.parkDirectMurder({ killerId: killer.id, room: stood.room, note: NOTE, proposed: "hand" });
+            await settle();
+            const card = game.messages.contents.slice(from).find(m => contentOf(m).includes(NOTE));
+            must(card, "the declaration's card was not posted in the GMs' log");
+            const root = document.createElement("div");
+            root.innerHTML = contentOf(card);
+            const buttons = [...root.querySelectorAll("button.drpg-call-action")]
+                .map(b => [b.dataset.drpgCall, b.dataset.trait ?? null, b.textContent.trim()]);
+            equal(stableJson(buttons), stableJson([
+                ["approveMurder", "hand", game.i18n.format("DRPG.Action.murderAllow", { stat: traitWithValue(killer, "hand") })],
+                ["approveMurder", "body", game.i18n.format("DRPG.TraitRuling.change", { stat: traitWithValue(killer, "body") })],
+                ["refuseMurder", null, game.i18n.localize("DRPG.Action.murderRefuse")]]),
+                "the declaration's card does not hold Allow on the proposal, Change to on the other listed statistic and Refuse (action, statistic, label)");
+            const allow = root.querySelector('button[data-drpg-call="approveMurder"][data-trait="hand"]');
+            await pressCard(card, "approveMurder", { ...allow.dataset });
+            await settle();
+            const row = S.pendingMurderStore.get(killer.id);
+            equal(stableJson([row?.approved ?? null, row?.trait ?? null, row?.proposed ?? null]), stableJson([true, "hand", "hand"]),
+                "the allowance did not keep the statistic the card named (approved, trait, proposed)");
+            await E.endEclipse({ advance: false });
+            await settle();
+            await until(() => murder.murderState()?.openingTrait, 5000);
+            const state = murder.murderState();
+            equal(stableJson([state?.killerId ?? null, state?.victimId ?? null, state?.openingTrait ?? null, windows.asked]),
+                stableJson([killer.id, victim.id, "hand", []]),
+                "the lights did not open the incident on the allowed statistic, or asked the GM for it in a second window (killer, victim, opening statistic, windows asked)");
+        } finally {
+            windows.restore();
+            // A row left unallowed would ask the lights' window, which nobody here presses.
+            if (S.pendingMurderStore.has(killer.id)) await S.pendingMurderStore.drop(killer.id);
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (murder.murderState()) await murder.endMurder({ reason: "test", followUp: false });
+            await stood.back();
+        }
+    }],
+
+    ["a betrayal's proposal is the first answer in the GM's opening window, and a trap victim's opening asks with none (E68 C9)", async () => {
+        /*
+         * E68 C9, 10.11.2026; S18-10, DA36 = 2. A betrayal asks no GM's leave (`parkBetrayal`, `openBetrayal`), so its
+         * proposal - the betrayer's, pre-checked on Body in the tile's confirmation (action-murder.mjs `performBetrayal`) -
+         * goes with the incident to the opening's window, on C1's road: `traitFor` with the proposal, the GM's window
+         * offering "Approve: {stat}" first. A trap victim's opening is the GM's pick, with no proposal. Three students with
+         * players: the accomplice at Stage 6 turns on the killer proposing Hand (`betrayAsPlayer`, what the tile's request
+         * runs on the GM); then the opening of an indirect murder, re-asked for its victim (`rollOpening`). Read: each window's
+         * answers, in order, and the betrayal's opening statistic. Red at 1a0ae5c7: the betrayal's window offered Body first.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and an accomplice, each with a player");
+        const M = await import("./murder.mjs");
+        const { MURDER_OPENING } = await import("./config.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        const windows = answerTraitWindows();
+        try {
+            await accompliceAtStageSix(M, killer, victim, third);
+            const start = windows.asked.length;
+            await M.betrayAsPlayer(third.id, { proposed: "hand" });
+            await settle();
+            await until(() => M.murderState()?.openingTrait, 5000);
+            const betrayal = [M.murderState()?.killerId ?? null, M.murderState()?.openingTrait ?? null];
+            await M.endMurder({ reason: "test", followUp: false });
+            const trap = M.freshIncidentState({ killerId: killer.id, victimId: third.id, indirect: true });
+            const before = windows.asked.length;
+            await M.rollOpening("victim", trap).catch(() => null);
+            equal(stableJson([betrayal, windows.asked[start] ?? null, windows.asked.slice(before)]),
+                stableJson([[third.id, "hand"], ["hand", "body"], [MURDER_OPENING.victim.traits]]),
+                "the betrayal's window did not offer the betrayer's proposal first, the incident did not open on it, or the trap victim's window was not the GM's pick of the victim's list "
+                + "(the betrayal's killer and statistic, its window, the trap's window)");
+        } finally {
+            windows.restore();
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
         }
     }],
 
@@ -29467,6 +29815,121 @@ const SCENARIOS = [
         }
     }],
 
+    ["one Hand roll takes several items off a body, and the body keeps one Remnant at the roll's visibility", async () => {
+        /*
+         * E68 C10, 10.11.2026. A Take took one item and rolled nothing (handover.mjs `lootBody`); it takes the ticked items
+         * under one Hand roll now (`itemIds`), and the roll says how plain the body's one Remnant reads (config.mjs `LOOT`).
+         * Two items off a body whose tile lies in another room, the taker beside the tile, a Hand of 20: both taken, one
+         * Remnant naming both, Hidden. Red at d7dc9749: a Take naming `itemIds` took nothing.
+         */
+        await withLootTrace(async ({ loot, traceRow, names }) => {
+            const got = await loot(["SUITE E68 C10 a torch", "SUITE E68 C10 a rope"], { total: 20 });
+            const row = traceRow();
+            equal(stableJson([Array.isArray(got) ? got.length : null, row?.taken ?? null, row?.visibility ?? null]),
+                stableJson([2, names(["SUITE E68 C10 a torch", "SUITE E68 C10 a rope"]), "hidden"]),
+                "[how many the Take took, what the body's row says left it, the Remnant's visibility]");
+        });
+    }],
+
+    ["every Take rolls once and only its first roll counts", async () => {
+        /*
+         * E68 C10 loot bind, 10.11.2026; the owner's Q8 "nie" (every Take rolls Hand again, in the same time of day too). A
+         * Take's rolls are drawn on no payment (roll-draw.mjs `PAID_BY_NOTHING`), so a console could throw "loot" again and
+         * again before a Take and send the best. Now the first Hand drawn for a taker at a body since their last Take of it
+         * is the one their next Take counts (handover.mjs `bindLootRoll`, `lootRollsBound`), and a Take that moves something
+         * clears it (`releaseLootRolls`, as bridge-runs-records.mjs `handleLoot` calls it). Two Takes of one body in one time
+         * of day, each after two Hands drawn for a player's character on this GM: the first Take's first Hand bound, the
+         * second ignored; the binding released as the first Take's settlement releases it; the second Take's first Hand bound,
+         * its second ignored; a Hand naming no body refused. The Takes themselves are not made here - the bind, its release
+         * and the refusal are; scenario 83 L18 makes a player's Take through the bridge. Red at 120a8003: no body travelled
+         * with the draw and nothing was bound.
+         */
+        const { livingStudents } = await import("./chapter.mjs");
+        const H = await import("./handover.mjs");
+        const { lootRollStore } = await import("./gm-stores.mjs");
+        needs(world.atLeast("playersWithCharacter", 1), "a player who owns a student, whose Hand is drawn on this GM");
+        const player = game.users.find(u => !u.isGM && livingStudents().some(a => a.testUserPermission(u, "OWNER"))) ?? null;
+        must(player, "no player owns a living student - this would measure nothing");
+        const taker = livingStudents().find(a => a.testUserPermission(player, "OWNER"));
+        const body = game.actors.find(a => a.type === "character" && a.id !== taker.id) ?? null;
+        must(body, "no second character to name as the body - this would measure nothing");
+        must(typeof H.lootRollsBound === "function" && typeof H.releaseLootRolls === "function", "handover.mjs binds no Take's roll (lootRollsBound, releaseLootRolls)");
+        const key = `${taker.id}:${body.id}`, draws = [];
+        const draw = async (faces, context = { bodyId: body.id }) => {
+            const d = await drawnForPlayer(player, taker, { actionKey: "loot", faces, pay: false, trait: "hand", edit: p => ({ ...p, context }) });
+            draws.push(d);
+            return d.value?.messageId ?? null;
+        };
+        const bound = async () => (await H.lootRollsBound(taker.id, body.id))?.loot?.messageId ?? null;
+        try {
+            if (lootRollStore.has(key)) await lootRollStore.drop(key);
+            const first = [await draw({ hope: 2, fear: 1 }), await draw({ hope: 12, fear: 11 })];
+            const firstBound = await bound();
+            await H.releaseLootRolls(taker.id, body.id);
+            const cleared = await bound();
+            const second = [await draw({ hope: 7, fear: 4 }), await draw({ hope: 12, fear: 10 })];
+            const secondBound = await bound();
+            const none = await draw({ hope: 6, fear: 5 }, {});
+            equal(stableJson([first.every(Boolean), firstBound === first[0], cleared, second.every(Boolean), secondBound === second[0], none]),
+                stableJson([true, true, null, true, true, null]),
+                "[both Hands before the first Take drawn, the first of them bound, the binding after that Take, both before the second drawn, the first of them bound, the bodiless Hand's message]");
+        } finally {
+            for (const d of draws) await d.putBack();
+            if (lootRollStore.has(key)) await lootRollStore.drop(key);
+            await settle();
+        }
+    }],
+
+    ["the loot's Remnant only rises and lies at the body's tile", async () => {
+        /*
+         * E68 C10, 10.11.2026; the owner's Q8 (every Take rolls again, in the same time of day too) and Q9 (a Remnant already
+         * laid stays where it is). Three Takes off one body whose tile lies in another room: Hand 20, then 5, then 19. The
+         * Remnant goes down Hidden, rises to Evident, and stays Evident, in the tile's room each time. Red at d7dc9749:
+         * every loot's Remnant was Subtle, laid at the token in the other room.
+         */
+        await withLootTrace(async ({ loot, traceRow, traceRoom, tileRoom }) => {
+            const seen = [];
+            for (const [name, total] of [["SUITE E68 C10 a torch", 20], ["SUITE E68 C10 a rope", 5], ["SUITE E68 C10 a key ring", 19]]) {
+                ok(await loot([name], { total }, { one: true }), `the Take of ${name} took nothing`);
+                seen.push([traceRow()?.visibility ?? null, traceRoom() === tileRoom]);
+            }
+            equal(stableJson(seen), stableJson([["hidden", true], ["evident", true], ["evident", true]]),
+                "[the Remnant's visibility, whether it lies in the tile's room] after each Take");
+        });
+    }],
+
+    ["the cover asks only with witnesses and costs no Sanity", async () => {
+        /*
+         * E68 C10, 10.11.2026; DA16, DA17, DA40. A Take whose cover missed with Despair, first with nobody else in the
+         * room, then with a third student stood beside the tile: alone, no card; watched, one card naming the taker, the
+         * body and the item, to the witness's owners and the GMs; the taker's Sanity the same throughout. Red at
+         * d7dc9749: `lootBody` read no cover and told nobody.
+         */
+        await withLootTrace(async ({ loot, taker, body, tileRoom, standIn, cards }) => {
+            const { resourceValue } = await import("./character.mjs");
+            const { ownerIdsOf, gmIds } = await import("./utils.mjs");
+            const { contentOf } = await import("./secret.mjs");
+            const stress = resourceValue(taker, "stress");
+            const { roomWitnessesOnGm } = await import("./frisk.mjs");
+            must(!roomWitnessesOnGm(tileRoom, canvas.scene, { except: [taker.id, body.id] }).length,
+                `somebody already stands in ${tileRoom} - the Take alone would measure nothing`);
+            const miss = { total: 5, isCritical: false, withHope: false };
+            ok(await loot(["SUITE E68 C10 a torch"], { total: 14 }, { one: true, cover: miss }), "the first Take took nothing");
+            const alone = cards().length;
+            const witness = await standIn(tileRoom);
+            ok(await loot(["SUITE E68 C10 a rope"], { total: 14 }, { one: true, cover: miss }), "the second Take took nothing");
+            const seen = cards();
+            const readers = seen[0]?.whisper ?? [];
+            const owners = ownerIdsOf(witness).filter(id => !game.users.get(id)?.isGM);
+            equal(stableJson([alone, seen.length, seen[0] ? contentOf(seen[0]).includes(foundry.utils.escapeHTML(taker.name)) : false,
+                seen[0] ? contentOf(seen[0]).includes("SUITE E68 C10 a rope") : false, owners.every(id => readers.includes(id)),
+                gmIds().every(id => readers.includes(id)), resourceValue(taker, "stress") === stress]),
+            stableJson([0, 1, true, true, true, true, true]),
+            "[cards with nobody watching, cards with a witness, the card names the taker, names the item, reaches the witness's owners, reaches the GMs, the taker's Sanity unchanged]");
+            void body;
+        });
+    }],
+
     ["a looted body's trace and what left it are the GMs' row, and the body carries no flag of it", async () => {
         /*
          * E05 C14, 27.09.2026; audit S05-39 (3). A looted body carried a `lootTrace` flag - its
@@ -32253,6 +32716,112 @@ const SCENARIOS = [
             "[this GM's take, the row], the row after its drop, [another GM's take of a card this GM's pending row holds: taken, why, by this GM], [this GM's take of a card a GM not here holds, the row], the row after the drop - a claim under way was not the GMs' row, or a pending row of a GM not here held the card");
     }],
 
+    ["an ask's card that runs out while a GM is ruling on it waits for that ruling, and ends once (E68 C11; D075)", async () => {
+        /*
+         * E68 C11, 10.11.2026; D075 (E18 C3's gap). The primary's end of an ask's card - its time, or its asker's
+         * `ruling.expired` - read only whether the card was settled, so a GM whose ruling on it was under way (a claim,
+         * call-gm.mjs `claimOnPrimary`) found it ended under the window, and the ruling then settled it again. Read on this
+         * primary, each packet handed to the bridge's runner with the user Foundry names: a player's Dynamic ask puts its
+         * card up; this GM takes the card; the asker's expiry; then this GM backs out of the ruling (the claim's "drop").
+         * Read: the take, whether the card ended while it was held, whether it ended after the drop, and how many closing
+         * lines it carries. The card is deleted after.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the ask is a player's, and Foundry names only a connected one");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which holds the asks and the claims - this would measure nothing");
+        const { player, theirs } = playerAndCharacters();
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const judged = (action, fields, from, requestId = null) =>
+            G.judge(B.BRIDGE_ACTIONS, { action, ...(requestId ? { requestId } : {}), ...fields }, from, { send: () => {} });
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [];
+        const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        const read = [];
+        let card = null;
+        try {
+            const rid = foundry.utils.randomID(16);
+            await judged("dynamic.difficulty", { actorId: theirs.id, description: "E68 C11 a card under a GM's hand", actorName: theirs.name, room: null }, player.id, rid);
+            must(await until(() => created.length > 0, 5000), "the ask put no card up - this would measure nothing");
+            card = game.messages.get(created[0].id);
+            const ended = () => Boolean(cardFlag(game.messages.get(card.id), "settled"));
+            read.push((await B.claimOnPrimary(card.id, "take", game.user.id))?.taken ?? null);
+            await judged("ruling.expired", { rid }, player.id);
+            await settle(500);
+            read.push(ended());
+            await B.claimOnPrimary(card.id, "drop", game.user.id);
+            read.push(await until(ended, 3000));
+            const wrap = document.createElement("template");
+            wrap.innerHTML = contentOf(game.messages.get(card.id));
+            read.push([...wrap.content.querySelectorAll(".drpg-call-settled")].filter(el => !el.closest(".drpg-gm-only")).length);
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const message of created) await message.delete().catch(() => {});
+            await settle(300);
+            if (card && S.ruledCardStore.has(card.id)) await S.ruledCardStore.drop(card.id);
+        }
+        equal(stableJson(read), stableJson([true, false, true, 1]),
+            "[this GM's take, the card ended while this GM held it, ended once the claim was dropped, its closing lines for the table]");
+    }],
+
+    ["an expiry under a claim that ends in a ruling leaves the card to that ruling's line: one closing line, not the expiry's (E68 review R2)", async () => {
+        /*
+         * E68 review R2, 10.11.2026; D075's other road. The D075 test above backs out of the ruling ("drop"). On "done"
+         * the primary ended a waiting expiry at once (call-gm.mjs `expiryAfterClaim`), and `claimCard` sends "done" in its
+         * `finally`, before its caller writes the ruling's line (`settleCall`): the expiry read the card unsettled and
+         * wrote "Nobody answered in time - ask again." beside, or over, the ruling's "Answered by". Read on this primary,
+         * each packet handed to the bridge's runner with the user Foundry names: a player's Dynamic ask puts its card up;
+         * this GM's ruling runs under `claimCard`, and inside it the asker's expiry; the ruling answers `{ settled }` and
+         * its line is written as `pressCard` writes it. Read: whether the card ended while the ruling ran, its closing
+         * lines for the table, and whether one of them is the expiry's. The card is deleted after.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the ask is a player's, and Foundry names only a connected one");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which holds the asks and the claims - this would measure nothing");
+        const { player, theirs } = playerAndCharacters();
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const EXPIRED = game.i18n.localize("DRPG.Bridge.settledExpired");
+        const judged = (action, fields, from, requestId = null) =>
+            G.judge(B.BRIDGE_ACTIONS, { action, ...(requestId ? { requestId } : {}), ...fields }, from, { send: () => {} });
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [];
+        const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        const read = [];
+        let card = null;
+        try {
+            const rid = foundry.utils.randomID(16);
+            await judged("dynamic.difficulty", { actorId: theirs.id, description: "E68 R2 a card ruled under its expiry", actorName: theirs.name, room: null }, player.id, rid);
+            must(await until(() => created.length > 0, 5000), "the ask put no card up - this would measure nothing");
+            card = game.messages.get(created[0].id);
+            const ended = () => Boolean(cardFlag(game.messages.get(card.id), "settled"));
+            const outcome = await B.claimCard(card, async () => {
+                await judged("ruling.expired", { rid }, player.id);
+                await settle(500);
+                read.push(ended());
+                return { settled: "E68 R2 answered" };
+            });
+            must(outcome?.settled, "the ruling did not run under its claim - this would measure nothing");
+            await B.settleCall(game.messages.get(card.id), outcome.settled, null);
+            await settle(1500);
+            const wrap = document.createElement("template");
+            wrap.innerHTML = contentOf(game.messages.get(card.id));
+            const lines = [...wrap.content.querySelectorAll(".drpg-call-settled")].filter(el => !el.closest(".drpg-gm-only"));
+            read.push(lines.length, lines.some(el => el.textContent.trim() === EXPIRED));
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const message of created) await message.delete().catch(() => {});
+            await settle(300);
+            if (card && S.ruledCardStore.has(card.id)) await S.ruledCardStore.drop(card.id);
+        }
+        equal(stableJson(read), stableJson([false, 1, false]),
+            "[the card ended while this GM's ruling ran, its closing lines for the table, one of them the expiry's]");
+    }],
+
     ["a statistic's ask and an Observe's end as the other asks do: each card shows its time and carries its ask's mark, its asker's expiry ends it, and a pick after that is not taken (E18 fix e1-G4)", async () => {
         /*
          * E18 fix e1-G4, 24.10.2026; the end review's F1 and E18-END-5 (STATUS's C1 and C2 gaps). A statistic's card
@@ -32332,6 +32901,354 @@ const SCENARIOS = [
         await settle();
         equal(stableJson(read), stableJson([["trait", true, true, true], [], ["observe", true, true, true], "gone", 0]),
             "[the statistic's card: its mark's kind, a time shown, ended, as expired], the answers sent after its expiry and a later Leg, [the Observe's card: the same], what a pick after its expiry answered, the answers sent to its asker - an ask stayed open past its asker's clock, or a pick after it was taken");
+    }],
+
+    ["a proposal is approved, changed or refused on one card: Approve and each Change to come from the list, the player's words are on it, and the answer and the ruling say which (E68 C1)", async () => {
+        /*
+         * E68 C1, 10.11.2026; DA18 (the player proposes, the GM approves or changes). Driven on this primary as the E18
+         * fix e1-G4 test drives a statistic's card: the killer's player (`swingFixture`) asks which statistic its Attack
+         * with a weapon rolls, proposing Hand with a few words, four times, each packet handed to the bridge's runner as
+         * Foundry names its sender, and the answers sent to the asker are caught at the socket. Read per ask: the card's
+         * buttons (their trait and whether the label is an Approve or a Change to), whether the words are on the card,
+         * and after a press - Approve, Change to Leg, Refuse - the answer sent and the ruling the card keeps; the fourth
+         * proposes Eye, which the action does not list: refused on the GM with its code, and no card. Put back after.
+         * Red at c431138a: the card offered a button per statistic and no Approve.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which holds the asks - this would measure nothing");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const APPROVE = game.i18n.format("DRPG.TraitRuling.approve", { stat: "" }).trim(), CHANGE = game.i18n.format("DRPG.TraitRuling.change", { stat: "" }).trim();
+        const WORDS = "E68 C1 through the gap in the railing";
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const read = [];
+        const { killer, putBack } = await swingFixture();
+        const mine = player(killer);
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const done = new Map();
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "bridge.done" && String(packet.requestId ?? "").startsWith("E68C1T")) {
+                done.set(packet.requestId, [...(done.get(packet.requestId) ?? []), packet.value ?? null]);
+                return undefined;
+            }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        try {
+            for (const [proposed, press] of [["hand", "hand"], ["hand", "leg"], ["hand", "refuse"], ["eye", null]]) {
+                const rid = `E68C1T${foundry.utils.randomID(10)}`;
+                const told = [];
+                const before = new Set(game.messages.contents.map(m => m.id));
+                await G.judge(BRIDGE_ACTIONS, { action: "trait.ruling", requestId: rid, actorId: killer.id, kind: "crisis", key: "weaponAttack", variant: null,
+                    proposed, note: WORDS }, mine.id, { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
+                await settle();
+                const card = game.messages.contents.find(m => !before.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="refuseTrait"'));
+                if (!press) { read.push([proposed, told, Boolean(card)]); continue; }
+                must(card, `no statistic card was posted for the proposal of ${proposed} - this would measure nothing`);
+                const body = document.createElement("div");
+                body.innerHTML = contentOf(card);
+                wireCallActions(body, card);
+                const picks = [...body.querySelectorAll('[data-drpg-call="pickTrait"]')];
+                const buttons = picks.map(b => [b.dataset.trait, b.textContent.trim().startsWith(APPROVE) ? "approve" : b.textContent.trim().startsWith(CHANGE) ? "change" : "other"]);
+                const target = press === "refuse" ? body.querySelector('[data-drpg-call="refuseTrait"]') : picks.find(b => b.dataset.trait === press);
+                must(target, `the card's drawing carries no ${press} - this would measure nothing`);
+                target.click();
+                await until(() => Boolean(cardFlag(game.messages.get(card.id), "settled")), 3000);
+                await settle(300);
+                const ruling = cardFlag(game.messages.get(card.id), "ruling");
+                read.push([proposed, press, buttons, String(contentOf(card) ?? "").includes(WORDS), done.get(rid) ?? [],
+                    ruling ? [ruling.trait ?? null, ruling.proposed ?? null, ruling.how ?? null] : null]);
+            }
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            await putBack();
+            for (const message of game.messages.contents.filter(m => !had.has(m.id))) await message.delete().catch(() => {});
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            await settle();
+        }
+        const offered = [["hand", "approve"], ["body", "change"], ["leg", "change"]];
+        equal(stableJson(read), stableJson([
+            ["hand", "hand", offered, true, ["hand"], ["hand", "hand", "approved"]],
+            ["hand", "leg", offered, true, ["leg"], ["leg", "hand", "changed"]],
+            ["hand", "refuse", offered, true, [false], null],
+            ["eye", ["badRequest"], false]
+        ]), "per ask [the proposal, the press, the card's buttons (trait, Approve or Change to), the words on the card, the answers sent, the ruling kept (trait, proposal, how)], and the Eye's [proposal, refusals told, a card posted]");
+    }],
+
+    ["two presses of one proposal card at once, Approve on one drawing and Change to on another, make one ruling and one answer, and a later press is turned away (E68 C1)", async () => {
+        /*
+         * E68 C1, 10.11.2026; DA18 and the stage's "two GMs press one proposal card, one ruling". A card's press is claimed
+         * on the primary before it rules (bridge-asks.mjs `claimCard`, E18 C3), keyed by the card, so the proposal card's
+         * three answers are held as every card's are. Driven on this one GM's browser: two drawings of one proposal card,
+         * Approve pressed on one and Change to Leg on the other in the same tick, then Approve again once it is ruled. Read:
+         * the answers sent to the asker, the ruling the card keeps, and the refusal the later press shows. A second GM's
+         * browser is not driven here (one GM at the suite); the scenario E68 adds with gm2 is where two browsers press.
+         * Red at c431138a: the card carried no Approve.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which holds the asks - this would measure nothing");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const APPROVE = game.i18n.format("DRPG.TraitRuling.approve", { stat: "" }).trim();
+        const RULED = game.i18n.format("DRPG.Bridge.alreadyRuled", { gm: game.user.name });
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const { killer, putBack } = await swingFixture();
+        const mine = player(killer);
+        const rid = `E68C1D${foundry.utils.randomID(10)}`;
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const done = [];
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "bridge.done" && packet.requestId === rid) { done.push(packet.value ?? null); return undefined; }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        let read = null;
+        try {
+            await G.judge(BRIDGE_ACTIONS, { action: "trait.ruling", requestId: rid, actorId: killer.id, kind: "crisis", key: "weaponAttack", variant: null,
+                proposed: "hand", note: "" }, mine.id, { send: () => null });
+            await settle();
+            const card = game.messages.contents.find(m => !had.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="refuseTrait"'));
+            must(card, "no statistic card was posted for the proposal - this would measure nothing");
+            const drawing = () => {
+                const body = document.createElement("div");
+                body.innerHTML = contentOf(card);
+                wireCallActions(body, card);
+                return [...body.querySelectorAll('[data-drpg-call="pickTrait"]')];
+            };
+            const [one, two, three] = [drawing(), drawing(), drawing()];
+            const approve = one.find(b => b.textContent.trim().startsWith(APPROVE) && b.dataset.trait === "hand");
+            const change = two.find(b => b.dataset.trait === "leg");
+            must(approve && change, "a drawing carries no Approve: Hand or no Change to: Leg - this would measure nothing");
+            approve.click();
+            change.click();
+            await until(() => Boolean(cardFlag(game.messages.get(card.id), "settled")), 3000);
+            await settle(500);
+            const ruling = cardFlag(game.messages.get(card.id), "ruling");
+            const said = () => [...document.querySelectorAll(".drpg-popup")].map(n => n.textContent).join(" ");
+            const saidBefore = said().split(RULED).length;
+            three.find(b => b.dataset.trait === "hand")?.click();
+            await settle(800);
+            read = [done, ruling ? [ruling.trait, ruling.how] : null, said().split(RULED).length - saidBefore];
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            await putBack();
+            for (const message of game.messages.contents.filter(m => !had.has(m.id))) await message.delete().catch(() => {});
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            await settle();
+        }
+        equal(stableJson(read), stableJson([["hand"], ["hand", "approved"], 1]),
+            "two presses at once did not make one answer and one ruling (the first's), or a press after the ruling was not turned away (answers sent, the ruling kept, refusals shown)");
+    }],
+
+    ["the valve's setting approves a proposal for a project stored without a statistic on its own, and an incident's proposal still waits on a card (E68 C2)", async () => {
+        /*
+         * E68 C2, 10.11.2026; DA41 = 2, DA50 = 1. With `autoApproveTraits` on, in Daily Life, a player's proposal of Hand
+         * for a Work on a project stored without a statistic is answered by the primary with no GM's press: the card goes
+         * up and is pressed by the click's road (messenger-app.mjs `pressCard`). Then in a fight (`swingFixture`) the
+         * killer's proposal of Hand for an Attack with a weapon gets its card and nothing else. Each packet is handed to
+         * the bridge's runner as Foundry names its sender and the answers to the asker are caught at the socket. Read: the
+         * answers sent, the card's line and the ruling it keeps (trait, how, auto), and the project's statistic after; the
+         * fight's answers and whether its card is still open. Search on Head, the stage's own example, waits for C6: a
+         * Search lists Eye alone until then and asks nobody. The setting, the project and the cards are put back after.
+         * Red at C1's tip: the project's card waited for a press like any other.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the ask is a player's, and Foundry names only a connected one");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the student alone");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which holds the asks - this would measure nothing");
+        const { getClock, isEclipse } = await import("./settings.mjs");
+        const { murderState } = await import("./murder.mjs");
+        must(getClock()?.phase === "dailyLife" && !isEclipse() && !murderState()?.active, `the world is not in Daily Life outside an incident (${getClock()?.phase}) - this would measure nothing`);
+        const G = await import("./bridge-guards.mjs");
+        const P = await import("./projects.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const AUTO = game.i18n.localize("DRPG.TraitRuling.autoApproved");
+        const { player, theirs } = playerAndCharacters();
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const was = game.settings.get(MODULE_ID, SETTINGS.autoApproveTraits);
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const done = new Map();
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "bridge.done" && String(packet.requestId ?? "").startsWith("E68C2T")) {
+                done.set(packet.requestId, [...(done.get(packet.requestId) ?? []), packet.value ?? null]);
+                return undefined;
+            }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const ask = async (user, actor, spec) => {
+            const rid = `E68C2T${foundry.utils.randomID(10)}`;
+            const before = new Set(game.messages.contents.map(m => m.id));
+            await G.judge(BRIDGE_ACTIONS, { action: "trait.ruling", requestId: rid, variant: null, ...spec, actorId: actor.id, proposed: "hand", note: "E68 C2" },
+                user.id, { send: () => null });
+            await settle();
+            const card = () => game.messages.contents.find(m => !before.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="refuseTrait"'))
+                ?? game.messages.contents.find(m => !before.has(m.id) && cardFlag(m, "rid")?.kind === "trait") ?? null;
+            return { rid, card };
+        };
+        const read = [];
+        let projectId = null, stood = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.autoApproveTraits, true);
+            // Stood in a room, as a Work is asked from one (bridge-guards.mjs `projectWithinReach`); the project has no room of its own.
+            stood = await standAlone(theirs);
+            projectId = (await P.createProject({ name: "SUITE E68 C2 project", target: 6, room: null, trait: null }))?.id ?? null;
+            must(projectId, "a project stored without a statistic was not made - this would measure nothing");
+            const work = await ask(player, theirs, { kind: "project", key: projectId });
+            await until(() => Boolean(work.card() && cardFlag(game.messages.get(work.card().id), "settled")), 4000);
+            const card = work.card() ? game.messages.get(work.card().id) : null;
+            const ruling = card ? cardFlag(card, "ruling") : null;
+            read.push([done.get(work.rid) ?? [], Boolean(card) && String(contentOf(card) ?? "").includes(AUTO),
+                ruling ? [ruling.trait ?? null, ruling.how ?? null, ruling.auto ?? null] : null, P.allProjects().find(p => p.id === projectId)?.trait ?? null]);
+            const { killer, putBack } = await swingFixture();
+            try {
+                const mine = game.users.find(u => !u.isGM && u.active && killer.testUserPermission(u, "OWNER"));
+                const swing = await ask(mine, killer, { kind: "crisis", key: "weaponAttack" });
+                await settle(800);
+                const open = swing.card() ? game.messages.get(swing.card().id) : null;
+                read.push([done.get(swing.rid) ?? [], Boolean(open), Boolean(open && cardFlag(open, "settled"))]);
+            } finally {
+                await putBack();
+            }
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            await game.settings.set(MODULE_ID, SETTINGS.autoApproveTraits, was);
+            if (projectId) await P.deleteProject(projectId).catch(() => {});
+            await stood?.back?.();
+            for (const message of game.messages.contents.filter(m => !had.has(m.id))) await message.delete().catch(() => {});
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[["hand"], true, ["hand", "approved", true], "hand"], [[], true, false]]),
+            "[the project's ask: answers sent, the card's line says approved automatically, the ruling (trait, how, auto), the project's statistic after], [the fight's ask: answers sent, a card posted, the card settled]");
+    }],
+
+    ["a Search's statistic is Eye with no card, and a GM's card's - pressed or the valve's - once Search lists more than one (E68 C3)", async () => {
+        /*
+         * E68 C3, 10.11.2026; DA49 (Search on Eye asks nobody, another statistic goes through the card) and DA41's valve.
+         * Search lists Eye alone until C6, so the test lists Eye and Head on this browser's config for its length and
+         * puts the list back after. Read with the GM's own reading (roll-draw.mjs `expectedFor`) for a character with a
+         * player: with no card (Eye, after the `search` row's wait); with a card this GM wrote for that character's Search
+         * naming Head as the valve writes it (`auto: true`); and with a card naming Head that a player wrote (Eye: a pick
+         * is a GM's card). Each card is deleted after it is
+         * read. Red at C2's tip: with two listed the Search fell to the `gm` row, which matched no card and held it to
+         * the lowest.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a character with a player");
+        const D = await import("./roll-draw.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { theirs, player } = playerAndCharacters();
+        const was = ACTIONS.search.traits;
+        const made = [];
+        const of = async () => { const e = await D.expectedFor(theirs, { actionKey: "search", context: {} }); return [e.trait ?? null, e.traitFrom ?? null]; };
+        const ruling = { type: "trait", actorId: theirs.id, kind: "action", key: "search", variant: null, trait: "head", proposed: "head", how: "approved", auto: true };
+        const read = [];
+        try {
+            ACTIONS.search.traits = ["eye", "head"];
+            read.push(await of());
+            const { whisperToGms } = await import("./utils.mjs");
+            const { settleCall } = await import("./gm-bridge.mjs");
+            const card = await whisperToGms("<p>SUITE E68 C3 Search card</p>");
+            must(card, "no card to settle a pick on - this would measure nothing");
+            made.push(card);
+            await settleCall(card, "SUITE E68 C3", ruling);
+            read.push(await of());
+            await card.delete();
+            const forged = await ChatMessage.create({ author: player.id, content: "<p>SUITE E68 C3 a player's Search card</p>", whisper: [game.user.id],
+                flags: { [MODULE_ID]: { ruling } } });
+            must(forged && forged.author?.id === player.id, "no card of the player's to read - this would measure nothing");
+            made.push(forged);
+            read.push(await of());
+        } finally {
+            ACTIONS.search.traits = was;
+            for (const m of made) await m.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson([["eye", "search"], ["head", "search"], ["eye", "search"]]),
+            "a Search was not held to Eye with no card, to a GM's card's Head (the valve's), or was held to a card a player wrote (no card, the GM's, the player's)");
+    }],
+
+    ["Search on Eye asks nobody and waits for nothing, on Head waits for the GM's answer and spends nothing before it (E68 C6)", async () => {
+        /*
+         * E68 C6, 10.11.2026; DA2 (Search on six), DA49 (Eye asks nobody). A student with a player and a token, stood
+         * alone in a room (`standAlone`), with at least one action, searches for something to heal twice on this GM's
+         * browser, the windows answered as the player would: the menu's proposal left on Eye, then set to Head, whose
+         * GM's window (trait-ruling.mjs `pickHere`) is pressed on its default, Approve. The character's `rollTrait` notes
+         * the statistic, the GM's mark and the time since the press, and throws nothing, so the action comes back. Read:
+         * the GM's windows each Search opened, the actions and the room's tokens when the GM's window was up (nothing
+         * spent), the throws, and what the GM's draw waits for a Search claimed on Eye and on Head with no card
+         * (roll-draw.mjs `expectedFor`, `told`). Red at C5's tip: no proposal field, both Searches Eye, no window.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a Search of a student with a player");
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the student alone");
+        const { ACTIONS_RESOURCE, MODULE_ID, TRAITS } = await import("./config.mjs");
+        const { SETTINGS } = await import("./settings.mjs");
+        const { TRAIT_BY_GM, performAction } = await import("./action-rolls.mjs");
+        const D = await import("./roll-draw.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const student = livingStudents().find(a => player(a) && canvas?.scene?.tokens?.some(t => t.actorId === a.id));
+        must(student, "no living student with a connected player has a token on the scene on screen");
+        const ACTS = `system.resources.${ACTIONS_RESOURCE}.value`;
+        const had = foundry.utils.getProperty(student, ACTS);
+        const tokensNow = () => stableJson(game.settings.get(MODULE_ID, SETTINGS.searchTokens) ?? {});
+        const tokens = foundry.utils.duplicate(game.settings.get(MODULE_ID, SETTINGS.searchTokens) ?? {});
+        const ruling = game.i18n.localize("DRPG.TraitRuling.title");
+        let proposal = "eye", pressed = 0, before = null, at = [];
+        const thrown = [];
+        const windows = answerWindows((cfg, root) => {
+            if ((cfg?.window?.title ?? "") === ruling) {
+                at.push([foundry.utils.getProperty(student, ACTS), tokensNow() === before]);
+                return press(cfg, root);
+            }
+            const pick = root.querySelector('input[name="variant"][value="healing"]');
+            if (pick) {
+                for (const each of root.querySelectorAll('input[name="variant"]')) each.checked = each === pick;
+                const select = root.querySelector("select[name=proposed]");
+                if (select) select.value = proposal;
+            }
+            return press(cfg, root);
+        });
+        const stood = await standAlone(student);
+        const read = [], waited = [];
+        try {
+            await student.update({ [ACTS]: Math.max(Number(had) || 0, 1) });
+            student.rollTrait = async (dh, config) => { thrown.push([dh, config?.[TRAIT_BY_GM] ?? null, Date.now() - pressed < 1500]); return null; };
+            for (const p of ["eye", "head"]) {
+                proposal = p;
+                at = [];
+                before = tokensNow();
+                const asked = windows.asked.length;
+                pressed = Date.now();
+                await performAction(student, "search");
+                read.push([windows.asked.slice(asked).filter(w => w.title === ruling).length, at]);
+            }
+            for (const told of ["eye", "head"]) {
+                const t0 = Date.now();
+                await D.expectedFor(student, { actionKey: "search", context: {}, told });
+                waited.push(Date.now() - t0);
+            }
+            read.push([waited[0] < 500, waited[1] >= 1500]);
+        } finally {
+            windows.restore();
+            delete student.rollTrait;
+            await student.update({ [ACTS]: had });
+            if (tokensNow() !== stableJson(tokens)) await game.settings.set(MODULE_ID, SETTINGS.searchTokens, tokens);
+            await stood?.back?.();
+            await settle();
+        }
+        equal(stableJson([read, thrown]), stableJson([[[0, []], [1, [[Math.max(Number(had) || 0, 1), true]]], [true, true]],
+            [[TRAITS.eye.dh, null, true], [TRAITS.head.dh, "approved", true]]]),
+            `[per Search: the GM's windows, (actions, tokens untouched) at the window; the draw's waits: Eye at once, Head the card's wait], the throws (statistic, the GM's mark, within 1.5 s of the press); the draw waited ${waited.join(" ms and ")} ms (Eye, Head)`);
     }],
 
     ["a Search for something specific and an Observe of anything whose last GM left during the roll post nothing, hand the action back and take none of the room's search tokens (E18 fix e1-G5)", async () => {
@@ -32711,6 +33628,118 @@ const SCENARIOS = [
             back: { state: "asking", listening: true, held: false, cards: [], withdrawn: 0, done: [], yes: ["missing"], after: { cards: [], withdrawn: 0, done: [] } },
             wait: [true, true]
         }), "[an ask: its state, held after the answerer's expiry, after the searcher's of another id, after the searcher's own at once, after its 'Leave it' while asking (refused), after it once the wait could have run out; the cards, the windows withdrawn, the searcher's answers; the yes after it], [a refusal with its force open, then the searcher's expiry], [an ask, then this GM's socket back: its state, the listener, held, what was posted, the yes after it], [the wait names the expiry and ends with the primary]");
+    }],
+
+    ["an open Frisk's answer that leaves its force open waits for the searcher's receipt as the other asks do: the searcher's receipt keeps the ask, another user's is not taken, and none within the receipt's time ends it as 'Leave it' with the GMs told (E68 C11; D084)", async () => {
+        /*
+         * E68 C11, 10.11.2026; D084 (E18 C7's gap "no receipt for a Frisk ask"), the owner's default of 10.11: "a Frisk
+         * ask gets the same 'received' as the other asks, and one with no receipt in the usual time ends as 'Leave it', the
+         * GM told". A refusal with the force on answers the searcher and keeps the ask open for its force; the answer went
+         * to a browser that may have closed, and nothing said whether it arrived. The searcher's wait names the receipt
+         * now (bridge-asks.mjs `requestFriskAsk`), the primary takes it by call-gm.mjs `receivedOnPrimary` for the ask held
+         * under that request id for that sender (frisk.mjs `receivedFriskAsk`), and with none within `TIMING.ackMs` the ask
+         * ends as 'Leave it' would (`unreceivedFriskAsk`), the GMs told on a card of their own. Driven as E18 C7's test
+         * drives the asks: through the bridge's judge, the force on, the two alone in a room. Phases: an ask refused, the
+         * searcher's receipt, then the receipt's time and a margin; a second ask refused, the answerer's receipt (another
+         * user's), then the same wait. Read: whether each ask is held, the cards, and the wait's options. Red at d5c0a8fb:
+         * the receipt finds nothing, the first ask is held and so is the second, with no card to anybody, and the wait
+         * names no receipt.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the ask is a connected player's, as Foundry names only those");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const F = await import("./frisk.mjs");
+        const S = await import("./secret.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const answerer = ownerIdsOf(other).find(id => game.users.get(id)?.active) ?? null;
+        must(answerer, `${other.name} has no connected player - this would measure nothing`);
+        const ACT = "system.resources.actions.value";
+        const putBack = sheetAsFound(theirs, [ACT]);
+        const top = Math.max(1, actionsLeft(theirs));
+        const asPlayer = { [(await import("./roll-draw.mjs")).PAID_AS_PLAYER]: true };
+        const pay = async () => {
+            await trustedWrite(theirs, { [ACT]: top }, { reason: "gmRuling", ...asPlayer });
+            await trustedWrite(theirs, { [ACT]: top - 1 }, { reason: "gmRuling", ...asPlayer });
+        };
+        const forceKey = `${MODULE_ID}.friskForce`, force = game.settings.settings.has(forceKey) ? game.settings.get(MODULE_ID, "friskForce") : null;
+        const clockWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.clock));
+        const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
+        const line = (key, data = {}) => game.i18n.format(key, Object.fromEntries(Object.entries(data).map(([k, v]) => [k, esc(v)])));
+        const KINDS = [["refused", "DRPG.Frisk.refused", { who: other.name }], ["toTarget letGo", "DRPG.Frisk.letGo", { who: theirs.name }],
+            ["gms noReceipt", "DRPG.Frisk.noReceipt", { who: theirs.name, target: other.name }]];
+        const kindOf = words => KINDS.find(([, key, data]) => words.includes(line(key, data)))?.[0] ?? "other";
+        const made = [];
+        const hook = Hooks.on("createChatMessage", message => made.push(message));
+        let mark = 0;
+        const cards = () => {
+            const out = made.slice(mark).map(message => S.secretHtml(message)).filter(words => words !== null).map(kindOf).filter(k => k !== "other");
+            mark = made.length;
+            return out;
+        };
+        const judged = async (action, fields, from, requestId = `E68D84${foundry.utils.randomID(8)}`) => {
+            const out = [];
+            await G.judge(BRIDGE_ACTIONS, { action, requestId, ...fields }, from,
+                { send: (to, reply) => { if (reply?.action !== "bridge.ack") out.push(reply?.action === "bridge.refused" ? reply.reason : reply?.value?.outcome ?? reply?.value ?? null); } });
+            await settle();
+            return out;
+        };
+        const rowOf = searcherId => [...F.friskAsks.values()].find(row => row.searcherId === searcherId) ?? null;
+        const holds = row => Boolean(row && F.friskAsks.has(row.askId));
+        const refusedAsk = async rid => {
+            F.forgetFriskAsks();
+            await pay();
+            await judged("action.friskAsk", { searcherId: theirs.id, targetId: other.id }, player.id, rid);
+            const row = rowOf(theirs.id);
+            const no = await judged("action.friskAnswer", { askId: row?.askId ?? null, allow: false }, answerer);
+            return { row, no, state: row?.state ?? null };
+        };
+        const seen = {};
+        let stood = null;
+        try {
+            if (clockWas.eclipse || clockWas.phase === "classTrial") {
+                await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clockWas, eclipse: false, phase: "dailyLife" });
+                await settle();
+            }
+            stood = await aloneTogether(theirs, other);
+            await (await import("./remnants.mjs")).flushTraceDigest();
+            await settle();
+            if (force !== null) await game.settings.set(MODULE_ID, "friskForce", true);
+            mark = made.length;
+            const ridA = `E68D84a${foundry.utils.randomID(8)}`;
+            const a = await refusedAsk(ridA);
+            await judged("ruling.received", { rid: ridA }, player.id);
+            await wait(TIMING.ackMs + 1500);
+            await settle();
+            seen.received = { no: a.no, state: a.state, held: holds(a.row), cards: cards() };
+            const ridB = `E68D84b${foundry.utils.randomID(8)}`;
+            const b = await refusedAsk(ridB);
+            await judged("ruling.received", { rid: ridB }, answerer);
+            const heldAtOnce = holds(b.row);
+            await wait(TIMING.ackMs + 1500);
+            await settle();
+            seen.none = { no: b.no, state: b.state, heldAtOnce, held: holds(b.row), cards: cards() };
+            const askWait = bridgeFn(new Map(await otherSources()), "requestFriskAsk");
+            seen.wait = [/\breceived:\s*ACTION_RULING_RECEIVED\b/.test(askWait), /\bexpired:\s*ACTION_RULING_EXPIRED\b/.test(askWait)];
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            F.forgetFriskAsks();
+            if (force !== null && game.settings.get(MODULE_ID, "friskForce") !== force) await game.settings.set(MODULE_ID, "friskForce", force);
+            await putBack();
+            (await import("./roll-draw.mjs")).forgetPayments?.(theirs.id);
+            if (stood) await stood.back();
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.clock)) !== stableJson(clockWas)) await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
+            await settle();
+        }
+        equal(stableJson(seen), stableJson({
+            received: { no: ["refused"], state: "refused", held: true, cards: ["refused"] },
+            none: { no: ["refused"], state: "refused", heldAtOnce: true, held: false, cards: ["refused", "toTarget letGo", "gms noReceipt"] },
+            wait: [true, true]
+        }), "[an ask refused with the force on, then the searcher's receipt: the answer, its state, held after the receipt's time, the cards; another ask refused, then the answerer's receipt: the answer, its state, held at once, held after the receipt's time, the cards; the wait names the receipt and the expiry] - a Frisk's answer is not received as the other asks', or one with no receipt keeps its force open");
     }],
 
     ["a Sabotage asked again under its request id answers what it answered the first time: one freeze, one repair, the same reply, while another player's packet under that id and the saboteur's under another are judged as new (E18 C7)", async () => {
@@ -41321,7 +42350,9 @@ const SCENARIOS = [
          * (Body / Hand / Leg), whose GM's window is answered Leg. The character's own `rollTrait`
          * notes the trait and the GM's mark and throws nothing, as a closed roll window does.
          * Read: the windows each press opened, in order, and the throws. Until C15 each press
-         * opened a confirm between the menu and the rest.
+         * opened a confirm between the menu and the rest. Since E68 C4 (DA18) the menu's row proposes
+         * its first listed statistic, Body, unless the player changes it, so the GM's Leg is a "Change to"
+         * and the roll's mark says "changed" (trait-ruling.mjs `traitFor`), not true; Pin, one statistic, false.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         const { TRAIT_BY_GM } = await import("./action-rolls.mjs");
@@ -41329,17 +42360,59 @@ const SCENARIOS = [
         const { killer, putBack } = await swingFixture();
         const thrown = [];
         try {
-            killer.rollTrait = async (dh, config) => { thrown.push([dh, config?.[TRAIT_BY_GM] === true]); return null; };
+            killer.rollTrait = async (dh, config) => { thrown.push([dh, config?.[TRAIT_BY_GM] ?? false]); return null; };
             const pin = await pressCrisisTile(killer, { choose: () => "pin" });
             const attack = await pressCrisisTile(killer, { choose: () => "weaponAttack", pick: () => "leg" });
             const menu = game.i18n.localize("DRPG.Murder.yourTurn"), ruling = game.i18n.localize("DRPG.TraitRuling.title");
             equal(stableJson([pin.asked, attack.asked, thrown]),
-                stableJson([[menu], [menu, ruling], [[TRAITS.body.dh, false], [TRAITS.leg.dh, true]]]),
+                stableJson([[menu], [menu, ruling], [[TRAITS.body.dh, false], [TRAITS.leg.dh, "changed"]]]),
                 "a crisis action opened a window between the menu and the roll, the GM was not asked where the action lists several, or the throws did not follow (Pin's windows, the attack's, throws)");
         } finally {
             delete killer.rollTrait;
             await putBack();
         }
+    }],
+
+    ["a crisis action rolls what the GM approved: the player proposes under the row, the GM's window offers Approve on it first with the words, and the roll is the approved or the changed statistic (E68 C4)", async () => {
+        /*
+         * E68 C4, 10.11.2026; DA18. At the killer's turn (`swingFixture`), on this GM's browser, the tile is pressed
+         * twice (`pressCrisisTile`) on Attack with a weapon (Body / Hand / Leg): the row's proposal is set to Hand with
+         * a few words, and the GM's window (trait-ruling.mjs `pickHere`, a GM's own) is answered with its first button,
+         * then with Leg. The character's own `rollTrait` notes the trait and the GM's mark and throws nothing, as a
+         * closed roll window does. Read: whether the row wears the GM's road and draws the field, the GM's window's
+         * buttons and whether it quotes the words, and the throws. Red at C3's tip: the row had no field, the window
+         * offered the list in its own order with no proposal, and both throws were marked `true` (picked, none proposed).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { TRAIT_BY_GM } = await import("./action-rolls.mjs");
+        const { TRAITS } = await import("./config.mjs");
+        const { GM_ROUTE_CLASS } = await import("./utils.mjs");
+        const { killer, putBack } = await swingFixture();
+        const thrown = [], seen = [];
+        const WORDS = "SUITE E68 C4: a feint, then the blade";
+        const fill = (root, value) => {
+            // The row's proposal stands in the right column's statistic slot since E68 C13's merge (Q3 of round M).
+            const row = root.querySelector(`.drpg-action-trait > [data-drpg-field="${value}"]`);
+            const select = row?.querySelector("select[name=proposed]"), words = row?.querySelector("input[name=note]");
+            const label = root.querySelector(`input[name="variant"][value="${value}"]`)?.closest("label");
+            seen.push([Boolean(label?.classList.contains(GM_ROUTE_CLASS)), Boolean(select), Boolean(words)]);
+            if (select) select.value = "hand";
+            if (words) words.value = WORDS;
+        };
+        const offered = [];
+        const picker = root => offered.push(root.textContent.includes(WORDS));
+        try {
+            killer.rollTrait = async (dh, config) => { thrown.push([dh, config?.[TRAIT_BY_GM] ?? null]); return null; };
+            await pressCrisisTile(killer, { choose: () => "weaponAttack", fill, picker, pick: list => { offered.push(list); return list[0]; } });
+            await pressCrisisTile(killer, { choose: () => "weaponAttack", fill, picker, pick: list => { offered.push(list); return "leg"; } });
+        } finally {
+            delete killer.rollTrait;
+            await putBack();
+        }
+        equal(stableJson([seen, offered, thrown]),
+            stableJson([[[true, true, true], [true, true, true]], [true, ["hand", "body", "leg"], true, ["hand", "body", "leg"]],
+                [[TRAITS.hand.dh, "approved"], [TRAITS.leg.dh, "changed"]]]),
+            "[the row: on the GM's road, a proposal select, a words field] twice, [the GM's window: quotes the words, its buttons] twice, the throws (trait, the GM's mark)");
     }],
 
     ["Roll it is the default", async () => {
@@ -41446,7 +42519,7 @@ const SCENARIOS = [
         }
     }],
 
-    ["the crisis menu says who picks the statistic: the GM among several, the player with Resolve armed", async () => {
+    ["the crisis menu says who picks the statistic: the player proposes among several and the GM approves, the player picks with Resolve armed", async () => {
         /*
          * E32+E07 C15, 03.10.2026; the owner's Q4 as corrected on 28.09. The GM picks among
          * an action's several statistics from what the player says in their thread, and a
@@ -41476,7 +42549,7 @@ const SCENARIOS = [
             equal(stableJson([has(pin, "DRPG.Action.usesTrait", { traits: TRAITS.body.label }), has(attack, "DRPG.Murder.gmPicksTrait", { traits: several }),
                 has(armed, "DRPG.Murder.youPickTrait", { traits: several }), strike.includes(miss)]),
             stableJson([true, true, true, true]),
-            "the menu does not name Pin's one statistic, does not say the GM picks among several, does not say Resolve's pick, or does not label a miss (Pin, the attack, armed, Strike's miss)");
+            "the menu does not name Pin's one statistic, does not say the player proposes among several, does not say Resolve's pick, or does not label a miss (Pin, the attack, armed, Strike's miss)");
         } finally {
             await C.consumeCalls(killer);
             await putBack();
@@ -51419,8 +52492,9 @@ const SCENARIOS = [
      * leaves this browser (`heardWhilePaid`).
      */
     ["a Call bought on the GM is paid from the Hope the GMs hold, and a forged Hope heard while it is paid is judged after it", async () => {
-        /* A player's Resolve (3 Hope) on their own character, handed to the bridge's runner with the player's
-           id three times: the GMs at 2 under a forged 5; at 3 under a forged 5; at 3 under a forged 5 heard
+        /* A player's Resolve (3 Hope; 2 since E68 C7, DA37 = 1: its price is read off config.mjs, and "short" and
+           "the price" below are one Hope under it and it) on their own character, handed to the bridge's runner with the player's
+           id three times: the GMs one short under a forged 5; at the price under a forged 5; at the price under a forged 5 heard
            while the GM's payment leaves. Read per ask: the answer and its reason, the character's Hope, the
            GMs' mark of it, and whether the forged Hope was heard. At 6c7f9d2 (05.10.2026, e29run/r1g5red) the
            GM paid all three from the forged 5: the first two bought with 2 left in both the sheet and the
@@ -51438,10 +52512,12 @@ const SCENARIOS = [
         const hopeWas = theirs.system.resources.hope.value;
         must(Number(theirs.system.resources.hope.max) >= 5, `${theirs.name}'s Hope cannot reach 5 - the forged Hope would be clamped and measure nothing`);
         must(!E.armedCallsShown(theirs).some(c => c.grants === "trait"), `${theirs.name} already holds a Resolve - a second is refused for that, and this would measure it`);
+        const cost = (await import("./config.mjs")).HOPE_CALLS.determination.cost;
+        must(cost < 5, `a Resolve costs ${cost} Hope - the forged 5 would pay for it and measure nothing`);
         const read = [], nonces = ["E29G5RESOLVE0001", "E29G5RESOLVE0002", "E29G5RESOLVE0003"];
         let heard = null;
         try {
-            for (const [held, nonce, meanwhile] of [[2, nonces[0], false], [3, nonces[1], false], [3, nonces[2], true]]) {
+            for (const [held, nonce, meanwhile] of [[cost - 1, nonces[0], false], [cost, nonces[1], false], [cost, nonces[2], true]]) {
                 await trustedWrite(theirs, { [HOPE]: held }, { reason: "gmRuling" });
                 await sheetAuditIdle();
                 await theirs.update({ [HOPE]: 5 }, { [AUDIT_ASIDE]: true });
@@ -51468,7 +52544,7 @@ const SCENARIOS = [
             if (foundry.utils.getProperty(theirs._source, HOPE) !== hopeWas) await trustedWrite(theirs, { [HOPE]: hopeWas }, { reason: "gmRuling" });
             await sheetAuditIdle();
         }
-        equal(stableJson(read), stableJson([["bridge.refused", "notEnoughHope", 5, 2, null], ["bridge.done", null, 0, 0, null], ["bridge.done", null, 0, 0, true]]),
+        equal(stableJson(read), stableJson([["bridge.refused", "notEnoughHope", 5, cost - 1, null], ["bridge.done", null, 0, 0, null], ["bridge.done", null, 0, 0, true]]),
             "a Call bought on the GM was paid from a forged Hope, or a forged Hope heard while it was paid was put back over the payment "
                 + "(per ask: answer, reason, the sheet's Hope, the mark's, the forged Hope heard)");
     }],
@@ -62860,6 +63936,163 @@ const SCENARIOS = [
         equal(J(read?.released?.slice(0, 1).concat(read?.released?.slice(5))), J([1, false, null]),
             "[the passages, the project, kept for] once the bookmark names another roll - the kept project stays, or its passage goes with it");
     }],
+    ["a Secret Passage whose completion is refused stays full and in place, the GMs alone get a card with the reason and 'Choose the target again', and the approval's pick it opens completes the project as a completion does (E68 C11; D023)", async () => {
+        /*
+         * E68 C11, 10.11.2026; D023 (E15 part 2's C2 gap: "a refusal at the completion leaves the bar full ... and nothing
+         * offers to pick again"), the owner's default of 10.11. On a scene of the test's own - a Dorm with a Gym beyond one
+         * wall and a Bath beyond another, as E15-T12's - the builder Hana (the first player's) in the Dorm, a Secret
+         * Passage approved on the Dorm-Gym wall, and a GM's own passage drawn on that stretch before it is finished, so
+         * the completion is refused (passages-gm.mjs `builtPassageRow`: taken). The GM stores are a world of the test's own
+         * (`withGmStoreWorld`). Read: after the refused completion, the project (still there, full, not kept for a Reroll,
+         * its refusal held for a new pick), the card (its button, its readers - the GMs alone -, the reason's words); then
+         * the card's button pressed as a GM presses it (messenger-app.mjs `wireCallActions`), the window it draws (the
+         * approval's box: the room beyond offered and chosen, the pick), the Bath chosen and a stretch of the Dorm-Bath wall
+         * put where the pick puts it, and the window's button: the passage made on that wall for Hana, the project kept
+         * for the Reroll of the roll that finished it as a completion keeps it, the builder's card, the done card not
+         * posted again, the card settled; and a second pick asked of the step, refused. Red at d5c0a8fb: the refused
+         * completion removes the project and posts a card with no button.
+         */
+        needs(env.dialogs(), "the card's button opens a window drawn on this GM");
+        const P = await import("./passages-gm.mjs");
+        const PR = await import("./projects.mjs");
+        const S = await import("./gm-stores.mjs");
+        const E = await import("./gm-store.mjs");
+        const R = await import("./rooms.mjs");
+        const { ownerOf, isPrimaryGm } = await import("./utils.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const J = v => JSON.stringify(v);
+        must(isPrimaryGm(), "this GM is not the primary, whose browser makes the completion - run the suite on the primary GM");
+        const [hanaOf] = cast(1);
+        needs(world.ownedByPlayer(hanaOf), "the builder is a player's, and the suite's players own the cast");
+        const builderUser = ownerOf(hanaOf);
+        const clock = foundry.utils.deepClone(getClock() ?? {});
+        const DORM = "SUITE E68 D023 Dorm", GYM = "SUITE E68 D023 Gym", BATH = "SUITE E68 D023 Bath";
+        const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x, y) => ({ name, shapes: [{ type: "rectangle", x, y, width: 600, height: 600 }], flags: mark, behaviors: [] });
+        const OWNER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+        let scene = null, read = null, projectId = null;
+        const actors = [], posted = [];
+        const heard = Hooks.on("createChatMessage", message => { posted.push(message); });
+        const repickWindow = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-project-repick")) ?? null;
+        try {
+            if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            scene = await Scene.create({ name: "SUITE E68 D023 a refused passage", width: 2000, height: 1400, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room(DORM, 0, 0), room(GYM, 600, 0), room(BATH, 0, 600)]);
+            await scene.createEmbeddedDocuments("Wall", [{ c: [600, 0, 600, 600] }, { c: [0, 600, 600, 600] }]);
+            read = await E.withGmStoreWorld(`suite-e68-d023-${foundry.utils.randomID(8)}`, async () => {
+                const hana = await Actor.create({ name: "SUITE E68 D023 Hana", type: "character", ownership: { default: 0, [builderUser.id]: OWNER } });
+                actors.push(hana);
+                await scene.createEmbeddedDocuments("Token", [{ actorId: hana.id, actorLink: true, name: hana.name, x: 100, y: 200, width: 1, height: 1 }]);
+                await settle();
+                // The board's own view stands in (E15-T12's `site`): the pick does not change the scene this GM views.
+                const site = new Proxy(scene, { get: (target, key) => (key === "view" ? async () => true : Reflect.get(target, key, target)) });
+                const pick = async rooms => {
+                    let board = null;
+                    const picking = P.startPassagePick(site, { between: { rooms, level: null }, preview: () => {}, notify: () => {},
+                        board: handlers => { board = handlers; return () => { board = null; }; },
+                        prompt: () => ({ step: () => {}, refuse: () => {}, close: () => {} }) });
+                    for (let i = 0; i < 100 && !board; i++) await new Promise(r => setTimeout(r, 5));
+                    must(board, "the pick put nothing on the board - this would measure nothing");
+                    if (rooms.includes(GYM)) {
+                        await board.click({ x: 602, y: 150 });
+                        await board.click({ x: 598, y: 400 });
+                    } else {
+                        await board.click({ x: 150, y: 602 });
+                        await board.click({ x: 400, y: 598 });
+                    }
+                    return picking;
+                };
+                const toGym = await pick([DORM, GYM]);
+                const toBath = await pick([DORM, BATH]);
+                must(toGym?.wallId && toBath?.wallId, "the pick made no stretch - this would measure nothing");
+                const made = await PR.createProject({ name: "SUITE E68 D023 Secret Passage", target: 6, room: DORM, trait: "hand", secret: false, by: hana.id,
+                    viewers: [], presetTarget: { preset: "secretPassage", room: GYM }, passage: toGym });
+                projectId = made?.id ?? null;
+                must(projectId, "the project was not made - this would measure nothing");
+                // A GM draws a passage on the same stretch before it is finished: the completion's stretch is taken.
+                const drawn = await P.createPassage({ sceneId: scene.id, wallId: toGym.wallId, seg: toGym.seg, rooms: toGym.rooms, level: null });
+                must(typeof drawn === "string" && drawn, "the GM's own passage on the stretch was not drawn - the completion would not be refused");
+                const ours = () => Object.entries(S.passageSeasonStore.entries()).filter(([, row]) => row?.origin?.projectId === projectId);
+                // Whatever the run reached, the passages on the test's scene and the project go before the store world does.
+                const tidy = async out => {
+                    for (const id of Object.keys(S.passageSeasonStore.entries())) if (S.passageSeasonStore.get(id)?.sceneId === scene.id) await P.deletePassage(id).catch(() => {});
+                    if (projectId) await PR.deleteProject(projectId).catch(() => {});
+                    projectId = null;
+                    return out;
+                };
+                const by = { kind: "player", userId: builderUser.id, actorId: hana.id };
+                await S.rerollBookmarkStore.patch(hana.id, { messageId: "SUITEE68D023MSG1" });
+                const doneWords = game.i18n.localize("DRPG.Project.doneTitle");
+                const before = posted.length;
+                const done = await PR.applyProjectChange(projectId, { delta: 6 }, { by });
+                await settle();
+                const project = () => PR.allProjects().find(p => p.id === projectId) ?? null;
+                const card = posted.slice(before).find(m => String(contentOf(m) ?? "").includes('data-drpg-call="repickProjectTarget"')) ?? null;
+                const words = card ? String(contentOf(card) ?? "") : "";
+                const out = {};
+                out.refused = [done?.crossed ?? null, Boolean(project()), project()?.current ?? null, ours().length,
+                    S.projectSecretStore.get(projectId)?.keptFor ?? null, Boolean(S.projectSecretStore.get(projectId)?.repick)];
+                out.card = card ? [Boolean(card.whisper?.length) && card.whisper.every(id => game.users.get(id)?.isGM),
+                    words.includes(`data-project="${projectId}"`), words.includes(game.i18n.localize("DRPG.Passage.card.repick")),
+                    words.includes(foundry.utils.escapeHTML(game.i18n.format("DRPG.Passage.card.notBuilt", { name: "SUITE E68 D023 Secret Passage", why: "" })).slice(0, 30))] : null;
+                if (!card) return tidy(out);
+                // The button, as a GM presses it, and its window.
+                const body = document.createElement("div");
+                body.innerHTML = words;
+                wireCallActions(body, card);
+                const doneBefore = posted.filter(m => String(contentOf(m) ?? "").includes(doneWords)).length;
+                const mid = posted.length;
+                body.querySelector('[data-drpg-call="repickProjectTarget"]')?.click();
+                await until(() => repickWindow()?.element, 6000);
+                const app = repickWindow();
+                const form = app?.element?.querySelector("form") ?? null;
+                const select = form?.querySelector('select[name="passageTo"]') ?? null;
+                out.window = [Boolean(app), select ? [...select.options].map(o => o.value) : null, select?.value ?? null,
+                    Boolean(form?.querySelector("[data-drpg-passage-pick]")), Boolean(form?.querySelector('input[name="passage"]'))];
+                if (!form || !select) return tidy(out);
+                select.value = BATH;
+                select.dispatchEvent(new Event("change"));
+                form.querySelector('input[name="passage"]').value = JSON.stringify(toBath);
+                app.element.querySelector('footer button[data-action="repick"]')?.click();
+                await until(() => !repickWindow() && ours().length > 0, 8000);
+                await until(() => cardFlag(game.messages.get(card.id), "settled"), 6000);
+                await settle();
+                const [pid = null, row = null] = ours()[0] ?? [];
+                const fresh = posted.slice(mid);
+                out.repicked = [ours().length, row ? [...row.rooms].sort() : null, pid ? S.passageAccessStore.get(`${pid}/${hana.id}`)?.how ?? null : null,
+                    Boolean(project()), S.projectSecretStore.get(projectId)?.keptFor?.messageId ?? null, S.projectSecretStore.get(projectId)?.repick ?? null,
+                    fresh.some(m => (m.whisper ?? []).includes(builderUser.id) && String(contentOf(m) ?? "").includes(game.i18n.format("DRPG.Passage.card.passageBuilt", { from: "", to: "" }).split("{")[0].slice(0, 20))),
+                    posted.filter(m => String(contentOf(m) ?? "").includes(doneWords)).length - doneBefore,
+                    Boolean(cardFlag(game.messages.get(card.id), "settled"))];
+                // A second pick, asked of the step: nothing waits for one now.
+                const again = await PR.applyProjectChange(projectId, { repick: { passage: toBath, room: BATH } }, { by: { kind: "gm" } });
+                out.again = [again?.changed ?? null, again?.reason ?? null, ours().length];
+                return tidy(out);
+            });
+        } finally {
+            Hooks.off("createChatMessage", heard);
+            for (const a of foundry.applications.instances.values()) if (a.options?.classes?.includes("drpg-project-repick")) await a.close().catch(() => {});
+            if (projectId) await PR.deleteProject(projectId).catch(() => {});
+            for (const actor of actors) await actor.delete().catch(() => {});
+            for (const message of posted) await game.messages.get(message.id)?.delete().catch(() => {});
+            await scene?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        equal(J(read?.refused), J([true, true, 6, 0, null, true]),
+            "[crossed; the project still there; its bar; the passages it made; kept for; its refusal held for a new pick] - a refused completion removes the project, or keeps it for the Reroll, so nothing can pick again");
+        equal(J(read?.card), J([true, true, true, true]),
+            "[the card read by the GMs alone, its button names the project, its label, the reason's words] - the GMs get no card with the button, or a player reads it");
+        equal(J(read?.window), J([true, [BATH, GYM], GYM, true, true]),
+            "[the window drawn, the rooms beyond offered, the one chosen, the pick's button, the stretch's field] - the button does not open the approval's pick");
+        equal(J(read?.repicked), J([1, [BATH, DORM].sort(), "built", true, "SUITEE68D023MSG1", null, true, 0, true]),
+            "[the passages the project made, its rooms, Hana's way of knowing it, the project kept, kept for, the refusal held, the builder told, done cards posted again, the card settled] - the new pick does not complete the project as a completion does");
+        equal(J(read?.again), J([false, "DRPG.Passage.card.repickGone", 1]),
+            "[a second pick: changed, why, the passages] - a target is chosen again for a project nothing waits on");
+    }],
+
     ["E15-T13 - Breach the Wall, the cut: a finished breach cuts the real wall in three - the wall itself before the stretch, a hole that stops nothing and alone holds the breach's flag (no actor, user or project id), a copy after it -, moves the passages on that wall to the piece that holds them and makes the one the hole touches public; a move through the hole is clear and through the rest is judged as before; one breach to a wall; the Reroll's undo, the GMs' Close the breach and the season's reset each give the wall back byte for byte; Make public writes no wall and tells nobody; a wall deleted meanwhile is reported, not rebuilt", async () => {
         /*
          * E15 part 2 C3 (25.10.2026; A10's S16-17, step 15; the stage's E15-46 to E15-49 and its write roads "a wall: the
@@ -72534,6 +73767,161 @@ const SCENARIOS = [
             + "Give, Reply); its Reroll into a success again: stood, new cards; a miss: success, cards; its Reroll into a success: stood, the "
             + "success line among its lines, its cards; a success rerolled into a miss: success, its cards, stood, 'Nothing' among its lines, "
             + "cards with Create an item left, cards ended; a critical under the band's number: success, cards; a miss rerolled into a critical: stood, cards]");
+    }],
+
+    ["a Dynamic success a Reroll turns into a miss is greyed for the GMs beside the miss's card, and a GM who had answered it is told (E68 C11; D048, D054)", async () => {
+        /*
+         * E68 C11, 10.11.2026; the owner's amend [3] of 31.10 (D048: "Reroll, ktory zmienia sukces w porazke: pierwsza karta
+         * sukcesu u GM-ow wyszarzona, obok druga z Rerolla"; D054: "karta sukcesu Dynamic, na ktora GM odpowiedzial, zanim
+         * Reroll chybil - GM dostaje o tym informacje"). This GM takes a free Dynamic action for a player's character in a
+         * room at the first band (beat 8) on 8 and 5, a success, and rerolls it into 2 and 1, a miss; then takes a second,
+         * answers its card as a reply ends one (`settleCall` with the answered line), and rerolls that into 2 and 1. Read for
+         * the first: the Reroll stood, the card settled, no Create an item left on it, the mark its greyed look hangs on
+         * (the settled line's `data-drpg-line`), and the miss's card posted after it. For the second: the Reroll stood, the
+         * answered card left as it was, and one card to the GMs alone that says a GM had answered it. Red at 05dc2e29: the
+         * first card's line carries no mark, and nobody is told of the answered one.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the action's trace is placed where the character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the character is a connected player's, as the other tests' are");
+        const R = await import("./reroll.mjs");
+        const { performAction } = await import("./action-rolls.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { MESSENGER_FLAGS } = await import("./messenger.mjs");
+        const { settleCall } = await import("./gm-bridge.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const { actor, where } = await playerInRoom();
+        const scene = where.scene, had = new Set(scene.tokens.map(t => t.id)), seen = new Set(game.messages.map(m => m.id));
+        const bookmark = rerollBookmarkStore.get(actor.id) ? foundry.utils.deepClone(rerollBookmarkStore.get(actor.id)) : null;
+        const hope = actor.system.resources.hope.value;
+        const WORDS = "E68-C11 a key filed out of a spoon";
+        const windows = answerWindows((cfg, root) => {
+            const request = root.querySelector("[name=request]"), tier = root.querySelector("select[name=tier]");
+            if (request) request.value = WORDS;
+            if (tier) tier.value = "0";
+            return press(cfg, root);
+        });
+        const boxOf = m => { const box = document.createElement("div"); box.innerHTML = String(contentOf(m) ?? ""); return box; };
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const forceBack = () => { if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll; };
+        const thrown = async () => {
+            const since = new Set(game.messages.map(m => m.id));
+            globalThis.__forceRoll = { hope: 8, fear: 5 };
+            let out;
+            try { out = await performAction(actor, "dynamic", { free: true }); } finally { forceBack(); }
+            await settle();
+            const cards = game.messages.filter(m => !since.has(m.id) && boxOf(m).querySelector('[data-drpg-call="createItem"]'));
+            must(out?.success === true && cards.length === 1, `the Dynamic action did not succeed with one card - this would measure nothing: ${stableJson([out?.success, cards.length])}`);
+            return cards[0];
+        };
+        const reroll = async () => {
+            const row = rerollBookmarkStore.get(actor.id);
+            const message = game.messages.get(row?.messageId ?? "");
+            must(row?.actionKey === "dynamic" && message, `the Dynamic action was not kept on its row - this would measure nothing: ${stableJson(row)}`);
+            const stand = rerollableRoll(message, { first: { hope: 8, fear: 5 }, next: { hope: 2, fear: 1 } });
+            try {
+                await trustedWrite(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) }, { reason: "gmRuling" });
+                const before = new Set(game.messages.map(m => m.id));
+                const out = await R.rerollOnGm(actor, game.user);
+                await settle();
+                return { stood: Array.isArray(out?.lines), before };
+            } finally { stand.putBack(); }
+        };
+        const read = {};
+        try {
+            const first = await thrown();
+            const one = await reroll();
+            const now = game.messages.get(first.id), box = boxOf(now);
+            const missed = game.i18n.localize("DRPG.Action.dynamicMissedGm");
+            const misses = game.messages.filter(m => !one.before.has(m.id) && boxOf(m).textContent.includes(missed));
+            read.unanswered = [one.stood, Boolean(cardFlag(now, MESSENGER_FLAGS.settled)),
+                Boolean(box.querySelector('[data-drpg-call="createItem"]')), box.querySelector(".drpg-call-settled")?.dataset.drpgLine ?? null,
+                misses.length, misses.every(m => (m.timestamp ?? 0) >= (now?.timestamp ?? 0))];
+            const second = await thrown();
+            await settleCall(second, { key: "DRPG.Bridge.settledAnswered", name: game.user.name });
+            await settle();
+            const answered = String(contentOf(game.messages.get(second.id)) ?? "");
+            const two = await reroll();
+            const line = game.i18n.format("DRPG.Action.dynamicAnsweredMissed", { name: actor.name, what: WORDS });
+            const told = game.messages.filter(m => !two.before.has(m.id) && boxOf(m).textContent.includes(line));
+            read.answered = [two.stood, String(contentOf(game.messages.get(second.id)) ?? "") === answered, told.length,
+                told.every(m => (m.whisper ?? []).length > 0 && (m.whisper ?? []).every(id => game.users.get(id)?.isGM))];
+        } finally {
+            forceBack();
+            windows.restore();
+            for (const t of scene.tokens.filter(t => !had.has(t.id))) await t.delete();
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            if (bookmark) await rerollBookmarkStore.patch(actor.id, bookmark);
+            else if (rerollBookmarkStore.has(actor.id)) await rerollBookmarkStore.drop(actor.id);
+            await trustedWrite(actor, { "system.resources.hope.value": hope }, { reason: "gmRuling" });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ unanswered: [true, true, false, "DRPG.Action.dynamicRerollMissed", 1, true], answered: [true, true, 1, true] }),
+            "a success a Reroll turned into a miss was not greyed beside the miss's card, or a GM who had answered it was not told [unanswered: "
+            + "stood, settled, Create an item left, the settled line's mark, the miss's cards, each after the first; answered: stood, the card "
+            + "left as it was, the cards that tell it, each to the GMs alone]");
+    }],
+
+    ["the Reroll's window after a reload names the roll, from the GMs' row on a GM and from the chat on a player, and says the GMs' row is the one taken back (E68 C11; D047)", async () => {
+        /*
+         * E68 C11, 10.11.2026; the owner's amend [3] of 31.10 (D047: "okno Rerolla po przeladowaniu nazywa rzut i mowi o
+         * wierszu GM-ow"). E16 part 2 C0's line named the roll this browser holds in memory (`rollInHand`), and after a
+         * reload it said nothing. A student's Search roll is thrown on this GM on 9 and 2; then the browser's roll is
+         * forgotten as a reload forgets it (`forgetRollInHand`), the Reroll's window opened and read, and the player's
+         * reading of the same roll asked of `rollAfterReload` with `gm: false` (the chat's newest roll of the character, on a
+         * card posted with the row's roll and the character as its speaker, as a player's own throw speaks).
+         * Red at 05dc2e29: no forgetting, and neither line.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the roll is a student's, as an action's is");
+        const rolls = await import("./action-rolls.mjs");
+        const pipe = await import("./action-pipeline.mjs");
+        const C = await import("./calls.mjs");
+        const { HOPE_CALLS, ACTIONS } = await import("./config.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const who = livingStudents().find(a => game.users.some(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER")));
+        must(who, "no living student with a connected player - this would measure nothing");
+        const bookmark = rerollBookmarkStore.get(who.id) ? foundry.utils.deepClone(rerollBookmarkStore.get(who.id)) : null;
+        const seen = new Set(game.messages.map(m => m.id));
+        const said = [];
+        const windows = answerWindows((cfg, root) => { said.push(root.textContent.replace(/\s+/g, " ").trim()); return "cancel"; });
+        let total = null, forgot = false, held = true, asPlayer = null;
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        try {
+            globalThis.__forceRoll = { hope: 9, fear: 2 };
+            const outcome = await rolls.rollTrait(who, "eye", { remember: true, actionKey: "search" });
+            if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
+            await settle();
+            total = outcome?.total ?? null;
+            must(typeof total === "number" && rerollBookmarkStore.get(who.id)?.actionKey === "search", "no Search roll of the student is on the GMs' row - this would measure nothing");
+            forgot = typeof pipe.forgetRollInHand === "function";
+            if (forgot) pipe.forgetRollInHand(who);
+            held = rolls.rollInHand(who) !== null;
+            await C.confirmCall(HOPE_CALLS.reroll, { kind: "hope", held: 9, actor: who });
+            // A player reads the chat: this GM's throw speaks as the GM, so the character's own card is posted here as a
+            // player's throw speaks (its speaker the character), with the row's roll.
+            const thrownAs = game.messages.get(rerollBookmarkStore.get(who.id)?.messageId ?? "");
+            await ChatMessage.create({ speaker: { actor: who.id, alias: who.name }, rolls: [thrownAs.rolls[0]] });
+            await settle();
+            asPlayer = typeof C.rollAfterReload === "function" ? await C.rollAfterReload(who, { gm: false }) : null;
+        } finally {
+            if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
+            windows.restore();
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            if (bookmark) await rerollBookmarkStore.patch(who.id, bookmark);
+            else if (rerollBookmarkStore.has(who.id)) await rerollBookmarkStore.drop(who.id);
+            if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+            await settle();
+        }
+        const duality = game.i18n.localize("DRPG.Action.duality.hope");
+        const gmLine = game.i18n.format("DRPG.Reroll.lastRollGmRow", { name: who.name, action: ACTIONS.search.label, total, duality });
+        const playerLine = game.i18n.format("DRPG.Reroll.lastRollReload", { total, duality });
+        equal(stableJson([forgot, held, said.length, said[0]?.includes(gmLine) ?? false, asPlayer]),
+            stableJson([true, false, 1, true, playerLine]),
+            `the Reroll's window after a reload does not name the roll [forgotten, still held, windows, the GMs' row named ("${gmLine}"), the player's line]: ${stableJson([said, asPlayer])}`);
     }],
 
     ["E16-T27 - in a Class Trial Analyze offers only what identifies Truth Bullets, from one list of conditions, and outside one no row is greyed (audit S02-70, the owner's D16)", async () => {
@@ -84235,6 +85623,9 @@ const SCENARIOS = [
             && a.element?.querySelector("footer [data-action=\"yes\"]")) ?? null;
         const choose = (actor, value) => { const s = select(actor); s.value = value; s.dispatchEvent(new Event("change", { bubbles: true })); };
         const settled = actor => !select(actor)?.disabled;
+        // A question an earlier test left open would take this test's Cancel (E68 T6: the E70 fix p1-G1 test's "End the murder").
+        const foreign = question();
+        must(!foreign, `a window with a Yes button is open before this test, and its Cancel would answer it in place of the mark's question: "${foreign?.title ?? ""}" (${(foreign?.options?.classes ?? []).join(" ")})`);
         let npc = null, answer = null;
         const read = {};
         try {
@@ -84244,6 +85635,16 @@ const SCENARIOS = [
             answer = Promise.resolve().then(() => GP.openWhoIsAliveDialog()).catch(() => null);
             await until(() => select(theirs) && select(npc), 6000);
             must(select(theirs)?.value === "student", `${theirs.name}'s row does not read student - this would measure nothing`);
+            // The row's sheet button (E95 C6): [drawn, its aria-label and tooltip the character's], on a student's, a Monokuma's and an NPC's row.
+            const sheetButton = actor => {
+                const b = el()?.querySelector(`button[data-drpg-sheet="${CSS.escape(actor.id)}"]`);
+                const words = game.i18n.format("DRPG.Panel.openSheet", { name: actor.name });
+                return [Boolean(b), b?.getAttribute("aria-label") === words && b?.dataset.tooltip === words];
+            };
+            read.sheetRows = { student: sheetButton(theirs) };
+            // The Items control (E95 C7): on a student's and an NPC's row, not on a Monokuma's.
+            const itemsButton = actor => Boolean(el()?.querySelector(`button[data-drpg-items="${CSS.escape(actor.id)}"]`));
+            read.itemsRows = { student: itemsButton(theirs) };
 
             choose(theirs, "monokuma");
             await until(() => question(), 3000);
@@ -84258,6 +85659,8 @@ const SCENARIOS = [
             await until(() => MK.isMonokuma(theirs) && select(theirs)?.value === "monokuma", 4000);
             await settle();
             read.yes = [MK.isMonokuma(theirs), Number(foundry.utils.getProperty(theirs, HOPE) ?? -1), Number(foundry.utils.getProperty(theirs, ACTIONS) ?? -1), select(theirs)?.value ?? null];
+            read.sheetRows.monokuma = sheetButton(theirs);
+            read.itemsRows.monokuma = itemsButton(theirs);
 
             choose(theirs, "student");
             await until(() => !MK.isMonokuma(theirs) && select(theirs)?.value === "student", 4000);
@@ -84269,6 +85672,8 @@ const SCENARIOS = [
             // The row is drawn again from the flag (`keepLive`): the select moved by hand reads "npc" before it is.
             await until(() => MK.isNotInClass(npc) && select(npc)?.value === "npc" && !levelUp(npc), 4000);
             read.out = [npcHad, MK.isNotInClass(npc), levelUp(npc), Boolean(question())];
+            read.sheetRows.npc = sheetButton(npc);
+            read.itemsRows.npc = itemsButton(npc);
             choose(npc, "student");
             await until(() => !MK.isNotInClass(npc) && select(npc)?.value === "student" && levelUp(npc), 4000);
             read.backIn = [MK.isNotInClass(npc), levelUp(npc)];
@@ -84327,11 +85732,13 @@ const SCENARIOS = [
             backIn: [false, true],
             levelUp: [[["standard", "reinforced"], ["gm", "player"]], 1, true, plural("DRPG.Advance.standing", { n: 1 }), plural("DRPG.Advance.standing", { n: 1 })],
             items: [theirs.id, 0, 1],
-            forged: [true, false, "student"]
+            forged: [true, false, "student"],
+            sheetRows: { student: [true, true], monokuma: [true, true], npc: [true, true] },
+            itemsRows: { student: true, monokuma: false, npc: true }
         }), "{cancel: [the mark asked, the flag, the select]; yes: [the flag, Hope, actions, the select]; unmark: [the flag, a question asked, the select]; "
             + "out: [the NPC's Level Up before, the flag, its Level Up after, a question asked]; backIn: [the flag, its Level Up]; "
             + "levelUp: [the menus' rows, the offers standing, the player told, the row's words, the words for them]; items: [the hub's character, Students windows while it ran, after it]; "
-            + "forged: [judged, the flag after the put-back, the select]}");
+            + "forged: [judged, the flag after the put-back, the select]; sheetRows: each row's sheet button [drawn, its words the character's] (E95 C6)}");
     }],
 
     /* ---- E47-C3 (09.11.2026): the GM panel's tiles and the case window (MARKED) ---- */
@@ -84608,6 +86015,865 @@ const SCENARIOS = [
         equal(stableJson({ undo, keep, granted }), stableJson({ undo: ["gmRoute", false, "undo", game.user.id, 2], keep: ["secondary", false, "keep", game.user.id, 0],
             granted: [[["gmRoute", false], ["gmRoute", false]], 1 + CRITICAL.hope, [true, true]] }),
             "{undo, keep: [the button's role, its wrapper left, the row's decision, by, the marks after]; granted: [each copy's press [role, wrapper left], the Hope after, each stamp granted]}");
+    }],
+    ["a body's loot is judged where the body lies (E95 C1; E72 amend[16]): with its tile in another room than its token, the loot gate refuses a taker beside the token and lets one beside the tile through, the tile hidden refuses, the tile deleted reads the token again, and the loot window greys its Take in agreement", async () => {
+        /*
+         * E95 C1, 10.11.2026; E72 amend[16] and item (1) ("bramka pokoju grabieży ciała ... od E67 bodyRoomOf (pokój
+         * kafla, a gdy GM kafel usunie, pokój tokenu), bez drugiej bramki w handover.mjs"). A taker and a body alone
+         * together in one room, the body dead on a published death, and a tile of its body laid by the suite in another
+         * room (body-tile.mjs `bodyTileSpec`, as E95 C2's `leaveBody` will): the room a Monocub walked out of. Read: the
+         * gate handover.mjs `lootBody` and inventory.mjs `transferItem` ask (inventory.mjs `transferRefusal`, mode "loot",
+         * asked for a player who owns neither) as "ok" or the code of its refusal, and the loot window's Take
+         * (anonymity.mjs `buildBodyLoot` for the taker): [greyed, its words]. Red at E95 C0: the gate read the token's
+         * room, so the taker beside the token looted and the one beside the tile was "notThere", the hidden tile
+         * changed nothing, and the window agreed with the token.
+         */
+        await withBodyTile(async ({ taker, body, player, tile, room, tileRoom, standTaker, drawn }) => {
+            const INV = await import("./inventory.mjs");
+            const { reasonOf } = await import("./bridge-guards.mjs");
+            const gate = async () => { const why = await INV.transferRefusal(body, taker, { mode: "loot", asker: player }); return why ? reasonOf(why) : "ok"; };
+            const read = {};
+            read.besideToken = [await gate(), await drawn()];
+            await standTaker(tileRoom);
+            read.besideTile = [await gate(), await drawn()];
+            await tile.update({ hidden: true });
+            await settle();
+            read.tileHidden = await gate();
+            await tile.update({ hidden: false });
+            await settle();
+            await tile.delete();
+            await settle();
+            read.deletedBesideTile = await gate();
+            await standTaker(room);
+            read.deletedBesideToken = [await gate(), await drawn()];
+            const notThere = game.i18n.localize("DRPG.Bridge.why.notThere"), take = game.i18n.localize("DRPG.Loot.takeTooltip");
+            equal(stableJson(read), stableJson({
+                besideToken: ["notThere", [true, notThere]], besideTile: ["ok", [false, take]], tileHidden: "notThere",
+                deletedBesideTile: "notThere", deletedBesideToken: ["ok", [false, take]]
+            }), "the loot gate and the loot window's Take [greyed, words], per case: the taker beside the token, beside the tile, the tile hidden, the tile deleted with the taker beside where it lay, and beside the token");
+        });
+    }],
+
+    ["a body's tile moves no living road (E95 C1): with a dead student's tile in another room than their token, the person gate a Frisk, a steal and a Plant ask reads the token, not the tile", async () => {
+        /*
+         * E95 C1, 10.11.2026; STAGE E95 C1 ("`body: false` (steal, plant, Frisk) keeps the token"). The same fixture as
+         * the test above: frisk.mjs `personActionRefusal(taker, body)` without `{ body: true }`, the gate a Frisk asks
+         * whole and a steal and a Plant ask first (inventory.mjs `transferRefusal`), with the taker beside the token and
+         * beside the tile. It does not ask whether the target is dead (its header: that would answer a question a player
+         * may not ask), so beside the token it lets the taker through and beside the tile refuses - the token's room,
+         * as before E95. Green before C1 and after: the guard that the body branch's change is the body branch's alone.
+         */
+        await withBodyTile(async ({ taker, body, tileRoom, standTaker }) => {
+            const F = await import("./frisk.mjs");
+            const { reasonOf } = await import("./bridge-guards.mjs");
+            const gate = () => { const why = F.personActionRefusal(taker, body); return why ? reasonOf(why) : "ok"; };
+            const read = { besideToken: gate() };
+            await standTaker(tileRoom);
+            read.besideTile = gate();
+            equal(stableJson(read), stableJson({ besideToken: "ok", besideTile: "notThere" }),
+                "the living road's person gate, per case: the taker beside the token, beside the tile");
+        });
+    }],
+
+    ["a player's forged death id moves neither the loot gate nor the body (E95 fix RV-6): while the dead student's own write of their `deceased` flag's `deathId` waits for its put-back, the primary reads the body's tile by the GMs' mark - a taker beside the tile still loots, and `leaveBody` lays no second tile", async () => {
+        /*
+         * E95 fix RV-6, 10.11.2026. body-tile.mjs `bodyTileOf` matched a tile to the death the actor document's
+         * `deceased` flag records, and its player may write that flag on their own actor; the audit puts it back, and
+         * until then the rest of the primary's gate reads the GMs' mark (frisk.mjs `personActionRefusal`:
+         * `flagsHeldNow`). The fixture of "a body's loot is judged where the body lies" (`withBodyTile`), the taker
+         * beside the tile; then the body's own player's write of `deathId` judged a put-back with the put-back held off
+         * (`inConsoleWindow`, the window a console's write leaves), and in that window the loot gate asked for a player
+         * who owns neither, and `leaveBody` called as a Monocub's tick would. Read: [the forged id on the sheet, the
+         * gate, the id stamped on a tile `leaveBody` laid, or null for none]. Red at c431138a: the gate read the token
+         * ("notThere") and `leaveBody` laid a second tile stamped with the forged id.
+         */
+        await withBodyTile(async ({ taker, body, player, tileRoom, standTaker }) => {
+            const INV = await import("./inventory.mjs");
+            const B = await import("./body-tile.mjs");
+            const { reasonOf } = await import("./bridge-guards.mjs");
+            const owner = game.users.find(u => !u.isGM && body.testUserPermission(u, "OWNER")) ?? null;
+            must(owner, `no player owns ${body.name} - nobody to write their death's id`);
+            const gate = async () => { const why = await INV.transferRefusal(body, taker, { mode: "loot", asker: player }); return why ? reasonOf(why) : "ok"; };
+            const PATH = `flags.${MODULE_ID}.${FLAGS.deceased}.deathId`, FORGED = "SUITEE95FIXFORGED";
+            await standTaker(tileRoom);
+            const read = { before: await gate() };
+            const laid = [];
+            try {
+                await inConsoleWindow(body, owner, { forged: { [PATH]: FORGED }, paths: [PATH] }, async () => {
+                    const onSheet = foundry.utils.getProperty(body._source, PATH) === FORGED;
+                    const why = await gate();
+                    const second = await B.leaveBody(body);
+                    if (second) laid.push(second);
+                    read.during = [onSheet, why, second ? (second.getFlag(MODULE_ID, FLAGS.bodyOf)?.deathId ?? null) : null];
+                });
+            } finally {
+                for (const t of laid) if (t.parent?.tiles?.has(t.id)) await t.delete();
+                await settle();
+            }
+            equal(stableJson(read), stableJson({ before: "ok", during: [true, "ok", null] }),
+                "the loot gate beside the tile [before; in the forged write's window: the forged id on the sheet, the gate, the id on a tile leaveBody laid]");
+        });
+    }],
+
+    ["a Monocub leaves their body where their token stood (E95 C2; DC6, Q3): `setMonocub` lays one tile of the body at the token's corner, its size in pixels, its picture and floor, flagged with the death; made again it lays none, unticked it keeps the tile, ticked again it lays no second; an execution leaves none, and a student with no token on a scene with rooms leaves none and the GM is told", async () => {
+        /*
+         * E95 C2, 10.11.2026; DC6 ("Ciało zostaje na miejscu śmierci jako kafel"), QUESTIONS Q2 (a), Q3 (a), Q8. On this
+         * GM: a student with a token on the scene on screen, killed in public (chapter.mjs `killCharacter`), made a
+         * Monocub (monocub.mjs `setMonocub`). Read: the student's body tiles (body-tile.mjs `bodyTilesOf`) - their
+         * count, and the one's scene, corner, size against the token's squares on the scene's grid, picture, hidden and
+         * flag (the death's `deathId`, the token's floor); after `setMonocub` again, unticked, and ticked once more, the
+         * count. Then the same student killed by an execution (`cause: "executed"`, `phase: "classTrial"`) and made a
+         * Monocub: no tile. Then a student made by the suite with no token anywhere: no tile, and one warning naming
+         * them. Red at E95 C1: `setMonocub` laid no tile. The tiles this test laid are deleted after, by their flag, and
+         * the student's resources and Monocub flag put back (a Monocub starts clean: E15 C4).
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student with a token on the scene on screen, whose body is laid");
+        const M = await import("./monocub.mjs");
+        const B = await import("./body-tile.mjs");
+        const { killCharacter, reviveCharacter, livingStudents, isDeadForGm } = await import("./chapter.mjs");
+        const { levelOf } = await import("./rooms.mjs");
+        const { deathRecord } = await import("./settings.mjs");
+        const scene = canvas.scene;
+        const who = livingStudents().find(a => scene?.tokens?.some(t => t.actorId === a.id));
+        const token = scene?.tokens?.find(t => t.actorId === who?.id);
+        must(who && token, "no living student with a token on the scene on screen - this would measure nothing");
+        const R = "system.resources", keys = ["hope", "hitPoints", "stress"];
+        const was = Object.fromEntries(keys.map(k => [k, foundry.utils.deepClone(foundry.utils.getProperty(who._source, `${R}.${k}`) ?? null)]));
+        const monoWas = who._source.flags?.[MODULE_ID]?.[FLAGS.monocub];
+        const grid = scene.grid?.size ?? 100;
+        const mine = id => B.bodyTilesOf(id);
+        const sweep = async () => {
+            for (const s of game.scenes) {
+                const ids = s.tiles.filter(t => t.getFlag(MODULE_ID, FLAGS.bodyOf)?.actorId && [who.id, nobody?.id].includes(t.getFlag(MODULE_ID, FLAGS.bodyOf).actorId)).map(t => t.id);
+                if (ids.length) await s.deleteEmbeddedDocuments("Tile", ids);
+            }
+        };
+        const warned = [], warn = ui.notifications.warn;
+        let nobody = null;
+        const read = {};
+        try {
+            must(await killCharacter(who, { secret: false, keepBullets: true }), `${who.name}'s death could not be published - this would measure nothing`);
+            await settle();
+            const deathId = deathRecord(who)?.deathId ?? null;
+            await M.setMonocub(who, true, { quiet: true });
+            await settle();
+            const laid = mine(who.id);
+            const one = laid[0];
+            read.laid = one ? [laid.length, one.scene.id === scene.id, one.doc.x === token.x, one.doc.y === token.y,
+                one.doc.width === token.width * grid, one.doc.height === token.height * grid, one.doc.texture?.src === (token.texture?.src ?? null),
+                Boolean(one.doc.hidden), one.mark.deathId === deathId, one.mark.level === (levelOf(token)?.id ?? levelOf(token) ?? null),
+                B.bodyRoomOf(who) === (await import("./movement.mjs")).roomOfToken(token)] : [laid.length];
+            await M.setMonocub(who, true, { quiet: true });
+            await settle();
+            read.again = mine(who.id).length;
+            await M.setMonocub(who, false, { quiet: true });
+            await settle();
+            read.unticked = [mine(who.id).length, M.isMonocub(who)];
+            await M.setMonocub(who, true, { quiet: true });
+            await settle();
+            read.tickedAgain = mine(who.id).length;
+            await M.setMonocub(who, false, { quiet: true });
+            await reviveCharacter(who, { quiet: true });
+            await sweep();
+            await settle();
+            must(!mine(who.id).length && !isDeadForGm(who), `${who.name} could not be stood alive with no body tile again - the execution would measure nothing`);
+            must(await killCharacter(who, { secret: false, keepBullets: true, cause: "executed", phase: "classTrial" }),
+                `${who.name}'s execution could not be published - this would measure nothing`);
+            await settle();
+            await M.setMonocub(who, true, { quiet: true });
+            await settle();
+            read.executed = [mine(who.id).length, M.isMonocub(who)];
+            await M.setMonocub(who, false, { quiet: true });
+            await reviveCharacter(who, { quiet: true });
+            await settle();
+            nobody = await Actor.create({ name: "SUITE E95 C2 no token", type: "character" });
+            must(await killCharacter(nobody, { secret: false, keepBullets: true }), "the suite's student with no token could not be killed - this would measure nothing");
+            await settle();
+            ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return warn.call(ui.notifications, message, ...rest); };
+            await M.setMonocub(nobody, true, { quiet: true });
+            await settle();
+            ui.notifications.warn = warn;
+            const told = game.i18n.format("DRPG.Body.noToken", { name: nobody.name });
+            read.noToken = [mine(nobody.id).length, M.isMonocub(nobody), warned.filter(w => w === told).length, told !== "DRPG.Body.noToken"];
+        } finally {
+            ui.notifications.warn = warn;
+            if (M.isMonocub(who)) await M.setMonocub(who, false, { quiet: true });
+            if (isDeadForGm(who)) await reviveCharacter(who, { quiet: true });
+            await sweep();
+            if (nobody) await nobody.delete();
+            if (monoWas === undefined) await who.unsetFlag(MODULE_ID, FLAGS.monocub);
+            else await who.setFlag(MODULE_ID, FLAGS.monocub, monoWas);
+            await who.update(Object.fromEntries(keys.filter(k => was[k] !== null).map(k => [`${R}.${k}`, was[k]])));
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            laid: [1, true, true, true, true, true, true, false, true, true, true],
+            again: 1, unticked: [1, false], tickedAgain: 1, executed: [0, true], noToken: [0, true, 1, true]
+        }), "the body tiles a Monocub leaves [made: count, on the token's scene, at its x, y, its width and height in pixels, its picture, hidden, "
+            + "the death's id, the token's floor, its room the token's; made again; unticked: count, a Monocub; ticked again; an execution: count, "
+            + "a Monocub; no token: count, a Monocub, the GM told once, the words a key's]");
+    }],
+
+    ["a body tile goes with the death (E95 C2; Q7 \"deaths\", Q8): a revive removes the student's body tiles, and the season reset's deaths group removes every body tile on every scene - an orphan's included - and no other tile", async () => {
+        /*
+         * E95 C2, 10.11.2026; QUESTIONS Q7 (the reset's "deaths" group) and Q8 (a revived student has no body). On this
+         * GM, the primary: a student killed in public with a body tile laid by the suite (body-tile.mjs `bodyTileSpec`,
+         * the data `leaveBody` lays, so this test does not lean on `setMonocub`), a body tile of a student who is no
+         * longer in the world (an orphan), and a plain tile with no flag. chapter.mjs `reviveCharacter`: the student's
+         * tile gone, the two others kept. The student killed again, a tile laid again, and the reset's deaths entry
+         * (season-reset.mjs `seasonStateFor("deaths").clear`, chapter.mjs `clearSeasonDeaths`) run with its other parts
+         * held: `everyStudent` recorded and not run (it would revive and wipe every student), the GMs' store of deaths
+         * nobody found recorded and not cleared. Read: which tiles are left. Red at E95 C1: both kept every tile.
+         *
+         * NOT THE TABLE'S BODIES (E95 fix RV-1, 10.11.2026). The deaths entry's tile part, `removeBodyTiles()`, takes
+         * every body tile on every scene, and this test ran it for real: at a table it deleted a Monocub's body for good
+         * (the restore removes tiles that appeared and cannot bring one back). It is now held as the other parts are -
+         * handed in the reset's context (`ctx.removeBodyTiles`), counted, and run on this test's own tiles alone
+         * (`removeBodyTiles(null, { only })`), so the filter that chooses a body tile is still the real one. The guard:
+         * every body tile the world held when the test began, and one the test lays at the start for a student who is not
+         * in the world (standing in for the table's), is still there after the reset. Red at c431138a: the reset took the
+         * stand-in, and the entry called no part of the context's for the tiles.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student with a token on the scene on screen, whose body is laid");
+        const B = await import("./body-tile.mjs");
+        const C = await import("./chapter.mjs");
+        const { seasonStateFor } = await import("./season-reset.mjs");
+        const { deathStore } = await import("./gm-stores.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        const { levelOf } = await import("./rooms.mjs");
+        const { deathRecord } = await import("./settings.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which runs the reset - this would measure nothing");
+        const scene = canvas.scene;
+        const who = C.livingStudents().find(a => scene?.tokens?.some(t => t.actorId === a.id));
+        const token = scene?.tokens?.find(t => t.actorId === who?.id);
+        must(who && token, "no living student with a token on the scene on screen - this would measure nothing");
+        const ORPHAN = "SUITEE95C2GONE00", TABLE = "SUITEE95FIXTABLE";
+        const bodiesNow = () => [...game.scenes].flatMap(s => [...(s.tiles ?? [])].filter(t => t.getFlag(MODULE_ID, FLAGS.bodyOf)).map(t => `${s.id}.${t.id}`));
+        const tableBodies = bodiesNow();
+        const lay = async (actorId, record) => {
+            const [tile] = await scene.createEmbeddedDocuments("Tile", [B.bodyTileSpec({ tokenDoc: token, actorId, record, level: levelOf(token), at: Date.now() })]);
+            return tile;
+        };
+        const made = new Set();
+        const left = () => [...scene.tiles].filter(t => made.has(t.id)).map(t => t.getFlag(MODULE_ID, FLAGS.bodyOf)?.actorId === who.id ? "student"
+            : t.getFlag(MODULE_ID, FLAGS.bodyOf)?.actorId === ORPHAN ? "orphan" : "plain").sort();
+        const held = { everyStudent: [], clear: 0, dropMany: 0, removeBodyTiles: 0 };
+        const { clear, dropMany } = deathStore;
+        const read = {};
+        let bystander = null;
+        try {
+            bystander = await lay(TABLE, null);
+            must(bystander, "the stand-in for the table's body tile could not be laid - the guard would measure nothing");
+            tableBodies.push(`${scene.id}.${bystander.id}`);
+            must(await C.killCharacter(who, { secret: false, keepBullets: true }), `${who.name}'s death could not be published - this would measure nothing`);
+            await settle();
+            for (const tile of [await lay(who.id, deathRecord(who)), await lay(ORPHAN, null),
+                (await scene.createEmbeddedDocuments("Tile", [{ x: token.x, y: token.y, width: 100, height: 100, texture: { src: null } }]))[0]]) made.add(tile?.id);
+            await settle();
+            must(made.size === 3 && !made.has(undefined) && B.bodyTilesOf(who.id).length === 1, "the three tiles could not be laid - this would measure nothing");
+            read.before = left();
+            await C.reviveCharacter(who, { quiet: true });
+            await settle();
+            read.revived = [left(), C.isDeadForGm(who)];
+            must(await C.killCharacter(who, { secret: false, keepBullets: true }), `${who.name}'s second death could not be published - this would measure nothing`);
+            await settle();
+            const again = await lay(who.id, deathRecord(who));
+            made.add(again?.id);
+            await settle();
+            must(B.bodyTilesOf(who.id).length >= 1, "the second body tile could not be laid - this would measure nothing");
+            const entry = seasonStateFor("deaths");
+            deathStore.clear = async () => { held.clear++; };
+            deathStore.dropMany = async () => { held.dropMany++; };
+            await entry.clear({ everyStudent: async key => { held.everyStudent.push(key); },
+                removeBodyTiles: async () => { held.removeBodyTiles++; return B.removeBodyTiles(null, { only: made }); } });
+            await settle();
+            read.reset = [left(), entry.clear === C.clearSeasonDeaths, held];
+            const now = new Set(bodiesNow());
+            read.tableGone = tableBodies.filter(key => !now.has(key)).map(key => (key.endsWith(`.${bystander.id}`) ? "stand-in" : key));
+        } finally {
+            deathStore.clear = clear;
+            deathStore.dropMany = dropMany;
+            if (C.isDeadForGm(who)) await C.reviveCharacter(who, { quiet: true });
+            const ids = [...made, bystander?.id].filter(id => id && scene.tiles.has(id));
+            if (ids.length) await scene.deleteEmbeddedDocuments("Tile", ids);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            before: ["orphan", "plain", "student"],
+            revived: [["orphan", "plain"], false],
+            reset: [["plain"], true, { everyStudent: ["deaths"], clear: 1, dropMany: 0, removeBodyTiles: 1 }],
+            tableGone: []
+        }), "the tiles left [laid; after the revive, and dead; after the reset's deaths group, the entry chapter.mjs's, its other parts as called]; "
+            + "the body tiles the world held, and the stand-in, gone after the reset");
+    }],
+
+    ["an open body's loot window reads the gate again when a GM hides, moves or deletes the body's tile (E95 C3; STATUS E95 Open 2): beside the tile its Take greys when the tile is hidden, opens when it is shown, greys when the tile is moved into the token's room, opens when it is moved back, and greys when the tile is deleted", async () => {
+        /*
+         * E95 C3, 10.11.2026; STATUS E95 "## Open" item 2. From E95 C1 the loot gate reads a body where its tile lies
+         * (body-tile.mjs `bodyPlaceOf`), and anonymity.mjs `regreyOpenLoot` heard the taker's and the body's token and
+         * the clock: a GM's write on the tile moved the gate and the open window kept the Take it had. The fixture of
+         * the C1 tests (`withBodyTile`), the taker stood beside the tile, a loot window for the taker put on the page
+         * (anonymity.mjs `buildBodyLoot` into a root in the document, where `regreyOpenLoot` looks), and five writes on
+         * the tile by this GM. Read: whether the Take is greyed after each, waited for up to 2 s (the greying imports
+         * and asks the gate after the hook). Red at E95 C2: no write on a tile re-read the gate, so the Take stayed open
+         * after every one.
+         */
+        await withBodyTile(async ({ taker, body, tile, room, tileRoom, standTaker }) => {
+            const A = await import("./anonymity.mjs");
+            const INV = await import("./inventory.mjs");
+            const Mv = await import("./movement.mjs");
+            const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+            const NAME = "SUITE E95 C3 a lighter on the body";
+            const bodyToken = canvas.scene.tokens.find(t => t.actorId === body.id);
+            const spot = Mv.positionIn(room, bodyToken);
+            must(spot, `no spot in ${room} to move the tile to - this would measure nothing`);
+            const root = document.createElement("div");
+            root.innerHTML = `<a data-tab="inventory"></a><section class="tab" data-tab="inventory"></section>`;
+            document.body.append(root);
+            const read = {};
+            let item = null;
+            try {
+                await standTaker(tileRoom);
+                item = await INV.grantItem(body, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+                await sheetAuditIdle();
+                must(item, "the item on the body was not made - this would measure nothing");
+                await A.buildBodyLoot(root, body, taker);
+                const take = root.querySelector(".drpg-loot-take");
+                must(take && !take.disabled, "the Take beside the tile is not open before the tile is written - this would measure nothing");
+                const after = async (write, shut) => {
+                    await write();
+                    await settle();
+                    await until(() => take.disabled === shut, 2000);
+                    return take.disabled;
+                };
+                const back = { x: tile.x, y: tile.y };
+                read.hidden = await after(() => tile.update({ hidden: true }), true);
+                read.shown = await after(() => tile.update({ hidden: false }), false);
+                read.moved = await after(() => tile.update({ x: spot.x, y: spot.y }), true);
+                read.movedBack = await after(() => tile.update(back), false);
+                read.deleted = await after(() => tile.delete(), true);
+            } finally {
+                root.remove();
+                if (item && body.items.has(item.id)) await item.delete();
+                await sheetAuditIdle();
+            }
+            equal(stableJson(read), stableJson({ hidden: true, shown: false, moved: true, movedBack: false, deleted: true }),
+                "the open loot window's Take greyed, beside the tile, after the GM [hid the tile, showed it, moved it into the token's room, moved it back, deleted it]");
+        });
+    }],
+
+    ["two body tiles of one death (E95 C3; risk 4, STATUS E95 Open 7): the loot gate reads the one laid first by its `at`, whichever was made first, both wear the caption, and a revive removes both", async () => {
+        /*
+         * E95 C3, 10.11.2026; STAGE E95 risk 4 ("Two GMs making one Monocub at once can lay two tiles; readers take the
+         * earliest; revive and reset remove all"), untested until now. The fixture of the C1 tests (`withBodyTile`: a
+         * tile in another room than the token) and a second tile of the same death laid by the suite in the token's
+         * room, `at` a minute after the first; then its `at` set a minute before the first's. Read each time: whether
+         * `bodyTileOf` is the earliest, the body's room (`bodyRoomOf`), and the loot gate (inventory.mjs
+         * `transferRefusal`, mode "loot", for a player who owns neither) with the taker beside the token and beside the
+         * fixture's tile. What C3 draws: the mark of each tile (body-tile.mjs `drawBodyMark` on a stand-in placeable
+         * holding the tile's document; Foundry's draw hook is not in the harness) - both captioned, as each tile is a
+         * flagged tile; which of the two is the body is the gate's and not the drawing's. Then chapter.mjs
+         * `reviveCharacter`: the tiles left. Red at E95 C2: there is no `drawBodyMark` (the gate and the revive were
+         * C0-C2's and read the same then).
+         */
+        await withBodyTile(async ({ taker, body, player, tile, room, tileRoom, standTaker }) => {
+            const B = await import("./body-tile.mjs");
+            const INV = await import("./inventory.mjs");
+            const Mv = await import("./movement.mjs");
+            const C = await import("./chapter.mjs");
+            const { reasonOf } = await import("./bridge-guards.mjs");
+            const { levelOf } = await import("./rooms.mjs");
+            const { deathRecord } = await import("./settings.mjs");
+            const scene = canvas.scene;
+            const bodyToken = scene.tokens.find(t => t.actorId === body.id);
+            const spot = Mv.positionIn(room, bodyToken);
+            must(spot, `no spot in ${room} to lay the second tile in - this would measure nothing`);
+            const gate = async () => { const why = await INV.transferRefusal(body, taker, { mode: "loot", asker: player }); return why ? reasonOf(why) : "ok"; };
+            const at = Number(tile.getFlag(MODULE_ID, FLAGS.bodyOf)?.at) || Date.now();
+            const reading = async firstId => {
+                await standTaker(room);
+                const besideToken = await gate();
+                await standTaker(tileRoom);
+                return [B.bodyTileOf(body)?.doc?.id === firstId, B.bodyRoomOf(body), besideToken, await gate()];
+            };
+            const read = {};
+            let second = null;
+            try {
+                [second] = await scene.createEmbeddedDocuments("Tile", [B.bodyTileSpec({ tokenDoc: { x: spot.x, y: spot.y, width: bodyToken.width,
+                    height: bodyToken.height, elevation: bodyToken.elevation, texture: { src: bodyToken.texture?.src ?? null }, parent: scene },
+                actorId: body.id, record: deathRecord(body), level: levelOf(bodyToken), at: at + 60000 })]);
+                await settle();
+                must(second && B.bodyTilesOf(body.id).length === 2, "the second body tile could not be laid - this would measure nothing");
+                read.secondLater = await reading(tile.id);
+                await second.setFlag(MODULE_ID, FLAGS.bodyOf, { ...second.getFlag(MODULE_ID, FLAGS.bodyOf), at: at - 60000 });
+                await settle();
+                read.secondEarlier = await reading(second.id);
+                read.drawn = typeof B.drawBodyMark === "function"
+                    ? [tile, second].map(doc => {
+                        const stand = new PIXI.Container();
+                        stand.document = doc;
+                        return (B.drawBodyMark(stand)?.children ?? []).filter(c => c instanceof PIXI.Text).map(c => c.text);
+                    })
+                    : "body-tile.mjs has no drawBodyMark";
+                await C.reviveCharacter(body, { quiet: true });
+                await settle();
+                read.revived = [scene.tiles.has(tile.id), scene.tiles.has(second.id), B.bodyTilesOf(body.id).length];
+            } finally {
+                if (second && scene.tiles.has(second.id)) await second.delete();
+                await settle();
+            }
+            const words = [game.i18n.format("DRPG.Body.tile", { name: body.name })];
+            equal(stableJson(read), stableJson({
+                secondLater: [true, tileRoom, "notThere", "ok"],
+                secondEarlier: [true, room, "ok", "notThere"],
+                drawn: [words, words],
+                revived: [false, false, 0]
+            }), "per case [the body is the earliest tile, the body's room, the gate beside the token, beside the fixture's tile]: the second tile laid later, then earlier; "
+                + "the captions drawn on [the fixture's tile, the second]; after the revive [the fixture's tile there, the second there, the body tiles left]");
+        });
+    }],
+
+    ["the body's announcement is one hook, called once on the writer before `announceBody` answers (E95 C4; Q5 (a), Q6): its payload the stamp's fields, `waitUntil` held to at most 1500 ms, a stamp another GM writes called once with writer false, and a renamed room, a no-op write, a failed stamp and the reset's clear called never", async () => {
+        /*
+         * E95 C4, 10.11.2026; E72 amend[16], item (2) ("woła tu nazwany hook drpgBodyAnnounced z rozdziałem i id
+         * ofiary"); QUESTIONS Q5 (a) (every browser) and Q6 (`waitUntil`, at most 1500 ms, chosen, not measured). On
+         * this GM, the primary, with a listener of the suite's own on `drpgBodyAnnounced`: chapter.mjs `announceBody`
+         * with stamps of chapter 97 of this season (a chapter no world reaches), plain, with a listener's promise that
+         * settles at 300 ms, and with one that never settles; then the setting written as another GM's stamp would
+         * arrive (a row added by a plain write), written again with no new row, a room renamed (settings.mjs
+         * `carryBodyRooms`), a stamp that cannot be written (no chapter: `recordBodyFound` answers null) and the
+         * reset's clear (chapter.mjs `clearSeasonBodies`). Read: the calls heard after each, as [writer, waitUntil's
+         * type]; on the writer whether the hook came before `announceBody` answered, how long it waited and whether the
+         * 300 ms promise had settled by then; the payload's fields against the stamp in this browser's setting. The two
+         * settings put back as they were. Red at E95 C3: no hook, nothing heard.
+         *
+         * E95 fix, 10.11.2026. RV-12: every stamp the suite writes carries `rehearsal: true`, and so every payload the
+         * suite wakes the hook with, on the writer and on every browser the setting reaches - the hook's header tells a
+         * listener to ignore one, so E69's Tail and E72's bet window do not run on a fake discovery at a table. RV-11: a
+         * row this browser never saw whose `at` is older than its `ready` less 60 s (a whole-setting write handing old
+         * rows back) is announced never; the other GM's row is stamped now. RV-7: a promise handed `waitUntil` after the
+         * listener's first `await` is not waited for, and the call does not throw. Red at c431138a: the payload had no
+         * `rehearsal`, and the old row was announced.
+         */
+        const C = await import("./chapter.mjs");
+        const St = await import("./settings.mjs");
+        const { isPrimaryGm, serverNow } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose discovery writes the stamp - this would measure nothing");
+        const stampsWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+        const holdWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {});
+        const CHAPTER = 97, epoch = St.seasonEpoch(), key = `${epoch}:${CHAPTER}`;
+        const sceneId = canvas.scene?.id ?? null, ROOM = "SUITE E95 C4 room";
+        const row = at => ({ chapter: CHAPTER, epoch, at, room: ROOM, sceneId, victimIds: ["SUITEE95C4BODY00", "SUITEE95C4BODY00"],
+            deaths: {}, by: "witnesses", day: 1, timeOfDay: "morning", rehearsal: true });
+        const heard = [];
+        let hand = null;
+        const id = Hooks.on("drpgBodyAnnounced", payload => {
+            heard.push({ payload: { ...payload }, t: Date.now() });
+            if (hand) hand(payload);
+        });
+        const calls = from => heard.slice(from).map(h => [h.payload.writer ?? null, typeof h.payload.waitUntil]);
+        const timed = async (at, handWith = null) => {
+            hand = handWith;
+            const from = heard.length, t0 = Date.now();
+            const stamp = await C.announceBody(row(at));
+            const answered = Date.now();
+            hand = null;
+            await settle();
+            return { from, stamp, waited: answered - t0, before: heard[from] ? heard[from].t <= answered : null };
+        };
+        const read = {};
+        try {
+            const plain = await timed(1000);
+            const fields = heard[plain.from]?.payload ?? {};
+            const held = (game.settings.get(MODULE_ID, SETTINGS.bodiesFound)?.[key] ?? []).find(r => r.at === 1000) ?? null;
+            read.plain = [plain.stamp !== null, calls(plain.from), plain.before];
+            read.payload = [Object.keys(fields).sort(), stableJson([fields.chapter, fields.epoch, fields.victimIds, fields.room, fields.sceneId, fields.at, fields.by])
+                === stableJson([CHAPTER, epoch, held?.victimIds, held?.room, held?.sceneId, held?.at, held?.by])];
+            let settled = false;
+            const slow = await timed(2000, p => p.waitUntil(new Promise(resolve => setTimeout(() => { settled = true; resolve(); }, 300))));
+            read.waited = [calls(slow.from), slow.before, settled, slow.waited >= 300];
+            const never = await timed(3000, p => p.waitUntil(new Promise(() => {})));
+            read.bound = [calls(never.from), never.waited >= 1400 && never.waited < 3000];
+            let threw = null;
+            const late = await timed(3500, async p => { await null; try { p.waitUntil(new Promise(() => {})); threw = false; } catch { threw = true; } });
+            read.late = [calls(late.from), late.waited < 1400, threw];
+            let from = heard.length;
+            const all = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, { ...all, [key]: [...(all[key] ?? []), { ...row(serverNow()), victimIds: ["SUITEE95C4BODY01"] }] });
+            await settle();
+            read.otherGm = calls(from);
+            from = heard.length;
+            const more = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, { ...more, [key]: [...(more[key] ?? []), { ...row(4500), victimIds: ["SUITEE95C4BODY02"] }] });
+            await settle();
+            read.oldRow = calls(from);
+            from = heard.length;
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, { ...foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound)), [`${epoch}:96`]: [] });
+            await settle();
+            read.noNewRow = calls(from);
+            from = heard.length;
+            const moved = await St.carryBodyRooms(sceneId, ROOM, `${ROOM} renamed`);
+            await settle();
+            read.renamed = [moved > 0, calls(from)];
+            from = heard.length;
+            read.failed = [await C.announceBody({ ...row(5000), chapter: "none" }), calls(from)];
+            await settle();
+            from = heard.length;
+            await C.clearSeasonBodies();
+            await settle();
+            read.reset = calls(from);
+            read.rehearsal = [heard.length > 0, heard.every(h => h.payload.rehearsal === true)];
+        } finally {
+            Hooks.off("drpgBodyAnnounced", id);
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsWas);
+            await game.settings.set(MODULE_ID, SETTINGS.bodyFound, holdWas);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            plain: [true, [[true, "function"]], true],
+            payload: [["at", "by", "chapter", "epoch", "rehearsal", "room", "sceneId", "victimIds", "waitUntil", "writer"], true],
+            waited: [[[true, "function"]], true, true, true],
+            bound: [[[true, "function"]], true],
+            late: [[[true, "function"]], true, false],
+            otherGm: [[false, "undefined"]],
+            oldRow: [],
+            noNewRow: [],
+            renamed: [true, []],
+            failed: [null, []],
+            reset: [],
+            rehearsal: [true, true]
+        }), "the calls heard as [writer, waitUntil] per case - announced [stamped, calls, before it answered]; the payload [its fields, the stamp's]; "
+            + "a promise of 300 ms [calls, before, settled, waited 300 ms]; one never settling [calls, waited 1.4-3 s]; "
+            + "one handed after an await [calls, answered under 1.4 s, threw]; another GM's stamp; a row older than ready less 60 s; a write with no new row; "
+            + "a rename [moved, calls]; a failed stamp [answer, calls]; the reset's clear; [heard any, every payload a rehearsal]");
+    }],
+    ["Breakdown and Wounded are public on the sheet (E95 C5 amend; the owner's 10.11 \"publiczne w karcie postaci, tak jak np. imie albo hp\"): a student in both states, read on the stand-in sheet in the bar and the pip layout by its owner, a GM, another player and an Observer - each reads a badge of each state beside the reserves, its name and its tooltip, the Actions label still marked Wounded, and Sanity still \"?\" for the two who may not read it; a student in neither state wears no badge", async () => {
+        /*
+         * E95 C5, 10.11.2026. Measured on bc750112 before the change (STATUS E95-C5 "Measured before"): no reader of
+         * either layout found Breakdown on the sheet at all - not a word, a tooltip or a class - and Wounded only as the
+         * Actions label's class and tooltip ("No Health left - one action per time of day."), for all four. The readers
+         * are the world's own users put in `game.user` in turn (the GM's own User, then three players' User documents),
+         * so `sheetMode`, `reserveView` and anonymity.mjs read each as they would on that player's browser; the Observer
+         * is a player given OBSERVER on the student for the test. The student is put in both states by marking every
+         * point of Health and Sanity, and each sheet is drawn through the module's own hook as Foundry calls it. Put
+         * back in a finally: the reserves, the ownership, `game.user`.
+         */
+        const { STATES } = await import("./config.mjs");
+        const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
+        const players = game.users.filter(u => !u.isGM);
+        const student = cast(3).find(a => players.some(u => a.testUserPermission(u, "OWNER")));
+        must(student, "no living student a player owns - this would measure nothing");
+        const owner = players.find(u => student.testUserPermission(u, "OWNER"));
+        const [player, observer] = players.filter(u => !student.testUserPermission(u, "OWNER"));
+        must(player && observer, "fewer than two players who do not own the student - this would measure nothing");
+        const HP = "system.resources.hitPoints", SAN = "system.resources.stress";
+        const get = path => Number(foundry.utils.getProperty(student, path) ?? 0);
+        const was = { hp: get(`${HP}.value`), san: get(`${SAN}.value`), own: { ...(student.ownership ?? {}) } };
+        must(get(`${HP}.max`) > 0 && get(`${SAN}.max`) > 0, "the student has no Health or Sanity to mark - this would measure nothing");
+        must(was.hp < get(`${HP}.max`) && was.san < get(`${SAN}.max`), "the student is already Wounded or in Breakdown - the calm pass would measure nothing");
+        const pips = root => {
+            const section = root.querySelector(".resources-section");
+            section.closest(".info-section").classList.add("pip-display");
+            const block = (key, label, action) => {
+                let slots = "";
+                for (let n = 1; n <= get(`${key === "hitPoints" ? HP : SAN}.max`); n++) slots += `<span class="slot" data-action="${action}" data-value="${n}"></span>`;
+                return `<div class="slot-value"><div class="slot-bar">${slots}</div><div class="slot-label"><span class="label">${label}</span><span class="value"></span></div></div>`;
+            };
+            section.innerHTML = block("hitPoints", "Health", "toggleHitPoints") + block("stress", "Sanity", "toggleStress");
+            return root;
+        };
+        const said = (root, word) => {
+            const re = new RegExp(`\\b${word}\\b`, "i");
+            return re.test(root.textContent) || [...root.querySelectorAll("*")].some(el => [...el.attributes].some(a => re.test(a.value)));
+        };
+        const look = (user, layout) => {
+            const root = layout === "pips" ? pips(e45SheetRoot()) : e45SheetRoot();
+            document.body.append(root);
+            try {
+                Hooks.callAll("renderCharacterSheet", { document: student, isEditable: student.testUserPermission(user, "OWNER"), element: root, rendered: true },
+                    root, {}, { isFirstRender: true });
+                const badge = id => {
+                    const el = root.querySelector(`.character-sidebar-sheet .drpg-state-badge[data-drpg-state="${id}"]`);
+                    return el ? [el.textContent.trim(), el.dataset.tooltip ?? null] : null;
+                };
+                const label = root.querySelector(".drpg-actions-section .drpg-actions h4");
+                const sanity = root.querySelector("[data-drpg-reserve='stress'] .drpg-reserve-row");
+                return {
+                    breakdown: badge(STATES.breakdown.id), wounded: badge(STATES.wounded.id),
+                    actions: [Boolean(label?.classList.contains("drpg-wounded")), label?.dataset.tooltip ?? null],
+                    sanityHidden: sanity ? sanity.textContent.trim() === "?" && !sanity.querySelector("input") : null,
+                    said: [said(root, game.i18n.localize("DRPG.States.drpgBreakdown.name")), said(root, game.i18n.localize("DRPG.States.drpgWounded.name"))]
+                };
+            } finally {
+                root.remove();
+            }
+        };
+        const readers = [["owner", owner], ["gm", game.user], ["player", player], ["observer", observer]];
+        const realUser = game.user;
+        const kept = Object.getOwnPropertyDescriptor(game, "user");
+        const asUser = (user, run) => {
+            Object.defineProperty(game, "user", { value: user, configurable: true, writable: true });
+            try { return run(); } finally {
+                if (kept) Object.defineProperty(game, "user", kept);
+                else delete game.user;
+            }
+        };
+        const read = { calm: null, held: {} };
+        try {
+            await student.update({ [`ownership.${observer.id}`]: L.OBSERVER });
+            await settle();
+            read.calm = asUser(player, () => look(player, "bars"));
+            await student.update({ [`${HP}.value`]: get(`${HP}.max`), [`${SAN}.value`]: get(`${SAN}.max`) });
+            await settle();
+            for (const layout of ["bars", "pips"]) {
+                for (const [who, user] of readers) read.held[`${who}/${layout}`] = asUser(user, () => look(user, layout));
+            }
+        } finally {
+            must(game.user === realUser, "game.user was not put back");
+            await student.update({ [`${HP}.value`]: was.hp, [`${SAN}.value`]: was.san,
+                [`ownership.${observer.id}`]: observer.id in was.own ? was.own[observer.id] : forcedDeletion() });
+            await settle();
+        }
+        const BD = [game.i18n.localize("DRPG.States.drpgBreakdown.name"), game.i18n.localize("DRPG.States.drpgBreakdown.description")];
+        const WD = [game.i18n.localize("DRPG.States.drpgWounded.name"), game.i18n.localize("DRPG.States.drpgWounded.description")];
+        const want = { calm: { breakdown: null, wounded: null, actions: [false, null], sanityHidden: true, said: [false, false] }, held: {} };
+        for (const layout of ["bars", "pips"]) {
+            for (const [who] of readers) {
+                want.held[`${who}/${layout}`] = { breakdown: BD, wounded: WD, actions: [true, game.i18n.localize("DRPG.Actions.woundedTooltip")],
+                    sanityHidden: who === "player" || who === "observer", said: [true, true] };
+            }
+        }
+        equal(stableJson(read), stableJson(want),
+            "{calm: another player's sheet of the student in neither state; held: each reader's sheet (owner, GM, another player, Observer) in each layout (bars, pips) of the student "
+            + "in Breakdown and Wounded} - [badge name, tooltip] of each state beside the reserves, the Actions label's [Wounded class, tooltip], Sanity's row \"?\", [Breakdown, Wounded] said anywhere on the sheet");
+    }],
+    ["a Monokuma's sheet shows no state badge (E95 C5 fix; the orchestrator's reading of 10.11): `stateHeld` is the rule `syncOnce` writes the status from, and `syncOnce` skips a Monokuma - so a Monokuma whose Health and Sanity are marked through draws neither badge, and a student with both gone draws both", async () => {
+        /*
+         * E95 C5 fix, 10.11.2026. `stateHeld` (states.mjs) was `shouldHave`, which skips the dead and a Monocub but not a
+         * Monokuma, while `syncStates` returns for a Monokuma at its first line. Read here on the GM's own sheet (the stand-in
+         * of E45-T2) of the world's student: put in both states by marking every point of Health and Sanity (the badges
+         * both), then marked a Monokuma by `setMonokuma` itself (its own writes: the flag, Actions and Hope zeroed) with
+         * the marks left as they were. Put back in a finally: the marks, Hope, Actions, the flag.
+         */
+        const SH = await import("./sheet.mjs");
+        const { STATES, ACTIONS_RESOURCE } = await import("./config.mjs");
+        const { setMonokuma } = await import("./monokuma.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        must(typeof SH.sheetMode === "function", "sheet.mjs exports no sheetMode - this would measure nothing");
+        const student = cast(3).at(-1);
+        must(student && !student.getFlag(MODULE_ID, FLAGS.monokuma) && !student.getFlag(MODULE_ID, FLAGS.deceased) && !student.getFlag(MODULE_ID, FLAGS.monocub),
+            "no living student outside every special state - this would measure nothing");
+        const HP = "system.resources.hitPoints", SAN = "system.resources.stress", HOPE = "system.resources.hope.value", ACT = `system.resources.${ACTIONS_RESOURCE}.value`;
+        const get = path => Number(foundry.utils.getProperty(student, path) ?? 0);
+        const was = { hp: get(`${HP}.value`), san: get(`${SAN}.value`), hope: get(HOPE), act: get(ACT), flag: student.getFlag(MODULE_ID, FLAGS.monokuma) };
+        must(get(`${HP}.max`) > 0 && get(`${SAN}.max`) > 0, "the student has no Health or Sanity to mark - this would measure nothing");
+        const look = () => {
+            const root = e45SheetRoot();
+            document.body.append(root);
+            try {
+                Hooks.callAll("renderCharacterSheet", { document: student, isEditable: true, element: root, rendered: true }, root, {}, { isFirstRender: true });
+                return [...root.querySelectorAll(".character-sidebar-sheet .drpg-state-badge")].map(el => el.dataset.drpgState).sort();
+            } finally {
+                root.remove();
+            }
+        };
+        const read = {};
+        try {
+            await student.update({ [`${HP}.value`]: get(`${HP}.max`), [`${SAN}.value`]: get(`${SAN}.max`) });
+            await settle();
+            read.student = look();
+            await setMonokuma(student, true);
+            await settle();
+            read.monokuma = look();
+            read.monokumaMode = SH.sheetMode(student, game.user).mode;
+        } finally {
+            await setMonokuma(student, false);
+            if (was.flag === undefined) await student.unsetFlag(MODULE_ID, FLAGS.monokuma);
+            await trustedWrite(student, { [HOPE]: was.hope, [ACT]: was.act }, { reason: "setup" });
+            await student.update({ [`${HP}.value`]: was.hp, [`${SAN}.value`]: was.san });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ student: [STATES.breakdown.id, STATES.wounded.id].sort(), monokuma: [], monokumaMode: "monokuma" }),
+            "{the student with every point of Health and Sanity marked: the badges; the same character marked a Monokuma, the marks left: the badges, and the sheet's mode}");
+    }],
+    ["the state row keeps its place on the sheet (E95 C5 fix; the owner's 10.11: \"Breakdown i wounded nigdy nie powinny przesuwac nic na karcie\", \"health i sanity ... zawsze obok siebie\"): the row is in the sheet with no state, one state and both, and the stylesheet holds its height, does not wrap it, and puts the two reserves in one row", async () => {
+        /*
+         * E95 C5 fix, 10.11.2026. No layout headless, so the two halves are read where they can be: the sheet drawn through
+         * the module's own hook with the student in no state, in Breakdown alone and in both (the row must be in the sheet
+         * each time, its badges one, then two), and the stylesheet's own rules for the row, its badges and the reserves'
+         * section. The tops themselves were measured in Chromium (audit/style-harness.html ?sheet=parts, both themes, both
+         * layouts; STATUS E95-C5 fix). Red first on 09709763: the row was taken off the sheet when no state was held, and
+         * neither rule existed.
+         */
+        const { STATES } = await import("./config.mjs");
+        const student = cast(3).at(-1);
+        must(student && !student.getFlag(MODULE_ID, FLAGS.monokuma) && !student.getFlag(MODULE_ID, FLAGS.deceased) && !student.getFlag(MODULE_ID, FLAGS.monocub),
+            "no living student outside every special state - this would measure nothing");
+        const HP = "system.resources.hitPoints", SAN = "system.resources.stress";
+        const get = path => Number(foundry.utils.getProperty(student, path) ?? 0);
+        const was = { hp: get(`${HP}.value`), san: get(`${SAN}.value`) };
+        must(get(`${HP}.max`) > 0 && get(`${SAN}.max`) > 0 && was.hp < get(`${HP}.max`) && was.san < get(`${SAN}.max`), "the student is in a state already, or has no tracks - this would measure nothing");
+        const look = () => {
+            const root = e45SheetRoot();
+            document.body.append(root);
+            try {
+                Hooks.callAll("renderCharacterSheet", { document: student, isEditable: true, element: root, rendered: true }, root, {}, { isFirstRender: true });
+                const rows = root.querySelectorAll(".character-sidebar-sheet > .drpg-state-badges, .character-sidebar-sheet .drpg-state-badges");
+                // The row stands after the reserves' section, whatever it holds.
+                const after = root.querySelector(".resources-section")?.nextElementSibling?.classList.contains("drpg-state-badges") ?? false;
+                return [rows.length, rows[0]?.querySelectorAll(".drpg-state-badge").length ?? null, after];
+            } finally {
+                root.remove();
+            }
+        };
+        const read = {};
+        try {
+            read.none = look();
+            await student.update({ [`${SAN}.value`]: get(`${SAN}.max`) });
+            await settle();
+            read.one = look();
+            await student.update({ [`${HP}.value`]: get(`${HP}.max`) });
+            await settle();
+            read.both = look();
+        } finally {
+            await student.update({ [`${HP}.value`]: was.hp, [`${SAN}.value`]: was.san });
+            await settle();
+        }
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+        const rule = selector => new RegExp(`${selector.replace(/[.>]/g, "\\$&")} \\{([^}]*)\\}`).exec(css)?.[1] ?? "";
+        const SB = ".application.sheet.actor .character-sidebar-sheet";
+        const row = rule(`${SB} .drpg-state-badges`), badge = rule(`${SB} .drpg-state-badges > .drpg-state-badge`), section = rule(`${SB} .resources-section`);
+        read.css = {
+            rowHeight: /\bheight:\s*24px/.test(row) && /flex-wrap:\s*nowrap/.test(row),
+            badgeHeight: /\bheight:\s*24px/.test(badge) && /overflow:\s*hidden/.test(badge),
+            reserves: /display:\s*flex/.test(section) && /flex-direction:\s*row/.test(section) && /flex-wrap:\s*nowrap/.test(section)
+        };
+        equal(stableJson(read), stableJson({ none: [1, 0, true], one: [1, 1, true], both: [1, 2, true], css: { rowHeight: true, badgeHeight: true, reserves: true } }),
+            "{the sheet with no state, with Breakdown alone and with both: [rows, badges, the row right after the reserves' section]; the stylesheet's row (a fixed height, no wrap), its badge (the same height, clipped) and the reserves' section (one row)}");
+    }],
+    ["a Monokuma's sheet has no Inventory tab (E95 C7; the owner's 10.11: \"Usunmy z karty postaci monokumy zakladke inventory\"): the link leaves the tab bar and the part is emptied for a Monokuma, a sheet that came up on it moves to the Actions tab, a student's, an NPC's and a Monocub's keep both, and what the Monokuma held stays in its data", async () => {
+        /*
+         * E95 C7, 10.11.2026. The sheet drawn through the module's own hook on the stand-in root (E45-T2's) with the tab
+         * bar added (a `nav` of two links, as `dropBiographyTab` finds the Biography's), for the world's student as it
+         * stands, marked a Monokuma by `setMonokuma` itself, then taken back, and as an NPC and a Monocub by the flags
+         * E45-T1 writes. The sheet that "came up on Inventory" is an app stand-in whose `tabGroups.primary` reads
+         * `inventory` and whose `changeTab` records the call. Put back in a finally: the flags, Hope, Actions.
+         */
+        const { ACTIONS_RESOURCE } = await import("./config.mjs");
+        const { setMonokuma } = await import("./monokuma.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const student = cast(3).at(-1);
+        must(student && !student.getFlag(MODULE_ID, FLAGS.monokuma) && !student.getFlag(MODULE_ID, FLAGS.deceased) && !student.getFlag(MODULE_ID, FLAGS.monocub)
+            && !student.getFlag(MODULE_ID, "notInClass"), "no living student outside every special state - this would measure nothing");
+        const HOPE = "system.resources.hope.value", ACT = `system.resources.${ACTIONS_RESOURCE}.value`;
+        const was = { hope: Number(foundry.utils.getProperty(student, HOPE) ?? 0), act: Number(foundry.utils.getProperty(student, ACT) ?? 0), flag: student.getFlag(MODULE_ID, FLAGS.monokuma) };
+        const held = student.items.size;
+        const look = onInventory => {
+            const root = e45SheetRoot();
+            root.insertAdjacentHTML("afterbegin", `<nav class="sheet-tabs tabs"><a data-tab="features" data-group="primary">Actions</a><a data-tab="inventory" data-group="primary">Inventory</a></nav>`);
+            const part = root.querySelector('section[data-application-part="inventory"]');
+            part.dataset.group = "primary";
+            if (onInventory) part.classList.add("active");
+            const moved = [];
+            const app = { document: student, isEditable: true, element: root, rendered: true, tabGroups: { primary: onInventory ? "inventory" : "features" },
+                changeTab: (tab, group) => { moved.push([tab, group]); } };
+            document.body.append(root);
+            try {
+                Hooks.callAll("renderCharacterSheet", app, root, {}, { isFirstRender: true });
+                return { link: Boolean(root.querySelector('nav [data-tab="inventory"]')), filled: part.children.length > 0, moved };
+            } finally {
+                root.remove();
+            }
+        };
+        const read = {};
+        try {
+            read.student = look(false);
+            read.studentOpen = look(true);
+            await setMonokuma(student, true);
+            await settle();
+            read.monokuma = look(false);
+            read.monokumaOpen = look(true);
+            read.kept = student.items.size === held;
+            await setMonokuma(student, false);
+            await settle();
+            read.back = look(false);
+            await student.setFlag(MODULE_ID, "notInClass", true);
+            await settle();
+            read.npc = look(false);
+            await student.unsetFlag(MODULE_ID, "notInClass");
+            await student.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await settle();
+            read.monocub = look(false);
+        } finally {
+            await setMonokuma(student, false);
+            if (was.flag === undefined) await student.unsetFlag(MODULE_ID, FLAGS.monokuma);
+            if (student.getFlag(MODULE_ID, "notInClass") !== undefined) await student.unsetFlag(MODULE_ID, "notInClass");
+            if (student.getFlag(MODULE_ID, FLAGS.monocub) !== undefined) await student.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await trustedWrite(student, { [HOPE]: was.hope, [ACT]: was.act }, { reason: "setup" });
+            await settle();
+        }
+        const whole = { link: true, filled: true, moved: [] }, bare = { link: false, filled: false, moved: [] };
+        equal(stableJson(read), stableJson({
+            student: whole, studentOpen: whole, monokuma: bare, monokumaOpen: { ...bare, moved: [["features", "primary"]] },
+            kept: true, back: whole, npc: whole, monocub: whole
+        }), "{the sheet as it is drawn for each character: [the Inventory link in the tab bar, the part holding anything, the tabs the sheet was moved to]; a Monokuma keeps what it held}");
+    }],
+    ["a Students row opens that character's sheet (E95 C6; the owner's 10.11): the GM presses a row's sheet button twice - each press renders that actor's own sheet with force, the same window both times, the Students window stays open, and no other actor's sheet is asked", async () => {
+        /*
+         * E95 C6, 10.11.2026. The window as the GM panel's tile opens it (gm-panel.mjs `openWhoIsAliveDialog`), on its
+         * own roads: the button's road is the actor's `sheet.render(true)`. Read through the sheet's own `render`, wrapped
+         * for the test and put back in a finally (the harness's sheet draws nothing; at a table it opens, and is closed
+         * after unless it was open before). Red first on af5cdcfc: no sheet button on a row.
+         */
+        needs(env.dialogs(), "the window is answered drawn");
+        const GP = await import("./gm-panel.mjs");
+        const { theirs } = playerAndCharacters();
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-alive"));
+        const button = () => of()[0]?.element?.querySelector(`button[data-drpg-sheet="${CSS.escape(theirs.id)}"]`) ?? null;
+        const sheet = theirs.sheet;
+        must(sheet && typeof sheet.render === "function", `${theirs.name} has no sheet to render - this would measure nothing`);
+        const wasOpen = Boolean(sheet.rendered);
+        const own = Object.getOwnPropertyDescriptor(sheet, "render");
+        const calls = [];
+        const others = [];
+        const otherSheets = game.actors.filter(a => a.id !== theirs.id).map(a => a.sheet).filter(Boolean);
+        const kept = otherSheets.map(s => [s, Object.getOwnPropertyDescriptor(s, "render")]);
+        sheet.render = function (...args) { calls.push([this === sheet, args[0] === true || args[0]?.force === true]); return (own?.value ?? Object.getPrototypeOf(sheet).render).apply(this, args); };
+        for (const [s] of kept) {
+            const real = s.render;
+            s.render = function (...args) { others.push(args); return real.apply(this, args); };
+        }
+        const read = {};
+        try {
+            const answer = Promise.resolve().then(() => GP.openWhoIsAliveDialog()).catch(() => null);
+            await until(() => button(), 6000);
+            read.drawn = Boolean(button());
+            button()?.click();
+            await until(() => calls.length >= 1, 3000);
+            await settle();
+            button()?.click();
+            await until(() => calls.length >= 2, 3000);
+            await settle();
+            read.calls = calls;
+            read.stays = of().length;
+            read.others = others.length;
+            read.windows = [...foundry.applications.instances.values()].filter(a => a.rendered && a.document === theirs).length <= 1;
+            for (const a of of()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(1000)]);
+        } finally {
+            if (own) Object.defineProperty(sheet, "render", own);
+            else delete sheet.render;
+            for (const [s, d] of kept) {
+                if (d) Object.defineProperty(s, "render", d);
+                else delete s.render;
+            }
+            if (!wasOpen && sheet.rendered) await sheet.close().catch(() => {});
+            for (const a of of()) await a.close().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ drawn: true, calls: [[true, true], [true, true]], stays: 1, others: 0, windows: true }),
+            "{drawn: the row's sheet button; calls: each press's [the actor's own sheet, forced]; stays: Students windows open after both; "
+            + "others: renders asked of any other actor's sheet; windows: at most one rendered window of the actor's sheet}");
     }],
 ];
 

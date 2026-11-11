@@ -65,8 +65,13 @@ function stateDiff(a, b, at = "", out = []) {
    the run lets a run that has grown by half pass unread. Held now to those three readings, 1.5 times the slowest
    (246 s, so 369 s, rounded up to 370 s): half again for a lane beside other scenarios, as the chain runs 01 (whether
    other lanes ran during the three readings was not read), against their spread of 11 %. Each run's seconds are
-   printed in its first check's detail, so the next reader compares them with 246 s rather than with the bound. */
-const READ_ONLY_MS = 370000;
+   printed in its first check's detail, so the next reader compares them with 246 s rather than with the bound.
+   10.11.2026 (E68, the orchestrator): the same rule read again. Tiers 0-1 had grown from 449 tests to 1093-1100, and
+   35 runs of `node run-tests.mjs --tier 1` on this container between 04:57 and 14:57 UTC read 341.4-375.4 s of wall
+   (boot and shutdown included; each run's t01.log of the session's quick runs), five more ended at 376.5-378.2 s with "0 tests ran": the
+   eval had hit this bound, with nothing hung, each time while other harness runs shared the machine. So 1.5 times the
+   slowest reading that ran, 375 s, is 562 s: 560 s. */
+const READ_ONLY_MS = 560000;
 
 /*
  * THE PRIMARY'S BEAT IS THE ONE LEAF THAT MAY TICK (E17 fix ci-2, 26.10.2026; CI run 40402423765 on f7ac1e9d, suite

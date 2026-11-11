@@ -1724,7 +1724,7 @@ function applySnapshot(snap) {
 
 function findEmbKey(parentName, embName) {
     // A region's behaviours as cluster.mjs `embKey` has them (E12 fix r2-S2, 11.10.2026; scenario 66 X3 and X4).
-    const map = { Actor: { Item: "items", ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" }, Item: { ActiveEffect: "effects" }, Region: { RegionBehavior: "behaviors" } };
+    const map = { Actor: { Item: "items", ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls", Tile: "tiles" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" }, Item: { ActiveEffect: "effects" }, Region: { RegionBehavior: "behaviors" } };
     return map[parentName]?.[embName];
 }
 
@@ -1883,7 +1883,7 @@ function applyRemote(msg) {
 }
 
 function rebuildEmbedded(doc) {
-    const emb = { Actor: { Item: "items", ActiveEffect: "effects" }, Item: { ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" } }[doc.documentName];
+    const emb = { Actor: { Item: "items", ActiveEffect: "effects" }, Item: { ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls", Tile: "tiles" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" } }[doc.documentName];
     if (!emb) return;
     for (const [docName, key] of Object.entries(emb)) {
         const raw = doc._source[key];

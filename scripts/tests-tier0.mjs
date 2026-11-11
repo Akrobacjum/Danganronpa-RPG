@@ -6062,6 +6062,7 @@ const REGRESSIONS = [
             // E80 C3: a Find Passage, judged on the primary (passages-gm.mjs), its reasons by code.
             resolvePassageSearch: "refused",
             // E80 part 2 C1: one student acting on another in their room, the primary's gate (frisk.mjs); C2 and C3 ask it.
+            lootDrawRefusal: "returns",
             personActionRefusal: "returns",
             // E80 part 2 C3: an open Frisk's ask, answer and force, judged on the primary (frisk.mjs), whose runs pass their
             // `{ refused }` on, and a force's roll held to its ask (bridge-runs-acts.mjs `friskForceRoll`, a `derive`).
@@ -7183,7 +7184,7 @@ const REGRESSIONS = [
         ok(!blind.length, `a transition writes without saying what it read, or goes on when the write is refused: ${blind.join(", ")}`);
     }],
 
-    ["R213 - no several-trait roll escapes the GM: nothing takes a list's first trait but a list of one, and every definition that lists several is a ruling's", async () => {
+    ["R213 - no several-trait roll escapes the GM: nothing takes a list's first trait but a list of one, every definition that lists several is a ruling's, and every caller of the ruling hands it the player's proposal or is a named exception", async () => {
         /*
          * E32+E07 C11d, 02.10.2026; audit S04-23 and the owner's rules of 28.09.2026. Wherever a
          * definition lists several traits a GM picks (trait-ruling.mjs `traitFor`), Resolve
@@ -7198,7 +7199,13 @@ const REGRESSIONS = [
          *      `ruledDefinitions()`, by identity;
          *   3. `OWN_PERFORMERS`, the actions trait-ruling.mjs keeps out of the generic kind, are
          *      the cases of `performAction`'s switch - a new case left out of it would be asked
-         *      about as a generic action, one in it and not the switch never would.
+         *      about as a generic action, one in it and not the switch never would;
+         *   4. (E68 C4, 10.11.2026; DA18 "the player proposes, the GM approves") every call of
+         *      `traitFor(` in the served sources hands it a third argument that names `proposed`,
+         *      or stands in a function of EXCEPTIONS, each with why. Read first on planted text.
+         *      Red at C3's tip: `takeCrisisAction` and `projectTrait` asked with no proposal. The
+         *      two windows that ask the proposal outside `traitFor` are read by name: the crisis
+         *      menu draws the field under its rows, and a Dynamic action's GM editor checks it.
          */
         const T = await import("./trait-ruling.mjs");
         const C = await import("./config.mjs");
@@ -7224,7 +7231,6 @@ const REGRESSIONS = [
         // E51 C1 added `palmHand`, the hand's statistic in a Palm's window title (`palmTitle`), off Palm's one trait.
         // E41 C4 (1.2.97): keyed by the files the three moved into (action-search.mjs, palm.mjs).
         const FIRSTS = {
-            "action-search.mjs chooseSearchCategory": ACTIONS.search,
             "palm.mjs palmHand": ACTIONS.palm,
             "palm.mjs performPalm": ACTIONS.palm,
             "cleanup.mjs cleanupTrait": ACTIONS.tamper
@@ -7261,6 +7267,46 @@ const REGRESSIONS = [
         const cases = [...dispatch.matchAll(/\bcase "(\w+)":/g)].map(m => m[1]);
         equal(JSON.stringify([...cases].sort()), JSON.stringify([...T.OWN_PERFORMERS].sort()),
             "trait-ruling.mjs OWN_PERFORMERS is not the list of performAction's own performers");
+
+        // 4. Who proposes. The call's arguments read to its closing parenthesis, strings and comments blanked.
+        const callsIn = text => {
+            const code = blankComments(text), blank = blankLiterals(code);
+            const fns = [...code.matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)];
+            return [...blank.matchAll(/\btraitFor\(/g)].filter(m => !/function\s+$/.test(blank.slice(Math.max(0, m.index - 20), m.index))).map(m => {
+                let depth = 0, end = m.index + "traitFor".length;
+                for (; end < blank.length; end++) {
+                    if (blank[end] === "(") depth++;
+                    else if (blank[end] === ")" && --depth === 0) break;
+                }
+                return [fns.filter(f => f.index < m.index).pop()?.[1] ?? "(top level)", /\bproposed\b/.test(blank.slice(m.index, end))];
+            });
+        };
+        const PLANTED_CALLS = "async function asks() {\n    return traitFor(actor, { kind: \"crisis\", key }, { proposed, note });\n}\n"
+            + "async function silent() {\n    // traitFor(actor, spec, { proposed })\n    return traitFor(actor, { kind: \"project\", key: \"proposed\" });\n}";
+        equal(JSON.stringify(callsIn(PLANTED_CALLS)), JSON.stringify([["asks", true], ["silent", false]]),
+            "the caller reader does not find the two planted calls, reads the comment's, or takes the string's word for a proposal");
+        const EXCEPTIONS = {
+            // DA36 = 2: a trap victim's opening is the GM's pick, on the GM's own browser; the killer's proposes from C9.
+            "murder-rules.mjs openingTraitFor": "the opening",
+            // Stage 6's rolls: C5 puts them on Shadow alone (DA4), one statistic, which asks nobody.
+            "cleanup.mjs cleanupTrait": "Stage 6"
+        };
+        const callers = [];
+        for (const [file, text] of await otherSources()) {
+            if (file === "trait-ruling.mjs") continue;
+            for (const [fn, proposes] of callsIn(text)) callers.push([`${file} ${fn}`, proposes]);
+        }
+        ok(callers.length >= 4, `the reader found ${callers.length} callers of traitFor - too few to trust`);
+        log(`R213: ${callers.length} calls of traitFor, ${callers.filter(([, p]) => p).length} with a proposal`);
+        const silent = callers.filter(([at, proposes]) => !proposes && !Object.hasOwn(EXCEPTIONS, at)).map(([at]) => at);
+        ok(!silent.length, `a caller asks the GM for a statistic with no proposal of the player's and is no named exception: ${silent.join(", ")}`);
+        const sources = new Map(await otherSources());
+        const menu = fnSource(stripComments(sources.get("action-murder.mjs") ?? ""), "openCrisisMenu");
+        ok(/traitFieldHtml\([^)]*propose: true/.test(menu) && /readProposal\(/.test(menu),
+            "the crisis menu draws no proposal field under its rows, or does not read it back");
+        const dynamic = stripComments(sources.get("action-dynamic.mjs") ?? "");
+        ok(/traitFieldHtml\([^)]*propose: true/.test(fnSource(dynamic, "performDynamic")) && /\bproposed\b/.test(fnSource(dynamic, "askDynamicDifficulty")),
+            "a Dynamic action does not ask the player's proposal, or its GM editor does not read it");
     }],
 
     ["R214 - the hidden stash's step is the old count's die, exactly: every window from -3 to 3, every die and every draw", async () => {
@@ -7419,7 +7465,9 @@ const REGRESSIONS = [
             "vault.steal": ["viaSearch", "clumsy"] };
         const WAITING = [];
         const THROWN_AS = { steal: "palm", rummage: "palm", frisk: "palm" };
-        const TABLES = { crisis: CRISIS_ACTIONS, cleanup: CLEANUP.actions, murderOpening: MURDER_OPENING };
+        // A Take from the Body's two rolls (E68 C10): its Hand and its cover, both of config.mjs `LOOT`.
+        const { LOOT } = await import("./config.mjs");
+        const TABLES = { crisis: CRISIS_ACTIONS, cleanup: CLEANUP.actions, murderOpening: MURDER_OPENING, loot: LOOT, lootCover: LOOT?.cover };
         const takes = (action, decl) => Object.keys(decl.sanitize?.fields ?? {})
             .filter(field => RESULT.includes(field) || (DERIVED[action] ?? []).includes(field));
         const problemsOf = (all, waiting) => {
@@ -15249,6 +15297,7 @@ const REGRESSIONS = [
             ["eclipse.mjs#askGmToAllow", "gm", null, "`writeParkedMurder` runs on a GM: the run of `murder.park`, or a GM's own (`local`)"],
             ["projects.mjs#announceTrapReady", "gm", null, "`addProgress` asks a GM on a player's browser and runs this on a GM's"],
             ["projects.mjs#announceTrapReady (2)", "gm", null, "the same, the manual trap's card"],
+            ["projects.mjs#offerRepick", "gm", null, "a refused completion's card (E68 C11; D023): the primary's, in the completion's `after`"],
             ["reroll.mjs#settleGmRuling", "gm", null, "a Reroll is replayed on a GM (`rerollOnGm`)"],
             ["traps.mjs#alert", "gm", null, "the trap relay's alert, on a GM"],
             ["gm-bridge.mjs#askHopeCallByCard", "gm", null, "the run of `call.approve`, on the primary GM"],
@@ -15316,7 +15365,8 @@ const REGRESSIONS = [
          * the three names are still read there. Amend 3: the claim does not take over Overrule or the Closing's approve - neither stands on this line at
          * 19.10.2026 (no `Overrule` and no Closing button in scripts/ or lang/), so what is read is that the card's
          * buttons (messenger-app.mjs `wireCallActions`) are the claim's only caller, and that they claim before the
-         * ruling runs. Read in the module's files with comments and literals blanked.
+         * ruling runs. Read in the module's files with comments and literals blanked. Since E68 C2 the valve's
+         * `pressCard` is the second caller: a proposal's Approve pressed on the primary by the same road, with no button.
          */
         const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
         const row = BRIDGE_ACTIONS["card.claim"] ?? null;
@@ -15345,7 +15395,8 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify([
             ["gmOnly", { messageId: "id", step: "oneOf" }, ["messageId", "step"], "reply"],
             ["E67", "E68", "E72"],
-            ["messenger-app.mjs#wireCallActions"],
+            // E68 C2: the valve's press of a proposal's Approve, by the road a click takes (messenger-app.mjs `pressCard`).
+            ["messenger-app.mjs#wireCallActions", "messenger-app.mjs#pressCard"],
             true
         ]), "[the row's first guard, its fields, its claims, its answer], the stages claimCard's doc names, who calls claimCard, whether the card's buttons claim before the ruling runs");
     }],
@@ -15451,7 +15502,7 @@ const REGRESSIONS = [
             "sheet-audit.mjs#decideNow": "one sheet: the GM's Undo on a flagged change puts back an item the student's own write created or deleted, on the actor the row names (E29 C7)"
         };
         const ROADS = {
-            "handover.mjs#giveItem": "give", "handover.mjs#lootBody": "loot", "stash-reach.mjs#stealFromVault": "rifle",
+            "handover.mjs#giveItem": "give", "handover.mjs#lootOne": "loot", "stash-reach.mjs#stealFromVault": "rifle",
             "palm.mjs#stealFromPerson": "steal", "palm.mjs#plantOnPerson": "plant"
         };
         const DECL = /^(?:export\s+)?(?:async\s+)?(?:function\s*\*?\s*([\w$]+)|(?:const|let|var|class)\s+([\w$]+))/gm;
@@ -16938,7 +16989,8 @@ const REGRESSIONS = [
         const words = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         const files = row => String(row.file ?? "").split(/\s*,\s*/).filter(Boolean);
         const overrides = PATCHES.filter(r => r.kind === "override"), hookRows = PATCHES.filter(r => r.kind === "hook");
-        const DOCS = ["Actor", "Item", "Token", "ChatMessage", "Setting", "User", "Scene", "Region", "RegionBehavior", "Wall", "ActiveEffect", "Playlist", "PlaylistSound"];
+        const DOCS = ["Actor", "Item", "Token", "ChatMessage", "Setting", "User", "Scene", "Region", "RegionBehavior", "Wall", "ActiveEffect", "Playlist", "PlaylistSound",
+            "Tile"];
         const APPS = ["ApplicationV2", "Application", "ActorSheetV2", "ItemSheetV2", "DocumentSheetV2", "DialogV2", "SceneControls", "CameraViews", "UserConfig",
             "TokenHUD", "SettingsConfig", "FilePicker", "AVConfig", "DocumentOwnershipConfig", "ImagePopout", "Sidebar"];
         /* Foundry's own hooks the module listens to: its lifecycle, the canvas, a document's events and an application's of
@@ -16947,6 +16999,8 @@ const REGRESSIONS = [
         const FOUNDRY_HOOKS = new Set([
             "init", "i18nInit", "setup", "ready", "canvasReady", "canvasPan", "canvasTearDown", "sightRefresh", "pauseGame", "userConnected",
             "clientSettingChanged", "rtcSettingsChanged", "collapseSidebar", "refreshToken", "renderChatMessageHTML",
+            // A placeable's draw and refresh, as `refreshToken` is (E95 C3: body-tile.mjs draws the body's mark on its tile).
+            "drawTile", "refreshTile",
             "getUserContextOptions", "getChatMessageContextOptions", "getActorContextOptions",
             ...DOCS.flatMap(d => ["preCreate", "create", "preUpdate", "update", "preDelete", "delete"].map(e => `${e}${d}`)),
             ...APPS.flatMap(a => ["render", "close", "getHeaderControls"].map(e => `${e}${a}`))
@@ -18739,7 +18793,7 @@ const REGRESSIONS = [
          * Leave a Clue and Secure a Trace hints end "a critical leaves two" / „a krytyk zostawia dwa”, the entry's
          * `indirectVictim.count.critical`, and the digit rule cannot see a word. 2 to 12 only: "one" and „jeden” stand
          * in every other sentence as an article or a pronoun (Sprint's "one more" is section 13's, E71). Measured on
-         * this tree: these four places and no other. Their placeholder needs the owner's text change: E71 (row 1.2.124).
+         * this tree: these four places and no other. Their placeholder needs the owner's text change: E71 (row 1.2.122).
          */
         const NUMBER_WORDS = { en: ["", "", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"],
             pl: ["", "", "dwa|dwie|dwóch|dwoma|dwu", "trzy|trzech|trzema", "cztery|czterech", "pięć|pięciu", "sześć|sześciu", "siedem|siedmiu",
@@ -18762,7 +18816,8 @@ const REGRESSIONS = [
             callEffect: [...sources.keys()].filter(f => f.endsWith(".mjs") && !f.startsWith("tests") && f !== "config.mjs" && /\bcallEffect\(/.test(src(f))),
             proseOf: [["calls.mjs", /proseOf\(call, "effect"\)/g, 3], ["call-pickers.mjs", /proseOf\(call, "effect"\)/g, 1], ["despair.mjs", /proseOf\(call, "effect"\)/g, 1],
                 ["sheet.mjs", /proseOf\(call, "effect"\)/g, 1], ["murder-rules.mjs", /proseOf\(def, "effect"\) \|\| proseOf\(def, "hint"\)/g, 1],
-                ["action-murder.mjs", /proseOf\(def, "(hint|failure)"\)/g, 2], ["explain.mjs", /proseOf\(PHASES\[key\], "hint"\)/g, 1], ["level-up.mjs", /proseOf\(opt, "label"\)/g, 1]]
+                // E68 C13: the crisis row reads `short`, and `crisisDetails` the whole hint the row gave up (four reads).
+                ["action-murder.mjs", /proseOf\(def, "(hint|failure|short)"\)/g, 4], ["explain.mjs", /proseOf\(PHASES\[key\], "hint"\)/g, 1], ["level-up.mjs", /proseOf\(opt, "label"\)/g, 1]]
                 .filter(([file, re, n]) => (src(file).match(re) ?? []).length !== n).map(([file]) => file),
             // E41 C4 (1.2.97): `crisisDetails` (and the menu's hint beside it) moved into action-murder.mjs.
             raw: [/\bdef\.failure\b(?![^\n]*proseOf)/.test(fnSource(src("action-murder.mjs"), "crisisDetails") ?? "x def.failure"),
@@ -19821,9 +19876,10 @@ const REGRESSIONS = [
             season: ["bodiesFound", "bodyFound", "chapterEnd", "clock", "despairPools", "discoveredRooms", "gmAssignments", "killingGameRules",
                 "motive", "murderState", "overflow", "pendingGather", "projectMeta", "readyRound", "restrictions", "sealedRooms", "searchTokens",
                 "trialProgress", "trialQueue"],
-            // 35 table settings since E60 C5d: `diceDualityLook`, the table's Hope and Despair dice, outlives a season.
-            counts: [19, 11, 35], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
-        }), "the season's settings are not the nineteen the reset clears, the lifetimes do not count 19, 11 and 35, the clock's entry does not "
+            // 35 table settings since E60 C5d: `diceDualityLook`, the table's Hope and Despair dice, outlives a season;
+            // 36 since E68 C2: `autoApproveTraits`, the valve, a rule of play the GM switches.
+            counts: [19, 11, 36], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
+        }), "the season's settings are not the nineteen the reset clears, the lifetimes do not count 19, 11 and 36, the clock's entry does not "
             + "name the readiness round and the End of chapter's record, the assignments' entry does not name gmAssignments, or the reset's own record is not kept as the campaign's");
     }],
 
@@ -20050,7 +20106,7 @@ const REGRESSIONS = [
          * The queue is this browser's memory (`serialWrite`), so it holds one GM's browser to one copy (E60's fix round,
          * FG6; the end review's C-m8, S-m4): Observe's find, a hand-over, a Present and Monokuma's Reveal run on the
          * primary, and Give a Truth Bullet on whichever GM opened it - a give on a second GM's browser beside the
-         * primary's find of the same trace for the same receiver can still make two copies, and is E38's (row 1.2.130,
+         * primary's find of the same trace for the same receiver can still make two copies, and is E38's (row 1.2.128,
          * the stage of two GMs; STATUS Open 50).
          */
         const sources = await moduleSources();
@@ -20701,7 +20757,8 @@ const REGRESSIONS = [
         for (const [file, name] of [["action-menus.mjs", "chooseVariant"], ["call-pickers.mjs", "callWindow"]]) {
             const fn = topLevelFunction(blankComments(texts.get(file) ?? ""), name) ?? "";
             must(fn.length > 200, `${file} ${name} was not found - this would read nothing`);
-            wrappers[name] = { kit: /\bdrpgWindow\s*\(/.test(fn), dialogV2: /\bDialogV2\b/.test(fn) };
+            // `chooseVariant` opens `(columns ? actionWindow : drpgWindow)({` since E68 C12: actionWindow is on drpgWindow too (R3200).
+            wrappers[name] = { kit: /\bdrpgWindow\s*\)?\s*\(/.test(fn), dialogV2: /\bDialogV2\b/.test(fn) };
         }
         const calls = { chooseVariant: [], callWindow: [] };
         const wrong = [];
@@ -22003,6 +22060,133 @@ const REGRESSIONS = [
             name: last('body .application.drpg-project-form .drpg-project-image-row > label > input[name="name"]', "flex")
         }), JSON.stringify({ slack: true, ownShares: [], sum: 100, heads: { en: true, pl: true }, keySelect: "nowrap", cellsOfStudents: "4px", thAuto: "auto", name: "1 1 auto" }),
             "{the tables' min-width leaves 5rem or more, the Traces columns without a share of their own, the shares' sum, WHO HAS WHAT's count heads' longest word <= 11 letters, the status picker's white-space, the Students cells' inline padding, the dashboard's heads and cells width auto, the Name field's flex}");
+    }],
+
+    ["R3143 - a body's loot is judged where its body lies, by the one gate and no second (E95 C1; E72 amend[16]): frisk.mjs `personActionRefusal` reads the body's place through body-tile.mjs `bodyPlaceOf` and its hidden flag from it, the living road the token's (`gmPlaceOf`); handover.mjs `lootBody`, inventory.mjs's loot and anonymity.mjs's greying read no room of their own and ask the one gate", async () => {
+        /*
+         * E95 C1, 10.11.2026; E72 item (1): "bramka pokoju grabieży ciała w polityce transferItem ... od E67 bodyRoomOf
+         * (pokój kafla, a gdy GM kafel usunie, pokój tokenu), bez drugiej bramki w handover.mjs". Read off the served
+         * source with its comments taken out. The reader of room calls is shown a planted text first. What each piece
+         * does is tier 2's ("a body's loot is judged where the body lies"); this holds where it is asked. Red at E95 C0:
+         * the gate read `gmPlaceOf(target)` for both roads and `there.tokenDoc?.hidden`, and frisk.mjs did not import
+         * body-tile.mjs.
+         */
+        const ROOM_READERS = /\b(gmPlaceOf|bodyPlaceOf|bodyRoomOf|locateActor|roomOfActor|roomOfToken|lawfulRoomOf|sameRoom|roomAt|gmSpotOf)\s*\(/g;
+        const calls = text => [...text.matchAll(ROOM_READERS)].map(m => m[1]);
+        equal(JSON.stringify(calls("a(); gmPlaceOf(x); y.sameRoom (a, b); bodyPlaceOfX(z); bodyRoomOf(q); roomAtSpot(s)")), JSON.stringify(["gmPlaceOf", "sameRoom", "bodyRoomOf"]),
+            "the reader of room calls does not find exactly the three planted for it");
+        const sources = await moduleSources();
+        const src = file => { must(sources.has(file), `${file} is not served - this test reads nothing until it is`); return stripComments(sources.get(file)); };
+        const gate = fnSource(src("frisk.mjs"), "personActionRefusal");
+        const read = {
+            gateReads: calls(gate),
+            bodyBranch: /\bbody\s*\?\s*bodyPlaceOf\(target,\s*\{\s*held:\s*flagsHeldNow\s*\}\)\s*:\s*gmPlaceOf\(target\)/.test(gate),
+            hiddenFromPlace: /\bbody\s*\?\s*there\?\.hidden\s*:\s*there\?\.tokenDoc\?\.hidden/.test(gate),
+            friskImports: staticImports(src("frisk.mjs")).includes("body-tile.mjs"),
+            lootBody: calls(fnSource(src("handover.mjs"), "lootBody")),
+            lootAsks: /transferRefusal\(body, taker, \{ mode: "loot", asker \}\)/.test(fnSource(src("handover.mjs"), "lootBody")),
+            transferLoot: /if \(mode === "loot"\) return personActionRefusal\(actor, other, \{ body: true, user \}\);/.test(fnSource(src("inventory.mjs"), "transferRefusal")),
+            transferReads: calls(fnSource(src("inventory.mjs"), "transferRefusal")),
+            greyReads: calls(fnSource(src("anonymity.mjs"), "greyRefused")),
+            greyAsks: /transferRefusal\(body, taker, \{ mode: "loot", asker: game\.user \}\)/.test(fnSource(src("anonymity.mjs"), "greyRefused"))
+        };
+        equal(JSON.stringify(read), JSON.stringify({
+            gateReads: ["gmPlaceOf", "bodyPlaceOf", "gmPlaceOf"], bodyBranch: true, hiddenFromPlace: true, friskImports: true,
+            lootBody: [], lootAsks: true, transferLoot: true, transferReads: ["sameRoom"], greyReads: [], greyAsks: true
+        }), "{the gate's room reads, its body branch on bodyPlaceOf, its hidden read from the place, frisk.mjs importing body-tile.mjs; lootBody's room reads and its ask; transferRefusal's loot line and room reads; greyRefused's room reads and its ask}");
+    }],
+
+    ["R3145 - the body's announcement is spelt once and called from the stamp alone (chapter.mjs `BODY_ANNOUNCED_HOOK`, E95 C4): the hook's name stands in one place of the module's code, it is called in `callBodyAnnounced` alone, which `announceBody` awaits after the stamp is written and `announceArrivedBodies` calls, and `runDiscovery` announces before it gathers everyone", async () => {
+        /*
+         * E95 C4, 10.11.2026; E72 amend[16] ("woła tu nazwany hook drpgBodyAnnounced"), QUESTIONS Q5, Q6. The harm: a
+         * second spelling is a second hook a listener of E62, E69 or E72 does not hear, and a call before the stamp, or
+         * after the gather, breaks E69's "before the gather". Read in every module source but the suite's, comments
+         * stripped: where the name's string stands, where `Hooks.callAll(BODY_ANNOUNCED_HOOK` stands and who calls
+         * `callBodyAnnounced`, by the top-level function each stands in (as R349 reads the stamp's writer); in
+         * `announceBody` whether `recordBodyFound(` comes before `await callBodyAnnounced(`; in `runDiscovery` whether
+         * `announceBody(` comes before `gatherEveryone(`. R349 holds the stamp's writers, unchanged. Red at E95 C3: the
+         * name stood nowhere.
+         */
+        const sources = new Map(await otherSources());
+        const where = pattern => [...sources].flatMap(([file, text]) => {
+            const code = stripComments(text);
+            const tops = [...code.matchAll(/^(?:export\s+)?(?:const|(?:async\s+)?function)\s+([\w$]+)/gm)].map(m => ({ at: m.index, name: m[1] }));
+            return [...code.matchAll(pattern)].map(m => `${file}#${tops.filter(t => t.at <= m.index).at(-1)?.name ?? "(top)"}`);
+        });
+        const chapter = stripComments(sources.get("chapter.mjs") ?? "");
+        const announce = fnSource(chapter, "announceBody") ?? "", discovery = fnSource(chapter, "runDiscovery") ?? "";
+        const order = (text, a, b) => text.indexOf(a) >= 0 && text.indexOf(b) > text.indexOf(a);
+        equal(JSON.stringify([where(/["'`]drpgBodyAnnounced["'`]/g), where(/Hooks\.callAll\(\s*BODY_ANNOUNCED_HOOK\b/g),
+            where(/\bcallBodyAnnounced\s*\(/g).filter(w => w !== "chapter.mjs#callBodyAnnounced").sort(),
+            order(announce, "recordBodyFound(", "await callBodyAnnounced("), order(discovery, "announceBody(", "gatherEveryone(")]),
+        JSON.stringify([["chapter.mjs#BODY_ANNOUNCED_HOOK"], ["chapter.mjs#callBodyAnnounced"], ["chapter.mjs#announceArrivedBodies", "chapter.mjs#announceBody"], true, true]),
+        "[where the hook's name is spelt, where it is called, who calls callBodyAnnounced, the stamp before the call in announceBody, the announcement before the gather in runDiscovery]");
+    }],
+    ["R3200 - every action window is built by action-menus.mjs `actionWindow` on ui-columns.mjs's wide window (E68 C12; layout B of round M, the owner's answers of 10.11.2026; R1110's shape): `actionWindow` is exported and opens through ui-columns.mjs `wideWindow`, `chooseVariant` opens through it unless asked `columns: false`, and only level-up.mjs asks that; each action's opener (Observe, Search, Analyze, Tamper, Rest, a project and the one to work on, the crisis menu, Palm, Listen, Move's briefing) calls `chooseVariant` or `actionWindow` and opens no window of its own; ui-columns.mjs exports the five blocks E49 reuses and imports nothing but utils.mjs and ui-kit.mjs", async () => {
+        /*
+         * E68 C12, 10.11.2026. Round M (S/stages/E68/mockups/NOTES.md) drew the actions' windows in two layouts; the owner
+         * took B, Observe's columns, for every action window ("layout B for every action window"), and asked the blocks of
+         * it kept in one file with no action in it for E49's settings window. Before C12, `chooseVariant` drew columns only
+         * when a caller asked (and none did since E96 C1), and Listen, Move's briefing and the project picker drew their
+         * own one-column windows through `drpgWindow`. Read here with comments blanked, as R1110 reads the Calls: the
+         * openers' top-level functions, the calls in them, the builder's own body and the blocks' file. The reader runs
+         * first on a planted source. Red at d7dc9749: no `actionWindow`, no ui-columns.mjs, three openers on
+         * `drpgWindow`. What the window then measures is Chromium's (`node audit/style-sweep.mjs --fit`).
+         */
+        const OPENS = /(?<![\w$.])(drpgWindow|DialogV2\.(?:wait|confirm|prompt|input)|new\s+(?:foundry\.applications\.api\.)?DialogV2)\s*\(/g;
+        const BUILDS = /(?<![\w$.])(chooseVariant|actionWindow)\s*\(\s*\{/g;
+        const read = (file, raw, only) => {
+            const blank = blankComments(raw);
+            const tops = [...blank.matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)\s*\(/gm)].map(m => ({ at: m.index, name: m[1] }));
+            const topAt = i => tops.findLast(t => t.at <= i)?.name ?? "(top level)";
+            const out = {};
+            for (const fn of only) out[fn] = { opens: [], builds: [], narrow: 0 };
+            for (const m of blank.matchAll(OPENS)) if (out[topAt(m.index)]) out[topAt(m.index)].opens.push(m[1].split(/[.\s(]/)[0]);
+            for (const m of blank.matchAll(BUILDS)) if (out[topAt(m.index)]) {
+                out[topAt(m.index)].builds.push(m[1]);
+                if (/^\{[^;]*?\bcolumns:\s*false\b/.test(blank.slice(m.index + m[0].length - 1, m.index + 600).split(/\n\s*\}\);/)[0])) out[topAt(m.index)].narrow++;
+            }
+            return out;
+        };
+        const planted = read("planted.mjs", 'async function a() { /* drpgWindow( */ return chooseVariant({ title: "x" }); }\n'
+            + 'async function b() { return drpgWindow({ body: "" }); }\nasync function c() { return chooseVariant({ columns: false }); }\n', ["a", "b", "c"]);
+        equal(JSON.stringify(planted), JSON.stringify({ a: { opens: [], builds: ["chooseVariant"], narrow: 0 }, b: { opens: ["drpgWindow"], builds: [], narrow: 0 },
+            c: { opens: [], builds: ["chooseVariant"], narrow: 1 } }), "the reader does not read the planted source as planted - the crawl below would measure the wrong calls");
+
+        const src = {};
+        const OPENERS = {
+            "action-observe.mjs": ["askDeclaration"], "action-search.mjs": ["chooseSearchCategory"], "action-analyze.mjs": ["askWhatToAnalyze"],
+            "action-tamper.mjs": ["chooseTamper"], "action-rest.mjs": ["performRest"], "action-project.mjs": ["performProject", "chooseProject"],
+            "action-murder.mjs": ["openCrisisMenu"], "palm.mjs": ["choosePalm"], "action-listen.mjs": ["performListen"], "action-briefing.mjs": ["briefing"]
+        };
+        for (const file of [...Object.keys(OPENERS), "action-menus.mjs", "ui-columns.mjs", "level-up.mjs", "call-gm.mjs", "action-dynamic.mjs"]) {
+            src[file] = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => (r.ok ? lfText(r) : ""));
+        }
+        must(Object.keys(OPENERS).every(f => src[f].length > 1000), "an action file was not served - this test reads nothing until it is");
+        const openers = Object.fromEntries(Object.entries(OPENERS).flatMap(([file, fns]) => Object.entries(read(file, src[file], fns)).map(([fn, r]) => [`${file}#${fn}`, r])));
+        const menus = blankComments(src["action-menus.mjs"]);
+        const builder = topLevelFunction(menus, "actionWindow") ?? "", menu = topLevelFunction(menus, "chooseVariant") ?? "";
+        const blocks = blankComments(src["ui-columns.mjs"]);
+        const narrowElsewhere = Object.entries({ ...openers, ...read("level-up.mjs", src["level-up.mjs"],
+            [...new Set([...blankComments(src["level-up.mjs"]).matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)/gm)].map(m => m[1]))]) })
+            .filter(([, r]) => r.narrow).map(([at, r]) => `${at.includes("#") ? at : `level-up.mjs#${at}`} ${r.narrow}`);
+        equal(JSON.stringify({
+            builder: [/^export function actionWindow\(/m.test(src["action-menus.mjs"]), /\bwideWindow\s*\(/.test(builder), /\bdrpgWindow\s*\(/.test(builder)],
+            menu: [/\bcolumns\s*=\s*true\b/.test(menu), /\(\s*columns\s*\?\s*actionWindow\s*:\s*drpgWindow\s*\)\s*\(/.test(menu)],
+            blocks: ["WIDE", "columnsHtml", "sectionHtml", "choiceRowHtml", "wideWindow"].filter(n => !new RegExp(`^export (?:const|function) ${n}\\b`, "m").test(blocks)),
+            imports: [...blocks.matchAll(/^import[^;]*?from\s+"([^"]+)"/gm)].map(m => m[1]).sort(),
+            outside: Object.entries(openers).filter(([, r]) => r.opens.length || !r.builds.length).map(([at, r]) => `${at} opens ${r.opens.join(",") || "-"} builds ${r.builds.join(",") || "-"}`),
+            narrow: narrowElsewhere.sort(),
+            /* Dynamic's window (E68 fix round): the player's words window opens through `actionWindow` when asked
+               `columns` (call-gm.mjs `askForRequest`), and `performDynamic` asks it. */
+            dynamic: [/\(\s*columns\s*\?\s*actionWindow\s*:\s*drpgWindow\s*\)\s*\(/.test(topLevelFunction(blankComments(src["call-gm.mjs"]), "askForRequest") ?? ""),
+                /promptForRequest\(\{[^;]*?\bcolumns:\s*true\b/.test(topLevelFunction(blankComments(src["action-dynamic.mjs"]), "performDynamic") ?? "")]
+        }), JSON.stringify({
+            builder: [true, true, false], menu: [true, true], blocks: [], imports: ["./ui-kit.mjs", "./utils.mjs"], outside: [],
+            narrow: ["level-up.mjs#openAdvancementFor 2"], dynamic: [true, true]
+        }), "[actionWindow exported, opening through wideWindow and not drpgWindow; chooseVariant's columns on by default and opening through "
+            + "actionWindow; a block ui-columns.mjs does not export; what it imports; an opener that opens a window of its own or builds none; who asks columns: false; "
+            + "Dynamic: askForRequest opens actionWindow on columns, performDynamic asks columns]");
     }],
 ];
 

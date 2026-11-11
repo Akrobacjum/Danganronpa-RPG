@@ -480,19 +480,26 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
        checked and whose default button is pressed by the queued answer; nothing else is queued,
        so a second window - the confirmation the menu was followed by until C15 - is closed, as a
        player who sits still closes it. `windows` is every window the press opened, in order. */
-    const ACT = (actorId, key, faces) => `const M = await import("${repoUrl}/scripts/murder.mjs");
+    /* `proposed` (E68 C4; DA18): the statistic the row proposes, set before the menu's button - since E68 C12/C13 in the
+       right column's statistic slot (action-menus.mjs `TRAIT_SLOT`, one `[data-drpg-field]` block per row); null keeps the
+       menu's own, its first listed. The throw's mark is the roll's `TRAIT_BY_GM` as it stands: "approved" or "changed"
+       where a proposal was ruled, true where a GM picked with none (trait-ruling.mjs `traitFor`). */
+    const ACT = (actorId, key, faces, proposed = null) => `const M = await import("${repoUrl}/scripts/murder.mjs");
         const A = await import("${repoUrl}/scripts/action-rolls.mjs");
         const { CRISIS_ACTIONS } = await import("${repoUrl}/scripts/config.mjs");
         const had = new Set(game.messages.contents.map(m => m.id));
         const actor = game.actors.get("${actorId}");
         const own = actor.rollTrait;
-        actor.rollTrait = function (dh, config, ...rest) { globalThis.__lastThrow = [dh, config?.[A.TRAIT_BY_GM] === true]; return own.call(this, dh, config, ...rest); };
+        actor.rollTrait = function (dh, config, ...rest) { globalThis.__lastThrow = [dh, config?.[A.TRAIT_BY_GM] ?? false]; return own.call(this, dh, config, ...rest); };
         globalThis.__lastThrow = null;
         const menu = game.i18n.localize("DRPG.Murder.yourTurn");
         globalThis.__dialogAnswers.push(cfg => {
             const row = cfg?.window?.title === menu ? cfg.content?.querySelector?.('input[name="variant"][value="${key}"]') : null;
             if (!row) return null;
             row.checked = true;
+            const proposal = ${JSON.stringify(proposed)} === null ? null
+                : cfg.content.querySelector('.drpg-action-trait > [data-drpg-field="${key}"] select[name="proposed"]');
+            if (proposal) proposal.value = ${JSON.stringify(proposed)};
             return (cfg.buttons ?? []).find(b => b.default)?.callback?.(null, null, { element: cfg.content }) ?? null;
         });
         const logAt = globalThis.__dialogLog.length;
@@ -529,9 +536,14 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         return true;`);
     /* Leave a clue lists Hand, Leg and Shadow: the GM picks Shadow - the last, so a roll of
        the first listed, as before E32+E07 C11b, cannot pass for the pick (client-entry.mjs
-       `__traitRulingAuto`). */
+       `__traitRulingAuto`). Since E68 C4 (DA18) the menu's row proposes a statistic, its first
+       listed unless the player changes it, and a GM's other answer is a "Change to", which opens
+       the player's window "The GM changed the statistic" before the roll (DA46; QUESTIONS.md Q11).
+       So the victim proposes Shadow under the row and the GM's Shadow approves it: the card's
+       first button is "Approve: Shadow", then a "Change to" for Hand and for Leg
+       (trait-ruling.mjs `proposalChoices`), and the roll's mark is "approved". */
     await gm.eval(`globalThis.__traitRulings.length = 0; globalThis.__traitRulingAuto = "shadow"; return true;`);
-    const clue = await p1.eval(ACT(ids.aiko, "leaveClue", { hope: 9, fear: 5 }), { timeout: 60000 });
+    const clue = await p1.eval(ACT(ids.aiko, "leaveClue", { hope: 9, fear: 5 }, "shadow"), { timeout: 60000 });
     const ruled = await gm.eval(`globalThis.__traitRulingAuto = true; return globalThis.__traitRulings.slice();`);
     await p1.eval(`delete globalThis.__dsnAnimation; game.dice3d.showForRoll = globalThis.__showAway; delete globalThis.__showAway; return true;`);
     await settle(900);
@@ -547,8 +559,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
             named: d ? JSON.stringify([d.speaker, d.system, d.flags, d.content]).match(/${ids.aiko}|Aiko Hoshino|${p1.userId}|Leave a Clue/i) !== null : null };`;
     const rulingSeen = { victim: await p1.eval(RULING_READ), bystander: await p2.eval(RULING_READ), killer: await p3.eval(RULING_READ) };
     check("dice: the victim's Leave a clue waits for the GM's pick on a veiled card in her thread, and rolls the pick - Shadow, not the first listed",
-        ruled.length === 1 && JSON.stringify(ruled[0].offered) === JSON.stringify(["hand", "leg", "shadow"]) && ruled[0].picked === "shadow"
-        && JSON.stringify(clue.thrown) === JSON.stringify(["presence", true]) && Boolean(clue.id)
+        ruled.length === 1 && JSON.stringify(ruled[0].offered) === JSON.stringify(["shadow", "hand", "leg"]) && ruled[0].picked === "shadow"
+        && JSON.stringify(clue.thrown) === JSON.stringify(["presence", "approved"]) && Boolean(clue.id)
         && rulingSeen.victim.words >= 1 && rulingSeen.bystander.words === 0 && rulingSeen.killer.words === 0
         && rulingSeen.bystander.veiled && rulingSeen.bystander.named === false,
         JSON.stringify({ ruled, thrown: clue.thrown, rulingSeen }), { flow: "trait-ruling" });

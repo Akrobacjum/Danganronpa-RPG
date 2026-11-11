@@ -207,6 +207,10 @@ export const REASON_PATTERNS = Object.freeze([
     // E32+E07 C11b: a statistic ruling for a roll that has nothing to pick, or another side's table (guardTraitRuling).
     ["badRequest", /^that roll does not list several statistics$/],
     ["badRequest", /^that is not the table the character rolls$/],
+    // E68 C1: a statistic ruling whose proposal the roll does not list (guardTraitRuling).
+    ["badRequest", /^that statistic is not one the roll lists$/],
+    // E68 review R7: a statistic ruling under the kind `action` for an action no card is read for (guardTraitRuling).
+    ["badRequest", /^that action is not one a card picks a statistic for$/],
     ["badRequest", /^that plant was handed to somebody else$/],
     ["badRequest", /^that token was spent by somebody else$/],
     // E05: a pre-session note past the player text cap (bridge-runs-records.mjs handleNoteSave).
@@ -361,6 +365,9 @@ export const REASON_PATTERNS = Object.freeze([
     // E08+E28 fix r2-H1: a settlement takes the newest roll of its action (rollRefusal), and a draw is an
     // action's, made once (roll-draw.mjs `drawRefusal`, `drawOnGm`), its window's costs its experiences' Hope (guardDrawnCosts).
     ["rollReplaced", /^a later roll of that action has replaced that roll$/],
+    // E68 C10 loot bind: a Take's roll drawn naming no body (roll-draw.mjs `lootDrawRefusal`), and a Take with no Hand bound (`handleLoot`).
+    ["badRequest", /^no body is named for that roll$/],
+    ["rollUnknown", /^no Hand roll of that character's stands for that Take$/],
     ["notPaid", /^no payment of that character's stands for that roll$/],
     ["rollThrown", /^that character's roll of that action has been thrown already$/],
     ["rollThrown", /^a roll of that action is being thrown already$/],
@@ -644,12 +651,19 @@ export async function guardTraitRuling(sender, payload, ctx) {
     if (sender.isGM) return null;
     const actor = game.actors.get(payload.actorId);
     if (!actor) return "no such character";
-    const { listedTraits } = await import("./trait-ruling.mjs");
+    const { listedTraits, PROPOSAL_NOTE_MAX, CARD_ACTIONS } = await import("./trait-ruling.mjs");
     const variant = payload.variant ?? null;
+    // Kind `action` is Search's (E68 C6): a Project's or a Sabotage's statistic is asked under `project`, and a card for
+    // any other action of the table would be read by no roll (E68 review R7, R3332).
+    if (payload.kind === "action" && !CARD_ACTIONS.includes(payload.key)) return "that action is not one a card picks a statistic for";
     if (payload.kind === "project" && !(await projectWithinReach(actor, payload.key, sender))) {
         return "that project is not one the character can work on or break here";
     }
-    if (listedTraits({ kind: payload.kind, key: payload.key, variant }).length < 2) return "that roll does not list several statistics";
+    const listed = listedTraits({ kind: payload.kind, key: payload.key, variant });
+    if (listed.length < 2) return "that roll does not list several statistics";
+    // E68 C1 (DA18): a proposal is one of the statistics this GM's config lists, and its words are a sentence or two.
+    if (typeof payload.proposed === "string" && payload.proposed !== "" && !listed.includes(payload.proposed)) return "that statistic is not one the roll lists";
+    if (typeof payload.note === "string" && payload.note.length > PROPOSAL_NOTE_MAX) return "the note is longer than a player's words may be";
     const { isDeadForGm } = await import("./settings.mjs");
     if (isDeadForGm(actor)) return "that cannot be done now";
     if (payload.kind === "opening") return "only a GM picks an opening roll's statistic";
@@ -658,7 +672,8 @@ export async function guardTraitRuling(sender, payload, ctx) {
         if (crisisVariant(actor, payload.key) !== variant) return "that is not the table the character rolls";
         return crisisRefusal(actor, payload.key)?.why ?? null;
     }
-    if (payload.kind === "project" || payload.kind === "generic") {
+    // A Search on another statistic than Eye (E68 C6; kind `action`, the one action that lists several) keeps the same clock.
+    if (payload.kind === "project" || payload.kind === "generic" || payload.kind === "action") {
         const { isEclipse, getClock } = await import("./settings.mjs");
         return isEclipse() || getClock()?.phase === "classTrial" ? "that cannot be done now" : null;
     }

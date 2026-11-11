@@ -10,6 +10,8 @@
  *   node audit/style-sweep.mjs --write    the whole baseline written from this run (a new baseline, read before it is committed)
  *   node audit/style-sweep.mjs --shots <dir>   also a screenshot of every page at each size and theme, into <dir>
  *   node audit/style-sweep.mjs --only rooms-bedrooms   one page (repeatable); the baseline's other pages are not read
+ *   node audit/style-sweep.mjs --selected THE SELECTED ROW (E68 C12), below, instead of the style comparison
+ *   node audit/style-sweep.mjs --fields   THE FIELDS PASS (E68 fix round), below: every action window's text field fills its column
  *   node audit/style-sweep.mjs --fit      THE FIT PASS (E21 C1c), below, instead of the style comparison; with --only
  *                                         the pages named, with --shots <dir> a screenshot of each at 1366x768
  *
@@ -82,8 +84,9 @@ const THEMES = ["glass", "legacy"];
 /* --fit (E21 C1c): the plan's four sizes for every page, and a phone's for every window a player opens and the sheet. */
 const FIT_SIZES = [[1920, 1080], [1366, 768], [1280, 800], [1024, 768]];
 const FIT_PHONE = [390, 844];
-/* Pages that must not scroll at all at 1366x768 and above (the doneWhen: "Observe fits with no scrolling"). */
-const STILL = ["action-observe"];
+/* Pages that must not scroll at all at 1366x768 and above (the doneWhen: "Observe fits with no scrolling"); every action
+   window probe 08 captures since E68 C12 (one layout for every action, the owner's Q1 and Q4 of round M). */
+const STILL = ["action-observe", "action-search", "action-analyze", "action-tamper", "action-rest", "action-project", "action-dynamic"];
 /* From E21 C6 on, a page not on the kit fails; before it, it is E21's list (STAGE.md "The measure"). */
 const OUTSIDE_FAILS = false;
 
@@ -92,6 +95,8 @@ const opt = name => { const at = argv.indexOf(name); return at >= 0 ? argv[at + 
 const many = name => argv.flatMap((a, i) => (a === name ? [argv[i + 1]] : [])).filter(Boolean);
 const WRITE = argv.includes("--write");
 const FIT = argv.includes("--fit");
+const SELECTED = argv.includes("--selected");
+const FIELDS = argv.includes("--fields");
 const ACCEPT = new Set(many("--accept"));
 const ONLY = new Set(many("--only"));
 const SHOTS = opt("--shots");
@@ -382,6 +387,209 @@ async function fitPass(browser) {
     return problems.length ? 1 : 0;
 }
 
+/*
+ * THE SELECTED ROW (`--selected`; E68 C12, 10.11.2026; the owner's Q4 of round M: "keep today's selected look - the brush
+ * stroke on the selected row - and correct only the contrast"). On Observe's capture (a player's, 1366x768), in each theme,
+ * the first row picked and then the GM's-road row ("specific") picked, it reads what Chromium computes and lays each part
+ * on the ground it stands on (the row's own background and its `::before` brush at their opacity, over the first opaque
+ * ground under the row): the title and the line of explanation (text, AA 4.5:1), the icon (a graphic, 3:1) and the
+ * control's mark against the control's own box (3:1; a control the browser or Foundry draws, `appearance` not `none`,
+ * reads "native mark", the grey square with a black corner the owner saw in Legacy at the table). Then the selected row,
+ * a row under the pointer, a row with the keyboard's focus and a row at rest must each look different (their background,
+ * edges, outline and brush). Exit 1 on any part below its ratio or two states alike. A planted control first: the page's
+ * selected text set to its own ground must read 1:1 and red.
+ */
+async function selectedPass(browser) {
+    const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+    const problems = [];
+    const read = pick => page.evaluate(async value => {
+        const parse = c => {
+            const m = String(c).match(/^rgba?\(([^)]+)\)$/), n = String(c).match(/^color\(srgb ([^)]+)\)$/);
+            if (m) { const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p[3] ?? 1]; }
+            if (n) { const p = n[1].split(/[\s/]+/).filter(Boolean).map(Number); return [p[0] * 255, p[1] * 255, p[2] * 255, p[3] ?? 1]; }
+            return [0, 0, 0, 0];
+        };
+        const over = (top, under, alpha = 1) => { const a = top[3] * alpha; return [0, 1, 2].map(i => top[i] * a + under[i] * (1 - a)).concat(1); };
+        const lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+        const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 100) / 100; };
+        const opacityTo = (el, stop) => { let o = 1; for (let e = el; e && e !== stop.parentElement; e = e.parentElement) o *= Number(globalThis.getComputedStyle(e).opacity); return o; };
+        const groundUnder = el => {
+            const chain = [];
+            for (let e = el; e; e = e.parentElement) { chain.push(parse(globalThis.getComputedStyle(e).backgroundColor)); if (chain.at(-1)[3] >= 1) break; }
+            let g = chain.at(-1)[3] >= 1 ? chain.pop() : [255, 255, 255, 1];
+            while (chain.length) g = over(chain.pop(), g);
+            return g;
+        };
+        const doc = globalThis.document;
+        const input = doc.querySelector(`.drpg-choice-list input[value="${value}"]`);
+        if (!input) return { error: `no row ${value}` };
+        input.checked = true;
+        input.dispatchEvent(new globalThis.Event("change", { bubbles: true }));
+        // The mark grows and the brush fades in on a transition (`--drpg-t-snap`): read once both have run.
+        await new Promise(r => setTimeout(r, 400));
+        const row = input.closest(".drpg-choice");
+        const brush = globalThis.getComputedStyle(row, "::before");
+        let ground = groundUnder(row);
+        if (brush.content !== "none") ground = over(parse(brush.backgroundColor), ground, Number(brush.opacity));
+        const part = sel => { const el = row.querySelector(sel); return el ? ratio(over(parse(globalThis.getComputedStyle(el).color), ground, opacityTo(el, row)), ground) : null; };
+        const cs = globalThis.getComputedStyle(input);
+        let mark = "native mark";
+        if (cs.appearance === "none") {
+            const box = over(parse(cs.backgroundColor), ground);
+            const dot = globalThis.getComputedStyle(input, "::before");
+            const scaled = /matrix\(0, 0, 0, 0/.test(dot.transform);
+            mark = dot.content === "none" || scaled ? "no mark" : ratio(over(parse(dot.backgroundColor), box, Number(dot.opacity)), box);
+        }
+        // The brush itself (E68 fix round): drawn, opaque, light, and over the row's whole height.
+        const rowBox = row.getBoundingClientRect();
+        const fill = parse(brush.backgroundColor);
+        const drawn = brush.content !== "none" && brush.display !== "none";
+        const brushRead = drawn ? { opacity: Number(brush.opacity), alpha: fill[3], light: Math.round(lum(fill) * 100) / 100,
+            cover: Math.round(parseFloat(brush.height) / rowBox.height * 100) / 100 } : null;
+        return { title: part("strong"), hint: part("small"), icon: part(":scope > i"), mark, brush: brushRead };
+    }, pick);
+    /* The owner, 10.11.2026, after round M's overview-selected.png: "pozbycie sie pociagniecia pedzla na zaznaczonych
+       elementach - to musi zostac". In Stained Glass the picked row keeps 1.2.103's full light brush (`::before`, the
+       brush filter): drawn, at full opacity, an opaque fill as light as 1.2.103's (relative luminance, read on c431138a's
+       Observe with this pass: the first row's rgb(255, 211, 143) 0.7, the GM's-road row's accent brush 0.29; within
+       0.05), over 90% of the row's height or more (c431138a 0.96, 4a027d8f 0.95: the glass row's padding went 6 to 4 px
+       in C12, and the brush with it). */
+    const BRUSH_1_2_103 = { general: 0.7, specific: 0.29 };
+    const brushLow = (b, pick = "general") => (!b ? ["brush not drawn"] : [b.opacity < 0.9 && `brush opacity ${b.opacity}`, b.alpha < 1 && `brush fill alpha ${b.alpha}`,
+        Math.abs(b.light - BRUSH_1_2_103[pick]) > 0.05 && `brush fill luminance ${b.light} (1.2.103: ${BRUSH_1_2_103[pick]})`,
+        b.cover < 0.9 && `brush covers ${b.cover} of the row`].filter(Boolean));
+    const look = () => page.evaluate(() => [...globalThis.document.querySelectorAll(".drpg-choice-list > .drpg-choice")].slice(0, 4).map(row => {
+        const s = globalThis.getComputedStyle(row), b = globalThis.getComputedStyle(row, "::before"), a = globalThis.getComputedStyle(row, "::after"), i = globalThis.getComputedStyle(row.querySelector("input"));
+        return [s.backgroundColor, s.borderColor, s.boxShadow, s.outlineStyle, s.outlineColor, b.opacity, a.opacity, a.backgroundColor, i.outlineStyle, i.backgroundColor].join(" | ");
+    }));
+    for (const theme of ["glass", "legacy"]) {
+        await load(page, withTheme("/audit/style-harness.html?w=action-observe&role=player", theme));
+        if (theme === "glass") {
+            await page.addStyleTag({ content: ".drpg-choice:has(input:checked) strong { color: rgb(7, 7, 10) !important; } .drpg-choice:has(input:checked)::before { background: rgb(7, 7, 10) !important; opacity: 1 !important; content: '' !important; }" });
+            const planted = await read("general");
+            const ok = planted.title === 1;
+            console.log(`style-sweep: --selected control (planted text on its own ground): title ${planted.title}:1 ${ok ? "read" : "NOT read"}`);
+            if (!ok) problems.push("control: a planted title on its own ground did not read 1:1");
+            await load(page, withTheme("/audit/style-harness.html?w=action-observe&role=player", theme));
+            // The brush taken off the picked row: it must read as missing, or the brush check below reads nothing.
+            await page.addStyleTag({ content: ".drpg-choice:has(input:checked)::before { content: none !important; }" });
+            const bare = brushLow((await read("general")).brush);
+            console.log(`style-sweep: --selected control (the brush taken off): ${bare.length ? `read (${bare.join("; ")})` : "NOT read"}`);
+            if (!bare.length) problems.push("control: a picked row with its brush taken off read as brushed");
+            await load(page, withTheme("/audit/style-harness.html?w=action-observe&role=player", theme));
+        }
+        for (const pick of ["general", "specific"]) {
+            const r = await read(pick);
+            if (r.error) { problems.push(`${theme} ${pick}: ${r.error}`); continue; }
+            const low = [["title", 4.5], ["hint", 4.5], ["icon", 3], ["mark", 3]].filter(([k, need]) => !(typeof r[k] === "number" && r[k] >= need)).map(([k, need]) => `${k} ${r[k]} (needs ${need})`);
+            if (theme === "glass") low.push(...brushLow(r.brush, pick));
+            console.log(`style-sweep: --selected ${theme} ${pick}: title ${r.title}, hint ${r.hint}, icon ${r.icon}, mark ${r.mark}, brush ${JSON.stringify(r.brush)}${low.length ? ` - LOW: ${low.join("; ")}` : ""}`);
+            for (const l of low) problems.push(`${theme} ${pick}: ${l}`);
+        }
+        // The four states: row 1 picked, row 2 under the pointer, row 3 with the keyboard's focus, row 4 at rest.
+        await page.evaluate(() => { const i = globalThis.document.querySelector('.drpg-choice-list input[value="general"]'); i.checked = true; });
+        await page.keyboard.press("Tab");
+        await page.evaluate(() => globalThis.document.querySelectorAll(".drpg-choice-list > .drpg-choice input")[2].focus());
+        await page.hover(".drpg-choice-list > .drpg-choice:nth-of-type(2)");
+        await page.waitForTimeout(250);
+        const states = await look();
+        const names = ["selected", "hovered", "focused", "resting"];
+        const alike = [];
+        for (let x = 0; x < 4; x++) for (let y = x + 1; y < 4; y++) if (states[x] === states[y]) alike.push(`${names[x]} = ${names[y]}`);
+        console.log(`style-sweep: --selected ${theme} states: ${alike.length ? `ALIKE ${alike.join(", ")}` : "selected, hovered, focused and resting all differ"}`);
+        for (const a of alike) problems.push(`${theme} states: ${a}`);
+    }
+    await page.close();
+    console.log(`style-sweep: --selected ${problems.length ? `RED, ${problems.length} problem(s)` : "green"}`);
+    return problems.length ? 1 : 0;
+}
+
+/*
+ * THE FIELDS PASS (`--fields`; E68 fix round, 10.11.2026; the owner, 10.11, with a screenshot of the Dynamic Action
+ * window whose description took about a third of the window and broke its sentence after three words). On every action
+ * window probe 08 captured (`action-*` in audit/windows/manifest.json), at FIT_SIZES and a phone's 390x844, in both
+ * themes, each shown textarea and text input (`input` of type text, search, email, url or none) is laid against its
+ * column: the nearest `.drpg-wide-col` (an action window's column since E68 C12), else the window's `.drpg-kit-body`.
+ * It must run from where it starts to the column's right content edge (4 px of slack) and not past it, and it must not
+ * start left of the column's content. Exempt, each by name: FIELD_EXEMPT (none at the fix round: no action window draws a
+ * numeric field or a short code; a `type="number"` field is never read). A planted control first, on Observe's capture
+ * at 1366x768: its textarea held to a third of its column must read "narrow", and pushed 300 px wider must read "wider".
+ * Exit 1 on any field that does not fill its column.
+ */
+const FIELD_EXEMPT = [];
+async function fieldsPass(browser) {
+    const manifest = JSON.parse(fs.readFileSync(path.join(REPO, "audit", "windows", "manifest.json"), "utf8"));
+    const list = manifest.windows.filter(w => w.captured && w.id.startsWith("action-") && (!ONLY.size || ONLY.has(w.id)))
+        .map(w => ({ id: w.id, url: `/audit/style-harness.html?w=${encodeURIComponent(w.id)}&fit=1&role=player` }));
+    if (!list.length) throw new Error("no action window to read for --fields");
+    // Each row picked in turn (a field shown with one row only, `data-drpg-when`, is read with that row), then the fields.
+    const picks = page => page.evaluate(() => [...globalThis.document.querySelectorAll('.drpg-choice-list input[name="variant"]:not(:disabled)')].map(i => i.value));
+    const pick = (page, value) => page.evaluate(async value => {
+        const i = globalThis.document.querySelector(`.drpg-choice-list input[name="variant"][value="${value}"]`);
+        if (!i) return;
+        i.checked = true;
+        i.dispatchEvent(new globalThis.Event("change", { bubbles: true }));
+        await new Promise(r => setTimeout(r, 60));
+    }, value);
+    const readAll = async (page, exempt) => {
+        const seen = new Map();
+        const values = await picks(page);
+        for (const value of values.length ? values : [null]) {
+            if (value !== null) await pick(page, value);
+            for (const r of await read(page, exempt)) if (!seen.has(`${r.name} ${r.what}`)) seen.set(`${r.name} ${r.what}`, { ...r, pick: value });
+        }
+        return [...seen.values()];
+    };
+    const read = (page, exempt) => page.evaluate(exempt => {
+        const doc = globalThis.document, out = [];
+        const fields = doc.querySelectorAll('textarea, input:is([type="text"], [type="search"], [type="email"], [type="url"], :not([type]))');
+        for (const el of fields) {
+            const name = el.getAttribute("name") ?? el.tagName.toLowerCase();
+            if (exempt.includes(name) || !el.getClientRects().length) continue;
+            const col = el.closest(".drpg-wide-col") ?? el.closest(".drpg-kit-body");
+            if (!col) { out.push({ name, what: "no column" }); continue; }
+            const c = col.getBoundingClientRect(), cs = globalThis.getComputedStyle(col), f = el.getBoundingClientRect();
+            const left = c.left + parseFloat(cs.paddingLeft) + parseFloat(cs.borderLeftWidth), right = c.right - parseFloat(cs.paddingRight) - parseFloat(cs.borderRightWidth);
+            const what = f.right > right + 1 ? "wider" : f.right < right - 4 ? "narrow" : f.left < left - 1 ? "starts outside" : "fills";
+            out.push({ name, what, field: Math.round(f.width), column: Math.round(right - left), at: `${Math.round(f.left - left)}..${Math.round(f.right - left)}` });
+        }
+        return out;
+    }, exempt);
+    const problems = [];
+    let readings = 0, fills = 0;
+    {
+        const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+        const ctl = async css => {
+            await load(page, "/audit/style-harness.html?w=action-observe&fit=1&role=player");
+            await page.addStyleTag({ content: css });
+            await pick(page, "specific");
+            return (await read(page, [])).find(r => r.name === "request")?.what ?? "no field";
+        };
+        const narrow = await ctl('textarea[name="request"] { width: 33% !important; }');
+        const wide = await ctl('textarea[name="request"] { width: calc(100% + 300px) !important; max-width: none !important; }');
+        console.log(`style-sweep: --fields control (a third of its column): ${narrow}; (300 px wider): ${wide}`);
+        if (narrow !== "narrow") problems.push(`control: a textarea at a third of its column read ${narrow}`);
+        if (wide !== "wider") problems.push(`control: a textarea 300 px wider than its column read ${wide}`);
+        await page.close();
+    }
+    for (const [w, h] of [...FIT_SIZES, FIT_PHONE]) for (const theme of THEMES) {
+        const page = await browser.newPage({ viewport: { width: w, height: h } });
+        for (const p of list) {
+            await load(page, withTheme(p.url, theme));
+            for (const r of await readAll(page, FIELD_EXEMPT)) {
+                readings++;
+                if (r.what === "fills") { fills++; continue; }
+                const line = `${p.id} ${w}x${h} ${theme}: ${r.name}${r.pick ? ` (row ${r.pick})` : ""} ${r.what} (field ${r.field} of column ${r.column}, at ${r.at})`;
+                console.log(`style-sweep: --fields ${line}`);
+                problems.push(line);
+            }
+        }
+        await page.close();
+    }
+    console.log(`style-sweep: --fields ${readings} field reading(s) of ${list.length} window(s): ${fills} fill their column, ${readings - fills} do not; ${problems.length ? "RED" : "green"}`);
+    return problems.length ? 1 : 0;
+}
+
 async function main() {
     let server = null;
     if (!BASE) {
@@ -391,6 +599,14 @@ async function main() {
         for (let i = 0; i < 50; i++) { try { await fetch(`${BASE}/module.json`); break; } catch { await new Promise(r => setTimeout(r, 100)); } }
     }
     const browser = await chromium.launch(CHROMIUM ? { executablePath: CHROMIUM } : {});
+    if (FIELDS) {
+        try { process.exitCode = await fieldsPass(browser); } finally { await browser.close(); server?.kill(); }
+        return;
+    }
+    if (SELECTED) {
+        try { process.exitCode = await selectedPass(browser); } finally { await browser.close(); server?.kill(); }
+        return;
+    }
     if (FIT) {
         try { process.exitCode = await fitPass(browser); } finally { await browser.close(); server?.kill(); }
         return;

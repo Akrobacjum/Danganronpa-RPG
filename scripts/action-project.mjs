@@ -47,7 +47,7 @@ import {
 } from "./action-pipeline.mjs";
 import { report } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
-import { chooseVariant, requestFieldHtml, readRequestField } from "./action-menus.mjs";
+import { actionWindow, chooseVariant, requestFieldHtml, readRequestField, traitFieldHtml, readProposal } from "./action-menus.mjs";
 import { listenLabels } from "./action-listen.mjs";
 import { drpgWindow, formGrid, helpText, box } from "./ui-kit.mjs";
 
@@ -869,8 +869,15 @@ function projectOptionsHtml(list, { disableComplete = false } = {}) {
  * project's. Shared by both rolls, so Work on Project and Sabotage cannot drift.
  */
 async function projectTrait(actor, project) {
-    const { traitFor } = await import("./trait-ruling.mjs");
-    const ruled = await traitFor(actor, { kind: "project", key: project.id });
+    const { traitFor, listedTraits, resolveArmed } = await import("./trait-ruling.mjs");
+    const spec = { kind: "project", key: project.id };
+    // A player proposes where the GM is to be asked (E68 C4; DA18): a project stored without a statistic, no Resolve
+    // armed. A GM's own browser picks in its own window, as before. Closed, nothing is asked and nothing spent.
+    const listed = listedTraits(spec);
+    const asks = !game.user?.isGM && listed.length > 1 && !resolveArmed(actor);
+    const proposal = asks ? await proposeProjectTrait(actor, project, listed) : {};
+    if (!proposal) return null;
+    const ruled = await traitFor(actor, spec, { proposed: proposal.proposed ?? null, note: proposal.note ?? "" });
     if (ruled && project.trait) {
         ui.notifications.info(game.i18n.format("DRPG.Project.traitFixed", {
             trait: TRAITS[project.trait]?.label ?? project.trait
@@ -879,17 +886,40 @@ async function projectTrait(actor, project) {
     return ruled;
 }
 
+/**
+ * A player's proposal for a project stored without a statistic (E68 C4): which statistic and how, the GM's road
+ * (D11) to the card. `{ proposed, note }`, or null when the window was closed.
+ */
+async function proposeProjectTrait(actor, project, listed) {
+    const answer = await drpgWindow({
+        classes: ["drpg-panel", "drpg-narrow", "drpg-trait-propose"],
+        prompt: true,
+        title: game.i18n.localize("DRPG.TraitRuling.title"),
+        body: `<form><p><strong>${esc(project.name ?? "?")}</strong></p>
+            <p>${game.i18n.localize("DRPG.TraitRuling.projectBody")}</p>${traitFieldHtml(actor, listed, { propose: true })}</form>`,
+        footer: {
+            gmRoute: [{ action: "propose", label: game.i18n.localize("DRPG.TraitRuling.propose"),
+                callback: (event, button, dialog) => readProposal(dialog.element.querySelector("form"), listed) }],
+            close: "cancel"
+        },
+        rejectClose: false
+    });
+    return answer?.proposed ? answer : null;
+}
+
 async function chooseProject(list, promptKey, actor, def, { disableComplete = false } = {}) {
     const projectOptions = projectOptionsHtml(list, { disableComplete });
 
-    const result = await drpgWindow({
+    // An action's window (E68 C12, action-menus.mjs `actionWindow`).
+    const result = await actionWindow({
         title: game.i18n.localize("DRPG.Project.title"),
         classes: ["drpg-panel"],
         // No briefing here: Work-on-Project already showed one on the window
         // before this. Sabotage only reaches this dialog through the API's own
         // door (the Projects window picks its target itself, ROLL-12), and that
         // is when the briefing is shown.
-        body: `${def === ACTIONS.sabotage ? briefingBlock(actor, "sabotage", def) : ""}<form>
+        brief: def === ACTIONS.sabotage ? briefingBlock(actor, "sabotage", def) : "",
+        ask: `<form>
             <label>${game.i18n.localize(promptKey)}
                 <select name="project">${projectOptions}</select></label>
         </form>`,

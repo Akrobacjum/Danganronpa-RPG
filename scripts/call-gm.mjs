@@ -263,13 +263,16 @@ export async function askDynamicByCard(payload, ctx) {
     const expires = serverNow() + TIMING.rulingMs;
     const onPosted = holdAsk(dynamicAsks, ctx.requestId, held, expires);
     const actor = game.actors.get(payload.actorId ?? "");
+    // The player's proposal (E68 C4; DA18): a statistic of TRAITS or nothing, said on the card and checked in the GM's editor.
+    const proposed = Object.hasOwn(TRAITS, payload.proposed ?? "") ? payload.proposed : "";
     const data = {
         rid: ctx.requestId, asker: ctx.asker, by: payload.actorId ?? "",
-        room: payload.room ?? "", desc: payload.description ?? "", name: payload.actorName ?? ""
+        room: payload.room ?? "", desc: payload.description ?? "", name: payload.actorName ?? "", proposed
     };
     const posted = await callGm(actor, {
         title: game.i18n.localize("DRPG.Action.dynamicTitle"),
         request: payload.description ?? "",
+        ...(proposed ? { body: `<p>${esc(game.i18n.format("DRPG.TraitRuling.proposed", { stat: TRAITS[proposed].label }))}</p>` } : {}),
         room: payload.room ?? null,
         actions: [
             { action: "setDifficulty", label: game.i18n.localize("DRPG.Action.dynamicSet"), data },
@@ -290,10 +293,17 @@ export async function askDynamicByCard(payload, ctx) {
  * (E06 C8) because the action it names is the incident's: the document names nobody
  * and its words go to the thread's player and the GMs. The traits are read from this
  * GM's config for the definition the guard checked, never from the packet.
+ * Since E68 C1 (DA18) a packet may carry the player's proposal and a note of how: the card
+ * then says both and offers "Approve: {stat}", "Change to: {stat}" for each other listed
+ * statistic, and Refuse (trait-ruling.mjs `proposalChoices`); the note is quoted as the
+ * player's words. The guard has refused a proposal off the list; one that is not read
+ * again here as the answer - the button's trait is, and `rulePickTrait` holds it to the list.
+ * Since E68 C2 a proposal the valve approves (trait-ruling.mjs `autoApprovable`) is pressed
+ * here, as soon as the card is up, by the click's road (messenger-app.mjs `pressCard`).
  */
 export async function askTraitByCard(payload, ctx) {
     if (!ctx.requestId) return { later: true };
-    const { listedTraits, rulingLabel, traitWithValue } = await import("./trait-ruling.mjs");
+    const { listedTraits, rulingLabel, proposalOf, proposalChoices, autoApprovable } = await import("./trait-ruling.mjs");
     const spec = { kind: payload.kind, key: payload.key, variant: payload.variant ?? null };
     const listed = listedTraits(spec);
     if (listed.length < 2) return { refused: "nothing was carried out: the roll lists one statistic or none" };
@@ -304,20 +314,30 @@ export async function askTraitByCard(payload, ctx) {
     if (again) return again;
     askedByCard.add(ctx.requestId);
     const expires = serverNow() + TIMING.rulingMs;
-    const onPosted = holdAsk(traitAsks, ctx.requestId, held, expires);
+    const keep = holdAsk(traitAsks, ctx.requestId, held, expires);
     const actor = game.actors.get(payload.actorId ?? "");
+    const { proposed, note } = proposalOf({ proposed: payload.proposed, note: payload.note }, listed);
+    const auto = Boolean(proposed) && (await autoApprovable(spec));
+    const onPosted = message => {
+        keep(message);
+        if (!auto || !message?.id) return;
+        import("./messenger-app.mjs").then(({ pressCard }) => pressCard(message, "pickTrait", { ...data(proposed), auto: "1" }))
+            .catch(err => warn("The valve could not approve the proposal on its card.", err));
+    };
     const data = trait => ({
         rid: ctx.requestId, asker: ctx.asker, by: payload.actorId ?? "", kind: spec.kind, key: spec.key,
-        variant: spec.variant ?? "", ...(trait ? { trait } : {})
+        variant: spec.variant ?? "", ...(trait ? { trait } : {}), ...(proposed ? { proposed } : {})
     });
+    const said = proposed ? `<br>${esc(game.i18n.format("DRPG.TraitRuling.proposed", { stat: TRAITS[proposed]?.label ?? proposed }))}` : "";
     const posted = await callGm(actor, {
         title: game.i18n.localize("DRPG.TraitRuling.title"),
         body: `<strong>${esc(rulingLabel(spec))}</strong> · ${esc(game.i18n.format("DRPG.Action.usesTrait", {
-            traits: listed.map(t => TRAITS[t]?.label ?? t).join(" / ") }))}`,
-        gmBody: game.i18n.localize("DRPG.TraitRuling.gmBody"),
+            traits: listed.map(t => TRAITS[t]?.label ?? t).join(" / ") }))}${said}`,
+        request: note,
+        gmBody: game.i18n.localize(proposed ? "DRPG.TraitRuling.gmBodyProposed" : "DRPG.TraitRuling.gmBody"),
         actions: [
-            ...listed.map(trait => ({ action: "pickTrait", label: traitWithValue(actor, trait), data: data(trait) })),
-            { action: "refuseTrait", label: game.i18n.localize("DRPG.Action.dynamicRefuse"), data: data(null) }
+            ...proposalChoices(actor, listed, proposed).map(({ trait, label }) => ({ action: "pickTrait", label, data: data(trait) })),
+            { action: "refuseTrait", label: game.i18n.localize(proposed ? "DRPG.TraitRuling.refuse" : "DRPG.Action.dynamicRefuse"), data: data(null) }
         ],
         veiled: true,
         onPosted,
@@ -548,9 +568,57 @@ function sendOnFromPrimary(requestId, held, value, { text, by, yes = null, rulin
     sent.timer = setTimeout(() => void unreceivedOnPrimary(requestId), TIMING.ackMs);
 }
 
-/** A card ends as its ask's player no longer waiting: the line for everyone, and the GMs' own - by key, which each reader writes in its language. */
-function endExpired(messageId) {
+/**
+ * A card ends as its ask's player no longer waiting: the line for everyone, and the GMs' own - by key, which each reader
+ * writes in its language.
+ *
+ * NOT UNDER A GM'S HAND (E68 C11; D075, E18 C3's gap). The expiry - the card's time on this primary, or its asker's
+ * `ruling.expired` - read only whether the card was settled, so a GM whose review of it was open (`claimCard`, held here
+ * in `claimsInProgress`, or a pending row of a GM who is here, `ruledCardStore`) found it ended "Nobody answered in time"
+ * under the window, and that GM's ruling then settled it a second time. The end waits for the claim now
+ * (`expiryWaiting`): when it ends - the ruling made, backed out of, or its GM gone (`releaseClaimsOf`) - the card is
+ * ended as expired unless the ruling settled it (`endAskCard` reads `settled`). The ask itself is over as before: its
+ * held entry is dropped by the caller, so a Dynamic's or a Hope Call's ruling made after it sends nothing on, and its
+ * claim ends with "drop".
+ *
+ * "DONE" ENDS NOTHING (E68 review R2, 10.11.2026). A claim that ends with "done" made a ruling, and the card's line is
+ * that ruling's: `claimCard` sends "done" in its `finally`, before its caller writes the line (`settleCall`), so an
+ * expiry ended there read `settled` still unwritten and put "Nobody answered in time - ask again." on the card, under
+ * the ruling's own line. A statistic's ruling made after the expiry is sent on all the same (messenger-app.mjs
+ * `rulePickTrait` keeps a project's pick, and `answerTraitRuling` reads no held entry), so its line is the true one.
+ * The waiting expiry is dropped on "done" (`expiryAfterClaim(id, { ruled: true })`). Tier 2's "an expiry under a
+ * claim that ends in a ruling" reads it.
+ */
+const expiryWaiting = new Set();
+
+async function endExpired(messageId) {
+    if (await underClaim(messageId)) {
+        expiryWaiting.add(messageId);
+        debug("An ask's card ran out while a GM is ruling on it: it ends once that GM's ruling does.");
+        return null;
+    }
+    expiryWaiting.delete(messageId);
     return endAskCard(messageId, { key: "DRPG.Bridge.settledExpired" }, { gmNote: { key: "DRPG.Bridge.settledGone" } });
+}
+
+/** Whether a GM's ruling on this card is under way, as the primary reads it (`claimOnPrimary`'s "busy"). */
+async function underClaim(messageId) {
+    if (!messageId) return false;
+    if (claimsInProgress.has(messageId)) return true;
+    const { ruledCardStore } = await import("./gm-stores.mjs");
+    const row = ruledCardStore.get(messageId);
+    return Boolean(row?.pending && game.users.get(row.by ?? "")?.active);
+}
+
+/**
+ * A claim on a card ended: an expiry that waited for it (`endExpired`) ends the card now - unless `ruled`, the claim's
+ * "done", whose caller writes the card's line next.
+ */
+function expiryAfterClaim(messageId, { ruled = false } = {}) {
+    if (!expiryWaiting.has(messageId)) return;
+    expiryWaiting.delete(messageId);
+    if (ruled) return;
+    void endExpired(messageId).catch(err => debug("A card that ran out under a GM's ruling could not be ended", err));
 }
 
 /**
@@ -661,7 +729,9 @@ export async function receivedOnPrimary(requestId, senderId) {
         answeredElsewhere.asks.delete(requestId);
         return true;
     }
-    return false;
+    // An open Frisk's answer, held by its request id and its asker in frisk.mjs's memory, as its expiry is (E68 C11; D084).
+    const { receivedFriskAsk } = await import("./frisk.mjs");
+    return receivedFriskAsk(requestId, senderId);
 }
 
 /* ==========================================================================
@@ -953,11 +1023,13 @@ export const claimsInProgress = new Map();
  * rows that say a claim is under way (fix e1-G1).
  */
 export function releaseClaimsOf(userId) {
-    for (const [messageId, by] of claimsInProgress) if (by === userId) claimsInProgress.delete(messageId);
+    const freed = [];
+    for (const [messageId, by] of claimsInProgress) if (by === userId) { claimsInProgress.delete(messageId); freed.push(messageId); }
     if (!isPrimaryGm({ leaving: userId })) return;
-    import("./gm-stores.mjs").then(({ ruledCardStore }) => {
+    import("./gm-stores.mjs").then(async ({ ruledCardStore }) => {
         const held = Object.entries(ruledCardStore.entries() ?? {}).filter(([, row]) => row?.pending && row.by === userId).map(([id]) => id);
-        return held.length ? ruledCardStore.dropMany(held) : null;
+        if (held.length) await ruledCardStore.dropMany(held);
+        for (const messageId of new Set([...freed, ...held])) expiryAfterClaim(messageId);
     }).catch(err => debug("Could not drop a leaving GM's claims", err));
 }
 
@@ -992,9 +1064,11 @@ export async function claimOnPrimary(messageId, step, by) {
         const own = row?.pending && row.by === by;
         if (step !== "done" || !message) {
             if (own) await ruledCardStore.drop(messageId);
+            expiryAfterClaim(messageId);
             return { taken: false, why: message ? "dropped" : "gone", by };
         }
         if (!row || own) await ruledCardStore.patch(messageId, { by, at: serverNow(), pending: false });
+        expiryAfterClaim(messageId, { ruled: true });
         return { taken: true, by: ruledCardStore.get(messageId)?.by ?? by };
     }
     if (!message) return { taken: false, why: "gone", by: null };
@@ -1116,31 +1190,40 @@ export async function settleCall(message, text, ruling = null, gmNote = null) {
  * `required`: the caller has nothing to send without words (Dynamic, a Tier 0 item's use), so
  * an empty request is not sent - the player is told so and the window opens again.
  */
-export async function askForRequest({ title, prompt, placeholder = "", intro = "", required = false } = {}) {
+export async function askForRequest({ title, prompt, placeholder = "", intro = "", required = false, extra = "", columns = false } = {}) {
+    /* `columns` (E68 fix round, 10.11.2026; the owner, 10.11, with a screenshot of the Dynamic Action window whose
+       description took about a third of the window and broke its sentence after three words): an action's window on
+       the one layout every action has since E68 C12 (action-menus.mjs `actionWindow`), the briefing (`intro`) in the left
+       column and the words in the right, the textarea its column's width (`node audit/style-sweep.mjs --fields`). */
+    const { actionWindow } = columns ? await import("./action-menus.mjs") : {};
+    const form = `<form>
+                    <p>${prompt}</p>
+                    <textarea name="request" rows="3" placeholder="${foundry.utils.escapeHTML(placeholder)}"></textarea>
+                    ${extra}
+                  </form>`;
     for (;;) {
         // On the kit's frame (E21 C5a): Send is the GM's road (D11) - the words go to a GM's card - and Cancel withdraws.
-        const answer = await drpgWindow({
+        const answer = await (columns ? actionWindow : drpgWindow)({
             classes: ["drpg-panel"],
             // An action's declaration in the player's own words, which the action waits on: kept above the sheet
             // (stacking.mjs; E23 fix G3, the owner's Q-E23-5, R1404).
             prompt: true,
             title,
-            body: `${intro}<form>
-                    <p>${prompt}</p>
-                    <textarea name="request" rows="3" placeholder="${foundry.utils.escapeHTML(placeholder)}"></textarea>
-                  </form>`,
+            ...(columns ? { brief: intro, ask: form } : { body: `${intro}${form}` }),
             footer: {
                 gmRoute: [{
                     action: "send",
                     label: game.i18n.localize("DRPG.Bridge.send"),
-                    callback: (event, button, dialog) => ({ text: dialog.element.querySelector("[name=request]").value.trim() })
+                    callback: (event, button, dialog) => ({ text: dialog.element.querySelector("[name=request]").value.trim(),
+                        form: dialog.element.querySelector("form") })
                 }],
                 close: "cancel"
             },
             rejectClose: false
         });
         if (typeof answer?.text !== "string") return null;
-        if (answer.text || !required) return answer.text;
+        // With `extra` fields (E68 C4: a Dynamic action's proposal) the form comes back beside the words, for the caller to read.
+        if (answer.text || !required) return extra ? { text: answer.text, form: answer.form } : answer.text;
         sayRefusedHere(game.i18n.localize("DRPG.Bridge.emptyRequest"));
     }
 }
@@ -1151,12 +1234,12 @@ export async function askForRequest({ title, prompt, placeholder = "", intro = "
  * words typed, or null when nothing will be asked: no GM is connected (said, as `promptAndCallGm`
  * says it, before the window), or the player closed it. Posts nothing.
  */
-export async function promptForRequest({ title, prompt, placeholder = "", intro = "", required = false, what = CALL_GM_WHAT } = {}) {
+export async function promptForRequest({ title, prompt, placeholder = "", intro = "", required = false, what = CALL_GM_WHAT, extra = "", columns = false } = {}) {
     if (!gmOnline()) {
         sayNotDone(what, "noGm", { nothingSpent: true });
         return null;
     }
-    return askForRequest({ title, prompt, placeholder, intro, required });
+    return askForRequest({ title, prompt, placeholder, intro, required, extra, columns });
 }
 
 /**

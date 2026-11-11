@@ -83,9 +83,16 @@ export function requestCardPost(card) {
  * own. ONE request rather than three, because three would have intermediate
  * states in which the knife has left the body and arrived nowhere.
  */
-export function requestBodyLoot({ takerId, bodyId, itemId }) {
-    return ask(ACTION_LOOT, { takerId, bodyId, itemId }, {
-        local: () => import("./handover.mjs").then(m => m.lootBody({ takerId, bodyId, itemId }))
+export function requestBodyLoot({ takerId, bodyId, itemId = null, itemIds = null, hand = null, cover = null }) {
+    // E68 C10: the Take's Hand roll (`hand`: rollId, total, isCritical, withHope) and the cover's Shadow roll where the
+    // taker's browser saw somebody watching (`cover`, the same fields); the primary reads both off its record of them.
+    const rolls = {
+        rollId: hand?.rollId ?? null, total: hand?.total ?? 0, isCritical: Boolean(hand?.isCritical), withHope: Boolean(hand?.withHope),
+        ...(cover ? { coverRollId: cover.rollId ?? null, coverTotal: cover.total ?? 0, coverCritical: Boolean(cover.isCritical),
+            coverHope: Boolean(cover.withHope) } : {})
+    };
+    return ask(ACTION_LOOT, { takerId, bodyId, itemId, itemIds, ...rolls }, {
+        local: () => import("./handover.mjs").then(m => m.lootBody({ takerId, bodyId, itemId, itemIds, hand, cover }))
     });
 }
 
@@ -638,8 +645,9 @@ export function requestHopeCallApproval(
  *
  * @returns {Promise<object>} the bridge's result; `value` `{tier, trait}`, or false when the GM refused.
  */
-export function requestDynamicDifficulty({ description, actorName, room, actorId = null }, timeoutMs = TIMING.rulingMs) {
-    return ask(ACTION_DIFFICULTY, { description, actorName, room, actorId }, { timeoutMs, nothingSpent: true,
+export function requestDynamicDifficulty({ description, actorName, room, actorId = null, proposed = null }, timeoutMs = TIMING.rulingMs) {
+    // `proposed` (E68 C4): the statistic the player proposes; the card says it, the GM's editor checks it first.
+    return ask(ACTION_DIFFICULTY, { description, actorName, room, actorId, proposed }, { timeoutMs, nothingSpent: true,
         expired: ACTION_RULING_EXPIRED, received: ACTION_RULING_RECEIVED });
 }
 
@@ -648,12 +656,13 @@ export function requestDynamicDifficulty({ description, actorName, room, actorId
  * (trait-ruling.mjs `traitFor`). A human reading a thread, so the clock is the
  * ruling's, there is none for the "got it", and it is asked again when a GM's
  * world has loaded; nothing has been paid on this side, so a failure says
- * "Nothing was spent."
+ * "Nothing was spent." Since E68 C1 (DA18) with the player's proposal and their words of how
+ * (`proposed`, `note`; trait-ruling.mjs `proposalOf` has dropped what the GM would refuse).
  *
  * @returns {Promise<object>} the bridge's result; `value` the trait, or false when the GM refused.
  */
-export function requestTraitRuling({ actorId, kind, key, variant = null }) {
-    return ask(ACTION_TRAIT_RULING, { actorId, kind, key, variant }, { nothingSpent: true,
+export function requestTraitRuling({ actorId, kind, key, variant = null, proposed = null, note = "" }) {
+    return ask(ACTION_TRAIT_RULING, { actorId, kind, key, variant, proposed, note }, { nothingSpent: true,
         expired: ACTION_RULING_EXPIRED, received: ACTION_RULING_RECEIVED });
 }
 
@@ -907,9 +916,10 @@ export function requestCleanup({
 }
 
 /** Record a direct murder declared during an Eclipse. See eclipse.mjs. */
-export function requestParkMurder({ killerId, room = null, note = "" }) {
-    return ask(ACTION_PARK_MURDER, { killerId, room, note }, {
-        local: () => import("./eclipse.mjs").then(m => m.writeParkedMurder({ killerId, room, note }))
+export function requestParkMurder({ killerId, room = null, note = "", proposed = null }) {
+    // `proposed` (E68 C9): the opening's statistic the killer proposes, read against their list on the GM.
+    return ask(ACTION_PARK_MURDER, { killerId, room, note, proposed }, {
+        local: () => import("./eclipse.mjs").then(m => m.writeParkedMurder({ killerId, room, note, proposed }))
     });
 }
 
@@ -920,9 +930,10 @@ export function requestParkMurder({ killerId, room = null, note = "" }) {
  * No dice and no numbers travel - this is a declaration, and whether it opens is
  * re-derived from the incident on the GM's side (`betrayAsPlayer`).
  */
-export function requestBetrayal({ actorId, note = "" }) {
-    return ask(ACTION_BETRAYAL, { actorId, note }, {
-        local: () => import("./murder.mjs").then(m => m.betrayAsPlayer(actorId, { note }))
+export function requestBetrayal({ actorId, note = "", proposed = null }) {
+    // `proposed` (E68 C9): the opening's statistic the betrayer proposes, for the GM's opening window.
+    return ask(ACTION_BETRAYAL, { actorId, note, proposed }, {
+        local: () => import("./murder.mjs").then(m => m.betrayAsPlayer(actorId, { note, proposed }))
     });
 }
 
@@ -1006,10 +1017,12 @@ export function requestFriskAsk({ searcherId, targetId }) {
            when the only GM leaves or reloads, the wait runs its clock, friskAnswerMs + friskMarginMs (75 s), and the
            clock hands the action back (E18 fix c7-G1, the review's C7-R1; R1006 drives both). A wait that runs out tells
            the primary, which ends the ask so a yes after it is not kept (`expired`, frisk.mjs `expireFriskAsk`, which
-           judges that claim). No receipt: the ask's end is its cards, posted before its answer goes, and with a force
-           open the follow is the searcher's next word. */
+           judges that claim). The answer's receipt (E68 C11; D084): an answer that leaves a force open waits `TIMING.ackMs`
+           on the primary for it, and with none ends as 'Leave it' (frisk.mjs `answerSearcher`); any other answer ended
+           the ask with its cards, posted before it went, and its receipt finds nothing. */
         untilPrimaryLeaves: true,
         expired: ACTION_RULING_EXPIRED,
+        received: ACTION_RULING_RECEIVED,
         lateMs: TIMING.friskMarginMs,
         late: value => debug("A Frisk's ask was answered after this browser stopped waiting", value),
         local: () => import("./frisk.mjs").then(m => m.askToFriskHere({ searcherId, targetId }, game.user)).then(out => {

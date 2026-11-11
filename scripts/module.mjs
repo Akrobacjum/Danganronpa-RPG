@@ -23,6 +23,8 @@ import { registerPrivateRolls } from "./private-rolls.mjs";
 import { registerSearchTokenSocket } from "./search-tokens.mjs";
 import { registerSheetTweaks } from "./sheet.mjs";
 import { registerAnonymity } from "./anonymity.mjs";
+import { registerBodyMarks } from "./body-tile.mjs";
+import { registerBodyAnnounced } from "./chapter.mjs";
 import { registerActionResource } from "./resources.mjs";
 import { registerGmPanel, registerGmChrome, injectLauncher } from "./gm-panel.mjs";
 import { offerStartHere } from "./season-setup.mjs";
@@ -213,6 +215,10 @@ Hooks.once("init", () => {
     safely("the fog of war", registerFog);
     safely("the isometric token shield", registerIsoShield);
     safely("Remnant rings", registerRemnantRings);
+    // A body left on the map (E95 C3): its tile wears the caption and the dead sign on every browser that draws it.
+    safely("the body on the map", registerBodyMarks);
+    // The body's announcement, `drpgBodyAnnounced`, on every browser the stamp reaches (E95 C4; chapter.mjs).
+    safely("the body's announcement", registerBodyAnnounced);
     // AFTER the Remnant rings, so a Remnant token that somehow belongs to a player
     // is drawn as evidence first and as theirs second (W-6).
     safely("the own-token ring", registerOwnRing);

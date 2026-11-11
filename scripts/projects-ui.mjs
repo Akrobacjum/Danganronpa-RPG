@@ -1172,20 +1172,8 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
      */
     let passageFields = null;
     if (passageOf) {
-        let picked = null;
-        try { picked = JSON.parse(result.passage ?? "null"); } catch { picked = null; }
-        const why = !passageOf.offer ? "DRPG.Project.passageNoWall"
-            : !picked?.wallId ? "DRPG.Project.passageNeedsPick"
-            : !passageOf.offer.neighbours.includes(result.passageTo) || !picked.rooms?.includes(passageOf.offer.from) || !picked.rooms?.includes(result.passageTo)
-                ? "DRPG.Project.passageRefused" : null;
-        // A breach's stretch is judged as its completion judges it (C3: it may stand over a passage, never on a wall breached already).
-        const { builtPassageRow, breachStretchRow, whyText } = await import("./passages-gm.mjs");
-        const judged = why ? null : (passageOf.preset === "breach" ? breachStretchRow(picked) : builtPassageRow(picked));
-        if (why || !judged?.row) {
-            // The stretch's own reason, in the table's language (fix e1-G4): a whole wall, a door, a breached wall.
-            ui.notifications.warn(why ? game.i18n.localize(why) : game.i18n.format("DRPG.Project.presetRefused", { why: whyText(judged?.refused) }));
-            return null;
-        }
+        const picked = await judgedPassagePick(passageOf, result);
+        if (!picked) return null;
         passageFields = { presetTarget: { preset: passageOf.preset, room: result.passageTo }, passage: picked };
     }
 
@@ -1264,6 +1252,90 @@ async function passageApproval(start) {
     const offer = builder ? secretPassageOffer(gmPlaceOf(builder)) : null;
     const index = Number(start?.to);
     return { offer, preset: start.preset, to: offer ? (offer.neighbours[Number.isInteger(index) ? index : 0] ?? offer.neighbours[0]) : null };
+}
+
+/**
+ * The approval's pick judged as Create judges it (E15 part 2 C2; its own function since E68 C11, which judges a refused
+ * completion's new pick the same way): the stretch the window holds (`result.passage`, JSON) on the wall between the
+ * offer's room and the room beyond chosen (`result.passageTo`), and standing as the completion will ask
+ * (passages-gm.mjs `builtPassageRow`, a breach's `breachStretchRow`: it may stand over a passage, never on a wall
+ * breached already). The stretch, or null with the reason said.
+ */
+async function judgedPassagePick(passageOf, result) {
+    let picked = null;
+    try { picked = JSON.parse(result?.passage ?? "null"); } catch { picked = null; }
+    const why = !passageOf.offer ? "DRPG.Project.passageNoWall"
+        : !picked?.wallId ? "DRPG.Project.passageNeedsPick"
+        : !passageOf.offer.neighbours.includes(result.passageTo) || !picked.rooms?.includes(passageOf.offer.from) || !picked.rooms?.includes(result.passageTo)
+            ? "DRPG.Project.passageRefused" : null;
+    const { builtPassageRow, breachStretchRow, whyText } = await import("./passages-gm.mjs");
+    const judged = why ? null : (passageOf.preset === "breach" ? breachStretchRow(picked) : builtPassageRow(picked));
+    if (why || !judged?.row) {
+        // The stretch's own reason, in the table's language (fix e1-G4): a whole wall, a door, a breached wall.
+        ui.notifications.warn(why ? game.i18n.localize(why) : game.i18n.format("DRPG.Project.presetRefused", { why: whyText(judged?.refused) }));
+        return null;
+    }
+    return picked;
+}
+
+/**
+ * "CHOOSE THE TARGET AGAIN" (E68 C11, 10.11.2026; D023, the owner's default). A Secret Passage's or a breach's completion
+ * the primary refused (projects.mjs `heldForRepick`) is picked again here, on the GM whose card's button was pressed: the
+ * approval's own box and pick (`passageFieldset`, `wirePassagePick`) on the wall of the room the refused stretch stood
+ * in - the project's room, where the approval read the builder - on its scene and floor, the room beyond the one it named
+ * first, judged as Create judges it (`judgedPassagePick`), then made on the primary as the change `{ repick }`, which
+ * crosses the completion again. The window closed, or a pick refused, leaves the card open. Answers the step's result
+ * when the target was taken, else null.
+ */
+export async function openTargetRepick(projectId) {
+    if (!game.user?.isGM) return null;
+    const project = allProjects().find(p => p.id === projectId) ?? null;
+    const held = project ? secretsOf(projectId) : {};
+    const preset = held.target?.preset;
+    const name = project?.name ?? "";
+    const gone = () => {
+        ui.notifications.warn(game.i18n.format("DRPG.Passage.card.repickGone", { name }));
+        return null;
+    };
+    if (!project || !held.repick || !["secretPassage", "breach"].includes(preset)) return gone();
+    const passageOf = await repickApproval(held);
+    const result = await drpgWindow({
+        title: game.i18n.format("DRPG.Passage.card.repickTitle", { name }),
+        classes: ["drpg-panel", "drpg-project-repick"],
+        width: projectWindowWidth(),
+        body: `<form>${helpText("DRPG.Passage.card.repickIntro", { name })}${passageFieldset(passageOf)}</form>`,
+        footer: {
+            primary: { action: "repick", label: game.i18n.localize("DRPG.Passage.card.repick"), callback: (e, b, d) => {
+                const f = d.element.querySelector("form");
+                return { passageTo: f?.passageTo?.value || null, passage: f?.passage?.value || null };
+            } },
+            close: { role: "cancel", action: "cancel", callback: () => "cancel" }
+        },
+        render: (event, dialog) => {
+            if (passageOf.offer) wirePassagePick(dialog, passageOf.offer, { over: preset === "breach" });
+        },
+        rejectClose: false
+    });
+    if (!result || result === "cancel") return null;
+    const picked = await judgedPassagePick(passageOf, result);
+    if (!picked) return null;
+    const done = await applyProjectChange(projectId, { repick: { passage: picked, room: result.passageTo } }, { by: { kind: "gm" } });
+    return done?.changed ? done : gone();
+}
+
+/**
+ * The repick's offer (`openTargetRepick`): the room of the refused stretch that is not the room beyond it named, on that
+ * stretch's scene and floor (passages-gm.mjs `secretPassageOffer`, as `passageApproval` reads it from where the builder
+ * stood), the room beyond it named chosen first.
+ */
+async function repickApproval(held) {
+    const was = held.passage ?? {};
+    const scene = game.scenes.get(was.sceneId ?? "") ?? null;
+    const room = (was.rooms ?? []).find(each => each !== held.target?.room) ?? null;
+    const { secretPassageOffer } = await import("./passages-gm.mjs");
+    const offer = scene && room ? secretPassageOffer({ scene, room, level: was.level ?? null }) : null;
+    const to = held.target?.room ?? null;
+    return { offer, preset: held.target.preset, to: offer?.neighbours.includes(to) ? to : offer?.neighbours[0] ?? null };
 }
 
 /** The owner's three presets of 15.10 (E15 part 2 C5), whose card names its target by id. */

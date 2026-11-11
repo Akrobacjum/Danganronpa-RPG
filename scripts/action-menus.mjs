@@ -19,8 +19,10 @@
  */
 
 import { TRAITS } from "./config.mjs";
-import { esc, GM_ROUTE_CLASS } from "./utils.mjs";
+import { esc } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
+import { WIDE, choiceRowHtml, wideWindow } from "./ui-columns.mjs";
+import { PROPOSAL_NOTE_MAX } from "./trait-ruling.mjs";
 
 /**
  * The "which statistic?" field, as HTML to drop into somebody else's form.
@@ -32,8 +34,17 @@ import { drpgWindow } from "./ui-kit.mjs";
  *
  * Returns "" when there is nothing to choose - one allowed trait, or none -
  * and the caller falls back to it without a field. See `readTraitField`.
+ *
+ * THE PLAYER'S PROPOSAL (E68 C4, 10.11.2026; DA18). With `propose` the select is the statistic the player
+ * proposes to a GM (trait-ruling.mjs `traitFor`), named `proposed` so it is never read as a pick of the
+ * roller's own, and `how` adds "How do you do it? (optional)", the words the GM's card quotes, bounded by
+ * `PROPOSAL_NOTE_MAX`. The first listed statistic is checked, so a trap victim's table proposes Body unless
+ * the player changes it. Read back by `readProposal`. Exported for the callers outside this file that ask a
+ * proposal in a window of their own (action-murder.mjs, action-project.mjs, action-dynamic.mjs, action-search.mjs).
+ * A proposal is one container, `drpg-trait-proposal` (E68 C7, 10.11.2026): the select and the words together, so a
+ * layout can place the field as one block (the orchestrator's note for E68 C12's right column).
  */
-function traitFieldHtml(actor, traits, { note = "" } = {}) {
+export function traitFieldHtml(actor, traits, { note = "", propose = false, how = propose, howLabel = "DRPG.TraitRuling.howLabel" } = {}) {
     const allowed = traits ?? [];
     if (allowed.length < 2) return "";
 
@@ -43,10 +54,13 @@ function traitFieldHtml(actor, traits, { note = "" } = {}) {
         return `<option value="${key}">${t.label} (${value > 0 ? "+" : ""}${value})</option>`;
     }).join("");
 
-    return `<label class="drpg-trait-field"><span>${game.i18n.localize("DRPG.Advance.whichTrait")}</span>
-        <select name="trait">${options}</select>
+    const words = how ? `<label class="drpg-trait-how"><span>${game.i18n.localize(howLabel)}</span>
+        <input type="text" name="note" maxlength="${PROPOSAL_NOTE_MAX}"></label>` : "";
+    const field = `<label class="drpg-trait-field"><span>${game.i18n.localize(propose ? "DRPG.TraitRuling.proposeLabel" : "DRPG.Advance.whichTrait")}</span>
+        <select name="${propose ? "proposed" : "trait"}">${options}</select>
         ${note ? `<small class="notes">${note}</small>` : ""}
     </label>`;
+    return propose ? `<div class="drpg-trait-proposal">${field}${words}</div>` : `${field}${words}`;
 }
 
 /** The other half of `traitFieldHtml`: what the form says, or the only option. */
@@ -55,6 +69,13 @@ function readTraitField(element, traits) {
     if (!allowed.length) return null;
     if (allowed.length === 1) return allowed[0];
     return element.querySelector("[name=trait]")?.value ?? allowed[0];
+}
+
+/** A proposal field's answer under `root`, as `traitFor` takes it: `{ proposed, note }`, the statistic one `traits` lists or null. */
+export function readProposal(root, traits) {
+    const proposed = root?.querySelector("[name=proposed]")?.value ?? null;
+    return { proposed: (traits ?? []).includes(proposed) ? proposed : null,
+        note: String(root?.querySelector("[name=note]")?.value ?? "").trim().slice(0, PROPOSAL_NOTE_MAX) };
 }
 
 /* ==========================================================================
@@ -91,11 +112,15 @@ function readTraitField(element, traits) {
  *                                        `details` is markup, already escaped,
  *                                        unfolded under the row while it is the
  *                                        one picked; `confirm` names the confirm
- *                                        button while that row is picked.
+ *                                        button while that row is picked;
+ *                                        `field` is markup for the statistic's
+ *                                        slot while that row is picked (the
+ *                                        crisis menu's proposal, E68 C13).
  * @param {string[]} [config.traits]   Show a trait picker for these.
  * @param {string}   [config.extra]    Extra HTML inside the form, under the list.
  * @param {string}   [config.confirm]  Label for the confirm button.
- * @param {boolean}  [config.columns]  The briefing beside the list, not above it (`COLUMNS`, below).
+ * @param {boolean}  [config.columns]  The briefing beside the list (`actionWindow`, below), true by default since
+ *                                        E68 C12; false only for Level Up's two questions, which keep their look (Q12).
  * @returns {Promise<{value: string, trait: string|null, form: HTMLFormElement}|null>}
  */
 /* ==========================================================================
@@ -138,7 +163,7 @@ export function readRequestField(root) {
 
 export async function chooseVariant({
     actor, title, intro = "", prompt = "", options = [], traits = null,
-    extra = "", confirm = null, traitNote = "", showShut = false, columns = false
+    extra = "", confirm = null, traitNote = "", showShut = false, columns = true
 } = {}) {
     const usable = options.filter(o => !o.disabled);
     // `showShut`: a window whose every row is shut still opens, the rows greyed with their reasons and one button
@@ -152,18 +177,22 @@ export async function chooseVariant({
 
     // A row's details are a sibling of its <label>, not a child: a list is no phrasing
     // content, and the stylesheet unfolds the block right after the picked row.
-    const rows = options.map(o => `
-        <label class="drpg-choice${o.disabled ? " unavailable" : ""}${
-            o.gmRoute ? ` ${GM_ROUTE_CLASS}` : ""}${o.struck ? " drpg-row-denied" : ""}">
-            <input type="radio" name="variant" value="${esc(o.value)}"${
-                o.value === first ? " checked" : ""}${o.disabled ? " disabled" : ""}>
-            <i class="fa-solid ${esc(o.icon ?? "fa-circle")}" inert></i>
-            <span class="drpg-choice-text">
-                <strong>${esc(o.label)}</strong>
-                <small>${esc(o.disabled ? (o.why ?? o.hint ?? "") : (o.hint ?? ""))}</small>
-            </span>
-        </label>${o.details && !o.disabled
-            ? `<div class="drpg-choice-details" data-drpg-for="${esc(o.value)}">${o.details}</div>` : ""}`).join("");
+    // The row itself is ui-columns.mjs `choiceRowHtml` since E68 C12 (the shared blocks E49 reuses). What a picked row
+    // unfolds (`details`) follows its row in one column; in an action's columns it stands in the left one, under the
+    // briefing, one block a row and the picked row's alone shown (`syncDetails`): measured on round M's page with C12's
+    // markup, the crisis menu's two facts under its first row made the right column 140 px taller under the glass at
+    // 1366x768 (body 808 px of 571; 668 with them on the left; S/stages/E68/STATUS.md E68-C12).
+    const detailsOf = o => (o.details && !o.disabled
+        ? `<div class="drpg-choice-details" data-drpg-for="${esc(o.value)}"${columns && o.value !== first ? " hidden" : ""}>${o.details}</div>` : "");
+    const rows = options.map(o => `${choiceRowHtml(o, { checked: o.value === first })}${columns ? "" : detailsOf(o)}`).join("");
+    const beside = columns ? options.map(detailsOf).join("") : "";
+    // A row's own statistic field (`field`: the crisis menu's proposal, E68 C4) stands in the right column's slot, not
+    // with its details on the left: the owner's Q3 of round M keeps the field under the rows. One block a row, the
+    // picked row's alone shown (`syncDetails`); no class of its own, so the hidden attribute alone shuts it.
+    // Whatever a caller reads back off the answer's `form` goes here, never in `details`: the left column is outside
+    // the <form>. A Frisk's ways stood there from C12 to E68 fix CI 77d3e66a and were read as Openly every time.
+    const fields = options.map(o => (o.field && !o.disabled
+        ? `<div data-drpg-field="${esc(o.value)}"${o.value !== first ? " hidden" : ""}>${o.field}</div>` : "")).join("");
 
     const fallback = confirm ?? game.i18n.localize("DRPG.Action.proceed");
     // A row's `confirm` is its label, or a function of the drawn window that reads the row's own fields (a Frisk's mode).
@@ -179,13 +208,13 @@ export async function chooseVariant({
             ${prompt ? `<p>${prompt}</p>` : ""}
             <div class="drpg-choice-list">${rows}</div>
             ${extra}
-            ${traits?.length ? traitFieldHtml(actor, traits, { note: traitNote })
+            <div class="${TRAIT_SLOT}">${fields}${traits?.length ? traitFieldHtml(actor, traits, { note: traitNote })
                 // A window that asks no statistic still says its note (fix r2-G3, 03.10.2026; the
                 // round-2 review's C2-m9 (b)): the Tamper menu's readied Cleaning Tool was only ever
                 // drawn inside the trait field it does not have, so no Tamper window showed it.
-                : traitNote ? `<p class="notes">${traitNote}</p>` : ""}
+                : traitNote ? `<p class="notes">${traitNote}</p>` : ""}</div>
         </form>`;
-    const picked = await drpgWindow({
+    const picked = await (columns ? actionWindow : drpgWindow)({
         title,
         classes: ["drpg-panel"],
         /* AN ACTION'S DECLARATION IS A PROMPT (E23 C5a, 07.11.2026; S01-15, the owner's Q-E23-5): kept above the sheet the
@@ -193,12 +222,11 @@ export async function chooseVariant({
            on - Analyze, the crisis menu, Observe, a project, Rest, Search, Tamper, Palm and Level Up's two questions - so
            the menu asks for it itself; R1404 holds that list of callers, and a new one is judged there. */
         prompt: true,
-        ...(columns ? { width: COLUMNS.width } : {}),
-        body: columns
-            ? `<div class="${COLUMNS.cls}"><div class="drpg-variant-brief">${intro}</div><div class="drpg-variant-ask">${form}</div></div>`
-            : `${intro}${form}`,
+        ...(columns ? { brief: `${intro}${beside ? `<div class="drpg-variant-details">${beside}</div>` : ""}`, ask: form }
+            : { body: `${intro}${form}` }),
         render: (event, dialog) => {
             if (options.some(o => o.confirm)) followConfirmLabel(dialog, confirmFor);
+            if (beside || fields) syncDetails(dialog);
             atTop(dialog);
         },
         footer: !usable.length ? { close: "close" } : {
@@ -224,6 +252,14 @@ export async function chooseVariant({
 }
 
 /**
+ * ONE LAYOUT FOR EVERY ACTION (E68 C12, 10.11.2026; layout B of round M, the owner's answers of 10.11.2026: "layout B for
+ * every action window"). `actionWindow` is the one builder of an action's window, as call-pickers.mjs `callWindow` is the
+ * Calls': the briefing in the left column, the question in the right, in ui-columns.mjs's window of one stated width
+ * (`WIDE`, 1120 px). `chooseVariant` opens through it (every action menu), and so do the windows an action draws itself
+ * (Listen's room, Move's briefing, a project picked to work on); R3200 holds the list. The right column ends in the
+ * statistic's slot (`TRAIT_SLOT`: `traitFieldHtml`'s field, and E68 C4's proposal and the player's "how"), under the rows
+ * and the caller's `extra`: the owner's Q3 of round M keeps the field there. What it measured: S/stages/E68/STATUS.md E68-C12.
+ *
  * THE BRIEFING BESIDE THE LIST (E21 fix G2, 07.11.2026; E21-04, the end review's B1: "Observe fits with no scrolling").
  * Observe's window was 544 px wide under Stained Glass (the popup measure on `.dialog-content`) and its body 1140 px tall:
  * the briefing, then five rows of two to five lines each. At 1366x768 the body had 571 px (glass) and 616 px (Legacy),
@@ -237,7 +273,38 @@ export async function chooseVariant({
  * when the window is narrower than both (a phone, where the body scrolls as before). A real Foundry's fonts and header
  * are LIVE-E21-01's.
  */
-const COLUMNS = Object.freeze({ cls: "drpg-variant-columns", width: 1120 });
+const TRAIT_SLOT = "drpg-action-trait";
+
+/**
+ * An action's window: `brief` (markup, the left column) and `ask` (markup, the right), every other key ui-kit.mjs
+ * `drpgWindow`'s (`title`, `classes`, `footer`, `render`, `prompt`, ...). `drpg-action-window` names it for the
+ * stylesheet; its width is `WIDE.width` unless the caller states one.
+ */
+export function actionWindow({ brief = "", ask = "", classes = [], ...rest } = {}) {
+    // A window that asks nothing (Move's briefing) is its left column alone, at half the width: an empty right column
+    // would be 540 px of nothing.
+    return wideWindow({
+        ...(ask ? {} : { width: WIDE.width / 2 }),
+        ...rest,
+        classes: [...new Set(["drpg-panel", ...classes, "drpg-action-window"])],
+        columns: [{ cls: "drpg-variant-brief", html: brief }, ...(ask ? [{ cls: "drpg-variant-ask", html: ask }] : [])]
+    });
+}
+
+/** The left column's details follow the picked row (E68 C12): the block of the row picked shown, the others hidden. */
+function syncDetails(dialog) {
+    const root = dialog?.element;
+    if (!root) return;
+    root.addEventListener("change", event => {
+        if (event.target?.name !== "variant") return;
+        for (const block of root.querySelectorAll(".drpg-variant-details > .drpg-choice-details")) {
+            block.hidden = block.dataset.drpgFor !== event.target.value;
+        }
+        for (const block of root.querySelectorAll(`.${TRAIT_SLOT} > [data-drpg-field]`)) {
+            block.hidden = block.dataset.drpgField !== event.target.value;
+        }
+    });
+}
 
 /**
  * The window opens at its top (E21 C5b, 06.11.2026; audit S02-06): a field's `autofocus` scrolls the kit's body to
@@ -281,26 +348,40 @@ function followConfirmLabel(dialog, confirmFor) {
  * Cancelling the box is not cancelling the attempt - the action is already
  * spent by the time this opens, and a dismissed dialog must never be a way to
  * get it back.
+ *
+ * `traits` (E68 C9; S18-10): the statistics the killer's opening lists, and the window asks which one they propose
+ * (`traitFieldHtml`, the first checked; the sentence is the "how"). Then the answer is `{ note, proposed }`
+ * (`readProposal`), a closed window `{ note: "", proposed: null }`; without it, the sentence alone.
+ *
+ * Such a window is an action's (the merge of E68 C9 into the line, 10.11.2026): it opens through `actionWindow`, the
+ * caller's `brief` in the left column and the question in the right - the sentence, then the statistic's slot
+ * (`TRAIT_SLOT`) under it, where every proposal stands since C12 (the owner's Q3 of round M: the field stays in the
+ * right column). C9 had drawn the field above the sentence, in one column. Without `traits` the window is the one
+ * column it was.
  */
-export async function promptForNote(actor, { title, prompt, placeholder }) {
+export async function promptForNote(actor, { title, prompt, placeholder, traits = null, brief = "" }) {
+    const propose = (traits ?? []).length > 1;
+    const form = `<form>
+            <p>${prompt}</p>
+            <textarea name="note" rows="3" placeholder="${
+                foundry.utils.escapeHTML(placeholder ?? "")}"></textarea>
+            ${propose ? `<div class="${TRAIT_SLOT}">${traitFieldHtml(actor, traits, { propose: true, how: false })}</div>` : ""}
+        </form>`;
     // On the kit's frame (E21 C5a): one answer, the primary; a closed window answers "" below, as it did.
-    const result = await drpgWindow({
+    const result = await (propose ? actionWindow : drpgWindow)({
         title,
         classes: ["drpg-panel"],
         // The second half of a declaration: a prompt, as `chooseVariant`'s window (E23 C5a).
         prompt: true,
-        body: `<form>
-            <p>${prompt}</p>
-            <textarea name="note" rows="3" placeholder="${
-                foundry.utils.escapeHTML(placeholder ?? "")}"></textarea>
-        </form>`,
+        ...(propose ? { brief, ask: form } : { body: form }),
         footer: {
             primary: {
                 action: "ok", label: game.i18n.localize("DRPG.Action.murderParkedConfirm"),
-                callback: (e, b, d) => d.element.querySelector("[name=note]")?.value.trim() ?? ""
+                callback: (e, b, d) => propose ? readProposal(d.element, traits) : d.element.querySelector("[name=note]")?.value.trim() ?? ""
             }
         },
         rejectClose: false
     }).catch(() => "");
+    if (propose) return result && typeof result === "object" ? result : { note: "", proposed: null };
     return typeof result === "string" ? result : "";
 }

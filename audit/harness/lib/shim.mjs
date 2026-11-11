@@ -639,6 +639,8 @@ export function buildDocumentClasses(ctx) {
         get lights() { return this._collections.lights; }
         get notes() { return this._collections.notes; }
         get drawings() { return this._collections.drawings; }
+        // A body's tile (E95 C1, 10.11.2026): body-tile.mjs reads `scene.tiles`, as Foundry's Scene has them.
+        get tiles() { return this._collections.tiles; }
         get active() { return !!this._source.active; }
         get isView() { return ctx.gameRef().canvas?.scene?.id === this.id; }
         get grid() { return { size: this._source.grid?.size ?? 100, distance: this._source.grid?.distance ?? 5, type: this._source.grid?.type ?? 1, units: "ft" }; }
@@ -965,6 +967,10 @@ export function buildDocumentClasses(ctx) {
             return !levels.size || levels.has(level?.id ?? level);
         }
     }
+    /* A tile (E95 C1, 10.11.2026): a body's tile is made, updated and deleted on a scene (body-tile.mjs). Its fields are
+       its source's (`_exposeSource`): x, y, width and height in pixels, elevation, hidden, texture, flags - the shape
+       body-tile.mjs `bodyTileSpec` writes, Foundry's as remembered, not read in v14's source (LIVE-E95-02). */
+    class TileImpl extends BaseDocument { static get documentName() { return "Tile"; } }
     class SettingImpl extends BaseDocument { static get documentName() { return "Setting"; } }
 
     const classes = {
@@ -972,7 +978,7 @@ export function buildDocumentClasses(ctx) {
         Region: RegionImpl, ChatMessage: ChatMessageImpl, User: UserImpl,
         RollTable: RollTableImpl, TableResult: TableResultImpl, Playlist: PlaylistImpl,
         PlaylistSound: PlaylistSoundImpl, Macro: MacroImpl, JournalEntry: JournalEntryImpl,
-        ActiveEffect: ActiveEffectImpl, RegionBehavior: RegionBehaviorImpl, Wall: WallImpl,
+        ActiveEffect: ActiveEffectImpl, RegionBehavior: RegionBehaviorImpl, Wall: WallImpl, Tile: TileImpl,
         Setting: SettingImpl, BaseDocument
     };
     ctx.classes = classes;

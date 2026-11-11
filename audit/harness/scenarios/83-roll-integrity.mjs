@@ -690,12 +690,106 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
             await (await import("${SCRIPT("sheet-audit")}")).sheetAuditIdle(); return globalThis.drpg83e35.dead;`, { timeout: 30000 });
         await settle(500);
         mark = await readings();
-        const l16 = await p3.eval(`const B = await import("${SCRIPT("gm-bridge")}");
-            const r = await B.requestBodyLoot({ takerId: "${chie}", bodyId: "${ids.daichi}", itemId: "${e35Set.pick}" }); return { ok: r?.ok ?? null };`, { timeout: 60000 });
+        /* E68 fix CI a5ebfeaa: the Take as p3 makes it, from the body's list (anonymity.mjs `buildBodyLoot`) and its row's
+           Take, which since E68 C10 throws the Hand roll ("loot") and, with Aiko and Botan in the room, the cover's Shadow
+           ("lootCover") before it asks (`takeFromBody`). Until then this road called `requestBodyLoot` with no roll, which
+           the GM's client now refuses "rollUnknown": a Take the module's control could no longer send. */
+        const l16 = await p3.eval(`const A = await import("${SCRIPT("anonymity")}");
+            const body = game.actors.get("${ids.daichi}"), taker = game.actors.get("${chie}");
+            const until = async (test, ms) => { const end = Date.now() + ms; while (Date.now() < end) { if (await test()) return true; await new Promise(r => setTimeout(r, 100)); } return false; };
+            await until(() => game.drpg.isDeadForGm(body) && body.items.has("${e35Set.pick}"), 8000);
+            const root = document.createElement("div"); root.id = "drpg83-loot";
+            root.innerHTML = '<a data-tab="inventory"></a><section class="tab" data-tab="inventory"></section>';
+            document.body.append(root);
+            try {
+                await A.buildBodyLoot(root, body, taker);
+                const take = root.querySelector('.drpg-loot-list li .drpg-loot-pick[value="${e35Set.pick}"]')?.closest("li")?.querySelector(".drpg-loot-take") ?? null;
+                const open = take ? !take.disabled : null;
+                take?.click();
+                const left = await until(() => !body.items.has("${e35Set.pick}"), 30000);
+                return { ok: Boolean(take && open && left), open, left };
+            } finally { root.remove(); }`, { timeout: 60000 });
         const r16 = await mark.since();
         const l16Held = await holds(`({ daichi: ${heldOf(ids.daichi, "lockpick")}, chie: ${heldOf(chie, "lockpick")} })`);
         road("L16", "Chie takes the lockpick off Daichi's body", dead && l16.ok !== false && J(l16Held) === J({ daichi: [], chie: [[1, false]] }),
             r16, { dead, l16, held: l16Held });
+
+        /* L18 (E68 C10 loot bind, 10.11.2026; the owner's Q8 "nie": every Take rolls, and only its first roll counts; and the E68
+           review's R1 and known items). Since 18d7c470 a Take's rolls are drawn on no payment, and only the newest unsettled
+           one settled (roll-draw.mjs `keepRecord`), so p1's console could throw "loot" for a body again and again, read each
+           total and send the best; and a Take with no cover roll was judged a miss with Hope (handover.mjs `lootCover`), so
+           leaving the Shadow out, with Botan and Chie in the room, chose the kinder miss. Here p1's console does each: L16's
+           trace and row taken away, a rope put on Daichi; a Hand naming no body (refused); a Hand and a Shadow naming Botan,
+           each sent for Daichi (not settled: the record names Botan, bridge-table.mjs `body.loot` `named`); three Hands
+           naming Daichi on the GM's own dice (the local gate has no scripted faces), the newest and then the best sent with no cover (nothing moves, "cover needed", no card judges a miss; the best, where it is not the newest, is refused as replaced); then a Shadow naming Daichi, and the Take asked again naming no roll at all. The primary
+           counts the first Hand and the bound Shadow (handover.mjs `lootRollsBound`): the rope is taken, the GMs' bound Hand is the
+           first, the Remnant reads its band, and the answer says the Take counted an earlier roll. */
+        phase("L18: p1's console throws a Take's Hand three times and sends the best, with no cover", { flow: "give-take-stash" });
+        const l18Set = await gm.eval(`const S = await import("${SCRIPT("gm-stores")}"), R = await import("${SCRIPT("remnants")}"), INV = await import("${SCRIPT("inventory")}");
+            const row = S.lootTraceStore.get("${ids.daichi}");
+            const trace = row?.tokenId ? game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null : null;
+            if (trace) { try { await R.dropRemnantSecret(trace); } catch { } try { await trace.delete(); } catch { } }
+            if (S.lootTraceStore.has("${ids.daichi}")) await S.lootTraceStore.drop("${ids.daichi}");
+            for (const key of ["${aiko}:${ids.daichi}", "${aiko}:${botan}"]) if (S.lootRollStore?.has(key)) await S.lootRollStore.drop(key);
+            const rope = await INV.grantItem(game.actors.get("${ids.daichi}"), { name: "${E35} rope", category: "tool", tier: 1, override: true, quiet: true });
+            await (await import("${SCRIPT("sheet-audit")}")).sheetAuditIdle();
+            globalThis.drpg83l18 = new Set(game.messages.contents.map(m => m.id));
+            return { rope: rope?.id ?? null, cleared: !S.lootTraceStore.has("${ids.daichi}") };`, { timeout: 30000 });
+        await settle(500);
+        const THROW = `const { rollTrait } = await import("${SCRIPT("action-rolls")}"), { LOOT } = await import("${SCRIPT("config")}");
+            const B = await import("${SCRIPT("gm-bridge")}");
+            const aiko = game.actors.get("${aiko}"), idOf = r => r?.raw?.message?.id ?? r?.raw?.message?._id ?? null;
+            const throwOne = async (key, context) => {
+                const r = await rollTrait(aiko, key === "loot" ? LOOT.trait : LOOT.cover.trait, key === "loot" ? { actionKey: "loot", context }
+                    : { remember: false, actionKey: "lootCover", context, dc: LOOT.cover.threshold });
+                return r ? { rollId: idOf(r), total: r.total, isCritical: r.isCritical, withHope: r.withHope } : null;
+            };
+            const take = async (hand, cover) => { const r = await B.requestBodyLoot({ takerId: "${aiko}", bodyId: "${ids.daichi}", itemId: "${l18Set.rope}", hand, cover });
+                return r && { ok: r.ok, reason: r.reason ?? null, again: r.value?.again ?? null, coverNeeded: r.value?.coverNeeded ?? null }; };`;
+        const l18 = await p1.eval(`${THROW}
+            const bodiless = await throwOne("loot", {});
+            const atBotan = await throwOne("loot", { bodyId: "${botan}" });
+            const viaBotan = atBotan ? await take(atBotan, null) : null;
+            const hands = [];
+            for (let i = 0; i < 3; i++) hands.push(await throwOne("loot", { bodyId: "${ids.daichi}" }));
+            // The best total, the newest among equals, so the record check alone (a later roll replaces an earlier) refuses it only where it is not the last.
+            const best = hands.filter(Boolean).map((h, i) => ({ ...h, i })).sort((a, b) => b.total - a.total || b.i - a.i)[0] ?? null;
+            const newest = hands[hands.length - 1] ?? null;
+            const coverAtBotan = await throwOne("lootCover", { bodyId: "${botan}" });
+            const coverViaBotan = best && coverAtBotan ? await take(best, coverAtBotan) : null;
+            const noCover = newest ? await take(newest, null) : null;
+            const bestSent = best && best.rollId !== newest?.rollId ? await take(best, null) : null;
+            return { bodiless, atBotan, viaBotan, hands, best: best?.total ?? null, coverAtBotan: Boolean(coverAtBotan), coverViaBotan, noCover, bestSent };`, { timeout: 180000 });
+        await settle(800);
+        const l18Mid = await gm.eval(`const { contentOf } = await import("${SCRIPT("secret")}"), had = globalThis.drpg83l18 ?? new Set();
+            const H = await import("${SCRIPT("handover")}");
+            const bound = typeof H.lootRollsBound === "function" ? await H.lootRollsBound("${aiko}", "${ids.daichi}") : null;
+            const name = foundry.utils.escapeHTML(game.actors.get("${ids.daichi}").name);
+            return { onBody: game.actors.get("${ids.daichi}").items.has("${l18Set.rope}"), bound: bound?.loot?.messageId ?? null,
+                cards: game.messages.contents.filter(m => !had.has(m.id) && contentOf(m).includes(name) && /<em>/.test(contentOf(m))).length };`);
+        const l18b = await p1.eval(`${THROW}
+            const shadow = await throwOne("lootCover", { bodyId: "${ids.daichi}" });
+            return { shadow: Boolean(shadow), again: shadow ? await take(null, null) : null };`, { timeout: 120000 });
+        await settle(800);
+        const hands18 = l18.hands ?? [];
+        const l18Read = await gm.eval(`const S = await import("${SCRIPT("gm-stores")}"), H = await import("${SCRIPT("handover")}");
+            const row = S.lootTraceStore.get("${ids.daichi}");
+            delete globalThis.drpg83l18;
+            const bound = typeof H.lootRollsBound === "function" ? await H.lootRollsBound("${aiko}", "${ids.daichi}") : null;
+            return { after: bound ? { loot: bound.loot?.messageId ?? null, cover: Boolean(bound.lootCover) } : null, vis: row?.tokenId ? S.remnantStore.get(row.sceneId + "." + row.tokenId)?.visibility ?? null : null,
+                rope: game.actors.get("${aiko}").items.some(i => i.name === "${E35} rope"),
+                bands: ${J(hands18.map(h => h?.total ?? null))}.map(t => t === null ? null : H.lootVisibilityOf({ total: t, isCritical: false })) };`,
+            { timeout: 30000 });
+        const bandsOf = l18Read.bands;
+        check("L18 (body): a Take's Hand naming no body is refused, and a Hand and a Shadow thrown for Botan settle no Take of Daichi",
+            Boolean(l18Set.rope) && l18Set.cleared && l18.bodiless === null && Boolean(l18.atBotan) && l18.viaBotan?.ok === false
+            && l18.coverAtBotan && l18.coverViaBotan?.ok === false, J({ l18Set, l18 }));
+        check("L18 (cover): with Botan and Chie in the room, the best Hand sent with no Shadow moves nothing and asks for the cover, and no card judges it a miss",
+            l18.noCover?.ok === true && l18.noCover?.coverNeeded === true && l18Mid.onBody === true && l18Mid.cards === 0, J({ noCover: l18.noCover, l18Mid }));
+        check("L18 (bind): three Hands thrown for Daichi, the newest and the best sent: the primary counts the first - with the Shadow thrown, a Take naming no roll takes the rope, the GMs' bound Hand is the first, the Remnant reads its band, the answer says the Take counted an earlier roll, and the Take clears the binding",
+            hands18.length === 3 && hands18.every(Boolean) && l18Mid.bound === hands18[0].rollId && l18b.shadow && l18b.again?.ok === true
+            && l18b.again?.coverNeeded !== true && l18Read.rope && l18Read.vis === bandsOf[0] && l18b.again?.again === true && l18Read.after === null,
+            J({ hands18, bound: l18Mid.bound, l18b, l18Read }));
         e35Ran = true;
     } finally {
         const back = await gm.eval(`const g = globalThis.drpg83e35, Ch = await import("${SCRIPT("chapter")}"), S = await import("${SCRIPT("gm-stores")}");
@@ -705,6 +799,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
             const trace = row?.tokenId ? game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null : null;
             if (trace) { try { await R.dropRemnantSecret(trace); } catch { } try { await trace.delete(); } catch { } }
             if (S.lootTraceStore.has("${ids.daichi}")) await S.lootTraceStore.drop("${ids.daichi}");
+            for (const key of ["${aiko}:${ids.daichi}", "${aiko}:${botan}", "${chie}:${ids.daichi}"]) if (S.lootRollStore?.has(key)) await S.lootRollStore.drop(key);
             for (const [actorId, had] of Object.entries(g.items)) {
                 const a = game.actors.get(actorId);
                 for (const i of a.items.filter(i => !had.includes(i.id))) { const uuid = i.uuid, bullet = i.getFlag("${MOD}", "isTruthBullet"); try { await i.delete(); if (bullet) await B.dropSecret?.(uuid); } catch { } }
@@ -1343,6 +1438,50 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
         trace: p1Rows(rf8, "forged", names.aiko).some(x => x.change.includes(`flags.${MOD}.drawn`) && x.change.includes(`flags.${MOD}.rollId`)) && rf8.gm.audit.length === 1,
         details: { f8, drawn: f8Drawn, cards: f8Cards, refused: f8Refused } });
 
-    const forgeries = ["F1", "F1b", "F2", "F3", "F5a", "F7", "F4", "F4b", "F4c", "F6a", "F6b", "F5c", "F5b", "F8"];
+    /* ------------- L17 and F9. every action of one statistic, on it and on another ------------- */
+
+    /* E68 C3 (10.11.2026; DA18's `fixed` source, amend [0]): every action of the table whose definition lists one
+       statistic and is told under its own key - read off the GM's config, so a new one joins - and a Find Passage
+       (an Analyze with `findPassage`, Head), each thrown from p1's page on Aiko after an action she paid there
+       (actions.mjs `spendAction`, the honest payment): once on its own statistic (L17, a legal road: nothing new),
+       once on another (F9: the GM throws its own and flags the claim - a flag naming p1, the GMs' card and p1's
+       "not counted" line, three a roll). Search is L1's, a Palm's two and Tamper's door are told under other keys
+       (tier 2's "every definition and part that lists one statistic ..." holds those, and the crisis actions and
+       Stage 6's steps, which need an incident). */
+    phase("L17 and F9: every action of one statistic, on it and on another", { flow: "gm-rolls-total" });
+    const singles = await gm.eval(`const { ACTIONS, TRAITS } = await import("${SCRIPT("config")}");
+        const one = d => (Array.isArray(d?.traits) ? d.traits : []).filter(t => Object.hasOwn(TRAITS, t));
+        const out = Object.entries(ACTIONS).filter(([k, d]) => one(d).length === 1 && !["search", "palm", "tamper"].includes(k))
+            .map(([k, d]) => ({ name: k, actionKey: k, trait: one(d)[0], context: {} }));
+        out.push({ name: "analyze as Find Passage", actionKey: "analyze", trait: one(ACTIONS.analyze)[0], context: { findPassage: true } });
+        return out;`);
+    const other = t => (t === "eye" ? "hand" : "eye");
+    const throwAs = async (c, trait) => {
+        await refill(aiko);
+        return p1.eval(`const A = await import("${SCRIPT("action-rolls")}"), { spendAction } = await import("${SCRIPT("actions")}");
+            const a = game.actors.get("${aiko}");
+            await spendAction(a, 1, { quiet: true });
+            const r = await A.rollTrait(a, ${J(trait)}, { actionKey: ${J(c.actionKey)}, context: ${J(c.context)} });
+            return { total: r?.total ?? r?.raw?.total ?? null };`, { timeout: 90000 });
+    };
+    const l17 = [], f9 = [];
+    mark = await readings();
+    for (const c of singles) l17.push([c.name, await throwAs(c, c.trait)]);
+    const r17 = await mark.since();
+    road("L17", "each action of one statistic is drawn once on its own statistic, after a payment of Aiko's",
+        singles.length >= 3 && rollsOf(r17, aiko).length === singles.length, r17, { singles, l17, rolls: rollsOf(r17, aiko) });
+    mark = await readings();
+    for (const c of singles) f9.push([c.name, await throwAs(c, other(c.trait))]);
+    const rf9 = await mark.since();
+    const f9Flags = rf9.gm.flagRows.filter(x => x.player === names.p1 && x.character === names.aiko);
+    forgery("F9", { ran: "each action of one statistic was drawn once, claiming another statistic",
+        undone: "the GM threw each on its own statistic, the claim not counted", trace: "a flag naming p1 for each, and p1's \"not counted\" line for each" },
+    { owns: 3 * singles.length, did: singles.length >= 3 && rollsOf(rf9, aiko).length === singles.length,
+        undone: f9Flags.length === singles.length && f9Flags.every(x => /^statistic \w+, expected \w+$/.test(String(x.flags))),
+        trace: f9Flags.length === singles.length && rf9.p1.notCounted.length === singles.length, r: rf9,
+        own: x => x.startsWith(`flag: ${names.aiko} `) || x.startsWith("unexpected card: ") || x.startsWith("p1 not counted: "),
+        details: { singles, f9, flags: f9Flags } });
+
+    const forgeries = ["F1", "F1b", "F2", "F3", "F5a", "F7", "F4", "F4b", "F4c", "F6a", "F6b", "F5c", "F5b", "F8", "F9"];
     note("the forgeries that ran", J(forgeries.map(k => `${k}: ${forged[k] ? "ran" : "DID NOT RUN"}`)));
 }

@@ -268,6 +268,10 @@
         "name": "Players cannot edit Actions, Hope, Health, Sanity or statistics",
         "hint": "Those move through play - spend an action, take a rest, earn a Level Up. On, a player's own edits of them are put back or flagged to the GMs, and their pips are display-only for players; off, they are only listed for the GMs. Items and effects are judged either way, and so is what changed while no GM was connected, when one returns. GMs are unaffected."
       },
+      "autoApproveTraits": {
+        "name": "Approve statistic proposals in Daily Life automatically",
+        "hint": "On, a player's proposed statistic for a Search or a project without a statistic is approved without a GM's press, and the card in their thread says so. Fights, openings and Dynamic actions always ask a GM; Resolve asks nobody."
+      },
       "friskForce": {
         "name": "Frisk: forcing after a refusal",
         "hint": "When off, an open Frisk only asks: a refusal or no answer ends it."
@@ -729,7 +733,12 @@
         "passageBuiltShared": "A secret passage opens to you: {from} - {to}.",
         "passageBuilt": "Your secret passage is finished: {from} - {to}. You can walk through it.",
         "shown": "{giver} shows you a secret passage: {from} - {to}.",
-        "done": "You show {target} the secret passage."
+        "done": "You show {target} the secret passage.",
+        "repick": "Choose the target again",
+        "repickTitle": "{name}: choose the target again",
+        "repickIntro": "{name} is finished, but what it was to make could not be made. Pick its target again, and it is made at once, as at any completion.",
+        "repickDone": "Target chosen again by {name}.",
+        "repickGone": "{name} cannot be finished this way any more: it was taken back, removed or finished already."
       },
       "gm": {
         "found": "{actor} finds the secret passage {from} - {to}.",
@@ -846,6 +855,7 @@
       "dynamicSuccess": "Success - the GM decides what a Tier {tier} result gives you.",
       "dynamicFound": "The roll succeeded at Tier {tier}. Decide what it gives: an item, or something said.",
       "dynamicRerollMissed": "A Reroll turned this roll into a miss: the success no longer stands, and it gives nothing.",
+      "dynamicAnsweredMissed": "A Reroll turned {name}'s Dynamic success into a miss after a GM had answered its card (\"{what}\"). What was given on it stands; it is the GMs' to take back.",
       "leavesRemnant": "Leaves a Remnant behind.",
       "tokensLeft": {
         "one": "{room}: {n} search token left this time of day.",
@@ -862,7 +872,7 @@
       "goalCleaningHint": "A cleaning tool. Leaves a Prep Remnant.",
       "substitute": "Not what you were looking for - it is what this room had.",
       "goalTool": "Something to work with",
-      "goalToolHint": "A tool. Gives advantage on project work - and leaves no trace unless what turns up is also a weapon.",
+      "goalToolHint": "A tool: advantage on project work, and no trace unless it is also a weapon.",
       "goalSpecific": "Something specific",
       "goalSpecificHint": "Describe it. The GM rules on what was really there.",
       "goalSpecificPrompt": "What are you looking for?",
@@ -932,7 +942,7 @@
       "searchTokensLeft": "Searches left here: {left} of {max}.",
       "failStress": "A failed roll costs {n} Sanity.",
       "murderNeedsApproval": "A direct murder, declared in the dark. Nothing opens until you allow it - and who they end up alone with is not settled yet.",
-      "murderApprove": "Allow it",
+      "murderAllow": "Allow: {stat}",
       "murderRefuse": "Refuse",
       "murderRefused": "The GM did not allow it. The action is spent.",
       "murderApprovedGm": "{name}'s direct murder is allowed. It resolves when the Eclipse ends.",
@@ -962,15 +972,15 @@
       "critPrompt": "{actor} identified {name} as {a} {type} on a critical - they have earned a substantial hint on top of it.",
       "critNothingMore": "Nothing more to add",
       "analyseBulletHint": {
-        "one": "Roll Head to learn what the one Truth Bullet you can analyze now really is. On a miss, you cannot analyze it again until the chapter ends.",
-        "other": "Roll Head to learn what one of the {n} Truth Bullets you can analyze now really is. On a miss, you cannot analyze that one again until the chapter ends."
+        "one": "Roll Head to learn what your one Truth Bullet really is; a miss locks it until the chapter ends.",
+        "other": "Roll Head to learn what one of your {n} Truth Bullets really is; a miss locks it until the chapter ends."
       },
       "askHintHint": "No evidence in hand - ask the GM to point you somewhere instead.",
       "findStash": "Find Stash",
-      "findStashHint": "Look for a stash another student has hidden in this room. With a total of {n} or more, or a critical, you find one you have not found before and learn whose it is.",
+      "findStashHint": "Look for another student's stash here; {n}+ or a critical finds a new one and whose it is.",
       "stashNothing": "You go over the room and find nothing anybody has tried to hide.",
       "findPassage": "Find Passage",
-      "findPassageHint": "Go over the walls of this room for a way through that nobody shows. {n}+ opens one secret passage here to you.",
+      "findPassageHint": "Search this room's walls for a hidden way through; {n}+ opens one secret passage to you.",
       "passageSent": "You go over the walls of the room, looking for a way through.",
       "passageNothing": "You find no hidden passage here.",
       "passageFound": "There is a secret passage in this room, to {to}. Where the way is open, your map shows it.",
@@ -1089,6 +1099,10 @@
       "whichCharacterHub": "Which student",
       "chooseOne": "- choose -",
       "setCategoryTier": "The tables do not say what this item is: choose its category and tier to give it."
+    },
+    "Body": {
+      "noToken": "The GMs cannot place {name}'s token on a scene with rooms (there is none, or a put-back of it is still on its way), so no body was left on the map. Untick Monocub and tick it again once the token stands.",
+      "tile": "{name}'s body"
     },
     "Monocub": {
       "panelTitle": "Monocub",
@@ -1784,7 +1798,7 @@
       "trailWho": "Frame",
       "trailNobody": "There is nobody left to frame.",
       "moveAction": "Move the Body",
-      "moveHint": "Spend {n} Sanity to carry the body out of this room. It always leaves an Evident trace - a body cannot be dragged quietly.",
+      "moveHint": "Spend {n} Sanity to carry the body out of this room; it always leaves an Evident trace.",
       "bodyNotHere": "The body is not in this room. You have to be standing over it to carry it anywhere.",
       "nothingHere": "Nothing to clean up in this room.",
       "allReinforced": "Every trace here is reinforced. None of it comes off.",
@@ -1840,7 +1854,7 @@
       "bodyNowhere": "There is nowhere to take it - no room connects to this one, or the only ones that do are bedrooms.",
       "toolsBroken": "{items} is ruined. It is still in your inventory, and it is still evidence.",
       "transformAction": "Reshape a Trace",
-      "transformActionHint": "Give a non-Reinforced Remnant a new name and description, with an easier roll than Erase a Trace. If a GM approves, it becomes a Tamper Remnant; if not, you get nothing back. A critical also hides it better and refunds what you paid.",
+      "transformActionHint": "Rename a non-Reinforced Remnant: a GM's approval makes it a Tamper Remnant, a refusal gives nothing back.",
       "transformActionIntro": "You are not removing this. You are making it read as something else. Write what the next person through the door will find.",
       "reshapeName": "Call it",
       "reshapeNamePlaceholder": "Spilled paint",
@@ -2059,6 +2073,7 @@
       "cannotLeave": "You are in an incident. The only way out is a crisis action - Survive, Escape Together, a Finishing Blow, or, if you only walked in on it, Averted Eyes.",
       "oneAtATime": "There is already an incident running. It has to finish before another can start.",
       "crisisPrompt": "What are you doing about it?",
+      "crisisBrief": "One action a turn. A row that is shut says why.",
       "nothingToDo": "There is nothing left for you to do this round.",
       "actionsLocked": "You are in an incident. Everything you can do is behind {tile}; Hope Calls still work.",
       "thirdJoined": "{name} throws in with the killer and stays in the incident.",
@@ -2105,7 +2120,7 @@
       "onAMiss": "On a miss: {text}",
       "noRollItWorks": "No roll - it works",
       "breakdownDisadvantage": "You are in Breakdown, so this roll is at disadvantage until some Sanity comes back.",
-      "gmPicksTrait": "Rolls: {traits} - the GM picks one. Tell them in your thread what you do.",
+      "gmPicksTrait": "Rolls: {traits} - you propose one below, the GM approves or changes it.",
       "youPickTrait": "Rolls: {traits} - Resolve is armed, so you pick one in the roll window.",
       "criticalChoiceTitle": "A clean hit",
       "criticalChoiceIntro": "The blow lands exactly where you wanted it. Both points come off the same reserve - their body, or their nerve.",
@@ -3404,8 +3419,8 @@
       },
       "startNewHint": "Describe something new. Nothing exists until the GM approves it.",
       "sabotageHint": {
-        "one": "This room has one project you can break. On a hit, it needs a repair project. It costs an action, and you always leave a Remnant.",
-        "other": "This room has {n} projects you can break. On a hit, the one you pick needs a repair project. It costs an action, and you always leave a Remnant."
+        "one": "Break this room's one breakable project so it needs a repair; you always leave a Remnant.",
+        "other": "Break one of this room's {n} projects so it needs a repair; you always leave a Remnant."
       },
       "completeTag": "Complete",
       "alreadyComplete": "{name} is finished. There is no work left in it.",
@@ -3428,7 +3443,24 @@
       "waiting": "The GM is choosing the statistic. Tell them in your thread what you do.",
       "refused": "The GM turned the action down. Nothing was spent.",
       "openingKiller": "The GM is choosing the statistic for your opening. Tell them in your thread how you go about it.",
-      "openingVictim": "The GM is setting up a roll for you."
+      "openingKillerProposed": "The GM is ruling on the statistic you proposed for your opening.",
+      "openingVictim": "The GM is setting up a roll for you.",
+      "gmBodyProposed": "The player proposes a statistic. Approve it, change it to another on the list, or refuse.",
+      "proposed": "Proposed: {stat}",
+      "approve": "Approve: {stat}",
+      "change": "Change to: {stat}",
+      "refuse": "Refuse",
+      "changedTitle": "The GM changed the statistic",
+      "changedBody": "You proposed {proposed}. The GM changed it to {stat}. Nothing has been spent yet.",
+      "rollIt": "Roll {stat}",
+      "pass": "I'll pass (nothing spent)",
+      "passedLine": "I'll pass on the roll ({stat}). Nothing was spent.",
+      "autoApproved": "Approved automatically.",
+      "proposeLabel": "Which statistic do you propose?",
+      "howLabel": "How do you do it? (optional)",
+      "projectBody": "This project was stored without a statistic. Propose one: the GM approves or changes it, and it stays the project's.",
+      "propose": "Propose",
+      "howSearch": "How do you search? (optional)"
     },
     "DiceLook": {
       "setByGm": "Your dice look is set by the GM.",
@@ -3496,6 +3528,8 @@
       "diceFixed": "Fixed at d12 by the rules.",
       "traitFixed": "Chosen before this window opened.",
       "traitByGm": "Chosen by the GM.",
+      "traitApproved": "Approved by the GM.",
+      "traitChanged": "Changed by the GM.",
       "advantageLocked": "Advantage and disadvantage come from Calls, not from here.",
       "pickOneExperience": "Pick the one experience this roll relates to. Clicking another moves the choice.",
       "experienceLocked": "Using an experience is the Experience Hope Call - ask the GM to spend it.",
@@ -3967,6 +4001,7 @@
       "nextTrialOutlived": "The chapter has moved on and the trial is still sitting. End the trial.",
       "nextReady": "The players have been asked before the clock moves. Open the question again.",
       "roleColumn": "Role",
+      "openSheet": "Open {name}'s sheet",
       "role": {
         "student": "Student"
       },
@@ -4067,7 +4102,17 @@
       "traceNote": "Somebody has been through this body. Gone: {items}.",
       "noCharacter": "You are not playing a character the module knows about, so there is nowhere for this to go.",
       "took": "You take “{item}”. Where you found it is worth remembering - it is in your evidence now.",
-      "tookUnfound": "You take “{item}”. Nobody has found this body yet: its Truth Bullet joins your evidence once the death is known."
+      "tookUnfound": "You take “{item}”. Nobody has found this body yet: its Truth Bullet joins your evidence once the death is known.",
+      "takePicked": "Take the ticked",
+      "takePickedTooltip": "Take every ticked item with one Hand roll. It costs no action.",
+      "pickNone": "Tick what you want to take first.",
+      "rollTitle": "Take from the body - Hand",
+      "coverTitle": "Take from the body - Shadow",
+      "coverHeld": "Nobody in the room sees what you take.",
+      "coverMissed": "Somebody in the room sees you going through the body.",
+      "seenAtBody": "{actor} goes through {body}'s pockets.",
+      "seenTaking": "{actor} goes through {body}'s pockets and takes {items}.",
+      "handsFull": "You already carry the most {category} you can ({limit}), and you have no stash: “{item}” stays on the body."
     },
     "Redacted": {
       "tabLocked": "Theirs to tell you, not yours to read.",
@@ -4197,13 +4242,13 @@
       "prompt": "What are you doing to the evidence?",
       "cover": "Erase a Trace",
       "coverHint": {
-        "one": "You know of one Remnant here that you can erase. The more visible it is, the harder it is to remove; a readied cleaning tool, or doing it before the Investigation starts, makes it easier.",
-        "other": "You know of {n} Remnants here that you can erase. The more visible a Remnant is, the harder it is to remove; a readied cleaning tool, or doing it before the Investigation starts, makes it easier."
+        "one": "Erase the one Remnant you know of here; the more visible it is, the harder it is to remove.",
+        "other": "Erase one of the {n} Remnants you know of here; the more visible it is, the harder it is to remove."
       },
       "nothingOfYours": "You know of no trace in this room.",
       "onlyReinforced": "Every trace you know of here is too deeply set to remove.",
       "frame": "Misleading Trail",
-      "frameHint": "Plant a false Remnant pointing at another student; you need {n} or more. On a hit it is Evident with Hope, Subtle with Despair, Obvious on a critical, which gives back Sanity. A miss with Hope still plants a Faint, Hidden one; with Despair, nothing.",
+      "frameHint": "Plant a false Remnant pointing at another student with {n}+; a miss with Despair plants nothing.",
       "whichTrace": "Which Remnant",
       "yourCopy": "{name} (your copy)",
       "coverAction": "Erase a Trace",
@@ -4219,11 +4264,11 @@
       "nobodyHere": "There is nobody in this room to reach.",
       "whichWay": "Which way is your hand going?",
       "takeLabel": "Take something",
-      "takeHint": "Lift one thing, picked at random, out of their pockets; a critical lets you choose. It costs an action, and if they notice, they learn who it was and what you took.",
+      "takeHint": "Lift one random thing from their pockets, or pick it on a critical; if they notice, they learn it was you.",
       "plantLabel": "Leave something",
       "plantHint": {
-        "one": "Slip the one thing you carry into their pocket. It costs an action, and both rolls, Hand and Shadow, need a lower total than taking does.",
-        "other": "Slip one of the {n} things you carry into their pocket. It costs an action, and both rolls, Hand and Shadow, need a lower total than taking does."
+        "one": "Slip the one thing you carry into their pocket; both rolls need less than taking does.",
+        "other": "Slip one of the {n} things you carry into their pocket; both rolls need less than taking does."
       },
       "nothingToPlant": "You are carrying nothing you could leave on somebody.",
       "whatToPlant": "What to leave",
@@ -4301,11 +4346,15 @@
       "gmKept": { "one": "{who} asks {target} to turn out their pockets. {target} is a body you keep, so nobody is asked: in {s} second {who} hears that there is no answer. You may open the discovery yourself.", "other": "{who} asks {target} to turn out their pockets. {target} is a body you keep, so nobody is asked: in {s} seconds {who} hears that there is no answer. You may open the discovery yourself." },
       "gmIncident": { "one": "{who} asks {target} to turn out their pockets. {target} is in the incident, so nobody is asked: in {s} second {who} hears that there is no answer.", "other": "{who} asks {target} to turn out their pockets. {target} is in the incident, so nobody is asked: in {s} seconds {who} hears that there is no answer." },
       "gmKeptNow": "{who} asks {target} to turn out their pockets. {target} is a body you keep, and their player is not here, so nobody is asked: {who} hears at once that there is no answer. You may open the discovery yourself.",
-      "gmIncidentNow": "{who} asks {target} to turn out their pockets. {target} is in the incident, and their player is not here, so nobody is asked: {who} hears at once that there is no answer."
+      "gmIncidentNow": "{who} asks {target} to turn out their pockets. {target} is in the incident, and their player is not here, so nobody is asked: {who} hears at once that there is no answer.",
+      "noReceipt": "{who}'s player's browser did not confirm the answer to the Frisk of {target}, so the ask ends as 'Leave it'."
     },
     "Reroll": {
       "lastRoll": "Your {action} roll: {total} {duality}.",
       "lastRollPlain": "Your last roll: {total} {duality}.",
+      "lastRollGmRow": "The GMs' row for {name} holds a {action} roll: {total} {duality}. A Reroll takes back that roll.",
+      "lastRollReload": "Your last roll in the chat: {total} {duality}. A Reroll takes back the roll the GMs keep on their row for you, which this browser cannot read since the reload.",
+      "noRollHere": "This browser holds no roll of yours since the reload. A Reroll takes back the roll the GMs keep on their row for you.",
       "searchNeverRan": "The room was never searched - the search token was refused - so there is nothing to draw again.",
       "searchStashStands": "The stash find stands: new dice do not open the stash twice.",
       "passageFound": "The new result finds a secret passage in that room, to {to}. Where the way is open, your map shows it.",
@@ -4364,7 +4413,8 @@
       "actionTakenBack": "The critical is gone, so the action it returned is spent again.",
       "actionOwed": "The critical is gone, but the action it returned is already used. You owe one.",
       "gmReasked": "The GM has been asked to rule again on the new result.",
-      "rulingVoid": "Rerolled: {old} no longer stands, the result is now {new}. Please rule again."
+      "rulingVoid": "Rerolled: {old} no longer stands, the result is now {new}. Please rule again.",
+      "lootStands": "The dice are rewritten, but the moment is not. What you took is in your hands, and the body looks as it did."
     },
     "Audit": {
       "putBack": "{player} changed {name}'s sheet by hand; the GM's client put it back:",
@@ -4980,7 +5030,7 @@
         "searchTokens": "Search tokens spent in each room",
         "discovered": "Which rooms have been discovered",
         "bodyFound": "The body waiting to be answered, and the record of which bodies were found",
-        "deaths": "Deaths and Monocubs - the dead come back, and every student's Health and Sanity whole again",
+        "deaths": "Deaths and Monocubs - the dead come back, the bodies left on the map go, and every student's Health and Sanity whole again",
         "items": "What the cast is carrying - each bedroom's key is handed back to its owner at once",
         "advancement": "Advancement - traits and maxima back to the starting sheet, and the experiences a Level Up added",
         "actions": "The action budget refilled, and each student's rests cleared",
@@ -5354,7 +5404,7 @@
         "hook-livekit-initialized": "the voice rooms, the voice tile and the trial's speakers do not follow the voice client",
         "hook-image-popout-header": "a room picture's window shows Foundry's share control and any a module adds",
         "token-bars-reserve": "a student's token bars fill up as they are hurt, as Daggerheart draws them, and another player sees their Sanity bar",
-        "breakdown-icon-private": "a student's Breakdown icon shows on their token to every player",
+        "state-icons-off-token": "Breakdown's and Wounded's icons show on every token, to everybody",
         "dead-icon-own": "the dead overlay is Daggerheart's tombstone",
         "hook-party-sheet-render": "the Party sheet counts what each member has lost, as Daggerheart draws it, and shows every member's Sanity to every player",
         "user-permission-broadcast-audio": "nobody's microphone is blocked: the GM's button says why, and so does the trial",
@@ -5528,6 +5578,7 @@
         "overflow": "The Despair overflow's count",
         "despairOwed": "The Despair each pool owes for its conversions to Hope",
         "lootTraces": "What has been taken off each body, and its trace",
+        "lootRolls": "The first Hand and Shadow roll each taker made for their next Take from each body",
         "rifles": "Which stash each character has gone through, and in which time of day",
         "clockBeat": "When the primary GM was last at the table, so the gap between two sessions is no time of day",
         "takeBack": "What the last start of a time of day gave, for five minutes, so a misclick can be taken back",

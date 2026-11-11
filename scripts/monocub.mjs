@@ -44,6 +44,7 @@
 import { MODULE_ID, FLAGS, MONOCUB, ACTIONS_RESOURCE } from "./config.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { isDeceased, isDeadForGm } from "./chapter.mjs";
+import { leaveBody } from "./body-tile.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
@@ -132,6 +133,22 @@ export async function setMonocub(actor, value = true, { quiet = false } = {}) {
         }, { reason: "setup" });
     }
     await actor.setFlag(MODULE_ID, FLAGS.monocub, Boolean(value));
+
+    /*
+     * THE BODY STAYS WHERE IT FELL (E95 C2, 10.11.2026; DC6; QUESTIONS Q3 (a)). On the way in, false to true, on this
+     * GM's browser: body-tile.mjs `leaveBody` lays the body as a tile where the token stands, for a death that is no
+     * execution, unless this death's tile is there already - so the Monocub walks away on the token and the body is
+     * searched where it lies (frisk.mjs `personActionRefusal` reads `bodyPlaceOf`). Here and not on a hook of the
+     * flag: the suite writes the flag by hand, and a hook would act on a write before the GMs' audit judged it. The way
+     * out keeps the tile (Q8): an unticked Monocub is still dead. A tile that cannot be laid does not undo the Monocub.
+     */
+    if (value && !was) {
+        try {
+            await leaveBody(actor);
+        } catch (err) {
+            warn(`Could not leave ${actor.name}'s body on the map`, err);
+        }
+    }
     // Unconditional on purpose: clearing the flag is also the repair for a
     // silence left behind by a cub who is no longer one.
     if (!value) await actor.unsetFlag(MODULE_ID, FLAGS.silencedChapter);

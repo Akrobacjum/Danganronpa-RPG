@@ -68,7 +68,7 @@ import {
     USABLE_EFFECTS
 } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
-import { isDeadForGm } from "./settings.mjs";
+import { isDeadForGm, SETTINGS } from "./settings.mjs";
 import { isMoveChange } from "./rooms.mjs";
 import { castStore } from "./gm-stores.mjs";
 import { RECORD } from "./gm-store.mjs";
@@ -400,8 +400,12 @@ function refuseSecondIncident(running) {
  * has picked one already - one of the two the side that rolls lists ("Body or Hand",
  * "Eye or Head"). Without it, or with one that side does not list, the GM is asked as
  * the roll goes out (`rollOpening`).
+ *
+ * `openingProposal` (E68 C9; S18-10): `{ proposed, note }`, the killer's proposal for the opening - a Direct
+ * Murder's declaration, a betrayal's confirmation - which that window offers first (`openingTraitFor`). Read for
+ * the killer's side alone (`openingProposalFor`): a trap victim's opening is the GM's pick (DA36 = 2).
  */
-export async function openMurder({ killerId, victimId, indirect = false, openingTrait = null } = {}) {
+export async function openMurder({ killerId, victimId, indirect = false, openingTrait = null, openingProposal = null } = {}) {
     if (!game.user.isGM) return null;
 
     // The Eclipse is a placement window, not a moment in the story - nobody has
@@ -560,7 +564,7 @@ export async function openMurder({ killerId, victimId, indirect = false, opening
     // that the tracker's "Ask for the opening roll again" sends it once more
     // (CASE-10). A player who was not connected when the incident opened has
     // the roll thrown for them on the GM's client - see `rollOpening`.
-    rollOpening(indirect ? "victim" : "killer", murderState())
+    rollOpening(indirect ? "victim" : "killer", murderState(), { proposal: openingProposal })
         .catch(err => error("Could not open the Stage 4 roll", err));
 
     return murderState();
@@ -961,7 +965,7 @@ export function crisisVariant(actor, key, state = murderState()) {
  * Called from the actor's own client - it is their roll - but every world write
  * it produces goes through the GM, same as the rest of the module.
  */
-export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
+export async function takeCrisisAction(actor, key, { itemId = null, proposed = null, note = "", onPass = null } = {}) {
     const state = murderState();
     const side = sideOf(actor);
     const def = CRISIS_ACTIONS[key];
@@ -1043,7 +1047,8 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
      * `crisisVariant`, which the GM checks again.
      */
     const { traitFor } = await import("./trait-ruling.mjs");
-    const ruled = await traitFor(actor, { kind: "crisis", key, variant: crisisVariant(actor, key, state) });
+    // The player's proposal from the menu (E68 C4; DA18), and `onPass` told when they pass after a "Change to".
+    const ruled = await traitFor(actor, { kind: "crisis", key, variant: crisisVariant(actor, key, state) }, { proposed, note, onPass });
     if (!ruled) return null;
 
     const { rollTrait } = await import("./action-rolls.mjs");
@@ -3028,15 +3033,34 @@ async function killerFell({ pass = true } = {}) {
     noKillerTold = state.openedAt;
     const words = game.i18n.localize("DRPG.Murder.noKillerLeft");
     await whisperToGms(`<p>${words}</p>`);
-    // End the murder, as the tracker asks it (E22 C3b): destructive, Cancel the default and first under Enter.
-    const sure = await drpgConfirm({
-        yes: { role: "destructive", label: game.i18n.localize("DRPG.Murder.endMurder") },
-        no: "cancel",
-        classes: ["drpg-panel"],
-        title: game.i18n.localize("DRPG.Murder.endMurder"),
-        body: `<p>${words}</p><p>${game.i18n.localize("DRPG.Murder.endConfirm")}</p>`,
-        rejectClose: false
-    });
+    /* THE QUESTION GOES WITH ITS INCIDENT (E68 T6, 10.11.2026; STATUS E95 Open 15). Until then the window stayed on
+       screen after the incident it asks about was closed by any other road - the tracker's Close, a betrayal, tier 2's
+       restore - asking to end a murder that was over; its Yes then did nothing (the check below). Found by the suite
+       (tier 2's tests up to it and E47-T6 by `--only`, 10.11.2026): the test "the trial lists no living victim of an
+       open incident" kills its killer and leaves the close to tier 2's restore; this was the one window any of those
+       tests left open, and E47-T6's Cancel answered it in place of the Monokuma mark's question, about 660 tests
+       later in the whole order. So the window is closed, unanswered, once the world's half of the incident says it
+       is not this one at its incident stage: on the setting's update, which every client hears whichever GM wrote
+       it (measured headless on this GM's own close only). */
+    const asked = () => { const now = murderState(); return now?.stage === "incident" && now.openedAt === state.openedAt; };
+    let question = null;
+    const shut = dialog => { if (dialog && !asked()) dialog.close()?.catch?.(err => debug("Could not close the question of a closed incident", err)); };
+    const watch = Hooks.on("updateSetting", setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.murderState}`) shut(question); });
+    let sure = null;
+    try {
+        // End the murder, as the tracker asks it (E22 C3b): destructive, Cancel the default and first under Enter.
+        sure = await drpgConfirm({
+            yes: { role: "destructive", label: game.i18n.localize("DRPG.Murder.endMurder") },
+            no: "cancel",
+            classes: ["drpg-panel"],
+            title: game.i18n.localize("DRPG.Murder.endMurder"),
+            body: `<p>${words}</p><p>${game.i18n.localize("DRPG.Murder.endConfirm")}</p>`,
+            rejectClose: false,
+            render: (_event, dialog) => { question = dialog; shut(dialog); }
+        });
+    } finally {
+        Hooks.off("updateSetting", watch);
+    }
     const now = murderState();
     if (sure && now?.stage === "incident" && now.openedAt === state.openedAt) await endMurder();
 }
@@ -3752,7 +3776,7 @@ export function betrayalTarget(actor) {
  * re-derived here rather than trusted: the packet says who is turning on whom,
  * and the only thing that decides that is the incident state.
  */
-export async function betrayAsPlayer(actorId, { note = "" } = {}) {
+export async function betrayAsPlayer(actorId, { note = "", proposed = null } = {}) {
     if (!game.user.isGM) return null;
     const actor = game.actors.get(actorId ?? "");
     const target = betrayalTarget(actor);
@@ -3790,7 +3814,7 @@ export async function betrayAsPlayer(actorId, { note = "" } = {}) {
                 warn(`Refused a betrayal by ${actor.name}: already declared in this Eclipse.`);
                 return null;
             }
-            return parkBetrayal({ thirdId: actor.id, killerId: target.id, note, offer });
+            return parkBetrayal({ thirdId: actor.id, killerId: target.id, note, offer, proposed });
         });
     }
 
@@ -3800,7 +3824,7 @@ export async function betrayAsPlayer(actorId, { note = "" } = {}) {
      * and two clicks in flight race to an offer only one of them can take. A betrayal that
      * cannot open puts it back and tells this player why (`refuseBetrayal`).
      */
-    return openBetrayal(actor, target, { asked: true });
+    return openBetrayal(actor, target, { asked: true, note, proposed });
 }
 
 /**
@@ -3824,7 +3848,7 @@ export async function betrayAsPlayer(actorId, { note = "" } = {}) {
  * So the GM is TOLD. The announcement below already whispers them the whole
  * thing, and `endMurder` is one press away if it was a misclick.
  */
-async function openBetrayal(third, killer, { asked = false, taken = null, note = "" } = {}) {
+async function openBetrayal(third, killer, { asked = false, taken = null, note = "", proposed = null } = {}) {
     /*
      * NOT ON TOP OF A RUNNING FIGHT, AND NOT IN AN ECLIPSE - asked before anything is
      * taken or closed. The first is the tile's own rule (`betrayalTarget`), asked again
@@ -3880,7 +3904,8 @@ async function openBetrayal(third, killer, { asked = false, taken = null, note =
         if (murderState()?.active) return refuseBetrayal(third, "fight", { asked, offer });
     }
 
-    const opened = await openMurder({ killerId: third.id, victimId: killer.id });
+    // The betrayer's proposal (E68 C9): no GM's leave is asked for a betrayal, so the opening's window offers it first.
+    const opened = await openMurder({ killerId: third.id, victimId: killer.id, openingProposal: { proposed, note } });
     if (!opened) return refuseBetrayal(third, isEclipse() ? "eclipse" : murderState()?.active ? "fight" : "failed", { asked, offer });
 
     // Told after it opened, so the GMs are never told of a betrayal that did not happen.
@@ -3900,12 +3925,12 @@ async function openBetrayal(third, killer, { asked = false, taken = null, note =
  * it opened, or null - the offer then back while its chapter and day hold, and the GM told
  * why; the betrayer is told by the lights. GM-side.
  */
-export async function openParkedBetrayal(thirdId, killerId, offer, note = "") {
+export async function openParkedBetrayal(thirdId, killerId, offer, note = "", proposed = null) {
     if (!game.user.isGM) return null;
     const third = game.actors.get(thirdId ?? ""), killer = game.actors.get(killerId ?? "");
     if (!third || !killer) return null;
     if (offer?.thirdId !== third.id || offer.killerId !== killer.id) return refuseBetrayal(third, "spent", { asked: false, offer: null });
-    return openBetrayal(third, killer, { taken: offer, note });
+    return openBetrayal(third, killer, { taken: offer, note, proposed });
 }
 
 /**
@@ -4240,12 +4265,12 @@ export let openingInvited = null;
  * Exported for the suite, which re-asks through it as the tracker's "Ask for the opening
  * roll again" does (`reaskOpening`, which adds only its cooldown).
  */
-export async function rollOpening(side, state) {
+export async function rollOpening(side, state, { proposal = null } = {}) {
     const actor = game.actors.get(side === "killer" ? state.killerId : state.victimId);
     if (!actor) return null;
 
     const owner = ownerOf(actor);
-    const trait = await openingTraitFor(side, actor, state, { tell: Boolean(owner?.active) });
+    const trait = await openingTraitFor(side, actor, state, { tell: Boolean(owner?.active), proposal });
     if (!trait) return null;
     if (owner?.active) {
         const { askOpeningRoll } = await import("./gm-bridge.mjs");
@@ -4289,16 +4314,18 @@ let openingPickOpen = false;
  * opening roll again" opens it once more - or the opening is no longer wanted by the time
  * they picked.
  */
-async function openingTraitFor(side, actor, state, { tell }) {
+async function openingTraitFor(side, actor, state, { tell, proposal = null }) {
     const { traitFor, listedTraits } = await import("./trait-ruling.mjs");
     const spec = { kind: "opening", key: side };
     if (listedTraits(spec).includes(state?.openingTrait)) return state.openingTrait;
     if (openingPickOpen) return null;
     openingPickOpen = true;
     let ruled = null;
+    // The killer's proposal (E68 C9): the window's first answer, "Approve: {stat}"; none for a trap's victim (DA36 = 2).
+    const proposing = await openingProposalFor(side, proposal);
     try {
-        if (tell) await tellOpeningRoller(side, state);
-        ruled = await traitFor(actor, spec, { resolveArmed: () => false });
+        if (tell) await tellOpeningRoller(side, state, { proposed: Boolean(proposing.proposed) });
+        ruled = await traitFor(actor, spec, { resolveArmed: () => false, ...proposing });
     } finally {
         openingPickOpen = false;
     }
@@ -4308,12 +4335,23 @@ async function openingTraitFor(side, actor, state, { tell }) {
     return kept ? ruled.trait : null;
 }
 
-/** The roller's line while a GM picks the opening's statistic: see `openingTraitFor`. */
-async function tellOpeningRoller(side, state) {
+/**
+ * The killer's proposal as the opening's window takes it (E68 C9; S18-10, DA36 = 2): `{ proposed, note }` bounded to
+ * the killer's list (trait-ruling.mjs `proposalOf`) for the killer's side, and nothing - `{}` - for a trap victim's
+ * opening, which the GM picks, or with no proposal at all.
+ */
+export async function openingProposalFor(side, proposal) {
+    if (side !== "killer" || !proposal || typeof proposal !== "object") return {};
+    const { proposalOf, listedTraits } = await import("./trait-ruling.mjs");
+    return proposalOf(proposal, listedTraits({ kind: "opening", key: "killer" }));
+}
+
+/** The roller's line while a GM picks the opening's statistic: see `openingTraitFor`; with a proposal, that the GM rules on it. */
+async function tellOpeningRoller(side, state, { proposed = false } = {}) {
     try {
         const whisper = incidentAudienceIds(state, { stage: "openingRoll" });
         if (!whisper.length) return;
-        const key = side === "killer" ? "DRPG.TraitRuling.openingKiller" : "DRPG.TraitRuling.openingVictim";
+        const key = side === "killer" ? (proposed ? "DRPG.TraitRuling.openingKillerProposed" : "DRPG.TraitRuling.openingKiller") : "DRPG.TraitRuling.openingVictim";
         keepOpeningNotice(await announce({ content: `<p>${game.i18n.localize(key)}</p>`, whisper }));
     } catch (err) {
         // The GM still picks; a line that did not go out must not hold the roll.

@@ -48,7 +48,7 @@
  * There is no world switch: the owner's Q2 (a), 03.10.2026.
  */
 
-import { MODULE_ID, FLAGS, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING, CRITICAL, CRISIS_ACTIONS, PRICE_CHAINS, CLEANUP, LEGAL_ROLL_MODIFIERS } from "./config.mjs";
+import { MODULE_ID, FLAGS, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING, CRITICAL, CRISIS_ACTIONS, PRICE_CHAINS, CLEANUP, LEGAL_ROLL_MODIFIERS, LOOT } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { primaryGmId, isPrimaryGm, announce, whisperToGms, debug, warn, error, esc, listOf } from "./utils.mjs";
 import { bridgeRequest, ownsActor } from "./bridge-guards.mjs";
@@ -432,14 +432,15 @@ function startOnMessage(message) {
  * check reads (a Search's category, goal and stash, a project's id, an opening's side, the crisis
  * action a crisis roll is thrown for - fix r2-H1 - and since E29 C9 a clean-up's step and whether it
  * came through Tamper's door, which decide its statistic and its tool's die - `CONTEXT_SENT`; the goal
- * since E29 fix r1-G8);
+ * since E29 fix r1-G8; and since E68 C3 the part of an action a roll is, `part`, which `listedFor` honours only
+ * for a part of its action's definition that names a statistic, and never over `TOLD_AS`);
  * and the situation's dice as this browser armed them (call-effects.mjs `situationalAdvantage`),
  * which the GM no longer reads: it reads every action's situation for itself (E29 C9,
  * `LEGAL_READERS`). The field still travels; nothing on the GM reads it.
  */
 export const DRAWN_OPTIONS = Object.freeze([ROLL_NONCE, "actionType", "roll", "experiences", "guaranteedCritical", "extraFormula", "data"]);
 const CONTEXT_SENT = Object.freeze({ category: "text", goal: "text", stashDie: "bool", projectId: "id", targetProjectId: "id", side: "text",
-    crisis: "text", cleanupKey: "text", cleanupVia: "bool", findPassage: "bool" });
+    crisis: "text", cleanupKey: "text", cleanupVia: "bool", findPassage: "bool", part: "text", bodyId: "id" });
 const LISTED_MAX = 16;
 
 /** The context fields a check on the GM reads, plain; nothing else of the action's context leaves. */
@@ -831,6 +832,8 @@ const ROLLED_TOGETHER = Object.freeze([Object.freeze(["palm", "steal"]), Object.
 const RIDES_ONLY = Object.freeze(["rummage", "frisk"]);
 /** The parts only the GM claims (`claimTicket`), never drawn: a draw named so would make a second ask's ticket a force could ride. */
 const CLAIMED_ONLY = Object.freeze(["friskAsk"]);
+/** The rolls of an act that costs no action, drawn on no ticket (`drawRefusal`): a Take's Hand and its cover's Shadow (E68 C10). */
+const PAID_BY_NOTHING = Object.freeze(["loot", "lootCover"]);
 /** The price chain an action's roll is paid by, where it has one (PRICE_CHAINS; cleanup.mjs `chargeTamper`). */
 const CHAIN_OF = Object.freeze({ analyze: "analyze", cleanup: "tamper" });
 /** Each character's tickets on this GM: `{ at, pay, kinds, size }`, `kinds` the rolls drawn on it (or `call`, a Hope Call's progress: `takeCallPayment`), `size` how much it paid. */
@@ -1012,6 +1015,14 @@ async function drawRefusal(actor, key, context) {
     // An open Frisk's force only while that searcher has one open (E80 part 2 C0): else a Body roll on an ask's ticket is a
     // free roll. frisk.mjs is imported here, late, as murder.mjs is above: it will import this file (the design's risk 14).
     if (CLAIMED_ONLY.includes(key) || (key === "frisk" && !(await import("./frisk.mjs")).friskForceOpen(actor.id))) return "that cannot be done now";
+    /* A TAKE FROM THE BODY PAYS NOTHING (E68 fix CI a5ebfeaa). Since E68 C10 a Take rolls Hand ("loot") and, with a
+       witness, Shadow ("lootCover"), and spends no action (anonymity.mjs `takeFromBody`), so no payment of the taker's
+       ever stood for either roll and every player's Take was refused here: "The GM's client saw no action paid for that
+       roll" (87-messenger-sound E1 and E3, measured 10.11.2026 at a5ebfeaa; tier 2 loots on the GM, which draws no
+       ticket). Drawn with no ticket, as a roll that names no action is. What holds them: each names its body, and the first
+       of each for a taker and a body since their last Take of it is the one their next Take reads (`lootDrawRefusal` below, the
+       loot bind); the GM's run asks the one gate before anything moves (handover.mjs `lootBody`). */
+    if (PAID_BY_NOTHING.includes(key)) return lootDrawRefusal(actor, context);
     for (const end = Date.now() + PAY_WAIT_MS; !ticketFor(actor.id, key) && Date.now() < end;) {
         await new Promise(resolve => setTimeout(resolve, 100));
     }
@@ -1022,6 +1033,31 @@ async function drawRefusal(actor, key, context) {
     if (handed) ticket.kinds.push(handed.cover);
     ticket.kinds.push(key);
     return null;
+}
+
+/*
+ * A TAKE'S ROLLS NAME THEIR BODY, AND THE FIRST OF EACH COUNTS (E68 C10 loot bind, 10.11.2026; the owner's Q8 "nie", E68
+ * QUESTIONS.md: every Take rolls Hand again, in the same time of day too). Drawn on no ticket since 18d7c470, a Take's Hand
+ * was held only by `keepRecord`'s newest-replaces-older, so a player's console could throw "loot" again and again, read
+ * each total and send `body.loot` once the newest read Hidden (18+): read in code by the orchestrator, 10.11; scenario
+ * 83 L17 measures it. Now a draw of either names the body (`context.bodyId`, anonymity.mjs `takeFromBody`), refused
+ * when it names none, the taker, or no actor of this world. Not whether that actor is dead: a death nobody has found is
+ * this GM's secret, and a draw refused for a living actor and drawn for a secretly dead one would tell a console which
+ * students are dead - the one gate answers both alike, in the asker's knowledge, at the Take (handover.mjs `lootBody`).
+ * And not the one gate itself: a Take it refuses (the wrong room) keeps its roll for the next try. The first draw of each
+ * for a taker and a body since their last Take of it that moved something is bound in the GMs' store (handover.mjs
+ * `bindLootRoll`, in `drawOnGm` below), the one their next Take reads (bridge-runs-records.mjs `handleLoot`), which
+ * clears it as it moves something: every Take rolls, and counts its own first roll (the owner's Q8 "nie": every Take
+ * rolls Hand again, in the same time of day too; the Remnant only rises, so a new Take's roll is no Reroll).
+ *
+ * A LATER DRAW IS DRAWN AND IGNORED, NOT REFUSED. Refused, a taker whose Take the gate refused could make no next try:
+ * its window rolls again for every Take, the draw would be refused, `rollTrait` null, nothing asked. Drawn, its dice
+ * settle nothing: the GM's answer to that Take says an earlier roll counted, and the player reads it. A console that
+ * keeps throwing before a Take learns totals that count for nothing.
+ */
+function lootDrawRefusal(actor, context) {
+    const body = typeof context?.bodyId === "string" ? game.actors.get(context.bodyId) ?? null : null;
+    return !body || body.id === actor.id ? "no body is named for that roll" : null;
 }
 
 /**
@@ -1130,6 +1166,10 @@ export async function drawOnGm(packet, sender) {
         const state = murderState();
         let written = null;
         const out = await throwDrawn(packet, sender, state?.active ? turnOf(state) : null, () => { written = performance.now() - arrived; });
+        // A Take's roll, the first of its kind for that taker and body since their last Take of it: bound (`lootDrawRefusal` above).
+        if (out?.reply && !sender?.isGM && PAID_BY_NOTHING.includes(key)) {
+            await (await import("./handover.mjs")).bindLootRoll(actor.id, contextSent(packet.context).bodyId, key, rollStore.get(out.reply.rollId));
+        }
         if (out?.reply) keepTrip("drew", { at: Date.now(), written, answered: performance.now() - arrived });
         return out;
     } finally {
@@ -1489,7 +1529,7 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     const held = await armedCallsHeld(actor);
     const applied = appliedCalls(actor, calls, held);
     const hostile = hostileCalls(actor, applied, held, { key, claimed });
-    const expected = await expectedFor(actor, { actionKey: key, applied, hostile, context: told.context, claimed, loaded,
+    const expected = await expectedFor(actor, { actionKey: key, applied, hostile, context: told.context, claimed, loaded, told: told.trait,
         actionType: json?.options?.actionType ?? null });
     // The roll this GM throws is the one it builds from its list (`legalRollOf`, E29 C10); the packet's is a claim.
     const legal = await legalRollOf(json, actor, expected, told, { key, claimed, nonce });
@@ -1555,6 +1595,8 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
         goal: key === "search" ? told.context.goal ?? null : null,
         // Whether an Analyze was thrown as a Find Passage (E80 C3), which gm-bridge.mjs `passage.find` holds its roll to.
         findPassage: key === "analyze" ? told.context.findPassage === true : null,
+        // The body a Take's roll was drawn for (E68 loot bind), which `body.loot` holds its packet's `bodyId` to (`named`).
+        body: PAID_BY_NOTHING.includes(key) ? told.context.bodyId ?? null : null,
         incident, superseded: null, at: Date.now(),
         // The GM that drew it: a part that only rides reads a handover off it (`handedOver`, E80 fix r1-G3).
         drawnBy: game.user?.id ?? null
@@ -1744,7 +1786,22 @@ async function listedFor(actor, key, context) {
         return (ACTIONS.tamper?.traits ?? []).slice(0, 1);
     }
     if (key === "cleanup") return listedTraits({ kind: "cleanup", key: cleanupStepOf(context) });
-    return listedTraits({ kind: "action", ...(Object.hasOwn(TOLD_AS, key ?? "") ? TOLD_AS[key] : { key }) });
+    // Take from the Body (E68 C10): its Hand and its cover's Shadow, one statistic each (config.mjs `LOOT`).
+    if (key === "loot") return [LOOT.trait];
+    if (key === "lootCover") return [LOOT.cover.trait];
+    if (Object.hasOwn(TOLD_AS, key ?? "")) return listedTraits({ kind: "action", ...TOLD_AS[key] });
+    /*
+     * THE PART A PACKET NAMES (E68 C3, 10.11.2026; S18-01's `part`). A roll told under its action's own key may say
+     * which part of it it is (`context.part`, a claim like the rest): honoured only where the action's definition has
+     * that part and the part names a statistic of its own, else the action whole - so a part this GM does not know
+     * cannot leave a roll held to no statistic. A key told by `TOLD_AS` keeps its part whatever the packet says
+     * (above). At 1.2.104 only a Palm has parts that name a statistic, and every one of its rolls is told by
+     * `TOLD_AS`, so no honest roll sends a part yet. A Find Passage (an Analyze, `context.findPassage`) is the
+     * `fixed` row's: Analyze lists Head alone (amend [0]), read here as any Analyze is.
+     */
+    const part = typeof context?.part === "string" ? context.part : null;
+    const piece = part && Object.hasOwn(ACTIONS[key ?? ""] ?? {}, part) ? ACTIONS[key][part] : null;
+    return listedTraits({ kind: "action", key, ...(typeof piece?.trait === "string" ? { part } : {}) });
 }
 
 /** The clean-up's step a packet's context names (cleanup.mjs `cleanupKey`): one of Stage 6's actions, else the clean-up itself. */
@@ -1766,6 +1823,8 @@ async function pickSpecOf(actor, key, context) {
     }
     if (key === "project" || key === "sabotage") return { kind: "project", key: projectNamed(key, context), variant: null };
     if (key === "cleanup") return { kind: "cleanup", key: pickKeyOf("cleanup", cleanupStepOf(context)), variant: null };
+    // A Search's card names the action (E68 C3; trait-ruling.mjs `autoApprovable`'s scope): what C6's card asks under.
+    if (key === "search") return { kind: "action", key: "search", variant: null };
     return { kind: "generic", key, variant: null };
 }
 
@@ -1795,6 +1854,14 @@ const pickKeyOf = (kind, key) => (kind === "cleanup" && !CLEANUP.actions?.[key]?
  * does not list - e29run/r2h2red). Now a card counts only where a GM wrote it (secret.mjs
  * `cardWriter`, as the away card's buttons are read below), for this definition - its kind, its
  * key (`pickKeyOf`) and its variant the roll's - naming a statistic the definition lists.
+ * A ruling the valve made (E68 C2, `auto: true`) is such a card: the primary GM wrote it by the
+ * road a press takes (messenger-app.mjs `pressCard`), so it is read as a press is, with no row of its own.
+ *
+ * A PASS ENDS THE CARD BEFORE IT (E68 review R3, 10.11.2026; DA46). A player's pass after a GM's "Change to" is a
+ * line of their thread carrying the definition it passes on (`traitPass`, trait-ruling.mjs `rollChanged`); met
+ * before a card for that character and definition - newer than it - written by the character's owner or a GM, it
+ * leaves no pick: the roll is read as one with no card. A pass only takes a pick away, so a player who writes one
+ * gains nothing by it.
  */
 function gmPickOf(actor, spec, listed) {
     const since = Date.now() - TIMING.rerollWindowMinutes * 60_000;
@@ -1804,6 +1871,12 @@ function gmPickOf(actor, spec, listed) {
     for (let i = messages.length - 1; i >= 0; i--) {
         const message = messages[i];
         if (typeof message.timestamp === "number" && message.timestamp < since) break;
+        const pass = cardFlag(message, "traitPass");
+        if (pass?.actorId === actor.id && pass.kind === spec.kind && pickKeyOf(pass.kind, pass.key) === spec.key
+            && (pass.variant || null) === (spec.variant ?? null)) {
+            const writer = cardWriter(message);
+            if (writer?.isGM || (writer && actor.testUserPermission?.(writer, "OWNER"))) return null;
+        }
         const ruling = cardFlag(message, "ruling");
         if (ruling?.type !== "trait" || ruling.actorId !== actor.id || ruling.kind !== spec.kind || !cardWriter(message)?.isGM) continue;
         if (pickKeyOf(ruling.kind, ruling.key) !== spec.key || (ruling.variant || null) !== (spec.variant ?? null)) continue;
@@ -1830,7 +1903,11 @@ const lowestOf = (sheet, listed) => listed.reduce((low, trait) => ((sheet.traits
  *   - `resolve`: an armed Resolve's roll is the player's pick;
  *   - `opening`: the opening's statistic as the GM picked it, for the side this GM sees rolling it;
  *   - `search`: Search's one statistic - the `fixed` rule's case under the name its record has
- *     carried since E08+E28 C12b, which a later stage gives a rule of its own (S18-09);
+ *     carried since E08+E28 C12b, which a later stage gives a rule of its own (S18-09). Since E68 C3
+ *     (DA49) the rule: Eye with no card, and where a GM's card - pressed, or approved by the valve
+ *     (C2), both written by a GM - names another statistic Search lists, that one (`gmPickOf` under
+ *     `{ kind: "action", key: "search" }`), waited for as the `gm` row waits once Search lists more
+ *     than one (C6); while it lists Eye alone, Eye;
  *   - `project`: the project's own, for a Work on it or a Sabotage of it;
  *   - `gm`: where the definition lists several, the newest pick card a GM wrote for this character
  *     and this definition no drawn roll has used yet (`gmPickOf`), waited for a moment as the
@@ -1859,7 +1936,20 @@ const TRAIT_SOURCES = Object.freeze([
         const state = murderState();
         return openingSideOf(actor, context, state) ? { trait: traitKeyOf(state.openingTrait) } : null;
     } },
-    { from: "search", read: (actor, { key, listed }) => (key === "search" && listed.length === 1 ? { trait: listed[0] } : null) },
+    { from: "search", read: async (actor, { key, listed, told }) => {
+        if (key !== "search" || !listed.length) return null;
+        const eye = { trait: listed.includes("eye") ? "eye" : listed[0] };
+        // A roll claimed on Eye waits for no card (E68 C6; DA49): Eye is what it is held to with or without one, so the
+        // claim decides only the wait - the most common Search is drawn at once. A claim of another waits as before.
+        if (listed.length < 2 || told === eye.trait) return eye;
+        const spec = { kind: "action", key: "search", variant: null };
+        let found = gmPickOf(actor, spec, listed);
+        for (const end = Date.now() + PICK_WAIT_MS; !found && Date.now() < end;) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            found = gmPickOf(actor, spec, listed);
+        }
+        return found ?? eye;
+    } },
     { from: "project", read: async (actor, { key, context }) => {
         if (key !== "project" && key !== "sabotage") return null;
         const { allProjects } = await import("./projects.mjs");
@@ -2034,8 +2124,9 @@ async function readyFor(actor, draw) {
  * or none is known here; `traitFrom` says which. `read` is each row's reading, `sheet` the
  * character's numbers read with them. Exported for the suite.
  */
-export async function expectedFor(actor, { actionKey = null, applied = [], hostile = [], context = {}, claimed = true, loaded = null, actionType = null } = {}) {
-    const draw = { key: actionKey, claimed, actionType, applied, hostile, context, loaded };
+export async function expectedFor(actor, { actionKey = null, applied = [], hostile = [], context = {}, claimed = true, loaded = null, actionType = null, told = null } = {}) {
+    // `told`: the statistic the packet claims, read by the `search` row alone, and only to know whether to wait (E68 C6).
+    const draw = { key: actionKey, claimed, actionType, applied, hostile, context, loaded, told };
     draw.ready = await readyFor(actor, draw);
     await draw.ready.judgedFor(actor?.id);
     draw.sheet = sheetOf(actor);

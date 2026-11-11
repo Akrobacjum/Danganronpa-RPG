@@ -121,8 +121,8 @@ function suiteRolling() {
  *   an action name it could not act on - which reads exactly like Reroll not
  *   working on Search at all.
  *
- * @param {boolean} [options.byGm]  The trait is a GM's pick (`TRAIT_BY_GM`), and the
- *   window says so on its locked select.
+ * @param {boolean|string} [options.byGm]  The trait is a GM's pick (`TRAIT_BY_GM`), and the
+ *   window says so on its locked select: "approved" or "changed" a proposal (E68 C1), else true.
  * @param {number} [options.situational]  This roll's own advantage (+) or disadvantage
  *   (-) in dice, which a supporting roll's shield does not hide (call-effects.mjs
  *   `armOwnSituational`): the Night's die on a murder's opening roll, its one caller.
@@ -243,8 +243,9 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
         // The roll the Loaded Die was bought for, marked on the roll itself -
         // see `LOADED_DIE` in forced-roll.mjs.
         ...(free ? { [LOADED_DIE]: armed?.nonce ?? foundry.utils.randomID() } : {}),
-        // A GM picked the trait: the window's select stays locked and says so.
-        ...(byGm ? { [TRAIT_BY_GM]: true } : {}),
+        // A GM picked the trait: the window's select stays locked and says so - "approved" or "changed" where the
+        // player proposed one (E68 C1, trait-ruling.mjs `traitFor`), else true.
+        ...(byGm ? { [TRAIT_BY_GM]: byGm === "approved" || byGm === "changed" ? byGm : true } : {}),
         // Say what the roll is FOR.
         //
         // Left alone, Daggerheart titles the window from the trait - "Body
@@ -343,6 +344,14 @@ const rollsInHand = new Map();
 /** What this browser last told the GMs of its newest roll of this character, or null. Exported for the suite. */
 export function rollInHand(actor) {
     return actor?.id ? rollsInHand.get(actor.id) ?? null : null;
+}
+
+/**
+ * Forget the roll this browser holds for `actor`, as a reload forgets it (E68 C11; D047). The suite's reload: the
+ * Reroll's window then reads what calls.mjs `rollAfterReload` can.
+ */
+export function forgetRollInHand(actor) {
+    if (actor?.id) rollsInHand.delete(actor.id);
 }
 
 /** The retired client setting `rollBookmarks`, out of this browser's client storage (E08+E28 C4a). At ready. */

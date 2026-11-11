@@ -646,7 +646,8 @@ export async function handleParkMurder(payload, sender, ctx) {
     await eclipse.writeParkedMurder({
         killerId: payload.killerId,
         room: payload.room,
-        note: payload.note
+        note: payload.note,
+        proposed: payload.proposed
     });
 }
 
@@ -665,12 +666,12 @@ export async function handleBetrayal(payload, sender, ctx) {
     const murder = await import("./murder.mjs");
     const { isEclipse, betrayalDeclared } = await import("./eclipse.mjs");
     if (!isEclipse()) {
-        await murder.betrayAsPlayer(payload.actorId);
+        await murder.betrayAsPlayer(payload.actorId, { note: payload.note, proposed: payload.proposed });
         return;
     }
     if (!murder.betrayalTarget(game.actors.get(payload.actorId))) return { refused: "that cannot be done now" };
     if (betrayalDeclared(payload.actorId)) return { refused: "that betrayal is already declared" };
-    const parked = await murder.betrayAsPlayer(payload.actorId, { note: payload.note });
+    const parked = await murder.betrayAsPlayer(payload.actorId, { note: payload.note, proposed: payload.proposed });
     if (!parked) return { refused: "nothing was carried out: betrayAsPlayer parked nothing" };
     return { reply: true };
 }

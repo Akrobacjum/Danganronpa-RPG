@@ -504,8 +504,18 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
         await dorm.setFlag("${MOD}", V.VAULT_FLAGS.stashes, [{ actorId: aiko.id, concealed: true }]);
         await V.reconcileBedroomKeys({ silent: true });
         await trustedWrite(aiko, { "system.resources.hitPoints.value": 2, "system.resources.stress.value": 2, "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+        /* E95 C2: two bodies on the map - Daichi's, a tile of his current death where his token stands (the data body-tile.mjs
+           \`leaveBody\` lays, laid here whatever the death's state, as the reset removes every body tile), and an orphan's,
+           of a student no longer in the world - and a tile that is no body. */
+        const B = await import("${repoUrl}/scripts/body-tile.mjs"); const { deathRecord } = await import("${repoUrl}/scripts/settings.mjs");
+        const academy = game.scenes.get("${IDS.scene}"), daichi = game.actors.get("${IDS.daichi}");
+        const daichiToken = academy.tokens.find(t => t.actorId === daichi.id);
+        await academy.createEmbeddedDocuments("Tile", [B.bodyTileSpec({ tokenDoc: daichiToken, actorId: daichi.id, record: deathRecord(daichi), at: 1 }),
+            B.bodyTileSpec({ tokenDoc: daichiToken, actorId: "S65GONESTUDENT00", at: 2 }),
+            { x: 0, y: 0, width: 100, height: 100, texture: { src: null }, flags: { "${MOD}": { s65Plain: true } } }]);
         const r = aiko.system.resources;
-        return { offers: L.offerList(S.offerStore.get(aiko.id)).length, armed: Boolean(armed),
+        return { bodyTiles: game.scenes.reduce((n, s) => n + s.tiles.filter(t => t.getFlag("${MOD}", "bodyOf")).length, 0),
+            plainTiles: academy.tiles.filter(t => t.getFlag("${MOD}", "s65Plain")).length, offers: L.offerList(S.offerStore.get(aiko.id)).length, armed: Boolean(armed),
             calls: ["${IDS.aiko}", "${IDS.botan}", "${IDS.chie}", "${IDS.daichi}"].filter(id => game.actors.get(id).getFlag("${MOD}", "pendingCall")).length,
             finalTrial: getClock().finalTrial, season: getClock().season ?? null, key: V.keysHeldBy(aiko).has("Dorm A"),
             stash: V.stashesIn("Dorm A", game.scenes.get("${IDS.scene}")),
@@ -513,7 +523,7 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
     check("D1: the season to reset - Chie's suicide at Stage 6 and alive, an offer for Aiko, a Call armed on Botan, the Final Trial, Aiko's key to Dorm A and her stash there hidden",
         suicide.stage === "resolution" && suicide.self === true && suicide.dead === false && season.offers === 1 && season.armed && season.calls === 1
             && season.finalTrial === true && season.season === 1 && season.key === true && J(season.sheet) === J([2, 2, 0])
-            && J(season.stash) === J([{ actorId: IDS.aiko, concealed: true }]),
+            && J(season.stash) === J([{ actorId: IDS.aiko, concealed: true }]) && season.bodyTiles === 2 && season.plainTiles === 1,
         J({ suicide, season }), { flow: "season-reset" });
 
     /* ------------------------------ R. the reset ------------------------------ */
@@ -574,7 +584,9 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
             castAnswer, stayed: result?.stayed ?? null, at: { before: atBefore, after: at() }, castCards: castCards() - castCardsBefore,
             warned: globalThis.__notifications.slice(told).filter(n => n.level === "warn").map(n => n.msg),
             experiences: { aiko: experiences("${IDS.aiko}"), botan: experiences("${IDS.botan}"), listed: aiko.getFlag("${MOD}", "levelUpExperiences") ?? null },
-            left: result?.left ?? null, leftCards: leftCards().slice(leftCardsBefore), notRun: result?.notRun ?? null };`;
+            left: result?.left ?? null, leftCards: leftCards().slice(leftCardsBefore), notRun: result?.notRun ?? null,
+            bodyTiles: game.scenes.reduce((n, s) => n + s.tiles.filter(t => t.getFlag("${MOD}", "bodyOf")).length, 0),
+            plainTiles: game.scenes.get("${IDS.scene}").tiles.filter(t => t.getFlag("${MOD}", "s65Plain")).map(t => t.id) };`;
     const RESET = resetRun();
     const reset = await gm.eval(`${RESET} return read;`, { timeout: 120000 });
     // E11 C1: the `bodyFound` group clears the season's stamps of the bodies found too (`stamped`: the chapters stamped before, after).
@@ -636,6 +648,12 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
             && J(reset.left) === J([{ name: "Botan Kage", experiences: ["Night Owl", "65 Botan's of 1.2.72"] }])
             && reset.leftCards.length === 1 && ["Botan Kage", "Night Owl", "65 Botan"].every(word => leftCard.includes(word)) && !leftCard.includes("Aiko"),
         J({ season, reset: { experiences: reset.experiences, left: reset.left, leftCards: reset.leftCards } }), { flow: "season-reset" });
+    /* E95 C2 (QUESTIONS Q7: the tile's reset entry is the "deaths" group): the two body tiles D laid - Daichi's and an
+       orphan's - are gone from every scene, and the tile that is no body stands. Red at E95 C1: both body tiles stood. */
+    check("R9: the reset leaves no body tile on any scene - Daichi's nor an orphan's - and keeps a tile that is no body (E95 C2)",
+        season.bodyTiles === 2 && reset.bodyTiles === 0 && reset.plainTiles.length === 1, J({ before: [season.bodyTiles, season.plainTiles], after: [reset.bodyTiles, reset.plainTiles] }), { flow: "season-reset" });
+    await gm.eval(`const s = game.scenes.get("${IDS.scene}"); const ids = s.tiles.filter(t => t.getFlag("${MOD}", "s65Plain")).map(t => t.id);
+        if (ids.length) await s.deleteEmbeddedDocuments("Tile", ids); return ids.length;`);
 
     /* ------------------------------ F. a step that fails ------------------------------ */
     phase("F: a reset whose chat deletion throws", { flow: "season-reset" });

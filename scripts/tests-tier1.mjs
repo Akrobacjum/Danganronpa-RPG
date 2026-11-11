@@ -7579,7 +7579,7 @@ const INVARIANTS = [
             "a denied reversal was let through or refused for another reason, or the third's offered one was refused, or the list was not asked of the state given");
     }],
 
-    ["R212 - a roll that lists several statistics asks a GM, and only then", async () => {
+    ["R212 - a roll that lists several statistics asks a GM, and only then; the player's proposal is held to the list and the GM approves or changes it", async () => {
         /*
          * E32+E07 C11b, 02.10.2026; audit S04-23 (the owner's Q4 as corrected on 28.09).
          * `traitFor` (trait-ruling.mjs) decides who picks a roll's statistic: one listed
@@ -7590,6 +7590,18 @@ const INVARIANTS = [
          * asking, each noting that it was asked), with the lists read from config: Pin (Body),
          * Attack with a weapon (Body / Hand / Leg), a trap victim's Leave a clue (Body / Hand /
          * Leg, Body first since E16 part 2 C5), and a kind that is none. Pure; nothing is written.
+         * Rewritten in E68 C1 (10.11.2026; DA18, the player proposes and the GM approves): the
+         * same eight answers, and then (1) a proposal handed beside the seams reaches whoever is
+         * asked, off the list dropped and its words trimmed to `PROPOSAL_NOTE_MAX`, and the answer
+         * says "approved" or "changed" (`byGm`) - Hand proposed, the GM's Hand and Leg, on both
+         * browsers; (2) the GM's judgement of a packet's proposal (bridge-guards.mjs
+         * `guardTraitRuling`, asked as a player's ask about a character of this world, which reads
+         * the world and writes nothing): one off the list and words past the bound are refused with
+         * their reasons, an honest one goes on to the guard's other checks; (3) the buttons the card
+         * and the GM's window offer (`proposalChoices`): "Approve: Hand" first, then "Change to" Body
+         * and Leg, and with no proposal one per statistic; (4) read in the source, the two roads that
+         * hold it: `rulePickTrait` holds the pressed trait to the list before it answers, and the
+         * bridge's row passes `proposed` and `note`. Red at c431138a (E95 C4's tip): the proposal's functions are not exported.
          */
         const T = await import("./trait-ruling.mjs");
         const A = { id: "R212ACTOR0000001", name: "R212" };
@@ -7616,6 +7628,339 @@ const INVARIANTS = [
             [pick("body", false), pick("leg", true), pick("body", false), pick("hand", true), null, null, pick("body", true), null],
             [["gms", "weaponAttack"], ["here", "weaponAttack"]]
         ]), "a roll did not take its one trait, or several did not go to a GM, or Resolve was asked, or an answer off the list was rolled (answers, who was asked)");
+
+        const heard = [];
+        const hear = answer => async (actor, spec, listed, proposal) => { heard.push(proposal ?? listed); return answer; };
+        const long = "x".repeat(T.PROPOSAL_NOTE_MAX + 40);
+        const proposed = [
+            await T.traitFor(A, attack, seams({ proposed: "hand", note: "  through the gap  ", askGms: async (a, s, p) => { heard.push(p); return "hand"; } })),
+            await T.traitFor(A, attack, seams({ proposed: "hand", note: long, askGms: async (a, s, p) => { heard.push(p); return "leg"; } })),
+            await T.traitFor(A, attack, seams({ proposed: "hand", isGm: true, pickHere: hear("hand") })),
+            await T.traitFor(A, attack, seams({ proposed: "hand", isGm: true, pickHere: hear("body") })),
+            await T.traitFor(A, attack, seams({ proposed: "eye", askGms: async (a, s, p) => { heard.push(p); return "body"; } }))
+        ];
+        equal(JSON.stringify([proposed, heard.map(p => [p.proposed, p.note.length])]), JSON.stringify([
+            [pick("hand", "approved"), pick("leg", "changed"), pick("hand", "approved"), pick("body", "changed"), pick("body", true)],
+            [["hand", 15], ["hand", T.PROPOSAL_NOTE_MAX], ["hand", 0], ["hand", 0], [null, 0]]
+        ]), "a proposal did not reach whoever was asked as it should (off the list dropped, the words trimmed), or the answer did not say approved or changed (answers; proposal and words' length heard)");
+
+        const listed = ["body", "hand", "leg"];
+        const { guardTraitRuling } = await import("./bridge-guards.mjs");
+        const someone = game.actors.find(a => a.type === "character") ?? null;
+        must(someone, "the world holds no character to ask about - this would measure nothing");
+        const OFF = "that statistic is not one the roll lists", LONG = "the note is longer than a player's words may be";
+        const judge = more => guardTraitRuling({ isGM: false, id: "R212PLAYER000001" }, { actorId: someone.id, kind: "crisis", key: "weaponAttack", variant: null, ...more }, {});
+        const judged = [await judge({ proposed: "eye" }), await judge({ proposed: "hand", note: long }), await judge({ proposed: "hand", note: "quietly" }),
+            await judge({ proposed: null, note: null })];
+        equal(JSON.stringify([judged[0], judged[1], judged.slice(2).map(why => why !== OFF && why !== LONG)]), JSON.stringify([OFF, LONG, [true, true]]),
+            "the GM's guard let a proposal off the list or words past the bound through, or refused an honest one for them (off the list, long; honest and none past both)");
+
+        const choices = list => list.map(c => [c.trait, c.how, c.label.startsWith(game.i18n.format("DRPG.TraitRuling.approve", { stat: "" }).trim())
+            || c.label.startsWith(game.i18n.format("DRPG.TraitRuling.change", { stat: "" }).trim())]);
+        equal(JSON.stringify([choices(T.proposalChoices(A, listed, "hand")), choices(T.proposalChoices(A, listed, null)), choices(T.proposalChoices(A, listed, "eye"))]),
+            JSON.stringify([[["hand", "approve", true], ["body", "change", true], ["leg", "change", true]],
+                [["body", "pick", false], ["hand", "pick", false], ["leg", "pick", false]], [["body", "pick", false], ["hand", "pick", false], ["leg", "pick", false]]]),
+            "the card's buttons are not Approve first and a Change to for each other listed statistic, or one per statistic with no proposal (Hand proposed, none, Eye off the list)");
+
+        const sources = new Map(await otherSources());
+        const clean = file => stripComments(sources.get(file) ?? "");
+        const ruleFn = fnSource(clean("messenger-app.mjs"), "rulePickTrait");
+        const listGuard = ruleFn.indexOf("listedTraits(spec).includes(data.trait)"), answered = ruleFn.indexOf("answerTraitRuling(");
+        const row = bodyOf(clean("bridge-table.mjs"), "[ACTION_TRAIT_RULING]: {", { until: "run: handleTraitRuling" });
+        equal(JSON.stringify([listGuard > -1 && answered > listGuard, /proposed:\s*as\.maybeText/.test(row) && /note:\s*as\.maybeText/.test(row)]),
+        JSON.stringify([true, true]),
+            "a road that holds the proposal is missing (rulePickTrait holds the trait to the list before it answers, the bridge's row passes proposed and note)");
+    }],
+    ["R3332 - a statistic card under the kind action is asked only for an action a card is read for: Search, and no other", async () => {
+        /*
+         * E68 review R7, 10.11.2026. Kind `action` was opened for Search (E68 C6), and the GMs' guard
+         * (bridge-guards.mjs `guardTraitRuling`) took any action of the table that lists two statistics or more
+         * under it, so a console's `trait.ruling { kind: "action", key: "project" }` put a "Work on Project" card
+         * with four buttons in its thread, which no roll reads (roll-draw.mjs `pickSpecOf` names a project by kind
+         * `project`). The guard judged for a player on a character of the world: kind `action` with Search, a
+         * Project, a Sabotage and Search as `generic` (the control: another kind, not this rule's); the reason
+         * Project's refusal gives, as the bridge's table names it. Pure; nothing is posted. Red at 0e13ee8f:
+         * Project and Sabotage passed the guard (null, or the clock's "that cannot be done now").
+         */
+        const { guardTraitRuling, REASON_PATTERNS } = await import("./bridge-guards.mjs");
+        const { CARD_ACTIONS } = await import("./trait-ruling.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const someone = game.actors.find(a => a.type === "character") ?? null;
+        must(someone, "the world holds no character to ask about - this would measure nothing");
+        must((ACTIONS.project?.traits ?? []).length > 1 && (ACTIONS.sabotage?.traits ?? []).length > 1,
+            "a Project or a Sabotage lists one statistic here - the guard's list check would refuse it alone, and this would measure nothing");
+        const OFF = "that action is not one a card picks a statistic for";
+        const judge = (kind, key) => guardTraitRuling({ isGM: false, id: "R3332PLAYER00001" }, { actorId: someone.id, kind, key, variant: null }, {});
+        const judged = [await judge("action", "search"), await judge("action", "project"), await judge("action", "sabotage"), await judge("generic", "search")];
+        const kindOf = why => REASON_PATTERNS.find(([, re]) => re.test(why))?.[0] ?? null;
+        equal(JSON.stringify([CARD_ACTIONS, judged.map(why => why === OFF), kindOf(OFF)]), JSON.stringify([["search"], [false, true, true, false], "badRequest"]),
+            "the guard took a statistic card under the kind action for an action other than Search, or refused Search, or its reason is not the bridge's (the keys a card is read for; per ask, refused as not one; the reason's kind)");
+    }],
+    ["R3150 - the valve approves a proposal only with its setting on, in Daily Life, outside the incident and for its scope, by the click's road, and its ruling says so", async () => {
+        /*
+         * E68 C2, 10.11.2026; DA41 = 2, DA50 = 1 (the planned R-next (a)). The world setting `autoApproveTraits`, off by
+         * default, approves a player's proposal of a statistic with no GM's press (trait-ruling.mjs `autoApprovableIn`).
+         * Read: the setting is registered for the world, off; the valve's answer for each of seven definitions in Daily
+         * Life with the setting on - a Search and a project, its scope; a crisis action, a trap victim's table, an opening,
+         * a clean-up and an action of the generic table, outside it - and a Search with the setting off, in the
+         * Investigation, in the Night Eclipse and in an incident; `traitFor` on a GM's browser with the valve open takes
+         * the proposal with no window, and with it shut opens the window; and in the source the primary presses the card
+         * only behind `autoApprovable` and through `pressCard`, and `rulePickTrait` writes `auto` only from the valve's own
+         * call (`data.auto === "1"`). Pure; nothing is written. Red at C1's tip: `autoApprovableIn` is not exported.
+         */
+        const T = await import("./trait-ruling.mjs");
+        const { SETTINGS } = await import("./settings.mjs");
+        const { MODULE_ID } = await import("./config.mjs");
+        const setting = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.autoApproveTraits}`) ?? null;
+        const day = { on: true, phase: "dailyLife", eclipse: false, incident: false };
+        const search = { kind: "action", key: "search" };
+        const specs = [search, { kind: "project", key: "P" }, { kind: "crisis", key: "weaponAttack" }, { kind: "crisis", key: "leaveClue", variant: "indirectVictim" },
+            { kind: "opening", key: "killer" }, { kind: "cleanup", key: "cleanup" }, { kind: "generic", key: "search" }];
+        const states = [{ ...day, on: false }, { ...day, phase: "investigation" }, { ...day, eclipse: true }, { ...day, incident: true }];
+        equal(JSON.stringify([setting?.scope ?? null, setting?.default ?? null, specs.map(s => T.autoApprovableIn(s, day)), states.map(st => T.autoApprovableIn(search, st))]),
+            JSON.stringify(["world", false, [true, true, false, false, false, false, false], [false, false, false, false]]),
+            "the valve's setting is not a world setting off by default, or it approves outside its scope, or outside Daily Life with the setting on (scope, default; per definition in the day; a Search with it off, in the Investigation, the Eclipse, an incident)");
+
+        const A = { id: "R3150ACTOR000001", name: "R3150" };
+        const windows = [];
+        const seams = open => ({ isGm: true, resolveArmed: () => false, autoApprovable: async () => open, proposed: "hand",
+            pickHere: async () => { windows.push(open); return "leg"; } });
+        const attack = { kind: "crisis", key: "weaponAttack" };
+        equal(JSON.stringify([await T.traitFor(A, attack, seams(true)), await T.traitFor(A, attack, seams(false)), windows]),
+            JSON.stringify([{ trait: "hand", byGm: "approved" }, { trait: "leg", byGm: "changed" }, [false]]),
+            "a GM's own proposal with the valve open opened a window or was not approved, or with it shut was not asked (open, shut, windows opened)");
+
+        const sources = new Map(await otherSources());
+        const clean = file => stripComments(sources.get(file) ?? "");
+        const card = fnSource(clean("call-gm.mjs"), "askTraitByCard"), rule = fnSource(clean("messenger-app.mjs"), "rulePickTrait");
+        equal(JSON.stringify([/const auto = Boolean\(proposed\) && \(await autoApprovable\(spec\)\)/.test(card), /if \(!auto[^)]*\) return;[\s\S]*pressCard\(message, "pickTrait"/.test(card),
+            /const auto = data\.auto === "1";/.test(rule), /\.\.\.\(auto \? \{ auto: true \} : \{\}\)/.test(rule)]),
+        JSON.stringify([true, true, true, true]),
+            "the primary presses a card past the valve or by another road, or the ruling's auto is read from anything but the valve's own call (asked, pressed by pressCard, auto read, auto kept)");
+
+        /*
+         * E68 fix round, 10.11.2026: the setting's hint told a GM "Resolve always asks a GM", but an armed Resolve asks
+         * nobody (C7; the GM handbook's who-picks table). Read in both languages: the hint does not put Resolve among
+         * what asks a GM, and says Resolve asks nobody. Red at a5ebfeaa: both hints listed Resolve with the fights.
+         */
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const hints = [game.i18n.localize("DRPG.Settings.autoApproveTraits.hint"), pl?.DRPG?.Settings?.autoApproveTraits?.hint ?? ""];
+        equal(JSON.stringify(hints.map((h, i) => [/Resolve[^.;]*(always ask|zawsze pyta)/i.test(h), (i ? /Resolve nie pyta nikogo/ : /Resolve asks nobody/).test(h)])),
+            JSON.stringify([[false, true], [false, true]]),
+            "the valve's hint says Resolve asks a GM, or does not say it asks nobody (EN, PL: [asks a GM, asks nobody])");
+    }],
+    ["R3151 - where a roll's statistic comes from, per source: Search Eye with no card, a Find Passage Head, a part only where its action names one, a told part over the packet's, Resolve any", async () => {
+        /*
+         * E68 C3, 10.11.2026; DA18, DA49, amend [0] (the planned R-next (b)). The GM's reading of what a drawn roll's
+         * statistic must be (roll-draw.mjs `expectedFor`, its `TRAIT_SOURCES`), asked of a character of this world for
+         * roll shapes that need no card: a Search (`search`, Eye), an Analyze thrown as a Find Passage (`fixed`, Head),
+         * an Analyze and an Observe naming a part their action does not have (`fixed`, the action whole), an Analyze
+         * naming a part that names Eye - planted on this browser's config for the test and taken off after, since no
+         * action outside a Palm has one at 1.2.104 - (`fixed`, Eye), a Palm's cover told as "palm" naming the rummage's
+         * part (`fixed`, Shadow: `TOLD_AS` over the packet), and an Observe with Resolve applied (`resolve`, any). And in
+         * the source: the packet's context carries `part`, a Search's card is asked under `{ kind: "action", key:
+         * "search" }`, and the `search` row reads a GM's card (`gmPickOf`). What a card makes of a Search is tier 2's
+         * ("a Search's statistic ..."). Reads only; the planted part is in memory. Red at C2's tip: the planted part was
+         * not read (Head).
+         */
+        const D = await import("./roll-draw.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const actor = game.actors.find(a => a.type === "character") ?? null;
+        must(actor, "the world holds no character to read - this would measure nothing");
+        const of = async (actionKey, context = {}, applied = []) => {
+            const e = await D.expectedFor(actor, { actionKey, context, applied });
+            return [e.trait ?? null, e.traitFrom ?? null];
+        };
+        const had = Object.hasOwn(ACTIONS.analyze, "r3151Part");
+        must(!had, "config already has the part this test plants - this would measure nothing");
+        let read;
+        ACTIONS.analyze.r3151Part = { trait: "eye" };
+        try {
+            read = [await of("search"), await of("analyze", { findPassage: true }), await of("analyze", { part: "unseen" }), await of("observe", { part: "nonsense" }),
+                await of("analyze", { part: "r3151Part" }), await of("palm", { part: "rummage" }), await of("observe", {}, [{ grants: "trait" }])];
+        } finally {
+            delete ACTIONS.analyze.r3151Part;
+        }
+        equal(JSON.stringify(read), JSON.stringify([["eye", "search"], ["head", "fixed"], ["head", "fixed"], ["eye", "fixed"], ["eye", "fixed"],
+            ["shadow", "fixed"], [null, "resolve"]]),
+            "a roll's statistic was not read from its source (Search, Find Passage, a part the action lacks twice, a part that names one, a told part, Resolve)");
+
+        const sources = new Map(await otherSources());
+        const src = stripComments(sources.get("roll-draw.mjs") ?? "");
+        const sent = bodyOf(src, "const CONTEXT_SENT = Object.freeze({", { until: "});" });
+        const spec = fnSource(src, "pickSpecOf");
+        const search = bodyOf(src, '{ from: "search", read:', { until: '{ from: "project"' });
+        equal(JSON.stringify([/\bpart: "text"/.test(sent), /key === "search"\) return \{ kind: "action", key: "search"/.test(spec), /gmPickOf\(actor, spec, listed\)/.test(search)]),
+            JSON.stringify([true, true, true]),
+            "the packet's context does not carry part, or a Search's card is asked under another definition, or the search row reads no card (part sent, the spec, the card read)");
+    }],
+    ["R3152 - Stage 6 rolls Shadow and asks nobody: every clean-up step but Move the Body lists Shadow alone, the ruling answers it with no card and no window on a player's browser and a GM's, Move the Body stays Body, and the GM's draw holds a clean-up to Shadow (E68 C5; DA4)", async () => {
+        /*
+         * E68 C5, 10.11.2026; DA4 (the planned R-next (c)). The definitions a clean-up is asked under (trait-ruling.mjs
+         * `listedTraits`, kind `cleanup`: the clean-up itself and each of `CLEANUP.actions`), and `traitFor` for each with
+         * the two ways of asking replaced by seams that note any ask - as a player's browser and as a GM's, Resolve not
+         * armed. Then what the GM's draw expects of a clean-up (roll-draw.mjs `expectedFor`): an erase and a trail, each
+         * Shadow from the `fixed` row, so a claim of Hand is flagged. Pure; nothing is written. Red at C4's tip: the steps
+         * listed Shadow / Hand / Head and both browsers asked.
+         */
+        const T = await import("./trait-ruling.mjs");
+        const D = await import("./roll-draw.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        const actor = game.actors.find(a => a.type === "character") ?? null;
+        must(actor, "the world holds no character to read - this would measure nothing");
+        const keys = ["cleanup", ...Object.keys(CLEANUP.actions ?? {}).filter(k => CLEANUP.actions[k]?.label)];
+        must(keys.includes("eraseTrace") && keys.includes("moveBody"), `the clean-up's steps are ${keys.join(", ")} - this would measure nothing`);
+        const asked = [];
+        const seams = isGm => ({ isGm, resolveArmed: () => false, autoApprovable: async () => false,
+            askGms: async (a, spec) => { asked.push(["player", spec.key]); return "hand"; },
+            pickHere: async (a, spec) => { asked.push(["gm", spec.key]); return "hand"; } });
+        const read = [];
+        for (const key of keys) {
+            const spec = { kind: "cleanup", key };
+            read.push([key, T.listedTraits(spec), await T.traitFor(actor, spec, seams(false)), await T.traitFor(actor, spec, seams(true))]);
+        }
+        const expected = keys.map(key => [key, key === "moveBody" ? ["body"] : ["shadow"],
+            { trait: key === "moveBody" ? "body" : "shadow", byGm: false }, { trait: key === "moveBody" ? "body" : "shadow", byGm: false }]);
+        equal(JSON.stringify([read, asked]), JSON.stringify([expected, []]),
+            "a clean-up step does not list Shadow alone (Move the Body Body), or the ruling asked a GM for one (per step: listed, a player's answer, a GM's; the asks)");
+        const of = async cleanupKey => {
+            const e = await D.expectedFor(actor, { actionKey: "cleanup", context: { cleanupKey } });
+            return [e.trait ?? null, e.traitFrom ?? null];
+        };
+        equal(JSON.stringify([await of("eraseTrace"), await of("misleadingTrail")]), JSON.stringify([["shadow", "fixed"], ["shadow", "fixed"]]),
+            "the GM's draw does not hold an erase or a trail to Shadow from the fixed row, so Hand would not be flagged (erase, trail)");
+    }],
+    ["R3153 - Resolve costs 2 Hope and asks nobody: no GM rules it, it grants the statistic, its effect says any statistic with nobody asked in both languages, and armed it answers a definition of several and one of one with no card or window (E68 C7; DA37)", async () => {
+        /*
+         * E68 C7, 10.11.2026; DA37 = 1 (the planned R-next (d)). config.mjs HOPE_CALLS.determination: its price, its
+         * `grants`, no `needsGm`; the effect's English (config) and Polish (lang, `DRPG.Config.HOPE_CALLS.determination.effect`)
+         * name any statistic and nobody asked. Then `traitFor` with Resolve armed (the seam) for Attack with a weapon
+         * (three listed) and for Observe (one): the first listed, `byGm` false, and neither way of asking called. Pure.
+         * Red at C6's tip: the price was 3 and the effect said "choose which statistic to add".
+         */
+        const T = await import("./trait-ruling.mjs");
+        const { HOPE_CALLS, MODULE_ID } = await import("./config.mjs");
+        const call = HOPE_CALLS.determination;
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const polish = pl?.DRPG?.Config?.HOPE_CALLS?.determination?.effect ?? "";
+        equal(JSON.stringify([call?.cost, call?.grants, Boolean(call?.needsGm), /any statistic/.test(call?.effect ?? "") && /nobody is asked/.test(call?.effect ?? ""),
+            /dowoln/.test(polish) && /nikt nie jest pytany/.test(polish)]), JSON.stringify([2, "trait", false, true, true]),
+            "Resolve's price is not 2, it grants no statistic, a GM rules it, or its effect does not say any statistic with nobody asked (cost, grants, needsGm, English, Polish)");
+        const asked = [];
+        const seams = { resolveArmed: () => true, askGms: async () => { asked.push("player"); return null; }, pickHere: async () => { asked.push("gm"); return null; } };
+        const A = { id: "R3153ACTOR000001", name: "R3153" };
+        const read = [await T.traitFor(A, { kind: "crisis", key: "weaponAttack" }, { ...seams, isGm: false, proposed: "leg" }),
+            await T.traitFor(A, { kind: "crisis", key: "weaponAttack" }, { ...seams, isGm: true }), await T.traitFor(A, { kind: "action", key: "observe" }, { ...seams, isGm: false })];
+        const first = T.listedTraits({ kind: "crisis", key: "weaponAttack" })[0], observe = T.listedTraits({ kind: "action", key: "observe" })[0];
+        equal(JSON.stringify([read, asked]), JSON.stringify([[{ trait: first, byGm: false }, { trait: first, byGm: false }, { trait: observe, byGm: false }], []]),
+            "an armed Resolve asked somebody or did not leave the pick to the roll window (several on a player's browser, on a GM's, one; the asks)");
+    }],
+    ["R3330 - the handbooks' statistic tables say what config.mjs lists: the ten tiles' Statistic column, the who-picks table's statistics and the crisis table's rolls, in both languages (E68 C14)", async () => {
+        /*
+         * E68 C14, 10.11.2026. The ten tiles' table in GM handbook ch. 5 had said Search rolled Eye for a year after E68 C6
+         * gave it six, and nothing read it. Held to config.mjs here, in English and in Polish, by position (the Polish table
+         * has Polish names): the tiles' Statistic column (one listed statistic: that one's name; Search: its first, with
+         * six listed behind "another"; Palm: its cover, then its hand; Project, Dynamic, Rest and Direct Murder name none),
+         * the who-picks table (Search's count and its first; the openings' two lists; the clean-up's and Move the Body's
+         * statistic; a Take from a body's roll and its cover's statistic and threshold, `LOOT`, read since e68-body's merge),
+         * and the crisis table's Roll column
+         * against `CRISIS_ACTIONS` in config order (the statistics joined by "/", the threshold after a space, "no roll"
+         * where none). Read off the files the module serves, not the tree.
+         */
+        const C = await import("./config.mjs");
+        const { MODULE_ID, ACTIONS, CRISIS_ACTIONS, MURDER_OPENING, CLEANUP, LOOT } = C;
+        must(LOOT?.trait && LOOT.cover?.trait && LOOT.cover.threshold, "config.mjs has no LOOT with a roll and a cover - this would measure nothing");
+        const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
+        const NAMES = ["Eye", "Head", "Body", "Leg", "Hand", "Shadow"];
+        const named = cell => NAMES.filter(n => new RegExp(`\\b${n}\\b`).test(cell));
+        const tableAfter = (text, headerStart) => {
+            const lines = text.split("\n"), at = lines.findIndex(l => l.startsWith(headerStart));
+            must(at >= 0, `no table whose header starts "${headerStart}"`);
+            const out = [];
+            for (let i = at + 2; i < lines.length && lines[i].startsWith("|"); i++) out.push(lines[i].split("|").slice(1, -1).map(c => c.trim()));
+            return out;
+        };
+        const wrong = [];
+        let read = 0;
+        for (const lang of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/gm-handbook.${lang}.md`);
+            must(res.ok, `gm-handbook.${lang}.md did not load`);
+            const text = await lfText(res);
+            const word = lang === "en" ? { then: "then", another: "another" } : { then: "potem", another: "inna" };
+            // The ten tiles.
+            const keys = ["search", "observe", "analyze", "project", "dynamic", "rest", "listen", "palm", "tamper", "directMurder"];
+            const tiles = tableAfter(text, lang === "en" ? "| Action | Statistic |" : "| Akcja | Statystyka |");
+            if (tiles.length !== keys.length) wrong.push(`${lang}: ${tiles.length} tile rows, expected ${keys.length}`);
+            keys.forEach((key, i) => {
+                const cell = tiles[i]?.[1] ?? "", traits = ACTIONS[key]?.traits ?? [];
+                read++;
+                if (key === "palm") { if (!cell.startsWith(`${cap(ACTIONS.palm.unseen.trait)}, ${word.then} ${cap(traits[0])}`)) wrong.push(`${lang} ${key}: "${cell}"`); }
+                else if (key === "search") { if (!(cell.startsWith(cap(traits[0])) && traits.length > 1 && cell.includes(word.another))) wrong.push(`${lang} ${key}: "${cell}" for ${traits.length} listed, first ${traits[0]}`); }
+                else if (traits.length === 1) { if (cell !== cap(traits[0])) wrong.push(`${lang} ${key}: "${cell}", config lists ${traits[0]}`); }
+                else if (named(cell).length) wrong.push(`${lang} ${key}: "${cell}" names a statistic`);
+            });
+            // Who picks.
+            const picks = tableAfter(text, lang === "en" ? "| Roll | Statistics it lists |" : "| Rzut | Wymieniane statystyki |");
+            const rowOf = n => picks[n]?.[1] ?? "";
+            read += 5;
+            if (ACTIONS.search.traits.length !== 6 || !/six|sześć/.test(rowOf(0)) || named(rowOf(0)).join() !== cap(ACTIONS.search.traits[0])) wrong.push(`${lang} who-picks Search: "${rowOf(0)}" for ${ACTIONS.search.traits.length} listed, first ${ACTIONS.search.traits[0]}`);
+            const opening = rowOf(4);
+            for (const [who, def] of [["killer", MURDER_OPENING.killer], ["victim", MURDER_OPENING.victim]]) {
+                if (!def.traits.every(t => opening.includes(cap(t))) || named(opening).length !== 4) wrong.push(`${lang} who-picks opening ${who}: "${opening}"`);
+            }
+            const clean = rowOf(5);
+            if (!clean.includes(cap(CLEANUP.traits[0])) || !clean.includes(cap(CLEANUP.actions.moveBody.traits[0])) || named(clean).length !== 2) wrong.push(`${lang} who-picks clean-up: "${clean}"`);
+            const loot = rowOf(6), lootWant = [cap(LOOT.trait), cap(LOOT.cover.trait)];
+            if (named(loot).sort().join() !== lootWant.sort().join() || !new RegExp(`\\b${cap(LOOT.cover.trait)} ${LOOT.cover.threshold}\\b`).test(loot)) wrong.push(`${lang} who-picks Take from the Body: "${loot}", config says ${LOOT.trait}, cover ${LOOT.cover.trait} ${LOOT.cover.threshold}`);
+            // The crisis table, in config order.
+            const crisis = tableAfter(text, lang === "en" ? "| Side | Action | Roll |" : "| Strona | Akcja | Rzut |");
+            const defs = Object.values(CRISIS_ACTIONS);
+            if (crisis.length !== defs.length) wrong.push(`${lang}: ${crisis.length} crisis rows, config has ${defs.length}`);
+            defs.forEach((def, i) => {
+                read++;
+                const want = def.traits ? `${def.traits.map(cap).join("/")}${def.threshold ? ` ${def.threshold}` : ""}` : null, cell = crisis[i]?.[2] ?? "";
+                if (want ? cell !== want : !/^(no roll|bez rzutu)$/.test(cell)) wrong.push(`${lang} crisis ${i + 1}: "${cell}", config says ${want ?? "no roll"}`);
+            });
+        }
+        must(read >= 2 * (10 + 5 + Object.keys(CRISIS_ACTIONS).length), `only ${read} cells were read - this would measure nothing`);
+        equal(JSON.stringify(wrong), JSON.stringify([]), "a handbook table's statistics differ from config.mjs (tiles, who picks, crisis rolls)");
+    }],
+    ["R3300 - the killer's opening is proposed with the declaration: the GM's card answers Allow on the proposal, Change to on the other listed statistic and Refuse, a declaration with none or with one off the list a button per listed statistic, and a trap victim's list is never proposed on (E68 C9; S18-10)", async () => {
+        /*
+         * E68 C9, 10.11.2026; S18-10, DA36 = 2. eclipse.mjs `murderAllowChoices` is the declaration's buttons, on C1's
+         * `proposalChoices` with the allowance's words: for a killer proposing Hand, "Allow: Hand (+v)" then "Change to:
+         * Body (+v)"; with no proposal, or Eye (not the killer's), "Allow: {stat}" for Body and Hand. And
+         * murder-rules.mjs `openingProposalFor`: the proposal reaches the killer's side of an opening only - a trap's
+         * victim's opening is the GM's pick (DA36). Pure. Red at 1a0ae5c7: neither function existed.
+         */
+        const E = await import("./eclipse.mjs");
+        const R = await import("./murder-rules.mjs");
+        const { traitWithValue } = await import("./trait-ruling.mjs");
+        const A = { id: "R3300ACTOR000001", name: "R3300", system: { traits: { strength: { value: 1 }, finesse: { value: 2 } } } };
+        const allow = t => game.i18n.format("DRPG.Action.murderAllow", { stat: traitWithValue(A, t) });
+        const change = t => game.i18n.format("DRPG.TraitRuling.change", { stat: traitWithValue(A, t) });
+        const read = choices => (choices ?? []).map(c => [c.trait, c.how, c.label]);
+        equal(JSON.stringify([read(await E.murderAllowChoices(A, "hand")), read(await E.murderAllowChoices(A, null)), read(await E.murderAllowChoices(A, "eye"))]),
+            JSON.stringify([[["hand", "approve", allow("hand")], ["body", "change", change("body")]],
+                [["body", "pick", allow("body")], ["hand", "pick", allow("hand")]], [["body", "pick", allow("body")], ["hand", "pick", allow("hand")]]]),
+            "the declaration's buttons are not Allow on the proposal then Change to, or a button per listed statistic with none or one off the list (Hand, none, Eye)");
+        const proposal = { proposed: "hand", note: "R3300 how" };
+        equal(JSON.stringify([await R.openingProposalFor("killer", proposal), await R.openingProposalFor("victim", proposal), await R.openingProposalFor("killer", { proposed: "eye" }),
+            await R.openingProposalFor("killer", null)]), JSON.stringify([proposal, {}, { proposed: null, note: "" }, {}]),
+            "the opening's proposal does not reach the killer's side alone, bounded to the killer's list (killer, trap victim, off the list, none)");
+    }],
+    ["R3301 - the declaration's proposal travels on the two murder rows: murder.park and murder.betrayal hand the run `proposed` with the rest, and nothing beyond (E68 C9)", async () => {
+        /*
+         * E68 C9, 10.11.2026. A Direct Murder declared in the dark and a betrayal carry the killer's proposal to the GM
+         * (bridge-asks.mjs `requestParkMurder`, `requestBetrayal`); the two rows' whitelists (bridge-table.mjs) pass it
+         * as text or null, and the GM's side reads it against the killer's list (`writeParkedMurder`, `openingProposalFor`).
+         * Read: each row's sanitize on a packet with an extra field. Red at 1a0ae5c7: neither passed `proposed`.
+         */
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const park = BRIDGE_ACTIONS["murder.park"]?.sanitize?.({ killerId: "R3301A", room: "Gym", note: "n", proposed: "hand", extra: 1 });
+        const betray = BRIDGE_ACTIONS["murder.betrayal"]?.sanitize?.({ actorId: "R3301A", note: "n", proposed: "body", extra: 1 });
+        equal(JSON.stringify([park, betray]), JSON.stringify([{ killerId: "R3301A", room: "Gym", note: "n", proposed: "hand" },
+            { actorId: "R3301A", note: "n", proposed: "body" }]), "a murder row dropped the proposal, or passed a field beyond its list (park, betrayal)");
     }],
     ["R216 - a Reroll answered past its clock still counts, and a GM leaving is not the primary", async () => {
         /*
@@ -9959,7 +10304,8 @@ const INVARIANTS = [
         const grep = new Set();
         const { GM_ROUTE_CLASS: GM_ROUTE } = await import("./utils.mjs");
         // E41 C3 (1.2.97): every file of the action family (the kit's ACTION_FAMILY), where action-rolls.mjs alone was read.
-        for (const file of ["day-summary.mjs", "popup.mjs", "secret.mjs", "messenger-app.mjs", "trial.mjs", "safeword.mjs", ...ACTION_FAMILY]) {
+        // E68 C12: ui-columns.mjs too, where the menu's row moved (`choiceRowHtml`) with the columns' own classes.
+        for (const file of ["day-summary.mjs", "popup.mjs", "secret.mjs", "messenger-app.mjs", "trial.mjs", "safeword.mjs", "ui-columns.mjs", ...ACTION_FAMILY]) {
             const src = stripComments(sources.get(file) ?? "");
             must(src.length > 0, `${file} was not read - the class grep would be measured on nothing`);
             for (const m of src.matchAll(/class=(["'])/g)) {
@@ -18804,8 +19150,10 @@ const INVARIANTS = [
             root.insertAdjacentHTML("beforeend", `<footer><button type="button" data-action="ok"><span>${foundry.utils.escapeHTML(cfg.buttons?.[0]?.label ?? "")}</span></button></footer>`);
             cfg.render?.(null, { element: root });
             const button = () => root.querySelector('footer button[data-action="ok"]').textContent;
-            // The ways as drawn, before a radio below is pressed.
-            const modes = [...root.querySelectorAll('.drpg-choice-details[data-drpg-for="frisk"] input[name="friskMode"]')]
+            // The ways as drawn, before a radio below is pressed - inside the window's <form>, which is what palm.mjs
+            // `performPalm` reads the way off (E68 fix CI 77d3e66a: from E68 C12 they stood in the left column's
+            // details, outside the form, and every Unseen was read as Openly).
+            const modes = [...root.querySelectorAll('form [data-drpg-field="frisk"] input[name="friskMode"]')]
                 .map(r => [r.value, r.checked, r.closest("label")?.querySelector("small")?.textContent ?? null]);
             const labels = [];
             for (const radio of root.querySelectorAll('input[name="variant"]')) {
@@ -19047,7 +19395,7 @@ const INVARIANTS = [
         // One of each: a kit window carries `drpg-panel` twice, the caller's and the kit's (E21 C5a); `drpg-prompt` since E23 C5a,
         // an action's declaration (action-menus.mjs `chooseVariant`, R1404).
         equal(stableJson([[...new Set(palm.classes ?? [])], positions, classesOf("openAskWindow"), classesOf("askToForce"), icons.length, glyphless(icons), glyphless(["fa-r623-no-sprite"])]),
-            stableJson([["drpg-panel", "drpg-ui", "drpg-prompt"], [["sticky"], ["sticky"], []], ["drpg-panel"], ["drpg-panel"], 3, [], ["fa-r623-no-sprite"]]),
+            stableJson([["drpg-panel", "drpg-action-window", "drpg-ui", "drpg-prompt", "drpg-kit-width"], [["sticky"], ["sticky"], []], ["drpg-panel"], ["drpg-panel"], 3, [], ["fa-r623-no-sprite"]]),
             "[the Palm window's classes; the footer's position by each rule it matches: the Palm window with its Frisk ways, a table window, a short dialog (the controls); the classes of the target's ask and of 'Make them?'; the Palm rows' icons, those with no pixel glyph, and a name no sprite has (the control)]");
     }],
 
@@ -36470,7 +36818,7 @@ const INVARIANTS = [
         }), "[Observe: the ladders shown, All thresholds (open, its lines, its word); Analyze's bound rows; Tamper's bound facts and a second watchers line; "
             + "Observe's box with its two rows; the menu opens at its top; per theme: a plain fact, a bound one with its row picked and one with another row picked, the facts' size and ink]");
     }],
-    ["R1600 - the briefing beside the list (E21 fix G2; E21-04, the end review's B1), and no action asks for it since 1.2.102 (E96 C1: every action one layout, the owner's 09.11.2026): Observe's menu is drawn without `columns`; action-menus.mjs `chooseVariant` puts the briefing beside the question in a window of a stated width (the popup measure lifted) - and the stylesheets lay the two side by side, stacking them when the window is narrower than both, and show a row's line of explanation while that row is picked (an unavailable row keeps its reason), in both themes", async () => {
+    ["R1600 - the briefing beside the list (E21 fix G2; E21-04, the end review's B1), and every action has it since E68 C12 (layout B of round M for every action window, the owner's 10.11.2026): Observe's menu does not turn `columns` off; action-menus.mjs `chooseVariant` puts the briefing beside the question in a window of a stated width (the popup measure lifted) - and the stylesheets lay the two side by side, stacking them when the window is narrower than both, and show a row's line of explanation while that row is picked (an unavailable row keeps its reason), in both themes", async () => {
         /*
          * E21 fix G2, 07.11.2026. Observe scrolled at 1920x1080 (glass) and 1366x768 (both themes): 1140 px of body in a
          * window the glass held to 544 px, 571 px of it on screen at 1366x768 (measured in Chromium, the fit sweep's still
@@ -36485,19 +36833,24 @@ const INVARIANTS = [
          * the layout the other actions share (`asks` false: it scrolls at 1366x768 again, measured in STATUS E96-C1);
          * the `columns` drawing stays in `chooseVariant`, read here, for E68's one layout after its mockup round. Red on
          * 7175878b: `asks` true.
+         * E68 C12, 10.11.2026: round M drew both layouts and the owner took B, these columns, for every action window;
+         * `chooseVariant` draws them unless a caller asks `columns: false` (Level Up's two questions alone, R3200), and the
+         * window is action-menus.mjs `actionWindow` on ui-columns.mjs's blocks, whose columns carry `drpg-wide-col` too.
+         * `asks` now reads that Observe does not turn them off, and the menu is opened with no `columns` given. Red on
+         * d7dc9749: the default drew one column (no window width, no columns).
          */
         const M = await import("./action-menus.mjs");
         const K = await import("./ui-kit.mjs");
         const sources = new Map(await moduleSources());
         const code = stripComments(sources.get("action-observe.mjs") ?? "");
         must(code.length > 5000, "action-observe.mjs read nothing - this test would read nothing");
-        const read = { asks: /\bcolumns:\s*true\b/.test(fnSource(code, "askDeclaration") ?? "") };
+        const read = { asks: !/\bcolumns:\s*false\b/.test(fnSource(code, "askDeclaration") ?? "") };
         const D = foundry.applications.api.DialogV2;
         const own = Object.getOwnPropertyDescriptor(D, "wait");
         const seen = [];
         D.wait = async cfg => { seen.push(cfg); return null; };
         try {
-            await M.chooseVariant({ actor: null, title: "R1600", intro: '<div class="drpg-briefing-block"><p>R1600</p></div>', prompt: "R1600?", columns: true,
+            await M.chooseVariant({ actor: null, title: "R1600", intro: '<div class="drpg-briefing-block"><p>R1600</p></div>', prompt: "R1600?",
                 options: [{ value: "a", label: "A", hint: "a hint" }, { value: "b", label: "B", hint: "b hint" }] });
         } finally {
             if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
@@ -36527,14 +36880,14 @@ const INVARIANTS = [
         }));
         const yes = { measure: null, columns: ["flex", "wrap"], hints: [null, "none", null] };
         equal(stableJson(read), stableJson({
-            asks: false,
+            asks: true,
             // The stated 1120 px as this screen holds it (ui-kit.mjs `kitWidth`: under the screen less 16 px).
-            window: [K.kitWidth(1120), true, ["drpg-variant-brief", "drpg-variant-ask"], true, true],
+            window: [K.kitWidth(1120), true, ["drpg-wide-col drpg-variant-brief", "drpg-wide-col drpg-variant-ask"], true, true],
             paint: { "drpg-theme-stained-glass": yes, "drpg-theme-monokuma-legacy": yes }
-        }), "[askDeclaration asks for columns; the window chooseVariant asks (its width, the stated-width class, the columns, the briefing first, the list second); per theme: "
+        }), "[askDeclaration leaves the columns on; the window chooseVariant asks (its width, the stated-width class, the columns, the briefing first, the list second); per theme: "
             + "the popup measure on .dialog-content (null: none reaches it), the columns' display and wrap, the hints' display (picked, unpicked, unavailable; null: no rule hides it)]");
     }],
-    ["R121 - A4, red is the GM's road and says so (E22 C5c; E22-02, E22-10, E22-12, audit S02-25, S05-49, S02-49, S03-26, S09-22): every menu row marked `gmRoute` and every footer button the module puts on the GM's road (a `gmRoute` slot, a question's `role: \"gmRoute\"`, `callWindow`'s `gmRoute`) stands in this census - the Tamper menu's Reshape a Trace and its two windows' Leave something else and Reshape it (Erase plain), Observe's two, Analyze's hint, Search's specific, the proposal's row and its one Send, the request window's Send, Experience and Ultimate (`needsGm` alone), Direct Murder's yes - and the sentence beside each names the GM in English and Polish; the Reshape's three say a refusal gives back nothing paid; `GM_ROUTE_CLASS` is utils.mjs's alone and the kit's gmRoute face; the Dynamic action's definition carries `callsGm`, read once, and its briefing says a GM judges it; Analyze's briefing says a GM judges it by the hint row alone, not over Identify, Find Stash or Find Passage, and Find Stash is plain (E22 fix G2, Open 60's default A); the sheet's tile of a Call a GM rules and a Tier 0 item's Use are red with the GM's word, by the flags their windows read; `stripeKindFor` answers the GM's road before a Sanity step", async () => {
+    ["R121 - A4, red is the GM's road and says so (E22 C5c; E22-02, E22-10, E22-12, audit S02-25, S05-49, S02-49, S03-26, S09-22): every menu row marked `gmRoute` and every footer button the module puts on the GM's road (a `gmRoute` slot, a question's `role: \"gmRoute\"`, `callWindow`'s `gmRoute`) stands in this census - the Tamper menu's Reshape a Trace and its two windows' Leave something else and Reshape it (Erase plain), Observe's two, Analyze's hint, Search's specific, the proposal's row and its one Send, the request window's Send, a crisis row that asks a GM for the statistic and a project's statistic proposal (E68 C4), Experience and Ultimate (`needsGm` alone), Direct Murder's yes - and the sentence beside each names the GM in English and Polish; the Reshape's three say a refusal gives back nothing paid; `GM_ROUTE_CLASS` is utils.mjs's alone and the kit's gmRoute face; the Dynamic action's definition carries `callsGm`, read once, and its briefing says a GM judges it; Analyze's briefing says a GM judges it by the hint row alone, not over Identify, Find Stash or Find Passage, and Find Stash is plain (E22 fix G2, Open 60's default A); the sheet's tile of a Call a GM rules and a Tier 0 item's Use are red with the GM's word, by the flags their windows read; `stripeKindFor` answers the GM's road before a Sanity step", async () => {
         /*
          * E22 C5c, 07.11.2026; A4 (the owner's, confirmed live), D11. The Reshape row and its buttons were not red though a
          * GM approves a reshape since N-3, and their texts promised the change at once; `GM_ROUTE_CLASS` was a const of
@@ -36574,6 +36927,9 @@ const INVARIANTS = [
             ["cleanup.mjs#askTransformChange", /gmRoute: \[\{\s*action: "go",\s*label: game\.i18n\.localize\("DRPG\.Cleanup\.transformGo"\)/, "DRPG.Cleanup.transformActionNote"],
             ["action-murder.mjs#performDirectMurder", /yes: \{ role: "gmRoute", label: game\.i18n\.localize\("DRPG\.Dialog\.yes"\) \}/, "DRPG.Action.murderConfirmEclipse"],
             ["calls.mjs#confirmCall", /gmRoute: Boolean\(call\.needsGm\),/, "DRPG.Calls.waitsForGm"],
+            // E68 C4: a crisis row whose statistic a GM approves, and a project's statistic proposal; each sentence says the GM approves.
+            ["action-murder.mjs#openCrisisMenu", /gmRoute: asks\(\{ key, def, free \}\),/, "DRPG.Murder.gmPicksTrait"],
+            ["action-project.mjs#proposeProjectTrait", /gmRoute: \[\{\s*action: "propose",\s*label: game\.i18n\.localize\("DRPG\.TraitRuling\.propose"\)/, "DRPG.TraitRuling.projectBody"],
             // E22 C5d: the safeword's Stop it (R1369); its note says every GM is told.
             ["safeword.mjs#safewordDialog", /gmRoute: \[\{\s*action: "yes",\s*label: game\.i18n\.localize\("DRPG\.Safeword\.stopIt"\)/, "DRPG.Safeword.confirmNote"]
         ];
@@ -37613,10 +37969,12 @@ const INVARIANTS = [
             const bare = stripStrings(code);
             if (/\bPROMPT_CLASS\b|drpg-prompt/.test(code)) naming.push(file);
             if (file !== "action-menus.mjs" && /\bchooseVariant\(\{/.test(bare)) menus.push(file);
-            for (const m of bare.matchAll(/\bdrpgWindow\(\{/g)) {
+            // `(columns ? actionWindow : drpgWindow)({`, `chooseVariant`'s one call since E68 C12 (its window an action's or,
+            // for Level Up, the plain one), is read as a drpgWindow call too: the scan starts at the "(" before the "{".
+            for (const m of bare.matchAll(/\bdrpgWindow\)?\(\{/g)) {
                 if (/function drpgWindow\($/.test(bare.slice(Math.max(0, m.index - 20), m.index + 11))) continue;
                 calls += 1;
-                let depth = 0, end = m.index + "drpgWindow".length;
+                let depth = 0, end = m.index + m[0].length - 2;
                 for (; end < bare.length; end++) {
                     if ("([{".includes(bare[end])) depth++;
                     else if (")]}".includes(bare[end]) && --depth === 0) break;
@@ -37673,9 +38031,9 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({
             keep: [".application.drpg-prompt", "drpg-prompt", false],
             kit: [[false, false], [true, false]],
-            asking: ["action-menus.mjs chooseVariant", "action-menus.mjs promptForNote", "call-gm.mjs askForRequest", "frisk.mjs askToForce", "frisk.mjs openAskWindow",
+            asking: ["action-menus.mjs chooseVariant", "action-menus.mjs promptForNote", "action-project.mjs proposeProjectTrait", "call-gm.mjs askForRequest", "frisk.mjs askToForce", "frisk.mjs openAskWindow",
                 "level-up.mjs askWhoPicks", "level-up.mjs openAdvancement", "observe.mjs askWhichRemnant", "observe.mjs describeFind", "trait-ruling.mjs pickHere",
-                "trial-prompt.mjs promptClaim", "trial-prompt.mjs promptTurn", "vote.mjs castBallot"],
+                "trait-ruling.mjs rollChanged", "trial-prompt.mjs promptClaim", "trial-prompt.mjs promptTurn", "vote.mjs castBallot"],
             naming: ["roll-dialog.mjs", "stacking.mjs", "ui-kit.mjs"],
             menus: ["action-analyze.mjs", "action-murder.mjs", "action-observe.mjs", "action-project.mjs", "action-rest.mjs", "action-search.mjs", "action-tamper.mjs",
                 "level-up.mjs", "palm.mjs"],
@@ -40160,8 +40518,13 @@ const INVARIANTS = [
         equal(stableJson([text.includes(line.replace(/\s+/g, " ")), text.includes(marks), /marked|zaznaczon/i.test(text), pair !== null && text.includes(pair)]), stableJson([true, false, false, true]),
             `[the line is the reserve (${line}), the marks ${marks} stand in it, a "marked", the pair (${pair}) as the cards write it]: ${text.slice(0, 600)}`);
     }],
-    ["R1485 - the Breakdown icon is drawn only for whom the student's Sanity is shown (states.mjs `wrapEffectIcons`; E24 C1b, STAGE.md Amend 08.11 A1; the owner's 08.11 \"ikone tez ukrywamy\"): on a stand-in token, the owner and a GM see a student's Breakdown icon, another player and an Observer-only player do not; Wounded and `dead` drawn for everybody; a Monokuma's and an NPC's as a student's (E24 fix G2A, review m4); the wrapper marked and not stacked, and its contract row", async () => {
+    ["R1485 - Breakdown's and Wounded's icons are drawn on no token (states.mjs `wrapEffectIcons`; E95 C5, the owner's 10.11 \"nie wyswietlaly sie na tokenie na mapie wcale - TYLKO na karcie postaci\"; E24 C1b before it): on a stand-in token neither is drawn for the owner, a GM, another player or an Observer-only player, handed its effect or matched by its image on an actor holding it; `dead` and another status drawn for everybody; a Monokuma's and an NPC's as a student's; the wrapper marked and not stacked, and its contract row", async () => {
         /*
+         * E95 C5, 10.11.2026: rewritten. Until E95 C4 the wrapper hid Breakdown only from a reader who may not read the
+         * Sanity and drew Wounded for all (the notes below are E24's, kept for the shape of the test); the owner now
+         * wants neither icon on any token, the sheet saying both (sheet.mjs `paintStateBadges`). Red on bc750112: the
+         * owner's and a GM's Breakdown, everybody's Wounded, drawn.
+         *
          * E24 C1b, 08.11.2026. states.mjs puts Breakdown on with `toggleStatusEffect`, so Daggerheart's token (2.10.5
          * module/canvas/placeables/token.mjs `_drawEffects`, which hands `_drawEffect(src, tint, effect)` each icon's
          * effect) drew the icon on every client's canvas: it told another player what the Sanity bar no longer does. A
@@ -40179,13 +40542,13 @@ const INVARIANTS = [
         const monokuma = Object.assign(reserveActor({ id: `r1485m${stamp}`, stress: 6 }), { getFlag: (scope, key) => key === FLAGS.monokuma });
         const npc = Object.assign(reserveActor({ id: `r1485n${stamp}`, stress: 6 }), { getFlag: (scope, key) => key === FLAGS.notInClass });
         const effect = id => ({ img: `icons/r1485/${id}.webp`, statuses: new Set([id]) });
-        const EFFECTS = [effect(STATES.breakdown.id), effect(STATES.wounded.id), effect("dead")];
+        const EFFECTS = [effect(STATES.breakdown.id), effect(STATES.wounded.id), effect("dead"), effect("r1485-other")];
         let seen = null, wrap = null, refused = null;
         if (typeof ST.effectIconShown === "function") {
             seen = {};
             const drawn = (actor, user) => EFFECTS.map(fx => ST.effectIconShown(actor, fx, user));
             for (const [who, user] of [["owner", owner], ["gm", game.user], ["player", viewer], ["observer", observer]]) seen[who] = drawn(student, user);
-            // As a student's, the sheet's one meaning (E24 fix G2A, review m4): hidden from another player, a GM's view.
+            // As a student's: hidden from every reader.
             seen.monokuma = drawn(monokuma, viewer);
             seen.npc = [drawn(npc, viewer), drawn(npc, game.user)];
         }
@@ -40197,6 +40560,7 @@ const INVARIANTS = [
             const token = Object.assign(Object.create(proto), { actor: student });
             const src = stripComments((await moduleSources()).get("states.mjs") ?? "");
             wrap = [Boolean(first[Symbol.for("drpgBreakdownIcon")]), proto._drawEffect === first,
+                Boolean((await token._drawEffect(EFFECTS[2].img, null, EFFECTS[2]))?.drawn),
                 Boolean((await token._drawEffect(EFFECTS[0].img, null, EFFECTS[0]))?.drawn), /\beffectIconShown\(this\.actor/.test(fnSource(src, "wrapEffectIcons"))];
             /*
              * THE WRAPPER'S REFUSAL, DRIVEN (E24 fix G3, 09.11.2026; the end review's m5). Until this fix the wrapper
@@ -40207,7 +40571,7 @@ const INVARIANTS = [
              * the Breakdown status, each icon drawn once handed its effect and once with no effect argument (the
              * wrapper's fallback, which matches the Breakdown image on an actor holding the status).
              */
-            const held = () => new Set([STATES.breakdown.id]);
+            const held = () => new Set([STATES.breakdown.id, STATES.wounded.id]);
             const me = game.user.id;
             const watched = reserveActor({ id: `r1485w${stamp}`, stress: 6 });
             watched.testUserPermission = (user, level) => Boolean(user?.isGM) || (user?.id === me && level !== "OWNER");
@@ -40220,25 +40584,32 @@ const INVARIANTS = [
                 Boolean((await t._drawEffect(EFFECTS[0].img, null, EFFECTS[0]))?.drawn),
                 Boolean((await t._drawEffect(STATES.breakdown.img, null))?.drawn),
                 Boolean((await t._drawEffect(EFFECTS[1].img, null, EFFECTS[1]))?.drawn),
-                Boolean((await t._drawEffect(EFFECTS[1].img, null))?.drawn)
+                Boolean((await t._drawEffect(STATES.wounded.img, null))?.drawn),
+                Boolean((await t._drawEffect(EFFECTS[2].img, null, EFFECTS[2]))?.drawn)
             ];
+            // Matched by its image only on an actor that holds the status: a token holding neither draws Wounded's image.
+            const bare = Object.assign(Object.create(proto), { actor: reserveActor({ id: `r1485b${stamp}`, stress: 0, owner: me }) });
             refused = {};
             await e24AsRole("owner", async () => {
                 must(game.user.isGM === false, "this browser's user is still a GM - the refusal would measure nothing");
                 for (const [who, t] of Object.entries(tokens)) refused[who] = await four(t);
             });
-            refused.gm = Boolean((await tokens.player._drawEffect(STATES.breakdown.img, null))?.drawn);
+            refused.gm = [Boolean((await tokens.player._drawEffect(STATES.breakdown.img, null))?.drawn),
+                Boolean((await tokens.player._drawEffect(STATES.wounded.img, null))?.drawn)];
+            refused.bare = Boolean((await bare._drawEffect(STATES.wounded.img, null))?.drawn);
         }
-        const row = PATCHES.find(r => r.id === "breakdown-icon-private") ?? null;
-        equal(stableJson({ refused }), stableJson({
-            refused: { player: [false, false, true, true], observer: [false, false, true, true], own: [true, true, true, true], gm: true } }),
-        "{refused: each token's [Breakdown handed its effect, Breakdown with no effect, Wounded handed its effect, Wounded with no effect] drawn through the wrapper with "
-            + "this browser's user a player - on another player's student, on one it may only observe, on its own - and gm: the Breakdown with no effect drawn for a GM}");
+        const row = PATCHES.find(r => r.id === "state-icons-off-token") ?? null;
+        const none = [false, false, false, false, true];
+        equal(stableJson({ refused }), stableJson({ refused: { player: none, observer: none, own: none, gm: [false, false], bare: true } }),
+        "{refused: each token's [Breakdown handed its effect, Breakdown by its image, Wounded handed its effect, Wounded by its image, dead handed its effect] drawn through the wrapper with "
+            + "this browser's user a player - on another player's student, on one it may only observe, on its own - gm: [Breakdown, Wounded] by their image drawn for a GM; "
+            + "bare: Wounded's image drawn on a token whose actor holds neither status}");
+        const hidden = [false, false, true, true];
         equal(stableJson({ seen, wrap, row: row ? [row.kind, row.owner, row.file] : null }), stableJson({
-            seen: { owner: [true, true, true], gm: [true, true, true], player: [false, true, true], observer: [false, true, true], monokuma: [false, true, true], npc: [[false, true, true], [true, true, true]] },
-            wrap: [true, true, true, true], row: ["override", "daggerheart", "states.mjs"] }),
-        "{seen: [Breakdown, Wounded, dead] drawn on a student's token for its owner, a GM, another player and an Observer-only player, on a Monokuma's for another player, on an NPC's for another player and a GM; "
-            + "wrap: [marked, a second wrap stacks nothing, a GM's Breakdown drawn through it, it asks effectIconShown with the token's actor]; the contract's row [kind, owner, file]}");
+            seen: { owner: hidden, gm: hidden, player: hidden, observer: hidden, monokuma: hidden, npc: [hidden, hidden] },
+            wrap: [true, true, true, false, true], row: ["override", "daggerheart", "states.mjs"] }),
+        "{seen: [Breakdown, Wounded, dead, another status] drawn on a student's token for its owner, a GM, another player and an Observer-only player, on a Monokuma's for another player, on an NPC's for another player and a GM; "
+            + "wrap: [marked, a second wrap stacks nothing, a GM's dead drawn through it, a GM's Breakdown drawn through it, it asks effectIconShown with the token's actor]; the contract's row [kind, owner, file]}");
     }],
     ["R1456 - one step at a time (sheet.mjs `SHEET_STEPS`; E24 C3b, E24-21; audit S03-42): a step that throws - `tidyBiography` on a biography part whose lookup throws - is logged as \"Sheet step tidyBiography failed\" and every other step runs, `removeSystemCreators` first (Daggerheart's \"+\" gone, the inventory's groups and the Rules tab drawn); the primary GM is told once a load, by one notice naming the step; a player never", async () => {
         /*
@@ -43298,7 +43669,7 @@ const INVARIANTS = [
             heads,
             groups: shown.length > 1 ? shown.map(([key, list]) => `${T(`DRPG.Panel.group.${key}`)} ${list.length}`) : [],
             students: students.map(a => [true, "student", true, levelWords(a), heads.length]),
-            others: others.map(a => [true, isMonokuma(a) ? "monokuma" : "npc", false, levelWords(a), heads.length, 0]),
+            others: others.map(a => [!isMonokuma(a), isMonokuma(a) ? "monokuma" : "npc", false, levelWords(a), heads.length, 0]),
             order: [...students, ...kumas, ...npcs].map(a => a.id),
             footer: ["save", "cancel"]
         }), "{kit: the table a dataTable; heads; groups: each group row's words and count; students and others: [Items beside the name, the Role's value, a State select, "
@@ -43439,8 +43810,8 @@ const INVARIANTS = [
             release?.(null);
             await w.close();
         }
-        equal(stableJson(got), stableJson({ beside: rows.map(() => true), footer: ["save", "cancel"], calls: [first.id], whileHub: 0, back: true }),
-            "{beside: an Items button in each row's first cell; footer: its actions; calls: the actors openItemManager was called with; whileHub: Students windows drawn while the hub ran; back: the window drawn again after}");
+        equal(stableJson(got), stableJson({ beside: rows.map(a => a.getFlag(MODULE_ID, "monokuma") !== true), footer: ["save", "cancel"], calls: [first.id], whileHub: 0, back: true }),
+            "{beside: an Items button in each row's first cell but a Monokuma's (E95 C7); footer: its actions; calls: the actors openItemManager was called with; whileHub: Students windows drawn while the hub ran; back: the window drawn again after}");
     }],
 
     ["R2084 - the Students window is a GM's (scripts/gm-students.mjs; E47-C8): on a player's browser `openWhoIsAliveDialog` opens nothing, and the Role's roads called from it write nothing (monokuma.mjs `setMonokuma` and `setNotInClass` refuse on `game.user.isGM`, `markFromSheet` through them); Refund last crossing on the kit's secondary role", async () => {
@@ -44270,6 +44641,65 @@ const INVARIANTS = [
         }
         equal(stableJson(read), stableJson(want), "{each caption [its key, at most half its length at a8ae16f6, its fact, its second fact]}");
     }],
+    /* ---- E68 C13 (10.11.2026): the other actions' captions, about one sentence (the owner's Q5 of round M) ---- */
+    ["R3201 - the other actions' captions are about one sentence, no longer than Observe's, in English and Polish, and keep what each choice does (lang/en.json, lang/pl.json; config.mjs CRISIS_ACTIONS `short`, its Polish in lang/pl.json `DRPG.Config.CRISIS_ACTIONS.*.short`; E68 C13, the owner's Q5 of round M: \"podobnej dlugosci - ok 1 zdanie\"; R3136's shape)", async () => {
+        /*
+         * E68 C13, 10.11.2026; the owner's answer Q5 to round M: each action's caption about one sentence, as long as
+         * Observe's (57-116 characters after E47-FC, R3136). Each caption below is held to 116 characters or fewer, to
+         * fewer than it had at 1.2.103 (BEFORE, the longest of a key's plural forms, frozen here, read on d7dc9749), and to
+         * the facts a player picks by. The rest of a caption is the handbook's (C14) - or, for the crisis menu, the row's
+         * `details` on the left column: a row's caption is CRISIS_ACTIONS' `short`, and its full `hint` stands first in
+         * the picked row's details (action-murder.mjs `crisisDetails`). The crisis menu's own reason: at 1366x768 under
+         * the glass it scrolled 37-62 px with C12's layout and 1.2.103's hints, and the statistic field stays in the
+         * right column (Q3); measured in Chromium, S/stages/E68/STATUS-e68ui.md E68-C13. The config's live text is the
+         * language in use (i18n.mjs swaps it at init); the Polish is read from pl.json. Rest's rows (cost and room) and
+         * the captions already one short sentence (Search's goals but the tool, Ask for a hint, Start a new project,
+         * Work on one, Frisk) are not listed. Red on 5beeb4bb (C12 with the line merged): every caption at its 1.2.103 length.
+         */
+        const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" }).then(r => r.json());
+        const [en, pl] = await Promise.all([lang("en"), lang("pl")]);
+        const at = (file, key) => key.split(".").reduce((node, part) => node?.[part], file);
+        const MAX = 116;
+        // [key, BEFORE en, BEFORE pl, facts en, facts pl]
+        const KEYS = [
+            ["DRPG.Action.goalToolHint", 100, 120, [/advantage/, /weapon/], [/przewag/, /broń/]],
+            ["DRPG.Analyze.findPassageHint", 110, 128, [/\{n\}\+/, /secret passage/], [/\{n\}\+/, /tajne przejście/]],
+            ["DRPG.Analyze.findStashHint", 163, 164, [/\{n\}/, /stash/, /whose/], [/\{n\}/, /skrytk/, /czyja/]],
+            ["DRPG.Analyze.analyseBulletHint", 152, 182, [/Head/, /Truth Bullet/, /chapter/], [/Head/, /Truth Bullet/, /rozdziału/]],
+            ["DRPG.Cleanup.transformActionHint", 233, 279, [/Reinforced/, /GM/, /Tamper Remnant/], [/Reinforced/, /GM/, /Tamper Remnant/]],
+            ["DRPG.Cleanup.moveHint", 122, 114, [/\{n\} Sanity/, /Evident/], [/\{n\} Sanity/, /Evident/]],
+            ["DRPG.Tamper.frameHint", 249, 270, [/false Remnant/, /\{n\}/], [/fałszywy Remnant/, /\{n\}/]],
+            ["DRPG.Tamper.coverHint", 195, 203, [/Erase/, /Remnant/, /visible/], [/Wymaż/, /Remnant/, /zauważyć/]],
+            ["DRPG.Steal.takeHint", 164, 207, [/random/, /critical/, /notice/], [/losow/, /krytyk/, /zauważy/]],
+            ["DRPG.Steal.plantHint", 145, 152, [/pocket/, /taking/], [/kieszeni/, /wyjmowaniu/]],
+            ["DRPG.Project.sabotageHint", 144, 140, [/repair/, /Remnant/], [/napraw/, /Remnant/]]
+        ];
+        const forms = value => (value && typeof value === "object" ? Object.entries(value) : [["", value]]);
+        const read = [], want = [];
+        for (const [key, beforeEn, beforePl, factsEn, factsPl] of KEYS) {
+            for (const [code, file, before, facts] of [["en", en, beforeEn, factsEn], ["pl", pl, beforePl, factsPl]]) {
+                for (const [form, text] of forms(at(file, key))) {
+                    const t = String(text ?? "");
+                    read.push([key, code, form, t.length > 0 && t.length <= MAX && t.length < before, facts.every(re => re.test(t))]);
+                    want.push([key, code, form, true, true]);
+                }
+            }
+        }
+        const { CRISIS_ACTIONS } = await import("./config.mjs");
+        must(Object.keys(CRISIS_ACTIONS).length >= 15, "config.mjs's CRISIS_ACTIONS is not the crisis menu's fifteen actions - this reads nothing");
+        for (const [key, def] of Object.entries(CRISIS_ACTIONS)) {
+            const plDef = at(pl, `DRPG.Config.CRISIS_ACTIONS.${key}`) ?? {};
+            // The row's caption: `short`, or a `hint` short enough to be one; a long hint keeps its words for the details.
+            const live = String(def.short ?? def.hint ?? ""), polish = String(plDef.short ?? plDef.hint ?? "");
+            read.push([`CRISIS_ACTIONS.${key}`, live.length <= MAX, polish.length <= MAX, Boolean(def.short) === Boolean(plDef.short),
+                !def.short || Boolean(def.hint && plDef.hint)]);
+            want.push([`CRISIS_ACTIONS.${key}`, true, true, true, true]);
+        }
+        const murder = await fetch(`/modules/${MODULE_ID}/scripts/action-murder.mjs`).then(lfText);
+        read.push(["action-murder.mjs", /proseOf\(def, "short"\)/.test(murder), /function crisisDetails[\s\S]*?proseOf\(def, "hint"\)[\s\S]*?\n\}/.test(murder)]);
+        want.push(["action-murder.mjs", true, true]);
+        equal(stableJson(read), stableJson(want), "{each caption [its key, language, form, at most 116 characters and shorter than at 1.2.103, its facts]; each crisis action [key, its row's caption at most 116 live, in Polish, a short in both or neither, a short keeps its hint]; action-murder.mjs [the row reads short, the details the hint]}");
+    }],
     /* ---- E47-FD (10.11.2026): the owner's defaults on comparison 3 - a disabled role button under the glass
        (q-disabled) and three windows really cut (q-cuts) ---- */
     ["R3137 - under the glass a disabled role button looks disabled, the destructive one included (components.css, the E47-FD section; the owner's default on comparison 3, q-disabled): every role of the kit's footer, disabled, is grey and faded by the kit's one rule, an enabled one is not, and Legacy keeps its own dialog footer's grey", async () => {
@@ -44386,6 +44816,358 @@ const INVARIANTS = [
             return [dress, [C.winner(body.querySelector("fieldset.drpg-look"), "min-width")?.value ?? null, C.winner(body.querySelector('.drpg-look input[type="range"]'), "min-width")?.value ?? null]];
         }));
         equal(stableJson(read), stableJson({ glass: ["0", "14ch"], legacy: ["0", "0"] }), "{each theme: [the Look fieldset's min-width, its scale slider's]}");
+    }],
+
+    ["R3141 - a body lies where its tile is, and where its token is when it has none (body-tile.mjs `bodyPlaceOf`, E95 C0): the current death's earliest tile, measured by its centre on the floor it stores, its `hidden` the tile's; an older death's tile, another student's and none fall back to the token", async () => {
+        /*
+         * E95 C0, 10.11.2026; DC6, E72 amend[16] ("bodyRoomOf (pokój kafla, a gdy GM kafel usunie, pokój tokenu)").
+         * Read on scenes of plain objects, so the answer is the reader's and not a world's: a Lab (0-400) on the
+         * ground floor, an Attic over it on the upper floor and a Hall (500-900) on every floor; the token's
+         * place handed in (`tokenPlace`, as movement.mjs `gmPlaceOf` answers it). The victim's death is D2. A
+         * tile of 100 px whose centre is in the Lab; the same tile on the upper floor; a 200 px tile whose
+         * corner is in the Lab and whose centre is on the Hall's edge (a tile's size is pixels, a token's
+         * squares: measured as squares it would read no room); a later tile of D2 in the Hall (two GMs at
+         * once: the earliest is the body); D1's tile in the Hall (an older death) and another student's.
+         * Red on 5307e1ad: there is no body-tile.mjs.
+         */
+        const B = await import("./body-tile.mjs").catch(() => null);
+        must(B && typeof B.bodyPlaceOf === "function" && typeof B.bodyTilesOf === "function" && typeof B.bodyRoomOf === "function",
+            "body-tile.mjs does not load or exports no bodyPlaceOf, bodyTilesOf or bodyRoomOf");
+        const R = await import("./rooms.mjs");
+        const L1 = "SUITER3141FLOOR1", L2 = "SUITER3141FLOOR2", V = "SUITER3141VICTIM", W = "SUITER3141OTHER0";
+        const piece = (name, x, levels) => ({ id: `${name}Id`, name, behaviors: [], levels: new Set(levels),
+            bounds: { x, y: 0, width: 400, height: 400 }, testPoint: p => p.x >= x && p.x <= x + 400 && p.y >= 0 && p.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const tile = (id, mark, { x = 100, y = 100, size = 100, hidden = false } = {}) => ({ id, x, y, width: size, height: size, elevation: 0, hidden,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.bodyOf ? mark : undefined) });
+        const scene = (...tiles) => ({ id: "SUITER3141SCENE0", grid: { size: 100 }, tiles,
+            regions: new Set([piece("Lab", 0, [L1]), piece("Attic", 0, [L2]), piece("Hall", 500, [])]) });
+        const actor = (id, record) => ({ id, type: "character", getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.deceased ? record : undefined) });
+        const victim = actor(V, { chapter: 1, phase: "investigation", deathId: "D2" });
+        const mark = (over = {}) => ({ actorId: V, deathId: "D2", level: L1, at: 2000, ...over });
+        const lab = tile("tLab", mark()), later = tile("tLater", mark({ at: 3000 }), { x: 600 }),
+            older = tile("tOlder", mark({ deathId: "D1", at: 1000 }), { x: 600 }), theirs = tile("tTheirs", mark({ actorId: W, at: 500 }), { x: 600 });
+        const token = { id: "SUITER3141TOKEN0", hidden: false };
+        const tokenPlace = (sc, hidden = false) => () => ({ tokenDoc: { ...token, hidden }, scene: sc, room: "Hall", level: L1 });
+        const read = (who, tiles, { hidden = false, place } = {}) => {
+            const sc = scene(...tiles);
+            const at = B.bodyPlaceOf(who, { scenes: [sc], tokenPlace: place ?? tokenPlace(sc, hidden) });
+            return at ? [at.via, at.room, at.hidden, at.level, at.scene === sc, at.doc?.id ?? null] : null;
+        };
+        const cases = {
+            tile: read(victim, [later, older, lab, theirs]),
+            hiddenTile: read(victim, [tile("tHid", mark(), { hidden: true })]),
+            upperFloor: read(victim, [tile("tUp", mark({ level: L2 }))]),
+            centreNotCorner: read(victim, [tile("tWide", mark(), { x: 400, size: 200 })]),
+            none: read(victim, []),
+            olderDeath: read(victim, [older]),
+            anotherStudent: read(victim, [theirs]),
+            hiddenToken: read(victim, [], { hidden: true }),
+            alive: read(actor(V, undefined), [lab]),
+            nowhere: read(victim, [], { place: () => null })
+        };
+        equal(stableJson(cases), stableJson({
+            tile: ["tile", "Lab", false, L1, true, "tLab"],
+            hiddenTile: ["tile", "Lab", true, L1, true, "tHid"],
+            upperFloor: ["tile", "Attic", false, L2, true, "tUp"],
+            centreNotCorner: ["tile", "Hall", false, L1, true, "tWide"],
+            none: ["token", "Hall", false, L1, true, token.id],
+            olderDeath: ["token", "Hall", false, L1, true, token.id],
+            anotherStudent: ["token", "Hall", false, L1, true, token.id],
+            hiddenToken: ["token", "Hall", true, L1, true, token.id],
+            alive: ["token", "Hall", false, L1, true, token.id],
+            nowhere: null
+        }), "{each case: [via, room, hidden, floor, on the scene, the document]}");
+        const sc = scene(later, older, lab, theirs);
+        equal(stableJson([V, W, "SUITER3141NOBODY"].map(id => B.bodyTilesOf(id, [sc]).map(t => t.doc.id).sort())),
+            stableJson([["tLab", "tLater", "tOlder"], ["tTheirs"], []]), "the tiles `bodyTilesOf` reads as [the victim's, the other student's, nobody's]");
+        equal(B.bodyRoomOf(victim, { scenes: [sc], tokenPlace: tokenPlace(sc) }), "Lab", "`bodyRoomOf` is not `bodyPlaceOf`'s room");
+    }],
+
+    ["R3142 - a body's tile is drawn from the token it leaves and only for a death that is not an execution (body-tile.mjs `bodyTileSpec`, `tileCentre`, `isBodyDeath`, E95 C0; the owner's default on Q2 (a)): the token's squares in pixels, its corner, height and picture, the flag `{ actorId, deathId, level, at }`; the file imports config, movement and settings only", async () => {
+        /*
+         * E95 C0, 10.11.2026; DC6 ("tylko ofiary morderstwa"; "stracony kafla nie dostaje"), QUESTIONS Q2 (a): every
+         * death whose `cause` is not "executed" and whose phase is not the Class Trial, the rule chapter.mjs
+         * `bodiesToDiscover` reads a body to find by. A 2x2 token on a 100 px grid is a 200 px tile with the
+         * token's centre, on a 150 px grid 300 px; the floor stored as its id whether handed as an id or as a
+         * Level. The imports, so the file can be read from frisk.mjs without closing a cycle (R161). Red on
+         * 5307e1ad: there is no body-tile.mjs.
+         */
+        const B = await import("./body-tile.mjs").catch(() => null);
+        must(B && ["bodyTileSpec", "tileCentre", "isBodyDeath"].every(name => typeof B[name] === "function"),
+            "body-tile.mjs does not load or exports no bodyTileSpec, tileCentre or isBodyDeath");
+        const tokenDoc = (size, level) => ({ x: 300, y: 400, width: 2, height: 2, elevation: 5, level, texture: { src: "icons/svg/skull.svg" },
+            parent: { grid: { size } } });
+        const read = spec => [spec.x, spec.y, spec.width, spec.height, spec.elevation, spec.texture?.src ?? null,
+            spec.flags?.[MODULE_ID]?.[FLAGS.bodyOf] ?? null];
+        const record = { chapter: 2, phase: "investigation", deathId: "SUITER3142DEATH0" };
+        const one = B.bodyTileSpec({ tokenDoc: tokenDoc(100), actorId: "SUITER3142VICTIM", record, level: "SUITER3142FLOOR1", at: 1234 });
+        const two = B.bodyTileSpec({ tokenDoc: tokenDoc(150), actorId: "SUITER3142VICTIM", record, level: { id: "SUITER3142FLOOR2" }, at: 99 });
+        const mark = (level, at) => ({ actorId: "SUITER3142VICTIM", deathId: "SUITER3142DEATH0", level, at });
+        equal(stableJson([read(one), read(two)]), stableJson([
+            [300, 400, 200, 200, 5, "icons/svg/skull.svg", mark("SUITER3142FLOOR1", 1234)],
+            [300, 400, 300, 300, 5, "icons/svg/skull.svg", mark("SUITER3142FLOOR2", 99)]
+        ]), "[the tile of a 2x2 token on a 100 px grid, on a 150 px grid]: [x, y, width, height, elevation, image, flag]");
+        /* E95 fix RV-3 (10.11.2026): the tile is hidden when the token it is laid from is, so a body the GM had hidden is
+           not shown, captioned and searchable once its student becomes a Monocub. Red at c431138a: every tile unhidden. */
+        const shut = B.bodyTileSpec({ tokenDoc: { ...tokenDoc(100), hidden: true }, actorId: "SUITER3142VICTIM", record, level: null, at: 1 });
+        equal(stableJson([one.hidden, shut.hidden]), stableJson([false, true]), "the tile's `hidden` [from a token shown, from a token hidden] is not the token's");
+        equal(stableJson([B.tileCentre(one), B.tileCentre(two)]), stableJson([{ x: 400, y: 500 }, { x: 450, y: 550 }]),
+            "the tiles' centres are not the tokens' (x + width x grid / 2)");
+        const deaths = [{ cause: "executed", phase: "classTrial" }, { phase: "classTrial" }, { cause: "executed", phase: "investigation" },
+            { phase: "investigation", deathId: "x" }, { chapter: 1 }, null, undefined];
+        equal(stableJson(deaths.map(r => B.isBodyDeath(r))), stableJson([false, false, false, true, true, false, false]),
+            "whether [an execution, a death in the Class Trial, an execution outside it, a murder, a death with no phase, no record, none] leaves a body");
+        const res = await fetch(`/modules/${MODULE_ID}/scripts/body-tile.mjs`).catch(() => null);
+        must(res?.ok, "body-tile.mjs is not served - its imports cannot be read");
+        const { staticImports } = await import("./tests-kit.mjs");
+        equal(stableJson(staticImports(stripComments(await lfText(res))).sort()), stableJson(["config.mjs", "movement.mjs", "settings.mjs"]),
+            "body-tile.mjs imports something besides config.mjs, movement.mjs and settings.mjs");
+    }],
+
+    ["R3146 - tier 2's restore takes off only the body tiles that appeared (tests-kit.mjs `appearedBodyTiles`, E95 fix RV-4): a tile with the body flag that the snapshot did not hold, never one it held and never a tile with no body flag", async () => {
+        /*
+         * E95 fix RV-4, 10.11.2026. tests-tier2.mjs `restore` deleted every tile that appeared on a scene the snapshot
+         * knew (936a9944), so the world dump, which found E51-T21's leak as "tiles.<id> appeared", could see no tile a
+         * tier-2 test left. It now deletes only the body tiles a Monocub's edge lays (body-tile.mjs `leaveBody`); any
+         * other tile that appears stays for the dump to name. Read on a scene of plain objects: a body tile the snapshot
+         * held, a body tile and a plain tile that appeared, a tile whose flag is not an object, and no known set (a scene
+         * that appeared goes whole with the documents). Red at c431138a: tests-kit.mjs has no `appearedBodyTiles`.
+         */
+        const kit = await import("./tests-kit.mjs");
+        must(typeof kit.appearedBodyTiles === "function", "tests-kit.mjs exports no appearedBodyTiles");
+        const tile = (id, flag) => ({ id, getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.bodyOf ? flag : undefined) });
+        const body = { actorId: "SUITER3146VICTIM", deathId: null, level: null, at: 1 };
+        const scene = { tiles: [tile("tHeld", body), tile("tNewBody", body), tile("tNewPlain", undefined), tile("tNewOdd", "x")] };
+        equal(stableJson([kit.appearedBodyTiles(scene, new Set(["tHeld"])), kit.appearedBodyTiles(scene, null), kit.appearedBodyTiles({}, new Set())]),
+            stableJson([["tNewBody"], [], []]), "the tiles the restore deletes [with the snapshot's set, with none, on a scene with no tiles]");
+    }],
+    ["R3250 - a Take from the Body's Hand roll leaves the body's Remnant at its band (config.mjs `LOOT`, handover.mjs `lootVisibilityOf`, E68 C10): below 12 Evident, 12-17 Subtle, 18 and up and a critical Hidden", async () => {
+        /*
+         * E68 C10, 10.11.2026; the plan's E68 goal ("Hand: ponizej 12 Evident, 12-17 Subtle, 18+ i krytyk Hidden"). Until
+         * C10 a loot rolled nothing and its Remnant was always Subtle. Read on the edges of each band, a critical on a low
+         * total, and the numbers as config.mjs holds them. Red at d7dc9749: config.mjs has no `LOOT`, handover.mjs no
+         * `lootVisibilityOf`.
+         */
+        const C = await import("./config.mjs");
+        const H = await import("./handover.mjs");
+        must(C.LOOT && typeof H.lootVisibilityOf === "function", "config.mjs has no LOOT or handover.mjs no lootVisibilityOf");
+        const at = [[2, false], [11, false], [12, false], [17, false], [18, false], [24, false], [3, true]]
+            .map(([total, isCritical]) => H.lootVisibilityOf({ total, isCritical }));
+        equal(stableJson([at, C.LOOT.trait, C.LOOT.cover.trait, C.LOOT.cover.threshold]),
+            stableJson([["evident", "evident", "subtle", "subtle", "hidden", "hidden", "hidden"], "hand", "shadow", 16]),
+            "the Remnant's visibility at 2, 11, 12, 17, 18, 24 and a critical 3; the roll's statistic, the cover's and its number");
+    }],
+
+    ["R3251 - a refused completion's new target is a change the project's step knows (projects.mjs `cleanProjectChange`, E68 C11; D023): `{ repick }` with a stretch and a room is kept as a copy, one with no stretch, no room or a stretch that is not an object is dropped, and nothing else of the change is lost", async () => {
+        /*
+         * E68 C11, 10.11.2026; D023 (the owner's default: "Choose the target again" opens the approval's pick, and a pick
+         * that succeeds completes the project). The pick is made on the GM whose card's button was pressed and written on
+         * the primary as the change `{ repick }` - another GM's goes there by `project.change`, whose packet is cut by
+         * `cleanProjectChange` - so a change the cut does not know is never made. Read on plain values. Red at d5c0a8fb:
+         * the cut drops `repick`.
+         */
+        const PR = await import("./projects.mjs");
+        const stretch = { sceneId: "SUITER3251SCENE", wallId: "SUITER3251WALL", level: null, seg: { x1: 600, y1: 150, x2: 600, y2: 400 }, rooms: ["Dorm", "Bath"] };
+        const kept = PR.cleanProjectChange({ repick: { passage: stretch, room: "Bath", extra: 1 } });
+        const copied = kept?.repick?.passage !== stretch;
+        const dropped = [{ repick: { passage: stretch } }, { repick: { room: "Bath" } }, { repick: { passage: "x", room: "Bath" } }, { repick: [stretch] }]
+            .map(change => PR.cleanProjectChange(change));
+        const beside = PR.cleanProjectChange({ delta: 1, repick: { passage: stretch, room: "" } });
+        equal(stableJson([kept, copied, dropped, beside]),
+            stableJson([{ repick: { passage: stretch, room: "Bath" } }, true, [null, null, null, null], { delta: 1 }]),
+            "[a stretch and a room kept, as a copy; four malformed ones; one beside a delta] - the step never hears the new pick, or takes a malformed one");
+    }],
+
+    ["R3252 - an open Frisk's answer is received as the other asks' are (call-gm.mjs `receivedOnPrimary`, frisk.mjs `receivedFriskAsk`, E68 C11; D084): a receipt under the ask's request id from its asker ends the wait for it, one from another user, under another id, for an ask not answered or not waiting is not taken", async () => {
+        /*
+         * E68 C11, 10.11.2026; D084 (E18 C7's gap: no receipt for a Frisk ask), the owner's default of 10.11. The
+         * searcher's `ruling.received` reaches `receivedOnPrimary`, which held only a card's asks and answered false for a
+         * Frisk's, so the primary could not tell an answer that arrived from one that did not. Read on asks planted in this
+         * GM's memory (frisk.mjs `friskAsks`) with a receipt's clock that is never let run, taken out after; nothing is
+         * written. Red at d5c0a8fb: the asker's receipt is not taken.
+         */
+        const F = await import("./frisk.mjs");
+        const C = await import("./call-gm.mjs");
+        const timers = [];
+        const plant = (askId, fields) => {
+            const receiptTimer = setTimeout(() => {}, 600000);
+            timers.push(receiptTimer);
+            const row = { askId, requestId: `${askId}rid`, asker: "SUITER3252ASKER", replied: true, state: "refused", receiptTimer, ...fields };
+            F.friskAsks.set(askId, row);
+            return row;
+        };
+        const rows = [plant("SUITER3252A", {}), plant("SUITER3252B", { replied: false }), plant("SUITER3252C", { receiptTimer: null })];
+        let out = null;
+        try {
+            out = [
+                await C.receivedOnPrimary("SUITER3252Arid", "SUITER3252OTHER"),
+                await C.receivedOnPrimary("SUITER3252Xrid", "SUITER3252ASKER"),
+                await C.receivedOnPrimary("SUITER3252Brid", "SUITER3252ASKER"),
+                await C.receivedOnPrimary("SUITER3252Crid", "SUITER3252ASKER"),
+                Boolean(rows[0].receiptTimer),
+                await C.receivedOnPrimary("SUITER3252Arid", "SUITER3252ASKER"),
+                rows[0].receiptTimer ?? null,
+                await C.receivedOnPrimary("SUITER3252Arid", "SUITER3252ASKER")
+            ];
+        } finally {
+            for (const row of rows) F.friskAsks.delete(row.askId);
+            for (const timer of timers) clearTimeout(timer);
+        }
+        equal(stableJson(out), stableJson([false, false, false, false, true, true, null, false]),
+            "[another user's receipt, one under another id, one for an ask not answered, one for an ask not waiting; still waiting; the asker's receipt; its clock after; the same receipt again] - a Frisk's answer is not received, or a receipt nobody was sent is taken");
+    }],
+
+    ["R3144 - a body's tile wears its caption and the dead sign (body-tile.mjs `drawBodyMark`, E95 C3; QUESTIONS Q4): \"{name}'s body\" / \"Ciało: {name}\" under the tile at max(20, grid x 0.36) over a keyline of max(4, grid x 0.07), the dead status's picture over its centre; drawn once per redraw, at half alpha on a hidden tile on a GM's browser and not at all on a player's, and taken off a tile that lost its flag", async () => {
+        /*
+         * E95 C3, 10.11.2026; QUESTIONS Q4 (the default: the caption and the sign in E95). The harm: a body tile beside
+         * a Monocub's token that still wears Foundry's dead overlay reads as a second copy of the student, and a refresh
+         * that stacked a mark per hover would draw a pile of them. Read on a tile placeable of the test's own (a PIXI
+         * container with a document of plain fields; Foundry's `drawTile` and `refreshTile` are not in the harness),
+         * the actors handed in: the mark's children, the caption's words, size and keyline and place under the tile,
+         * the sign's picture, size and centre; the same mark after a second draw, a new one after the name changed, half
+         * alpha when hidden, none on a tile with no flag and none left on one that lost it. Both languages' words off
+         * the served files, as R903 reads the tunnel marks'. How it looks on a real canvas is LIVE-E95-01's. Red at E95
+         * C2: body-tile.mjs exports no `drawBodyMark`.
+         */
+        const B = await import("./body-tile.mjs");
+        must(typeof B.drawBodyMark === "function" && typeof B.BODY_MARK_NAME === "string", "body-tile.mjs exports no drawBodyMark or BODY_MARK_NAME");
+        const grid = 100, V = "SUITER3144VICTIM";
+        let name = "R3144 Daichi";
+        const actors = { get: id => (id === V ? { name } : undefined) };
+        const placeable = (flag, { width = 200, height = 100, hidden = false } = {}) => {
+            const tile = new PIXI.Container();
+            tile.document = { width, height, hidden, parent: { grid: { size: grid } },
+                getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.bodyOf ? flag : undefined) };
+            return tile;
+        };
+        const marks = tile => tile.children.filter(c => c?.name === B.BODY_MARK_NAME);
+        const read = tile => marks(tile).map(m => [m.alpha, m.children.map(c => (c instanceof PIXI.Text
+            ? ["text", c.text, c.style?.fontSize, c.style?.strokeThickness, c.position.x, c.position.y]
+            : ["sign", c.texture?.src ?? null, c.width, c.height, c.position.x, c.position.y]))]);
+        const dead = (CONFIG.statusEffects ?? []).find(e => e?.id === "dead");
+        const icon = dead?.img ?? dead?.icon ?? CONFIG.controlIcons?.defeated ?? "icons/svg/skull.svg";
+        const flag = { actorId: V, deathId: "SUITER3144DEATH0", level: null, at: 1 };
+        const tile = placeable(flag);
+        const first = B.drawBodyMark(tile, { actors });
+        const again = B.drawBodyMark(tile, { actors });
+        const cases = { drawn: read(tile), sameMark: first !== null && first === again };
+        name = "R3144 Daichi Renamed";
+        const renamed = B.drawBodyMark(tile, { actors });
+        cases.renamed = [renamed !== first, marks(tile).length, marks(tile)[0]?.children.find(c => c instanceof PIXI.Text)?.text ?? null];
+        const hidden = placeable(flag, { width: 100, height: 100, hidden: true });
+        B.drawBodyMark(hidden, { actors, gm: true });
+        cases.hidden = marks(hidden).map(m => m.alpha);
+        /* E95 fix RV-5 (10.11.2026): on a player's browser a hidden tile wears no mark, drawn before or not - the caption
+           names the body, and whether v14 hides a hidden tile's children from a player is LIVE-E95-01's. Red at c431138a:
+           the mark at half alpha there too. */
+        const forPlayer = placeable(flag, { hidden: true });
+        cases.hiddenForPlayer = [B.drawBodyMark(forPlayer, { actors, gm: false }) === null, marks(forPlayer).length];
+        const later = placeable(flag);
+        B.drawBodyMark(later, { actors, gm: false });
+        const shown = marks(later).length;
+        later.document.hidden = true;
+        B.drawBodyMark(later, { actors, gm: false });
+        cases.hiddenLater = [shown, marks(later).length];
+        const plain = placeable(undefined);
+        cases.plain = [B.drawBodyMark(plain, { actors }), marks(plain).length];
+        tile.document.getFlag = () => undefined;
+        cases.lostFlag = [B.drawBodyMark(tile, { actors }), marks(tile).length];
+        const orphan = placeable({ ...flag, actorId: "SUITER3144GONE00" });
+        B.drawBodyMark(orphan, { actors });
+        cases.orphan = read(orphan).map(([, kids]) => kids.map(k => k[0]));
+        const size = [Math.max(20, Math.round(grid * 0.36)), Math.max(4, Math.round(grid * 0.07))];
+        const words = n => game.i18n.format("DRPG.Body.tile", { name: n });
+        const [en, pl] = await Promise.all(["en", "pl"].map(lang => fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json())));
+        equal(stableJson({ ...cases, langs: [en?.DRPG?.Body?.tile, pl?.DRPG?.Body?.tile] }), stableJson({
+            drawn: [[1, [["sign", icon, 60, 60, 100, 50], ["text", words("R3144 Daichi"), ...size, 100, 105]]]],
+            sameMark: true,
+            renamed: [true, 1, words("R3144 Daichi Renamed")],
+            hidden: [0.5],
+            hiddenForPlayer: [true, 0],
+            hiddenLater: [1, 0],
+            plain: [null, 0],
+            lostFlag: [null, 0],
+            orphan: [["sign"]],
+            langs: ["{name}'s body", "Ciało: {name}"]
+        }), "{the mark as [alpha, its children]; drawn twice one mark; renamed [a new mark, how many, its words]; hidden alpha on a GM's; "
+            + "hidden on a player's [answered none, marks]; a player's mark on a tile shown, then hidden [marks]; a tile with no flag [answer, marks]; the flag gone [answer, marks]; a student gone from the world; the words in English and Polish}");
+    }],
+    ["R3331 - no chooseVariant row's details holds a form control (input, select, textarea): they stand in the left column, outside the window's <form>, so nothing in them is read back", async () => {
+        /*
+         * E68 fix round, 10.11.2026; the trap of E68 C12 (S/stages/E68/STATUS.md "E68 fix CI 77d3e66a"). Since C12 an
+         * action window's row `details` stand in the left column under the briefing, outside the <form> whose fields the
+         * caller reads off the answer's `form` (action-menus.mjs `chooseVariant`). Palm's Frisk ways (`friskModes`,
+         * radios) stood there from C12 on, and every Unseen was read as Openly; the fix handed them as the row's `field`.
+         * Read, in every module script but the suite's: each `details:` key, its expression and, for a call, the
+         * function it names in the same file (two calls deep) - none may write `<input`, `<select` or `<textarea`, nor
+         * call a function of the module that does (a maker: `friskModes`, `traitFieldHtml`, `requestFieldHtml`,
+         * `choiceRowHtml`, ...). A bare name is followed to its `const`/`let` in the file. Not read: details handed in
+         * through a spread or built in another file under another key (none at a5ebfeaa). The scanner is held first to
+         * three planted sources - Frisk's ways as details (C12's shape), a literal <select>, and a details of text alone,
+         * which must pass - and the real scan must find the crisis menu's details (action-murder.mjs `crisisDetails`),
+         * or it measured nothing. Red in a copy of the tree with Palm's `field: friskModes(def)` put back as `details:`.
+         */
+        const CONTROL = /<\s*(?:input|select|textarea)\b/i;
+        const exprAt = (src, from) => {
+            let depth = 0, i = from, tick = false;
+            for (; i < src.length; i++) {
+                const c = src[i];
+                if (c === "`") tick = !tick;
+                if (tick) continue;
+                if ("([{".includes(c)) depth++;
+                else if (")]}".includes(c)) { if (!depth) break; depth--; }
+                else if ((c === "," || c === ";") && !depth) break;
+            }
+            return src.slice(from, i).trim();
+        };
+        const functionsOf = src => new Map([...src.matchAll(/^(?:export )?(?:async )?function\s+([\w$]+)/gm)]
+            .map(m => [m[1], topLevelFunction(src, m[1]) ?? ""]));
+        const scan = files => {
+            const makers = new Set();
+            for (const [, src] of files) for (const [name, body] of functionsOf(src)) if (CONTROL.test(body)) makers.add(name);
+            const rows = [], bad = [];
+            for (const [file, src] of files) {
+                const own = functionsOf(src);
+                const holds = (expr, depth) => {
+                    if (CONTROL.test(expr)) return "a control written in it";
+                    const bare = /^[\w$]+$/.test(expr) ? new RegExp(`(?:const|let)\\s+${expr}\\s*=\\s*`).exec(src) : null;
+                    if (bare) return holds(exprAt(src, bare.index + bare[0].length), depth);
+                    for (const [, name] of expr.matchAll(/\b([\w$]+)\s*\(/g)) {
+                        if (makers.has(name)) return `calls ${name}, which writes a control`;
+                        if (depth < 2 && own.has(name)) {
+                            const deeper = holds(own.get(name), depth + 1);
+                            if (deeper) return `${name}: ${deeper}`;
+                        }
+                    }
+                    return null;
+                };
+                for (const m of src.matchAll(/(?<![\w$.])details\s*:\s*/g)) {
+                    const expr = exprAt(src, m.index + m[0].length);
+                    rows.push(`${file}: ${expr.slice(0, 40)}`);
+                    const why = holds(expr, 0);
+                    if (why) bad.push(`${file}: details: ${expr.slice(0, 40)} - ${why}`);
+                }
+            }
+            return { rows, bad };
+        };
+
+        const planted = [
+            ["frisk.mjs", "function ways(def) {\n    return `<label><input type=\"radio\" name=\"friskMode\" value=\"unseen\"></label>`;\n}\n"
+                + "export function menu(def) {\n    return chooseVariant({ options: [{ value: \"frisk\", details: ways(def) }] });\n}\n"],
+            ["literal.mjs", "export function menu() {\n    return chooseVariant({ options: [{ value: \"a\", details: `<p>x</p><select name=\"b\"></select>` }] });\n}\n"],
+            ["text.mjs", "function facts(def) {\n    return `<p>${def.hint}</p>`;\n}\n"
+                + "export function menu(def) {\n    return chooseVariant({ options: [{ value: \"a\", details: facts(def) }] });\n}\n"]
+        ];
+        const control = planted.map(row => scan([row]).bad.length);
+        equal(JSON.stringify(control), JSON.stringify([1, 1, 0]),
+            "the scanner does not see a control in a row's details, or sees one in text alone (planted: Frisk's ways as details, a literal select, text)");
+
+        const real = scan((await otherSources()).map(([file, src]) => [file, stripComments(src)]));
+        ok(real.rows.some(r => r.startsWith("action-murder.mjs: crisisDetails(")),
+            `the scan found no crisis menu's details, so it reads nothing (rows: ${JSON.stringify(real.rows)})`);
+        equal(JSON.stringify(real.bad), "[]",
+            "a chooseVariant row's details hold a form control, which stands outside the <form> and is never read: hand it as the row's `field`");
     }],
 ];
 

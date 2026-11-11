@@ -379,14 +379,14 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_PARK_MURDER]: {
         label: "DRPG.Bridge.what.murder.park",
         guards: [knownSender, owns("killerId", "sender does not own that character")],
-        sanitize: pick({ killerId: as.id, room: as.maybeText, note: as.text }),
+        sanitize: pick({ killerId: as.id, room: as.maybeText, note: as.text, proposed: as.maybeText }),
         run: handleParkMurder,
         answer: "reply"
     },
     [ACTION_BETRAYAL]: {
         label: "DRPG.Bridge.what.murder.betrayal",
         guards: [knownSender, owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id, note: as.text }),
+        sanitize: pick({ actorId: as.id, note: as.text, proposed: as.maybeText }),
         run: handleBetrayal,
         // Answered once carried out (E32 C5b): in an Eclipse the asker has paid an action
         // and needs to know whether the declaration was parked.
@@ -459,7 +459,7 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_DIFFICULTY]: {
         label: "DRPG.Bridge.what.dynamic.difficulty",
         guards: [knownSender, owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id, description: as.text, actorName: as.text, room: as.maybeText }),
+        sanitize: pick({ actorId: as.id, description: as.text, actorName: as.text, room: as.maybeText, proposed: as.maybeText }),
         run: handleDifficulty,
         // Not patient, as the Hope Call's (E18 C2, R840).
         answer: "reply", resend: true
@@ -501,7 +501,7 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ rid: as.text }),
         run: handleRulingReceived,
         answer: "none", quiet: true,
-        claims: { rid: "receivedOnPrimary (call-gm.mjs) writes only a ruling this primary sent under that id to the sender" }
+        claims: { rid: "receivedOnPrimary (call-gm.mjs) writes only a ruling this primary sent under that id to the sender - a card's, or an open Frisk's answer that left its force open (frisk.mjs receivedFriskAsk: the ask held under that id, asked by the sender, waiting for its receipt)" }
     },
     /*
      * THE GM PICKS THE STATISTIC (E32+E07 C11b, 02.10.2026; audit S04-23). Judged on
@@ -512,7 +512,8 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_TRAIT_RULING]: {
         label: "DRPG.Bridge.what.trait.ruling",
         guards: [knownSender, owns("actorId", "sender does not own that character"), guardTraitRuling],
-        sanitize: pick({ actorId: as.id, kind: as.text, key: as.text, variant: as.maybeText }),
+        // E68 C1 (DA18): the player's proposal and their words; the guard holds the one to the list, the other to its length.
+        sanitize: pick({ actorId: as.id, kind: as.text, key: as.text, variant: as.maybeText, proposed: as.maybeText, note: as.maybeText }),
         run: handleTraitRuling,
         answer: "reply", patient: true, resend: true, timeoutMs: TIMING.rulingMs
     },
@@ -702,14 +703,29 @@ export const BRIDGE_ACTIONS = table({
         // You may fill your own pockets and nobody else's. Without this, "move
         // that knife onto whoever I like" was a single socket emit away.
         guards: [knownSender, owns("takerId", "sender does not own the character doing the taking")],
-        sanitize: pick({ takerId: as.id, bodyId: as.id, itemId: as.id }),
+        // E68 C10: several items under one Take (`itemIds`, the run keeps the ids among them), and the Take's Hand roll
+        // with the cover's Shadow roll, thrown only where the taker's browser saw a student watching (`coverRollId`).
+        sanitize: pick({ takerId: as.id, bodyId: as.id, itemId: as.id, itemIds: as.raw, rollId: as.id, total: as.num,
+            isCritical: as.bool, withHope: as.bool, coverRollId: as.id, coverTotal: as.num, coverCritical: as.bool, coverHope: as.bool }),
         run: handleLoot,
         answer: "reply",
+        // Both rolls on the GMs' record of each (E68 C10; Palm's `palmRolls` the model): the Hand when the packet names one,
+        // and the cover when it names one, each drawn for this body (`named`, roll-draw.mjs `lootDrawRefusal`). Since the
+        // loot bind what a player's Take counts is the first of each drawn for the taker and the body since their last Take
+        // of it (handover.mjs `lootRollsBound`, `handleLoot`): a Take that names no Hand reads the one bound, refused with none.
+        rolled: [
+            { field: "rollId", actor: "takerId", kind: "loot", when: "rollId", named: { body: "bodyId" } },
+            { field: "coverRollId", actor: "takerId", kind: "lootCover", when: "coverRollId", named: { body: "bodyId" },
+                into: { total: "coverTotal", isCritical: "coverCritical", withHope: "coverHope" } }
+        ],
         // Where the taker stands is asked since E14 part 1 C1 (audit S08-01, S11-06): until then it was not (the E31
         // design's map of the GM side, row 30), and a body across the school was looted from a bedroom.
         claims: {
-            bodyId: "lootBody (handover.mjs) on the one gate (inventory.mjs transferRefusal, mode loot; frisk.mjs personActionRefusal with { body: true }): a dead body whose death the sender knows, its token not hidden, in the room the GMs read the taker in, a living taker that is not the body, outside an Eclipse and a Class Trial; an unknown death is refused as a living body is",
-            itemId: "lootBody (handover.mjs) takes only an item on that body that is not a Truth Bullet"
+            bodyId: "lootBody (handover.mjs) on the one gate (inventory.mjs transferRefusal, mode loot; frisk.mjs personActionRefusal with { body: true }): a dead body whose death the sender knows, not hidden where it lies (its tile, or its token when it has none: body-tile.mjs bodyPlaceOf), in the room the GMs read the taker in, a living taker that is not the body, outside an Eclipse and a Class Trial; an unknown death is refused as a living body is",
+            itemId: "lootBody (handover.mjs) takes only an item on that body that is not a Truth Bullet",
+            itemIds: "lootBody (handover.mjs), each as itemId is, at most LOOT_MOST",
+            rollId: "a Hand roll the GM drew for the taker's Take of this body (bridge-guards.mjs rollRefusal); a player's Take counts the first one drawn for that taker and body since their last Take of it, named or not (handleLoot, handover.mjs lootRollsBound), and is refused with none",
+            coverRollId: "a Shadow roll the GM drew for the taker's Take of this body (bridge-guards.mjs rollRefusal); a player's Take counts the first one drawn for that taker and body since their last Take of it (handleLoot)"
         }
     },
     [ACTION_ARM]: {

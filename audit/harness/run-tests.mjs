@@ -60,10 +60,11 @@ const BEGIN = "---------------- SUITE OUTPUT ----------------";
 const END = "----------------------------------------------";
 
 /* Hang detectors, not benchmarks. Tier 2 has 01-runtests' bound for its full run (5400 s since
-   1.2.93's crlf run, 3600 s before; the reasons in its comment C). Tiers 0-1 have 01's READ_ONLY_MS, 370 s: 1.5 times the slowest of
+   1.2.93's crlf run, 3600 s before; the reasons in its comment C). Tiers 0-1 have 01's READ_ONLY_MS, 370 s (560 s since
+   10.11.2026, E68: 01's comment has the readings) - when written, 1.5 times the slowest of
    its three readings of tier 1 (246 s, inside a Class Trial); `--tier 1` here read 212 s and 200 s
    on 18.10.2026. The process as a whole has five minutes more for the boot and the shutdown. */
-const EVAL_MS = { 0: 370_000, 1: 370_000, 2: 5_400_000 };
+const EVAL_MS = { 0: 560_000, 1: 560_000, 2: 5_400_000 };
 
 /* ------------------------------ the scenario ------------------------------ */
 

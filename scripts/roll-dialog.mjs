@@ -603,7 +603,8 @@ function lockDice(root) {
  *
  * A trait a GM picked for a roll whose definition lists several (E32+E07 C11b;
  * trait-ruling.mjs) is locked as every fixed one is, and its tooltip says whose
- * choice it was ("Chosen by the GM"). Resolve still opens it: a roller with Resolve
+ * choice it was ("Chosen by the GM"; since E68 C1 "Approved by the GM." or "Changed by
+ * the GM." where the player proposed one, trait-ruling.mjs `traitFor`). Resolve still opens it: a roller with Resolve
  * armed is not sent to the GM at all, so the two do not meet on one roll unless the
  * Call was armed while the GM read the thread - and then the player paid for it.
  *
@@ -616,7 +617,8 @@ export function lockTrait(root, app, armed) {
     if (trait && armed.has("trait")) {
         unlock(trait, "DRPG.RollDialog.unlockedByCall");
     } else if (trait && app?.config?.[TRAIT_BY_GM]) {
-        disable(trait, "DRPG.RollDialog.traitByGm");
+        const how = app.config[TRAIT_BY_GM];
+        disable(trait, how === "approved" ? "DRPG.RollDialog.traitApproved" : how === "changed" ? "DRPG.RollDialog.traitChanged" : "DRPG.RollDialog.traitByGm");
     } else if (trait) {
         disable(trait, "DRPG.RollDialog.traitFixed");
     }

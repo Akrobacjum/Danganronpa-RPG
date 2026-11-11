@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.103";
+    --drpg-css-version: "1.2.104";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -5297,6 +5297,15 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     align-items: flex-start;
     gap: 0.75rem 16px;
 }
+/* E68 C12: every action window (action-menus.mjs `actionWindow`) and, from E49, the settings window, through
+   ui-columns.mjs: a column is `.drpg-wide-col`, a section of one `.drpg-wide-section` under its `.drpg-wide-head`. */
+.drpg-variant-columns > .drpg-wide-col { flex: 1 1 18rem; min-width: 0; }
+.drpg-wide-section + .drpg-wide-section { margin-top: 0.75rem; }
+.drpg-wide-head { margin: 0 0 0.35rem; font-size: 1em; border-bottom: 1px solid var(--drpg-line); }
+/* What the picked row unfolds, in an action's left column (action-menus.mjs `syncDetails`): the picked row's block. */
+.drpg-variant-details > .drpg-choice-details:not([hidden]) { display: block; padding-left: 0; }
+/* The statistic's slot under the rows (action-menus.mjs `TRAIT_SLOT`): nothing drawn while it holds nothing. */
+.drpg-action-trait:empty { display: none; }
 .drpg-variant-columns > .drpg-variant-brief { flex: 1 1 18rem; min-width: 0; }
 /* The right padding holds the glass's brush behind a row (stained-glass.css, `inset: 1px -5px`), which stood 4 px past
    the body and made it scroll sideways (measured: scrollWidth 970 against 966 at 1366x768). */
@@ -5359,6 +5368,40 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     background: rgba(var(--drpg-gold-rgb), 0.12);
 }
 
+/* THE PICKED ROW'S MARK (E68 C12, 10.11.2026; the owner's Q4 of round M: the look kept, the contrast corrected). The
+   radio was the browser's (Chromium's blue dot in the style harness) and, at the table, Foundry's grey square with a
+   black corner, which did not read as picked. Now the module's own: a ring in Bone at rest, the Gold ring and a Gold
+   dot on the ink box once picked; Foundry's own mark (`::after`) off, as the glass took it off in E96 C1. Measured in
+   Chromium (`node audit/style-sweep.mjs --selected`): before, "native mark"; after, the mark on its box in
+   S/stages/E68/STATUS.md E68-C12. */
+body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"] {
+    appearance: none;
+    -webkit-appearance: none;
+    flex: none;
+    box-sizing: border-box;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    padding: 0;
+    display: inline-grid;
+    place-content: center;
+    border: 2px solid var(--drpg-bone);
+    border-radius: 50%;
+    background: var(--drpg-ink);
+}
+body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]::after { content: none; }
+body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--drpg-gold);
+    transform: scale(0);
+}
+body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]:checked { border-color: var(--drpg-gold); }
+body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]:checked::before { transform: scale(1); }
+body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]:focus-visible { outline: 2px solid var(--drpg-bone); outline-offset: 1px; }
+
 .drpg-choice > i {
     flex: 0 0 1.1rem;
     text-align: center;
@@ -5395,7 +5438,8 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     margin-top: 0.15rem;
 }
 
-/* A Frisk's ways under its row (E80 part 2 C2, `friskModes` in action-rolls.mjs): one radio a way, each with its
+/* A Frisk's ways under its row (E80 part 2 C2, `friskModes` in palm.mjs; in the left column from E68 C12, and under
+   the rows in the window's form, the Frisk row's `field`, since E68 fix CI 77d3e66a): one radio a way, each with its
    bars, drawn as the Rest window's options are. C2 has Unseen alone; C3 adds Openly above it. Measured 19.10.2026
    with the mock-up kit (c2mock/p2/make.mjs: Chromium, the module's six sheets on a stand-in of Foundry's frame,
    the Palm window at 544 px, Openly checked, EN and PL; E80 fix r2-G2): the block opens under the checked Frisk row
@@ -5502,6 +5546,31 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 
 .drpg-panel label.drpg-specific-note > :is(select, textarea, input) {
     width: 100%;
+}
+
+/* TEXT FIELDS FILL THEIR COLUMN (E68 fix round, 10.11.2026; the owner's screenshot of the Dynamic Action window, its
+   description a third of the window wide). In an action window every textarea and text input takes its column's
+   width: Dynamic's textarea (a bare child of the form, no label's rule reached it, so it kept the browser's 20
+   columns), and the proposal's "How do you do it?" (`.drpg-trait-how`, a centred flex row under `.drpg-panel label`, its
+   input 119 px of a 544 px column; at 390 px 283 px wide from 138 px in, past its 334 px column). Read in Chromium by
+   `node audit/style-sweep.mjs --fields` on probe 08's captures. No action window has a numeric field or a short code. */
+.drpg-action-window :is(textarea, input:is([type="text"], [type="search"], :not([type]))) {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.drpg-panel label.drpg-trait-how {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+}
+
+.drpg-panel label.drpg-trait-how > input {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 /* "Which statistic?" laid out as "Which project?" is (E16 part 2 C4, 26.10.2026; audit S02-35): the
@@ -8863,6 +8932,65 @@ body.drpg-reduced-motion .application.sheet.actor .character-sidebar-sheet .drpg
     line-height: 1.3;
 }
 
+/* The states the character is in, public on the sheet (E95 C5; sheet.mjs `paintStateBadges`): a row of badges under the
+   reserves, each the state's pixel icon and its name, in the kit's chip shape and tokens, so both themes draw it from
+   their own `--drpg-kit-*`. Not a button: it is focusable only for its tooltip. */
+/* THE ROW'S SPACE IS ALWAYS THERE (E95 C5 fix; the owner's 10.11): the row is in the sheet with no state held, one badge
+   high, and the badges do not wrap (each shrinks and clips its name), so a Breakdown or a Wounded that comes or goes
+   moves nothing below it. */
+.application.sheet.actor .character-sidebar-sheet .drpg-state-badges {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: center;
+    gap: 4px;
+    margin: 4px 0;
+    height: 24px;
+    box-sizing: border-box;
+}
+.application.sheet.actor .character-sidebar-sheet .drpg-state-badges > .drpg-state-badge {
+    flex: 0 1 auto;
+    min-width: 0;
+    box-sizing: border-box;
+    height: 24px;
+    min-height: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+/* Health and Sanity always side by side (E95 C5 fix; the owner's 10.11), whatever the system's own grid does at the
+   sidebar's width: one row, the two blocks sharing it. */
+.application.sheet.actor .character-sidebar-sheet .resources-section {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 4px;
+}
+.application.sheet.actor .character-sidebar-sheet .resources-section > .status-bar,
+.application.sheet.actor .character-sidebar-sheet .resources-section > .slot-value {
+    flex: 1 1 0;
+    min-width: 0;
+}
+.application.sheet.actor .character-sidebar-sheet .drpg-state-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 22px;
+    padding: 0 8px;
+    border: 1px solid var(--drpg-kit-chip-edge);
+    border-radius: 12px;
+    color: var(--drpg-kit-btn-ink);
+    font-size: var(--drpg-text-sm);
+    line-height: 1.3;
+    white-space: nowrap;
+}
+.application.sheet.actor .character-sidebar-sheet .drpg-state-badge > img {
+    width: 16px;
+    height: 16px;
+    border: none;
+    image-rendering: pixelated;
+}
+
 /* A number, typed: no spinner (its arrows took the width of the digits), as wide as two digits. */
 .application.sheet.actor .character-sidebar-sheet .drpg-reserve-field {
     appearance: textfield;
@@ -11652,6 +11780,15 @@ body.drpg-stacked .application.sheet.actor.character {
     font-size: var(--drpg-text-xs);
     font-style: italic;
     color: var(--drpg-bone);
+}
+
+/* A Dynamic success a Reroll took back (E68 C11, 10.11.2026; D048, the owner's amend [3] of 31.10: "pierwsza karta
+   sukcesu u GM-ow wyszarzona, obok druga z Rerolla"): the card's words greyed above its line, wherever the card is drawn
+   (the chat log, the messenger's bubble), hung on the line's own key (call-gm.mjs `settleCall`, action-dynamic.mjs
+   `withdrawDynamicFind`); the miss's card stands after it. Not drawn headless: jsdom lays nothing out. */
+:has(> .drpg-call-settled[data-drpg-line="DRPG.Action.dynamicRerollMissed"]) > :not(.drpg-call-settled) {
+    opacity: 0.55;
+    filter: grayscale(1);
 }
 
 /* The report's marks in their state's colour (E20 fix round, the goal review's G-8): a check in the evidence

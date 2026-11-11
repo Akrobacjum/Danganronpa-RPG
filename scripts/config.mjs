@@ -132,6 +132,15 @@ export const FLAGS = {
      */
     monocub: "monocub",
     /**
+     * Tile: this tile is a murdered student's body, left where their token stood when they became a Monocub
+     * (E95, 1.2.104; DC6; body-tile.mjs). `{ actorId, deathId, level, at }` - whose body, which death
+     * (the `deceased` record's `deathId`, so a later death's reader does not take an earlier one's tile),
+     * the floor it lies on (an id, or null on a scene of one floor; read by the rules, so they do not wait
+     * on v14's own tile floor field, LIVE-E95-02) and when it was laid (epoch ms; of two, the earliest is
+     * the body). The same word as the tests' source cutter `bodyOf` (tests-kit.mjs): a grep reads both.
+     */
+    bodyOf: "bodyOf",
+    /**
      * Character: locked out of discussing this crime until this chapter ends.
      *
      * Guide, p. 17: a Monocub who stumbles onto an incident "otrzymuje zakaz
@@ -1464,7 +1473,10 @@ export const ACTIONS = {
         kind: "universal",
         label: "Search",
         icon: "fa-magnifying-glass",
-        traits: ["eye"],
+        /* SIX STATISTICS, EYE THE DEFAULT (E68 C6, 10.11.2026; DA2, DA49). Eye first: a Search on Eye asks nobody and waits
+           for nothing (action-search.mjs `searchTrait`; roll-draw.mjs, the `search` row, waits for a card only on a claim
+           that is not Eye). Any other is the player's proposal to a GM, on a card (trait-ruling.mjs `traitFor`). */
+        traits: ["eye", "head", "body", "hand", "leg", "shadow"],
         cost: 1,
         // The count of searches a room allows is a WORLD SETTING (0-10), not the
         // three this sentence used to promise. The briefing reads the real
@@ -2268,9 +2280,15 @@ export const HOPE_CALLS = {
          * THE KEY STAYS `determination`. It is an identity, not a name: every
          * armed Call, sound mapping and flag in a live world is written against
          * it, and none of them is text anybody reads.
+         *
+         * TWO HOPE, AND ANY STATISTIC (E68 C7, 10.11.2026; DA37 = 1). Since the player proposes and
+         * the GM approves wherever several statistics are listed (DA18), Resolve is the one road
+         * that asks nobody: armed, `traitFor` answers with no card and the roll window's picker is
+         * open (trait-ruling.mjs, roll-dialog.mjs `lockTrait`), on a roll of one statistic too. It
+         * was 3 Hope; DA37 makes it 2, the price of skipping the card. No GM rules it (no `needsGm`).
          */
-        label: "Resolve", icon: "fa-hand-fist", cost: 3, target: "none", grants: "trait",
-        effect: "For one roll, choose which statistic to add yourself."
+        label: "Resolve", icon: "fa-hand-fist", cost: 2, target: "none", grants: "trait",
+        effect: "For one roll, pick any statistic yourself: nobody is asked, even where the action lists several."
     },
     freeCrit: {
         // NOT A CRITICAL, A LOADED DIE (Dawid, 31.08) - see forced-roll.mjs.
@@ -3396,6 +3414,8 @@ export const CRISIS_ACTIONS = {
         usesItem: true,
         hint: "Use an item during the incident with its Use button on your sheet. A hit with Hope, or a critical, puts "
             + "it to use; a hit with Despair does not. Every hit leaves a Remnant.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "Use an item with its Use button on your sheet; every hit leaves a Remnant.",
         remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
         criticalReinforced: true,
         // The guide gives the direct victim a second action and the indirect one
@@ -3413,6 +3433,8 @@ export const CRISIS_ACTIONS = {
         hint: "On a hit, leave a Remnant tied to the crime at the scene: Evident with Hope, Subtle with Despair, "
             + "Obvious and Reinforced on a critical, and your turn goes on. In an indirect murder, it is Reinforced "
             + "with Hope, and a critical leaves two.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "On a hit, leave a Remnant tied to the crime at the scene.",
         remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
         criticalReinforced: true,
         // G-17: a critical does not end the turn. Same field and same mechanism
@@ -3452,6 +3474,8 @@ export const CRISIS_ACTIONS = {
         hint: "On a hit, you secure a Remnant tied to the crime: Evident with Hope, Subtle with Despair, Obvious and "
             + "Reinforced on a critical, and your turn goes on. In an indirect murder, it is Reinforced with Hope, and "
             + "a critical leaves two.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "On a hit, take a Remnant tied to the crime with you.",
         remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
         criticalReinforced: true,
         // G-17, as on Leave a clue.
@@ -3489,6 +3513,8 @@ export const CRISIS_ACTIONS = {
         hint: "A hit with Hope unlocks Survive and Role Reversal; with Despair, only Role Reversal, unless the "
             + "incident denies it. A critical unlocks both, stops your Health and Sanity loss, and lets you take one "
             + "this turn without a roll. A readied weapon gives advantage.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "A hit opens Survive and Role Reversal; a readied weapon gives advantage.",
         weaponAdvantage: true,
         /** Which resolution actions a success opens, per duality band. */
         unlocks: {
@@ -3545,6 +3571,8 @@ export const CRISIS_ACTIONS = {
         hint: "Withdraw from the incident. A hit ends it and stops your Health and Sanity loss; with Despair, you also "
             + "get a hint about who the killer is. A critical gives that hint and immunity for this chapter and the "
             + "next.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "Withdraw: a hit ends the incident and stops your Health and Sanity loss.",
         hope: "The incident ends and the drain stops.",
         despair: "The incident ends and the drain stops. You get a hint about who they were.",
         critical: "The incident ends, you get a hint about who they were, and immunity for this "
@@ -3560,6 +3588,8 @@ export const CRISIS_ACTIONS = {
         hint: "Turn the tables. On a hit, you become the killer and your attacker loses Health and Sanity instead; "
             + "with Hope, you recover all yours. A critical kills your attacker, restores you, and leaves an Incident "
             + "Remnant (Evident, Reinforced). A readied weapon gives advantage.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "Turn the tables: on a hit, you become the killer and your attacker loses instead.",
         weaponAdvantage: true,
         hope: "You become the killer and recover all Health and Sanity.",
         despair: "You become the killer.",
@@ -3597,6 +3627,8 @@ export const CRISIS_ACTIONS = {
         hint: "A hit takes {hp} Health and {stress} Sanity off the victim and leaves a Remnant, Hidden with Hope and "
             + "Subtle with Despair. On a critical, the whole blow lands on Health or on Sanity, as you choose, and you "
             + "leave no Remnant.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "A hit takes Health and Sanity off the victim and leaves a Remnant.",
         damage: {
             hope: { hp: 1, stress: 1 }, despair: { hp: 1, stress: 1 },
             // A critical is the same two marks, but the killer says where both
@@ -3617,6 +3649,8 @@ export const CRISIS_ACTIONS = {
         threshold: 12, traits: ["body"],
         hint: "Put the victim's Leave a Clue and Survive at disadvantage for their {turns}, or block both on a "
             + "critical. With Despair, a hit leaves a Subtle Remnant, and a miss leaves an Evident one.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "Put the victim's Leave a Clue and Survive at disadvantage; a critical blocks both.",
         hinders: { actions: ["leaveClue", "survive"], turns: 2 },
         remnant: { despair: "subtle" },
         failureRemnant: { despair: "evident", critical: "obvious" }
@@ -3626,6 +3660,8 @@ export const CRISIS_ACTIONS = {
         threshold: 12, traits: ["leg"],
         hint: "Put the victim's Secure a Trace and Role Reversal at disadvantage for their {turns}, or block both on a "
             + "critical. With Despair, a hit leaves a Subtle Remnant, and a miss leaves an Evident one.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "Put the victim's Secure a Trace and Role Reversal at disadvantage; a critical blocks both.",
         hinders: { actions: ["secureTrace", "roleReversal"], turns: 2 },
         remnant: { despair: "subtle" },
         failureRemnant: { despair: "evident", critical: "obvious" }
@@ -3636,6 +3672,8 @@ export const CRISIS_ACTIONS = {
         hint: "A hit takes Health off the victim, more with a higher-tier weapon and on a critical. Without a readied "
             + "weapon you roll at disadvantage, and if you carry none, a hit gives you an improvised one. The weapon's "
             + "Remnants become tied to the crime.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "A hit takes Health off the victim, more with a higher-tier weapon.",
         /** 1 + tier/2 rounded up on a normal hit; 1 + full tier on a critical. */
         weaponDamage: { normal: tier => 1 + Math.ceil(tier / 2), critical: tier => 1 + tier },
         unarmedDisadvantage: true,
@@ -3680,6 +3718,8 @@ export const CRISIS_ACTIONS = {
         hint: "End the incident now. The number to beat is {mult} times the victim's remaining Health, so it is 0 once "
             + "they have none. A hit with Despair leaves an Evident Remnant, and a critical makes your first clean-up "
             + "attempt cost no Sanity.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "End the incident now; the number to beat grows with the victim's remaining Health.",
         endsIncident: true,
         hope: "The incident ends.",
         despair: "The incident ends and leaves one Incident Remnant.",
@@ -3713,6 +3753,8 @@ export const CRISIS_ACTIONS = {
         threshold: 15, traits: ["leg"], kind: "resolution",
         hint: "Get the victim out with you. A hit ends the incident, and with Hope or on a critical it also restores "
             + "their Health and Sanity; a critical gives you and the victim immunity for this chapter and the next.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "Get the victim out with you: a hit ends the incident.",
         hope: "Both of you escape. The victim's Health and Sanity are restored.",
         despair: "Both of you escape, but the victim's Health and Sanity are not restored.",
         critical: "Both of you escape with immunity for this chapter and the next, and the "
@@ -3753,6 +3795,8 @@ export const CRISIS_ACTIONS = {
         hint: "Side with the victim against the killer: you both become killers, and the original killer now loses "
             + "Health and Sanity and cannot take Role Reversal. This leaves an Evident Remnant, and you then take the "
             + "killers' turns, except in an indirect murder.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "Side with the victim: you both become killers, and you leave an Evident Remnant.",
         effect: "The victim and the third party become the killers. The original killer "
             + "starts bleeding and their survival is close to impossible.",
         swapsRoles: true,
@@ -3773,6 +3817,8 @@ export const CRISIS_ACTIONS = {
         kind: "resolution", noRoll: true,
         hint: "Join the killer's side; the victim can no longer take Role Reversal. This leaves a Subtle Remnant, and "
             + "you then take the killers' turns, except in an indirect murder.",
+        // The row's one sentence (E68 C13); the hint above stands in the picked row's details.
+        short: "Join the killer's side; you leave a Subtle Remnant.",
         effect: "The third party joins the killer. The original victim's survival is "
             + "close to impossible.",
         joinsKiller: true,
@@ -4008,17 +4054,21 @@ export const CLEANUP = {
     /**
      * Covering your tracks is a Shadow job.
      *
-     * The FIRST entry is what is actually rolled - the same convention
-     * `takeCrisisAction` follows for `CRISIS_ACTIONS[key].traits`. The rest of
-     * the list documents what else a GM could reasonably allow, and is the
-     * single place to change it.
+     * SHADOW ALONE (E68 C5, 10.11.2026; DA4). From E32+E07 C11c the list was Shadow / Hand /
+     * Head and a GM picked one on a card for every erase, reshape and trail (trait-ruling.mjs
+     * `traitFor`). The owner's DA4: Stage 6 rolls Shadow. One listed statistic asks nobody
+     * (`traitFor` answers it with no card), the roll window shows it fixed, and the GM's
+     * draw holds a clean-up to it (roll-draw.mjs `listedFor`, the `fixed` row) - so a clean-up
+     * claimed on Hand is flagged. Moving the body keeps its own Body (`actions.moveBody`), and
+     * Tamper's door was Shadow already (`ACTIONS.tamper`). With Resolve armed the roll window's
+     * picker opens, as for any roll.
      *
      * This rolled Hand until the guide was read against it: every one of Stage
      * 6's three actions prints "Stat: Cień", and so does the concealment roll
      * that covers them. Wiping a room down is not dexterity, it is not being
      * seen to have been there.
      */
-    traits: ["shadow", "hand", "head"],
+    traits: ["shadow"],
 
     /**
      * An equipped Cleaning Tool grants advantage and takes its tier off the
@@ -4318,6 +4368,23 @@ export const CLEANUP = {
         aloneNote: "Nobody else is in the room, so there is nothing to hide."
     }
 };
+
+/*
+ * TAKE FROM THE BODY ROLLS HAND (E68 C10, 10.11.2026; the plan's E68 goal: "`LOOT` w config.mjs (Hand: ponizej 12
+ * Evident, 12-17 Subtle, 18+ i krytyk Hidden)"; DA16, DA17, DA40). Every Take rolls `trait` once for the items it takes,
+ * and costs no action: the roll says only how plain the body's one Remnant reads - below the first `below` Evident,
+ * below the second Subtle, from there and on a critical Hidden (handover.mjs `lootVisibilityOf`). The owner's Q8 (10.11):
+ * every Take rolls again, in the same time of day too, and the Remnant's visibility only ever rises (handover.mjs
+ * `markBodyDisturbed`), so a second roll can make the trace easier to find and never harder - no free Reroll.
+ * `cover`: with a student watching (frisk.mjs `roomWitnessesOnGm`, counted by the primary GM when it judges the Take),
+ * a Shadow roll at `threshold` keeps them from seeing it; no Sanity either way, unlike Stage 6's `CLEANUP.conceal`.
+ */
+export const LOOT = Object.freeze({
+    trait: "hand",
+    bands: Object.freeze([Object.freeze({ below: 12, visibility: "evident" }), Object.freeze({ below: 18, visibility: "subtle" })]),
+    top: "hidden",
+    cover: Object.freeze({ trait: "shadow", threshold: 16 })
+});
 
 /*
  * WHAT MAY ADD TO A DRAWN ROLL (E29 C9, 05.10.2026; audit S17-12, its second half; the stage plan's 3.2).
@@ -4981,6 +5048,7 @@ export const DRPG = {
     TRIAL,
     RESOLUTION_STRESS_COST,
     CLEANUP,
+    LOOT,
     SITUATIONAL_PLAYLIST,
     GAME_WINDOWS,
     SFX_CATEGORIES,

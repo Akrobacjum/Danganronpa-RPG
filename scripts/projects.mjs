@@ -767,11 +767,12 @@ export const COMPLETION_EFFECTS = [
          * Observe (`foundBy`), who are told it is finished and nothing more (`DRPG.Observe.projectFoundDone`). The
          * project then goes, but is kept until the completing character's Reroll bookmark names another roll
          * (`keep`), so a Reroll can take the passage back. Uncrossed: the passage and who knew it go
-         * (`undoOpensPassage`). A stretch refused at the completion makes nothing, and the GMs are told why.
+         * (`undoOpensPassage`). A stretch refused at the completion makes nothing, and the GMs are told why - since
+         * E68 C11 (D023) on a card with "Choose the target again", the project left full and in place (`heldForRepick`).
          */
         key: "opensPassage",
         has: meta => meta.target?.preset === "secretPassage" && Boolean(meta.passage),
-        onCrossed: ({ id, name, meta }) => {
+        onCrossed: ({ id, name, meta, by }) => {
             const finders = new Set(Object.keys(meta.foundBy ?? {}));
             const builders = new Set(ownerIdsOfId(meta.by));
             // Only while it is secret (fix e1-G1, SEC-2): a project made public some other way has every player a viewer.
@@ -779,15 +780,16 @@ export const COMPLETION_EFFECTS = [
             const sharedIds = (game.actors?.contents ?? [...(game.actors ?? [])])
                 .filter(a => a?.type === "character" && users.some(u => a.testUserPermission?.(u, "OWNER"))).map(a => a.id);
             let made = null;
-            return {
+            const answer = {
                 apply: async () => {
                     made = await (await import("./passages-gm.mjs")).opensPassageDone(id, { passage: meta.passage, builderId: meta.by ?? null, sharedIds });
+                    if (made?.refused) await heldForRepick(id, answer, by);
                 },
                 remove: true,
                 keep: true,
                 after: async () => {
                     if (made?.refused) {
-                        await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Passage.card.notBuilt", { name, why: await whyOf(made.refused) }))}</p>`);
+                        await offerRepick(id, name, "DRPG.Passage.card.notBuilt", made.refused, meta);
                         return;
                     }
                     await (await import("./passages-gm.mjs")).tellPassageBuilt(made);
@@ -798,6 +800,7 @@ export const COMPLETION_EFFECTS = [
                     }
                 }
             };
+            return answer;
         },
         onUncrossed: ({ id }) => ({ apply: async () => (await import("./passages-gm.mjs")).undoOpensPassage(id) })
     },
@@ -811,24 +814,27 @@ export const COMPLETION_EFFECTS = [
          * wall is given back (`undoBreachesOf`). A stretch refused at the completion cuts nothing, and the GMs are told
          * why. Since C4 the cut forces the room beyond - the target the approval named -: broken, its seal lifted
          * (`cutBreach`'s note), and the table is told after the step (`tellBreach`), the builder named only to those who
-         * see the builder at the hole; the undo gives the room back with the wall.
+         * see the builder at the hole; the undo gives the room back with the wall. A refusal since E68 C11 (D023): the
+         * GMs' card offers the target again, as a Secret Passage's (`heldForRepick`, `offerRepick`).
          */
         key: "breachesWall",
         has: meta => meta.target?.preset === "breach" && Boolean(meta.passage),
-        onCrossed: ({ id, name, meta }) => {
+        onCrossed: ({ id, name, meta, by }) => {
             let made = null;
-            return {
+            const answer = {
                 apply: async () => {
                     made = await (await import("./passages-gm.mjs")).cutBreach(id, { passage: meta.passage, builderId: meta.by ?? null,
                         beyond: meta.target?.room ?? null });
+                    if (made?.refused) await heldForRepick(id, answer, by);
                 },
                 remove: true,
                 keep: true,
                 after: async () => {
-                    if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Passage.card.notBreached", { name, why: await whyOf(made.refused) }))}</p>`);
+                    if (made?.refused) await offerRepick(id, name, "DRPG.Passage.card.notBreached", made.refused, meta);
                     else await (await import("./passages-gm.mjs")).tellBreach(made);
                 }
             };
+            return answer;
         },
         onUncrossed: ({ id }) => ({ apply: async () => (await import("./passages-gm.mjs")).undoBreachesOf(id) })
     },
@@ -947,6 +953,49 @@ async function whyOf(reason) {
     return (await import("./passages-gm.mjs")).whyText(reason);
 }
 
+/*
+ * A REFUSED COMPLETION OFFERS ITS TARGET AGAIN (E68 C11, 10.11.2026; D023, E15 part 2's C2 and C5 gap; the owner's
+ * default of 10.11). A Secret Passage's or a breach's stretch refused at the completion - a GM drew the same wall
+ * meanwhile, a breach stands there now, the wall is gone - made nothing, told the GMs why, and went as any completion
+ * (`remove` with `keep`): the bar full, kept for the Reroll or gone, and nothing offered a new pick. Now the row's own
+ * write, refused, takes the project's `remove` back and records the refusal in the GMs' half (`repick`: when, and whose
+ * roll finished it - the character and that character's Reroll bookmark then), and the GMs get a card with the reason
+ * and "Choose the target again" (messenger-app.mjs `repickProjectTarget`), a `gmOnly` card no player's browser holds the
+ * words of. Its window is the approval's pick (projects-ui.mjs `openTargetRepick`), and its answer the change
+ * `{ repick }` (`changeStep`), which writes the new stretch and room and crosses the completion again: the rows run as
+ * at any crossing - the passage or the cut, the builder's and the finders' cards, the project removed or kept for the
+ * Reroll of the roll that finished it while that roll is still the character's last -, and the done card, which the
+ * first crossing posted, is not posted twice. A refusal again posts a new card. A bar taken under its target forgets it.
+ */
+async function heldForRepick(id, answer, by) {
+    answer.remove = false;
+    const actorId = by?.actorId ?? null;
+    await projectSecretStore.patch(id, { repick: { at: Date.now(), actorId,
+        messageId: actorId ? rerollBookmarkStore.get(actorId)?.messageId ?? null : null } });
+}
+
+/** The GMs' card of a refused completion (`heldForRepick`): the reason, and the button that picks the target again. */
+async function offerRepick(id, name, key, refused, meta) {
+    const text = `<p>${esc(game.i18n.format(key, { name, why: await whyOf(refused) }))}</p>`;
+    const { callGm } = await import("./gm-bridge.mjs");
+    const sent = await callGm(game.actors.get(meta?.by ?? "") ?? null, {
+        gmOnly: true,
+        title: game.i18n.format("DRPG.Passage.card.repickTitle", { name }),
+        body: text,
+        actions: [{ action: "repickProjectTarget", label: game.i18n.localize("DRPG.Passage.card.repick"), data: { project: id } }]
+    });
+    if (!sent) await whisperToGms(text);
+}
+
+/** Why a `{ repick }` cannot be made now, read in the step: null when the project waits for one and is full. */
+function repickRefusal(held, before, start, repick) {
+    if (!held?.repick) return "no refused completion waits for a target";
+    if (!(start > 0 && before >= start)) return "the bar is not full";
+    if (!["secretPassage", "breach"].includes(held.target?.preset)) return "not a Secret Passage or a breach";
+    if (!repick?.passage?.wallId || !repick.passage.sceneId || !repick.room) return "no stretch or room named";
+    return null;
+}
+
 /** A change, whatever asked for it, cut to the keys the step knows (and a packet's to the same): null when none is left. */
 export function cleanProjectChange(change) {
     if (!change || typeof change !== "object" || Array.isArray(change)) return null;
@@ -980,6 +1029,10 @@ export function cleanProjectChange(change) {
     }
     if (change.remove === true) out.remove = true;
     if (change.create === true) out.create = true;
+    // A refused completion's new target (E68 C11; D023, `heldForRepick`): the stretch and the room beyond, judged in the step.
+    if (plain(change.repick) && plain(change.repick.passage) && typeof change.repick.room === "string" && change.repick.room) {
+        out.repick = { passage: JSON.parse(JSON.stringify(change.repick.passage)), room: change.repick.room };
+    }
     // Who sees it, as operations the step works out on what it reads (E36 fix e1-G2; projects-secrecy.mjs `sightChange`).
     const user = value => typeof value === "string" && Boolean(game.users.get(value));
     const ids = value => (Array.isArray(value) ? value.filter(id => typeof id === "string" && id) : null);
@@ -1114,6 +1167,25 @@ async function changeStep(countdownId, change, by) {
     const raw = project.progress?.current ?? 0;
     const before = up ? raw : Math.max(0, oldStart - raw);
 
+    // A refused completion's target chosen again (E68 C11; D023): written here, in the step, and the completion crossed again below.
+    let repick = null;
+    if (change.repick) {
+        const held = secretsOf(countdownId);
+        const why = repickRefusal(held, before, oldStart, change.repick);
+        if (why) {
+            log(`The target of "${project.name}" was not chosen again: ${why}.`);
+            return { result: { id: countdownId, name: project.name, from: before, to: before, target: oldStart, changed: false,
+                reason: "DRPG.Passage.card.repickGone", crossed: false, uncrossed: false, removed: false }, after };
+        }
+        repick = held.repick;
+        const target = { ...held.target, room: change.repick.room };
+        await projectSecretStore.patch(countdownId, { passage: change.repick.passage, target, repick: null });
+        Object.assign(meta, { passage: change.repick.passage, target });
+        // Kept for the Reroll of the roll that finished it only while that roll is still the character's last.
+        const still = repick.actorId && repick.messageId && rerollBookmarkStore.get(repick.actorId)?.messageId === repick.messageId;
+        by = { ...by, actorId: still ? repick.actorId : null };
+    }
+
     if (change.remove) {
         const result = { id: countdownId, name: project.name, from: before, to: before, target: oldStart, changed: true,
             crossed: false, uncrossed: false, removed: true };
@@ -1198,7 +1270,7 @@ async function changeStep(countdownId, change, by) {
 
     const wasDone = oldStart > 0 && before >= oldStart;
     const isDone = start > 0 && afterProgress >= start;
-    const crossed = !wasDone && isDone, uncrossed = wasDone && !isDone;
+    const crossed = (!wasDone && isDone) || Boolean(repick), uncrossed = wasDone && !isDone;
 
     // Every row answers before anything is written: a row whose answer throws leaves the project as it was.
     const ctx = { id: countdownId, name: next.name, before, after: afterProgress, target: start, meta, by, countdowns };
@@ -1238,6 +1310,8 @@ async function changeStep(countdownId, change, by) {
     }
     // A completion kept for a Reroll is let go when the bar is taken back under its target.
     if (uncrossed && secretsOf(countdownId).keptFor) await projectSecretStore.patch(countdownId, { keptFor: null });
+    // A refused completion waits for its target no more once the bar is under it (D023): filled again, it crosses as new.
+    if (uncrossed && secretsOf(countdownId).repick) await projectSecretStore.patch(countdownId, { repick: null });
 
     let removed = false;
     if (answers.some(answer => answer.remove)) {
@@ -1252,7 +1326,8 @@ async function changeStep(countdownId, change, by) {
     }
     for (const answer of answers) if (typeof answer.after === "function") after.push(answer.after);
     // Every crossing's own word: the builder, or whoever filled it (none for a repair or a trap, `announceProjectDone`).
-    if (crossed) after.push(() => announceProjectDone(next.name, start, by.userId, meta));
+    // A target chosen again (D023) finishes what the first crossing announced: its done card is not posted twice.
+    if (crossed && !repick) after.push(() => announceProjectDone(next.name, start, by.userId, meta));
 
     return { result: { id: countdownId, name: next.name, from: before, to: afterProgress, target: start, changed: true,
         crossed, uncrossed, removed }, after };

@@ -300,7 +300,7 @@ function applyOp(userId, op, onLegacyKey = null) {
 
 function embKey(collName, embeddedName) {
     // A region's behaviours (E12 fix r2-S2, 11.10.2026): scenario 66 X3 and X4 take one off and put one on, `via` the region.
-    const map = { Actor: { Item: "items", ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" }, Item: { ActiveEffect: "effects" }, Region: { RegionBehavior: "behaviors" } };
+    const map = { Actor: { Item: "items", ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls", Tile: "tiles" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" }, Item: { ActiveEffect: "effects" }, Region: { RegionBehavior: "behaviors" } };
     const k = map[collName]?.[embeddedName];
     if (!k) throw new Error(`no embedded ${embeddedName} in ${collName}`);
     return k;
