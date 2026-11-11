@@ -256,10 +256,10 @@ export async function dropRemnant(actor, {
             actor: actor?.name ?? "?"
         }));
         const { whisperToGms } = await import("./utils.mjs");
-        await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Remnant.noTokenGm", {
+        await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Remnant.noTokenGm", {
             actor: foundry.utils.escapeHTML(actor?.name ?? "?"),
             action: foundry.utils.escapeHTML(action)
-        })}</p>`);
+        })}</p>` });
         return null;
     }
 

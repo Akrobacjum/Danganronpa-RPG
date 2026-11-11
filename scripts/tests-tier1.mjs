@@ -3454,6 +3454,41 @@ const INVARIANTS = [
             `Monokuma Legacy, unlocked: ${at("legacy.none")}, not --drpg-pix-mic none`);
     }],
 
+    ["R3511 - under Stained Glass the GM's manual mic lock is drawn by its drawing alone: the voice tile's mic in the GM's lock (`is-gm-blocked`) draws no diagonal \"blocked\" stroke over the mic-lock glyph, while a muted or held mic keeps its stroke and Monokuma Legacy keeps it on the GM's lock (E48, the owner's \"Ok\" of 11.11.2026)", async () => {
+        /*
+         * E48 (the mic lock), 11.11.2026; E48 STATUS mic-lock's open: components.css draws a 22 px diagonal stroke on the
+         * `::after` of any blocked mini launcher (`.drpg-launch-mini:is(.is-muted, .is-held, .is-gm-blocked)::after`), and
+         * under Stained Glass the GM's lock wears the mic-lock drawing (R3460) - so the mic read crossed and locked at once.
+         * Read with the kit's cascade (`styleCascade`, the module's sheets read from their text): which rule wins
+         * `content` on the mic's `::after`, the mic built as voice-tile.mjs builds it (R3460's). jsdom computes no
+         * pseudo-element's style ("Not implemented: ... with pseudo-elements", read on the harness 11.11.2026), so this is
+         * the cascade of the sheets' text, not a browser's computed style; @media rules are not read by it. THE CONTROLS:
+         * a muted and a held mic under the glass, and the GM's lock under Legacy, keep the stroke (`content: ""`).
+         * Red first on 15f44581: glass.gmBlock read "\"\"" (the stroke drawn).
+         */
+        const C = await styleCascade();
+        const { launcher, launcherState } = await import("./ui-kit.mjs");
+        const shell = document.implementation.createHTMLDocument("R3511");
+        const page = shell.body;
+        const host = shell.createElement("div");
+        host.className = "drpg-voice-tile";
+        page.append(host);
+        const mic = shell.importNode(launcher({ mini: true, className: "drpg-voice-mic", glyph: "mic", label: "mic" }), true);
+        host.append(mic);
+        const seen = {};
+        for (const [theme, cls] of [["glass", "drpg-theme-stained-glass"], ["legacy", "drpg-theme-monokuma-legacy"]]) {
+            page.className = cls;
+            for (const state of ["gmBlock", "muted", "held"]) {
+                launcherState(mic, state);
+                seen[`${theme}.${state}`] = C.winner(mic, "content", "::after")?.value ?? null;
+            }
+        }
+        must(Object.values(seen).some(v => v !== null), "no ::after rule of the mini launcher was read - this would measure nothing");
+        equal(stableJson(seen), stableJson({ "glass.gmBlock": "none", "glass.muted": "\"\"", "glass.held": "\"\"",
+            "legacy.gmBlock": "\"\"", "legacy.muted": "\"\"", "legacy.held": "\"\"" }),
+            "{theme.state: the content of the mic's ::after - \"\" draws the blocked stroke, none draws nothing}");
+    }],
+
     ["R548 - Foundry tools wears the module's pixel anvil in both themes: its one child is an inert, classless i masked with --drpg-pix-anvil in the colour the handbooks' book is drawn in, and no Foundry logo is on the page or in the module's stylesheets", async () => {
         /*
          * E78 fix h76-HF3, 14.10.2026; the owner at The Forge on 1.2.76 (13.10): the corner's Foundry tools button wore
@@ -10490,7 +10525,8 @@ const INVARIANTS = [
         const { GM_ROUTE_CLASS: GM_ROUTE } = await import("./utils.mjs");
         // E41 C3 (1.2.97): every file of the action family (the kit's ACTION_FAMILY), where action-rolls.mjs alone was read.
         // E68 C12: ui-columns.mjs too, where the menu's row moved (`choiceRowHtml`) with the columns' own classes.
-        for (const file of ["day-summary.mjs", "popup.mjs", "secret.mjs", "messenger-app.mjs", "trial.mjs", "safeword.mjs", "ui-columns.mjs", ...ACTION_FAMILY]) {
+        // E49 B5a: chat-card.mjs, the module's chat card and its warning line (`chatCard`, `cardWarn`).
+        for (const file of ["day-summary.mjs", "popup.mjs", "secret.mjs", "messenger-app.mjs", "trial.mjs", "safeword.mjs", "ui-columns.mjs", "chat-card.mjs", ...ACTION_FAMILY]) {
             const src = stripComments(sources.get(file) ?? "");
             must(src.length > 0, `${file} was not read - the class grep would be measured on nothing`);
             for (const m of src.matchAll(/class=(["'])/g)) {
@@ -33557,7 +33593,7 @@ const INVARIANTS = [
         ]), "stepsReport does not say a result as one report (per result: lines, the groups' sentences in order, the toast's level and text)");
         const html = document.createElement("div");
         html.innerHTML = all.content;
-        equal(stableJson([[...html.querySelectorAll("li")].map(li => li.textContent), [...html.querySelectorAll("p")].map(p => p.classList.contains("drpg-warning"))]),
+        equal(stableJson([[...html.querySelectorAll("li")].map(li => li.textContent), [...html.querySelectorAll("p")].map(p => p.classList.contains("drpg-chat-kit-warn"))]),
             stableJson([["one", "two"], [false, false, true, true]]),
             "the report's card does not list the lines and say each group, the failed and the not run as warnings");
     }],
@@ -35539,14 +35575,17 @@ const INVARIANTS = [
            The voice tile's curtain print under Stained Glass since E48 mic-lock (11.11.2026): the mic drawn in the GM's
            lock (the place that reads its four states) wears batch 5's mic-lock, pixel-icons.css's glass rule winning its
            mask-image, and the lock badge's display is won by the rule that stands it down - 2:7c097704 -> 2:1b6f197e,
-           re-measured headless; Legacy's, the desk's and the stacked screen's, `left` and the @media rules as they were. */
+           re-measured headless; Legacy's, the desk's and the stacked screen's, `left` and the @media rules as they were.
+           And since the E48 mic lock's stroke (11.11.2026, R3511): the GM's lock under the glass draws no blocked stroke on
+           the mic's `::after` (components.css), so the same place's print moves again - 2:1b6f197e -> 2:c7b2c17b,
+           re-measured headless; every other print, `left` and the @media rules as they were. */
         const C5 = {
             "curtain|monokuma-legacy|foundry-tools": "1:742fc6be", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:999f5b79",
             "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:cf9e2a77", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
             "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:7268133b", "curtain|stained-glass|foundry-tools": "1:9978c959",
             "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:ae4eb686", "curtain|stained-glass|room-art": "1:b38f7ef7",
             "curtain|stained-glass|room-tile": "1:7a2b083d", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
-            "curtain|stained-glass|voice-tile": "2:1b6f197e", "desk|monokuma-legacy|foundry-tools": "1:742fc6be", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
+            "curtain|stained-glass|voice-tile": "2:c7b2c17b", "desk|monokuma-legacy|foundry-tools": "1:742fc6be", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
             "desk|monokuma-legacy|gm-launcher": "1:999f5b79", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:3a251bf8",
             "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:cfb69a33",
             "desk|stained-glass|foundry-tools": "1:9978c959", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:ae4eb686",

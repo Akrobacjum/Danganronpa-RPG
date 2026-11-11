@@ -1818,6 +1818,12 @@ body.drpg-theme-stained-glass .drpg-voice-mic.is-held {
     filter: grayscale(1);
 }
 
+/* THE GM'S LOCK IS ITS DRAWING ALONE under the glass (E48, the owner's "Ok" of 11.11.2026; R3511): the mic-lock glyph
+   (pixel-icons.css, R3460) already says the GM locked it, and the blocked stroke the mini launcher draws on its
+   `::after` for every blocked state crossed that drawing - crossed and locked at once. Muted and held keep the stroke;
+   Monokuma Legacy keeps it on the GM's lock (its mic and lock badge are two marks). */
+body.drpg-theme-stained-glass .drpg-voice-mic.is-gm-blocked::after { content: none; }
+
 body.drpg-theme-stained-glass .drpg-voice-mic.is-held::before { border-color: var(--drpg-line-strong); }
 
 /* OBJECTION! held on the tile (E70 C11): the held microphone's grey rim, no strike. */
@@ -3320,3 +3326,105 @@ body:not(.drpg-theme-stained-glass) .application.drpg-ui.drpg-panel.drpg-window-
 body .application.drpg-ui.drpg-panel.drpg-window-settings .drpg-variant-columns .drpg-settings-sections > button.drpg-settings-tab[type="button"] > i { color: inherit; opacity: 1; }
 .drpg-window-settings .drpg-settings-rows > .drpg-settings-row[data-drpg-setting="moveAudit"] { grid-column: 1 / -1; }
 
+
+/* ---- THE CHAT CARD (E49 B5a, 11.11.2026; the owner's amend [6]) ----
+   chat-card.mjs `chatCard`: the kit's box in the log - its tone's edge and ground (the kit's tokens, both themes), a
+   head with the glyph (Font Awesome under Monokuma Legacy, the hand-drawn glyph under Stained Glass through
+   pixel-icons.css's FACES rules) and, when titled, the title over the body; untitled, the glyph stands beside the
+   words. No close button: a message is closed by nobody. `cardWarn`'s line is a warning inside a card another builder
+   draws. Drawn wherever the card stands - the log, a notice, the notice history - so the rules name no container. */
+.drpg-chat-kit {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 0.5rem;
+    align-items: start;
+    margin: 0 0 4px;
+    padding: 0.35rem 0.6rem;
+    border-left: 3px solid var(--drpg-kit-info-edge);
+    background: var(--drpg-kit-info-bg);
+}
+.drpg-chat-kit[data-drpg-tone="warning"] { border-left-color: var(--drpg-kit-warn-edge); background: var(--drpg-kit-warn-bg); }
+.drpg-chat-kit[data-drpg-tone="secret"] { border-left-color: var(--drpg-kit-secret-edge); background: var(--drpg-kit-secret-bg); }
+.drpg-chat-kit > .drpg-chat-kit-head { display: flex; align-items: center; gap: 0.45rem; min-width: 0; margin: 0; }
+.drpg-chat-kit > .drpg-chat-kit-head:has(> .drpg-chat-kit-title) {
+    grid-column: 1 / -1;
+    margin: 0 0 0.3rem;
+    padding: 0 0 0.2rem;
+    border-bottom: 1px solid var(--drpg-kit-info-edge);
+}
+.drpg-chat-kit > .drpg-chat-kit-head:has(> .drpg-chat-kit-title) ~ * { grid-column: 1 / -1; }
+.drpg-chat-kit .drpg-chat-kit-glyph { flex: none; width: 1rem; line-height: 1.35; text-align: center; }
+.drpg-chat-kit[data-drpg-tone="warning"] .drpg-chat-kit-glyph { color: var(--drpg-kit-warn-edge); }
+.drpg-chat-kit[data-drpg-tone="secret"] .drpg-chat-kit-glyph { color: var(--drpg-kit-secret-edge); }
+.drpg-chat-kit .drpg-chat-kit-title { margin: 0; padding: 0; border: 0; font-size: 1em; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.drpg-chat-kit > .drpg-chat-kit-body { min-width: 0; overflow-wrap: anywhere; }
+.drpg-chat-kit > .drpg-chat-kit-body > :first-child { margin-top: 0; }
+.drpg-chat-kit > .drpg-chat-kit-body > :last-child { margin-bottom: 0; }
+.drpg-chat-kit > .drpg-chat-kit-foot { grid-column: 1 / -1; margin: 0.3rem 0 0; font-size: 0.9em; }
+.drpg-chat-kit-warn { padding: 0.1rem 0 0.1rem 0.45rem; border-left: 3px solid var(--drpg-kit-warn-edge); background: var(--drpg-kit-warn-bg); }
+span.drpg-chat-kit-warn { padding: 0 0.3rem; }
+
+/* ---- THE CHAT LOG (E49 B5b, 11.11.2026; the owner's amend [6] and Q8: the whole log in the module's style, look only) ----
+   One section for `#chat-log` and the input under it: every message - a player's, the GM's, a whisper, Foundry's and
+   Daggerheart's roll and item cards, the module's own - drawn as one family: a plate with an edge, the sender's line
+   over a hairline, the time at the right in the small print, the words at the log's size, 6 px between messages, and
+   the input in the same frame. Both themes, through the kit's tokens, which each theme declares (above). Look only:
+   no rule here hides, moves or adds a control, and the system's markup is untouched (Q8) - its classes are read as
+   Daggerheart 2.10.5 and Foundry v14 write them (`.message-header`, `.message-sender`, `.message-metadata`,
+   `.whisper-to`, `.dice-roll`, `.dice-total`, `.dh-chat-message`), so a Daggerheart update that renames one leaves that
+   part in Foundry's own look (read at a table, not here: STAGE E49's live check of the chat). The selectors stay low (`:where`) so a message's own
+   colour - an outcome's edge (private-rolls.mjs `markOutcome`), Daggerheart's tint of a duality card - still wins: this
+   section is the floor the log stands on, not a coat over it. A message the module wrote in a tone (chat-card.mjs; the
+   message's `data-drpg-tone`, private-rolls.mjs `paintChatCard`) takes the tone's edge. */
+:where(#chat-log) { scrollbar-gutter: stable; padding: 4px 6px 4px 4px; }
+:where(#chat-log) > :where(.chat-message) {
+    margin: 0 0 6px;
+    padding: 6px 8px;
+    border: 1px solid var(--drpg-kit-info-edge);
+    border-left-width: 3px;
+    background: var(--drpg-kit-info-bg);
+    line-height: 1.4;
+}
+/* A whisper is drawn apart by its dashed frame, in the plain colours: it is not the GM's words by itself (the kit's
+   `secret` tone is), and red is the GM's road (D11). The module's own card gives its tone to its message's edge, and in
+   the log draws no second frame of its own inside it (in a notice or the history it keeps its own). */
+:where(#chat-log) > :where(.chat-message.whisper) { border-style: dashed; border-left-style: solid; }
+:where(#chat-log) > :where(.chat-message[data-drpg-tone="warning"]) { border-left-color: var(--drpg-kit-warn-edge); background: var(--drpg-kit-warn-bg); }
+:where(#chat-log) > :where(.chat-message[data-drpg-tone="secret"]) { border-left-color: var(--drpg-kit-secret-edge); background: var(--drpg-kit-secret-bg); }
+/* (0,2,0) after the card's own tone rules, so it wins over them here alone */
+:where(#chat-log .chat-message[data-drpg-tone] .message-content) > .drpg-chat-kit[data-drpg-tone] { padding: 0; border-left: 0; background: none; }
+:where(#chat-log) :where(.message-header) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 8px;
+    margin: 0 0 4px;
+    padding: 0 0 3px;
+    border-bottom: 1px solid var(--drpg-kit-info-edge);
+}
+:where(#chat-log) :where(.message-sender) { flex: 1 1 auto; min-width: 0; margin: 0; font-size: 1em; font-weight: 700; overflow-wrap: anywhere; }
+:where(#chat-log) :where(.message-metadata) { flex: none; margin: 0 0 0 auto; font-size: 0.85em; }
+:where(#chat-log) :where(.whisper-to) { flex: 1 0 100%; font-size: 0.85em; font-style: italic; }
+:where(#chat-log) :where(.message-content) { overflow-wrap: anywhere; }
+:where(#chat-log) :where(.message-content) > :where(:first-child) { margin-top: 0; }
+:where(#chat-log) :where(.message-content) > :where(:last-child) { margin-bottom: 0; }
+:where(#chat-log) :where(.message-content) :where(p) { margin: 0 0 4px; }
+:where(#chat-log) :where(.message-content) :where(h3) { margin: 0 0 4px; font-size: 1.05em; }
+:where(#chat-log) :where(.dice-roll) :where(.dice-formula, .dice-total) {
+    margin: 4px 0 0;
+    padding: 2px 6px;
+    border: 1px solid var(--drpg-kit-info-edge);
+    text-align: center;
+}
+:where(#chat-log) :where(.dice-roll) :where(.dice-total) { font-size: 1.2em; font-weight: 700; }
+:where(#chat-log) :where(.item-card, .card-header) :where(img) { max-width: 32px; max-height: 32px; }
+:where(#chat) :where(#chat-message, textarea.chat-input) {
+    box-sizing: border-box;
+    margin: 4px 0 0;
+    padding: 4px 6px;
+    border: 1px solid var(--drpg-kit-info-edge);
+    border-left-width: 3px;
+    background: var(--drpg-kit-info-bg);
+    color: inherit;
+    font: inherit;
+}

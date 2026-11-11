@@ -61147,9 +61147,10 @@ const SCENARIOS = [
         const box = x => [{ type: "rectangle", x, y: 100, width: 400, height: 400 }];
         const room = owner => ({ [MODULE_ID]: { [R.ROOM_FLAG]: true, [V.VAULT_FLAGS.owner]: owner.id, [V.VAULT_FLAGS.stashes]: owner === aiko ? [{ actorId: aiko.id, concealed: true }] : [] } });
         const messagesBefore = new Set(game.messages.contents.map(m => m.id));
-        // The join's whisper is the one with a warning's class that names both rooms (vault-store.mjs `clearSplitPiece`).
+        // The join's whisper is the one in a warning's tone that names both rooms (vault-store.mjs `clearSplitPiece`; a card
+        // in the warning tone since E49 B5a, a `drpg-warning` line before).
         const told = () => game.messages.contents.filter(m => !messagesBefore.has(m.id))
-            .filter(m => /drpg-warning/.test(String(contentOf(m) ?? "")) && String(contentOf(m) ?? "").includes(DORM_A) && String(contentOf(m) ?? "").includes(DORM_B)).length;
+            .filter(m => /data-drpg-tone="warning"/.test(String(contentOf(m) ?? "")) && String(contentOf(m) ?? "").includes(DORM_A) && String(contentOf(m) ?? "").includes(DORM_B)).length;
         let scene = null, key = null, item = null, read = null;
         try {
             scene = await Scene.create({ name: "SUITE E12 H4 two bedrooms", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });

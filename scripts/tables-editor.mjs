@@ -25,6 +25,7 @@
  */
 
 import { MODULE_ID, ITEM_CATEGORIES, EQUIPPABLE, ITEM_TIERS, itemIcon } from "./config.mjs";
+import { cardWarn } from "./chat-card.mjs";
 import { whisperToGms, log, error, plural, esc}
     from "./utils.mjs";
 import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, drpgPrompt, dataTable, box } from "./ui-kit.mjs";
@@ -191,11 +192,13 @@ export async function installTables({ overwrite = false, prompt = true } = {}) {
 
     // A receipt that survives the toast, so "did that do anything?" has an answer.
     const list = items => `<ul>${items.map(n => `<li>${foundry.utils.escapeHTML(n)}</li>`).join("")}</ul>`;
-    await whisperToGms(`<h3>${game.i18n.localize("DRPG.Panel.installTables")}</h3>
+    await whisperToGms({
+        title: game.i18n.localize("DRPG.Panel.installTables"), tone: failed.length ? "warning" : "info", body: `
         <p>${game.i18n.format("DRPG.Tables.installed", { created: created.length, skipped: skipped.length })}</p>
         ${created.length ? list(created) : ""}
-        ${failed.length ? `<p class="drpg-warning">${plural("DRPG.Tables.someFailed", { n: failed.length })}</p>${list(failed)}` : ""}
-        <p><small>${game.i18n.localize("DRPG.Tables.whereNote")}</small></p>`);
+        ${failed.length ? `${cardWarn(plural("DRPG.Tables.someFailed", { n: failed.length }))}${list(failed)}` : ""}
+        <p><small>${game.i18n.localize("DRPG.Tables.whereNote")}</small></p>`
+    });
 
     await openTablesTab();
     return { created, skipped, failed };

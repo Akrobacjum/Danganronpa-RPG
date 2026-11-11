@@ -1105,10 +1105,10 @@ function reportRefusal(verdict, sender) {
         else lastWarned.set(key, now);
         ui.notifications?.warn(game.i18n.format("DRPG.Relay.refused", { name: plainWhat(sender.name), what }));
         if (verdict.kind === "forged") {
-            whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Relay.forged", {
+            whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Relay.forged", {
                 name: foundry.utils.escapeHTML(sender.name),
                 what: foundry.utils.escapeHTML(what)
-            })}</p>`).catch(err => debug("Could not tell the GMs about a refused relay packet", err));
+            })}</p>` }).catch(err => debug("Could not tell the GMs about a refused relay packet", err));
         }
     }
     if (verdict.kind === "shape") shapeWarning(verdict.sub ?? "?");
@@ -1148,7 +1148,7 @@ function unknownSender(payload) {
     unknownSaid = true;
     const text = game.i18n.localize("DRPG.Relay.unknownSender");
     ui.notifications?.warn(text);
-    whisperToGms(`<p class="drpg-warning">${foundry.utils.escapeHTML(text)}</p>`)
+    whisperToGms({ tone: "warning", body: `<p>${foundry.utils.escapeHTML(text)}</p>` })
         .catch(err => debug("Could not report a relay packet with no sender", err));
 }
 
@@ -1174,10 +1174,10 @@ function shapeWarning(what) {
     shapesWarned.add(what);
     warn(`Daggerheart sent "${what}", which the relay guard has not reviewed; this client did not run it.`);
     if (!game.user?.isGM || shapesWarned.size > SHAPES_WHISPERED) return;
-    whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Relay.unreviewed", {
+    whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Relay.unreviewed", {
         version: foundry.utils.escapeHTML(String(game.system?.version ?? "?")),
         cases: foundry.utils.escapeHTML(what)
-    })}</p>`).catch(err => debug("Could not report an unreviewed Daggerheart packet", err));
+    })}</p>` }).catch(err => debug("Could not report an unreviewed Daggerheart packet", err));
 }
 
 /**
@@ -1191,7 +1191,7 @@ async function announce() {
     if (status.state === "notFound" || status.state === "noApi") {
         const text = game.i18n.format("DRPG.Relay.unguarded", { version });
         ui.notifications?.error(text, { permanent: true });
-        await whisperToGms(`<p class="drpg-warning">${foundry.utils.escapeHTML(text)}</p>`);
+        await whisperToGms({ tone: "warning", body: `<p>${foundry.utils.escapeHTML(text)}</p>` });
         return;
     }
     if (status.state !== "unnamed" && status.state !== "changed" && status.state !== "backstop") return;
@@ -1202,14 +1202,14 @@ async function announce() {
     const stamp = status.state === "backstop" ? `backstop|${version}` : version;
     if (warned === stamp) return;
     if (status.state === "backstop") {
-        await whisperToGms(`<p class="drpg-warning">${foundry.utils.escapeHTML(
-            game.i18n.format("DRPG.Relay.backstop", { version }))}</p>`);
+        await whisperToGms({ tone: "warning", body: `<p>${foundry.utils.escapeHTML(
+            game.i18n.format("DRPG.Relay.backstop", { version }))}</p>` });
     } else {
         const cases = status.unreviewed.length ? status.unreviewed.join(", ")
             : game.i18n.localize("DRPG.Relay.unreadable");
-        await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Relay.unreviewed", {
+        await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Relay.unreviewed", {
             version: foundry.utils.escapeHTML(version), cases: foundry.utils.escapeHTML(cases)
-        })}</p>`);
+        })}</p>` });
     }
     try { await game.settings.set(MODULE_ID, SETTINGS.relayWarned, stamp); } catch { /* said again next load */ }
 }
