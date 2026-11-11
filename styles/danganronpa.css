@@ -17734,6 +17734,7 @@ body.drpg-theme-monokuma-legacy .application.sheet.actor .search-section input[t
     background: color-mix(in srgb, var(--drpg-ink) 70%, transparent);
     color: var(--drpg-bone);
     box-shadow: inset 0 0 0 1px var(--drpg-line-strong);
+    border-color: transparent;
 }
 body.drpg-theme-monokuma-legacy .application.sheet.actor .search-section input[type="search"]::placeholder { color: var(--drpg-bone-dim); }
 body.drpg-theme-monokuma-legacy .application.sheet.actor :is(.search-section .icon, .filter-button, .inventory-item .controls a) {
@@ -17753,3 +17754,32 @@ body.drpg-theme-monokuma-legacy .application.sheet.actor .item-tags .tag {
     border-radius: 2px;
 }
 body.drpg-theme-monokuma-legacy .application.sheet.actor li.inventory-item:hover > .item-main { background: var(--drpg-kit-hover-bg); }
+
+/* FT-28 and FT-29, the glass's twins (E105 fix batch 3, after the first measure): the survey's analyze.js on the stand-in
+   page read, under Stained Glass, the inventory's search field (ground, edge, ink, focus, placeholder) and its two
+   links (ink, hover, focus) left to Daggerheart - the glass's brush names the sheet's buttons, rows and tabs, not these -
+   and a locked tooltip's ink and face left to core (stained-glass.css dresses `#tooltip` only). Each now as its
+   neighbours under the glass: the field the glass's dark well with a Bone line, the links Bone-dim and Bone, the locked
+   tooltip the tooltip's plate. */
+body.drpg-theme-stained-glass .application.sheet.actor .search-section input[type="search"] {
+    background: color-mix(in srgb, var(--drpg-sg-ink) 70%, transparent);
+    color: var(--drpg-sg-bone);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--drpg-sg-bone) 35%, transparent);
+    border-color: transparent;
+}
+body.drpg-theme-stained-glass .application.sheet.actor .search-section input[type="search"]::placeholder { color: var(--drpg-sg-bone-dim); }
+body.drpg-theme-stained-glass .application.sheet.actor :is(.search-section .icon, .filter-button, .inventory-item .controls a) {
+    color: var(--drpg-sg-bone-dim);
+}
+body.drpg-theme-stained-glass .application.sheet.actor :is(.filter-button, .inventory-item .controls a):hover { color: var(--drpg-sg-bone); }
+body.drpg-theme-stained-glass .application.sheet.actor :is(.filter-button, .inventory-item .controls a, .search-section input):focus-visible {
+    outline: 2px solid var(--drpg-attention);
+    outline-offset: 1px;
+}
+body.drpg-theme-stained-glass .locked-tooltip {
+    border-radius: 0;
+    border: 1px solid color-mix(in srgb, var(--drpg-sg-bone) 35%, transparent);
+    background: color-mix(in srgb, var(--drpg-sg-ink) 92%, transparent);
+    color: var(--drpg-sg-bone);
+    font-family: var(--drpg-font-chrome);
+}
