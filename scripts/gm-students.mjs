@@ -30,6 +30,7 @@ import { error, plural, esc, wholeNumber } from "./utils.mjs";
 import { stepper, drpgWindow, dataTable, iconButton, roleButton } from "./ui-kit.mjs";
 import { keepLive, alreadyOpen, handOff, RAISED } from "./live.mjs";
 import { crossingStore } from "./gm-stores.mjs";
+import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
 
 /**
  * WHO IS ALIVE - three windows, one table.
@@ -108,8 +109,26 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, reso
                 : "-"
         };
 
+        /*
+         * ACTIONS AND FREE MOVE (E49 A2, 10.11.2026; the owner's Q6 "tak": two columns of each row). The GM panel's
+         * own table went for one line (gm-panel.mjs `studentsLeftHtml`), and its two figures came here: what is left of
+         * the action budget of the time of day against its maximum, and the free Move as the panel drew it - the
+         * footprint solid while the step is there, outline once it is spent, the sheet's own pair. Read for a student
+         * who acts (alive, or a Monocub, as monokuma.mjs `actingStudents` counts them); a dead student's two cells read
+         * "-", so the columns stand in every row whatever the state (the owner's rule of the same day: a state changes
+         * look, never layout).
+         */
+        const acts = state === "alive" || cub;
+        const free = acts && hasFreeMove(a);
+        const moveWord = L(free ? "DRPG.Actions.freeMoveAvailable" : "DRPG.Actions.freeMoveSpent");
+        const economy = !acts ? { actions: "-", freeMove: "-" } : {
+            actions: `<span data-drpg-actions-left="${actionsLeft(a)}">${actionsLeft(a)} / ${actionsMax(a)}</span>`,
+            freeMove: `<i class="${free ? "fa-solid" : "fa-regular"} fa-shoe-prints drpg-pix-foot" data-drpg-free-move="${free ? "yes" : "no"}"`
+                + ` role="img" aria-label="${esc(moveWord)}" data-tooltip="${esc(moveWord)}"></i>`
+        };
+
         return {
-            id: a.id, ...shared(a), ...cubCells,
+            id: a.id, ...shared(a), ...cubCells, ...economy,
             state: `<select name="state.${a.id}">
                 ${(state === "unfound" ? ["alive", "unfound", "dead", "monocub"] : ["alive", "dead", "monocub"]).map(sKey =>
                     `<option value="${sKey}"${sKey === state ? " selected" : ""}>${
@@ -129,7 +148,7 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, reso
      * Monocub cells and nothing to do, since neither is a student (E24's gates: no death, no ballot, no invitation).
      * Without the row, a character marked out of the class here would leave the one row that marks it back.
      */
-    const otherRow = a => ({ id: a.id, ...shared(a), state: "", hope: "", give: "", silenced: "", do: "" });
+    const otherRow = a => ({ id: a.id, ...shared(a), state: "", actions: "", freeMove: "", hope: "", give: "", silenced: "", do: "" });
 
     /*
      * What every row carries: the name with its sheet and its Items, the Role, the Level Up. NO ITEMS ON A MONOKUMA'S ROW (E95 C7; the owner's 10.11): its sheet has no Inventory tab, so no road opens one.
@@ -164,6 +183,8 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, reso
         { key: "name", label: L("DRPG.Panel.character"), cls: "name" },
         { key: "role", label: L("DRPG.Panel.roleColumn") },
         { key: "state", label: L("DRPG.Panel.stateColumn") },
+        { key: "actions", label: L("DRPG.Actions.label") },
+        { key: "freeMove", label: L("DRPG.Panel.freeMove") },
         ...(cubs ? [{ key: "hope", label: L("DRPG.Monocub.hope") }, { key: "give", label: L("DRPG.Monocub.giveHopeColumn") },
             { key: "silenced", label: L("DRPG.Monocub.silenced"), cls: "silenced", tooltip: L("DRPG.Monocub.silencedNote") }] : []),
         { key: "levelUp", label: L("DRPG.Panel.levelUpColumn") },

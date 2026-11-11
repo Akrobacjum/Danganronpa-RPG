@@ -43660,7 +43660,8 @@ const INVARIANTS = [
         } finally {
             await w.close();
         }
-        const heads = [T("DRPG.Panel.character"), T("DRPG.Panel.roleColumn"), T("DRPG.Panel.stateColumn"),
+        // Actions and Free Move after State since E49 A2 (the owner's Q6: two columns of each row; R3345 and tier 2 read their cells).
+        const heads = [T("DRPG.Panel.character"), T("DRPG.Panel.roleColumn"), T("DRPG.Panel.stateColumn"), T("DRPG.Actions.label"), T("DRPG.Panel.freeMove"),
             ...(cubs ? [T("DRPG.Monocub.hope"), T("DRPG.Monocub.giveHopeColumn"), T("DRPG.Monocub.silenced")] : []),
             T("DRPG.Panel.levelUpColumn"), T("DRPG.Panel.doColumn")];
         const shown = [["students", students], ["monokumas", kumas], ["notInClass", npcs]].filter(([, list]) => list.length);
@@ -43997,9 +43998,10 @@ const INVARIANTS = [
             en: naming(en, /back up the case|restore the case/i), pl: naming(pl, /Kopia sprawy|kopię sprawy|Przywróć sprawę/),
             keys: ["DRPG.Case.backupTile", "DRPG.Case.restoreTile"].map(k => [k in en, k in pl])
         }), stableJson({
-            tiles: [["now", ["whoIsAlive", "projects", "sound", "rules"]], ["case", ["murder", "investigation", "trial"]],
-                ["between", ["jump", "gmTeam", "roomSetup", "tables", "voiceReset", "seasonSetup", "mastermind", "chapterEndTile", "seasonReset"]],
-                ["fixes", ["failureLog", "caseWindow"]]],
+            // E49 A2 moved three tiles and took one out (R3345 holds the four moves): the order as it stands after them.
+            tiles: [["now", ["whoIsAlive", "projects", "sound"]], ["case", ["murder", "investigation", "trial"]],
+                ["between", ["jump", "gmTeam", "roomSetup", "tables", "rules", "seasonSetup", "mastermind", "seasonReset"]],
+                ["fixes", ["failureLog", "voiceReset", "caseWindow"]]],
             caseTile: ["fixes", en["DRPG.Case.tile"] === undefined ? "?" : game.i18n.localize("DRPG.Case.tile"), age],
             diag: [0, 2], en: [], pl: [], keys: [[false, false], [false, false]]
         }), "{tiles: every section's tiles in order; caseTile: [its section, label, second line]; diag: [diagnostics.mjs's \"(Back up the case)\", its lines naming "

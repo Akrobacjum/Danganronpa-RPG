@@ -22188,6 +22188,51 @@ const REGRESSIONS = [
             + "actionWindow; a block ui-columns.mjs does not export; what it imports; an opener that opens a window of its own or builds none; who asks columns: false; "
             + "Dynamic: askForRequest opens actionWindow on columns, performDynamic asks columns]");
     }],
+    ["R3345 - the GM panel's four moves (scripts/gm-panel.mjs `PANEL_SECTIONS`, `studentsLeftHtml`; gm-students.mjs `aliveTableHtml`; gm-campaign.mjs `openClockDialog`; E49 A2; the owner's 10.11 [12], [16] and Q6): every tile key in exactly one section; Killing game rules in Between sessions, Re-send everybody's voice room in Diagnostics, no End the chapter tile; the standing block one students line and no table; Students' Actions and Free Move columns; End the chapter apart at the foot of Edit campaign, asked before chapter.mjs's end", async () => {
+        /*
+         * E49 A2, 10.11.2026. The owner's [12]: "tabela uczniow [...] do zakladki students [...] Re-send everybody's voice
+         * room wrzucmy do diagnostics. Killing game rules wrzucmy do between sessions. End the chapter wrzucmy do edit
+         * campaign"; [16] "tak" to the students line and to End the chapter apart with its confirm and warning frame; Q6
+         * "tak" to two columns. Read from the source: `PANEL_SECTIONS` walked in order (a section is a `key` with no
+         * `icon` after it, a tile one with), the standing block's builder, the students line, the Students table's
+         * columns and Edit campaign's end part. Red on b84d1170: rules in Right now, the voice reset in Between sessions,
+         * the End the chapter tile there, a table in the standing block and no students line, no Actions or Free Move
+         * column in Students, no end part in Edit campaign.
+         */
+        const sources = await moduleSources();
+        const panel = blankComments(sources.get("gm-panel.mjs") ?? "");
+        const campaign = blankComments(sources.get("gm-campaign.mjs") ?? "");
+        const students = blankComments(sources.get("gm-students.mjs") ?? "");
+        must(panel.length && campaign.length && students.length, "gm-panel.mjs, gm-campaign.mjs or gm-students.mjs is not among the module's sources - this would measure nothing");
+        const list = panel.match(/^const PANEL_SECTIONS = \[[\s\S]*?^\];/m)?.[0] ?? "";
+        must(list, "gm-panel.mjs has no PANEL_SECTIONS - this would measure nothing");
+        const sections = [];
+        for (const m of list.matchAll(/\bkey:\s*"(\w+)"\s*,\s*(icon:)?/g)) {
+            if (m[2]) sections.at(-1)?.[1].push(m[1]);
+            else sections.push([m[1], []]);
+        }
+        must(sections.length === 4 && sections.every(([, tiles]) => tiles.length), `PANEL_SECTIONS read as ${JSON.stringify(sections)} - this would measure nothing`);
+        const keys = sections.flatMap(([, tiles]) => tiles);
+        const where = key => sections.filter(([, tiles]) => tiles.includes(key)).map(([section]) => section);
+        const fn = (src, name) => topLevelFunction(src, name) ?? "";
+        const standing = fn(panel, "buildPanelContent"), line = fn(panel, "studentsLeftHtml"), table = fn(students, "aliveTableHtml");
+        const clock = fn(campaign, "openClockDialog"), part = fn(campaign, "endChapterPart"), ask = fn(campaign, "endTheChapter");
+        equal(JSON.stringify({
+            twice: keys.filter((k, i) => keys.indexOf(k) !== i),
+            moved: { rules: where("rules"), voiceReset: where("voiceReset"), chapterEndTile: where("chapterEndTile") },
+            standing: [/<table/.test(standing), /\$\{studentsLeftHtml\(\)\}/.test(standing)],
+            line: [/plural\("DRPG\.Panel\.studentsLeft"/.test(line), /data-drpg-run="whoIsAlive"/.test(line), /actingStudents\(\)/.test(line), /actionsLeft\(a\) > 0/.test(line)],
+            columns: [/key: "actions", label: L\("DRPG\.Actions\.label"\)/.test(table), /key: "freeMove", label: L\("DRPG\.Panel\.freeMove"\)/.test(table),
+                /actionsLeft\(a\)/.test(table) && /actionsMax\(a\)/.test(table) && /hasFreeMove\(a\)/.test(table)],
+            end: [/\$\{endChapterPart\(\)\}/.test(clock), /box\("warning"/.test(part) && /role: "destructive"/.test(part), /if \(endAsked\) return endTheChapter\(/.test(clock),
+                /drpgConfirm\(/.test(ask) && /role: "destructive"/.test(ask) && /if \(yes !== true\) return null;/.test(ask), /openChapterEndDialog\(\)/.test(clock)]
+        }), JSON.stringify({
+            twice: [], moved: { rules: ["between"], voiceReset: ["fixes"], chapterEndTile: [] },
+            standing: [false, true], line: [true, true, true, true], columns: [true, true, true], end: [true, true, true, true, true]
+        }), "{twice: tile keys in more than one place; moved: the sections holding each of the four; standing: [a table in the standing block, the students line in it]; "
+            + "line: [plural's words, the door to Students, the acting cast, counted by actions left]; columns: [Actions, Free Move, read from actions.mjs]; "
+            + "end: [the part in Edit campaign, a warning box with a destructive button, the press goes to the question, the question destructive with Cancel writing nothing, the chapter's end after it]}");
+    }],
 ];
 
 

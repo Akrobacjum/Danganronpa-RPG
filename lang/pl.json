@@ -4206,7 +4206,9 @@
       "session": "Sesja",
       "timeOfDay": "Pora dnia",
       "chapterCorrectTitle": "Popraw numer rozdziału",
-      "chapterCorrect": "To poprawia tylko numer rozdziału - bez ujawniania, bez zbierania Truth Bullets, bez Blackened. Rozdział kończy przycisk Zakończ rozdział. Anuluj zostawia rozdział i zapisuje resztę.",
+      "endChapterNote": "Zakończ rozdział ujawnia, sprząta i wskazuje Blackened - wszystko, czego nie robi pole rozdziału wyżej. Najpierw pyta, a nic wpisanego wyżej nie zostaje zapisane.",
+      "endChapterAsk": "Zakończyć rozdział teraz? Edytuj kampanię zamknie się bez zapisu i otworzy się koniec rozdziału: pokaże, co ujawni, sprzątnie i wskaże, zanim cokolwiek zrobi.",
+      "chapterCorrect": "To poprawia tylko numer rozdziału - bez ujawniania, bez zbierania Truth Bullets, bez Blackened. Rozdział kończy przycisk Zakończ rozdział, na dole okna Edytuj kampanię. Anuluj zostawia rozdział i zapisuje resztę.",
       "trialFromEditTitle": "Otwórz Class Trial",
       "trialFromEdit": "To otwiera budżet Class Trialu i pobiera opłatę za nieznalezione Key Remnants. Anuluj zostawia fazę i zapisuje resztę.",
       "unknownTime": "Nieznana pora dnia: {key}.",
@@ -4312,6 +4314,12 @@
         "other": "Wyczyszczono {n} Faint Remnants."
       },
       "voiceReset": "Wyślij wszystkim ponownie ich pokój głosowy",
+      "studentsLeft": {
+        "one": "{n} uczeń ma jeszcze akcje",
+        "few": "{n} uczniowie mają jeszcze akcje",
+        "many": "{n} uczniów ma jeszcze akcje",
+        "other": "{n} ucznia ma jeszcze akcje"
+      },
       "publicRoll": {
         "gmOnly": "Tylko GM może wykonać rzut publiczny.",
         "badFormula": "\"{formula}\" to nie jest formuła rzutu."
