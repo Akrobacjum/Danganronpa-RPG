@@ -343,6 +343,7 @@ export function registerMovement() {
     Hooks.on("updateToken", onUpdateToken);
     Hooks.on("canvasReady", primeRoomCache);
     Hooks.on("preCreateToken", onPreCreateToken);
+    Hooks.on("preCreateActor", onPreCreateActor);
     Hooks.on("updateToken", noteGmPosition);
     Hooks.on("createToken", (token, options, userId) => noteGmCreated(token, userId));
     // What a crossing the primary recorded cost (E17 C3, `noteCrossingPrice`): the player's write after it, or this browser's own charge.
@@ -2480,13 +2481,27 @@ function containedBy(region, x, y) {
 
 /**
  * Every token this module places or that a GM drops behaves the same way: no
- * rotation on movement. Applied at creation so it also covers tokens dragged
- * from the actor list.
+ * rotation on movement. Applied at creation.
+ *
+ * A STUDENT'S TOKEN ALWAYS, WHATEVER IT WAS DRAGGED FROM (E49 B4, 11.11.2026; audit S07-35). The comment said this
+ * covered a token dragged from the actor list, and it did not: such a token's data carries its prototype's
+ * `lockRotation`, which is Foundry's default `false` and never undefined, so only a token made with no word on it was
+ * locked. A character's token is locked whatever its data says; any other token as before, when it says nothing. And the
+ * prototype itself (`onPreCreateActor` below), so a student made or imported carries the lock to every token of it.
+ * Exported for R3435.
  */
-function onPreCreateToken(token, data) {
+export function onPreCreateToken(token, data) {
     const update = {};
-    if (data.lockRotation === undefined) update.lockRotation = true;
+    const student = (token?.actor ?? game.actors?.get?.(data?.actorId))?.type === "character";
+    if (data.lockRotation === undefined || (student && data.lockRotation !== true)) update.lockRotation = true;
     if (Object.keys(update).length) token.updateSource(update);
+}
+
+/** A character made or imported: its prototype token locked against rotation (S07-35; `onPreCreateToken`). Exported for R3435. */
+export function onPreCreateActor(actor, data) {
+    if ((data?.type ?? actor?.type) !== "character") return;
+    if (foundry.utils.getProperty(data ?? {}, "prototypeToken.lockRotation") === true) return;
+    actor.updateSource({ "prototypeToken.lockRotation": true });
 }
 
 /**

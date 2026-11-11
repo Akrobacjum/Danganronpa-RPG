@@ -130,8 +130,23 @@ const missing = new Set();
  * the document's own texture, which Foundry drew - so it is fetched the first
  * time a screen needs it, and every trace is dressed again once it arrives.
  */
-function textureFor(path) {
-    const tex = textures.get(path);
+/* A NEW SCENE, NEW TEXTURES (E49 B4, 11.11.2026; amend [3](1), the owner's session of 27.10). The map kept the textures
+   of the scene they were loaded on for the whole session, and the misses with them; Foundry's own loader lets the old
+   scene's textures go when it draws another, so after a Class Trial's hall the icons were handed textures that were no
+   longer there and the traces showed nothing, or stayed as they were. `forgetTextures` runs as the canvas comes down and
+   up, and a texture that was destroyed meanwhile is never handed out (`usable`). The hypothesis is read from the code;
+   the harness has no canvas, so the sight at a table is LIVE-E49-07. Exported for R3436. */
+export function forgetTextures() {
+    textures.clear();
+    missing.clear();
+}
+
+const usable = tex => Boolean(tex) && !tex.destroyed && tex.baseTexture?.destroyed !== true && tex.valid !== false;
+
+export function textureFor(path) {
+    const kept = textures.get(path);
+    if (kept && !usable(kept)) textures.delete(path);
+    const tex = usable(kept) ? kept : null;
     if (tex || !path || loading.has(path) || missing.has(path)) return tex ?? null;
     const load = foundry.canvas?.loadTexture ?? globalThis.loadTexture;
     if (typeof load !== "function") return null;
@@ -218,8 +233,10 @@ function isBulletChange(item) {
 }
 
 export function registerRemnantIcons() {
+    Hooks.on("canvasTearDown", () => forgetTextures());
     Hooks.on("canvasReady", () => {
         myBulletFacts = null;
+        forgetTextures();
         preload().then(applyAll);
     });
 

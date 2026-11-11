@@ -87548,6 +87548,39 @@ const SCENARIOS = [
             cancelled: { got: "cancel", values: after, runs: [1, 1, 1], reloads: 1, open: 0 }
         }), "{saved, unchanged, cancelled: [what the window answered, the three values after, each onChange's runs so far, reloads asked so far, windows open]; asked: the reload's options}");
     }],
+    ["the standing outline's light is drawn again when the hour turns, on a real canvas (E49 B4; S07-34, LIVE-E49-04)", async () => {
+        /*
+         * E49 B4 (11.11.2026; audit S07-34). R3430 reads the light's strokes on the harness's stand-in; here the light is
+         * baked by the real renderer (fog-reveal.mjs `bakeOutlineHalo`), and a turn of the hour must draw that picture
+         * again rather than leave the old hour's. A stand-in room drawn into a container of the suite's own, never added
+         * to the stage; the theme's class on the body for the draw when it was not there; the real standing outline, if
+         * any, drawn again quietly after. Nothing of the world is read or written. Red at d8fa9304: the recolour keeps the
+         * baked picture it had. How it looks at zoom 0.3, 1 and 3 is LIVE-E49-04.
+         */
+        needs(env.canvas(), "the outline's light is baked by PIXI's renderer");
+        const FR = await import("./fog-reveal.mjs");
+        const body = document.body.classList, hadGlass = body.contains("drpg-theme-stained-glass");
+        const was = FR.roomOutline;
+        const fx = new PIXI.Container();
+        try {
+            if (!hadGlass) body.add("drpg-theme-stained-glass");
+            FR.flashOutline(fx, { name: "E49-B4 Room", parent: null, shapes: [{ x: 200, y: 200, width: 400, height: 300 }] }, { x: 0, y: 0 });
+            const s = FR.roomOutline;
+            const baked = () => s?.group?.children?.find(c => c?.name === FR.HALO_NAMES.outlineBaked[0]) ?? null;
+            const before = baked()?.drpgOwnedTexture ?? null;
+            ok(before, "the light was not baked on this canvas - this would measure nothing");
+            FR.recolourRoomOutline({ standing: s, colourNow: () => (s.colour ^ 0x2468ac) & 0xffffff, glassNow: () => true });
+            const after = baked()?.drpgOwnedTexture ?? null;
+            equal(JSON.stringify([Boolean(after), after !== before, Boolean(before?.destroyed)]), JSON.stringify([true, true, true]),
+                "[a picture after the turn, a new one, the old one freed] - the light keeps the old hour's picture");
+        } finally {
+            if (!hadGlass) body.remove("drpg-theme-stained-glass");
+            if (FR.roomOutline?.fx === fx) FR.fadeRoomOutline({ now: true });
+            for (const c of [...fx.children]) if (!c.destroyed) c.destroy({ children: true });
+            fx.destroy();
+            if (was?.fx && !was.fx.destroyed && was.region) FR.flashOutline(was.fx, was.region, was.rect, was.level, { actor: was.actor ?? null, elevation: was.elevation ?? null, quiet: true });
+        }
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

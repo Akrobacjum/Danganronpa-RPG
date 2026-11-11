@@ -42,9 +42,9 @@ import { regionShapes, inPolygons, polygonArea, piecesAsOne, regionAreaIn } from
 import { roomPieces, playerRegionIds, isRoomWith, passageBehaviour, onLevel, floorsOf } from "./rooms.mjs";
 import {
     DOORWAY_PROBE_OUT, DOORWAY_OVERLAP_INSET, DOORWAY_WALL_NEAR, ADRIFT_WARN_RUN, wallAlongEdge, neighbourBeyond,
-    doorwayEdges
+    doorwayEdges, GLOW_NAME
 } from "./fog-doorways.mjs";
-import { roomOutline } from "./fog-reveal.mjs";
+import { roomOutline, HALO_NAMES } from "./fog-reveal.mjs";
 import { secretDoorsOn } from "./passages.mjs";
 import { plural, localeFormat } from "./utils.mjs";
 // From vault-store.mjs, which reaches this file by no static import; not from its facade vault.mjs (E41 C6), which
@@ -62,9 +62,19 @@ function findNamed(node, name) {
     return null;
 }
 
+/* THE LINE AND THE GLOW BY NAME (E49 B4, 11.11.2026; audit S07-41). The outline's group under Stained Glass holds the
+   seam's light first - a Graphics stroking the same path four to seven times wider (fog-reveal.mjs `seamHalo`) - and its
+   baked picture, a Sprite, before the doorway glow. The first Graphics with geometry was the light, and the first child
+   with a texture the light's picture, so `whatIsHere` measured the halo as the line and read the glow off the wrong
+   texture. Now the line is a Graphics none of the light's names name (the standing outline's own `outline` first), the
+   glow is the child named `GLOW_NAME`, and its pixel is read at the texture's resolution. Exported for R3434. */
+const LIGHT_NAMES = new Set([...HALO_NAMES.outlineLive, ...HALO_NAMES.outlineBaked, GLOW_NAME]);
+
 /** The stroked outline nearest the point, and whether the stroke covers it. */
-function nearestOutline(group, at, report) {
-    const graphics = group?.children?.find(c => !c.texture && c.geometry);
+export function nearestOutline(group, at, report, standing = roomOutline) {
+    const own = standing?.group === group ? standing.outline : null;
+    const graphics = (own && !own.destroyed && own.geometry ? own : null)
+        ?? group?.children?.find(c => !c.texture && c.geometry && !LIGHT_NAMES.has(c.name));
     if (graphics) {
         let nearest = null;
         for (const piece of graphics.geometry?.graphicsData ?? []) {
@@ -102,8 +112,8 @@ function nearestOutline(group, at, report) {
 }
 
 /* ---- the glow: one texture pixel, read ------------------------------- */
-function glowAlphaAt(group, at, report) {
-    const sprite = group?.children?.find(c => c.texture);
+export function glowAlphaAt(group, at, report, renderer = canvas?.app?.renderer) {
+    const sprite = group?.children?.find(c => c?.name === GLOW_NAME && c.texture);
     if (sprite) {
         const px = Math.round(at.x - sprite.x);
         const py = Math.round(at.y - sprite.y);
@@ -111,8 +121,13 @@ function glowAlphaAt(group, at, report) {
         report.glow = { inSprite: inside };
         if (inside) {
             try {
-                const pixels = canvas.app.renderer.extract.pixels(sprite.texture);
-                const i = (py * sprite.texture.width + px) * 4;
+                // The texture's own pixels: its width and the point times its resolution (a glow baked at 0.5 holds a
+                // quarter of the pixels its size says).
+                const resolution = sprite.texture.baseTexture?.resolution || 1;
+                const pixels = renderer.extract.pixels(sprite.texture);
+                const across = Math.round(sprite.texture.width * resolution);
+                const i = (Math.min(Math.floor(py * resolution), Math.round(sprite.texture.height * resolution) - 1) * across
+                    + Math.min(Math.floor(px * resolution), across - 1)) * 4;
                 report.glow.alpha = Math.round(pixels[i + 3] / 2.55) / 100;
                 if (report.glow.alpha > 0.02) report.found.push(`doorway glow (alpha ${report.glow.alpha})`);
             } catch (err) {

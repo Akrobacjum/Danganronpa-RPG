@@ -826,11 +826,6 @@ function seamHalo({ bone, boneWidth, edges, rect, gapPad, stubFloor, region }) {
     halo.name = SEAM_GLOW_NAME;
     halo.blendMode = PIXI.BLEND_MODES?.ADD ?? 1;
     halo.eventMode = "none";
-    const pass = (width, alpha) => {
-        halo.lineStyle({ width, color: bone, alpha, cap: "round", join: "round" });
-        if (edges.length) traceOutlineGapped(halo, edges, rect, gapPad, stubFloor);
-        else traceRegionPathsAt(halo, region, rect);
-    };
     /* THE CURTAIN'S THREE PASSES, AND THE BLUR THAT MAKES THEM A BLOOM.
        These were hard-edged strokes seven and three times the line's width, which is a
        pair of wide flat bands, not light - "glow jest o wiele sztuczniejszy" (07.09).
@@ -846,11 +841,42 @@ function seamHalo({ bone, boneWidth, edges, rect, gapPad, stubFloor, region }) {
        pixels of line under twenty of bloom. This was five times the core wide and blurred
        by two: a wide flat band, which is why the border still read as thick next to the
        seams it is quoting. Narrow strokes, a blur six times the core. */
-    pass(boneWidth * 2.6, 0.46);
-    pass(boneWidth * 1.8, 0.50);
-    pass(boneWidth * 1.2, 0.58);
+    /* THE PASSES ARE `strokeHalo`'S, AND THE BLUR IS IN SCREEN PIXELS (E49 B4, 11.11.2026; audit S07-34). The three passes
+       were written out here and again, with `SEAM_GLOW`'s numbers, in `rewidth`, and `recolour` had none: a turn of the hour
+       restroked the line and left its light in the colour of the hour it was drawn in, until the next arrival. One
+       stroke now, called by the first draw, `recolour` and `rewidth`. The blur was `boneWidth * 6` - a width in SCENE
+       units (`seamWidth()`, 1 / zoom) handed to a filter that works in screen pixels - so the bloom drawn at a zoom of
+       0.3 was 20 px wide and the one drawn at 1 was 6, and a rezoom kept the first one's filter
+       (`bakeOutlineHalo` keeps the filter it was handed): the light's weight followed the zoom it was first drawn at.
+       Now 6 px and a padding of 14 px whatever the zoom, as the finding asks. Read on the harness's stand-in (R3430);
+       how it looks at zoom 0.3, 1 and 3 and across an hour is LIVE-E49-04. */
+    strokeHalo(halo, boneWidth, bone, haloPath({ edges, rect, gapPad, stubFloor, region }));
     const Blur = PIXI.BlurFilter ?? PIXI.filters?.BlurFilter;
-    if (Blur) { const f = new Blur(Math.max(6, boneWidth * 6), 3); f.padding = boneWidth * 14; halo.filters = [f]; }
+    if (Blur) { const f = new Blur(HALO_BLUR_PX, 3); f.padding = HALO_PAD_PX; halo.filters = [f]; }
+    return halo;
+}
+
+/** The standing outline's light: its blur and the room the blur needs, in screen pixels (S07-34; `seamHalo`). */
+export const HALO_BLUR_PX = 6;
+export const HALO_PAD_PX = 14;
+
+/** The path the outline's light follows: the outline's own gapped edges, or the region's shapes when it has none. */
+function haloPath({ edges, rect, gapPad, stubFloor, region }) {
+    return g => { if (edges.length) traceOutlineGapped(g, edges, rect, gapPad, stubFloor); else traceRegionPathsAt(g, region, rect); };
+}
+
+/**
+ * The seam's light on `halo`, cleared and stroked again: `SEAM_GLOW`'s three passes at `width` (the seam's core, in
+ * scene units) in `colour`, each along `path` (E49 B4; S07-34). The first draw, `recolour` and `rewidth` all stroke
+ * through this one, so the light cannot keep a colour or a width the line has left. Exported for R3430.
+ */
+export function strokeHalo(halo, width, colour, path) {
+    if (!halo || halo.destroyed) return halo;
+    halo.clear();
+    for (const [k, alpha] of SEAM_GLOW) {
+        halo.lineStyle({ width: width * k, color: colour, alpha, cap: "round", join: "round" });
+        path(halo);
+    }
     return halo;
 }
 
@@ -1251,11 +1277,17 @@ function fadeLabel(label) {
    (`doorwayEdges`), and a redraw keeps it as it keeps the floor. `elevation` (H81 fix r1, 20.10.2026; the review's
    H81-C1-R3) is that character's token's height, where `region` was read as its room: its passages' sides and its
    tunnel ends' rooms are read there too, as its 'Go through' reads them (movement.mjs `passageRooms`' note). */
-export function flashOutline(fx, region, rect, level = null, { actor = null, elevation = null } = {}) {
+/* `standing` (E49 B4, 11.11.2026; audit S07-31): false draws a flash that is no viewer's room - a GM's sight of a room
+   the class found (fog.mjs `repaintFog`) - which leaves the outline standing where it stands, is not `roomOutline`, and
+   takes itself down once its name has faded (`OUTLINE_MS`). Until B4 that reveal replaced the GM's own Monokuma's
+   outline, which then stood nowhere until the Monokuma moved. `quiet` (E49 B4; D147, D165): a redraw that is no
+   arrival - a wall, a door, a passage row, a room reshaped (fog.mjs `redrawOutline`) - with no hop and no name, the old
+   outline dropped at once rather than faded under the new one, so nothing on screen flashes for it. */
+export function flashOutline(fx, region, rect, level = null, { actor = null, elevation = null, standing = true, quiet = false } = {}) {
     if (!fx || fx.destroyed) return;
 
-    // Whatever was outlined before, take it down - see `fadeRoomOutline`.
-    fadeRoomOutline();
+    // Whatever was outlined before, take it down - see `fadeRoomOutline`. A flash that does not stand leaves it be.
+    if (standing) fadeRoomOutline({ now: quiet });
 
     // Under the Stained Glass theme the line is a seam: the state colour, the one the curtain's
     // seams wear right now. Bone otherwise, as it always was. See `outlineColour`.
@@ -1339,22 +1371,44 @@ export function flashOutline(fx, region, rect, level = null, { actor = null, ele
     stroke(boneWidth, bone);
     trace();
 
-    const label = roomLabel(region, { glass, grid, bone, rect });
+    const label = quiet ? null : roomLabel(region, { glass, grid, bone, rect });
 
 
     const light = glass ? group.addChild(seamHalo({ bone, boneWidth, edges, rect, gapPad, stubFloor, region })) : null;
 
-    group.addChild(outline, label);
+    group.addChild(outline);
+    if (label) group.addChild(label);
     // Under the outline and the name, so neither is softened by it. Cut to where its light reaches: the first wall, the
     // end of the room it falls into (`doorwayLight`; E51 fix FG3, LIVE-E51-03).
     addDoorwayGlow(group, region, edges, rect, doorwayLight(region, level, { actor, elevation }));
     // The tunnel ends this character knows in the room, marked for it alone (E80 C1); a redraw keeps them.
     addTunnelMarks(group, tunnelMarks(actor, region, region?.parent, level, { elevation }), rect);
     group.setChildIndex(outline, group.children.length - 1);
-    group.setChildIndex(label, group.children.length - 1);
+    if (label) group.setChildIndex(label, group.children.length - 1);
     fx.addChild(group);
     // E88 C1: the light drawn once into a texture, the Graphics kept and stood down; live as before where it cannot be.
     if (light) bakeOutlineHalo(group, light, fx);
+    /* The light stroked again, in the colour and at the seam width asked, and drawn once more (S07-34): `recolour`'s and
+       `rewidth`'s, over the light's own Graphics, which `bakeOutlineHalo` keeps and stands down. */
+    const path = haloPath({ edges, rect, gapPad, stubFloor, region });
+    const restrokeLight = (width, colour) => {
+        if (!light || light.destroyed || group.destroyed) return;
+        strokeHalo(light, width, colour, path);
+        bakeOutlineHalo(group, light, fx);
+        if (roomOutline?.group === group) roomOutline.blur = haloBlurOn();
+    };
+    // The seam width this outline was struck at (S07-34): `rezoomRoomOutline` measures the next zoom from it, not from
+    // whatever outline stood before this one.
+    if (glass && standing) outlineZoom = stageZoom();
+    let colourNow = bone;
+
+    if (!standing) {
+        if (!quiet) landOutline(group, grid);
+        if (label) fadeLabel(label);
+        const drop = setTimeout(() => fadeGroup(group), OUTLINE_MS);
+        group.drpgFlashTimer = drop;
+        return;
+    }
 
     roomOutline = {
         group, outline, room: region.name, colour: bone, cut: passageCutKey(gaps),
@@ -1381,11 +1435,13 @@ export function flashOutline(fx, region, rect, level = null, { actor = null, ele
          */
         recolour: colour => {
             if (outline.destroyed) return;
+            colourNow = colour;
             outline.clear();
             ghostPass(colour);
             if (inkWidth) { stroke(inkWidth, colourOf("--drpg-ink", 0x1a1620)); trace(); }
             stroke(glass ? seamWidth() : boneWidth, colour);
             trace();
+            if (glass) restrokeLight(seamWidth(), colour);
         },
         /* Only the theme's seam has a width that depends on the zoom; Legacy's pixel-art
            stroke is a statement about the grid and holds still, so it has no `rewidth`. */
@@ -1393,24 +1449,15 @@ export function flashOutline(fx, region, rect, level = null, { actor = null, ele
             if (outline.destroyed) return;
             const w = seamWidth();
             outline.clear();
-            ghostPass(roomOutline?.colour ?? bone);
-            stroke(w, roomOutline?.colour ?? bone);
+            ghostPass(colourNow);
+            stroke(w, colourNow);
             trace();
-            const halo = group.children.find(c => c?.name === SEAM_GLOW_NAME);
-            if (halo && !halo.destroyed) {
-                halo.clear();
-                for (const [k, a] of SEAM_GLOW) {
-                    halo.lineStyle({ width: w * k, color: roomOutline?.colour ?? bone, alpha: a, cap: "round", join: "round" });
-                    if (edges.length) traceOutlineGapped(halo, edges, rect, gapPad, stubFloor);
-                    else traceRegionPathsAt(halo, region, rect);
-                }
-                // E88 C1: the texture of the old weight freed, the new one drawn once.
-                bakeOutlineHalo(group, halo, fx);
-                if (roomOutline?.group === group) roomOutline.blur = haloBlurOn();
-            }
+            // E88 C1: the texture of the old weight freed, the new one drawn once (`restrokeLight`, S07-34).
+            restrokeLight(w, colourNow);
         } : null
     };
 
+    if (quiet) return;
     landOutline(group, grid);
     fadeLabel(label);
 }
@@ -1464,12 +1511,21 @@ export function ensurePixelFont() {
  * outlined room stops being one this viewer stands in - walking into a corridor
  * has to end it just as surely as walking into another room does.
  */
-export function fadeRoomOutline() {
+export function fadeRoomOutline({ now = false } = {}) {
     const going = roomOutline;
     roomOutline = null;
     if (!going || going.group.destroyed) return;
+    fadeGroup(going.group, { now });
+}
 
-    const group = going.group;
+/** An outline's group faded out and destroyed with what it owns; `now`, destroyed at once (a quiet redraw, D147). */
+function fadeGroup(group, { now = false } = {}) {
+    if (!group || group.destroyed) return;
+    if (now) {
+        freeOwned(group);
+        group.destroy({ children: true });
+        return;
+    }
     const state = { t: 0 };
     const drop = () => {
         if (group.destroyed) return;

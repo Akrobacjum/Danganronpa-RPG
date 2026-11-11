@@ -398,7 +398,7 @@ export function registerFog() {
        fog-doorways.mjs `gmPassageGaps`; H82-05), and a change of those rows fires no `drpgPassagesChanged` there - only a
        player's copy does (settings.mjs). So on a GM's browser the frame is drawn again a quarter second after the GMs'
        passage rows last changed (`redrawFrameSoon`): one redraw for the create, the close and the open a GM makes in one
-       go, its hop and name replayed as a player's are on a change of the copy - and only when the stretches that cut this
+       go, quiet since E49 B4 (no hop, no name: D147), as a player's is on a change of the copy - and only when the stretches that cut this
        frame are not the ones it was drawn with (H82 fix r1, finding H82-05-R1: a tunnel's way, Make public, a start
        access or another scene's passage replayed it on every GM's browser). Whether v14 fires `clientSettingChanged` for
        a store merged from another GM is the harness's model only (LIVE-H82-03 (c)). Since E15 part 2 C1 the season's
@@ -616,6 +616,12 @@ function regionChanged(region, userId, changes = null) {
     step("scene vision mode", () => prepareRoomScene(scene, userId));
     step("repaint", () => repaintRoomScene(scene));
     step("the outline by a room's flag", () => outlineAfterRoomFlag(region, changes));
+    /* The standing room's own region drawn, reshaped or deleted (E49 B4; D174): its outline drawn again from the shape it
+       has now, quietly (`redrawOutline` reads the shape). Until B4 it kept the old shape until the next arrival. */
+    step("the outline of a room reshaped", () => {
+        const standing = roomOutline;
+        if (standing?.region?.parent === scene && region?.name === standing.room) redrawOutline(standing.room);
+    });
     /* A room drawn, reshaped, renamed or deleted under this viewer's tokens changes the rooms they stand in with no
        arrival of theirs (E51 fix FG2; the correctness review's road (d)): read now, so the next arrival of another token
        does not find "my rooms changed" and outline its room. Nothing is announced - no token of this viewer's moved - and
@@ -660,7 +666,7 @@ function outlineAfterDoor(wall, changes, { placed = false } = {}) {
     const box = { x: Math.min(c[0], c[2]), y: Math.min(c[1], c[3]), w: Math.abs(c[2] - c[0]), h: Math.abs(c[3] - c[1]) };
     // A move from wherever it was: the whole scene stands in for the old place, which the change does not hold.
     const room = !placed && Object.hasOwn(changes, "c") ? standingTouched(wall.parent, null, { anywhere: true }) : standingTouched(wall.parent, box);
-    return room ? redrawOutline(room) : false;
+    return room ? redrawSoon(room, asked => redrawOutline(asked)) : false;
 }
 
 /** A world setting written: a seal or a chain (`sealedRooms`, `restrictions`) draws the standing outline again, whichever
@@ -3063,7 +3069,11 @@ export function repaintFog() {
 
         // One at a time: two rooms found in the same instant is a tie nobody
         // needs broken, and the second reveal would only clear the first.
-        if (opened.length) playDiscoveryAnimation(opened[0], null);
+        /* A ROOM THE CLASS FOUND IS NOT THE GM'S ROOM (E49 B4, 11.11.2026; audit S07-31). On a GM's browser `opened` is a
+           room the class found, and its reveal drew the outline that stands - over the GM's own Monokuma's, which then
+           stood nowhere until the Monokuma moved. A room none of this viewer's tokens stands in is a flash that takes
+           itself down (`flashOutline`'s `standing`); the viewer's own room stands as before. R3431. */
+        if (opened.length) playDiscoveryAnimation(opened[0], null, { standing: mine.has(opened[0]) });
 
         lastPaintSignature = signature;
         lastFogReason = `painted: ${built.fogged} fogged, ${built.veiled} veiled, `
@@ -4349,6 +4359,11 @@ function leadsHere(token, gm = game.user.isGM) {
     return !game.actors?.some(a => a?.type === "character" && isMonokuma(a) && poolUserFor(a)?.id === me);
 }
 
+/** Whether a token the outline follows here (`lead`, `leadsHere`) has a move held for its waypoints (fog.mjs `onUpdateToken`
+    runs its arrival at rest): `standWhereWeStand` leaves the rooms as they were for that arrival (D166). Exported for R3433. */
+export function leadMoveHeld(tokens = canvas?.tokens?.placeables ?? [], lead = leadsHere) {
+    return tokens.some(token => Boolean(token?.document?.movement?.pending?.waypoints?.length) && lead(token));
+}
 /** The rooms this viewer's tokens stand in now, as `lastMineSignature` and `lastLeadSignature` hold them, in one walk of
     the drawn tokens; `without`, a token's id left out (a `deleteToken` the placeables may still hold). */
 function standingNow({ without = null } = {}) {
@@ -4375,8 +4390,14 @@ function standingNow({ without = null } = {}) {
  */
 function standWhereWeStand({ without = null, redraw = false } = {}) {
     const now = standingNow({ without });
-    lastMineSignature = now.mine;
-    lastLeadSignature = now.lead;
+    /* NOT WHILE A LEAD'S MOVE IS HELD (E49 B4, 11.11.2026; D166, E51's review M4). A move held for its waypoints runs its
+       arrival at rest (`onUpdateToken`); a token deleted or a region changed meanwhile wrote the new rooms here first, so
+       the at-rest call found them unchanged and played no sound and no curtain. The rooms are left as the last arrival
+       knew them until that call. R3433. */
+    if (!leadMoveHeld()) {
+        lastMineSignature = now.mine;
+        lastLeadSignature = now.lead;
+    }
     if (!redraw || roomOutline || !fogEnabled()) return false;
     const leader = (canvas?.tokens?.placeables ?? []).find(token => (token.document?.id ?? token.id) !== without
         && leadsHere(token) && roomOfToken(token.document));
@@ -4465,7 +4486,33 @@ export function redrawOutline(room = null) {
     const standing = roomOutline;
     if (!standing || standing.group?.destroyed || !standing.fx || standing.fx.destroyed || !standing.region) return false;
     if (room !== null && standing.room !== room) return false;
-    flashOutline(standing.fx, standing.region, standing.rect, standing.level, { actor: standing.actor ?? null, elevation: standing.elevation ?? null });
+    /* THE SHAPE READ AGAIN, AND NO ARRIVAL PLAYED (E49 B4, 11.11.2026). The room's shape as its scene holds it now, the
+       old one only when the room is gone from it (D174: a room reshaped while its outline stood kept the old shape until
+       the next arrival). And quiet - no hop, no name, the old frame dropped at once (D147: a change of the GMs' passage
+       rows replayed the frame's hop and name; D165: a wall edit did, once per wall). R3432. */
+    const scene = standing.region?.parent ?? null;
+    const shape = scene ? roomShapeOn(scene, standing.room, standing.level) : null;
+    flashOutline(standing.fx, shape ?? standing.region, standing.rect, standing.level,
+        { actor: standing.actor ?? null, elevation: standing.elevation ?? null, quiet: true });
+    return true;
+}
+
+/* THE WALLS' REDRAWS AS ONE (E49 B4, 11.11.2026; D165, E51's review M2). A wall made, moved, deleted or a door turned
+   redrew the standing outline at once, once per wall: a GM's batch of walls, or the module's own Close the breach (a move
+   and a delete per piece), redrew it once per document. Now the last of them within a quarter second draws it, once, as
+   `redrawFrameSoon` does for the GMs' passage rows. `wallRedrawAsked` is the room the redraw is for (null: whichever
+   stands). */
+let wallTimer = null;
+let wallRedrawAsked = null;
+function redrawSoon(room, redraw) {
+    wallRedrawAsked = room;
+    clearTimeout(wallTimer);
+    wallTimer = setTimeout(() => {
+        wallTimer = null;
+        const asked = wallRedrawAsked;
+        wallRedrawAsked = null;
+        try { redraw(asked); } catch (err) { debug("Fog: could not redraw the outline by a wall", err); }
+    }, 250);
     return true;
 }
 
@@ -4518,7 +4565,7 @@ function fxLayer() {
     return fx;
 }
 
-function playDiscoveryAnimation(room, tokenDoc) {
+function playDiscoveryAnimation(room, tokenDoc, { standing = true } = {}) {
     // The room fog switched off is silent: no sound, no curtain, no outline (`announceRoom`'s note; D43b = 1).
     if (!fogEnabled()) return;
     // Same rule as `announceRoom`: the sound belongs to the discovery, not to
@@ -4541,7 +4588,7 @@ function playDiscoveryAnimation(room, tokenDoc) {
     // No measurable shape, no renderer, or a viewer who has asked for no
     // motion: the room is already clear underneath, so just name it.
     if (!bounds || !renderer || motionOff()) {
-        flashOutline(fx, region, rect, level, { actor: tokenDoc?.actor ?? null, elevation: tokenDoc?.elevation ?? null });
+        flashOutline(fx, region, rect, level, { actor: tokenDoc?.actor ?? null, elevation: tokenDoc?.elevation ?? null, standing });
         return;
     }
 
@@ -4605,7 +4652,7 @@ function playDiscoveryAnimation(room, tokenDoc) {
 
     const L = buildRevealLayers(fx, { region, bounds, rect, glass, ink, bone, lineWidth, width, height, resolution, stains });
     if (!L) {
-        flashOutline(fx, region, rect, level, { actor: tokenDoc?.actor ?? null, elevation: tokenDoc?.elevation ?? null });
+        flashOutline(fx, region, rect, level, { actor: tokenDoc?.actor ?? null, elevation: tokenDoc?.elevation ?? null, standing });
         return;
     }
     const { fogScratch, lineScratch, fogTex, lineTex, fogSprite, lineSprite, lineLayer } = L;
@@ -4639,7 +4686,7 @@ function playDiscoveryAnimation(room, tokenDoc) {
 
     // The outline and the name run WITH the lines, not after them: one gesture
     // in one colour rather than three things taking turns.
-    flashOutline(fx, region, rect, level, { actor: tokenDoc?.actor ?? null, elevation: tokenDoc?.elevation ?? null });
+    flashOutline(fx, region, rect, level, { actor: tokenDoc?.actor ?? null, elevation: tokenDoc?.elevation ?? null, standing });
 
     const state = { t: 0 };
     const done = () => destroyRevealLayers(L, stains);

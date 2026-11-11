@@ -45732,6 +45732,251 @@ const INVARIANTS = [
             pure: [true, true, false, true, false, false, false, true, false], agrees: true, picked: ["owed", "older"] }),
         "{pure: caseOpen for [no verdict, the verdict before, a later verdict, another chapter's record, another chapter's death, another epoch, no sinceVerdict under a verdict, under none, an execution]; agrees: ownCaseOpen on a Monocub the same; picked: bodiesToLay's}");
     }],
+    ["R3430 - the standing outline's light turns with the hour and keeps its weight across a zoom (E49 B4; S07-34): under Stained Glass a recolour strokes the seam's light again in the new colour as it does the line, a rezoom strokes it at the new seam width, its blur is 6 screen px with a padding of 14 whatever the zoom it was drawn at, and a rezoom measures from the zoom the outline was drawn at", async () => {
+        /*
+         * E49 B4 (11.11.2026; audit S07-34). fog-reveal.mjs `flashOutline`'s `recolour` restroked the line and left the
+         * seam's light (`seamHalo`, named drpgRoomOutlineGlow) in the colour it was drawn in; `seamHalo` blurred by
+         * `boneWidth * 6`, a width in scene units, so the bloom's screen weight was set by the zoom of the first draw; and
+         * `outlineZoom` was written only by `rezoomRoomOutline`, so a new outline was measured against the last one's zoom.
+         * Drawn on a stand-in room into a container of the suite's own, never on the canvas; the stage's zoom set and put
+         * back; the theme's class put on the body for the draw when it was not there. The strokes are read off the shim's
+         * calls, or PIXI's own graphics data on a real canvas. The real standing outline, if any, is drawn again quietly
+         * after. Red at d8fa9304: the light keeps the old colour, its blur is 12 px and its padding 28 at a zoom of 0.5, and
+         * a rezoom to 0.45 restrikes it against the zoom 1 of the outline before.
+         */
+        const FR = await import("./fog-reveal.mjs");
+        const J = stableJson;
+        const body = document.body.classList, hadGlass = body.contains("drpg-theme-stained-glass");
+        const was = FR.roomOutline, zoomWas = canvas.stage.scale.x;
+        const zoom = z => canvas.stage.scale.set(z, z);
+        const fx = new PIXI.Container();
+        const region = { name: "R3430 Room", parent: null, shapes: [{ x: 200, y: 200, width: 400, height: 300 }] };
+        const strokes = g => g?._calls ? g._calls.filter(([k]) => k === "lineStyle").map(([, a]) => a?.[0] ?? {})
+            : (g?.geometry?.graphicsData ?? []).map(d => d.lineStyle ?? {});
+        const light = s => s?.group?.children?.find(c => c?.name === FR.HALO_NAMES.outlineLive[0]) ?? null;
+        const r3 = n => Math.round(n * 1000) / 1000;
+        try {
+            if (!hadGlass) body.add("drpg-theme-stained-glass");
+            zoom(1);
+            FR.flashOutline(fx, region, { x: 0, y: 0 });
+            FR.rezoomRoomOutline();
+            zoom(0.5);
+            FR.flashOutline(fx, region, { x: 0, y: 0 });
+            const s = FR.roomOutline, halo = light(s);
+            ok(s?.group?.parent === fx && halo, `no outline with its light was drawn on the stand-in room (${Boolean(s)}, ${Boolean(halo)}) - this would measure nothing`);
+            if (!halo) return;
+            const filter = halo.drpgHaloFilter ?? halo.filters?.[0] ?? null;
+            const drawn = strokes(halo).map(st => st.color);
+            const now = (s.colour ^ 0x2468ac) & 0xffffff;
+            FR.recolourRoomOutline({ standing: s, colourNow: () => now, glassNow: () => true });
+            const turned = strokes(halo).map(st => st.color);
+            zoom(0.45);
+            FR.rezoomRoomOutline();
+            const near = strokes(halo).map(st => r3(st.width));
+            zoom(0.25);
+            FR.rezoomRoomOutline();
+            const far = strokes(light(FR.roomOutline)).map(st => [r3(st.width), st.color]);
+            const blur = filter ? [filter.blur ?? filter.strength ?? null, filter.padding ?? null] : null;
+            equal(J({ drawn: drawn.length, turned, near, far, blur }), J({ drawn: 3, turned: [now, now, now], near: [5.2, 3.6, 2.4],
+                far: [[10.4, now], [7.2, now], [4.8, now]], blur: [6, 14] }),
+                "{the light's passes; their colours after the hour turned; their widths after a zoom of 0.45 from 0.5 (no restrike); after 0.25; the blur and its padding drawn at 0.5} - the light stays in the old hour, or its weight follows the zoom it was first drawn at");
+        } finally {
+            zoom(zoomWas);
+            if (!hadGlass) body.remove("drpg-theme-stained-glass");
+            if (FR.roomOutline?.fx === fx) FR.fadeRoomOutline({ now: true });
+            for (const c of [...fx.children]) { clearTimeout(c.drpgFlashTimer); if (!c.destroyed) c.destroy({ children: true }); }
+            fx.destroy();
+            if (was?.fx && !was.fx.destroyed && was.region) FR.flashOutline(was.fx, was.region, was.rect, was.level, { actor: was.actor ?? null, elevation: was.elevation ?? null, quiet: true });
+        }
+    }],
+    ["R3431 - a room the class found is a flash on a GM's map, not the outline that stands (E49 B4; S07-31): `flashOutline` with `standing: false` leaves the standing outline where it is, takes itself down once its name has faded, and fog.mjs's repaint draws a found room so unless one of this viewer's tokens stands in it", async () => {
+        /*
+         * E49 B4 (11.11.2026; audit S07-31). On a GM's browser `repaintFog` played the discovery of a room the class found
+         * with `flashOutline`, which took down the outline standing round the GM's own Monokuma's room and stood in the
+         * found room instead, until the Monokuma moved. Two stand-in rooms drawn into a container of the suite's own: the
+         * first standing, the second a flash. The repaint's call is read off the source (comments blanked). Red at
+         * d8fa9304: the flash replaces the standing outline, and the repaint passes no `standing`.
+         */
+        const FR = await import("./fog-reveal.mjs");
+        const J = stableJson;
+        const was = FR.roomOutline;
+        const fx = new PIXI.Container();
+        const room = (name, x) => ({ name, parent: null, shapes: [{ x, y: 200, width: 300, height: 300 }] });
+        try {
+            FR.flashOutline(fx, room("R3431 Monokuma's room", 100), { x: 0, y: 0 });
+            const standing = FR.roomOutline;
+            FR.flashOutline(fx, room("R3431 Found", 900), { x: 0, y: 0 }, null, { standing: false });
+            const flash = fx.children.find(c => c !== standing?.group && c?.name === standing?.group?.name) ?? null;
+            const fog = stripComments(new Map(await otherSources()).get("fog.mjs") ?? "");
+            ok(fog.length > 10000, "fog.mjs was not read - this test would measure nothing");
+            const repaint = fnSource(fog, "repaintFog");
+            equal(J({ stands: FR.roomOutline?.room ?? null, kept: Boolean(standing && !standing.group.destroyed && standing.group.alpha === 1),
+                flash: Boolean(flash && !flash.destroyed), drops: flash?.drpgFlashTimer != null,
+                call: /playDiscoveryAnimation\(\s*opened\[0\]\s*,\s*null\s*,\s*\{\s*standing:\s*mine\.has\(\s*opened\[0\]\s*\)\s*\}\s*\)/.test(repaint) }),
+            J({ stands: "R3431 Monokuma's room", kept: true, flash: true, drops: true, call: true }),
+                "{the room outlined after the flash, the first outline still whole, the flash drawn, the flash timed to go, the repaint's call} - a room the class found replaces the GM's own outline");
+        } finally {
+            if (FR.roomOutline?.fx === fx) FR.fadeRoomOutline({ now: true });
+            for (const c of [...fx.children]) { clearTimeout(c.drpgFlashTimer); if (!c.destroyed) c.destroy({ children: true }); }
+            fx.destroy();
+            if (was?.fx && !was.fx.destroyed && was.region) FR.flashOutline(was.fx, was.region, was.rect, was.level, { actor: was.actor ?? null, elevation: was.elevation ?? null, quiet: true });
+        }
+    }],
+    ["R3432 - the standing outline drawn again is no arrival (E49 B4; D147, D165, D174): fog.mjs `redrawOutline` draws it with no hop and no name, the old frame gone at once, from the room's shape as its scene holds it now; a wall's redraws wait a quarter second and run once; and a change of the standing room's own region draws it again", async () => {
+        /*
+         * E49 B4 (11.11.2026). D147 (the owner, 31.10): a change of the GMs' passage rows replayed the frame's hop and
+         * name. D165 (E51's review M2): a wall made, moved or deleted redrew the standing outline at once, once per wall,
+         * its name shown each time. D174 (E51 FIX-B): a room reshaped while its outline stood kept the old shape until the
+         * next arrival. A stand-in room drawn into a container of the suite's own and drawn again by `redrawOutline`; the
+         * wall's timer, the shape read and the region's road are read off the source (comments blanked). Red at
+         * d8fa9304: the redraw names the room again and fades the old frame under it, and the three reads are absent.
+         * The one-way wall and the threshold in the doorway light's test (D174's second half) are not fixed here.
+         */
+        const FR = await import("./fog-reveal.mjs");
+        const FOG = await import("./fog.mjs");
+        const J = stableJson;
+        const was = FR.roomOutline;
+        const fx = new PIXI.Container();
+        try {
+            FR.flashOutline(fx, { name: "R3432 Room", parent: null, shapes: [{ x: 100, y: 100, width: 300, height: 300 }] }, { x: 0, y: 0 });
+            const first = FR.roomOutline;
+            const named = g => (g?.children ?? []).some(c => c instanceof PIXI.Text);
+            const firstNamed = named(first?.group);
+            const redrew = FOG.redrawOutline();
+            const second = FR.roomOutline;
+            const fog = stripComments(new Map(await otherSources()).get("fog.mjs") ?? "");
+            ok(fog.length > 10000, "fog.mjs was not read - this test would measure nothing");
+            const redraw = fnSource(fog, "redrawOutline"), door = fnSource(fog, "outlineAfterDoor"), soon = fnSource(fog, "redrawSoon") ?? "",
+                changed = fnSource(fog, "regionChanged");
+            equal(J({ redrew, firstNamed, newOne: second !== first, oldGone: Boolean(first?.group?.destroyed), named: named(second?.group),
+                still: [second?.group?.x ?? null, second?.group?.y ?? null],
+                shape: /roomShapeOn\(\s*scene\s*,\s*standing\.room\s*,\s*standing\.level\s*\)/.test(redraw) && /quiet:\s*true/.test(redraw),
+                walls: /redrawSoon\(\s*room\s*,\s*asked\s*=>\s*redrawOutline\(\s*asked\s*\)\s*\)/.test(door) && /setTimeout\([\s\S]*,\s*250\s*\)/.test(soon),
+                region: /region\?\.name\s*===\s*standing\.room\)\s*redrawOutline\(\s*standing\.room\s*\)/.test(changed) }),
+            J({ redrew: true, firstNamed: true, newOne: true, oldGone: true, named: false, still: [0, 0], shape: true, walls: true, region: true }),
+                "{redrawn, the arrival named, a new frame, the old frame gone at once, the redraw named, its place, the shape read again, the walls' timer, the room's own region} - a redraw that is no arrival replays it");
+        } finally {
+            if (FR.roomOutline?.fx === fx) FR.fadeRoomOutline({ now: true });
+            for (const c of [...fx.children]) if (!c.destroyed) c.destroy({ children: true });
+            fx.destroy();
+            if (was?.fx && !was.fx.destroyed && was.region) FR.flashOutline(was.fx, was.region, was.rect, was.level, { actor: was.actor ?? null, elevation: was.elevation ?? null, quiet: true });
+        }
+    }],
+    ["R3433 - a move held for its waypoints keeps its arrival (E49 B4; D166): fog.mjs `leadMoveHeld` answers yes for a token the outline follows with waypoints pending and no for one at rest or one it does not follow, and `standWhereWeStand` leaves both rooms' signatures for that arrival while it says yes", async () => {
+        /*
+         * E49 B4 (11.11.2026; D166, E51's review M4). A Monokuma or player move held for its waypoints runs its arrival
+         * at rest (`onUpdateToken`); a token deleted or a region changed meanwhile ran `standWhereWeStand`, which wrote
+         * the new rooms first, so the at-rest call compared equal and played no sound and no curtain. Stand-in tokens and
+         * a stand-in `leadsHere`; the gate is read off the source (comments blanked). Red at d8fa9304: no `leadMoveHeld`.
+         */
+        const FOG = await import("./fog.mjs");
+        const J = stableJson;
+        ok(typeof FOG.leadMoveHeld === "function", "fog.mjs has no `leadMoveHeld` - a deletion during a held move writes its rooms first");
+        if (typeof FOG.leadMoveHeld !== "function") return;
+        const token = waypoints => ({ document: { movement: { pending: { waypoints } } } });
+        const held = token([{ x: 1, y: 1 }]), still = token([]);
+        const fog = stripComments(new Map(await otherSources()).get("fog.mjs") ?? "");
+        const stand = fnSource(fog, "standWhereWeStand");
+        equal(J([FOG.leadMoveHeld([held], () => true), FOG.leadMoveHeld([held], () => false), FOG.leadMoveHeld([still], () => true), FOG.leadMoveHeld([], () => true),
+            /if\s*\(\s*!leadMoveHeld\(\)\s*\)\s*\{\s*lastMineSignature\s*=\s*now\.mine;\s*lastLeadSignature\s*=\s*now\.lead;\s*\}/.test(stand)]),
+        J([true, false, false, false, true]),
+            "[a lead's move held, another token's held, a lead at rest, no token, the signatures gated] - a deletion during a held move swallows its arrival");
+    }],
+    ["R3434 - whatIsHere reads the outline's line and the doorway's glow by name (E49 B4; S07-41): fog-diagnostics.mjs `nearestOutline` measures the line, not the seam's light drawn before it, and `glowAlphaAt` reads the child named for the doorway glow, not the light's baked picture, at the texture's resolution", async () => {
+        /*
+         * E49 B4 (11.11.2026; audit S07-41). Under Stained Glass the outline's group holds the seam's light (a Graphics
+         * four to seven times wider) and its baked picture (a Sprite) before the glow and the line: the first Graphics with
+         * geometry was the light and the first child with a texture its picture. A stand-in group in that order, with a
+         * renderer of the test's own whose texture is held at resolution 2. Red at d8fa9304: neither function is exported.
+         */
+        const FD = await import("./fog-diagnostics.mjs");
+        const { GLOW_NAME } = await import("./fog-doorways.mjs");
+        const { HALO_NAMES } = await import("./fog-reveal.mjs");
+        const J = stableJson;
+        ok(typeof FD.nearestOutline === "function" && typeof FD.glowAlphaAt === "function", "fog-diagnostics.mjs does not export the two readers - whatIsHere's outline is read by position");
+        if (typeof FD.nearestOutline !== "function" || typeof FD.glowAlphaAt !== "function") return;
+        const line = width => ({ geometry: { graphicsData: [{ shape: { points: [0, 0, 100, 0, 100, 100] }, lineStyle: { width } }] } });
+        const texture = (w, h, resolution) => ({ width: w, height: h, baseTexture: { resolution } });
+        const glowTex = texture(4, 4, 2), bakedTex = texture(4, 4, 1);
+        const group = { x: 0, y: 0, children: [{ name: HALO_NAMES.outlineLive[0], ...line(26) }, { name: HALO_NAMES.outlineBaked[0], x: 0, y: 0, texture: bakedTex },
+            { name: GLOW_NAME, x: 0, y: 0, texture: glowTex }, { name: null, ...line(2) }] };
+        const renderer = { extract: { pixels: tex => {
+            const across = Math.round(tex.width * tex.baseTexture.resolution), down = Math.round(tex.height * tex.baseTexture.resolution);
+            const px = new Uint8Array(across * down * 4);
+            if (tex === glowTex) px[(6 * across + 2) * 4 + 3] = 255;
+            return px;
+        } } };
+        const report = { found: [] };
+        FD.nearestOutline(group, { x: 50, y: 0.5 }, report, null);
+        FD.glowAlphaAt(group, { x: 1, y: 3 }, report, renderer);
+        equal(J([report.outline?.strokeWidth ?? null, report.outline?.covers ?? null, report.glow?.alpha ?? null]), J([2, true, 1]),
+            "[the stroke width measured, whether it covers the point, the glow's alpha there] - whatIsHere measures the halo as the line, or reads the glow off the light's picture or at the wrong pixel");
+    }],
+    ["R3435 - every student's token is locked against rotation, whatever it was dragged from (E49 B4; S07-35): movement.mjs `onPreCreateToken` locks a character's token whose data says false, leaves another actor's that says false, locks any token that says nothing; and `onPreCreateActor` locks a character's prototype token unless it already is", async () => {
+        /*
+         * E49 B4 (11.11.2026; audit S07-35). A token dragged from the actor list carries its prototype's `lockRotation`,
+         * Foundry's default false, so `onPreCreateToken`'s `data.lockRotation === undefined` locked only a token made with
+         * no word on it, and the comment said otherwise. Stand-in documents whose `updateSource` records what it is handed;
+         * nothing is created. Red at d8fa9304: neither function is exported.
+         */
+        const M = await import("./movement.mjs");
+        const J = stableJson;
+        ok(typeof M.onPreCreateToken === "function" && typeof M.onPreCreateActor === "function", "movement.mjs exports neither hook's function - a dragged student's token turns");
+        if (typeof M.onPreCreateToken !== "function" || typeof M.onPreCreateActor !== "function") return;
+        const asked = (fn, doc, data) => { const got = []; fn({ ...doc, updateSource: u => got.push(u) }, data); return got; };
+        equal(J([asked(M.onPreCreateToken, { actor: { type: "character" } }, { lockRotation: false }),
+            asked(M.onPreCreateToken, { actor: { type: "character" } }, { lockRotation: true }),
+            asked(M.onPreCreateToken, { actor: { type: "adversary" } }, { lockRotation: false }),
+            asked(M.onPreCreateToken, { actor: null }, {}),
+            asked(M.onPreCreateActor, { type: "character" }, { type: "character" }),
+            asked(M.onPreCreateActor, { type: "character" }, { type: "character", prototypeToken: { lockRotation: true } }),
+            asked(M.onPreCreateActor, { type: "adversary" }, { type: "adversary" })]),
+        J([[{ lockRotation: true }], [], [], [{ lockRotation: true }], [{ "prototypeToken.lockRotation": true }], [], []]),
+            "[a student's token saying false, one saying true, an adversary's saying false, a token saying nothing; a student made, one already locked, an adversary] - a token dragged from the actor list turns");
+    }],
+    ["R3436 - a Remnant's icon is never handed a texture that is gone (E49 B4; amend [3](1)): remnant-icons.mjs `textureFor` drops a texture destroyed since it was loaded and loads it again, and `forgetTextures` - run as the canvas comes down and up - empties the textures and the misses", async () => {
+        /*
+         * E49 B4 (11.11.2026; the owner's session of 27.10, amend [3](1)): the icons on the traces vanished or stayed
+         * stale after a Class Trial. The map kept the textures of the scene they were loaded on for the session; a texture
+         * Foundry let go with the old scene was still handed to the next scene's meshes. A loader of the test's own stands
+         * in for Foundry's (put back after); nothing is drawn. The hook wiring is read off the source (comments blanked).
+         * Red at d8fa9304: neither function is exported. What a table shows is LIVE-E49-07.
+         */
+        const I = await import("./remnant-icons.mjs");
+        const J = stableJson;
+        ok(typeof I.textureFor === "function" && typeof I.forgetTextures === "function", "remnant-icons.mjs exports neither - a texture gone with its scene is handed out");
+        if (typeof I.textureFor !== "function" || typeof I.forgetTextures !== "function") return;
+        const home = foundry.canvas && "loadTexture" in foundry.canvas ? foundry.canvas : globalThis;
+        const own = Object.getOwnPropertyDescriptor(home, "loadTexture");
+        const made = [];
+        const load = async path => { const t = { path, destroyed: false, valid: true, baseTexture: { destroyed: false } }; made.push(t); return t; };
+        const tick = () => new Promise(r => setTimeout(r, 20));
+        const path = "R3436/never-a-real-file.webp";
+        let read = null;
+        try {
+            if (home === foundry.canvas) foundry.canvas.loadTexture = load; else globalThis.loadTexture = load;
+            const first = I.textureFor(path);
+            await tick();
+            const loaded = I.textureFor(path);
+            if (loaded) loaded.destroyed = true;
+            const gone = I.textureFor(path);
+            await tick();
+            const again = I.textureFor(path);
+            I.forgetTextures();
+            const forgotten = I.textureFor(path);
+            await tick();
+            read = [first, Boolean(loaded), gone, Boolean(again && again !== loaded && !again.destroyed), forgotten, made.length];
+        } finally {
+            if (own) Object.defineProperty(home, "loadTexture", own); else delete home.loadTexture;
+            I.forgetTextures();
+        }
+        const src = stripComments(new Map(await otherSources()).get("remnant-icons.mjs") ?? "");
+        const register = fnSource(src, "registerRemnantIcons");
+        equal(J([...read, /Hooks\.on\(\s*"canvasTearDown"\s*,\s*\(\)\s*=>\s*forgetTextures\(\)\s*\)/.test(register),
+            /Hooks\.on\(\s*"canvasReady"[\s\S]*forgetTextures\(\)[\s\S]*preload\(\)/.test(register)]),
+        J([null, true, null, true, null, 3, true, true]),
+            "[while loading, loaded, after it was destroyed, loaded again, after forgetTextures, loads, the tear-down's hook, canvasReady's] - a Remnant's icon is handed a texture its scene let go");
+    }],
 ];
 
 /**
