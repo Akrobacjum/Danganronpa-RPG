@@ -44155,13 +44155,15 @@ const INVARIANTS = [
         equal(stableJson({ scoped, duality, drawn }), stableJson({ scoped: [true, true, true, true, true], duality: true, drawn: ["flex 8px", "flex 8px"] }),
             "{scoped: the line's, glyph's, words', result's and who's rule on the notice, the snapshot and a chat message; duality: the total hidden in the notice; drawn: the words' display and gap in a chat message and in a snapshot} - the critical's line must read apart outside a notice");
     }],
-    ["R3575 - Foundry's default pictures are not drawn as a picture in the module's windows (E105 FT-13; the owner's \"pozbyc sie [...] miejsc gdzie przebija sie grafika [...] z foundry\", 11.11.2026): Despair flow > Monokumas draws gm-team-dialog.mjs `shownPortrait` (core's mystery man and no picture -> icons/portrait-none.svg), Item tables' rows tables-editor.mjs `shownResultImg` (core's item bag, core's d20 and no picture -> the group's `itemIcon`), Projects' window and manager projects-ui.mjs `shownProjectImg` (core's hourglass and no picture -> icons/project-hourglass.svg) and `wireProjectPortraits` after `wirePortraitPickers`; any other picture is drawn as it is; the two drawings are served", async () => {
+    ["R3575 - Foundry's default pictures are not drawn as a picture in the module's windows (E105 FT-13; the owner's \"pozbyc sie [...] miejsc gdzie przebija sie grafika [...] z foundry\", 11.11.2026): Despair flow > Monokumas draws gm-team-dialog.mjs `shownPortrait` (core's mystery man and no picture -> icons/portrait-none.svg), Item tables' rows tables-editor.mjs `shownResultImg` (core's item bag, core's d20 and no picture -> the group's `itemIcon`), and Projects' window and manager draw no picture at all (the owner's \"usunmy [...] ikonke countdown foundry\", 11.11): no `data-drpg-portrait`, no file browser, the manager no picture column or field, the window the picture as a hidden field only; any other picture is drawn as it is; the drawing is served", async () => {
         /*
          * E105 fix batch 3, 11.11.2026. The survey (LIST.md FT-13, 54493dbf) read the captured `src`: 5 of 5 Monokumas rows
          * core's mystery man, 41 of 41 room-pool rows core's item bag, the project window core's hourglass. Red first on
          * 7d59dcfe: none of the three helpers is declared (the first `fnSource` stops the test) and neither drawing exists.
          * Each helper is cut from its source and run on stand-in values; nothing is written. The stored value is not
          * changed by any of them - the hidden field and the documents keep what they held (read in the source's lines).
+         * The owner on the shots (11.11): the project's picture is Foundry's countdown image and the module has its own
+         * glyphs, so the windows stopped drawing it; the module's hourglass the first commit drew there went with it.
          */
         const src = async name => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${name}`).then(lfText));
         const [team, tables, projects] = await Promise.all(["gm-team-dialog.mjs", "tables-editor.mjs", "projects-ui.mjs"].map(src));
@@ -44169,36 +44171,30 @@ const INVARIANTS = [
             "OWN", new Set(["icons/svg/mystery-man.svg"]));
         const result = new Function("CORE_RESULT_IMGS", "itemIcon", `${fnSource(tables, "shownResultImg")}; return shownResultImg;`)(
             new Set(["icons/svg/item-bag.svg", "icons/svg/d20-black.svg"]), home => `own:${home}`);
-        const project = new Function("DEFAULT_PROJECT_IMG", "UNSET_PROJECT_IMG", `${fnSource(projects, "shownProjectImg")}; return shownProjectImg;`)(
-            "icons/magic/time/hourglass-yellow-green.webp", "OWN");
         const drawn = {
             portrait: [portrait("icons/svg/mystery-man.svg"), portrait(""), portrait(undefined), portrait("worlds/w/kaede.webp")],
-            result: [result("icons/svg/item-bag.svg", "tool"), result("icons/svg/d20-black.svg", null), result("", "usable"), result("modules/x/icons/item-tool.svg", "tool")],
-            project: [project("icons/magic/time/hourglass-yellow-green.webp"), project(""), project("worlds/w/trap.webp")]
+            result: [result("icons/svg/item-bag.svg", "tool"), result("icons/svg/d20-black.svg", null), result("", "usable"), result("modules/x/icons/item-tool.svg", "tool")]
         };
         const consts = {
             portrait: /const UNSET_PORTRAIT = `modules\/\$\{MODULE_ID\}\/icons\/portrait-none\.svg`/.test(team),
-            project: /const UNSET_PROJECT_IMG = `modules\/\$\{MODULE_ID\}\/icons\/project-hourglass\.svg`/.test(projects),
             bag: /const CORE_RESULT_IMGS = new Set\(\[DEFAULT_RESULT_IMG, "icons\/svg\/d20-black\.svg"\]\)/.test(tables)
         };
         const used = {
             team: team.includes('<img src="${foundry.utils.escapeHTML(shownPortrait(actor.img))}" alt="" class="drpg-monokuma-portrait"'),
             tables: tables.includes('<img src="${esc(shownResultImg(r.img, home))}" alt="" class="drpg-table-item-icon"'),
-            projectRow: projects.includes('portrait: `<img src="${esc(shownProjectImg(p.img))}"') && projects.includes('<input type="hidden" name="img.${p.id}" value="${esc(p.img ?? "")}"'),
-            projectWindow: projects.includes('<img src="${esc(shownProjectImg(img))}" alt="" class="drpg-project-portrait"') && projects.includes('<input type="hidden" name="img" value="${esc(img)}"'),
-            wired: (projects.match(/\bwirePortraitPickers\(/g) ?? []).length === 1 && /wirePortraitPickers\(root, options\)/.test(fnSource(projects, "wireProjectPortraits"))
-                && (projects.match(/\bwireProjectPortraits\(dialog\.element/g) ?? []).length === 2
+            projectsNoPicture: !/data-drpg-portrait|drpg-project-portrait|wirePortraitPickers|FilePicker|name="img\.|key: "portrait"/.test(projects),
+            projectWindowField: projects.includes('<input type="hidden" name="img" value="${esc(img)}" />') && projects.includes("img: f.img.value || null")
         };
-        const served = await Promise.all(["portrait-none.svg", "project-hourglass.svg"].map(async f => {
+        const served = await Promise.all(["portrait-none.svg"].map(async f => {
             const res = await fetch(`/modules/${MODULE_ID}/icons/${f}`);
             return res.ok && /^<svg [^>]*viewBox="-2 -2 16 16"[^>]*shape-rendering="crispEdges"/.test(await lfText(res));
         }));
         equal(stableJson({ drawn, consts, used, served }), stableJson({
-            drawn: { portrait: ["OWN", "OWN", "OWN", "worlds/w/kaede.webp"], result: ["own:tool", "own:null", "own:usable", "modules/x/icons/item-tool.svg"], project: ["OWN", "OWN", "worlds/w/trap.webp"] },
-            consts: { portrait: true, project: true, bag: true },
-            used: { team: true, tables: true, projectRow: true, projectWindow: true, wired: true },
-            served: [true, true]
-        }), "{drawn: each helper on core's defaults, no picture and a chosen one; consts: the module's drawings and core's two table defaults; used: each window's img drawn through its helper while its hidden field keeps the stored value, and projects-ui's portraits wired through wireProjectPortraits; served: the two drawings, in the item drawings' 16 x 16 crispEdges view}");
+            drawn: { portrait: ["OWN", "OWN", "OWN", "worlds/w/kaede.webp"], result: ["own:tool", "own:null", "own:usable", "modules/x/icons/item-tool.svg"] },
+            consts: { portrait: true, bag: true },
+            used: { team: true, tables: true, projectsNoPicture: true, projectWindowField: true },
+            served: [true]
+        }), "{drawn: each helper on core's defaults, no picture and a chosen one; consts: the module's drawing and core's two table defaults; used: each window's img drawn through its helper, projects-ui drawing and offering no picture (no portrait, picker, file browser, picture field or column) while the window keeps the stored picture as a hidden field Save reads; served: the drawing, in the item drawings' 16 x 16 crispEdges view}");
     }],
     ["R3576 - Foundry's and Daggerheart's chrome wears the module's dress in both themes (E105 FT-22, FT-26, FT-28..30, FT-32, FT-33, FT-35, FT-37, FT-38; styles/danganronpa.css's batch-3 block): one block at the file's end holds, per piece and theme, the rule that sets its ground, edge or ink from the palette's tokens - Legacy's tooltip, toasts (a level's edge each), context menu, Configure Settings window, directory lists, loading bar, resize corner, countdown controls, roll dialog chips and field, sheet's search, links and tags; the glass's context menu, settings' range, directory lists, loading bar, resize corner and roll chips - with no `!important` and no colour literal; a stand-in roll chip and resize handle read the block's values in this page's cascade", async () => {
         /*
@@ -44248,6 +44244,58 @@ const INVARIANTS = [
         equal(stableJson({ rows, clean, read }), stableJson({
             rows: Object.fromEntries(Object.keys(rows).map(k => [k, true])), clean: true, read: { themed: true, chipInset: true, corner: "2px 2px" }
         }), "{rows: each piece's rule in its theme(s), setting the property from a palette token; clean: the block holds no !important and no colour literal; read: this page wears a theme, a roll chip's edge an inset shadow and a resize corner of 2 px squares in its cascade}");
+    }],
+    ["R3577 - the owner's three after batch 3's shots (E105 FT-26's dice, FT-31, FT-34, FT-36; the owner's \"Tak\", 11.11.2026; styles/danganronpa.css): Daggerheart's Hope and Fear dice are coloured by their own select as well as their picture, Hope's token and Despair's in each theme; Foundry's own framed windows (FilePicker, confirms, item sheets, journal, compendium, macro, playlist, roll tables - not the module's, not Daggerheart's but its item sheets) take the module's ground, title band, fields, buttons, tabs and focus in Legacy and its buttons, tabs, edge and focus under the glass, no layout property; the combat tracker's tab, pane and window and Daggerheart's effects display are hidden in the hotbar's own rule; a stand-in confirm's button reads the theme's corner in this page's cascade", async () => {
+        /*
+         * E49 FT batch 3, 11.11.2026, after the owner looked at the shots: (1) "kosci w oknie rzutu sa teraz biale" - the
+         * stand-in's dice had a data: picture and the module colours a die by its picture's source, so the white was the
+         * stand-in's; the dice are now read by `roll.dice.dHope` / `roll.dice.dFear` too. (3) FT-31, (4) FT-34, (5) FT-36,
+         * each "Tak". Red first on fda638e9: none of the rules below, the hotbar's rule holds `#hotbar` alone, and the
+         * stand-in button's corner reads "" (no rule names a framed core window's button). The stand-in is a detached-class
+         * box with no id (a table's own windows are not touched) and is removed.
+         */
+        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
+        const block = stripComments(`/*${bodyOf(raw, "E105 FT, BATCH 3")}`);
+        const all = stripComments(raw);
+        const rules = text => [...text.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const mine = rules(block);
+        const L = "body.drpg-theme-monokuma-legacy", G = "body.drpg-theme-stained-glass";
+        const W = ':is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header)';
+        const sets = (sel, prop, token) => mine.some(r => r.sel === sel && new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*[^;]*var\\(${token}`).test(r.body));
+        const dice = {
+            legacyHope: sets(`${L} .application.roll-selection .dice-option:is(:has(img[src*="hope"]), :has([name="roll.dice.dHope"]))::before`, "background-color", "--drpg-gold\\)"),
+            legacyFear: sets(`${L} .application.roll-selection .dice-option:is(:has(img[src*="fear"]), :has([name="roll.dice.dFear"]))::before`, "background-color", "--drpg-blood\\)"),
+            glassHope: sets(`${G} .application.roll-selection .dice-option:is(:has(img[src*="hope"]), :has([name="roll.dice.dHope"]))::before`, "background-color", "--drpg-sg-hope\\)"),
+            glassFear: sets(`${G} .application.roll-selection .dice-option:is(:has(img[src*="fear"]), :has([name="roll.dice.dFear"]))::before`, "background-color", "--drpg-sg-despair\\)")
+        };
+        const windows = {
+            legacyGround: sets(`${L} ${W}`, "background", "--drpg-ink"),
+            legacyBand: sets(`${L} ${W} > .window-header`, "box-shadow", "--drpg-line-strong"),
+            legacyField: sets(`${L} ${W} .window-content :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]), select, textarea)`, "background", "--drpg-ink"),
+            legacyButton: sets(`${L} ${W} :is(.window-content, .form-footer, footer) button:not(.header-control)`, "background", "--drpg-kit-btn-bg"),
+            glassButton: sets(`${G} ${W} :is(.window-content, .form-footer, footer) button:not(.header-control)`, "background", "--drpg-sg-ink"),
+            glassEdge: sets(`${G} ${W}`, "border-color", "--drpg-sg-bone"),
+            pickedFile: sets(`${L} .application:is(.filepicker, .file-picker) :is(.files-list, .subdirs) > li.picked`, "box-shadow", "--drpg-bone"),
+            noLayout: mine.filter(r => r.sel.includes(W)).every(r => !/(?:^|;)\s*(?:width|height|padding|margin|gap|display|font-size|position)\s*:/.test(r.body))
+        };
+        const hotbar = rules(all).find(r => r.sel.split(/,\s*/).includes("#hotbar"));
+        const hidden = Boolean(hotbar) && /display:\s*none\s*!important/.test(hotbar.body)
+            && ['#sidebar-tabs button.ui-control[data-tab="combat"]', "#sidebar #combat", "#combat-popout", "#effects-display", "#effects-panel"].every(s => hotbar.sel.split(/,\s*/).includes(s));
+        const host = document.createElement("div");
+        host.style.cssText = "position:absolute;left:-9999px;top:0;width:300px";
+        host.innerHTML = `<div class="application dialog"><header class="window-header"><h1 class="window-title">Stand-in</h1></header><section class="window-content"><p>?</p></section><footer class="form-footer"><button type="button">Yes</button></footer></div>`;
+        document.body.append(host);
+        let corner;
+        try {
+            const glass = document.body.classList.contains("drpg-theme-stained-glass");
+            const r = getComputedStyle(host.querySelector("footer button")).borderRadius;
+            corner = glass ? r === "0px" : /^(2px|var\(--drpg-kit-btn-radius\))$/.test(r);
+        } finally { host.remove(); }
+        equal(stableJson({ dice, windows, hidden, corner }), stableJson({
+            dice: { legacyHope: true, legacyFear: true, glassHope: true, glassFear: true },
+            windows: { legacyGround: true, legacyBand: true, legacyField: true, legacyButton: true, glassButton: true, glassEdge: true, pickedFile: true, noLayout: true },
+            hidden: true, corner: true
+        }), "{dice: each die's colour by picture or select, each theme's Hope and Despair token; windows: a framed core window's ground, title band, field and button under Legacy, button and edge under the glass, the FilePicker's picked row, no layout property in any of these rules; hidden: the hotbar's rule hides the combat tab, pane and window and the effects display; corner: a stand-in core confirm's button wears this theme's corner}");
     }],
     ["R2018 - Room setup's Scenes tab on the kit (E46-C2b; E46-08, E47's 05.10 point 5): trial-scene.mjs `scenesTabHtml` is a kit `formGrid` (the school and the hall selects, each its label's `for`), the hall's name, picture and words a `formGrid` of their own, the warnings a `box(\"warning\")`, the prepare ticks kit switches, `SCENES_ZONE_SLOT` a row of `scenesTabRows` that draws nothing (where E73 puts Zone A and Zone B), the hall's cast pick (`castPickerHtml`) a kit `dataTable` with a switch an actor; `readScenesTab`'s answer for a seeded form the one it gave before", async () => {
         /*
@@ -45165,6 +45213,8 @@ const INVARIANTS = [
          * Cancel), from projects and players made up here, so the world's own do not enter. The setting (this browser's, scope
          * client) is answered both ways by a stand-in for `game.settings.get`, nothing written. Red on f4a5083a: no `projectManagerBody`, no `wireManagerDeletes`,
          * no setting; the forms a run of labels, the warnings `p.drpg-warning`.
+         * E49 FT batch 3 (the owner, 11.11.2026, "usunmy [...] ikonke countdown foundry"): the picture's column went, so the
+         * head's first group spans 6, the heads start at the title and a row has no `img.<id>` field.
          */
         const UI = await import("./projects-ui.mjs");
         const AP = await import("./action-project.mjs");
@@ -45248,10 +45298,10 @@ const INVARIANTS = [
         const t = key => game.i18n.localize(key);
         const viewers = game.users.some(u => !u.isGM) ? ["viewers"] : [];
         equal(stableJson(got), stableJson({
-            manager: { table: true, group: [["", 7], [t("DRPG.Project.visibleTo"), 2]],
-                heads: ["", t("DRPG.Project.title"), t("DRPG.Project.room"), t("DRPG.Project.indirect"), t("DRPG.Project.secret"), t("DRPG.Project.edit"), t("DRPG.Project.delete"), "R2076 player with a long name", "R2076 two"],
+            manager: { table: true, group: [["", 6], [t("DRPG.Project.visibleTo"), 2]],
+                heads: [t("DRPG.Project.title"), t("DRPG.Project.room"), t("DRPG.Project.indirect"), t("DRPG.Project.secret"), t("DRPG.Project.edit"), t("DRPG.Project.delete"), "R2076 player with a long name", "R2076 two"],
                 cut: [true, true], rooms: [[t("DRPG.Project.anyRoom"), "2"]], rows: ["R2076PROJECTA", "R2076PROJECTB"],
-                fields: ["img.R2076PROJECTA", "room.R2076PROJECTA", "murder.R2076PROJECTA", "secret.R2076PROJECTA", "viewers.R2076PROJECTA"],
+                fields: ["room.R2076PROJECTA", "murder.R2076PROJECTA", "secret.R2076PROJECTA", "viewers.R2076PROJECTA"],
                 deleteButtons: [`${t("DRPG.Project.delete")}: R2076 project 0`, `${t("DRPG.Project.delete")}: R2076 project 1`], deleteBoxes: 0, notes: 2 },
             ask: { asked: true, yes: [true, false], named: true, left: 2 },
             create: { grid: true, labelled: true, fields: [...createFields, ...viewers], oldWarnings: 0 },

@@ -24,7 +24,7 @@ import {
     applyProjectChange, combineChanges, projectEditChange, sightChange, projectMeta, addProgress, projectLabel
 } from "./projects.mjs";
 import { placeRoomNames } from "./rooms.mjs";
-import { error, markFired, markLanguage, serialWrite, wirePortraitPickers } from "./utils.mjs";
+import { error, markFired, markLanguage, serialWrite } from "./utils.mjs";
 import { emptyOption, drpgConfirm, drpgWindow, dataTable, formGrid, helpText, box, iconButton, kitNode } from "./ui-kit.mjs";
 import { SETTINGS } from "./settings.mjs";
 // The projects' queue key, from the file that keeps it (projects.mjs does not re-export it), as traps.mjs and fog.mjs read it.
@@ -308,7 +308,8 @@ function roomSelectOptions(rooms, current) {
  * and O3b). One row object per project - its cells by column key, `project` its id for the row's `data-project` - under a
  * group row per room (O3b: `{ group, count }`, the rooms in the order their first project comes, a project with no room
  * under "any room"). The cells are the ones the table drew before, in the columns `projectManagerColumns` names: the
- * portrait, the name and its progress, the room, the two flags, Edit (and Show on map), Delete, and a tick per player.
+ * name and its progress, the room, the two flags, Edit (and Show on map), Delete, and a tick per player; the picture's
+ * column went in E49 FT batch 3 (`DEFAULT_PROJECT_IMG`'s note).
  * DELETE IS A BUTTON (the owner's M16 note: "chcialbym by delete juz nie bylo checkboxem, tylko przyciskiem" - I would
  * like Delete to be a button, not a checkbox): the kit's `iconButton` in the destructive role's colour, which asks the
  * project window's own delete question (`confirmProjectDelete`) and deletes on its yes; no `delete.<id>` box is read at
@@ -321,9 +322,6 @@ function projectManagerRows(projects, rooms, { always = new Set(), players = pla
         const secret = isSecret(p.id);
         const row = {
             project: p.id,
-            portrait: `<img src="${esc(shownProjectImg(p.img))}" alt="" class="drpg-project-portrait"
-                     data-drpg-portrait="${p.id}" data-tooltip="${t("DRPG.Project.changeImage")}" />
-                <input type="hidden" name="img.${p.id}" value="${esc(p.img ?? "")}" />`,
             title: `${esc(p.name)}<br><small data-drpg-progress="${p.id}"
                 >${projectLabel(p, { name: false })}</small>`,
             room: `<select name="room.${p.id}" aria-label="${rowName("DRPG.Project.room", p)}">${
@@ -369,7 +367,6 @@ function projectManagerRows(projects, rooms, { always = new Set(), players = pla
 function projectManagerColumns(players) {
     const t = key => game.i18n.localize(key);
     const columns = [
-        { key: "portrait", label: "", cls: "portrait" },
         { key: "title", label: t("DRPG.Project.title") },
         { key: "room", label: t("DRPG.Project.room") },
         { key: "murder", label: t("DRPG.Project.indirect"), cls: "check" },
@@ -380,7 +377,7 @@ function projectManagerColumns(players) {
             ? players.map(u => ({ key: `viewer-${u.id}`, label: u.name, lines: 2, cls: "viewer" }))
             : [{ key: "viewers", label: t("DRPG.Project.visibleTo") }])
     ];
-    const headGroups = players.length ? [{ label: "", span: 7 }, { label: t("DRPG.Project.visibleTo"), span: players.length }] : null;
+    const headGroups = players.length ? [{ label: "", span: columns.length - players.length }, { label: t("DRPG.Project.visibleTo"), span: players.length }] : null;
     return { columns, headGroups };
 }
 
@@ -462,40 +459,21 @@ export function projectWindowWidth() {
 }
 
 /*
- * CORE'S HOURGLASS IS NOT A PROJECT'S PICTURE (E105 FT-13, the owner's 11.11.2026 "pozbyc sie [...] miejsc gdzie
- * przebija sie grafika [...] z foundry"). A project nobody gave a picture is stored with core's
- * icons/magic/time/hourglass-yellow-green.webp (the window's default since before 1.2.0, kept as the stored value so
- * nothing already written changes meaning), and the window and the manager drew that core file - or, for a project
- * stored with no picture, a broken image. Both now draw the module's own hourglass, icons/project-hourglass.svg (12 x
- * 12 in the item drawings' manner: ink #1a1620, Bone glass, sand #b8a68a; one file for both themes, as the item
- * drawings). Only what is drawn: the hidden field still holds - and Save still stores - exactly what it held, the file
- * browser opens on it, and a picture somebody chose is drawn as it is.
- *
- * utils.mjs `wirePortraitPickers` copies the hidden field into the picture on every rebuild (its F13 note), which would
- * put core's file back; `wireProjectPortraits` runs it and then draws the module's hourglass over a default field. A
- * GM who browses to core's hourglass on purpose sees it until the next rebuild, then the module's: the one picture
- * this cannot tell from no choice.
+ * FOUNDRY'S COUNTDOWN PICTURE IS NEITHER SHOWN NOR OFFERED HERE (E49 FT batch 3; the owner on E105 fix3's shots,
+ * 11.11.2026: "usunmy z edycji/tworzenia projektu i z okna projektow ikonke countdown foundry. Modul ma swoje wlasne
+ * ikony projektow od jakiegos czasu"). The project's picture was Daggerheart's countdown image - core's
+ * icons/magic/time/hourglass-yellow-green.webp unless a GM browsed to another - drawn as a thumbnail that opened the file
+ * browser, in the window and in a column of the manager. The module's own glyph (`glyphGrid`, PROJECT_GLYPHS, the
+ * sprite the tray paints) is the project's icon, so both went: the window keeps the picture as a hidden field only,
+ * holding and saving exactly what it held (a new project still gets core's webp as before, an edited one keeps its own,
+ * so Daggerheart's tray - which draws the countdown's `img` under Monokuma Legacy and hides it under the glass - shows
+ * what it showed); the manager neither draws nor reads it, so its Save no longer writes a picture at all (it wrote one
+ * only when the thumbnail had been changed). Stored data is not touched.
  */
 const DEFAULT_PROJECT_IMG = "icons/magic/time/hourglass-yellow-green.webp";
-const UNSET_PROJECT_IMG = `modules/${MODULE_ID}/icons/project-hourglass.svg`;
-function shownProjectImg(img) {
-    return !img || img === DEFAULT_PROJECT_IMG ? UNSET_PROJECT_IMG : img;
-}
 
-function wireProjectPortraits(root, options = {}) {
-    wirePortraitPickers(root, options);
-    for (const portrait of root.querySelectorAll("img[data-drpg-portrait]")) {
-        const id = portrait.dataset.drpgPortrait || null;
-        const field = root.querySelector(id ? `[name="img.${CSS.escape(id)}"]` : '[name="img"]');
-        if (!field) continue;
-        const shown = shownProjectImg(field.value);
-        if (portrait.getAttribute("src") !== shown) portrait.setAttribute("src", shown);
-    }
-}
-
-/** The portraits, the live progress figures, and the per-row edit buttons. */
+/** The live progress figures and the per-row edit buttons. */
 function wireProjectManager(dialog, projects, rooms) {
-    wireProjectPortraits(dialog.element);
 
     /* PROGRESS MOVES WHILE THIS WINDOW IS OPEN, AND THAT IS WHAT IT IS FOR.
 
@@ -562,7 +540,6 @@ async function applyProjectManager(result, projects) {
         if (!exists(entry.id)) continue;
 
         const before = projects.find(p => p.id === entry.id);
-        const img = entry.img && entry.img !== before?.img ? { img: entry.img } : null;
         /* THE ROOM ONLY WHEN THIS ROW CHANGED IT (E12 C5, 1.2.74; audit S09-03). Every row's room was
            written back on every Save, so a room the project gained while the window was open - its
            token dragged into another room (`onProjectTokenMoved`), another GM's edit - was put back
@@ -580,7 +557,7 @@ async function applyProjectManager(result, projects) {
             const meta = secretsOf(entry.id);
             if (!meta.killerId && !meta.by) {
                 ui.notifications.warn(game.i18n.format("DRPG.Project.needsKillerNamed", { name: before?.name ?? "?" }));
-                const kept = combineChanges(img, room ? { meta: room } : null);
+                const kept = combineChanges(room ? { meta: room } : null);
                 if (kept) await applyProjectChange(entry.id, kept, { by: { kind: "gm" } });
                 continue;
             }
@@ -599,10 +576,10 @@ async function applyProjectManager(result, projects) {
         // Through secrecyChange, which knows about the row's own ticked list of
         // viewers (P-1) and about the builder; `entry.viewers` is null when this
         // window had no list to read, and then the seal keeps whoever already knew.
-        // ONE CHANGE A ROW (E36 C2, 25.10.2026; audit S17-18): the portrait, the room, the flag and the
+        // ONE CHANGE A ROW (E36 C2, 25.10.2026; audit S17-18): the room, the flag and the
         // secrecy were three or four writes, each read and written whole, so another change landing
         // between them was lost or half-made; one step of the entry now, and none for a row left as it was.
-        const change = combineChanges(img, room || murder ? { meta: { ...room, ...murder } } : null,
+        const change = combineChanges(room || murder ? { meta: { ...room, ...murder } } : null,
             secrecyChange(entry.id, shouldBeSecret, entry.viewers, entry.was));
         if (change) await applyProjectChange(entry.id, change, { by: { kind: "gm" } });
     }
@@ -654,10 +631,8 @@ export async function openProjectManager() {
             ],
             close: { role: "cancel", action: "cancel" }
         },
-        // A FilePicker needs a live click against the dialog's actual DOM -
-        // see wirePortraitPickers() for why this cannot be wired any earlier.
-        // The per-row edit buttons need the same treatment, and they close the
-        // manager first so the two windows never stack.
+        // The per-row edit buttons need a live click against the dialog's actual
+        // DOM, and they close the manager first so the two windows never stack.
         render: (event, dialog) => wireProjectManager(dialog, projects, rooms),
         rejectClose: false
     });
@@ -689,8 +664,7 @@ export async function openProjectManager() {
  * looks without a line of theme code: Monokuma Legacy draws the FA glyph, and
  * Stained Glass masks that same element to the pixel sprite through the rules
  * pixel-icons.css already ships - the very sprite the tray will paint the row
- * with. It needs no wiring, unlike the portrait beside it: the form is read on
- * Save like every other field.
+ * with. It needs no wiring: the form is read on Save like every other field.
  *
  * The first cell is the DEFAULT, and its value is the empty string, not
  * "hourglass": a GM who never touches the grid must leave the project with no
@@ -903,8 +877,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
     const ownedOf = !editing && OWNED_PRESETS.includes(start?.preset) ? await presetApproval(start) : null;
     // Said in the table's language (fix e1-G4): the judges answer English, kept for the log.
     if (ownedOf?.refused) ownedOf.why = (await import("./passages-gm.mjs")).whyText(ownedOf.refused);
-    const defaultImg = DEFAULT_PROJECT_IMG;
-    const img = start?.img || defaultImg;
+    const img = start?.img || DEFAULT_PROJECT_IMG;
     /* A PRESET'S SIZE IS THE GMS' (E15 part 2 fix e1-G3; finding E15P2-R4): its table's (passages-gm.mjs `PASSAGE_PRESETS`),
        a Repair an item's by the item's tier as the GMs hold it (`presetApproval`'s `scale`) - never the card's claim, which
        a console sets to Trivial for a tier 3 tool. The GM may still pick another size in the window. */
@@ -1006,9 +979,6 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
 
     const content = `<form>${formGrid([
         { full: `<div class="drpg-project-image-row">
-                <img src="${esc(shownProjectImg(img))}" alt="" class="drpg-project-portrait"
-                     data-drpg-portrait
-                     data-tooltip="${t("DRPG.Project.changeImage")}" />
                 <input type="hidden" name="img" value="${esc(img)}" />
                 <label>${t("DRPG.Project.name")}
                     <input type="text" name="name" autofocus
@@ -1097,13 +1067,11 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
             destructive: editing ? [{ action: "delete", label: game.i18n.localize("DRPG.Project.delete") }] : [],
             close: { role: "cancel", action: "cancel", callback: () => "cancel" }
         },
-        // See wirePortraitPickers() - DialogV2 discards `content` and rebuilds
-        // it from a string, so the picker has to be wired against the dialog's
-        // real element once it exists, not against the div built above.
+        // DialogV2 discards `content` and rebuilds it from a string, so the
+        // window is wired against the dialog's real element once it exists.
         render: (event, dialog) => {
             // Save refused at the field while the description is empty or too long (E44 C9); Delete and Close go.
             guardDescription(dialog.element, "save");
-            wireProjectPortraits(dialog.element, { defaultImg });
             if (editing && !isSecret(project.id)) wireViewerLock(dialog.element);
             if (passageOf?.offer) wirePassagePick(dialog, passageOf.offer, { over: passageOf.preset === "breach" });
         },
@@ -1542,7 +1510,6 @@ function readManager(dialog, projects) {
         room: form.querySelector(`[name="room.${p.id}"]`)?.value ?? "",
         murder: form.querySelector(`[name="murder.${p.id}"]`)?.checked ?? false,
         secret: form.querySelector(`[name="secret.${p.id}"]`)?.checked ?? false,
-        img: form.querySelector(`[name="img.${p.id}"]`)?.value ?? "",
         // Who the GM says knows about it, for the rows where that list is shown
         // (P-1). `null` when this window had no list to read, so a save cannot
         // mistake "no checkboxes here" for "nobody knows".
