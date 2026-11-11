@@ -43889,6 +43889,157 @@ const INVARIANTS = [
         stableJson({ found: true, scoped: true, where: true, missing: [], lineHeight: true, hyphens: "none" }),
         "{a Legacy pixel-face prose rule; scoped to the windows and the sheet; at :where() weight; prose targets it misses; line-height >= 1.2; hyphens} - prose in the pixel face must have its lines apart and no hyphen");
     }],
+    ["R3540 - the GM panel's top part is centred in both themes, and E105's four findings on the panel are mended (styles/components.css, styles/stained-glass.css; E49, the owner's \"Panel gma - wysrodkujmy gorna czesc\", 11.11, and E105 gmtabs): one rule of no theme centres the standing block's heading and its two lines and names no other child, so the Next line and the case warning keep their own alignment (drawn here, the three read `center` and the Next line does not); under Legacy the Next line's words take 1.3, the phase is a stamp with a gap, the Diagnostics bar's dimmed words are at 0.75 (6.42:1, AA) and the case tile's label does not shrink while its second line takes the room left; under the glass a tile's padding is 12 px a side", async () => {
+        /*
+         * E49, 11.11.2026. The owner on the E105 comparison (after-gm-panel-as-opened, both themes, 1366x768 and
+         * 1920x1080): the campaign's name, the clock's line and the students line stood flush left above centred
+         * tiles. Red first on 54493dbf: no rule, and the three drawn lines read no
+         * `text-align` in jsdom's cascade ("") and `start` in Chromium. The rule is read as text (its selector, its one declaration); then a standing block of
+         * `buildPanelContent`'s shape is drawn inside a stand-in panel window, read by `getComputedStyle` and removed -
+         * the cascade of whatever sheets this page loaded, in the theme it is in. Positions are Chromium's
+         * (S/stages/E49/pan-shots), not read here: a headless page lays nothing out.
+         * E105 gmtabs at 54493dbf (the owner's look at the panel, 11.11), each read in Chromium before and after (index.txt):
+         * Legacy's Next line at `normal` (13 px rows for 13 px glyphs), 16.9 px after; the phase with no gap ("Morning Daily
+         * Life"), a stamp 8 px off after; the Diagnostics bar's words (109, 104, 106) on Bone 4.10:1, (79, 75, 79) 6.42:1
+         * after; the case tile's line three rows of 91 px, two of 167 px after; under the glass, Polish, "DZIENNIK
+         * DEBUGOWANIA" 8 px off each edge of its tile, two rows 54 px off after. Red first on 96844743: each read as before.
+         */
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/components.css`).then(lfText));
+        const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const glass = stripComments(await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText));
+        const decl = (body, prop) => body?.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`))?.[1]?.trim() ?? null;
+        const L = "body.drpg-theme-monokuma-legacy .application.drpg-window-panel ";
+        const at = (sel, prop) => decl(rules.find(r => r.sel === L + sel && decl(r.body, prop) !== null)?.body, prop);
+        const tile = [...glass.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(m => m[1].trim() === "body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button")
+            .map(m => decl(m[2], "padding")).filter(Boolean);
+        const legacy = { nextLine: at(".drpg-gmp-next-text", "line-height"), phaseGap: at(".drpg-gmp-phase", "margin-inline-start"), phaseEdge: at(".drpg-gmp-phase", "border"),
+            dim: at(".drpg-gmp-section > summary > em.drpg-gmp-dim", "opacity"), caseLabel: at(".drpg-gmp-button:has(> small.notes) > span", "flex"), caseNotes: at(".drpg-gmp-button > small.notes", "flex"),
+            glassTile: tile.at(-1) ?? null };
+        const mine = rules.filter(r => r.sel.includes(".drpg-gmp-standing"));
+        const rule = mine.find(r => /text-align:\s*center/.test(r.body)) ?? null;
+        const host = document.createElement("div");
+        host.className = "application drpg-window-panel";
+        host.style.cssText = "position:absolute;left:-9999px;top:0;width:600px";
+        host.innerHTML = `<div class="drpg-gm-panel"><div class="drpg-gmp-standing"><h3>World</h3>`
+            + `<p class="r-clock"><strong>Chapter 1</strong> <span class="drpg-gmp-phase">Daily Life</span> <button type="button" class="drpg-gmp-next-go drpg-gmp-advance">Next</button></p>`
+            + `<div class="drpg-gmp-next"><span class="drpg-gmp-next-label">Next</span><span class="drpg-gmp-next-text">Words</span></div>`
+            + `<p class="drpg-gmp-students">4 students <button type="button" class="drpg-gmp-next-go">Students</button></p></div></div>`;
+        document.body.append(host);
+        let drawn;
+        try {
+            const align = sel => getComputedStyle(host.querySelector(sel)).textAlign;
+            drawn = { heading: align("h3"), clock: align(".r-clock"), students: align(".drpg-gmp-students"), nextCentred: align(".drpg-gmp-next") === "center" };
+        } finally { host.remove(); }
+        equal(stableJson({ rule: rule?.sel ?? null, body: rule?.body.trim().replace(/\s+/g, " ") ?? null, rules: mine.length, drawn, legacy }),
+            stableJson({ rule: "body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-standing > :is(h3, p)", body: "text-align: center;", rules: 1,
+                drawn: { heading: "center", clock: "center", students: "center", nextCentred: false },
+                legacy: { nextLine: "1.3", phaseGap: "8px", phaseEdge: "1px solid var(--drpg-kit-line-strong)", dim: "0.75", caseLabel: "none", caseNotes: "0 1 auto", glassTile: "10px 12px" } }),
+            "{the centring rule's selector; its declarations; rules in components.css naming the standing block; drawn: the heading's, the clock line's, the students line's text-align, and whether the Next line is centred; legacy: the Next line's line-height, the phase's gap and edge, the Diagnostics words' opacity, the case label's and line's flex, and the glass tile's padding} - the panel's top part must be centred, its Next line left alone");
+    }],
+    ["R3541 - under Monokuma Legacy the selected kit tab is Bone on Ink with the attention edge, not a red fill (styles/components.css; E48 Q13, S03-20, D11; the owner's \"tak\" 10.11 and \"Zrobmy to juz\" 11.11): the theme's three selected-tab tokens name no Eye, a 2 px inset bar of the edge along the selected tab's foot, the selected rule sets no size, and Stained Glass's tokens are the ones they were", async () => {
+        /*
+         * E48 Q13, carried out in E49 (11.11.2026). Every kit tab bar (`kitTabs`: the GM Team, the GM's items, the
+         * Investigation dashboard, Room Setup, the Sound window, the item tables, the handbooks) read its selected tab from `--drpg-kit-tab-on-*`, under
+         * Legacy Bone on rgba(Eye, 0.25) with an Eye frame - the red the owner saw on the comparison. Red first on
+         * 54493dbf: the bg and the edge named the Eye and no bar. WCAG 2 by hex: Bone #e4ded8 on Ink #1d1a21 12.88:1,
+         * the edge the same (components.css's token comment). The size: the selected rule may set colour, ground and
+         * frame colour only, and the bar is an inset shadow, so a tab's box is the one it had (Chromium's boxes, before
+         * and after, in S/stages/E49/pan-shots/index.txt).
+         */
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/components.css`).then(lfText));
+        const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const decl = (body, prop) => body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`))?.[1]?.trim() ?? null;
+        const tokens = sel => {
+            const body = rules.find(r => r.sel === sel && /--drpg-kit-tab-on-bg:/.test(r.body))?.body ?? "";
+            return ["bg", "edge", "ink"].map(k => decl(body, `--drpg-kit-tab-on-${k}`)).concat(decl(body, "--drpg-kit-tab-selected-edge") ?? []);
+        };
+        const T = '.application .drpg-tabs[role="tablist"] > button[data-drpg-tab-key][role="tab"][aria-selected="true"]';
+        const bar = rules.find(r => r.sel === `body:not(.drpg-theme-stained-glass) ${T}`)?.body ?? "";
+        const sized = rules.filter(r => r.sel === `body ${T}`).flatMap(r => [...r.body.matchAll(/(?:^|;)\s*([a-z-]+)\s*:/g)].map(m => m[1]))
+            .filter(p => !["color", "background", "border-color"].includes(p));
+        equal(stableJson({ legacy: tokens("body"), glass: tokens("body.drpg-theme-stained-glass"), bar: decl(bar, "box-shadow"), sized }),
+            stableJson({ legacy: ["var(--drpg-ink)", "var(--drpg-kit-tab-selected-edge)", "var(--drpg-bone)", "var(--drpg-attention)"], glass: ["transparent", "transparent", "var(--drpg-sg-ink)"],
+                bar: "inset 0 -2px 0 var(--drpg-kit-tab-on-edge)", sized: [] }),
+            "{legacy: the selected tab's [ground, edge, ink, the edge's selected token] under Legacy; glass: under Stained Glass; bar: Legacy's edge bar; sized: properties the selected rule sets besides colour, ground and frame colour} - Legacy's selected tab must not be filled red");
+    }],
+    ["R3542 - under Monokuma Legacy the DRPG Settings window's picked section is Bone on Ink with the attention edge, not a red fill (styles/components.css; E48 Q13, D11): it reads the kit tab's three tokens, a 3 px inset bar of the edge along its start, its rule sets no size, and the crisis menu's picked row is not touched", async () => {
+        /*
+         * E48 Q13, carried out in E49 (11.11.2026). The section list (settings-window.mjs `settingsWindowColumns`,
+         * `aria-pressed` on the picked one) takes the kit tab's selected tokens (R3541), so the red went with them; the
+         * edge is a bar along the start, as the item tables' picked row, a column's mark. Red first on 54493dbf: no
+         * bar. Chromium on the style harness (1366x768, Legacy): the picked section rgb(29, 26, 33) under rgb(228, 222, 216),
+         * 12.88:1 (before rgba(224, 24, 47, 0.25) over Ink, 10.50:1), its box 240x32 before and after
+         * (S/stages/E49/pan-shots/index.txt). The crisis menu's
+         * picked row stays as the owner kept it ("Tak", no change): its rules name no kit tab token.
+         */
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/components.css`).then(lfText));
+        const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const decl = (body, prop) => body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`))?.[1]?.trim() ?? null;
+        const P = '.application.drpg-ui.drpg-panel.drpg-window-settings .drpg-variant-columns .drpg-settings-sections > button.drpg-settings-tab[type="button"][aria-pressed="true"]';
+        const picked = rules.find(r => r.sel === `body ${P}`)?.body ?? "";
+        const bar = rules.find(r => r.sel === `body:not(.drpg-theme-stained-glass) ${P}`)?.body ?? "";
+        const sized = [...picked.matchAll(/(?:^|;)\s*([a-z-]+)\s*:/g)].map(m => m[1]).filter(p => !["color", "background", "border-color"].includes(p));
+        const crisis = rules.filter(r => /crisis/.test(r.sel) && /--drpg-kit-tab-on-/.test(r.body)).map(r => r.sel);
+        equal(stableJson({ reads: ["color", "background", "border-color"].map(p => decl(picked, p)), bar: decl(bar, "box-shadow"), sized, crisis }),
+            stableJson({ reads: ["var(--drpg-kit-tab-on-ink)", "var(--drpg-kit-tab-on-bg)", "var(--drpg-kit-tab-on-edge)"], bar: "inset 3px 0 0 var(--drpg-kit-tab-on-edge)", sized: [], crisis: [] }),
+            "{reads: the picked section's ink, ground and frame; bar: Legacy's edge bar; sized: properties its rule sets besides those; crisis: crisis rules reading a tab token} - Legacy's picked section must not be filled red");
+    }],
+    ["R3543 - under Stained Glass the messenger's unread badge is drawn over Foundry tools' hex (styles/stained-glass.css; E49, the owner's \"Tak\" to E105 compare2's finding): Foundry tools stand at 69, one under the corner's 70, so the messenger and its badge paint over them; the launcher keeps 70 (the expanded chat's 71 stays above the cluster, R1405), and nothing of the badge's or the hex's build changes", async () => {
+        /*
+         * E49, 11.11.2026. E105 compare2, GM's page under the glass at 1366x768: elementFromPoint at the badge's top read
+         * `#drpg-foundry-tools`; every corner button stood at 70 and the tools, later in the body, painted over the
+         * badge. Red first on 6421cc08: the tools read 70 (components.css). Read here by the kit's cascade (`styleCascade`: the
+         * module's sheets in load order, by specificity), as R1405 reads the cluster; Chromium's hit map before and after is in S/stages/E49/pan-shots/index.txt.
+         */
+        const C = await styleCascade();
+        const z = (theme, id) => {
+            const html = document.createElement("html"), body = document.createElement("body"), button = document.createElement("button");
+            body.className = theme;
+            button.id = id;
+            html.append(body);
+            body.append(button);
+            return C.winner(button, "z-index")?.value ?? null;
+        };
+        const badge = (() => {
+            const html = document.createElement("html"), body = document.createElement("body"), button = document.createElement("button"), b = document.createElement("span");
+            body.className = "drpg-theme-stained-glass";
+            button.id = "drpg-messenger-launcher";
+            b.className = "drpg-messenger-badge";
+            html.append(body);
+            body.append(button);
+            button.append(b);
+            return C.winner(b, "pointer-events")?.value ?? null;
+        })();
+        equal(stableJson({ tools: z("drpg-theme-stained-glass", "drpg-foundry-tools"), messenger: z("drpg-theme-stained-glass", "drpg-messenger-launcher"),
+            legacyTools: z("drpg-theme-monokuma-legacy", "drpg-foundry-tools"), badgePointer: badge }),
+        stableJson({ tools: "69", messenger: "70", legacyTools: "70", badgePointer: "auto" }),
+            "{Foundry tools' z-index under the glass, the messenger launcher's, Foundry tools' outside the glass, the badge's pointer} - the badge must paint over the tools' hex under the glass");
+    }],
+    ["R3544 - the critical's line reads apart wherever it is drawn, not only in a notice (styles/danganronpa.css; E49, the owner's \"Tak\" to E105 compare2's \"Critical successAiko Hoshino\"): the line's five rules are scoped to the notice, the history's kept snapshot and a chat message at (0,2,0), and the words keep their flex row and its 8 px gap; the duality total stays hidden in the notice alone", async () => {
+        /*
+         * E49, 11.11.2026. E105 compare2's chat stand-in drew the notice's body in a chat message: the words ran together
+         * ("Critical successAiko Hoshino"), both themes, because every rule of the line named `.drpg-popup`. Red first on
+         * 6421cc08: the five rules read `.drpg-popup` only. Then a line of `critLine`'s shape is drawn in a stand-in chat
+         * message and in a history snapshot and its words' `display` and `column-gap` read by getComputedStyle (the
+         * cascade this page loaded), and removed.
+         */
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
+        const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const SCOPE = ":is(.drpg-popup, .drpg-notice-snapshot, .chat-message)";
+        const scoped = ["crit-line", "crit-glyph", "crit-words", "crit-result", "crit-who"].map(c => rules.some(r => r.sel === `${SCOPE} .drpg-${c}`));
+        const duality = rules.some(r => r.sel === ".drpg-popup .drpg-crit-line ~ .drpg-duality .drpg-duality-result" && /display:\s*none/.test(r.body));
+        const line = `<div class="drpg-crit-line" data-drpg-crit=""><i class="fa-solid fa-burst drpg-crit-glyph" aria-hidden="true"></i><span class="drpg-crit-words"><strong class="drpg-crit-result">Critical success</strong><span class="drpg-crit-who">Aiko</span></span></div>`;
+        const host = document.createElement("div");
+        host.style.cssText = "position:absolute;left:-9999px;top:0;width:400px";
+        host.innerHTML = `<ol><li class="chat-message message"><div class="message-content">${line}</div></li></ol><div class="drpg-notice-snapshot">${line}</div>`;
+        document.body.append(host);
+        let drawn;
+        try {
+            drawn = [...host.querySelectorAll(".drpg-crit-words")].map(w => { const s = getComputedStyle(w); return `${s.display} ${s.columnGap}`; });
+        } finally { host.remove(); }
+        equal(stableJson({ scoped, duality, drawn }), stableJson({ scoped: [true, true, true, true, true], duality: true, drawn: ["flex 8px", "flex 8px"] }),
+            "{scoped: the line's, glyph's, words', result's and who's rule on the notice, the snapshot and a chat message; duality: the total hidden in the notice; drawn: the words' display and gap in a chat message and in a snapshot} - the critical's line must read apart outside a notice");
+    }],
     ["R2018 - Room setup's Scenes tab on the kit (E46-C2b; E46-08, E47's 05.10 point 5): trial-scene.mjs `scenesTabHtml` is a kit `formGrid` (the school and the hall selects, each its label's `for`), the hall's name, picture and words a `formGrid` of their own, the warnings a `box(\"warning\")`, the prepare ticks kit switches, `SCENES_ZONE_SLOT` a row of `scenesTabRows` that draws nothing (where E73 puts Zone A and Zone B), the hall's cast pick (`castPickerHtml`) a kit `dataTable` with a switch an actor; `readScenesTab`'s answer for a seeded form the one it gave before", async () => {
         /*
          * E46-C2b. Red first on C2a's tree (f90e89a7): labels around the selects, a list of checkboxes, `p.drpg-warning`, no
