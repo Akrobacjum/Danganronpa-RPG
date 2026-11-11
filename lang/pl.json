@@ -5877,6 +5877,9 @@
         "many": "Czeka jeszcze {n} powiadomień. Kliknij, żeby zamknąć wszystkie karty poza kartami do przeczytania.",
         "other": "Czeka jeszcze {n} powiadomień. Kliknij, żeby zamknąć wszystkie karty poza kartami do przeczytania."
       },
+      "critical": {
+        "result": "Sukces krytyczny"
+      },
       "kind": {
         "info": "Uwaga",
         "error": "Odmowa",
@@ -6861,8 +6864,8 @@
           "hint": "Pasek się zapełnił. Słyszy ten, kto go zaproponował, i GM-owie, nigdy publicznie, bo projekt może być tajny - naprawa i uzbrojona pułapka mają własne, głośniejsze ogłoszenia."
         },
         "critical": {
-          "label": "Rzut krytyczny",
-          "hint": "Słyszy ten, kto go wyrzucił. Jedyny moment rzutu, na który czeka cały stół, a dotąd jedyny z kolorem karty i bez dźwięku."
+          "label": "Krytyk",
+          "hint": "Gra przy krytyku, gdy powiadomienie wjeżdża cięciem. Słyszy ten, kto go wyrzucił."
         },
         "searchNothing": {
           "label": "Przeszukanie nic nie znajduje",

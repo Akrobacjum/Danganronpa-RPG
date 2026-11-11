@@ -1049,6 +1049,8 @@ The catalogue, by category:
 
 Each event's audience is fixed in the catalogue - a death is heard only by the GMs and the participants; a body found by everyone; the rebuttal by the whole table, once as it starts, whether the Objection's minute ran out or you opened it.
 
+**Critical**: plays when a roll is a critical, as its notice cuts in. Since 1.2.105 a critical action result's notice is the only card that enters on a cut, and it opens with the result in words, the critical's glyph and who rolled which action; the chat's roll cards keep their plain entry.
+
 A browser plays nothing until it has been clicked; the module drops those sounds rather than queueing them. `game.drpg.diagnoseSfx()` counts what was dropped and lists what is mapped, muted or has already failed; `game.drpg.testSfx(key)` says why a sound did not play; `game.drpg.diagnoseMusic()` prints every state, whether it applies and what it is mapped to.
 
 ---

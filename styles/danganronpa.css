@@ -10749,6 +10749,55 @@ body.drpg-theme-monokuma-legacy .drpg-action-button:disabled[data-drpg-cost-kind
     background-image: linear-gradient(100deg, rgba(var(--drpg-crimson-rgb), 0.18) 0%, transparent 70%);
 }
 
+/* THE CRITICAL'S LINE (E48 K7, 11.11.2026; the owner's "okno powiadomienia krytyka - jest po prostu puste i brzydkie").
+   popup.mjs `critLine` opens a critical's notice with the critical's glyph, "Critical success" and who rolled (where
+   no name may be shown, the action), on one row where it fits, so the card's own words keep their place in the corner tile. In the critical's own light red (`--drpg-critical`, K2b's name for it; the owner's 4c, kept), flat: one edge,
+   no tint, no gradient, no glow (the card's ground under it is the critical's already). The same in both themes but for the glyph, which Stained Glass draws from its
+   set (`fa-burst` -> `loaded`, pixel-icons.css) and Monokuma Legacy keeps as Font Awesome's (option A). One line in
+   every critical notice and in no other card, so nothing here appears or goes with a state. */
+.drpg-popup .drpg-crit-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 6px;
+    padding: 3px 8px;
+    border-left: 4px solid var(--drpg-critical);
+    color: var(--drpg-critical);
+}
+
+.drpg-popup .drpg-crit-glyph {
+    flex: none;
+    font-size: 1.3em;
+    color: var(--drpg-critical);
+}
+
+.drpg-popup .drpg-crit-words {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 8px;
+    min-width: 0;
+    line-height: 1.2;
+}
+
+.drpg-popup .drpg-crit-result {
+    color: var(--drpg-critical);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.drpg-popup .drpg-crit-who {
+    color: var(--drpg-bone);
+    font-size: 0.85em;
+}
+
+/* And the duality bar's own "14 critical" goes from under it: the line says the result, the card's header line the
+   total, and under Stained Glass the corner tile is a fixed pane - measured at 1366x768 (E48 STATUS K7's shots), the
+   line pushed the card's last words, what the roll found, out of it. The dice stay. */
+.drpg-popup .drpg-crit-line ~ .drpg-duality .drpg-duality-result {
+    display: none;
+}
+
 /* ==========================================================================
    STAGE 8a - NOTHING HERE TO DO IT TO
    --------------------------------------------------------------------------

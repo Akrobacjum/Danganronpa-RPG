@@ -132,7 +132,7 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
   <div class="drpg-despair-overflow">Despair overflow · 0/20</div></div></div>
 <div id="ui-right">
   <div id="ui-right-column-1">
-    <div id="drpg-player-status"><div class="drpg-status-field"><span class="drpg-status-label">Still to act</span><span class="drpg-status-value">4 / 4</span></div><div class="drpg-status-field"><span class="drpg-status-label">Hope</span><span class="drpg-status-value">3</span></div></div>
+    <div id="drpg-player-status"><div class="drpg-status-field"><span class="drpg-status-label">Still to act</span><span class="drpg-status-value">4 / 4</span></div></div>
     <div id="countdowns"><div class="countdowns-header"><i class="fa-solid fa-clock"></i><span class="window-title">Projects</span><button class="drpg-projects-gear" aria-label="Manage projects"><i class="fa-solid fa-gear" inert></i></button></div>
       <div class="countdowns-container"><div class="countdown-category-container">
         <div class="countdown-container" data-countdown="a"><div class="countdown-main-container"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt=""><div class="countdown-content"><header>Rig the dumbwaiter</header><div class="countdown-tools"><div class="countdown-tool-controls"><a data-action="decreaseCountdown"><i class="fa-solid fa-minus"></i></a><div class="progress-tag">2/4</div><a data-action="increaseCountdown"><i class="fa-solid fa-plus"></i></a></div><div class="countdown-tool-icons"></div></div></div></div></div>
@@ -2518,6 +2518,12 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     callAll(name, ...a) { for (const fn of hooks.get(name) ?? []) fn(...a); return true; } };
   const player = q.get("role") === "player";
   if (player) { document.getElementById("drpg-gm-launcher")?.remove(); document.body.classList.replace("drpg-gm", "drpg-player"); }
+  /* THE STRIP AS THE MODULE DRAWS IT FOR EACH (E48 K7, 11.11.2026; the owner: "Hope powinien widzieć tam tylko gracz").
+     A GM's is the table's, "Still to act" alone (player-status.mjs `buildTableView`); a player's is Actions, Move and
+     Hope (`buildPlayerView`). Until K7 both pages drew "Still to act" over "Hope", a strip the module draws for nobody,
+     and the owner's review shots showed Hope on the GM's. Labels and values only, as the stand-in was. */
+  const PLAYER_STRIP = `<div class="drpg-status-field is-actions"><span class="drpg-status-label">Actions</span><span class="drpg-status-value">2 / 3</span></div><div class="drpg-status-field is-move"><span class="drpg-status-label">Move</span><span class="drpg-status-value">1</span></div><div class="drpg-status-field is-hope"><span class="drpg-status-label">Hope</span><span class="drpg-status-value">3</span></div>`;
+  if (player) document.getElementById("drpg-player-status").innerHTML = PLAYER_STRIP;
   /* A player's rows as countdowns.hbs draws them where the countdown is not theirs (`countdown.editable` false, E23 C3a): no
      minus and no plus, the count alone in the controls' box. */
   if (player) for (const a of document.querySelectorAll('#countdowns [data-action$="Countdown"]')) a.remove();
