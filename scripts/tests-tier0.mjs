@@ -22783,6 +22783,97 @@ const REGRESSIONS = [
             missing: [{ node: "solution-c", ref: "gone-node" }], gmeta: "kind", modes: true
         }), "[the keys and which node ids are refused; a deduction's row, a row of no kind of the schema's, a counter with nothing; the meta read; the sorts and kinds; the graph's nodes (evidence first, a placed slot as its trace), its edges (a slot's alias read as its trace), what it names that is not there, its sort; the modes are MODES]");
     }],
+    ["R3375 - the case map's layout (E97 C4): case-layout.mjs `layoutCase` puts evidence in the first column, each deduction and counter one past its deepest input (a counter with none beside what it refutes) and the solution last; evidence not tied to the murder and named by nothing below the rest after a one-row gap; the five orders by the GM's arrows, by kind, by room, by state, and with the fewest crossings, which lays the proposal's case with none (`crossings`); a cycle of inputs is refused", async () => {
+        /*
+         * E97 C4, 11.11.2026; STAGE C4 (E99 reads it). Pure: a graph of case-schema.mjs `graphOf` in, columns and rows
+         * out; C5 draws the nodes where this puts them and the edges between. The proposal's case (proposal/index.html
+         * v2, gen2.py `map_svg` and `base_edges`, 09.11.2026): seven traces tied to the murder and three not, W1 from the
+         * clock and the autopsy, K1 from the caretaker's note refuting W1, W2 from the key and the broken case, W3 from
+         * the paint and the wiped prints, W4 from W2 and W3, K2 refuting W4, the Final Truth from W1 and W4 - handed in
+         * shuffled, laid out "uncrossed" with no crossing, and in the order the proposal drew it ("manual") with none
+         * either; four traces and two deductions drawn crossed by kind order (3 crossings) and uncrossed (0). Red at
+         * df01bc77: there is no case-layout.mjs.
+         */
+        let L = null;
+        try { L = await import("./case-layout.mjs"); } catch { L = null; }
+        must(L && typeof L.layoutCase === "function" && typeof L.crossings === "function", "there is no case-layout.mjs with layoutCase and crossings - the map has no layout to read");
+        const { graphOf } = await import("./case-schema.mjs");
+        const ev = (key, type, name, tied, room = null, foundAt = null) => ({ key, type, name, tiedToCrime: tied ? true : null, room, foundAt });
+        const traces = [
+            ev("S.slady", "prep", "Starte slady butow", true, "Pracownia"), ev("S.u2", "faint", "Odcisk na klamce", false, "Hol", 5),
+            ev("S.zegar", "key", "Zatrzymany zegar", true, "Biblioteka", 3), ev("S.farba", "prep", "Farba na rekawiczce", true, "Pracownia"),
+            ev("S.u1", "neutral", "Kurz na regale", false, "Biblioteka"), ev("S.autopsja", "prep", "Cios w tyl glowy", true, null, 2),
+            ev("S.klucz", "key", "Klucz do archiwum", true, "Archiwum", 4), ev("S.gablota", "prep", "Rozbita gablota", true, "Hol"),
+            ev("S.notatka", "neutral", "Notatka konserwatora", true, "Biblioteka", 1), ev("S.u3", "neutral", "Mokry parasol", false, "Hol")
+        ];
+        const rows = {
+            s: { kind: "solution", label: "Final Truth", inputs: ["w1", "w4"] },
+            w4: { kind: "deduction", label: "W4", inputs: ["w2", "w3"] }, k2: { kind: "counter", label: "K2", refutes: ["w4"] },
+            w3: { kind: "deduction", label: "W3", inputs: ["S.farba", "S.slady"] }, w2: { kind: "deduction", label: "W2", inputs: ["S.klucz", "S.gablota"] },
+            k1: { kind: "counter", label: "K1", inputs: ["S.notatka"], refutes: ["w1"] }, w1: { kind: "deduction", label: "W1", inputs: ["S.zegar", "S.autopsja"] }
+        };
+        const drawn = ["S.zegar", "S.autopsja", "S.notatka", "S.klucz", "S.gablota", "S.farba", "S.slady", "w1", "k1", "w2", "w3", "w4", "k2", "s"];
+        const g = graphOf({ chapter: 1, rows, traces, slots: [] });
+        const lay = opts => L.layoutCase(g, opts);
+        const un = lay({ sort: "uncrossed" });
+        const manual = lay({ sort: "manual", manual: Object.fromEntries(drawn.map((id, i) => [id, i])) });
+        const col = (layout, i) => layout.columns[i];
+        const small = graphOf({ chapter: 1, traces: ["a", "b", "c", "d"].map(k => ev(`S.${k}`, "prep", k, true)),
+            rows: { x: { kind: "deduction", label: "x", inputs: ["S.b", "S.d"] }, y: { kind: "deduction", label: "y", inputs: ["S.a", "S.c"] } } });
+        const smallKind = L.layoutCase(small, { sort: "kind" }), smallUn = L.layoutCase(small, { sort: "uncrossed" });
+        const cyc = L.layoutCase(graphOf({ chapter: 1, rows: { a: { kind: "deduction", inputs: ["b"] }, b: { kind: "deduction", inputs: ["a"] }, c: { kind: "solution", inputs: ["a"] } } }), { sort: "kind" });
+        equal(JSON.stringify({
+            columns: un.columns.map(c => [...c].sort()), unrelated: un.unrelated, gapAt: un.gapAt,
+            unrelatedRows: un.unrelated.map(id => un.positions[id].row),
+            crossings: [L.crossings(un, g.edges), L.crossings(manual, g.edges)], manualOrder: manual.columns.map(c => c.filter(id => !un.unrelated.includes(id))),
+            kind: [col(lay({ sort: "kind" }), 0).slice(0, 7), col(lay({ sort: "kind" }), 1)],
+            room: col(lay({ sort: "room" }), 0).slice(0, 7), state: col(lay({ sort: "state" }), 0).slice(0, 7),
+            small: [L.crossings(smallKind, small.edges), L.crossings(smallUn, small.edges)],
+            cycle: [cyc.cycle, cyc.columns], sorts: L.LAYOUT_SORTS
+        }), JSON.stringify({
+            columns: [["S.autopsja", "S.farba", "S.gablota", "S.klucz", "S.notatka", "S.slady", "S.u1", "S.u2", "S.u3", "S.zegar"], ["k1", "w1", "w2", "w3"], ["k2", "w4"], ["s"]],
+            unrelated: ["S.u1", "S.u3", "S.u2"], gapAt: 7, unrelatedRows: [8, 9, 10],
+            crossings: [0, 0], manualOrder: [drawn.slice(0, 7), ["w1", "k1", "w2", "w3"], ["w4", "k2"], ["s"]],
+            kind: [["S.klucz", "S.zegar", "S.autopsja", "S.farba", "S.notatka", "S.gablota", "S.slady"], ["w1", "w2", "w3", "k1"]],
+            room: ["S.klucz", "S.zegar", "S.notatka", "S.gablota", "S.farba", "S.slady", "S.autopsja"],
+            state: ["S.notatka", "S.autopsja", "S.zegar", "S.klucz", "S.farba", "S.gablota", "S.slady"],
+            small: [3, 0], cycle: [["a", "b"], []], sorts: ["manual", "kind", "room", "state", "uncrossed"]
+        }), "[each column's nodes; the unrelated traces, the row the gap takes and theirs; crossings uncrossed and in the proposal's order; that order kept; by kind (Key Remnants first, then by name; deductions, then counters); by room, then by kind, a trace in no room last; by state, found first and earliest; the small case crossed by kind and not uncrossed; the cycle refused; the sorts]");
+    }],
+    ["R3376 - a deduction is reachable past half (E97 C4; the owner's A and B of 09.11): case-schema.mjs `reachability` counts an evidence input held when a living student other than the culprit holds a bullet of it and a schema input when it is reachable or ticked, and a node is reachable when it holds strictly more than half its inputs - 1, 2, 2, 3 and 3 of 1 to 5 - a bullet only the culprit holds counting for nothing", async () => {
+        /*
+         * E97 C4, 11.11.2026; STAGE C4, DECISIONS A ("strictly more than half (2 inputs = both, 4 = three)") and B ("a
+         * bullet held only by the culprit does not count"). Pure: a graph of `graphOf`, the holders of each evidence node
+         * (actor ids, as truth-bullets.mjs's bullets name them), the culprit (`castStore` `killerId` at C7) and the
+         * living, and E99's ticks (empty until then). Five deductions of one to five inputs, each held at one less than
+         * it needs and at what it needs; an input the culprit alone holds, then the culprit and another; a dead holder;
+         * a deduction of a deduction, reachable and ticked. Red at df01bc77: no `reachability`.
+         */
+        const S = await import("./case-schema.mjs");
+        must(typeof S.reachability === "function", "case-schema.mjs exports no reachability - the map has no count to show");
+        const E = ["e1", "e2", "e3", "e4", "e5"].map(k => `S.${k}`);
+        const traces = [...E, "S.c"].map(key => ({ key, type: "prep", name: key, tiedToCrime: true }));
+        const rows = Object.fromEntries([1, 2, 3, 4, 5].map(n => [`d${n}`, { kind: "deduction", label: `d${n}`, inputs: E.slice(0, n) }]));
+        Object.assign(rows, { cul: { kind: "deduction", inputs: ["S.c"] }, up: { kind: "deduction", inputs: ["d2"] }, tick: { kind: "deduction", inputs: ["cul"] },
+            none: { kind: "counter", inputs: [] } });
+        const g = S.graphOf({ chapter: 1, rows, traces });
+        const hold = k => Object.fromEntries(E.slice(0, k).map(id => [id, ["A"]]));
+        const at = (holders, opts = {}) => S.reachability(g, holders, { culpritId: "K", living: ["A", "B", "K"], ...opts });
+        const needed = [1, 2, 3, 4, 5].map(n => at({})[`d${n}`].needed);
+        const under = [1, 2, 3, 4, 5].map(n => at(hold(needed[n - 1] - 1))[`d${n}`].reachable);
+        const met = [1, 2, 3, 4, 5].map(n => at(hold(needed[n - 1]))[`d${n}`]);
+        const culprit = [at({ "S.c": ["K"] }).cul, at({ "S.c": ["K", "B"] }).cul, at({ "S.c": ["D"] }).cul.reachable];
+        const deep = [at(hold(2)).up.reachable, at(hold(1)).up.reachable, at({}, { ticks: { cul: true } }).tick.reachable, at({}).tick.reachable];
+        const evidence = [at({ "S.c": ["K"] })["S.c"], at({ "S.c": ["K", "B", "B"] })["S.c"]];
+        equal(JSON.stringify({ needed, under, met: met.map(r => [r.held, r.of, r.reachable]), culprit, deep, evidence, none: at({}).none }), JSON.stringify({
+            needed: [1, 2, 2, 3, 3], under: [false, false, false, false, false],
+            met: [[1, 1, true], [2, 2, true], [2, 3, true], [3, 4, true], [3, 5, true]],
+            culprit: [{ held: 0, of: 1, needed: 1, reachable: false }, { held: 1, of: 1, needed: 1, reachable: true }, false],
+            deep: [true, false, true, false],
+            evidence: [{ held: false, holders: [], culpritOnly: true }, { held: true, holders: ["B"], culpritOnly: false }],
+            none: { held: 0, of: 0, needed: 1, reachable: false }
+        }), "[what 1 to 5 inputs need; each at one less; each at what it needs (held, of, reachable); the culprit's bullet alone, with another's, a dead holder's; a deduction of a reachable deduction, of an unreachable one, ticked, unticked; an evidence node held by the culprit alone and by another; a node with no inputs]");
+    }],
 ];
 
 

@@ -14,8 +14,8 @@
  * writers below ask for a GM before they touch it. No bridge action, socket, flag or world setting (R3374).
  *
  * WHAT E99 READS: `caseGraph`, `caseModes` and the node `mode` (a trial minigame per node, the floor's own modes,
- * floor-machine.mjs `MODES`), the counters' `refutes`, the solution node. case-layout.mjs (C4) lays the graph out and
- * `reachability` below counts what the students hold.
+ * floor-machine.mjs `MODES`), the counters' `refutes`, the solution node, and `reachability` below (C4), what the
+ * students hold; case-layout.mjs (C4) lays the graph out.
  */
 
 import { MODES } from "./floor-machine.mjs";
@@ -228,4 +228,47 @@ export async function dropCaseNode(chapter, nodeId) {
     if (!game.user?.isGM || !Number.isInteger(chapter) || !validNodeId(nodeId)) return false;
     await caseSchemaStore.drop(caseKeyOf(chapter, nodeId));
     return true;
+}
+
+/**
+ * WHAT THE STUDENTS CAN REACH (E97 C4, 11.11.2026; the owner's A and B of 09.11; R3376). Pure: `graph` of `graphOf`,
+ * `holders` each evidence node's holders - actor ids, an object or a Map by node id (C7 builds it from the bullets'
+ * answer keys) - `culpritId` the murder's culprit (`castStore` `killerId`), `living` the living students' ids (null:
+ * every holder counts), `ticks` E99's ticked nodes (empty until then).
+ *
+ * An evidence input is held when a living student other than the culprit holds a bullet of it: B, "a bullet held only
+ * by the culprit does not count" (it counts once someone else holds it). A schema input is held when it is reachable
+ * itself or ticked. A node is reachable when it holds STRICTLY more than half its inputs: A, "2 inputs = both, 4 =
+ * three", so 1, 2, 2, 3 and 3 of 1 to 5 (`needed`); a node with no input is never reachable (C8 names it), nor one on
+ * a cycle. Answers, by node id, `{ held, holders, culpritOnly }` for evidence and `{ held, of, needed, reachable }` for
+ * the schema's nodes - the "x z y" C7 draws.
+ */
+export function reachability(graph, holders = {}, { culpritId = null, living = null, ticks = {} } = {}) {
+    const nodes = graph?.nodes ?? [];
+    const byId = new Map(nodes.map(n => [n.id, n]));
+    const alive = living ? new Set(living) : null;
+    const holdersOf = id => (holders instanceof Map ? holders.get(id) : holders?.[id]) ?? [];
+    const out = {};
+    for (const n of nodes) {
+        if (!n.evidence) continue;
+        const all = [...new Set([...holdersOf(n.id)].filter(a => typeof a === "string" && a && (!alive || alive.has(a))))];
+        const counted = all.filter(a => a !== culpritId);
+        out[n.id] = { held: counted.length > 0, holders: counted, culpritOnly: !counted.length && culpritId !== null && all.includes(culpritId) };
+    }
+    const into = new Map(nodes.map(n => [n.id, []]));
+    for (const e of graph?.edges ?? []) if (e.kind === "input" && into.has(e.to) && byId.has(e.from)) into.get(e.to).push(e.from);
+    const visiting = new Set();
+    const reach = id => {
+        if (out[id]) return byId.get(id).evidence ? out[id].held : out[id].reachable;
+        if (visiting.has(id)) return false;
+        visiting.add(id);
+        const inputs = into.get(id) ?? [];
+        const held = inputs.filter(src => (byId.get(src).evidence ? reach(src) : ticks?.[src] === true || reach(src))).length;
+        const needed = Math.floor(inputs.length / 2) + 1;
+        visiting.delete(id);
+        out[id] = { held, of: inputs.length, needed, reachable: inputs.length > 0 && held >= needed };
+        return out[id].reachable;
+    };
+    for (const n of nodes) if (!n.evidence) reach(n.id);
+    return out;
 }
