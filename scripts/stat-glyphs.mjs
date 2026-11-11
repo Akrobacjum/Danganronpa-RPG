@@ -1,11 +1,11 @@
 /**
  * Danganronpa RPG - the six statistics' glyphs (E49, 1.2.105; the owner, 11.11.2026 night: "decided, in this release").
  * ---------------------------------------------------------------------------
- * Each statistic (config.mjs TRAITS: Eye, Head, Body, Leg, Hand, Shadow) wears a glyph before its name wherever the six
- * are listed by name: the wrench's window (dh-settings.mjs, the Details tab's six fields) and the character sheet's
- * header (sheet.mjs `markTraitGlyphs`, Daggerheart's `.character-traits`). The glyph sits before the name and does not
- * replace it; it is decorative (`aria-hidden`, `inert`: the name beside it is what a screen reader reads); nothing stored,
- * no field name and no value changes.
+ * Each statistic (config.mjs TRAITS: Eye, Head, Body, Leg, Hand, Shadow) wears a glyph wherever the six are listed by
+ * name: in the wrench's window before its name (dh-settings.mjs, the Details tab's six fields), and on the character
+ * sheet's header inside Daggerheart's mark at the left of its name (sheet.mjs `markTraitGlyphs`, the owner's answer of
+ * 12.11.2026). The glyph does not replace the name; it is decorative (`aria-hidden`, `inert`: the name beside it is what
+ * a screen reader reads); nothing stored, no field name and no value changes.
  *
  * ONE ELEMENT, BOTH THEMES. The glyph is an `<i>` with STAT_GLYPH_CLASS, the statistic's key as `data-drpg-stat` and
  * the Font Awesome class STAT_ICONS gives it. Monokuma Legacy draws that Font Awesome icon (the owner's rule: Legacy keeps
@@ -48,8 +48,9 @@ export function statGlyph(key, doc = document) {
 }
 
 /**
- * Put the statistic's glyph first in `nameEl` (the element that holds its name), once: a glyph already there for this
- * statistic is kept, one for another is replaced. The name's text is left as it is. Answers the glyph, or null.
+ * Put the statistic's glyph first in `nameEl` (the element that holds its name, or the sheet's mark that holds the glyph),
+ * once: a glyph already there for this statistic is kept, one for another is replaced. Any text is left as it is. Answers
+ * the glyph, or null.
  */
 export function markStatName(nameEl, key) {
     if (!nameEl || !Object.hasOwn(TRAITS, key ?? "") || !STAT_ICONS[key]) return null;

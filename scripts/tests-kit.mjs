@@ -2593,9 +2593,11 @@ function dhSettingsStandIn(source, { name, tab, doc = document } = {}) {
  * a span with the label) and its `.trait-value-area` (the crest's svg and the value). Inside the sheet's root as the
  * system's classes name it (`application sheet daggerheart actor dh-style character`), the header part
  * `.character-header-sheet` around it. The labels through this browser's i18n (the module's lang files override
- * `DAGGERHEART.CONFIG.Traits.*`). A model: the rest of the header and Daggerheart's listeners are not here.
+ * `DAGGERHEART.CONFIG.Traits.*`). A trait's `tierMarked` draws its mark `marked`, as the template does; `noMark` names the
+ * traits drawn with no mark at all (a Daggerheart that moved it). A model: the rest of the header and Daggerheart's
+ * listeners are not here.
  */
-function dhTraitsStandIn(traits = {}, { doc = document } = {}) {
+function dhTraitsStandIn(traits = {}, { doc = document, noMark = [] } = {}) {
     const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]));
     const root = doc.createElement("div");
     root.className = "application sheet daggerheart actor dh-style character";
@@ -2603,7 +2605,7 @@ function dhTraitsStandIn(traits = {}, { doc = document } = {}) {
     const one = key => {
         const value = Number(traits[key]?.value ?? 0);
         return `<div class="trait" data-tooltip="${esc(game.i18n.localize(`DAGGERHEART.CONFIG.Traits.${key}.name`))}" data-action="rollAttribute" data-attribute="${key}" data-value="${value}">`
-            + `<div class="trait-name"><div class="tier-mark"></div><span>${esc(game.i18n.localize(`DAGGERHEART.CONFIG.Traits.${key}.name`))}</span></div>`
+            + `<div class="trait-name">${noMark.includes(key) ? "" : `<div class="tier-mark${traits[key]?.tierMarked ? " marked" : ""}"></div>`}<span>${esc(game.i18n.localize(`DAGGERHEART.CONFIG.Traits.${key}.name`))}</span></div>`
             + `<div class="trait-value-area"><svg width="52" height="46" viewBox="0 0 52 46"></svg><div class="trait-value"><span>${value > 0 ? `+${value}` : value}</span></div></div></div>`;
     };
     root.innerHTML = `<section class="window-content"><div class="character-header-sheet"><div class="character-traits">${keys.map(one).join("")}</div></div></section>`;

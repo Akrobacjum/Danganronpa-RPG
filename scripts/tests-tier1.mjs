@@ -47460,33 +47460,40 @@ const INVARIANTS = [
             themes: { glass: Object.fromEntries(keys.map(k => [k, `--drpg-pix-stat-${k}`])), legacy: Object.fromEntries(keys.map(k => [k, `fa:${SG.STAT_ICONS[k]}`])) } }),
             "each field's name: [the statistic, its glyphs, the glyph first, its key, its FA class, aria-hidden, inert]; the names, fields and values kept; what each glyph wears under Stained Glass and Monokuma Legacy");
     }],
-    ["R3591 - each of the six statistics on the character sheet wears its glyph before its name, in both themes (stat-glyphs.mjs `markStatName`, sheet.mjs SHEET_STEPS `markTraitGlyphs`; E49, the owner's ask of 11.11.2026 night): on a stand-in of Daggerheart's header (`.character-traits`) the step puts first in each `.trait-name > span` an `i.drpg-stat-glyph` keyed by the statistic Daggerheart's `data-attribute` names, aria-hidden and inert; the name's text, the trait's data-attribute and data-value and its value are as drawn, a second run adds no second glyph; Stained Glass masks it with --drpg-pix-stat-<statistic> and Monokuma Legacy draws its Font Awesome icon", async () => {
+    ["R3591 - each of the six statistics on the character sheet wears its glyph inside Daggerheart's mark at the left of its name, in both themes, and the mark still shows its state (stat-glyphs.mjs `markStatName`, sheet.mjs SHEET_STEPS `markTraitGlyphs`; E49, the owner's ask of 11.11.2026 night and his answer of 12.11.2026: the glyph in the enlarged mark, not before the name): on a stand-in of Daggerheart's header (`.character-traits`) the step puts in each `.trait-name > .tier-mark` an `i.drpg-stat-glyph` keyed by the statistic Daggerheart's `data-attribute` names, aria-hidden and inert, the mark marked `drpg-stat-mark` and its plate `drpg-stat-named`; the mark's `marked` class is left as drawn (one trait marked, five not); the name's span holds no glyph and its text, the trait's data-attribute and data-value and its value are as drawn; a second run adds nothing; a trait drawn with no mark gets its glyph first in its name instead; Stained Glass masks the glyph with --drpg-pix-stat-<statistic> and Monokuma Legacy draws its Font Awesome icon", async () => {
         /*
-         * E49, 11.11.2026 night. The sheet is Daggerheart's, dressed by the module's render steps: the step is read from
-         * SHEET_STEPS by name and run as runSheetSteps runs it. The header is tests-kit.mjs `dhTraitsStandIn` (Daggerheart 2.6.5
-         * header.hbs). Red at 8c8ece5c: no step of that name.
+         * E49, 12.11.2026. The mark is Daggerheart 2.6.5's `.tier-mark` (header.hbs:111): it shows `system.traits.<key>.tierMarked`
+         * - set only by Daggerheart's own level-up automation (character.mjs prepareBaseData), which the module never feeds - as
+         * the class `marked`, and it has no action of its own (a click on it is the trait's `rollAttribute`). The glyph goes in
+         * it and the class stays, so the state is still drawn (R3594 reads how). The header is tests-kit.mjs `dhTraitsStandIn`.
+         * Red at 982322f4: the glyph stood first in the name.
          */
         const SH = await import("./sheet.mjs");
         const SG = await import("./stat-glyphs.mjs").catch(() => null);
         const step = SH.SHEET_STEPS?.find(([name]) => name === "markTraitGlyphs")?.[1];
-        must(SG?.STAT_ICONS, "stat-glyphs.mjs is not there - this would measure nothing");
+        must(SG?.STAT_ICONS && step, "stat-glyphs.mjs or the sheet step is not there - this would measure nothing");
         const K = await import("./tests-kit.mjs");
         const G = await import("./tests-glyphs.mjs");
         const C = await import("./config.mjs");
-        const traits = Object.fromEntries(Object.values(C.TRAITS).map((t, n) => [t.dh, { value: n - 2 }]));
+        const traits = Object.fromEntries(Object.values(C.TRAITS).map((t, n) => [t.dh, { value: n - 2, tierMarked: t.dh === "instinct" }]));
         const root = K.dhTraitsStandIn(traits);
-        const state = () => [...root.querySelectorAll(".character-traits .trait")].map(t => [t.dataset.attribute, t.dataset.value, t.querySelector(".trait-name > span")?.textContent, t.querySelector(".trait-value")?.textContent]);
+        const state = () => [...root.querySelectorAll(".character-traits .trait")].map(t => [t.dataset.attribute, t.dataset.value, t.querySelector(".trait-name > span")?.textContent,
+            t.querySelector(".trait-value")?.textContent, t.querySelector(".tier-mark")?.classList.contains("marked") ?? null]);
         const before = state();
         must(before.length === 6, `the stand-in drew ${before.length} statistic(s) - this would measure nothing`);
         const steps = SH.SHEET_STEPS.map(([name]) => name);
-        for (let n = 0; n < 2; n++) step?.({ element: root });
+        for (let n = 0; n < 2; n++) step({ element: root });
         const read = [...root.querySelectorAll(".character-traits .trait")].map(trait => {
-            const stat = C.TRAIT_BY_DH[trait.dataset.attribute], name = trait.querySelector(".trait-name > span");
-            const glyphs = root.querySelectorAll(`.trait[data-attribute="${trait.dataset.attribute}"] i.drpg-stat-glyph`), i = glyphs[0];
-            return { stat, count: glyphs.length, first: name?.firstChild === i, key: i?.dataset.drpgStat ?? null,
-                fa: i?.classList.contains(SG.STAT_ICONS[stat]) ?? false, hidden: i?.getAttribute("aria-hidden") ?? null, inert: i?.hasAttribute("inert") ?? false };
+            const stat = C.TRAIT_BY_DH[trait.dataset.attribute], mark = trait.querySelector(".trait-name > .tier-mark");
+            const glyphs = trait.querySelectorAll("i.drpg-stat-glyph"), i = glyphs[0];
+            return { stat, count: glyphs.length, inMark: Boolean(mark) && i?.parentElement === mark, holder: mark?.classList.contains("drpg-stat-mark") ?? false,
+                plate: trait.querySelector(".trait-name")?.classList.contains("drpg-stat-named") ?? false, inName: trait.querySelectorAll(".trait-name > span i").length,
+                key: i?.dataset.drpgStat ?? null, fa: i?.classList.contains(SG.STAT_ICONS[stat]) ?? false, hidden: i?.getAttribute("aria-hidden") ?? null, inert: i?.hasAttribute("inert") ?? false };
         });
         const kept = stableJson(state()) === stableJson(before);
+        const bare = K.dhTraitsStandIn(traits, { noMark: ["presence"] });
+        step({ element: bare });
+        const fallback = (() => { const span = bare.querySelector('.trait[data-attribute="presence"] .trait-name > span'); return span?.firstChild?.dataset?.drpgStat ?? null; })();
         const body = document.body, CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], classWas = CLASSES.map(n => body.classList.contains(n));
         const themes = {};
         root.style.cssText = "position: absolute; left: -10000px; top: 0;";
@@ -47503,10 +47510,10 @@ const INVARIANTS = [
             CLASSES.forEach((n, i) => body.classList.toggle(n, classWas[i]));
         }
         const keys = Object.keys(C.TRAITS);
-        equal(stableJson({ step: steps.indexOf("markTraitGlyphs") > steps.indexOf("frameTraits"), read, kept, themes }), stableJson({ step: true,
-            read: read.map(r => ({ stat: r.stat, count: 1, first: true, key: r.stat, fa: true, hidden: "true", inert: true })), kept: true,
+        equal(stableJson({ step: steps.indexOf("markTraitGlyphs") > steps.indexOf("frameTraits"), read, kept, fallback, themes }), stableJson({ step: true,
+            read: read.map(r => ({ stat: r.stat, count: 1, inMark: true, holder: true, plate: true, inName: 0, key: r.stat, fa: true, hidden: "true", inert: true })), kept: true, fallback: "shadow",
             themes: { glass: Object.fromEntries(keys.map(k => [k, `--drpg-pix-stat-${k}`])), legacy: Object.fromEntries(keys.map(k => [k, `fa:${SG.STAT_ICONS[k]}`])) } }),
-            "[the step after frameTraits]; each statistic: [its key, its glyphs, the glyph first in the name, its data- key, its FA class, aria-hidden, inert]; the names, data-attribute, data-value and values kept; what each glyph wears under Stained Glass and Monokuma Legacy");
+            "[the step after frameTraits]; each statistic: [its key, its glyphs, the glyph in the mark, the mark a holder, the plate marked, glyphs left in the name, its data- key, its FA class, aria-hidden, inert]; the names, data-attribute, data-value, values and each mark's `marked` kept; the glyph of a trait with no mark (first in its name); what each glyph wears under Stained Glass and Monokuma Legacy");
     }],
     ["R3592 - the six statistics' drawings come through the glyph pipeline (tools/glyphs.json, tools/glyph-map.mjs, tests-glyphs.mjs STAT_GLYPHS; E49, the owner's ask of 11.11.2026 night): STAT_GLYPHS, stat-glyphs.mjs STAT_ICONS and config.mjs TRAITS name the same six statistics; each one's drawing is a glass row `stat-<statistic>` on the 24 grid, the six one contiguous block at the end of glyphs.json, no row's faults (dataProblems: no two rows the same pixels); the glass section keys each on `i.drpg-stat-glyph[data-drpg-stat]` and the served pixel-icons.css and sprite are what the generator writes from the served glyphs.json", async () => {
         /*
@@ -47539,16 +47546,15 @@ const INVARIANTS = [
             generated: [true, true], worn: keys.map(() => true) }),
             "[STAT_GLYPHS and STAT_ICONS name TRAITS's keys]; each statistic's glyph; the last rows of glyphs.json; a stat row's faults; the glass rules; [pixel-icons.css, the sprite] as generated; each drawing declared under Stained Glass");
     }],
-    ["R3593 - a statistic's glyph keeps a space from its name in both themes, and under Stained Glass the sheet's name plate holds the glyph (styles/components.css `i.drpg-stat-glyph`, styles/stained-glass.css the plate; E49, the owner's ask of 11.11.2026 night): read through the suite's cascade on the dressed stand-ins, the glyph's inline end margin is a quarter of its name's size on the sheet under both themes and in the window under Stained Glass, under Monokuma Legacy the window's glyph stands on its own line over the name (its six names fill their cells there), and under Stained Glass the sheet's `.trait-name` is no fixed height, at least 1.5rem, its line 1.5rem - each from the sheet named", async () => {
+    ["R3593 - a statistic's glyph in the wrench's window keeps a space from its name under Stained Glass and stands over it under Monokuma Legacy (styles/components.css `i.drpg-stat-glyph` and the window's block; E49, the owner's ask of 11.11.2026 night, and his answer of 12.11.2026 to round 1's question 3: the icon over the name stays): read through the suite's cascade on the dressed stand-in, under Stained Glass the glyph's inline end margin is a quarter of its name's size and it stays on the name's line; under Monokuma Legacy it is a block of its own, centred, the space below it", async () => {
         /*
-         * E49, 11.11.2026 night. Measured in Chromium on the stand-ins (S/stages/E105/e49stat): with no margin the glass
-         * drawing touched the name ("Shadow"); the plate was Daggerheart's 1rem and the 22-24 px drawing stood 4 px out of it
-         * above and below; under Legacy the window's "Shadow" is 79 px in a 74 px cell, and its icon beside it ran into Head's. Layout is not read here (jsdom has none): the rules that set it are.
+         * E49, 11.11.2026 night. Measured in Chromium on the stand-in (S/stages/E105/e49stat): with no margin the glass drawing
+         * touched the name ("Shadow"); under Legacy the window's "Shadow" is 79 px in a 74 px cell, and its icon beside it ran into
+         * Head's. Layout is not read here (jsdom has none): the rules that set it are. Since 12.11.2026 the sheet's glyph sits in
+         * Daggerheart's mark, not beside the name (R3591, R3594), so this reads the window alone.
          */
         const D = await import("./dh-settings.mjs").catch(() => null);
-        const SH = await import("./sheet.mjs");
-        const step = SH.SHEET_STEPS?.find(([name]) => name === "markTraitGlyphs")?.[1];
-        must(typeof D?.dressCharacterSettings === "function" && step, "dh-settings.mjs or sheet.mjs's markTraitGlyphs is not there - this would measure nothing");
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs is not there - this would measure nothing");
         const K = await import("./tests-kit.mjs");
         const C = await styleCascade();
         const at = (el, props) => { const w = C.winner(el, props); return w ? `${w.value} (${w.file})` : null; };
@@ -47558,21 +47564,84 @@ const INVARIANTS = [
             body.className = `${cls} drpg-player`;
             html.append(body);
             const win = K.dhSettingsStandIn({ traits: { instinct: { value: 1 } }, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 0, evasion: 0, experiences: {} }, { name: "R3593" });
-            const sheet = K.dhTraitsStandIn({ instinct: { value: 1 } });
-            body.append(win, sheet);
+            body.append(win);
             D.dressCharacterSettings(win);
-            step({ element: sheet });
-            const glyphs = [win, sheet].map(root => root.querySelector('i.drpg-stat-glyph[data-drpg-stat="eye"]'));
-            must(glyphs.every(Boolean), "no glyph was drawn - this would measure nothing");
-            const plate = sheet.querySelector('.trait[data-attribute="instinct"] .trait-name');
-            read[theme] = { gap: glyphs.map(g => at(g, ["margin-inline-end", "margin-right", "margin"])), line: at(glyphs[0], ["display"]),
-                plate: theme === "glass" ? [at(plate, ["height"]), at(plate, ["min-height"]), at(plate, ["line-height"])] : null };
+            const glyph = win.querySelector('i.drpg-stat-glyph[data-drpg-stat="eye"]');
+            must(glyph, "no glyph was drawn - this would measure nothing");
+            read[theme] = { gap: at(glyph, ["margin-inline-end", "margin-right", "margin"]), line: at(glyph, ["display"]), align: at(glyph, ["text-align"]) };
         }
-        const gap = "0.25em (styles/components.css)", G = "(styles/stained-glass.css)";
         const P = "(styles/components.css)";
-        equal(stableJson(read), stableJson({ glass: { gap: [gap, gap], line: "inline-block (styles/pixel-icons.css)", plate: [`auto ${G}`, `1.5rem ${G}`, `1.5rem ${G}`] },
-            legacy: { gap: [`0 0 2px ${P}`, gap], line: `block ${P}`, plate: null } }),
-            "per theme: the glyph's end margin [the window, the sheet]; the window's glyph's display (its own line under Legacy); under Stained Glass the sheet's name plate [height, min-height, line-height] - each with the sheet it came from");
+        equal(stableJson(read), stableJson({ glass: { gap: `0.25em ${P}`, line: "inline-block (styles/pixel-icons.css)", align: null },
+            legacy: { gap: `0 0 2px ${P}`, line: `block ${P}`, align: `center ${P}` } }),
+            "per theme: the window's glyph's [end margin, display, text-align] - each with the sheet it came from");
+    }],
+    ["R3594 - on the character sheet Daggerheart's mark at the left of each statistic's name is the glyph's holder in both themes, larger, and still shows whether it is marked (styles/danganronpa.css and stained-glass.css, `.tier-mark.drpg-stat-mark`; E49, the owner's answer of 12.11.2026: enlarge the marks and put the glyph inside them): read through the suite's cascade on the stand-in run through `markTraitGlyphs`, the holder is drawn in both themes (Stained Glass's old rule that hid the marks is gone), 22 px under Monokuma Legacy and 28 px under Stained Glass, its plate padded by the holder's width less its overhang; unmarked it is Bone with the glyph in Ink, marked Ink with the glyph in Bone and a Bone edge, and Daggerheart's dot is not drawn over the glyph; under Stained Glass the drawing is 24 px, on its grid; no margin beside the glyph in the holder", async () => {
+        /*
+         * E49, 12.11.2026. Daggerheart draws the mark 1rem round (header.less :254), half outside the plate's left end, and
+         * a gold dot inside it when `marked` (`::before`). The module painted it Bone (danganronpa.css "the system's gold
+         * furniture") and squared it under the glass, where a rule meant to hide it ("NO TIER MARKS") lost to Daggerheart's
+         * own on weight, so the white squares showed (S/stages/E105/e49stat round 1). That rule's intent is replaced by the
+         * owner's: the mark is shown in both themes and holds the glyph. Red at 982322f4: no holder rule; the glass rule hid it.
+         */
+        const SH = await import("./sheet.mjs");
+        const step = SH.SHEET_STEPS?.find(([name]) => name === "markTraitGlyphs")?.[1];
+        must(step, "sheet.mjs has no markTraitGlyphs step - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const C = await styleCascade();
+        const at = (el, props, pseudo = null) => { const w = C.winner(el, props, pseudo); return w ? `${w.value} (${w.file.replace("styles/", "")})` : null; };
+        const read = {};
+        for (const [theme, cls] of [["glass", "drpg-theme-stained-glass"], ["legacy", "drpg-theme-monokuma-legacy"]]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${cls} drpg-player`;
+            html.append(body);
+            const sheet = K.dhTraitsStandIn({ instinct: { value: 1, tierMarked: true }, knowledge: { value: 0 } });
+            body.append(sheet);
+            step({ element: sheet });
+            const mark = dh => sheet.querySelector(`.trait[data-attribute="${dh}"] .tier-mark`);
+            const on = mark("instinct"), off = mark("knowledge"), plate = off?.parentElement;
+            must(on?.classList.contains("marked") && off && !off.classList.contains("marked"), "the stand-in drew no marked and unmarked mark - this would measure nothing");
+            const glyph = el => el.querySelector("i.drpg-stat-glyph");
+            read[theme] = {
+                shown: at(off, ["display"]), size: [at(off, ["width"]), at(off, ["height"])], var: at(plate, ["--drpg-stat-mark-size"]), pad: at(plate, ["padding-inline-start", "padding-left"]),
+                off: [at(off, ["background", "background-color"]), at(glyph(off), ["color"])],
+                on: [at(on, ["background", "background-color"]), at(glyph(on), ["color"]), at(on, ["box-shadow"]), at(on, ["content"], "::before")],
+                glyph: [at(glyph(off), ["margin", "margin-inline-end"]), theme === "glass" ? at(glyph(off), ["width"]) : null]
+            };
+        }
+        const D = "danganronpa.css", SG = "stained-glass.css";
+        const common = { shown: `flex (${D})`, size: [`var(--drpg-stat-mark-size) (${D})`, `var(--drpg-stat-mark-size) (${D})`], pad: `calc(var(--drpg-stat-mark-size) - 4px) (${D})`,
+            off: [`var(--drpg-bone) (${D})`, `var(--drpg-ink) (${D})`], on: [`var(--drpg-ink) (${D})`, `var(--drpg-bone) (${D})`, `inset 0 0 0 2px var(--drpg-bone) (${D})`, `none (${D})`] };
+        equal(stableJson(read), stableJson({
+            glass: { ...common, var: `28px (${SG})`, glyph: [`0 (${D})`, `24px (${SG})`] },
+            legacy: { ...common, var: `22px (${D})`, glyph: [`0 (${D})`, null] } }),
+            "per theme: the unmarked mark's display, [width, height], the plate's holder size and start padding; unmarked [the mark's ground, the glyph's ink]; marked [ground, ink, edge, Daggerheart's dot]; the glyph's [margin, width under the glass] - each with the sheet it came from");
+    }],
+    ["R3595 - in the wrench's window each statistic's cell is at least as wide as its name (styles/components.css, the window's block; E49, the owner's answer of 12.11.2026: \"Shadow\" was clipped under Monokuma Legacy, 79 px in a 74 px cell): read through the suite's cascade on the dressed stand-in in both themes, the six cells' grid gives each column at least its content's width and shares the rest equally (`minmax(min-content, 1fr)`), and a name does not wrap", async () => {
+        /*
+         * E49, 12.11.2026. Measured in Chromium on the stand-in at 1366x768 (S/stages/E105/e49stat): under Legacy the pixel face
+         * sets "Shadow" 79 px wide in cells of 74 (six equal columns, `minmax(0, 1fr)`), so its last letter was cut by the cell's
+         * edge (at 8c8ece5c already); the five other names are at most 50. Layout is not read here (jsdom has none): the rule is.
+         * Red at 982322f4: `repeat(6, minmax(0, 1fr))`.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs is not there - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const C = await styleCascade();
+        const at = (el, props) => { const w = C.winner(el, props); return w ? `${w.value} (${w.file})` : null; };
+        const read = {};
+        for (const [theme, cls] of [["glass", "drpg-theme-stained-glass"], ["legacy", "drpg-theme-monokuma-legacy"]]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${cls} drpg-player`;
+            html.append(body);
+            const win = K.dhSettingsStandIn({ traits: { presence: { value: 1 } }, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 0, evasion: 0, experiences: {} }, { name: "R3595" });
+            body.append(win);
+            D.dressCharacterSettings(win);
+            const grid = win.querySelector(".traits-inner-container"), name = win.querySelector(".trait-container > span");
+            must(grid && name, "the stand-in drew no statistics - this would measure nothing");
+            read[theme] = [at(grid, ["grid-template-columns"]), at(name, ["white-space"])];
+        }
+        const P = "(styles/components.css)", want = [`repeat(6, minmax(min-content, 1fr)) ${P}`, `nowrap ${P}`];
+        equal(stableJson(read), stableJson({ glass: want, legacy: want }), "per theme: [the cells' grid columns, a name's white-space] - each with the sheet it came from");
     }],
 ];
 
