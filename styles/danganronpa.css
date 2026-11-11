@@ -5345,6 +5345,33 @@ body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]:focus-vis
     box-sizing: border-box;
 }
 
+/* EVERY TEXT FIELD FILLS ITS COLUMN, THE REST OF THE MODULE (E49 A7, 11.11.2026; the owner's 10.11, amend [15]: "every
+   text field takes the width of its window or column; exceptions only deliberate and described", and Q7, "a cell is a
+   column", answered "tak"). E68's rule above held the action windows alone. Read in Chromium by style-sweep `--fields`,
+   widened by this commit to every window probe 08 captures and the sheet's parts, at 1366x768, 1280x720 and 1920x1080,
+   both themes, English and Polish: 1544 readings in 28 windows with a field, 228 missed in 5 - Set the season up's name
+   and safeword 119 of 637 px under the glass (a flex label's field kept the browser's 20 columns), Investigation's final
+   key 119 of 1207, Despair Flow's pool name 119 of its 387 px cell, Room setup's doors and descriptions 6 px past their
+   cells (their `width: 100%` with the padding outside it). In any module window (`.drpg-panel`) a text field is its
+   column's width, its border and padding inside it; `min-width: 0` lets a field beside its caption in a flex label take
+   what the caption leaves instead of the 20 columns. Exempt by type, as the pass reads them: number fields, checkboxes,
+   ranges (Q7: numbers and short codes); by name: none needed (style-sweep FIELD_EXEMPT). R3470. */
+.drpg-panel :is(textarea, input:is([type="text"], [type="search"], [type="email"], [type="url"], :not([type]))) {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+/* Beside its caption in a label (`.drpg-panel label` is a flex row), the field takes what the caption leaves rather than
+   the label's whole width: at `width: 100%` the caption gave way to it and broke onto two lines ("Campaign / name" in Set
+   the season up, "Opis dla / gracza" in Investigation's final key under Legacy PL; the sweep's shots, 1366x768), and
+   each field started where its caption happened to end. A column label (`.drpg-trait-how`, `.drpg-specific-note`)
+   stretches it across instead, as before. */
+.drpg-panel label > :is(textarea, input:is([type="text"], [type="search"], [type="email"], [type="url"], :not([type]))) {
+    flex: 1 1 auto;
+    width: auto;
+}
+
 .drpg-panel label.drpg-trait-how {
     display: flex;
     flex-direction: column;

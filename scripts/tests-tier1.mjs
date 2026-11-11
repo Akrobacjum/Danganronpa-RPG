@@ -43164,6 +43164,42 @@ const INVARIANTS = [
             secret: five("close", "public"), public: five("close", "secret"), closed: five("open", "public"), broken: five("close", "public", { broken: true })
         }), "{each state: {groups: the actions' one group; acts: its buttons in order, \"held\" when disabled; why: each held button says why (tooltip or title)}}");
     }],
+    ["R3470 - every text field fills its column outside the action windows too (E49 A7; the owner's 10.11 amend [15], 'every text field takes the width of its window or column', and Q7, 'a cell is a column'): in any module window (`.drpg-panel`) a textarea and an input of type text, search, email, url or none - beside its caption in a label, in a table cell, in a kit form's field cell, in a fieldset - wins `width: 100%`, `max-width: 100%`, `min-width: 0` and `box-sizing: border-box` - and beside its caption in a label `flex: 1 1 auto` with `width: auto`, the caption kept on its line - under Monokuma Legacy and under Stained Glass; a number field, a checkbox and a range keep a width of their own (number fields are the named exception by type)", async () => {
+        /*
+         * E49 A7, 11.11.2026. Red on 210c9b16 (style-sweep `--fields`, widened by this commit to every window probe 08
+         * captures and the sheet's parts, at 1366x768, 1280x720 and 1920x1080, both themes, English and Polish): Set the
+         * season up's fields 119 of 670 px under the glass, Investigation's final key 119 of 1207, Item tables' new pool
+         * and item 669 of 894 in a fieldset of 874, Despair Flow's pool name 119 of its 387 px cell, Sound effects' paths
+         * 151 of 197 in their cells, Room setup's doors and descriptions 6 px past their cells (`width: 100%` and padding
+         * outside it). E68's rule held the action windows alone (`.drpg-action-window`). What Chromium lays out is the
+         * sweep's; this reads the cascade (`styleCascade`: specificity, `!important` and order, no `@media`), so a later
+         * rule that narrows a field again fails here before it reaches a table.
+         */
+        const C = await styleCascade();
+        const PROPS = ["width", "max-width", "min-width", "box-sizing", "flex"];
+        const read = theme => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-gm`;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-panel drpg-window-season drpg-ui drpg-kit-width"><section class="window-content"><div class="drpg-kit-body">`
+                + `<fieldset><legend>L</legend><label>Name <input type="text" name="text"></label></fieldset><label>Note <input name="untyped"></label>`
+                + `<textarea name="area"></textarea><table class="drpg-data-table"><tbody><tr><td><input type="text" name="cell"></td><td><input type="search" name="search"></td></tr></tbody></table>`
+                + `<div class="drpg-form-field"><input type="url" name="url"></div><label>E <input type="email" name="email"></label>`
+                + `<input type="number" name="number"><input type="checkbox" name="checkbox"><input type="range" name="range"></div></section></div>`;
+            const out = { fill: [], other: {} };
+            for (const el of body.querySelectorAll("[name]")) {
+                const got = PROPS.map(p => C.winner(el, [p])?.value?.replace(/\s*!important$/, "") ?? "none");
+                const inLabel = el.parentElement?.tagName === "LABEL";
+                if (got.join(" ") === (inLabel ? "auto 100% 0 border-box 1 1 auto" : "100% 100% 0 border-box none")) out.fill.push(el.name);
+                else out.other[el.name] = /^(100%|auto)$/.test(got[0] ?? "") ? got.join(" ") : "its own width";
+            }
+            out.fill.sort();
+            return out;
+        };
+        const want = { fill: ["area", "cell", "email", "search", "text", "untyped", "url"], other: { number: "its own width", checkbox: "its own width", range: "its own width" } };
+        equal(stableJson(["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"].map(read)), stableJson([want, want]),
+            "[Monokuma Legacy, Stained Glass]: {fill: the fields of a module window that win width 100%, max-width 100%, min-width 0 and border-box and no flex (in a label: width auto and flex 1 1 auto); other: the rest, by what wins their width}");
+    }],
     ["R2018 - Room setup's Scenes tab on the kit (E46-C2b; E46-08, E47's 05.10 point 5): trial-scene.mjs `scenesTabHtml` is a kit `formGrid` (the school and the hall selects, each its label's `for`), the hall's name, picture and words a `formGrid` of their own, the warnings a `box(\"warning\")`, the prepare ticks kit switches, `SCENES_ZONE_SLOT` a row of `scenesTabRows` that draws nothing (where E73 puts Zone A and Zone B), the hall's cast pick (`castPickerHtml`) a kit `dataTable` with a switch an actor; `readScenesTab`'s answer for a seeded form the one it gave before", async () => {
         /*
          * E46-C2b. Red first on C2a's tree (f90e89a7): labels around the selects, a list of checkboxes, `p.drpg-warning`, no
