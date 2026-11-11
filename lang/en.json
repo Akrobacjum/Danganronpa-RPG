@@ -231,6 +231,21 @@
     }
   },
   "DRPG": {
+    "DhSettings": {
+      "title": "Character settings",
+      "details": "Details",
+      "experiences": "Experiences",
+      "statistics": "Statistics",
+      "reserves": "Health and Sanity",
+      "maxHealth": "Max Health",
+      "maxSanity": "Max Sanity",
+      "newExperience": "New Experience",
+      "delete": "Delete",
+      "coreExperience": "A Level Up gave this experience; it cannot be removed here.",
+      "name": "Name",
+      "value": "Value",
+      "description": "Description"
+    },
     "Settings": {
       "forceDiceLook": {
         "name": "One dice look for the table",

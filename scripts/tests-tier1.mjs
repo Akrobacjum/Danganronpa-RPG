@@ -47314,6 +47314,101 @@ const INVARIANTS = [
         ok(checked > 200, `${checked} reading(s) - the stand-in's parts were not read`);
         equal(stableJson(problems), "{}", "per theme: a declaration of the block won by another rule, or a part of the window no rule of the module dresses");
     }],
+    ["R3554 - under Monokuma Legacy the wrench's window's selected tab is the kit's selected tab (styles/components.css, the block of `drpg-window-dh-settings`; E48 Q13, the owner's \"Tak\" of 11.11.2026 to the comparison: its active tab was still red-filled): read through the suite's cascade on the dressed stand-in, the selected tab's ink, ground and edge are the three selected-tab tokens and it wears their 2 px inset bar along its foot, as every Legacy kit tab bar does; the tab not selected wears no bar; the tokens name no Eye", async () => {
+        /*
+         * E49, 11.11.2026, after the merge of e49pan (E48 Q13: Bone on Ink with the attention edge, components.css's three
+         * `--drpg-kit-tab-on-*` tokens and the kit tab's inset bar). The window's tabs are Daggerheart's links, not the
+         * kit's buttons, so the bar is stated for them in the window's block. Red at b6f00ad6: the selected link took no
+         * bar (`box-shadow: none`), and on 1.2.104's tokens its ground was the Eye's red.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs has no `dressCharacterSettings` - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const C = await styleCascade();
+        const tokens = C.rules.filter(rule => rule.file === "styles/components.css" && rule.selector === "body").flatMap(rule => rule.decls)
+            .filter(d => /^--drpg-kit-tab-(on-(bg|edge|ink)|selected-edge)$/.test(d.property)).map(d => `${d.property}: ${d.value}`);
+        must(tokens.length >= 3, `${tokens.length} selected-tab token(s) read under Legacy - the token block was not read`);
+        const html = document.createElement("html"), body = document.createElement("body");
+        body.className = "drpg-theme-monokuma-legacy drpg-player";
+        html.append(body);
+        const win = K.dhSettingsStandIn({ traits: {}, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 0, evasion: 0, experiences: {} }, { name: "R3554" });
+        body.append(win);
+        D.dressCharacterSettings(win);
+        const on = win.querySelector("nav.sheet-tabs > a.active"), off = win.querySelector("nav.sheet-tabs > a:not(.active)");
+        must(on && off, "the stand-in drew no tabs - this would measure nothing");
+        const v = (el, props) => C.winner(el, props)?.value ?? null;
+        const read = {
+            on: { color: v(on, ["color"]), background: v(on, ["background", "background-color"]), edge: v(on, ["border-color", "border"]), bar: v(on, ["box-shadow"]) },
+            off: { bar: v(off, ["box-shadow"]) },
+            eye: tokens.filter(line => /eye/i.test(line))
+        };
+        equal(stableJson(read), stableJson({
+            on: { color: "var(--drpg-kit-tab-on-ink)", background: "var(--drpg-kit-tab-on-bg)", edge: "var(--drpg-kit-tab-on-edge)", bar: "inset 0 -2px 0 var(--drpg-kit-tab-on-edge)" },
+            off: { bar: "none" }, eye: [] }), "the selected tab's [ink, ground, edge, bar], the other's bar, and the selected-tab tokens that name an Eye");
+    }],
+    ["R3555 - the wrench's window speaks the module's words, in English and in Polish, and Daggerheart's own keys are left alone (dh-settings.mjs `WINDOW_WORDS`, `dressCharacterSettings`; lang/en.json and lang/pl.json `DRPG.DhSettings`; E49, the owner's \"Tak\" of 11.11.2026: Polish labels for this window only): on the dressed stand-in the title, both tabs, both headings, Max Health, Max Sanity and New read this client's `DRPG.DhSettings.*`, each bin's tooltip and each experience field's name too; the Polish file says Ustawienia postaci, Szczegóły, Doświadczenia, Statystyki, Health i Sanity, Health (maks.), Sanity (maks.), Nowe doświadczenie and Usuń, every key has its English twin, and neither file writes a Daggerheart key the window drew", async () => {
+        /*
+         * E49, 11.11.2026. Daggerheart has no Polish file and its keys are shared with its other windows, so the words are
+         * replaced in the drawn window from the module's own keys. Red at b6f00ad6: the window kept Daggerheart's English.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(Array.isArray(D?.WINDOW_WORDS), "dh-settings.mjs has no `WINDOW_WORDS` - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const win = K.dhSettingsStandIn({ traits: { instinct: { value: 1 } }, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 0, evasion: 0,
+            experiences: { r3555: { name: "R3555", value: 2, description: "" } } }, { name: "R3555" });
+        D.dressCharacterSettings(win);
+        const word = key => game.i18n.localize(`DRPG.DhSettings.${key}`);
+        const drawn = D.WINDOW_WORDS.map(({ selector, field, key }) => {
+            const el = field ? win.querySelector(`[name="${field}"]`)?.closest(".form-group")?.querySelector(":scope > label") : win.querySelector(selector);
+            return el ? (el.textContent === word(key) ? "ours" : `"${el.textContent}"`) : "not drawn";
+        });
+        const item = win.querySelector(".experience-item");
+        const extras = [item?.querySelector("span[data-tooltip]")?.dataset.tooltip === word("delete"),
+            ["input.name", "input.modifier", "textarea"].map(sel => item?.querySelector(sel)?.getAttribute("aria-label")).join("|") === ["name", "value", "description"].map(word).join("|")];
+        const files = {};
+        for (const code of ["en", "pl"]) files[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const PL = { title: "Ustawienia postaci", details: "Szczegóły", experiences: "Doświadczenia", statistics: "Statystyki", reserves: "Health i Sanity",
+            maxHealth: "Health (maks.)", maxSanity: "Sanity (maks.)", newExperience: "Nowe doświadczenie", delete: "Usuń" };
+        const en = files.en.DRPG?.DhSettings ?? {}, pl = files.pl.DRPG?.DhSettings ?? {};
+        const DH_KEYS = ["Tabs.settings", "Tabs.details", "Tabs.experiences", "basics", "maxWithThing", "experience"];
+        const read = {
+            drawn: [...new Set(drawn)], extras,
+            pl: Object.keys(PL).filter(key => pl[key] !== PL[key]),
+            twins: [...Object.keys(en).filter(key => !(key in pl)), ...Object.keys(pl).filter(key => !(key in en))],
+            dh: ["en", "pl"].flatMap(code => DH_KEYS.filter(path => foundry.utils.getProperty(files[code], `DAGGERHEART.GENERAL.${path}`) !== undefined).map(path => `${code} ${path}`))
+        };
+        equal(stableJson(read), stableJson({ drawn: ["ours"], extras: [true, true], pl: [], twins: [], dh: [] }),
+            "drawn: each worded part (ours, or the text it kept); extras: [the bin's tooltip, the experience fields' names]; pl: the Polish words that differ; twins: a key without its twin; dh: a Daggerheart key of the window the module's files write");
+    }],
+    ["R3556 - under Stained Glass Max Health and Max Sanity fill their columns and the bin is the help line's size (styles/components.css, the block of `drpg-window-dh-settings`; E49, the owner's \"Tak\" of 11.11.2026 to the comparison: the two fields stood narrower than their columns and the bin at the glass's 21 px floor): read through the suite's cascade on the dressed stand-in under the glass, the two fields' grid is as wide as its group, each field's cell a flex row as wide as its column with the field growing into it, and the bin's glyph takes `--drpg-kit-help-size` from the window's block", async () => {
+        /*
+         * E49, 11.11.2026. Measured in Chromium on the stand-in before the change (S/stages/E49/dh-shots): under the glass
+         * the two fields were about 140 px in columns of about 230, Foundry's `.form-fields` not loaded there, and the bin
+         * inherited the glass's floor from its span. Layout is not read here (jsdom has none): the rules that set it are.
+         * Red at b6f00ad6: no rule on the field's cell or the glyph.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs has no `dressCharacterSettings` - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const C = await styleCascade();
+        const html = document.createElement("html"), body = document.createElement("body");
+        body.className = "drpg-theme-stained-glass drpg-player";
+        html.append(body);
+        const win = K.dhSettingsStandIn({ traits: {}, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 0, evasion: 0,
+            experiences: { r3556: { name: "R3556", value: 2, description: "" } } }, { name: "R3556", tab: "experiences" });
+        body.append(win);
+        D.dressCharacterSettings(win);
+        const cells = ["system.resources.hitPoints.max", "system.resources.stress.max"].map(name => win.querySelector(`[name="${name}"]`));
+        const glyph = win.querySelector('.experience-item a[data-action="removeExperience"] > i');
+        must(cells.every(Boolean) && glyph, "the stand-in drew no Health, Sanity or bin - this would measure nothing");
+        const at = (el, props) => { const w = C.winner(el, props); return w ? `${w.value} (${w.file})` : null; };
+        const read = cells.map(input => ({ cell: [at(input.parentElement, ["display"]), at(input.parentElement, ["width"])], field: [at(input, ["width"]), at(input, ["flex", "flex-grow"])] }));
+        read.push({ grid: at(win.querySelector(".tab.details .two-columns"), ["width"]), bin: at(glyph, ["font-size"]) });
+        const S = "(styles/components.css)";
+        const each = { cell: [`flex ${S}`, `100% ${S}`], field: [`100% ${S}`, `1 1 auto ${S}`] };
+        equal(stableJson(read), stableJson([each, each, { grid: `100% ${S}`, bin: `var(--drpg-kit-help-size) ${S}` }]),
+            "Max Health, Max Sanity: their cell's [display, width] and the field's [width, flex]; the two fields' grid's width; the bin's glyph's size - each with the sheet it came from");
+    }],
 ];
 
 /**

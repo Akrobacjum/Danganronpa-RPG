@@ -3544,6 +3544,11 @@ body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navig
 }
 body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navigation nav.sheet-tabs.tabs > a span { color: inherit; text-shadow: none; }
 body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navigation nav.sheet-tabs.tabs > a:hover:not(.active) { background: var(--drpg-kit-tab-hover); }
+/* E48 Q13 under Legacy (merged from e49pan): the selected tab Bone on Ink with the attention edge's 2 px inset bar along its
+   foot, as the kit's selected tab (this sheet, `.drpg-tabs ... [aria-selected="true"]`); its three colours are the tokens below */
+body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navigation nav.sheet-tabs.tabs > a.active {
+    box-shadow: inset 0 -2px 0 var(--drpg-kit-tab-on-edge);
+}
 body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navigation nav.sheet-tabs.tabs > a.active {
     color: var(--drpg-kit-tab-on-ink);
     background: var(--drpg-kit-tab-on-bg);
@@ -3638,6 +3643,9 @@ body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.detai
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px 12px;
+    /* the group's whole width: its fieldset lays it out as a flex item, which took its content's 378 of 518 px under the
+       glass (Chromium, the stand-in, 11.11.2026) - the second half of the two fields' short columns */
+    width: 100%;
 }
 body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.details .two-columns .form-group {
     display: flex;
@@ -3653,6 +3661,15 @@ body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.detai
     line-height: 1.3;
     color: var(--drpg-kit-ink);
 }
+/* a field's cell a flex row as wide as its column, the field growing into it (E49, the owner's "Tak" of 11.11.2026: under
+   the glass Max Health and Max Sanity stood about 140 px wide, in a grid of 378 px in a group of 518 - Chromium, the
+   stand-in, 1366x768; with the grid's width above, 244 each in both themes) */
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.details .two-columns .form-group > .form-fields {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+}
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.details .two-columns .form-group > .form-fields > input { flex: 1 1 auto; }
 body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings :is(.form-fields, .experience-inner-item) > input {
     width: 100%;
     font-size: var(--drpg-kit-brief-size);
@@ -3708,6 +3725,9 @@ body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.exper
     height: 28px;
     color: var(--drpg-kit-help-ink);
 }
+/* the bin's glyph at the help line's size: its span took the glass's 21 px floor (`!important` on a span), which a glyph
+   of its own does not wear (the owner's "Tak" of 11.11.2026: "the delete icon at a sensible size") */
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.experiences .experience-item .experience-inner-item span a > i { font-size: var(--drpg-kit-help-size); }
 body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.experiences .experience-item .experience-inner-item span a:hover:not(.disabled) {
     color: var(--drpg-kit-ink);
     background: var(--drpg-kit-hover-bg);

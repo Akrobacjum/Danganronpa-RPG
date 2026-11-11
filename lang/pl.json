@@ -231,6 +231,21 @@
     }
   },
   "DRPG": {
+    "DhSettings": {
+      "title": "Ustawienia postaci",
+      "details": "Szczegóły",
+      "experiences": "Doświadczenia",
+      "statistics": "Statystyki",
+      "reserves": "Health i Sanity",
+      "maxHealth": "Health (maks.)",
+      "maxSanity": "Sanity (maks.)",
+      "newExperience": "Nowe doświadczenie",
+      "delete": "Usuń",
+      "coreExperience": "To doświadczenie dał Level Up; nie da się go tu usunąć.",
+      "name": "Nazwa",
+      "value": "Wartość",
+      "description": "Opis"
+    },
     "Settings": {
       "forceDiceLook": {
         "name": "Jeden wygląd kości przy stole",

@@ -102,7 +102,8 @@ function wrapperOf(input) {
 }
 
 /**
- * Dress a drawn window: the kit's classes on the root, the unused fields' wrappers hidden, Health's class tooltip off.
+ * Dress a drawn window: the kit's classes on the root, the unused fields' wrappers hidden, Health's class tooltip off,
+ * the words the module's (`wordCharacterSettings`).
  * Idempotent - Daggerheart draws the window again after every submit. Answers the names it hid.
  */
 export function dressCharacterSettings(element) {
@@ -120,7 +121,51 @@ export function dressCharacterSettings(element) {
     const health = element.querySelector('[name="system.resources.hitPoints.max"]');
     const cell = health ? wrapperOf(health) : null;
     cell?.removeAttribute("data-tooltip-text");
+    wordCharacterSettings(element);
     return hidden;
+}
+
+/*
+ * THE WINDOW'S WORDS ARE THE MODULE'S (E49, the owner's "Tak" of 11.11.2026 to the comparison: Polish labels for this
+ * window alone). Daggerheart has no Polish file, so a Polish client read Settings, Details, Basics, Max Health and New
+ * Experience in English; its keys (`DAGGERHEART.GENERAL.Tabs.details`, `.basics`, `.maxWithThing` ...) are shared with
+ * its other windows, so they are not overridden in lang/*.json - the drawn text here is replaced from the module's own
+ * `DRPG.DhSettings.*`, in English and Polish, after every render (Foundry writes the title again on each). The Polish
+ * terms are the module's: Health and Sanity stay English with "(maks.)" as `DRPG.Players.stressMax` has it,
+ * "Doświadczenia" as the player handbook's table, "Nowe doświadczenie" as the Level Up's. The groups' second heading
+ * says what is left in it: Basics held five fields, it holds Health and Sanity. The statistics' own names are the
+ * module's already (lang's `DAGGERHEART.CONFIG.Traits`). Nothing stored changes.
+ */
+/** Each worded part, by a selector inside the window or by the field whose form group's label it is, and its key under
+ * DRPG.DhSettings. */
+export const WINDOW_WORDS = Object.freeze([
+    Object.freeze({ selector: ":scope > .window-header .window-title", key: "title" }),
+    Object.freeze({ selector: '.tab-navigation [data-tab="details"] > span', key: "details" }),
+    Object.freeze({ selector: '.tab-navigation [data-tab="experiences"] > span', key: "experiences" }),
+    Object.freeze({ selector: ".tab.details fieldset.drpg-dh-statistics > legend", key: "statistics" }),
+    Object.freeze({ selector: ".tab.details fieldset.drpg-dh-reserves > legend", key: "reserves" }),
+    Object.freeze({ field: "system.resources.hitPoints.max", key: "maxHealth" }),
+    Object.freeze({ field: "system.resources.stress.max", key: "maxSanity" }),
+    Object.freeze({ selector: ".tab.experiences .add-experience-btn > span", key: "newExperience" }),
+    Object.freeze({ selector: ".tab.experiences fieldset > legend", key: "experiences" })
+]);
+
+function wordCharacterSettings(element) {
+    const word = key => game.i18n.localize(`DRPG.DhSettings.${key}`);
+    // Each group named by what it holds, so a selector finds it without `:has`.
+    element.querySelector(".tab.details .traits-inner-container")?.closest("fieldset")?.classList.add("drpg-dh-statistics");
+    element.querySelector(".tab.details .two-columns")?.closest("fieldset")?.classList.add("drpg-dh-reserves");
+    for (const { selector, field, key } of WINDOW_WORDS) {
+        const el = field ? element.querySelector(`[name="${field}"]`)?.closest(".form-group")?.querySelector(":scope > label") : element.querySelector(selector);
+        if (el) el.textContent = word(key);
+    }
+    for (const item of element.querySelectorAll(".tab.experiences .experience-item")) {
+        const bin = item.querySelector('a[data-action="removeExperience"]');
+        const label = word(bin?.classList.contains("disabled") ? "coreExperience" : "delete");
+        bin?.parentElement?.setAttribute("data-tooltip", label);
+        bin?.setAttribute("aria-label", label);
+        for (const [cls, key] of [["input.name", "name"], ["input.modifier", "value"], ["textarea", "description"]]) item.querySelector(cls)?.setAttribute("aria-label", word(key));
+    }
 }
 
 export function registerDhSettings() {
