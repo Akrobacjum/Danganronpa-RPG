@@ -22351,6 +22351,31 @@ const REGRESSIONS = [
         }), JSON.stringify({ calls: [["chapter.mjs", "markDeceased"]], handsRecord: true, monocubImports: false, secretNames: [] }),
             "{calls: every leaveBody call as [file, function]; handsRecord: markDeceased's call hands its record; monocubImports: monocub.mjs imports body-tile.mjs; secretNames: body-tile.mjs's exports recordSecretDeath names}");
     }],
+    ["R3402 - the body follows its corpse after the write, on the mover's GM browser alone (E63 C1; QUESTIONS E63 Q3): body-tile.mjs `followBody` is registered on `updateToken` and never `preUpdateToken`, tests `game.user.isGM` and `userId === game.user.id` before its one write, asks movement.mjs `isCorpse`; module.mjs registers it", async () => {
+        /*
+         * E63 C1, 11.11.2026; STAGE E63 item 6 and its write roads. Read off the served sources with their comments
+         * taken out: body-tile.mjs's hooks (every `Hooks.on("<name>"` in the file), `followBody`'s offsets of its GM and
+         * mover tests, its `isCorpse(` and its Tile write, `isCorpse` exported by movement.mjs, and module.mjs's
+         * registration. What the follow does is tier 2's ("the body follows its corpse token, not its Monocub"). Red at
+         * C0: there is no `followBody`.
+         */
+        const sources = await moduleSources();
+        must(["body-tile.mjs", "movement.mjs", "module.mjs"].every(f => sources.has(f)), "body-tile.mjs, movement.mjs or module.mjs is not served - this would measure nothing");
+        const code = file => stripComments(sources.get(file));
+        const tile = code("body-tile.mjs");
+        const follow = topLevelFunction(tile, "followBody") ?? "";
+        const at = re => { const m = follow.search(re); return m; };
+        const write = at(/updateEmbeddedDocuments\("Tile"/);
+        equal(JSON.stringify({
+            hooks: [...tile.matchAll(/Hooks\.on\("(\w+)"/g)].map(m => m[1]).sort(),
+            registered: /Hooks\.on\("updateToken",[^]*?followBody\(tokenDoc, changes, options, userId\)/.test(topLevelFunction(tile, "registerBodyFollow") ?? ""),
+            guards: follow ? [at(/!game\.user\?\.isGM/) >= 0 && at(/!game\.user\?\.isGM/) < write, at(/userId !== game\.user\.id/) >= 0 && at(/userId !== game\.user\.id/) < write,
+                at(/isCorpse\(actor\)/) >= 0 && at(/isCorpse\(actor\)/) < write, write > 0] : null,
+            exported: /^export function isCorpse\(/m.test(code("movement.mjs")),
+            module: /safely\("[^"]+", registerBodyFollow\)/.test(code("module.mjs"))
+        }), JSON.stringify({ hooks: ["drawTile", "refreshTile", "updateToken"], registered: true, guards: [true, true, true, true], exported: true, module: true }),
+        "{hooks: body-tile.mjs's hook names; registered: updateToken hands followBody its four; guards: [the GM test, the mover test, isCorpse, each before the Tile write; a write]; exported: movement.mjs exports isCorpse; module: module.mjs registers it}");
+    }],
 ];
 
 

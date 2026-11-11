@@ -45247,6 +45247,33 @@ const INVARIANTS = [
         }), stableJson({ body: [true, true, true, true, true, false, false], warns: [false, false, true, true, true] }),
         "{body: whether [an execution, a death in the trial, a murder, a death with no phase, an empty record, null, none] leaves a body; warns: whether the first five warn with no token}");
     }],
+    ["R3403 - the update that takes a body's tile to its corpse token (E63 C1): body-tile.mjs `followedTile` answers the token's corner, height and hidden, the tile's own size kept, the flag's `level` the token's floor (an id or a Level), and null for a change that moves nothing or a tile already there", async () => {
+        /*
+         * E63 C1, 11.11.2026; STAGE E63 item 6. Pure: a 200 px body tile at (0, 0) on floor F1, a token at (300, 400) at
+         * height 5. Read: the patch for a change of x to the floor F2 handed as an id, for a change of `level` handed as a
+         * Level, for a change of the token's name alone, for the tile already at the token, for a tile with no body
+         * flag, and for the token hidden where the tile lies - each as [x, y, elevation, the flag's level, whether width
+         * or height is in it, the id, hidden], or null. Red at C0: there
+         * is no `followedTile`.
+         */
+        const B = await import("./body-tile.mjs").catch(() => null);
+        must(B && typeof B.followedTile === "function", "body-tile.mjs does not load or exports no followedTile");
+        const KEY = `flags.${MODULE_ID}.${FLAGS.bodyOf}.level`;
+        const tileOf = (x, y, level, flagged = true) => ({ id: "SUITER3403TILE00", x, y, width: 200, height: 200, elevation: x ? 5 : 0,
+            getFlag: (scope, key) => (flagged && scope === MODULE_ID && key === FLAGS.bodyOf ? { actorId: "a", deathId: "d", level, at: 1 } : undefined) });
+        const token = { x: 300, y: 400, elevation: 5, width: 2, height: 2 };
+        const read = patch => (patch ? [patch.x, patch.y, patch.elevation, patch[KEY] ?? null, "width" in patch || "height" in patch, patch._id, patch.hidden] : null);
+        equal(stableJson([
+            read(B.followedTile(tileOf(0, 0, "F1"), token, { x: 300 }, "F2")),
+            read(B.followedTile(tileOf(0, 0, "F1"), token, { level: "F3" }, { id: "F3" })),
+            read(B.followedTile(tileOf(0, 0, "F1"), token, { name: "x" }, "F1")),
+            read(B.followedTile(tileOf(300, 400, "F1"), token, { y: 400 }, "F1")),
+            read(B.followedTile(tileOf(0, 0, "F1", false), token, { x: 300 }, "F1")),
+            read(B.followedTile(tileOf(300, 400, "F1"), { ...token, hidden: true }, { hidden: true }, "F1"))
+        ]), stableJson([[300, 400, 5, "F2", false, "SUITER3403TILE00", false], [300, 400, 5, "F3", false, "SUITER3403TILE00", false], null, null, null,
+            [300, 400, 5, "F1", false, "SUITER3403TILE00", true]]),
+        "the patch [x, y, elevation, the flag's floor, size in it, the tile's id, hidden] for [a move to F2, a floor change as a Level, a rename, a tile there already, a tile with no body flag, the token hidden where the tile lies]");
+    }],
 ];
 
 /**

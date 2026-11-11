@@ -86305,6 +86305,70 @@ const SCENARIOS = [
             "the student's body tiles [the death's tile deleted, then made a Monocub: count, a Monocub; dead again: count; ticked, unticked, ticked: counts]");
     }],
 
+    ["the body follows its corpse token, not its Monocub (E63 C1; QUESTIONS E63 Q3): a GM's drag of a dead student's token into another room takes their tile there and the body is read in that room; a teleport as Stage 6's Move the body makes takes it back; a move another user wrote moves nothing on this browser; made a Monocub, their token walks and the tile stays", async () => {
+        /*
+         * E63 C1, 11.11.2026; STAGE E63 item 6. On this GM: a student with a token on the scene on screen killed in public
+         * (the death lays the tile at the token, E63 C0). Read each time: whether the tile's corner is the token's, and the
+         * body's room (body-tile.mjs `bodyRoomOf`, which the loot gate reads) against the token's - after the GM's plain
+         * update of the token into another room (a drag); after the token's teleport back (the options cleanup.mjs
+         * `applyMoveBody`'s `teleportTokens` writes with; the harness's regions hold no teleport of their own, so Stage 6
+         * itself is LIVE-E63-04's); after body-tile.mjs `followBody` handed the move as another user's (that user's
+         * browser writes it, not this one); and after the student is made a Monocub and their token moved again. Red at
+         * C0: the tile stayed where the death laid it. Put back: the Monocub flag and the resources a Monocub starts
+         * with, the student revived (their tiles with it), the token where it stood.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student with a token on the scene on screen, whose body is laid");
+        needs(world.atLeast("namedRooms", 2), "a room for the token and another to drag the body into");
+        const B = await import("./body-tile.mjs");
+        const C = await import("./chapter.mjs");
+        const M = await import("./monocub.mjs");
+        const Mv = await import("./movement.mjs");
+        const scene = canvas.scene, PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const who = C.livingStudents().find(a => scene?.tokens?.some(t => t.actorId === a.id));
+        const token = scene?.tokens?.find(t => t.actorId === who?.id);
+        must(who && token, "no living student with a token on the scene on screen - this would measure nothing");
+        const was = { x: token.x, y: token.y };
+        const home = Mv.roomOfToken(token);
+        const other = Mv.allRooms(scene).find(r => r !== home);
+        must(home && other, "the student's token stands in no room, or the scene has one - the body has nowhere to be dragged");
+        const R = "system.resources", keys = ["hope", "hitPoints", "stress"];
+        const res = Object.fromEntries(keys.map(k => [k, foundry.utils.deepClone(foundry.utils.getProperty(who._source, `${R}.${k}`) ?? null)]));
+        const monoWas = who._source.flags?.[MODULE_ID]?.[FLAGS.monocub];
+        const someoneElse = game.users.find(u => u.id !== game.user.id) ?? null;
+        const where = () => { const t = B.bodyTileOf(who)?.doc; return [t ? t.x === token.x && t.y === token.y : null, B.bodyRoomOf(who), B.bodyTilesOf(who.id).length]; };
+        const read = {};
+        try {
+            must(await C.killCharacter(who, { secret: false, keepBullets: true }), `${who.name}'s death could not be published - this would measure nothing`);
+            await settle();
+            read.dead = where();
+            await token.update(Mv.positionIn(other, token));
+            await settle();
+            must(Mv.roomOfToken(token) === other, `${who.name}'s body could not be dragged into ${other} - this would measure nothing`);
+            read.dragged = where();
+            await token.update(Mv.positionIn(home, token), PLACE);
+            await settle();
+            read.teleported = where();
+            read.anotherUser = typeof B.followBody !== "function" ? "no followBody" : someoneElse ? await B.followBody(token, { x: token.x + 1 }, {}, someoneElse.id) : "no other user";
+            await M.setMonocub(who, true, { quiet: true });
+            await settle();
+            await token.update(Mv.positionIn(other, token), PLACE);
+            await settle();
+            read.monocub = [...where(), Mv.roomOfToken(token)];
+        } finally {
+            if (M.isMonocub(who)) await M.setMonocub(who, false, { quiet: true });
+            if (C.isDeadForGm(who)) await C.reviveCharacter(who, { quiet: true });
+            if (monoWas === undefined) await who.unsetFlag(MODULE_ID, FLAGS.monocub);
+            else await who.setFlag(MODULE_ID, FLAGS.monocub, monoWas);
+            await who.update(Object.fromEntries(keys.filter(k => res[k] !== null).map(k => [`${R}.${k}`, res[k]])));
+            await token.update(was, PLACE);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            dead: [true, home, 1], dragged: [true, other, 1], teleported: [true, home, 1], anotherUser: null, monocub: [false, home, 1, other]
+        }), "the body [at the token's corner, its room, its tiles] when [killed; dragged by the GM; teleported back; a move another user wrote: followBody's write; "
+            + "a Monocub's token moved: and the token's room]");
+    }],
+
     ["a body tile goes with the death (E95 C2; Q7 \"deaths\", Q8): a revive removes the student's body tiles, and the season reset's deaths group removes every body tile on every scene - an orphan's included - and no other tile", async () => {
         /*
          * E95 C2, 10.11.2026; QUESTIONS Q7 (the reset's "deaths" group) and Q8 (a revived student has no body). On this

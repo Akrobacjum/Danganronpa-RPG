@@ -32,7 +32,7 @@
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
 import { deathRecord } from "./settings.mjs";
-import { gmPlaceOf, roomAt } from "./movement.mjs";
+import { gmPlaceOf, roomAt, isCorpse } from "./movement.mjs";
 
 /** A floor as an id: a Level document's, an id as it is, null for none. */
 const floorId = level => level?.id ?? level ?? null;
@@ -243,6 +243,65 @@ export async function removeBodyTiles(actorId = null, { only = null } = {}) {
         removed += ids.length;
     }
     return removed;
+}
+
+/**
+ * The fields of a token's update the body follows: its corner, its height, its floor (rooms.mjs `levelOf` reads `level`),
+ * and whether it is hidden (a GM hiding the corpse hides the body, as E95 fix RV-3 laid it hidden as the token).
+ */
+const MOVED = ["x", "y", "elevation", "level", "hidden"];
+
+/**
+ * The update that takes `tileDoc`, a body's tile, to where `tokenDoc` lies now, or null (pure; E63 C1, tier 1 R3403):
+ * the token's corner, height and `hidden`, the tile's own size kept (a tile's width and height are pixels, and a corpse's token
+ * keeps its squares), and the flag's `level` the token's floor (`level`, an id or a Level), with the tile's own floor
+ * field where it has one (`floorFieldsOf`). Null when `changes` names none of the fields that move a token (`MOVED`), or
+ * when the tile lies there already.
+ */
+export function followedTile(tileDoc, tokenDoc, changes, level = null) {
+    if (!tileDoc || !tokenDoc || !MOVED.some(key => key in (changes ?? {}))) return null;
+    const mark = markOf(tileDoc);
+    if (!mark) return null;
+    const x = Number(tokenDoc.x) || 0, y = Number(tokenDoc.y) || 0;
+    const elevation = Number.isFinite(tokenDoc.elevation) ? tokenDoc.elevation : 0;
+    const floor = floorId(level), hidden = Boolean(tokenDoc.hidden);
+    if (Number(tileDoc.x) === x && Number(tileDoc.y) === y && (Number(tileDoc.elevation) || 0) === elevation && (mark.level ?? null) === floor
+        && Boolean(tileDoc.hidden) === hidden) return null;
+    return { _id: tileDoc.id, x, y, elevation, hidden, [`flags.${MODULE_ID}.${FLAGS.bodyOf}.level`]: floor, ...floorFieldsOf(floor) };
+}
+
+/**
+ * THE BODY FOLLOWS ITS CORPSE (E63 C1, 11.11.2026; QUESTIONS E63 Q3, the owner's "yes"). Foundry's `updateToken`, after
+ * the write: on the GM's browser that moved the token alone (`userId === game.user.id`, `game.user.isGM`), when the
+ * token's actor is a corpse (movement.mjs `isCorpse`: dead for the GMs, not a Monocub) and the move changed its corner,
+ * height, floor or `hidden`, the current death's tile (`bodyTileOf`, the death read as the GMs hold it) on the token's own scene
+ * goes to the token (`followedTile`). So a GM's drag and Stage 6's Move the body (cleanup.mjs `applyMoveBody`, a GM's
+ * teleport) move the body with one hook; a Monocub's token walks away from its tile; a player's move of a corpse is vetoed
+ * before it writes (movement.mjs `preUpdateToken`). A token on another scene than its tile (the hall's, in the trial)
+ * moves nothing, and a body taken to another scene leaves its tile where it was (not handled: the GM handbook says so).
+ * Two tiles of one death (two GMs publishing it at once) - the one `bodyTileOf` reads moves, the other stays. Answers the
+ * tile's update, or null. Writes once per move; a GM moving several corpses at once writes one each (not measured:
+ * LIVE-E63-04).
+ */
+export async function followBody(tokenDoc, changes, options, userId) {
+    if (!game.user?.isGM || userId !== game.user.id) return null;
+    if (!MOVED.some(key => key in (changes ?? {}))) return null;
+    const actor = tokenDoc?.actor ?? null;
+    if (!actor || !isCorpse(actor)) return null;
+    const { flagsHeldNow } = await import("./sheet-audit.mjs");
+    const body = bodyTileOf(actor, { held: flagsHeldNow });
+    if (!body || body.scene?.id !== tokenDoc.parent?.id) return null;
+    const patch = followedTile(body.doc, tokenDoc, changes, tokenDoc.level ?? null);
+    if (!patch) return null;
+    await body.scene.updateEmbeddedDocuments("Tile", [patch]);
+    return patch;
+}
+
+/** The body's walk with its corpse (E63 C1; module.mjs `init`): `followBody` after every token update, never before. */
+export function registerBodyFollow() {
+    Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
+        followBody(tokenDoc, changes, options, userId).catch(async err => (await import("./utils.mjs")).error("The body could not follow its token", err));
+    });
 }
 
 /** The name the body's mark carries on its tile (E95 C3): a redraw finds its own by it, and touches nothing else. */
