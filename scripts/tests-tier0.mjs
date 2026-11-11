@@ -18,7 +18,7 @@ import {
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
     TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists, cssDeadClasses, cssLintCounts, cssBudgetProblems, CSS_DETECTORS,
-    cssKitSheetProblems
+    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssThemeTokens
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -516,6 +516,32 @@ const REGRESSIONS = [
         must(dead.inSheet > 200, `${dead.inSheet} classes read in the sheets - the dead-class count would read nothing`);
         must(Object.values(counts).reduce((n, c) => n + c.important, 0) > 0, "no `!important` counted in any sheet - the counts read nothing");
         equal(JSON.stringify(cssBudgetProblems(counts, budget, { atMost: true })), "[]", "a served sheet is above its budget, or the budget and module.json disagree");
+    }],
+
+    ["R3410 - gold means Hope alone: no served sheet reads a gold token (`--drpg-gold`, its light, deep, shadow and -rgb, `--drpg-sg-hope`) in a rule whose selector names no Hope word, nor `--drpg-attention` outside focus and selection, the check finds the two faults planted in its fixture and one planted in a served sheet, and `--drpg-attention` is Bone in both themes (E48 K1; Q6)", async () => {
+        /*
+         * E48 K1, 11.11.2026 (the plan's "złoto zostaje wyłącznie dla Hope"; S12-61). tests-css.mjs `meaningReads`, the
+         * function `node tools/check.mjs css` runs, on the files Foundry serves. Red before K1: "54 read(s) of a meaning
+         * token outside its selectors", first "styles/danganronpa.css: .drpg-action-button:focus-visible, ... { outline }
+         * reads --drpg-gold" - the focus ring, the chosen crisis row, the Frisk mode, the card's default result,
+         * `.drpg-sum-found`, the messenger's dot and the rest of 42 rules. `--drpg-gold-antique` is Evidence's
+         * (`var(--drpg-evidence)`) and is not a gold token here.
+         */
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const sheets = [];
+        for (const file of manifest.styles ?? []) sheets.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)]);
+        must(sheets.length >= 6, `module.json serves ${sheets.length} sheet(s) - this test would hold nothing`);
+        equal(JSON.stringify(cssMeaningSelfCheck()), "[]", "the meaning check does not read its own fixture as written");
+        const all = cssMeaningReads(sheets), read = all.read, found = all.found;
+        must(read >= 40, `${read} read(s) of a meaning token in the served sheets - the sheets did not load, or the check reads nothing`);
+        ok(!found.length, `${found.length} read(s) of a meaning token outside its selectors: ${found.slice(0, 6).join(" | ")}`);
+        const planted = sheets.map(([file, text], i) => [file, i ? text : `${text}\n.drpg-planted-control:focus-visible { outline: 2px solid var(--drpg-gold); }\n`]);
+        equal(cssMeaningReads(planted).found.length, all.found.length + 1, "a gold focus ring planted in a served sheet is not seen");
+        const tokens = cssThemeTokens(sheets);
+        for (const theme of ["monokuma-legacy", "stained-glass"]) {
+            equal(tokens[theme].get("--drpg-attention"), "var(--drpg-bone)", `${theme}: --drpg-attention is not the theme's Bone`);
+            equal(tokens[theme].get("--drpg-attention-rgb"), "var(--drpg-bone-rgb)", `${theme}: --drpg-attention-rgb is not the theme's Bone`);
+        }
     }],
 
     ["R3333 - the pixel glyphs come from one source: each row of tools/glyphs.json `grid` cells wide and tall, no two drawing the same pixels unless one says `same`, the sprite, pixel-icons.css and the audit page's symbols what tools/glyph-map.mjs writes from them, every SVG data URI of danganronpa.css and stained-glass.css its row's drawing pixel for pixel, the chrome section what tools/chrome-icons.mjs writes, and each planted drift seen (E48 G1)", async () => {

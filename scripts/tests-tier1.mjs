@@ -11562,7 +11562,7 @@ const INVARIANTS = [
             + "the cards' own clicks run, '+N' left, the history button's badge and the unread count; each card where it is and its state after, against "
             + "parked: gone and unread, shown: leaving and read, sticky: shown and open]");
         equal(J([
-            /\.drpg-popup-close:focus-visible,\s*\.drpg-popup-more:focus-visible,[^{]*\{[^}]*outline: 2px solid var\(--drpg-gold\);/.test(styles),
+            /\.drpg-popup-close:focus-visible,\s*\.drpg-popup-more:focus-visible,[^{]*\{[^}]*outline: 2px solid var\(--drpg-attention\);/.test(styles), // E48 K1: the focus ring left Hope's gold
             /\.drpg-popup-title button\.drpg-popup-more \{[^}]*height: 1\.6rem;[^}]*cursor: pointer;/.test(styles),
             /body\.drpg-theme-stained-glass \.drpg-popup-title :is\(button, i\) \{ color:/.test(styles)
         ]), J([true, true, true]), "[the '+N' button's focus ring is the close button's; its target the close button's height, with a pointer; under Stained Glass its colour the close button's]");
@@ -40840,7 +40840,7 @@ const INVARIANTS = [
         }
         equal(stableJson(got), stableJson({
             "drpg-theme-monokuma-legacy": { picker: "0", chosen: "color-mix(in srgb, var(--drpg-eye) 28%, var(--drpg-ink))", tick: "var(--drpg-eye-light)" },
-            "drpg-theme-stained-glass": { picker: "3px", chosen: "color-mix(in srgb, var(--drpg-gold) 18%, var(--drpg-ink))", tick: "var(--drpg-gold)" }
+            "drpg-theme-stained-glass": { picker: "3px", chosen: "color-mix(in srgb, var(--drpg-attention) 18%, var(--drpg-ink))", tick: "var(--drpg-attention)" } // E48 K1: Hope's gold until then
         }), "[per theme, a .drpg-panel select open: the picker's border-radius, the chosen row's background, the tick's colour]");
     }],
     ["R1446 - the incident card by seat (events.mjs `incidentLines`, murder-ui.mjs `reserveLine`; E24 C1b, E24-07; S10-36, D5 option 1): the victim reads both reserves in the second person, the killer's side \"Waiting for\" the one who acts and the victim's Health alone, a GM both after \"Victim\"; none of them a mark; a bystander gets no card; the card's meta is still two parts", async () => {

@@ -36,7 +36,7 @@ import {
     deadClasses as cssDeadClasses, selfCheck as cssSelfCheck, lintCounts as cssLintCounts, budgetProblems as cssBudgetProblems,
     DETECTORS as CSS_DETECTORS, FIXTURES as CSS_FIXTURES,
     themeTokens as cssThemeTokens, contrastOf as cssContrastOf, contrastRatio as cssContrastRatio, contrastSelfCheck as cssContrastSelfCheck,
-    kitSheetProblems as cssKitSheetProblems
+    kitSheetProblems as cssKitSheetProblems, meaningReads as cssMeaningReads, meaningSelfCheck as cssMeaningSelfCheck
 } from "./tests-css.mjs";
 
 /* ==========================================================================
@@ -2544,7 +2544,7 @@ export {
     flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem, TEXT_BASELINES, textAgainstBaseline, textStaleRow,
     textTableWords, textLegacyLists,
     cssDeadClasses, cssSelfCheck, cssLintCounts, cssBudgetProblems, CSS_DETECTORS, CSS_FIXTURES,
-    cssThemeTokens, cssContrastOf, cssContrastRatio, cssContrastSelfCheck, cssKitSheetProblems,
+    cssThemeTokens, cssContrastOf, cssContrastRatio, cssContrastSelfCheck, cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck,
     stringLiterals, STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, appearedBodyTiles, watchWrites, watchLog, cast,
     kitQuestion, kitQuestions,
     worldDump, dumpDiff, describeDiff, hashText, dumpOf, dumpPathsOf, DUMP_RULES, DUMP_FOREIGN_SETTINGS

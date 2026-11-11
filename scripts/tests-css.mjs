@@ -369,6 +369,81 @@ export function selfCheck(detectors = DETECTORS, { deadClassesFn = deadClasses, 
     return problems;
 }
 
+/* ================================ meaning (E48 K1) ================================ */
+
+/*
+ * ONE MEANING PER COLOUR (E48 K1, 11.11.2026; the plan's "złoto zostaje wyłącznie dla Hope"). A meaning token may be read
+ * only by a rule that names its meaning: `MEANING` holds, per meaning, the tokens that carry it and the words a rule's
+ * selector (or the custom property it defines) must hold to read one. The selector a rule is judged by is its own and
+ * the at-rules it stands in (a `@keyframes drpg-hope-...` step reads as Hope); a custom property whose name holds a word
+ * of the list (`--drpg-kit-call-hope`) may alias the token anywhere, and any other alias is itself a finding - so a
+ * token cannot be laundered through a name. `--drpg-gold-antique` is not here: it is `var(--drpg-evidence)`, Evidence's.
+ * Measured at 13531607 (the 1.2.105 line) before K1: 102 reads of a gold token, 54 of them in 42 rules outside the list
+ * (the designer's count at 120a8003 was 45 rules by another reading: rules, not reads, with a looser Hope list). K1 sent
+ * each to attention (focus, selection, an offer, a warning: 41 reads), Bone (a plain mark: 8), Evidence (`.drpg-sum-found`,
+ * the assembly), the despair pink (the glass's motive, as the trial's) or the critical's light red (`.drpg-flat-crit`).
+ */
+export const MEANING = {
+    hope: {
+        tokens: /^--drpg-(?:gold(?:-light|-deep|-shadow)?(?:-rgb)?|sg-hope)$/,
+        words: /hope|ultimate|\bstars?\b|determination|free-crit|loaded/i,
+        why: "gold means Hope and nothing else"
+    },
+    /* Where K1 sent the focus and the selections, the offers and the asks; a new reader names one of these or says what
+       it is here. */
+    attention: {
+        tokens: /^--drpg-attention(?:-rgb)?$/,
+        words: /focus|:checked|radio|selected|unlocked|offered|init-button|warn|:hover|past-first|debate|rebuttal|tab-dot|saved|paused|checkmark|\bselect\b/i,
+        why: "the attention colour is for focus, selection and what asks to be looked at"
+    }
+};
+
+/**
+ * Every read of a meaning token by a rule that does not name its meaning: `sheets` is [[file, text]]; answers
+ * `{ read, found }`, `read` the reads of a meaning token seen (allowed or not) and `found` each finding as
+ * "file: selector reads --token (meaning)". `meaning` is MEANING or a fixture's.
+ */
+export function meaningReads(sheets, meaning = MEANING) {
+    let read = 0;
+    const found = [];
+    for (const [file, text] of sheets ?? []) {
+        for (const block of blocksOf(stripCssComments(text))) {
+            if (!block.prelude || block.prelude.startsWith("@")) continue;
+            const where = [...block.context, block.prelude].join(" ");
+            for (const decl of declarationsOf(block.own)) {
+                for (const m of decl.value.matchAll(/var\(\s*(--[\w-]+)/g)) {
+                    for (const [name, row] of Object.entries(meaning)) {
+                        if (!row.tokens.test(m[1])) continue;
+                        read++;
+                        if (row.words.test(where) || (decl.property.startsWith("--") && row.words.test(decl.property))) continue;
+                        found.push(`${file}: ${block.prelude.slice(0, 140)} { ${decl.property} } reads ${m[1]} (${name}: ${row.why})`);
+                    }
+                }
+            }
+        }
+    }
+    return { read, found };
+}
+
+/* The meaning check's fixture: four reads, two of them findings - a focus ring in gold, and a token that aliases gold
+   under a name with no Hope word - beside a Hope star, a Hope-named alias and Evidence's antique, which is not gold. */
+export const MEANING_FIXTURE = {
+    sheets: [["fixture.css", ":root { --drpg-kit-call-hope: var(--drpg-gold); --drpg-glow: var(--drpg-gold-light); }\n"
+        + ".drpg-hope-star { color: var(--drpg-gold); }\n.drpg-button:focus-visible { outline: 2px solid rgba(var(--drpg-gold-rgb), 0.8); }\n"
+        + ".drpg-truth-bullet { color: var(--drpg-gold-antique); }\n/* .drpg-x { color: var(--drpg-gold); } */"]],
+    read: 4,
+    found: 2
+};
+
+/** The meaning check on its fixture; [] is held. */
+export function meaningSelfCheck(of = meaningReads) {
+    const got = of(MEANING_FIXTURE.sheets);
+    const problems = [];
+    if (got.read !== MEANING_FIXTURE.read) problems.push(`the meaning check reads ${got.read} meaning token(s) in its fixture, not ${MEANING_FIXTURE.read}`);
+    if (got.found.length !== MEANING_FIXTURE.found) problems.push(`the meaning check finds ${got.found.length} in its fixture, not ${MEANING_FIXTURE.found}: ${JSON.stringify(got.found)}`);
+    return problems;
+}
+
 /* ================================ contrast (E44 C1c) ================================ */
 
 /**
