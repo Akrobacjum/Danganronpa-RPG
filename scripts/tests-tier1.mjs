@@ -44940,7 +44940,7 @@ const INVARIANTS = [
         equal(B.bodyRoomOf(victim, { scenes: [sc], tokenPlace: tokenPlace(sc) }), "Lab", "`bodyRoomOf` is not `bodyPlaceOf`'s room");
     }],
 
-    ["R3142 - a body's tile is drawn from the token it leaves and only for a death that is not an execution (body-tile.mjs `bodyTileSpec`, `tileCentre`, `isBodyDeath`, E95 C0; the owner's default on Q2 (a)): the token's squares in pixels, its corner, height and picture, the flag `{ actorId, deathId, level, at }`; the file imports config, movement and settings only", async () => {
+    ["R3142 - a body's tile is drawn from the token it leaves, for every death since E63 (body-tile.mjs `bodyTileSpec`, `tileCentre`, `isBodyDeath`, E95 C0; the owner's default on Q2 (a)): the token's squares in pixels, its corner, height and picture, the flag `{ actorId, deathId, level, at }`; the file imports config, movement and settings only", async () => {
         /*
          * E95 C0, 10.11.2026; DC6 ("tylko ofiary morderstwa"; "stracony kafla nie dostaje"), QUESTIONS Q2 (a): every
          * death whose `cause` is not "executed" and whose phase is not the Class Trial, the rule chapter.mjs
@@ -44972,7 +44972,9 @@ const INVARIANTS = [
             "the tiles' centres are not the tokens' (x + width x grid / 2)");
         const deaths = [{ cause: "executed", phase: "classTrial" }, { phase: "classTrial" }, { cause: "executed", phase: "investigation" },
             { phase: "investigation", deathId: "x" }, { chapter: 1 }, null, undefined];
-        equal(stableJson(deaths.map(r => B.isBodyDeath(r))), stableJson([false, false, false, true, true, false, false]),
+        /* E63 C0 (11.11.2026; the owner's E95 Q2 and Q3): every death leaves a body, the executed's too (gone at the trial's
+           end); R3401 holds the rule whole. Before E63: [false, false, false, true, true, false, false]. */
+        equal(stableJson(deaths.map(r => B.isBodyDeath(r))), stableJson([true, true, true, true, true, false, false]),
             "whether [an execution, a death in the Class Trial, an execution outside it, a murder, a death with no phase, no record, none] leaves a body");
         const res = await fetch(`/modules/${MODULE_ID}/scripts/body-tile.mjs`).catch(() => null);
         must(res?.ok, "body-tile.mjs is not served - its imports cannot be read");
@@ -45224,6 +45226,26 @@ const INVARIANTS = [
             `the scan found no crisis menu's details, so it reads nothing (rows: ${JSON.stringify(real.rows)})`);
         equal(JSON.stringify(real.bad), "[]",
             "a chooseVariant row's details hold a form control, which stands outside the <form> and is never read: hand it as the row's `field`");
+    }],
+    ["R3401 - every death leaves a body, and the GM is told of a body with nowhere to lie outside the Class Trial alone (E63 C0; the owner's 11.11.2026 on E95 Q2 and Q3, QUESTIONS E63 Q5): body-tile.mjs `isBodyDeath` true for any record, an execution's and a death in the trial included, false for none; `noTokenWarns` false for a record of the trial's phase", async () => {
+        /*
+         * E63 C0, 11.11.2026. The owner: "Trial tez, ale kafel smierci po trialu znika" (an execution leaves a tile, gone
+         * once the trial ends) and "gdy postac umiera ... Nie gdy zostaje Monocubem" (every death). So `isBodyDeath` reads
+         * only whether there is a record; the discovery keeps its own rule (chapter.mjs `bodiesToDiscover`: an execution
+         * is no body to find). The warning (`DRPG.Body.noToken`) is the only sign a body was not laid, and at a death in the
+         * trial every body goes at its end anyway (QUESTIONS Q5): `noTokenWarns(record)` is false for the trial's phase
+         * and true for every other record. Red at 7b5b4da9: an execution and a death in the trial left no body, and
+         * there was no `noTokenWarns`.
+         */
+        const B = await import("./body-tile.mjs").catch(() => null);
+        must(B && typeof B.isBodyDeath === "function", "body-tile.mjs does not load or exports no isBodyDeath");
+        const records = [{ cause: "executed", phase: "classTrial", deathId: "a" }, { phase: "classTrial" }, { cause: "murder", phase: "investigation" },
+            { chapter: 1 }, {}, null, undefined];
+        equal(stableJson({
+            body: records.map(r => B.isBodyDeath(r)),
+            warns: typeof B.noTokenWarns === "function" ? records.slice(0, 5).map(r => B.noTokenWarns(r)) : null
+        }), stableJson({ body: [true, true, true, true, true, false, false], warns: [false, false, true, true, true] }),
+        "{body: whether [an execution, a death in the trial, a murder, a death with no phase, an empty record, null, none] leaves a body; warns: whether the first five warn with no token}");
     }],
 ];
 

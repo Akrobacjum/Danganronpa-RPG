@@ -22311,6 +22311,46 @@ const REGRESSIONS = [
             + "line: [plural's words, the door to Students, the acting cast, counted by actions left]; columns: [Actions, Free Move, read from actions.mjs]; "
             + "end: [the part in Edit campaign, a warning box with a destructive button, the press goes to the question, the question destructive with Cancel writing nothing, the chapter's end after it]}");
     }],
+    ["R3400 - the death lays the body, and nothing else does (E63 C0; the owner's 11.11.2026, E95 Q3: \"gdy postać umiera ... Nie gdy zostaje Monocubem\"): body-tile.mjs `leaveBody` is called from chapter.mjs `markDeceased` alone, the one function every public death passes, handed the record it just wrote; monocub.mjs imports nothing from body-tile.mjs; `recordSecretDeath` names no export of body-tile.mjs", async () => {
+        /*
+         * E63 C0, 11.11.2026; STAGE E63 items 1, 3 and 5. Read off the served sources with their comments taken out:
+         * every `leaveBody(` call outside body-tile.mjs's own definition, as [file, the top-level function it stands in],
+         * whether `markDeceased`'s call hands the record it wrote, monocub.mjs's static imports, and the export names of
+         * body-tile.mjs that `recordSecretDeath`'s body names (a kept death lays no tile until it is the table's: QUESTIONS
+         * Q1). The reader of calls is shown a planted text first. What the call does is tier 2's ("every death leaves its
+         * body where its token lies"). Red at 7b5b4da9: the one call was monocub.mjs `setMonocub`'s, and monocub.mjs
+         * imported body-tile.mjs.
+         */
+        const CALL = /(?<!function\s+)\bleaveBody\s*\(/g;
+        const sites = (file, text) => [...text.matchAll(CALL)].map(m => {
+            const before = text.slice(0, m.index);
+            const fn = [...before.matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].at(-1)?.[1] ?? null;
+            return [file, fn];
+        });
+        equal(JSON.stringify(sites("x.mjs", "function a() {}\nasync function b() { leaveBody (x); }\nexport function c() { leaveBodyX(y); B.leaveBody(z); }\nexport async function leaveBody(q) {}")),
+            JSON.stringify([["x.mjs", "b"], ["x.mjs", "c"]]), "the reader of leaveBody calls does not find exactly the two planted for it, in b and c");
+        const sources = await moduleSources();
+        must(["chapter.mjs", "monocub.mjs", "body-tile.mjs"].every(f => sources.has(f)), "chapter.mjs, monocub.mjs or body-tile.mjs is not served - this would measure nothing");
+        const code = file => stripComments(sources.get(file));
+        const found = [];
+        for (const [file] of sources) {
+            if (/^tests/.test(file)) continue;
+            const text = code(file);
+            found.push(...sites(file, text));
+        }
+        const exported = [...code("body-tile.mjs").matchAll(/^export (?:async )?(?:function|const) (\w+)/gm)].map(m => m[1]);
+        must(exported.includes("leaveBody") && exported.includes("removeBodyTiles"), `body-tile.mjs exports ${JSON.stringify(exported)} - this would measure nothing`);
+        const secret = topLevelFunction(code("chapter.mjs"), "recordSecretDeath") ?? "";
+        must(secret.length > 40, "chapter.mjs has no recordSecretDeath - this would measure nothing");
+        const mark = topLevelFunction(code("chapter.mjs"), "markDeceased") ?? "";
+        equal(JSON.stringify({
+            calls: found.sort(),
+            handsRecord: /\bleaveBody\(actor,\s*\{\s*record\s*\}\)/.test(mark),
+            monocubImports: staticImports(code("monocub.mjs")).includes("body-tile.mjs"),
+            secretNames: exported.filter(name => new RegExp(`\\b${name}\\b`).test(secret))
+        }), JSON.stringify({ calls: [["chapter.mjs", "markDeceased"]], handsRecord: true, monocubImports: false, secretNames: [] }),
+            "{calls: every leaveBody call as [file, function]; handsRecord: markDeceased's call hands its record; monocubImports: monocub.mjs imports body-tile.mjs; secretNames: body-tile.mjs's exports recordSecretDeath names}");
+    }],
 ];
 
 

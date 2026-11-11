@@ -51,7 +51,7 @@ import { registerSeasonState, everyPart } from "./season-reset.mjs";
 import { caseMark, deathStore, deferredOfferStore, lootTraceStore } from "./gm-stores.mjs";
 // A leaf (config.mjs alone): the scenes of the discovery window and a discovery handed no scene (E12 C5).
 import { placeScenes, roomNames, sceneOfRoom } from "./rooms.mjs";
-import { removeBodyTiles } from "./body-tile.mjs";
+import { leaveBody, removeBodyTiles } from "./body-tile.mjs";
 
 /* ==========================================================================
  * DEATH
@@ -171,6 +171,17 @@ export async function markDeceased(actor, { record: when = null, phase = null, c
         await actor.toggleStatusEffect("dead", { active: true, overlay: true });
     } catch (err) {
         log(`Could not apply the "dead" status to ${actor.name}; the flag is set regardless.`);
+    }
+
+    /* THE BODY, WHERE THE TOKEN LIES (E63 C0, 11.11.2026; the owner on E95 Q3: "gdy postac umiera ... Nie gdy zostaje
+       Monocubem"). Here, the one function every public death passes - a death public at once, a kept death made the
+       table's (`publishDeath`), the Players window's "dead" - so no road lays a second. Handed the record just written,
+       not the GMs' mark, which may not hold it yet (body-tile.mjs `leaveBody`). Tried on its own: a tile that cannot be
+       laid does not undo the death. */
+    try {
+        await leaveBody(actor, { record });
+    } catch (err) {
+        error(`Could not leave ${actor.name}'s body on the map`, err);
     }
 
     return record;

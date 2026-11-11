@@ -2574,7 +2574,11 @@ async function withBodyTile(run) {
             const data = B.bodyTileSpec({ tokenDoc: { x: spot.x, y: spot.y, width: bodyToken.width, height: bodyToken.height,
                 elevation: bodyToken.elevation, texture: { src: bodyToken.texture?.src ?? null }, parent: scene },
             actorId: body.id, record: deathRecord(body), level: levelOf(bodyToken), at: Date.now() });
-            [tile] = await scene.createEmbeddedDocuments("Tile", [data]);
+            /* E63 C0 (11.11.2026): the death lays its own tile at the token (chapter.mjs `markDeceased`); it is moved into the
+               other room as a GM would, and laid by the suite only where the death laid none. */
+            const own = B.bodyTileOf(body)?.doc ?? null;
+            if (own) { await own.update({ x: data.x, y: data.y }); tile = own; }
+            else [tile] = await scene.createEmbeddedDocuments("Tile", [data]);
             await settle();
             must(tile && B.bodyRoomOf(body) === tileRoom && Mv.roomOfToken(bodyToken) === fixture.room,
                 `the body's tile could not be laid in ${tileRoom} with its token in ${fixture.room} - this would measure nothing`);
@@ -86104,114 +86108,201 @@ const SCENARIOS = [
                     const why = await gate();
                     const second = await B.leaveBody(body);
                     if (second) laid.push(second);
-                    read.during = [onSheet, why, second ? (second.getFlag(MODULE_ID, FLAGS.bodyOf)?.deathId ?? null) : null];
+                    // E63 C0: chapter.mjs `markDeceased` hands `leaveBody` the record it wrote - the GMs' (RV-6 by construction).
+                    const { flagsHeldNow } = await import("./sheet-audit.mjs");
+                    const { deathRecord } = await import("./settings.mjs");
+                    const handed = await B.leaveBody(body, { record: deathRecord(flagsHeldNow(body)) });
+                    if (handed) laid.push(handed);
+                    const idOf = t => (t ? (t.getFlag(MODULE_ID, FLAGS.bodyOf)?.deathId ?? null) : null);
+                    read.during = [onSheet, why, idOf(second), idOf(handed)];
                 });
             } finally {
                 for (const t of laid) if (t.parent?.tiles?.has(t.id)) await t.delete();
                 await settle();
             }
-            equal(stableJson(read), stableJson({ before: "ok", during: [true, "ok", null] }),
-                "the loot gate beside the tile [before; in the forged write's window: the forged id on the sheet, the gate, the id on a tile leaveBody laid]");
+            equal(stableJson(read), stableJson({ before: "ok", during: [true, "ok", null, null] }),
+                "the loot gate beside the tile [before; in the forged write's window: the forged id on the sheet, the gate, the id on a tile leaveBody laid "
+                + "reading the record itself, and handed the GMs' record as markDeceased hands its own]");
         });
     }],
 
-    ["a Monocub leaves their body where their token stood (E95 C2; DC6, Q3): `setMonocub` lays one tile of the body at the token's corner, its size in pixels, its picture and floor, flagged with the death; made again it lays none, unticked it keeps the tile, ticked again it lays no second; an execution leaves none, and a student with no token on a scene with rooms leaves none and the GM is told", async () => {
+    ["every death leaves its body where its token lies (E63 C0; the owner's 11.11.2026 on E95 Q2, Q3; QUESTIONS E63 Q5, Q7): a public death (chapter.mjs `killCharacter`) lays one tile at the token's corner, its size in pixels, its picture and floor, flagged with the death; a second `markDeceased` of the same death lays none; the Players window's \"dead\" lays one; an execution lays one; a student with no token on a scene with rooms leaves none and the GM is told, except for a death in the Class Trial", async () => {
         /*
-         * E95 C2, 10.11.2026; DC6 ("Ciało zostaje na miejscu śmierci jako kafel"), QUESTIONS Q2 (a), Q3 (a), Q8. On this
-         * GM: a student with a token on the scene on screen, killed in public (chapter.mjs `killCharacter`), made a
-         * Monocub (monocub.mjs `setMonocub`). Read: the student's body tiles (body-tile.mjs `bodyTilesOf`) - their
-         * count, and the one's scene, corner, size against the token's squares on the scene's grid, picture, hidden and
-         * flag (the death's `deathId`, the token's floor); after `setMonocub` again, unticked, and ticked once more, the
-         * count. Then the same student killed by an execution (`cause: "executed"`, `phase: "classTrial"`) and made a
-         * Monocub: no tile. Then a student made by the suite with no token anywhere: no tile, and one warning naming
-         * them. Red at E95 C1: `setMonocub` laid no tile. The tiles this test laid are deleted after, by their flag, and
-         * the student's resources and Monocub flag put back (a Monocub starts clean: E15 C4).
+         * E63 C0, 11.11.2026; STAGE E63 items 1, 2 and 4. On this GM: a student with a token on the scene on screen,
+         * killed in public; their body tiles (body-tile.mjs `bodyTilesOf`) read - the count, and the one's scene, corner,
+         * size against the token's squares on the scene's grid, picture, hidden, the death's `deathId`, the token's floor
+         * and the room the body is read in; then chapter.mjs `markDeceased` again with the record it wrote (the count);
+         * revived, and made dead through gm-students.mjs `applyAliveStates` (the Players window's "dead", the F16 repair:
+         * Q7); revived, and executed (`cause: "executed"`, phase classTrial). Then two students made by the suite with no
+         * token anywhere, one killed in Daily Life's phase as the clock has it and one in the trial's: the tiles, and the
+         * GM's warnings naming each. Red at 7b5b4da9: no death laid a tile (the Monocub's tick did). Put back: the
+         * student revived (which removes their tiles), the suite's two deleted.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student with a token on the scene on screen, whose body is laid");
+        const B = await import("./body-tile.mjs");
+        const C = await import("./chapter.mjs");
+        const { applyAliveStates } = await import("./gm-students.mjs");
+        const { levelOf } = await import("./rooms.mjs");
+        const { deathRecord } = await import("./settings.mjs");
+        const Mv = await import("./movement.mjs");
+        const scene = canvas.scene;
+        const who = C.livingStudents().find(a => scene?.tokens?.some(t => t.actorId === a.id));
+        const token = scene?.tokens?.find(t => t.actorId === who?.id);
+        must(who && token, "no living student with a token on the scene on screen - this would measure nothing");
+        const grid = scene.grid?.size ?? 100;
+        const count = id => B.bodyTilesOf(id).length;
+        const warned = [], warn = ui.notifications.warn;
+        const made = [];
+        const read = {};
+        try {
+            must(await C.killCharacter(who, { secret: false, keepBullets: true }), `${who.name}'s death could not be published - this would measure nothing`);
+            await settle();
+            const deathId = deathRecord(who)?.deathId ?? null;
+            const laid = B.bodyTilesOf(who.id), one = laid[0];
+            read.killed = one ? [laid.length, one.scene.id === scene.id, one.doc.x === token.x, one.doc.y === token.y,
+                one.doc.width === token.width * grid, one.doc.height === token.height * grid, one.doc.texture?.src === (token.texture?.src ?? null),
+                Boolean(one.doc.hidden), Boolean(deathId) && one.mark.deathId === deathId, one.mark.level === (levelOf(token)?.id ?? levelOf(token) ?? null),
+                B.bodyRoomOf(who) === Mv.roomOfToken(token)] : [laid.length];
+            await C.markDeceased(who, { record: deathRecord(who) });
+            await settle();
+            read.again = count(who.id);
+            await C.reviveCharacter(who, { quiet: true });
+            await settle();
+            read.revived = count(who.id);
+            must(await applyAliveStates({ [who.id]: { state: "dead" } }), `${who.name}'s death from the Players window was not recorded - this would measure nothing`);
+            await settle();
+            read.window = [count(who.id), C.isDeceased(who)];
+            await C.reviveCharacter(who, { quiet: true });
+            await settle();
+            must(await C.killCharacter(who, { secret: false, keepBullets: true, cause: "executed", phase: "classTrial" }),
+                `${who.name}'s execution could not be published - this would measure nothing`);
+            await settle();
+            read.executed = [count(who.id), deathRecord(who)?.cause ?? null];
+            await C.reviveCharacter(who, { quiet: true });
+            await settle();
+            ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return warn.call(ui.notifications, message, ...rest); };
+            for (const phase of [null, "classTrial"]) {
+                const nobody = await Actor.create({ name: `SUITE E63 C0 no token ${phase ?? "now"}`, type: "character" });
+                made.push(nobody);
+                must(await C.killCharacter(nobody, { secret: false, keepBullets: true, ...(phase ? { phase } : {}) }),
+                    `the suite's student with no token could not be killed (${phase ?? "now"}) - this would measure nothing`);
+                await settle();
+            }
+            ui.notifications.warn = warn;
+            const told = made.map(a => warned.filter(w => w === game.i18n.format("DRPG.Body.noToken", { name: a.name })).length);
+            read.noToken = [made.map(a => count(a.id)), told, game.i18n.format("DRPG.Body.noToken", { name: "x" }) !== "DRPG.Body.noToken"];
+        } finally {
+            ui.notifications.warn = warn;
+            if (C.isDeadForGm(who)) await C.reviveCharacter(who, { quiet: true });
+            for (const a of made) { await B.removeBodyTiles(a.id); await a.delete(); }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            killed: [1, true, true, true, true, true, true, false, true, true, true],
+            again: 1, revived: 0, window: [1, true], executed: [1, "executed"], noToken: [[0, 0], [1, 0], true]
+        }), "the body tiles a death leaves [killed: count, on the token's scene, at its x, y, its width and height in pixels, its picture, hidden, "
+            + "the death's id, the token's floor, its room the token's; again: count after a second markDeceased; revived: count; window: count, deceased; "
+            + "executed: count, cause; noToken: [counts, warnings naming each] for a death now and in the trial, the words a key's]");
+    }],
+
+    ["a kept death leaves no body until it is the table's (E63 C0; QUESTIONS E63 Q1): a death the GMs keep lays no tile on any scene; its token moved to another room as Stage 6's Move the body would, its publication (chapter.mjs `publishDeath`) lays one at the token's new place", async () => {
+        /*
+         * E63 C0, 11.11.2026; STAGE E63 item 3. On this GM: a student with a token on the scene on screen killed with the
+         * death kept (`secret: true`: chapter.mjs `recordSecretDeath`, a deathStore row); the body tiles of that student
+         * on every scene this GM holds (a player's browser holds no more: the harness sends every tile to every client);
+         * the token moved into another room by the GM, with the death still kept (cleanup.mjs `applyMoveBody` teleports the
+         * same way); then `publishDeath`: the tiles, and whether the one lies at the token's new corner and in its new
+         * room. Red at 7b5b4da9: no tile after the publication. Put back: the student revived (their tiles with it), the
+         * token where it stood.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student with a token on the scene on screen, whose body is laid");
+        needs(world.atLeast("namedRooms", 2), "a room for the token and another to move the body into");
+        const B = await import("./body-tile.mjs");
+        const C = await import("./chapter.mjs");
+        const Mv = await import("./movement.mjs");
+        const { deathStore } = await import("./gm-stores.mjs");
+        const scene = canvas.scene, PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const who = C.livingStudents().find(a => scene?.tokens?.some(t => t.actorId === a.id));
+        const token = scene?.tokens?.find(t => t.actorId === who?.id);
+        must(who && token, "no living student with a token on the scene on screen - this would measure nothing");
+        const was = { x: token.x, y: token.y };
+        const other = Mv.allRooms(scene).find(r => r !== Mv.roomOfToken(token));
+        must(other, "the scene on screen has one room - the body has nowhere to be moved to");
+        const read = {};
+        try {
+            must(await C.killCharacter(who, { secret: true, keepBullets: true }), `${who.name}'s kept death could not be recorded - this would measure nothing`);
+            await settle();
+            must(deathStore.has(who.id) && !C.isDeceased(who), `${who.name}'s death was not kept - this would measure nothing`);
+            read.kept = B.bodyTilesOf(who.id).length;
+            await token.update(Mv.positionIn(other, token), PLACE);
+            await settle();
+            must(Mv.roomOfToken(token) === other, `${who.name}'s token could not be moved into ${other} - this would measure nothing`);
+            read.moved = B.bodyTilesOf(who.id).length;
+            must(await C.publishDeath(who), `${who.name}'s death could not be made the table's - this would measure nothing`);
+            await settle();
+            const laid = B.bodyTilesOf(who.id);
+            read.published = [laid.length, laid[0]?.doc.x === token.x && laid[0]?.doc.y === token.y, B.bodyRoomOf(who) === other];
+        } finally {
+            if (C.isDeadForGm(who)) await C.reviveCharacter(who, { quiet: true });
+            await token.update(was, PLACE);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ kept: 0, moved: 0, published: [1, true, true] }),
+            "the student's body tiles [kept; kept with the token moved; published: count, at the token's new corner, in its new room]");
+    }],
+
+    ["becoming a Monocub lays no body (E63 C0; the owner's 11.11.2026 on E95 Q3: \"Nie gdy zostaje Monocubem\"): `setMonocub` on a death whose tile is gone lays none; with the death's tile, the tile stays through tick, untick and tick, one tile", async () => {
+        /*
+         * E63 C0, 11.11.2026; STAGE E63 item 5 (and RV-2 closed with it: a tile the GM deleted stays deleted). On this GM:
+         * a student with a token on the scene on screen killed in public (their death lays the tile), the tile deleted
+         * as a GM would, and monocub.mjs `setMonocub` ticked and unticked: the count. Killed again after a revive, the
+         * new death's tile there: ticked, unticked, ticked - the count each time. Red at 7b5b4da9: the tick laid a tile
+         * where the GM had deleted one, and the kill laid none. Put back: the Monocub flag and the resources a Monocub
+         * starts with (E15 C4), the student revived (their tiles with it).
          */
         needs(world.atLeast("studentTokensOnScreen", 1), "a student with a token on the scene on screen, whose body is laid");
         const M = await import("./monocub.mjs");
         const B = await import("./body-tile.mjs");
-        const { killCharacter, reviveCharacter, livingStudents, isDeadForGm } = await import("./chapter.mjs");
-        const { levelOf } = await import("./rooms.mjs");
-        const { deathRecord } = await import("./settings.mjs");
+        const C = await import("./chapter.mjs");
         const scene = canvas.scene;
-        const who = livingStudents().find(a => scene?.tokens?.some(t => t.actorId === a.id));
-        const token = scene?.tokens?.find(t => t.actorId === who?.id);
-        must(who && token, "no living student with a token on the scene on screen - this would measure nothing");
+        const who = C.livingStudents().find(a => scene?.tokens?.some(t => t.actorId === a.id));
+        must(who, "no living student with a token on the scene on screen - this would measure nothing");
         const R = "system.resources", keys = ["hope", "hitPoints", "stress"];
         const was = Object.fromEntries(keys.map(k => [k, foundry.utils.deepClone(foundry.utils.getProperty(who._source, `${R}.${k}`) ?? null)]));
         const monoWas = who._source.flags?.[MODULE_ID]?.[FLAGS.monocub];
-        const grid = scene.grid?.size ?? 100;
-        const mine = id => B.bodyTilesOf(id);
-        const sweep = async () => {
-            for (const s of game.scenes) {
-                const ids = s.tiles.filter(t => t.getFlag(MODULE_ID, FLAGS.bodyOf)?.actorId && [who.id, nobody?.id].includes(t.getFlag(MODULE_ID, FLAGS.bodyOf).actorId)).map(t => t.id);
-                if (ids.length) await s.deleteEmbeddedDocuments("Tile", ids);
-            }
-        };
-        const warned = [], warn = ui.notifications.warn;
-        let nobody = null;
+        const count = () => B.bodyTilesOf(who.id).length;
         const read = {};
         try {
-            must(await killCharacter(who, { secret: false, keepBullets: true }), `${who.name}'s death could not be published - this would measure nothing`);
+            must(await C.killCharacter(who, { secret: false, keepBullets: true }), `${who.name}'s death could not be published - this would measure nothing`);
             await settle();
-            const deathId = deathRecord(who)?.deathId ?? null;
+            for (const { doc } of B.bodyTilesOf(who.id)) await doc.delete();
+            await settle();
             await M.setMonocub(who, true, { quiet: true });
             await settle();
-            const laid = mine(who.id);
-            const one = laid[0];
-            read.laid = one ? [laid.length, one.scene.id === scene.id, one.doc.x === token.x, one.doc.y === token.y,
-                one.doc.width === token.width * grid, one.doc.height === token.height * grid, one.doc.texture?.src === (token.texture?.src ?? null),
-                Boolean(one.doc.hidden), one.mark.deathId === deathId, one.mark.level === (levelOf(token)?.id ?? levelOf(token) ?? null),
-                B.bodyRoomOf(who) === (await import("./movement.mjs")).roomOfToken(token)] : [laid.length];
-            await M.setMonocub(who, true, { quiet: true });
-            await settle();
-            read.again = mine(who.id).length;
+            read.deleted = [count(), M.isMonocub(who)];
             await M.setMonocub(who, false, { quiet: true });
+            await C.reviveCharacter(who, { quiet: true });
             await settle();
-            read.unticked = [mine(who.id).length, M.isMonocub(who)];
-            await M.setMonocub(who, true, { quiet: true });
+            must(await C.killCharacter(who, { secret: false, keepBullets: true }), `${who.name}'s second death could not be published - this would measure nothing`);
             await settle();
-            read.tickedAgain = mine(who.id).length;
-            await M.setMonocub(who, false, { quiet: true });
-            await reviveCharacter(who, { quiet: true });
-            await sweep();
-            await settle();
-            must(!mine(who.id).length && !isDeadForGm(who), `${who.name} could not be stood alive with no body tile again - the execution would measure nothing`);
-            must(await killCharacter(who, { secret: false, keepBullets: true, cause: "executed", phase: "classTrial" }),
-                `${who.name}'s execution could not be published - this would measure nothing`);
-            await settle();
-            await M.setMonocub(who, true, { quiet: true });
-            await settle();
-            read.executed = [mine(who.id).length, M.isMonocub(who)];
-            await M.setMonocub(who, false, { quiet: true });
-            await reviveCharacter(who, { quiet: true });
-            await settle();
-            nobody = await Actor.create({ name: "SUITE E95 C2 no token", type: "character" });
-            must(await killCharacter(nobody, { secret: false, keepBullets: true }), "the suite's student with no token could not be killed - this would measure nothing");
-            await settle();
-            ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return warn.call(ui.notifications, message, ...rest); };
-            await M.setMonocub(nobody, true, { quiet: true });
-            await settle();
-            ui.notifications.warn = warn;
-            const told = game.i18n.format("DRPG.Body.noToken", { name: nobody.name });
-            read.noToken = [mine(nobody.id).length, M.isMonocub(nobody), warned.filter(w => w === told).length, told !== "DRPG.Body.noToken"];
+            read.dead = count();
+            const steps = [];
+            for (const value of [true, false, true]) {
+                await M.setMonocub(who, value, { quiet: true });
+                await settle();
+                steps.push(count());
+            }
+            read.ticks = steps;
         } finally {
-            ui.notifications.warn = warn;
             if (M.isMonocub(who)) await M.setMonocub(who, false, { quiet: true });
-            if (isDeadForGm(who)) await reviveCharacter(who, { quiet: true });
-            await sweep();
-            if (nobody) await nobody.delete();
+            if (C.isDeadForGm(who)) await C.reviveCharacter(who, { quiet: true });
             if (monoWas === undefined) await who.unsetFlag(MODULE_ID, FLAGS.monocub);
             else await who.setFlag(MODULE_ID, FLAGS.monocub, monoWas);
             await who.update(Object.fromEntries(keys.filter(k => was[k] !== null).map(k => [`${R}.${k}`, was[k]])));
             await settle();
         }
-        equal(stableJson(read), stableJson({
-            laid: [1, true, true, true, true, true, true, false, true, true, true],
-            again: 1, unticked: [1, false], tickedAgain: 1, executed: [0, true], noToken: [0, true, 1, true]
-        }), "the body tiles a Monocub leaves [made: count, on the token's scene, at its x, y, its width and height in pixels, its picture, hidden, "
-            + "the death's id, the token's floor, its room the token's; made again; unticked: count, a Monocub; ticked again; an execution: count, "
-            + "a Monocub; no token: count, a Monocub, the GM told once, the words a key's]");
+        equal(stableJson(read), stableJson({ deleted: [0, true], dead: 1, ticks: [1, 1, 1] }),
+            "the student's body tiles [the death's tile deleted, then made a Monocub: count, a Monocub; dead again: count; ticked, unticked, ticked: counts]");
     }],
 
     ["a body tile goes with the death (E95 C2; Q7 \"deaths\", Q8): a revive removes the student's body tiles, and the season reset's deaths group removes every body tile on every scene - an orphan's included - and no other tile", async () => {
@@ -86267,7 +86358,8 @@ const SCENARIOS = [
             tableBodies.push(`${scene.id}.${bystander.id}`);
             must(await C.killCharacter(who, { secret: false, keepBullets: true }), `${who.name}'s death could not be published - this would measure nothing`);
             await settle();
-            for (const tile of [await lay(who.id, deathRecord(who)), await lay(ORPHAN, null),
+            // E63 C0: the death lays its own tile now; the suite lays one only where it did not (body-tile.mjs `bodyTileOf`).
+            for (const tile of [B.bodyTileOf(who)?.doc ?? await lay(who.id, deathRecord(who)), await lay(ORPHAN, null),
                 (await scene.createEmbeddedDocuments("Tile", [{ x: token.x, y: token.y, width: 100, height: 100, texture: { src: null } }]))[0]]) made.add(tile?.id);
             await settle();
             must(made.size === 3 && !made.has(undefined) && B.bodyTilesOf(who.id).length === 1, "the three tiles could not be laid - this would measure nothing");
@@ -86277,7 +86369,7 @@ const SCENARIOS = [
             read.revived = [left(), C.isDeadForGm(who)];
             must(await C.killCharacter(who, { secret: false, keepBullets: true }), `${who.name}'s second death could not be published - this would measure nothing`);
             await settle();
-            const again = await lay(who.id, deathRecord(who));
+            const again = B.bodyTileOf(who)?.doc ?? await lay(who.id, deathRecord(who));
             made.add(again?.id);
             await settle();
             must(B.bodyTilesOf(who.id).length >= 1, "the second body tile could not be laid - this would measure nothing");

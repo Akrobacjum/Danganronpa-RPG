@@ -1101,7 +1101,7 @@
       "setCategoryTier": "The tables do not say what this item is: choose its category and tier to give it."
     },
     "Body": {
-      "noToken": "The GMs cannot place {name}'s token on a scene with rooms (there is none, or a put-back of it is still on its way), so no body was left on the map. Untick Monocub and tick it again once the token stands.",
+      "noToken": "The GMs cannot place {name}'s token on a scene with rooms (there is none, or a put-back of it is still on its way), so no body was left on the map; what they carried is searched beside their token.",
       "tile": "{name}'s body"
     },
     "Monocub": {
