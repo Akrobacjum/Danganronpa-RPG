@@ -167,6 +167,24 @@ body {
     --drpg-kit-check-blocking: var(--drpg-kit-warn-edge);
     --drpg-kit-check-warning: var(--drpg-kit-ink);
     --drpg-kit-check-quiet: var(--drpg-kit-help-ink);
+    /* where Foundry showed through (E105 FT, batch 1, 11.11.2026; the rules under "WHAT FOUNDRY LEFT OPEN", below): the
+       title plate of a DrpgApp window, Bone with Ink lettering as the dialogs' (danganronpa.css "EVERY WINDOW OF OURS
+       WEARS THE SAME TITLE BAR"); a title-bar control's wash under the pointer, in the ink it stands in (on the Bone
+       plate under Legacy, on the pane under the glass) and its ring in that ink (`currentColor`, resolved on the
+       control); the keyboard's ring in the attention colour every other focus ring of the module wears; a field's
+       ground (the project windows' and the panels' fields, danganronpa.css "THE PROJECT WINDOWS"); a checkbox's tick
+       in the Bone the item windows' checkboxes have; a hint in a field in the fine print's ink; selected text inverted,
+       the window's ink as the ground and its ground as the ink */
+    --drpg-kit-plate-bg: var(--drpg-bone);
+    --drpg-kit-plate-ink: var(--drpg-ink);
+    --drpg-kit-control-hover: rgba(var(--drpg-ink-rgb), 0.15);
+    --drpg-kit-header-ring: currentColor;
+    --drpg-kit-focus-ring: var(--drpg-attention);
+    --drpg-kit-field-bg: rgba(var(--drpg-ink-rgb), 0.55);
+    --drpg-kit-check-accent: var(--drpg-bone);
+    --drpg-kit-placeholder-ink: var(--drpg-kit-help-ink);
+    --drpg-kit-selection-bg: var(--drpg-kit-ink);
+    --drpg-kit-selection-ink: var(--drpg-ink);
 }
 /* ---- tokens: Stained Glass (the glass's own) ---- */
 body.drpg-theme-stained-glass {
@@ -215,6 +233,9 @@ body.drpg-theme-stained-glass {
     --drpg-kit-notice-seam-evidence: var(--drpg-sg-evidence);
     --drpg-kit-notice-seam-alarm: var(--drpg-sg-gm);
     --drpg-kit-check-done: var(--drpg-sg-evidence);
+    /* E105 FT batch 1: a title-bar control's wash on the glass's pane, and selected text on the glass's own ink */
+    --drpg-kit-control-hover: color-mix(in srgb, var(--drpg-sg-bone) 15%, transparent);
+    --drpg-kit-selection-ink: var(--drpg-sg-ink);
 }
 
 /* ---- drpgWindow / DrpgApp: the frame. The screen's height less 8 px a side; the body scrolls, the tab bar and the
@@ -833,6 +854,171 @@ body.drpg-stacked .drpg-ui .drpg-notices-body > .drpg-chips > button.drpg-chip {
 body.drpg-stacked details.drpg-notice-entry > summary { grid-template-columns: 14px 1fr; }
 body.drpg-stacked .drpg-notice-time { grid-column: 2; grid-row: 2; }
 body.drpg-stacked :is(.drpg-notice-text, .drpg-notice-tags) { grid-column: 2; }
+
+/* ---- WHAT FOUNDRY LEFT OPEN (E105 FT, batch 1, 11.11.2026; the owner: "Chcialbym pozbyc sie z calego modulu miejsc
+   gdzie przebija sie grafika lub kolor z foundry"). The survey (S/stages/E105/foundry-through/LIST.md, rows FT-01..12,
+   FT-16, FT-17, FT-25) read, for every visible element of the 60 window captures, the kit gallery, the sheet parts and
+   the glass harness in both themes at 1366x768, which properties no rule of the module's sheets sets: at a table
+   Foundry's or Daggerheart's rule for that tag paints them (core's `button { background: var(--button-background-color)
+   }`, its amber focus ring, its label and hint colours), in the harness the browser's grey button and blue selection.
+   The root of most of them: Legacy's button and field faces key on `.application.dialog` and a list of windows, and the
+   kit's ApplicationV2 windows (the notice history, the Room window) are `.application.drpg-ui` without `.dialog`, and a
+   kit window's body buttons (Sound > Effects' 165 icon buttons, Season setup's "Open", Despair Flow's "Clear the
+   overflow", Investigation's Delete and Place) are in no footer.
+
+   HOW THEY FILL ONLY WHAT WAS OPEN. Every rule below is written inside `:where()`, weight 0,0,0 (the pseudo-elements
+   0,0,1): any rule of the module's sheets that states the same property on the element wins over it, whatever its
+   weight or file, so a control the module already dresses keeps its face to the pixel; and at a table the module's
+   sheets sit in Foundry's `modules` layer (danganronpa.css, "the module's own note" on the layer), above core's and the
+   system's whatever their weight, so what was Foundry's is the module's. The scope is the module's own: a window with a
+   `drpg-` class, the character sheet (whose module parts these are) and the module's HUD blocks (`[id^="drpg-"]`);
+   Foundry's own windows stay Foundry's (rows FT-29..38 are batch 3's). Measured with the survey's own reader
+   (tools/analyze.js; 134 page loads, Chromium, 1366x768) at 7d59dcfe and after, the open (element, property) pairs per
+   row, glass + Legacy: FT-01 700 -> 0, FT-02 72 -> 0, FT-03 24 -> 0, FT-04 31 -> 0, FT-05 10 -> 0, FT-06 278 -> 0, FT-07
+   680 -> 0, FT-08 651 -> 0, FT-09 4 -> 0, FT-10 156 -> 0, FT-11 95 -> 0, FT-12 308 -> 0, FT-17 2 -> 0, FT-25 13 -> 0
+   (FT-16 is read from the sheets: no module `::selection` rule before, one after). Every box measured read the same.
+   R3560 and R3561 read the rules on markup of their own.
+   ---- */
+
+/* FT-05: the notice history's, the Room window's and the messenger's title bar under Legacy - the dialogs' Bone plate
+   and Ink lettering (no box change: the colours and the edge's colour only, not the dialogs' padding). The messenger
+   is not in the survey's row; its bar was Foundry's under Legacy all the same (the reader's one header left open after
+   the row's two). The glass draws its own panes (stained-glass.css, the generic window block and the messenger's). */
+body:not(.drpg-theme-stained-glass) .application:is(.drpg-ui.drpg-panel:not(.dialog), .drpg-messenger) > .window-header {
+    background: var(--drpg-kit-plate-bg);
+    border-color: transparent;
+    color: var(--drpg-kit-plate-ink);
+}
+body:not(.drpg-theme-stained-glass) .application:is(.drpg-ui.drpg-panel:not(.dialog), .drpg-messenger) > .window-header > :is(.window-title, .header-control, .window-icon) {
+    color: var(--drpg-kit-plate-ink);
+}
+
+/* FT-06: a title-bar control (the pixel X and the controls' menu, danganronpa.css's masks) has no face of its own: no
+   ground and no edge at rest, a wash of its own ink under the pointer and a ring in its ink on the keyboard. The
+   dialogs' Legacy rule (`background: none !important`) and the glass's window block keep theirs. */
+:where(.application:is([class*="drpg-"], .sheet.actor) .window-header .header-control) {
+    background-color: transparent;
+    border-color: transparent;
+}
+:where(.application:is([class*="drpg-"], .sheet.actor) .window-header .header-control:hover) {
+    background-color: var(--drpg-kit-control-hover);
+    border-color: transparent;
+    box-shadow: none;
+}
+:where(.application:is([class*="drpg-"], .sheet.actor) .window-header .header-control:focus-visible) {
+    outline: 2px solid var(--drpg-kit-header-ring);
+    outline-offset: -2px;
+}
+
+/* FT-01..04: a button in a kit window's body under Legacy, and the DrpgApp footer's (the notice history's Clear and
+   Close): the face of the stepper's and the mode bar's buttons (Bone wash, the strong line, the kit's radius), the
+   footer rule's hover (a stronger Bone wash and the Bone edge, never the eye's red: D11), the roles' faces in the
+   DrpgApp footer as danganronpa.css's dialog footer gives them. A button the module dresses (a chip, a tab, a mini
+   button, a dialog's footer) keeps its own: these weigh nothing. The glass dresses every one of them with its brush.
+   The edge's style and colour, not its width: with `1px` the boxes shrank by the browser's 2 px edge (Chromium, the
+   style harness, 1366x768, Legacy: Season setup's Open 69.3x19 to 67.3x17, Place 82.6x19 to 80.6x17, the notice
+   history's Close and Clear 75x24 to 73x24), so the width stays whoever's it was - Foundry's at a table, which the
+   harness cannot read - and every box reads as before. Named by where they stand, a kit body and anywhere in an
+   ApplicationV2's content (the notice history's unread banner stands outside its scrolling body), never a dialog's footer: there danganronpa.css's footer rule draws every role (`!important`), and a kit rule
+   that loses on an element is one R1323 refuses (the first QUICK of this batch: 14 readings of a dialog footer's
+   buttons, their edge, radius and ink, won by that rule). The ink is not stated: `.drpg-panel button` gives the Bone. */
+:where(body:not(.drpg-theme-stained-glass) :is(.application.drpg-ui .drpg-kit-body, .application.drpg-ui:not(.dialog) .window-content) button) {
+    background-color: var(--drpg-kit-btn-bg);
+    border-style: solid;
+    border-color: var(--drpg-kit-btn-edge);
+    border-radius: var(--drpg-kit-btn-radius);
+}
+:where(body:not(.drpg-theme-stained-glass) :is(.application.drpg-ui .drpg-kit-body, .application.drpg-ui:not(.dialog) .window-content) button:hover:not(:disabled)) {
+    background-color: var(--drpg-kit-hover-bg);
+    border-color: var(--drpg-kit-hover-edge);
+}
+:where(body:not(.drpg-theme-stained-glass) :is(.application.drpg-ui .drpg-kit-body, .application.drpg-ui:not(.dialog) .window-content) button:disabled) {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+:where(body:not(.drpg-theme-stained-glass) .application.drpg-ui:not(.dialog) .drpg-kit-footer .drpg-role-primary) {
+    border-color: var(--drpg-kit-primary-edge);
+}
+:where(body:not(.drpg-theme-stained-glass) .application.drpg-ui:not(.dialog) .drpg-kit-footer .drpg-role-destructive) {
+    background-color: var(--drpg-kit-destructive-bg);
+    background-image: var(--drpg-kit-destructive-raster);
+    background-size: var(--drpg-kit-destructive-raster-cell);
+    border-color: var(--drpg-kit-role-destructive);
+}
+:where(body:not(.drpg-theme-stained-glass) .application.drpg-ui:not(.dialog) .drpg-kit-footer .drpg-role-destructive:hover:not(:disabled)) {
+    background-color: var(--drpg-kit-destructive-hover-bg);
+    border-color: var(--drpg-kit-destructive-hover-edge);
+}
+
+/* FT-04: the notice history's search under Legacy - the panels' field (danganronpa.css "THE PROJECT WINDOWS": that
+   rule names no search field, and the window's parts are styled here alone, R1330), the edge's colour and style only;
+   its ink is the window's (above, `color: inherit`), its ring the focus rule's below. */
+body:not(.drpg-theme-stained-glass) .drpg-notices-search input {
+    background-color: var(--drpg-kit-field-bg);
+    border-style: solid;
+    border-color: var(--drpg-kit-btn-edge);
+    border-radius: var(--drpg-kit-btn-radius);
+}
+
+/* FT-07, FT-25: the keyboard's place in every module control - the step buttons, the chips, the toggles, the checkboxes,
+   a section's summary, a slider, the sheet's reserve fields and biography: the attention ring the action tiles and the
+   panels' fields wear (danganronpa.css "FOCUS"), where no rule of the module drew one. FT-08: no glow under the pointer
+   that the module did not draw (a core `button:hover` shadow, v12's red one among them; whether v14 has one is not
+   measured here). */
+:where(:is(.application[class*="drpg-"], .application.sheet.actor, [id^="drpg-"]) :is(button, input, select, textarea, summary, a[href]):focus-visible) {
+    outline: 2px solid var(--drpg-kit-focus-ring);
+    outline-offset: 1px;
+}
+/* a summary spans its box's width, and a window's body clips what stands past its sides (`overflow-x: clip`): the
+   ring drawn outside it showed its top and bottom only (Projects' "Tray icon", 1366x768, both themes); inside, whole */
+:where(:is(.application[class*="drpg-"], .application.sheet.actor, [id^="drpg-"]) summary:focus-visible) {
+    outline-offset: -2px;
+}
+:where(:is(.application[class*="drpg-"], .application.sheet.actor, [id^="drpg-"]) button:hover) {
+    box-shadow: none;
+}
+
+/* FT-09: a checkbox's tick under Legacy in the Bone of the item windows' (danganronpa.css, "The tick in the module's
+   ink"); under the glass its own drawn square. */
+:where(body:not(.drpg-theme-stained-glass) .application[class*="drpg-"] input[type="checkbox"]) {
+    accent-color: var(--drpg-kit-check-accent);
+    --checkbox-checked-color: var(--drpg-kit-check-accent);
+}
+
+/* FT-10: a field's hint in the fine print's ink, both themes (the item tables' and the case window's own, dim and
+   slanted, keep theirs). */
+:where(.application[class*="drpg-"], .application.sheet.actor, [id^="drpg-"]) ::placeholder {
+    color: var(--drpg-kit-placeholder-ink);
+    opacity: 1;
+}
+
+/* FT-11, FT-12: a table's head under Legacy in the window's ink, and a label, a legend, a hint, a note and a summary in
+   their window's ink in both themes (`inherit`: what the harness drew, no colour change there; at a table core's
+   `--color-form-label` and form-hint colours no longer reach them). Not the character sheet's (Daggerheart's markup
+   with a `drpg-` class on its root): its notes inherit Daggerheart's ink, so the module's parts there state their own
+   (danganronpa.css, FT-23 and FT-24). */
+:where(body:not(.drpg-theme-stained-glass) .application[class*="drpg-"] th) {
+    color: var(--drpg-kit-ink);
+}
+:where(.application[class*="drpg-"]:not(.sheet) :is(label, legend, .hint, .notes, summary)) {
+    color: inherit;
+}
+
+/* FT-16: selected text, the window's ink and ground swapped, both themes (it was core's `--color-text-selection-bg`,
+   which the module had set to Foundry's own cool violet #584a75; danganronpa.css's roots now hold a Bone wash there for
+   whatever this rule does not reach). */
+:where(.application[class*="drpg-"], .application.sheet.actor, [id^="drpg-"])::selection,
+:where(.application[class*="drpg-"], .application.sheet.actor, [id^="drpg-"]) ::selection {
+    background-color: var(--drpg-kit-selection-bg);
+    color: var(--drpg-kit-selection-ink);
+}
+
+/* FT-17: the messenger's write field under Legacy: the panels' field ground and the Bone ink (its crimson edge is
+   base.css's). */
+:where(body:not(.drpg-theme-stained-glass) .drpg-messenger-input textarea) {
+    background-color: var(--drpg-kit-field-bg);
+    color: var(--drpg-kit-ink);
+}
 
 /* ==========================================================================
    THE A8 SURFACES (E44 C6, 04.11.2026; the 11.10 amend A8, E44-20)
@@ -1691,6 +1877,32 @@ body:not(.drpg-stacked) .drpg-room-tile > .drpg-hud-room-project {
 .drpg-room-tile-more > i { transition: transform var(--drpg-t-enter); }
 
 .drpg-room-tile.is-open .drpg-room-tile-more > i { transform: rotate(180deg); }
+
+/* ITS FACE UNDER LEGACY, AND BOTH BUTTONS' STATES (E105 FT-18, FT-19, 11.11.2026). The chevron had no ground, edge or
+   ink of the module's under Legacy (the browser's grey square in the harness, Foundry's button at a table); it takes the
+   glass's dark ground under the picture (the same token) with the kit's strong line and Bone ink, a Bone edge under
+   the pointer. The picture's button has no text and no face: its ink is the tile's, nothing changes under the pointer
+   but the cursor, and the keyboard's ring is drawn inside the tile (the tile clips what stands outside it). Both rings
+   in the attention colour; under the glass the chevron's hexagon clips its ring to the hexagon's flat sides. The
+   chevron's box stays 28 x 28. */
+body:not(.drpg-theme-stained-glass) #drpg-room-tile .drpg-room-tile-more {
+    background: var(--drpg-a8-tile-button-ground);
+    border: 1px solid var(--drpg-kit-btn-edge);
+    border-radius: var(--drpg-kit-btn-radius);
+    color: var(--drpg-kit-btn-ink);
+}
+body:not(.drpg-theme-stained-glass) #drpg-room-tile .drpg-room-tile-more:hover {
+    background: var(--drpg-a8-deep-85);
+    border-color: var(--drpg-kit-hover-edge);
+    color: var(--drpg-kit-btn-ink);
+    box-shadow: none;
+}
+#drpg-room-tile .drpg-room-tile-open { color: inherit; }
+#drpg-room-tile .drpg-room-tile-open:hover { border-color: transparent; color: inherit; box-shadow: none; }
+#drpg-room-tile :is(.drpg-room-tile-more, .drpg-room-tile-open):focus-visible {
+    outline: 2px solid var(--drpg-attention);
+    outline-offset: -2px;
+}
 
 .drpg-room-tile-prose {
     order: -1;

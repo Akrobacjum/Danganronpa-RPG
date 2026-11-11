@@ -596,7 +596,9 @@ body {
     --color-text-primary: #efe6d8;
     --color-text-secondary: #e7d1b1;
     --color-text-subtle: #9f8475;
-    --color-text-selection-bg: #584a75;
+    /* Foundry's own cool violet #584a75 until E105 FT-16 (11.11.2026): a Bone wash, for what components.css's own
+       `::selection` rule (selected text inverted) does not reach */
+    --color-text-selection-bg: rgba(var(--drpg-bone-rgb), 0.35);
 
     --table-background-color: rgba(11, 10, 19, 0.5);
     --table-header-bg-color: #302831;
@@ -1105,6 +1107,14 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     opacity: 1;
     background: none;
     border-color: var(--color-border, currentColor);
+    box-shadow: none;
+}
+
+/* Their ink under Legacy (E105 FT-20, 11.11.2026): stated, as the glass states its own - it was `#interface`'s at a
+   table and the page's in the harness, at rest and under the pointer. */
+body:not(.drpg-theme-stained-glass) #drpg-hud .drpg-hud-button,
+body:not(.drpg-theme-stained-glass) #drpg-hud .drpg-hud-button:hover {
+    color: var(--drpg-bone);
 }
 
 #drpg-hud .drpg-hud-button:disabled,
@@ -1275,6 +1285,15 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     opacity: 1;
     background: none;
     border-color: var(--drpg-blood);
+    box-shadow: none;
+}
+
+/* The tracker's ink under Legacy (E105 FT-20): the count, the overflow line and the - and + took `#interface`'s colour
+   at a table; the Bone the HUD's text wears, stated on the block and on its buttons (a button does not inherit it). */
+body:not(.drpg-theme-stained-glass) #drpg-despair,
+body:not(.drpg-theme-stained-glass) #drpg-despair .drpg-despair-button,
+body:not(.drpg-theme-stained-glass) #drpg-despair .drpg-despair-button:hover {
+    color: var(--drpg-bone);
 }
 
 #drpg-despair .drpg-despair-button:disabled {
@@ -1570,6 +1589,13 @@ body.drpg-player.drpg-resources-locked .party .actor-resources [data-action="tog
     letter-spacing: 0.1em;
     color: var(--drpg-bone);
     text-shadow: 0 1px 2px rgba(var(--drpg-shadow-rgb), 0.75);
+}
+
+/* The panel's notes - the budget line, the dead's two lines and "nobody has found you" - in the window's ink, both
+   themes (E105 FT-24, 11.11.2026): Daggerheart's `.notes` colour at a table, black in the harness. An empty budget's
+   crimson (0,3,0) stays its own. */
+.drpg-action-panel p.notes {
+    color: var(--drpg-kit-ink);
 }
 
 /* Always five per row - never fewer, whatever the sheet width. The media
@@ -2034,8 +2060,11 @@ body.drpg-reduced-motion .drpg-bullet-group > summary .drpg-bullet-group-name::b
     flex: 0 0 auto;
 }
 
+/* The item's name in the window's ink, both themes (E105 FT-23, 11.11.2026): it took Daggerheart's sheet colour at a table
+   and black in the harness - black on the rows' dark ground. */
 .drpg-inventory-list .drpg-item-name {
     flex: 1 1 auto;
+    color: var(--drpg-kit-ink);
 }
 
 /* What is left in a tool, in the row that carries it.
