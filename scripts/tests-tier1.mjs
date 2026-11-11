@@ -3489,6 +3489,136 @@ const INVARIANTS = [
             "{theme.state: the content of the mic's ::after - \"\" draws the blocked stroke, none draws nothing}");
     }],
 
+    ["R3560 - where Foundry showed through a module window, the module states the face (E105 FT batch 1, 11.11.2026; the owner's \"pozbyc sie ... miejsc gdzie przebija sie grafika lub kolor z foundry\"): under Monokuma Legacy a kit window's body buttons (an icon button, a secondary, a bare one, Delete and Place), a DrpgApp window's footer buttons, its search field, its title plate, a table's head and a checkbox, the messenger's write field, the room tile's chevron, the HUD's and the Despair tracker's ink; in both themes a title-bar control's ground, a label's ink, the picture button's ink and the sheet's item names and panel notes - each property won by a rule of the module's sheets; a window of Foundry's own keeps none of them", async () => {
+        /*
+         * E105 FT-01..06, FT-09, FT-11, FT-12, FT-17..20, FT-23, FT-24 (S/stages/E105/foundry-through/LIST.md, the survey of
+         * 11.11.2026): its reader found these properties set by no rule of the module's sheets - at a table core's
+         * `button`, `input`, `label`, `th` rules and Daggerheart's sheet colours paint them. Read here with the kit's cascade
+         * (`styleCascade`, the sheets from their text; `:where()` weighs nothing, so a rule that only fills a gap still
+         * answers when nothing else does) on markup built as the kit builds it, on a body of its own: which rule wins
+         * each property, `set` when one does. THE CONTROL: the same body button and label in a window of Foundry's own
+         * (`.application` with no `drpg-` class) must stay `open` - the module does not repaint Foundry's windows (batch 3
+         * decides those), so a reader that answered "set" for any button would be red here. Red first on 7d59dcfe: 38 of the
+         * 42 module readings `open` (the four `set`: the glass's label, item name, note and picture button by older rules).
+         */
+        const C = await styleCascade();
+        const shell = document.implementation.createHTMLDocument("R3560");
+        const page = shell.body;
+        page.innerHTML = `<div class="application drpg-ui drpg-panel drpg-window-notices" id="w"><header class="window-header"><h1 class="window-title">t</h1><button type="button" class="header-control" data-action="close"></button></header>`
+            + `<section class="window-content"><div class="drpg-kit-content"><div class="drpg-notices-search"><input type="search" placeholder="s"></div><div class="drpg-kit-body">`
+            + `<button type="button" class="drpg-kit-icon-button"><i></i></button><button type="button" class="drpg-role-secondary">o</button><button type="button">b</button>`
+            + `<button type="button" class="drpg-trace-delete">d</button><button type="button" class="drpg-key-place">p</button>`
+            + `<table class="drpg-data-table"><thead><tr><th>h</th></tr></thead></table><label>l <input type="checkbox"></label></div>`
+            + `<footer class="form-footer drpg-kit-footer"><div class="drpg-kit-right"></div><div class="drpg-kit-left"><button type="button" class="drpg-role-close" data-drpg-role="close">c</button>`
+            + `<button type="button" class="drpg-role-destructive drpg-destructive" data-drpg-role="destructive">x</button></div></footer></div></section></div>`
+            + `<div class="application drpg-messenger"><header class="window-header"><button type="button" class="header-control"></button></header><section class="window-content"><div class="drpg-messenger-input"><textarea></textarea></div></section></div>`
+            + `<div id="drpg-room-tile" class="drpg-room-tile"><button type="button" class="drpg-room-tile-open"></button><button type="button" class="drpg-room-tile-more"><i></i></button></div>`
+            + `<div id="drpg-hud"><button type="button" class="drpg-hud-button"></button></div><div id="drpg-despair"><span class="drpg-despair-count">1</span><button type="button" class="drpg-despair-button"></button></div>`
+            + `<div class="application sheet actor"><section class="window-content"><ul class="drpg-inventory-list"><li><span class="drpg-item-name">n</span></li></ul>`
+            + `<div class="drpg-action-panel"><p class="notes drpg-dead-still">d</p></div></section></div>`
+            + `<div class="application foundry-own"><section class="window-content"><button type="button">f</button><label>f</label></section></div>`;
+        const $ = sel => page.querySelector(sel);
+        const BG = ["background", "background-color"], EDGE = ["border", "border-color", "border-top-color", "border-style"], INK = ["color"];
+        const kit = "#w .drpg-kit-body";
+        const LEGACY = [
+            ["iconButton", `${kit} .drpg-kit-icon-button`, [BG, EDGE, INK]], ["secondary", `${kit} .drpg-role-secondary`, [BG, EDGE, INK]],
+            ["bare", `${kit} > button:not([class])`, [BG, EDGE, INK]], ["traceDelete", `${kit} .drpg-trace-delete`, [BG, EDGE]], ["keyPlace", `${kit} .drpg-key-place`, [BG, EDGE]],
+            ["close", "#w .drpg-role-close", [BG, EDGE]], ["destructive", "#w .drpg-role-destructive", [BG, EDGE]], ["search", "#w input[type=search]", [BG, EDGE]],
+            ["plate", "#w > .window-header", [BG]], ["th", `${kit} th`, [INK]], ["checkbox", `${kit} input[type=checkbox]`, [["accent-color"]]],
+            ["messengerField", ".drpg-messenger-input textarea", [BG, INK]], ["tileMore", ".drpg-room-tile-more", [BG, EDGE, INK]],
+            ["hudButton", ".drpg-hud-button", [INK]], ["despair", "#drpg-despair", [INK]], ["despairButton", ".drpg-despair-button", [INK]]
+        ];
+        const BOTH = [
+            ["headerControl", "#w .header-control", [BG]], ["messengerControl", ".drpg-messenger .header-control", [BG]], ["label", `${kit} label`, [INK]],
+            ["tileOpen", ".drpg-room-tile-open", [INK]], ["itemName", ".drpg-item-name", [INK]], ["deadNote", ".drpg-dead-still", [INK]]
+        ];
+        const CONTROL = [["foundryButton", ".foundry-own button", [BG, EDGE]], ["foundryLabel", ".foundry-own label", [INK]]];
+        const seen = {}, want = {};
+        let asked = 0;
+        const read = (theme, rows, expect) => {
+            for (const [name, sel, groups] of rows) {
+                const el = $(sel);
+                must(el, `${name}: ${sel} was not built - point the markup at it again`);
+                groups.forEach((names, i) => {
+                    asked++;
+                    const key = `${theme}.${name}.${i}`;
+                    seen[key] = C.winner(el, names) ? "set" : "open";
+                    want[key] = expect;
+                });
+            }
+        };
+        for (const [theme, cls] of [["legacy", "drpg-theme-monokuma-legacy"], ["glass", "drpg-theme-stained-glass"]]) {
+            page.className = cls;
+            if (theme === "legacy") { read(theme, LEGACY, "set"); read(theme, CONTROL, "open"); }
+            read(theme, BOTH, "set");
+        }
+        must(asked > 40, `${asked} properties asked - this would measure too little`);
+        equal(stableJson(seen), stableJson(want), "{theme.element.property group: set - a rule of the module's sheets wins it, open - none does}");
+    }],
+
+    ["R3561 - the states Foundry drew in a module window are the module's (E105 FT batch 1, 11.11.2026): a rule of the module's sheets states the keyboard's ring (outline) on a step button, a chip, a checkbox, a summary, a title-bar control, the room tile's chevron and the sheet's reserve field and biography under Legacy, and on a summary and a slider under the glass; the face under the pointer of a kit body button and a title-bar control and no glow under it on a mini button; a field's placeholder ink and selected text's ground in both themes; and none of these for a window of Foundry's own under Legacy", async () => {
+        /*
+         * E105 FT-01, FT-06..08, FT-10, FT-16, FT-18, FT-25: the survey's reader counts a state as the module's when a rule
+         * of its sheets whose selector names that state (or that pseudo-element) matches the element and declares the
+         * property. jsdom matches no `:hover` and no `:focus-visible`, and the kit's cascade reads no pseudo-element but
+         * ::before and ::after, so this reads the rules the same way: every selector of every rule of `styleCascade`'s
+         * (the module's sheets from their text) that names the state, the state taken out and the rest matched against
+         * the element (a pseudo-element after a space, `X ::placeholder`, read as `X *`). Whether the rule then wins the
+         * property is R3560's question for the resting state, not this one's. THE CONTROL: a button, a field and a
+         * paragraph in a window of Foundry's own (`.application` with no `drpg-` class) under Legacy - `none` there, so a
+         * reader that matched every rule would be red. Red first on 7d59dcfe: all 20 module readings `none`.
+         */
+        const C = await styleCascade();
+        const shell = document.implementation.createHTMLDocument("R3561");
+        const page = shell.body;
+        page.innerHTML = `<div class="application drpg-ui drpg-panel" id="w"><header class="window-header"><button type="button" class="header-control"></button></header><section class="window-content"><div class="drpg-kit-body">`
+            + `<span class="drpg-kit-stepper"><button type="button" class="drpg-step drpg-step-plus" data-drpg-step="1">+</button></span><div class="drpg-chips"><button type="button" class="drpg-chip">c</button></div>`
+            + `<input type="checkbox"><details><summary>s</summary></details><input type="range"><input type="text" placeholder="p"><p>t</p>`
+            + `<button type="button" class="drpg-kit-icon-button"><i></i></button><button type="button" class="drpg-mini-button">m</button></div></section></div>`
+            + `<div id="drpg-room-tile" class="drpg-room-tile"><button type="button" class="drpg-room-tile-more"></button></div>`
+            + `<div class="application sheet actor"><section class="window-content"><div class="character-sidebar-sheet"><input type="number" class="drpg-reserve-field"></div>`
+            + `<textarea class="drpg-biography-text" placeholder="b"></textarea></section></div>`
+            + `<div class="application foundry-own"><section class="window-content"><button type="button">f</button><input type="text" placeholder="f"><p>f</p></section></div>`;
+        const $ = sel => page.querySelector(sel);
+        const split = text => { const out = []; let depth = 0, part = ""; for (const ch of text) { if (ch === "(" || ch === "[") depth++; if (ch === ")" || ch === "]") depth--; if (ch === "," && !depth) { out.push(part.trim()); part = ""; } else part += ch; } out.push(part.trim()); return out; };
+        const RING = ["outline", "outline-color", "outline-style", "outline-width", "box-shadow"];
+        const states = (el, state, props) => C.rules.some(rule => rule.decls.some(d => props.includes(d.property)) && split(rule.selector).some(sel => {
+            if (!sel.includes(state)) return false;
+            const rest = sel.replaceAll(` ${state}`, " *").replaceAll(state, "").trim();
+            try { return el.matches(rest); } catch { return false; }
+        }));
+        const kit = "#w .drpg-kit-body";
+        const LEGACY = [
+            ["stepFocus", `${kit} .drpg-step`, ":focus-visible", RING], ["chipFocus", `${kit} .drpg-chip`, ":focus-visible", RING],
+            ["checkboxFocus", `${kit} input[type=checkbox]`, ":focus-visible", RING], ["summaryFocus", `${kit} summary`, ":focus-visible", RING],
+            ["controlFocus", "#w .header-control", ":focus-visible", RING], ["tileMoreFocus", ".drpg-room-tile-more", ":focus-visible", RING],
+            ["reserveFocus", ".drpg-reserve-field", ":focus-visible", RING], ["biographyFocus", ".drpg-biography-text", ":focus-visible", RING],
+            ["iconHoverGround", `${kit} .drpg-kit-icon-button`, ":hover", ["background", "background-color"]], ["iconHoverEdge", `${kit} .drpg-kit-icon-button`, ":hover", ["border", "border-color"]],
+            ["controlHover", "#w .header-control", ":hover", ["background", "background-color"]], ["miniHoverGlow", `${kit} .drpg-mini-button`, ":hover", ["box-shadow"]]
+        ];
+        const GLASS = [["summaryFocus", `${kit} summary`, ":focus-visible", RING], ["rangeFocus", `${kit} input[type=range]`, ":focus-visible", RING]];
+        const BOTH = [["placeholder", `${kit} input[type=text]`, "::placeholder", ["color"]], ["biographyPlaceholder", ".drpg-biography-text", "::placeholder", ["color"]],
+            ["selection", `${kit} p`, "::selection", ["background", "background-color"]]];
+        const CONTROL = [["foundryFocus", ".foundry-own button", ":focus-visible", RING], ["foundryHover", ".foundry-own button", ":hover", ["box-shadow"]],
+            ["foundryPlaceholder", ".foundry-own input", "::placeholder", ["color"]], ["foundrySelection", ".foundry-own p", "::selection", ["background", "background-color"]]];
+        const seen = {}, want = {};
+        const read = (theme, rows, expect) => {
+            for (const [name, sel, state, props] of rows) {
+                const el = $(sel);
+                must(el, `${name}: ${sel} was not built - point the markup at it again`);
+                seen[`${theme}.${name}`] = states(el, state, props) ? "stated" : "none";
+                want[`${theme}.${name}`] = expect;
+            }
+        };
+        must(C.rules.length > 2000, `${C.rules.length} rules read - the module's sheets were not read whole`);
+        for (const [theme, cls] of [["legacy", "drpg-theme-monokuma-legacy"], ["glass", "drpg-theme-stained-glass"]]) {
+            page.className = cls;
+            if (theme === "legacy") { read(theme, LEGACY, "stated"); read(theme, CONTROL, "none"); } else read(theme, GLASS, "stated");
+            read(theme, BOTH, "stated");
+        }
+        equal(stableJson(seen), stableJson(want), "{theme.element: stated - a rule of the module's sheets names the state and declares it, none - no rule does}");
+    }],
+
     ["R548 - Foundry tools wears the module's pixel anvil in both themes: its one child is an inert, classless i masked with --drpg-pix-anvil in the colour the handbooks' book is drawn in, and no Foundry logo is on the page or in the module's stylesheets", async () => {
         /*
          * E78 fix h76-HF3, 14.10.2026; the owner at The Forge on 1.2.76 (13.10): the corner's Foundry tools button wore
