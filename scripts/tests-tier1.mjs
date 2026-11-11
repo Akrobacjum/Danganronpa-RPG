@@ -43889,7 +43889,7 @@ const INVARIANTS = [
         stableJson({ found: true, scoped: true, where: true, missing: [], lineHeight: true, hyphens: "none" }),
         "{a Legacy pixel-face prose rule; scoped to the windows and the sheet; at :where() weight; prose targets it misses; line-height >= 1.2; hyphens} - prose in the pixel face must have its lines apart and no hyphen");
     }],
-    ["R3540 - the GM panel's top part is centred in both themes (styles/components.css; E49, the owner's \"Panel gma - wysrodkujmy gorna czesc\", 11.11): one rule of no theme centres the standing block's heading and its two lines (the clock's with the advance button, the students' with their door) and names no other child, so the Next line and the case warning keep their own alignment; drawn here, the three read `center` and the Next line does not", async () => {
+    ["R3540 - the GM panel's top part is centred in both themes, and E105's four findings on the panel are mended (styles/components.css, styles/stained-glass.css; E49, the owner's \"Panel gma - wysrodkujmy gorna czesc\", 11.11, and E105 gmtabs): one rule of no theme centres the standing block's heading and its two lines and names no other child, so the Next line and the case warning keep their own alignment (drawn here, the three read `center` and the Next line does not); under Legacy the Next line's words take 1.3, the phase is a stamp with a gap, the Diagnostics bar's dimmed words are at 0.75 (6.42:1, AA) and the case tile's label does not shrink while its second line takes the room left; under the glass a tile's padding is 12 px a side", async () => {
         /*
          * E49, 11.11.2026. The owner on the E105 comparison (after-gm-panel-as-opened, both themes, 1366x768 and
          * 1920x1080): the campaign's name, the clock's line and the students line stood flush left above centred
@@ -43898,9 +43898,23 @@ const INVARIANTS = [
          * `buildPanelContent`'s shape is drawn inside a stand-in panel window, read by `getComputedStyle` and removed -
          * the cascade of whatever sheets this page loaded, in the theme it is in. Positions are Chromium's
          * (S/stages/E49/pan-shots), not read here: a headless page lays nothing out.
+         * E105 gmtabs at 54493dbf (the owner's look at the panel, 11.11), each read in Chromium before and after (index.txt):
+         * Legacy's Next line at `normal` (13 px rows for 13 px glyphs), 16.9 px after; the phase with no gap ("Morning Daily
+         * Life"), a stamp 8 px off after; the Diagnostics bar's words (109, 104, 106) on Bone 4.10:1, (79, 75, 79) 6.42:1
+         * after; the case tile's line three rows of 91 px, two of 167 px after; under the glass, Polish, "DZIENNIK
+         * DEBUGOWANIA" 8 px off each edge of its tile, two rows 54 px off after. Red first on 96844743: each read as before.
          */
         const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/components.css`).then(lfText));
         const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const glass = stripComments(await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText));
+        const decl = (body, prop) => body?.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`))?.[1]?.trim() ?? null;
+        const L = "body.drpg-theme-monokuma-legacy .application.drpg-window-panel ";
+        const at = (sel, prop) => decl(rules.find(r => r.sel === L + sel && decl(r.body, prop) !== null)?.body, prop);
+        const tile = [...glass.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(m => m[1].trim() === "body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button")
+            .map(m => decl(m[2], "padding")).filter(Boolean);
+        const legacy = { nextLine: at(".drpg-gmp-next-text", "line-height"), phaseGap: at(".drpg-gmp-phase", "margin-inline-start"), phaseEdge: at(".drpg-gmp-phase", "border"),
+            dim: at(".drpg-gmp-section > summary > em.drpg-gmp-dim", "opacity"), caseLabel: at(".drpg-gmp-button:has(> small.notes) > span", "flex"), caseNotes: at(".drpg-gmp-button > small.notes", "flex"),
+            glassTile: tile.at(-1) ?? null };
         const mine = rules.filter(r => r.sel.includes(".drpg-gmp-standing"));
         const rule = mine.find(r => /text-align:\s*center/.test(r.body)) ?? null;
         const host = document.createElement("div");
@@ -43916,10 +43930,11 @@ const INVARIANTS = [
             const align = sel => getComputedStyle(host.querySelector(sel)).textAlign;
             drawn = { heading: align("h3"), clock: align(".r-clock"), students: align(".drpg-gmp-students"), nextCentred: align(".drpg-gmp-next") === "center" };
         } finally { host.remove(); }
-        equal(stableJson({ rule: rule?.sel ?? null, body: rule?.body.trim().replace(/\s+/g, " ") ?? null, rules: mine.length, drawn }),
+        equal(stableJson({ rule: rule?.sel ?? null, body: rule?.body.trim().replace(/\s+/g, " ") ?? null, rules: mine.length, drawn, legacy }),
             stableJson({ rule: "body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-standing > :is(h3, p)", body: "text-align: center;", rules: 1,
-                drawn: { heading: "center", clock: "center", students: "center", nextCentred: false } }),
-            "{the centring rule's selector; its declarations; rules in components.css naming the standing block; drawn: the heading's, the clock line's, the students line's text-align, and whether the Next line is centred} - the panel's top part must be centred, its Next line left alone");
+                drawn: { heading: "center", clock: "center", students: "center", nextCentred: false },
+                legacy: { nextLine: "1.3", phaseGap: "8px", phaseEdge: "1px solid var(--drpg-kit-line-strong)", dim: "0.75", caseLabel: "none", caseNotes: "0 1 auto", glassTile: "10px 12px" } }),
+            "{the centring rule's selector; its declarations; rules in components.css naming the standing block; drawn: the heading's, the clock line's, the students line's text-align, and whether the Next line is centred; legacy: the Next line's line-height, the phase's gap and edge, the Diagnostics words' opacity, the case label's and line's flex, and the glass tile's padding} - the panel's top part must be centred, its Next line left alone");
     }],
     ["R3541 - under Monokuma Legacy the selected kit tab is Bone on Ink with the attention edge, not a red fill (styles/components.css; E48 Q13, S03-20, D11; the owner's \"tak\" 10.11 and \"Zrobmy to juz\" 11.11): the theme's three selected-tab tokens name no Eye, a 2 px inset bar of the edge along the selected tab's foot, the selected rule sets no size, and Stained Glass's tokens are the ones they were", async () => {
         /*

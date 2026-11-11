@@ -4482,7 +4482,10 @@ body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button {
     flex-direction: column;
     justify-content: center;
     gap: 6px;
-    padding: 10px 6px;
+    /* 12 px a side, not 6 (E49, 11.11.2026; E105 gmtabs, Polish: "DZIENNIK DEBUGOWANIA" stood one line wide with its
+       first and last letters a few pixels off the tile's edges at 1366x768). The label wraps at its space instead, as
+       its neighbour "WYSLIJ WSZYSTKIM ..." does; the tile is its grid cell as before (Chromium: index.txt). */
+    padding: 10px 12px;
     text-align: center;
 }
 body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button > i {
