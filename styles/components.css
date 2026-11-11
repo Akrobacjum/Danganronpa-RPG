@@ -42,7 +42,11 @@ body {
     /* tabs: today's GM Team bar under Legacy; 8 px a side and 0.05em measured on M1 today at 1366x768 */
     --drpg-kit-tab-bg: rgba(var(--drpg-bone-rgb), 0.08);
     --drpg-kit-tab-ink: var(--drpg-bone);
-    --drpg-kit-tab-hover: rgba(var(--drpg-eye-rgb), 0.15);
+    /* the hover of a tab not selected (and of a settings section not picked): a Bone wash, not the Eye's (E49, the
+       owner's "tak zmieniamy", 11.11, after Q13 took the red off the selected tab). Bone over Ink at 0.16 is (61, 57, 62),
+       Bone on it 8.49:1 by WCAG 2 (the Eye's 0.15 was (58, 26, 35), 11.64:1 - readable, but red); one step lighter than
+       the resting tab's 0.08 (45, 42, 48), 10.60:1, so the hover still reads. A background only: the box is the one it had. */
+    --drpg-kit-tab-hover: rgba(var(--drpg-bone-rgb), 0.16);
     /* the selected tab (and the DRPG Settings window's picked section, which reads the same three): Bone on Ink with
        the attention edge since E48 Q13 (the owner's "tak", 10.11; "Zrobmy to juz", 11.11) - it was Bone on the Eye at
        0.25, and red is the GM's road (D11). The edge is the frame and a 2 px bar (the tabs' bottom, the section

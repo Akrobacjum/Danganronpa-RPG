@@ -43945,22 +43945,24 @@ const INVARIANTS = [
          * the edge the same (components.css's token comment). The size: the selected rule may set colour, ground and
          * frame colour only, and the bar is an inset shadow, so a tab's box is the one it had (Chromium's boxes, before
          * and after, in S/stages/E49/pan-shots/index.txt).
+         * The hover (E49, the owner's "tak zmieniamy", 11.11): it was the Eye at 0.15, red again on a tab not selected; a Bone
+         * wash at 0.16 now, 8.49:1 (components.css's token comment; Chromium's reading in index.txt). Red first on 414acf21.
          */
         const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/components.css`).then(lfText));
         const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
         const decl = (body, prop) => body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`))?.[1]?.trim() ?? null;
         const tokens = sel => {
             const body = rules.find(r => r.sel === sel && /--drpg-kit-tab-on-bg:/.test(r.body))?.body ?? "";
-            return ["bg", "edge", "ink"].map(k => decl(body, `--drpg-kit-tab-on-${k}`)).concat(decl(body, "--drpg-kit-tab-selected-edge") ?? []);
+            return ["bg", "edge", "ink"].map(k => decl(body, `--drpg-kit-tab-on-${k}`)).concat(decl(body, "--drpg-kit-tab-selected-edge") ?? [], decl(body, "--drpg-kit-tab-hover") ?? []);
         };
         const T = '.application .drpg-tabs[role="tablist"] > button[data-drpg-tab-key][role="tab"][aria-selected="true"]';
         const bar = rules.find(r => r.sel === `body:not(.drpg-theme-stained-glass) ${T}`)?.body ?? "";
         const sized = rules.filter(r => r.sel === `body ${T}`).flatMap(r => [...r.body.matchAll(/(?:^|;)\s*([a-z-]+)\s*:/g)].map(m => m[1]))
             .filter(p => !["color", "background", "border-color"].includes(p));
         equal(stableJson({ legacy: tokens("body"), glass: tokens("body.drpg-theme-stained-glass"), bar: decl(bar, "box-shadow"), sized }),
-            stableJson({ legacy: ["var(--drpg-ink)", "var(--drpg-kit-tab-selected-edge)", "var(--drpg-bone)", "var(--drpg-attention)"], glass: ["transparent", "transparent", "var(--drpg-sg-ink)"],
+            stableJson({ legacy: ["var(--drpg-ink)", "var(--drpg-kit-tab-selected-edge)", "var(--drpg-bone)", "var(--drpg-attention)", "rgba(var(--drpg-bone-rgb), 0.16)"], glass: ["transparent", "transparent", "var(--drpg-sg-ink)", "transparent"],
                 bar: "inset 0 -2px 0 var(--drpg-kit-tab-on-edge)", sized: [] }),
-            "{legacy: the selected tab's [ground, edge, ink, the edge's selected token] under Legacy; glass: under Stained Glass; bar: Legacy's edge bar; sized: properties the selected rule sets besides colour, ground and frame colour} - Legacy's selected tab must not be filled red");
+            "{legacy: the selected tab's [ground, edge, ink, the edge's selected token] and a tab's hover under Legacy; glass: under Stained Glass; bar: Legacy's edge bar; sized: properties the selected rule sets besides colour, ground and frame colour} - Legacy's selected tab must not be filled red");
     }],
     ["R3542 - under Monokuma Legacy the DRPG Settings window's picked section is Bone on Ink with the attention edge, not a red fill (styles/components.css; E48 Q13, D11): it reads the kit tab's three tokens, a 3 px inset bar of the edge along its start, its rule sets no size, and the crisis menu's picked row is not touched", async () => {
         /*
