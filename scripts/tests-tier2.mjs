@@ -136,7 +136,7 @@ async function snapshot(cast) {
         }, [])),
         messages: new Set(game.messages.map(m => m.id)),
         /* EVERY SCENE'S TILES, by scene (E95 C2 fix, 10.11.2026; CI run 42748964937, suite 2/8). From E95 C2 a
-           Monocub's false-to-true edge lays a body tile (body-tile.mjs `leaveBody`), as a trace's roll drops a token,
+           Monocub's false-to-true edge laid a body tile (body-tile.mjs `leaveBody`; from E63 every death made public does, chapter.mjs `markDeceased`), as a trace's roll drops a token,
            and a test that marks a death by its flag alone and takes the flag back after ("E51-T21") leaves the tile:
            no revive runs, and the revive is what takes a body off the map. The restore removed the embedded documents
            that appeared only as traces' tokens, so the dump read "restore left: Scene ... tiles.<id> appeared". Recorded

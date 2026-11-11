@@ -8,10 +8,13 @@
  * such reader asks this file: `bodyPlaceOf` (where the body lies) and `bodyRoomOf` (its room) - the tile's, and the
  * token's again when a GM deletes the tile or none was laid.
  *
- * C0 is the readers and the tile's shape (`bodyTileSpec`), and no writer: E95 C2 lays the tile (`leaveBody`, from
- * monocub.mjs `setMonocub`) and removes it. Nothing here writes, so any browser may ask it, the player's included
- * (anonymity.mjs's greying asks the loot gate there): a tile is laid only for a death already public, and its flag says
- * nothing the `deceased` flag does not.
+ * THE OWNER'S RULES OF 11.11.2026 (E63; E95 Q2, Q3, Q8), which replace DC6's "only the murdered" and E95's Monocub
+ * edge: the tile is laid when the death is the table's, every death, an execution's too (`leaveBody`, from chapter.mjs
+ * `markDeceased`; a death the GMs keep lays none until it is made known, QUESTIONS E63 Q1); it follows its corpse's token
+ * until the student gets up as a Monocub (`followBody`, Q3); every body tile goes at the Class Trial's end (clock.mjs
+ * `reconcilePhase`, `removeBodyTiles`), and a student's at a revive or the season's reset. The readers ask any browser,
+ * the player's included (anonymity.mjs's greying asks the loot gate there); the writers are the GMs' alone, and the
+ * tile's flag says nothing the `deceased` flag does not say at the same moment.
  *
  * WHICH TILE IS THE BODY. The current death's (`deathId` the `deceased` record's, so a student who died, came back and
  * died again is not read on the first death's tile a GM forgot), and of two the earliest laid (`at`): two GMs making

@@ -764,7 +764,7 @@ Gdy skończy się twój własny Class Trial, możesz dołączyć do GMów jako *
 
 - Zaczynasz z 0 Hope, z pełnym Health i Sanity, i masz tyle akcji co żyjący, niezraniony uczeń - Wounded nigdy nie odbiera Monocubowi akcji. Widzisz tylko własny pokój. Twoje rzuty widzą wszyscy, którzy w nim stoją.
 - **Confusion** kosztuje **1 akcję i 1 Hope**, a twój Hope istnieje tylko dlatego, że Monokuma zamienił w niego Despair (Fuel a Monocub). To goły rzut 2d12, bez statystyki. Wybierz kogoś w swoim pokoju i pomóż albo przeszkódź przy jego następnym rzucie (zobacz tabelę poniżej). Dowiadują się, że coś uspokoiło ich rękę albo ich rozproszyło, nigdy kto - ale wszyscy w twoim pokoju widzą, że rzucasz, więc mogą się domyślić, że to ty.
-- Jeśli twoja śmierć nie była wyrokiem i nie nastąpiła w Class Trial, twoje ciało zostaje tam, gdzie stoi twój token w chwili, gdy zostajesz Monocubem, jako kafel z obrazkiem twojej postaci, znacznikiem śmierci na nim i twoim imieniem pod nim („Ciało: {name}”), i to, co miało przy sobie, przeszukuje się tam. Po wyroku albo śmierci w Class Trial kafla nie ma, a twoje ciało przeszukuje się obok tokenu twojego Monocuba.
+- Gdy zginiesz, twoje ciało zostaje tam, gdzie leży twój token, gdy twoja śmierć stanie się jawna, jako kafel z obrazkiem twojej postaci, znacznikiem śmierci na nim i twoim imieniem pod nim („Ciało: {name}”), i to, co miało przy sobie, przeszukuje się tam; jako Monocub odchodzisz od niego. Każde ciało znika, gdy kończy się Class Trial; potem to, co miałeś przy sobie, przeszukuje się obok twojego tokenu.
 - Monocub, który natknie się na miejsce zbrodni, jest zobowiązany do milczenia o nim do końca rozdziału. Confusion wciąż działa.
 
 | Rzut Confusion | Pomóż | Przeszkódź |
