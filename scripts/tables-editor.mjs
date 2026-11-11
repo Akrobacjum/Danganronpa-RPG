@@ -227,6 +227,20 @@ export async function installTables({ overwrite = false, prompt = true } = {}) {
 
 const DEFAULT_RESULT_IMG = "icons/svg/item-bag.svg";
 
+/*
+ * CORE'S BAG IS NOT AN ITEM'S PICTURE (E105 FT-13, the owner's 11.11.2026 "pozbyc sie [...] miejsc gdzie przebija sie
+ * grafika [...] z foundry"). An entry with no picture of its own, or with core's item bag (the file browser's starting
+ * point above, and Foundry's default for an Item) or core's d20 (its default for a TableResult), was drawn as that
+ * core file: the survey read 41 of 41 rows of the harness's room pool wearing the bag (item-tables--rooms, 54493dbf).
+ * Such a row now draws the module's drawing of its group's category (config.mjs `itemIcon`, the drawing `addResult`
+ * gives a new entry), in both themes as every item drawing is. Only the row's picture: the TableResult's `img` is not
+ * written, the file browser still opens on what is stored, and any other picture - one somebody chose - is drawn as it is.
+ */
+const CORE_RESULT_IMGS = new Set([DEFAULT_RESULT_IMG, "icons/svg/d20-black.svg"]);
+function shownResultImg(img, home) {
+    return !img || CORE_RESULT_IMGS.has(img) ? itemIcon(home) : img;
+}
+
 function tableItemsHtml(table) {
     const results = Array.from(table?.results ?? []);
     if (!results.length) {
@@ -318,7 +332,7 @@ function tableRowHtml(table, r, { home = null, tier = NaN, badge = "" } = {}) {
            actions' cell - the same pieces in the same order. `entryTableHtml` puts `data-drpg-result` and
            `data-drpg-table` on the `tr` (`rowAttrs`), where every handler of `wirePaneRows` looks for them. */
         return { result: r.id, table: table.id, roles: roleBoxes,
-            name: `<span class="drpg-table-item-cell"><img src="${esc(r.img || DEFAULT_RESULT_IMG)}" alt="" class="drpg-table-item-icon"
+            name: `<span class="drpg-table-item-cell"><img src="${esc(shownResultImg(r.img, home))}" alt="" class="drpg-table-item-icon"
                  data-drpg-result-img="${r.id}"
                  title="${esc(game.i18n.localize("DRPG.Tables.changeIcon"))}" />
             <input type="text" class="drpg-table-item-name" data-drpg-field="name"

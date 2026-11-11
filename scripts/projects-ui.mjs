@@ -321,7 +321,7 @@ function projectManagerRows(projects, rooms, { always = new Set(), players = pla
         const secret = isSecret(p.id);
         const row = {
             project: p.id,
-            portrait: `<img src="${esc(p.img ?? "")}" alt="" class="drpg-project-portrait"
+            portrait: `<img src="${esc(shownProjectImg(p.img))}" alt="" class="drpg-project-portrait"
                      data-drpg-portrait="${p.id}" data-tooltip="${t("DRPG.Project.changeImage")}" />
                 <input type="hidden" name="img.${p.id}" value="${esc(p.img ?? "")}" />`,
             title: `${esc(p.name)}<br><small data-drpg-progress="${p.id}"
@@ -461,9 +461,41 @@ export function projectWindowWidth() {
     return wide ? "wide" : null;
 }
 
+/*
+ * CORE'S HOURGLASS IS NOT A PROJECT'S PICTURE (E105 FT-13, the owner's 11.11.2026 "pozbyc sie [...] miejsc gdzie
+ * przebija sie grafika [...] z foundry"). A project nobody gave a picture is stored with core's
+ * icons/magic/time/hourglass-yellow-green.webp (the window's default since before 1.2.0, kept as the stored value so
+ * nothing already written changes meaning), and the window and the manager drew that core file - or, for a project
+ * stored with no picture, a broken image. Both now draw the module's own hourglass, icons/project-hourglass.svg (12 x
+ * 12 in the item drawings' manner: ink #1a1620, Bone glass, sand #b8a68a; one file for both themes, as the item
+ * drawings). Only what is drawn: the hidden field still holds - and Save still stores - exactly what it held, the file
+ * browser opens on it, and a picture somebody chose is drawn as it is.
+ *
+ * utils.mjs `wirePortraitPickers` copies the hidden field into the picture on every rebuild (its F13 note), which would
+ * put core's file back; `wireProjectPortraits` runs it and then draws the module's hourglass over a default field. A
+ * GM who browses to core's hourglass on purpose sees it until the next rebuild, then the module's: the one picture
+ * this cannot tell from no choice.
+ */
+const DEFAULT_PROJECT_IMG = "icons/magic/time/hourglass-yellow-green.webp";
+const UNSET_PROJECT_IMG = `modules/${MODULE_ID}/icons/project-hourglass.svg`;
+function shownProjectImg(img) {
+    return !img || img === DEFAULT_PROJECT_IMG ? UNSET_PROJECT_IMG : img;
+}
+
+function wireProjectPortraits(root, options = {}) {
+    wirePortraitPickers(root, options);
+    for (const portrait of root.querySelectorAll("img[data-drpg-portrait]")) {
+        const id = portrait.dataset.drpgPortrait || null;
+        const field = root.querySelector(id ? `[name="img.${CSS.escape(id)}"]` : '[name="img"]');
+        if (!field) continue;
+        const shown = shownProjectImg(field.value);
+        if (portrait.getAttribute("src") !== shown) portrait.setAttribute("src", shown);
+    }
+}
+
 /** The portraits, the live progress figures, and the per-row edit buttons. */
 function wireProjectManager(dialog, projects, rooms) {
-    wirePortraitPickers(dialog.element);
+    wireProjectPortraits(dialog.element);
 
     /* PROGRESS MOVES WHILE THIS WINDOW IS OPEN, AND THAT IS WHAT IT IS FOR.
 
@@ -871,7 +903,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
     const ownedOf = !editing && OWNED_PRESETS.includes(start?.preset) ? await presetApproval(start) : null;
     // Said in the table's language (fix e1-G4): the judges answer English, kept for the log.
     if (ownedOf?.refused) ownedOf.why = (await import("./passages-gm.mjs")).whyText(ownedOf.refused);
-    const defaultImg = "icons/magic/time/hourglass-yellow-green.webp";
+    const defaultImg = DEFAULT_PROJECT_IMG;
     const img = start?.img || defaultImg;
     /* A PRESET'S SIZE IS THE GMS' (E15 part 2 fix e1-G3; finding E15P2-R4): its table's (passages-gm.mjs `PASSAGE_PRESETS`),
        a Repair an item's by the item's tier as the GMs hold it (`presetApproval`'s `scale`) - never the card's claim, which
@@ -974,7 +1006,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
 
     const content = `<form>${formGrid([
         { full: `<div class="drpg-project-image-row">
-                <img src="${esc(img)}" alt="" class="drpg-project-portrait"
+                <img src="${esc(shownProjectImg(img))}" alt="" class="drpg-project-portrait"
                      data-drpg-portrait
                      data-tooltip="${t("DRPG.Project.changeImage")}" />
                 <input type="hidden" name="img" value="${esc(img)}" />
@@ -1071,7 +1103,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         render: (event, dialog) => {
             // Save refused at the field while the description is empty or too long (E44 C9); Delete and Close go.
             guardDescription(dialog.element, "save");
-            wirePortraitPickers(dialog.element, { defaultImg });
+            wireProjectPortraits(dialog.element, { defaultImg });
             if (editing && !isSecret(project.id)) wireViewerLock(dialog.element);
             if (passageOf?.offer) wirePassagePick(dialog, passageOf.offer, { over: passageOf.preset === "breach" });
         },

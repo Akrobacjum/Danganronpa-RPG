@@ -17368,3 +17368,388 @@ body:not(.drpg-theme-stained-glass) > #drpg-voice-tile[data-place="tray"] {
     right: var(--drpg-voice-right);
     bottom: auto;
 }
+
+/* ==========================================================================
+   E105 FT, BATCH 3 - FOUNDRY'S AND DAGGERHEART'S CHROME IN THE MODULE'S DRESS, BOTH THEMES
+   --------------------------------------------------------------------------
+   The owner, 11.11.2026: "Chcialbym pozbyc sie z calego modulu miejsc gdzie przebija sie grafika lub kolor z foundry".
+   The survey (E105 foundry-through, LIST.md, 54493dbf) read each piece below from the CSSOM: no module rule set its
+   ground, edge or ink in the theme named, so at a table core's or Daggerheart's paint shows. One block, at the end of
+   this file and nowhere else (batch 3's; batches 1 and 2 hold components.css, stained-glass.css and pixel-icons.css),
+   each theme's rules scoped inside it. Look only: no control is added, removed or moved, no box changes size - an edge
+   a piece did not have is an inset shadow, not a border - and no `!important` and no colour literal (tools/css-budget.json
+   holds this sheet at 647 and 246): every colour is a token of the palette. Red is the GM's road (D11): no red fill.
+   NOT MEASURED HERE: whether these outweigh v14's and Daggerheart 2.10's own rules at a table. This sheet sits in the
+   `modules` layer, later than core's and the system's layered rules, and loses to an unlayered one (this file's DIALOGS
+   note; its E7 note says Daggerheart's chip rules are unlayered). No harness loads Foundry's sheets: the before/after
+   crops (S/stages/E105/foundry-through/fix3-shots, index.txt) draw these pieces on a stand-in page of v13/v14's
+   documented ids and classes, with Daggerheart's stylesheet (E49's compiled copy) in a `system` layer under the
+   module's. Legacy is `body.drpg-theme-monokuma-legacy`, Stained Glass `body.drpg-theme-stained-glass`.
+   ========================================================================== */
+
+/* FT-29 + FT-33: the tooltip and the toasts under Monokuma Legacy. Stained Glass has dressed both since E23
+   (stained-glass.css: the tooltip "the one piece of its chrome that appears INSIDE our windows", the toasts B1b); the
+   Legacy twins: Ink, Bone, the window's edge, the theme's face. A toast's level is the edge on its left, as the glass
+   draws it: info the strong line, warning the attention's (the glass's too), error crimson, success the evidence's - an edge, never a red ground.
+   `color-scheme: dark` because the window edge is a `light-dark()` and these two are not under a module root. Before: no
+   module property on either (chrome.json: tooltip Legacy "pointer-events" only; toasts `.notification-pip` only). */
+body.drpg-theme-monokuma-legacy :is(#tooltip, .locked-tooltip),
+body.drpg-theme-monokuma-legacy #notifications .notification {
+    color-scheme: dark;
+    background: var(--drpg-ink);
+    color: var(--drpg-bone);
+    border: 1px solid var(--drpg-window-edge);
+    border-radius: 2px;
+    box-shadow: var(--drpg-panel-shadow);
+    text-shadow: none;
+    font-family: var(--drpg-font-pixel, var(--drpg-font-ui));
+    font-size: var(--drpg-text-sm);
+    line-height: 1.3;
+}
+body.drpg-theme-monokuma-legacy #notifications .notification { border-left: 3px solid var(--drpg-line-strong); }
+body.drpg-theme-monokuma-legacy #notifications .notification.warning { border-left-color: var(--drpg-attention); }
+body.drpg-theme-monokuma-legacy #notifications .notification.error { border-left-color: var(--drpg-crimson); }
+body.drpg-theme-monokuma-legacy #notifications .notification.success { border-left-color: var(--drpg-evidence); }
+
+/* FT-30: the context menu (right-click on a directory entry, a chat message, the rail), both themes. Before: the glass
+   set its font only (stained-glass.css's face list), Legacy nothing. The menu wears the tooltip's dress in each theme;
+   a row under the pointer or the keyboard takes the kit's hover wash. Under the glass the edge is Bone, not the
+   tooltip's hour (the CSS lint's meanings: the hour never colours a card, a bar or a button). */
+body.drpg-theme-monokuma-legacy #context-menu {
+    color-scheme: dark;
+    background: var(--drpg-ink);
+    color: var(--drpg-bone);
+    border: 1px solid var(--drpg-window-edge);
+    border-radius: 2px;
+    box-shadow: var(--drpg-panel-shadow);
+    font-family: var(--drpg-font-pixel, var(--drpg-font-ui));
+}
+body.drpg-theme-stained-glass #context-menu {
+    color-scheme: dark;
+    background: color-mix(in srgb, var(--drpg-sg-ink) 92%, transparent);
+    color: var(--drpg-sg-bone);
+    border: 1px solid color-mix(in srgb, var(--drpg-sg-bone) 35%, transparent);
+    border-radius: 0;
+    box-shadow: none;
+}
+:is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass) #context-menu .context-item {
+    color: inherit;
+    background: transparent;
+}
+body.drpg-theme-monokuma-legacy #context-menu .context-item:is(:hover, :focus-visible) {
+    background: var(--drpg-kit-hover-bg);
+    color: var(--drpg-bone);
+}
+body.drpg-theme-stained-glass #context-menu .context-item:is(:hover, :focus-visible) {
+    background: color-mix(in srgb, var(--drpg-sg-bone) 18%, transparent);
+    color: var(--drpg-sg-bone);
+}
+
+/* FT-32: Foundry's Configure Settings window as the module leaves it. Since E49 A1d the module's settings live in its
+   own windows (settings-window.mjs: the gear's window and the game's settings), so what stands here is core's and
+   Daggerheart's rows and the module's one menu button. Stained Glass dresses it with every window (the generic
+   `.application:not(.drpg-panel)` block); Legacy left it Foundry's whole (module: row layout and `accent-color`,
+   components.css). The Legacy twin: the window Ink with the window edge, its title band, the category list as the kit's
+   tabs read under this theme (the picked one Bone on Ink with a Bone edge - the attention's colour under this theme, R3541), labels Bone, hints Bone-dim, fields
+   on Ink with the strong line, the footer's button the kit's face. Both themes: the range and the checkbox in the
+   theme's ink (`accent-color`), and v13's `range-picker` and `multi-select`, which no rule named in either theme.
+   The face is left core's: the pixel face, tried on the stand-in, ran the category list and every label onto two
+   and three lines (S/stages/E105/foundry-through/fix3-shots). v14's markup of this window is not read here (the
+   stand-in is v13's documented classes). */
+body.drpg-theme-monokuma-legacy #settings-config {
+    color-scheme: dark;
+    background: var(--drpg-ink);
+    color: var(--drpg-bone);
+    border-color: var(--drpg-window-edge);
+}
+body.drpg-theme-monokuma-legacy #settings-config > .window-header {
+    background: color-mix(in srgb, var(--drpg-bone) 6%, transparent);
+    color: var(--drpg-bone);
+    border-bottom: 1px solid var(--drpg-line-strong);
+}
+body.drpg-theme-monokuma-legacy #settings-config :is(.tabs > a, .tabs > button) {
+    color: var(--drpg-bone-dim);
+    background: transparent;
+}
+body.drpg-theme-monokuma-legacy #settings-config :is(.tabs > a, .tabs > button):hover {
+    color: var(--drpg-bone);
+    background: var(--drpg-kit-hover-bg);
+}
+body.drpg-theme-monokuma-legacy #settings-config :is(.tabs > a, .tabs > button).active {
+    color: var(--drpg-bone);
+    background: var(--drpg-ink);
+    box-shadow: inset 2px 0 0 var(--drpg-bone);
+}
+body.drpg-theme-monokuma-legacy #settings-config :is(label, legend, h2, h3, h4) { color: var(--drpg-bone); }
+body.drpg-theme-monokuma-legacy #settings-config :is(.hint, .notes) { color: var(--drpg-bone-dim); }
+body.drpg-theme-monokuma-legacy #settings-config :is(input:not([type="checkbox"], [type="radio"], [type="range"]), select, textarea) {
+    background: color-mix(in srgb, var(--drpg-ink) 70%, transparent);
+    color: var(--drpg-bone);
+    border-color: var(--drpg-line-strong);
+}
+body.drpg-theme-monokuma-legacy #settings-config :is(button, .form-footer button) {
+    background: var(--drpg-kit-btn-bg);
+    color: var(--drpg-kit-btn-ink);
+    border-color: var(--drpg-kit-btn-edge);
+    border-radius: var(--drpg-kit-btn-radius);
+    box-shadow: none;
+    text-shadow: none;
+}
+body.drpg-theme-monokuma-legacy #settings-config button:hover:not(:disabled) {
+    background: var(--drpg-kit-hover-bg);
+    border-color: var(--drpg-kit-hover-edge);
+}
+body.drpg-theme-monokuma-legacy #settings-config :is(input, select, textarea, button, a):focus-visible {
+    outline: 2px solid var(--drpg-attention);
+    outline-offset: 1px;
+}
+body.drpg-theme-monokuma-legacy #settings-config :is(input[type="checkbox"], input[type="range"], range-picker, toggle-switch) {
+    accent-color: var(--drpg-bone);
+}
+body.drpg-theme-stained-glass #settings-config :is(input[type="range"], range-picker, toggle-switch) {
+    accent-color: var(--drpg-sg-bone);
+}
+:is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass) #settings-config multi-select .tag {
+    background: transparent;
+    color: inherit;
+    border: 1px solid var(--drpg-line-strong);
+    border-radius: 2px;
+}
+
+/* FT-35: the sidebar's directory lists (Actors, Items, Journal, Compendium, Tables, Playlists) - the GM's, since a
+   player's sidebar is hidden. No module rule named `.directory` or its rows in either theme: the module dressed
+   `#sidebar`'s frame and its tab rail only. Here: the header's create buttons the kit's face (an inset edge, so they keep
+   core's box), its search field on Ink with a line, each row Bone with the kit's hover wash and the open one marked by
+   a Bone edge on its left, a folder's header a faint Bone band - and a folder somebody coloured keeps its
+   colour, which core writes inline on the header and no rule here outweighs. The face is left core's, as the
+   settings window's: a list's names wrap in Legacy's pixel face. */
+body.drpg-theme-monokuma-legacy #sidebar .directory { color: var(--drpg-bone); }
+body.drpg-theme-stained-glass #sidebar .directory { color: var(--drpg-sg-bone); }
+body.drpg-theme-monokuma-legacy #sidebar .directory-header button {
+    background: var(--drpg-kit-btn-bg);
+    color: var(--drpg-kit-btn-ink);
+    border-color: transparent;
+    border-radius: var(--drpg-kit-btn-radius);
+    box-shadow: inset 0 0 0 1px var(--drpg-kit-btn-edge);
+    text-shadow: none;
+}
+body.drpg-theme-stained-glass #sidebar .directory-header button {
+    background: color-mix(in srgb, var(--drpg-sg-ink) 55%, transparent);
+    color: var(--drpg-sg-bone);
+    border-color: transparent;
+    border-radius: 0;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--drpg-sg-bone) 55%, transparent);
+    text-shadow: none;
+    font-family: var(--drpg-font-chrome);
+}
+body.drpg-theme-monokuma-legacy #sidebar .directory-header button:hover:not(:disabled) {
+    background: var(--drpg-kit-hover-bg);
+    box-shadow: inset 0 0 0 1px var(--drpg-kit-hover-edge);
+}
+body.drpg-theme-stained-glass #sidebar .directory-header button:hover:not(:disabled) {
+    background: var(--drpg-sg-bone);
+    color: var(--drpg-sg-ink);
+}
+body.drpg-theme-monokuma-legacy #sidebar .directory-header input {
+    background: color-mix(in srgb, var(--drpg-ink) 70%, transparent);
+    color: var(--drpg-bone);
+    border-color: var(--drpg-line-strong);
+}
+body.drpg-theme-stained-glass #sidebar .directory-header input {
+    background: color-mix(in srgb, var(--drpg-sg-ink) 70%, transparent);
+    color: var(--drpg-sg-bone);
+    border-color: color-mix(in srgb, var(--drpg-sg-bone) 35%, transparent);
+    border-radius: 0;
+    font-family: var(--drpg-font-chrome);
+}
+body.drpg-theme-monokuma-legacy #sidebar .directory-header input::placeholder { color: var(--drpg-bone-dim); }
+body.drpg-theme-stained-glass #sidebar .directory-header input::placeholder { color: var(--drpg-sg-bone-dim); }
+:is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass) #sidebar .directory-item :is(.entry-name, .entry-name > a, .document-name) {
+    color: inherit;
+}
+body.drpg-theme-monokuma-legacy #sidebar .directory-item.document:hover { background: var(--drpg-kit-hover-bg); }
+body.drpg-theme-stained-glass #sidebar .directory-item.document:hover { background: color-mix(in srgb, var(--drpg-sg-bone) 14%, transparent); }
+body.drpg-theme-monokuma-legacy #sidebar .directory-item.document.active { box-shadow: inset 2px 0 0 var(--drpg-bone); }
+body.drpg-theme-stained-glass #sidebar .directory-item.document.active { box-shadow: inset 2px 0 0 var(--drpg-sg-bone); }
+body.drpg-theme-monokuma-legacy #sidebar .directory-item.folder > .folder-header {
+    background-color: color-mix(in srgb, var(--drpg-bone) 8%, transparent);
+    color: var(--drpg-bone);
+    border-color: var(--drpg-line);
+}
+body.drpg-theme-stained-glass #sidebar .directory-item.folder > .folder-header {
+    background-color: color-mix(in srgb, var(--drpg-sg-bone) 8%, transparent);
+    color: var(--drpg-sg-bone);
+    border-color: color-mix(in srgb, var(--drpg-sg-bone) 22%, transparent);
+    font-family: var(--drpg-font-chrome);
+}
+:is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass) #sidebar .directory :is(button, input, .directory-item, a):focus-visible {
+    outline: 2px solid var(--drpg-attention);
+    outline-offset: -2px;
+}
+
+/* FT-37: the scene's loading bar, which no rule named in either theme. An Ink track with the window's edge and the fill
+   in the theme's Bone at 30 % with a full edge at its end - a bar, not a red one, and not the attention's (the CSS
+   lint's meanings keep that for focus and selection) - and the two labels in
+   Bone over both. */
+:is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass) #loading {
+    color-scheme: dark;
+    background: color-mix(in srgb, var(--drpg-ink) 85%, transparent);
+    border: 1px solid var(--drpg-window-edge);
+    border-radius: 2px;
+    box-shadow: var(--drpg-panel-shadow);
+}
+body.drpg-theme-monokuma-legacy #loading { --drpg-ft-fill: var(--drpg-bone); }
+body.drpg-theme-stained-glass #loading { --drpg-ft-fill: var(--drpg-sg-bone); }
+:is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass) #loading #loading-bar {
+    background: color-mix(in srgb, var(--drpg-ft-fill) 30%, transparent);
+    box-shadow: inset -2px 0 0 var(--drpg-ft-fill);
+    border: 0;
+    border-radius: 0;
+}
+:is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass) #loading :is(#context, #progress) {
+    color: var(--drpg-bone);
+    text-shadow: 0 0 3px var(--drpg-ink);
+    font-family: var(--drpg-font-pixel, var(--drpg-font-ui));
+}
+body.drpg-theme-stained-glass #loading :is(#context, #progress) { font-family: var(--drpg-font-chrome); }
+
+/* FT-38: a window's resize corner, on the module's windows and the character sheet, both themes (Stained Glass hides
+   the character sheet's, stained-glass.css 7b, and this does not show it again: no `display` here). Before: Foundry's
+   glyph. Now a pixel staircase of six 2 px squares in the theme's dim Bone, drawn as background layers so the handle
+   keeps core's box, position and cursor - the control is where it was. Whatever core draws inside it (a glyph element or
+   a pseudo-element; v14's is not read here) is put out of sight, not removed: the handle still takes the drag. */
+:is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass) :is(.application[class*="drpg-"], .application.sheet.actor) > .window-resize-handle {
+    --drpg-ft-corner: var(--drpg-bone-dim);
+    background-color: transparent;
+    background-image:
+        linear-gradient(var(--drpg-ft-corner), var(--drpg-ft-corner)), linear-gradient(var(--drpg-ft-corner), var(--drpg-ft-corner)),
+        linear-gradient(var(--drpg-ft-corner), var(--drpg-ft-corner)), linear-gradient(var(--drpg-ft-corner), var(--drpg-ft-corner)),
+        linear-gradient(var(--drpg-ft-corner), var(--drpg-ft-corner)), linear-gradient(var(--drpg-ft-corner), var(--drpg-ft-corner));
+    background-position: right 2px bottom 2px, right 6px bottom 2px, right 10px bottom 2px, right 2px bottom 6px, right 6px bottom 6px, right 2px bottom 10px;
+    background-size: 2px 2px;
+    background-repeat: no-repeat;
+    -webkit-mask-image: none;
+    mask-image: none;
+    border: 0;
+}
+body.drpg-theme-stained-glass :is(.application[class*="drpg-"], .application.sheet.actor) > .window-resize-handle { --drpg-ft-corner: var(--drpg-sg-bone-dim); }
+body.drpg-theme-monokuma-legacy :is(.application[class*="drpg-"], .application.sheet.actor) > .window-resize-handle:hover { --drpg-ft-corner: var(--drpg-bone); }
+body.drpg-theme-stained-glass :is(.application[class*="drpg-"], .application.sheet.actor) > .window-resize-handle:hover { --drpg-ft-corner: var(--drpg-sg-bone); }
+:is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass) :is(.application[class*="drpg-"], .application.sheet.actor) > .window-resize-handle > * {
+    visibility: hidden;
+}
+:is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass) :is(.application[class*="drpg-"], .application.sheet.actor) > .window-resize-handle::before {
+    content: none;
+}
+
+/* FT-22: Daggerheart's countdown tray (Projects) under Monokuma Legacy. The rows' layout is this theme's already
+   (E23 fix G3, above); their controls were Daggerheart's: the minus and plus links, the count's tag and the row's icons
+   took its colour and focus. Now the links Bone-dim, Bone with the kit's wash under the pointer and the attention ring
+   on the keyboard; the count Bone on no ground in tabular figures, as the glass draws it; the icons Bone-dim. Sizes
+   and places are Daggerheart's and this theme's, unchanged. The survey's measure on the glass harness's GM page
+   (tools/analyze.js) read 6 elements of the tray with 14 open properties under Legacy at 7d59dcfe, and none after. */
+body.drpg-theme-monokuma-legacy #countdowns .countdown-tool-controls a {
+    color: var(--drpg-bone-dim);
+    border-radius: 2px;
+    text-shadow: none;
+}
+body.drpg-theme-monokuma-legacy #countdowns .countdown-tool-controls a:hover {
+    color: var(--drpg-bone);
+    background: var(--drpg-kit-hover-bg);
+}
+body.drpg-theme-monokuma-legacy #countdowns .countdown-tool-controls a:focus-visible {
+    outline: 2px solid var(--drpg-attention);
+    outline-offset: 1px;
+}
+body.drpg-theme-monokuma-legacy #countdowns .countdown-tools .progress-tag {
+    color: var(--drpg-bone);
+    background: transparent;
+    border-color: transparent;
+    font-variant-numeric: tabular-nums;
+}
+body.drpg-theme-monokuma-legacy #countdowns :is(.countdowns-header > i, .countdown-tool-icons i) { color: var(--drpg-bone-dim); }
+/* The glass's links had their colour (the hour's, stained-glass.css) but no hover and no keyboard ring of their own: the
+   survey's measure read hover and focus open on each of the four (glass-gm, 7d59dcfe). Bone under the pointer, the
+   attention ring on the keyboard. */
+body.drpg-theme-stained-glass #countdowns .countdown-tool-controls a:hover { color: var(--drpg-sg-bone); }
+body.drpg-theme-stained-glass #countdowns .countdown-tool-controls a:focus-visible {
+    outline: 2px solid var(--drpg-attention);
+    outline-offset: 1px;
+}
+
+/* FT-26: Daggerheart's roll dialog, the controls the module had left the system's. The window, its title band, its
+   selects and its Roll button are the module's (this file's ROLL DIALOG notes, components.css); the experience chips,
+   the Advantage and Disadvantage chips and the situational field kept Daggerheart's: a gold wash, and a green and a red
+   chip whose picked face is a green or red gradient - a red fill for an ordinary choice (D11). Both themes now draw the
+   three chips as the kit's chips: no ground, a 1 px inset edge (Daggerheart's 5 px padding keeps the box), Bone ink;
+   picked, a Bone wash and the full Bone edge; the label says which is which. A chip a Call forced or unlocked keeps its
+   own rule (`.drpg-call-unlocked`, this file). Legacy also gives the situational field and the fieldsets' lines the
+   window's ink; the glass's generic field rule draws them already. */
+body.drpg-theme-monokuma-legacy .application.roll-selection :is(.experience-chip, .advantage-chip, .disadvantage-chip):not(.drpg-call-unlocked) {
+    background: transparent;
+    color: var(--drpg-bone);
+    box-shadow: inset 0 0 0 1px var(--drpg-kit-btn-edge);
+    border-radius: var(--drpg-kit-btn-radius);
+}
+body.drpg-theme-monokuma-legacy .application.roll-selection :is(.experience-chip, .advantage-chip, .disadvantage-chip):not(.drpg-call-unlocked):is(.selected, :hover) {
+    background: var(--drpg-kit-hover-bg);
+    color: var(--drpg-bone);
+    box-shadow: inset 0 0 0 1px var(--drpg-bone);
+}
+body.drpg-theme-stained-glass .application.roll-selection :is(.experience-chip, .advantage-chip, .disadvantage-chip):not(.drpg-call-unlocked) {
+    background: transparent;
+    color: var(--drpg-sg-bone);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--drpg-sg-bone) 55%, transparent);
+    border-radius: 0;
+}
+body.drpg-theme-stained-glass .application.roll-selection :is(.experience-chip, .advantage-chip, .disadvantage-chip):not(.drpg-call-unlocked):is(.selected, :hover) {
+    background: var(--drpg-sg-bone);
+    color: var(--drpg-sg-ink);
+    box-shadow: inset 0 0 0 1px var(--drpg-sg-bone);
+}
+:is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass) .application.roll-selection :is(.experience-chip, .advantage-chip, .disadvantage-chip) :is(.label, i) {
+    color: inherit;
+}
+:is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass) .application.roll-selection :is(.experience-chip, .advantage-chip, .disadvantage-chip):focus-visible {
+    outline: 2px solid var(--drpg-attention);
+    outline-offset: 1px;
+}
+body.drpg-theme-monokuma-legacy .application.roll-selection input[type="text"] {
+    background: color-mix(in srgb, var(--drpg-ink) 70%, transparent);
+    color: var(--drpg-bone);
+    border-color: var(--drpg-line-strong);
+}
+body.drpg-theme-monokuma-legacy .application.roll-selection input[type="text"]::placeholder { color: var(--drpg-bone-dim); }
+body.drpg-theme-monokuma-legacy .application.roll-selection fieldset { border-color: var(--drpg-line-strong); }
+body.drpg-theme-monokuma-legacy .application.roll-selection .formula-label { color: var(--drpg-bone); }
+
+/* FT-28: Daggerheart's sheet beyond the module's parts, under Monokuma Legacy - the visible remainder, looked at on
+   Daggerheart's inventory tab (inventory.hbs, inventory-item-V2.hbs) with its stylesheet under the module's. Stained
+   Glass dresses the sheet's buttons, rows and tabs (stained-glass.css's brush, 383 rules); Legacy left these four:
+   the inventory's search field (Daggerheart's pill), its filter link and each row's controls (Daggerheart's links),
+   an item's tags (Daggerheart's chips) and a row under the pointer. Now: the field on Ink with the strong line, the
+   links Bone-dim and Bone under the pointer with the attention ring on the keyboard, the tags a Bone line on no ground,
+   a row the kit's hover wash. Only these: the rest of the tab was already the theme's or reads as it. */
+body.drpg-theme-monokuma-legacy .application.sheet.actor .search-section input[type="search"] {
+    background: color-mix(in srgb, var(--drpg-ink) 70%, transparent);
+    color: var(--drpg-bone);
+    box-shadow: inset 0 0 0 1px var(--drpg-line-strong);
+}
+body.drpg-theme-monokuma-legacy .application.sheet.actor .search-section input[type="search"]::placeholder { color: var(--drpg-bone-dim); }
+body.drpg-theme-monokuma-legacy .application.sheet.actor :is(.search-section .icon, .filter-button, .inventory-item .controls a) {
+    color: var(--drpg-bone-dim);
+}
+body.drpg-theme-monokuma-legacy .application.sheet.actor :is(.filter-button, .inventory-item .controls a):hover {
+    color: var(--drpg-bone);
+}
+body.drpg-theme-monokuma-legacy .application.sheet.actor :is(.filter-button, .inventory-item .controls a, .search-section input):focus-visible {
+    outline: 2px solid var(--drpg-attention);
+    outline-offset: 1px;
+}
+body.drpg-theme-monokuma-legacy .application.sheet.actor .item-tags .tag {
+    background: transparent;
+    color: var(--drpg-bone);
+    border-color: var(--drpg-line-strong);
+    border-radius: 2px;
+}
+body.drpg-theme-monokuma-legacy .application.sheet.actor li.inventory-item:hover > .item-main { background: var(--drpg-kit-hover-bg); }

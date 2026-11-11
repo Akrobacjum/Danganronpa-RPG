@@ -44155,6 +44155,100 @@ const INVARIANTS = [
         equal(stableJson({ scoped, duality, drawn }), stableJson({ scoped: [true, true, true, true, true], duality: true, drawn: ["flex 8px", "flex 8px"] }),
             "{scoped: the line's, glyph's, words', result's and who's rule on the notice, the snapshot and a chat message; duality: the total hidden in the notice; drawn: the words' display and gap in a chat message and in a snapshot} - the critical's line must read apart outside a notice");
     }],
+    ["R3575 - Foundry's default pictures are not drawn as a picture in the module's windows (E105 FT-13; the owner's \"pozbyc sie [...] miejsc gdzie przebija sie grafika [...] z foundry\", 11.11.2026): Despair flow > Monokumas draws gm-team-dialog.mjs `shownPortrait` (core's mystery man and no picture -> icons/portrait-none.svg), Item tables' rows tables-editor.mjs `shownResultImg` (core's item bag, core's d20 and no picture -> the group's `itemIcon`), Projects' window and manager projects-ui.mjs `shownProjectImg` (core's hourglass and no picture -> icons/project-hourglass.svg) and `wireProjectPortraits` after `wirePortraitPickers`; any other picture is drawn as it is; the two drawings are served", async () => {
+        /*
+         * E105 fix batch 3, 11.11.2026. The survey (LIST.md FT-13, 54493dbf) read the captured `src`: 5 of 5 Monokumas rows
+         * core's mystery man, 41 of 41 room-pool rows core's item bag, the project window core's hourglass. Red first on
+         * 7d59dcfe: none of the three helpers is declared (the first `fnSource` stops the test) and neither drawing exists.
+         * Each helper is cut from its source and run on stand-in values; nothing is written. The stored value is not
+         * changed by any of them - the hidden field and the documents keep what they held (read in the source's lines).
+         */
+        const src = async name => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${name}`).then(lfText));
+        const [team, tables, projects] = await Promise.all(["gm-team-dialog.mjs", "tables-editor.mjs", "projects-ui.mjs"].map(src));
+        const portrait = new Function("UNSET_PORTRAIT", "CORE_PORTRAITS", `${fnSource(team, "shownPortrait")}; return shownPortrait;`)(
+            "OWN", new Set(["icons/svg/mystery-man.svg"]));
+        const result = new Function("CORE_RESULT_IMGS", "itemIcon", `${fnSource(tables, "shownResultImg")}; return shownResultImg;`)(
+            new Set(["icons/svg/item-bag.svg", "icons/svg/d20-black.svg"]), home => `own:${home}`);
+        const project = new Function("DEFAULT_PROJECT_IMG", "UNSET_PROJECT_IMG", `${fnSource(projects, "shownProjectImg")}; return shownProjectImg;`)(
+            "icons/magic/time/hourglass-yellow-green.webp", "OWN");
+        const drawn = {
+            portrait: [portrait("icons/svg/mystery-man.svg"), portrait(""), portrait(undefined), portrait("worlds/w/kaede.webp")],
+            result: [result("icons/svg/item-bag.svg", "tool"), result("icons/svg/d20-black.svg", null), result("", "usable"), result("modules/x/icons/item-tool.svg", "tool")],
+            project: [project("icons/magic/time/hourglass-yellow-green.webp"), project(""), project("worlds/w/trap.webp")]
+        };
+        const consts = {
+            portrait: /const UNSET_PORTRAIT = `modules\/\$\{MODULE_ID\}\/icons\/portrait-none\.svg`/.test(team),
+            project: /const UNSET_PROJECT_IMG = `modules\/\$\{MODULE_ID\}\/icons\/project-hourglass\.svg`/.test(projects),
+            bag: /const CORE_RESULT_IMGS = new Set\(\[DEFAULT_RESULT_IMG, "icons\/svg\/d20-black\.svg"\]\)/.test(tables)
+        };
+        const used = {
+            team: team.includes('<img src="${foundry.utils.escapeHTML(shownPortrait(actor.img))}" alt="" class="drpg-monokuma-portrait"'),
+            tables: tables.includes('<img src="${esc(shownResultImg(r.img, home))}" alt="" class="drpg-table-item-icon"'),
+            projectRow: projects.includes('portrait: `<img src="${esc(shownProjectImg(p.img))}"') && projects.includes('<input type="hidden" name="img.${p.id}" value="${esc(p.img ?? "")}"'),
+            projectWindow: projects.includes('<img src="${esc(shownProjectImg(img))}" alt="" class="drpg-project-portrait"') && projects.includes('<input type="hidden" name="img" value="${esc(img)}"'),
+            wired: (projects.match(/\bwirePortraitPickers\(/g) ?? []).length === 1 && /wirePortraitPickers\(root, options\)/.test(fnSource(projects, "wireProjectPortraits"))
+                && (projects.match(/\bwireProjectPortraits\(dialog\.element/g) ?? []).length === 2
+        };
+        const served = await Promise.all(["portrait-none.svg", "project-hourglass.svg"].map(async f => {
+            const res = await fetch(`/modules/${MODULE_ID}/icons/${f}`);
+            return res.ok && /^<svg [^>]*viewBox="-2 -2 16 16"[^>]*shape-rendering="crispEdges"/.test(await lfText(res));
+        }));
+        equal(stableJson({ drawn, consts, used, served }), stableJson({
+            drawn: { portrait: ["OWN", "OWN", "OWN", "worlds/w/kaede.webp"], result: ["own:tool", "own:null", "own:usable", "modules/x/icons/item-tool.svg"], project: ["OWN", "OWN", "worlds/w/trap.webp"] },
+            consts: { portrait: true, project: true, bag: true },
+            used: { team: true, tables: true, projectRow: true, projectWindow: true, wired: true },
+            served: [true, true]
+        }), "{drawn: each helper on core's defaults, no picture and a chosen one; consts: the module's drawings and core's two table defaults; used: each window's img drawn through its helper while its hidden field keeps the stored value, and projects-ui's portraits wired through wireProjectPortraits; served: the two drawings, in the item drawings' 16 x 16 crispEdges view}");
+    }],
+    ["R3576 - Foundry's and Daggerheart's chrome wears the module's dress in both themes (E105 FT-22, FT-26, FT-28..30, FT-32, FT-33, FT-35, FT-37, FT-38; styles/danganronpa.css's batch-3 block): one block at the file's end holds, per piece and theme, the rule that sets its ground, edge or ink from the palette's tokens - Legacy's tooltip, toasts (a level's edge each), context menu, Configure Settings window, directory lists, loading bar, resize corner, countdown controls, roll dialog chips and field, sheet's search, links and tags; the glass's context menu, settings' range, directory lists, loading bar, resize corner and roll chips - with no `!important` and no colour literal; a stand-in roll chip and resize handle read the block's values in this page's cascade", async () => {
+        /*
+         * E105 fix batch 3, 11.11.2026. The survey (LIST.md D, chrome.json at 54493dbf) found no module rule setting
+         * these pieces' ground/edge/ink in the theme named. Red first on 7d59dcfe: the block's heading is not in the file, so the cut
+         * stops the test; a first draft that sliced by hand read every row below false there, and the stand-in chip no inset
+         * shadow and the corner `auto` (jsdom's cascade). The rules are read as text (selector, one declaration); then a Daggerheart advantage
+         * chip and a sheet's resize handle are drawn in stand-ins of their windows, read by getComputedStyle (whatever
+         * sheets this page loaded, in its theme) and removed: the chip's edge is an inset shadow, the corner six 2 px
+         * squares. Whether these outweigh v14's and Daggerheart's own rules at a table is not read (no Foundry sheet here).
+         */
+        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
+        const block = stripComments(`/*${bodyOf(raw, "E105 FT, BATCH 3")}`);
+        const rules = [...block.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const L = "body.drpg-theme-monokuma-legacy", G = "body.drpg-theme-stained-glass", B = ":is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass)";
+        const has = (scope, piece, prop) => rules.some(r => r.sel.split(/,(?![^(]*\))/).some(s => s.trim().startsWith(scope) && s.includes(piece))
+            && new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*[^;]*var\\(--drpg-`).test(r.body));
+        const rows = {
+            "FT-29 tooltip, Legacy": has(L, ".locked-tooltip", "background") && has(L, "#tooltip", "color"),
+            "FT-33 toasts, Legacy": has(L, "#notifications .notification", "background") && ["warning", "error", "success"].every(k => has(L, `.notification.${k}`, "border-left-color")),
+            "FT-30 context menu, Legacy": has(L, "#context-menu", "background") && has(L, ".context-item:is(:hover", "background"),
+            "FT-30 context menu, glass": has(G, "#context-menu", "background") && has(G, ".context-item:is(:hover", "background"),
+            "FT-32 settings, Legacy": has(L, "#settings-config", "background") && has(L, "#settings-config > .window-header", "border-bottom") && has(L, "#settings-config :is(button", "background"),
+            "FT-32 settings range, glass": has(G, "#settings-config :is(input[type=\"range\"]", "accent-color"),
+            "FT-35 directories, Legacy": has(L, "#sidebar .directory-header button", "background") && has(L, "#sidebar .directory-item.document:hover", "background"),
+            "FT-35 directories, glass": has(G, "#sidebar .directory-header button", "background") && has(G, "#sidebar .directory-item.document:hover", "background"),
+            "FT-37 loading bar, both": has(B, "#loading", "background") && has(B, "#loading #loading-bar", "background"),
+            "FT-38 resize corner, both": has(B, "> .window-resize-handle", "background-image") && has(G, "> .window-resize-handle", "--drpg-ft-corner"),
+            "FT-22 tray controls, Legacy": has(L, "#countdowns .countdown-tool-controls a", "color") && has(L, "#countdowns .countdown-tool-controls a:focus-visible", "outline"),
+            "FT-26 roll chips, Legacy": has(L, ".application.roll-selection :is(.experience-chip, .advantage-chip, .disadvantage-chip)", "box-shadow") && has(L, ".application.roll-selection input[type=\"text\"]", "background"),
+            "FT-26 roll chips, glass": has(G, ".application.roll-selection :is(.experience-chip, .advantage-chip, .disadvantage-chip)", "box-shadow"),
+            "FT-28 sheet remainder, Legacy": has(L, ".application.sheet.actor .search-section input[type=\"search\"]", "background") && has(L, ".application.sheet.actor .item-tags .tag", "border-color")
+        };
+        const clean = block.length > 0 && !/!important/.test(block) && !/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i.test(block);
+        const host = document.createElement("div");
+        host.style.cssText = "position:absolute;left:-9999px;top:0;width:400px";
+        host.innerHTML = `<div class="application daggerheart dialog dh-style views roll-selection"><div class="modifier-container"><button type="button" class="advantage-chip">A</button></div></div>`
+            + `<div class="application sheet actor character" style="position:relative;width:200px;height:100px"><div class="window-resize-handle"></div></div>`;
+        document.body.append(host);
+        let read;
+        try {
+            const themed = document.body.classList.contains("drpg-theme-monokuma-legacy") || document.body.classList.contains("drpg-theme-stained-glass");
+            const chip = getComputedStyle(host.querySelector(".advantage-chip")).boxShadow;
+            const corner = getComputedStyle(host.querySelector(".window-resize-handle")).backgroundSize;
+            read = { themed, chipInset: /inset/.test(chip), corner };
+        } finally { host.remove(); }
+        equal(stableJson({ rows, clean, read }), stableJson({
+            rows: Object.fromEntries(Object.keys(rows).map(k => [k, true])), clean: true, read: { themed: true, chipInset: true, corner: "2px 2px" }
+        }), "{rows: each piece's rule in its theme(s), setting the property from a palette token; clean: the block holds no !important and no colour literal; read: this page wears a theme, a roll chip's edge an inset shadow and a resize corner of 2 px squares in its cascade}");
+    }],
     ["R2018 - Room setup's Scenes tab on the kit (E46-C2b; E46-08, E47's 05.10 point 5): trial-scene.mjs `scenesTabHtml` is a kit `formGrid` (the school and the hall selects, each its label's `for`), the hall's name, picture and words a `formGrid` of their own, the warnings a `box(\"warning\")`, the prepare ticks kit switches, `SCENES_ZONE_SLOT` a row of `scenesTabRows` that draws nothing (where E73 puts Zone A and Zone B), the hall's cast pick (`castPickerHtml`) a kit `dataTable` with a switch an actor; `readScenesTab`'s answer for a seeded form the one it gave before", async () => {
         /*
          * E46-C2b. Red first on C2a's tree (f90e89a7): labels around the selects, a list of checkboxes, `p.drpg-warning`, no
