@@ -37,7 +37,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
-import { esc, error } from "./utils.mjs";
+import { esc, error, wholeNumber } from "./utils.mjs";
 import { toggle, stepper, stepperId } from "./ui-kit.mjs";
 import { sectionHtml, wideWindow } from "./ui-columns.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
@@ -200,13 +200,12 @@ export function syncTheme(root, theme) {
 function fieldValue(field, reg) {
     if (reg.type === Boolean) return field.checked === true;
     if (reg.type === Number) {
-        const n = Number(field.value);
-        if (field.value === "" || !Number.isFinite(n)) return undefined;
-        const { min = -Infinity, max = Infinity, step = null } = reg.range ?? {};
-        const held = Math.min(max, Math.max(min, n));
-        if (!step) return held;
-        const base = Number.isFinite(min) ? min : 0;
-        return Number((base + Math.round((held - base) / step) * step).toFixed(6));
+        /* As every number field of the module, through utils.mjs `wholeNumber` (R1127): here the count of steps from
+           the range's least, so Interface scale's 0.05 steps are whole too; out of range held to it. */
+        const { min = 0, max = Infinity, step = 1 } = reg.range ?? {};
+        if (field.value === "") return undefined;
+        const steps = wholeNumber(Math.round((Number(field.value) - min) / step), { min: 0, max: Math.round((max - min) / step), fallback: null });
+        return steps === null ? undefined : Number((min + steps * step).toFixed(6));
     }
     const v = String(field.value);
     return reg.choices && !Object.hasOwn(reg.choices, v) ? undefined : v;

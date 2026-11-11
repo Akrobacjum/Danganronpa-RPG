@@ -17910,6 +17910,8 @@ const REGRESSIONS = [
             ["overflow.mjs", "ovf-${key}-by", /\bby\.value\b/g],
             ["overflow.mjs", "ovf-threshold", /\[name="ovf-threshold"\]'\)\?\.value/g],
             ["season-setup.mjs", "chapter", /\bf\.chapter\.value\b/g],
+            // E49 A1: the DRPG Settings window's two number settings (Search Tokens per room, Interface scale), by the setting's key.
+            ["settings-window.mjs", "${name}", /\bNumber\(field\.value\)/g],
             ["trial-floor-ui.mjs", "seconds", /\("form"\)\.seconds\.value\b/g],
             ["trial-floor-ui.mjs", "seconds", /\[name=seconds\]"\)\?\.value/g]
         ];

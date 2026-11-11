@@ -14778,7 +14778,8 @@ const INVARIANTS = [
             /applyDockHidden\(\s*dockHiddenFor\(\s*available,\s*on\s*\)\s*\)/.test(fnSource(source, "refreshVoiceTile"))
                 && /getSetting\(\s*SETTINGS\.voiceTile\s*\)/.test(fnSource(source, "refreshVoiceTile")), worlds, facts, rtcDock]),
         JSON.stringify([[[false, false], [true, "none", "none", true, true, true, true], [false, false]], [true, false, false, false],
-            ["world", true, "true", true], ["client", false, "{}", true], true,
+            // Not in Foundry's settings window since E49 A1 (`config: false`): a row of the DRPG Settings window (R3420).
+            ["world", false, "true", true], ["client", false, "{}", true], true,
             [[false, false], [true, true], [false, false], [true, true], [false, false]], true, [true, SETTINGS.voiceTile]]),
         "[the dock and a popout without the class; with it: the class, their display, the dock, the popout and their <audio> in the document; without "
             + "it again], dockHiddenFor over (available, on), the voiceTile and voicePeerMutes registrations, refreshVoiceTile deciding with the setting, "
@@ -20602,7 +20603,8 @@ const INVARIANTS = [
             else store.setItem(KEPT, hadKept);
         }
         equal(stableJson(seen), stableJson([
-            [AV, KEY, false, null, "liveKitInFoundry", "world", true, true, true],
+            // Not in Foundry's settings window since E49 A1 (`config: false`): a row of the DRPG Settings window (R3420).
+            [AV, KEY, false, null, "liveKitInFoundry", "world", false, true, true],
             ["before", true, true, "external", true],
             ["held", ["liveKitInFoundry"], false, false, null],
             ["console", false, false],
