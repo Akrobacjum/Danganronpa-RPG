@@ -38,7 +38,7 @@ const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
 const WORDS = "S89 through the loose floorboard";
 
-export async function run({ gm, gm2, p1, p2, check, note, phase, settle, repoUrl }) {
+export async function run({ gm, gm2, p1, p2, p3, check, note, phase, settle, repoUrl }) {
     const UNTIL = `const until = async (test, ms = 8000) => { const end = Date.now() + ms; while (!(await test()) && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };`;
     for (const c of [gm, gm2]) await c.eval(`globalThis.__traitRulingAuto = false; globalThis.__dialogAuto = false; return true;`);
     for (const c of [p1, p2]) await c.eval(`globalThis.__dialogAuto = false; globalThis.__s89Words = [];
@@ -154,12 +154,20 @@ export async function run({ gm, gm2, p1, p2, check, note, phase, settle, repoUrl
        during an Eclipse..." (`performAction`, no incident on p1's page). So the stage on gm, then the incident and
        Aiko's turn on p1's own copy, each waited for and returned, with the milliseconds each took: 407 ms on gm, 0 more
        on p1, here (11/11 in 7.3 s). */
+    /* THE OPENING ROLL IS FORCED, NOT LEFT TO THE DICE (11.11.2026). The opening is a real roll, and a roll that fails
+       closes the murder ("Murder closed (openingFailed)"): F then read no incident, no turn and no card. Measured at the
+       1.2.105 line's merge of E49 A8 (42d9a9bb): 89 run five times, 11/11 twice, 9/11 three times; the two red runs
+       logged with --verbose each held the failed opening (the third, quick.sh's, logs no detail); nothing A8 changed is on that road. So every client that may evaluate the roll throws
+       Hope 11, Fear 2 (the faces 10-murder forces; `__forceRoll`, client-entry.mjs) until the incident is read, and
+       nothing else in F is forced. */
+    for (const c of [gm, gm2, p3]) await c.eval(`globalThis.__forceRoll = { hope: 11, fear: 2 }; return true;`);
     await gm.eval(`await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.aiko}", openingTrait: "body" }); return true;`, { timeout: 60000 });
     const fOpen = await gm.eval(`${UNTIL} const M = await import("${repoUrl}/scripts/murder.mjs"); const t0 = Date.now();
         await until(() => M.murderState()?.stage === "incident", 30000);
         const ms = Date.now() - t0;
         if (M.murderState()?.stage === "incident" && !M.isTheirTurn(game.actors.get("${ids.aiko}"))) await M.passTurn();
         return { stage: M.murderState()?.stage ?? null, ms };`, { timeout: 60000 });
+    for (const c of [gm, gm2, p3]) await c.eval(`delete globalThis.__forceRoll; return true;`);
     const fTurn = await p1.eval(`${UNTIL} const M = await import("${repoUrl}/scripts/murder.mjs"); const t0 = Date.now();
         const aiko = game.actors.get("${ids.aiko}");
         await until(() => M.murderState()?.stage === "incident" && M.isTheirTurn(aiko), 20000);
