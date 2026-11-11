@@ -6260,9 +6260,9 @@ body.drpg-dock-hidden {
     --drpg-av-lift: 0px !important;
 }
 
-/* THE GEAR'S VOICE SECTION (E78 C5; voice-panel.mjs): the Look window's third fieldset, its rows laid
-   out as the look's (stained-glass.css `.drpg-look label`, which both themes read) - a name column and
-   the control beside it. */
+/* THE GEAR'S VOICE SECTION (E78 C5; voice-panel.mjs): the Look window's third fieldset until E49 A1d, the
+   settings window's Sound section's since; its rows laid out as the look's were - a name column and the
+   control beside it. */
 fieldset.drpg-voice-panel { margin-top: 8px; }
 .drpg-voice-panel :is(.drpg-voice-panel-row, .drpg-voice-panel-key) { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
 .drpg-voice-panel :is(.drpg-voice-panel-row > span:first-child, .drpg-voice-panel-mode-label) { flex: 0 0 11ch; }
@@ -15379,7 +15379,7 @@ body.drpg-theme-monokuma-legacy .drpg-window-tables fieldset.drpg-tables-new > .
 .drpg-gmp-button[data-drpg-run="tables"] > i,
 .drpg-gmp-button[data-drpg-run="seasonSetup"] > i,
 .drpg-gmp-button[data-drpg-run="mastermind"] > i,
-.drpg-gmp-button[data-drpg-run="seasonReset"] > i,
+.drpg-gmp-button[data-drpg-run="settings"] > i,
 .drpg-gmp-button[data-drpg-run="failureLog"] > i,
 i.drpg-pix-foot {
     flex: 0 0 24px;
@@ -15408,7 +15408,7 @@ i.drpg-pix-foot {
 .drpg-gmp-button[data-drpg-run="tables"] > i::before,
 .drpg-gmp-button[data-drpg-run="seasonSetup"] > i::before,
 .drpg-gmp-button[data-drpg-run="mastermind"] > i::before,
-.drpg-gmp-button[data-drpg-run="seasonReset"] > i::before,
+.drpg-gmp-button[data-drpg-run="settings"] > i::before,
 .drpg-gmp-button[data-drpg-run="failureLog"] > i::before,
 i.drpg-pix-foot::before {
     content: none !important;
@@ -15474,9 +15474,9 @@ i.drpg-pix-foot::before {
     mask-image: var(--drpg-pix-mastermind);
 }
 
-.drpg-gmp-button[data-drpg-run="seasonReset"] > i {
-    -webkit-mask-image: var(--drpg-pix-season-reset);
-    mask-image: var(--drpg-pix-season-reset);
+.drpg-gmp-button[data-drpg-run="settings"] > i {
+    -webkit-mask-image: var(--drpg-pix-gear);
+    mask-image: var(--drpg-pix-gear);
 }
 
 .drpg-gmp-button[data-drpg-run="failureLog"] > i {

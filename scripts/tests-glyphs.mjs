@@ -410,7 +410,7 @@ export const ELEMENTS = {
     "CLEANUP.actions.moveBody": "move-body", "gm.whoIsAlive": "pulse", "gm.projects": "checklist", "gm.sound": "sound",
     "gm.rules": "rules", "gm.murder": "gm-murder", "gm.investigation": "lens", "gm.trial": "scale", "gm.jump": "calendar",
     "gm.gmTeam": "team", "gm.roomSetup": "room-setup", "gm.tables": "table", "gm.voiceReset": "voice-reset",
-    "gm.seasonSetup": "wand", "gm.mastermind": "mask", "gm.seasonReset": "trash",
+    "gm.seasonSetup": "wand", "gm.mastermind": "mask", "gm.settings": "gear",
     "gm.failureLog": "bug", "gm.caseWindow": "case-backup"
 };
 
@@ -1124,7 +1124,7 @@ export const LEGACY_ICONS = {
     "gm.voiceReset": "fa:fa-microphone-lines",
     "gm.seasonSetup": "--drpg-pix-season-setup",
     "gm.mastermind": "--drpg-pix-mastermind",
-    "gm.seasonReset": "--drpg-pix-season-reset",
+    "gm.settings": "--drpg-pix-gear",
     "gm.failureLog": "--drpg-pix-failure-log",
     "gm.caseWindow": "fa:fa-box-archive",
     "rule.caution": "fa:fa-hand",

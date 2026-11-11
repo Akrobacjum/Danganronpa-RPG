@@ -3264,9 +3264,10 @@ const REGRESSIONS = [
             "the system's own contrast preference is no longer read");
         ok(/toggle\("drpg-high-contrast", highContrastOn\(\)\)/.test(settings),
             "applyTheme no longer puts the class on the body");
-        const look = stripComments(new Map(await otherSources()).get("look.mjs") ?? "");
-        ok(look.includes("SETTINGS.highContrast"),
-            "the Look window lost the switch, so only Foundry's settings page has it");
+        // The gear's window is settings-window.mjs's since E49 A1d (the Look window's rows moved there).
+        const look = stripComments(new Map(await otherSources()).get("settings-window.mjs") ?? "");
+        ok(/CLIENT_SECTIONS\s*=[\s\S]*?"highContrast"[\s\S]*?GAME_SECTIONS\s*=/.test(look),
+            "the gear's settings window lost the switch, so no window of a player's has it");
     }],
 
     ["R53 - the Tamper tile's late answer does not eat the reason it is locked", async () => {
@@ -22804,12 +22805,17 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({ rollCards: [false, false, false], notice: [true, true, true, true, 2], slot: ["Critical", true, "Krytyk", true] }),
             "{rollCards: private-rolls.mjs plays, clips, cuts; notice: the tone's flag, the call under it, still under reduced motion, a clip-path wipe, cutCritical's mentions (its declaration and one call); slot: the English label, its hint names the cut, the Polish label, its hint}");
     }],
-    ["R3420 - every setting Foundry's list showed is in the DRPG Settings window, once (E49 A1; the owner's [11], [16], Q3, Q4): each of the 35 keys registered with `config: true` at 20218b05 (a frozen list) is in exactly one of settings-window.mjs's seven `SETTINGS_SECTIONS`, which name no other key; no setting of the module is `config: true`; the module's one menu is DRPG Settings, not restricted, and Give back's is gone; each key's `.name` and `.hint` are in lang/en.json and lang/pl.json and its hint's `firstSentence` is not empty in either; the seven sections' names in both", async () => {
+    ["R3420 - every setting Foundry's list showed is in exactly one place, this browser's or the game's (E49 A1, A1d; the owner's [11], [16], Q3, Q4, and his word on A1's shots of 11.11): each of the 35 keys registered with `config: true` at 20218b05 (a frozen list) is in exactly one of settings-window.mjs's `SETTINGS_SECTIONS` - four client sections, the gear's window, naming client settings alone, and five game sections, the game's settings window (the GM panel's Settings tile), naming world ones alone - which name no other key but Vary the sounds; no setting of the module is `config: true`; the module's one menu is DRPG Settings, not restricted, and Give back's is gone; each key's `.name` and `.hint` are in lang/en.json and lang/pl.json and its hint's `firstSentence` is not empty in either; the nine sections' names in both", async () => {
         /*
          * E49 A1, 11.11.2026. The frozen list is 20218b05's (STAGE E49 "What HEAD does": 35 distinct `config: true`, 23
          * world, 12 client; glassPulse's block carried the flag twice, design-notes.md), read by a script over settings.mjs's
          * `register(MODULE_ID, SETTINGS.x, {` blocks. Red on 13531607: settings-window.mjs does not exist (the import
          * throws) and the 35 are `config: true`. What a GM and a player see on v14: LIVE-E49-02.
+         * E49 A1d, 11.11.2026 (the owner: the gear's window the same for a GM and a player, the game's settings a tab of
+         * the GM panel): the seven sections split by scope - the 12 client keys in look, effects, sound and tech, the 23
+         * world keys in audio, rules, privacy, gm and foundry - and sfxVary, a GM's switch the Look window carried among the
+         * volumes, a row of audio (its name and hint registered since). Red at 54493dbf: seven sections, Sound and
+         * Technical holding both scopes, sfxVary in none.
          */
         const FROZEN = ["forcePrivateRolls", "forceDiceLook", "enforceAnonymity", "searchTokensPerRoom", "enforceIsoWelcome", "enforceDhWelcome",
             "enforcePlayerFiles", "liveKitInFoundry", "hideSystemFear", "pixelFont", "wideProjectWindows", "language", "theme", "glassPulse", "glassBlur",
@@ -22825,7 +22831,9 @@ const REGRESSIONS = [
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
         const at = (tree, key) => key.split(".").reduce((o, part) => (o && typeof o === "object" ? o[part] : undefined), tree);
         const first = typeof W?.firstSentence === "function" ? W.firstSentence : () => "";
-        const words = FROZEN.filter(k => {
+        const ADDED = ["sfxVary"];
+        const scopeOf = k => game.settings.settings.get(`${MODULE_ID}.${SETTINGS[k] ?? k}`)?.scope ?? null;
+        const words = [...FROZEN, ...ADDED].filter(k => {
             const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS[k] ?? k}`);
             return !reg || [reg.name, reg.hint].some(key => typeof key !== "string" || typeof at(en, key) !== "string" || typeof at(pl, key) !== "string")
                 || !first(at(en, reg.hint)) || !first(at(pl, reg.hint));
@@ -22837,9 +22845,10 @@ const REGRESSIONS = [
         const menuCalls = [...src.matchAll(/registerMenu\??\.?\(\s*MODULE_ID\s*,\s*(\w+)/g)].map(m => m[1]);
         const read = {
             loaded: W?.failed ?? true,
-            sections: sections.map(s => [s.key, s.keys.length, typeof s.icon === "string" && s.icon.startsWith("fa-")]),
+            sections: sections.map(s => [s.key, s.place, s.keys.length, typeof s.icon === "string" && s.icon.startsWith("fa-")]),
             once: FROZEN.filter((k, i) => seen[i] !== 1),
             others: named.filter(k => !FROZEN.includes(k)),
+            mixed: sections.flatMap(s => s.keys.filter(k => scopeOf(k) !== (s.place === "client" ? "client" : "world")).map(k => `${s.key}:${k}`)),
             configTrue: shown,
             menuCalls,
             menuRestricted: /registerMenu\??\.?\(\s*MODULE_ID\s*,\s*SETTINGS_MENU\s*,\s*\{[^}]*restricted:\s*false/.test(src),
@@ -22849,11 +22858,12 @@ const REGRESSIONS = [
         };
         equal(JSON.stringify(read), JSON.stringify({
             loaded: true,
-            sections: [["look", 5, true], ["effects", 5, true], ["sound", 5, true], ["rules", 7, true], ["privacy", 6, true], ["gm", 4, true], ["tech", 3, true]],
-            once: [], others: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
+            sections: [["look", "client", 5, true], ["effects", "client", 5, true], ["sound", "client", 1, true], ["tech", "client", 1, true],
+                ["audio", "game", 5, true], ["rules", "game", 7, true], ["privacy", "game", 6, true], ["gm", "game", 4, true], ["foundry", "game", 2, true]],
+            once: [], others: ["sfxVary"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
             menus: read.menus === "not modelled" ? "not modelled" : [[`${MODULE_ID}.drpgSettings`, false]],
-            words: [], sectionWords: [true, true, true, true, true, true, true]
-        }), "[the window's module loads; its sections (key, size, an icon); keys not in exactly one; keys no frozen one; settings still config: true; "
+            words: [], sectionWords: [true, true, true, true, true, true, true, true, true]
+        }), "[the module loads; its sections (key, place, size, an icon); keys not in exactly one; keys no frozen one; keys of the other scope than their place; settings still config: true; "
             + "the menus registered in settings.mjs; DRPG Settings not restricted; the menus Foundry holds; keys missing a name, a hint or a first sentence in en or pl; the sections' names in both]");
     }],
 ];

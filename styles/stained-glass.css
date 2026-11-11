@@ -567,11 +567,6 @@ body.drpg-theme-stained-glass #drpg-sound-launcher.drpg-muted {
     border-color: color-mix(in srgb, var(--drpg-glass-accent) 60%, transparent) !important;
     color: inherit !important;
 }
-.drpg-look fieldset { margin-top: 8px; }
-.drpg-look label { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
-.drpg-look label > span:first-child { flex: 0 0 11ch; }
-.drpg-look input[type="range"] { flex: 1; }
-.drpg-look output { min-width: 4ch; text-align: right; }
 
 /* ---- module windows: the stained glass on the title band, the body calm dark glass ---- */
 body.drpg-theme-stained-glass .drpg-panel .window-header {
@@ -3516,20 +3511,9 @@ body.drpg-theme-stained-glass[data-drpg-note-frame] #drpg-popups .drpg-popup-bod
     background-color: transparent;
 }
 
-/* ---- 4. The Look window fits its rows ---------------------------------------------------- */
-body.drpg-theme-stained-glass .drpg-look label > span:first-child { flex: 0 0 15ch; }
-/* EXCEPT A SWITCH'S NAME, WHICH TAKES THE ROW.
-   The fixed column exists so the Theme select and the scale slider start at the same x. A
-   checkbox has nothing to line up with - its control is one 18 px box - and a name longer
-   than the column simply wrapped inside it: "State name behind the clock" came out three
-   lines tall beside a tick. The name spans the row instead and the boxes settle on the
-   right, where all three of them line up with each other. Both themes: the fieldset is the
-   same fieldset, and Monokuma Legacy's own column is 11ch, which is narrower still. */
-.drpg-look label:has(input[type="checkbox"]) > span:first-child,
-body.drpg-theme-stained-glass .drpg-look label:has(input[type="checkbox"]) > span:first-child {
-    flex: 1 1 auto;
-}
-body.drpg-theme-stained-glass .drpg-window-look .window-content { min-width: 0; }
+/* ---- 4. The Look window fitted its rows ----------------------------------------------------
+   Its name column, the switches' names taking the row and its window's least width went with the window (E49 A1d):
+   the gear opens the settings window, whose rows are components.css's "THE SETTINGS WINDOW". */
 
 /* ---- 5. The state colour fades, on everything at once ----------------------------------
    The accent is a registered custom property, so it can be interpolated: every element that
@@ -3708,8 +3692,6 @@ body.drpg-theme-stained-glass .application.dialog:is(
 ):not(.drpg-kit-fit):not(.drpg-kit-width) .dialog-content {
     max-width: var(--drpg-popup);
 }
-/* a control that can be squeezed states what it needs, so the window above can grow for it
-   instead of the row silently getting narrower (the Look window's sliders were the report) */
 /* THE EXPLAINERS THE CLOCK AND THE DESPAIR RAIL OPEN: THE CARD GROWS, THE FRAME STAYS.
    These are the two windows the report named, and the fault in them is the `ch` fault again
    one level down. The base sheet caps the card at 46 ch, which under a normal face is a
@@ -3725,10 +3707,8 @@ body.drpg-theme-stained-glass .application.dialog:is(
 body.drpg-theme-stained-glass .application.dialog.drpg-explain .drpg-explain-body {
     max-width: none;
 }
-body.drpg-theme-stained-glass .drpg-look input[type="range"] { min-width: 14ch; }
-body.drpg-theme-stained-glass .drpg-look select,
-body.drpg-theme-stained-glass .drpg-look .drpg-select { min-width: 18ch; }
-body.drpg-theme-stained-glass .drpg-look label { gap: 12px; }
+/* The Look window's controls stated their least widths here (its sliders were the report that a squeezed control should
+   grow its window); the window went with E49 A1d. */
 
 /* ==========================================================================
    AUDIT "SZKLO POD LUPA", ROUND 1.2.41

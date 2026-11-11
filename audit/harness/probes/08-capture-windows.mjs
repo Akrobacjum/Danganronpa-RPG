@@ -140,7 +140,9 @@ export const WINDOWS = [
     // E49 A4: Room pools with a room pool seeded (the header's SEEDED).
     { id: "item-tables--rooms", module: "tables-editor.mjs", before: SEED_ROOM_POOL, after: DROP_ROOM_POOL, open: "editRooms", perTab: false, call: "m.openItemTables()" },
     { id: "look-gm", module: "look.mjs", call: "m.openLookDialog()" },
-    // E49 A1: the DRPG Settings window, every section drawn (one shown), as a GM and as a player (the client rows alone).
+    // E49 A1: the DRPG Settings window, every section drawn (one shown), as a GM and as a player - the same window since
+    // A1d (this browser's settings; look-gm and look-player open it too, through the gear's `openLookDialog`). The game's
+    // settings are the GM panel's second tab, kept as `gm-panel--settings` (a kit tab, above).
     { id: "drpg-settings", module: "settings-window.mjs", call: "m.openSettingsWindow()" },
     { id: "notices-gm", module: "notice-history-app.mjs", call: "m.openNotices()" },
     { id: "gm-panel", module: "gm-panel.mjs", call: "m.openGmPanel()" },

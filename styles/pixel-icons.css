@@ -1199,7 +1199,7 @@ body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="tables"] > i,
 body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="voiceReset"] > i,
 body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="seasonSetup"] > i,
 body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="mastermind"] > i,
-body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="seasonReset"] > i,
+body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="settings"] > i,
 body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="failureLog"] > i,
 body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="caseWindow"] > i,
 body.drpg-theme-stained-glass .drpg-callout-caution .drpg-callout-title i,
@@ -1287,7 +1287,7 @@ body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="tables"] > i::befo
 body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="voiceReset"] > i::before,
 body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="seasonSetup"] > i::before,
 body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="mastermind"] > i::before,
-body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="seasonReset"] > i::before,
+body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="settings"] > i::before,
 body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="failureLog"] > i::before,
 body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="caseWindow"] > i::before,
 body.drpg-theme-stained-glass .drpg-callout-caution .drpg-callout-title i::before,
@@ -1358,7 +1358,7 @@ body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="tables"] > i { --d
 body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="voiceReset"] > i { --drpg-glyph: var(--drpg-pix-voice-reset); }
 body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="seasonSetup"] > i { --drpg-glyph: var(--drpg-pix-wand); }
 body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="mastermind"] > i { --drpg-glyph: var(--drpg-pix-mask); }
-body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="seasonReset"] > i { --drpg-glyph: var(--drpg-pix-trash); }
+body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="settings"] > i { --drpg-glyph: var(--drpg-pix-gear); }
 body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="failureLog"] > i { --drpg-glyph: var(--drpg-pix-bug); }
 body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="caseWindow"] > i { --drpg-glyph: var(--drpg-pix-case-backup); }
 body.drpg-theme-stained-glass .drpg-callout-caution .drpg-callout-title i { --drpg-glyph: var(--drpg-pix-caution); }
