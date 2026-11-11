@@ -2926,6 +2926,9 @@ body .application.drpg-project-form .drpg-form-full > .drpg-specific-note > text
 .drpg-window-alive tbody tr[data-actor]:hover { background: var(--drpg-alive-row-hover-bg); }
 .drpg-window-alive td.drpg-data-col-silenced { text-align: center; }
 .drpg-window-alive td.drpg-data-col-name { white-space: nowrap; }
+/* A student who is not a Monocub, in the three Monocub columns that stand in every table since E49 A3 (gm-students.mjs
+   `aliveTableHtml`): a "-" in the help line's ink, centred, so the column reads empty and not missing. */
+.drpg-window-alive td > .drpg-alive-none { display: block; text-align: center; color: var(--drpg-kit-help-ink); }
 
 /* ---- the GM panel's tiles and the case window (E47-C3, 09.11.2026; audit S10-53, S10-64, the owner's 27.09 and A7) ----
    The tiles' look under Legacy moved here from danganronpa.css, where three layers of `!important` rules (a Bone wash,
@@ -3014,6 +3017,12 @@ body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-grid > .drpg-gmp-bu
 body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-button > i {
     color: inherit;
     opacity: 1;
+}
+/* THE ADVANCE BUTTON IN EVERY PHASE (E49 A3b; gm-panel.mjs `advanceHtml`): disabled in an Eclipse and a Class Trial, its
+   reason its title; drawn as a disabled tile is, a dashed edge and the not-allowed pointer, in its place on the line. */
+body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-advance:disabled {
+    border-style: dashed;
+    cursor: not-allowed;
 }
 
 /* DIAGNOSTICS LIKE THE OTHER SECTIONS (S10-64): its summary the others' plate and face; only its words dimmed (the

@@ -63,25 +63,19 @@ import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
  */
 function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, resourceValue, resourceMax, levelUp, offers }) {
     /*
-     * THE THREE MONOCUB COLUMNS ONLY EXIST WHEN A MONOCUB DOES (D-F4).
-     *
-     * Hope, the donation controls and Silenced are meaningless for a living
-     * student and for an ordinary corpse - they were rendered as "-", three
-     * columns wide, for every row. In a cast where nobody has opted in yet
-     * that is a table two thirds made of dashes, and the widest heading on it
-     * ("Turn a Monokuma's Despair into Hope") was paying for a column that had
-     * nothing in it.
-     *
-     * So they appear the moment somebody accepts the invitation and not before.
-     * The alternative - keeping the columns and hiding the dashes - leaves the
-     * headings, which are the expensive part.
+     * THE THREE MONOCUB COLUMNS ARE ALWAYS THERE (E49 A3, 11.11.2026; the owner's "Tak, naprawiamy oba" and the rule of
+     * 10.11: a state changes look, never layout). From D-F4 to E49 they appeared the moment somebody accepted the
+     * invitation and not before - three columns that a death mid-session added under the GM's hand, the table widening
+     * and every column after them moving. D-F4's reason was the cost of the headings ("Turn a Monokuma's Despair into
+     * Hope") on a table two thirds dashes; the owner chose the fixed layout over that width. A student who is not a
+     * Monocub reads a dimmed "-" in the three (`drpg-alive-none`, its words "Not a Monocub" as aria-label and tooltip),
+     * a Monokuma's or an NPC's row empty cells, as the Actions and Free Move columns read (A2).
      */
-    const anyCub = () => roster().some(a => stateOf(a) === "monocub");
 
     const L = key => game.i18n.localize(key);
 
     /*
-     * A STUDENT'S ROW is today's: the State select (the repair tool), the three Monocub cells while a Monocub exists,
+     * A STUDENT'S ROW is today's: the State select (the repair tool), the three Monocub cells (a dimmed "-" unless a Monocub),
      * and the Do cell's procedures. E47-C8 puts the Role select after the name and the Level Up before Do, and the
      * Items button beside the name (the owner's 09.11 ask).
      */
@@ -90,23 +84,21 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, reso
         const cub = state === "monocub";
 
         /*
-         * CALLED, not read. `anyCub` became a function when this table learned
-         * to rebuild itself (E22) and this line was left reading the reference
-         * - which is a function object, which is always truthy, so the cub
-         * cells were built on EVERY row whether or not a Monocub existed, under
-         * a head of three columns fewer. `cubs` below is its answer, called once
-         * per build for the heads and the cells alike (E47-C8).
+         * CALLED, not read (E47-C8): `anyCub` was a function read as a value, always truthy, so the cub cells were built
+         * on every row under a head of three columns fewer. Since E49 A3 there is no gate to misread: the cells and the
+         * heads are built on every student's row and in every table.
          */
-        const cubCells = !cubs ? {} : {
-            hope: cub ? `${resourceValue(a, "hope")} / ${resourceMax(a, "hope")}` : "-",
-            give: cub && donors ? `
+        const none = `<span class="drpg-alive-none" aria-label="${esc(L("DRPG.Monocub.notCub"))}" data-tooltip="${esc(L("DRPG.Monocub.notCub"))}">-</span>`;
+        const cubCells = {
+            hope: cub ? `${resourceValue(a, "hope")} / ${resourceMax(a, "hope")}` : none,
+            give: !cub ? none : donors ? `
                 <select name="donor:${a.id}">${donors}</select>
                 ${stepper({ name: `amount:${a.id}`, value: 1, min: 1, compact: true })}
                 <button type="button" class="drpg-mini-button" data-drpg-give="${a.id}">
                     ${L("DRPG.Monocub.give")}</button>` : "-",
             silenced: cub
                 ? `<input type="checkbox" name="silenced:${a.id}" ${isCrimeSilenced(a) ? "checked" : ""} />`
-                : "-"
+                : none
         };
 
         /*
@@ -171,12 +163,11 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, reso
         };
     };
 
-    const cubs = anyCub();
     const students = roster();
     const rest = others();
     const groups = [["students", students, studentRow], ["monokumas", rest.filter(a => roleOf(a) === "monokuma"), otherRow],
         ["notInClass", rest.filter(a => roleOf(a) === "npc"), otherRow]].filter(([, list]) => list.length);
-    // One group needs no heading (the Monocub columns' rule, D-F4): the rows say it already.
+    // One group needs no heading: the rows say it already.
     const headed = groups.length > 1;
     const rows = groups.flatMap(([key, list, build]) => [...(headed ? [{ group: L(`DRPG.Panel.group.${key}`), count: list.length }] : []), ...list.map(build)]);
     const columns = [
@@ -185,8 +176,8 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, reso
         { key: "state", label: L("DRPG.Panel.stateColumn") },
         { key: "actions", label: L("DRPG.Actions.label") },
         { key: "freeMove", label: L("DRPG.Panel.freeMove") },
-        ...(cubs ? [{ key: "hope", label: L("DRPG.Monocub.hope") }, { key: "give", label: L("DRPG.Monocub.giveHopeColumn") },
-            { key: "silenced", label: L("DRPG.Monocub.silenced"), cls: "silenced", tooltip: L("DRPG.Monocub.silencedNote") }] : []),
+        { key: "hope", label: L("DRPG.Monocub.hope") }, { key: "give", label: L("DRPG.Monocub.giveHopeColumn") },
+        { key: "silenced", label: L("DRPG.Monocub.silenced"), cls: "silenced", tooltip: L("DRPG.Monocub.silencedNote") },
         { key: "levelUp", label: L("DRPG.Panel.levelUpColumn") },
         { key: "do", label: L("DRPG.Panel.doColumn") }
     ];

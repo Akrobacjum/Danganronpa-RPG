@@ -40345,6 +40345,63 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify({ "drpg-theme-stained-glass": yes, "drpg-theme-monokuma-legacy": yes, calls: [true, true] }),
             "[per theme, the list being measured: the display and visibility of the picked row's line, an unpicked row's and an unavailable row's reason; the toggle's ground, edge and ink set by a rule; the menu's render: the floor when drawn and once the fonts are in]");
     }],
+    ["R3406 - the GM panel's Advance button and the Students window's Monocub columns stand in every state (scripts/gm-panel.mjs `advanceHtml`, gm-students.mjs `aliveTableHtml`; E49 A3; the owner's 11.11 \"Tak, naprawiamy oba\" and the rule of 10.11): Advance drawn in Daily Life, an Eclipse and a Class Trial, disabled with its reason as title in the last two; the three Monocub heads in the table whatever the cast holds, a dimmed \"-\" in each for a student who is not a Monocub", async () => {
+        /*
+         * E49 A3, 11.11.2026. The owner: "Tak, naprawiamy oba" - (1) the Students tab's Monocub columns always there, a
+         * dimmed "-" with no Monocub; (2) the panel's Advance button always there, disabled when the phase does not allow
+         * it. The rule of 10.11: "no state may add, remove or shift a control". Read: the panel drawn by `openGmPanel` on
+         * this GM while `game.settings.get` answers the clock as Daily Life, as an Eclipse and as a Class Trial (the setting
+         * itself untouched: tier 1 writes nothing), its Advance button as [drawn, disabled, its title]; then the Students
+         * window drawn: its heads, and per student who is not a Monocub the count of dimmed cells (`drpg-alive-none`). Red
+         * on 980f974a: no button in the Eclipse or the trial (E37's hide), the three heads only while a Monocub exists, no
+         * dimmed cell.
+         */
+        needs(env.dialogs(), "the panel and the Students window are read drawn");
+        const { openGmPanel } = await import("./gm-panel.mjs");
+        const { isMonocub } = await import("./monocub.mjs");
+        const panelApp = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-window-panel")) ?? null;
+        must(!panelApp(), "a GM panel stands open already");
+        const T = key => game.i18n.localize(key);
+        const under = async ({ eclipse, phase }) => {
+            const real = game.settings.get;
+            game.settings.get = function (scope, key, ...rest) {
+                const value = real.call(this, scope, key, ...rest);
+                if (scope === MODULE_ID && key === SETTINGS.clock) return { ...(value ?? {}), eclipse, phase };
+                if (scope === MODULE_ID && key === SETTINGS.murderState) return { active: false };
+                return value;
+            };
+            let running = null;
+            try {
+                running = Promise.resolve().then(() => openGmPanel()).catch(err => err);
+                must(await until(() => Boolean(panelApp()?.element?.querySelector(".drpg-gmp-standing")), 6000), "the GM panel was not drawn");
+                const b = panelApp().element.querySelector(".drpg-gmp-standing .drpg-gmp-advance");
+                return b ? [true, b.disabled, b.getAttribute("title")] : [false];
+            } finally {
+                await panelApp()?.close();
+                await Promise.race([running, wait(2000)]);
+                game.settings.get = real;
+            }
+        };
+        const advance = { day: await under({ eclipse: false, phase: "dailyLife" }), eclipse: await under({ eclipse: true, phase: "dailyLife" }),
+            trial: await under({ eclipse: false, phase: "classTrial" }) };
+        const students = studentActors();
+        must(students.length > 0, "no student in this world - this would measure nothing");
+        const w = await studentsWindow();
+        let heads = null, dimmed = null;
+        try {
+            const table = w.app?.element?.querySelector(".drpg-alive-live table") ?? null;
+            must(table, "the Students window drew no table");
+            heads = [...table.querySelectorAll("thead th")].map(th => th.textContent.trim());
+            dimmed = students.filter(a => !isMonocub(a)).map(a => table.querySelectorAll(`tbody tr[data-actor="${CSS.escape(a.id)}"] .drpg-alive-none`).length);
+        } finally {
+            await w.close();
+        }
+        const cubHeads = [T("DRPG.Monocub.hope"), T("DRPG.Monocub.giveHopeColumn"), T("DRPG.Monocub.silenced")];
+        equal(stableJson({ advance, cubHeads: cubHeads.map(h => heads.includes(h)), dimmed }), stableJson({
+            advance: { day: [true, false, null], eclipse: [true, true, T("DRPG.Panel.advanceOffEclipse")], trial: [true, true, T("DRPG.Panel.advanceOffTrial")] },
+            cubHeads: [true, true, true], dimmed: students.filter(a => !isMonocub(a)).map(() => 3)
+        }), "{advance: per state the Advance button as [drawn, disabled, title]; cubHeads: each Monocub head in the Students table; dimmed: per student who is not a Monocub, its dimmed \"-\" cells}");
+    }],
     ["R1497 - the reserve's field is the mode's (sheet.mjs `sheetMode(...).reserveField`, `paintReserves`; E24 fix G2B, general m1 and n3; E24-04): on stand-in roots of a living student, a Monocub, an NPC not in the class, the dead and a Monokuma, the field is drawn for a GM and for the owner with Lock player resources off, on a sheet its app says is editable, never on the dead's or a Monokuma's, never for another player; the mode answers what is drawn, and a repaint draws for the sheet it repaints; and a write that comes back with nothing to write leaves a field being typed into as it is", async () => {
         /*
          * E24 fix G2B, 08.11.2026. The review's m1: `mayEditReserve` asked `user?.isGM` and `testUserPermission?.(`
@@ -44018,7 +44075,7 @@ const INVARIANTS = [
 
     /* ---- E47-C8 (09.11.2026; the owner's 09.11 ask): the Students window - a role, a Level Up and Items on every row, on the kit ---- */
 
-    ["R2080 - the Students window's table a dataTable (scripts/gm-students.mjs; E47-C8): Character (the name and the row's Items), Role, State, the Monocub columns while a Monocub exists, Level Up, Do; every character a row - the students first, then the Monokumas, then the characters not in the class, under group rows when more than one group has a row; a non-student's row its name, Items, Role and the Level Up its sheet gives, no State and nothing to do; the footer Apply and Cancel, no Items", async () => {
+    ["R2080 - the Students window's table a dataTable (scripts/gm-students.mjs; E47-C8): Character (the name and the row's Items), Role, State, the Monocub columns (in every table since E49 A3), Level Up, Do; every character a row - the students first, then the Monokumas, then the characters not in the class, under group rows when more than one group has a row; a non-student's row its name, Items, Role and the Level Up its sheet gives, no State and nothing to do; the footer Apply and Cancel, no Items", async () => {
         /*
          * E47-C8, 09.11.2026 (the owner's 09.11 ask, Q-E47-3: "the roster lists every character ... each with its Role,
          * Items and Level Up, so a mark made here can be undone here"). The window is drawn on this GM (the harness's
@@ -44031,7 +44088,6 @@ const INVARIANTS = [
          */
         needs(env.dialogs(), "the Students window is read drawn");
         const { isMonokuma, isNotInClass } = await import("./monokuma.mjs");
-        const { isMonocub } = await import("./monocub.mjs");
         const { sheetMode } = await import("./sheet.mjs");
         const L = await import("./level-up.mjs");
         const { plural } = await import("./utils.mjs");
@@ -44046,7 +44102,6 @@ const INVARIANTS = [
             const n = L.standingOffers(a).length;
             return n ? plural("DRPG.Advance.standing", { n }) : T("DRPG.Advance.buttonTooltip");
         };
-        const cubs = students.some(a => isMonocub(a));
         const w = await studentsWindow();
         let got = null;
         try {
@@ -44074,9 +44129,10 @@ const INVARIANTS = [
         } finally {
             await w.close();
         }
-        // Actions and Free Move after State since E49 A2 (the owner's Q6: two columns of each row; R3345 and tier 2 read their cells).
+        // Actions and Free Move after State since E49 A2 (the owner's Q6: two columns of each row; R3345 and tier 2 read their cells);
+        // the three Monocub columns in every table since E49 A3 (R3406 reads their dimmed cells).
         const heads = [T("DRPG.Panel.character"), T("DRPG.Panel.roleColumn"), T("DRPG.Panel.stateColumn"), T("DRPG.Actions.label"), T("DRPG.Panel.freeMove"),
-            ...(cubs ? [T("DRPG.Monocub.hope"), T("DRPG.Monocub.giveHopeColumn"), T("DRPG.Monocub.silenced")] : []),
+            T("DRPG.Monocub.hope"), T("DRPG.Monocub.giveHopeColumn"), T("DRPG.Monocub.silenced"),
             T("DRPG.Panel.levelUpColumn"), T("DRPG.Panel.doColumn")];
         const shown = [["students", students], ["monokumas", kumas], ["notInClass", npcs]].filter(([, list]) => list.length);
         equal(stableJson(got), stableJson({
