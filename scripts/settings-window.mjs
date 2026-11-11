@@ -46,16 +46,17 @@ import { themeOnlyKeys } from "./look.mjs";
 /**
  * The seven sections (Q4: the mockup's, "these seven, in this order, the names as drawn"), each `{ key, icon, keys }`:
  * `key` names its words (`DRPG.SettingsWindow.sections.<key>`), `icon` a Font Awesome class, `keys` its settings by
- * SETTINGS name, in the order drawn. Every one of the 35 in exactly one (R3420).
+ * SETTINGS name, in the order drawn. Every one of the 35 in exactly one (R3420). The icons, and the scope marks below, are
+ * among those pixel-icons.css redraws as pixels under the glass (Font Awesome's own under Legacy).
  */
 export const SETTINGS_SECTIONS = Object.freeze([
-    Object.freeze({ key: "look", icon: "fa-palette", keys: Object.freeze(["language", "theme", "uiScale", "hudTicker", "wideProjectWindows"]) }),
-    Object.freeze({ key: "effects", icon: "fa-universal-access", keys: Object.freeze(["pixelFont", "glassPulse", "glassBlur", "reducedMotion", "highContrast"]) }),
+    Object.freeze({ key: "look", icon: "fa-image", keys: Object.freeze(["language", "theme", "uiScale", "hudTicker", "wideProjectWindows"]) }),
+    Object.freeze({ key: "effects", icon: "fa-wand-magic-sparkles", keys: Object.freeze(["pixelFont", "glassPulse", "glassBlur", "reducedMotion", "highContrast"]) }),
     Object.freeze({ key: "sound", icon: "fa-volume-high", keys: Object.freeze(["messengerSound", "musicEnabled", "voiceEnabled", "voiceTile", "liveKitInFoundry"]) }),
     Object.freeze({ key: "rules", icon: "fa-scale-balanced", keys: Object.freeze(["searchTokensPerRoom", "despairFromRolls", "chargeMovement", "friskForce", "autoApproveTraits", "moveAudit", "hideSystemFear"]) }),
     Object.freeze({ key: "privacy", icon: "fa-user-secret", keys: Object.freeze(["forcePrivateRolls", "forceDiceLook", "lockRollDialog", "enforceAnonymity", "roomVisibility", "lockPlayerResources"]) }),
-    Object.freeze({ key: "gm", icon: "fa-map", keys: Object.freeze(["regionFog", "foundryToolWindows", "enforcePlayerFiles", "isoTokenShield"]) }),
-    Object.freeze({ key: "tech", icon: "fa-wrench", keys: Object.freeze(["enforceIsoWelcome", "enforceDhWelcome", "debug"]) })
+    Object.freeze({ key: "gm", icon: "fa-map-location-dot", keys: Object.freeze(["regionFog", "foundryToolWindows", "enforcePlayerFiles", "isoTokenShield"]) }),
+    Object.freeze({ key: "tech", icon: "fa-screwdriver-wrench", keys: Object.freeze(["enforceIsoWelcome", "enforceDhWelcome", "debug"]) })
 ]);
 
 /* A sentence ends at ".", "!" or "?" followed by a space or the end: "game.drpg.publicRoll" and "1.2" stay whole. */
@@ -124,7 +125,7 @@ function controlHtml(key, reg, value, off) {
 
 /**
  * One setting's row: its scope's mark (this browser, or the whole table), its control by type, and the first sentence of
- * its hint with the rest as the line's tooltip. `theme` is the theme the window shows (a setting of the other theme's
+ * its hint with the rest as the line's tooltip (a caption, not a paragraph: the glass sets a `<p>` at its prose rung). `theme` is the theme the window shows (a setting of the other theme's
  * is drawn disabled, its reason the row's title). Answers "" for a key not registered.
  */
 export function settingRowHtml(key, { theme = getSetting(SETTINGS.theme) } = {}) {
@@ -140,8 +141,8 @@ export function settingRowHtml(key, { theme = getSetting(SETTINGS.theme) } = {})
     return `<div class="drpg-settings-row${off ? " is-off" : ""}" data-drpg-setting="${esc(SETTINGS[key] ?? key)}" data-drpg-scope="${world ? "world" : "client"}"${
         owner ? ` data-drpg-theme-only="${esc(owner)}"` : ""}${off ? ` title="${esc(localize(THEME_WORDS[owner]))}"` : ""}>`
         + `<div class="drpg-settings-control">${controlHtml(key, reg, value, off)}`
-        + `<i class="fa-solid ${world ? "fa-earth-europe" : "fa-display"} drpg-settings-scope" role="img" aria-label="${esc(scope)}" data-tooltip="${esc(scope)}"></i></div>`
-        + `<p class="drpg-settings-hint"${rest ? ` data-tooltip="${esc(rest)}"` : ""}>${esc(firstSentence(hint))}</p></div>`;
+        + `<i class="fa-solid ${world ? "fa-users-gear" : "fa-gear"} drpg-settings-scope" role="img" aria-label="${esc(scope)}" data-tooltip="${esc(scope)}"></i></div>`
+        + `<div class="drpg-settings-hint"${rest ? ` data-tooltip="${esc(rest)}"` : ""}>${esc(firstSentence(hint))}</div></div>`;
 }
 
 /* Give back Foundry's settings, in Technical (Q3): the menu's words, the button that opened it from Configure Settings. */
@@ -151,7 +152,7 @@ function giveBackRowHtml() {
     return `<div class="drpg-settings-row drpg-settings-giveback" data-drpg-setting="giveBackFoundry">`
         + `<div class="drpg-settings-control"><span class="drpg-settings-label">${esc(localize("DRPG.GiveBack.menuName"))}</span>`
         + `<button type="button" data-drpg-give-back><i class="fa-solid fa-rotate-left" inert></i> ${esc(localize("DRPG.GiveBack.menuLabel"))}</button></div>`
-        + `<p class="drpg-settings-hint"${rest ? ` data-tooltip="${esc(rest)}"` : ""}>${esc(firstSentence(hint))}</p></div>`;
+        + `<div class="drpg-settings-hint"${rest ? ` data-tooltip="${esc(rest)}"` : ""}>${esc(firstSentence(hint))}</div></div>`;
 }
 
 /** The sections `user` is drawn, each with its keys: a section none of whose settings the user may see is left out. */

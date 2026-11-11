@@ -14,6 +14,8 @@
  *   node audit/style-sweep.mjs --details  DETAILS HOLD THEIR PLACE (E49 A8.2), below: every action window the same size
  *                                         with Details shut and open; `--every-pick` also at every row picked (A8.3)
  *   node audit/style-sweep.mjs --panel    THE PANEL'S TILES (E49 A3), below: rows one height, every state's label and icon read
+ *   node audit/style-sweep.mjs --settings THE SETTINGS WINDOW (E49 A1), below: one size at every section picked;
+ *                                         `--pl-windows <dir>` also reads the Polish captures probe 08 wrote into <dir>
  *   node audit/style-sweep.mjs --fields   THE FIELDS PASS (E68 fix round), below: every action window's text field fills its column
  *   node audit/style-sweep.mjs --fit      THE FIT PASS (E21 C1c), below, instead of the style comparison; with --only
  *                                         the pages named, with --shots <dir> a screenshot of each at 1366x768
@@ -880,6 +882,108 @@ async function panelPass(browser) {
     return problems.length ? 1 : 0;
 }
 
+/*
+ * THE SETTINGS WINDOW (`--settings`; E49 A1, 11.11.2026; the owner's rule of 10.11, "no state may add, remove or shift a
+ * control", and [11]: no scrolling). Pages: probe 08's `drpg-settings` (a GM's seven sections) and
+ * `drpg-settings-player` (a player's client sections), at 1366x768 and 1920x1080, both themes, in English and - with
+ * `--pl-windows <dir>`, a probe 08 run with DRPG_CAPTURE_LANG=pl and DRPG_CAPTURE_OUT=<dir> - in Polish (the page's
+ * `/audit/windows/` answered from <dir>). Each section is picked through the window's own `showSection`
+ * (settings-window.mjs) and read: the window's outer rect, the body's scroll (`.drpg-kit-body` scrollHeight less
+ * clientHeight; and its scrollHeight, which moves the content's height while a window held at the screen's height keeps
+ * its rect), the rows' widest overflow. Red when a section's rect differs from the first section's by more than 0.5 px or
+ * its body content's height at all, or the body scrolls, or a row is wider than its pane. THE CONTROL first: the hidden sections planted out of the
+ * layout (`display: none`, what the window is without its stylesheet's section) must read as a change of size.
+ */
+const SETTINGS_SIZES = [[1366, 768], [1920, 1080]];
+const SETTINGS_PAGES = ["drpg-settings", "drpg-settings-player"];
+
+async function settingsRead(page) {
+    return page.evaluate(async () => {
+        const { showSection } = await import("/scripts/settings-window.mjs");
+        const win = globalThis.document.querySelector(".application.drpg-window-settings");
+        if (!win) return { error: "no settings window on the page" };
+        const body = win.querySelector(".drpg-kit-body");
+        const keys = [...win.querySelectorAll("[data-drpg-section]")].map(b => b.dataset.drpgSection);
+        const rows = [];
+        for (const key of keys) {
+            showSection(win, key);
+            await new Promise(r => globalThis.requestAnimationFrame(() => globalThis.requestAnimationFrame(r)));
+            const rect = win.getBoundingClientRect();
+            const pane = win.querySelector(`[data-drpg-pane="${key}"]`);
+            const paneRight = pane?.getBoundingClientRect().right ?? 0;
+            const over = Math.max(0, ...[...(pane?.querySelectorAll(".drpg-settings-row") ?? [])].map(r => Math.round((r.getBoundingClientRect().right - paneRight) * 10) / 10));
+            rows.push({ key, w: Math.round(rect.width * 10) / 10, h: Math.round(rect.height * 10) / 10,
+                body: body ? body.scrollHeight - body.clientHeight : null, sh: body?.scrollHeight ?? null, over });
+        }
+        return { rows };
+    });
+}
+
+async function settingsPass(browser) {
+    const problems = [];
+    const plDir = opt("--pl-windows");
+    const langs = plDir ? ["en", "pl"] : ["en"];
+    if (!plDir) console.log("style-sweep: --settings Polish NOT read (no --pl-windows <dir>)");
+    const open = async (lang, w, h) => {
+        const page = await browser.newPage({ viewport: { width: w, height: h } });
+        if (lang === "pl") {
+            await page.route("**/audit/windows/**", route => {
+                const file = path.join(path.resolve(plDir), decodeURIComponent(new URL(route.request().url()).pathname.split("/audit/windows/")[1]));
+                return fs.existsSync(file) ? route.fulfill({ path: file }) : route.continue();
+            });
+        }
+        return page;
+    };
+    const url = (id, theme) => withTheme(`/audit/style-harness.html?w=${id}&fit=1${id.endsWith("-player") ? "&role=player" : ""}`, theme);
+    {
+        const page = await open("en", 1366, 768);
+        await load(page, url("drpg-settings", "glass"));
+        await page.addStyleTag({ content: ".drpg-settings-pane[hidden] { display: none !important; }" });
+        const r = await settingsRead(page);
+        const hs = (r.rows ?? []).map(x => `${x.h}:${x.sh}`);
+        const seen = new Set(hs).size > 1;
+        console.log(`style-sweep: --settings control (the hidden sections out of the layout): height:body content ${hs.join("/")} ${seen ? "read" : "NOT read"}`);
+        if (!seen) problems.push("control: sections taken out of the layout read as one size");
+        await page.close();
+    }
+    for (const lang of langs) {
+        for (const [w, h] of SETTINGS_SIZES) {
+            for (const theme of THEMES) {
+                const page = await open(lang, w, h);
+                for (const id of SETTINGS_PAGES) {
+                    await load(page, url(id, theme));
+                    const r = await settingsRead(page);
+                    const where = `${id} ${lang} ${theme} ${w}x${h}`;
+                    if (r.error) { problems.push(`${where}: ${r.error}`); console.log(`style-sweep: --settings ${where}: ${r.error}`); continue; }
+                    const first = r.rows[0];
+                    const bad = [];
+                    for (const x of r.rows) {
+                        if (Math.abs(x.w - first.w) > 0.5 || Math.abs(x.h - first.h) > 0.5) bad.push(`${x.key} ${x.w}x${x.h} (first ${first.w}x${first.h})`);
+                        else if (x.sh !== first.sh) bad.push(`${x.key} body content ${x.sh} px (first ${first.sh})`);
+                        if (x.body > 0) bad.push(`${x.key} body scrolls ${x.body} px`);
+                        if (x.over > 0.5) bad.push(`${x.key} a row ${x.over} px past its pane`);
+                    }
+                    problems.push(...bad.map(b => `${where}: ${b}`));
+                    console.log(`style-sweep: --settings ${where}: ${r.rows.length} section(s), ${[...new Set(r.rows.map(x => `${x.w}x${x.h}`))].join(" / ")}, body scroll ${Math.max(...r.rows.map(x => x.body))}${bad.length ? ` - RED: ${bad.join("; ")}` : ""}`);
+                    if (SHOTS) {
+                        fs.mkdirSync(SHOTS, { recursive: true });
+                        for (const x of r.rows) {
+                            await page.evaluate(async key => (await import("/scripts/settings-window.mjs")).showSection(globalThis.document.querySelector(".application.drpg-window-settings"), key), x.key);
+                            // The glass's brush fades between the buttons (motion.css): the picture after it settles.
+                            await page.waitForTimeout(700);
+                            await page.screenshot({ path: path.join(SHOTS, `${id}-${lang}-${theme}-${w}x${h}-${x.key}.png`) });
+                        }
+                    }
+                }
+                await page.close();
+            }
+        }
+    }
+    for (const p of problems) console.log(`style-sweep: --settings ${p}`);
+    console.log(`style-sweep: --settings ${problems.length ? `RED, ${problems.length} problem(s)` : "green"}`);
+    return problems.length ? 1 : 0;
+}
+
 async function main() {
     let server = null;
     if (!BASE) {
@@ -891,6 +995,10 @@ async function main() {
     const browser = await chromium.launch(CHROMIUM ? { executablePath: CHROMIUM } : {});
     if (argv.includes("--panel")) {
         try { process.exitCode = await panelPass(browser); } finally { await browser.close(); server?.kill(); }
+        return;
+    }
+    if (argv.includes("--settings")) {
+        try { process.exitCode = await settingsPass(browser); } finally { await browser.close(); server?.kill(); }
         return;
     }
     if (argv.includes("--details")) {
