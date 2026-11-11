@@ -8,10 +8,13 @@
  * such reader asks this file: `bodyPlaceOf` (where the body lies) and `bodyRoomOf` (its room) - the tile's, and the
  * token's again when a GM deletes the tile or none was laid.
  *
- * C0 is the readers and the tile's shape (`bodyTileSpec`), and no writer: E95 C2 lays the tile (`leaveBody`, from
- * monocub.mjs `setMonocub`) and removes it. Nothing here writes, so any browser may ask it, the player's included
- * (anonymity.mjs's greying asks the loot gate there): a tile is laid only for a death already public, and its flag says
- * nothing the `deceased` flag does not.
+ * THE OWNER'S RULES OF 11.11.2026 (E63; E95 Q2, Q3, Q8), which replace DC6's "only the murdered" and E95's Monocub
+ * edge: the tile is laid when the death is the table's, every death, an execution's too (`leaveBody`, from chapter.mjs
+ * `markDeceased`; a death the GMs keep lays none until it is made known, QUESTIONS E63 Q1); it follows its corpse's token
+ * until the student gets up as a Monocub (`followBody`, Q3); every body tile goes at the Class Trial's end (clock.mjs
+ * `reconcilePhase`, `removeBodyTiles`), and a student's at a revive or the season's reset. The readers ask any browser,
+ * the player's included (anonymity.mjs's greying asks the loot gate there); the writers are the GMs' alone, and the
+ * tile's flag says nothing the `deceased` flag does not say at the same moment.
  *
  * WHICH TILE IS THE BODY. The current death's (`deathId` the `deceased` record's, so a student who died, came back and
  * died again is not read on the first death's tile a GM forgot), and of two the earliest laid (`at`): two GMs making
@@ -32,7 +35,7 @@
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
 import { deathRecord } from "./settings.mjs";
-import { gmPlaceOf, roomAt } from "./movement.mjs";
+import { gmPlaceOf, roomAt, isCorpse } from "./movement.mjs";
 
 /** A floor as an id: a Level document's, an id as it is, null for none. */
 const floorId = level => level?.id ?? level ?? null;
@@ -41,15 +44,21 @@ const floorId = level => level?.id ?? level ?? null;
 const gridOf = scene => scene?.grid?.size ?? globalThis.canvas?.grid?.size ?? 100;
 
 /**
- * Whether a death leaves a body on the map (QUESTIONS Q2, the default (a)): a record, whose `cause` is not "executed"
- * (trial-progress.mjs `carryOutSentence`, E70 C4) and whose phase is not the Class Trial - the rule chapter.mjs
- * `bodiesToDiscover` reads a body to find by. A record with no phase is a death that is no execution (the executed carry
- * both). DC6's "only the murdered" without a `cause: "murder"`: a GM who records a murder by hand records one the
- * module cannot tell from a ruling.
+ * Whether a death leaves a body on the map: any record (E63 C0, 11.11.2026; the owner on E95 Q2 "Trial tez, ale kafel
+ * smierci po trialu znika" and Q3 "gdy postac umiera"). Until E63 an execution and a death in the Class Trial left none
+ * (E95 Q2 (a)); now the executed's tile is laid by the sentence and taken with every other at the trial's end (clock.mjs
+ * `reconcilePhase`). The discovery keeps its own rule (chapter.mjs `bodiesToDiscover`: an execution is no body to find).
  */
 export function isBodyDeath(record) {
-    if (!record) return false;
-    return record.cause !== "executed" && record.phase !== "classTrial";
+    return Boolean(record);
+}
+
+/**
+ * Whether a body with nowhere to lie is said to the GM (`DRPG.Body.noToken`; E63 C0, QUESTIONS E63 Q5): for every death
+ * but one in the Class Trial, where every body goes at the trial's end anyway and the hall holds no rooms.
+ */
+export function noTokenWarns(record) {
+    return record?.phase !== "classTrial";
 }
 
 /**
@@ -168,37 +177,47 @@ function floorFieldsOf(level) {
 }
 
 /**
- * LEAVE THE BODY (E95 C2, 10.11.2026; DC6; QUESTIONS Q2 (a), Q3 (a)). Lays `actor`'s body on the map as a tile where
- * their token stands, and answers the tile document, or null. GM only, on the GM's browser that made the Monocub
- * (monocub.mjs `setMonocub`, its false-to-true edge; E72 will call it from the invitation's acceptance too); no bridge
- * action and no socket, and core Foundry lets no player create a tile. None is laid:
- *   - for a death that leaves no body (`isBodyDeath`: an execution, or a death in the Class Trial), or none recorded;
- *   - when a tile of this death is there already (`bodyTileOf`) - made a Monocub twice, or unticked and ticked again;
+ * LEAVE THE BODY (E95 C2, 10.11.2026; E63 C0, 11.11.2026: the owner's "gdy postac umiera ... Nie gdy zostaje
+ * Monocubem"). Lays `actor`'s body on the map as a tile where their token stands, and answers the tile document, or null.
+ * GM only, on the GM's browser that made the death the table's: chapter.mjs `markDeceased`, the one function every public
+ * death passes (`killCharacter` in public, `publishDeath` of a kept death, the Players window's "dead"), handing the
+ * record it has just written - and migrate.mjs's clause for a 1.2.104 world (E63 C3), which hands none. A death the GMs
+ * keep lays nothing until it is made known (QUESTIONS E63 Q1); becoming a Monocub lays nothing. No bridge action and no
+ * socket, and core Foundry lets no player create a tile. None is laid:
+ *   - for no record (`isBodyDeath`);
+ *   - when a tile of this death is there already (its `deathId`) - a second `markDeceased` of one death;
  *   - when the GMs read the student's token nowhere on a scene with rooms (movement.mjs `gmPlaceOf`, which looks on place
  *     scenes only and answers null too while a put-back of the token is on its way or the judge holds it where the
- *     rules refuse, `gmSpotWhy`): the GM is told (`DRPG.Body.noToken`, which names both and says to untick and tick Monocub again
- *     once the token stands - nothing here tries again: E95 fix RV-8), as a body with nowhere to lie is a body the loot
- *     gate then reads at no place.
+ *     rules refuse, `gmSpotWhy`): the GM is told (`DRPG.Body.noToken`), except for a death in the Class Trial
+ *     (`noTokenWarns`: the hall holds no rooms, and every body goes at the trial's end), as a body with nowhere to lie is a
+ *     body the loot gate then reads at its token. Nothing here tries again (E95 fix RV-8).
  * The tile is the token's corner, size, picture and `hidden` (`bodyTileSpec`), with the floor in the flag and in the
- * tile's own floor field where it has one (`floorFieldsOf`). Two GMs making one Monocub at once can lay two; the
- * readers take the earliest (`bodyTileOf`) and a revive or the reset removes both (`removeBodyTiles`).
+ * tile's own floor field where it has one (`floorFieldsOf`). Two GMs publishing one death at once can lay two; the
+ * readers take the earliest (`bodyTileOf`) and every removal takes both (`removeBodyTiles`).
  *
- * THE DEATH AS THE GMS HOLD IT (E95 fix RV-6, 10.11.2026). The record and the tile already there are read off
- * sheet-audit.mjs `flagsHeldNow` (imported when called: the file's static imports stay R3142's three), so a
- * player's write of their own `deathId` before its put-back neither stamps the tile with it nor hides the tile there.
+ * THE DEATH AS THE GMS HOLD IT (E95 fix RV-6, 10.11.2026). The record handed in is the one `markDeceased` wrote, so a
+ * player's forged `deathId` cannot reach it, and right after the write the GMs' mark may not hold it yet (E63 C0). With
+ * none handed, the record is read off sheet-audit.mjs `flagsHeldNow` (imported when called: the file's static imports
+ * stay R3142's three), so a player's write of their own `deathId` before its put-back neither stamps the tile with it
+ * nor hides the tile there.
  *
- * A TILE THE GM DELETED (the review's RV-2, kept): the guard against a second tile is the tile itself, so once the GM
- * deletes it, the next false-to-true edge lays a new one where the Monocub's token stands then. The GM handbook says so;
- * E72, which lays the tile from the invitation's acceptance, revisits it (STATUS E95 Open).
+ * A TILE THE GM DELETED (the review's RV-2, closed by E63 C0): no road lays a tile again for a death that has one laid
+ * once, so a tile the GM deletes stays deleted and the body is searched from its token's room (the migration aside: E63
+ * C3, a 1.2.104 world's one pass).
  */
-export async function leaveBody(actor, { at = Date.now() } = {}) {
+export async function leaveBody(actor, { record: handed = null, at = Date.now() } = {}) {
     if (!game.user?.isGM || !actor) return null;
-    const { flagsHeldNow } = await import("./sheet-audit.mjs");
-    const record = deathRecord(flagsHeldNow(actor));
-    if (!isBodyDeath(record) || bodyTileOf(actor, { held: flagsHeldNow })) return null;
+    let record = handed;
+    if (!record) {
+        const { flagsHeldNow } = await import("./sheet-audit.mjs");
+        record = deathRecord(flagsHeldNow(actor));
+    }
+    if (!isBodyDeath(record)) return null;
+    const deathId = record.deathId ?? null;
+    if (bodyTilesOf(actor.id).some(({ mark }) => (mark.deathId ?? null) === deathId)) return null;
     const place = gmPlaceOf(actor);
     if (!place?.tokenDoc || !place.scene) {
-        ui.notifications?.warn(game.i18n.format("DRPG.Body.noToken", { name: actor.name }));
+        if (noTokenWarns(record)) ui.notifications?.warn(game.i18n.format("DRPG.Body.noToken", { name: actor.name }));
         return null;
     }
     const data = { ...bodyTileSpec({ tokenDoc: place.tokenDoc, actorId: actor.id, record, level: place.level, at }), ...floorFieldsOf(place.level) };
@@ -206,27 +225,109 @@ export async function leaveBody(actor, { at = Date.now() } = {}) {
     return tile ?? null;
 }
 
+/** The body tiles a removal of every body leaves on this browser (`holdBodyTiles`), or null for none held. */
+let heldTiles = null;
+
+/**
+ * THE SUITE'S FENCE (E63 C2, 11.11.2026; the lesson of E95 fix RV-1). Tier 2 ends trials in about a hundred places and
+ * runs at real tables, and from E63 every trial's end takes every body tile (clock.mjs `reconcilePhase`). tests.mjs
+ * hands the ids of every body tile the world holds before tier 2 (`ids`), and null after it: in between, a removal of
+ * every body on this browser (`removeBodyTiles` with no actor) leaves those, unless it is asked with `held: false` (the
+ * season reset's own deaths group, chapter.mjs `clearSeasonDeaths`, which at a table does take every body). A removal
+ * of one student's tiles (a revive) is not fenced. Answers the set held, or null.
+ */
+export function holdBodyTiles(ids = null) {
+    heldTiles = ids ? new Set(ids) : null;
+    return heldTiles;
+}
+
+/** The ids `holdBodyTiles` holds on this browser, or null (E63 C2; tier 2 reads it). */
+export function heldBodyTiles() {
+    return heldTiles ? [...heldTiles] : null;
+}
+
 /**
  * Remove the body tiles of `actorId` from every scene, or every body tile when it is null, and answer how many (E95
- * C2; QUESTIONS Q7, Q8). GM only. `only`, a set of tile ids, narrows it to those (E95 fix RV-1: tier 2 runs the reset's
+ * C2; QUESTIONS Q7, Q8; E63 C2: and at every Class Trial's end, clock.mjs `reconcilePhase`). GM only. With no actor, a
+ * tile `holdBodyTiles` holds stays unless `held` is false (the suite's fence, above). `only`, a set of tile ids, narrows it to those (E95 fix RV-1: tier 2 runs the reset's
  * deaths entry on its own tiles alone, so a GM's suite at a table deletes no body the table holds). A revive takes the student's (chapter.mjs `reviveCharacter`: a student back alive
  * has no body), the season reset's deaths group every one (chapter.mjs `clearSeasonDeaths`), a body whose student is
  * gone from the world included. Stopping being a Monocub keeps the tile: the student is still dead. A tile with no
  * body flag is never touched.
  */
-export async function removeBodyTiles(actorId = null, { only = null } = {}) {
+export async function removeBodyTiles(actorId = null, { only = null, held = true } = {}) {
     if (!game.user?.isGM) return 0;
+    const fenced = actorId === null && held && heldTiles ? heldTiles : null;
     let removed = 0;
     for (const scene of game.scenes ?? []) {
         const ids = [...(scene?.tiles ?? [])].filter(doc => {
             const mark = markOf(doc);
-            return mark && (actorId === null || mark.actorId === actorId) && (!only || only.has(doc.id));
+            return mark && (actorId === null || mark.actorId === actorId) && (!only || only.has(doc.id)) && !fenced?.has(doc.id);
         }).map(doc => doc.id);
         if (!ids.length) continue;
         await scene.deleteEmbeddedDocuments("Tile", ids);
         removed += ids.length;
     }
     return removed;
+}
+
+/**
+ * The fields of a token's update the body follows: its corner, its height, its floor (rooms.mjs `levelOf` reads `level`),
+ * and whether it is hidden (a GM hiding the corpse hides the body, as E95 fix RV-3 laid it hidden as the token).
+ */
+const MOVED = ["x", "y", "elevation", "level", "hidden"];
+
+/**
+ * The update that takes `tileDoc`, a body's tile, to where `tokenDoc` lies now, or null (pure; E63 C1, tier 1 R3403):
+ * the token's corner, height and `hidden`, the tile's own size kept (a tile's width and height are pixels, and a corpse's token
+ * keeps its squares), and the flag's `level` the token's floor (`level`, an id or a Level), with the tile's own floor
+ * field where it has one (`floorFieldsOf`). Null when `changes` names none of the fields that move a token (`MOVED`), or
+ * when the tile lies there already.
+ */
+export function followedTile(tileDoc, tokenDoc, changes, level = null) {
+    if (!tileDoc || !tokenDoc || !MOVED.some(key => key in (changes ?? {}))) return null;
+    const mark = markOf(tileDoc);
+    if (!mark) return null;
+    const x = Number(tokenDoc.x) || 0, y = Number(tokenDoc.y) || 0;
+    const elevation = Number.isFinite(tokenDoc.elevation) ? tokenDoc.elevation : 0;
+    const floor = floorId(level), hidden = Boolean(tokenDoc.hidden);
+    if (Number(tileDoc.x) === x && Number(tileDoc.y) === y && (Number(tileDoc.elevation) || 0) === elevation && (mark.level ?? null) === floor
+        && Boolean(tileDoc.hidden) === hidden) return null;
+    return { _id: tileDoc.id, x, y, elevation, hidden, [`flags.${MODULE_ID}.${FLAGS.bodyOf}.level`]: floor, ...floorFieldsOf(floor) };
+}
+
+/**
+ * THE BODY FOLLOWS ITS CORPSE (E63 C1, 11.11.2026; QUESTIONS E63 Q3, the owner's "yes"). Foundry's `updateToken`, after
+ * the write: on the GM's browser that moved the token alone (`userId === game.user.id`, `game.user.isGM`), when the
+ * token's actor is a corpse (movement.mjs `isCorpse`: dead for the GMs, not a Monocub) and the move changed its corner,
+ * height, floor or `hidden`, the current death's tile (`bodyTileOf`, the death read as the GMs hold it) on the token's own scene
+ * goes to the token (`followedTile`). So a GM's drag and Stage 6's Move the body (cleanup.mjs `applyMoveBody`, a GM's
+ * teleport) move the body with one hook; a Monocub's token walks away from its tile; a player's move of a corpse is vetoed
+ * before it writes (movement.mjs `preUpdateToken`). A token on another scene than its tile (the hall's, in the trial)
+ * moves nothing, and a body taken to another scene leaves its tile where it was (not handled: the GM handbook says so).
+ * Two tiles of one death (two GMs publishing it at once) - the one `bodyTileOf` reads moves, the other stays. Answers the
+ * tile's update, or null. Writes once per move; a GM moving several corpses at once writes one each (not measured:
+ * LIVE-E63-04).
+ */
+export async function followBody(tokenDoc, changes, options, userId) {
+    if (!game.user?.isGM || userId !== game.user.id) return null;
+    if (!MOVED.some(key => key in (changes ?? {}))) return null;
+    const actor = tokenDoc?.actor ?? null;
+    if (!actor || !isCorpse(actor)) return null;
+    const { flagsHeldNow } = await import("./sheet-audit.mjs");
+    const body = bodyTileOf(actor, { held: flagsHeldNow });
+    if (!body || body.scene?.id !== tokenDoc.parent?.id) return null;
+    const patch = followedTile(body.doc, tokenDoc, changes, tokenDoc.level ?? null);
+    if (!patch) return null;
+    await body.scene.updateEmbeddedDocuments("Tile", [patch]);
+    return patch;
+}
+
+/** The body's walk with its corpse (E63 C1; module.mjs `init`): `followBody` after every token update, never before. */
+export function registerBodyFollow() {
+    Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
+        followBody(tokenDoc, changes, options, userId).catch(async err => (await import("./utils.mjs")).error("The body could not follow its token", err));
+    });
 }
 
 /** The name the body's mark carries on its tile (E95 C3): a redraw finds its own by it, and touches nothing else. */

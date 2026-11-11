@@ -9103,6 +9103,7 @@ const REGRESSIONS = [
             ["HOOK movement.mjs#registerMovement#preUpdateToken:onPreUpdateToken", "a claim, judged again: the veto runs on the mover's browser (a GM returns early); since E12 C9 it sees a `level`-only move (`isMoveChange`), reads each end on its own floor (`roomAt` per level) and links floors by the stairs alone where a scene has them (`stairLinks`); since E12 C12 the primary judges every arrival again from the last lawful room (`judgeArrival`), and one it refuses is no witness and no third party until it stands somewhere lawful (Q3 a); scenario 66 I [1b.1 a token's room / floor] MARKED"],
             ["HOOK movement.mjs#registerMovement#updateToken:onUpdateToken", "the charge on one client (`settleRoute`: the owning player's, else the primary's) - a player's own budget; since E12 C9 it gates on `isMoveChange` and prices a step by `crossingCost`: the stairs a door, a stairwell's floors free (Q1 a) [1b.1 a token's floor]"],
             ["HOOK sheet.mjs#registerSheetTweaks#preUpdateToken:noteStepStart", "out of scope as a judge: notes where this browser's own move of a token starts, for the step onto a tunnel's end (H81-13); vetoes nothing and writes nothing"],
+            ["HOOK body-tile.mjs#registerBodyFollow#updateToken:inline", "judged: a GM's own write followed (E63 C1, `followBody`): on the GM browser that wrote the token's move alone, for a corpse, the body's tile on the token's own scene takes the token's corner, height, floor and hidden; a player's move of a corpse is vetoed before it writes (movement.mjs `isCorpse`)"],
             ["HOOK anonymity.mjs#registerAnonymity#updateToken:inline", "out of scope as a judge: a display - an open body's loot window reads the one gate again on this browser when its taker's or its body's token is written (`regreyOpenLoot`, E14 fix e1-G6); writes nothing, and the GMs judge the loot again"],
             ["HOOK sheet.mjs#registerSheetTweaks#updateToken:inline", "a claim, judged again: the mover's browser reads its own move at rest (movement.mjs `tunnelStepTarget`) and asks the primary as 'Go through' does (`passage.cross`, passages-gm.mjs `crossTunnel`, H81-13); writes nothing"],
             ["HOOK movement.mjs#registerMovement#updateToken:noteGmPosition", "judged: the record of positions `sendBackRefusal` compares against, `level` in it (`positionOf`), kept on every GM and primed by each at ready since E12 fix r2-H3 (before, the primary's alone); since E12 C12 the primary judges the arrival first (`judgeArrival`, the hook's `userId`), the last lawful room kept beside the record (`standings`, 3.4)"],
@@ -9353,6 +9354,7 @@ const REGRESSIONS = [
             ["HOOK despair.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK fog.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK sheet.mjs#preUpdateToken#noteStepStart", "out of scope: notes where this browser's own move starts (H81-13); the courtroom holds no tunnel, and the crossing is the primary's (`crossTunnel`)"],
+            ["HOOK body-tile.mjs#updateToken#arrow1", "judged: the body follows its corpse's token (E63 C1, `followBody`) on the GM browser that wrote the move alone; a token on another scene than its tile moves nothing, so a hall token in the trial moves no school body, and the trial's end takes every body tile (E63 C2)"],
             ["HOOK anonymity.mjs#updateToken#arrow1", "out of scope: a display - an open body's loot window reads the one gate again on a token write of its taker or its body (E14 fix e1-G6); writes nothing; in the hall the Class Trial refuses every loot (`cannotNow`)"],
             ["HOOK sheet.mjs#updateToken#arrow1", "out of scope: a move onto a tunnel's end asks the primary as 'Go through' does (H81-13); the courtroom holds no tunnel, and the Class Trial refuses one there (`trialLocked`)"],
             ["HOOK fog.mjs#updateToken#onUpdateToken", "judged on the primary: a move records discovery through rooms; the hall holds none after C1, so a hall move records nothing (41 b: 0 fog writes). E12 C2b/C10 change the readers"],
@@ -10479,6 +10481,7 @@ const REGRESSIONS = [
             ["HOOK movement.mjs#registerMovement#createToken/inline -> judge", "this file's own: `noteGmCreated`, the GM's first sighting of a token; E79 adds no road through it"],
             ["HOOK fog.mjs#registerFog#updateToken/onUpdateToken -> judge", "this file's own: this browser's discovery and outline; E79 adds no road through it (the gap's redraw hangs on its own event, not on this hook)"],
             ["HOOK fog.mjs#registerFog#createToken/inline -> judge", "this file's own: this browser's discovery mirror; E79 adds no road through it; since E51 C3 also the arrival of a token of this viewer's placed in a room (`ownArrival`), on this browser's screen alone"],
+            ["HOOK body-tile.mjs#registerBodyFollow#updateToken/inline -> judge", "this file's own (E63 C1: the body follows its corpse on the mover's GM browser); E79 adds no road through it"],
             ["HOOK murder-rules.mjs#registerMurder#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
             ["HOOK projects-map.mjs#registerProjectsMap#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
             ["HOOK remnant-ring.mjs#registerRemnantRings#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
@@ -22340,6 +22343,106 @@ const REGRESSIONS = [
         }), "{twice: tile keys in more than one place; moved: the sections holding each of the four; standing: [a table in the standing block, the students line in it]; "
             + "line: [plural's words, the door to Students, the acting cast, counted by actions left]; columns: [Actions, Free Move, read from actions.mjs]; "
             + "end: [the part in Edit campaign, a warning box with a destructive button, the press goes to the question, the question destructive with Cancel writing nothing, the chapter's end after it]}");
+    }],
+    ["R3400 - the death lays the body, and nothing else does (E63 C0; the owner's 11.11.2026, E95 Q3: \"gdy postać umiera ... Nie gdy zostaje Monocubem\"): body-tile.mjs `leaveBody` is called from chapter.mjs `markDeceased`, the one function every public death passes, handed the record it just wrote, and from migrate.mjs's pass for a 1.2.104 world (E63 C3) alone; monocub.mjs imports nothing from body-tile.mjs; `recordSecretDeath` names no export of body-tile.mjs", async () => {
+        /*
+         * E63 C0, 11.11.2026; STAGE E63 items 1, 3 and 5. Read off the served sources with their comments taken out:
+         * every `leaveBody(` call outside body-tile.mjs's own definition, as [file, the top-level function it stands in],
+         * whether `markDeceased`'s call hands the record it wrote, monocub.mjs's static imports, and the export names of
+         * body-tile.mjs that `recordSecretDeath`'s body names (a kept death lays no tile until it is the table's: QUESTIONS
+         * Q1). The reader of calls is shown a planted text first. What the call does is tier 2's ("every death leaves its
+         * body where its token lies"). Red at 7b5b4da9: the one call was monocub.mjs `setMonocub`'s, and monocub.mjs
+         * imported body-tile.mjs.
+         */
+        const CALL = /(?<!function\s+)\bleaveBody\s*\(/g;
+        const sites = (file, text) => [...text.matchAll(CALL)].map(m => {
+            const before = text.slice(0, m.index);
+            const fn = [...before.matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].at(-1)?.[1] ?? null;
+            return [file, fn];
+        });
+        equal(JSON.stringify(sites("x.mjs", "function a() {}\nasync function b() { leaveBody (x); }\nexport function c() { leaveBodyX(y); B.leaveBody(z); }\nexport async function leaveBody(q) {}")),
+            JSON.stringify([["x.mjs", "b"], ["x.mjs", "c"]]), "the reader of leaveBody calls does not find exactly the two planted for it, in b and c");
+        const sources = await moduleSources();
+        must(["chapter.mjs", "monocub.mjs", "body-tile.mjs"].every(f => sources.has(f)), "chapter.mjs, monocub.mjs or body-tile.mjs is not served - this would measure nothing");
+        const code = file => stripComments(sources.get(file));
+        const found = [];
+        for (const [file] of sources) {
+            if (/^tests/.test(file)) continue;
+            const text = code(file);
+            found.push(...sites(file, text));
+        }
+        const exported = [...code("body-tile.mjs").matchAll(/^export (?:async )?(?:function|const) (\w+)/gm)].map(m => m[1]);
+        must(exported.includes("leaveBody") && exported.includes("removeBodyTiles"), `body-tile.mjs exports ${JSON.stringify(exported)} - this would measure nothing`);
+        const secret = topLevelFunction(code("chapter.mjs"), "recordSecretDeath") ?? "";
+        must(secret.length > 40, "chapter.mjs has no recordSecretDeath - this would measure nothing");
+        const mark = topLevelFunction(code("chapter.mjs"), "markDeceased") ?? "";
+        equal(JSON.stringify({
+            calls: found.sort(),
+            handsRecord: /\bleaveBody\(actor,\s*\{\s*record\s*\}\)/.test(mark),
+            monocubImports: staticImports(code("monocub.mjs")).includes("body-tile.mjs"),
+            secretNames: exported.filter(name => new RegExp(`\\b${name}\\b`).test(secret))
+        }), JSON.stringify({ calls: [["chapter.mjs", "markDeceased"], ["migrate.mjs", "layOpenCaseBodies"]], handsRecord: true, monocubImports: false, secretNames: [] }),
+            "{calls: every leaveBody call as [file, function]; handsRecord: markDeceased's call hands its record; monocubImports: monocub.mjs imports body-tile.mjs; secretNames: body-tile.mjs's exports recordSecretDeath names}");
+    }],
+    ["R3402 - the body follows its corpse after the write, on the mover's GM browser alone (E63 C1; QUESTIONS E63 Q3): body-tile.mjs `followBody` is registered on `updateToken` and never `preUpdateToken`, tests `game.user.isGM` and `userId === game.user.id` before its one write, asks movement.mjs `isCorpse`; module.mjs registers it", async () => {
+        /*
+         * E63 C1, 11.11.2026; STAGE E63 item 6 and its write roads. Read off the served sources with their comments
+         * taken out: body-tile.mjs's hooks (every `Hooks.on("<name>"` in the file), `followBody`'s offsets of its GM and
+         * mover tests, its `isCorpse(` and its Tile write, `isCorpse` exported by movement.mjs, and module.mjs's
+         * registration. What the follow does is tier 2's ("the body follows its corpse token, not its Monocub"). Red at
+         * C0: there is no `followBody`.
+         */
+        const sources = await moduleSources();
+        must(["body-tile.mjs", "movement.mjs", "module.mjs"].every(f => sources.has(f)), "body-tile.mjs, movement.mjs or module.mjs is not served - this would measure nothing");
+        const code = file => stripComments(sources.get(file));
+        const tile = code("body-tile.mjs");
+        const follow = topLevelFunction(tile, "followBody") ?? "";
+        const at = re => { const m = follow.search(re); return m; };
+        const write = at(/updateEmbeddedDocuments\("Tile"/);
+        equal(JSON.stringify({
+            hooks: [...tile.matchAll(/Hooks\.on\("(\w+)"/g)].map(m => m[1]).sort(),
+            registered: /Hooks\.on\("updateToken",[^]*?followBody\(tokenDoc, changes, options, userId\)/.test(topLevelFunction(tile, "registerBodyFollow") ?? ""),
+            guards: follow ? [at(/!game\.user\?\.isGM/) >= 0 && at(/!game\.user\?\.isGM/) < write, at(/userId !== game\.user\.id/) >= 0 && at(/userId !== game\.user\.id/) < write,
+                at(/isCorpse\(actor\)/) >= 0 && at(/isCorpse\(actor\)/) < write, write > 0] : null,
+            exported: /^export function isCorpse\(/m.test(code("movement.mjs")),
+            module: /safely\("[^"]+", registerBodyFollow\)/.test(code("module.mjs"))
+        }), JSON.stringify({ hooks: ["drawTile", "refreshTile", "updateToken"], registered: true, guards: [true, true, true, true], exported: true, module: true }),
+        "{hooks: body-tile.mjs's hook names; registered: updateToken hands followBody its four; guards: [the GM test, the mover test, isCorpse, each before the Tile write; a write]; exported: movement.mjs exports isCorpse; module: module.mjs registers it}");
+    }],
+    ["R3404 - the Class Trial's end takes the bodies, after its sentence, and nothing else takes them all (E63 C2; the owner's 11.11.2026 on E95 Q2 and Q8): clock.mjs `reconcilePhase`'s branch out of the trial calls body-tile.mjs `removeBodyTiles(null)` after `executeAtExit`, and its retry of a failed sentence removes the executed's by id alone; every other removal of every body is the season reset's, with `held: false`", async () => {
+        /*
+         * E63 C2, 11.11.2026; STAGE E63 item 7. Read off the served sources with their comments taken out: the offsets in
+         * `reconcilePhase` of the trial branch's `executeAtExit()`, its `removeBodyTiles(null)`, and the retry branch's
+         * start; the retry's removal; and every `removeBodyTiles(` call outside tests and its own definition, as [file,
+         * function, its arguments]. The reader of calls is shown a planted text first. What the removal does is tier 2's
+         * ("the Class Trial's end takes every body off the map"). Red at C1: the trial's end called no removal, and the
+         * reset's had no `held: false`.
+         */
+        // A member call (`ctx.removeBodyTiles()`, the reset's tier-2 stand-in) is not the module's removal; a plain one is.
+        const CALL = /(?<!function\s+)(?<![\w.$])removeBodyTiles\s*\(([^()]*)\)/g;
+        const sites = (file, text) => [...text.matchAll(CALL)].map(m => {
+            const fn = [...text.slice(0, m.index).matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].at(-1)?.[1] ?? null;
+            return [file, fn, m[1].trim()];
+        });
+        equal(JSON.stringify(sites("x.mjs", "async function a() { await removeBodyTiles(null); }\nexport async function removeBodyTiles(id = null) {}\nfunction b() { ctx.removeBodyTiles(); removeBodyTiles(id); removeBodyTilesX(); }")),
+            JSON.stringify([["x.mjs", "a", "null"], ["x.mjs", "b", "id"]]), "the reader of removeBodyTiles calls does not find exactly the two planted for it (a member call and a longer name aside)");
+        const sources = await moduleSources();
+        must(["clock.mjs", "chapter.mjs", "body-tile.mjs"].every(f => sources.has(f)), "clock.mjs, chapter.mjs or body-tile.mjs is not served - this would measure nothing");
+        const code = file => stripComments(sources.get(file));
+        const phase = topLevelFunction(code("clock.mjs"), "reconcilePhase") ?? "";
+        const at = re => phase.search(re);
+        const marks = { exit: at(/await executeAtExit\(\);/), remove: at(/removeBodyTiles\(null\)/), retry: at(/if \(from !== "classTrial" && to !== "classTrial"\)/) };
+        must(phase && marks.exit > 0 && marks.retry > 0, `reconcilePhase reads as ${JSON.stringify(marks)} - this would measure nothing`);
+        const found = [];
+        for (const [file] of sources) if (!/^tests/.test(file)) found.push(...sites(file, code(file)));
+        equal(JSON.stringify({
+            order: marks.exit < marks.remove && marks.remove < marks.retry,
+            retry: /for \(const id of out\.executed\) await removeBodyTiles\(id\);/.test(phase.slice(marks.retry)),
+            calls: found.sort()
+        }), JSON.stringify({ order: true, retry: true, calls: [
+            ["chapter.mjs", "clearSeasonDeaths", "null, { held: false }"], ["chapter.mjs", "reviveCharacter", "actor.id"],
+            ["clock.mjs", "reconcilePhase", "id"], ["clock.mjs", "reconcilePhase", "null"]
+        ] }), "{order: the sentence, then every body, both before the retry branch; retry: the retry removes the executed's by id; calls: every removeBodyTiles call as [file, function, arguments]}");
     }],
 ];
 

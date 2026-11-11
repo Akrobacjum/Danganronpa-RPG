@@ -1540,7 +1540,7 @@ function onPreUpdateToken(tokenDoc, changes, options) {
  * mover's own browser, so it asks what that browser may know (rule C) - and, in the Class Trial, the trial's
  * public list of the dead (E70 C5; settings.mjs `isMutedDead`), which names a death nobody has found too (TR30).
  */
-function isCorpse(actor) {
+export function isCorpse(actor) {
     try {
         if (!isDeadForGm(actor) && !isMutedDead(actor)) return false;
         return !actor.getFlag(MODULE_ID, FLAGS.monocub);

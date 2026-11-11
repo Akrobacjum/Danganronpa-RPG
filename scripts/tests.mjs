@@ -62,7 +62,7 @@ import { REGRESSIONS } from "./tests-tier0.mjs";
 import { INVARIANTS } from "./tests-tier1.mjs";
 import { SCENARIOS, snapshot, restore } from "./tests-tier2.mjs";
 import { gmStoreHold, gmStoresIdle, gmStoreHandles, gmCopyNames, gmCopySpec } from "./gm-store.mjs";
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, FLAGS } from "./config.mjs";
 import { holdNoticeHistory } from "./notice-history.mjs";
 
 // Every tier, for the tests that read the suite itself (R155): see registerSuite.
@@ -445,6 +445,11 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
              */
             await holdNoticeHistory(true);
             noticesFound = noticeHistoryText();
+            /* THE TABLE'S BODIES ARE FENCED FOR THE RUN (E63 C2): from E63 every trial's end takes every body tile, and
+               tier 2 ends trials in about a hundred places; the tiles the world holds now stay through every such end on
+               this browser (body-tile.mjs `holdBodyTiles`), released in the `finally`, before the GM store (R473 reads these two holds side by side). */
+            (await import("./body-tile.mjs")).holdBodyTiles(game.scenes.contents.flatMap(scene => [...(scene.tiles ?? [])]
+                .filter(tile => tile.getFlag(MODULE_ID, FLAGS.bodyOf)).map(tile => tile.id)));
             /*
              * THE WORLD'S SCENE LINKS ARE HELD EMPTY FOR THE RUN (E13 fix r2-H3, 12.10.2026; review r2
              * cor C). Since E13 C3 every write of the classTrial phase takes the table into the linked
@@ -547,6 +552,7 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
         }
     } finally {
         writes.stop();
+        (await import("./body-tile.mjs")).holdBodyTiles(null);
         // Released whatever happened above; a hold the suite never took is released as a no-op.
         gmStoreHold(false);
         holdNoticeHistory(false);
