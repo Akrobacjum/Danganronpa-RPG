@@ -38183,6 +38183,44 @@ const INVARIANTS = [
             fields: [["select", "R3462 pick", "swept"], ["textarea", "R3462 note", "swept"]]
         }), "{panel: the Event panel after a change of its cards - the same element, its role, aria-live, the sweep's mark, a new first card, its cards; fields: [tag, aria-label, data-drpg-named]}");
     }],
+    ["R3465 - Hope on the status strip is the player's alone (E48 K7; the owner's 11.11 remark): on a GM's page the strip is the table's (\"Still to act\") with no Hope row and the GM's Monokuma draws no strip; a living student's strip and a Monocub's carry the Hope row; and the glass harness's stand-in strip, which the owner's review shots show, draws Hope on a player's page alone", async () => {
+        /*
+         * E48 K7, 11.11.2026. The owner: "Panel zasobów gracza u GM-a - nie potrzeba pokazywać tam hope. Hope powinien
+         * widzieć tam tylko gracz." Measured first at d70d8569 (a two-client probe): the module's strip on a GM's page is
+         * the table's view (player-status.mjs `statusActor` is null for any GM since E51 C4) with one row, "Still to act";
+         * a player's has Actions, Move and Hope. The Hope the owner saw on the GM's strip was audit/glass-harness.html's
+         * stand-in ("Still to act 4 / 4" over "Hope 3", the same on its player page), which every glass shot is taken on.
+         * Read here: the strip rendered on this (GM's) page, `buildPlayerView` for this GM's Monokuma (hud.mjs
+         * `viewerActor`), for a student a player owns and for that student as a Monocub (flags in memory, R1472's
+         * `e24Flagged`: Confusion costs Hope), and the page's text - its stand-in strip and what its `role=player`
+         * branch writes there. Red at d70d8569: the page's GM strip read ["Still to act", "Hope"].
+         */
+        const PS = await import("./player-status.mjs");
+        const HUD = await import("./hud.mjs");
+        must(game.user.isGM, "this reads a GM's page - it would measure nothing on a player's");
+        const owned = a => game.users.some(u => !u.isGM && a.testUserPermission?.(u, "OWNER"));
+        const who = studentActors().find(owned);
+        must(who, "no student a player owns - this would measure nothing");
+        PS.renderPlayerStatus();
+        const strip = document.getElementById(PS.WIDGET_ID);
+        const rows = el => el ? [...el.querySelectorAll(".drpg-status-field")].map(r => [...r.classList].find(c => c.startsWith("is-") && c !== "is-gm") ?? "?") : null;
+        const read = { gm: rows(strip), gmIsTable: strip?.classList.contains("is-gm") ?? null, monokuma: PS.buildPlayerView(HUD.viewerActor(), { remember: false }) === null };
+        read.student = rows(PS.buildPlayerView(who, { remember: false, eclipse: false }))?.includes("is-hope") ?? null;
+        await e24Flagged(who, { [FLAGS.deceased]: { chapter: 1 }, [FLAGS.monocub]: true }, () => {
+            read.monocub = rows(PS.buildPlayerView(who, { remember: false, eclipse: false }))?.includes("is-hope") ?? null;
+        });
+        const res = await fetch(`/modules/${MODULE_ID}/audit/glass-harness.html`, { cache: "no-cache" });
+        must(res.ok, `glass-harness.html: HTTP ${res.status}`);
+        const page = await lfText(res);
+        const labels = html => [...(html ?? "").matchAll(/drpg-status-label">([^<]*)</g)].map(m => m[1]);
+        const standIn = /<div id="drpg-player-status">([\s\S]*?)<\/div>\s*<div id="countdowns">/.exec(page)?.[1] ?? null;
+        const playerBranch = /PLAYER_STRIP = `([^`]*)`/.exec(page)?.[1] ?? null;
+        read.page = { gm: labels(standIn), player: labels(playerBranch), written: /if \(player\)[^\n]*drpg-player-status[^\n]*PLAYER_STRIP/.test(page) };
+        equal(stableJson(read), stableJson({ gm: ["is-actions"], gmIsTable: true, monokuma: true, student: true, monocub: true,
+            page: { gm: ["Still to act"], player: ["Actions", "Move", "Hope"], written: true } }),
+            "{gm: the rows on this GM's strip; gmIsTable; monokuma: no strip for the GM's Monokuma; student, monocub: a Hope row; page: the stand-in's labels on the GM's page and the player's, and the player's written by role=player}");
+    }],
+
     ["R3463 - the panels explain themselves to a keyboard, one window at a time (E48 K4): the clock is focusable and says it opens a dialog, Enter on it opens the explainer a click opens, a second Enter and a click leave one explainer open, and a click on a control inside the panel opens none", async () => {
         /*
          * E48 K4, 11.11.2026 (STAGE: "explain.mjs (keyboard, one window)"). On the GM's page: the clock (`#drpg-hud`),
