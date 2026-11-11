@@ -35421,7 +35421,9 @@ const SCENARIOS = [
         const src = stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/events.mjs`).then(lfText));
 
-        const body = fnSource(src, "incidentCard");
+        // The acting killer's id is read by `killerActingId`, which the card calls on the merged state (E49: the
+        // sheet's turn line words the same turn through it), so the card's reading is its body and that helper's.
+        const body = fnSource(src, "incidentCard") + fnSource(src, "killerActingId");
 
         ok(/incidentCast\(\)/.test(body),
             "the incident card no longer merges the cast, so every id it reads is "

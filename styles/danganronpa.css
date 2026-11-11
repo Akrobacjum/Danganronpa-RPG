@@ -1986,6 +1986,14 @@ body.drpg-reduced-motion .drpg-bullet-group > summary .drpg-bullet-group-name::b
     opacity: 1;
 }
 
+/* In a fight the row says whose turn it is (sheet.mjs `budgetLine`, E49 B2's turn line; S03-30): the same row, so
+   nothing moves when the incident starts or ends, and lit at full ink in the turn that is yours - the light, not a
+   colour, since red is the GM's and gold is Hope's. */
+.drpg-action-panel .drpg-budget-line.drpg-budget-mine {
+    font-weight: bold;
+    opacity: 1;
+}
+
 /* "You are carrying one but holding none." A hint, not a warning - nothing is
    wrong, there is just a click that would change what happens in an incident. */
 .drpg-inventory-group .drpg-equip-nudge {
@@ -2934,6 +2942,24 @@ body.drpg-pixel-font textarea,
 body.drpg-pixel-font select,
 body.drpg-pixel-font [contenteditable] {
     font-family: var(--font-primary, sans-serif);
+}
+
+/* PROSE IN THE PIXEL FACE GETS ITS LINES APART, AND NO HYPHEN (E49, the half of audit S03-20 E48 K6 left open: "the
+   trace's metadata breaks with a line height under 1; the Equipped prose has about 1.0 and splits words"; its fix,
+   "line-height at least 1.2-1.25 for the prose and the metadata, hyphens: none"). The face's `normal` line height is
+   its em: measured in Chromium on the style harness under Monokuma Legacy (the pixel face on, 1366x768, every captured
+   window and the sheet's parts), the step between two lines of a wrapped paragraph, a note, a list item or the trace's
+   context line read 1.00 of the font size in 310 elements of 52 kinds, and 0.96 on the mini buttons. Prose and the
+   lines that read as prose only - paragraphs, notes, hints, the kit's boxes, list items, the trace's context, an item's label and an
+   experience's name on the sheet - at 1.25; headings, buttons, labels and table heads keep the face's own, and a rule
+   that names a line height of its own at a class's weight or more keeps it (the scope is `:where()`). `hyphens: none`
+   because a word split in a 5x7 face reads as two words; Foundry's own `hyphens: auto` on a sheet is not in the
+   harness, so that half is read as written, not measured. */
+body.drpg-theme-monokuma-legacy.drpg-pixel-font :where(.drpg-panel, .drpg-ui, .application.sheet.actor)
+    :where(p, li, .notes, .hint, .drpg-box, .drpg-trace-context, .item-labels .label, .experience-name) {
+    line-height: 1.25;
+    hyphens: none;
+    -webkit-hyphens: none;
 }
 
 /* ==========================================================================

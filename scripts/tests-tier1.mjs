@@ -4055,7 +4055,7 @@ const INVARIANTS = [
             + "its label; Foundry tools' children, the first one's tag, class and inert, its label; the windows and aria-pressed closed, after a click, after a second]");
         ok(!/NaN/.test(stableJson({ seen, want })), `a length in the upper row could not be read: ${stableJson({ seen, want })}`);
         equal(stableJson(seen), stableJson(want),
-            `the upper row at ${innerWidth}x${innerHeight} [per theme and reading: the clip-paths the chat's; the GM's and Foundry tools' sizes; `
+            `the upper row at ${innerWidth}x${innerHeight} [per theme and reading: the clip-paths the corner's; the GM's and Foundry tools' sizes; `
             + "their right and bottom less settings' and the handbooks'; the gaps chat-GM, chat-tools, GM-tools]");
     }],
 
@@ -43818,6 +43818,77 @@ const INVARIANTS = [
         "{heading: h3s on the Actions panel; first: the budget its first row; named: its aria-label; rulesTitle: the Rules panel's h3; tab: the tab's word; pad: the Actions and Rules panels' padding} - the panels must not repeat their tab and must sit alike");
         ok(L("DRPG.Rules.sheetTitle") !== L("DRPG.Rules.tab"), "the Rules panel's title is still the tab's word");
     }],
+    ["R3520 - in a fight the sheet's budget row says whose turn it is, in the incident card's words (sheet.mjs `budgetLine`, events.mjs `incidentTurnText`, `actingActor`; E49 B2's turn line, audit S03-30): the victim on their turn and the killer on theirs read \"your turn\" lit (`drpg-budget-mine`), the killer waiting reads the victim's name as the card does, the victim waiting \"their turn\"; the same one row in every state (a `p.drpg-budget-line`), and outside an incident the budget as before", async () => {
+        /*
+         * E49 B2's leftover, 11.11.2026. S03-30: "the victim at the start of their turn sees only the sheet and nothing
+         * says 'your turn'"; its fix: "in an incident, the turn's banner in the sheet itself". The row is the budget's (the
+         * owner's rule of 10.11: a state changes the look, never the layout). Read on stand-in states of two of this
+         * world's students - nothing written; the incident card's own line is asked for the same seat to show they agree.
+         */
+        needs(world.atLeast("livingStudents", 2), "a victim and a killer from this world's students");
+        const S = await import("./sheet.mjs");
+        const E = await import("./events.mjs");
+        const [V, K] = studentActors();
+        const L = k => game.i18n.localize(k);
+        const read = (actor, state) => {
+            if (typeof S.budgetLine !== "function") return null;
+            const p = S.budgetLine(actor, state);
+            return { tag: p.tagName, cls: [...p.classList].join(" "), text: p.textContent };
+        };
+        const base = { active: true, stage: "incident", killerId: K.id, victimId: V.id, turn: 1 };
+        const victims = { ...base, turnSide: "victim" }, killers = { ...base, turnSide: "killer" };
+        const row = "notes drpg-keep drpg-budget-line drpg-budget-turn";
+        const got = { victimOnTheirs: read(V, victims), killerWaiting: read(K, victims), killerOnTheirs: read(K, killers), victimWaiting: read(V, killers) };
+        equal(stableJson(got), stableJson({
+            victimOnTheirs: { tag: "P", cls: `${row} drpg-budget-mine`, text: L("DRPG.Murder.yourTurn") },
+            killerWaiting: { tag: "P", cls: row, text: game.i18n.format("DRPG.Events.waitingFor", { name: V.name }) },
+            killerOnTheirs: { tag: "P", cls: `${row} drpg-budget-mine`, text: L("DRPG.Murder.yourTurn") },
+            victimWaiting: { tag: "P", cls: row, text: L("DRPG.Murder.theirTurn") }
+        }), "{seat on whose turn: the row's tag, classes and words} - in a fight the budget row must say whose turn it is, lit on yours");
+        const card = typeof E.incidentTurnText === "function" ? E.incidentLines({ state: victims, mine: K.id, myTurn: false, victim: V, acting: E.actingActor(victims) }).turn : null;
+        equal(card, got.killerWaiting?.text ?? null, "the incident card's turn line and the sheet's row must say the same thing to the same seat");
+        const out = read(V, null);
+        ok(out && out.tag === "P" && out.cls.startsWith("notes drpg-keep drpg-budget-line") && !out.cls.includes("drpg-budget-turn")
+            && out.text !== L("DRPG.Murder.yourTurn"), `outside an incident the row is the budget: ${JSON.stringify(out)}`);
+    }],
+    ["R3521 - the messenger launcher's hexagon is its ::before under Stained Glass, so the unread badge is drawn whole (styles/stained-glass.css; E49, audit S11-49): the button itself no clip-path and no pointer, its ::before the corner's polygon on the border box and the pointer (the hit area stays the hex), the badge the pointer back; the sound launcher keeps its own clip", async () => {
+        /*
+         * E49, 11.11.2026. S11-49: "the red counter on the launcher (top/right -4px) is cut by the chat's hexagon at
+         * 1024-1366, only the rim of its circle shows". Chromium on the glass harness at 1366x768 (`?msgr=1`, a badge of
+         * "3"): 65 of the badge's 588 px drawn before, 230-336 after; read here as the sheet's last word per property,
+         * in file order (jsdom draws no clip).
+         */
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText));
+        const rules = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const decl = (body, prop) => body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`))?.[1]?.trim() ?? null;
+        const last = (sel, prop) => { let v = null; for (const r of rules) if (r.sel.split(",").some(s => s.trim() === sel) && decl(r.body, prop) !== null) v = decl(r.body, prop); return v; };
+        const HEX = "polygon(50% 0, 100% 28%, 100% 72%, 50% 100%, 0 72%, 0 28%)";
+        const B = "body.drpg-theme-stained-glass #drpg-messenger-launcher";
+        equal(stableJson({ buttonClip: last(B, "clip-path") ?? "none", buttonPointer: last(B, "pointer-events"), beforeClip: last(`${B}::before`, "clip-path"),
+            beforePointer: last(`${B}::before`, "pointer-events"), beforeInset: last(`${B}::before`, "inset"), beforeContent: last(`${B}::before`, "content"),
+            badgePointer: last(`${B} .drpg-messenger-badge`, "pointer-events"), soundClip: last("body.drpg-theme-stained-glass #drpg-sound-launcher", "clip-path") }),
+        stableJson({ buttonClip: "none", buttonPointer: "none", beforeClip: HEX, beforePointer: "auto", beforeInset: "-2px", beforeContent: '""', badgePointer: "auto", soundClip: HEX }),
+        "{the messenger launcher's clip-path and pointer, its ::before's clip-path, pointer, inset and content, the badge's pointer, the sound launcher's clip-path} - the hex must be the ::before's so the badge is not cut");
+    }],
+    ["R3522 - prose in the pixel face has its lines apart and no hyphen under Monokuma Legacy (styles/danganronpa.css; E49, the half of audit S03-20 E48 K6 left open): one rule, scoped to the module's windows and the sheet at `:where()` weight, gives paragraphs, notes, hints, the kit's boxes, list items, the trace's context, an item's label and an experience's name a line height of 1.2 or more and `hyphens: none`", async () => {
+        /*
+         * E49, 11.11.2026. S03-20: "the trace's metadata breaks with a line height under 1; the Equipped prose has about
+         * 1.0 and splits words"; its fix "line-height at least 1.2-1.25 for the prose and the metadata, hyphens: none".
+         * Chromium on the style harness under Legacy with the pixel face (1366x768, every captured window and the sheet's
+         * parts): the step between a wrapped element's lines read 1.00 of its font size in 310 elements before, 177 after
+         * (headings, labels, buttons and table heads keep the face's own); read here as the rule.
+         */
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
+        const rules = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const decl = (body, prop) => body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`))?.[1]?.trim() ?? null;
+        const rule = rules.find(r => r.sel.startsWith("body.drpg-theme-monokuma-legacy.drpg-pixel-font ") && r.sel.includes(".drpg-trace-context")) ?? null;
+        const scopes = [".drpg-panel", ".drpg-ui", ".application.sheet.actor"], targets = ["p", "li", ".notes", ".hint", ".drpg-box", ".drpg-trace-context", ".item-labels .label", ".experience-name"];
+        const list = rule?.sel.match(/:where\(([^)]*)\)\s*$/)?.[1]?.split(",").map(s => s.trim()) ?? [];
+        equal(stableJson({ found: Boolean(rule), scoped: scopes.every(s => rule?.sel.includes(s) ?? false), where: /^body\.drpg-theme-monokuma-legacy\.drpg-pixel-font :where\(/.test(rule?.sel ?? ""),
+            missing: targets.filter(t => !list.includes(t)), lineHeight: Number(decl(rule?.body ?? "", "line-height")) >= 1.2, hyphens: decl(rule?.body ?? "", "hyphens") }),
+        stableJson({ found: true, scoped: true, where: true, missing: [], lineHeight: true, hyphens: "none" }),
+        "{a Legacy pixel-face prose rule; scoped to the windows and the sheet; at :where() weight; prose targets it misses; line-height >= 1.2; hyphens} - prose in the pixel face must have its lines apart and no hyphen");
+    }],
     ["R2018 - Room setup's Scenes tab on the kit (E46-C2b; E46-08, E47's 05.10 point 5): trial-scene.mjs `scenesTabHtml` is a kit `formGrid` (the school and the hall selects, each its label's `for`), the hall's name, picture and words a `formGrid` of their own, the warnings a `box(\"warning\")`, the prepare ticks kit switches, `SCENES_ZONE_SLOT` a row of `scenesTabRows` that draws nothing (where E73 puts Zone A and Zone B), the hall's cast pick (`castPickerHtml`) a kit `dataTable` with a switch an actor; `readScenesTab`'s answer for a seeded form the one it gave before", async () => {
         /*
          * E46-C2b. Red first on C2a's tree (f90e89a7): labels around the selects, a list of checkboxes, `p.drpg-warning`, no
@@ -47139,7 +47210,7 @@ function cascadePx(el, prop, view = { w: innerWidth, h: innerHeight }) {
 /**
  * The corner's buttons as the cascade places them and the drawn shape's gap between two of them (E81 C12, 12.10.2026,
  * out of `cornerReading` in E77 C6 so that R512 reads the upper row with the same arithmetic): `place(id)` is a
- * button's right and bottom insets and its size through `cascadePx`, `clip` the chat's clip-path and `k` its slant
+ * button's right and bottom insets and its size through `cascadePx`, `clip` the corner's clip-path (the sound launcher's) and `k` its slant
  * (null with none), `gap(a, b)` flat to flat on one row, slanted to slanted across rows, or rim to rim between circles.
  */
 function cornerGeometry() {
@@ -47147,7 +47218,9 @@ function cornerGeometry() {
         const el = document.getElementById(id);
         return { el, right: cascadePx(el, "right"), bottom: cascadePx(el, "bottom"), w: cascadePx(el, "width"), h: cascadePx(el, "height") };
     };
-    const clip = getComputedStyle(document.getElementById("drpg-messenger-launcher")).clipPath ?? "none";
+    // The corner's shape, read off the sound launcher: since E49 (S11-49) the chat's hexagon is its ::before, so the
+    // chat button itself carries no clip; the three launchers' shared rule still clips settings, the handbooks and tools.
+    const clip = getComputedStyle(document.getElementById("drpg-sound-launcher")).clipPath ?? "none";
     const slant = /^polygon\(\s*50%\s+0(?:px|%)?\s*,\s*100%\s+([\d.]+)%/.exec(clip);
     const k = slant ? Number(slant[1]) / 100 : null, norm = k === null ? 1 : Math.hypot(k, 0.5);
     const centre = q => ({ x: q.right + q.w / 2, y: q.bottom + q.h / 2 });
