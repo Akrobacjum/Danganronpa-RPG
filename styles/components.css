@@ -2926,6 +2926,9 @@ body .application.drpg-project-form .drpg-form-full > .drpg-specific-note > text
 .drpg-window-alive tbody tr[data-actor]:hover { background: var(--drpg-alive-row-hover-bg); }
 .drpg-window-alive td.drpg-data-col-silenced { text-align: center; }
 .drpg-window-alive td.drpg-data-col-name { white-space: nowrap; }
+/* A student who is not a Monocub, in the three Monocub columns that stand in every table since E49 A3 (gm-students.mjs
+   `aliveTableHtml`): a "-" in the help line's ink, centred, so the column reads empty and not missing. */
+.drpg-window-alive td > .drpg-alive-none { display: block; text-align: center; color: var(--drpg-kit-help-ink); }
 
 /* ---- the GM panel's tiles and the case window (E47-C3, 09.11.2026; audit S10-53, S10-64, the owner's 27.09 and A7) ----
    The tiles' look under Legacy moved here from danganronpa.css, where three layers of `!important` rules (a Bone wash,
@@ -2948,7 +2951,6 @@ body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button 
     border-radius: 4px;
     box-shadow: none;
 }
-body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button > i { color: var(--drpg-eye-light); }
 /* The case tile's second line beside its label under Legacy (a row): the line takes the width of its longest word and
    wraps, so the label keeps its own - "Sprawa" broke into "Spra / wa" against "ostatnia kopia: nigdy" (Chromium, 1366x768). */
 body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button > small.notes { flex: 0 1 min-content; }
@@ -2957,26 +2959,23 @@ body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button:
     border-color: var(--drpg-eye-light);
 }
 body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button.drpg-destructive { border-color: var(--drpg-crimson); }
-body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button.drpg-destructive > i { color: var(--drpg-crimson-light); }
 body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button.drpg-destructive:hover:not(:disabled) { background: var(--drpg-gmp-route-hover-bg); }
 body.drpg-theme-stained-glass .application.drpg-window-panel .drpg-gmp-button.drpg-destructive {
     background-color: var(--drpg-gmp-route-bg);
     border-color: var(--drpg-crimson);
 }
-/* A TILE THAT CANNOT BE PRESSED SAYS SO (S10-64): a dashed edge and its icon dimmed in both themes, the reason in its
+/* A TILE THAT CANNOT BE PRESSED SAYS SO (S10-64): a dashed edge and its ink dimmed (the icon wears it: E49 A3, below), the reason in its
    title and in `aria-describedby` (gm-panel.mjs `buildSections`). After the glass's route rule in the cascade (a later
    sheet), and `drpg-disabled` with the panel's classes outranks the glass's shared button rule (0,6,1 against 0,5,2). */
 body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-button.drpg-disabled:disabled {
     border-style: dashed;
     cursor: not-allowed;
 }
-body .application.drpg-window-panel .drpg-gmp-button.drpg-disabled:disabled > i { opacity: 0.45; }
 body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button:disabled {
     color: var(--drpg-dim);
     background: var(--drpg-gmp-off-bg);
     border-color: var(--drpg-gmp-off-edge);
 }
-body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button:disabled > i { color: var(--drpg-dim); }
 /* THE TILE OF THE PHASE THE TABLE IS IN (`is-current`, S10-64): the pressed look, no new colour - the kit's on-ground
    under Legacy (a pressed mode's), the brush on under the glass (a pressed button's). */
 body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button.is-current {
@@ -2989,6 +2988,43 @@ body.drpg-theme-stained-glass .application.drpg-window-panel .drpg-gmp-button.is
     --brush-ink: var(--drpg-sg-ink);
     --brush-edge: var(--brush);
 }
+/* ---- E49 A3 (11.11.2026): EQUAL TILES, AN ICON IN EVERY STATE (the owner's [7] "przyciski maja nierowna wysokosc w gm
+   panel", [8] "Ikona przy aktywnym morderstwie niewidoczna"; the rule of 10.11: a state changes look, never layout) ----
+   EVERY TILE FILLS ITS CELL. A grid row is as tall as its tallest tile, and a tile stretches to it only while its own
+   height is `auto`: Foundry gives every <button> a fixed height (danganronpa.css's footer note; v14's value is not read
+   here), the glass restates `height: auto` for the panel's tiles (stained-glass.css, "the panel's buttons") and Legacy
+   did not, so under Legacy at a table a tile whose label took two lines stood taller than its neighbours, each at its
+   own height. Headless both themes read 0 px (no Foundry sheet): style-sweep `--panel`'s control plants that model
+   (`align-self: start`, one tile taller) and reads 116 px; tier 2 "the panel's tiles in a row are one height ..." reads
+   the real layout (LIVE-E49-01). With the window's classes (0,5,1), over Foundry's element rule and the base tile. */
+body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-grid { align-items: stretch; }
+body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-grid > .drpg-gmp-button {
+    align-self: stretch;
+    box-sizing: border-box;
+    height: auto;
+    max-height: none;
+    margin: 0;
+}
+/* THE ICON WEARS THE LABEL'S INK, IN EVERY STATE. The icons had colours of their own - the glass's accent mix, the light
+   red on a destructive or route tile, Legacy's Eye, then dimmed to 0.45 when disabled - while the label's ink changes
+   with the state; on the glass's lit brush (current, hover, focus: the accent) an accent icon read 1.04:1 and the
+   Murder tile's light red on it as little: the photo's "invisible" icon, read headless in Chromium by `--panel` at
+   42d9a9bb (current 1.04:1 under the glass; disabled 1.95:1 Legacy, 2.08:1 glass). The icon is the label's colour now -
+   `color` for a font glyph, `background-color: currentColor` for a pixel mask - so whatever ink a state gives the label
+   (4.5:1 by the kit's and the brush's pairs), the icon has, at full opacity. One rule, (0,4,2): over the glass's icon
+   rules (0,4,1) and the base tile's 0.85. A disabled tile says so by its dashed edge and its dimmed ink, its icon with
+   it. */
+body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-button > i {
+    color: inherit;
+    opacity: 1;
+}
+/* THE ADVANCE BUTTON IN EVERY PHASE (E49 A3b; gm-panel.mjs `advanceHtml`): disabled in an Eclipse and a Class Trial, its
+   reason its title; drawn as a disabled tile is, a dashed edge and the not-allowed pointer, in its place on the line. */
+body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-advance:disabled {
+    border-style: dashed;
+    cursor: not-allowed;
+}
+
 /* DIAGNOSTICS LIKE THE OTHER SECTIONS (S10-64): its summary the others' plate and face; only its words dimmed (the
    section was faded whole under Legacy, and its plate the dim bone under the glass). An `em`, not a `span`: the glass
    pins every span in the panel to its floor size. */

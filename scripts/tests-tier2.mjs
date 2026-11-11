@@ -87375,6 +87375,95 @@ const SCENARIOS = [
         const yes = { same: true, outside: 0, sideways: true };
         equal(JSON.stringify(read), JSON.stringify({ observe: yes, search: yes }), "[per window: its outer size and position.height alike shut and open, lines past the box's sides, the box not scrolling sideways]");
     }],
+    ["the panel's tiles in a row are one height and each icon and label reads in every state (scripts/gm-panel.mjs `buildSections`, styles/components.css E49 A3; LIVE-E49-01)", async () => {
+        /*
+         * E49 A3, 11.11.2026; the owner's [7] "przyciski maja nierowna wysokosc w gm panel" and [8] "Ikona przy aktywnym
+         * morderstwie niewidoczna". On a real Foundry (layout, Foundry's own stylesheet - where the photos came from): the GM
+         * panel as `openGmPanel` draws it in this client's theme, every section opened, every tile put at once at rest,
+         * current (`is-current`, `aria-current`) and disabled (`drpg-disabled`, `disabled`): per state the largest height
+         * difference inside a grid row (1 px at most), every tile's rectangle the same as at rest (0.5 px), and the lowest
+         * label (4.5:1) and icon (3:1) contrast on the tile's ground - the icon's paint its `background-color` where it is a
+         * mask, else its `color`, times the opacities; the ground the tile's `background-color` over its window's, or the
+         * glass's lit brush (`::before`) where it covers the tile; the hazard raster's stops counted as grounds too. As
+         * style-sweep `--panel` reads it headless, where both themes read 0 px and, before A3, the icons 1.04:1 on the
+         * glass's lit brush. Headless it skips (no layout): LIVE-E49-01 until the local gate runs it (in both themes).
+         */
+        needs(env.layout(), "a tile's height and paint are read from the layout");
+        needs(env.dialogs(), "the panel is drawn");
+        const { openGmPanel } = await import("./gm-panel.mjs");
+        const panelApp = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-window-panel")) ?? null;
+        for (const app of [...foundry.applications.instances.values()]) if (app?.options?.classes?.includes("drpg-window-panel")) await app.close();
+        const parse = c => {
+            const m = String(c).match(/^rgba?\(([^)]+)\)$/), n = String(c).match(/^color\(srgb ([^)]+)\)$/);
+            if (m) { const q = m[1].split(/[\s,/]+/).filter(Boolean).map(Number); return [q[0], q[1], q[2], q[3] ?? 1]; }
+            if (n) { const q = n[1].split(/[\s/]+/).filter(Boolean).map(Number); return [q[0] * 255, q[1] * 255, q[2] * 255, q[3] ?? 1]; }
+            return [0, 0, 0, 0];
+        };
+        const over = (top, under, alpha = 1) => { const a = top[3] * alpha; return [0, 1, 2].map(i => top[i] * a + under[i] * (1 - a)).concat(1); };
+        const lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+        const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 100) / 100; };
+        const cs = (el, pseudo) => getComputedStyle(el, pseudo);
+        const groundUnder = el => {
+            const chain = [];
+            for (let e = el; e; e = e.parentElement) { chain.push(parse(cs(e).backgroundColor)); if (chain.at(-1)[3] >= 1) break; }
+            let g = chain.at(-1)[3] >= 1 ? chain.pop() : [0, 0, 0, 1];
+            while (chain.length) g = over(chain.pop(), g);
+            return g;
+        };
+        const grounds = tile => {
+            const base = groundUnder(tile), out = [base];
+            for (const stop of String(cs(tile).backgroundImage).match(/rgba?\([^)]+\)/g) ?? []) out.push(over(parse(stop), base));
+            const b = cs(tile, "::before"), paint = parse(b.backgroundColor), alpha = Number(b.opacity) * paint[3];
+            if (b.content !== "none" && b.display !== "none" && alpha > 0.05) {
+                const lit = over(paint, base, Number(b.opacity));
+                return String(b.inset).split(/\s+/).every(v => parseFloat(v) <= 0) && alpha >= 0.9 ? [lit] : [...out, lit];
+            }
+            return out;
+        };
+        const ink = (el, tile) => {
+            if (!el) return null;
+            const s = cs(el), masked = (s.maskImage && s.maskImage !== "none") || (s.webkitMaskImage && s.webkitMaskImage !== "none");
+            return { colour: parse(masked ? s.backgroundColor : s.color), alpha: Number(s.opacity) * Number(cs(tile).opacity) };
+        };
+        const read = {};
+        const running = openGmPanel().catch(() => null);
+        try {
+            must(await until(() => Boolean(panelApp()), 6000), "the GM panel was not drawn");
+            const root = panelApp().element;
+            for (const d of root.querySelectorAll("details.drpg-gmp-section")) d.open = true;
+            const tiles = [...root.querySelectorAll(".drpg-gmp-grid > .drpg-gmp-button")];
+            must(tiles.length > 0, "the panel drew no tile - this would measure nothing");
+            const box = () => root.querySelector(".drpg-gmp-sections").getBoundingClientRect();
+            let rest = null;
+            for (const state of ["rest", "current", "disabled"]) {
+                for (const t of tiles) {
+                    t.classList.toggle("is-current", state === "current");
+                    t.toggleAttribute("aria-current", state === "current");
+                    t.classList.toggle("drpg-disabled", state === "disabled");
+                    t.disabled = state === "disabled";
+                }
+                await wait(300);
+                const b = box();
+                const rects = tiles.map(t => { const r = t.getBoundingClientRect(); return [r.left - b.left, r.top - b.top, r.width, r.height]; });
+                rest ??= rects;
+                const rows = new Map();
+                for (const r of rects) rows.set(Math.round(r[1]), [...(rows.get(Math.round(r[1])) ?? []), r[3]]);
+                const spread = Math.max(0, ...[...rows.values()].map(hs => Math.max(...hs) - Math.min(...hs)));
+                const worst = (p, g) => (p ? Math.min(...g.map(ground => ratio(over(p.colour, ground, p.alpha), ground))) : 99);
+                const lows = tiles.map(t => { const g = grounds(t); return [worst(ink(t.querySelector(":scope > span"), t), g), worst(ink(t.querySelector(":scope > i"), t), g)]; });
+                read[state] = { rowsEqual: spread <= 1, sameRects: rects.every((r, i) => r.every((v, k) => Math.abs(v - rest[i][k]) <= 0.5)),
+                    label: Math.min(...lows.map(x => x[0])) >= 4.5, icon: Math.min(...lows.map(x => x[1])) >= 3 };
+                if (!read[state].rowsEqual || !read[state].label || !read[state].icon) read[state].measured = { spread, label: Math.min(...lows.map(x => x[0])), icon: Math.min(...lows.map(x => x[1])) };
+            }
+        } finally {
+            await panelApp()?.close();
+            await running;
+            await settle();
+        }
+        const yes = { rowsEqual: true, sameRects: true, label: true, icon: true };
+        equal(JSON.stringify(read), JSON.stringify({ rest: yes, current: yes, disabled: yes }),
+            "[per state: every grid row's tiles within 1 px of one height, every tile where it stood at rest, the lowest label at 4.5:1 or more, the lowest icon at 3:1 or more]");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

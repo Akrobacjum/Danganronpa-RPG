@@ -1044,14 +1044,9 @@ function buildPanelContent() {
     // existing delegate runs it and reopens the panel afterwards like any tile.
     const suggestion = nextLineHtml(nextStep(clock));
 
-    // One press for the clock, on the line that shows it. Hidden during an
-    // Eclipse (its end advances) and in a trial (the chapter's end does).
-    const canAdvance = !isEclipse() && clock.phase !== "classTrial";
-    const advance = canAdvance
-        ? `<button type="button" class="drpg-gmp-next-go drpg-gmp-advance" data-drpg-run="advance"
-                data-tooltip="${esc(game.i18n.localize("DRPG.Panel.advanceTooltip"))}">
-               <i class="fa-solid fa-forward-step" inert></i> ${esc(game.i18n.localize("DRPG.Panel.advance"))}</button>`
-        : "";
+    // One press for the clock, on the line that shows it (`advanceHtml`): in every phase since E49 A3, disabled where
+    // the clock cannot move by it.
+    const advance = advanceHtml(clock);
 
     // THE CASE IS INCOMPLETE ON THIS BROWSER (E04): the primary's health check
     // found a row missing and the GM chose Continue. It stays, at the top, until
@@ -1072,6 +1067,23 @@ function buildPanelContent() {
                 ${suggestion}
                 ${studentsLeftHtml()}
             </div>`;
+}
+
+/**
+ * THE ADVANCE BUTTON IS ALWAYS THERE (E49 A3, 11.11.2026; the owner's "Tak, naprawiamy oba" and the rule of 10.11: a
+ * state changes look, never layout). From E37 it stood on the clock's line outside an Eclipse and a trial and was not
+ * drawn in them, so the line's words moved left and right with the phase. Now it is drawn in every phase and disabled
+ * where the clock cannot move by it - during an Eclipse (its end advances: `DRPG.Panel.advanceOffEclipse`) and in a Class
+ * Trial (the chapter's end does: `DRPG.Panel.advanceOffTrial`) - with that reason as its title and its tooltip, as a
+ * disabled tile carries its own (`buildSections`). boundary.mjs `nextTimeOfDay` still refuses an Eclipse on its own,
+ * so the button is a look, not the guard. Exported for R3406.
+ */
+export function advanceHtml(clock = getClock(), eclipse = isEclipse()) {
+    const off = eclipse ? "DRPG.Panel.advanceOffEclipse" : clock?.phase === "classTrial" ? "DRPG.Panel.advanceOffTrial" : null;
+    const tip = esc(game.i18n.localize(off ?? "DRPG.Panel.advanceTooltip"));
+    return `<button type="button" class="drpg-gmp-next-go drpg-gmp-advance${off ? " drpg-disabled" : ""}" data-drpg-run="advance"
+                data-tooltip="${tip}"${off ? ` disabled title="${tip}"` : ""}>
+               <i class="fa-solid fa-forward-step" inert></i> ${esc(game.i18n.localize("DRPG.Panel.advance"))}</button>`;
 }
 
 /**
