@@ -22734,6 +22734,55 @@ const REGRESSIONS = [
         }), "[the window's module loads; its sections (key, size, an icon); keys not in exactly one; keys no frozen one; settings still config: true; "
             + "the menus registered in settings.mjs; DRPG Settings not restricted; the menus Foundry holds; keys missing a name, a hint or a first sentence in en or pl; the sections' names in both]");
     }],
+    ["R3373 - the case schema's shapes (E97 C3): case-schema.mjs keys a node `${chapter}:${nodeId}` and the chapter's meta `${chapter}:meta`; `caseNodeOf` keeps a deduction, a counter or a solution with its label, text, inputs, refutes, mode, order and made, and nothing of another kind; `caseMetaOf` reads sort, manual, run and askedAt with \"kind\" for a sort it does not know; `graphOf` joins the chapter's rows to its traces, Key slots and Final Truth by key, a placed slot standing for its trace; `caseModes` is floor-machine.mjs's MODES", async () => {
+        /*
+         * E97 C3, 11.11.2026; STAGE C3 "tier 0 shapes" (E99 reads them). The case map's own rows are what a GM builds
+         * on top of the evidence: deductions, counters and the solution, each `{ kind, label, text, inputs, refutes,
+         * mode, order, made }`, and one meta row per chapter `{ sort, manual, run, askedAt }`. Evidence is not a row:
+         * a trace is a node under its ledger key, a Key slot under `key:<slot>` while it is planned and as its trace
+         * once placed (its `key:<slot>` read as the trace's), the Final Truth as the trace it is. A reference to a node
+         * that is not there is kept and named (`missing`; C8 reads it). Pure; nothing is read from the world. Red at
+         * 37409aee: there is no case-schema.mjs.
+         */
+        let S = null;
+        try { S = await import("./case-schema.mjs"); } catch { S = null; }
+        must(S && typeof S.graphOf === "function", "there is no case-schema.mjs with graphOf - the case schema has no shape to read");
+        const { MODES } = await import("./floor-machine.mjs");
+        const rows = {
+            "deduction-a": { kind: "deduction", label: "R3373 who", text: "", inputs: ["S1.T1", "key:1", "S1.T1", 7], mode: "debate", order: 2 },
+            "counter-b": { kind: "counter", label: "R3373 no", refutes: ["deduction-a"] },
+            "solution-c": { kind: "solution", label: "R3373 it was", inputs: ["deduction-a", "gone-node"] },
+            "other-d": { kind: "item", label: "R3373 not a node" }
+        };
+        const traces = [
+            { key: "S1.T1", type: "prep", name: "R3373 knife", tiedToCrime: true, room: "Gym" },
+            { key: "S1.T2", type: "key", name: "R3373 key one", tiedToCrime: true, room: "Hall" },
+            { key: "S1.T3", type: "final", name: "R3373 final", tiedToCrime: true, room: "Hall" },
+            { key: "S1.T4", type: "neutral", name: "R3373 laundry", tiedToCrime: null, room: "Pool" }
+        ];
+        const slots = [{ slot: 0, name: "R3373 planned", tokenId: null, sceneId: null }, { slot: 1, name: "R3373 key one", tokenId: "T2", sceneId: "S1" }];
+        const g = S.graphOf({ chapter: 2, rows, meta: { sort: "nonsense", manual: { "S1.T1": 1, bad: "x" } }, traces, slots });
+        const brief = n => [n.id, n.kind, n.evidence, n.planned ?? false, n.slot ?? null];
+        equal(JSON.stringify({
+            keys: [S.caseKeyOf(2, "deduction-a"), S.caseMetaKey(2), S.validNodeId("meta"), S.validNodeId("a:b"), S.validNodeId("deduction-x1")],
+            node: S.caseNodeOf(rows["deduction-a"]), other: S.caseNodeOf(rows["other-d"]), empty: S.caseNodeOf({ kind: "counter" }),
+            meta: [S.caseMetaOf({ sort: "nonsense", manual: { a: 1, b: "x" }, run: 5, askedAt: "x" }), S.caseMetaOf({ sort: "room", run: "R1", askedAt: 9 })],
+            sorts: S.CASE_SORTS, kinds: S.CASE_KINDS,
+            nodes: g.nodes.map(brief), edges: g.edges, missing: g.missing, gmeta: g.meta.sort,
+            modes: JSON.stringify(S.caseModes()) === JSON.stringify(Object.values(MODES))
+        }), JSON.stringify({
+            keys: ["2:deduction-a", "2:meta", false, false, true],
+            node: { kind: "deduction", label: "R3373 who", text: "", inputs: ["S1.T1", "key:1"], refutes: [], mode: "debate", order: 2, made: null },
+            other: null, empty: { kind: "counter", label: "", text: "", inputs: [], refutes: [], mode: null, order: null, made: null },
+            meta: [{ sort: "kind", manual: { a: 1 }, run: null, askedAt: null }, { sort: "room", manual: {}, run: "R1", askedAt: 9 }],
+            sorts: ["manual", "kind", "room", "state", "uncrossed"], kinds: ["deduction", "counter", "solution"],
+            nodes: [["S1.T1", "trace", true, false, null], ["S1.T2", "key", true, false, 1], ["S1.T3", "final", true, false, null], ["S1.T4", "trace", true, false, null],
+                ["key:0", "key", true, true, 0], ["deduction-a", "deduction", false, false, null], ["counter-b", "counter", false, false, null], ["solution-c", "solution", false, false, null]],
+            edges: [{ from: "S1.T1", to: "deduction-a", kind: "input" }, { from: "S1.T2", to: "deduction-a", kind: "input" },
+                { from: "counter-b", to: "deduction-a", kind: "refutes" }, { from: "deduction-a", to: "solution-c", kind: "input" }],
+            missing: [{ node: "solution-c", ref: "gone-node" }], gmeta: "kind", modes: true
+        }), "[the keys and which node ids are refused; a deduction's row, a row of no kind of the schema's, a counter with nothing; the meta read; the sorts and kinds; the graph's nodes (evidence first, a placed slot as its trace), its edges (a slot's alias read as its trace), what it names that is not there, its sort; the modes are MODES]");
+    }],
 ];
 
 

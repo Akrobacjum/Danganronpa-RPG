@@ -48164,6 +48164,16 @@ const SCENARIOS = [
                 gone: (report, key) => !S.keyPlanStore.has(key),
                 back: key => stableJson([S.keyPlanStore.get(key)?.name, S.keyPlanStore.get(key)?.note]) === stableJson(["SUITE backed-up clue", "SUITE backed-up note"])
             },
+            // A chapter's case schema node, through its writer (E97 C3): chapter 99, which no clock here is on.
+            caseSchema: {
+                seed: async () => {
+                    const { setCaseNode } = await import("./case-schema.mjs");
+                    await setCaseNode(99, "deduction-suite", { kind: "deduction", label: "SUITE backed-up deduction", inputs: ["SUITE.trace"] });
+                    return "99:deduction-suite";
+                },
+                gone: (report, key) => !S.caseSchemaStore.has(key),
+                back: key => stableJson([S.caseSchemaStore.get(key)?.label, S.caseSchemaStore.get(key)?.inputs]) === stableJson(["SUITE backed-up deduction", ["SUITE.trace"]])
+            },
             // The trial hall's choice for one token (E13 C2), as 1.2.74 kept it: a row keyed by a token of the scene on
             // screen, which no trial opens on unless it is linked as the hall. Since E81 DZ6 a row is an actor's, and a
             // 1.2.74 backup restored reads for the token's actor through `castRow`'s fallback until the primary's next

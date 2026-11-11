@@ -7975,6 +7975,50 @@ const INVARIANTS = [
             newTrace: [true, true], keyHere: [true, true], final: [true, true, true], card: [true, true, true], player: false
         }), "[the first option, unchosen once a student is; every student by id and name; the student chosen; New trace draws it and places with it; Create Key Remnant here draws it and createKeyRemnant places with it; the Final form draws finalAuthor, its Save hands it on, the placement writes it; the GM's card draws it, asks first, writes through setRemnantAuthor; a player's card names no author]");
     }],
+    ["R3374 - the case schema is a GM store no player holds (E97 C3; Q8): gm-stores.mjs `caseSchemaStore` is the ledger `caseSchema` under `gmCaseSchema`, a client setting, backed up, synced, cut with the Key Remnant plan; on a player's engine its write is refused and nothing stored, a packet of it is refused from a player and on a player's browser, and case-schema.mjs's writers ask for a GM", async () => {
+        /*
+         * E97 C3, 11.11.2026; STAGE C3 "tier 1 no caseSchema on a player's client, writes and packets refused there".
+         * The schema is the case's solution worked out ahead of the trial, so it lives where the answer key does
+         * (gm-store.mjs: a section in each GM's browser, synced between the GMs, any GM including an Assistant, Q8). Read:
+         * the real store's spec and its setting's registration; then the store's spec defined on an engine whose user is
+         * no GM, which refuses the patch and writes nothing to its storage; the receive gate on a delta of the store from
+         * a player and on a player's browser; and the three writers' source. Nothing of the world is written. Red at
+         * 37409aee: no `caseSchemaStore`, no setting.
+         */
+        const G = await import("./gm-store.mjs");
+        const stores = await import("./gm-stores.mjs");
+        must(stores.caseSchemaStore?.spec, "gm-stores.mjs has no caseSchemaStore - the case schema has no store");
+        const spec = stores.caseSchemaStore.spec;
+        const stored = new Map();
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R3374P", isGM: () => false, isFullGM: () => false, isPrimary: () => false, worldId: () => "R3374WORLD",
+            activeGmIds: () => [], primaryGmId: () => null, senderIsGM: () => false, senderIsFullGM: () => false, userName: u => u,
+            send: () => {}, storage: { read: k => stored.get(k) ?? null, write: async (k, v) => { stored.set(k, JSON.stringify(v)); } },
+            readLegacy: () => undefined, now: () => 1000, timers: { set: (fn, ms) => setTimeout(fn, ms), clear: h => clearTimeout(h) },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const handle = eng.define({ ...spec, key: "r3374CaseSchema" });
+        await eng.open();
+        await handle.patch("2:deduction-r3374", { kind: "deduction", label: "R3374" });
+        const delta = { action: "gms.delta", world: "R3374WORLD", store: "caseSchema", delta: { e: { "2:x": { kind: { v: "deduction" } } }, t: { "2:x": 5 }, d: {}, cleared: 0 } };
+        const ctx = { amGM: true, senderIsGM: true, senderIsFullGM: true, senderId: "R3374B", selfId: "R3374A", worldId: "R3374WORLD", stores: new Map([["caseSchema", { sync: true }]]) };
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/case-schema.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const asks = ["setCaseNode", "setCaseMeta", "dropCaseNode"].map(fn => /game\.user\??\.isGM/.test(fnSource(src, fn)));
+        const setting = game.settings.settings.get(`${MODULE_ID}.${spec.key}`);
+        equal(JSON.stringify({
+            spec: [spec.name, spec.key, spec.kind, spec.resetGroup, spec.backup, spec.sync, spec.fullGmOnly ?? false],
+            setting: [setting?.scope ?? null, setting?.config ?? null],
+            player: [handle.get("2:deduction-r3374") ?? null, stored.has("r3374CaseSchema") && stored.get("r3374CaseSchema").includes("R3374")],
+            gate: [typeof G.gmsRefusal(delta, { ...ctx, senderIsGM: false }) === "string", typeof G.gmsRefusal(delta, { ...ctx, amGM: false }) === "string", G.gmsRefusal(delta, ctx)],
+            asks
+        }), JSON.stringify({
+            spec: ["caseSchema", "gmCaseSchema", "ledger", "keyPlan", true, true, false],
+            setting: ["client", false],
+            player: [null, false],
+            gate: [true, true, null],
+            asks: [true, true, true]
+        }), "[the store's name, key, kind, reset group, backup, sync and that any GM may write it; its setting's scope and config; on a player's engine the row and what was stored; the gate from a player, on a player's browser, from a GM; each writer asks for a GM]");
+    }],
     ["R3332 - a statistic card under the kind action is asked only for an action a card is read for: Search, and no other", async () => {
         /*
          * E68 review R7, 10.11.2026. Kind `action` was opened for Search (E68 C6), and the GMs' guard

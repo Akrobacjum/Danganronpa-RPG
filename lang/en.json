@@ -5617,6 +5617,7 @@
         "eclipseMoves": "Who has crossed how often in the Eclipse",
         "keyPlan": "The Key Remnant plan, chapter by chapter",
         "trialCast": "Which of the trial hall's tokens the trial shows",
+        "caseSchema": "The case map: each chapter's deductions, counters and solution",
         "notes": "The players' pre-session notes",
         "deaths": "The deaths nobody has found yet",
         "deferredOffers": "The Reinforced Level Ups waiting for the class",
