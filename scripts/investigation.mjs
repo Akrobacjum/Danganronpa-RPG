@@ -717,7 +717,7 @@ export async function chargeForUnfoundKeys() {
        no answer key anywhere, does not hold it. */
     const fee = await keyFeeOf(now);
     if (fee.held) {
-        await whisperToGms(`<p class="drpg-warning">${plural("DRPG.Case.chargeHeld", { n: fee.held })}</p>`);
+        await whisperToGms({ tone: "warning", body: `<p>${plural("DRPG.Case.chargeHeld", { n: fee.held })}</p>` });
         return null;
     }
     const short = fee.short;

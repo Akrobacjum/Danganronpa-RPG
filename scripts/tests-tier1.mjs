@@ -10490,7 +10490,8 @@ const INVARIANTS = [
         const { GM_ROUTE_CLASS: GM_ROUTE } = await import("./utils.mjs");
         // E41 C3 (1.2.97): every file of the action family (the kit's ACTION_FAMILY), where action-rolls.mjs alone was read.
         // E68 C12: ui-columns.mjs too, where the menu's row moved (`choiceRowHtml`) with the columns' own classes.
-        for (const file of ["day-summary.mjs", "popup.mjs", "secret.mjs", "messenger-app.mjs", "trial.mjs", "safeword.mjs", "ui-columns.mjs", ...ACTION_FAMILY]) {
+        // E49 B5a: chat-card.mjs, the module's chat card and its warning line (`chatCard`, `cardWarn`).
+        for (const file of ["day-summary.mjs", "popup.mjs", "secret.mjs", "messenger-app.mjs", "trial.mjs", "safeword.mjs", "ui-columns.mjs", "chat-card.mjs", ...ACTION_FAMILY]) {
             const src = stripComments(sources.get(file) ?? "");
             must(src.length > 0, `${file} was not read - the class grep would be measured on nothing`);
             for (const m of src.matchAll(/class=(["'])/g)) {
@@ -33510,7 +33511,7 @@ const INVARIANTS = [
         ]), "stepsReport does not say a result as one report (per result: lines, the groups' sentences in order, the toast's level and text)");
         const html = document.createElement("div");
         html.innerHTML = all.content;
-        equal(stableJson([[...html.querySelectorAll("li")].map(li => li.textContent), [...html.querySelectorAll("p")].map(p => p.classList.contains("drpg-warning"))]),
+        equal(stableJson([[...html.querySelectorAll("li")].map(li => li.textContent), [...html.querySelectorAll("p")].map(p => p.classList.contains("drpg-chat-kit-warn"))]),
             stableJson([["one", "two"], [false, false, true, true]]),
             "the report's card does not list the lines and say each group, the failed and the not run as warnings");
     }],

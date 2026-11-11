@@ -2225,8 +2225,8 @@ export function flagText(flag) {
 /** One whisper to the GMs for a roll with anything flagged: whose roll, and each difference. */
 async function tellUnexpected(actor, flags) {
     try {
-        await whisperToGms(`<p class="drpg-warning">${esc(game.i18n.format("DRPG.Rolls.unexpected", {
-            name: actor.name, list: flags.map(flagText).join("; ") }))}</p>`);
+        await whisperToGms({ tone: "warning", body: `<p>${esc(game.i18n.format("DRPG.Rolls.unexpected", {
+            name: actor.name, list: flags.map(flagText).join("; ") }))}</p>` });
     } catch (err) {
         error("Could not tell the GMs of a roll's unexpected modifiers", err);
     }

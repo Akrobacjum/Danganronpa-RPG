@@ -37,6 +37,7 @@
  */
 
 import { error, listOf } from "./utils.mjs";
+import { cardWarn } from "./chat-card.mjs";
 
 /**
  * Run `steps` in order over `record` (the procedure's own: `{ done: [key], failed: [key], ... }`). Each step is
@@ -144,7 +145,7 @@ export function stepsReport(result, { lines = result?.lines ?? [], groups = {}, 
     }
     const stoppedHere = Boolean(result?.failed?.length || result?.notRun?.length);
     const content = `${lines.length ? `<ul>${lines.map(line => `<li>${line}</li>`).join("")}</ul>` : ""}${
-        notes.map(note => `<p${warnings.includes(note) ? ' class="drpg-warning"' : ""}>${note}</p>`).join("")}`;
+        notes.map(note => warnings.includes(note) ? cardWarn(note) : `<p>${note}</p>`).join("")}`;
     const toast = stoppedHere ? { level: "error", text: warnings.join(" ") } : { level: "info", text: done ?? null };
     return { lines: [...lines], notes, warnings, content, toast };
 }

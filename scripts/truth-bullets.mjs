@@ -1400,11 +1400,11 @@ async function revertPlayerBulletEdit(item, touched, author) {
     // Only what was really put back is called put back. A field with no record
     // stays as the player wrote it, on this copy alone - the edit is never
     // carried up to the trace - and the GMs are told to look.
-    await whisperToGms(`<p class="drpg-warning">${game.i18n.format(
+    await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format(
         missed.length ? "DRPG.TruthBullet.editUnrestored" : "DRPG.TruthBullet.editReverted", {
             player: foundry.utils.escapeHTML(author?.name ?? "?"),
             bullet: foundry.utils.escapeHTML(String(patch.name ?? item.name ?? "?"))
-        })}</p>`);
+        })}</p>` });
 }
 
 /**

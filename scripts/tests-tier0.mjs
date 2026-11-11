@@ -22010,7 +22010,7 @@ const REGRESSIONS = [
     }],
     /* ---- E46 C6 (09.11.2026) ---- */
 
-    ["R2035 - the warning sites E21 homed are in their final state for E46 and E47 (E46-C6, E47-C7; E46-20, E47-18; STAGE E46 \"The carried warning sites\", E21 STATUS fix G2 item 10): each function of E46's and E47's windows draws its warnings with box(\"warning\") and its information lines with box(\"info\") and keeps no drpg-warning; each whispered chat card E47-C5's surfaces did not take keeps its drpg-warning, carried to E49 (E49 A0), as do Item tables' install receipt and the verdict's summary; the window sites no E47 group took are named, left open", async () => {
+    ["R2035 - the warning sites E21 homed are in their final state for E46 and E47 (E46-C6, E47-C7; E46-20, E47-18; STAGE E46 \"The carried warning sites\", E21 STATUS fix G2 item 10): each function of E46's and E47's windows draws its warnings with box(\"warning\") and its information lines with box(\"info\") and keeps no drpg-warning; each whispered chat card E47-C5's surfaces did not take, carried to E49 (E49 A0) with Item tables' install receipt and the verdict's summary, is in its final state since E49 B5a: the module's chat card (chat-card.mjs) in the warning tone or a card's warning line, no drpg-warning; the window sites no E47 group took are named, left open", async () => {
         /*
          * E46-C6, 09.11.2026; the E47 rows E47-C7, 09.11.2026. E21's list (fix G2 item 10) homed 112 `drpg-warning` sites
          * by window at 3c952c67 (W 87, I 25): E46's windows 19, E47's windows 36, the whispered chat cards 57 (46 W, 11 I).
@@ -22022,7 +22022,11 @@ const REGRESSIONS = [
          * reads - which no E46 or E47 group rebuilt (E47-C5 took four: sheet-audit.mjs `awayCard` and `flaggedCard`,
          * roll-draw.mjs `announceRollDraw` and `onRenderUnwitnessed`, now `rollStatus`), its sites counted as they stand
          * and carried to the stage that rebuilds its card; Item tables' install receipt (E46-C6 Open 1) and the verdict's
-         * summary (E47-C1 Open 2) are such whispers. migrate.mjs's site stands in its `CLAUSES` table, read as the whole
+         * summary (E47-C1 Open 2) are such whispers. Final since E49 B5a (11.11.2026): each is a chat-card.mjs card in the
+         * warning tone (`tone: "warning"`, through `chatCard` or a posting helper that takes the card) or, inside a card
+         * another builder draws, a warning line (`cardWarn(`), counted in the first column with the boxes; 52 such
+         * readings for the 55 old sites (eclipse.mjs `judgePendingMurders`'s four refusals share one `say` that draws
+         * `cardWarn`). Red first on 15f44581: the 46 rows read [0, 0, n] - the 55 still `drpg-warning`. migrate.mjs's site stands in its `CLAUSES` table, read as the whole
          * file ("*"). Stage "open": a site of a window E21 homed in E47 that no E47 group rebuilt, named in E47-C7's STATUS
          * Open for the orchestrator. Red first: on db40a379 chapter.mjs `chapterEndForm` [0,0,3], `askStoppedEnd` [0,0,1],
          * season-wipe.mjs `resetSeason` [0,0,2]; the E47 and E48 rows on 9aafad79 by two planted mutants (the panel's
@@ -22045,22 +22049,22 @@ const REGRESSIONS = [
             ["mastermind.mjs", "openMastermindDialog", "open", 0, 0, 1], ["reroll.mjs", "settleGmRuling", "open", 0, 0, 1],
             ["roll-dialog.mjs", "announceFreeCritical", "open", 0, 0, 1], ["trial.mjs", "pickObjectionEvidence", "open", 0, 0, 1],
             ["use-items.mjs", "confirmUse", "open", 0, 0, 1],
-            ["tables-editor.mjs", "installTables", "E49", 0, 0, 1], ["verdict.mjs", "verdictSummaryContent", "E49", 0, 0, 1],
-            ["analyze.mjs", "tellGmsKeyMissing", "E49", 0, 0, 1], ["anonymity.mjs", "lowerOwnership", "E49", 0, 0, 1],
-            ["bridge-runs-acts.mjs", "handleAdvancement", "E49", 0, 0, 1], ["call-effects.mjs", "tell", "E49", 0, 0, 1], ["call-gm.mjs", "callCardHtml", "E49", 0, 0, 1],
-            ["chapter.mjs", "runDiscovery", "E49", 0, 0, 1], ["chapter.mjs", "endChapterNow", "E49", 0, 0, 1], ["chapter.mjs", "runChapterEnd", "E49", 0, 0, 1],
-            ["chapter.mjs", "finishEndNow", "E49", 0, 0, 1], ["cleanup.mjs", "reshapeCardParts", "E49", 0, 0, 1], ["cleanup.mjs", "proposeReshape", "E49", 0, 0, 1],
-            ["cleanup.mjs", "undoLastCleanup", "E49", 0, 0, 2], ["cleanup.mjs", "paidBack", "E49", 0, 0, 1], ["eclipse.mjs", "ruleOnParkedMurder", "E49", 0, 0, 1],
-            ["eclipse.mjs", "judgePendingMurders", "E49", 0, 0, 4], ["inventory.mjs", "transferItem", "E49", 0, 0, 2], ["investigation.mjs", "chargeForUnfoundKeys", "E49", 0, 0, 1],
-            ["migrate.mjs", "*", "E49", 0, 0, 1], ["movement-audit.mjs", "auditMove", "E49", 0, 0, 2], ["movement.mjs", "keepRoomFlag", "E49", 0, 0, 1],
-            ["movement.mjs", "removeDrop", "E49", 0, 0, 1], ["movement.mjs", "tellUnlawful", "E49", 0, 0, 1], ["movement.mjs", "tellDropped", "E49", 0, 0, 1],
-            ["murder-rules.mjs", "resolveVictimOpening", "E49", 0, 0, 1], ["murder-rules.mjs", "applyCrisisAction", "E49", 0, 0, 1], ["murder-rules.mjs", "swapRoles", "E49", 0, 0, 1],
-            ["murder-rules.mjs", "refuseBetrayal", "E49", 0, 0, 1], ["murder-rules.mjs", "throwOpeningRoll", "E49", 0, 0, 1], ["observe.mjs", "resolveObserve", "E49", 0, 0, 2],
-            ["relay-guard.mjs", "reportRefusal", "E49", 0, 0, 1], ["relay-guard.mjs", "unknownSender", "E49", 0, 0, 1], ["relay-guard.mjs", "shapeWarning", "E49", 0, 0, 1],
-            ["relay-guard.mjs", "announce", "E49", 0, 0, 3], ["remnants.mjs", "dropRemnant", "E49", 0, 0, 1], ["reroll-receipts.mjs", "warnGms", "E49", 0, 0, 1],
-            ["roll-draw.mjs", "tellUnexpected", "E49", 0, 0, 1], ["rules.mjs", "setMotive", "E49", 0, 0, 1], ["rules.mjs", "dueCard", "E49", 0, 0, 1],
-            ["sheet-audit.mjs", "record", "E49", 0, 0, 1], ["sheet-audit.mjs", "onForgedCard", "E49", 0, 0, 1], ["steps.mjs", "stepsReport", "E49", 0, 0, 1],
-            ["truth-bullets.mjs", "revertPlayerBulletEdit", "E49", 0, 0, 1], ["use-items.mjs", "discardBroken", "E49", 0, 0, 1], ["vault-store.mjs", "clearSplitPiece", "E49", 0, 0, 1]
+            ["tables-editor.mjs", "installTables", "E49", 1, 0, 0], ["verdict.mjs", "verdictSummaryContent", "E49", 1, 0, 0],
+            ["analyze.mjs", "tellGmsKeyMissing", "E49", 1, 0, 0], ["anonymity.mjs", "lowerOwnership", "E49", 1, 0, 0],
+            ["bridge-runs-acts.mjs", "handleAdvancement", "E49", 1, 0, 0], ["call-effects.mjs", "tell", "E49", 1, 0, 0], ["call-gm.mjs", "callCardHtml", "E49", 1, 0, 0],
+            ["chapter.mjs", "runDiscovery", "E49", 1, 0, 0], ["chapter.mjs", "endChapterNow", "E49", 1, 0, 0], ["chapter.mjs", "runChapterEnd", "E49", 1, 0, 0],
+            ["chapter.mjs", "finishEndNow", "E49", 1, 0, 0], ["cleanup.mjs", "reshapeCardParts", "E49", 1, 0, 0], ["cleanup.mjs", "proposeReshape", "E49", 1, 0, 0],
+            ["cleanup.mjs", "undoLastCleanup", "E49", 2, 0, 0], ["cleanup.mjs", "paidBack", "E49", 1, 0, 0], ["eclipse.mjs", "ruleOnParkedMurder", "E49", 1, 0, 0],
+            ["eclipse.mjs", "judgePendingMurders", "E49", 1, 0, 0], ["inventory.mjs", "transferItem", "E49", 2, 0, 0], ["investigation.mjs", "chargeForUnfoundKeys", "E49", 1, 0, 0],
+            ["migrate.mjs", "*", "E49", 1, 0, 0], ["movement-audit.mjs", "auditMove", "E49", 2, 0, 0], ["movement.mjs", "keepRoomFlag", "E49", 1, 0, 0],
+            ["movement.mjs", "removeDrop", "E49", 1, 0, 0], ["movement.mjs", "tellUnlawful", "E49", 1, 0, 0], ["movement.mjs", "tellDropped", "E49", 1, 0, 0],
+            ["murder-rules.mjs", "resolveVictimOpening", "E49", 1, 0, 0], ["murder-rules.mjs", "applyCrisisAction", "E49", 1, 0, 0], ["murder-rules.mjs", "swapRoles", "E49", 1, 0, 0],
+            ["murder-rules.mjs", "refuseBetrayal", "E49", 1, 0, 0], ["murder-rules.mjs", "throwOpeningRoll", "E49", 1, 0, 0], ["observe.mjs", "resolveObserve", "E49", 2, 0, 0],
+            ["relay-guard.mjs", "reportRefusal", "E49", 1, 0, 0], ["relay-guard.mjs", "unknownSender", "E49", 1, 0, 0], ["relay-guard.mjs", "shapeWarning", "E49", 1, 0, 0],
+            ["relay-guard.mjs", "announce", "E49", 3, 0, 0], ["remnants.mjs", "dropRemnant", "E49", 1, 0, 0], ["reroll-receipts.mjs", "warnGms", "E49", 1, 0, 0],
+            ["roll-draw.mjs", "tellUnexpected", "E49", 1, 0, 0], ["rules.mjs", "setMotive", "E49", 1, 0, 0], ["rules.mjs", "dueCard", "E49", 1, 0, 0],
+            ["sheet-audit.mjs", "record", "E49", 1, 0, 0], ["sheet-audit.mjs", "onForgedCard", "E49", 1, 0, 0], ["steps.mjs", "stepsReport", "E49", 1, 0, 0],
+            ["truth-bullets.mjs", "revertPlayerBulletEdit", "E49", 1, 0, 0], ["use-items.mjs", "discardBroken", "E49", 1, 0, 0], ["vault-store.mjs", "clearSplitPiece", "E49", 1, 0, 0]
         ];
         const files = {};
         for (const file of new Set(SITES.map(([file]) => file))) files[file] = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
@@ -22069,14 +22073,132 @@ const REGRESSIONS = [
         for (const [file, fn, stage, w, i, d] of SITES) {
             const body = fn === "*" ? files[file] : (topLevelFunction(files[file], fn) ?? "");
             const name = `${file}:${fn} (${stage})`;
-            got[name] = body.length > 40 ? [count(body, /\bbox\("warning",/g) + count(body, /\bkindNote\("/g), count(body, /\bbox\("info",/g), count(body, /drpg-warning/g)] : "not read";
+            got[name] = body.length > 40 ? [count(body, /\bbox\("warning",/g) + count(body, /\bkindNote\("/g) + count(body, /\btone: "warning"/g) + count(body, /\bcardWarn\(/g),
+                count(body, /\bbox\("info",/g), count(body, /drpg-warning/g)] : "not read";
             want[name] = [w, i, d];
             by[stage] = (by[stage] ?? 0) + d;
         }
         // The carried sites, as E47-C7 counted them on 9aafad79 (STATUS E47-C7): 53 chat card sites (43 W, 10 I) and the
-        // two whispers, 55; 7 window sites left open. Carried to E49 by E49 A0 (the same 55).
-        equal(JSON.stringify({ E49: by.E49, open: by.open }), JSON.stringify({ E49: 55, open: 7 }), "{drpg-warning sites carried to E49, left open}");
+        // two whispers, 55; 7 window sites left open. Carried to E49 by E49 A0 (the same 55), rebuilt by E49 B5a: none left.
+        equal(JSON.stringify({ E49: by.E49, open: by.open }), JSON.stringify({ E49: 0, open: 7 }), "{drpg-warning sites left in E49's rows, left open}");
         equal(JSON.stringify(got), JSON.stringify(want), "{file:function (stage): [warning boxes, info boxes, drpg-warning left]}");
+    }],
+
+    ["R3510 - every card-producing site builds through chatCard or names why (E49 B5a; amend [6], STAGE E49 B5 test (d)): chat-card.mjs `chatCard` draws a header with the glyph by element key and no close button, every face it can draw is one Stained Glass wears (tests-glyphs.mjs FACES); utils.mjs's five posting helpers take a card; and each call of a poster (announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, gmReport, ChatMessage.create) in the module's scripts is a card, or a form named with its reason - per file, as counted", async () => {
+        /*
+         * E49 B5a, 11.11.2026. A poster's site is read by the form of what it hands the poster (the content; the actor
+         * before it skipped): `card` - a card's spec (`{ tone|glyph|title|body|foot: ... }`), a `chatCard(...)`, or
+         * gmReport (its helper draws the card) - or one of the forms below, each with the reason it is not a card. The
+         * counts are per file of the module (every file module.mjs imports, the suite's aside), read on this tree: a new
+         * site moves a count, a new file adds a row, and either is red until it is a card or its form's reason holds.
+         * The forms are read off the first characters of the argument, not off what the site posts at run time; a poster
+         * reached through an expression (movement-audit.mjs's `(ctx.whisper ?? whisperToGms)(...)`, both cards) is not
+         * matched by the grep and is not counted.
+         * Red first on 15f44581: chat-card.mjs absent, no helper takes a card, 0 card sites.
+         */
+        const WHY = {
+            action: "the action card: its own header (action-report.mjs cardHead) and outcome, painted by private-rolls.mjs paintChatCard",
+            message: "a message's whole data (speaker, flags, sound, rolls) as its builder made it; its content is that builder's",
+            heading: "a narration card: a heading the notice lifts into its bar, then the table's words; its look is the log's (B5b)",
+            line: "one line of narration, or one sentence whispered to its reader: a message in the log's look (B5b), not a card",
+            built: "markup a builder of its own returns (a variable or a call), read where it is built"
+        };
+        const PINNED = {
+            "action-analyze.mjs": {"line": 4}, "action-dynamic.mjs": {"line": 2}, "action-listen.mjs": {"line": 1},
+            "action-murder.mjs": {"action": 2}, "action-observe.mjs": {"line": 1},
+            "action-pipeline.mjs": {"action": 1}, "action-project.mjs": {"action": 1, "line": 1, "message": 3},
+            "action-report.mjs": {"built": 1}, "analyze.mjs": {"card": 1, "heading": 1, "line": 2},
+            "anonymity.mjs": {"card": 2}, "bridge-runs-acts.mjs": {"card": 1},
+            "bridge-runs-records.mjs": {"action": 1, "message": 1},
+            "call-effects.mjs": {"action": 1, "card": 1, "message": 1}, "call-gm.mjs": {"built": 1},
+            "call-world.mjs": {"message": 3}, "calls.mjs": {"heading": 1, "message": 1},
+            "chapter.mjs": {"card": 4, "heading": 1, "message": 1},
+            "cleanup.mjs": {"action": 5, "built": 1, "card": 4, "heading": 2, "line": 7, "message": 1},
+            "clock.mjs": {"built": 1, "line": 1, "message": 1}, "despair.mjs": {"line": 1, "message": 1},
+            "diagnostics.mjs": {"card": 1}, "eclipse.mjs": {"action": 3, "heading": 1, "line": 3, "message": 2},
+            "enforced.mjs": {"line": 2}, "fog.mjs": {"line": 1}, "frisk.mjs": {"built": 6, "message": 1},
+            "gm-items.mjs": {"action": 1, "heading": 2},
+            "handover.mjs": {"built": 1, "heading": 2, "line": 13, "message": 1},
+            "inventory.mjs": {"card": 2, "line": 3}, "investigation.mjs": {"card": 1, "line": 2},
+            "level-up.mjs": {"heading": 1, "line": 2}, "mastermind.mjs": {"message": 1},
+            "messenger-app.mjs": {"built": 1}, "migrate.mjs": {"card": 3, "line": 2},
+            "monocub.mjs": {"line": 5, "message": 1}, "movement.mjs": {"action": 3, "card": 4},
+            "murder-rules.mjs": {"action": 1, "card": 5, "heading": 3, "line": 9, "message": 6},
+            "music.mjs": {"card": 1}, "observe.mjs": {"card": 2, "heading": 1, "line": 3},
+            "overflow.mjs": {"message": 2}, "palm.mjs": {"built": 2, "line": 2}, "passages-gm.mjs": {"line": 5},
+            "price.mjs": {"line": 2}, "private-rolls.mjs": {"message": 1}, "projects-map.mjs": {"line": 1},
+            "projects.mjs": {"built": 3, "line": 8, "message": 2}, "relay-guard.mjs": {"built": 1, "card": 6},
+            "remnants.mjs": {"built": 1, "card": 1, "heading": 2, "line": 1}, "requirements.mjs": {"built": 1},
+            "reroll-receipts.mjs": {"card": 1}, "reroll.mjs": {"heading": 3, "line": 3}, "rest.mjs": {"action": 1},
+            "roll-draw.mjs": {"built": 2, "card": 1, "message": 1}, "room-setup.mjs": {"message": 1},
+            "rules.mjs": {"built": 3, "message": 3}, "safeword.mjs": {"built": 3},
+            "search-tokens.mjs": {"heading": 1, "line": 1}, "season-wipe.mjs": {"heading": 1},
+            "secret.mjs": {"message": 1}, "sheet-audit.mjs": {"built": 2, "card": 2}, "stash-reach.mjs": {"line": 9},
+            "states.mjs": {"line": 1}, "tables-editor.mjs": {"card": 1}, "traps.mjs": {"line": 1},
+            "trial-floor-ui.mjs": {"message": 4}, "trial-floor.mjs": {"message": 1},
+            "trial-modes.mjs": {"heading": 1, "message": 1}, "trial-progress.mjs": {"line": 2, "message": 1},
+            "trial-scene.mjs": {"built": 1, "line": 10}, "trial.mjs": {"line": 9, "message": 4},
+            "truth-bullets.mjs": {"card": 1, "heading": 2}, "use-items.mjs": {"card": 1, "line": 6},
+            "user-match.mjs": {"line": 1}, "utils.mjs": {"built": 1}, "vault-store.mjs": {"card": 1, "line": 2},
+            "verdict.mjs": {"built": 3, "message": 1}, "voice.mjs": {"card": 1, "line": 1}, "vote.mjs": {"message": 2}
+        };
+        const card = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/chat-card.mjs`).then(r => r.ok ? lfText(r) : ""));
+        const { FACES } = await import("./tests-glyphs.mjs");
+        let faces = [], drawn = null;
+        try {
+            const C = await import("./chat-card.mjs");
+            faces = [...C.CARD_FACES, ...Object.values(C.TONE_FACES), ...["ACTIONS.observe", "HOPE_CALLS.support", "DESPAIR_CALLS.motive"].map(C.cardFace)];
+            const el = document.createElement("div");
+            el.innerHTML = C.chatCard({ glyph: "ACTIONS.observe", title: "T<b>", body: "<p>B</p>", foot: "F", tone: "warning" });
+            const root = el.firstElementChild;
+            drawn = [root?.dataset.drpgTone, Boolean(root?.querySelector(":scope > header > i.fa-eye.drpg-chat-kit-glyph")),
+                root?.querySelector("h3.drpg-chat-kit-title")?.textContent, root?.querySelectorAll("button").length,
+                root?.querySelector(".drpg-chat-kit-body")?.innerHTML, root?.querySelector("footer")?.textContent];
+        } catch (err) {
+            drawn = `not drawn: ${err.message}`;
+        }
+        const utils = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/utils.mjs`).then(lfText));
+        const helpers = ["announce", "whisperToOwnerOnly", "whisperToOwner", "whisperToGms", "gmReport"]
+            .filter(name => !/\bcardMarkup\(|\bchatCard\(/.test(topLevelFunction(utils, name) ?? ""));
+        const POSTER = /(?<![\w.$])(announce|whisperToOwnerOnly|whisperToOwner|whisperToGms|gmReport)\(|\bChatMessage\.create\(/g;
+        const skipArg = text => {
+            let depth = 0;
+            for (let i = 0; i < text.length; i++) {
+                const ch = text[i];
+                if ("([{".includes(ch)) depth++;
+                else if (")]}".includes(ch)) depth--;
+                else if (ch === "," && depth === 0) return text.slice(i + 1);
+            }
+            return "";
+        };
+        const formOf = (name, rest) => {
+            if (name === "gmReport") return "card";
+            const arg = (name === "whisperToOwner" || name === "whisperToOwnerOnly" ? skipArg(rest) : rest).trimStart().slice(0, 200);
+            if (/^\{\s*(?:tone|glyph|title|body|foot)\s*:/.test(arg) || /^chatCard\(/.test(arg)) return "card";
+            if (/cardHead\(/.test(arg.slice(0, 80))) return "action";
+            if (arg.startsWith("{")) return "message";
+            if (arg.startsWith("`")) return /^`\s*<h\d/.test(arg) ? "heading" : "line";
+            return "built";
+        };
+        const got = {};
+        for (const [file, raw] of (await otherSources()).sort(([a], [b]) => a.localeCompare(b))) {
+            const text = stripComments(raw);
+            const forms = {};
+            for (const m of text.matchAll(POSTER)) {
+                if (/function\s*$/.test(text.slice(Math.max(0, m.index - 12), m.index))) continue;
+                const form = formOf(m[1] ?? "ChatMessage.create", text.slice(m.index + m[0].length));
+                forms[form] = (forms[form] ?? 0) + 1;
+            }
+            if (Object.keys(forms).length) got[file] = Object.fromEntries(Object.entries(forms).sort());
+        }
+        const unnamed = [...new Set(Object.values(got).flatMap(f => Object.keys(f)))].filter(form => form !== "card" && !WHY[form]);
+        const cards = Object.values(got).reduce((n, f) => n + (f.card ?? 0), 0);
+        const notWorn = faces.filter(face => !Object.hasOwn(FACES, face));
+        equal(JSON.stringify({ drawn, notWorn, helpers, unnamed }),
+            JSON.stringify({ drawn: ["warning", true, "T<b>", 0, "<p>B</p>", "F"], notWorn: [], helpers: [], unnamed: [] }),
+            "{chatCard's card: [tone, the glyph in the header, the title as text, buttons, body, foot]; faces Stained Glass does not wear; helpers that take no card; forms with no reason}");
+        must(card.length > 400 && cards > 0, "chat-card.mjs or the card sites were not read - this would measure nothing");
+        equal(JSON.stringify(got), JSON.stringify(PINNED), "{file: {form: sites}} - a site that is no card names its form's reason (WHY)");
     }],
 
     ["R2036 - the GM handbook names E46's new labels in both languages (E46-C6; E46-21): the checklist's red and \"!\" states and the uneven split, Room setup's picture warnings and the hall's cast columns, Item tables' columns, Give existing's empty choice, Overflow's rules table, Sound's Effects column and a Test's reason, and Music's folded order - each read from lang/ and found in docs/handbooks/gm-handbook.<lang>.md, a label in bold, a sentence the window says in italics", async () => {

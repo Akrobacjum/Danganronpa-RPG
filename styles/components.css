@@ -3312,3 +3312,40 @@ body:not(.drpg-theme-stained-glass) .application.drpg-ui.drpg-panel.drpg-window-
 body .application.drpg-ui.drpg-panel.drpg-window-settings .drpg-variant-columns .drpg-settings-sections > button.drpg-settings-tab[type="button"] > i { color: inherit; opacity: 1; }
 .drpg-window-settings .drpg-settings-rows > .drpg-settings-row[data-drpg-setting="moveAudit"] { grid-column: 1 / -1; }
 
+
+/* ---- THE CHAT CARD (E49 B5a, 11.11.2026; the owner's amend [6]) ----
+   chat-card.mjs `chatCard`: the kit's box in the log - its tone's edge and ground (the kit's tokens, both themes), a
+   head with the glyph (Font Awesome under Monokuma Legacy, the hand-drawn glyph under Stained Glass through
+   pixel-icons.css's FACES rules) and, when titled, the title over the body; untitled, the glyph stands beside the
+   words. No close button: a message is closed by nobody. `cardWarn`'s line is a warning inside a card another builder
+   draws. Drawn wherever the card stands - the log, a notice, the notice history - so the rules name no container. */
+.drpg-chat-kit {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 0.5rem;
+    align-items: start;
+    margin: 0 0 4px;
+    padding: 0.35rem 0.6rem;
+    border-left: 3px solid var(--drpg-kit-info-edge);
+    background: var(--drpg-kit-info-bg);
+}
+.drpg-chat-kit[data-drpg-tone="warning"] { border-left-color: var(--drpg-kit-warn-edge); background: var(--drpg-kit-warn-bg); }
+.drpg-chat-kit[data-drpg-tone="secret"] { border-left-color: var(--drpg-kit-secret-edge); background: var(--drpg-kit-secret-bg); }
+.drpg-chat-kit > .drpg-chat-kit-head { display: flex; align-items: center; gap: 0.45rem; min-width: 0; margin: 0; }
+.drpg-chat-kit > .drpg-chat-kit-head:has(> .drpg-chat-kit-title) {
+    grid-column: 1 / -1;
+    margin: 0 0 0.3rem;
+    padding: 0 0 0.2rem;
+    border-bottom: 1px solid var(--drpg-kit-info-edge);
+}
+.drpg-chat-kit > .drpg-chat-kit-head:has(> .drpg-chat-kit-title) ~ * { grid-column: 1 / -1; }
+.drpg-chat-kit .drpg-chat-kit-glyph { flex: none; width: 1rem; line-height: 1.35; text-align: center; }
+.drpg-chat-kit[data-drpg-tone="warning"] .drpg-chat-kit-glyph { color: var(--drpg-kit-warn-edge); }
+.drpg-chat-kit[data-drpg-tone="secret"] .drpg-chat-kit-glyph { color: var(--drpg-kit-secret-edge); }
+.drpg-chat-kit .drpg-chat-kit-title { margin: 0; padding: 0; border: 0; font-size: 1em; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.drpg-chat-kit > .drpg-chat-kit-body { min-width: 0; overflow-wrap: anywhere; }
+.drpg-chat-kit > .drpg-chat-kit-body > :first-child { margin-top: 0; }
+.drpg-chat-kit > .drpg-chat-kit-body > :last-child { margin-bottom: 0; }
+.drpg-chat-kit > .drpg-chat-kit-foot { grid-column: 1 / -1; margin: 0.3rem 0 0; font-size: 0.9em; }
+.drpg-chat-kit-warn { padding: 0.1rem 0 0.1rem 0.45rem; border-left: 3px solid var(--drpg-kit-warn-edge); background: var(--drpg-kit-warn-bg); }
+span.drpg-chat-kit-warn { padding: 0 0.3rem; }
