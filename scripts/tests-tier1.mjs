@@ -43968,6 +43968,62 @@ const INVARIANTS = [
             stableJson({ reads: ["var(--drpg-kit-tab-on-ink)", "var(--drpg-kit-tab-on-bg)", "var(--drpg-kit-tab-on-edge)"], bar: "inset 3px 0 0 var(--drpg-kit-tab-on-edge)", sized: [], crisis: [] }),
             "{reads: the picked section's ink, ground and frame; bar: Legacy's edge bar; sized: properties its rule sets besides those; crisis: crisis rules reading a tab token} - Legacy's picked section must not be filled red");
     }],
+    ["R3543 - under Stained Glass the messenger's unread badge is drawn over Foundry tools' hex (styles/stained-glass.css; E49, the owner's \"Tak\" to E105 compare2's finding): Foundry tools stand at 69, one under the corner's 70, so the messenger and its badge paint over them; the launcher keeps 70 (the expanded chat's 71 stays above the cluster, R1405), and nothing of the badge's or the hex's build changes", async () => {
+        /*
+         * E49, 11.11.2026. E105 compare2, GM's page under the glass at 1366x768: elementFromPoint at the badge's top read
+         * `#drpg-foundry-tools`; every corner button stood at 70 and the tools, later in the body, painted over the
+         * badge. Red first on 6421cc08: the tools read 70 (components.css). Read here by the kit's cascade (`styleCascade`: the
+         * module's sheets in load order, by specificity), as R1405 reads the cluster; Chromium's hit map before and after is in S/stages/E49/pan-shots/index.txt.
+         */
+        const C = await styleCascade();
+        const z = (theme, id) => {
+            const html = document.createElement("html"), body = document.createElement("body"), button = document.createElement("button");
+            body.className = theme;
+            button.id = id;
+            html.append(body);
+            body.append(button);
+            return C.winner(button, "z-index")?.value ?? null;
+        };
+        const badge = (() => {
+            const html = document.createElement("html"), body = document.createElement("body"), button = document.createElement("button"), b = document.createElement("span");
+            body.className = "drpg-theme-stained-glass";
+            button.id = "drpg-messenger-launcher";
+            b.className = "drpg-messenger-badge";
+            html.append(body);
+            body.append(button);
+            button.append(b);
+            return C.winner(b, "pointer-events")?.value ?? null;
+        })();
+        equal(stableJson({ tools: z("drpg-theme-stained-glass", "drpg-foundry-tools"), messenger: z("drpg-theme-stained-glass", "drpg-messenger-launcher"),
+            legacyTools: z("drpg-theme-monokuma-legacy", "drpg-foundry-tools"), badgePointer: badge }),
+        stableJson({ tools: "69", messenger: "70", legacyTools: "70", badgePointer: "auto" }),
+            "{Foundry tools' z-index under the glass, the messenger launcher's, Foundry tools' outside the glass, the badge's pointer} - the badge must paint over the tools' hex under the glass");
+    }],
+    ["R3544 - the critical's line reads apart wherever it is drawn, not only in a notice (styles/danganronpa.css; E49, the owner's \"Tak\" to E105 compare2's \"Critical successAiko Hoshino\"): the line's five rules are scoped to the notice, the history's kept snapshot and a chat message at (0,2,0), and the words keep their flex row and its 8 px gap; the duality total stays hidden in the notice alone", async () => {
+        /*
+         * E49, 11.11.2026. E105 compare2's chat stand-in drew the notice's body in a chat message: the words ran together
+         * ("Critical successAiko Hoshino"), both themes, because every rule of the line named `.drpg-popup`. Red first on
+         * 6421cc08: the five rules read `.drpg-popup` only. Then a line of `critLine`'s shape is drawn in a stand-in chat
+         * message and in a history snapshot and its words' `display` and `column-gap` read by getComputedStyle (the
+         * cascade this page loaded), and removed.
+         */
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
+        const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const SCOPE = ":is(.drpg-popup, .drpg-notice-snapshot, .chat-message)";
+        const scoped = ["crit-line", "crit-glyph", "crit-words", "crit-result", "crit-who"].map(c => rules.some(r => r.sel === `${SCOPE} .drpg-${c}`));
+        const duality = rules.some(r => r.sel === ".drpg-popup .drpg-crit-line ~ .drpg-duality .drpg-duality-result" && /display:\s*none/.test(r.body));
+        const line = `<div class="drpg-crit-line" data-drpg-crit=""><i class="fa-solid fa-burst drpg-crit-glyph" aria-hidden="true"></i><span class="drpg-crit-words"><strong class="drpg-crit-result">Critical success</strong><span class="drpg-crit-who">Aiko</span></span></div>`;
+        const host = document.createElement("div");
+        host.style.cssText = "position:absolute;left:-9999px;top:0;width:400px";
+        host.innerHTML = `<ol><li class="chat-message message"><div class="message-content">${line}</div></li></ol><div class="drpg-notice-snapshot">${line}</div>`;
+        document.body.append(host);
+        let drawn;
+        try {
+            drawn = [...host.querySelectorAll(".drpg-crit-words")].map(w => { const s = getComputedStyle(w); return `${s.display} ${s.columnGap}`; });
+        } finally { host.remove(); }
+        equal(stableJson({ scoped, duality, drawn }), stableJson({ scoped: [true, true, true, true, true], duality: true, drawn: ["flex 8px", "flex 8px"] }),
+            "{scoped: the line's, glyph's, words', result's and who's rule on the notice, the snapshot and a chat message; duality: the total hidden in the notice; drawn: the words' display and gap in a chat message and in a snapshot} - the critical's line must read apart outside a notice");
+    }],
     ["R2018 - Room setup's Scenes tab on the kit (E46-C2b; E46-08, E47's 05.10 point 5): trial-scene.mjs `scenesTabHtml` is a kit `formGrid` (the school and the hall selects, each its label's `for`), the hall's name, picture and words a `formGrid` of their own, the warnings a `box(\"warning\")`, the prepare ticks kit switches, `SCENES_ZONE_SLOT` a row of `scenesTabRows` that draws nothing (where E73 puts Zone A and Zone B), the hall's cast pick (`castPickerHtml`) a kit `dataTable` with a switch an actor; `readScenesTab`'s answer for a seeded form the one it gave before", async () => {
         /*
          * E46-C2b. Red first on C2a's tree (f90e89a7): labels around the selects, a list of checkboxes, `p.drpg-warning`, no
