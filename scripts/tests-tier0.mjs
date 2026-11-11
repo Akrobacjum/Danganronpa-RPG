@@ -18,7 +18,7 @@ import {
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
     TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists, cssDeadClasses, cssLintCounts, cssBudgetProblems, CSS_DETECTORS,
-    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssThemeTokens, cssHourDistances, cssDeltaE00Check
+    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssForcedBlockProblems, CSS_FORCED_STATES, cssThemeTokens, cssHourDistances, cssDeltaE00Check
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -616,6 +616,23 @@ const REGRESSIONS = [
             const family = kept.find(k => k.name === decoration);
             ok(family?.reads > 0, `the ${decoration} lost the hour - the owner's default keeps it there (${family?.why ?? "no such line"})`);
         }
+    }],
+
+    ["R3440 - forced colours keep every state: the served sheets' `@media (forced-colors: active)` block names each state element of tests-css.mjs FORCED_STATES - the action, despair and player-status pips, Hope's pips and stars, the pixel glyphs, the checkbox's tick, the selected brush, the Event ticker, the microphone's and the voice list's muted stroke and the mic's lock, the notice history's button and window - and a state planted in the list with no rule is seen (E48 K3)", async () => {
+        /*
+         * E48 K3, 11.11.2026. tests-css.mjs `forcedBlockProblems`. What the rules then draw is audit/forced-sweep.mjs's, in
+         * Chromium (a spent pip and a free pip differ, neither blank, both themes); Windows' own contrast themes are a
+         * check at a real table, not made here. Red before K3: "the forced-colours block names nothing for the action pips
+         * (`.drpg-action-pip::before`)" and 13 more of the 15 rows (the despair pips' rule was there).
+         */
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const sheets = [];
+        for (const file of manifest.styles ?? []) sheets.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)]);
+        must(sheets.length >= 6 && CSS_FORCED_STATES.length >= 12, `${sheets.length} sheet(s), ${CSS_FORCED_STATES.length} state(s) - this test would hold nothing`);
+        const problems = cssForcedBlockProblems(sheets);
+        equal(JSON.stringify(problems), "[]", `${problems.length} state element(s) with no forced-colours rule`);
+        const planted = cssForcedBlockProblems(sheets, [...CSS_FORCED_STATES, { name: "a planted state", selector: ".drpg-planted-state" }]);
+        equal(planted.length, problems.length + 1, "a state with no forced-colours rule planted in the list is not seen");
     }],
 
     ["R3333 - the pixel glyphs come from one source: each row of tools/glyphs.json `grid` cells wide and tall, no two drawing the same pixels unless one says `same`, the sprite, pixel-icons.css and the audit page's symbols what tools/glyph-map.mjs writes from them, every SVG data URI of danganronpa.css and stained-glass.css its row's drawing pixel for pixel, the chrome section what tools/chrome-icons.mjs writes, and each planted drift seen (E48 G1)", async () => {

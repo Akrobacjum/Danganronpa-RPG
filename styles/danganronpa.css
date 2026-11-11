@@ -16765,6 +16765,66 @@ body.drpg-reduced-motion .drpg-hud-track > span { animation: none; }
     }
     .drpg-despair-pip.filled { background: CanvasText; }
 
+    /* THE REST OF THE STATES (E48 K3, 11.11.2026; tests-css.mjs FORCED_STATES, R3440, audit/forced-sweep.mjs).
+       A pip, a Hope star and every pixel glyph is a mask over `background-color: currentColor`, and forced
+       colours paint that background Canvas: on Canvas, nothing - the sweep read Legacy's held and free action
+       pips as the same blank picture. They keep their own colours out of the repaint and draw in CanvasText; the
+       mask (a dot or a ring, a full diamond or an empty one, the glyph) still says which state. */
+    .drpg-action-pip::before,
+    .drpg-status-pip::before,
+    .drpg-status-hope-pip::before,
+    .character-header-sheet .hope-value::before,
+    .drpg-pxi {
+        forced-color-adjust: none;
+        background-color: CanvasText !important;
+    }
+    .drpg-action-pip,
+    .drpg-status-pip,
+    .drpg-status-hope-pip,
+    .character-header-sheet .hope-value { opacity: 1 !important; filter: none !important; }
+
+    /* The checkbox's tick and the radio's mark are drawn by the themes (`appearance: none`); the system's own
+       control is the one forced colours know how to draw checked. */
+    input:is([type="checkbox"], [type="radio"]) {
+        appearance: auto !important;
+        -webkit-appearance: auto !important;
+        background: revert !important;
+        border: revert !important;
+    }
+    input:is([type="checkbox"], [type="radio"])::before,
+    input:is([type="checkbox"], [type="radio"])::after { display: none !important; }
+
+    /* The selected brush is a colour; here it is the system's selection colour along the start edge and round
+       the box, apart from the focus ring (a 2 px Highlight outline outside). */
+    :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):has(input:checked),
+    :is(button, a, [role="tab"], li):is(.active, [aria-selected="true"], [aria-pressed="true"]) {
+        border: 1px solid Highlight !important;
+        border-inline-start: 6px solid Highlight !important;
+    }
+
+    /* The microphone: muted (and held, and blocked by the GM) is a stroke across the glyph, drawn in
+       currentColor - CanvasText here; blocked by the GM also carries the padlock, a pixel glyph (above). */
+    .drpg-launch-mini:is(.is-muted, .is-held, .is-gm-blocked)::after,
+    .drpg-voice-row :is(.drpg-voice-row-mute.is-muted, .drpg-voice-row-block.is-gm-blocked)::after {
+        forced-color-adjust: none;
+        background: CanvasText !important;
+    }
+    .drpg-voice-mic-lock { forced-color-adjust: none; background-color: CanvasText !important; }
+
+    /* The Event ticker and the notice history (its corner button and its window, named by the window's id:
+       its old class rules are gone, R1330) are boxes of words, as the panels above. */
+    .drpg-event-ticker,
+    #drpg-notices-corner,
+    .application#drpg-notices {
+        border: 1px solid CanvasText !important;
+        background: Canvas !important;
+        background-image: none !important;
+        color: CanvasText !important;
+        backdrop-filter: none !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+    }
+
     /* The focus ring is a colour in this theme, so in forced colours there is
        none - and keyboard is the way most people in this mode are working. */
     :focus-visible { outline: 2px solid Highlight !important; outline-offset: 2px; }

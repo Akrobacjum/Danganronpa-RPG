@@ -536,6 +536,46 @@ export function meaningSelfCheck(of = meaningReads) {
     return problems;
 }
 
+/* ================================ forced colours (E48 K3) ================================ */
+
+/*
+ * EVERY STATE ELEMENT HAS A FORCED-COLOURS RULE (E48 K3, 11.11.2026; the stage's "the full forced-colors block"). Under
+ * Windows' contrast themes a state said in colour alone - a spent pip against a free one, a muted microphone - comes out
+ * as two identical marks, and a pixel glyph (a mask over `background-color: currentColor`) as nothing, because the
+ * background is painted the system's Canvas. `FORCED_STATES` is each state element the module draws that way and the
+ * selector the `@media (forced-colors: active)` block must name for it; audit/forced-sweep.mjs reads in Chromium what
+ * the pips then draw (a test here can read only that the rule is there).
+ */
+export const FORCED_STATES = [
+    { name: "the action pips", selector: ".drpg-action-pip::before" },
+    { name: "the despair pips", selector: ".drpg-despair-pip.filled" },
+    { name: "the player status's pips", selector: ".drpg-status-pip::before" },
+    { name: "Hope's pips in the player status", selector: ".drpg-status-hope-pip::before" },
+    { name: "Hope's stars on the sheet", selector: ".hope-value::before" },
+    { name: "the pixel glyphs", selector: ".drpg-pxi" },
+    { name: "the checkbox's tick", selector: "input:is([type=\"checkbox\"], [type=\"radio\"])" },
+    { name: "the selected brush (a chosen row)", selector: ":is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):has(input:checked)" },
+    { name: "the selected brush (a pressed or chosen button or tab)", selector: "[aria-pressed=\"true\"]" },
+    { name: "the Event ticker", selector: ".drpg-event-ticker" },
+    { name: "the microphone's muted stroke", selector: ".drpg-launch-mini:is(.is-muted, .is-held, .is-gm-blocked)::after" },
+    { name: "the voice list's muted stroke", selector: ".drpg-voice-row :is(.drpg-voice-row-mute.is-muted, .drpg-voice-row-block.is-gm-blocked)::after" },
+    { name: "the microphone's lock", selector: ".drpg-voice-mic-lock" },
+    { name: "the notice history's button", selector: "#drpg-notices-corner" },
+    { name: "the notice history's window", selector: ".application#drpg-notices" }
+];
+
+/** Each FORCED_STATES row no rule inside a served sheet's `@media (forced-colors: active)` names; [] is held. */
+export function forcedBlockProblems(sheets, states = FORCED_STATES) {
+    const preludes = [];
+    for (const [, text] of sheets ?? []) {
+        for (const block of blocksOf(stripCssComments(text))) {
+            if (block.prelude && block.context.some(c => /forced-colors:\s*active/.test(c))) preludes.push(block.prelude.replace(/\s+/g, " "));
+        }
+    }
+    if (!preludes.length) return ["no served sheet holds a rule inside @media (forced-colors: active)"];
+    return states.filter(s => !preludes.some(p => p.includes(s.selector))).map(s => `the forced-colours block names nothing for ${s.name} (\`${s.selector}\`)`);
+}
+
 /* ================================ the hour's ramp (E48 K2) ================================ */
 
 /** An opaque sRGB [r, g, b] (0-255) as CIELAB [L, a, b] under D65 (the sRGB primaries, the 2-degree observer). */
