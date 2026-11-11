@@ -254,16 +254,19 @@
        before a word is: somebody glancing up mid-conversation should know that
        the Trial has started without stopping to read.
 
-       Gold is Hope's and is spent here on purpose - Daily Life is the only
-       phase where the students have anything. The other three are new: violet
+       Daily Life was Hope's gold (#ffd23f), spent here on purpose - the only
+       phase where the students have anything. Since E48 K2b (the owner's default
+       on K2's open, 11.11, to be seen before it is decided) it is the attention
+       colour: gold means Hope and nothing else, and a clock is not Hope. Revert
+       this one pair to put the gold back. The other three are new: violet
        for the Eclipse (it took the red it had been borrowing from OBJECTION),
        steel blue for the Investigation, and OBJECTION's own red for the Trial,
        which is the one place it means what it has always meant.
 
        Each is bright enough to sit on the dark HUD as text - the `-rgb` twins
        are for the glow, which is the same colour at low alpha. */
-    --drpg-phase-daily: #ffd23f;
-    --drpg-phase-daily-rgb: 255, 210, 63;
+    --drpg-phase-daily: var(--drpg-attention);
+    --drpg-phase-daily-rgb: var(--drpg-attention-rgb);
     --drpg-phase-eclipse: #b58cf0;
     --drpg-phase-eclipse-rgb: 181, 140, 240;
     --drpg-phase-investigation: #57b6ff;

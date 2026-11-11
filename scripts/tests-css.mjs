@@ -390,10 +390,11 @@ export const MEANING = {
         why: "gold means Hope and nothing else"
     },
     /* Where K1 sent the focus and the selections, the offers and the asks; a new reader names one of these or says what
-       it is here. */
+       it is here. `phase-daily`: the clock's Daily Life, Hope's #ffd23f under another name until K2b (the owner's default
+       on K2's open, 11.11; to be seen before it is decided), now the colour of what asks to be looked at. */
     attention: {
         tokens: /^--drpg-attention(?:-rgb)?$/,
-        words: /focus|:checked|radio|selected|drpg-choice|rest-option|frisk-mode|unlocked|offered|init-button|warn|:hover|past-first|debate|rebuttal|tab-dot|saved|paused|checkmark|\bselect\b/i,
+        words: /focus|:checked|radio|selected|drpg-choice|rest-option|frisk-mode|unlocked|offered|init-button|warn|:hover|past-first|debate|rebuttal|tab-dot|saved|paused|checkmark|\bselect\b|phase-daily/i,
         why: "the attention colour is for focus, selection and what asks to be looked at"
     },
     /*
@@ -436,6 +437,24 @@ export const HOUR_KEPT = [
     { name: "icons", words: ["--kind", "\\bi\\b", "fa-"], why: "an icon's ink and a row's kind inside the surfaces above" }
 ];
 
+/* A colour literal as "r,g,b" (a hex, an rgb()/rgba() with three numbers, or a bare `-rgb` triple), or null. */
+function literalRgb(text) {
+    const t = text.trim();
+    let m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(t);
+    if (m) { const h = m[1].length === 3 ? [...m[1]].map(c => c + c).join("") : m[1]; return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)).join(","); }
+    m = /^(?:rgba?\(\s*)?(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*[\d.]+%?\s*)?\)?$/i.exec(t);
+    return m ? m.slice(1, 4).map(Number).join(",") : null;
+}
+
+/* Every colour literal in a declaration's value: hexes, rgb()/rgba() with plain numbers, and the value itself when it
+   is a bare triple. */
+function literalsOf(value) {
+    const out = [];
+    for (const m of value.matchAll(/#[0-9a-f]{6}\b|#[0-9a-f]{3}\b|rgba?\([^()]*\)/gi)) { const rgb = literalRgb(m[0]); if (rgb) out.push([m[0], rgb]); }
+    if (!out.length) { const rgb = literalRgb(value); if (rgb) out.push([value.trim(), rgb]); }
+    return out;
+}
+
 /**
  * Every read of a meaning token by a rule that does not name its meaning: `sheets` is [[file, text]]; answers
  * `{ read, found }`, `read` the reads of a meaning token seen (allowed or not) and `found` each finding as
@@ -446,6 +465,13 @@ export function meaningReads(sheets, meaning = MEANING) {
     const found = [], allowed = [];
     const rows = Object.entries(meaning);
     const parsed = (sheets ?? []).map(([file, text]) => [file, blocksOf(stripCssComments(text))]);
+    /* a meaning token's own literal value (`--drpg-gold: #ffd23f`), so a copy under another name is seen (K2b) */
+    const values = new Map();
+    for (const [, blocks] of parsed) for (const block of blocks) for (const decl of declarationsOf(block.own ?? "")) {
+        const row = rows.find(([, r]) => r.tokens.test(decl.property));
+        const rgb = row && literalRgb(decl.value);
+        if (rgb && !values.has(rgb)) values.set(rgb, [row[0], decl.property]);
+    }
     for (const [file, blocks] of parsed) {
         for (const block of blocks) {
             if (!block.prelude || block.prelude.startsWith("@")) continue;
@@ -461,6 +487,11 @@ export function meaningReads(sheets, meaning = MEANING) {
                 for (const m of decl.value.matchAll(/var\(\s*(--[\w-]+)/g)) {
                     for (const [name, row] of rows) if (row.tokens.test(m[1])) judge(name, row, `reads ${m[1]}`);
                 }
+                if (rows.some(([, r]) => r.tokens.test(decl.property))) continue;
+                for (const [lit, rgb] of literalsOf(decl.value)) {
+                    const hit = values.get(rgb);
+                    if (hit) judge(hit[0], meaning[hit[0]], `holds ${lit}, the value of ${hit[1]}`);
+                }
             }
         }
     }
@@ -473,14 +504,15 @@ export function hourKept(allowed, kept = HOUR_KEPT) {
     return kept.map(k => ({ name: k.name, why: k.why, reads: hours.filter(a => new RegExp(k.words.join("|"), "i").test(a.where)).length }));
 }
 
-/* The meaning check's fixture: four reads, two of them findings - a focus ring in gold, and a token that aliases gold
-   under a name with no Hope word - beside a Hope star, a Hope-named alias and Evidence's antique, which is not gold. */
+/* The meaning check's fixture: six reads, three of them findings - a focus ring in gold, a token that aliases gold under
+   a name with no Hope word, and gold's own value copied under another name (K2b: `--drpg-phase-daily` was #ffd23f) -
+   beside a Hope star, a Hope-named alias, a Hope rule's literal glow and Evidence's antique, which is not gold. */
 export const MEANING_FIXTURE = {
-    sheets: [["fixture.css", ":root { --drpg-kit-call-hope: var(--drpg-gold); --drpg-glow: var(--drpg-gold-light); }\n"
-        + ".drpg-hope-star { color: var(--drpg-gold); }\n.drpg-button:focus-visible { outline: 2px solid rgba(var(--drpg-gold-rgb), 0.8); }\n"
+    sheets: [["fixture.css", ":root { --drpg-gold: #ffd23f; --drpg-kit-call-hope: var(--drpg-gold); --drpg-glow: var(--drpg-gold-light); --drpg-phase-x: #FFD23F; }\n"
+        + ".drpg-hope-star { color: var(--drpg-gold); text-shadow: 0 0 3px rgba(255, 210, 63, 0.35); }\n.drpg-button:focus-visible { outline: 2px solid rgba(var(--drpg-gold-rgb), 0.8); }\n"
         + ".drpg-truth-bullet { color: var(--drpg-gold-antique); }\n/* .drpg-x { color: var(--drpg-gold); } */"]],
-    read: 4,
-    found: 2
+    read: 6,
+    found: 3
 };
 
 /** The meaning check on its fixture; [] is held. */

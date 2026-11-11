@@ -518,7 +518,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(cssBudgetProblems(counts, budget, { atMost: true })), "[]", "a served sheet is above its budget, or the budget and module.json disagree");
     }],
 
-    ["R3410 - gold means Hope alone: no served sheet reads a gold token (`--drpg-gold`, its light, deep, shadow and -rgb, `--drpg-sg-hope`) in a rule whose selector names no Hope word, nor `--drpg-attention` outside focus and selection, the check finds the two faults planted in its fixture and one planted in a served sheet, and `--drpg-attention` is Bone in both themes (E48 K1; Q6)", async () => {
+    ["R3410 - gold means Hope alone: no served sheet reads a gold token (`--drpg-gold`, its light, deep, shadow and -rgb, `--drpg-sg-hope`) in a rule whose selector names no Hope word, nor holds a meaning token's own value under another name, nor `--drpg-attention` outside focus and selection; the check finds the three faults planted in its fixture and one planted in a served sheet and a planted copy of gold's value; `--drpg-attention` is Bone in both themes and the clock's Daily Life reads it (E48 K1, K2b; Q6)", async () => {
         /*
          * E48 K1, 11.11.2026 (the plan's "złoto zostaje wyłącznie dla Hope"; S12-61). tests-css.mjs `meaningReads`, the
          * function `node tools/check.mjs css` runs, on the files Foundry serves. Red before K1: "54 read(s) of a meaning
@@ -526,6 +526,10 @@ const REGRESSIONS = [
          * reads --drpg-gold" - the focus ring, the chosen crisis row, the Frisk mode, the card's default result,
          * `.drpg-sum-found`, the messenger's dot and the rest of 42 rules. `--drpg-gold-antique` is Evidence's
          * (`var(--drpg-evidence)`) and is not a gold token here.
+         * E48 K2b, 11.11.2026 (the owner's defaults on K1's and K2's opens). Red before K2b: "2 read(s) of a meaning token
+         * outside its selectors: styles/danganronpa.css: :root { --drpg-phase-daily } holds #ffd23f, the value of
+         * --drpg-gold (hope: ...)" and its -rgb twin - Hope's gold under the clock's name, which the check could not see
+         * while it read only `var()`.
          */
         const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
         const sheets = [];
@@ -542,7 +546,10 @@ const REGRESSIONS = [
         for (const theme of ["monokuma-legacy", "stained-glass"]) {
             equal(tokens[theme].get("--drpg-attention"), "var(--drpg-bone)", `${theme}: --drpg-attention is not the theme's Bone`);
             equal(tokens[theme].get("--drpg-attention-rgb"), "var(--drpg-bone-rgb)", `${theme}: --drpg-attention-rgb is not the theme's Bone`);
+            equal(tokens[theme].get("--drpg-phase-daily"), "var(--drpg-attention)", `${theme}: the clock's Daily Life is not the attention colour`);
         }
+        const copied = sheets.map(([file, text], i) => [file, i ? text : `${text}\n.drpg-planted-clock { --drpg-planted-day: #FFD23F; }\n`]);
+        equal(cssMeaningReads(copied).found.length, all.found.length + 1, "Hope's gold copied as a literal under another name is not seen");
     }],
 
     ["R3411 - no hour reads as a state: each of Stained Glass's five hour tokens is at least tools/contrast-pairs.json's threshold (CIEDE2000 15, Q7) from each meaning colour - Investigation, Hope, the GM's red and light, Eclipse, Despair, Evidence, Health, Sanity - every token resolves, and CIEDE2000 reads Sharma, Wu and Dalal's test pairs as published (E48 K2; D30 = 2)", async () => {
