@@ -4181,7 +4181,20 @@ export function sheetBox(vw, vh, scale = 1, theme = "glass") {
     return scaledBox(theme === "glass" ? SHEET_SIZE.glass : DAGGERHEART_SHEET, vw, vh, scale);
 }
 
-export function scaleWindow(app, element) {
+/* THE SHEET OPENS BELOW THE CURTAIN'S BAND (S03-30, a B leftover of E49 built in E48 K6's run, 11.11.2026; the audit:
+   "the sheet opens on the curtain and covers the Despair pools, the debate's timer and the incident's turn signal").
+   The band is what stands at the top of the screen in the middle: Despair's pools and the Event panel (the debate's
+   clock, the incident's turn), each where drawn; the sheet's top goes SHEET_BELOW_BAND under the lowest of them, on a
+   first render only, so a sheet a player moved stays where it was put. Null with neither drawn: Foundry's place. A
+   band whose foot is below the screen's middle is no band (a panel down a side), and is left alone. */
+const SHEET_BELOW_BAND = 8;
+export function sheetBandFoot() {
+    const feet = ["#drpg-despair", "#drpg-events"].map(q => document.querySelector(q))
+        .filter(e => e && e.offsetWidth > 0 && e.offsetHeight > 0).map(e => e.getBoundingClientRect().bottom);
+    return feet.length ? Math.round(Math.max(...feet) + SHEET_BELOW_BAND) : null;
+}
+
+export function scaleWindow(app, element, _context, options) {
     if (!settingsRegistered()) return;
     const el = element instanceof HTMLElement ? element : element?.[0];
     /*
@@ -4235,6 +4248,13 @@ export function scaleWindow(app, element) {
        Legacy, which keeps Daggerheart's size and was promised its handle (review of
        stage D): a one-way edit cannot follow a two-way switch, and a rule can. */
     if (!Object.keys(size).length) return;
+    if (options?.isFirstRender && app?.document?.type === "character") {
+        const foot = sheetBandFoot();
+        if (foot !== null && foot < h / 2) {
+            size.top = foot;
+            if (size.height) size.height = Math.min(size.height, Math.round(h - foot - SHEET_BELOW_BAND));
+        }
+    }
     /* THROUGH `setPosition`, NOT THE ELEMENT'S STYLE. An ApplicationV2 writes its own
        `position` onto the element after every render, so an inline width set from the render
        hook was overwritten a moment later and the box never moved at all. Going through the

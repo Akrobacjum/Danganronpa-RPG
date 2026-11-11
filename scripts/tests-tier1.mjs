@@ -24616,7 +24616,7 @@ const INVARIANTS = [
             ["drpg-theme-monokuma-legacy", "var(--drpg-text-xs)", "styles/danganronpa.css"],
             ["drpg-theme-monokuma-legacy drpg-pixel-font", "var(--drpg-text-xs)", "styles/danganronpa.css"],
             ["drpg-theme-stained-glass", "max(var(--drpg-sg-floor), calc(14px * var(--drpg-sg-scale)))", "styles/stained-glass.css"],
-            "max(min(10px, 0.6875rem), calc(0.6875rem * var(--drpg-legacy-scale, 1)))",
+            "max(min(11px, 0.6875rem), calc(0.6875rem * var(--drpg-legacy-scale, 1)))",
             true, [true, "Body found"]
         ]), "[the bar's winning font-size and its sheet under Legacy, Legacy with the pixel face and Stained Glass; the module's floor token; "
             + "the body's discovery posted as an objection with its title before the banner; the title's key]");
@@ -38796,7 +38796,7 @@ const INVARIANTS = [
             C.winner(sg, "font-synthesis")?.value ?? null, C.winner(bodyOf("drpg-theme-monokuma-legacy"), "font-synthesis")?.value ?? null,
             declared, C.winner(button, "font-weight")?.value ?? null
         ]), stableJson([
-            "none", null, ["body.drpg-theme-stained-glass = none"], "400"
+            "none", null, ["body.drpg-pixel-font:not(.drpg-theme-stained-glass) = none", "body.drpg-theme-stained-glass = none"], "400"
         ]), "[the glass's body font-synthesis, Monokuma Legacy's; every font-synthesis the module's sheets declare; the safeword button's weight under the glass]");
     }],
     ["R1409 - an action tile's look by state (E23 C5b; E23-29, audit S12-03): under the glass a tile that cannot be pressed - unaffordable or disabled - shows no brush and one look whatever its cost kind (a dashed edge, an opaque ground of ink, the dim bone ink, the icon with it); Monokuma Legacy dims the stripe to 0.35 as before, and high contrast's 0.75 stands over Legacy only", async () => {
@@ -46693,6 +46693,185 @@ const INVARIANTS = [
             /Hooks\.on\(\s*"canvasReady"[\s\S]*forgetTextures\(\)[\s\S]*preload\(\)/.test(register)]),
         J([null, true, null, true, null, 3, true, true]),
             "[while loading, loaded, after it was destroyed, loaded again, after forgetTextures, loads, the tear-down's hook, canvasReady's] - a Remnant's icon is handed a texture its scene let go");
+    }],
+    ["R3500 - Monokuma Legacy's small type stops at 11 px (styles/danganronpa.css; E48 K6, S12-41): `--drpg-text-xs` and the Legacy body's rungs 11 to 14 floor at min(11px, the rung) - the floor never above the rung at 100 %, never under 11 px at a 16 px root whatever the scale slider says", async () => {
+        /*
+         * E48 K6, 11.11.2026. S12-41: "10 px despite the declared 11 px floor (the HUD's chapter line and time, Despair's
+         * count, Experience)" - each of them reads one of these tokens. The floor was min(10px, rung): at the slider's
+         * 0.8 the 11 px rung came out 10 px. Read here as the tokens' text; the arithmetic at a 16 px root and scale 0.8.
+         */
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
+        const floor = name => {
+            const m = css.match(new RegExp(`${name}:\\s*max\\(min\\((\\d+)px,\\s*([\\d.]+)rem\\),\\s*calc\\(([\\d.]+)rem \\* var\\(--drpg-legacy-scale, 1\\)\\)\\)`));
+            return m ? Math.round(Math.max(Math.min(Number(m[1]), Number(m[2]) * 16), Number(m[3]) * 16 * 0.8) * 10) / 10 : null;
+        };
+        equal(stableJson(["--drpg-text-xs", "--font-size-11", "--font-size-12", "--font-size-13", "--font-size-14"].map(floor)),
+            stableJson([11, 11, 11, 11, 11.2]),
+            "[--drpg-text-xs, --font-size-11 .. 14] at a 16 px root and the slider at 0.8, in px - a small rung under Legacy must not fall under 11 px");
+    }],
+    ["R3501 - Monokuma Legacy's sheet tab and its red grounds are readable (styles/danganronpa.css, tools/contrast-pairs.json; E48 K6, S12-25, S03-20, Q13): the active tab is Bone on Ink with the attention edge, the other Bone-on-Eye grounds the Eye's dark step, the theme's red lifted, and tools/contrast-pairs.json writes no Legacy pair `known` below AA", async () => {
+        /*
+         * E48 K6, 11.11.2026. S12-25: "the sheet's active tab Bone on Eye at 11 px, 3.63:1". The owner's Q13 ("tak"):
+         * the red fill goes, Bone on Ink with a `--drpg-attention` edge. Chromium at 1366x768 (the stage's probe, the
+         * style harness's sheet parts) read the tab rgb(224, 24, 47) before. The pairs file's two `known` (3.63 and 4.39)
+         * must read ok, not known (R1313 reads the ratios); here, that none is left and the rules that make them so.
+         */
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
+        const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const tab = rules.find(r => r.sel === "body:not(.drpg-theme-stained-glass) .application.sheet.actor .tab-navigation nav.sheet-tabs a.active")?.body ?? "";
+        const dim = rules.find(r => r.sel.startsWith("body:not(.drpg-theme-stained-glass) .drpg-safeword-button,"))?.body ?? "";
+        const red = rules.find(r => r.sel === "body.drpg-theme-monokuma-legacy" && /--drpg-red:/.test(r.body))?.body.match(/--drpg-red:\s*(#[0-9a-f]{6})/i)?.[1] ?? null;
+        const pairs = await fetch(`/modules/${MODULE_ID}/tools/contrast-pairs.json`, { cache: "no-cache" }).then(r => r.ok ? r.json() : null).catch(() => null);
+        needs(env.tools(), "tools/contrast-pairs.json is read from the repository's tools/");
+        const known = (pairs?.pairs ?? []).filter(p => p.theme === "monokuma-legacy" && p.known).map(p => `${p.id} ${p.known}`);
+        equal(stableJson({ ink: /background:\s*var\(--drpg-ink\)\s*!important/.test(tab), edge: /box-shadow:\s*inset 0 -2px 0 var\(--drpg-attention\)/.test(tab),
+            dim: /background:\s*var\(--drpg-eye-dim\)\s*!important/.test(dim), red, known }),
+            stableJson({ ink: true, edge: true, dim: true, red: "#eb585c", known: [] }),
+            "{ink: the active tab's Ink ground; edge: its attention edge; dim: the Stop's and the lit buttons' Eye-dim ground; red: Legacy's red; known: Legacy pairs below AA} - Legacy's red grounds must read at AA");
+    }],
+    ["R3502 - under Monokuma Legacy the Calls keep their frames and only a tile that can be pressed lights (styles/danganronpa.css; E48 K6, S12-27): the Hope and Despair Calls' gold and blood frames and the hot tile's blood are restated at the blanket's weight, the Calls' hovers are their own colours and an unaffordable tile takes no hover", async () => {
+        /*
+         * E48 K6, 11.11.2026. S12-27: "a blanket `border-color: var(--drpg-line) !important` eats the Calls' gold and
+         * pink frames and the hot tile's; a Hope Call glows red on hover". The blanket stays (it is what holds
+         * Foundry's fill off), and the exceptions are written at its weight under the theme that is not glass.
+         */
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
+        const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const L = "body:not(.drpg-theme-stained-glass) ";
+        const has = (sel, re) => rules.some(r => r.sel === L + sel && re.test(r.body));
+        equal(stableJson([
+            has(".drpg-hope-panel .drpg-call-button", /border-color:\s*color-mix\(in srgb, var\(--drpg-gold\) 55%, transparent\)\s*!important/),
+            has(".drpg-despair-panel .drpg-call-button", /border-color:\s*color-mix\(in srgb, var\(--drpg-blood\) 55%, transparent\)\s*!important/),
+            has(".drpg-action-button.drpg-action-hot:not(.unaffordable)", /border-color:\s*var\(--drpg-blood\)\s*!important/),
+            has(".drpg-hope-panel .drpg-call-button:hover:not(:disabled):not(.unaffordable)", /border-color:\s*var\(--drpg-gold\)\s*!important/),
+            has(".drpg-despair-panel .drpg-call-button:hover:not(:disabled):not(.unaffordable)", /border-color:\s*var\(--drpg-blood\)\s*!important/),
+            has(":is(.drpg-action-button, .drpg-call-button).unaffordable:hover", /background-color:\s*transparent\s*!important[\s\S]*border-color:\s*var\(--drpg-line\)\s*!important/)]),
+        stableJson([true, true, true, true, true, true]),
+            "[Hope frame, Despair frame, hot tile, Hope hover, Despair hover, unaffordable hover] under Legacy - a Call's colour must outlast the blanket");
+    }],
+    ["R3503 - Legacy's Event cards keep their tooltips and the incident's red edge survives high contrast (styles/danganronpa.css; E48 K6, S12-46, S12-47): a card with a tooltip and the debate's clock take the pointer inside the panel that takes none; `body.drpg-high-contrast.drpg-incident-here` sets the window edge red after high contrast sets it Bone", async () => {
+        /*
+         * E48 K6, 11.11.2026. S12-46: "the Event panel is pointer-events: none, so the cards' tooltips never show";
+         * S12-47: "high contrast wipes the red window edge of 'you are in the murder'". Read in the jsdom cascade where it
+         * reaches (pointer-events is a plain property) and in the sheet's order for the edge.
+         */
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
+        const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m, i) => ({ i, sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const cards = rules.some(r => r.sel === "#drpg-events .drpg-event[data-tooltip], #drpg-events .drpg-event-clock" && /pointer-events:\s*auto/.test(r.body));
+        const hc = rules.filter(r => r.sel === "body.drpg-high-contrast" && /--drpg-window-edge:/.test(r.body)).map(r => r.i).at(-1) ?? null;
+        const both = rules.find(r => r.sel === "body.drpg-high-contrast.drpg-incident-here" && /--drpg-window-edge:\s*var\(--drpg-eye-light\)/.test(r.body))?.i ?? null;
+        equal(stableJson({ cards, edge: both !== null && hc !== null && both > hc }), stableJson({ cards: true, edge: true }),
+            "{cards: a tooltip card and the clock take the pointer; edge: the incident's red edge after high contrast's Bone} - Legacy must keep both signals");
+    }],
+    ["R3504 - Legacy's sheet tiles and notice X match the glass's (styles/danganronpa.css; E48 K6, S12-43 and S12-55, the halves E49 B2 left): under the theme that is not glass a sheet's tile is at most 110 px tall, its icon's 1.15em box 24-32 px (the slider's factor between), and the notice's X ink at full opacity", async () => {
+        /*
+         * E48 K6, 11.11.2026. Chromium at 1366x768 on the style harness's sheet parts (the stage's probe): Legacy's tile
+         * 163 px tall before (a square of its column), the X rgb(29, 26, 33) at opacity 0.7 on the gold band.
+         */
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
+        const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const tile = "body:not(.drpg-theme-stained-glass) .application.sheet.actor :is(.drpg-action-button, .drpg-call-button)";
+        const cap = rules.find(r => r.sel === tile)?.body.match(/max-height:\s*(\d+)px/)?.[1] ?? null;
+        const clamp = rules.find(r => r.sel === `${tile} .drpg-action-icon`)?.body.match(/font-size:\s*max\(([\d.]+)px,\s*min\(([\d.]+)px,\s*calc\(1\.5rem \* var\(--drpg-legacy-scale, 1\)\)\)\)/);
+        const box = clamp ? [Number(clamp[1]) * 1.15, Number(clamp[2]) * 1.15].map(n => Math.round(n)) : null;
+        const x = rules.find(r => r.sel === "body:not(.drpg-theme-stained-glass) .drpg-popup-title .drpg-popup-close")?.body ?? "";
+        equal(stableJson({ cap, box, ink: /color:\s*var\(--drpg-ink\)/.test(x), full: /opacity:\s*1\b/.test(x) }), stableJson({ cap: "110", box: [24, 32], ink: true, full: true }),
+            "{cap: a Legacy tile's max height; box: its icon's box at the clamp's ends; ink, full: the X} - Legacy's tiles and X must match the glass's");
+    }],
+    ["R3505 - the character sheet's tabs scroll and its fields read whole under both themes (styles/danganronpa.css, styles/stained-glass.css; E48 K6, S12-99, S03-20): `section.tab` and `.tab-body` take `overflow-y: auto !important` under Stained Glass and under the other theme alike; under Legacy the pixel face is never slanted by hand and a select keeps its text inside", async () => {
+        /*
+         * E48 K6, 11.11.2026. S12-99, the owner's game of 02.11: "under Monokuma Legacy the sheet does not scroll".
+         * Daggerheart gives the tab `overflow: hidden`; Stained Glass has overridden it since 07.09 and Legacy never
+         * did. Chromium (the stage's probe, the style harness's sheet parts with Daggerheart's rule planted): a tab
+         * holding more than its box scrolled under the glass and not under Legacy before. Tier 2's "the character
+         * sheet scrolls to its last row in both themes" reads it on a sheet in the page.
+         */
+        const dh = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
+        const sg = stripComments(await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText));
+        const scrolls = (css, scope) => [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].some(m => {
+            const sel = m[1].replace(/\s+/g, " ").trim();
+            return sel.includes(`${scope} .application.sheet.actor section.tab`) && sel.includes(`${scope} .application.sheet.actor .tab-body`) && /overflow-y:\s*auto\s*!important/.test(m[2]);
+        });
+        const synth = /body\.drpg-pixel-font:not\(\.drpg-theme-stained-glass\)\s*\{[^}]*font-synthesis:\s*none/.test(dh);
+        const select = /body:not\(\.drpg-theme-stained-glass\) \.application\[class\*="drpg-"\] select\s*\{[^}]*text-overflow:\s*ellipsis/.test(dh);
+        equal(stableJson({ glass: scrolls(sg, "body.drpg-theme-stained-glass"), legacy: scrolls(dh, "body:not(.drpg-theme-stained-glass)"), synth, select }),
+            stableJson({ glass: true, legacy: true, synth: true, select: true }),
+            "{glass, legacy: the sheet's tab scrolls; synth: no slanted pixel face; select: its text kept inside} - the sheet must scroll in both themes");
+    }],
+    ["R3506 - under Monokuma Legacy the voice tile stands right under the Projects tray and the room tile glows in the time of day's colour (scripts/glass.mjs `flatVoicePlacement`, styles/danganronpa.css; E48 K6, S12-98): the placement is the tray's bottom plus 8 px and its right edge, null with no tray drawn; the sheet places `data-place=\"tray\"` by it, and the room tile reads the phase's colour as the clock does", async () => {
+        /*
+         * E48 K6, 11.11.2026. S12-98, the owner's game of 02.11: "the room tile does not stand right under the clock and
+         * has no glow; the voice tile does not stand right under the Projects tray". Chromium, the glass harness at
+         * 1366x768, a player, Legacy, before: the tray 982-1344 x 74-196, the voice tile 1181-1344 x 395-583 (199 px
+         * under it), the room tile's box-shadow none. jsdom lays nothing out, so the tray's box is handed in.
+         */
+        const G = await import("./glass.mjs");
+        ok(typeof G.flatVoicePlacement === "function", "glass.mjs exports no flatVoicePlacement");
+        if (typeof G.flatVoicePlacement !== "function") return;
+        const planted = !document.getElementById("countdowns");
+        const tray = document.getElementById("countdowns") ?? Object.assign(document.createElement("div"), { id: "countdowns" });
+        if (planted) document.body.append(tray);
+        const read = [];
+        try {
+            Object.defineProperty(tray, "offsetWidth", { configurable: true, get: () => 362 });
+            tray.getBoundingClientRect = () => ({ left: 982, top: 74, right: 1344, bottom: 196, width: 362, height: 122 });
+            read.push(G.flatVoicePlacement(1366));
+            Object.defineProperty(tray, "offsetWidth", { configurable: true, get: () => 0 });
+            read.push(G.flatVoicePlacement(1366));
+        } finally {
+            delete tray.offsetWidth; delete tray.getBoundingClientRect;
+            if (planted) tray.remove();
+        }
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
+        const seat = /body:not\(\.drpg-theme-stained-glass\) > #drpg-voice-tile\[data-place="tray"\]\s*\{[^}]*top:\s*var\(--drpg-voice-y\)[^}]*right:\s*var\(--drpg-voice-right\)/.test(css);
+        const glow = /body:not\(\.drpg-theme-stained-glass\)\[data-drpg-phase\] #drpg-room-tile\s*\{[^}]*box-shadow:[^}]*var\(--drpg-room-phase\) 28%/.test(css);
+        equal(stableJson({ read, seat, glow }), stableJson({ read: [{ place: "tray", y: 204, right: 22 }, null], seat: true, glow: true }),
+            "{read: the placement with the tray drawn and with none; seat: the sheet's rule; glow: the room tile's phase glow} - Legacy's tiles must stand at Stained Glass's anchors");
+    }],
+    ["R3507 - the notice history window wears the active theme's ground (styles/components.css; E48 K6, S12-100): under the theme that is not glass its content is the kit's `--drpg-kit-notice-ground`, Legacy's panel ground", async () => {
+        /*
+         * E48 K6, 11.11.2026. S12-100, the owner's game of 02.11: "the notice panel has Stained Glass's ground under
+         * Monokuma Legacy". Chromium, the style harness's notices-player window at 1366x768 before: under Legacy the
+         * window and its content transparent (Foundry's frosted window shows at a table), under the glass its own pane.
+         */
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/components.css`).then(lfText));
+        equal(/body:not\(\.drpg-theme-stained-glass\) \.application\.drpg-ui\.drpg-panel > \.window-content:has\(> \.drpg-notices-body\)\s*\{[^}]*background:\s*var\(--drpg-kit-notice-ground\)/.test(css) && /--drpg-kit-notice-ground:\s*var\(--drpg-panel-ground\)/.test(css), true,
+            "the notice history window has no ground of Legacy's own");
+    }],
+    ["R3508 - a character sheet opens below the curtain's band (scripts/settings.mjs `sheetBandFoot`, `scaleWindow`; E49 B leftover, S03-30): on its first render a character's sheet stands its top 8 px under the lowest of Despair's pools and the Event panel, its height cut to the screen under it; a later render moves nothing, and with no band drawn the sheet keeps Foundry's place", async () => {
+        /*
+         * E48 K6's run, 11.11.2026 (the B1/B2 leftovers E49's STATUS names). S03-30: "the sheet opens on the curtain: it
+         * covers the Despair pools, the debate's timer and the incident's turn signal" - the remedy "the sheet's default
+         * place below the curtain's band, its height fitted to the screen". jsdom lays nothing out, so the band's box is
+         * handed in (the glass harness's Legacy pools at 1366x768: 22-118) and `scaleWindow` is called as the render hook
+         * calls it, with a stand-in application whose `setPosition` is read.
+         */
+        const M = await import("./settings.mjs");
+        ok(typeof M.sheetBandFoot === "function", "settings.mjs exports no sheetBandFoot");
+        if (typeof M.sheetBandFoot !== "function") return;
+        const planted = !document.getElementById("drpg-despair");
+        const band = document.getElementById("drpg-despair") ?? Object.assign(document.createElement("div"), { id: "drpg-despair" });
+        if (planted) document.body.append(band);
+        const asked = [];
+        const app = () => ({ document: { type: "character" }, options: { position: { width: 850, height: 800 } }, setPosition: p => asked.push(p) });
+        const read = {};
+        try {
+            Object.defineProperty(band, "offsetWidth", { configurable: true, get: () => 448 });
+            Object.defineProperty(band, "offsetHeight", { configurable: true, get: () => 96 });
+            band.getBoundingClientRect = () => ({ left: 459, top: 22, right: 907, bottom: 118, width: 448, height: 96 });
+            read.foot = M.sheetBandFoot();
+            M.scaleWindow(app(), document.createElement("div"), {}, { isFirstRender: true });
+            M.scaleWindow(app(), document.createElement("div"), {}, { isFirstRender: false });
+            read.first = asked[0] ? { top: asked[0].top ?? null, fits: asked[0].height <= innerHeight - 126 - 8 } : null;
+            read.later = asked[1] ? asked[1].top ?? null : "none";
+            Object.defineProperty(band, "offsetWidth", { configurable: true, get: () => 0 });
+            read.none = M.sheetBandFoot();
+        } finally {
+            delete band.offsetWidth; delete band.offsetHeight; delete band.getBoundingClientRect;
+            if (planted) band.remove();
+        }
+        equal(stableJson(read), stableJson({ first: { fits: true, top: 126 }, foot: 126, later: null, none: null }),
+            "{foot: the band's foot; first: the first render's top and height; later: a later render's top; none: the foot with no band} - a sheet must open below the band");
     }],
 ];
 

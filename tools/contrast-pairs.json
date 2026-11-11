@@ -125,10 +125,9 @@
       "id": "lg-button",
       "theme": "monokuma-legacy",
       "text": "--drpg-bone",
-      "on": "--drpg-eye",
+      "on": "--drpg-eye-dim",
       "size": "small",
-      "where": "button ink on the eye's red: .application.sheet.actor .tab-navigation nav.sheet-tabs a.active and 4 more",
-      "known": "3.63"
+      "where": "button ink on the eye's dark step (E48 K6, S12-25; the active tab is Bone on Ink since): body:not(.drpg-theme-stained-glass) .drpg-safeword-button and 2 more"
     },
     {
       "id": "lg-critical",
@@ -160,8 +159,7 @@
       "text": "--drpg-red",
       "on": "--drpg-ink",
       "size": "small",
-      "where": "a broken or public passage's word: .drpg-passage-kind[data-kind=\"public\"] and 5 more",
-      "known": "4.39"
+      "where": "a broken or public passage's word: .drpg-passage-kind[data-kind=\"public\"] and 5 more (the theme's red lifted to #eb585c, E48 K6, S12-25)"
     },
     {
       "id": "lg-crimson",

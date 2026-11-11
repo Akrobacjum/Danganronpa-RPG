@@ -133,6 +133,8 @@ body {
     --drpg-kit-notice-banner-edge: var(--drpg-bone);
     --drpg-kit-notice-banner-bg: rgba(var(--drpg-bone-rgb), 0.06);
     --drpg-kit-notice-entry-bg: rgba(var(--drpg-bone-rgb), 0.035);
+    /* the window's own ground under Legacy (E48 K6, S12-100): the theme's panel ground; the glass draws its pane */
+    --drpg-kit-notice-ground: var(--drpg-panel-ground);
     --drpg-kit-notice-dot: var(--drpg-bone);
     --drpg-kit-notice-seam: var(--drpg-bone);
     --drpg-kit-notice-seam-hope: var(--drpg-gold);
@@ -678,6 +680,12 @@ body:not(.drpg-theme-stained-glass) .drpg-ui :is(.drpg-notices-banner button, .d
 body .application.drpg-ui.drpg-panel .drpg-notices-body > button.drpg-notices-new[type="button"][data-drpg-do] { align-self: center; height: 22px; padding: 0 10px; }
 body:not(.drpg-theme-stained-glass) .drpg-ui .drpg-notices-new { border-radius: 11px; font-size: var(--drpg-kit-notice-xs-size); }
 .drpg-notices-list { display: flex; flex-direction: column; gap: 4px; padding-right: 2px; }
+/* S12-100: the notice history window had no ground of this theme (Chromium, the style harness: its window and
+   content transparent), so at a table it wore Foundry's frosted window. The theme's panel ground through the kit's
+   `--drpg-kit-notice-ground` (R1322), the window found by its body; here with the window's parts, as R1330 keeps its class and its parts out of every other sheet (E48 K6). */
+body:not(.drpg-theme-stained-glass) .application.drpg-ui.drpg-panel > .window-content:has(> .drpg-notices-body) {
+    background: var(--drpg-kit-notice-ground);
+}
 /* a group's heading: under the glass its panel heading rule's case, spacing and rule */
 .drpg-notices-group { margin: 6px 0 1px; line-height: 1.3; opacity: 0.75; }
 body:not(.drpg-theme-stained-glass) .drpg-notices-group { border: 0; text-transform: uppercase; letter-spacing: 0.08em; line-height: 1.3; font-size: var(--drpg-kit-notice-xs-size); }

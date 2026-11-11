@@ -424,11 +424,40 @@ const flatSoon = () => { clearTimeout(flatTimer); flatTimer = setTimeout(placeFl
 export function placeFlatRoomTile() {
   if (document.body.classList.contains("drpg-theme-stained-glass")) return;
   placeRoomTile(innerWidth, innerHeight);
-  const nodes = ["#drpg-hud", "#drpg-floors", "#players", "#drpg-popups", "#ui-right-column-1"].map(q => document.querySelector(q)).filter(Boolean);
+  placeFlatVoiceTile();
+  const nodes = ["#drpg-hud", "#drpg-floors", "#players", "#drpg-popups", "#ui-right-column-1", "#countdowns"].map(q => document.querySelector(q)).filter(Boolean);
   if (typeof ResizeObserver !== "function" || (flatWatch && nodes.length === flatWatch.nodes.length && nodes.every((n, i) => n === flatWatch.nodes[i]))) return;
   flatWatch?.ro.disconnect();
   flatWatch = { nodes, ro: new ResizeObserver(flatSoon) };
   nodes.forEach(n => flatWatch.ro.observe(n));
+}
+/* THE VOICE TILE RIGHT UNDER THE PROJECTS TRAY UNDER MONOKUMA LEGACY TOO (E48 K6, 11.11.2026; S12-98, the owner's
+   game of 02.11: "kafel głosu tuż pod tacą Projects"). Under Stained Glass the curtain's pass cuts it a pane under the
+   tray (`seatVoiceTile`, `data-place="wall"`); under this theme no pass runs and the tile stood at the base sheet's
+   interim corner over the launchers - in the glass harness at 1366x768, a player, its top 199 px under the tray's
+   bottom (Chromium, 11.11.2026; after: 8). So the same anchor without a curtain: the tray's bottom plus VOICE_UNDER_TRAY,
+   its right edge on the tray's. Null with no tray drawn, on a stacked screen (narrow.mjs puts the tile in the tiles'
+   row) and inside a window of Foundry's, and the tile keeps the base sheet's corner. Placed by the same watch as the
+   room tile, which since this also watches the tray (its height is its projects'). */
+const VOICE_UNDER_TRAY = 8;
+export function flatVoicePlacement(W = innerWidth) {
+  const tray = document.getElementById("countdowns");
+  if (!tray || !(tray.offsetWidth > 0) || inFoundryWindow(tray)) return null;
+  const r = tray.getBoundingClientRect();
+  return { place: "tray", y: Math.round(r.bottom + VOICE_UNDER_TRAY), right: Math.max(0, Math.round(W - r.right)) };
+}
+function placeFlatVoiceTile() {
+  const tile = document.getElementById("drpg-voice-tile"), body = document.body;
+  if (!tile) return;
+  const p = narrowLayout() ? null : flatVoicePlacement(innerWidth);
+  if (!p) {
+    body.style.removeProperty("--drpg-voice-right");
+    if (tile.dataset.place === "tray") delete tile.dataset.place;
+    return;
+  }
+  body.style.setProperty("--drpg-voice-y", p.y + "px");
+  body.style.setProperty("--drpg-voice-right", p.right + "px");
+  if (tile.dataset.place !== "tray") tile.dataset.place = "tray";
 }
 /* ONCE A PASS, BEFORE THE RAIL IS PLACED: the rail is pushed down under whatever ends the clock's
    column, and in the 'clock' place that is the tile. In 'notes' the tile goes to the body, as the
