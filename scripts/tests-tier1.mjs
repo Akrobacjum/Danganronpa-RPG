@@ -45912,6 +45912,28 @@ const INVARIANTS = [
         equal(J([report.outline?.strokeWidth ?? null, report.outline?.covers ?? null, report.glow?.alpha ?? null]), J([2, true, 1]),
             "[the stroke width measured, whether it covers the point, the glow's alpha there] - whatIsHere measures the halo as the line, or reads the glow off the light's picture or at the wrong pixel");
     }],
+    ["R3435 - every student's token is locked against rotation, whatever it was dragged from (E49 B4; S07-35): movement.mjs `onPreCreateToken` locks a character's token whose data says false, leaves another actor's that says false, locks any token that says nothing; and `onPreCreateActor` locks a character's prototype token unless it already is", async () => {
+        /*
+         * E49 B4 (11.11.2026; audit S07-35). A token dragged from the actor list carries its prototype's `lockRotation`,
+         * Foundry's default false, so `onPreCreateToken`'s `data.lockRotation === undefined` locked only a token made with
+         * no word on it, and the comment said otherwise. Stand-in documents whose `updateSource` records what it is handed;
+         * nothing is created. Red at d8fa9304: neither function is exported.
+         */
+        const M = await import("./movement.mjs");
+        const J = stableJson;
+        ok(typeof M.onPreCreateToken === "function" && typeof M.onPreCreateActor === "function", "movement.mjs exports neither hook's function - a dragged student's token turns");
+        if (typeof M.onPreCreateToken !== "function" || typeof M.onPreCreateActor !== "function") return;
+        const asked = (fn, doc, data) => { const got = []; fn({ ...doc, updateSource: u => got.push(u) }, data); return got; };
+        equal(J([asked(M.onPreCreateToken, { actor: { type: "character" } }, { lockRotation: false }),
+            asked(M.onPreCreateToken, { actor: { type: "character" } }, { lockRotation: true }),
+            asked(M.onPreCreateToken, { actor: { type: "adversary" } }, { lockRotation: false }),
+            asked(M.onPreCreateToken, { actor: null }, {}),
+            asked(M.onPreCreateActor, { type: "character" }, { type: "character" }),
+            asked(M.onPreCreateActor, { type: "character" }, { type: "character", prototypeToken: { lockRotation: true } }),
+            asked(M.onPreCreateActor, { type: "adversary" }, { type: "adversary" })]),
+        J([[{ lockRotation: true }], [], [], [{ lockRotation: true }], [{ "prototypeToken.lockRotation": true }], [], []]),
+            "[a student's token saying false, one saying true, an adversary's saying false, a token saying nothing; a student made, one already locked, an adversary] - a token dragged from the actor list turns");
+    }],
 ];
 
 /**
