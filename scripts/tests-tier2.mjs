@@ -43125,6 +43125,68 @@ const SCENARIOS = [
         equal(stableJson({ ...after, bands: null }), stableJson({ ...before, bands: null }), "Stained Glass again: the curtain as it stood before the switch, the windows' bands aside");
     }],
 
+    ["E48-K4 - the a11y observer sees a host born after ready and no chat keystroke starts a sweep: a module window's body drawn after ready has its nameless button named from its tooltip within a frame or two, as does a button added to it later, while a keystroke's change in the chat starts no sweep", async () => {
+        /*
+         * E48 K4, 11.11.2026 (STAGE, tier 2). a11y.mjs watched five columns found at ready, subtree and all: Foundry's
+         * right column holds the chat, so each keystroke of v14's chat editor and each message was a sweep of the whole
+         * module, and a host drawn after ready outside those columns was not watched at all. Read here through a11y.mjs
+         * `a11yWatch` (the sweeps its watch asked for, the hosts adopted): a `.drpg-panel` of the test's own appended to
+         * the body after ready, with a button carrying only `data-tooltip`; a second such button appended to it a beat
+         * later; then the chat's input written as a keystroke writes it (`#chat-message`'s value and an `input` event, or
+         * a paragraph added to the chat's editor, else to `#chat`), the sweeps counted before and after. THE CONTROL: the
+         * same paragraph added inside the host does start a sweep. Headless the chat is a body child, not in a column; on
+         * v14 it is in `#ui-right-column-1`, which the old watch held - there the chat half reads the old cost.
+         */
+        const A = await import("./a11y.mjs");
+        must(typeof A.a11yWatch === "function", "a11y.mjs's reading of its watch (`a11yWatch`)");
+        must(A.a11yWatch().births, "the a11y watch of hosts born after ready is not running");
+        const frames = async () => { await wait(120); };
+        const host = document.createElement("section");
+        host.className = "drpg-panel drpg-k4-host";
+        host.innerHTML = `<button type="button" class="drpg-k4-a" data-tooltip="E48-K4 first"><i class="fa-solid fa-eye" aria-hidden="true"></i></button>`;
+        const read = {};
+        try {
+            const hostsBefore = A.a11yWatch().hosts;
+            document.body.append(host);
+            await frames();
+            read.first = host.querySelector(".drpg-k4-a").getAttribute("aria-label");
+            read.adopted = A.a11yWatch().hosts - hostsBefore;
+            const later = document.createElement("button");
+            later.type = "button";
+            later.className = "drpg-k4-b";
+            later.dataset.tooltip = "E48-K4 later";
+            host.append(later);
+            await frames();
+            read.later = later.getAttribute("aria-label");
+            const chat = document.querySelector("#chat-message") ?? null;
+            const editor = document.querySelector("#chat [contenteditable], #chat .ProseMirror, #chat-controls, #chat");
+            must(chat || editor, "no chat on this page - the keystroke half would read nothing");
+            const sweepsBefore = A.a11yWatch().sweeps;
+            const typed = document.createElement("p");
+            typed.textContent = "e";
+            if (chat && "value" in chat) {
+                const was = chat.value;
+                chat.value = `${was}e`;
+                chat.dispatchEvent(new Event("input", { bubbles: true }));
+                chat.value = was;
+            }
+            editor?.append(typed);
+            await frames();
+            typed.remove();
+            await frames();
+            read.chatSweeps = A.a11yWatch().sweeps - sweepsBefore;
+            const controlBefore = A.a11yWatch().sweeps;
+            const inside = document.createElement("p");
+            host.append(inside);
+            await frames();
+            read.hostSweeps = A.a11yWatch().sweeps - controlBefore;
+        } finally {
+            host.remove();
+        }
+        equal(stableJson(read), stableJson({ first: "E48-K4 first", adopted: 1, later: "E48-K4 later", chatSweeps: 0, hostSweeps: 1 }),
+            "{first: the born host's button's aria-label; adopted: hosts the watch took on; later: a button added to it; chatSweeps: sweeps a chat keystroke started; hostSweeps: the control, a change in the host}");
+    }],
+
     ["a window still answers for one tick after it was answered", async () => {
         /*
          * LIVE-REOPEN-01's measurement, kept as a test because the whole finding rests
