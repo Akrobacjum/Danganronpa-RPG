@@ -518,6 +518,82 @@ const REGRESSIONS = [
         equal(JSON.stringify(cssBudgetProblems(counts, budget, { atMost: true })), "[]", "a served sheet is above its budget, or the budget and module.json disagree");
     }],
 
+    ["R3333 - the pixel glyphs come from one source: each row of tools/glyphs.json `grid` cells wide and tall, no two drawing the same pixels unless one says `same`, the sprite, pixel-icons.css and the audit page's symbols what tools/glyph-map.mjs writes from them, every SVG data URI of danganronpa.css and stained-glass.css its row's drawing pixel for pixel, the chrome section what tools/chrome-icons.mjs writes, and each planted drift seen (E48 G1)", async () => {
+        /*
+         * E48 G1, 10.11.2026. The drawings lived in six places (tools/pixel-icons.py and its base file, chrome-icons.mjs's
+         * art, the stylesheets' custom properties and masks); they are rows of one file now, and this is glyph-map.mjs's
+         * `--check` (tests-glyphs.mjs `glyphProblems`, `selfCheck`) on the files Foundry serves, the same functions `node tools/check.mjs
+         * glyphs` runs. A drawing the sheets still hold by hand (until G4 generates them) is held to its row by its pixels,
+         * not its text: the sheets spell one rectangle three ways. Red before G1: no tools/glyphs.json; red on a planted
+         * drift (one pixel of a row of the generated set flipped: "icons/pixel-sprite.svg is not what tools/glyph-map.mjs
+         * writes (line 2 differs)"), and `selfCheck` plants nine kinds of drift in copies and wants each named.
+         */
+        needs(env.tools(), "tools/glyphs.json and its generator are read from the repository's tools/ (an installed module's zip leaves it out)");
+        const files = {};
+        for (const file of ["tools/glyphs.json", "icons/pixel-sprite.svg", "styles/pixel-icons.css", "docs/design/identity-audit-v13.html", "styles/danganronpa.css", "styles/stained-glass.css"]) {
+            try {
+                const res = await fetch(`/modules/${MODULE_ID}/${file}`, { cache: "no-cache" });
+                files[file] = res.ok ? await lfText(res) : null;
+            } catch { files[file] = null; /* the assertions below name what is missing */ }
+        }
+        ok(files["tools/glyphs.json"] != null, "tools/glyphs.json is missing: the glyphs have no one source");
+        if (files["tools/glyphs.json"] == null) return;
+        const G = await import("./tests-glyphs.mjs");
+        equal(JSON.stringify(G.GLYPH_FILES.filter(f => !(f in files))), "[]", "glyph-map.mjs reads a file this test does not fetch");
+        const { problems, counts } = G.glyphProblems(files);
+        must(counts && counts.glyphs >= 240 && counts.sheetRows >= 150, `glyphs.json read ${JSON.stringify(counts)} - the check would hold nothing`);
+        equal(JSON.stringify(problems.slice(0, 6)), "[]", `${problems.length} problem(s) between tools/glyphs.json and the files it draws`);
+        equal(counts.chrome, "current", "danganronpa.css's chrome section was not compared with tools/chrome-icons.mjs's");
+        const { misses, plants } = G.selfCheck(files);
+        must(plants >= 9, `${plants} plant(s) - the self-check would prove little`);
+        equal(JSON.stringify(misses), "[]", "a planted drift went unseen");
+    }],
+
+    /*
+     * E48 G2, 10.11.2026: the map (tests-glyphs.mjs ELEMENTS, FUTURE, SAME, OPPOSITES, THEMES) and the gaps it measures.
+     * Each is red on its own list until the drawing rounds (STAGE M) and G3/G4 empty it, so each goes green on its own;
+     * the structure (every keyed element in ELEMENTS, no stale row, SAME and OPPOSITES naming elements) is red in `node
+     * tools/check.mjs glyphs` now. Measured at G2: 8 keyed elements undrawn, 2 dead tiles, 3 opposite pairs alike, 67
+     * FUTURE glyph names undrawn, 14 shared drawings SAME does not join (19 shared, 5 joined), 69 drawings Stained Glass
+     * wears off the 24 grid.
+     */
+    ["R3334 - every keyed element (config.mjs's ACTIONS, HOPE_CALLS, DESPAIR_CALLS, CRISIS_ACTIONS, MONOCUB, TRAP_TRIGGERS, CLEANUP and gm-panel.mjs's tiles) has a row in tests-glyphs.mjs ELEMENTS and its glyph is drawn for Stained Glass (E48 G2)", async () => {
+        const { G, gaps, keyed, structure } = await glyphMapInputs();
+        must(keyed.length >= 80, `${keyed.length} keyed element(s) read - config.mjs or gm-panel.mjs was not read`);
+        equal(JSON.stringify(structure), "[]", "the map's structure");
+        equal(JSON.stringify(gaps.keyedUndrawn), "[]", `keyed elements whose glyph no row draws (of ${Object.keys(G.ELEMENTS).length})`);
+    }, expectedRed("E48", "8 keyed elements wear a glyph nobody has drawn yet (five room triggers and cleanup's Erase a Trace, voiceReset, chapterEndTile, caseWindow); batch 2 draws them")],
+
+    ["R3335 - no stylesheet glyph rule names a GM panel tile that gm-panel.mjs no longer has (data-drpg-run, E48 G2; S12-62)", async () => {
+        const { gaps, keyed } = await glyphMapInputs();
+        must(keyed.some(([k]) => k.startsWith("gm.")), "no GM tile read from gm-panel.mjs");
+        equal(JSON.stringify(gaps.deadTiles), "[]", "danganronpa.css draws these tiles, which the panel no longer has");
+    }, expectedRed("E48", "danganronpa.css still draws the items and music tiles; G4 moves the sheets' drawings into the generator and drops them")],
+
+    ["R3336 - each OPPOSITES pair draws apart: Sabotage and Contribution, Analyze and Paranoia, Palm and the Monocub's meddle, and the future pairs once drawn (E48 G2; S02-73)", async () => {
+        const { G, gaps } = await glyphMapInputs();
+        must(G.OPPOSITES.length >= 3, "no opposite pairs to hold");
+        equal(JSON.stringify(gaps.opposites), "[]", "opposite elements wearing one drawing");
+    }, expectedRed("E48", "the three pairs share px:tamper, px:brain and px:palm today; batch 2 redraws one of each")],
+
+    ["R3337 - every FUTURE row of the glyph inventory (82, the later stages' controls) has its glyph drawn (E48 G2; amend [13])", async () => {
+        const { G, gaps } = await glyphMapInputs();
+        equal(G.FUTURE.length, 82, "the inventory's rows");
+        equal(JSON.stringify(gaps.futureUndrawn), "[]", "FUTURE glyph names no row draws");
+    }, expectedRed("E48", "67 of the inventory's glyph names are not drawn yet; batches 3 and 4 draw them")],
+
+    ["R3338 - no two elements, keyed or FUTURE, wear one drawing unless tests-glyphs.mjs SAME says they are one function in two places (E48 G2; the owner, 10.11)", async () => {
+        const { G, gaps } = await glyphMapInputs();
+        must(G.SAME.every(([ids, why]) => ids.length > 1 && why), "a SAME row without its ids or its reason");
+        equal(JSON.stringify(gaps.shared), "[]", "drawings worn by elements SAME does not join");
+    }, expectedRed("E48", "14 drawings are worn by elements that are not one function (19 shared today, 5 joined by SAME); the drawing rounds give each its own")],
+
+    ["R3339 - every drawing Stained Glass wears is on the 24 grid; Monokuma Legacy keeps its 12- and 8-grid ones (E48 G2; Q11, the owner, 10.11)", async () => {
+        const { gaps, glyphs } = await glyphMapInputs();
+        must(glyphs.length >= 240, `${glyphs.length} glyph(s) read`);
+        equal(JSON.stringify(gaps.offGrid), "[]", "drawings Stained Glass wears off the 24 grid with no `glass` row of the name on 24");
+    }, expectedRed("E48", "69 drawings Stained Glass wears are on 8 or 12 (six pix diamonds and dots, history-12, 62 chrome masks); the rounds draw a 24 version of each for Glass")],
+
     ["R1313 - CONTRIBUTING.md's \"The CSS contract\" names each detector of the CSS lint (importantCount, colourLiterals, strayCommentEnds, duplicateRules, deadClasses), the floor (21 px scaled under Stained Glass, 10 px a rung under Monokuma Legacy), the 390 px rule and the three commands - node tools/check.mjs css, node tools/check.mjs contrast, node audit/style-sweep.mjs (E44 C1c; E44-04)", async () => {
         /*
          * E44 C1c, 04.11.2026 (audit S17-35: no CSS contract). The section is what a contributor reads before
@@ -9959,7 +10035,7 @@ const REGRESSIONS = [
          * plain white squares. There the harness's copy of the tile wore no mask, and `.drpg-pxi` with no mask is a
          * square of its own colour (danganronpa.css). voice-tile.mjs `glyph` writes `--drpg-px-<name>` on each glyph it
          * builds, so a name with no sprite is the same square at a table: this reads each literal name the tile's
-         * builders are given against the sprites the generated sheet states (tools/pixel-icons.py). The drawn mask is
+         * builders are given against the sprites the generated sheet states (tools/glyph-map.mjs). The drawn mask is
          * the glass harness's `drpgVoiceParts`, in Chromium. THE CONTROL: a name with no sprite is found missing.
          */
         const src = stripComments(new Map(await otherSources()).get("voice-tile.mjs") ?? "");
@@ -22192,3 +22268,20 @@ const REGRESSIONS = [
 
 
 export { REGRESSIONS };
+
+/** The map's inputs, read once a run (E48 G2): tests-glyphs.mjs, tools/glyphs.json, config.mjs's namespace and
+ *  gm-panel.mjs's and danganronpa.css's text, as Foundry serves them. */
+let glyphMapRead = null;
+async function glyphMapInputs() {
+    needs(env.tools(), "tools/glyphs.json is read from the repository's tools/ (an installed module's zip leaves it out)");
+    glyphMapRead ??= (async () => {
+        const G = await import("./tests-glyphs.mjs");
+        const C = await import("./config.mjs");
+        const text = async file => fetch(`/modules/${MODULE_ID}/${file}`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
+        const parsed = G.parseGlyphs(await text("tools/glyphs.json"));
+        const keyed = G.keyedElements(C, await text("scripts/gm-panel.mjs"));
+        const gaps = G.mapGaps(parsed.glyphs, { keyed, danganronpaCss: await text("styles/danganronpa.css") });
+        return { G, glyphs: parsed.glyphs, keyed, gaps, structure: [...parsed.problems, ...G.mapProblems(keyed)] };
+    })();
+    return glyphMapRead;
+}
