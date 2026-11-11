@@ -43160,6 +43160,78 @@ const INVARIANTS = [
             secret: five("close", "public"), public: five("close", "secret"), closed: five("open", "public"), broken: five("close", "public", { broken: true })
         }), "{each state: {groups: the actions' one group; acts: its buttons in order, \"held\" when disabled; why: each held button says why (tooltip or title)}}");
     }],
+    ["R3480 - the GMs' overlay draws a public passage apart from a secret one (scripts/passages-gm.mjs `drawPassagesLayer`, `PASSAGE_LOOK`; E49 B1, D118): a secret passage every student knows (`public: true`) is drawn in the look `public`, a secret one in `secret`, a closed one in `closed`; the public look's dash is not the secret's, its state still `secret` (the words and the arrow kept)", async () => {
+        /*
+         * E49 B1, 11.11.2026. D118 (E80 p1 STATUS:52, AUDIT-DEFERRED-31.10): "The GMs' overlay draws a public passage like a
+         * secret one". Read at 17bf6763: `LOOK` had secret, closed and broken, and a public passage is a secret row with
+         * `public: true`, so it took `LOOK.secret`. Drawn here on a layer and a store engine of the suite's own, as R573.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        let now = 9_600_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R3480GM", isGM: () => true, isPrimary: () => true, worldId: () => "R3480WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R3480GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const map = eng.define({ ...S.passageMapStore.spec, name: "r3480Map", key: "r3480Map", afterRestore: undefined, exists: undefined });
+        const row = (x, state, extra = {}) => ({ sceneId: "R3480S", level: null, shape: "wall", passageWallId: "R3480W",
+            passageSeg: { x1: x, y1: 400, x2: x + 50, y2: 400 }, rooms: ["R3480 A", "R3480 B"], state, startAccess: [], ...extra });
+        await map.patchMany({ R3480SEC: row(100, "secret"), R3480PUB: row(200, "secret", { public: true }), R3480CLO: row(300, "closed", { public: true }) });
+        const layer = new PIXI.Container();
+        const count = P.drawPassagesLayer(layer, { stores: { map }, scene: { id: "R3480S" }, level: null, rooms: null });
+        const drawn = layer.children.map(g => `${g.name}:${g.drpgState}:${g.drpgLook}`).sort();
+        layer.destroy({ children: true });
+        const look = P.PASSAGE_LOOK ?? {};
+        equal(stableJson({ count, drawn, apart: Boolean(look.public && look.secret) && (look.public.dash !== look.secret.dash || look.public.gap !== look.secret.gap) }),
+            stableJson({ count: 3, drawn: ["R3480CLO:closed:closed", "R3480PUB:secret:public", "R3480SEC:secret:secret"], apart: true }),
+            "{count: passages drawn; drawn: name:state:look; apart: the public look's dash or gap differs from the secret's} - a public passage must be drawn apart from a secret one, its state kept");
+    }],
+    ["R3481 - a window's title or a panel's heading whose first word is one letter keeps that letter in the heading's own colour (scripts/chrome.mjs `markLoneInitials`, styles/stained-glass.css; E49 B1, S12-65): \"A body...\" and \"W pokoju\" marked `drpg-lone-initial`, \"Advance the clock\" and a one-word name not, and every selector of the glass's first-letter rule skips a marked one", async () => {
+        /*
+         * E49 B1, 11.11.2026. S12-65: "the coloured initial of a title comes away when the title starts with 'A'" - the
+         * accent on a lone article reads as a stray letter. CSS cannot see a word's length, so the pass that dresses every
+         * window marks a heading whose first word is a single letter (Polish has six: a, i, o, u, w, z) and the rule skips it.
+         */
+        const C = await import("./chrome.mjs");
+        const root = document.createElement("div");
+        root.className = "application drpg-panel";
+        root.innerHTML = `<header class="window-header"><h1 class="window-title">A body was found</h1></header>
+            <section class="window-content"><h2>Advance the clock</h2><h3>  W pokoju</h3><h3>Aiko</h3><h2>I</h2></section>`;
+        document.body.append(root);
+        try {
+            C.dressChrome(root);
+            C.dressChrome(root);
+            const marked = [...root.querySelectorAll("h1, h2, h3")].map(h => `${h.textContent.trim()}:${h.classList.contains("drpg-lone-initial")}`);
+            const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText));
+            const rule = css.match(/([^{}]*::first-letter[^{}]*)\{\s*color:\s*var\(--drpg-glass-accent\)\s*!important;?\s*\}/)?.[1] ?? "";
+            const sels = rule.split(/,(?![^()]*\))/).map(x => x.trim()).filter(Boolean);   // the commas outside :is()
+            equal(stableJson({ marked, sels: sels.length, skip: sels.filter(x => x.includes(":not(.drpg-lone-initial)::first-letter")).length }),
+                stableJson({ marked: ["A body was found:true", "Advance the clock:false", "W pokoju:true", "Aiko:false", "I:false"], sels: 4, skip: 4 }),
+                "{marked: heading:marked; sels: the accent first-letter rule's selectors; skip: those that skip a marked heading} - a lone first letter must keep the heading's colour");
+        } finally { root.remove(); }
+    }],
+    ["R3482 - an empty pane of the curtain lets the map through (scripts/glass.mjs `paneShade`, `paintGlass`, `pulseJob`; E49 B1, S12-64, amend [1]): a pane cut for a block that is not there is lighter than the filler in its black, its black over and its pulse's darkest, and never coloured; a pane with content and the filler keep 17bf6763's numbers", async () => {
+        /*
+         * E49 B1, 11.11.2026. S12-64: "the bottom and right panes of the curtain are large empty fields over the map". At
+         * 17bf6763 an empty pane was painted as filler: 0.58 black, a tint, 0.30 black, the pulse to 0.72 - the glass
+         * harness read 0.76 alpha at the empty notice pane's centre at 1366x768 (glass-sweep's `drpgHudCheck`, which holds
+         * the drawn pixel at every size; this holds the table both painters read).
+         */
+        const G = await import("./glass.mjs");
+        const shade = typeof G.paneShade === "function" ? G.paneShade : null;
+        const pick = o => o && { base: Math.round(o.base * 100) / 100, tint: o.tint, black: o.black, pulse: o.pulse, kind: o.kind };
+        const empty = pick(shade?.({ content: true, empty: true }, { stained: true }));
+        const filler = pick(shade?.({ content: false }, { lum: 0.5 }));
+        const content = pick(shade?.({ content: true }, { lum: 0.5 }));
+        const lighter = Boolean(empty && filler) && ["base", "black", "pulse"].every(k => empty[k] < filler[k] / 2);
+        equal(stableJson({ lighter, emptyKind: empty?.kind ?? null, content, fillerPulse: filler?.pulse ?? null }),
+            stableJson({ lighter: true, emptyKind: "empty", content: { base: 0.55, tint: 0, black: 0.12, pulse: 0.42, kind: "content" }, fillerPulse: 0.72 }),
+            "{lighter: an empty pane under half the filler's black, black-over and pulse; emptyKind: an empty pane asked as stained still reads empty; content: a pane with content as before} - an empty pane must let the map through");
+    }],
     ["R2018 - Room setup's Scenes tab on the kit (E46-C2b; E46-08, E47's 05.10 point 5): trial-scene.mjs `scenesTabHtml` is a kit `formGrid` (the school and the hall selects, each its label's `for`), the hall's name, picture and words a `formGrid` of their own, the warnings a `box(\"warning\")`, the prepare ticks kit switches, `SCENES_ZONE_SLOT` a row of `scenesTabRows` that draws nothing (where E73 puts Zone A and Zone B), the hall's cast pick (`castPickerHtml`) a kit `dataTable` with a switch an actor; `readScenesTab`'s answer for a seeded form the one it gave before", async () => {
         /*
          * E46-C2b. Red first on C2a's tree (f90e89a7): labels around the selects, a list of checkboxes, `p.drpg-warning`, no

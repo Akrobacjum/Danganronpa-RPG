@@ -251,6 +251,13 @@ const shots = opt("--shots"), corner = args.includes("--corner"), control = !arg
 const roles = (opt("--roles") ?? "gm,player").split(",").filter(Boolean), rooms = !args.includes("--no-room");
 const windows = !args.includes("--no-windows"), voices = !args.includes("--no-voice"), objections = !args.includes("--no-objection"), docks = !args.includes("--no-dock");
 const tracks = !args.includes("--no-track");
+/* THE HOUR'S ARROWS AND THE EMPTY PANES (E49 B1, 11.11.2026; S12-69, S12-64). At every size the page's `drpgHudCheck`
+   fails a Stained Glass size whose clock arrow glyph is not 14 px x the glass scale (pixel-icons.css's 22 px floor drew
+   them 22 px) or whose empty pane - one cut for a block that is not there - reads over 0.40 alpha on the curtain's canvas
+   (0.76 at 1366x768 before). Its controls, at the first size that reads glass: the 22 px floor put back, and the filler
+   panes read as the empty ones; each must read not ok. `--no-hud` leaves it out. */
+const huds = !args.includes("--no-hud");
+let hudControlled = false;
 const scheme = opt("--scheme");
 if (scheme && scheme !== "light") { console.log(`glass-sweep: --scheme takes "light" (got ${scheme})`); process.exit(2); }
 const idleS = Number(opt("--idle") ?? 5);
@@ -1769,6 +1776,23 @@ try {
                     }
                 }
             }
+            if (huds) {
+                const h = await page.evaluate(() => window.drpgHudCheck?.() ?? null);
+                if (!h) fails.push("the page defines no drpgHudCheck");
+                else {
+                    line += ` | hud ${h.ok ? "ok" : "NOT ok"}` + (h.arrows ? ` arrows ${h.arrows.map(a => a.join("x")).join(",")}/${h.want}` : "")
+                        + (h.empty ? ` empty ${h.empty.join(",") || "-"} filler>=${h.filler?.length ? Math.min(...h.filler) : "-"}` : "");
+                    if (!h.ok) fails.push("hud: " + h.why.join("; "));
+                    if (control && !hudControlled && h.glass && h.empty?.length) {
+                        hudControlled = true;
+                        for (const plant of ["arrows", "empty"]) {
+                            const c = await page.evaluate(k => window.drpgHudCheck({ plant: k }), plant);
+                            console.log(`  hud control ${plant.padEnd(6)} ${c.ok ? "MISSES IT" : "sees it"}: ${c.why.join("; ").slice(0, 120)}`);
+                            if (c.ok) fails.push(`hud control ${plant} reads as a pass`);
+                        }
+                    }
+                }
+            }
             if (rooms) {
                 const rc = await page.evaluate(() => window.drpgRoomCheck?.() ?? null);
                 if (!rc) fails.push("the page defines no drpgRoomCheck");
@@ -2125,6 +2149,7 @@ if (control && !controlled) {
     if (lines && themeOff === lines) console.log(`  launchers' controls: not applicable - ${lines} line(s), every one Monokuma Legacy's with no curtain mounted ("theme off"); each counted its launchers found and none hidden`);
     else { bad++; console.log("FAIL: the controls never ran (no size drew glass)"); }
 }
+if (control && huds && themes.includes("stained") && !hudControlled) { bad++; console.log("FAIL: the hud controls never ran (no Stained Glass size drew an empty pane)"); }
 if (control && rooms && !roomControlled.size) { bad++; console.log("FAIL: the room controls never ran (no size placed the tile)"); }
 if (control && rooms && themes.includes("legacy") && !roomControlled.has("flat")) { bad++; console.log("FAIL: the Legacy room controls never ran (no Legacy desk placed the tile)"); }
 if (rooms && !opt("--sizes") && unpinned) { bad++; console.log(`FAIL: ${unpinned} line(s) of the default sizes have no pin in PINS`); }

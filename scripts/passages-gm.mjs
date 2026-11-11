@@ -2904,18 +2904,18 @@ export async function startPassagePick(scene, { dialog = null, passageId = null,
 }
 
 /**
- * A GM: the stretches of a scene's passages on a floor (or every floor, `level` null), `[{ id, state, x1, y1, x2, y2 }]`; [] elsewhere.
+ * A GM: the stretches of a scene's passages on a floor (or every floor, `level` null), `[{ id, state, public, x1, y1, x2, y2 }]`; [] elsewhere.
  * `gm` is the suite's (R941): the user's role, never what the rows hold.
  */
 export function passageStretches(sceneId, level = null, { stores = PASSAGE_STORES, gm = Boolean(game.user?.isGM) } = {}) {
     if (!gm) return [];
     return Object.entries(rowsOf(stores).entries())
         .filter(([, row]) => row?.sceneId === sceneId && row.passageSeg && (!level || !row.level || row.level === level))
-        .map(([id, row]) => ({ id, state: row.state, ...row.passageSeg }));
+        .map(([id, row]) => ({ id, state: row.state, public: row.public === true, ...row.passageSeg }));
 }
 
 /**
- * A GM: the tunnels of a scene with an end on a floor (or every floor, `level` null), `[{ id, state, oneWay, ends }]`,
+ * A GM: the tunnels of a scene with an end on a floor (or every floor, `level` null), `[{ id, state, public, oneWay, ends }]`,
  * `ends` only those on that floor - both for one floor's tunnel, one for stairs (E80 C1); [] elsewhere. Since H82 C3
  * (H82-04) each end is `{ x, y, level, index, far }`, `index` its place in the row's two and `far` the end at the other
  * side, wherever it is, and `oneWay` the end the tunnel is entered from (passages.mjs `oneWayOf`, null both ways): what
@@ -2929,7 +2929,7 @@ export function passageTunnels(sceneId, level = null, { stores = PASSAGE_STORES,
         const ends = row?.sceneId === sceneId ? endsOf(row) : null;
         const here = (ends ?? []).map((end, index) => ({ ...end, index, far: { ...ends[1 - index] } }))
             .filter(end => !level || !end.level || end.level === level);
-        if (here.length) out.push({ id, state: row.state, oneWay: oneWayOf(row), ends: here });
+        if (here.length) out.push({ id, state: row.state, public: row.public === true, oneWay: oneWayOf(row), ends: here });
     }
     return out;
 }
@@ -2950,12 +2950,20 @@ export function loadTunnelRooms() {
     return tunnelRoomsAsked;
 }
 
-/* Each state's look: a secret one dashed in the passage colour, a closed one dashed grey, a broken one dotted red. */
-const LOOK = {
-    secret: { token: "--drpg-passage-secret", fallback: 0xff3d8b, dash: 18, gap: 10, width: 5 },
-    closed: { token: "--drpg-passage-closed", fallback: 0x9a9a9a, dash: 18, gap: 10, width: 4 },
-    broken: { token: "--drpg-passage-broken", fallback: 0xe5484d, dash: 4, gap: 8, width: 5 }
-};
+/* Each state's look: a secret one dashed in the passage colour, a closed one dashed grey, a broken one dotted red.
+   A public one (E49 B1, D118: a secret row with `public: true`, which every student knows) in the passage colour with
+   long dashes and short gaps, so a GM tells it from a secret one at a glance; it is still a secret passage (its state,
+   its words and its arrow). Exported for R3480. */
+const LOOK = Object.freeze({
+    secret: Object.freeze({ token: "--drpg-passage-secret", fallback: 0xff3d8b, dash: 18, gap: 10, width: 5 }),
+    public: Object.freeze({ token: "--drpg-passage-secret", fallback: 0xff3d8b, dash: 40, gap: 5, width: 5 }),
+    closed: Object.freeze({ token: "--drpg-passage-closed", fallback: 0x9a9a9a, dash: 18, gap: 10, width: 4 }),
+    broken: Object.freeze({ token: "--drpg-passage-broken", fallback: 0xe5484d, dash: 4, gap: 8, width: 5 })
+});
+export const PASSAGE_LOOK = LOOK;
+
+/* The look a stretch or a tunnel is drawn in: its state's, `public` for a secret one every student knows. */
+const lookOf = s => (s.state === "secret" && s.public ? "public" : LOOK[s.state] ? s.state : "secret");
 
 /**
  * The overlay's layer "passages", drawn again: a Graphics per passage of the scene and floor on
@@ -2975,10 +2983,11 @@ export function drawPassagesLayer(layer = overlayLayer("passages"), { stores = P
     if (!scene || !gm) return 0;
     const stretches = passageStretches(scene.id, level, { stores, gm });
     for (const s of stretches) {
-        const look = LOOK[s.state] ?? LOOK.secret;
+        const look = LOOK[lookOf(s)];
         const g = new PIXI.Graphics();
         g.name = s.id;
         g.drpgState = s.state;
+        g.drpgLook = lookOf(s);
         g.lineStyle(look.width, overlayColour(look.token, look.fallback), 0.95);
         dashedLine(g, s.x1, s.y1, s.x2, s.y2, look.dash, look.gap);
         layer.addChild(g);
@@ -2987,11 +2996,12 @@ export function drawPassagesLayer(layer = overlayLayer("passages"), { stores = P
     const tunnels = passageTunnels(scene.id, level, { stores, gm });
     const grid = Number(scene.grid?.size) || 100, ring = grid * 0.3;
     for (const t of tunnels) {
-        const look = LOOK[t.state] ?? LOOK.secret;
+        const look = LOOK[lookOf(t)];
         const colour = overlayColour(look.token, look.fallback);
         const g = new PIXI.Graphics();
         g.name = t.id;
         g.drpgState = t.state;
+        g.drpgLook = lookOf(t);
         g.lineStyle(look.width, colour, 0.95);
         for (const end of t.ends) g.drawCircle(end.x, end.y, ring);
         if (t.ends.length === 2) dashedLine(g, t.ends[0].x, t.ends[0].y, t.ends[1].x, t.ends[1].y, look.dash, look.gap);

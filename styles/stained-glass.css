@@ -3287,9 +3287,14 @@ body.drpg-theme-stained-glass #drpg-hud .drpg-hud-button:hover:not(:disabled):no
 }
 body.drpg-theme-stained-glass #drpg-hud .drpg-hud-button:disabled,
 body.drpg-theme-stained-glass #drpg-hud .drpg-hud-button[aria-disabled="true"] { opacity: 0.35; }
+/* The arrow 14 px, as written (E49 B1, S12-69): pixel-icons.css gives every pixel glyph `min-width`/`min-height: 22px`,
+   which outranked the width here and drew the hour's arrows 22 px on a 26 px plate (the glass harness, 1366x768,
+   11.11.2026). The glass sweep's `drpgHudCheck` reads the glyph at every size. */
 body.drpg-theme-stained-glass #drpg-hud .drpg-hud-button i {
     width: calc(14px * var(--drpg-sg-scale));
     height: calc(14px * var(--drpg-sg-scale));
+    min-width: 0;
+    min-height: 0;
     font-size: calc(14px * var(--drpg-sg-scale));
 }
 /* OBJECTION! on the trial bar (E79 C16, 1.2.79): the same plate in crimson, whatever the state's colour. */
@@ -4490,10 +4495,12 @@ body.drpg-theme-stained-glass .application.sheet.actor .status-value {
    yellow P of "Player A" - and it is the cheapest thing on the page that says the interface
    and the character are the same object. Only where a name is a name: headings and the
    character's own, never a label, a number or a sentence. */
-body.drpg-theme-stained-glass .application.sheet.actor :is(h1.actor-name, .actor-name)::first-letter,
-body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-gm-panel) :is(h1, h2, h3)::first-letter,
-body.drpg-theme-stained-glass #drpg-hud .drpg-hud-campaign::first-letter,
-body.drpg-theme-stained-glass .application .window-title::first-letter {
+/* A heading whose first word is one letter ("A body was found", "W pokoju") keeps its own colour: chrome.mjs
+   `markLoneInitials` marks it (E49 B1, S12-65), the accent on a lone article read as a letter come away. */
+body.drpg-theme-stained-glass .application.sheet.actor :is(h1.actor-name, .actor-name):not(.drpg-lone-initial)::first-letter,
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-gm-panel) :is(h1, h2, h3):not(.drpg-lone-initial)::first-letter,
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-campaign:not(.drpg-lone-initial)::first-letter,
+body.drpg-theme-stained-glass .application .window-title:not(.drpg-lone-initial)::first-letter {
     /* the name's own colour is set with `!important` further up, and a pseudo-element
        does not out-rank that on its own */
     color: var(--drpg-glass-accent) !important;

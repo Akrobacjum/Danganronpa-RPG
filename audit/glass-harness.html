@@ -118,7 +118,7 @@
   <div id="drpg-hud"><div class="drpg-hud-ticker" aria-hidden="true"><span>Daily Life · Daily Life · Daily Life · </span><span>Daily Life · Daily Life · Daily Life · </span></div>
     <div class="drpg-hud-campaign is-long">DanganRPG: Safe Havens Bleed</div><div class="drpg-hud-chapter">Chapter 1 · Day 3</div>
     <div class="drpg-hud-phase"><span class="drpg-hud-phase-glyph drpg-pxi"></span>Daily Life</div>
-    <div class="drpg-hud-time-row"><button class="drpg-hud-button">&lt;</button><div class="drpg-hud-time-slot" style="min-width:118px"><div class="drpg-hud-time">Afternoon</div></div><button class="drpg-hud-button">&gt;</button></div>
+    <div class="drpg-hud-time-row"><button type="button" class="drpg-hud-button" aria-label="Rewind"><i class="fa-solid fa-chevron-left" inert></i></button><div class="drpg-hud-time-slot" style="min-width:118px"><div class="drpg-hud-time">Afternoon</div></div><button type="button" class="drpg-hud-button" aria-label="Advance"><i class="fa-solid fa-chevron-right" inert></i></button></div>
     <div class="drpg-hud-elapsed">43 min in</div><div class="drpg-hud-track is-empty" aria-hidden="true"></div></div>
   <section id="drpg-room-tile" class="drpg-room-tile" role="region" aria-label="Room" data-state="room"><div class="drpg-room-tile-art" style="background-image:linear-gradient(160deg,#6d86a8,#2f4a35 55%,#7a4a2c)"></div><button type="button" class="drpg-room-tile-open" aria-label="Show the picture"></button><h3 class="drpg-room-tile-name">Dorm</h3><div class="drpg-hud-room-tokens"><span class="drpg-hud-pip"></span><span class="drpg-hud-pip"></span><span class="drpg-hud-room-tokens-label" aria-hidden="true">0/2 searches</span></div><div class="drpg-hud-room-project">You can work a project here</div><button type="button" class="drpg-room-tile-more" aria-controls="drpg-room-tile-prose" aria-expanded="false"><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button><p class="drpg-room-tile-prose" id="drpg-room-tile-prose" tabindex="0" hidden>Two bunks under a high window.
 
@@ -346,6 +346,49 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
      All of it with the tile's turn taken off, as R299 (b) and glass.mjs measure, and in client coordinates, so the
      containing block's offset under Stained Glass (P23; glass.mjs, `LAUNCH_CLEAR`) is the same for both boxes of a
      comparison. The cards are closed and the turn, the dock and the badge put back before it answers. */
+  /* THE HOUR'S ARROWS AND THE EMPTY PANES (E49 B1, 11.11.2026; S12-69, S12-64). Since then the time row carries hud.mjs
+     `control`'s markup, a Font Awesome chevron that pixel-icons.css paints (it carried "<" and ">" as text, which no
+     glyph rule reached, so the 22 px the finding names could not be seen here). Under Stained Glass: each arrow's glyph
+     14 px x the glass scale within 0.6 px; and each pane the curtain cut for a block that is not there (`empty` in
+     LAST.panes) at most 0.40 alpha on the curtain's own canvas at its centre - the filler around it reads 0.7 and more.
+     `plant`: "arrows" puts pixel-icons.css's 22 px floor back on the glyph, "empty" reads the filler panes as if they
+     were the empty ones; each must read not ok (glass-sweep.mjs runs both once). Monokuma Legacy draws no curtain and
+     the arrows are Foundry's font there: nothing to read, ok. */
+  window.drpgHudCheck = ({ plant = null } = {}) => {
+    const body = document.body, glassOn = body.classList.contains("drpg-theme-stained-glass"), why = [];
+    const out = { ok: false, why, glass: glassOn, arrows: null, want: null, empty: null, filler: null };
+    const style = plant === "arrows" ? document.createElement("style") : null;
+    if (style) { style.textContent = "body #drpg-hud .drpg-hud-button > i { min-width: 22px !important; min-height: 22px !important; }"; document.head.append(style); }
+    try {
+      const icons = [...document.querySelectorAll("#drpg-hud .drpg-hud-time-row .drpg-hud-button > i")];
+      if (icons.length !== 2) why.push(`${icons.length} arrow glyphs in the clock's time row, not 2`);
+      if (glassOn) {
+        const scale = Number.parseFloat(getComputedStyle(document.getElementById("drpg-hud")).getPropertyValue("--drpg-sg-scale")) || 1;
+        const want = 14 * scale;
+        out.want = Math.round(want * 10) / 10;
+        // the used size, not the box on screen: the clock's pane is turned (`blockTurns`), and a turned glyph's
+        // bounding box reads 1.13 x its side at the clock's 7 degrees
+        out.arrows = icons.map(i => { const c = getComputedStyle(i); return [Math.round(parseFloat(c.width) * 10) / 10, Math.round(parseFloat(c.height) * 10) / 10]; });
+        const off = out.arrows.find(([w, h]) => Math.abs(w - want) > 0.6 || Math.abs(h - want) > 0.6);
+        if (off) why.push(`an arrow's glyph ${off.join("x")} px, not ${out.want}`);
+        const cv = document.querySelector("#drpg-curtain canvas.sg"), panes = window.__glass?.LAST?.panes ?? [];
+        const stacked = body.classList.contains("drpg-stacked");
+        if (cv && cv.width && panes.length) {
+          const box = cv.getBoundingClientRect(), kx = cv.width / box.width, ky = cv.height / box.height, ctx = cv.getContext("2d", { willReadFrequently: true });
+          const alpha = p => { const n = p.poly.length, cx = p.poly.reduce((a, q) => a + q[0], 0) / n, cy = p.poly.reduce((a, q) => a + q[1], 0) / n;
+            const px = Math.round((cx - box.left) * kx), py = Math.round((cy - box.top) * ky);
+            return Math.round(ctx.getImageData(px, py, 1, 1).data[3] / 255 * 100) / 100; };
+          const empties = panes.filter(p => p.empty), fillers = panes.filter(p => p.kind !== "section" && !p.empty && p.poly.length >= 3 && (p.x1 - p.x0) > 24 && (p.y1 - p.y0) > 24);
+          out.empty = empties.map(alpha); out.filler = fillers.map(alpha);
+          const read = plant === "empty" ? out.filler : out.empty;
+          const dark = read.filter(a => a > 0.40);
+          if (dark.length) why.push(`${dark.length} of ${read.length} empty panes darker than 0.40 (${dark.slice(0, 4).join(", ")})`);
+        } else if (!stacked) why.push("no curtain canvas or no panes to read");
+      }
+    } finally { style?.remove(); }
+    out.ok = !why.length;
+    return out;
+  };
   window.drpgNoticeCheck = async () => {
     const host = document.getElementById("drpg-popups"), button = document.getElementById("drpg-notices-corner");
     const body = document.body, stacked = body.classList.contains("drpg-stacked");
