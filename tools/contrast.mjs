@@ -17,7 +17,11 @@
  *      pass); red below it otherwise, and red where `known` no longer reads (AA met, or another ratio). A value Node
  *      cannot resolve - `color-mix()`, `light-dark()`, a ground with alpha, a token set only on an element - is
  *      printed "not measured in Node": the style sweep reads computed colours in Chromium (audit/style-sweep.mjs).
- * The last line: "contrast: N pair(s), ok A, known K, not measured in Node U; P problem(s)".
+ *   4. THE HOURS (E48 K2, 11.11.2026; D30 = 2, Q7): the file's `hours` - each hour token of Stained Glass against each
+ *      meaning colour - by CIEDE2000 (tests-css.mjs `labOf`, `deltaE00`, held first to Sharma, Wu and Dalal's test
+ *      pairs by `deltaE00Check`), one line a pair, red under the file's threshold. Red before K2: afternoon 10.92 from
+ *      Hope, evening 11.66 from Health, night 10.39 from Eclipse.
+ * The last line: "contrast: N pair(s), ok A, known K, not measured in Node U; hours H pair(s), nearest D; P problem(s)".
  */
 
 import fs from "node:fs";
@@ -52,9 +56,14 @@ export async function contrastCheck(repo = DEFAULT_REPO) {
         return `  ${r.id}: ${p.text} on ${p.on}, ${p.theme}, ${p.size} - ${reading}, ${r.state}${r.why ? ` - ${r.why}` : ""}`;
     });
     for (const r of results) if (r.state === "low" || r.state === "stale") problems.push(`${r.id}: ${r.state} - ${r.why}`);
+    problems.push(...T.deltaE00Check().map(p => `self-check: ${p}`));
+    const hours = file?.hours ? T.hourDistances(file.hours, tokens) : { rows: [], problems: [`${PAIRS_FILE} has no \`hours\``] };
+    problems.push(...hours.problems);
+    for (const r of hours.rows) lines.push(`  hour ${r.hour} against ${r.meaning}: CIEDE2000 ${r.de === null ? "not measured" : r.de.toFixed(2)}${r.de !== null && r.de < file.hours.threshold ? ` - under ${file.hours.threshold}` : ""}`);
+    const nearest = hours.rows.filter(r => r.de !== null).sort((x, y) => x.de - y.de)[0];
     const n = state => results.filter(r => r.state === state).length;
     const summary = `contrast: ${pairs.length} pair(s) in ${Object.keys(tokens).length} theme(s), ok ${n("ok")}, known ${n("known")} (below AA, E48's), `
-        + `not measured in Node ${n("unmeasured")}; self-check ${problems.some(p => p.startsWith("self-check: ")) ? "red" : "held"}; ${problems.length} problem(s)`;
+        + `not measured in Node ${n("unmeasured")}; hours ${hours.rows.length} pair(s), nearest ${nearest ? `${nearest.de.toFixed(2)} (${nearest.hour} against ${nearest.meaning})` : "none"}; self-check ${problems.some(p => p.startsWith("self-check: ")) ? "red" : "held"}; ${problems.length} problem(s)`;
     return { problems, summary, lines };
 }
 

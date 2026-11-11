@@ -393,8 +393,30 @@ export const MEANING = {
        it is here. */
     attention: {
         tokens: /^--drpg-attention(?:-rgb)?$/,
-        words: /focus|:checked|radio|selected|unlocked|offered|init-button|warn|:hover|past-first|debate|rebuttal|tab-dot|saved|paused|checkmark|\bselect\b/i,
+        words: /focus|:checked|radio|selected|drpg-choice|rest-option|frisk-mode|unlocked|offered|init-button|warn|:hover|past-first|debate|rebuttal|tab-dot|saved|paused|checkmark|\bselect\b/i,
         why: "the attention colour is for focus, selection and what asks to be looked at"
+    },
+    /*
+     * THE HOUR (E48 K2, 11.11.2026; D30). `--drpg-glass-accent` is the state colour - the hour, replaced by the phase,
+     * the Eclipse and an incident here - and the five hour tokens behind it. K2 took it off what the stage names: the
+     * Event panel's cards, the action and Call tiles, the panel's, the sheet's and the messenger's buttons, the sheet's
+     * tabs and the state bars, and the picking rows (their `--kind`, now `--drpg-attention`, Q6); `never` keeps it off them. `words` is every surface that still reads it, by family: the
+     * panes and seams, the curtain's accent, the ticker and the clock, the room and voice tiles, the corner's launchers
+     * and frames (the owner, amend [1], 11.10; Q12) - and the windows' headers and fields, the sheet's headings and pips,
+     * the tables, the notices and the countdown tray, which the stage did not list and D30's "never a card, a bar or a
+     * button" may still take (an open for the owner, written in STATUS). A new reader names one of these or is red.
+     */
+    hour: {
+        tokens: /^--drpg-(?:glass-accent|sg-(?:morning|noon|afternoon|evening|night))$/,
+        words: new RegExp(["glass-accent", "data-drpg-time", "seam", "curtain", "glass-flat", "glass-band", "#pause", "ticker", "#drpg-hud",
+            "room-tile", "voice", "launcher", "launch-mini", "foundry-window", "notices-corner", "note-frame", "scene-controls", "sidebar-tabs",
+            "window-header", "header-control", "window-content", "\\.application\\[class\\]", "scrollbar", "#tooltip", "popup", "notice-info",
+            "messenger", "kit-", "handbook", "countdown", "focus-visible", "input", "textarea", "select", "table", "drpg-gmp-",
+            "\\bh[1-4]\\b", "legend", "section-header", "first-letter", "status-label", "status-value", "drpg-actions", "action-pip",
+            "free-move", "drpg-step", "group-count", "ultimate", "items-section", "inventory", "traits", "biography", "duality-badge",
+            "--stamp", "--kind", "\\bi\\b", "fa-"].join("|"), "i"),
+        never: /drpg-event\b|drpg-action-button|drpg-call-button|\.drpg-panel button|sheet-tabs a|-bar\b|-fill\b|bar-fill|drpg-choice|rest-option|frisk-mode/i,
+        why: "the hour colours the panes, the curtain's accent and the ticker, never a card, a bar or a button"
     }
 };
 
@@ -415,7 +437,8 @@ export function meaningReads(sheets, meaning = MEANING) {
                     for (const [name, row] of Object.entries(meaning)) {
                         if (!row.tokens.test(m[1])) continue;
                         read++;
-                        if (row.words.test(where) || (decl.property.startsWith("--") && row.words.test(decl.property))) continue;
+                        const named = row.words.test(where) || (decl.property.startsWith("--") && row.words.test(decl.property));
+                        if (named && !row.never?.test(where.replace(/:not\([^()]*(?:\([^()]*\)[^()]*)*\)/g, ""))) continue;
                         found.push(`${file}: ${block.prelude.slice(0, 140)} { ${decl.property} } reads ${m[1]} (${name}: ${row.why})`);
                     }
                 }
@@ -441,6 +464,96 @@ export function meaningSelfCheck(of = meaningReads) {
     const problems = [];
     if (got.read !== MEANING_FIXTURE.read) problems.push(`the meaning check reads ${got.read} meaning token(s) in its fixture, not ${MEANING_FIXTURE.read}`);
     if (got.found.length !== MEANING_FIXTURE.found) problems.push(`the meaning check finds ${got.found.length} in its fixture, not ${MEANING_FIXTURE.found}: ${JSON.stringify(got.found)}`);
+    return problems;
+}
+
+/* ================================ the hour's ramp (E48 K2) ================================ */
+
+/** An opaque sRGB [r, g, b] (0-255) as CIELAB [L, a, b] under D65 (the sRGB primaries, the 2-degree observer). */
+export function labOf([r, g, b]) {
+    const lin = c => { const s = c / 255; return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
+    const [R, G, B] = [lin(r), lin(g), lin(b)];
+    const xyz = [(0.4124564 * R + 0.3575761 * G + 0.1804375 * B) / 0.95047, 0.2126729 * R + 0.7151522 * G + 0.0721750 * B,
+        (0.0193339 * R + 0.1191920 * G + 0.9503041 * B) / 1.08883];
+    const f = t => (t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116);
+    const [fx, fy, fz] = xyz.map(f);
+    return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+}
+
+/**
+ * CIEDE2000 between two CIELAB colours (Sharma, Wu and Dalal, 2005: kL = kC = kH = 1). `deltaE00Check` holds it to the
+ * paper's own test pairs before a reading is trusted.
+ */
+export function deltaE00(lab1, lab2) {
+    const [L1, a1, b1] = lab1, [L2, a2, b2] = lab2;
+    const rad = Math.PI / 180;
+    const C1 = Math.hypot(a1, b1), C2 = Math.hypot(a2, b2), Cm = (C1 + C2) / 2;
+    const G = 0.5 * (1 - Math.sqrt(Cm ** 7 / (Cm ** 7 + 25 ** 7)));
+    const a1p = (1 + G) * a1, a2p = (1 + G) * a2;
+    const C1p = Math.hypot(a1p, b1), C2p = Math.hypot(a2p, b2);
+    const hue = (b, a) => { if (!b && !a) return 0; const h = Math.atan2(b, a) / rad; return h < 0 ? h + 360 : h; };
+    const h1p = hue(b1, a1p), h2p = hue(b2, a2p);
+    const dLp = L2 - L1, dCp = C2p - C1p;
+    let dhp = 0;
+    if (C1p * C2p) dhp = Math.abs(h2p - h1p) <= 180 ? h2p - h1p : (h2p - h1p > 180 ? h2p - h1p - 360 : h2p - h1p + 360);
+    const dHp = 2 * Math.sqrt(C1p * C2p) * Math.sin(dhp * rad / 2);
+    const Lmp = (L1 + L2) / 2, Cmp = (C1p + C2p) / 2;
+    let hmp = h1p + h2p;
+    if (C1p * C2p) hmp = Math.abs(h1p - h2p) <= 180 ? hmp / 2 : (h1p + h2p < 360 ? (hmp + 360) / 2 : (hmp - 360) / 2);
+    const T = 1 - 0.17 * Math.cos((hmp - 30) * rad) + 0.24 * Math.cos(2 * hmp * rad) + 0.32 * Math.cos((3 * hmp + 6) * rad) - 0.20 * Math.cos((4 * hmp - 63) * rad);
+    const dTheta = 30 * Math.exp(-(((hmp - 275) / 25) ** 2));
+    const Rc = 2 * Math.sqrt(Cmp ** 7 / (Cmp ** 7 + 25 ** 7));
+    const Sl = 1 + (0.015 * (Lmp - 50) ** 2) / Math.sqrt(20 + (Lmp - 50) ** 2), Sc = 1 + 0.045 * Cmp, Sh = 1 + 0.015 * Cmp * T;
+    const Rt = -Math.sin(2 * dTheta * rad) * Rc;
+    return Math.sqrt((dLp / Sl) ** 2 + (dCp / Sc) ** 2 + (dHp / Sh) ** 2 + Rt * (dCp / Sc) * (dHp / Sh));
+}
+
+/* Sharma, Wu and Dalal's test data, pairs 1, 7, 17, 25 and 34 (their table 1, to four places), and sRGB's two ends. */
+export const DELTA_E00_FIXTURE = [
+    [[50, 2.6772, -79.7751], [50, 0, -82.7485], 2.0425],
+    [[50, 0, 0], [50, -1, 2], 2.3669],
+    [[50, 2.5, 0], [56, -27, -3], 31.9030],
+    [[60.2574, -34.0099, 36.2677], [60.4626, -34.1751, 39.4387], 1.2644],
+    [[90.9257, -0.5406, -0.9208], [88.6381, -0.8985, -0.7239], 1.5381]
+];
+
+/**
+ * The hours against the meanings (tools/contrast-pairs.json `hours`): `{ rows, problems }`, a row a pair -
+ * `{ hour, meaning, de }` with `de` CIEDE2000 to two places, or null where a token does not resolve in Node - and a
+ * problem for each pair under `threshold`, each token that does not resolve, and a spec that names no hour or no meaning.
+ */
+export function hourDistances(spec, tokens) {
+    const problems = [], rows = [];
+    const theme = tokens?.[spec?.theme];
+    if (!theme) return { rows, problems: [`hours: theme ${spec?.theme} is not one this tool knows`] };
+    const hours = spec.hours ?? [], meanings = Object.entries(spec.meanings ?? {});
+    if (!hours.length || !meanings.length || !(spec.threshold > 0)) problems.push("hours: the spec names no hour, no meaning or no threshold");
+    const lab = name => {
+        const { colour, why } = resolveColour(`var(${name})`, theme);
+        if (!colour || colour[3] < 1) { problems.push(`hours: ${name} does not resolve to an opaque colour (${why ?? "alpha"})`); return null; }
+        return labOf(colour);
+    };
+    for (const hour of hours) {
+        const h = lab(hour);
+        for (const [meaning, token] of meanings) {
+            const m = lab(token);
+            const de = h && m ? Math.round(deltaE00(h, m) * 100) / 100 : null;
+            rows.push({ hour, meaning, de });
+            if (de !== null && de < spec.threshold) problems.push(`hours: ${hour} is ${de.toFixed(2)} from ${meaning} (${token}), under ${spec.threshold}`);
+        }
+    }
+    return { rows, problems };
+}
+
+/** deltaE00 and labOf on their fixture; [] is held. */
+export function deltaE00Check(de = deltaE00, lab = labOf) {
+    const problems = [];
+    for (const [x, y, want] of DELTA_E00_FIXTURE) {
+        const got = de(x, y);
+        if (Math.abs(got - want) > 0.0001) problems.push(`CIEDE2000 of ${JSON.stringify(x)} and ${JSON.stringify(y)} reads ${got.toFixed(4)}, not ${want}`);
+    }
+    const ends = de(lab([0, 0, 0]), lab([255, 255, 255]));
+    if (Math.abs(ends - 100) > 0.01) problems.push(`CIEDE2000 of black and white reads ${ends.toFixed(2)}, not 100`);
     return problems;
 }
 

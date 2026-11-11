@@ -3366,7 +3366,9 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 .drpg-project-card-bar > span {
     display: block;
     height: 100%;
-    background: var(--drpg-glass-accent, var(--drpg-gold-antique));
+    /* Evidence's antique in Legacy, as it always was (Legacy declares no --drpg-glass-accent); Stained Glass read the
+       hour here until E48 K2 and reads Bone (stained-glass.css: D30, the time of day never colours a bar) */
+    background: var(--drpg-gold-antique);
 }
 
 .drpg-project-card-actions {

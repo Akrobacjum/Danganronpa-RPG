@@ -211,5 +211,28 @@
       "size": "small",
       "where": "a destructive answer under the pointer, its raster kept and no brush: body.drpg-theme-stained-glass .application.dialog footer.form-footer button:is(.danger, .drpg-destructive, .drpg-role-destructive, ...):hover:not(:disabled):not(.active) (E22 fix G1; the end review's SCREENS M3: the full GM-red brush under this ink read 1.55)"
     }
-  ]
+  ],
+  "hours": {
+    "about": "E48 K2 (11.11.2026; D30 = 2, Q7): each hour of Stained Glass against each meaning colour, CIEDE2000, at or above `threshold` - an hour must never read as a state. The threshold is the owner's Q7 default, chosen, not measured: tools/contrast.mjs prints every pair so the margins are seen and the number can move. GM red is both the GM's light (the incident's accent) and the GM's own red.",
+    "theme": "stained-glass",
+    "threshold": 15,
+    "hours": [
+      "--drpg-sg-morning",
+      "--drpg-sg-noon",
+      "--drpg-sg-afternoon",
+      "--drpg-sg-evening",
+      "--drpg-sg-night"
+    ],
+    "meanings": {
+      "Investigation": "--drpg-sg-investigation",
+      "Hope": "--drpg-sg-hope",
+      "GM red": "--drpg-sg-gm",
+      "GM light": "--drpg-sg-gm-light",
+      "Eclipse": "--drpg-sg-eclipse",
+      "Despair": "--drpg-sg-despair",
+      "Evidence": "--drpg-sg-evidence",
+      "Health": "--drpg-sg-res-health",
+      "Sanity": "--drpg-sg-res-sanity"
+    }
+  }
 }

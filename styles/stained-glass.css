@@ -114,11 +114,22 @@ body.drpg-theme-stained-glass {
     --drpg-sg-hope: #ffd23f;
     --drpg-sg-despair: #ff3d8b;
     --drpg-sg-evidence: #3ddc84;
-    --drpg-sg-morning: #bfe3ff;
-    --drpg-sg-noon: #7fe4ff;
-    --drpg-sg-afternoon: #ffd38f;
-    --drpg-sg-evening: #ff8245;
-    --drpg-sg-night: #7f8cff;
+    /* THE HOURS ARE A NEUTRAL RAMP (E48 K2, 11.11.2026; D30 = 2, "neutralna rampa żółto-szara (słoma, chłodna biel,
+       piasek, zmierzch, łupek), sprawdzona skryptem ΔE"). They were #bfe3ff, #7fe4ff, #ffd38f, #ff8245 and #7f8cff:
+       a pale blue, a cyan, a gold, an orange and a violet, three of them within CIEDE2000 15 of a meaning (afternoon
+       10.9 from Hope, evening 11.7 from Health, night 10.4 from Eclipse; noon 16.5 from Investigation, the designer's
+       guess for the red one, was not). Straw, cool white, sand, dusk and slate, each at least 15.95 from every meaning
+       colour (night against Eclipse the nearest) and at least 7:1 on Ink. tools/contrast.mjs prints every pair against
+       the threshold in tools/contrast-pairs.json (Q7: 15, chosen, not measured); R3411 holds it. */
+    --drpg-sg-morning: #e2d8b4;
+    --drpg-sg-noon: #e4eaee;
+    --drpg-sg-afternoon: #c4ae8e;
+    --drpg-sg-evening: #a9979f;
+    --drpg-sg-night: #8f9aab;
+    /* two badges took an hour's hue as their own colour; they keep it under their own names, so the ramp does not
+       repaint them (the tool's is 10.9 from Hope, E48 K2's open for the owner) */
+    --drpg-sg-badge-tool: #ffd38f;
+    --drpg-sg-badge-autopsy: #7f8cff;
     --drpg-sg-investigation: #57b6ff;
     --drpg-sg-eclipse: #a678ff;
     /* The two reserves (E24 C1a, 08.11.2026; the owner's D5, Q-E24-4): Health and Sanity each in a hue that means no
@@ -133,7 +144,7 @@ body.drpg-theme-stained-glass {
 
     /* the colour the seams glow with: the time of day, replaced by the state.
        The clock writes `data-drpg-time` on the body (Milestone 2); until then
-       the default is the afternoon gold, the Eclipse overrides it below. */
+       the default is the afternoon (sand since E48 K2), the Eclipse overrides it below. */
     --drpg-glass-accent: var(--drpg-sg-afternoon);
 
     /* THE NOTICE TILE, AND THIS IS THE ONLY PLACE IT IS A NUMBER.
@@ -670,8 +681,9 @@ body.drpg-theme-stained-glass #drpg-events {
     text-align: center;
     pointer-events: auto;
 }
+/* A kind with no rule of its own wears Bone, not the hour (E48 K2, D30: the time of day never colours a card). */
 body.drpg-theme-stained-glass .drpg-event {
-    --acc: var(--drpg-glass-accent);
+    --acc: var(--drpg-sg-bone);
     padding: 8px 12px 9px;
     animation: drpg-sg-event-in var(--drpg-t-enter, 180ms) var(--drpg-ease-arrive, ease-out) both;
 }
@@ -804,7 +816,9 @@ body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button,
 body.drpg-theme-stained-glass .drpg-mini-button,
 body.drpg-theme-stained-glass .application.sheet.actor :is(button, li.inventory-item, nav.tabs > a, .tabs > a):not(:where(.header-control, .drpg-action-button, .drpg-call-button)),
 body.drpg-theme-stained-glass .drpg-messenger button:not(.header-control) {
-    --brush: var(--drpg-glass-accent);
+    /* Bone, not the hour (E48 K2, 11.11.2026; D30, "nigdy nie barwi [...] przycisku"): the brush was the state colour,
+       so every button of the panel, the sheet and the messenger changed colour with the clock. */
+    --brush: var(--drpg-sg-bone);
     position: relative;
     isolation: isolate;
     font-family: var(--drpg-font-chrome);
@@ -1207,7 +1221,7 @@ body.drpg-theme-stained-glass #sidebar-tabs button.ui-control:hover {
    brush on hover and on the chosen one, GM red for the GM's, dashed when out of reach. ---- */
 body.drpg-theme-stained-glass .drpg-action-button,
 body.drpg-theme-stained-glass .drpg-call-button {
-    --brush: var(--drpg-glass-accent);
+    --brush: var(--drpg-sg-bone); /* the hour's until E48 K2 (D30): a tile is a button */
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1398,7 +1412,7 @@ body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-
     clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
 }
 body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a {
-    --brush: var(--drpg-glass-accent);
+    --brush: var(--drpg-sg-bone); /* the hour's until E48 K2 (D30) */
     position: relative;
     isolation: isolate;
     padding: 3px 12px;
@@ -1447,9 +1461,9 @@ body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet 
 body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet [data-drpg-reserve="stress"] { --drpg-bar-fill: var(--drpg-sg-res-sanity); }
 body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet .drpg-resource-bar {
     height: 10px;
-    border: 1px solid color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-glass-accent)) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-sg-bone)) 55%, transparent);
     background-color: rgba(7, 7, 10, 0.7);
-    background-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-glass-accent)) 45%, transparent) 1px, transparent 1.5px);
+    background-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-sg-bone)) 45%, transparent) 1px, transparent 1.5px);
     background-size: 4px 4px;
     box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.6);
 }
@@ -1457,8 +1471,8 @@ body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet 
     display: block;
     position: absolute;
     inset: 0 auto 0 0;
-    background-color: var(--drpg-bar-fill, var(--drpg-glass-accent));
-    box-shadow: 0 0 8px color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-glass-accent)) 55%, transparent);
+    background-color: var(--drpg-bar-fill, var(--drpg-sg-bone));
+    box-shadow: 0 0 8px color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-sg-bone)) 55%, transparent);
 }
 body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet .resources-section .status-label,
 body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet .resources-section .slot-label {
@@ -1466,8 +1480,9 @@ body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet 
     text-transform: uppercase;
     letter-spacing: 0.1em;
     font-size: max(var(--drpg-sg-floor), calc(12px * var(--drpg-sg-scale)));
-    /* the plate is the bar's own colour (E24 C1a, Q-E24-4: plate and bar the same) */
-    background: var(--drpg-bar-fill, var(--drpg-glass-accent)) !important;
+    /* the plate is the bar's own colour (E24 C1a, Q-E24-4: plate and bar the same); a bar with no colour of its own
+       falls back to Bone, not the hour (E48 K2, D30: the time of day never colours a bar) */
+    background: var(--drpg-bar-fill, var(--drpg-sg-bone)) !important;
     color: var(--drpg-sg-ink) !important;
     border: 0 !important;
     border-radius: 0 !important;
@@ -1751,7 +1766,9 @@ body.drpg-theme-stained-glass .character-header-sheet .drpg-calls-panel h4 { bac
    fill and the browser's radio inside rows drawn this way), named here as the Rest option is, not
    given `drpg-choice` (chooseVariant's details rule reads that class's next sibling). R907. */
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode) {
-    --kind: var(--drpg-glass-accent);
+    /* the attention colour, not the hour (E48 K2, Q6: a selection in the state colour put the hour back on every
+       pick D30 takes it off); a row on the GM's road still states its own kind below */
+    --kind: var(--drpg-attention);
     position: relative;
     isolation: isolate;
     margin: 3px 0;
@@ -1993,7 +2010,9 @@ body.drpg-theme-stained-glass .drpg-tb-badge.type.key { background: var(--drpg-s
 body.drpg-theme-stained-glass .drpg-tb-badge:is(.drpg-role-crimeTool, .drpg-role-cleaningTool, .drpg-role-tool, .drpg-role-healing, .drpg-role-stress) { color: var(--drpg-sg-ink); border-color: transparent; }
 body.drpg-theme-stained-glass .drpg-tb-badge.drpg-role-crimeTool { background: var(--drpg-sg-gm-light); }
 body.drpg-theme-stained-glass .drpg-tb-badge.drpg-role-cleaningTool { background: var(--drpg-sg-investigation); }
-body.drpg-theme-stained-glass .drpg-tb-badge.drpg-role-tool { background: var(--drpg-sg-afternoon); }
+body.drpg-theme-stained-glass .drpg-tb-badge.drpg-role-tool { background: var(--drpg-sg-badge-tool); }
+/* a project's progress is a bar: Bone, not the hour it read through the base rule's --drpg-glass-accent (E48 K2) */
+body.drpg-theme-stained-glass .drpg-project-card-bar > span { background: var(--drpg-sg-bone); }
 /* a healing item's badge was Hope's gold; Bone since E48 K1 (gold means Hope alone, and Health's red is the GM's road
    under the glass) */
 body.drpg-theme-stained-glass .drpg-tb-badge.drpg-role-healing { background: var(--drpg-sg-bone); }
@@ -2011,7 +2030,7 @@ body.drpg-theme-stained-glass .drpg-tb-badge.type.prep {
 }
 body.drpg-theme-stained-glass .drpg-tb-badge.type.incident { background: var(--drpg-sg-gm-light); border-color: var(--drpg-sg-gm-light); color: var(--drpg-sg-ink); }
 body.drpg-theme-stained-glass .drpg-tb-badge.type.resolution { background: var(--drpg-sg-eclipse); border-color: var(--drpg-sg-eclipse); color: var(--drpg-sg-ink); }
-body.drpg-theme-stained-glass .drpg-tb-badge.type.autopsy { background: var(--drpg-sg-night); border-color: var(--drpg-sg-night); color: var(--drpg-sg-ink); }
+body.drpg-theme-stained-glass .drpg-tb-badge.type.autopsy { background: var(--drpg-sg-badge-autopsy); border-color: var(--drpg-sg-badge-autopsy); color: var(--drpg-sg-ink); }
 body.drpg-theme-stained-glass .drpg-tb-badge.type.faint { background: transparent; border-color: rgba(242, 238, 230, 0.35); color: var(--drpg-sg-bone-dim); }
 body.drpg-theme-stained-glass .drpg-tb-badge.type.neutral { background: transparent; border-color: rgba(242, 238, 230, 0.35); }
 body.drpg-theme-stained-glass .drpg-tb-badge.type.final { background: var(--drpg-sg-bone); border-color: var(--drpg-sg-bone); color: var(--drpg-sg-ink); }
@@ -3896,7 +3915,7 @@ body.drpg-theme-stained-glass .character-sidebar-sheet .status-value .drpg-resou
 /* the frame takes the resource's own colour, as the plate above it does - one red box
    around a violet label was the sheet saying two things about one number */
 body.drpg-theme-stained-glass .character-sidebar-sheet .status-bar {
-    border-color: color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-glass-accent)) 55%, transparent);
+    border-color: color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-sg-bone)) 55%, transparent);
 }
 
 /* ==========================================================================
@@ -4203,7 +4222,7 @@ body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-
    reads the token. The audit page frames each block in its own resource at 45 % and cuts the
    corner like everything else. */
 body.drpg-theme-stained-glass .character-sidebar-sheet .status-bar {
-    border: 1px solid color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-glass-accent)) 45%, transparent) !important;
+    border: 1px solid color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-sg-bone)) 45%, transparent) !important;
     background: rgba(7, 7, 10, 0.5);
     clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
 }
@@ -4215,7 +4234,7 @@ body.drpg-theme-stained-glass .character-sidebar-sheet .status-bar .status-label
 }
 /* and the track wears its resource, not the interface */
 body.drpg-theme-stained-glass .character-sidebar-sheet .drpg-resource-bar {
-    border: 1px solid color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-glass-accent)) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-sg-bone)) 55%, transparent);
 }
 
 /* ==========================================================================
@@ -4441,7 +4460,7 @@ body.drpg-theme-stained-glass .application.sheet.actor .status-bar {
 body.drpg-theme-stained-glass .application.sheet.actor .status-label.pointy {
     order: -1;
     clip-path: none !important;
-    background: var(--drpg-bar-fill, var(--drpg-glass-accent)) !important;
+    background: var(--drpg-bar-fill, var(--drpg-sg-bone)) !important;
     border: none !important;
     border-radius: 0 !important;
     padding: 2px 8px !important;
@@ -4460,7 +4479,7 @@ body.drpg-theme-stained-glass .application.sheet.actor .status-label.pointy :is(
    order and the label's place no longer say which is which, and `--drpg-res` is gone */
 body.drpg-theme-stained-glass .application.sheet.actor .status-value {
     background: rgba(7, 7, 10, 0.55);
-    border: 1px solid color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-glass-accent)) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-sg-bone)) 55%, transparent);
     border-top: none;
     padding: 3px 6px;
 }
