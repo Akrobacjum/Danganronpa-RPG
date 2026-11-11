@@ -42625,6 +42625,58 @@ const INVARIANTS = [
             lists: [0, 0]
         }), "{list: [a dataTable, its heads, the first row's pick button's table, the other cells]; entries: [heads, each row: result, table, the name field in the first cell, remove in the actions' cell]; room: [each group row has its count, its entry rows]; lists: the li left in each pane}");
     }],
+    ["R3450 - Item tables' room pool picks its category from one select (scripts/tables-editor.mjs `tableItemsHtml`, `wireRoomFilter`, ui-hold.mjs `showRoomGroup`; E49 A4, the owner's [14] (2) and [16] 3): one `select[data-drpg-room-filter]` - Everything with the pool's count first and picked, then each group with its count as its section counts it (a group with none disabled, never dropped), the unfiled names when there are any - and no chip row; a pick shows that group alone, Everything every group; Rename and Delete in one button group", async () => {
+        /*
+         * E49 A4, 11.11.2026. The owner's screenshot of 10.11: the chips ran onto a second row ("Everything" alone on it)
+         * and Rename and Delete stood 24 px apart; the owner's answer on the mockup round ([16] 3): a dropdown instead of
+         * the chips, no sideways scroll. Read on a stand-in room pool (`c3Table`, nothing written) of one Murder Weapon,
+         * one Cleaning Tool and one healing usable from the module's own lists and one name no list holds. The sizes
+         * (one row, no sideways scroll, the window one size at every pick, the kit's gap) are style-sweep `--tables`'s.
+         * Red first at 18358978: a `.drpg-room-summary` of seven chips, no select, the two buttons apart in the heading.
+         */
+        const T = await import("./tables.mjs");
+        const P = await import("./tables-pools.mjs");
+        const H = await import("./ui-hold.mjs");
+        must(typeof T.poolPaneHtml === "function", "tables.mjs exports no poolPaneHtml - this would measure nothing");
+        const firstOf = tiers => Object.values(tiers).flat()[0];
+        const names = [firstOf(P.ITEM_POOLS.crimeTool), firstOf(P.ITEM_POOLS.cleaningTool), firstOf(P.USABLE_GOALS.healing.pool), "R3450 nobody's"];
+        const room = c3Table({ id: "r3450r", name: "R3450 kitchen", flags: { roomPool: true }, entries: names.map(name => ({ name, roles: [] })) });
+        const read = await c3Tables([room], async () => {
+            const pane = document.createElement("div");
+            pane.innerHTML = T.poolPaneHtml("rooms", [room], room);
+            const body = pane.querySelector("[data-drpg-table-body]");
+            T.wireRoomFilter?.(body);
+            const picker = body?.querySelectorAll("select[data-drpg-room-filter]") ?? [];
+            const box = body?.querySelector("[data-drpg-room-groups]");
+            const counted = kind => box?.querySelector(`:scope > .drpg-room-group[data-kind="${kind}"] > h5 .notes`)?.textContent.trim() ?? "0";
+            const shown = () => [...(box?.querySelectorAll(":scope > .drpg-room-group") ?? [])].filter(g => !g.hidden).map(g => g.dataset.kind);
+            const pick = value => { picker[0].value = value; picker[0].dispatchEvent(new Event("change", { bubbles: true })); return shown(); };
+            const heading = pane.querySelector(".drpg-table-heading");
+            const group = heading?.querySelector('[role="group"]');
+            return {
+                pickers: picker.length,
+                labelled: Boolean(picker[0]?.closest("label")?.textContent.trim()),
+                options: [...(picker[0]?.options ?? [])].map(o => [o.value, o.textContent.trim(), o.disabled, o.selected]),
+                counts: [...(picker[0]?.options ?? [])].filter(o => o.value !== "all").map(o => o.textContent.trim().endsWith(`(${counted(o.value)})`)),
+                chips: pane.querySelectorAll(".drpg-room-summary, .drpg-room-chip").length,
+                all: shown(), crimeTool: picker.length ? pick("crimeTool") : null, unfiled: picker.length ? pick("unfiled") : null, back: picker.length ? pick("all") : null,
+                buttons: group ? [...group.querySelectorAll("button")].map(b => Object.keys(b.dataset)[0]) : null,
+                floor: typeof H.showRoomGroup === "function" ? H.showRoomGroup(box, "all") : "no showRoomGroup"
+            };
+        });
+        const L = key => game.i18n.localize(key);
+        const keys = [...P.ROOM_GROUP_ORDER, "unfiled"];
+        const groups = ["crimeTool", "cleaningTool", "usable:healing", "unfiled"];
+        equal(stableJson(read), stableJson({
+            pickers: 1, labelled: true,
+            options: [["all", `${L("DRPG.Tables.roomTotal")} (4)`, false, true],
+                ...keys.map(key => [key, `${key === "unfiled" ? L("DRPG.Tables.unfiled") : P.groupLabel(key, { short: true })} (${groups.includes(key) ? 1 : 0})`, !groups.includes(key), false])],
+            counts: keys.map(() => true), chips: 0,
+            all: groups, crimeTool: ["crimeTool"], unfiled: ["unfiled"], back: groups,
+            buttons: ["drpgRenameTable", "drpgDeleteTable"],
+            floor: null
+        }), "{pickers: the selects; labelled: its label's words; options: [value, words, disabled, picked]; counts: each option's count is its section's; chips: the old summary; all/crimeTool/unfiled/back: the groups shown at Everything, a pick, the unfiled pick, Everything again; buttons: the heading's one button group; floor: showRoomGroup's floor in jsdom (no layout: none set)}");
+    }],
     ["R2026 - Sound > Effects on the kit (E46-C4; E46-13, card M2): one `dataTable` whose body is a group row per `SFX_CATEGORIES` entry with its \"n of m assigned\", each followed by its events in `SFX_EVENTS`' order (`tr[data-drpg-sfx]`); an event's name, its chips and its description in one cell cut after two lines with the whole in its title; the file box with its Choose; at most three buttons a row, Test and Clear the kit's icon buttons", async () => {
         /*
          * E46-C4, 09.11.2026; card M2 (Approve, 04.11) and STAGE E46's Sound shape. Measured at 3c952c67 (glass,

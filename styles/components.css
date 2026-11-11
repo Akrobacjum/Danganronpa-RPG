@@ -2438,11 +2438,19 @@ body .application.drpg-ui.drpg-window-tables .drpg-tables-list .drpg-table-pick 
 }
 .drpg-window-tables .drpg-tables-list tbody > tr:has(.drpg-table-pick.active) > td:first-child { box-shadow: inset 3px 0 0 var(--drpg-kit-btn-on-edge); }
 .drpg-window-tables .drpg-table-pick:focus-visible { outline: 2px solid var(--drpg-kit-btn-on-edge); outline-offset: -2px; }
-/* the heading over the entries: the name, then Rename, then Delete set apart */
-.drpg-window-tables .drpg-table-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+/* the heading over the entries: the name, then Rename and Delete in one group, the kit's gap between them (E49 A4; the
+   owner's [14] (2): 24 px apart, Delete's own 1rem margin; under Legacy the heading wrapped between the two, 546 px apart
+   - style-sweep `--tables` at 18358978). The group wraps whole, under the name, never between its buttons. */
+.drpg-window-tables .drpg-table-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--drpg-kit-gap); margin-bottom: 6px; }
 body .application.drpg-ui.drpg-window-tables .drpg-table-heading h4 { margin: 0 auto 0 0; text-transform: none; }
+.drpg-window-tables .drpg-table-actions { display: inline-flex; flex: none; flex-wrap: nowrap; gap: var(--drpg-kit-gap); margin-inline-start: auto; }
 .drpg-window-tables .drpg-mini-button { font-size: max(11px, calc(0.78rem * var(--drpg-legacy-scale, 1))); }
-.drpg-window-tables [data-drpg-delete-table] { margin-inline-start: 1rem; }
+/* a room pool's category picker (E49 A4): its word and the select on one line, the select as wide as its longest
+   option and never past the column; a group the picker does not show is out of the layout (ui-hold.mjs `showRoomGroup`
+   holds the box's height) */
+.drpg-window-tables .drpg-room-filter { display: flex; align-items: center; gap: var(--drpg-kit-gap); margin: 0 0 6px; }
+body .application.drpg-ui.drpg-window-tables .drpg-room-filter > select { flex: 0 1 auto; width: auto; min-width: 0; max-width: 100%; }
+.drpg-window-tables .drpg-room-groups > .drpg-room-group[hidden] { display: none; }
 .drpg-window-tables :is([data-drpg-delete-table], .drpg-table-items [data-drpg-drop]) { color: var(--drpg-kit-role-destructive); }
 body.drpg-theme-stained-glass .drpg-window-tables :is([data-drpg-delete-table], .drpg-table-items [data-drpg-drop]) {
     --brush: var(--drpg-sg-gm);
@@ -2472,7 +2480,7 @@ body .application.drpg-ui.drpg-window-tables .drpg-table-item-cell > input[type=
     color: var(--drpg-kit-help-ink);
     cursor: help;
 }
-.drpg-window-tables :is(.drpg-room-chip, .drpg-room-group > h5 .notes, .drpg-table-item-also) {
+.drpg-window-tables :is(.drpg-room-group > h5 .notes, .drpg-table-item-also) {
     font-size: max(11px, calc(0.72rem * var(--drpg-legacy-scale, 1)));
 }
 .drpg-window-tables .drpg-table-item-roles > .drpg-check {

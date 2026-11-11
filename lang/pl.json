@@ -4155,6 +4155,7 @@
       "tableEmpty": "W tej tabeli nie ma jeszcze nic.",
       "removeItem": "Usuń z tej tabeli",
       "roomTotal": "Wszystko",
+      "roomFilter": "Pokaż",
       "roomBreakdown": "Posortowane według tego, czym pule Tier nazywają każdą rzecz. Płaska tabela pokoju wciąż odpowiada na dowolną kategorię, o którą pyta Search - nazwij tabelę „Pokój - Narzędzia zbrodni”, by decydowało się to tutaj.",
       "unfiled": "W żadnej puli Tier",
       "unfiledNote": "Żadna pula Tier nie zawiera tych nazw, więc moduł nie umie powiedzieć, czym są ani jak są dobre. W płaskiej tabeli pokoju mogą wypaść dla dowolnej kategorii. Strzałkami w wierszu włóż którąś do puli Tier.",
