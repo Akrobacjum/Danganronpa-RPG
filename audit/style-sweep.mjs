@@ -13,6 +13,7 @@
  *   node audit/style-sweep.mjs --selected THE SELECTED ROW (E68 C12), below, instead of the style comparison
  *   node audit/style-sweep.mjs --details  DETAILS HOLD THEIR PLACE (E49 A8.2), below: every action window the same size
  *                                         with Details shut and open; `--every-pick` also at every row picked (A8.3)
+ *   node audit/style-sweep.mjs --panel    THE PANEL'S TILES (E49 A3), below: rows one height, every state's label and icon read
  *   node audit/style-sweep.mjs --fields   THE FIELDS PASS (E68 fix round), below: every action window's text field fills its column
  *   node audit/style-sweep.mjs --fit      THE FIT PASS (E21 C1c), below, instead of the style comparison; with --only
  *                                         the pages named, with --shots <dir> a screenshot of each at 1366x768
@@ -723,6 +724,162 @@ async function detailsPass(browser) {
     return problems.length ? 1 : 0;
 }
 
+/*
+ * THE PANEL'S TILES (`--panel`; E49 A3, 11.11.2026; the owner's [7] "przyciski maja nierowna wysokosc w gm panel" and
+ * [8] "Ikona przy aktywnym morderstwie niewidoczna", and the rule of 10.11: a state changes look, never layout). Page:
+ * probe 08's `gm-panel` capture, every section opened; PANEL_SIZES, both themes, English and Polish (`&lang=pl`). Read:
+ * (a) the tiles of each grid row one height within 1 px, every tile its row's height (it fills its cell), its label
+ * inside it; (b) every tile's rectangle the same at rest, current, disabled, hovered and focused (all tiles put in the
+ * state at once, hover and focus one tile at a time); (c) in each of those five states, every tile's label at 4.5:1 and
+ * its icon at 3:1 on the tile's ground - the icon's paint is its `background-color` where it is a mask (the pixel
+ * glyphs), its `color` where it is a font glyph, times its and the tile's opacity; the ground is the tile's
+ * `background-color` composited over its window's, and the worst of that, each colour stop of its `background-image`
+ * (the glass's hazard raster) and its `::before` (the glass's lit brush) where one is drawn - an approximation of the
+ * paint (no pixel is read), named so here; a lit brush that covers the tile is its ground alone. Rectangles are read
+ * against the sections' box, so a hover that scrolls the panel moves nothing. THE CONTROLS FIRST (the stackShapes
+ * lesson): on the first page, every tile planted `align-self: start` and one `min-height: 160px` must read as a row spread, and every icon planted at `opacity: 0.04` must read under
+ * 3:1, or the run is red. What it cannot read: Foundry's own stylesheet (its fixed button height, its colours), which
+ * is where the owner's two photos came from (Risk 1); that is tier 2's "the panel's tiles in a row are one height and
+ * each icon and label reads in every state" (`needs(env.layout)`, LIVE-E49-06).
+ */
+const PANEL_SIZES = [[1366, 768], [1920, 1080]];
+const PANEL_STATES = ["rest", "current", "disabled", "hover", "focus"];
+
+async function panelRead(page, state, index = -1) {
+    return page.evaluate(async ({ state, index }) => {
+        const parse = c => {
+            const m = String(c).match(/^rgba?\(([^)]+)\)$/), n = String(c).match(/^color\(srgb ([^)]+)\)$/);
+            if (m) { const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p[3] ?? 1]; }
+            if (n) { const p = n[1].split(/[\s/]+/).filter(Boolean).map(Number); return [p[0] * 255, p[1] * 255, p[2] * 255, p[3] ?? 1]; }
+            return [0, 0, 0, 0];
+        };
+        const over = (top, under, alpha = 1) => { const a = top[3] * alpha; return [0, 1, 2].map(i => top[i] * a + under[i] * (1 - a)).concat(1); };
+        const lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+        const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 100) / 100; };
+        const cs = (el, pseudo) => globalThis.getComputedStyle(el, pseudo);
+        const groundUnder = el => {
+            const chain = [];
+            for (let e = el; e; e = e.parentElement) { chain.push(parse(cs(e).backgroundColor)); if (chain.at(-1)[3] >= 1) break; }
+            let g = chain.at(-1)[3] >= 1 ? chain.pop() : [0, 0, 0, 1];
+            while (chain.length) g = over(chain.pop(), g);
+            return g;
+        };
+        const grounds = tile => {
+            const base = groundUnder(tile);
+            const out = [base];
+            for (const stop of String(cs(tile).backgroundImage).match(/rgba?\([^)]+\)/g) ?? []) out.push(over(parse(stop), base));
+            // The glass's lit brush is a `::before` behind the content and over the tile's own ground, `inset` past every
+            // edge: drawn, it IS the ground (stained-glass.css "the brush").
+            const b = cs(tile, "::before"), paint = parse(b.backgroundColor);
+            const covers = String(b.inset).split(/\s+/).every(v => parseFloat(v) <= 0);
+            if (b.content !== "none" && b.display !== "none" && Number(b.opacity) * paint[3] > 0.05) {
+                const lit = over(paint, base, Number(b.opacity));
+                return covers && Number(b.opacity) * paint[3] >= 0.9 ? [lit] : [...out, lit];
+            }
+            return out;
+        };
+        const doc = globalThis.document;
+        for (const d of doc.querySelectorAll("details.drpg-gmp-section")) d.open = true;
+        const tiles = [...doc.querySelectorAll(".drpg-gmp-grid > .drpg-gmp-button")];
+        for (const t of tiles) {
+            t.classList.toggle("is-current", state === "current");
+            t.toggleAttribute("aria-current", state === "current");
+            t.classList.toggle("drpg-disabled", state === "disabled");
+            t.disabled = state === "disabled";
+        }
+        if (state === "focus" && tiles[index]) tiles[index].focus({ focusVisible: true });
+        await new Promise(r => globalThis.requestAnimationFrame(() => globalThis.requestAnimationFrame(r)));
+        const read = tile => {
+            const box = tile.closest(".drpg-gmp-sections")?.getBoundingClientRect() ?? { left: 0, top: 0 };
+            const r0 = tile.getBoundingClientRect(), r = { left: r0.left - box.left, top: r0.top - box.top, width: r0.width, height: r0.height }, label = tile.querySelector(":scope > span"), icon = tile.querySelector(":scope > i");
+            const g = grounds(tile), tileAlpha = Number(cs(tile).opacity);
+            const ink = el => {
+                if (!el) return null;
+                const s = cs(el), masked = s.maskImage && s.maskImage !== "none" || s.webkitMaskImage && s.webkitMaskImage !== "none";
+                return { colour: parse(masked ? s.backgroundColor : s.color), alpha: Number(s.opacity) * tileAlpha };
+            };
+            const worst = p => (p ? Math.min(...g.map(ground => ratio(over(p.colour, ground, p.alpha), ground))) : null);
+            const lr = label?.getBoundingClientRect();
+            return { key: tile.dataset.drpgRun, rect: [r.left, r.top, r.width, r.height].map(v => Math.round(v * 10) / 10),
+                labelOut: lr ? Math.round(Math.max(0, lr.bottom - r0.bottom, r0.top - lr.top, lr.right - r0.right, r0.left - lr.left) * 10) / 10 : null,
+                label: worst(ink(label)), icon: worst(ink(icon)) };
+        };
+        const rows = [];
+        for (const grid of doc.querySelectorAll(".drpg-gmp-grid")) {
+            const by = new Map();
+            for (const t of grid.querySelectorAll(":scope > .drpg-gmp-button")) { const top = Math.round(t.getBoundingClientRect().top); by.set(top, [...(by.get(top) ?? []), t.getBoundingClientRect().height]); }
+            rows.push(...by.values());
+        }
+        const spread = rows.map(hs => Math.round((Math.max(...hs) - Math.min(...hs)) * 10) / 10);
+        return { tiles: index >= 0 ? [read(tiles[index])] : tiles.map(read), count: tiles.length, rows: rows.length, spread: Math.max(0, ...spread) };
+    }, { state, index });
+}
+
+async function panelPass(browser) {
+    const problems = [];
+    const at = (theme, lang) => withTheme(`/audit/style-harness.html?w=gm-panel${lang === "pl" ? "&lang=pl" : ""}`, theme);
+    {
+        const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+        await load(page, at("legacy", "en"));
+        // Foundry's own model: a button of a fixed height does not stretch to its row (Risk 1's suspect), one tile taller.
+        await page.addStyleTag({ content: ".drpg-gmp-grid > .drpg-gmp-button { align-self: start !important; } .drpg-gmp-grid > .drpg-gmp-button:first-child { min-height: 160px !important; }" });
+        const tall = await panelRead(page, "rest");
+        await load(page, at("legacy", "en"));
+        await page.addStyleTag({ content: ".drpg-gmp-button > i { opacity: 0.04 !important; }" });
+        const faint = await panelRead(page, "rest");
+        const lows = faint.tiles.filter(t => t.icon !== null && t.icon < 3).length;
+        console.log(`style-sweep: --panel control (one tile planted 160 px tall): spread ${tall.spread} px ${tall.spread > 1 ? "read" : "NOT read"}; (every icon at 0.04): ${lows} of ${faint.tiles.length} under 3:1 ${lows === faint.tiles.length && lows ? "read" : "NOT read"}`);
+        if (!(tall.spread > 1)) problems.push("control: a tile planted 160 px tall read as no spread");
+        if (!(lows && lows === faint.tiles.length)) problems.push("control: icons planted at opacity 0.04 read at 3:1 or more");
+        await page.close();
+    }
+    for (const [w, h] of PANEL_SIZES) {
+        for (const theme of THEMES) {
+            for (const lang of ["en", "pl"]) {
+                const page = await browser.newPage({ viewport: { width: w, height: h } });
+                const where = `gm-panel ${theme} ${lang} ${w}x${h}`;
+                const bad = [];
+                const states = {};
+                for (const state of PANEL_STATES) {
+                    await load(page, at(theme, lang));
+                    if (state === "hover" || state === "focus") {
+                        const first = await panelRead(page, "rest");
+                        const tiles = [];
+                        for (let i = 0; i < first.count; i++) {
+                            if (state === "hover") {
+                                await page.mouse.move(0, 0);
+                                await page.locator(".drpg-gmp-grid > .drpg-gmp-button").nth(i).hover({ force: true });
+                            }
+                            if (state === "focus") await page.evaluate(i => globalThis.document.querySelectorAll(".drpg-gmp-grid > .drpg-gmp-button")[i]?.focus({ focusVisible: true }), i);
+                            await page.waitForTimeout(250);   // the brush's transition (motion.css --drpg-t-snap and the glass's own)
+                            tiles.push(...(await panelRead(page, state === "focus" ? "focus" : "rest", i)).tiles);
+                        }
+                        states[state] = { ...first, tiles };
+                    } else states[state] = await panelRead(page, state);
+                }
+                const rest = states.rest;
+                if (!rest.count) bad.push("no tile drawn");
+                if (rest.spread > 1) bad.push(`a row's tiles differ by ${rest.spread} px`);
+                for (const t of rest.tiles) if (t.labelOut > 0.5) bad.push(`${t.key}: its label ${t.labelOut} px outside the tile`);
+                for (const state of PANEL_STATES) {
+                    for (const [i, t] of states[state].tiles.entries()) {
+                        const r0 = rest.tiles[i]?.rect ?? [];
+                        if (state !== "rest" && t.rect.some((v, k) => Math.abs(v - r0[k]) > 0.5)) bad.push(`${t.key} ${state}: ${t.rect.join(",")} against ${r0.join(",")} at rest`);
+                        if (t.label !== null && t.label < 4.5) bad.push(`${t.key} ${state}: label ${t.label}:1`);
+                        if (t.icon !== null && t.icon < 3) bad.push(`${t.key} ${state}: icon ${t.icon}:1`);
+                    }
+                }
+                const low = s => ({ label: Math.min(...states[s].tiles.map(t => t.label ?? 99)), icon: Math.min(...states[s].tiles.map(t => t.icon ?? 99)) });
+                console.log(`style-sweep: --panel ${where}: ${rest.count} tiles in ${rest.rows} rows, spread ${rest.spread} px; lowest label/icon ${PANEL_STATES.map(s => `${s} ${low(s).label}/${low(s).icon}`).join(", ")}${bad.length ? ` - RED: ${bad.join("; ")}` : ""}`);
+                problems.push(...bad.map(b => `${where}: ${b}`));
+                await page.close();
+            }
+        }
+    }
+    console.log(`style-sweep: --panel ${problems.length ? `RED, ${problems.length} problem(s)` : "green"}`);
+    return problems.length ? 1 : 0;
+}
+
 async function main() {
     let server = null;
     if (!BASE) {
@@ -732,6 +889,10 @@ async function main() {
         for (let i = 0; i < 50; i++) { try { await fetch(`${BASE}/module.json`); break; } catch { await new Promise(r => setTimeout(r, 100)); } }
     }
     const browser = await chromium.launch(CHROMIUM ? { executablePath: CHROMIUM } : {});
+    if (argv.includes("--panel")) {
+        try { process.exitCode = await panelPass(browser); } finally { await browser.close(); server?.kill(); }
+        return;
+    }
     if (argv.includes("--details")) {
         try { process.exitCode = await detailsPass(browser); } finally { await browser.close(); server?.kill(); }
         return;

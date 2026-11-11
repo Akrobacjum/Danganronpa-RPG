@@ -44295,7 +44295,7 @@ const INVARIANTS = [
             stableJson({ incident: [false, null, null], none: [true, reason, reason], day: [false, null, null] }),
             "{incident: an Eclipse with an incident; none: an Eclipse with none; day: neither} each [the tile disabled, its title, the text its aria-describedby names]");
     }],
-    ["R2061 - a GM panel tile that cannot be pressed is drawn so in both themes - a dashed edge, its icon dimmed, its reason in aria-describedby - and the phase's tile is current with the pressed look (E47-C3; audit S10-64)", async () => {
+    ["R2061 - a GM panel tile that cannot be pressed is drawn so in both themes - a dashed edge, its ink dimmed and the icon in it, its reason in aria-describedby - and the phase's tile is current with the pressed look (E47-C3; audit S10-64)", async () => {
         /*
          * E47-C3, 09.11.2026; audit S10-64. A disabled tile was only faded (Legacy) or dashed by the glass's shared button
          * rule, its reason in `title` alone; no tile said which one the table was on. Read: the tiles marked current in
@@ -44333,17 +44333,18 @@ const INVARIANTS = [
             const said = murder?.getAttribute("aria-describedby");
             return {
                 disabled: Boolean(murder?.disabled), said: said ? inner.querySelector(`[id="${said}"]`)?.textContent?.trim() ?? "no element" : null,
-                edge: v(murder, ["border", "border-style"]), icon: v(murder?.querySelector("i"), "opacity"),
+                edge: v(murder, ["border", "border-style"]), icon: [v(murder?.querySelector("i"), "color"), v(murder?.querySelector("i"), "opacity")],
                 current: theme.includes("legacy") ? [v(current, ["background", "background-color"]), v(current, ["border", "border-color"]), v(current, "color")] : [v(current, "--brush-on"), v(current, "--brush-ink")]
             };
         };
         const reason = game.i18n.localize("DRPG.Eclipse.panelLocked");
         const sheet = "styles/components.css";
-        const both = { disabled: true, said: reason, edge: `dashed | ${sheet}`, icon: `0.45 | ${sheet}` };
+        // The icon wears the label's ink at full opacity since E49 A3 (it was dimmed to 0.45 by its own rule): its colour and opacity.
+        const both = { disabled: true, said: reason, edge: `dashed | ${sheet}`, icon: [`inherit | ${sheet}`, `1 | ${sheet}`] };
         equal(stableJson({ legacy: read("drpg-theme-monokuma-legacy"), glass: read("drpg-theme-stained-glass") }), stableJson({
             legacy: { ...both, current: [`var(--drpg-kit-btn-on-bg) | ${sheet}`, `var(--drpg-kit-btn-on-edge) | ${sheet}`, `var(--drpg-kit-btn-on-ink) | ${sheet}`] },
             glass: { ...both, current: [`1 | ${sheet}`, `var(--drpg-sg-ink) | ${sheet}`] }
-        }), "{per theme: the Murder tile disabled, the text its aria-describedby names, its edge's style (the winning value | its sheet), its icon's opacity, "
+        }), "{per theme: the Murder tile disabled, the text its aria-describedby names, its edge's style (the winning value | its sheet), its icon's colour and opacity, "
             + "a current tile's look (Legacy: ground, edge, ink; Stained Glass: the brush on, its ink)}");
     }],
     ["R2062 - the GM panel's tiles hold their content centred in both themes: icon and label in a row centred across it under Legacy, stacked and centred along it under Stained Glass (E47-C3; the owner's 27.09)", async () => {
