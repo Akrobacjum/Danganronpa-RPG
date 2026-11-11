@@ -725,8 +725,17 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
            counts the first Hand and the bound Shadow (handover.mjs `lootRollsBound`): the rope is taken, the GMs' bound Hand is the
            first, the Remnant reads its band, and the answer says the Take counted an earlier roll. */
         phase("L18: p1's console throws a Take's Hand three times and sends the best, with no cover", { flow: "give-take-stash" });
+        /* L16'S TRACE, WAITED FOR (E49, 11.11.2026; CI run 42980121411 at d8fa9304, red once). L16's road ends when the lockpick
+           has left the body on p3, and the primary lays that Take's trace only after the move (handover.mjs `lootBody`:
+           `lootOne`, then `markBodyDisturbed`), so this setup could read no row yet, take nothing away and have L16's trace
+           laid a moment later at Chie's band - and L18's Take then only raised it (`plainer`), so the Remnant read L16's band,
+           not the first Hand's. Measured with the L16 trace's token held back 3000 ms on the GM and Chie's Hand at 16: the row
+           was null here, and "the Remnant reads its band" read subtle for a hidden band. The row is waited for, holding
+           the lockpick, and named in the check (`laid`). */
         const l18Set = await gm.eval(`const S = await import("${SCRIPT("gm-stores")}"), R = await import("${SCRIPT("remnants")}"), INV = await import("${SCRIPT("inventory")}");
-            const row = S.lootTraceStore.get("${ids.daichi}");
+            const laidBy = Date.now() + 15000;
+            while (!S.lootTraceStore.get("${ids.daichi}")?.taken?.includes("${E35} lockpick") && Date.now() < laidBy) await new Promise(r => setTimeout(r, 100));
+            const row = S.lootTraceStore.get("${ids.daichi}"), laid = Boolean(row?.tokenId);
             const trace = row?.tokenId ? game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null : null;
             if (trace) { try { await R.dropRemnantSecret(trace); } catch { } try { await trace.delete(); } catch { } }
             if (S.lootTraceStore.has("${ids.daichi}")) await S.lootTraceStore.drop("${ids.daichi}");
@@ -734,7 +743,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
             const rope = await INV.grantItem(game.actors.get("${ids.daichi}"), { name: "${E35} rope", category: "tool", tier: 1, override: true, quiet: true });
             await (await import("${SCRIPT("sheet-audit")}")).sheetAuditIdle();
             globalThis.drpg83l18 = new Set(game.messages.contents.map(m => m.id));
-            return { rope: rope?.id ?? null, cleared: !S.lootTraceStore.has("${ids.daichi}") };`, { timeout: 30000 });
+            return { rope: rope?.id ?? null, laid, cleared: !S.lootTraceStore.has("${ids.daichi}") };`, { timeout: 45000 });
         await settle(500);
         const THROW = `const { rollTrait } = await import("${SCRIPT("action-rolls")}"), { LOOT } = await import("${SCRIPT("config")}");
             const B = await import("${SCRIPT("gm-bridge")}");
@@ -772,17 +781,22 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
             return { shadow: Boolean(shadow), again: shadow ? await take(null, null) : null };`, { timeout: 120000 });
         await settle(800);
         const hands18 = l18.hands ?? [];
+        /* Each Hand's band as the primary reads it, its critical with its total (E49, 11.11.2026): a critical lays the trace
+           at `LOOT.top` whatever its total (handover.mjs `lootVisibilityOf`), and the band here was read with `isCritical:
+           false`, so a first Hand of 2 and 2 (17 at Hand 13, a critical) read subtle where the Remnant rightly reads hidden.
+           Its dice fell so by chance in one run here (a first Hand of 17, critical), and with the GM's faces held at 1 it was
+           red: three Hands of 15, critical, the bands subtle, the Remnant hidden. */
         const l18Read = await gm.eval(`const S = await import("${SCRIPT("gm-stores")}"), H = await import("${SCRIPT("handover")}");
             const row = S.lootTraceStore.get("${ids.daichi}");
             delete globalThis.drpg83l18;
             const bound = typeof H.lootRollsBound === "function" ? await H.lootRollsBound("${aiko}", "${ids.daichi}") : null;
             return { after: bound ? { loot: bound.loot?.messageId ?? null, cover: Boolean(bound.lootCover) } : null, vis: row?.tokenId ? S.remnantStore.get(row.sceneId + "." + row.tokenId)?.visibility ?? null : null,
                 rope: game.actors.get("${aiko}").items.some(i => i.name === "${E35} rope"),
-                bands: ${J(hands18.map(h => h?.total ?? null))}.map(t => t === null ? null : H.lootVisibilityOf({ total: t, isCritical: false })) };`,
+                bands: ${J(hands18.map(h => h ? { total: h.total, isCritical: h.isCritical === true } : null))}.map(h => h === null ? null : H.lootVisibilityOf(h)) };`,
             { timeout: 30000 });
         const bandsOf = l18Read.bands;
         check("L18 (body): a Take's Hand naming no body is refused, and a Hand and a Shadow thrown for Botan settle no Take of Daichi",
-            Boolean(l18Set.rope) && l18Set.cleared && l18.bodiless === null && Boolean(l18.atBotan) && l18.viaBotan?.ok === false
+            Boolean(l18Set.rope) && l18Set.laid && l18Set.cleared && l18.bodiless === null && Boolean(l18.atBotan) && l18.viaBotan?.ok === false
             && l18.coverAtBotan && l18.coverViaBotan?.ok === false, J({ l18Set, l18 }));
         check("L18 (cover): with Botan and Chie in the room, the best Hand sent with no Shadow moves nothing and asks for the cover, and no card judges it a miss",
             l18.noCover?.ok === true && l18.noCover?.coverNeeded === true && l18Mid.onBody === true && l18Mid.cards === 0, J({ noCover: l18.noCover, l18Mid }));
