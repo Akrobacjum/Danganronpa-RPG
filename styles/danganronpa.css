@@ -5365,9 +5365,10 @@ body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]:focus-vis
 /* Beside its caption in a label (`.drpg-panel label` is a flex row), the field takes what the caption leaves rather than
    the label's whole width: at `width: 100%` the caption gave way to it and broke onto two lines ("Campaign / name" in Set
    the season up, "Opis dla / gracza" in Investigation's final key under Legacy PL; the sweep's shots, 1366x768), and
-   each field started where its caption happened to end. A column label (`.drpg-trait-how`, `.drpg-specific-note`)
-   stretches it across instead, as before. */
-.drpg-panel label > :is(textarea, input:is([type="text"], [type="search"], [type="email"], [type="url"], :not([type]))) {
+   each field started where its caption happened to end. A label laid out as a column (`.drpg-specific-note`,
+   `.drpg-trait-how`, `.drpg-trait-field`: the caption over the field) keeps its field at 100 %, as E68 and E47-FD drew
+   it (R3139 read `auto` there while the first cut of this rule took every label). */
+.drpg-panel label:not(.drpg-specific-note, .drpg-trait-how, .drpg-trait-field) > :is(textarea, input:is([type="text"], [type="search"], [type="email"], [type="url"], :not([type]))) {
     flex: 1 1 auto;
     width: auto;
 }
