@@ -459,7 +459,7 @@ body {
        is from its bottom line to the chat's top - 102.88 px under Stained Glass, 110.64
        under Monokuma Legacy - and where anything that stands over the corner starts: the
        edge, that height, 8 px, and the camera dock's lift. The GM's roster sits on the foot
-       here (messenger.css). The A7 design has the narrow layout's notice stack take the
+       here (base.css; messenger.css until E49 B3). The A7 design has the narrow layout's notice stack take the
        foot in C13, E18, E23, E49 and E55 read both without rewriting them. E77 (1.2.76, its
        C6) put the GM's and Foundry tools' buttons in the cells over settings and the
        handbooks on a row of their own (`--drpg-launch-u-bottom`, above) and left these two
@@ -7356,6 +7356,17 @@ body.drpg-pixel-font .drpg-safeword-button {
     opacity: 0.8;
 }
 
+/* SAVE IS THE DEFAULT, AND LOOKS IT (S11-48, E49 B3). It wore the same pale ground as "Use the template" beside
+   it (and under Stained Glass the same dark plate), so the one press that keeps the note read as one choice of
+   two. Bone, Ink words, as a window's primary button in this theme; Stained Glass gives it its full brush. Two
+   classes, so it outweighs `.drpg-messenger button`'s colour above. */
+.drpg-messenger .drpg-messenger-note-save {
+    border-color: var(--drpg-bone);
+    background: var(--drpg-bone);
+    color: var(--drpg-ink);
+    font-weight: 600;
+}
+
 /* ==========================================================================
    NO DAMAGE, NO HEALING, NO RELOAD
    --------------------------------------------------------------------------
@@ -7448,8 +7459,8 @@ body.drpg-pixel-font .drpg-safeword-button {
 
 /* Bigger, and off the corner. 44px was a comfortable target only if you never
    missed, and this is a control a player reaches for mid-scene.
-   #drpg-messenger-launcher is overridden in messenger.css, which the manifest
-   loads after this file - see the end of that stylesheet. */
+   #drpg-messenger-launcher's place is base.css's (messenger.css until E49 B3, which loaded after this
+   file); its size is this file's, below, with `!important`. */
 
 /* The safeword, bottom-left of the sheet - same reasoning, same margin. */
 .drpg-safeword-button {
@@ -11761,10 +11772,12 @@ body.drpg-stacked .application.sheet.actor.character {
 /* Buttons do not inherit `color` from their container, so they need saying
    again - this is the rgb(231, 209, 177) the GM panel was measured at. Headings
    are the same story: Foundry gives `h1`–`h4` their own colour, so a panel whose
-   body had been cooled still had one warm line across the top of it. */
+   body had been cooled still had one warm line across the top of it.
+   The messenger's send button is not one of them (E49 B3): its colour is base.css's, which loads before this
+   sheet and won the tie by order while it was messenger.css, after it; `:where` keeps this rule's weight. */
 .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button),
 .drpg-gm-panel .drpg-gmp-button,
-.drpg-messenger button,
+.drpg-messenger button:not(:where(.drpg-messenger-input button)),
 .drpg-panel h1, .drpg-panel h2, .drpg-panel h3, .drpg-panel h4,
 .drpg-gm-panel h1, .drpg-gm-panel h2, .drpg-gm-panel h3, .drpg-gm-panel h4 {
     color: var(--drpg-bone);
@@ -12487,12 +12500,20 @@ body.drpg-theme-monokuma-legacy #countdowns .countdown-tools {
    than before, not louder. Which ink a table cell inherits in the dashboard was
    not measured: the harness draws no CSS, and a table at a real client is where
    to look (`.dialog-form .notes` already takes the dim ink outside a table). */
+/* BONE-DIM, NOT DIM, IN A ROW (E49 B6, 11.11.2026). The table's row lays a 0.04 Bone tint over the Ink, and
+   `--drpg-dim` on it read 4.28:1 at 11 px under Monokuma Legacy (style-sweep --selected, the investigation
+   window's trace row picked, Chromium at 1366x768): under AA. `--drpg-bone-dim` reads 5.2:1 on the same ground.
+   High contrast keeps its raise: that palette lifts `--drpg-dim`, not this, so it is named again there. */
 .drpg-trace-context {
     display: block;
     margin-top: 2px;
     font-size: var(--drpg-text-xs, 0.7rem);
-    color: var(--drpg-dim);
+    color: var(--drpg-bone-dim);
     overflow-wrap: anywhere;
+}
+
+body.drpg-high-contrast .drpg-trace-context {
+    color: var(--drpg-dim);
 }
 
 /* "Put a track on now", above the state-to-playlist table it does not belong
@@ -13221,9 +13242,15 @@ body.drpg-reduced-motion #drpg-messenger-roster {
 }
 body.drpg-reduced-motion #drpg-messenger-roster.leaving { opacity: 0; }
 
+/* THE EDGE AND THE GLYPH ARE base.css's (E49 B3, 11.11.2026; S11-48). This rule gave the button and the
+   roster `border-color: var(--drpg-line-strong)` and the button `color: var(--drpg-bone)`, and neither was
+   ever drawn: messenger.css loaded after this sheet and its `border: 1px solid var(--drpg-eye)` and
+   `color: var(--drpg-eye)` won the tie by order (Chromium on the glass harness, 1366x768, both themes: the
+   button's glyph and the roster's edge rgb(224, 24, 47)). With the messenger's rules moved into base.css,
+   which loads before the themes, the two dead lines would have started to win; they are gone, and what the
+   screen showed stays. */
 #drpg-messenger-launcher,
 #drpg-messenger-roster {
-    border-color: var(--drpg-line-strong);
     border-radius: var(--drpg-panel-radius, 4px);
 }
 
@@ -13231,7 +13258,6 @@ body.drpg-reduced-motion #drpg-messenger-roster.leaving { opacity: 0; }
     /* The one round thing in the module, and it stays round: it is a button
        floating over the map, not a panel. */
     border-radius: 50%;
-    color: var(--drpg-bone);
 }
 
 /* The backstory box, in place of the system's editor. `!important` on the
@@ -13830,9 +13856,15 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
     font-size: var(--drpg-text-xs);
 }
 
-.drpg-messenger-author,
-.drpg-messenger-time {
+.drpg-messenger-author {
     font-size: var(--drpg-text-xs);
+}
+
+/* At least 11 px (S11-48, E49 B3): `--drpg-text-xs` is 0.6875rem with a 10 px floor, and at a 13 px root that
+   is 8.94 px - the "about 9 px" the audit read. The time takes the module's 11 px floor, as the item windows'
+   steps did (their rule below, E47). */
+.drpg-messenger-time {
+    font-size: max(11px, var(--drpg-text-xs));
 }
 
 /* The GM's buttons on a ruling card: the module's red route, sized to a

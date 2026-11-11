@@ -3585,7 +3585,7 @@ const REGRESSIONS = [
          * pause caption, whose container is the viewport), and a literal inside a
          * `calc()` that carries the factor.
          */
-        const sheets = ["danganronpa.css", "messenger.css"];
+        const sheets = ["danganronpa.css", "base.css"];
         const bad = [];
         let factored = 0;
         let clamped = 0;
@@ -3701,7 +3701,7 @@ const REGRESSIONS = [
             ok(apply.includes(token), `${token} stopped being published - three factors, three writes`);
         }
 
-        for (const sheet of ["danganronpa.css", "messenger.css"]) {
+        for (const sheet of ["danganronpa.css", "base.css"]) {
             const css = await fetch(`/modules/${MODULE_ID}/styles/${sheet}`).then(lfText);
             ok(!css.includes("var(--drpg-type-scale"),
                 `${sheet} reads the screen-term factor, which has no business in a sheet drawn at one size`);

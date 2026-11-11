@@ -24621,7 +24621,7 @@ const INVARIANTS = [
         ]), "[the bar's winning font-size and its sheet under Legacy, Legacy with the pixel face and Stained Glass; the module's floor token; "
             + "the body's discovery posted as an objection with its title before the banner; the title's key]");
     }],
-    ["R849 - in the messenger the bubbles take their ground, rule, corners and type from the theme's sheets and none from messenger.css, a card's buttons are at least the small text and 28 px tall, and E81's messenger button and roster keep their places from messenger.css, in both themes (E18 C6; S12-28, S11-24)", async () => {
+    ["R849 - in the messenger the bubbles take their ground, rule, corners and type from the theme's sheets and none from base.css (messenger.css until E49 B3), a card's buttons are at least the small text and 28 px tall, and E81's messenger button and roster keep their places from base.css, in both themes (E18 C6; S12-28, S11-24)", async () => {
         /*
          * E18 C6, 20.10.2026; audit S12-28 and S11-24 (E18-26, E18-27). messenger.css loads after danganronpa.css and
          * stated the bubbles' ground, rule, corners and type at the same weight, so the later file won: the GM's bubbles
@@ -24632,7 +24632,7 @@ const INVARIANTS = [
          * player's, a GM's, a ruling card - the sheet the winning ground, rule, corners and type come from, the author
          * line's, the time's and a ruling card's heading's type; a card button's type and height; and the sheet the
          * button's `bottom` and the roster's `bottom`, `right` and `max-height` come from - E81's places, which the
-         * owner's amend of 11.10 keeps in messenger.css (R474, R299 (a), (c) read where they put them). Under Stained
+         * owner's amend of 11.10 keeps in messenger.css, base.css since E49 B3 (R474, R299 (a), (c) read where they put them). Under Stained
          * Glass a window's buttons are as tall as `calc(28px * var(--drpg-sg-scale))`, and that factor carries the
          * screen's term and the slider (settings.mjs `typeScale`: under 1 at 1080p), so a card button keeps 28 px as its
          * floor. And that theme states its bubbles' type and a ruling card's heading's at its floor: they had it through
@@ -24672,7 +24672,7 @@ const INVARIANTS = [
             bubbles.places = [from(launcher, "bottom"), from(roster, "bottom"), from(roster, "right"), from(roster, "max-height")];
             return bubbles;
         };
-        const D = "danganronpa.css", SG = "stained-glass.css", M = "messenger.css";
+        const D = "danganronpa.css", SG = "stained-glass.css", M = "base.css";
         equal(stableJson([read("drpg-theme-monokuma-legacy"), read("drpg-theme-stained-glass")]), stableJson([{
             mine: [D, D, D, D, D, D, null], player: [D, D, D, D, D, D, null], gm: [D, D, D, D, D, D, null], action: [D, D, D, D, null, D, D],
             button: ["var(--drpg-text-sm)", "28px"], places: [M, M, M, M]
@@ -24681,6 +24681,53 @@ const INVARIANTS = [
             button: ["max(var(--drpg-text-sm), var(--drpg-sg-floor))", "max(28px, calc(28px * var(--drpg-sg-scale)))"], places: [M, M, SG, M]
         }]), "[Legacy, then Stained Glass: per bubble the sheet of its ground, rule, corners, type, author line, time and heading; a card button's "
             + "font-size and min-height; the sheet of the messenger button's bottom and the roster's bottom, right and max-height]");
+    }],
+    ["R3490 - the messenger's sheet loads before the themes, and in it a card's lines run at 1.35, a bubble's time takes an 11 px floor, the log fades under the tabs rather than cutting the first card, and the note's Save is drawn as its default, in both themes (E49 B3; S11-48)", async () => {
+        /*
+         * E49 B3, 11.11.2026; audit S11-48 ("double line spacing, times about 9 px, the first card cut under the tabs,
+         * Save not the default"). messenger.css loaded after both themes and won ties by order; its rules are base.css's
+         * now, first in module.json, so a theme states a look at the same weight and wins (R849 reads the bubbles and the
+         * places there). The four lines, read by the sheets' cascade (`styleCascade`) on a messenger window built on a
+         * body of its own per theme, as R849 builds it: the winning `line-height` of a bubble's text (1.35; the bubble's
+         * 1.5 was inherited), the `font-size` of its time (`--drpg-text-xs` alone is 0.6875rem, 8.94 px at a 13 px root:
+         * read in Chromium on the glass harness, both themes, before this commit; 11 px after), the log's `mask-image`
+         * (a fade over its top padding, which moves nothing) and the note's Save against "Use the template" beside it:
+         * the ground and words under Monokuma Legacy, and under Stained Glass the brush (`--brush-on`) and its ink.
+         * Red on d70d8569's sheets: base.css not in the manifest, no line height, the time `var(--drpg-text-xs)`, no
+         * mask, and Save the template's pale ground with the brush off.
+         */
+        const C = await styleCascade();
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const el = (tag, className, parent) => {
+            const node = document.createElement(tag);
+            if (className) node.className = className;
+            parent?.append(node);
+            return node;
+        };
+        const value = (node, names) => C.winner(node, names)?.value ?? null;
+        const read = theme => {
+            const html = document.createElement("html"), body = el("body", theme);
+            html.append(body);
+            const root = el("div", "drpg-messenger-body", el("div", "window-content", el("div", "application drpg-messenger", body)));
+            const log = el("div", "drpg-messenger-log", root);
+            const bubble = el("div", "drpg-messenger-bubble mine", log);
+            const text = el("div", "drpg-messenger-text", bubble), time = el("div", "drpg-messenger-time", bubble);
+            const actions = el("div", "drpg-messenger-note-actions", el("div", "drpg-messenger-note", root));
+            const template = el("button", "drpg-messenger-note-template", actions), save = el("button", "drpg-messenger-note-save", actions);
+            const face = node => theme === "drpg-theme-stained-glass"
+                ? [value(node, "--brush-on"), value(node, "--brush-ink")]
+                : [value(node, ["background", "background-color"]), value(node, "color")];
+            return { line: value(text, "line-height"), time: value(time, "font-size"), mask: value(log, ["mask", "mask-image"]),
+                save: face(save), template: face(template) };
+        };
+        const styles = manifest.styles ?? [];
+        equal(stableJson({ first: styles[0] ?? null, legacy: read("drpg-theme-monokuma-legacy"), glass: read("drpg-theme-stained-glass") }), stableJson({
+            first: "styles/base.css",
+            legacy: { line: "1.35", time: "max(11px, var(--drpg-text-xs))", mask: "linear-gradient(to bottom, transparent 0, #000 0.6rem)",
+                save: ["var(--drpg-bone)", "var(--drpg-ink)"], template: ["none", "var(--drpg-bone)"] },
+            glass: { line: "1.35", time: "max(11px, var(--drpg-text-xs))", mask: "linear-gradient(to bottom, transparent 0, #000 0.6rem)",
+                save: ["1", "var(--drpg-sg-ink)"], template: [null, null] }
+        }), "[the manifest's first sheet; per theme the text's line height, the time's size, the log's mask, Save's face and the template's]");
     }],
     ["R850 - the time on a messenger bubble is written in the language this page was built in, not the browser's and not Foundry's (E18 C6; S11-61; E66 C1, E66-05)", async () => {
         /*

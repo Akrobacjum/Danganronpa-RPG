@@ -903,6 +903,12 @@ body.drpg-theme-stained-glass :is(.drpg-panel button,
     --brush-edge: var(--brush);
 }
 body.drpg-theme-stained-glass .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button):is(.default, [autofocus]) { --brush: var(--drpg-sg-bone); }
+/* The messenger's note: Save is its default (S11-48, E49 B3), the full brush and Ink words, as a panel's default. */
+body.drpg-theme-stained-glass .drpg-messenger .drpg-messenger-note-save {
+    --brush-on: 1;
+    --brush-ink: var(--drpg-sg-ink);
+    --brush-edge: var(--brush);
+}
 /* pressed: the brush darkened */
 body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-gmp-button, .drpg-mini-button,
     .application.sheet.actor :is(button, li.inventory-item, nav.tabs > a, .tabs > a):not(:where(.header-control, .drpg-action-button, .drpg-call-button))):active:not(:disabled) {
@@ -1196,7 +1202,7 @@ body.drpg-theme-stained-glass #drpg-book-launcher {
     right: calc(var(--drpg-edge) + var(--drpg-launch-clear, 0px));
 }
 
-/* AND THE ROSTER GOES WITH ITS BUTTON. Its right edge is the messenger's (messenger.css),
+/* AND THE ROSTER GOES WITH ITS BUTTON. Its right edge is the messenger's (base.css),
    which stopped being the whole story the moment the button could move: without the
    clearance the panel would open a rail's width to the right of the button it came from. */
 body.drpg-theme-stained-glass #drpg-messenger-roster {
