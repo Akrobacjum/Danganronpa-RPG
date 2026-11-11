@@ -8,6 +8,8 @@ import { viewedScene, placeScenes, roomNames } from "./rooms.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
 import { cardMarkup, chatCard } from "./chat-card.mjs";
+// A card's warning line, for the procedures that take utils.mjs alone (steps.mjs, R161).
+export { cardWarn } from "./chat-card.mjs";
 
 /**
  * Escape a value for HTML, treating null and undefined as empty (C3).

@@ -24,6 +24,8 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
+// The card as markup (E49 B5a fix): `ctx.whisper`, the caller's own poster where one is handed in, takes markup.
+import { chatCard } from "./chat-card.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { warn, error, esc, whisperToGms, primaryGmId } from "./utils.mjs";
 import { isMoveChange, levelOf, onLevel, isPlaceScene } from "./rooms.mjs";
@@ -321,7 +323,7 @@ export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {
                 ledger.told.set(told, now);
                 const said = game.i18n.format("DRPG.Movement.ruleSentBack", { name: actor.name ?? tokenDoc.name ?? "",
                     room: refused.room ?? game.i18n.localize("DRPG.Movement.outsideRooms"), scene: scene.name ?? "" });
-                (ctx.whisper ?? whisperToGms)({ tone: "warning", body: `<p data-drpg-rule="${esc(tokenDoc.id)}">${esc(said)}</p><p>${esc(refused.reason ?? "")}</p>` })
+                (ctx.whisper ?? whisperToGms)(chatCard({ tone: "warning", body: `<p data-drpg-rule="${esc(tokenDoc.id)}">${esc(said)}</p><p>${esc(refused.reason ?? "")}</p>` }))
                     ?.catch?.(err => error("Could not tell the GMs of a token the rules sent back", err));
             }
             // `back`: the GMs' sighting becomes it at once, as a wall's put-back's does (movement.mjs `noteGmPosition`).
@@ -398,7 +400,7 @@ export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {
             ledger.told.set(told, now);
             const name = actor.name ?? tokenDoc.name ?? "";
             const said = game.i18n.format(floor ? "DRPG.Movement.floorJumped" : "DRPG.Movement.wallCrossed", { name, scene: scene.name ?? "" });
-            (ctx.whisper ?? whisperToGms)({ tone: "warning", body: `<p data-drpg-wall="${esc(tokenDoc.id)}">${esc(said)}</p>` })
+            (ctx.whisper ?? whisperToGms)(chatCard({ tone: "warning", body: `<p data-drpg-wall="${esc(tokenDoc.id)}">${esc(said)}</p>` }))
                 ?.catch?.(err => error("Could not tell the GMs of a token sent back through a wall", err));
         }
         // `back`: where the token is sent, which the GMs' sighting becomes at once (movement.mjs `noteGmPosition`).

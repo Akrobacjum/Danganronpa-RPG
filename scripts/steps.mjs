@@ -36,8 +36,7 @@
  * each procedure hands `stepsReport` its own keys and labels (R1250, R1251).
  */
 
-import { error, listOf } from "./utils.mjs";
-import { cardWarn } from "./chat-card.mjs";
+import { error, listOf, cardWarn } from "./utils.mjs";
 
 /**
  * Run `steps` in order over `record` (the procedure's own: `{ done: [key], failed: [key], ... }`). Each step is
