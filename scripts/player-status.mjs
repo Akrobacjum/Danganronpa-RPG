@@ -25,7 +25,7 @@ import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";   // hasFr
 import { isEclipse, movesLeft as eclipseMovesLeft, movesUsed as eclipseMovesUsed, eclipseAllowance } from "./eclipse.mjs";
 import { hopeHeld } from "./calls.mjs";
 import { isMonokuma, actingStudents } from "./monokuma.mjs";
-import { sheetMode } from "./sheet.mjs";
+import { sheetMode, moveSlots, moveFeetHtml, moveLegend } from "./sheet.mjs";
 import { matchStripToDespair, viewerActor } from "./hud.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 import { error, plural, markLanguage } from "./utils.mjs";
@@ -375,10 +375,11 @@ function safeRow(build) {
  */
 export function eclipseMoveRow(moves) {
     if (moves === null) {   // free placement: one full foot, anywhere
-        return { available: true, feet: 1, solid: true, tooltip: game.i18n.localize("DRPG.Actions.eclipseFreePlacement") };
+        return { available: true, feet: 2, solid: true, tooltip: game.i18n.localize("DRPG.Actions.eclipseFreePlacement") };
     }
     const n = Math.max(0, Number(moves) || 0);
-    return { available: n > 0, feet: Math.max(n, 1), solid: n > 0, tooltip: plural("DRPG.Actions.eclipseMovesLeft", { n }) };
+    // Two feet whatever is left (E49 B2: sheet.mjs `moveSlots`; until then one per crossing left, one outlined at none).
+    return { available: n > 0, feet: 2, solid: n > 0, tooltip: plural("DRPG.Actions.eclipseMovesLeft", { n }) };
 }
 
 /**
@@ -466,8 +467,8 @@ export function buildPlayerView(actor = statusActor(), options = {}) {
             return row;
         }),
 
-        // The sheet marks the free Move with a footprint rather than a pip,
-        // because there is only ever one of it - so this does too.
+        // The sheet marks the Move with footprints rather than pips, and since E49 B2 with the same two feet in the same
+        // places as the sheet (sheet.mjs `moveSlots`): the free Move, and the Eclipse's second crossing, dimmed outside one.
         safeRow(() => {
             const foot = document.createElement("span");
             if (eclipse) {
@@ -492,10 +493,10 @@ export function buildPlayerView(actor = statusActor(), options = {}) {
                 // Crossings still available are solid; with none left the row
                 // keeps one outlined footprint rather than emptying itself, so
                 // there is still something there saying what it is.
-                foot.innerHTML = Array.from({ length: shown.feet },
-                    () => `<i class="fa-${shown.solid ? "solid" : "regular"} fa-shoe-prints" inert></i>`).join("");
+                // Two feet, each lit or spent (E49 B2): the row keeps its length whatever is left.
+                foot.innerHTML = moveFeetHtml(moveSlots({ eclipse: true, moves }));
                 const row = marks("is-move", game.i18n.localize("DRPG.Move.title"), foot, null, !shown.available);
-                row.dataset.tooltip = shown.tooltip;
+                row.dataset.tooltip = `${shown.tooltip}. ${moveLegend()}`;
                 return row;
             }
             const free = hasFreeMove(actor);
@@ -503,10 +504,12 @@ export function buildPlayerView(actor = statusActor(), options = {}) {
             foot.className = `drpg-status-pips drpg-free-move ${
                 free ? "available" : "spent"}`;
             markSpent(foot, wentOut);
-            foot.innerHTML = `<i class="fa-${free ? "solid" : "regular"} fa-shoe-prints" inert></i>`;
-            return marks("is-move", game.i18n.localize("DRPG.Move.title"), foot,
+            foot.innerHTML = moveFeetHtml(moveSlots({ eclipse: false, free }));
+            const row = marks("is-move", game.i18n.localize("DRPG.Move.title"), foot,
                 free ? "DRPG.Actions.freeMoveAvailable" : "DRPG.Actions.freeMoveSpent",
                 !free);
+            row.dataset.tooltip = `${row.dataset.tooltip} ${moveLegend()}`;
+            return row;
         }),
 
         // Hope is shown to the living and to Monocubs, and to nobody else.

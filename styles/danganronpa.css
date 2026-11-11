@@ -4207,7 +4207,8 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 }
 
 .drpg-rules-panel {
-    padding: 4px 2px;
+    /* the Actions panel's own (E49 B2, S03-39 and S12-67: the Rules tab's text stood at the tab's edge, 4px 2px) */
+    padding: 0.5rem;
 }
 
 .drpg-rules-list {
@@ -11294,6 +11295,26 @@ body.drpg-stacked .application.sheet.actor.character {
 #drpg-player-status .drpg-free-move i + i {
     margin-left: 2px;
 }
+
+/* THE MOVE'S TWO FEET (E49 B2; sheet.mjs `moveSlots`): the second is the Eclipse's, in its colour, on the sheet and the
+   strip alike; outside an Eclipse it is drawn dimmed, so the row never changes its length. */
+.drpg-free-move .drpg-move-slot + .drpg-move-slot { margin-left: 2px; }
+.drpg-free-move .drpg-move-slot[data-drpg-slot="eclipse"] { color: var(--drpg-phase-eclipse); }
+/* spent and off read apart from a lit foot whatever the glyph: under the glass the pixel foot is one drawing in both
+   weights, and Chromium drew "1 left" as two lit feet before these two lines */
+.drpg-free-move .drpg-move-slot[data-drpg-state="spent"] { opacity: 0.5; }
+.drpg-free-move .drpg-move-slot[data-drpg-state="off"] { opacity: 0.28; }
+
+/* THE NAME ROW'S CAPTIONS (E49 B2, S03-31; sheet.mjs `headerButton`): Level Up's and Give / take's words beside the
+   icon, and the Stop's "Safeword" before the table's word. */
+.character-header-sheet .name-row .drpg-advance-button .drpg-header-caption {
+    margin-left: 0.35em;
+    font-size: 0.8em;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+.drpg-safeword-button .drpg-safeword-caption { opacity: 0.8; }
 
 /* And a pixel down, because the ink sits high in a box that is already right.
    --------------------------------------------------------------------------

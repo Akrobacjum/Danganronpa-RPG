@@ -1242,7 +1242,11 @@ export const WINDOW_WIDTHS = Object.freeze({
     // E46-C1 (09.11.2026), for E47: the murder tracker's 520 px at the root's 16 px (E47-C2), and the trial console's
     // fixed width (E47-C1; S12-51 and S04-38: it jumped with its content). Each window that states one loses `fit`.
     tracker: Object.freeze({ cls: "drpg-kit-width-tracker", rem: 32.5, legacy: true }),
-    console: Object.freeze({ cls: "drpg-kit-width-console", rem: 44, legacy: true })
+    console: Object.freeze({ cls: "drpg-kit-width-console", rem: 44, legacy: true }),
+    // E49 B2 (11.11.2026; S12-90): a Call's window, Hope's or Despair's, at 580 px at the root's 16 px. Under Stained
+    // Glass the popup rule is `fit-content` from 544 px, so two Calls opened 544 and 578 px wide (the finding; 544 and
+    // 678 read on two bodies in Chromium at 1366x768) and the footer's buttons moved between them.
+    call: Object.freeze({ cls: "drpg-kit-width-call", rem: 36.25, legacy: true })
 });
 
 /** The class of every kit window that states its width (`width`), beside its name's `cls`: the popup width rules leave
