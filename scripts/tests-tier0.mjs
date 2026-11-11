@@ -22363,6 +22363,33 @@ const REGRESSIONS = [
             "[per action: one toggle and one box, fact lines outside the box, any inside, All thresholds or <details>, the toggle's and box's ARIA, a hidden line in the box; "
             + "Observe's sub-heading and its ladders in the box; Analyze's stacked layers; a bound <li>; Tamper's watched line kept on top; the keys]");
     }],
+    ["R3350 - Details holds its place in the stylesheets (styles/danganronpa.css and components.css, E49 A8's blocks; E49 A8.2, the rule of 10.11): the shut box is hidden by `visibility` alone and nothing hides the box, a layer or an unpicked block by `display: none`; the box is capped by `--drpg-details-cap`, set on the action window, and scrolls in itself; a row's layers share one grid cell; the left column is a flex column stretched to the row; the lines and the sub-heading at `--drpg-text-sm` in `--drpg-kit-brief-ink`; no rule left for E21's bound `<li>` (`.drpg-briefing-facts > li[data-drpg-when]`)", async () => {
+        /*
+         * E49 A8.2, 11.11.2026. What the sizes rest on, read off the module's sheets as text (comments stripped); what
+         * Chromium makes of it is style-sweep `--details`'s reading, and a real v14's LIVE-E49-A8-01. Red at A8.1: no rule.
+         */
+        const css = (await moduleStyles()).replace(/\/\*[\s\S]*?\*\//g, "");
+        const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim(), body: m[2] }));
+        const where = (sel, prop) => rules.filter(r => r.sel.split(",").some(s => s.trim() === sel) && new RegExp(`(^|;)\\s*${prop}\\s*:`).test(r.body));
+        const value = (sel, prop) => where(sel, prop).map(r => new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`).exec(r.body)?.[1].trim());
+        const hidesByDisplay = rules.filter(r => /drpg-action-details-box|drpg-details-layer|drpg-details-stack|drpg-unpicked|drpg-action-details-toggle/.test(r.sel)
+            && /(^|;)\s*display\s*:\s*none/.test(r.body)).map(r => r.sel);
+        const read = {
+            shut: value('.drpg-action-details-toggle[aria-expanded="false"] + .drpg-action-details-box', "visibility"),
+            byDisplay: hidesByDisplay,
+            cap: [value(".drpg-action-details-box", "max-height"), value(".drpg-action-window", "--drpg-details-cap"), value(".drpg-action-details-box", "overflow-y")],
+            stack: [value(".drpg-details-stack", "display"), value(".drpg-details-stack > .drpg-details-layer", "grid-area"), value(".drpg-action-window .drpg-unpicked", "visibility")],
+            column: [value(".drpg-action-window .drpg-variant-columns", "align-items"), value(".drpg-action-window .drpg-variant-brief", "flex-direction")],
+            lines: [value(".application.drpg-ui .drpg-action-details-box .drpg-briefing-facts", "font-size"), value(".application.drpg-ui .drpg-action-details-box .drpg-briefing-facts", "color"),
+                value(".application.drpg-ui .drpg-action-details-box > .drpg-action-details-sub", "font-size")],
+            oldBound: rules.filter(r => /\.drpg-briefing-facts\s*>\s*li\[data-drpg-when/.test(r.sel)).length
+        };
+        equal(JSON.stringify(read), JSON.stringify({ shut: ["hidden"], byDisplay: [], cap: [["var(--drpg-details-cap, 15rem)"], ["15rem"], ["auto"]],
+            stack: [["grid"], ["1 / 1"], ["hidden"]], column: [["stretch"], ["column"]],
+            lines: [["var(--drpg-text-sm)"], ["var(--drpg-kit-brief-ink)"], ["var(--drpg-text-sm)"]], oldBound: 0 }),
+            "[the shut box's visibility; rules hiding Details' parts by display: none; the cap, its value and the box's scroll; the stack's grid, its layers' cell and an unpicked one; "
+            + "the columns stretched and the left one a column; the lines' size and ink and the sub-heading's size; E21's bound-li rules left]");
+    }],
 ];
 
 

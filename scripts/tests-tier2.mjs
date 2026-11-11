@@ -86977,6 +86977,56 @@ const SCENARIOS = [
             "{cancel, yes: the question answered no, then yes - [the button's box, the fields inside that box (none: it stands apart from the form), its role, what the window answered, the chapter's end runs, Edit campaign windows open after, the clock as before]; "
             + "asked: each question's buttons [action, the default, destructive]}");
     }],
+    ["E49-A8-T1 - Details opens without moving the window (E49 A8.2; LIVE-E49-A8-01)", async () => {
+        /*
+         * E49 A8.2, 11.11.2026. On a real Foundry (layout): Observe's and Search's windows, as their menus open them
+         * (`chooseVariant` with the action's briefing, two rows of the suite's own), Details shut and then open by the
+         * toggle's click: the window's outer rect and `position.height` equal (0.5 px), every line's rect inside the box
+         * horizontally, the box's `scrollWidth <= clientWidth`. In this client's theme; the local gate runs tier 2 in
+         * both. The setting is put back as this browser stored it. Headless it skips (no layout): LIVE-E49-A8-01 until the
+         * local gate runs it.
+         */
+        needs(env.layout(), "a window's size is read from the layout");
+        needs(env.dialogs(), "the windows are drawn and their toggle pressed");
+        needs(world.atLeast("livingStudents", 1), "a briefing is built for a living student");
+        const { ACTIONS } = await import("./config.mjs");
+        const { chooseVariant } = await import("./action-menus.mjs");
+        const { briefingBlock } = await import("./action-briefing.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { clientStored, putBackStored } = await import("./tests-kit.mjs");
+        const actor = livingStudents()[0];
+        const asStored = clientStored();
+        const drawn = title => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, "actionDetailsOpen", false);
+            for (const key of ["observe", "search"]) {
+                const title = `E49-A8-T1 ${key}`;
+                const run = chooseVariant({ actor, title, intro: briefingBlock(actor, key, ACTIONS[key]),
+                    options: [{ value: "a8t1a", label: "a", hint: "a" }, { value: "a8t1b", label: "b", hint: "b" }] }).catch(() => null);
+                if (!await until(() => Boolean(drawn(title)), 6000)) { read[key] = "not drawn"; continue; }
+                const app = drawn(title), el = app.element;
+                await wait(300);
+                const size = () => { const r = el.getBoundingClientRect(); return [r.width, r.height, app.position?.height]; };
+                const shut = size();
+                el.querySelector(".drpg-action-details-toggle")?.click();
+                await wait(300);
+                const open = size();
+                const box = el.querySelector(".drpg-action-details-box"), bb = box?.getBoundingClientRect();
+                const outside = box ? [...box.querySelectorAll("li")].filter(li => { const r = li.getBoundingClientRect(); return r.left < bb.left - 0.5 || r.right > bb.right + 0.5; }).length : -1;
+                read[key] = { same: shut.every((v, i) => typeof v !== "number" || Math.abs(v - open[i]) <= 0.5), outside, sideways: box ? box.scrollWidth <= box.clientWidth : false };
+                if (!read[key].same) read[key].sizes = [shut, open];
+                await app.close();
+                await run;
+            }
+        } finally {
+            for (const key of ["observe", "search"]) if (drawn(`E49-A8-T1 ${key}`)) await drawn(`E49-A8-T1 ${key}`).close();
+            putBackStored(asStored);
+            await settle();
+        }
+        const yes = { same: true, outside: 0, sideways: true };
+        equal(JSON.stringify(read), JSON.stringify({ observe: yes, search: yes }), "[per window: its outer size and position.height alike shut and open, lines past the box's sides, the box not scrolling sideways]");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

@@ -25,6 +25,7 @@
     { "test": "high contrast raises the ink and moves no size", "probe": "env.cascade" },
     { "test": "the slider moves the type under Monokuma Legacy and moves nothing under the glass", "probe": "env.cascade" },
     { "test": "a prose window's box follows the slider under Monokuma Legacy", "probe": "env.cascade" },
-    { "test": "a found trace's token keeps the neutral name", "probe": "env.canvas" }
+    { "test": "a found trace's token keeps the neutral name", "probe": "env.canvas" },
+    { "test": "E49-A8-T1 - Details opens without moving the window (E49 A8.2; LIVE-E49-A8-01)", "probe": "env.layout" }
   ]
 }

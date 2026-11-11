@@ -2825,23 +2825,9 @@ body.drpg-pixel-font .drpg-call-button .drpg-action-cost {
     color: var(--drpg-line-strong);
 }
 
-/* A FACT FOR ONE ROW (E21 C5b, 06.11.2026; audit S02-07): a briefing line bound to a menu row (`data-drpg-when`,
-   action-briefing.mjs `briefingBlock`) stands only while that row is picked - Analyze's hint, stash and passage
-   numbers, Tamper's erase ladder and its trail's. The menu's radios are in the same body as the briefing above them,
-   so the rule asks the body, as the request box's rule asks its list. (E49 A8.1: such a line is a layer of Details'
-   stack now, action-menus.mjs `detailsStack`; these rules read no line the module draws, and A8.2 takes them out.) */
-.drpg-briefing-facts > li[data-drpg-when] {
-    display: none;
-}
-
-:is(.drpg-kit-body, .dialog-content):has(.drpg-choice-list input[value="bullet"]:checked) .drpg-briefing-facts > li[data-drpg-when~="bullet"],
-:is(.drpg-kit-body, .dialog-content):has(.drpg-choice-list input[value="hint"]:checked) .drpg-briefing-facts > li[data-drpg-when~="hint"],
-:is(.drpg-kit-body, .dialog-content):has(.drpg-choice-list input[value="stash"]:checked) .drpg-briefing-facts > li[data-drpg-when~="stash"],
-:is(.drpg-kit-body, .dialog-content):has(.drpg-choice-list input[value="passage"]:checked) .drpg-briefing-facts > li[data-drpg-when~="passage"],
-:is(.drpg-kit-body, .dialog-content):has(.drpg-choice-list input[value="cover"]:checked) .drpg-briefing-facts > li[data-drpg-when~="cover"],
-:is(.drpg-kit-body, .dialog-content):has(.drpg-choice-list input[value="frame"]:checked) .drpg-briefing-facts > li[data-drpg-when~="frame"] {
-    display: list-item;
-}
+/* A FACT FOR ONE ROW (E21 C5b, 06.11.2026; audit S02-07): its rules went with E49 A8.2 - such a line is a layer of an
+   action window's Details now (action-menus.mjs `detailsStack`), held in its place and lit by its row (the block at the
+   end of this file). */
 
 /* The lead - the sentence that says what this action IS. One step above the
    body, which is all the loudness a lead needs when everything else steps
@@ -17178,3 +17164,76 @@ body:not(.drpg-theme-stained-glass):not(.drpg-stacked) #drpg-popups {
 body:not(.drpg-theme-stained-glass):not(.drpg-stacked) #drpg-popups:not(:has(> .drpg-popup:not(.drpg-popup-parked))) {
     z-index: calc(var(--z-index-app, 30) - 1);
 }
+
+/* ==========================================================================
+ * E49 A8 - DETAILS IN EVERY ACTION WINDOW (11.11.2026; the owner's of that day: "All thresholds po rozwinięciu wygląda
+ * jakby miało zmienić rozmiar okna - a tego nie chcemy", and the rule of 10.11: a state changes look, never layout)
+ * --------------------------------------------------------------------------
+ * One block, A8's whole layout (action-menus.mjs `detailsHtml`, `detailsStack`, `syncDetails`). The left column is a
+ * flex column stretched to the row's height; the box under the toggle stays in the flow shut as open - shut it is only
+ * `visibility: hidden` (and `inert`, from the script) - so it holds its place: its content's height, more if the right
+ * column leaves more, never past the cap (`--drpg-details-cap`), past which it scrolls in itself. A row's lines and
+ * the crisis menu's whole hints are layers of one grid cell, the unpicked ones `visibility: hidden` (`drpg-unpicked`):
+ * the box and the column are as tall as their tallest row. Never `display: none` or `hidden` for any of them (R3350).
+ * Measured in Chromium on probe 08's captures (style-sweep `--details`, 1366x768 and three more sizes, both themes):
+ * S/stages/E49/STATUS.md A8; the mockup's numbers, S/stages/E49/A8-details.md 5.
+ * ========================================================================== */
+.drpg-action-window { --drpg-details-cap: 15rem; }
+.drpg-action-window .drpg-variant-columns { align-items: stretch; }
+.drpg-action-window .drpg-variant-brief { display: flex; flex-direction: column; }
+.drpg-action-window .drpg-variant-brief > * { flex: 0 0 auto; }
+.drpg-action-window .drpg-variant-brief > .drpg-action-details {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    margin-top: 0.5rem;
+}
+/* The toggle keeps the theme's own button (the framed bar under the glass, the grey bar under Legacy), full width and
+   left-aligned, with a mark that turns: right shut, down open - a look, not a size. */
+.application.drpg-action-window button.drpg-action-details-toggle {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.55em;
+    width: 100%;
+    margin: 0;
+}
+.drpg-action-details-mark {
+    display: inline-block;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    width: 0.5em;
+    height: 0.5em;
+    margin: 0 0.1em;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform 120ms;
+}
+.drpg-action-details-toggle[aria-expanded="true"] > .drpg-action-details-mark { transform: rotate(45deg); }
+.drpg-action-details-box {
+    flex: 1 1 auto;
+    max-height: var(--drpg-details-cap, 15rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 4px;
+}
+.drpg-action-details-toggle[aria-expanded="false"] + .drpg-action-details-box { visibility: hidden; }
+/* The layers of one place (a row's lines; the crisis menu's whole hints under the lead). */
+.drpg-details-stack,
+.drpg-action-window .drpg-variant-details { display: grid; grid-template-columns: minmax(0, 1fr); }
+.drpg-details-stack > .drpg-details-layer,
+.drpg-action-window .drpg-variant-details > .drpg-choice-details { grid-area: 1 / 1; min-width: 0; display: block; padding-left: 0; }
+.drpg-action-window .drpg-unpicked { visibility: hidden; }
+.drpg-action-details-box .drpg-briefing-facts { margin: 0.35rem 0 0; }
+.drpg-action-details-box > .drpg-action-details-sub {
+    margin: 0.5rem 0 0;
+    padding-top: 0.3rem;
+    border-top: 1px dashed var(--drpg-line);
+    font-size: var(--drpg-text-sm);
+    line-height: 1.4;
+}
+/* Tamper's watchers, on top under the lead (the owner's answer 3): the price a player can still walk away from. */
+.drpg-briefing-block > .drpg-briefing-watched { margin: 0.5rem 0 0; font-weight: 600; }

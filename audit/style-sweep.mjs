@@ -11,6 +11,8 @@
  *   node audit/style-sweep.mjs --shots <dir>   also a screenshot of every page at each size and theme, into <dir>
  *   node audit/style-sweep.mjs --only rooms-bedrooms   one page (repeatable); the baseline's other pages are not read
  *   node audit/style-sweep.mjs --selected THE SELECTED ROW (E68 C12), below, instead of the style comparison
+ *   node audit/style-sweep.mjs --details  DETAILS HOLD THEIR PLACE (E49 A8.2), below: every action window the same size
+ *                                         with Details shut and open; `--every-pick` also at every row picked (A8.3)
  *   node audit/style-sweep.mjs --fields   THE FIELDS PASS (E68 fix round), below: every action window's text field fills its column
  *   node audit/style-sweep.mjs --fit      THE FIT PASS (E21 C1c), below, instead of the style comparison; with --only
  *                                         the pages named, with --shots <dir> a screenshot of each at 1366x768
@@ -590,6 +592,126 @@ async function fieldsPass(browser) {
     return problems.length ? 1 : 0;
 }
 
+/*
+ * DETAILS HOLD THEIR PLACE (`--details`; E49 A8.2, 11.11.2026; the owner's of that day on the action windows and the
+ * rule of 10.11: a state changes look, never layout). Pages: every captured action window (`action-*`, probe 08's, a
+ * player's); sizes DETAILS_SIZES; both themes. Per page, size and theme, for every row of its menu picked (the radio's
+ * change, and the left column's layers lit and unlit as action-menus.mjs `syncDetails` does: the capture holds no
+ * script), Details shut and open (the toggle's `aria-expanded` and the box's `inert`, as `wireDetails` sets them): the
+ * window's outer size, the box's visibility, every shown line inside the box's sides, the box not scrolling sideways,
+ * the kit body's scroll, and with Details open the lines' and the toggle's contrast on their ground (AA 4.5). Red: the
+ * window's size differs shut and open at a pick, a shut box drawn, an open one hidden, a line outside, a sideways
+ * scroll, the body scrolling more open than shut, a contrast under 4.5. With `--every-pick` (A8.3) also the size at
+ * every pick against the first. THE CONTROL FIRST (the stackShapes lesson): on Observe at 1366x768 under the glass, a
+ * rule planted that draws the shut box `display: none` - the size must read as differing - or the run is red.
+ */
+const DETAILS_SIZES = [[1366, 768], [1280, 800], [1920, 1080], [1024, 768]];
+const EVERY_PICK = argv.includes("--every-pick");
+/* The toggle is the theme's own button (A8-details.md 7): under Legacy its bone on the grey bar read 3.99:1 at A8.2, the
+   pair every Legacy button of the kit draws (tools/check.mjs contrast lists Legacy's button pairs as E48's, known), so it
+   is held at what it reads rather than at AA until E48 changes the button; under the glass AA. */
+const KNOWN_TOGGLE = { legacy: 3.99 };
+
+async function detailsRead(page) {
+    return page.evaluate(async () => {
+        const parse = c => {
+            const m = String(c).match(/^rgba?\(([^)]+)\)$/), n = String(c).match(/^color\(srgb ([^)]+)\)$/);
+            if (m) { const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p[3] ?? 1]; }
+            if (n) { const p = n[1].split(/[\s/]+/).filter(Boolean).map(Number); return [p[0] * 255, p[1] * 255, p[2] * 255, p[3] ?? 1]; }
+            return [0, 0, 0, 0];
+        };
+        const over = (top, under, alpha = 1) => { const a = top[3] * alpha; return [0, 1, 2].map(i => top[i] * a + under[i] * (1 - a)).concat(1); };
+        const lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+        const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 100) / 100; };
+        const groundUnder = el => {
+            const chain = [];
+            for (let e = el; e; e = e.parentElement) { chain.push(parse(globalThis.getComputedStyle(e).backgroundColor)); if (chain.at(-1)[3] >= 1) break; }
+            let g = chain.at(-1)[3] >= 1 ? chain.pop() : [255, 255, 255, 1];
+            while (chain.length) g = over(chain.pop(), g);
+            return g;
+        };
+        const contrast = el => { const g = groundUnder(el); return ratio(over(parse(globalThis.getComputedStyle(el).color), g), g); };
+        const doc = globalThis.document, cs = el => globalThis.getComputedStyle(el);
+        const win = doc.querySelector(".application.drpg-action-window") ?? doc.querySelector(".application");
+        const toggle = win?.querySelector(".drpg-action-details-toggle");
+        const box = toggle && win.querySelector(`[id="${toggle.getAttribute("aria-controls")}"]`);
+        if (!box) return { error: "no Details" };
+        const body = win.querySelector(".drpg-kit-body");
+        const values = [...win.querySelectorAll('.drpg-choice-list input[name="variant"]')].filter(i => !i.disabled).map(i => i.value);
+        const pick = value => {
+            const input = win.querySelector(`.drpg-choice-list input[name="variant"][value="${value}"]`);
+            input.checked = true;
+            input.dispatchEvent(new globalThis.Event("change", { bubbles: true }));
+            for (const b of win.querySelectorAll(".drpg-variant-details > .drpg-choice-details")) b.classList.toggle("drpg-unpicked", b.dataset.drpgFor !== value);
+            for (const l of win.querySelectorAll(".drpg-action-details-box .drpg-details-layer")) l.classList.toggle("drpg-unpicked", !String(l.dataset.drpgWhen ?? "").split(/\s+/).includes(value));
+        };
+        const frame = () => new Promise(r => globalThis.requestAnimationFrame(() => globalThis.requestAnimationFrame(r)));
+        const out = [];
+        for (const value of values.length ? values : [null]) {
+            for (const open of [false, true]) {
+                if (value) pick(value);
+                toggle.setAttribute("aria-expanded", String(open));
+                box.toggleAttribute("inert", !open);
+                await frame();
+                const r = win.getBoundingClientRect(), bb = box.getBoundingClientRect();
+                const lines = [...box.querySelectorAll("li, .drpg-action-details-sub")].filter(el => cs(el).visibility !== "hidden");
+                out.push({ value, open, w: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10, box: Math.round(bb.height), vis: cs(box).visibility,
+                    outside: lines.filter(el => { const q = el.getBoundingClientRect(); return q.left < bb.left - 0.5 || q.right > bb.right + 0.5; }).length,
+                    sideways: box.scrollWidth - box.clientWidth, inner: box.scrollHeight - box.clientHeight, body: body ? body.scrollHeight - body.clientHeight : 0,
+                    lines: open && lines.length ? Math.min(...lines.map(contrast)) : null, toggle: contrast(toggle) });
+            }
+        }
+        return { rows: out };
+    });
+}
+
+async function detailsPass(browser) {
+    const list = pages().filter(p => p.id.startsWith("action-"));
+    if (!list.length) throw new Error("no captured action window to read for --details");
+    const problems = [];
+    {
+        const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+        await load(page, "/audit/style-harness.html?w=action-observe&role=player");
+        await page.addStyleTag({ content: '.drpg-action-details-toggle[aria-expanded="false"] + .drpg-action-details-box { display: none !important; }' });
+        const planted = await detailsRead(page);
+        const rows = planted.rows ?? [];
+        const seen = rows.some((r, i) => i % 2 === 1 && Math.abs(r.h - rows[i - 1].h) > 0.5);
+        console.log(`style-sweep: --details control (the shut box planted display: none): ${seen ? "read" : "NOT read"}`);
+        if (!seen) problems.push("control: a shut box taken out of the flow read as no change");
+        await page.close();
+    }
+    for (const [w, h] of DETAILS_SIZES) {
+        for (const theme of THEMES) {
+            const page = await browser.newPage({ viewport: { width: w, height: h } });
+            for (const p of list) {
+                await load(page, withTheme(p.url, theme));
+                const r = await detailsRead(page);
+                const where = `${p.id} ${theme} ${w}x${h}`;
+                if (r.error) { problems.push(`${where}: ${r.error}`); console.log(`style-sweep: --details ${where}: ${r.error}`); continue; }
+                const bad = [];
+                for (let i = 0; i < r.rows.length; i += 2) {
+                    const [shut, open] = [r.rows[i], r.rows[i + 1]];
+                    if (Math.abs(shut.h - open.h) > 0.5 || Math.abs(shut.w - open.w) > 0.5) bad.push(`${shut.value}: ${shut.w}x${shut.h} shut, ${open.w}x${open.h} open`);
+                    if (shut.vis !== "hidden") bad.push(`${shut.value}: the shut box ${shut.vis}`);
+                    if (open.vis !== "visible") bad.push(`${shut.value}: the open box ${open.vis}`);
+                    if (open.outside) bad.push(`${shut.value}: ${open.outside} line(s) outside the box`);
+                    if (open.sideways > 0) bad.push(`${shut.value}: the box scrolls ${open.sideways} px sideways`);
+                    if (open.body > shut.body) bad.push(`${shut.value}: the body scrolls ${open.body} px open, ${shut.body} shut`);
+                    if (open.lines !== null && open.lines < 4.5) bad.push(`${shut.value}: a line at ${open.lines}:1`);
+                    if (open.toggle < (KNOWN_TOGGLE[theme] ?? 4.5)) bad.push(`${shut.value}: the toggle at ${open.toggle}:1`);
+                    if (EVERY_PICK && i && (Math.abs(shut.h - r.rows[0].h) > 0.5 || Math.abs(shut.w - r.rows[0].w) > 0.5)) bad.push(`${shut.value}: ${shut.w}x${shut.h}, ${r.rows[0].value} ${r.rows[0].w}x${r.rows[0].h}`);
+                }
+                const hs = [...new Set(r.rows.map(x => x.h))];
+                console.log(`style-sweep: --details ${where}: ${r.rows.length / 2} pick(s), height ${hs.join("/")}, box ${Math.max(...r.rows.map(x => x.box))}, inner scroll ${Math.max(...r.rows.map(x => x.inner))}, body scroll ${Math.max(...r.rows.map(x => x.body))}, lines ${Math.min(...r.rows.filter(x => x.lines !== null).map(x => x.lines))}:1, toggle ${Math.min(...r.rows.map(x => x.toggle))}:1${bad.length ? ` - RED: ${bad.join("; ")}` : ""}`);
+                problems.push(...bad.map(b => `${where}: ${b}`));
+            }
+            await page.close();
+        }
+    }
+    console.log(`style-sweep: --details ${problems.length ? `RED, ${problems.length} problem(s)` : "green"}`);
+    return problems.length ? 1 : 0;
+}
+
 async function main() {
     let server = null;
     if (!BASE) {
@@ -599,6 +721,10 @@ async function main() {
         for (let i = 0; i < 50; i++) { try { await fetch(`${BASE}/module.json`); break; } catch { await new Promise(r => setTimeout(r, 100)); } }
     }
     const browser = await chromium.launch(CHROMIUM ? { executablePath: CHROMIUM } : {});
+    if (argv.includes("--details")) {
+        try { process.exitCode = await detailsPass(browser); } finally { await browser.close(); server?.kill(); }
+        return;
+    }
     if (FIELDS) {
         try { process.exitCode = await fieldsPass(browser); } finally { await browser.close(); server?.kill(); }
         return;

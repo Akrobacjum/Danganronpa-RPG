@@ -36793,22 +36793,29 @@ const INVARIANTS = [
             const html = document.createElement("html"), body = document.createElement("body");
             body.className = `${theme} drpg-player`;
             html.append(body);
-            body.innerHTML = `<div class="application dialog drpg-ui drpg-panel"><section class="window-content"><form class="dialog-form"><div class="drpg-kit-body">`
-                + `<div class="drpg-briefing-block"><ul class="drpg-briefing-facts"><li>R1366</li><li data-drpg-when="hint">R1366 hint</li><li data-drpg-when="stash">R1366 stash</li></ul></div>`
+            // E49 A8.2: the facts in Details (action-menus.mjs `detailsHtml`), a bound line a layer of its stack, the
+            // unpicked one `drpg-unpicked` as `syncDetails` leaves it; the box shut.
+            body.innerHTML = `<div class="application dialog drpg-ui drpg-panel drpg-action-window"><section class="window-content"><form class="dialog-form"><div class="drpg-kit-body">`
+                + `<div class="drpg-action-details"><button type="button" class="drpg-action-details-toggle" aria-expanded="false"></button><div class="drpg-action-details-box">`
+                + `<ul class="drpg-briefing-facts"><li>R1366</li></ul><div class="drpg-details-stack">`
+                + `<div class="drpg-details-layer" data-drpg-when="hint"><ul class="drpg-briefing-facts"><li>R1366 hint</li></ul></div>`
+                + `<div class="drpg-details-layer drpg-unpicked" data-drpg-when="stash"><ul class="drpg-briefing-facts"><li>R1366 stash</li></ul></div></div></div></div>`
                 + `<div class="drpg-choice-list"><label class="drpg-choice"><input type="radio" name="variant" value="hint" checked></label>`
                 + `<label class="drpg-choice"><input type="radio" name="variant" value="stash"></label></div></div></form></section></div>`;
-            const [plain, hint, stash] = body.querySelectorAll(".drpg-briefing-facts > li");
-            const facts = body.querySelector(".drpg-briefing-facts");
+            const plain = body.querySelector(".drpg-briefing-facts > li");
+            const [hint, stash] = body.querySelectorAll(".drpg-details-layer");
+            const facts = body.querySelector(".drpg-briefing-facts"), shutBox = body.querySelector(".drpg-action-details-box");
             const tokenOf = (el, prop) => {
                 const v = C.winner(el, prop)?.value ?? "";
                 const t = /var\((--drpg-kit-brief-[\w-]+)\)/.exec(v)?.[1];
                 return t ? C.winner(body, t)?.value ?? "" : v;
             };
             const size = tokenOf(facts, "font-size"), ink = tokenOf(facts, "color");
-            return [theme, { shown: [C.winner(plain, "display")?.value ?? "(the sheet's)", C.winner(hint, "display")?.value ?? null, C.winner(stash, "display")?.value ?? null],
-                size: /--drpg-text-md\b/.test(size), ink: /--drpg-(?:sg-)?bone\)?$/.test(ink.trim()) || /^var\(--drpg-(?:sg-)?bone\)$/.test(ink.trim()) }];
+            return [theme, { shown: [C.winner(plain, "display")?.value ?? "(the sheet's)", C.winner(hint, "visibility")?.value ?? "(inherited)", C.winner(stash, "visibility")?.value ?? null,
+                C.winner(shutBox, "visibility")?.value ?? null],
+                size: /--drpg-text-sm\b/.test(size), ink: /--drpg-(?:sg-)?bone\)?$/.test(ink.trim()) || /^var\(--drpg-(?:sg-)?bone\)$/.test(ink.trim()) }];
         }));
-        const yes = { shown: ["(the sheet's)", "list-item", "none"], size: true, ink: true };
+        const yes = { shown: ["(the sheet's)", "(inherited)", "hidden", "hidden"], size: true, ink: true };
         equal(JSON.stringify(read), JSON.stringify({
             observe: { ladders: 4, sub: true, details: 0 },
             // The hint row's second line, "The GM judges this one", since E22 fix G2 (Open 60's default A; R121).
@@ -36817,7 +36824,7 @@ const INVARIANTS = [
             request: true, atTop: true,
             paint: { "drpg-theme-stained-glass": yes, "drpg-theme-monokuma-legacy": yes }
         }), "[Observe: the ladders in Details, its sub-heading, a <details>; Analyze's bound rows; Tamper's bound facts and a second watchers line; "
-            + "Observe's box with its two rows; the menu opens at its top; per theme: a plain fact, a bound one with its row picked and one with another row picked, the facts' size and ink]");
+            + "Observe's box with its two rows; the menu opens at its top; per theme, in Details: a plain fact's display, the visibility of a layer of the picked row, of another row's and of the shut box, the facts' size and ink]");
     }],
     ["R1600 - the briefing beside the list (E21 fix G2; E21-04, the end review's B1), and every action has it since E68 C12 (layout B of round M for every action window, the owner's 10.11.2026): Observe's menu does not turn `columns` off; action-menus.mjs `chooseVariant` puts the briefing beside the question in a window of a stated width (the popup measure lifted) - and the stylesheets lay the two side by side, stacking them when the window is narrower than both, and show a row's line of explanation while that row is picked (an unavailable row keeps its reason), in both themes", async () => {
         /*
