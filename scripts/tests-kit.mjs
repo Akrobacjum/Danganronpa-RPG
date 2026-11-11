@@ -2586,8 +2586,32 @@ function dhSettingsStandIn(source, { name, tab, doc = document } = {}) {
     return form;
 }
 
+/*
+ * THE CHARACTER SHEET'S STATISTICS, AS DAGGERHEART DRAWS THEM (E49, 11.11.2026; stat-glyphs.mjs, sheet.mjs `markTraitGlyphs`).
+ * Daggerheart 2.6.5 templates/sheets/actors/character/header.hbs:107-133, read at the tag: `.character-traits`, one
+ * `.trait` per trait in the system's order with `data-attribute` (Daggerheart's key), its `.trait-name` (the tier mark and
+ * a span with the label) and its `.trait-value-area` (the crest's svg and the value). Inside the sheet's root as the
+ * system's classes name it (`application sheet daggerheart actor dh-style character`), the header part
+ * `.character-header-sheet` around it. The labels through this browser's i18n (the module's lang files override
+ * `DAGGERHEART.CONFIG.Traits.*`). A model: the rest of the header and Daggerheart's listeners are not here.
+ */
+function dhTraitsStandIn(traits = {}, { doc = document } = {}) {
+    const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]));
+    const root = doc.createElement("div");
+    root.className = "application sheet daggerheart actor dh-style character";
+    const keys = ["agility", "strength", "finesse", "instinct", "presence", "knowledge"];
+    const one = key => {
+        const value = Number(traits[key]?.value ?? 0);
+        return `<div class="trait" data-tooltip="${esc(game.i18n.localize(`DAGGERHEART.CONFIG.Traits.${key}.name`))}" data-action="rollAttribute" data-attribute="${key}" data-value="${value}">`
+            + `<div class="trait-name"><div class="tier-mark"></div><span>${esc(game.i18n.localize(`DAGGERHEART.CONFIG.Traits.${key}.name`))}</span></div>`
+            + `<div class="trait-value-area"><svg width="52" height="46" viewBox="0 0 52 46"></svg><div class="trait-value"><span>${value > 0 ? `+${value}` : value}</span></div></div></div>`;
+    };
+    root.innerHTML = `<section class="window-content"><div class="character-header-sheet"><div class="character-traits">${keys.map(one).join("")}</div></div></section>`;
+    return root;
+}
+
 export {
-    dhSettingsMarkup, dhSettingsStandIn,
+    dhSettingsMarkup, dhSettingsStandIn, dhTraitsStandIn,
     Failure, Precondition, ContractBreach, Skipped, ok, needs, equal, must, describe, expectedRed, compareVersions, stageLedger, markerProblem,
     apiKind, apiSurfaceProblems,
     runOne, registerSuite, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE, UNTIL_FIXTURE, untilProblem, env, world, worldCensus,

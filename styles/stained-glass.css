@@ -4036,6 +4036,18 @@ body.drpg-theme-stained-glass .character-header-sheet .character-traits .tier-ma
     display: none;
 }
 
+/* EACH STATISTIC'S NAME PLATE HOLDS ITS GLYPH (E49, the owner's ask of 11.11.2026 night; stat-glyphs.mjs). Daggerheart's
+   plate is 1rem high (header.hbs's `.trait-name`, height and line-height 1rem); the glass's glyph is a 24-grid drawing at
+   its floor of 22 px (pixel-icons.css's box, max(1.15em, 22px)), so it stood 4 px out of the plate above and below (the
+   stand-in in Chromium, 11.11.2026). The plate grows to the glyph instead of the drawing shrinking off its grid; the name
+   stays centred on the plate's middle. Daggerheart's own selector with the theme's body before it: one class and an
+   element above its (0,10,0), so no `!important`. */
+body.drpg-theme-stained-glass .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name {
+    height: auto;
+    min-height: 1.5rem;
+    line-height: 1.5rem;
+}
+
 /* A GM TILE IS A RED PLATE, not a dark tile wearing a badge. On the audit page "Dynamic" and
    "Direct Murder" are filled in the GM's red with the reason as their sub-label, and that
    fill is what makes them readable as somebody else's decision at a glance. A tile that cannot be pressed is not

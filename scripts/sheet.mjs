@@ -76,6 +76,7 @@ import { safeword } from "./safeword.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 import { debug, error, plural, proseOf, markLanguage, GM_ROUTE_CLASS, markFired } from "./utils.mjs";
 import { drpgConfirm } from "./ui-kit.mjs";
+import { markStatName, statOfTrait } from "./stat-glyphs.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { announceSheetSteps } from "./requirements.mjs";
 import { overflowBlocksCalls, overflowBlocksFreeMove } from "./overflow.mjs";
@@ -993,6 +994,7 @@ export const SHEET_STEPS = [
     ["removeSystemCreators", ({ app, element, mode }) => removeSystemCreators(app, element, mode)],
     ["leaveLoadoutTab", ({ app, element }) => leaveLoadoutTab(app, element)],
     ["frameTraits", ({ element }) => frameTraits(element)],
+    ["markTraitGlyphs", ({ element }) => markTraitGlyphs(element)],
     ["injectUltimate", ({ app, element, mode }) => injectUltimate(app, element, mode)],
     ["markSheetState", ({ app, element, mode }) => markSheetState(app, element, mode)],
     ["injectInitButton", ({ app, element, mode }) => injectInitButton(app, element, mode)],
@@ -1467,6 +1469,18 @@ function frameTraits(element) {
     const values = element.querySelectorAll(".character-traits .trait-value, .trait .trait-value");
     for (const value of values) {
         (value.closest(".trait") ?? value.parentElement ?? value).classList.add("drpg-trait-frame");
+    }
+}
+
+/*
+ * EACH STATISTIC'S GLYPH BEFORE ITS NAME (E49, the owner's ask of 11.11.2026 night; stat-glyphs.mjs). Daggerheart 2.6.5's
+ * header (header.hbs:107) draws `.character-traits > .trait[data-attribute="<its key>"]`, the name in `.trait-name > span`;
+ * the glyph goes first in that span, the statistic read off `data-attribute`, not off the label (a translation). Every
+ * render draws the header anew, and `markStatName` keeps a glyph already there, so a step that runs again adds nothing.
+ */
+function markTraitGlyphs(element) {
+    for (const trait of element.querySelectorAll(".character-traits .trait[data-attribute]")) {
+        markStatName(trait.querySelector(".trait-name > span"), statOfTrait(trait.dataset.attribute));
     }
 }
 

@@ -51,6 +51,7 @@
 
 import { KIT_CLASSES, WIDTH_CLASS, kitWidth } from "./ui-kit.mjs";
 import { error } from "./utils.mjs";
+import { markStatName, statOfTrait } from "./stat-glyphs.mjs";
 
 /** The window's own class beside KIT_CLASSES: what components.css's block names it by. */
 export const WINDOW_CLASS = "drpg-window-dh-settings";
@@ -103,7 +104,7 @@ function wrapperOf(input) {
 
 /**
  * Dress a drawn window: the kit's classes on the root, the unused fields' wrappers hidden, Health's class tooltip off,
- * the words the module's (`wordCharacterSettings`).
+ * the words the module's (`wordCharacterSettings`), each statistic's glyph before its name (`markStatistics`).
  * Idempotent - Daggerheart draws the window again after every submit. Answers the names it hid.
  */
 export function dressCharacterSettings(element) {
@@ -122,6 +123,7 @@ export function dressCharacterSettings(element) {
     const cell = health ? wrapperOf(health) : null;
     cell?.removeAttribute("data-tooltip-text");
     wordCharacterSettings(element);
+    markStatistics(element);
     return hidden;
 }
 
@@ -165,6 +167,19 @@ function wordCharacterSettings(element) {
         bin?.parentElement?.setAttribute("data-tooltip", label);
         bin?.setAttribute("aria-label", label);
         for (const [cls, key] of [["input.name", "name"], ["input.modifier", "value"], ["textarea", "description"]]) item.querySelector(cls)?.setAttribute("aria-label", word(key));
+    }
+}
+
+/*
+ * EACH STATISTIC'S GLYPH BEFORE ITS NAME (E49, the owner's ask of 11.11.2026 night; stat-glyphs.mjs). Details draws a
+ * `.trait-container` per trait - its name in a span, its field after - and the glyph goes first in that span, so it stands
+ * on the name's line and the name's text is left as Daggerheart drew it. The statistic is read off the field's name
+ * (`system.traits.<Daggerheart's key>.value`), not off the label, which is a translation.
+ */
+function markStatistics(element) {
+    for (const input of element.querySelectorAll('.tab.details .trait-container input[name^="system.traits."]')) {
+        const key = statOfTrait(/^system\.traits\.([a-z]+)\.value$/.exec(input.name)?.[1]);
+        markStatName(input.closest(".trait-container")?.querySelector(":scope > span"), key);
     }
 }
 

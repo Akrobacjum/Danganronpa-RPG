@@ -47409,6 +47409,171 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson([each, each, { grid: `100% ${S}`, bin: `var(--drpg-kit-help-size) ${S}` }]),
             "Max Health, Max Sanity: their cell's [display, width] and the field's [width, flex]; the two fields' grid's width; the bin's glyph's size - each with the sheet it came from");
     }],
+    ["R3590 - each of the six statistics in the wrench's window wears its glyph before its name, in both themes (stat-glyphs.mjs `markStatName`, dh-settings.mjs `dressCharacterSettings`; E49, the owner's ask of 11.11.2026 night): on the dressed stand-in each field's name holds first an `i.drpg-stat-glyph` keyed by the statistic, aria-hidden and inert, with stat-glyphs.mjs STAT_ICONS's Font Awesome class; the name's text, the fields' names and values are as Daggerheart drew them, and a second dressing adds no second glyph; on the page Stained Glass masks it with --drpg-pix-stat-<statistic> and Monokuma Legacy draws its Font Awesome icon", async () => {
+        /*
+         * E49, 11.11.2026 night. The glyph is one element for both themes: Legacy keeps Font Awesome (the owner's rule), Stained
+         * Glass keys its drawing on data-drpg-stat (the generated glass section, tests-glyphs.mjs STAT_GLYPHS). Read with
+         * tests-glyphs.mjs `glyphReading`, as R3347 and R3348 read every other glyph. Red at 8c8ece5c: no glyph is drawn.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        const SG = await import("./stat-glyphs.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function" && SG?.STAT_ICONS, "dh-settings.mjs or stat-glyphs.mjs is not there - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const G = await import("./tests-glyphs.mjs");
+        const C = await import("./config.mjs");
+        equal(stableJson(SG.STAT_ICONS), stableJson({ eye: "fa-eye", head: "fa-brain", body: "fa-person", leg: "fa-shoe-prints", hand: "fa-hand", shadow: "fa-user-secret" }),
+            "stat-glyphs.mjs STAT_ICONS: Legacy's Font Awesome class of each statistic, as proposed to the owner");
+        const traits = Object.fromEntries(Object.values(C.TRAITS).map((t, n) => [t.dh, { value: n - 1 }]));
+        const win = K.dhSettingsStandIn({ traits, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 0, evasion: 0, experiences: {} }, { name: "R3590" });
+        const fields = () => [...win.querySelectorAll('.traits-inner-container .trait-container input[name^="system.traits."]')].map(input => `${input.name}=${input.value}`);
+        const before = { fields: fields(), names: [...win.querySelectorAll(".traits-inner-container .trait-container > span")].map(s => s.textContent) };
+        must(before.fields.length === 6, `the stand-in drew ${before.fields.length} statistic field(s) - this would measure nothing`);
+        D.dressCharacterSettings(win);
+        D.dressCharacterSettings(win);
+        const read = [...win.querySelectorAll(".traits-inner-container .trait-container")].map(cell => {
+            const name = cell.querySelector(":scope > span"), dh = /^system\.traits\.([a-z]+)\.value$/.exec(cell.querySelector("input")?.name ?? "")?.[1];
+            const stat = C.TRAIT_BY_DH[dh], glyphs = name?.querySelectorAll(":scope > i.drpg-stat-glyph") ?? [];
+            const i = glyphs[0];
+            return { stat, count: glyphs.length, first: name?.firstChild === i,
+                key: i?.dataset.drpgStat ?? null, fa: i?.classList.contains(SG.STAT_ICONS[stat]) ?? false,
+                hidden: i?.getAttribute("aria-hidden") ?? null, inert: i?.hasAttribute("inert") ?? false };
+        });
+        const after = { fields: fields(), names: [...win.querySelectorAll(".traits-inner-container .trait-container > span")].map(s => s.textContent) };
+        const body = document.body, CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], classWas = CLASSES.map(n => body.classList.contains(n));
+        const themes = {};
+        win.style.cssText = "position: absolute; left: -10000px; top: 0;";
+        try {
+            body.append(win);
+            for (const [theme, on] of [["glass", 0], ["legacy", 1]]) {
+                body.classList.add(CLASSES[on]);
+                body.classList.remove(CLASSES[1 - on]);
+                const tokens = G.glyphTokens(body, window, Object.keys(SG.STAT_ICONS).map(k => ({ name: `stat-${k}` })));
+                themes[theme] = Object.fromEntries([...win.querySelectorAll("i.drpg-stat-glyph")].map(i => [i.dataset.drpgStat, G.glyphReading(i, window, tokens)]));
+            }
+        } finally {
+            win.remove();
+            CLASSES.forEach((n, i) => body.classList.toggle(n, classWas[i]));
+        }
+        const keys = Object.keys(C.TRAITS);
+        equal(stableJson({ read, kept: stableJson(before) === stableJson(after), themes }), stableJson({
+            read: read.map(r => ({ stat: r.stat, count: 1, first: true, key: r.stat, fa: true, hidden: "true", inert: true })), kept: true,
+            themes: { glass: Object.fromEntries(keys.map(k => [k, `--drpg-pix-stat-${k}`])), legacy: Object.fromEntries(keys.map(k => [k, `fa:${SG.STAT_ICONS[k]}`])) } }),
+            "each field's name: [the statistic, its glyphs, the glyph first, its key, its FA class, aria-hidden, inert]; the names, fields and values kept; what each glyph wears under Stained Glass and Monokuma Legacy");
+    }],
+    ["R3591 - each of the six statistics on the character sheet wears its glyph before its name, in both themes (stat-glyphs.mjs `markStatName`, sheet.mjs SHEET_STEPS `markTraitGlyphs`; E49, the owner's ask of 11.11.2026 night): on a stand-in of Daggerheart's header (`.character-traits`) the step puts first in each `.trait-name > span` an `i.drpg-stat-glyph` keyed by the statistic Daggerheart's `data-attribute` names, aria-hidden and inert; the name's text, the trait's data-attribute and data-value and its value are as drawn, a second run adds no second glyph; Stained Glass masks it with --drpg-pix-stat-<statistic> and Monokuma Legacy draws its Font Awesome icon", async () => {
+        /*
+         * E49, 11.11.2026 night. The sheet is Daggerheart's, dressed by the module's render steps: the step is read from
+         * SHEET_STEPS by name and run as runSheetSteps runs it. The header is tests-kit.mjs `dhTraitsStandIn` (Daggerheart 2.6.5
+         * header.hbs). Red at 8c8ece5c: no step of that name.
+         */
+        const SH = await import("./sheet.mjs");
+        const SG = await import("./stat-glyphs.mjs").catch(() => null);
+        const step = SH.SHEET_STEPS?.find(([name]) => name === "markTraitGlyphs")?.[1];
+        must(SG?.STAT_ICONS, "stat-glyphs.mjs is not there - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const G = await import("./tests-glyphs.mjs");
+        const C = await import("./config.mjs");
+        const traits = Object.fromEntries(Object.values(C.TRAITS).map((t, n) => [t.dh, { value: n - 2 }]));
+        const root = K.dhTraitsStandIn(traits);
+        const state = () => [...root.querySelectorAll(".character-traits .trait")].map(t => [t.dataset.attribute, t.dataset.value, t.querySelector(".trait-name > span")?.textContent, t.querySelector(".trait-value")?.textContent]);
+        const before = state();
+        must(before.length === 6, `the stand-in drew ${before.length} statistic(s) - this would measure nothing`);
+        const steps = SH.SHEET_STEPS.map(([name]) => name);
+        for (let n = 0; n < 2; n++) step?.({ element: root });
+        const read = [...root.querySelectorAll(".character-traits .trait")].map(trait => {
+            const stat = C.TRAIT_BY_DH[trait.dataset.attribute], name = trait.querySelector(".trait-name > span");
+            const glyphs = root.querySelectorAll(`.trait[data-attribute="${trait.dataset.attribute}"] i.drpg-stat-glyph`), i = glyphs[0];
+            return { stat, count: glyphs.length, first: name?.firstChild === i, key: i?.dataset.drpgStat ?? null,
+                fa: i?.classList.contains(SG.STAT_ICONS[stat]) ?? false, hidden: i?.getAttribute("aria-hidden") ?? null, inert: i?.hasAttribute("inert") ?? false };
+        });
+        const kept = stableJson(state()) === stableJson(before);
+        const body = document.body, CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], classWas = CLASSES.map(n => body.classList.contains(n));
+        const themes = {};
+        root.style.cssText = "position: absolute; left: -10000px; top: 0;";
+        try {
+            body.append(root);
+            for (const [theme, on] of [["glass", 0], ["legacy", 1]]) {
+                body.classList.add(CLASSES[on]);
+                body.classList.remove(CLASSES[1 - on]);
+                const tokens = G.glyphTokens(body, window, Object.keys(SG.STAT_ICONS).map(k => ({ name: `stat-${k}` })));
+                themes[theme] = Object.fromEntries([...root.querySelectorAll("i.drpg-stat-glyph")].map(i => [i.dataset.drpgStat, G.glyphReading(i, window, tokens)]));
+            }
+        } finally {
+            root.remove();
+            CLASSES.forEach((n, i) => body.classList.toggle(n, classWas[i]));
+        }
+        const keys = Object.keys(C.TRAITS);
+        equal(stableJson({ step: steps.indexOf("markTraitGlyphs") > steps.indexOf("frameTraits"), read, kept, themes }), stableJson({ step: true,
+            read: read.map(r => ({ stat: r.stat, count: 1, first: true, key: r.stat, fa: true, hidden: "true", inert: true })), kept: true,
+            themes: { glass: Object.fromEntries(keys.map(k => [k, `--drpg-pix-stat-${k}`])), legacy: Object.fromEntries(keys.map(k => [k, `fa:${SG.STAT_ICONS[k]}`])) } }),
+            "[the step after frameTraits]; each statistic: [its key, its glyphs, the glyph first in the name, its data- key, its FA class, aria-hidden, inert]; the names, data-attribute, data-value and values kept; what each glyph wears under Stained Glass and Monokuma Legacy");
+    }],
+    ["R3592 - the six statistics' drawings come through the glyph pipeline (tools/glyphs.json, tools/glyph-map.mjs, tests-glyphs.mjs STAT_GLYPHS; E49, the owner's ask of 11.11.2026 night): STAT_GLYPHS, stat-glyphs.mjs STAT_ICONS and config.mjs TRAITS name the same six statistics; each one's drawing is a glass row `stat-<statistic>` on the 24 grid, the six one contiguous block at the end of glyphs.json, no row's faults (dataProblems: no two rows the same pixels); the glass section keys each on `i.drpg-stat-glyph[data-drpg-stat]` and the served pixel-icons.css and sprite are what the generator writes from the served glyphs.json", async () => {
+        /*
+         * E49, 11.11.2026 night. The block at the end of glyphs.json is the owner's: another branch adds glyphs too, and a
+         * contiguous block keeps the merge simple. R3333 holds the generated files whole; this holds the six to their place.
+         * Red at 8c8ece5c: no STAT_GLYPHS, no row.
+         */
+        needs(env.tools(), "the drawings are read from tools/glyphs.json (an installed module's zip leaves tools/ out)");
+        const G = await import("./tests-glyphs.mjs");
+        const SG = await import("./stat-glyphs.mjs").catch(() => null);
+        const C = await import("./config.mjs");
+        const text = async file => fetch(`/modules/${MODULE_ID}/${file}`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
+        const glyphs = G.parseGlyphs(await text("tools/glyphs.json")).glyphs;
+        must(glyphs.length >= 400, `${glyphs.length} glyph row(s) read - glyphs.json was not read`);
+        const keys = Object.keys(C.TRAITS), table = G.STAT_GLYPHS ?? {};
+        const tail = glyphs.slice(-keys.length).map(g => `${g.family}:${g.name}:${g.grid}`);
+        const rules = G.glassRules().filter(([id]) => id.startsWith("stat.")).map(([id, sel, glyph, how]) => `${id} ${sel} ${glyph} ${how}`);
+        const problems = G.dataProblems(glyphs).filter(p => /stat-/.test(p));
+        const served = { css: await text(G.PIXEL_CSS), sprite: await text(G.SPRITE) };
+        const read = {
+            keys: [Object.keys(table), Object.keys(SG?.STAT_ICONS ?? {})].map(list => stableJson(list) === stableJson(keys)),
+            glyphs: keys.map(k => table[k]),
+            tail, problems, rules,
+            generated: [served.css === G.pixelCssOf(glyphs), served.sprite === G.spriteOf(glyphs)],
+            worn: keys.map(k => served.css.includes(`--drpg-pix-stat-${k}: url(`))
+        };
+        equal(stableJson(read), stableJson({
+            keys: [true, true], glyphs: keys.map(k => `stat-${k}`), tail: keys.map(k => `glass:stat-${k}:24`), problems: [],
+            rules: keys.map(k => `stat.${k} i.drpg-stat-glyph[data-drpg-stat="${k}"] stat-${k} box`),
+            generated: [true, true], worn: keys.map(() => true) }),
+            "[STAT_GLYPHS and STAT_ICONS name TRAITS's keys]; each statistic's glyph; the last rows of glyphs.json; a stat row's faults; the glass rules; [pixel-icons.css, the sprite] as generated; each drawing declared under Stained Glass");
+    }],
+    ["R3593 - a statistic's glyph keeps a space from its name in both themes, and under Stained Glass the sheet's name plate holds the glyph (styles/components.css `i.drpg-stat-glyph`, styles/stained-glass.css the plate; E49, the owner's ask of 11.11.2026 night): read through the suite's cascade on the dressed stand-ins, the glyph's inline end margin is a quarter of its name's size on the sheet under both themes and in the window under Stained Glass, under Monokuma Legacy the window's glyph stands on its own line over the name (its six names fill their cells there), and under Stained Glass the sheet's `.trait-name` is no fixed height, at least 1.5rem, its line 1.5rem - each from the sheet named", async () => {
+        /*
+         * E49, 11.11.2026 night. Measured in Chromium on the stand-ins (S/stages/E105/e49stat): with no margin the glass
+         * drawing touched the name ("Shadow"); the plate was Daggerheart's 1rem and the 22-24 px drawing stood 4 px out of it
+         * above and below; under Legacy the window's "Shadow" is 79 px in a 74 px cell, and its icon beside it ran into Head's. Layout is not read here (jsdom has none): the rules that set it are.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        const SH = await import("./sheet.mjs");
+        const step = SH.SHEET_STEPS?.find(([name]) => name === "markTraitGlyphs")?.[1];
+        must(typeof D?.dressCharacterSettings === "function" && step, "dh-settings.mjs or sheet.mjs's markTraitGlyphs is not there - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const C = await styleCascade();
+        const at = (el, props) => { const w = C.winner(el, props); return w ? `${w.value} (${w.file})` : null; };
+        const read = {};
+        for (const [theme, cls] of [["glass", "drpg-theme-stained-glass"], ["legacy", "drpg-theme-monokuma-legacy"]]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${cls} drpg-player`;
+            html.append(body);
+            const win = K.dhSettingsStandIn({ traits: { instinct: { value: 1 } }, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 0, evasion: 0, experiences: {} }, { name: "R3593" });
+            const sheet = K.dhTraitsStandIn({ instinct: { value: 1 } });
+            body.append(win, sheet);
+            D.dressCharacterSettings(win);
+            step({ element: sheet });
+            const glyphs = [win, sheet].map(root => root.querySelector('i.drpg-stat-glyph[data-drpg-stat="eye"]'));
+            must(glyphs.every(Boolean), "no glyph was drawn - this would measure nothing");
+            const plate = sheet.querySelector('.trait[data-attribute="instinct"] .trait-name');
+            read[theme] = { gap: glyphs.map(g => at(g, ["margin-inline-end", "margin-right", "margin"])), line: at(glyphs[0], ["display"]),
+                plate: theme === "glass" ? [at(plate, ["height"]), at(plate, ["min-height"]), at(plate, ["line-height"])] : null };
+        }
+        const gap = "0.25em (styles/components.css)", G = "(styles/stained-glass.css)";
+        const P = "(styles/components.css)";
+        equal(stableJson(read), stableJson({ glass: { gap: [gap, gap], line: "inline-block (styles/pixel-icons.css)", plate: [`auto ${G}`, `1.5rem ${G}`, `1.5rem ${G}`] },
+            legacy: { gap: [`0 0 2px ${P}`, gap], line: `block ${P}`, plate: null } }),
+            "per theme: the glyph's end margin [the window, the sheet]; the window's glyph's display (its own line under Legacy); under Stained Glass the sheet's name plate [height, min-height, line-height] - each with the sheet it came from");
+    }],
 ];
 
 /**

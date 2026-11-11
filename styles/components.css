@@ -3761,3 +3761,18 @@ body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drp
    above it at the same weight (Chromium, the stand-in, 11.11.2026) */
 body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.details .two-columns > .drpg-dh-unused[hidden],
 body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .drpg-dh-unused[hidden] { display: none; }
+/* EACH STATISTIC'S GLYPH BEFORE ITS NAME (E49, the owner's ask of 11.11.2026 night; stat-glyphs.mjs): in this window's
+   Details and in the sheet's header (sheet.mjs `markTraitGlyphs`) alike, a quarter of the name's own size between the
+   glyph and the name. The glyph's face is Font Awesome's under Monokuma Legacy, the theme's drawing under Stained Glass
+   (pixel-icons.css, keyed on data-drpg-stat); this sets only the space. Read in Chromium on the stand-ins (S/stages/E105/
+   e49stat, 11.11.2026): with none the glass drawing touched the name's first letter ("Shadow"). */
+i.drpg-stat-glyph[data-drpg-stat] { margin-inline-end: 0.25em; }
+/* Under Monokuma Legacy the wrench's window sets each name in the pixel face at the kit's tab size, six to a row: measured
+   on the stand-in in Chromium (1366x768, 11.11.2026), each name's cell is 74 px wide and "Shadow" alone 79, so its Font
+   Awesome icon beside it ran 14 px into Head's cell. The icon stands on its own line over the name there, centred, the
+   space below it and none beside; Stained Glass keeps it on the name's line, where its names fit (the glass face). */
+body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.details .traits-inner-container .trait-container span > i.drpg-stat-glyph {
+    display: block;
+    margin: 0 0 2px;
+    text-align: center;
+}
