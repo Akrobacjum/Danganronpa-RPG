@@ -891,7 +891,11 @@ async function panelPass(browser) {
  * (settings-window.mjs) and read: the window's outer rect, the body's scroll (`.drpg-kit-body` scrollHeight less
  * clientHeight; and its scrollHeight, which moves the content's height while a window held at the screen's height keeps
  * its rect), the rows' widest overflow. Red when a section's rect differs from the first section's by more than 0.5 px or
- * its body content's height at all, or the body scrolls, or a row is wider than its pane. THE CONTROL first: the hidden sections planted out of the
+ * its body content's height at all, or the body scrolls, or a row is wider than its pane. THE LIST'S INK (E49 A1c, the
+ * orchestrator's review of the shots: the picked section's gold icon on the gold row): each section button's label at
+ * 4.5:1 and its icon at 3:1 on its ground at rest, picked (current), hovered and focused, read as `--panel` reads the
+ * panel's tiles; and no select or number field whose longest text is wider than its box (the move audit's select cut
+ * under the glass). THE CONTROL first: the hidden sections planted out of the
  * layout (`display: none`, what the window is without its stylesheet's section) must read as a change of size.
  */
 const SETTINGS_SIZES = [[1366, 768], [1920, 1080]];
@@ -917,6 +921,78 @@ async function settingsRead(page) {
         }
         return { rows };
     });
+}
+
+/* The sections' list in a state (`rest`: every button as drawn, the picked one aside; `current`: the picked one; `hover` and
+   `focus`: the button the caller hovered or focused): each button's label and icon ink against its ground, as `--panel`
+   reads the GM panel's tiles (E49 A3: the background-color chain, the raster's stops, the glass's lit `::before` brush),
+   and every select and number field whose longest text is wider than its box. */
+async function settingsInkRead(page, state, index = -1) {
+    return page.evaluate(async ({ state, index }) => {
+        const parse = c => {
+            const m = String(c).match(/^rgba?\(([^)]+)\)$/), n = String(c).match(/^color\(srgb ([^)]+)\)$/);
+            if (m) { const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p[3] ?? 1]; }
+            if (n) { const p = n[1].split(/[\s/]+/).filter(Boolean).map(Number); return [p[0] * 255, p[1] * 255, p[2] * 255, p[3] ?? 1]; }
+            return [0, 0, 0, 0];
+        };
+        const over = (top, under, alpha = 1) => { const a = top[3] * alpha; return [0, 1, 2].map(i => top[i] * a + under[i] * (1 - a)).concat(1); };
+        const lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+        const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 100) / 100; };
+        const cs = (el, pseudo) => globalThis.getComputedStyle(el, pseudo);
+        const groundUnder = el => {
+            const chain = [];
+            for (let e = el; e; e = e.parentElement) { chain.push(parse(cs(e).backgroundColor)); if (chain.at(-1)[3] >= 1) break; }
+            let g = chain.at(-1)[3] >= 1 ? chain.pop() : [0, 0, 0, 1];
+            while (chain.length) g = over(chain.pop(), g);
+            return g;
+        };
+        const grounds = el => {
+            const base = groundUnder(el);
+            const out = [base];
+            for (const stop of String(cs(el).backgroundImage).match(/rgba?\([^)]+\)/g) ?? []) out.push(over(parse(stop), base));
+            const b = cs(el, "::before"), paint = parse(b.backgroundColor);
+            const covers = String(b.inset).split(/\s+/).every(v => parseFloat(v) <= 0);
+            if (b.content !== "none" && b.display !== "none" && Number(b.opacity) * paint[3] > 0.05) {
+                const lit = over(paint, base, Number(b.opacity));
+                return covers && Number(b.opacity) * paint[3] >= 0.9 ? [lit] : [...out, lit];
+            }
+            return out;
+        };
+        const win = globalThis.document.querySelector(".application.drpg-window-settings");
+        const buttons = [...(win?.querySelectorAll(".drpg-settings-sections > button.drpg-settings-tab") ?? [])];
+        const ink = (el, alpha) => {
+            if (!el) return null;
+            const s = cs(el), masked = s.maskImage && s.maskImage !== "none" || s.webkitMaskImage && s.webkitMaskImage !== "none";
+            return { colour: parse(masked ? s.backgroundColor : s.color), alpha: Number(s.opacity) * alpha };
+        };
+        const read = b => {
+            const g = grounds(b), a = Number(cs(b).opacity);
+            const worst = p => (p ? Math.min(...g.map(ground => ratio(over(p.colour, ground, p.alpha), ground))) : null);
+            return { key: b.dataset.drpgSection, pressed: b.getAttribute("aria-pressed") === "true",
+                label: worst(ink(b.querySelector(":scope > span"), a)), icon: worst(ink(b.querySelector(":scope > i"), a)) };
+        };
+        const picked = state === "rest" ? buttons.filter(b => b.getAttribute("aria-pressed") !== "true")
+            : state === "current" ? buttons.filter(b => b.getAttribute("aria-pressed") === "true") : [buttons[index]].filter(Boolean);
+        /* A control narrower than its text: each select's longest option and each number field's value, set in the
+           control's own font, against its content box (less the select's arrow, the padding-right it keeps). */
+        const probe = globalThis.document.createElement("span");
+        probe.style.cssText = "position:absolute;visibility:hidden;white-space:pre;left:-9999px;top:0";
+        globalThis.document.body.append(probe);
+        const narrow = [];
+        for (const field of win?.querySelectorAll("select, input[type=number]") ?? []) {
+            if (field.closest("[hidden]")) continue;
+            const s = cs(field);
+            probe.style.font = s.font;
+            probe.style.letterSpacing = s.letterSpacing;
+            probe.style.textTransform = s.textTransform;
+            const texts = field.tagName === "SELECT" ? [...field.options].map(o => o.textContent) : [field.value];
+            const need = Math.max(0, ...texts.map(t => { probe.textContent = t; return probe.getBoundingClientRect().width; }));
+            const room = field.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight);
+            if (need > room + 0.5) narrow.push(`${field.name} ${Math.round(need)} px of text in ${Math.round(room)}`);
+        }
+        probe.remove();
+        return { buttons: picked.map(read), narrow };
+    }, { state, index });
 }
 
 async function settingsPass(browser) {
@@ -963,7 +1039,40 @@ async function settingsPass(browser) {
                         if (x.body > 0) bad.push(`${x.key} body scrolls ${x.body} px`);
                         if (x.over > 0.5) bad.push(`${x.key} a row ${x.over} px past its pane`);
                     }
+                    /* The list's ink in each state, and the controls' widths, at every section picked (a control is read
+                       where its section is shown). Hover and focus on the picked button and on the next one. */
+                    const ink = { rest: [], current: [], hover: [], focus: [] };
+                    const narrow = new Set();
+                    for (const x of r.rows) {
+                        await page.evaluate(async key => (await import("/scripts/settings-window.mjs")).showSection(globalThis.document.querySelector(".application.drpg-window-settings"), key), x.key);
+                        await page.mouse.move(0, 0);
+                        await page.waitForTimeout(450);
+                        const at = await settingsInkRead(page, "rest");
+                        ink.rest.push(...at.buttons);
+                        at.narrow.forEach(n => narrow.add(n));
+                        ink.current.push(...(await settingsInkRead(page, "current")).buttons);
+                    }
+                    const count = r.rows.length;
+                    for (const i of [count - 1, 0]) {
+                        const button = page.locator(".application.drpg-window-settings .drpg-settings-sections > button.drpg-settings-tab").nth(i);
+                        await button.hover({ force: true });
+                        await page.waitForTimeout(450);
+                        ink.hover.push(...(await settingsInkRead(page, "hover", i)).buttons);
+                        await page.mouse.move(0, 0);
+                        await page.evaluate(i => globalThis.document.querySelectorAll(".application.drpg-window-settings .drpg-settings-sections > button.drpg-settings-tab")[i]?.focus({ focusVisible: true }), i);
+                        await page.waitForTimeout(450);
+                        ink.focus.push(...(await settingsInkRead(page, "focus", i)).buttons);
+                        await page.evaluate(() => globalThis.document.activeElement?.blur?.());
+                    }
+                    const low = list => ({ label: Math.min(...list.map(b => b.label ?? 0)), icon: Math.min(...list.map(b => b.icon ?? 0)) });
+                    for (const [state, list] of Object.entries(ink)) {
+                        const l = low(list);
+                        if (!(l.label >= 4.5)) bad.push(`${state}: a section's label ${l.label}:1 (AA 4.5)`);
+                        if (!(l.icon >= 3)) bad.push(`${state}: a section's icon ${l.icon}:1 (3:1)`);
+                    }
+                    for (const n of narrow) bad.push(`a control narrower than its text: ${n}`);
                     problems.push(...bad.map(b => `${where}: ${b}`));
+                    console.log(`style-sweep: --settings ${where}: lowest label/icon ${Object.entries(ink).map(([s, list]) => `${s} ${low(list).label}/${low(list).icon}`).join(", ")}; narrow controls ${narrow.size}`);
                     console.log(`style-sweep: --settings ${where}: ${r.rows.length} section(s), ${[...new Set(r.rows.map(x => `${x.w}x${x.h}`))].join(" / ")}, body scroll ${Math.max(...r.rows.map(x => x.body))}${bad.length ? ` - RED: ${bad.join("; ")}` : ""}`);
                     if (SHOTS) {
                         fs.mkdirSync(SHOTS, { recursive: true });
