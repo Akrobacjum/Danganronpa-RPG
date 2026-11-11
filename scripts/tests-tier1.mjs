@@ -46599,7 +46599,7 @@ const INVARIANTS = [
         J([null, true, null, true, null, 3, true, true]),
             "[while loading, loaded, after it was destroyed, loaded again, after forgetTextures, loads, the tear-down's hook, canvasReady's] - a Remnant's icon is handed a texture its scene let go");
     }],
-    ["R3490 - Monokuma Legacy's small type stops at 11 px (styles/danganronpa.css; E48 K6, S12-41): `--drpg-text-xs` and the Legacy body's rungs 11 to 14 floor at min(11px, the rung) - the floor never above the rung at 100 %, never under 11 px at a 16 px root whatever the scale slider says", async () => {
+    ["R3500 - Monokuma Legacy's small type stops at 11 px (styles/danganronpa.css; E48 K6, S12-41): `--drpg-text-xs` and the Legacy body's rungs 11 to 14 floor at min(11px, the rung) - the floor never above the rung at 100 %, never under 11 px at a 16 px root whatever the scale slider says", async () => {
         /*
          * E48 K6, 11.11.2026. S12-41: "10 px despite the declared 11 px floor (the HUD's chapter line and time, Despair's
          * count, Experience)" - each of them reads one of these tokens. The floor was min(10px, rung): at the slider's
@@ -46614,7 +46614,7 @@ const INVARIANTS = [
             stableJson([11, 11, 11, 11, 11.2]),
             "[--drpg-text-xs, --font-size-11 .. 14] at a 16 px root and the slider at 0.8, in px - a small rung under Legacy must not fall under 11 px");
     }],
-    ["R3491 - Monokuma Legacy's sheet tab and its red grounds are readable (styles/danganronpa.css, tools/contrast-pairs.json; E48 K6, S12-25, S03-20, Q13): the active tab is Bone on Ink with the attention edge, the other Bone-on-Eye grounds the Eye's dark step, the theme's red lifted, and tools/contrast-pairs.json writes no Legacy pair `known` below AA", async () => {
+    ["R3501 - Monokuma Legacy's sheet tab and its red grounds are readable (styles/danganronpa.css, tools/contrast-pairs.json; E48 K6, S12-25, S03-20, Q13): the active tab is Bone on Ink with the attention edge, the other Bone-on-Eye grounds the Eye's dark step, the theme's red lifted, and tools/contrast-pairs.json writes no Legacy pair `known` below AA", async () => {
         /*
          * E48 K6, 11.11.2026. S12-25: "the sheet's active tab Bone on Eye at 11 px, 3.63:1". The owner's Q13 ("tak"):
          * the red fill goes, Bone on Ink with a `--drpg-attention` edge. Chromium at 1366x768 (the stage's probe, the
@@ -46634,7 +46634,7 @@ const INVARIANTS = [
             stableJson({ ink: true, edge: true, dim: true, red: "#eb585c", known: [] }),
             "{ink: the active tab's Ink ground; edge: its attention edge; dim: the Stop's and the lit buttons' Eye-dim ground; red: Legacy's red; known: Legacy pairs below AA} - Legacy's red grounds must read at AA");
     }],
-    ["R3492 - under Monokuma Legacy the Calls keep their frames and only a tile that can be pressed lights (styles/danganronpa.css; E48 K6, S12-27): the Hope and Despair Calls' gold and blood frames and the hot tile's blood are restated at the blanket's weight, the Calls' hovers are their own colours and an unaffordable tile takes no hover", async () => {
+    ["R3502 - under Monokuma Legacy the Calls keep their frames and only a tile that can be pressed lights (styles/danganronpa.css; E48 K6, S12-27): the Hope and Despair Calls' gold and blood frames and the hot tile's blood are restated at the blanket's weight, the Calls' hovers are their own colours and an unaffordable tile takes no hover", async () => {
         /*
          * E48 K6, 11.11.2026. S12-27: "a blanket `border-color: var(--drpg-line) !important` eats the Calls' gold and
          * pink frames and the hot tile's; a Hope Call glows red on hover". The blanket stays (it is what holds
@@ -46654,7 +46654,7 @@ const INVARIANTS = [
         stableJson([true, true, true, true, true, true]),
             "[Hope frame, Despair frame, hot tile, Hope hover, Despair hover, unaffordable hover] under Legacy - a Call's colour must outlast the blanket");
     }],
-    ["R3493 - Legacy's Event cards keep their tooltips and the incident's red edge survives high contrast (styles/danganronpa.css; E48 K6, S12-46, S12-47): a card with a tooltip and the debate's clock take the pointer inside the panel that takes none; `body.drpg-high-contrast.drpg-incident-here` sets the window edge red after high contrast sets it Bone", async () => {
+    ["R3503 - Legacy's Event cards keep their tooltips and the incident's red edge survives high contrast (styles/danganronpa.css; E48 K6, S12-46, S12-47): a card with a tooltip and the debate's clock take the pointer inside the panel that takes none; `body.drpg-high-contrast.drpg-incident-here` sets the window edge red after high contrast sets it Bone", async () => {
         /*
          * E48 K6, 11.11.2026. S12-46: "the Event panel is pointer-events: none, so the cards' tooltips never show";
          * S12-47: "high contrast wipes the red window edge of 'you are in the murder'". Read in the jsdom cascade where it
@@ -46668,7 +46668,7 @@ const INVARIANTS = [
         equal(stableJson({ cards, edge: both !== null && hc !== null && both > hc }), stableJson({ cards: true, edge: true }),
             "{cards: a tooltip card and the clock take the pointer; edge: the incident's red edge after high contrast's Bone} - Legacy must keep both signals");
     }],
-    ["R3494 - Legacy's sheet tiles and notice X match the glass's (styles/danganronpa.css; E48 K6, S12-43 and S12-55, the halves E49 B2 left): under the theme that is not glass a sheet's tile is at most 110 px tall, its icon's 1.15em box 24-32 px (the slider's factor between), and the notice's X ink at full opacity", async () => {
+    ["R3504 - Legacy's sheet tiles and notice X match the glass's (styles/danganronpa.css; E48 K6, S12-43 and S12-55, the halves E49 B2 left): under the theme that is not glass a sheet's tile is at most 110 px tall, its icon's 1.15em box 24-32 px (the slider's factor between), and the notice's X ink at full opacity", async () => {
         /*
          * E48 K6, 11.11.2026. Chromium at 1366x768 on the style harness's sheet parts (the stage's probe): Legacy's tile
          * 163 px tall before (a square of its column), the X rgb(29, 26, 33) at opacity 0.7 on the gold band.
@@ -46683,7 +46683,7 @@ const INVARIANTS = [
         equal(stableJson({ cap, box, ink: /color:\s*var\(--drpg-ink\)/.test(x), full: /opacity:\s*1\b/.test(x) }), stableJson({ cap: "110", box: [24, 32], ink: true, full: true }),
             "{cap: a Legacy tile's max height; box: its icon's box at the clamp's ends; ink, full: the X} - Legacy's tiles and X must match the glass's");
     }],
-    ["R3495 - the character sheet's tabs scroll and its fields read whole under both themes (styles/danganronpa.css, styles/stained-glass.css; E48 K6, S12-99, S03-20): `section.tab` and `.tab-body` take `overflow-y: auto !important` under Stained Glass and under the other theme alike; under Legacy the pixel face is never slanted by hand and a select keeps its text inside", async () => {
+    ["R3505 - the character sheet's tabs scroll and its fields read whole under both themes (styles/danganronpa.css, styles/stained-glass.css; E48 K6, S12-99, S03-20): `section.tab` and `.tab-body` take `overflow-y: auto !important` under Stained Glass and under the other theme alike; under Legacy the pixel face is never slanted by hand and a select keeps its text inside", async () => {
         /*
          * E48 K6, 11.11.2026. S12-99, the owner's game of 02.11: "under Monokuma Legacy the sheet does not scroll".
          * Daggerheart gives the tab `overflow: hidden`; Stained Glass has overridden it since 07.09 and Legacy never
@@ -46703,7 +46703,7 @@ const INVARIANTS = [
             stableJson({ glass: true, legacy: true, synth: true, select: true }),
             "{glass, legacy: the sheet's tab scrolls; synth: no slanted pixel face; select: its text kept inside} - the sheet must scroll in both themes");
     }],
-    ["R3496 - under Monokuma Legacy the voice tile stands right under the Projects tray and the room tile glows in the time of day's colour (scripts/glass.mjs `flatVoicePlacement`, styles/danganronpa.css; E48 K6, S12-98): the placement is the tray's bottom plus 8 px and its right edge, null with no tray drawn; the sheet places `data-place=\"tray\"` by it, and the room tile reads the phase's colour as the clock does", async () => {
+    ["R3506 - under Monokuma Legacy the voice tile stands right under the Projects tray and the room tile glows in the time of day's colour (scripts/glass.mjs `flatVoicePlacement`, styles/danganronpa.css; E48 K6, S12-98): the placement is the tray's bottom plus 8 px and its right edge, null with no tray drawn; the sheet places `data-place=\"tray\"` by it, and the room tile reads the phase's colour as the clock does", async () => {
         /*
          * E48 K6, 11.11.2026. S12-98, the owner's game of 02.11: "the room tile does not stand right under the clock and
          * has no glow; the voice tile does not stand right under the Projects tray". Chromium, the glass harness at
@@ -46733,7 +46733,7 @@ const INVARIANTS = [
         equal(stableJson({ read, seat, glow }), stableJson({ read: [{ place: "tray", y: 204, right: 22 }, null], seat: true, glow: true }),
             "{read: the placement with the tray drawn and with none; seat: the sheet's rule; glow: the room tile's phase glow} - Legacy's tiles must stand at Stained Glass's anchors");
     }],
-    ["R3497 - the notice history window wears the active theme's ground (styles/components.css; E48 K6, S12-100): under the theme that is not glass its content is the kit's `--drpg-kit-notice-ground`, Legacy's panel ground", async () => {
+    ["R3507 - the notice history window wears the active theme's ground (styles/components.css; E48 K6, S12-100): under the theme that is not glass its content is the kit's `--drpg-kit-notice-ground`, Legacy's panel ground", async () => {
         /*
          * E48 K6, 11.11.2026. S12-100, the owner's game of 02.11: "the notice panel has Stained Glass's ground under
          * Monokuma Legacy". Chromium, the style harness's notices-player window at 1366x768 before: under Legacy the
@@ -46743,7 +46743,7 @@ const INVARIANTS = [
         equal(/body:not\(\.drpg-theme-stained-glass\) \.application\.drpg-ui\.drpg-panel > \.window-content:has\(> \.drpg-notices-body\)\s*\{[^}]*background:\s*var\(--drpg-kit-notice-ground\)/.test(css) && /--drpg-kit-notice-ground:\s*var\(--drpg-panel-ground\)/.test(css), true,
             "the notice history window has no ground of Legacy's own");
     }],
-    ["R3498 - a character sheet opens below the curtain's band (scripts/settings.mjs `sheetBandFoot`, `scaleWindow`; E49 B leftover, S03-30): on its first render a character's sheet stands its top 8 px under the lowest of Despair's pools and the Event panel, its height cut to the screen under it; a later render moves nothing, and with no band drawn the sheet keeps Foundry's place", async () => {
+    ["R3508 - a character sheet opens below the curtain's band (scripts/settings.mjs `sheetBandFoot`, `scaleWindow`; E49 B leftover, S03-30): on its first render a character's sheet stands its top 8 px under the lowest of Despair's pools and the Event panel, its height cut to the screen under it; a later render moves nothing, and with no band drawn the sheet keeps Foundry's place", async () => {
         /*
          * E48 K6's run, 11.11.2026 (the B1/B2 leftovers E49's STATUS names). S03-30: "the sheet opens on the curtain: it
          * covers the Despair pools, the debate's timer and the incident's turn signal" - the remedy "the sheet's default
