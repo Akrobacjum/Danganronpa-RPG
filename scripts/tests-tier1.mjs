@@ -37908,7 +37908,7 @@ const INVARIANTS = [
         const won = Object.fromEntries([...body.querySelectorAll(".drpg-event")].map(card => [card.dataset.kind, C.winner(card, ["--acc"])]));
         const hour = kinds.filter(k => !won[k] || !won[k].selector.includes(`[data-kind="${k}"]`) || /--drpg-glass-accent/.test(won[k].value));
         equal(stableJson({ hour, safeword: won.safeword?.value ?? null, assembly: won.assembly?.value ?? null }),
-            stableJson({ hour: [], safeword: "var(--drpg-sg-gm-light)", assembly: "var(--drpg-sg-hope)" }),
+            stableJson({ hour: [], safeword: "var(--drpg-sg-gm-light)", assembly: "var(--drpg-sg-evidence)" }), // Hope's gold until E48 K1: the base sheet's antique is Evidence's
             "{hour: the kinds whose `--acc` under Stained Glass is the hour's or no rule of their own; the safeword's and the assembly's accent}");
     }],
     ["R1394 - the Event panel is one box whatever it says (E23 C3b, E23-18; the owner's 04.10, audit S10-35, S12-30): its width and height are two tokens, a length each, stated for Monokuma Legacy, for the glass and for the glass's stack, and what is taller scrolls inside it, the panel never shrunk and a card never shrunk below its words; an incident's meta is two lines, whose turn and then the state, and no meta wears a frame or a glowing box (under Monokuma Legacy its lines 1.25 apart or more); the ticker runs in the glyph's band, under no word, and is not drawn on a stacked screen", async () => {
@@ -44632,7 +44632,7 @@ const INVARIANTS = [
             /* the field's focus ring stays the panels' gold (danganronpa.css, every `drpg-panel`), already the module's */
         };
         const sheet = "styles/components.css", token = `var(--drpg-kit-role-primary) | ${sheet}`;
-        const each = { box: ["info", game.i18n.localize("DRPG.GiveBack.givenBackState"), `3px solid var(--drpg-kit-info-edge) | ${sheet}`], window: [token, token, token, "var(--drpg-gold) | styles/danganronpa.css"] };
+        const each = { box: ["info", game.i18n.localize("DRPG.GiveBack.givenBackState"), `3px solid var(--drpg-kit-info-edge) | ${sheet}`], window: [token, token, token, "var(--drpg-attention) | styles/danganronpa.css"] }; // the field focus: Hope's gold until E48 K1
         equal(JSON.stringify({ legacy: read("drpg-theme-monokuma-legacy"), glass: read("drpg-theme-stained-glass") }), JSON.stringify({ legacy: each, glass: each }),
             "{per theme: the given-back line [its box, its words, its edge (the winning value | its sheet)], the window's accent, checkbox, button focus and field focus colours}");
     }],

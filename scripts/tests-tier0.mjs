@@ -14235,10 +14235,11 @@ const REGRESSIONS = [
             ?? await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText));
         must(css.length > 10000 && css.includes(BASE), "stained-glass.css or its dice rule is not among the module's sources - this would measure nothing");
         const planted = (from, to) => { must(css.includes(from), `the sheet has no "${from}"`); return css.replace(from, to); };
-        const base = bodyOf(css, `${BASE} {`, { until: "}" });
-        const plate = /background:\s*[^;]+;/.exec(base)?.[0] ?? "";
-        must(plate.length > 0, "the dice rule states no background");
-        const accent = reading(css.replace(base, base.replace(plate, "background: var(--drpg-glass-accent);")));
+        // E48 K1: the Hope plate stands on its own `.is-hope` rule (gold is read only by a rule naming Hope), so the plant
+        // puts the accent back there, where the base rule held it before.
+        const hopeRule = `${BASE}.is-hope { background: var(--drpg-sg-hope); }`;
+        must(css.includes(hopeRule), "the Hope die's plate rule states no background");
+        const accent = reading(css.replace(hopeRule, `${BASE}.is-hope { background: var(--drpg-glass-accent); }`));
         const critical = reading(planted(`${BASE} {`,
             `body.drpg-theme-stained-glass .drpg-duality[data-side="critical"] .drpg-duality-die { background: var(--drpg-sg-hope); }\n${BASE} {`));
         equal(J([accent[0], critical[2]]), J([["var(--drpg-glass-accent)"], ['body.drpg-theme-stained-glass .drpg-duality[data-side="critical"] .drpg-duality-die']]),
