@@ -39931,6 +39931,60 @@ const INVARIANTS = [
         equal(stableJson(readings), stableJson({ bar: each, pips: each }),
             "[the bar layout, the pip layout] x [another player's redacted sheet, the same unredacted (anonymity off), the owner's, a GM's]: [Sanity's numbers found, Sanity's system slots left (their count is its maximum), Health's row, Sanity's row]");
     }],
+    ["R3346 - another player's sheet holds no Hope or Sanity maximum (anonymity.mjs `redactValues`, `redactSheet`; character.mjs `reserveRow`; E49 B2; the owner's Q1, 10.11: a request): on a redacted stand-in in either layout, Hope is one \"?\" in one slot with no `data-value` and no glyph, and neither Hope's row nor Sanity's block holds a digit in a text or an attribute; the owner and a GM read both as before - a diamond a point of the maximum, each with its point, and Sanity's \"5 / 7\"", async () => {
+        /*
+         * E49 B2, 10.11.2026. The owner's [19]: "gdy gracz sprawdza cudza karte postaci, widzi ? na maks hope/sanity";
+         * Q1 answered "prośba" (a request): the maximum is "?" too. Sanity already read one "?" with no maximum (E24 C1a,
+         * R1445); Hope's header drew one "?" a diamond, one diamond a point of the maximum, each keeping `data-value`
+         * 1..max, so the maximum was counted from the row. R1445's stand-ins (Health 1 of 4 marked, Sanity 2 of 7) with
+         * Daggerheart's header Hope in front of them: six diamonds, three held, as scenario 71's stand-in draws them.
+         * Attributes read for a digit leave out `style` (the emptied bar's "0%") and `min` (the field's floor), as 71 J
+         * does. Red on 11df1b4b: the viewer's Hope "??????" in six slots, each with its `data-value`.
+         */
+        const SH = await import("./sheet.mjs");
+        const A = await import("./anonymity.mjs");
+        must(typeof SH.paintReserves === "function" && typeof A.redactSheet === "function", "sheet.mjs has no `paintReserves` or anonymity.mjs no `redactSheet` - this would measure nothing");
+        const owner = { id: "r3346-owner", isGM: false }, viewer = { id: "r3346-viewer", isGM: false };
+        const actor = reserveActor({ id: `r3346${Date.now().toString(36)}`, hp: 1, stress: 2, stressMax: 7, owner: owner.id });
+        const HOPE_MAX = 6, HOPE = 3;
+        const standIn = pips => {
+            const root = reserveStandIn(actor, { pips });
+            let diamonds = "";
+            for (let n = 1; n <= HOPE_MAX; n++) {
+                diamonds += `<span class="hope-value" data-action="toggleHope" data-value="${n}"><i class="${n <= HOPE ? "fa-solid" : "fa-regular"} fa-diamond"></i></span>`;
+            }
+            root.querySelector(".window-content").insertAdjacentHTML("afterbegin",
+                `<div class="character-header-sheet"><div class="character-row"><div class="resource-section"><div class="hope-section">${diamonds}</div></div></div></div>`);
+            return root;
+        };
+        const digits = el => (el ? [el, ...el.querySelectorAll("*")] : []).flatMap(node => [...node.attributes]
+            .filter(at => /\d/.test(at.value) && !["style", "min"].includes(at.name)).map(at => `${at.name}=${at.value}`))
+            .concat(/\d/.test(el?.textContent ?? "") ? [`text "${el.textContent.trim()}"`] : []);
+        const readings = {};
+        for (const pips of [false, true]) {
+            const seen = {};
+            for (const [who, user] of [["viewer", viewer], ["owner", owner], ["gm", game.user]]) {
+                const root = standIn(pips);
+                SH.paintReserves({ document: actor }, root, actor, user);
+                if (who === "viewer") A.redactSheet(root);
+                const hope = root.querySelector(".character-header-sheet .hope-section");
+                const sanity = root.querySelector("[data-drpg-reserve='stress']");
+                seen[who] = {
+                    hope: [hope?.textContent ?? null, hope?.querySelectorAll(".hope-value").length ?? null, hope?.querySelectorAll("[data-value]").length ?? null,
+                        hope?.querySelectorAll("i").length ?? null],
+                    ...(who === "viewer" ? { digits: [...digits(hope), ...digits(sanity)] } : {}),
+                    sanity: reserveRowText(sanity?.querySelector(".drpg-reserve-row"))
+                };
+            }
+            readings[pips ? "pips" : "bar"] = seen;
+        }
+        const L = (n, max) => game.i18n.format("DRPG.Reserve.leftRow", { n, max });
+        const whole = { hope: ["", HOPE_MAX, HOPE_MAX, HOPE_MAX], sanity: L(5, 7) };
+        const each = { viewer: { hope: ["?", 1, 0, 0], digits: [], sanity: "?" }, owner: whole, gm: whole };
+        equal(stableJson(readings), stableJson({ bar: each, pips: each }),
+            "[the bar layout, the pip layout] x [another player's redacted sheet, the owner's, a GM's]: hope [its text, its slots, slots carrying data-value, glyphs]; "
+            + "digits: a digit in Hope's row or Sanity's block (text or attribute; style and min aside); sanity: its row");
+    }],
     ["R1497 - the reserve's field is the mode's (sheet.mjs `sheetMode(...).reserveField`, `paintReserves`; E24 fix G2B, general m1 and n3; E24-04): on stand-in roots of a living student, a Monocub, an NPC not in the class, the dead and a Monokuma, the field is drawn for a GM and for the owner with Lock player resources off, on a sheet its app says is editable, never on the dead's or a Monokuma's, never for another player; the mode answers what is drawn, and a repaint draws for the sheet it repaints; and a write that comes back with nothing to write leaves a field being typed into as it is", async () => {
         /*
          * E24 fix G2B, 08.11.2026. The review's m1: `mayEditReserve` asked `user?.isGM` and `testUserPermission?.(`
