@@ -23216,6 +23216,9 @@ const INVARIANTS = [
          * The reader is held first to the rule as d99adf4b had it, planted back: it must see the chrome face win
          * on the minus. Red at d99adf4b: the minus, plus, eye-slash and loop all read the chrome face. In Chromium
          * the same is the glass harness's `drpgTrayIcons` (the sweep's "tray" clause).
+         * Since E105 FT-14 (11.11.2026) Stained Glass masks the minus, the plus and the eye-slash with the module's glyphs
+         * (pixel-icons.css HOST_FACES; R3571), which switch Font Awesome's ::before off and set no face on the icon: what
+         * this reads - that no module face lands on an icon - holds as before, and the loop is still Font Awesome's.
          */
         const C = await styleCascade();
         const ICONS = ["fa-minus", "fa-plus", "fa-eye-slash", "fa-repeat"];
@@ -44154,6 +44157,120 @@ const INVARIANTS = [
         } finally { host.remove(); }
         equal(stableJson({ scoped, duality, drawn }), stableJson({ scoped: [true, true, true, true, true], duality: true, drawn: ["flex 8px", "flex 8px"] }),
             "{scoped: the line's, glyph's, words', result's and who's rule on the notice, the snapshot and a chat message; duality: the total hidden in the notice; drawn: the words' display and gap in a chat message and in a snapshot} - the critical's line must read apart outside a notice");
+    }],
+    ["R3570 - the messenger's corner launcher wears the module's chat glyph in both themes, as its four neighbours wear theirs, not Font Awesome's comments (styles/stained-glass.css; E49, E105 FT-14): its icon a 24 px mask of --drpg-pix-chat with Font Awesome's glyph off, the book's mask the reader's control", async () => {
+        /*
+         * E105 FT-14, 11.11.2026 (the owner: "places where Foundry's graphics show through"). The survey (Chromium, the glass
+         * harness, both themes) read the launcher's `fa-comments` drawn in Font Awesome's face beside the gear, the book,
+         * the anvil and the GM's eye, all pixel masks: pixel-icons.css masks an FA name only inside a drpg- element and the
+         * button is `#drpg-messenger-launcher` alone. Red first on 7d59dcfe: no rule masked the icon (mask-image, width and
+         * ::before all null here). Read by the kit's cascade (`styleCascade`: the module's sheets in load order) on the markup
+         * messenger-app.mjs writes, on a body of each theme; the handbooks' book, masked the same way, is the control.
+         */
+        const C = await styleCascade();
+        const read = (theme, id, cls) => {
+            const html = document.createElement("html"), body = document.createElement("body"), button = document.createElement("button"), i = document.createElement("i");
+            body.className = theme;
+            button.id = id;
+            i.className = cls;
+            html.append(body);
+            body.append(button);
+            button.append(i);
+            return [C.winner(i, ["mask-image", "-webkit-mask-image"])?.value ?? null, C.winner(i, "width")?.value ?? null, C.winner(i, "content", "::before")?.value ?? null];
+        };
+        const got = {};
+        for (const [name, theme] of [["glass", "drpg-theme-stained-glass"], ["legacy", "drpg-theme-monokuma-legacy"]]) {
+            got[name] = read(theme, "drpg-messenger-launcher", "fa-solid fa-comments");
+            got[`${name}Book`] = read(theme, "drpg-book-launcher", "")[0];
+        }
+        equal(stableJson(got), stableJson({ glass: ["var(--drpg-pix-chat)", "24px", "none"], glassBook: "var(--drpg-pix-book)",
+            legacy: ["var(--drpg-pix-chat)", "24px", "none"], legacyBook: "var(--drpg-pix-book)" }),
+            "{each theme: the launcher's icon [mask, width, ::before content], the book's mask} - the messenger's launcher must wear the module's chat glyph, as the book beside it wears its own");
+    }],
+    ["R3571 - under Stained Glass Daggerheart's countdown tray wears the module's glyphs, not Font Awesome: a row's -1 and +1 the pixel minus and plus, a hidden countdown's mark a drawing of its own (unseen, not Averted Eyes' eye-slash), and Tamper's Misleading Trail row its trail; Monokuma Legacy keeps Font Awesome in the tray (styles/pixel-icons.css from tests-glyphs.mjs HOST_FACES and FACES; E49, E105 FT-14)", async () => {
+        /*
+         * E105 FT-14, 11.11.2026. The tray's markup is Daggerheart's (countdowns.hbs 2.10.11, the glass harness's copy):
+         * `<a data-action="decreaseCountdown"><i class="fa-solid fa-minus">`, the same with `fa-plus`, and a hidden
+         * countdown's `<i class="fa-solid fa-eye-slash">` in `.countdown-tool-icons`, in `#countdowns`, whose ancestors carry
+         * no drpg- class - so FACES's rules never reached them, and the survey read 5 Font Awesome icons in the dressed tray
+         * on the GM's page and 1 on a player's. Tamper's Misleading Trail row (`fa-signs-post`) was the one row of its
+         * picker FACES did not name. Red first on 7d59dcfe: every reading below null under the glass. Read by the kit's
+         * cascade on a body of each theme: the slot each icon's mask reads (`--drpg-glyph`) and the mask itself; and that the
+         * glass declares `unseen` and `eye-slash` as two drawings (the hidden mark is not Averted Eyes).
+         */
+        const C = await styleCascade();
+        const tray = theme => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            body.innerHTML = `<div id="countdowns"><div class="countdowns-container"><div class="countdown-container"><div class="countdown-content"><header>R3571</header>
+                <div class="countdown-tools"><div class="countdown-tool-controls"><a data-action="decreaseCountdown"><i class="fa-solid fa-minus"></i></a>
+                <div class="progress-tag">1/6</div><a data-action="increaseCountdown"><i class="fa-solid fa-plus"></i></a></div>
+                <div class="countdown-tool-icons"><i class="fa-solid fa-eye-slash"></i></div></div></div></div></div></div>
+                <div class="application drpg-ui drpg-action-window"><div class="drpg-choices"><label class="drpg-choice"><input type="radio" name="variant" value="frame"><i class="fa-solid fa-signs-post"></i></label></div></div>`;
+            return Object.fromEntries(["fa-minus", "fa-plus", "fa-eye-slash", "fa-signs-post"].map(fa => {
+                const i = body.querySelector(`i.${fa}`);
+                return [fa, [C.winner(i, "--drpg-glyph")?.value ?? null, C.winner(i, ["mask-image", "-webkit-mask-image"])?.value ?? null]];
+            }));
+        };
+        const glassBody = (() => { const html = document.createElement("html"), body = document.createElement("body"); body.className = "drpg-theme-stained-glass"; html.append(body); return body; })();
+        const declared = name => C.winner(glassBody, name)?.value ?? null;
+        const masked = glyph => [`var(--drpg-pix-${glyph})`, "var(--drpg-glyph)"];
+        equal(stableJson({ glass: tray("drpg-theme-stained-glass"), legacy: tray("drpg-theme-monokuma-legacy") }), stableJson({
+            glass: { "fa-minus": masked("minus"), "fa-plus": masked("plus"), "fa-eye-slash": masked("unseen"), "fa-signs-post": masked("misleading-trail") },
+            legacy: { "fa-minus": [null, null], "fa-plus": [null, null], "fa-eye-slash": [null, null], "fa-signs-post": [null, null] } }),
+            "{each theme: each icon's [glyph slot, mask]} - under the glass the tray's -1, +1 and hidden mark and Tamper's trail must wear the module's glyphs; Legacy keeps Font Awesome (option A)");
+        const unseen = declared("--drpg-pix-unseen"), eyeSlash = declared("--drpg-pix-eye-slash");
+        ok(/^url\("data:image\/svg\+xml,/.test(unseen ?? "") && /^url\("data:image\/svg\+xml,/.test(eyeSlash ?? "") && unseen !== eyeSlash,
+            `the glass declares the hidden mark's drawing (${String(unseen).slice(0, 40)}) apart from Averted Eyes' (${String(eyeSlash).slice(0, 40)})`);
+    }],
+    ["R3572 - the voice tile's mic and speaker, the notices' corner and the Projects gear leave no state to Foundry's button rules (styles/stained-glass.css; E49, E105 FT-21): under the glass the two voice buttons take the chrome face and keep their box bare on hover with the hexagon's edge lit; the corner's and the gear's hover edge is stated in both themes", async () => {
+        /*
+         * E105 FT-21, 11.11.2026. The survey read on these buttons properties no rule of the module's sheets set, which a
+         * table leaves to core's `button` rules: the voice buttons' face (Chromium's Arial) and hover ground and edge under
+         * the glass - where the button's own ground and edge are `none` and `0` and its hexagon is its ::before, so a core
+         * hover ground would fill the square behind the hexagon - and the corner's and gear's hover edge in both themes.
+         * Red first on 7d59dcfe: no font rule and none of the three hover rules. The face is read by the kit's cascade; a
+         * hover is no state `matches` can be asked for here, so each hover rule is read from stained-glass.css's text: its
+         * selector, and the properties it states.
+         */
+        const C = await styleCascade();
+        const html = document.createElement("html"), body = document.createElement("body"), button = document.createElement("button");
+        body.className = "drpg-theme-stained-glass";
+        button.className = "drpg-launch-mini drpg-voice-mic";
+        html.append(body);
+        body.append(button);
+        const face = C.winner(button, "font-family")?.value ?? null;
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText));
+        const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const states = sel => { const r = rules.find(x => x.sel === sel); return r ? [...r.body.matchAll(/(^|;)\s*([a-z-]+)\s*:/g)].map(m => m[2]).sort() : null; };
+        equal(stableJson({ face,
+            voiceHover: states("body.drpg-theme-stained-glass .drpg-launch-mini:is(:hover, :focus-visible)"),
+            voiceHoverEdge: states("body.drpg-theme-stained-glass .drpg-launch-mini:is(:hover, :focus-visible)::before"),
+            cornerAndGear: states("#drpg-notices-corner:is(:hover, :focus-visible), #countdowns .drpg-projects-gear:is(:hover, :focus-visible)") }),
+        stableJson({ face: "var(--drpg-font-chrome)", voiceHover: ["background", "border-color"], voiceHoverEdge: ["border-color"], cornerAndGear: ["border-color"] }),
+            "{the voice button's face under the glass; the properties its hover, its hexagon's hover and the corner's and gear's hover state} - no state of the four buttons may be left to Foundry's");
+    }],
+    ["R3573 - the GM panel's Settings tile wears a glyph of its own, not the corner gear's (one glyph per function, the owner): under Stained Glass the sliders drawn for it (--drpg-pix-settings, not --drpg-pix-gear), under Monokuma Legacy its markup's Font Awesome sliders, no mask (tests-glyphs.mjs ELEMENTS, styles/danganronpa.css; E49)", async () => {
+        /*
+         * E49 A1d put the game's settings behind a GM panel tile (`{ key: "settings", icon: "fa-sliders" }`) and gave it the
+         * corner gear's drawing in both themes - under the glass through ELEMENTS (`gear`, the Look launcher's gear with its
+         * sound waves), under Legacy through danganronpa.css's hand-masked tiles (`--drpg-pix-gear`, the launcher's again):
+         * the glyph check's one "shared not SAME" gap (R3338 red). Red first on 7d59dcfe: the glass slot read the gear and
+         * Legacy a mask of it. Read by the kit's cascade on the panel's markup, on a body of each theme.
+         */
+        const C = await styleCascade();
+        const read = theme => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            body.innerHTML = `<div class="drpg-gmp-grid"><button type="button" class="drpg-gmp-button" data-drpg-run="settings"><i class="fa-solid fa-sliders" inert></i><span>Settings</span></button></div>`;
+            const i = body.querySelector("i");
+            return [C.winner(i, "--drpg-glyph")?.value ?? null, C.winner(i, ["mask-image", "-webkit-mask-image"])?.value ?? null];
+        };
+        equal(stableJson({ glass: read("drpg-theme-stained-glass"), legacy: read("drpg-theme-monokuma-legacy") }),
+            stableJson({ glass: ["var(--drpg-pix-settings)", "var(--drpg-glyph)"], legacy: [null, null] }),
+            "{each theme: the Settings tile's icon [glyph slot, mask]} - the tile must wear its own glyph, never the corner gear's");
     }],
     ["R2018 - Room setup's Scenes tab on the kit (E46-C2b; E46-08, E47's 05.10 point 5): trial-scene.mjs `scenesTabHtml` is a kit `formGrid` (the school and the hall selects, each its label's `for`), the hall's name, picture and words a `formGrid` of their own, the warnings a `box(\"warning\")`, the prepare ticks kit switches, `SCENES_ZONE_SLOT` a row of `scenesTabRows` that draws nothing (where E73 puts Zone A and Zone B), the hall's cast pick (`castPickerHtml`) a kit `dataTable` with a switch an actor; `readScenesTab`'s answer for a seeded form the one it gave before", async () => {
         /*

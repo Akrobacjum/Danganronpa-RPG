@@ -1112,7 +1112,10 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
      that rule put back on the page for the reading, which must fail under Stained Glass. Under Monokuma Legacy it
      matches nothing, and a planted `#countdowns *` would not show either: with the pixel face the base sheet's
      `body.drpg-pixel-font #interface i[class*="fa-"]` restores Font Awesome at a higher specificity (read here,
-     27.10.2026), so the sweep runs the control under Stained Glass alone. Answers { read, why }. */
+     27.10.2026), so the sweep runs the control under Stained Glass alone. Since E105 FT-14 (11.11.2026) Stained Glass draws
+     the minus, the plus and the eye-slash as the module's pixel masks (pixel-icons.css HOST_FACES), Font Awesome's ::before
+     off; the masks set no face, so this reading and its control read as before, and the face still draws the loop. Answers
+     { read, why }. */
   window.drpgTrayIcons = ({ plant = false } = {}) => {
     const why = [], icons = [...document.querySelectorAll('#countdowns i[class*="fa-"]')];
     const stand = document.createElement("style");

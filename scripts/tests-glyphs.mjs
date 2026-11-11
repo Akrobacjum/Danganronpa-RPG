@@ -410,7 +410,7 @@ export const ELEMENTS = {
     "CLEANUP.actions.moveBody": "move-body", "gm.whoIsAlive": "pulse", "gm.projects": "checklist", "gm.sound": "sound",
     "gm.rules": "rules", "gm.murder": "gm-murder", "gm.investigation": "lens", "gm.trial": "scale", "gm.jump": "calendar",
     "gm.gmTeam": "team", "gm.roomSetup": "room-setup", "gm.tables": "table", "gm.voiceReset": "voice-reset",
-    "gm.seasonSetup": "wand", "gm.mastermind": "mask", "gm.settings": "gear",
+    "gm.seasonSetup": "wand", "gm.mastermind": "mask", "gm.settings": "settings",
     "gm.failureLog": "bug", "gm.caseWindow": "case-backup"
 };
 
@@ -563,8 +563,25 @@ export const FACES = {
     "id-card": "sheet", "masks-theater": "monokuma-mark", "paper-plane": "send", "pen-nib": "reshape", "thumbs-up": "favours",
     "thumbs-down": "hinders", "user-pen": "gm-picks", "wand-sparkles": "init",
     "box-archive": "stash", "dungeon": "passage", "eraser": "erase-trace", "microphone-lines": "voice-reset",
-    "microphone-slash": "mic-off", "volume-xmark": "sound-off", "camera": "photo"
+    "microphone-slash": "mic-off", "volume-xmark": "sound-off", "camera": "photo",
+    /* E105 FT-14 (11.11.2026): Tamper's Misleading Trail row (action-tamper.mjs, `fa-signs-post`) kept Font Awesome
+       under the glass - the one row of its picker FACES did not name; it wears the keyed CLEANUP row's drawing, the
+       same function (UNWORN.CLEANUP: "its picker rows are Tamper's, worn through FACES"). */
+    "signs-post": "misleading-trail"
 };
+
+/** Font Awesome icons in markup with no drpg- element round them, which FACES's `[class*="drpg-"]` cannot reach: [the
+ *  host's selector, what, { FA name: glyph }]. E105 FT-14 (11.11.2026): Daggerheart's countdown tray (countdowns.hbs
+ *  2.10.11, the module's Projects tray) draws a row's -1 and +1 as `<a><i class="fa-solid fa-minus|fa-plus">` and a hidden
+ *  countdown's mark as `fa-eye-slash`, in `#countdowns`, whose ancestors carry no drpg- class; under Stained Glass they
+ *  were the one Font Awesome in the dressed tray (the survey's glass-harness reading: 5 icons on the GM's page, 1 on a
+ *  player's). The minus and plus step a count, the function the kit's steppers' minus and plus are (FACES); the hidden
+ *  mark is not Averted Eyes (FACES's eye-slash), so it wears a drawing of its own, `unseen`. The tray's header clock is
+ *  hidden under the glass (stained-glass.css) and its loop (`fa-repeat`) is not drawn by any page here: neither is
+ *  mapped. Monokuma Legacy keeps Font Awesome in the tray (option A). */
+export const HOST_FACES = [
+    ["#countdowns", "Daggerheart's countdown tray: a row's -1, +1 and hidden mark", { minus: "minus", plus: "plus", "eye-slash": "unseen" }]
+];
 
 /** Stained Glass's themes: the one constant option B changes (A1: B = add "monokuma-legacy"; not built). */
 export const GLASS_THEMES = ["stained-glass"];
@@ -633,6 +650,7 @@ export function glassRules() {
     for (const [what, sel, glyph] of FACE_RULES) out.push([`rule.${glyph}`, sel, glyph, "box"]);
     for (const [act, glyph] of Object.entries(REMNANT_ACTS)) out.push([`remnant.${act}`, `.drpg-remnant-glyph[data-drpg-act="${act}"]`, glyph, "image"]);
     for (const [, sel, glyph] of STATE_RULES) out.push([`state.${glyph}`, sel, glyph, "image"]);
+    for (const [host, , faces] of HOST_FACES) for (const [fa, glyph] of Object.entries(faces)) out.push([`host.${host}.fa-${fa}`, `${host} i.fa-${fa}`, glyph, "box"]);
     /* No rule for the GM launcher: its glass glyph is today's eye pixel for pixel (glass:gm same g:monokuma-eye, the owner
        11.11), so the chrome rule that draws it already draws the glass set's; a rule here would only move the winner of
        its mask (R1333's hexagon prints) for the same picture. */
@@ -1124,7 +1142,10 @@ export const LEGACY_ICONS = {
     "gm.voiceReset": "fa:fa-microphone-lines",
     "gm.seasonSetup": "--drpg-pix-season-setup",
     "gm.mastermind": "--drpg-pix-mastermind",
-    "gm.settings": "--drpg-pix-gear",
+    /* E105 FT batch 2 (11.11.2026): E49 A1d's Settings tile was added to danganronpa.css's hand-masked tiles with the
+       corner gear's drawing (legacy gear, the Look launcher's); one glyph per function, so under Legacy it wears its own
+       markup's Font Awesome sliders (gm-panel.mjs `icon: "fa-sliders"`), as the Sound and Voice reset tiles wear theirs. */
+    "gm.settings": "fa:fa-sliders",
     "gm.failureLog": "--drpg-pix-failure-log",
     "gm.caseWindow": "fa:fa-box-archive",
     "rule.caution": "fa:fa-hand",
@@ -1256,5 +1277,7 @@ export const LEGACY_ICONS = {
     "face.fa-microphone-lines": "fa:fa-microphone-lines",
     "face.fa-microphone-slash": "fa:fa-microphone-slash",
     "face.fa-volume-xmark": "fa:fa-volume-xmark",
-    "face.fa-camera": "fa:fa-camera"
+    "face.fa-camera": "fa:fa-camera",
+    /* E105 FT-14 (11.11.2026): FACES's new name, Tamper's Misleading Trail row; Legacy keeps its Font Awesome (option A). */
+    "face.fa-signs-post": "fa:fa-signs-post"
 };
