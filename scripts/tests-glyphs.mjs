@@ -122,7 +122,10 @@ const dataUriOf = g => 'url("data:image/svg+xml,' + `<svg xmlns='http://www.w3.o
     .replaceAll("<", "%3C").replaceAll(">", "%3E").replaceAll("#", "%23").replaceAll('"', "'") + '")';
 
 export function spriteOf(glyphs) {
-    return '<svg xmlns="http://www.w3.org/2000/svg" style="display:none">\n' + generated(glyphs).map(symbolOf).join("\n") + "\n</svg>\n";
+    /* E48 G3: after the px set, every glass row as `pix-<name>`, the later stages' drawings among them - the one served
+       file that holds a drawing no rule wears yet. */
+    const glass = glyphs.filter(g => g.family === "glass").map(g => `<symbol id="pix-${g.name}" viewBox="0 0 24 24"><path fill="currentColor" d="${pathOf(g.rows)}"/></symbol>`);
+    return '<svg xmlns="http://www.w3.org/2000/svg" style="display:none">\n' + [...generated(glyphs).map(symbolOf), ...glass].join("\n") + "\n</svg>\n";
 }
 
 export function pixelCssOf(glyphs) {
@@ -145,8 +148,10 @@ export function pixelCssOf(glyphs) {
     const tok = n => n === "mask" ? "mask-glyph" : n;
     for (const g of generated(glyphs)) css.push(`    --drpg-px-${tok(g.name)}: ${dataUriOf(g)};`);
     css.push("}");
-    const sel = fa => `body.drpg-theme-stained-glass [class*="drpg-"] i.fa-${fa},\nbody.drpg-theme-stained-glass i.drpg-action-icon.fa-${fa},\nbody.drpg-theme-stained-glass [class*="drpg-"] .fa-${fa}:is(i, span)`;
-    const names = Object.keys(FA);
+    const sel = fa => `${GLASS} [class*="drpg-"] i.fa-${fa},\n${GLASS} i.drpg-action-icon.fa-${fa},\n${GLASS} [class*="drpg-"] .fa-${fa}:is(i, span)`;
+    /* E48 G3: FACES, each FA name to the glass glyph of its meaning (`--drpg-pix-`), declared in the glass section below;
+       the mask in longhands, so a cascade that knows no `mask` shorthand (jsdom's) reads the slot as a browser does. */
+    const names = Object.keys(FACES);
     css.push(names.map(sel).join(",\n") + ` {
     display: inline-block;
     width: max(1.15em, 22px);
@@ -155,13 +160,19 @@ export function pixelCssOf(glyphs) {
     min-height: 22px;
     vertical-align: -0.2em;
     background-color: currentColor;
-    -webkit-mask: var(--drpg-px-mask) center / contain no-repeat;
-    mask: var(--drpg-px-mask) center / contain no-repeat;
+    -webkit-mask-image: var(--drpg-px-mask);
+    mask-image: var(--drpg-px-mask);
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
     image-rendering: pixelated;
 }
 ` + names.map(fa => sel(fa).replaceAll(",\n", "::before,\n") + "::before").join(",\n") + " { content: none; }");
-    for (const [fa, n] of Object.entries(FA)) css.push(sel(fa).replaceAll("\n", " ") + ` { --drpg-px-mask: var(--drpg-px-${tok(n)}); }`);
-    return css.join("\n") + "\n";
+    for (const [fa, n] of Object.entries(FACES)) css.push(sel(fa).replaceAll("\n", " ") + ` { --drpg-px-mask: var(--drpg-pix-${n}); }`);
+    return css.join("\n") + "\n" + glassCssOf(glyphs);
 }
 
 const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -376,30 +387,30 @@ export const THEMES = {
 export const ELEMENTS = {
     "ACTIONS.search": "search", "ACTIONS.observe": "observe", "ACTIONS.analyze": "brain",
     "ACTIONS.project": "hourglass", "ACTIONS.rest": "rest", "ACTIONS.listen": "listen", "ACTIONS.palm": "palm",
-    "ACTIONS.tamper": "broom", "ACTIONS.directMurder": "skull", "ACTIONS.move": "move", "ACTIONS.sabotage": "tamper",
+    "ACTIONS.tamper": "broom", "ACTIONS.directMurder": "direct-murder", "ACTIONS.move": "move", "ACTIONS.sabotage": "tamper",
     "HOPE_CALLS.support": "support", "HOPE_CALLS.experience": "cap", "HOPE_CALLS.ultimate": "star",
-    "HOPE_CALLS.contribution": "tamper", "HOPE_CALLS.reroll": "reroll", "HOPE_CALLS.sprint": "sprint",
+    "HOPE_CALLS.contribution": "contribution", "HOPE_CALLS.reroll": "reroll", "HOPE_CALLS.sprint": "sprint",
     "HOPE_CALLS.burst": "dynamic", "HOPE_CALLS.relief": "relief", "HOPE_CALLS.determination": "fist",
     "HOPE_CALLS.freeCrit": "loaded", "DESPAIR_CALLS.obstacle": "barrier", "DESPAIR_CALLS.forTheGame": "gift",
     "DESPAIR_CALLS.behindClosedDoors": "door", "DESPAIR_CALLS.thisWillHurt": "heartcrack",
-    "DESPAIR_CALLS.paranoia": "brain", "DESPAIR_CALLS.chained": "chain", "DESPAIR_CALLS.silence": "silence",
+    "DESPAIR_CALLS.paranoia": "paranoia", "DESPAIR_CALLS.chained": "chain", "DESPAIR_CALLS.silence": "silence",
     "DESPAIR_CALLS.fuelTheCub": "cub", "DESPAIR_CALLS.gameProtection": "trend-down",
     "DESPAIR_CALLS.favoriteProject": "trend-up", "DESPAIR_CALLS.feedOverflow": "wave",
-    "DESPAIR_CALLS.contraband": "trash", "DESPAIR_CALLS.publicAnnouncement": "horn",
+    "DESPAIR_CALLS.contraband": "contraband", "DESPAIR_CALLS.publicAnnouncement": "horn",
     "DESPAIR_CALLS.motive": "envelope", "DESPAIR_CALLS.newRule": "gavel", "CRISIS_ACTIONS.useItem": "analyze",
-    "CRISIS_ACTIONS.leaveClue": "lens", "CRISIS_ACTIONS.secureTrace": "palm", "CRISIS_ACTIONS.selfDefence": "shield",
-    "CRISIS_ACTIONS.survive": "sprint", "CRISIS_ACTIONS.roleReversal": "reroll", "CRISIS_ACTIONS.strike": "fist",
+    "CRISIS_ACTIONS.leaveClue": "leave-clue", "CRISIS_ACTIONS.secureTrace": "secure-trace", "CRISIS_ACTIONS.selfDefence": "shield",
+    "CRISIS_ACTIONS.survive": "survive", "CRISIS_ACTIONS.roleReversal": "role-reversal", "CRISIS_ACTIONS.strike": "strike",
     "CRISIS_ACTIONS.pin": "down", "CRISIS_ACTIONS.keepDistance": "swap", "CRISIS_ACTIONS.weaponAttack": "murder",
-    "CRISIS_ACTIONS.finishingBlow": "skull", "CRISIS_ACTIONS.sharedEscape": "door",
-    "CRISIS_ACTIONS.doubleRoleReversal": "reroll", "CRISIS_ACTIONS.crimePartners": "support",
-    "CRISIS_ACTIONS.avertedEyes": "eye-slash", "MONOCUB.abilities.meddle": "palm", "TRAP_TRIGGERS.alone": "alone",
-    "TRAP_TRIGGERS.enters": "door", "TRAP_TRIGGERS.search": "search", "TRAP_TRIGGERS.rest": "rest",
+    "CRISIS_ACTIONS.finishingBlow": "finishing-blow", "CRISIS_ACTIONS.sharedEscape": "shared-escape",
+    "CRISIS_ACTIONS.doubleRoleReversal": "double-role-reversal", "CRISIS_ACTIONS.crimePartners": "crime-partners",
+    "CRISIS_ACTIONS.avertedEyes": "eye-slash", "MONOCUB.abilities.meddle": "confusion", "TRAP_TRIGGERS.alone": "alone",
+    "TRAP_TRIGGERS.enters": "enters", "TRAP_TRIGGERS.search": "search", "TRAP_TRIGGERS.rest": "rest",
     "TRAP_TRIGGERS.item": "item-used", "TRAP_TRIGGERS.project": "hourglass", "TRAP_TRIGGERS.sabotage": "tamper",
-    "TRAP_TRIGGERS.stash": "stash", "TRAP_TRIGGERS.passage": "passage", "TRAP_TRIGGERS.manual": "observe",
+    "TRAP_TRIGGERS.stash": "stash", "TRAP_TRIGGERS.passage": "passage", "TRAP_TRIGGERS.manual": "trap-manual",
     "CLEANUP.actions.eraseTrace": "erase-trace", "CLEANUP.actions.misleadingTrail": "misleading-trail",
     "CLEANUP.actions.moveBody": "move-body", "gm.whoIsAlive": "pulse", "gm.projects": "checklist", "gm.sound": "sound",
-    "gm.rules": "gavel", "gm.murder": "skull", "gm.investigation": "lens", "gm.trial": "scale", "gm.jump": "calendar",
-    "gm.gmTeam": "team", "gm.roomSetup": "door", "gm.tables": "table", "gm.voiceReset": "voice-reset",
+    "gm.rules": "rules", "gm.murder": "gm-murder", "gm.investigation": "lens", "gm.trial": "scale", "gm.jump": "calendar",
+    "gm.gmTeam": "team", "gm.roomSetup": "room-setup", "gm.tables": "table", "gm.voiceReset": "voice-reset",
     "gm.seasonSetup": "wand", "gm.mastermind": "mask", "gm.seasonReset": "trash",
     "gm.failureLog": "bug", "gm.caseWindow": "case-backup"
 };
@@ -411,16 +422,16 @@ export const FUTURE = [
     [2, "E48", "Microphone", "mic"],
     [3, "E48", "Microphone off", "mic-off"],
     [4, "E48", "Sound off", "sound-off"],
-    [5, "E48", "Lock (manual GM mic lock)", "lock"],
+    [5, "E48", "Lock (manual GM mic lock)", "mic-lock"],
     [6, "E48", "Photo", "photo"],
     [7, "E48", "Chevron (description toggle)", "chevron"],
     [8, "E48", "Sound launcher gear", "gear"],
-    [9, "E48", "Sound panel speaker", "speaker"],
+    [9, "E48", "Sound panel speaker", "sound"],
     [10, "E48", "Handbooks book launcher", "book"],
     [11, "E48", "GM launcher glyph", "gm"],
     [12, "E48", "Voice reset", "voice-reset"],
     [13, "E48", "End chapter", "end-chapter"],
-    [14, "E48", "Find Passage (row)", "find-passage"],
+    [14, "E48", "Find Passage (row)", "passage"],
     [15, "E48", "Show the passage", "show-passage"],
     [16, "E48", "Go through", "go-through"],
     [17, "E48", "Tunnel exit mark", "tunnel-exit"],
@@ -434,20 +445,20 @@ export const FUTURE = [
     [25, "E48", "Closing: Pick someone else", "pick-other"],
     [26, "E48", "Closing: Resume", "resume"],
     [27, "E48", "Back to debate", "back-to-debate"],
-    [28, "E97", "Case window launcher (Sprawa)", "case"],
+    [28, "E97", "Case window launcher (Sprawa)", "case-backup"],
     [29, "E97", "Run realization", "run"],
     [30, "E97", "Undo realization", "undo"],
     [31, "E97", "Realization marker", "made"],
-    [32, "E97", "Column order arrows", ["arrow-up", "arrow-down"]],
-    [33, "E98", "Map view toggle", "map"],
-    [34, "E98", "Table view toggle", "table"],
+    [32, "E97", "Column order arrows", ["order-up", "order-down"]],
+    [33, "E98", "Map view toggle", "map-view"],
+    [34, "E98", "Table view toggle", "table-view"],
     [35, "E98", "Murder-bound toggle", "murder-bound"],
     [36, "E98", "Who has what (list)", "who-has"],
     [37, "E99", "Case schema button (console frame)", "case-map"],
-    [38, "E99", "Node check box (conclusion, counter, solution)", "check"],
+    [38, "E99", "Node check box (conclusion, counter, solution)", "node-check"],
     [39, "E99", "Show summary", "summary"],
     [40, "E92", "Spectator badge (HUD / card)", "spectator"],
-    [41, "E92", "Assign Spectator (Students window)", "spectator"],
+    [41, "E92", "Assign Spectator (Students window)", "assign-spectator"],
     [42, "E92", "Observers' talk switch", "spectators-talk"],
     [43, "E92", "Spectator token marker", "ghost-token"],
     [44, "E93", "Facilities tile (was Rest)", "facilities"],
@@ -465,7 +476,7 @@ export const FUTURE = [
     [56, "E74", "Repair the Lock (project preset)", "repair-lock"],
     [57, "E74", "Barricaded flag on room", "barricade"],
     [58, "E74", "Broken lock mark / Room Setup column", "broken-lock"],
-    [59, "E74", "Door list entries (closed, sealed)", "door"],
+    [59, "E74", "Door list entries (closed, sealed)", ["closed-door", "sealed-door"]],
     [60, "E73", "Zone A / Zone B choice buttons", ["zone-a", "zone-b"]],
     [61, "E73", "Straw Poll", "straw-poll"],
     [62, "E73", "Logic Dive", "logic-dive"],
@@ -473,7 +484,7 @@ export const FUTURE = [
     [64, "E73", "Bar: Count now", "count-now"],
     [65, "E73", "Bar: Skip question", "skip"],
     [66, "E73", "Bar: Skip in Scrum", "skip"],
-    [67, "E73", "Finding entry marks (Monokuma confirms / Class thinks)", "finding"],
+    [67, "E73", "Finding entry marks (Monokuma confirms / Class thinks)", ["finding-confirmed", "finding-thinks"]],
     [68, "E72", "Monocub tile: Move", "move"],
     [69, "E72", "Monocub tile: Confusion", "confusion"],
     [70, "E72", "Monocub tile: Redeem", "redeem"],
@@ -488,7 +499,25 @@ export const FUTURE = [
     [79, "E72", "Crime witness badge", "crime-witness"],
     [80, "E72", "Body tile marker (Ciało: ...)", "body"],
     [81, "E72", "Monocub HUD badge (Hope, proposals)", "monocub-badge"],
-    [82, "E72", "Redeem waits (Events panel)", "redeem-wait"]
+    [82, "E72", "Redeem waits (Events panel)", "redeem-wait"],
+    /* E48 G3, 11.11.2026: what batch 4 drew past the inventory's 82 - E97's design notes (section 7) and the owner's two
+       E69 marks of 10.11 - so the uniqueness and the drawn checks hold them too. */
+    [83, "E97", "Check the case's consistency", "case-check"],
+    [84, "E97", "Realization preview (and Show the preview when a body is found)", "preview"],
+    [85, "E97", "Who left it (author)", "author"],
+    [86, "E97", "Place on the map (the GM panel's question)", "place-trace"],
+    [87, "E97", "Column order (sort)", "sort-column"],
+    [88, "E97", "Add a deduction", "add-deduction"],
+    [89, "E97", "Add a counter", "add-counter"],
+    [90, "E97", "Add the solution", "add-solution"],
+    [91, "E97", "Link an input to a deduction", "link"],
+    [92, "E97", "Node state: held", "held"],
+    [93, "E97", "Node state: on the map", "on-map"],
+    [94, "E97", "Node state: planned", "planned"],
+    [95, "E97", "Reachable (x of y past half)", "reachable"],
+    [96, "E97", "Consistency problem on a node", "case-warn"],
+    [97, "E69", "The hidden killer's \"?\" token (victim and witnesses)", "hidden-killer"],
+    [98, "E69", "The killer's reveal prompt", "reveal"]
 ];
 
 /** One function in two places, which may share one drawing (the owner, 10.11: "każda akcja/funkcja miała unikalną
@@ -502,13 +531,15 @@ export const SAME = [
     [["ACTIONS.listen", "F46"], "the inventory's Listen row is this action's tile"],
     [["ACTIONS.move", "F68"], "Move, for the Monocub as for a student"],
     [["F20", "F65", "F66"], "Skip: one function in the mode bar, the question bar and the Scrum"],
-    [["F40", "F41"], "the Spectator: the badge and the button that makes one wear one mark"]
+    /* Row 8 of 10.11 (the Spectator badge = Assign Spectator) is gone: the owner split it, a state against an action. */
+    [["TRAP_TRIGGERS.passage", "F14"], "the secret passage: the room trigger and Analyze's Find Passage row (batch 2, 11.11)"],
+    [["MONOCUB.abilities.meddle", "F69"], "the Monocub's Confusion: today's meddle and E72's Confusion tile are one ability (config.mjs MONOCUB.abilities.meddle; the owner, 11.11)"],
+    [["gm.sound", "F9"], "the Sound panel: the GM's Sound tile opens it (sound-panel.mjs openSoundDialog), and the speaker the inventory gave it has no wearer of its own - read 11.11: --drpg-pix-speaker's one reader is the corner launcher, which wears the gear in both themes (stained-glass.css) and opens the Look dialog (look.mjs)"],
+    [["gm.voiceReset", "F12"], "Voice reset: the inventory's row is the GM's tile (batch 2 drew it once for both)"],
+    [["gm.caseWindow", "F28"], "the Case window: the GM's tile and E97's launcher open one window (gm-stores.mjs openCaseWindow)"]
 ];
 
-/** The Font Awesome classes markup carries where it has no element key -> the glyph (Q5: no markup change in E48).
- *  Today the FA table whole; batch 2 adds the names of scripts/ it lacks (Q4), and G3 generates the glass rules
- *  from it. */
-export const FACES = FA;
+
 
 /** Pairs that mean opposite things and must never look alike (S02-73). */
 export const OPPOSITES = [
@@ -516,6 +547,216 @@ export const OPPOSITES = [
     ["ACTIONS.palm", "MONOCUB.abilities.meddle"], ["F2", "F3"], ["gm.sound", "F4"], ["F21a", "F21b"], ["F32a", "F32b"],
     ["F60a", "F60b"], ["F29", "F30"], ["F76", "F77"]
 ];
+
+/** The Font Awesome classes markup carries where it has no element key -> the glyph Stained Glass wears for it (Q5: no
+ *  markup change in E48). E48 G3, 11.11.2026: the FA table whole, each name now the `glass` row's of that meaning (the
+ *  batch 1 redrawings keep their px names; `circle` is `resource-dot` and `skull` `direct-murder`, because `dot` and
+ *  `skull` are already pix rows - Despair's 8- and 12-grid marks both themes read - and a glass declaration of that
+ *  name would repaint them under Stained Glass with a drawing nobody approved for them), then batch 2's faces (Q4) and
+ *  the four of its keyed group that markup also carries (Analyze's Find Stash and Find Passage rows, Tamper's cover
+ *  row, the GM's voice tile), then batch 3's three of today's FA names that no file wears yet. */
+export const FACES = {
+    ...Object.fromEntries(Object.entries(FA).map(([fa, n]) => [fa, n === "dot" ? "resource-dot" : n === "skull" ? "direct-murder" : n])),
+    "align-left": "description", "angles-up": "advance", "circle-info": "callout-note", "circle-exclamation": "callout-important",
+    "triangle-exclamation": "callout-warning", "lightbulb": "tip", "comment-question": "ask-hint", "crosshairs": "observe-specific",
+    "eye-low-vision": "observe-hidden", "magnifying-glass-location": "observe-point", "magnifying-glass-plus": "search-specific",
+    "map-location-dot": "show-on-map", "image": "picture", "folder-open": "file-pick", "forward-step": "next-phase",
+    "id-card": "sheet", "masks-theater": "monokuma-mark", "paper-plane": "send", "pen-nib": "reshape", "thumbs-up": "favours",
+    "thumbs-down": "hinders", "user-pen": "gm-picks", "wand-sparkles": "init",
+    "box-archive": "stash", "dungeon": "passage", "eraser": "erase-trace", "microphone-lines": "voice-reset",
+    "microphone-slash": "mic-off", "volume-xmark": "sound-off", "camera": "photo"
+};
+
+/** Stained Glass's themes: the one constant option B changes (A1: B = add "monokuma-legacy"; not built). */
+export const GLASS_THEMES = ["stained-glass"];
+const GLASS = GLASS_THEMES.length === 1 ? `body.drpg-theme-${GLASS_THEMES[0]}` : `:is(${GLASS_THEMES.map(t => `body.drpg-theme-${t}`).join(", ")})`;
+
+/** The Font Awesome class each keyed element's markup carries where the rule needs it (a crisis row is a pick list's
+ *  row, keyed by its input's value and its icon; the Monocub's tile has no key but its icon). R3340 holds these to
+ *  config.mjs's `icon`, so a renamed icon is a red test, not a tile that silently keeps the old glyph. */
+export const KEY_ICONS = {
+    "CRISIS_ACTIONS.useItem": "fa-flask", "CRISIS_ACTIONS.leaveClue": "fa-fingerprint", "CRISIS_ACTIONS.secureTrace": "fa-hand-holding",
+    "CRISIS_ACTIONS.selfDefence": "fa-shield-halved", "CRISIS_ACTIONS.survive": "fa-person-running",
+    "CRISIS_ACTIONS.roleReversal": "fa-arrows-rotate", "CRISIS_ACTIONS.strike": "fa-hand-fist", "CRISIS_ACTIONS.pin": "fa-down-long",
+    "CRISIS_ACTIONS.keepDistance": "fa-arrows-left-right", "CRISIS_ACTIONS.weaponAttack": "fa-khanda",
+    "CRISIS_ACTIONS.finishingBlow": "fa-skull-crossbones", "CRISIS_ACTIONS.sharedEscape": "fa-door-open",
+    "CRISIS_ACTIONS.doubleRoleReversal": "fa-repeat", "CRISIS_ACTIONS.crimePartners": "fa-handshake",
+    "CRISIS_ACTIONS.avertedEyes": "fa-eye-slash", "MONOCUB.abilities.meddle": "fa-hand-sparkles"
+};
+
+/** Keyed elements no markup draws an icon for, and why (read 11.11.2026): they are mapped and drawn, and nothing wears
+ *  them until their markup does. */
+export const UNWORN = {
+    TRAP_TRIGGERS: "a trap's trigger is an <option> of a select (projects-ui.mjs), which draws no icon",
+    CLEANUP: "a cleanup key names a roll (roll-draw.mjs cleanupKey); its picker rows are Tamper's, worn through FACES"
+};
+
+/** The selector Stained Glass keys an element's glyph on, or null where nothing draws it (UNWORN). */
+export function glassSelectorOf(elementId) {
+    const [set, ...rest] = elementId.split("."), key = rest[rest.length - 1];
+    if (set === "ACTIONS") return `.drpg-action-button[data-drpg-action="${key}"] .drpg-action-icon`;
+    if (set === "HOPE_CALLS" || set === "DESPAIR_CALLS") return `.drpg-call-button[data-drpg-call="${key}"] .drpg-action-icon`;
+    if (set === "CRISIS_ACTIONS") return `.drpg-choice:has(> input[value="${key}"]) > i.${KEY_ICONS[elementId]}`;
+    if (elementId === "MONOCUB.abilities.meddle") return `.drpg-action-button:not([data-drpg-action], [data-drpg-call]) .drpg-action-icon.${KEY_ICONS[elementId]}`;
+    if (set === "gm") return `.drpg-gmp-button[data-drpg-run="${key}"] > i`;
+    return null;
+}
+
+/** A Remnant's mark (remnant-ring.mjs GLYPH_ACTIONS) -> its glass glyph, by the action that left it. */
+export const REMNANT_ACTS = { search: "search", project: "hourglass", sabotage: "tamper", dynamic: "dynamic", resolution: "broom",
+    incident: "direct-murder", discard: "trash", manual: "gm", loot: "palm" };
+
+/** Markup with no key and an FA class another meaning shares: [what, selector, glyph]. */
+export const FACE_RULES = [
+    ["the handbooks' CAUTION callout (its fa-hand is Palm's)", ".drpg-callout-caution .drpg-callout-title i", "caution"],
+    ["Project's Start row (its fa-lightbulb is the handbooks' TIP)", '.drpg-choice:has(> input[value="start"]) > i.fa-lightbulb', "project-new"]
+];
+
+/** Every rule the glass section writes: [id, selector, glyph, how] - how "box" (the FA box, the slot set), "image" (an
+ *  element that is a mask box already: only its image), "before" (a text button given a glyph before its label). */
+export function glassRules() {
+    const out = [];
+    for (const [id, glyph] of Object.entries(ELEMENTS)) {
+        const sel = glassSelectorOf(id);
+        if (sel) out.push([id, sel, glyph, "box"]);
+    }
+    for (const [what, sel, glyph] of FACE_RULES) out.push([`rule.${glyph}`, sel, glyph, "box"]);
+    for (const [act, glyph] of Object.entries(REMNANT_ACTS)) out.push([`remnant.${act}`, `.drpg-remnant-glyph[data-drpg-act="${act}"]`, glyph, "image"]);
+    /* No rule for the GM launcher: its glass glyph is today's eye pixel for pixel (glass:gm same g:monokuma-eye, the owner
+       11.11), so the chrome rule that draws it already draws the glass set's; a rule here would only move the winner of
+       its mask (R1333's hexagon prints) for the same picture. */
+    /* E49 A2 moved End the chapter into Edit campaign as a text button (gm-campaign.mjs, `data-drpg-end-chapter`): no
+       <i> to mask, so the glyph stands before its label, the one way to key it with no markup change (Q5). */
+    out.push(["button.end-chapter", "[data-drpg-end-chapter]::before", "end-chapter", "before"]);
+    return out;
+}
+
+/** The names Stained Glass wears (FACES and the rules), each with the row it wears, in first-use order; `problems`
+ *  names a worn name no row draws, and a worn non-glass row whose name a pix row holds (the declaration would repaint
+ *  that pix drawing under Stained Glass). */
+export function glassWorn(glyphs) {
+    const names = [...new Set([...Object.values(FACES), ...glassRules().map(r => r[2])])];
+    const worn = [], problems = [];
+    for (const name of names) {
+        const row = drawingOf(glyphs, name, "glass");
+        if (!row) { problems.push(`Stained Glass wears "${name}", which no row draws`); continue; }
+        if (row.family !== "glass" && glyphs.some(g => g.family === "pix" && g.name === name))
+            problems.push(`Stained Glass wears ${row.family}:${name} as --drpg-pix-${name}, which would repaint pix:${name}`);
+        worn.push([name, row]);
+    }
+    return { worn, problems };
+}
+
+/** The glass section of pixel-icons.css (E48 G3). */
+export function glassCssOf(glyphs) {
+    const { worn, problems } = glassWorn(glyphs), rules = glassRules();
+    const css = ["", "/* STAINED GLASS WEARS THE ONE SET (E48 G3, 11.11.2026). Every glyph Stained Glass wears is declared here as",
+        "   `--drpg-pix-<name>` on the theme's body - the drawing rounds' approved `glass` rows, else the px row kept as drawn",
+        "   (Q2) - and the rules below key it on the element: the tiles on their data- keys, a crisis row on its input's",
+        "   value, the GM panel's tiles on data-drpg-run, a Remnant on data-drpg-act, the rest on FACES above. Monokuma",
+        "   Legacy reads none of it (option A; R3341 holds its icons to what they were). The drawings of later stages are",
+        "   in tools/glyphs.json and the sprite, and nothing here wears them until their markup lands." + (problems.length ? `\n   PROBLEMS: ${problems.join("; ")}` : "") + " */",
+        `${GLASS} {`];
+    for (const [name, row] of worn) css.push(`    --drpg-pix-${name}: ${dataUriOf(row)};`);
+    css.push("}");
+    const box = rules.filter(r => r[3] === "box");
+    css.push(box.map(r => `${GLASS} ${r[1]}`).join(",\n") + ` {
+    display: inline-block;
+    width: max(1.15em, 22px);
+    height: max(1.15em, 22px);
+    min-width: 22px;
+    min-height: 22px;
+    vertical-align: -0.2em;
+    background-color: currentColor;
+    -webkit-mask-image: var(--drpg-px-mask);
+    mask-image: var(--drpg-px-mask);
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    image-rendering: pixelated;
+}`);
+    css.push(box.map(r => `${GLASS} ${r[1]}::before`).join(",\n") + " { content: none; }");
+    for (const [, sel, glyph, how] of rules) {
+        if (how === "box") css.push(`${GLASS} ${sel} { --drpg-px-mask: var(--drpg-pix-${glyph}); }`);
+        else if (how === "image") css.push(`${GLASS} ${sel} { -webkit-mask-image: var(--drpg-pix-${glyph}); mask-image: var(--drpg-pix-${glyph}); }`);
+        else css.push(`${GLASS} ${sel} {
+    content: "";
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    margin-inline-end: 0.35em;
+    vertical-align: -0.3em;
+    background-color: currentColor;
+    -webkit-mask-image: var(--drpg-pix-${glyph});
+    mask-image: var(--drpg-pix-${glyph});
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    image-rendering: pixelated;
+}`);
+    }
+    return css.join("\n") + "\n";
+}
+
+/* ------------------------------ what the page wears ------------------------- */
+
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+
+/** The icon elements R3340 and R3341 read, as markup the module writes them: [id, html] with one `[data-drpg-probe]`
+ *  in each. `keyed` is keyedElements's [[id, icon]]; the GM launcher and End the chapter are pseudo-elements, which
+ *  a computed style headless does not read, so they are not here. */
+export function glyphProbes(keyed) {
+    const out = [], icon = new Map(keyed);
+    const i = (fa, cls = "") => `<i class="fa-solid ${esc(fa)}${cls}" data-drpg-probe inert></i>`;
+    for (const [id] of Object.entries(ELEMENTS)) {
+        const [set, ...rest] = id.split("."), key = esc(rest[rest.length - 1]), fa = icon.get(id) ?? "fa-circle";
+        if (set === "ACTIONS") out.push([id, `<div class="drpg-action-grid"><button type="button" class="drpg-action-button" data-drpg-action="${key}">${i(fa, " drpg-action-icon")}</button></div>`]);
+        else if (set === "HOPE_CALLS" || set === "DESPAIR_CALLS") out.push([id, `<div class="drpg-action-grid"><button type="button" class="drpg-action-button drpg-call-button" data-drpg-call="${key}" data-drpg-call-kind="${set === "HOPE_CALLS" ? "hope" : "despair"}">${i(fa, " drpg-action-icon")}</button></div>`]);
+        else if (set === "CRISIS_ACTIONS") out.push([id, `<div class="drpg-choices"><label class="drpg-choice"><input type="radio" name="variant" value="${key}">${i(fa)}</label></div>`]);
+        else if (set === "MONOCUB") out.push([id, `<div class="drpg-action-grid"><button type="button" class="drpg-action-button">${i(fa, " drpg-action-icon")}</button></div>`]);
+        else if (set === "gm") out.push([id, `<div class="drpg-gmp-grid"><button type="button" class="drpg-gmp-button" data-drpg-run="${key}">${i(fa)}</button></div>`]);
+    }
+    out.push(["rule.caution", `<div class="drpg-callout drpg-callout-caution"><p class="drpg-callout-title">${i("fa-hand")}</p></div>`]);
+    out.push(["rule.project-new", `<div class="drpg-choices"><label class="drpg-choice"><input type="radio" name="variant" value="start">${i("fa-lightbulb")}</label></div>`]);
+    for (const act of Object.keys(REMNANT_ACTS)) out.push([`remnant.${act}`, `<div class="drpg-remnant-ring"><span class="drpg-remnant-glyph" data-drpg-act="${act}" data-drpg-probe aria-hidden="true"></span></div>`]);
+    for (const fa of Object.keys(FACES)) out.push([`face.fa-${fa}`, `<div class="drpg-glyph-probe">${i(`fa-${fa}`)}</div>`]);
+    return out;
+}
+
+/** What one icon element wears: its mask's token (`--drpg-pix-search`), else `fa:<its fa- classes>` where it has no
+ *  mask and so draws Font Awesome's glyph. Headless the cascade leaves var() unresolved, so the token is read off the
+ *  text (one level through the `--drpg-px-mask` slot); in a browser the mask is the drawing's url(...), and `tokens`
+ *  (url -> the custom properties on the body that hold it, `glyphTokens`) names it. */
+export function glyphReading(el, view, tokens) {
+    const s = view.getComputedStyle(el);
+    let m = (s.getPropertyValue("mask-image") || s.getPropertyValue("-webkit-mask-image") || "").trim();
+    if (/^var\(\s*--drpg-px-mask\s*\)$/.test(m)) m = s.getPropertyValue("--drpg-px-mask").trim() || m;
+    const v = /^var\(\s*(--drpg-[a-z0-9-]+)\s*\)$/.exec(m);
+    if (v) return v[1];
+    if (/^url\(/.test(m)) return (tokens?.get(m.replace(/\s+/g, "")) ?? ["url:unnamed"]).join("|");
+    if (m && m !== "none") return `mask:${m.slice(0, 40)}`;
+    return `fa:${[...el.classList].filter(c => /^fa-/.test(c) && c !== "fa-solid").join(" ") || "none"}`;
+}
+
+/** url -> the glyph custom properties on `el` (the body) that resolve to it, for every family and name of the rows. */
+export function glyphTokens(el, view, glyphs) {
+    const s = view.getComputedStyle(el), out = new Map();
+    const props = new Set(glyphs.flatMap(g => [`--drpg-pix-${g.name}`, `--drpg-px-${g.name === "mask" ? "mask-glyph" : g.name}`, `--drpg-g-${g.name}`, `--drpg-r-${g.name}`]));
+    for (const p of props) {
+        const value = s.getPropertyValue(p).trim().replace(/\s+/g, "");
+        if (!value) continue;
+        if (!out.has(value)) out.set(value, []);
+        out.get(value).push(p);
+    }
+    return out;
+}
+
+/** A reading against the recorded one: equal, or (in a browser) the recorded token among those the url resolves to. */
+export const readingMatches = (recorded, got) => recorded === got || String(got).split("|").includes(recorded);
 
 /** The keyed elements of the tree: [[id, icon]], from config.mjs's namespace and gm-panel.mjs's text. */
 export function keyedElements(config, gmPanelSource) {
@@ -752,3 +993,208 @@ ${perIcon.join("\n\n")}
 /* == /CHROME PIXEL ICONS == */`;
 }
 
+
+/** Monokuma Legacy's icons before E48 G3 (R3348): probe id -> reading, recorded headless on 11.11.2026 at 7b5b4da9 with
+ *  G3's probes and HEAD's stylesheets, before pixel-icons.css was regenerated (199 readings: the tiles and Calls on
+ *  their --drpg-g- drawings, the GM tiles on --drpg-g- or Font Awesome, the crisis rows and FACES on Font Awesome). */
+export const LEGACY_ICONS = {
+    "ACTIONS.search": "--drpg-g-search",
+    "ACTIONS.observe": "--drpg-g-observe",
+    "ACTIONS.analyze": "--drpg-g-analyze",
+    "ACTIONS.project": "--drpg-g-project",
+    "ACTIONS.rest": "--drpg-g-rest",
+    "ACTIONS.listen": "--drpg-g-listen",
+    "ACTIONS.palm": "--drpg-g-palm",
+    "ACTIONS.tamper": "--drpg-g-cleanup",
+    "ACTIONS.directMurder": "--drpg-g-direct-murder",
+    "ACTIONS.move": "--drpg-g-move",
+    "ACTIONS.sabotage": "--drpg-g-sabotage",
+    "HOPE_CALLS.support": "--drpg-g-support",
+    "HOPE_CALLS.experience": "--drpg-g-experience",
+    "HOPE_CALLS.ultimate": "--drpg-g-ultimate",
+    "HOPE_CALLS.contribution": "--drpg-g-contribution",
+    "HOPE_CALLS.reroll": "--drpg-g-reroll",
+    "HOPE_CALLS.sprint": "--drpg-g-sprint",
+    "HOPE_CALLS.burst": "--drpg-g-burst",
+    "HOPE_CALLS.relief": "--drpg-g-relief",
+    "HOPE_CALLS.determination": "--drpg-g-determination",
+    "HOPE_CALLS.freeCrit": "--drpg-g-free-crit",
+    "DESPAIR_CALLS.obstacle": "--drpg-g-obstacle",
+    "DESPAIR_CALLS.forTheGame": "--drpg-g-for-the-game",
+    "DESPAIR_CALLS.behindClosedDoors": "--drpg-g-behind-closed-doors",
+    "DESPAIR_CALLS.thisWillHurt": "--drpg-g-this-will-hurt",
+    "DESPAIR_CALLS.paranoia": "--drpg-g-paranoia",
+    "DESPAIR_CALLS.chained": "--drpg-g-chained",
+    "DESPAIR_CALLS.silence": "--drpg-g-silence",
+    "DESPAIR_CALLS.fuelTheCub": "--drpg-g-fuel-the-cub",
+    "DESPAIR_CALLS.gameProtection": "--drpg-g-game-protection",
+    "DESPAIR_CALLS.favoriteProject": "--drpg-g-favorite-project",
+    "DESPAIR_CALLS.feedOverflow": "--drpg-g-feed-overflow",
+    "DESPAIR_CALLS.contraband": "--drpg-g-contraband",
+    "DESPAIR_CALLS.publicAnnouncement": "--drpg-g-public-announcement",
+    "DESPAIR_CALLS.motive": "--drpg-g-motive",
+    "DESPAIR_CALLS.newRule": "--drpg-g-new-rule",
+    "CRISIS_ACTIONS.useItem": "fa:fa-flask",
+    "CRISIS_ACTIONS.leaveClue": "fa:fa-fingerprint",
+    "CRISIS_ACTIONS.secureTrace": "fa:fa-hand-holding",
+    "CRISIS_ACTIONS.selfDefence": "fa:fa-shield-halved",
+    "CRISIS_ACTIONS.survive": "fa:fa-person-running",
+    "CRISIS_ACTIONS.roleReversal": "fa:fa-arrows-rotate",
+    "CRISIS_ACTIONS.strike": "fa:fa-hand-fist",
+    "CRISIS_ACTIONS.pin": "fa:fa-down-long",
+    "CRISIS_ACTIONS.keepDistance": "fa:fa-arrows-left-right",
+    "CRISIS_ACTIONS.weaponAttack": "fa:fa-khanda",
+    "CRISIS_ACTIONS.finishingBlow": "fa:fa-skull-crossbones",
+    "CRISIS_ACTIONS.sharedEscape": "fa:fa-door-open",
+    "CRISIS_ACTIONS.doubleRoleReversal": "fa:fa-repeat",
+    "CRISIS_ACTIONS.crimePartners": "fa:fa-handshake",
+    "CRISIS_ACTIONS.avertedEyes": "fa:fa-eye-slash",
+    "MONOCUB.abilities.meddle": "--drpg-g-confusion",
+    "gm.whoIsAlive": "--drpg-g-who-is-alive",
+    "gm.projects": "--drpg-g-projects",
+    "gm.sound": "fa:fa-volume-high",
+    "gm.rules": "--drpg-g-new-rule",
+    "gm.murder": "--drpg-g-direct-murder",
+    "gm.investigation": "--drpg-g-investigation",
+    "gm.trial": "--drpg-g-trial",
+    "gm.jump": "--drpg-g-jump",
+    "gm.gmTeam": "--drpg-g-gm-team",
+    "gm.roomSetup": "--drpg-g-room-setup",
+    "gm.tables": "--drpg-g-tables",
+    "gm.voiceReset": "fa:fa-microphone-lines",
+    "gm.seasonSetup": "--drpg-g-season-setup",
+    "gm.mastermind": "--drpg-g-mastermind",
+    "gm.seasonReset": "--drpg-g-season-reset",
+    "gm.failureLog": "--drpg-g-failure-log",
+    "gm.caseWindow": "fa:fa-box-archive",
+    "rule.caution": "fa:fa-hand",
+    "rule.project-new": "fa:fa-lightbulb",
+    "remnant.search": "--drpg-g-search",
+    "remnant.project": "--drpg-g-project",
+    "remnant.sabotage": "--drpg-g-sabotage",
+    "remnant.dynamic": "--drpg-g-dynamic",
+    "remnant.resolution": "--drpg-g-cleanup",
+    "remnant.incident": "--drpg-g-direct-murder",
+    "remnant.discard": "--drpg-r-trash",
+    "remnant.manual": "--drpg-g-monokuma-eye",
+    "remnant.loot": "--drpg-g-palm",
+    "face.fa-magnifying-glass": "fa:fa-magnifying-glass",
+    "face.fa-eye": "fa:fa-eye",
+    "face.fa-brain": "fa:fa-brain",
+    "face.fa-hammer": "fa:fa-hammer",
+    "face.fa-bed": "fa:fa-bed",
+    "face.fa-ear-listen": "fa:fa-ear-listen",
+    "face.fa-hand-sparkles": "fa:fa-hand-sparkles",
+    "face.fa-broom": "fa:fa-broom",
+    "face.fa-skull": "fa:fa-skull",
+    "face.fa-skull-crossbones": "fa:fa-skull-crossbones",
+    "face.fa-shoe-prints": "fa:fa-shoe-prints",
+    "face.fa-screwdriver-wrench": "fa:fa-screwdriver-wrench",
+    "face.fa-hands-holding-circle": "fa:fa-hands-holding-circle",
+    "face.fa-graduation-cap": "fa:fa-graduation-cap",
+    "face.fa-star": "fa:fa-star",
+    "face.fa-rotate-left": "fa:fa-rotate-left",
+    "face.fa-arrows-rotate": "fa:fa-arrows-rotate",
+    "face.fa-repeat": "fa:fa-repeat",
+    "face.fa-person-running": "fa:fa-person-running",
+    "face.fa-bolt": "fa:fa-bolt",
+    "face.fa-mug-hot": "fa:fa-mug-hot",
+    "face.fa-hand-fist": "fa:fa-hand-fist",
+    "face.fa-burst": "fa:fa-burst",
+    "face.fa-road-barrier": "fa:fa-road-barrier",
+    "face.fa-gift": "fa:fa-gift",
+    "face.fa-door-closed": "fa:fa-door-closed",
+    "face.fa-door-open": "fa:fa-door-open",
+    "face.fa-heart-crack": "fa:fa-heart-crack",
+    "face.fa-link": "fa:fa-link",
+    "face.fa-comment-slash": "fa:fa-comment-slash",
+    "face.fa-hand-holding-heart": "fa:fa-hand-holding-heart",
+    "face.fa-arrow-trend-down": "fa:fa-arrow-trend-down",
+    "face.fa-arrow-trend-up": "fa:fa-arrow-trend-up",
+    "face.fa-water": "fa:fa-water",
+    "face.fa-trash-can": "fa:fa-trash-can",
+    "face.fa-trash-arrow-up": "fa:fa-trash-arrow-up",
+    "face.fa-bullhorn": "fa:fa-bullhorn",
+    "face.fa-envelope": "fa:fa-envelope",
+    "face.fa-gavel": "fa:fa-gavel",
+    "face.fa-heart-pulse": "fa:fa-heart-pulse",
+    "face.fa-list-check": "fa:fa-list-check",
+    "face.fa-volume-high": "fa:fa-volume-high",
+    "face.fa-scale-balanced": "fa:fa-scale-balanced",
+    "face.fa-calendar-days": "fa:fa-calendar-days",
+    "face.fa-users-gear": "fa:fa-users-gear",
+    "face.fa-table-list": "fa:fa-table-list",
+    "face.fa-wand-magic-sparkles": "fa:fa-wand-magic-sparkles",
+    "face.fa-user-secret": "fa:fa-user-secret",
+    "face.fa-bug": "fa:fa-bug",
+    "face.fa-magnifying-glass-chart": "fa:fa-magnifying-glass-chart",
+    "face.fa-fingerprint": "fa:fa-fingerprint",
+    "face.fa-flask": "fa:fa-flask",
+    "face.fa-lock": "fa:fa-lock",
+    "face.fa-box": "fa:fa-box",
+    "face.fa-box-open": "fa:fa-box-open",
+    "face.fa-heart": "fa:fa-heart",
+    "face.fa-plus": "fa:fa-plus",
+    "face.fa-minus": "fa:fa-minus",
+    "face.fa-chevron-left": "fa:fa-chevron-left",
+    "face.fa-chevron-right": "fa:fa-chevron-right",
+    "face.fa-chevron-down": "fa:fa-chevron-down",
+    "face.fa-down-long": "fa:fa-down-long",
+    "face.fa-arrow-up": "fa:fa-arrow-up",
+    "face.fa-play": "fa:fa-play",
+    "face.fa-pen-to-square": "fa:fa-pen-to-square",
+    "face.fa-gear": "fa:fa-gear",
+    "face.fa-shield-halved": "fa:fa-shield-halved",
+    "face.fa-user-slash": "fa:fa-user-slash",
+    "face.fa-eye-slash": "fa:fa-eye-slash",
+    "face.fa-moon": "fa:fa-moon",
+    "face.fa-comments": "fa:fa-comments",
+    "face.fa-hand": "fa:fa-hand",
+    "face.fa-hand-holding": "fa:fa-hand-holding",
+    "face.fa-hand-pointer": "fa:fa-hand-pointer",
+    "face.fa-circle": "fa:fa-circle",
+    "face.fa-arrows-left-right": "fa:fa-arrows-left-right",
+    "face.fa-khanda": "fa:fa-khanda",
+    "face.fa-handshake": "fa:fa-handshake",
+    "face.fa-bell": "fa:fa-bell",
+    "face.fa-dice": "fa:fa-dice",
+    "face.fa-key": "fa:fa-key",
+    "face.fa-xmark": "fa:fa-xmark",
+    "face.fa-check": "fa:fa-check",
+    "face.fa-sort": "fa:fa-sort",
+    "face.fa-hourglass": "fa:fa-hourglass",
+    "face.fa-sun": "fa:fa-sun",
+    "face.fa-note-sticky": "fa:fa-note-sticky",
+    "face.fa-music": "fa:fa-music",
+    "face.fa-microphone": "fa:fa-microphone",
+    "face.fa-align-left": "fa:fa-align-left",
+    "face.fa-angles-up": "fa:fa-angles-up",
+    "face.fa-circle-info": "fa:fa-circle-info",
+    "face.fa-circle-exclamation": "fa:fa-circle-exclamation",
+    "face.fa-triangle-exclamation": "fa:fa-triangle-exclamation",
+    "face.fa-lightbulb": "fa:fa-lightbulb",
+    "face.fa-comment-question": "fa:fa-comment-question",
+    "face.fa-crosshairs": "fa:fa-crosshairs",
+    "face.fa-eye-low-vision": "fa:fa-eye-low-vision",
+    "face.fa-magnifying-glass-location": "fa:fa-magnifying-glass-location",
+    "face.fa-magnifying-glass-plus": "fa:fa-magnifying-glass-plus",
+    "face.fa-map-location-dot": "fa:fa-map-location-dot",
+    "face.fa-image": "fa:fa-image",
+    "face.fa-folder-open": "fa:fa-folder-open",
+    "face.fa-forward-step": "fa:fa-forward-step",
+    "face.fa-id-card": "fa:fa-id-card",
+    "face.fa-masks-theater": "fa:fa-masks-theater",
+    "face.fa-paper-plane": "fa:fa-paper-plane",
+    "face.fa-pen-nib": "fa:fa-pen-nib",
+    "face.fa-thumbs-up": "fa:fa-thumbs-up",
+    "face.fa-thumbs-down": "fa:fa-thumbs-down",
+    "face.fa-user-pen": "fa:fa-user-pen",
+    "face.fa-wand-sparkles": "fa:fa-wand-sparkles",
+    "face.fa-box-archive": "fa:fa-box-archive",
+    "face.fa-dungeon": "fa:fa-dungeon",
+    "face.fa-eraser": "fa:fa-eraser",
+    "face.fa-microphone-lines": "fa:fa-microphone-lines",
+    "face.fa-microphone-slash": "fa:fa-microphone-slash",
+    "face.fa-volume-xmark": "fa:fa-volume-xmark",
+    "face.fa-camera": "fa:fa-camera"
+};

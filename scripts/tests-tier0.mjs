@@ -564,7 +564,7 @@ const REGRESSIONS = [
         must(keyed.length >= 80, `${keyed.length} keyed element(s) read - config.mjs or gm-panel.mjs was not read`);
         equal(JSON.stringify(structure), "[]", "the map's structure");
         equal(JSON.stringify(gaps.keyedUndrawn), "[]", `keyed elements whose glyph no row draws (of ${Object.keys(G.ELEMENTS).length})`);
-    }, expectedRed("E48", "7 keyed elements wear a glyph nobody has drawn yet (four room triggers, cleanup's Erase a Trace, voiceReset, caseWindow; E49 A2 took the chapterEndTile tile out of the panel); batch 2 draws them")],
+    }],
 
     ["R3335 - no stylesheet glyph rule names a GM panel tile that gm-panel.mjs no longer has (data-drpg-run, E48 G2; S12-62)", async () => {
         const { gaps, keyed } = await glyphMapInputs();
@@ -576,25 +576,26 @@ const REGRESSIONS = [
         const { G, gaps } = await glyphMapInputs();
         must(G.OPPOSITES.length >= 3, "no opposite pairs to hold");
         equal(JSON.stringify(gaps.opposites), "[]", "opposite elements wearing one drawing");
-    }, expectedRed("E48", "the three pairs share px:tamper, px:brain and px:palm today; batch 2 redraws one of each")],
+    }],
 
     ["R3337 - every FUTURE row of the glyph inventory (82, the later stages' controls) has its glyph drawn (E48 G2; amend [13])", async () => {
         const { G, gaps } = await glyphMapInputs();
-        equal(G.FUTURE.length, 82, "the inventory's rows");
+        /* 82 the inventory's rows; E48 G3 (11.11.2026) appended batch 4's 16 past it (E97's design notes, E69's two marks). */
+        must(G.FUTURE.length >= 82, `${G.FUTURE.length} FUTURE row(s): fewer than the inventory's 82`);
         equal(JSON.stringify(gaps.futureUndrawn), "[]", "FUTURE glyph names no row draws");
-    }, expectedRed("E48", "67 of the inventory's glyph names are not drawn yet; batches 3 and 4 draw them")],
+    }, expectedRed("E48", "mic-lock (F5, the GM's manual mic lock): the owner gave it its own glyph, a mic with a lock (11.11, batch 3 (a)), and none of the 190 drawings is it; it waits for a drawing")],
 
     ["R3338 - no two elements, keyed or FUTURE, wear one drawing unless tests-glyphs.mjs SAME says they are one function in two places (E48 G2; the owner, 10.11)", async () => {
         const { G, gaps } = await glyphMapInputs();
         must(G.SAME.every(([ids, why]) => ids.length > 1 && why), "a SAME row without its ids or its reason");
         equal(JSON.stringify(gaps.shared), "[]", "drawings worn by elements SAME does not join");
-    }, expectedRed("E48", "14 drawings are worn by elements that are not one function (19 shared today, 5 joined by SAME); the drawing rounds give each its own")],
+    }],
 
     ["R3339 - every drawing Stained Glass wears is on the 24 grid; Monokuma Legacy keeps its 12- and 8-grid ones (E48 G2; Q11, the owner, 10.11)", async () => {
         const { gaps, glyphs } = await glyphMapInputs();
         must(glyphs.length >= 240, `${glyphs.length} glyph(s) read`);
         equal(JSON.stringify(gaps.offGrid), "[]", "drawings Stained Glass wears off the 24 grid with no `glass` row of the name on 24");
-    }, expectedRed("E48", "69 drawings Stained Glass wears are on 8 or 12 (six pix diamonds and dots, history-12, 62 chrome masks); the rounds draw a 24 version of each for Glass")],
+    }, expectedRed("E48", "66 drawings Stained Glass wears are on 8 or 12 (pix diamond, diamond-empty, dot, dot-empty, skull, query and 60 chrome masks); the rounds drew no 24 version of them")],
 
     ["R1313 - CONTRIBUTING.md's \"The CSS contract\" names each detector of the CSS lint (importantCount, colourLiterals, strayCommentEnds, duplicateRules, deadClasses), the floor (21 px scaled under Stained Glass, 10 px a rung under Monokuma Legacy), the 390 px rule and the three commands - node tools/check.mjs css, node tools/check.mjs contrast, node audit/style-sweep.mjs (E44 C1c; E44-04)", async () => {
         /*

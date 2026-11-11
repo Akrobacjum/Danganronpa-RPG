@@ -11,7 +11,10 @@
  * WHAT IT WRITES, from the rows of family px that name no sheet, in the file's order: icons/pixel-sprite.svg (each as
  * `<symbol id="px-NAME">`), styles/pixel-icons.css (each as `--drpg-px-NAME` on the body, then `FA` below masked to
  * its glyph under Stained Glass) and the `<symbol>` block of docs/design/identity-audit-v13.html. These are the three
- * tools/pixel-icons.py wrote, and the text is that script's, line for line, so the move changed no byte but
+ * tools/pixel-icons.py wrote; since E48 G3 (11.11.2026) the sprite also holds every `glass` row as `<symbol
+ * id="pix-NAME">` and pixel-icons.css ends in the glass section (`glassCssOf`): each glyph Stained Glass wears declared
+ * as `--drpg-pix-NAME` on the theme's body, keyed on the element (`glassRules`), and FACES's FA classes masked to it.
+ * At G1 the text was that script's, line for line, so the move changed no byte but
  * pixel-icons.css's first line (the generator's name): measured at E48 G1 against 120a8003, the sprite and the audit
  * page byte-equal, pixel-icons.css different in line 1 alone. The chrome rows are tools/chrome-icons.mjs's art; that
  * tool writes danganronpa.css's chrome section from them (`chromeCss`).

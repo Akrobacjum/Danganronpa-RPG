@@ -3269,6 +3269,120 @@ const INVARIANTS = [
         if (sweep && page) equal(JSON.stringify([sweep.includes("tilt ${c.tilt ?"), sweep.includes("tilt=flat"), page.includes("tilt: tiltOf("), page.includes("q.get(\"tilt\") === \"flat\"")]), "[true,true,true,true]",
             "[the sweep's turn line prints the launchers' tilt, the sweep runs its control, the harness's turn reads it every frame, the harness answers the control]");
     }],
+    ["R3347 - Stained Glass wears the one glyph set on every keyed element: each action and Call tile, crisis row, the Monocub's tile, GM panel tile, Remnant mark and FACES icon reads a --drpg-pix- glyph of its meaning as its computed mask, never Font Awesome's font; the rule's icons are config.mjs's, and a mask set to none reads as FA (E48 G3)", async () => {
+        /*
+         * E48 G3, 11.11.2026 (STAGE (c)). Each probe is the markup the module writes for that element (tests-glyphs.mjs
+         * `glyphProbes`: the tile's button and data- key, the pick list's row and its input's value, the GM tile's
+         * data-drpg-run, a Remnant's data-drpg-act, an FA class inside a drpg- element), put on the page under Stained
+         * Glass and read with `glyphReading`: headless the cascade leaves var() unresolved, so it reads the token's
+         * text; in a browser the mask is a url(...), named by the custom properties on the body that hold it. Each must
+         * name `--drpg-pix-<the glyph ELEMENTS, REMNANT_ACTS, FACE_RULES or FACES gives>`. THE CONTROL: the Search tile's
+         * icon with an inline mask-image of none must read as FA, so a reader that answered a glyph for anything would be
+         * red here. TRAP_TRIGGERS and CLEANUP have no icon in any markup (UNWORN): they are mapped and drawn (R3334), and
+         * held here to have no rule. The GM launcher and End the chapter wear theirs on ::before, which a computed style
+         * headless does not read: R3333 holds the generated text that writes them.
+         */
+        needs(env.tools(), "the probes' glyph names are read against tools/glyphs.json (an installed module's zip leaves tools/ out)");
+        const G = await import("./tests-glyphs.mjs");
+        const C = await import("./config.mjs");
+        const text = async file => fetch(`/modules/${MODULE_ID}/${file}`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
+        const glyphs = G.parseGlyphs(await text("tools/glyphs.json")).glyphs;
+        const keyed = G.keyedElements(C, await text("scripts/gm-panel.mjs"));
+        must(keyed.length >= 80 && glyphs.length >= 400, `${keyed.length} keyed element(s), ${glyphs.length} glyph row(s) read`);
+        const icon = new Map(keyed);
+        equal(stableJson(Object.entries(G.KEY_ICONS).filter(([id, fa]) => icon.get(id) !== fa).map(([id, fa]) => [id, fa, icon.get(id) ?? null])), "[]",
+            "[the rules' FA class against config.mjs's icon: id, the rule's, config's]");
+        equal(stableJson(keyed.filter(([id]) => !G.glassSelectorOf(id) && !(id.split(".")[0] in G.UNWORN)).map(([id]) => id)), "[]",
+            "keyed elements with no glass rule and no UNWORN reason");
+        const want = new Map([
+            ...keyed.filter(([id]) => G.glassSelectorOf(id)).map(([id]) => [id, G.ELEMENTS[id]]),
+            ...G.FACE_RULES.map(([, , glyph]) => [`rule.${glyph}`, glyph]),
+            ...Object.entries(G.REMNANT_ACTS).map(([act, glyph]) => [`remnant.${act}`, glyph]),
+            ...Object.entries(G.FACES).map(([fa, glyph]) => [`face.fa-${fa}`, glyph])]);
+        const body = document.body, CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], classWas = CLASSES.map(n => body.classList.contains(n));
+        const host = document.createElement("div");
+        host.className = "drpg-glyph-probes";
+        host.setAttribute("aria-hidden", "true");
+        host.style.cssText = "position: absolute; left: -10000px; top: 0;";
+        const probes = G.glyphProbes(keyed);
+        host.innerHTML = probes.map(([id, html]) => `<div data-drpg-probe-id="${id}">${html}</div>`).join("");
+        const wrong = [];
+        let control = null, read = 0;
+        try {
+            body.classList.add(CLASSES[0]);
+            body.classList.remove(CLASSES[1]);
+            body.append(host);
+            const tokens = G.glyphTokens(body, window, glyphs);
+            for (const [id] of probes) {
+                const el = host.querySelector(`[data-drpg-probe-id="${id}"] [data-drpg-probe]`);
+                if (!want.has(id) || !el) continue;
+                read++;
+                const got = G.glyphReading(el, window, tokens);
+                if (!G.readingMatches(`--drpg-pix-${want.get(id)}`, got)) wrong.push(`${id}: ${got}, not --drpg-pix-${want.get(id)}`);
+            }
+            const search = host.querySelector('[data-drpg-probe-id="ACTIONS.search"] [data-drpg-probe]');
+            search.style.setProperty("mask-image", "none");
+            search.style.setProperty("-webkit-mask-image", "none");
+            control = G.glyphReading(search, window, tokens);
+        } finally {
+            host.remove();
+            CLASSES.forEach((n, i) => body.classList.toggle(n, classWas[i]));
+        }
+        must(read >= 150, `${read} probe(s) read - the glass set was not measured`);
+        equal(stableJson(wrong), "[]", `the probes (${read}) that do not wear their --drpg-pix- glyph under Stained Glass`);
+        equal(control, "fa:fa-magnifying-glass", "the Search tile's icon read again with its mask set to none (the control)");
+    }],
+
+    ["R3348 - Monokuma Legacy's icons are what they were before E48 G3 (option A): every probe of R3347 reads under Legacy the mask or the Font Awesome class tests-glyphs.mjs LEGACY_ICONS recorded at 7b5b4da9, and a planted mask is seen (E48 G3)", async () => {
+        /*
+         * E48 G3, 11.11.2026 (STAGE (d)). The list was recorded headless at 7b5b4da9 - the 1.2.105 line's tip, which
+         * holds 120a8003's icons and E49 A2's move of End the chapter - before G3 changed a file, from the same probes and
+         * reader as R3347 (each id -> a token such as `--drpg-g-search`, or `fa:<class>` where nothing masks it). In a
+         * browser a mask is a url(...), and it matches when the recorded token is among the body's properties holding
+         * that url. THE CONTROL: the Search tile's icon given an inline mask of --drpg-pix-search must read differently
+         * from its record, so a reader that echoed the list would be red here. G4 runs this again against G3's tip.
+         */
+        needs(env.tools(), "the readings are named against tools/glyphs.json (an installed module's zip leaves tools/ out)");
+        const G = await import("./tests-glyphs.mjs");
+        const C = await import("./config.mjs");
+        const text = async file => fetch(`/modules/${MODULE_ID}/${file}`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
+        const glyphs = G.parseGlyphs(await text("tools/glyphs.json")).glyphs;
+        const keyed = G.keyedElements(C, await text("scripts/gm-panel.mjs"));
+        must(keyed.length >= 80 && glyphs.length >= 400, `${keyed.length} keyed element(s), ${glyphs.length} glyph row(s) read`);
+        const body = document.body, CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], classWas = CLASSES.map(n => body.classList.contains(n));
+        const host = document.createElement("div");
+        host.className = "drpg-glyph-probes";
+        host.setAttribute("aria-hidden", "true");
+        host.style.cssText = "position: absolute; left: -10000px; top: 0;";
+        const probes = G.glyphProbes(keyed);
+        host.innerHTML = probes.map(([id, html]) => `<div data-drpg-probe-id="${id}">${html}</div>`).join("");
+        const readings = {}, wrong = [];
+        let control = null;
+        try {
+            body.classList.remove(CLASSES[0]);
+            body.classList.add(CLASSES[1]);
+            body.append(host);
+            const tokens = G.glyphTokens(body, window, glyphs);
+            for (const [id] of probes) readings[id] = G.glyphReading(host.querySelector(`[data-drpg-probe-id="${id}"] [data-drpg-probe]`), window, tokens);
+            const search = host.querySelector('[data-drpg-probe-id="ACTIONS.search"] [data-drpg-probe]');
+            search.style.setProperty("mask-image", "var(--drpg-pix-search)");
+            search.style.setProperty("-webkit-mask-image", "var(--drpg-pix-search)");
+            control = G.readingMatches(G.LEGACY_ICONS["ACTIONS.search"], G.glyphReading(search, window, tokens));
+        } finally {
+            host.remove();
+            CLASSES.forEach((n, i) => body.classList.toggle(n, classWas[i]));
+        }
+        const recorded = Object.keys(G.LEGACY_ICONS);
+        must(recorded.length >= 150, `LEGACY_ICONS holds ${recorded.length} reading(s); the probes read: ${JSON.stringify(readings)}`);
+        for (const id of new Set([...recorded, ...Object.keys(readings)])) {
+            if (!(id in readings)) wrong.push(`${id}: recorded ${G.LEGACY_ICONS[id]}, no such probe now`);
+            else if (!(id in G.LEGACY_ICONS)) wrong.push(`${id}: ${readings[id]}, a probe the record does not hold`);
+            else if (!G.readingMatches(G.LEGACY_ICONS[id], readings[id])) wrong.push(`${id}: ${readings[id]}, recorded ${G.LEGACY_ICONS[id]}`);
+        }
+        equal(stableJson(wrong), "[]", `Legacy's icons (${Object.keys(readings).length}) that differ from the record`);
+        equal(control, false, "the Search tile's icon given --drpg-pix-search inline matches its record (the control)");
+    }],
+
     ["R548 - Foundry tools wears the module's pixel anvil in both themes: its one child is an inert, classless i masked with --drpg-px-anvil in the colour the handbooks' book is drawn in, and no Foundry logo is on the page or in the module's stylesheets", async () => {
         /*
          * E78 fix h76-HF3, 14.10.2026; the owner at The Forge on 1.2.76 (13.10): the corner's Foundry tools button wore
@@ -19389,7 +19503,7 @@ const INVARIANTS = [
         };
 
         const css = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
-        const glyphless = names => names.filter(name => !new RegExp(`\\.${name}:is\\(i, span\\) \\{ --drpg-px-mask: var\\(--drpg-px-[\\w-]+\\); \\}`).test(css));
+        const glyphless = names => names.filter(name => !new RegExp(`\\.${name}:is\\(i, span\\) \\{ --drpg-px-mask: var\\(--drpg-pix-[\\w-]+\\); \\}`).test(css));
         const icons = [...palm.content.querySelectorAll(".drpg-choice i")].map(i => [...i.classList].find(c => c.startsWith("fa-") && c !== "fa-solid") ?? null);
 
         // One of each: a kit window carries `drpg-panel` twice, the caller's and the kit's (E21 C5a); `drpg-prompt` since E23 C5a,
@@ -35289,23 +35403,27 @@ const INVARIANTS = [
            danganronpa.css's DARK-FIRST list names the three roots by their ids, and a property it states on them (its
            `color-scheme`, its re-declared text colours) is won there now, over components.css's class rules or nothing -
            re-measured on C4a's tree, which property by property not read; every other print as it was, `left` and the
-           section's @media rules unchanged. */
+           section's @media rules unchanged.
+           The room tile's three Stained Glass prints since E48 G3 (11.11.2026): the description button's fa-align-left
+           is a FACES class now, so pixel-icons.css's glass rule masks it with the glass set's `description` glyph -
+           curtain 1:e4f711c4 -> 1:7a2b083d, desk 1:df847626 -> 1:ae49e2fb, stacked 1:e821c8f8 -> 1:af1b01b1, re-measured
+           headless; every other print, `left` and the @media rules as they were. */
         const C5 = {
             "curtain|monokuma-legacy|foundry-tools": "1:d635e754", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:999f5b79",
             "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:cf9e2a77", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
             "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:7268133b", "curtain|stained-glass|foundry-tools": "1:83b739cf",
             "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:ae4eb686", "curtain|stained-glass|room-art": "1:b38f7ef7",
-            "curtain|stained-glass|room-tile": "1:e4f711c4", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
+            "curtain|stained-glass|room-tile": "1:7a2b083d", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
             "curtain|stained-glass|voice-tile": "2:7c097704", "desk|monokuma-legacy|foundry-tools": "1:d635e754", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
             "desk|monokuma-legacy|gm-launcher": "1:999f5b79", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:3a251bf8",
             "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:cfb69a33",
             "desk|stained-glass|foundry-tools": "1:83b739cf", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:ae4eb686",
-            "desk|stained-glass|room-art": "1:b38f7ef7", "desk|stained-glass|room-tile": "1:df847626", "desk|stained-glass|voice-art": "1:393b7dc4",
+            "desk|stained-glass|room-art": "1:b38f7ef7", "desk|stained-glass|room-tile": "1:ae49e2fb", "desk|stained-glass|voice-art": "1:393b7dc4",
             "desk|stained-glass|voice-list": "1:e9f9c48e", "desk|stained-glass|voice-tile": "1:9028bf8f", "stacked|monokuma-legacy|foundry-tools": "1:d635e754",
             "stacked|monokuma-legacy|foundry-window": "2:3ad17c49", "stacked|monokuma-legacy|gm-launcher": "1:999f5b79", "stacked|monokuma-legacy|room-art": "1:b38f7ef7",
             "stacked|monokuma-legacy|room-tile": "1:164e7a4a", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:4671c967",
             "stacked|monokuma-legacy|voice-tile": "1:66481022", "stacked|stained-glass|foundry-tools": "1:83b739cf", "stacked|stained-glass|foundry-window": "2:8b75b7bd",
-            "stacked|stained-glass|gm-launcher": "1:ae4eb686", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:e821c8f8",
+            "stacked|stained-glass|gm-launcher": "1:ae4eb686", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:af1b01b1",
             "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:e9f9c48e", "stacked|stained-glass|voice-tile": "1:4a4823b1"
         };
         equal(stableJson({ left: [...left].sort(), prints, sectionMedia }), stableJson({ left: [], prints: C5, sectionMedia: [] }),
