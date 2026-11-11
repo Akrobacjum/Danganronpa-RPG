@@ -43802,6 +43802,25 @@ const INVARIANTS = [
         ok(out && out.tag === "P" && out.cls.startsWith("notes drpg-keep drpg-budget-line") && !out.cls.includes("drpg-budget-turn")
             && out.text !== L("DRPG.Murder.yourTurn"), `outside an incident the row is the budget: ${JSON.stringify(out)}`);
     }],
+    ["R3521 - the messenger launcher's hexagon is its ::before under Stained Glass, so the unread badge is drawn whole (styles/stained-glass.css; E49, audit S11-49): the button itself no clip-path and no pointer, its ::before the corner's polygon on the border box and the pointer (the hit area stays the hex), the badge the pointer back; the sound launcher keeps its own clip", async () => {
+        /*
+         * E49, 11.11.2026. S11-49: "the red counter on the launcher (top/right -4px) is cut by the chat's hexagon at
+         * 1024-1366, only the rim of its circle shows". Chromium on the glass harness at 1366x768 (`?msgr=1`, a badge of
+         * "3"): 65 of the badge's 588 px drawn before, 230-336 after; read here as the sheet's last word per property,
+         * in file order (jsdom draws no clip).
+         */
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText));
+        const rules = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const decl = (body, prop) => body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`))?.[1]?.trim() ?? null;
+        const last = (sel, prop) => { let v = null; for (const r of rules) if (r.sel.split(",").some(s => s.trim() === sel) && decl(r.body, prop) !== null) v = decl(r.body, prop); return v; };
+        const HEX = "polygon(50% 0, 100% 28%, 100% 72%, 50% 100%, 0 72%, 0 28%)";
+        const B = "body.drpg-theme-stained-glass #drpg-messenger-launcher";
+        equal(stableJson({ buttonClip: last(B, "clip-path") ?? "none", buttonPointer: last(B, "pointer-events"), beforeClip: last(`${B}::before`, "clip-path"),
+            beforePointer: last(`${B}::before`, "pointer-events"), beforeInset: last(`${B}::before`, "inset"), beforeContent: last(`${B}::before`, "content"),
+            badgePointer: last(`${B} .drpg-messenger-badge`, "pointer-events"), soundClip: last("body.drpg-theme-stained-glass #drpg-sound-launcher", "clip-path") }),
+        stableJson({ buttonClip: "none", buttonPointer: "none", beforeClip: HEX, beforePointer: "auto", beforeInset: "-2px", beforeContent: '""', badgePointer: "auto", soundClip: HEX }),
+        "{the messenger launcher's clip-path and pointer, its ::before's clip-path, pointer, inset and content, the badge's pointer, the sound launcher's clip-path} - the hex must be the ::before's so the badge is not cut");
+    }],
     ["R2018 - Room setup's Scenes tab on the kit (E46-C2b; E46-08, E47's 05.10 point 5): trial-scene.mjs `scenesTabHtml` is a kit `formGrid` (the school and the hall selects, each its label's `for`), the hall's name, picture and words a `formGrid` of their own, the warnings a `box(\"warning\")`, the prepare ticks kit switches, `SCENES_ZONE_SLOT` a row of `scenesTabRows` that draws nothing (where E73 puts Zone A and Zone B), the hall's cast pick (`castPickerHtml`) a kit `dataTable` with a switch an actor; `readScenesTab`'s answer for a seeded form the one it gave before", async () => {
         /*
          * E46-C2b. Red first on C2a's tree (f90e89a7): labels around the selects, a list of checkboxes, `p.drpg-warning`, no
