@@ -38257,7 +38257,17 @@ const INVARIANTS = [
         PS.renderPlayerStatus();
         const strip = document.getElementById(PS.WIDGET_ID);
         const rows = el => el ? [...el.querySelectorAll(".drpg-status-field")].map(r => [...r.classList].find(c => c.startsWith("is-") && c !== "is-gm") ?? "?") : null;
-        const read = { gm: rows(strip), gmIsTable: strip?.classList.contains("is-gm") ?? null, monokuma: PS.buildPlayerView(HUD.viewerActor(), { remember: false }) === null };
+        /* What the GM's strip carries depends on the game's state, never on Hope (E48 K7, CI's shard 1 at 15f44581: parts A1
+           and A2 run this inside an incident and a Class Trial). player-status.mjs `buildTableView`: during an Eclipse the
+           one row is "Still placing" (`is-move`); in a Class Trial or while an incident runs nobody spends the day's actions
+           (`quietActions`, R1392), so no row and no strip; otherwise "Still to act" (`is-actions`). Read from the same
+           settings here, so the expectation follows the state and the Hope half holds in every one of them. */
+        const E = await import("./eclipse.mjs");
+        const quiet = getClock().phase === "classTrial" || getSetting(SETTINGS.murderState)?.active === true;
+        const eclipseNow = E.isEclipse();
+        const gmWant = eclipseNow ? ["is-move"] : quiet ? null : ["is-actions"];
+        const read = { gm: rows(strip), gmIsTable: strip ? strip.classList.contains("is-gm") : null, gmHope: rows(strip)?.includes("is-hope") ?? false,
+            monokuma: PS.buildPlayerView(HUD.viewerActor(), { remember: false }) === null };
         read.student = rows(PS.buildPlayerView(who, { remember: false, eclipse: false }))?.includes("is-hope") ?? null;
         await e24Flagged(who, { [FLAGS.deceased]: { chapter: 1 }, [FLAGS.monocub]: true }, () => {
             read.monocub = rows(PS.buildPlayerView(who, { remember: false, eclipse: false }))?.includes("is-hope") ?? null;
@@ -38269,7 +38279,7 @@ const INVARIANTS = [
         const standIn = /<div id="drpg-player-status">([\s\S]*?)<\/div>\s*<div id="countdowns">/.exec(page)?.[1] ?? null;
         const playerBranch = /PLAYER_STRIP = `([^`]*)`/.exec(page)?.[1] ?? null;
         read.page = { gm: labels(standIn), player: labels(playerBranch), written: /if \(player\)[^\n]*drpg-player-status[^\n]*PLAYER_STRIP/.test(page) };
-        equal(stableJson(read), stableJson({ gm: ["is-actions"], gmIsTable: true, monokuma: true, student: true, monocub: true,
+        equal(stableJson(read), stableJson({ gm: gmWant, gmIsTable: gmWant ? true : null, gmHope: false, monokuma: true, student: true, monocub: true,
             page: { gm: ["Still to act"], player: ["Actions", "Move", "Hope"], written: true } }),
             "{gm: the rows on this GM's strip; gmIsTable; monokuma: no strip for the GM's Monokuma; student, monocub: a Hope row; page: the stand-in's labels on the GM's page and the player's, and the player's written by role=player}");
     }],
