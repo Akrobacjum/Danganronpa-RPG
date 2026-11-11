@@ -288,17 +288,18 @@ const PANEL_SECTIONS = [
             // From Right now (E49 A2; the owner's 10.11 words above, at the tile's old place).
             { key: "rules", icon: "fa-gavel", labelKey: "DRPG.Rules.manageTitle",
               run: () => import("./rules.mjs").then(m => m.openRulesManager()) },
-            // Beside the checks it answers: the season checklist carries the
-            // pre-session diagnostics as a button now, because "what is missing"
-            // and "fix it" are the same list read from the two ends.
-            { key: "seasonSetup", icon: "fa-wand-magic-sparkles", labelKey: "DRPG.Season.title",
-              run: () => import("./season-setup.mjs").then(m => m.openSeasonSetup()) },
-            // Moved out of the trial-only section it used to sit in. The
+            // Before Season setup since E49 A1d (the owner, 11.11.2026: "zamieniamy miejscami the mastermind z ustawienia
+            // sezonu"). Moved out of the trial-only section it used to sit in. The
             // endgame is prepared between sessions, and this is the one place
             // it is edited: the Mastermind's identity, the Final Trial and the
             // Final Key Remnants, all on one window.
             { key: "mastermind", icon: "fa-user-secret", labelKey: "DRPG.Mastermind.dialogTitle",
               run: () => import("./mastermind.mjs").then(m => m.openMastermindDialog()) },
+            // Beside the checks it answers: the season checklist carries the
+            // pre-session diagnostics as a button now, because "what is missing"
+            // and "fix it" are the same list read from the two ends.
+            { key: "seasonSetup", icon: "fa-wand-magic-sparkles", labelKey: "DRPG.Season.title",
+              run: () => import("./season-setup.mjs").then(m => m.openSeasonSetup()) },
             // END THE CHAPTER IS NO TILE SINCE E49 A2 (the owner, 10.11.2026: "End the chapter wrzucmy do edit
             // campaign"). A chapter that ends without a verdict - stretched because nobody died, closed on a
             // confession, a one-chapter season - still has its door: the part apart at the bottom of Edit campaign

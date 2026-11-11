@@ -180,7 +180,7 @@ Kafelki, według sekcji:
 |---|---|
 | Teraz (zawsze otwarta) | **Uczniowie** (każda postać: jej **Rola**, żyje / nie żyje / Monocub, Hope Monocubów jej **Akcje** i **Free Move** oraz przyciski **Level Up** i **Przedmioty** w każdym wierszu), **Projects**, **Dźwięk** |
 | Sprawa (Daily Life, Investigation, Class Trial) | **Morderstwo** (wyszarzone podczas Eclipse), pulpit **Investigation**, konsola **Class Trial** |
-| Między sesjami (zwinięta) | **Edytuj kampanię** (z **Zakończ rozdział** osobno na dole), **Despair Flow**, **Ustawienia pokoi**, **Tabele przedmiotów**, **Zasady killing game**, **Ustawienia sezonu** (z czerwonym **Zresetuj sezon** na dole), **Mastermind**, **Ustawienia gry** |
+| Między sesjami (zwinięta) | **Edytuj kampanię** (z **Zakończ rozdział** osobno na dole), **Despair Flow**, **Ustawienia pokoi**, **Tabele przedmiotów**, **Zasady killing game**, **Mastermind**, **Ustawienia sezonu** (z czerwonym **Zresetuj sezon** na dole), **Ustawienia gry** |
 | Diagnostyka (zwinięta, przyciemniona) | **Dziennik debugowania** - wszystko, co w tej przeglądarce poszło nie tak od załadowania strony, z Kopiuj i Wyczyść; **Wyślij wszystkim ponownie ich pokój głosowy** |
 
 Nad kaflami: ilu uczniów ma jeszcze akcje. Tabela jest w oknie Uczniowie.

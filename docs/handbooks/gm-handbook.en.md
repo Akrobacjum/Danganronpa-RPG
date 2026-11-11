@@ -180,7 +180,7 @@ The tiles, by section:
 |---|---|
 | Right now (always open) | **Students** (every character: its **Role**, alive / dead / Monocub, Hope for Monocubs, its **Actions** and **Free Move**, and a **Level Up** and an **Items** button on each row), **Projects**, **Sound** |
 | The case (Daily Life, Investigation, Class Trial) | **Murder** (greyed out during an Eclipse), **Investigation** dashboard, **Class Trial** console |
-| Between sessions (collapsed) | **Edit campaign** (with **End the chapter** apart at its foot), **Despair Flow**, **Room Setup**, **Item tables**, **Killing game rules**, **Season setup** (with **Reset the season** in red at its foot), **The Mastermind**, **Settings** (the game's settings) |
+| Between sessions (collapsed) | **Edit campaign** (with **End the chapter** apart at its foot), **Despair Flow**, **Room Setup**, **Item tables**, **Killing game rules**, **The Mastermind**, **Season setup** (with **Reset the season** in red at its foot), **Settings** (the game's settings) |
 | Diagnostics (collapsed, dim) | **Debug log** - everything this browser has failed at since the page loaded, with Copy and Clear; **Re-send everybody's voice room** |
 
 Above the tiles: how many students still have actions. The table is in Students.

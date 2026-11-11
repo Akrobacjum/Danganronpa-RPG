@@ -1094,7 +1094,12 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
 
     const result = await drpgWindow({
         classes: ["drpg-panel", "drpg-window-season"],
-        width: "wide",
+        /* THE TABLES' WIDTH, 58rem (E49 A1d, the owner's approval of 11.11.2026: the footer in one row and the window on
+           the screen at 1366x768). With Reset the season the footer holds four buttons; at "wide" (44rem, 704 px) they
+           wrapped to two rows in both themes and both languages (Chromium on probe 08's capture, the style harness:
+           Cancel 136, Pre-season checks 201-307, Reset the season 171-227, Save 136 px, Polish under Legacy 780 px in
+           all), the window 36 px taller. R3533. */
+        width: "tables",
         title: game.i18n.localize("DRPG.Season.title"),
         body: `<form>
             <p>${esc(game.i18n.format(outstanding

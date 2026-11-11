@@ -17267,6 +17267,32 @@ const INVARIANTS = [
             "{tiles: [a seasonReset tile anywhere, Between sessions' last tile]; tile: [Settings opens the game's window, disabled without the permission]; "
             + "footer: [Season setup's destructive reset, its answer runs resetSeason]; words: [Season setup en, pl, Settings en, pl]}");
     }],
+    ["R3533 - Season setup's footer stands in one row on a 1366x768 screen, and The Mastermind comes before Season setup (E49 A1d; the owner's approval of 11.11.2026): season-setup.mjs `openSeasonSetup` states the kit's `tables` width, at least the widest four buttons measured (780 px), and its footer is Save, Pre-season checks, Reset the season (destructive) and Cancel; in gm-panel.mjs's Between sessions The Mastermind is right before Season setup", async () => {
+        /*
+         * E49 A1d, 11.11.2026. The owner: "zamieniamy miejscami the mastermind z ustawienia sezonu", and Season setup at
+         * 1366x768 with its footer in one row and the window on the screen. MEASURED in Chromium (probe 08's capture on
+         * the style harness, `?fit=1`, S/stages/E49/set-tools/measure.mjs): at "wide" (704 px) the four buttons stood in
+         * two rows in both themes and languages - Cancel 136, Pre-season checks 201 / 241 / 252 / 307, Reset the season
+         * 191 / 227 / 171 / 201, Save 136 px (EN glass, EN Legacy, PL glass, PL Legacy) - and at "tables" (928 px) in one
+         * row, the window 0..752 px in a 768 px viewport, in all four. Headless there is no layout, so this holds the
+         * cause: the width stated and named in ui-kit.mjs, at least the widest row measured (780 px, PL Legacy, without
+         * the gaps), and the four buttons. Red at d2dc9bc9: "wide", Season setup before The Mastermind.
+         */
+        const K = await import("./ui-kit.mjs");
+        const sources = new Map(await moduleSources());
+        const open = fnSource(stripComments(sources.get("season-setup.mjs") ?? ""), "openSeasonSetup");
+        const list = stripComments(sources.get("gm-panel.mjs") ?? "").match(/^const PANEL_SECTIONS = \[[\s\S]*?^\];/m)?.[0] ?? "";
+        must(open && list, "season-setup.mjs `openSeasonSetup` or gm-panel.mjs `PANEL_SECTIONS` was not read");
+        const keys = [...list.matchAll(/\bkey:\s*"(\w+)"\s*,\s*icon:/g)].map(m => m[1]);
+        const width = /\bwidth:\s*"(\w+)"/.exec(open)?.[1] ?? null;
+        const read = {
+            width, px: width && K.WINDOW_WIDTHS[width]?.rem ? K.WINDOW_WIDTHS[width].rem * 16 >= 780 : false,
+            footer: [/primary:\s*\{\s*action:\s*"save"/.test(open), /action:\s*"checks"/.test(open), /destructive:\s*\[\{\s*action:\s*"reset"/.test(open), /close:\s*\{\s*role:\s*"cancel"/.test(open)],
+            order: keys.indexOf("seasonSetup") - keys.indexOf("mastermind")
+        };
+        equal(JSON.stringify(read), JSON.stringify({ width: "tables", px: true, footer: [true, true, true, true], order: 1 }),
+            "{the width Season setup states; it at the root's 16 px is at least 780 px; [Save, Pre-season checks, Reset the season destructive, Cancel]; Season setup's place less The Mastermind's}");
+    }],
     ["R588 - the voice tile names its state in one word, as the Room says it: Connecting while LiveKit connects or reconnects or the module moves the Room, Disconnected with no Room or a lost one, Connected only when the Room says connected, Eclipsed in either Eclipse hold, Blocked, Own window, whether or not a speaker is drawn (H81-10), and while one is, a connected Room's sentence is not 'Nobody is speaking' and the live text is hidden; the word runs in two aria-hidden copies, the sentence is the word's title and a visually hidden live text, and the word stays, still, under reduced motion and with the ticker off, in English and in Polish", async () => {
         /*
          * E79 C15 (16.10.2026; the prep's R585, renumbered: R585 and R586 were C12's by then). The owner's N10 of
@@ -36839,7 +36865,7 @@ const INVARIANTS = [
         const wideAdded = [...sources].filter(([file]) => !/^tests/.test(file)).filter(([, text]) => /["'`]drpg-wide["'`]/.test(stripComments(text))).map(([file]) => file);
         // Each window that had a width rule, and the name it states now.
         const SITES = [["sound-panel.mjs", "openSoundDialog", "wide"], ["tables-editor.mjs", "placeResultDialog", "wide"], ["tables-editor.mjs", "openItemTables", "tables"],
-            ["diagnostics.mjs", "openReport", "wide"], ["season-setup.mjs", "openSeasonSetup", "wide"], ["season-setup.mjs", "runPreSessionChecks", "wide"],
+            ["diagnostics.mjs", "openReport", "wide"], ["season-setup.mjs", "openSeasonSetup", "tables"], ["season-setup.mjs", "runPreSessionChecks", "wide"],
             ["dice-look.mjs", "diagnoseDiceLook", "wide"], ["gm-panel.mjs", "openFailureLog", "wide"], ["gm-panel.mjs", "openGmPanel", "panel"], ["projects-ui.mjs", "openProjectManager", "matrix"]];
         const sites = SITES.filter(([file, fn, name]) => !new RegExp(`\\bwidth:\\s*"${name}"`).test(fnSource(stripComments(sources.get(file) ?? ""), fn))).map(([file, fn]) => `${file} ${fn}`);
         // The kit: the width's classes and position, its screen cap, the GM panel's ultrawide box, a ceiling alone.
@@ -45415,8 +45441,8 @@ const INVARIANTS = [
         }), stableJson({
             // E49 A2 moved three tiles and took one out (R3345 holds the four moves): the order as it stands after them.
             tiles: [["now", ["whoIsAlive", "projects", "sound"]], ["case", ["murder", "investigation", "trial"]],
-                // E49 A1d: Reset the season into Season setup, Settings in its place (R3532).
-                ["between", ["jump", "gmTeam", "roomSetup", "tables", "rules", "seasonSetup", "mastermind", "settings"]],
+                // E49 A1d: Reset the season into Season setup, Settings in its place (R3532), The Mastermind before Season setup (R3533).
+                ["between", ["jump", "gmTeam", "roomSetup", "tables", "rules", "mastermind", "seasonSetup", "settings"]],
                 ["fixes", ["failureLog", "voiceReset", "caseWindow"]]],
             caseTile: ["fixes", en["DRPG.Case.tile"] === undefined ? "?" : game.i18n.localize("DRPG.Case.tile"), age],
             diag: [0, 2], en: [], pl: [], keys: [[false, false], [false, false]]
