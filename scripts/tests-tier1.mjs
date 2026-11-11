@@ -4020,7 +4020,7 @@ const INVARIANTS = [
             + "its label; Foundry tools' children, the first one's tag, class and inert, its label; the windows and aria-pressed closed, after a click, after a second]");
         ok(!/NaN/.test(stableJson({ seen, want })), `a length in the upper row could not be read: ${stableJson({ seen, want })}`);
         equal(stableJson(seen), stableJson(want),
-            `the upper row at ${innerWidth}x${innerHeight} [per theme and reading: the clip-paths the chat's; the GM's and Foundry tools' sizes; `
+            `the upper row at ${innerWidth}x${innerHeight} [per theme and reading: the clip-paths the corner's; the GM's and Foundry tools' sizes; `
             + "their right and bottom less settings' and the handbooks'; the gaps chat-GM, chat-tools, GM-tools]");
     }],
 
@@ -46982,7 +46982,7 @@ function cascadePx(el, prop, view = { w: innerWidth, h: innerHeight }) {
 /**
  * The corner's buttons as the cascade places them and the drawn shape's gap between two of them (E81 C12, 12.10.2026,
  * out of `cornerReading` in E77 C6 so that R512 reads the upper row with the same arithmetic): `place(id)` is a
- * button's right and bottom insets and its size through `cascadePx`, `clip` the chat's clip-path and `k` its slant
+ * button's right and bottom insets and its size through `cascadePx`, `clip` the corner's clip-path (the sound launcher's) and `k` its slant
  * (null with none), `gap(a, b)` flat to flat on one row, slanted to slanted across rows, or rim to rim between circles.
  */
 function cornerGeometry() {
@@ -46990,7 +46990,9 @@ function cornerGeometry() {
         const el = document.getElementById(id);
         return { el, right: cascadePx(el, "right"), bottom: cascadePx(el, "bottom"), w: cascadePx(el, "width"), h: cascadePx(el, "height") };
     };
-    const clip = getComputedStyle(document.getElementById("drpg-messenger-launcher")).clipPath ?? "none";
+    // The corner's shape, read off the sound launcher: since E49 (S11-49) the chat's hexagon is its ::before, so the
+    // chat button itself carries no clip; the three launchers' shared rule still clips settings, the handbooks and tools.
+    const clip = getComputedStyle(document.getElementById("drpg-sound-launcher")).clipPath ?? "none";
     const slant = /^polygon\(\s*50%\s+0(?:px|%)?\s*,\s*100%\s+([\d.]+)%/.exec(clip);
     const k = slant ? Number(slant[1]) / 100 : null, norm = k === null ? 1 : Math.hypot(k, 0.5);
     const centre = q => ({ x: q.right + q.w / 2, y: q.bottom + q.h / 2 });
