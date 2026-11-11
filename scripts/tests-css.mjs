@@ -390,35 +390,82 @@ export const MEANING = {
         why: "gold means Hope and nothing else"
     },
     /* Where K1 sent the focus and the selections, the offers and the asks; a new reader names one of these or says what
-       it is here. */
+       it is here. `phase-daily`: the clock's Daily Life, Hope's #ffd23f under another name until K2b (the owner's default
+       on K2's open, 11.11; to be seen before it is decided), now the colour of what asks to be looked at. */
     attention: {
         tokens: /^--drpg-attention(?:-rgb)?$/,
-        words: /focus|:checked|radio|selected|drpg-choice|rest-option|frisk-mode|unlocked|offered|init-button|warn|:hover|past-first|debate|rebuttal|tab-dot|saved|paused|checkmark|\bselect\b/i,
+        words: /focus|:checked|radio|selected|drpg-choice|rest-option|frisk-mode|unlocked|offered|init-button|warn|:hover|past-first|debate|rebuttal|tab-dot|saved|paused|checkmark|\bselect\b|phase-daily/i,
         why: "the attention colour is for focus, selection and what asks to be looked at"
     },
     /*
-     * THE HOUR (E48 K2, 11.11.2026; D30). `--drpg-glass-accent` is the state colour - the hour, replaced by the phase,
-     * the Eclipse and an incident here - and the five hour tokens behind it. K2 took it off what the stage names: the
-     * Event panel's cards, the action and Call tiles, the panel's, the sheet's and the messenger's buttons, the sheet's
-     * tabs and the state bars, and the picking rows (their `--kind`, now `--drpg-attention`, Q6); `never` keeps it off them. `words` is every surface that still reads it, by family: the
-     * panes and seams, the curtain's accent, the ticker and the clock, the room and voice tiles, the corner's launchers
-     * and frames (the owner, amend [1], 11.10; Q12) - and the windows' headers and fields, the sheet's headings and pips,
-     * the tables, the notices and the countdown tray, which the stage did not list and D30's "never a card, a bar or a
-     * button" may still take (an open for the owner, written in STATUS). A new reader names one of these or is red.
+     * THE HOUR (E48 K2, 11.11.2026; D30; K2b, 11.11.2026). `--drpg-glass-accent` is the state colour - the hour, replaced
+     * by the phase, the Eclipse and an incident here - and the five hour tokens behind it. K2 took it off what the stage
+     * names: the Event panel's cards, the action and Call tiles, the panel's, the sheet's and the messenger's buttons, the
+     * sheet's tabs and the state bars, and the picking rows (their `--kind`, now `--drpg-attention`, Q6). K2b took it off
+     * the three controls K2 had left reading it (the owner's default on K2's open, 11.11: a control is not a decoration):
+     * a field's and a checkbox's focus (to `--drpg-attention`, focus being attention's), the HUD's buttons and the GM
+     * panel's section bars. `never` keeps it off all of them; `words` is HOUR_KEPT, every surface still allowed it, each
+     * with its reason, and R3412 holds each family to at least one read (a family nothing reads is a stale line).
      */
     hour: {
         tokens: /^--drpg-(?:glass-accent|sg-(?:morning|noon|afternoon|evening|night))$/,
-        words: new RegExp(["glass-accent", "data-drpg-time", "seam", "curtain", "glass-flat", "glass-band", "#pause", "ticker", "#drpg-hud",
-            "room-tile", "voice", "launcher", "launch-mini", "foundry-window", "notices-corner", "note-frame", "scene-controls", "sidebar-tabs",
-            "window-header", "header-control", "window-content", "\\.application\\[class\\]", "scrollbar", "#tooltip", "popup", "notice-info",
-            "messenger", "kit-", "handbook", "countdown", "focus-visible", "input", "textarea", "select", "table", "drpg-gmp-",
-            "\\bh[1-4]\\b", "legend", "section-header", "first-letter", "status-label", "status-value", "drpg-actions", "action-pip",
-            "free-move", "drpg-step", "group-count", "ultimate", "items-section", "inventory", "traits", "biography", "duality-badge",
-            "--stamp", "--kind", "\\bi\\b", "fa-"].join("|"), "i"),
-        never: /drpg-event\b|drpg-action-button|drpg-call-button|\.drpg-panel button|sheet-tabs a|-bar\b|-fill\b|bar-fill|drpg-choice|rest-option|frisk-mode/i,
+        get words() { return new RegExp(HOUR_KEPT.flatMap(k => k.words).join("|"), "i"); },
+        never: /drpg-event\b|drpg-action-button|drpg-call-button|\.drpg-panel button|sheet-tabs a|-bar\b|-fill\b|bar-fill|drpg-choice|rest-option|frisk-mode|drpg-hud-button|drpg-gmp-section|(?:input|select|textarea|\]|-text)\)?:focus/i,
         why: "the hour colours the panes, the curtain's accent and the ticker, never a card, a bar or a button"
+    },
+    /*
+     * THE CRITICAL (E48 K2b, 11.11.2026; the owner's default on K1's open). `.drpg-flat-crit` went from gold to the
+     * critical's light red in K1, a fifth destination outside the stage's four; K2b names it: `--drpg-critical` is the
+     * critical's own (`var(--drpg-crimson-light)`, "a critical on a dark card"), read by the rules that say "crit".
+     * `--drpg-crimson-light` itself stays the module's light red for errors, OBJECTION and the overrun, which are not
+     * the critical and do not read this token.
+     */
+    critical: {
+        tokens: /^--drpg-critical(?:-rgb)?$/,
+        words: /crit/i,
+        why: "the critical's light red is the critical's alone"
     }
 };
+
+/*
+ * WHERE THE HOUR STILL GOES, AND WHY (E48 K2b, 11.11.2026). MEANING.hour's `words`, a family a line. The owner's default
+ * on K2's open (11.11): the decorations keep it - the windows' headers, the tables, the countdown tray - and the
+ * controls lose it (`never`). The lines marked "the owner's still" are K2's open beyond the three he was asked about.
+ */
+export const HOUR_KEPT = [
+    { name: "panes", words: ["glass-accent", "data-drpg-time", "seam", "curtain", "glass-flat", "glass-band", "#pause"], why: "the panes and their seams, the curtain, its flat and band, the pause screen: D30's own place" },
+    { name: "clock", words: ["ticker", "#drpg-hud"], why: "the ticker and the clock's chapter, phase, time and track (its buttons are `never`)" },
+    { name: "tiles", words: ["room-tile", "voice"], why: "the room and voice tiles' brushes, pips and frames (the owner, amend [1], 11.10; Q12)" },
+    { name: "corner", words: ["launcher", "launch-mini", "foundry-window", "notices-corner", "note-frame", "scene-controls", "sidebar-tabs"], why: "the corner's launchers and frames and Foundry's own chrome (Q12)" },
+    { name: "window headers", words: ["window-header", "header-control", "\\.application\\[class\\]", "scrollbar", "#tooltip"], why: "the windows' headers and frames, their scrollbars, the tooltip's edge: decoration (the owner's default, 11.11)" },
+    { name: "tables", words: ["table"], why: "the tables' heads and hovered rows: decoration (the owner's default, 11.11)" },
+    { name: "countdown tray", words: ["countdown"], why: "the countdown tray's title, frame and tools: decoration (the owner's default, 11.11)" },
+    { name: "fields at rest", words: ["window-content", "input", "textarea", "select"], why: "a field's and a checkbox's resting edge and tick (their focus is attention's, `never`)" },
+    { name: "notices", words: ["popup", "notice-info", "messenger"], why: "the notices' edge and the messenger's frame and own bubbles" },
+    { name: "kit and handbook", words: ["kit-", "handbook"], why: "the kit's row highlight, secret edge and role plate, the handbook's rule and marks" },
+    { name: "GM panel", words: ["drpg-gmp-"], why: "the GM panel's Next box and phase stamp, readings of the clock (its section bars are `never`)" },
+    { name: "sheet", words: ["\\bh[1-4]\\b", "legend", "section-header", "first-letter", "status-label", "status-value", "drpg-actions", "action-pip", "free-move", "group-count", "ultimate", "items-section", "inventory", "traits", "biography", "duality-badge", "--stamp"], why: "the sheet's headings, pips, free move, counts and stamps: the owner's still (K2's open)" },
+    { name: "step", words: ["drpg-step"], why: "`.drpg-step`: the owner's still (K2's open)" },
+    { name: "icons", words: ["--kind", "\\bi\\b", "fa-"], why: "an icon's ink and a row's kind inside the surfaces above" }
+];
+
+/* A colour literal as "r,g,b" (a hex, an rgb()/rgba() with three numbers, or a bare `-rgb` triple), or null. */
+function literalRgb(text) {
+    const t = text.trim();
+    let m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(t);
+    if (m) { const h = m[1].length === 3 ? [...m[1]].map(c => c + c).join("") : m[1]; return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)).join(","); }
+    m = /^(?:rgba?\(\s*)?(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*[\d.]+%?\s*)?\)?$/i.exec(t);
+    return m ? m.slice(1, 4).map(Number).join(",") : null;
+}
+
+/* Every colour literal in a declaration's value: hexes, rgb()/rgba() with plain numbers, and the value itself when it
+   is a bare triple. */
+function literalsOf(value) {
+    const out = [];
+    for (const m of value.matchAll(/#[0-9a-f]{6}\b|#[0-9a-f]{3}\b|rgba?\([^()]*\)/gi)) { const rgb = literalRgb(m[0]); if (rgb) out.push([m[0], rgb]); }
+    if (!out.length) { const rgb = literalRgb(value); if (rgb) out.push([value.trim(), rgb]); }
+    return out;
+}
 
 /**
  * Every read of a meaning token by a rule that does not name its meaning: `sheets` is [[file, text]]; answers
@@ -427,35 +474,57 @@ export const MEANING = {
  */
 export function meaningReads(sheets, meaning = MEANING) {
     let read = 0;
-    const found = [];
-    for (const [file, text] of sheets ?? []) {
-        for (const block of blocksOf(stripCssComments(text))) {
+    const found = [], allowed = [];
+    const rows = Object.entries(meaning);
+    const parsed = (sheets ?? []).map(([file, text]) => [file, blocksOf(stripCssComments(text))]);
+    /* a meaning token's own literal value (`--drpg-gold: #ffd23f`), so a copy under another name is seen (K2b) */
+    const values = new Map();
+    for (const [, blocks] of parsed) for (const block of blocks) for (const decl of declarationsOf(block.own ?? "")) {
+        const row = rows.find(([, r]) => r.tokens.test(decl.property));
+        const rgb = row && literalRgb(decl.value);
+        if (rgb && !values.has(rgb)) values.set(rgb, [row[0], decl.property]);
+    }
+    for (const [file, blocks] of parsed) {
+        for (const block of blocks) {
             if (!block.prelude || block.prelude.startsWith("@")) continue;
             const where = [...block.context, block.prelude].join(" ");
+            const bare = where.replace(/:not\([^()]*(?:\([^()]*\)[^()]*)*\)/g, "");
             for (const decl of declarationsOf(block.own)) {
+                const judge = (name, row, what) => {
+                    read++;
+                    const named = row.words.test(where) || (decl.property.startsWith("--") && row.words.test(decl.property));
+                    if (named && !row.never?.test(bare)) { allowed.push({ meaning: name, where }); return; }
+                    found.push(`${file}: ${block.prelude.slice(0, 140)} { ${decl.property} } ${what} (${name}: ${row.why})`);
+                };
                 for (const m of decl.value.matchAll(/var\(\s*(--[\w-]+)/g)) {
-                    for (const [name, row] of Object.entries(meaning)) {
-                        if (!row.tokens.test(m[1])) continue;
-                        read++;
-                        const named = row.words.test(where) || (decl.property.startsWith("--") && row.words.test(decl.property));
-                        if (named && !row.never?.test(where.replace(/:not\([^()]*(?:\([^()]*\)[^()]*)*\)/g, ""))) continue;
-                        found.push(`${file}: ${block.prelude.slice(0, 140)} { ${decl.property} } reads ${m[1]} (${name}: ${row.why})`);
-                    }
+                    for (const [name, row] of rows) if (row.tokens.test(m[1])) judge(name, row, `reads ${m[1]}`);
+                }
+                if (rows.some(([, r]) => r.tokens.test(decl.property))) continue;
+                for (const [lit, rgb] of literalsOf(decl.value)) {
+                    const hit = values.get(rgb);
+                    if (hit) judge(hit[0], meaning[hit[0]], `holds ${lit}, the value of ${hit[1]}`);
                 }
             }
         }
     }
-    return { read, found };
+    return { read, found, allowed };
 }
 
-/* The meaning check's fixture: four reads, two of them findings - a focus ring in gold, and a token that aliases gold
-   under a name with no Hope word - beside a Hope star, a Hope-named alias and Evidence's antique, which is not gold. */
+/** Each HOUR_KEPT family and the reads of the hour it allows: `[{ name, why, reads }]`, from meaningReads' `allowed`. */
+export function hourKept(allowed, kept = HOUR_KEPT) {
+    const hours = (allowed ?? []).filter(a => a.meaning === "hour");
+    return kept.map(k => ({ name: k.name, why: k.why, reads: hours.filter(a => new RegExp(k.words.join("|"), "i").test(a.where)).length }));
+}
+
+/* The meaning check's fixture: six reads, three of them findings - a focus ring in gold, a token that aliases gold under
+   a name with no Hope word, and gold's own value copied under another name (K2b: `--drpg-phase-daily` was #ffd23f) -
+   beside a Hope star, a Hope-named alias, a Hope rule's literal glow and Evidence's antique, which is not gold. */
 export const MEANING_FIXTURE = {
-    sheets: [["fixture.css", ":root { --drpg-kit-call-hope: var(--drpg-gold); --drpg-glow: var(--drpg-gold-light); }\n"
-        + ".drpg-hope-star { color: var(--drpg-gold); }\n.drpg-button:focus-visible { outline: 2px solid rgba(var(--drpg-gold-rgb), 0.8); }\n"
+    sheets: [["fixture.css", ":root { --drpg-gold: #ffd23f; --drpg-kit-call-hope: var(--drpg-gold); --drpg-glow: var(--drpg-gold-light); --drpg-phase-x: #FFD23F; }\n"
+        + ".drpg-hope-star { color: var(--drpg-gold); text-shadow: 0 0 3px rgba(255, 210, 63, 0.35); }\n.drpg-button:focus-visible { outline: 2px solid rgba(var(--drpg-gold-rgb), 0.8); }\n"
         + ".drpg-truth-bullet { color: var(--drpg-gold-antique); }\n/* .drpg-x { color: var(--drpg-gold); } */"]],
-    read: 4,
-    found: 2
+    read: 6,
+    found: 3
 };
 
 /** The meaning check on its fixture; [] is held. */
@@ -465,6 +534,46 @@ export function meaningSelfCheck(of = meaningReads) {
     if (got.read !== MEANING_FIXTURE.read) problems.push(`the meaning check reads ${got.read} meaning token(s) in its fixture, not ${MEANING_FIXTURE.read}`);
     if (got.found.length !== MEANING_FIXTURE.found) problems.push(`the meaning check finds ${got.found.length} in its fixture, not ${MEANING_FIXTURE.found}: ${JSON.stringify(got.found)}`);
     return problems;
+}
+
+/* ================================ forced colours (E48 K3) ================================ */
+
+/*
+ * EVERY STATE ELEMENT HAS A FORCED-COLOURS RULE (E48 K3, 11.11.2026; the stage's "the full forced-colors block"). Under
+ * Windows' contrast themes a state said in colour alone - a spent pip against a free one, a muted microphone - comes out
+ * as two identical marks, and a pixel glyph (a mask over `background-color: currentColor`) as nothing, because the
+ * background is painted the system's Canvas. `FORCED_STATES` is each state element the module draws that way and the
+ * selector the `@media (forced-colors: active)` block must name for it; audit/forced-sweep.mjs reads in Chromium what
+ * the pips then draw (a test here can read only that the rule is there).
+ */
+export const FORCED_STATES = [
+    { name: "the action pips", selector: ".drpg-action-pip::before" },
+    { name: "the despair pips", selector: ".drpg-despair-pip.filled" },
+    { name: "the player status's pips", selector: ".drpg-status-pip::before" },
+    { name: "Hope's pips in the player status", selector: ".drpg-status-hope-pip::before" },
+    { name: "Hope's stars on the sheet", selector: ".hope-value::before" },
+    { name: "the pixel glyphs", selector: ".drpg-pxi" },
+    { name: "the checkbox's tick", selector: "input:is([type=\"checkbox\"], [type=\"radio\"])" },
+    { name: "the selected brush (a chosen row)", selector: ":is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):has(input:checked)" },
+    { name: "the selected brush (a pressed or chosen button or tab)", selector: "[aria-pressed=\"true\"]" },
+    { name: "the Event ticker", selector: ".drpg-event-ticker" },
+    { name: "the microphone's muted stroke", selector: ".drpg-launch-mini:is(.is-muted, .is-held, .is-gm-blocked)::after" },
+    { name: "the voice list's muted stroke", selector: ".drpg-voice-row :is(.drpg-voice-row-mute.is-muted, .drpg-voice-row-block.is-gm-blocked)::after" },
+    { name: "the microphone's lock", selector: ".drpg-voice-mic-lock" },
+    { name: "the notice history's button", selector: "#drpg-notices-corner" },
+    { name: "the notice history's window", selector: ".application#drpg-notices" }
+];
+
+/** Each FORCED_STATES row no rule inside a served sheet's `@media (forced-colors: active)` names; [] is held. */
+export function forcedBlockProblems(sheets, states = FORCED_STATES) {
+    const preludes = [];
+    for (const [, text] of sheets ?? []) {
+        for (const block of blocksOf(stripCssComments(text))) {
+            if (block.prelude && block.context.some(c => /forced-colors:\s*active/.test(c))) preludes.push(block.prelude.replace(/\s+/g, " "));
+        }
+    }
+    if (!preludes.length) return ["no served sheet holds a rule inside @media (forced-colors: active)"];
+    return states.filter(s => !preludes.some(p => p.includes(s.selector))).map(s => `the forced-colours block names nothing for ${s.name} (\`${s.selector}\`)`);
 }
 
 /* ================================ the hour's ramp (E48 K2) ================================ */

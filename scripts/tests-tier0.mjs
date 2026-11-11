@@ -18,7 +18,7 @@ import {
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
     TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists, cssDeadClasses, cssLintCounts, cssBudgetProblems, CSS_DETECTORS,
-    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssThemeTokens, cssHourDistances, cssDeltaE00Check
+    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssForcedBlockProblems, CSS_FORCED_STATES, cssThemeTokens, cssHourDistances, cssDeltaE00Check
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -518,7 +518,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(cssBudgetProblems(counts, budget, { atMost: true })), "[]", "a served sheet is above its budget, or the budget and module.json disagree");
     }],
 
-    ["R3410 - gold means Hope alone: no served sheet reads a gold token (`--drpg-gold`, its light, deep, shadow and -rgb, `--drpg-sg-hope`) in a rule whose selector names no Hope word, nor `--drpg-attention` outside focus and selection, the check finds the two faults planted in its fixture and one planted in a served sheet, and `--drpg-attention` is Bone in both themes (E48 K1; Q6)", async () => {
+    ["R3410 - gold means Hope alone: no served sheet reads a gold token (`--drpg-gold`, its light, deep, shadow and -rgb, `--drpg-sg-hope`) in a rule whose selector names no Hope word, nor holds a meaning token's own value under another name, nor `--drpg-attention` outside focus and selection, nor `--drpg-critical` outside a critical; the check finds the three faults planted in its fixture and one planted in a served sheet and a planted copy of gold's value; `--drpg-attention` is Bone in both themes and the clock's Daily Life reads it, and `--drpg-critical` is the critical's light red, read by the flat roll's critical line (E48 K1, K2b; Q6)", async () => {
         /*
          * E48 K1, 11.11.2026 (the plan's "złoto zostaje wyłącznie dla Hope"; S12-61). tests-css.mjs `meaningReads`, the
          * function `node tools/check.mjs css` runs, on the files Foundry serves. Red before K1: "54 read(s) of a meaning
@@ -526,6 +526,11 @@ const REGRESSIONS = [
          * reads --drpg-gold" - the focus ring, the chosen crisis row, the Frisk mode, the card's default result,
          * `.drpg-sum-found`, the messenger's dot and the rest of 42 rules. `--drpg-gold-antique` is Evidence's
          * (`var(--drpg-evidence)`) and is not a gold token here.
+         * E48 K2b, 11.11.2026 (the owner's defaults on K1's and K2's opens). Red before K2b: "2 read(s) of a meaning token
+         * outside its selectors: styles/danganronpa.css: :root { --drpg-phase-daily } holds #ffd23f, the value of
+         * --drpg-gold (hope: ...)" and its -rgb twin - Hope's gold under the clock's name, which the check could not see
+         * while it read only `var()`. Then (its own commit) "--drpg-critical is undefined" for the critical's row: K1 sent
+         * `.drpg-flat-crit` to the critical's light red, a fifth destination; K2b names it the critical's own.
          */
         const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
         const sheets = [];
@@ -533,7 +538,7 @@ const REGRESSIONS = [
         must(sheets.length >= 6, `module.json serves ${sheets.length} sheet(s) - this test would hold nothing`);
         equal(JSON.stringify(cssMeaningSelfCheck()), "[]", "the meaning check does not read its own fixture as written");
         const all = cssMeaningReads(sheets), read = all.read;
-        const found = all.found.filter(f => / \((?:hope|attention): /.test(f)); // the hour's row is R3412's (E48 K2)
+        const found = all.found.filter(f => / \((?:hope|attention|critical): /.test(f)); // the hour's row is R3412's (E48 K2)
         must(read >= 40, `${read} read(s) of a meaning token in the served sheets - the sheets did not load, or the check reads nothing`);
         ok(!found.length, `${found.length} read(s) of a meaning token outside its selectors: ${found.slice(0, 6).join(" | ")}`);
         const planted = sheets.map(([file, text], i) => [file, i ? text : `${text}\n.drpg-planted-control:focus-visible { outline: 2px solid var(--drpg-gold); }\n`]);
@@ -542,7 +547,13 @@ const REGRESSIONS = [
         for (const theme of ["monokuma-legacy", "stained-glass"]) {
             equal(tokens[theme].get("--drpg-attention"), "var(--drpg-bone)", `${theme}: --drpg-attention is not the theme's Bone`);
             equal(tokens[theme].get("--drpg-attention-rgb"), "var(--drpg-bone-rgb)", `${theme}: --drpg-attention-rgb is not the theme's Bone`);
+            equal(tokens[theme].get("--drpg-phase-daily"), "var(--drpg-attention)", `${theme}: the clock's Daily Life is not the attention colour`);
+            equal(tokens[theme].get("--drpg-critical") ?? `${theme}: --drpg-critical is undefined`, "var(--drpg-crimson-light)", `${theme}: --drpg-critical is not the critical's light red`);
         }
+        const copied = sheets.map(([file, text], i) => [file, i ? text : `${text}\n.drpg-planted-clock { --drpg-planted-day: #FFD23F; }\n`]);
+        equal(cssMeaningReads(copied).found.length, all.found.length + 1, "Hope's gold copied as a literal under another name is not seen");
+        const crit = sheets.find(([file]) => file.endsWith("danganronpa.css"));
+        ok(/\.drpg-flat-crit\s*\{[^}]*color:\s*var\(--drpg-critical\)/.test(crit?.[1] ?? ""), "the flat roll's critical line does not read --drpg-critical");
     }],
 
     ["R3411 - no hour reads as a state: each of Stained Glass's five hour tokens is at least tools/contrast-pairs.json's threshold (CIEDE2000 15, Q7) from each meaning colour - Investigation, Hope, the GM's red and light, Eclipse, Despair, Evidence, Health, Sanity - every token resolves, and CIEDE2000 reads Sharma, Wu and Dalal's test pairs as published (E48 K2; D30 = 2)", async () => {
@@ -571,13 +582,18 @@ const REGRESSIONS = [
         ok(planted.problems.some(p => p.includes("0.00 from Hope")), "Hope's own colour planted as an hour is not read as Hope's");
     }],
 
-    ["R3412 - the hour colours the panes and never a card, a bar or a button: no served sheet reads `--drpg-glass-accent` or an hour token in a rule outside the hour's list (the panes, the curtain, the ticker and clock, the room and voice tiles, the corner's launchers and frames, and what K2 left), nor in the Event panel's cards, the action and Call tiles, the panel's and sheet's buttons and tabs or the state bars at all, and one planted there is seen (E48 K2; D30)", async () => {
+    ["R3412 - the hour colours the panes and never a card, a bar or a button: no served sheet reads `--drpg-glass-accent` or an hour token in a rule outside tests-css.mjs HOUR_KEPT (each family with its reason, each still read), nor in the Event panel's cards, the action and Call tiles, the panel's and sheet's buttons and tabs, the state bars, a field's or checkbox's focus, the HUD's buttons or the GM panel's section bars at all; the windows' headers, the tables and the countdown tray keep it as decoration; and each planted control is seen (E48 K2, K2b; D30)", async () => {
         /*
          * E48 K2, 11.11.2026. tests-css.mjs `meaningReads`, MEANING's `hour` row (its comment lists the families). Red
          * before K2: "16 read(s) of the hour outside its list", first "styles/danganronpa.css: .drpg-project-card-bar > span
          * { background } reads --drpg-glass-accent", then the Event panel's card, the panel's buttons, the action and Call
          * tiles, the sheet's tabs, the picking rows' `--kind`, the resource bars and fills, the status bars and the two
          * badges that took an hour's hue.
+         * E48 K2b, 11.11.2026 (the owner's default on K2's open: the controls lose the hour, the decorations keep it).
+         * Red before K2b: "14 read(s) of the hour outside its list", first "styles/stained-glass.css: ... .drpg-panel
+         * :is(input[type="text"], ...):focus-visible { border-color } reads --drpg-glass-accent", then the other fields'
+         * and the messenger's focus, the biography's, the checkbox's focus ring, the GM panel's section bar `--kind` and
+         * the HUD button's edge and hover.
          */
         const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
         const sheets = [];
@@ -590,6 +606,33 @@ const REGRESSIONS = [
         ok(!hourOf(found).length, `${hourOf(found).length} read(s) of the hour outside its list: ${hourOf(found).slice(0, 6).join(" | ")}`);
         const planted = sheets.map(([file, text]) => [file, file === glass[0] ? `${text}\nbody.drpg-theme-stained-glass .drpg-call-button:hover { --brush: var(--drpg-glass-accent); }\n` : text]);
         equal(hourOf(cssMeaningReads(planted).found).length, hourOf(found).length + 1, "the hour planted on a Call tile is not seen");
+        for (const control of ["#drpg-hud .drpg-hud-button:hover { border-color", ".drpg-gm-panel .drpg-gmp-section > summary { --kind", ".drpg-panel textarea:focus-visible { caret-color", "input[type=\"checkbox\"]:focus-visible { outline"]) {
+            const one = sheets.map(([file, text]) => [file, file === glass[0] ? `${text}\nbody.drpg-theme-stained-glass ${control}: var(--drpg-glass-accent); }\n` : text]);
+            equal(hourOf(cssMeaningReads(one).found).length, hourOf(found).length + 1, `the hour planted on a control (${control.split(" {")[0]}) is not seen`);
+        }
+        const kept = cssHourKept(cssMeaningReads(sheets).allowed);
+        for (const family of kept) ok(family.reads > 0, `HOUR_KEPT's "${family.name}" (${family.why}) allows no read of the hour - a stale line`);
+        for (const decoration of ["window headers", "tables", "countdown tray"]) {
+            const family = kept.find(k => k.name === decoration);
+            ok(family?.reads > 0, `the ${decoration} lost the hour - the owner's default keeps it there (${family?.why ?? "no such line"})`);
+        }
+    }],
+
+    ["R3440 - forced colours keep every state: the served sheets' `@media (forced-colors: active)` block names each state element of tests-css.mjs FORCED_STATES - the action, despair and player-status pips, Hope's pips and stars, the pixel glyphs, the checkbox's tick, the selected brush, the Event ticker, the microphone's and the voice list's muted stroke and the mic's lock, the notice history's button and window - and a state planted in the list with no rule is seen (E48 K3)", async () => {
+        /*
+         * E48 K3, 11.11.2026. tests-css.mjs `forcedBlockProblems`. What the rules then draw is audit/forced-sweep.mjs's, in
+         * Chromium (a spent pip and a free pip differ, neither blank, both themes); Windows' own contrast themes are a
+         * check at a real table, not made here. Red before K3: "the forced-colours block names nothing for the action pips
+         * (`.drpg-action-pip::before`)" and 13 more of the 15 rows (the despair pips' rule was there).
+         */
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const sheets = [];
+        for (const file of manifest.styles ?? []) sheets.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)]);
+        must(sheets.length >= 6 && CSS_FORCED_STATES.length >= 12, `${sheets.length} sheet(s), ${CSS_FORCED_STATES.length} state(s) - this test would hold nothing`);
+        const problems = cssForcedBlockProblems(sheets);
+        equal(JSON.stringify(problems), "[]", `${problems.length} state element(s) with no forced-colours rule`);
+        const planted = cssForcedBlockProblems(sheets, [...CSS_FORCED_STATES, { name: "a planted state", selector: ".drpg-planted-state" }]);
+        equal(planted.length, problems.length + 1, "a state with no forced-colours rule planted in the list is not seen");
     }],
 
     ["R3333 - the pixel glyphs come from one source: each row of tools/glyphs.json `grid` cells wide and tall, no two drawing the same pixels unless one says `same`, the sprite, pixel-icons.css and the audit page's symbols what tools/glyph-map.mjs writes from them, every SVG data URI of danganronpa.css and stained-glass.css its row's drawing pixel for pixel, the chrome section what tools/chrome-icons.mjs writes, and each planted drift seen (E48 G1)", async () => {
