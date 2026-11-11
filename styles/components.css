@@ -48,8 +48,10 @@ body {
        0.25, and red is the GM's road (D11). The edge is the frame and a 2 px bar (the tabs' bottom, the section
        list's start: the rules below), so the tab keeps its size. WCAG 2 by the tokens' hex: Bone #e4ded8 on Ink
        #1d1a21 12.88:1 (AA small 4.5:1); the edge, Bone on Ink, the same 12.88:1 (non-text 3:1); before, Bone on the
-       Eye's 0.25 over Ink (78, 26, 37) 10.50:1 - readable, but a red fill. Chromium's reading of the drawn window is
-       in R3542's comment. The edge is attention's (a selection: tests-css.mjs MEANING), named as one so the meaning check
+       Eye's 0.25 over Ink (78, 26, 37) 10.50:1 - readable, but a red fill. Chromium on the style harness at 1366x768
+       (Despair Flow's tabs, the DRPG Settings window's list) read the same: before rgba(224, 24, 47, 0.25) over the
+       window's Ink, 10.50:1; after rgb(29, 26, 33) under rgb(228, 222, 216), 12.88:1, the edge rgb(228, 222, 216); each
+       tab's and section's box the same to the pixel before and after. The edge is attention's (a selection: tests-css.mjs MEANING), named as one so the meaning check
        reads it (a token whose name says "selected" may hold it; `--drpg-kit-tab-on-edge` says nothing). */
     --drpg-kit-tab-selected-edge: var(--drpg-attention);
     --drpg-kit-tab-on-bg: var(--drpg-ink);

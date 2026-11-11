@@ -43893,8 +43893,8 @@ const INVARIANTS = [
         /*
          * E49, 11.11.2026. The owner on the E105 comparison (after-gm-panel-as-opened, both themes, 1366x768 and
          * 1920x1080): the campaign's name, the clock's line and the students line stood flush left above centred
-         * tiles. Red first on 54493dbf: no rule, and the three drawn lines read `start` (jsdom's cascade and Chromium's
-         * alike). The rule is read as text (its selector, its one declaration); then a standing block of
+         * tiles. Red first on 54493dbf: no rule, and the three drawn lines read no
+         * `text-align` in jsdom's cascade ("") and `start` in Chromium. The rule is read as text (its selector, its one declaration); then a standing block of
          * `buildPanelContent`'s shape is drawn inside a stand-in panel window, read by `getComputedStyle` and removed -
          * the cascade of whatever sheets this page loaded, in the theme it is in. Positions are Chromium's
          * (S/stages/E49/pan-shots), not read here: a headless page lays nothing out.
@@ -43952,8 +43952,9 @@ const INVARIANTS = [
          * E48 Q13, carried out in E49 (11.11.2026). The section list (settings-window.mjs `settingsWindowColumns`,
          * `aria-pressed` on the picked one) takes the kit tab's selected tokens (R3541), so the red went with them; the
          * edge is a bar along the start, as the item tables' picked row, a column's mark. Red first on 54493dbf: no
-         * bar. Chromium on the style harness (style-sweep --settings, 1366x768, Legacy): the picked label's worst ratio
-         * is written in components.css's token comment and in S/stages/E49/pan-shots/index.txt. The crisis menu's
+         * bar. Chromium on the style harness (1366x768, Legacy): the picked section rgb(29, 26, 33) under rgb(228, 222, 216),
+         * 12.88:1 (before rgba(224, 24, 47, 0.25) over Ink, 10.50:1), its box 240x32 before and after
+         * (S/stages/E49/pan-shots/index.txt). The crisis menu's
          * picked row stays as the owner kept it ("Tak", no change): its rules name no kit tab token.
          */
         const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/components.css`).then(lfText));
