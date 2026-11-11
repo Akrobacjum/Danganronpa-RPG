@@ -21879,7 +21879,7 @@ const REGRESSIONS = [
     }],
     /* ---- E46 C6 (09.11.2026) ---- */
 
-    ["R2035 - the warning sites E21 homed are in their final state for E46 and E47 (E46-C6, E47-C7; E46-20, E47-18; STAGE E46 \"The carried warning sites\", E21 STATUS fix G2 item 10): each function of E46's and E47's windows draws its warnings with box(\"warning\") and its information lines with box(\"info\") and keeps no drpg-warning; each whispered chat card E47-C5's surfaces did not take keeps its drpg-warning, carried to E48, as do Item tables' install receipt and the verdict's summary; the window sites no E47 group took are named, left open", async () => {
+    ["R2035 - the warning sites E21 homed are in their final state for E46 and E47 (E46-C6, E47-C7; E46-20, E47-18; STAGE E46 \"The carried warning sites\", E21 STATUS fix G2 item 10): each function of E46's and E47's windows draws its warnings with box(\"warning\") and its information lines with box(\"info\") and keeps no drpg-warning; each whispered chat card E47-C5's surfaces did not take keeps its drpg-warning, carried to E49 (E49 A0), as do Item tables' install receipt and the verdict's summary; the window sites no E47 group took are named, left open", async () => {
         /*
          * E46-C6, 09.11.2026; the E47 rows E47-C7, 09.11.2026. E21's list (fix G2 item 10) homed 112 `drpg-warning` sites
          * by window at 3c952c67 (W 87, I 25): E46's windows 19, E47's windows 36, the whispered chat cards 57 (46 W, 11 I).
@@ -21887,7 +21887,7 @@ const REGRESSIONS = [
          * the function's source with comments blanked: `box("warning", ` and gm-items.mjs's `kindNote("...")` (one such
          * box, its own row) as warnings, `box("info", ` as information. Stage E46 and E47: the window's group converted
          * them, no `drpg-warning` left (room-setup.mjs's second info box is the room count's line, E21 C5, R1373; the case's
-         * health is a checkList since E47-C3, so no box). Stage E48: a chat card - a whisper to the GMs or a card the table
+         * health is a checkList since E47-C3, so no box). Stage E49 (E48 until E49 A0, 11.11.2026: the chat cards are E49 B5's, E48 Q9): a chat card - a whisper to the GMs or a card the table
          * reads - which no E46 or E47 group rebuilt (E47-C5 took four: sheet-audit.mjs `awayCard` and `flaggedCard`,
          * roll-draw.mjs `announceRollDraw` and `onRenderUnwitnessed`, now `rollStatus`), its sites counted as they stand
          * and carried to the stage that rebuilds its card; Item tables' install receipt (E46-C6 Open 1) and the verdict's
@@ -21914,22 +21914,22 @@ const REGRESSIONS = [
             ["mastermind.mjs", "openMastermindDialog", "open", 0, 0, 1], ["reroll.mjs", "settleGmRuling", "open", 0, 0, 1],
             ["roll-dialog.mjs", "announceFreeCritical", "open", 0, 0, 1], ["trial.mjs", "pickObjectionEvidence", "open", 0, 0, 1],
             ["use-items.mjs", "confirmUse", "open", 0, 0, 1],
-            ["tables-editor.mjs", "installTables", "E48", 0, 0, 1], ["verdict.mjs", "verdictSummaryContent", "E48", 0, 0, 1],
-            ["analyze.mjs", "tellGmsKeyMissing", "E48", 0, 0, 1], ["anonymity.mjs", "lowerOwnership", "E48", 0, 0, 1],
-            ["bridge-runs-acts.mjs", "handleAdvancement", "E48", 0, 0, 1], ["call-effects.mjs", "tell", "E48", 0, 0, 1], ["call-gm.mjs", "callCardHtml", "E48", 0, 0, 1],
-            ["chapter.mjs", "runDiscovery", "E48", 0, 0, 1], ["chapter.mjs", "endChapterNow", "E48", 0, 0, 1], ["chapter.mjs", "runChapterEnd", "E48", 0, 0, 1],
-            ["chapter.mjs", "finishEndNow", "E48", 0, 0, 1], ["cleanup.mjs", "reshapeCardParts", "E48", 0, 0, 1], ["cleanup.mjs", "proposeReshape", "E48", 0, 0, 1],
-            ["cleanup.mjs", "undoLastCleanup", "E48", 0, 0, 2], ["cleanup.mjs", "paidBack", "E48", 0, 0, 1], ["eclipse.mjs", "ruleOnParkedMurder", "E48", 0, 0, 1],
-            ["eclipse.mjs", "judgePendingMurders", "E48", 0, 0, 4], ["inventory.mjs", "transferItem", "E48", 0, 0, 2], ["investigation.mjs", "chargeForUnfoundKeys", "E48", 0, 0, 1],
-            ["migrate.mjs", "*", "E48", 0, 0, 1], ["movement-audit.mjs", "auditMove", "E48", 0, 0, 2], ["movement.mjs", "keepRoomFlag", "E48", 0, 0, 1],
-            ["movement.mjs", "removeDrop", "E48", 0, 0, 1], ["movement.mjs", "tellUnlawful", "E48", 0, 0, 1], ["movement.mjs", "tellDropped", "E48", 0, 0, 1],
-            ["murder-rules.mjs", "resolveVictimOpening", "E48", 0, 0, 1], ["murder-rules.mjs", "applyCrisisAction", "E48", 0, 0, 1], ["murder-rules.mjs", "swapRoles", "E48", 0, 0, 1],
-            ["murder-rules.mjs", "refuseBetrayal", "E48", 0, 0, 1], ["murder-rules.mjs", "throwOpeningRoll", "E48", 0, 0, 1], ["observe.mjs", "resolveObserve", "E48", 0, 0, 2],
-            ["relay-guard.mjs", "reportRefusal", "E48", 0, 0, 1], ["relay-guard.mjs", "unknownSender", "E48", 0, 0, 1], ["relay-guard.mjs", "shapeWarning", "E48", 0, 0, 1],
-            ["relay-guard.mjs", "announce", "E48", 0, 0, 3], ["remnants.mjs", "dropRemnant", "E48", 0, 0, 1], ["reroll-receipts.mjs", "warnGms", "E48", 0, 0, 1],
-            ["roll-draw.mjs", "tellUnexpected", "E48", 0, 0, 1], ["rules.mjs", "setMotive", "E48", 0, 0, 1], ["rules.mjs", "dueCard", "E48", 0, 0, 1],
-            ["sheet-audit.mjs", "record", "E48", 0, 0, 1], ["sheet-audit.mjs", "onForgedCard", "E48", 0, 0, 1], ["steps.mjs", "stepsReport", "E48", 0, 0, 1],
-            ["truth-bullets.mjs", "revertPlayerBulletEdit", "E48", 0, 0, 1], ["use-items.mjs", "discardBroken", "E48", 0, 0, 1], ["vault-store.mjs", "clearSplitPiece", "E48", 0, 0, 1]
+            ["tables-editor.mjs", "installTables", "E49", 0, 0, 1], ["verdict.mjs", "verdictSummaryContent", "E49", 0, 0, 1],
+            ["analyze.mjs", "tellGmsKeyMissing", "E49", 0, 0, 1], ["anonymity.mjs", "lowerOwnership", "E49", 0, 0, 1],
+            ["bridge-runs-acts.mjs", "handleAdvancement", "E49", 0, 0, 1], ["call-effects.mjs", "tell", "E49", 0, 0, 1], ["call-gm.mjs", "callCardHtml", "E49", 0, 0, 1],
+            ["chapter.mjs", "runDiscovery", "E49", 0, 0, 1], ["chapter.mjs", "endChapterNow", "E49", 0, 0, 1], ["chapter.mjs", "runChapterEnd", "E49", 0, 0, 1],
+            ["chapter.mjs", "finishEndNow", "E49", 0, 0, 1], ["cleanup.mjs", "reshapeCardParts", "E49", 0, 0, 1], ["cleanup.mjs", "proposeReshape", "E49", 0, 0, 1],
+            ["cleanup.mjs", "undoLastCleanup", "E49", 0, 0, 2], ["cleanup.mjs", "paidBack", "E49", 0, 0, 1], ["eclipse.mjs", "ruleOnParkedMurder", "E49", 0, 0, 1],
+            ["eclipse.mjs", "judgePendingMurders", "E49", 0, 0, 4], ["inventory.mjs", "transferItem", "E49", 0, 0, 2], ["investigation.mjs", "chargeForUnfoundKeys", "E49", 0, 0, 1],
+            ["migrate.mjs", "*", "E49", 0, 0, 1], ["movement-audit.mjs", "auditMove", "E49", 0, 0, 2], ["movement.mjs", "keepRoomFlag", "E49", 0, 0, 1],
+            ["movement.mjs", "removeDrop", "E49", 0, 0, 1], ["movement.mjs", "tellUnlawful", "E49", 0, 0, 1], ["movement.mjs", "tellDropped", "E49", 0, 0, 1],
+            ["murder-rules.mjs", "resolveVictimOpening", "E49", 0, 0, 1], ["murder-rules.mjs", "applyCrisisAction", "E49", 0, 0, 1], ["murder-rules.mjs", "swapRoles", "E49", 0, 0, 1],
+            ["murder-rules.mjs", "refuseBetrayal", "E49", 0, 0, 1], ["murder-rules.mjs", "throwOpeningRoll", "E49", 0, 0, 1], ["observe.mjs", "resolveObserve", "E49", 0, 0, 2],
+            ["relay-guard.mjs", "reportRefusal", "E49", 0, 0, 1], ["relay-guard.mjs", "unknownSender", "E49", 0, 0, 1], ["relay-guard.mjs", "shapeWarning", "E49", 0, 0, 1],
+            ["relay-guard.mjs", "announce", "E49", 0, 0, 3], ["remnants.mjs", "dropRemnant", "E49", 0, 0, 1], ["reroll-receipts.mjs", "warnGms", "E49", 0, 0, 1],
+            ["roll-draw.mjs", "tellUnexpected", "E49", 0, 0, 1], ["rules.mjs", "setMotive", "E49", 0, 0, 1], ["rules.mjs", "dueCard", "E49", 0, 0, 1],
+            ["sheet-audit.mjs", "record", "E49", 0, 0, 1], ["sheet-audit.mjs", "onForgedCard", "E49", 0, 0, 1], ["steps.mjs", "stepsReport", "E49", 0, 0, 1],
+            ["truth-bullets.mjs", "revertPlayerBulletEdit", "E49", 0, 0, 1], ["use-items.mjs", "discardBroken", "E49", 0, 0, 1], ["vault-store.mjs", "clearSplitPiece", "E49", 0, 0, 1]
         ];
         const files = {};
         for (const file of new Set(SITES.map(([file]) => file))) files[file] = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
@@ -21943,8 +21943,8 @@ const REGRESSIONS = [
             by[stage] = (by[stage] ?? 0) + d;
         }
         // The carried sites, as E47-C7 counted them on 9aafad79 (STATUS E47-C7): 53 chat card sites (43 W, 10 I) and the
-        // two whispers, 55; 7 window sites left open.
-        equal(JSON.stringify({ E48: by.E48, open: by.open }), JSON.stringify({ E48: 55, open: 7 }), "{drpg-warning sites carried to E48, left open}");
+        // two whispers, 55; 7 window sites left open. Carried to E49 by E49 A0 (the same 55).
+        equal(JSON.stringify({ E49: by.E49, open: by.open }), JSON.stringify({ E49: 55, open: 7 }), "{drpg-warning sites carried to E49, left open}");
         equal(JSON.stringify(got), JSON.stringify(want), "{file:function (stage): [warning boxes, info boxes, drpg-warning left]}");
     }],
 
