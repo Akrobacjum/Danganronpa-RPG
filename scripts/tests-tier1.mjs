@@ -14881,7 +14881,7 @@ const INVARIANTS = [
             /applyDockHidden\(\s*dockHiddenFor\(\s*available,\s*on\s*\)\s*\)/.test(fnSource(source, "refreshVoiceTile"))
                 && /getSetting\(\s*SETTINGS\.voiceTile\s*\)/.test(fnSource(source, "refreshVoiceTile")), worlds, facts, rtcDock]),
         JSON.stringify([[[false, false], [true, "none", "none", true, true, true, true], [false, false]], [true, false, false, false],
-            // Not in Foundry's settings window since E49 A1 (`config: false`): a row of the DRPG Settings window (R3420).
+            // Not in Foundry's settings window since E49 A1 (`config: false`): a row of the GM panel's game settings since A1d (R3420).
             ["world", false, "true", true], ["client", false, "{}", true], true,
             [[false, false], [true, true], [false, false], [true, true], [false, false]], true, [true, SETTINGS.voiceTile]]),
         "[the dock and a popout without the class; with it: the class, their display, the dock, the popout and their <audio> in the document; without "
@@ -17114,47 +17114,158 @@ const INVARIANTS = [
         }
     }],
 
-    ["R586 - the gear puts the voice settings between the volumes and the look: the Voice section stands after the last volume slider and before the look's fieldset", async () => {
+    ["R586 - the gear puts the voice settings with the volumes: in the settings window's Sound section the Voice section stands after the last volume slider, once; with no voice there is no place and no section (E79 C12; E49 A1d)", async () => {
         /*
          * E79 C12 (16.10.2026; the owner's N9 of 14.10: "move the LiveKit sound between the volume and the theme
-         * settings"). look.mjs `wireVoice` on the Look window's own form (`lookFormHtml`, the markup `openLookDialog`
-         * draws), in a detached box, with voice standing in (`available`) and the section built by voice-panel.mjs's
-         * `voiceFieldset` from devices the suite names, so nothing is asked of this browser or written: the section
-         * after every volume slider and right before the look's fieldset; wired again, nothing added; on a form with
-         * no look fieldset, at its end; with no voice, nothing. The real window with the shim's LiveKit is 75-voice-tile's
-         * phase C. Red before C12: the section followed the look.
+         * settings"), carried by E49 A1d (11.11.2026): the Look window is the settings window now, and the Voice section
+         * is its Sound section's, after the volumes (the owner on A1's shots: "zniknela czesc ustawien np push to talk,
+         * urzadzenia wejsciowe i wyjsciowe"). settings-window.mjs's columns as the window draws them (`settingsWindowColumns`
+         * with a voice built), in a detached box, with voice standing in (`available`) and the section built by
+         * voice-panel.mjs's `voiceFieldset` from devices the suite names, so nothing is asked of this browser or written:
+         * `placeVoice` puts it after every volume row of the Sound pane; placed again, nothing added; with no voice
+         * `voiceSection` answers null and the columns draw no place. The real window with the shim's LiveKit is
+         * 75-voice-tile's phase C. Red at 54493dbf: settings-window.mjs exports no `voiceSection` or `placeVoice` (look.mjs
+         * `wireVoice` put the section before the look's fieldset in the Look window).
          */
-        const L = await import("./look.mjs"), P = await import("./voice-panel.mjs");
-        ok(typeof L.wireVoice === "function" && typeof L.lookFormHtml === "function", "look.mjs exports no `wireVoice` or `lookFormHtml` to read the gear's form with");
-        if (typeof L.wireVoice !== "function" || typeof L.lookFormHtml !== "function") return;
+        const W = await import("./settings-window.mjs"), P = await import("./voice-panel.mjs");
+        ok(typeof W.voiceSection === "function" && typeof W.placeVoice === "function" && typeof W.settingsWindowColumns === "function",
+            "settings-window.mjs exports no `voiceSection`, `placeVoice` or `settingsWindowColumns` to read the gear's window with");
+        if (typeof W.voiceSection !== "function" || typeof W.placeVoice !== "function") return;
         const build = () => P.voiceFieldset({ client: { getAudioSources: async () => ({ R586MIC: "R586 Mic" }), getAudioSinks: async () => ({}) },
             settings: { client: {}, set: async () => { throw new Error("R586 writes nothing"); } }, key: null });
-        const box = document.createElement("div");
-        box.hidden = true;
-        box.innerHTML = await L.lookFormHtml();
-        document.body.append(box);
-        const bare = document.createElement("div");
-        bare.hidden = true;
-        bare.innerHTML = "<form><label class=\"drpg-sound-slider\"></label></form>";
-        document.body.append(bare);
+        const draw = voice => {
+            const box = document.createElement("div");
+            box.hidden = true;
+            box.innerHTML = W.settingsWindowColumns(game.user, { voice }).map(c => c.html).join("");
+            document.body.append(box);
+            return box;
+        };
+        const box = draw(true), none = draw(false);
         try {
-            const form = box.querySelector("form"), deps = { available: () => true, build };
-            const added = [await L.wireVoice(box, deps)];
-            const panel = form.querySelector("fieldset.drpg-voice-panel"), sliders = [...form.querySelectorAll(".drpg-sound-slider")];
-            const order = panel ? [sliders.length > 0, sliders.every(s => Boolean(s.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING)),
-                panel.nextElementSibling?.matches("fieldset.drpg-look") === true] : "no section";
-            added.push(await L.wireVoice(box, deps), form.querySelectorAll("fieldset.drpg-voice-panel").length);
-            added.push(await L.wireVoice(bare, deps), bare.querySelector("form").lastElementChild?.matches("fieldset.drpg-voice-panel") === true);
-            const none = document.createElement("div");
-            none.innerHTML = await L.lookFormHtml();
-            added.push(await L.wireVoice(none, { available: () => false, build }), Boolean(none.querySelector("fieldset.drpg-voice-panel")));
-            equal(JSON.stringify([order, added]), JSON.stringify([[true, true, true], [true, false, 1, true, true, false, false]]),
-                "[[the form has volume sliders; the section after each; right before the look's fieldset]; [added; added again; sections in the form; "
-                + "added to a form with no look; at its end; added with no voice; a section there]]");
+            const section = await W.voiceSection({ available: () => true, build });
+            const placed = [W.placeVoice(box, section)];
+            const pane = box.querySelector('[data-drpg-settings-pane="sound"]');
+            const panel = pane?.querySelector("fieldset.drpg-voice-panel") ?? null, sliders = [...(pane?.querySelectorAll("[data-drpg-slider]") ?? [])];
+            const order = panel ? [sliders.length, sliders.every(s => Boolean(s.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING))] : "no section";
+            placed.push(W.placeVoice(box, await W.voiceSection({ available: () => true, build })), box.querySelectorAll("fieldset.drpg-voice-panel").length);
+            placed.push(await W.voiceSection({ available: () => false, build }), Boolean(none.querySelector("[data-drpg-voice-slot]")));
+            equal(JSON.stringify([order, placed]), JSON.stringify([[2, true], [true, false, 1, null, false]]),
+                "[[the Sound pane's volume sliders; the section after each]; [placed; placed again; sections in the window; "
+                + "the section with no voice; a place drawn with no voice]]");
         } finally {
             box.remove();
-            bare.remove();
+            none.remove();
         }
+    }],
+    ["R3530 - the gear's window is the same for a GM and a player and holds every row the Look window held (E49 A1d; the owner on A1's shots, 11.11.2026): settings-window.mjs's client columns are one markup for a user who may modify settings and one who may not, with no world row; they hold the language, the theme, the scale and its line, the pixel face, the pulse, the ticker, the blur, reduced motion, high contrast, the messenger's sounds, both volumes, the line that they apply at once and the list's foot, each once; the gear (sfx.mjs) opens look.mjs `openLookDialog`, which opens `openSettingsWindow`; Configure Settings' menu opens the same", async () => {
+        /*
+         * E49 A1d, 11.11.2026. The owner: "Gm pod przyciskiem zebatki nie powinien miec innych ustawien niz gracz" and
+         * "zniknela czesc ustawien np push to talk, urzadzenia wejsciowe i wyjsciowe". The Look window's rows read off
+         * look.mjs at 54493dbf (`lookFieldset`, sfx.mjs `soundSlidersHtml`): language, theme, pixelFont, uiScale with its
+         * line, glassPulse, hudTicker, glassBlur, reducedMotion, highContrast (with the system's line where it asks), the
+         * note "Everything in this window is this browser's own"; the volumes' fieldset: the two sliders, their line,
+         * messengerSound, and for a GM sfxVary (the game's tab now, R3531); the Voice section (R586). Two stand-in users,
+         * `can("SETTINGS_MODIFY")` true and false, read nothing of the world's users. The doors read in source: the
+         * launcher's click, `openLookDialog`, the menu's `render`. Red at 54493dbf: a GM's columns held the world rows
+         * and the Look window was a window of its own.
+         */
+        const W = await import("./settings-window.mjs");
+        const gm = { isGM: true, can: () => true }, player = { isGM: false, can: () => false };
+        /* A select's and a stepper's id are the kit's counter (ui-kit.mjs `stepperId`), new on every draw: read as one. */
+        const html = user => (typeof W.settingsWindowColumns === "function" ? W.settingsWindowColumns(user, { voice: false }).map(c => c.html).join("") : "")
+            .replace(/drpg-kit-step-\d+/g, "drpg-kit-step-N");
+        const box = document.createElement("div");
+        box.innerHTML = html(player);
+        const rows = name => box.querySelectorAll(`[data-drpg-setting="${name}"]`).length;
+        const LOOK = ["language", "theme", "uiScale", "pixelFont", "glassPulse", "hudTicker", "glassBlur", "reducedMotion", "highContrast", "messengerSound"];
+        const sources = new Map(await moduleSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        const read = {
+            same: html(gm) === html(player) && html(gm).length > 1000,
+            world: box.querySelectorAll('[data-drpg-scope="world"]').length,
+            look: LOOK.map(rows),
+            volumes: [...box.querySelectorAll("[data-drpg-slider] input[type=\"range\"]")].map(i => i.name),
+            lines: [box.querySelectorAll("[data-drpg-scale-note]").length, box.querySelector(".drpg-settings-foot")?.textContent === game.i18n.localize("DRPG.Look.note"),
+                [...box.querySelectorAll("[data-drpg-settings-note]")].some(n => n.textContent === game.i18n.localize("DRPG.SettingsWindow.liveNote"))],
+            doors: [/import\(\s*"\.\/look\.mjs"\s*\)[\s\S]{0,80}openLookDialog\(\)/.test(fnSource(src("sfx.mjs"), "renderSoundLauncher")),
+                /settings-window\.mjs[\s\S]{0,40}openSettingsWindow\(\)/.test(fnSource(src("look.mjs"), "openLookDialog")),
+                /import\(\s*"\.\/settings-window\.mjs"\s*\)\.then\(\s*m\s*=>\s*m\.openSettingsWindow\(\)/.test(src("settings.mjs"))]
+        };
+        equal(JSON.stringify(read), JSON.stringify({ same: true, world: 0, look: LOOK.map(() => 1), volumes: ["vol:sound", "vol:music"], lines: [1, true, true], doors: [true, true, true] }),
+            "{one markup for a GM and a player; world rows; each of the Look window's settings' rows; the volume sliders; [the scale's line, the list's foot, the volumes' line]; "
+            + "[the gear opens openLookDialog, which opens the settings window, and so does the menu]}");
+    }],
+    ["R3531 - the game's settings are a window of their own, for a user who may modify settings (E49 A1d; the owner on A1's shots and on the panel, 11.11.2026): settings-window.mjs `gameSettingsColumns` draws every world setting of the 35 and Vary the sounds, each once, and Give back, no client row; nothing for a user who may not; one section pane shown at first and the section list switches it; `openGameSettingsWindow` is the kit's wide window with Save and Cancel, class `drpg-window-game-settings`, refusing a user who may not", async () => {
+        /*
+         * E49 A1d, 11.11.2026. The owner: "To co powstalo w podgladzie jest fajne, ale nadaje sie jako zakladka do gm panel
+         * skoro jest ustawieniami calej gry", then "W wolne miejsce wejda nowe ustawienia gma jako "Settings"": the GM
+         * panel's Settings tile (R3532) opens them. The columns with two stand-in users on a detached box; the opener read
+         * in source. The window saving: the tier-2 test "the game's settings window saves". Red at 54493dbf: no
+         * `gameSettingsColumns`.
+         */
+        const W = await import("./settings-window.mjs");
+        must(typeof W.gameSettingsColumns === "function" && Array.isArray(W.GAME_SECTIONS), "settings-window.mjs exports no `gameSettingsColumns` or `GAME_SECTIONS`");
+        const gm = { isGM: true, can: () => true }, player = { isGM: false, can: () => false };
+        const box = document.createElement("div");
+        box.hidden = true;
+        box.innerHTML = W.gameSettingsColumns(gm).map(c => c.html).join("");
+        document.body.append(box);
+        try {
+            const world = W.GAME_SECTIONS.flatMap(s => s.keys);
+            const scopes = [...box.querySelectorAll("[data-drpg-setting][data-drpg-scope]")].map(r => r.dataset.drpgScope);
+            const shown = () => [...box.querySelectorAll("[data-drpg-settings-pane]")].filter(p => !p.hidden).map(p => p.dataset.drpgSettingsPane);
+            const first = shown();
+            W.showSection(box, "privacy");
+            const opener = fnSource(stripComments(new Map(await moduleSources()).get("settings-window.mjs") ?? ""), "openGameSettingsWindow");
+            const read = {
+                none: W.gameSettingsColumns(player).length,
+                rows: world.map(k => box.querySelectorAll(`[data-drpg-setting="${k}"]`).length),
+                client: scopes.filter(x => x !== "world").length,
+                giveBack: box.querySelectorAll("[data-drpg-give-back]").length,
+                first, picked: shown(),
+                opener: [/wideWindow\(\{/.test(opener), /classes:\s*\["drpg-window-game-settings"\]/.test(opener), /action:\s*"save"/.test(opener) && /role:\s*"cancel"/.test(opener),
+                    /if \(!columns\.length\)[\s\S]{0,40}warn\(/.test(opener)]
+            };
+            equal(JSON.stringify(read), JSON.stringify({ none: 0, rows: world.map(() => 1), client: 0, giveBack: 1, first: ["audio"], picked: ["privacy"], opener: [true, true, true, true] }),
+                "{columns for a user who may not modify settings; each game key's rows; client rows; Give back; the panes shown at first, after Privacy picked; "
+                + "[openGameSettingsWindow: the kit's wide window, its class, Save and Cancel, the refusal]}");
+        } finally {
+            box.remove();
+        }
+    }],
+    ["R3532 - Reset the season is Season setup's, and Settings takes its tile (E49 A1d; the owner, 11.11.2026): in gm-panel.mjs `PANEL_SECTIONS` no tile `seasonReset`, a tile `settings` last in Between sessions that opens settings-window.mjs `openGameSettingsWindow` and is disabled for a user who may not modify settings; season-setup.mjs `openSeasonSetup`'s footer has a destructive `reset` named by `DRPG.Season.resetTitle`, and its answer runs season-wipe.mjs `resetSeason`; the window and its tile are Season setup / Ustawienia sezonu, the new tile Settings / Ustawienia gry", async () => {
+        /*
+         * E49 A1d, 11.11.2026. The owner: "Chcialbym wrzucic season reset w set the season up, a calosc przemianowac na
+         * "season setup". W wolne miejsce wejda nowe ustawienia gma jako "Settings"". Read in source (the tiles' list
+         * walked as R3345 walks it) and the lang files. The Polish twins: "Ustawienia sezonu", the gm-handbook.pl.md's
+         * word for the window before this commit; "Ustawienia gry" for Settings, since the gear's tooltip and the Look
+         * window's title are "Ustawienia" (lang/pl.json DRPG.Look). Red at 54493dbf: a `seasonReset` tile, no `settings`.
+         */
+        const sources = new Map(await moduleSources());
+        const panel = stripComments(sources.get("gm-panel.mjs") ?? ""), season = stripComments(sources.get("season-setup.mjs") ?? "");
+        const list = panel.match(/^const PANEL_SECTIONS = \[[\s\S]*?^\];/m)?.[0] ?? "";
+        must(list, "gm-panel.mjs has no PANEL_SECTIONS - this would measure nothing");
+        const sections = [];
+        for (const m of list.matchAll(/\bkey:\s*"(\w+)"\s*,\s*(icon:)?/g)) {
+            if (m[2]) sections.at(-1)?.[1].push(m[1]);
+            else sections.push([m[1], []]);
+        }
+        const between = sections.find(([k]) => k === "between")?.[1] ?? [];
+        const tile = list.match(/key:\s*"settings"[\s\S]{0,400}/)?.[0] ?? "";
+        const open = fnSource(season, "openSeasonSetup");
+        const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const en = await lang("en"), pl = await lang("pl");
+        const read = {
+            tiles: [sections.some(([, t]) => t.includes("seasonReset")), between.at(-1) ?? null],
+            tile: [/openGameSettingsWindow\(\)/.test(tile), /disabled:\s*\(\)\s*=>\s*!mayModifySettings\(\)/.test(tile)],
+            footer: [/destructive:\s*\[\{\s*action:\s*"reset",\s*label:\s*game\.i18n\.localize\("DRPG\.Season\.resetTitle"\)/.test(open),
+                /if \(result === "reset"\) return \(await import\("\.\/season-wipe\.mjs"\)\)\.resetSeason\(\);/.test(open)],
+            words: [en.DRPG?.Season?.title, pl.DRPG?.Season?.title, en.DRPG?.Panel?.settings, pl.DRPG?.Panel?.settings]
+        };
+        equal(JSON.stringify(read), JSON.stringify({ tiles: [false, "settings"], tile: [true, true], footer: [true, true],
+            words: ["Season setup", "Ustawienia sezonu", "Settings", "Ustawienia gry"] }),
+            "{tiles: [a seasonReset tile anywhere, Between sessions' last tile]; tile: [Settings opens the game's window, disabled without the permission]; "
+            + "footer: [Season setup's destructive reset, its answer runs resetSeason]; words: [Season setup en, pl, Settings en, pl]}");
     }],
     ["R588 - the voice tile names its state in one word, as the Room says it: Connecting while LiveKit connects or reconnects or the module moves the Room, Disconnected with no Room or a lost one, Connected only when the Room says connected, Eclipsed in either Eclipse hold, Blocked, Own window, whether or not a speaker is drawn (H81-10), and while one is, a connected Room's sentence is not 'Nobody is speaking' and the live text is hidden; the word runs in two aria-hidden copies, the sentence is the word's title and a visually hidden live text, and the word stays, still, under reduced motion and with the ticker off, in English and in Polish", async () => {
         /*
@@ -20708,7 +20819,7 @@ const INVARIANTS = [
             else store.setItem(KEPT, hadKept);
         }
         equal(stableJson(seen), stableJson([
-            // Not in Foundry's settings window since E49 A1 (`config: false`): a row of the DRPG Settings window (R3420).
+            // Not in Foundry's settings window since E49 A1 (`config: false`): a row of the GM panel's game settings since A1d (R3420).
             [AV, KEY, false, null, "liveKitInFoundry", "world", false, true, true],
             ["before", true, true, "external", true],
             ["held", ["liveKitInFoundry"], false, false, null],
@@ -36261,7 +36372,7 @@ const INVARIANTS = [
         const sources = new Map(await moduleSources());
         const SOURCE = [["boundary.mjs", "placementTable"], ["enforced.mjs", "openGiveBackFoundry"], ["enforced.mjs", "askHoldAgain"],
             ["gm-students.mjs", "openWhoIsAliveDialog"], ["gm-team-dialog.mjs", "openGmTeamDialog"], ["investigation.mjs", "openInvestigationDashboard"],
-            ["look.mjs", "openLookDialog"], ["monocub.mjs", "openMonocubDialog"], ["murder-ui.mjs", "openIncidentTracker"], ["projects-ui.mjs", "openProjectManager"],
+            ["monocub.mjs", "openMonocubDialog"], ["murder-ui.mjs", "openIncidentTracker"], ["projects-ui.mjs", "openProjectManager"],
             ["room-setup.mjs", "openRoomSetupDialog"], ["rules.mjs", "openRulesManager"], ["sound-panel.mjs", "openPlayerSoundDialog"],
             ["sound-panel.mjs", "openSoundDialog"], ["trial.mjs", "openObjectionLog"]];
         const source = {};
@@ -36281,7 +36392,9 @@ const INVARIANTS = [
             ["./investigation.mjs", "openInvestigationDashboard", undefined, "drpg-window-case",
                 { save: "primary", newTrace: "secondary", autopsy: "secondary", log: "secondary", bodyFound: "secondary", clearFaint: "destructive", sweepBullets: "destructive", close: "cancel" },
                 ["save", "newTrace", "autopsy", "log", "bodyFound", "clearFaint", "sweepBullets", "close"]],
-            ["./look.mjs", "openLookDialog", undefined, "drpg-window-look", { close: "close" }, ["close"]],
+            /* The Look window's row left with the window (E49 A1d): the gear opens the settings window (settings-window.mjs,
+               the kit's wide window at a stated width, not fit), whose Save and Cancel the tier-2 test "the DRPG Settings
+               window saves as Foundry's form did" presses. */
             ["./room-setup.mjs", "openRoomSetupDialog", undefined, "drpg-window-rooms", { ok: "primary", cancel: "cancel" }, ["ok", "cancel"]],
             ["./rules.mjs", "openRulesManager", undefined, "drpg-window-rules", { save: "primary", cancel: "cancel" }, ["save", "cancel"]],
             ["./sound-panel.mjs", "openSoundDialog", undefined, "drpg-window-sound", { close: "close" }, ["close"]]
@@ -36369,7 +36482,8 @@ const INVARIANTS = [
         for (const [file, fn, pattern] of DESTRUCTIVE) destructiveB[`${file} ${fn}`] = pattern.test(fnSource(stripComments(sources.get(file) ?? ""), fn) ?? "");
         const OPEN_B = [
             ["./gm-panel.mjs", "openGmPanel", undefined, "drpg-window-panel", { close: "close" }, ["close"]],
-            ["./season-setup.mjs", "openSeasonSetup", undefined, "drpg-window-season", { save: "primary", checks: "secondary", close: "cancel" }, ["save", "close"]],
+            // E49 A1d: Reset the season moved in from its tile, destructive (R3532).
+            ["./season-setup.mjs", "openSeasonSetup", undefined, "drpg-window-season", { save: "primary", checks: "secondary", reset: "destructive", close: "cancel" }, ["save", "reset", "close"]],
             ["./season-setup.mjs", "resetSeason", undefined, "drpg-window-season-reset", { reset: "destructive", cancel: "cancel" }, ["reset", "cancel"]],
             ["./gm-campaign.mjs", "openClockDialog", undefined, "drpg-window-clock", { ok: "primary", cancel: "cancel" }, ["ok", "cancel"]],
             ["./gm-items.mjs", "openItemManager", undefined, "drpg-window-items",
@@ -36409,9 +36523,10 @@ const INVARIANTS = [
                 // drpgWindow hands DialogV2 its content as an element (utils.mjs `dialogContent`).
                 panel.innerHTML = cfg.content?.outerHTML ?? String(cfg.content ?? "");
                 const tile = key => panel.querySelector(`.drpg-gmp-button[data-drpg-run="${key}"]`);
-                for (const key of ["murder", "seasonReset"]) if (!tile(key)?.classList.contains("drpg-destructive")) problems.push(`tile ${key}: not drpg-destructive`);
+                // Reset the season's tile went into Season setup (E49 A1d; its button there is destructive, OPEN_B's row).
+                for (const key of ["murder"]) if (!tile(key)?.classList.contains("drpg-destructive")) problems.push(`tile ${key}: not drpg-destructive`);
                 if (panel.querySelector(".drpg-gm-route")) problems.push(`drpg-gm-route on ${panel.querySelectorAll(".drpg-gm-route").length} control(s)`);
-                if (!tile("murder") || !tile("seasonReset")) problems.push("a tile is missing");
+                if (!tile("murder") || !tile("settings") || tile("seasonReset")) problems.push("a tile is missing, or Reset the season is a tile again");
             }
             readB[fn] = problems;
         }
@@ -45451,7 +45566,8 @@ const INVARIANTS = [
         }), stableJson({
             // E49 A2 moved three tiles and took one out (R3345 holds the four moves): the order as it stands after them.
             tiles: [["now", ["whoIsAlive", "projects", "sound"]], ["case", ["murder", "investigation", "trial"]],
-                ["between", ["jump", "gmTeam", "roomSetup", "tables", "rules", "seasonSetup", "mastermind", "seasonReset"]],
+                // E49 A1d: Reset the season into Season setup, Settings in its place (R3532).
+                ["between", ["jump", "gmTeam", "roomSetup", "tables", "rules", "seasonSetup", "mastermind", "settings"]],
                 ["fixes", ["failureLog", "voiceReset", "caseWindow"]]],
             caseTile: ["fixes", en["DRPG.Case.tile"] === undefined ? "?" : game.i18n.localize("DRPG.Case.tile"), age],
             diag: [0, 2], en: [], pl: [], keys: [[false, false], [false, false]]
@@ -46250,25 +46366,28 @@ const INVARIANTS = [
         const want = [["textarea", "100%", "border-box"], ["select", "100%", "border-box"], ["input", "100%", "border-box"]];
         equal(stableJson(read), stableJson({ glass: want, legacy: want }), "{each theme: [the control, its width, its box-sizing]}");
     }],
-    ["R3140 - the Look window's fieldset holds to a phone (components.css, the E47-FD section; the owner's default on comparison 3, q-cuts; E47-FB Open 2): the Look fieldset's least width is 0, not its rows' least, and its scale slider shrinks into its row - the glass's 14ch least kept, Legacy's none", async () => {
+    ["R3140 - the gear's window's volumes hold to a phone (components.css, the E47-FD section, carried to THE SETTINGS WINDOW by E49 A1d; the owner's default on comparison 3, q-cuts; E47-FB Open 2): a volume's range in the settings window's Sound section has `min-width: 0` and shrinks into its row (`flex-shrink` not 0) under both themes - the Look window's fieldset, which held the promise until A1d, is gone", async () => {
         /*
          * E47-FD, 10.11.2026. A fieldset is at least as wide as its content's least width, and the Interface scale
          * row's least was the slider's own 129 px beside the name column and the percentage: at 390x844 the Look
          * fieldset ran 2..354 in a 333 px body under the glass, 2..376 under Legacy (Chromium on probe 08's
-         * look-player); after, both inside. Read from the sheets' text on the fieldset as sound-panel.mjs draws it in
-         * the Look window's kit frame, on a body of each theme. Red on 35a6f3b0: the fieldset's min-width null (the
-         * browser's min-content), Legacy's slider null.
+         * look-player); after, both inside. E49 A1d (11.11.2026): the Look window's rows are the settings window's
+         * (settings-window.mjs), the scale a stepper there, the volumes the ranges; the same promise read on a volume's
+         * row as the window draws it, from the sheets' text, on a body of each theme. Red on 35a6f3b0 for the fieldset;
+         * at 54493dbf the settings window had no volume row.
          */
         const C = await styleCascade();
         const read = Object.fromEntries(Object.entries({ glass: "drpg-theme-stained-glass drpg-gm", legacy: "drpg-theme-monokuma-legacy drpg-gm" }).map(([dress, classes]) => {
             const html = document.createElement("html"), body = document.createElement("body");
             body.className = classes;
             html.append(body);
-            body.innerHTML = `<div class="application dialog drpg-panel drpg-projects drpg-sound drpg-sound-player drpg-window-look drpg-ui drpg-kit-fit"><div class="drpg-kit-body"><fieldset class="drpg-look"><legend>Look</legend>`
-                + `<label><span>Interface scale</span><input type="range" name="look:uiScale" min="0.8" max="1.4" step="0.05" value="1"><output>100%</output></label></fieldset></div></div>`;
-            return [dress, [C.winner(body.querySelector("fieldset.drpg-look"), "min-width")?.value ?? null, C.winner(body.querySelector('.drpg-look input[type="range"]'), "min-width")?.value ?? null]];
+            body.innerHTML = `<div class="application dialog drpg-window-settings drpg-ui drpg-panel"><div class="drpg-kit-body"><div class="drpg-settings-rows">`
+                + `<div class="drpg-settings-row drpg-settings-volume" data-drpg-slider="sound"><div class="drpg-settings-control"><label class="drpg-settings-label">Sound</label>`
+                + `<input type="range" name="vol:sound" min="0" max="100" step="1" value="100"><output>100%</output></div></div></div></div></div>`;
+            const range = body.querySelector('.drpg-settings-volume input[type="range"]');
+            return [dress, [C.winner(range, "min-width")?.value ?? null, C.winner(range, "flex")?.value ?? null]];
         }));
-        equal(stableJson(read), stableJson({ glass: ["0", "14ch"], legacy: ["0", "0"] }), "{each theme: [the Look fieldset's min-width, its scale slider's]}");
+        equal(stableJson(read), stableJson({ glass: ["0", "1 1 8rem"], legacy: ["0", "1 1 8rem"] }), "{each theme: [a volume's range's min-width, its flex]}");
     }],
 
     ["R3141 - a body lies where its tile is, and where its token is when it has none (body-tile.mjs `bodyPlaceOf`, E95 C0): the current death's earliest tile, measured by its centre on the floor it stores, its `hidden` the tile's; an older death's tile, another student's and none fall back to the token", async () => {

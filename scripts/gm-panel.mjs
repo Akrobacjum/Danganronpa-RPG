@@ -306,12 +306,17 @@ const PANEL_SECTIONS = [
             // offers it as before (`nextStep`'s chapterEnd, EXTRA_ACTIONS), and the trial console's button stays.
             // THE CASE (E04) moved to Diagnostics as one tile (E47-C3, the owner's 27.09): see `fixes` below. The
             // chapter's end keeps its own backup button (chapter.mjs); the reset window has none (the owner accepts it).
-            // Last in the section and destructive: it is the only control here that
-            // destroys anything, and it destroys a chapter's worth at once. Not the GM's
-            // road as well (E22 C2b, D11): on a GM's screen `drpg-gm-route` names no button.
-            { key: "seasonReset", icon: "fa-trash-arrow-up", labelKey: "DRPG.Season.resetTitle",
-              destructive: true,
-              run: () => import("./season-setup.mjs").then(m => m.resetSeason()) }
+            // RESET THE SEASON IS NO TILE SINCE E49 A1d (the owner, 11.11.2026: "Chcialbym wrzucic season reset w set
+            // the season up, a calosc przemianowac na "season setup". W wolne miejsce wejda nowe ustawienia gma jako
+            // "Settings""): it is Season setup's destructive button (season-setup.mjs `openSeasonSetup`), the same
+            // `resetSeason` with its own window and questions; the tile above is named Season setup.
+            // SETTINGS, IN ITS PLACE (E49 A1d): the game's settings - every world setting of the module, Vary the sounds
+            // and Give back Foundry's settings - in the DRPG Settings window's sections (settings-window.mjs
+            // `openGameSettingsWindow`; this browser's own are the gear's). Foundry lets only a user who may modify
+            // settings write them (the Assistant GM up), so for any other GM the tile stands disabled with the reason.
+            { key: "settings", icon: "fa-sliders", labelKey: "DRPG.Panel.settings",
+              disabled: () => !mayModifySettings(), disabledReason: "DRPG.SettingsWindow.mayNot",
+              run: () => import("./settings-window.mjs").then(m => m.openGameSettingsWindow()) }
         ]
     },
     {
@@ -361,6 +366,11 @@ const PANEL_SECTIONS = [
         ]
     }
 ];
+
+/** Whether this user may write the world's settings (Foundry's SETTINGS_MODIFY; settings-window.mjs `mayModifyWorld`'s rule). */
+function mayModifySettings(user = game.user) {
+    try { return typeof user?.can === "function" ? Boolean(user.can("SETTINGS_MODIFY")) : Boolean(user?.isGM); } catch { return false; }
+}
 
 /**
  * Things `nextStep()` can suggest that are not tiles.

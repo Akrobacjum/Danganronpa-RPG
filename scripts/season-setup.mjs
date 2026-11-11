@@ -1108,7 +1108,12 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
             <p class="notes">${esc(game.i18n.localize("DRPG.Season.note"))}</p>
         </form>`,
         /* THE FOOTER BY ROLE (E21 C2b): Save the primary; Pre-season checks secondary; Cancel, since Save is still to
-           answer (E21 rule 3), its answer "close" as before. */
+           answer (E21 rule 3), its answer "close" as before. RESET THE SEASON, DESTRUCTIVE, ON THE LEFT (E49 A1d,
+           11.11.2026; the owner: "Chcialbym wrzucic season reset w set the season up, a calosc przemianowac na
+           "season setup". W wolne miejsce wejda nowe ustawienia gma jako "Settings""): the GM panel's tile of its own
+           until then. The press answers "reset" and nothing of the form is written; the window closes and the reset
+           runs as the tile ran it, season-wipe.mjs `resetSeason` with its own window and every question it asks
+           (nothing about what a reset does changed). Never the default: a destructive role cannot be (BUTTON_ROLES). */
         footer: {
             primary: {
                 action: "save", label: game.i18n.localize("DRPG.Assign.save"),
@@ -1125,6 +1130,7 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
                 action: "checks", label: game.i18n.localize("DRPG.Panel.seasonChecks"),
                 callback: (e, b, d) => ({ checks: true, draft: readDraft(d.element, { action: "checks" }) })
             }],
+            destructive: [{ action: "reset", label: game.i18n.localize("DRPG.Season.resetTitle") }],
             close: { role: "cancel", action: "close" }
         },
         // Wire the per-row buttons against the mounted DOM - a listener attached
@@ -1152,6 +1158,7 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
 
     if (roundTrip) return roundTrip;
     if (!result || result === "close") return null;
+    if (result === "reset") return (await import("./season-wipe.mjs")).resetSeason();
 
     if (result.checks) {
         await runPreSessionChecks();

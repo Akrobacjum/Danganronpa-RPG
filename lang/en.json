@@ -395,7 +395,13 @@
       "scopeWorld": "The whole table",
       "glassOnly": "Stained Glass only: pick that theme to change it.",
       "legacyOnly": "Monokuma Legacy only: pick that theme to change it.",
+      "gameTitle": "Game settings",
+      "mayNot": "Only a user Foundry lets change the world's settings can open the game's settings.",
+      "gameNote": "These are the whole table's settings: a change here changes the game for everybody.",
+      "liveNote": "The volumes and the voice settings apply as you move them; the rest waits for Save.",
       "sections": {
+        "audio": "Music and voice",
+        "foundry": "Foundry and the system",
         "look": "Look",
         "effects": "Effects and accessibility",
         "sound": "Sound and voice",
@@ -3907,6 +3913,7 @@
       "woundedNote": "Down to one action this time of day, no Health left: {names}."
     },
     "Panel": {
+      "settings": "Settings",
       "nextStartTrial": "Every planned Key Remnant has been found. Start the Class Trial from the trial console.",
       "title": "Danganronpa - GM Panel",
       "launcher": "Open the GM panel",
@@ -3928,7 +3935,7 @@
       "goStartInvestigationButton": "Start the Investigation",
       "goAutopsyButton": "Issue the autopsy",
       "goBodyButton": "Announce the body",
-      "goSeasonSetupButton": "Set the season up",
+      "goSeasonSetupButton": "Season setup",
       "nextIncident": "An incident is running. Take it to the end before anything else.",
       "nextEclipse": "The Eclipse is open. Close it once everyone has placed.",
       "nextBodyFound": "A body has been found. Start the Investigation when the room is ready.",
@@ -3946,8 +3953,8 @@
         "other": "{n} students still have actions to spend."
       },
       "nextAllDone": "Everyone has spent their actions. Start the Eclipse: opening it refills everyone, and closing it moves the clock.",
-      "nextSeasonSetup": "The season is not set up yet. Next in Set the season up: {step}.",
-      "nextSeasonSetupAside": "Set the season up still waits on: {step}.",
+      "nextSeasonSetup": "The season is not set up yet. Next in Season setup: {step}.",
+      "nextSeasonSetupAside": "Season setup still waits on: {step}.",
       "advance": "Next time of day",
       "advanceTooltip": "Move the clock on without an Eclipse: refills actions, Free Moves and search tokens. At Night this also starts the next day and session.",
       "advanceOffEclipse": "The Eclipse is running: its end moves the clock on.",
@@ -4186,7 +4193,7 @@
         "permissions": "the file permissions"
       },
       "failed": "Foundry's settings could not be given back or held. The console says why.",
-      "preSeason": "Foundry's settings are given back: the module holds none of them - Daggerheart's automations, the file permissions, the players' held settings. To hold them again, open Give back Foundry's settings (Set the season up, or this module's settings) and press Hold them again.",
+      "preSeason": "Foundry's settings are given back: the module holds none of them - Daggerheart's automations, the file permissions, the players' held settings. To hold them again, open Give back Foundry's settings (Season setup, or this module's settings) and press Hold them again.",
       "heldNothing": "Foundry's settings were given back, so the module holds none of them now: Daggerheart's Vulnerable and Defeated automations, the file permissions and the players' held settings stay as they are. Hold them again so the module plays as it should, or leave them given back."
     },
     "Enforced": {
@@ -4866,7 +4873,7 @@
     "Season": {
       "missingPool": "no Despair pool yet (every full Gamemaster account holds one)",
       "missingMonokumaActor": "no character is marked as Monokuma (Despair Flow, or the Actors list's right-click menu)",
-      "title": "Set the season up",
+      "title": "Season setup",
       "introOutstanding": "{n} still to do. A season can start without them; each missing piece shows up the moment it matters.",
       "introReady": "Every row this list needs is done. Pre-season checks look at more than this list - room pictures, voice, who can open the sheets - so run them before the first session.",
       "campaignName": "Campaign name",
@@ -5119,7 +5126,7 @@
       "safewordNote": "The word that stops the scene, printed on every character sheet. Pick something your table will not mistake for anything else. Leave it blank to use the default.",
       "campaignBlock": "This campaign",
       "startHereTitle": "Where to start",
-      "startHereText": "Start here: GM panel > Set the season up. Its list walks you through a season in the order it is built, and the GM panel's Next line names the first thing still to do."
+      "startHereText": "Start here: GM panel > Season setup. Its list walks you through a season in the order it is built, and the GM panel's Next line names the first thing still to do."
     },
     "Explain": {
       "state": {
