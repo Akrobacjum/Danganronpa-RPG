@@ -43080,6 +43080,47 @@ const SCENARIOS = [
         }
     }],
 
+    ["E48-K6 - the character sheet scrolls to its last row in both themes: a sheet's frame in the page with Daggerheart's `overflow: hidden` on its tab, under Stained Glass and under Monokuma Legacy, computes the active tab `overflow-y: auto`, so a tab taller than its box can be scrolled to its end", async () => {
+        /*
+         * E48 K6, 11.11.2026 (STAGE, tier 2; S12-99, the owner's game of 02.11: "under Monokuma Legacy the sheet does
+         * not scroll"). No Daggerheart sheet renders headless (tests-kit.mjs `systemSheetsAvailable`), so the frame is
+         * the module's selectors' own: `.application.sheet.actor` holding a `section.tab.active` under a style element
+         * that says what Daggerheart's sheet says (`overflow: hidden`, written as its longhand: jsdom's cascade does not
+         * expand the shorthand - the first run read the control `visible`). jsdom lays nothing out, so this reads the cascade's
+         * answer, not a scroll; Chromium's scroll is the stage's probe (the style harness's sheet parts, both themes:
+         * the tab's scrollTop reached its scrollHeight less its height). THE CONTROL: a tab outside a sheet under the same planted rule reads
+         * `hidden` - the cascade is read, not a default. The body's classes are put back in `finally`.
+         */
+        const body = document.body, was = body.className;
+        const style = Object.assign(document.createElement("style"), { textContent: ".application.sheet.actor section.tab, .drpg-suite-k6-control section.tab { overflow-y: hidden; }" });
+        const app = document.createElement("div");
+        app.className = "application sheet actor character drpg-suite-k6";
+        app.innerHTML = `<section class="window-content"><section class="tab active" data-tab="features"><p>row</p></section></section>`;
+        const read = {};
+        try {
+            document.head.append(style);
+            body.append(app);
+            const tab = app.querySelector("section.tab");
+            for (const [name, on] of [["glass", "drpg-theme-stained-glass"], ["legacy", "drpg-theme-monokuma-legacy"]]) {
+                body.classList.remove("drpg-theme-stained-glass", "drpg-theme-monokuma-legacy");
+                body.classList.add(on);
+                read[name] = getComputedStyle(tab).overflowY;
+            }
+            body.classList.remove("drpg-theme-stained-glass", "drpg-theme-monokuma-legacy");
+            body.classList.add("drpg-theme-stained-glass");
+            const scoped = document.createElement("div");
+            scoped.className = "drpg-suite-k6-control";
+            scoped.innerHTML = `<section class="tab active">row</section>`;
+            body.append(scoped);
+            read.control = getComputedStyle(scoped.querySelector("section.tab")).overflowY;
+            scoped.remove();
+        } finally {
+            app.remove(); style.remove();
+            body.className = was;
+        }
+        equal(stableJson(read), stableJson({ glass: "auto", legacy: "auto", control: "hidden" }),
+            "{glass, legacy: the sheet's active tab's overflow-y under each theme with Daggerheart's hidden planted; control: a tab outside a sheet, the planted rule} - the sheet must scroll in both themes");
+    }],
     ["E48-K5 - switching theme there and back leaves no curtain, observer or frame loop: under Monokuma Legacy the curtain, its observers, its loop's frame, its colour probe, its rotation sheet, the windows' bands and the turn's layers are gone, and back under Stained Glass the curtain stands as it stood before the switch - as many curtains and observers, a loop - not one more", async () => {
         /*
          * E48 K5, 11.11.2026 (STAGE, tier 2). R1380 reads `unmount` called by hand and R1420 the race with the fonts, each

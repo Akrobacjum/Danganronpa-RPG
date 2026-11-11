@@ -349,15 +349,16 @@
        and leaves the glass exactly where it is.
 
        THE FLOOR IS ON `xs` AND NOWHERE ELSE, because it is the only rung the
-       slider can push under it: 13px x 0.8 is 10.4. 10px rather than the 11px the
-       typography doc states, because 11 IS the value at 100 % and 0.8 x 11 is 8.8
-       - either the floor gives up a pixel or the bottom of the slider goes quiet
-       for this one rung.
+       slider can push under it: 13px x 0.8 is 10.4. 11px since E48 K6 (S12-41,
+       11.11.2026: the HUD's chapter line, Despair's count and Experience read 10 px
+       at the slider's 0.8), the typography doc's number: the bottom of the slider
+       goes quiet for this rung, 11 IS its value at 100 % and the min() keeps a
+       smaller root's rung where it was.
 
        `--drpg-tile-text` still multiplies BELOW the floor on a cramped action
        grid. That multiply happens at the use site, not here, and it is deliberate
        and only there. */
-    --drpg-text-xs: max(min(10px, 0.6875rem), calc(0.6875rem * var(--drpg-legacy-scale, 1)));   /* 11px at 100 % - the floor, never smaller */
+    --drpg-text-xs: max(min(11px, 0.6875rem), calc(0.6875rem * var(--drpg-legacy-scale, 1)));   /* 11px at 100 % - the floor, never smaller (11 px since E48 K6, S12-41) */
     --drpg-text-sm: calc(0.8125rem * var(--drpg-legacy-scale, 1));   /* 13px at 100 % */
     --drpg-text-md: calc(0.9375rem * var(--drpg-legacy-scale, 1));   /* 15px at 100 % */
     --drpg-text-base: calc(1rem * var(--drpg-legacy-scale, 1));      /* 16px at 100 % */
@@ -16609,7 +16610,8 @@ body.drpg-high-contrast :focus-visible {
    trait names, the sheet tabs and a tile's cost - which would break the one
    promise this commit makes, that a client who never touched the slider sees no
    change. A rung already under 10px therefore floors at ITS OWN size: it stops
-   shrinking rather than starts growing. Rungs 15 and up need no floor at all
+   shrinking rather than starts growing. Rungs 11 to 14 floor at 11px since E48 K6
+   (S12-41: "10 px despite the declared 11 px floor"), still never above the rung. Rungs 15 and up need no floor at all
    (15 x 0.8 is 12). The floor is stated in px on purpose: a bitmap face dies at
    a real pixel size, not at a relative one.
    ========================================================================== */
@@ -16622,10 +16624,10 @@ body.drpg-theme-monokuma-legacy {
     --font-size-8: max(min(8px, 0.5rem), calc(0.5rem * var(--drpg-legacy-scale, 1)));
     --font-size-9: max(min(9px, 0.5625rem), calc(0.5625rem * var(--drpg-legacy-scale, 1)));
     --font-size-10: max(min(10px, 0.625rem), calc(0.625rem * var(--drpg-legacy-scale, 1)));
-    --font-size-11: max(min(10px, 0.6875rem), calc(0.6875rem * var(--drpg-legacy-scale, 1)));
-    --font-size-12: max(min(10px, 0.75rem), calc(0.75rem * var(--drpg-legacy-scale, 1)));
-    --font-size-13: max(min(10px, 0.8125rem), calc(0.8125rem * var(--drpg-legacy-scale, 1)));
-    --font-size-14: max(min(10px, 0.875rem), calc(0.875rem * var(--drpg-legacy-scale, 1)));
+    --font-size-11: max(min(11px, 0.6875rem), calc(0.6875rem * var(--drpg-legacy-scale, 1)));
+    --font-size-12: max(min(11px, 0.75rem), calc(0.75rem * var(--drpg-legacy-scale, 1)));
+    --font-size-13: max(min(11px, 0.8125rem), calc(0.8125rem * var(--drpg-legacy-scale, 1)));
+    --font-size-14: max(min(11px, 0.875rem), calc(0.875rem * var(--drpg-legacy-scale, 1)));
     --font-size-15: calc(0.9375rem * var(--drpg-legacy-scale, 1));
     --font-size-16: calc(1rem * var(--drpg-legacy-scale, 1));
     --font-size-18: calc(1.125rem * var(--drpg-legacy-scale, 1));
@@ -17128,4 +17130,129 @@ body:not(.drpg-theme-stained-glass) .application.drpg-action-window button.drpg-
     border-radius: 2px;
     color: var(--drpg-kit-face-ink, var(--drpg-bone));
     box-shadow: none;
+}
+
+/* ==========================================================================
+   MONOKUMA LEGACY TO PARITY (E48 K6, 11.11.2026; D29 = 2: "Legacy zostaje i dochodzi do parytetu")
+   --------------------------------------------------------------------------
+   Each rule below is scoped to the theme that is not Stained Glass, and each answers one finding of the audit,
+   read in Chromium on the glass and style harnesses at 1366x768 before and after (the stage's probes; the readings
+   are in each test's comment). Stained Glass reads none of these rules. The 11 px floor of `--drpg-text-xs` and
+   the four small rungs (S12-41) is at the top of this file and on the Legacy body's rungs, where those tokens live.
+   ========================================================================== */
+
+/* S12-25, S03-20 and the owner's Q13 ("tak", 10.11): the sheet's active tab was Bone on Eye, 3.63:1 at 11 px,
+   and red is the GM's road (D11). Now Bone on Ink with the attention edge (Bone under this theme). */
+body:not(.drpg-theme-stained-glass) .application.sheet.actor .tab-navigation nav.sheet-tabs a.active {
+    background: var(--drpg-ink) !important;
+    color: var(--drpg-bone) !important;
+    box-shadow: inset 0 -2px 0 var(--drpg-attention);
+}
+
+/* S12-25: the other Bone-on-Eye grounds (the Stop, the sheet's header buttons lit, the notification pip) take the
+   red's dark step, 6.96:1 (tools/contrast-pairs.json `lg-button`); the red stays their edge. */
+body:not(.drpg-theme-stained-glass) .drpg-safeword-button,
+body:not(.drpg-theme-stained-glass) .application.sheet.actor :is(.header-control, .drpg-advance-button, .level-button):hover,
+body:not(.drpg-theme-stained-glass) :is(#chat .notification-pip, .notification-pip) {
+    background: var(--drpg-eye-dim) !important;
+}
+
+/* S12-25: a public or broken passage's word read the GM red at 4.39:1 on Ink (`lg-red`). The theme's red is
+   lifted to 4.98:1 - the same hue, one step lighter - so every word that reads it reaches AA. */
+body.drpg-theme-monokuma-legacy {
+    --drpg-red: #eb585c;
+    --drpg-red-rgb: 235, 88, 92;
+}
+
+/* S12-27: the blanket that took Foundry's fill off the tiles also set `border-color: var(--drpg-line)
+   !important` on every tile, so under this theme the Hope and Despair Calls lost their gold and blood frames and
+   the hot tile its blood; and the red hover lit a Hope Call and an unaffordable tile. The panels' frames and the
+   hot tile are restated at the blanket's weight, the Calls' hovers are their own colour's, and an unaffordable
+   tile takes no hover. */
+body:not(.drpg-theme-stained-glass) .drpg-hope-panel .drpg-call-button { border-color: color-mix(in srgb, var(--drpg-gold) 55%, transparent) !important; }
+body:not(.drpg-theme-stained-glass) .drpg-despair-panel .drpg-call-button { border-color: color-mix(in srgb, var(--drpg-blood) 55%, transparent) !important; }
+body:not(.drpg-theme-stained-glass) .drpg-action-button.drpg-action-hot:not(.unaffordable) { border-color: var(--drpg-blood) !important; }
+body:not(.drpg-theme-stained-glass) .drpg-hope-panel .drpg-call-button:hover:not(:disabled):not(.unaffordable) {
+    background-color: color-mix(in srgb, var(--drpg-gold) 12%, transparent) !important;
+    border-color: var(--drpg-gold) !important;
+}
+body:not(.drpg-theme-stained-glass) .drpg-despair-panel .drpg-call-button:hover:not(:disabled):not(.unaffordable) {
+    background-color: color-mix(in srgb, var(--drpg-blood) 14%, transparent) !important;
+    border-color: var(--drpg-blood) !important;
+}
+body:not(.drpg-theme-stained-glass) :is(.drpg-action-button, .drpg-call-button).unaffordable:hover {
+    background-color: transparent !important;
+    border-color: var(--drpg-line) !important;
+}
+
+/* S12-43, the Legacy half (E49 B2 capped the glass's): a sheet's tile was a square of its column, 163 px at
+   1366x768, its icon 16 px. At most 110 px tall, the icon 24-32 px, as under Stained Glass. */
+body:not(.drpg-theme-stained-glass) .application.sheet.actor :is(.drpg-action-button, .drpg-call-button) {
+    max-height: 110px;
+}
+body:not(.drpg-theme-stained-glass) .application.sheet.actor :is(.drpg-action-button, .drpg-call-button) .drpg-action-icon {
+    font-size: clamp(21px, 1.5rem, 27.8px);
+}
+
+/* S12-55, the Legacy half (E49 B2 inked the glass's): the notice's X was its band's ink at 0.7 opacity on the gold
+   band; ink at full opacity. */
+body:not(.drpg-theme-stained-glass) .drpg-popup-title .drpg-popup-close {
+    color: var(--drpg-ink);
+    opacity: 1;
+}
+
+/* S12-46: the Event panel takes no clicks so the map stays draggable through it, which also took the tooltips of
+   a card and of the debate's clock. The two that carry a tooltip take the pointer again. */
+#drpg-events .drpg-event[data-tooltip],
+#drpg-events .drpg-event-clock {
+    pointer-events: auto;
+}
+
+/* S12-47: `body.drpg-high-contrast` sets the window edge to Bone later in this file than `drpg-incident-here`
+   sets it red, so a victim or culprit who asked for high contrast lost the red edge. Both classes, after both. */
+body.drpg-high-contrast.drpg-incident-here {
+    --drpg-window-edge: var(--drpg-eye-light);
+}
+
+/* S03-20: the pixel face has no italic, and Chromium slanted it by hand; and a long option ran out of its select
+   and under the next field. No synthesised face, and a select keeps its text inside. */
+body.drpg-pixel-font:not(.drpg-theme-stained-glass) {
+    font-synthesis: none;
+}
+body:not(.drpg-theme-stained-glass) .application[class*="drpg-"] select {
+    min-width: 0;
+    text-overflow: ellipsis;
+}
+
+/* S12-99: THE SHEET SCROLLS UNDER THIS THEME TOO. Daggerheart gives `section.tab` `overflow: hidden`; Stained Glass
+   made the tab scroll on 07.09 and Legacy never did, so the last rows of a long tab were out of reach (the owner's
+   game, 02.11). The same rule, this theme's. */
+body:not(.drpg-theme-stained-glass) .application.sheet.actor section.tab,
+body:not(.drpg-theme-stained-glass) .application.sheet.actor .tab-body {
+    overflow-y: auto !important;
+    scrollbar-width: thin;
+}
+
+/* S12-100: the notice history window had no ground of this theme (Chromium, the style harness: its window and
+   content transparent), so at a table it wore Foundry's frosted window. The theme's panel ground. */
+body:not(.drpg-theme-stained-glass) .application.drpg-window-notices > .window-content {
+    background: var(--drpg-panel-ground);
+}
+
+/* S12-98: the room tile glows in the time of day's colour as the clock does (`#drpg-hud[data-drpg-phase]`), read
+   off the body's `data-drpg-phase` (hud.mjs); and the voice tile stands right under the Projects tray
+   (glass.mjs `flatVoicePlacement`, `data-place="tray"`), as under Stained Glass. */
+body:not(.drpg-theme-stained-glass)[data-drpg-phase="dailyLife"] #drpg-room-tile { --drpg-room-phase: var(--drpg-phase-daily); }
+body:not(.drpg-theme-stained-glass)[data-drpg-phase="eclipse"] #drpg-room-tile { --drpg-room-phase: var(--drpg-phase-eclipse); }
+body:not(.drpg-theme-stained-glass)[data-drpg-phase="investigation"] #drpg-room-tile { --drpg-room-phase: var(--drpg-phase-investigation); }
+body:not(.drpg-theme-stained-glass)[data-drpg-phase="classTrial"] #drpg-room-tile { --drpg-room-phase: var(--drpg-phase-trial); }
+body:not(.drpg-theme-stained-glass)[data-drpg-phase] #drpg-room-tile {
+    border-color: color-mix(in srgb, var(--drpg-room-phase) 55%, transparent);
+    box-shadow: var(--drpg-k6-room-shade), 0 0 14px color-mix(in srgb, var(--drpg-room-phase) 28%, transparent);
+    --drpg-k6-room-shade: 0 2px 8px rgba(var(--drpg-shadow-rgb), 0.35);
+}
+body:not(.drpg-theme-stained-glass) > #drpg-voice-tile[data-place="tray"] {
+    top: var(--drpg-voice-y);
+    right: var(--drpg-voice-right);
+    bottom: auto;
 }

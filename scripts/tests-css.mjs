@@ -394,7 +394,7 @@ export const MEANING = {
        on K2's open, 11.11; to be seen before it is decided), now the colour of what asks to be looked at. */
     attention: {
         tokens: /^--drpg-attention(?:-rgb)?$/,
-        words: /focus|:checked|radio|selected|drpg-choice|rest-option|frisk-mode|unlocked|offered|init-button|warn|:hover|past-first|debate|rebuttal|tab-dot|saved|paused|checkmark|\bselect\b|phase-daily/i,
+        words: /focus|:checked|radio|selected|drpg-choice|rest-option|frisk-mode|unlocked|offered|init-button|warn|:hover|past-first|debate|rebuttal|tab-dot|saved|paused|checkmark|\bselect\b|phase-daily|sheet-tabs a\.active/i,
         why: "the attention colour is for focus, selection and what asks to be looked at"
     },
     /*
