@@ -5345,6 +5345,34 @@ body:not(.drpg-theme-stained-glass) .drpg-choice > input[type="radio"]:focus-vis
     box-sizing: border-box;
 }
 
+/* EVERY TEXT FIELD FILLS ITS COLUMN, THE REST OF THE MODULE (E49 A7, 11.11.2026; the owner's 10.11, amend [15]: "every
+   text field takes the width of its window or column; exceptions only deliberate and described", and Q7, "a cell is a
+   column", answered "tak"). E68's rule above held the action windows alone. Read in Chromium by style-sweep `--fields`,
+   widened by this commit to every window probe 08 captures and the sheet's parts, at 1366x768, 1280x720 and 1920x1080,
+   both themes, English and Polish: 1544 readings in 28 windows with a field, 228 missed in 5 - Set the season up's name
+   and safeword 119 of 637 px under the glass (a flex label's field kept the browser's 20 columns), Investigation's final
+   key 119 of 1207, Despair Flow's pool name 119 of its 387 px cell, Room setup's doors and descriptions 6 px past their
+   cells (their `width: 100%` with the padding outside it). In any module window (`.drpg-panel`) a text field is its
+   column's width, its border and padding inside it; `min-width: 0` lets a field beside its caption in a flex label take
+   what the caption leaves instead of the 20 columns. Exempt by type, as the pass reads them: number fields, checkboxes,
+   ranges (Q7: numbers and short codes); by name: none needed (style-sweep FIELD_EXEMPT). R3470. */
+.drpg-panel :is(textarea, input:is([type="text"], [type="search"], [type="email"], [type="url"], :not([type]))) {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+/* Beside its caption in a label (`.drpg-panel label` is a flex row), the field takes what the caption leaves rather than
+   the label's whole width: at `width: 100%` the caption gave way to it and broke onto two lines ("Campaign / name" in Set
+   the season up, "Opis dla / gracza" in Investigation's final key under Legacy PL; the sweep's shots, 1366x768), and
+   each field started where its caption happened to end. A label laid out as a column (`.drpg-specific-note`,
+   `.drpg-trait-how`, `.drpg-trait-field`: the caption over the field) keeps its field at 100 %, as E68 and E47-FD drew
+   it (R3139 read `auto` there while the first cut of this rule took every label). */
+.drpg-panel label:not(.drpg-specific-note, .drpg-trait-how, .drpg-trait-field) > :is(textarea, input:is([type="text"], [type="search"], [type="email"], [type="url"], :not([type]))) {
+    flex: 1 1 auto;
+    width: auto;
+}
+
 .drpg-panel label.drpg-trait-how {
     display: flex;
     flex-direction: column;
@@ -9856,14 +9884,22 @@ body[data-drpg-phase="eclipse"] .drpg-hud-phase-glyph { --drpg-glyph: var(--drpg
    scrolls inside it. The height is the tallest single card's - an incident's with the longest texts of lang - so one
    card always fits whole, and the cards share the box rather than each keeping its own. Monokuma Legacy's 180 became
    192 in E23 fix G3 (08.11.2026), with its meta's lines set apart (below, "MONOKUMA LEGACY'S META LINES APART"): that
-   incident's card measured 190 px on the glass harness at 1366x768 (its content 176 at 180 before). */
+   incident's card measured 190 px on the glass harness at 1366x768 (its content 176 at 180 before).
+   AS TALL AS WHAT IT SAYS, UP TO THAT BOX (E49 A6, 11.11.2026; the owner's 10.11, amend [14](1), a screenshot of an
+   incident's card under Stained Glass: "za dużo pustego miejsca na dole - wysokość z treści, bez pustego pasa pod
+   ostatnią linią"). The height token is the panel's cap now (`max-height`), not its height: one box for every card left
+   the band under a short card's last line (the glass harness's `drpgEventCheck` at 1366x768 before this: the owner's
+   incident 64.9 px under the glass, 39.4 under Legacy; a safeword's 113 and 68.5), so the panel follows its cards and
+   only what is taller than the cap scrolls. The owner's newer word replaces the 04.10 one for the height; the width
+   stays one token. The panel holds no control, so no control moves with it (the rule of 10.11). */
 #drpg-events {
     --drpg-events-w: 412px;
     --drpg-events-h: calc(192px * var(--drpg-legacy-scale, 1));
     order: 15;
     width: var(--drpg-events-w);
     max-width: 100%;
-    height: var(--drpg-events-h);
+    height: auto;
+    max-height: var(--drpg-events-h);
     box-sizing: border-box;
     /* never shrunk by the column it stands in: a flex item that scrolls has no minimum height of its own, and in the
        stack's column (narrow.css) the panel came out 0 px tall (the glass harness at 1024x768 and 393x852) */
@@ -9887,10 +9923,11 @@ body[data-drpg-phase="eclipse"] .drpg-hud-phase-glyph { --drpg-glyph: var(--drpg
     --acc: var(--drpg-gold-antique);
     position: relative;
     overflow: hidden;
-    /* a card alone fills the box, so a lone card is the same plate whatever it says; with more than one each keeps
-       its own height and the box scrolls (never shrunk: a shrunk card clips its own words) */
+    /* never shrunk below its words (a shrunk card clips them): with more than the cap holds, each card keeps its own
+       height and the box scrolls; a lone card is as tall as it says (E49 A6), its last line 8 px from the panel's edge
+       with Monokuma Legacy's 1 px border (the band `drpgEventCheck` reads; 9 at 8 px of padding) */
     flex: 1 0 auto;
-    padding: 8px 10px;
+    padding: 8px 10px 7px;
     text-align: center;
 }
 

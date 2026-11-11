@@ -666,13 +666,15 @@ body.drpg-theme-stained-glass .drpg-glass-band > :not(canvas) {
 
 /* ---- the Event panel: under the Despair rail, as wide as it, no button in it -------------- */
 body.drpg-theme-stained-glass #drpg-events {
-    /* the glass's box (E23 C3b): the drawn width below (C-J), and the height of the tallest single card - an incident's
-       with the longest texts of lang - so one card always fits whole; see the base sheet's `#drpg-events` */
+    /* the glass's box (E23 C3b): the drawn width below (C-J), and the cap - the height of the tallest single card, an
+       incident's with the longest texts of lang - so one card always fits whole; under the cap the panel is as tall as
+       its cards (E49 A6: see the base sheet's `#drpg-events`) */
     --drpg-events-w: calc(355px * var(--drpg-sg-scale));
     --drpg-events-h: calc(316px * var(--drpg-sg-scale));
     width: var(--drpg-events-w);
     max-width: 100%;
-    height: var(--drpg-events-h);
+    height: auto;
+    max-height: var(--drpg-events-h);
     margin: 8px auto 0;
     padding: 0;
     font-family: var(--drpg-font-chrome);
@@ -684,7 +686,8 @@ body.drpg-theme-stained-glass #drpg-events {
 /* A kind with no rule of its own wears Bone, not the hour (E48 K2, D30: the time of day never colours a card). */
 body.drpg-theme-stained-glass .drpg-event {
     --acc: var(--drpg-sg-bone);
-    padding: 8px 12px 9px;
+    /* 7 px under the last line (E49 A6: the band `drpgEventCheck` holds to 8 px at most; it read 9 at 9 px) */
+    padding: 8px 12px 7px;
     animation: drpg-sg-event-in var(--drpg-t-enter, 180ms) var(--drpg-ease-arrive, ease-out) both;
 }
 body.drpg-theme-stained-glass .drpg-event + .drpg-event {

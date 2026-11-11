@@ -37986,7 +37986,7 @@ const INVARIANTS = [
             stableJson({ hour: [], safeword: "var(--drpg-sg-gm-light)", assembly: "var(--drpg-sg-evidence)" }), // Hope's gold until E48 K1: the base sheet's antique is Evidence's
             "{hour: the kinds whose `--acc` under Stained Glass is the hour's or no rule of their own; the safeword's and the assembly's accent}");
     }],
-    ["R1394 - the Event panel is one box whatever it says (E23 C3b, E23-18; the owner's 04.10, audit S10-35, S12-30): its width and height are two tokens, a length each, stated for Monokuma Legacy, for the glass and for the glass's stack, and what is taller scrolls inside it, the panel never shrunk and a card never shrunk below its words; an incident's meta is two lines, whose turn and then the state, and no meta wears a frame or a glowing box (under Monokuma Legacy its lines 1.25 apart or more); the ticker runs in the glyph's band, under no word, and is not drawn on a stacked screen", async () => {
+    ["R1394 - the Event panel is as tall as what it says up to one box (E23 C3b, E23-18; the owner's 04.10, audit S10-35, S12-30; E49 A6, the owner's 10.11 amend [14](1)): its width and its cap are two tokens, a length each, stated for Monokuma Legacy, for the glass and for the glass's stack, its height auto under that cap, and what is taller scrolls inside it, the panel never shrunk and a card never shrunk below its words; an incident's meta is two lines, whose turn and then the state, and no meta wears a frame or a glowing box (under Monokuma Legacy its lines 1.25 apart or more); the ticker runs in the glyph's band, under no word, and is not drawn on a stacked screen", async () => {
         /*
          * E23 C3b, 07.11.2026. The owner's 04.10: "the events panel has a fixed size whatever the event and phase, always a
          * similar layout, everything fits". Measured in Chromium before this commit (the glass harness's `drpgEventCheck`,
@@ -38003,6 +38003,10 @@ const INVARIANTS = [
          * Since E23 fix G3 (the end review's screens m2): under Monokuma Legacy the meta's lines inherited the card's
          * leading, and at 1366x768 the four lines of an incident's meta ran into each other, the ogonek of "DRUGĄ" lost in
          * the next line (the review's ev-l.png): its `line-height` is read, 1.25 or more. Red on ce3a821f: none stated.
+         * E49 A6 (11.11.2026; the owner's 10.11, a screenshot of an incident's card: "wysokość z treści, bez pustego pasa
+         * pod ostatnią linią"): the height token is the cap (`max-height`) and the height `auto`, so a short card leaves no
+         * band under its last line; `drpgEventCheck` holds the band to 8 px in Chromium. Red on 17bf6763: the height the
+         * token, no cap.
          */
         const C = await styleCascade();
         const value = (el, names, pseudo = null) => C.winner(el, [names].flat(), pseudo)?.value?.replace(/\s+/g, " ") ?? null;
@@ -38023,7 +38027,7 @@ const INVARIANTS = [
             const shadow = [value(meta, "box-shadow"), value(dueMeta, ["animation", "animation-name"])].filter(v => v && /seam-glow|^0 0 0 1px/.test(v));
             const read = {
                 tokens: [LENGTH.test(w ?? "") ? "length" : w, LENGTH.test(h ?? "") ? "length" : h],
-                width: value(box, "width"), height: value(box, "height"), scrolls: value(box, ["overflow-y", "overflow"]),
+                width: value(box, "width"), height: value(box, "height"), cap: value(box, "max-height"), scrolls: value(box, ["overflow-y", "overflow"]),
                 panelFlex: value(box, "flex"), cardFlex: value(one, "flex"), metaFrame: [...border, ...shadow]
             };
             if (theme === "drpg-theme-monokuma-legacy") {
@@ -38039,7 +38043,7 @@ const INVARIANTS = [
             return read;
         };
         const want = (stacked, theme) => ({
-            tokens: ["length", "length"], width: stacked ? "auto" : "var(--drpg-events-w)", height: "var(--drpg-events-h)", scrolls: "auto",
+            tokens: ["length", "length"], width: stacked ? "auto" : "var(--drpg-events-w)", height: "auto", cap: "var(--drpg-events-h)", scrolls: "auto",
             panelFlex: "0 0 auto", cardFlex: "1 0 auto", metaFrame: [],
             ...(theme === "drpg-theme-monokuma-legacy" ? { metaLeading: "1.25 or more" } : {}),
             ...(theme === "drpg-theme-stained-glass" ? { ticker: stacked ? "none" : ["the card's top", "the glyph's height"] } : {})
@@ -38047,7 +38051,7 @@ const INVARIANTS = [
         const LAYOUTS = [["drpg-theme-monokuma-legacy", false], ["drpg-theme-stained-glass", false], ["drpg-theme-stained-glass", true]];
         equal(stableJson(LAYOUTS.map(([t, s]) => layout(t, s))), stableJson(LAYOUTS.map(([t, s]) => want(s, t))),
             "[Monokuma Legacy's desk, the glass's desk, the glass's stack]: {tokens: the width's and the height's (a length each), the panel's width, "
-            + "height, overflow and flex, a card's flex, a meta's frame or box (none), Legacy's meta line-height, the ticker's top and height against the card's padding and the glyph's (desk) or its display (stack)}");
+            + "height, max-height, overflow and flex, a card's flex, a meta's frame or box (none), Legacy's meta line-height, the ticker's top and height against the card's padding and the glyph's (desk) or its display (stack)}");
 
         const src = stripComments((await moduleSources()).get("events.mjs") ?? "");
         const incident = fnSource(src, "incidentCard");
@@ -43459,6 +43463,42 @@ const INVARIANTS = [
         equal(stableJson({ lighter, emptyKind: empty?.kind ?? null, content, fillerPulse: filler?.pulse ?? null }),
             stableJson({ lighter: true, emptyKind: "empty", content: { base: 0.55, tint: 0, black: 0.12, pulse: 0.42, kind: "content" }, fillerPulse: 0.72 }),
             "{lighter: an empty pane under half the filler's black, black-over and pulse; emptyKind: an empty pane asked as stained still reads empty; content: a pane with content as before} - an empty pane must let the map through");
+    }],
+    ["R3470 - every text field fills its column outside the action windows too (E49 A7; the owner's 10.11 amend [15], 'every text field takes the width of its window or column', and Q7, 'a cell is a column'): in any module window (`.drpg-panel`) a textarea and an input of type text, search, email, url or none - beside its caption in a label, in a table cell, in a kit form's field cell, in a fieldset - wins `width: 100%`, `max-width: 100%`, `min-width: 0` and `box-sizing: border-box` - and beside its caption in a label `flex: 1 1 auto` with `width: auto`, the caption kept on its line - under Monokuma Legacy and under Stained Glass; a number field, a checkbox and a range keep a width of their own (number fields are the named exception by type)", async () => {
+        /*
+         * E49 A7, 11.11.2026. Red on 210c9b16 (style-sweep `--fields`, widened by this commit to every window probe 08
+         * captures and the sheet's parts, at 1366x768, 1280x720 and 1920x1080, both themes, English and Polish): Set the
+         * season up's fields 119 of 670 px under the glass, Investigation's final key 119 of 1207, Item tables' new pool
+         * and item 669 of 894 in a fieldset of 874, Despair Flow's pool name 119 of its 387 px cell, Sound effects' paths
+         * 151 of 197 in their cells, Room setup's doors and descriptions 6 px past their cells (`width: 100%` and padding
+         * outside it). E68's rule held the action windows alone (`.drpg-action-window`). What Chromium lays out is the
+         * sweep's; this reads the cascade (`styleCascade`: specificity, `!important` and order, no `@media`), so a later
+         * rule that narrows a field again fails here before it reaches a table.
+         */
+        const C = await styleCascade();
+        const PROPS = ["width", "max-width", "min-width", "box-sizing", "flex"];
+        const read = theme => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-gm`;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-panel drpg-window-season drpg-ui drpg-kit-width"><section class="window-content"><div class="drpg-kit-body">`
+                + `<fieldset><legend>L</legend><label>Name <input type="text" name="text"></label></fieldset><label>Note <input name="untyped"></label>`
+                + `<textarea name="area"></textarea><table class="drpg-data-table"><tbody><tr><td><input type="text" name="cell"></td><td><input type="search" name="search"></td></tr></tbody></table>`
+                + `<div class="drpg-form-field"><input type="url" name="url"></div><label>E <input type="email" name="email"></label>`
+                + `<input type="number" name="number"><input type="checkbox" name="checkbox"><input type="range" name="range"></div></section></div>`;
+            const out = { fill: [], other: {} };
+            for (const el of body.querySelectorAll("[name]")) {
+                const got = PROPS.map(p => C.winner(el, [p])?.value?.replace(/\s*!important$/, "") ?? "none");
+                const inLabel = el.parentElement?.tagName === "LABEL";
+                if (got.join(" ") === (inLabel ? "auto 100% 0 border-box 1 1 auto" : "100% 100% 0 border-box none")) out.fill.push(el.name);
+                else out.other[el.name] = /^(100%|auto)$/.test(got[0] ?? "") ? got.join(" ") : "its own width";
+            }
+            out.fill.sort();
+            return out;
+        };
+        const want = { fill: ["area", "cell", "email", "search", "text", "untyped", "url"], other: { number: "its own width", checkbox: "its own width", range: "its own width" } };
+        equal(stableJson(["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"].map(read)), stableJson([want, want]),
+            "[Monokuma Legacy, Stained Glass]: {fill: the fields of a module window that win width 100%, max-width 100%, min-width 0 and border-box and no flex (in a label: width auto and flex 1 1 auto); other: the rest, by what wins their width}");
     }],
     ["R2018 - Room setup's Scenes tab on the kit (E46-C2b; E46-08, E47's 05.10 point 5): trial-scene.mjs `scenesTabHtml` is a kit `formGrid` (the school and the hall selects, each its label's `for`), the hall's name, picture and words a `formGrid` of their own, the warnings a `box(\"warning\")`, the prepare ticks kit switches, `SCENES_ZONE_SLOT` a row of `scenesTabRows` that draws nothing (where E73 puts Zone A and Zone B), the hall's cast pick (`castPickerHtml`) a kit `dataTable` with a switch an actor; `readScenesTab`'s answer for a seeded form the one it gave before", async () => {
         /*

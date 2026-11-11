@@ -18,7 +18,8 @@
  *                                         `--pl-windows <dir>` also reads the Polish captures probe 08 wrote into <dir>
  *   node audit/style-sweep.mjs --tables   ITEM TABLES AND PASSAGES (E49 A4, A5), below: no sideways scroll, no button past
  *                                         its cell, one size at every category; `--pl-windows <dir>` and `--shots <dir>` as --settings
- *   node audit/style-sweep.mjs --fields   THE FIELDS PASS (E68 fix round), below: every action window's text field fills its column
+ *   node audit/style-sweep.mjs --fields   THE FIELDS PASS (E68 fix round; widened by E49 A7), below: every captured window's
+ *                                         text field fills its column; `--pl-windows <dir>` as --settings
  *   node audit/style-sweep.mjs --fit      THE FIT PASS (E21 C1c), below, instead of the style comparison; with --only
  *                                         the pages named, with --shots <dir> a screenshot of each at 1366x768
  *
@@ -513,22 +514,51 @@ async function selectedPass(browser) {
 
 /*
  * THE FIELDS PASS (`--fields`; E68 fix round, 10.11.2026; the owner, 10.11, with a screenshot of the Dynamic Action
- * window whose description took about a third of the window and broke its sentence after three words). On every action
- * window probe 08 captured (`action-*` in audit/windows/manifest.json), at FIT_SIZES and a phone's 390x844, in both
- * themes, each shown textarea and text input (`input` of type text, search, email, url or none) is laid against its
- * column: the nearest `.drpg-wide-col` (an action window's column since E68 C12), else the window's `.drpg-kit-body`.
- * It must run from where it starts to the column's right content edge (4 px of slack) and not past it, and it must not
- * start left of the column's content. Exempt, each by name: FIELD_EXEMPT (none at the fix round: no action window draws a
- * numeric field or a short code; a `type="number"` field is never read). A planted control first, on Observe's capture
- * at 1366x768: its textarea held to a third of its column must read "narrow", and pushed 300 px wider must read "wider".
+ * window whose description took about a third of the window and broke its sentence after three words). WIDENED BY E49
+ * A7 (11.11.2026; the owner's 10.11, amend [15]: "every text field fills the width of its window or column; exceptions
+ * only deliberate and described") from the action windows to every window probe 08 captured (audit/windows/manifest.json)
+ * and the sheet's parts in both layouts (`?sheet=parts`, `&pips=1`): at 1366x768, 1280x720 and 1920x1080 (and a phone's
+ * 390x844 for the action windows, as E68 read them), in both themes, in English and - with `--pl-windows <dir>`, a probe
+ * 08 run with DRPG_CAPTURE_LANG=pl and DRPG_CAPTURE_OUT=<dir> - in Polish, each shown textarea and text input (`input`
+ * of type text, search, email, url or none) is laid against its column: the nearest `.drpg-wide-col` (an action window's
+ * column since E68 C12), else its table cell (`td`, `th`: a cell is a column, the owner's Q7 of 10.11, "tak"), else the
+ * kit form's field cell (`.drpg-form-field`, the same by Q7), else its fieldset, else the sheet's tab (`section
+ * [data-application-part]`), else the window's `.drpg-kit-body`, else its `.window-content`, else the page's `main`. It
+ * must run from where it starts to the column's right content edge (4 px of slack) and not past it - a control after it
+ * on its line, at most 16 px on, carries its line to that control's end (a picture field and its picker button) - and
+ * it must not start left of the column's content.
+ * A `type="number"` field is never read (Q7: number fields are exempt by their type). Exempt by name, each with its
+ * reason: FIELD_EXEMPT. A planted control first, on Observe's capture at 1366x768: its textarea held to a third of its
+ * column must read "narrow", and pushed 300 px wider must read "wider"; and on Set the season up's capture its first
+ * field held to a third of its column must read "narrow" (a kit window's field, not an action window's).
  * Exit 1 on any field that does not fill its column.
  */
+/* `[name or element, why]`: none needed at E49 A7 (every field the pass reads fills its column after it). */
 const FIELD_EXEMPT = [];
+const FIELDS_SIZES = [[1366, 768], [1280, 720], [1920, 1080]];
 async function fieldsPass(browser) {
     const manifest = JSON.parse(fs.readFileSync(path.join(REPO, "audit", "windows", "manifest.json"), "utf8"));
-    const list = manifest.windows.filter(w => w.captured && w.id.startsWith("action-") && (!ONLY.size || ONLY.has(w.id)))
-        .map(w => ({ id: w.id, url: `/audit/style-harness.html?w=${encodeURIComponent(w.id)}&fit=1&role=player` }));
-    if (!list.length) throw new Error("no action window to read for --fields");
+    const plDir = opt("--pl-windows");
+    const langs = plDir ? ["en", "pl"] : ["en"];
+    if (!plDir) console.log("style-sweep: --fields Polish NOT read (no --pl-windows <dir>)");
+    const list = [
+        ...manifest.windows.filter(w => w.captured && (!ONLY.size || ONLY.has(w.id)))
+            .map(w => ({ id: w.id, action: w.id.startsWith("action-"), url: `/audit/style-harness.html?w=${encodeURIComponent(w.id)}&fit=1${w.client === "gm" ? "" : "&role=player"}` })),
+        ...[["sheet-parts", "/audit/style-harness.html?sheet=parts"], ["sheet-parts-pips", "/audit/style-harness.html?sheet=parts&pips=1"]]
+            .filter(([id]) => !ONLY.size || ONLY.has(id)).map(([id, url]) => ({ id, action: false, url }))
+    ];
+    if (!list.length) throw new Error("no window to read for --fields");
+    const exempt = FIELD_EXEMPT.map(([name]) => name);
+    const open = async (lang, w, h) => {
+        const page = await browser.newPage({ viewport: { width: w, height: h } });
+        if (lang === "pl") {
+            await page.route("**/audit/windows/**", route => {
+                const file = path.join(path.resolve(plDir), decodeURIComponent(new URL(route.request().url()).pathname.split("/audit/windows/")[1]));
+                return fs.existsSync(file) ? route.fulfill({ path: file }) : route.continue();
+            });
+        }
+        return page;
+    };
     // Each row picked in turn (a field shown with one row only, `data-drpg-when`, is read with that row), then the fields.
     const picks = page => page.evaluate(() => [...globalThis.document.querySelectorAll('.drpg-choice-list input[name="variant"]:not(:disabled)')].map(i => i.value));
     const pick = (page, value) => page.evaluate(async value => {
@@ -553,12 +583,23 @@ async function fieldsPass(browser) {
         for (const el of fields) {
             const name = el.getAttribute("name") ?? el.tagName.toLowerCase();
             if (exempt.includes(name) || !el.getClientRects().length) continue;
-            const col = el.closest(".drpg-wide-col") ?? el.closest(".drpg-kit-body");
+            const col = el.closest(".drpg-wide-col") ?? el.closest("td, th") ?? el.closest(".drpg-form-field") ?? el.closest("fieldset")
+                ?? el.closest("section[data-application-part]") ?? el.closest(".drpg-kit-body") ?? el.closest(".window-content") ?? el.closest("main");
             if (!col) { out.push({ name, what: "no column" }); continue; }
             const c = col.getBoundingClientRect(), cs = globalThis.getComputedStyle(col), f = el.getBoundingClientRect();
             const left = c.left + parseFloat(cs.paddingLeft) + parseFloat(cs.borderLeftWidth), right = c.right - parseFloat(cs.paddingRight) - parseFloat(cs.borderRightWidth);
-            const what = f.right > right + 1 ? "wider" : f.right < right - 4 ? "narrow" : f.left < left - 1 ? "starts outside" : "fills";
-            out.push({ name, what, field: Math.round(f.width), column: Math.round(right - left), at: `${Math.round(f.left - left)}..${Math.round(f.right - left)}` });
+            /* A control after the field on its line (Room setup's picture field and its picker button): the field's line
+               runs on through it when it stands at most 16 px after what came before, at every level up to the column. */
+            let end = f.right;
+            for (let node = el; node && node !== col; node = node.parentElement) {
+                for (let sib = node.nextElementSibling; sib; sib = sib.nextElementSibling) {
+                    const r = sib.getBoundingClientRect();
+                    if (!r.width || r.bottom <= f.top || r.top >= f.bottom || r.left - end > 16) continue;
+                    end = Math.max(end, r.right);
+                }
+            }
+            const what = f.right > right + 1 ? "wider" : end < right - 4 ? "narrow" : f.left < left - 1 ? "starts outside" : "fills";
+            out.push({ name, what, cell: col.matches("td, th"), field: Math.round(f.width), column: Math.round(right - left), at: `${Math.round(f.left - left)}..${Math.round(f.right - left)}${end > f.right ? ` (its line to ${Math.round(end - left)})` : ""}` });
         }
         return out;
     }, exempt);
@@ -566,34 +607,44 @@ async function fieldsPass(browser) {
     let readings = 0, fills = 0;
     {
         const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
-        const ctl = async css => {
-            await load(page, "/audit/style-harness.html?w=action-observe&fit=1&role=player");
+        const ctl = async (u, css, field, row) => {
+            await load(page, u);
             await page.addStyleTag({ content: css });
-            await pick(page, "specific");
-            return (await read(page, [])).find(r => r.name === "request")?.what ?? "no field";
+            if (row) await pick(page, row);
+            return (await read(page, [])).find(r => r.name === field)?.what ?? "no field";
         };
-        const narrow = await ctl('textarea[name="request"] { width: 33% !important; }');
-        const wide = await ctl('textarea[name="request"] { width: calc(100% + 300px) !important; max-width: none !important; }');
-        console.log(`style-sweep: --fields control (a third of its column): ${narrow}; (300 px wider): ${wide}`);
+        const obs = "/audit/style-harness.html?w=action-observe&fit=1&role=player";
+        const narrow = await ctl(obs, 'textarea[name="request"] { width: 33% !important; }', "request", "specific");
+        const wide = await ctl(obs, 'textarea[name="request"] { width: calc(100% + 300px) !important; max-width: none !important; }', "request", "specific");
+        const kit = await ctl("/audit/style-harness.html?w=season-setup&fit=1", 'input[name="campaignName"] { flex: none !important; width: 33% !important; }', "campaignName", null);
+        console.log(`style-sweep: --fields control (a third of its column): ${narrow}; (300 px wider): ${wide}; (Set the season up's field at a third): ${kit}`);
         if (narrow !== "narrow") problems.push(`control: a textarea at a third of its column read ${narrow}`);
         if (wide !== "wider") problems.push(`control: a textarea 300 px wider than its column read ${wide}`);
+        if (kit !== "narrow") problems.push(`control: Set the season up's field at a third of its column read ${kit}`);
         await page.close();
     }
-    for (const [w, h] of [...FIT_SIZES, FIT_PHONE]) for (const theme of THEMES) {
-        const page = await browser.newPage({ viewport: { width: w, height: h } });
+    const perWindow = new Map();
+    for (const lang of langs) for (const [w, h] of [...FIELDS_SIZES, FIT_PHONE]) for (const theme of THEMES) {
+        const phone = w === FIT_PHONE[0];
+        const page = await open(lang, w, h);
         for (const p of list) {
+            if (phone && !p.action) continue;
             await load(page, withTheme(p.url, theme));
-            for (const r of await readAll(page, FIELD_EXEMPT)) {
+            for (const r of await readAll(page, exempt)) {
                 readings++;
-                if (r.what === "fills") { fills++; continue; }
-                const line = `${p.id} ${w}x${h} ${theme}: ${r.name}${r.pick ? ` (row ${r.pick})` : ""} ${r.what} (field ${r.field} of column ${r.column}, at ${r.at})`;
+                const tally = perWindow.get(p.id) ?? { fills: 0, misses: 0 };
+                perWindow.set(p.id, tally);
+                if (r.what === "fills") { fills++; tally.fills++; continue; }
+                tally.misses++;
+                const line = `${p.id} ${lang} ${w}x${h} ${theme}: ${r.name}${r.pick ? ` (row ${r.pick})` : ""} ${r.what}${r.cell ? " (cell)" : ""} (field ${r.field} of column ${r.column}, at ${r.at})`;
                 console.log(`style-sweep: --fields ${line}`);
                 problems.push(line);
             }
         }
         await page.close();
     }
-    console.log(`style-sweep: --fields ${readings} field reading(s) of ${list.length} window(s): ${fills} fill their column, ${readings - fills} do not; ${problems.length ? "RED" : "green"}`);
+    for (const [id, t] of perWindow) console.log(`style-sweep: --fields window ${id}: ${t.fills} fill, ${t.misses} do not`);
+    console.log(`style-sweep: --fields ${readings} field reading(s) of ${list.length} page(s), ${perWindow.size} with a field, ${langs.join(" and ")}: ${fills} fill their column, ${readings - fills} do not; ${problems.length ? "RED" : "green"}`);
     return problems.length ? 1 : 0;
 }
 

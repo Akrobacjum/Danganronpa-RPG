@@ -226,7 +226,7 @@
  *        node audit/glass-sweep.mjs --roster [--themes ...] [--roles ...] [--sizes ..., 1366x768,1920x1080] [--no-control]   (E50 C2: below)
  *        node audit/glass-sweep.mjs --track [--track-kinds fill,hour-empty,hour-full,hour-swap,hour-notice] [--themes ...] [--roles ...] [--sizes ...] [--no-control]   (E23 C2a: below)
  *        node audit/glass-sweep.mjs --tray [--themes ..., stained,legacy] [--roles ...] [--sizes ..., 1920x1080,1366x768,1280x800,1024x768] [--no-control]   (E23 C3a: below)
- *        node audit/glass-sweep.mjs --events [--themes ...] [--roles ...] [--sizes ..., 1366x768,1920x1080,1024x768,820x1180] [--no-control]   (E23 C3b: below)
+ *        node audit/glass-sweep.mjs --events [--themes ...] [--roles ...] [--sizes ..., 1366x768,1280x720,1920x1080,1024x768,820x1180] [--no-control]   (E23 C3b: below)
  *        node audit/glass-sweep.mjs --board [--themes ...] [--roles ...] [--sizes ..., 1024x768,820x1180,393x852,1200x800,844x390,640x360] [--no-control]   (E23 C4a: below)
  *        node audit/glass-sweep.mjs --turn [--kinds phase-recut,phase,hour,layout] [--sizes ..., 1600x900,1366x768] [--roles ...]
  *          [--themes ..., stained] [--turn-ms <n>, 3000] [--runs <n>, 1] [--json <file>] [--against <json>] [--no-control]   (E23 C1a: below)
@@ -843,19 +843,20 @@ if (args.includes("--tray")) {
     process.exit(bad ? 1 : 0);
 }
 
-/* THE EVENT PANEL'S BOX (E23 C3b, 07.11.2026; E23-18, the owner's 04.10 "the events panel has a fixed size whatever the
-   event and phase, always a similar layout, everything fits", S10-35, S12-30). `--events` runs this instead of the
-   sweep, at each size (by default 1366x768, 1920x1080, 1024x768 and 820x1180), role and theme: the page's
+/* THE EVENT PANEL'S BOX (E23 C3b, 07.11.2026; E23-18, S10-35, S12-30; E49 A6, 11.11.2026, the owner's 10.11 amend
+   [14](1): the panel's height from what it says, no empty band under the last line). `--events` runs this instead of
+   the sweep, at each size (by default 1366x768, 1280x720, 1920x1080, 1024x768 and 820x1180), role and theme: the page's
    `drpgEventCheck()` lays the panel out with events.mjs's own card for an incident, a trial with E70's speaker, the
-   debate's clock and "GM: +30 s", and a safeword, each from the longest texts of lang, alone and all three, and the
-   size fails where the panel's box is not the same for the four, a text is wider than its line, a card clips its
-   words, a panel taller than its box does not scroll, the incident's meta is not two lines, or the ticker runs under a
-   word or is drawn on a stacked screen. Its CONTROLS, once a run, on the first desk page under Stained Glass: `grow`
-   (the panel's height following its cards, as before this commit) must read a box that changes, `ticker` (the ticker
-   back at the card's middle) must read it under words. The line prints the four boxes and the tickers' bands. */
+   debate's clock and "GM: +30 s", and a safeword, each from the longest texts of lang, the owner's incident of 10.11 in
+   English and in Polish, each alone, and three together, and the size fails where a panel whose cards fit leaves more
+   than 8 px under its last line or stands taller than its cap, a panel whose cards do not fit is not its cap tall or
+   does not scroll, a text is wider than its line, a card clips its words, the incident's meta is not two lines, or the
+   ticker runs under a word or is drawn on a stacked screen. Its CONTROLS, once a run, on the first desk page under
+   Stained Glass: `fixed` (the panel held at its cap, E23 C3b's road before A6) must read a band, `ticker` (the ticker
+   back at the card's middle) must read it under words. The line prints each layout's box and band and the tickers'. */
 if (args.includes("--events")) {
     let bad = 0, planted = 0;
-    const esizes = (opt("--sizes") ?? "1366x768,1920x1080,1024x768,820x1180").split(",");
+    const esizes = (opt("--sizes") ?? "1366x768,1280x720,1920x1080,1024x768,820x1180").split(",");
     const boxes = r => Object.entries(r.boxes).map(([k, v]) => `${k} ${v}`).join(", ");
     try {
         for (const theme of themes) for (const role of roles) for (const size of esizes) {
@@ -873,7 +874,7 @@ if (args.includes("--events")) {
             if (!r.ok) bad++;
             const stacked = await page.evaluate(() => document.body.classList.contains("drpg-stacked"));
             if (control && !planted && theme === "stained" && !stacked) {
-                for (const plant of ["grow", "ticker"]) {
+                for (const plant of ["fixed", "ticker"]) {
                     const p = await page.evaluate(plant => window.drpgEventCheck({ plant }), plant);
                     planted++;
                     console.log(`${tag} control ${plant}: ${p.ok ? "MISSES IT" : "sees it"} - ${p.ok ? boxes(p) : p.why.slice(0, 140)}`);
