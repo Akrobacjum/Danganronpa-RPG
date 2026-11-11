@@ -27,6 +27,7 @@ import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES, STARTING, ECLIPSE_
 import { getClock, campaignName, phaseLabel, timeOfDayLabel } from "./clock.mjs";
 import { error, esc, plural, proseOf } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
+import { onSweep } from "./a11y.mjs";
 import { overflowCrossings } from "./overflow.mjs";
 import { baseActions } from "./actions.mjs";
 import { viewerNeedsAssigning } from "./monokuma.mjs";
@@ -422,19 +423,62 @@ const PANELS = [
 const INTERACTIVE = "button, a, input, select, textarea, [data-action],"
     + " [contenteditable='true'], [role='button'], [tabindex]:not([tabindex='-1'])";
 
+/**
+ * ONE WINDOW, AND A KEYBOARD CAN ASK FOR IT (E48 K4, 11.11.2026). Until K4 a panel answered a click alone - a keyboard
+ * could not reach it, so its explanation was a mouse's - and every click stacked another window of the same words.
+ * Now each panel standing is focusable (`tabindex="0"`, `aria-haspopup="dialog"`, given after each a11y sweep, which
+ * runs as a host appears: a11y.mjs `onSweep`), Enter or Space on the panel itself opens what a click opens, and an
+ * explainer already open is closed before the next one opens. R3463.
+ */
+export function markExplainable(root = document) {
+    for (const [selector] of PANELS) {
+        const found = [...(root.querySelectorAll?.(selector) ?? [])];
+        if (root.matches?.(selector)) found.push(root);
+        for (const panel of found) {
+            if (!panel.hasAttribute("tabindex")) panel.tabIndex = 0;
+            if (!panel.hasAttribute("aria-haspopup")) panel.setAttribute("aria-haspopup", "dialog");
+        }
+    }
+}
+
+/** Close the explainers standing, then open `open`'s: one explainer at a time. */
+async function explainOnce(open) {
+    for (const app of [...(foundry.applications.instances?.values?.() ?? [])]) {
+        const el = app.element instanceof HTMLElement ? app.element : app.element?.[0];
+        if (el?.classList?.contains("drpg-explain")) await app.close();
+    }
+    return open();
+}
+
 export function registerExplainers() {
     document.addEventListener("click", event => {
         const target = event.target;
         if (!(target instanceof Element)) return;
-        if (target.closest(INTERACTIVE)) return;
 
         for (const [selector, open] of PANELS) {
-            if (!target.closest(selector)) continue;
+            const panel = target.closest(selector);
+            if (!panel) continue;
+            // A control inside the panel, not the panel itself (which is focusable since K4, and so matches INTERACTIVE).
+            const control = target.closest(INTERACTIVE);
+            if (control && control !== panel && panel.contains(control)) return;
             event.preventDefault();
-            open().catch(err => error("Could not open the panel's explanation", err));
+            explainOnce(open).catch(err => error("Could not open the panel's explanation", err));
             return;
         }
     });
+    document.addEventListener("keydown", event => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+        for (const [selector, open] of PANELS) {
+            if (!target.matches(selector)) continue;
+            event.preventDefault();
+            explainOnce(open).catch(err => error("Could not open the panel's explanation", err));
+            return;
+        }
+    });
+    markExplainable();
+    onSweep(markExplainable);
 
     // A pointer that says the panel answers to a click. Set here rather than in
     // the stylesheet for the same reason the listener is delegated: three of

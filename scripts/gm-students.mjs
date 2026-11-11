@@ -121,7 +121,8 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, reso
 
         return {
             id: a.id, ...shared(a), ...cubCells, ...economy,
-            state: `<select name="state.${a.id}">
+            // Its name, not its options' words (E48 K4: a11y.mjs no longer names a select by what it holds).
+            state: `<select name="state.${a.id}" aria-label="${esc(`${L("DRPG.Panel.stateColumn")} - ${a.name}`)}">
                 ${(state === "unfound" ? ["alive", "unfound", "dead", "monocub"] : ["alive", "dead", "monocub"]).map(sKey =>
                     `<option value="${sKey}"${sKey === state ? " selected" : ""}>${
                         L(sKey === "unfound" ? "DRPG.Chapter.deadUnfound" : `DRPG.Panel.state.${sKey}`)}</option>`).join("")}

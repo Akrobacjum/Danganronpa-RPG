@@ -854,19 +854,23 @@ export function renderEvents() {
         const signature = JSON.stringify(cards.map(c => [c.kind, c.title, c.sub, c.meta, c.note, c.due, c.mine, c.clock]));
         if (existing && existing.dataset.signature === signature) { markEventsScrolls(existing); return; }
 
-        const panel = document.createElement("div");
-        panel.id = WIDGET_ID;
-        panel.className = "drpg-events";
-        panel.dataset.signature = signature;
-        panel.setAttribute("role", "status");
-        for (const card of cards) panel.append(cardElement(card));
-
         const rail = document.getElementById("drpg-despair");
         // the card follows the rail wherever it stands, including into the narrow stack
         const host = rail?.parentElement ?? narrowColumn() ?? document.querySelector("#ui-top") ?? document.querySelector("#ui-middle");
         if (!host) return;
-        existing?.remove();
-        if (rail) rail.after(panel); else host.append(panel);
+        /* ONE REGION, REWRITTEN IN PLACE (E48 K4, 11.11.2026). The panel is a polite live region (`role="status"`, and
+           a11y.mjs `liveRegions` gives it `aria-live`), and until K4 every change of its cards built a new panel and
+           removed the old one: a region that is born with its words in it is one a screen reader may say nothing of
+           (WAI-ARIA's live regions announce changes to a region already in the page; read in the specification, not
+           measured with a reader - LIVE-E48-06). Now the panel standing is kept, its cards replaced inside it, and it is
+           moved only when the rail moved; a new panel is built only where none stands. R3462. */
+        const panel = existing ?? Object.assign(document.createElement("div"), { id: WIDGET_ID, className: "drpg-events" });
+        panel.dataset.signature = signature;
+        panel.setAttribute("role", "status");
+        panel.replaceChildren(...cards.map(cardElement));
+        if (rail ? panel.previousElementSibling !== rail : panel.parentElement !== host) {
+            if (rail) rail.after(panel); else host.append(panel);
+        }
         /* The box is one size whatever it holds (E23 C3b; the stylesheets' `--drpg-events-h`), so what is taller than it
            scrolls inside it, and a panel that takes no clicks cannot be scrolled: it takes the wheel only while it
            holds more than its box. Read now, on a render of the same cards, and whenever the panel or a card changes

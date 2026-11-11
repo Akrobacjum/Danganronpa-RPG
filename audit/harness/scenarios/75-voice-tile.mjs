@@ -296,9 +296,14 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             const button = el(), note = document.querySelector("#drpg-voice-tile .drpg-voice-tile-note");
             if (!button) return null;
             const lock = button.querySelector(".drpg-voice-mic-lock");
+            /* The lock shown: under Stained Glass since E48 mic-lock (11.11.2026) it is the mic's own drawing (batch 5's
+               mic-lock as the glyph's mask-image) and the badge stands down; under Monokuma Legacy the badge, as before. */
+            const glass = document.body.classList.contains("drpg-theme-stained-glass");
+            const drawn = /--drpg-pix-mic-lock/.test(getComputedStyle(button.firstElementChild ?? button).getPropertyValue("mask-image"));
+            const shown = lock ? getComputedStyle(lock).display : null;
             return { cls: [...button.classList].filter(c => c.startsWith("is-")).join(" "), pressed: button.getAttribute("aria-pressed"),
                 disabled: button.getAttribute("aria-disabled"), tip: button.dataset.tooltipText ?? "", note: note && !note.hidden ? note.textContent : "",
-                lock: lock ? getComputedStyle(lock).display : null };
+                lock: glass && drawn ? (shown === "none" ? "drawn" : "drawn, badge " + shown) : shown };
         };
         const speaker = () => {
             const button = document.querySelector("#drpg-voice-tile .drpg-voice-speaker"), badge = button?.querySelector(".drpg-voice-count");
@@ -334,6 +339,7 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             const seen = notices(), kept = JSON.stringify(rows());
             el()?.click();
             await until(() => notices() > seen);
+            out.glass = document.body.classList.contains("drpg-theme-stained-glass");
             out.blocked = { mic: mic(), told: globalThis.__notifications.slice(seen).map(n => n.msg), unchanged: JSON.stringify(rows()) === kept };
         } finally {
             settings.set("client", "voice.mode", mode ?? "always");
@@ -359,7 +365,7 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             && J(b.muteAll) === J({ count: "1", struck: true }),
         J({ ptt: b.ptt, muteAll: b.muteAll }));
     check("B: a GM's block on p1's microphone is struck with the lock shown, not grey; p1's click writes nothing and tells p1 why; lifted, the button is open again",
-        J(b.blocked?.mic) === J({ cls: "is-gm-blocked", pressed: "false", disabled: "true", tip: b.texts.gmBlock, note: "", lock: "inline-block" })
+        J(b.blocked?.mic) === J({ cls: "is-gm-blocked", pressed: "false", disabled: "true", tip: b.texts.gmBlock, note: "", lock: b.glass ? "drawn" : "inline-block" })
             && J(b.blocked.told) === J([b.texts.gmBlock]) && b.blocked.unchanged === true
             && b.unblocked?.cls === "" && b.unblocked.disabled === null,
         J({ blocked: b.blocked, unblocked: b.unblocked }));

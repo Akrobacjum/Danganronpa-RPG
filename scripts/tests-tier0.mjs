@@ -703,7 +703,9 @@ const REGRESSIONS = [
         /* 82 the inventory's rows; E48 G3 (11.11.2026) appended batch 4's 16 past it (E97's design notes, E69's two marks). */
         must(G.FUTURE.length >= 82, `${G.FUTURE.length} FUTURE row(s): fewer than the inventory's 82`);
         equal(JSON.stringify(gaps.futureUndrawn), "[]", "FUTURE glyph names no row draws");
-    }, expectedRed("E48", "mic-lock (F5, the GM's manual mic lock): the owner gave it its own glyph, a mic with a lock (11.11, batch 3 (a)), and none of the 190 drawings is it; it waits for a drawing")],
+        /* Green since E48 mic-lock (11.11.2026): batch 5's drawing, approved, is the glass row mic-lock (F5, the GM's manual
+           mic lock), the one FUTURE glyph G3 left undrawn; R3460 holds the voice tile's locked mic wearing it. */
+    }],
 
     ["R3338 - no two elements, keyed or FUTURE, wear one drawing unless tests-glyphs.mjs SAME says they are one function in two places (E48 G2; the owner, 10.11)", async () => {
         const { G, gaps } = await glyphMapInputs();

@@ -3387,6 +3387,73 @@ const INVARIANTS = [
         equal(control, false, "the Search tile's icon given --drpg-pix-observe inline matches its record (the control)");
     }],
 
+    ["R3460 - the GM's manual mic lock wears its own drawing under Stained Glass: the voice tile's mic, locked by the GM (`is-gm-blocked`), reads --drpg-pix-mic-lock and hides the separate lock badge the drawing already holds; unlocked it reads --drpg-pix-mic; under Monokuma Legacy the mic and its badge are as they were (option A) (E48 mic-lock; F5, the owner 11.11)", async () => {
+        /*
+         * E48 mic-lock, 11.11.2026 (batch 5's drawing, approved "Tak"; QUESTIONS batch 3 (a): the GM's mic lock gets its
+         * own glyph, a mic with a lock, not the general lock). The mic is built as voice-tile.mjs builds it - ui-kit.mjs's
+         * mini `launcher` with the `mic` glyph, the `lock` glyph as `.drpg-voice-mic-lock` after it - and drawn in each of
+         * `launcherState`'s states that matter here: the GM's lock (`gmBlock`) and none. Read with tests-glyphs.mjs
+         * `glyphReading` (the mask's token) and the badge's computed display. Headless, jsdom expands no `mask` shorthand,
+         * so `.drpg-pxi`'s own mask reads as nothing there and the glyph is named by the `--drpg-glyph` slot it carries
+         * inline; the glass rule's longhand `mask-image` reads as itself. THE CONTROL: the same mic under Legacy, locked, reads --drpg-pix-mic with its badge shown -
+         * the reading is of the theme's rule, not of a mic that reads mic-lock whatever the theme.
+         */
+        needs(env.tools(), "the glyph's name is read against tools/glyphs.json (an installed module's zip leaves tools/ out)");
+        const G = await import("./tests-glyphs.mjs");
+        const { launcher, launcherState, pixelGlyph } = await import("./ui-kit.mjs");
+        const glyphs = G.parseGlyphs(await fetch(`/modules/${MODULE_ID}/tools/glyphs.json`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""))).glyphs;
+        must(glyphs.length >= 400, `${glyphs.length} glyph row(s) read`);
+        equal(glyphs.some(g => g.family === "glass" && g.name === "mic-lock" && g.grid === 24), true, "a glass row named mic-lock on the 24 grid (batch 5)");
+        const body = document.body, CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], classWas = CLASSES.map(n => body.classList.contains(n));
+        const host = document.createElement("div");
+        host.className = "drpg-voice-tile";
+        host.setAttribute("aria-hidden", "true");
+        host.style.cssText = "position: absolute; left: -10000px; top: 0;";
+        const mic = launcher({ mini: true, className: "drpg-voice-mic", glyph: "mic", label: "mic" });
+        const lock = pixelGlyph("lock");
+        lock.classList.add("drpg-voice-mic-lock");
+        mic.append(lock);
+        host.append(mic);
+        const seen = {};
+        try {
+            body.append(host);
+            for (const [theme, cls] of [["glass", CLASSES[0]], ["legacy", CLASSES[1]]]) {
+                body.classList.add(cls);
+                body.classList.remove(CLASSES.find(n => n !== cls));
+                const tokens = G.glyphTokens(body, window, glyphs);
+                const named = el => {
+                    const got = G.glyphReading(el, window, tokens);
+                    if (!got.startsWith("fa:")) return got;
+                    const slot = getComputedStyle(el).getPropertyValue("--drpg-glyph").trim();
+                    const token = /^var\(\s*(--drpg-[a-z0-9-]+)\s*\)$/.exec(slot)?.[1];
+                    if (token) return token;
+                    /* jsdom resolves the slot to the drawing's url at times, its spaces and quotes escaped: named by the
+                       body's custom properties that hold the same url (`glyphTokens`), escapes aside. */
+                    const bare = v => v.replace(/[\s\\]+/g, "");
+                    const hit = [...tokens].find(([url]) => bare(url) === bare(slot));
+                    return hit ? hit[1].join("|") : got;
+                };
+                for (const state of ["gmBlock", "none"]) {
+                    launcherState(mic, state);
+                    const s = getComputedStyle(mic.firstElementChild);
+                    seen[`${theme}.${state}`] = [named(mic.firstElementChild), getComputedStyle(lock).display, `(mask-image "${s.getPropertyValue("mask-image").trim().slice(0, 60)}")`];
+                }
+            }
+        } finally {
+            host.remove();
+            CLASSES.forEach((n, i) => body.classList.toggle(n, classWas[i]));
+        }
+        const at = key => (seen[key] ?? []).join(" ");
+        ok(G.readingMatches("--drpg-pix-mic-lock", seen["glass.gmBlock"]?.[0]) && seen["glass.gmBlock"]?.[1] === "none",
+            `Stained Glass, the GM's lock: the mic reads [glyph, badge display] ${at("glass.gmBlock")}, not --drpg-pix-mic-lock none`);
+        ok(G.readingMatches("--drpg-pix-mic", seen["glass.none"]?.[0]) && seen["glass.none"]?.[1] === "none",
+            `Stained Glass, unlocked: ${at("glass.none")}, not --drpg-pix-mic none`);
+        ok(G.readingMatches("--drpg-pix-mic", seen["legacy.gmBlock"]?.[0]) && seen["legacy.gmBlock"]?.[1] === "inline-block",
+            `Monokuma Legacy, the GM's lock (the control): ${at("legacy.gmBlock")}, not --drpg-pix-mic inline-block`);
+        ok(G.readingMatches("--drpg-pix-mic", seen["legacy.none"]?.[0]) && seen["legacy.none"]?.[1] === "none",
+            `Monokuma Legacy, unlocked: ${at("legacy.none")}, not --drpg-pix-mic none`);
+    }],
+
     ["R548 - Foundry tools wears the module's pixel anvil in both themes: its one child is an inert, classless i masked with --drpg-pix-anvil in the colour the handbooks' book is drawn in, and no Foundry logo is on the page or in the module's stylesheets", async () => {
         /*
          * E78 fix h76-HF3, 14.10.2026; the owner at The Forge on 1.2.76 (13.10): the corner's Foundry tools button wore
@@ -35419,14 +35486,18 @@ const INVARIANTS = [
            Foundry tools' six since E48 G4 (11.11.2026): its face's mask names the anvil by the one prefix now
            (`--drpg-pix-anvil`, the same drawing, legacy:anvil same px:anvil), and a print hashes the winning value's text -
            Legacy 1:d635e754 -> 1:742fc6be, Stained Glass 1:83b739cf -> 1:9978c959 at each place, re-measured headless;
-           every other print, `left` and the @media rules as they were. */
+           every other print, `left` and the @media rules as they were.
+           The voice tile's curtain print under Stained Glass since E48 mic-lock (11.11.2026): the mic drawn in the GM's
+           lock (the place that reads its four states) wears batch 5's mic-lock, pixel-icons.css's glass rule winning its
+           mask-image, and the lock badge's display is won by the rule that stands it down - 2:7c097704 -> 2:1b6f197e,
+           re-measured headless; Legacy's, the desk's and the stacked screen's, `left` and the @media rules as they were. */
         const C5 = {
             "curtain|monokuma-legacy|foundry-tools": "1:742fc6be", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:999f5b79",
             "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:cf9e2a77", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
             "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:7268133b", "curtain|stained-glass|foundry-tools": "1:9978c959",
             "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:ae4eb686", "curtain|stained-glass|room-art": "1:b38f7ef7",
             "curtain|stained-glass|room-tile": "1:7a2b083d", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
-            "curtain|stained-glass|voice-tile": "2:7c097704", "desk|monokuma-legacy|foundry-tools": "1:742fc6be", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
+            "curtain|stained-glass|voice-tile": "2:1b6f197e", "desk|monokuma-legacy|foundry-tools": "1:742fc6be", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
             "desk|monokuma-legacy|gm-launcher": "1:999f5b79", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:3a251bf8",
             "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:cfb69a33",
             "desk|stained-glass|foundry-tools": "1:9978c959", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:ae4eb686",
@@ -38032,7 +38103,9 @@ const INVARIANTS = [
             if (old) old.dataset.signature = "R1430";
             E.renderEvents();
             panel = document.getElementById("drpg-events");
-            must(panel?.isConnected && panel !== old && panel.children.length, "the Event panel was not drawn anew with the trial's card - this would read nothing");
+            /* Since E48 K4 (11.11.2026) a panel standing is rewritten in place (R3462), so the panel may be `old` itself:
+               what this needs is the trial's card in it. */
+            must(panel?.isConnected && panel.children.length && panel.dataset.signature !== "R1430", "the Event panel was not drawn again with the trial's card - this would read nothing");
             const live = observers.filter(o => o.live);
             read.watched = live.flatMap(o => o.targets.map(el => (el === panel ? "panel" : el.parentElement === panel ? "card" : "other")));
             read.cards = panel.children.length;
@@ -38059,6 +38132,108 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ watched: ["panel", ...Array(read.cards).fill("card")], cards: read.cards, resizedOver: true, resizedUnder: false, sameCards: [true, true] }),
             "{watched: what a live ResizeObserver watches (the panel, each card); cards: the trial's panel's cards; resizedOver / resizedUnder: the attribute after the observer "
             + "fires with the panel 400 px in a box of 180, then 150 in 180; sameCards: a render of the same cards keeps the panel and reads the attribute again (400 in 180)}");
+    }],
+    ["R3462 - the Event panel is one live region, rewritten in place, and a field is never named by its content (E48 K4): a change of the panel's cards keeps the panel standing - the same element, its role, aria-live and the sweep's mark - with new cards inside it; a select is not named by its options' words, nor a textarea by its text, so the tooltip each carries becomes its name", async () => {
+        /*
+         * E48 K4, 11.11.2026 (STAGE: "the events panel's live region kept and rewritten in place"; "no name from a
+         * select's options or a textarea's text"). The panel: the clock read as a Class Trial through a stand-in of
+         * `game.settings.get` (R1430's road; nothing written), the panel drawn and swept (a11y.mjs `nameControls`), its
+         * signature changed so the next render takes it as a change of cards, drawn again: the element after against the
+         * element before, its `role`, `aria-live` and `data-drpg-live`, and whether its first card is a new node (THE
+         * CONTROL: a render that kept the old cards would read rewritten false). Red on 124ed3be: the panel was a new
+         * element (and its region was born again). The fields: a `.drpg-panel` of the test's own, off the page, with a
+         * select of three options and a `data-tooltip`, and a textarea holding text and a `data-tooltip`, swept: each must
+         * read its tooltip as `aria-label`, marked "swept". Red on 124ed3be: both marked "own", named by their content.
+         */
+        const E = await import("./events.mjs");
+        const A = await import("./a11y.mjs");
+        must(game.user.isGM, "the trial's card is drawn here for a GM - this would read nothing");
+        const ownGet = Object.getOwnPropertyDescriptor(game.settings, "get"), get = game.settings.get;
+        const read = {};
+        try {
+            game.settings.get = function (scope, key, ...rest) {
+                const value = get.call(this, scope, key, ...rest);
+                return scope === MODULE_ID && key === SETTINGS.clock ? { ...value, phase: "classTrial", eclipse: false } : value;
+            };
+            const old = document.getElementById("drpg-events");
+            if (old) old.dataset.signature = "R3462";
+            E.renderEvents();
+            const panel = document.getElementById("drpg-events");
+            must(panel?.isConnected && panel.children.length, "the Event panel was not drawn with the trial's card - this would read nothing");
+            A.nameControls(panel.parentElement ?? document);
+            const card = panel.firstElementChild;
+            panel.dataset.signature = "R3462 again";
+            E.renderEvents();
+            const after = document.getElementById("drpg-events");
+            read.panel = { same: after === panel, role: after?.getAttribute("role") ?? null, live: after?.getAttribute("aria-live") ?? null,
+                marked: after?.dataset.drpgLive ?? null, rewritten: Boolean(after?.firstElementChild) && after.firstElementChild !== card, cards: after?.children.length ?? 0 };
+        } finally {
+            if (ownGet) Object.defineProperty(game.settings, "get", ownGet); else delete game.settings.get;
+            const now = document.getElementById("drpg-events");
+            if (now) now.dataset.signature = "R3462";
+            E.renderEvents();
+        }
+        const wrap = document.createElement("div");
+        wrap.innerHTML = `<section class="drpg-panel drpg-k4-fields"><select data-tooltip="R3462 pick"><option>Alpha</option><option>Beta</option><option>Gamma</option></select>`
+            + `<textarea data-tooltip="R3462 note">a note the player typed</textarea></section>`;
+        A.nameControls(wrap);
+        read.fields = [...wrap.querySelectorAll("select, textarea")].map(el => [el.tagName.toLowerCase(), el.getAttribute("aria-label"), el.dataset.drpgNamed ?? null]);
+        equal(stableJson(read), stableJson({
+            panel: { same: true, role: "status", live: "polite", marked: "1", rewritten: true, cards: read.panel?.cards || 1 },
+            fields: [["select", "R3462 pick", "swept"], ["textarea", "R3462 note", "swept"]]
+        }), "{panel: the Event panel after a change of its cards - the same element, its role, aria-live, the sweep's mark, a new first card, its cards; fields: [tag, aria-label, data-drpg-named]}");
+    }],
+    ["R3463 - the panels explain themselves to a keyboard, one window at a time (E48 K4): the clock is focusable and says it opens a dialog, Enter on it opens the explainer a click opens, a second Enter and a click leave one explainer open, and a click on a control inside the panel opens none", async () => {
+        /*
+         * E48 K4, 11.11.2026 (STAGE: "explain.mjs (keyboard, one window)"). On the GM's page: the clock (`#drpg-hud`),
+         * explain.mjs `markExplainable` run (the a11y sweep runs it as a host appears), its tabindex and aria-haspopup;
+         * then, each followed by a beat, Enter on the clock, Enter again, a click on it, the explainers counted after
+         * each (`.application.drpg-explain` in the page); all closed, then a click on a button of the test's own planted
+         * in the clock - THE CONTROL that the panel's own focusability did not make every click inside it an opening.
+         * Everything closed and the button removed in `finally`. Red on 124ed3be: no tabindex, Enter opened nothing,
+         * and two clicks stacked two windows.
+         */
+        const X = await import("./explain.mjs");
+        const hud = document.getElementById("drpg-hud");
+        must(hud?.isConnected, "the clock is not on this page - this would read nothing");
+        const standing = () => [...document.querySelectorAll(".application.drpg-explain")].filter(el => el.isConnected).length;
+        const closeAll = async () => {
+            for (const app of [...(foundry.applications.instances?.values?.() ?? [])]) {
+                const el = app.element instanceof HTMLElement ? app.element : app.element?.[0];
+                if (el?.classList?.contains("drpg-explain")) await app.close();
+            }
+            await wait(150);
+        };
+        const beat = async () => { for (let i = 0; i < 20 && !standing(); i++) await wait(50); await wait(200); };
+        const read = {};
+        const probe = document.createElement("button");
+        probe.type = "button";
+        probe.className = "drpg-k4-probe";
+        probe.textContent = "R3463";
+        try {
+            await closeAll();
+            if (typeof X.markExplainable === "function") X.markExplainable();
+            read.focusable = [hud.getAttribute("tabindex"), hud.getAttribute("aria-haspopup")];
+            hud.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+            await beat();
+            read.enter = standing();
+            hud.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+            await beat();
+            read.again = standing();
+            hud.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+            await beat();
+            read.click = standing();
+            await closeAll();
+            hud.append(probe);
+            probe.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+            await wait(400);
+            read.control = standing();
+        } finally {
+            probe.remove();
+            await closeAll();
+        }
+        equal(stableJson(read), stableJson({ focusable: ["0", "dialog"], enter: 1, again: 1, click: 1, control: 0 }),
+            "{focusable: the clock's [tabindex, aria-haspopup]; enter, again, click: the explainers standing after Enter, Enter again and a click; control: after a click on a button inside the clock}");
     }],
     ["R1404 - the prompts the game waits on stay above the sheet, and nothing else does (E23 C5a; E23-24, audit S01-15, the owner's Q-E23-5): stacking.mjs keeps `drpg-prompt` (ui-kit.mjs PROMPT_CLASS) on top, not every kit window's `drpg-panel`; `drpgWindow` puts it on only when asked, and the windows that ask are the named list - a roll, every action's declaration (each caller of `chooseVariant` named), Observe's GM windows, a GM's ruling, a ballot, Level Up, the trial's prompts, a request worded to the GM and a frisk's two questions - never a panel, a handbook, Projects, the Case or the notice history; the raise is a frame after Foundry's, never a microtask, and only for the prompts the sheet overlaps; a render raises only on a first or a forced one", async () => {
         /*
@@ -38825,6 +39000,59 @@ const INVARIANTS = [
             + "@media (prefers-reduced-motion) blocks outside motion.css; endless animations still running under the class; endless rules the reader could not build; every endless rule built; "
             + "transitions left in the notice history under the class; the motion tokens under the class, each theme]");
         (await import("./utils.mjs")).log(`R1410: ${blocks.length} media block(s) read, ${endlessRules.length} endless rule(s), ${readEls} notice-history element(s)`);
+    }],
+    ["R3461 - no endless animation escapes reduced motion where R1410 does not look (E48 K5; S12-11): every `infinite` animation of the sheets module.json loads sits in a top-level style rule - none inside an at-rule (@media, @supports, @container, @layer) or a nested rule, which R1410's top-level cascade never builds - each in a rule R1410 builds and stops under `body.drpg-reduced-motion` in both themes; no script starts one (an `animate()` of `iterations: Infinity`, an inline animation naming `infinite`); and one planted in an @media block of a sheet's copy is found", async () => {
+        /*
+         * E48 K5, 11.11.2026 (STAGE R-next (j)). R1410 builds every top-level rule that runs an animation `infinite`, on
+         * a body of each theme with the class on, and reads the animation's winner; its reader (`styleCascade`) reads
+         * top-level rules only (tests-kit.mjs `topLevelStyleRules`), so an endless animation written inside `@media`,
+         * `@supports`, `@container`, `@layer` or a nested rule would run under the class and R1410 would stay green
+         * (K3's STATUS, measured: 14 `infinite` declarations in components 1, danganronpa 7, stained-glass 6, every
+         * one top-level). Read here: each served sheet, comments out, scanned by brace depth for `animation` and
+         * `animation-iteration-count` declarations naming `infinite`, each with the chain of blocks it stands in; the
+         * top-level ones counted against R1410's own question (the cascade's rules that run one); every served script
+         * (the suite's own aside) for `iterations: Infinity` and an inline animation string naming `infinite`. THE
+         * CONTROL: the same scan over a copy of motion.css with an endless animation planted inside an @media block
+         * finds it, nested. Red on a plant in the served motion.css (R1410 green on the same tree).
+         */
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(res => res.json());
+        const sheets = [];
+        for (const href of manifest.styles ?? []) sheets.push([href.split("/").at(-1), (await fetch(`/modules/${MODULE_ID}/${href}`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "))]);
+        must(sheets.length >= 5 && sheets.some(([name]) => name === "motion.css"), `module.json loads ${sheets.map(([name]) => name).join(", ")} - not the module's sheets`);
+        const ENDLESS = /(?:^|[\s,])infinite(?:[\s,]|$)/;
+        const endless = (name, css) => {
+            const out = [], stack = [];
+            let line = 1, buf = "", quote = null;
+            for (const ch of css) {
+                if (ch === "\n") line++;
+                if (quote) { if (ch === quote) quote = null; buf += ch; continue; }
+                if (ch === "\"" || ch === "'") { quote = ch; buf += ch; continue; }
+                if (ch === "{") { stack.push(buf.trim().replace(/\s+/g, " ").slice(0, 60)); buf = ""; continue; }
+                if (ch === ";" || ch === "}") {
+                    const m = /^\s*(animation(?:-iteration-count)?)\s*:([\s\S]*)$/.exec(buf);
+                    if (m && stack.length && ENDLESS.test(m[2].replace(/!important/, "").trim())) out.push({ at: `${name}:${line}`, chain: [...stack], nested: stack.length > 1 });
+                    if (ch === "}") stack.pop();
+                    buf = "";
+                    continue;
+                }
+                buf += ch;
+            }
+            return out;
+        };
+        const found = sheets.flatMap(([name, css]) => endless(name, css));
+        const nested = found.filter(f => f.nested).map(f => `${f.at} in ${f.chain.join(" > ")}`);
+        const C = await styleCascade();
+        const r1410 = C.rules.filter(rule => rule.decls.some(d => (d.property === "animation" || d.property === "animation-iteration-count") && ENDLESS.test(d.value))).length;
+        const motion = sheets.find(([name]) => name === "motion.css")[1];
+        const planted = endless("motion.css", `${motion}\n@media (min-width: 1px) {\n  .drpg-k5-plant { animation: drpg-k5 2s linear infinite; }\n}\n`).filter(f => f.nested);
+        const served = (await otherSources()).map(([file, text]) => [file, stripComments(text)]);
+        const scripts = served.flatMap(([file, text]) => [...text.matchAll(/iterations\s*:\s*(?:Infinity|"Infinity"|'Infinity')|animation(?:-iteration-count|IterationCount)?\s*[=:,]\s*[`"'][^`"'\n]*\binfinite\b/g)]
+            .map(m => `${file}:${text.slice(0, m.index).split("\n").length}`));
+        must(found.length >= 10, `${found.length} endless animation(s) read in the sheets - the scan read nothing`);
+        equal(planted.length - endless("motion.css", motion).filter(f => f.nested).length, 1, "the control: an endless animation planted inside an @media block of motion.css's copy, found nested");
+        equal(stableJson(nested), "[]", "endless animations inside an at-rule or a nested rule (R1410 does not build them)");
+        equal(found.length - nested.length, r1410, `top-level endless declarations (${found.length - nested.length}) against the cascade's rules that run one, R1410's set (${r1410})`);
+        equal(stableJson(scripts), "[]", "scripts that start an endless animation of their own");
     }],
     ["R1432 - reduced motion stops Foundry's pause caption too (E23 fix G3, E23-30; the end review's goal m1, Open 113): with `body.drpg-reduced-motion` a rule of the module's sheets wins the caption's animation with none, under both themes, over a stand-in for core's endless `pulse`; without the class the stand-in still wins", async () => {
         /*

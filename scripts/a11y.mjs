@@ -74,12 +74,18 @@ export const CONTROLS = "button, a[href], [role=\"button\"], input:not([type=\"h
 /** Controls the sweep could not name, for the report. Keyed so one entry is one kind. */
 const unnamed = new Map();
 
+/* A FIELD IS NOT NAMED BY WHAT IS IN IT (E48 K4, 11.11.2026). A select's `textContent` is every option's words run
+   together and a textarea's is the text typed into it, so a field with no label read as "own" and was never offered the
+   tooltip it carries: a reader said "Alpha Beta Gamma" for a picker, or the player's own note for its box. A field's
+   name is its label, its aria-label or what it carries (`nameFrom`), never its content (R3462). */
+const FIELDS = "select, textarea, input";
+
 /** What a screen reader would already say for this control, or "" if nothing. */
 function accessibleName(el) {
     const aria = el.getAttribute("aria-label");
     if (aria?.trim()) return aria.trim();
     if (el.getAttribute("aria-labelledby")) return "labelledby";
-    const text = (el.textContent ?? "").replace(/\s+/g, " ").trim();
+    const text = el.matches(FIELDS) ? "" : (el.textContent ?? "").replace(/\s+/g, " ").trim();
     if (text) return text;
     if (el.labels?.length) return "label";
     return "";
@@ -168,9 +174,24 @@ export function nameControls(root = document) {
             }
         }
         liveRegions(root);
+        for (const fn of afterSweep) fn(root);
     } catch (err) {
         debug("The accessibility sweep could not finish", err);
     }
+}
+
+/** What runs after each sweep, on the same root (explain.mjs's panels made reachable by keyboard, E48 K4): one road
+ *  for "a block of the module was drawn", so a second file does not watch the page again for it. */
+const afterSweep = [];
+export function onSweep(fn) {
+    if (typeof fn === "function" && !afterSweep.includes(fn)) afterSweep.push(fn);
+}
+
+/* THE WATCH, READ FOR A TEST (E48 K4): the sweeps the hosts' changes asked for, the hosts adopted, whether hosts born
+   after ready are looked for. */
+const watch = { sweeps: 0, hosts: 0, births: false };
+export function a11yWatch() {
+    return { ...watch };
 }
 
 /**
@@ -292,16 +313,39 @@ export function registerA11y() {
        sweep follows the DOM instead - the same observer pattern the curtain uses,
        and for the same reason: a block that redrew itself is a block with new
        buttons in it. Debounced, because a Despair pip being spent is several
-       mutations in one tick. */
+       mutations in one tick.
+       THE MODULE'S HOSTS, AS THEY APPEAR, AND NOT THE CHAT (E48 K4, 11.11.2026). Until K4 this watched five columns
+       found at ready, subtree and all: Foundry's right column holds the chat, so every message and every keystroke in
+       v14's chat editor was a sweep of the whole module, while a host drawn after ready outside those five (a window's
+       body, the Event panel in a column drawn late) was never watched. Now each host of SURFACES is watched itself, and
+       one watch of the body's additions adopts a host the moment it is born - it sweeps only when one is, so a node
+       added in the chat starts nothing (the tier-2 test "the a11y observer sees a host born after ready"). */
     if ("MutationObserver" in window) {
         let queued = 0;
-        const watch = new MutationObserver(() => {
+        const sweepSoon = () => {
             if (queued) return;
-            queued = requestAnimationFrame(() => { queued = 0; nameControls(); });
-        });
-        for (const sel of ["#ui-left-column-1", "#ui-top", "#ui-right-column-1", "#drpg-column", "#drpg-popups"]) {
-            const host = document.querySelector(sel);
-            if (host) watch.observe(host, { childList: true, subtree: true });
-        }
+            queued = requestAnimationFrame(() => { queued = 0; watch.sweeps++; nameControls(); });
+        };
+        const SEL = SURFACES.join(",");
+        const adopted = new WeakSet();
+        const hostWatch = new MutationObserver(sweepSoon);
+        const adopt = node => {
+            let born = false;
+            for (const host of [...(node.matches?.(SEL) ? [node] : []), ...(node.querySelectorAll?.(SEL) ?? [])]) {
+                if (adopted.has(host)) continue;
+                adopted.add(host);
+                watch.hosts++;
+                hostWatch.observe(host, { childList: true, subtree: true });
+                born = true;
+            }
+            return born;
+        };
+        adopt(document.body);
+        new MutationObserver(records => {
+            let born = false;
+            for (const record of records) for (const node of record.addedNodes) if (node.nodeType === 1 && adopt(node)) born = true;
+            if (born) sweepSoon();
+        }).observe(document.body, { childList: true, subtree: true });
+        watch.births = true;
     }
 }

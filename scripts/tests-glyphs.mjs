@@ -611,6 +611,17 @@ export const FACE_RULES = [
     ["Project's Start row (its fa-lightbulb is the handbooks' TIP)", '.drpg-choice:has(> input[value="start"]) > i.fa-lightbulb', "project-new"]
 ];
 
+/** A state of a control that wears a drawing of its own under Stained Glass: [what, the glyph element's selector, glyph,
+ *  the selector of what the drawing makes redundant]. The glyph is a ui-kit.mjs `pixelGlyph`, which carries its
+ *  `--drpg-glyph` inline, so the rule sets the mask's image itself (as a Remnant's, "image": the longhand outranks
+ *  `.drpg-pxi`'s `mask` shorthand by specificity, with no `!important` against the inline slot). The
+ *  GM's manual mic lock (F5; batch 5, the owner 11.11.2026): voice-tile.mjs draws the mic and, after it, a small lock
+ *  badge (`.drpg-voice-mic-lock`) shown while `LAUNCH_STATES.gmBlock` is on; batch 5's drawing is the mic with its lock,
+ *  so under Stained Glass the mic wears it and the badge stands down. Legacy keeps the mic and its badge (option A). */
+export const STATE_RULES = [
+    ["the GM's manual mic lock (F5)", ".drpg-voice-mic.is-gm-blocked > .drpg-pxi:first-child", "mic-lock", ".drpg-voice-mic.is-gm-blocked > .drpg-voice-mic-lock"]
+];
+
 /** Every rule the glass section writes: [id, selector, glyph, how] - how "box" (the FA box, the slot set), "image" (an
  *  element that is a mask box already: only its image), "before" (a text button given a glyph before its label). */
 export function glassRules() {
@@ -621,6 +632,7 @@ export function glassRules() {
     }
     for (const [what, sel, glyph] of FACE_RULES) out.push([`rule.${glyph}`, sel, glyph, "box"]);
     for (const [act, glyph] of Object.entries(REMNANT_ACTS)) out.push([`remnant.${act}`, `.drpg-remnant-glyph[data-drpg-act="${act}"]`, glyph, "image"]);
+    for (const [, sel, glyph] of STATE_RULES) out.push([`state.${glyph}`, sel, glyph, "image"]);
     /* No rule for the GM launcher: its glass glyph is today's eye pixel for pixel (glass:gm same g:monokuma-eye, the owner
        11.11), so the chrome rule that draws it already draws the glass set's; a rule here would only move the winner of
        its mask (R1333's hexagon prints) for the same picture. */
@@ -698,6 +710,7 @@ export function glassCssOf(glyphs) {
     image-rendering: pixelated;
 }`);
     }
+    for (const [, , , redundant] of STATE_RULES) css.push(`${GLASS} ${redundant} { display: none; }`);
     return css.join("\n") + "\n";
 }
 
