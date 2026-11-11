@@ -43238,6 +43238,44 @@ const SCENARIOS = [
             "{each card: [its data-drpg-cut, the clip-path wipes of 500-900 ms started on it]}");
     }],
 
+    ["E48-K7 - a critical's notice says what happened: it opens with one line - the critical's glyph (fa-burst), \"Critical success\" and, on a client that owns the character or is a GM, who rolled - and a Hope result's notice has no such line", async () => {
+        /*
+         * E48 K7, 11.11.2026 (the owner's "okno powiadomienia krytyka - jest po prostu puste i brzydkie"). On the GM's
+         * page, a critical and a Hope card posted as an action's card is (`whisperToOwner`, title and tone in the flags,
+         * `popupForce` so the GM is shown it) and each notice read in its DOM: the line's glyph class, its result's words
+         * (this client's language), the name it gives, the bar's title, and that the line is the body's first child. The
+         * look (one row, the critical's light red, the duality's "critical" gone from under it) is read in Chromium:
+         * E48 STATUS K7's shots. Red on 2c229e38: the critical read [false, null, null, "K7 line ...", false].
+         */
+        const [actor] = cast(1);
+        must(actor, "no student - this would measure nothing");
+        const { whisperToOwner } = await import("./utils.mjs");
+        const STAMP = Date.now() % 100000;
+        const messages = [];
+        const post = async (title, tone) => {
+            const message = await whisperToOwner(actor, `<p>Suite: ${title}</p>`, { flags: { [MODULE_ID]: { popupTitle: title, popupTone: tone, popupForce: true } } });
+            must(message, "the card was not posted - this would measure nothing");
+            messages.push(message);
+            const card = () => [...document.querySelectorAll(".drpg-popup")].find(c => c.querySelector(".drpg-popup-title")?.textContent?.includes(title)) ?? null;
+            await until(() => card(), 4000);
+            const el = card(), line = el?.querySelector(".drpg-crit-line");
+            return [Boolean(line?.querySelector("i.fa-burst.drpg-crit-glyph")), line?.querySelector(".drpg-crit-result")?.textContent ?? null,
+                line?.querySelector(".drpg-crit-who")?.textContent ?? null, el?.querySelector(".drpg-popup-title")?.firstChild?.textContent ?? null,
+                el?.querySelector(".drpg-popup-body")?.firstElementChild === line && Boolean(line)];
+        };
+        const read = {};
+        try {
+            read.critical = await post(`K7 line ${STAMP}`, "critical");
+            read.hope = await post(`K7 hope line ${STAMP}`, "hope");
+        } finally {
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            for (const message of messages) await message.delete();
+        }
+        equal(stableJson(read), stableJson({ critical: [true, game.i18n.localize("DRPG.Popup.critical.result"), actor.name, `K7 line ${STAMP}`, true],
+            hope: [false, null, null, `K7 hope line ${STAMP}`, false] }),
+            "{each card: [the line's glyph, its result, the name it gives, the bar's title, the line first in the body]}");
+    }],
+
     ["a window still answers for one tick after it was answered", async () => {
         /*
          * LIVE-REOPEN-01's measurement, kept as a test because the whole finding rests

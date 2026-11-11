@@ -5873,6 +5873,9 @@
         "many": "Czeka jeszcze {n} powiadomień. Kliknij, żeby zamknąć wszystkie karty poza kartami do przeczytania.",
         "other": "Czeka jeszcze {n} powiadomień. Kliknij, żeby zamknąć wszystkie karty poza kartami do przeczytania."
       },
+      "critical": {
+        "result": "Sukces krytyczny"
+      },
       "kind": {
         "info": "Uwaga",
         "error": "Odmowa",
