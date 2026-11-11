@@ -156,6 +156,14 @@ function rowHtml(passage, { stores, students, actors, users, told }) {
     const shape = passage.shape === "tunnel" ? "shapeTunnel" : "shapeWall";
     const origin = passage.origin === "door" ? "originDoor" : passage.origin?.by === "project" ? "originProject" : "originGm";
     const reveal = kind === "public" ? "secret" : "public";
+    /* THE SAME FIVE BUTTONS IN THE SAME FIVE PLACES IN EVERY STATE (E49 A5, 11.11.2026; the rule of 10.11: no state adds,
+       removes or shifts a control). Show, Pick again, Close or Open, Make public or Make secret, Delete: until A5 Pick again
+       was drawn on a broken passage alone, between Show and Close, so a moved wall moved the row's buttons. Now it stands
+       on every row, held with its reason where the wall did not move, and Close is held on a broken passage with its own;
+       a label's change (Close, Open) keeps its place, the cell being a grid of two columns (danganronpa.css, Q5: the
+       buttons inside their cell, wrapping their words). A breach is a kind, not a state: its row is Show and Close the
+       breach, as before. */
+    const broken = state === "broken";
 
     return { id: passage.id,
         rooms: esc(passageTitle(passage)),
@@ -165,15 +173,20 @@ function rowHtml(passage, { stores, students, actors, users, told }) {
         knows: chipCell("knows", knowsCell),
         start: chipCell("start", startCell),
         state: `<span class="drpg-passage-state" data-state="${state}">${esc(t(stateWord))}</span>${notes.join("")}`,
-        actions: `<span class="drpg-passage-actions">
-            <button type="button" class="drpg-mini-button" data-drpg-passage-act="show">${esc(t("DRPG.Passage.tab.show"))}</button>${breach ? `
-            <button type="button" class="drpg-mini-button" data-drpg-passage-act="closeBreach">${esc(t("DRPG.Passage.tab.closeBreach"))}</button>` : `${
-                state === "broken" ? `
-            <button type="button" class="drpg-mini-button" data-drpg-passage-act="repick">${esc(t("DRPG.Passage.pick.repick"))}</button>` : ""}
-            <button type="button" class="drpg-mini-button" data-drpg-passage-act="${toggle}"${state === "broken" ? " disabled" : ""}>${esc(t(toggle === "open" ? "DRPG.Passage.tab.open" : "DRPG.Passage.tab.close"))}</button>
-            <button type="button" class="drpg-mini-button" data-drpg-passage-act="${reveal}">${esc(t(reveal === "public" ? "DRPG.Passage.tab.makePublic" : "DRPG.Passage.tab.makeSecret"))}</button>
-            <button type="button" class="drpg-mini-button" data-drpg-passage-act="delete">${esc(t("DRPG.Passage.tab.delete"))}</button>`}
-        </span>` };
+        actions: `<span class="drpg-passage-actions" role="group">${breach
+            ? `${button("show", "DRPG.Passage.tab.show")}${button("closeBreach", "DRPG.Passage.tab.closeBreach")}`
+            : `${button("show", "DRPG.Passage.tab.show")}${button("repick", "DRPG.Passage.pick.repick", { held: !broken && "DRPG.Passage.tab.repickHeld" })}${
+                button(toggle, toggle === "open" ? "DRPG.Passage.tab.open" : "DRPG.Passage.tab.close", { held: broken && "DRPG.Passage.tab.toggleHeld" })}${
+                button(reveal, reveal === "public" ? "DRPG.Passage.tab.makePublic" : "DRPG.Passage.tab.makeSecret")}${button("delete", "DRPG.Passage.tab.delete")}`}</span>` };
+}
+
+/**
+ * One button of a row's actions (E49 A5): `act` its `data-drpg-passage-act`, `key` its words; `held` the key of the reason it
+ * cannot be pressed in this state - disabled, the reason as its tooltip - or nothing.
+ */
+function button(act, key, { held = null } = {}) {
+    const why = held ? ` disabled data-tooltip="${esc(t(held))}" aria-description="${esc(t(held))}"` : "";
+    return `<button type="button" class="drpg-mini-button" data-drpg-passage-act="${act}"${why}>${esc(t(key))}</button>`;
 }
 
 /**

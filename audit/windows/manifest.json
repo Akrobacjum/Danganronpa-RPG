@@ -290,6 +290,38 @@
       "file": "rooms-scenes.html"
     },
     {
+      "id": "rooms-passages--rows",
+      "client": "gm",
+      "opener": "room-setup.mjs m.openRoomSetupDialog({ tab: \"passages\" })",
+      "captured": true,
+      "title": "Room setup - Academy - Floor 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-room-setup",
+        "drpg-window-rooms",
+        "drpg-ui",
+        "drpg-kit-fit"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Apply",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "rooms-passages--rows.html"
+    },
+    {
       "id": "sound",
       "client": "gm",
       "opener": "sound-panel.mjs m.openSoundDialog()",
@@ -1234,6 +1266,48 @@
         }
       ],
       "file": "item-tables--newItem.html"
+    },
+    {
+      "id": "item-tables--rooms",
+      "client": "gm",
+      "opener": "tables-editor.mjs m.openItemTables()",
+      "captured": true,
+      "title": "Item tables",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-projects",
+        "drpg-window-tables",
+        "drpg-ui",
+        "drpg-kit-width",
+        "drpg-kit-width-tables"
+      ],
+      "tag": "dialog",
+      "width": 928,
+      "buttons": [
+        {
+          "action": "add",
+          "label": "Add an item",
+          "default": false
+        },
+        {
+          "action": "close",
+          "label": "Close",
+          "default": true
+        },
+        {
+          "action": "newPool",
+          "label": "Create table",
+          "default": false
+        },
+        {
+          "action": "install",
+          "label": "Install / reinstall",
+          "default": false
+        }
+      ],
+      "file": "item-tables--rooms.html"
     },
     {
       "id": "look-gm",

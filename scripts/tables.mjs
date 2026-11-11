@@ -23,4 +23,4 @@ export {
     tierPoolForms, USABLE_GOALS, usableKindFor, ITEM_POOLS, POOL_ROLES, MAX_EXTRA_ROLES, MULTI_ROLE_TIER,
     rolesForPoolItem, rolesOfResult, tierTableIdFor, randomItem, foundAs, entryAs, DRAW_STEPS, drawItem, moduleTables
 } from "./tables-pools.mjs";
-export { installTables, promptForTableName, poolPaneHtml, openItemTables } from "./tables-editor.mjs";
+export { installTables, promptForTableName, poolPaneHtml, openItemTables, wireRoomFilter } from "./tables-editor.mjs";

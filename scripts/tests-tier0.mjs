@@ -14519,7 +14519,7 @@ const REGRESSIONS = [
         ok(!/repaintPresentButtons/.test(stripComments(src("sync.mjs"))), "sync.mjs repaints no Present button");
     }],
 
-    ["R606 - the Passages tab fits Room Setup at 1366x768 (P1-22): its columns, as the stylesheet gives them at scale 1, sum to no more than the window leaves its table on that screen, and the buttons' cell wraps its buttons inside its width", async () => {
+    ["R606 - the Passages tab fits Room Setup at 1280x720 (P1-22; E49 A5): its columns, as the stylesheet gives them at scale 1, sum to no more than the window leaves its table on that screen, and the buttons' cell lays its buttons out in a grid inside its width", async () => {
         /*
          * E80 fix r1-G2, 19.10.2026 (the review's E80-C6-2). The table is laid out fixed and 1 px wide
          * (`.drpg-room-setup-table`), so it is as wide as its columns, and C6's eight summed to 1540 px - wider than the
@@ -14537,6 +14537,12 @@ const REGRESSIONS = [
          * class="drpg-col-...">` and danganronpa.css's `.drpg-room-setup-table .drpg-col-...` stood. The sum is the one
          * E80 fix r1-G5 chose, 1240 px; the window fits its widest tab (the kit's `fit`), under the same cap, and was
          * 1124 px at 1366x768 on the room tabs alone (E46-C2a's Chromium reading, 09.11.2026).
+         *
+         * E49 A5 (11.11.2026; the owner's [14] (3), a window 1117 px wide with the buttons' column cut): the screen read is
+         * 1280 wide, the smallest desk the module supports (D32 as [17] narrowed it), where Room Setup leaves the table
+         * 1169 px: 1240 stood 71 px past it (style-sweep `--tables` at 1280x720: every actions cell past the window's
+         * body), and the buttons' cell is a grid of two columns whose buttons wrap their words (Q5: inside the cell).
+         * Red at 18358978: 1240 > 1169, and the cell a flex row.
          */
         const sources = await moduleSources();
         const T = await import("./passages-tab.mjs");
@@ -14545,8 +14551,11 @@ const REGRESSIONS = [
         ok(/\bdataTable\(\{\s*columns: PASSAGE_COLUMNS\b/.test(stripComments(fnSource(sources.get("passages-tab.mjs") ?? "", "passagesTabBody"))),
             "passagesTabBody draws its table from PASSAGE_COLUMNS");
         const css = await moduleStyles();
+        /* A width the Passages tab gives a column of its own (E49 A5: the Rooms column, `[data-drpg-passages]`) before the
+           room tabs' shared one. */
         const widthOf = cls => {
-            const m = css.match(new RegExp(`\\.drpg-window-rooms\\s+table\\.drpg-data-table\\s+col\\.${cls}\\s*\\{\\s*width:\\s*calc\\((\\d+)px\\s*\\*\\s*var\\(--drpg-legacy-scale,\\s*1\\)\\)`));
+            const at = scope => css.match(new RegExp(`\\.drpg-window-rooms\\s+${scope}table\\.drpg-data-table\\s+col\\.${cls}\\s*\\{\\s*width:\\s*calc\\((\\d+)px\\s*\\*\\s*var\\(--drpg-legacy-scale,\\s*1\\)\\)`));
+            const m = at("\\[data-drpg-passages\\]\\s+") ?? at("");
             return m ? Number(m[1]) : null;
         };
         const widths = cols.map(widthOf);
@@ -14554,12 +14563,12 @@ const REGRESSIONS = [
             `a width for each of ${cols.join(", ")} - a column with none takes nothing in a fixed table of 1 px`);
         const cap = Number(css.match(/:root\s*\{[^}]*--drpg-window-max:\s*(\d+)px/)?.[1]);
         ok(Number.isFinite(cap), "the stylesheet's --drpg-window-max was not read");
-        const room = Math.floor(Math.min(1366 * 0.94, cap)) - 34;
+        const room = Math.floor(Math.min(1280 * 0.94, cap)) - 34;
         const sum = widths.reduce((a, b) => a + b, 0);
-        ok(sum <= room, `the Passages table is ${sum} px at scale 1 (${cols.map((c, i) => `${c.slice(14)} ${widths[i]}`).join(", ")}) and Room Setup leaves it ${room} px at 1366x768 - its last columns are out of view`);
+        ok(sum <= room, `the Passages table is ${sum} px at scale 1 (${cols.map((c, i) => `${c.slice(14)} ${widths[i]}`).join(", ")}) and Room Setup leaves it ${room} px at 1280x720 - its last columns are out of view`);
         const actions = css.match(/\.drpg-passage-actions\s*\{([^}]*)\}/)?.[1] ?? "";
-        ok(/flex-wrap:\s*wrap\b/.test(actions) && /display:\s*flex\b/.test(actions),
-            `the buttons' cell (.drpg-passage-actions { ${actions.trim()} }) does not wrap inside its column - four buttons on one line run past it`);
+        ok(/display:\s*grid\b/.test(actions) && /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/.test(actions),
+            `the buttons' cell (.drpg-passage-actions { ${actions.trim()} }) is not a grid of two columns inside its width - five buttons on one line run past it`);
     }],
     ["R909 - every region teleport of the module is made inside movement.mjs `whilePlacing`, and the sheet's step onto a tunnel's end skips a token this browser is placing (H81 fix C3): the gather, the cast's placing and a Clean-up's body land a knower on a tunnel's end without taking it through", async () => {
         /*

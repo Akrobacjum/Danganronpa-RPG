@@ -16179,7 +16179,9 @@ const INVARIANTS = [
         const cancelled2 = [ofSite().length, said.splice(0)];
         await P.wallChanged({ id: "R561W", parent: site, c: [1200, 900, 2000, 900] }, { stores });
         pickTab.draw();
-        const offered = [stores.map.get(made)?.state, Boolean(inRow2(made, '[data-drpg-passage-act="repick"]'))];
+        /* 'Pick again' stands on every row since E49 A5 (the rule of 10.11), pressable on a broken passage alone: read as
+           pressable, where it was read as drawn. */
+        const offered = [stores.map.get(made)?.state, Boolean(inRow2(made, '[data-drpg-passage-act="repick"]:not([disabled])'))];
         await tap(inRow2(made, '[data-drpg-passage-act="repick"]'), false);
         await (await onBoard())?.click({ x: 1234.5, y: 860 });
         await board?.click({ x: 1234.5, y: 803 });
@@ -16189,7 +16191,7 @@ const INVARIANTS = [
         const repicked = stores.map.get(made);
         equal(J([cancelled2, offered, [repicked?.state, repicked?.passageSeg, Boolean(cell(made, A)), ofSite().length, said.splice(0)],
             await P.repickPassage(made, { wallId: "R561W", seg: { x1: 1200, y1: 800, x2: 1300, y2: 800 } }, { stores, scene: site }),
-            Boolean(inRow2(made, '[data-drpg-passage-act="repick"]'))]),
+            Boolean(inRow2(made, '[data-drpg-passage-act="repick"]:not([disabled])'))]),
         J([[1, ["minimized", "step 2: R561 Hall - R561 Kitchen", "closed", "back"]], ["broken", true],
             ["secret", { x1: 1234.5, y1: 800, x2: 1734.5, y2: 800 }, true, 1, ["minimized", "noWall", "step 2: R561 Hall - R561 Kitchen", "short", "info", "closed", "back"]],
             false, false]),
@@ -42625,6 +42627,58 @@ const INVARIANTS = [
             lists: [0, 0]
         }), "{list: [a dataTable, its heads, the first row's pick button's table, the other cells]; entries: [heads, each row: result, table, the name field in the first cell, remove in the actions' cell]; room: [each group row has its count, its entry rows]; lists: the li left in each pane}");
     }],
+    ["R3450 - Item tables' room pool picks its category from one select (scripts/tables-editor.mjs `tableItemsHtml`, `wireRoomFilter`, ui-hold.mjs `showRoomGroup`; E49 A4, the owner's [14] (2) and [16] 3): one `select[data-drpg-room-filter]` - Everything with the pool's count first and picked, then each group with its count as its section counts it (a group with none disabled, never dropped), the unfiled names when there are any - and no chip row; a pick shows that group alone, Everything every group; Rename and Delete in one button group", async () => {
+        /*
+         * E49 A4, 11.11.2026. The owner's screenshot of 10.11: the chips ran onto a second row ("Everything" alone on it)
+         * and Rename and Delete stood 24 px apart; the owner's answer on the mockup round ([16] 3): a dropdown instead of
+         * the chips, no sideways scroll. Read on a stand-in room pool (`c3Table`, nothing written) of one Murder Weapon,
+         * one Cleaning Tool and one healing usable from the module's own lists and one name no list holds. The sizes
+         * (one row, no sideways scroll, the window one size at every pick, the kit's gap) are style-sweep `--tables`'s.
+         * Red first at 18358978: a `.drpg-room-summary` of seven chips, no select, the two buttons apart in the heading.
+         */
+        const T = await import("./tables.mjs");
+        const P = await import("./tables-pools.mjs");
+        const H = await import("./ui-hold.mjs");
+        must(typeof T.poolPaneHtml === "function", "tables.mjs exports no poolPaneHtml - this would measure nothing");
+        const firstOf = tiers => Object.values(tiers).flat()[0];
+        const names = [firstOf(P.ITEM_POOLS.crimeTool), firstOf(P.ITEM_POOLS.cleaningTool), firstOf(P.USABLE_GOALS.healing.pool), "R3450 nobody's"];
+        const room = c3Table({ id: "r3450r", name: "R3450 kitchen", flags: { roomPool: true }, entries: names.map(name => ({ name, roles: [] })) });
+        const read = await c3Tables([room], async () => {
+            const pane = document.createElement("div");
+            pane.innerHTML = T.poolPaneHtml("rooms", [room], room);
+            const body = pane.querySelector("[data-drpg-table-body]");
+            T.wireRoomFilter?.(body);
+            const picker = body?.querySelectorAll("select[data-drpg-room-filter]") ?? [];
+            const box = body?.querySelector("[data-drpg-room-groups]");
+            const counted = kind => box?.querySelector(`:scope > .drpg-room-group[data-kind="${kind}"] > h5 .notes`)?.textContent.trim() ?? "0";
+            const shown = () => [...(box?.querySelectorAll(":scope > .drpg-room-group") ?? [])].filter(g => !g.hidden).map(g => g.dataset.kind);
+            const pick = value => { picker[0].value = value; picker[0].dispatchEvent(new Event("change", { bubbles: true })); return shown(); };
+            const heading = pane.querySelector(".drpg-table-heading");
+            const group = heading?.querySelector('[role="group"]');
+            return {
+                pickers: picker.length,
+                labelled: Boolean(picker[0]?.closest("label")?.textContent.trim()),
+                options: [...(picker[0]?.options ?? [])].map(o => [o.value, o.textContent.trim(), o.disabled, o.selected]),
+                counts: [...(picker[0]?.options ?? [])].filter(o => o.value !== "all").map(o => o.textContent.trim().endsWith(`(${counted(o.value)})`)),
+                chips: pane.querySelectorAll(".drpg-room-summary, .drpg-room-chip").length,
+                all: shown(), crimeTool: picker.length ? pick("crimeTool") : null, unfiled: picker.length ? pick("unfiled") : null, back: picker.length ? pick("all") : null,
+                buttons: group ? [...group.querySelectorAll("button")].map(b => Object.keys(b.dataset)[0]) : null,
+                floor: typeof H.showRoomGroup === "function" ? H.showRoomGroup(box, "all") : "no showRoomGroup"
+            };
+        });
+        const L = key => game.i18n.localize(key);
+        const keys = [...P.ROOM_GROUP_ORDER, "unfiled"];
+        const groups = ["crimeTool", "cleaningTool", "usable:healing", "unfiled"];
+        equal(stableJson(read), stableJson({
+            pickers: 1, labelled: true,
+            options: [["all", `${L("DRPG.Tables.roomTotal")} (4)`, false, true],
+                ...keys.map(key => [key, `${key === "unfiled" ? L("DRPG.Tables.unfiled") : P.groupLabel(key, { short: true })} (${groups.includes(key) ? 1 : 0})`, !groups.includes(key), false])],
+            counts: keys.map(() => true), chips: 0,
+            all: groups, crimeTool: ["crimeTool"], unfiled: ["unfiled"], back: groups,
+            buttons: ["drpgRenameTable", "drpgDeleteTable"],
+            floor: null
+        }), "{pickers: the selects; labelled: its label's words; options: [value, words, disabled, picked]; counts: each option's count is its section's; chips: the old summary; all/crimeTool/unfiled/back: the groups shown at Everything, a pick, the unfiled pick, Everything again; buttons: the heading's one button group; floor: showRoomGroup's floor in jsdom (no layout: none set)}");
+    }],
     ["R2026 - Sound > Effects on the kit (E46-C4; E46-13, card M2): one `dataTable` whose body is a group row per `SFX_CATEGORIES` entry with its \"n of m assigned\", each followed by its events in `SFX_EVENTS`' order (`tr[data-drpg-sfx]`); an event's name, its chips and its description in one cell cut after two lines with the whole in its title; the file box with its Choose; at most three buttons a row, Test and Clear the kit's icon buttons", async () => {
         /*
          * E46-C4, 09.11.2026; card M2 (Approve, 04.11) and STAGE E46's Sound shape. Measured at 3c952c67 (glass,
@@ -43062,6 +43116,50 @@ const INVARIANTS = [
         }), "{tables: [tables, kit tables]; kinds: the columns by kind; heads; hint: At season start's title; rows: the passages; knows and start: the chip of A who knows the first and of B who starts with it [its press, aria-pressed, named, a cross inside]; toolbars: the four chip cells; old: the hand table's classes left}");
     }],
 
+    ["R3451 - Room setup's Passages rows keep one set of buttons in every state (scripts/passages-tab.mjs `rowHtml`; E49 A5, the owner's [14] (3), Q5 and the rule of 10.11): a passage's actions are one `.drpg-passage-actions[role=group]` of Show, Pick again, Close or Open, Make public or Make secret and Delete, in those five places whether it is secret, public, closed or broken - Pick again pressable on a broken passage alone and saying why elsewhere, Close held on a broken one", async () => {
+        /*
+         * E49 A5, 11.11.2026. The owner's screenshot of 10.11: the actions' buttons past their cell (STAGE A5: inside the
+         * cell, Q5), and the rule of 10.11: no state adds, removes or shifts a control. At 18358978 a broken passage's
+         * row drew Pick again between Show and Close, so the row's buttons moved when its wall moved. Read as R2017
+         * reads the tab: four passages of the suite's own on a stand-in scene, in stores of the suite's own (R561's
+         * engine), nothing of the world's written. That the cell holds its buttons is style-sweep `--tables`' reading.
+         * Red first at 18358978: four, four, five and four buttons, Pick again on the broken row alone.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const T = await import("./passages-tab.mjs");
+        let now = 9_200_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R3451GM", isGM: () => true, isPrimary: () => true, worldId: () => "R3451WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R3451GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r3451${name}`, key: `r3451${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r3451mm", key: "r3451mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const scene = { id: "R3451SCENE", grid: { size: 100 }, levels: [], regions: [] };
+        const kinds = ["secret", "public", "closed", "broken"];
+        const id = k => `${scene.id}.r3451${k}`;
+        const row = (k, n) => ({ sceneId: scene.id, level: null, shape: "wall", passageWallId: `R3451WALL${n}`, passageSeg: { x1: 100 * n, y1: 400, x2: 100 * n + 66, y2: 400 },
+            rooms: [`R3451 room ${n}`, `R3451 room ${n + 1}`], state: k === "public" ? "secret" : k, startAccess: [], ...(k === "public" ? { public: true } : {}) });
+        await stores.map.patchMany(Object.fromEntries(kinds.map((k, n) => [id(k), row(k, n + 1)])));
+        const root = document.createElement("div");
+        root.innerHTML = T.passagesTabBody(scene, { stores, students: [], actors: game.actors, users: [], told: new Map() });
+        const read = Object.fromEntries(kinds.map(k => {
+            const cell = root.querySelector(`tr[data-drpg-passage="${id(k)}"] > td.drpg-data-col-actions`);
+            const groups = cell?.querySelectorAll(':scope > .drpg-passage-actions[role="group"]') ?? [];
+            const buttons = [...(groups[0]?.querySelectorAll(":scope > button") ?? [])];
+            return [k, { groups: groups.length, acts: buttons.map(b => `${b.dataset.drpgPassageAct}${b.disabled ? " held" : ""}`),
+                why: buttons.filter(b => b.disabled).map(b => Boolean(b.getAttribute("data-tooltip") || b.title)) }];
+        }));
+        const five = (toggle, reveal, { broken = false } = {}) => ({ groups: 1,
+            acts: ["show", `repick${broken ? "" : " held"}`, `${toggle}${broken ? " held" : ""}`, reveal, "delete"], why: [true] });
+        equal(stableJson(read), stableJson({
+            secret: five("close", "public"), public: five("close", "secret"), closed: five("open", "public"), broken: five("close", "public", { broken: true })
+        }), "{each state: {groups: the actions' one group; acts: its buttons in order, \"held\" when disabled; why: each held button says why (tooltip or title)}}");
+    }],
     ["R2018 - Room setup's Scenes tab on the kit (E46-C2b; E46-08, E47's 05.10 point 5): trial-scene.mjs `scenesTabHtml` is a kit `formGrid` (the school and the hall selects, each its label's `for`), the hall's name, picture and words a `formGrid` of their own, the warnings a `box(\"warning\")`, the prepare ticks kit switches, `SCENES_ZONE_SLOT` a row of `scenesTabRows` that draws nothing (where E73 puts Zone A and Zone B), the hall's cast pick (`castPickerHtml`) a kit `dataTable` with a switch an actor; `readScenesTab`'s answer for a seeded form the one it gave before", async () => {
         /*
          * E46-C2b. Red first on C2a's tree (f90e89a7): labels around the selects, a list of checkboxes, `p.drpg-warning`, no

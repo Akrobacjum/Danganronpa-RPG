@@ -30,6 +30,7 @@ import { whisperToGms, log, error, plural, esc}
 import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, drpgPrompt, dataTable, box } from "./ui-kit.mjs";
 import { pickableCategories } from "./inventory.mjs";
 import { alreadyOpen, reopen, RAISED } from "./live.mjs";
+import { showRoomGroup } from "./ui-hold.mjs";
 import {
     classifyTableName, tierTablesFor, existingTableName, tableDescription, isTierPoolTable, poolShapeOf,
     poolNameRefusal, USABLE_GOALS, ITEM_POOLS, MULTI_ROLE_TIER, rolesForPoolItem, tierTableIdFor, roomTableNames,
@@ -237,14 +238,28 @@ function tableItemsHtml(table) {
         return entryTableHtml(table, results.map(r => tableRowHtml(table, r, { home, tier })));
     }
 
-    const { chips, unfiledChip, body, unfiledHtml } = roomPoolGroupsHtml(table, results);
+    const { counts, body, unfiledHtml } = roomPoolGroupsHtml(table, results);
 
-    return `<div class="drpg-room-summary">${chips}${unfiledChip}
-            <span class="drpg-room-chip drpg-room-chip-total">${
-                esc(game.i18n.localize("DRPG.Tables.roomTotal"))} <b>${results.length}</b></span>
-        </div>
+    /* ONE PICKER, NOT A ROW OF CHIPS (E49 A4, 11.11.2026; the owner's [14] (2): "Everything" ran onto a second row; [16] 3:
+       a dropdown instead, no sideways scroll). Everything first and picked, then every group with its count - a group
+       with none is still an option, disabled: the zero is the reading the chips gave (below) - and the unfiled names
+       when there are any. A pick shows that group alone (`wireRoomFilter`, ui-hold.mjs `showRoomGroup`), and the
+       groups' box keeps its height with all of them, so the window does not move with the pick (the rule of 10.11). */
+    const option = (key, label, n, picked = false) => `<option value="${esc(key)}"${n ? "" : " disabled"}${picked ? " selected" : ""}>${
+        esc(label)} (${n})</option>`;
+    return `<label class="drpg-room-filter"><span>${esc(game.i18n.localize("DRPG.Tables.roomFilter"))}</span>
+            <select data-drpg-room-filter>${option("all", game.i18n.localize("DRPG.Tables.roomTotal"), results.length, true)}${
+                counts.map(({ key, label, n }) => option(key, label, n)).join("")}</select></label>
         <p class="notes">${game.i18n.localize("DRPG.Tables.roomBreakdown")}</p>
-        <div class="drpg-room-groups">${body}${unfiledHtml}</div>`;
+        <div class="drpg-room-groups" data-drpg-room-groups>${body}${unfiledHtml}</div>`;
+}
+
+/** A room pool's picker wired to its groups (E49 A4): `root` holds what `tableItemsHtml` drew; a tier pool has neither. */
+export function wireRoomFilter(root) {
+    const picker = root?.querySelector?.("select[data-drpg-room-filter]");
+    const box = root?.querySelector?.("[data-drpg-room-groups]");
+    if (!picker || !box) return;
+    picker.addEventListener("change", () => showRoomGroup(box, picker.value));
 }
 
 /**
@@ -352,18 +367,14 @@ function roomPoolGroupsHtml(table, results) {
 
     /*
      * THE ZEROES ARE THE POINT. A room with no cleaning tools in it is exactly
-     * what a GM wants to see at a glance, and a chip that is only drawn when it
-     * has something to say cannot say that.
+     * what a GM wants to see at a glance, and a count that is only given when it
+     * has something to say cannot say that. Chips until E49 A4; the picker's
+     * options since (`tableItemsHtml`).
      */
-    const chips = ROOM_GROUP_ORDER.map(key => {
-        const n = groups.get(key).length;
-        return `<span class="drpg-room-chip${n ? "" : " drpg-room-chip-empty"}" data-kind="${key}">${
-            esc(groupLabel(key, { short: true }))} <b>${n}</b></span>`;
-    }).join("");
-    const unfiledChip = unfiled.length
-        ? `<span class="drpg-room-chip drpg-room-chip-unfiled">${
-            esc(game.i18n.localize("DRPG.Tables.unfiled"))} <b>${unfiled.length}</b></span>`
-        : "";
+    const counts = [
+        ...ROOM_GROUP_ORDER.map(key => ({ key, label: groupLabel(key, { short: true }), n: groups.get(key).length })),
+        ...(unfiled.length ? [{ key: "unfiled", label: game.i18n.localize("DRPG.Tables.unfiled"), n: unfiled.length }] : [])
+    ];
 
     const tiersOf = rows => {
         const byTier = new Map();
@@ -407,7 +418,7 @@ function roomPoolGroupsHtml(table, results) {
             ${entryTableHtml(table, unfiled.map(({ r }) => tableRowHtml(table, r)))}
         </section>`
         : "";
-    return { chips, unfiledChip, body, unfiledHtml };
+    return { counts, body, unfiledHtml };
 }
 
 /**
@@ -1021,10 +1032,9 @@ export function poolPaneHtml(family, mine, selected, refusal = null) {
             <div class="drpg-tables-right">
                 <div class="drpg-table-heading">
                     <h4 data-drpg-table-name title="${esc(first?.name ?? "")}">${esc(shortPoolName(first?.name))}</h4>
-                    <button type="button" class="drpg-mini-button" data-drpg-rename-table>${
-                        esc(game.i18n.localize("DRPG.Tables.renameTable"))}</button>
-                    <button type="button" class="drpg-mini-button" data-drpg-delete-table>${
-                        esc(game.i18n.localize("DRPG.Tables.deleteTable"))}</button>
+                    <span class="drpg-table-actions" role="group"><button type="button" class="drpg-mini-button" data-drpg-rename-table>${
+                        esc(game.i18n.localize("DRPG.Tables.renameTable"))}</button><button type="button" class="drpg-mini-button" data-drpg-delete-table>${
+                        esc(game.i18n.localize("DRPG.Tables.deleteTable"))}</button></span>
                 </div>
                 <div data-drpg-table-body>${
                     first ? tableItemsHtml(first)
@@ -1464,6 +1474,7 @@ function wirePoolPane(pane, root) {
         showPoolName(nameEl, table?.name ?? "");
         bodyEl.innerHTML = table ? tableItemsHtml(table)
             : `<p class="notes">${game.i18n.localize("DRPG.Tables.noneYet")}</p>`;
+        wireRoomFilter(bodyEl);
         // Nothing selected is a real state - an empty world has no
         // tables at all - and a live button over nothing is a trap.
         if (renameButton) renameButton.disabled = !table;

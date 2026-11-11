@@ -3735,7 +3735,7 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 .drpg-passage-state[data-state="closed"] { color: var(--drpg-dim); }
 .drpg-passage-state[data-state="broken"] { color: var(--drpg-red); }
 .drpg-passage-state:is([data-state="pending"], [data-state="shared"]) { color: var(--drpg-dim); font-size: 0.9em; }
-.drpg-passage-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.drpg-passage-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; align-items: stretch; }
 /* 'New passage' over the table, its line beside it, and the pick's window (E79 C6) with its one
    button at the right, as the mockup drew them; a refused click's line in red. */
 .drpg-passage-bar { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; }
@@ -12398,54 +12398,9 @@ body.drpg-theme-monokuma-legacy #countdowns .countdown-tools {
 
 /* ---- the item tables --------------------------------------------------- */
 /* The window's list, its entries, its heading and its layout are components.css's since E46-C3b (09.11.2026),
-   its section "Item tables, Give an item, Give a Truth Bullet"; what stands here is a room pool's chips and headings
-   (the chips are Passages' too) and, further down, Create an item's form. */
-
-.drpg-room-summary {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-bottom: 6px;
-}
-
-.drpg-room-chip {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 5px;
-    padding: 2px 7px;
-    border: 1px solid var(--drpg-line);
-    border-radius: 2px;
-    font-size: max(min(10px, 0.72rem), calc(0.72rem * var(--drpg-legacy-scale, 1)));
-    letter-spacing: 0.02em;
-    color: rgba(var(--drpg-bone-rgb), 0.85);
-}
-
-.drpg-room-chip b {
-    font-variant-numeric: tabular-nums;
-    font-weight: 700;
-    color: var(--drpg-bone);
-}
-
-.drpg-room-chip[data-kind="crimeTool"] { border-color: rgba(var(--drpg-eye-rgb), 0.55); }
-.drpg-room-chip[data-kind="crimeTool"] b { color: var(--drpg-eye-light); }
-.drpg-room-chip[data-kind="tool"] { border-color: rgba(var(--drpg-evidence-rgb), 0.5); }
-.drpg-room-chip[data-kind="tool"] b { color: var(--drpg-evidence); }
-
-/* Empty is a reading, not an absence: dimmed rather than dropped. */
-.drpg-room-chip-empty,
-.drpg-room-chip-empty b {
-    color: var(--drpg-dim);
-    border-color: rgba(var(--drpg-bone-rgb), 0.10);
-}
-
-.drpg-room-chip-unfiled {
-    border-style: dashed;
-}
-
-.drpg-room-chip-total {
-    margin-left: auto;
-    border-color: rgba(var(--drpg-bone-rgb), 0.35);
-}
+   its section "Item tables, Give an item, Give a Truth Bullet"; what stands here is a room pool's headings and, further
+   down, Create an item's form. A room pool's chips (`.drpg-room-summary`, `.drpg-room-chip`) went with E49 A4: the
+   category picker is components.css's, and Passages' chips have been the kit's since E46-C2b. */
 
 .drpg-room-group + .drpg-room-group {
     margin-top: 10px;

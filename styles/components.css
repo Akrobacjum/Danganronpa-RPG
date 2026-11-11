@@ -2353,14 +2353,33 @@ body .application.drpg-window-rooms .drpg-room-picture-say > .drpg-box { margin:
    chose them in danganronpa.css (the Rooms column the room tabs' 220 px above), but Kind 80 -> 96 and the state 150 -> 134:
    "Secret" and "Public" broke inside the word in 80 px under Legacy (Chromium at 1366x768, 09.11.2026) - 1240 px at scale 1, inside what Room
    setup leaves a table at 1366x768 (R606 sums them off this section), each at most 390 px (R1322). Every cell wraps:
-   a Shape or an Origin of two or three words on two lines, the buttons onto a second line (`.drpg-passage-actions`). */
+   a Shape or an Origin of two or three words on two lines, the buttons onto a second line (`.drpg-passage-actions`).
+   E49 A5 (11.11.2026; the owner's [14] (3): the buttons' column cut at the window's edge, a window 1117 px wide): 1240 px
+   stood 71 px past the 1169 px Room setup leaves at 1280x720, the smallest desk supported ([17]; style-sweep `--tables`:
+   every actions cell past the body). The actions are a grid of two columns (Q5: inside the cell), each as wide as the
+   longest word a button holds, so no word breaks: Legacy's Polish "ponownie" (Wskaż ponownie) 118 px with its padding,
+   "Zamknij" 106 (Chromium, probe 08's capture, 11.11.2026) - 256 px with the cell's padding and the gap. Paid for by the
+   Rooms column on this tab alone (220 -> 150: two rooms' names wrap at the dash), Who knows 200 -> 156 and At season
+   start 140 -> 130 (their chips wrap): 1162 px (R606). Origin and the state keep 130 and 134 (at 120 Legacy's Polish
+   "Zamknięte" broke inside the word). */
+body .application.drpg-window-rooms [data-drpg-passages] table.drpg-data-table col.drpg-data-col-room { width: calc(150px * var(--drpg-legacy-scale, 1)); }
 body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-kind { width: calc(96px * var(--drpg-legacy-scale, 1)); }
 body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-shape { width: calc(110px * var(--drpg-legacy-scale, 1)); }
 body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-origin { width: calc(130px * var(--drpg-legacy-scale, 1)); }
-body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-knows { width: calc(200px * var(--drpg-legacy-scale, 1)); }
-body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-knows-start { width: calc(140px * var(--drpg-legacy-scale, 1)); }
+body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-knows { width: calc(156px * var(--drpg-legacy-scale, 1)); }
+body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-knows-start { width: calc(130px * var(--drpg-legacy-scale, 1)); }
 body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-state { width: calc(134px * var(--drpg-legacy-scale, 1)); }
-body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-actions { width: calc(210px * var(--drpg-legacy-scale, 1)); }
+body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-actions { width: calc(256px * var(--drpg-legacy-scale, 1)); }
+/* a button fills its place in the grid and wraps its words, inside the cell: the glass's panel button rule keeps a button on
+   one line (stained-glass.css, 0,7,2), and this is 0,7,4 */
+body .application.drpg-window-rooms table.drpg-data-table td .drpg-passage-actions > button.drpg-mini-button.drpg-mini-button[type="button"] {
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    white-space: normal;
+    overflow-wrap: break-word;
+    text-align: center;
+}
 body .application.drpg-window-rooms [data-drpg-passages] table.drpg-data-table td { white-space: normal; overflow-wrap: anywhere; }
 /* a student's chip: the kit's, pressed (they have it), wrapping inside its column - "Shown, until they leave the Kitchen"
    ran 70 px past the 200 px column on one line under the glass (Chromium at 1366x768, 09.11.2026); the way they learnt it
@@ -2438,11 +2457,19 @@ body .application.drpg-ui.drpg-window-tables .drpg-tables-list .drpg-table-pick 
 }
 .drpg-window-tables .drpg-tables-list tbody > tr:has(.drpg-table-pick.active) > td:first-child { box-shadow: inset 3px 0 0 var(--drpg-kit-btn-on-edge); }
 .drpg-window-tables .drpg-table-pick:focus-visible { outline: 2px solid var(--drpg-kit-btn-on-edge); outline-offset: -2px; }
-/* the heading over the entries: the name, then Rename, then Delete set apart */
-.drpg-window-tables .drpg-table-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+/* the heading over the entries: the name, then Rename and Delete in one group, the kit's gap between them (E49 A4; the
+   owner's [14] (2): 24 px apart, Delete's own 1rem margin; under Legacy the heading wrapped between the two, 546 px apart
+   - style-sweep `--tables` at 18358978). The group wraps whole, under the name, never between its buttons. */
+.drpg-window-tables .drpg-table-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--drpg-kit-gap); margin-bottom: 6px; }
 body .application.drpg-ui.drpg-window-tables .drpg-table-heading h4 { margin: 0 auto 0 0; text-transform: none; }
+.drpg-window-tables .drpg-table-actions { display: inline-flex; flex: none; flex-wrap: nowrap; gap: var(--drpg-kit-gap); margin-inline-start: auto; }
 .drpg-window-tables .drpg-mini-button { font-size: max(11px, calc(0.78rem * var(--drpg-legacy-scale, 1))); }
-.drpg-window-tables [data-drpg-delete-table] { margin-inline-start: 1rem; }
+/* a room pool's category picker (E49 A4): its word and the select on one line, the select as wide as its longest
+   option and never past the column; a group the picker does not show is out of the layout (ui-hold.mjs `showRoomGroup`
+   holds the box's height) */
+.drpg-window-tables .drpg-room-filter { display: flex; align-items: center; gap: var(--drpg-kit-gap); margin: 0 0 6px; }
+body .application.drpg-ui.drpg-window-tables .drpg-room-filter > select { flex: 0 1 auto; width: auto; min-width: 0; max-width: 100%; }
+.drpg-window-tables .drpg-room-groups > .drpg-room-group[hidden] { display: none; }
 .drpg-window-tables :is([data-drpg-delete-table], .drpg-table-items [data-drpg-drop]) { color: var(--drpg-kit-role-destructive); }
 body.drpg-theme-stained-glass .drpg-window-tables :is([data-drpg-delete-table], .drpg-table-items [data-drpg-drop]) {
     --brush: var(--drpg-sg-gm);
@@ -2472,7 +2499,7 @@ body .application.drpg-ui.drpg-window-tables .drpg-table-item-cell > input[type=
     color: var(--drpg-kit-help-ink);
     cursor: help;
 }
-.drpg-window-tables :is(.drpg-room-chip, .drpg-room-group > h5 .notes, .drpg-table-item-also) {
+.drpg-window-tables :is(.drpg-room-group > h5 .notes, .drpg-table-item-also) {
     font-size: max(11px, calc(0.72rem * var(--drpg-legacy-scale, 1)));
 }
 .drpg-window-tables .drpg-table-item-roles > .drpg-check {

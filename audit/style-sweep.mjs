@@ -16,6 +16,8 @@
  *   node audit/style-sweep.mjs --panel    THE PANEL'S TILES (E49 A3), below: rows one height, every state's label and icon read
  *   node audit/style-sweep.mjs --settings THE SETTINGS WINDOW (E49 A1), below: one size at every section picked;
  *                                         `--pl-windows <dir>` also reads the Polish captures probe 08 wrote into <dir>
+ *   node audit/style-sweep.mjs --tables   ITEM TABLES AND PASSAGES (E49 A4, A5), below: no sideways scroll, no button past
+ *                                         its cell, one size at every category; `--pl-windows <dir>` and `--shots <dir>` as --settings
  *   node audit/style-sweep.mjs --fields   THE FIELDS PASS (E68 fix round), below: every action window's text field fills its column
  *   node audit/style-sweep.mjs --fit      THE FIT PASS (E21 C1c), below, instead of the style comparison; with --only
  *                                         the pages named, with --shots <dir> a screenshot of each at 1366x768
@@ -1093,6 +1095,166 @@ async function settingsPass(browser) {
     return problems.length ? 1 : 0;
 }
 
+/*
+ * ITEM TABLES AND PASSAGES (`--tables`; E49 A4 and A5, 11.11.2026; the owner's screenshots of 10.11, [14] (2) and (3)).
+ * Probe 08's two seeded captures, `item-tables--rooms` (a room pool of 41 names on the Room pools tab) and
+ * `rooms-passages--rows` (four passages: a tunnel, a public one, a broken one, a closed one), at 1366x768 and 1920x1080,
+ * both themes, English and (with `--pl-windows <dir>`) Polish, placed as `--fit` places a window. Item tables: the
+ * category summary's rows (the chips' distinct tops, or the one picker), every element of the shown pane past the
+ * window body's right edge (the sideways scroll the owner saw: "Everything" on a second row and the row wider than the
+ * window under the glass), Rename's and Delete's gap (the kit's 8 px), and the window's rectangle at every category the
+ * picker offers, shown by ui-hold.mjs `showRoomGroup` (the very function the window's change calls), each equal to the
+ * first within 0.5 px, and the body's content height equal too (41 names fill the screen at every size read, so the window
+ * stands at its ceiling whatever is shown and its size alone would read nothing: the scrolled height is what moves). Passages: every button of the actions' column inside its cell (0.5 px), and every cell inside
+ * the window body (a column past the window is a button past it too). THE CONTROLS first (the stackShapes lesson): the
+ * actions' buttons forced onto one line (`nowrap`, no wrap) must read buttons past their cell; the groups' floor taken
+ * off (`min-height: 0`) must read a change of size or of the body's content height between two categories.
+ */
+/* 1280x720 beside the stage's two (E49 A5): the smallest desk the module supports (D32 as [17] narrowed it), where the
+   Passages table stood wider than Room setup's body at 18358978 - the owner's 1117 px window of 10.11. */
+const TABLES_SIZES = [[1366, 768], [1920, 1080], [1280, 720]];
+const TABLES_PAGES = ["item-tables--rooms", "rooms-passages--rows"];
+
+async function tablesRead(page, id) {
+    return page.evaluate(async id => {
+        const r1 = v => Math.round(v * 10) / 10;
+        const win = globalThis.document.querySelector(".application");
+        if (!win) return { error: "no window on the page" };
+        const body = win.querySelector(".drpg-kit-body") ?? win.querySelector(".window-content");
+        const right = body.getBoundingClientRect().right;
+        const size = () => { const r = win.getBoundingClientRect(); return [r1(r.width), r1(r.height)]; };
+        const pastOf = root => [...root.querySelectorAll("*")].filter(el => el.getClientRects().length && el.getBoundingClientRect().right > right + 0.5)
+            .map(el => `${el.tagName.toLowerCase()}${el.className && typeof el.className === "string" ? `.${el.className.trim().split(/\s+/)[0]}` : ""} ${r1(el.getBoundingClientRect().right - right)}`);
+        if (id === "item-tables--rooms") {
+            const pane = win.querySelector('[data-drpg-pool-pane="rooms"]');
+            if (!pane) return { error: "no Room pools pane" };
+            const chipTops = new Set([...pane.querySelectorAll(".drpg-room-summary > *")].map(el => Math.round(el.getBoundingClientRect().top)));
+            const picker = pane.querySelector("select[data-drpg-room-filter]");
+            const rename = pane.querySelector("[data-drpg-rename-table]")?.getBoundingClientRect();
+            const del = pane.querySelector("[data-drpg-delete-table]")?.getBoundingClientRect();
+            const out = { summaryRows: picker ? 1 : chipTops.size, picker: Boolean(picker), past: pastOf(pane),
+                gap: rename && del ? r1(del.left - rename.right) : null, sameLine: rename && del ? Math.abs(rename.top - del.top) < 1 : null,
+                sizes: [] };
+            if (picker) {
+                const { showRoomGroup } = await import("/scripts/ui-hold.mjs");
+                const box = pane.querySelector("[data-drpg-room-groups]");
+                for (const option of picker.options) {
+                    picker.value = option.value;
+                    showRoomGroup(box, option.value);
+                    await new Promise(r => globalThis.requestAnimationFrame(() => globalThis.requestAnimationFrame(r)));
+                    out.sizes.push({ kind: option.value, size: size(), sh: body.scrollHeight, past: pastOf(pane).length });
+                }
+                picker.value = picker.options[0]?.value ?? "";
+                showRoomGroup(box, picker.value);
+            } else out.sizes.push({ kind: "as drawn", size: size(), sh: body.scrollHeight, past: out.past.length });
+            return out;
+        }
+        const cells = [...win.querySelectorAll("[data-drpg-passages] tr[data-drpg-passage] > td")];
+        const outside = [];
+        for (const td of cells.filter(c => c.classList.contains("drpg-data-col-actions"))) {
+            const c = td.getBoundingClientRect();
+            for (const b of td.querySelectorAll("button")) {
+                const r = b.getBoundingClientRect();
+                const by = Math.max(r.right - c.right, c.left - r.left, r.bottom - c.bottom, c.top - r.top);
+                if (by > 0.5) outside.push(`${td.parentElement.dataset.drpgPassage.split(".").pop()} ${b.dataset.drpgPassageAct} ${r1(by)}`);
+            }
+        }
+        const cellsPast = cells.filter(td => td.getBoundingClientRect().right > right + 0.5).length;
+        const rows = cells.length ? new Set(cells.map(td => td.parentElement)).size : 0;
+        return { rows, buttons: cells.filter(c => c.classList.contains("drpg-data-col-actions")).reduce((n, td) => n + td.querySelectorAll("button").length, 0),
+            outside, cellsPast, past: pastOf(win.querySelector("[data-drpg-passages]") ?? win), size: size() };
+    }, id);
+}
+
+async function tablesPass(browser) {
+    const problems = [];
+    const plDir = opt("--pl-windows");
+    const langs = plDir ? ["en", "pl"] : ["en"];
+    if (!plDir) console.log("style-sweep: --tables Polish NOT read (no --pl-windows <dir>)");
+    const open = async (lang, w, h) => {
+        const page = await browser.newPage({ viewport: { width: w, height: h } });
+        if (lang === "pl") {
+            await page.route("**/audit/windows/**", route => {
+                const file = path.join(path.resolve(plDir), decodeURIComponent(new URL(route.request().url()).pathname.split("/audit/windows/")[1]));
+                return fs.existsSync(file) ? route.fulfill({ path: file }) : route.continue();
+            });
+        }
+        return page;
+    };
+    const url = (id, theme) => withTheme(`/audit/style-harness.html?w=${encodeURIComponent(id)}&fit=1`, theme);
+    /* The controls, under the glass at 1366x768. */
+    {
+        const page = await open("en", 1366, 768);
+        await load(page, url("rooms-passages--rows", "glass"));
+        await page.addStyleTag({ content: ".drpg-passage-actions { display: flex !important; flex-wrap: nowrap !important; } .drpg-passage-actions > button { white-space: nowrap !important; flex: none !important; width: auto !important; }" });
+        const p = await tablesRead(page, "rooms-passages--rows");
+        const seen = (p.outside?.length ?? 0) > 0;
+        console.log(`style-sweep: --tables control (the actions on one line): ${p.outside?.length ?? 0} button(s) past their cell ${seen ? "read" : "NOT read"}`);
+        if (!seen) problems.push("control: the actions forced onto one line read no button past its cell");
+        await load(page, url("item-tables--rooms", "glass"));
+        await page.addStyleTag({ content: "[data-drpg-room-groups] { min-height: 0 !important; }" });
+        const t = await tablesRead(page, "item-tables--rooms");
+        const sizes = new Set((t.sizes ?? []).map(x => `${x.size.join("x")}:${x.sh}`));
+        const read = sizes.size > 1;
+        console.log(`style-sweep: --tables control (the groups' floor off): ${[...sizes].join(" / ") || "no picker"} ${read ? "read" : "NOT read"}`);
+        if (!read) problems.push(`control: the groups' floor taken off read one size${t.picker ? "" : " (no category picker on the page)"}`);
+        await page.close();
+    }
+    for (const lang of langs) {
+        for (const [w, h] of TABLES_SIZES) {
+            for (const theme of THEMES) {
+                const page = await open(lang, w, h);
+                for (const id of TABLES_PAGES) {
+                    await load(page, url(id, theme));
+                    const r = await tablesRead(page, id);
+                    const where = `${id} ${lang} ${theme} ${w}x${h}`;
+                    if (r.error) { problems.push(`${where}: ${r.error}`); console.log(`style-sweep: --tables ${where}: ${r.error}`); continue; }
+                    const bad = [];
+                    if (id === "item-tables--rooms") {
+                        if (!r.picker) bad.push(`no category picker: the summary is ${r.summaryRows} row(s) of chips`);
+                        if (r.summaryRows !== 1) bad.push(`the summary on ${r.summaryRows} rows`);
+                        if (r.past.length) bad.push(`${r.past.length} element(s) past the window's body (${r.past.slice(0, 3).join(", ")})`);
+                        if (r.gap !== 8) bad.push(`Rename and Delete ${r.gap} px apart (the kit's 8)`);
+                        if (r.sameLine === false) bad.push("Rename and Delete on two lines");
+                        const first = r.sizes[0];
+                        for (const x of r.sizes) {
+                            if (Math.abs(x.size[0] - first.size[0]) > 0.5 || Math.abs(x.size[1] - first.size[1]) > 0.5) bad.push(`${x.kind} ${x.size.join("x")} (${first.kind} ${first.size.join("x")})`);
+                            else if (x.sh !== first.sh) bad.push(`${x.kind} body content ${x.sh} px (${first.kind} ${first.sh})`);
+                            if (x.past) bad.push(`${x.kind}: ${x.past} element(s) past the window's body`);
+                        }
+                        console.log(`style-sweep: --tables ${where}: summary ${r.summaryRows} row(s), gap ${r.gap} px, ${r.sizes.length} categor${r.sizes.length === 1 ? "y" : "ies"} at ${[...new Set(r.sizes.map(x => `${x.size.join("x")} (body content ${x.sh})`))].join(" / ")}, past the body ${r.past.length}${bad.length ? ` - RED: ${bad.join("; ")}` : ""}`);
+                    } else {
+                        if (r.rows !== 4) bad.push(`${r.rows} row(s) drawn (4 seeded)`);
+                        if (r.outside.length) bad.push(`${r.outside.length} of ${r.buttons} button(s) past their cell (${r.outside.slice(0, 4).join(", ")})`);
+                        if (r.cellsPast) bad.push(`${r.cellsPast} cell(s) past the window's body`);
+                        console.log(`style-sweep: --tables ${where}: ${r.rows} row(s), ${r.buttons} button(s), ${r.outside.length} past their cell, ${r.cellsPast} cell(s) past the body, window ${r.size.join("x")}${bad.length ? ` - RED: ${bad.join("; ")}` : ""}`);
+                    }
+                    problems.push(...bad.map(b => `${where}: ${b}`));
+                    if (SHOTS && w === 1366) {
+                        fs.mkdirSync(SHOTS, { recursive: true });
+                        await page.waitForTimeout(300);
+                        await page.screenshot({ path: path.join(SHOTS, `${id}-${lang}-${theme}-${w}x${h}.png`) });
+                        if (r.picker) {
+                            await page.evaluate(async () => {
+                                const pane = globalThis.document.querySelector('[data-drpg-pool-pane="rooms"]');
+                                const picker = pane.querySelector("select[data-drpg-room-filter]");
+                                picker.value = "tool";
+                                (await import("/scripts/ui-hold.mjs")).showRoomGroup(pane.querySelector("[data-drpg-room-groups]"), "tool");
+                            });
+                            await page.waitForTimeout(300);
+                            await page.screenshot({ path: path.join(SHOTS, `${id}-${lang}-${theme}-${w}x${h}-tool.png`) });
+                        }
+                    }
+                }
+                await page.close();
+            }
+        }
+    }
+    for (const p of problems) console.log(`style-sweep: --tables ${p}`);
+    console.log(`style-sweep: --tables ${problems.length ? `RED, ${problems.length} problem(s)` : "green"}`);
+    return problems.length ? 1 : 0;
+}
+
 async function main() {
     let server = null;
     if (!BASE) {
@@ -1104,6 +1266,10 @@ async function main() {
     const browser = await chromium.launch(CHROMIUM ? { executablePath: CHROMIUM } : {});
     if (argv.includes("--panel")) {
         try { process.exitCode = await panelPass(browser); } finally { await browser.close(); server?.kill(); }
+        return;
+    }
+    if (argv.includes("--tables")) {
+        try { process.exitCode = await tablesPass(browser); } finally { await browser.close(); server?.kill(); }
         return;
     }
     if (argv.includes("--settings")) {
