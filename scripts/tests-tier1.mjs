@@ -43821,6 +43821,25 @@ const INVARIANTS = [
         stableJson({ buttonClip: "none", buttonPointer: "none", beforeClip: HEX, beforePointer: "auto", beforeInset: "-2px", beforeContent: '""', badgePointer: "auto", soundClip: HEX }),
         "{the messenger launcher's clip-path and pointer, its ::before's clip-path, pointer, inset and content, the badge's pointer, the sound launcher's clip-path} - the hex must be the ::before's so the badge is not cut");
     }],
+    ["R3522 - prose in the pixel face has its lines apart and no hyphen under Monokuma Legacy (styles/danganronpa.css; E49, the half of audit S03-20 E48 K6 left open): one rule, scoped to the module's windows and the sheet at `:where()` weight, gives paragraphs, notes, hints, the kit's boxes, list items, the trace's context, an item's label and an experience's name a line height of 1.2 or more and `hyphens: none`", async () => {
+        /*
+         * E49, 11.11.2026. S03-20: "the trace's metadata breaks with a line height under 1; the Equipped prose has about
+         * 1.0 and splits words"; its fix "line-height at least 1.2-1.25 for the prose and the metadata, hyphens: none".
+         * Chromium on the style harness under Legacy with the pixel face (1366x768, every captured window and the sheet's
+         * parts): the step between a wrapped element's lines read 1.00 of its font size in 310 elements before, 177 after
+         * (headings, labels, buttons and table heads keep the face's own); read here as the rule.
+         */
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
+        const rules = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const decl = (body, prop) => body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`))?.[1]?.trim() ?? null;
+        const rule = rules.find(r => r.sel.startsWith("body.drpg-theme-monokuma-legacy.drpg-pixel-font ") && r.sel.includes(".drpg-trace-context")) ?? null;
+        const scopes = [".drpg-panel", ".drpg-ui", ".application.sheet.actor"], targets = ["p", "li", ".notes", ".hint", ".drpg-box", ".drpg-trace-context", ".item-labels .label", ".experience-name"];
+        const list = rule?.sel.match(/:where\(([^)]*)\)\s*$/)?.[1]?.split(",").map(s => s.trim()) ?? [];
+        equal(stableJson({ found: Boolean(rule), scoped: scopes.every(s => rule?.sel.includes(s) ?? false), where: /^body\.drpg-theme-monokuma-legacy\.drpg-pixel-font :where\(/.test(rule?.sel ?? ""),
+            missing: targets.filter(t => !list.includes(t)), lineHeight: Number(decl(rule?.body ?? "", "line-height")) >= 1.2, hyphens: decl(rule?.body ?? "", "hyphens") }),
+        stableJson({ found: true, scoped: true, where: true, missing: [], lineHeight: true, hyphens: "none" }),
+        "{a Legacy pixel-face prose rule; scoped to the windows and the sheet; at :where() weight; prose targets it misses; line-height >= 1.2; hyphens} - prose in the pixel face must have its lines apart and no hyphen");
+    }],
     ["R2018 - Room setup's Scenes tab on the kit (E46-C2b; E46-08, E47's 05.10 point 5): trial-scene.mjs `scenesTabHtml` is a kit `formGrid` (the school and the hall selects, each its label's `for`), the hall's name, picture and words a `formGrid` of their own, the warnings a `box(\"warning\")`, the prepare ticks kit switches, `SCENES_ZONE_SLOT` a row of `scenesTabRows` that draws nothing (where E73 puts Zone A and Zone B), the hall's cast pick (`castPickerHtml`) a kit `dataTable` with a switch an actor; `readScenesTab`'s answer for a seeded form the one it gave before", async () => {
         /*
          * E46-C2b. Red first on C2a's tree (f90e89a7): labels around the selects, a list of checkboxes, `p.drpg-warning`, no
