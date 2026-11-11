@@ -37915,7 +37915,7 @@ const INVARIANTS = [
             stableJson({ hour: [], safeword: "var(--drpg-sg-gm-light)", assembly: "var(--drpg-sg-evidence)" }), // Hope's gold until E48 K1: the base sheet's antique is Evidence's
             "{hour: the kinds whose `--acc` under Stained Glass is the hour's or no rule of their own; the safeword's and the assembly's accent}");
     }],
-    ["R1394 - the Event panel is one box whatever it says (E23 C3b, E23-18; the owner's 04.10, audit S10-35, S12-30): its width and height are two tokens, a length each, stated for Monokuma Legacy, for the glass and for the glass's stack, and what is taller scrolls inside it, the panel never shrunk and a card never shrunk below its words; an incident's meta is two lines, whose turn and then the state, and no meta wears a frame or a glowing box (under Monokuma Legacy its lines 1.25 apart or more); the ticker runs in the glyph's band, under no word, and is not drawn on a stacked screen", async () => {
+    ["R1394 - the Event panel is as tall as what it says up to one box (E23 C3b, E23-18; the owner's 04.10, audit S10-35, S12-30; E49 A6, the owner's 10.11 amend [14](1)): its width and its cap are two tokens, a length each, stated for Monokuma Legacy, for the glass and for the glass's stack, its height auto under that cap, and what is taller scrolls inside it, the panel never shrunk and a card never shrunk below its words; an incident's meta is two lines, whose turn and then the state, and no meta wears a frame or a glowing box (under Monokuma Legacy its lines 1.25 apart or more); the ticker runs in the glyph's band, under no word, and is not drawn on a stacked screen", async () => {
         /*
          * E23 C3b, 07.11.2026. The owner's 04.10: "the events panel has a fixed size whatever the event and phase, always a
          * similar layout, everything fits". Measured in Chromium before this commit (the glass harness's `drpgEventCheck`,
@@ -37932,6 +37932,10 @@ const INVARIANTS = [
          * Since E23 fix G3 (the end review's screens m2): under Monokuma Legacy the meta's lines inherited the card's
          * leading, and at 1366x768 the four lines of an incident's meta ran into each other, the ogonek of "DRUGĄ" lost in
          * the next line (the review's ev-l.png): its `line-height` is read, 1.25 or more. Red on ce3a821f: none stated.
+         * E49 A6 (11.11.2026; the owner's 10.11, a screenshot of an incident's card: "wysokość z treści, bez pustego pasa
+         * pod ostatnią linią"): the height token is the cap (`max-height`) and the height `auto`, so a short card leaves no
+         * band under its last line; `drpgEventCheck` holds the band to 8 px in Chromium. Red on 17bf6763: the height the
+         * token, no cap.
          */
         const C = await styleCascade();
         const value = (el, names, pseudo = null) => C.winner(el, [names].flat(), pseudo)?.value?.replace(/\s+/g, " ") ?? null;
@@ -37952,7 +37956,7 @@ const INVARIANTS = [
             const shadow = [value(meta, "box-shadow"), value(dueMeta, ["animation", "animation-name"])].filter(v => v && /seam-glow|^0 0 0 1px/.test(v));
             const read = {
                 tokens: [LENGTH.test(w ?? "") ? "length" : w, LENGTH.test(h ?? "") ? "length" : h],
-                width: value(box, "width"), height: value(box, "height"), scrolls: value(box, ["overflow-y", "overflow"]),
+                width: value(box, "width"), height: value(box, "height"), cap: value(box, "max-height"), scrolls: value(box, ["overflow-y", "overflow"]),
                 panelFlex: value(box, "flex"), cardFlex: value(one, "flex"), metaFrame: [...border, ...shadow]
             };
             if (theme === "drpg-theme-monokuma-legacy") {
@@ -37968,7 +37972,7 @@ const INVARIANTS = [
             return read;
         };
         const want = (stacked, theme) => ({
-            tokens: ["length", "length"], width: stacked ? "auto" : "var(--drpg-events-w)", height: "var(--drpg-events-h)", scrolls: "auto",
+            tokens: ["length", "length"], width: stacked ? "auto" : "var(--drpg-events-w)", height: "auto", cap: "var(--drpg-events-h)", scrolls: "auto",
             panelFlex: "0 0 auto", cardFlex: "1 0 auto", metaFrame: [],
             ...(theme === "drpg-theme-monokuma-legacy" ? { metaLeading: "1.25 or more" } : {}),
             ...(theme === "drpg-theme-stained-glass" ? { ticker: stacked ? "none" : ["the card's top", "the glyph's height"] } : {})
@@ -37976,7 +37980,7 @@ const INVARIANTS = [
         const LAYOUTS = [["drpg-theme-monokuma-legacy", false], ["drpg-theme-stained-glass", false], ["drpg-theme-stained-glass", true]];
         equal(stableJson(LAYOUTS.map(([t, s]) => layout(t, s))), stableJson(LAYOUTS.map(([t, s]) => want(s, t))),
             "[Monokuma Legacy's desk, the glass's desk, the glass's stack]: {tokens: the width's and the height's (a length each), the panel's width, "
-            + "height, overflow and flex, a card's flex, a meta's frame or box (none), Legacy's meta line-height, the ticker's top and height against the card's padding and the glyph's (desk) or its display (stack)}");
+            + "height, max-height, overflow and flex, a card's flex, a meta's frame or box (none), Legacy's meta line-height, the ticker's top and height against the card's padding and the glyph's (desk) or its display (stack)}");
 
         const src = stripComments((await moduleSources()).get("events.mjs") ?? "");
         const incident = fnSource(src, "incidentCard");

@@ -813,7 +813,8 @@ function startTrialClock() {
 
 /**
  * WHETHER THE PANEL HOLDS MORE THAN ITS BOX, READ WHENEVER EITHER CHANGES (E23 fix G3, 08.11.2026; the end review's
- * correctness m2). The box is one size a layout and theme (the stylesheets' `--drpg-events-h`, C3b), the panel takes
+ * correctness m2). The box's cap is one size a layout and theme (the stylesheets' `--drpg-events-h`, C3b; under it the
+ * panel is as tall as its cards since E49 A6), the panel takes
  * no clicks, and `data-drpg-scrolls` gives it the wheel while what it holds is taller than the box. Read once a redraw
  * until this fix - once a change of what the cards say - so a theme switch (whose render finds the same cards), a desk
  * turned into a stack and the scale slider (no render at all) left a panel that came to overflow its new box without
@@ -867,7 +868,8 @@ export function renderEvents() {
         if (!host) return;
         existing?.remove();
         if (rail) rail.after(panel); else host.append(panel);
-        /* The box is one size whatever it holds (E23 C3b; the stylesheets' `--drpg-events-h`), so what is taller than it
+        /* The box has one cap whatever it holds (E23 C3b; the stylesheets' `--drpg-events-h`, a `max-height` since E49
+           A6, under which the panel is as tall as its cards), so what is taller than it
            scrolls inside it, and a panel that takes no clicks cannot be scrolled: it takes the wheel only while it
            holds more than its box. Read now, on a render of the same cards, and whenever the panel or a card changes
            size (`watchEventsBox`, above). */

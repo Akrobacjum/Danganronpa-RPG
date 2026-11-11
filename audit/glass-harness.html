@@ -2176,22 +2176,26 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
   };
 </script>
 <script id="drpg-event-check">
-  /* drpgEventCheck (E23 C3b, 07.11.2026; E23-18, the owner's 04.10 "the events panel has a fixed size whatever the event
-     and phase, always a similar layout, everything fits", S10-35, S12-30): the Event panel laid out in Chromium with the
-     module's own card (events.mjs `cardElement`, imported here with Foundry's globals lent while it loads, as
-     drpgTrayRows lends them for projects-tray.mjs) for three cards built from the longest texts of lang/en.json and
-     lang/pl.json, each key's longer one: an incident (the trap's or the fight's title, the room's line with three long
+  /* drpgEventCheck (E23 C3b, 07.11.2026; E23-18, S10-35, S12-30; E49 A6, 11.11.2026): the Event panel laid out in
+     Chromium with the module's own card (events.mjs `cardElement`, imported here with Foundry's globals lent while it
+     loads, as drpgTrayRows lends them for projects-tray.mjs) for three cards built from the longest texts of lang/en.json
+     and lang/pl.json, each key's longer one: an incident (the trap's or the fight's title, the room's line with three long
      names, the meta's two parts - whose turn and the victim's marks), a trial (the longest mode, a speaker, "Next:" or
      the floor's line, the GM's note and the debate's clock: E70's speaker and "GM: +30 s") and a safeword (the GM's
-     meta or the table's). The panel is put where events.mjs `renderEvents` puts it (after `#drpg-despair`), with each
-     card alone and then all three, the glass recut, and read: the panel's box (`offsetWidth` x `offsetHeight`, its own
-     frame: the turn the pane gives it does not count), which must be the same for the four within 1 px; nothing cut -
-     no text wider than its line (`scrollWidth`), no card clipping its own content, and a panel whose content is taller
-     than it scrolls (`overflow-y` auto or scroll); the incident's meta two lines; and the ticker never under words: its
-     band (offsetTop, offsetHeight in the card) meets no title, sub, clock, meta or note by more than 1 px, and on a
-     stacked screen it is not drawn. `plant` is the sweep's control: "grow" lets the panel's height follow its content
-     again (the base sheet's road before this commit), and must read a box that changes; "ticker" puts the ticker back
-     at the card's middle, and must read it under words. Everything added is taken away before it answers.
+     meta or the table's); and, since E49 A6, the owner's own incident of 10.11 (owner-1011/event-panel.png: "Face to
+     face", two short names and a room, the tracker's line and the victim's reserves as a GM reads them) in English and in
+     Polish, each in its own language. The panel is put where events.mjs `renderEvents` puts it (after `#drpg-despair`),
+     with each card alone and then three together, the glass recut, and read: the panel's box (`offsetWidth` x
+     `offsetHeight`, its own frame: the turn the pane gives it does not count) and its cap (the computed `max-height`).
+     HEIGHT FROM WHAT IT SAYS (E49 A6; the owner's 10.11, amend [14](1): "za dużo pustego miejsca na dole - wysokość z
+     treści, bez pustego pasa pod ostatnią linią"), which replaces E23 C3b's one box for every card (the owner's 04.10): a
+     panel whose cards fit leaves at most 8 px between the bottom of its last line of text and its own bottom edge (the
+     band), and is never taller than its cap; one whose cards do not fit is its cap tall and scrolls (`overflow-y` auto or
+     scroll). Nothing cut - no text wider than its line (`scrollWidth`), no card clipping its own content; the incident's
+     meta two lines; and the ticker never under words: its band (offsetTop, offsetHeight in the card) meets no title,
+     sub, clock, meta or note by more than 1 px, and on a stacked screen it is not drawn. `plant` is the sweep's control:
+     "fixed" holds the panel at its cap again (E23 C3b's road before E49 A6), and must read a band; "ticker" puts the
+     ticker back at the card's middle, and must read it under words. Everything added is taken away before it answers.
      Answers { ok, why, boxes, read }. */
   window.drpgEventCheck = async ({ plant = null } = {}) => {
     const out = { ok: false, why: [], boxes: {}, read: {} };
@@ -2222,7 +2226,7 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     const CARDS = {
       incident: { kind: "incident", mine: true, title: longest(["DRPG.Events.incidentTitle", "DRPG.Events.incidentTitleDirect"]),
         sub: longest(["DRPG.Events.incidentSubRoom"], NAMES),
-        meta: [longest(["DRPG.Murder.yourTurn", "DRPG.Murder.theirTurn"]), longest(["DRPG.Murder.victimMarks"], { hp: 10, stress: 10 })] },
+        meta: [longest(["DRPG.Murder.yourTurn", "DRPG.Murder.theirTurn"]), longest(["DRPG.Events.reserveYou", "DRPG.Events.reserveVictim", "DRPG.Events.reserveOf"], { hp: 10, hpMax: 10, sanity: 10, sanityMax: 10, name: NAMES.victim })] },
       trial: { kind: "trial", title: longest(MODES), sub: NAMES.who, clock: true,
         meta: longest(["DRPG.Events.trialNext", "DRPG.Events.trialLastTurn", "DRPG.Events.trialObjectionFloor", "DRPG.Hud.trialVersus",
           "DRPG.Events.trialDebateMeta", "DRPG.Events.trialDiscussionMeta"], NAMES),
@@ -2230,18 +2234,26 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       safeword: { kind: "safeword", due: true, title: longest(["DRPG.Events.safewordTitle"]), sub: longest(["DRPG.Events.safewordSub"]),
         meta: longest(["DRPG.Events.safewordMeta", "DRPG.Events.safewordMetaGm"]) }
     };
+    /* the owner's incident (10.11), each language's own words: a GM's seat, turn 1, the victim to act, 4 of 4 and 6 of 6 */
+    const own = (l, key, data = {}) => fill(key.split(".").reduce((o, p) => o?.[p], langs[l === "pl" ? 1 : 0]) ?? key, data);
+    const SHORT = { killer: "Geon Pi", victim: "Jacobs", room: "Dorm" };
+    for (const l of ["en", "pl"]) CARDS[`short-${l}`] = { kind: "incident", title: own(l, "DRPG.Events.incidentTitleDirect"),
+      sub: own(l, "DRPG.Events.incidentSubRoom", SHORT),
+      meta: [own(l, "DRPG.Murder.trackerState", { stage: own(l, "DRPG.Murder.stage.incident"), turn: 1, side: own(l, "DRPG.Murder.side.victim") }),
+        own(l, "DRPG.Events.reserveVictim", { hp: 4, hpMax: 4, sanity: 6, sanityMax: 6 })] };
     out.read.texts = Object.fromEntries(Object.entries(CARDS).map(([k, c]) => [k, [c.title, c.sub, c.meta, c.note].flat().filter(Boolean).join(" | ")]));
     /* the ticker's word as lang/en.json says it: the page's own `localize` answers a key's last segment */
     const i18n = game.i18n, word = key => pick(key)[0] ?? key.split(".").pop();
     const style = document.createElement("style");
-    if (plant === "grow") style.textContent = "body #drpg-events { height: auto !important; min-height: 0 !important; max-height: none !important; }";
+    if (plant === "fixed") style.textContent = "body #drpg-events { height: var(--drpg-events-h) !important; }";
     if (plant === "ticker") style.textContent = "body .drpg-event-ticker { top: 50% !important; height: auto !important; transform: translateY(-50%) !important; }";
     document.head.append(style);
     const stacked = document.body.classList.contains("drpg-stacked");
     const TEXT = ".drpg-event-title, .drpg-event-sub, .drpg-event-clock, .drpg-event-meta, .drpg-event-meta-line, .drpg-event-note";
     let panel = null;
     try {
-      for (const [name, list] of [["incident", ["incident"]], ["trial", ["trial"]], ["safeword", ["safeword"]], ["all", ["safeword", "trial", "incident"]]]) {
+      for (const [name, list] of [["incident", ["incident"]], ["trial", ["trial"]], ["safeword", ["safeword"]], ["short-en", ["short-en"]],
+        ["short-pl", ["short-pl"]], ["all", ["safeword", "trial", "incident"]]]) {
         panel?.remove();
         panel = document.createElement("div");
         panel.id = "drpg-events";
@@ -2257,8 +2269,16 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
         await frame();
         for (const c of panel.querySelectorAll(".drpg-event-clock")) c.textContent = "2:37";
         const pcs = getComputedStyle(panel);
-        const box = { w: panel.offsetWidth, h: panel.offsetHeight, content: panel.scrollHeight, overflow: pcs.overflowY };
-        out.boxes[name] = `${box.w}x${box.h}`;
+        const box = { w: panel.offsetWidth, h: panel.offsetHeight, content: panel.scrollHeight, overflow: pcs.overflowY, cap: parseFloat(pcs.maxHeight) || null };
+        /* the band: the panel's inner bottom less the lowest bottom of a line of text in it, read while the cards fit */
+        const fits = panel.scrollHeight <= panel.clientHeight + 1;
+        const lows = [...panel.querySelectorAll(TEXT)].filter(e => e.getClientRects().length).map(e => e.getBoundingClientRect().bottom);
+        box.band = fits && lows.length ? Math.round((panel.getBoundingClientRect().bottom - (parseFloat(pcs.borderBottomWidth) || 0) - Math.max(...lows)) * 10) / 10 : null;
+        out.boxes[name] = `${box.w}x${box.h}${box.band === null ? " scrolls" : ` band ${box.band}`}`;
+        if (box.band !== null && box.band > 8) out.why.push(`${name}: ${box.band} px of empty band under the last line (8 at most)`);
+        if (box.cap === null) out.why.push(`${name}: the panel has no cap (max-height ${pcs.maxHeight})`);
+        else if (box.h > box.cap + 1) out.why.push(`${name}: the panel is ${box.h} px tall, past its cap of ${box.cap}`);
+        else if (!fits && Math.abs(box.h - box.cap) > 1) out.why.push(`${name}: its cards do not fit and the panel is ${box.h} px, not its cap of ${box.cap}`);
         const read = { box, cut: [], under: [], meta: null, ticker: [] };
         if (box.content > panel.clientHeight + 1 && !/auto|scroll/.test(box.overflow)) out.why.push(`${name}: the panel's content is ${box.content} px in a box of ${panel.clientHeight} that does not scroll`);
         for (const card of panel.querySelectorAll(".drpg-event")) {
@@ -2290,9 +2310,6 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
         if (read.under.length) out.why.push(`${name}: the ticker runs under ${read.under.join(", ")}`);
         out.read[name] = read;
       }
-      const sizes = new Set(Object.values(out.boxes));
-      const [w, h] = Object.values(out.boxes).map(b => b.split("x").map(Number)).reduce(([w0, h0], [w1, h1]) => [Math.max(w0, Math.abs(w1 - (out.read.incident?.box.w ?? w1))), Math.max(h0, Math.abs(h1 - (out.read.incident?.box.h ?? h1)))], [0, 0]);
-      if (sizes.size > 1 && (w > 1 || h > 1)) out.why.push(`the panel's box changes with its cards: ${JSON.stringify(out.boxes)}`);
     } finally {
       panel?.remove();
       style.remove();
