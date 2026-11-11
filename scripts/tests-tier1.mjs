@@ -45882,6 +45882,36 @@ const INVARIANTS = [
         J([true, false, false, false, true]),
             "[a lead's move held, another token's held, a lead at rest, no token, the signatures gated] - a deletion during a held move swallows its arrival");
     }],
+    ["R3434 - whatIsHere reads the outline's line and the doorway's glow by name (E49 B4; S07-41): fog-diagnostics.mjs `nearestOutline` measures the line, not the seam's light drawn before it, and `glowAlphaAt` reads the child named for the doorway glow, not the light's baked picture, at the texture's resolution", async () => {
+        /*
+         * E49 B4 (11.11.2026; audit S07-41). Under Stained Glass the outline's group holds the seam's light (a Graphics
+         * four to seven times wider) and its baked picture (a Sprite) before the glow and the line: the first Graphics with
+         * geometry was the light and the first child with a texture its picture. A stand-in group in that order, with a
+         * renderer of the test's own whose texture is held at resolution 2. Red at d8fa9304: neither function is exported.
+         */
+        const FD = await import("./fog-diagnostics.mjs");
+        const { GLOW_NAME } = await import("./fog-doorways.mjs");
+        const { HALO_NAMES } = await import("./fog-reveal.mjs");
+        const J = stableJson;
+        ok(typeof FD.nearestOutline === "function" && typeof FD.glowAlphaAt === "function", "fog-diagnostics.mjs does not export the two readers - whatIsHere's outline is read by position");
+        if (typeof FD.nearestOutline !== "function" || typeof FD.glowAlphaAt !== "function") return;
+        const line = width => ({ geometry: { graphicsData: [{ shape: { points: [0, 0, 100, 0, 100, 100] }, lineStyle: { width } }] } });
+        const texture = (w, h, resolution) => ({ width: w, height: h, baseTexture: { resolution } });
+        const glowTex = texture(4, 4, 2), bakedTex = texture(4, 4, 1);
+        const group = { x: 0, y: 0, children: [{ name: HALO_NAMES.outlineLive[0], ...line(26) }, { name: HALO_NAMES.outlineBaked[0], x: 0, y: 0, texture: bakedTex },
+            { name: GLOW_NAME, x: 0, y: 0, texture: glowTex }, { name: null, ...line(2) }] };
+        const renderer = { extract: { pixels: tex => {
+            const across = Math.round(tex.width * tex.baseTexture.resolution), down = Math.round(tex.height * tex.baseTexture.resolution);
+            const px = new Uint8Array(across * down * 4);
+            if (tex === glowTex) px[(6 * across + 2) * 4 + 3] = 255;
+            return px;
+        } } };
+        const report = { found: [] };
+        FD.nearestOutline(group, { x: 50, y: 0.5 }, report, null);
+        FD.glowAlphaAt(group, { x: 1, y: 3 }, report, renderer);
+        equal(J([report.outline?.strokeWidth ?? null, report.outline?.covers ?? null, report.glow?.alpha ?? null]), J([2, true, 1]),
+            "[the stroke width measured, whether it covers the point, the glow's alpha there] - whatIsHere measures the halo as the line, or reads the glow off the light's picture or at the wrong pixel");
+    }],
 ];
 
 /**
