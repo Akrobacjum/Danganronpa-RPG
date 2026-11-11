@@ -1810,6 +1810,12 @@ body.drpg-theme-stained-glass .drpg-voice-mic.is-held {
     filter: grayscale(1);
 }
 
+/* THE GM'S LOCK IS ITS DRAWING ALONE under the glass (E48, the owner's "Ok" of 11.11.2026; R3511): the mic-lock glyph
+   (pixel-icons.css, R3460) already says the GM locked it, and the blocked stroke the mini launcher draws on its
+   `::after` for every blocked state crossed that drawing - crossed and locked at once. Muted and held keep the stroke;
+   Monokuma Legacy keeps it on the GM's lock (its mic and lock badge are two marks). */
+body.drpg-theme-stained-glass .drpg-voice-mic.is-gm-blocked::after { content: none; }
+
 body.drpg-theme-stained-glass .drpg-voice-mic.is-held::before { border-color: var(--drpg-line-strong); }
 
 /* OBJECTION! held on the tile (E70 C11): the held microphone's grey rim, no strike. */
