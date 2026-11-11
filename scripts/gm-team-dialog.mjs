@@ -25,6 +25,7 @@ import {
 } from "./despair.mjs";
 import { isMonokuma, setMonokuma, poolFor, setPools, studentCensus } from "./monokuma.mjs";
 import { students, assignments, monokumaFor, setAssignments, autoAssign, NO_MONOKUMA } from "./assignments.mjs";
+import { MODULE_ID } from "./config.mjs";
 import { dialogContent, error } from "./utils.mjs";
 import { kitTabs, wireKitTabs, drpgWindow, drpgConfirm, dataTable, box } from "./ui-kit.mjs";
 import { setOverflowRules, overflowSection, overflowNowLine, readOverflowForm, overflowStatus, clearOverflowAsGm, overflowSuggestionLine } from "./overflow.mjs";
@@ -394,6 +395,23 @@ export async function openGmTeamDialog({ draft = null } = {}) {
  * MARKUP
  * ========================================================================== */
 
+/*
+ * FOUNDRY'S DEFAULT PORTRAIT IS NOT THE PICTURE (E105 FT-13, the owner's 11.11.2026 "pozbyc sie [...] miejsc gdzie
+ * przebija sie grafika [...] z foundry"). An actor nobody gave a picture wears core's mystery man
+ * (`CONST.DEFAULT_TOKEN`, icons/svg/mystery-man.svg), and the Monokumas tab drew it at the head of every such row: the
+ * survey read five of five rows of the harness's world wearing it (despair-flow--monokumas, 54493dbf). The row now
+ * draws the module's own unset portrait, icons/portrait-none.svg - a 12 x 12 bust in the item drawings' manner
+ * (config.mjs `itemIcon`: a 16 x 16 view, crispEdges, ink #1a1620 on Bone #e8e3ec), the same in both themes as the
+ * item drawings are. Only the row's picture: the actor's `img` is not read for anything else here and is not
+ * written, and a picture somebody chose - anything that is not core's default - is drawn as it is.
+ */
+const UNSET_PORTRAIT = `modules/${MODULE_ID}/icons/portrait-none.svg`;
+const CORE_PORTRAITS = new Set(["icons/svg/mystery-man.svg"]);
+function shownPortrait(img) {
+    const core = globalThis.CONST?.DEFAULT_TOKEN;
+    return !img || CORE_PORTRAITS.has(img) || (core && img === core) ? UNSET_PORTRAIT : img;
+}
+
 function buildContent(actors, gms, roster, candidates, removable) {
     const L = key => game.i18n.localize(key);
 
@@ -449,7 +467,7 @@ function buildContent(actors, gms, roster, candidates, removable) {
             return {
                 actorId: actor.id,
                 marked,
-                who: `<img src="${foundry.utils.escapeHTML(actor.img ?? "")}" alt="" class="drpg-monokuma-portrait" />${foundry.utils.escapeHTML(actor.name)}`,
+                who: `<img src="${foundry.utils.escapeHTML(shownPortrait(actor.img))}" alt="" class="drpg-monokuma-portrait" />${foundry.utils.escapeHTML(actor.name)}`,
                 mark: `<input type="checkbox" name="mk.${actor.id}" data-drpg-mk ${marked ? "checked" : ""}
                        aria-label="${foundry.utils.escapeHTML(`${L("DRPG.Monokuma.isMonokuma")}: ${actor.name}`)}" />`,
                 pool: `<span class="drpg-cell-none" data-drpg-pool-none${marked ? " hidden" : ""}>-</span>
