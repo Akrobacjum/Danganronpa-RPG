@@ -3387,6 +3387,73 @@ const INVARIANTS = [
         equal(control, false, "the Search tile's icon given --drpg-pix-observe inline matches its record (the control)");
     }],
 
+    ["R3460 - the GM's manual mic lock wears its own drawing under Stained Glass: the voice tile's mic, locked by the GM (`is-gm-blocked`), reads --drpg-pix-mic-lock and hides the separate lock badge the drawing already holds; unlocked it reads --drpg-pix-mic; under Monokuma Legacy the mic and its badge are as they were (option A) (E48 mic-lock; F5, the owner 11.11)", async () => {
+        /*
+         * E48 mic-lock, 11.11.2026 (batch 5's drawing, approved "Tak"; QUESTIONS batch 3 (a): the GM's mic lock gets its
+         * own glyph, a mic with a lock, not the general lock). The mic is built as voice-tile.mjs builds it - ui-kit.mjs's
+         * mini `launcher` with the `mic` glyph, the `lock` glyph as `.drpg-voice-mic-lock` after it - and drawn in each of
+         * `launcherState`'s states that matter here: the GM's lock (`gmBlock`) and none. Read with tests-glyphs.mjs
+         * `glyphReading` (the mask's token) and the badge's computed display. Headless, jsdom expands no `mask` shorthand,
+         * so `.drpg-pxi`'s own mask reads as nothing there and the glyph is named by the `--drpg-glyph` slot it carries
+         * inline; the glass rule's longhand `mask-image` reads as itself. THE CONTROL: the same mic under Legacy, locked, reads --drpg-pix-mic with its badge shown -
+         * the reading is of the theme's rule, not of a mic that reads mic-lock whatever the theme.
+         */
+        needs(env.tools(), "the glyph's name is read against tools/glyphs.json (an installed module's zip leaves tools/ out)");
+        const G = await import("./tests-glyphs.mjs");
+        const { launcher, launcherState, pixelGlyph } = await import("./ui-kit.mjs");
+        const glyphs = G.parseGlyphs(await fetch(`/modules/${MODULE_ID}/tools/glyphs.json`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""))).glyphs;
+        must(glyphs.length >= 400, `${glyphs.length} glyph row(s) read`);
+        equal(glyphs.some(g => g.family === "glass" && g.name === "mic-lock" && g.grid === 24), true, "a glass row named mic-lock on the 24 grid (batch 5)");
+        const body = document.body, CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], classWas = CLASSES.map(n => body.classList.contains(n));
+        const host = document.createElement("div");
+        host.className = "drpg-voice-tile";
+        host.setAttribute("aria-hidden", "true");
+        host.style.cssText = "position: absolute; left: -10000px; top: 0;";
+        const mic = launcher({ mini: true, className: "drpg-voice-mic", glyph: "mic", label: "mic" });
+        const lock = pixelGlyph("lock");
+        lock.classList.add("drpg-voice-mic-lock");
+        mic.append(lock);
+        host.append(mic);
+        const seen = {};
+        try {
+            body.append(host);
+            for (const [theme, cls] of [["glass", CLASSES[0]], ["legacy", CLASSES[1]]]) {
+                body.classList.add(cls);
+                body.classList.remove(CLASSES.find(n => n !== cls));
+                const tokens = G.glyphTokens(body, window, glyphs);
+                const named = el => {
+                    const got = G.glyphReading(el, window, tokens);
+                    if (!got.startsWith("fa:")) return got;
+                    const slot = getComputedStyle(el).getPropertyValue("--drpg-glyph").trim();
+                    const token = /^var\(\s*(--drpg-[a-z0-9-]+)\s*\)$/.exec(slot)?.[1];
+                    if (token) return token;
+                    /* jsdom resolves the slot to the drawing's url at times, its spaces and quotes escaped: named by the
+                       body's custom properties that hold the same url (`glyphTokens`), escapes aside. */
+                    const bare = v => v.replace(/[\s\\]+/g, "");
+                    const hit = [...tokens].find(([url]) => bare(url) === bare(slot));
+                    return hit ? hit[1].join("|") : got;
+                };
+                for (const state of ["gmBlock", "none"]) {
+                    launcherState(mic, state);
+                    const s = getComputedStyle(mic.firstElementChild);
+                    seen[`${theme}.${state}`] = [named(mic.firstElementChild), getComputedStyle(lock).display, `(mask-image "${s.getPropertyValue("mask-image").trim().slice(0, 60)}")`];
+                }
+            }
+        } finally {
+            host.remove();
+            CLASSES.forEach((n, i) => body.classList.toggle(n, classWas[i]));
+        }
+        const at = key => (seen[key] ?? []).join(" ");
+        ok(G.readingMatches("--drpg-pix-mic-lock", seen["glass.gmBlock"]?.[0]) && seen["glass.gmBlock"]?.[1] === "none",
+            `Stained Glass, the GM's lock: the mic reads [glyph, badge display] ${at("glass.gmBlock")}, not --drpg-pix-mic-lock none`);
+        ok(G.readingMatches("--drpg-pix-mic", seen["glass.none"]?.[0]) && seen["glass.none"]?.[1] === "none",
+            `Stained Glass, unlocked: ${at("glass.none")}, not --drpg-pix-mic none`);
+        ok(G.readingMatches("--drpg-pix-mic", seen["legacy.gmBlock"]?.[0]) && seen["legacy.gmBlock"]?.[1] === "inline-block",
+            `Monokuma Legacy, the GM's lock (the control): ${at("legacy.gmBlock")}, not --drpg-pix-mic inline-block`);
+        ok(G.readingMatches("--drpg-pix-mic", seen["legacy.none"]?.[0]) && seen["legacy.none"]?.[1] === "none",
+            `Monokuma Legacy, unlocked: ${at("legacy.none")}, not --drpg-pix-mic none`);
+    }],
+
     ["R548 - Foundry tools wears the module's pixel anvil in both themes: its one child is an inert, classless i masked with --drpg-pix-anvil in the colour the handbooks' book is drawn in, and no Foundry logo is on the page or in the module's stylesheets", async () => {
         /*
          * E78 fix h76-HF3, 14.10.2026; the owner at The Forge on 1.2.76 (13.10): the corner's Foundry tools button wore
@@ -35419,14 +35486,18 @@ const INVARIANTS = [
            Foundry tools' six since E48 G4 (11.11.2026): its face's mask names the anvil by the one prefix now
            (`--drpg-pix-anvil`, the same drawing, legacy:anvil same px:anvil), and a print hashes the winning value's text -
            Legacy 1:d635e754 -> 1:742fc6be, Stained Glass 1:83b739cf -> 1:9978c959 at each place, re-measured headless;
-           every other print, `left` and the @media rules as they were. */
+           every other print, `left` and the @media rules as they were.
+           The voice tile's curtain print under Stained Glass since E48 mic-lock (11.11.2026): the mic drawn in the GM's
+           lock (the place that reads its four states) wears batch 5's mic-lock, pixel-icons.css's glass rule winning its
+           mask-image, and the lock badge's display is won by the rule that stands it down - 2:7c097704 -> 2:1b6f197e,
+           re-measured headless; Legacy's, the desk's and the stacked screen's, `left` and the @media rules as they were. */
         const C5 = {
             "curtain|monokuma-legacy|foundry-tools": "1:742fc6be", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:999f5b79",
             "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:cf9e2a77", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
             "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:7268133b", "curtain|stained-glass|foundry-tools": "1:9978c959",
             "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:ae4eb686", "curtain|stained-glass|room-art": "1:b38f7ef7",
             "curtain|stained-glass|room-tile": "1:7a2b083d", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
-            "curtain|stained-glass|voice-tile": "2:7c097704", "desk|monokuma-legacy|foundry-tools": "1:742fc6be", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
+            "curtain|stained-glass|voice-tile": "2:1b6f197e", "desk|monokuma-legacy|foundry-tools": "1:742fc6be", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
             "desk|monokuma-legacy|gm-launcher": "1:999f5b79", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:3a251bf8",
             "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:cfb69a33",
             "desk|stained-glass|foundry-tools": "1:9978c959", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:ae4eb686",
