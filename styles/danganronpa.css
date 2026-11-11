@@ -2828,7 +2828,8 @@ body.drpg-pixel-font .drpg-call-button .drpg-action-cost {
 /* A FACT FOR ONE ROW (E21 C5b, 06.11.2026; audit S02-07): a briefing line bound to a menu row (`data-drpg-when`,
    action-briefing.mjs `briefingBlock`) stands only while that row is picked - Analyze's hint, stash and passage
    numbers, Tamper's erase ladder and its trail's. The menu's radios are in the same body as the briefing above them,
-   so the rule asks the body, as the request box's rule asks its list. "All thresholds" holds the rest, closed. */
+   so the rule asks the body, as the request box's rule asks its list. (E49 A8.1: such a line is a layer of Details'
+   stack now, action-menus.mjs `detailsStack`; these rules read no line the module draws, and A8.2 takes them out.) */
 .drpg-briefing-facts > li[data-drpg-when] {
     display: none;
 }
@@ -2840,10 +2841,6 @@ body.drpg-pixel-font .drpg-call-button .drpg-action-cost {
 :is(.drpg-kit-body, .dialog-content):has(.drpg-choice-list input[value="cover"]:checked) .drpg-briefing-facts > li[data-drpg-when~="cover"],
 :is(.drpg-kit-body, .dialog-content):has(.drpg-choice-list input[value="frame"]:checked) .drpg-briefing-facts > li[data-drpg-when~="frame"] {
     display: list-item;
-}
-
-.drpg-briefing-all > summary {
-    cursor: pointer;
 }
 
 /* The lead - the sentence that says what this action IS. One step above the

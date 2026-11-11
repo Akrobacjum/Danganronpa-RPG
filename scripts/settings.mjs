@@ -149,6 +149,8 @@ export const SETTINGS = {
     pixelFont: "pixelFont",
     /** The create, edit and propose project windows at the kit's `wide` width on this browser (E47-C6; the owner's O4, 09.11.2026). */
     wideProjectWindows: "wideProjectWindows",
+    /** Whether an action window's Details stand open on this browser (E49 A8.1; the owner's answer 2 of 11.11.2026). */
+    actionDetailsOpen: "actionDetailsOpen",
     theme: "theme",
     /** This browser's language for the module's own strings - see i18n.mjs. */
     language: "language",
@@ -1416,6 +1418,17 @@ export function registerSettings() {
         type: Boolean,
         default: true,
         onChange: () => applyTheme()
+    });
+
+    /* DETAILS, OPEN OR SHUT (E49 A8.1, 11.11.2026; the owner's answer 2: "tak, jedno ustawienie dla gracza na tym
+       komputerze, wspólne dla wszystkich okien akcji; na start zamknięte"). One value for every action window, per
+       user and browser; written by the toggle (action-menus.mjs `wireDetails`), so not in Configure Settings and no
+       write to the server on a click. Read when a window is drawn, so no onChange. */
+    game.settings.register(MODULE_ID, SETTINGS.actionDetailsOpen, {
+        scope: "client",
+        config: false,
+        type: Boolean,
+        default: false
     });
 
     /* WIDE PROJECT WINDOWS (E47-C6, 09.11.2026; the owner's O4 of the E47-M mockup round, "Moze jako ustawienie w panelu

@@ -36776,11 +36776,12 @@ const INVARIANTS = [
         const read = {};
         const obs = box(briefingBlock(actor, "observe", ACTIONS.observe));
         const ladder = li => / · /.test(li.textContent);
-        const top = [...obs.querySelectorAll(".drpg-briefing-block > .drpg-briefing-facts > li")];
-        const all = obs.querySelector(".drpg-briefing-block > details.drpg-briefing-all");
-        read.observe = { shownLadders: top.filter(ladder).length, all: all ? [all.open, all.querySelectorAll("li").length, all.querySelector("summary")?.textContent.trim() === game.i18n.localize("DRPG.Kit.allThresholds")] : null };
+        // E49 A8.1: every fact in Details, Observe's four ladders under its sub-heading "Thresholds" (R3347 reads the rest).
+        const inBox = [...obs.querySelectorAll(".drpg-action-details-box li")];
+        const sub = obs.querySelector(".drpg-action-details-box > .drpg-action-details-sub");
+        read.observe = { ladders: inBox.filter(ladder).length, sub: sub?.textContent.trim() === game.i18n.localize("DRPG.Kit.thresholds"), details: obs.querySelectorAll("details").length };
         const ana = box(briefingBlock(actor, "analyze", ACTIONS.analyze));
-        read.analyze = [...ana.querySelectorAll(".drpg-briefing-facts > li[data-drpg-when]")].map(li => li.dataset.drpgWhen).sort();
+        read.analyze = [...ana.querySelectorAll(".drpg-details-layer[data-drpg-when] li")].map(li => li.closest(".drpg-details-layer").dataset.drpgWhen).sort();
         const tam = tamperThresholdFacts(actor, cleanup);
         read.tamper = { bound: tam.map(f => f?.when ?? "always"), conceal: tam.some(f => String(f?.text ?? f).includes(String(CLEANUP.conceal.threshold) + "+") && /cover|zamask/i.test(String(f?.text ?? f))) };
         const code = stripComments(actionText(await moduleSources()));
@@ -36809,13 +36810,13 @@ const INVARIANTS = [
         }));
         const yes = { shown: ["(the sheet's)", "list-item", "none"], size: true, ink: true };
         equal(JSON.stringify(read), JSON.stringify({
-            observe: { shownLadders: 1, all: [false, 3, true] },
+            observe: { ladders: 4, sub: true, details: 0 },
             // The hint row's second line, "The GM judges this one", since E22 fix G2 (Open 60's default A; R121).
             analyze: ["bullet", "hint", "hint", "passage", "stash"],
             tamper: { bound: ["cover", "frame"], conceal: false },
             request: true, atTop: true,
             paint: { "drpg-theme-stained-glass": yes, "drpg-theme-monokuma-legacy": yes }
-        }), "[Observe: the ladders shown, All thresholds (open, its lines, its word); Analyze's bound rows; Tamper's bound facts and a second watchers line; "
+        }), "[Observe: the ladders in Details, its sub-heading, a <details>; Analyze's bound rows; Tamper's bound facts and a second watchers line; "
             + "Observe's box with its two rows; the menu opens at its top; per theme: a plain fact, a bound one with its row picked and one with another row picked, the facts' size and ink]");
     }],
     ["R1600 - the briefing beside the list (E21 fix G2; E21-04, the end review's B1), and every action has it since E68 C12 (layout B of round M for every action window, the owner's 10.11.2026): Observe's menu does not turn `columns` off; action-menus.mjs `chooseVariant` puts the briefing beside the question in a window of a stated width (the popup measure lifted) - and the stylesheets lay the two side by side, stacking them when the window is narrower than both, and show a row's line of explanation while that row is picked (an unavailable row keeps its reason), in both themes", async () => {
@@ -36979,7 +36980,7 @@ const INVARIANTS = [
         const ana = document.createElement("div");
         ana.innerHTML = briefingBlock(livingStudents()[0], "analyze", ACTIONS.analyze);
         read.analyze = {
-            note: [...ana.querySelectorAll(".drpg-briefing-facts > li")].filter(li => li.textContent.includes(note)).map(li => li.dataset.drpgWhen ?? "every row"),
+            note: [...ana.querySelectorAll(".drpg-briefing-facts > li")].filter(li => li.textContent.includes(note)).map(li => li.closest(".drpg-details-layer")?.dataset.drpgWhen ?? "every row"),
             stash: /value: "stash", icon: "[\w-]+",(?![^}]*gmRoute)/.test(topLevelFunction(src("action-analyze.mjs"), "askWhatToAnalyze") ?? "")
         };
         // The sheet's tiles, by the flags their windows read.
@@ -39984,6 +39985,135 @@ const INVARIANTS = [
         equal(stableJson(readings), stableJson({ bar: each, pips: each }),
             "[the bar layout, the pip layout] x [another player's redacted sheet, the owner's, a GM's]: hope [its text, its slots, slots carrying data-value, glyphs]; "
             + "digits: a digit in Hope's row or Sanity's block (text or attribute; style and min aside); sanity: its row");
+    }],
+    ["R3348 - Details opens and shuts on a drawn action window and is remembered for the next one (action-menus.mjs `detailsHtml`, `wireDetails`; settings.mjs `actionDetailsOpen`; E49 A8.1, the owner's answers of 11.11: one client setting per player, shared by every action window, closed at first): the setting is a client one, not in Configure Settings, a Boolean, false by default; on a drawn Observe window the toggle's click flips `aria-expanded` and the box's `inert` and writes the setting, Enter on the focused toggle flips it back; the next window, a Search's, opens open", async () => {
+        /*
+         * E49 A8.1, 11.11.2026. Drawn on this client (`__dialogWindows`): `chooseVariant` with Observe's briefing, then with
+         * Search's, as their menus open them (two rows of the suite's own; nothing is rolled or sent). The setting is put
+         * back as this browser stored it (`clientStored`, `putBackStored`: E77 fix r2-H5). Red at 7b5b4da9: no toggle.
+         */
+        needs(env.dialogs(), "the windows are drawn and their toggle pressed");
+        needs(world.atLeast("livingStudents", 1), "a briefing is built for a living student");
+        const { chooseVariant } = await import("./action-menus.mjs");
+        const { briefingBlock } = await import("./action-briefing.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { clientStored, putBackStored } = await import("./tests-kit.mjs");
+        const actor = livingStudents()[0];
+        const KEY = "actionDetailsOpen";
+        const def = game.settings.settings.get(`${MODULE_ID}.${KEY}`);
+        const read = { setting: def ? [def.scope, def.config, def.type === Boolean, def.default] : null };
+        const drawn = title => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const state = el => {
+            const t = el?.querySelector(".drpg-action-details-toggle"), b = t && el.querySelector(`[id="${t.getAttribute("aria-controls")}"]`);
+            return t && b ? [t.getAttribute("aria-expanded"), b.hasAttribute("inert")] : null;
+        };
+        const stored = () => { try { return game.settings.get(MODULE_ID, KEY); } catch { return "unregistered"; } };
+        const asStored = clientStored();
+        const open = (title, action) => chooseVariant({ actor, title, intro: briefingBlock(actor, action, ACTIONS[action]),
+            options: [{ value: "r3348a", label: "R3348 a", hint: "a" }, { value: "r3348b", label: "R3348 b", hint: "b" }] }).catch(err => `threw ${err?.message ?? err}`);
+        try {
+            if (def) await game.settings.set(MODULE_ID, KEY, false);
+            const first = open("R3348 Observe", "observe");
+            read.drawn = await until(() => Boolean(drawn("R3348 Observe")), 6000);
+            const el = drawn("R3348 Observe")?.element;
+            read.shut = state(el);
+            const toggle = el?.querySelector(".drpg-action-details-toggle");
+            toggle?.click();
+            read.clicked = state(el);
+            read.wrote = await until(() => stored() === true, 3000);
+            toggle?.focus();
+            toggle?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+            read.enter = [document.activeElement === toggle, ...(state(el) ?? [])];
+            read.wroteBack = await until(() => stored() === false, 3000);
+            toggle?.click();
+            await until(() => stored() === true, 3000);
+            if (drawn("R3348 Observe")) await drawn("R3348 Observe").close();
+            await first;
+            const second = open("R3348 Search", "search");
+            await until(() => Boolean(drawn("R3348 Search")), 6000);
+            read.next = state(drawn("R3348 Search")?.element);
+            if (drawn("R3348 Search")) await drawn("R3348 Search").close();
+            await second;
+        } finally {
+            for (const title of ["R3348 Observe", "R3348 Search"]) if (drawn(title)) await drawn(title).close();
+            putBackStored(asStored);
+            await settle();
+        }
+        equal(JSON.stringify(read), JSON.stringify({ setting: ["client", false, true, false], drawn: true, shut: ["false", true], clicked: ["true", false],
+            wrote: true, enter: [true, "false", true], wroteBack: true, next: ["true", false] }),
+            "[the setting's scope, menu, type and default; the Observe window drawn; its toggle and box shut; after a click; the setting written; Enter on the focused toggle; "
+            + "the setting written back; the next window, a Search's, after the toggle was left open]");
+    }],
+    ["R3349 - each action window draws exactly one Details, and what follows the picked row is stacked, never hidden (action-menus.mjs `chooseVariant`, `syncDetails`; action-murder.mjs `crisisDetails`; E49 A8.1; the rule of 10.11: a state changes look, never layout): each briefing of R3200's list drawn in its window holds one toggle and one box, in the left column; a line bound to a row stands in a layer of one stack (`drpg-details-stack`), and at every pick the picked row's layers are lit and the others `drpg-unpicked`, none `hidden` or `display: none`; the crisis menu's rows' facts in its Details by row and the picked row's whole hint stacked in the left column alike", async () => {
+        /*
+         * E49 A8.1, 11.11.2026. Drawn on this client: `chooseVariant` with each action's briefing (rows named after the
+         * values its bound lines carry, and one more), Move's `briefing`, and a crisis menu built as `openCrisisMenu`
+         * builds it from CRISIS_ACTIONS' first rows (`crisisDetails`). Each row picked in turn (the radio's change, as a
+         * click sends it). Nothing is rolled or sent. Red at 7b5b4da9: no Details at all, and the crisis menu's details
+         * shut by `hidden`.
+         */
+        needs(env.dialogs(), "the windows are drawn and their rows picked");
+        needs(world.atLeast("livingStudents", 1), "a briefing is built for a living student");
+        const { chooseVariant } = await import("./action-menus.mjs");
+        const { briefingBlock, briefing } = await import("./action-briefing.mjs");
+        const murder = await import("./action-murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const actor = livingStudents()[0];
+        const drawn = title => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const shut = el => el.hidden || el.style.display === "none" || el.closest("[hidden]") !== null;
+        const read = {};
+        const look = async (title, run, values) => {
+            const pending = Promise.resolve().then(run).catch(err => `threw ${err?.message ?? err}`);
+            const out = { drawn: await until(() => Boolean(drawn(title)), 6000) };
+            const el = drawn(title)?.element;
+            if (el) {
+                out.one = [el.querySelectorAll(".drpg-action-details").length, el.querySelectorAll(".drpg-variant-brief .drpg-action-details-toggle").length];
+                const bad = [];
+                for (const value of values) {
+                    const input = el.querySelector(`.drpg-choice-list input[value="${value}"]`);
+                    if (!input) { bad.push(`no row ${value}`); continue; }
+                    input.checked = true;
+                    input.dispatchEvent(new Event("change", { bubbles: true }));
+                    for (const layer of el.querySelectorAll(".drpg-details-layer, .drpg-variant-details > .drpg-choice-details")) {
+                        const mine = (layer.dataset.drpgWhen ?? layer.dataset.drpgFor ?? "").split(/\s+/).includes(value);
+                        if (shut(layer)) bad.push(`${value}: ${layer.className} shut`);
+                        if (layer.classList.contains("drpg-unpicked") === mine) bad.push(`${value}: ${layer.dataset.drpgWhen ?? layer.dataset.drpgFor} ${mine ? "unlit" : "lit"}`);
+                        if (layer.classList.contains("drpg-details-layer") && !layer.parentElement?.classList.contains("drpg-details-stack")) bad.push(`${value}: a layer outside a stack`);
+                    }
+                }
+                out.bad = bad;
+                out.layers = el.querySelectorAll(".drpg-details-layer").length;
+                await drawn(title).close();
+            }
+            await pending;
+            return out;
+        };
+        try {
+            for (const key of ["observe", "search", "analyze", "tamper", "rest", "project", "dynamic", "palm", "listen", "sabotage", "directMurder"].filter(k => ACTIONS[k])) {
+                const intro = briefingBlock(actor, key, ACTIONS[key]);
+                const whens = [...new Set([...intro.matchAll(/data-drpg-when="([^"]+)"/g)].flatMap(m => m[1].split(" ")))];
+                const values = [...whens, "r3349"];
+                const r = await look(`R3349 ${key}`, () => chooseVariant({ actor, title: `R3349 ${key}`, intro,
+                    options: values.map(v => ({ value: v, label: `R3349 ${v}`, hint: v })) }), values);
+                read[key] = { ...r, layers: r.layers >= whens.length };
+            }
+            read.move = await look(ACTIONS.move?.label, () => briefing(actor, "move", ACTIONS.move), []);
+            const rows = Object.entries(CRISIS_ACTIONS).slice(0, 3);
+            const values = rows.map(([key]) => key);
+            const crisis = await look("R3349 crisis", () => chooseVariant({ actor, title: "R3349 crisis",
+                intro: `<div class="drpg-briefing-block"><p>R3349</p></div>`,
+                options: rows.map(([key, def]) => ({ value: key, label: def.label, hint: "R3349",
+                    details: murder.crisisDetails(def, { free: false, brokenDown: true, youPick: false, traits: def.traits ?? ["body", "mind"] }),
+                    facts: murder.crisisFacts(def, { free: false, brokenDown: true, youPick: false, traits: def.traits ?? ["body", "mind"] }) })) }), values);
+            read.crisis = { ...crisis, layers: crisis.layers > 0 };
+        } finally {
+            for (const app of [...foundry.applications.instances.values()]) if (String(app?.options?.window?.title ?? "").startsWith("R3349")) await app.close();
+            if (drawn(ACTIONS.move?.label)) await drawn(ACTIONS.move?.label).close();
+            await settle();
+        }
+        const yes = { drawn: true, one: [1, 1], bad: [], layers: true };
+        equal(JSON.stringify(read), JSON.stringify(Object.fromEntries(Object.keys(read).map(k => [k, k === "move" ? { drawn: true, one: [1, 1], bad: [], layers: 0 } : yes]))),
+            "[per window: drawn; Details and left-column toggles; at each pick the layers shut, unlit or lit wrongly, or outside a stack; the layers there]");
     }],
     ["R1497 - the reserve's field is the mode's (sheet.mjs `sheetMode(...).reserveField`, `paintReserves`; E24 fix G2B, general m1 and n3; E24-04): on stand-in roots of a living student, a Monocub, an NPC not in the class, the dead and a Monokuma, the field is drawn for a GM and for the owner with Lock player resources off, on a sheet its app says is editable, never on the dead's or a Monokuma's, never for another player; the mode answers what is drawn, and a repaint draws for the sheet it repaints; and a write that comes back with nothing to write leaves a field being typed into as it is", async () => {
         /*

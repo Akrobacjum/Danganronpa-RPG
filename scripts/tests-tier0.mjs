@@ -22311,6 +22311,58 @@ const REGRESSIONS = [
             + "line: [plural's words, the door to Students, the acting cast, counted by actions left]; columns: [Actions, Free Move, read from actions.mjs]; "
             + "end: [the part in Edit campaign, a warning box with a destructive button, the press goes to the question, the question destructive with Cancel writing nothing, the chapter's end after it]}");
     }],
+    ["R3347 - every fact line of an action's briefing stands in its one Details (action-briefing.mjs `briefingBlock`; action-menus.mjs `detailsHtml`; E49 A8.1, the owner's 11.11 on the action windows and his answers of the same day): for each action the block draws, every fact `<li>` is inside `.drpg-action-details-box` and none elsewhere; no \"All thresholds\" (`drpg-briefing-all`, `DRPG.Kit.allThresholds`) and no `<details>`; one toggle, a `button[type=button]` with `aria-expanded` and `aria-controls` naming the box, the box `role=region` labelled by the toggle and `inert` while shut; Observe's four ladders under the sub-heading \"Thresholds\" (`DRPG.Kit.thresholds`) inside the box; a line bound to a row in a stacked layer (`drpg-details-layer`), never `hidden`; Tamper's \"watched\" line outside Details (the owner's Q3)", async () => {
+        /*
+         * E49 A8.1, 11.11.2026. The owner: "All thresholds" opened as if it would grow the window, and it did (Observe
+         * +193 px under the glass at 1366x768, measured in Chromium on the captures: S/stages/E49/A8-details.md 1) - so
+         * every fact goes into one "Details" box under the lead. Read here: each action's briefing as `briefingBlock`
+         * builds it for the first student (pure HTML, nothing drawn), Tamper with its own facts and a watcher planted
+         * through the facts' `extraFacts`-free road (the watched line is `briefingFacts`'s, read off its source).
+         * Red at 7b5b4da9: the facts' <ul> stands in the block, Observe's ladders under a <details>.
+         */
+        const { briefingBlock, tamperThresholdFacts } = await import("./action-briefing.mjs");
+        const cleanup = await import("./cleanup.mjs");
+        const actor = studentActors()[0];
+        must(actor, "no student to build a briefing for");
+        const box = html => { const d = document.createElement("div"); d.innerHTML = html; return d; };
+        const keys = ["observe", "search", "analyze", "tamper", "rest", "project", "dynamic", "palm", "listen", "move", "sabotage", "directMurder"].filter(k => ACTIONS[k]);
+        const read = {};
+        for (const key of keys) {
+            const extraFacts = key === "tamper" ? tamperThresholdFacts(actor, cleanup) : [];
+            const d = box(briefingBlock(actor, key, ACTIONS[key], { extraFacts }));
+            const toggles = [...d.querySelectorAll("button.drpg-action-details-toggle")];
+            const boxes = [...d.querySelectorAll(".drpg-action-details-box")];
+            const t = toggles[0], b = boxes[0];
+            const lis = [...d.querySelectorAll("li")];
+            read[key] = {
+                one: toggles.length === 1 && boxes.length === 1,
+                outside: lis.filter(li => !li.closest(".drpg-action-details-box")).length,
+                inside: lis.length > 0,
+                all: d.querySelectorAll(".drpg-briefing-all, details").length,
+                aria: Boolean(t && b && t.type === "button" && ["true", "false"].includes(t.getAttribute("aria-expanded"))
+                    && t.getAttribute("aria-controls") === b.id && b.id && b.getAttribute("role") === "region"
+                    && b.getAttribute("aria-labelledby") === t.id && t.id
+                    && b.hasAttribute("inert") === (t.getAttribute("aria-expanded") === "false")),
+                hidden: b ? b.querySelectorAll("[hidden]").length : -1
+            };
+        }
+        const obs = box(briefingBlock(actor, "observe", ACTIONS.observe));
+        const sub = obs.querySelector(".drpg-action-details-box .drpg-action-details-sub");
+        read.observeSub = [sub?.textContent.trim() === game.i18n.localize("DRPG.Kit.thresholds"),
+            [...obs.querySelectorAll(".drpg-action-details-box li")].filter(li => / · /.test(li.textContent)).length];
+        const ana = box(briefingBlock(actor, "analyze", ACTIONS.analyze));
+        read.analyzeLayers = [...ana.querySelectorAll(".drpg-action-details-box .drpg-details-stack > .drpg-details-layer[data-drpg-when]")].map(l => l.dataset.drpgWhen).sort();
+        read.boundLi = ana.querySelectorAll("li[data-drpg-when]").length;
+        const code = stripComments(actionText(await moduleSources()));
+        const facts = fnSource(code, "briefingFacts") ?? "", block = fnSource(code, "briefingBlock") ?? "";
+        read.watched = [/DRPG\.Tamper\.watched[\s\S]{0,120}\btop\s*:\s*true/.test(facts), /drpg-briefing-watched/.test(block)];
+        read.lang = ["DRPG.Kit.details", "DRPG.Kit.thresholds"].map(k => game.i18n.localize(k) !== k).concat(game.i18n.localize("DRPG.Kit.allThresholds") === "DRPG.Kit.allThresholds");
+        const yes = { one: true, outside: 0, inside: true, all: 0, aria: true, hidden: 0 };
+        equal(JSON.stringify(read), JSON.stringify({ ...Object.fromEntries(keys.map(k => [k, yes])),
+            observeSub: [true, 4], analyzeLayers: ["bullet", "hint", "passage", "stash"], boundLi: 0, watched: [true, true], lang: [true, true, true] }),
+            "[per action: one toggle and one box, fact lines outside the box, any inside, All thresholds or <details>, the toggle's and box's ARIA, a hidden line in the box; "
+            + "Observe's sub-heading and its ladders in the box; Analyze's stacked layers; a bound <li>; Tamper's watched line kept on top; the keys]");
+    }],
 ];
 
 

@@ -35,7 +35,7 @@ import { projectsAvailableIn, isIndirectMurder } from "./projects.mjs";
 import { error, plural, esc } from "./utils.mjs";
 import { equippedFor, tierOf } from "./use-items.mjs";
 import { toolRelief } from "./action-pipeline.mjs";
-import { actionWindow } from "./action-menus.mjs";
+import { actionWindow, detailsHtml, detailsStack, factsList } from "./action-menus.mjs";
 
 /* ==========================================================================
  * BRIEFING
@@ -58,17 +58,19 @@ import { actionWindow } from "./action-menus.mjs";
  * no window of its own to fold into.
  */
 export function briefingBlock(actor, actionKey, def, { extraFacts = [] } = {}) {
-    /* A FACT IS A LINE, OR A LINE BOUND TO A ROW (E21 C5b, 06.11.2026; audit S02-07, S02-06). `{ text, when }` is drawn
-       with `data-drpg-when`: the stylesheet shows it while the menu's row of that value is picked (the rule beside
-       the request box's), so a menu says the thresholds of the option picked, not of all of them. `{ text, all }` goes
-       under "All thresholds", a closed <details> below the list: the ladders a player may look up and need not read
-       (Observe's Key, faint and daily-life ladders, the owner's Q-E21-2 default). A string is a line shown always. */
+    /* A FACT IS A LINE, OR A LINE BOUND TO A ROW (E21 C5b, 06.11.2026; audit S02-07, S02-06), AND EVERY ONE STANDS IN
+       DETAILS (E49 A8.1, 11.11.2026; the owner's of that day, action-menus.mjs `detailsHtml`). A string is a line;
+       `{ text, when }` a line of the row(s) `when` names, a layer of the box's stack (`detailsStack`: lit while that
+       row is picked, in its place otherwise); `{ text, sub }` a line under the box's sub-heading "Thresholds" (Observe's
+       four ladders; the owner's answer 6: "po prostu thresholds"), which replaced "All thresholds", a <details> that
+       grew the window when opened; `{ text, top }` a line that stays under the lead, outside Details (Tamper's
+       watchers, the owner's answer 3: it is what saves a player two Sanity). */
     const facts = briefingFacts(actor, actionKey, def, extraFacts).map(f => (typeof f === "string" ? { text: f } : f));
-    const li = f => {
-        const when = Array.isArray(f.when) ? f.when.join(" ") : f.when;
-        return `<li${when ? ` data-drpg-when="${esc(when)}"` : ""}>${f.text}</li>`;
-    };
-    const shown = facts.filter(f => !f.all), more = facts.filter(f => f.all);
+    const whenOf = f => (Array.isArray(f.when) ? f.when.join(" ") : f.when) || "";
+    const top = facts.filter(f => f.top), sub = facts.filter(f => f.sub && !f.top);
+    const inBox = facts.filter(f => !f.top && !f.sub), plain = inBox.filter(f => !whenOf(f)), bound = inBox.filter(f => whenOf(f));
+    const stack = detailsStack([...new Set(bound.map(whenOf))]
+        .map(when => ({ when, html: factsList(bound.filter(f => whenOf(f) === when).map(f => f.text)) })));
 
     const paragraphs = String(def.description ?? def.hint ?? "")
         .split(/\n\s*\n/)
@@ -81,13 +83,14 @@ export function briefingBlock(actor, actionKey, def, { extraFacts = [] } = {}) {
         ? `<p class="drpg-briefing-instruction">${foundry.utils.escapeHTML(def.instruction)}</p>`
         : "";
 
+    const thresholds = sub.length
+        ? `<p class="drpg-action-details-sub">${esc(game.i18n.localize("DRPG.Kit.thresholds"))}</p>${factsList(sub.map(f => f.text))}` : "";
+
     return `<div class="drpg-briefing-block">
         ${paragraphs}
         ${instruction}
-        <ul class="drpg-briefing-facts">${shown.map(li).join("")}</ul>
-        ${more.length ? `<details class="drpg-briefing-all"><summary>${game.i18n.localize("DRPG.Kit.allThresholds")}</summary>
-            <ul class="drpg-briefing-facts">${more.map(li).join("")}</ul></details>` : ""}
-    </div>`;
+        ${top.map(f => `<p class="drpg-briefing-watched">${f.text}</p>`).join("")}
+    </div>${detailsHtml(`${factsList(plain.map(f => f.text))}${stack}${thresholds}`)}`;
 }
 
 /**
@@ -192,7 +195,8 @@ function briefingFacts(actor, actionKey, def, extraFacts = []) {
         // twice, here and in its thresholds (`dcConceal`, gone from `tamperThresholdFacts`), in two verbs.
         const watching = witnessesTo(actor, othersInRoom(actor)).length;
         if (watching) {
-            facts.push(plural("DRPG.Tamper.watched", { n: watching, dc: CLEANUP.conceal.threshold }));
+            // On top, outside Details (E49 A8.1; the owner's answer 3 of 11.11: "na wierzchu").
+            facts.push({ text: plural("DRPG.Tamper.watched", { n: watching, dc: CLEANUP.conceal.threshold }), top: true });
         }
     }
 
@@ -232,7 +236,7 @@ function ladderRows(column) {
 /** The thresholds an action will be scored against, as the player stands now. */
 function thresholdFacts(actor, actionKey, def) {
     const facts = [];
-    // `bound`: `{ when }` (the row that shows the line) or `{ all: true }` (under "All thresholds"), see `briefingBlock`.
+    // `bound`: `{ when }` (the row that lights the line) or `{ sub: true }` (under Details' "Thresholds"), see `briefingBlock`.
     const f = (key, data, bound = null) => facts.push(bound ? { text: game.i18n.format(key, data), ...bound } : game.i18n.format(key, data));
     const mins = list => (list ?? []).map(t => t.min);
 
@@ -245,12 +249,13 @@ function thresholdFacts(actor, actionKey, def) {
         }
         case "observe": {
             const col = key => Object.fromEntries(REMNANT_VISIBILITY.map(v => [v, OBSERVE_DC[v]?.[key]]));
-            /* Observe's rows are ways of looking, not kinds of trace (Q-E21-2, its default): the crime's ladder shown,
-               the Key, faint and daily-life ladders under "All thresholds" (E21 C5b; audit S02-07: sixteen numbers). */
-            f("DRPG.Action.dcObserve", { rows: ladderRows(col("prep")) });
-            f("DRPG.Action.dcObserveKey", { rows: ladderRows(col("key")) }, { all: true });
-            f("DRPG.Action.dcObserveFaint", { rows: ladderRows(col("faint")) }, { all: true });
-            f("DRPG.Action.dcObserveDaily", { rows: ladderRows(col("dailyLife")) }, { all: true });
+            /* Observe's rows are ways of looking, not kinds of trace (Q-E21-2, its default): its four ladders, the
+               crime's first, under Details' "Thresholds" (E49 A8.1; E21 C5b had the crime's shown and the Key, faint
+               and daily-life ladders under "All thresholds"; audit S02-07: sixteen numbers). */
+            f("DRPG.Action.dcObserve", { rows: ladderRows(col("prep")) }, { sub: true });
+            f("DRPG.Action.dcObserveKey", { rows: ladderRows(col("key")) }, { sub: true });
+            f("DRPG.Action.dcObserveFaint", { rows: ladderRows(col("faint")) }, { sub: true });
+            f("DRPG.Action.dcObserveDaily", { rows: ladderRows(col("dailyLife")) }, { sub: true });
             break;
         }
         case "analyze": {
