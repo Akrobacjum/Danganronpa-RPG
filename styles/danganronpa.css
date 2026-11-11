@@ -12393,12 +12393,20 @@ body.drpg-theme-monokuma-legacy #countdowns .countdown-tools {
    than before, not louder. Which ink a table cell inherits in the dashboard was
    not measured: the harness draws no CSS, and a table at a real client is where
    to look (`.dialog-form .notes` already takes the dim ink outside a table). */
+/* BONE-DIM, NOT DIM, IN A ROW (E49 B6, 11.11.2026). The table's row lays a 0.04 Bone tint over the Ink, and
+   `--drpg-dim` on it read 4.28:1 at 11 px under Monokuma Legacy (style-sweep --selected, the investigation
+   window's trace row picked, Chromium at 1366x768): under AA. `--drpg-bone-dim` reads 5.2:1 on the same ground.
+   High contrast keeps its raise: that palette lifts `--drpg-dim`, not this, so it is named again there. */
 .drpg-trace-context {
     display: block;
     margin-top: 2px;
     font-size: var(--drpg-text-xs, 0.7rem);
-    color: var(--drpg-dim);
+    color: var(--drpg-bone-dim);
     overflow-wrap: anywhere;
+}
+
+body.drpg-high-contrast .drpg-trace-context {
+    color: var(--drpg-dim);
 }
 
 /* "Put a track on now", above the state-to-playlist table it does not belong

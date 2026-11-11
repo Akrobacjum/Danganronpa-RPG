@@ -10,7 +10,9 @@
  *   node audit/style-sweep.mjs --write    the whole baseline written from this run (a new baseline, read before it is committed)
  *   node audit/style-sweep.mjs --shots <dir>   also a screenshot of every page at each size and theme, into <dir>
  *   node audit/style-sweep.mjs --only rooms-bedrooms   one page (repeatable); the baseline's other pages are not read
- *   node audit/style-sweep.mjs --selected THE SELECTED ROW (E68 C12), below, instead of the style comparison
+ *   node audit/style-sweep.mjs --selected THE SELECTED ROW (E68 C12), below, instead of the style comparison; then THE
+ *                                         SELECTED ROW IN EVERY WINDOW (E49 B6): each captured window's first radio or
+ *                                         checkbox row picked and read, both themes
  *   node audit/style-sweep.mjs --details  DETAILS HOLD THEIR PLACE (E49 A8.2), below: every action window the same size
  *                                         with Details shut and open; `--every-pick` also at every row picked (A8.3)
  *   node audit/style-sweep.mjs --panel    THE PANEL'S TILES (E49 A3), below: rows one height, every state's label and icon read
@@ -460,10 +462,13 @@ async function selectedPass(browser) {
        brush filter): drawn, at full opacity, an opaque fill as light as 1.2.103's (relative luminance, read on c431138a's
        Observe with this pass: the first row's rgb(255, 211, 143) 0.7, the GM's-road row's accent brush 0.29; within
        0.05), over 90% of the row's height or more (c431138a 0.96, 4a027d8f 0.95: the glass row's padding went 6 to 4 px
-       in C12, and the brush with it). */
-    const BRUSH_1_2_103 = { general: 0.7, specific: 0.29 };
+       in C12, and the brush with it). E48 K1 (merged 18358978, 11.11.2026: gold for Hope alone) made the first row's
+       brush Bone, so its fill reads 0.86 where 1.2.103's gold read 0.7 - the pass red on d70d8569 with nothing else
+       wrong (E49 B6's red-first run); the GM's-road row's 0.29 is unchanged. The number is K1's now, the rule the same:
+       drawn, opaque, as light as the brush the theme states, over the row. */
+    const BRUSH_1_2_103 = { general: 0.86, specific: 0.29 };
     const brushLow = (b, pick = "general") => (!b ? ["brush not drawn"] : [b.opacity < 0.9 && `brush opacity ${b.opacity}`, b.alpha < 1 && `brush fill alpha ${b.alpha}`,
-        Math.abs(b.light - BRUSH_1_2_103[pick]) > 0.05 && `brush fill luminance ${b.light} (1.2.103: ${BRUSH_1_2_103[pick]})`,
+        Math.abs(b.light - BRUSH_1_2_103[pick]) > 0.05 && `brush fill luminance ${b.light} (K1's: ${BRUSH_1_2_103[pick]})`,
         b.cover < 0.9 && `brush covers ${b.cover} of the row`].filter(Boolean));
     const look = () => page.evaluate(() => [...globalThis.document.querySelectorAll(".drpg-choice-list > .drpg-choice")].slice(0, 4).map(row => {
         const s = globalThis.getComputedStyle(row), b = globalThis.getComputedStyle(row, "::before"), a = globalThis.getComputedStyle(row, "::after"), i = globalThis.getComputedStyle(row.querySelector("input"));
@@ -508,6 +513,167 @@ async function selectedPass(browser) {
     }
     await page.close();
     console.log(`style-sweep: --selected ${problems.length ? `RED, ${problems.length} problem(s)` : "green"}`);
+    return problems.length ? 1 : 0;
+}
+
+/*
+ * THE SELECTED ROW IN EVERY WINDOW (`--selected`, after Observe's pass above; E49 B6, 11.11.2026; the plan's E49 B6 and
+ * the owner's Q4 of round M, "correct only the contrast"). Every window probe 08 captured (audit/windows/manifest.json),
+ * in each theme at 1366x768: a row is a radio or a checkbox (never a `role="switch"`: a toggle has no selected look to
+ * read) whose closest `label`, `li`, `.drpg-choice` or table row (Despair Flow's and Room setup's pickers are cells of
+ * a row) holds words of its own. In each window the first such row
+ * whose input is enabled is picked (checked, `change` sent, read after the transitions as Observe's are) and read as
+ * Observe's: each element with words of its own against the ground it stands on (its own and its ancestors' grounds to
+ * the first opaque one, the row's `::before` brush over it when one is drawn, the element's opacity to the row; a button,
+ * select or field inside the row is a control of its own with its own states, not the row's words, and is not read): 4.5:1,
+ * 3:1 for large words (24 px, or 18.66 px bold); each icon (`i`, a Font Awesome class) 3:1; and the mark: a control
+ * drawn by the module (`appearance: none`) its `::before` against its own box, 3:1; a control the browser draws, its
+ * `accent-color` (Chromium's default blue when `auto`, the fill of a checked box or the dot of a radio) against the
+ * ground, 3:1 - a reading of the fill's colour, not of the drawn tick. A window with no such row is said, by name, and
+ * judged on nothing. THE CONTROL FIRST, on the first capture with a row, in Stained Glass: the picked row's words set to
+ * their own ground must read under 1.5:1. Exit 1 on any part below its ratio, or a control not seen.
+ */
+function pickAndReadRow() {
+    const parse = c => {
+        const m = String(c).match(/^rgba?\(([^)]+)\)$/), n = String(c).match(/^color\(srgb ([^)]+)\)$/);
+        if (m) { const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p[3] ?? 1]; }
+        if (n) { const p = n[1].split(/[\s/]+/).filter(Boolean).map(Number); return [p[0] * 255, p[1] * 255, p[2] * 255, p[3] ?? 1]; }
+        return [0, 0, 0, 0];
+    };
+    const over = (top, under, alpha = 1) => { const a = top[3] * alpha; return [0, 1, 2].map(i => top[i] * a + under[i] * (1 - a)).concat(1); };
+    const lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+    const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 100) / 100; };
+    const cs = (el, pseudo) => globalThis.getComputedStyle(el, pseudo);
+    const groundUnder = el => {
+        const chain = [];
+        for (let e = el; e; e = e.parentElement) { chain.push(parse(cs(e).backgroundColor)); if (chain.at(-1)[3] >= 1) break; }
+        let g = chain.at(-1)[3] >= 1 ? chain.pop() : [255, 255, 255, 1];
+        while (chain.length) g = over(chain.pop(), g);
+        return g;
+    };
+    const opacityTo = (el, stop) => { let o = 1; for (let e = el; e && e !== stop.parentElement; e = e.parentElement) o *= Number(cs(e).opacity); return o; };
+    const shown = el => el.getClientRects().length > 0 && cs(el).visibility !== "hidden";
+    const ownWords = el => [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
+    const doc = globalThis.document;
+    const rowOf = i => i.closest("label, li, .drpg-choice, tr");
+    const rows = [...doc.querySelectorAll('input[type="radio"], input[type="checkbox"]')]
+        .filter(i => i.getAttribute("role") !== "switch" && !i.disabled && rowOf(i) && shown(rowOf(i)))
+        .filter(i => [rowOf(i), ...rowOf(i).querySelectorAll("*")].some(e => e !== i && ownWords(e) && shown(e)));
+    if (!rows.length) return { none: true };
+    const input = rows[0];
+    input.dataset.drpgPicked = "1";
+    input.checked = true;
+    input.dispatchEvent(new globalThis.Event("change", { bubbles: true }));
+    return { none: false, at: rows.length };
+}
+
+function readPickedRow() {
+    const parse = c => {
+        const m = String(c).match(/^rgba?\(([^)]+)\)$/), n = String(c).match(/^color\(srgb ([^)]+)\)$/);
+        if (m) { const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p[3] ?? 1]; }
+        if (n) { const p = n[1].split(/[\s/]+/).filter(Boolean).map(Number); return [p[0] * 255, p[1] * 255, p[2] * 255, p[3] ?? 1]; }
+        return [0, 0, 0, 0];
+    };
+    const over = (top, under, alpha = 1) => { const a = top[3] * alpha; return [0, 1, 2].map(i => top[i] * a + under[i] * (1 - a)).concat(1); };
+    const lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+    const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 100) / 100; };
+    const cs = (el, pseudo) => globalThis.getComputedStyle(el, pseudo);
+    const groundUnder = el => {
+        const chain = [];
+        for (let e = el; e; e = e.parentElement) { chain.push(parse(cs(e).backgroundColor)); if (chain.at(-1)[3] >= 1) break; }
+        let g = chain.at(-1)[3] >= 1 ? chain.pop() : [255, 255, 255, 1];
+        while (chain.length) g = over(chain.pop(), g);
+        return g;
+    };
+    const opacityTo = (el, stop) => { let o = 1; for (let e = el; e && e !== stop.parentElement; e = e.parentElement) o *= Number(cs(e).opacity); return o; };
+    const shown = el => el.getClientRects().length > 0 && cs(el).visibility !== "hidden";
+    const ownWords = el => [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
+    const doc = globalThis.document;
+    const rowOf = i => i.closest("label, li, .drpg-choice, tr");
+    const input = [...doc.querySelectorAll('input[type="radio"]:checked, input[type="checkbox"]:checked')]
+        .find(i => i.getAttribute("role") !== "switch" && !i.disabled && i.dataset.drpgPicked === "1");
+    if (!input) return { error: "the picked row is gone" };
+    const row = rowOf(input);
+    const brush = cs(row, "::before");
+    const brushed = brush.content !== "none" && brush.display !== "none" && Number(brush.opacity) > 0;
+    const groundOf = el => { const g = groundUnder(el); return brushed && row.contains(el) ? over(parse(brush.backgroundColor), g, Number(brush.opacity)) : g; };
+    const parts = [];
+    for (const el of [row, ...row.querySelectorAll("*")]) {
+        if (el === input || !shown(el) || el.closest("button, select, textarea, input") !== null && el !== row) continue;
+        const icon = el.tagName === "I" || /\bfa-/.test(el.className?.baseVal ?? el.className ?? "");
+        if (!icon && !ownWords(el)) continue;
+        const s = cs(el), size = parseFloat(s.fontSize), bold = Number(s.fontWeight) >= 700;
+        // A glyph pixel-icons.css draws is a mask filled with the element's background, its `color` unused: its ink is
+        // that background, and its ground starts at its parent.
+        const masked = icon && [s.maskImage, s.webkitMaskImage].some(m => m && m !== "none");
+        const ground = groundOf(masked ? el.parentElement : el);
+        const need = icon ? 3 : (size >= 24 || (size >= 18.66 && bold) ? 3 : 4.5);
+        const words = icon ? `icon ${el.className}` : [...el.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent.trim()).join(" ").slice(0, 28);
+        parts.push({ what: words, need, ratio: ratio(over(parse(masked ? s.backgroundColor : s.color), ground, opacityTo(el, row)), ground) });
+    }
+    const ic = cs(input);
+    let mark;
+    if (!shown(input) || Number(ic.opacity) === 0) mark = { kind: "hidden" };
+    else if (ic.appearance === "none") {
+        const box = over(parse(ic.backgroundColor), groundOf(input));
+        const dot = cs(input, "::before");
+        const scaled = /matrix\(0, 0, 0, 0/.test(dot.transform);
+        mark = dot.content === "none" || scaled ? { kind: "drawn", ratio: 0 } : { kind: "drawn", ratio: ratio(over(parse(dot.backgroundColor), box, Number(dot.opacity)), box) };
+    } else {
+        const accent = ic.accentColor === "auto" ? [0, 117, 255, 1] : parse(ic.accentColor);
+        mark = { kind: `native (accent ${ic.accentColor})`, ratio: ratio(over(accent, groundOf(input)), groundOf(input)) };
+    }
+    return { row: (row.textContent || "").trim().replace(/\s+/g, " ").slice(0, 40), parts, mark };
+}
+
+async function selectedEveryPass(browser) {
+    const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+    const problems = [], none = [], read = [];
+    const list = pages().filter(p => !["kit-gallery", "sheet-parts", "glass-gm", "glass-player"].includes(p.id));
+    const lowOf = r => [...r.parts.filter(p => !(p.ratio >= p.need)).map(p => `"${p.what}" ${p.ratio} (needs ${p.need})`),
+        ...(r.mark.ratio !== undefined && !(r.mark.ratio >= 3) ? [`mark ${r.mark.kind} ${r.mark.ratio} (needs 3)`] : [])];
+    /* The control: the picked row's words on their own ground. */
+    let first = null;
+    for (const p of list) {
+        await load(page, withTheme(p.url, "glass"));
+        if (!(await page.evaluate(pickAndReadRow)).none) { first = p; break; }
+    }
+    if (!first) { await page.close(); console.log("style-sweep: --selected (every window): no window has a row to read"); return 1; }
+    await page.waitForTimeout(400);
+    await page.evaluate(() => {
+        const i = globalThis.document.querySelector('input[data-drpg-picked="1"]');
+        const row = i.closest("label, li, .drpg-choice, tr");
+        for (const el of [row, ...row.querySelectorAll("*")]) {
+            let g = null;
+            for (let e = el; e && !g; e = e.parentElement) { const b = globalThis.getComputedStyle(e).backgroundColor; if (!/rgba\(0, 0, 0, 0\)|transparent/.test(b)) g = b; }
+            el.style.setProperty("color", g ?? "rgb(255, 255, 255)", "important");
+        }
+    });
+    const planted = await page.evaluate(readPickedRow);
+    const seen = (planted.parts ?? []).some(p => p.ratio < 1.5);
+    console.log(`style-sweep: --selected (every window) control (a picked row's words on their own ground, ${first.id}): ${seen ? "read" : "NOT read"} (${(planted.parts ?? []).map(p => p.ratio).join(", ")})`);
+    if (!seen) problems.push(`control: a row's words planted on their own ground did not read low on ${first.id}`);
+    for (const theme of THEMES) {
+        for (const p of list) {
+            await load(page, withTheme(p.url, theme));
+            const picked = await page.evaluate(pickAndReadRow);
+            if (picked.none) { if (theme === THEMES[0]) none.push(p.id); continue; }
+            /* The settled look, not a frame of a transition: Item tables' picture cells left their mark at scale 0 for
+               900 ms and more after the pick in this page (read 11.11.2026), where a wait was enough for Observe. */
+            await page.addStyleTag({ content: "*, *::before, *::after { transition: none !important; }" });
+            await page.waitForTimeout(400);
+            const r = await page.evaluate(readPickedRow);
+            if (r.error) { problems.push(`${p.id} ${theme}: ${r.error}`); continue; }
+            const low = lowOf(r);
+            read.push(`${p.id} ${theme}`);
+            const lowest = r.parts.length ? Math.min(...r.parts.map(x => x.ratio)) : null;
+            console.log(`style-sweep: --selected ${p.id} ${theme}: "${r.row}" (${picked.at} row(s)), ${r.parts.length} part(s), lowest ${lowest}, mark ${r.mark.kind}${r.mark.ratio !== undefined ? ` ${r.mark.ratio}` : ""}${low.length ? ` - LOW: ${low.join("; ")}` : ""}`);
+            for (const l of low) problems.push(`${p.id} ${theme}: ${l}`);
+        }
+    }
+    await page.close();
+    console.log(`style-sweep: --selected windows with no radio or checkbox row in their capture (${none.length}): ${none.join(", ") || "none"}`);
+    console.log(`style-sweep: --selected (every window) ${read.length} reading(s); ${problems.length ? `RED, ${problems.length} problem(s)` : "green"}`);
     return problems.length ? 1 : 0;
 }
 
@@ -1285,7 +1451,10 @@ async function main() {
         return;
     }
     if (SELECTED) {
-        try { process.exitCode = await selectedPass(browser); } finally { await browser.close(); server?.kill(); }
+        try {
+            const observe = await selectedPass(browser), every = await selectedEveryPass(browser);
+            process.exitCode = observe || every;
+        } finally { await browser.close(); server?.kill(); }
         return;
     }
     if (FIT) {
