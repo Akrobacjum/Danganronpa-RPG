@@ -397,28 +397,44 @@ export const MEANING = {
         why: "the attention colour is for focus, selection and what asks to be looked at"
     },
     /*
-     * THE HOUR (E48 K2, 11.11.2026; D30). `--drpg-glass-accent` is the state colour - the hour, replaced by the phase,
-     * the Eclipse and an incident here - and the five hour tokens behind it. K2 took it off what the stage names: the
-     * Event panel's cards, the action and Call tiles, the panel's, the sheet's and the messenger's buttons, the sheet's
-     * tabs and the state bars, and the picking rows (their `--kind`, now `--drpg-attention`, Q6); `never` keeps it off them. `words` is every surface that still reads it, by family: the
-     * panes and seams, the curtain's accent, the ticker and the clock, the room and voice tiles, the corner's launchers
-     * and frames (the owner, amend [1], 11.10; Q12) - and the windows' headers and fields, the sheet's headings and pips,
-     * the tables, the notices and the countdown tray, which the stage did not list and D30's "never a card, a bar or a
-     * button" may still take (an open for the owner, written in STATUS). A new reader names one of these or is red.
+     * THE HOUR (E48 K2, 11.11.2026; D30; K2b, 11.11.2026). `--drpg-glass-accent` is the state colour - the hour, replaced
+     * by the phase, the Eclipse and an incident here - and the five hour tokens behind it. K2 took it off what the stage
+     * names: the Event panel's cards, the action and Call tiles, the panel's, the sheet's and the messenger's buttons, the
+     * sheet's tabs and the state bars, and the picking rows (their `--kind`, now `--drpg-attention`, Q6). K2b took it off
+     * the three controls K2 had left reading it (the owner's default on K2's open, 11.11: a control is not a decoration):
+     * a field's and a checkbox's focus (to `--drpg-attention`, focus being attention's), the HUD's buttons and the GM
+     * panel's section bars. `never` keeps it off all of them; `words` is HOUR_KEPT, every surface still allowed it, each
+     * with its reason, and R3412 holds each family to at least one read (a family nothing reads is a stale line).
      */
     hour: {
         tokens: /^--drpg-(?:glass-accent|sg-(?:morning|noon|afternoon|evening|night))$/,
-        words: new RegExp(["glass-accent", "data-drpg-time", "seam", "curtain", "glass-flat", "glass-band", "#pause", "ticker", "#drpg-hud",
-            "room-tile", "voice", "launcher", "launch-mini", "foundry-window", "notices-corner", "note-frame", "scene-controls", "sidebar-tabs",
-            "window-header", "header-control", "window-content", "\\.application\\[class\\]", "scrollbar", "#tooltip", "popup", "notice-info",
-            "messenger", "kit-", "handbook", "countdown", "focus-visible", "input", "textarea", "select", "table", "drpg-gmp-",
-            "\\bh[1-4]\\b", "legend", "section-header", "first-letter", "status-label", "status-value", "drpg-actions", "action-pip",
-            "free-move", "drpg-step", "group-count", "ultimate", "items-section", "inventory", "traits", "biography", "duality-badge",
-            "--stamp", "--kind", "\\bi\\b", "fa-"].join("|"), "i"),
-        never: /drpg-event\b|drpg-action-button|drpg-call-button|\.drpg-panel button|sheet-tabs a|-bar\b|-fill\b|bar-fill|drpg-choice|rest-option|frisk-mode/i,
+        get words() { return new RegExp(HOUR_KEPT.flatMap(k => k.words).join("|"), "i"); },
+        never: /drpg-event\b|drpg-action-button|drpg-call-button|\.drpg-panel button|sheet-tabs a|-bar\b|-fill\b|bar-fill|drpg-choice|rest-option|frisk-mode|drpg-hud-button|drpg-gmp-section|(?:input|select|textarea|\]|-text)\)?:focus/i,
         why: "the hour colours the panes, the curtain's accent and the ticker, never a card, a bar or a button"
     }
 };
+
+/*
+ * WHERE THE HOUR STILL GOES, AND WHY (E48 K2b, 11.11.2026). MEANING.hour's `words`, a family a line. The owner's default
+ * on K2's open (11.11): the decorations keep it - the windows' headers, the tables, the countdown tray - and the
+ * controls lose it (`never`). The lines marked "the owner's still" are K2's open beyond the three he was asked about.
+ */
+export const HOUR_KEPT = [
+    { name: "panes", words: ["glass-accent", "data-drpg-time", "seam", "curtain", "glass-flat", "glass-band", "#pause"], why: "the panes and their seams, the curtain, its flat and band, the pause screen: D30's own place" },
+    { name: "clock", words: ["ticker", "#drpg-hud"], why: "the ticker and the clock's chapter, phase, time and track (its buttons are `never`)" },
+    { name: "tiles", words: ["room-tile", "voice"], why: "the room and voice tiles' brushes, pips and frames (the owner, amend [1], 11.10; Q12)" },
+    { name: "corner", words: ["launcher", "launch-mini", "foundry-window", "notices-corner", "note-frame", "scene-controls", "sidebar-tabs"], why: "the corner's launchers and frames and Foundry's own chrome (Q12)" },
+    { name: "window headers", words: ["window-header", "header-control", "\\.application\\[class\\]", "scrollbar", "#tooltip"], why: "the windows' headers and frames, their scrollbars, the tooltip's edge: decoration (the owner's default, 11.11)" },
+    { name: "tables", words: ["table"], why: "the tables' heads and hovered rows: decoration (the owner's default, 11.11)" },
+    { name: "countdown tray", words: ["countdown"], why: "the countdown tray's title, frame and tools: decoration (the owner's default, 11.11)" },
+    { name: "fields at rest", words: ["window-content", "input", "textarea", "select"], why: "a field's and a checkbox's resting edge and tick (their focus is attention's, `never`)" },
+    { name: "notices", words: ["popup", "notice-info", "messenger"], why: "the notices' edge and the messenger's frame and own bubbles" },
+    { name: "kit and handbook", words: ["kit-", "handbook"], why: "the kit's row highlight, secret edge and role plate, the handbook's rule and marks" },
+    { name: "GM panel", words: ["drpg-gmp-"], why: "the GM panel's Next box and phase stamp, readings of the clock (its section bars are `never`)" },
+    { name: "sheet", words: ["\\bh[1-4]\\b", "legend", "section-header", "first-letter", "status-label", "status-value", "drpg-actions", "action-pip", "free-move", "group-count", "ultimate", "items-section", "inventory", "traits", "biography", "duality-badge", "--stamp"], why: "the sheet's headings, pips, free move, counts and stamps: the owner's still (K2's open)" },
+    { name: "step", words: ["drpg-step"], why: "`.drpg-step`: the owner's still (K2's open)" },
+    { name: "icons", words: ["--kind", "\\bi\\b", "fa-"], why: "an icon's ink and a row's kind inside the surfaces above" }
+];
 
 /**
  * Every read of a meaning token by a rule that does not name its meaning: `sheets` is [[file, text]]; answers
@@ -427,25 +443,34 @@ export const MEANING = {
  */
 export function meaningReads(sheets, meaning = MEANING) {
     let read = 0;
-    const found = [];
-    for (const [file, text] of sheets ?? []) {
-        for (const block of blocksOf(stripCssComments(text))) {
+    const found = [], allowed = [];
+    const rows = Object.entries(meaning);
+    const parsed = (sheets ?? []).map(([file, text]) => [file, blocksOf(stripCssComments(text))]);
+    for (const [file, blocks] of parsed) {
+        for (const block of blocks) {
             if (!block.prelude || block.prelude.startsWith("@")) continue;
             const where = [...block.context, block.prelude].join(" ");
+            const bare = where.replace(/:not\([^()]*(?:\([^()]*\)[^()]*)*\)/g, "");
             for (const decl of declarationsOf(block.own)) {
+                const judge = (name, row, what) => {
+                    read++;
+                    const named = row.words.test(where) || (decl.property.startsWith("--") && row.words.test(decl.property));
+                    if (named && !row.never?.test(bare)) { allowed.push({ meaning: name, where }); return; }
+                    found.push(`${file}: ${block.prelude.slice(0, 140)} { ${decl.property} } ${what} (${name}: ${row.why})`);
+                };
                 for (const m of decl.value.matchAll(/var\(\s*(--[\w-]+)/g)) {
-                    for (const [name, row] of Object.entries(meaning)) {
-                        if (!row.tokens.test(m[1])) continue;
-                        read++;
-                        const named = row.words.test(where) || (decl.property.startsWith("--") && row.words.test(decl.property));
-                        if (named && !row.never?.test(where.replace(/:not\([^()]*(?:\([^()]*\)[^()]*)*\)/g, ""))) continue;
-                        found.push(`${file}: ${block.prelude.slice(0, 140)} { ${decl.property} } reads ${m[1]} (${name}: ${row.why})`);
-                    }
+                    for (const [name, row] of rows) if (row.tokens.test(m[1])) judge(name, row, `reads ${m[1]}`);
                 }
             }
         }
     }
-    return { read, found };
+    return { read, found, allowed };
+}
+
+/** Each HOUR_KEPT family and the reads of the hour it allows: `[{ name, why, reads }]`, from meaningReads' `allowed`. */
+export function hourKept(allowed, kept = HOUR_KEPT) {
+    const hours = (allowed ?? []).filter(a => a.meaning === "hour");
+    return kept.map(k => ({ name: k.name, why: k.why, reads: hours.filter(a => new RegExp(k.words.join("|"), "i").test(a.where)).length }));
 }
 
 /* The meaning check's fixture: four reads, two of them findings - a focus ring in gold, and a token that aliases gold

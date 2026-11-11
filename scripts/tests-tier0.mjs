@@ -18,7 +18,7 @@ import {
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
     TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists, cssDeadClasses, cssLintCounts, cssBudgetProblems, CSS_DETECTORS,
-    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssThemeTokens, cssHourDistances, cssDeltaE00Check
+    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssThemeTokens, cssHourDistances, cssDeltaE00Check
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -571,13 +571,18 @@ const REGRESSIONS = [
         ok(planted.problems.some(p => p.includes("0.00 from Hope")), "Hope's own colour planted as an hour is not read as Hope's");
     }],
 
-    ["R3412 - the hour colours the panes and never a card, a bar or a button: no served sheet reads `--drpg-glass-accent` or an hour token in a rule outside the hour's list (the panes, the curtain, the ticker and clock, the room and voice tiles, the corner's launchers and frames, and what K2 left), nor in the Event panel's cards, the action and Call tiles, the panel's and sheet's buttons and tabs or the state bars at all, and one planted there is seen (E48 K2; D30)", async () => {
+    ["R3412 - the hour colours the panes and never a card, a bar or a button: no served sheet reads `--drpg-glass-accent` or an hour token in a rule outside tests-css.mjs HOUR_KEPT (each family with its reason, each still read), nor in the Event panel's cards, the action and Call tiles, the panel's and sheet's buttons and tabs, the state bars, a field's or checkbox's focus, the HUD's buttons or the GM panel's section bars at all; the windows' headers, the tables and the countdown tray keep it as decoration; and each planted control is seen (E48 K2, K2b; D30)", async () => {
         /*
          * E48 K2, 11.11.2026. tests-css.mjs `meaningReads`, MEANING's `hour` row (its comment lists the families). Red
          * before K2: "16 read(s) of the hour outside its list", first "styles/danganronpa.css: .drpg-project-card-bar > span
          * { background } reads --drpg-glass-accent", then the Event panel's card, the panel's buttons, the action and Call
          * tiles, the sheet's tabs, the picking rows' `--kind`, the resource bars and fills, the status bars and the two
          * badges that took an hour's hue.
+         * E48 K2b, 11.11.2026 (the owner's default on K2's open: the controls lose the hour, the decorations keep it).
+         * Red before K2b: "14 read(s) of the hour outside its list", first "styles/stained-glass.css: ... .drpg-panel
+         * :is(input[type="text"], ...):focus-visible { border-color } reads --drpg-glass-accent", then the other fields'
+         * and the messenger's focus, the biography's, the checkbox's focus ring, the GM panel's section bar `--kind` and
+         * the HUD button's edge and hover.
          */
         const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
         const sheets = [];
@@ -590,6 +595,16 @@ const REGRESSIONS = [
         ok(!hourOf(found).length, `${hourOf(found).length} read(s) of the hour outside its list: ${hourOf(found).slice(0, 6).join(" | ")}`);
         const planted = sheets.map(([file, text]) => [file, file === glass[0] ? `${text}\nbody.drpg-theme-stained-glass .drpg-call-button:hover { --brush: var(--drpg-glass-accent); }\n` : text]);
         equal(hourOf(cssMeaningReads(planted).found).length, hourOf(found).length + 1, "the hour planted on a Call tile is not seen");
+        for (const control of ["#drpg-hud .drpg-hud-button:hover { border-color", ".drpg-gm-panel .drpg-gmp-section > summary { --kind", ".drpg-panel textarea:focus-visible { caret-color", "input[type=\"checkbox\"]:focus-visible { outline"]) {
+            const one = sheets.map(([file, text]) => [file, file === glass[0] ? `${text}\nbody.drpg-theme-stained-glass ${control}: var(--drpg-glass-accent); }\n` : text]);
+            equal(hourOf(cssMeaningReads(one).found).length, hourOf(found).length + 1, `the hour planted on a control (${control.split(" {")[0]}) is not seen`);
+        }
+        const kept = cssHourKept(cssMeaningReads(sheets).allowed);
+        for (const family of kept) ok(family.reads > 0, `HOUR_KEPT's "${family.name}" (${family.why}) allows no read of the hour - a stale line`);
+        for (const decoration of ["window headers", "tables", "countdown tray"]) {
+            const family = kept.find(k => k.name === decoration);
+            ok(family?.reads > 0, `the ${decoration} lost the hour - the owner's default keeps it there (${family?.why ?? "no such line"})`);
+        }
     }],
 
     ["R3333 - the pixel glyphs come from one source: each row of tools/glyphs.json `grid` cells wide and tall, no two drawing the same pixels unless one says `same`, the sprite, pixel-icons.css and the audit page's symbols what tools/glyph-map.mjs writes from them, every SVG data URI of danganronpa.css and stained-glass.css its row's drawing pixel for pixel, the chrome section what tools/chrome-icons.mjs writes, and each planted drift seen (E48 G1)", async () => {
