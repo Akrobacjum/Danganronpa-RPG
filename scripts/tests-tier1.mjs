@@ -45934,6 +45934,49 @@ const INVARIANTS = [
         J([[{ lockRotation: true }], [], [], [{ lockRotation: true }], [{ "prototypeToken.lockRotation": true }], [], []]),
             "[a student's token saying false, one saying true, an adversary's saying false, a token saying nothing; a student made, one already locked, an adversary] - a token dragged from the actor list turns");
     }],
+    ["R3436 - a Remnant's icon is never handed a texture that is gone (E49 B4; amend [3](1)): remnant-icons.mjs `textureFor` drops a texture destroyed since it was loaded and loads it again, and `forgetTextures` - run as the canvas comes down and up - empties the textures and the misses", async () => {
+        /*
+         * E49 B4 (11.11.2026; the owner's session of 27.10, amend [3](1)): the icons on the traces vanished or stayed
+         * stale after a Class Trial. The map kept the textures of the scene they were loaded on for the session; a texture
+         * Foundry let go with the old scene was still handed to the next scene's meshes. A loader of the test's own stands
+         * in for Foundry's (put back after); nothing is drawn. The hook wiring is read off the source (comments blanked).
+         * Red at d8fa9304: neither function is exported. What a table shows is LIVE-E49-07.
+         */
+        const I = await import("./remnant-icons.mjs");
+        const J = stableJson;
+        ok(typeof I.textureFor === "function" && typeof I.forgetTextures === "function", "remnant-icons.mjs exports neither - a texture gone with its scene is handed out");
+        if (typeof I.textureFor !== "function" || typeof I.forgetTextures !== "function") return;
+        const home = foundry.canvas && "loadTexture" in foundry.canvas ? foundry.canvas : globalThis;
+        const own = Object.getOwnPropertyDescriptor(home, "loadTexture");
+        const made = [];
+        const load = async path => { const t = { path, destroyed: false, valid: true, baseTexture: { destroyed: false } }; made.push(t); return t; };
+        const tick = () => new Promise(r => setTimeout(r, 20));
+        const path = "R3436/never-a-real-file.webp";
+        let read = null;
+        try {
+            if (home === foundry.canvas) foundry.canvas.loadTexture = load; else globalThis.loadTexture = load;
+            const first = I.textureFor(path);
+            await tick();
+            const loaded = I.textureFor(path);
+            if (loaded) loaded.destroyed = true;
+            const gone = I.textureFor(path);
+            await tick();
+            const again = I.textureFor(path);
+            I.forgetTextures();
+            const forgotten = I.textureFor(path);
+            await tick();
+            read = [first, Boolean(loaded), gone, Boolean(again && again !== loaded && !again.destroyed), forgotten, made.length];
+        } finally {
+            if (own) Object.defineProperty(home, "loadTexture", own); else delete home.loadTexture;
+            I.forgetTextures();
+        }
+        const src = stripComments(new Map(await otherSources()).get("remnant-icons.mjs") ?? "");
+        const register = fnSource(src, "registerRemnantIcons");
+        equal(J([...read, /Hooks\.on\(\s*"canvasTearDown"\s*,\s*\(\)\s*=>\s*forgetTextures\(\)\s*\)/.test(register),
+            /Hooks\.on\(\s*"canvasReady"[\s\S]*forgetTextures\(\)[\s\S]*preload\(\)/.test(register)]),
+        J([null, true, null, true, null, 3, true, true]),
+            "[while loading, loaded, after it was destroyed, loaded again, after forgetTextures, loads, the tear-down's hook, canvasReady's] - a Remnant's icon is handed a texture its scene let go");
+    }],
 ];
 
 /**
