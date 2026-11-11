@@ -43080,6 +43080,51 @@ const SCENARIOS = [
         }
     }],
 
+    ["E48-K5 - switching theme there and back leaves no curtain, observer or frame loop: under Monokuma Legacy the curtain, its observers, its loop's frame, its colour probe, its rotation sheet, the windows' bands and the turn's layers are gone, and back under Stained Glass the curtain stands as it stood before the switch - as many curtains and observers, a loop - not one more", async () => {
+        /*
+         * E48 K5, 11.11.2026 (STAGE, tier 2). R1380 reads `unmount` called by hand and R1420 the race with the fonts, each
+         * through stand-ins; neither switches the theme the way a player does. Here the client setting is written
+         * (`game.settings.set`, its onChange `applyTheme`, which imports glass.mjs and calls `refreshGlass`), Stained
+         * Glass -> Monokuma Legacy -> Stained Glass, the fonts and a beat awaited after each, and glass.mjs
+         * `glassLifecycle` read with the page's curtain nodes (#drpg-curtain, its frost, turn and flash layers, the
+         * glow, the rotation sheet) and the body's `drpg-curtain-on`. THE CONTROL: the first reading, under Stained
+         * Glass, has a curtain, observers and the loop - a reader that answered nothing would be red there. The
+         * setting is put back in `finally`.
+         */
+        const settings = await import("./settings.mjs");
+        const G = await import("./glass.mjs");
+        must(typeof G.glassLifecycle === "function", "glass.mjs's reading of the curtain's lifecycle (`glassLifecycle`)");
+        const was = getSetting(SETTINGS.theme);
+        const read = () => {
+            const l = G.glassLifecycle();
+            return { curtains: l.curtains, observers: l.observers, loop: l.loop > 0, probe: l.probe, sheet: l.sheet, bands: l.windows.length,
+                nodes: document.querySelectorAll("#drpg-curtain, #drpg-curtain-frost, #drpg-curtain-turn, #drpg-curtain-flash, .curtain-glow, #drpg-glass-rotation").length,
+                on: document.body.classList.contains("drpg-curtain-on") };
+        };
+        const to = async theme => {
+            await game.settings.set(MODULE_ID, SETTINGS.theme, theme);
+            settings.applyTheme();
+            await settle();
+            await (document.fonts?.ready ?? Promise.resolve());
+            await wait(400);
+        };
+        let before = null, legacy = null, after = null;
+        try {
+            await to("stainedGlass");
+            before = read();
+            await to("monokumaLegacy");
+            legacy = read();
+            await to("stainedGlass");
+            after = read();
+        } finally {
+            await to(was ?? "stainedGlass");
+        }
+        ok(before.curtains > 0 && before.observers > 0 && before.loop, `the control, Stained Glass before the switch: ${stableJson(before)} - no curtain, observer or loop to take down`);
+        equal(stableJson(legacy), stableJson({ curtains: 0, observers: 0, loop: false, probe: false, sheet: false, bands: 0, nodes: 0, on: false }),
+            "Monokuma Legacy after the switch: [curtains, observers, the loop, the probe, the rotation sheet, the windows' bands, the curtain's nodes, drpg-curtain-on]");
+        equal(stableJson({ ...after, bands: null }), stableJson({ ...before, bands: null }), "Stained Glass again: the curtain as it stood before the switch, the windows' bands aside");
+    }],
+
     ["a window still answers for one tick after it was answered", async () => {
         /*
          * LIVE-REOPEN-01's measurement, kept as a test because the whole finding rests

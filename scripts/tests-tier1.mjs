@@ -38897,6 +38897,59 @@ const INVARIANTS = [
             + "transitions left in the notice history under the class; the motion tokens under the class, each theme]");
         (await import("./utils.mjs")).log(`R1410: ${blocks.length} media block(s) read, ${endlessRules.length} endless rule(s), ${readEls} notice-history element(s)`);
     }],
+    ["R3461 - no endless animation escapes reduced motion where R1410 does not look (E48 K5; S12-11): every `infinite` animation of the sheets module.json loads sits in a top-level style rule - none inside an at-rule (@media, @supports, @container, @layer) or a nested rule, which R1410's top-level cascade never builds - each in a rule R1410 builds and stops under `body.drpg-reduced-motion` in both themes; no script starts one (an `animate()` of `iterations: Infinity`, an inline animation naming `infinite`); and one planted in an @media block of a sheet's copy is found", async () => {
+        /*
+         * E48 K5, 11.11.2026 (STAGE R-next (j)). R1410 builds every top-level rule that runs an animation `infinite`, on
+         * a body of each theme with the class on, and reads the animation's winner; its reader (`styleCascade`) reads
+         * top-level rules only (tests-kit.mjs `topLevelStyleRules`), so an endless animation written inside `@media`,
+         * `@supports`, `@container`, `@layer` or a nested rule would run under the class and R1410 would stay green
+         * (K3's STATUS, measured: 14 `infinite` declarations in components 1, danganronpa 7, stained-glass 6, every
+         * one top-level). Read here: each served sheet, comments out, scanned by brace depth for `animation` and
+         * `animation-iteration-count` declarations naming `infinite`, each with the chain of blocks it stands in; the
+         * top-level ones counted against R1410's own question (the cascade's rules that run one); every served script
+         * (the suite's own aside) for `iterations: Infinity` and an inline animation string naming `infinite`. THE
+         * CONTROL: the same scan over a copy of motion.css with an endless animation planted inside an @media block
+         * finds it, nested. Red on a plant in the served motion.css (R1410 green on the same tree).
+         */
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(res => res.json());
+        const sheets = [];
+        for (const href of manifest.styles ?? []) sheets.push([href.split("/").at(-1), (await fetch(`/modules/${MODULE_ID}/${href}`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "))]);
+        must(sheets.length >= 5 && sheets.some(([name]) => name === "motion.css"), `module.json loads ${sheets.map(([name]) => name).join(", ")} - not the module's sheets`);
+        const ENDLESS = /(?:^|[\s,])infinite(?:[\s,]|$)/;
+        const endless = (name, css) => {
+            const out = [], stack = [];
+            let line = 1, buf = "", quote = null;
+            for (const ch of css) {
+                if (ch === "\n") line++;
+                if (quote) { if (ch === quote) quote = null; buf += ch; continue; }
+                if (ch === "\"" || ch === "'") { quote = ch; buf += ch; continue; }
+                if (ch === "{") { stack.push(buf.trim().replace(/\s+/g, " ").slice(0, 60)); buf = ""; continue; }
+                if (ch === ";" || ch === "}") {
+                    const m = /^\s*(animation(?:-iteration-count)?)\s*:([\s\S]*)$/.exec(buf);
+                    if (m && stack.length && ENDLESS.test(m[2].replace(/!important/, "").trim())) out.push({ at: `${name}:${line}`, chain: [...stack], nested: stack.length > 1 });
+                    if (ch === "}") stack.pop();
+                    buf = "";
+                    continue;
+                }
+                buf += ch;
+            }
+            return out;
+        };
+        const found = sheets.flatMap(([name, css]) => endless(name, css));
+        const nested = found.filter(f => f.nested).map(f => `${f.at} in ${f.chain.join(" > ")}`);
+        const C = await styleCascade();
+        const r1410 = C.rules.filter(rule => rule.decls.some(d => (d.property === "animation" || d.property === "animation-iteration-count") && ENDLESS.test(d.value))).length;
+        const motion = sheets.find(([name]) => name === "motion.css")[1];
+        const planted = endless("motion.css", `${motion}\n@media (min-width: 1px) {\n  .drpg-k5-plant { animation: drpg-k5 2s linear infinite; }\n}\n`).filter(f => f.nested);
+        const served = (await otherSources()).map(([file, text]) => [file, stripComments(text)]);
+        const scripts = served.flatMap(([file, text]) => [...text.matchAll(/iterations\s*:\s*(?:Infinity|"Infinity"|'Infinity')|animation(?:-iteration-count|IterationCount)?\s*[=:,]\s*[`"'][^`"'\n]*\binfinite\b/g)]
+            .map(m => `${file}:${text.slice(0, m.index).split("\n").length}`));
+        must(found.length >= 10, `${found.length} endless animation(s) read in the sheets - the scan read nothing`);
+        equal(planted.length - endless("motion.css", motion).filter(f => f.nested).length, 1, "the control: an endless animation planted inside an @media block of motion.css's copy, found nested");
+        equal(stableJson(nested), "[]", "endless animations inside an at-rule or a nested rule (R1410 does not build them)");
+        equal(found.length - nested.length, r1410, `top-level endless declarations (${found.length - nested.length}) against the cascade's rules that run one, R1410's set (${r1410})`);
+        equal(stableJson(scripts), "[]", "scripts that start an endless animation of their own");
+    }],
     ["R1432 - reduced motion stops Foundry's pause caption too (E23 fix G3, E23-30; the end review's goal m1, Open 113): with `body.drpg-reduced-motion` a rule of the module's sheets wins the caption's animation with none, under both themes, over a stand-in for core's endless `pulse`; without the class the stand-in still wins", async () => {
         /*
          * E23 fix G3, 08.11.2026; the end review's goal m1 (Open 113). danganronpa.css's pause section said Foundry's own
