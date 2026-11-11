@@ -494,6 +494,7 @@
       },
       "freeMoveAvailable": "Free Move wciąż dostępny o tej porze dnia.",
       "freeMoveSpent": "Free Move zużyty. Następne przejście kosztuje akcję.",
+      "moveLegend": "Pełna: do wzięcia. Obrys: zużyta. Druga stopa, w kolorze Eclipse, to drugie przejście Eclipse: przygaszona poza Eclipse.",
       "allSpent": "Brak akcji. Wracają, gdy zacznie się następny Eclipse.",
       "leftOf": {
         "one": "{left} z {max} akcji",
@@ -1063,6 +1064,7 @@
       "manage": "Daj / zabierz przedmioty",
       "hubButton": "Przedmioty",
       "buttonTooltip": "Daj albo zabierz przedmiot",
+      "caption": "Daj / zabierz",
       "give": "Daj przedmiot",
       "take": "Zabierz przedmiot",
       "takeFrom": "Zabierz przedmiot: {actor}",
@@ -4435,6 +4437,7 @@
         "withClass": "Reinforced Level Up za wyjście z błędnego głosowania czekał na ten i przychodzi razem z nim."
       },
       "buttonTooltip": "Level Up",
+      "caption": "Level Up",
       "whichKind": "Jaki Level Up zdobył(a) <strong>{actor}</strong>?",
       "kind": {
         "standard": "Level Up (wybierz {picks})",
@@ -5079,6 +5082,7 @@
     },
     "Rules": {
       "tab": "Zasady",
+      "sheetTitle": "Zasady Monokumy",
       "sheetIntro": "Stałe zasady Monokumy. Dotyczą wszystkich, cały czas, dopóki nie powie inaczej.",
       "none": "Nie ogłoszono jeszcze zasad.",
       "rule": "Zasada",

@@ -480,6 +480,7 @@
       "pipReadOnly": { "one": "{left} of {max} action this time of day. Spent by acting.", "other": "{left} of {max} actions this time of day. Spent by acting." },
       "freeMoveAvailable": "Free Move still available this time of day.",
       "freeMoveSpent": "Free Move used. The next crossing costs an action.",
+      "moveLegend": "Solid: yours to take. Outlined: spent. The second foot, in the Eclipse's colour, is the Eclipse's second crossing: dimmed outside an Eclipse.",
       "allSpent": "No actions left. They come back when the next Eclipse begins.",
       "leftOf": { "one": "{left} of {max} action", "other": "{left} of {max} actions" },
       "burstBanked": {
@@ -1029,6 +1030,7 @@
       "manage": "Give / take items",
       "hubButton": "Items",
       "buttonTooltip": "Give or take an item",
+      "caption": "Give / take",
       "give": "Give an item",
       "take": "Take an item away",
       "takeFrom": "Take an item from {actor}",
@@ -4068,6 +4070,7 @@
         "withClass": "The Reinforced Level Up earned by walking out of a wrong vote waited for this one, and comes with it."
       },
       "buttonTooltip": "Level Up",
+      "caption": "Level Up",
       "whoPicks": "Who chooses what {actor} takes?",
       "who": {
         "gm": "I will pick",
@@ -4663,6 +4666,7 @@
     },
     "Rules": {
       "tab": "Rules",
+      "sheetTitle": "Monokuma's rules",
       "sheetIntro": "Monokuma's standing rules. They apply to everyone, all the time, until he says otherwise.",
       "none": "No rules announced yet.",
       "rule": "Rule",

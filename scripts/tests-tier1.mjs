@@ -26506,7 +26506,7 @@ const INVARIANTS = [
             "{got: [the question's key for a boundary not refilled, refilled already, another boundary refilled]; named: the words name the "
             + "Eclipse; asks: askEclipse prints eclipseQuestion's}");
     }],
-    ["R997 - the player's strip in an Eclipse (E17 C8): free placement draws one full foot, available, its tooltip 'place anywhere'; a count draws a foot a crossing and names them; a Monocub is told the placement alone; the actions' tooltip carries its numbers; the GM's Still placing counts who has not moved in free placement", async () => {
+    ["R997 - the player's strip in an Eclipse (E17 C8): free placement draws its two feet full, available, its tooltip 'place anywhere'; a count draws the same two feet, each lit or spent (E49 B2), and names them; a Monocub is told the placement alone; the actions' tooltip carries its numbers; the GM's Still placing counts who has not moved in free placement", async () => {
         /*
          * E17 C8, 26.10.2026; E17-36, audit S10-19. eclipse.mjs `movesLeft` answers `null` in a placement that allows
          * any room, and the strip read it as a number: `null > 0` false, so the Move row was "spent" with one outlined
@@ -26552,10 +26552,12 @@ const INVARIANTS = [
         got.source = [/\bstillPlacing\(students\)/.test(fnSource(ps, "buildTableView")), /\beclipseMoveRow\(/.test(fnSource(ps, "buildPlayerView")),
             /\bactionsTooltip\(/.test(fnSource(ps, "buildPlayerView"))];
         const free = L("DRPG.Actions.eclipseFreePlacement"), n = k => plural("DRPG.Actions.eclipseMovesLeft", { n: k });
+        const legend = L("DRPG.Actions.moveLegend");
         equal(J(got), J({
-            rows: [{ available: true, feet: 1, solid: true, tooltip: free }, { available: false, feet: 1, solid: false, tooltip: n(0) },
+            // Two feet in every state since E49 B2 (sheet.mjs `moveSlots`, R3487), the legend after the row's sentence.
+            rows: [{ available: true, feet: 2, solid: true, tooltip: free }, { available: false, feet: 2, solid: false, tooltip: n(0) },
                 { available: true, feet: 2, solid: true, tooltip: n(2) }],
-            drawn: [[true, false, 1, 0, free], [false, true, 0, 1, n(0)], [true, false, 2, 0, n(2)]],
+            drawn: [[true, false, 2, 0, `${free}. ${legend}`], [false, true, 0, 2, `${n(0)}. ${legend}`], [true, false, 2, 0, `${n(2)}. ${legend}`]],
             tips: [L("DRPG.Eclipse.actionsMurderOnly"), L("DRPG.Eclipse.placementOnly"),
                 plural("DRPG.Actions.pipReadOnly", { left: 1, max: 2 }, "max"), L("DRPG.Actions.allSpent")],
             placing: [2, 2],
@@ -41289,7 +41291,7 @@ const INVARIANTS = [
                 const line = root.querySelector(".drpg-budget-line")?.textContent ?? null;
                 return { tiles: tiles.length > 0, locked: tiles.length > 0 && tiles.every(t => t.classList.contains("drpg-locked-eclipse") && (t.dataset.tooltip ?? "").includes(silenced)),
                     drawer: Boolean(root.querySelector(".drpg-hope-panel.drpg-silenced")), fogged: Boolean(move?.classList.contains("drpg-fogged")),
-                    moveSays: move ? (move.dataset.tooltip === fogMove ? "fog" : move.dataset.tooltip ? "other" : "none") : null, budget: line === null ? null : line.includes(fogBudget) };
+                    moveSays: move ? (move.dataset.tooltip?.startsWith(fogMove) ? "fog" : move.dataset.tooltip ? "other" : "none") : null, budget: line === null ? null : line.includes(fogBudget) };
             } finally {
                 game.settings.get = real;
             }
@@ -43301,6 +43303,118 @@ const INVARIANTS = [
         const box = clamp ? [Number(clamp[1]) * 1.15, Number(clamp[2]) * 1.15].map(n => Math.round(n * 10) / 10) : null;
         equal(stableJson({ cap: cap && Number(cap), inRange: Boolean(box) && box[0] >= 24 && box[1] <= 32 }), stableJson({ cap: 110, inRange: true }),
             `{cap: the sheet tile's max-height; inRange: the icon's 1.15em box between 24 and 32 px (read ${stableJson(box)})} - a tile must stay 110 px and its icon 24-32 px`);
+    }],
+    ["R3487 - the Move is two feet in the same places on the sheet and the strip, in and out of an Eclipse (sheet.mjs `moveSlots`, `moveFeetHtml`, `freeMovePip`; player-status.mjs `buildPlayerView`; E49 B2; the owner, 10.11: fixed layouts): out of one the free Move and a dimmed Eclipse slot; in one its two crossings lit or spent, free placement both `anywhere`; the sheet drawn out of an Eclipse, in one at noon and in one that places anywhere", async () => {
+        /*
+         * E49 B2, 11.11.2026. The owner: "dwie stópki: jedna taka jak teraz, druga w kolorze eclipse ... zależy nam na
+         * stałych layoutach". Before: the sheet drew one foot from `hasFreeMove` and nothing of the Eclipse; the strip one
+         * foot per crossing left (none left: one outlined). Read pure (`moveSlots`), on the strip by `moves` (0, 1, 2, null),
+         * and on the sheet's stand-in with the clock answered in memory (R1460's way; nothing written) - the sheet's
+         * crossings are the world's (none used here), so 0 and 1 left are read on the strip and in `moveSlots` alone.
+         */
+        const SH = await import("./sheet.mjs");
+        const PS = await import("./player-status.mjs");
+        const E = await import("./eclipse.mjs");
+        const { isMonocub } = await import("./monocub.mjs");
+        const { hasFreeMove } = await import("./actions.mjs");
+        ok(typeof SH.moveSlots === "function", "sheet.mjs exports no `moveSlots` - the Move is still one foot on the sheet");
+        if (typeof SH.moveSlots !== "function") return;
+        needs(world.atLeast("livingStudents", 1), "a living student of this world is the sheet's and the strip's character");
+        const who = studentActors().find(a => !a.getFlag(MODULE_ID, FLAGS.deceased) && !isMonocub(a));
+        const feet = el => [...(el?.querySelectorAll(".drpg-free-move .drpg-move-slot") ?? [])]
+            .map(i => `${i.dataset.drpgSlot}:${i.dataset.drpgState}:${i.classList.contains("fa-solid") ? "solid" : "outline"}`);
+        const strip = moves => feet(PS.buildPlayerView(who, { eclipse: moves !== "out", moves: moves === "out" ? undefined : moves, dead: false, remember: false }));
+        const stamp = { session: 1, day: 1, timeOfDay: "noon" };
+        const sheet = clock => {
+            const real = game.settings.get;
+            game.settings.get = function (module, key, ...rest) {
+                if (module === MODULE_ID && key === SETTINGS.clock) return { ...stamp, ...clock };
+                return real.call(this, module, key, ...rest);
+            };
+            try {
+                const root = e24SheetRoot();
+                Hooks.callAll("renderCharacterSheet", { id: `R3487-${clock.timeOfDay}-${clock.eclipse}`, document: who, isEditable: true }, root, {}, { isFirstRender: true });
+                return { feet: feet(root).map(f => f.replace(/:(solid|outline)$/, "")), free: E.movesLeft(who, { ...stamp, ...clock }) };
+            } finally { game.settings.get = real; }
+        };
+        const pure = [SH.moveSlots({ free: true }), SH.moveSlots({ free: false, fog: true }), SH.moveSlots({ eclipse: true, moves: 0 }),
+            SH.moveSlots({ eclipse: true, moves: 1 }), SH.moveSlots({ eclipse: true, moves: 3 }), SH.moveSlots({ eclipse: true, moves: null })]
+            .map(slots => slots.map(s => `${s.slot}:${s.state}`).join(" "));
+        // The time of day whose Eclipse places anywhere (eclipse.mjs `isFreePlacement` reads the incoming hour, D197).
+        const freeAt = ["morning", "noon", "afternoon", "evening", "night"].find(t => E.isFreePlacement({ ...stamp, eclipse: true, timeOfDay: t })) ?? null;
+        must(freeAt, "no time of day places anywhere in an Eclipse - the third sheet would measure nothing");
+        const got = { pure, strip: [0, 1, 2, null].map(strip), out: strip("out").length, sheet: [sheet({ eclipse: false }), sheet({ eclipse: true }), sheet({ eclipse: true, timeOfDay: freeAt })] };
+        const sheetIn = got.sheet[1].free;
+        equal(stableJson(got), stableJson({
+            pure: ["free:available eclipse:off", "free:fogged eclipse:off", "free:spent eclipse:spent", "free:available eclipse:spent",
+                "free:available eclipse:available", "free:anywhere eclipse:anywhere"],
+            strip: [["free:spent:outline", "eclipse:spent:outline"], ["free:available:solid", "eclipse:spent:outline"],
+                ["free:available:solid", "eclipse:available:solid"], ["free:anywhere:solid", "eclipse:anywhere:solid"]],
+            out: 2,
+            sheet: [{ feet: [`free:${hasFreeMove(who) ? "available" : "spent"}`, "eclipse:off"], free: E.movesLeft(who, { ...stamp, eclipse: false }) },
+                { feet: [`free:${sheetIn >= 1 ? "available" : "spent"}`, `eclipse:${sheetIn >= 2 ? "available" : "spent"}`], free: sheetIn },
+                { feet: ["free:anywhere", "eclipse:anywhere"], free: null }]
+        }), "{pure: moveSlots out of an Eclipse (free, fogged) and in one (0, 1, 3 left, free placement); strip: [slot:state:weight] at 0, 1, 2 "
+            + "left and free placement; out: feet on the strip out of an Eclipse; sheet: the sheet's feet out of an Eclipse, in one at noon, in free placement} "
+            + "- the Move must be two feet in the same places in every state");
+    }],
+    ["R3488 - the name row's buttons come from one builder with their words, and the Stop says what it is (sheet.mjs `headerButton`, `injectSafeword`; E49 B2, S03-31): Level Up and Give / take carry a caption, the GM's one-off controls their tooltip; the Stop reads \"Safeword\" before the table's word; a Monokuma's sheet draws no Stop", async () => {
+        /*
+         * E49 B2, 11.11.2026. S03-31: "buttons without captions: the safeword shows the table's word alone, Level Up and
+         * Give/Take are bare glyphs"; the remedy "a fixed small caption 'Safeword' by the word; no button on Monokuma's
+         * sheet; Level Up and Give/Take with a short caption". Drawn for a GM on the stand-in (R1460's way).
+         */
+        const { isMonokuma } = await import("./monokuma.mjs");
+        const { safeword } = await import("./safeword.mjs");
+        needs(world.atLeast("livingStudents", 1), "a student of this world is the sheet's character");
+        const who = studentActors()[0];
+        const kuma = game.actors.find(a => a.type === "character" && isMonokuma(a)) ?? null;
+        must(kuma, "no Monokuma in this world - the Stop's absence would measure nothing");
+        const draw = actor => {
+            const root = e24SheetRoot();
+            Hooks.callAll("renderCharacterSheet", { id: `R3488-${actor.id}`, document: actor, isEditable: true }, root, {}, { isFirstRender: true });
+            return root;
+        };
+        const root = draw(who), krow = draw(kuma);
+        const L = k => game.i18n.localize(k);
+        const row = [...root.querySelectorAll(".name-row .drpg-advance-button")].map(b =>
+            [b.dataset.drpgAdvance !== undefined ? "advance" : b.dataset.drpgItems !== undefined ? "items" : b.dataset.drpgInit !== undefined ? "init" : "class",
+                b.querySelector(".drpg-header-caption")?.textContent ?? null, Boolean(b.dataset.tooltip && b.getAttribute("aria-label") === b.dataset.tooltip)]);
+        const caption = kind => row.find(r => r[0] === kind)?.[1];
+        const stop = root.querySelector(".drpg-safeword-button");
+        const sources = new Map(await moduleSources());
+        const sh = stripComments(sources.get("sheet.mjs") ?? "");
+        const built = ["injectInitButton", "injectAdvanceButton", "injectClassControls", "injectItemButton"]
+            .filter(name => fnSource(sh, name)).map(name => /\bheaderButton\(/.test(fnSource(sh, name)) && !/createElement\("button"\)/.test(fnSource(sh, name)));
+        equal(stableJson({ advance: caption("advance"), items: caption("items"), others: row.filter(r => r[0] === "init" || r[0] === "class").every(r => r[1] === null),
+            tips: row.length > 0 && row.every(r => r[2]), stop: [stop?.querySelector(".drpg-safeword-caption")?.textContent ?? null, stop?.querySelector(".drpg-safeword-word")?.textContent ?? null],
+            kumaStop: Boolean(krow.querySelector(".drpg-safeword-button")), built: built.length > 0 && built.every(Boolean) }),
+        stableJson({ advance: L("DRPG.Advance.caption"), items: L("DRPG.Items.caption"), others: true, tips: true, stop: [L("DRPG.Safeword.title"), safeword()], kumaStop: false, built: true }),
+        `{advance, items: the captions; others: the GM's controls without one; tips: every button's tooltip its aria-label; stop: [caption, word]; kumaStop: a Stop on Monokuma's sheet; built: the four builders through headerButton (${row.map(r => r[0]).join(",")})} - the row's buttons must say what they are`);
+    }],
+    ["R3489 - the Actions panel opens on its budget and the Rules tab on Monokuma's rules (sheet.mjs `injectActionPanel`, `budgetLine`, `buildRulesPanel`; styles/danganronpa.css; E49 B2, S03-38, S03-39, S12-67): no \"Actions\" heading under the Actions tab, the budget the panel's first row and the panel named for a screen reader; the Rules panel's title is not the tab's word and its padding is the Actions panel's", async () => {
+        /*
+         * E49 B2, 11.11.2026. S03-38: "the ACTIONS bar repeats the open tab and pushes the Hope Calls under the sheet's
+         * edge"; S03-39 and S12-67: "the Rules tab has no inner margin and its heading repeats the tab's name". Drawn for a
+         * GM on the stand-in with an Effects section (the tab sheet.mjs takes over).
+         */
+        needs(world.atLeast("livingStudents", 1), "a student of this world is the sheet's character");
+        const who = studentActors()[0];
+        const root = e24SheetRoot();
+        root.insertAdjacentHTML("beforeend", `<nav class="sheet-tabs"><a data-tab="effects"><i class="fa-solid fa-bolt"></i><span>Effects</span></a></nav>`
+            + `<section class="tab" data-tab="effects" data-application-part="effects"></section>`);
+        Hooks.callAll("renderCharacterSheet", { id: "R3489", document: who, isEditable: true }, root, {}, { isFirstRender: true });
+        const panel = root.querySelector(".drpg-action-panel:not(.drpg-hope-panel)");
+        const rules = root.querySelector(".drpg-rules-panel");
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
+        const pad = sel => css.match(new RegExp(`(?:^|\\})\\s*${sel.replace(/[.]/g, "\\.")}\\s*\\{([^}]*)\\}`))?.[1]?.match(/padding:\s*([^;]+);/)?.[1]?.trim() ?? null;
+        const L = k => game.i18n.localize(k);
+        equal(stableJson({ heading: panel ? panel.querySelectorAll(":scope > h3").length : null, first: panel?.firstElementChild?.classList.contains("drpg-budget-line") ?? null,
+            named: panel?.getAttribute("aria-label") ?? null, rulesTitle: rules?.querySelector("h3")?.textContent ?? null, tab: L("DRPG.Rules.tab"),
+            pad: [pad(".drpg-action-panel"), pad(".drpg-rules-panel")] }),
+        stableJson({ heading: 0, first: true, named: L("DRPG.Action.panelTitle"), rulesTitle: L("DRPG.Rules.sheetTitle"), tab: L("DRPG.Rules.tab"), pad: ["0.5rem", "0.5rem"] }),
+        "{heading: h3s on the Actions panel; first: the budget its first row; named: its aria-label; rulesTitle: the Rules panel's h3; tab: the tab's word; pad: the Actions and Rules panels' padding} - the panels must not repeat their tab and must sit alike");
+        ok(L("DRPG.Rules.sheetTitle") !== L("DRPG.Rules.tab"), "the Rules panel's title is still the tab's word");
     }],
     ["R2018 - Room setup's Scenes tab on the kit (E46-C2b; E46-08, E47's 05.10 point 5): trial-scene.mjs `scenesTabHtml` is a kit `formGrid` (the school and the hall selects, each its label's `for`), the hall's name, picture and words a `formGrid` of their own, the warnings a `box(\"warning\")`, the prepare ticks kit switches, `SCENES_ZONE_SLOT` a row of `scenesTabRows` that draws nothing (where E73 puts Zone A and Zone B), the hall's cast pick (`castPickerHtml`) a kit `dataTable` with a switch an actor; `readScenesTab`'s answer for a seeded form the one it gave before", async () => {
         /*
