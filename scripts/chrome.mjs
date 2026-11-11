@@ -140,6 +140,7 @@ export function injectFilters() {
 export function dressChrome(root) {
     if (!root?.querySelectorAll) return;
     try {
+        markLoneInitials(root);
         // The kit's steppers, in both themes (E44 C4b): their - and + are in the markup, only the listeners are added.
         wireSteppers(root);
         if (!themeOn()) return;
@@ -159,6 +160,25 @@ export function dressChrome(root) {
         }
     } catch (err) {
         log("chrome pass failed", err);
+    }
+}
+
+/*
+ * A LONE FIRST LETTER IS NOT AN INITIAL (E49 B1, 11.11.2026; S12-65). Under Stained Glass a window's title, a panel's
+ * heading and a character's name wear their first letter in the hour's accent (stained-glass.css, "THE FIRST LETTER
+ * TAKES THE INTERFACE COLOUR"). On "A body was found" or Polish "W pokoju" that letter is a word of its own, and the
+ * accent on it read as a letter come away from the title (the audit's S12-65). CSS cannot see where a word ends, so
+ * this marks such a heading `drpg-lone-initial` and the rule skips it: the title keeps one colour (hud.mjs marks the
+ * clock's campaign line, which no window pass reaches). In both themes, so a
+ * theme switched without a render needs nothing; marked again on every pass, since Foundry rewrites a title in place.
+ */
+const INITIAL_HEADS = ".window-title, h1, h2, h3, .actor-name, .drpg-hud-campaign";
+export function markLoneInitials(root) {
+    const heads = [...(root.matches?.(INITIAL_HEADS) ? [root] : []), ...root.querySelectorAll(INITIAL_HEADS)];
+    for (const h of heads) {
+        if (h.closest(".drpg-notice-snapshot")) continue;
+        const words = (h.textContent ?? "").trim().split(/\s+/);
+        h.classList.toggle("drpg-lone-initial", words.length > 1 && [...words[0]].length === 1);
     }
 }
 

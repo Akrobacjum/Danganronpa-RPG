@@ -586,6 +586,24 @@ const VOICE_WIDE = 0.6, VOICE_TALL = 1.45, VOICE_SEAM = 24, VOICE_WALL = 6, VOIC
 const VOICE_FULL = 114, VOICE_MIN = 42;
 /** Named areas of the last cut that no pane may cover, `{ name, poly }`: read by the self-check (`openFails`). */
 export const OPEN_AREAS = [];
+
+/* AN EMPTY PANE LETS THE MAP THROUGH (E49 B1, S12-64; the owner's amend [1]). A pane cut for a block that is not
+   there - the notice tile between notices, a GM's bar on a player's screen, any block measured as absent - was painted
+   as the filler around it: 0.58 black, a tint, 0.30 black over that and the pulse's 0.72 at its darkest, so on a desk
+   the bottom left pane alone hid a fifth of the map behind glass with nothing on it (365x379 px at 1366x768 in the glass
+   harness, 11.11.2026). It is lighter now, never coloured, and its pulse shallower; a card on the tile still sits on
+   its own plate (`seatNoteFrame`, E79 C13), so the tile with a notice reads as before. Never a room's, a voice's or the
+   narrow row's pane: those are `solid` or measured, never `empty` (amend [1]), and `voice-left` is no pane at all.
+   One table, read by `paintGlass` and `pulseJob` alike: `base` the black under the tint, `tint` the stain's alpha (null
+   for the filler's own hashed one), `black` the black over it, `pulse` the darkest the pulse takes it. Exported for
+   R3482 and the glass harness's `drpgHudCheck`. */
+export function paneShade(p, { stained = false, lum = 0.5 } = {}) {
+  const content = Boolean(p?.content) && !p?.empty;
+  if (content) return { kind: "content", base: 0.55 + (lum - 0.5) * 0.08, tint: 0, black: 0.12, pulse: 0.42 };
+  if (p?.empty) return { kind: "empty", base: 0.16 + (lum - 0.5) * 0.04, tint: 0.04, black: 0.06, pulse: 0.22 };
+  if (stained) return { kind: "stained", base: 0.30 + (lum - 0.5) * 0.08, tint: 0.60, black: 0.16, pulse: 0.62 };
+  return { kind: "filler", base: 0.58 + (lum - 0.5) * 0.08, tint: 0.05 + lum * 0.07, black: 0.30, pulse: 0.72 };
+}
 /* The tray at five rows, wherever it stands now: its own top to the header's foot, and the list's
    `max-height` (border-box, so its paddings are in it). A tray with no list - folded, or the
    fallback box - is its box. */
@@ -2929,21 +2947,23 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
          between notices, the GM bar on a player's screen) keeps its place in the partition
          but is painted like the filler around it - never a dark plate with nothing on it. */
       const content = p.content && !p.empty;
-      const stained = !content && !p.plain && hsh > 0.72;   // the same share of coloured panes on a window band as on the curtain
+      // the same share of coloured panes on a window band as on the curtain; an empty pane never (E49 B1, `paneShade`)
+      const stained = !content && !p.empty && !p.plain && hsh > 0.72;
       ctx.save(); path(ctx, p.poly); ctx.clip();
       // black glass first, then a little colour: a panel keeps its tone, most filler a faint tint, one in five stained
       const lum = hash((bb.x0 + bb.x1) / 2 + 17, (bb.y0 + bb.y1) / 2 - 31);
-      ctx.globalAlpha = (content ? 0.55 : stained ? 0.30 : 0.58) + (lum - 0.5) * 0.08;
+      const shade = paneShade(p, { stained, lum });
+      ctx.globalAlpha = shade.base;
       ctx.fillStyle = content ? (k ? TONE[k] : "#0d0b16") : (lum > 0.5 ? "#0c0a14" : "#0a0810");
       ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       if (!content) {
-        ctx.globalAlpha = stained ? 0.60 : 0.05 + lum * 0.07;
+        ctx.globalAlpha = shade.tint;
         ctx.fillStyle = STAIN[Math.floor(hsh * 1000) % STAIN.length];
         ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       }
       // the black over the colour: full weight on filler, half of it over content, where the
       // pane already carries the darkest tone and the text carries its own shadow
-      ctx.globalAlpha = 1; ctx.fillStyle = content ? "rgba(0,0,0,0.12)" : stained ? "rgba(0,0,0,0.16)" : "rgba(0,0,0,0.30)"; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
+      ctx.globalAlpha = 1; ctx.fillStyle = `rgba(0,0,0,${shade.black})`; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       const down = (bb.y0 + bb.y1) / 2 < H / 2;
       const g = ctx.createLinearGradient(0, down ? bb.y0 : bb.y1, 0, down ? bb.y1 : bb.y0);
       g.addColorStop(0, "rgba(255,255,255,0.08)"); g.addColorStop(0.55, "rgba(255,255,255,0.01)"); g.addColorStop(1, "rgba(0,0,0,0.20)");
@@ -3343,7 +3363,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
         if (k > 0) v = v + (0.5 - 0.5 * Math.cos(t / 1000 * (2 * Math.PI / 1.6) + p.phase) - v) * k;
         else p.urgentUntil = 0;
       }
-      const dark = (p.content && !p.empty ? 0.42 : p.stained ? 0.62 : 0.72) * Math.pow(v, p.stained ? 2.2 : 1.6);
+      const dark = paneShade(p, { stained: p.stained }).pulse * Math.pow(v, p.stained ? 2.2 : 1.6);
       const lit = Math.pow(1 - v, 3);
       const light = (p.stained ? 0.16 : 0.05) * lit;
       // the texture of coloured glass shows only while the pane is lit
