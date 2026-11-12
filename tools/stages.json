@@ -69,7 +69,7 @@
     {"id": "E48", "planned": "1.2.105", "version": "1.2.105", "shipped": "2026-11-12", "touches": null, "drills": []},
     {"id": "E49", "planned": "1.2.105", "with": "E48", "version": "1.2.105", "shipped": "2026-11-12", "touches": [], "drills": []},
     {"id": "E63", "planned": "1.2.105", "with": "E49", "version": "1.2.105", "shipped": "2026-11-12", "touches": ["scenes"], "drills": []},
-    {"id": "E76", "planned": "1.2.106", "version": null, "shipped": null, "touches": null, "drills": []},
+    {"id": "E76", "planned": "1.2.106", "version": null, "shipped": null, "touches": ["sockets", "rolls"], "drills": []},
     {"id": "E97", "planned": "1.2.107", "version": null, "shipped": null, "touches": null, "drills": []},
     {"id": "E98", "planned": "1.2.107", "with": "E97", "version": null, "shipped": null, "touches": null, "drills": []},
     {"id": "E61", "planned": "1.2.108", "version": null, "shipped": null, "touches": null, "drills": []},
