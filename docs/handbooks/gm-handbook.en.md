@@ -289,9 +289,9 @@ The ten tiles on the sheet, in the order they are drawn:
 
 | Result | Breaks the project so it needs | Remnant |
 |---|---|---|
-| 12 | a simple repair | Subtle |
-| 18 | a complex repair | Evident |
-| Critical | a hidden-difficulty repair | Obvious |
+| 12 | a simple repair, 2 progress (`simpleRepair`; 3 until E64) | Subtle |
+| 18 | a complex repair, 6 progress | Evident |
+| Critical | a hidden-difficulty repair, 8 progress | Obvious |
 | Failure | - | still leaves a Hidden trace |
 
 With somebody else in the room the saboteur also rolls Shadow against **16** to cover what they are doing (`SABOTAGE_CONCEAL`); on Despair they fumble and the sabotage is 1 harder; a Despair result with witnesses is told to the whole table. A sabotaged project is frozen until its repair project is finished.

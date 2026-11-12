@@ -34607,7 +34607,7 @@ const INVARIANTS = [
             hideTraces: [[[0, "obvious"], [12, "evident"], [18, "subtle"]], "hidden"],
             darkness: [true, 2, [true, 2, 1]],
             fallback: [true, false],
-            sabotage: [18, [0, 1, 2].map(() => [6, 3, 8]), []],
+            sabotage: [18, [0, 1, 2].map(() => [6, 2, 8]), []],
             rest: [true, false, 2, 1],
             traceWrong: []
         }), "{broken: BROKEN_ITEMS' thresholds and critical are hideTraces' own; hideTraces: its rows; darkness: [freeBecomes is ECLIPSE_MOVES, "
@@ -49774,6 +49774,18 @@ const INVARIANTS = [
             taken: [1, 0, 1, 1, 1, 6, 8],
             answers: [{ actorId: "A", hpOld: 2, sanOld: 0, rises: { strength: 1 } }, { actorId: "B", hpOld: 0, sanOld: 1, rises: {} }]
         }), "a DA39 migration row read the old picks, the rises owed, the GM's yes or the ticked boxes wrongly");
+    }],
+    ["R3964 - a sabotage hit at 12 makes a repair of 2 (E64; S02-75, the owner's DRPG-D1 of 12.11.2026: \"Zgoda na zmiany z kolumny opcje\", \"Zostaje to co wdrazamy i tylko to\"): config.mjs `ACTIONS.sabotage.simpleRepair` is 2 and action-project.mjs `sabotageRepairScale` answers it for a hit below the complex band, the complex band (6) and a critical (8) unchanged", async () => {
+        /*
+         * E64, 12.11.2026. S02-75's reading (STATUS): a sabotage forced 3.11 repair actions per attempt (saboteur and
+         * repairer at 0), its hit at 12 a repair of Trivial's 3; with 2 it is 2.68. Red before this commit: no
+         * `simpleRepair`, and a hit at 12 answered 3.
+         */
+        const C = await import("./config.mjs");
+        const A = await import("./action-rolls.mjs");
+        const scale = (total, isCritical = false) => A.sabotageRepairScale({ isCritical, total }, total, 0);
+        equal(stableJson([C.ACTIONS.sabotage.simpleRepair ?? null, scale(12), scale(17), scale(18), scale(5, true)]),
+            stableJson([2, 2, 2, 6, 8]), "[the constant, a hit at 12, at 17, at 18, a critical] - a sabotage's repair is not the owner's");
     }],
 ];
 

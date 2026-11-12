@@ -1865,6 +1865,13 @@ export const ACTIONS = {
             { min: 18, result: "Success. The target needs a complex repair project.", remnant: "evident" }
         ],
         critical: { result: "Success. The target needs a hidden-difficulty repair project.", remnant: "obvious" },
+        /*
+         * THE SIMPLE REPAIR IS 2 PROGRESS (E64; S02-75, the owner's DRPG-D1 of 12.11.2026: "Zgoda na zmiany z kolumny
+         * opcje", "Zostaje to co wdrazamy i tylko to"). A hit below the complex band made a Trivial repair, 3: one
+         * Sabotage forced 3.11 Work actions per attempt (saboteur and repairer at 0, misses counted; STATUS). With 2 it is
+         * 2.68. The complex band (Complex, 6) and the critical (Desperate, 8) are unchanged. One number to flip back.
+         */
+        simpleRepair: 2,
         failure: "Nothing happens.",
         failureRemnant: "hidden",
         leavesRemnant: { type: "prep", faint: true }

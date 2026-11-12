@@ -289,9 +289,9 @@ Dziesięć kafelków na arkuszu, w kolejności rysowania:
 
 | Wynik | Psuje projekt tak, że potrzebuje | Remnant |
 |---|---|---|
-| 12 | prostej naprawy | Subtle |
-| 18 | złożonej naprawy | Evident |
-| Krytyk | naprawy o ukrytej trudności | Obvious |
+| 12 | prostej naprawy, 2 postępu (`simpleRepair`; 3 do E64) | Subtle |
+| 18 | złożonej naprawy, 6 postępu | Evident |
+| Krytyk | naprawy o ukrytej trudności, 8 postępu | Obvious |
 | Porażka | - | i tak zostawia ślad Hidden |
 
 Gdy w pokoju jest ktoś jeszcze, sabotażysta rzuca też Shadow przeciw **16**, by ukryć, co robi (`SABOTAGE_CONCEAL`); z Despair fuszeruje i sabotaż jest o 1 trudniejszy; wynik z Despair przy świadkach jest ogłaszany całemu stołowi. Zepsuty projekt jest zamrożony do ukończenia projektu naprawy.

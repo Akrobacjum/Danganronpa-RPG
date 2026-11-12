@@ -15933,7 +15933,7 @@ const SCENARIOS = [
          * stands in. The first: a packet asking a repair of 8, naming a roll the record says came to
          * 13. The second: the player's bookmark of a roll first (as `roll.bookmark` arrives), then a
          * packet asking 8 naming that roll, which the record says came to 5. Read: the codes, the
-         * first's freeze and the size of its repair, the GM's line saying the packet's 8 lost to 3;
+         * first's freeze and the size of its repair, the GM's line saying the packet's 8 lost to 2 (3 until E64's S02-75);
          * the second's freeze, and the target and repair on the roll's row. Red at C15's runtime: a
          * repair of 8, and the miss freezes.
          */
@@ -15957,9 +15957,9 @@ const SCENARIOS = [
                 trait: "eye", experiences: [], context: { penalty: 0, relief: 0 } }, player.id, { send: () => {} });
             const second = await F.ask("project.sabotage", { targetId: missed, difficulty: 8, rollId: five.id, penalty: 0, relief: 0 });
             const row = store.get(actor.id) ?? null;
-            equal(stableJson([[first, F.P.isFrozen(hit), repair?.start ?? null, watch.count("said difficulty 8; the GMs' record of its roll says 3,")],
+            equal(stableJson([[first, F.P.isFrozen(hit), repair?.start ?? null, watch.count("said difficulty 8; the GMs' record of its roll says 2,")],
                 [second, F.P.isFrozen(missed), row?.messageId === five.id, row?.facts?.targetProjectId ?? null, row?.facts?.repairId ?? null]]),
-            stableJson([[null, true, 3, 1], [null, false, true, missed, null]]),
+            stableJson([[null, true, 2, 1], [null, false, true, missed, null]]),
             "the repair was the packet's, or the miss froze, or did not name its target on its roll's row (code, frozen, repair, logged; code, frozen, row's roll, target, repair)");
         } finally {
             watch.stop();
@@ -16237,7 +16237,7 @@ const SCENARIOS = [
             await B.ask({ action: "remnant.place", requestId: "suite-r2h3-trace", rollId: B.message.id,
                 data: { sourceActor: actor.id, action: "sabotage", type: "prep", visibility: "subtle", sceneId: scene.id, subject: "Suite r2-H3 Sabotage" } });
             const left = scene.tokens.filter(t => !had.has(t.id)).map(t => remnantData(t)).filter(d => d?.subject === "Suite r2-H3 Sabotage").map(d => d.visibility);
-            equal(stableJson([code, F.P.isFrozen(project), repair?.start ?? null, left]), stableJson([null, true, 3, ["subtle"]]),
+            equal(stableJson([code, F.P.isFrozen(project), repair?.start ?? null, left]), stableJson([null, true, 2, ["subtle"]]),
                 "the trace of a Sabotage whose repair froze its project was banded without the relief its repair used (code, frozen, repair, trace's band)");
         } finally {
             for (const t of scene.tokens.filter(t => !had.has(t.id))) await t.delete();
