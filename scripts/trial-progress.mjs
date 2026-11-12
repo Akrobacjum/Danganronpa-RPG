@@ -369,6 +369,10 @@ export const TRIAL_RECORD = Object.freeze({
     execution: row({ lives: "trial", by: "`carryOutSentence` (the execution at the trial's end)", blank: fresh(null), atEntry: fresh(null) }),
     // E70 C8: the trial's Closing Argument, one per trial.
     closing: row({ lives: "trial", by: "trial-floor.mjs `commitFloor`", blank: fresh(null), atEntry: fresh(null) }),
+    // E73: the zone modes' Findings, the trial's own list (C6), and the last Straw Poll's count, whose split makes Scrum
+    // Debate the next step (C3).
+    findings: row({ lives: "trial", by: "trial-zones.mjs `afterZoneStep`, `editFinding`", blank: fresh([]), atEntry: fresh([]) }),
+    strawPoll: row({ lives: "trial", by: "trial-zones.mjs `afterZoneStep`", blank: fresh(null), atEntry: fresh(null) }),
     // E70 C5: the trial's list of the dead, written by the settle alone and taken out at the exit - in no blank, and
     // left by the entry (the settle that follows it writes it).
     mutedDead: row({ lives: "trial", by: "voice.mjs `settleTrialVoices`" })
@@ -399,6 +403,20 @@ export function trialRecordProblems(table = TRIAL_RECORD) {
 export function entryPatch(now, { seconds = TRIAL.speakSeconds } = {}) {
     return Object.fromEntries(Object.entries(TRIAL_RECORD).filter(([, field]) => typeof field.atEntry === "function")
         .map(([key, field]) => [key, field.atEntry(now, { seconds })]));
+}
+
+/**
+ * THE TRIAL'S FINDINGS ON A CARD (E73 C6; the plan's "Findings are on the vote's opening card"): the record's list
+ * (`findings`, `TRIAL_RECORD`), one line each - its text, the mode that made it, "Monokuma confirms" when a GM confirmed
+ * it - as markup for a public card, every word escaped; "" with none. Read by vote.mjs `openRound` and the GM's window.
+ */
+export function findingsHtml(findings = []) {
+    const list = (Array.isArray(findings) ? findings : []).filter(f => f && typeof f.text === "string" && f.text);
+    if (!list.length) return "";
+    const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
+    const line = f => `<li data-drpg-finding="${esc(f.id ?? "")}">${esc(f.text)}${f.mode ? ` <small>(${esc(game.i18n.localize(`DRPG.Floor.mode.${f.mode}`))})</small>` : ""}${
+        f.confirmed ? ` <strong>${esc(game.i18n.localize("DRPG.Zones.findings.confirmedMark"))}</strong>` : ""}</li>`;
+    return `<div class="drpg-findings"><p><strong>${esc(game.i18n.localize("DRPG.Zones.findings.title"))}</strong></p><ul>${list.map(line).join("")}</ul></div>`;
 }
 
 /**

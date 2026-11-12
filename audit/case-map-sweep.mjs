@@ -5,7 +5,7 @@
  *   cd audit/harness && npm ci                 (once: Playwright comes from there; it downloads no browser)
  *   DRPG_CAPTURE_ONLY=investigation--map,investigation--map-node,investigation--map-trace DRPG_CAPTURE_OUT=<dir-en> \
  *       node cluster.mjs probes/08-capture-windows.mjs           (from audit/harness; and with DRPG_CAPTURE_LANG=pl into <dir-pl>)
- *   node audit/case-map-sweep.mjs <dir-en> <dir-pl> [--shots <dir>] [--chromium <executable>]   (from the repository's root)
+ *   node audit/case-map-sweep.mjs <dir-en> <dir-pl> [--shots <dir>] [--chromium <executable>] [--ids <regexp>]   (from the repository's root)
  *
  * For every capture of each directory (probe 08's Map windows: nothing open, a deduction open, a Remnant open), at
  * 1366x768 and 1920x1080, under Stained Glass and Monokuma Legacy (with its pixel font): the window inside the module's
@@ -17,7 +17,13 @@
  *   overlap  two nodes (a face with its open fields under it) whose boxes meet;
  *   reveal   with a node open, case-view.mjs `wireCaseCamera`'s reveal run as the Map runs it: the open node's face must
  *            then stand inside the graph's viewport;
- *   the numbers: nodes, the tallest node, the graph's viewport, the canvas.
+ *   bar      the camera's bar (`.drpg-case-camera`, "- 100% + / Fit to view") over a node's visible part, at rest and
+ *            after Fit to view (case-view.mjs `wireCaseCamera`'s fit, eased off) - E99 round 5: the owner's round-4 shot
+ *            (pl, glass, 1366x768) had it over "Wniosek / Nonstop Debate", which no check here read;
+ *   fold     the unrelated evidence's fold: its words larger than its box, or its box over a node (round 5);
+ *   the numbers: nodes, the tallest node, the graph's viewport, the canvas; the trial console's slot, and after Fit to
+ *            view its scale and the smallest node text in px (the computed font size of a node's words times the scale).
+ * THE BAR'S CONTROL: on the first page the bar planted over the first node (`position: fixed` at its box) must read.
  * THE CONTROL FIRST (the stackShapes lesson in CLAUDE.md: a count that cannot see a fault measures nothing): on the first
  * page, the node rule's C5 box put back by an injected rule (`height: 54px; overflow: hidden` on every node) must read
  * at least one cut, and the canvas laid out with every node at 54 px while the nodes are taller must read an overlap.
@@ -37,7 +43,14 @@ const REPO = path.resolve(HERE, "..");
 const args = process.argv.slice(2);
 const shotsAt = args.indexOf("--shots");
 const SHOTS = shotsAt >= 0 ? path.resolve(args[shotsAt + 1]) : null;
-const DIRS = args.filter((a, i) => !a.startsWith("--") && !["--shots", "--chromium"].includes(args[i - 1])).map(d => path.resolve(d));
+const DIRS = args.filter((a, i) => !a.startsWith("--") && !["--shots", "--chromium", "--ids", "--scale"].includes(args[i - 1])).map(d => path.resolve(d));
+/* `--scale <n>` (E99 round 4): the screenshots' device scale (1 by default; 2 for shots a person reads). */
+const scaleAt = args.indexOf("--scale");
+const SCALE = scaleAt >= 0 ? Number(args[scaleAt + 1]) || 1 : 1;
+/* `--ids <regexp>` (E99 round 4): which captures of the manifests are swept - the Map's by default, the trial console's
+   (`class-trial--case`) with the schema in its middle when E99 asks. */
+const idsAt = args.indexOf("--ids");
+const IDS = new RegExp(idsAt >= 0 ? args[idsAt + 1] : "^investigation--map");
 const SIZES = [[1366, 768], [1920, 1080]];
 const THEMES = ["glass", "legacy"];
 const { chromium } = createRequire(path.join(REPO, "audit", "harness", "package.json"))("playwright");
@@ -83,19 +96,19 @@ function pageHtml(styles, html, title, width, theme) {
 }
 
 /** Read in the page: relayout through the module's code, then every node's cut and every pair's overlap. */
-async function readMap(page, { plantBox = false, staleLayout = false } = {}) {
-    return page.evaluate(async ({ plantBox, staleLayout }) => {
+async function readMap(page, { plantBox = false, staleLayout = false, plantBar = false } = {}) {
+    return page.evaluate(async ({ plantBox, staleLayout, plantBar }) => {
         const V = await import("/scripts/case-view.mjs");
         await document.fonts.ready;
         if (plantBox) {
             const s = document.createElement("style");
             // the node rule's own selector (components.css), so the plant wins by coming later
-            s.textContent = "body .application.drpg-ui.drpg-panel.drpg-window-case .drpg-case-map .drpg-case-canvas > button.drpg-case-node[data-drpg-node] { height: 54px; overflow: hidden; }";
+            s.textContent = "body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node] { height: 54px; overflow: hidden; }";
             document.head.appendChild(s);
         }
         const canvas = document.querySelector(".drpg-case-canvas");
         if (!canvas) return { error: "no canvas" };
-        if (!staleLayout) V.relayoutCaseMap(canvas);
+        if (!staleLayout) { V.relayoutCaseMap(canvas); V.placeTileControls?.(canvas); }
         const nodes = [...canvas.querySelectorAll(":scope > button[data-drpg-node]")];
         const open = new Map([...canvas.querySelectorAll(":scope > .drpg-case-edit:not([hidden])")].map(f => [f.dataset.drpgEdit, f]));
         const cut = [];
@@ -130,6 +143,72 @@ async function readMap(page, { plantBox = false, staleLayout = false } = {}) {
             }
             boxes.push(box);
         }
+        /* THE TRIAL'S CONTROLS ON THEIR TILE (E99 round 4): each tick and start inside its tile's box, over none of the tile's
+           words (kind, mode, state, name, text, reach, warning). */
+        for (const c of canvas.querySelectorAll(":scope > [data-drpg-case-tick], :scope > [data-drpg-case-start-node]")) {
+            const id = c.dataset.drpgCaseTick ?? c.dataset.drpgCaseStartNode;
+            const tile = canvas.querySelector(`:scope > button[data-drpg-node="${CSS.escape(id)}"]`);
+            if (!tile) { cut.push(`${id} control: no tile`); continue; }
+            const t = tile.getBoundingClientRect(), k = c.getBoundingClientRect();
+            if (k.left < t.left - 0.5 || k.right > t.right + 0.5 || k.top < t.top - 0.5 || k.bottom > t.bottom + 0.5) cut.push(`${id} ${c.className}: off its tile`);
+            for (const part of tile.querySelectorAll(".drpg-case-node-kind, .drpg-case-node-mode, .drpg-case-node-state, .drpg-case-node-name, .drpg-case-node-text, .drpg-case-node-reach, .drpg-case-node-warn")) {
+                const p = part.getBoundingClientRect();
+                if (p.width && p.height && k.left < p.right - 0.5 && p.left < k.right - 0.5 && k.top < p.bottom - 0.5 && p.top < k.bottom - 0.5) cut.push(`${id} ${c.className}: over ${part.className}`);
+            }
+        }
+        /* THE CAMERA'S BAR OVER NO NODE (E99 round 5): the bar's box against the part of each node the viewport shows, at rest
+           and after Fit to view; the fit's scale and the smallest node text it leaves, for the owner's 11 px question. */
+        const graphEl = canvas.closest(".drpg-case-graph");
+        const bar = document.querySelector(".drpg-case-camera");
+        if (plantBar && bar && nodes[0]) {
+            const r = nodes[0].getBoundingClientRect();
+            Object.assign(bar.style, { position: "fixed", left: `${r.left + 4}px`, top: `${r.top + 4}px`, right: "auto", bottom: "auto" });
+        }
+        const barOver = when => {
+            if (!bar || !graphEl) return;
+            const b = bar.getBoundingClientRect(), g = graphEl.getBoundingClientRect();
+            for (const n of nodes) {
+                const r = n.getBoundingClientRect();
+                const v = { left: Math.max(r.left, g.left), top: Math.max(r.top, g.top), right: Math.min(r.right, g.right), bottom: Math.min(r.bottom, g.bottom) };
+                if (v.right - v.left < 1 || v.bottom - v.top < 1) continue;
+                if (b.left < v.right - 0.5 && v.left < b.right - 0.5 && b.top < v.bottom - 0.5 && v.top < b.bottom - 0.5) cut.push(`camera bar over ${n.dataset.drpgNode} (${when})`);
+            }
+        };
+        barOver("at rest");
+        let fit = null;
+        if (graphEl && nodes.length) {
+            const was = { transform: canvas.style.transform, transition: canvas.style.transition };
+            canvas.style.transition = "none";
+            let cam = null;
+            V.wireCaseCamera(graphEl, { get: () => cam, set: c => { cam = c; } }).fit();
+            canvas.classList.remove("is-easing");
+            barOver("after fit");
+            const z = cam?.z ?? 1;
+            const sizes = nodes.flatMap(n => [...n.querySelectorAll(".drpg-case-node-kind, .drpg-case-node-mode, .drpg-case-node-state, .drpg-case-node-name, .drpg-case-node-text")])
+                .filter(el => el.textContent.trim()).map(el => parseFloat(getComputedStyle(el).fontSize) * z);
+            fit = { z: Math.round(z * 1000) / 1000, minText: sizes.length ? Math.round(Math.min(...sizes) * 10) / 10 : null };
+            canvas.style.transform = was.transform;
+            canvas.style.transition = was.transition;
+        }
+        const slotEl = document.querySelector("[data-drpg-trial-schema]");
+        const slot = slotEl ? [Math.round(slotEl.clientWidth), Math.round(slotEl.clientHeight)] : null;
+        /* THE FOLD (E99 round 5: "NIE ZWIĄZANE Z MORDERST" cut under glass in the trial's shot, which nothing here read): its
+           words whole in its box, and its box over no node. */
+        for (const fold of canvas.querySelectorAll(".drpg-case-gap > [data-drpg-case-fold]")) {
+            // the words' own box (a text range), not the button's scroll box: the glass's brush is a `::before` 4-5 px
+            // outside every button, which scrollWidth counts and which cuts nothing (as for the nodes, above)
+            const f = fold.getBoundingClientRect();
+            const words = document.createRange();
+            words.selectNodeContents(fold);
+            const t = words.getBoundingClientRect();
+            const inner = { left: f.left + fold.clientLeft, top: f.top + fold.clientTop, right: f.left + fold.clientLeft + fold.clientWidth, bottom: f.top + fold.clientTop + fold.clientHeight };
+            if (t.width && (t.left < inner.left - 0.5 || t.right > inner.right + 0.5 || t.top < inner.top - 0.5 || t.bottom > inner.bottom + 0.5))
+                cut.push(`fold: words ${Math.round(t.width)}x${Math.round(t.height)} past its box ${Math.round(inner.right - inner.left)}x${Math.round(inner.bottom - inner.top)}`);
+            for (const n of nodes) {
+                const r = n.getBoundingClientRect();
+                if (f.left < r.right - 0.5 && r.left < f.right - 0.5 && f.top < r.bottom - 0.5 && r.top < f.bottom - 0.5) cut.push(`fold over ${n.dataset.drpgNode}`);
+            }
+        }
         const overlaps = [];
         for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
             const a = boxes[i], c = boxes[j];
@@ -150,10 +229,10 @@ async function readMap(page, { plantBox = false, staleLayout = false } = {}) {
             revealed = f.top >= g.top - 0.5 && f.top < g.bottom && f.left >= g.left - 0.5 && f.right <= g.right + 0.5;
             if (!revealed) cut.push(`${id}: not brought into view (face at ${Math.round(f.left - g.left)},${Math.round(f.top - g.top)} in ${Math.round(g.width)}x${Math.round(g.height)})`);
         }
-        return { nodes: nodes.length, revealed, open: [...open.keys()], tallest: Math.max(...boxes.map(b => Math.round(b.bottom - b.top))),
+        return { nodes: nodes.length, controls: canvas.querySelectorAll(":scope > [data-drpg-case-tick], :scope > [data-drpg-case-start-node]").length, revealed, open: [...open.keys()], tallest: Math.max(...boxes.map(b => Math.round(b.bottom - b.top))),
             viewport: graph ? [graph.clientWidth, graph.clientHeight] : null, canvas: [parseFloat(canvas.style.width), parseFloat(canvas.style.height)],
-            measured: canvas.dataset.drpgMeasured ?? null, cut, overlaps };
-    }, { plantBox, staleLayout });
+            measured: canvas.dataset.drpgMeasured ?? null, slot, fit, bar: Boolean(bar), cut, overlaps };
+    }, { plantBox, staleLayout, plantBar });
 }
 
 const server = await serve();
@@ -169,12 +248,16 @@ try {
     for (const [di, dir] of DIRS.entries()) {
         const manifest = JSON.parse(fs.readFileSync(path.join(dir, "manifest.json"), "utf8"));
         const lang = manifest.windows.find(w => w.lang)?.lang ?? "en";
-        for (const w of manifest.windows.filter(x => x.captured && /^investigation--map/.test(x.id))) {
+        for (const w of manifest.windows.filter(x => x.captured && IDS.test(x.id))) {
             const html = fs.readFileSync(path.join(dir, w.file), "utf8");
             for (const theme of THEMES) for (const [vw, vh] of SIZES) {
-                const page = await browser.newPage({ viewport: { width: vw, height: vh }, deviceScaleFactor: 1 });
+                /* THE WIDTH FOUNDRY GIVES THE WINDOW (E99 round 5): the capture's is the harness's screen's (1008 px, its jsdom
+                   screen less 8 px a side). The trial console asks 1280 px (trial-floor-ui.mjs `consoleWidth`), held by the kit
+                   to the screen less 8 px a side (ui-kit.mjs `kitWidth`); the Map keeps the capture's width, as before. */
+                const width = /^class-trial/.test(w.id) ? Math.min(1280, vw - 16) : (w.width ?? 1120);
+                const page = await browser.newPage({ viewport: { width: vw, height: vh }, deviceScaleFactor: SHOTS ? SCALE : 1 });
                 const load = async () => {
-                    await page.route("**/case-map-sweep-page", r => r.fulfill({ contentType: "text/html", body: pageHtml(styles, html, w.title, w.width ?? 1120, theme) }));
+                    await page.route("**/case-map-sweep-page", r => r.fulfill({ contentType: "text/html", body: pageHtml(styles, html, w.title, width, theme) }));
                     await page.goto(`${base}/case-map-sweep-page`);
                 };
                 await load();
@@ -184,8 +267,11 @@ try {
                     await load();
                     const stale = await page.evaluate(() => { for (const b of document.querySelectorAll(".drpg-case-canvas > button[data-drpg-node]")) b.style.minHeight = "120px"; return true; })
                         .then(() => readMap(page, { staleLayout: true }));
-                    const ok = box.cut?.length > 0 && stale.overlaps?.length > 0;
-                    console.log(`control  ${ok ? "ok  " : "FAIL"} C5's box read ${box.cut?.length ?? 0} cut(s); the drawn places with 120 px nodes read ${stale.overlaps?.length ?? 0} overlap(s)`);
+                    await load();
+                    const planted = await readMap(page, { plantBar: true });
+                    const barRead = (planted.cut ?? []).filter(c => c.startsWith("camera bar over")).length;
+                    const ok = box.cut?.length > 0 && stale.overlaps?.length > 0 && (!planted.bar || barRead > 0);
+                    console.log(`control  ${ok ? "ok  " : "FAIL"} C5's box read ${box.cut?.length ?? 0} cut(s); the drawn places with 120 px nodes read ${stale.overlaps?.length ?? 0} overlap(s); the bar planted over a node read ${planted.bar ? barRead : "no bar on this page"}`);
                     if (!ok) failed++;
                     controlled = true;
                     await load();
@@ -193,13 +279,23 @@ try {
                 const r = await readMap(page);
                 const bad = (r.cut?.length ?? 1) + (r.overlaps?.length ?? 0) + (r.error ? 1 : 0);
                 if (bad) failed++;
-                const line = `${bad ? "FAIL" : "ok  "} ${lang} ${theme.padEnd(6)} ${vw}x${vh} ${w.id.padEnd(25)} nodes ${r.nodes} open [${(r.open ?? []).join(",")}] tallest ${r.tallest} px, viewport ${r.viewport?.join("x")}, canvas ${r.canvas?.join("x")}, measured ${r.measured}${r.revealed === null ? "" : `, revealed ${r.revealed}`}; cut ${r.cut?.length ?? "-"}, overlaps ${r.overlaps?.length ?? "-"}${r.error ? `; ${r.error}` : ""}`;
+                const line = `${bad ? "FAIL" : "ok  "} ${lang} ${theme.padEnd(6)} ${vw}x${vh} ${w.id.padEnd(25)} nodes ${r.nodes} controls ${r.controls ?? 0} open [${(r.open ?? []).join(",")}] tallest ${r.tallest} px, viewport ${r.viewport?.join("x")}, canvas ${r.canvas?.join("x")}, measured ${r.measured}${r.slot ? `, slot ${r.slot.join("x")}` : ""}${r.fit ? `, fit ${r.fit.z} text ${r.fit.minText} px` : ""}${r.revealed === null ? "" : `, revealed ${r.revealed}`}; cut ${r.cut?.length ?? "-"}, overlaps ${r.overlaps?.length ?? "-"}${r.error ? `; ${r.error}` : ""}`;
                 console.log(line);
                 for (const c of [...(r.cut ?? []), ...(r.overlaps ?? []).map(o => `overlap ${o}`)]) console.log(`       ${c}`);
-                rows.push({ lang, theme, size: `${vw}x${vh}`, id: w.id, ...r });
+                rows.push({ lang, theme, size: `${vw}x${vh}`, id: w.id, width, ...r });
                 if (SHOTS) {
                     // as the GM sees it (the camera at rest), then the whole canvas unclipped
                     await page.screenshot({ path: path.join(SHOTS, `${lang}-${theme}-${vw}x${vh}-${w.id}-view.png`) });
+                    // the trial console's schema (E99): its slot scrolled into view, the camera at rest
+                    if (await page.evaluate(() => { const slot = document.querySelector("[data-drpg-trial-schema]"); slot?.scrollIntoView({ block: "end" }); return Boolean(slot); }))
+                        await page.screenshot({ path: path.join(SHOTS, `${lang}-${theme}-${vw}x${vh}-${w.id}-schema.png`) });
+                    // after Fit to view (round 5): the case whole in the viewport, at the scale the row reports
+                    if (await page.evaluate(async () => { const V = await import("/scripts/case-view.mjs"); const g = document.querySelector(".drpg-case-graph"), c = g?.querySelector(".drpg-case-canvas"); if (!g || !c) return false;
+                        const before = c.style.transform; c.style.transition = "none"; let cam = null; V.wireCaseCamera(g, { get: () => cam, set: x => { cam = x; } }).fit(); c.classList.remove("is-easing");
+                        const out = document.querySelector("[data-drpg-case-zoom-level]"); if (out) out.textContent = `${Math.round(cam.z * 100)}%`; window.__sweepBefore = before; return true; })) {
+                        await page.screenshot({ path: path.join(SHOTS, `${lang}-${theme}-${vw}x${vh}-${w.id}-fit.png`) });
+                        await page.evaluate(() => { const c = document.querySelector(".drpg-case-canvas"); if (c) c.style.transform = window.__sweepBefore; });
+                    }
                     await page.evaluate(() => { const g = document.querySelector(".drpg-case-graph"); if (g) { g.style.overflow = "visible"; g.style.height = `${parseFloat(document.querySelector(".drpg-case-canvas").style.height) + 4}px`; g.style.flex = "none"; } const v = document.querySelector(".drpg-case-view"); if (v) { v.style.height = "auto"; v.style.overflow = "visible"; } });
                     await page.screenshot({ path: path.join(SHOTS, `${lang}-${theme}-${vw}x${vh}-${w.id}.png`), fullPage: true });
                 }
@@ -211,5 +307,6 @@ try {
     await browser.close();
     server.close();
 }
+if (SHOTS) fs.writeFileSync(path.join(SHOTS, "sweep-rows.json"), JSON.stringify(rows, null, 1));
 console.log(`case-map-sweep: ${rows.length} page(s), ${failed} failing`);
 process.exitCode = failed ? 1 : 0;
