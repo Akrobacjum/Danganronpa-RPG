@@ -17960,6 +17960,39 @@ const INVARIANTS = [
             "{tiles: [a seasonReset tile anywhere, Between sessions' last tile]; tile: [Settings opens the game's window, disabled without the permission]; "
             + "footer: [Season setup's destructive reset, its answer runs resetSeason]; words: [Season setup en, pl, Settings en, pl]}");
     }],
+    ["R3663 - the Rest window names the rest a map has no room for (gaps, the owner's 12.11): rest.mjs `restRoomsSentence`, asked as `restVariants` asks it for the window's hints (no `kind` in its data), on a map whose rooms allow no rest, says DRPG.Rest.noRooms with the rest's own name - Short Rest or Long Rest, in English and in Polish - and never an empty word", async () => {
+        /*
+         * Gaps, 12.11.2026 (the owner, through the coordinator): the Rest window read "No room on this map is marked for a
+         * yet" / "... oznaczony pod . GM ustawia to per scena". `restVariants` builds each choice's hint with
+         * `restRoomsSentence(kind, "DRPG.Rest.allowedIn", {}, ...)` - data with no `kind`, since "allowedIn" has none - and on
+         * a map with no rest room the sentence falls back to DRPG.Rest.noRooms with `kind: data?.kind ?? ""`. The refusal's
+         * road (`performRest`, DRPG.Rest.wrongRoom) passes `kind` and was whole. Asked here with a scene of the test's own
+         * (no region, so no rest room) and with the language's words standing in for `game.i18n` (lang/en.json and
+         * lang/pl.json, the module's own files), and restored. Red at 235c3210: the kind empty in both.
+         */
+        const R = await import("./rest.mjs");
+        const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const files = { en: await lang("en"), pl: await lang("pl") };
+        const scene = { id: "R3663SCENE", regions: [] };
+        const at = (obj, key) => key.split(".").reduce((o, p) => o?.[p], obj);
+        const read = {};
+        const own = game.i18n.localize, fmt = game.i18n.format;
+        try {
+            for (const code of ["en", "pl"]) {
+                const word = key => at(files[code], key) ?? key;
+                game.i18n.localize = key => word(key);
+                game.i18n.format = (key, data = {}) => String(word(key)).replace(/\{(\w+)\}/g, (m, k) => (k in data ? String(data[k]) : m));
+                read[code] = ["short", "long"].map(kind => R.restRoomsSentence(kind, "DRPG.Rest.allowedIn", {}, scene, null));
+            }
+        } finally {
+            game.i18n.localize = own;
+            game.i18n.format = fmt;
+        }
+        must(read.en?.length === 2 && read.pl?.length === 2, "restRoomsSentence answered nothing - this would measure nothing");
+        const want = code => ["short", "long"].map(kind => String(at(files[code], "DRPG.Rest.noRooms")).replace("{kind}", at(files[code], `DRPG.Rest.${kind}`)));
+        equal(JSON.stringify(read), JSON.stringify({ en: want("en"), pl: want("pl") }),
+            "{en, pl: [the Short Rest's sentence, the Long Rest's]} - a sentence with no rest's name in it");
+    }],
     ["R3533 - Season setup's footer stands in one row on a 1366x768 screen (E49 A1d; the owner's approval of 11.11.2026): season-setup.mjs `openSeasonSetup` states the kit's `tables` width, at least the widest four buttons measured (780 px), and its footer is Save, Reset the season (destructive) and Cancel, Pre-season checks gone from it to the row of windows (E49 A1e, R3580); The Mastermind, right before Season setup in Between sessions until E49 A1e, is no tile there (R3582)", async () => {
         /*
          * E49 A1d, 11.11.2026. The owner: "zamieniamy miejscami the mastermind z ustawienia sezonu", and Season setup at
