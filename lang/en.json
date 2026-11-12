@@ -4121,6 +4121,8 @@
       "whichImprovement": "Which improvement?",
       "forWhom": "For {name}: {reason}",
       "whichTrait": "Which statistic?",
+      "raisesHealth": "also +1 to the Health maximum",
+      "raisesSanity": "also +1 to the Sanity maximum",
       "whichExperience": "Which experience?",
       "newExperienceName": "New experience",
       "newExperiencePlaceholder": "a word or a sentence about who they are",

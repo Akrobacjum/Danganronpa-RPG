@@ -123,7 +123,7 @@ export async function handleAnalyzeResolve(payload, sender, ctx) {
  * the sender has to own the character (the declaration's guard), the character
  * has to be CARRYING an offer, the kind comes off THE OFFER rather than off the
  * packet (whose `kind` is not even on the whitelist), the number of picks has
- * to be the number that kind buys, and every option has to be one of the five.
+ * to be the number that kind buys, and every option has to be one of the three (E64 C6: +1 Health and +1 Sanity are no options; DA39).
  * Nothing here trusts the claim except the picks themselves, which are the one
  * thing the offer was made to let them choose.
  *

@@ -734,9 +734,7 @@ The GM decides who picks each Level Up. If it is you, you are told and the Level
 
 | Option |
 |---|
-| Increase Health by +1 |
-| Increase Sanity by +1 |
-| Increase one statistic by +1 |
+| Increase one statistic by +1 - a point in Head also raises your Sanity maximum by 1, a point in Body or Leg your Health maximum by 1 |
 | Increase one experience by +1 |
 | Add a new experience worth +2 |
 

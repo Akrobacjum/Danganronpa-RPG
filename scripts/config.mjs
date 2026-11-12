@@ -3124,8 +3124,6 @@ export const DEAD_ICON = {
  * ========================================================================== */
 
 export const LEVEL_UP_OPTIONS = {
-    hp: { label: "Increase Health by +1" },
-    stress: { label: "Increase Sanity by +1" },
     trait: { label: "Increase one statistic by +1" },
     experienceUp: { label: "Increase one experience by +1" },
     experienceNew: { label: "Add a new experience worth +{worth}" }
@@ -3135,6 +3133,20 @@ export const LEVEL_UP = {
     standard: { picks: 1 },
     reinforced: { picks: 3 }
 };
+
+/**
+ * WHAT A STATISTIC'S POINT RAISES WITH IT (E64 C6, 12.11.2026; the owner's DA39 of 05.10, audit S18-27; default
+ * taken, owner to confirm). The options lost "+1 Health" and "+1 Sanity": a point in Head raises the Sanity maximum
+ * by 1, a point in Body or in Leg the Health maximum by 1, in the same write (level-up.mjs `applyAdvancement`). Keyed
+ * by Daggerheart's statistic (`TRAITS.*.dh`): Head is `knowledge`, Body `strength`, Leg `agility`. A world whose
+ * students took +1 Health or +1 Sanity before keeps what they took (Q-E64-4): nothing is rewritten, and the next Level
+ * Up is the new rule's.
+ */
+export const LEVEL_UP_TRAIT_RESOURCES = Object.freeze({
+    knowledge: Object.freeze({ stress: 1 }),
+    strength: Object.freeze({ hitPoints: 1 }),
+    agility: Object.freeze({ hitPoints: 1 })
+});
 
 /* ==========================================================================
  * MONOCUB
@@ -5065,6 +5077,7 @@ export const DRPG = {
     DEAD_ICON,
     LEVEL_UP_OPTIONS,
     LEVEL_UP,
+    LEVEL_UP_TRAIT_RESOURCES,
     MONOCUB,
     MURDER_OPENING,
     INCIDENT,

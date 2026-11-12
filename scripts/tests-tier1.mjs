@@ -48941,6 +48941,41 @@ const INVARIANTS = [
             box: [true, true], write: [false, true]
         }), "the texts of a critical's copy, an ordinary find's, an undescribed trace's critical; the window's box and answer; the trace's write and the copy's text");
     }],
+    ["R3956 - a Level Up raises no Health or Sanity by itself; a point in Head, Body or Leg raises a maximum with it (E64 C6; the owner's DA39, audit S18-27; default taken, owner to confirm; Q-E64-4: past picks kept): `LEVEL_UP_OPTIONS` is the statistic, the experience and the new experience; `LEVEL_UP_TRAIT_RESOURCES` gives Head (knowledge) +1 Sanity maximum, Body (strength) and Leg (agility) +1 Health maximum and the other three nothing; level-up.mjs `applyAdvancement` has no Health or Sanity option left, refuses a pick of no option, and counts the table's rises on a statistic's pick; the picker says the rise (`traitRaisesNote`) in English and Polish", async () => {
+        /*
+         * E64 C6, 12.11.2026. Red at 7469197: the options still held `hp` and `stress`, no table, no note. What the
+         * write does on a sheet is tier 2's: "a GM's advancement rises from the maxima ..." picks a point in Body and in
+         * Head and reads the Health and Sanity maxima one higher each, as it read them for +1 Health and +1 Sanity.
+         */
+        const C = await import("./config.mjs");
+        const L = await import("./level-up.mjs");
+        const src = stripComments((await moduleSources()).get("level-up.mjs") ?? "");
+        must(src.length > 5000, "level-up.mjs was not read - this would measure nothing");
+        const apply = fnSource(src, "applyAdvancement");
+        const table = C.LEVEL_UP_TRAIT_RESOURCES ?? null;
+        const rise = dh => table ? stableJson(table[dh] ?? {}) : null;
+        const langs = {};
+        for (const lang of ["en", "pl"]) {
+            const json = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            langs[lang] = [typeof json.DRPG?.Advance?.raisesHealth === "string", typeof json.DRPG?.Advance?.raisesSanity === "string",
+                json.DRPG?.Config?.LEVEL_UP_OPTIONS?.hp === undefined && json.DRPG?.Config?.LEVEL_UP_OPTIONS?.stress === undefined];
+        }
+        equal(stableJson({
+            options: Object.keys(C.LEVEL_UP_OPTIONS),
+            rises: Object.values(C.TRAITS).map(t => [t.label, rise(t.dh)]),
+            notes: typeof L.traitRaisesNote === "function"
+                ? ["strength", "agility", "knowledge", "instinct"].map(dh => L.traitRaisesNote(dh))
+                : null,
+            apply: [/case "hp"|case "stress"/.test(apply), /!Object\.hasOwn\(LEVEL_UP_OPTIONS, pick\?\.option \?\? ""\)/.test(apply), /LEVEL_UP_TRAIT_RESOURCES\[key\]/.test(apply)],
+            langs
+        }), stableJson({
+            options: ["trait", "experienceUp", "experienceNew"],
+            rises: [["Eye", "{}"], ["Head", "{\"stress\":1}"], ["Body", "{\"hitPoints\":1}"], ["Leg", "{\"hitPoints\":1}"], ["Hand", "{}"], ["Shadow", "{}"]],
+            notes: [game.i18n.localize("DRPG.Advance.raisesHealth"), game.i18n.localize("DRPG.Advance.raisesHealth"), game.i18n.localize("DRPG.Advance.raisesSanity"), ""],
+            apply: [false, true, true],
+            langs: { en: [true, true, true], pl: [true, true, true] }
+        }), "the options; each statistic's rise; the picker's note for Body, Leg, Head and Eye; applyAdvancement [an old case left, a non-option refused, the table read]; each language [the two notes, no old option's label]");
+    }],
 ];
 
 /**

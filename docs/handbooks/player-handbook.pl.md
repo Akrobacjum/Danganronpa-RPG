@@ -734,9 +734,7 @@ GM decyduje, kto wybiera każdy Level Up. Jeśli ty, dowiadujesz się o tym, a p
 
 | Opcja |
 |---|
-| Zwiększ Health o +1 |
-| Zwiększ Sanity o +1 |
-| Zwiększ jedną statystykę o +1 |
+| Zwiększ jedną statystykę o +1 - punkt w Head podnosi też twoje maksimum Sanity o 1, punkt w Body albo Leg twoje maksimum Health o 1 |
 | Zwiększ jedno doświadczenie o +1 |
 | Dodaj nowe doświadczenie warte +2 |
 

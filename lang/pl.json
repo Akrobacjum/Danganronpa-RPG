@@ -4474,6 +4474,8 @@
       "whichImprovement": "Które ulepszenie?",
       "forWhom": "Postać: {name}. {reason}",
       "whichTrait": "Która statystyka?",
+      "raisesHealth": "także +1 do maksimum Health",
+      "raisesSanity": "także +1 do maksimum Sanity",
       "whichExperience": "Które doświadczenie?",
       "newExperienceName": "Nowe doświadczenie",
       "newExperiencePlaceholder": "słowo albo zdanie o tym, kim są",
@@ -6572,12 +6574,6 @@
         }
       },
       "LEVEL_UP_OPTIONS": {
-        "hp": {
-          "label": "Zwiększ Health o +1"
-        },
-        "stress": {
-          "label": "Zwiększ Sanity o +1"
-        },
         "trait": {
           "label": "Zwiększ jedną statystykę o +1"
         },

@@ -12,7 +12,7 @@
  *   a new experience at +2
  */
 
-import { MODULE_ID, FLAGS, LEVEL_UP, LEVEL_UP_OPTIONS, TRAITS, STARTING, TRIAL } from "./config.mjs";
+import { MODULE_ID, FLAGS, LEVEL_UP, LEVEL_UP_OPTIONS, LEVEL_UP_TRAIT_RESOURCES, TRAITS, STARTING, TRIAL } from "./config.mjs";
 import { listExperiences } from "./character.mjs";
 import { log, error, isPrimaryGm, ownerIdsOf, plural, proseOf } from "./utils.mjs";
 import { offerStore, offerCopy, deferredOfferStore } from "./gm-stores.mjs";
@@ -688,6 +688,16 @@ function buildContent(picks, experiences, reasons, forName = null) {
     return `<form>${forLine}<p>${intro}</p>${warning}${rows}</form>`;
 }
 
+/**
+ * What a point in this statistic raises beside it, in the reader's language, or "" (E64 C6; DA39): read off
+ * `LEVEL_UP_TRAIT_RESOURCES`, so the picker and the summary say what the write does.
+ */
+export function traitRaisesNote(dh) {
+    const rises = LEVEL_UP_TRAIT_RESOURCES[dh] ?? {};
+    return [rises.hitPoints ? game.i18n.localize("DRPG.Advance.raisesHealth") : "", rises.stress ? game.i18n.localize("DRPG.Advance.raisesSanity") : ""]
+        .filter(Boolean).join(", ");
+}
+
 /** Swap the detail control whenever a pick's option changes. */
 function wireForm(dialog, picks, actor, experiences) {
     const root = dialog.element;
@@ -712,7 +722,9 @@ function buildDetail(option, index, actor, experiences) {
                 .map(([, t]) => {
                     const value = actor.system.traits?.[t.dh]?.value ?? 0;
                     const sign = value > 0 ? `+${value}` : `${value}`;
-                    return `<option value="${t.dh}">${t.label} (${sign})</option>`;
+                    // What the point raises with it (E64 C6, DA39): said on the option, before the pick.
+                    const also = traitRaisesNote(t.dh);
+                    return `<option value="${t.dh}">${t.label} (${sign})${also ? ` - ${also}` : ""}</option>`;
                 })
                 .join("");
             return `<label>${game.i18n.localize("DRPG.Advance.whichTrait")}
@@ -804,7 +816,8 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
        experience the sheet did not have took a value of its own. A GM's console and any picker reach
        this as well as the bridge, whose handler refuses the same picks first and tells the player. */
     const statistics = new Set(Object.values(TRAITS).map(trait => trait.dh));
-    if (picks.some(pick => (pick?.option === "trait" && !statistics.has(pick.trait))
+    if (picks.some(pick => !Object.hasOwn(LEVEL_UP_OPTIONS, pick?.option ?? "")
+        || (pick?.option === "trait" && !statistics.has(pick.trait))
         || (pick?.option === "experienceUp" && typeof pick.experience !== "string"))) {
         ui.notifications.warn(game.i18n.format("DRPG.Advance.notOnSheet", { name: actor.name }));
         return null;
@@ -812,21 +825,21 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
 
     for (const pick of picks) {
         switch (pick.option) {
-            case "hp":
-                hpUp += 1;
-                summary.push(LEVEL_UP_OPTIONS.hp.label);
-                break;
-
-            case "stress":
-                stressUp += 1;
-                summary.push(LEVEL_UP_OPTIONS.stress.label);
-                break;
-
+            /*
+             * NO "+1 HEALTH" OR "+1 SANITY" ANY MORE (E64 C6, 12.11.2026; the owner's DA39; default taken, owner to
+             * confirm). They were options until 1.2.105; a statistic's point raises a maximum instead - Head the
+             * Sanity's, Body and Leg the Health's (`LEVEL_UP_TRAIT_RESOURCES`), counted here into the same rises.
+             * A pick naming either old option is no option: refused above with the rest (`LEVEL_UP_OPTIONS`).
+             */
             case "trait": {
                 const key = pick.trait;
                 traitDeltas[key] = (traitDeltas[key] ?? 0) + 1;
                 const label = Object.values(TRAITS).find(t => t.dh === key)?.label ?? key;
-                summary.push(`+1 ${label}`);
+                const rises = LEVEL_UP_TRAIT_RESOURCES[key] ?? {};
+                hpUp += Number(rises.hitPoints) || 0;
+                stressUp += Number(rises.stress) || 0;
+                const also = traitRaisesNote(key);
+                summary.push(`+1 ${label}${also ? ` (${also})` : ""}`);
                 break;
             }
 

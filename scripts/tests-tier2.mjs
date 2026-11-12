@@ -610,6 +610,14 @@ async function inConsoleWindow(student, player, { honest = {}, forged, paths, du
 }
 
 /** What `paths` hold on `actor`'s sheet now, and what puts them back as they were (an absent module flag unset; E29 fix r2-H24). */
+/*
+ * THE TWO STATISTICS A LEVEL UP'S RISE OF A MAXIMUM COMES WITH (E64 C6, 12.11.2026; the owner's DA39). Until 1.2.105 the
+ * Level Up tests picked "+1 Health" and "+1 Sanity", which are no options now; they pick a point in Body (`strength`,
+ * +1 to the Health maximum with it) and in Head (`knowledge`, +1 to the Sanity maximum), so the rises they count are
+ * the same, and put these two statistics back with the rest.
+ */
+const LEVEL_UP_POINTS = ["system.traits.strength.value", "system.traits.knowledge.value"];
+
 function sheetAsFound(actor, paths) {
     const was = Object.fromEntries(paths.map(path => [path, foundry.utils.getProperty(actor._source, path)]));
     return async () => {
@@ -23503,7 +23511,8 @@ const SCENARIOS = [
         const { deferAdvancement } = await import("./level-up.mjs");
         const { trustedWrite } = await import("./resource-guard.mjs");
         const pair = [holder, other];
-        const before = new Map(pair.map(a => [a.id, { max: a.system?.resources?.hitPoints?.max ?? 0, advances: a.getFlag(MODULE_ID, FLAGS.advances) ?? 0 }]));
+        const before = new Map(pair.map(a => [a.id, { max: a.system?.resources?.hitPoints?.max ?? 0, advances: a.getFlag(MODULE_ID, FLAGS.advances) ?? 0,
+            points: Object.fromEntries(LEVEL_UP_POINTS.map(path => [path, foundry.utils.getProperty(a._source, path) ?? 0])) }]));
         const titles = new Map(pair.map(a => [game.i18n.format("DRPG.Advance.title", { actor: a.name }), a.id]));
         const writes = new Map();
         const hook = Hooks.on("updateActor", a => { if (before.has(a.id)) writes.set(a.id, (writes.get(a.id) ?? 0) + 1); });
@@ -23517,7 +23526,7 @@ const SCENARIOS = [
             const from = new Set(game.messages.map(m => m.id));
 
             const asked = await withVerdictOpen(() => withAdvanceWindows(
-                entry => (titles.has(entry.title) ? Array.from({ length: entry.picks }, () => ({ option: "hp" })) : null),
+                entry => (titles.has(entry.title) ? Array.from({ length: entry.picks }, () => ({ option: "trait", trait: "strength" })) : null),
                 () => applyVerdict({ correct: true, executedIds: [], blackenedIds: [] })));
             await settle();
             const picked = id => asked.filter(e => titles.get(e.title) === id).map(e => e.picks);
@@ -23536,7 +23545,7 @@ const SCENARIOS = [
             Hooks.off("updateActor", hook);
             for (const a of pair) {
                 await trustedWrite(a, { "system.resources.hitPoints.max": before.get(a.id).max,
-                    [`flags.${MODULE_ID}.${FLAGS.advances}`]: before.get(a.id).advances }, { reason: "gmRuling" });
+                    [`flags.${MODULE_ID}.${FLAGS.advances}`]: before.get(a.id).advances, ...before.get(a.id).points }, { reason: "gmRuling" });
             }
             await deferredOfferStore.dropMany([holder.id, dead.id].filter(id => deferredOfferStore.has(id)));
             await reviveCharacter(dead, { quiet: true });
@@ -23575,7 +23584,7 @@ const SCENARIOS = [
         must(living.every(a => !S.offerStore.has(a.id) && !S.deferredOfferStore.has(a.id)),
             "an offer or a waiting Level Up stands already - this would read it, not the ones made here");
         const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
-        const putBack = sheetAsFound(holder, [HP_MAX, ADVANCES]);
+        const putBack = sheetAsFound(holder, [HP_MAX, ADVANCES, ...LEVEL_UP_POINTS]);
         const offersOf = a => L.offerList(S.offerStore.get(a.id));
         const sheet = path => foundry.utils.getProperty(holder._source, path) ?? 0;
         const ids = new Set(living.map(a => a.id));
@@ -23609,7 +23618,7 @@ const SCENARIOS = [
             const hp = sheet(HP_MAX), advances = sheet(ADVANCES);
             writes = 0;
             await G.judge(BRIDGE_ACTIONS, { action: "advancement.apply", requestId: `E10C7${foundry.utils.randomID(8)}`, actorId: holder.id,
-                picks: Array.from({ length: 4 }, () => ({ option: "hp" })), offerId: offer?.id ?? null }, owner, { send: () => {} });
+                picks: Array.from({ length: 4 }, () => ({ option: "trait", trait: "strength" })), offerId: offer?.id ?? null }, owner, { send: () => {} });
             await settle();
             equal(stableJson([sheet(HP_MAX) - hp, sheet(ADVANCES) - advances, writes, offersOf(holder).length]), stableJson([4, 1, 1, 0]),
                 "the Blackened's one offer was not spent as four picks in one write and one step of advances (rise, advances, writes, offers left)");
@@ -23856,12 +23865,12 @@ const SCENARIOS = [
         living.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
         const first = living[0];
         const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
-        const putBack = new Map(living.map(a => [a.id, sheetAsFound(a, [HP_MAX, ADVANCES])]));
+        const putBack = new Map(living.map(a => [a.id, sheetAsFound(a, [HP_MAX, ADVANCES, ...LEVEL_UP_POINTS])]));
         const advances = a => foundry.utils.getProperty(a._source, ADVANCES) ?? 0;
         const before = new Map(living.map(a => [a.id, advances(a)]));
         const offersOf = a => L.offerList(S.offerStore.get(a.id));
         const levelUps = a => offersOf(a).length + advances(a) - before.get(a.id);
-        const pick = entry => Array.from({ length: entry.picks }, () => ({ option: "hp" }));
+        const pick = entry => Array.from({ length: entry.picks }, () => ({ option: "trait", trait: "strength" }));
         const settings = game.settings, own = Object.getOwnPropertyDescriptor(settings, "set"), set = settings.set;
         const records = [];
         const unwrap = () => {
@@ -24176,7 +24185,7 @@ const SCENARIOS = [
         const holder = living.find(a => ownerIdsOf(a).some(id => game.users.get(id)?.active));
         const owner = ownerIdsOf(holder).find(id => game.users.get(id)?.active);
         const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
-        const putBack = living.map(a => sheetAsFound(a, [HP_MAX, ADVANCES]));
+        const putBack = living.map(a => sheetAsFound(a, [HP_MAX, ADVANCES, ...LEVEL_UP_POINTS]));
         const advances = a => foundry.utils.getProperty(a._source, ADVANCES) ?? 0;
         const before = new Map(living.map(a => [a.id, advances(a)]));
         const offersOf = a => L.offerList(S.offerStore.get(a.id));
@@ -24184,7 +24193,7 @@ const SCENARIOS = [
         const i18n = game.i18n, format = i18n.format, notes = ui.notifications, error = notes.error, warn = notes.warn, drop = S.offerStore.drop;
         const told = [];
         const spend = offer => G.judge(BRIDGE_ACTIONS, { action: "advancement.apply", requestId: `E10G1${foundry.utils.randomID(8)}`, actorId: holder.id,
-            picks: [{ option: "hp" }], offerId: offer?.id ?? null }, owner, { send: () => {} });
+            picks: [{ option: "trait", trait: "strength" }], offerId: offer?.id ?? null }, owner, { send: () => {} });
         i18n.format = function (key, ...rest) {
             if (key === "DRPG.Advance.chatTitle") throw new Error("the Level Up's card is refused for this test");
             return format.call(this, key, ...rest);
@@ -24198,7 +24207,7 @@ const SCENARIOS = [
             return warn.call(notes, message, ...rest);
         };
         try {
-            await withVerdictOpen(() => withAdvanceWindows(entry => Array.from({ length: entry.picks }, () => ({ option: "hp" })),
+            await withVerdictOpen(() => withAdvanceWindows(entry => Array.from({ length: entry.picks }, () => ({ option: "trait", trait: "strength" })),
                 () => applyVerdict({ correct: true, executedIds: [], blackenedIds: [] }), "gm"));
             await settle();
             equal(stableJson([living.map(a => [a.name, advances(a) - before.get(a.id), offersOf(a).length]), told.filter(([, line]) => line === failed).length]),
@@ -24265,7 +24274,7 @@ const SCENARIOS = [
         must(!S.offerStore.has(student.id) && !S.deferredOfferStore.has(student.id),
             `${student.name} holds an offer or a waiting Level Up already - this would read it, not the one made here`);
         const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
-        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES]);
+        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES, ...LEVEL_UP_POINTS]);
         const sheet = path => foundry.utils.getProperty(student._source, path) ?? 0;
         const offersOf = () => L.offerList(S.offerStore.get(student.id));
         // The refusals a packet is told, by their kind (bridge-guards.mjs REASON_PATTERNS).
@@ -24288,7 +24297,7 @@ const SCENARIOS = [
             const hp = sheet(HP_MAX), advances = sheet(ADVANCES);
             const gate = new Promise(resolve => { release = resolve; });
             const held = gmMeansWrite(student, () => gate);
-            const applying = judged({ action: "advancement.apply", picks: Array.from({ length: 4 }, () => ({ option: "hp" })),
+            const applying = judged({ action: "advancement.apply", picks: Array.from({ length: 4 }, () => ({ option: "trait", trait: "strength" })),
                 offerId: offer?.id ?? null }, player.id);
             // The apply's road to the queue awaits nothing slow (cached imports, synchronous checks); 400 ms is room to spare.
             await wait(400);
@@ -24346,7 +24355,7 @@ const SCENARIOS = [
         must(!S.offerStore.has(student.id) && !S.deferredOfferStore.has(student.id),
             `${student.name} holds an offer or a waiting Level Up already - this would read it, not the one made here`);
         const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
-        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES]);
+        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES, ...LEVEL_UP_POINTS]);
         const sheet = path => foundry.utils.getProperty(student._source, path) ?? 0;
         const offersOf = () => L.offerList(S.offerStore.get(student.id));
         // The refusals a packet is told, by their kind (bridge-guards.mjs REASON_PATTERNS).
@@ -24367,7 +24376,7 @@ const SCENARIOS = [
             const taking = take(offer?.id ?? null);
             // Each road reaches the store's wait through cached imports and synchronous checks; 200 ms is room to spare.
             await wait(200);
-            const applying = judged({ action: "advancement.apply", picks: Array.from({ length: 4 }, () => ({ option: "hp" })),
+            const applying = judged({ action: "advancement.apply", picks: Array.from({ length: 4 }, () => ({ option: "trait", trait: "strength" })),
                 offerId: offer?.id ?? null }, player.id);
             await wait(400);
             const whileWaiting = [sheet(HP_MAX) - hp, sheet(ADVANCES) - advances];
@@ -47722,7 +47731,7 @@ const SCENARIOS = [
         const player = playerOf(student);
         must(!S.offerStore.has(student.id), `${student.name} holds an offer already - this would read it, not the two made here`);
         const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
-        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES]);
+        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES, ...LEVEL_UP_POINTS]);
         // A row of the answer is a list since C6, one offer before it.
         const told = () => { const row = L.offersFor(player.id).offers[student.id]; return row?.offers ?? (row ? [row] : []); };
         const advances = () => foundry.utils.getProperty(student._source, ADVANCES) ?? 0;
@@ -47732,11 +47741,11 @@ const SCENARIOS = [
             await L.offerAdvancement(student, "standard");
             await L.offerAdvancement(student, "standard");
             read.push(told().length);
-            await L.applyAdvancement(student, [{ option: "hp" }]);
+            await L.applyAdvancement(student, [{ option: "trait", trait: "strength" }]);
             read.push(told().length);
             const [first] = told();
             await G.judge(BRIDGE_ACTIONS, { action: "advancement.apply", requestId: `E10C6${foundry.utils.randomID(8)}`, actorId: student.id,
-                picks: [{ option: "hp" }], offerId: first?.id ?? null }, player.id, { send: () => {} });
+                picks: [{ option: "trait", trait: "strength" }], offerId: first?.id ?? null }, player.id, { send: () => {} });
             const left = told();
             read.push(left.length, left.some(offer => offer.id === first?.id), advances() - before);
         } finally {
@@ -47772,7 +47781,7 @@ const SCENARIOS = [
         const player = playerOf(student);
         must(!S.offerStore.has(student.id), `${student.name} holds an offer already - this would read it, not the two made here`);
         const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
-        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES]);
+        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES, ...LEVEL_UP_POINTS]);
         // A row of the answer is a list since C6, one offer before it.
         const told = () => { const row = L.offersFor(player.id).offers[student.id]; return row?.offers ?? (row ? [row] : []); };
         const advances = () => foundry.utils.getProperty(student._source, ADVANCES) ?? 0;
@@ -47791,7 +47800,7 @@ const SCENARIOS = [
             const takenId = taken?.slice("take:".length) ?? null;
             const refusals = [];
             await G.judge(BRIDGE_ACTIONS, { action: "advancement.apply", requestId: `E10C6${foundry.utils.randomID(8)}`, actorId: student.id,
-                picks: [{ option: "hp" }], offerId: takenId }, player.id,
+                picks: [{ option: "trait", trait: "strength" }], offerId: takenId }, player.id,
             { send: (to, reply) => { if (reply?.action === "bridge.refused") refusals.push(reply.reason ?? null); } });
             const left = told();
             read = [drawn, windows.map(w => w.choices.filter(value => value.startsWith("take:")).length), refusals, advances() - before,
@@ -47829,7 +47838,7 @@ const SCENARIOS = [
         const player = playerOf(student);
         must(!S.offerStore.has(student.id), `${student.name} holds an offer already - this would read it, not the one written here`);
         const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
-        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES]);
+        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES, ...LEVEL_UP_POINTS]);
         const told = () => { const row = L.offersFor(player.id).offers[student.id]; return row?.offers ?? (row ? [row] : []); };
         const shown = () => told().map(offer => [offer.id ?? null, offer.kind]);
         const advances = () => foundry.utils.getProperty(student._source, ADVANCES) ?? 0;
@@ -47841,7 +47850,7 @@ const SCENARIOS = [
             await L.offerAdvancement(student, "reinforced");
             const both = shown().map(([, kind]) => kind);
             await G.judge(BRIDGE_ACTIONS, { action: "advancement.apply", requestId: `E10C6${foundry.utils.randomID(8)}`, actorId: student.id,
-                picks: [{ option: "hp" }], offerId: old[0]?.[0] ?? null }, player.id, { send: () => {} });
+                picks: [{ option: "trait", trait: "strength" }], offerId: old[0]?.[0] ?? null }, player.id, { send: () => {} });
             read = [old, both, shown().map(([, kind]) => kind), advances() - before, (row => row && Object.hasOwn(row, "kind") ? row.kind : "absent")(S.offerStore.get(student.id))];
         } finally {
             if (S.offerStore.has(student.id)) await S.offerStore.drop(student.id);
@@ -47869,7 +47878,7 @@ const SCENARIOS = [
         const [student] = livingStudents().filter(a => !game.users.some(u => !u.isGM && a.testUserPermission(u, "OWNER")));
         must(!S.offerStore.has(student.id), `${student.name} holds an offer already - this would read it`);
         const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
-        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES]);
+        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES, ...LEVEL_UP_POINTS]);
         const advances = () => foundry.utils.getProperty(student._source, ADVANCES) ?? 0;
         const before = advances();
         const said = [];
@@ -47880,7 +47889,7 @@ const SCENARIOS = [
         try {
             const offered = await L.offerAdvancement(student, "standard");
             const held = S.offerStore.has(student.id);
-            const windows = await withAnsweredWindows(({ kind, choices }) => kind === "advance" ? [{ option: "hp" }]
+            const windows = await withAnsweredWindows(({ kind, choices }) => kind === "advance" ? [{ option: "trait", trait: "strength" }]
                 : { value: choices.includes("player") ? "player" : "standard" }, () => L.openAdvancementFor(student));
             const nobody = game.i18n.format("DRPG.Advance.nobodyPlays", { name: student.name });
             read = [offered, held, said.filter(line => line === nobody).length, windows.map(w => w.kind), advances() - before,
@@ -51821,13 +51830,13 @@ const SCENARIOS = [
         const at = path => foundry.utils.getProperty(student._source, path);
         must([HP_MAX, SAN_MAX, TRAIT, EXP].every(path => typeof at(path) === "number"), `${student.name} has no Health or Sanity maximum, no ${
             trait} or no experience to raise - this would measure nothing: ${stableJson([HP_MAX, SAN_MAX, TRAIT, EXP].map(at))}`);
-        const putBack = sheetAsFound(student, [HP_MAX, SAN_MAX, TRAIT, EXP, ADVANCES]);
+        const putBack = sheetAsFound(student, [HP_MAX, SAN_MAX, TRAIT, EXP, ADVANCES, ...LEVEL_UP_POINTS]);
         const [hp, san, stat, exp, advances] = [at(HP_MAX), at(SAN_MAX), at(TRAIT), at(EXP), at(ADVANCES) ?? 0];
         let read = null;
         try {
             read = await inConsoleWindow(student, player(student), { forged: { [HP_MAX]: hp + 3, [SAN_MAX]: san + 3, [TRAIT]: stat + 2, [EXP]: exp + 2,
                 [ADVANCES]: advances + 5 }, paths: [HP_MAX, SAN_MAX, TRAIT, EXP, ADVANCES] },
-            () => applyAdvancement(student, [{ option: "hp" }, { option: "stress" }, { option: "trait", trait }, { option: "experienceUp", experience }]));
+            () => applyAdvancement(student, [{ option: "trait", trait: "strength" }, { option: "trait", trait: "knowledge" }, { option: "trait", trait }, { option: "experienceUp", experience }]));
         } finally {
             await putBack();
         }
@@ -51857,7 +51866,7 @@ const SCENARIOS = [
         const at = path => foundry.utils.getProperty(student._source, path);
         must(typeof at(HP_MAX) === "number" && typeof at(TRAIT) === "number",
             `${student.name} has no Health maximum or no ${trait} to raise - this would measure nothing: ${stableJson([at(HP_MAX), at(TRAIT)])}`);
-        const putBack = sheetAsFound(student, [HP_MAX, TRAIT, ADVANCES]);
+        const putBack = sheetAsFound(student, [HP_MAX, TRAIT, ADVANCES, ...LEVEL_UP_POINTS]);
         const [hp, stat] = [at(HP_MAX), at(TRAIT)];
         const unprepare = preparedAs(student, system => {
             system.resources.hitPoints.max += 5;
@@ -51869,7 +51878,7 @@ const SCENARIOS = [
             // (no class's hit points, no pick), the two readings agree and this measures nothing there.
             if (unprepare) must(student.system.resources.hitPoints.max === hp + 5 && foundry.utils.getProperty(student.system, `traits.${trait}.value`) === stat + 1,
                 `the preparation the test stands in for did not take - this would measure nothing: ${stableJson([student.system.resources.hitPoints.max, hp])}`);
-            await applyAdvancement(student, [{ option: "hp" }, { option: "trait", trait }]);
+            await applyAdvancement(student, [{ option: "trait", trait: "strength" }, { option: "trait", trait }]);
             read = [at(HP_MAX), at(TRAIT)];
         } finally {
             unprepare?.();
@@ -51919,7 +51928,7 @@ const SCENARIOS = [
         must(typeof at(EXP) === "number", `${student.name} has no experience to raise - this would measure nothing: ${stableJson(at(EXP))}`);
         const NOBODY = "E10C8NOSUCHEXP01", NO_STAT = "e10c8NoStatistic";
         const JUNK = [`system.experiences.${NOBODY}`, `system.traits.${NO_STAT}`];
-        const putBack = sheetAsFound(student, [HP_MAX, SAN_MAX, TRAIT, EXP, ADVANCES]);
+        const putBack = sheetAsFound(student, [HP_MAX, SAN_MAX, TRAIT, EXP, ADVANCES, ...LEVEL_UP_POINTS]);
         const told = () => { const row = L.offersFor(player.id).offers[student.id]; return row?.offers ?? (row ? [row] : []); };
         const before = at(ADVANCES) ?? 0, exp = at(EXP);
         const gained = () => (at(ADVANCES) ?? 0) - before;
@@ -51927,7 +51936,7 @@ const SCENARIOS = [
             const refusals = [];
             const [offer] = told();
             await G.judge(BRIDGE_ACTIONS, { action: "advancement.apply", requestId: `E10C8${foundry.utils.randomID(8)}`, actorId: student.id,
-                picks: [{ option: "hp" }, { option: "stress" }, last], offerId: offer?.id ?? null }, player.id,
+                picks: [{ option: "trait", trait: "strength" }, { option: "trait", trait: "knowledge" }, last], offerId: offer?.id ?? null }, player.id,
             { send: (to, reply) => { if (reply?.action === "bridge.refused") refusals.push(reply.reason ?? null); } });
             return refusals;
         };
@@ -51940,7 +51949,7 @@ const SCENARIOS = [
             }
             const gm = [];
             for (const last of [{ option: "trait", trait: NO_STAT }, { option: "experienceUp" }]) {
-                gm.push(await L.applyAdvancement(student, [{ option: "hp" }, { option: "stress" }, last], "reinforced"));
+                gm.push(await L.applyAdvancement(student, [{ option: "trait", trait: "strength" }, { option: "trait", trait: "knowledge" }, last], "reinforced"));
             }
             const after = [told().length, gained(), JUNK.map(path => at(path) !== undefined)];
             const good = await spend({ option: "experienceUp", experience });
@@ -51985,7 +51994,7 @@ const SCENARIOS = [
         const FORGED = "E10C8FORGEDEXP01", PATH = `system.experiences.${FORGED}.value`;
         const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
         const at = path => foundry.utils.getProperty(student._source, path);
-        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES]);
+        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES, ...LEVEL_UP_POINTS]);
         const told = () => { const row = L.offersFor(player.id).offers[student.id]; return row?.offers ?? (row ? [row] : []); };
         const before = at(ADVANCES) ?? 0;
         const refusals = [];
@@ -51997,7 +52006,7 @@ const SCENARIOS = [
                 await G.judge(BRIDGE_ACTIONS, { action: "advancement.apply", requestId: `E10C8${foundry.utils.randomID(8)}`, actorId: student.id,
                     picks: [{ option: "experienceUp", experience: FORGED }], offerId: offer?.id ?? null }, player.id,
                 { send: (to, reply) => { if (reply?.action === "bridge.refused") refusals.push(reply.reason ?? null); } });
-                applied = await L.applyAdvancement(student, [{ option: "hp" }, { option: "experienceUp", experience: FORGED }]);
+                applied = await L.applyAdvancement(student, [{ option: "trait", trait: "strength" }, { option: "experienceUp", experience: FORGED }]);
             });
             read = [held, told().length, refusals, applied, (at(ADVANCES) ?? 0) - before];
         } finally {
@@ -52030,7 +52039,7 @@ const SCENARIOS = [
         const [student] = livingStudents();
         const R = "system.resources", HP_MAX = `${R}.hitPoints.max`, SAN_MAX = `${R}.stress.max`, ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
         const at = path => foundry.utils.getProperty(student._source, path);
-        const putBack = sheetAsFound(student, [HP_MAX, SAN_MAX, ADVANCES]);
+        const putBack = sheetAsFound(student, [HP_MAX, SAN_MAX, ADVANCES, ...LEVEL_UP_POINTS]);
         const D = foundry.applications.api.DialogV2;
         const own = Object.getOwnPropertyDescriptor(D, "wait");
         const warn = ui.notifications.warn, warned = [];
@@ -52042,7 +52051,7 @@ const SCENARIOS = [
             D.wait = async cfg => {
                 if (!(cfg?.classes ?? []).includes("drpg-advance")) return null;
                 content = (cfg?.content?.innerHTML ?? String(cfg?.content ?? ""));
-                return [{ option: "hp" }, { option: "stress" }, { option: "experienceUp" }];
+                return [{ option: "trait", trait: "strength" }, { option: "trait", trait: "knowledge" }, { option: "experienceUp" }];
             };
             ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
             answered = await L.openAdvancement(student, "reinforced");
@@ -81991,13 +82000,13 @@ const SCENARIOS = [
         const X = living.find(a => ownerIdsOf(a).some(id => game.users.get(id)?.active));
         must(X, "no living student a connected player owns - the moment of an offer cannot be read");
         const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
-        const putBack = new Map(living.map(a => [a.id, sheetAsFound(a, [HP_MAX, ADVANCES])]));
+        const putBack = new Map(living.map(a => [a.id, sheetAsFound(a, [HP_MAX, ADVANCES, ...LEVEL_UP_POINTS])]));
         const advances = a => foundry.utils.getProperty(a._source, ADVANCES) ?? 0;
         const before = new Map(living.map(a => [a.id, advances(a)]));
         const offersOf = a => L.offerList(S.offerStore.get(a.id));
         const levelUps = a => offersOf(a).length + advances(a) - before.get(a.id);
         const waited = a => offersOf(a).reduce((n, offer) => n + offer.deferred, 0);
-        const pick = entry => Array.from({ length: entry.picks }, () => ({ option: "hp" }));
+        const pick = entry => Array.from({ length: entry.picks }, () => ({ option: "trait", trait: "strength" }));
         const hasGiving = (S.verdictStore.spec?.fields ?? []).includes("giving");
         await S.verdictStore.whenHydrated();
         const keptGiving = foundry.utils.deepClone(S.verdictStore.record()?.giving ?? null);
