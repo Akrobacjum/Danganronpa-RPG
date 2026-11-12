@@ -102,3 +102,14 @@ public, with the flag `caseSummary`; its content is the payload's words and noth
 
 C1 is the coordinator's (tools/stages.mjs). The board (C7's, the player handbook's trial section, 63's late p4)
 waits for E61. Open from C8: a hint after a Present in 63. E98's 60-Remnant measurement.
+
+## Blockers and a collision (12.11.2026, from the coordinator's message)
+
+- A message from the coordinator's session (12.11, after the owner's review of E97/E98) asks for E97 fixes on a NEW
+  branch, `claude/e97-fix`, from origin/claude/fervent-sagan-gme4vt at fa73b60: every Map node sized to its whole
+  content, editing on the node itself with the side panel removed, pan and zoom of the schema. This work line's brief
+  allows pushes to claude/e97-98 only; a new branch waits for the user's explicit go-ahead. Not started.
+- **R-number collision**: fa73b60's 3a288fa takes R3659 ("editRow names a cell's single field"), and the message gives
+  R3660 as the next free number on that base. On claude/e97-98, R3659-R3666 are E99's (R3659 the modes' census, R3660
+  the composer, ..., R3666). Whichever line merges second has to renumber; E99's eight are the easier to move (none is
+  cited outside this branch's tests, registry and STATUS). For the coordinator to decide.
