@@ -2199,7 +2199,10 @@ export const FACILITIES = Object.freeze({
         // Wounded or Breakdown ended (`state`, a key of `STATES`): one mark off its full track, at once, when the character
         // is in it (states.mjs `stateHeld`); the GM picks which by the kind. One mark ends it, so the amount is 1.
         endWounded: Object.freeze({ amount: 1, state: "wounded" }),
-        endBreakdown: Object.freeze({ amount: 1, state: "breakdown" })
+        endBreakdown: Object.freeze({ amount: 1, state: "breakdown" }),
+        // X progress to the oldest unfinished project in the room the user can see (the first on the board, the order they
+        // were made in; projects.mjs `projectsAvailableIn`), an indirect murder passed by. A project's, so `once`.
+        projectProgress: Object.freeze({ amount: 3, once: true })
     }),
     /** When a timed effect ends (timed-effects.mjs): the time of day's end, the day's end, the next roll the GM draws, the next Eclipse's end. */
     timedUntil: Object.freeze(["timeOfDay", "day", "nextRoll", "eclipse"]),

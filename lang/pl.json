@@ -3361,7 +3361,10 @@
         "durability": { "one": "{name}: {item}, +{n} wytrzymałości", "few": "{name}: {item}, +{n} wytrzymałości", "many": "{name}: {item}, +{n} wytrzymałości", "other": "{name}: {item}, +{n} wytrzymałości" },
         "durabilityNone": "{name}: nie ma nic zużytego do naprawy",
         "stateEnded": "{name}: koniec stanu {state}",
-        "stateNotHeld": "{name}: nie ma stanu {state}, nic się nie zmienia"
+        "stateNotHeld": "{name}: nie ma stanu {state}, nic się nie zmienia",
+        "projectProgress": { "one": "{project}: +{n} postępu", "few": "{project}: +{n} postępu", "many": "{project}: +{n} postępu", "other": "{project}: +{n} postępu" },
+        "projectFull": "{project}: nie dało się dodać postępu",
+        "projectNone": "{room}: nie ma tu niedokończonego projektu"
       },
       "state": { "wounded": "Wounded", "breakdown": "Breakdown" },
       "effect": {
@@ -3373,6 +3376,7 @@
         "durability": "Wytrzymałość z powrotem dla najbardziej zużytego przedmiotu",
         "endWounded": "Koniec stanu Wounded",
         "endBreakdown": "Koniec stanu Breakdown",
+        "projectProgress": "Postęp najstarszego projektu w pomieszczeniu",
         "health": "Health",
         "sanity": "Sanity",
         "hope": "Hope",

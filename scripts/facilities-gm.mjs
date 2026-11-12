@@ -104,6 +104,18 @@ export async function applyEffects(actor, effects, place, sender = null) {
             lines.push(t("searchToken", { n: effect.n, room: place.room }));
             continue;
         }
+        if (effect.kind === "projectProgress") {
+            // The oldest unfinished project the user can see here (the owner's answer to Q-E93-3, 12.11.2026): one tied to this
+            // room - a project with no room, which Work on Project reaches anywhere, is in no room. An indirect murder is built
+            // by its own Work on Project rolls and their concealment, never by a room action (both the stage's defaults).
+            const P = await import("./projects.mjs");
+            const project = P.projectsAvailableIn(place, sender ?? game.user).find(p => p.room && !p.indirectMurder) ?? null;
+            const moved = project ? await P.addProgress(project.id, effect.n, { by: sender?.id ?? null, actorId: actor.id,
+                kind: sender && !sender.isGM ? "player" : "gm" }) : null;
+            lines.push(moved?.changed ? t("projectProgress", { project: project.name, n: (moved.to ?? 0) - (moved.from ?? 0) })
+                : project ? t("projectFull", { project: project.name }) : t("projectNone", { room: place.room }));
+            continue;
+        }
         for (const target of await targetsOf(actor, effect.scope, place)) {
             const name = target.name;
             const r = target.system?.resources ?? {};

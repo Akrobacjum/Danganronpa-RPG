@@ -88388,6 +88388,54 @@ const SCENARIOS = [
             after: [true, false, false, 0], lines: 2 }),
             "{clean; after: [Sanity one mark less, Breakdown held, its status, Health marks]; lines: one per effect} - a room action ends the state picked");
     }],
+    ["E93-T12 - a room action's project progress adds X to the oldest unfinished project the user can see in the room (scripts/facilities-gm.mjs `applyEffects`, projects.mjs `projectsAvailableIn`, `addProgress`; the owner's answer to Q-E93-3, 12.11.2026): two points go to the first such project on the board tied to the room and to no other, the card names it, an indirect murder is passed by, and a room with none (a project with no room counts in none) is told so", async () => {
+        /*
+         * E93, 12.11.2026. Given as a use of a room action gives it (`applyEffects`), on this GM, for the player whose character
+         * stands in the room; three projects made (one in the room, one with no room, which counts in no room, and an
+         * indirect murder in the room the player builds, which must not move) and taken away after, and the progress put
+         * back. Without the room filter the room with none moved the roomless project (measured on this test, 12.11). Red at b4285f0: no kind "projectProgress".
+         */
+        const F = await import("./facilities.mjs");
+        const P = await import("./projects.mjs");
+        const { applyEffects } = await import("./facilities-gm.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const made = [];
+        const read = {};
+        const bar = id => P.allProjects().find(p => p.id === id)?.current ?? null;
+        let first = null, was = null;
+        try {
+            const effect = F.cleanEffect({ kind: "projectProgress", n: 2, scope: "present" });
+            must(effect, "no projectProgress effect - this would measure nothing past the cleaning");
+            read.clean = effect;
+            // The murder first on the board, so a pick that did not pass it by would take it.
+            made.push((await P.createProject({ name: "SUITE E93-T12 murder", target: 12, room: where.room, indirectMurder: true, secret: true, viewers: [player.id], killerId: actor.id }))?.id);
+            made.push((await P.createProject({ name: "SUITE E93-T12 plain", target: 12, room: where.room }))?.id);
+            made.push((await P.createProject({ name: "SUITE E93-T12 roomless", target: 12, room: null }))?.id);
+            must(made.every(Boolean), "the projects could not be made - this would measure nothing");
+            await settle();
+            const listed = P.projectsAvailableIn(where, player).filter(p => p.room && !p.indirectMurder);
+            must(listed.some(p => p.id === made[1]), "the plain project is not available to the player in the room - this would measure nothing");
+            first = listed[0].id;
+            was = bar(first);
+            const others = P.allProjects().filter(p => p.id !== first).map(p => [p.id, p.current]);
+            const lines = await applyEffects(actor, [effect], where, player);
+            await settle();
+            read.moved = [bar(first) - was, others.filter(([id, at]) => bar(id) !== at).length];
+            read.line = lines.length === 1 && lines[0].includes(P.allProjects().find(p => p.id === first)?.name ?? "?");
+            await P.addProgress(first, -2);
+            first = null;
+            const elsewhere = { ...where, room: "SUITE E93-T12 no such room" };
+            const none = await applyEffects(actor, [effect], elsewhere, player);
+            read.none = none.length === 1 && none[0] === game.i18n.format("DRPG.Facility.applied.projectNone", { room: elsewhere.room });
+        } finally {
+            if (first && was !== null && bar(first) !== was) await P.addProgress(first, was - bar(first));
+            for (const id of made) if (id) await P.deleteProject(id);
+            for (const m of game.messages.filter(m => /SUITE E93-T12/.test(m.content ?? "") && Date.now() - (m.timestamp ?? 0) < 60000)) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ clean: { kind: "projectProgress", n: 2, scope: "self" }, moved: [2, 0], line: true, none: true }),
+            "{clean (a project's effect has no scope); moved: [the first project's progress, other projects moved]; line: the card names it; none: a room with none} - X progress to the oldest project");
+    }],
     ["E69-T2 - a crossing settles once, on the primary, where the token still stands (scripts/crossing-settle.mjs `scheduleSettle`, movement.mjs `recordCrossingInStep`; E69 C2, S18-28, A10): a crossing into the room the token stands in fires drpgCrossingSettled once with its actor, rooms, way and Eclipse after the wait; two crossings in a row fire one event from the first room to the last; a crossing into a room the token is not in when the wait ends (put back) fires none; and the GMs' record of a crossing schedules one", async () => {
         /*
          * E69 C2, 12.11.2026. The wait is the test's own (`ms`), so nothing waits 2 s; the token is not moved: the room it

@@ -3097,7 +3097,10 @@
         "durability": { "one": "{name}: {item}, +{n} durability", "other": "{name}: {item}, +{n} durability" },
         "durabilityNone": "{name}: nothing worn to mend",
         "stateEnded": "{name}: no longer {state}",
-        "stateNotHeld": "{name}: not {state}, nothing changed"
+        "stateNotHeld": "{name}: not {state}, nothing changed",
+        "projectProgress": { "one": "{project}: +{n} progress", "other": "{project}: +{n} progress" },
+        "projectFull": "{project}: no progress could be added",
+        "projectNone": "{room}: no unfinished project here"
       },
       "state": { "wounded": "Wounded", "breakdown": "Breakdown" },
       "effect": {
@@ -3109,6 +3112,7 @@
         "durability": "Durability back on the most worn thing",
         "endWounded": "End Wounded",
         "endBreakdown": "End Breakdown",
+        "projectProgress": "Progress to the room's oldest project",
         "health": "Health",
         "sanity": "Sanity",
         "hope": "Hope",
