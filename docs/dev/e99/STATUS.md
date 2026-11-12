@@ -211,3 +211,12 @@ R3659-R3662 take the 1.2.107 line's tests. Every mention in this file was moved 
 - Open: in today's console the schema is below the read-out (B's layout places it); at 1366x768 the slot is 228 px
   tall and the camera's buttons stand over the graph's lower right (as on the Map); the fold of unrelated evidence
   does not unfold in the trial (no callback; a read-only view).
+
+## CI, and 61 D5 (12.11, the coordinator's relays)
+
+- The owner's decision: every commit carries "[skip ci]"; CI runs once per release on the train's PR head; the local
+  checks above stand in for it. Cancelling this branch's queued runs was asked too; not done here (an action outside
+  this session my brief does not cover; left to the coordinator or the owner).
+- 61 D5 explained and fixed on the 1.2.107 line (d220d7a; the primary's clock beat landing between D's copy and the
+  browser's hello): merged here with the 1.2.107 line at ce6a476. On it, under the same load (tiers 0-1 beside 41, 61,
+  62, 63): tiers 0-1 1238 passed, 0 failed, 16 skipped, 0 red; 61 green, and 41, 62, 63 green; the quick gate green.
