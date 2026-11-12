@@ -66,8 +66,8 @@ export function briefingBlock(actor, actionKey, def, { extraFacts = [] } = {}) {
        watchers, the owner's answer 3: it is what saves a player two Sanity). */
     const facts = briefingFacts(actor, actionKey, def, extraFacts).map(f => (typeof f === "string" ? { text: f } : f));
     const whenOf = f => (Array.isArray(f.when) ? f.when.join(" ") : f.when) || "";
-    const top = facts.filter(f => f.top), sub = facts.filter(f => f.sub && !f.top);
-    const inBox = facts.filter(f => !f.top && !f.sub), plain = inBox.filter(f => !whenOf(f)), bound = inBox.filter(f => whenOf(f));
+    const top = facts.filter(f => f.top), sub = facts.filter(f => f.sub && !f.top), lead = facts.filter(f => f.lead);
+    const inBox = facts.filter(f => !f.top && !f.sub && !f.lead), plain = inBox.filter(f => !whenOf(f)), bound = inBox.filter(f => whenOf(f));
     const stack = detailsStack([...new Set(bound.map(whenOf))]
         .map(when => ({ when, html: factsList(bound.filter(f => whenOf(f) === when).map(f => f.text)) })));
 
@@ -78,6 +78,13 @@ export function briefingBlock(actor, actionKey, def, { extraFacts = [] } = {}) {
         .map(part => `<p>${foundry.utils.escapeHTML(part)}</p>`)
         .join("");
 
+    /* THE STATISTIC STANDS IN THE LEAD (E100, 12.11.2026; the owner on E100's review: "nie chowajmy w oknach akcji wyboru
+       statystyki ani opisu akcji NIGDY"; the E93 line found "Rolls" shut in Details since E49 A8.1). Once: a description
+       that names the statistic the roll takes already says it, and the line is left out. R4108. */
+    const said = String(def.description ?? def.hint ?? "");
+    const rolls = lead.filter(f => !(f.first && said.includes(f.first)))
+        .map(f => `<p class="drpg-briefing-rolls">${f.text}</p>`).join("");
+
     const instruction = def.instruction
         ? `<p class="drpg-briefing-instruction">${foundry.utils.escapeHTML(def.instruction)}</p>`
         : "";
@@ -87,6 +94,7 @@ export function briefingBlock(actor, actionKey, def, { extraFacts = [] } = {}) {
 
     return `<div class="drpg-briefing-block">
         ${paragraphs}
+        ${rolls}
         ${instruction}
         ${top.map(f => `<p class="drpg-briefing-watched">${f.text}</p>`).join("")}
     </div>${detailsHtml(`${factsList(plain.map(f => f.text))}${stack}${thresholds}`)}`;
@@ -108,6 +116,13 @@ export function moveLine(actor) {
         case "action": return game.i18n.format("DRPG.Move.freeSpent", { left: actionsLeft(actor) });
         default: return game.i18n.localize("DRPG.Move.noBudget");
     }
+}
+
+/* The statistic a description names when it names one: the list's first, read for the words alone - the roll's statistic is
+   the ruling's (R213), this only decides whether the lead says it already (R4108). */
+function leadLabel(def) {
+    const [key] = def.traits;
+    return TRAITS[key]?.label ?? key;
 }
 
 /** The cost / statistics / room lines every briefing ends with. */
@@ -146,10 +161,13 @@ function briefingFacts(actor, actionKey, def, extraFacts = []) {
     // Not for a project's roll (E32+E07 C11d): Projects and Sabotage list the four a
     // project's statistic is given from, and the roll takes that project's one - which
     // the project list below names beside each project instead.
+    // In the lead, never in Details (E100, 12.11.2026; the owner's rule: an action window never folds away its statistic):
+    // `lead`, and `first`, the statistic the roll takes unless a GM rules otherwise, for `briefingBlock` to skip the line
+    // where the description already names it (R4108).
     if (def.traits?.length && actionKey !== "project" && actionKey !== "sabotage") {
-        facts.push(game.i18n.format("DRPG.Action.usesTrait", {
+        facts.push({ text: game.i18n.format("DRPG.Action.usesTrait", {
             traits: def.traits.map(t => TRAITS[t]?.label ?? t).join(" / ")
-        }));
+        }), lead: true, first: leadLabel(def) });
     }
 
     facts.push(room

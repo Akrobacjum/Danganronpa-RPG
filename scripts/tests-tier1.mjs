@@ -48669,6 +48669,60 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ note: ["P", true, false, null, false], placed: true }),
             "{the note [tag, Move's description as its text, hidden, inside a fold, a tooltip only]; the Monocub's panel draws it}");
     }],
+    ["R4108 - every action window names its statistic outside Details (E100; the owner's rule of 12.11.2026, the E93 line's finding): for each action whose briefing names statistics (all but Projects and Sabotage, whose project names its own), action-briefing.mjs `briefingBlock` shows them in the lead - the description naming the first, or a line of its own (`drpg-briefing-rolls`, \"Rolls: ...\") right after it - and the \"Rolls\" line is in no Details box and stands once", async () => {
+        /*
+         * E100, 12.11.2026. The owner: "nie chowajmy w oknach akcji wyboru statystyki ani opisu akcji NIGDY". E49 A8.1 put
+         * every fact in Details, the shut box (`detailsHtml`), "Rolls: <statistic>" among them, so an action whose lead
+         * does not name its statistic hid it. Details keeps the cost, the room and the thresholds. Read on the briefing's
+         * markup for the first living student. Red at bf0ce376: the line in the box and nowhere in the lead.
+         */
+        const { briefingBlock } = await import("./action-briefing.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const actor = livingStudents()[0];
+        must(actor, "no living student to draw the briefings for - this would measure nothing");
+        const keys = Object.keys(ACTIONS).filter(k => ACTIONS[k]?.traits?.length && !["project", "sabotage"].includes(k));
+        must(keys.length >= 5, "fewer than five actions name a statistic - the config moved under this test");
+        const rollsWord = game.i18n.format("DRPG.Action.usesTrait", { traits: "\u0000" }).split("\u0000")[0].trim();
+        const bad = [];
+        for (const key of keys) {
+            const def = ACTIONS[key];
+            const box = document.createElement("div");
+            box.innerHTML = briefingBlock(actor, key, def);
+            const lead = box.querySelector(".drpg-briefing-block");
+            const shut = box.querySelector(".drpg-action-details-box");
+            const first = TRAITS[def.traits[0]]?.label ?? def.traits[0];
+            const leadText = lead?.textContent ?? "";
+            const lines = box.querySelectorAll(".drpg-briefing-rolls");
+            if (!leadText.includes(first)) bad.push(`${key}: lead without ${first}`);
+            if (shut && shut.textContent.includes(rollsWord)) bad.push(`${key}: "${rollsWord}" in Details`);
+            if (lines.length > 1) bad.push(`${key}: ${lines.length} lines`);
+            if (lines.length && !lead?.contains(lines[0])) bad.push(`${key}: the line outside the lead`);
+        }
+        equal(stableJson(bad), "[]", "[each action: its statistic missing from the lead; the Rolls line inside Details; the line twice; the line outside the lead]");
+    }],
+    ["R4109 - an action window's unpicked row keeps its description line on screen (E100; the owner's rule of 12.11.2026, the E72 line's finding): in an action window's columns, a row that is not picked shows its `small` line under both themes - no rule of the sheets folds it away (danganronpa.css's hide of an unpicked row's line stands overruled for `.drpg-action-window`)", async () => {
+        /*
+         * E100, 12.11.2026. `.drpg-variant-columns .drpg-choice:not(.unavailable):not(:has(input:checked)) .drpg-choice-text
+         * small { display: none }` hid every unpicked row's line in Search, Observe, Analyze...; the E72 line overrules it
+         * for the Call windows (d5dd050 on its branch), this for the action windows, without touching the rule itself (the
+         * two branches merge clean). Read from the sheets' text on a body of each theme. Red at bf0ce376: none won.
+         */
+        const C = await styleCascade();
+        const read = {};
+        for (const [theme, cls] of [["glass", "drpg-theme-stained-glass drpg-player"], ["legacy", "drpg-theme-monokuma-legacy drpg-player"]]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = cls;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-ui drpg-panel drpg-action-window"><div class="drpg-variant-columns"><div class="drpg-variant-ask"><form>`
+                + `<div class="drpg-choice-list"><label class="drpg-choice"><input type="radio" name="variant" value="a" checked><span class="drpg-choice-text"><strong>A</strong><small>a line</small></span></label>`
+                + `<label class="drpg-choice"><input type="radio" name="variant" value="b"><span class="drpg-choice-text"><strong>B</strong><small>b line</small></span></label></div></form></div></div></div>`;
+            const [picked, unpicked] = body.querySelectorAll(".drpg-choice-text small");
+            read[theme] = [C.winner(picked, "display")?.value ?? null, C.winner(unpicked, "display")?.value ?? null];
+        }
+        const shown = v => v !== "none";
+        equal(stableJson(Object.fromEntries(Object.entries(read).map(([t, [a, b]]) => [t, [shown(a), shown(b)]]))), stableJson({ glass: [true, true], legacy: [true, true] }),
+            `{each theme: [the picked row's line shown, the unpicked row's line shown]} - read ${stableJson(read)}`);
+    }],
     ["R4102 - the verbose console log is a GM's row (E100 item 3; the owner's 12.11.2026, the player-screens review's #4): the gear's window draws `debug` (Verbose console logging) for a GM and not for a player, whose window has no Technical section left; the setting stays this browser's (`scope: \"client\"`), so the one road to it on a player's browser is the console line the GM handbook gives - there is no road from a GM's browser to another browser's client setting, and none is added", async () => {
         /*
          * E100 item 3, 12.11.2026. The review: "Szczegółowe logi w konsoli" is diagnostic, a player turns it on only when

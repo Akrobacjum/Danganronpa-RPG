@@ -17947,6 +17947,11 @@ body:not(.drpg-theme-stained-glass):not(.drpg-stacked) #drpg-popups:not(:has(> .
     display: revert;
     visibility: hidden;
 }
+/* An unpicked row keeps its line in an action window (E100, 12.11.2026; the owner's standing rule "nie chowajmy w oknach
+   akcji wyboru statystyki ani opisu akcji NIGDY", the E72 line's finding): the line is the row's description, which the
+   columns' rule above (`display: none` under an unpicked row) folded away. Overruled here, not edited there, so this and
+   the E72 line's override for the Call windows merge clean. R4109 reads the cascade. */
+.drpg-action-window .drpg-variant-columns .drpg-choice:not(.unavailable):not(:has(input:checked)) .drpg-choice-text small { display: revert; }
 /* Details' toggle wears the kit's face (the footer's, `--drpg-kit-face-*` and its fallbacks): with no ground of its own
    Chromium drew it on its dark-scheme ButtonFace under Legacy, rgb(107, 107, 107), the bone on it 3.99:1 (A8.4's probe of
    every sheet's rules on it: only `.drpg-panel button ... { color: var(--drpg-bone) }` matched). The glass draws its own. */
