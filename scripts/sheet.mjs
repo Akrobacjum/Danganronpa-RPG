@@ -5071,21 +5071,22 @@ function attachActionDelegate(app, element) {
 
 /**
  * WHICH CALL OF A TILE'S TWO (E72, 12.11.2026; the owner: "chcemy zachowac te sama liczbe kafli"). A tile whose row
- * lists `choices` - Fuel a Monocub's: Fuel, or a secret Bounty - asks which first, in the kit's plain window, each
- * button the Call's own name and price; nothing is paid or picked here. Answers the chosen key, or null for Cancel.
+ * lists `choices` - Fuel a Monocub's (Fuel, or a secret Bounty), Talent's (Experience or Ultimate) - asks which first,
+ * in the kit's plain window, its question the row's `ask` (else `DRPG.Calls.choiceAsk`), each button the Call's own
+ * name and price; nothing is paid or picked here. `table` is the row's (HOPE_CALLS or DESPAIR_CALLS). Answers the chosen
+ * key, or null for Cancel.
  */
-async function despairChoice(call) {
-    const { DESPAIR_CALLS } = await import("./config.mjs");
+async function callChoice(call, table) {
     const { drpgWindow } = await import("./ui-kit.mjs");
     const esc = foundry.utils.escapeHTML;
-    const keys = (call.choices ?? []).filter(k => DESPAIR_CALLS[k]);
-    const name = k => `${DESPAIR_CALLS[k].label} (${DESPAIR_CALLS[k].cost})`;
+    const keys = (call.choices ?? []).filter(k => table[k]);
+    const name = k => `${table[k].label} (${table[k].cost})`;
     const [first, ...rest] = keys;
     if (!first) return null;
     const picked = await drpgWindow({
         title: call.label,
         classes: ["drpg-panel", "drpg-call-choice"],
-        body: `<p>${esc(game.i18n.localize("DRPG.Calls.choiceAsk"))}</p>`,
+        body: `<p>${esc(game.i18n.localize(call.ask ?? "DRPG.Calls.choiceAsk"))}</p>`,
         footer: {
             primary: { action: first, label: name(first), callback: () => first },
             secondary: rest.map(k => ({ action: k, label: name(k), callback: () => k })),
@@ -5105,12 +5106,13 @@ async function runCall(actor, key, kind) {
     const despair = kind === "despair";
     let call = despair ? DESPAIR_CALLS[key] : HOPE_CALLS[key];
     if (!call) return;
-    // A tile of two Calls asks which first (`despairChoice`); the rest runs on the chosen Call's own row.
-    if (despair && Array.isArray(call.choices)) {
-        const chosen = await despairChoice(call);
+    // A tile of two Calls asks which first (`callChoice`); the rest runs on the chosen Call's own row.
+    if (Array.isArray(call.choices)) {
+        const table = despair ? DESPAIR_CALLS : HOPE_CALLS;
+        const chosen = await callChoice(call, table);
         if (!chosen) return;
         key = chosen;
-        call = DESPAIR_CALLS[key];
+        call = table[key];
     }
 
     /*

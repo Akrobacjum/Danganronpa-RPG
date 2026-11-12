@@ -281,7 +281,10 @@ const INVARIANTS = [
                 const acts = ACTED_ON.some(field => call[field])
                     // The two that do their work through the picker rather than
                     // through a field of their own.
-                    || call.target === "item";
+                    || call.target === "item"
+                    // CHANGED ON PURPOSE (E72, 12.11.2026): a tile of choices (Talent) acts through the rows it offers,
+                    // each held to this check itself.
+                    || (Array.isArray(call.choices) && call.choices.every(k => source[k] && k !== key));
                 ok(acts, `${label} ${key} has no effect any branch of applyCall acts on`);
             }
         };
@@ -30063,7 +30066,7 @@ const INVARIANTS = [
          * coordinator: the GM's Calls keep their number of tiles, so the Bounty (E72 C16) lives inside Fuel a Monocub's.
          * config.mjs DESPAIR_CALLS.bounty is kept for its rules and marked `inside: "fuelTheCub"`; calls.mjs
          * `despairCallsFor` (the grid's list) leaves such a row out; `fuelTheCub.choices` lists the two; sheet.mjs `runCall`
-         * asks which before anything else (`despairChoice`). Red before: a Bounty tile, no choices.
+         * asks which before anything else (`callChoice`). Red before: a Bounty tile, no choices.
          */
         const { DESPAIR_CALLS } = await import("./config.mjs");
         const { despairCallsFor } = await import("./calls.mjs");
@@ -30073,8 +30076,34 @@ const INVARIANTS = [
             JSON.stringify([false, true, "fuelTheCub", ["fuelTheCub", "bounty"]]),
             "the GM's Calls draw a Bounty tile, or Fuel a Monocub's tile does not offer Fuel and Bounty");
         const sheet = stripComments(new Map(await otherSources()).get("sheet.mjs") ?? "");
-        ok(/call\.choices/.test(fnSource(sheet, "runCall")) && typeof topLevelFunction(sheet, "despairChoice") === "string",
-            "sheet.mjs runCall does not ask which Call of a tile's choices (despairChoice)");
+        ok(/call\.choices/.test(fnSource(sheet, "runCall")) && typeof topLevelFunction(sheet, "callChoice") === "string",
+            "sheet.mjs runCall does not ask which Call of a tile's choices (callChoice)");
+    }],
+
+    ["R3817 - Experience and Ultimate are one Hope Call, Talent: ten Hope Call tiles with Bribe among them, Talent offering both effects, the two rows kept so an armed one still resolves (E72, the owner's decision of 12.11)", async () => {
+        /*
+         * E72, 12.11.2026; the owner's pick (option 1, relayed by the coordinator): Bribe stays among the Hope Calls and
+         * the Hope Calls stay at ten, so Experience and Ultimate become one Call, Talent (cost 1; the player writes how an
+         * experience or their Ultimate applies, a GM approves or refuses, the Hope paid only on the yes; in its window the
+         * player picks one effect for the next roll: an experience's value, or advantage). config.mjs HOPE_CALLS.talent
+         * holds the tile (`choices: ["experience", "ultimate"]`); the two rows stay, each `inside: "talent"`, with every
+         * guard of theirs, so an Experience or an Ultimate armed before the update resolves by its key as before; calls.mjs
+         * `affordableHopeCalls` (the grid's list) leaves them out; sheet.mjs `runCall` asks which (`callChoice`) for a Hope
+         * Call as for a Despair one. Red before: no talent row, eleven tiles.
+         */
+        const { HOPE_CALLS } = await import("./config.mjs");
+        const { affordableHopeCalls } = await import("./calls.mjs");
+        const [actor] = studentActors();
+        const keys = affordableHopeCalls(actor).map(c => c.key);
+        equal(JSON.stringify([keys.length, keys.includes("talent"), keys.includes("bribe"), keys.includes("experience"), keys.includes("ultimate"),
+            HOPE_CALLS.talent?.choices ?? null, HOPE_CALLS.talent?.cost ?? null, HOPE_CALLS.experience?.inside ?? null, HOPE_CALLS.ultimate?.inside ?? null,
+            Boolean(HOPE_CALLS.experience?.needsGm && HOPE_CALLS.ultimate?.needsGm)]),
+            JSON.stringify([10, true, true, false, false, ["experience", "ultimate"], 1, "talent", "talent", true]),
+            "the Hope Calls are not ten tiles with Talent holding Experience and Ultimate ([tiles, Talent, Bribe, Experience, Ultimate, Talent's choices, its price, "
+            + "where each of the two lives, both still wait for a GM])");
+        const sheet = stripComments(new Map(await otherSources()).get("sheet.mjs") ?? "");
+        ok(!/despair\s*&&\s*Array\.isArray\(call\.choices\)/.test(fnSource(sheet, "runCall")) && /Array\.isArray\(call\.choices\)/.test(fnSource(sheet, "runCall")),
+            "sheet.mjs runCall asks a tile's choice for a Despair Call only");
     }],
 
     ["R1541 - a failed row of the contract: one permanent GM notice a load naming its target, file:symbol and fallback, and the same rows on Pre-season's checks; every row's file:symbol is a function of that file", async () => {

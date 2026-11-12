@@ -3419,7 +3419,8 @@
       "gatherRoomGone": "Zgromadzenie nie mogło się odbyć: „{room}” nie jest już pokojem na tamtej scenie. Polecenie zostało wyczyszczone - wydany na nie Despair nie wróci, a obsadę trzeba przenieść ręcznie.",
       "notArmedNotCharged": "{call} nie został uzbrojony i nie pobrano za niego Hope.",
       "despairGmOnly": "Despair Calle wydaje Monokuma, a Monokuma to GM.",
-      "choiceAsk": "Które z dwóch?"
+      "choiceAsk": "Które z dwóch?",
+      "talentAsk": "Co dostaje twój następny rzut: wartość jednego doświadczenia czy przewagę z Ultimate?"
     },
     "Monokuma": {
       "toggle": "Oznacz jako Monokumę",
@@ -6396,6 +6397,10 @@
         }
       },
       "HOPE_CALLS": {
+        "talent": {
+          "label": "Talent",
+          "effect": "Opisz, jak twoje doświadczenie albo twój Ultimate pasuje do rzutu. GM zatwierdza to albo odrzuca, a Hope płacisz dopiero po jego zgodzie. Następny rzut dodaje wartość jednego doświadczenia albo dostaje przewagę."
+        },
         "support": {
           "label": "Support",
           "effect": "Daj przewagę na następny rzut innemu uczniowi w twoim pokoju; jego okno rzutu ma ją już włączoną. Jeśli na jego rzut czeka już Support, Call zostaje odrzucony, zanim wydasz Hope."

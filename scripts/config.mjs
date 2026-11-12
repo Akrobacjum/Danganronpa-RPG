@@ -2103,9 +2103,22 @@ export const HOPE_CALLS = {
         effect: "Give another student in your room advantage on their next roll; a student who already has an unused "
             + "Support cannot get another, and you keep your Hope."
     },
+    /*
+     * TALENT: EXPERIENCE AND ULTIMATE AS ONE TILE (E72, 12.11.2026; the owner's pick, relayed by the coordinator: Bribe
+     * stays among the Hope Calls, which stay ten). The tile is this row; what it buys is one of the two rows below,
+     * chosen in its window (sheet.mjs `callChoice`), each with its own guards - the GM's yes, the Hope paid on it, one at
+     * a time, the trial's rules - and its own key, so a Call armed before the update resolves as it did.
+     */
+    talent: {
+        label: "Talent", icon: "fa-star", cost: 1, target: "none", choices: ["experience", "ultimate"], ask: "DRPG.Calls.talentAsk",
+        effect: "Write how one of your experiences or your Ultimate applies to your next roll; a GM approves or refuses, and "
+            + "you pay the Hope only if it is approved. That roll then adds one experience's value, or has advantage."
+    },
     experience: {
         // Waits for the GM - see the note on Ultimate above. This is the Call
         // the "genuinely applies" gate was written for in the first place.
+        // Chosen in Talent's tile since E72 (12.11.2026): no tile of its own.
+        inside: "talent",
         needsGm: true,
         label: "Experience", icon: "fa-graduation-cap", cost: 1, target: "none", grants: "experience",
         effect: "Write how one of your experiences applies to your next roll; a GM approves or refuses, and you pay "
@@ -2142,6 +2155,8 @@ export const HOPE_CALLS = {
          * (bridge-guards.mjs `guardArmGmYes`). Until then only the asking browser
          * waited for the ruling, and a console armed both with none asked.
          */
+        // Chosen in Talent's tile since E72 (12.11.2026): no tile of its own.
+        inside: "talent",
         needsGm: true,
         label: "Ultimate", icon: "fa-star", cost: 1, target: "none", grants: "advantage",
         effect: "Write how your Ultimate applies to your next roll; a GM approves or refuses, and you pay the Hope "

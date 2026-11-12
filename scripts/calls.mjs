@@ -833,7 +833,8 @@ function describeChoice(choice = {}) {
 /** Hope Calls a character could pay for right now. */
 export function affordableHopeCalls(actor) {
     const held = hopeHeld(actor);
-    return byPrice(Object.entries(HOPE_CALLS).map(([key, call]) => ({
+    // A Call chosen inside another's tile (`inside`: Experience and Ultimate in Talent's; E72, 12.11.2026) has no tile.
+    return byPrice(Object.entries(HOPE_CALLS).filter(([, call]) => !call.inside).map(([key, call]) => ({
         key, ...call, affordable: held >= call.cost
     })));
 }

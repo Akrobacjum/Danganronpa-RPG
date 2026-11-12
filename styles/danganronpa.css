@@ -9419,7 +9419,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     content: none !important;
 }
 
-.drpg-call-button[data-drpg-call="ultimate"] .drpg-action-icon {
+.drpg-call-button[data-drpg-call="ultimate"] .drpg-action-icon,
+.drpg-call-button[data-drpg-call="talent"] .drpg-action-icon {
     width: 24px;
     height: 24px;
     font-size: 0 !important;
@@ -9433,8 +9434,15 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     image-rendering: pixelated;
 }
 
-.drpg-call-button[data-drpg-call="ultimate"] .drpg-action-icon::before {
+.drpg-call-button[data-drpg-call="ultimate"] .drpg-action-icon::before,
+.drpg-call-button[data-drpg-call="talent"] .drpg-action-icon::before {
     content: none !important;
+}
+
+/* E72 (12.11.2026): Talent, Experience and Ultimate as one tile, wears Ultimate's star; the frame is the rule above. */
+.drpg-call-button[data-drpg-call="talent"] .drpg-action-icon {
+    -webkit-mask-image: var(--drpg-pix-ultimate);
+    mask-image: var(--drpg-pix-ultimate);
 }
 
 /* E72 C15: the Hope Call Bribe shares Contribution's frame; its own mask is the rule after Contribution's. */
