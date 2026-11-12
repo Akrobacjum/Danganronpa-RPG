@@ -21,6 +21,9 @@
  *            after Fit to view (case-view.mjs `wireCaseCamera`'s fit, eased off) - E99 round 5: the owner's round-4 shot
  *            (pl, glass, 1366x768) had it over "Wniosek / Nonstop Debate", which no check here read;
  *   fold     the unrelated evidence's fold: its words larger than its box, or its box over a node (round 5);
+ *   footer   each button of the window's footer in view, named, its words inside its box (round 6);
+ *   size     while a trial runs, under glass, at 800 px of height or less: the smallest node text after Fit to view
+ *            at least 11 px (the owner, 12.11, round 6; MIN_TEXT);
  *   the numbers: nodes, the tallest node, the graph's viewport, the canvas; the trial console's slot, and after Fit to
  *            view its scale and the smallest node text in px (the computed font size of a node's words times the scale).
  * THE BAR'S CONTROL: on the first page the bar planted over the first node (`position: fixed` at its box) must read.
@@ -52,6 +55,15 @@ const SCALE = scaleAt >= 0 ? Number(args[scaleAt + 1]) || 1 : 1;
 const idsAt = args.indexOf("--ids");
 const IDS = new RegExp(idsAt >= 0 ? args[idsAt + 1] : "^investigation--map");
 const SIZES = [[1366, 768], [1920, 1080]];
+/* THE SCREEN'S HEIGHT CLASSES (E99 round 6): the module stamps `drpg-short` and `drpg-low` on the body from
+   settings.mjs BREAKPOINTS (`applyTheme`); the page here stamps them the same way, the numbers read off that file. */
+const BREAKS = Object.fromEntries([...fs.readFileSync(path.join(REPO, "scripts", "settings.mjs"), "utf8")
+    .match(/export const BREAKPOINTS = \{([^}]*)\}/)?.[1].matchAll(/(\w+):\s*(\d+)/g) ?? []].map(m => [m[1], Number(m[2])]));
+const heightClasses = vh => [vh < (BREAKS.short ?? 0) ? "drpg-short" : "", vh < (BREAKS.low ?? 0) ? "drpg-low" : ""].filter(Boolean).join(" ");
+/* THE OWNER'S 11 PX (12.11, round 6, through the coordinator): while a Class Trial runs, under Stained Glass, at a height of
+   800 px or less, the smallest node text after Fit to view is at least 11 px. Monokuma Legacy is left out: its smallest
+   node text is 11 px at 100%, so any fit under 1 reads less (STATUS round 5). */
+const MIN_TEXT = { px: 11, theme: "glass", maxHeight: 800 };
 const THEMES = ["glass", "legacy"];
 const { chromium } = createRequire(path.join(REPO, "audit", "harness", "package.json"))("playwright");
 
@@ -72,8 +84,8 @@ function serve() {
 }
 
 /** The page: the module's sheets, the capture framed as style-harness.html frames a kit window, the theme. */
-function pageHtml(styles, html, title, width, theme) {
-    const body = theme === "legacy" ? "drpg-theme-monokuma-legacy drpg-pixel-font" : "drpg-theme-stained-glass";
+function pageHtml(styles, html, title, width, theme, vh = 0) {
+    const body = `${theme === "legacy" ? "drpg-theme-monokuma-legacy drpg-pixel-font" : "drpg-theme-stained-glass"} ${heightClasses(vh)}`.trim();
     return `<!doctype html><html lang="en"><head><meta charset="utf-8">${styles.map(s => `<link rel="stylesheet" href="/${s}">`).join("")}
 <style>html, body.drpg-style-harness { background: #2a2430; } body.drpg-style-harness { margin: 0; padding: 16px; display: block; overflow: auto; min-height: 100vh; box-sizing: border-box; }
 .drpg-style-shot > .application { position: relative; left: auto; top: auto; max-width: 100%; }</style></head>
@@ -190,6 +202,20 @@ async function readMap(page, { plantBox = false, staleLayout = false, plantBar =
             canvas.style.transform = was.transform;
             canvas.style.transition = was.transition;
         }
+        /* THE FOOTER IN VIEW, EVERY BUTTON WHOLE (round 6: the trial console's footer drawn compact on a low screen): each
+           button of the window's footer inside the screen, its words (a text range: the glass brush counts in scrollWidth)
+           inside its box, and its name not empty. */
+        for (const b of document.querySelectorAll("footer.drpg-kit-footer button")) {
+            const r = b.getBoundingClientRect();
+            const name = (b.getAttribute("aria-label") || b.textContent || "").trim();
+            if (!name) cut.push("footer: a button with no name");
+            if (r.width < 2 || r.bottom > innerHeight + 0.5 || r.right > innerWidth + 0.5) cut.push(`footer: "${name}" out of view`);
+            const g = document.createRange();
+            g.selectNodeContents(b);
+            const t = g.getBoundingClientRect();
+            const L = r.left + b.clientLeft, T = r.top + b.clientTop;
+            if (t.width && (t.left < L - 0.5 || t.right > L + b.clientWidth + 0.5 || t.top < T - 0.5 || t.bottom > T + b.clientHeight + 0.5)) cut.push(`footer: "${name}" cut`);
+        }
         const slotEl = document.querySelector("[data-drpg-trial-schema]");
         const slot = slotEl ? [Math.round(slotEl.clientWidth), Math.round(slotEl.clientHeight)] : null;
         /* THE FOLD (E99 round 5: "NIE ZWIĄZANE Z MORDERST" cut under glass in the trial's shot, which nothing here read): its
@@ -257,7 +283,7 @@ try {
                 const width = /^class-trial/.test(w.id) ? Math.min(1280, vw - 16) : (w.width ?? 1120);
                 const page = await browser.newPage({ viewport: { width: vw, height: vh }, deviceScaleFactor: SHOTS ? SCALE : 1 });
                 const load = async () => {
-                    await page.route("**/case-map-sweep-page", r => r.fulfill({ contentType: "text/html", body: pageHtml(styles, html, w.title, width, theme) }));
+                    await page.route("**/case-map-sweep-page", r => r.fulfill({ contentType: "text/html", body: pageHtml(styles, html, w.title, width, theme, vh) }));
                     await page.goto(`${base}/case-map-sweep-page`);
                 };
                 await load();
@@ -270,13 +296,18 @@ try {
                     await load();
                     const planted = await readMap(page, { plantBar: true });
                     const barRead = (planted.cut ?? []).filter(c => c.startsWith("camera bar over")).length;
-                    const ok = box.cut?.length > 0 && stale.overlaps?.length > 0 && (!planted.bar || barRead > 0);
-                    console.log(`control  ${ok ? "ok  " : "FAIL"} C5's box read ${box.cut?.length ?? 0} cut(s); the drawn places with 120 px nodes read ${stale.overlaps?.length ?? 0} overlap(s); the bar planted over a node read ${planted.bar ? barRead : "no bar on this page"}`);
+                    await load();
+                    const footHas = await page.evaluate(() => { const b = document.querySelector("footer.drpg-kit-footer button"); if (b) Object.assign(b.style, { position: "fixed", top: `${innerHeight + 40}px` }); return Boolean(b); });
+                    const footRead = footHas ? ((await readMap(page)).cut ?? []).filter(c => c.startsWith("footer:")).length : 0;
+                    const ok = box.cut?.length > 0 && stale.overlaps?.length > 0 && (!planted.bar || barRead > 0) && (!footHas || footRead > 0);
+                    console.log(`control  ${ok ? "ok  " : "FAIL"} C5's box read ${box.cut?.length ?? 0} cut(s); the drawn places with 120 px nodes read ${stale.overlaps?.length ?? 0} overlap(s); the bar planted over a node read ${planted.bar ? barRead : "no bar on this page"}; a footer button put off the screen read ${footHas ? footRead : "no footer on this page"}`);
                     if (!ok) failed++;
                     controlled = true;
                     await load();
                 }
                 const r = await readMap(page);
+                if (/^class-trial/.test(w.id) && (r.controls ?? 0) > 0 && theme === MIN_TEXT.theme && vh <= MIN_TEXT.maxHeight && r.fit && r.fit.minText < MIN_TEXT.px)
+                    (r.cut ??= []).push(`fit text ${r.fit.minText} px under ${MIN_TEXT.px} (a trial runs, ${theme}, ${vh} px high)`);
                 const bad = (r.cut?.length ?? 1) + (r.overlaps?.length ?? 0) + (r.error ? 1 : 0);
                 if (bad) failed++;
                 const line = `${bad ? "FAIL" : "ok  "} ${lang} ${theme.padEnd(6)} ${vw}x${vh} ${w.id.padEnd(25)} nodes ${r.nodes} controls ${r.controls ?? 0} open [${(r.open ?? []).join(",")}] tallest ${r.tallest} px, viewport ${r.viewport?.join("x")}, canvas ${r.canvas?.join("x")}, measured ${r.measured}${r.slot ? `, slot ${r.slot.join("x")}` : ""}${r.fit ? `, fit ${r.fit.z} text ${r.fit.minText} px` : ""}${r.revealed === null ? "" : `, revealed ${r.revealed}`}; cut ${r.cut?.length ?? "-"}, overlaps ${r.overlaps?.length ?? "-"}${r.error ? `; ${r.error}` : ""}`;

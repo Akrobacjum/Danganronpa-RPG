@@ -8617,6 +8617,22 @@ const INVARIANTS = [
             stableJson([true, true, true, true, true]),
             "[no gap height: the row one pitch, as before; a 60 px fold: the next node 60 px and a row's gap under the gap's middle; a 10 px fold: one pitch still; the gap's middle where it was; the other column unmoved]");
     }],
+    ["R3915 - the Class Trial console's compact frame has one threshold, in settings.mjs (E99 round 6, 12.11.2026; the owner's \"Zgadzam sie na zmiany w oknach class trial\"): BREAKPOINTS.low is 800 and `lowScreen` is true under it and false at it and above (an unmeasured 0 is not low); `applyTheme` stamps `drpg-low` from `lowScreen` and the screen's watch re-applies the theme when it changes; the module's sheets key the console's compact title and footer off `body.drpg-low` and repeat no height in a media query", async () => {
+        /* Red at 1b8d19a: no BREAKPOINTS.low, no lowScreen, no drpg-low. The layout it buys is the sweep's (STATUS round 6). */
+        const S = await import("./settings.mjs");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/settings.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        must(src.length > 1000, "settings.mjs read as nothing - this would measure nothing");
+        const css = (await moduleStyles()).replace(/\/\*[\s\S]*?\*\//g, "");
+        const reads = typeof S.lowScreen === "function" ? [S.lowScreen(768), S.lowScreen(799), S.lowScreen(800), S.lowScreen(1080), S.lowScreen(0)] : null;
+        equal(stableJson({
+            low: BREAKPOINTS.low ?? null, reads,
+            stamped: /classList\.toggle\("drpg-low",\s*lowScreen\(\)\)/.test(fnSource(src, "applyTheme")),
+            watched: /lowScreen\(\)/.test(lineAround(src, src.indexOf("const shapeKey ="))),
+            sheet: /body\.drpg-low\s+\.application[^{]*drpg-window-trial[^{]*footer/.test(css) && /body\.drpg-low\s+\.application[^{]*drpg-window-trial\s*>\s*\.window-header/.test(css),
+            media: /@media[^{]*\bheight\b/.test(css)
+        }), stableJson({ low: 800, reads: [true, true, false, false, false], stamped: true, watched: true, sheet: true, media: false }),
+        "{BREAKPOINTS.low; lowScreen at [768, 799, 800, 1080, 0]; applyTheme stamps drpg-low; the watch's shape reads it; the sheets' compact title and footer; a height in a media query}");
+    }],
     ["R3900 - the hall's zones as shapes (E73 C1; TR20 = 1, Q-E73-4): zone-geometry.mjs `zoneAt` names the zone a point is in - a region's `testPoint` with the elevation first, its polygon tree or box only where it cannot be asked, a hole asked answering no, a point both hold on the line; `zoneCoverage` finds a gap and an overlap by the grid's squares and says a gridless hall past its budget was not checked; `zoneWarnings` names none picked, one, the same region twice, a region gone, an overlap and a gap, and nothing for two zones that tile the hall", async () => {
         /*
          * E73 C1, 12.11.2026. Planted regions and halls, no world. Red at 4077664: no zone-geometry.mjs.

@@ -292,3 +292,32 @@ R3659-R3662 take the 1.2.107 line's tests. Every mention in this file was moved 
   read and left: its texts are already one short sentence each.
 - Checked: parity, text, prose, dashes green; the quick gate green; R125, R1364, R3670-R3675, R3913 and tier 2's
   "E99" 22 passed, 0 failed; scenarios 50 44/44, 63 74/74, 72 132/136 with its 4 expected red, 0 failed.
+
+## Round 6 (12.11; the owner: "Zgadzam sie na zmiany w oknach class trial ... akceptuje"; option (2) of round 5)
+
+- **Red first**: the sweep holds glass, while a trial runs, at 800 px of height or less, to 11 px after Fit to view
+  (`MIN_TEXT`). Before the change: 4 pages failing (glass 1366x768, debate and Objection, EN and PL: 10.3 px).
+- **The change**: settings.mjs `BREAKPOINTS.low = 800` with `lowScreen` beside `shortScreen`; `applyTheme` stamps
+  `drpg-low` on the body and the screen's watch re-applies it as the height crosses 800. components.css, under
+  `body.drpg-low`, draws the trial console's title and its footer's buttons low (the small text, tight padding, no
+  theme letter-spacing). The frame's own height, padding and margins stay the kit's: a first try set the header's
+  min-height and the footer's margin and padding, and R1357 (no rule frames a moved window) read it red; taken out.
+  No height in a media query (the breakpoints stay in settings.mjs, CLAUDE.md). R3915 (new) holds the threshold, the
+  class, the watch and the sheets' rules; red at 1b8d19a.
+- **The sweep now also reads** the window's footer: each button in view, named, its words inside its box (a text
+  range; the glass brush counts in scrollWidth), with a planted control (a button put off the screen must read); and
+  stamps `drpg-short`/`drpg-low` on its page from settings.mjs's numbers, as the module does.
+- **Measured** (sweep, 24 trial pages, 0 failing; 1920x1080 identical to round 5):
+
+  | 1366x768 | Theme | Slot | Viewport | Fit | Smallest text |
+  | --- | --- | --- | --- | --- | --- |
+  | before a trial | glass | 1244x478 | 1242x440 | 0.753 | 15.8 px |
+  | before a trial | Legacy | 1244x560 | 1242x535 | 1 | 11 px |
+  | debate / Objection | glass | 669x423 | 667x385 | 0.601 | 12.6 px (was 10.3) |
+  | debate / Objection | Legacy | 669x478-494 | 667x453-469 | 0.794 | 8.7 px (as it was: Legacy's 11 px floor at 100%) |
+
+  Where it came from (glass, debate): the footer 90 -> 44 px (one row of eight buttons, all in view, none cut); the
+  header 64 -> 38 px, but that header is the harness's, not Foundry's - without its share the footer alone leaves
+  about 359 px of viewport, a fit of 0.56, about 11.8 px. Foundry's own header at a real table is not measured.
+- Monokuma Legacy stays as it is (the owner); a GM needs nothing new in the handbook for it.
+- Shots, 1366x768 (round 6 at the top of the page): https://claude.ai/artifact/WUy527XyW8X8QihFuEPKBd.
