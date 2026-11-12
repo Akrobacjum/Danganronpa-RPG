@@ -167,6 +167,17 @@ where that line leaves the rule open the default is written here (default, owner
 | C8 (dedc76d) | D064, D068, D090 | D064: already one road since E37 C2 (R1194), no code. D068: migration step `chapterRestStamps` (1.2.117): a chapterless stamp of the window now gets the clock's chapter, any other is dropped (R3814, new; default, owner may revise). D090: under quiet the planted Gear stays stowed and the victim's other working stowed piece is readied without a word or redraw (default, owner may revise: which piece is readied); E35-T7 changed on purpose |
 | C4/C5 | D038 (1) the Mastermind's room as a keyed room; (2) a road to seal the passage at their door | built (the owner's "Budujemy", 12.11; see "D038" below). R3819, R3820 new; tier 2 "D038 lair lock", "D038 lair seal"; 33 A22, 30 "forged asks at the Mastermind's door". Shots: round 8 |
 
+## Merged with main 1.2.108 (4dfac3a, 12.11.2026; the coordinator's request)
+
+- Merge 5f46d98, conflicts kept from both sides (its message lists them). Then two censuses counted again on purpose:
+  R1157 (the plural census: U 69 from this line, S 37 from main) and R3510 (main's card census: the Monocubs' lines and
+  built cards, the Final Trial's bets line, the unlock card moved from room-setup.mjs to vault-store.mjs).
+- Checks on the merged tree: quick gate green; tiers 0-1 1273 passed, 0 failed, 16 skipped, 0 red (1288 ran); tier 2
+  `--only` Call, Talent, D038 (176 ran) 177 passed, 1 failed (R3510, the tier-0 census above, fixed after and green), 2
+  skipped; 30 279/280 (foundry-secret-door-type), 33 77/78 (foundry-cub-purse), 88 26/26.
+- Noted by the coordinator, nothing to do here: E93 reads the armed key "ultimate" in `appendArmedCall` for its
+  ultimateBoost; Talent keeps that key (the row picked in Talent's window is "ultimate"), so it resolves when E93 meets it.
+
 ## D038 - the Mastermind's door (built 12.11; the owner's "Budujemy", the coordinator's default)
 
 - DEFAULT, FOR THE OWNER TO CONFIRM: the lock is no tell. The lair has no lock of its own: the Mastermind's player locks
