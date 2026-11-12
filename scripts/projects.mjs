@@ -949,6 +949,37 @@ export const COMPLETION_EFFECTS = [
     },
     {
         /*
+         * A FINISHED REPAIR THE LOCK MENDS ITS LOCK (E74 C5; DA28, Q-E74-1). Read for a project whose secret half names the
+         * preset, the scene and the lock's room. Crossed: mended on the primary in the step (doors-gm.mjs `repairLockDone`,
+         * which judges again that the lock is broken), the room's owner told, and the project kept for the Reroll as the
+         * owner's three are (`keep`). Uncrossed: the lock broken again (`unrepairLock`). A refusal mends nothing, and the
+         * GMs are told why.
+         */
+        key: "repairsLock",
+        has: meta => meta.target?.preset === "repairLock" && typeof meta.target.lockRoom === "string",
+        onCrossed: ({ id, name, meta }) => {
+            let made = null;
+            return {
+                apply: async () => {
+                    made = await (await import("./doors-gm.mjs")).repairLockDone(id, { sceneId: meta.target.sceneId ?? null, lockRoom: meta.target.lockRoom });
+                    if (made?.mended) await setProjectMeta(id, { target: { ...meta.target, mended: true } });
+                },
+                remove: true,
+                keep: true,
+                after: async () => {
+                    if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Infiltrate.repair.notMended", { name, why: await whyOf(made.refused) }))}</p>`);
+                }
+            };
+        },
+        onUncrossed: ({ id, meta }) => (meta.target?.mended
+            ? { apply: async () => {
+                await (await import("./doors-gm.mjs")).unrepairLock({ sceneId: meta.target.sceneId ?? null, lockRoom: meta.target.lockRoom });
+                await setProjectMeta(id, { target: { ...meta.target, mended: false } });
+            } }
+            : {})
+    },
+    {
+        /*
          * A FINISHED PROJECT'S ROOM ACTION STARTS ITS LIFETIME (E93 C1, 12.11.2026; the owner's audit entry E93 (4)). A
          * project a GM gave an action (`facility`, facilities.mjs `cleanFacility`) stamps the time of day it was completed
          * in (`facilityOrdinal`), which its lifetime is counted from (`facilityLive`); taken back below its target, the
@@ -1622,11 +1653,11 @@ export async function createProject({
 
 /**
  * A preset's target as the GMs keep it (E15 part 2 C2, C5): `{ preset, room }`, and for the owner's three of 15.10 what
- * the approval named - a passage (`passageId`), a breach (`sceneId`, `breachId`), an item of the builder's (`itemId`) -,
- * strings alone.
+ * the approval named - a passage (`passageId`), a breach (`sceneId`, `breachId`), an item of the builder's (`itemId`), and
+ * since E74 C5 a lock (`sceneId`, `lockRoom`) -, strings alone.
  */
 function presetTargetOf(presetTarget) {
-    const ids = Object.fromEntries(["passageId", "sceneId", "breachId", "itemId"]
+    const ids = Object.fromEntries(["passageId", "sceneId", "breachId", "itemId", "lockRoom"]
         .filter(key => typeof presetTarget[key] === "string" && presetTarget[key]).map(key => [key, presetTarget[key]]));
     return { preset: String(presetTarget.preset), room: presetTarget.room ?? null, ...ids };
 }

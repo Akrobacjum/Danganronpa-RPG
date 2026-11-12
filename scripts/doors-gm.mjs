@@ -207,6 +207,77 @@ export async function pickLock({ actor, room, total = 0, isCritical = false, wit
     return { opened, held };
 }
 
+/* ----------------------------------------------------------------------------------------------------------------- *
+ * REPAIR THE LOCK (E74 C5; DA28, Q-E74-1's default: a row of passages-gm.mjs `PASSAGE_PRESETS`, its completion projects.mjs
+ * `COMPLETION_EFFECTS`' "repairsLock"). A project at Trivial on a lock Force the Door or a breach broke, offered in Start New
+ * only where a door of the builder's room has one (the room itself or a neighbour), once a door: a lock a project repairs
+ * already is refused. Judged at the approval and again at the completion, as the owner's three of 15.10 are. Finished, the
+ * lock holds again for everyone and the room's owner is told; taken back (a Reroll), it is broken again. A GM's repair by hand
+ * in Room Setup's Broken column removes the project with a note to the GMs (`dropLockRepairs`).
+ * ----------------------------------------------------------------------------------------------------------------- */
+
+/** The projects that repair the lock of `room` on the scene `sceneId`, as the GMs hold them (their secret half's `target`). */
+export async function lockRepairsOf(sceneId, room) {
+    const { allProjects } = await import("./projects.mjs");
+    const { secretsOf } = await import("./projects-secrecy.mjs");
+    return allProjects().filter(p => {
+        const target = secretsOf(p.id)?.target ?? null;
+        // A finished one kept for its Reroll (the row's `keep`) repairs nothing more.
+        return target?.preset === "repairLock" && target.sceneId === sceneId && target.lockRoom === room && p.current < p.start;
+    });
+}
+
+/**
+ * Why the lock of `room` on `scene` may not be repaired by a project of a builder standing in `from`, or null. English, said
+ * through passages-gm.mjs `whyText`. `ignore` a project id not counted (the completion's own).
+ */
+export async function repairLockRefusal({ scene, room, from, ignore = null }) {
+    const M = await import("./movement.mjs");
+    if (!scene || !room || !M.roomBroken(scene, room)) return "that lock is not broken.";
+    if (from !== room && !M.neighbouringRooms(scene, from).includes(room)) return "that lock is on no door of the builder's room.";
+    if ((await lockRepairsOf(scene.id, room)).some(p => p.id !== ignore)) return "a project repairs that lock already.";
+    return null;
+}
+
+/** A finished Repair the Lock (the row "repairsLock"): the lock holds again, its owner told. Answers `{ refused }` or `{ mended }`. */
+export async function repairLockDone(projectId, { sceneId = null, lockRoom = null } = {}) {
+    const M = await import("./movement.mjs");
+    const scene = game.scenes.get(sceneId ?? "");
+    if (!scene || !lockRoom || !M.roomBroken(scene, lockRoom)) return { refused: "that lock is not broken." };
+    await M.setRoomBroken(scene, lockRoom, false);
+    const owner = game.actors.get(roomFlag(scene, lockRoom, ROOM_OWNER_FLAG) ?? "");
+    if (owner) {
+        const { whisperToOwnerOnly, esc } = await import("./utils.mjs");
+        await whisperToOwnerOnly(owner, `<p>${esc(game.i18n.format("DRPG.Infiltrate.repair.mended", { room: lockRoom }))}</p>`);
+    }
+    log(`The lock of ${lockRoom} is repaired (project ${projectId}).`);
+    return { mended: true };
+}
+
+/** A Repair the Lock's completion taken back: the lock broken again. */
+export async function unrepairLock({ sceneId = null, lockRoom = null } = {}) {
+    const M = await import("./movement.mjs");
+    const scene = game.scenes.get(sceneId ?? "");
+    if (!scene || !lockRoom) return false;
+    await M.setRoomBroken(scene, lockRoom, true);
+    return true;
+}
+
+/** A GM mended the lock by hand (Room Setup's Broken column): every project repairing it removed, the GMs told. Answers how many. */
+export async function dropLockRepairs(scene, room) {
+    if (!game.user?.isGM || !scene || !room) return 0;
+    const { deleteProject } = await import("./projects.mjs");
+    const { whisperToGms, esc } = await import("./utils.mjs");
+    let n = 0;
+    for (const project of await lockRepairsOf(scene.id, room)) {
+        if (await deleteProject(project.id)) {
+            n++;
+            await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Infiltrate.repair.dropped", { name: project.name, room }))}</p>`);
+        }
+    }
+    return n;
+}
+
 /** Take a barricade down: the row dropped and the public flag taken off. Answers whether there was one. */
 export async function endBarricade(key) {
     const row = barricadeStore.get(key);

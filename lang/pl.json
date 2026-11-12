@@ -654,6 +654,9 @@
         "notKnown": "postać nie zna tego tajnego przejścia albo jest ono już zamknięte. Sprawdź je w zakładce Tajne przejścia.",
         "isBreach": "to wyłom, nie tajne przejście. Ścianę przywraca Zamknij wyłom.",
         "noSide": "nie ma żadnej strony w pokoju, w którym stoi postać. Zatwierdź go tylko z pokoju, do którego prowadzi to tajne przejście albo wyłom.",
+        "lockWhole": "ten zamek nie jest zepsuty - nie ma czego naprawiać.",
+        "lockTaken": "projekt już naprawia ten zamek.",
+        "lockFar": "ten zamek nie jest na żadnych drzwiach pokoju, w którym stoi postać. Zatwierdź go tylko z tego pokoju albo z sąsiedniego.",
         "noWall": "tej ściany już nie ma. Wybierz odcinek ponownie.",
         "taken": "odcinek nachodzi na inne tajne przejście na tej ścianie. Wybierz odcinek obok niego.",
         "levels": "pokój przy odcinku jest na innym piętrze. Wybierz odcinek na piętrze postaci.",
@@ -3199,6 +3202,11 @@
         "seenBy": "{name} majstruje przy zamku do: {room}.",
         "warned": "Ktoś majstrował przy zamku: {room}."
       },
+      "repair": {
+        "mended": "Zamek: {room} naprawiono, drzwi znów trzymają.",
+        "dropped": "„{name}” usunięto: zamek {room} naprawiono ręcznie.",
+        "notMended": "{name} ukończono, ale zamka nie dało się naprawić: {why}"
+      },
       "watch": {
         "notInEclipse": "Czuwanie ustala się przed Eclipse, nie w trakcie.",
         "notAtNight": "Bez czuwania przed nocnym Eclipse.",
@@ -3762,7 +3770,8 @@
         "breach": "Breach the Wall",
         "sealPassage": "Seal the passage",
         "closeBreach": "Close the breach",
-        "repairItem": "Repair an item"
+        "repairItem": "Repair an item",
+        "repairLock": "Repair the Lock"
       },
       "kindOwn": "Własny projekt",
       "sealWhich": "Przejście do zasypania",
@@ -3776,6 +3785,9 @@
       "sealPassageSummary": "Seal the passage: {target}",
       "closeBreachSummary": "Close the breach: {target}",
       "repairItemSummary": "Repair an item: {target}",
+      "repairLockWhich": "Zamek do naprawy",
+      "repairLockNote": "Repair the Lock: Hand, Trivial (3). Po ukończeniu zamek znów trzyma, dla wszystkich.",
+      "repairLockSummary": "Repair the Lock: {target}",
       "repairLabel": "{item} (Tier {tier}): {state}",
       "repairBroken": "zepsuty przedmiot",
       "repairWorn": "zużyty przedmiot",

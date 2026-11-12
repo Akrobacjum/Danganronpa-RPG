@@ -1029,7 +1029,11 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
         }
         if (same) continue;
         // Broken (E74 C5): written on the room's pieces by its one writer, before the rest of the row.
-        if (wasBroken !== row.broken) await setRoomBroken(scene, row.room, row.broken);
+        if (wasBroken !== row.broken) {
+            await setRoomBroken(scene, row.room, row.broken);
+            // Mended by hand: a Repair the Lock under way on it goes, with a note to the GMs (E74 C5).
+            if (!row.broken) await (await import("./doors-gm.mjs")).dropLockRepairs(scene, row.room);
+        }
 
         // "Stash hidden" is the Stashes tab's business (ITEM-02): the column
         // this tab used to carry wrote the LEGACY flag, which the Stashes list

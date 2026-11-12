@@ -435,7 +435,10 @@ export const PASSAGE_PRESETS = Object.freeze({
     breach: Object.freeze({ trait: "body", scale: "complex", effect: "breachesWall" }),
     sealPassage: Object.freeze({ trait: "hand", scale: "complex", effect: "sealsPassage" }),
     closeBreach: Object.freeze({ trait: "body", scale: "complex", effect: "closesBreach" }),
-    repairItem: Object.freeze({ trait: "hand", scale: "trivial", byTier: Object.freeze(["trivial", "trivial", "complex", "complex"]), effect: "repairsItem" })
+    repairItem: Object.freeze({ trait: "hand", scale: "trivial", byTier: Object.freeze(["trivial", "trivial", "complex", "complex"]), effect: "repairsItem" }),
+    // Repair the Lock (E74 C5; DA28, Q-E74-1's default: a row here, no new table): Hand, Trivial, a lock Force the Door or
+    // a breach broke, on a door of the builder's room; its judges and its completion are doors-gm.mjs's.
+    repairLock: Object.freeze({ trait: "hand", scale: "trivial", effect: "repairsLock" })
 });
 
 /** A preset's size (a key of config.mjs `PROJECT_SCALE`): its `byTier` at the item's tier (0-3, clamped) where it has one, else its `scale`. */
@@ -1183,6 +1186,10 @@ const whyTable = () => new Map([
         [MAP_REFUSALS.otherRooms, "otherRooms"],
         [MAP_REFUSALS.short, "short"],
         ["that wall is a door.", "door"],
+        // Repair the Lock (E74 C5; doors-gm.mjs `repairLockRefusal`).
+        ["that lock is not broken.", "lockWhole"],
+        ["a project repairs that lock already.", "lockTaken"],
+        ["that lock is on no door of the builder's room.", "lockFar"],
         ["that wall does not block movement.", "noMove"],
         ["the stretch needs two different ends.", "sameEnds"],
         ["the stretch is not on that wall.", "offWall"],

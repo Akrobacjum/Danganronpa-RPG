@@ -643,6 +643,9 @@
         "notKnown": "the character does not know that passage, or it is closed already. Check it in the Passages tab.",
         "isBreach": "that is a breach, not a passage. Close the breach gives the wall back.",
         "noSide": "it has no side in the room where the character stands. Approve it only from a room the passage or the breach opens into.",
+        "lockWhole": "that lock is not broken - nothing to repair.",
+        "lockTaken": "a project repairs that lock already.",
+        "lockFar": "that lock is on no door of the room where the character stands. Approve it only from that room or one next to it.",
         "noWall": "the wall is gone. Pick the stretch again.",
         "taken": "the stretch overlaps another passage on that wall. Pick a stretch beside it.",
         "levels": "a room beside the stretch is on another floor. Pick a stretch on the character's floor.",
@@ -2937,6 +2940,11 @@
         "seenBy": "{name} is picking the lock to {room}.",
         "warned": "Somebody has been at the lock of {room}."
       },
+      "repair": {
+        "mended": "The lock of {room} has been repaired: the door holds again.",
+        "dropped": "“{name}” is removed: the lock of {room} was repaired by hand.",
+        "notMended": "{name} is finished, but its lock could not be repaired: {why}"
+      },
       "watch": {
         "notInEclipse": "A watch is set before an Eclipse, not during one.",
         "notAtNight": "No watch before the Night Eclipse.",
@@ -3446,7 +3454,8 @@
         "breach": "Breach the Wall",
         "sealPassage": "Seal the passage",
         "closeBreach": "Close the breach",
-        "repairItem": "Repair an item"
+        "repairItem": "Repair an item",
+        "repairLock": "Repair the Lock"
       },
       "kindOwn": "A project of your own",
       "sealWhich": "Passage to seal",
@@ -3460,6 +3469,9 @@
       "sealPassageSummary": "Seal the passage: {target}",
       "closeBreachSummary": "Close the breach: {target}",
       "repairItemSummary": "Repair an item: {target}",
+      "repairLockWhich": "Lock to repair",
+      "repairLockNote": "Repair the Lock: Hand, Trivial (3). Once it is finished the lock holds again, for everyone.",
+      "repairLockSummary": "Repair the Lock: {target}",
       "repairLabel": "{item}, Tier {tier}, {state}",
       "repairBroken": "broken",
       "repairWorn": "worn",

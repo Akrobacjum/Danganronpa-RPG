@@ -88680,6 +88680,66 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ dash: 1, facility: [true, false], reroll: [false, true, true, true] }),
             "{dash: the crossings on the Dash's row; facility: [its key on the row, its success]; reroll: [the no-replay line, the use a success now, Hope given, the row's success]} - the facts a Reroll replays");
     }],
+    ["E74-T8 - Repair the Lock is a project on a broken lock of a door of the builder's room, one a door, and its completion mends the lock (scripts/doors-gm.mjs `repairLockRefusal`, `repairLockDone`, `dropLockRepairs`; projects-ui.mjs `presetApproval`; projects.mjs COMPLETION_EFFECTS \"repairsLock\"; passages-gm.mjs PASSAGE_PRESETS.repairLock; E74 C5): approved on a broken lock next door; refused on a lock not broken and on one apart from the builder's room; a second project on the same lock refused; finished, the lock holds again; a GM's repair by hand in Room setup removes a project under way", async () => {
+        /*
+         * E74 C5, 12.11.2026. The approval is the GM's window's judge (`presetApproval`), as the card's Approve button asks
+         * it; the project made as that window makes it (`createProject` with `presetTarget`), its progress added to the end.
+         * Rooms: the builder's A, the lock's B next door (Room setup's neighbours, written and put back), C apart. Put back:
+         * the projects, the broken flags, the room flags, the token. Red at 68ec08d: `presetApproval` not exported, no preset.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the builder is a connected player's character");
+        const M = await import("./movement.mjs");
+        const UI = await import("./projects-ui.mjs");
+        const P = await import("./projects.mjs");
+        const D = await import("./doors-gm.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        const { actor } = await playerInRoom();
+        const scene = canvas.scene;
+        const token = scene.tokens.find(t => t.actorId === actor.id);
+        const rooms = M.allRooms(scene);
+        must(rooms.length >= 3 && token, "the scene on screen has no three rooms or no token of the builder's");
+        const [A, B, C] = rooms;
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const was = { x: token.x, y: token.y, projects: new Set(P.allProjects().map(p => p.id)) };
+        const flagsWere = [];
+        for (const room of [A, B, C]) for (const piece of roomRegions(scene, room)) flagsWere.push([piece, foundry.utils.deepClone(piece.flags?.[MODULE_ID] ?? {})]);
+        const ask = to => UI.presetApproval({ preset: "repairLock", to, by: actor.id });
+        const make = async target => (await P.createProject({ presetTarget: target, name: `E74-T8 ${foundry.utils.randomID(4)}`, target: 3, room: A, trait: "hand", by: actor.id }))?.id ?? null;
+        const read = {};
+        try {
+            for (const [room, list] of [[A, [B]], [B, [A]], [C, []]]) for (const piece of roomRegions(scene, room)) await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, list.join(", "));
+            await token.update(M.positionIn(A, token), PLACE);
+            await settle();
+            read.whole = (await ask(B)).refused;
+            await M.setRoomBroken(scene, B, true);
+            await M.setRoomBroken(scene, C, true);
+            const first = await ask(B);
+            read.far = (await ask(C)).refused;
+            read.first = [first.refused, first.target?.lockRoom ?? null, first.target?.sceneId === scene.id];
+            const id = await make(first.target);
+            await settle();
+            read.second = (await ask(B)).refused;
+            await P.addProgress(id, 3);
+            await settle();
+            read.done = M.roomBroken(scene, B);
+            await M.setRoomBroken(scene, B, true);
+            const again = await make((await ask(B)).target);
+            await settle();
+            read.byHand = [await D.dropLockRepairs(scene, B), P.allProjects().some(p => p.id === again)];
+        } finally {
+            for (const p of P.allProjects()) if (!was.projects.has(p.id)) await P.deleteProject(p.id);
+            for (const room of [B, C]) await M.setRoomBroken(scene, room, false);
+            for (const [piece, flags] of flagsWere) {
+                for (const key of Object.keys(piece.flags?.[MODULE_ID] ?? {})) if (!Object.hasOwn(flags, key)) await piece.unsetFlag(MODULE_ID, key);
+                for (const [key, value] of Object.entries(flags)) await piece.setFlag(MODULE_ID, key, value);
+            }
+            if (scene.tokens.has(token.id)) await token.update({ x: was.x, y: was.y }, PLACE);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ whole: "that lock is not broken.", far: "that lock is on no door of the builder's room.",
+            first: [null, B, true], second: "a project repairs that lock already.", done: false, byHand: [1, false] }),
+            "{whole, far: refusals; first: [refusal, the lock's room kept, its scene]; second: a second project; done: broken after the completion; byHand: [removed, still there]} - Repair the Lock");
+    }],
     ["E69-T4 - Tail Someone begins on the GMs' record of its two rolls and sends its cards from a settled crossing (scripts/tail-gm.mjs, bridge-runs-acts.mjs `handleTailStart`, bridge-table.mjs `tail.start`, config.mjs INFILTRATE.tail; E69 C3, C4; DA8, DA20, DA21, DA26): a player's tail on a student in the room with Shadow 16 is unseen and kept with the effect's total; with Shadow 10 the target's owners are told the tailer's name; the tailer itself, another player's character and a packet naming no rolls are refused; the target's settled crossing sends the tailer one card naming the room, and one the tailer is not in or beside ends the tail lost; a Dash above the effect's total ends it, one below does not; a critical tail falls only to a critical Dash", async () => {
         /*
          * E69 C3 and C4, 12.11.2026. Judged as the primary judges the player's packet (`G.judge`), each roll a message of the
