@@ -65,8 +65,8 @@ napisz, co zrobione). Gdy sprawdzenie ma kilka kroków, a padł jeden, wpisz X i
 | I2 | Układ przy różnych rozmiarach i powiększeniu | miłe | | | |
 | P1 | Liczba klatek i praca modułu | ważne | | | |
 | P2 | Zerwania głosu | ważne | | | |
-| K1 | Czytnik ekranu | miłe | | | |
-| K2 | Inne przeglądarki, wtyczki i klawiatura ekranowa | miłe | | | |
+| K1 | Czytnik ekranu | ważne | | | |
+| K2 | Firefox, wtyczki i tablet | ważne | | | |
 | K3 | Scena testowa z dwoma piętrami | ważne | | | |
 | K4 | Moduły towarzyszące wyłączone | miłe | | | |
 | L1 | `npm run gate:local` | ważne | | | |

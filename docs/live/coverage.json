@@ -205,12 +205,12 @@
   },
   "K1": {
    "title": "Czytnik ekranu",
-   "weight": "miłe",
+   "weight": "ważne",
    "time": "20 min"
   },
   "K2": {
-   "title": "Inne przeglądarki, wtyczki i klawiatura ekranowa",
-   "weight": "miłe",
+   "title": "Firefox, wtyczki i tablet",
+   "weight": "ważne",
    "time": "20 min"
   },
   "K3": {
@@ -252,7 +252,8 @@
     "A1"
    ],
    "pos": "475",
-   "title": "Foundry 14.370 z Daggerheart 2.12.8 i Dice So Nice 6.4.5 (E76; LIVE-E75-05 dla wersji z 12.11.2026)"
+   "title": "Foundry 14.370 z Daggerheart 2.12.8 i Dice So Nice 6.4.5 (E76; LIVE-E75-05 dla wersji z 12.11.2026)",
+   "note": "Wersje stołu: odczytaj numer kompilacji w A1 (właściciel 12.11: najnowsza v14); 14.370 jest numerem z notatek, nie odczytem."
   },
   "LIVE-E75-05": {
    "status": "not-coverable",
@@ -261,7 +262,7 @@
    ],
    "pos": "153",
    "title": "Foundry 14.369 z Daggerheart 2.10.11",
-   "reason": "Wersja zastąpiona: stół jest na Foundry 14.370 i Daggerheart 2.12.8, a ten wiersz pyta o 14.369 z 2.10.11; jego treść powtarza LIVE-E76-01."
+   "reason": "Wersja zastąpiona: wiersz pyta o Foundry 14.369 z Daggerheart 2.10.11, a stół ma najnowszą kompilację v14 (numer odczytany w A1) i Daggerheart 2.12.8 albo nowszy; treść powtarza LIVE-E76-01."
   },
   "LIVE-E75-04": {
    "status": "not-coverable",
@@ -270,7 +271,7 @@
    ],
    "pos": "152",
    "title": "starszy Daggerheart",
-   "reason": "Dotyczy Daggerhearta starszego niż 2.10.10; stół ma 2.12.8. Do zrobienia tylko na świecie ze starszą wersją."
+   "reason": "Dotyczy Daggerhearta starszego niż 2.10.10; stół ma nowszego (wersja odczytana w A1). Do zrobienia tylko na świecie ze starszą wersją."
   },
   "LIVE-E75-03": {
    "status": "covered",
@@ -1558,7 +1559,8 @@
     "C4"
    ],
    "pos": "348",
-   "title": "magazyny GM-ów, pierścienie i zegary po poprawce zegara serwera (E90, 1.2.93)"
+   "title": "magazyny GM-ów, pierścienie i zegary po poprawce zegara serwera (E90, 1.2.93)",
+   "note": "Wersja: odczytaj numer kompilacji w A1 (wiersz podaje 14.365, właściciel 12.11: najnowsza v14)."
   },
   "LIVE-E17-11": {
    "status": "covered",
@@ -1888,7 +1890,8 @@
     "C7"
    ],
    "pos": "272",
-   "title": "tunel i schody w obie strony na stole v14 (H81 C1, H81 fix r1)"
+   "title": "tunel i schody w obie strony na stole v14 (H81 C1, H81 fix r1)",
+   "note": "Szczegóły (GM, dwa piętra) z pamięci właściciela 12.11, nie z pomiaru; C7 krok 4 sprawdza je, z zapasem na jedno piętro."
   },
   "LIVE-H81-03": {
    "status": "covered",

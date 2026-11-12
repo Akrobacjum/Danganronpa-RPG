@@ -1,6 +1,6 @@
 # docs/live - status (work line claude/live-pack)
 
-Updated 12.11.2026. Built on `main` at 235c3210 (1.2.107). Nothing outside `docs/live/` was changed.
+Updated 12.11.2026 (second push: the owner's answers). Built on `main` at 235c3210 (1.2.107). Nothing outside `docs/live/` was changed.
 
 ## What is here
 
@@ -55,19 +55,26 @@ have (H, K).
   on a Foundry - there is none here.
 - `node tools/check.mjs dashes` before the push.
 
-## Open questions for the owner
+## The owner's answers (12.11.2026, through the coordinator) and what changed
 
-1. **Will session 0 reach a murder and a Class Trial?** Blocks D-G (about 60 ids marked critical or important) only run
-   if it does; otherwise they wait for the next session or a rehearsal on a copy.
-2. **A second GM or an Assistant GM at the table?** Block H (26 ids) needs one.
-3. **Which Foundry does the table run?** LIVE-E90-01 says "Foundry 14.365 na The Forge", LIVE-E76-01 says 14.370 with
-   Daggerheart 2.12.8 and Dice So Nice 6.4.5. A1 records it; several "partial" rows depend on it.
-4. **May A5 run on a duplicate of the campaign world** (tier 2, `-=` keys, Oddaj ustawienia Foundry, a season reset)?
-   The pack says copy only; a Forge duplicate is enough.
-5. **H81-01 (tunnel works one way):** the pack asks the questions STATUS H81 says are still unanswered - one floor or
-   two, which scene, whose browser pressed Przejdź.
-6. **Anyone with a screen reader, a tablet, Firefox or Safari?** Block K and the Firefox halves of a few checks only run
-   if so.
+The owner answered the six questions of the first draft: "1. Tak 2. Tak 3. Najnowsza 4. tak 5. Chyba gma, chyba dwa
+pietra 6. Tak".
+
+| Question | Answer | In the pack |
+| --- | --- | --- |
+| 1. Does session 0 reach a murder and a Class Trial? | yes | D-G are in the plan, not conditional; "N" in the results if the story still stops short |
+| 2. A second GM or Assistant GM? | yes | H is in the plan; E1 and E2's second-GM steps no longer "if there is one" |
+| 3. Which Foundry build? | the newest v14 | A1 step 1 has the GM write the exact build first (`game.version`); the 14.365 / 14.370 question dropped; LIVE-E76-01 and LIVE-E90-01 carry a note "read the build in A1", LIVE-E75-04/05 reasons no longer name a build |
+| 4. A5 on a duplicate? | yes | A5 opens in bold: only on a Forge duplicate, never the real world; K3 and K4 likewise |
+| 5. H81-01 details | "probably the GM's browser, probably two floors" | C7 step 4: the GM crosses a tunnel between two floors both ways, then the player; fallback on one floor if the world has no such tunnel; marked as the owner's recollection, not a measurement (also the note on LIVE-H81-01) |
+| 6. Screen reader, tablet, Firefox? | yes | K1 and K2 are in the plan and raised to [ważne]; each names its device; "Kto jest potrzebny" lists which checks each person serves |
+
+The time plan now totals: before the session 2-3 h (A, A5 on the duplicate 45-60 min of it); session 0 with the players
+5-7 h (B, C, D, E, F, G, P, Z, with H alongside); separate evenings 3-4 h (J, I, K); about 10-14 h in all, without the
+optional local gate (L, about 60 min with no people). The pack says what to drop first if the evening runs short.
+
+No id changed its check or status with these answers: the counts above stand (check-coverage output after the update is
+the same).
 
 ## For the coordinator
 

@@ -12,7 +12,9 @@ zrobienia przy stole, ułożoną tak, jak płynie sesja - od przygotowania przed
 morderstwo, śledztwo, Class Trial i egzekucję, po przypadki brzegowe na koniec.
 
 Nie trzeba zrobić wszystkiego naraz. Sesja 0 jest prawdziwą grą: większość sprawdzeń z bloków C-G to **patrzenie w trakcie
-gry** i zapisanie, co się stało. Sprawdzenia, które wymagają celowego psucia (przeładowania, zamknięcia karty GM-a, prób z
+gry** i zapisanie, co się stało. Według odpowiedzi właściciela z 12.11.2026 sesja 0 dojdzie do morderstwa i Class Trial,
+przy stole będzie drugi GM albo Asystent GM-a, a ktoś ma czytnik ekranu, tablet i Firefoksa - więc bloki D-H i K są
+częścią planu, nie dodatkiem. Sprawdzenia, które wymagają celowego psucia (przeładowania, zamknięcia karty GM-a, prób z
 konsoli), są zebrane w blokach J i na koniec, żeby nie przerywały gry.
 
 Ile pakiet rozstrzyga i czego nie, liczy `docs/live/coverage.json` (każdy identyfikator dokładnie raz) i
@@ -68,8 +70,10 @@ Potem:
 | --- | --- | --- |
 | GM | właściciel (główny GM) | prawie wszystko |
 | Gracz A, B, C | gracze sesji 0 | patrzą i mówią, co widzą; kilka razy proszeni o zrzut albo linię z konsoli |
-| Drugi GM | jeśli jest (pełny Gamemaster albo Asystent GM-a) | tylko blok H |
-| Ktoś z czytnikiem ekranu, tabletem, Firefoksem | jeśli jest | tylko blok K |
+| Drugi GM | będzie (pełny Gamemaster albo Asystent GM-a; odpowiedź właściciela z 12.11) | blok H i kroki "drugi GM" w E1, E2 |
+| Osoba z czytnikiem ekranu (NVDA w Firefoksie albo VoiceOver w Safari) | będzie | K1, F2 krok 11 |
+| Osoba z tabletem | będzie | K2 krok 3, I2 krok 8 |
+| Osoba z Firefoksem | będzie | K2 kroki 1-2, C2 krok 9, E2 krok 6 |
 
 Gracze nie muszą znać konsoli. Gdy sprawdzenie prosi o linię z konsoli gracza, GM mówi, co wpisać, albo robi to sam na
 drugim profilu przeglądarki.
@@ -85,26 +89,41 @@ drugim profilu przeglądarki.
 | E | Odkrycie ciała i śledztwo | w trakcie gry | 40-60 min gry, ok. 10 min celowo |
 | F | Class Trial | w trakcie gry | 60-90 min gry, ok. 15 min celowo |
 | G | Egzekucja i koniec rozdziału | w trakcie gry | 15-20 min |
-| H | Drugi GM | jeśli jest, przy okazji bloków C-G | +30 min |
+| H | Drugi GM | przy okazji bloków C-G | +30 min |
 | J | Przypadki brzegowe | po rozprawie albo osobny wieczór | 30-45 min |
 | Z | Odczyty na koniec sesji | na koniec | 10 min |
 | I | Ekrany, motywy, rozmiary | osobny wieczór, GM sam z drugim profilem | 60-90 min |
 | P | Wydajność i głos | w trakcie gry (pomiar) i na koniec | 20-30 min |
-| K | Sprzęt i narzędzia spoza stołu | jeśli są | po 10-20 min |
-| L | Lokalna bramka | tylko z piaskownicą v14 | ok. 60 min, bez ludzi |
+| K | Czytnik ekranu, tablet, Firefox, scena z piętrami, moduły wyłączone | osobny wieczór (K3, K4 na duplikacie) | 90 min |
+| L | Lokalna bramka | tylko z piaskownicą v14, opcjonalnie | ok. 60 min, bez ludzi |
+
+**Razem**, licząc dolną i górną granicę z tabeli (bez L):
+
+| Kiedy | Bloki | Czas |
+| --- | --- | --- |
+| Przed sesją, GM sam | A1-A4, A6-A7 na świecie stołu; A5 na duplikacie | 2-3 h (A5 sam: 45-60 min) |
+| Sesja 0 z graczami | B, C, D, E, F, G, P, Z, a H równolegle z nimi | 5-7 h (B 20-30, C 60-90, D 45-60, E 40-60, F 60-90, G 15-20, P 20-30, Z 10, H +30) |
+| Osobne wieczory | J (30-45 min), I (60-90 min), K (90 min) | 3-4 h |
+| Razem | | ok. 10-14 h, z tego 5-7 h przy stole z graczami |
+
+Sesja 0 w 5-7 godzin to dużo jak na jeden wieczór. Gdy czas się kończy, najpierw odpuść kroki [miłe] i celowe kroki
+[ważne] (zapisz "-"), a [krytyczne] zostaw; B-G w kolejności fabuły da się przenieść na drugi wieczór, jeśli gra tam
+dojdzie.
 
 ---
 
 ## Blok A - przed sesją (GM sam)
 
-Na świecie stołu, przed wejściem graczy. Wszystko w A1-A4 i A6-A7 tylko czyta albo otwiera okna. A5 robisz na kopii.
+Na świecie stołu, przed wejściem graczy. Wszystko w A1-A4 i A6-A7 tylko czyta albo otwiera okna. A5 robisz tylko na duplikacie świata na The Forge.
 
 ### A1 Wersje i czysta konsola [krytyczne] · 10 min · GM, potem jeden gracz
 
 **Co zrobić:**
-1. Zapisz wersje: Foundry (Setup, na dole), Daggerheart, Dice So Nice, avclient-livekit, Isometric Perspective
-   (*Manage Modules* w świecie albo lista modułów na The Forge). Oczekiwane według ostatnich notatek: Foundry 14.370,
-   Daggerheart 2.12.8, Dice So Nice 6.4.5.
+1. **Najpierw zapisz dokładny numer kompilacji Foundry** (Setup, na dole, albo `game.version` w konsoli) - stół ma
+   najnowszą kompilację v14 (odpowiedź właściciela z 12.11), a audyt wymienia i 14.365, i 14.370; liczy się to, co
+   odczytasz. Potem wersje Daggerheart, Dice So Nice, avclient-livekit, Isometric Perspective (*Manage Modules* w świecie
+   albo lista modułów na The Forge; w konsoli `game.system.version`). Ostatnie notatki znały Daggerheart 2.12.8 i Dice So
+   Nice 6.4.5.
 2. Wyczyść pamięć podręczną przeglądarki (Ctrl+Shift+Delete, *obrazy i pliki w pamięci podręcznej*), otwórz F12 na
    zakładce *Network*, wejdź do świata. Zapisz czas od kliknięcia *Launch* do pojawienia się HUD-a modułu (zegar w
    rogu), liczbę plików `danganronpa-rpg` w *Network*, ich łączny rozmiar i czas ostatniego.
@@ -198,7 +217,7 @@ Opis w AUDIT 9.2: poz. 469, 443, B-E20-1, 435, B-E20-7, B-E20-5, 381, B-E20-6.
 
 ### A5 Kopia świata: tier 2 i zapisy z konsoli [ważne] · 45-60 min · GM sam, na kopii
 
-**Tylko na kopii świata.** Na świecie stołu nie.
+**Tylko na duplikacie świata na The Forge, nigdy na prawdziwym świecie stołu.** (Decyzja właściciela z 12.11.2026.)
 
 **Co zrobić:**
 1. Na kopii, jako GM: `game.drpg.runTests({ tier: 2 })`. Najpierw otwiera się okno z nazwą świata. Naciśnij od razu
@@ -622,21 +641,27 @@ Opis w AUDIT 9.2: poz. 253, 320, 321, 383, 384, 413, 300, 366, 106, 155, 303.
    powiadomień u obu, GM-owie dostają szept.
 3. GM przeciąga Monokumę przez otwarte tajne przejście (przechodzi), obok ściany (zatrzymuje się), potem ucznia, który go
    nie zna.
-4. Tunel przyciskiem **Przejdź** na karcie, w obie strony; schody na inne piętro (jeśli są): token staje na wolnym polu
+4. **Tunel między dwoma piętrami, przechodzi GM** (H81-01; według pamięci właściciela z 12.11 "chyba GM-a, chyba dwa
+   piętra" - to wspomnienie, nie pomiar): włącz *Szczegółowe logi w konsoli* u GM-a; GM otwiera kartę ucznia, który zna
+   tunel łączący dwa piętra, i naciska **Przejdź** - raz z dolnego piętra na górne, raz z górnego na dolne. Zapisz po
+   każdym: na którym piętrze i w którym pokoju stoi token, czy przejście kosztowało jedno przejście, linie Debug z
+   konsoli. Potem to samo, gdy **Przejdź** naciska gracz właściciel ucznia. **Zapas, gdy w świecie nie ma tunelu między
+   piętrami:** ten sam test na tunelu na jednym piętrze (GM, potem gracz), i zapisz w wynikach, że dwóch pięter nie było.
+5. Tunel przyciskiem **Przejdź** na karcie, w obie strony; schody na inne piętro (jeśli są): token staje na wolnym polu
    przy drugim końcu, za cenę przejścia, raz. Przeciągnięcie tokenu zwykłym ruchem na znacznik końca tunelu (z włączonym
    *Szczegółowe logi w konsoli*): przechodzi na drugi koniec, raz, nie wraca.
-5. Gracz puszcza w pół drogi przeciągany token (zwolnienie kontroli): token nie zostaje za ścianą.
-6. Przejście z odbiorem "gdy wyjdzie z pokoju": współwłaściciel przeciąga postać do pokoju, na który go nie stać - po
+6. Gracz puszcza w pół drogi przeciągany token (zwolnienie kontroli): token nie zostaje za ścianą.
+7. Przejście z odbiorem "gdy wyjdzie z pokoju": współwłaściciel przeciąga postać do pokoju, na który go nie stać - po
    odmowie przejście zostaje.
-7. Głos idzie za tunelem: A przechodzi tunelem do pokoju B; po kilku sekundach słyszą się, bez ruchu żetonu.
-8. Karta ucznia, który zna przejście i ma Experience: lista *Known passages* i Experience pod Equipped mają to samo
+8. Głos idzie za tunelem: A przechodzi tunelem do pokoju B; po kilku sekundach słyszą się, bez ruchu żetonu.
+9. Karta ucznia, który zna przejście i ma Experience: lista *Known passages* i Experience pod Equipped mają to samo
    wcięcie (F12 > Elements, `getBoundingClientRect().left`).
 
 **Co powinno być:** jak w krokach.
 **Porażka:** postać przechodzi przez przejście, którego nie zna; tunel działa tylko w jedną stronę (zgłoszenie H81-01);
 token za ścianą.
 **Co zapisać:** przy jednostronności: na której scenie, jednym piętrze czy między dwoma i z czyjej przeglądarki
-naciskano **Przejdź** (tego właściciel nie podał przy H81-01).
+naciskano **Przejdź** (pamięć właściciela: GM, dwa piętra - krok 4 to sprawdza), linie Debug z obu kierunków.
 **Rozstrzyga:** [LIVE-E79-01, LIVE-E79-04, LIVE-E79-08, LIVE-E76-06, LIVE-E80-01, LIVE-H81-01, LIVE-H81-03, LIVE-E79-25, LIVE-E19-04, LIVE-H81-02]
 
 Opis w AUDIT 9.2: poz. 238, 241, 245, 480, 263, 272, 274, 262, 286, 273.
@@ -695,8 +720,8 @@ Opis w AUDIT 9.2: poz. 352, 474, 412.
 
 ## Blok D - Eclipse i morderstwo
 
-Bloki D-G zależą od tego, czy sesja 0 dojdzie do morderstwa i rozprawy. Jeśli nie dojdzie, zostają na następną sesję
-albo na próbę z graczami na kopii świata - wtedy wpisz w wynikach "nie doszło", nie "nie zaliczone".
+Właściciel potwierdził 12.11.2026, że sesja 0 dojdzie do morderstwa i Class Trial, więc bloki D-G są w planie. Gdyby
+fabuła jednak tam nie doszła, wpisz w wynikach "N" (nie doszło), nie "X", i przenieś blok na następną sesję.
 
 ### D1 Eclipse [ważne] · w trakcie gry · wszyscy
 
@@ -820,7 +845,7 @@ Opis w AUDIT 9.2: poz. 460, 464, 466, 66, 83.
 
 ## Blok E - odkrycie ciała i śledztwo
 
-### E1 Odkrycie ciała [krytyczne] · w trakcie gry · dwóch graczy, GM (drugi GM, jeśli jest)
+### E1 Odkrycie ciała [krytyczne] · w trakcie gry · dwóch graczy, GM i drugi GM
 
 **Przed odkryciem** (GM mówi graczom, co wkleić; każdy w swojej konsoli):
 `Hooks.on("drpgBodyAnnounced", p => console.log("E95", performance.now(), p.writer, typeof p.waitUntil, JSON.stringify(p.victimIds)))`;
@@ -868,7 +893,7 @@ Opis w AUDIT 9.2: poz. 156, 157, 55, 57, 455, 454, 463, 430, 287, 53, 158, 358, 
    czerwoną krawędź.
 5. Przejście na scenę Class Trial i z powrotem: ikony akcji na śladach i nazwy wracają bez przeładowania.
 6. Okno *Sprawa* > **Zrób kopię** zapisuje plik; **Przywróć z pliku** go czyta (Chrome/Chromium; inne przeglądarki - K2).
-7. Karta wyboru Observe, gdy okno głównego GM-a jest ukryte: popup i dźwięk u drugiego GM-a (jeśli jest).
+7. Karta wyboru Observe, gdy okno głównego GM-a jest ukryte: popup i dźwięk u drugiego GM-a.
 
 **Co powinno być:** jak w krokach.
 **Porażka:** gracz widzi autora śladu; dwa Observe w ten sam ślad; okno przewija się w bok.
@@ -1023,7 +1048,7 @@ Opis w AUDIT 9.2: poz. 141, 161, 315, 137.
 
 ---
 
-## Blok H - drugi GM (jeśli jest)
+## Blok H - drugi GM
 
 ### H1 Dwóch GM-ów przy jednym stole [ważne] · przy okazji bloków C-G · główny GM i drugi GM
 
@@ -1206,7 +1231,7 @@ Opis w AUDIT 9.2: poz. 186, 205, 223, 206, 209, 211, 212, 218, 221, 222, 234, 23
 6. Polski: kafelki arkusza, HUD, pasek statusu, panel, okno Look przy 1080p i 900p; F12 > *Network*: czy
    `*-LatinExt.woff2` się ładuje.
 7. Kafle panelu GM-a jednej wysokości w Daily Life, w Eclipse z incydentem i bez.
-8. Ekran dotykowy (jeśli jest): stuknięcie w przycisk historii otwiera okno i nie zamyka karty; pole trafienia 44 px.
+8. Ekran dotykowy (tablet osoby z bloku K2): stuknięcie w przycisk historii otwiera okno i nie zamyka karty; pole trafienia 44 px.
 
 **Co powinno być:** nic ucięte, nic poza ekranem.
 **Co zapisać:** zrzuty; przy każdym ucięciu - rozmiar, powiększenie, motyw.
@@ -1277,9 +1302,12 @@ Opis w AUDIT 9.2: poz. 326, 276, 283, 229.
 
 ---
 
-## Blok K - sprzęt i narzędzia spoza zwykłego stołu (jeśli są)
+## Blok K - czytnik ekranu, tablet, Firefox, piętra i moduły wyłączone
 
-### K1 Czytnik ekranu [miłe] · 20 min · ktoś z NVDA (Firefox) albo VoiceOver (Safari)
+Właściciel potwierdził 12.11.2026, że przy stole jest ktoś z czytnikiem ekranu, tabletem i Firefoksem, więc K1 i K2 są w
+planie. Przy każdym sprawdzeniu stoi, jakiego urządzenia wymaga. K3 i K4 robi GM na duplikacie świata.
+
+### K1 Czytnik ekranu [ważne] · 20 min · osoba z czytnikiem: NVDA w Firefoksie (Windows) albo VoiceOver w Safari (macOS)
 
 **Co zrobić:** najpierw `game.drpg.a11y()` w konsoli (lista tego, czego czytnik nie przeczyta). Potem z czytnikiem: nowa
 karta powiadomienia (czytnik czyta kartę bez nazwy przycisku historii); Class Trial się zaczyna, zmienia się treść panelu
@@ -1290,7 +1318,7 @@ i "x z y".
 
 Opis w AUDIT 9.2: poz. 190, 473.
 
-### K2 Inne przeglądarki, wtyczki i klawiatura ekranowa [miłe] · 20 min
+### K2 Firefox, wtyczki i tablet [ważne] · 20 min · osoba z Firefoksem (kroki 1-2; Dark Reader w Chrome i Firefoksie), osoba z tabletem (krok 3)
 
 **Co zrobić:**
 1. Dark Reader w Chrome i Firefoksie: powiadomienie o przyciemnianiu pojawia się, gdy Dark Reader jest nazwany.
@@ -1303,7 +1331,7 @@ Opis w AUDIT 9.2: poz. 190, 473.
 
 Opis w AUDIT 9.2: poz. B-E52-9, 203, 388, 389, 227.
 
-### K3 Scena testowa z dwoma piętrami [ważne] · 30 min · GM i gracz testowy, na kopii
+### K3 Scena testowa z dwoma piętrami [ważne] · 30 min · GM i gracz testowy, na duplikacie świata
 
 Szkoła właściciela ma jedno piętro, więc to tylko na scenie testowej (Levels v14).
 
@@ -1319,7 +1347,7 @@ Szkoła właściciela ma jedno piętro, więc to tylko na scenie testowej (Level
 
 Opis w AUDIT 9.2: poz. 164, 165, 309, 240, 453.
 
-### K4 Moduły towarzyszące wyłączone [miłe] · 20 min · na kopii
+### K4 Moduły towarzyszące wyłączone [miłe] · 20 min · GM, na duplikacie świata
 
 **Co zrobić:**
 1. Świat z wyłączonym avclient-livekit, potem z odinstalowanym Isometric Perspective: moduł nazywa brak ("zainstalowany,
@@ -1373,8 +1401,8 @@ Te wiersze nie mają sprawdzenia w pakiecie albo mają je tylko na innej wersji 
 
 | Id | Pozycja | Dlaczego nie przy sesji 0 |
 | --- | --- | --- |
-| LIVE-E75-05 | 153 | Wersja zastąpiona: stół jest na Foundry 14.370 i Daggerheart 2.12.8, a ten wiersz pyta o 14.369 z 2.10.11; jego treść powtarza LIVE-E76-01. |
-| LIVE-E75-04 | 152 | Dotyczy Daggerhearta starszego niż 2.10.10; stół ma 2.12.8. Do zrobienia tylko na świecie ze starszą wersją. |
+| LIVE-E75-05 | 153 | Wersja zastąpiona: wiersz pyta o Foundry 14.369 z Daggerheart 2.10.11, a stół ma najnowszą kompilację v14 (numer odczytany w A1) i Daggerheart 2.12.8 albo nowszy; treść powtarza LIVE-E76-01. |
+| LIVE-E75-04 | 152 | Dotyczy Daggerhearta starszego niż 2.10.10; stół ma nowszego (wersja odczytana w A1). Do zrobienia tylko na świecie ze starszą wersją. |
 | LIVE-E28-02 | 95 | Stół gra z Dice So Nice; wiersz pyta o stół bez niego. Do zrobienia na kopii świata z wyłączonym Dice So Nice (razem z LIVE-E20-02, blok K4). |
 | LIVE-E70-07 | 337 | Wymaga stołu 14-15 osób; sesja 0 ma mniej. |
 | LIVE-E78-05 | 227 | Właściciel zrezygnował z telefonów (11.11.2026, runda M Q2); kafel głosu na prawdziwym telefonie nie jest celem. |
