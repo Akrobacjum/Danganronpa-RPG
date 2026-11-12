@@ -19,6 +19,13 @@ C5's preset Repair the Lock (a project at Trivial, offered only in a room with a
 mending the lock, its undo), C7 the rest of the registration (the Reroll branches, `OWN_PERFORMERS`), C8 shots and the GM
 handbook.
 
+## Mutants (12.11, on a worktree of 32b4c1a)
+
+Five, each one line, each run against the test named for it: a barricade giving to a roll of its strength (E74-T2); a
+barricade picked as a lock (E74-T3); the two-door limit dropped (E74-T1); a GM's move stopped by a barricade (E74-T1); a
+crossing out of the post not told (E74-T4). All five killed. And one of E69's: a critical tail lost to any Dash (E69-T4),
+killed.
+
 ## Not built in C1+C2 (said, not hidden)
 
 - The "Someone tries to get in" card to the author: an honest walk is refused on the walker's own browser by the
