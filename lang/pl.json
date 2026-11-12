@@ -3282,7 +3282,8 @@
       "timed": {
         "traitBonus": "+{n} {trait}",
         "experience": "Experience {label} +{n}",
-        "despairShield": "Twój następny rzut z Fear nie daje Despair"
+        "despairShield": "Twój następny rzut z Fear nie daje Despair",
+        "eclipseCrossing": "Przejścia w Eclipse +{n}"
       },
       "until": {
         "timeOfDay": "do końca pory dnia",
@@ -3363,6 +3364,7 @@
         "experience": "Experience na jakiś czas",
         "advantage": "Przewaga przy następnym rzucie",
         "despairShield": "Ochrona przed Despair przy rzucie",
+        "eclipseCrossing": "Przejścia w najbliższym Eclipse",
         "health": "Health",
         "sanity": "Sanity",
         "hope": "Hope",

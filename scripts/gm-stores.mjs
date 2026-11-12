@@ -994,6 +994,17 @@ export const timedEffectStore = defineGmStore({
 });
 
 /**
+ * The extra Eclipse crossings `actorId` holds from room actions (Q-E93-3, the kind `eclipseCrossing`): the GMs' rows on a
+ * GM, the owner's copy on a player's browser. Here, beside the store, because both of its readers - eclipse.mjs
+ * `eclipseAllowanceFor` and movement.mjs's judges of a crossing - import this file and not each other (movement.mjs is
+ * imported by eclipse.mjs).
+ */
+export function timedCrossingsOf(actorId) {
+    const list = game.user?.isGM ? timedEffectStore.get(actorId)?.effects : (timedEffectCopy.read() ?? {})[actorId];
+    return (Array.isArray(list) ? list : []).filter(row => row?.kind === "eclipseCrossing").reduce((sum, row) => sum + (Number(row.n) || 0), 0);
+}
+
+/**
  * AN OWNER'S TIMED EFFECTS (Q-E93-3): `{ actorId: [rows] }` for the characters this user owns, as the primary GM sent
  * them, a stamp per character - taken by the offers' rule (`offersCombine`). Read by the owner's sheet (timed-effects.mjs
  * `effectLines`).

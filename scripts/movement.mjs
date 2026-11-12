@@ -59,7 +59,7 @@ import { askerOf, auditMove, registerMoveAudit, RULE_CODES } from "./movement-au
 import { actsAsMastermind } from "./passages-gm.mjs";
 // The Eclipse's count, for the crossings the primary sees (E17 C2, `noteSeenCrossing`): gm-stores.mjs is in this file's
 // static graph already, through passages-gm.mjs and passages.mjs, so the edge adds no module and no cycle (R161).
-import { eclipseMoveStore, crossingStore, watchStore, lockpickStore, lockpickCopy } from "./gm-stores.mjs";
+import { eclipseMoveStore, crossingStore, watchStore, lockpickStore, lockpickCopy, timedCrossingsOf } from "./gm-stores.mjs";
 // E89 fix FG2 (G3): the waits for a token at rest counted (perf-counters.mjs; a leaf, no cycle).
 import { count } from "./perf-counters.mjs";
 
@@ -1177,7 +1177,9 @@ function eclipseSighting(student, from, tokenDoc, { adjacent = true } = {}) {
     // A watcher keeps to the post through the Eclipse (E74 C6; DA34, the plan's "judgeEclipseCrossing refuses the watcher"):
     // a walk out of it is put back here, on the primary, where the watch is known (watch-gm.mjs takes the post at the start).
     if (watchHolds(student, from)) return { spent: { code: "onWatch", text: game.i18n.localize("DRPG.Bridge.why.onWatch") } };
-    const allowance = overflowCrossings(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(clock)) ? null : ECLIPSE_MOVES);
+    const base = overflowCrossings(ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(clock)) ? null : ECLIPSE_MOVES);
+    // A room action's extra crossings are this student's alone (Q-E93-3; gm-stores.mjs `timedCrossingsOf`).
+    const allowance = base === null ? null : base + timedCrossingsOf(student.id);
     const tally = seenTally.get(student.id);
     const seen = Math.max(eclipseCountOf(eclipseMoveStore.get(student.id), id).seen, tally?.eclipse === id ? tally.seen : 0);
     const crossings = adjacent ? 1 : roomsApart(tokenDoc.parent, from, to);
@@ -1723,7 +1725,10 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
      * gate and `judgeEclipseCrossing` skipped every check whenever the clock
      * said Morning or Night, and `freeBecomes` was a number nothing read.
      */
-    const allowance = overflowCrossings(freePlacement ? null : ECLIPSE_MOVES);
+    const base = overflowCrossings(freePlacement ? null : ECLIPSE_MOVES);
+    // A room action's extra crossings are this character's alone (Q-E93-3; gm-stores.mjs `timedCrossingsOf`): the GMs' rows
+    // on a GM, the owner's copy on the walker's browser.
+    const allowance = base === null ? null : base + timedCrossingsOf(actor.id);
 
     if (eclipse) {
         // A free-placement Eclipse skips both limits but must STILL return here.

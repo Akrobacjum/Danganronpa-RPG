@@ -27,7 +27,7 @@ import { roomOfActor, placesOf, allRooms, crossingRefused, passesThrough, crossi
 import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, log, error, plural, cardHead, esc, isPrimaryGm,
     primaryGmId, ownerIdsOf, serialWrite, serverNow } from "./utils.mjs";
 import { overflowCrossings } from "./overflow.mjs";
-import { pendingMurderStore, eclipseMoveStore, eclipseMoveCopy } from "./gm-stores.mjs";
+import { pendingMurderStore, eclipseMoveStore, eclipseMoveCopy, timedCrossingsOf } from "./gm-stores.mjs";
 import { actingStudents } from "./monokuma.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { replyForMe } from "./bridge-guards.mjs";
@@ -78,6 +78,15 @@ export function eclipseAllowance(clock = getClock()) {
 }
 
 /**
+ * Crossings `actor` may make in the Eclipse: the Eclipse's allowance (`eclipseAllowance`) and the extra crossings a room
+ * action gave that character (Q-E93-3; gm-stores.mjs `timedCrossingsOf`). `null` stays unlimited.
+ */
+export function eclipseAllowanceFor(actor, clock = getClock()) {
+    const base = eclipseAllowance(clock);
+    return base === null ? null : base + (actor?.id ? timedCrossingsOf(actor.id) : 0);
+}
+
+/**
  * Crossings used in the running Eclipse, keyed by actor id: the GMs' store on a GM's
  * browser, the owner's copy of their own characters on a player's (E05, audit S10-39 -
  * until 1.2.64 a world setting every browser held). A row of another Eclipse counts
@@ -106,7 +115,7 @@ export function movesUsed(actor) {
  * (`eclipseAllowance`). `game.drpg.eclipseMovesLeft` (E52 C6, S18-90).
  */
 export function movesLeft(actor, clock = getClock()) {
-    const allowance = eclipseAllowance(clock);
+    const allowance = eclipseAllowanceFor(actor, clock);
     if (allowance === null) return null;
     return Math.max(0, allowance - movesUsed(actor));
 }
@@ -966,9 +975,10 @@ export function placementStatus() {
         actor: a,
         room: roomOfActor(a),
         moved: used[a.id] ?? 0,
-        // `null` on a free-placement Eclipse: there is no budget to have left.
-        left: allowance === null ? null : Math.max(0, allowance - (used[a.id] ?? 0)),
-        allowance
+        // `null` on a free-placement Eclipse: there is no budget to have left. Each character's own, a room action's extra
+        // crossings counted (Q-E93-3, `eclipseAllowanceFor`).
+        left: allowance === null ? null : Math.max(0, eclipseAllowanceFor(a) - (used[a.id] ?? 0)),
+        allowance: eclipseAllowanceFor(a)
     }));
 }
 
@@ -1008,7 +1018,7 @@ export async function judgeEclipseCrossing(actor, from, to, scene = null, floors
      * the same question the rest of the file already asks, and `null` still
      * means what it always meant.
      */
-    const allowance = eclipseAllowance(clock ?? getClock());
+    const allowance = eclipseAllowanceFor(actor, clock ?? getClock());
     const free = allowance === null;
 
     if (!free) {
@@ -1129,7 +1139,7 @@ export async function countCrossingInStep(actorId, { to = null, card = true, mad
     const actor = game.actors.get(actorId);
     const id = eclipseId();
     if (!actor || !id) return null;
-    const allowance = eclipseAllowance();
+    const allowance = eclipseAllowanceFor(actor);
     /* A CROSSING SEEN IS COUNTED ONCE (E17 C2, 26.10.2026; audit S10-44). The primary counts a player's crossing where it
        sees one (`seen`, movement.mjs `judgeArrival`), whether or not the owner's browser asks, and an honest one is both
        seen and asked: the count is the larger of the two (settings.mjs `eclipseCountOf`). An ask the sightings already

@@ -76,8 +76,22 @@ const KINDS = Object.freeze({
     despairShield: Object.freeze({
         give: async () => {},
         line: () => game.i18n.localize("DRPG.Facility.timed.despairShield")
+    }),
+    // Nothing is written when it is given: the Eclipse's judges read the rows (gm-stores.mjs `timedCrossingsOf`).
+    eclipseCrossing: Object.freeze({
+        give: async () => {},
+        line: row => game.i18n.format("DRPG.Facility.timed.eclipseCrossing", { n: row.n })
     })
 });
+
+/** On the primary, at an Eclipse's end: every row that lasts until one ended. Answers how many. */
+export async function endEclipseEffects() {
+    let n = 0;
+    for (const actorId of Object.keys(timedEffectStore.entries() ?? {})) {
+        for (const row of timedEffectsOf(actorId)) if (row.until === "eclipse" && (await endTimedEffect(row.id))) n++;
+    }
+    return n;
+}
 
 /**
  * On the primary, for a fresh roll's point of Despair (despair-award.mjs `awardRollDespair`): whether `actor` holds a
@@ -272,6 +286,9 @@ export function registerTimedEffects() {
     game.socket.on(SOCKET_EVENT, onTimedSocket);
     Hooks.on("drpgTimeOfDayChanged", () => {
         if (isPrimaryGm()) endTimedEffects().catch(err => error("The timed effects past their end could not be ended", err));
+    });
+    Hooks.on("drpgEclipseChanged", active => {
+        if (active === false && isPrimaryGm()) endEclipseEffects().catch(err => error("The Eclipse's extra crossings could not be ended", err));
     });
     if (game.user.isGM) return;
     askForTimedEffects();

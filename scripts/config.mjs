@@ -2189,7 +2189,10 @@ export const FACILITIES = Object.freeze({
         advantage: Object.freeze({ amount: 1 }),
         // The character's next roll with Fear gives its Monokuma no Despair: used up by the first point it stops, and waits
         // no longer than its end (despair-award.mjs `awardRollDespair`, timed-effects.mjs `takeDespairShield`).
-        despairShield: Object.freeze({ amount: 1, untils: Object.freeze(["timeOfDay", "day"]) })
+        despairShield: Object.freeze({ amount: 1, untils: Object.freeze(["timeOfDay", "day"]) }),
+        // X more crossings for this character in the next Eclipse (or the one running), ended by that Eclipse's end
+        // (eclipse.mjs `eclipseAllowanceFor`, movement.mjs's two judges of an Eclipse crossing).
+        eclipseCrossing: Object.freeze({ amount: 2, untils: Object.freeze(["eclipse"]) })
     }),
     /** When a timed effect ends (timed-effects.mjs): the time of day's end, the day's end, the next roll the GM draws, the next Eclipse's end. */
     timedUntil: Object.freeze(["timeOfDay", "day", "nextRoll", "eclipse"]),

@@ -88262,6 +88262,48 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ first: [0, true, 0], second: [1, false], unused: 0 }),
             "{first: [the pool, the roll marked, rows left] after a roll with Fear; second: [the pool, marked] after the next; unused: rows after a time of day} - protection from Despair");
     }],
+    ["E93-T9 - a room action's extra crossing in an Eclipse raises that character's allowance alone until the next Eclipse ends (scripts/timed-effects.mjs, eclipse.mjs `eclipseAllowanceFor`, `movesLeft`; the owner's answer to Q-E93-3, 12.11.2026): one more crossing raises the character's allowance and crossings left by one and nobody else's, reads on the sheet, and an Eclipse's end takes it away; a free-placement Eclipse stays free", async () => {
+        /*
+         * E93, 12.11.2026. Given as a use of a room action gives it (`applyEffects`), on this GM; the allowance read for a
+         * clock whose incoming time of day is not one of free placement, and for one that is (`ECLIPSE_FREE_PLACEMENT`); the
+         * Eclipse's end handed to the primary's reader (`endEclipseEffects`). Put back: the rows. Red at 1abea3a: no kind
+         * "eclipseCrossing".
+         */
+        const T = await import("./timed-effects.mjs");
+        const F = await import("./facilities.mjs");
+        const E = await import("./eclipse.mjs");
+        const { applyEffects } = await import("./facilities-gm.mjs");
+        const { ECLIPSE_FREE_PLACEMENT, TIMES_OF_DAY } = await import("./config.mjs");
+        const { incomingTimeOfDay } = await import("./settings.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const other = game.actors.find(a => a.type === "character" && a.id !== actor.id && !a.getFlag(MODULE_ID, FLAGS.monokuma));
+        must(other, "no second student - this would measure nothing of another's allowance");
+        const clock = getClock();
+        const pick = free => TIMES_OF_DAY.map(t => ({ ...clock, timeOfDay: t })).find(c => ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(c)) === free);
+        const fixed = pick(false), free = pick(true);
+        must(fixed, "no time of day whose Eclipse has an allowance - this would measure nothing");
+        const read = {};
+        try {
+            const effect = F.cleanEffect({ kind: "eclipseCrossing", n: 1 });
+            must(effect, "no eclipseCrossing effect - this would measure nothing past the cleaning");
+            read.clean = effect;
+            const base = E.eclipseAllowance(fixed);
+            const leftBefore = E.movesLeft(actor, fixed);
+            await applyEffects(actor, [effect], where, player);
+            await settle();
+            read.given = [E.eclipseAllowanceFor(actor, fixed) - base, E.eclipseAllowanceFor(other, fixed) - base, E.movesLeft(actor, fixed) - leftBefore,
+                free ? E.eclipseAllowanceFor(actor, free) : null, T.effectLines(actor).length];
+            await T.endEclipseEffects();
+            read.ended = [E.eclipseAllowanceFor(actor, fixed) - base, T.timedEffectsOf(actor.id).length];
+        } finally {
+            for (const row of T.timedEffectsOf(actor.id)) await T.endTimedEffect(row.id);
+            for (const m of game.messages.filter(m => m.speaker?.actor === actor.id && m.whisper?.length && Date.now() - (m.timestamp ?? 0) < 60000)) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ clean: { kind: "eclipseCrossing", n: 1, scope: "self", until: "eclipse" },
+            given: [1, 0, 1, null, 1], ended: [0, 0] }),
+            "{clean; given: [the character's allowance over the Eclipse's, another's, crossings left, a free Eclipse's, sheet lines]; ended: after an Eclipse's end} - one more crossing in an Eclipse");
+    }],
     ["E69-T2 - a crossing settles once, on the primary, where the token still stands (scripts/crossing-settle.mjs `scheduleSettle`, movement.mjs `recordCrossingInStep`; E69 C2, S18-28, A10): a crossing into the room the token stands in fires drpgCrossingSettled once with its actor, rooms, way and Eclipse after the wait; two crossings in a row fire one event from the first room to the last; a crossing into a room the token is not in when the wait ends (put back) fires none; and the GMs' record of a crossing schedules one", async () => {
         /*
          * E69 C2, 12.11.2026. The wait is the test's own (`ms`), so nothing waits 2 s; the token is not moved: the room it

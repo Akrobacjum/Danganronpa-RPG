@@ -3020,7 +3020,8 @@
       "timed": {
         "traitBonus": "+{n} {trait}",
         "experience": "Experience {label} +{n}",
-        "despairShield": "Your next roll with Fear gives no Despair"
+        "despairShield": "Your next roll with Fear gives no Despair",
+        "eclipseCrossing": "Eclipse crossings +{n}"
       },
       "until": {
         "timeOfDay": "until the time of day ends",
@@ -3099,6 +3100,7 @@
         "experience": "Experience, for a while",
         "advantage": "Advantage on the next roll",
         "despairShield": "Protection from Despair on a roll",
+        "eclipseCrossing": "Crossings in the next Eclipse",
         "health": "Health",
         "sanity": "Sanity",
         "hope": "Hope",
