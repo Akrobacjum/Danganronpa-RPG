@@ -149,7 +149,9 @@ and the Sound row. The build waits until after 1.2.112 (the coordinator) and tak
 - D, "Nie - od razu w obserwatora. Wiem ze to duza zmiana, ale mysle ze to lepsze": not E72's room of the account's own
   until the body is found; the dead goes straight into the Spectators' voice (Talk with the Spectators). E72 C8 ships
   the per-account dead room in 1.2.110; this reverses it for the dead. **The owner's accepted trade-off:** another dead
-  student or a Spectator may hear of a secret death before the body is found.
+  student or a Spectator may hear of a secret death before the body is found. **And, from Q-C3b-1 (13.11):** the
+  Spectator's token (and its actor, Q-C3b-2) made at a secret death is world data every browser receives, so a console
+  can read the death before it is published; the owner accepted this beside D's trade-off.
 - E (no answer, the default taken): on becoming a Monocub the same token turns into the Monocub's (image and role) and the
   curtain plays the return.
 - F, "Tak": a dead student who never becomes a Monocub stays a Spectator to the season's end, the curtain out.
@@ -178,7 +180,15 @@ player's own copy) and becomes the table's only at `publishDeath` (chapter.mjs).
    fade), the token, the voice and the sound.
 3. **The token (C).** Made by the primary GM at the moment its record of the death is written (the GMs' `deaths`
    store), in the scene and room where the body's token stands, hidden from the living (`hidden: true`), seen by a GM at
-   0.3 as E92's. The body's own token stays the corpse. On whose actor: see Q1 below.
+   0.3 as E92's. The body's own token stays the corpse. **Its actor (Q-C3b-2):** a new actor per student, owned by the
+   student's player, named after the student, carrying the student's token image and the student's actor (sheet)
+   image, so the Spectator is recognisable. The link from it to the student lives in the GMs' `deaths` record and the
+   player's own copy, not in a world flag (Q-C3b-1's rule for world-secrets.mjs: no module flag names the death; the
+   actor's name and images still tell a console whose it is, as accepted). **The owner's general rule (Q-C3b-2):** any
+   change to a Spectator - this one and E92's GM-set Spectator alike - keeps the same sheet image and token image.
+   E92 on main 1.2.109, by reading (not run): monokuma.mjs `setSpectator` writes only `FLAGS.spectator`, and
+   visibility.mjs `dressSpectator` changes only the token's alpha (0.3 on a GM); nothing sets `img` or
+   `texture.src`, so E92 keeps both images today. The build holds it with a test either way.
 4. **Voice (D).** At the death the primary routes the dead account to `SPECTATOR_ROOM` (Talk with the Spectators), not to
    `DEAD_ROOM` nor E72 C8's `deadRoomFor`; voice.mjs's routing of the dead is the one place. The trade-off above is the
    owner's accepted choice; the handbook says it.
@@ -190,16 +200,13 @@ player's own copy) and becomes the table's only at `publishDeath` (chapter.mjs).
 7. **Corrections are silent (SB-C3 #17).** A death or a revive written from the Students window or Edit campaign makes
    or removes the token and sets the curtain with no animation; a death in play (murder, execution) plays the fade and
    its sound.
-8. **Migration.** A clause of migrate.mjs's `CLAUSES`, run by `runMigrationOnLoad` on the primary GM when the version
-   has moved (R178: no other road lifts data), idempotent like every clause; beside `bodiesToLay`: each student
-   `isDeadForGm` and not a Monocub without a Spectator token gets one where its body's token stands, with no animation;
-   one whose body has no token is listed for the GM (Pre-season's checks). On the player's next load the curtain is at
-   bare glass at once.
+8. **Migration: none (Q-C3b-6).** The owner's campaign has no dead students; a student dead before the change gets no
+   Spectator token. The curtain still reads the death, so such a player loads at bare glass.
 9. **Sound.** A new `SFX_EVENTS` row "Death fade" / "Gaśnięcie" (incident), default the death file, played once at the
    fade's start on the victim's browser only (sfx-play.mjs `playSfx`, no socket); none under a correction.
 10. **Files, as far as read:** settings.mjs (the predicate), chapter.mjs and the death's record (the moment), a new
     spectator-dead.mjs or spectator.mjs (the token, the conversion), voice.mjs (routing), monocub.mjs (`setMonocub`'s
-    conversion), migrate.mjs (the lift), season-reset.mjs (the reset's row), glass.mjs and motion.css (the fade and the
+    conversion), season-reset.mjs (the reset's row), glass.mjs and motion.css (the fade and the
     return), config.mjs and lang/ (the Sound row and texts, EN and PL), the handbooks (the trade-off), world-secrets.mjs
     (the rule for whatever Q1 decides).
 
@@ -213,3 +220,17 @@ player's own copy) and becomes the table's only at `publishDeath` (chapter.mjs).
 | Q-C3b-4 | A revive in play (not a correction): does the curtain play the return, and the token go? | The token goes, and the curtain plays the return (MK-C3's) |
 | Q-C3b-5 | E72 C8's per-account dead room (1.2.110): kept for anything once the dead go to the Spectators' voice? | Retired for the dead; the trial's own rules for the dead in the Class Trial unchanged |
 | Q-C3b-6 | Migration: an already-dead student whose body has no token anywhere | Listed for the GM in Pre-season's checks, no token made |
+| Q-C3b-7 | (new, from Q-C3b-2's answer) The Monocub role sits on the student's own actor (monocub.mjs `setMonocub`), while the Spectator's token belongs to the new actor. How does "the same token turns into the Monocub" (E) work? | The Spectator token stays where it stands and is re-linked to the student's actor with the Monocub's image and role; the Spectator actor is removed. The body's token stays the corpse |
+
+### The owner's answers to Q-C3b-1..6 (13.11.2026, about 01:00 CET, relayed by the coordinator)
+
+| # | Answer, as relayed | What it fixes |
+| --- | --- | --- |
+| Q-C3b-1 | "Tak" | The token at the death; the console-visibility trade-off written beside D's |
+| Q-C3b-2 | "Tak. Musi zawierac obraz tokenu i obraz karty postaci z tokenu ucznia, by obserwator byl rozpoznawalny. Generalnie to istotne - zmiana typu na obserwatora zawsze ma pozostawiac ten sam obraz karty i tokenu." | A new actor per student, owned by the player, with the student's token image and sheet image; and the general rule: any change to a Spectator (E92's GM-set one too) keeps both images |
+| Q-C3b-3 | "Tak" | The dead move their Spectator token freely, unseen by the living |
+| Q-C3b-4 | "Tak" | A revive in play: the token goes and the curtain plays the return |
+| Q-C3b-5 | "Tak" | E72 C8's per-account dead room retired for the dead |
+| Q-C3b-6 | "Nie potrzeba, nie mam martwych uczniow w kampanii" | No migration (point 8 above) |
+
+Q-C3b-7 is new and open. The build is another line's; this spec is its source.
