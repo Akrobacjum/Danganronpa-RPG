@@ -361,7 +361,7 @@
       },
       "hudTicker": {
         "name": "Nazwa stanu za zegarem",
-        "hint": "Pora dnia (albo stan, który ją zastępuje: Eclipse, Class Trial) jako blady kontur biegnący za zegarem. Tylko ten klient."
+        "hint": "Pora dnia (albo stan, który ją zastępuje: Eclipse, Class Trial) jako blady kontur biegnący za zegarem. Dotyczy tylko tej przeglądarki."
       },
       "bulletSort": {
         "name": "Jak grupowane są Truth Bullets",
@@ -369,19 +369,19 @@
       },
       "glassBlur": {
         "name": "Szkło rozmywa mapę",
-        "hint": "Szkło matowi mapę, która jest za nim. To najdroższa rzecz, jaką ten motyw rysuje, i rysuje ją od nowa za każdym razem, gdy cokolwiek na ekranie drgnie. Jeśli interfejs się przycina albo okna otwierają się z opóźnieniem, zacznij od wyłączenia tego - game.drpg.perf() powie, ile kosztowało na tej maszynie. Tylko ten klient."
+        "hint": "Szkło matowi mapę, która jest za nim. To najdroższa rzecz, jaką ten motyw rysuje, i rysuje ją od nowa za każdym razem, gdy cokolwiek na ekranie drgnie. Jeśli interfejs się przycina albo okna otwierają się z opóźnieniem, zacznij od wyłączenia tego. Dotyczy tylko tej przeglądarki."
       },
       "messengerSound": {
         "name": "Dźwięki komunikatora",
-        "hint": "Trzy dźwięki komunikatora - wysłano, odebrano, pytanie do GM-a. Wycisza je tylko w tej przeglądarce; nikogo innego to nie dotyczy. Tylko ten klient."
+        "hint": "Trzy dźwięki komunikatora - wysłano, odebrano, pytanie do GM-a. Dotyczy tylko tej przeglądarki."
       },
       "uiScale": {
         "name": "Skala interfejsu",
-        "hint": "Jeden mnożnik na krój i panele modułu, 80% do 140%, nałożony na mnożnik ekranu (2560 x 1440 to 100%; mniejszy ekran rysuje mniej, do 70%). Mapa i własne okna Foundry nigdy nie są skalowane. Tylko ten klient."
+        "hint": "Jeden mnożnik na krój i panele modułu, 80% do 140%, nałożony na mnożnik ekranu (2560 x 1440 to 100%; mniejszy ekran rysuje mniej, do 70%). Mapa i własne okna Foundry nigdy nie są skalowane. Dotyczy tylko tej przeglądarki."
       },
       "debug": {
         "name": "Szczegółowe logi w konsoli",
-        "hint": "Wypisuj diagnostykę Danganronpa RPG w konsoli przeglądarki. Tylko ten klient."
+        "hint": "Wypisuj diagnostykę Danganronpa RPG w konsoli przeglądarki. Dotyczy tylko tej przeglądarki."
       },
       "musicEnabled": {
         "name": "Muzyka podąża za stanem gry",

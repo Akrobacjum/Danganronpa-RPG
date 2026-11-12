@@ -18,9 +18,9 @@ Read at origin/main 235c3210 on 12.11.2026.
 | e76-106 | 1d62225e | 14619ce2 |
 | e97-98 | 1b8d19af | 7fa07aee |
 | e73 | 6a914d02 | fa73b601 |
-| e92 | 16ab04b3 | fa73b601 |
+| e92 | ce1ffadb | fa73b601 |
 | e93 | e59d3731 | f22a7e87 |
-| e72 | bc55fc85 | f22a7e87 |
+| e72 | 4def61ea | f22a7e87 |
 | e64 | 951cd1fd | fa73b601 |
 | gaps-a | 2338c823 | fa73b601 |
 
@@ -123,7 +123,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | player-handbook.pl.md | ### Sypialnie, klucze, skrytki | e64 |
 | player-handbook.pl.md | ### Tamper - Shadow, 1 akcja | e64 |
 
-## Lang keys (363 paths; a path that is an object freezes its opening line only, its leaves are listed one by one)
+## Lang keys (369 paths; a path that is an object freezes its opening line only, its leaves are listed one by one)
 
 | Key | Branches |
 | --- | --- |
@@ -459,7 +459,12 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.TrialScene.reveal` | e73, e97-98 |
 | `DRPG.Vault.descriptionColumn` | e93 |
 | `DRPG.Vault.descriptionPlaceholder` | e93 |
+| `DRPG.Vault.discoverAll` | e72 |
+| `DRPG.Vault.fogNote` | e72 |
+| `DRPG.Vault.fogUncovered` | e72 |
 | `DRPG.Vault.hasEveryKey` | e64 |
+| `DRPG.Vault.hideAll` | e72 |
+| `DRPG.Vault.inspectTitle` | e72 |
 | `DRPG.Vault.isRoomColumn` | e93 |
 | `DRPG.Vault.isRoomHint` | e93 |
 | `DRPG.Vault.keyCopiesGm` | e64 |
@@ -474,6 +479,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.Vault.tabRest` | e93 |
 | `DRPG.Vault.tabSearching` | e93 |
 | `DRPG.Vault.takeKey` | e93 |
+| `DRPG.Vault.unlockedAnnounce` | e72 |
 | `DRPG.Voice.held.deadAlone` | e92 |
 | `DRPG.Voice.held.eclipse` | e92 |
 | `DRPG.Voice.held.eclipseHeard` | e92 |
