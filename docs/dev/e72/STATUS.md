@@ -19,9 +19,22 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
 
 | C7 | The wrong verdict's card (S18-58, DC16): a step "remind" of the wrong verdict (`remindOnWrongVerdict`, after the card) sends each Monocub of this case's death and each of this chapter's crime witnesses one veiled card ("don't use your moves for or against that person, their projects, Bribes or Ghost Bets"), naming nobody; the GMs' summary lists who was told | tier 2 "a wrong verdict tells the case's dead and the chapter's crime witnesses ..." (new; red at base); R1252 changed on purpose |
 
+| C9 (part) | The Monocub's tiles say why they are shut (S18-62, DC22): `cubBlockSaid` (the row's blocks from the owner's copy) dims a tile and says its sentence; a free row says Free; `onlyTwoActions` names the three moves | R3803 (new), tier 2 "the Monocub's tiles say why they are shut ..." (new); both red at base |
+
 ## In progress
 
-- Push of C1-C7 after tiers 0-1 and the scenarios at the head; then C8 (the voice of the ordinary dead).
+- Push of C1-C7 and C9 after tiers 0-1 and the scenarios at the head.
+
+## C8 - built, measured, reverted (12.11.2026)
+
+d098aa7 kept the ordinary dead the table knows muted outside the trial, on the trial's store and its rules, triggered by
+the primary's debounced settle (`trialVoicesPending` extended to any death the table knows). It was reverted (cf4b885)
+before any push: tier 2's E63 test "the Class Trial's end takes every body off the map ..." failed its restore with
+"restore left: client:...gmTrialMute...USERP30000000000 (none) -> #..." - the block is written 250 ms after a test makes
+a death public and taken off 250 ms after its revive, after the suite has compared the world. Next attempt: block and
+release on the death's own roads, awaited (the publication, the revive, the Monocub), not on the debounced hook; then
+R537 and R1192 change on purpose again (both measured with d098aa7: a dead student on the sheet held as "deadKnown",
+two new walkers of the cast to list).
 
 ## Next
 
