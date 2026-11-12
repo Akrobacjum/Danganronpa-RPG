@@ -633,7 +633,7 @@ Twoja strona tego samego stołu, za kafelkiem **Akcje kryzysowe**:
 
 Finishing Blow to też akcja rozstrzygnięcia: 1 Sanity, a gdy Sanity się skończy - 1 Health.
 
-Akcja wymierzona w drugą stronę jest o 1 trudniejsza, gdy ta strona jest silna: Strike, Attack with a Weapon i Pin Them Down wymagają o 1 więcej, gdy Body ofiary to +1 lub więcej, Keep Your Distance - gdy Leg ofiary; Self-Defense i Role Reversal - gdy Body zabójcy, Survive i Escape Together - gdy Leg zabójcy. Kafelek to mówi ("Pobij 16 (+1 za Body ofiary)"). Rzuty otwarcia nigdy się tak nie zmieniają.
+Akcja wymierzona w drugą stronę jest o 1 trudniejsza, gdy ta strona jest silna: Strike, cios bronią i Pin Them Down wymagają o 1 więcej, gdy Body ofiary to +1 lub więcej, Keep Your Distance - gdy Leg ofiary; Self-Defense i Role Reversal - gdy Body zabójcy, Survive i Escape Together - gdy Leg zabójcy. Kafelek to mówi ("Pobij 16 (+1 za Body ofiary)"). Rzuty otwarcia nigdy się tak nie zmieniają.
 
 Potem **sprzątanie**. Twój kafelek Tamper wymienia teraz każdy ślad w pokoju, w którym stoisz - nie tylko twoje - i możesz wydać **1 Sanity** na próbę:
 
