@@ -44653,7 +44653,10 @@ const INVARIANTS = [
         const glass = stripComments(await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText));
         const decl = (body, prop) => body?.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`))?.[1]?.trim() ?? null;
         const L = "body.drpg-theme-monokuma-legacy .application.drpg-window-panel ";
-        const at = (sel, prop) => decl(rules.find(r => r.sel === L + sel && decl(r.body, prop) !== null)?.body, prop);
+        /* the case tile's two rules name Season setup's window beside the panel's since E49 A1e round 2 (af0aea09: its row
+           wears the GM panel's tiles), read in either form since the merge into 1.2.105 (12.11.2026) */
+        const LS = "body.drpg-theme-monokuma-legacy .application:is(.drpg-window-panel, .drpg-window-season) ";
+        const at = (sel, prop) => decl(rules.find(r => (r.sel === L + sel || r.sel === LS + sel) && decl(r.body, prop) !== null)?.body, prop);
         const tile = [...glass.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(m => m[1].trim() === "body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button")
             .map(m => decl(m[2], "padding")).filter(Boolean);
         const legacy = { nextLine: at(".drpg-gmp-next-text", "line-height"), phaseGap: at(".drpg-gmp-phase", "margin-inline-start"), phaseEdge: at(".drpg-gmp-phase", "border"),
@@ -44721,7 +44724,10 @@ const INVARIANTS = [
         const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/components.css`).then(lfText));
         const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
         const decl = (body, prop) => body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`))?.[1]?.trim() ?? null;
-        const P = '.application.drpg-ui.drpg-panel.drpg-window-settings .drpg-variant-columns .drpg-settings-sections > button.drpg-settings-tab[type="button"][aria-pressed="true"]';
+        /* the window's rules name the game's settings window beside the DRPG Settings window since E49 A1d (d6680c1f, on
+           the line before this test came in: the GM panel's Settings tile draws the same columns), read so since the merge
+           into 1.2.105 (12.11.2026) */
+        const P = '.application.drpg-ui.drpg-panel:is(.drpg-window-settings, .drpg-window-game-settings) .drpg-variant-columns .drpg-settings-sections > button.drpg-settings-tab[type="button"][aria-pressed="true"]';
         const picked = rules.find(r => r.sel === `body ${P}`)?.body ?? "";
         const bar = rules.find(r => r.sel === `body:not(.drpg-theme-stained-glass) ${P}`)?.body ?? "";
         const sized = [...picked.matchAll(/(?:^|;)\s*([a-z-]+)\s*:/g)].map(m => m[1]).filter(p => !["color", "background", "border-color"].includes(p));
