@@ -8484,7 +8484,13 @@ const INVARIANTS = [
         must(F.MODE_STARTS && typeof F.modeCensus === "function", "trial-floor.mjs has no MODE_STARTS or modeCensus - the modes have no census");
         const { MODES } = await import("./floor-machine.mjs");
         const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/trial-floor-ui.mjs`).then(r => (r.ok ? lfText(r) : "")));
-        const actions = [...fnSource(src, "trialButtons").matchAll(/action: "([A-Za-z]+)"/g)].map(m => m[1]);
+        /* Since mockup B (E73, 12.11.2026) the starts are the console's one mode picker (`modePickerHtml`), read here as the
+           console draws it, beside the footer's actions (`trialButtons`). */
+        const UI = await import("./trial-floor-ui.mjs");
+        const box = document.createElement("div");
+        box.innerHTML = UI.modePickerHtml({ floor: null, progress: {} });
+        const actions = [...fnSource(src, "trialButtons").matchAll(/action: "([A-Za-z]+)"/g)].map(m => m[1])
+            .concat([...box.querySelectorAll("[data-drpg-mode-action]")].map(b => b.dataset.drpgModeAction));
         must(actions.length > 3, "trialButtons read no action - this would measure nothing");
         const lang = async l => fetch(`/modules/${MODULE_ID}/lang/${l}.json`).then(r => r.json());
         const [en, pl] = [await lang("en"), await lang("pl")];
@@ -8839,6 +8845,49 @@ const INVARIANTS = [
             fns: [],
             items: [`<b>Inside</b> (${game.i18n.localize("DRPG.Floor.mode.straw")}) ${game.i18n.localize("DRPG.Zones.findings.confirmedMark")}`, "Out"], bold: 0, card: true
         }), "{read: each bar op's reason on a Straw Poll, a Logic Dive question, its pause, a Scrum turn; fns: game.drpg functions missing; items: the card's Findings, escaped; bold: markup let through; card: the vote's opening card carries them}");
+    }],
+    ["R3911 - the Class Trial console on the owner's mockup B (E73; the owner's 12.11 \"wybieram wersje B\", and E97/E99's \"schemat na środku ekranu rozprawy, status na górze, zarządzanie na dole\"): trial-floor-ui.mjs `trialConsoleHtml` draws three regions in order - the status at the top (the lead, the trial's time, the register, the one mode picker), the mode in the middle (the mode's line or panel, the bar, the evidence log and Findings, and an empty slot for the case schema) and the management at the bottom (the Reveal and the vote); the picker holds every start of trial-floor.mjs MODE_STARTS, each named and greyed with its reason while a mode holds the floor; the footer carries no mode's start any more", async () => {
+        /*
+         * E73, 12.11.2026 (mockup B). A view handed in, as R1124 hands one: a running trial with no floor, then a Straw Poll
+         * on the floor. Red at e94630a: one column of three h4 sections, the starts in the footer, no picker, no slot.
+         */
+        const UI = await import("./trial-floor-ui.mjs");
+        const F = await import("./trial-floor.mjs");
+        const M = await import("./zone-machine.mjs");
+        const view = floor => ({ floor, running: true, restrictive: Boolean(floor), finalNow: false,
+            progress: { voteClosed: false, verdictApplied: false, closing: null, againAfterOverrule: null, debateAgain: false, findings: [] },
+            pending: null, bar: null, afterwards: true, stopped: null, register: 0, deathThisChapter: false, next: floor ? "endZone" : "openDebate",
+            runner: null, table: null, rows: [], left: 0 });
+        const draw = v => { const root = document.createElement("div"); root.innerHTML = UI.trialConsoleHtml(v); return root; };
+        const straw = M.zoneStart(null, { type: "zone", mode: "straw", question: "Q", answers: { a: "A", b: "B" } }, { now: Date.now() }).floor;
+        const read = root => {
+            const regions = [...root.querySelectorAll("[data-drpg-trial-region]")].map(r => r.dataset.drpgTrialRegion);
+            const inRegion = (name, sel) => Boolean(root.querySelector(`[data-drpg-trial-region="${name}"] ${sel}`));
+            const picks = [...root.querySelectorAll('[data-drpg-trial-region="status"] [data-drpg-console="mode"]')];
+            return {
+                regions,
+                status: [inRegion("status", ".drpg-trial-lead"), inRegion("status", ".drpg-trial-picker")],
+                middle: [inRegion("mode", ".drpg-trial-bar") || !root.querySelector(".drpg-trial-bar"), inRegion("mode", '[data-drpg-console="log"]'),
+                    inRegion("mode", '[data-drpg-console="findings"]'), inRegion("mode", "[data-drpg-trial-schema-slot]")],
+                manage: inRegion("manage", ".drpg-trial-vote"),
+                picks: picks.map(b => [b.dataset.drpgModeAction, b.dataset.drpgMode, b.getAttribute("aria-disabled") === "true", Boolean(b.title), b.textContent.trim().length > 0])
+            };
+        };
+        const open = read(draw(view(null)));
+        const busy = read(draw(view(straw)));
+        const starts = Object.entries(F.MODE_STARTS).filter(([, row]) => row.action).map(([mode, row]) => [row.action, mode]);
+        const footer = UI.trialFooter({ ...view(null), isDefault: () => false });
+        const footActions = [...(footer.secondary ?? []), ...(footer.destructive ?? []), ...(footer.primary ? [footer.primary] : [])].map(b => b.action);
+        equal(stableJson({
+            regions: open.regions, status: open.status, middle: open.middle, manage: open.manage,
+            picks: open.picks.map(p => [p[0], p[1]]), named: open.picks.every(p => p[4]),
+            busyGreyed: busy.picks.filter(p => p[1] !== "straw").every(p => p[2] && p[3]), busyMiddle: busy.middle,
+            footerStarts: footActions.filter(a => ["startTestimony", "startPanic", "startClosing", "zones"].includes(a))
+        }), stableJson({
+            regions: ["status", "mode", "manage"], status: [true, true], middle: [true, true, true, true], manage: true,
+            picks: starts, named: true,
+            busyGreyed: true, busyMiddle: [true, true, true, true], footerStarts: []
+        }), "{regions in order; status: [lead, picker]; middle: [bar, log, Findings, schema slot]; manage: the vote; picks: each MODE_STARTS start in the picker [action, mode]; named; busyGreyed: every other start greyed with a reason while a Straw Poll runs; footerStarts: mode starts left in the footer}");
     }],
     ["R3661 - the case's ticks at a trial are a GM store no player holds (E99 C3; Q-E99-8): gm-stores.mjs `caseTickStore` is the ledger `caseTicks` under `gmCaseTicks`, a client setting, not in the backup, synced, cut with the trial's group; on a player's engine its write is refused and nothing stored; case-schema.mjs `setCaseTick` asks for a GM", async () => {
         /*
@@ -38590,13 +38639,13 @@ const INVARIANTS = [
         equal(stableJson({ footers, ended: ended ?? null, asked, revealButtons, sources }), stableJson({
             footers: {
                 none: [["start", "primary", true], ["close", "close", false], ["toggleFinal", "destructive", false]],
-                running: [["openDebate", "primary", true], ["close", "close", false], ["startTestimony", "secondary", false],
-                    ["startPanic", "secondary", false], ["startClosing", "secondary", false], ["zones", "secondary", false], ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false], ["caseSchema", "secondary", false],
+                running: [["openDebate", "primary", true], ["close", "close", false],
+                    ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false], ["caseSchema", "secondary", false],
                     ["chapterEnd", "destructive", false], ["end", "destructive", false], ["toggleFinal", "destructive", false]],
                 chapterNext: [["close", "close", true], ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false], ["caseSchema", "secondary", false],
                     ["start", "secondary", false], ["chapterEnd", "destructive", false], ["toggleFinal", "destructive", false]],
-                final: [["openDebate", "primary", true], ["close", "close", false], ["startTestimony", "secondary", false],
-                    ["startPanic", "secondary", false], ["startClosing", "secondary", false], ["zones", "secondary", false], ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false], ["caseSchema", "secondary", false],
+                final: [["openDebate", "primary", true], ["close", "close", false],
+                    ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false], ["caseSchema", "secondary", false],
                     ["toggleFinal", "secondary", false], ["chapterEnd", "destructive", false], ["end", "destructive", false]]
             },
             ended: null,

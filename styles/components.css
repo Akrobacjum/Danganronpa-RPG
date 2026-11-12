@@ -4356,3 +4356,47 @@ body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drp
     color: var(--drpg-bone);
     font-size: 0.85em;
 }
+
+/* ---- the Class Trial console on mockup B (E73, 12.11.2026; the owner's "wybieram wersje B") ----
+   The status at the top, the mode in the middle (where E99 puts the case schema, `.drpg-trial-schema-slot`), the
+   management at the bottom: three regions one under the other, each with its own heading, the top and the bottom
+   edged so the middle reads as the console's body. The picker's starts wrap as the bar's ops do; a greyed start keeps
+   its title (its reason). Not measured at a table: LIVE-E73-05 (1366x768 and 1920x1080, both themes). */
+.drpg-trial-console.drpg-trial-frame {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.drpg-trial-frame > .drpg-trial-top {
+    padding-bottom: 6px;
+    border-bottom: 1px solid color-mix(in srgb, var(--drpg-bone) 35%, transparent);
+}
+
+.drpg-trial-frame > .drpg-trial-bottom {
+    padding-top: 6px;
+    border-top: 1px solid color-mix(in srgb, var(--drpg-bone) 35%, transparent);
+}
+
+.drpg-trial-console .drpg-trial-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 6px 0 2px;
+}
+
+.drpg-trial-console .drpg-trial-pick {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    font-size: var(--drpg-text-sm);
+}
+
+.drpg-trial-console .drpg-trial-pick[aria-disabled="true"] {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.drpg-trial-console .drpg-trial-schema-slot:empty {
+    display: none;
+}

@@ -10,12 +10,12 @@ import { MODULE_ID, TRIAL, staleStamp } from "./config.mjs";
 import {
     trialFloor, floorHolder, floorTarget, secondsLeft, startFloor, endFloor,
     returnToDebate, FLOOR_MODES, floorFamily, BAR_OPS, barRefusal, skipStep, adjustTime, endMode, overruleObjection, overruleTargetId,
-    adjustStep, drawOrder, debateSeconds, trialNextStep, TRIAL_NEXT_STEPS, trialStepView, trialStepText
+    adjustStep, drawOrder, debateSeconds, trialNextStep, TRIAL_NEXT_STEPS, trialStepView, trialStepText, MODE_STARTS
 } from "./trial-floor.mjs";
 import { topicOf, turnRange, isRoundMode, closingOf } from "./floor-machine.mjs";
 import { isZoneMode } from "./zone-machine.mjs";
 import { ZONE_PANELS, openZonePicker } from "./trial-zones-ui.mjs";
-import { countNow, skipQuestion } from "./trial-zones.mjs";
+import { countNow, skipQuestion, zoneStartRefusal } from "./trial-zones.mjs";
 import {
     closingRefusal, confirmClosingSpeaker, pickClosingSpeaker, continueClosing, resumeClosing, startClosing,
     missingKeys, revealLeft, revealMissingKey } from "./trial-modes.mjs";
@@ -1110,7 +1110,33 @@ function logButton(view = {}) {
                 <button type="button" data-drpg-console="findings">${esc(game.i18n.format("DRPG.Zones.findings.button", { n }))}</button></p>`;
 }
 
-/** The console's three sections, from one reading of the floor. Exported for R1124 (E51 C6), which hands it a view. */
+/**
+ * THE ONE MODE PICKER (E73, mockup B; the owner's 10.11 "one mode picker"): a button for every start of trial-floor.mjs
+ * MODE_STARTS, in the modes' order - Nonstop Debate, Testimony, Panic Round, the Closing Argument and the three zone
+ * modes, each by its name - pressed through the console's one listener (`data-drpg-console="mode"`, its action and
+ * mode), as the log's is: the live region redraws every second. While another mode holds the floor every start is
+ * greyed (`aria-disabled`, still focusable) with the reason in its title; the Closing's own refusal and a hall with no
+ * zones too. The footer carries no start since: it is the next step and the management.
+ */
+export function modePickerHtml(view) {
+    const { floor = null, progress = {} } = view ?? {};
+    const busy = floor && floor.mode !== FLOOR_MODES.debate ? game.i18n.localize("DRPG.Floor.round.busy") : null;
+    const why = (mode, action) => {
+        if (action === "openDebate") return floor ? game.i18n.localize("DRPG.Floor.bar.inDebate") : null;
+        if (busy) return busy;
+        if (action === "startClosing") return closingRefusal(progress, floor);
+        if (action === "zones") return zoneStartRefusal(floor, { inTrial: true });
+        return null;
+    };
+    const buttons = Object.entries(MODE_STARTS).filter(([, row]) => row.action).map(([mode, row]) => {
+        const refused = why(mode, row.action);
+        return `<button type="button" class="drpg-trial-pick" data-drpg-console="mode" data-drpg-mode-action="${esc(row.action)}" data-drpg-mode="${esc(mode)}"${
+            refused ? ` aria-disabled="true" title="${esc(refused)}"` : ""}>${esc(game.i18n.localize(`DRPG.Floor.mode.${mode}`))}</button>`;
+    });
+    return `<div class="drpg-trial-picker" role="toolbar" aria-label="${esc(game.i18n.localize("DRPG.Floor.pickerLabel"))}">${buttons.join("")}</div>`;
+}
+
+/** The console's three regions (mockup B, E73), from one reading of the floor. Exported for R1124 (E51 C6), which hands it a view. */
 export function trialConsoleHtml(view) {
     const { floor, running, restrictive, finalNow, progress, pending, bar, afterwards, stopped, register, deathThisChapter,
         next, runner, table } = view;
@@ -1245,15 +1271,26 @@ export function trialConsoleHtml(view) {
         </div>`;
         }
 
-        return `<div class="drpg-trial-console">
+        /* MOCKUP B (E73, 12.11.2026; the owner: "wybieram wersje B", and for E97/E99 "schemat na środku ekranu rozprawy,
+           status na górze, zarządzanie na dole"). Three regions, one under the other: the STATUS at the top - the lead,
+           the trial's time, the table, the register and the one mode picker (`modePickerHtml`, every start of
+           trial-floor.mjs MODE_STARTS); the MODE in the middle - the floor's line or the zone mode's panel, the bar, the
+           evidence log and Findings, and the slot E99 puts the case schema in (`data-drpg-trial-schema-slot`, empty
+           here); the MANAGEMENT at the bottom - the Reveal and the vote - above the footer's buttons. Each region is a
+           `data-drpg-trial-region` (R3911). */
+        return `<div class="drpg-trial-console drpg-trial-frame">
+            <section class="drpg-trial-top" data-drpg-trial-region="status">
             <h4>${game.i18n.localize("DRPG.Floor.sectionTrial")}</h4>
             ${lead}
             ${timeLine}
             ${tableLine}
             ${registerLine}
             ${finalLine}
+            ${modePickerHtml(view)}
+            </section>
 
-            <h4>${game.i18n.localize("DRPG.Floor.sectionDebate")}</h4>
+            <section class="drpg-trial-middle" data-drpg-trial-region="mode">
+            <h4>${floor ? esc(game.i18n.localize(`DRPG.Floor.mode.${floor.mode}`)) : game.i18n.localize("DRPG.Floor.sectionDebate")}</h4>
             ${debateLine}
             ${topicLine}
             ${floor && !isRoundMode(floor.mode) && floor.mode !== FLOOR_MODES.closing && !isZoneMode(floor.mode) ? `<p class="notes">${restrictive
@@ -1263,13 +1300,18 @@ export function trialConsoleHtml(view) {
             ${!floor && running && progress.closing?.done ? `<p>${game.i18n.localize("DRPG.Floor.closing.already")}</p>` : ""}
             ${trialBar(view)}
             ${logButton(view)}
+            <div class="drpg-trial-schema-slot" data-drpg-trial-schema-slot></div>
+            </section>
 
+            <section class="drpg-trial-bottom" data-drpg-trial-region="manage">
             ${revealConsole(view)}
-
+            <div class="drpg-trial-vote">
             <h4>${game.i18n.localize("DRPG.Floor.sectionVote")}</h4>
             ${voteLine}
             ${barLine}
             ${gateLine}
+            </div>
+            </section>
         </div>`;
 }
 
@@ -1330,15 +1372,10 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                             ? { action: "reopen", default: isDefault("reopen"), label: game.i18n.localize("DRPG.Floor.againSame") }
                             : { action: "openDebate", default: isDefault("openDebate"),
                                 label: game.i18n.localize("DRPG.Floor.openDebate") },
-                // The rounds (E70 C7), each its start window, beside the debate while no floor is open.
-                ...(floor ? [] : [
-                    { action: "startTestimony", label: game.i18n.localize("DRPG.Floor.startTestimony") },
-                    { action: "startPanic", label: game.i18n.localize("DRPG.Floor.startPanic") },
-                    // The Closing Argument (E70 C8): one per trial, greyed after it (its reason is the console's note).
-                    { action: "startClosing", label: game.i18n.localize("DRPG.Floor.startClosing"), disabled: Boolean(closingRefusal(progress, floor)) },
-                    // The zone modes (E73): one button, the picker window; the next step after a split Straw Poll.
-                    { action: "zones", label: game.i18n.localize("DRPG.Zones.open"), default: isDefault("scrum") }
-                ]),
+                // The rounds, the Closing and the zone modes started here until mockup B (E73): their starts are the
+                // status region's one picker now (`modePickerHtml`). After a split Straw Poll the next step is Scrum
+                // Debate, the zone modes' window opened on it.
+                ...(!floor && isDefault("scrum") ? [{ action: "zones", label: game.i18n.localize("DRPG.Floor.mode.scrum"), default: true }] : []),
                 // End this mode now, Back to the debate, +30 seconds and Re-point stood here, each only in the
                 // modes it served: they are the bar's since E70 C1 (`trialBar`), in every mode, greyed with a reason.
               ]
@@ -1649,6 +1686,14 @@ export async function manageClassTrial() {
                 if (event.target?.closest?.("[data-drpg-console=\"log\"]")) {
                     event.preventDefault();
                     return void import("./trial.mjs").then(m => m.openObjectionLog()).catch(err => error("Could not open the evidence log", err));
+                }
+                // A mode's start from the status region's picker (E73, mockup B): greyed ones say why, the rest start.
+                const pick = event.target?.closest?.("[data-drpg-console=\"mode\"]");
+                if (pick) {
+                    event.preventDefault();
+                    if (pick.getAttribute("aria-disabled") === "true") return void ui.notifications.warn(pick.title);
+                    const run = TRIAL_ACTIONS[pick.dataset.drpgModeAction];
+                    return void Promise.resolve().then(() => run?.(pick.dataset.drpgModeAction === "zones" ? pick.dataset.drpgMode : undefined)).catch(err => error("The trial mode did not start", err));
                 }
                 // The trial's Findings (E73 C6): its own window over the console.
                 if (event.target?.closest?.("[data-drpg-console=\"findings\"]")) {

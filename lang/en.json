@@ -1613,7 +1613,8 @@
         "inExchange": "An Objection in the Closing Argument: after its exchange you decide who continues."
       },
       "startClosing": "Closing Argument",
-      "endClosing": "End the Closing Argument"
+      "endClosing": "End the Closing Argument",
+      "pickerLabel": "Start a mode"
     },
     "Events": {
       "overflowMetaGm": "{count} of {max} in the hat",
