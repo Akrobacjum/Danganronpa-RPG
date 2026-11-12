@@ -490,7 +490,7 @@ Przedmiot może służyć też jako inna kategoria (śrubokręt w narzędziach, 
 
 ## 8. Remnanty i dowody
 
-### Remnants
+### Remnanty
 
 **Remnant** to Remnant na mapie. Większość tego, co robisz w pokoju, jakiś zostawia: wzięcie broni, Dynamic Action, sabotaż, praca nad projektem morderstwa, wyrzucenie czegoś, przeszukanie kieszeni ciała, walka, sprzątanie. To, jak trudno go zobaczyć, to jego **widoczność**: Obvious, Evident, Subtle, Hidden. Niektóre są **Reinforced** - nikt nie może ich usunąć.
 
@@ -679,13 +679,13 @@ Dopóki ktoś nie znajdzie ciała, śmierć trzymają GMowie: stół się nie do
 
 - Każdy żyjący uczeń dostaje **Autopsy Truth Bullet** - godzina odkrycia, przyczyna śmierci, to, co pokazuje ciało. Bez rzutu.
 - **Observe** na Remnantach na mapie, **Analyze** na tym, co zbierzesz, **Podziel się kopią** z osobami w twoim pokoju. Remnanty powiązane ze zbrodnią pokazywane są pierwsze.
-- GM-owie przygotowali do tej sprawy **Key Remnants** - najwyżej pięć, nigdy mniej niż trzy, i im lepiej poszedł rzut otwarcia zabójcy, tym jest ich mniej. Razem zawężają podejrzanych do dwóch do czterech osób; trop zawęża krąg, nigdy nie wskazuje nazwiska.
+- GM-owie przygotowali do tej sprawy **Key Remnanty** - najwyżej pięć, nigdy mniej niż trzy, i im lepiej poszedł rzut otwarcia zabójcy, tym jest ich mniej. Razem zawężają podejrzanych do dwóch do czterech osób; trop zawęża krąg, nigdy nie wskazuje nazwiska.
 - **Ciało** można przeszukać: otwórz arkusz zmarłego ucznia, zaznacz, co mieli przy sobie, i wciśnij *Weź zaznaczone* (albo *Weź* przy jednej rzeczy). To nie kosztuje akcji. Rzucasz **Hand** raz na to, co bierzesz, za każdym razem, gdy bierzesz - liczy się tylko pierwszy rzut wykonany na dane zabranie, a zabranie odrzucone, bo wyszedłeś z pokoju, zachowuje swój rzut na następną próbę: im niższy wynik, tym łatwiej znaleźć Remnant, który zostawiasz - poniżej 12 łatwo, od 12 do 17 trudniej, od 18 albo przy krytyku najtrudniej. Gdy ktoś jeszcze jest w pokoju - tak, jak czyta to strona GM-ów, która może policzyć kogoś, kogo twój ekran nie pokazuje - rzucasz też **Shadow** przeciw **16**, żeby nikt nie zauważył: chybienie mówi pozostałym w pokoju i GM-om, że przeszukałeś kieszenie ciała - przy Despair także, co zabrałeś - i nie kosztuje Sanity. Dostajesz samą rzecz, a do tego Truth Bullet zapisujący, co wziąłeś i od kogo - a na ciele zostaje jeden Remnant, że ktoś przeszedł przez kieszenie, ile by rzeczy z niego nie wyszło; kolejne zabrania mogą ten Remnant uczynić łatwiejszym do znalezienia, nigdy trudniejszym.
 - Śledczy i zabójcy jednakowo mogą użyć **Tamper**. Zbyt czysta plama to dowód sprzątania.
 - Key Remnant, którego nikt nie znajdzie, kosztuje Despair (niżej), a w Class Trial Monokuma może go ujawnić wszystkim uczestnikom jako znaleziony - z rodzajem i tekstem, do Analyze jak zwykle.
 
 > [!WARNING]
-> Każdy Key Remnant poniżej czterech, którego nie znajdziecie, jest wart **3 Despair** dla każdego Monokumy - poniżej liczby Key Remnants sprawy, gdy ma ich mniej niż cztery, więc sprawa trzech znalezionych w całości nie kosztuje nic. Za znaleziony liczy się tylko ten, który ma żyjący uczeń.
+> Każdy Key Remnant poniżej czterech, którego nie znajdziecie, jest wart **3 Despair** dla każdego Monokumy - poniżej liczby Key Remnantów sprawy, gdy ma ich mniej niż cztery, więc sprawa trzech znalezionych w całości nie kosztuje nic. Za znaleziony liczy się tylko ten, który ma żyjący uczeń.
 
 ---
 

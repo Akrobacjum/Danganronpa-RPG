@@ -372,6 +372,8 @@ dało się je policzyć.
   zachowanych źródłach); Hope i Despair są męskie (PL-b, D191). [survives: DB4]
   Przykład: `DRPG.Trial.notInTrial` „Dowody przedstawia się w Class Trial.”; znalezione: `DRPG.Action.dcAnalyze`
   „Identyfikacja Truth Bulleta, ...”.
+  Remnant w liczbie mnogiej też po polsku: „Remnanty”, „Remnantów”, także „Key Remnanty”, „Faint Remnanty” - angielskie
+  „Remnants” nie stoi w polskim zdaniu. [the owner, 12.11.2026, through the coordinator: DB4's inflection, as decided]
 - **PL-b** Rodzaj: zasoby, Overflow, Eclipse, fazy i stany nijakie; Class Trial, Free Move, Rebuttal, Truth Bullet,
   Remnant, Search Token męskie; Nonstop Debate żeńska; Objection nijakie, jak dziś w UI. Hope i Despair są męskie i
   nieodmienne („twój Hope”, „cały Despair”): nijaki rodzaj zasobów z DB28 ich nie obejmuje. [survives: DB28; Hope and

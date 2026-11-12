@@ -377,7 +377,7 @@
       },
       "uiScale": {
         "name": "Skala interfejsu",
-        "hint": "Jeden mnożnik na krój i panele modułu, 80% do 140%, nałożony na mnożnik ekranu (2560 x 1440 to 100%; mniejszy ekran rysuje mniej, do 70%). Mapa i własne okna Foundry nigdy nie są skalowane. Dotyczy tylko tej przeglądarki."
+        "hint": "Jeden mnożnik na interfejs, 80% do 140%. W Stained Glass nakłada się na mnożnik ekranu (2560 x 1440 to 100%, mniejszy ekran do 70%); w Monokuma Legacy suwak jest całym mnożnikiem. Zmienia tekst i panele modułu, a z nimi elementy Foundry i arkusz postaci; mapy nie skaluje, a tekst nie schodzi poniżej 10 px. Dotyczy tylko tej przeglądarki."
       },
       "debug": {
         "name": "Szczegółowe logi w konsoli",
@@ -1293,7 +1293,7 @@
       "cleared": "Mastermind wyczyszczony. Nikt nie jest ustawiony.",
       "finalBanner": "FINAL TRIAL",
       "finalAnnounce": "To ostatni. Na stole leży wszystko, co wam powiedziano o tym miejscu - i ten, kto wam to mówił.",
-      "finalRemnantsTitle": "Final Truth Remnants",
+      "finalRemnantsTitle": "Final Truth Remnanty",
       "finalRemnantsNote": "Remnanty, na których obraca się finał. Ich typ je wzmacnia, więc nikt nie może żadnego usunąć.",
       "finalPickRoom": "Wybierz pokój, by go postawić",
       "finalAddNote": "Zapisz stawia go na scenie, na którą patrzysz, gdzieś wewnątrz wybranego pokoju. Bez wybranego pokoju Zapisz niczego nie stawia.",
@@ -1556,10 +1556,10 @@
       "bodySubRoom": "{victim}, w: {room}",
       "bodyMeta": "Investigation otwarte",
       "bodyMetaGm": {
-        "one": "Znaleziono {found} z {total} Key Remnants",
-        "few": "Znaleziono {found} z {total} Key Remnants",
-        "many": "Znaleziono {found} z {total} Key Remnants",
-        "other": "Znaleziono {found} z {total} Key Remnants"
+        "one": "Znaleziono {found} z {total} Key Remnantów",
+        "few": "Znaleziono {found} z {total} Key Remnantów",
+        "many": "Znaleziono {found} z {total} Key Remnantów",
+        "other": "Znaleziono {found} z {total} Key Remnantów"
       },
       "bodyHoldMeta": "Ciało zostało znalezione. Investigation jeszcze nie trwa.",
       "bodyHoldMetaGm": "Rozpocznij Investigation, gdy pokój będzie gotowy.",
@@ -2144,9 +2144,9 @@
       "dayNote": "Nie noc, więc rzut otwarcia bez modyfikatora.",
       "keyCount": {
         "one": "Ta sprawa zostawi {n} Key Remnant.",
-        "few": "Ta sprawa zostawi {n} Key Remnants.",
-        "many": "Ta sprawa zostawi {n} Key Remnants.",
-        "other": "Ta sprawa zostawi {n} Key Remnants."
+        "few": "Ta sprawa zostawi {n} Key Remnanty.",
+        "many": "Ta sprawa zostawi {n} Key Remnantów.",
+        "other": "Ta sprawa zostawi {n} Key Remnantów."
       },
       "trackerTitle": "Śledzenie incydentu",
       "trackerOver": "Ten incydent jest zakończony.",
@@ -2183,9 +2183,9 @@
       "afterNoRoom": "Token ofiary jest poza wszystkimi pokojami. Ustaw go tam, gdzie leży ciało, zanim je ogłosisz.",
       "afterKeys": {
         "one": "{n} Key Remnant jeszcze do postawienia.",
-        "few": "{n} Key Remnants jeszcze do postawienia.",
-        "many": "{n} Key Remnants jeszcze do postawienia.",
-        "other": "{n} Key Remnants jeszcze do postawienia."
+        "few": "{n} Key Remnanty jeszcze do postawienia.",
+        "many": "{n} Key Remnantów jeszcze do postawienia.",
+        "other": "{n} Key Remnantów jeszcze do postawienia."
       },
       "afterAutopsy": "Truth Bullet z sekcji zwłok nie został wydany.",
       "afterDirect": "Direct Murder - kto był w pokoju, widział, jak do tego doszło.",
@@ -2234,7 +2234,7 @@
       "rolesSwapped": "Role odwrócone. Teraz krwawi zabójca.",
       "incidentEnded": "Incydent zakończony.",
       "victimDead": "Ofiara nie żyje. Zabójca jest Blackened.",
-      "resolutionNote": "Stage 6. Zabójca widzi teraz Remnants na mapie i może używać akcji Stage 6. Reinforced Remnanty zostają. Użyte narzędzie zbrodni zostaje zniszczone.",
+      "resolutionNote": "Stage 6. Zabójca widzi teraz Remnanty na mapie i może używać akcji Stage 6. Reinforced Remnanty zostają. Użyte narzędzie zbrodni zostaje zniszczone.",
       "thirdTitle": "Wchodzisz na to",
       "thirdIntro": "Jeden darmowy wybór: wyprowadź ofiarę ze sobą, stań po którejś stronie albo odwróć wzrok.",
       "band": {
@@ -2289,9 +2289,9 @@
       },
       "keyRemnantsStale": {
         "one": "Role się odwróciły, więc sprawa się zmieniła: {n} Key Remnant zaplanowano wokół zabójcy, który jest teraz ofiarą. Napisz {n} nowy przed Investigation - liczba wyszła z rzutu otwarcia i się nie zmieniła.",
-        "few": "Role się odwróciły, więc sprawa się zmieniła: {n} Key Remnants zaplanowano wokół zabójcy, który jest teraz ofiarą. Napisz {n} nowe przed Investigation - liczba wyszła z rzutu otwarcia i się nie zmieniła.",
-        "many": "Role się odwróciły, więc sprawa się zmieniła: {n} Key Remnants zaplanowano wokół zabójcy, który jest teraz ofiarą. Napisz {n} nowych przed Investigation - liczba wyszła z rzutu otwarcia i się nie zmieniła.",
-        "other": "Role się odwróciły, więc sprawa się zmieniła: {n} Key Remnants zaplanowano wokół zabójcy, który jest teraz ofiarą. Napisz {n} nowych przed Investigation - liczba wyszła z rzutu otwarcia i się nie zmieniła."
+        "few": "Role się odwróciły, więc sprawa się zmieniła: {n} Key Remnanty zaplanowano wokół zabójcy, który jest teraz ofiarą. Napisz {n} nowe przed Investigation - liczba wyszła z rzutu otwarcia i się nie zmieniła.",
+        "many": "Role się odwróciły, więc sprawa się zmieniła: {n} Key Remnantów zaplanowano wokół zabójcy, który jest teraz ofiarą. Napisz {n} nowych przed Investigation - liczba wyszła z rzutu otwarcia i się nie zmieniła.",
+        "other": "Role się odwróciły, więc sprawa się zmieniła: {n} Key Remnantów zaplanowano wokół zabójcy, który jest teraz ofiarą. Napisz {n} nowych przed Investigation - liczba wyszła z rzutu otwarcia i się nie zmieniła."
       },
       "nightNoteDirect": "Jest noc: rzut otwarcia zabójcy ma przewagę.",
       "nightNoteIndirect": "Jest noc: rzut otwarcia ofiary ma utrudnienie.",
@@ -2388,9 +2388,9 @@
       "revealedByMonokuma": "Ujawnione przez Monokumę",
       "tooThin": {
         "one": "Znaleziono tylko {found} Key Remnant. Minimum to {min} - poniżej Class Trial nie ma uczciwej odpowiedzi. Skieruj graczy na resztę albo zostaw to i zapłać przy głosowaniu.",
-        "few": "Znaleziono tylko {found} Key Remnants. Minimum to {min} - poniżej Class Trial nie ma uczciwej odpowiedzi. Skieruj graczy na resztę albo zostaw to i zapłać przy głosowaniu.",
-        "many": "Znaleziono tylko {found} Key Remnants. Minimum to {min} - poniżej Class Trial nie ma uczciwej odpowiedzi. Skieruj graczy na resztę albo zostaw to i zapłać przy głosowaniu.",
-        "other": "Znaleziono tylko {found} Key Remnants. Minimum to {min} - poniżej Class Trial nie ma uczciwej odpowiedzi. Skieruj graczy na resztę albo zostaw to i zapłać przy głosowaniu."
+        "few": "Znaleziono tylko {found} Key Remnanty. Minimum to {min} - poniżej Class Trial nie ma uczciwej odpowiedzi. Skieruj graczy na resztę albo zostaw to i zapłać przy głosowaniu.",
+        "many": "Znaleziono tylko {found} Key Remnantów. Minimum to {min} - poniżej Class Trial nie ma uczciwej odpowiedzi. Skieruj graczy na resztę albo zostaw to i zapłać przy głosowaniu.",
+        "other": "Znaleziono tylko {found} Key Remnantów. Minimum to {min} - poniżej Class Trial nie ma uczciwej odpowiedzi. Skieruj graczy na resztę albo zostaw to i zapłać przy głosowaniu."
       },
       "tooThinNone": "Nie znaleziono jeszcze żadnego Key Remnantu. Minimum to {min} - poniżej Class Trial nie ma uczciwej odpowiedzi. Skieruj graczy na resztę albo zostaw to i zapłać przy głosowaniu.",
       "whoHasWhat": "Kto co ma",
@@ -2403,7 +2403,7 @@
       "createHere": "Utwórz na mapie",
       "createNote": "Postaw od razu stawia Key Remnant wiersza na mapie, w wybranym pokoju: Reinforced, powiązany ze zbrodnią, gdzieś wewnątrz pokoju, ze słowami wpisanymi w wierszu. Wiersz, który jest już na mapie, nie ma przycisku Postaw.",
       "tabTraces": "Remnanty",
-      "tabKeyRemnants": "Key Remnants",
+      "tabKeyRemnants": "Key Remnanty",
       "traceName": "Nazwa",
       "traceText": "Opis dla gracza",
       "traceType": "Czym naprawdę jest",
@@ -2437,10 +2437,10 @@
       "noSlot": "Żaden z {n}",
       "createdHere": "Key Remnant postawiony w pokoju {room}.",
       "unfoundKeys": {
-        "one": "W czasie Investigation znaleziono {found} z {bar} Key Remnants - brakuje jednego. {despair} Despair do każdej puli: {who}.",
-        "few": "W czasie Investigation znaleziono {found} z {bar} Key Remnants - brakuje {n}. {despair} Despair do każdej puli: {who}.",
-        "many": "W czasie Investigation znaleziono {found} z {bar} Key Remnants - brakuje {n}. {despair} Despair do każdej puli: {who}.",
-        "other": "W czasie Investigation znaleziono {found} z {bar} Key Remnants - brakuje {n}. {despair} Despair do każdej puli: {who}."
+        "one": "W czasie Investigation znaleziono {found} z {bar} Key Remnantów - brakuje jednego. {despair} Despair do każdej puli: {who}.",
+        "few": "W czasie Investigation znaleziono {found} z {bar} Key Remnantów - brakuje {n}. {despair} Despair do każdej puli: {who}.",
+        "many": "W czasie Investigation znaleziono {found} z {bar} Key Remnantów - brakuje {n}. {despair} Despair do każdej puli: {who}.",
+        "other": "W czasie Investigation znaleziono {found} z {bar} Key Remnantów - brakuje {n}. {despair} Despair do każdej puli: {who}."
       },
       "keyNoteLabel": "Twoja notatka",
       "keyNotePlaceholder": "Czyta to tylko GM",
@@ -2453,13 +2453,13 @@
       },
       "finalFoundBy": "Znalazł",
       "finalNobody": "Nikt go nie znalazł",
-      "chargeTooLate": "Zegar przeszedł już do rozdziału {now}, a ostatnia sprawa należała do rozdziału {was}: ten rozdział nie ma własnej sprawy, wobec której można policzyć nieznalezione Key Remnants, więc nic nie policzono.",
+      "chargeTooLate": "Zegar przeszedł już do rozdziału {now}, a ostatnia sprawa należała do rozdziału {was}: ten rozdział nie ma własnej sprawy, wobec której można policzyć nieznalezione Key Remnanty, więc nic nie policzono.",
       "traceAnalysis": "Co ujawnia analiza",
       "keyOffPlan": {
         "one": "Jeszcze jeden znaleziony Key Remnant jest spoza planu i wlicza się do progu {bar} znalezionych: {names}.",
-        "few": "Jeszcze {n} znalezione Key Remnants są spoza planu i wliczają się do progu {bar} znalezionych: {names}.",
-        "many": "Jeszcze {n} znalezionych Key Remnants jest spoza planu i wlicza się do progu {bar} znalezionych: {names}.",
-        "other": "Jeszcze {n} znalezionych Key Remnants jest spoza planu i wlicza się do progu {bar} znalezionych: {names}."
+        "few": "Jeszcze {n} znalezione Key Remnanty są spoza planu i wliczają się do progu {bar} znalezionych: {names}.",
+        "many": "Jeszcze {n} znalezionych Key Remnantów jest spoza planu i wlicza się do progu {bar} znalezionych: {names}.",
+        "other": "Jeszcze {n} znalezionych Key Remnantów jest spoza planu i wlicza się do progu {bar} znalezionych: {names}."
       },
       "newTraceTitle": "Nowy Remnant",
       "newTraceIntro": "Remnant, o którym stwierdzasz, że istnieje. Trafia w losowe miejsce wewnątrz pokoju, dokładnie jak zaplanowany trop - przesuń potem token, jeśli miejsce ma znaczenie.",
@@ -2660,7 +2660,6 @@
         "many": "{n} śmierci, których nikt nie odkrył, jest wciąż znanych tylko GM-om. Dopóki nie ujawnisz ich w oknie graczy, ten proces traktuje tych uczniów jak żywych - głosują i dostają Level Up razem z klasą - i nie pyta o ich zabójców, którzy liczą się jako Blackened tylko za śmierć znaną stołowi.",
         "other": "{n} śmierci, których nikt nie odkrył, jest wciąż znanych tylko GM-om. Dopóki nie ujawnisz ich w oknie graczy, ten proces traktuje tych uczniów jak żywych - głosują i dostają Level Up razem z klasą - i nie pyta o ich zabójców, którzy liczą się jako Blackened tylko za śmierć znaną stołowi."
       },
-      "bodyTitle": "Znaleziono ciało",
       "whereBody": "Który pokój?",
       "whoseBody": "Czyje ciało? (opcjonalne)",
       "unnamedVictim": "Nie podawaj nazwiska",
@@ -2713,8 +2712,8 @@
         "other": "{n} nieprzeanalizowanych Truth Bullets nie ma zapisanego prawdziwego typu, więc ujawnienie ich nie tknie - mają je: {who}. Zabierz je i daj takie z ich typami w Daj / zabierz przedmioty."
       },
       "optSweep": "Zbierz Truth Bullets ({n} zniknie, Faint i Final zostają)",
-      "optFaint": "Wyczyść Faint Remnants ({n} zniknie)",
-      "optKeys": "Zdejmij z mapy Key Remnants tego rozdziału ({n})",
+      "optFaint": "Wyczyść Faint Remnanty ({n} zniknie)",
+      "optKeys": "Zdejmij z mapy Key Remnanty tego rozdziału ({n})",
       "optNothing": "w tym rozdziale nie ma nic do zrobienia",
       "doneSweep": {
         "one": "Zebrano {n} Truth Bullet.",
@@ -2724,20 +2723,20 @@
       },
       "doneFaint": {
         "one": "Wyczyszczono {n} Faint Remnant.",
-        "few": "Wyczyszczono {n} Faint Remnants.",
-        "many": "Wyczyszczono {n} Faint Remnants.",
-        "other": "Wyczyszczono {n} Faint Remnants."
+        "few": "Wyczyszczono {n} Faint Remnanty.",
+        "many": "Wyczyszczono {n} Faint Remnantów.",
+        "other": "Wyczyszczono {n} Faint Remnantów."
       },
       "doneKeys": {
         "one": "Zdjęto z mapy {n} Key Remnant.",
-        "few": "Zdjęto z mapy {n} Key Remnants.",
-        "many": "Zdjęto z mapy {n} Key Remnants.",
-        "other": "Zdjęto z mapy {n} Key Remnants."
+        "few": "Zdjęto z mapy {n} Key Remnanty.",
+        "many": "Zdjęto z mapy {n} Key Remnantów.",
+        "other": "Zdjęto z mapy {n} Key Remnantów."
       },
       "optEndTrial": "Zamknij Class Trial i przywróć wszystkich do Daily Life",
       "optNoTrial": "Class Trial nie trwa",
       "optPermanent": "(nie do cofnięcia)",
-      "finalTruthMissing": "W tym rozdziale nie postawiono Final Truth Remnant. Jeden na rozdział wskazuje Masterminda: postaw go w Sprawa > Investigation, w zakładce Final Truth Remnants.",
+      "finalTruthMissing": "W tym rozdziale nie postawiono Final Truth Remnant. Jeden na rozdział wskazuje Masterminda: postaw go w Sprawa > Investigation, w zakładce Final Truth Remnanty.",
       "doneEndTrial": "Class Trial zamknięty; kampania wraca do Daily Life.",
       "doneNextMorning": "Następny rozdział otwiera się rankiem dnia {day}, z odnowionymi akcjami i Search Tokenami.",
       "doneInvestigationOver": "Investigation zakończone; kampania wraca do Daily Life.",
@@ -2758,8 +2757,8 @@
       "step": {
         "reveal": "ujawnianie Truth Bullets",
         "sweep": "zbieranie Truth Bullets",
-        "faint": "czyszczenie Faint Remnants",
-        "keys": "zdejmowanie Key Remnants z mapy",
+        "faint": "czyszczenie Faint Remnantów",
+        "keys": "zdejmowanie Key Remnantów z mapy",
         "tools": "opróżnianie zużytych Cleaning Tools",
         "clock": "przesuwanie zegara",
         "trial": "zamykanie Class Trial",
@@ -3154,7 +3153,7 @@
       "authorReplaceTitle": "Kto zostawił ten Remnant",
       "authorReplace": "Ten Remnant przypisano postaci {was}. Przypisać go zamiast tego postaci {now}? Od teraz liczy się jako Remnant tej osoby, tak jak Remnant zostawiony przez gracza: czytają go Observe, wiązanie z incydentem i Tamper.",
       "authorReplaceYes": "Zamień",
-      "revealWarning": "Remnants to twoje notatki. Ujawnienie tego stawia go na mapie dla wszystkich.",
+      "revealWarning": "Remnanty to twoje notatki. Ujawnienie tego stawia go na mapie dla wszystkich.",
       "dynamicNote": "{actor} coś zrobił w pokoju {room} (rzut {total}): {what}",
       "searchNote": "{actor} - przeszukanie: {room} ({category}, rzut {total}), wynik: „{item}” - Tier {tier}.",
       "sabotageNote": "{actor} sabotuje projekt {project} w pokoju {room} (rzut {total}). {outcome}",
@@ -3188,7 +3187,7 @@
       "cardEditNote": "Zapisywane, gdy opuścisz pole, i kopiowane na token oraz każdy Truth Bullet wzięty z tego Remnantu.",
       "cardSaveFailed": "Nie zapisało się. Zajrzyj do konsoli.",
       "report": {
-        "heading": "Remnants",
+        "heading": "Remnanty",
         "scene": "Scena",
         "when": "Kiedy",
         "faintTag": "(Faint)",
@@ -4008,7 +4007,7 @@
         "roll.draw": "Rzut do wykonania przez GM-a",
         "roll.grant": "Przyznanie rzutów rzuconych bez GM-a",
         "audit.decide": "Decyzja GM-a o zmianie karty zgłoszonej GM-om",
-        "keys.charge": "Opłata za Key Remnants pobierana przy otwarciu Class Trial",
+        "keys.charge": "Opłata za Key Remnanty pobierana przy otwarciu Class Trial",
         "trial.enter": "Głosy Class Trial ustawiane przy jej otwarciu lub końcu",
         "trial.record": "Zapis przebiegu Class Trial przez GM-a, wykonywany przez głównego GM-a",
         "reroll.ask": "Reroll",
@@ -4263,7 +4262,7 @@
       "endChapterAsk": "Zakończyć rozdział teraz? Edytuj kampanię zamknie się bez zapisu i otworzy się koniec rozdziału: pokaże, co ujawni, sprzątnie i wskaże, zanim cokolwiek zrobi.",
       "chapterCorrect": "To poprawia tylko numer rozdziału - bez ujawniania, bez zbierania Truth Bullets, bez Blackened. Rozdział kończy przycisk Zakończ rozdział, na dole okna Edytuj kampanię. Anuluj zostawia rozdział i zapisuje resztę.",
       "trialFromEditTitle": "Otwórz Class Trial",
-      "trialFromEdit": "To otwiera budżet Class Trial i pobiera opłatę za nieznalezione Key Remnants. Anuluj zostawia fazę i zapisuje resztę.",
+      "trialFromEdit": "To otwiera budżet Class Trial i pobiera opłatę za nieznalezione Key Remnanty. Anuluj zostawia fazę i zapisuje resztę.",
       "unknownTime": "Nieznana pora dnia: {key}.",
       "unknownPhase": "Nieznana faza: {key}.",
       "actionsRefilled": {
@@ -4279,7 +4278,7 @@
     },
     "Panel": {
       "settings": "Ustawienia gry",
-      "nextStartTrial": "Wszystkie zaplanowane Key Remnants zostały znalezione. Rozpocznij Class Trial z konsoli trialu.",
+      "nextStartTrial": "Wszystkie zaplanowane Key Remnanty zostały znalezione. Rozpocznij Class Trial z konsoli trialu.",
       "title": "Danganronpa - panel GM-a",
       "launcher": "Otwórz panel GM-a",
       "gmOnly": "Tylko GM może to zrobić.",
@@ -4307,10 +4306,10 @@
       "nextEclipse": "Eclipse trwa. Zamknij go, gdy wszyscy się ustawią.",
       "nextBodyFound": "Znaleziono ciało. Rozpocznij Investigation, gdy sala będzie gotowa.",
       "nextKeysToPlace": {
-        "one": "{n} Key Remnant tej sprawy nie stoi jeszcze na mapie. Postaw go w zakładce Key Remnants okna Investigation.",
-        "few": "{n} Key Remnants tej sprawy nie stoją jeszcze na mapie. Postaw je w zakładce Key Remnants okna Investigation.",
-        "many": "{n} Key Remnants tej sprawy nie stoi jeszcze na mapie. Postaw je w zakładce Key Remnants okna Investigation.",
-        "other": "{n} Key Remnants tej sprawy nie stoi jeszcze na mapie. Postaw je w zakładce Key Remnants okna Investigation."
+        "one": "{n} Key Remnant tej sprawy nie stoi jeszcze na mapie. Postaw go w zakładce Key Remnanty okna Investigation.",
+        "few": "{n} Key Remnanty tej sprawy nie stoją jeszcze na mapie. Postaw je w zakładce Key Remnanty okna Investigation.",
+        "many": "{n} Key Remnantów tej sprawy nie stoi jeszcze na mapie. Postaw je w zakładce Key Remnanty okna Investigation.",
+        "other": "{n} Key Remnantów tej sprawy nie stoi jeszcze na mapie. Postaw je w zakładce Key Remnanty okna Investigation."
       },
       "nextAutopsy": "Truth Bullet z sekcji zwłok nie został jeszcze wydany w tym rozdziale. Wydaj go wszystkim żyjącym.",
       "nextBodyWaiting": "Ciało czeka na odnalezienie w miejscu: {room}. Odnajdzie je dwóch świadków albo ogłoś je samodzielnie.",
@@ -4347,7 +4346,7 @@
       "noCharacters": "W tym świecie nie ma jeszcze postaci.",
       "installTables": "Utwórz tabele przedmiotów",
       "despairFlow": "Despair Flow",
-      "clearFaint": "Wyczyść Faint Remnants",
+      "clearFaint": "Wyczyść Faint Remnanty",
       "sweepBullets": "Zbierz Truth Bullets",
       "sweepNone": "Nie ma czego zbierać - każdy Truth Bullet w grze jest Faint albo Final.",
       "sweepConfirm": {
@@ -4365,9 +4364,9 @@
       },
       "faintCleared": {
         "one": "Wyczyszczono {n} Faint Remnant.",
-        "few": "Wyczyszczono {n} Faint Remnants.",
-        "many": "Wyczyszczono {n} Faint Remnants.",
-        "other": "Wyczyszczono {n} Faint Remnants."
+        "few": "Wyczyszczono {n} Faint Remnanty.",
+        "many": "Wyczyszczono {n} Faint Remnantów.",
+        "other": "Wyczyszczono {n} Faint Remnantów."
       },
       "voiceReset": "Wyślij wszystkim ponownie ich pokój głosowy",
       "studentsLeft": {
@@ -4381,12 +4380,12 @@
         "badFormula": "\"{formula}\" to nie jest formuła rzutu."
       },
       "failed": "To nie zadziałało. Zajrzyj do konsoli.",
-      "faintNone": "Nie ma Faint Remnants do wyczyszczenia - każdy Remnant na mapie jest Reinforced albo powiązany ze zbrodnią.",
+      "faintNone": "Nie ma Faint Remnantów do wyczyszczenia - każdy Remnant na mapie jest Reinforced albo powiązany ze zbrodnią.",
       "faintConfirm": {
         "one": "Usunąć {n} Faint Remnant ze wszystkich scen?",
-        "few": "Usunąć {n} Faint Remnants ze wszystkich scen?",
-        "many": "Usunąć {n} Faint Remnants ze wszystkich scen?",
-        "other": "Usunąć {n} Faint Remnants ze wszystkich scen?"
+        "few": "Usunąć {n} Faint Remnanty ze wszystkich scen?",
+        "many": "Usunąć {n} Faint Remnantów ze wszystkich scen?",
+        "other": "Usunąć {n} Faint Remnantów ze wszystkich scen?"
       },
       "faintConfirmNote": "Reinforced Remnanty i wszystko powiązane ze zbrodnią zostają w spokoju. Reszta znika na dobre.",
       "stateColumn": "Stan",
@@ -5404,7 +5403,7 @@
         "cursor": "Foundry pokazuje stołowi każdy kursor z nazwiskiem - transmisja na żywo z tego, na co patrzysz. To wyłącza ją dla dwóch ról GM-a i zostawia kursory graczy w spokoju.",
         "secretDoors": "Sekretne drzwi Foundry może otworzyć każdy gracz, a jego postać przez nie przejdzie. Zamień na przejścia robi z każdych zwykłą, zamkniętą ścianę; tam, gdzie stały między dwoma pokojami, także tajne przejście, którego jeszcze nikt nie zna - daj je uczniowi na karcie Tajne przejścia. Drzwi, które nie stały między dwoma pokojami, zostają zwykłą ścianą.",
         "rulers": "Gdy gracz przeciąga żeton, cały stół widzi trasę, którą idzie - także przez tajne przejście. Ukryj zabiera linijkę rolom Gracz i Zaufany gracz, a Pokaż ją oddaje. Role GM-a zachowują swoją.",
-        "mastermind": "Kto ukrywa się wśród uczniów i Final Truth Remnants, które to udowodnią. Sezon bez Masterminda to legalny sezon - ten wiersz nigdy nie robi się czerwony.",
+        "mastermind": "Kto ukrywa się wśród uczniów i Final Truth Remnanty, które to udowodnią. Sezon bez Masterminda to legalny sezon - ten wiersz nigdy nie robi się czerwony.",
         "foundryHeld": "Po „Oddaj ustawienia Foundry” moduł nie trzyma żadnego z nich - automatyk Daggerheart, uprawnień do plików ani pilnowanych ustawień graczy - także po wyłączeniu i ponownym włączeniu. Otwórz okno i naciśnij „Przejmij je znowu”, chyba że twój stół chce je mieć oddane.",
         "hallTokens": "Sala rozpraw podpięta na karcie Sceny w Ustawieniach pokoi, bez niczego, przed czym ta karta ostrzega: ucznia, dla którego moduł nie robi tokenu, drugiego albo niepodpiętego tokenu, pokoju, ciemnej sali. Opcjonalne: stół może prowadzić rozprawę na mapie szkoły.",
         "diceSoNice": "Dice So Nice pokazuje kości, gdy padają. Bez niego rzuty są te same, tylko nikt nie widzi kości. Przycisk otwiera listę modułów Foundry, gdzie się go włącza.",
@@ -5447,9 +5446,9 @@
       },
       "resetRemnants": {
         "one": "{n} Remnant na mapach",
-        "few": "{n} Remnants na mapach",
-        "many": "{n} Remnants na mapach",
-        "other": "{n} Remnants na mapach"
+        "few": "{n} Remnanty na mapach",
+        "many": "{n} Remnantów na mapach",
+        "other": "{n} Remnantów na mapach"
       },
       "resetBullets": {
         "one": "{n} Truth Bullet i klucz odpowiedzi za nim",
@@ -5623,12 +5622,12 @@
         "noticeHistory": "Historia powiadomień każdego gracza - trzymana w jego przeglądarce, zaczyna się od nowa, gdy reset czyści zegar, incydent albo czat"
       },
       "group": {
-        "remnants": "Remnants na mapach i to, czym każdy z nich naprawdę był",
+        "remnants": "Remnanty na mapach i to, czym każdy z nich naprawdę był",
         "bullets": "Truth Bullets w pakietach obsady",
         "incident": "Incydent, Blackened, zdrada wciąż dostępna i każde morderstwo zgłoszone w ciemności",
         "trialFloor": "Głos w Class Trial",
         "trialProgress": "Postęp Class Trial i jego głosowanie",
-        "keyPlan": "Plan Key Remnants",
+        "keyPlan": "Plan Key Remnantów",
         "searchTokens": "Search Tokens wydane w każdym pokoju",
         "discovered": "Które pokoje zostały odkryte",
         "bodyFound": "Znalezione ciało, które czeka na odpowiedź, i zapis, czyje ciała znaleziono",
@@ -7361,7 +7360,7 @@
         "projectSecrets": "Kto buduje każdą pułapkę i co ją uruchamia",
         "pendingMurders": "Zgłoszenia Direct Murder w ciemności",
         "eclipseMoves": "Kto ile razy przeszedł w czasie Eclipse",
-        "keyPlan": "Plan Key Remnants, rozdział po rozdziale",
+        "keyPlan": "Plan Key Remnantów, rozdział po rozdziale",
         "trialCast": "Które tokeny sali rozpraw pokazuje Class Trial",
         "caseSchema": "Mapa sprawy: wnioski, kontry i rozwiązanie każdego rozdziału",
         "notes": "Notatki graczy przed sesją",

@@ -18704,7 +18704,7 @@ const REGRESSIONS = [
                 move: ["To kosztowało akcję - została 1 akcja.", "To kosztowało akcję - zostały 2 akcje.", "To kosztowało akcję - zostało 5 akcji."],
                 eclipse: ["1 przejście)", "2 przejścia)"],
                 summary: ["Co się u ciebie działo w porze: P.", "Co działo się przy stole w porze: P.", "2 akcje · 1 znalezisko · 5 pozostawionych Remnantów"],
-                thin: ["Nie znaleziono jeszcze żadnego Key Remnantu", "Znaleziono tylko 2 Key Remnants"],
+                thin: ["Nie znaleziono jeszcze żadnego Key Remnantu", "Znaleziono tylko 2 Key Remnanty"],
                 overflow: ["o 2 akcje mniej dla każdego, ponad to, co już zabrał Wounded", true],
                 approved: ["Wydajesz 2 Hope; zostaje ci 5 Hope.", "„I” traci wytrzymałość przez Despair"]
             },
@@ -18740,7 +18740,7 @@ const REGRESSIONS = [
         const COUNTED_PL = [`akcj${W}`, `przejś${W}`, `przejści${W}`, "tokeny?", "tokenów", "Tokeny?", "Tokenów", `sekund${W}`, `minut${W}`, `tur${W}`,
             "razy?", `punkt${W}`, "pory", "pór", "porę", `plik${W}`, `wpis${W}`, `tabel${W}`, `kart${W}`, `głos${W}`, `zdarze${W}`, "kości?", "osób",
             "osoby", "tropów", `trop${W}`, "pokoi", "pokoju", "pokoje", "pokój", `przedstawion${W}`, "nowych", "nowe", "nowy", `wybor${W}`, "wybór",
-            "Key Remnants?", `Remnant${W}`, "s", "min", "Hope", "Sanity", "Health", "Despair", `postęp${W}`].join("|");
+            `Key Remnant${W}`, `Remnant${W}`, "s", "min", "Hope", "Sanity", "Health", "Despair", `postęp${W}`].join("|");
         const AGREES_PL = `został${W}|zostaje|wróci${W}|znalazł${W}|rozlał${W}|wszystkie|wszystkich`;
         const NOT_COUNTS = new Set(["name", "names", "who", "target", "room", "rooms", "item", "what", "actor", "call", "project", "phase", "time", "tier",
             "action", "mode", "kind", "field", "row", "third", "chapter", "to", "from", "version", "bonus", "value", "label", "next", "why", "duality", "stat"]);

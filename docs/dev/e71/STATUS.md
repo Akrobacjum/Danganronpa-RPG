@@ -35,9 +35,10 @@ Counts are changes, one per plural form; a key changed in two areas counts in bo
 | glossary (handbooks) | 0 | 0 | 9 lines (unfrozen sections, EN and PL) | EN7/DB17: "Search Token" capitalized; 13 lines in frozen sections left |
 | brochure | 0 | 0 | 8 cells and 2 lines (EN and PL) | S12-73: the four empty "In short" cells of the Hope Calls table, from config.mjs HOPE_CALLS; T29 on the safeword's history |
 | M7 reserve | 1 | 0 | 2 (player handbook's Usables row, EN and PL) | M7/D5 (S13-40): Sanity is restored, not "cleared"; the Polish lang key already had pair N48 |
-| fact fixes | 1 | 1 | 0 | S06-51: `DRPG.Panel.gmOnly` refuses 47 GM-only steps, not only opening the panel |
+| fact fixes | 2 | 3 | 0 | S06-51: `DRPG.Panel.gmOnly` refuses 47 GM-only steps, not only opening the panel; the dead first `DRPG.Chapter.bodyTitle` removed in both files; `Settings.uiScale.hint` (the Polish said Foundry's windows never scale - the theme scales their type) |
 | third person (P2) | 4 | 6 | 0 | P2/P1 (DB19): the Eclipse's announcement and the assembly's note, cards the whole table reads, in the third person; T16 found 18, now 11 |
 | item quotes | 53 | 49 | 0 | EN17/PL-g (DB31): an item's name in quotes; T23 found 110 (quotedByCode 0), now 10 (bold names, frozen keys) |
+| Remnanty (DB4) | 0 | 62 | 9 (Polish handbooks, unfrozen sections, the player handbook's heading "Remnants" among them) | the owner, 12.11.2026: Polish inflects "Remnant" in the plural too ("Remnanty", "Remnantów", "Key Remnanty"); the glossary's `remnant` entry and text-style PL-a say so |
 | handbooks: GM-a | 0 | 0 | 67 (Polish handbooks, unfrozen sections) | PL-i/D33c (glossary `gm-a`, scope handbooks) |
 | Polish grammar | 2 | 23 | 10 (Polish handbooks, unfrozen sections: "Class Trialu" -> "Class Trial", three neuter Eclipse/Overflow) | no bracketed gender endings ("zgłosił(a)"); PL-a/DB4 (Class Trial indeclinable); PL-b/DB28 (Eclipse neuter); X13, PL7, P2 on single values (`Move.dead`, `Vote.reminded.few`, `Vote.opened`) |
 
@@ -51,7 +52,7 @@ rule's shape was found, and no applied text needed an exception.
 | --- | --- | --- |
 | X8 (no "please"/"sorry") | `DRPG.Reroll.rulingVoid` "Please rule again." -> "Rule again." (T5's only X8 find) | Holds. The Polish already had no "proszę". |
 | X16 (no ALL-CAPS emphasis) | 9 values: NOT, BEEN, GENUINELY/NAPRAWDĘ, ONE (twice), AND, NOT/NIE inside a sentence | Holds inside sentences. Not applied to banners and card titles (`Vote.banner` "THE VOTE IS OPEN", `Chapter.bodyBanner`, `Mastermind.*Banner`, `Safeword.banner`, `Motive.banner`, `Calls.gatherBanner`), to `Season.resetWord` "RESET" (a word the GM types to confirm), `Legacy.safeword`, the music diagnostics' OFF/MISSING/EMPTY status words, or `Clock.summaryEclipse` "ECLIPSE": these are display type, not emphasis. Proposal for the owner: allow rows in `docs/text-budgets.json` for banner and title keys, so X16 can turn FAIL without them. |
-| X15 (no "!") | not applied | All 24 finds are the genre's call-outs: "OBJECTION!" (button, banner, and sentences that name the button) and "Nonstop Debate!". Changing them changes the button's name. Proposal: an allow row for `DRPG.Trial.objection*`, `DRPG.Floor.debateOpenedTitle` and the sentences that quote the button. |
+| X15 (no "!") | not applied; allow rows added | All 24 finds are the genre's call-outs: "OBJECTION!" (button, banner, and sentences that name the button) and "Nonstop Debate!". Changing them changes the button's name. The owner approved allow rows (12.11): 42 rows in docs/text-budgets.json (X15 and X16 for the OBJECTION! keys and the debate's title, X16 for banners, card titles, the reset word, the legacy safeword and the music diagnostics' status words); T5 now counts 62 allowed. |
 | O8 (a refusal says what the reader keeps) | through the pilot's approved afters: `DRPG.Action.noRoom` ("you keep your action" / "akcji nie tracisz"), `DRPG.SearchTokens.exhausted` | Applied as the owner approved them. The pilot's EN reviewer note (O8 reads wrong on a dimmed tile's reason, `SearchTokens.exhausted`, and before any price, `Actions.notEnough`) is still the owner's: the owner approved both afters with "ok", so they landed as written. |
 | M5 / O5 (no digit typed into prose) | the pilot's approved Polish after of `DRPG.Settings.searchTokensPerRoom.hint` says "od 0 do 10" | Landed as approved; still a digit the code knows (settings.mjs:1300-1308 `range: { min: 0, max: 10 }`), as the pilot recorded. Stays to confirm. |
 | X6 (telegraph style) | `DRPG.Cleanup.bareHands` "Nothing readied. Bare hands, then." -> a whole sentence with the facts of N49 | Applied once. T18's other finds are short labels, world-voice flavor ("No Hope Calls. Not one, by anybody.") or config prose, left. |
@@ -122,6 +123,7 @@ edited unless the row says so.
 | 12.11, run v | d5e4bfc0 and the M7 and gmOnly edits | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run x | 626dcb7e and the P2 edits | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run y | ce42324a and the item quotes | 1230 passed, 0 failed, 16 skipped, 0 red; scenario 40-flow 88/88 |
+| 12.11, run z | edf8500f and Remnanty, the allow rows, bodyTitle and uiScale | 1229 passed, 1 failed (R1156 read "Znaleziono tylko 2 Key Remnants"; given the new form and its counted-noun list `Key Remnant*`, green alone), 16 skipped |
 | 12.11, run f | 0a5ea4d3 and the GM-side T29 cuts (the bridge's refusals, the trial hall, the vote's privacy note) | 1230 passed, 0 failed, 16 skipped, 0 red |
 
 ## Tests whose expected wording changed
@@ -138,4 +140,5 @@ then given the new wording.
 | R518 | (no test change) | the GM handbook's quote of `DRPG.Vault.descriptionNote` (section 1, line 88) | the quote was updated with the key (red first) |
 | R387, R603 | scripts/tests-tier0.mjs (lines 13491, 14918, 14919, 14934) | Polish handbook sentences read with "GMowi", "GMa" | the same sentences with "GM-owi", "GM-a" (red first: both failed in the tier 1 run) |
 | R310 | scripts/tests-tier0.mjs | the player handbook's Daily Life ladder sentence with "no trace" / "żaden ślad" | "no Remnant" / "żaden Remnant" (red first in run o) |
+| R1156 | scripts/tests-tier0.mjs | `Investigation.tooThin` pl "Key Remnants", and the Polish counted nouns "Key Remnants?" | "Key Remnanty", and `Key Remnant*` (red first in run z) |
 | R431 | (no test change) | the GM handbook's copy of `DRPG.Season.roomGuide` (section 2, line 136) | the handbook line was updated with the key |
