@@ -70096,6 +70096,67 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "an unseen Plant or a quiet grant reached the victim, or the planted knife went into their hand ([done, seen, the knife stashed, in a hand, the victim's stowed Gear, [packets, cards, redraws] at the victim's player]; [the grant stashed, what reached them])");
     }],
 
+    ["a Gear arriving unseen into pockets that already hold one stowed and a knife in the hand leaves the knife held, readies nothing and tells the victim nothing (E91 C8 guard, the second review's #1)", async () => {
+        /*
+         * E91 C8's guard, 12.11.2026; the second end review's #1, the coordinator's order. Under quiet, inventory.mjs
+         * `keepGearShape` readied the victim's other stowed piece (D090) through use-items.mjs `toggleEquipped`, which puts
+         * down whatever is in the hand: a knife held, a Gear planted unseen beside one stowed, and the knife went down with
+         * no word - the incident reading another weapon in their hand. Now the other piece is readied only when the hand is
+         * empty; a held piece is never put down, and two stay stowed (as before D090) with the GM's log saying so.
+         * Reached how: every piece a hand can hold shares one group of two slots, one stowed at most, so a Plant into a
+         * held knife and a stowed Tool is refused for full pockets (measured here first: done false); the quiet branch is
+         * reached by a GM's quiet grant past the slots (`grantItem` with `override` and `quiet`), the same road
+         * `keepGearShape` takes. Two students alone together; the victim holds a knife and has one Tool stowed; a Tool
+         * granted quietly. Read: the knife still held, the stowed Tool still stowed, the granted Tool stowed, and what
+         * reached the victim's player. Red before the guard: the knife put down, the old Tool in the hand.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the Plant reads - this would measure nothing");
+                const INV = await import("./inventory.mjs");
+        const { isEquipped, toggleEquipped } = await import("./use-items.mjs");
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const [planter, victim] = cast(2);
+        const players = [ownerIdsOf(planter), ownerIdsOf(victim)];
+        must(players[0].length && players[1].length && !players[0].some(id => players[1].includes(id)),
+            "the planter and the victim are not each another player's - what reaches whom would measure nothing");
+        const fixture = await aloneTogether(planter, victim);
+        const KNIFE = "SUITE E91 guard a held knife", STOWED = "SUITE E91 guard a stowed Tool", PLANTED = "SUITE E91 guard a planted Tool";
+        const NAMES = [KNIFE, STOWED, PLANTED], flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const group = ITEM_CATEGORIES.tool?.limitGroup ?? null;
+        must(group && ITEM_CATEGORIES.crimeTool?.limitGroup === group, "a knife and a Tool share no group of slots - the shape this reads is not there");
+        const inGroup = i => ITEM_CATEGORIES[i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)]?.limitGroup === group;
+        const stashed = [], read = {};
+        try {
+            for (const i of victim.items.filter(i => inGroup(i) && !INV.isStashed(i))) {
+                stashed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            const knife = await INV.grantItem(victim, { name: KNIFE, category: "crimeTool", tier: 1, override: true, quiet: true });
+            await toggleEquipped(victim, knife, { shape: true });
+            const one = await INV.grantItem(victim, { name: STOWED, category: "tool", tier: 1, override: true, quiet: true });
+            await sheetAuditIdle();
+            must(knife && one && isEquipped(victim.items.get(knife.id)) && !isEquipped(victim.items.get(one.id)),
+                "the victim does not hold the knife with one Tool stowed - this would measure nothing");
+            let out = null;
+            const sent = await sentDuring(async () => {
+                out = await INV.grantItem(victim, { name: PLANTED, category: "tool", tier: 1, override: true, quiet: true });
+                await settle();
+            });
+            const landed = victim.items.find(i => i.name === PLANTED) ?? null;
+            read.plant = [Boolean(out), isEquipped(victim.items.get(knife.id)), isEquipped(victim.items.get(one.id)),
+                landed ? isEquipped(landed) : null, await reachedPlayersOf(victim, sent)];
+        } finally {
+            for (const a of [planter, victim]) for (const i of a.items.filter(i => NAMES.includes(i.name))) await i.delete();
+            for (const [i, was] of stashed) if (victim.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({ plant: [true, true, false, false, [0, 0, 0]] }),
+            "a Gear arriving unseen put down the knife the victim held, readied another piece, or told them ([arrived, the knife held, the old Tool held, the planted Tool held, [packets, cards, redraws]])");
+    }],
+
     ["a stash rifled unseen does not redraw its owner's sheet, for a whole item or a piece of a stack; a clumsy hand's does (E35-T8, S08-34)", async () => {
         /*
          * E35 C3, 24.10.2026; audit S08-34, E35-17. The harm: somebody helping themselves from a stash is not

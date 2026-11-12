@@ -896,7 +896,8 @@ export async function grantItem(actor, {
  * Gear leaves one hidden, not two"). The planted piece stays stowed, unseen; the victim's OTHER working stowed piece of
  * the group goes into the hand, with no whisper and no redraw (`toggleEquipped`'s `render` false) - so the planted one
  * is the one hidden, and the incident reads the victim's own tool in their hand. Default, owner may revise: which piece
- * is readied. With no other piece that can be held ready, two stay stowed and the GM's log says so, as before.
+ * is readied. With no other piece that can be held ready, or a hand already holding one (never put down: E91 C8's
+ * guard), two stay stowed and the GM's log says so, as before.
  */
 /**
  * The piece of `group` that goes into the hand when `item` arrives and the shape needs one: `item` itself where it
@@ -916,14 +917,16 @@ export async function keepGearShape(actor, item, { quiet = false } = {}) {
         const group = ITEM_CATEGORIES[category]?.limitGroup;
         const max = group ? LIMIT_GROUPS[group]?.maxStowed : null;
         if (max === null || max === undefined) return false;
-        const { stowedInGroup, isEquipped, toggleEquipped } = await import("./use-items.mjs");
+        const { stowedInGroup, isEquipped, toggleEquipped, readiedItems } = await import("./use-items.mjs");
         if (isEquipped(item)) return false;
         if (stowedInGroup(actor, group).length <= max) return false;
         if (quiet) {
             // `readyForShape`'s second choice, never the arrival: the first working piece of the group stowed beside it.
             const other = (actor.items ?? []).find(piece => piece.id !== item.id && !isBroken(piece) && !isStashed(piece)
                 && ITEM_CATEGORIES[piece.getFlag(MODULE_ID, ITEM_FLAGS.category)]?.limitGroup === group && !piece.getFlag(MODULE_ID, "equipped")) ?? null;
-            if (!other) {
+            // Never a held piece put down (E91 C8's guard; the second review's #1): `toggleEquipped` puts down whatever the
+            // hand holds, so the other piece is readied only into an empty hand, else two stay stowed.
+            if (!other || readiedItems(actor).length) {
                 log(`${actor.name} now carries "${item.name}" stowed beside other ${LIMIT_GROUPS[group].label}, unseen, and nothing else of it can be held ready.`);
                 return false;
             }
