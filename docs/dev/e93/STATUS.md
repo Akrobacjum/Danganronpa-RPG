@@ -66,26 +66,34 @@ All nine killed. Not run as mutants: the draw's room check in roll-draw.mjs (sce
 | 12.11, Toll's price | lint; check.mjs; tiers 0-1 | 0 problems; 17 parts green; 1182 ran, 1166 passed, 0 failed, 16 skipped, 1 red (older) |
 | 12.11, Toll's price | scenarios 83, 33, 40 (the drawn rolls' roads) | 110/110, 79/79, 88/88 |
 
-## Defaults taken, owner to confirm
+## The owner's answers (DRPG-D1, 12.11.2026)
+
+The owner's answers on the decisions page DRPG-D1, 12.11.2026, through the coordinator. **Approved** as they stand:
 
 - Q-E93-1: the "costs an action" switch is a completed project's action's only; Work keeps its cost.
 - Q-E93-2: a room's GM actions are listed only to a character standing in the room. They are region flags, which every
   browser holds, so a console reads them anywhere - the same as a room's description today.
-- Q-E93-3: not reached - the timed effects are not built in this round (below).
 - Q-E93-4: Toll raises the room actions only, not the rests.
 - Q-E93-5: "for those present" is read on the GM at the moment of use.
-- Q-E93-6: a GM's action leaves a faint Subtle trace; a project's action and the rests none.
-- The five new Overflow states start unticked (out of the hat): five more in a hat of eight would make each old one
-  drawn little more than half as often at every table that did not ask for them. Owner to say whether they start ticked.
 - A Relief's free Short Rest is not barred by Insomnia (it is a Call paid in Hope).
 - A GM's room action always costs an action (the 08.11 switch is a project's action's alone, Q-E93-1).
-- The tile's hint (`DRPG.Config.ACTIONS.rest.hint`, EN in config.mjs) is the owner's approved text of batch B01a, so it
-  is left as it was: it speaks of the rests only. Owner to say whether it should name the room's actions; the label is
-  "Facilities" in both languages, and the handbooks say the rest.
-- The project manager (the owner's approved card M16) gains one button per row, in the Edit cell after the pen: the
-  project's room action. No new column. Tier 0's R2077 now expects that button's key there. Owner to confirm the place.
-- A secret project's action is kept in the GMs' half while the project is secret, and in this round its insiders are
-  not offered it (their browsers do not hold it). Owner to say whether insiders should get it.
+- The tile's hint (`DRPG.Config.ACTIONS.rest.hint`) is left as it was: it speaks of the rests only.
+- The project manager's button in the Edit cell after the pen; no new column.
+
+**Changed** by the owner, each built red first (progress below, "This round's changes"):
+
+- Q-E93-6, "Akcja projektu tez zostawia slad": a project's room action leaves a faint Subtle trace too; the rests none.
+  **Built** (E93-T4).
+- The five new Overflow states, "Wlaczone w losowaniu": they start ticked, in the draw by default; the handbooks say each
+  older state now comes up less often. In progress.
+- A secret project's insiders, "Dostaja": they get its action, on their browsers only. In progress.
+- Q-E93-3, "Dodajemy teraz": the timed effects and the effects that needed a new mechanism. In progress.
+
+## This round's changes (the owner's DRPG-D1 answers, 12.11.2026)
+
+| Part | What | Red | Green |
+| --- | --- | --- | --- |
+| Q-E93-6 | every use of a room action leaves a faint Subtle trace, a project's too (bridge-runs-acts.mjs `handleFacilityUse`); handbooks EN and PL | E93-T4 at 1584394: traces [] | E93-T1..T4 8 passed (4 tests and the runner's 4 checks) |
 
 ## Not built in this round (said, not hidden)
 

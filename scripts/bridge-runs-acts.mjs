@@ -132,7 +132,9 @@ export async function handleFacilityUse(payload, sender) {
         if (offer.source === "gm") await closeForAll(offer.key, mark);
         const effects = offer.source === "gm" ? offer.action.effects : offer.facility.effects;
         const lines = success ? await applyEffects(actor, effects, place, sender) : [];
-        if (offer.source === "gm") await leaveTrace(actor, offer.label);
+        // Every use leaves a faint Subtle trace, a GM's action's and a project's alike (the owner's answer to Q-E93-6,
+        // 12.11.2026: "Akcja projektu tez zostawia slad"); the rests leave none.
+        await leaveTrace(actor, offer.label);
         await tellUse(actor, offer, success, lines);
         debug(`${actor.name} used the room action "${offer.label}" in ${place.room} (${offer.source}): ${success ? "success" : "failure"}.`);
         Hooks.callAll("drpgFacilityUsed", { actor, source: offer.source, key: offer.key, success });

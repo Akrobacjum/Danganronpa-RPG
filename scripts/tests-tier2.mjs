@@ -88050,6 +88050,46 @@ const SCENARIOS = [
             powercut: [[true, game.i18n.localize("DRPG.Facility.shut.powercut")]], off: 0 }),
             "{before: [rows, stamp] before completion; done: [stamped now, its row, the Projects line names it]; next: [stands at the next time of day, its line]; powercut: its row; off: rows once taken off} - a project's action and its lifetime");
     }],
+    ["E93-T4 - a completed project's room action leaves a faint Subtle trace where it is used, as a GM's does (scripts/bridge-runs-acts.mjs `handleFacilityUse`, facilities-gm.mjs `leaveTrace`; the owner's answer to Q-E93-6, 12.11.2026: \"Akcja projektu tez zostawia slad\"): a player's use of a project's action through the road places one Remnant of the action, Subtle and faint, where the character stands", async () => {
+        /*
+         * E93, 12.11.2026 (the owner's DRPG-D1 answers, through the coordinator). Judged as the primary judges the player's
+         * packet (`G.judge`), a public project in the character's room given a free action and completed by the GM's
+         * progress. Put back: the trace, the project. Red at 1584394: a project's action left no trace (the default the
+         * owner changed).
+         */
+        const F = await import("./facilities.mjs");
+        const P = await import("./projects.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { remnantData } = await import("./remnants.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const was = new Set(where.scene.tokens.map(t => t.id));
+        const told = [];
+        let id = null;
+        const read = {};
+        try {
+            id = (await P.createProject({ name: "SUITE E93-T4 kettle", target: 1, room: where.room }))?.id ?? null;
+            must(id, "no project was made - this would measure nothing");
+            await F.setProjectFacility(id, { label: "SUITE E93-T4 kettle", effects: [{ kind: "text", text: "SUITE" }], costsAction: false, lifetime: { kind: "forever" } });
+            await P.addProgress(id, 1);
+            await settle();
+            await G.judge(BRIDGE_ACTIONS, { action: "facility.use", requestId: `E93T4${foundry.utils.randomID(8)}`, actorId: actor.id, actionId: `${F.PROJECT_PREFIX}${id}` },
+                player.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            read.answer = reply?.action === "bridge.refused" ? reply.reason : reply ? "done" : null;
+            read.traces = where.scene.tokens.filter(t => !was.has(t.id) && remnantData(t)?.action === "facility")
+                .map(t => [remnantData(t)?.visibility ?? null, Boolean(remnantData(t)?.faint)]);
+        } finally {
+            const placed = where.scene.tokens.filter(t => !was.has(t.id)).map(t => t.id);
+            if (placed.length) await e93DropTraces(where.scene, placed);
+            for (const m of game.messages.filter(m => m.speaker?.actor === actor.id && m.whisper?.length && /SUITE E93-T4/.test(m.content ?? ""))) await m.delete();
+            if (id) await P.deleteProject(id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ answer: "done", traces: [["subtle", true]] }),
+            "{answer; traces: [visibility, faint] of each Remnant the use placed} - a project's room action's trace");
+    }],
     ["E69-T2 - a crossing settles once, on the primary, where the token still stands (scripts/crossing-settle.mjs `scheduleSettle`, movement.mjs `recordCrossingInStep`; E69 C2, S18-28, A10): a crossing into the room the token stands in fires drpgCrossingSettled once with its actor, rooms, way and Eclipse after the wait; two crossings in a row fire one event from the first room to the last; a crossing into a room the token is not in when the wait ends (put back) fires none; and the GMs' record of a crossing schedules one", async () => {
         /*
          * E69 C2, 12.11.2026. The wait is the test's own (`ms`), so nothing waits 2 s; the token is not moved: the room it

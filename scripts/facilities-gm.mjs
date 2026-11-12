@@ -22,7 +22,7 @@
  *     roll-draw.mjs `drawRefusal`); a project's action, which has no roll, is paid here, by this GM (`spendAction`):
  *     FACILITIES.projectCost or none as the project's switch says, and the Toll's `by` more.
  *   - WHAT IT DOES: each effect written by this GM (`applyEffects`), on the user or on those standing in the room at
- *     this moment (Q-E93-5's default), and a faint Subtle trace in the room for a GM's action (Q-E93-6's default).
+ *     this moment (Q-E93-5's default), and a faint Subtle trace in the room for every use, a GM's action's and a project's (Q-E93-6, the owner 12.11.2026).
  *
  * What a console can still do, said here so that it is not mistaken for covered: the Toll's extra action on a GM's
  * action is paid by the roller's browser with the base one, and the draw's ticket proves one payment, not its size
@@ -132,7 +132,7 @@ export async function applyEffects(actor, effects, place, sender = null) {
     return lines;
 }
 
-/** A GM's action's use leaves a trace in its room (Q-E93-6's default: faint, Subtle), placed by this GM. */
+/** A room action's use leaves a trace in its room, a GM's action's and a project's (Q-E93-6, the owner 12.11.2026: faint, Subtle), placed by this GM. */
 export async function leaveTrace(actor, label) {
     try {
         const { dropRemnant } = await import("./remnants.mjs");
