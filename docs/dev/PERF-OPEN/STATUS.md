@@ -88,10 +88,10 @@ G, the glass band: 1.2-3.9 ms a paint at every width, the first of a width no de
    - **the reading at the table**: `game.drpg.openTimes()` - every module window and actor sheet opened on the page,
      its first open against the middle of its later ones, in ms from the click (or key) before it to the render hook and
      to two frames later, and what the warming did. Console only.
-2. Tests: R3917 (tier 0, red on 1.2.108: the warm list holds every file `import()` reaches outside the static graph,
-   nothing loaded at boot, a reason for each left cold; the reader shown a planted graph first), R3918 (tier 0: the
-   summary and the template reader on fixtures), R3919 (tier 1: every file of this browser's plan imported without an
-   error). A misspelt file in the plan turns R3917 and R3919 red (a mutant, run 12.11.2026, put back).
+2. Tests: R4200 (tier 0, red on 1.2.108: the warm list holds every file `import()` reaches outside the static graph,
+   nothing loaded at boot, a reason for each left cold; the reader shown a planted graph first), R4201 (tier 0: the
+   summary and the template reader on fixtures), R4202 (tier 1: every file of this browser's plan imported without an
+   error). A misspelt file in the plan turns R4200 and R4202 red (a mutant, run 12.11.2026, put back).
 3. `audit/harness/probes/09-open-cost.mjs` (new): reading H, rerunnable.
 
 ## After

@@ -29,7 +29,7 @@ import { MODULE_ID } from "./config.mjs";
 import { error, log } from "./utils.mjs";
 
 /*
- * The files a window reaches only by `import()`, by who opens it. R3917 holds this list to the code: every file that
+ * The files a window reaches only by `import()`, by who opens it. R4200 holds this list to the code: every file that
  * `import()` reaches and module.mjs's static graph does not is here or in NOT_WARMED, and nothing here is loaded at
  * boot already. A file's own static imports come with it (look.mjs with settings-window.mjs, case-hints.mjs with
  * case-trial.mjs).
@@ -43,7 +43,7 @@ export const WARM_IMPORTS = Object.freeze({
     gm: Object.freeze(["passages-tab.mjs", "case-trial.mjs", "case-summary.mjs"])
 });
 
-/* Reached only by `import()` and left cold, each with its reason (R3917 reads that one is written). */
+/* Reached only by `import()` and left cold, each with its reason (R4200 reads that one is written). */
 export const NOT_WARMED = Object.freeze({
     "patches.mjs": "module.mjs's ready hook imports it on every client already (watchSheetRenders), before this runs"
 });
@@ -213,7 +213,7 @@ function onRender(app, element, _context, options) {
 
 /**
  * The opens read, one row a window: its first open on this page and the middle of its later ones, from the click (or
- * key) before it to its render (`render`) and to two frames after (`shown`), in ms. Pure: R3918 runs it on a fixture.
+ * key) before it to its render (`render`) and to two frames after (`shown`), in ms. Pure: R4201 runs it on a fixture.
  */
 export function summarizeOpens(rows) {
     const byKey = new Map();

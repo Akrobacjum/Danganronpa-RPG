@@ -23560,7 +23560,7 @@ const REGRESSIONS = [
             css: [true, true]
         }), "{pure: clamp, a zoom about a point, a zoom at the limit, fit, the pan held, a node revealed; reads: the drawn map's camera [start; the wheel about the pointer; a drag on empty space; a drag on a node; + then -; eased; the tools' zoom out and its readout; still under reduced motion; 0 fits; the transform; the viewport never scrolled]; css: the viewport clips, reduced motion stops the ease}");
     }],
-    ["R3917 - a window's file that would be fetched on its first open is fetched at idle after ready instead", async () => {
+    ["R4200 - a window's file that would be fetched on its first open is fetched at idle after ready instead", async () => {
         /*
          * perf-open line, 12.11.2026. The owner, at a table on 1.2.108 (Foundry 14.365 on a hosted server): the module's
          * windows are slow the first time each opens, and fine after. Probe 09 (audit/harness/probes/09-open-cost.mjs)
@@ -23608,9 +23608,9 @@ const REGRESSIONS = [
         ok(!twice.length, `listed twice in open-cost.mjs: ${twice.join(", ")}`);
         const bare = Object.entries(W.NOT_WARMED).filter(([, why]) => typeof why !== "string" || why.length < 20).map(([file]) => file);
         ok(!bare.length, `a file left cold with no reason written beside it: ${bare.join(", ")}`);
-        log(`R3917: ${lazy.length} file(s) reached only by import(), ${planned.length} warmed, ${Object.keys(W.NOT_WARMED).length} left cold with a reason`);
+        log(`R4200: ${lazy.length} file(s) reached only by import(), ${planned.length} warmed, ${Object.keys(W.NOT_WARMED).length} left cold with a reason`);
     }],
-    ["R3918 - the open times are read first open against later ones, and the templates off the classes' parts", async () => {
+    ["R4201 - the open times are read first open against later ones, and the templates off the classes' parts", async () => {
         /*
          * perf-open line, 12.11.2026. open-cost.mjs's two pure readers, on fixtures: `summarizeOpens`, the table
          * `game.drpg.openTimes()` prints (a window's first open, the middle of its later ones, an open no click came before
