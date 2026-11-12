@@ -113,3 +113,22 @@ Summary: of the 16 register rows owned by Daggerheart, 14 read **same**; **criti
   field by field, Daggerheart's CSS.
 
 Part 2, every wait between a player's click and the dice on both roads with the harness's timings, is `WAITS.md` beside this file.
+
+## What the DH212b line changed (12.11.2026, built on 1.2.109)
+
+Each item red first, then green, with the quick gate and scenarios 83 and 33 on every tip. Numbers are the harness's
+(4 cores, headless, no real network, no real Dice So Nice); none was measured at a table.
+
+| Item | Commit | What changed | Red -> green |
+| --- | --- | --- | --- |
+| 1 | 13513d3a | A GM's pick card is read as it lands (`pickArriving` on `createChatMessage`, `updateChatMessage`, `drpgSecretStored`), not at the next 100 ms poll; the 2 s bound and the answer are unchanged | lag after the card settled [97,29,86,58,6] ms -> [1,0,0,0,0] |
+| 2 | 70dfc1af | A payment is taken as it lands (`wakePayments`, a second `updateActor` listener after `notePayments`), a 100 ms read kept for `handedOver`; the 1.5 s bound unchanged | lag after the payment [68,27,87,47,12] ms -> [0,-1,0,0,0] |
+| 3 | 980b2326, f61a2450 | "The GM is throwing your dice." / "GM rzuca twoimi kośćmi." (`DRPG.Rolls.gmThrowing`) when a drawn roll's dice have not started `DRAW_SIGN_MS` after it was asked; taken down at the dice, the answer or the end. **600 ms is chosen, not measured** (about twice the harness's 325 ms to the dice at 80 ms each way) | R3990: no `drawSign` -> per case [[1,1],[0,0],[0,0],[1,1],[1,1]] |
+| 4a | 341a4ccf, 7cae6abf | `roll.draw` is asked again when a GM is ready (`resend: true`) and answered from the GM's record by Foundry's sender and the request's id (`drawAgainOf`); `DRAW_ANSWER_MS` unchanged (30 s) | the player's resend refused -> answered as first; another player's packet and a new id judged as any. Mutants: 4 killed, 1 equivalent |
+| 5 | 9e43ba5e, 3dc28064 | A GM's Reroll reads the roll's effects as 2.10 and 2.12 do (`rollEffectsOf`, row 8 above); the register's rows `roll-marks-move-context` and `roll-outcome-evaluated`, and `critical-rule` failed where the system reads the critical on neither place (rows 1, 3, 4 above) | R3992, R3991: no such functions -> green |
+
+What these do not change: the honest gain of items 1 and 2 is at most about 100 ms per drawn roll, and only when the
+roll reaches the GM before the card's meta or the payment; the full 2 s or 1.5 s is still paid where no card or payment
+comes, which no honest browser sends. The waits the owner may be seeing at a table - the 16 s for the GMs' marks after a
+GM's load, a slow server, Dice So Nice's first throw - are not touched here; `game.drpg.perf()` at the table is the
+reading that says which.
