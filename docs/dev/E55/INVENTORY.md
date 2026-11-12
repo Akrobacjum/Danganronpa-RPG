@@ -431,6 +431,8 @@ the values agree.
 
 ### 3.6 Every "brush" definition (`--brush`, `#drpg-brush`)
 
+**Corrected 12.11.2026, measured in Chromium 153 on audit/glass-harness.html (audit/look-freeze.mjs; the E55 plan, section 8):** for the panel, GM panel and messenger buttons the brush's `::before` stands at `left: -5px` from a third statement, stained-glass.css about line 3259 (`... ::before { inset: -4px -5px; }`), which this section did not list. The `1px -5px` (885-910) and `1px -3px` (2866-2873) statements both lose there, so "2866 wins over 885 for the four non-sheet arms" below is wrong. The sheet arm was not measured (no page draws the sheet's buttons under the glass).
+
 `--brush` is defined in 19 rules and read in 28 (stained-glass.css 77 mentions, components.css 26, danganronpa.css 1).
 The painted brush itself - a `::before` with `inset: 1px -5px; z-index: -1; background: var(--brush);
 opacity: var(--brush-on, 0); filter: url(#drpg-brush) brightness(var(--brush-dim, 1))` - is written out **five times**:

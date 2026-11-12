@@ -96,7 +96,7 @@ Then the named definitions:
 
 | Id | What | Proof |
 | --- | --- | --- |
-| B1 | One brush: one `::before` rule over an `:is()` of the six roles (panel buttons, the GM panel's, mini buttons, the sheet's, the messenger's, the tiles' plates), the colours staying per role (`--brush`). The two insets (-3 px for the panel buttons since stained-glass.css's second statement, -5 px for the sheet) become a token per role. | F2's `::before` rows unchanged; screenshots |
+| B1 | One brush: one `::before` rule over an `:is()` of the six roles (panel buttons, the GM panel's, mini buttons, the sheet's, the messenger's, the tiles' plates), the colours staying per role (`--brush`). The two insets (-3 px for the panel buttons since stained-glass.css's second statement, -5 px for the sheet) become a token per role. | F2's `::before` rows unchanged; screenshots | **Measured 12.11.2026 (section 8): the panel, GM panel and messenger buttons' brush stands at `inset: -4px -5px` (stained-glass.css, the third statement, about line 3259), not at -3 px; the `1px -5px` and `1px -3px` statements lose there. The sheet arm's inset was not measured (no page draws the sheet's buttons in the glass).**
 | K1 | One checkbox per theme: the glass's drawn definition stays where it is; Legacy's five `accent-color` places become one token on one selector (components.css, the kit's). | F2's rows; the settings window and the item tables window under Legacy compared by screenshot (which of the two equal rules wins there today was not measured) |
 | L1 | Colour literals to tokens: a glass ink channel (`--drpg-sg-ink-rgb`) and a small set of named grounds for the near-miss darks (36 of the 102 numeric literals); the five near-misses merged only where contrast allows. | budget `colourLiterals` down; `check contrast`; SWEEP |
 
@@ -167,7 +167,7 @@ read, so C1's and C2's counts and the surface tables are re-read at the base.
 | Q-E55-2 | The sheet split by surface: sections in the existing sheets, or new served files (each changes the cascade order of what it takes)? | Sections. |
 | Q-E55-3 | Where the index of defensive selectors lives. | CONTRIBUTING.md's "The CSS contract", one subsection. |
 | Q-E55-4 | The "300 lines of dead rules" are ~355 proven lines of other kinds (section 2); the css-lint finds none. Is that the set meant? | Yes, and C1/C2 make the lint find them from now on. |
-| Q-E55-5 | The brush's two insets (-3 px panel buttons, -5 px the sheet): keep both as role tokens, or one value chosen on screenshots? | Keep both (today's winning values). |
+| Q-E55-5 | The brush's two insets (-3 px panel buttons, -5 px the sheet): keep both as role tokens, or one value chosen on screenshots? | Keep both (today's winning values). | **Its premise was wrong (measured 12.11.2026, section 8): the panel buttons do not stand at -3 px. The default still holds as "keep today's computed values"; the owner was told through the coordinator.**
 | Q-E55-6 | A target for the `!important` budget per sheet at the stage's end? | None stated: the ratchet records what the deletions free (36 proven at the base, more from step 3). |
 
 ### The owner's answers
@@ -180,3 +180,21 @@ The owner accepted every default of the table above (through the coordinator, 12
 - Q-E55-4: owner: default, 12.11.2026
 - Q-E55-5: owner: default, 12.11.2026
 - Q-E55-6: owner: default, 12.11.2026
+
+## 8. Foundations built on 12.11.2026 (tools/ and audit/ only, on the prep-54 line)
+
+| Item | State | Commit |
+| --- | --- | --- |
+| F0 | **Run, and red.** `node audit/style-sweep.mjs` with Chrome for Testing 153 at 4dfac3a9: 2308 differences not accepted (40 pages with no row; select fields clipped, the kit's tabs, line heights, widths). The same Chromium at e258b135, the commit that last wrote audit/style-baseline.json: 1176 differences, 1149 of them the same as at 4dfac3a9. So about half is this build's drift - the baseline does not record which build wrote it - and the rest came with commits after e258b135 that accepted no rows. F0 cannot be closed on a machine whose build is not the baseline's: it needs the build that wrote it, or a new baseline written by the build that will check it (CI line below). | - (a reading) |
+| F1, F2 | **Built, beside the sweep:** `audit/look-freeze.mjs` and `audit/look-freeze-baseline.json`. 36 surfaces on the pages that already draw them (the sheet's parts: action panel, tiles, reserves, inventory; the glass pages: the Despair rail, the tray, the strip's values, the launchers' glyphs, the brush of the panel, GM panel and messenger buttons), 17 pseudo-elements and the masks, 32 properties each, the sweep's sizes, both themes, about 15 s. Its baseline names its browser build and a run in another build compares nothing. Red first on a copy: a changed winning brush inset read at every size. scripts/style-snapshot.mjs and audit/style-baseline.json untouched. | 0a5922ab |
+| F1, what is left | No harness page draws these, so they are not frozen: chat cards, the Event panel, the Calls' tiles, the sheet's header (name, traits, Hope), its tab bar, the item sheet, the glass checkbox (`node audit/look-freeze.mjs --list`). Each needs a drawing on audit/style-harness.html or audit/glass-harness.html first: an audit/ commit, but it draws the module's markup, which for the sheet's header and the chat cards means reading how scripts/ builds it at the stage's base. | open |
+| Findings in the browser | The sound launcher's speaker glyph (danganronpa.css `#drpg-sound-launcher i`) changed to another glyph reads as no difference: dead, as the inventory said. The brush has three inset statements for the panel buttons, and the third (`inset: -4px -5px`, about line 3259) wins: the inventory's "2866 wins over 885" and Q-E55-5's "-3 px panel buttons" were wrong (corrected in INVENTORY.md 3.6). | - |
+
+**How CI could run it (a plan line; .github/ is the coordinator's).** A job beside `check`: `npm ci` in
+audit/harness, then `npx playwright install --with-deps chromium` (the build Playwright 1.56.1 pins, so every
+run is the same build), then `node audit/look-freeze.mjs` and `node audit/style-sweep.mjs`. The first run in
+that job has no baseline of its build: it runs with `--write`, uploads both baselines as an artifact, and a
+commit on main takes them in; from then on the job compares. Cost: the freeze about 15 s (timed); the sweep was not timed
+here (500 readings, several minutes on 4 cores), so the sweep could run on a dispatch or nightly and the freeze on
+every push. A Playwright upgrade is then a baseline rewrite in the same commit, read before it is committed.
+

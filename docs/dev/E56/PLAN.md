@@ -122,3 +122,31 @@ The owner accepted every default of the table above (through the coordinator, 12
 - Q-E56-4: owner: default, 12.11.2026
 - Q-E56-5: owner: default, 12.11.2026
 - Q-E56-6: owner: default, 12.11.2026
+
+## 8. Foundations built on 12.11.2026 (tools/ only, on the prep-54 line)
+
+| Item | State | Commit |
+| --- | --- | --- |
+| C1 | **Built:** `tools/comments-lint.mjs`, `tools/comment-budget.json` and the part `node tools/check.mjs comments` (needs espree, as `names`, `moves` and `text` do). Counts per module file of scripts/: backticked names in comments that no code, language key or stylesheet holds (175 at 4dfac3a9), and doubled JSDoc blocks (63); a `known` list for names read and kept with their reason. The ratchet is css-lint's: red above a row and red below it until `--write` lowers it. Red first on a copy: a planted comment and a planted pair each read as their file's count above its budget; two broken readers turned the self-check red. About 3 s. | 0271bfb2 (header wording in 0a5922ab) |
+
+**What it does to the open lines (measured 12.11.2026).** Each line's tree merged with this branch
+(`git merge-tree`, no conflict in any of the twelve refs asked) and the lint run on the merged tree: 6 lines read 0
+problems (e101, e97-98, gaps-108, texts-e71, dh-212, perf-open) and 5 would turn the part red once both are on
+main:
+
+| Line | What it adds (file: name or block) |
+| --- | --- |
+| fervent-sagan-gme4vt | roll-draw.mjs: `applyBaseBonus` cited twice; sheet-audit.mjs falls from 13 to 11 (below its row: red until lowered) |
+| e72 | call-pickers.mjs `callChoice`; voice-client.mjs `DEAD_ROOM`; a doubled JSDoc in monocub.mjs, murder-rules.mjs and verdict.mjs |
+| e93 | config.mjs `TIMED_UNTIL`; crossing-settle.mjs `crossingSettled`; facilities.mjs `projectAction`; a doubled JSDoc in bridge-asks.mjs |
+| e64 | a doubled JSDoc in config.mjs |
+| e100 | action-rolls.mjs `NEEDS_OWN_BRIEFING` (a comment naming what that line removed) |
+
+Some of these are the defects the gate exists for (a comment naming a constant its own line removed); some may be
+names read and kept. The landing order is the coordinator's. `--write` never raises a row (a file new to the
+budget gets one at its count), so a line that ADDS a finding cannot clear it with `--write`: it rewrites the comment
+or names the name in `known` with the reason. Either the part lands after those lines, with its budget written
+once at that base (the rows emptied and `--write` run: a reading of the base, read before it is committed), or each
+of the five lines does one of those in its own merge; fervent-sagan's sheet-audit.mjs, which falls below its row,
+is cleared by `--write`.
+

@@ -92,8 +92,8 @@ range, never by editing the test it names.
 
 | Id | What | Proof |
 | --- | --- | --- |
-| C0a | A family reader in tests-kit.mjs, as E41 C2b did for the bridge (`bridgeRead`/`bridgeFn`, R1238): `familySource(file)` and `familyFn(file, name)` read a facade and the files of its family (a table in tests-kit.mjs, one row per facade of this stage, empty lists to start), refuse when a name is declared in none or in two of them, and refuse when a file of the family is not served. | Red first: a planted fixture where a function moved to a family file and the old `fnSource(src("sheet.mjs"), ...)` silently returns "" - see risk R1. The reader is shown its planted faults (the stackShapes lesson). Next free R at the base (R3917 at 4dfac3a9). QUICK. |
-| C0b | Point every test that reads the source of a file this stage splits at the family reader, one commit per old file (sheet, utils, settings, investigation, cleanup, chapter, glass). The tests that name each file at 4dfac3a9 are listed in section 6; at the base, `git grep -n '"sheet.mjs"' scripts/tests*.mjs` lists them again. | Tiers 0-1 green with the same counts before and after (a reader pointed wrong reads less, not nothing: compare the logged counts each test prints). |
+| C0a | A family text for each facade of this stage in tests-kit.mjs (`sheetText(sources)`, as E41 left `actionText`, `panelText`, `hudText` and the bridge's `bridgeRead`/`bridgeFn`, R1238): the facade and its family's files joined, comments stripped, refusing when a file of the family is not served. | A planted fixture: a negated whole-file read (`ok(!/x/.test(text))`) of a function moved to a family file must read the moved code through the family text. Next free R at the base (R3917 at 4dfac3a9). QUICK. **In scripts/ (tests-kit.mjs): not part of the tools/audit foundations line of 12.11.2026.** |
+| C0b | Point the tests that read a split file's WHOLE text at its family text, one commit per old file. Reads through `fnSource`, `bodyOf` and `topLevelFunction` need no change to stay honest: they refuse a missing function or marker (`must`, tests-kit.mjs, since E30), so a move turns them red and they are repointed in the move's own commit. | Tiers 0-1 green with the same counts before and after. The whole-file reads at the base: re-run the census in Appendix C. |
 | C0c | tools/text-map.mjs's SCREENS rows that name a unit of a file this stage splits (`scripts/sheet.mjs:buildOtherSection`, `scripts/cleanup.mjs:askTransform`, `askTransformChange`, `openMoveBodyDialog`, `scripts/chapter.mjs:openDeathDialog`, `openBodyDiscoveryDialog`, `promoteFaintPrep`, `scripts/investigation.mjs:placeKeyRow`, `confirmSweepBullets`, and the `:*` rows): `node tools/check.mjs text` fails when a row names no top-level unit of its file, so each row is updated in the move commit that moves its unit, not before. | Listed here so the move commits expect it. |
 
 ### Step 1 - sheet.mjs (8 commits)
@@ -152,7 +152,7 @@ About 26 commits: 3 + 8 + 6 + 4 + 5 to 6 + 1.
 
 | Id | Risk | What holds it |
 | --- | --- | --- |
-| R1 | A test that reads a function's source from the old file reads "" after the move and passes on nothing: e.g. tier 0 R591 asserts `!/objection/i.test(fnSource(src("sheet.mjs"), "addPresentButton"))`, which is true of an empty string. This is the root working notes' first failure ("a test can pass by measuring nothing"). | C0a's reader refuses a name it cannot find; C0b points every reader at it before anything moves. |
+| R1 | A test that reads a split file's WHOLE text with a negated assertion (`ok(!/bad/.test(cleanup))`) still passes after the code it guards moved to a family file: it reads only the facade. Measured 12.11.2026 (Appendix C): 9 such reads of this stage's files, e.g. tier 0 near line 2533 on all of cleanup.mjs. Reads through `fnSource`/`bodyOf` are not this risk: they fail loudly when the function moves (this plan said otherwise until 12.11.2026; corrected after reading tests-kit.mjs). The earlier waves' facades are already read through family texts (`actionText`, `panelText`, `hudText`). | C0a's family texts; C0b repoints the whole-file reads before anything moves. |
 | R2 | moved-only `cuts`: a cut runs to the next function or `const X = {`; a range that ends where the next statement stays behind makes a cut a tier file reads by name grow or shrink. | Ranges end at a banner or a function boundary; the tool says which, and the range is changed, not the test. |
 | R3 | A static cycle through an outside file (R161). The tables in section 3 hold none between new files; a new file imports only what its lines read, and moved-only's `imports` part refuses a module the family did not import at the base. | R161 in QUICK. |
 | R4 | The registration of `scaleWindow` moves from import time to init (W2). A window rendered before init would no longer be scaled. None is known; the fit sweep reads every captured window. | W2's own test and the fit sweep. |
@@ -255,6 +255,17 @@ A row changes if the owner answers Q-E54-1..7 otherwise.
 | `scripts/body.mjs` | a body found (E54): the prep traces promoted, the discovery and its queue (`discoverBody`, `runDiscovery`), the announcement and its hook (`announceBody`, `BODY_ANNOUNCED_HOOK`, `registerBodyAnnounced`), who finds and who witnesses (`bodiesToDiscover`, `witnessesOf`, `maybeBodyFound`) and the discovery window; the body's tile is body-tile.mjs's | `chapter.mjs` |
 | `scripts/glass-geometry.mjs` | the curtain's geometry (E54): convex polygons and half-planes (`split`, `clipRect`, `area`, `overlaps`, `inside` ...), the affine and polygon math of the turn, and the two partitions with explicit arguments (`curtainShapes` for a desk, `stackShapes` for a stacked screen, with `deskShapes`, `meetBands` and `windowShapes`); no DOM, no module state | `glass.mjs` |
 
+## Appendix C - the whole-file negated reads (measured 12.11.2026)
+
+A census of scripts/tests*.mjs for a negated regex or `includes` over a variable bound to a split file's whole
+text (not through `fnSource`, `bodyOf`, `topLevelFunction` or `lineAround`). It is a text reading with false
+positives (a variable named like a sheet's, a CSS text): each hit is read by hand at the base. At 4dfac3a9 it
+printed 9 hits for sheet, utils, settings, investigation, cleanup, chapter, glass and remnants; read by hand,
+the cleanup.mjs one (tier 0, `const cleanup = stripComments(sources.get("cleanup.mjs"))` then
+`ok(!/viaAction\s*&&\s*data\.sourceActor\s*!==\s*actor\.id/.test(cleanup))`) is real, and several others are
+other files' texts named `src`. Over E34's and E41's facades it printed 24, and the action, panel and HUD ones
+read through the family texts already.
+
 ## Appendix A - re-measuring at the base
 
 `split.mjs <file> <groups.json>`: groups are `[name, firstLine, lastLine]`, 1-based, everything else is the
@@ -336,3 +347,14 @@ for (const f of fs.readdirSync("scripts").filter(f => /^tests.*\.mjs$/.test(f)))
   });
 }
 ```
+
+## Appendix D - the foundations line of 12.11.2026
+
+The coordinator asked the prep-54 line for E54's C0 among the foundations that touch tools/ and audit/ only. C0 is
+not one of them: a family text the tier files read lives in scripts/tests-kit.mjs, beside E41's `actionText`,
+`panelText` and `hudText`, and the reads it repoints are in scripts/tests-tier*.mjs. What was done instead is the
+measurement C0 rests on (Appendix C, and the correction of R1 and C0b above): reads through `fnSource`, `bodyOf`
+and `topLevelFunction` already refuse a missing function (tests-kit.mjs `must`, since E30), so a move turns them
+red; the silent case is a negated read of a split file's whole text, about nine at 4dfac3a9, which C0a and C0b
+handle in scripts/ when E54 starts.
+
