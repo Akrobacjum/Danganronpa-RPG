@@ -21099,7 +21099,8 @@ const REGRESSIONS = [
                 if (m[1] === "callWindow" && !inner.includes("footer")) wrong.push(`${file}: a callWindow call with no footer slots`);
             }
         }
-        must(calls.chooseVariant.length >= 10 && calls.callWindow.length >= 7,
+        // 9 chooseVariant calls since E101, which made Level Up's two questions one window (R4056); 10 before.
+        must(calls.chooseVariant.length >= 9 && calls.callWindow.length >= 7,
             `read ${calls.chooseVariant.length} chooseVariant and ${calls.callWindow.length} callWindow call(s) - fewer than the module's, this would measure too little`);
         const old = [...texts].filter(([, t]) => /\btableDialog\b/.test(blankLiterals(blankComments(t)))).map(([f]) => f);
         equal(JSON.stringify({ wrappers, wrong, tableDialog: old }), JSON.stringify({
@@ -22634,7 +22635,8 @@ const REGRESSIONS = [
                 /promptForRequest\(\{[^;]*?\bcolumns:\s*true\b/.test(topLevelFunction(blankComments(src["action-dynamic.mjs"]), "performDynamic") ?? "")]
         }), JSON.stringify({
             builder: [true, true, false], menu: [true, true], blocks: [], imports: ["./ui-kit.mjs", "./utils.mjs"], outside: [],
-            narrow: ["level-up.mjs#openAdvancementFor 2"], dynamic: [true, true]
+            // E101: Level Up's two questions are one window (R4056), so one chooseVariant there (changed on purpose).
+            narrow: ["level-up.mjs#openAdvancementFor 1"], dynamic: [true, true]
         }), "[actionWindow exported, opening through wideWindow and not drpgWindow; chooseVariant's columns on by default and opening through "
             + "actionWindow; a block ui-columns.mjs does not export; what it imports; an opener that opens a window of its own or builds none; who asks columns: false; "
             + "Dynamic: askForRequest opens actionWindow on columns, performDynamic asks columns]");
@@ -22680,7 +22682,8 @@ const REGRESSIONS = [
         }), JSON.stringify({
             // E49 A1e: Killing game rules left Between sessions for Season setup's row of windows (R3582).
             twice: [], moved: { rules: [], voiceReset: ["fixes"], chapterEndTile: [] },
-            standing: [false, true], line: [true, true, true, true], columns: [true, true, true], end: [true, true, true, true, true]
+            // E101 (changed on purpose): the line's door to Students went, the Now section's Students tile is the door (R4054).
+            standing: [false, true], line: [true, false, true, true], columns: [true, true, true], end: [true, true, true, true, true]
         }), "{twice: tile keys in more than one place; moved: the sections holding each of the four; standing: [a table in the standing block, the students line in it]; "
             + "line: [plural's words, the door to Students, the acting cast, counted by actions left]; columns: [Actions, Free Move, read from actions.mjs]; "
             + "end: [the part in Edit campaign, a warning box with a destructive button, the press goes to the question, the question destructive with Cancel writing nothing, the chapter's end after it]}");
@@ -22949,7 +22952,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({
             loaded: true,
             sections: [["look", "client", 5, true], ["effects", "client", 5, true], ["sound", "client", 1, true], ["tech", "client", 1, true],
-                ["audio", "game", 3, true], ["rules", "game", 7, true], ["privacy", "game", 6, true], ["gm", "game", 4, true], ["foundry", "game", 2, true]],
+                ["audio", "game", 2, true], ["rules", "game", 6, true], ["privacy", "game", 6, true], ["gm", "game", 1, true], ["foundry", "game", 7, true]],
             once: [], others: ["sfxVary"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
             menus: read.menus === "not modelled" ? "not modelled" : [[`${MODULE_ID}.drpgSettings`, false]],
             words: [], sectionWords: [true, true, true, true, true, true, true, true, true]

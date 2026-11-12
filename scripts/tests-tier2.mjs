@@ -86732,7 +86732,7 @@ const SCENARIOS = [
          * E47-C8, 09.11.2026. The window as the GM panel's tile opens it (gm-panel.mjs `openWhoIsAliveDialog`), on the
          * module's own roads: the Role select through monokuma.mjs `markFromSheet` (its question drawn and answered by
          * its own buttons), `setMonokuma` and `setNotInClass`; the Level Up through level-up.mjs `openAdvancementFor`
-         * (its two menus answered Standard and the player picks, every other window left to DialogV2); Items through
+         * (its one window answered Standard and the player picks, since E101; every other window left to DialogV2); Items through
          * gm-items.mjs `openItemManager` (the hub closed by hand). A character of the suite's own, owned by nobody, is
          * the one marked out of the class. Then the player's own write of the Monokuma flag, as tier 2 makes one
          * (`asPlayerWrite`): the GMs' audit puts it back (E24 fix G1, sheet-audit.mjs `GM_FLAGS`). Red first on
@@ -86823,8 +86823,15 @@ const SCENARIOS = [
                 if ((cfg?.classes ?? []).includes("drpg-window-alive")) return realWait.call(this, cfg);
                 const markup = typeof cfg?.content === "string" ? cfg.content : (cfg?.content?.outerHTML ?? "");
                 const choices = [...markup.matchAll(/name="variant" value="([^"]*)"/g)].map(m => m[1]);
-                menus.push(choices.filter(v => !v.startsWith("take:")));
-                return Promise.resolve(choices.includes("standard") ? { value: "standard" } : choices.includes("player") ? { value: "player" } : null);
+                /* One window since E101 (R4056; changed on purpose): the kinds and, under them, who picks (`name="who"`),
+                   answered Standard with the player's row ticked on the window's own form, as Grant reads it. */
+                const who = [...markup.matchAll(/name="who" value="([^"]*)"/g)].map(m => m[1]);
+                menus.push(choices.filter(v => !v.startsWith("take:")), who);
+                const form = document.createElement("template");
+                form.innerHTML = markup;
+                const player = form.content.querySelector('input[name="who"][value="player"]');
+                if (player) player.checked = true;
+                return Promise.resolve(choices.includes("standard") ? { value: "standard", form: form.content } : null);
             };
             const first = of()[0];
             el()?.querySelector(`[data-drpg-levelup="${CSS.escape(theirs.id)}"]`)?.click();
@@ -88408,7 +88415,8 @@ const SCENARIOS = [
         }
         const rows = made.map(a => [`${ACT.actionsLeft(a)} / ${ACT.actionsMax(a)}`, ACT.hasFreeMove(a) ? "yes" : "no"]);
         equal(stableJson(read), stableJson({ rows, kinds: new Set(rows.map(r => r.join(" "))).size,
-            line: [String(made.filter(a => ACT.actionsLeft(a) > 0).length), true] }),
+            // E101 (changed on purpose): no door to Students on the line; the Now section's tile is the door (R4054).
+            line: [String(made.filter(a => ACT.actionsLeft(a) > 0).length), false] }),
         "{rows: each seeded student's [Actions cell, Free Move's state]; kinds: the distinct readings; line: [the panel's count over the sixteen, its door to Students]}");
     }],
     ["End the chapter from Edit campaign runs the chapter's end once after its confirm, and Cancel at the question writes nothing (scripts/gm-campaign.mjs `openClockDialog`, `endTheChapter`; E49 A2; the owner's 10.11 [12] and [16])", async () => {

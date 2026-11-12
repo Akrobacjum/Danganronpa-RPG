@@ -422,7 +422,7 @@
         "sound": "Dźwięk i głos",
         "rules": "Zasady przy stole",
         "privacy": "Rzuty i prywatność",
-        "gm": "Narzędzia GM-a i mapa",
+        "gm": "Mapa",
         "tech": "Techniczne"
       }
     },
@@ -4640,6 +4640,7 @@
       "unknownKind": "Nieznany typ Level Up: {kind}.",
       "failed": "Nie udało się zapisać Level Up. Zajrzyj do konsoli.",
       "whoPicks": "Kto wybiera, co bierze {actor}?",
+      "grant": "Przyznaj",
       "who": {
         "gm": "Wybieram ja",
         "gmHint": "Okno otwiera się tutaj i wybierasz za tę postać - tak jak działało to zawsze.",
@@ -5660,6 +5661,7 @@
       "checkRooms": "Sprawdź pokoje na tej scenie",
       "checkClean": "Nie ma czego zgłaszać - pokoje na tej scenie są czyste.",
       "waitingForCast": "Czeka na obsadę: najpierw utwórz uczniów.",
+      "resetNote": "Kasuje przebieg sezonu - projekty, dowody, śmierci, przedmioty, Level Upy - a obsada zostaje. Najpierw zapyta.",
       "roomsVision": "{scene}: działa tam jeszcze widzenie, mgła albo globalne światło Foundry, więc gracze mogą widzieć czerń.",
       "moreChecking": "Sprawdzam zdjęcia pokoi, głos, kości i karty...",
       "moreFailed": "Nie udało się pokazać dalszych sprawdzeń. Powód podaje Dziennik debugowania w panelu GM-a.",

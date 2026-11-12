@@ -1158,16 +1158,15 @@ export function advanceHtml(clock = getClock(), eclipse = isEclipse()) {
  * The table that stood here - a row per acting student, its actions and its free Move - is two columns of the Students
  * window now (gm-students.mjs `aliveTableHtml`), and the panel keeps the one number a GM reads it for: how many of the
  * living cast, a Monocub included (monokuma.mjs `actingStudents`, as `nextStep` counts them), still have an action this
- * time of day, `plural()`'s words, and beside it the door to Students - the tile's own key, so the panel's delegate runs
- * it and the panel comes back after it as after any tile. ONE LINE IN EVERY STATE: nobody left, everybody left and an
- * empty cast draw the same paragraph and the same button, only the number changes (the owner's 10.11 rule: a state
+ * time of day, in `plural()`'s words (its button to Students went in E101: the Students tile is the door). ONE LINE IN
+ * EVERY STATE: nobody left, everybody left and an empty cast draw the same paragraph, only the number changes (the owner's 10.11 rule: a state
  * changes look, never layout). Exported for R3345 and the tier-2 reading.
  */
 export function studentsLeftHtml(roster = actingStudents()) {
     const n = roster.filter(a => actionsLeft(a) > 0).length;
-    return `<p class="drpg-gmp-students" data-drpg-students-left="${n}">${esc(plural("DRPG.Panel.studentsLeft", { n }))}
-                <button type="button" class="drpg-gmp-next-go" data-drpg-run="whoIsAlive">
-                    <i class="fa-solid fa-heart-pulse" inert></i> ${esc(game.i18n.localize("DRPG.Panel.whoIsAlive"))}</button></p>`;
+    // The count alone since E101 (the owner's yes of 12.11.2026 to the GM screens' review): its Students button was the
+    // Now section's Students tile again, two rows below, and that tile stays the door (R4054).
+    return `<p class="drpg-gmp-students" data-drpg-students-left="${n}">${esc(plural("DRPG.Panel.studentsLeft", { n }))}</p>`;
 }
 
 /** The case tile's second line (E47-C3; the Back up tile's before it): when the case was last backed up, from the world's case mark (E04). */

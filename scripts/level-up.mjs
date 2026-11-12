@@ -51,15 +51,30 @@ export async function openAdvancementFor(actor) {
     // Imported dynamically because this window is opened from a sheet button
     // and a GM console, neither of which is on a path that has already paid
     // for that module.
-    const { chooseVariant } = await import("./action-rolls.mjs");
+    const [{ chooseVariant }, { choiceRowHtml }] = await Promise.all([import("./action-rolls.mjs"), import("./ui-columns.mjs")]);
 
     /* WHAT STANDS, AND TAKING IT BACK (E10 C6; audit S03-17). The GM's sheet showed no offer
        and this menu had no way back from one: an offer made by mistake stood until it was
-       spent. Each standing offer is a third choice here, oldest first. */
-    const standing = standingOffers(actor).map(offer => ({
-        value: `take:${offer.id}`, icon: "fa-rotate-left",
-        label: game.i18n.format("DRPG.Advance.takeBack", { kind: advanceKindName(offer.kind) })
-    }));
+       spent. Each standing offer is a third choice here, oldest first; its button says what it does. */
+    const standing = standingOffers(actor).map(offer => {
+        const label = game.i18n.format("DRPG.Advance.takeBack", { kind: advanceKindName(offer.kind) });
+        return { value: `take:${offer.id}`, icon: "fa-rotate-left", label, confirm: label };
+    });
+
+    /*
+     * WHO PICKS (N-2, Dawid 20.09), IN THE SAME WINDOW (E101; the owner's yes of 12.11.2026 to the GM screens' review).
+     *
+     * The GM decides WHAT was earned - standard or reinforced - and who chooses the buff is a separate question, so
+     * they stay two groups of rows; until E101 they were two windows, the first one's button doing nothing but ask the
+     * second. Now the second group stands under the first, and one Grant answers both. Asked only where a player owns
+     * the character: an offer nobody would see is not made (`offerAdvancement`), the GM picks.
+     */
+    const played = ownerIdsOf(actor).length > 0;
+    const whoRows = played ? `<p>${game.i18n.format("DRPG.Advance.whoPicks", { actor: foundry.utils.escapeHTML(actor.name) })}</p>
+        <div class="drpg-choice-list drpg-advance-who">${[
+            { value: "gm", icon: "fa-user-pen", label: game.i18n.localize("DRPG.Advance.who.gm"), hint: game.i18n.localize("DRPG.Advance.who.gmHint") },
+            { value: "player", icon: "fa-paper-plane", label: game.i18n.localize("DRPG.Advance.who.player"), hint: game.i18n.localize("DRPG.Advance.who.playerHint") }
+        ].map((row, i) => choiceRowHtml(row, { checked: i === 0, name: "who" })).join("")}</div>` : "";
 
     const picked = await chooseVariant({
         actor,
@@ -69,6 +84,8 @@ export async function openAdvancementFor(actor) {
         prompt: game.i18n.format("DRPG.Advance.whichKind", {
             actor: foundry.utils.escapeHTML(actor.name)
         }),
+        confirm: game.i18n.localize("DRPG.Advance.grant"),
+        extra: whoRows,
         options: [
             { value: "standard", icon: "fa-arrow-up",
               label: advanceKindName("standard"),
@@ -83,41 +100,13 @@ export async function openAdvancementFor(actor) {
     if (!picked) return null;
     if (picked.value.startsWith("take:")) return takeBackOffer(actor, picked.value.slice("take:".length));
     // Nobody would see an offer (`offerAdvancement`): said, and the GM picks.
-    if (!ownerIdsOf(actor).length) {
+    if (!played) {
         ui.notifications.info(game.i18n.format("DRPG.Advance.nobodyPlays", { name: actor.name }));
         return openAdvancement(actor, picked.value);
     }
-
-    /*
-     * WHO PICKS (N-2, Dawid 20.09).
-     *
-     * The GM decides WHAT was earned - standard or reinforced - and that stays
-     * theirs; who chooses the buff is a separate question, and at most tables the
-     * answer is the player. Asked as a second menu rather than as four options in
-     * the first, because the two questions are not the same kind of question: the
-     * first is a ruling about what happened, the second is about who is at the
-     * keyboard next.
-     */
-    const who = await chooseVariant({
-        actor,
-        // Level Up keeps its one column (E68 C12; Q12: a reward, not an action of the table).
-        columns: false,
-        title: game.i18n.format("DRPG.Advance.title", { actor: actor.name }),
-        prompt: game.i18n.format("DRPG.Advance.whoPicks", {
-            actor: foundry.utils.escapeHTML(actor.name)
-        }),
-        options: [
-            { value: "gm", icon: "fa-user-pen",
-              label: game.i18n.localize("DRPG.Advance.who.gm"),
-              hint: game.i18n.localize("DRPG.Advance.who.gmHint") },
-            { value: "player", icon: "fa-paper-plane",
-              label: game.i18n.localize("DRPG.Advance.who.player"),
-              hint: game.i18n.localize("DRPG.Advance.who.playerHint") }
-        ]
-    });
-    if (!who) return null;
-
-    if (who.value === "player") return offerAdvancement(actor, picked.value);
+    // The who-picks row checked when Grant was pressed; the GM's when the answer carries no form (the suite's stand-ins).
+    const who = picked.form?.querySelector?.('input[name="who"]:checked')?.value ?? "gm";
+    if (who === "player") return offerAdvancement(actor, picked.value);
     return openAdvancement(actor, picked.value);
 }
 

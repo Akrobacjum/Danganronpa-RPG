@@ -18648,6 +18648,73 @@ const INVARIANTS = [
         }), "{runPreSessionChecks; [the checklist's Pre-season button, its closing note, its further checks]; the report's parts with nothing to say; [the dice look's button, its console line]; "
             + "[Sound files, hall tokens, npcs, What the module holds (not given back), (given back)]; the Monokuma row opens Students; the rooms row asks the scene's vision; [Diagnostics' report: the contract part, the console line]; the Debug log's button and no tile}");
     }],
+    ["R4053 - the game's settings that patch Foundry, not the game, are in Foundry and the system (E101; the owner's yes of 12.11.2026 to the GM screens' review, Game settings): settings-window.mjs `GAME_SECTIONS`' foundry section holds Voice in Foundry's window, Replace Daggerheart's Fear, the module's windows for Foundry's sidebar and scene controls, no file browser for players and the token shield from Isometric Perspective beside the two welcomes, and no other section names any of the five", async () => {
+        /*
+         * E101, 12.11.2026. The review marked five rows "do schowania" (hide): each is a patch to Foundry, Daggerheart or
+         * another module rather than a rule of the game, and three of them stood among the table's rules in "GM tools and
+         * map". Moved, not changed: the same registrations, the same window. Red at 4dfac3a: the five in audio, rules and gm.
+         */
+        const W = await import("./settings-window.mjs");
+        const FIVE = ["liveKitInFoundry", "hideSystemFear", "foundryToolWindows", "enforcePlayerFiles", "isoTokenShield"];
+        const where = key => W.GAME_SECTIONS.filter(s => s.keys.includes(key)).map(s => s.key);
+        equal(JSON.stringify(FIVE.map(where)), JSON.stringify(FIVE.map(() => ["foundry"])), "[the section each of the five is in]");
+    }],
+    ["R4054 - the GM panel's students line is the count alone: gm-panel.mjs `studentsLeftHtml` draws the number of students with actions left and no button, and the Students tile of Now stays the one door to the Students window (E101; the owner's yes of 12.11.2026 to the GM screens' review, GM panel: the same button stood two rows below)", async () => {
+        /*
+         * E101, 12.11.2026. E49 A2 put a Students button beside the count (the owner's [16] of 10.11); the review found the
+         * same door two rows below, the Now section's Students tile, and the owner said yes to keeping the number alone.
+         * Red at 4dfac3a: the line carries a button `data-drpg-run="whoIsAlive"`.
+         */
+        const GP = await import("./gm-panel.mjs");
+        const box = document.createElement("div");
+        box.innerHTML = GP.studentsLeftHtml([]);
+        const list = stripComments(new Map(await moduleSources()).get("gm-panel.mjs") ?? "").match(/^const PANEL_SECTIONS = \[[\s\S]*?^\];/m)?.[0] ?? "";
+        equal(JSON.stringify([box.querySelectorAll("[data-drpg-students-left]").length, box.querySelectorAll("button").length, /key:\s*"whoIsAlive"/.test(list)]),
+            JSON.stringify([1, 0, true]), "[the count's paragraph, buttons in the line, the Students tile in the panel's sections]");
+    }],
+    ["R4055 - Reset the season stands at the foot of Season setup's body in a warning frame, not in its footer beside Cancel (E101; the owner's yes of 12.11.2026 to the GM screens' review, Season setup): season-setup.mjs `seasonResetPart` is a kit warning box with one destructive button `data-drpg-reset-season`; `openSeasonSetup` draws it in its body, its footer names no `reset`, and the press closes the window unsaved and runs season-wipe.mjs `resetSeason`, with every question it asks", async () => {
+        /*
+         * E101, 12.11.2026. E49 A1d moved Reset the season into Season setup's footer, on the destructive role, beside
+         * Cancel; the review asked for End the chapter's shape instead - a warning frame under the fields. The reset itself
+         * is unchanged (its window, its RESET word). Read on detached markup and in source. Red at 4dfac3a: no
+         * `seasonResetPart`, the footer's destructive `reset`.
+         */
+        const SS = await import("./season-setup.mjs");
+        must(typeof SS.seasonResetPart === "function", "season-setup.mjs exports no seasonResetPart");
+        const box = document.createElement("div");
+        box.innerHTML = SS.seasonResetPart();
+        const open = fnSource(stripComments(new Map(await moduleSources()).get("season-setup.mjs") ?? ""), "openSeasonSetup");
+        const button = box.querySelector('.drpg-box[data-drpg-box="warning"] button[data-drpg-reset-season]');
+        equal(JSON.stringify([Boolean(button), Boolean(button?.className.includes("drpg-role-destructive")), box.querySelectorAll("button").length,
+            /\$\{seasonResetPart\(\)\}/.test(open), /action:\s*"reset"/.test(open), /data-drpg-reset-season/.test(open) && /resetSeason\(\)/.test(open)]),
+            JSON.stringify([true, true, 1, true, false, true]),
+            "[the warning box's button, destructive, buttons in the part; the part in Season setup's body; a footer reset; the press wired to resetSeason]");
+    }],
+    ["R4056 - Level Up asks what was earned and who picks in one window (E101; the owner's yes of 12.11.2026 to the GM screens' review, Level Up: \"oba pytania w jednym oknie i przycisk Przyznaj\"): level-up.mjs `openAdvancementFor` opens one `chooseVariant` - the kinds and any take-back rows, and, where a player owns the character, the who-picks rows under them (`name=\"who\"`, read off the answer's form) - its confirm Grant (`DRPG.Advance.grant`), a take-back row's its own words", async () => {
+        /*
+         * E101, 12.11.2026. Two menus one after the other, the first's button "Do it" doing nothing but asking the second.
+         * Read in source with comments taken out; the windows a GM gets are tier 2's (the nobody-plays test reads one menu
+         * and the picker, as before). Red at 4dfac3a: two `chooseVariant` calls, no `who` rows.
+         */
+        const fn = fnSource(stripComments(new Map(await moduleSources()).get("level-up.mjs") ?? ""), "openAdvancementFor");
+        must(fn.length > 200, "level-up.mjs has no openAdvancementFor - this would read nothing");
+        equal(JSON.stringify([(fn.match(/\bchooseVariant\(/g) ?? []).length, /name:\s*"who"/.test(fn), /input\[name="who"\]:checked/.test(fn),
+            /confirm:\s*game\.i18n\.localize\("DRPG\.Advance\.grant"\)/.test(fn), game.i18n.has("DRPG.Advance.grant")]),
+            JSON.stringify([1, true, true, true, true]), "[chooseVariant calls; who rows; who read off the form; Grant the confirm; Grant in the lang file]");
+    }],
+    ["R4057 - Item tables' Tier pools tab has no New Tier pool field and no Rename (E101; the owner's yes of 12.11.2026 to the GM screens' review, Item tables): tables-editor.mjs `poolPaneHtml(\"tiers\")` draws Delete beside a pool's name and no `newPool:tiers` field and no Rename (Install builds the tier pools, and a tier pool's name has one shape), while the Room pools pane keeps both; the Tier pools tab's footer is Install alone beside Close", async () => {
+        /*
+         * E101, 12.11.2026. The review: "Nowa pula Tier" said itself that it is not how it is done - Install builds them all
+         * - and Rename took only the fixed shape "DRPG Tools - Tier 2". Read on detached markup with no tables and in source.
+         * Red at 4dfac3a: both on the tiers pane, `newPool` in its footer.
+         */
+        const E = await import("./tables-editor.mjs");
+        const read = family => { const box = document.createElement("div"); box.innerHTML = E.poolPaneHtml(family, [], null);
+            return [box.querySelectorAll(`[name="newPool:${family}"]`).length, box.querySelectorAll("[data-drpg-rename-table]").length, box.querySelectorAll("[data-drpg-delete-table]").length]; };
+        const open = fnSource(stripComments(new Map(await moduleSources()).get("tables-editor.mjs") ?? ""), "openItemTables");
+        equal(JSON.stringify([read("tiers"), read("rooms"), /editTiers:\s*\["install"\]/.test(open)]), JSON.stringify([[0, 0, 1], [1, 1, 1], true]),
+            "[tiers: the new pool's field, Rename, Delete; rooms: the same; the Tier pools tab's footer Install alone]");
+    }],
     ["R3532 - Reset the season is Season setup's, and Settings takes its tile (E49 A1d; the owner, 11.11.2026): in gm-panel.mjs `PANEL_SECTIONS` no tile `seasonReset`, a tile `settings` last in Between sessions that opens settings-window.mjs `openGameSettingsWindow` and is disabled for a user who may not modify settings; season-setup.mjs `openSeasonSetup`'s footer has a destructive `reset` named by `DRPG.Season.resetTitle`, and its answer runs season-wipe.mjs `resetSeason`; the window and its tile are Season setup / Ustawienia sezonu, the new tile Settings / Ustawienia gry", async () => {
         /*
          * E49 A1d, 11.11.2026. The owner: "Chcialbym wrzucic season reset w set the season up, a calosc przemianowac na
@@ -18673,8 +18740,9 @@ const INVARIANTS = [
         const read = {
             tiles: [sections.some(([, t]) => t.includes("seasonReset")), between.at(-1) ?? null],
             tile: [/openGameSettingsWindow\(\)/.test(tile), /disabled:\s*\(\)\s*=>\s*!mayModifySettings\(\)/.test(tile)],
-            footer: [/destructive:\s*\[\{\s*action:\s*"reset",\s*label:\s*game\.i18n\.localize\("DRPG\.Season\.resetTitle"\)/.test(open),
-                /if \(result === "reset"\) return \(await import\("\.\/season-wipe\.mjs"\)\)\.resetSeason\(\);/.test(open)],
+            // E101 (changed on purpose): out of the footer into its warning frame in the body (`seasonResetPart`, R4055).
+            footer: [/\$\{seasonResetPart\(\)\}/.test(open),
+                /if \(resetAsked\) return \(await import\("\.\/season-wipe\.mjs"\)\)\.resetSeason\(\);/.test(open)],
             words: [en.DRPG?.Season?.title, pl.DRPG?.Season?.title, en.DRPG?.Panel?.settings, pl.DRPG?.Panel?.settings]
         };
         equal(JSON.stringify(read), JSON.stringify({ tiles: [false, "settings"], tile: [true, true], footer: [true, true],
@@ -18709,7 +18777,8 @@ const INVARIANTS = [
             footer: [/primary:\s*\{\s*action:\s*"save"/.test(open), /action:\s*"checks"/.test(open), /destructive:\s*\[\{\s*action:\s*"reset"/.test(open), /close:\s*\{\s*role:\s*"cancel"/.test(open)],
             order: [keys.includes("seasonSetup"), keys.includes("mastermind")]
         };
-        equal(JSON.stringify(read), JSON.stringify({ width: "tables", px: true, footer: [true, false, true, true], order: [true, false] }),
+        // E101 (changed on purpose): Reset the season left the footer for its frame in the body (R4055).
+        equal(JSON.stringify(read), JSON.stringify({ width: "tables", px: true, footer: [true, false, false, true], order: [true, false] }),
             "{the width Season setup states; it at the root's 16 px is at least 780 px; [Save, a Pre-season checks button in the footer, Reset the season destructive, Cancel]; [a Season setup tile, a Mastermind tile]}");
     }],
     ["R3580 - Season setup is the one place a season is set up, in its order (E49 A1e; the owner, 11.11 and 12.11.2026): season-setup.mjs `openSeasonSetup` draws Edit campaign and nothing else in the body that scrolls - one block, `fieldset.drpg-setup-campaign` named \"Edit campaign\", holding Edit campaign's six fields in their order, the safeword, the refill box and End the chapter's destructive button at its foot, each field once in the window - and under it, pinned (`.drpg-kit-pinned`, the body's next sibling), the GM panel's tiles for Despair Flow, The Mastermind, Killing game rules and the Season checklist, each with its icon and its window's title; no checklist row; the footer is Save (primary), Reset the season (destructive) and Cancel, and nothing else", async () => {
@@ -18756,7 +18825,8 @@ const INVARIANTS = [
             group: pinned?.querySelector(".drpg-gmp-grid")?.getAttribute("aria-label") ?? null,
             footer: (cfg.buttons ?? []).map(b => [b.action, roleOf(b)]).sort()
         }), stableJson({
-            parts: ["campaign"],
+            // E101 (changed on purpose): Reset the season's warning frame after the block, out of the footer (R4055).
+            parts: ["campaign", "div"],
             body: [false, 0],
             pinned: [true, false],
             legend: L("DRPG.Panel.jump"),
@@ -18766,7 +18836,7 @@ const INVARIANTS = [
             tiles: [["gmTeam", "fa-users-gear", L("DRPG.Panel.despairFlow")], ["mastermind", "fa-user-secret", L("DRPG.Mastermind.dialogTitle")],
                 ["rules", "fa-gavel", L("DRPG.Rules.manageTitle")], ["seasonChecklist", "fa-list-check", L("DRPG.Season.checklistTitle")]],
             group: L("DRPG.Season.windows"),
-            footer: [["close", "cancel"], ["reset", "destructive"], ["save", "primary"]]
+            footer: [["close", "cancel"], ["save", "primary"]]
         }), "{parts: the form's parts in order; body: [a tile in the body that scrolls, checklist rows in the window]; pinned: [the pinned part the body's "
             + "next sibling, a field in it]; legend: the block's name; fields: the block's named fields in order; once: how often the name, the chapter "
             + "and the safeword stand in the window; end: [End the chapter's role, after every field]; tiles: the pinned tiles [key, icon, label]; group: "
@@ -27794,15 +27864,16 @@ const INVARIANTS = [
 
         const refusal = { name: "DRPG Weapons - Tier 2", text: "a refusal measured here" };
         let pane = null;
-        try { pane = t.poolPaneHtml ? t.poolPaneHtml("tiers", [], null, refusal) : null; } catch (err) { pane = `threw ${err.message}`; }
+        // E101 (changed on purpose): the Tier pools pane has no New pool field (R4057); the Room pools pane's is read.
+        try { pane = t.poolPaneHtml ? t.poolPaneHtml("rooms", [], null, refusal) : null; } catch (err) { pane = `threw ${err.message}`; }
         const box = document.createElement("div");
         box.innerHTML = pane ?? "";
-        const field = box.querySelector('input[name="newPool:tiers"]');
+        const field = box.querySelector('input[name="newPool:rooms"]');
         const errorEl = field?.closest("label, .drpg-field")?.parentElement?.querySelector(".drpg-field-error");
         equal(stableJson([field?.value ?? null, field?.getAttribute("aria-invalid") ?? null, errorEl?.textContent.trim() ?? null,
             errorEl?.id && field?.getAttribute("aria-describedby") === errorEl.id]),
             stableJson([refusal.name, "true", refusal.text, true]),
-            `the Tier pools pane does not keep the refused name at its field with the sentence under it [${typeof pane === "string" ? pane.slice(0, 80) : "no poolPaneHtml"}]`);
+            `the Room pools pane does not keep the refused name at its field with the sentence under it [${typeof pane === "string" ? pane.slice(0, 80) : "no poolPaneHtml"}]`);
 
         /* The road itself, on this GM: the window opened, a refused name typed on each tab and Create table pressed, the
            window that comes back read. A refusal writes nothing, so the world is as it was (tier 1's dump holds it).
@@ -27836,15 +27907,15 @@ const INVARIANTS = [
         try {
             await until(() => tablesApp());
             await settle();
-            road = [await press("tiers", "DRPG Weapons - Tier 2"), await press("rooms", "DRPG Tools - Tier 1")];
+            // E101: only the Room pools tab has the field and Create table (R4057).
+            road = [await press("rooms", "DRPG Tools - Tier 1")];
         } finally {
             if (hadCreate) RollTable.create = realCreate; else delete RollTable.create;
             try { await tablesApp()?.close(); } catch { /* already gone */ }
             try { await Promise.race([opening, wait(2000)]); } catch { /* closed rather than answered */ }
             await settle();
         }
-        equal(stableJson([road, attempted, game.tables.size === tableCount]), stableJson([[["DRPG Weapons - Tier 2", "true", true, true],
-            ["DRPG Tools - Tier 1", "true", true, true]], [], true]),
+        equal(stableJson([road, attempted, game.tables.size === tableCount]), stableJson([[["DRPG Tools - Tier 1", "true", true, true]], [], true]),
             "a refused name pressed through Create table does not come back in its field, marked, on its tab, with the sentence "
             + "under it, or a table was made [Tier pools: value, aria-invalid, its tab open, a sentence; Room pools: the same; "
             + "the tables a create was asked for; no table made]");
@@ -38437,7 +38508,8 @@ const INVARIANTS = [
             ["./gm-panel.mjs", "openGmPanel", undefined, "drpg-window-panel", { close: "close" }, ["close"]],
             // E49 A1d: Reset the season moved in from its tile, destructive (R3532). E49 A1e: Pre-season checks left the footer
             // (R3580) for the Season checklist's, a read-out's Close beside it (R3584).
-            ["./season-setup.mjs", "openSeasonSetup", undefined, "drpg-window-season", { save: "primary", reset: "destructive", close: "cancel" }, ["save", "reset", "close"]],
+            // E101: Reset the season is a button in the body's warning frame, not the footer's (R4055).
+            ["./season-setup.mjs", "openSeasonSetup", undefined, "drpg-window-season", { save: "primary", close: "cancel" }, ["save", "close"]],
             // E101 item 2: Pre-season checks became its further checks; Close alone (changed on purpose).
             ["./season-setup.mjs", "openSeasonChecklist", undefined, "drpg-window-season-checklist", { close: "close" }, ["close"]],
             ["./season-setup.mjs", "resetSeason", undefined, "drpg-window-season-reset", { reset: "destructive", cancel: "cancel" }, ["reset", "cancel"]],
@@ -44885,7 +44957,8 @@ const INVARIANTS = [
             read.fewer = toasts.map(([k, t]) => [k, t === game.i18n.localize("DRPG.Items.failed")]);
         });
         equal(stableJson(read), stableJson({
-            deleted: ["", true, true, true],
+            // E101 (changed on purpose): the Tier pools pane has no Rename (R4057); Delete still goes disabled.
+            deleted: ["", true, null, true],
             emptied: { flush: [[], true], field: [[], "R2021 crowbar", game.i18n.localize("DRPG.Tables.needsName")] },
             keep: [0, ["info"], 0],
             fewer: [["warn", true]]

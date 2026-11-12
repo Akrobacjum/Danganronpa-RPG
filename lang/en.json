@@ -422,7 +422,7 @@
         "sound": "Sound and voice",
         "rules": "Rules at the table",
         "privacy": "Rolls and privacy",
-        "gm": "GM tools and map",
+        "gm": "Map",
         "tech": "Technical"
       }
     },
@@ -4252,6 +4252,7 @@
       "buttonTooltip": "Level Up",
       "caption": "Level Up",
       "whoPicks": "Who chooses what {actor} takes?",
+      "grant": "Grant",
       "who": {
         "gm": "I will pick",
         "gmHint": "The window opens here and you choose for them, which is how this has always worked.",
@@ -5091,6 +5092,7 @@
       "roomsVision": "{scene}: Foundry's own vision, fog or global light is still on there, so players may see black.",
       "moreChecking": "Checking the room pictures, the voice, the dice and the sheets...",
       "moreFailed": "The further checks could not be drawn. The debug log in the GM panel says why.",
+      "resetNote": "Wipes the season's play - projects, evidence, deaths, items, Level Ups - and keeps the cast. It asks first.",
       "step.cast": "The cast exists",
       "hint.cast": "One character per student. Monokumas are separate and do not count here.",
       "step.monokumas": "At least one Monokuma",

@@ -60,7 +60,7 @@ import { foundryGivenBack, openGiveBackFoundry } from "./enforced.mjs";
 // The hall's report, the one the Scenes tab prints (E51 C8, the First session screen): trial-scene.mjs never reaches back here.
 import { scenesReportOf } from "./trial-scene.mjs";
 import { log, error, plural, workingScene, esc, localeFormat, listOf } from "./utils.mjs";
-import { stepperId, drpgWindow, checkList, formGrid } from "./ui-kit.mjs";
+import { stepperId, drpgWindow, checkList, formGrid, box, roleButton } from "./ui-kit.mjs";
 // Edit campaign's fields, reader, writes and End the chapter part (E49 A1e): gm-campaign.mjs never reaches back here.
 import { campaignRows, readClockForm, applyCampaignForm, endChapterPart, endTheChapter } from "./gm-campaign.mjs";
 import { alreadyOpen, handOff, RAISED } from "./live.mjs";
@@ -1134,6 +1134,8 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
     let roundTrip = null;
     // End the chapter, pressed at the foot of Edit campaign's block: this window closes unsaved, as Edit campaign does.
     let endAsked = false;
+    // Reset the season, pressed in its frame at the body's foot (E101): the same - closed unsaved, then the reset.
+    let resetAsked = false;
 
     const result = await drpgWindow({
         classes: ["drpg-panel", "drpg-window-season"],
@@ -1151,12 +1153,14 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
            campaign scrolling when the window is short, and the checklist a window of its own, `openSeasonChecklist`). */
         body: `<form>
             ${campaignFieldsHtml(clock, safeword())}
+            ${seasonResetPart()}
         </form>`,
         pinned: seasonTilesHtml(SEASON_TILES, tileHtml),
         /* THE FOOTER BY ROLE (E21 C2b): Save the primary; Cancel, since Save is still to answer (E21 rule 3), its answer
            "close" as before. PRE-SEASON CHECKS LEFT IT IN E49 A1e: a button of the row under Edit campaign on 11.11.2026,
            the Season checklist's own button since 12.11.2026 (the owner), the same window by the same call.
-           RESET THE SEASON, DESTRUCTIVE, ON THE LEFT (E49 A1d, 11.11.2026; the owner: "Chcialbym wrzucic season reset w set the season up, a calosc przemianowac na
+           RESET THE SEASON LEFT THE FOOTER IN E101 for its warning frame in the body (`seasonResetPart`; the owner's yes of
+           12.11.2026 to the GM screens' review). Before, DESTRUCTIVE, ON THE LEFT (E49 A1d, 11.11.2026; the owner: "Chcialbym wrzucic season reset w set the season up, a calosc przemianowac na
            "season setup". W wolne miejsce wejda nowe ustawienia gma jako "Settings""): the GM panel's tile of its own
            until then. The press answers "reset" and nothing of the form is written; the window closes and the reset
            runs as the tile ran it, season-wipe.mjs `resetSeason` with its own window and every question it asks
@@ -1166,7 +1170,6 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
                 action: "save", label: game.i18n.localize("DRPG.Assign.save"),
                 callback: (e, b, d) => readSeasonForm(d)
             },
-            destructive: [{ action: "reset", label: game.i18n.localize("DRPG.Season.resetTitle") }],
             close: { role: "cancel", action: "close" }
         },
         // Wire the buttons against the mounted DOM - a listener attached
@@ -1182,6 +1185,12 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
                 endAsked = true;
                 dialog.close();
             });
+            // Reset the season (its warning frame at the body's foot, E101): the window closes unsaved, then the reset's own window.
+            dialog.element.querySelector("[data-drpg-reset-season]")?.addEventListener("click", ev => {
+                ev.preventDefault();
+                resetAsked = true;
+                dialog.close();
+            });
             // At its top, on its first field (S01-19), or where the copy that closed was (C-2); then what a tile
             // opened, in front of it (S06-30).
             seasonOpening(dialog.element, draft?.place ?? null);
@@ -1193,7 +1202,7 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
     if (endAsked) return endTheChapter(() => import("./chapter.mjs").then(m => m.openChapterEndDialog()));
     if (roundTrip) return roundTrip;
     if (!result || result === "close") return null;
-    if (result === "reset") return (await import("./season-wipe.mjs")).resetSeason();
+    if (resetAsked) return (await import("./season-wipe.mjs")).resetSeason();
 
     /* EDIT CAMPAIGN'S APPLY, AS IT IS (E49 A1e; the owner: "keep its data writes exactly as they are"): gm-campaign.mjs
        `applyCampaignForm`, the function Edit campaign's Apply runs - its questions (a chapter moved, the trial entered),
@@ -1212,6 +1221,19 @@ export async function openSeasonSetup({ draft = null, opened = null } = {}) {
 
     log(`Season setup saved: "${result.campaignName}", chapter ${result.chapter}.`);
     return result;
+}
+
+/**
+ * RESET THE SEASON'S FRAME (E101; the owner's yes of 12.11.2026 to the GM screens' review, Season setup). E49 A1d put the
+ * reset in Season setup's footer, on the destructive role beside Cancel; it stands now as End the chapter stands under
+ * Edit campaign's fields (gm-campaign.mjs `endChapterPart`): a kit warning box, its one sentence, one destructive button.
+ * The press closes the window unsaved and runs season-wipe.mjs `resetSeason`, whose window asks everything it asked
+ * (nothing about what a reset does changed). Exported for R4055.
+ */
+export function seasonResetPart() {
+    return box("warning", `<p>${esc(game.i18n.localize("DRPG.Season.resetNote"))}</p>`, {
+        action: roleButton({ role: "destructive", label: game.i18n.localize("DRPG.Season.resetTitle"), attrs: { "data-drpg-reset-season": "1" } })
+    });
 }
 
 /**
