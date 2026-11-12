@@ -27,7 +27,7 @@
  * the count of 4dfac3a9's tree on 12.11.2026, so the stage that clears it (E56) lowers it commit by commit and ends
  * at a budget of zero, or at names each `known` with its reason.
  *
- * THE SELF-CHECK, first (CLAUDE.md: a check that reports nothing has proved nothing until it has been shown to report
+ * THE SELF-CHECK, first (the root working notes: a check that reports nothing has proved nothing until it has been shown to report
  * something): a fixture of three files in memory - a cited name that exists, one that does not, one in a string (not
  * a comment), a history-worded one, a doubled block, a header followed by a block, a `known` name - must give exactly
  * the planted findings, and the ratchet's three cases (above, below, equal) and a missing row must answer as written.
