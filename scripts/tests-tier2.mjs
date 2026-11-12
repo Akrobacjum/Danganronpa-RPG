@@ -55035,7 +55035,9 @@ const SCENARIOS = [
         D.wait = async cfg => {
             if ((cfg?.classes ?? []).includes("drpg-window-trial")) {
                 const button = (cfg.buttons ?? []).find(b => b.action === "verdict");
-                consoles.push({ label: button?.label ?? null, closed: button?.disabled === true });
+                // Closed: greyed, or - since E99 round 7 (the owner, 12.11.2026) - not offered at all once the verdict is
+                // applied, the Verdict being a step of the flow; either way no second verdict from the console.
+                consoles.push({ label: button?.label ?? null, closed: !button || button.disabled === true });
                 opened.push("console");
                 return consoles.length === 1 ? "verdict" : null;
             }
