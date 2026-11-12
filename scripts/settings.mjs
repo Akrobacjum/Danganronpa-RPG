@@ -1033,7 +1033,7 @@ const TABLE_SETTINGS = [
     SETTINGS.searchTokensPerRoom, SETTINGS.enforceIsoWelcome, SETTINGS.enforceDhWelcome, SETTINGS.enforcePlayerFiles,
     SETTINGS.liveKitInFoundry, SETTINGS.hideSystemFear, SETTINGS.documentLanguage, SETTINGS.voiceEnabled, SETTINGS.voiceTile,
     SETTINGS.foundryBefore, SETTINGS.foundryGivenBack, SETTINGS.musicEnabled, SETTINGS.sfxVary, SETTINGS.safeword,
-    SETTINGS.migratedVersion, SETTINGS.caseMark, SETTINGS.moveAudit, SETTINGS.foundryToolWindows, SETTINGS.isoTokenShield,
+    SETTINGS.migratedVersion, SETTINGS.levelUpsMigrated, SETTINGS.caseMark, SETTINGS.moveAudit, SETTINGS.foundryToolWindows, SETTINGS.isoTokenShield,
     SETTINGS.regionFog, SETTINGS.despairFromRolls, SETTINGS.lockRollDialog, SETTINGS.roomVisibility, SETTINGS.lockPlayerResources,
     SETTINGS.friskForce, SETTINGS.autoApproveTraits, SETTINGS.chargeMovement, SETTINGS.legacyKeyRemnantPlan, SETTINGS.legacyPendingMurders, SETTINGS.legacyEclipseMoves
 ];

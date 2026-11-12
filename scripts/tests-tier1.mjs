@@ -41034,6 +41034,8 @@ const INVARIANTS = [
             "dh-settings.mjs WINDOW_WORDS": "the module's labels for the same window, keyed on the maximums' field names: the system's markup",
             "dh-settings.mjs dressCharacterSettings": "finds Health's maximum field in the system's window to take its tooltip off: the system's markup, no number drawn",
             "level-up.mjs applyAdvancement": "a Level Up raises a maximum, written",
+            "level-up.mjs da39RowOf": "the DA39 migration reads the maxima as the GMs hold them, for the GM's confirm (E64)",
+            "level-up.mjs applyDa39Migration": "the DA39 migration writes the maxima the GM confirmed and holds the marks to them (E64)",
             "monocub.mjs setMonocub": "a Monocub starts with no marks, written",
             "murder-rules.mjs resolveKillerOpening": "the opening's Despair fills the victim's Sanity track, written",
             "murder-rules.mjs afterCrisisRoll": "the GMs' bookmark of the use's start, for a Reroll",

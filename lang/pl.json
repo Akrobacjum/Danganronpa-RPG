@@ -4494,7 +4494,7 @@
       "raisesSanity": "także +1 do maksimum Sanity",
       "da39": {
         "title": "Level Upy według nowej zasady",
-        "intro": "Level Upy nie dają już +1 Health ani +1 Sanity: punkt w Head podnosi maksimum Sanity, punkt w Body albo Leg maksimum Health. Zaznacz każdą zmianę, którą chcesz wprowadzić u tych uczniów. Cofnięty wybór daje jeden punkt statystyki do rozdania. Niezaznaczone zostaje bez zmian.",
+        "intro": "Level Upy nie dają już +1 Health ani +1 Sanity: punkt w Head podnosi maksimum Sanity, punkt w Body albo Leg maksimum Health. Wybierz każdą zmianę, którą chcesz wprowadzić u tych uczniów. Cofnięty wybór daje jeden punkt statystyki do rozdania. Czego nie wybierzesz, zostaje bez zmian.",
         "takeHealth": "Cofnij wybór +1 Health: maksimum Health -1, jeden punkt statystyki do rozdania",
         "takeSanity": "Cofnij wybór +1 Sanity: maksimum Sanity -1, jeden punkt statystyki do rozdania",
         "riseHealth": "Punkt w {trait} od początku sezonu: maksimum Health +1",
