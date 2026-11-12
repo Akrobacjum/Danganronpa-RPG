@@ -27297,6 +27297,58 @@ const SCENARIOS = [
         equal(JSON.stringify(seen), JSON.stringify([false, true, false, true]), "[ticked before, after a click, after a second click, the ticks unchanged by a presentation's read]");
     }],
 
+    ["E99 C4: a Present card of a copy of a Remnant on the schema marks it presented and hints the deduction it carries, without a tick", async () => {
+        /*
+         * E99 C4 and C8's open item (12.11.2026): the presentation read end to end, as the Case schema window reads it
+         * (case-trial.mjs `trialSchemaState`), from a card shaped as trial.mjs `presentBullet` posts it (speaker, item,
+         * chapter) over a real copy and its answer key. The trace is placed in this chapter (traceCopies' trace carries
+         * none, so it is on no chapter's schema). A deduction resting on that Remnant alone is hinted (one of one), and
+         * the ticks are what they were. Written after the code (c6d1e96): its control is a planted mutant -
+         * casePresentations skipping every card - under which it fails (docs/dev/e99/STATUS.md).
+         */
+        needs(world.atLeast("sceneOnScreen"), "the trace is placed on the scene on screen");
+        const T = await import("./case-trial.mjs");
+        const S = await import("./case-schema.mjs");
+        const B = await import("./truth-bullets.mjs");
+        const { placeRemnant } = await import("./remnants.mjs");
+        const { caseCulprit } = await import("./investigation.mjs");
+        const { TRIAL_FLAGS } = await import("./trial.mjs");
+        const chapter = getClock().chapter;
+        const student = cast(4).find(a => a.id !== caseCulprit(chapter));
+        must(student, "every student of the fixture is the culprit - the hint would count nothing");
+        const scene = canvas.scene;
+        const id = "deduction-suitee99c4";
+        let token = null, copy = null, card = null;
+        try {
+            token = await placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene, chapter, note: "SUITE E99 C4 trace" });
+            must(token, "the fixture trace was not placed - this would measure nothing");
+            copy = await B.createTruthBullet(student, { name: "SUITE E99 C4", realType: "prep", visibility: "evident", playerText: "SUITE E99 C4",
+                remnantId: token.id, sceneId: scene.id });
+            must(copy, "the copy was not made - this would measure nothing");
+            const key = `${scene.id}.${token.id}`;
+            await S.setCaseNode(chapter, id, { kind: "deduction", label: "SUITE E99 C4", inputs: [key] });
+            await gmStoresIdle();
+            const before = T.trialSchemaState(chapter);
+            must(before.graph.nodes.some(n => n.id === key), "the trace is not on this chapter's schema - this would measure nothing");
+            const ticks = JSON.stringify(S.caseTicks(chapter));
+            card = await ChatMessage.create({ content: "SUITE E99 C4", speaker: ChatMessage.getSpeaker({ actor: student }),
+                flags: { [MODULE_ID]: { [TRIAL_FLAGS.present]: true, [TRIAL_FLAGS.item]: copy.id, [TRIAL_FLAGS.chapter]: chapter } } });
+            await settle();
+            const after = T.trialSchemaState(chapter);
+            equal(JSON.stringify({ presented: [before.presented.includes(key), after.presented.includes(key)], hinted: [before.hints.includes(id), after.hints.includes(id)],
+                ticksKept: JSON.stringify(S.caseTicks(chapter)) === ticks }),
+            JSON.stringify({ presented: [false, true], hinted: [false, true], ticksKept: true }),
+            "{the Remnant presented, before and after the card; the deduction hinted, before and after; the ticks unchanged}");
+        } finally {
+            await card?.delete().catch(() => {});
+            await S.dropCaseNode(chapter, id).catch(() => {});
+            if (copy && student.items.has(copy.id)) await student.items.get(copy.id).delete().catch(() => {});
+            if (copy) await B.dropSecret(copy.uuid).catch(() => {});
+            await token?.delete().catch(() => {});
+            await settle();
+        }
+    }],
+
     ["E97 C12: the GM panel lists the case's Incident Remnants to place, each with Place on the map, and one on the map with Show", async () => {
         /*
          * E97 C12, 12.11.2026. Two planned Incident Remnants in the GMs' store, one of them pointed at a Remnant on the
