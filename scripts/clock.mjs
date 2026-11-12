@@ -652,6 +652,8 @@ async function applyTimeOfDayChange(clock, {
     await import("./call-effects.mjs").then(m => m.clearSeals()).catch(() => {});
     // A Bribe still unanswered lapses, unpaid, at the turn (E72 C15; monocub.mjs `settleBribes`).
     await import("./monocub.mjs").then(m => m.settleBribes()).catch(err => warn("Could not lapse the open Bribes", err));
+    // And an unclaimed Bounty (E72 C16; monocub.mjs `lapseBounties`).
+    await import("./monocub.mjs").then(m => m.lapseBounties()).catch(err => warn("Could not lapse the open Bounties", err));
 
     /*
      * ONE TIME OF DAY OFF MONOKUMA'S DEADLINE.

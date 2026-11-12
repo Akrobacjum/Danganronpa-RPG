@@ -41,7 +41,7 @@
  * `appendArmedCall` sends it there.
  */
 
-import { MODULE_ID, FLAGS, MONOCUB, ACTIONS_RESOURCE, HOPE_CALLS } from "./config.mjs";
+import { MODULE_ID, FLAGS, MONOCUB, ACTIONS_RESOURCE, HOPE_CALLS, DESPAIR_CALLS } from "./config.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { isDeceased, isDeadForGm } from "./chapter.mjs";
 import { isMonokuma } from "./monokuma.mjs";
@@ -50,7 +50,7 @@ import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { getClock } from "./clock.mjs";
 import { seasonEpoch, sameSeason, deathRecord, getSetting, SETTINGS } from "./settings.mjs";
 import { resolveThreshold, whisperToOwner, log, warn, error, plural, isPrimaryGm, primaryGmId, wholeNumber, serialWrite, ownerOf, serverNow } from "./utils.mjs";
-import { cubStore, cubCopy, cubTargetStore } from "./gm-stores.mjs";
+import { cubStore, cubCopy, cubTargetStore, bountyStore } from "./gm-stores.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { senderOf, replyForMe } from "./bridge-guards.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
@@ -213,11 +213,13 @@ export function cubsFor(userId) {
     for (const actor of game.actors ?? []) {
         if (actor.type !== "character" || !actor.testUserPermission?.(user, "OWNER")) continue;
         stamps[actor.id] = cubStore.newest(actor.id);
-        const row = cubStore.get(actor.id);
+        const row = cubStore.get(actor.id) ?? (isMonocub(actor) ? {} : null);
         if (row) cubs[actor.id] = { witness: row.witness ?? null, redeemDay: row.redeemDay ?? null, askOpen: Boolean(row.askOpen), invited: Boolean(row.invite),
             purse: Math.max(0, Math.trunc(Number(row.purse) || 0)),
             // The Bribes offered to this Monocub (E72 C15): the payer's name and the price, for its player's answer.
-            bribes: row.bribes ? Object.fromEntries(Object.entries(row.bribes).map(([id, b]) => [id, { fromName: b?.fromName ?? "", cost: b?.cost ?? 0 }])) : null };
+            bribes: row.bribes ? Object.fromEntries(Object.entries(row.bribes).map(([id, b]) => [id, { fromName: b?.fromName ?? "", cost: b?.cost ?? 0 }])) : null,
+            // The open Bounties (E72 C16), to every Monocub's owner and nobody else's.
+            bounties: isMonocub(actor) ? openBounties() : null };
     }
     return { cubs, stamps };
 }
@@ -289,8 +291,11 @@ export function copyRowOf(row) {
         if (typeof id !== "string" || !offer || typeof offer !== "object") continue;
         bribes[id] = { fromName: String(offer.fromName ?? ""), cost: Math.max(0, Math.trunc(Number(offer.cost) || 0)) };
     }
+    const bounties = (Array.isArray(row.bounties) ? row.bounties : []).filter(b => b && typeof b === "object")
+        .map(b => ({ targetName: String(b.targetName ?? ""), reward: Math.max(0, Math.trunc(Number(b.reward) || 0)) }));
     return { witness: witnessShape(row.witness), redeemDay: day, askOpen: row.askOpen === true, invited: row.invited === true,
-        purse: Math.max(0, Math.trunc(Number(row.purse) || 0)), bribes: Object.keys(bribes).length ? bribes : null };
+        purse: Math.max(0, Math.trunc(Number(row.purse) || 0)), bribes: Object.keys(bribes).length ? bribes : null,
+        bounties: bounties.length ? bounties : null };
 }
 
 /** Owner: ask the primary for this user's rows. */
@@ -1182,6 +1187,9 @@ async function scoreMeddle(actor, target, choice, total, isCritical, row) {
         return { success: false };
     }
 
+    // A Bounty on the student is claimed by a Hinder that lands (E72 C16).
+    if (!help) await claimBounty(actor, target);
+
     let text = help ? hit.help : hit.hinder;
     // The target's own sentence (DESP-06), never the Monocub's receipt.
     let targetText = (help ? hit.helpTarget : hit.hinderTarget) ?? text;
@@ -1507,6 +1515,85 @@ export async function settleBribes() {
     }
     if (lapsed) log(`${lapsed} Bribe(s) lapsed unanswered at the turn of the time of day.`);
     return lapsed;
+}
+
+/*
+ * A BOUNTY (E72 C16, 12.11.2026; the owner's DC27 = 2, DC40: "every Call is public, Bounty the one exception: secret, for
+ * Monocubs and GMs, 1 Despair through the debt buffer, 1 Hope to the purse"). A GM's Despair Call (config.mjs
+ * DESPAIR_CALLS.bounty) puts a Bounty on a living student: the GM's pool owes its price from now, paid at the next time of
+ * day (despair.mjs `oweDespair`), and nothing public is posted. The open Bounties are the GMs' (gm-stores.mjs
+ * `bountyStore`, one a student), every Monocub's owner's copy carries them (`cubsFor`), and each Monocub's player and the
+ * GMs are told on a veiled card. The first Monocub whose Confusion hinders that student and lands claims it
+ * (`claimBounty`, from `scoreMeddle`): its reward into that Monocub's purse (`addToPurse`, held to the limit). What is not
+ * claimed lapses at the next time of day (`lapseBounties`, clock.mjs). Defaults, owner may revise: the claim by a landing
+ * Hinder, the lapse at the next time of day.
+ */
+
+/** The open Bounties as a Monocub's owner is sent them: the student's name and the reward. GM-side. */
+function openBounties() {
+    return Object.values(bountyStore.entries() ?? {}).map(b => ({ targetName: String(b?.targetName ?? ""), reward: Math.max(0, Math.trunc(Number(b?.reward) || 0)) }));
+}
+
+/** GM: every Monocub's owners sent their copy again (a Bounty posted, claimed or lapsed). */
+function tellEveryCub() {
+    for (const actor of monocubActors()) tellCubOwners(actor.id);
+}
+
+/** GM: every Monocub's player told, on a veiled card, and the GMs. */
+async function tellBounty(key, data) {
+    const esc = foundry.utils.escapeHTML;
+    const text = `<p>${esc(game.i18n.format(`DRPG.Monocub.${key}`, data))}</p>`;
+    for (const actor of monocubActors()) await whisperToOwner(actor, text, { veiled: true });
+    const { whisperToGms } = await import("./utils.mjs");
+    await whisperToGms(text);
+}
+
+/** GM: a Bounty on `target`, owed from `userId`'s pool (the Despair Call). Answers the Bounty, or null when refused. */
+export async function postBounty(userId, target) {
+    if (!game.user?.isGM || !target) return null;
+    const call = DESPAIR_CALLS.bounty;
+    const cost = Math.max(1, Math.trunc(Number(call?.cost) || 1));
+    const reward = Math.max(1, Math.trunc(Number(call?.reward) || 1));
+    const D = await import("./despair.mjs");
+    const why = target.type !== "character" || isMonokuma(target) || isMonocub(target) || isDeadForGm(target) ? "a Bounty is put on a living student"
+        : bountyStore.has(target.id) ? "that student has a Bounty already"
+            : D.spendableDespair(userId) < cost ? "the pool has not the Despair for it" : null;
+    if (why) {
+        warn(`Refused a Bounty on ${target.name}: ${why}.`);
+        if (why === "the pool has not the Despair for it") ui.notifications.warn(game.i18n.localize("DRPG.Monocub.bountyNoDespair"));
+        return null;
+    }
+    if (!await D.oweDespair(userId, cost)) return null;
+    const bounty = { by: userId, reward, at: serverNow(), targetName: target.name };
+    await bountyStore.patch(target.id, bounty);
+    tellEveryCub();
+    await tellBounty("bountyPosted", { name: target.name, reward });
+    log(`A Bounty of ${reward} Hope on ${target.name}, owed ${cost} Despair.`);
+    return bounty;
+}
+
+/** GM: `cub`'s Confusion hindered `target` and landed (`scoreMeddle`): an open Bounty on it is claimed. Answers the Hope paid. */
+export async function claimBounty(cub, target) {
+    if (!game.user?.isGM || !cub || !target || !bountyStore.has(target.id)) return 0;
+    const bounty = bountyStore.get(target.id);
+    await bountyStore.drop(target.id);
+    const paid = await addToPurse(cub, Math.max(0, Math.trunc(Number(bounty?.reward) || 0)));
+    tellEveryCub();
+    await tellBounty("bountyClaimed", { name: target.name });
+    await whisperToOwner(cub, `<p>${foundry.utils.escapeHTML(game.i18n.format("DRPG.Monocub.bountyPaid", { name: target.name, n: paid }))}</p>`, { veiled: true });
+    log(`${cub.name} (a Monocub) claimed the Bounty on ${target.name}: ${paid} Hope into its purse.`);
+    return paid;
+}
+
+/** GM: every open Bounty lapses, unclaimed (each time of day, clock.mjs). Answers how many lapsed. */
+export async function lapseBounties() {
+    if (!game.user?.isGM) return 0;
+    const ids = Object.keys(bountyStore.entries() ?? {});
+    if (!ids.length) return 0;
+    await bountyStore.dropMany(ids);
+    tellEveryCub();
+    log(`${ids.length} Bounty(-ies) lapsed unclaimed at the turn of the time of day.`);
+    return ids.length;
 }
 
 /**

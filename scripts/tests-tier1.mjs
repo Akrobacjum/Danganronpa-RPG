@@ -271,7 +271,9 @@ const INVARIANTS = [
                           "gathersEveryone", "freeMoves", "freeActions", "freeRest",
                           "setsMotive",
                           // E72 C15: a Bribe is offered, and paid on its yes, outside `applyCall` (calls.mjs `spendHopeCall`).
-                          "bribe"];
+                          "bribe",
+                          // E72 C16: a Bounty is posted, owed and claimed outside `applyCall` (calls.mjs `spendDespairCallFor`).
+                          "bounty"];
         const check = (source, label) => {
             for (const [key, call] of Object.entries(source)) {
                 ok(typeof call.cost === "number", `${label} ${key} has no numeric cost`);

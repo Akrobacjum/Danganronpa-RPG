@@ -1135,6 +1135,18 @@ export const cubTargetStore = defineGmStore({
 });
 
 /**
+ * THE BOUNTIES (E72 C16, 12.11.2026; the owner's DC27 = 2, DC40): `{ targetId: { by, reward, at, targetName } }`, one open
+ * Bounty a student, posted by a GM's Despair Call (monocub.mjs `postBounty`), claimed by the first Monocub whose Confusion
+ * hinders that student (`claimBounty`), lapsing at the next time of day (`lapseBounties`). The GMs' and the Monocubs':
+ * every Monocub's owner's copy carries the open ones (monocub.mjs `cubsFor`), and nobody else's.
+ */
+export const bountyStore = defineGmStore({
+    name: "bounties", key: SETTINGS.gmBounties,
+    kind: "ledger", resetGroup: "actions", backup: true, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
  * WHO WORKED ON EACH PROJECT THIS TIME OF DAY (E72 C13, 12.11.2026; the owner's DC23, DC24): `{ projectId: { chapter,
  * epoch, day, timeOfDay, actorIds } }`, the time of day of the last work on it and the characters who did it then. A
  * Monocub's Tinker reaches a project only while a living student worked on it this time of day (monocub.mjs

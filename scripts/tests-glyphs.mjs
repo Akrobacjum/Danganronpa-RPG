@@ -409,6 +409,8 @@ export const ELEMENTS = {
     "MONOCUB.abilities.tinker": "tinker",
     // E72 C15: the Hope Call Bribe, the inventory's row 74.
     "HOPE_CALLS.bribe": "bribe",
+    // E72 C16: the Despair Call Bounty, the inventory's row 75.
+    "DESPAIR_CALLS.bounty": "bounty",
     "TRAP_TRIGGERS.enters": "enters", "TRAP_TRIGGERS.search": "search", "TRAP_TRIGGERS.rest": "rest",
     "TRAP_TRIGGERS.item": "item-used", "TRAP_TRIGGERS.project": "hourglass", "TRAP_TRIGGERS.sabotage": "tamper",
     "TRAP_TRIGGERS.stash": "stash", "TRAP_TRIGGERS.passage": "passage", "TRAP_TRIGGERS.manual": "trap-manual",
@@ -543,6 +545,7 @@ export const SAME = [
     [["MONOCUB.abilities.askHope", "F71"], "the Monocub's Ask for Hope: the inventory's row 71 is this row of the table (config.mjs MONOCUB.abilities.askHope; E72 C5)"],
     [["MONOCUB.abilities.tinker", "F73"], "the Monocub's Tinker: the inventory's row 73 is this row of the table (config.mjs MONOCUB.abilities.tinker; E72 C13)"],
     [["HOPE_CALLS.bribe", "F74"], "the Hope Call Bribe: the inventory's row 74 is this row of the table (config.mjs HOPE_CALLS.bribe; E72 C15)"],
+    [["DESPAIR_CALLS.bounty", "F75"], "the Despair Call Bounty: the inventory's row 75 is this row of the table (config.mjs DESPAIR_CALLS.bounty; E72 C16)"],
     [["gm.sound", "F9"], "the Sound panel: the GM's Sound tile opens it (sound-panel.mjs openSoundDialog), and the speaker the inventory gave it has no wearer of its own - read 11.11: --drpg-pix-speaker's one reader is the corner launcher, which wears the gear in both themes (stained-glass.css) and opens the Look dialog (look.mjs)"],
     [["gm.voiceReset", "F12"], "Voice reset: the inventory's row is the GM's tile (batch 2 drew it once for both)"],
     [["gm.caseWindow", "F28"], "the Case window: the GM's tile and E97's launcher open one window (gm-stores.mjs openCaseWindow)"]
@@ -592,7 +595,8 @@ export const KEY_ICONS = {
     "CRISIS_ACTIONS.doubleRoleReversal": "fa-repeat", "CRISIS_ACTIONS.crimePartners": "fa-handshake",
     "CRISIS_ACTIONS.avertedEyes": "fa-eye-slash", "MONOCUB.abilities.meddle": "fa-hand-sparkles",
     "MONOCUB.abilities.redeem": "fa-ticket", "MONOCUB.abilities.askHope": "fa-hands-praying",
-    "MONOCUB.abilities.tinker": "fa-screwdriver-wrench", "HOPE_CALLS.bribe": "fa-money-bills"
+    "MONOCUB.abilities.tinker": "fa-screwdriver-wrench", "HOPE_CALLS.bribe": "fa-money-bills",
+    "DESPAIR_CALLS.bounty": "fa-sack-dollar"
 };
 
 /** Keyed elements no markup draws an icon for, and why (read 11.11.2026): they are mapped and drawn, and nothing wears
@@ -1130,6 +1134,7 @@ export const LEGACY_ICONS = {
     "MONOCUB.abilities.tinker": "fa:fa-screwdriver-wrench",
     // E72 C15: Bribe wears its drawing in both themes (a Call tile is masked by key, danganronpa.css).
     "HOPE_CALLS.bribe": "--drpg-pix-bribe",
+    "DESPAIR_CALLS.bounty": "--drpg-pix-bounty",
     "gm.whoIsAlive": "--drpg-pix-who-is-alive",
     "gm.projects": "--drpg-pix-projects",
     "gm.sound": "fa:fa-volume-high",

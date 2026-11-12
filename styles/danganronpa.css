@@ -9427,7 +9427,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
 
 /* E72 C15: the Hope Call Bribe shares Contribution's frame; its own mask is the rule after Contribution's. */
 .drpg-call-button[data-drpg-call="contribution"] .drpg-action-icon,
-.drpg-call-button[data-drpg-call="bribe"] .drpg-action-icon {
+.drpg-call-button[data-drpg-call="bribe"] .drpg-action-icon,
+.drpg-call-button[data-drpg-call="bounty"] .drpg-action-icon {
     width: 24px;
     height: 24px;
     font-size: 0 !important;
@@ -9442,7 +9443,8 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
 }
 
 .drpg-call-button[data-drpg-call="contribution"] .drpg-action-icon::before,
-.drpg-call-button[data-drpg-call="bribe"] .drpg-action-icon::before {
+.drpg-call-button[data-drpg-call="bribe"] .drpg-action-icon::before,
+.drpg-call-button[data-drpg-call="bounty"] .drpg-action-icon::before {
     content: none !important;
 }
 
@@ -9450,6 +9452,12 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
 .drpg-call-button[data-drpg-call="bribe"] .drpg-action-icon {
     -webkit-mask-image: var(--drpg-pix-bribe);
     mask-image: var(--drpg-pix-bribe);
+}
+
+/* The Bounty's drawing: a wanted poster with a coin (the inventory's row 75), on :root since its legacy row (E72 C16). */
+.drpg-call-button[data-drpg-call="bounty"] .drpg-action-icon {
+    -webkit-mask-image: var(--drpg-pix-bounty);
+    mask-image: var(--drpg-pix-bounty);
 }
 
 .drpg-call-button[data-drpg-call="reroll"] .drpg-action-icon {

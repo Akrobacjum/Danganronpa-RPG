@@ -18959,7 +18959,9 @@ const REGRESSIONS = [
                 "Monocub.purseLine", "Monocub.purseTip",
                 // E72 C15: a Bribe's price, a count before Hope.
                 "Monocub.bribeAccepted", "Monocub.bribeAcceptedCub", "Monocub.bribeAsk", "Monocub.bribeOffered", "Monocub.bribeOfferedCub",
-                "Config.HOPE_CALLS.bribe.effect"
+                "Config.HOPE_CALLS.bribe.effect",
+                // E72 C16: a Bounty's reward, a count before Hope.
+                "Monocub.bountyPosted", "Monocub.bountyPaid"
             ].map(key => [key, "U"]),
             ...[
                 "Floor.bar.minusSeconds", "Floor.bar.plusSeconds", "Floor.closing.gmVolunteers", "Floor.gmNoteAdjust",
@@ -19002,7 +19004,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 62, S: 25, R: 26, D: 1, P: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 64, S: 25, R: 26, D: 1, P: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");

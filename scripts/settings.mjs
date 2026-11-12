@@ -100,6 +100,8 @@ export const SETTINGS = {
     gmCubTargets: "gmCubTargets",
     /** Who worked on each project this time of day (E72 C13): a GM store (gm-stores.mjs `projectWorkStore`), no copy. */
     gmProjectWork: "gmProjectWork",
+    /** The open Bounties (E72 C16): a GM store (gm-stores.mjs `bountyStore`); the Monocubs' owners read them in their copy. */
+    gmBounties: "gmBounties",
     /**
      * THE DEATHS NOBODY HAS FOUND (E05 C10, 1.2.64; audit S06-11): a GM store
      * (gm-stores.mjs `deathStore`), a row per body `{ chapter, day, timeOfDay, at,
@@ -2812,6 +2814,13 @@ export function registerSettings() {
     });
     // The Monocubs' moves on each student this day (E72 C4): the GMs' store alone; nothing redraws from it.
     game.settings.register(MODULE_ID, SETTINGS.gmCubTargets, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The open Bounties (E72 C16): the GMs' store; the Monocubs' owners are sent them with their copy.
+    game.settings.register(MODULE_ID, SETTINGS.gmBounties, {
         scope: "client",
         config: false,
         type: Object,

@@ -453,6 +453,12 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
             return null;
         }
 
+        // A Bounty is owed through the debt buffer and posted to the Monocubs alone (E72 C16): no public card here.
+        if (call.bounty) {
+            const { postBounty } = await import("./monocub.mjs");
+            return (await postBounty(user.id, choice?.target ?? null)) ? call : null;
+        }
+
         const { spendDespairCall, poolLabel } = await import("./despair.mjs");
         // One card, after the effect (DESP-11, CALL-13): `announce: false` keeps
         // `spendDespairCall` from posting its own, and the announcement is this

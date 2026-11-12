@@ -2658,6 +2658,18 @@ export const DESPAIR_CALLS = {
          */
         label: "New Rule", icon: "fa-gavel", cost: 9, target: "none", announces: true,
         effect: "Introduce one new killing game rule of your choice."
+    },
+    /*
+     * BOUNTY (E72 C16, 12.11.2026; the owner's DC27 = 2, DC40; the inventory's row 75). The one Call that is not public:
+     * for the Monocubs and the GMs. Its price is owed from the pool through the debt buffer, paid at the next time of
+     * day; `reward` is the Hope into the purse of the first Monocub whose Confusion hinders the student (monocub.mjs
+     * `postBounty`, `claimBounty`; calls.mjs `spendDespairCallFor` hands it there). Defaults, owner may revise: the claim
+     * and the lapse at the next time of day.
+     */
+    bounty: {
+        label: "Bounty", icon: "fa-sack-dollar", cost: 1, reward: 1, target: "player", bounty: true,
+        effect: "Put a secret Bounty of one Hope on a student: the first Monocub whose Confusion hinders them claims it. "
+            + "Only the Monocubs and the GMs are told; the Despair is taken at the next time of day."
     }
 };
 

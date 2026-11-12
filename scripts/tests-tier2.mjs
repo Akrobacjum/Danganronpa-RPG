@@ -17644,6 +17644,88 @@ const SCENARIOS = [
             "the Redeem card is not drawn for the Monocub's player alone while Redeem is free ([kind, names the Monocub] for its player, a GM, used today, the Hope full)");
     }],
 
+    ["a Bounty is the GMs' and the Monocubs' alone: its Despair owed to the next time of day, claimed by the first Monocub whose Confusion hinders the student, its Hope into that Monocub's purse, lapsing unclaimed (E72 C16)", async () => {
+        /*
+         * E72 C16, 12.11.2026; the owner's DC27 = 2, DC40 ("Bounty the one exception: secret, for Monocubs and GMs, 1 Despair
+         * through the debt buffer, 1 Hope to the purse"). Defaults, owner may revise: claimed by a Confusion that hinders
+         * the student and lands; lapsing at the next time of day. config.mjs DESPAIR_CALLS.bounty; monocub.mjs `postBounty`
+         * (the GM's pool owes it: despair.mjs `oweDespair`), `claimBounty` (from `scoreMeddle`), `lapseBounties`; the open
+         * Bounties are the GMs' (gm-stores.mjs `bountyStore`) and every Monocub's owner's copy carries them. A GM with 3
+         * Despair, a Monocub and a living student alone in a room. Read: the post's answer, the pool and what it owes, the
+         * Bounties open, the Monocub's copy; a Help that lands (no claim) and a Hinder that lands (the claim) with scripted
+         * dice, the purse after each; a second Bounty lapsing; one on a Monocub and one with no Despair to spend. Red at
+         * fd831cf: no Bounty.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 2), "a Monocub and a student stood in one room by their tokens");
+        const [cub, target] = cast(2);
+        needs(world.ownedByPlayer(cub), "the Monocub's player, whose copy carries the Bounty");
+        const M = await import("./monocub.mjs");
+        const D = await import("./despair.mjs");
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const cubUser = game.users.find(u => !u.isGM && cub.testUserPermission(u, "OWNER"));
+        const pool = D.getDespair(game.user.id);
+        const owedRows = foundry.utils.deepClone(S.despairOwedStore?.entries?.() ?? {});
+        const had = { actions: cub.system.resources.actions.value, hope: cub.system.resources.hope.value };
+        const rowWas = foundry.utils.deepClone(S.cubStore?.get(cub.id) ?? null);
+        const capWas = foundry.utils.deepClone(S.cubTargetStore?.get(target.id) ?? null);
+        const real = CONFIG.Dice.randomUniform;
+        let back = null;
+        const read = {};
+        try {
+            ok(Boolean(DESPAIR_CALLS.bounty) && ["postBounty", "claimBounty", "lapseBounties"].every(f => typeof M[f] === "function") && Boolean(S.bountyStore),
+                "no Bounty: DESPAIR_CALLS.bounty, monocub.mjs postBounty, claimBounty or lapseBounties, or gm-stores.mjs bountyStore is missing (E72 C16)");
+            if (!DESPAIR_CALLS.bounty || typeof M.postBounty !== "function" || !S.bountyStore) return;
+            ({ back } = await aloneTogether(cub, target));
+            await D.setDespair(game.user.id, 3);
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await trustedWrite(cub, { "system.resources.actions.value": 4, "system.resources.hope.value": 4 }, { reason: "gmRuling" });
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            await settle();
+            const open = () => Object.keys(S.bountyStore.entries() ?? {}).length;
+            const confusion = async (choice, faces) => {
+                // Each move as the student's first this time of day (the caps are C4's, read elsewhere).
+                if (S.cubTargetStore.has(target.id)) await S.cubTargetStore.drop(target.id);
+                const script = faces.map(face => 1 - (face - 0.5) / 12);
+                CONFIG.Dice.randomUniform = () => (script.length ? script.shift() : real());
+                try { await M.cubAbilityOnGm({ actorId: cub.id, key: "meddle", targetId: target.id, choice }); } finally { CONFIG.Dice.randomUniform = real; }
+                await settle();
+                return [M.purseOf(cub), open()];
+            };
+            read.posted = [Boolean(await M.postBounty(game.user.id, target)), D.getDespair(game.user.id), D.owedOf(game.user.id), open(),
+                (M.copyRowOf(M.cubsFor(cubUser.id).cubs[cub.id])?.bounties ?? []).map(b => b.targetName === target.name)];
+            read.again = Boolean(await M.postBounty(game.user.id, target));
+            read.help = await confusion("help", [6, 7]);
+            read.hinder = await confusion("hinder", [6, 7]);
+            await M.postBounty(game.user.id, target);
+            read.lapsed = [await M.lapseBounties(), open()];
+            read.onCub = Boolean(await M.postBounty(game.user.id, cub));
+            await D.setDespair(game.user.id, D.owedOf(game.user.id));
+            read.broke = Boolean(await M.postBounty(game.user.id, target));
+        } finally {
+            CONFIG.Dice.randomUniform = real;
+            for (const id of Object.keys(S.bountyStore?.entries?.() ?? {})) await S.bountyStore.drop(id);
+            const nowRows = Object.keys(S.despairOwedStore?.entries?.() ?? {}).filter(k => !Object.hasOwn(owedRows, k));
+            if (nowRows.length) await S.despairOwedStore.dropMany(nowRows);
+            await D.setDespair(game.user.id, pool);
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await trustedWrite(cub, { "system.resources.actions.value": had.actions, "system.resources.hope.value": had.hope }, { reason: "gmRuling" });
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            if (rowWas) await S.cubStore.patch(cub.id, rowWas);
+            const { confusionStore } = S;
+            if (confusionStore?.has?.(target.id)) await confusionStore.drop(target.id);
+            if (S.cubTargetStore.has(target.id)) await S.cubTargetStore.drop(target.id);
+            if (capWas) await S.cubTargetStore.patch(target.id, capWas);
+            if (back) await back();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            posted: [true, 3, 1, 1, [true]], again: false, help: [0, 1], hinder: [1, 0], lapsed: [1, 0], onCub: false, broke: false
+        }), "a Bounty is not posted, owed, claimed or lapsed as DC27/DC40 ask ({the post: [answer, pool, owed, open, the copy names the student]; "
+            + "a second on the same student; after a landing Help and a landing Hinder: [purse, open]; the lapse: [lapsed, open]; on a Monocub; with nothing to spend})");
+    }],
+
     ["a Bribe is offered to a Monocub and paid only on its yes, from the payer's Hope into the Monocub's purse, one open offer a pair, refused offers and lapsed ones costing nothing (E72 C15)", async () => {
         /*
          * E72 C15, 12.11.2026; the owner's DC25, DC26, DC39 (defaults, owner may revise: 1 Hope, any Monocub, lapsing at the
@@ -49186,6 +49268,15 @@ const SCENARIOS = [
                 },
                 gone: (report, id) => !S.cubTargetStore.has(id),
                 back: id => S.cubTargetStore.get(id)?.chapter === 99 && S.cubTargetStore.get(id)?.today === 1
+            },
+            // An open Bounty (E72 C16): on the holder, a reward of 99, posted by nobody of this world.
+            bounties: {
+                seed: async () => {
+                    await S.bountyStore.patch(holder.id, { by: "SUITEE72NOBODY00", reward: 99, at: 1, targetName: "SUITE bounty" });
+                    return holder.id;
+                },
+                gone: (report, id) => !S.bountyStore.has(id),
+                back: id => S.bountyStore.get(id)?.reward === 99
             },
             // Who worked on a project this time of day (E72 C13): a row of another season's chapter, which counts nothing.
             projectWork: {

@@ -619,6 +619,16 @@ async function recordOwed(userId, n) {
     await despairOwedStore.patch(`${userId}:${game.user.id}:${Date.now()}`, { owed: n, since: timeOfDayMark() });
 }
 
+/**
+ * A Despair this GM's pool owes from now, paid at the next time of day (E72 C16: a Bounty's price, DC40 "through the
+ * debt buffer"): `recordOwed`, for a caller outside this file. GM-side; answers whether it was written.
+ */
+export async function oweDespair(userId, n) {
+    if (!game.user?.isGM || !(n > 0)) return false;
+    await recordOwed(userId, Math.trunc(n));
+    return true;
+}
+
 /*
  * INCOME INTO A FULL POOL PAYS WHAT IT OWES FIRST. `before` is the pool before the income
  * and `n` the income; what is left over after the debt goes to the overflow. Both roads that
