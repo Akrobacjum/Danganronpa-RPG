@@ -45719,7 +45719,7 @@ const INVARIANTS = [
             + "left and free placement; out: feet on the strip out of an Eclipse; sheet: the sheet's feet out of an Eclipse, in one at noon, in free placement} "
             + "- the Move must be two feet in the same places in every state");
     }],
-    ["R3488 - the name row's buttons come from one builder with their words, and the Stop says what it is (sheet.mjs `headerButton`, `injectSafeword`; E49 B2, S03-31): Level Up and Give / take carry a caption, the GM's one-off controls their tooltip; the Stop reads \"Safeword\" before the table's word; a Monokuma's sheet draws no Stop", async () => {
+    ["R3488 - the name row's buttons come from one builder with their words, and the Stop shows the table's word alone - no Safeword caption since E100 (the owner at a table, 12.11.2026) (sheet.mjs `headerButton`, `injectSafeword`; E49 B2, S03-31): Level Up and Give / take carry a caption, the GM's one-off controls their tooltip; the Stop reads the table's word alone; a Monokuma's sheet draws no Stop", async () => {
         /*
          * E49 B2, 11.11.2026. S03-31: "buttons without captions: the safeword shows the table's word alone, Level Up and
          * Give/Take are bare glyphs"; the remedy "a fixed small caption 'Safeword' by the word; no button on Monokuma's
@@ -45750,7 +45750,7 @@ const INVARIANTS = [
         equal(stableJson({ advance: caption("advance"), items: caption("items"), others: row.filter(r => r[0] === "init" || r[0] === "class").every(r => r[1] === null),
             tips: row.length > 0 && row.every(r => r[2]), stop: [stop?.querySelector(".drpg-safeword-caption")?.textContent ?? null, stop?.querySelector(".drpg-safeword-word")?.textContent ?? null],
             kumaStop: Boolean(krow.querySelector(".drpg-safeword-button")), built: built.length > 0 && built.every(Boolean) }),
-        stableJson({ advance: L("DRPG.Advance.caption"), items: L("DRPG.Items.caption"), others: true, tips: true, stop: [L("DRPG.Safeword.title"), safeword()], kumaStop: false, built: true }),
+        stableJson({ advance: L("DRPG.Advance.caption"), items: L("DRPG.Items.caption"), others: true, tips: true, stop: [null, safeword()], kumaStop: false, built: true }),
         `{advance, items: the captions; others: the GM's controls without one; tips: every button's tooltip its aria-label; stop: [caption, word]; kumaStop: a Stop on Monokuma's sheet; built: the four builders through headerButton (${row.map(r => r[0]).join(",")})} - the row's buttons must say what they are`);
     }],
     ["R3489 - the Actions panel opens on its budget and the Rules tab on Monokuma's rules (sheet.mjs `injectActionPanel`, `budgetLine`, `buildRulesPanel`; styles/danganronpa.css; E49 B2, S03-38, S03-39, S12-67): no \"Actions\" heading under the Actions tab, the budget the panel's first row and the panel named for a screen reader; the Rules panel's title is not the tab's word and its padding is the Actions panel's", async () => {
@@ -48722,6 +48722,55 @@ const INVARIANTS = [
         const shown = v => v !== "none";
         equal(stableJson(Object.fromEntries(Object.entries(read).map(([t, [a, b]]) => [t, [shown(a), shown(b)]]))), stableJson({ glass: [true, true], legacy: [true, true] }),
             `{each theme: [the picked row's line shown, the unpicked row's line shown]} - read ${stableJson(read)}`);
+    }],
+    ["R4110 - the sheet's chosen tab stands apart from the others in both themes (E100; the owner at a table on 1.2.108, 12.11.2026: the active tab was no longer marked): on Daggerheart 2.12.8's tab bar (templates/sheets/global/tabs/tab-navigation.hbs, read: `nav.feature-tab.sheet-tabs.tabs > a.<id>.active > span`), the chosen tab's text and its ground differ from an unchosen one's - under the glass its brush is not the bar's own colour", async () => {
+        /*
+         * E100, 12.11.2026. Read in Chromium first (Daggerheart's markup in the style harness's sheet frame, 1366x768):
+         * under the glass the bar is Bone and since E48 K2 the tabs' brush was Bone too (`--brush: var(--drpg-sg-bone)`,
+         * "the hour's until E48 K2"), so the chosen tab's full brush drew Bone on Bone with Ink words like every other
+         * tab; under Legacy the chosen tab is Ink with Bone words. Read here from the sheets' text on a body of each theme.
+         * Red at fb04ba2a: under the glass the chosen and the unchosen tab's words and the brush the same as the bar.
+         */
+        const C = await styleCascade();
+        const read = {};
+        for (const [theme, cls] of [["glass", "drpg-theme-stained-glass drpg-player"], ["legacy", "drpg-theme-monokuma-legacy drpg-player"]]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = cls;
+            html.append(body);
+            body.innerHTML = `<div class="application sheet actor character daggerheart dh-style"><div class="window-content"><header class="character-header-sheet">`
+                + `<section class="tab-navigation"><div class="navigation-container"><div class="navigation-inner-container"><nav class="feature-tab sheet-tabs tabs" data-group="primary">`
+                + `<a class="features active" data-action="tab" data-group="primary" data-tab="features"><span>Actions</span></a>`
+                + `<a class="inventory" data-action="tab" data-group="primary" data-tab="inventory"><span>Inventory</span></a></nav></div></div></section></header></div></div>`;
+            const nav = body.querySelector("nav.sheet-tabs"), [chosen, other] = body.querySelectorAll("nav.sheet-tabs > a");
+            const w = (el, prop, pseudo = null) => C.winner(el, prop, pseudo)?.value ?? null;
+            read[theme] = {
+                words: w(chosen, "color") !== w(other, "color"),
+                /* The bar is Bone under the glass (the base sheet's `--drpg-bone` and the theme's `--drpg-sg-bone` are one colour
+                   there, read in Chromium: rgb(242, 238, 230)), so a brush of either Bone is the bar's colour. */
+                ground: theme === "glass" ? !/bone/.test(String(w(chosen, "--brush")))
+                    : w(chosen, "background") !== w(other, "background")
+            };
+        }
+        equal(stableJson(read), stableJson({ glass: { words: true, ground: true }, legacy: { words: true, ground: true } }),
+            "{each theme: [the chosen tab's words apart from an unchosen one's; its ground apart (glass: its brush not a Bone, the bar's colour)]}");
+    }],
+    ["R4112 - nothing in the sheet's left column reaches past its sides (E100; the owner at a table on 1.2.108, 12.11.2026: a sideways scrollbar under the Experience list): under the glass a row's brush behind an Equipped item (and any button) in `.character-sidebar-sheet` stands inside its box (`inset` with no negative side), where elsewhere it overhangs 5 px", async () => {
+        /*
+         * E100, 12.11.2026. Measured in Chromium (the style harness's sheet parts, 1366x768, glass): the column's
+         * scrollWidth 278 against clientWidth 274; hiding its children one by one, the Equipped row (`li.inventory-item`)
+         * alone, through its `::before` brush, `inset: 1px -5px` (stained-glass.css's shared brush). Legacy draws no
+         * such brush (275 = 275). Red at fb04ba2a: the brush's inset was the shared one.
+         */
+        const C = await styleCascade();
+        const html = document.createElement("html"), body = document.createElement("body");
+        body.className = "drpg-theme-stained-glass drpg-player";
+        html.append(body);
+        body.innerHTML = `<div class="application sheet actor character daggerheart dh-style"><div class="window-content"><aside class="character-sidebar-sheet">`
+            + `<div class="shortcut-items-section"><div class="equipment-section"><ul class="items-sidebar-list"><li class="inventory-item inventory-item-compact drpg-equipped-tool">x</li></ul></div></div>`
+            + `<button type="button">b</button></aside></div></div>`;
+        const li = body.querySelector("li.inventory-item"), button = body.querySelector("aside > button");
+        const sides = el => { const v = C.winner(el, "inset", "::before")?.value ?? ""; return v.split(/\s+/).some(part => part.startsWith("-")); };
+        equal(stableJson([sides(li), sides(button)]), stableJson([false, false]), "[a negative side in the brush's inset: the Equipped row's, a button's in the column]");
     }],
     ["R4102 - the verbose console log is a GM's row (E100 item 3; the owner's 12.11.2026, the player-screens review's #4): the gear's window draws `debug` (Verbose console logging) for a GM and not for a player, whose window has no Technical section left; the setting stays this browser's (`scope: \"client\"`), so the one road to it on a player's browser is the console line the GM handbook gives - there is no road from a GM's browser to another browser's client setting, and none is added", async () => {
         /*

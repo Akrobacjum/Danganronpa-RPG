@@ -11493,7 +11493,7 @@ body.drpg-stacked .application.sheet.actor.character {
 .drpg-free-move .drpg-move-slot[data-drpg-state="off"] { opacity: 0.28; }
 
 /* THE NAME ROW'S CAPTIONS (E49 B2, S03-31; sheet.mjs `headerButton`): Level Up's and Give / take's words beside the
-   icon, and the Stop's "Safeword" before the table's word. */
+   icon (the Stop's "Safeword" caption before the table's word went in E100: the word alone). */
 .character-header-sheet .name-row .drpg-advance-button .drpg-header-caption {
     margin-left: 0.35em;
     font-size: 0.8em;
@@ -11501,7 +11501,6 @@ body.drpg-stacked .application.sheet.actor.character {
     text-transform: uppercase;
     white-space: nowrap;
 }
-.drpg-safeword-button .drpg-safeword-caption { opacity: 0.8; }
 
 /* And a pixel down, because the ink sits high in a box that is already right.
    --------------------------------------------------------------------------

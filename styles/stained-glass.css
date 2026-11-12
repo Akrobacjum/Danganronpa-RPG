@@ -908,6 +908,11 @@ body.drpg-theme-stained-glass .drpg-messenger button:not(.header-control)::befor
     clip-path: none;
     transition: opacity var(--drpg-t-snap, 120ms);
 }
+/* NOTHING IN THE SHEET'S LEFT COLUMN OVERHANGS IT (E100, 12.11.2026; the owner at a table on 1.2.108: a sideways
+   scrollbar under the Experience list). The brush above overhangs its box by 5 px at each end; behind the Equipped row
+   (`li.inventory-item`) in the narrow column that made it 278 px wide in a 274 px box (Chromium, the style harness's
+   sheet parts at 1366x768). Inside the column the brush stands inside its box. R4112. */
+body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet :is(button, li.inventory-item)::before { inset: 1px 0; }
 /* HOVER IS A WHOLE BRUSH STROKE, NOT A WASH OF ONE.
    It was 45 % here, and the mockup paints hover at full opacity - the same stroke the
    selected tab wears, which is the point of "one mark for everything" (Dawid, 07.09). The
@@ -1515,9 +1520,11 @@ body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-
 }
 body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a:hover:not(.active)::before { opacity: 1; }
 body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a.active::before { opacity: 1; }
-body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a.active,
-body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a.active span {
-    color: var(--drpg-sg-ink) !important;
+/* Bone on the Ink brush, the chosen tab and the one under the cursor (E100, R4110: see "THE CHOSEN TAB" below). */
+body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs :is(a.active, a:hover),
+body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs :is(a.active, a:hover) span {
+    color: var(--drpg-sg-bone) !important;
+    -webkit-text-fill-color: var(--drpg-sg-bone);
     text-shadow: none !important;
 }
 body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a:focus-visible {
@@ -1627,22 +1634,27 @@ body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet 
     color: var(--drpg-sg-bone);
 }
 /* the tab bar's tabs: the base sheet's border and colour give way to the brush */
-body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .tab-navigation nav.sheet-tabs a,
-body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .tab-navigation nav.sheet-tabs a.active {
+body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .tab-navigation nav.sheet-tabs a {
     border: 0 !important;
     box-shadow: none !important;
     background: none !important;
     border-radius: 0 !important;
+    text-shadow: none !important;
+}
+/* Ink words on the Bone bar for the tabs that are neither chosen nor under the cursor (`:where`, so the weight is the
+   rule's as before E100); those two are Bone on the Ink brush, above. */
+body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .tab-navigation nav.sheet-tabs a:not(:where(.active, :hover)),
+body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .tab-navigation nav.sheet-tabs a:not(:where(.active, :hover)) span {
     color: var(--drpg-sg-ink) !important;
     -webkit-text-fill-color: var(--drpg-sg-ink);
     text-shadow: none !important;
 }
-body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .tab-navigation nav.sheet-tabs a span,
-body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .tab-navigation nav.sheet-tabs a.active span {
-    color: var(--drpg-sg-ink) !important;
-    -webkit-text-fill-color: var(--drpg-sg-ink);
-    text-shadow: none !important;
-}
+/* THE CHOSEN TAB IS INK ON THE BONE BAR (E100, 12.11.2026; the owner at a table on 1.2.108: the active tab was no longer
+   marked). E48 K2 turned the tabs' brush from the hour's colour to Bone (`--brush` above), the bar's own colour, so the
+   chosen tab's full brush drew Bone on Bone and its words stayed Ink like every other tab's (read in Chromium on
+   Daggerheart 2.12.8's markup, 1366x768). The brush is Ink now, still no hour's colour (E48 K2's D30), and the words on
+   it Bone (the chosen tab's rule, and the one under the cursor; the Ink rule above leaves both). R4110. */
+body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .tab-navigation nav.sheet-tabs a { --brush: var(--drpg-sg-ink); }
 /* tile labels fit a narrow sheet: no tracking, wrapping allowed, the cost one size down */
 body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button) .drpg-action-name {
     font-size: max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale)));

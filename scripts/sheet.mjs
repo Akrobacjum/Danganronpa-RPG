@@ -3029,10 +3029,10 @@ function injectSafeword(app, element, mode = modeOf(app)) {
      * every open sheet - otherwise the button would keep offering the old word
      * to everyone who has not reopened their character since it changed.
      */
-    // The table's word, and above it what the button is (E49 B2, S03-31: "the safeword shows the table's word alone" -
-    // a word nobody has met reads as a name, not as the Stop).
+    // The table's word alone (E100, 12.11.2026; the owner at a table on 1.2.108: "SAFEWO RD MISIUBOMBO" wrapped across
+    // two lines in the narrow button - only the safeword's own name, as it was before E49 B2 put the caption above it).
+    // What the button is stays in its tooltip and its aria-label.
     button.innerHTML = `<i class="fa-solid fa-hand" inert></i>
-        <span class="drpg-safeword-caption">${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Safeword.title"))}</span>
         <span class="drpg-safeword-word">${foundry.utils.escapeHTML(safeword())}</span>`;
 
     button.addEventListener("click", async event => {
