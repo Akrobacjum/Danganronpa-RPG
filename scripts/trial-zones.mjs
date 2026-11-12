@@ -315,6 +315,77 @@ export async function thesisOnPrimary({ actorId, text }) {
     });
 }
 
+/* ==========================================================================
+ * FINDINGS (E73 C6; TR21, TR28 = 1: the GM has full control, of content too - every press public on its card)
+ * ========================================================================== */
+
+/** The trial's Findings now: `trialProgress().findings`, a copy. */
+export async function findingsNow() {
+    const { trialProgress } = await import("./vote.mjs");
+    return [...(trialProgress().findings ?? [])];
+}
+
+/** The record's Findings written whole (another GM's write goes to the primary as the record's own patch). */
+async function writeFindings(list) {
+    const { setTrialProgress } = await import("./vote.mjs");
+    await setTrialProgress({ findings: list });
+}
+
+/** A card of a GM's press on the Findings, public (TR28 = 1). */
+async function findingCard(key, words) {
+    const { announce } = await import("./utils.mjs");
+    const { trialEventCard } = await import("./trial-floor-ui.mjs");
+    await announce({ content: trialEventCard("DRPG.Zones.findings.title", game.i18n.format(key, zoneCardWords(words))) });
+}
+
+/**
+ * `game.drpg.addFinding(text)`: a Finding the GM writes, with no mode behind it (a Scrum Debate's end, a ruling) - told
+ * on a public card. Answers its id, or null.
+ */
+export async function addFinding(text) {
+    if (!game.user.isGM) return null;
+    const words = String(text ?? "").trim().slice(0, (Number(TRIAL.modes.zones.answerLength) || 80) * 3);
+    if (!words) return null;
+    const id = findingId();
+    await writeFindings([...(await findingsNow()), { id, text: words, question: null, mode: null, at: Date.now(), confirmed: false, edited: true }]);
+    await findingCard("DRPG.Zones.findings.added", { text: words });
+    return id;
+}
+
+/** `game.drpg.editFinding(id, text)`: a Finding's words changed by the GM, the change told on a public card. */
+export async function editFinding(id, text) {
+    if (!game.user.isGM) return false;
+    const list = await findingsNow();
+    const row = list.find(f => f.id === id);
+    const words = String(text ?? "").trim().slice(0, (Number(TRIAL.modes.zones.answerLength) || 80) * 3);
+    if (!row || !words || words === row.text) return false;
+    await writeFindings(list.map(f => (f.id === id ? { ...f, text: words, edited: true } : f)));
+    await findingCard("DRPG.Zones.findings.edited", { was: row.text, text: words });
+    return true;
+}
+
+/** `game.drpg.deleteFinding(id)`: a Finding taken off the list by the GM, told on a public card. */
+export async function deleteFinding(id) {
+    if (!game.user.isGM) return false;
+    const list = await findingsNow();
+    const row = list.find(f => f.id === id);
+    if (!row) return false;
+    await writeFindings(list.filter(f => f.id !== id));
+    await findingCard("DRPG.Zones.findings.deleted", { text: row.text });
+    return true;
+}
+
+/** `game.drpg.confirmFinding(id)`: "Monokuma confirms" on a Finding (TR28 = 1), marked on the list and told on a card. */
+export async function confirmFinding(id) {
+    if (!game.user.isGM) return false;
+    const list = await findingsNow();
+    const row = list.find(f => f.id === id);
+    if (!row || row.confirmed) return false;
+    await writeFindings(list.map(f => (f.id === id ? { ...f, confirmed: true } : f)));
+    await findingCard("DRPG.Zones.findings.confirmed", { text: row.text });
+    return true;
+}
+
 /** The words a zone card is formatted with, escaped (trial-floor.mjs `postFloorCard`). */
 export function zoneCardWords(words = {}) {
     return Object.fromEntries(Object.entries(words ?? {}).map(([k, v]) => [k, esc(String(v ?? ""))]));

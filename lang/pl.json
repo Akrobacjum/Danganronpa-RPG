@@ -1385,6 +1385,23 @@
         "body": "Nie masz tokenu w sali rozpraw. Wybierz stronę, po której stoisz.",
         "side": "{zone}: {answer}",
         "done": "Stoisz w: {zone}."
+      },
+      "findings": {
+        "title": "Findings",
+        "button": "Findings ({n})",
+        "none": "W tej rozprawie nie ma jeszcze Findings.",
+        "intro": "To, co klasa ustaliła w trybach stref, i to, co dodasz. Każda zmiana tutaj trafia do stołu.",
+        "confirmedMark": "Monokuma potwierdza",
+        "edit": "Edytuj",
+        "delete": "Usuń",
+        "confirm": "Monokuma potwierdza",
+        "add": "Dodaj Finding",
+        "text": "Finding",
+        "save": "Zapisz",
+        "added": "GM dodaje Finding: {text}",
+        "edited": "GM zmienia Finding: {was} - teraz: {text}",
+        "deleted": "GM usuwa Finding z listy: {text}",
+        "confirmed": "Monokuma potwierdza: {text}"
       }
     },
     "Floor": {

@@ -406,6 +406,20 @@ export function entryPatch(now, { seconds = TRIAL.speakSeconds } = {}) {
 }
 
 /**
+ * THE TRIAL'S FINDINGS ON A CARD (E73 C6; the plan's "Findings are on the vote's opening card"): the record's list
+ * (`findings`, `TRIAL_RECORD`), one line each - its text, the mode that made it, "Monokuma confirms" when a GM confirmed
+ * it - as markup for a public card, every word escaped; "" with none. Read by vote.mjs `openRound` and the GM's window.
+ */
+export function findingsHtml(findings = []) {
+    const list = (Array.isArray(findings) ? findings : []).filter(f => f && typeof f.text === "string" && f.text);
+    if (!list.length) return "";
+    const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
+    const line = f => `<li data-drpg-finding="${esc(f.id ?? "")}">${esc(f.text)}${f.mode ? ` <small>(${esc(game.i18n.localize(`DRPG.Floor.mode.${f.mode}`))})</small>` : ""}${
+        f.confirmed ? ` <strong>${esc(game.i18n.localize("DRPG.Zones.findings.confirmedMark"))}</strong>` : ""}</li>`;
+    return `<div class="drpg-findings"><p><strong>${esc(game.i18n.localize("DRPG.Zones.findings.title"))}</strong></p><ul>${list.map(line).join("")}</ul></div>`;
+}
+
+/**
  * What has happened in THIS chapter's trial. Never throws; never null.
  *
  * `chapter` names another chapter's (E10 fix r2-G5, 1.2.71; round 2's cor m3): Edit campaign moving

@@ -8582,6 +8582,43 @@ const INVARIANTS = [
             last: [null, ["DRPG.Zones.scrum.over"], false], emptied: [null, "In", "DRPG.Zones.scrum.empty"]
         }), "{seconds: 3:2, 4:3, 8:7, 10:5, 0:0; turns of 4:3; first: [turns, seconds, the smaller camp]; speakers in order; last: [floor, cards, a Finding]; emptied: [floor, Finding, card]}");
     }],
+    ["R3909 - the zone modes' bar and its API agree (E73 C6; TR21: every GM intervention public and an API function): on a Straw Poll, a Logic Dive question and its pause, and a Scrum turn, trial-floor.mjs `barRefusal` lets Count now, Skip, -30 s, +30 s and End this mode be pressed where they move the floor and greys the rest with a reason - Count now outside a vote, Skip question outside Logic Dive, Back, Overrule and Re-point everywhere; each op the console draws there is a game.drpg function; and the vote's opening card carries the Findings (trial-progress.mjs `findingsHtml`, escaped, a confirmed one marked)", async () => {
+        /* E73 C6, 12.11.2026. Planted floors at a fixed `now`, an empty record of receipts. Red at 4077664: no zone modes, no findingsHtml. */
+        const F = await import("./trial-floor.mjs");
+        const M = await import("./zone-machine.mjs").catch(() => null);
+        const P = await import("./trial-progress.mjs");
+        must(M && typeof P.findingsHtml === "function", "no zone-machine.mjs or no findingsHtml - the zone modes have no bar and the vote no Findings");
+        const NOW = 5_000_000;
+        const straw = M.zoneStart(null, { type: "zone", mode: "straw", question: "Q", answers: { a: "A", b: "B" } }, { now: NOW - 10_000 }).floor;
+        const dive = M.zoneStart(null, { type: "zone", mode: "dive", question: "Q", answers: { a: "A", b: "B" }, set: { id: "S", index: 0, total: 2 } }, { now: NOW - 10_000 }).floor;
+        const pause = { ...dive, zone: { ...dive.zone, phase: "pause", counts: { a: 1, b: 0 } }, seconds: 5, startedAt: NOW - 1000 };
+        const scrum = { ...M.zoneStart(null, { type: "zone", mode: "scrum", question: "Q", answers: { a: "A", b: "B" } }, { now: NOW - 10_000 }).floor };
+        const speak = { ...scrum, holderId: "speakerAAAAAAAAA", seconds: 40, startedAt: NOW - 5000, zone: { ...scrum.zone, phase: "speak", turn: 1, turns: 4, turnSeconds: 40, first: "a", side: "a" } };
+        const read = {};
+        for (const [name, floor] of Object.entries({ straw, dive, pause, speak })) {
+            read[name] = Object.fromEntries(F.BAR_OPS.map(op => [op, F.barRefusal(op, floor, { running: true, now: NOW, record: { objections: {} } })]));
+        }
+        const api = game.drpg ?? {};
+        const fns = ["skipStep", "adjustTime", "endMode", "countNow", "skipQuestion", "startStrawPoll", "startLogicDive", "startScrumDebate",
+            "addFinding", "editFinding", "deleteFinding", "confirmFinding", "findings"].filter(k => typeof api[k] !== "function");
+        const html = P.findingsHtml([{ id: "f1", text: "<b>Inside</b>", mode: "straw", confirmed: true }, { id: "f2", text: "Out", mode: null }, { text: "" }]);
+        const box = document.createElement("div");
+        box.innerHTML = html;
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/vote.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const none = "DRPG.Floor.bar.noOverrule", back = "DRPG.Floor.bar.noMode", rep = "DRPG.Floor.bar.noObjection";
+        const base = { skip: null, minus: null, plus: null, overrule: none, endMode: null, back, repoint: rep };
+        equal(stableJson({ read, fns, items: [...box.querySelectorAll("li")].map(li => li.textContent.replace(/\s+/g, " ").trim()), bold: box.querySelectorAll("b").length,
+            card: /findingsHtml\(progress\?\.findings\)/.test(fnSource(src, "openRound")) }), stableJson({
+            read: {
+                straw: { ...base, count: null, skipQuestion: "DRPG.Zones.noQuestionHere" },
+                dive: { ...base, count: null, skipQuestion: null },
+                pause: { ...base, count: "DRPG.Zones.noCount", skipQuestion: null },
+                speak: { ...base, count: "DRPG.Zones.noCount", skipQuestion: "DRPG.Zones.noQuestionHere" }
+            },
+            fns: [],
+            items: [`<b>Inside</b> (${game.i18n.localize("DRPG.Floor.mode.straw")}) ${game.i18n.localize("DRPG.Zones.findings.confirmedMark")}`, "Out"], bold: 0, card: true
+        }), "{read: each bar op's reason on a Straw Poll, a Logic Dive question, its pause, a Scrum turn; fns: game.drpg functions missing; items: the card's Findings, escaped; bold: markup let through; card: the vote's opening card carries them}");
+    }],
     ["R3661 - the case's ticks at a trial are a GM store no player holds (E99 C3; Q-E99-8): gm-stores.mjs `caseTickStore` is the ledger `caseTicks` under `gmCaseTicks`, a client setting, not in the backup, synced, cut with the trial's group; on a player's engine its write is refused and nothing stored; case-schema.mjs `setCaseTick` asks for a GM", async () => {
         /*
          * E99 C3, 12.11.2026; as R3374 reads the schema's store. Red at 1e1c61c: no caseTickStore.

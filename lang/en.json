@@ -1341,6 +1341,23 @@
         "body": "You have no token in the trial hall. Pick the side you stand on.",
         "side": "{zone}: {answer}",
         "done": "You stand in {zone}."
+      },
+      "findings": {
+        "title": "Findings",
+        "button": "Findings ({n})",
+        "none": "No Findings yet in this trial.",
+        "intro": "What the class settled in the zone modes, and what you add. Every change here is told to the table.",
+        "confirmedMark": "Monokuma confirms",
+        "edit": "Edit",
+        "delete": "Delete",
+        "confirm": "Monokuma confirms",
+        "add": "Add a Finding",
+        "text": "Finding",
+        "save": "Save",
+        "added": "The GM adds a Finding: {text}",
+        "edited": "The GM changes a Finding: {was} - now: {text}",
+        "deleted": "The GM takes a Finding off the list: {text}",
+        "confirmed": "Monokuma confirms: {text}"
       }
     },
     "Floor": {

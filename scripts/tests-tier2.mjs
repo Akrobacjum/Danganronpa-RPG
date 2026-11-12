@@ -27405,6 +27405,48 @@ const SCENARIOS = [
             tie: [null, "tie", true, 1, false, false, 1]
         }), "{strawStart: [mode, seconds, Zone A's side, the stand kept]; strawEnd: [floor, Findings, split, the token back, the Finding's card]; diveStart: [mode, question, a truth field]; right: [phase, count, next question]; tie: [floor, outcome, ended, Findings, the true answer in the floor, in the record, cards naming it]}");
     }],
+    ["E73 C6: the GM's Findings - added, edited, confirmed and deleted, each on a public card, the record holding the list", async () => {
+        /*
+         * E73 C6, 12.11.2026; TR21, TR28 = 1. On this primary in a Class Trial: `addFinding`, `editFinding`,
+         * `confirmFinding`, `deleteFinding` through game.drpg, each read back off the record (`trialProgress().findings`)
+         * and the public card it posts. Red at 4077664: no such functions. The clock, the record and the cards are put back.
+         */
+        const api = game.drpg ?? {};
+        must(typeof api.addFinding === "function", "game.drpg has no addFinding - the GM cannot write a Finding");
+        const V = await import("./vote.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const cards = () => game.messages.filter(m => !seen.has(m.id) && !m.whisper?.length).map(m => String(m.content));
+        const read = {};
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...progress, findings: [] });
+            await settle();
+            const id = await api.addFinding("SUITE the door was locked");
+            await settle();
+            read.added = [(V.trialProgress().findings ?? []).map(f => [f.text, f.confirmed]), cards().length];
+            await api.editFinding(id, "SUITE the door was locked from inside");
+            await api.confirmFinding(id);
+            await settle();
+            read.edited = [(V.trialProgress().findings ?? []).map(f => [f.text, f.confirmed]), cards().length,
+                cards().some(c => c.includes(game.i18n.format("DRPG.Zones.findings.confirmed", { text: "SUITE the door was locked from inside" })))];
+            await api.deleteFinding(id);
+            await settle();
+            read.deleted = [(V.trialProgress().findings ?? []).length, cards().length, await api.confirmFinding(id)];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await setClock(clock);
+            const fresh = game.messages.filter(m => !seen.has(m.id)).map(m => m.id);
+            if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            added: [[["SUITE the door was locked", false]], 1],
+            edited: [[["SUITE the door was locked from inside", true]], 3, true],
+            deleted: [0, 4, false]
+        }), "{added: [the list, public cards]; edited: [the list after an edit and a confirm, cards, the confirm's card]; deleted: [the list, cards, a confirm of a gone Finding]}");
+    }],
     ["E73 C1: Zone A and Zone B picked in Room Setup's Scenes tab are stored in sceneRoles, read back after a reload, and the tab warns of a gap", async () => {
         /*
          * E73 C1, 12.11.2026; plan E73 C1's red ("saved and read after F5; warnings for none, duplicate, gap, overlap").

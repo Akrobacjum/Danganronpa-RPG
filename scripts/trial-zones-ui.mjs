@@ -18,7 +18,8 @@ import { SETTINGS } from "./settings.mjs";
 import { trialScene } from "./rooms.mjs";
 import { zoneRegions, zonesReady, tokenZone } from "./zone-geometry.mjs";
 import { ZONE_MODES, isZoneMode, zoneOf } from "./zone-machine.mjs";
-import { sidesNow, hallTokenOf, zoneStartRefusal, startStrawPoll, startScrumDebate, startLogicDive } from "./trial-zones.mjs";
+import { sidesNow, hallTokenOf, zoneStartRefusal, startStrawPoll, startScrumDebate, startLogicDive, findingsNow, addFinding, editFinding,
+    deleteFinding, confirmFinding } from "./trial-zones.mjs";
 import { trialParticipants } from "./vote.mjs";
 import { diveSetStore } from "./gm-stores.mjs";
 import { drpgWindow, drpgConfirm, formGrid, box } from "./ui-kit.mjs";
@@ -346,6 +347,66 @@ export async function openDiveSets() {
         },
         rejectClose: false
     }).then(out => (out === "new" ? editDiveSet(null) : null));
+}
+
+/* ==========================================================================
+ * THE FINDINGS WINDOW (E73 C6; TR21, TR28 = 1), the console's "Findings" button and `game.drpg.openFindings()`
+ * ========================================================================== */
+
+/** The Findings window's list: each Finding with Edit, Delete and "Monokuma confirms" (greyed once confirmed). */
+export function findingsListHtml(list) {
+    if (!list.length) return `<p>${esc(game.i18n.localize("DRPG.Zones.findings.none"))}</p>`;
+    const L = key => esc(game.i18n.localize(key));
+    return `<ul class="drpg-findings-list">${list.map(f => `<li data-drpg-finding="${esc(f.id)}"><span>${esc(f.text)}</span>
+        ${f.mode ? `<small>(${esc(game.i18n.localize(`DRPG.Floor.mode.${f.mode}`))})</small>` : ""}
+        ${f.confirmed ? `<strong>${L("DRPG.Zones.findings.confirmedMark")}</strong>` : ""}
+        <button type="button" data-drpg-finding-act="edit">${L("DRPG.Zones.findings.edit")}</button>
+        <button type="button" data-drpg-finding-act="delete">${L("DRPG.Zones.findings.delete")}</button>
+        <button type="button" data-drpg-finding-act="confirm"${f.confirmed ? " disabled" : ""}>${L("DRPG.Zones.findings.confirm")}</button></li>`).join("")}</ul>`;
+}
+
+/** One line of text asked of the GM: a Finding's words. */
+async function askFindingText(title, value = "") {
+    const out = await drpgWindow({
+        title, classes: ["drpg-panel", "drpg-narrow"],
+        body: `<form>${formGrid([{ label: game.i18n.localize("DRPG.Zones.findings.text"), field: `<input type="text" name="text" value="${esc(value)}" maxlength="${TRIAL.modes.zones.answerLength * 3}">` }])}</form>`,
+        footer: { primary: { action: "ok", label: game.i18n.localize("DRPG.Zones.findings.save"), callback: (e, b, d) => d.element.querySelector('[name="text"]')?.value ?? "" }, close: "cancel" },
+        rejectClose: false
+    });
+    return typeof out === "string" && out !== "cancel" ? out : null;
+}
+
+/** The trial's Findings, on a GM: the list with each press public on its card (trial-zones.mjs). */
+export async function openFindings() {
+    if (!game.user.isGM) return null;
+    const draw = async () => findingsListHtml(await findingsNow());
+    return drpgWindow({
+        title: game.i18n.localize("DRPG.Zones.findings.title"),
+        classes: ["drpg-panel", "drpg-findings-window"],
+        body: `<p class="notes">${esc(game.i18n.localize("DRPG.Zones.findings.intro"))}</p><div data-drpg-findings>${await draw()}</div>`,
+        render: (event, dialog) => {
+            const box = dialog?.element?.querySelector("[data-drpg-findings]");
+            box?.addEventListener("click", async e => {
+                const button = e.target?.closest?.("[data-drpg-finding-act]");
+                const id = button?.closest("[data-drpg-finding]")?.dataset.drpgFinding;
+                if (!id) return;
+                const act = button.dataset.drpgFindingAct;
+                const row = (await findingsNow()).find(f => f.id === id);
+                if (act === "edit") {
+                    const text = await askFindingText(game.i18n.localize("DRPG.Zones.findings.edit"), row?.text ?? "");
+                    if (text !== null) await editFinding(id, text);
+                } else if (act === "delete") await deleteFinding(id);
+                else if (act === "confirm") await confirmFinding(id);
+                box.innerHTML = await draw();
+            });
+        },
+        footer: { secondary: [{ action: "add", label: game.i18n.localize("DRPG.Zones.findings.add"), callback: () => "add" }], close: "close" },
+        rejectClose: false
+    }).then(async out => {
+        if (out !== "add") return null;
+        const text = await askFindingText(game.i18n.localize("DRPG.Zones.findings.add"));
+        return text ? addFinding(text) : null;
+    });
 }
 
 /* ==========================================================================

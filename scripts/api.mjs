@@ -1121,6 +1121,15 @@ export const DrpgApi = {
     openZonePicker: (mode = null) => import("./trial-zones-ui.mjs").then(m => m.openZonePicker({ mode })),
     openDiveSets: (...a) => import("./trial-zones-ui.mjs").then(m => m.openDiveSets(...a)),
     editDiveSet: (...a) => import("./trial-zones-ui.mjs").then(m => m.editDiveSet(...a)),
+    /* The trial's Findings (E73 C6; TR28 = 1), on any GM, each press told on a public card: `findings()` the list,
+       `addFinding(text)`, `editFinding(id, text)`, `deleteFinding(id)`, `confirmFinding(id)` ("Monokuma confirms"),
+       `openFindings()` the window. */
+    findings: (...a) => import("./trial-zones.mjs").then(m => m.findingsNow(...a)),
+    addFinding: (...a) => import("./trial-zones.mjs").then(m => m.addFinding(...a)),
+    editFinding: (...a) => import("./trial-zones.mjs").then(m => m.editFinding(...a)),
+    deleteFinding: (...a) => import("./trial-zones.mjs").then(m => m.deleteFinding(...a)),
+    confirmFinding: (...a) => import("./trial-zones.mjs").then(m => m.confirmFinding(...a)),
+    openFindings: (...a) => import("./trial-zones-ui.mjs").then(m => m.openFindings(...a)),
 
     openVote,
     closeVote,

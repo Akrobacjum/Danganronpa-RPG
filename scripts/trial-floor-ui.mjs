@@ -1102,8 +1102,11 @@ function trialBar({ floor, running, barNext }) {
  * section, under the bar, pressed through the window's one listener (`data-drpg-console="log"`), as the bar's are:
  * the live region redraws it every second.
  */
-function logButton() {
-    return `<p class="drpg-trial-log"><button type="button" data-drpg-console="log">${esc(game.i18n.localize("DRPG.Trial.logTitle"))}</button></p>`;
+function logButton(view = {}) {
+    // The trial's Findings (E73 C6) beside the log: the zone modes' and the GM's, each press public.
+    const n = Array.isArray(view.progress?.findings) ? view.progress.findings.length : 0;
+    return `<p class="drpg-trial-log"><button type="button" data-drpg-console="log">${esc(game.i18n.localize("DRPG.Trial.logTitle"))}</button>
+                <button type="button" data-drpg-console="findings">${esc(game.i18n.format("DRPG.Zones.findings.button", { n }))}</button></p>`;
 }
 
 /** The console's three sections, from one reading of the floor. Exported for R1124 (E51 C6), which hands it a view. */
@@ -1258,7 +1261,7 @@ export function trialConsoleHtml(view) {
             ${closingConsole(view)}
             ${!floor && running && progress.closing?.done ? `<p>${game.i18n.localize("DRPG.Floor.closing.already")}</p>` : ""}
             ${trialBar(view)}
-            ${logButton()}
+            ${logButton(view)}
 
             ${revealConsole(view)}
 
@@ -1645,6 +1648,11 @@ export async function manageClassTrial() {
                 if (event.target?.closest?.("[data-drpg-console=\"log\"]")) {
                     event.preventDefault();
                     return void import("./trial.mjs").then(m => m.openObjectionLog()).catch(err => error("Could not open the evidence log", err));
+                }
+                // The trial's Findings (E73 C6): its own window over the console.
+                if (event.target?.closest?.("[data-drpg-console=\"findings\"]")) {
+                    event.preventDefault();
+                    return void import("./trial-zones-ui.mjs").then(m => m.openFindings()).catch(err => error("Could not open the Findings", err));
                 }
                 const button = event.target?.closest?.("[data-drpg-bar]");
                 if (!button) return;
