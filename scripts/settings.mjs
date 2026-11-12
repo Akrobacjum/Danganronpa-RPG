@@ -457,6 +457,8 @@ export const SETTINGS = {
      * room `{ sceneId, room, authorId, strength, at, userId }`. Synced, not backed up; no player copy.
      */
     gmBarricades: "gmBarricades",
+    /** THE WATCHES KEPT (E74 C6, 12.11.2026): a GM store (gm-stores.mjs `watchStore`), a row per watcher. Synced, not backed up. */
+    gmWatches: "gmWatches",
     /**
      * WHICH GM ROOM ACTIONS ARE CLOSED NOW (E93 C1): `{ mark, keys }`, the time of day and the keys of the GM's
      * actions used in it (`g:<sceneId>:<room>:<actionId>`), written by the primary GM (facilities-gm.mjs
@@ -2042,6 +2044,13 @@ export function registerSettings() {
     // The room actions used (E93 C1): no `onChange` - shown nowhere, read by the next use on the GM that serves it
     // (facilities-gm.mjs `handleFacilityUse`).
     game.settings.register(MODULE_ID, SETTINGS.gmFacilityUses, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The watches kept (E74 C6): no `onChange` - read by the primary at an Eclipse and a crossing (watch-gm.mjs).
+    game.settings.register(MODULE_ID, SETTINGS.gmWatches, {
         scope: "client",
         config: false,
         type: Object,

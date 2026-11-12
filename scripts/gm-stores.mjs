@@ -955,6 +955,18 @@ export const facilityUseStore = defineGmStore({
 });
 
 /**
+ * THE WATCHES KEPT (E74 C6, 12.11.2026; the owner's audit entry E74, DA34). A row per watcher, keyed by the watcher's actor
+ * id: `{ actorId, total, critical, post, sceneId, entered, left, at, userId }` - `post` the room taken at the Eclipse's start,
+ * `entered` and `left` the cards sent. Written, read and dropped by the primary alone (watch-gm.mjs); synced; not backed
+ * up: a row lasts one Eclipse. Cut by the reset's "actions" group. No player copy and no old key.
+ */
+export const watchStore = defineGmStore({
+    name: "watches", key: SETTINGS.gmWatches,
+    kind: "ledger", resetGroup: "actions", backup: false, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
  * THE BARRICADES STANDING (E74 C2, 12.11.2026; the owner's audit entry E74, DA25, DA47). A row per barricaded room, keyed
  * `<sceneId>:<room>`: `{ sceneId, room, authorId, strength, at, userId }` - `strength` the Body roll's total off the GMs'
  * record (Force the Door contests it, a later commit), `authorId` the character inside who put it up. Written, read and

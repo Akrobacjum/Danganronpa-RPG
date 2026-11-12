@@ -78,6 +78,9 @@ export const FLOWS = Object.freeze([
     // p2's Experience on his own character and his Support on Aiko, and reads the rolls that spend them clean.
     { id: "call-arm", what: "A Call armed on a character: a player's - for somebody else or their own - paid and armed by the GM",
         entry: { bridge: ["call.arm"] }, scenarios: ["30-security", "40-flow", "33-bridge-paths", "83-roll-integrity"], status: "partial", stage: "E39" },
+    // E74 C6 (12.11.2026): 30 forges the packet; the tier-2 test E74-T4 keeps a watch through an Eclipse.
+    { id: "keep-watch", what: "Keep Watch: the Body roll drawn on the GM, the watch kept by the GM and its cards through the Eclipse",
+        entry: { bridge: ["watch.declare"] }, scenarios: ["30-security"], status: "partial", stage: "E74" },
     // E74 C4 (12.11.2026): 30 forges the packet; the tier-2 test E74-T3 picks a lock and a seal.
     { id: "door-pick", what: "Pick the Lock: the Hand and its cover drawn on the GM, the picker walked in by the GM on an open",
         entry: { bridge: ["door.pick"] }, scenarios: ["30-security"], status: "partial", stage: "E74" },

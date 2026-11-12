@@ -22,6 +22,7 @@ import { rollTrait, noteRollContext, abort, canAfford } from "./action-pipeline.
 import { rollCardFlags, rollHead } from "./action-report.mjs";
 import { briefingBlock } from "./action-briefing.mjs";
 import { actionWindow, chooseVariant } from "./action-menus.mjs";
+import { watchShutWhy } from "./action-watch.mjs";
 
 /**
  * THE DOORS, NOT THE ROOMS BEHIND THEM (22.09). The picker named every neighbouring room,
@@ -42,9 +43,9 @@ export function listenLabels(neighbours, known) {
 }
 
 /** Each row's icon in the Infiltrate window. */
-const ROW_ICONS = Object.freeze({ listen: "fa-ear-listen", tail: "fa-shoe-prints", dash: "fa-person-running", shut: "fa-door-closed", force: "fa-door-open", pick: "fa-key" });
+const ROW_ICONS = Object.freeze({ listen: "fa-ear-listen", tail: "fa-shoe-prints", dash: "fa-person-running", shut: "fa-door-closed", force: "fa-door-open", pick: "fa-key", keepWatch: "fa-eye" });
 /** The rows whose action is built on this branch; the rest stand greyed with "Not built yet" (docs/dev/e69/SPEC.md). */
-const BUILT = new Set(["listen", "tail", "dash", "shut", "force", "pick"]);
+const BUILT = new Set(["listen", "tail", "dash", "shut", "force", "pick", "keepWatch"]);
 
 /**
  * THE INFILTRATE WINDOW'S ROWS (E69 C1, 12.11.2026; DA28: one list, no groups). One row a key of `ACTIONS.listen.variants`
@@ -57,7 +58,8 @@ export function infiltrateRows(actor) {
     return (ACTIONS.listen.variants ?? ["listen"]).map(key => {
         const row = INFILTRATE[key] ?? {};
         const why = !BUILT.has(key) ? game.i18n.localize("DRPG.Infiltrate.notBuilt")
-            : key === "listen" && !neighbours.length ? game.i18n.localize("DRPG.Listen.noNeighbours") : null;
+            : key === "listen" && !neighbours.length ? game.i18n.localize("DRPG.Listen.noNeighbours")
+                : key === "keepWatch" ? watchShutWhy() : null;
         return {
             value: key, icon: ROW_ICONS[key] ?? "fa-circle",
             label: game.i18n.localize(`DRPG.Infiltrate.row.${key}.label`),
@@ -90,6 +92,7 @@ export async function performListen(actor, def, options) {
     if (variant === "shut") return (await import("./action-doors.mjs")).performShut(actor, options);
     if (variant === "force") return (await import("./action-doors.mjs")).performForce(actor, options);
     if (variant === "pick") return (await import("./action-doors.mjs")).performPick(actor, options);
+    if (variant === "keepWatch") return (await import("./action-watch.mjs")).performWatch(actor, options);
     if (variant !== "listen") return null;
     const cost = options.free ? 0 : def.cost;
     if (!canAfford(actor, cost)) return null;

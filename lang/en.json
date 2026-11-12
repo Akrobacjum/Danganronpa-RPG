@@ -2935,6 +2935,17 @@
         "seenBy": "{name} is picking the lock to {room}.",
         "warned": "Somebody has been at the lock of {room}."
       },
+      "watch": {
+        "notInEclipse": "A watch is set before an Eclipse, not during one.",
+        "notAtNight": "No watch before the Night Eclipse.",
+        "kept": "You will keep watch through the coming Eclipse, from the room you stand in when it starts.",
+        "notKept": "You cannot settle into a watch this time.",
+        "start": "You keep watch over {room}. In it: {who}.",
+        "startEmpty": "You keep watch over {room}. Nobody else is in it.",
+        "entered": "{name} comes into {room}.",
+        "left": "{name} leaves {room}.",
+        "summary": "Your watch over {room} is over. Came in: {entered}. Left: {left}."
+      },
       "shut": {
         "done": "You barricade {room}. Nobody walks in through a door while you stay inside, until the time of day ends."
       },
@@ -2977,6 +2988,10 @@
         "pick": {
           "label": "Pick the Lock",
           "hint": "Hand at a locked or sealed door next to you: you slip in, and nobody else."
+        },
+        "keepWatch": {
+          "label": "Keep Watch",
+          "hint": "Body, before an Eclipse: through it you hear who is in your room, who comes in and who leaves."
         },
         "dash": {
           "label": "Dash",
@@ -3774,6 +3789,7 @@
         "door.shut": "Shut the Door",
         "door.force": "Force the Door",
         "door.pick": "Pick the Lock",
+        "watch.declare": "Keep Watch",
         "handover.bullet": "Share a Truth Bullet",
         "handover.item": "Hand over an item",
         "passage.share": "Show a secret passage",
@@ -5790,6 +5806,7 @@
         "facilityUses": "Which room actions each character used, and in which time of day",
         "tails": "Who is tailing whom today, and how well",
         "barricades": "Which rooms are barricaded, by whom and how strongly",
+        "watches": "Who keeps watch through the Eclipse, from which room, and what they saw",
         "clockBeat": "When the primary GM was last at the table, so the gap between two sessions is no time of day",
         "takeBack": "What the last start of a time of day gave, for five minutes, so a misclick can be taken back",
         "crossings": "Each character's last crossing between rooms, what it cost, and whether a GM gave it back",

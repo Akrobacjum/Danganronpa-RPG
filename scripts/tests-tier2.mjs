@@ -88406,6 +88406,70 @@ const SCENARIOS = [
             seal: [true, "seal", true, 0], barricade: [false, "barricade", false, 0], far: "notThere", theirs: "notYours", noRoll: "rollUnknown" }),
             "{lock: [[opened, held, walked in, cards to the room beyond] at 14 and 15, still locked]; seen: [a cover of 10, of 16]; owner: [15, 18, a miss with Despair, a miss with Hope]; seal: 15; barricade: 30; far; theirs; noRoll} - a lock picked on the GMs' record of its rolls");
     }],
+    ["E74-T4 - Keep Watch is kept on the GMs' record of its Body roll and tells the watcher who is at the post, who comes and who leaves through the Eclipse (scripts/watch-gm.mjs, bridge-table.mjs `watch.declare`, config.mjs INFILTRATE.keepWatch; E74 C6; DA34): a roll below its number keeps no watch, one at it does; at the Eclipse's start the post is the watcher's room and a card names who is in it; a crossing into the post and one out of it are a card each, one elsewhere none, and none while no Eclipse runs; at its end a summary and the watch is over; another player's character notYours; a packet naming no roll rollUnknown", async () => {
+        /*
+         * E74 C6, 12.11.2026. Judged as the primary judges the player's packet (`G.judge`), the roll a message of the
+         * character's with the GMs' record of it (`recordFor`). No real Eclipse is started: the start and the end are called
+         * as the hook would call them (`startWatches`, `endWatches`), and the crossing's listener is told an Eclipse runs
+         * (`running`). The watcher and another student stand in room A. Put back: the records, the messages, the watches,
+         * the tokens. Red at 4f21e9e: no `watch.declare` in the table.
+         */
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const M = await import("./movement.mjs");
+        const W = await import("./watch-gm.mjs");
+        const { INFILTRATE } = await import("./config.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { player, actor } = await playerInRoom();
+        const other = game.actors.find(a => a.type === "character" && a.id !== actor.id && !a.testUserPermission(player, "OWNER")
+            && !a.getFlag(MODULE_ID, FLAGS.monokuma) && canvas?.scene?.tokens?.some(t => t.actorId === a.id));
+        must(other, "no student the player does not own with a token on the scene on screen - this would measure nothing");
+        const stood = await aloneTogether(actor, other);
+        const made = [], told = [];
+        const ask = async packet => {
+            const from = told.length;
+            await G.judge(BRIDGE_ACTIONS, { action: "watch.declare", requestId: `E74T4${foundry.utils.randomID(8)}`, actorId: actor.id, ...packet },
+                player.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.slice(from).find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            return reply?.action === "bridge.refused" ? reply.reason : reply?.value ?? null;
+        };
+        const rollOf = async total => {
+            const { message } = await neutralRoll(actor, { faces: { hope: 6, fear: 3 } });
+            must(message, "no roll was thrown - this would measure nothing");
+            await message.update({ author: player.id });
+            const kept = await recordFor(message, player, actor, "keepWatch", { total });
+            made.push({ message, kept });
+            return message.id;
+        };
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const cards = () => game.messages.filter(m => !seenIds.has(m.id) && m.speaker?.actor === actor.id && m.whisper?.length).length;
+        const row = () => S.watchStore.get(actor.id);
+        const read = {};
+        try {
+            read.low = [await ask({ rollId: await rollOf(INFILTRATE.keepWatch.dc - 1) }), row()];
+            read.kept = [await ask({ rollId: await rollOf(INFILTRATE.keepWatch.dc) }), Boolean(row())];
+            read.start = [await W.startWatches(), row()?.post === stood.room, cards()];
+            const on = { running: true };
+            read.crossings = [await W.onWatchCrossing({ actorId: other.id, from: "E74T4 hall", to: stood.room }, on),
+                await W.onWatchCrossing({ actorId: other.id, from: stood.room, to: "E74T4 hall" }, on),
+                await W.onWatchCrossing({ actorId: other.id, from: "E74T4 hall", to: "E74T4 yard" }, on),
+                await W.onWatchCrossing({ actorId: other.id, from: "E74T4 hall", to: stood.room }, { running: false })];
+            await settle();
+            read.counted = [row()?.entered ?? null, row()?.left ?? null, cards()];
+            read.end = [await W.endWatches(), row(), (await settle(), cards())];
+            read.theirs = await ask({ actorId: other.id, rollId: await rollOf(14) });
+            read.noRoll = await ask({ total: 20 });
+        } finally {
+            for (const { message, kept } of made) { await kept.putBack(); await game.messages.get(message.id)?.delete(); }
+            for (const id of Object.keys(S.watchStore.entries() ?? {})) if ([actor.id, other.id].includes(id)) await S.watchStore.drop(id);
+            for (const m of game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.length && [actor.id, other.id].includes(m.speaker?.actor))) await m.delete();
+            await stood.back();
+        }
+        equal(stableJson(read), stableJson({ low: [{ kept: false }, null], kept: [{ kept: true }, true], start: [1, true, 1],
+            crossings: [1, 1, 0, 0], counted: [1, 1, 3], end: [1, null, 4], theirs: "notYours", noRoll: "rollUnknown" }),
+            "{low, kept: [answer, the row]; start: [posts taken, the post is the watcher's room, cards so far]; crossings: [in, out, elsewhere, no Eclipse]; counted: [entered, left, cards so far]; end: [summaries, the row, cards so far]; theirs; noRoll} - a watch on the GMs' record of its roll");
+    }],
     ["E69-T4 - Tail Someone begins on the GMs' record of its two rolls and sends its cards from a settled crossing (scripts/tail-gm.mjs, bridge-runs-acts.mjs `handleTailStart`, bridge-table.mjs `tail.start`, config.mjs INFILTRATE.tail; E69 C3, C4; DA8, DA20, DA21, DA26): a player's tail on a student in the room with Shadow 16 is unseen and kept with the effect's total; with Shadow 10 the target's owners are told the tailer's name; the tailer itself, another player's character and a packet naming no rolls are refused; the target's settled crossing sends the tailer one card naming the room, and one the tailer is not in or beside ends the tail lost; a Dash above the effect's total ends it, one below does not; a critical tail falls only to a critical Dash", async () => {
         /*
          * E69 C3 and C4, 12.11.2026. Judged as the primary judges the player's packet (`G.judge`), each roll a message of the

@@ -27,6 +27,7 @@ import { registerBodyMarks, registerBodyFollow } from "./body-tile.mjs";
 import { registerBodyAnnounced } from "./chapter.mjs";
 import { registerTails } from "./tail-gm.mjs";
 import { registerDoors } from "./doors-gm.mjs";
+import { registerWatches } from "./watch-gm.mjs";
 import { registerActionResource } from "./resources.mjs";
 import { registerGmPanel, registerGmChrome, injectLauncher } from "./gm-panel.mjs";
 import { offerStartHere } from "./season-setup.mjs";
@@ -227,6 +228,8 @@ Hooks.once("init", () => {
     safely("the tails", registerTails);
     // Shut the Door's barricades come down (E74 C2), on the primary GM: the author leaving, a new time of day, an Eclipse.
     safely("the barricades", registerDoors);
+    // Keep Watch's posts, cards and summary (E74 C6), on the primary GM: an Eclipse's start and end, a settled crossing.
+    safely("the watches", registerWatches);
     // AFTER the Remnant rings, so a Remnant token that somehow belongs to a player
     // is drawn as evidence first and as theirs second (W-6).
     safely("the own-token ring", registerOwnRing);

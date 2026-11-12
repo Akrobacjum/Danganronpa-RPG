@@ -347,6 +347,10 @@ At a door from your room to the next: one Body roll against everything that hold
 
 At a locked or sealed door from your room to the next (not a barricade): Hand 15 or more opens it and you slip through - you alone; the lock stays locked for everyone else. First a Shadow roll: 16 or more and nobody in the room beyond sees who it was. A bedroom's owner learns somebody was at their lock when you open it below 18 or miss with Despair; at 18 or more they never know.
 
+### Keep Watch - Body, 1 action
+
+Before an Eclipse (not during one, and not before the Night Eclipse): a Body roll of 12 or more and you keep watch through the coming Eclipse over the room you stand in when it starts. You are told who is in it then, by name; through the Eclipse, who comes in and who leaves, by name, never from where or to where; and at its end how many came and went. A player who agreed that their character be a murder's victim does not use Keep Watch to avoid it.
+
 ### Dash - Leg, 1 action
 
 Run: a Leg roll gives free crossings until the time of day ends, spent like a Free Move.

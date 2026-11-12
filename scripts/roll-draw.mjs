@@ -1808,6 +1808,8 @@ async function listedFor(actor, key, context) {
     // Pick the Lock (E74 C4): its Hand and its cover's Shadow, one statistic each.
     if (key === "pick") return [...INFILTRATE.pick.traits];
     if (key === "pickCover") return [INFILTRATE.pick.cover.trait];
+    // Keep Watch (E74 C6): Body.
+    if (key === "keepWatch") return [...INFILTRATE.keepWatch.traits];
     // A GM's room action (E93 C3): the statistic the GM set on it, read on this GM's copy of the room the character
     // stands in (`facilityOfDraw`), never the packet's; none where the room holds no such action (the draw is refused).
     if (key === "facility") {

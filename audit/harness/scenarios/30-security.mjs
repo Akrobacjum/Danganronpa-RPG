@@ -6657,6 +6657,19 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && pickLock.theirs.forOwnership && pickLock.noRoll.reasons[0].includes("no roll the GM drew is named"),
         JSON.stringify(pickLock).slice(0, 2000), { flow: "door-pick" });
 
+    /* FORGERIES OF KEEP WATCH (E74 C6, 12.11.2026). `watch.declare` from p1's console: for Botan's character, and for Aiko
+       with no roll named - each refused, no watch kept. The legal road is tier 2's E74-T4. */
+    phase("forgeries of Keep Watch", { flow: "keep-watch" });
+    const readWatches = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); return game.user.isGM ? Object.keys(S.watchStore.entries() ?? {}).sort() : [];`;
+    const watch = {
+        theirs: await forge("watch.declare", { actorId: ids.botan, total: 30, isCritical: true }, readWatches),
+        noRoll: await forge("watch.declare", { actorId: ids.aiko, total: 30, isCritical: true }, readWatches)
+    };
+    check("SECURITY: a console's Keep Watch is refused for another's character and with no roll named - no watch kept - and each refusal is logged on the GM and told to p1",
+        Object.values(watch).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
+            && watch.theirs.forOwnership && watch.noRoll.reasons[0].includes("no roll the GM drew is named"),
+        JSON.stringify(watch).slice(0, 2000), { flow: "keep-watch" });
+
     /* A PLAYER'S CARD IN THE GM'S NOTICE HISTORY (E81 C7, 12.10.2026). A public card of the module's, posted from p1's
        console with markup in it, is a card the GM's browser draws and keeps (popup.mjs `onCreateChatMessage`, E81 C3).
        The GM then opens the history window, every entry in it, and moves the pointer over every element there: what the

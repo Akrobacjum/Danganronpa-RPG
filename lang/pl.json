@@ -3197,6 +3197,17 @@
         "seenBy": "{name} majstruje przy zamku do: {room}.",
         "warned": "Ktoś majstrował przy zamku: {room}."
       },
+      "watch": {
+        "notInEclipse": "Czuwanie ustala się przed Eclipse, nie w trakcie.",
+        "notAtNight": "Bez czuwania przed nocnym Eclipse.",
+        "kept": "Czuwasz przez nadchodzący Eclipse, w pokoju, w którym stoisz, gdy się zacznie.",
+        "notKept": "Tym razem nie udaje się zacząć czuwania.",
+        "start": "Czuwasz w: {room}. Są tam: {who}.",
+        "startEmpty": "Czuwasz w: {room}. Nikogo więcej tam nie ma.",
+        "entered": "{name} wchodzi do: {room}.",
+        "left": "{name} wychodzi z: {room}.",
+        "summary": "Czuwanie w: {room} się skończyło. Weszło: {entered}. Wyszło: {left}."
+      },
       "shut": {
         "done": "Barykadujesz: {room}. Nikt nie wejdzie drzwiami, póki zostajesz w środku, do końca pory dnia."
       },
@@ -3239,6 +3250,10 @@
         "pick": {
           "label": "Pick the Lock",
           "hint": "Hand przy zamkniętych albo zapieczętowanych drzwiach obok: wchodzisz ty i nikt więcej."
+        },
+        "keepWatch": {
+          "label": "Keep Watch",
+          "hint": "Body, przed Eclipse: przez cały Eclipse wiesz, kto jest w twoim pokoju, kto wchodzi i kto wychodzi."
         },
         "dash": {
           "label": "Dash",
@@ -4103,6 +4118,7 @@
         "door.shut": "Shut the Door",
         "door.force": "Force the Door",
         "door.pick": "Pick the Lock",
+        "watch.declare": "Keep Watch",
         "handover.bullet": "Przekazanie Truth Bulleta",
         "handover.item": "Przekazanie przedmiotu",
         "passage.share": "Pokazanie tajnego przejścia",
@@ -7518,6 +7534,7 @@
         "facilityUses": "Których akcji w pokojach użyła każda postać, i o jakiej porze dnia",
         "tails": "Kto dziś śledzi kogo, i jak dobrze",
         "barricades": "Które pokoje są zabarykadowane, przez kogo i jak mocno",
+        "watches": "Kto czuwa przez Eclipse, w którym pokoju i co widział",
         "clockBeat": "Kiedy główny GM był ostatnio przy stole, żeby przerwa między sesjami nie liczyła się do pory dnia",
         "takeBack": "Co dał ostatni początek pory dnia, przez pięć minut, żeby pomyłkę dało się cofnąć",
         "crossings": "Ostatnie przejście każdej postaci między pokojami, jego koszt i czy GM je zwrócił",

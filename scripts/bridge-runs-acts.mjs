@@ -211,6 +211,16 @@ export async function handleDoorPick(payload) {
     return { reply: { opened: out.opened, held: out.held } };
 }
 
+/** KEEP WATCH (E74 C6, 12.11.2026; watch-gm.mjs). Answers `{ reply: { kept } }`. */
+export async function handleWatchDeclare(payload, sender) {
+    const actor = game.actors.get(payload.actorId ?? "");
+    if (!actor) return { refused: "no such character" };
+    const { declareWatch } = await import("./watch-gm.mjs");
+    const out = await declareWatch({ actor, total: payload.total, isCritical: payload.isCritical, userId: sender?.id ?? null });
+    if (out.refused) return { refused: out.refused };
+    return { reply: { kept: out.kept } };
+}
+
 /** The two rolls of a tail, as `rolled` names them (E69 C3): the effect's and the Shadow the target's noticing is read from. */
 export function tailRolls(actor) {
     return [

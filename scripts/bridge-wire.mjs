@@ -120,6 +120,8 @@ export const ACTION_DOOR_SHUT = "door.shut";
 export const ACTION_DOOR_FORCE = "door.force";
 /** player -> primary GM: a lock picked, its Hand roll and Shadow cover on the GMs' record (E74 C4; doors-gm.mjs `pickLock`). */
 export const ACTION_DOOR_PICK = "door.pick";
+/** player -> primary GM: a watch declared before an Eclipse, its Body roll on the GMs' record (E74 C6; watch-gm.mjs). */
+export const ACTION_WATCH_DECLARE = "watch.declare";
 /* N-2: the player picked their own Level Up and the GM's client writes it. */
 export const ACTION_ADVANCEMENT = "advancement.apply";
 /* ...and where the offer itself lives: a GM asks the primary to record or withdraw

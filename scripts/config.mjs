@@ -1689,7 +1689,7 @@ export const ACTIONS = {
         icon: "fa-ear-listen",
         traits: ["shadow"],
         cost: 1,
-        variants: ["listen", "tail", "dash", "shut", "force", "pick"],
+        variants: ["listen", "tail", "dash", "shut", "force", "pick", "keepWatch"],
         hint: "Listen at a wall, Tail Someone, Dash through the corridors, Shut the Door, Force the Door, Pick the Lock or "
             + "Keep Watch. Each costs an action.",
         description: "Pick a neighboring room and roll Shadow; it costs an action. A good roll counts the people "
@@ -2127,7 +2127,9 @@ export const INFILTRATE = Object.freeze({
     // Pick the Lock (E74 C4; DA9, DA30, DA31 = 2): Hand at `dc` opens a lock or a seal, `clean` and up leaves no warning;
     // the `cover`, Shadow, says whether the two rooms see who it was.
     pick: Object.freeze({ traits: Object.freeze(["hand"]), cost: 1, dc: 15, clean: 18,
-        cover: Object.freeze({ trait: "shadow", threshold: 16 }) })
+        cover: Object.freeze({ trait: "shadow", threshold: 16 }) }),
+    // Keep Watch (E74 C6; DA34): Body, declared before an Eclipse; a roll below `dc` keeps no watch (a default taken).
+    keepWatch: Object.freeze({ traits: Object.freeze(["body"]), cost: 1, dc: 12 })
 });
 
 /* ==========================================================================
