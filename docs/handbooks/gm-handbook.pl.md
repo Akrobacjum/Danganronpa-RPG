@@ -1001,6 +1001,24 @@ W trwającej rozprawie konsola mówi, na której scenie jest stół, i daje jedn
 
 Jeszcze niesprawdzone przy stole: czy Foundry v14 pozwala graczowi zmienić, czy jego własny token jest ukryty, gdzie ląduje przeglądarka, która ładowała się w trakcie aktywacji, jak sala rysuje się z Isometric Perspective, czy Foundry v14 robi token z prototypu postaci tak, jak prosi moduł, i ile przy stole kosztuje zrobienie i usunięcie tokenów obsady - kontrole na żywo.
 
+### 15.2 Strefy sali: Straw Poll, Logic Dive i Scrum Debate
+
+**Strefa A i Strefa B.** Karta **Sceny** w Ustawieniach pokoi wybiera dwa regiony sali rozpraw jako **Strefę A** i **Strefę B** (regiony nieoznaczone jako pokoje). Karta, raport scen i Sprawdzenie przed sezonem ostrzegają, gdy sala nie ma stref, gdy wybrano tylko jedną albo jej region zniknął, gdy obie wskazują ten sam region, gdy strefy nachodzą na siebie i gdy nie pokrywają części sali; sala bez siatki, której nie da się sprawdzić na czas, mówi o tym. Strefy czytają tylko trzy tryby stref: poza nimi sala dalej nie jest niczyim miejscem, a ruch tokenu między strefami nigdy nie jest przejściem - bez weta, opłaty, mgły ani śladu.
+
+**Kto gdzie stoi.** Każdy uczestnik (jeden uczeń na połączonego gracza, bez Monocuba, bez zmarłych) jest po tej stronie, której strefa zawiera środek jego tokenu w sali. Token na linii, którą obejmują obie strefy, albo poza obiema nie jest po żadnej stronie. Uczestnik bez tokenu w sali dostaje okno wyboru strony. Tokeny zaczynają na swoich stanowiskach, a **gracz, który się nie ruszy, odpowiada strefą, w której leży jego stanowisko** - powiedz to przed liczeniem. Gdy tryb stref się kończy, każdy token wraca na stanowisko.
+
+**Start trybu.** **Strefy sali** w stopce konsoli (w trakcie rozprawy, gdy głosu nie ma inny tryb) otwierają jedno okno dla trzech trybów; bez stref odmawiają. Środek konsoli pokazuje pytanie, odpowiedź każdej strefy i kto w niej stoi. Pasek dodaje **Policz teraz** i w Logic Dive **Pomiń pytanie** do Pomiń, -30 s, +30 s i Zakończ ten tryb; każde naciśnięcie trafia do stołu. Tryby stref grają muzykę debaty i nie ma w nich Objection.
+
+**Straw Poll.** Pytanie i dwie odpowiedzi, 45 s, żeby każdy stanął w strefie, potem jedno liczenie (zegar albo **Policz teraz**). Dwie trzecie policzonych po jednej stronie to **Finding**: *Klasa uważa: odpowiedź.* Mniej to *Klasa jest podzielona: Strefa A n, Strefa B n.*, a Scrum Debate staje się następnym krokiem konsoli. Moduł nigdy sam nie zaczyna Scrum Debate.
+
+**Logic Dive.** Zestaw od 1 do 5 pytań, które piszesz wcześniej w **Zestawach Logic Dive...** (to okno widzą tylko GM-owie; gracze widzą każde pytanie i jego dwie odpowiedzi, nigdy to, która jest dobra). Imię ucznia w pytaniu daje ostrzeżenie: żadne pytanie w strefach nie powinno pytać, kto to zrobił. Każde pytanie trwa 60 s, kończy się wcześniej, gdy wszyscy stoją po jednej stronie (po 10 s), albo po **Policz teraz**, pokazuje wynik przez 5 s, a potem rozstrzyga zwykła większość: dobra odpowiedź prowadzi do następnego pytania, a ostatnia dobra daje Finding zestawu. **Zła odpowiedź albo remis - także 0:0 - kończy zestaw i niczego nie ujawnia.** **Pomiń pytanie** idzie dalej bez zapisanej odpowiedzi; **Zakończ ten tryb** zapamiętuje pytanie, na którym stanął, i następnym razem zestaw zaczyna się tam. Każdy zestaw można zagrać ponownie; okno ostrzega, gdzie i jak się skończył.
+
+**Scrum Debate.** Pytanie i dwie odpowiedzi, opcjonalna teza, 45 s na ustawienie obozów. Potem obozy mówią na zmianę, mniejszy pierwszy, mówcy każdego obozu po kolei: dwa razy tyle tur, ile osób ma większy obóz, każda tura to 300 s podzielone przez tury, między 20 a 40 s (3:2 daje 40 s, 4:3 37,5 s). Każdy może w każdej chwili przejść na drugą stronę; następny mówca obozu jest brany z obozu takiego, jaki jest wtedy. Mówca może dodać krótką tezę. Obóz, który się opróżni, kończy Scrum, a odpowiedź drugiego obozu staje się Finding; po ostatniej turze stół słyszy stan obozów, a decyzja jest twoja.
+
+**Findings.** **Findings (n)** w konsoli je wylicza. Możesz dodać Finding, edytować go lub usunąć i oznaczyć **Monokuma potwierdza**; każde naciśnięcie to publiczna karta. Lista jest na karcie otwarcia głosowania. `game.drpg.startStrawPoll`, `startLogicDive`, `startScrumDebate`, `countNow`, `skipQuestion`, `findings`, `addFinding`, `editFinding`, `deleteFinding` i `confirmFinding` robią to samo.
+
+Jeszcze niesprawdzone przy stole: regiony z dziurami i poziomami w v14, ruch tuż przed liczeniem na prawdziwym serwerze, strefy narysowane na canvasie i przeładowanie GM-a w trakcie pytania (LIVE-E73-01 do LIVE-E73-04).
+
 ---
 
 ## 16. Koniec rozdziału i reset sezonu

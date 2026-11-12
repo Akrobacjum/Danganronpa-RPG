@@ -93,7 +93,10 @@ export const SEEDS = Object.freeze({
     "chat.name": { cls: "killer-identity", field: "a cast actor's name in a chat message's speaker, system, rolls or module flags", plantedBy: "72-canary, 30-security, 40-flow (chatScan)" },
     "chat.whisper": { cls: "killer-identity", field: "a chat message's whisper list naming a cast player, and not everybody", plantedBy: "72-canary, 30-security, 40-flow (chatScan)" },
     "chat.title": { cls: "plan", field: "a secret action's title in a chat message, anywhere but its words", plantedBy: "72-canary, 30-security, 40-flow (chatScan)" },
-    "chat.author": { cls: "killer-identity", field: "a veiled chat message authored by a cast player", plantedBy: "72-canary, 30-security, 40-flow (chatScan)" }
+    "chat.author": { cls: "killer-identity", field: "a veiled chat message authored by a cast player", plantedBy: "72-canary, 30-security, 40-flow (chatScan)" },
+    // E73 C7: a Logic Dive set's name and its Finding, the GMs' store's until the set is solved (68-trial-zones).
+    "dive.set.name": { cls: "answer-key", field: "a Logic Dive set's name, in the GMs' store", plantedBy: "68-trial-zones" },
+    "dive.set.conclusion": { cls: "answer-key", field: "a Logic Dive set's Finding before it is solved, in the GMs' store", plantedBy: "68-trial-zones" }
 });
 
 export const NOT_SCANNED = Object.freeze([

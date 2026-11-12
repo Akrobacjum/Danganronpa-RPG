@@ -1001,6 +1001,24 @@ Inside a running trial the console says which scene the table is on and offers o
 
 Not yet tried at a table: whether Foundry v14 lets a player change whether their own token is hidden, where a browser that was loading during the activation lands, how the hall draws with Isometric Perspective, whether Foundry v14 makes a token from a character's prototype as the module asks, and what making and deleting the cast's tokens costs at a table - live checks.
 
+### 15.2 The hall's zones: Straw Poll, Logic Dive and Scrum Debate
+
+**Zone A and Zone B.** Room Setup's **Scenes** tab picks two regions of the trial hall as **Zone A** and **Zone B** (regions not marked as rooms). The tab, the Scenes report and the Pre-season check warn when the hall has no zones, when only one is picked or its region is gone, when both name one region, when the zones overlap and when they leave part of the hall uncovered; a hall with no grid that cannot be checked in time says so. The zones are read only by the three zone modes: outside them the hall is still a place for nobody, and a token's move between zones is never a crossing - no veto, charge, fog or trace.
+
+**Who stands where.** Every participant (one student per connected player, no Monocub, nobody dead) is on the side whose zone holds their hall token's centre. A token on the line both zones hold, or outside both, is on neither side. A participant with no token in the hall gets a window to pick a side. Tokens start on their stands, and **a player who does not move answers with the zone their stand lies in** - say so before the count. When a zone mode ends, every token goes back to its stand.
+
+**Starting a mode.** **Hall zones** in the console's footer (while a Class Trial runs and no other mode holds the floor) opens one window for the three modes; it is refused with no zones. The console's middle shows the question, each zone's answer and who stands there. The bar adds **Count now** and, in Logic Dive, **Skip question** to Skip, -30 s, +30 s and End this mode; every press is told to the table. The zone modes play the debate's music, and no Objection is raised in them.
+
+**Straw Poll.** A question and two answers, 45 s for everyone to stand in a zone, then one count (the clock or **Count now**). Two thirds of those counted on one side is a **Finding**: *The class thinks: answer.* Anything less is *The class is split: Zone A n, Zone B n.*, and Scrum Debate becomes the console's next step. The module never starts a Scrum Debate by itself.
+
+**Logic Dive.** A set of 1 to 5 questions you write ahead in **Logic Dive sets...** (only the GMs see that window; the players see each question and its two answers, never which one is right). A student's name in a question is warned of: no zone question should ask who did it. Each question runs 60 s, closes early once everybody stands on one side (after 10 s) or on **Count now**, shows the count for 5 s, then a simple majority is judged: right goes on to the next question, and the last one right gives the set's Finding. **A wrong answer or a tie - 0:0 too - ends the set and reveals nothing.** **Skip question** goes on with no answer kept; **End this mode** keeps the question it stopped at, and the set starts there next time. Any set can be played again; the window warns you where and how it ended.
+
+**Scrum Debate.** A question and two answers, an optional thesis, 45 s for the camps to form. Then the camps speak in turn, the smaller first, each camp's speakers in rotation: twice the larger camp's turns, each 300 s divided by the turns and held between 20 and 40 s (3:2 gives 40 s, 4:3 37.5 s). Anyone may cross at any time; the next speaker of a camp is taken from the camp as it stands. The speaker may post a short thesis. A camp that empties ends the Scrum with the other camp's answer as a Finding; after the last turn the camps are told and you decide.
+
+**Findings.** **Findings (n)** in the console lists them. You may add one, edit or delete one, and mark one **Monokuma confirms**; each press is a public card. The list is on the vote's opening card. `game.drpg.startStrawPoll`, `startLogicDive`, `startScrumDebate`, `countNow`, `skipQuestion`, `findings`, `addFinding`, `editFinding`, `deleteFinding` and `confirmFinding` do the same.
+
+Not yet tried at a table: regions with holes and Levels in v14, a move just before the count on a real server, the zones drawn on the canvas, and a GM reload during a question (LIVE-E73-01 to LIVE-E73-04).
+
 ---
 
 ## 16. End of chapter and season reset

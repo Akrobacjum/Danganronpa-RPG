@@ -742,6 +742,10 @@ GM decyduje, kto wybiera każdy Level Up. Jeśli ty, dowiadujesz się o tym, a p
 
 Przy Reinforced Level Up to samo można wziąć więcej niż raz.
 
+### Strefy sali
+
+W **Straw Poll**, **Logic Dive** albo **Scrum Debate** odpowiadasz tym, gdzie stoi twój token w sali rozpraw: w **Strefie A** albo w **Strefie B**, każda nazwana swoją odpowiedzią. Przesuń token do wybranej strefy; jeśli się nie ruszysz, odpowiadasz strefą, w której leży twoje stanowisko. Token na linii między strefami albo poza obiema nie liczy się po żadnej stronie. Bez tokenu w sali dostajesz okno wyboru strony. W Straw Poll dwie trzecie klasy po jednej stronie to **Finding** - *Klasa uważa: ...*. W Logic Dive na każde pytanie odpowiada większość; zła odpowiedź albo remis kończą zestaw, a dobra odpowiedź nie zostaje pokazana. W Scrum Debate obozy mówią na zmianę i każdy może w każdej chwili przejść na drugą stronę; obóz, który się opróżni, przegrywa. W Straw Poll i Logic Dive każdy prezentuje swobodnie, w Scrum Debate tylko mówca, a w żadnym z nich nie ma Objection. Gdy tryb się kończy, twój token wraca na stanowisko.
+
 ### Final Trial
 
 Ktoś wśród was mógł zbudować to miejsce. **Final Truth Remnants** - jeden na rozdział, nieusuwalne - wskazują Masterminda. Wskażcie go w Final Trialu, a killing game dobiega końca. Wskażcie niewłaściwą osobę, a nikt nowy nie ginie; klasa po prostu widzi, że gra nigdy nie była tym, na co wyglądała.

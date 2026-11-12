@@ -62822,7 +62822,8 @@ const SCENARIOS = [
                     token("first again", first.id, 300, true), token("Monokuma", monokuma.id, 400, false), token("nobody", nobody.id, 500, false, false),
                     token("prop", null, 600, false)]);
                 absent = typeof T.handPlacedActors === "function" ? T.handPlacedActors(hall).length > 0 : null;
-                await set.call(game.settings, MODULE_ID, KEY, { ...(rolesBefore ?? {}), school: null, trial: null, zones: [ZONE] });
+                // A field the tab does not show (E73 C1 put the zones on the tab, so the planted field is `later` since).
+                await set.call(game.settings, MODULE_ID, KEY, { ...(rolesBefore ?? {}), school: null, trial: null, later: [ZONE] });
                 await school.view();
                 await settle();
                 must(canvas?.scene === school, "the camera did not move to the suite's school - Room Setup would open on another");
@@ -62863,7 +62864,7 @@ const SCENARIOS = [
                 await V.openRoomSetupDialog();
                 await settle();
                 const shown = hall.tokens.filter(t => !t.hidden).map(t => t.name).sort();
-                const linked = [R.schoolScene() === school, R.trialScene() === hall, stableJson(R.sceneRoles().zones ?? null), writes];
+                const linked = [R.schoolScene() === school, R.trialScene() === hall, stableJson(R.sceneRoles().later ?? null), writes];
                 const stored = [trialCastStore.get(T.castKey(hall.id, second.id))?.reveal ?? null, trialCastStore.has(T.castKey(hall.id, first.id))];
                 const prepared = [prepareBefore, Object.keys(T.hallPreparePatch(hall, { playlist: true, voice: true })),
                     hall.flags?.["isometric-perspective"]?.isometricEnabled ?? null];
@@ -62887,7 +62888,8 @@ const SCENARIOS = [
                 const onHall = rows();
                 read = [opened, drawn, linked, stored, shown, prepared, clash, untouched,
                     onSchool.filter(([key]) => key !== "roomCount").map(([key, done]) => [key, done]), stableJson(onHall) === stableJson(onSchool),
-                    ["duplicateInHall", "hallDark", "hallHasRooms", ...(absent ? ["handPlaced"] : []), "unlinkedToken"]];
+                    // E73 C1: a hall with no Zone A and Zone B is warned of too.
+                    ["duplicateInHall", "hallDark", "hallHasRooms", ...(absent ? ["handPlaced"] : []), "unlinkedToken", "zonesNone"]];
             } finally {
                 game.settings.set = set;
                 ui.notifications.warn = warn;

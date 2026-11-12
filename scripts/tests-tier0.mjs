@@ -8556,8 +8556,8 @@ const REGRESSIONS = [
          * document, was a place with no row and is one now (red on 86aa7ac1 with the pattern alone: the one place
          * without a row). It reads them as the GMs hold them (`flagsHeldNow` after `judgedFor`), and a row that
          * says "held" is read against the places that read through the mark (`held`): the old read planted back on a
-         * scratch copy is red here. HELD counts a `judgedFor(` alone, so the document read after the audit with the mark
-         * taken out still reads as held (measured on a scratch copy: green).
+         * scratch copy is red here. Until E73 C7 HELD counted a `judgedFor(` alone, so the document read after the audit with the
+         * mark taken out still read as held (measured on a scratch copy: green); E73 C7 tightened it (at HELD, below).
          */
         const TRIAL_CENSUS = [
             ["PACKET gm-bridge.mjs#advancement.apply#actorId", "judged: knownSender + owns(actorId) (E28) [F7]"],
@@ -8681,7 +8681,12 @@ const REGRESSIONS = [
         const BRIDGE_TOPS = /^(?:BRIDGE_ACTIONS|ACTION_\w*|registerGmBridge|replyForMe)$/;
         const SHEET = [/\bisDeceased\(|\bisDeadForGm\(|\blivingStudents\(|\bdeceased\b/, /\badvances\b/, /system\.traits\b|\bTRAITS\b/,
             /system\.experiences\b|\bexperiences?(?:New|Up)\b/, /system\.resources\b|\bresourceMax\(|hitPoints|stress\.max/];
-        const HELD = /\b(?:judgedFor|flagsAsHeld|flagsHeldNow|actorHeldNow|actorAsHeld|numberHeld|meansWrite|gmMeansWrite|itemAsHeld|meansHeld|heldMark)\s*\(/;
+        /* TIGHTENED (E73 C7, 12.11.2026; the owner's 03.11, mutant e42fix-m13): `judgedFor(` alone no longer makes a place
+           held - it waits for the audit, and the read after it can still be the document's. A place is held when it reads
+           through the mark. Measured on a scratch copy of 2faedcb with level-up.mjs `givenCounts` reading
+           `actor.getFlag(..., FLAGS.advances)` after its `judgedFor`: red here ("SHEET level-up.mjs#givenCounts"), green
+           with the old pattern; the tree as it is green with both. */
+        const HELD = /\b(?:flagsAsHeld|flagsHeldNow|actorHeldNow|actorAsHeld|numberHeld|meansWrite|gmMeansWrite|itemAsHeld|meansHeld|heldMark)\s*\(/;
         const RAW = /\b(?:isDeceased|isDeadForGm|livingStudents|resourceMax)\s*\(|\bactor\.system\b|\.system\.(?:traits|experiences|resources|levelData)\b|getFlag(?:\?\.)?\(\s*MODULE_ID\s*,\s*FLAGS\.(?:deceased|advances)/;
         const CHAT = /\b(?:m|msg|message|chatMessage)\??\.getFlag\(\s*MODULE_ID\s*,|\b(?:m|msg|message)\??\.speaker\??\.actor\b/;
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;

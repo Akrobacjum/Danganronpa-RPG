@@ -742,6 +742,10 @@ The GM decides who picks each Level Up. If it is you, you are told and the Level
 
 The same option may be taken more than once on a Reinforced Level Up.
 
+### The hall's zones
+
+In a **Straw Poll**, a **Logic Dive** or a **Scrum Debate** you answer by where your token stands in the trial hall: in **Zone A** or in **Zone B**, each named with its answer. Move your token into the zone you choose; if you do not move, you answer with the zone your stand lies in. A token on the line between the zones, or outside both, counts for neither side. With no token in the hall you get a window to pick a side. In a Straw Poll two thirds of the class on one side is a **Finding** - *The class thinks: ...*. In a Logic Dive the majority answers each question; a wrong answer or a tie ends the set, and the right answer is not shown. In a Scrum Debate the camps speak in turn and anyone may cross at any time; a camp that empties loses. Everybody presents freely in a Straw Poll and a Logic Dive, only the speaker in a Scrum Debate, and nobody objects in any of them. When the mode ends, your token goes back to its stand.
+
 ### The Final Trial
 
 Somebody among you may have built this place. The **Final Truth Remnants** - one per chapter, unremovable - point at the Mastermind. Name them at the Final Trial and the killing game is over. Name the wrong person and nobody new is executed; the class is simply shown that the game was never what it looked like.

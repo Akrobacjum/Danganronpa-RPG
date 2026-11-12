@@ -112,7 +112,7 @@ export const FLOWS = Object.freeze([
             "trial.object", "trial.evidence", "trial.withdraw", "floor.repoint", "trial.gm", "trial.enter", "trial.record", "trial.turn",
             "trial.claim", "trial.present", "trial.side", "trial.keyword"],
             sockets: ["vote.mjs"] },
-        scenarios: ["10-murder", "11-killer-secrecy", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial", "67-trial-modes", "88-flow-length"], status: "partial", stage: "E40" },
+        scenarios: ["10-murder", "11-killer-secrecy", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial", "67-trial-modes", "68-trial-zones", "88-flow-length"], status: "partial", stage: "E40" },
     // E37 C3 (01.11.2026): the readiness round before a GM's press moves the clock - opened and ended by a GM
     // (`ready.open`, `ready.end`, gmOnly), answered by each player of the cast (`ready.answer`). 40-flow's part R drives it on
     // four browsers; 30-security sends a player's open and end and an answer for another round; 33-bridge-paths the
