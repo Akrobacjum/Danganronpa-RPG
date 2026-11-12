@@ -3999,15 +3999,12 @@ body .application.drpg-ui.drpg-panel:is(.drpg-window-settings, .drpg-window-game
 /* E49 A1d (11.11.2026; the owner on A1's shots: the gear's window the same for a GM and a player, the game's settings
    a window of their own, the GM panel's Settings tile). EVERY RULE ABOVE READS BOTH, the window and the panel (`:is()` takes one class's weight, as
    the window's class alone had). What A1d adds: a line of the window's own (the scale's, the system's contrast, the
-   volumes' "at once", the list's foot) in the hint's ink across both columns; a volume row is a setting row whose
-   control is the range and its percentage; the Voice section (voice-panel.mjs, its rows danganronpa.css's) across both
+   volumes' "at once", the list's foot) in the hint's ink across both columns; a volume row was a setting row whose
+   control is the range and its percentage (gone with the volumes to the Sound window, E100 item 2); the Voice section (voice-panel.mjs, its rows danganronpa.css's) across both
    columns under its own legend. */
 :is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-rows > :is(.drpg-settings-note, .drpg-settings-voice) { grid-column: 1 / -1; min-width: 0; }
 :is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-note { margin: 4px 0 2px; line-height: 1.2; color: var(--drpg-kit-help-ink); font-size: var(--drpg-kit-help-size); }
 :is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-nav > .drpg-settings-foot { margin-top: 10px; }
-:is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-volume > .drpg-settings-control > input[type="range"] { flex: 1 1 8rem; min-width: 0; margin: 0; }
-:is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-volume > .drpg-settings-control > output { flex: 0 0 4ch; text-align: end; font-variant-numeric: tabular-nums; }
-:is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-volume > .drpg-settings-control > .drpg-settings-label { flex: 0 1 8rem; }
 :is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-voice > fieldset.drpg-voice-panel { margin: 4px 0 0; min-width: 0; }
 
 /* ---- THE CHAT CARD (E49 B5a, 11.11.2026; the owner's amend [6]) ----

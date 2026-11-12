@@ -88496,10 +88496,10 @@ const SCENARIOS = [
          * E49 A1, 11.11.2026. Foundry's Configure Settings wrote a changed setting by `game.settings.set` (its `onChange`
          * then runs) and none it left as it was, and asked `SettingsConfig.reloadConfirm({ world })` once after the last
          * write when one of them had `requiresReload` (v13's `#onSubmit`, read as text). The window drawn by its own wait on
-         * this GM, three fields changed - messengerSound (a switch), uiScale (a stepper with a range), the language
+         * this GM, three fields changed - hudTicker (a switch; messengerSound until E100 item 2 moved it to the Sound window, R3918), uiScale (a stepper with a range), the language
          * (`requiresReload`), all three this browser's since E49 A1d moved the world rows to the GM panel's tab (the tier-2
          * test "the GM panel's Game settings tab saves"; despairFromRolls was this test's switch until then) - then Save
-         * pressed; each setting's `onChange` wrapped to count its runs (the language and messengerSound have none: Foundry
+         * pressed; each setting's `onChange` wrapped to count its runs (the language has none: Foundry
          * would call one if there were); `reloadConfirm` stood in for
          * Foundry's, counting (no reload). Then Save with nothing changed, and Cancel after a change: nothing written, no
          * reload. Every value put back after. Red on 13531607: settings-window.mjs does not exist.
@@ -88508,10 +88508,10 @@ const SCENARIOS = [
         const W = await import("./settings-window.mjs");
         const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-settings"));
         must(of().length === 0, "a DRPG Settings window stands open already");
-        const keys = ["messengerSound", "uiScale", "language"];
+        const keys = ["hudTicker", "uiScale", "language"];
         const get = k => game.settings.get(MODULE_ID, k);
         const was = Object.fromEntries(keys.map(k => [k, get(k)]));
-        const want = { messengerSound: !was.messengerSound, uiScale: was.uiScale === 1.1 ? 1 : 1.1, language: was.language === "pl" ? "en" : "pl" };
+        const want = { hudTicker: !was.hudTicker, uiScale: was.uiScale === 1.1 ? 1 : 1.1, language: was.language === "pl" ? "en" : "pl" };
         const asStored = clientStored();
         const defs = Object.fromEntries(keys.map(k => [k, game.settings.settings.get(`${MODULE_ID}.${k}`)]));
         const own = Object.fromEntries(keys.map(k => [k, Object.hasOwn(defs[k], "onChange") ? defs[k].onChange : undefined]));
@@ -88523,11 +88523,11 @@ const SCENARIOS = [
         const realConfirm = SC?.reloadConfirm;
         const round = async ({ change, press }) => {
             const done = Promise.resolve().then(() => W.openSettingsWindow()).catch(err => `threw: ${err?.message}`);
-            await until(() => of()[0]?.element?.querySelector('[name="messengerSound"]'), 6000);
+            await until(() => of()[0]?.element?.querySelector('[name="hudTicker"]'), 6000);
             const root = of()[0]?.element ?? null;
             if (change) {
-                const box = root?.querySelector('[name="messengerSound"]');
-                if (box) box.checked = want.messengerSound;
+                const box = root?.querySelector('[name="hudTicker"]');
+                if (box) box.checked = want.hudTicker;
                 const scale = root?.querySelector('[name="uiScale"]');
                 if (scale) scale.value = String(want.uiScale);
                 const lang = root?.querySelector('[name="language"]');

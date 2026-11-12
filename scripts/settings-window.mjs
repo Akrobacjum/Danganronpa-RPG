@@ -16,7 +16,8 @@
  * Since A1d:
  *   - THIS BROWSER'S WINDOW (`openSettingsWindow`), the same for a GM and a player: every client setting of the 35
  *     (`CLIENT_SECTIONS`: look, effects, sound, tech) and what the Look window held besides them - the two volumes
- *     (sfx.mjs `volumeSliders`, saved as they move, as they were) and the Voice section (voice-panel.mjs
+ *     (sfx.mjs `volumeSliders`, saved as they move, as they were; since E100 item 2 in the Sound window alone, with the
+ *     messenger's sounds, and here a button that opens it) and the Voice section (voice-panel.mjs
  *     `voiceFieldset`: the microphone, the output, always on or push to talk, the key and Configure Controls; only where
  *     `voiceAvailable()`, saved as touched, as it was). The gear opens it (look.mjs `openLookDialog`), and so does
  *     Configure Settings' one button of the module, DRPG Settings (settings.mjs `SETTINGS_MENU`). No world row in it.
@@ -39,9 +40,10 @@
  * and a setting left as it was is not written at all; when one written carries `requiresReload`, the reload is asked
  * once after the last write, through Foundry's own `SettingsConfig.reloadConfirm({ world })` (`world` when a world
  * setting asked: Foundry then reloads every client), as i18n.mjs `confirmLanguageReload` asks it. Nothing of a setting
- * row is written before Save; Cancel and the window's close write nothing. The volumes and the Voice section are not
- * setting rows (`data-drpg-setting`) and keep their own writes, at once, as the Look window had them: a volume is heard
- * while it moves, and a device is tried as it is picked; the section says so in a line of its own.
+ * row is written before Save; Cancel and the window's close write nothing. The Voice section is not setting rows
+ * (`data-drpg-setting`) and keeps its own writes, at once, as the Look window had them: a device is tried as it is
+ * picked; the section says so in a line of its own. (The volumes did the same here until E100 item 2 moved them to the
+ * Sound window, where they still save as they move.)
  *
  * WHO WRITES WHAT (STAGE E49 "Write roads"; Q2). A world setting is written only for a user Foundry lets modify
  * settings (`game.user.can("SETTINGS_MODIFY")`: the Assistant GM up, user-match.mjs's note), and only such a user is
@@ -66,14 +68,14 @@ import { toggle, stepper, stepperId } from "./ui-kit.mjs";
 import { sectionHtml, wideWindow } from "./ui-columns.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
 import { themeOnlyKeys, scaleNote, systemWantsContrast } from "./look.mjs";
-import { volumeSliders, wireVolumeSliders } from "./sfx.mjs";
 
 /**
  * The sections of each place (Q4's seven, split by whose the setting is: E49 A1d), each `{ key, icon, place, keys }`:
  * `key` names its words (`DRPG.SettingsWindow.sections.<key>`, unique over both lists), `icon` a Font Awesome class,
  * `place` "client" (this browser's window) or "game" (the game's window), `keys` its settings by SETTINGS name, in the
  * order drawn. A client section names client settings alone and a game section world ones alone (R3420); A1's Sound and
- * Technical held both, so each is two sections now: Sound (the messenger's sounds, with the volumes and the voice) and
+ * Technical held both, so each is two sections now: Sound (since E100 item 2 a button to the Sound window, which holds
+ * the messenger's sounds and the volumes, and the voice) and
  * Music and voice (the table's switches, and Vary the sounds), Technical (the debug log) and Foundry and the system (the
  * two welcomes, and Give back). The icons are among those pixel-icons.css redraws as pixels under the glass.
  */
@@ -81,7 +83,7 @@ const section = (place, key, icon, keys) => Object.freeze({ key, icon, place, ke
 export const CLIENT_SECTIONS = Object.freeze([
     section("client", "look", "fa-image", ["language", "theme", "uiScale", "hudTicker", "wideProjectWindows"]),
     section("client", "effects", "fa-wand-magic-sparkles", ["pixelFont", "glassPulse", "glassBlur", "reducedMotion", "highContrast"]),
-    section("client", "sound", "fa-volume-high", ["messengerSound"]),
+    section("client", "sound", "fa-volume-high", []),
     section("client", "tech", "fa-screwdriver-wrench", ["debug"])
 ]);
 export const GAME_SECTIONS = Object.freeze([
@@ -196,25 +198,26 @@ function giveBackRowHtml() {
 
 /**
  * What a section draws besides its settings' rows, as `{ html, count }`: the system's own contrast line where it asks
- * for more (look.mjs `systemWantsContrast`), the volumes, their line and the Voice section's place (`voice`: whether one was built), and
- * Give back in Foundry and the system. `count` is what the section's number in the list adds: a volume one each, the
+ * for more (look.mjs `systemWantsContrast`), the Sound window's button and the Voice section's place with its line (`voice`: whether one
+ * was built), and Give back in Foundry and the system. `count` is what the section's number in the list adds: the button one, the
  * Voice section one, Give back one; a line none.
  */
 function extrasOf(key, { voice = false } = {}) {
     const note = text => `<div class="drpg-settings-note" data-drpg-settings-note>${esc(text)}</div>`;
     if (key === "effects") return { html: systemWantsContrast() ? note(localize("DRPG.Look.contrastAuto")) : "", count: 0 };
     if (key === "sound") {
-        const rows = volumeSliders().map(v => {
-            const id = `drpg-settings-vol-${v.key}`, rest = restOf(v.hint);
-            return `<div class="drpg-settings-row drpg-settings-volume" data-drpg-slider="${esc(v.key)}">`
-                + `<div class="drpg-settings-control"><label class="drpg-settings-label" for="${esc(id)}">${esc(v.label)}</label>`
-                + `<input type="range" id="${esc(id)}" min="0" max="100" step="1" name="vol:${esc(v.key)}" value="${v.position}"><output>${v.position}%</output></div>`
-                + `<div class="drpg-settings-hint"${rest ? ` data-tooltip="${esc(rest)}"` : ""}>${esc(firstSentence(v.hint))}</div></div>`;
-        });
+        /* THE VOLUMES AND THE MESSENGER'S SOUNDS LIVE IN THE SOUND WINDOW (E100 item 2, 12.11.2026; the owner on the
+           player-screens review, #3: Dźwięk, Muzyka and Dźwięki komunikatora stood here and in the Sound window). Here a
+           line and one button that opens it (`data-drpg-open-sound`, wired in `openSettingsWindow`'s render); the Voice
+           section stays (devices and push to talk are in no other window), and the line that its fields apply at once
+           with it. R3918. */
+        const open = `<div class="drpg-settings-row" data-drpg-sound-door>`
+            + `<div class="drpg-settings-control"><button type="button" data-drpg-open-sound>`
+            + `<i class="fa-solid fa-volume-high" inert></i> ${esc(localize("DRPG.SettingsWindow.soundOpen"))}</button></div>`
+            + `<div class="drpg-settings-hint">${esc(localize("DRPG.SettingsWindow.soundOpenLine"))}</div></div>`;
         return {
-            html: rows.join("") + note(localize("DRPG.SettingsWindow.liveNote"))
-                + (voice ? `<div class="drpg-settings-voice" data-drpg-voice-slot></div>` : ""),
-            count: rows.length + (voice ? 1 : 0)
+            html: open + (voice ? note(localize("DRPG.SettingsWindow.liveNote")) + `<div class="drpg-settings-voice" data-drpg-voice-slot></div>` : ""),
+            count: 1 + (voice ? 1 : 0)
         };
     }
     if (key === "foundry") return { html: giveBackRowHtml(), count: 1 };
@@ -396,7 +399,11 @@ export async function openSettingsWindow() {
             const follow = () => { if (line) line.textContent = scaleNote(Number(scale.value) || 1); };
             scale?.addEventListener("input", follow);
             scale?.addEventListener("change", follow);
-            wireVolumeSliders(root);
+            root.querySelector("[data-drpg-open-sound]")?.addEventListener("click", ev => {
+                ev.preventDefault();
+                import("./music.mjs").then(m => m.openSoundDialog())
+                    .catch(err => error("Could not open the Sound window", err));
+            });
             if (voice) placeVoice(root, voice);
         },
         rejectClose: false

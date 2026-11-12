@@ -22892,7 +22892,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({ rollCards: [false, false, false], notice: [true, true, true, true, 2], slot: ["Critical", true, "Krytyk", true] }),
             "{rollCards: private-rolls.mjs plays, clips, cuts; notice: the tone's flag, the call under it, still under reduced motion, a clip-path wipe, cutCritical's mentions (its declaration and one call); slot: the English label, its hint names the cut, the Polish label, its hint}");
     }],
-    ["R3420 - every setting Foundry's list showed is in exactly one place, this browser's or the game's (E49 A1, A1d; the owner's [11], [16], Q3, Q4, and his word on A1's shots of 11.11): each of the 35 keys registered with `config: true` at 20218b05 (a frozen list) is in exactly one of settings-window.mjs's `SETTINGS_SECTIONS` - four client sections, the gear's window, naming client settings alone, and five game sections, the game's settings window (the GM panel's Settings tile), naming world ones alone - which name no other key but Vary the sounds; no setting of the module is `config: true`; the module's one menu is DRPG Settings, not restricted, and Give back's is gone; each key's `.name` and `.hint` are in lang/en.json and lang/pl.json and its hint's `firstSentence` is not empty in either; the nine sections' names in both", async () => {
+    ["R3420 - every setting Foundry's list showed is in exactly one place, this browser's or the game's (E49 A1, A1d; the owner's [11], [16], Q3, Q4, and his word on A1's shots of 11.11): each of the 35 keys registered with `config: true` at 20218b05 (a frozen list) is in exactly one of settings-window.mjs's `SETTINGS_SECTIONS` (Messenger sounds, in none: the Sound window's since E100 item 2, R3918) - four client sections, the gear's window, naming client settings alone, and five game sections, the game's settings window (the GM panel's Settings tile), naming world ones alone - which name no other key but Vary the sounds; no setting of the module is `config: true`; the module's one menu is DRPG Settings, not restricted, and Give back's is gone; each key's `.name` and `.hint` are in lang/en.json and lang/pl.json and its hint's `firstSentence` is not empty in either; the nine sections' names in both", async () => {
         /*
          * E49 A1, 11.11.2026. The frozen list is 20218b05's (STAGE E49 "What HEAD does": 35 distinct `config: true`, 23
          * world, 12 client; glassPulse's block carried the flag twice, design-notes.md), read by a script over settings.mjs's
@@ -22933,7 +22933,8 @@ const REGRESSIONS = [
         const read = {
             loaded: W?.failed ?? true,
             sections: sections.map(s => [s.key, s.place, s.keys.length, typeof s.icon === "string" && s.icon.startsWith("fa-")]),
-            once: FROZEN.filter((k, i) => seen[i] !== 1),
+            // Messenger sounds is the Sound window's since E100 item 2 (R3918), in no section; the other 34 in one each.
+            once: FROZEN.filter((k, i) => seen[i] !== (k === "messengerSound" ? 0 : 1)),
             others: named.filter(k => !FROZEN.includes(k)),
             mixed: sections.flatMap(s => s.keys.filter(k => scopeOf(k) !== (s.place === "client" ? "client" : "world")).map(k => `${s.key}:${k}`)),
             configTrue: shown,
@@ -22945,7 +22946,7 @@ const REGRESSIONS = [
         };
         equal(JSON.stringify(read), JSON.stringify({
             loaded: true,
-            sections: [["look", "client", 5, true], ["effects", "client", 5, true], ["sound", "client", 1, true], ["tech", "client", 1, true],
+            sections: [["look", "client", 5, true], ["effects", "client", 5, true], ["sound", "client", 0, true], ["tech", "client", 1, true],
                 ["audio", "game", 5, true], ["rules", "game", 7, true], ["privacy", "game", 6, true], ["gm", "game", 4, true], ["foundry", "game", 2, true]],
             once: [], others: ["sfxVary"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
             menus: read.menus === "not modelled" ? "not modelled" : [[`${MODULE_ID}.drpgSettings`, false]],

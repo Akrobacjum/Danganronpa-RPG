@@ -365,8 +365,10 @@ export async function openSoundDialog() {
         // ABOVE THE TABS, NOT INSIDE ONE. The sliders are not about music or
         // about effects, they are about this browser - and putting them in a
         // tab would leave a player looking at a tab bar with one tab in it.
+        // In both themes since E100 item 2: the gear's window no longer draws them under the glass, so this window is
+        // the one place a GM sets the volumes and the messenger's sounds, as a player's is (R3918).
         body: `<form>
-            ${document.body.classList.contains("drpg-theme-stained-glass") ? "" : soundSlidersHtml()}
+            ${soundSlidersHtml()}
             ${kitTabs([
                 { key: "play", label: game.i18n.localize("DRPG.Sound.tabPlay"), html: soundPlayPane() },
                 { key: "music", label: game.i18n.localize("DRPG.Sound.tabMusic"), html: playlistsPane },
