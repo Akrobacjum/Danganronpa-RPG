@@ -18,23 +18,18 @@ the frame and the footer are identical on the Map, a picked node and the three T
 1120 x 688 (Legacy) at 1366x768, 1120 x 1002 and 976 at 1920x1080; the footer two rows; no Traces or Key head word
 wider than its head under Legacy. Before C2: 1241 px wide at 1366x768, the size following the tab.
 
-## In progress (local, not pushed)
+| fd66831 | **C6-C12, E98 C4** - C6: the Map's side panel carries the Table's own cells per Remnant and Key slot (hidden unless picked), so the Table's Save writes Map edits unchanged; every Key plan slot a node; the Final Truth form and the Key limit override in the summary; schema editors (name, GM note, trial mode, inputs / refutes checklist) on the same Save, refused and told where another GM moved them; add / remove / column order / up-down written at once. Fixed C3's `setCaseNode`, which wrote nothing for a one-field write. C7: holders by actor id, `reachability` with the chapter's culprits and the living, "x/y" on schema nodes, who has what by name. C8: `checkCase`, ten codes, marks and list, "Check consistency". C10: new `case-realize.mjs` - preview with a room per slot, Run through the planner's road, marks in the meta row, Undo only what nobody found. C11: the question at a body (primary GM, once a chapter). C12: planned Incident Remnants (schema kind "incident") and the GM panel's line. E98 C4: Who has what as a Table tab, by name. AUDIT 9.2 gets LIVE-E97-01..06. | R3653 passes (its `expectedRed` off); R3654, R3655, R3657 (tier 0), R3656, R3658 (tier 1), five tier-2 tests |
+| d2839d8 | **Fix** - tiers 0-1 at fd66831 failed R1322 (an undeclared custom property: the footer's columns now inline), R304 (a census row for `studentsListHtml`), R1157 (five texts reworded so the count census reads them), R1318 (the GM panel reopens from one place; the case line runs through the tiles' handler). | the four green; "E97 C" tier-2 tests 24 passed |
 
-- Branch `wip-c6` in a second worktree: **C6** (the Map's side panel carries the Table's own cells per Remnant and Key
-  slot, hidden unless picked, so `readDashboardForm`/`applyDashboardSave` run unchanged; every Key plan slot a node;
-  the Final Truth form and the Key limit override in the summary; schema editors - name, GM note, trial mode, inputs or
-  refutes as a checklist - on the same Save, refused and told where another GM moved them; add / remove / column order /
-  up-down written at once), **C7** (holders by actor id from the bullets' answer keys, `reachability` with the
-  chapter's culprits - Blackened register and the incident's killers - and the living; "x/y" on schema nodes; who has
-  what by name in the summary: Truth Bullets with their real kind, then items), **C8** (`checkCase`: ten codes; marks on
-  nodes, the list and "Check consistency" in the side panel). Tests written: R3654, R3655 (tier 0), R3656 (tier 1), two
-  tier-2 tests ("E97 C6: a Remnant edited on the Map...", "E97 C6: a case node's name, mode and inputs..."); R3653's
-  `expectedRed` comes off when it passes. Not yet run.
+## In progress
+
+- Pre-push batch on d2839d8 (tiers 0-1 whole and the 30 scenarios that read the changed files). fd66831 and d2839d8 are
+  pushed only when it is green.
 
 ## Next
 
-C9 (Map by default once the owner has seen it - Q-E), C10 (realization), C11 (question at Body found), C12 (Incident
-Remnants to place in the GM panel), C13 (handbooks, glossary, captures); then E98's remainder per its plan, then E99.
+C9 (the Map by default: the owner has the shots, page below - default taken per the brief, owner to confirm), C13
+(handbooks, glossary), E98's remainder (the 60-Remnant measurement), then E99.
 
 ## Not done, and why
 
@@ -49,6 +44,12 @@ Remnants to place in the GM panel), C13 (handbooks, glossary, captures); then E9
   case-layout.mjs and case-map.mjs; `.claude/` is not mine to edit (the brief).
 
 ## Defaults taken, owner to confirm
+
+- The realization asks each Key slot's room in its preview (the plan holds no room; Place asks the same way). The
+  preview lists Key slots only; a planned Incident Remnant is placed by hand from the GM panel or the Map (C12).
+- Two GMs pressing Run: the run's id is written first and a run whose id was overwritten stops (Q-E97-5 asked for the
+  primary to run it; this is simpler and unmeasured on a real network: LIVE-E97-04).
+- Who has what leaves the top of the Table for a tab of its own (Q-E98-5).
 
 - The Map draws the chapter the Remnants tab's chapter filter names; with "every chapter" it draws every Remnant of the
   world beside this chapter's schema and Key slots (C3's open question 1).
@@ -74,7 +75,13 @@ None.
 
 ## Screenshot pages
 
-(none published yet; first round with C6-C8)
+- Round 1 (12.11.2026, fd66831's state): https://claude.ai/artifact/7fsQToa7sBj1wL5HHTpW7G - the Map (nothing
+  picked, a deduction picked, a Remnant picked), the Table (Remnants, Key Remnants, Who has what), the realization's
+  preview, the question at a body, the GM panel's Incident Remnant line; both themes, EN and PL, 1366x768, GM only.
+  Not Foundry: the module's sheets in Chromium through the style harness, the harness's own window header, the harness's
+  world with probe data in English. Seen since and open: a node's trial-mode pill hides its kind label; slot nodes cut
+  their kind ("Miejsce na..."); under the glass the frame reads 747 px at 768 because the harness's header is 88 px
+  (Foundry's about 40).
 
 ## Tokens so far
 
