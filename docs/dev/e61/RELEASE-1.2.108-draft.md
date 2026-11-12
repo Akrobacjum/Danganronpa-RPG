@@ -5,7 +5,10 @@ release line writes the file under `.github/release-notes/` from it. Commits are
 
 ## What changed
 
-### The Class Trial's entry (E61 C1, C3, C4; the owner's reviews of rounds 1-3, accepted at round 4, 12.11.2026)
+### The Class Trial's entry (E61 C1, C3, C4; the owner's reviews of rounds 1-4, accepted as built at 98e004c, 12.11.2026)
+
+The owner accepted the curtain's animation at round 5 (98e004c, 12.11.2026, at 1366x768 and 1920x1080): "Zatwierdzam
+animacje kurtyny - SUPER!".
 
 Every road into the Class Trial plays one full-screen entry on every screen at the table, from the clock's one event
 (`drpgPhaseChanged`): about a second of closing, the title **CLASS TRIAL** with the chapter's line from 1400 ms, the
@@ -82,7 +85,9 @@ the hour, and the cast in its order with the dead by the published flag alone; E
   1366x768 (1.19 % against 2.27 % at 1920x1080); only the entry's new panes follow 1366x768's proportions. One draw
   swings by about a tenth (GM 1920x1080 2.14 % against 2.09 % at 1366x768, player 2.45 % against 1.76 %, in Chromium,
   one seed each); over eight seeds 0.94 and 1.04.
-- R3703 allows one new pane out of range on its 1600x900 cut: a 630 px² chip in a notch between standing panes.
+- **R3703 is loosened for one case**: on its 1600x900 cut it allows one new pane outside the standing panes' range, a
+  630 px² chip in a notch between two standing and two new panes that no cut through its neighbours' corners or edges
+  splits into two panes in range; the 1366x768 and 1440x900 cuts still hold none (round 5, 98e004c).
 - The microphone's keybinding while a sequence covers the voice tile: LIVE-E61-08.
 - A client that loads after the event plays nothing (Q-E61-1 and Q-E94-4 defaults, owner to confirm); the lead line's
   widths are read from the code (`paintGlass`'s 1.2, 0.5 and 0.7 px), not measured in pixels.

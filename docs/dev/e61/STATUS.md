@@ -57,6 +57,11 @@ pictures are not is on the page.
 Glass sweep at 8ab5124 (`--no-notices`): SWEEP GREEN, 2 themes x 2 roles x 25 sizes, 46 with glass, 0 failing. CI moved
 to the release train (the coordinator, 12.11): this branch's runs 499, 505 and 508 were cancelled; local checks stand in.
 
+## The owner's acceptance
+
+12.11.2026, after round 5: "Zatwierdzam animacje kurtyny - SUPER!" - the curtain's animation accepted as built at
+98e004c, at 1366x768 and 1920x1080 (relayed by the coordinator). Round 4 had been accepted at 1366x768 alone.
+
 ## Round 5 results (12.11.2026): 1920x1080's proportions
 
 The owner (12.11): round 4 accepted at 1366x768; at 1920x1080 the animation's panes are a little small and too narrow.
