@@ -40,7 +40,7 @@ import {
 } from "./truth-bullets.mjs";
 import { remnantsOn, remnantData, setRemnantFlagsMany, publishTiesFor, handTiesOn, fightKey } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { announce, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc, isPrimaryGm, primaryGmId,
+import { announce, whisperToGms, gmIds, ownerIdsOf, log, warn, error, plural, esc, isPrimaryGm, primaryGmId,
     serverNow, listOf } from "./utils.mjs";
 // The kit's frame (E21 C3a): every window of the case's chapter is a `drpgWindow` or a `drpgConfirm`, answering as before.
 import { drpgWindow, drpgConfirm, emptyOption, box } from "./ui-kit.mjs";
@@ -1605,22 +1605,25 @@ async function checkBodyFound(tokenDoc) {
  * player who already knows is told nothing again. Answers how many bodies they learnt of.
  */
 async function tellLoneFinder(finder, scene, room) {
-    const user = ownerOf(finder);
-    if (!user || user.isGM) return 0;
+    // Every player who owns the finder (E91 C6, D078): a co-owner shares its sheet and its screen's marks.
+    const users = ownerIdsOf(finder).map(id => game.users.get(id)).filter(Boolean);
+    if (!users.length) return 0;
     const { roomOfToken } = await import("./movement.mjs");
     const { knowsOfDeath, tellDeaths, tellFinder } = await import("./murder.mjs");
     const found = [];
     for (const t of scene?.tokens ?? []) {
         const id = t.actor?.id;
         const row = id ? deathStore.get(id) : null;
-        if (!row || t.hidden || roomOfToken(t) !== room || knowsOfDeath(user, id, row)) continue;
-        await deathStore.patch(id, { known: [...(Array.isArray(row.known) ? row.known : []), user.id] });
-        found.push(t);
+        if (!row || t.hidden || roomOfToken(t) !== room) continue;
+        const fresh = users.filter(user => !knowsOfDeath(user, id, row));
+        if (!fresh.length) continue;
+        await deathStore.patch(id, { known: [...new Set([...(Array.isArray(row.known) ? row.known : []), ...fresh.map(u => u.id)])] });
+        found.push([t, fresh]);
     }
     if (!found.length) return 0;
-    tellDeaths([user.id]);
-    for (const t of found) tellFinder(user.id, t, room);
-    log(`${finder.name} found ${found.map(t => t.name).join(", ")} alone in ${room}; their player was told privately.`);
+    tellDeaths([...new Set(found.flatMap(([, fresh]) => fresh.map(u => u.id)))]);
+    for (const [t, fresh] of found) for (const user of fresh) tellFinder(user.id, t, room);
+    log(`${finder.name} found ${found.map(([t]) => t.name).join(", ")} alone in ${room}; their player(s) were told privately.`);
     return found.length;
 }
 

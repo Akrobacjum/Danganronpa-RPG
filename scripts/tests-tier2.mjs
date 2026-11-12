@@ -34779,6 +34779,96 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "an action whose GM left during the roll kept its price, took a search token, posted, or was not told once");
     }],
 
+    ["a GM's own Search for something specific whose card is not posted gives back the action and the room's search token (E91 C7, D072)", async () => {
+        /*
+         * E91 C7, 12.11.2026; the owner's deferred item D072 ("the search token does not come back when the card is not
+         * published"). action-search.mjs `searchSpecific` gave the action back when its call on the GM was not posted
+         * (`abort`), and the room's token, taken after the dice, stayed taken. On a GM's own browser the token is the
+         * GM's to give back (`SearchTokens.giveBack`), and is now. A student stood alone in a room, its Search run from
+         * this GM's browser; the call's thread card refused by a `preCreateChatMessage` hook, so `callGm` answers false.
+         * Read: the actions and the room's tokens it kept taken. Red before C7: one token taken. A player's browser holds
+         * no road back once the last GM has gone (the spend's request id stays in the bridge); that case is not changed.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the student alone");
+        const rolls = await import("./action-rolls.mjs");
+        const { ACTIONS, ACTIONS_RESOURCE, MODULE_ID } = await import("./config.mjs");
+        const { SETTINGS } = await import("./settings.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { SearchTokens } = await import("./search-tokens.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const [student] = cast(1);
+        const ACTS = `system.resources.${ACTIONS_RESOURCE}.value`;
+        const had = foundry.utils.getProperty(student, ACTS);
+        const tokens = foundry.utils.duplicate(game.settings.get(MODULE_ID, SETTINGS.searchTokens) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const windows = answerWindows((cfg, root) => {
+            const pick = root.querySelector('input[name="variant"][value="specific"]');
+            if (pick) {
+                for (const each of root.querySelectorAll('input[name="variant"]')) each.checked = each === pick;
+                const request = root.querySelector('[name="request"]');
+                if (request) request.value = "SUITE E91 C7 a spare key";
+            }
+            return press(cfg, root);
+        });
+        const errors = console.error;
+        const stood = await standAlone(student);
+        let blocked = 0, read = null;
+        const hook = Hooks.on("preCreateChatMessage", doc => {
+            if (doc?.flags?.[MODULE_ID]?.thread) { blocked++; return false; }
+            return true;
+        });
+        try {
+            console.error = () => {};
+            await student.update({ [ACTS]: Math.max(Number(had) || 0, 1) });
+            const total = Math.min(...ACTIONS.search.thresholds.map(t => t.min)) + 1;
+            student.rollTrait = async () => ({ roll: { total, isCritical: false, result: { duality: 1, total }, options: { roll: { trait: "eye" } } } });
+            const where = locateActor(student);
+            const left = SearchTokens.left(where?.room ?? null, where?.scene ?? null);
+            const before = actionsLeft(student);
+            await rolls.performAction(student, "search");
+            await settle(300);
+            read = [before - actionsLeft(student), left - SearchTokens.left(where?.room ?? null, where?.scene ?? null)];
+        } finally {
+            Hooks.off("preCreateChatMessage", hook);
+            console.error = errors;
+            windows.restore();
+            delete student.rollTrait;
+            for (const message of game.messages.contents.filter(m => !seen.has(m.id))) await message.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, tokens);
+            await student.update({ [ACTS]: had });
+            await stood.back();
+        }
+        must(blocked > 0, "no thread card was asked for - the Search did not reach its call, and this measures nothing");
+        equal(stableJson(read), stableJson([0, 0]), "[actions kept spent, the room's tokens kept taken] - a Search whose card was not posted kept its token");
+    }],
+
+    ["the Dynamic action's difficulty window names the character as its sheet does, by the GMs' actor, never by a packet's name (E91 C7, D076)", async () => {
+        /*
+         * E91 C7, 12.11.2026; the owner's deferred item D076 ("the Dynamic window and the sheet name the character
+         * differently"). action-dynamic.mjs `askDynamicDifficulty` wrote `actorName`, the name the player's browser put in
+         * the packet (`dynamic.difficulty`'s `actorName`, kept on the card's data as `name`): a name the asker's copy held
+         * or any text, where the sheet shows the actor's own. Now the window reads the actor by id (the card's `by`), the
+         * packet's name only when no actor is found. The window's content read with Foundry's DialogV2.wait handed in,
+         * nothing answered. Red before C7: the packet's name.
+         */
+        needs(env.dialogs(), "the window is drawn");
+        const [student] = cast(1);
+        const { askDynamicDifficulty } = await import("./action-rolls.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let seen = "";
+        try {
+            D.wait = async cfg => { seen = typeof cfg?.content === "string" ? cfg.content : cfg?.content?.innerHTML ?? ""; return null; };
+            await askDynamicDifficulty({ description: "SUITE E91 C7", actorName: "SUITE E91 C7 another name", actorId: student.id, room: null });
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        must(seen.includes("SUITE E91 C7"), "the window was not drawn - this would measure nothing");
+        equal(stableJson([seen.includes(foundry.utils.escapeHTML(student.name)), seen.includes("another name")]), stableJson([true, false]),
+            "[the sheet's name, the packet's name] in the Dynamic window - it names the character by the packet");
+    }],
+
     ["a returning reader is given the line written for them: a GM keeps a card's uncut words beside its own and cuts them for each asker, at its post and at its rewrite (E18 fix e1-G6)", async () => {
         /*
          * E18 fix e1-G6, 24.10.2026; the end review's E18-END-6 and F5 (STATUS's C4 gap 1). A GM gave a returning reader
@@ -34900,6 +34990,57 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }
         equal(stableJson(read), stableJson([true, [true, true], [true, true]]),
             "[the card went to the asker's thread], [each owner among an old roll's readers], [each owner in the incident's audience] - a co-owner's question went to the other owner's thread, or a co-owner was left off a reader list");
+    }],
+
+    ["a GM's ruling on a card goes to the thread the card is in: a co-owner's card is answered in the co-owner's thread (E91 C6, D078)", async () => {
+        /*
+         * E91 C6, 12.11.2026; the owner's deferred item D078 (threads). Since E18 fix e1-G7 a co-owner's question goes to
+         * the co-owner's thread, but the ruling on it went to the first owner's (messenger-app.mjs's rules asked
+         * `ownerOf`): the asker never read the answer. A student with a player is given a second owner (put back
+         * after); a card in that second owner's thread with Decline (`callGm`'s `thread`), pressed by this GM. Read:
+         * the threads the new notes went to. Red before C6: the first owner's.
+         */
+        needs(world.atLeast("playerAccounts", 2), "a second player to share the student");
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player");
+        const { isPrimaryGm, ownerOf, forcedDeletion } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM - this would measure nothing");
+        const { callGm } = await import("./gm-bridge.mjs");
+        const { pressCard } = await import("./messenger-app.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const student = livingStudents().find(a => ownerOf(a)?.active);
+        must(student, "no living student has a connected player - this would measure nothing");
+        const first = ownerOf(student);
+        const second = game.users.find(u => !u.isGM && u.id !== first.id && u.active);
+        must(second, "no second connected player - this would measure nothing");
+        const ownership = foundry.utils.deepClone(student.ownership ?? {});
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const info = ui.notifications.info;
+        let granted = false, read = null;
+        try {
+            ui.notifications.info = () => null;
+            await student.update({ [`ownership.${second.id}`]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER });
+            granted = true;
+            await settle();
+            const asker = [first, second].find(u => u.id !== ownerOf(student)?.id);
+            await callGm(student, { title: "E91 C6", body: "<p>E91 C6 a project</p>", thread: asker.id,
+                actions: [{ action: "declineProject", label: "Decline", data: { by: student.id } }] });
+            await settle();
+            const card = game.messages.contents.find(m => !had.has(m.id) && cardFlag(m, "thread") === asker.id);
+            must(card, "no card was posted in the asker's thread - this would measure nothing");
+            const before = new Set(game.messages.contents.map(m => m.id));
+            await pressCard(card, "declineProject", { by: student.id });
+            await settle();
+            const notes = game.messages.contents.filter(m => !before.has(m.id) && cardFlag(m, "thread"));
+            read = notes.map(m => (cardFlag(m, "thread") === asker.id ? "asker" : "other"));
+        } finally {
+            ui.notifications.info = info;
+            for (const message of game.messages.contents.filter(m => !had.has(m.id))) await message.delete().catch(() => {});
+            if (granted) await student.update({ [`ownership.${second.id}`]: second.id in ownership ? ownership[second.id] : forcedDeletion() });
+            await (await import("./sheet-audit.mjs")).sheetAuditIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson(["asker"]), "the ruling's note did not go to the thread its card was in, or went to more than one");
     }],
 
     ["a Frisk's ask its searcher stopped waiting for ends on the primary: only that searcher's expiry of that ask, once its wait could have run out, ends it, as interrupted, the target's window withdrawn and a yes after it not kept; a refusal's open force ends as 'Leave it' does; a GM whose socket comes back drops its asks (E18 C7)", async () => {
@@ -64453,6 +64594,68 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             ["found, then a jump", { searched: true, found: true }, "found", { lost: true }, null], ["being put back", "notThere", null]], [false, false, true], 1]),
             "[each step as what, the answer, Hana's cell (Botan's for the show); the judge's standing after each jump; the cards] - a search or a show read the room of the token's document where the GMs do not read her, or a jump kept a find its Reroll took back");
     }],
+    ["a Find Passage the primary GM refuses after its price was taken gives the price back (E91 C2, D053)", async () => {
+        /*
+         * E91 C2, 12.11.2026; the owner's deferred item D053. action-analyze.mjs `locatePassage` gave the price back only
+         * when no GM was online: the answer of `requestPassageFind` was not read, so a search the primary refused kept it.
+         * A Find Stash beside it gives it back on any refusal (E16 fix e1-G2). The road: a student in daily life with 2
+         * actions picks Find Passage in the Analyze window (Foundry's DialogV2.wait handed in, as A10-7 does); the Class
+         * Trial opens as the "walls gone over" card is made - after the price, before the primary judges - so the
+         * primary refuses ("the Class Trial is in session"). Read: [actions, Hope, Sanity's stress] before and after.
+         * Red before C2: one action short.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        const [student] = cast(1);
+        const rolls = await import("./action-rolls.mjs");
+        const ACT = await import("./actions.mjs");
+        const clock = foundry.utils.deepClone(getClock() ?? {});
+        const purse = () => [ACT.actionsLeft(student), student.system.resources.hope?.value ?? null, student.system.resources.stress?.value ?? null];
+        const kept = { actions: ACT.actionsLeft(student) };
+        const api = foundry.applications.api.DialogV2, own = Object.getOwnPropertyDescriptor(api, "wait");
+        const warn = ui.notifications.warn;
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+        let opened = null, hook = null;
+        const read = {};
+        try {
+            api.wait = async () => ({ value: "passage", form: document.createElement("form"), trait: null });
+            ui.notifications.warn = () => null;
+            if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            await ACT.setActions(student, 2);
+            await settle();
+            // The roll's own message, which comes after the price (the card that follows is veiled: its words are not in it).
+            read.seen = [];
+            hook = Hooks.on("preCreateChatMessage", doc => {
+                read.seen.push(String(doc?.content ?? "").slice(0, 160));
+                if (!opened && String(doc?.content ?? "").includes("dice-roll")) {
+                    read.atRoll = purse();
+                    opened = student.setFlag(MODULE_ID, FLAGS.monocub, true);
+                }
+            });
+            const before = purse();
+            await rolls.performAction(student, "analyze");
+            if (opened) await opened;
+            await settle();
+            read.refusalSet = Boolean(opened);
+            read.purse = [before, purse()];
+            read.backWhole = read.purse[1][0] === before[0] && read.atRoll?.[0] === before[0] - 1;
+        } finally {
+            if (hook !== null) Hooks.off("preCreateChatMessage", hook);
+            if (own) Object.defineProperty(api, "wait", own); else delete api.wait;
+            ui.notifications.warn = warn;
+            if (opened) await opened.catch(() => {});
+            await student.unsetFlag(MODULE_ID, FLAGS.monocub);
+            if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: clock.phase, eclipse: Boolean(clock.eclipse) });
+            await ACT.setActions(student, kept.actions);
+            await settle();
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) { try { await m.delete(); } catch { /* already gone */ } }
+            if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+        }
+        must(read.refusalSet, `the refusal was not set up between the price and the search - this would measure nothing: ${stableJson(read.seen)}`);
+        ok(read.backWhole, `a Find Passage refused on the primary kept its price ([before, after]: ${stableJson(read.purse)}; at the roll ${stableJson(read.atRoll)})`);
+    }],
+
     ["A10-7 stash - a Find Stash's Reroll replays its search on the GM: 12 to 17 opens one hidden stash, 17 to 12 the find stands, and 12 to 17 again opens no second one", async () => {
         /*
          * E80 C4 (S16-19; P1-16). The harm: a student who misses a Find Stash and buys a Reroll that beats 16 pays 3 Hope
@@ -69870,8 +70073,10 @@ equal(read.added, 3, "three additions to a purse at once lost one");
                 await settle();
             });
             const landed = victim.items.find(i => i.name === KNIFE) ?? null;
+            // CHANGED ON PURPOSE BY E91 C8 (12.11.2026; D090, the owner's answer to E35 Q5): one stowed, not two - the
+            // victim's own Tool goes into the hand without a word, the knife stays stowed. Was: two stowed, no hand.
             read.plant = [out?.done ?? null, out?.seen ?? null, landed ? INV.isStashed(landed) : null, landed ? isEquipped(landed) : null,
-                stowedInGroup(victim, group).length, await reachedPlayersOf(victim, sent)];
+                stowedInGroup(victim, group).length, isEquipped(victim.items.get(one.id)), await reachedPlayersOf(victim, sent)];
             must(!INV.canCarry(victim, "tool").ok, "the victim's slots are not full after the Plant - the quiet grant would measure nothing");
             read.grant = await withStashIn(fixture.room, victim, async () => {
                 let given = null;
@@ -69887,7 +70092,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await fixture.back();
             await sheetAuditIdle();
         }
-        equal(stableJson(read), stableJson({ plant: [true, false, false, false, 2, [0, 0, 0]], grant: [true, [0, 0, 0]] }),
+        equal(stableJson(read), stableJson({ plant: [true, false, false, false, 1, true, [0, 0, 0]], grant: [true, [0, 0, 0]] }),
             "an unseen Plant or a quiet grant reached the victim, or the planted knife went into their hand ([done, seen, the knife stashed, in a hand, the victim's stowed Gear, [packets, cards, redraws] at the victim's player]; [the grant stashed, what reached them])");
     }],
 
@@ -86956,6 +87161,56 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "the English reason or a raw key}");
     }],
     /* ---- E46-C2a (09.11.2026): Room setup on the kit, its writes held. ---- */
+    ["Room setup's Fog tab draws the Mastermind's column as knowing every room, its boxes ticked and shut, and Discover all or Hide all leaves them (E91 C4, D067)", async () => {
+        /*
+         * E91 C4, 12.11.2026; the owner's deferred item D067 ("the other places that read discoveredFor for the
+         * Mastermind"). The discovery ledger keeps no row of the Mastermind's walks (fog.mjs `recordDiscovery`), and every
+         * reader of it that asks for them counts every room as known (`myDiscoveredRooms`, `roomEnteredByMe`,
+         * projects.mjs `hasStoodIn`, passages-gm.mjs `roomNamerFor`) - but Room setup's Fog tab, which drew the
+         * Mastermind's column empty, a GM's tick writing cells nobody reads. Now the column is drawn ticked and disabled,
+         * its tooltip `DRPG.Vault.fogMastermind`, and the tab's two buttons pass it by. In a GM-store world of the suite's
+         * own: a Mastermind and another student; the window's content read, nothing applied. Red before C4: the
+         * Mastermind's boxes as the other's.
+         */
+        needs(env.dialogs(), "the window is drawn");
+        needs(world.atLeast("namedRooms", 1), "Room setup lists the named regions of the scene on screen");
+        const [mm, other] = cast(2);
+        const V = await import("./vault.mjs");
+        const G = await import("./gm-store.mjs");
+        const MM = await import("./mastermind.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let read = null;
+        await G.withGmStoreWorld(`suite-e91c4-${foundry.utils.randomID(8)}`, async () => {
+            await MM.setMastermind(mm);
+            await settle();
+            let form = null;
+            D.wait = async cfg => {
+                form = document.createElement("form");
+                if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
+                else if (cfg?.content) form.append(cfg.content.cloneNode(true));
+                return null;
+            };
+            try { await V.openRoomSetupDialog({ tab: "fog" }); } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+            await settle();
+            must(form, "Room setup drew no window - this would measure nothing");
+            const boxes = id => [...form.querySelectorAll('input[type="checkbox"][name^="fog:"]')].filter(b => b.name.endsWith(`:${id}`));
+            must(boxes(mm.id).length > 0 && boxes(other.id).length > 0, "the Fog tab has no column for the two - this would measure nothing");
+            const tip = game.i18n.localize("DRPG.Vault.fogMastermind");
+            read = {
+                mastermind: boxes(mm.id).every(b => b.hasAttribute("checked") && b.disabled && b.getAttribute("data-tooltip") === tip),
+                other: boxes(other.id).some(b => b.disabled || b.getAttribute("data-tooltip") === tip),
+                tip: !tip.startsWith("DRPG.")
+            };
+        });
+        // The two buttons are wired on the live window (no window is drawn here): read off room-setup.mjs, comments blanked.
+        const src = stripComments((await moduleSources()).get("room-setup.mjs") ?? "");
+        const wire = bodyOf(src, "function wireFogButtons(root) {", { until: "\n}\n" });
+        read.buttons = /if\s*\(\s*box\.disabled\s*\)\s*continue/.test(wire);
+        equal(stableJson(read), stableJson({ mastermind: true, other: false, tip: true, buttons: true }),
+            "the Fog tab does not draw the Mastermind's column as knowing every room ({the Mastermind's boxes ticked, shut and told why; another's shut or told; the words exist; the buttons pass a shut box by})");
+    }],
+
     ["E46-T1 - Room setup opened on a scene while the GM views another (E46-C2a; E46-05, R119, near a road): Apply with nothing changed writes no region; one change on each room tab (Bedrooms' owner, Doors' lock, Searching's seal, Rests' short rest, Stashes' cell, Description's words, Fog's box) writes only its own field and only on the scene it was opened on; Apply with the Passages tab drawn writes no region (its buttons write at once), and the Scenes tab's school linked writes the scene roles and no region (E46-C2b); drawn on the GM, the footer is Apply and Cancel after every tab", async () => {
         /*
          * E46-C2a. Two scenes of the suite's own, each a room of one name (as R119's tier-2 test builds them), in a

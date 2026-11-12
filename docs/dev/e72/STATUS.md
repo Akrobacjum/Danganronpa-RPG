@@ -101,7 +101,12 @@ tier-2 test red before it (run against the old monocub.mjs by hand for the three
 
 The Final Trial's bets: built at f5ec657 (the coordinator called it a bug), see the table above.
 
-## E91 (leftovers from stage notes) - REVERTED on this branch (the coordinator's choice (b), 12.11)
+## E91 (leftovers from stage notes) - RESTORED: E91 rides with E72 (the coordinator's call, 12.11, one release)
+
+The coordinator's later message (12.11, 12:49, read here at 13:44) replaced the revert: E91 ships bundled with E72.
+The revert b1a7b40 is itself reverted (one commit; tests-tier1.mjs's one conflict kept both sides, the registry
+regenerated), so every E91 commit below stands as built. The paragraph that follows is the record of the revert.
+
 
 E91's eight commits (3b04cac, 3ab0a52, c6e1aa1, 521b8d7, 7523428, 89cbdac, dedc76d, e2baf99) are reverted in one
 commit (`git revert --no-commit`, newest first; no history rewritten). When E91's turn comes (after E54-E59 land), it
