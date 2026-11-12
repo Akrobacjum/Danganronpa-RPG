@@ -512,7 +512,8 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
         const d = globalThis.__s62d = { windows: globalThis.__dialogWindows, warned: [], warn: ui.notifications.warn };
         globalThis.__dialogWindows = true;
         ui.notifications.warn = (text, ...rest) => { d.warned.push(String(text)); return d.warn.call(ui.notifications, text, ...rest); };
-        d.answer = Promise.resolve().then(() => I.openInvestigationDashboard()).catch(e => String(e));
+        // on the Table, whose chapter filter this widens (the Map is the default since E97 C9)
+        d.answer = Promise.resolve().then(() => I.openInvestigationDashboard({ view: "table" })).catch(e => String(e));
         d.app = await until(() => open().find(a => a.element) ?? null, 10000);
         // The window opens on the clock's chapter, and phase A's traces carry none (placeRemnant stamps only what it is
         // handed): widened to every chapter first, as a GM looking for them would.

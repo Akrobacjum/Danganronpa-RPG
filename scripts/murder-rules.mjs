@@ -809,7 +809,7 @@ export async function resolveVictimOpening({ total, isCritical, withHope }) {
     // the GM's call, which is why this reports rather than decides - and says
     // so (CASE-10): left at "openingRoll" with no prompt, the incident sat
     // open, refused every other murder and tied every trace in the building.
-    await whisperToGms(`<p class="drpg-warning">${game.i18n.localize("DRPG.Murder.victimNoticedNext")}</p>`);
+    await whisperToGms({ tone: "warning", body: `<p>${game.i18n.localize("DRPG.Murder.victimNoticedNext")}</p>` });
     return { success: true, band };
 }
 
@@ -1623,8 +1623,8 @@ async function applyCrisisAction({
     // fix r1-G3); until then the new dice stayed on the card, paid for.
     const deathStands = undo && crisisKilled(murderState()?.lastCrisis);
     if (undo && !await undoLastCrisis({ actorId, key, before: again?.before ?? null })) {
-        if (!deathStands) await whisperToGms(`<p class="drpg-warning">${
-            game.i18n.localize("DRPG.Murder.rerollLost")}</p>`);
+        if (!deathStands) await whisperToGms({ tone: "warning", body: `<p>${
+            game.i18n.localize("DRPG.Murder.rerollLost")}</p>` });
         return null;
     }
 
@@ -2764,8 +2764,8 @@ async function swapRoles(state, done, { restores = false } = {}) {
     // "five" whatever the opening roll had decided, and after Z4 the count is
     // the one thing about the old plan that survives, so it is also the one
     // thing the GM does not have to decide again.
-    await whisperToGms(`<p class="drpg-warning">${
-        plural("DRPG.Murder.keyRemnantsStale", { n: state.keyRemnants })}</p>`);
+    await whisperToGms({ tone: "warning", body: `<p>${
+        plural("DRPG.Murder.keyRemnantsStale", { n: state.keyRemnants })}</p>` });
 }
 
 async function finishIncident(state, key, band, done, killed = null, actorId = null) {
@@ -4004,8 +4004,7 @@ async function refuseBetrayal(third, why, { asked, offer }) {
     // A request that found the offer taken is the second of two in flight: the first is opening it.
     if (why === "spent") return null;
     try {
-        await whisperToOwner(third, `<h3>${game.i18n.localize("DRPG.Murder.betrayalTitle")}</h3>
-            <p><span class="drpg-warning">${line}</span></p>`);
+        await whisperToOwner(third, { tone: "warning", title: game.i18n.localize("DRPG.Murder.betrayalTitle"), body: `<p>${line}</p>` });
     } catch (err) {
         error("Could not tell the player why their betrayal did not open", err);
     }
@@ -4526,10 +4525,10 @@ export async function throwOpeningRoll(side, actorId, trait = null) {
         // roll" would blame the player for the GM closing the incident.
         if (openingStillWanted(side, actorId)) {
             const { whisperToGms } = await import("./utils.mjs");
-            await whisperToGms(`<p class="drpg-warning">${
+            await whisperToGms({ tone: "warning", body: `<p>${
                 game.i18n.format("DRPG.Murder.openingDeclined", {
                     name: foundry.utils.escapeHTML(actor.name)
-                })}</p>`);
+                })}</p>` });
         }
         return null;
     }

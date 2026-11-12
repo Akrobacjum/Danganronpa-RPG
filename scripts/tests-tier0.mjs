@@ -680,7 +680,8 @@ const REGRESSIONS = [
      */
     ["R3334 - every keyed element (config.mjs's ACTIONS, HOPE_CALLS, DESPAIR_CALLS, CRISIS_ACTIONS, MONOCUB, TRAP_TRIGGERS, CLEANUP and gm-panel.mjs's tiles) has a row in tests-glyphs.mjs ELEMENTS and its glyph is drawn for Stained Glass (E48 G2)", async () => {
         const { G, gaps, keyed, structure } = await glyphMapInputs();
-        must(keyed.length >= 80, `${keyed.length} keyed element(s) read - config.mjs or gm-panel.mjs was not read`);
+        // 70, not 80, since E49 A1e: four GM tiles left the panel for Season setup (78 keyed elements read on 11.11.2026).
+        must(keyed.length >= 70, `${keyed.length} keyed element(s) read - config.mjs or gm-panel.mjs was not read`);
         equal(JSON.stringify(structure), "[]", "the map's structure");
         equal(JSON.stringify(gaps.keyedUndrawn), "[]", `keyed elements whose glyph no row draws (of ${Object.keys(G.ELEMENTS).length})`);
     }],
@@ -717,7 +718,39 @@ const REGRESSIONS = [
         const { gaps, glyphs } = await glyphMapInputs();
         must(glyphs.length >= 240, `${glyphs.length} glyph(s) read`);
         equal(JSON.stringify(gaps.offGrid), "[]", "drawings Stained Glass wears off the 24 grid with no `glass` row of the name on 24");
-    }, expectedRed("E48", "66 drawings Stained Glass wears are on 8 or 12 (pix diamond, diamond-empty, dot, dot-empty, skull, query and 60 chrome masks); the rounds drew no 24 version of them")],
+        /* Green since E48 batch 5 (12.11.2026): the 66 drawings it listed until then (legacy diamond, diamond-empty, dot,
+           dot-empty, skull and query on 8; 60 chrome masks on 12) each have a glass row on 24 - the six small marks by
+           name, declared under the theme's body (tests-glyphs.mjs SHEET_MARKS), the chrome masks by name or by the
+           chrome row's key (`glassChromeOf`), which R3596 holds the chrome section to wear under Stained Glass. */
+    }],
+
+    ["R3596 - Foundry's chrome wears each theme's own drawing: in danganronpa.css's chrome section every chrome mask on 12, on every selector it lands on (the scene-controls rail, the sidebar tabs, the window header's close and controls), is its chrome row's 12 drawing as written and, under Stained Glass's body, its glass row's 24 drawing, decoded pixel for pixel; the section less its glass part is byte for byte what tools/chrome-icons.mjs writes with no glass row; a planted swap and a planted Legacy change are each seen (E48 batch 5; Q11, the owner 10.11)", async () => {
+        /*
+         * E48 batch 5, 12.11.2026. R3339 asks whether a 24 drawing exists; this asks whether the chrome wears it, theme by
+         * theme, off the served sheet's text (tests-glyphs.mjs `chromeThemeProblems`): the masks sit on ::before, which a
+         * computed style headless does not read. Red on 17aceda8's rows and sheet: 66 problems - no glass row for the 60
+         * chrome masks R3339 listed, and the 6 selectors of eye-slash and music, whose glass rows of that name were drawn
+         * for the module's own markup, not worn under the theme's body (none of the 180 was). THE CONTROLS: the
+         * first glass mask in the section swapped for its Legacy drawing, and one Legacy mask's first path cell moved.
+         */
+        needs(env.tools(), "tools/glyphs.json and its generator are read from the repository's tools/ (an installed module's zip leaves it out)");
+        const G = await import("./tests-glyphs.mjs");
+        const text = async file => fetch(`/modules/${MODULE_ID}/${file}`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
+        const glyphs = G.parseGlyphs(await text("tools/glyphs.json")).glyphs;
+        const css = await text("styles/danganronpa.css");
+        must(glyphs.filter(g => g.family === "chrome").length >= 60 && css.length > 100000, `${glyphs.length} glyph row(s), ${css.length} character(s) of danganronpa.css read`);
+        const { problems, read } = G.chromeThemeProblems(glyphs, css);
+        must(read >= 180, `${read} selector(s) of the chrome section held - the check would hold little`);
+        equal(JSON.stringify(problems.slice(0, 6)), "[]", `${problems.length} problem(s) between the chrome section and each theme's rows`);
+        // a glass icon's rule opens on its mask (the glass part's first block, the box, has none); a Legacy mask is on 12
+        const glassMask = /body\.drpg-theme-stained-glass #scene-controls [^{}]*\{\s*-webkit-mask-image: (url\("data:image\/svg\+xml,[^"]*"\))/.exec(css)?.[1];
+        const legacyMask = /mask-image: (url\("data:image\/svg\+xml,[^"]*viewBox='0 0 12 12'[^"]*"\))/.exec(css);
+        must(glassMask && legacyMask, "no glass rule or no Legacy mask in the chrome section to plant in");
+        const swapped = css.split(glassMask).join(legacyMask[1]);
+        ok(G.chromeThemeProblems(glyphs, swapped).problems.some(p => p.includes("(Stained Glass)")), "a glass mask swapped for Legacy's 12 drawing is not seen");
+        const moved = css.split(legacyMask[1]).join(legacyMask[1].replace(/d='M(\d+) /, (m, x) => `d='M${Number(x) === 0 ? 1 : 0} `));
+        ok(G.chromeThemeProblems(glyphs, moved).problems.some(p => p.includes("Legacy")), "a Legacy mask with one cell moved is not seen");
+    }],
 
     ["R3349 - one glyph prefix: no stylesheet of module.json, nor a script that writes or names a glyph, holds the retired px, g or r prefix, and every --drpg-pix- glyph they read (a sheet's var(), the kit's pixelGlyph and launcher names, config.mjs PROJECT_GLYPHS) is a legacy row of tools/glyphs.json, declared on :root for both themes (E48 G4)", async () => {
         /*
@@ -3264,9 +3297,10 @@ const REGRESSIONS = [
             "the system's own contrast preference is no longer read");
         ok(/toggle\("drpg-high-contrast", highContrastOn\(\)\)/.test(settings),
             "applyTheme no longer puts the class on the body");
-        const look = stripComments(new Map(await otherSources()).get("look.mjs") ?? "");
-        ok(look.includes("SETTINGS.highContrast"),
-            "the Look window lost the switch, so only Foundry's settings page has it");
+        // The gear's window is settings-window.mjs's since E49 A1d (the Look window's rows moved there).
+        const look = stripComments(new Map(await otherSources()).get("settings-window.mjs") ?? "");
+        ok(/CLIENT_SECTIONS\s*=[\s\S]*?"highContrast"[\s\S]*?GAME_SECTIONS\s*=/.test(look),
+            "the gear's settings window lost the switch, so no window of a player's has it");
     }],
 
     ["R53 - the Tamper tile's late answer does not eat the reason it is locked", async () => {
@@ -3958,8 +3992,9 @@ const REGRESSIONS = [
         const sources = new Map(await otherSources());
         // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
         const panel = stripComments(panelText(sources));
-        const clockWin = bodyOf(panel, "export async function openClockDialog");
-        const list = bodyOf(clockWin, "const stated", { until: "const result" });
+        // E49 A1e: the fields left the window's body for `campaignRows`, which Edit campaign and Season setup both draw.
+        const clockWin = bodyOf(panel, "export function campaignRows");
+        const list = bodyOf(clockWin, "const stated", { until: "return [" });
         ok(list.length > 80, "the chapter list has moved or gone");
         ok(/Math\.max\(CHAPTERS_PER_SEASON/.test(clockWin),
             "the chapter list is six long whatever the clock says, so a campaign past "
@@ -3975,10 +4010,11 @@ const REGRESSIONS = [
         // AND THE RULE REACHES THE OTHER WINDOW WITH THE SAME CAP. A number input
         // whose value is out of range fails constraint validation, so Apply there
         // submitted nothing at all. E44 C4b (04.11.2026): the field is ui-kit.mjs's `stepper`, its cap the `max` it passes.
+        // E49 A1e: Season setup draws Edit campaign's own rows, so its chapter is the field read above.
         const season = stripComments(sources.get("season-setup.mjs") ?? "");
-        const field = bodyOf(season, 'stepper({ name: "chapter"', { length: 240 });
-        ok(/\bmax:\s*Math\.max\(CHAPTERS_PER_SEASON/.test(field),
-            "the Season setup window still caps its chapter field at six");
+        const fields = bodyOf(season, "export function campaignFieldsHtml(", { until: "export function seasonTilesHtml(" });
+        ok(/\bcampaignRows\(/.test(fields) && !/stepper\(\{ name: "chapter"/.test(season),
+            "the Season setup window draws a chapter field of its own again, which this cap does not reach");
     }],
 
     ["R69 - the Eclipse warning fires on a clock that moved", async () => {
@@ -3992,7 +4028,8 @@ const REGRESSIONS = [
          */
         // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
         const panel = stripComments(panelText(await otherSources()));
-        const win = bodyOf(panel, "export async function openClockDialog");
+        // E49 A1e: Apply's writes left the window for `applyCampaignForm`, which Edit campaign and Season setup both run.
+        const win = bodyOf(panel, "export async function applyCampaignForm");
         ok(!/result\.timeOfDay\s*!==\s*undefined/.test(win),
             "the Eclipse warning is gated on a field the form always fills");
         ok(/before\.timeOfDay/.test(win),
@@ -4182,9 +4219,17 @@ const REGRESSIONS = [
         ok(/paintDraft\(dialog\.element, draft\)/.test(season),
             "a carried draft is never painted back");
 
-        const rows = bodyOf(season, "function wireSetupSteps(", { until: "export async function openSeasonSetup(" });
-        ok(/handOff\(dialog, \(\) => openSeasonSetup\(\{ draft(, [^}]*)? \}\)\)/.test(rows),
+        // E49 A1e (12.11.2026): the rows are the Season checklist's, and the row reopens the window it stands in (`reopen`),
+        // which the checklist hands as itself; Season setup's tiles make the same round trip back to Season setup.
+        ok(/openSeasonChecklist\(\{ draft = null(, [^}]*)? \} = \{\}\)/.test(season),
+            "the checklist's opener cannot be handed a draft");
+        const rows = bodyOf(season, "function wireSetupSteps(", { until: "function wireSeasonTiles(" });
+        ok(/handOff\(dialog, \(\) => reopen\(\{ draft(, [^}]*)? \}\)\)/.test(rows)
+            && /wireSetupSteps\(dialog, trip => \{ roundTrip = trip; \}, openSeasonChecklist\)/.test(season),
             "the row still closes and reopens on its own, so the close answers the caller");
+        const tiles = bodyOf(season, "function wireSeasonTiles(", { until: "export async function openSeasonSetup(" });
+        ok(/handOff\(dialog, \(\) => openSeasonSetup\(\{ draft(, [^}]*)? \}\)\)/.test(tiles) && !/await dialog\.close\(\)/.test(tiles),
+            "a tile of Season setup's row closes and reopens on its own, so the close answers the caller");
         ok(!/await dialog\.close\(\)/.test(rows),
             "the row awaits the close itself, which is what resolves the opener early");
         ok(/step\.fixedKey \?\? "DRPG\.Season\.fixed"/.test(rows),
@@ -4194,10 +4239,12 @@ const REGRESSIONS = [
         ok(/!\(step\.fix \|\| step\.open\)/.test(builder),
             "a row with nothing to fix and nothing to open still offers a button");
 
-        const opener = bodyOf(season, "export async function openSeasonSetup(");
-        const tail = bodyOf(opener, "rejectClose: false");
-        ok(/if \(roundTrip\) return roundTrip;/.test(tail),
-            "the round trip is not returned, so the GM panel reopens itself over it");
+        for (const name of ["openSeasonSetup", "openSeasonChecklist"]) {
+            const opener = bodyOf(season, `export async function ${name}(`);
+            const tail = bodyOf(opener, "rejectClose: false");
+            ok(/if \(roundTrip\) return roundTrip;/.test(tail),
+                `${name}: the round trip is not returned, so the GM panel reopens itself over it`);
+        }
     }],
 
     ["R75 - revoking a Despair pool is asked first, and the form survives it", async () => {
@@ -8371,6 +8418,7 @@ const REGRESSIONS = [
             ["ITEM investigation.mjs#missingKeyRows", "a display (E70 C9): the console's Missing Key Remnants on a GM, from keyPlanStatus and findersByRemnant (the living holders, as the fee's) and the GMs' Key plan; writes nothing - the Reveal judges each row again on the primary (trial-modes.mjs revealRefusal in revealInStep)"],
             ["ITEM investigation.mjs#keyFeeOf", "judged: one await judgedFor, then itemsHeldNow per student in one synchronous pass (H3); the marks on the primary, the documents on another GM, as every itemsHeldNow road there; a trial's opening asks it on the primary since fix r1-G3 (askToChargeForUnfoundKeys), and a copy whose trace is gone is dated by its answer key, not its stamp"],
             ["ITEM investigation.mjs#evidenceByStudent", "out of scope: 'Who has what', a GM's display (plan 1b); C7 shares livingStudents with it"],
+            ["ITEM investigation.mjs#studentsListHtml", "out of scope: 'Who has what' by name (E97 C7, E98 C4), a GM's display of the same students and items; writes nothing"],
             ["ITEM observe.mjs#mintFindCopy", "out of scope as a reader (E70 C12, moved out of createFind with its H84 step): `copiedRemnants` asks only whether a copy of this trace is held, in the character's `serialWrite` step, for Observe's find (createFind) and a successful Tamper's copy for its author (cleanup.mjs authorsCopy, on the GM after resolveStageSix scored the roll); the fields it names are the trace's, from the GMs' row"],
             ["ITEM observe.mjs#createFind", "out of scope as a reader (H84): `copiedRemnants` - the character's bullets on the GM's documents with the GMs' answer key (secretOf) - asks only whether a copy of this trace is held, before the GM's describe window and again in the character's `serialWrite` step; a bullet a player's browser deleted reads as none held, as `observeCandidates` reads it; the fields it names are the trace's, from the GMs' row"],
             ["ITEM reroll.mjs#settleSearch", "judged: itemsAsHeld (E29)"],
@@ -18025,6 +18073,8 @@ const REGRESSIONS = [
          * shorthand `name` is the template's `${name}`), and the readers are the same lines as before. Comments blanked.
          * Red at C7's parent: no `wholeNumber` in utils.mjs and no reader asks it; at C4b's parent, the twelve bare inputs.
          * E47-C2, 09.11.2026: Edit campaign's Chapter is a stepper (the owner's Q-E47-1), read in `readClockForm`.
+         * E49 A1e, 11.11.2026: Season setup draws Edit campaign's rows and reads them through `readClockForm`, so its own
+         * chapter field and reader (`f.chapter.value`) are gone; `readDraft` still carries the typed values as strings.
          */
         const src = new Map((await otherSources()).map(([file, raw]) => [file, stripComments(raw)]));
         must(src.size > 50, "the module's sources were not read - this would measure nothing");
@@ -18040,7 +18090,7 @@ const REGRESSIONS = [
             ["monocub.mjs", "amount:${a.id}", /\[name="amount:\$\{id\}"\]`\)\?\.value/g],
             ["overflow.mjs", "ovf-${key}-by", /\bby\.value\b/g],
             ["overflow.mjs", "ovf-threshold", /\[name="ovf-threshold"\]'\)\?\.value/g],
-            ["season-setup.mjs", "chapter", /\bf\.chapter\.value\b/g],
+            // E49 A1e: Season setup's own chapter field went; it draws and reads Edit campaign's (`campaignRows`, `readClockForm`).
             // E49 A1: the DRPG Settings window's two number settings (Search Tokens per room, Interface scale), by the setting's key.
             ["settings-window.mjs", "${name}", /\bNumber\(field\.value\)/g],
             ["trial-floor-ui.mjs", "seconds", /\("form"\)\.seconds\.value\b/g],
@@ -19037,7 +19087,7 @@ const REGRESSIONS = [
          * Leave a Clue and Secure a Trace hints end "a critical leaves two" / „a krytyk zostawia dwa”, the entry's
          * `indirectVictim.count.critical`, and the digit rule cannot see a word. 2 to 12 only: "one" and „jeden” stand
          * in every other sentence as an article or a pronoun (Sprint's "one more" is section 13's, E71). Measured on
-         * this tree: these four places and no other. Their placeholder needs the owner's text change: E71 (row 1.2.121).
+         * this tree: these four places and no other. Their placeholder needs the owner's text change: E71 (row 1.2.122).
          */
         const NUMBER_WORDS = { en: ["", "", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"],
             pl: ["", "", "dwa|dwie|dwóch|dwoma|dwu", "trzy|trzech|trzema", "cztery|czterech", "pięć|pięciu", "sześć|sześciu", "siedem|siedmiu",
@@ -20351,7 +20401,7 @@ const REGRESSIONS = [
          * The queue is this browser's memory (`serialWrite`), so it holds one GM's browser to one copy (E60's fix round,
          * FG6; the end review's C-m8, S-m4): Observe's find, a hand-over, a Present and Monokuma's Reveal run on the
          * primary, and Give a Truth Bullet on whichever GM opened it - a give on a second GM's browser beside the
-         * primary's find of the same trace for the same receiver can still make two copies, and is E38's (row 1.2.127,
+         * primary's find of the same trace for the same receiver can still make two copies, and is E38's (row 1.2.126,
          * the stage of two GMs; STATUS Open 50).
          */
         const sources = await moduleSources();
@@ -20754,7 +20804,8 @@ const REGRESSIONS = [
         const roles = [...table.matchAll(/^\s+(\w+): Object\.freeze\(/gm)].map(m => m[1]);
         must(roles.length >= 6, `BUTTON_ROLES reads ${roles.length} role(s) - the table was not found`);
         equal(JSON.stringify(roles), JSON.stringify(["primary", "gmRoute", "close", "cancel", "secondary", "destructive"]), "[BUTTON_ROLES's roles]");
-        const slots = new Set(["primary", "gmRoute", "close", "secondary", "destructive", "default"]);
+        // and `rows`, the footer's layout, no button (E97 C2: ui-kit.mjs `footer.rows: 2`)
+        const slots = new Set(["primary", "gmRoute", "close", "secondary", "destructive", "default", "rows"]);
         const SITE = /\bDialogV2\s*\.\s*(wait|confirm|prompt|query|input)\s*\(|\bnew\s+(?:[\w$]+\.)*DialogV2\s*\(/g;
         const KIT = /\b(?:(?:footerMarkup|footerButtons)\s*\(\s*|footer\s*:\s*)\{/g;
         const keysOf = (blank, open) => {
@@ -21855,6 +21906,9 @@ const REGRESSIONS = [
          * (`projectManagerBody`), the edit window from a project made up here, the proposal for a character standing where
          * it offers no preset (a preset's rows, where the world offers one, are taken out before the compare). Red on
          * f4a5083a: no `projectManagerBody` (the manager drew only from the world, and with no project there opened Create).
+         * E49 FT batch 3 (the owner, 11.11.2026, "usunmy [...] ikonke countdown foundry"): Foundry's countdown picture is
+         * neither drawn nor offered - DRPG.Project.changeImage left the manager's rows and the create and edit windows, and
+         * the manager's `img.<id>` field with it; the windows keep `img` as a hidden field (what Save stores is unchanged).
          */
         const UI = await import("./projects-ui.mjs");
         const AP = await import("./action-project.mjs");
@@ -21897,17 +21951,17 @@ const REGRESSIONS = [
         got.propose.fields = got.propose.fields.filter(f => !["preset", "to", "seal", "unbreach", "mend"].includes(f));
         const want = {
             manager: {
-                keys: ["DRPG.Project.manageIntro", "DRPG.Project.visibleTo", "DRPG.Project.title", "DRPG.Project.room", "DRPG.Project.indirect", "DRPG.Project.secret", "DRPG.Project.edit", "DRPG.Project.delete", "DRPG.Project.anyRoom", "DRPG.Project.changeImage", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.indirect", "DRPG.Project.secret", "DRPG.Project.editTitle", "DRPG.Project.delete", "DRPG.Project.everyone", "DRPG.Project.changeImage", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.indirect", "DRPG.Project.secret", "DRPG.Project.editTitle", "DRPG.Project.delete", "DRPG.Project.everyone", "DRPG.Kit.scrollMore", "DRPG.Project.secretNote", "DRPG.Project.deleteNote"],
-                fields: ["img.<id>", "room.<id>", "murder.<id>", "secret.<id>", "viewers.<id>", "img.<id>", "room.<id>", "murder.<id>", "secret.<id>", "viewers.<id>"],
+                keys: ["DRPG.Project.manageIntro", "DRPG.Project.visibleTo", "DRPG.Project.title", "DRPG.Project.room", "DRPG.Project.indirect", "DRPG.Project.secret", "DRPG.Project.edit", "DRPG.Project.delete", "DRPG.Project.anyRoom", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.indirect", "DRPG.Project.secret", "DRPG.Project.editTitle", "DRPG.Project.delete", "DRPG.Project.everyone", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.indirect", "DRPG.Project.secret", "DRPG.Project.editTitle", "DRPG.Project.delete", "DRPG.Project.everyone", "DRPG.Kit.scrollMore", "DRPG.Project.secretNote", "DRPG.Project.deleteNote"],
+                fields: ["room.<id>", "murder.<id>", "secret.<id>", "viewers.<id>", "room.<id>", "murder.<id>", "secret.<id>", "viewers.<id>"],
                 footer: []
             },
             create: {
-                keys: ["DRPG.Project.changeImage", "DRPG.Project.name", "DRPG.Project.namePlaceholder", "DRPG.Project.description", "DRPG.Project.descriptionPlaceholder", "DRPG.Project.descriptionNote", "DRPG.Project.glyphLabel", "DRPG.Project.glyphDefault", "DRPG.Project.glyph.checklist", "DRPG.Project.glyph.gear", "DRPG.Project.glyph.tamper", "DRPG.Project.glyph.broom", "DRPG.Project.glyph.wand", "DRPG.Project.glyph.key", "DRPG.Project.glyph.lock", "DRPG.Project.glyph.door", "DRPG.Project.glyph.box", "DRPG.Project.glyph.gift", "DRPG.Project.glyph.envelope", "DRPG.Project.glyph.note", "DRPG.Project.glyph.calendar", "DRPG.Project.glyph.table", "DRPG.Project.glyph.scale", "DRPG.Project.glyph.barrier", "DRPG.Project.glyph.chain", "DRPG.Project.glyph.bug", "DRPG.Project.glyph.brain", "DRPG.Project.glyph.murder", "DRPG.Project.glyphNote", "DRPG.Project.scale", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.trait", "DRPG.Project.pickTrait", "DRPG.Project.indirect", "DRPG.Trap.watchFor", "DRPG.Trap.trigger.alone", "DRPG.Trap.trigger.enters", "DRPG.Trap.trigger.search", "DRPG.Trap.trigger.rest", "DRPG.Trap.trigger.item", "DRPG.Trap.trigger.project", "DRPG.Trap.trigger.sabotage", "DRPG.Trap.trigger.stash", "DRPG.Trap.trigger.passage", "DRPG.Trap.trigger.manual", "DRPG.Trap.watchNote", "DRPG.Trap.whichProject", "DRPG.Trap.noProject", "DRPG.Trap.afterDark", "DRPG.Trap.notBuilder", "DRPG.Project.condition", "DRPG.Project.conditionPlaceholder", "DRPG.Project.conditionNote", "DRPG.Project.secret", "DRPG.Project.visibleTo", "DRPG.Project.visibleToNote", "DRPG.Project.createNote"],
+                keys: ["DRPG.Project.name", "DRPG.Project.namePlaceholder", "DRPG.Project.description", "DRPG.Project.descriptionPlaceholder", "DRPG.Project.descriptionNote", "DRPG.Project.glyphLabel", "DRPG.Project.glyphDefault", "DRPG.Project.glyph.checklist", "DRPG.Project.glyph.gear", "DRPG.Project.glyph.tamper", "DRPG.Project.glyph.broom", "DRPG.Project.glyph.wand", "DRPG.Project.glyph.key", "DRPG.Project.glyph.lock", "DRPG.Project.glyph.door", "DRPG.Project.glyph.box", "DRPG.Project.glyph.gift", "DRPG.Project.glyph.envelope", "DRPG.Project.glyph.note", "DRPG.Project.glyph.calendar", "DRPG.Project.glyph.table", "DRPG.Project.glyph.scale", "DRPG.Project.glyph.barrier", "DRPG.Project.glyph.chain", "DRPG.Project.glyph.bug", "DRPG.Project.glyph.brain", "DRPG.Project.glyph.murder", "DRPG.Project.glyphNote", "DRPG.Project.scale", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.trait", "DRPG.Project.pickTrait", "DRPG.Project.indirect", "DRPG.Trap.watchFor", "DRPG.Trap.trigger.alone", "DRPG.Trap.trigger.enters", "DRPG.Trap.trigger.search", "DRPG.Trap.trigger.rest", "DRPG.Trap.trigger.item", "DRPG.Trap.trigger.project", "DRPG.Trap.trigger.sabotage", "DRPG.Trap.trigger.stash", "DRPG.Trap.trigger.passage", "DRPG.Trap.trigger.manual", "DRPG.Trap.watchNote", "DRPG.Trap.whichProject", "DRPG.Trap.noProject", "DRPG.Trap.afterDark", "DRPG.Trap.notBuilder", "DRPG.Project.condition", "DRPG.Project.conditionPlaceholder", "DRPG.Project.conditionNote", "DRPG.Project.secret", "DRPG.Project.visibleTo", "DRPG.Project.visibleToNote", "DRPG.Project.createNote"],
                 fields: ["img", "name", "description", "glyph", "target", "room", "trait", "murder", "trigger", "triggerTarget", "afterDark", "notBuilder", "condition", "secret", "viewers"],
                 footer: ["save", "cancel"]
             },
             edit: {
-                keys: ["DRPG.Project.changeImage", "DRPG.Project.name", "DRPG.Project.namePlaceholder", "DRPG.Project.description", "DRPG.Project.descriptionPlaceholder", "DRPG.Project.descriptionNote", "DRPG.Project.glyphLabel", "DRPG.Project.glyphDefault", "DRPG.Project.glyph.checklist", "DRPG.Project.glyph.gear", "DRPG.Project.glyph.tamper", "DRPG.Project.glyph.broom", "DRPG.Project.glyph.wand", "DRPG.Project.glyph.key", "DRPG.Project.glyph.lock", "DRPG.Project.glyph.door", "DRPG.Project.glyph.box", "DRPG.Project.glyph.gift", "DRPG.Project.glyph.envelope", "DRPG.Project.glyph.note", "DRPG.Project.glyph.calendar", "DRPG.Project.glyph.table", "DRPG.Project.glyph.scale", "DRPG.Project.glyph.barrier", "DRPG.Project.glyph.chain", "DRPG.Project.glyph.bug", "DRPG.Project.glyph.brain", "DRPG.Project.glyph.murder", "DRPG.Project.glyphNote", "DRPG.Project.scale", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.trait", "DRPG.Project.pickTrait", "DRPG.Project.indirect", "DRPG.Trap.watchFor", "DRPG.Trap.trigger.alone", "DRPG.Trap.trigger.enters", "DRPG.Trap.trigger.search", "DRPG.Trap.trigger.rest", "DRPG.Trap.trigger.item", "DRPG.Trap.trigger.project", "DRPG.Trap.trigger.sabotage", "DRPG.Trap.trigger.stash", "DRPG.Trap.trigger.passage", "DRPG.Trap.trigger.manual", "DRPG.Trap.watchNote", "DRPG.Trap.whichProject", "DRPG.Trap.noProject", "DRPG.Trap.afterDark", "DRPG.Trap.notBuilder", "DRPG.Project.condition", "DRPG.Project.conditionPlaceholder", "DRPG.Project.conditionNote", "DRPG.Project.secret", "DRPG.Project.visibleTo", "DRPG.Project.everyone", "DRPG.Project.editProgressNote", "DRPG.Project.createNote"],
+                keys: ["DRPG.Project.name", "DRPG.Project.namePlaceholder", "DRPG.Project.description", "DRPG.Project.descriptionPlaceholder", "DRPG.Project.descriptionNote", "DRPG.Project.glyphLabel", "DRPG.Project.glyphDefault", "DRPG.Project.glyph.checklist", "DRPG.Project.glyph.gear", "DRPG.Project.glyph.tamper", "DRPG.Project.glyph.broom", "DRPG.Project.glyph.wand", "DRPG.Project.glyph.key", "DRPG.Project.glyph.lock", "DRPG.Project.glyph.door", "DRPG.Project.glyph.box", "DRPG.Project.glyph.gift", "DRPG.Project.glyph.envelope", "DRPG.Project.glyph.note", "DRPG.Project.glyph.calendar", "DRPG.Project.glyph.table", "DRPG.Project.glyph.scale", "DRPG.Project.glyph.barrier", "DRPG.Project.glyph.chain", "DRPG.Project.glyph.bug", "DRPG.Project.glyph.brain", "DRPG.Project.glyph.murder", "DRPG.Project.glyphNote", "DRPG.Project.scale", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.trait", "DRPG.Project.pickTrait", "DRPG.Project.indirect", "DRPG.Trap.watchFor", "DRPG.Trap.trigger.alone", "DRPG.Trap.trigger.enters", "DRPG.Trap.trigger.search", "DRPG.Trap.trigger.rest", "DRPG.Trap.trigger.item", "DRPG.Trap.trigger.project", "DRPG.Trap.trigger.sabotage", "DRPG.Trap.trigger.stash", "DRPG.Trap.trigger.passage", "DRPG.Trap.trigger.manual", "DRPG.Trap.watchNote", "DRPG.Trap.whichProject", "DRPG.Trap.noProject", "DRPG.Trap.afterDark", "DRPG.Trap.notBuilder", "DRPG.Project.condition", "DRPG.Project.conditionPlaceholder", "DRPG.Project.conditionNote", "DRPG.Project.secret", "DRPG.Project.visibleTo", "DRPG.Project.everyone", "DRPG.Project.editProgressNote", "DRPG.Project.createNote"],
                 fields: ["img", "name", "description", "glyph", "target", "room", "trait", "murder", "trigger", "triggerTarget", "afterDark", "notBuilder", "condition", "secret", "viewers"],
                 footer: ["save", "cancel", "delete"]
             },
@@ -22013,7 +22067,7 @@ const REGRESSIONS = [
     }],
     /* ---- E46 C6 (09.11.2026) ---- */
 
-    ["R2035 - the warning sites E21 homed are in their final state for E46 and E47 (E46-C6, E47-C7; E46-20, E47-18; STAGE E46 \"The carried warning sites\", E21 STATUS fix G2 item 10): each function of E46's and E47's windows draws its warnings with box(\"warning\") and its information lines with box(\"info\") and keeps no drpg-warning; each whispered chat card E47-C5's surfaces did not take keeps its drpg-warning, carried to E49 (E49 A0), as do Item tables' install receipt and the verdict's summary; the window sites no E47 group took are named, left open", async () => {
+    ["R2035 - the warning sites E21 homed are in their final state for E46 and E47 (E46-C6, E47-C7; E46-20, E47-18; STAGE E46 \"The carried warning sites\", E21 STATUS fix G2 item 10): each function of E46's and E47's windows draws its warnings with box(\"warning\") and its information lines with box(\"info\") and keeps no drpg-warning; each whispered chat card E47-C5's surfaces did not take, carried to E49 (E49 A0) with Item tables' install receipt and the verdict's summary, is in its final state since E49 B5a: the module's chat card (chat-card.mjs) in the warning tone or a card's warning line, no drpg-warning; the window sites no E47 group took are named, left open", async () => {
         /*
          * E46-C6, 09.11.2026; the E47 rows E47-C7, 09.11.2026. E21's list (fix G2 item 10) homed 112 `drpg-warning` sites
          * by window at 3c952c67 (W 87, I 25): E46's windows 19, E47's windows 36, the whispered chat cards 57 (46 W, 11 I).
@@ -22025,7 +22079,11 @@ const REGRESSIONS = [
          * reads - which no E46 or E47 group rebuilt (E47-C5 took four: sheet-audit.mjs `awayCard` and `flaggedCard`,
          * roll-draw.mjs `announceRollDraw` and `onRenderUnwitnessed`, now `rollStatus`), its sites counted as they stand
          * and carried to the stage that rebuilds its card; Item tables' install receipt (E46-C6 Open 1) and the verdict's
-         * summary (E47-C1 Open 2) are such whispers. migrate.mjs's site stands in its `CLAUSES` table, read as the whole
+         * summary (E47-C1 Open 2) are such whispers. Final since E49 B5a (11.11.2026): each is a chat-card.mjs card in the
+         * warning tone (`tone: "warning"`, through `chatCard` or a posting helper that takes the card) or, inside a card
+         * another builder draws, a warning line (`cardWarn(`), counted in the first column with the boxes; 52 such
+         * readings for the 55 old sites (eclipse.mjs `judgePendingMurders`'s four refusals share one `say` that draws
+         * `cardWarn`). Red first on 15f44581: the 46 rows read [0, 0, n] - the 55 still `drpg-warning`. migrate.mjs's site stands in its `CLAUSES` table, read as the whole
          * file ("*"). Stage "open": a site of a window E21 homed in E47 that no E47 group rebuilt, named in E47-C7's STATUS
          * Open for the orchestrator. Red first: on db40a379 chapter.mjs `chapterEndForm` [0,0,3], `askStoppedEnd` [0,0,1],
          * season-wipe.mjs `resetSeason` [0,0,2]; the E47 and E48 rows on 9aafad79 by two planted mutants (the panel's
@@ -22048,22 +22106,22 @@ const REGRESSIONS = [
             ["mastermind.mjs", "openMastermindDialog", "open", 0, 0, 1], ["reroll.mjs", "settleGmRuling", "open", 0, 0, 1],
             ["roll-dialog.mjs", "announceFreeCritical", "open", 0, 0, 1], ["trial.mjs", "pickObjectionEvidence", "open", 0, 0, 1],
             ["use-items.mjs", "confirmUse", "open", 0, 0, 1],
-            ["tables-editor.mjs", "installTables", "E49", 0, 0, 1], ["verdict.mjs", "verdictSummaryContent", "E49", 0, 0, 1],
-            ["analyze.mjs", "tellGmsKeyMissing", "E49", 0, 0, 1], ["anonymity.mjs", "lowerOwnership", "E49", 0, 0, 1],
-            ["bridge-runs-acts.mjs", "handleAdvancement", "E49", 0, 0, 1], ["call-effects.mjs", "tell", "E49", 0, 0, 1], ["call-gm.mjs", "callCardHtml", "E49", 0, 0, 1],
-            ["chapter.mjs", "runDiscovery", "E49", 0, 0, 1], ["chapter.mjs", "endChapterNow", "E49", 0, 0, 1], ["chapter.mjs", "runChapterEnd", "E49", 0, 0, 1],
-            ["chapter.mjs", "finishEndNow", "E49", 0, 0, 1], ["cleanup.mjs", "reshapeCardParts", "E49", 0, 0, 1], ["cleanup.mjs", "proposeReshape", "E49", 0, 0, 1],
-            ["cleanup.mjs", "undoLastCleanup", "E49", 0, 0, 2], ["cleanup.mjs", "paidBack", "E49", 0, 0, 1], ["eclipse.mjs", "ruleOnParkedMurder", "E49", 0, 0, 1],
-            ["eclipse.mjs", "judgePendingMurders", "E49", 0, 0, 4], ["inventory.mjs", "transferItem", "E49", 0, 0, 2], ["investigation.mjs", "chargeForUnfoundKeys", "E49", 0, 0, 1],
-            ["migrate.mjs", "*", "E49", 0, 0, 1], ["movement-audit.mjs", "auditMove", "E49", 0, 0, 2], ["movement.mjs", "keepRoomFlag", "E49", 0, 0, 1],
-            ["movement.mjs", "removeDrop", "E49", 0, 0, 1], ["movement.mjs", "tellUnlawful", "E49", 0, 0, 1], ["movement.mjs", "tellDropped", "E49", 0, 0, 1],
-            ["murder-rules.mjs", "resolveVictimOpening", "E49", 0, 0, 1], ["murder-rules.mjs", "applyCrisisAction", "E49", 0, 0, 1], ["murder-rules.mjs", "swapRoles", "E49", 0, 0, 1],
-            ["murder-rules.mjs", "refuseBetrayal", "E49", 0, 0, 1], ["murder-rules.mjs", "throwOpeningRoll", "E49", 0, 0, 1], ["observe.mjs", "resolveObserve", "E49", 0, 0, 2],
-            ["relay-guard.mjs", "reportRefusal", "E49", 0, 0, 1], ["relay-guard.mjs", "unknownSender", "E49", 0, 0, 1], ["relay-guard.mjs", "shapeWarning", "E49", 0, 0, 1],
-            ["relay-guard.mjs", "announce", "E49", 0, 0, 3], ["remnants.mjs", "dropRemnant", "E49", 0, 0, 1], ["reroll-receipts.mjs", "warnGms", "E49", 0, 0, 1],
-            ["roll-draw.mjs", "tellUnexpected", "E49", 0, 0, 1], ["rules.mjs", "setMotive", "E49", 0, 0, 1], ["rules.mjs", "dueCard", "E49", 0, 0, 1],
-            ["sheet-audit.mjs", "record", "E49", 0, 0, 1], ["sheet-audit.mjs", "onForgedCard", "E49", 0, 0, 1], ["steps.mjs", "stepsReport", "E49", 0, 0, 1],
-            ["truth-bullets.mjs", "revertPlayerBulletEdit", "E49", 0, 0, 1], ["use-items.mjs", "discardBroken", "E49", 0, 0, 1], ["vault-store.mjs", "clearSplitPiece", "E49", 0, 0, 1]
+            ["tables-editor.mjs", "installTables", "E49", 1, 0, 0], ["verdict.mjs", "verdictSummaryContent", "E49", 1, 0, 0],
+            ["analyze.mjs", "tellGmsKeyMissing", "E49", 1, 0, 0], ["anonymity.mjs", "lowerOwnership", "E49", 1, 0, 0],
+            ["bridge-runs-acts.mjs", "handleAdvancement", "E49", 1, 0, 0], ["call-effects.mjs", "tell", "E49", 1, 0, 0], ["call-gm.mjs", "callCardHtml", "E49", 1, 0, 0],
+            ["chapter.mjs", "runDiscovery", "E49", 1, 0, 0], ["chapter.mjs", "endChapterNow", "E49", 1, 0, 0], ["chapter.mjs", "runChapterEnd", "E49", 1, 0, 0],
+            ["chapter.mjs", "finishEndNow", "E49", 1, 0, 0], ["cleanup.mjs", "reshapeCardParts", "E49", 1, 0, 0], ["cleanup.mjs", "proposeReshape", "E49", 1, 0, 0],
+            ["cleanup.mjs", "undoLastCleanup", "E49", 2, 0, 0], ["cleanup.mjs", "paidBack", "E49", 1, 0, 0], ["eclipse.mjs", "ruleOnParkedMurder", "E49", 1, 0, 0],
+            ["eclipse.mjs", "judgePendingMurders", "E49", 1, 0, 0], ["inventory.mjs", "transferItem", "E49", 2, 0, 0], ["investigation.mjs", "chargeForUnfoundKeys", "E49", 1, 0, 0],
+            ["migrate.mjs", "*", "E49", 1, 0, 0], ["movement-audit.mjs", "auditMove", "E49", 2, 0, 0], ["movement.mjs", "keepRoomFlag", "E49", 1, 0, 0],
+            ["movement.mjs", "removeDrop", "E49", 1, 0, 0], ["movement.mjs", "tellUnlawful", "E49", 1, 0, 0], ["movement.mjs", "tellDropped", "E49", 1, 0, 0],
+            ["murder-rules.mjs", "resolveVictimOpening", "E49", 1, 0, 0], ["murder-rules.mjs", "applyCrisisAction", "E49", 1, 0, 0], ["murder-rules.mjs", "swapRoles", "E49", 1, 0, 0],
+            ["murder-rules.mjs", "refuseBetrayal", "E49", 1, 0, 0], ["murder-rules.mjs", "throwOpeningRoll", "E49", 1, 0, 0], ["observe.mjs", "resolveObserve", "E49", 2, 0, 0],
+            ["relay-guard.mjs", "reportRefusal", "E49", 1, 0, 0], ["relay-guard.mjs", "unknownSender", "E49", 1, 0, 0], ["relay-guard.mjs", "shapeWarning", "E49", 1, 0, 0],
+            ["relay-guard.mjs", "announce", "E49", 3, 0, 0], ["remnants.mjs", "dropRemnant", "E49", 1, 0, 0], ["reroll-receipts.mjs", "warnGms", "E49", 1, 0, 0],
+            ["roll-draw.mjs", "tellUnexpected", "E49", 1, 0, 0], ["rules.mjs", "setMotive", "E49", 1, 0, 0], ["rules.mjs", "dueCard", "E49", 1, 0, 0],
+            ["sheet-audit.mjs", "record", "E49", 1, 0, 0], ["sheet-audit.mjs", "onForgedCard", "E49", 1, 0, 0], ["steps.mjs", "stepsReport", "E49", 1, 0, 0],
+            ["truth-bullets.mjs", "revertPlayerBulletEdit", "E49", 1, 0, 0], ["use-items.mjs", "discardBroken", "E49", 1, 0, 0], ["vault-store.mjs", "clearSplitPiece", "E49", 1, 0, 0]
         ];
         const files = {};
         for (const file of new Set(SITES.map(([file]) => file))) files[file] = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
@@ -22072,14 +22130,132 @@ const REGRESSIONS = [
         for (const [file, fn, stage, w, i, d] of SITES) {
             const body = fn === "*" ? files[file] : (topLevelFunction(files[file], fn) ?? "");
             const name = `${file}:${fn} (${stage})`;
-            got[name] = body.length > 40 ? [count(body, /\bbox\("warning",/g) + count(body, /\bkindNote\("/g), count(body, /\bbox\("info",/g), count(body, /drpg-warning/g)] : "not read";
+            got[name] = body.length > 40 ? [count(body, /\bbox\("warning",/g) + count(body, /\bkindNote\("/g) + count(body, /\btone: "warning"/g) + count(body, /\bcardWarn\(/g),
+                count(body, /\bbox\("info",/g), count(body, /drpg-warning/g)] : "not read";
             want[name] = [w, i, d];
             by[stage] = (by[stage] ?? 0) + d;
         }
         // The carried sites, as E47-C7 counted them on 9aafad79 (STATUS E47-C7): 53 chat card sites (43 W, 10 I) and the
-        // two whispers, 55; 7 window sites left open. Carried to E49 by E49 A0 (the same 55).
-        equal(JSON.stringify({ E49: by.E49, open: by.open }), JSON.stringify({ E49: 55, open: 7 }), "{drpg-warning sites carried to E49, left open}");
+        // two whispers, 55; 7 window sites left open. Carried to E49 by E49 A0 (the same 55), rebuilt by E49 B5a: none left.
+        equal(JSON.stringify({ E49: by.E49, open: by.open }), JSON.stringify({ E49: 0, open: 7 }), "{drpg-warning sites left in E49's rows, left open}");
         equal(JSON.stringify(got), JSON.stringify(want), "{file:function (stage): [warning boxes, info boxes, drpg-warning left]}");
+    }],
+
+    ["R3510 - every card-producing site builds through chatCard or names why (E49 B5a; amend [6], STAGE E49 B5 test (d)): chat-card.mjs `chatCard` draws a header with the glyph by element key and no close button, every face it can draw is one Stained Glass wears (tests-glyphs.mjs FACES); utils.mjs's five posting helpers take a card; and each call of a poster (announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, gmReport, ChatMessage.create) in the module's scripts is a card, or a form named with its reason - per file, as counted", async () => {
+        /*
+         * E49 B5a, 11.11.2026. A poster's site is read by the form of what it hands the poster (the content; the actor
+         * before it skipped): `card` - a card's spec (`{ tone|glyph|title|body|foot: ... }`), a `chatCard(...)`, or
+         * gmReport (its helper draws the card) - or one of the forms below, each with the reason it is not a card. The
+         * counts are per file of the module (every file module.mjs imports, the suite's aside), read on this tree: a new
+         * site moves a count, a new file adds a row, and either is red until it is a card or its form's reason holds.
+         * The forms are read off the first characters of the argument, not off what the site posts at run time; a poster
+         * reached through an expression (movement-audit.mjs's `(ctx.whisper ?? whisperToGms)(...)`, both cards) is not
+         * matched by the grep and is not counted.
+         * Red first on 15f44581: chat-card.mjs absent, no helper takes a card, 0 card sites.
+         */
+        const WHY = {
+            action: "the action card: its own header (action-report.mjs cardHead) and outcome, painted by private-rolls.mjs paintChatCard",
+            message: "a message's whole data (speaker, flags, sound, rolls) as its builder made it; its content is that builder's",
+            heading: "a narration card: a heading the notice lifts into its bar, then the table's words; its look is the log's (B5b)",
+            line: "one line of narration, or one sentence whispered to its reader: a message in the log's look (B5b), not a card",
+            built: "markup a builder of its own returns (a variable or a call), read where it is built"
+        };
+        const PINNED = {
+            "action-analyze.mjs": {"line": 4}, "action-dynamic.mjs": {"line": 2}, "action-listen.mjs": {"line": 1},
+            "action-murder.mjs": {"action": 2}, "action-observe.mjs": {"line": 1},
+            "action-pipeline.mjs": {"action": 1}, "action-project.mjs": {"action": 1, "line": 1, "message": 3},
+            "action-report.mjs": {"built": 1}, "analyze.mjs": {"card": 1, "heading": 1, "line": 2},
+            "anonymity.mjs": {"card": 2}, "bridge-runs-acts.mjs": {"card": 1},
+            "bridge-runs-records.mjs": {"action": 1, "message": 1},
+            "call-effects.mjs": {"action": 1, "card": 1, "message": 1}, "call-gm.mjs": {"built": 1},
+            "call-world.mjs": {"message": 3}, "calls.mjs": {"heading": 1, "message": 1},
+            "chapter.mjs": {"card": 4, "heading": 1, "message": 1},
+            "cleanup.mjs": {"action": 5, "built": 1, "card": 4, "heading": 2, "line": 7, "message": 1},
+            "clock.mjs": {"built": 1, "line": 1, "message": 1}, "despair.mjs": {"line": 1, "message": 1},
+            "diagnostics.mjs": {"card": 1}, "eclipse.mjs": {"action": 3, "heading": 1, "line": 3, "message": 2},
+            "enforced.mjs": {"line": 2}, "fog.mjs": {"line": 1}, "frisk.mjs": {"built": 6, "message": 1},
+            "gm-items.mjs": {"action": 1, "heading": 2},
+            "handover.mjs": {"built": 1, "heading": 2, "line": 13, "message": 1},
+            "inventory.mjs": {"card": 2, "line": 3}, "investigation.mjs": {"card": 1, "line": 2},
+            "level-up.mjs": {"heading": 1, "line": 2}, "mastermind.mjs": {"message": 1},
+            "messenger-app.mjs": {"built": 1}, "migrate.mjs": {"card": 3, "line": 2},
+            "monocub.mjs": {"line": 5, "message": 1}, "movement.mjs": {"action": 3, "card": 4},
+            "murder-rules.mjs": {"action": 1, "card": 5, "heading": 3, "line": 9, "message": 6},
+            "music.mjs": {"card": 1}, "observe.mjs": {"card": 2, "heading": 1, "line": 3},
+            "overflow.mjs": {"message": 2}, "palm.mjs": {"built": 2, "line": 2}, "passages-gm.mjs": {"line": 5},
+            "price.mjs": {"line": 2}, "private-rolls.mjs": {"message": 1}, "projects-map.mjs": {"line": 1},
+            "projects.mjs": {"built": 3, "line": 8, "message": 2}, "relay-guard.mjs": {"built": 1, "card": 6},
+            "remnants.mjs": {"built": 1, "card": 1, "heading": 2, "line": 1}, "requirements.mjs": {"built": 1},
+            "reroll-receipts.mjs": {"card": 1}, "reroll.mjs": {"heading": 3, "line": 3}, "rest.mjs": {"action": 1},
+            "roll-draw.mjs": {"built": 2, "card": 1, "message": 1}, "room-setup.mjs": {"message": 1},
+            "rules.mjs": {"built": 3, "message": 3}, "safeword.mjs": {"built": 3},
+            "search-tokens.mjs": {"heading": 1, "line": 1}, "season-wipe.mjs": {"heading": 1},
+            "secret.mjs": {"message": 1}, "sheet-audit.mjs": {"built": 2, "card": 2}, "stash-reach.mjs": {"line": 9},
+            "states.mjs": {"line": 1}, "tables-editor.mjs": {"card": 1}, "traps.mjs": {"line": 1},
+            "trial-floor-ui.mjs": {"message": 4}, "trial-floor.mjs": {"message": 1},
+            "trial-modes.mjs": {"heading": 1, "message": 1}, "trial-progress.mjs": {"line": 2, "message": 1},
+            "trial-scene.mjs": {"built": 1, "line": 10}, "trial.mjs": {"line": 9, "message": 4},
+            "truth-bullets.mjs": {"card": 1, "heading": 2}, "use-items.mjs": {"card": 1, "line": 6},
+            "user-match.mjs": {"line": 1}, "utils.mjs": {"built": 1}, "vault-store.mjs": {"card": 1, "line": 2},
+            "verdict.mjs": {"built": 3, "message": 1}, "voice.mjs": {"card": 1, "line": 1}, "vote.mjs": {"message": 2}
+        };
+        const card = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/chat-card.mjs`).then(r => r.ok ? lfText(r) : ""));
+        const { FACES } = await import("./tests-glyphs.mjs");
+        let faces = [], drawn = null;
+        try {
+            const C = await import("./chat-card.mjs");
+            faces = [...C.CARD_FACES, ...Object.values(C.TONE_FACES), ...["ACTIONS.observe", "HOPE_CALLS.support", "DESPAIR_CALLS.motive"].map(C.cardFace)];
+            const el = document.createElement("div");
+            el.innerHTML = C.chatCard({ glyph: "ACTIONS.observe", title: "T<b>", body: "<p>B</p>", foot: "F", tone: "warning" });
+            const root = el.firstElementChild;
+            drawn = [root?.dataset.drpgTone, Boolean(root?.querySelector(":scope > header > i.fa-eye.drpg-chat-kit-glyph")),
+                root?.querySelector("h3.drpg-chat-kit-title")?.textContent, root?.querySelectorAll("button").length,
+                root?.querySelector(".drpg-chat-kit-body")?.innerHTML, root?.querySelector("footer")?.textContent];
+        } catch (err) {
+            drawn = `not drawn: ${err.message}`;
+        }
+        const utils = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/utils.mjs`).then(lfText));
+        const helpers = ["announce", "whisperToOwnerOnly", "whisperToOwner", "whisperToGms", "gmReport"]
+            .filter(name => !/\bcardMarkup\(|\bchatCard\(/.test(topLevelFunction(utils, name) ?? ""));
+        const POSTER = /(?<![\w.$])(announce|whisperToOwnerOnly|whisperToOwner|whisperToGms|gmReport)\(|\bChatMessage\.create\(/g;
+        const skipArg = text => {
+            let depth = 0;
+            for (let i = 0; i < text.length; i++) {
+                const ch = text[i];
+                if ("([{".includes(ch)) depth++;
+                else if (")]}".includes(ch)) depth--;
+                else if (ch === "," && depth === 0) return text.slice(i + 1);
+            }
+            return "";
+        };
+        const formOf = (name, rest) => {
+            if (name === "gmReport") return "card";
+            const arg = (name === "whisperToOwner" || name === "whisperToOwnerOnly" ? skipArg(rest) : rest).trimStart().slice(0, 200);
+            if (/^\{\s*(?:tone|glyph|title|body|foot)\s*:/.test(arg) || /^chatCard\(/.test(arg)) return "card";
+            if (/cardHead\(/.test(arg.slice(0, 80))) return "action";
+            if (arg.startsWith("{")) return "message";
+            if (arg.startsWith("`")) return /^`\s*<h\d/.test(arg) ? "heading" : "line";
+            return "built";
+        };
+        const got = {};
+        for (const [file, raw] of (await otherSources()).sort(([a], [b]) => a.localeCompare(b))) {
+            const text = stripComments(raw);
+            const forms = {};
+            for (const m of text.matchAll(POSTER)) {
+                if (/function\s*$/.test(text.slice(Math.max(0, m.index - 12), m.index))) continue;
+                const form = formOf(m[1] ?? "ChatMessage.create", text.slice(m.index + m[0].length));
+                forms[form] = (forms[form] ?? 0) + 1;
+            }
+            if (Object.keys(forms).length) got[file] = Object.fromEntries(Object.entries(forms).sort());
+        }
+        const unnamed = [...new Set(Object.values(got).flatMap(f => Object.keys(f)))].filter(form => form !== "card" && !WHY[form]);
+        const cards = Object.values(got).reduce((n, f) => n + (f.card ?? 0), 0);
+        const notWorn = faces.filter(face => !Object.hasOwn(FACES, face));
+        equal(JSON.stringify({ drawn, notWorn, helpers, unnamed }),
+            JSON.stringify({ drawn: ["warning", true, "T<b>", 0, "<p>B</p>", "F"], notWorn: [], helpers: [], unnamed: [] }),
+            "{chatCard's card: [tone, the glyph in the header, the title as text, buttons, body, foot]; faces Stained Glass does not wear; helpers that take no card; forms with no reason}");
+        must(card.length > 400 && cards > 0, "chat-card.mjs or the card sites were not read - this would measure nothing");
+        equal(JSON.stringify(got), JSON.stringify(PINNED), "{file: {form: sites}} - a site that is no card names its form's reason (WHY)");
     }],
 
     ["R2036 - the GM handbook names E46's new labels in both languages (E46-C6; E46-21): the checklist's red and \"!\" states and the uneven split, Room setup's picture warnings and the hall's cast columns, Item tables' columns, Give existing's empty choice, Overflow's rules table, Sound's Effects column and a Test's reason, and Music's folded order - each read from lang/ and found in docs/handbooks/gm-handbook.<lang>.md, a label in bold, a sentence the window says in italics", async () => {
@@ -22472,7 +22648,8 @@ const REGRESSIONS = [
             end: [/\$\{endChapterPart\(\)\}/.test(clock), /box\("warning"/.test(part) && /role: "destructive"/.test(part), /if \(endAsked\) return endTheChapter\(/.test(clock),
                 /drpgConfirm\(/.test(ask) && /role: "destructive"/.test(ask) && /if \(yes !== true\) return null;/.test(ask), /openChapterEndDialog\(\)/.test(clock)]
         }), JSON.stringify({
-            twice: [], moved: { rules: ["between"], voiceReset: ["fixes"], chapterEndTile: [] },
+            // E49 A1e: Killing game rules left Between sessions for Season setup's row of windows (R3582).
+            twice: [], moved: { rules: [], voiceReset: ["fixes"], chapterEndTile: [] },
             standing: [false, true], line: [true, true, true, true], columns: [true, true, true], end: [true, true, true, true, true]
         }), "{twice: tile keys in more than one place; moved: the sections holding each of the four; standing: [a table in the standing block, the students line in it]; "
             + "line: [plural's words, the door to Students, the acting cast, counted by actions left]; columns: [Actions, Free Move, read from actions.mjs]; "
@@ -22685,12 +22862,17 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({ rollCards: [false, false, false], notice: [true, true, true, true, 2], slot: ["Critical", true, "Krytyk", true] }),
             "{rollCards: private-rolls.mjs plays, clips, cuts; notice: the tone's flag, the call under it, still under reduced motion, a clip-path wipe, cutCritical's mentions (its declaration and one call); slot: the English label, its hint names the cut, the Polish label, its hint}");
     }],
-    ["R3420 - every setting Foundry's list showed is in the DRPG Settings window, once (E49 A1; the owner's [11], [16], Q3, Q4): each of the 35 keys registered with `config: true` at 20218b05 (a frozen list) is in exactly one of settings-window.mjs's seven `SETTINGS_SECTIONS`, which name no other key; no setting of the module is `config: true`; the module's one menu is DRPG Settings, not restricted, and Give back's is gone; each key's `.name` and `.hint` are in lang/en.json and lang/pl.json and its hint's `firstSentence` is not empty in either; the seven sections' names in both", async () => {
+    ["R3420 - every setting Foundry's list showed is in exactly one place, this browser's or the game's (E49 A1, A1d; the owner's [11], [16], Q3, Q4, and his word on A1's shots of 11.11): each of the 35 keys registered with `config: true` at 20218b05 (a frozen list) is in exactly one of settings-window.mjs's `SETTINGS_SECTIONS` - four client sections, the gear's window, naming client settings alone, and five game sections, the game's settings window (the GM panel's Settings tile), naming world ones alone - which name no other key but Vary the sounds; no setting of the module is `config: true`; the module's one menu is DRPG Settings, not restricted, and Give back's is gone; each key's `.name` and `.hint` are in lang/en.json and lang/pl.json and its hint's `firstSentence` is not empty in either; the nine sections' names in both", async () => {
         /*
          * E49 A1, 11.11.2026. The frozen list is 20218b05's (STAGE E49 "What HEAD does": 35 distinct `config: true`, 23
          * world, 12 client; glassPulse's block carried the flag twice, design-notes.md), read by a script over settings.mjs's
          * `register(MODULE_ID, SETTINGS.x, {` blocks. Red on 13531607: settings-window.mjs does not exist (the import
          * throws) and the 35 are `config: true`. What a GM and a player see on v14: LIVE-E49-02.
+         * E49 A1d, 11.11.2026 (the owner: the gear's window the same for a GM and a player, the game's settings a tab of
+         * the GM panel): the seven sections split by scope - the 12 client keys in look, effects, sound and tech, the 23
+         * world keys in audio, rules, privacy, gm and foundry - and sfxVary, a GM's switch the Look window carried among the
+         * volumes, a row of audio (its name and hint registered since). Red at 54493dbf: seven sections, Sound and
+         * Technical holding both scopes, sfxVary in none.
          */
         const FROZEN = ["forcePrivateRolls", "forceDiceLook", "enforceAnonymity", "searchTokensPerRoom", "enforceIsoWelcome", "enforceDhWelcome",
             "enforcePlayerFiles", "liveKitInFoundry", "hideSystemFear", "pixelFont", "wideProjectWindows", "language", "theme", "glassPulse", "glassBlur",
@@ -22706,7 +22888,9 @@ const REGRESSIONS = [
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
         const at = (tree, key) => key.split(".").reduce((o, part) => (o && typeof o === "object" ? o[part] : undefined), tree);
         const first = typeof W?.firstSentence === "function" ? W.firstSentence : () => "";
-        const words = FROZEN.filter(k => {
+        const ADDED = ["sfxVary"];
+        const scopeOf = k => game.settings.settings.get(`${MODULE_ID}.${SETTINGS[k] ?? k}`)?.scope ?? null;
+        const words = [...FROZEN, ...ADDED].filter(k => {
             const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS[k] ?? k}`);
             return !reg || [reg.name, reg.hint].some(key => typeof key !== "string" || typeof at(en, key) !== "string" || typeof at(pl, key) !== "string")
                 || !first(at(en, reg.hint)) || !first(at(pl, reg.hint));
@@ -22718,9 +22902,10 @@ const REGRESSIONS = [
         const menuCalls = [...src.matchAll(/registerMenu\??\.?\(\s*MODULE_ID\s*,\s*(\w+)/g)].map(m => m[1]);
         const read = {
             loaded: W?.failed ?? true,
-            sections: sections.map(s => [s.key, s.keys.length, typeof s.icon === "string" && s.icon.startsWith("fa-")]),
+            sections: sections.map(s => [s.key, s.place, s.keys.length, typeof s.icon === "string" && s.icon.startsWith("fa-")]),
             once: FROZEN.filter((k, i) => seen[i] !== 1),
             others: named.filter(k => !FROZEN.includes(k)),
+            mixed: sections.flatMap(s => s.keys.filter(k => scopeOf(k) !== (s.place === "client" ? "client" : "world")).map(k => `${s.key}:${k}`)),
             configTrue: shown,
             menuCalls,
             menuRestricted: /registerMenu\??\.?\(\s*MODULE_ID\s*,\s*SETTINGS_MENU\s*,\s*\{[^}]*restricted:\s*false/.test(src),
@@ -22730,13 +22915,318 @@ const REGRESSIONS = [
         };
         equal(JSON.stringify(read), JSON.stringify({
             loaded: true,
-            // E61 C1 (12.11.2026) adds the one key born in this window, never `config: true`: the table's switch for the sequences
-            sections: [["look", 5, true], ["effects", 6, true], ["sound", 5, true], ["rules", 7, true], ["privacy", 6, true], ["gm", 4, true], ["tech", 3, true]],
-            once: [], others: ["sequences"], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
+            sections: [["look", "client", 5, true], ["effects", "client", 5, true], ["sound", "client", 1, true], ["tech", "client", 1, true],
+                ["audio", "game", 5, true], ["rules", "game", 7, true], ["privacy", "game", 6, true], ["gm", "game", 5, true], ["foundry", "game", 2, true]],
+            // E61 C1 (12.11.2026): `sequences`, the table's switch for the sequences, a world setting born in this window
+            once: [], others: ["sfxVary", "sequences"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
             menus: read.menus === "not modelled" ? "not modelled" : [[`${MODULE_ID}.drpgSettings`, false]],
-            words: [], sectionWords: [true, true, true, true, true, true, true]
-        }), "[the window's module loads; its sections (key, size, an icon); keys not in exactly one; keys no frozen one; settings still config: true; "
+            words: [], sectionWords: [true, true, true, true, true, true, true, true, true]
+        }), "[the module loads; its sections (key, place, size, an icon); keys not in exactly one; keys no frozen one; keys of the other scope than their place; settings still config: true; "
             + "the menus registered in settings.mjs; DRPG Settings not restricted; the menus Foundry holds; keys missing a name, a hint or a first sentence in en or pl; the sections' names in both]");
+    }],
+    ["R3373 - the case schema's shapes (E97 C3): case-schema.mjs keys a node `${chapter}:${nodeId}` and the chapter's meta `${chapter}:meta`; `caseNodeOf` keeps a deduction, a counter or a solution with its label, text, inputs, refutes, mode, order and made, and nothing of another kind; `caseMetaOf` reads sort, manual, run and askedAt with \"kind\" for a sort it does not know; `graphOf` joins the chapter's rows to its traces, Key slots and Final Truth by key, a placed slot standing for its trace; `caseModes` is floor-machine.mjs's MODES", async () => {
+        /*
+         * E97 C3, 11.11.2026; STAGE C3 "tier 0 shapes" (E99 reads them). The case map's own rows are what a GM builds
+         * on top of the evidence: deductions, counters and the solution, each `{ kind, label, text, inputs, refutes,
+         * mode, order, made }`, and one meta row per chapter `{ sort, manual, run, askedAt }`. Evidence is not a row:
+         * a trace is a node under its ledger key, a Key slot under `key:<slot>` while it is planned and as its trace
+         * once placed (its `key:<slot>` read as the trace's), the Final Truth as the trace it is. A reference to a node
+         * that is not there is kept and named (`missing`; C8 reads it). Pure; nothing is read from the world. Red at
+         * 37409aee: there is no case-schema.mjs.
+         */
+        let S = null;
+        try { S = await import("./case-schema.mjs"); } catch { S = null; }
+        must(S && typeof S.graphOf === "function", "there is no case-schema.mjs with graphOf - the case schema has no shape to read");
+        const { MODES } = await import("./floor-machine.mjs");
+        const rows = {
+            "deduction-a": { kind: "deduction", label: "R3373 who", text: "", inputs: ["S1.T1", "key:1", "S1.T1", 7], mode: "debate", order: 2 },
+            "counter-b": { kind: "counter", label: "R3373 no", refutes: ["deduction-a"] },
+            "solution-c": { kind: "solution", label: "R3373 it was", inputs: ["deduction-a", "gone-node"] },
+            "other-d": { kind: "item", label: "R3373 not a node" }
+        };
+        const traces = [
+            { key: "S1.T1", type: "prep", name: "R3373 knife", tiedToCrime: true, room: "Gym" },
+            { key: "S1.T2", type: "key", name: "R3373 key one", tiedToCrime: true, room: "Hall" },
+            { key: "S1.T3", type: "final", name: "R3373 final", tiedToCrime: true, room: "Hall" },
+            { key: "S1.T4", type: "neutral", name: "R3373 laundry", tiedToCrime: null, room: "Pool" }
+        ];
+        const slots = [{ slot: 0, name: "R3373 planned", tokenId: null, sceneId: null }, { slot: 1, name: "R3373 key one", tokenId: "T2", sceneId: "S1" }];
+        const g = S.graphOf({ chapter: 2, rows, meta: { sort: "nonsense", manual: { "S1.T1": 1, bad: "x" } }, traces, slots });
+        const brief = n => [n.id, n.kind, n.evidence, n.planned ?? false, n.slot ?? null];
+        equal(JSON.stringify({
+            keys: [S.caseKeyOf(2, "deduction-a"), S.caseMetaKey(2), S.validNodeId("meta"), S.validNodeId("a:b"), S.validNodeId("deduction-x1")],
+            node: S.caseNodeOf(rows["deduction-a"]), other: S.caseNodeOf(rows["other-d"]), empty: S.caseNodeOf({ kind: "counter" }),
+            meta: [S.caseMetaOf({ sort: "nonsense", manual: { a: 1, b: "x" }, run: 5, askedAt: "x" }), S.caseMetaOf({ sort: "room", run: "R1", askedAt: 9 })],
+            sorts: S.CASE_SORTS, kinds: S.CASE_KINDS,
+            nodes: g.nodes.map(brief), edges: g.edges, missing: g.missing, gmeta: g.meta.sort,
+            modes: JSON.stringify(S.caseModes()) === JSON.stringify(Object.values(MODES))
+        }), JSON.stringify({
+            keys: ["2:deduction-a", "2:meta", false, false, true],
+            node: { kind: "deduction", label: "R3373 who", text: "", inputs: ["S1.T1", "key:1"], refutes: [], mode: "debate", order: 2, made: null, room: null, trace: null },
+            other: null, empty: { kind: "counter", label: "", text: "", inputs: [], refutes: [], mode: null, order: null, made: null, room: null, trace: null },
+            meta: [{ sort: "kind", manual: { a: 1 }, run: null, askedAt: null, made: {} }, { sort: "room", manual: {}, run: "R1", askedAt: 9, made: {} }],
+            sorts: ["manual", "kind", "room", "state", "uncrossed"], kinds: ["deduction", "counter", "solution", "incident"],
+            nodes: [["S1.T1", "trace", true, false, null], ["S1.T2", "key", true, false, 1], ["S1.T3", "final", true, false, null], ["S1.T4", "trace", true, false, null],
+                ["key:0", "key", true, true, 0], ["deduction-a", "deduction", false, false, null], ["counter-b", "counter", false, false, null], ["solution-c", "solution", false, false, null]],
+            edges: [{ from: "S1.T1", to: "deduction-a", kind: "input" }, { from: "S1.T2", to: "deduction-a", kind: "input" },
+                { from: "counter-b", to: "deduction-a", kind: "refutes" }, { from: "deduction-a", to: "solution-c", kind: "input" }],
+            missing: [{ node: "solution-c", ref: "gone-node" }], gmeta: "kind", modes: true
+        }), "[the keys and which node ids are refused; a deduction's row, a row of no kind of the schema's, a counter with nothing; the meta read; the sorts and kinds; the graph's nodes (evidence first, a placed slot as its trace), its edges (a slot's alias read as its trace), what it names that is not there, its sort; the modes are MODES]");
+    }],
+    ["R3375 - the case map's layout (E97 C4): case-layout.mjs `layoutCase` puts evidence in the first column, each deduction and counter one past its deepest input (a counter with none beside what it refutes) and the solution last; evidence not tied to the murder and named by nothing below the rest after a one-row gap; the five orders by the GM's arrows, by kind, by room, by state, and with the fewest crossings, which lays the proposal's case with none (`crossings`); a cycle of inputs is refused", async () => {
+        /*
+         * E97 C4, 11.11.2026; STAGE C4 (E99 reads it). Pure: a graph of case-schema.mjs `graphOf` in, columns and rows
+         * out; C5 draws the nodes where this puts them and the edges between. The proposal's case (proposal/index.html
+         * v2, gen2.py `map_svg` and `base_edges`, 09.11.2026): seven traces tied to the murder and three not, W1 from the
+         * clock and the autopsy, K1 from the caretaker's note refuting W1, W2 from the key and the broken case, W3 from
+         * the paint and the wiped prints, W4 from W2 and W3, K2 refuting W4, the Final Truth from W1 and W4 - handed in
+         * shuffled, laid out "uncrossed" with no crossing, and in the order the proposal drew it ("manual") with none
+         * either; four traces and two deductions drawn crossed by kind order (3 crossings) and uncrossed (0). Red at
+         * df01bc77: there is no case-layout.mjs.
+         */
+        let L = null;
+        try { L = await import("./case-layout.mjs"); } catch { L = null; }
+        must(L && typeof L.layoutCase === "function" && typeof L.crossings === "function", "there is no case-layout.mjs with layoutCase and crossings - the map has no layout to read");
+        const { graphOf } = await import("./case-schema.mjs");
+        const ev = (key, type, name, tied, room = null, foundAt = null) => ({ key, type, name, tiedToCrime: tied ? true : null, room, foundAt });
+        const traces = [
+            ev("S.slady", "prep", "Starte slady butow", true, "Pracownia"), ev("S.u2", "faint", "Odcisk na klamce", false, "Hol", 5),
+            ev("S.zegar", "key", "Zatrzymany zegar", true, "Biblioteka", 3), ev("S.farba", "prep", "Farba na rekawiczce", true, "Pracownia"),
+            ev("S.u1", "neutral", "Kurz na regale", false, "Biblioteka"), ev("S.autopsja", "prep", "Cios w tyl glowy", true, null, 2),
+            ev("S.klucz", "key", "Klucz do archiwum", true, "Archiwum", 4), ev("S.gablota", "prep", "Rozbita gablota", true, "Hol"),
+            ev("S.notatka", "neutral", "Notatka konserwatora", true, "Biblioteka", 1), ev("S.u3", "neutral", "Mokry parasol", false, "Hol")
+        ];
+        const rows = {
+            s: { kind: "solution", label: "Final Truth", inputs: ["w1", "w4"] },
+            w4: { kind: "deduction", label: "W4", inputs: ["w2", "w3"] }, k2: { kind: "counter", label: "K2", refutes: ["w4"] },
+            w3: { kind: "deduction", label: "W3", inputs: ["S.farba", "S.slady"] }, w2: { kind: "deduction", label: "W2", inputs: ["S.klucz", "S.gablota"] },
+            k1: { kind: "counter", label: "K1", inputs: ["S.notatka"], refutes: ["w1"] }, w1: { kind: "deduction", label: "W1", inputs: ["S.zegar", "S.autopsja"] }
+        };
+        const drawn = ["S.zegar", "S.autopsja", "S.notatka", "S.klucz", "S.gablota", "S.farba", "S.slady", "w1", "k1", "w2", "w3", "w4", "k2", "s"];
+        const g = graphOf({ chapter: 1, rows, traces, slots: [] });
+        const lay = opts => L.layoutCase(g, opts);
+        const un = lay({ sort: "uncrossed" });
+        const manual = lay({ sort: "manual", manual: Object.fromEntries(drawn.map((id, i) => [id, i])) });
+        const col = (layout, i) => layout.columns[i];
+        const small = graphOf({ chapter: 1, traces: ["a", "b", "c", "d"].map(k => ev(`S.${k}`, "prep", k, true)),
+            rows: { x: { kind: "deduction", label: "x", inputs: ["S.b", "S.d"] }, y: { kind: "deduction", label: "y", inputs: ["S.a", "S.c"] } } });
+        const smallKind = L.layoutCase(small, { sort: "kind" }), smallUn = L.layoutCase(small, { sort: "uncrossed" });
+        const cyc = L.layoutCase(graphOf({ chapter: 1, rows: { a: { kind: "deduction", inputs: ["b"] }, b: { kind: "deduction", inputs: ["a"] }, c: { kind: "solution", inputs: ["a"] } } }), { sort: "kind" });
+        equal(JSON.stringify({
+            columns: un.columns.map(c => [...c].sort()), unrelated: un.unrelated, gapAt: un.gapAt,
+            unrelatedRows: un.unrelated.map(id => un.positions[id].row),
+            crossings: [L.crossings(un, g.edges), L.crossings(manual, g.edges)], manualOrder: manual.columns.map(c => c.filter(id => !un.unrelated.includes(id))),
+            kind: [col(lay({ sort: "kind" }), 0).slice(0, 7), col(lay({ sort: "kind" }), 1)],
+            room: col(lay({ sort: "room" }), 0).slice(0, 7), state: col(lay({ sort: "state" }), 0).slice(0, 7),
+            small: [L.crossings(smallKind, small.edges), L.crossings(smallUn, small.edges)],
+            cycle: [cyc.cycle, cyc.columns], sorts: L.LAYOUT_SORTS
+        }), JSON.stringify({
+            columns: [["S.autopsja", "S.farba", "S.gablota", "S.klucz", "S.notatka", "S.slady", "S.u1", "S.u2", "S.u3", "S.zegar"], ["k1", "w1", "w2", "w3"], ["k2", "w4"], ["s"]],
+            unrelated: ["S.u1", "S.u3", "S.u2"], gapAt: 7, unrelatedRows: [8, 9, 10],
+            crossings: [0, 0], manualOrder: [drawn.slice(0, 7), ["w1", "k1", "w2", "w3"], ["w4", "k2"], ["s"]],
+            kind: [["S.klucz", "S.zegar", "S.autopsja", "S.farba", "S.notatka", "S.gablota", "S.slady"], ["w1", "w2", "w3", "k1"]],
+            room: ["S.klucz", "S.zegar", "S.notatka", "S.gablota", "S.farba", "S.slady", "S.autopsja"],
+            state: ["S.notatka", "S.autopsja", "S.zegar", "S.klucz", "S.farba", "S.gablota", "S.slady"],
+            small: [3, 0], cycle: [["a", "b"], []], sorts: ["manual", "kind", "room", "state", "uncrossed"]
+        }), "[each column's nodes; the unrelated traces, the row the gap takes and theirs; crossings uncrossed and in the proposal's order; that order kept; by kind (Key Remnants first, then by name; deductions, then counters); by room, then by kind, a trace in no room last; by state, found first and earliest; the small case crossed by kind and not uncrossed; the cycle refused; the sorts]");
+    }],
+    ["R3376 - a deduction is reachable past half (E97 C4; the owner's A and B of 09.11): case-schema.mjs `reachability` counts an evidence input held when a living student other than the culprit holds a bullet of it and a schema input when it is reachable or ticked, and a node is reachable when it holds strictly more than half its inputs - 1, 2, 2, 3 and 3 of 1 to 5 - a bullet only the culprit holds counting for nothing", async () => {
+        /*
+         * E97 C4, 11.11.2026; STAGE C4, DECISIONS A ("strictly more than half (2 inputs = both, 4 = three)") and B ("a
+         * bullet held only by the culprit does not count"). Pure: a graph of `graphOf`, the holders of each evidence node
+         * (actor ids, as truth-bullets.mjs's bullets name them), the culprit (`castStore` `killerId` at C7) and the
+         * living, and E99's ticks (empty until then). Five deductions of one to five inputs, each held at one less than
+         * it needs and at what it needs; an input the culprit alone holds, then the culprit and another; a dead holder;
+         * a deduction of a deduction, reachable and ticked. Red at df01bc77: no `reachability`.
+         */
+        const S = await import("./case-schema.mjs");
+        must(typeof S.reachability === "function", "case-schema.mjs exports no reachability - the map has no count to show");
+        const E = ["e1", "e2", "e3", "e4", "e5"].map(k => `S.${k}`);
+        const traces = [...E, "S.c"].map(key => ({ key, type: "prep", name: key, tiedToCrime: true }));
+        const rows = Object.fromEntries([1, 2, 3, 4, 5].map(n => [`d${n}`, { kind: "deduction", label: `d${n}`, inputs: E.slice(0, n) }]));
+        Object.assign(rows, { cul: { kind: "deduction", inputs: ["S.c"] }, up: { kind: "deduction", inputs: ["d2"] }, tick: { kind: "deduction", inputs: ["cul"] },
+            none: { kind: "counter", inputs: [] } });
+        const g = S.graphOf({ chapter: 1, rows, traces });
+        const hold = k => Object.fromEntries(E.slice(0, k).map(id => [id, ["A"]]));
+        const at = (holders, opts = {}) => S.reachability(g, holders, { culpritId: "K", living: ["A", "B", "K"], ...opts });
+        const needed = [1, 2, 3, 4, 5].map(n => at({})[`d${n}`].needed);
+        const under = [1, 2, 3, 4, 5].map(n => at(hold(needed[n - 1] - 1))[`d${n}`].reachable);
+        const met = [1, 2, 3, 4, 5].map(n => at(hold(needed[n - 1]))[`d${n}`]);
+        const culprit = [at({ "S.c": ["K"] }).cul, at({ "S.c": ["K", "B"] }).cul, at({ "S.c": ["D"] }).cul.reachable];
+        const deep = [at(hold(2)).up.reachable, at(hold(1)).up.reachable, at({}, { ticks: { cul: true } }).tick.reachable, at({}).tick.reachable];
+        const evidence = [at({ "S.c": ["K"] })["S.c"], at({ "S.c": ["K", "B", "B"] })["S.c"]];
+        equal(JSON.stringify({ needed, under, met: met.map(r => [r.held, r.of, r.reachable]), culprit, deep, evidence, none: at({}).none }), JSON.stringify({
+            needed: [1, 2, 2, 3, 3], under: [false, false, false, false, false],
+            met: [[1, 1, true], [2, 2, true], [2, 3, true], [3, 4, true], [3, 5, true]],
+            culprit: [{ held: 0, of: 1, needed: 1, reachable: false }, { held: 1, of: 1, needed: 1, reachable: true }, false],
+            deep: [true, false, true, false],
+            evidence: [{ held: false, holders: [], culpritOnly: true }, { held: true, holders: ["B"], culpritOnly: false }],
+            none: { held: 0, of: 0, needed: 1, reachable: false }
+        }), "[what 1 to 5 inputs need; each at one less; each at what it needs (held, of, reachable); the culprit's bullet alone, with another's, a dead holder's; a deduction of a reachable deduction, of an unreachable one, ticked, unticked; an evidence node held by the culprit alone and by another; a node with no inputs]");
+    }],
+    ["R3651 - the case map's drawing (E97 C5; case-map.mjs): `mapPlace` puts a node at its column and row in MAP_GEOMETRY's pixels with the gap's middle; `edgePath` curves from a node's right edge to the next column's left and brackets two nodes of one column on their left; `nodeState` reads planned, held (a student's copy, by the key's token id) and on the map; `caseGraphHtml` draws one button per placed node with its kind, name, state and author in its label, the name escaped, the picked node current, one path per edge, and a fold that leaves the unrelated evidence out and keeps its head; `neighbourOf` walks to the nearest node an arrow points at", async () => {
+        /*
+         * E97 C5, 12.11.2026; STAGE C5 "HTML node buttons over one SVG edge layer". Pure: a graph of case-schema.mjs
+         * `graphOf` laid out by case-layout.mjs `layoutCase`, drawn as markup and read back. jsdom lays nothing out, so
+         * positions are the numbers the drawing states; how it looks is the commit's Chromium reading. Red at e320102:
+         * there is no case-map.mjs.
+         */
+        let M = null;
+        try { M = await import("./case-map.mjs"); } catch { M = null; }
+        must(M && typeof M.caseGraphHtml === "function", "there is no case-map.mjs with caseGraphHtml - the case has no map");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const g = M.MAP_GEOMETRY;
+        const graph = S.graphOf({
+            chapter: 3,
+            rows: { "d-a": { kind: "deduction", label: "R3651 <b>who</b>", inputs: ["S.T1"] }, "c-b": { kind: "counter", label: "R3651 no", refutes: ["d-a"] } },
+            traces: [{ key: "S.T1", type: "prep", name: "R3651 knife", tiedToCrime: true }, { key: "S.T2", type: "neutral", name: "R3651 dust", tiedToCrime: false }],
+            slots: [{ slot: 0, name: "" }]
+        });
+        const layout = layoutCase(graph, { sort: "kind" });
+        const place = M.mapPlace(layout);
+        const finders = new Map([["T1", new Set(["R3651 Aiko"])]]);
+        const authors = new Map([["S.T1", "R3651 Botan"]]);
+        const read = html => {
+            const d = document.createElement("div");
+            d.innerHTML = html;
+            return {
+                buttons: [...d.querySelectorAll("button[data-drpg-node]")].map(b => [b.dataset.drpgNode, b.getAttribute("aria-label"), b.getAttribute("aria-current"),
+                    b.style.left, b.style.top]),
+                paths: [...d.querySelectorAll("path[data-drpg-edge]")].map(p => p.dataset.drpgEdge),
+                bold: d.querySelectorAll("b").length, fold: d.querySelector("[data-drpg-case-fold]")?.getAttribute("aria-expanded") ?? null
+            };
+        };
+        const L = k => game.i18n.localize(k);
+        const open = read(M.caseGraphHtml({ graph, layout, finders, authors, selected: "d-a" }));
+        const folded = read(M.caseGraphHtml({ graph, layout, finders, authors, fold: true }));
+        const pts = [{ id: "a", x: 0, y: 0 }, { id: "b", x: 0, y: 66 }, { id: "c", x: 244, y: 0 }, { id: "d", x: 244, y: 66 }];
+        equal(JSON.stringify({
+            at: [place.at["key:0"], place.at["d-a"], place.gapY],
+            edges: [M.edgePath({ x: 0, y: 0 }, { x: 244, y: 66 }), M.edgePath({ x: 244, y: 132 }, { x: 244, y: 66 })],
+            states: graph.nodes.map(n => [n.id, M.nodeState(n, finders)]),
+            open, folded: [folded.buttons.map(b => b[0]), folded.fold],
+            arrows: [M.neighbourOf(pts, "a", "ArrowRight"), M.neighbourOf(pts, "a", "ArrowDown"), M.neighbourOf(pts, "d", "ArrowUp"), M.neighbourOf(pts, "a", "ArrowLeft")]
+        }), JSON.stringify({
+            at: [{ x: g.pad, y: g.head + g.pad }, { x: g.pad + g.nodeW + g.colGap, y: g.head + g.pad }, g.head + g.pad + layout.gapAt * g.pitch + Math.round(g.nodeH / 2)],
+            edges: [`M196 27 C220 27 220 93 244 93`, `M244 159 H232 V93 H244`],
+            states: [["S.T1", "held"], ["S.T2", "onMap"], ["key:0", "planned"], ["d-a", "schema"], ["c-b", "schema"]],
+            open: {
+                buttons: layout.columns.flat().map(id => {
+                    const n = graph.nodes.find(x => x.id === id), p = place.at[id];
+                    const label = {
+                        "S.T1": `Prep Remnant, R3651 knife, ${L("DRPG.CaseMap.state.held")}, ${game.i18n.format("DRPG.CaseMap.leftBy", { name: "R3651 Botan" })}`,
+                        "S.T2": `Neutral Remnant, R3651 dust, ${L("DRPG.CaseMap.state.onMap")}`,
+                        "key:0": `${L("DRPG.CaseMap.kind.slot")}, ${game.i18n.format("DRPG.CaseMap.slotNumber", { n: 1 })}, ${L("DRPG.CaseMap.state.planned")}`,
+                        "d-a": `${L("DRPG.CaseMap.kind.deduction")}, R3651 <b>who</b>`,
+                        "c-b": `${L("DRPG.CaseMap.kind.counter")}, R3651 no`
+                    }[n.id];
+                    return [id, label, id === "d-a" ? "true" : null, `${p.x}px`, `${p.y}px`];
+                }),
+                paths: ["S.T1>d-a", "c-b>d-a"], bold: 0, fold: "true"
+            },
+            folded: [layout.columns.flat().filter(id => !layout.unrelated.includes(id)), "false"],
+            arrows: ["c", "b", "c", null]
+        }), "{at: a node's place and the gap's middle; edges: across a column and within one; states: each node's; open: the drawn graph [each button's id, label, current, left, top; the edges; a bold tag escaped; the fold open]; folded: the buttons left and the fold shut; arrows: right, down, up, left from a corner}");
+    }],
+    ["R3654 - the case's consistency (E97 C8; case-schema.mjs `checkCase`, Q-E97-7's default): a clean case reads no problem; each fault reads its code on its node - a deduction resting on nothing, a node on a cycle, a reference to a node that is gone, a counter refuting nothing, deductions with no solution, a second solution, a solution whose every input is gone, a mode the trial lacks, an input only the culprit holds, more Key Remnants than a chapter prepares", async () => {
+        /*
+         * E97 C8, 12.11.2026. Pure: graphs of `graphOf` with one fault each, `reach` of `reachability` with a culprit.
+         * Red at a7146dd: case-schema.mjs exports no checkCase.
+         */
+        const S = await import("./case-schema.mjs");
+        must(typeof S.checkCase === "function", "case-schema.mjs exports no checkCase - the case has no consistency check");
+        const traces = [{ key: "S.T1", type: "prep", name: "a", tiedToCrime: true }, { key: "S.T2", type: "key", name: "b", tiedToCrime: true }];
+        const g = rows => S.graphOf({ chapter: 1, rows, traces });
+        const codes = (rows, opts = {}) => S.checkCase(g(rows), opts).map(p => [p.code, p.node, p.ref ?? null]);
+        const clean = { "d1": { kind: "deduction", label: "d", inputs: ["S.T1", "S.T2"], mode: "debate" }, "c1": { kind: "counter", label: "c", refutes: ["d1"] },
+            "s1": { kind: "solution", label: "s", inputs: ["d1"] } };
+        const culprit = S.reachability(g(clean), { "S.T1": ["K"], "S.T2": ["A"] }, { culpritId: "K" });
+        equal(JSON.stringify({
+            clean: codes(clean),
+            noInputs: codes({ ...clean, d2: { kind: "deduction", label: "e" } }),
+            cycle: S.checkCase(g(clean), { cycle: ["d1"] }).map(p => p.code),
+            missing: codes({ ...clean, s1: { kind: "solution", label: "s", inputs: ["d1", "gone"] } }),
+            noTarget: codes({ ...clean, c1: { kind: "counter", label: "c" } }),
+            noSolution: codes({ d1: clean.d1 }),
+            twoSolutions: codes({ ...clean, s2: { kind: "solution", label: "t", inputs: ["d1"] } }),
+            unreached: codes({ ...clean, s1: { kind: "solution", label: "s", inputs: ["gone"] } }),
+            badMode: codes({ ...clean, d1: { ...clean.d1, mode: "rapGame" } }),
+            culpritOnly: S.checkCase(g(clean), { reach: culprit }).map(p => [p.code, p.node, p.ref]),
+            keys: S.checkCase(g(clean), { keyMax: 0 }).map(p => [p.code, p.ref])
+        }), JSON.stringify({
+            clean: [],
+            noInputs: [["noInputs", "d2", null]],
+            cycle: ["cycle"],
+            missing: [["missing", "s1", "gone"]],
+            noTarget: [["noTarget", "c1", null]],
+            noSolution: [["noSolution", null, null]],
+            twoSolutions: [["twoSolutions", "s2", null]],
+            unreached: [["missing", "s1", "gone"], ["solutionUnreached", "s1", null]],
+            badMode: [["badMode", "d1", "rapGame"]],
+            culpritOnly: [["culpritOnly", "d1", "S.T1"]],
+            keys: [["tooManyKeys", "1"]]
+        }), "{each case: what checkCase names [code, node, what it names]}");
+    }],
+    ["R3655 - what the Map draws of a node's reach and problems (E97 C7, C8; case-map.mjs): a deduction past half reads \"x/y\" marked reachable, one short of it unmarked, evidence none; a node with a problem is marked and says so in its label; the side panel's summary lists every problem in words and carries the Check consistency button, and the picked node lists its own", async () => {
+        /*
+         * E97 C7, C8, 12.11.2026; the owner's A of 09.11 ("strictly more than half"). Pure drawing of a fixture graph.
+         * Red at a7146dd: no reach and no problems drawn.
+         */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        must(typeof S.checkCase === "function", "case-schema.mjs exports no checkCase - nothing to draw");
+        const traces = [{ key: "S.T1", type: "prep", name: "a", tiedToCrime: true }, { key: "S.T2", type: "key", name: "b", tiedToCrime: true }];
+        const graph = S.graphOf({ chapter: 1, traces, rows: {
+            "d-one": { kind: "deduction", label: "one", inputs: ["S.T1"] }, "d-two": { kind: "deduction", label: "two", inputs: ["S.T1", "S.T2"] },
+            "d-none": { kind: "deduction", label: "none" } } });
+        const layout = layoutCase(graph);
+        const reach = S.reachability(graph, { "S.T1": ["A"] });
+        const problems = S.checkCase(graph, { reach });
+        const d = document.createElement("div");
+        d.innerHTML = M.caseMapHtml({ graph, layout, reach, problems, reading: {} });
+        const btn = id => d.querySelector(`[data-drpg-node="${id}"]`);
+        const reachOf = id => { const r = btn(id)?.querySelector(".drpg-case-node-reach"); return r ? [r.textContent, r.classList.contains("is-reachable")] : null; };
+        const d2 = document.createElement("div");
+        d2.innerHTML = M.caseMapHtml({ graph, layout, reach, problems, reading: { node: "d-none" } });
+        equal(JSON.stringify({
+            reach: ["d-one", "d-two", "S.T1"].map(reachOf),
+            warn: ["d-none", "d-one"].map(id => [btn(id)?.classList.contains("has-warn"), (btn(id)?.getAttribute("aria-label") ?? "").includes(game.i18n.localize("DRPG.CaseMap.hasProblem"))]),
+            list: [...d.querySelectorAll(".drpg-case-problems li")].map(li => li.textContent),
+            check: Boolean(d.querySelector("[data-drpg-case-check]")),
+            picked: [...d2.querySelectorAll(".drpg-case-panel-read .drpg-case-panel-warn")].map(p => p.textContent)
+        }), JSON.stringify({
+            reach: [["1/1", true], ["1/2", false], null],
+            warn: [[true, true], [false, false]],
+            list: [game.i18n.format("DRPG.CaseMap.problem.noInputs", { node: "none", ref: "" }), game.i18n.localize("DRPG.CaseMap.problem.noSolution")],
+            check: true,
+            picked: [game.i18n.format("DRPG.CaseMap.problem.noInputs", { node: "none", ref: "" })]
+        }), "{reach: the x/y and its mark on a deduction past half, one at half, and evidence; warn: a node with a problem and one without [marked, said]; list: the summary's problems; check: its button; picked: the picked node's own problems}");
+    }],
+    ["R3657 - what a realization would do, and a planned Incident Remnant (E97 C10, C12): case-realize.mjs `realizationLines` reads each Key plan slot as \"create\" (not on the map, within the limit), \"placed\" or \"overLimit\"; case-schema.mjs `graphOf` draws an incident row as planned evidence in the first column until its Remnant is on the map, then as that Remnant, an input naming the row read as the Remnant's", async () => {
+        /*
+         * E97 C10, C12, 12.11.2026. Pure. Red at df8be16's parent (a860754): no case-realize.mjs, no incident kind.
+         */
+        let R = null;
+        try { R = await import("./case-realize.mjs"); } catch { R = null; }
+        must(R && typeof R.realizationLines === "function", "there is no case-realize.mjs with realizationLines - the case cannot be realized");
+        const S = await import("./case-schema.mjs");
+        const plan = { chapter: 2, entries: [{ name: "a", tokenId: "T1", sceneId: "S" }, { name: "b" }, { name: "c" }, { name: "d" }] };
+        const status = { entries: [{ placed: true }, { placed: false }, { placed: false }, { placed: false }] };
+        const lines = R.realizationLines({ plan, status, limit: 3 }).map(l => [l.action, l.slot]);
+        const unlimited = R.realizationLines({ plan, status, limit: null }).map(l => l.action);
+        const traces = [{ key: "S.T9", type: "incident", name: "glass", tiedToCrime: true }];
+        const rows = { "incident-a": { kind: "incident", label: "broken case", room: "Library" }, "deduction-x": { kind: "deduction", label: "x", inputs: ["incident-a"] } };
+        const planned = S.graphOf({ chapter: 2, traces: [], rows });
+        const placed = S.graphOf({ chapter: 2, traces, rows: { ...rows, "incident-a": { ...rows["incident-a"], trace: "S.T9" } } });
+        const brief = g => g.nodes.map(n => [n.id, n.kind, n.evidence, n.planned, n.incident ?? null]);
+        equal(JSON.stringify({ lines, unlimited, planned: [brief(planned), planned.edges], placed: [brief(placed), placed.edges] }), JSON.stringify({
+            lines: [["placed", 0], ["create", 1], ["create", 2], ["overLimit", 3]],
+            unlimited: ["placed", "create", "create", "create"],
+            planned: [[["incident-a", "incident", true, true, "incident-a"], ["deduction-x", "deduction", false, false, null]], [{ from: "incident-a", to: "deduction-x", kind: "input" }]],
+            placed: [[["S.T9", "trace", true, false, "incident-a"], ["deduction-x", "deduction", false, false, null]], [{ from: "S.T9", to: "deduction-x", kind: "input" }]]
+        }), "{lines: each slot's line under a limit of 3; unlimited: with none; planned, placed: the graph's nodes [id, kind, evidence, planned, incident row] and edges, before and after the Remnant is on the map}");
     }],
 ];
 

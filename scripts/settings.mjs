@@ -2,8 +2,10 @@
  * Danganronpa RPG - world settings.
  * ---------------------------------------------------------------------------
  * Registered during `init`. Every setting is `config: false` since E49 A1: what a GM or a
- * player may flip is a row of the DRPG Settings window (settings-window.mjs `SETTINGS_SECTIONS`),
- * the one button the module keeps in Foundry's settings window; internal state is in no window.
+ * player may flip is a row of the DRPG Settings window, this browser's (settings-window.mjs
+ * `CLIENT_SECTIONS`, the one button the module keeps in Foundry's settings window, and the gear),
+ * or of the game's settings, a tab of the GM panel (`GAME_SECTIONS`, E49 A1d); internal state is
+ * in no window.
  */
 
 import { MODULE_ID, FLAGS, ROOMS, TIMES_OF_DAY, SFX_VOLUME_KEYS, SHEET_SIZE } from "./config.mjs";
@@ -598,6 +600,8 @@ export const SETTINGS = {
      */
     gmKeyPlan: "gmKeyPlan",
     legacyKeyRemnantPlan: "keyRemnantPlan",
+    /** THE CASE SCHEMA (E97 C3, 1.2.107): a GM store (gm-stores.mjs `caseSchemaStore`), a row per chapter and node. */
+    gmCaseSchema: "gmCaseSchema",
     /**
      * WHICH OF THE TRIAL HALL'S TOKENS THE TRIAL SHOWS (E13 C2, 1.2.74; audit S06-57, decision D7):
      * a GM store (gm-stores.mjs `trialCastStore`), never a token's flag, which its owner writes.
@@ -1200,9 +1204,10 @@ export const DEFAULT_CLOCK = {
 
 /**
  * The one button of the module's in Configure Settings (E49 A1, 11.11.2026; the owner's [11] and Q3): DRPG Settings, a
- * menu's key, not a setting. It opens settings-window.mjs's window, which holds every setting this file registered
- * with `config: true` until E49 (35 of them, each `config: false` since) and Give back Foundry's settings, a menu of its
- * own here from E20 C6 until E49 (its key, "giveBackFoundry", is no longer registered).
+ * menu's key, not a setting. It opens settings-window.mjs's window - this browser's settings, the gear's window, the
+ * same for every user since E49 A1d; the world's of the 35 this file registered with `config: true` until E49 (each
+ * `config: false` since) and Give back Foundry's settings, a menu of its own here from E20 C6 until E49 (its key,
+ * "giveBackFoundry", is no longer registered), are the GM panel's tab of the game's settings.
  */
 const SETTINGS_MENU = "drpgSettings";
 
@@ -1716,10 +1721,11 @@ export function registerSettings() {
             .catch(err => console.error("danganronpa-rpg | Could not give back or hold Foundry's settings", err))
     });
     /* Configure Settings' one row of the module's (E49 A1): Foundry renders the menu's class; this one opens the
-       module's own window instead (settings-window.mjs `openSettingsWindow`), for every user - a player's holds the
-       client settings alone (Q2). How v14's settings window constructs and renders a menu's class is not measured here:
-       the harness's `registerMenu` is a no-op (LIVE-E49-02). Give back Foundry's settings, the menu E20 C6 registered
-       here, is a row of the window's Technical section since (Q3), enforced.mjs's gates unchanged. */
+       module's own window instead (settings-window.mjs `openSettingsWindow`), the same for every user since E49 A1d:
+       this browser's settings, the gear's window; the world's are the GM panel's tab. How v14's settings window
+       constructs and renders a menu's class is not measured here: the harness's `registerMenu` is a no-op
+       (LIVE-E49-02). Give back Foundry's settings, the menu E20 C6 registered here, is a row of that tab's Foundry and
+       the system section since (Q3; A1d), enforced.mjs's gates unchanged. */
     const Base = foundry.applications?.api?.ApplicationV2 ?? class {};
     class DrpgSettingsMenu extends Base {
         render() {
@@ -1775,7 +1781,11 @@ export function registerSettings() {
     // Whether the events marked `vary` bend on each play. Default on: the ten
     // that carry the flag are the ones heard dozens of times a session, and an
     // identical click on the fortieth press is the thing this exists to stop.
+    /* Its name and hint are the switch's words (E49 A1d): it is a row of the game's settings, the GM panel's tab
+       (settings-window.mjs GAME_SECTIONS), where it moved from the volumes the gear's window held for a GM. */
     game.settings.register(MODULE_ID, SETTINGS.sfxVary, {
+        name: "DRPG.Sound.varyLabel",
+        hint: "DRPG.Sound.varyHint",
         scope: "world",
         config: false,
         type: Boolean,
@@ -2261,6 +2271,14 @@ export function registerSettings() {
     // (live.mjs `keepLive`) - so another GM's edit reaches an open dashboard at its next
     // one, and not the moment it merges (read, not measured at a table).
     game.settings.register(MODULE_ID, SETTINGS.gmKeyPlan, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The case schema (E97 C3): a GM store since it exists (`caseSchemaStore`), a row per chapter and node. No `onChange`:
+    // the Investigation panel reads it at each redraw (live.mjs `keepLive`), as it reads the Key plan.
+    game.settings.register(MODULE_ID, SETTINGS.gmCaseSchema, {
         scope: "client",
         config: false,
         type: Object,

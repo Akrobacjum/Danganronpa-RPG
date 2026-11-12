@@ -443,8 +443,23 @@ const VOICE_UNDER_TRAY = 8;
 export function flatVoicePlacement(W = innerWidth) {
   const tray = document.getElementById("countdowns");
   if (!tray || !(tray.offsetWidth > 0) || inFoundryWindow(tray)) return null;
-  const r = tray.getBoundingClientRect();
-  return { place: "tray", y: Math.round(r.bottom + VOICE_UNDER_TRAY), right: Math.max(0, Math.round(W - r.right)) };
+  const r = tray.getBoundingClientRect(), y = Math.round(r.bottom + VOICE_UNDER_TRAY);
+  let right = Math.max(0, Math.round(W - r.right));
+  /* AND CLEAR OF THE CORNER'S LAUNCHERS (E105, 12.11.2026; the glass sweep's Legacy voice check). Under the tray the tile
+     ran 188 px down; on a short screen that reached the launchers' column: the glass harness, the GM, 1366x560, the tile
+     1181-1344 x 204-392 over the GM launcher and Foundry tools (the cluster's top 383). There is no room for it above
+     them either (187 px between the tray's foot and the cluster's top, the tile 188 and two gaps of 8), so it keeps its
+     place under the tray and steps left until it stands VOICE_UNDER_TRAY clear of every launcher it would meet: at
+     1366x560 its right edge at 1242 (the cluster's left 1250 less 8), its top still 8 px under the tray. Where nothing
+     is in its way - every desk size of the harness taller than 600 - nothing moves. */
+  const tile = document.getElementById("drpg-voice-tile"), w = tile?.offsetWidth || 0, h = tile?.offsetHeight || 0;
+  if (w && h) {
+    const x1 = W - right, x0 = x1 - w;
+    const hit = [...document.querySelectorAll(LAUNCHERS)].map(e => e.getBoundingClientRect())
+      .filter(b => b.width > 1 && b.height > 1 && b.left < x1 && b.right > x0 && b.top < y + h + VOICE_UNDER_TRAY && b.bottom > y);
+    if (hit.length) right = Math.max(0, Math.round(W - (Math.min(...hit.map(b => b.left)) - VOICE_UNDER_TRAY)));
+  }
+  return { place: "tray", y, right };
 }
 function placeFlatVoiceTile() {
   const tile = document.getElementById("drpg-voice-tile"), body = document.body;
@@ -3826,7 +3841,7 @@ export function skipTurn() { let ended = false; for (const j of curtains) if (j.
  * when the accent changed. `none` when there is nothing to turn - reduced motion, nothing painted before, the same
  * colour and under TURN_WORTH of the panes moving.
  */
-export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 1200, move = TURN_MOVE, curve = ARRIVE, flash = true, reduced = false, how = null, seed = 1, groups = TURN_BATCHES, delays = null } = {}) {
+export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 1200, move = TURN_MOVE, curve = ARRIVE, flash = true, reduced = false, force = false, how = null, seed = 1, groups = TURN_BATCHES, delays = null } = {}) {
   const none = { none: true, recolour: false, recut: false, dur, move: { ms: move, curve }, order: [], batchOf: [], delayOf: [], gap: 0, moves: [], batches: [], flashes: [], frost: null, glow: null };
   if (reduced || !from?.length || !to?.length) return none;
   const recolour = Boolean(fromAcc && acc && fromAcc !== acc);
@@ -3897,7 +3912,11 @@ export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 120
     for (const i of order) if (Math.abs(dist[i] - d) < nd) { nd = Math.abs(dist[i] - d); near = i; }
     items.push({ from: k, batch: batchOf[near] });
   });
-  if (!recolour && moves.length < to.length * TURN_WORTH) return none;
+  /* `force` (E105 follow-up, 11.11.2026): a recut a person asked for with one click turns however few panes it moves -
+     the Projects tray folded or unfolded (`watchTrayFold`). Without it the fold cut a corner, under TURN_WORTH, and the
+     glass jumped to the new cut a debounce after the tray had jumped (the owner: "projects przy zwijaniu i rozwijaniu
+     nie animuje kurtyny"). Reduced motion still turns nothing (above). */
+  if (!recolour && !force && moves.length < to.length * TURN_WORTH) return none;
   /* THE CURTAIN STANDS ASIDE WHILE THE NEW LOOK TRAVELS (E23 C1b fix, 07.11.2026). With the new cut painted beneath, a
      travelling pane is translucent glass over its own destination: the two pictures, a few pixels apart, averaged each
      other's streaks away - the harness's layout turn at 1600x900 read the squares the move crosses at 45-55 % of
@@ -4143,13 +4162,13 @@ function lookOnScreen(job, look) {
  * default). A turn running is ended first. Answers the turn - its `plan`, its `layers`, `cancel()` - or null
  * when there is nothing to turn, which leaves the end state standing.
  */
-export function glassTurn({ job = curtains[0], from = null, look = null, glow = null, to = job?.panes, fromAcc = null, acc = job?.acc, move = TURN_MOVE, flash = true, dur = TURN(), curve = ARRIVE, frame = undefined } = {}) {
+export function glassTurn({ job = curtains[0], from = null, look = null, glow = null, to = job?.panes, fromAcc = null, acc = job?.acc, move = TURN_MOVE, flash = true, dur = TURN(), curve = ARRIVE, frame = undefined, force = false } = {}) {
   if (!job || !to) return null;
   look = lookOnScreen(job, look);
   job.turn?.cancel();
   const hint = turnHint && performance.now() - turnHint.at < TURN_HINT_MS ? turnHint : null;
   if (hint) { turnHint = null; count("glass.turn.hinted"); if (hint.dur) dur = hint.dur; }
-  const plan = turnPlan(from, to, { W: job.W, H: job.H, fromAcc, acc, dur, move, curve, flash, reduced: REDUCED(),
+  const plan = turnPlan(from, to, { W: job.W, H: job.H, fromAcc, acc, dur, move, curve, flash, reduced: REDUCED(), force,
     how: hint?.how ?? null, seed: hint?.seed ?? 1, groups: hint?.groups ?? TURN_BATCHES, delays: hint?.delays ?? null });
   if (plan.none || !look) return null;
   /* THE PULSE IS IN THE NEW LOOK (E23 fix G1, 08.11.2026; the end review's correctness M1). `curtainPaint` has just set
@@ -4443,7 +4462,7 @@ function rebuild() {
 }
 function rebuildAll() {
   for (const j of curtains) {
-    const wasPainted = j.painted, oldAcc = j.acc;
+    const wasPainted = j.painted, oldAcc = j.acc, fold = j.foldTurn === true;
     const oldPanes = wasPainted ? snapshotPanes(j) : null;
     CHECKS.length = 0;
     if (curtainGeometry(j)) {
@@ -4484,7 +4503,7 @@ function rebuildAll() {
            and bakes it before the next frame and lets the browser run it; a turn that moves glass
            clips the frost to the new cut once its moves are over, and a new cut with no such turn
            (reduced motion, nothing painted before, a corner not worth a turn) clips it here. */
-        const turn = oldLook && !entryHold ? glassTurn({ job: j, from: oldPanes, look: oldLook, glow: oldGlow, fromAcc: oldAcc }) : null;
+        const turn = oldLook && !entryHold ? glassTurn({ job: j, from: oldPanes, look: oldLook, glow: oldGlow, fromAcc: oldAcc, force: j.foldTurn === true, flash: j.foldTurn !== true }) : null;
         if (!turn?.plan.frost) clipToCut(frostOf(j), j.pathD);
         /* A NEW CUT, AND ONLY A NEW CUT, IS ANNOUNCED (E77 C4). The room tile's picture follows
            its pane here, and `drpgGlassCut` is what a test counts to say that a new description,
@@ -4498,6 +4517,7 @@ function rebuildAll() {
         }
       } else { j.painted = true; document.body.classList.toggle("drpg-curtain-on", true); }
     }
+    if (fold) j.foldTurn = false;
   }
   freeTheBoard();
   const c = CHECKS[0];
@@ -4799,6 +4819,38 @@ function observe() {
     }
     observers.push(rr);
   }
+  watchTrayFold();
+}
+/* THE PROJECTS TRAY FOLDS AND THE GLASS TURNS WITH IT (E105 follow-up, 11.11.2026; the owner: "projects przy zwijaniu i
+   rozwijaniu nie animuje kurtyny"). The fold is projects-tray.mjs's class on the tray (`drpg-projects-collapsed`, its
+   list `display: none`): the tray jumps in one frame. The glass heard it through the ResizeObserver above, 150 ms
+   later (`schedule`), and its recut moved a corner - under TURN_WORTH, so no turn: the cut jumped too, a debounce
+   behind the tray. Measured in Chromium on the glass harness, 1366x768, GM, motion on (fix2/fold.mjs): folding, the
+   tray 142 -> 78 px in the frame of the click and the tray's pane 262 -> 229 px at its foot 172 ms later, in one frame,
+   no turn layer running; unfolding the same, 180 ms. Now the class's change is heard as it is written, the recut runs
+   in the next animation frame, and it turns (`force`): the panes the fold moves travel to the new cut over the turn's
+   700 ms, without the flash - a fold is not a change of mood. Reduced motion recuts in the next frame and turns
+   nothing. The glass harness's `drpgTrayFold` (the sweep's "fold" clause) reads it: at 1b0ebb73 the recut 3-7 frames
+   after the toggle and 0 frames of a turn, folding and unfolding; now the recut in the second frame read and 14-15
+   frames of turn layers running (Chromium, 1366x768, on a machine running other suites: frames of 60-160 ms).
+   The tray's whole column is watched, not the tray, because Daggerheart may draw the tray's root again. */
+let trayFolded = null;
+function watchTrayFold() {
+  const host = document.getElementById("ui-right-column-1") || document.getElementById("countdowns")?.parentElement;
+  if (!host || typeof MutationObserver !== "function") return;
+  trayFolded = document.getElementById("countdowns")?.classList.contains("drpg-projects-collapsed") ?? null;
+  const mo = new MutationObserver(() => {
+    const now = document.getElementById("countdowns")?.classList.contains("drpg-projects-collapsed") ?? null;
+    if (now === trayFolded) return;
+    const was = trayFolded;
+    trayFolded = now;
+    if (was === null || now === null || !curtains.length || keyboardUp()) return;
+    for (const j of curtains) j.foldTurn = true;
+    clearTimeout(timer);
+    requestAnimationFrame(() => { try { refreshGlass(); } finally { for (const j of curtains) j.foldTurn = false; } });
+  });
+  mo.observe(host, { attributes: true, attributeFilter: ["class"], subtree: true });
+  observers.push(mo);
 }
 /* WHAT THE GLASS IS CUT FOR, AS IT STANDS NOW.
    The rectangles of every block and the wall, rounded, in the pixels they are drawn in (so

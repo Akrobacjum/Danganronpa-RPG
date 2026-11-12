@@ -81,7 +81,9 @@ function deviceRow(label, name, options, chosen) {
     for (const [id, text] of Object.entries(options)) {
         const option = node("option", "", String(text ?? id));
         option.value = id;
-        option.selected = id === chosen;
+        // `defaultSelected` and `defaultChecked` below: the attribute as well as the state, so a copy of the markup
+        // (probe 08's captures, E49 A1d's shots) shows what the window shows.
+        option.defaultSelected = option.selected = id === chosen;
         select.append(option);
     }
     row.append(node("span", "", label), select);
@@ -126,7 +128,7 @@ export async function voiceFieldset({ client = game.webrtc?.client, settings = g
     for (const [value, label] of [["always", t("modeAlways")], ["ptt", t("modePtt")]]) {
         const row = node("label", "drpg-voice-panel-radio");
         const radio = document.createElement("input");
-        Object.assign(radio, { type: "radio", name: "voice:mode", value, checked: value === current });
+        Object.assign(radio, { type: "radio", name: "voice:mode", value, defaultChecked: value === current, checked: value === current });
         row.append(radio, node("span", "", label));
         mode.append(row);
     }

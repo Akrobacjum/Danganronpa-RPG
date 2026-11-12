@@ -720,16 +720,16 @@ export async function resolveObserve({ key, total, isCritical = false, undo = fa
          */
         warn(`Observe: no pending target for key ${key}.`);
         const stranded = actorId ? game.actors.get(actorId) : null;
-        await whisperToGms(`<p class="drpg-warning">${game.i18n.format(
+        await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format(
             undo ? "DRPG.Observe.rerollLost" : "DRPG.Observe.resolveLost",
             // Escaped (E02 review): this card is written on the GM's client and
             // stored as the GM's own, and the name is the one field of it a
             // player can set - by renaming their character from the console.
             { name: foundry.utils.escapeHTML(stranded?.name ?? "?"), total }
-        )}</p>`);
+        )}</p>` });
         if (stranded) {
-            await whisperToOwner(stranded, `<p class="drpg-warning">${
-                game.i18n.localize("DRPG.Observe.resolveLostOwner")}</p>`);
+            await whisperToOwner(stranded, { tone: "warning", body: `<p>${
+                game.i18n.localize("DRPG.Observe.resolveLostOwner")}</p>` });
         }
         return null;
     }
