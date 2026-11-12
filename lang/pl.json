@@ -1165,7 +1165,7 @@
       "discarded": "{item} - wyrzucony.",
       "discardTrace": "Zostaje po tobie Remnant.",
       "discardOnlyBroken": "Wyrzucić można tylko zepsuty przedmiot.",
-      "noDiscardInTrial": "W czasie Class Trialu nie można niczego wyrzucić.",
+      "noDiscardInTrial": "W czasie Class Trial nie można niczego wyrzucić.",
       "discardStashed": "Najpierw wyjmij to ze skrytki.",
       "discardNoTrace": "{item} wciąż jest przy tobie - nie było gdzie tego zostawić. Wyrzucona rzecz musi być wyrzucona gdzieś.",
       "discardKept": "{item} wciąż jest przy tobie.",
@@ -1393,7 +1393,7 @@
         "plus": "+{seconds} s",
         "overrule": "Oddalenie",
         "endMode": "Zakończ ten tryb",
-        "notTrial": "Tylko w trakcie Class Trialu.",
+        "notTrial": "Tylko w trakcie Class Trial.",
         "noMode": "Nic nie trwa: najpierw otwórz debatę.",
         "noTurn": "Debata nie ma tury do pominięcia: Zakończ ten tryb ją zamyka.",
         "noTime": "Debacie nie zostało już czasu do odjęcia.",
@@ -2803,7 +2803,7 @@
       "hall": "Sala rozpraw",
       "hallRoom": {
         "legend": "Sala rozpraw na kafelku pokoju",
-        "hint": "Wszyscy widzą to na kafelku pokoju podczas Class Trialu. Nie wpisuj tu niczego tajnego.",
+        "hint": "Wszyscy widzą to na kafelku pokoju podczas Class Trial. Nie wpisuj tu niczego tajnego.",
         "name": "Nazwa",
         "picture": "Zdjęcie",
         "words": "Opis"
@@ -2901,7 +2901,7 @@
       },
       "objectionAtNow": "OBJECTION! wobec: {target} - mówi teraz.",
       "objectionAtLast": "OBJECTION! wobec: {target} - ostatnia wypowiedź.",
-      "objectionAtNobody": "W tym Class Trialu nikt jeszcze nie mówił, więc nie ma wobec kogo wnieść objection.",
+      "objectionAtNobody": "Podczas tego Class Trial nikt jeszcze nie mówił, więc nie ma wobec kogo wnieść objection.",
       "objectionAtNamed": "OBJECTION! - wobec tego, kto mówi teraz, albo wobec tego, kogo wskażesz.",
       "objectionNoRoom": "GM nie jest połączony z kanałem głosowym, więc wskaż, komu zaprzeczasz.",
       "objectionFailed": "Twoje Objection nie przeszło. Naciśnij OBJECTION! jeszcze raz albo powiedz GM-owi.",
@@ -3466,10 +3466,10 @@
       },
       "what": {
         "darkness": {
-          "one": "Światła gasną jeszcze bardziej: o {n} przejście mniej w Eclipse, a Eclipse, który pozwoliłby zacząć gdziekolwiek, cofa się do dwóch pokoi.",
-          "few": "Światła gasną jeszcze bardziej: o {n} przejścia mniej w Eclipse, a Eclipse, który pozwoliłby zacząć gdziekolwiek, cofa się do dwóch pokoi.",
-          "many": "Światła gasną jeszcze bardziej: o {n} przejść mniej w Eclipse, a Eclipse, który pozwoliłby zacząć gdziekolwiek, cofa się do dwóch pokoi.",
-          "other": "Światła gasną jeszcze bardziej: o {n} przejść mniej w Eclipse, a Eclipse, który pozwoliłby zacząć gdziekolwiek, cofa się do dwóch pokoi."
+          "one": "Światła gasną jeszcze bardziej: o {n} przejście mniej w Eclipse, a Eclipse, które pozwoliłoby zacząć gdziekolwiek, cofa się do dwóch pokoi.",
+          "few": "Światła gasną jeszcze bardziej: o {n} przejścia mniej w Eclipse, a Eclipse, które pozwoliłoby zacząć gdziekolwiek, cofa się do dwóch pokoi.",
+          "many": "Światła gasną jeszcze bardziej: o {n} przejść mniej w Eclipse, a Eclipse, które pozwoliłoby zacząć gdziekolwiek, cofa się do dwóch pokoi.",
+          "other": "Światła gasną jeszcze bardziej: o {n} przejść mniej w Eclipse, a Eclipse, które pozwoliłoby zacząć gdziekolwiek, cofa się do dwóch pokoi."
         },
         "shift": {
           "one": "Rzeczy nie są tam, gdzie były: o {n} Search Token mniej w każdym pokoju.",
@@ -4107,7 +4107,7 @@
         "notKnown": "Nie znasz tego tajnego przejścia.",
         "recipientDead": "Wybrana osoba nie żyje. Nic nie zostało pokazane.",
         "floorClosed": "Debata nie jest teraz otwarta na Objection.",
-        "noSpeaker": "W tym Class Trialu nikt jeszcze nie mówił, więc nie ma wobec kogo wnieść objection.",
+        "noSpeaker": "Podczas tego Class Trial nikt jeszcze nie mówił, więc nie ma wobec kogo wnieść objection.",
         "noBullet": "Nie masz żadnego Truth Bulletu, którym można dowieść Objection.",
         "objectionOver": "To Objection nie czeka już na Truth Bullet.",
         "notAtPassage": "Najpierw stań na znaczniku przejścia albo na polu obok niego.",
@@ -4263,7 +4263,7 @@
       "endChapterAsk": "Zakończyć rozdział teraz? Edytuj kampanię zamknie się bez zapisu i otworzy się koniec rozdziału: pokaże, co ujawni, sprzątnie i wskaże, zanim cokolwiek zrobi.",
       "chapterCorrect": "To poprawia tylko numer rozdziału - bez ujawniania, bez zbierania Truth Bullets, bez Blackened. Rozdział kończy przycisk Zakończ rozdział, na dole okna Edytuj kampanię. Anuluj zostawia rozdział i zapisuje resztę.",
       "trialFromEditTitle": "Otwórz Class Trial",
-      "trialFromEdit": "To otwiera budżet Class Trialu i pobiera opłatę za nieznalezione Key Remnants. Anuluj zostawia fazę i zapisuje resztę.",
+      "trialFromEdit": "To otwiera budżet Class Trial i pobiera opłatę za nieznalezione Key Remnants. Anuluj zostawia fazę i zapisuje resztę.",
       "unknownTime": "Nieznana pora dnia: {key}.",
       "unknownPhase": "Nieznana faza: {key}.",
       "actionsRefilled": {

@@ -91,7 +91,7 @@ Trzy fazy:
 | Faza | Czym jest |
 |---|---|
 | **Daily Life** | Żyjecie w zamkniętym miejscu. Dwie akcje na porę dnia. Nikt jeszcze nie zginął w tym rozdziale - to ta część, w której decydujesz, komu ufasz. |
-| **Investigation** | Znaleziono ciało. Observe i Analyze, by budować Truth Bullets. Czego nikt nie znajdzie, kosztuje Despair; w Class Trialu Monokuma może to ujawnić. |
+| **Investigation** | Znaleziono ciało. Observe i Analyze, by budować Truth Bullets. Czego nikt nie znajdzie, kosztuje Despair; w Class Trial Monokuma może to ujawnić. |
 | **Class Trial** | Wszyscy są w sali i jedno z was to zrobiło. Zeznania, Objections i wreszcie głosowanie. |
 
 ### Eclipse
@@ -153,7 +153,7 @@ GM może wyłączyć cenę przejść; wtedy to, które pokoje się łączą, raz
 - Na mapie o kilku piętrach widzisz jedno piętro naraz. Przyciski **Piętra** obok HUD proponują piętra, na których stoi twoja postać, i każde piętro z pokojem, który odkryłeś, od najniższego. Odkryty pokój wygląda tak samo na każdym piętrze - za zasłoną, bez nikogo, kogo widzisz - a pokój, w którym nigdy nie byłeś, na każdym piętrze zostaje we mgle.
 - Widzisz ikony drzwi tych pokoi, które widzisz - tego, w którym stoisz, i tych, w których już byłeś - a nie każde drzwi na mapie.
 - Widzisz tylko osoby stojące w twoim pokoju. Nikogo innego dla ciebie na mapie nie ma.
-- **Kafelek pokoju** stoi pod zegarem - albo, gdy ekran nie zostawia tam miejsca, na prawo od powiadomień - i pokazuje pokój, w którym stoi twoja własna postać, nigdy inny: jego nazwę, jego Search Tokens z liczbą przeszukań, które zostały (**2/3 przeszukań**), **Możesz tu pracować nad projektem**, gdy jest w nim projekt, nad którym możesz pracować, zdjęcie pokoju od GM-a pod nimi i opis od GM-a, schowany za małą strzałką w prawym górnym rogu kafelka: strzałka (**Czytaj dalej**) rozwija opis nad zdjęciem, a obrócona do góry (**Zwiń opis**) zwija go z powrotem. Kliknij zdjęcie, by zobaczyć je w dużym rozmiarze, tylko na swoim ekranie. Podczas Class Trialu kafelek pokazuje salę rozpraw: nazwę, zdjęcie i opis od GM-a albo "Class Trial". Na wąskim ekranie jest jednym wierszem stosu: małe zdjęcie (kliknij, by zobaczyć duże), nazwa, Search Tokens i przycisk **Opis**, który otwiera opis w oknie. Gdy tę samą postać ma dwóch graczy, kafelek na ekranie jednego z nich może nadążyć za ruchem przez kilka punktów trasy mniej więcej półtorej sekundy później.
+- **Kafelek pokoju** stoi pod zegarem - albo, gdy ekran nie zostawia tam miejsca, na prawo od powiadomień - i pokazuje pokój, w którym stoi twoja własna postać, nigdy inny: jego nazwę, jego Search Tokens z liczbą przeszukań, które zostały (**2/3 przeszukań**), **Możesz tu pracować nad projektem**, gdy jest w nim projekt, nad którym możesz pracować, zdjęcie pokoju od GM-a pod nimi i opis od GM-a, schowany za małą strzałką w prawym górnym rogu kafelka: strzałka (**Czytaj dalej**) rozwija opis nad zdjęciem, a obrócona do góry (**Zwiń opis**) zwija go z powrotem. Kliknij zdjęcie, by zobaczyć je w dużym rozmiarze, tylko na swoim ekranie. Podczas Class Trial kafelek pokazuje salę rozpraw: nazwę, zdjęcie i opis od GM-a albo "Class Trial". Na wąskim ekranie jest jednym wierszem stosu: małe zdjęcie (kliknij, by zobaczyć duże), nazwa, Search Tokens i przycisk **Opis**, który otwiera opis w oknie. Gdy tę samą postać ma dwóch graczy, kafelek na ekranie jednego z nich może nadążyć za ruchem przez kilka punktów trasy mniej więcej półtorej sekundy później.
 - Zegar w lewej kolumnie da się kliknąć: tłumaczy fazę, porę dnia, gdzie jesteś, i wypisuje opis pokoju, jeśli GM go napisał.
 - Karta innego gracza otwiera się ocenzurowana: imię, portret, Ultimate, Health (i ? w miejscu Sanity), to, co trzyma w rękach, i ile ma doświadczeń. Nic więcej. Hope i Sanity innego ucznia to '?', bez maksimum.
 
@@ -458,7 +458,7 @@ Despair zdobyty ponad pełną pulę nie znika - zbiera się w jednym wspólnym l
 **Wytrzymałość:** każdy rzut z Despair wykonany z użyciem narzędzia kosztuje je jeden punkt, niezależnie od tego, czy praca się udała. Na zerze jest **Zepsute**. Narzędzie albo broń **Tier 0** jest **jednorazowe**: psuje je pierwszy rzut, w którym go użyjesz, jakkolwiek by wypadł - z Hope, z Despair albo krytyk - a jego wiersz mówi "Jednorazowy" zamiast pokazywać kropki. Zużyty użytkowy też jest Zepsuty.
 
 > [!WARNING]
-> Zepsuty przedmiot zostaje w ekwipunku, na swoim miejscu, bezużyteczny - i wciąż jest dowodem. Dwa wyjścia: **wyrzuć** (rzut na Shadow decyduje, jak widoczny będzie ślad, a ślad zostaje w pokoju) albo schowaj w **skrytce**. Nie w czasie Class Trialu: przycisk jest tam wyszarzony, a jego podpowiedź mówi *W czasie Class Trialu nie można niczego wyrzucić.*
+> Zepsuty przedmiot zostaje w ekwipunku, na swoim miejscu, bezużyteczny - i wciąż jest dowodem. Dwa wyjścia: **wyrzuć** (rzut na Shadow decyduje, jak widoczny będzie ślad, a ślad zostaje w pokoju) albo schowaj w **skrytce**. Nie w czasie Class Trial: przycisk jest tam wyszarzony, a jego podpowiedź mówi *W czasie Class Trial nie można niczego wyrzucić.*
 
 ### Kategorie i ile nosisz
 
@@ -520,7 +520,7 @@ Karta Truth Bulleta pokazuje:
 - pokój, w którym go podniosłeś,
 - "Analiza na nic", gdy twoja analiza się na nim w tym rozdziale nie powiodła.
 
-Pakiet możesz grupować według Rozdziału albo Lokacji. Truth Bullet to jedyna rzecz, którą możesz przedstawić w Class Trialu.
+Pakiet możesz grupować według Rozdziału albo Lokacji. Truth Bullet to jedyna rzecz, którą możesz przedstawić w Class Trial.
 
 Karta nie pozwala zmienić nazwy, obrazka ani opisu przedmiotu: to, jak rzecz się nazywa, jest częścią dowodu. Zmiana zrobiona mimo to zostaje i jest zapisywana dla GM-ów - poza Truth Bulletem, na którym zostaje cofnięta.
 
@@ -682,7 +682,7 @@ Dopóki ktoś nie znajdzie ciała, śmierć trzymają GMowie: stół się nie do
 - GM-owie przygotowali do tej sprawy **Key Remnants** - najwyżej pięć, nigdy mniej niż trzy, i im lepiej poszedł rzut otwarcia zabójcy, tym jest ich mniej. Razem zawężają podejrzanych do dwóch do czterech osób; trop zawęża krąg, nigdy nie wskazuje nazwiska.
 - **Ciało** można przeszukać: otwórz arkusz zmarłego ucznia, zaznacz, co mieli przy sobie, i wciśnij *Weź zaznaczone* (albo *Weź* przy jednej rzeczy). To nie kosztuje akcji. Rzucasz **Hand** raz na to, co bierzesz, za każdym razem, gdy bierzesz - liczy się tylko pierwszy rzut wykonany na dane zabranie, a zabranie odrzucone, bo wyszedłeś z pokoju, zachowuje swój rzut na następną próbę: im niższy wynik, tym łatwiej znaleźć ślad, który zostawiasz - poniżej 12 łatwo, od 12 do 17 trudniej, od 18 albo przy krytyku najtrudniej. Gdy ktoś jeszcze jest w pokoju - tak, jak czyta to strona GM-ów, która może policzyć kogoś, kogo twój ekran nie pokazuje - rzucasz też **Shadow** przeciw **16**, żeby nikt nie zauważył: chybienie mówi pozostałym w pokoju i GM-om, że przeszukałeś kieszenie ciała - przy Despair także, co zabrałeś - i nie kosztuje Sanity. Dostajesz samą rzecz, a do tego Truth Bullet zapisujący, co wziąłeś i od kogo - a na ciele zostaje jeden ślad, że ktoś przeszedł przez kieszenie, ile by rzeczy z niego nie wyszło; kolejne zabrania mogą ten ślad uczynić łatwiejszym do znalezienia, nigdy trudniejszym.
 - Śledczy i zabójcy jednakowo mogą użyć **Tamper**. Zbyt czysta plama to dowód sprzątania.
-- Key Remnant, którego nikt nie znajdzie, kosztuje Despair (niżej), a w Class Trialu Monokuma może go ujawnić wszystkim uczestnikom jako znaleziony - z rodzajem i tekstem, do Analyze jak zwykle.
+- Key Remnant, którego nikt nie znajdzie, kosztuje Despair (niżej), a w Class Trial Monokuma może go ujawnić wszystkim uczestnikom jako znaleziony - z rodzajem i tekstem, do Analyze jak zwykle.
 
 > [!WARNING]
 > Każdy Key Remnant poniżej czterech, którego nie znajdziecie, jest wart **3 Despair** dla każdego Monokumy - poniżej liczby Key Remnants sprawy, gdy ma ich mniej niż cztery, więc sprawa trzech znalezionych w całości nie kosztuje nic. Za znaleziony liczy się tylko ten, który ma żyjący uczeń.
@@ -817,13 +817,13 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 
 ## 16. Wskazówki do interfejsu
 
-**HUD** (lewa kolumna): nazwa kampanii, rozdział, dzień, faza i pora dnia, ile minut gry ma już ta pora dnia (pauza, przeładowanie i przerwa między sesjami nic nie dodają; podczas Eclipse tej linii nie ma) i pasek utworu: biegnie po nim tytuł utworu, który słyszysz, a gdy nic nie gra, zostaje pustą linią, więc zegar nie zmienia wysokości (od 1.2.101); pokój, w którym stoisz, jest na kafelku pokoju pod nim (rozdział 3). Podczas Class Trialu zamiast pory dnia pokazuje tylko tryb (Dyskusja, Debata, Objection albo Rebuttal); linia minut znika, a to, kto ma głos, widać na panelu zdarzeń. Gdy gra stoi na pauzie, na każdym ekranie w miejscu nazwy kampanii stoi **Wstrzymano**, dopóki gra nie ruszy; własny napis Foundry na środku ekranu i przygaszenie zostają. Podczas Eclipse linia fazy podaje jego nazwę, na przykład *Eclipse (Noc)*. Kliknij, by dostać wyjaśnienie, gdzie jesteśmy, i opis twojego pokoju.
+**HUD** (lewa kolumna): nazwa kampanii, rozdział, dzień, faza i pora dnia, ile minut gry ma już ta pora dnia (pauza, przeładowanie i przerwa między sesjami nic nie dodają; podczas Eclipse tej linii nie ma) i pasek utworu: biegnie po nim tytuł utworu, który słyszysz, a gdy nic nie gra, zostaje pustą linią, więc zegar nie zmienia wysokości (od 1.2.101); pokój, w którym stoisz, jest na kafelku pokoju pod nim (rozdział 3). Podczas Class Trial zamiast pory dnia pokazuje tylko tryb (Dyskusja, Debata, Objection albo Rebuttal); linia minut znika, a to, kto ma głos, widać na panelu zdarzeń. Gdy gra stoi na pauzie, na każdym ekranie w miejscu nazwy kampanii stoi **Wstrzymano**, dopóki gra nie ruszy; własny napis Foundry na środku ekranu i przygaszenie zostają. Podczas Eclipse linia fazy podaje jego nazwę, na przykład *Eclipse (Noc)*. Kliknij, by dostać wyjaśnienie, gdzie jesteśmy, i opis twojego pokoju.
 
 **Przyciski Foundry** nie stoją na ekranie gracza: nie ma paska sterowania sceną po lewej, tak jak nie ma paska bocznego. Swój token zaznaczasz i przeciągasz jak dotąd, a moduł nie zmienia żadnego skrótu klawiszowego Foundry; z paskiem odchodzi rysowanie, notatki na mapie i przycisk celowania.
 
 **Pasek tytułu okna**: dwukrotne kliknięcie zwija okno do paska tytułu, a kolejne rozwija je z powrotem, jak wszędzie w Foundry (od 1.2.99; wcześniej moduł blokował ten gest w każdym oknie). Zwinięte okno zachowuje to, co w nim było, a przycisk, który je otworzył, rozwija je z powrotem. Krótkie okno z jednym pytaniem, na przykład potwierdzenie, się nie zwija. Okno, które czeka na twoją odpowiedź - rzut, Observe, deklaracja akcji, głosowanie, Level Up, pytania Class Trial - zostaje nad arkuszem postaci, także gdy klikniesz arkusz albo gdy on się przerysuje (od 1.2.101); pozostałe okna wychodzą na wierzch tak, jak wyciąga je Foundry.
 
-**Panel zdarzeń** (pod wierszami Despair): to, co dzieje się teraz - Motive z odliczaniem i ceną zignorowania, zwołane zgromadzenie, trwające zaciemnienie, znalezione ciało, tryb Class Trialu, mówca i pozostały czas, otwarte głosowanie, zatrzymana scena. Karty samego morderstwa widzą tylko jego uczestnicy. Panel ma jeden rozmiar, cokolwiek pokazuje; karta dłuższa od niego przewija się w środku (od 1.2.101).
+**Panel zdarzeń** (pod wierszami Despair): to, co dzieje się teraz - Motive z odliczaniem i ceną zignorowania, zwołane zgromadzenie, trwające zaciemnienie, znalezione ciało, tryb Class Trial, mówca i pozostały czas, otwarte głosowanie, zatrzymana scena. Karty samego morderstwa widzą tylko jego uczestnicy. Panel ma jeden rozmiar, cokolwiek pokazuje; karta dłuższa od niego przewija się w środku (od 1.2.101).
 
 **Pasek stanu** (po prawej, nad zasobnikiem projektów): pozostałe akcje, czy Free Move wciąż jest, twój Hope i przejścia Eclipse, gdy trwa - stopa za każde pozostałe przejście albo, gdy możesz wybrać dowolny pokój, jedna pełna stopa, która zostaje dostępna; akcje Monocuba mówią wtedy *Tylko ustawianie.* Pasek martwego ucznia to jeden wiersz: **Nie żyje**. To, co masz w zapasie ze Sprint albo Burst, widać na arkuszu, w linii nad siatką akcji. Kliknij pasek, by dostać wyjaśnienie.
 
