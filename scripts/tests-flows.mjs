@@ -127,7 +127,7 @@ export const FLOWS = Object.freeze([
     { id: "crossing-fee-refund", what: "A token sent back to where it stood, and the crossing it paid for handed back",
         entry: { bridge: ["token.sendBack", "token.refundCrossing"] }, scenarios: ["30-security", "33-bridge-paths", "88-flow-length"], status: "partial", stage: "E39" },
     // E92 C3 (12.11.2026): a Spectator's ghost move (`spectator.move`), written on the primary through any wall. 33 and 92
-    // (C7) drive the legal road, 30 a student's forgery of it (another's token, its own, its own with a forged flag); partial until its
+    // (C7) drive the legal road, 30 a student's forged packet of it (another's token, its own, its own with a forged flag); partial until its
     // release names it (covered names the release it arrived in).
     { id: "spectator-move", what: "A Spectator's token moved where its player asks, through any wall, at no price, finding no room",
         entry: { bridge: ["spectator.move"] }, scenarios: ["30-security", "33-bridge-paths", "92-spectator"], status: "partial", stage: "E92" },
