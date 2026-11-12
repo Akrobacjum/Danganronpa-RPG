@@ -90842,6 +90842,148 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         }), JSON.stringify({ mood: [mood, true], added: [], numbers: [], hits: 0 }),
             "[the clock's mood, one of the three words; a field the write added beside the word; a field holding an input or the share; what the world-secrets rule finds]");
     }],
+    ["E110 day boards A - the curtain clock's Morning Eclipse ends on the end-of-day board (eclipse.mjs `startEclipse`, `endEclipse`; transitions.mjs `onClockHeard`; the owner's report at a real table on 1.2.109): at Night the Morning Eclipse is opened and ended with the advance, as the clock's right chevron and the panel's Eclipse button do; the clock lands on the next morning stamped for its boards, and this browser plays the end-of-day board of the day that ended", async () => {
+        /*
+         * 12.11.2026. The owner, at a real table on 1.2.109: the boards never played on the curtain clock. Its road is
+         * `endEclipse({ advance: true })`, one write of the Eclipse's end, the morning and the day + 1, which
+         * transitions.mjs read as the Eclipse's turn alone. Driven on this GM with the game's own calls, the day put at a
+         * number no other test plays (the sequence engine starts one board per event); the board read as it starts, then
+         * cut, so it hands on to nothing. Put back: the clock, every character's actions, the Eclipse's moves, the seals,
+         * the restrictions, the motive, the search tokens, the body's record, the round and the table's switch; the day's
+         * popups dismissed. Red at 1ff4bc77: no board.
+         */
+        needs(env.primaryGm(), "an Eclipse is started and ended on the primary GM");
+        const E = await import("./eclipse.mjs"), Q = await import("./sequence.mjs"), S = await import("./gm-stores.mjs");
+        const { actingStudents } = await import("./monokuma.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        must(!murderState() && !bodyDiscovery(), "an incident or a body's hold is open - no Eclipse starts there, and this would measure nothing");
+        const was = foundry.utils.deepClone(getClock());
+        const characters = game.actors.filter(a => a.type === "character");
+        const actionsWas = characters.map(a => [a, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]);
+        const rowsWas = new Map(actingStudents().map(a => [a.id, foundry.utils.deepClone(S.eclipseMoveStore.get(a.id) ?? null)]));
+        const settingsWas = Object.fromEntries(["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound", "readyRound", "sequences"]
+            .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS[key]) ?? null)]));
+        const popupsWas = new Set(document.querySelectorAll(".drpg-popup"));
+        const dismiss = () => {
+            for (const card of document.querySelectorAll(".drpg-popup")) {
+                if (!popupsWas.has(card)) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            }
+        };
+        const day = 8000 + Math.floor(Math.random() * 999);
+        const read = {};
+        let key = null;
+        try {
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            if (settingsWas.sequences === false) await game.settings.set(MODULE_ID, SETTINGS.sequences, true);
+            Q.endSequence("cut");
+            await setClock({ phase: "dailyLife", timeOfDay: "night", day, refilledFor: null });
+            await settle();
+            // the jump to the test's day is a move of its own, and whatever it played is not this test's
+            Q.endSequence("cut");
+            const night = getClock();
+            key = `dayEnd:${night.season ?? ""}:${day}:${night.session ?? ""}`;
+            await E.startEclipse();
+            await settle();
+            read.dark = [isEclipse(), getClock().timeOfDay, getClock().day];
+            await E.endEclipse({ advance: true });
+            await until(() => Q.sequenceNow()?.kind === "dayEnd", 6000).catch(() => {});
+            read.board = Q.sequenceNow()?.key ?? null;
+            read.started = Q.sequenceStarted("dayEnd", key);
+            const now = getClock();
+            read.clock = [now.eclipse === true, now.timeOfDay, now.day, now.dayBoard ?? null];
+            Q.endSequence("cut");
+        } finally {
+            Q.endSequence("cut");
+            dismiss();
+            if (isEclipse()) await E.endEclipse({ advance: false });
+            await setClock(was);
+            for (const [actor, value, max] of actionsWas) {
+                await actor.update({ "system.resources.actions.value": value, ...(max === null ? {} : { "system.resources.actions.max": max }) });
+            }
+            for (const [id, row] of rowsWas) {
+                if (row) await S.eclipseMoveStore.patch(id, row);
+                else await S.eclipseMoveStore.drop(id);
+            }
+            for (const [k, value] of Object.entries(settingsWas)) if (value !== null) await game.settings.set(MODULE_ID, SETTINGS[k], value);
+            await settle();
+            Q.endSequence("cut");
+            dismiss();
+        }
+        equal(stableJson(read), stableJson({ dark: [true, "night", day], board: key, started: true, clock: [false, "morning", day + 1, day + 1] }),
+            "[the Eclipse open at Night on the day; the board playing as the Eclipse ended; this browser started the ended day's board; the clock after: [Eclipse, time of day, day, the boards' stamp]]");
+    }],
+    ["E110 day boards B - a day moved in Edit campaign plays no board, and Next time of day from Night still does (gm-campaign.mjs `applyCampaignForm`; clock.mjs `advanceTimeOfDay`, `setClock`; the owner's rule of 12.11.2026: the boards play on the clock on the curtain, on the GM panel's Next time of day and on the chapter end with the next morning, and never on Edit campaign - a correction): the day + 1 at the same hour and Night to Morning with the day + 1, each through Edit campaign's Apply, start no board; Next time of day from Night starts the end-of-day board", async () => {
+        /*
+         * 12.11.2026. Driven on this GM: the clock put at a day no other test plays, then Edit campaign's Apply as its
+         * window hands it on (`applyCampaignForm` with `readClockForm`'s fields, the refill box off), twice; then the clock
+         * at Night and the advance the panel's Next time of day runs after its round (`advanceTimeOfDay`, the search tokens
+         * and the card left alone). Each board is read by the event it would start (`sequenceStarted`). Put back as "E110
+         * day boards A" puts back. Red at 1ff4bc77: both of Edit campaign's moves played the boards.
+         */
+        needs(env.primaryGm(), "the clock is moved on the primary GM");
+        const C = await import("./clock.mjs"), G = await import("./gm-campaign.mjs"), Q = await import("./sequence.mjs");
+        const { murderState } = await import("./murder.mjs");
+        const { isEclipse, bodyDiscovery } = await import("./settings.mjs");
+        must(!murderState() && !bodyDiscovery() && !isEclipse(), "an incident, a body's hold or an Eclipse is open - this would measure something else");
+        const was = foundry.utils.deepClone(getClock());
+        const characters = game.actors.filter(a => a.type === "character");
+        const actionsWas = characters.map(a => [a, a.system?.resources?.actions?.value ?? null, a.system?.resources?.actions?.max ?? null]);
+        const settingsWas = Object.fromEntries(["sealedRooms", "restrictions", "motive", "searchTokens", "bodyFound", "readyRound", "sequences"]
+            .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS[key]) ?? null)]));
+        const popupsWas = new Set(document.querySelectorAll(".drpg-popup"));
+        const dismiss = () => {
+            for (const card of document.querySelectorAll(".drpg-popup")) {
+                if (!popupsWas.has(card)) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            }
+        };
+        const day = 8000 + Math.floor(Math.random() * 999);
+        const keyOf = c => `dayEnd:${c.season ?? ""}:${c.day}:${c.session ?? ""}`;
+        const form = patch => { const c = getClock(); return { campaignName: c.campaignName ?? "", chapter: Number(c.chapter) || 1, day: Number(c.day) || 1,
+            phase: c.phase, session: Number(c.session) || 1, timeOfDay: c.timeOfDay, reset: false, ...patch }; };
+        const quiet = () => new Promise(r => setTimeout(r, 1500));
+        const read = {};
+        try {
+            if (settingsWas.sequences === false) await game.settings.set(MODULE_ID, SETTINGS.sequences, true);
+            Q.endSequence("cut");
+            await setClock({ phase: "dailyLife", timeOfDay: "noon", day, refilledFor: null });
+            await settle();
+            // the jump to the test's day is a move of its own, and whatever it played is not this test's
+            Q.endSequence("cut");
+            const noon = getClock();
+            await G.applyCampaignForm(form({ day: day + 1 }));
+            await settle(); await quiet();
+            read.editDay = [getClock().day, Q.sequenceNow()?.kind ?? null, Q.sequenceStarted("dayEnd", keyOf(noon))];
+            await setClock({ timeOfDay: "night" });
+            await settle();
+            const night = getClock();
+            await G.applyCampaignForm(form({ day: day + 2, timeOfDay: "morning" }));
+            await settle(); await quiet();
+            read.editMorning = [getClock().day, getClock().timeOfDay, Q.sequenceNow()?.kind ?? null, Q.sequenceStarted("dayEnd", keyOf(night))];
+            Q.endSequence("cut");
+            await setClock({ timeOfDay: "night" });
+            await settle();
+            const last = getClock();
+            await C.advanceTimeOfDay({ resetSearchTokens: false, announce: false });
+            await until(() => Q.sequenceNow()?.kind === "dayEnd", 6000).catch(() => {});
+            read.next = [getClock().day, getClock().timeOfDay, Q.sequenceNow()?.key ?? null, keyOf(last)];
+            Q.endSequence("cut");
+        } finally {
+            Q.endSequence("cut");
+            dismiss();
+            await setClock(was);
+            for (const [actor, value, max] of actionsWas) {
+                await actor.update({ "system.resources.actions.value": value, ...(max === null ? {} : { "system.resources.actions.max": max }) });
+            }
+            for (const [k, value] of Object.entries(settingsWas)) if (value !== null) await game.settings.set(MODULE_ID, SETTINGS[k], value);
+            await settle();
+            Q.endSequence("cut");
+            dismiss();
+        }
+        equal(stableJson({ ...read, next: read.next ? [read.next[0], read.next[1], read.next[2] === read.next[3]] : null }),
+            stableJson({ editDay: [day + 1, null, false], editMorning: [day + 2, "morning", null, false], next: [day + 3, "morning", true] }),
+            "[Edit campaign's day + 1: [the day, the sequence playing, the ended day's board started]; Edit campaign's Night to Morning with the day + 1: [the day, the time of day, the sequence, the board started]; Next from Night: [the day, the time of day, the ended day's board playing]]");
+    }],
     ["the character settings window keeps a hidden field's value through a save (E49; dh-settings.mjs, R3550-R3552; the owner's rule: hidden, never deleted): on a character of the suite's own holding Scars 2, Proficiency 3 and Max Evasion Increase 1, Daggerheart's window drawn from its source and dressed, a statistic changed in it and the form saved as the window saves it (its data the actor's update) leaves the three as they were and the statistic changed", async () => {
         /*
          * E49, 11.11.2026. Daggerheart's window submits the whole form on every change; its data goes to `actor.update`

@@ -161,6 +161,15 @@ export async function setClock(patch = {}) {
         if (patch.day !== undefined && Number(patch.day) !== Number(before.day) && patch.dayStartedAt === undefined) {
             next.dayStartedAt = next.timeOfDayStartedAt ?? serverNow();
         }
+        /* AND THE DAY'S BOARDS ARE THE ROLL-OVER'S ALONE (12.11.2026; the owner's rule of that day: never on Edit campaign,
+           a correction). `dayBoard` is the day a real roll-over stamped for its boards (sequence.mjs `dayStartPatch`,
+           chapter.mjs's next morning), and transitions.mjs `boardsFor` plays them only on a new day that carries it. Any
+           other write that moves the day - Edit campaign, the rewind, the season's reset, a console's `setClock` - takes
+           it away, so a day put back and moved forward again by hand cannot find an old stamp that matches. Tier 2
+           "E110 day boards B". */
+        if (patch.day !== undefined && Number(patch.day) !== Number(before.day) && patch.dayBoard === undefined) {
+            next.dayBoard = null;
+        }
         /* WHEN THE CLOCK WAS LAST WRITTEN (E17 fix p2-G1, 26.10.2026): a moment a GM was at the table, which every GM's
            `ready` can read (settings.mjs `DEFAULT_CLOCK.writtenAt`, hud-elapsed.mjs `readyPatch`); `patch` wins, so a restored
            clock keeps its own. */
@@ -351,7 +360,8 @@ export async function advanceTimeOfDay({
         try { draft = String(game.settings.get(MODULE_ID, SETTINGS.morningLineDraft) ?? ""); } catch { draft = ""; }
         try { mood = seq.moodBand(await seq.moodInputs()); } catch { mood = null; }
     }
-    const dayPatch = seq.dayStartPatch({ rolledOver, draft, mood, before });
+    // the new day as the boards' stamp (`dayBoard`, 12.11.2026): this roll-over plays the day's boards, a correction does not
+    const dayPatch = seq.dayStartPatch({ rolledOver, draft, mood, before, day });
     const next = await setClock({ ...also, ...dayPatch, timeOfDay, session, day,
         refilledFor: resetActions ? stamp : (before.refilledFor ?? null),
         lastAdvance: boundaryMemory(before, stamp, snapshot) });

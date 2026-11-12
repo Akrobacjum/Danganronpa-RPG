@@ -68,15 +68,19 @@ const hourIndex = h => HOURS.indexOf(h);
 export function transitionFor(before, after) {
     if (!before || !after) return null;
     const ecl = b => b?.eclipse === true;
+    const day = c => Number(c?.day) || 0;
     if (!ecl(before) && ecl(after)) return { kind: "eclipseIn", how: "centre", dur: 1400 };
-    if (ecl(before) && !ecl(after)) return { kind: "eclipseOut", how: "inward", dur: 1400 };
+    /* THE MORNING ECLIPSE'S END IS A NEW DAY TOO (12.11.2026; the owner's report at a real table on 1.2.109). The curtain
+       clock's right chevron and the panel's Eclipse button end it with the advance (eclipse.mjs `endEclipse`): one write
+       of the Eclipse's end, the morning and the day + 1. Answered here before the day was read, it never named the new
+       day, and the boards never played on that road (R3989). The turn stays the Eclipse's; `newDay` says the day moved. */
+    if (ecl(before) && !ecl(after)) return { kind: "eclipseOut", how: "inward", dur: 1400, newDay: day(after) > day(before) };
     if (before.phase !== after.phase) {
         if (after.phase === "classTrial") return { kind: "trialEntry", owner: "E61" };
         if (after.phase === "investigation") return { kind: "investigation", how: "random", groups: INVESTIGATION_ONSETS.length, delays: [...INVESTIGATION_ONSETS], dur: 2800, flashes: [...INVESTIGATION_ONSETS] };
         if (before.phase === "classTrial") return { kind: "trialExit", how: "centre" };
         return { kind: "phase", how: "centre" };
     }
-    const day = c => Number(c?.day) || 0;
     if (before.timeOfDay !== after.timeOfDay || day(before) !== day(after)) {
         const back = day(after) < day(before) || (day(after) === day(before) && hourIndex(after.timeOfDay) < hourIndex(before.timeOfDay));
         const newDay = day(after) > day(before);
@@ -107,6 +111,20 @@ function playFlashSound() {
 }
 
 /**
+ * Whether the move `t` (`transitionFor`'s) to `clock` plays the day's boards (12.11.2026; the owner's rule of that day:
+ * on the clock on the curtain, on the GM panel's Next time of day and on the chapter end with the next morning, never on
+ * Edit campaign, which is a correction). A new day - Next from Night, or the Morning Eclipse's end - whose clock carries
+ * the boards' stamp on that very day (`dayBoard`): written by the real roll-over alone (clock.mjs `advanceTimeOfDay`
+ * through sequence.mjs `dayStartPatch`) and by the chapter end's next morning, and taken away by any other write that
+ * moves the day (clock.mjs `setClock`). So Edit campaign's day + 1 is silent, and a stamp left from an older day plays
+ * nothing. Pure.
+ */
+function boardsFor(t, clock) {
+    const newDay = t?.kind === "newDay" || t?.newDay === true;
+    return Boolean(newDay && clock && clock.dayBoard != null && Number(clock.dayBoard) === Number(clock.day));
+}
+
+/**
  * The clock this page sees moved from `seen` to `clock` (E62 C1): hand the curtain its direction, schedule the flashes
  * and their sounds, hold Escape for the length. Answers the transition or null. `on` is the table's switch as read now.
  */
@@ -119,8 +137,8 @@ export function onClockHeard(clock, { on = sequencesOn(), still = reducedMotion(
     count("transition.heard");
     // a new day is a session (E94): the end-of-day board of the day that ended, then the start-of-day board of the new
     // one, over the curtain's turn, still under reduced motion (C2, C3)
-    if (t.kind === "newDay" && on && before) playDayEnd(before, clock, { on, keep, then: () => playDayStart(clock, { on }).catch(() => null) }).catch(() => null);
-    else if (t.kind === "newDay" && on) playDayStart(clock, { on }).catch(() => null);
+    if (boardsFor(t, clock) && on && before) playDayEnd(before, clock, { on, keep, then: () => playDayStart(clock, { on }).catch(() => null) }).catch(() => null);
+    else if (boardsFor(t, clock) && on) playDayStart(clock, { on }).catch(() => null);
     if (!on || still) return t;
     seed = (seed * 1103515245 + 12345) >>> 0;
     import("./glass.mjs").then(g => g.hintTurn?.({ how: t.how, seed, groups: t.groups, delays: t.delays, dur: t.dur })).catch(() => null);

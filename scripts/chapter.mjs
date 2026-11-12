@@ -2431,10 +2431,11 @@ export const CHAPTER_END_STEPS = [
         const { morning } = endMoves(ending, choices, getClock());
         if (!morning) return null;
         const { setTimeOfDay } = await import("./clock.mjs");
-        // One write for the day and the hour: each write is a full redraw on every client (CORE-12).
+        // One write for the day and the hour: each write is a full redraw on every client (CORE-12). Stamped for the
+        // day's boards (`dayBoard`; the owner's answer of 12.11.2026: the boards play after the trial's exit here).
         await setTimeOfDay("morning", {
             resetActions: true, resetSearchTokens: true, announce: true,
-            also: { day: morning.day }
+            also: { day: morning.day, dayBoard: morning.day }
         });
         return game.i18n.format("DRPG.Chapter.doneNextMorning", { day: getClock().day });
     } },

@@ -1145,6 +1145,16 @@ export const DEFAULT_CLOCK = {
      */
     morningLine: null,
     /**
+     * THE DAY'S BOARDS' STAMP, or null (12.11.2026; the owner's report at a real table on 1.2.109 and their rule of that
+     * day): the day a real roll-over moved the clock to - Next time of day, the Morning Eclipse's end (clock.mjs
+     * `advanceTimeOfDay` through sequence.mjs `dayStartPatch`) - or the chapter end's next morning (chapter.mjs), and
+     * nothing else's. The end-of-day and start-of-day boards play on a new day that carries it (transitions.mjs
+     * `boardsFor`); a write that moves the day without naming it takes it away (clock.mjs `setClock`), so Edit campaign's
+     * correction is silent. Named here so tier 2's restore of a whole clock writes it back (see `dayStartedAt`). Public:
+     * a day number, on the HUD already.
+     */
+    dayBoard: null,
+    /**
      * When the last Class Trial ended (`serverNow()`), or `null` before any has. Written by
      * `setClock` on the trial's exit edge, whichever door left it; read with a discovery's stamp
      * (`bodyFoundSinceTrial`) so a chapter's second Investigation is not the first trial's body.
