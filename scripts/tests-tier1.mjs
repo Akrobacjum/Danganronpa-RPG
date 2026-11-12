@@ -43196,7 +43196,7 @@ const INVARIANTS = [
         const K = await import("./ui-kit.mjs");
         const KINDS = {
             bedrooms: ["room", "select"], doors: ["room", "check", "check", "check", "check", "text"],
-            search: ["room", "check", "step", "select", "place"], rest: ["room", "check", "check"],
+            search: ["room", "check", "step", "select", "place"], rest: ["room", "check", "check", "step"] /* E93 C2: the room actions' count */,
             stashes: null, description: ["room", "prose", "picture"], fog: null
         };
         const students = studentActors();
@@ -46978,6 +46978,38 @@ const INVARIANTS = [
                 '{"lockdown":false,"powercut":false}', '{"lockdown":false,"powercut":true}', '{"lockdown":false,"powercut":false}', '{"lockdown":false,"powercut":false}'],
             toll: [2, 0, 0], rest: [true, false, false], jitters: [-1, 0, 0], said: [true, true]
         }), "{catalogue: [kind, on, by] per state; states: the shut per drawn key; toll; rest: Short rest barred; jitters: the die; said: EN, PL names and lines} - the five Overflow states and their readers");
+    }],
+    ["R3754 - Room Setup's Rest tab is the Facilities tab and edits a room's actions (scripts/room-setup.mjs `ROOM_SETUP_TABS`, `wireFacilityButtons`; facility-editor.mjs `roomActionsBody`, `readRoomActions`, `projectFacilityBody`, `readProjectFacility`; E93 C2, the owner's audit entry E93 (1), (2), (4) and the 08.11 switch): the tab is named Facilities and holds, beside the two rest columns, a column of each room's action count with its edit button; a room's editor draws its actions and two blank rows and reads back what the GM typed; a project's editor reads its name, effects, switch and lifetime", async () => {
+        /*
+         * E93 C2, 12.11.2026. Read on Room Setup's window as this GM draws it (`roomSetupDrawn`, which stubs the window's
+         * wait), and on the editors' bodies parsed here: nothing is written.
+         */
+        needs(world.atLeast("namedRooms", 1), "Room Setup lists a room");
+        const { ROOM_SETUP_TABS } = await import("./room-setup.mjs");
+        const E = await import("./facility-editor.mjs");
+        const { cfg, pane } = await roomSetupDrawn();
+        const rest = pane("rest");
+        const heads = rest ? [...rest.querySelectorAll("th")].map(th => th.textContent.trim()) : [];
+        const parse = html => { const d = document.createElement("div"); d.innerHTML = html; return d.querySelector(".drpg-facility-editor"); };
+        const room = parse(E.roomActionsBody("R3754 Kitchen", [{ id: "R3754a", label: "Tea", trait: "head", dc: 14, effects: [{ kind: "sanity", n: 2, scope: "present" }] }]));
+        const set = (form, name, value) => { const el = form.querySelector(`[name="${CSS.escape(name)}"]`); if (el) el.value = value; };
+        set(room, "a1.label", "Radio"); set(room, "a1.e0.kind", "text"); set(room, "a1.e0.text", "A song plays.");
+        const project = parse(E.projectFacilityBody({ name: "R3754 Soup" }, { label: "Soup", effects: [{ kind: "health", n: 1 }], costsAction: false, lifetime: { kind: "days", n: 1 } }));
+        const read = {
+            tab: ROOM_SETUP_TABS.find(([key]) => key === "rest")?.[1] ?? null,
+            label: game.i18n.localize("DRPG.Vault.tabFacilities"),
+            column: heads.includes(game.i18n.localize("DRPG.Facility.roomColumn")),
+            buttons: rest ? rest.querySelectorAll("button[data-drpg-facility-edit]").length > 0 : false,
+            counts: rest ? rest.querySelectorAll("[data-drpg-facility-count]").length === rest.querySelectorAll("button[data-drpg-facility-edit]").length : false,
+            rows: room ? room.querySelectorAll('input[name$=".label"]').length : 0,
+            room: room ? E.readRoomActions(room).map(a => [a.id, a.label, a.trait, a.dc, a.effects.map(e => [e.kind, e.n, e.scope, e.text])]) : null,
+            project: project ? E.readProjectFacility(project) : null
+        };
+        equal(stableJson({ ...read, project: read.project && { ...read.project, effects: read.project.effects.map(e => [e.kind, e.n, e.scope]) } }), stableJson({
+            tab: "DRPG.Vault.tabFacilities", label: "Facilities", column: true, buttons: true, counts: true, rows: 3,
+            room: [["R3754a", "Tea", "head", 14, [["sanity", 2, "present", ""]]], [null, "Radio", "eye", 12, [["text", 1, "self", "A song plays."]]], [null, "", "eye", 12, []]],
+            project: { costsAction: false, effects: [["health", 1, "self"]], label: "Soup", lifetime: { kind: "days", n: 1 } }
+        }), `{tab; label; column, buttons, counts on the Facilities tab; rows; room: what the room's editor reads back; project: the project's} - Room Setup's Facilities tab and the two editors (window: ${Boolean(cfg)})`);
     }],
 ];
 

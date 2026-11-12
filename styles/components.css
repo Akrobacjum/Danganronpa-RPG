@@ -3320,3 +3320,14 @@ body:not(.drpg-theme-stained-glass) .application.drpg-ui.drpg-panel.drpg-window-
 body .application.drpg-ui.drpg-panel.drpg-window-settings .drpg-variant-columns .drpg-settings-sections > button.drpg-settings-tab[type="button"] > i { color: inherit; opacity: 1; }
 .drpg-window-settings .drpg-settings-rows > .drpg-settings-row[data-drpg-setting="moveAudit"] { grid-column: 1 / -1; }
 
+
+/* THE ROOM ACTIONS' EDITORS (E93 C2, 12.11.2026; scripts/facility-editor.mjs). One block a room action, its name, statistic
+   and difficulty on one line and each effect on a line of its own: a table drew the four controls of each of four effects
+   in one cell, one under another, a column some 600 px tall at 1366x768 (the stage's first shot). A grid, not a flex row:
+   Monokuma Legacy gives a panel's fields and selects the whole width, which a grid cell holds and a flex row does not
+   (the stage's second shot). */
+.drpg-facility-editor .drpg-facility-action { margin: 0 0 0.75rem; padding: 0.4rem 0.6rem; }
+.drpg-facility-editor .drpg-facility-line { display: grid; grid-template-columns: minmax(8rem, 2fr) minmax(7rem, 1fr) minmax(7rem, 1fr);
+    align-items: center; gap: 0.5rem; margin: 0.25rem 0; }
+.drpg-facility-editor .drpg-facility-effect { grid-template-columns: minmax(8rem, 1fr) minmax(7rem, 8rem) minmax(8rem, 1fr) minmax(10rem, 2fr); }
+.drpg-facility-editor .drpg-facility-line > input[type="hidden"] { display: none; }

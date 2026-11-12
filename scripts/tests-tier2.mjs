@@ -87986,6 +87986,50 @@ const SCENARIOS = [
             failed: [false, 1, true], lockdown: ["actionBlocked", false], rows: [[true, true, true], [true, true, false]] }),
             "{first: [the use's success, Sanity after]; closed; again; noRoll; otherRoll; failed: [success, Sanity, closed]; lockdown: [the code, a use kept]; rows: [its character, its user, success] per use} - a GM's room action once a time of day, on the GMs' roll");
     }],
+    ["E93-T3 - a completed project's action stands in its room for its lifetime and says so (scripts/facilities.mjs `projectActionsAt`, `facilityLineFor`, `setProjectFacility`, projects.mjs COMPLETION_EFFECTS `facility`, action-facilities.mjs `facilityRows`; E93 C1, C4, the owner's audit entry E93 (4) and 05.11 option A): a project given an action before it is completed offers nothing; completed in the character's room it stamps its completion and offers its action in the Facilities window with its time left, and the Projects line names it; at the next time of day a one-time-of-day action is gone; under Power cut it is greyed with the Power cut line; taken off, it is gone", async () => {
+        /*
+         * E93 C4, 12.11.2026. A public project made in the room a connected player's character stands in, completed by the
+         * GM's progress, read on this GM's browser for that character (`facilityRows` asks `locateActor` and `canSee`, which
+         * answer for a GM as for its player here: a public project). The clock is not moved: the next time of day is the
+         * clock handed to the pure readers. Put back: the project, the darkening.
+         */
+        const F = await import("./facilities.mjs");
+        const A = await import("./action-facilities.mjs");
+        const P = await import("./projects.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const { actor, where } = await playerInRoom();
+        const read = {};
+        let id = null, dark = null;
+        try {
+            id = (await P.createProject({ name: "SUITE E93-T3 soup", target: 2, room: where.room }))?.id ?? null;
+            must(id, "no project was made - this would measure nothing");
+            await F.setProjectFacility(id, { label: "SUITE E93-T3 soup", effects: [{ kind: "sanity", n: 1 }], costsAction: false, lifetime: { kind: "timesOfDay", n: 1 } });
+            await settle();
+            const mine = async () => (await A.facilityRows(actor)).filter(r => r.value === `${F.PROJECT_PREFIX}${id}`).map(r => [r.disabled, r.why]);
+            read.before = [(await mine()).length, F.projectFacilityOf(id).completedAt];
+            await P.addProgress(id, 2);
+            await settle();
+            const stamp = F.projectFacilityOf(id).completedAt;
+            read.done = [Boolean(stamp) && stamp.at === F.facilityOrdinal().at, await mine(), F.facilityLineFor(id).includes("SUITE E93-T3 soup")];
+            const clock = getClock();
+            const next = { ...clock, timeOfDay: TIMES_OF_DAY[TIMES_OF_DAY.indexOf(clock.timeOfDay) + 1] ?? clock.timeOfDay, day: TIMES_OF_DAY.indexOf(clock.timeOfDay) + 1 < TIMES_OF_DAY.length ? clock.day : (clock.day ?? 1) + 1 };
+            if (TIMES_OF_DAY.indexOf(clock.timeOfDay) + 1 >= TIMES_OF_DAY.length) next.timeOfDay = TIMES_OF_DAY[0];
+            read.next = [(await F.projectActionsAt(where, game.user, next)).some(r => r.project.id === id), F.facilityLineFor(id, next)];
+            dark = await e93Darkening("powercut");
+            read.powercut = await mine();
+            await dark();
+            await F.setProjectFacility(id, null);
+            await settle();
+            read.off = (await mine()).length;
+        } finally {
+            if (dark) await dark();
+            if (id) await P.deleteProject(id);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ before: [0, null], done: [true, [[false, ""]], true], next: [false, ""],
+            powercut: [[true, game.i18n.localize("DRPG.Facility.shut.powercut")]], off: 0 }),
+            "{before: [rows, stamp] before completion; done: [stamped now, its row, the Projects line names it]; next: [stands at the next time of day, its line]; powercut: its row; off: rows once taken off} - a project's action and its lifetime");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

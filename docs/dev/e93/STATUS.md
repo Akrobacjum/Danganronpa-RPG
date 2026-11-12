@@ -13,7 +13,9 @@ origin/claude/plan-130.
 
 ## In progress
 
-- C2: Room Setup's Facilities tab (the GM's editor for a room's actions; a GM's editor for a project's action).
+- C2 + C4 (one commit): Room Setup's Facilities tab and the room editor, the project editor (project manager's row),
+  the tile's label Facilities, the Projects window's line for a completed project's action, the handbooks (C7's text).
+  R3754 (tier 1), E93-T3 (tier 2); red at the C3 commit, green on the tree.
 
 ## Next
 
@@ -43,6 +45,15 @@ handbooks; screenshots. Then E69, E74.
 - Q-E93-4: Toll raises the room actions only, not the rests.
 - Q-E93-5: "for those present" is read on the GM at the moment of use.
 - Q-E93-6: a GM's action leaves a faint Subtle trace; a project's action and the rests none.
+- The five new Overflow states start unticked (out of the hat): five more in a hat of eight would make each old one
+  drawn little more than half as often at every table that did not ask for them. Owner to say whether they start ticked.
+- A Relief's free Short Rest is not barred by Insomnia (it is a Call paid in Hope).
+- A GM's room action always costs an action (the 08.11 switch is a project's action's alone, Q-E93-1).
+- The tile's hint (`DRPG.Config.ACTIONS.rest.hint`, EN in config.mjs) is the owner's approved text of batch B01a, so it
+  is left as it was: it speaks of the rests only. Owner to say whether it should name the room's actions; the label is
+  "Facilities" in both languages, and the handbooks say the rest.
+- The project manager (the owner's approved card M16) gains one button per row, in the Edit cell after the pen: the
+  project's room action. No new column. Tier 0's R2077 now expects that button's key there. Owner to confirm the place.
 - A secret project's action is kept in the GMs' half while the project is secret, and in this round its insiders are
   not offered it (their browsers do not hold it). Owner to say whether insiders should get it.
 
@@ -59,4 +70,9 @@ None.
 
 ## Shots
 
-None yet.
+Round 1 (12.11, C2 and C4): https://claude.ai/artifact/2Mw3Hb4WstZZ8mLs9DaxdE - the Facilities window (player), Room Setup's
+Facilities tab, the two editors, Despair Flow's Overflow tab (with its five new rows) and the project manager, each in
+Stained Glass and Monokuma Legacy, EN and PL, 1366x768 at scale 2. Drawn by the headless harness and shown in
+audit/style-harness.html in Chromium: not Foundry, no Font Awesome (icons blank), no Foundry window frame. Seen
+there: the rests' sentence "No room on this map is marked for a yet" - an older text with an empty `{kind}`, not this
+stage's; left as it is.

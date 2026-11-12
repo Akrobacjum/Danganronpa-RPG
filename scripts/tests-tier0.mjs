@@ -18031,6 +18031,10 @@ const REGRESSIONS = [
         must(src.size > 50, "the module's sources were not read - this would measure nothing");
         const FIELDS = [
             ["call-pickers.mjs", "timesOfDay", /\[name=timesOfDay\]"\)\??\.value/g],
+            // E93 C2: the room actions' editors - an effect's amount, an action's difficulty, a project's lifetime.
+            ["facility-editor.mjs", "${name}", /value\(`\$\{prefix\}\.e\$\{j\}\.n`\)/g],
+            ["facility-editor.mjs", "${p}.dc", /value\(`a\$\{i\}\.dc`\)/g],
+            ["facility-editor.mjs", "p.n", /value\("p\.n"\)/g],
             // E41 C7a (1.2.97): the Students window's donation and Edit campaign's two fields, in their own files.
             ["gm-campaign.mjs", "chapter", /\bform\.chapter\.value\b/g],
             ["gm-campaign.mjs", "day", /\bform\.day\.value\b/g],
@@ -21898,8 +21902,9 @@ const REGRESSIONS = [
         got.propose.keys = got.propose.keys.filter(k => !PRESET.test(k));
         got.propose.fields = got.propose.fields.filter(f => !["preset", "to", "seal", "unbreach", "mend"].includes(f));
         const want = {
+            // E93 C2: each row's room action button in its Edit cell, after the pen (no column of its own: card M16's columns stand).
             manager: {
-                keys: ["DRPG.Project.manageIntro", "DRPG.Project.visibleTo", "DRPG.Project.title", "DRPG.Project.room", "DRPG.Project.indirect", "DRPG.Project.secret", "DRPG.Project.edit", "DRPG.Project.delete", "DRPG.Project.anyRoom", "DRPG.Project.changeImage", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.indirect", "DRPG.Project.secret", "DRPG.Project.editTitle", "DRPG.Project.delete", "DRPG.Project.everyone", "DRPG.Project.changeImage", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.indirect", "DRPG.Project.secret", "DRPG.Project.editTitle", "DRPG.Project.delete", "DRPG.Project.everyone", "DRPG.Kit.scrollMore", "DRPG.Project.secretNote", "DRPG.Project.deleteNote"],
+                keys: ["DRPG.Project.manageIntro", "DRPG.Project.visibleTo", "DRPG.Project.title", "DRPG.Project.room", "DRPG.Project.indirect", "DRPG.Project.secret", "DRPG.Project.edit", "DRPG.Project.delete", "DRPG.Project.anyRoom", "DRPG.Project.changeImage", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.indirect", "DRPG.Project.secret", "DRPG.Project.editTitle", "DRPG.Facility.editor.projectButton", "DRPG.Project.delete", "DRPG.Project.everyone", "DRPG.Project.changeImage", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.indirect", "DRPG.Project.secret", "DRPG.Project.editTitle", "DRPG.Facility.editor.projectButton", "DRPG.Project.delete", "DRPG.Project.everyone", "DRPG.Kit.scrollMore", "DRPG.Project.secretNote", "DRPG.Project.deleteNote"],
                 fields: ["img.<id>", "room.<id>", "murder.<id>", "secret.<id>", "viewers.<id>", "img.<id>", "room.<id>", "murder.<id>", "secret.<id>", "viewers.<id>"],
                 footer: []
             },

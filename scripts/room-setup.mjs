@@ -40,6 +40,7 @@ import {
 } from "./utils.mjs";
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, box, dataTable, stepper, toggle, iconButton } from "./ui-kit.mjs";
 import { alreadyOpen, keepFresh, RAISED } from "./live.mjs";
+import { roomActions } from "./facilities.mjs";
 import {
     ROOM_FLAG, canBeRoom, namedRegions, playerRegionIds, roomDecided, setRoomFlag, roomNames, roomRegions, flagOver,
     listOver, isTrialScene, homeScene, sceneHoldsRooms
@@ -316,6 +317,12 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
             },
             concealed: check("concealed", isConcealed(room, scene)),
             short: check("short", flagOver(pieces, REST_FLAGS.short)),
+            /* THE ROOM'S ACTIONS (E93 C2): how many, and the button that opens their editor (facility-editor.mjs
+               `editRoomActions`), which writes at once on its Save, as the search token buttons write at once; Apply reads
+               nothing of this cell. Drawn off where no piece of the name may be a room (nothing could hold them). */
+            facilities: `<span class="drpg-facility-cell"><span data-drpg-facility-count="${escRoom}">${roomActions(scene, room).length}</span>
+                ${iconButton({ icon: "fa-solid fa-pen-to-square", label: `${game.i18n.localize("DRPG.Facility.editor.edit")}: ${room}`,
+                    disabled: !possible, attrs: { "data-drpg-facility-edit": room } })}</span>`,
             long: check("long", flagOver(pieces, REST_FLAGS.long)),
             locked: check("locked", flagOver(pieces, ROOM_FLAGS.locked)),
             startlocked: check("startlocked", pieces.some(startLocked),
@@ -378,7 +385,9 @@ export const ROOM_SETUP_TABS = Object.freeze([
     ["doors", "DRPG.Vault.tabDoors"],
     ["passages", "DRPG.Vault.tabPassages"],
     ["search", "DRPG.Vault.tabSearching"],
-    ["rest", "DRPG.Vault.tabRest"],
+    // The Rest tab is the Facilities tab since E93 C2 (the owner's audit entry E93 (1)): the two rest flags and the room's
+    // actions. Its key stays `rest`, as the tile's does.
+    ["rest", "DRPG.Vault.tabFacilities"],
     ["stashes", "DRPG.Vault.tabStashes"],
     ["description", "DRPG.Vault.tabDescription"],
     ["fog", "DRPG.Vault.tabFog"],
@@ -413,7 +422,7 @@ export function roomSetupTab(tab, holdsRooms) {
 const ROOM_SETUP_COLUMN = {
     owner: "select", isroom: "check", locked: "check", startlocked: "check", notshared: "check",
     neighbours: "text", nosearch: "check", tokens: "step", table: "select", place: "place",
-    short: "check", long: "check", description: "prose", image: "picture"
+    short: "check", long: "check", facilities: "step", description: "prose", image: "picture"
 };
 
 /* Each column's heading, by the cell's key in `roomCells`. */
@@ -422,6 +431,7 @@ const ROOM_SETUP_HEAD = {
     startlocked: "DRPG.Vault.lockedAtStartColumn", notshared: "DRPG.Vault.notSharedColumn", neighbours: "DRPG.Vault.neighboursColumn",
     nosearch: "DRPG.SearchTokens.sealedColumn", tokens: "DRPG.SearchTokens.title", table: "DRPG.Vault.table",
     place: "DRPG.Vault.placeColumn", short: "DRPG.Rest.shortColumn", long: "DRPG.Rest.longColumn",
+    facilities: "DRPG.Facility.roomColumn",
     description: "DRPG.Vault.descriptionColumn", image: "DRPG.Vault.imageColumn"
 };
 
@@ -464,7 +474,8 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
 
         rest: `
             <p>${game.i18n.localize("DRPG.Rest.manageIntro")}</p>
-            ${tableFor(["short", "long"])}
+            ${tableFor(["short", "long", "facilities"])}
+            <p class="notes">${game.i18n.localize("DRPG.Facility.editor.tabNote")}</p>
         `,
 
         stashes: `
@@ -691,6 +702,20 @@ function wirePlaceSwitches(root) {
 // recounted at (`data-drpg-shown`) and added to the count read now, as `now + by` was: a spend a player made while the
 // GM clicked is kept, not overwritten. A number typed is a step of its difference, the same rule. Refill writes the
 // cap. `SearchTokens` is the window's own, handed in, so R2010 counts the writes on a stand-in.
+/** The Facilities tab's edit buttons (E93 C2): each opens its room's editor, and the count in its cell follows the Save. */
+export function wireFacilityButtons(root, scene) {
+    for (const button of root.querySelectorAll("button[data-drpg-facility-edit]")) {
+        button.addEventListener("click", async ev => {
+            ev.preventDefault();
+            const room = button.dataset.drpgFacilityEdit;
+            const { editRoomActions } = await import("./facility-editor.mjs");
+            await editRoomActions(scene, room);
+            const count = root.querySelector(`[data-drpg-facility-count="${CSS.escape(room)}"]`);
+            if (count) count.textContent = String(roomActions(scene, room).length);
+        });
+    }
+}
+
 export function wireTokenButtons(root, scene, recount, { tokens = SearchTokens } = {}) {
     for (const input of root.querySelectorAll("input[data-drpg-token]")) {
         input.dataset.drpgShown ??= input.value;
@@ -1277,6 +1302,7 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
             wireStashCells(root);
             wirePlaceSwitches(root);
             wireTokenButtons(root, scene, recount);
+            wireFacilityButtons(root, scene);
 
             // The picture column (E77 C1): the file picker on each thumbnail, its field named `img:<room>`
             // as the description's is `desc:<room>`, and the button that empties the cell it stands in.

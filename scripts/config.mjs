@@ -1653,9 +1653,14 @@ export const ACTIONS = {
      * where the costs and room requirements can be shown side by side - and
      * keeping them together is half of what holds the grid at two rows of five.
      */
+    /*
+     * FACILITIES, THE TILE THAT WAS REST (E93 C4, 12.11.2026; the owner's audit entry E93 (1)). Its key stays `rest`: the
+     * window, the briefing and every reader of the key are the same, and the room's actions join the two rests in the
+     * window (action-rest.mjs, action-facilities.mjs). `cost` is the Short Rest's, the cheapest thing in the window.
+     */
     rest: {
         kind: "universal",
-        label: "Rest",
+        label: "Facilities",
         icon: "fa-bed",
         traits: [],
         cost: 1,

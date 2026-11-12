@@ -31,6 +31,7 @@
  */
 
 import { MODULE_ID, ACTIONS, TRAITS, INDIRECT_MURDER, PROJECT_SCALE, SABOTAGE_CONCEAL } from "./config.mjs";
+import { facilityLineFor } from "./facilities.mjs";
 import { spendAction, refundAction } from "./actions.mjs";
 import { carriedFor, repairable } from "./inventory.mjs";
 import { roomOfActor, othersInRoom, locateActor } from "./movement.mjs";
@@ -849,8 +850,10 @@ function projectOptionsHtml(list, { disableComplete = false } = {}) {
         // drawn by a browser that will not style an <option>. The statistic its
         // roll takes (C11d): the project's own, said before it is picked. One
         // formatter for every list of projects (`projectLabel`, E51 C1).
+        // A finished project that gives a room action says so, and for how long (E93 C4; the owner's 05.11 option A).
+        const facility = p.complete ? facilityLineFor(p.id) : "";
         return `<option value="${p.id}"${mark}>${
-            foundry.utils.escapeHTML(projectLabel(p, { scale: true, room: true, stat: true, complete: done }))}</option>`;
+            foundry.utils.escapeHTML(`${projectLabel(p, { scale: true, room: true, stat: true, complete: done })}${facility ? ` · ${facility}` : ""}`)}</option>`;
     }).join("");
 }
 

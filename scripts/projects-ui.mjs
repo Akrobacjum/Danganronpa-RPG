@@ -339,7 +339,11 @@ function projectManagerRows(projects, rooms, { always = new Set(), players = pla
                         aria-label="${rowName("DRPG.Project.showOnMap", p)}"
                         data-tooltip="${t("DRPG.Project.showOnMap")}">
                     <i class="fa-solid fa-map-location-dot" inert></i>
-                </button>` : ""}`,
+                </button>` : ""}${/* E93 C2: the project's room action (facility-editor.mjs `editProjectFacility`) - what its completion
+                gives in its room, for how long, and whether it costs an action - written in the project's step on the editor's
+                Save. In the Edit cell beside the pen, not a column of its own: the manager's columns are the owner's card M16. */
+                iconButton({ icon: "fa-solid fa-mug-hot", label: `${t("DRPG.Facility.editor.projectButton")}: ${p.name}`,
+                    attrs: { "data-drpg-project-facility": p.id } })}`,
             delete: iconButton({ icon: "fa-solid fa-trash-can", label: `${t("DRPG.Project.delete")}: ${p.name}`, cls: "drpg-role-destructive",
                 attrs: { "data-drpg-delete": p.id } })
         };
@@ -490,6 +494,16 @@ function wireProjectManager(dialog, projects, rooms) {
         },
         watch: { settingKeys: ["daggerheart.Countdowns"] }
     });
+
+    for (const btn of dialog.element.querySelectorAll("[data-drpg-project-facility]")) {
+        btn.addEventListener("click", async ev => {
+            ev.preventDefault();
+            const project = projects.find(p => p.id === btn.dataset.drpgProjectFacility);
+            if (!project) return;
+            const { editProjectFacility } = await import("./facility-editor.mjs");
+            await editProjectFacility(project);
+        });
+    }
 
     for (const btn of dialog.element.querySelectorAll("[data-drpg-edit]")) {
         btn.addEventListener("click", async ev => {

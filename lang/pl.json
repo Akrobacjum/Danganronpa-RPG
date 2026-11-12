@@ -2541,6 +2541,7 @@
       "tabPassages": "Tajne przejścia",
       "tabSearching": "Przeszukiwanie",
       "tabRest": "Odpoczynki",
+      "tabFacilities": "Facilities",
       "tabDescription": "Opis",
       "descriptionColumn": "Jak wygląda",
       "descriptionPlaceholder": "np. Długie stoły, okienko do wydawania i zapach wybielacza, którego nikt nie umie umiejscowić.",
@@ -3188,12 +3189,48 @@
       "gmHint": "{trait}, próg {dc}",
       "projectHint": "Z projektu {project} · {life}",
       "forGood": "na stałe",
+      "projectLine": "{action} w Facilities, {life}",
       "timesLeft": {
         "one": "jeszcze {n} pora dnia",
         "few": "jeszcze {n} pory dnia",
         "many": "jeszcze {n} pór dnia",
         "other": "jeszcze {n} pory dnia"
       },
+      "editor": {
+        "roomTitle": "Facilities: {room}",
+        "saveProject": "Zapisz akcję",
+        "actionN": "Akcja {n}",
+        "tabNote": "Akcje w pokoju: ile ich ma pokój i przycisk, który je otwiera. Ich okno zapisuje od razu, nie przy Apply.",
+        "roomIntro": "Akcje pokoju {room}. Każda to rzut na swoją statystykę przeciw swojemu progowi i kosztuje akcję; gdy ktoś jej użyje, nikt nie użyje jej ponownie aż do następnej pory dnia. Wiersz bez nazwy znika.",
+        "roomNote": "Zapis od razu zmienia akcje pokoju. Widzi je tylko postać stojąca w pokoju.",
+        "projectTitle": "Akcja w pokoju: {project}",
+        "projectIntro": "Co daje {project}, gdy jest ukończony: akcję w jego pokoju, bez rzutu, raz na postać o każdej porze dnia.",
+        "projectNote": "Czas działania liczy się od pory dnia, w której projekt ukończono, i kończy się z końcem rozdziału.",
+        "label": "Nazwa",
+        "labelPlaceholder": "Zaparz herbatę",
+        "trait": "Statystyka",
+        "dc": "Próg",
+        "effects": "Efekty",
+        "effect": "Efekt",
+        "amount": "Ile",
+        "scope": "Kto",
+        "text": "Tekst",
+        "textPlaceholder": "Słowa GM-a",
+        "noEffect": "Bez efektu",
+        "costsAction": "Kosztuje akcję",
+        "lifetime": "Czas działania",
+        "lifetimeN": "Ile",
+        "life": {
+          "forever": "Na stałe",
+          "timesOfDay": "Pory dnia",
+          "days": "Dni"
+        },
+        "save": "Zapisz akcje w pokoju",
+        "remove": "Usuń akcję",
+        "edit": "Edytuj akcje",
+        "projectButton": "Akcja w pokoju"
+      },
+      "roomColumn": "Akcje w pokoju",
       "applied": {
         "health": { "one": "{name}: +{n} Health", "few": "{name}: +{n} Health", "many": "{name}: +{n} Health", "other": "{name}: +{n} Health" },
         "sanity": { "one": "{name}: +{n} Sanity", "few": "{name}: +{n} Sanity", "many": "{name}: +{n} Sanity", "other": "{name}: +{n} Sanity" },
@@ -6227,7 +6264,7 @@
           "failure": "Bez postępu."
         },
         "rest": {
-          "label": "Rest",
+          "label": "Facilities",
           "hint": "Odzyskaj Health, Sanity albo Hope w pokoju, w którym GM pozwala odpoczywać. Short Rest kosztuje akcję, raz na porę dnia; Long Rest kosztuje więcej akcji, raz na sesję, i daje więcej.",
           "description": "Do wyboru masz Sleep (Health), Meal (Sanity) i Breath (Hope). Przy Long Rest wybierasz więcej opcji, odzyskujesz całe Health albo całe Sanity i dostajesz więcej Hope; przy Short Rest odzyskujesz połowę i dostajesz mniej Hope."
         },

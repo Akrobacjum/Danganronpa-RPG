@@ -30,7 +30,9 @@
 
 import { MODULE_ID, FACILITIES, TRAITS, TIMES_OF_DAY } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
+import { plural } from "./utils.mjs";
 import { roomFlag, writablePieces } from "./rooms.mjs";
+import { metaFor, secretsOf } from "./projects-secrecy.mjs";
 
 /* ==========================================================================
  * WHAT A GM TYPED, CLEANED
@@ -211,7 +213,6 @@ export async function setProjectFacility(projectId, raw) {
     const facility = raw === null ? null : cleanFacility(raw);
     if (raw !== null && !facility) return null;
     const { allProjects, applyProjectChange } = await import("./projects.mjs");
-    const { metaFor } = await import("./projects-secrecy.mjs");
     const done = allProjects().find(p => p.id === projectId)?.complete === true;
     const stamp = facility && done && !metaFor(projectId).completedAt ? { completedAt: facilityOrdinal() } : {};
     const result = await applyProjectChange(projectId, { meta: { facility, ...stamp } });
@@ -223,8 +224,7 @@ export async function setProjectFacility(projectId, raw) {
  * secret (projects-secrecy.mjs `secretsOf`), cleaned; with `completedAt`, the time of day its completion row stamped.
  * `{ facility, completedAt }`, `facility` null for a project with none.
  */
-export async function projectFacilityOf(projectId) {
-    const { metaFor, secretsOf } = await import("./projects-secrecy.mjs");
+export function projectFacilityOf(projectId) {
     const meta = metaFor(projectId);
     const raw = secretsOf(projectId).facility ?? meta.facility ?? null;
     return { facility: raw ? cleanFacility(raw) : null, completedAt: meta.completedAt ?? null };
@@ -241,11 +241,24 @@ export async function projectActionsAt(place, user = game.user, clock = getClock
     const out = [];
     for (const project of allProjects()) {
         if (!project.complete || project.indirectMurder || !standsAtProject(place, project.id) || !canSee(project.id, user)) continue;
-        const { facility, completedAt } = await projectFacilityOf(project.id);
+        const { facility, completedAt } = projectFacilityOf(project.id);
         if (!facility || !facilityLive(facility, completedAt, clock)) continue;
         out.push({ project, facility, completedAt, timesLeft: facilityTimesLeft(facility, completedAt, clock) });
     }
     return out;
+}
+
+/**
+ * The line the Projects window adds to a completed project that gives a room action (the owner's 05.11 option A: "the
+ * Projects window shows the time left and that its action is in Facilities"), in this browser's language; "" for a
+ * project with none this browser holds, or one whose lifetime has run out.
+ */
+export function facilityLineFor(projectId, clock = getClock()) {
+    const { facility, completedAt } = projectFacilityOf(projectId);
+    if (!facility || !facilityLive(facility, completedAt, clock)) return "";
+    const left = facilityTimesLeft(facility, completedAt, clock);
+    const life = left === null ? game.i18n.localize("DRPG.Facility.forGood") : plural("DRPG.Facility.timesLeft", { n: left });
+    return game.i18n.format("DRPG.Facility.projectLine", { action: facility.label, life });
 }
 
 /* ==========================================================================

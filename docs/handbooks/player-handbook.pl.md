@@ -310,6 +310,8 @@ Cokolwiek, byle opisane szczegółowo. Możesz zaproponować statystykę, opisuj
 
 Okno wycenia oba wobec tego, co masz, i wymienia pokoje, które na każdy pozwalają.
 
+Kafelek nazywa się **Facilities**: jego okno ma oba odpoczynki, a po nich to, co daje pokój, w którym stoisz. Akcja pokoju ustawiona przez GM-a to rzut na statystykę i próg z jej wiersza i kosztuje akcję; gdy ktoś jej użyje o tej porze dnia - także nieudanym rzutem - jest wyszarzona dla wszystkich aż do następnej. Akcja ukończonego projektu nie wymaga rzutu, kosztuje akcję, chyba że GM ustawił, że nic nie kosztuje, i masz ją raz na każdą porę dnia; jej wiersz mówi, który projekt ją daje i jak długo działa. Despair overflow może na porę dnia wyłączyć akcje w pokojach (Lockdown, Power cut), podrożyć je (Toll) albo utrudnić (Jitters), albo zabrać Short Rest (Insomnia).
+
 ### Listen - Shadow, 1 akcja
 
 Ustal, kto jest w sąsiednim pokoju. GM niepotrzebny. Pokój wybierasz przed rzutem, a odpowiedź przychodzi jako karta, którą czytasz tylko ty i GMowie.

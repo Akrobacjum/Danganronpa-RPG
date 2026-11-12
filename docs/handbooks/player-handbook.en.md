@@ -310,6 +310,8 @@ Anything at all, provided you describe it in detail. You may propose the statist
 
 The dialog prices both against what you have and names the rooms that allow each.
 
+The tile is called **Facilities**: its window holds the two rests and, after them, what the room you stand in offers. A room action the GM set is rolled on the statistic and difficulty its row names and costs an action; once anyone has used it this time of day - a failed roll too - it is greyed for everyone until the next. A completed project's action needs no roll, costs an action unless the GM set it to cost none, and is yours once each time of day; its row says which project gives it and how long it lasts. The Despair overflow can shut room actions for a time of day (Lockdown, Power cut), make them dearer (Toll) or harder (Jitters), or take the Short Rest away (Insomnia).
+
 ### Listen - Shadow, 1 action
 
 Work out who is in a neighbouring room. No GM needed. You pick the room before you roll, and the answer arrives as a card only you and the GMs can read.
