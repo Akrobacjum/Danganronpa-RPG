@@ -45,7 +45,7 @@ const WINDOW_CLASS = "drpg-window-notices";
 /* The design's figure (P10-1) for the wait between a keystroke and the search; not a measurement. */
 const SEARCH_MS = 150;
 
-/** The chips, single choice: which sources each one shows (`null`: every one). Keys spelled out, so R1 reads them. */
+/** The filters, single choice: which sources each one shows (`null`: every one). Keys spelled out, so R1 reads them. */
 const FILTERS = Object.freeze([
     { id: "all", label: "DRPG.Notices.filter.all", sources: null },
     { id: "forYou", label: "DRPG.Notices.filter.forYou", sources: ["mine"] },
@@ -55,6 +55,17 @@ const FILTERS = Object.freeze([
     { id: "evidence", label: "DRPG.Notices.filter.evidence", sources: ["evidence"] },
     { id: "messenger", label: "DRPG.Notices.filter.messenger", sources: ["messenger"] }
 ]);
+
+/*
+ * THREE ON TOP, THE REST IN ONE MENU (E100 item 4, 12.11.2026; the owner on the player-screens review, #5: seven filter
+ * buttons over an empty list). The chips are `ON_TOP`, in this order; the other four are the options of one select
+ * (`.drpg-notices-more`), after an empty first choice. A menu pick presses no chip; a chip puts the menu back to its
+ * empty choice. A filter that falls to 0 is disabled in either place and moves the window back to All (`syncChrome`).
+ * R3920.
+ */
+const ON_TOP = Object.freeze(["all", "forYou", "notDone"]);
+const IN_MENU = Object.freeze(FILTERS.filter(f => !ON_TOP.includes(f.id)).map(f => f.id));
+const FILTER_BY_ID = new Map(FILTERS.map(f => [f.id, f]));
 
 /** What an entry's glyph says it came from (its hint), and the tag the sources that say it nowhere else carry. */
 const SOURCE_LABELS = Object.freeze({
@@ -191,8 +202,20 @@ class NoticeHistoryApp extends DrpgApp() {
         const root = element("div", "drpg-notices-body drpg-kit-content");
 
         // The kit's chips, one a filter, single choice; `syncChrome` writes each count and which one is pressed.
-        const filters = kitNode(chips(FILTERS.map(filter => ({ label: localize(filter.label), pressed: filter.id === this.filter, count: 0, value: filter.id })), { label: localize("DRPG.Notices.title") }));
+        const filters = kitNode(chips(ON_TOP.map(id => FILTER_BY_ID.get(id)).map(filter => ({ label: localize(filter.label), pressed: filter.id === this.filter, count: 0, value: filter.id })), { label: localize("DRPG.Notices.title") }));
         filters.classList.add("drpg-notices-chips");
+        // The other filters in one menu, in the chips' row (E100 item 4); its options' words and counts are `syncChrome`'s.
+        const more = element("select", "drpg-notices-more");
+        more.setAttribute("aria-label", localize("DRPG.Notices.filter.moreLabel"));
+        more.append(element("option", "", localize("DRPG.Notices.filter.more")));
+        more.options[0].value = "";
+        for (const id of IN_MENU) {
+            const option = element("option", "", localize(FILTER_BY_ID.get(id).label));
+            option.value = id;
+            more.append(option);
+        }
+        more.value = IN_MENU.includes(this.filter) ? this.filter : "";
+        filters.append(more);
 
         const search = element("div", "drpg-notices-search");
         const input = element("input");
@@ -250,6 +273,11 @@ class NoticeHistoryApp extends DrpgApp() {
             this.redraw();
         }, SEARCH_MS);
         root.addEventListener("click", event => this.onClick(event));
+        root.addEventListener("change", event => {
+            if (!event.target?.matches?.("select.drpg-notices-more")) return;
+            this.filter = event.target.value || "all";
+            this.redraw();
+        });
         root.addEventListener("input", event => {
             if (event.target?.matches?.(".drpg-notices-search input")) searched(event.target);
         });
@@ -349,13 +377,24 @@ class NoticeHistoryApp extends DrpgApp() {
         const was = this.filter;
         const all = noticeEntries();
         const empty = all.length === 0;
+        const countOf = filter => (filter.sources ? all.filter(entry => filter.sources.includes(entry.source)).length : all.length);
         for (const chip of root.querySelectorAll("[data-drpg-chip]")) {
-            const filter = FILTERS.find(f => f.id === chip.dataset.drpgChip);
-            const count = filter.sources ? all.filter(entry => filter.sources.includes(entry.source)).length : all.length;
+            const filter = FILTER_BY_ID.get(chip.dataset.drpgChip);
+            const count = countOf(filter);
             chip.querySelector("b").textContent = String(count);
             chip.disabled = filter.id !== "all" && count === 0;
             if (chip.disabled && this.filter === filter.id) this.filter = "all";
         }
+        const more = root.querySelector("select.drpg-notices-more");
+        for (const option of more?.options ?? []) {
+            if (!option.value) continue;
+            const filter = FILTER_BY_ID.get(option.value);
+            const count = countOf(filter);
+            option.textContent = game.i18n.format("DRPG.Notices.filter.withCount", { label: localize(filter.label), n: count });
+            option.disabled = count === 0;
+            if (option.disabled && this.filter === filter.id) this.filter = "all";
+        }
+        if (more) more.value = IN_MENU.includes(this.filter) ? this.filter : "";
         for (const chip of root.querySelectorAll("[data-drpg-chip]")) chip.setAttribute("aria-pressed", String(chip.dataset.drpgChip === this.filter));
         root.querySelector(".drpg-notices-search input").disabled = empty;
         const unread = all.filter(entry => entry.state === "unread").length;

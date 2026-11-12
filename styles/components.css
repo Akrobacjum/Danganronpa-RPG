@@ -741,6 +741,8 @@ body:not(.drpg-theme-stained-glass) .drpg-kit-empty { font-size: var(--drpg-kit-
    sweeps give the type (`!important`), so a size here is Legacy's; what lost to the glass under 1.2.98 is not stated
    for it (R1331 holds every declaration here to win). ---- */
 .drpg-notices-body [hidden] { display: none; }
+/* The filter menu in the chips' row (E100 item 4): the four filters that are not chips, as tall as a chip. */
+.drpg-notices-more { height: 26px; font: inherit; max-width: 100%; }
 .drpg-notices-search { display: flex; }
 .drpg-notices-search input { flex: 1; height: 28px; padding: 0 8px; font: inherit; }
 /* the ink under the glass is its field rule's */

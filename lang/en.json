@@ -5701,7 +5701,10 @@
         "players": "From players",
         "notDone": "Not done",
         "evidence": "Evidence",
-        "messenger": "Messenger"
+        "messenger": "Messenger",
+        "more": "More filters",
+        "moreLabel": "More filters",
+        "withCount": "{label} ({n})"
       },
       "search": "Search notices",
       "searchLabel": "Search the notices by their title and text",

@@ -13090,9 +13090,10 @@ const INVARIANTS = [
             must(root2 !== null, "the tile's button opened no window - the clauses after it would be measured on nothing");
             const listed = () => [...root2.querySelectorAll("details.drpg-notice-entry")].map(details => details.dataset.drpgKey);
             const entryIn = id => root2.querySelector(`details.drpg-notice-entry[data-drpg-key="${CSS.escape(id)}"]`);
-            const pressed = () => root2.querySelector('[data-drpg-chip][aria-pressed="true"]')?.dataset.drpgChip ?? null;
+            const pressed = () => root2.querySelector('[data-drpg-chip][aria-pressed="true"]')?.dataset.drpgChip ?? (root2.querySelector("select.drpg-notices-more")?.value || null);
             const box = root2.querySelector(".drpg-notices-search input");
-            const chip = id => root2.querySelector(`[data-drpg-chip="${id}"]`);
+            /* Messenger is a choice of the filter menu since E100 item 4 (R3920), not a chip. */
+            const pickMenu = id => { const menu = root2.querySelector("select.drpg-notices-more"); if (!menu) return; menu.value = id; menu.dispatchEvent(new Event("change", { bubbles: true })); };
             const gmId = game.users.find(user => user.isGM)?.id ?? null;
             const withdraw = messageId => NH.noticeCardDeleted({ id: messageId }, { [MODULE_ID]: { withdraw: true } }, gmId);
             const messenger = messageId => NH.recordNotice({ source: "messenger", kind: "info", title: "R296 Koło", text: "R296 a wheel", html: "", messageId, link: { messenger: thread } });
@@ -13137,14 +13138,14 @@ const INVARIANTS = [
             await wait(450);
             /* A filter whose chip falls to 0 (review P2): the list is drawn again under "all" - with the reader out of
                the list, with focus in it, and with focus in it and a new entry behind the pill. */
-            chip("messenger").click();
+            pickMenu("messenger");
             await until(() => listed().length === 1, 1000);
             withdraw("R296Withdrawn001");
             await until(() => listed().length === 2, 1000);
             again.away = [pressed(), listed()];
             const second = messenger("R296Withdrawn002");
             await until(() => listed().includes(second), 1000);
-            chip("messenger").click();
+            pickMenu("messenger");
             await until(() => listed().length === 1, 1000);
             const focused = await focusIn(second);
             withdraw("R296Withdrawn002");
@@ -13152,7 +13153,7 @@ const INVARIANTS = [
             again.focused = [focused, pressed(), listed()];
             const third = messenger("R296Withdrawn003");
             await until(() => listed().includes(third), 1000);
-            chip("messenger").click();
+            pickMenu("messenger");
             await until(() => listed().length === 1, 1000);
             const focusedToo = await focusIn(third);
             const fresh = NH.recordNotice({ source: "mine", kind: "info", title: "R296 fresh", text: "R296 fresh", html: "" });
@@ -50131,6 +50132,47 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ gm: [1, ["look", "effects", "sound", "tech"]], player: [0, ["look", "effects", "sound"]], scope: "client",
             readers: ["settings.mjs", "utils.mjs"] }),
             "{[debug rows, sections] for a GM; for a player; the setting's scope; the module files that name SETTINGS.debug (its registration and its one reader)}");
+    }],
+    ["R3920 - the notice history keeps three filters on top and the rest in one menu (E100 item 4; the owner's 12.11.2026, the player-screens review's #5): the window's chips are All, For you and Not done, in that order; one select (`.drpg-notices-more`, named for a screen reader) offers Announcements, From players, Evidence and Messenger after an empty first choice; each of the seven filters is offered once; picking a menu filter presses no chip, and a chip pressed puts the menu back to its empty choice", async () => {
+        /*
+         * E100 item 4, 12.11.2026. The review: "Siedem przycisków nad pustą listą; proponuję trzy na wierzchu" - Wszystkie,
+         * Dla ciebie, Niewykonane - and the rest in one menu. Read in the window as it opens on this browser, under the
+         * suite's hold (`holdNoticeHistory`: nothing reaches the setting) with one Evidence entry and one For you entry
+         * recorded, so both choices are live; the pick read through the window's own handlers. Red at a5dc2ba7: seven
+         * chips and no menu.
+         */
+        const A = await import("./notice-history-app.mjs"), NH = await import("./notice-history.mjs");
+        const of = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-notices")) ?? null;
+        must(!of(), "a notice history window stands open already");
+        await NH.holdNoticeHistory(true);
+        let app = null;
+        const read = {};
+        try {
+            NH.recordNotice({ source: "evidence", kind: "info", title: "R3920 evidence", text: "R3920 evidence", html: "" });
+            NH.recordNotice({ source: "mine", kind: "info", title: "R3920 mine", text: "R3920 mine", html: "" });
+            await A.openNotices();
+            app = await until(() => of(), 3000) ? of() : null;
+            must(app, "the notice history did not open - nothing to read");
+            const root = app.element;
+            const chips = () => [...root.querySelectorAll("[data-drpg-chip]")];
+            const menu = root.querySelector("select.drpg-notices-more");
+            read.chips = chips().map(c => c.dataset.drpgChip);
+            read.menu = menu ? [[...menu.options].map(o => o.value), Boolean(menu.getAttribute("aria-label"))] : null;
+            read.once = [...read.chips, ...(read.menu?.[0] ?? []).filter(Boolean)].sort();
+            if (menu) {
+                menu.value = "evidence";
+                menu.dispatchEvent(new Event("change", { bubbles: true }));
+                read.picked = [app.filter, chips().filter(c => c.getAttribute("aria-pressed") === "true").map(c => c.dataset.drpgChip)];
+                chips().find(c => c.dataset.drpgChip === "forYou")?.click();
+                read.back = [app.filter, menu.value];
+            }
+        } finally {
+            await app?.close();
+            NH.holdNoticeHistory(false);
+        }
+        equal(stableJson(read), stableJson({ chips: ["all", "forYou", "notDone"], menu: [["", "announcements", "players", "evidence", "messenger"], true],
+            once: ["all", "announcements", "evidence", "forYou", "messenger", "notDone", "players"], picked: ["evidence", []], back: ["forYou", ""] }),
+            "{the chips; the menu [its values, named]; the seven filters, each offered once; a menu pick [the filter, the chips pressed]; a chip pressed after [the filter, the menu's value]}");
     }],
 ];
 

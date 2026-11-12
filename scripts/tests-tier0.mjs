@@ -970,7 +970,8 @@ const REGRESSIONS = [
         read.frame = [/\bclass NoticeHistoryApp extends DrpgApp\(\)/.test(src), /scrollRegion:\s*"\.drpg-notices-list"/.test(src)];
         read.foot = footer === null ? null : [/destructive:\s*\[\{\s*action:\s*"clear"/.test(footer), /close:\s*\{\s*role:\s*"close",\s*side:\s*"right"\s*\}/.test(footer),
             /\bdefault\s*:/.test(footer), /\bprimary\s*:/.test(footer)];
-        read.chips = /\bchips\(FILTERS\.map\(/.test(render);
+        // The chips are the three on top since E100 item 4 (R3920: the other four are a menu), still through the kit.
+        read.chips = /\bchips\(ON_TOP\.map\(/.test(render);
         read.empty = (src.match(/\bemptyState\("DRPG\.Notices\.(empty|noMatch)"\)/g) ?? []).length;
         read.live = [(src.match(/\bkeepLive\(/g) ?? []).length, /\bkeepLive\(this,\s*\{\s*region:\s*"\.drpg-notices-list",\s*build:/.test(src),
             /\bkeepLive\(this,[^\n]*\bwatch\s*:/.test(src), /\bonNoticeHistoryChange\(\(\) => this\.changed\(\)\)/.test(src)];

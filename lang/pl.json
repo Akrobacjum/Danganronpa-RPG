@@ -7439,7 +7439,10 @@
         "players": "Od graczy",
         "notDone": "Niewykonane",
         "evidence": "Dowody",
-        "messenger": "Komunikator"
+        "messenger": "Komunikator",
+        "more": "Więcej filtrów",
+        "moreLabel": "Więcej filtrów",
+        "withCount": "{label} ({n})"
       },
       "search": "Szukaj w powiadomieniach",
       "searchLabel": "Szukaj powiadomień po tytule i treści",
