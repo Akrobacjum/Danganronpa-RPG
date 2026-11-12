@@ -1106,6 +1106,30 @@ export const confusionCopy = defineGmCopy({
 });
 
 /**
+ * THE MONOCUBS' RECORD (E72 C2, 12.11.2026; audit S18-51, S18-57). A row per Monocub: `witness`, the crime witness's
+ * mark `{ chapter, epoch }` (monocub.mjs `setSilenced`, `cubSawIncident`), which was the actor flag `silencedChapter`
+ * until E72 - world data every browser holds, so every console read who had seen the crime. Written by a GM (the
+ * Students window, the incident's watch on the primary), read by `isCrimeSilenced` through `cubRowOf`. Cut by the
+ * reset's "deaths" group, with the deaths a Monocub is made of. A row's later fields are part A's (the invitation,
+ * the caps, Redeem's day, the log).
+ */
+export const cubStore = defineGmStore({
+    name: "cubs", key: SETTINGS.gmCubs,
+    kind: "ledger", resetGroup: "deaths", backup: true, sync: true,
+    afterRestore: () => import("./monocub.mjs").then(m => m.retellCubs()),
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * AN OWNER'S MONOCUB ROWS (E72 C2): `{ actorId: { witness } }` for the characters this user owns, as a GM sent them,
+ * a stamp per character - taken by the offers' rule (`offersCombine`). Read by the owner's sheet (`cubRowOf`).
+ */
+export const cubCopy = defineGmCopy({
+    name: "cubs", key: SETTINGS.mineCubs, from: "cubs", resetGroup: "deaths", fallback: {},
+    combine: offersCombine
+});
+
+/**
  * THE REROLL'S BOOKMARK, ON THE GMS (E08+E28 C2, 03.10.2026; audit S05-08, S08-04, S04-18; the
  * plan's 2.2). A row per character, the last roll the GMs were told of: `messageId`, `actionKey`,
  * `trait`, `experiences`, `total`, `withFear`, `isCritical`, `first` (its rolls as first thrown),

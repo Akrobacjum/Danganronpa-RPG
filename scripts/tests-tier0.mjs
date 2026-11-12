@@ -3936,8 +3936,9 @@ const REGRESSIONS = [
             "setMonocub does not read what it is about to change");
         ok(/if \(was === Boolean\(value\)\)/.test(set),
             "setMonocub still announces a change it did not make");
-        ok(set.indexOf("unsetFlag") < set.indexOf("was === Boolean(value)"),
-            "the silence flag is now cleared only on a real change - a cub who stopped being "
+        // Since E72 C2 the mark is the GMs' row (`patchCubRow`), not the flag; cleared before the change is asked, as the flag was.
+        ok(set.indexOf("patchCubRow(actor.id, { witness: null })") > -1 && set.indexOf("patchCubRow(actor.id, { witness: null })") < set.indexOf("was === Boolean(value)"),
+            "the silence mark is now cleared only on a real change - a cub who stopped being "
             + "one keeps their silence");
     }],
 
@@ -6898,7 +6899,9 @@ const REGRESSIONS = [
             // E06 fix r2-G1: an armed Call's buyer off its actor, and a secret project's repair sealed and renamed.
             ["unsignArmedCalls", "unsignArmedCalls", "1.2.65"], ["sealOldRepairs", "sealOldRepairs", "1.2.65"],
             // E32 C3: a running incident's fight out of the world half of murderState.
-            ["liftIncidentFight", "liftIncidentFight", "1.2.66"]];
+            ["liftIncidentFight", "liftIncidentFight", "1.2.66"],
+            // E72 C2: the crime witness's mark off its actor, into the GMs' Monocub record.
+            ["liftCubWitness", "liftCubWitness", "1.2.117"]];
         const ALLOWED = {
             "migrate.mjs": LIFTS.map(([, fn]) => fn),
             // A restore runs the Faint pass again (gm-stores.mjs `restoreCase`), because a GM asked.
@@ -7865,6 +7868,54 @@ const REGRESSIONS = [
         };
         equal(JSON.stringify(read), JSON.stringify({ executorPays: false, refusalFirst: true, priceBeforeDice: true, priceAsked: true, serial: true }),
             "a Monocub's ability is not paid on the GM after its conditions, one Monocub at a time");
+    }],
+
+    ["R3801 - the crime witness's mark is written in no actor flag: nothing in scripts/ sets the flag silencedChapter, the lift alone unsets it, and world-secrets.mjs holds it out of an actor's flags (E72 C2; S18-51)", async () => {
+        /*
+         * E72 C2, 12.11.2026; audit S18-51. The mark was `actor.setFlag(MODULE_ID, FLAGS.silencedChapter, ...)` in
+         * monocub.mjs `setSilenced`, world data every browser holds. Read off the source of every module file but the
+         * suite's: no write of the flag (`setFlag`, an update naming it), and its one unset in monocub.mjs's
+         * `liftCubWitness`; and WORLD_SECRET_RULES' Actor flags name it. Red at f22a7e8: `setSilenced` sets it and
+         * `setMonocub` unsets it; the rule names it not. Mutant it kills: the flag written again beside the row.
+         */
+        const sources = new Map(await otherSources());
+        const sets = [], unsets = [];
+        for (const [file, text] of sources) {
+            const src = stripComments(text);
+            for (const m of src.matchAll(/\bsetFlag\(\s*MODULE_ID\s*,\s*FLAGS\.silencedChapter|\.silencedChapter\}?`?\s*\]?\s*:/g)) sets.push(`${file}@${m.index}`);
+            for (const m of src.matchAll(/unsetFlag\(\s*MODULE_ID\s*,\s*FLAGS\.silencedChapter/g)) {
+                const lift = bodyOf(src, "export async function liftCubWitness(", { until: "\n}\n" });
+                unsets.push(file === "monocub.mjs" && lift.includes(src.slice(m.index, m.index + 60)) ? "lift" : `${file}@${m.index}`);
+            }
+        }
+        must(sources.size > 100, `the suite read ${sources.size} module files - this would measure nothing`);
+        const { WORLD_SECRET_RULES } = await import("./world-secrets.mjs");
+        equal(JSON.stringify([sets, unsets, (WORLD_SECRET_RULES.flags?.Actor ?? []).includes("silencedChapter")]), JSON.stringify([[], ["lift"], true]),
+            "the crime witness's mark is still written in an actor flag, unset outside its lift, or not held out of world data ([sets, unsets, the rule])");
+    }],
+
+    ["R3802 - a walk-in finds a body where the body lies: checkBodyFound asks body-tile.mjs bodyPlaceOf of each body, not the victim's token, and hands the discovery that actor (E72 C3; Q-E72-3)", async () => {
+        /*
+         * E72 C3, 12.11.2026; the plan's Q-E72-3 (default taken: read `bodyPlaceOf`, as Frisk's gate does). Since E63 a
+         * death lays a body tile where the token stood, and the token can walk on; `checkBodyFound` read the room of the
+         * victim's token (`bodyHere`, a token of `scene.tokens`), so two students walking into the room of the tile found
+         * nothing, and two walking into the room the token went to found the body there. Read off chapter.mjs's source:
+         * the function asks `bodyPlaceOf(` with the GMs' flags (`held: flagsHeldNow`), compares its scene and room, skips
+         * a hidden place, and hands `runDiscovery` the actor found. Red at f22a7e8: no `bodyPlaceOf` in it. Measured off
+         * the source only: a tier-2 walk onto a tile whose token has left is not written here (the owner's Q-E72-3 is
+         * the default's, to confirm).
+         */
+        const src = stripComments(new Map(await otherSources()).get("chapter.mjs") ?? "");
+        const fn = bodyOf(src, "async function checkBodyFound(", { until: "\n}\n" });
+        must(fn.length > 500, "chapter.mjs has no checkBodyFound - this would measure nothing");
+        const read = {
+            place: /bodyPlaceOf\(\s*\w+\s*,\s*\{\s*held:\s*flagsHeldNow\s*\}\s*\)/.test(fn),
+            sceneAndRoom: /place\.scene\?\.id\s*===\s*scene\?\.id/.test(fn) && /place\.room\s*===\s*room/.test(fn) && /!place\.hidden/.test(fn),
+            noTokenScan: !/bodies\.has\(t\.actor\.id\)\s*&&\s*!t\.hidden\s*&&\s*roomOfToken\(t\)\s*===\s*room/.test(fn),
+            victim: /runDiscovery\(\{\s*room,\s*victim:\s*bodyHere,/.test(fn)
+        };
+        equal(JSON.stringify(read), JSON.stringify({ place: true, sceneAndRoom: true, noTokenScan: true, victim: true }),
+            "checkBodyFound does not find the body where bodyPlaceOf says it lies");
     }],
 
     ["R302 - a private roll's whisper is written first and in its own try, its mode after and apart, and CONST.DICE_ROLL_MODES and core.rollMode are used nowhere (S02-68)", async () => {
@@ -11836,7 +11887,7 @@ const REGRESSIONS = [
             "the watcher's body rule finds an execution, an announced or another season's or chapter's body, a Monocub, an old public death or a death the GMs do not hold, or misses one it should find");
     }],
 
-    ["R348 - the dead are not witnesses - only a Monocub is", async () => {
+    ["R348 - the dead are not witnesses, and since E72 a Monocub neither (DC7: \"never\")", async () => {
         /*
          * E11 C1, 1.2.73; audit S06-14 (S13-02 is the same defect); DC7/DX1. The witnesses of a
          * walk-in were every student's token in the room but a hidden one and a body: a dead student
@@ -11846,6 +11897,11 @@ const REGRESSIONS = [
          * (`pending`): the living, a public death, a death the GMs keep, a Monocub, a hidden token,
          * the body itself, a Monokuma (no student), the living in another room, a token of no
          * character, and a death on the document the GMs do not hold.
+         *
+         * CHANGED ON PURPOSE BY E72 C3 (12.11.2026; the owner's DC7, "never": no dead student finds a body). A Monocub
+         * counted as a witness until E72, so a Monocub and one living student walking in were the two a discovery needs,
+         * and a Monocub alone was the lone finder. Now the Monocub is a dead student like any other here. Red at
+         * f22a7e8: ["living", "monocub", "forged"].
          */
         const { witnessesOf } = await import("./chapter.mjs");
         const { FLAGS } = await import("./config.mjs");
@@ -11864,8 +11920,8 @@ const REGRESSIONS = [
         const held = actor => ({ id: actor.id, getFlag: flagsOf(PEOPLE[actor.id].flag ?? null, PEOPLE[actor.id].monocub ?? false) });
         const witnesses = witnessesOf({ tokens, room: "Gym", bodies: new Set(["body"]), students, held,
             pending: id => PEOPLE[id]?.row ?? null, roomOf: t => t.room });
-        equal(JSON.stringify(witnesses.map(t => t.id)), JSON.stringify(["living", "monocub", "forged"]),
-            "a dead student who is not a Monocub, a hidden token, the body, a Monokuma, somebody elsewhere or no character counts as a witness, or a living student or a Monocub does not");
+        equal(JSON.stringify(witnesses.map(t => t.id)), JSON.stringify(["living", "forged"]),
+            "a dead student (a Monocub among them), a hidden token, the body, a Monokuma, somebody elsewhere or no character counts as a witness, or a living student does not");
     }],
 
     ["R349 - only announceBody writes the stamp of a body found", async () => {
@@ -13094,7 +13150,8 @@ const REGRESSIONS = [
             ["truth-bullets.mjs createTruthBullet", /realType === "autopsy" && foundIn === undefined \? seasonEpoch\(\)/.test(fnSource(bullets, "createTruthBullet"))
                 && /\.\.\.\(season !== undefined \? \{ epoch: season \} : \{\}\)/.test(fnSource(bullets, "createTruthBullet"))],
             ["handover.mjs shareBullet", /epoch: secret\.epoch \?\? undefined/.test(fnSource(src("handover.mjs"), "mintCopy"))],
-            ["monocub.mjs setSilenced", /FLAGS\.silencedChapter, \{ chapter: getClock\(\)\.chapter, epoch: seasonEpoch\(\) \}/.test(fnSource(monocub, "setSilenced"))]
+            // The GMs' row since E72 C2 (`cubStore`'s `witness`), where the flag was.
+            ["monocub.mjs setSilenced", /witness: silenced \? \{ chapter: getClock\(\)\.chapter, epoch: seasonEpoch\(\) \}/.test(fnSource(monocub, "setSilenced"))]
         ];
         equal(writers.filter(([, says]) => !says).map(([name]) => name).join(", "), "",
             "the autopsy's answer key or the crime-witness mark does not name its season");

@@ -89,6 +89,7 @@ import { registerExplainers } from "./explain.mjs";
 import { registerMotion } from "./motion.mjs";
 import { registerSafeword } from "./safeword.mjs";
 import { registerConfusionCopy } from "./call-effects.mjs";
+import { registerCubCopy } from "./monocub.mjs";
 import { registerDiceSync } from "./dice-sync.mjs";
 import { registerDiceLook } from "./dice-look.mjs";
 import { registerSync } from "./sync.mjs";
@@ -280,6 +281,7 @@ Hooks.once("init", () => {
     // at `ready`, and the key does nothing in a world without voice.
     safely("the microphone's key", () => registerVoiceKeybinding());
     safely("a Confusion's armed Calls", registerConfusionCopy);
+    safely("the Monocubs' record", registerCubCopy);
     // After popups: a presented Truth Bullet becomes one, so the container has
     // to exist by the time the first card lands.
     safely("the Class Trial", registerTrial);

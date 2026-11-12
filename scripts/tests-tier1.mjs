@@ -6863,6 +6863,13 @@ const INVARIANTS = [
             ["Actor flag lastAction",
                 s => { s.actors[1].flags[MOD].lastAction = {}; },
                 h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190BYSTANDER001" && h.path === `flags.${MOD}.lastAction`],
+            // E72 C2: which Monocub saw the crime is the GMs' (monocub.mjs `cubStore`'s `witness`), not an actor flag.
+            ["Actor flag silencedChapter",
+                s => { s.actors[1].flags[MOD].silencedChapter = { chapter: 1, epoch: 0 }; },
+                h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190BYSTANDER001" && h.path === `flags.${MOD}.silencedChapter`],
+            ["unlinked token's Actor flag silencedChapter",
+                s => { s.tokens[0].delta.flags[MOD].silencedChapter = 1; },
+                h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190SCENE0000001.R190TOKEN0000001" && h.path === `delta.flags.${MOD}.silencedChapter`],
             // E05's fix round (S1-m4): the same bookmark on an unlinked token's own actor data, where
             // 1.2.63 wrote it from a sheet opened from the token.
             ["unlinked token's Actor flag lastAction",

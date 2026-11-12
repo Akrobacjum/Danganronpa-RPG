@@ -507,8 +507,8 @@ export async function openWhoIsAliveDialog(options = {}) {
             keepLive(dialog, {
                 region: ".drpg-alive-live",
                 build: table,
-                // A death kept by the GMs writes no actor (E05 C10): its store's change is the sign.
-                watch: { actors: true, hooks: ["drpgDeathsChanged", "drpgDespairOwedChanged", "drpgCrossingsChanged"] },
+                // A death kept by the GMs writes no actor (E05 C10): its store's change is the sign; so is a Monocub's row (E72 C2).
+                watch: { actors: true, hooks: ["drpgDeathsChanged", "drpgDespairOwedChanged", "drpgCrossingsChanged", "drpgCubsChanged"] },
                 after: wireAll
             });
         },

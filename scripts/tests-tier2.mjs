@@ -2587,7 +2587,20 @@ async function withBodyTile(run) {
             await settle();
             must(tile && B.bodyRoomOf(body) === tileRoom && Mv.roomOfToken(bodyToken) === fixture.room,
                 `the body's tile could not be laid in ${tileRoom} with its token in ${fixture.room} - this would measure nothing`);
-            await run({ taker, body, player, tile, room: fixture.room, tileRoom, standTaker, drawn });
+            /* AND FOUND ALREADY (E72 C3, 12.11.2026): since C3 a walk-in finds a body where its tile lies (chapter.mjs
+               `checkBodyFound`, body-tile.mjs `bodyPlaceOf`), so a taker and a third student stood in the tile's room were
+               the discovery's two. The body these tests loot is one the class has found: its stamp this chapter, put back. */
+            const { getClock } = await import("./clock.mjs");
+            const { seasonEpoch, SETTINGS } = await import("./settings.mjs");
+            const found = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+            const key = `${seasonEpoch()}:${getClock().chapter}`;
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, { ...found, [key]: [...(found[key] ?? []),
+                { victimIds: [body.id], deaths: { [body.id]: deathRecord(body)?.deathId ?? null }, room: tileRoom, sceneId: scene.id, by: "suite" }] });
+            try {
+                await run({ taker, body, player, tile, room: fixture.room, tileRoom, standTaker, drawn });
+            } finally {
+                await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, found);
+            }
         });
     } finally {
         if (tile && scene.tiles?.has(tile.id)) await tile.delete();
@@ -17128,6 +17141,105 @@ const SCENARIOS = [
         }
         equal(stableJson([carried, refused, armed]), stableJson([[1, 1, true], [2, 0, false], 0]),
             "the GM did not take the price of a Confusion it carried out, or carried out one with no Hope (carried: actions, Hope, a roll; refused: the same; Confusions armed by the refused one)");
+    }],
+
+    ["the crime witness's mark is the GMs' row and its owner's copy, not an actor flag (E72 C2)", async () => {
+        /*
+         * E72 C2, 12.11.2026; audit S18-51. `setSilenced` wrote the actor flag `silencedChapter`, which every browser
+         * holds: every console read which Monocub had seen the crime. Now the mark is the row's `witness` in the GMs'
+         * store `cubStore` (monocub.mjs `cubRowOf`), and its owner is sent a copy. A Monocub with a player is marked on
+         * this GM. Read: whether it reads marked, the flag on the actor, the store's row (its chapter), and once cleared,
+         * whether it still reads marked and the row's mark. Red at f22a7e8's runtime: gm-stores.mjs has no cubStore, and
+         * the mark is the flag.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a Monocub with a player to send the copy to");
+        const M = await import("./monocub.mjs");
+        const { cubStore } = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub] = livingStudents().filter(player);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        let marked = null, cleared = null;
+        try {
+            ok(cubStore && typeof cubStore.get === "function", "gm-stores.mjs has no cubStore - the Monocubs' record is not built (E72 C2)");
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await M.setSilenced(cub, true);
+            await settle();
+            marked = [M.isCrimeSilenced(cub), cub.getFlag(MODULE_ID, FLAGS.silencedChapter) ?? null, cubStore.get(cub.id)?.witness?.chapter ?? null];
+            await M.setSilenced(cub, false);
+            await settle();
+            cleared = [M.isCrimeSilenced(cub), cubStore.get(cub.id)?.witness ?? null];
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            if (cub.getFlag(MODULE_ID, FLAGS.silencedChapter) !== undefined) await cub.unsetFlag(MODULE_ID, FLAGS.silencedChapter);
+            if (cubStore) {
+                if (rowWas) await cubStore.patch(cub.id, rowWas);
+                else if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+        }
+        equal(stableJson([marked, cleared]), stableJson([[true, null, getClock().chapter], [false, null]]),
+            "the crime witness's mark is not the GMs' row, or it is still the actor's flag ([marked, the flag, the row's chapter], [marked after clearing, the row's mark])");
+    }],
+
+    ["a Monocub in a murder's room is marked a crime witness: one there at the opening, one who walks in, not one elsewhere (E72 C2)", async () => {
+        /*
+         * E72 C2, 12.11.2026; audit S18-57, the guide p. 17. Nothing marked a Monocub who saw the crime: the GM ticked a
+         * box, and `maybeThirdParty` (murder-rules.mjs) returned at every dead student. A killer and a victim stood alone
+         * in a room, a Monocub stood with them, and a second Monocub elsewhere; the fight opens (`fightOpen`): the first
+         * is marked at the opening (`markWitnessesAt`). Its mark cleared, it steps out and walks back in while the fight
+         * runs: marked again (`cubSawIncident`), and it takes no seat. Read: each mark, the second Monocub's, and the
+         * incident's third. Red at f22a7e8's runtime: no mark at all.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 4), "a killer, a victim and two Monocubs stood in rooms by their tokens");
+        needs(env.primaryGm(), "the incident's watch is the primary GM's (`maybeThirdParty`)");
+        const MU = await import("./murder.mjs");
+        const MC = await import("./monocub.mjs");
+        const MV = await import("./movement.mjs");
+        const { cubStore } = await import("./gm-stores.mjs");
+        const [killer, victim, cub, far] = cast(4);
+        const scene = canvas?.scene;
+        const tokenOf = a => scene?.tokens?.find(t => t.actorId === a.id);
+        const cubToken = tokenOf(cub), farToken = tokenOf(far);
+        must(cubToken && farToken, "a Monocub has no token on the scene on screen - this would measure nothing");
+        const was = [cubToken, farToken].map(t => ({ x: t.x, y: t.y }));
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        const { room, back } = await aloneTogether(killer, victim);
+        const elsewhere = MV.allRooms(scene).find(r => r !== room);
+        const rows = [cub, far].map(a => [a.id, foundry.utils.deepClone(cubStore?.get(a.id) ?? null)]);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const read = {};
+        try {
+            for (const a of [cub, far]) await a.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await cubToken.update(MV.positionIn(room, cubToken), PLACE);
+            await farToken.update(MV.positionIn(elsewhere, farToken), PLACE);
+            await settle();
+            await fightOpen(MU, killer, victim);
+            await settle();
+            read.atOpening = [MC.isCrimeSilenced(cub), MC.isCrimeSilenced(far)];
+            await MC.setSilenced(cub, false);
+            await cubToken.update(MV.positionIn(elsewhere, cubToken), PLACE);
+            await settle();
+            await cubToken.update(MV.positionIn(room, cubToken), PLACE);
+            await until(() => MC.isCrimeSilenced(cub), 3000);
+            read.walkedIn = [MC.isCrimeSilenced(cub), MC.isCrimeSilenced(far), MU.murderState()?.thirdId ?? null];
+        } finally {
+            for (const [i, t] of [cubToken, farToken].entries()) if (scene.tokens.has(t.id)) await t.update(was[i], PLACE);
+            for (const a of [cub, far]) await a.unsetFlag(MODULE_ID, FLAGS.monocub);
+            if (cubStore) {
+                for (const [id, row] of rows) {
+                    if (row) await cubStore.patch(id, row);
+                    else if (cubStore.has(id)) await cubStore.drop(id);
+                }
+            }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+            await back();
+        }
+        equal(stableJson(read), stableJson({ atOpening: [true, false], walkedIn: [true, false, null] }),
+            "a Monocub in the murder's room was not marked a crime witness at the opening or when it walked in, or one elsewhere was, or it took a seat");
     }],
 
     ["in an Eclipse the picker is shut and the GM refuses Confusion with nothing paid (E72 C1)", async () => {
@@ -54239,7 +54351,9 @@ const SCENARIOS = [
             await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsBefore);
             read.push(three(cub), three(student));
         } finally {
-            await cub.unsetFlag(MODULE_ID, FLAGS.silencedChapter);
+            // The mark is the GMs' row since E72 C2 (`cubStore`), where it was the flag.
+            const { cubStore } = await import("./gm-stores.mjs");
+            if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
             if (!wasCub) await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
             await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsBefore);
             for (const m of game.messages.filter(m => !seen.has(m.id))) { try { await m.delete(); } catch { /* already gone */ } }
@@ -57288,7 +57402,8 @@ const SCENARIOS = [
         const [living, cub] = cast(2);
         const R = await import("./remnants.mjs");
         const { keysToPlace, keyPlanStatus, keyFeeOf, recordCaseKeys } = await import("./investigation.mjs");
-        const { keyPlanStore } = await import("./gm-stores.mjs");
+        const { keyPlanStore, cubStore } = await import("./gm-stores.mjs");
+        const cubRowWas = foundry.utils.deepClone(cubStore.get(cub.id) ?? null);
         const { nextStep } = await import("./gm-panel.mjs");
         const { createTruthBullet, issueAutopsy, bulletsOf, secretOf, setSecret, dropSecret } = await import("./truth-bullets.mjs");
         const { isCrimeSilenced, setSilenced } = await import("./monocub.mjs");
@@ -57359,14 +57474,15 @@ const SCENARIOS = [
             await place();
             await gmStoresIdle();
             after.ownKeyLine = line();
-            // As 1.2.72 wrote them: the answer key with no season, the mark the bare chapter.
+            // As 1.2.72 wrote them: the answer key with no season, the mark the bare chapter - since E72 C2 the mark is
+            // the GMs' row, and a bare chapter is what the lift keeps of an old flag (`liftCubWitness`: epoch null).
             await setSecret(autopsy.uuid, { epoch: null });
-            await cub.unsetFlag(MODULE_ID, FLAGS.silencedChapter);
-            await cub.setFlag(MODULE_ID, FLAGS.silencedChapter, chapter);
+            await cubStore.patch(cub.id, { witness: { chapter, epoch: null } });
             await gmStoresIdle();
             legacy = { line: line(), silenced: isCrimeSilenced(cub) };
         } finally {
-            if (cub.getFlag(MODULE_ID, FLAGS.silencedChapter) !== undefined) await cub.unsetFlag(MODULE_ID, FLAGS.silencedChapter);
+            if (cubRowWas) await cubStore.patch(cub.id, cubRowWas);
+            else if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
             for (const item of made) {
                 try { await dropSecret(item.uuid); } catch { /* nothing filed */ }
                 try { await item.delete(); } catch { /* already gone */ }
@@ -79451,6 +79567,9 @@ const SCENARIOS = [
                 else await actor.setFlag(MODULE_ID, f, flagsWas[f]);
             }
             if (tracks.length) await actor.update(tracksWas);
+            // The mark is the GMs' row since E72 C2 (`cubStore`).
+            const { cubStore } = await import("./gm-stores.mjs");
+            if (cubStore.has(actor.id)) await cubStore.drop(actor.id);
             await settle();
             for (const m of game.messages.filter(m => !seen.has(m.id))) { try { await m.delete(); } catch { /* already gone */ } }
         }

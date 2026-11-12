@@ -1054,6 +1054,21 @@ const CLAUSES = [
             if (!isPrimaryGm()) return { notPrimary: true };      // a body on the map: the primary's, once a world
             return await layOpenCaseBodies();
         }
+    },
+    {
+        key: "liftCubWitness",
+        // E72's release (the coordinator sets it to the version E72 ships in: every version before it wrote the flag).
+        since: "1.2.117",
+        /*
+         * THE CRIME WITNESS'S MARK, OFF THE ACTOR (E72 C2, 12.11.2026; audit S18-51). Until E72 the mark was the actor flag
+         * `silencedChapter`, which every browser holds: every console read which Monocub had seen the crime. It is the
+         * row's `witness` in the GMs' store `cubStore` now, with the owner's copy. Once, on the primary, after the store
+         * holds the other GMs' copies, with the rules written on `liftCubWitness` (monocub.mjs).
+         */
+        run: async () => {
+            const { liftCubWitness } = await import("./monocub.mjs");
+            return liftCubWitness();
+        }
     }
 ];
 

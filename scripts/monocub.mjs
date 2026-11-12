@@ -49,7 +49,10 @@ import { trustedWrite } from "./resource-guard.mjs";
 import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { getClock } from "./clock.mjs";
 import { seasonEpoch, sameSeason, deathRecord, getSetting, SETTINGS } from "./settings.mjs";
-import { resolveThreshold, whisperToOwner, log, warn, plural, isPrimaryGm, wholeNumber, serialWrite } from "./utils.mjs";
+import { resolveThreshold, whisperToOwner, log, warn, error, plural, isPrimaryGm, primaryGmId, wholeNumber, serialWrite } from "./utils.mjs";
+import { cubStore, cubCopy } from "./gm-stores.mjs";
+import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
+import { senderOf, replyForMe } from "./bridge-guards.mjs";
 import { stepper, drpgWindow } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 // Confusion's window is a Call window (E51 C2): call-pickers.mjs reaches this file only through a lazy import().
@@ -145,9 +148,9 @@ export async function setMonocub(actor, value = true, { quiet = false } = {}) {
     /* THE BODY (E63 C0, 11.11.2026; the owner on E95 Q3: "Nie gdy zostaje Monocubem"): becoming a Monocub lays nothing.
        The death laid it (chapter.mjs `markDeceased`), and the Monocub walks away from it on the token; ticked, unticked
        or ticked again, the tile stays, and it goes at the trial's end, a revive or the reset. */
-    // Unconditional on purpose: clearing the flag is also the repair for a
-    // silence left behind by a cub who is no longer one.
-    if (!value) await actor.unsetFlag(MODULE_ID, FLAGS.silencedChapter);
+    // Unconditional on purpose: clearing the mark is also the repair for a
+    // silence left behind by a cub who is no longer one (the GMs' row since E72 C2).
+    if (!value && cubRowOf(actor)?.witness) await patchCubRow(actor.id, { witness: null });
 
     /*
      * ONLY ON A REAL CHANGE (F16, 20.09), which is the rule `setSilenced` below
@@ -180,6 +183,130 @@ export async function setMonocub(actor, value = true, { quiet = false } = {}) {
     return actor;
 }
 
+/* ==========================================================================
+ * THE MONOCUBS' RECORD (E72 C2, 12.11.2026; audit S18-51, S18-57)
+ * --------------------------------------------------------------------------
+ * What the GMs keep about a Monocub lives in the GM store `cubStore` (gm-stores.mjs), and each owner holds a copy of
+ * their own characters' rows (`cubCopy`), sent by a GM when a row changes and when the owner asks - at load, and when a
+ * primary GM's world has loaded (`drpgPrimaryReady`). Asking is the owner's; answering is a GM's alone, about the
+ * asker's own characters, found from Foundry's `senderId`; the copy is taken only from a GM, and only for a character
+ * this user owns - the eclipse's crossings' shape (eclipse.mjs `movesFor`).
+ * ========================================================================== */
+
+const CUB_SOCKET = `module.${MODULE_ID}`;
+const ACTION_CUBS = "monocub.cubs";
+const ACTION_CUBS_ASK = "monocub.cubsAsk";
+
+/** The row the GMs keep of this Monocub, on a GM; this user's copy of it, on its owner's browser; null elsewhere. */
+export function cubRowOf(actor) {
+    if (!actor?.id) return null;
+    if (game.user?.isGM) return cubStore.get(actor.id) ?? null;
+    return (cubCopy.read() ?? {})[actor.id] ?? null;
+}
+
+/** GM: one user's own characters' rows, with a stamp per character they own (0 for one this browser never held). */
+export function cubsFor(userId) {
+    const user = game.users.get(userId);
+    const cubs = {}, stamps = {};
+    if (!game.user?.isGM || !user || user.isGM) return { cubs, stamps };
+    for (const actor of game.actors ?? []) {
+        if (actor.type !== "character" || !actor.testUserPermission?.(user, "OWNER")) continue;
+        stamps[actor.id] = cubStore.newest(actor.id);
+        const row = cubStore.get(actor.id);
+        if (row) cubs[actor.id] = { witness: row.witness ?? null };
+    }
+    return { cubs, stamps };
+}
+
+/** GM: send one user their rows. Addressed, and only while they are here; nothing while the suite holds the stores. */
+export function sendCubsTo(userId) {
+    const user = game.users.get(userId);
+    if (!game.user?.isGM || !user?.active || user.isGM || gmStoresQuiet()) return false;
+    const { cubs, stamps } = cubsFor(userId);
+    game.socket.emit(CUB_SOCKET, { action: ACTION_CUBS, userId, cubs, stamps }, { recipients: [userId] });
+    return true;
+}
+
+/** GM: every connected owner of this character sent their copy. */
+function tellCubOwners(actorId) {
+    const actor = game.actors.get(actorId);
+    if (!actor) return;
+    for (const user of game.users ?? []) {
+        if (user.active && !user.isGM && actor.testUserPermission?.(user, "OWNER")) sendCubsTo(user.id);
+    }
+}
+
+/** After a restore (gm-stores.mjs `restoreCase`): every connected player sent their rows again. */
+export async function retellCubs() {
+    if (!game.user?.isGM || gmStoresQuiet()) return 0;
+    let sent = 0;
+    for (const user of game.users ?? []) {
+        if (user.active && !user.isGM && sendCubsTo(user.id)) sent++;
+    }
+    return sent;
+}
+
+/** A witness's mark as a packet may carry it, or null: `{ chapter, epoch }`, each a number or null. */
+function witnessShape(mark) {
+    if (!mark || typeof mark !== "object" || !Number.isInteger(mark.chapter)) return null;
+    return { chapter: mark.chapter, epoch: Number.isFinite(Number(mark.epoch)) && mark.epoch !== null ? Number(mark.epoch) : null };
+}
+
+/** Owner: take a GM's answer where it is newer (`cubCopy`), for this user's own characters only. */
+export async function receiveCubs(cubs, stamps) {
+    const mine = {}, own = {};
+    for (const [actorId, stamp] of Object.entries(stamps ?? {})) {
+        if (!game.actors.get(actorId)?.isOwner) continue;
+        own[actorId] = Number(stamp) || 0;
+        const row = cubs?.[actorId];
+        if (row && typeof row === "object") mine[actorId] = { witness: witnessShape(row.witness) };
+    }
+    return cubCopy.receive(mine, own);
+}
+
+/** Owner: ask the primary for this user's rows. */
+function askForCubs(primary = primaryGmId()) {
+    if (!primary || game.user.isGM) return;
+    try {
+        game.socket.emit(CUB_SOCKET, { action: ACTION_CUBS_ASK }, { recipients: [primary] });
+    } catch (err) {
+        error("Could not ask the GM for this user's Monocub rows", err);
+    }
+}
+
+function onCubsSocket(payload, senderId) {
+    if (payload?.action === ACTION_CUBS_ASK) {
+        if (!isPrimaryGm()) return;
+        const sender = senderOf(senderId);
+        if (!sender || sender.isGM) return;
+        // Asked while the suite holds the stores: answered once it lets them go, from the other GMs' rows too.
+        whenGmStoresAudible().then(() => cubStore.whenHydrated()).then(() => sendCubsTo(sender.id))
+            .catch(err => error("Could not answer a player's Monocub rows", err));
+        return;
+    }
+    if (payload?.action !== ACTION_CUBS || game.user.isGM) return;
+    // A GM's, and addressed to this user: a player cannot hand another a row.
+    if (!replyForMe(payload, senderId)) return;
+    receiveCubs(payload.cubs, payload.stamps).catch(err => error("Could not keep this user's Monocub rows", err));
+}
+
+/** At ready: the copy's listener on every client, and an owner's first ask. */
+export function registerCubCopy() {
+    Hooks.once("ready", () => {
+        game.socket.on(CUB_SOCKET, onCubsSocket);
+        if (game.user.isGM) return;
+        askForCubs();
+        Hooks.on("drpgPrimaryReady", primary => askForCubs(primary));
+    });
+}
+
+/** GM: write fields of a Monocub's row, then tell its owners. `null` for a field clears it. */
+async function patchCubRow(actorId, fields) {
+    await cubStore.whenHydrated();
+    await cubStore.patch(actorId, fields);
+    tellCubOwners(actorId);
+}
+
 /**
  * Mark (or clear) the guide's "stumbled onto the crime" silence.
  *
@@ -188,17 +315,17 @@ export async function setMonocub(actor, value = true, { quiet = false } = {}) {
  * silence nobody announced is a rule the person bound by it cannot follow. It
  * used to be written as a bare flag from the Monocub dialog and never mentioned
  * anywhere; the only trace was a checkbox on the GM's screen.
+ *
+ * IN THE GMS' STORE (E72 C2, 12.11.2026; audit S18-51): the mark is the row's `witness` in `cubStore`, with its owner's
+ * copy, not the actor flag `silencedChapter` every browser holds. The card is veiled (secret.mjs): its words reach the
+ * Monocub's player alone, and its document names nobody.
  */
 export async function setSilenced(actor, silenced) {
     if (!game.user.isGM || !actor) return null;
 
     const was = isCrimeSilenced(actor);
-    if (silenced) {
-        // The chapter and its season (E11 fix r2-H2), as a death's record names them: `isCrimeSilenced`.
-        await actor.setFlag(MODULE_ID, FLAGS.silencedChapter, { chapter: getClock().chapter, epoch: seasonEpoch() });
-    } else {
-        await actor.unsetFlag(MODULE_ID, FLAGS.silencedChapter);
-    }
+    // The chapter and its season (E11 fix r2-H2), as a death's record names them: `isCrimeSilenced`.
+    await patchCubRow(actor.id, { witness: silenced ? { chapter: getClock().chapter, epoch: seasonEpoch() } : null });
 
     // Only on a real change: the dialog writes every row it was shown, and a
     // whisper repeating a silence that was already in force is noise.
@@ -207,13 +334,13 @@ export async function setSilenced(actor, silenced) {
             game.i18n.localize("DRPG.Monocub.silenceTitle")
         }</strong> - ${game.i18n.localize(silenced
             ? "DRPG.Monocub.silenceOn"
-            : "DRPG.Monocub.silenceOff")}</p>`);
+            : "DRPG.Monocub.silenceOff")}</p>`, { veiled: true });
     }
     return actor;
 }
 
 /**
- * The crime-witness marker: is the chapter `setSilenced` stamped on the actor this one?
+ * The crime-witness marker: is the chapter `setSilenced` stamped on the Monocub's row this one?
  * Information only - it refuses nothing (a witness's Confusion lands, ACT-12) and mutes
  * nothing; whether a Monocub keeps quiet is the player's own business (the owner, 05.10.2026).
  * Named `isCrimeSilenced` since 1.2.69 (E33 C9, D39): until then this and the Despair Call's
@@ -223,16 +350,88 @@ export async function setSilenced(actor, silenced) {
  *
  * THIS SEASON'S CHAPTER (E11 fix r2-H2; round 2's goal S06-42). The mark was the chapter alone, and
  * a reset that keeps the Monocubs (its deaths group unticked) sends the clock back to chapter 1: a
- * Monocub marked in last season's chapter 1 read as marked in the new one, on the GM's Players
- * window and the sheet. `setSilenced` writes `{ chapter, epoch }` since, and this asks `sameSeason`
- * of it; a mark from before 1.2.73 is the bare chapter, which names no season and is read by its
- * chapter alone, as before (tier 2 "this season's chapter reads none of last season's Key Remnants
- * nor its autopsy nor its silence"; scenario 65's K).
+ * Monocub marked in last season's chapter 1 read as marked in the new one. `setSilenced` writes
+ * `{ chapter, epoch }` since, and this asks `sameSeason` of it; a mark from before 1.2.73 is the bare
+ * chapter, which names no season and is read by its chapter alone, as before. Read off the GMs' row
+ * (or the owner's copy) since E72 C2; a world's flag is the clause `liftCubWitness`'s.
  */
 export function isCrimeSilenced(actor) {
-    const mark = actor?.getFlag(MODULE_ID, FLAGS.silencedChapter);
+    const mark = cubRowOf(actor)?.witness;
     const record = typeof mark === "number" ? { chapter: mark } : mark;
     return typeof record?.chapter === "number" && record.chapter === getClock().chapter && sameSeason(record);
+}
+
+/**
+ * A MONOCUB SAW THE CRIME (E72 C2, 12.11.2026; audit S18-57, the guide p. 17). A Monocub who stands in the incident's
+ * room - walking in while it runs (murder-rules.mjs `maybeThirdParty`, asked before its indirect and dead returns, so a
+ * trap's scene too) or there at its opening (`markWitnessesAt`) - is marked a crime witness this chapter, and told.
+ * Primary GM only; marking a marked one writes and says nothing. Answers whether it marked.
+ */
+export async function cubSawIncident(actor) {
+    if (!isPrimaryGm() || !isMonocub(actor) || isCrimeSilenced(actor)) return false;
+    await setSilenced(actor, true);
+    log(`${actor.name} (a Monocub) saw the crime: marked a crime witness this chapter.`);
+    return true;
+}
+
+/**
+ * At an incident's opening (E72 C2): every Monocub standing in the victim's room is marked (`cubSawIncident`). The
+ * token's room as the witness judge counts it (movement.mjs `lawfulRoomOf`), on the victim's scene; a hidden token is
+ * not in the scene, as for a third party. Answers how many it marked.
+ */
+export async function markWitnessesAt(victim) {
+    if (!isPrimaryGm() || !victim) return 0;
+    const { lawfulRoomOf, locateActor } = await import("./movement.mjs");
+    const place = locateActor(victim);
+    if (!place?.room || !place.scene) return 0;
+    let marked = 0;
+    for (const token of place.scene.tokens ?? []) {
+        const actor = token.actor;
+        if (!actor || token.hidden || !isMonocub(actor) || lawfulRoomOf(token) !== place.room) continue;
+        if (await cubSawIncident(actor)) marked++;
+    }
+    return marked;
+}
+
+/**
+ * THE MARKS 1.2.105 KEPT ON THE ACTOR (E72 C2) - the `liftCubWitness` clause (migrate.mjs). Once, on the primary, after
+ * the store holds the other GMs' copies: each actor's `silencedChapter` flag goes into its row's `witness` (weak and
+ * fill-only: a mark a GM has written since the update stands), and leaves the actor only once its row reads back from
+ * storage. A flag still there after that throws, so the world is not stamped and the next load tries again.
+ */
+export async function liftCubWitness() {
+    if (!isPrimaryGm()) return { notPrimary: true };
+    if (await cubStore.whenHydrated() === "timedOut") {
+        throw new Error("the other GMs' copies of the Monocubs' record did not arrive; the next load tries again");
+    }
+    const onFlag = actor => actor?.getFlag?.(MODULE_ID, FLAGS.silencedChapter);
+    const holding = () => (game.actors?.contents ?? []).filter(actor => onFlag(actor) !== undefined && onFlag(actor) !== null);
+    const found = holding();
+    if (!found.length) return null;
+    // A bare chapter is a mark from before 1.2.73 (E11 fix r2-H2): it names no season, and is kept so.
+    const marks = new Map(found.map(actor => {
+        const mark = onFlag(actor);
+        return [actor.id, typeof mark === "number" ? { chapter: mark, epoch: null } : witnessShape(mark)];
+    }));
+    for (const actor of found) {
+        const witness = marks.get(actor.id);
+        if (witness) await cubStore.patch(actor.id, { witness }, { weak: true, fillOnly: true });
+    }
+    await cubStore.idle();
+    for (const actor of found) {
+        // A mark that reads as none (a malformed flag) has nothing to keep; one that does leaves once its row is stored.
+        if (marks.get(actor.id) && !cubStore.persisted(actor.id)) continue;
+        try {
+            await actor.unsetFlag(MODULE_ID, FLAGS.silencedChapter);
+        } catch (err) {
+            error(`Could not take the crime witness's mark off ${actor.name}`, err);
+        }
+        tellCubOwners(actor.id);
+    }
+    const left = holding().length;
+    if (left) throw new Error(`${left} of ${found.length} character(s) still hold a crime witness's mark in world data; the next load tries again`);
+    log(`Moved the crime witness's mark of ${found.length} character(s) into the GM store.`);
+    return { lifted: found.length };
 }
 
 /* ==========================================================================

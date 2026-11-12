@@ -88,6 +88,15 @@ export const SETTINGS = {
     gmConfusions: "gmConfusions",
     mineConfusions: "mineConfusions",
     /**
+     * THE MONOCUBS' RECORD (E72 C2, 12.11.2026; audit S18-51, S18-57): a GM store (gm-stores.mjs `cubStore`), a row per
+     * Monocub - the crime witness's mark `{ chapter, epoch }` today, the invitation, the caps and the log as part A adds
+     * them - and each owner's copy of their own characters' rows (`cubCopy`), read by monocub.mjs `cubRowOf`. Until
+     * E72 the witness's mark was the actor flag `silencedChapter`, which every browser holds: who saw the crime. The
+     * clause `liftCubWitness` (migrate.mjs) moves a world's marks, and world-secrets.mjs holds the flag empty.
+     */
+    gmCubs: "gmCubs",
+    mineCubs: "mineCubs",
+    /**
      * THE DEATHS NOBODY HAS FOUND (E05 C10, 1.2.64; audit S06-11): a GM store
      * (gm-stores.mjs `deathStore`), a row per body `{ chapter, day, timeOfDay, at,
      * keepBullets, known, loot }` (`loot` since E05 fix r2-F0b: the Truth Bullets a
@@ -2781,6 +2790,22 @@ export function registerSettings() {
         default: {},
         onChange: onConfusionsChange
     });
+    // The Monocubs' record (E72 C2): the GMs' store and each owner's copy. The sheet's badge and the Students window
+    // read the witness's mark, and the flag's own `updateActor` redrew them until the mark left the actor.
+    game.settings.register(MODULE_ID, SETTINGS.gmCubs, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: onCubsChange
+    });
+    game.settings.register(MODULE_ID, SETTINGS.mineCubs, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: onCubsChange
+    });
     // The deaths nobody has found (E05 C10): the GMs' store and a player's copy. A body
     // kept secret redraws what a death redraws - the sheets, the HUD, the map - and is
     // told to voice, the traps and the Players window by `drpgDeathsChanged`, which the
@@ -2960,6 +2985,12 @@ function onStoreChange(kind) {
 /* A Confusion armed or spent on this browser's store or copy: the sheets, whose badges list it. */
 function onConfusionsChange() {
     import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {});
+}
+
+/* The Monocubs' record changed on this browser (E72 C2): the sheets, and the hook the Students window listens on. */
+function onCubsChange() {
+    import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {});
+    Hooks.callAll("drpgCubsChanged");
 }
 
 /* A death kept by the GMs changed on this browser: the sheets, the HUD and the map

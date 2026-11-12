@@ -591,6 +591,22 @@ export async function openMurder({ killerId, victimId, indirect = false, opening
  * (`victimUnderAttackBy`). A trap's victim is still told only that the trap closed: its
  * builder is not in the room, and their copy of the cast holds no name (`castFor`).
  */
+/**
+ * THE MONOCUBS IN THE ROOM AT THE OPENING (E72 C2, 12.11.2026; audit S18-57): marked crime witnesses (monocub.mjs
+ * `markWitnessesAt`), a trap's scene as a fight's. After the stage is written and told, and in its own try: a mark that
+ * fails must not roll the incident back.
+ */
+async function markCubWitnesses(state) {
+    try {
+        const victim = game.actors.get(state?.victimId ?? "");
+        if (!victim) return;
+        const { markWitnessesAt } = await import("./monocub.mjs");
+        await markWitnessesAt(victim);
+    } catch (err) {
+        error("Could not mark the Monocubs who saw the incident open", err);
+    }
+}
+
 async function tellVictimTheIncidentBegan(state) {
     try {
         const victim = game.actors.get(state?.victimId ?? "");
@@ -725,6 +741,7 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
     }
     await tellGms(prose[band], { keys });
     await tellVictimTheIncidentBegan(murderState());
+    await markCubWitnesses(murderState());
     return { success: true, band, keys };
 }
 
@@ -778,6 +795,7 @@ export async function resolveVictimOpening({ total, isCritical, withHope }) {
         await tellGms(def.failure);
         await whisperToGms(`<p>${game.i18n.localize("DRPG.Murder.indirectBegins")}</p>`);
         await tellVictimTheIncidentBegan(murderState());
+        await markCubWitnesses(murderState());
         return { success: false, started: true };
     }
 
@@ -3161,10 +3179,20 @@ function checkVictimNow() {
 async function maybeThirdParty(tokenDoc) {
     const state = murderState();
     if (!state || state.stage !== "incident") return;
-    if (state.indirect) return;          // nothing to interrupt
 
     const actor = tokenDoc?.actor;
     if (!actor || actor.type !== "character") return;
+    /* A MONOCUB WHO WALKS IN SAW THE CRIME (E72 C2, 12.11.2026; audit S18-57): asked before the indirect and the dead
+       returns below, so a trap's scene marks one too; a Monocub interrupts nothing and takes no seat. */
+    const { isMonocub } = await import("./monocub.mjs");
+    if (isMonocub(actor)) {
+        if (!tokenDoc.hidden && await inIncidentRoom(tokenDoc, state)) {
+            const { cubSawIncident } = await import("./monocub.mjs");
+            await cubSawIncident(actor);
+        }
+        return;
+    }
+    if (state.indirect) return;          // nothing to interrupt
     // Anybody already in it. Moving around the room they are standing in is not
     // walking into it - and that includes the third party themselves, who used
     // to be covered by an early return on `state.thirdId` that also swallowed
@@ -3180,16 +3208,7 @@ async function maybeThirdParty(tokenDoc) {
     // concerned - the same rule `othersInRoom` applies.
     if (tokenDoc.hidden) return;
 
-    const { lawfulRoomOf, locateActor } = await import("./movement.mjs");
-    const scene = locateActor(game.actors.get(state.victimId));
-    if (!scene?.room) return;
-    // Same scene, same room. Two rooms of the same name on two maps are not
-    // one room - `sameRoom` makes the same distinction for a handover. And
-    // the room the witness judge lets them count in (E12 C12, the owner's
-    // Q3 a): a player's console that put the token there past the rules
-    // walks nobody in, until it stands somewhere lawful.
-    if (tokenDoc.parent?.id !== scene.scene?.id) return;
-    if (lawfulRoomOf(tokenDoc) !== scene.room) return;
+    if (!await inIncidentRoom(tokenDoc, state)) return;
 
     // The guide gives the scene one third party. The second one to walk in is
     // the fourth person in the room, and at four this stops being a murder
@@ -3204,6 +3223,20 @@ async function maybeThirdParty(tokenDoc) {
     }
 
     await thirdPartyEnters(actor);
+}
+
+/**
+ * Does this token stand in the incident's room - the victim's? Same scene, same room. Two rooms of the same name on
+ * two maps are not one room - `sameRoom` makes the same distinction for a handover. And the room the witness judge
+ * lets them count in (E12 C12, the owner's Q3 a): a player's console that put the token there past the rules walks
+ * nobody in, until it stands somewhere lawful. Cut out of `maybeThirdParty` by E72 C2, which asks it for a Monocub too.
+ */
+async function inIncidentRoom(tokenDoc, state) {
+    const { lawfulRoomOf, locateActor } = await import("./movement.mjs");
+    const scene = locateActor(game.actors.get(state.victimId));
+    if (!scene?.room) return false;
+    if (tokenDoc.parent?.id !== scene.scene?.id) return false;
+    return lawfulRoomOf(tokenDoc) === scene.room;
 }
 
 /** Somebody walked in. The guide gives them a free resolution action. */
