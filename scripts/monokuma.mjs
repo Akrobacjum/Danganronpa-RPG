@@ -241,6 +241,8 @@ export async function setNotInClass(actor, value = true) {
  */
 export async function setSpectator(actor, value = true) {
     if (!game.user.isGM || !actor) return null;
+    // The class's map leaves a Spectator made a student again (E92 C4): its own rows stay, the fold's are unticked first.
+    if (!value && isSpectator(actor)) await (await import("./fog.mjs")).forgetSpectatorMap(actor);
     if (value) await actor.setFlag(MODULE_ID, FLAGS.spectator, true);
     else await actor.unsetFlag(MODULE_ID, FLAGS.spectator);
     log(`${actor.name} is ${value ? "now" : "no longer"} a Spectator.`);

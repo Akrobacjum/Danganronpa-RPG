@@ -22,7 +22,7 @@ cast, the trial's floor, the investigation's suspects, the Calls' targets, the d
 the Despair pools) and leaves the Spectator by C1's change to `studentActors` and `studentCensus`. R3850 reads the main
 ones.
 
-## 2. `type === "character"` - 73 lines in 35 files at the base (74 after C1)
+## 2. `type === "character"` - 73 lines in 35 files at the base (74 after C1, 75 in 36 after C4)
 
 | File:line (at 59d1935) | What it is | Class |
 | --- | --- | --- |
@@ -66,6 +66,7 @@ ones.
 | sfx.mjs:299 | whether this account is in the incident | character here |
 | sheet-audit.mjs:783, 803, 927, 1215, 3226, 3320 | the audit's marks | character here: its flag is held there (C1, `GM_FLAGS`) |
 | sheet.mjs:783, 805, 2871, 2959 | sheet renders | character here (the mode is `sheetMode`'s, C5) |
+| spectator.mjs `watcherOf` (new in C4) | the account's own Spectator, for its map | character here |
 | states.mjs:498 | a token's reserves | character here |
 | trial-scene.mjs:195 `castActors` | the trial's cast | leave it out (C1) |
 | trial-scene.mjs:200, 755, 966 | a hall token; the audit's waits | character here |

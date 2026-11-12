@@ -26,6 +26,7 @@
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
+import { flaggedSpectator, spectatorViewer } from "./spectator.mjs";
 import { SETTINGS, isEclipse, incidentParticipants, incidentCast } from "./settings.mjs";
 import { roomOfToken, roomAt, whenAtRest } from "./movement.mjs";
 import { isMoveChange } from "./rooms.mjs";
@@ -511,6 +512,13 @@ export function tokenShownTo(tokenDoc, viewer) {
     // setting: they are running the game, not standing in a room.
     if (viewer.gm) return null;
 
+    /* A SPECTATOR'S TOKEN IS ITS OWNER'S ALONE (E92 C4, 12.11.2026; the owner's E92 goal (1)): every other player's
+       browser hides it, whatever the room, the Eclipse or the setting - a display, since every browser holds the token
+       (the plan's risk R3). AND A SPECTATOR SEES EVERY CHARACTER (goal (4)): its browser leaves each token to Foundry,
+       whatever the room, in an Eclipse too (Q-E92-6's default) - Foundry's own `hidden` still hides a GM's hidden token. */
+    if (flaggedSpectator(tokenDoc.actor)) return viewer.owns(tokenDoc) ? "show" : "hide";
+    if (viewer.spectator) return null;
+
     /* THE ECLIPSE SITS ABOVE `roomVisibility`, NOT BEHIND IT.
        -------------------------------------------------------------------
        This branch used to live below the `enforcing()` gate, so a table
@@ -580,6 +588,9 @@ export function viewerHere(owns = tokenDoc => Boolean(tokenDoc?.isOwner)) {
         // Written with a computed key: R22 reads `get lair()` as a call to a function `lair` that
         // this file does not declare (11.10.2026, the first fast run of E12 C11).
         get ["lair"]() { return myLairRoom(); },
+        // Whether this browser watches (E92 C4): read only when the rule gets to it, as the rooms are; a computed key, as
+        // the lair's, so R22 does not read a call to a function `spectator`.
+        get ["spectator"]() { return spectatorViewer(game.user); },
         owns
     };
 }

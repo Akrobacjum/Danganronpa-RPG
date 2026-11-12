@@ -47438,7 +47438,7 @@ const INVARIANTS = [
         };
         equal(stableJson(got), stableJson({ player: "hide", playerOff: "hide", playerEclipse: "hide", owner: "show", gm: null, watching: null, watchingEclipse: null, student: "hide" }),
             "[a Spectator's token to a player, with the setting off, in an Eclipse, to its owner, to a GM; a student's token to a Spectator, in an Eclipse; to a player in another room]");
-    }, expectedRed("E92", "C4 writes what a Spectator sees and who sees it")],
+    }],
     ["R3856 - a Spectator's map is the class's, without the Mastermind's walks (E92 C4; the owner's E92 goal (4), the plan's risk R2): gm-stores.mjs `spectatorFogSection` folds every row of the discovery store but the Mastermind's into one row under the Spectator's own id, scene by scene - a room any of them found is found, newest stamp of the finds; a room none holds found keeps its newest untick - and names no other actor", async () => {
         /*
          * E92 C0, 12.11.2026. A section built by hand (gm-store.mjs's shape: entries, stamps, tombstones, watermark); the
@@ -47450,12 +47450,12 @@ const INVARIANTS = [
             t: { "S1/amy": { "": 10, Gym: 30 }, "S1/ben": { "": 20, Lab: 40 }, "S1/mm": 50, "S2/amy": 5 },
             d: { "S1/old": 60 }, cleared: 3
         };
-        const out = e92Export(GS, "spectatorFogSection")?.(section, "watch", { mastermindId: "mm" }) ?? null;
+        const out = GS.spectatorFogSection(section, "watch", { mastermindId: "mm" });
         equal(stableJson(out), stableJson({
             e: { "S1/watch": { Gym: true, Hall: true, Lab: false }, "S2/watch": { Roof: true } },
             t: { "S1/watch": { "": 0, Gym: 20, Hall: 10, Lab: 40 }, "S2/watch": { "": 0, Roof: 5 } },
             d: {}, cleared: 3 }), "[the fold of three students' rows, one the Mastermind's, on two scenes]");
-    }, expectedRed("E92", "C4 writes the Spectator's map")],
+    }],
     ["R3857 - a Spectator's sheet is a watcher's (E92 C5; the owner's E92 goal (5)): sheet.mjs `sheetMode` answers mode \"spectator\" - no action panel, no Calls, no row buttons, no Level Up, no strip, no OBJECTION!, no room tile, no Stop, a still header - for its owner and for a GM", async () => {
         /*
          * E92 C0, 12.11.2026. A stand-in Spectator; `editable` is handed. Red on C0's tree: mode "student".
@@ -47480,7 +47480,7 @@ const INVARIANTS = [
             "fog.mjs": 5, "gm-stores.mjs": 2, "gm-students.mjs": 1, "gm-team-dialog.mjs": 1, "hud.mjs": 1, "monocub.mjs": 3, "monokuma.mjs": 9,
             "movement.mjs": 2, "palm.mjs": 1, "passages-gm.mjs": 3, "passages.mjs": 1, "patches.mjs": 1, "player-status.mjs": 1,
             "private-rolls.mjs": 1, "projects-ui.mjs": 1, "projects.mjs": 1, "relay-guard.mjs": 2, "reroll.mjs": 1, "roll-dialog.mjs": 1,
-            "roll-draw.mjs": 1, "settings.mjs": 3, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet.mjs": 4, "states.mjs": 1, "trial-scene.mjs": 4,
+            "roll-draw.mjs": 1, "settings.mjs": 3, "sfx.mjs": 1, "sheet-audit.mjs": 6, "sheet.mjs": 4, "spectator.mjs": 1, "states.mjs": 1, "trial-scene.mjs": 4,
             "user-match.mjs": 3, "visibility.mjs": 2, "voice.mjs": 4 };
         const counted = {};
         for (const [file, text] of await otherSources()) {
