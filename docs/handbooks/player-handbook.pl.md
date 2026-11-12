@@ -115,7 +115,7 @@ Zaciemniona pora dnia (overflow, rozdział 6) może odjąć przejść albo zabra
 
 ### Chwile na cały ekran
 
-Kilka chwil wypełnia na kilka sekund każdy ekran przy stole (od 1.2.108). Esc pomija tę, która gra na twoim ekranie; przy ograniczonym ruchu widzisz zamiast niej nieruchomą klatkę; GM może wyłączyć je wszystkie dla całego stołu.
+Kilka chwil wypełnia na kilka sekund każdy ekran przy stole (od 1.2.109). Esc pomija tę, która gra na twoim ekranie; przy ograniczonym ruchu widzisz zamiast niej nieruchomą klatkę; GM może wyłączyć je wszystkie dla całego stołu.
 
 - **Wejście do Class Trial.** Ekran się zamyka, stoi na nim **CLASS TRIAL** z linią rozdziału, potem otwiera się na rozprawę. W Stained Glass nowe kafle wysuwają się zza szkła, aż zakryją ekran; w Monokuma Legacy zamykają się dwie czarne klapy.
 - **Werdykt.** Gdy GM opublikuje werdykt: portret skazanego, głosy tak, jak je policzono, pieczątka - **WINNY**, gdy klasa trafiła, **NIEWINNY**, gdy nie - i zdanie wyroku.

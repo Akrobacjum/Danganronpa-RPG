@@ -115,7 +115,7 @@ A darkened time of day (see the overflow, chapter 6) can pull the crossings down
 
 ### Full-screen moments
 
-A few moments fill every screen at the table for a few seconds (since 1.2.108). Esc skips the one playing on your screen; with reduced motion you see a still frame instead; the GM can switch them all off for the table.
+A few moments fill every screen at the table for a few seconds (since 1.2.109). Esc skips the one playing on your screen; with reduced motion you see a still frame instead; the GM can switch them all off for the table.
 
 - **The Class Trial's entry.** The screen closes and **CLASS TRIAL** stands on it with the chapter's line, then it opens onto the trial. Under Stained Glass new panes slide out from behind the glass until the screen is covered; under Monokuma Legacy two black lids close.
 - **The verdict.** When the GM posts the verdict, the sentenced student's portrait, the votes as they were counted, the stamp - **GUILTY** if the class got it right, **NOT GUILTY** if not - and the sentence.
