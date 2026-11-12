@@ -282,7 +282,7 @@ export function caseMapHtml({ graph, layout, finders = null, authors = null, rea
     return `<div class="drpg-case-map">${tools}`
         + caseOverviewHtml({ graph, finders, problems, open: Boolean(reading.overview), summary })
         + `<div class="drpg-case-graph" tabindex="-1">${caseGraphHtml({ graph, layout, finders, authors, selected: picked?.id ?? null, fold: Boolean(reading.fold), label, reach, problems,
-            editors: editors ?? new Map() })}${cameraHtml(reading.camera?.z ?? 1)}</div>`
+            editors: editors ?? new Map() })}</div>${cameraHtml(reading.camera?.z ?? 1)}`
         + `</div>`;
 }
 
@@ -366,7 +366,7 @@ function motionStill() {
 }
 
 /**
- * Wire the map inside `root`. The tools: `onAdd(kind)`, `onSort(sort)`; the camera's buttons, in the graph. The overview: its Check
+ * Wire the map inside `root`. The tools: `onAdd(kind)`, `onSort(sort)`; the camera's buttons, in their strip under the graph. The overview: its Check
  * consistency (`onCheck`), its fold (`onOverview(open)`). The graph: a node's face opens or shuts its fields (`onPick(id)`),
  * Escape on an open node or a click on empty space shuts them (`onClose(id)`; a drag is no click), the fold folds
  * (`onFold`), the arrows walk the nodes; an open node's buttons - up and down its column (`onMove(id, step)`), Remove
@@ -396,19 +396,24 @@ export function wireCaseMap(root, { onPick = () => {}, onClose = () => {}, onFol
         overview.addEventListener("click", event => { if (event.target?.closest?.("[data-drpg-case-check]")) onCheck(); });
         overview.addEventListener("toggle", () => onOverview(Boolean(overview.open)));
     }
+    /* THE CAMERA'S BAR IN A STRIP OF ITS OWN, under the graph and outside its viewport (E99 round 5, 12.11.2026: over the
+       graph's corner it lay over a node - the owner's round-4 shot, "- 100% + / Dopasuj do widoku" over "Wniosek / Nonstop
+       Debate" at 1366x768 - and Fit to view fills the viewport edge to edge, so no place inside it is free of nodes). */
+    const bar = graph?.nextElementSibling?.matches?.(".drpg-case-camera") ? graph.nextElementSibling : null;
+    if (bar && !bar.dataset.drpgWired) {
+        bar.dataset.drpgWired = "1";
+        bar.addEventListener("click", event => {
+            const cam = event.target?.closest?.("[data-drpg-case-camera]")?.dataset.drpgCaseCamera;
+            if (cam === "in") camera.zoomBy(CAMERA_LIMITS.step, undefined, undefined, { ease: true });
+            else if (cam === "out") camera.zoomBy(1 / CAMERA_LIMITS.step, undefined, undefined, { ease: true });
+            else if (cam === "fit") camera.fit();
+        });
+    }
     const openId = () => graph?.querySelector?.(":scope > .drpg-case-canvas > .drpg-case-edit[data-drpg-edit]:not([hidden])")?.dataset.drpgEdit ?? null;
     if (graph && !graph.dataset.drpgWired) {
         graph.dataset.drpgWired = "1";
         graph.addEventListener("click", event => {
             const t = event.target;
-            const cam = t?.closest?.("[data-drpg-case-camera]")?.dataset.drpgCaseCamera;
-            if (cam) {
-                if (cam === "in") camera.zoomBy(CAMERA_LIMITS.step, undefined, undefined, { ease: true });
-                else if (cam === "out") camera.zoomBy(1 / CAMERA_LIMITS.step, undefined, undefined, { ease: true });
-                else if (cam === "fit") camera.fit();
-                return;
-            }
-            if (t?.closest?.(".drpg-case-camera")) return;
             if (t?.closest?.("[data-drpg-case-fold]")) { onFold(); return; }
             const edit = t?.closest?.(".drpg-case-edit[data-drpg-edit]");
             if (edit) {

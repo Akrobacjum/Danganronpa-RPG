@@ -220,3 +220,60 @@ R3659-R3662 take the 1.2.107 line's tests. Every mention in this file was moved 
 - 61 D5 explained and fixed on the 1.2.107 line (d220d7a; the primary's clock beat landing between D's copy and the
   browser's hello): merged here with the 1.2.107 line at ce6a476. On it, under the same load (tiers 0-1 beside 41, 61,
   62, 63): tiers 0-1 1238 passed, 0 failed, 16 skipped, 0 red; 61 green, and 41, 62, 63 green; the quick gate green.
+
+## Round 5 (12.11; the owner's 13:15 through the coordinator: the console as it is, no Case schema button, the schema in the window's empty right-hand part)
+
+- **E73 merged** (claude/e73 at 6a914d0, a merge commit, fd3c07d). Following E73's merge note for E99: E99's rule on the
+  slot keeps `position: relative` only; the min-height fallback and the margin-top went. R3912 (new) holds the slot's
+  cascade - min-height 0, overflow auto and grid area `schema` from E73's rule alone, both themes, idle and running -
+  and that no other rule sets the slot's display, grid, order, flex or a height. Red with the old rule back, green now.
+- **The separate window is gone** (f02ec55): case-trial.mjs `openTrialSchema`, its class and tick-box list; the
+  footer's Case schema and `TRIAL_ACTIONS.caseSchema`; `DRPG.CaseTrial.open`, `intro`, `noTrial` in both languages;
+  its CSS; R3676 and R3677 (rows marked removed), the tier-2 window test and probe 08's capture; the GM handbook's lines
+  (section 15, EN and PL). R3913 (new) holds the console's drawing and that no window or button is left (red at
+  fd3c07d). R1317 reaches case-trial.mjs's region through the console. The registry's R3663-R3665 rows read "(removed
+  in E99: renumbered to R367x)" instead of a doubled E48 stamp.
+- **The camera's bar over a node** (the owner's round-4 shot: pl, glass, 1366x768, "- 100% + / Dopasuj do widoku"
+  over "Wniosek / Nonstop Debate"). The sweep missed it: it read cuts, overlaps and the tile controls, not the bar.
+  Now it reads the bar against every node's visible part at rest and after Fit to view, with a planted control (the
+  bar fixed over the first node must read). Red at 54dc96b on round 4's captures: 24 of 24 pages. Fix: the bar stands
+  in a strip of its own under the graph (Map and trial alike; `wireCaseMap` wires it there), outside the viewport,
+  so Fit to view - which brings nodes to every edge - leaves nothing under it. E97's R3661 follows the bar's place.
+- **The fold of unrelated evidence was cut and lay over a Remnant** (seen in the shots, not by any check): under glass
+  "NIE ZWIĄZANE Z MORDERSTWEM: 1" (292 px of words in 238), and on the Map in Polish the folded button over the first
+  unrelated Remnant. The sweep now reads the fold's words (a text range, not scrollWidth: the glass brush counts
+  there) and its box against the nodes: red at 54dc96b. Fix: the fold keeps its words as written (no capitals, no wide
+  spacing), wraps where it must, and case-view.mjs `mapPlace` gives the empty row the fold's measured height
+  (`gapH`, first column only). R3914 (new, pure) red at fd3c07d.
+- **The sweep frames the console as Foundry does**: 1280 px (`consoleWidth`), at most the screen less 16; the
+  captures' 1008 px is the harness's screen. Every number below is at that width.
+- **Size, measured** (audit/case-map-sweep.mjs; the slot, the viewport without the camera's strip, and after Fit to
+  view the scale and the smallest node text = computed font size x scale):
+
+  | State | Screen | Theme | Slot | Viewport | Fit | Smallest text |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | before a trial | 1366x768 | glass | 1244x450 | 1242x412 | 0.705 | 14.8 px |
+  | before a trial | 1366x768 | Legacy | 1244x536 | 1242x510 | 1 | 11 px |
+  | before a trial | 1920x1080 | glass | 1244x762 | 1242x724 | 1 | 21 px |
+  | before a trial | 1920x1080 | Legacy | 1244x848 | 1242x822 | 1 | 11 px |
+  | debate / Objection | 1366x768 | glass | 669x352 | 667x314 | 0.49 | 10.3 px |
+  | debate / Objection | 1366x768 | Legacy | 669x438-454 | 667x413-429 | 0.74-0.79 | 8.1-8.7 px |
+  | debate / Objection | 1920x1080 | glass | 669x664 | 667x626 | 0.794 | 16.7 px |
+  | debate / Objection | 1920x1080 | Legacy | 669x750-766 | 667x725-741 | 0.794 | 8.7 px |
+
+  (Legacy's range is EN against PL; glass reads the same in both. The case: 840 px wide, 584-641 tall.)
+- **Under 11 px at 1366x768 while a trial runs, so one change, chosen as the default: the mode picker on one compact
+  row** (no wrap, the starts at the small text, a row that does not fit scrolls sideways). Why this one: at 1366x768
+  the fit is bound by the slot's height (glass: width 667/840 = 0.79, height 314/641 = 0.49), so a narrower read-out or
+  the window at the screen's width gains nothing there; only height does. Measured: it gave the slot 4 px (at the real
+  1280 px the picker nearly fitted one row already; it took two at the harness's 1008). The camera's strip, kept low
+  (glass 32 px, was 45), gave the viewport 14 px. Glass went 9.7 -> 10.3 px; about 22 px more viewport would reach 11.
+  Legacy cannot reach 11 px at any scale under 1: its smallest node text is 11 px at 100%. At 1920x1080
+  both themes are width-bound (0.794), where a narrower read-out column would help. Left to the owner: (1) a narrower
+  read-out (helps 1920x1080, not 1366x768); (2) a lower header and footer at 1366x768 (154 px between them under
+  glass); (3) leave it: at 100% the words are full size and the camera reaches any part.
+- **Shots** (before a trial, Nonstop Debate, an Objection; 1366x768 and 1920x1080; both themes; EN and PL; the window
+  at rest and after Fit to view; the table): https://claude.ai/artifact/WUy527XyW8X8QihFuEPKBd. Looked at before
+  sending: nothing over a node, no cut text in a node or the fold, the footer in view. At rest (100%) the right-hand
+  column runs past the viewport's edge: the camera's view, not a cut.
+- **The zoom readout** reads at the small size (13 px; at 11 px of VT323 under glass it read as a smudge).

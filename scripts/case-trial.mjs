@@ -34,7 +34,8 @@ const L = key => game.i18n.localize(key);
  * and the mount's kept `camera`, for the zoom's readout. The Map's graph, its nodes whole and its camera (case-map.mjs,
  * case-view.mjs), read only, filling the slot's box (E73's mockup B gives the schema that box and no more); while a Class
  * Trial runs each deduction, counter and solution carries its tick - a button on its tile - and its mode's start; before
- * a trial, the schema alone. Nothing is drawn under the graph; the unknown cards' line stands over it.
+ * a trial, the schema alone. The unknown cards' line stands over the graph and the camera's bar in a strip under it
+ * (round 5: over the graph it lay over a node).
  */
 export function trialSchemaHtml({ graph, layout, ticks = {}, presented = [], hints = [], unknown = 0, floorOpen = false, noTrial = false, camera = null } = {}) {
     const nodes = graph?.nodes ?? [];
@@ -52,7 +53,7 @@ export function trialSchemaHtml({ graph, layout, ticks = {}, presented = [], hin
                 reason: floorOpen ? L("DRPG.CaseTrial.floorOpen") : "" } : null };
     }
     return `<div class="drpg-case-trial is-console">${unknownLine}<div class="drpg-case-graph" tabindex="-1">`
-        + `${caseGraphHtml({ graph, layout, fold: true, marks, controls, label: L("DRPG.CaseTrial.title") })}${cameraHtml(camera?.z ?? 1)}</div></div>`;
+        + `${caseGraphHtml({ graph, layout, fold: true, marks, controls, label: L("DRPG.CaseTrial.title") })}</div>${cameraHtml(camera?.z ?? 1)}</div>`;
 }
 
 /** What the console's schema draws now (a GM's read): the chapter's graph, its ticks, the presentations' marks and hints. */

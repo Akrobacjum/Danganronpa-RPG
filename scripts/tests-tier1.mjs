@@ -8562,7 +8562,7 @@ const INVARIANTS = [
             const canvas = box.querySelector(".drpg-case-graph > .drpg-case-canvas");
             const starts = [...box.querySelectorAll("button[data-drpg-case-start]")];
             return {
-                camera: Boolean(box.querySelector(".drpg-case-graph > .drpg-case-camera")),
+                camera: Boolean(box.querySelector(".drpg-case-trial > .drpg-case-graph + .drpg-case-camera")) && !box.querySelector(".drpg-case-graph .drpg-case-camera"),
                 ticks: [...box.querySelectorAll("button[data-drpg-case-tick]")].map(b => `${b.dataset.drpgCaseTick}:${b.getAttribute("aria-pressed")}:${b.parentElement === canvas}`),
                 starts: starts.map(b => `${b.dataset.drpgCaseStartNode}:${b.dataset.drpgCaseStart}:${b.disabled}:${b.parentElement === canvas}:${(b.getAttribute("aria-label") || "").includes(game.i18n.localize(`DRPG.Floor.mode.${b.dataset.drpgMode}`))}`),
                 reasons: starts.filter(b => b.disabled).map(b => (b.title || "").includes(game.i18n.localize("DRPG.CaseTrial.floorOpen"))),
@@ -8601,6 +8601,21 @@ const INVARIANTS = [
             window: "openTrialSchema" in T || /drpgWindow|drpg-window-case-trial/.test(own), player: players, refused: await UI.startTrialMode("end")
         }), stableJson({ summary: true, schema: false, action: false, window: false, player: [null, null, null], refused: null }),
         "{the footer's Case summary after the verdict (the control), its Case schema, TRIAL_ACTIONS' caseSchema, a window in case-trial.mjs; a player's tick, start and mount; a start of what is no mode's}");
+    }],
+    ["R3914 - the gap before the unrelated evidence is as tall as its fold (E99 round 5, 12.11.2026: under glass the fold took two lines, 60 px, of the 39 the empty row left under its line, and lay over the first unrelated Remnant - pl, the Map and the trial's schema, read by audit/case-map-sweep.mjs): case-view.mjs `mapPlace` given the gap's measured height `gapH` places the first column's next node at least `gapH` and a row's gap under the gap's middle, and never nearer than one pitch; the other columns and a gap of no height as before", async () => {
+        /* Pure. Red at f02ec55: `mapPlace` took no gap height and moved the row one pitch whatever the fold measured. */
+        const V = await import("./case-view.mjs");
+        const g = V.MAP_GEOMETRY;
+        const layout = { positions: { r1: { col: 0, row: 0 }, u1: { col: 0, row: 2 }, d1: { col: 1, row: 0 }, d2: { col: 1, row: 1 }, d3: { col: 1, row: 2 } }, gapAt: 1, unrelated: ["u1"] };
+        const read = gapH => {
+            const p = V.mapPlace(layout, g, null, { gapH });
+            return { gapY: p.gapY, u1: p.at.u1.y, clear: p.at.u1.y - p.gapY, d3: p.at.d3.y };
+        };
+        const none = read(0), tall = read(60), low = read(10);
+        const rowGap = g.pitch - g.nodeH;
+        equal(stableJson([none.u1 - none.gapY === g.pitch - Math.round(g.nodeH / 2), tall.clear >= 60 + rowGap, low.u1 === none.u1, tall.gapY === none.gapY, tall.d3 === none.d3]),
+            stableJson([true, true, true, true, true]),
+            "[no gap height: the row one pitch, as before; a 60 px fold: the next node 60 px and a row's gap under the gap's middle; a 10 px fold: one pitch still; the gap's middle where it was; the other column unmoved]");
     }],
     ["R3900 - the hall's zones as shapes (E73 C1; TR20 = 1, Q-E73-4): zone-geometry.mjs `zoneAt` names the zone a point is in - a region's `testPoint` with the elevation first, its polygon tree or box only where it cannot be asked, a hole asked answering no, a point both hold on the line; `zoneCoverage` finds a gap and an overlap by the grid's squares and says a gridless hall past its budget was not checked; `zoneWarnings` names none picked, one, the same region twice, a region gone, an overlap and a gap, and nothing for two zones that tile the hall", async () => {
         /*

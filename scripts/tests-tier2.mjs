@@ -39933,7 +39933,7 @@ const SCENARIOS = [
             const px = el => [parseFloat(el?.style.left), parseFloat(el?.style.top)];
             const [nx, ny] = px(tile), [tx, ty] = px(first);
             const onTile = Boolean(tile?.classList.contains("has-controls")) && tx > nx && tx < nx + MAP_W && ty >= ny && ty < ny + 54;
-            const camera = Boolean(slot()?.querySelector(".drpg-case-graph[data-drpg-camera] .drpg-case-camera [data-drpg-case-camera='fit']"))
+            const camera = Boolean(slot()?.querySelector(".drpg-case-graph[data-drpg-camera] + .drpg-case-camera [data-drpg-case-camera='fit']"))
                 && /scale\(/.test(slot()?.querySelector(".drpg-case-canvas")?.style.transform ?? "");
             const pressed = first?.getAttribute("aria-pressed");
             const kept = Boolean(first) && first === box() && first.isConnected;
@@ -39985,7 +39985,7 @@ const SCENARIOS = [
             await until(() => consoleApp()?.element?.querySelector(`[data-drpg-trial-schema] [data-drpg-node="${id}"]`), 6000).catch(() => {});
             const slot = consoleApp()?.element?.querySelector("[data-drpg-trial-schema]");
             read = { node: Boolean(slot?.querySelector(`.drpg-case-canvas > button[data-drpg-node="${id}"]`)),
-                camera: Boolean(slot?.querySelector(".drpg-case-graph[data-drpg-camera] [data-drpg-case-camera='fit']")),
+                camera: Boolean(slot?.querySelector(".drpg-case-graph[data-drpg-camera] + .drpg-case-camera [data-drpg-case-camera='fit']")),
                 ticks: slot?.querySelectorAll("[data-drpg-case-tick]").length ?? -1, starts: slot?.querySelectorAll("[data-drpg-case-start]").length ?? -1 };
         } finally {
             closeOpen("drpg-window-trial");

@@ -23390,7 +23390,7 @@ const REGRESSIONS = [
             placed: [[true, true], [true, true], [true, true], [true, true], [true, true]], path: true, measured: "1", cuts: []
         }), "{overlaps: pairs of measured nodes that overlap; heights: as measured; stack: the gap between two nodes of a column; colX, colW: the open node's column's gap and width; gap: the unrelated evidence's row below the tall nodes; edge: a path's ends at measured middles; drawn: a node's whole name and words, no title standing in for a cut; laid, placed: the relayout's places; path: the edge redrawn; measured: the canvas marked; cuts: the sheets' rules that cut a node's text}");
     }],
-    ["R3661 - a node is edited on itself, and the Map has no side panel (E97 fix; the owner's \"edycja niech nie odbywa sie po prawej stronie ekranu (usuwamy panel), tylko na samych modulach\"): the open node's fields stand in the canvas under it at its place and the rest are hidden; the chapter's own fields and problems are in the overview over the graph; the tools are one row over it and the camera's buttons in its corner; its face opens and shuts the fields, Escape and a click on empty space shut them (Escape goes no further), its arrows and Remove act on it; the Map holds no field the editors did not hand it, and every control of it has a name to be read out", async () => {
+    ["R3661 - a node is edited on itself, and the Map has no side panel (E97 fix; the owner's \"edycja niech nie odbywa sie po prawej stronie ekranu (usuwamy panel), tylko na samych modulach\"): the open node's fields stand in the canvas under it at its place and the rest are hidden; the chapter's own fields and problems are in the overview over the graph; the tools are one row over it and the camera's buttons in a strip under it (E99 round 5: in its corner they lay over a node); its face opens and shuts the fields, Escape and a click on empty space shut them (Escape goes no further), its arrows and Remove act on it; the Map holds no field the editors did not hand it, and every control of it has a name to be read out", async () => {
         /*
          * E97 fix, 12.11.2026. The drawing read back and `wireCaseMap` driven on a detached copy (jsdom and Foundry
          * alike); what Save then writes is tier 2's (the "E97 C6" tests, which open a node and save its fields). Red at
@@ -23433,7 +23433,7 @@ const REGRESSIONS = [
             overview: [Boolean(d.querySelector('.drpg-case-overview [name="keyOverride"]')), d.querySelectorAll(".drpg-case-overview .drpg-case-problems li").length,
                 Boolean(d.querySelector(".drpg-case-overview [data-drpg-case-check]"))],
             tools: [d.querySelector(".drpg-case-map > .drpg-case-tools") !== null, d.querySelectorAll(".drpg-case-tools [data-drpg-case-add]").length,
-                ["in", "out", "fit"].map(k => Boolean(d.querySelector(`.drpg-case-graph > .drpg-case-camera [data-drpg-case-camera="${k}"]`)))],
+                ["in", "out", "fit"].map(k => Boolean(d.querySelector(`.drpg-case-map > .drpg-case-graph + .drpg-case-camera [data-drpg-case-camera="${k}"]`)))],
             names, nameless
         };
         must(shownEdit && !drawn.aside, `the open node draws no fields on itself - they stand in a side panel: ${JSON.stringify({ aside: drawn.aside, open: drawn.open })}`);
