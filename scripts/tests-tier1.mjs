@@ -9941,7 +9941,7 @@ const INVARIANTS = [
         const clockMs = Number((/\bconst DRAW_ANSWER_MS = ([\d_]+);/.exec(draw)?.[1] ?? "").replaceAll("_", ""));
         const play = fnSource(draw, "drawAndPlay");
         const closes = play.search(/if \(!answer\?\.ok \|\| typeof answer\.value\?\.messageId !== "string"\) return;/);
-        const asks = /bridgeRequest\("roll\.draw", [^;]*\{ settle: "reply", timeoutMs: DRAW_ANSWER_MS \}\)/.test(play);
+        const asks = /bridgeRequest\("roll\.draw", [^;]*\{ settle: "reply", timeoutMs: DRAW_ANSWER_MS, resend: true \}\)/.test(play);
         const { createWaiter } = await import("./bridge-guards.mjs");
         const waitFor = gms => {
             const sent = [], said = [], timers = [];

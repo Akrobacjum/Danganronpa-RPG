@@ -17494,7 +17494,7 @@ const SCENARIOS = [
     ["a drawn roll its GM acknowledged and never answered ends at the draw's own clock as not answered and said once; an answer after it plays nothing", async () => {
         /*
          * E33 C6, 07.10.2026; that plan's 2.5 and 1.7 item 7. A player's drawn roll asks the GM with
-         * `bridgeRequest("roll.draw", ..., { settle: "reply", timeoutMs: DRAW_ANSWER_MS })` (roll-draw.mjs
+         * `bridgeRequest("roll.draw", ..., { settle: "reply", timeoutMs: DRAW_ANSWER_MS, resend: true })` (roll-draw.mjs
          * `drawAndPlay`), and a GM who said "got it" and then nothing - gone mid-draw, its draw stuck -
          * ends it at that clock as a closed roll window ends a roll: `noAnswer`, said once, nothing made.
          * The suite is the primary GM, whose own requests never leave it, so the wait is R165's waiter:
@@ -17509,7 +17509,7 @@ const SCENARIOS = [
         const src = stripComments((await moduleSources()).get("roll-draw.mjs") ?? "");
         const draw = fnSource(src, "drawAndPlay");
         const clockMs = Number((/\bconst DRAW_ANSWER_MS = ([\d_]+);/.exec(src)?.[1] ?? "").replaceAll("_", ""));
-        const asks = [/bridgeRequest\("roll\.draw", [^;]*\{ settle: "reply", timeoutMs: DRAW_ANSWER_MS \}\)/.test(draw),
+        const asks = [/bridgeRequest\("roll\.draw", [^;]*\{ settle: "reply", timeoutMs: DRAW_ANSWER_MS, resend: true \}\)/.test(draw),
             /if \(!answer\?\.ok \|\| typeof answer\.value\?\.messageId !== "string"\) return;/.test(draw), /\blate\b/.test(draw)];
         const sent = [], said = [], timers = [];
         const clock = { set: (fn, ms) => timers.push({ fn, ms, live: true }) - 1, clear: i => { if (timers[i]) timers[i].live = false; } };
