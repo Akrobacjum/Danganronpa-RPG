@@ -20290,7 +20290,9 @@ const INVARIANTS = [
         const gm = stub(GM, CONST.USER_ROLES.GAMEMASTER, gmFlags, "#aa0000");
         const copy = S.sourceLookOf(gm);
         const look = S.lookFrom(gm, copy);
-        const holding = (id, role, sfxList) => stub(id, role, sfxList === undefined ? { appearance: owned } : { appearance: owned, sfxList });
+        // Each holds Dice So Nice 6.4's saved marker (E76 C6; R3603 reads a user without it), so this reads the look alone.
+        const saved = { appearance: true, sfx: true };
+        const holding = (id, role, sfxList) => stub(id, role, sfxList === undefined ? { appearance: owned, saved } : { appearance: owned, sfxList, saved });
         const users = [holding("R940P1", CONST.USER_ROLES.PLAYER, asWritten), holding("R940P2", CONST.USER_ROLES.PLAYER),
             holding("R940P3", CONST.USER_ROLES.TRUSTED, own), holding("R940A1", CONST.USER_ROLES.ASSISTANT, asWritten)];
         equal(J({ look, copy: [J(copy.appearance) === J(appearance), J(copy.sfxList) === J(effects), copy.color], gm: J(gmFlags) === J({ appearance, sfxList: effects }) }),
@@ -20320,6 +20322,32 @@ const INVARIANTS = [
         const rest = src.replace(fnSource(src, "sourceLookOf"), "").replace(fnSource(src, "lookOf"), "");
         equal(J([reads(src) >= 2, reads(rest), (src.match(/\bspecialEffects\b/g) ?? []).length]), J([true, 0, 0]),
             "dice-sync.mjs reads a user's effects list somewhere other than the source's copy (`sourceLookOf`) and a user's own look (`lookOf`), or reads Dice So Nice's `specialEffects` anywhere: a forced user's look may be built from the GM's effects there ([the copy and a user's own read, `getFlag` reads elsewhere, `specialEffects` read])");
+    }],
+    ["R3603 - a forced user holds the table's dice look only with Dice So Nice 6.4's saved marker, appearance and effects both, beside it", async () => {
+        /*
+         * E76 C6, 12.11.2026 (the coordinator's decision of 12.11: write DSN's `saved` marker with the forced look). Read in
+         * Dice So Nice 6.4.5's source (tag b365efc, 04.11.2026; module/settings/DsnSettings.js): `SAVED(user)` reads the flag
+         * `dice-so-nice.saved` (:160-163); `SFX_LIST` answers `DEFAULT_SFX()` - the lines packages register through
+         * `game.dice3d.addSFXDefaults` - for a user without `saved.sfx`, whatever its `sfxList` holds (:249-253), and
+         * `APPEARANCE` merges the package's "basic" role look under the user's own for one without `saved.appearance`
+         * (:191-196). The harm: a forced player who never saved a look of their own throws with a package's effects, against
+         * the module's "no special effect" (dice-sync.mjs `lookFrom`), and a part of the look the GM did not set comes from a
+         * package rather than from DSN's default. So a user is behind the table's look until both marks are true, and the
+         * sweep and the put-back write it. Read on stubs, pure; scenario 17 G1b holds the write on every client. What 6.4.5
+         * draws from it is LIVE-E76-07.
+         */
+        const S = await import("./dice-sync.mjs");
+        const J = v => stableJson(v);
+        const DSN = "dice-so-nice";
+        const look = { appearance: { global: { colorset: "fire" } }, sfxList: [] };
+        const stub = flags => ({ id: "R3603P", name: "R3603P", role: CONST.USER_ROLES.PLAYER, getFlag: (scope, key) => (scope === DSN ? flags[key] : undefined) });
+        const held = saved => S.holdsTableLook(stub({ ...foundry.utils.deepClone(look), ...(saved === undefined ? {} : { saved }) }), look);
+        equal(J([held({ appearance: true, sfx: true }), held(undefined), held({ appearance: true }), held({ sfx: true }),
+            held({ appearance: true, sfx: false }), held({ appearance: true, sfx: true, extra: 1 })]),
+        J([true, false, false, false, false, true]),
+        "[both marks, no marker, appearance alone, effects alone, effects false, both and a key of DSN's own] - holds the table's look");
+        ok(!S.holdsTableLook(stub({ appearance: { global: { colorset: "ice" } }, sfxList: [], saved: { appearance: true, sfx: true } }), look),
+            "a user with the marker and another appearance is taken to hold the table's look");
     }],
     ["R941 - the GMs' overlay says where each secret tunnel and stairs end leads (H82-04): under each end's ring on a GM's board, 'Secret passage to {room}' with the room beyond as the map names it, 'Secret passage from {room}' at a one-way tunnel's way out, at a knower's mark's size (max(20, grid x 0.36), keyline max(4, grid x 0.07), grid x 0.38 under the end) and dimmed to 0.7; a one-way tunnel's link carries an arrowhead pointing to its way out, a two-way tunnel and stairs none; a closed tunnel and a stretch in a wall keep their dashes alone, one Graphics a passage as before; and drawn as a player, whose copy may name every passage as the Mastermind's does, nothing", async () => {
         /*

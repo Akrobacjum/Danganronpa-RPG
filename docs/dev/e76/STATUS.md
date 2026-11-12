@@ -25,7 +25,7 @@ the planner's branch (plan-130). This file is the work line's record; the coordi
   R3600 and R133 pass; scenario 33 74/74.
   - The guard reads 2.12.5's shape (`saveTotal`, `isCritical`) when the packet has a `saveTotal` key, else the old
     `result.roll`. It forwards the one judged total in **both** shapes (`saveTotal`/`isCritical` and `result.roll`).
-  - **Deviation from the plan, owner to confirm:** the plan said to forward "in the shape the running build's handler
+  - **Deviation from the plan; default, owner may revise** (accepted by the coordinator, 12.11): the plan said to forward "in the shape the running build's handler
     reads", read off the handler text, and to widen the fingerprint to read the UpdateSaveMessage arguments. Read in the
     code: the case lives in Daggerheart's `EVENT_HANDLERS`, which the wrapped listener (`handleSocketEvent`) only reaches
     through a `Hooks.on` callback; neither text holds the arguments, so the guard cannot read them. Forwarding both shapes
@@ -44,7 +44,7 @@ the planner's branch (plan-130). This file is the work line's record; the coordi
   In 92, p1's `{"flags.danganronpa-rpg.-=silencedChapter": null}` on Aiko is put back by the primary GM with one row
   `putBack`, "flags.danganronpa-rpg.silencedChapter: 97 -> -", naming PlayerOne: sheet-audit.mjs already judges a `-=` part
   as the whole key (`reachOf`), so the honoured reading needs no module change.
-  - **Deviation from the plan, owner to confirm:** the plan said "default to the reading of the target version". The
+  - **Deviation from the plan; default, owner may revise** (accepted by the coordinator, 12.11): the plan said "default to the reading of the target version". The
     default stays "ignored": the honoured reading is read off an issue title, not measured, and switching every scenario to
     it on that reading is the change LIVE-E76-03 should decide.
   - **Proposed wording for the coordinator** (the root rules file, "Delete a key with forcedDeletion() or unsetFlag"; this line does not
@@ -71,7 +71,7 @@ the planner's branch (plan-130). This file is the work line's record; the coordi
   KILLED. **What 2.12.8 does to the module's action rolls beyond the draw is not known and likely broken** (the claim by
   nonce in private-rolls.mjs `supersedingRoll`, the Loaded Die, the window always open): that is the split-off rework, and
   the owner's.
-- **C6 - the dice look on Dice So Nice 6.4.5: read, not changed.** Read in DSN 6.4.5's source (tag b365efc, 04.11.2026):
+- **C6 - the dice look on Dice So Nice 6.4.5.** Read in DSN 6.4.5's source (tag b365efc, 04.11.2026):
   `ALL_CUSTOMIZATION` is a static of the internal `DsnSettings` (module/settings/DsnSettings.js:264), not of `Dice3D`, and DSN's
   api.js exports only `DiceSystem` and `DiceSFX`; so `canonicalLook` falls back to the GM's raw `appearance` flag, as its
   comment says for 6.3+. New in 6.4: a `dice-so-nice.saved` flag (`SAVED`, :160-163). A user without `saved.sfx` throws with
@@ -80,13 +80,29 @@ the planner's branch (plan-130). This file is the work line's record; the coordi
   :191-196). The module's forced look writes `appearance` and `sfxList: []` but no `saved` marker, so on 6.4 a forced player
   who never saved their own look would get any package's default effects, against the module's "no special effect"
   (dice-sync.mjs `lookFrom`). Daggerheart 2.12.8 registers no defaults (no `addSFXDefaults` in its module/, git grep), so
-  with Daggerheart alone the list is empty. Not changed here: the fix (writing and putting back DSN's `saved` marker with the
-  look) changes what players see, can only be checked with Dice So Nice at a table (no canvas headless; LIVE-E76-05), and
-  needs the owner's screenshots review. Proposed for the owner. Daggerheart 2.10+ dice roles: not read further.
+  with Daggerheart alone the list is empty. **Fixed (the coordinator's decision of 12.11):** dice-sync.mjs `SAVED_MARK` - a
+  forced user is written DSN's `saved` marker `{ appearance: true, sfx: true }` with the look (`writeLooks`), and holds the
+  table's look only with both marks true (`holdsTableLook`), so the sweep, the connect and the put-back write it and a
+  player's own write of it goes back. Red first: R3603 measured `[true,true,true,true,true,true]` where
+  `[true,false,false,false,false,true]` was expected; scenario 17's new G1b failed with every client's marker null and p1's
+  own `{ appearance: false, sfx: false }` standing. Green: R3603, R940, 17-assistant 46/46, tier 2's 33 dice-look tests
+  ("dice look", 37 passed with the world put back). R940 changed on purpose: its stubs carry the marker, so it still reads the
+  look alone. Mutant: the check of `appearance` alone - KILLED. With the switch off nothing is written and nothing put back,
+  the marker included (Q4). Screenshots: none possible headless (no Dice So Nice, no canvas); the table check, both themes,
+  is LIVE-E76-07. Daggerheart 2.10+ dice roles: not read further.
 
 ## Next
 
-- C7: release notes material and versions.mjs comments are the coordinator's at release; nothing else planned on this line.
+- E76 ships as 1.2.106 with C2, C4, C5, the C3 part (R3602) and C6 (the coordinator, 12.11). Release notes and
+  versions.mjs comments are the coordinator's at release.
+- Waiting on the owner (the coordinator asks): C1 (the relay copy from 2.12.8), the C3 copy (the dice from 2.12.8), and
+  E76b, the 2.12 action-roll fix (the module's marks through a MoveContext). This line stops here.
+
+## CI
+
+| Head | Run | Result |
+| --- | --- | --- |
+| 7130fb4 (C2-C5) | CI run 439 (43132492762) | success: lint/check/gate, 8 suite shards, 8 scenario buckets, verdict; the two crlf jobs skipped, as on every push |
 
 ## Blocked: the owner's decision
 
@@ -119,9 +135,9 @@ the planner's branch (plan-130). This file is the work line's record; the coordi
 | Q-E76-4 | module.json untouched: no `verified` raised without a table run (LIVE-E76-01). |
 | Q-E76-5 | Split: the 2.12 rework (carrying the module's marks through a MoveContext) is not in E76; the draw reads "changed" on 2.12 (R3602) and the GM is told once per version. |
 
-## Live checks added (AUDIT 9.2, items 475-480)
+## Live checks added (AUDIT 9.2, items 475-481)
 
-LIVE-E76-01 .. LIVE-E76-06, as the plan's section 4 proposed.
+LIVE-E76-01 .. LIVE-E76-06, as the plan's section 4 proposed, and LIVE-E76-07 (DSN 6.4.5's `saved` marker, C6).
 
 ## Screenshots
 
@@ -145,6 +161,8 @@ No lang key was added or changed.
 | 13.11, C3-C5 | `node run-tests.mjs --tier 1` (whole) | 1177 ran, 1161 passed, 0 failed, 16 skipped, 1 red (R3339, E48's), 297.2 s |
 | 13.11, C3-C5 | own: R3600, R3601, R3602 with R133, R217, R556 | all pass |
 | 13.11, C3-C5 | scenarios 00-boot, 91-old-keys-ignored, 92-old-keys-honoured, 83-roll-integrity, 20-crit-hope | green: 33/33, 8/8, 8/8, 110/110, 6/6 |
+| 13.11, C6 | own: R3603, R940; tier 2 `--only "dice look"`; scenario 17-assistant | pass; 37 passed, 0 failed (33 ran); 46/46 |
+| 13.11, C6 | lint/check/gate; prose; `node run-tests.mjs --tier 1` (whole) | green; 517/517; 1178 ran, 1162 passed, 0 failed, 16 skipped, 1 red (R3339, E48's), 373.7 s |
 
 ## Tokens so far
 
