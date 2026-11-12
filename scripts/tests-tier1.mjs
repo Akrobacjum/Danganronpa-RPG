@@ -7124,6 +7124,15 @@ const INVARIANTS = [
             ["message veiled: only secret, veiled, drpgMessage",
                 s => { s.messages.push({ id: "R190MESSAGE00006", flags: { [MOD]: { secret: true, veiled: true, thread: "R190USER00000001" } } }); },
                 h => h.kind === "messageFlag" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00006" && h.path === `flags.${MOD}.thread`],
+            // E99 C7: the case summary's card speaks as itself, never a student, and its document carries its kind and its
+            // sound alone - the payload, its node ids or who ticked them would be a fact a player's browser holds.
+            ...["speaker.actor", "speaker.token"].map(f => [`message caseSummary: ${f}`,
+                s => { s.messages.push({ id: "R190MESSAGE00007", flags: { [MOD]: { caseSummary: true, sfx: "caseSummary" } },
+                    speaker: { alias: "Case summary", actor: null, token: null, [f.split(".")[1]]: f === "speaker.actor" ? KILLER : "R190TOKEN0000001" } }); },
+                h => h.kind === "messageField" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00007" && h.path === f]),
+            ["message caseSummary: only caseSummary, sfx",
+                s => { s.messages.push({ id: "R190MESSAGE00008", flags: { [MOD]: { caseSummary: true, sfx: "caseSummary", nodes: ["R190NODE"] } } }); },
+                h => h.kind === "messageFlag" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00008" && h.path === `flags.${MOD}.nodes`],
             // E05 C14: a body carries no loot record - on a world actor, and on an unlinked token's own actor data.
             ["Actor flag lootTrace",
                 s => { s.actors[1].flags[MOD].lootTrace = { sceneId: "R190SCENE0000001", tokenId: "R190TOKEN0000009", taken: ["R190 a knife"] }; },
@@ -8632,6 +8641,26 @@ const INVARIANTS = [
             media: /@media[^{]*\bheight\b/.test(css)
         }), stableJson({ low: 800, reads: [true, true, false, false, false], stamped: true, watched: true, sheet: true, media: false }),
         "{BREAKPOINTS.low; lowScreen at [768, 799, 800, 1080, 0]; applyTheme stamps drpg-low; the watch's shape reads it; the sheets' compact title and footer; a height in a media query}");
+    }],
+    ["R3916 - the case summary goes out once a trial and is heard (E99 C7; the plan's Q-E99-9 and Q-E99-7, built in the round of 12.11.2026): trial-progress.mjs `TRIAL_RECORD` has a `summaryShown` row that lives a trial (blank null, the entry writes null), so it is in the blank and in another GM's whitelist; case-summary.mjs reads and writes it, not a row of the GMs' ticks store, and its card carries `sfx: \"caseSummary\"`; config.mjs `SFX_EVENTS.caseSummary` is an incident sound with its label and hint in both languages", async () => {
+        /* Red at aa4a8f6: the mark was the ticks store's `<chapter>:summary` row, once a chapter, and the card had no sound. */
+        const T = await import("./trial-progress.mjs");
+        const { SFX_EVENTS } = await import("./config.mjs");
+        const own = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/case-summary.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        must(own.length > 500, "case-summary.mjs read as nothing - this would measure nothing");
+        const show = fnSource(own, "showCaseSummary");
+        const row = T.TRIAL_RECORD?.summaryShown ?? null;
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const plRow = pl.DRPG?.Config?.SFX_EVENTS?.caseSummary ?? null;
+        equal(stableJson({
+            row: row ? [row.lives, row.blank?.(), row.atEntry?.({}, {})] : null,
+            blank: Object.hasOwn(T.trialProgress(0), "summaryShown"), whitelisted: T.RECORD_FIELDS.includes("summaryShown"),
+            reads: /trialProgress\(\)\??\.summaryShown/.test(show), writes: /setTrialProgress\(\{\s*summaryShown:/.test(show),
+            store: /caseTickStore|:summary`/.test(show), sound: /sfx:\s*"caseSummary"/.test(show),
+            event: SFX_EVENTS.caseSummary ? [SFX_EVENTS.caseSummary.category, Boolean(SFX_EVENTS.caseSummary.label), Boolean(SFX_EVENTS.caseSummary.hint)] : null
+        }), stableJson({ row: ["trial", null, null], blank: true, whitelisted: true, reads: true, writes: true, store: false, sound: true, event: ["incident", true, true] }),
+        "{the record's row [lives, blank, at entry]; in the blank; in another GM's whitelist; showCaseSummary reads it, writes it, names no store row; the card's sound; SFX_EVENTS.caseSummary}");
+        ok(plRow && typeof plRow.label === "string" && plRow.label.length > 3, "the sound's Polish label (config.mjs prose in lang/pl.json) is missing");
     }],
     ["R3900 - the hall's zones as shapes (E73 C1; TR20 = 1, Q-E73-4): zone-geometry.mjs `zoneAt` names the zone a point is in - a region's `testPoint` with the elevation first, its polygon tree or box only where it cannot be asked, a hole asked answering no, a point both hold on the line; `zoneCoverage` finds a gap and an overlap by the grid's squares and says a gridless hall past its budget was not checked; `zoneWarnings` names none picked, one, the same region twice, a region gone, an overlap and a gap, and nothing for two zones that tile the hall", async () => {
         /*

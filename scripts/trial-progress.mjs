@@ -373,6 +373,9 @@ export const TRIAL_RECORD = Object.freeze({
     // Debate the next step (C3).
     findings: row({ lives: "trial", by: "trial-zones.mjs `afterZoneStep`, `editFinding`", blank: fresh([]), atEntry: fresh([]) }),
     strawPoll: row({ lives: "trial", by: "trial-zones.mjs `afterZoneStep`", blank: fresh(null), atEntry: fresh(null) }),
+    // E99 C7 (Q-E99-9: once per trial): when this trial's case summary went out, a time and nothing of its content; a
+    // second trial in the chapter starts with none, so it has a summary of its own.
+    summaryShown: row({ lives: "trial", by: "case-summary.mjs `showCaseSummary`", blank: fresh(null), atEntry: fresh(null) }),
     // E70 C5: the trial's list of the dead, written by the settle alone and taken out at the exit - in no blank, and
     // left by the entry (the settle that follows it writes it).
     mutedDead: row({ lives: "trial", by: "voice.mjs `settleTrialVoices`" })

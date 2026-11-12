@@ -1339,9 +1339,10 @@ export function consoleWidth() {
  * THE WINDOW'S BODY: the console and, after it, the case schema's slot (E73, 12.11.2026; mockup B and the coordinator's
  * hook for E99, claude/e97-98 afeeb68). One empty `data-drpg-trial-schema` element, right after `.drpg-trial-console`
  * and outside it, so the console's redraw every second (`keepLive`'s region) never draws over what E99 mounts there
- * (case-trial.mjs `mountTrialSchema`, called at the console's render from 1.2.109's merge; nothing is imported here).
- * The frame lays the console's three regions and the slot out in one column, the slot between the mode and the
- * management, and keeps its height while the trial runs, so mounting into it moves nothing (components.css; R3911).
+ * (case-trial.mjs `mountTrialSchema`, called at the console's render; nothing is imported here). The frame is one grid
+ * (components.css): with no trial, the console's lines over the slot; while a trial runs, the status on top, the
+ * read-out on the left and the slot on the right, the bar under both. The slot's size is the grid's, so mounting into
+ * it moves nothing (R3911, R3912).
  */
 export function trialBodyHtml(view) {
     return `<div class="drpg-trial-frame">${trialConsoleHtml(view)}<div class="drpg-trial-schema" data-drpg-trial-schema></div></div>`;

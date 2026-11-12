@@ -3,6 +3,12 @@
 The case schema at the trial and a summary for the players after the verdict. Started 12.11.2026 after E97/E98's
 C1-C13 were pushed (1e1c61c). Plan: docs/dev/plans/E99.md on origin/claude/plan-130.
 
+**Read first (12.11.2026, round 6).** The release is **1.2.108 = E73 + E99** (E92 rides later). The state of E99 is the
+last sections - rounds 5 and 6 and "Plan defaults, as built" below; the earlier sections are kept as the record and are
+**superseded** where they describe the Case schema as a window of its own ("the window stays as the second way", the
+side list of tick boxes, the footer's Case schema button - all removed in round 5 by the owner's 13:15) or say the
+schema's place "waits for E73" (E73 merged at fd3c07d; the schema stands in the console's right-hand part).
+
 ## Done (this commit)
 
 - **C2, the modes' census**: trial-floor.mjs `MODE_STARTS` (each mode of floor-machine.mjs `MODES`: the console's
@@ -67,16 +73,16 @@ Red first: R3674-R3677 and the tier-2 "E99 C5" test red at 946c031 (no case-hint
 - **The animated board** (C7's board, D's "an animated board like the verdict's"): E61's verdict board, its event, its
   reduced-motion version and its Esc are not in this tree (E61 is ahead in the release order and not built). The chat
   card is the summary's static form; the board waits for E61.
-- **C5's place in the console's middle**: waits for E73's console layout (above).
+- ~~C5's place in the console's middle: waits for E73's console layout~~ - done (fd3c07d, rounds 5-6).
 - **C5's frame glyph** (`case-map`, `node-check`): drawn in tools/glyphs.json, not declared in pixel-icons.css (E48's;
   the same note as E97's in docs/dev/e97/STATUS.md); the button and the boxes carry no glyph.
 - **C1 three-digit stage ids**: touches tools/stages.mjs, the coordinator's; not done here (Q-E99-11 stays open).
 - No tier-2 test of `showCaseSummary` yet (a verdict fixture is needed): the composer and the card are tested pure.
 
-## Defaults taken, owner to confirm
+## Defaults taken, owner to confirm (corrected 12.11.2026, round 6)
 
-Q-E99-2..-10 and -12 as the plan proposes (above where used). The card is posted under the speaker "Case summary",
-public, with the flag `caseSummary`; its content is the payload's words and nothing else.
+Superseded: this section said Q-E99-2..-10 and -12 were all taken as the plan proposes. What is built, default by
+default, is in "Plan defaults, as built" at the end of this file.
 
 ## Test results
 
@@ -321,3 +327,34 @@ R3659-R3662 take the 1.2.107 line's tests. Every mention in this file was moved 
   about 359 px of viewport, a fit of 0.56, about 11.8 px. Foundry's own header at a real table is not measured.
 - Monokuma Legacy stays as it is (the owner); a GM needs nothing new in the handbook for it.
 - Shots, 1366x768 (round 6 at the top of the page): https://claude.ai/artifact/WUy527XyW8X8QihFuEPKBd.
+
+## Round 6, the release ledger's fixes (12.11, the coordinator)
+
+- GM handbook 15.2 "Starting a mode" (EN, PL): the three zone modes start from the console's mode picker and open the
+  Hall zones window on that mode (since E73's 5fc377d4), not from a footer button. The comments over `MODE_STARTS`
+  ("one footer button") and over `trialBodyHtml` ("from 1.2.109's merge", "in one column") say what the code does now.
+- AUDIT 9.2 item 488 (LIVE-E99-01) rewritten for the schema inside the console (rounds 4-6), with the 11 px check at
+  1366x768 and Foundry's own header height, which the sweep cannot read.
+- **The summary card's world-secrets rule** (world-secrets.mjs `messages`, `when: "caseSummary"`): no `speaker.actor`
+  or `speaker.token`, and module flags `caseSummary` and `sfx` alone. R190's three fixtures (each field, and a planted
+  `nodes` flag) read red without the rule ("the rule did not find a secret planted for it"), green with it; R9 and
+  R202 green.
+
+## Plan defaults, as built (12.11.2026, round 6; what the plan proposed and what the code does)
+
+| Q | The plan's default | Built |
+| --- | --- | --- |
+| Q-E99-1 | the schema in the console's middle, and its own larger window from a frame button | superseded by the owner (13:15): the schema in the console's right-hand part, no window, no button (round 5) |
+| Q-E99-2 | discovered = ticked by a GM at the trial | as proposed (R3671) |
+| Q-E99-3 | Remnants on the schema a student found | as proposed (R3671) |
+| Q-E99-4 | the whole solution on a right vote | as proposed (R3671) |
+| Q-E99-5 | greyed in a Final Trial | as proposed: Show summary greyed before the verdict and in a Final Trial |
+| Q-E99-6 | a GM's public chat card, no notice | as proposed; the animated board is E61's and not in this tree |
+| Q-E99-7 | its own Sound slot "Case summary", played with the board | built in round 6: `SFX_EVENTS.caseSummary` (incident; EN and PL), carried by the card (`sfx`), so every client plays it with the card (R3916) |
+| Q-E99-8 | every GM ticks and sends | as proposed (R3672; 63 S: gm2 and gm3) |
+| Q-E99-9 | once per trial; the button reads as done; a GM may replay the board on their own browser | once per trial built in round 6: the trial's record `summaryShown` (a time, nothing of the content; the entry blanks it, so a second trial has its own) replaces the ticks store's per-chapter row; a second press, by any GM, says "Already sent for this trial." and sends nothing (R3916, R1257; 63 S). Not built: the button does not change its look once sent (it stays pressable and answers that line), and there is no board to replay (E61) |
+| Q-E99-10 | objection and rebuttal listed with no start; the Reveal where it is | as proposed (R3670) |
+| Q-E99-11 | three-digit stage ids in E99 | not done: tools/stages.mjs is the coordinator's |
+| Q-E99-12 | no count of what was not found | as proposed (R3671) |
+| Q-E99-13 | a hint after presentations by E98's rule | as proposed (R3674, R3675) |
+| C7 | a `showSummary` next step before the chapter's end, and a `summaryShown` record row | the record row built (above). The next step not built: it changes the one table three readers share (trial-floor.mjs `TRIAL_NEXT_STEPS`: R2050's 31 views and its step count, R2051's panel line, R1364's footer primary, the console's leads, two texts) and needs a Final Trial flag `trialStepView` does not carry - not small. After the verdict the next step stays End of chapter; Show summary is a secondary button beside it. Left for the owner or a later stage |

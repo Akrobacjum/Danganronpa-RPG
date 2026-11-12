@@ -20235,7 +20235,9 @@ const REGRESSIONS = [
             "accusedIds", "verdict", "objections", "trialStartedAt", "againAfterOverrule", "topic", "debateAgain", "voteOpenedAt", "trialSize",
             "lastVerdictAt", "executedAt", "execution", "closing",
             // E73 (12.11.2026): the zone modes' Findings and the last Straw Poll's count, the trial's, a GM's to edit.
-            "findings", "strawPoll"];
+            "findings", "strawPoll",
+            // E99 (12.11.2026, Q-E99-9): when the trial's case summary went out, the trial's.
+            "summaryShown"];
         const KEPT = ["chapter", "mutedDead", "objections", "closing"];
         const blank = P.trialProgress(0);
         const patch = P.entryPatch({ ...blank, vote: { ...blank.vote, round: 3 } }, { seconds: 120 });
@@ -20248,12 +20250,12 @@ const REGRESSIONS = [
             blank: { chapter: 0, seconds: SECONDS, voteClosed: false, verdictApplied: false, keysCharged: false, tied: false, majority: 0,
                 noMajority: false, vote: { open: false, round: 0, picks: 1, issued: [], openedAt: null, closedAt: null }, accused: [], total: 0,
                 accusedIds: [], verdict: null, objections: {}, trialStartedAt: null, againAfterOverrule: null, topic: null, debateAgain: false,
-                voteOpenedAt: null, trialSize: 0, lastVerdictAt: null, executedAt: null, execution: null, closing: null, findings: [], strawPoll: null },
+                voteOpenedAt: null, trialSize: 0, lastVerdictAt: null, executedAt: null, execution: null, closing: null, findings: [], strawPoll: null, summaryShown: null },
             keys: BLANK, fields: BLANK.filter(key => !KEPT.includes(key)),
             entry: { seconds: 120, voteClosed: false, verdictApplied: false, tied: false, majority: 0, noMajority: false,
                 vote: { open: false, round: 3, picks: 1, issued: [], openedAt: null, closedAt: null }, accused: [], total: 0, accusedIds: [], verdict: null,
                 trialStartedAt: "number", againAfterOverrule: null, topic: null, debateAgain: false, voteOpenedAt: null, trialSize: "number",
-                executedAt: null, execution: null, closing: null, findings: [], strawPoll: null },
+                executedAt: null, execution: null, closing: null, findings: [], strawPoll: null, summaryShown: null },
             chapter: ["chapter", "keysCharged", "objections", "lastVerdictAt"], trial: ["mutedDead"]
         }), "the blank, the entry's patch or the whitelist of another GM's patch is not 1.2.96's, or the chapter's fields are not the chapter, the Key fee, the receipts "
             + "and the last verdict's stamp, or a trial's field in no blank is more than the trial's list of the dead (read: blank, its keys, RECORD_FIELDS, the entry's patch, the chapter's, the trial's outside the blank)");

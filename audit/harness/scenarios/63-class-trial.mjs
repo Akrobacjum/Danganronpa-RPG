@@ -808,6 +808,15 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         return m ? m.content : null;`, { timeout: 30000 });
     verdict("gm2's Show summary reaches p1 with both ticked deductions and, the vote being right, the solution (C7)",
         typeof sentS === "string" && typeof cardS === "string" && Object.values(caseText).every(t => cardS.includes(t)), J({ sentS, cardS: cardS?.slice(0, 600) }));
+    /* Once per trial (Q-E99-9, round 6): the trial's record holds when it went out, and a second press - here gm3's, another
+       GM - says so and sends nothing; p1 holds one summary card. */
+    const againS = await gm3.eval(`return await (await import("${repoUrl}/scripts/case-summary.mjs")).showCaseSummary();`, { timeout: 30000 });
+    await settle(800);
+    const onceS = await p1.eval(`return game.messages.contents.filter(m => m.flags?.["${MOD}"]?.caseSummary === true).length;`);
+    const shownS = await gm2.eval(`${V} return V.trialProgress().summaryShown;`);
+    verdict("the summary goes out once a trial: the record holds its time, gm3's second press sends nothing, p1 holds one card (Q-E99-9)",
+        againS === null && onceS === 1 && Number.isFinite(shownS), J({ againS, onceS, shownS }));
+    await gm2.eval(`${V} await V.setTrialProgress({ summaryShown: null }); return true;`, { timeout: 30000 });
     await gm2.eval(`${CS} for (const id of ["s63-d1", "s63-d2", "s63-s1"]) { await CS.setCaseTick(ch, id, false); await CS.dropCaseNode(ch, id); } return true;`, { timeout: 30000 });
     await disconnect("gm3");
     check("S0: phase S measured something", (counts.S ?? 0) > 0, J(counts));

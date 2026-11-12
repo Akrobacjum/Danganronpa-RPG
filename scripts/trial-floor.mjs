@@ -120,7 +120,8 @@ export const MODE_STARTS = Object.freeze({
     testimony: Object.freeze({ action: "startTestimony", reason: null }),
     panic: Object.freeze({ action: "startPanic", reason: null }),
     closing: Object.freeze({ action: "startClosing", reason: null }),
-    // The zone modes (E73): one footer button, the picker window, which opens on the mode asked (trial-floor-ui.mjs).
+    // The zone modes (E73): each its own start in the console's mode picker (`modePickerHtml`); all three open the Hall
+    // zones window on the mode asked (trial-zones-ui.mjs `openZonePicker`).
     straw: Object.freeze({ action: "zones", reason: null }),
     dive: Object.freeze({ action: "zones", reason: null }),
     scrum: Object.freeze({ action: "zones", reason: null })
