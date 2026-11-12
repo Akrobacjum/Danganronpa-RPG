@@ -2111,8 +2111,8 @@ export const HOPE_CALLS = {
      */
     talent: {
         label: "Talent", icon: "fa-star", cost: 1, target: "none", choices: ["experience", "ultimate"], ask: "DRPG.Calls.talentAsk",
-        effect: "Write how one of your experiences or your Ultimate applies to your next roll; a GM approves or refuses, and "
-            + "you pay the Hope only if it is approved. That roll then adds one experience's value, or has advantage."
+        effect: "Say how an experience or your Ultimate fits your next roll. A GM approves, and you pay only then. The roll adds "
+            + "the experience or gets advantage."
     },
     experience: {
         // Waits for the GM - see the note on Ultimate above. This is the Call
@@ -2323,8 +2323,7 @@ export const HOPE_CALLS = {
      */
     bribe: {
         label: "Bribe", icon: "fa-money-bills", cost: 1, target: "monocub", bribe: true,
-        effect: "Offer a Monocub {cost} Hope for a favour you agree between you. You pay only if they accept; nobody else "
-            + "is told."
+        effect: "Offer a Monocub {cost} Hope for a favour. You pay only if they accept; nobody else knows."
     }
 };
 
@@ -2687,8 +2686,8 @@ export const DESPAIR_CALLS = {
         label: "Bounty", icon: "fa-sack-dollar", cost: 1, reward: 1, target: "player", bounty: true,
         // No tile of its own (the owner, 12.11.2026): chosen in Fuel a Monocub's tile (calls.mjs `despairCallsFor`).
         inside: "fuelTheCub",
-        effect: "Put a secret Bounty of one Hope on a student: the first Monocub whose Confusion hinders them claims it. "
-            + "Only the Monocubs and the GMs are told; the Despair is taken at the next time of day."
+        effect: "A secret Bounty: one Hope for the first Monocub whose Confusion hinders the named student. Only the Monocubs "
+            + "and the GMs know; the Despair goes at the next time of day."
     }
 };
 

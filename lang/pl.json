@@ -1238,7 +1238,7 @@
       "tierBeaten": "Przebite {n}: {what}.",
       "tierMissed": "Poniżej {n}: nic z tego nie wychodzi.",
       "meddledOn": "Confusion użyte na: {name}.",
-      "tinkerIntro": "Popchnij o krok do przodu albo do tyłu projekt w swoim pokoju, nad którym ktoś pracował w tej porze dnia. Wszyscy w twoim pokoju widzą, że rzucasz i w którą stronę, nigdy przy czym.",
+      "tinkerIntro": "Popchnij o krok w przód albo w tył projekt w swoim pokoju, jeśli ktoś nad nim pracował o tej porze dnia. Pokój widzi rzut i kierunek, ale nie widzi, przy czym.",
       "tinkerRefused": "Tinker tam nie sięga. Nie tracisz akcji ani Hope.",
       "noProjectHere": "W tym pokoju nie ma projektu, na którym dałoby się użyć Tinker.",
       "grantStep": "projekt o krok do przodu przy Pomóż, do tyłu przy Przeszkódź",
@@ -1249,10 +1249,10 @@
       "tinkerStill": "Tinker: {name} się nie rusza.",
       "tinkerHeld": "Tinker: {name} zatrzymuje się krok przed końcem. Skończyć go musi ktoś żywy.",
       "tinkerHopeBack": "Krytyk: Hope do ciebie wraca.",
-      "purseLine": "Sakiewka: {n} Hope, trzymane przez GM-ów i wydawane przed Hope z arkusza.",
+      "purseLine": "Sakiewka: {n} Hope, wydawane najpierw.",
       "purseTip": "z tego {n} w sakiewce",
       "bribeTitle": "Bribe",
-      "bribeAsk": "{name} proponuje postaci {cub} Bribe: {cost} Hope za przysługę, którą ustalicie między sobą. Przyjmij, a Hope trafi do twojej sakiewki.",
+      "bribeAsk": "{name} oferuje postaci {cub} {cost} Hope za przysługę, którą ustalicie. Przyjmij, a Hope trafi do sakiewki.",
       "bribeAccept": "Przyjmij",
       "bribeRefuse": "Odrzuć",
       "bribeOffered": "Proponujesz postaci {name} Bribe: {cost} Hope. Płacisz tylko wtedy, gdy przyjmie.",
@@ -1268,7 +1268,7 @@
       "bountyPaid": "Odbierasz Bounty na postać {name}: {n} Hope w twojej sakiewce.",
       "bountyNoDespair": "W twojej puli nie ma Despair na Bounty.",
       "bet": "Postaw",
-      "betIntro": "Wskaż ucznia, którego według ciebie skaże werdykt. Trafny werdykt na tę osobę płaci do twojej sakiewki Hope okna, w którym stawiasz: 4 przed ogłoszeniem ciała, 3 po nim, 2 w rozprawie przed głosowaniem, 1 w trakcie głosowania.",
+      "betIntro": "Wskaż, kogo skaże trafny werdykt. Jeśli tak będzie, sakiewka dostaje 4 Hope przed ogłoszeniem ciała, 3 po nim, 2 w rozprawie, 1 w trakcie głosowania.",
       "betPlaced": "Twój Ghost Bet już stoi. Rozliczy go werdykt.",
       "betOwnCase": "Bez Ghost Bet, dopóki trwa twoja własna sprawa.",
       "betWitness": "Świadek zbrodni nie stawia Ghost Bet.",
@@ -1303,7 +1303,7 @@
       "silencedBadge": "Milczenie o zbrodni",
       "silencedTooltip": "Jesteś świadkiem: nie możesz mówić o zbrodni do końca tego rozdziału; Confusion wciąż działa.",
       "invite": "Zaproś jako Monocuba",
-      "onlyTwoActions": "Monocub przechodzi między pokojami i używa swoich kafelków: Confusion, Tinker, Redeem i Ask for Hope. Reszta panelu akcji należy do żywych.",
+      "onlyTwoActions": "Monocub chodzi swobodnie i używa swoich kafelków: Confusion, Tinker, Redeem, Ask for Hope i Ghost Bet.",
       "giveAtLeast": "Wpisz, ile Despair zamienić w Hope - co najmniej {n}."
     },
     "Mastermind": {
@@ -3421,7 +3421,7 @@
       "notArmedNotCharged": "{call} nie został uzbrojony i nie pobrano za niego Hope.",
       "despairGmOnly": "Despair Calle wydaje Monokuma, a Monokuma to GM.",
       "choiceAsk": "Które z dwóch?",
-      "talentAsk": "Co dostaje twój następny rzut: wartość jednego doświadczenia czy przewagę z Ultimate?"
+      "talentAsk": "Na następny rzut: doświadczenie czy Ultimate?"
     },
     "Monokuma": {
       "toggle": "Oznacz jako Monokumę",
@@ -6400,7 +6400,7 @@
       "HOPE_CALLS": {
         "talent": {
           "label": "Talent",
-          "effect": "Opisz, jak twoje doświadczenie albo twój Ultimate pasuje do rzutu. GM zatwierdza to albo odrzuca, a Hope płacisz dopiero po jego zgodzie. Następny rzut dodaje wartość jednego doświadczenia albo dostaje przewagę."
+          "effect": "Opisz, jak doświadczenie albo Ultimate pasuje do następnego rzutu. GM zatwierdza, a płacisz dopiero wtedy. Rzut dodaje doświadczenie albo dostaje przewagę."
         },
         "support": {
           "label": "Support",
@@ -6444,7 +6444,7 @@
         },
         "bribe": {
           "label": "Bribe",
-          "effect": "Zaproponuj Monocubowi {cost} Hope za przysługę, którą ustalicie między sobą. Płacisz tylko wtedy, gdy przyjmie; nikt inny się nie dowie."
+          "effect": "Zaproponuj Monocubowi {cost} Hope za przysługę. Płacisz, tylko gdy przyjmie; nikt inny się nie dowie."
         }
       },
       "DESPAIR_CALLS": {
@@ -6510,7 +6510,7 @@
         },
         "bounty": {
           "label": "Bounty",
-          "effect": "Wyznacz tajne Bounty: jedno Hope na ucznia. Odbiera je pierwszy Monocub, którego Confusion mu przeszkodzi. Wiedzą tylko Monocuby i GM-owie; Despair schodzi w następnej porze dnia."
+          "effect": "Tajne Bounty: jedno Hope dla pierwszego Monocuba, którego Confusion przeszkodzi wskazanemu uczniowi. Wiedzą tylko Monocuby i GM-owie; Despair schodzi w następnej porze dnia."
         }
       },
       "PROJECT_SCALE": {
