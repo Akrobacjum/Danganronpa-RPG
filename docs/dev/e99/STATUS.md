@@ -88,3 +88,17 @@ public, with the flag `caseSummary`; its content is the payload's words and noth
   ticked, both themes, EN and PL, 1366x768 and 1920x1080, GM only (a player has no such window). Not Foundry: the
   module's sheets through the style harness. No presentation in the harness's world, so no "presented" or "hint" mark
   is on the shots. Seen: at 1366x768 under the glass the side list scrolls (its fourth row below the fold).
+- c6d1e96 (C4, C5): tiers 0-1 1181 passed, 1 failed (R1317, fixed in c1bc17e); 14 scenarios (00, 30, 33, 41, 50, 61,
+  62, 63, 65, 67, 72, 81, 86, 88) green.
+- c1bc17e (C5 fix, C8, C9): quick gate green; tiers 0-1 1182 passed, 0 failed, 16 skipped, 1 red (R3339, E48's); tier 2
+  by name ("E99 C5", "E97 C", R3663-R3666, R1317) 30 passed; 14 scenarios (00, 10, 11, 13, 30, 40, 41, 50, 63, 67, 72,
+  76, 86, 88) green; 63 74/74, 72 with its summary phase green. Pushed.
+- A slip, recorded: the dev worktree's `audit/harness/node_modules` (a symlink to the main tree's) was swept into a
+  local commit by `git add -A audit`; fast-forwarding the main tree replaced its real node_modules with the symlink. Seen
+  at the quick gate (eslint not found), before any push: the symlink taken out of the unpushed commit, `npm ci` run
+  again, the path put in the local git exclude. The pushed history never held it (checked with git log and ls-tree).
+
+## Next
+
+C1 is the coordinator's (tools/stages.mjs). The board (C7's, the player handbook's trial section, 63's late p4)
+waits for E61. Open from C8: a hint after a Present in 63. E98's 60-Remnant measurement.
