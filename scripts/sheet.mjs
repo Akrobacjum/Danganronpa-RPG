@@ -81,7 +81,7 @@ import { trustedWrite } from "./resource-guard.mjs";
 import { announceSheetSteps } from "./requirements.mjs";
 import { overflowBlocksCalls, overflowBlocksFreeMove } from "./overflow.mjs";
 import { stateHeld } from "./states.mjs";
-import { effectLines as timedLines } from "./timed-effects.mjs";
+import { effectBadges as timedBadges } from "./timed-effects.mjs";
 
 /*
  * ONE SHEET MODE (E45 C1, 08.11.2026; audit S17-37, S03-33; the owner's A8 of 11.10). The gates of the sheet asked
@@ -1719,7 +1719,7 @@ function freeMovePip(actor, { spentMove, fresh, viewer = false, still = false })
 // Call or a Monocub's Meddle landing on them are two different facts about
 // the same turn, and the layout has room for both stacked without moving
 // anything else.
-function pendingStack(actor) {
+export function pendingStack(actor) {
     const stack = document.createElement("div");
     stack.className = "drpg-pending-stack";
 
@@ -1763,6 +1763,19 @@ function pendingStack(actor) {
         });
         badge.innerHTML = `<i class="fa-solid ${despair ? "fa-skull" : "fa-hand-sparkles"}" inert></i>
                            <span>${foundry.utils.escapeHTML(label)}</span>`;
+        stack.append(badge);
+    }
+
+    // A room action's timed effects (the owner's answer to Q-E93-3; the owner's ask of 12.11.2026, "w podobnym miejscu co efekty
+    // hope calls"): a Call's badge, in Hope's colour - what it does on the badge, what ends it in the tooltip - read on a
+    // GM off the GMs' store and on an owner's browser off their copy (timed-effects.mjs `effectBadges`). Their words may
+    // wrap (the stylesheet's `.drpg-timed-badge`): a Call's name is a word, an effect's a sentence.
+    for (const { what, until } of timedBadges(actor)) {
+        const badge = document.createElement("div");
+        badge.className = "drpg-pending-call drpg-pending-hope drpg-timed-badge";
+        badge.dataset.tooltip = game.i18n.format("DRPG.Facility.timedBadge", { until });
+        badge.innerHTML = `<i class="fa-solid fa-hourglass-half" inert></i>
+                           <span>${foundry.utils.escapeHTML(what)}</span>`;
         stack.append(badge);
     }
     return stack;
@@ -2351,27 +2364,6 @@ function paintStateBadges(section, actor) {
         row.className = "drpg-state-badges";
         section.after(row);
     }
-    // A room action's timed effects (the owner's answer to Q-E93-3, 12.11.2026) in a row of their own under the states:
-    // what each does and what ends it, read on a GM off the GMs' store and on an owner's browser off their copy
-    // (timed-effects.mjs `effectLines`). Not in the states' row, whose one line at its reserved height cut each to a few
-    // letters (measured 12.11 at the sheet stand-in's 275px sidebar: "+2 Bod", "Your next", "Next Ulti"); this row
-    // wraps, and takes no room while none is held (the stylesheet's `:empty`).
-    let timed = row.nextElementSibling?.classList?.contains("drpg-timed-badges") ? row.nextElementSibling : null;
-    if (!timed) {
-        timed = document.createElement("div");
-        timed.className = "drpg-timed-badges";
-        row.after(timed);
-    }
-    timed.replaceChildren(...timedLines(actor).map(line => {
-        const badge = document.createElement("span");
-        badge.className = "drpg-state-badge drpg-timed-badge";
-        badge.dataset.tooltip = game.i18n.localize("DRPG.Facility.timedBadge");
-        badge.tabIndex = 0;
-        const name = document.createElement("span");
-        name.textContent = line;
-        badge.append(name);
-        return badge;
-    }));
     row.replaceChildren(...held.map(state => {
         const badge = document.createElement("span");
         badge.className = "drpg-state-badge";

@@ -218,6 +218,15 @@ export function timedLine(row) {
     return KINDS[row?.kind] ? `${KINDS[row.kind].line(row)} - ${game.i18n.localize(`DRPG.Facility.until.${row.until}`)}` : "";
 }
 
+/**
+ * The sheet's badges of `actor`'s timed effects on this browser, beside the armed Calls (sheet.mjs `pendingStack`; the
+ * owner's ask of 12.11.2026): `{ what, until }`, what it does on the badge and what ends it in the tooltip.
+ */
+export function effectBadges(actor) {
+    return rowsHere(actor).filter(row => KINDS[row?.kind])
+        .map(row => ({ what: KINDS[row.kind].line(row), until: game.i18n.localize(`DRPG.Facility.until.${row.until}`) }));
+}
+
 /** The sheet's lines of `actor`'s timed effects on this browser. */
 export function effectLines(actor) {
     return rowsHere(actor).filter(row => KINDS[row?.kind]).map(timedLine);

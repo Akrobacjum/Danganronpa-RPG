@@ -3189,7 +3189,7 @@
       }
     },
     "Facility": {
-      "timedBadge": "An effect from a room action",
+      "timedBadge": "From a room action, {until}",
       "timed": {
         "traitBonus": "+{n} {trait}",
         "experience": "Experience {label} +{n}",
