@@ -4734,6 +4734,9 @@ function injectMonocubPanel(tab, actor) {
     grid.append(...monocubTiles(actor));
     panel.append(grid);
 
+    // Move's description, on screen (E100, R4107): its window is gone, and an action's description is never hidden.
+    panel.append(monocubMoveNote());
+
     if (isCrimeSilenced(actor)) {
         const note = document.createElement("p");
         note.className = "notes drpg-monocub-silenced";
@@ -4742,6 +4745,19 @@ function injectMonocubPanel(tab, actor) {
     }
 
     tab.prepend(panel);
+}
+
+/*
+ * MOVE'S DESCRIPTION STAYS ON SCREEN (E100, 12.11.2026; the owner's rule on E100's review: an action's description is
+ * never hidden, folded or collapsed - "nie chowajmy w oknach akcji ... opisu akcji NIGDY"). Item 1 took Move's window
+ * away, the one place its description stood; the tile says the name, the price and "Drag your token", its tooltip the
+ * hint. The description is a line of the Monocub's panel under its tiles, as the silenced note is. R4107.
+ */
+export function monocubMoveNote() {
+    const note = document.createElement("p");
+    note.className = "notes drpg-monocub-move";
+    note.textContent = ACTIONS.move.description;
+    return note;
 }
 
 /* A Monocub's tiles: the Move, then one tile per row of its table (E33 C10): Confusion today, a second ability a row.

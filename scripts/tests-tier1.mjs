@@ -48650,6 +48650,25 @@ const INVARIANTS = [
             "{performAction's answer; DialogV2 waits asked; windows opened; action-briefing.mjs `briefing`; Got it in en, pl; "
             + "the Monocub's Move tile [tag, data-drpg-action, data-drpg-tile, the drag line on its face]; the HUD's Move row [drawn, its tooltip opens with the drag sentence]; the words in both}");
     }],
+    ["R4107 - Move's description stays on screen (E100 item 1 under the owner's rule of 12.11.2026: an action's description is never hidden, folded or collapsed): with Move's window gone, a Monocub's panel draws the action's description (ACTIONS.move `description`, in the page's language) as a line of its own under its tiles, not in a tooltip; sheet.mjs `monocubMoveNote` builds it and `injectMonocubPanel` puts it there", async () => {
+        /*
+         * E100, 12.11.2026. The owner on E100's review: "nie chowajmy w oknach akcji wyboru statystyki ani opisu akcji
+         * NIGDY", passed on by the coordinator with "the Move tile: its description must stay visible". The Move window
+         * (removed by item 1) was the one place Move's description stood; the tile's face says the name, the price and
+         * "Drag your token", its tooltip the hint. Red at 818c760e: no `monocubMoveNote`.
+         */
+        const S = await import("./sheet.mjs");
+        must(typeof ACTIONS.move?.description === "string" && ACTIONS.move.description.length > 20, "ACTIONS.move has no description to show");
+        const note = typeof S.monocubMoveNote === "function" ? S.monocubMoveNote() : null;
+        const src = stripComments((await moduleSources()).get("sheet.mjs") ?? "");
+        must(src.length > 10000, "sheet.mjs was not read");
+        const read = {
+            note: note ? [note.tagName, note.textContent === ACTIONS.move.description, note.hidden, note.closest?.("details") ?? null, note.hasAttribute("data-tooltip")] : null,
+            placed: /monocubMoveNote\(\)/.test(fnSource(src, "injectMonocubPanel"))
+        };
+        equal(stableJson(read), stableJson({ note: ["P", true, false, null, false], placed: true }),
+            "{the note [tag, Move's description as its text, hidden, inside a fold, a tooltip only]; the Monocub's panel draws it}");
+    }],
     ["R4102 - the verbose console log is a GM's row (E100 item 3; the owner's 12.11.2026, the player-screens review's #4): the gear's window draws `debug` (Verbose console logging) for a GM and not for a player, whose window has no Technical section left; the setting stays this browser's (`scope: \"client\"`), so the one road to it on a player's browser is the console line the GM handbook gives - there is no road from a GM's browser to another browser's client setting, and none is added", async () => {
         /*
          * E100 item 3, 12.11.2026. The review: "Szczegółowe logi w konsoli" is diagnostic, a player turns it on only when
