@@ -5643,7 +5643,8 @@
         "verdict": "The Blackened the last verdict was given with, kept by the GMs for its Finish",
         "trialMute": "The microphones the Class Trial turned off, and what each player had before, kept by the GMs until it ends",
         "closingClaim": "Who volunteered for the Closing Argument, and who was drawn, kept by the GMs",
-        "ruledCards": "Who ruled each card sent to the GMs, so a card is ruled once"
+        "ruledCards": "Who ruled each card sent to the GMs, so a card is ruled once",
+        "caseTicks": "The trial's ticks: each chapter's deductions, counters and solution a GM ticked"
       },
       "row": {
         "traces": {

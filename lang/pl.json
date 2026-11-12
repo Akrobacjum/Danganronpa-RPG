@@ -7369,7 +7369,8 @@
         "verdict": "Blackened, z którymi wydano ostatni werdykt, przechowywani u GM-ów na jego dokończenie",
         "trialMute": "Mikrofony wyłączone na czas Class Trial i to, co każdy gracz miał wcześniej, przechowywane u GM-ów do jej końca",
         "closingClaim": "Kto zgłosił się do Closing Argument i kogo wylosowano, przechowywane u GM-ów",
-        "ruledCards": "Kto rozstrzygnął każdą kartę wysłaną do GM-ów, by każdą rozstrzygnąć raz"
+        "ruledCards": "Kto rozstrzygnął każdą kartę wysłaną do GM-ów, by każdą rozstrzygnąć raz",
+        "caseTicks": "Zaznaczenia z rozprawy: wnioski, kontry i rozwiązanie zaznaczone przez GM-a w każdym rozdziale"
       },
       "row": {
         "traces": {

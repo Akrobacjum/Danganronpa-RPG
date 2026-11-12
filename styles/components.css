@@ -304,10 +304,10 @@ body .application.dialog.drpg-ui footer.form-footer.drpg-kit-footer.drpg-kit-foo
 /* The case's summary card (E99 C7): one column per role, then the links; in the chat and in the GM's preview. */
 .drpg-case-summary-cols { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .drpg-case-summary-col { flex: 1 1 8rem; min-width: 0; }
-.drpg-case-summary-col h4 { margin: 0 0 0.25rem; font-size: var(--drpg-text-sm); }
+.drpg-case-summary-col h4 { margin: 0 0 0.25rem; font-size: var(--drpg-kit-help-size); }
 .drpg-case-summary ul { margin: 0; padding-left: 1rem; }
-.drpg-case-summary-links { margin-top: 0.5rem; font-size: var(--drpg-text-sm); }
-.drpg-case-summary-note { margin: 0.5rem 0 0; font-size: var(--drpg-text-sm); color: var(--drpg-kit-help-ink); }
+.drpg-case-summary-links { margin-top: 0.5rem; font-size: var(--drpg-kit-help-size); }
+.drpg-case-summary-note { margin: 0.5rem 0 0; font-size: var(--drpg-kit-help-size); color: var(--drpg-kit-help-ink); }
 /* The GM panel's line of the case's Incident Remnants to place (E97 C12): one row each, its button at the end. */
 .drpg-case-asks ul { margin: 0.25rem 0 0; padding: 0; list-style: none; }
 .drpg-case-asks .drpg-case-ask { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 2px 0; }
