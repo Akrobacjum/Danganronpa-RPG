@@ -499,12 +499,6 @@ export const SETTINGS = {
      */
     gmCleanupAttempts: "gmCleanupAttempts",
     /**
-     * TAMPER'S ATTEMPTS THIS TIME OF DAY (E64 C1d, 12.11.2026; audit S02-58, Q-E64-3): a GM store (gm-stores.mjs
-     * `tamperAttemptStore`), a row per character - the time of day it counts and the rolls counted in it. Synced,
-     * not backed up; no player copy.
-     */
-    gmTamperAttempts: "gmTamperAttempts",
-    /**
      * WHO RULED EACH CARD TO THE GMS (E18 C3, 1.2.83; audits S11-14, S17-22): a GM store (gm-stores.mjs
      * `ruledCardStore`), a row per card a GM ruled on - the GM and when. Synced, not backed up; no
      * player copy.
@@ -2086,14 +2080,6 @@ export function registerSettings() {
     // A clean-up's receipt on the GMs (E08+E28 C3): no `onChange` - shown nowhere, read by
     // the Reroll's replay of a clean-up (cleanup.mjs `undoLastCleanup`).
     game.settings.register(MODULE_ID, SETTINGS.gmCleanupAttempts, {
-        scope: "client",
-        config: false,
-        type: Object,
-        default: {}
-    });
-    // Tamper's attempts this time of day on the GMs (E64 C1d): no `onChange` - shown nowhere, read by the GM's
-    // judgement of a Tamper (cleanup.mjs `tamperOverLimit`).
-    game.settings.register(MODULE_ID, SETTINGS.gmTamperAttempts, {
         scope: "client",
         config: false,
         type: Object,

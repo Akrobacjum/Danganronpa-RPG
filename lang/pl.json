@@ -4711,12 +4711,6 @@
       "coverAction": "Erase a Trace",
       "trailAction": "Misleading Trail",
       "notFound": "Tego Remnantu jeszcze nie znasz.",
-      "limitReached": {
-        "one": "W tej porze dnia masz już {n} próbę Tamper - więcej nie ma nikt. To, co kosztowała ta, wraca do ciebie.",
-        "few": "W tej porze dnia masz już {n} próby Tamper - więcej nie ma nikt. To, co kosztowała ta, wraca do ciebie.",
-        "many": "W tej porze dnia masz już {n} prób Tamper - więcej nie ma nikt. To, co kosztowała ta, wraca do ciebie.",
-        "other": "W tej porze dnia masz już {n} próby Tamper - więcej nie ma nikt. To, co kosztowała ta, wraca do ciebie."
-      },
       "watched": {
         "one": "{n} inna osoba jest w tym pokoju. Najpierw maskujesz, co robisz ({dc}+), a przyłapanie kosztuje Sanity.",
         "few": "{n} inne osoby są w tym pokoju. Najpierw maskujesz, co robisz ({dc}+), a przyłapanie kosztuje Sanity.",
@@ -7387,7 +7381,6 @@
         "confusions": "Confusion uzbrojone na postaci, a jeszcze nierzucone",
         "rerollBookmarks": "Ostatni rzut każdej postaci, który cofnąłby Reroll, i to, co zrobili dla niego GM-owie",
         "cleanupAttempts": "Ostatnie sprzątanie każdej postaci, zachowane, by Reroll mógł je cofnąć",
-        "tamperAttempts": "Próby Tamper każdej postaci w tej porze dnia, zachowane, by trzecia została odrzucona",
         "rerollJournal": "Reroll, który właśnie robi GM, krok po kroku, by przeładowanie w połowie dało się naprawić",
         "rolls": "Rzuty graczy wykonane przez GM-a, z kośćmi i wynikami, dla rozstrzygnięć i Rerolli, które z nich korzystają",
         "usedTools": "Narzędzia do sprzątania użyte przy każdym sprzątaniu, niszczone przy odkryciu ciała",

@@ -338,7 +338,7 @@ Cztery wyniki, a ciekawe są te niedopasowane: przyłapany z niczym albo okradzi
 
 ### Tamper - Shadow, 1 akcja
 
-Trzy rzeczy za kafelkiem. Próba kosztuje **1 akcję**; gdy nie masz już akcji, kosztuje zamiast niej **1 Sanity**. W każdej porze dnia masz najwyżej **2** próby; trzecia jest odrzucana, a to, co kosztowała, wraca.
+Trzy rzeczy za kafelkiem. Próba kosztuje **1 akcję**; gdy nie masz już akcji, kosztuje zamiast niej **1 Sanity**. Liczba prób w porze dnia nie ma limitu: każda po prostu kosztuje swoją cenę.
 
 **Erase a Trace.** Wymaż jeden ślad w tym pokoju, o którym wiesz: taki, którego kopię masz jako Truth Bullet, albo ślad walki, w której bierzesz udział. Im łatwiej go zobaczyć, tym trudniej usunąć:
 

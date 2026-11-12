@@ -49600,6 +49600,30 @@ const INVARIANTS = [
             reads: [true, true, true, true]
         }), "the reach per band; landings [Hall on 1, Library on 2, Library on 1, a room on neither list on 2 and 1] as [room, short]; none with no room near; the reads");
     }],
+    ["R3958 - Tamper has no cap a time of day: it costs its price and nothing limits how often (E64, the owner's review of 12.11.2026, \"niech kosztuje po prostu akcje, bez jakis dziwnych rozwiazan\"; it replaces 4f3882f's two-a-time-of-day cap): `CLEANUP` has no `tamperPerTimeOfDay`, cleanup.mjs neither declares nor calls `tamperOverLimit`, gm-stores.mjs has no `tamperAttemptStore`, settings.mjs no `gmTamperAttempts`, no `DRPG.Tamper.limitReached` in either language, and `PRICE_CHAINS.tamper` is 1 action, then T-1's 1 Sanity once no action is left", async () => {
+        /*
+         * E64, the owner's review of 12.11.2026 (~10:17 Warsaw, through the coordinator). The cap came from the plan's
+         * Q-E64-3 default (2), on audit item S02-58, whose own text and reason are not in this checkout: so it goes, and
+         * the price stays the one T-1 (17.09) set. Red at bb78af3: the cap, its store, its setting and its texts were there.
+         */
+        const { CLEANUP, PRICE_CHAINS } = await import("./config.mjs");
+        const src = await moduleSources();
+        const code = ["cleanup.mjs", "gm-stores.mjs", "settings.mjs"].map(f => stripComments(src.get(f) ?? ""));
+        must(code.every(c => c.length > 5000), "cleanup.mjs, gm-stores.mjs or settings.mjs was not read - this would measure nothing");
+        const langs = [];
+        for (const lang of ["en", "pl"]) {
+            const json = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            must(json.DRPG?.Tamper, `lang/${lang}.json has no DRPG.Tamper - this would measure nothing`);
+            langs.push(json.DRPG.Tamper.limitReached === undefined);
+        }
+        equal(stableJson({
+            config: Object.hasOwn(CLEANUP, "tamperPerTimeOfDay"),
+            code: [/tamperOverLimit/.test(code[0]), /tamperAttemptStore/.test(code[1]), /gmTamperAttempts/.test(code[2])],
+            langs,
+            price: (PRICE_CHAINS.tamper?.steps ?? []).map(s => [s.pay, s.amount])
+        }), stableJson({ config: false, code: [false, false, false], langs: [true, true], price: [["action", 1], ["stress", 1]] }),
+            "{config: the cap's field; code: [the check, its store, its setting]; langs: [en, pl] without the refusal; price: Tamper's steps}");
+    }],
 ];
 
 /**

@@ -22167,7 +22167,7 @@ const REGRESSIONS = [
             "call-effects.mjs": {"action": 1, "card": 1, "message": 1}, "call-gm.mjs": {"built": 1},
             "call-world.mjs": {"message": 3}, "calls.mjs": {"heading": 1, "message": 1},
             "chapter.mjs": {"card": 4, "heading": 1, "message": 1},
-            "cleanup.mjs": {"action": 5, "built": 1, "card": 4, "heading": 2, "line": 8, "message": 1}, // E64 C1d: Tamper's limit, a line as its refusals are
+            "cleanup.mjs": {"action": 5, "built": 1, "card": 4, "heading": 2, "line": 7, "message": 1},
             "clock.mjs": {"built": 1, "line": 1, "message": 1}, "despair.mjs": {"line": 1, "message": 1},
             "diagnostics.mjs": {"card": 1}, "eclipse.mjs": {"action": 3, "heading": 1, "line": 3, "message": 2},
             "enforced.mjs": {"line": 2}, "fog.mjs": {"line": 1}, "frisk.mjs": {"built": 6, "message": 1},

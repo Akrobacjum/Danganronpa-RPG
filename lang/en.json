@@ -4325,10 +4325,6 @@
       "coverAction": "Erase a Trace",
       "trailAction": "Misleading Trail",
       "notFound": "You have not found that Remnant.",
-      "limitReached": {
-        "one": "You have had {n} Tamper attempt this time of day, the most anybody gets. What this one cost is given back.",
-        "other": "You have had {n} Tamper attempts this time of day, the most anybody gets. What this one cost is given back."
-      },
       "watchedNoSanity": "Somebody is watching, and covering what you are doing costs Sanity you no longer have.",
       "watched": {
         "one": "{n} other person is in this room. You cover what you are doing first ({dc}+), and being caught at it costs Sanity.",
@@ -5665,7 +5661,6 @@
         "confusions": "The Confusions armed on a character and not rolled yet",
         "rerollBookmarks": "Each character's last roll a Reroll would take back, and what the GMs did for it",
         "cleanupAttempts": "Each character's last clean-up, kept so a Reroll can take it back",
-        "tamperAttempts": "Each character's Tamper attempts this time of day, kept so a third is refused",
         "rerollJournal": "A Reroll the GM is making, step by step, so a reload in the middle can be put right",
         "rolls": "The players' rolls the GM threw, with their dice and totals, for the resolutions and Rerolls that read them",
         "usedTools": "The Cleaning Tools each clean-up used, broken when the body is found",

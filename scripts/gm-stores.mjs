@@ -1166,20 +1166,6 @@ export const cleanupAttemptStore = defineGmStore({
 });
 
 /**
- * TAMPER'S ATTEMPTS THIS TIME OF DAY (E64 C1d, 12.11.2026; audit S02-58, Q-E64-3; default taken, owner to confirm). A row
- * per character: `at`, the season, chapter, day and time of day it counts (`season/chapter/day/timeOfDay`), and `rolls`,
- * the roll of each Tamper attempt the primary GM scored in it (cleanup.mjs `tamperOverLimit`) - a roll counted once,
- * so a Reroll of it is no new attempt. A row of another time of day counts nothing. Synced between the GMs, not backed
- * up: a row is worth one time of day. Cut by the reset's "actions" group, beside the actions it limits. No player copy -
- * R182 has nothing to ask of it - and no old key.
- */
-export const tamperAttemptStore = defineGmStore({
-    name: "tamperAttempts", key: SETTINGS.gmTamperAttempts,
-    kind: "ledger", resetGroup: "actions", backup: false, sync: true,
-    exists: actorId => Boolean(game.actors?.has(actorId))
-});
-
-/**
  * WHO RULED EACH CARD TO THE GMS (E18 C3, 19.10.2026; audits S11-14, S17-22). A row per card a GM
  * ruled on, keyed by its message id: `{ by, at }` - the GM whose click ruled it and when. Each GM's
  * click used to rule on that GM's browser, so two GMs - or one GM's chat log and messenger window -
