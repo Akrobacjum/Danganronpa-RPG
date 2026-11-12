@@ -16,10 +16,10 @@ Read at origin/main 235c3210 on 12.11.2026.
 | --- | --- | --- |
 | e61-62 | 130443cf | fa73b601 |
 | e76-106 | 1d62225e | 14619ce2 |
-| e97-98 | 1b8d19af | 7fa07aee |
+| e97-98 | 9ca7fcc1 | 7fa07aee |
 | e73 | 6a914d02 | fa73b601 |
 | e92 | ce1ffadb | fa73b601 |
-| e93 | e59d3731 | f22a7e87 |
+| e93 | 1abea3a0 | f22a7e87 |
 | e72 | 4def61ea | f22a7e87 |
 | e64 | 951cd1fd | fa73b601 |
 | gaps-a | 2338c823 | fa73b601 |
@@ -123,7 +123,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | player-handbook.pl.md | ### Sypialnie, klucze, skrytki | e64 |
 | player-handbook.pl.md | ### Tamper - Shadow, 1 akcja | e64 |
 
-## Lang keys (369 paths; a path that is an object freezes its opening line only, its leaves are listed one by one)
+## Lang keys (374 paths; a path that is an object freezes its opening line only, its leaves are listed one by one)
 
 | Key | Branches |
 | --- | --- |
@@ -255,9 +255,14 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.Config.SFX_EVENTS.debateOpen.hint` | e61-62, e92 |
 | `DRPG.Config.SFX_EVENTS.debateOpen.label` | e61-62, e92 |
 | `DRPG.Config.SFX_EVENTS.execution` | e61-62, e92 |
+| `DRPG.Config.SFX_EVENTS.execution.hint` | e97-98 |
+| `DRPG.Config.SFX_EVENTS.execution.label` | e97-98 |
 | `DRPG.Config.SFX_EVENTS.keyReveal` | e73, e97-98 |
 | `DRPG.Config.SFX_EVENTS.keyReveal.hint` | e73, e97-98 |
 | `DRPG.Config.SFX_EVENTS.keyReveal.label` | e73, e97-98 |
+| `DRPG.Config.SFX_EVENTS.trialClose` | e97-98 |
+| `DRPG.Config.SFX_EVENTS.trialClose.hint` | e97-98 |
+| `DRPG.Config.SFX_EVENTS.trialClose.label` | e97-98 |
 | `DRPG.Config.SFX_EVENTS.verdict` | e61-62, e92 |
 | `DRPG.Config.SFX_EVENTS.verdict.hint` | e61-62, e92 |
 | `DRPG.Config.SFX_EVENTS.verdict.label` | e61-62, e92 |
@@ -500,7 +505,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 ## config.mjs hunks (base lines, for the record)
 
 - e61-62: 4885-4890; 4925-4930; 4927-4932
-- e97-98: 3942-3946; 4910-4915
+- e97-98: 3942-3946; 4910-4915; 4935-4940
 - e73: 3942-3946; 4910-4915
 - e92: 243-247; 4885-4890; 4925-4930; 4927-4932
 - e93: 1653-1658; 1656-1660; 1672-1677; 1675-1679; 1679-1683; 2081-2086; 2409-2414; 5028-5033

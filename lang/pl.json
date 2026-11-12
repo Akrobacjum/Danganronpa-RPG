@@ -3759,7 +3759,7 @@
       "proposalSent": "„{name}” poszedł do GM-a. Nic nie rusza, dopóki GM nie zatwierdzi.",
       "proposalNotSent": "Nic nie trafiło do GM-a.",
       "approveButton": "Przejrzyj i zatwierdź",
-      "declineButton": "Odrzuć",
+      "declineButton": "Odmów",
       "declinedPlayer": "{name} - projekt odrzucony. Porozmawiajcie, co zamiast tego mogłoby zadziałać.",
       "declinedGm": "Odrzucono projekt: {name}.",
       "proposeButton": "Wyślij do GM-a",
@@ -3938,7 +3938,7 @@
     },
     "Bridge": {
       "noHelp": "Bez pomocy.",
-      "refuseAttempt": "Odrzuć próbę",
+      "refuseAttempt": "Odmów",
       "attemptRefused": "Próba odrzucona.",
       "what": {
         "project.progress": "Postęp projektu",

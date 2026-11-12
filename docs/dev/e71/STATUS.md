@@ -25,6 +25,7 @@ Counts are changes, one per plural form; a key changed in two areas counts in bo
 | Remnant in sentences | 85 | 119 | 4 (GM section 1's quote of `Vault.descriptionNote`, player section 11's tables note; EN and PL) | EN15/PL-r, DB15 (glossary `remnant`, stage E71), DB4 for the Polish cases |
 | overexplains (T29) | 27 | 25 | 18 (player handbook: starting resources, the Eclipse, Rooms, Voice, Truth Bullets, the messenger's waits and Note, the settings window; EN and PL) | T29, the owner's rule of 12.11.2026, added to docs/text-style.md section 2 |
 | settings | 5 | 5 | 0 | EN14/PL-o (DB10): "Only affects this browser." / "Dotyczy tylko tej przeglądarki."; T29 on two of them |
+| glossary | 22 | 2 | 0 | EN7/DB17 "Search Token" capitalized (glossary search-token); glossary refuse: "Odmów" on two GM buttons |
 | handbooks: GM-a | 0 | 0 | 67 (Polish handbooks, unfrozen sections) | PL-i/D33c (glossary `gm-a`, scope handbooks) |
 | Polish grammar | 0 | 14 | 7 (Polish handbooks, unfrozen sections: "Class Trialu" -> "Class Trial") | no bracketed gender endings ("zgłosił(a)"); PL-a/DB4 (Class Trial indeclinable); PL-b/DB28 (Eclipse neuter) |
 
@@ -65,6 +66,7 @@ edited unless the row says so.
 | lang/en.json, lang/pl.json (frozen) | `DRPG.Settings.highContrast.hint`, `reducedMotion.hint` (e61-62, e92) | End "This client only." / "Tylko ten klient." where EN14/PL-o say "Only affects this browser." / "Dotyczy tylko tej przeglądarki."; the hint also explains the Interface scale's split. | Frozen; for the owning line. |
 | docs/handbooks/player-handbook.*.md section 5 (frozen by e64, e72) | the Calls paragraph (EN line 397) | Overexplains (T29): "bought on the GM's browser", "read in the code, not measured for a Call", "a roll the GM's browser throws". | Frozen; for the owning line. |
 | lang/en.json, lang/pl.json | `DRPG.Settings.uiScale.hint` | The two languages disagree on a fact: the English says the slider moves "Foundry's own chrome and the character sheet" too; the Polish says "własne okna Foundry nigdy nie są skalowane" (Foundry's own windows are never scaled), and says nothing of Monokuma Legacy. Only the endings were changed here. | Which is true is the code's (ui-kit/settings); M2 says the code wins, and a fact change is not this pass's. |
+| docs/handbooks/gm-handbook.*.md:269 (section 5, frozen by e64), gm-handbook.pl.md:563 (section 9.5, frozen by e72) | T8's three handbook finds | "Dynamic action" / "akcji Dynamic" (glossary dynamic-action: "Dynamic Action") and "kafel powiadomień" (glossary notice-tile: "kafelek powiadomień"). | Frozen; for the owning lines. |
 | scripts/config.mjs and `DRPG.Config.*` in pl.json | config prose | Not edited in this pass at all (see FROZEN.md); the pilot's config afters and pair N25 (`ACTIONS.palm.description`) wait there. | Four open branches change config.mjs by line. |
 
 ## Test runs
@@ -77,6 +79,7 @@ edited unless the row says so.
 | 12.11, run d | e95cf62d | 1230 passed, 0 failed, 16 skipped, 0 red (`node run-tests.mjs --tier 1`, 384 s) |
 | 12.11, run e | e95cf62d and the Polish grammar edits | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run g | 7463785e and the settings endings | 1230 passed, 0 failed, 16 skipped, 0 red |
+| 12.11, run h | 23ecea60 and the glossary edits | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run f | 0a5ea4d3 and the GM-side T29 cuts (the bridge's refusals, the trial hall, the vote's privacy note) | 1230 passed, 0 failed, 16 skipped, 0 red |
 
 ## Tests whose expected wording changed

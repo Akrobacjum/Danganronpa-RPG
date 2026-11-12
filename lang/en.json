@@ -260,7 +260,7 @@
         "hint": "Another player's sheet opens redacted: name, portrait, Health and what they are holding. Statistics, Sanity, Hope, actions, inventory and Truth Bullets are hidden. Each player still owns their own sheet in full."
       },
       "searchTokensPerRoom": {
-        "name": "Search tokens per room",
+        "name": "Search Tokens per room",
         "hint": "How many Search Tokens each room has per time of day. Every Search that reaches the roll uses one; a room with none left cannot be searched."
       },
       "lockRollDialog": {
@@ -429,14 +429,14 @@
     "SearchTokens": {
       "title": "Search Tokens",
       "allFull": { "one": "Every room still holds its {max} token.", "other": "Every room still holds all {max} tokens." },
-      "reset": "Search tokens reset.",
+      "reset": "Search Tokens reset.",
       "exhausted": "This room has no Search Tokens left. Try again in the next time of day.",
       "pickedClean": "Somebody got here first. The action is spent.",
       "timeout": "The search was not counted.",
       "spendOne": "Spend one",
       "giveOne": "Give one back",
       "refillRoom": "Refill this room",
-      "roomSetupNote": "Search tokens: {max} per room per time of day. The arrows move this room only and take effect at once; the clock refills every room when the time of day changes.",
+      "roomSetupNote": "Search Tokens: {max} per room per time of day. The arrows move this room only and take effect at once; the clock refills every room when the time of day changes.",
       "roomColumn": "Room",
       "tokensColumn": "Tokens",
       "sealed": "This room cannot be searched. There is nothing in here to find, and no time of day changes that.",
@@ -632,7 +632,7 @@
       "roomProject": "You can work a project here",
       "roomNoProject": "No project here you can work on",
       "roomTokens": "{left}/{max} searches",
-      "roomTokensTooltip": { "one": "Search tokens: {left} of {max} left here this time of day.", "other": "Search tokens: {left} of {max} left here this time of day." },
+      "roomTokensTooltip": { "one": "Search Tokens: {left} of {max} left here this time of day.", "other": "Search Tokens: {left} of {max} left here this time of day." },
       "trial": {
         "discussion": "Discussion",
         "debate": "Debate",
@@ -2339,7 +2339,7 @@
         "one": "Not counted yet: {n} region nobody has decided, ticked as a suggestion - Apply makes it a room.",
         "other": "Not counted yet: {n} regions nobody has decided, ticked as suggestions - Apply makes them rooms."
       },
-      "searchIntro": "What searching each room draws from, how many search tokens it has left, and what it is a sensible place to look for.",
+      "searchIntro": "What searching each room draws from, how many Search Tokens it has left, and what it is a sensible place to look for.",
       "room": "Room",
       "owner": "Whose bedroom",
       "concealed": "Stash hidden",
@@ -2517,7 +2517,7 @@
       "optPermanent": "(cannot be undone)",
       "finalTruthMissing": "No Final Truth Remnant was placed this chapter. One a chapter points at the Mastermind: place it from The case > Investigation, on the Final Truth Remnants tab.",
       "doneEndTrial": "Closed the trial; the campaign is back in Daily Life.",
-      "doneNextMorning": "The next chapter opens on the morning of day {day}, with actions and search tokens refilled.",
+      "doneNextMorning": "The next chapter opens on the morning of day {day}, with actions and Search Tokens refilled.",
       "doneInvestigationOver": "The Investigation is over; the campaign is back in Daily Life.",
       "endTwice": "This End of chapter window was opened on chapter {chapter}, session {session}, day {day}, and the clock's chapter, session or day has moved since - by another End of chapter, by Edit campaign, or by the time of day turning into a new day. Nothing was done: open End of chapter again to choose against the clock as it stands now.",
       "endPhaseMoved": "This End of chapter window was opened in {opened}, and the clock has read {now} since - the phase changed after the window was drawn, so what it offered to close is not what is sitting now. Nothing was done: open End of chapter again to choose against the clock as it stands now.",
@@ -3161,7 +3161,7 @@
       "colOn": "On",
       "colWhat": "Effect",
       "colDoes": "What it does",
-      "floorNote": "None of these ever goes below one. A time of day with no actions, or a room with no search tokens, is not a harder game - it is a player with nothing to do until the clock moves.",
+      "floorNote": "None of these ever goes below one. A time of day with no actions, or a room with no Search Tokens, is not a harder game - it is a player with nothing to do until the clock moves.",
       "current": "Right now: {count} of {max}.",
       "currentDrawn": "Right now: {count} of {max}. This time of day is under {what}.",
       "currentWaiting": "Right now: {count} of {max}. {what} was announced in the trial and waits for the next time of day.",
@@ -3184,7 +3184,7 @@
       },
       "what": {
         "darkness": { "one": "The lights go further down: {n} fewer crossing in the Eclipse, and an Eclipse that would have let you start anywhere is pulled back to two rooms.", "other": "The lights go further down: {n} fewer crossings in the Eclipse, and an Eclipse that would have let you start anywhere is pulled back to two rooms." },
-        "shift": { "one": "Things are not where they were: {n} fewer search token in every room.", "other": "Things are not where they were: {n} fewer search tokens in every room." },
+        "shift": { "one": "Things are not where they were: {n} fewer Search Token in every room.", "other": "Things are not where they were: {n} fewer Search Tokens in every room." },
         "panic": { "one": "Nobody gets as much done: {n} fewer action each, on top of anything Wounded already took.", "other": "Nobody gets as much done: {n} fewer actions each, on top of anything Wounded already took." },
         "despair": "No Hope is earned at all. Spending what you already hold still works.",
         "silence": "No Hope Calls. Not one, by anybody.",
@@ -3684,10 +3684,10 @@
         "reroll.ask": "Reroll",
         "card.post": "A card for the GM to post",
         "card.claim": "A GM's ruling on a card sent to the GMs",
-        "searchTokens.spend": "Spend a search token",
+        "searchTokens.spend": "Spend a Search Token",
         "searchTokens.takePlant": "Look for a planted item",
         "searchTokens.returnPlant": "Put a planted item back",
-        "searchTokens.returnToken": "Give back a search token spent too late",
+        "searchTokens.returnToken": "Give back a Search Token spent too late",
         "floor.now": "The floor's next step now, run on the primary GM",
         "vote.run": "A step of the vote, run on the primary GM",
         "vote.cast": "Cast your vote",
@@ -3909,7 +3909,7 @@
       "summaryUnder": "Chapter {chapter} · Day {day} · Session {session}",
       "summaryEclipse": "{summary} · ECLIPSE",
       "rewindDuringEclipse": "An Eclipse is running, so the clock has not moved yet and there is nothing to step back to. End the Eclipse from the GM panel - it can end without advancing.",
-      "takenBack": "Taken back: the actions, the Free Moves, the search tokens and the seals are as they were before this time of day began.",
+      "takenBack": "Taken back: the actions, the Free Moves, the Search Tokens and the seals are as they were before this time of day began.",
       "eclipseStillOn": "The clock moved, but the Eclipse is still running. End it from the clock's chevron when you are ready - until then tokens place freely and murders are refused.",
       "campaignName": "Campaign name",
       "chapter": "Chapter",
@@ -3929,7 +3929,7 @@
         "one": "Actions refilled for {count} character",
         "other": "Actions refilled for {count} characters"
       },
-      "searchTokensRestocked": "Every room restocked with search tokens",
+      "searchTokensRestocked": "Every room restocked with Search Tokens",
       "woundedNote": "Down to one action this time of day, no Health left: {names}."
     },
     "Panel": {
@@ -3976,7 +3976,7 @@
       "nextSeasonSetup": "The season is not set up yet. Next in the Season checklist: {step}.",
       "nextSeasonSetupAside": "The Season checklist still waits on: {step}.",
       "advance": "Next time of day",
-      "advanceTooltip": "Move the clock on without an Eclipse: refills actions, Free Moves and search tokens. At Night this also starts the next day and session.",
+      "advanceTooltip": "Move the clock on without an Eclipse: refills actions, Free Moves and Search Tokens. At Night this also starts the next day and session.",
       "advanceOffEclipse": "The Eclipse is running: its end moves the clock on.",
       "advanceOffTrial": "A Class Trial is running: the chapter's end moves the clock on.",
       "advanceDuringEclipse": "An Eclipse is running - end it from the clock's chevron; its end moves the clock.",
@@ -3990,8 +3990,8 @@
       },
       "close": "Close",
       "apply": "Apply",
-      "alsoReset": "Also refill actions and search tokens",
-      "refilled": "Actions and search tokens refilled. The motive, the seals and the overflow were left alone, and no time-of-day card was posted.",
+      "alsoReset": "Also refill actions and Search Tokens",
+      "refilled": "Actions and Search Tokens refilled. The motive, the seals and the overflow were left alone, and no time-of-day card was posted.",
       "character": "Character",
       "freeMove": "Free Move",
       "noCharacters": "No characters in this world yet.",
@@ -4418,7 +4418,7 @@
       "lastRollGmRow": "The GMs' row for {name} holds a {action} roll: {total} {duality}. A Reroll takes back that roll.",
       "lastRollReload": "Your last roll in the chat: {total} {duality}. A Reroll takes back the roll the GMs keep for you.",
       "noRollHere": "Your last roll is not shown here since the reload. A Reroll still takes back the roll the GMs keep for you.",
-      "searchNeverRan": "The room was never searched - the search token was refused - so there is nothing to draw again.",
+      "searchNeverRan": "The room was never searched - the Search Token was refused - so there is nothing to draw again.",
       "searchStashStands": "The stash find stands: new dice do not open the stash twice.",
       "passageFound": "The new result finds a secret passage in that room, to {to}. Where the way is open, your map shows it.",
       "passageLost": "The new result finds no passage: the one the first roll found is gone from your map.",
@@ -4464,7 +4464,7 @@
       "itemDrawn": "You find {item} instead (Tier {tier}).",
       "searchNothing": "The new result finds nothing.",
       "stashFound": "The new result opens a hidden stash: its card says whose.",
-      "tokenKept": "The room's search token stays spent - the room was searched either way.",
+      "tokenKept": "The room's Search Token stays spent - the room was searched either way.",
       "remnantRetuned": "The Remnant you left has been adjusted to match.",
       "remnantLeft": "The new result leaves a Remnant behind.",
       "remnantRemoved": "The Remnant the first roll left is removed.",
@@ -5088,7 +5088,7 @@
         "trialFloor": "The trial floor",
         "trialProgress": "The trial's progress and its vote",
         "keyPlan": "The Key Remnant plan",
-        "searchTokens": "Search tokens spent in each room",
+        "searchTokens": "Search Tokens spent in each room",
         "discovered": "Which rooms have been discovered",
         "bodyFound": "The body waiting to be answered, and the record of which bodies were found",
         "deaths": "Deaths and Monocubs - the dead come back, the bodies left on the map go, and every student's Health and Sanity whole again",
@@ -5162,12 +5162,12 @@
       "time": {
         "title": "Time of day",
         "position": "{time} - {n} of {of}",
-        "what": "Actions refill at the start of each one, and each room's search tokens come back with them. When the last one ends, the day turns over."
+        "what": "Actions refill at the start of each one, and each room's Search Tokens come back with them. When the last one ends, the day turns over."
       },
       "room": {
         "title": "Where you are",
         "noActor": "No character is assigned to you, so there is nothing to say about where you are standing.",
-        "tokens": "Search tokens here: {left} of {max} left this time of day."
+        "tokens": "Search Tokens here: {left} of {max} left this time of day."
       },
       "despair": {
         "window": "Despair",
