@@ -20,7 +20,7 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | e73 | 6a914d02 | 6a914d02 |
 | e92 | ce1ffadb | fa73b601 |
 | e93 | d7f129b7 | f22a7e87 |
-| e72 | 5c933012 | f22a7e87 |
+| e72 | 674f0fc2 | f22a7e87 |
 | e64 | 7aa02555 | fa73b601 |
 | gaps-a | 2338c823 | fa73b601 |
 
@@ -127,7 +127,7 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | player-handbook.pl.md | ### Sypialnie, klucze, skrytki | e64 |
 | player-handbook.pl.md | ### Tamper - Shadow, 1 akcja | e64 |
 
-## Lang keys (340 paths; a path that is an object freezes its opening line only, its leaves are listed one by one)
+## Lang keys (352 paths; a path that is an object freezes its opening line only, its leaves are listed one by one)
 
 | Key | Branches |
 | --- | --- |
@@ -138,19 +138,23 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | `DRPG.Advance.whichExperience` | e64 |
 | `DRPG.Advance.whichImprovement` | e64 |
 | `DRPG.Advance.whichTrait` | e64 |
+| `DRPG.Bridge.what.action.steal` | e72 |
 | `DRPG.Bridge.what.advancement` | e72 |
 | `DRPG.Bridge.what.advancement.apply` | e72 |
 | `DRPG.Bridge.what.analyze.resolve` | e93 |
 | `DRPG.Bridge.what.body.loot` | e72 |
 | `DRPG.Bridge.what.call.arm` | e72 |
 | `DRPG.Bridge.what.handover.bullet` | e93 |
-| `DRPG.Bridge.what.handover.item` | e93 |
+| `DRPG.Bridge.what.handover.item` | e72, e93 |
 | `DRPG.Bridge.what.monocub.ability` | e72 |
 | `DRPG.Bridge.what.murder.betrayal` | e72 |
 | `DRPG.Bridge.what.murder.park` | e72 |
 | `DRPG.Bridge.what.observe.resolve` | e93 |
 | `DRPG.Bridge.what.overflow.check` | e93 |
-| `DRPG.Bridge.what.passage.share` | e93 |
+| `DRPG.Bridge.what.passage.cross` | e72 |
+| `DRPG.Bridge.what.passage.share` | e72, e93 |
+| `DRPG.Bridge.what.vault.findStash` | e72 |
+| `DRPG.Bridge.what.vault.steal` | e72 |
 | `DRPG.Bridge.why.answerKeyMissing` | e72, e92 |
 | `DRPG.Bridge.why.cannotLeave` | e93 |
 | `DRPG.Bridge.why.chained` | e93 |
@@ -283,6 +287,10 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | `DRPG.Floor.next.finishElsewhere` | e97-98 |
 | `DRPG.Floor.next.scrum` | e97-98 |
 | `DRPG.Floor.next.verdictElsewhere` | e97-98 |
+| `DRPG.Mastermind` | e72 |
+| `DRPG.Mastermind.dialogTitle` | e72 |
+| `DRPG.Mastermind.lairLabel` | e72 |
+| `DRPG.Mastermind.noLair` | e72 |
 | `DRPG.Monocub` | e72 |
 | `DRPG.Monocub.cannotMeddle` | e72 |
 | `DRPG.Monocub.critHelpNothing` | e72 |
@@ -362,6 +370,10 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | `DRPG.Panel.whoIsAlive` | e72 |
 | `DRPG.Panel.whoIsAliveNote` | e72 |
 | `DRPG.Passage.engineOff` | e64 |
+| `DRPG.Passage.list.cross` | e72 |
+| `DRPG.Passage.list.oneWay` | e72 |
+| `DRPG.Passage.list.walk` | e72 |
+| `DRPG.Passage.show` | e72 |
 | `DRPG.Passage.why.brokenSince` | e64 |
 | `DRPG.Passage.why.isBreach` | e93 |
 | `DRPG.Passage.why.itemBack` | e64 |

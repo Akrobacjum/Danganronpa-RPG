@@ -34,11 +34,11 @@
 | Call | Koszt | W skrócie |
 |---|---|---|
 | **Support** | 1 | Przewaga dla kogoś w twoim pokoju. |
-| **Experience** (GM) | 1 | |
-| **Ultimate** (GM) | 1 | |
-| **Contribution** | 2 | |
+| **Experience** (GM) | 1 | Jedno doświadczenie dodane do następnego rzutu. |
+| **Ultimate** (GM) | 1 | Przewaga na następnym rzucie. |
+| **Contribution** | 2 | +1 postępu projektu w twoim pokoju, bez rzutu. |
 | **Sprint** | 2 | Jedno darmowe przejście. |
-| **Reroll** | 3 | |
+| **Reroll** | 3 | Twój ostatni rzut jeszcze raz, akcja rozgrywa się od nowa. |
 | **Resolve** | 2 | Sam wybierasz dowolną statystykę. |
 | **Burst** | 4 | Następna akcja za darmo. |
 | **Relief** | 4 | Short Rest od razu. |
@@ -59,7 +59,7 @@ Największy z trzech przycisków w prawym dolnym rogu, ten na górze, otwiera **
 
 ## Safeword
 
-W lewym dolnym rogu arkusza: słowo twojego stołu, wypisane na przycisku (**Safe Word** w nowym świecie; świat grany przed 1.1.39 zachował MISIUBOMBO; GM może je zmienić).
+W lewym dolnym rogu arkusza: słowo twojego stołu, wypisane na przycisku (**Safe Word**, chyba że twój stół wybrał własne; GM może je zmienić).
 
 > [!CAUTION]
 > Wciśnij, a scena staje, GM-owie się dowiadują, wszyscy widzą kartę. Bez powodu, ani teraz, ani później.

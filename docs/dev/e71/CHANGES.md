@@ -523,7 +523,7 @@ whose meaning would change was left and, if it seemed wrong, listed in STATUS.md
 | player-handbook.en.md | `line 668 (### If you walk in on it)` | the damage, the traces, the turns | the damage, the Remnants, the turns | EN15/DB15: Remnant in every sentence (glossary remnant, scope handbooks). |
 | player-handbook.pl.md | `line 668 (### Jeśli na to wchodzisz)` | obrażenia i ślady | obrażenia i Remnanty | PL-r/DB15: Remnant in the Polish sentence too (glossary remnant, scope handbooks). |
 
-## overexplains (T29) (92)
+## overexplains (T29) (94)
 
 | File | Key / section | Before | After | Why |
 | --- | --- | --- | --- | --- |
@@ -619,6 +619,8 @@ whose meaning would change was left and, if it seemed wrong, listed in STATUS.md
 | player-handbook.pl.md | `line 850 (## 16. Wskazówki do interfejsu)` | 1 version note(s) "(od 1.2.x)" | removed | T29 and M10: a version's history ("since 1.2.101") is not something a player needs in a rule; the date notes go, a "not yet checked at a table" note stays. |
 | player-handbook.en.md | `line 859 (## 16. Interface tips)` | 1 version note(s) "(since 1.2.x)" | removed | T29 and M10: a version's history ("since 1.2.101") is not something a player needs in a rule; the date notes go, a "not yet checked at a table" note stays. |
 | player-handbook.pl.md | `line 859 (## 16. Wskazówki do interfejsu)` | 1 version note(s) "(od 1.2.x)" | removed | T29 and M10: a version's history ("since 1.2.101") is not something a player needs in a rule; the date notes go, a "not yet checked at a table" note stays. |
+| player-brochure.en.md | `line 62 (## The safeword)` | (**Safe Word** in a new world; a world in play before 1.1.39 kept MISIUBOMBO; the GM can change it) | (**Safe Word** unless your table chose its own; the GM can change it) | T29: the safeword's history (which world kept which word since which version) is not the player's; what the button says and who can change it stays. |
+| player-brochure.pl.md | `line 62 (## Safeword)` | (**Safe Word** w nowym świecie; świat grany przed 1.1.39 zachował MISIUBOMBO; GM może je zmienić) | (**Safe Word**, chyba że twój stół wybrał własne; GM może je zmienić) | T29: the safeword's history (which world kept which word since which version) is not the player's; what the button says and who can change it stays. |
 
 ## handbooks: GM-a (67)
 
@@ -971,3 +973,16 @@ whose meaning would change was left and, if it seemed wrong, listed in STATUS.md
 | player-handbook.en.md | `line 173 (### Search Tokens)` | search token(s) | Search Token(s) | EN7/DB17: "Search Token" is capitalized, in Polish too (glossary search-token, scope handbooks). |
 | player-handbook.en.md | `line 191 (### Search - Eye, 1 action)` | search token(s) | Search Token(s) | EN7/DB17: "Search Token" is capitalized, in Polish too (glossary search-token, scope handbooks). |
 | player-brochure.en.md | `line 12 (## Each time of day (Morning, Noon, Afternoon, Evening, Night))` | search token(s) | Search Token(s) | EN7/DB17: "Search Token" is capitalized, in Polish too (glossary search-token, scope handbooks). |
+
+## brochure (8)
+
+| File | Key / section | Before | After | Why |
+| --- | --- | --- | --- | --- |
+| player-brochure.en.md | `line 37 (## Hope Calls at a glance)` | \| **Experience** (GM) \| 1 \| \| | \| **Experience** (GM) \| 1 \| One experience added to your next roll. \| | S12-73 (E25's issue list): the brochure's empty "In short" cells, filled from the Call's effect in config.mjs HOPE_CALLS (experience, ultimate, contribution with progress 1, reroll). |
+| player-brochure.pl.md | `line 37 (## Hope Calle w skrócie)` | \| **Experience** (GM) \| 1 \| \| | \| **Experience** (GM) \| 1 \| Jedno doświadczenie dodane do następnego rzutu. \| | S12-73 (E25's issue list): the brochure's empty "In short" cells, filled from the Call's effect in config.mjs HOPE_CALLS (experience, ultimate, contribution with progress 1, reroll). |
+| player-brochure.en.md | `line 38 (## Hope Calls at a glance)` | \| **Ultimate** (GM) \| 1 \| \| | \| **Ultimate** (GM) \| 1 \| Advantage on your next roll. \| | S12-73 (E25's issue list): the brochure's empty "In short" cells, filled from the Call's effect in config.mjs HOPE_CALLS (experience, ultimate, contribution with progress 1, reroll). |
+| player-brochure.pl.md | `line 38 (## Hope Calle w skrócie)` | \| **Ultimate** (GM) \| 1 \| \| | \| **Ultimate** (GM) \| 1 \| Przewaga na następnym rzucie. \| | S12-73 (E25's issue list): the brochure's empty "In short" cells, filled from the Call's effect in config.mjs HOPE_CALLS (experience, ultimate, contribution with progress 1, reroll). |
+| player-brochure.en.md | `line 39 (## Hope Calls at a glance)` | \| **Contribution** \| 2 \| \| | \| **Contribution** \| 2 \| +1 progress on a project in your room, no roll. \| | S12-73 (E25's issue list): the brochure's empty "In short" cells, filled from the Call's effect in config.mjs HOPE_CALLS (experience, ultimate, contribution with progress 1, reroll). |
+| player-brochure.pl.md | `line 39 (## Hope Calle w skrócie)` | \| **Contribution** \| 2 \| \| | \| **Contribution** \| 2 \| +1 postępu projektu w twoim pokoju, bez rzutu. \| | S12-73 (E25's issue list): the brochure's empty "In short" cells, filled from the Call's effect in config.mjs HOPE_CALLS (experience, ultimate, contribution with progress 1, reroll). |
+| player-brochure.en.md | `line 41 (## Hope Calls at a glance)` | \| **Reroll** \| 3 \| \| | \| **Reroll** \| 3 \| Your last roll again, its action replayed. \| | S12-73 (E25's issue list): the brochure's empty "In short" cells, filled from the Call's effect in config.mjs HOPE_CALLS (experience, ultimate, contribution with progress 1, reroll). |
+| player-brochure.pl.md | `line 41 (## Hope Calle w skrócie)` | \| **Reroll** \| 3 \| \| | \| **Reroll** \| 3 \| Twój ostatni rzut jeszcze raz, akcja rozgrywa się od nowa. \| | S12-73 (E25's issue list): the brochure's empty "In short" cells, filled from the Call's effect in config.mjs HOPE_CALLS (experience, ultimate, contribution with progress 1, reroll). |

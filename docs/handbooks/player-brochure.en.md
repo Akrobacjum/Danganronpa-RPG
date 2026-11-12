@@ -34,11 +34,11 @@
 | Call | Cost | In short |
 |---|---|---|
 | **Support** | 1 | Advantage for somebody in your room. |
-| **Experience** (GM) | 1 | |
-| **Ultimate** (GM) | 1 | |
-| **Contribution** | 2 | |
+| **Experience** (GM) | 1 | One experience added to your next roll. |
+| **Ultimate** (GM) | 1 | Advantage on your next roll. |
+| **Contribution** | 2 | +1 progress on a project in your room, no roll. |
 | **Sprint** | 2 | One free crossing. |
-| **Reroll** | 3 | |
+| **Reroll** | 3 | Your last roll again, its action replayed. |
 | **Resolve** | 2 | Pick any statistic yourself. |
 | **Burst** | 4 | Next action free. |
 | **Relief** | 4 | A Short Rest right now. |
@@ -59,7 +59,7 @@ The largest of the three buttons bottom-right, the one on top, opens **GM Chat**
 
 ## The safeword
 
-Bottom-left of your sheet: your table's word, shown on the button (**Safe Word** in a new world; a world in play before 1.1.39 kept MISIUBOMBO; the GM can change it).
+Bottom-left of your sheet: your table's word, shown on the button (**Safe Word** unless your table chose its own; the GM can change it).
 
 > [!CAUTION]
 > Press it and the scene stops, the GMs are told, everybody sees the card. No reason needed, now or later.
