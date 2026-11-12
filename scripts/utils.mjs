@@ -570,6 +570,14 @@ export function ownerOf(actor, users = game.users) {
         ?? null;
 }
 
+/**
+ * Whether `user` is a player who owns this actor (E91 C6; the owner's deferred item D078): any of its owners, where
+ * `ownerOf(actor)?.id === user.id` answered for the first one alone and a co-owner was no owner. A GM is not one.
+ */
+export function playerOwns(actor, user = game.user) {
+    return Boolean(actor && user && !user.isGM && actor.testUserPermission?.(user, "OWNER"));
+}
+
 /** Every non-GM user who owns this actor, by id - the plural of `ownerOf`. */
 export function ownerIdsOf(actor) {
     if (!actor) return [];

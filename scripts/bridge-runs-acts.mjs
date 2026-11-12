@@ -322,6 +322,22 @@ export async function handlePassageCross(payload, sender) {
     return { reply: true };
 }
 
+/** The run of `mastermind.lairLock` (E91 C4, D038): mastermind.mjs `lockLair` for its sender, its reply or its refusal. */
+export async function handleLairLock(payload, sender) {
+    const { lockLair } = await import("./mastermind.mjs");
+    const out = await lockLair({ actorId: payload.actorId, lock: payload.lock !== false }, { asker: sender });
+    if (out?.refused) return { refused: out.refused };
+    return { reply: { locked: Boolean(out?.locked) } };
+}
+
+/** The run of `passage.lairSeal` (E91 C5, D038): passages-gm.mjs `sealLairPassage` for its sender, its reply or its refusal. */
+export async function handlePassageLairSeal(payload, sender) {
+    const { sealLairPassage } = await import("./passages-gm.mjs");
+    const out = await sealLairPassage({ actorId: payload.actorId, passageId: payload.passageId }, { asker: sender });
+    if (out?.refused) return { refused: out.refused };
+    return { reply: true };
+}
+
 /** The run of `token.refundCrossing` (E17 C3): the primary's own refund (movement.mjs `refundLastCrossing`), its reply or its refusal. */
 export async function handleRefundCrossing(payload) {
     const { refundLastCrossing } = await import("./movement.mjs");
@@ -757,9 +773,41 @@ export async function handleCleanup(payload, sender, ctx, prepared) {
     // row the packet's `key` names (E33 C10, `cubAbilityOnGm`), and the roll goes
     // back for the Monocub's card - none for one it refuses, which throws nothing
     // since fix r2-H7.
+/*
+ * A DEAD STUDENT'S PLAYER ANSWERS THE INVITATION (E72 C6, 12.11.2026; audit S18-61, the owner's DC17 and DC18). The
+ * packet's `accept` is the player's word, which is what an answer is; whether an invitation is open for the character
+ * is the GMs' row (monocub.mjs `answerMonocubOffer`), so a console's answer to no invitation makes nobody a Monocub.
+ */
+export async function handleCubAnswer(payload, sender) {
+    const { answerMonocubOffer } = await import("./monocub.mjs");
+    const out = await answerMonocubOffer({ actorId: payload.actorId, accept: payload.accept }, sender);
+    if (!out) return { refused: "nothing was carried out: no invitation is open for that character" };
+    return { reply: out };
+}
+
+/** E72 C15: a Bribe offered (monocub.mjs `offerBribeOnGm`), refused as nothing carried out when it judged it not one. */
+export async function handleBribeOffer(payload, sender) {
+    const { offerBribeOnGm } = await import("./monocub.mjs");
+    const out = await offerBribeOnGm({ actorId: payload.actorId, cubId: payload.cubId }, sender);
+    if (!out) return { refused: "nothing was carried out: that Bribe cannot be offered now" };
+    return { reply: out };
+}
+
+/** E72 C15: a Bribe answered (monocub.mjs `answerBribeOnGm`); no such open offer is nothing carried out. */
+export async function handleBribeAnswer(payload, sender) {
+    const { answerBribeOnGm } = await import("./monocub.mjs");
+    const out = await answerBribeOnGm({ cubId: payload.cubId, bribeId: payload.bribeId, accept: payload.accept }, sender);
+    if (!out) return { refused: "nothing was carried out: no such Bribe is open" };
+    return { reply: out };
+}
+
 export async function handleCubAbility(payload, sender, ctx) {
     const { cubAbilityOnGm } = await import("./monocub.mjs");
-    return { reply: await cubAbilityOnGm({ actorId: payload.actorId, key: payload.key, targetId: payload.targetId, choice: payload.choice }) };
+    const out = await cubAbilityOnGm({ actorId: payload.actorId, key: payload.key, targetId: payload.targetId, choice: payload.choice });
+    // A student who has had its share (E72 C4): refused with its code, so the asker is told why and that nothing was paid.
+    if (out?.capped === "time") return { refused: "that student has had a Monocub's move this time of day" };
+    if (out?.capped === "day") return { refused: "that student has had two Monocub moves today" };
+    return { reply: out };
 }
 
 /*

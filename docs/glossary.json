@@ -736,6 +736,17 @@
         "note": "The Polish gloss stands only in the handbook (DB38)."
       },
       {
+        "id": "talent",
+        "en": "Talent",
+        "pl": "Talent",
+        "gender": null,
+        "inflection": null,
+        "forbidden": {"en": {"variants": [], "scope": ["ui"]}, "pl": {"variants": [], "scope": ["ui"]}},
+        "stage": "E72",
+        "source": ["DB38"],
+        "note": "The Hope Call whose tile holds Experience and Ultimate; the player picks one in its window (E72; the owner's decision on DRPG-D1, 12.11.2026). English in both languages, as every Call (DB38)."
+      },
+      {
         "id": "bribe",
         "en": "Bribe",
         "pl": "Bribe",

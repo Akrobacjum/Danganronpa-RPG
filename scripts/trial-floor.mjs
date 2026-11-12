@@ -228,13 +228,21 @@ export function modeAllows(floor, kind, actorId = null) {
         || (who === "pair" && (actorId === floor.holderId || actorId === floor.targetId));
     switch (kind) {
         case "speak": return among(rule.speak);
-        case "present": return among(rule.present);
+        // THE CLOSING'S EXCHANGE (E72 C11, 12.11.2026; the owner's D114 of 31.10): an Objection at the Closing's speaker
+        // and its Rebuttal are the debate's modes, where everybody presents; inside the Closing only the two in the
+        // exchange do (`closingOf` reads the Closing's field the exchange keeps on the floor). R1045.
+        case "present": return closingExchange(floor) ? among("pair") : among(rule.present);
         // The Closing with nobody speaking in it has nobody to object to, and no clock outside its timed phases (E70 C8).
         case "object": return rule.object === true && (floor.mode !== MODES.closing || Boolean(floor.holderId));
         case "target": return among(rule.target);
         case "adjust": return rule.adjust === true && (floor.mode !== MODES.closing || closingTimed(floor));
         default: return false;
     }
+}
+
+/** An Objection or a Rebuttal inside the Closing Argument (floor-machine.mjs `closingOf`): the Closing's exchange (E72 C11). */
+function closingExchange(floor) {
+    return Boolean(floor && (floor.mode === MODES.objection || floor.mode === MODES.rebuttal) && closingOf(floor));
 }
 
 /**
@@ -247,6 +255,11 @@ export function modeAllows(floor, kind, actorId = null) {
  */
 export function presentRefusal(floor, actorId, { nameOf = id => game.actors.get(id ?? "")?.name ?? null } = {}) {
     if (modeAllows(floor, "present", actorId)) return null;
+    // The Closing's exchange names its two (E72 C11; D114).
+    if (closingExchange(floor)) {
+        const [a, b] = [nameOf(floor.holderId), nameOf(floor.targetId)];
+        if (a && b) return game.i18n.format("DRPG.Trial.presentPair", { a, b });
+    }
     const name = floor?.holderId ? nameOf(floor.holderId) : null;
     if (!name) return game.i18n.localize("DRPG.Trial.presentNobody");
     const only = game.i18n.format("DRPG.Trial.presentOnly", { name });

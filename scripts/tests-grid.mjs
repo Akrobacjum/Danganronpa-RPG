@@ -105,7 +105,7 @@ const emptySides = v => none(v) || Object.values(v).every(side => !side || !Obje
  * (`?? []`, `?? null`, `?? false`), so absent passes where the default does. A field of
  * the merged state that is in neither this table nor `KEPT` fails as unknown: the next
  * field an incident gains is declared here in the commit that adds it (C9, C10, C11c,
- * C13 and C17 do, with `freshIncidentState`).
+ * C13 and C17 do, with `freshIncidentState`; E72 C8 `silencedDead`).
  */
 const FRESH = Object.freeze({
     active: v => v === true,
@@ -138,6 +138,8 @@ const FRESH = Object.freeze({
     recent: emptyList,
     lastCrisis: none,
     swung: v => none(v) || !Object.keys(v).length,
+    // Nobody's voice moved by a GM's Silence now (E72 C8): none yet.
+    silencedDead: v => none(v) || !Object.keys(v).length,
     endedBy: none,
     keyRemnantsStale: none,
     indirect: (v, m) => Boolean(v) === (m.kind === "trap"),

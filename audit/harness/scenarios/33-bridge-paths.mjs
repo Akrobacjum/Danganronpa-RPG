@@ -22,7 +22,9 @@
  *      since H82 C6 on the GM's own screen: started at its throw, before its message's echo, once, the audience told.
  *      Since E37 C3 also the readiness round before the clock moves: opened and ended by the Assistant GM on the primary,
  *      and a player's own Done (A18). Since E37 C7 also every road of the Despair pools and the Overflow from the
- *      Assistant GM, written on the primary (A19).
+ *      Assistant GM, written on the primary (A19). Since E72 C6 also a dead student's player's yes to the GMs'
+ *      invitation to become a Monocub, from the window with the Rule (A20), and a Bribe offered from one player's browser
+ *      and accepted in its window on the other's (A21).
  *   B  what E31 adds, each written red (`expectedRed`, with what it measured) until the commit that
  *      made it so, and a plain check since: a refusal carries its reason, in the player's own
  *      language; a refused request is not acknowledged; an exception on the GM's side ends as one
@@ -1589,6 +1591,146 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         await (await import("${repoUrl}/scripts/clock.mjs")).setClock(${JSON.stringify(a18Clock)});
         return true;`, { timeout: 60000 });
     for (const c of players) await c.eval(`const was = ${JSON.stringify(a18Auto[c.who])}; if (was === null) delete globalThis.__dialogAuto; else globalThis.__dialogAuto = was; return true;`);
+    await settle(500);
+
+    /* A20. A DEAD STUDENT'S YES TO THE INVITATION (E72 C6, 12.11.2026; DC17, DC18). The GMs invite Botan (p2's), dead, to
+       become a Monocub (monocub.mjs `offerMonocub`): the invitation is the GMs' row (`cubStore`), its copy reaches p2's
+       browser, which opens the window with the Monocub Rule (`openInvitation`), and p2 - a client that presses a window's
+       first button - accepts. The answer goes to the primary as `monocub.answer`: Botan a Monocub, the Rule's acceptance
+       kept with p2's id, the invitation closed, nothing refused. 30-security sends the same packet from consoles. */
+    phase("a dead student's answer to the invitation", { flow: "monocub-invite" });
+    const a20Read = `const Mc = await import("${repoUrl}/scripts/monocub.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const b = game.actors.get("${IDS.botan}"); const row = S.cubStore.get(b.id) ?? null;
+        return { cub: Mc.isMonocub(b), invite: Boolean(row?.invite), accepted: row?.acceptedRule?.by ?? null };`;
+    await clearFailures(gm);
+    const a20Refused = (await refusedSince(p2)).length;
+    const a20Log = await p2.eval(`return globalThis.__dialogLog.length;`);
+    const a20Setup = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const b = game.actors.get("${IDS.botan}");
+        globalThis.__a20Row = foundry.utils.deepClone(S.cubStore.get(b.id) ?? null);
+        await C.markDeceased(b);
+        return { dead: C.isDeadForGm(b), open: await Mc.offerMonocub(b) };`, { timeout: 60000 });
+    await settle(1500);
+    const a20 = { setup: a20Setup, after: await gm.eval(a20Read),
+        windows: await p2.eval(`return globalThis.__dialogLog.slice(${a20Log}).map(d => d.title);`),
+        refused: (await refusedSince(p2)).length - a20Refused, logged: await refusalsLogged(gm, "monocub.answer") };
+    check("A20: p2's yes to the GMs' invitation, from the window with the Monocub Rule, makes its dead Botan a Monocub on the primary - the Rule's acceptance kept with p2's id, the invitation closed, nothing refused (E72 C6)",
+        a20.setup.dead === true && a20.setup.open === true && a20.windows.includes("Become a Monocub?")
+            && a20.after.cub === true && a20.after.invite === false && a20.after.accepted === p2.userId
+            && a20.refused === 0 && a20.logged.length === 0,
+        JSON.stringify(a20), { flow: "monocub-invite" });
+    await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const b = game.actors.get("${IDS.botan}");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        await Mc.setMonocub(b, false);
+        if (C.isDeadForGm(b)) await C.reviveCharacter(b, { quiet: true });
+        const was = globalThis.__a20Row; delete globalThis.__a20Row;
+        if (was) await S.cubStore.patch(b.id, was);
+        else if (S.cubStore.has(b.id)) await S.cubStore.drop(b.id);
+        return true;`, { timeout: 60000 });
+    await settle(500);
+
+    /* A21. A BRIBE OFFERED AND ACCEPTED, EACH FROM ITS PLAYER'S OWN BROWSER (E72 C15 and its end review, 12.11.2026). The
+       GMs make Botan (p2's), dead, a Monocub; Aiko (p1's) holds 2 Hope. p1's browser offers the Bribe as the Call does
+       (monocub.mjs `offerBribe`, `bribe.offer`); the offer reaches p2's copy, which opens the Bribe's window, and p2 - a
+       client that presses a window's first button - accepts (`bribe.answer`). On the primary: Aiko 1 Hope, Botan's purse 1,
+       no offer left open, nothing refused or logged. 30-security sends both packets from consoles. */
+    phase("a Bribe offered and accepted by the players", { flow: "monocub-bribe" });
+    await clearFailures(gm);
+    const a21Refused = [(await refusedSince(p1)).length, (await refusedSince(p2)).length];
+    const a21Log = await p2.eval(`return globalThis.__dialogLog.length;`);
+    const a21Setup = await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"), RG = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const a = game.actors.get("${IDS.aiko}"), b = game.actors.get("${IDS.botan}");
+        globalThis.__a21Was = { row: foundry.utils.deepClone(S.cubStore.get(b.id) ?? null), hope: a.system.resources.hope.value, bHope: b.system.resources.hope.value };
+        await C.markDeceased(b);
+        await Mc.setMonocub(b, true);
+        await RG.trustedWrite(a, { "system.resources.hope.value": 2 }, { reason: "gmRuling" });
+        return { cub: Mc.isMonocub(b), purse: Mc.purseOf(b), total: Mc.cubHopeTotal(b) };`, { timeout: 60000 });
+    await settle(1000);
+    const a21Offer = await p1.eval(`const Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        return await Mc.offerBribe(game.actors.get("${IDS.aiko}"), game.actors.get("${IDS.botan}"));`, { timeout: 60000 });
+    await settle(2500);
+    const a21 = { setup: a21Setup, offer: a21Offer,
+        after: await gm.eval(`const Mc = await import("${repoUrl}/scripts/monocub.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+            const a = game.actors.get("${IDS.aiko}"), b = game.actors.get("${IDS.botan}");
+            return { hope: a.system.resources.hope.value, purse: Mc.purseOf(b), open: Object.keys(S.cubStore.get(b.id)?.bribes ?? {}).length };`),
+        windows: await p2.eval(`return globalThis.__dialogLog.slice(${a21Log}).map(d => d.title);`),
+        refused: [(await refusedSince(p1)).length - a21Refused[0], (await refusedSince(p2)).length - a21Refused[1]],
+        logged: [...await refusalsLogged(gm, "bribe.offer"), ...await refusalsLogged(gm, "bribe.answer")] };
+    check("A21: p1 offers Botan, a Monocub, a Bribe from its own browser and p2 accepts it in the Bribe's window - on the primary Aiko 1 Hope, Botan's purse 1, no offer open, nothing refused or logged (E72 C15)",
+        a21.setup.cub === true && Boolean(a21.offer?.bribeId) && a21.windows.includes("A Bribe")
+            && a21.after.hope === 1 && a21.after.purse === 1 && a21.after.open === 0
+            && a21.refused.every(n => n === 0) && a21.logged.length === 0,
+        JSON.stringify(a21), { flow: "monocub-bribe" });
+    /* The known leak, a Foundry limit (E72, 12.11.2026; the purse's weak signal, the owner's DC37 and the coordinator's
+       request): the purse is the GMs' (`cubStore`), the sheet every browser's. A move's price paid from the purse
+       (`spendCubHope`, as `cubAbilityOnGm` takes it) leaves the sheet's Hope where it was on every browser, so a console
+       that watches a Monocub's actions fall with no Hope beside them reads that its purse paid - that someone bribed it,
+       a Bounty paid it, or a bet came in. Green when p3's copy of Botan shows the Hope go; red, as known-leaks.json says,
+       while it does not - measured only when the GMs' total fell by the one point. */
+    const a21b = { before: await p3.eval(`return game.actors.get("${IDS.botan}")?.system?.resources?.hope?.value ?? null;`),
+        paid: await gm.eval(`const Mc = await import("${repoUrl}/scripts/monocub.mjs"); const b = game.actors.get("${IDS.botan}");
+            const total = Mc.cubHopeTotal(b); const paid = await Mc.spendCubHope(b, 1); return { paid, fell: total - Mc.cubHopeTotal(b) };`) };
+    await settle(800);
+    a21b.after = await p3.eval(`return game.actors.get("${IDS.botan}")?.system?.resources?.hope?.value ?? null;`);
+    check("A21b: a Monocub's move paid from its purse is read off its sheet - p3's copy of Botan shows no Hope go while the GMs' purse pays",
+        a21b.after !== a21b.before, JSON.stringify(a21b),
+        { knownLeak: "foundry-cub-purse", measured: a21b.paid?.paid?.purse === 1 && a21b.paid?.fell === 1 && a21b.before !== null, flow: "monocub-bribe" });
+    await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"), RG = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const a = game.actors.get("${IDS.aiko}"), b = game.actors.get("${IDS.botan}");
+        const was = globalThis.__a21Was; delete globalThis.__a21Was;
+        await Mc.setMonocub(b, false);
+        if (C.isDeadForGm(b)) await C.reviveCharacter(b, { quiet: true });
+        if (S.cubStore.has(b.id)) await S.cubStore.drop(b.id);
+        if (was?.row) await S.cubStore.patch(b.id, was.row);
+        await RG.trustedWrite(a, { "system.resources.hope.value": was?.hope ?? 0 }, { reason: "gmRuling" });
+        await RG.trustedWrite(b, { "system.resources.hope.value": was?.bHope ?? 0 }, { reason: "gmRuling" });
+        return true;`, { timeout: 60000 });
+    await settle(500);
+
+    /* The Mastermind's door (E91 C4, C5; D038, 12.11.2026): Chie (p3's) made the Mastermind with the Gym as the lair, a
+       tunnel cut from the Gym to Storage; p3's own browser asks `mastermind.lairLock` and `passage.lairSeal` as the sheet's
+       Lock and Seal ask them. On the primary the Gym is locked with the GM's lock and the tunnel closed, nothing refused or
+       logged. The forged asks are 30-security's "forged asks at the Mastermind's door". Put back after: the lock (its card
+       taken away), the tunnel, the Mastermind as it was. */
+    phase("the Mastermind locks their room and seals the passage at their door", { flow: "mastermind-door" });
+    await clearFailures(gm);
+    const a22Refused = (await refusedSince(p3)).length;
+    const a22Setup = await gm.eval(`const MM = await import("${repoUrl}/scripts/mastermind.mjs"), P = await import("${repoUrl}/scripts/passages-gm.mjs");
+        const M = await import("${repoUrl}/scripts/movement.mjs");
+        const scene = game.scenes.get("${IDS.scene}");
+        globalThis.__a22Was = { actorId: MM.mastermindActor()?.id ?? null, room: MM.mastermindLair(), messages: game.messages.map(m => m.id) };
+        await MM.setMastermind(game.actors.get("${IDS.chie}"), { room: "Gym" });
+        const passageId = await P.createPassage({ sceneId: scene.id, shape: "tunnel", ends: [{ x: 1600, y: 1500, level: null }, { x: 2500, y: 1500, level: null }] }, { scene });
+        globalThis.__a22Was.passageId = passageId;
+        return { passageId, locked: M.isLocked(scene, "Gym"), state: P.PASSAGE_STORES.map.get(passageId)?.state ?? null };`, { timeout: 60000 });
+    await settle(1500);
+    const a22Asks = await p3.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        const lock = await B.requestLairLock({ actorId: "${IDS.chie}", lock: true });
+        const seal = await B.requestLairSeal({ actorId: "${IDS.chie}", passageId: ${JSON.stringify(a22Setup?.passageId ?? "")} });
+        return { lock: [lock.ok, lock.value ?? null], seal: [seal.ok, seal.value ?? null] };`, { timeout: 60000 });
+    await settle(1500);
+    const a22 = { setup: a22Setup, asks: a22Asks,
+        after: await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"), P = await import("${repoUrl}/scripts/passages-gm.mjs");
+            return { locked: M.isLocked(game.scenes.get("${IDS.scene}"), "Gym"), state: P.PASSAGE_STORES.map.get(${JSON.stringify(a22Setup?.passageId ?? "")})?.state ?? null };`),
+        refused: (await refusedSince(p3)).length - a22Refused,
+        logged: [...await refusalsLogged(gm, "mastermind.lairLock"), ...await refusalsLogged(gm, "passage.lairSeal")] };
+    check("A22: p3, Chie's player and the Mastermind, locks the Gym and seals the tunnel at its door from its own browser - on the primary the Gym locked with the GM's lock, the tunnel closed, nothing refused or logged (E91 C4, C5)",
+        a22.setup?.locked === false && a22.setup?.state === "secret" && a22.asks.lock[0] === true && a22.asks.seal[0] === true
+            && a22.after.locked === true && a22.after.state === "closed" && a22.refused === 0 && a22.logged.length === 0,
+        JSON.stringify(a22), { flow: "mastermind-door" });
+    await gm.eval(`const MM = await import("${repoUrl}/scripts/mastermind.mjs"), P = await import("${repoUrl}/scripts/passages-gm.mjs");
+        const V = await import("${repoUrl}/scripts/vault-store.mjs");
+        const was = globalThis.__a22Was; delete globalThis.__a22Was;
+        await V.writeRoomLock(game.scenes.get("${IDS.scene}"), "Gym", false);
+        for (const m of game.messages.filter(m => !(was?.messages ?? []).includes(m.id))) await m.delete();
+        if (was?.passageId) await P.deletePassage(was.passageId);
+        if (was?.actorId) await MM.setMastermind(game.actors.get(was.actorId), { room: was.room ?? null });
+        else await MM.clearMastermind();
+        return true;`, { timeout: 60000 });
     await settle(500);
 
     /* ------------------------------------------- A. the Assistant as the primary */

@@ -223,8 +223,24 @@ export const FLOWS = Object.freeze([
     // the sheet's own button, then sheet.mjs `meddleButton`, which E33 C10 folded into the table); E45 shipped without
     // it, and no scenario or tier-1 test clicks the sheet's Monocub tile - 40 and 83 call `performCubAbility` from
     // p2's console, 71's part C reads the tile turn affordable. Moved to E72, the Monocub's stage.
+    // E72 C6 (12.11.2026): the invitation, answered from the dead student's player's window (monocub.mjs `openInvitation`)
+    // as `monocub.answer`; tier 2 judges a player's packet, 33-bridge-paths A20 drives the window's yes, and
+    // 30-security sends the packet from consoles.
+    { id: "monocub-invite", what: "A dead student's player answers the GMs' invitation to become a Monocub",
+        entry: { bridge: ["monocub.answer"] }, scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E72" },
+    // E72 C15 (12.11.2026): a living student's Bribe to a Monocub, offered and answered as `bribe.offer` and `bribe.answer`;
+    // tier 2 judges both on the GM, 33-bridge-paths A21 drives the offer and the window's yes, 30-security forges both.
+    { id: "monocub-bribe", what: "A living student offers a Monocub a Bribe, which its player accepts or refuses",
+        entry: { bridge: ["bribe.offer", "bribe.answer"] }, scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E72" },
+    // E91 C4, C5 (D038, 12.11.2026): the Mastermind's player locks or opens their room with the GM's lock and seals a
+    // passage at their door, as `mastermind.lairLock` and `passage.lairSeal`; tier 2 "D038 lair lock" and "D038 lair seal"
+    // judge both on the GM, 33-bridge-paths A22 asks both from the Mastermind's player, 30-security forges both.
+    { id: "mastermind-door", what: "The Mastermind locks or opens their room, and seals a secret passage at their door",
+        entry: { bridge: ["mastermind.lairLock", "passage.lairSeal"] }, scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E91" },
     { id: "monocub-meddle", what: "A Monocub meddles: asked on the player's side, applied by the GM",
-        entry: { bridge: ["monocub.ability"], sockets: ["call-effects.mjs"] }, scenarios: ["40-flow", "83-roll-integrity"], status: "partial", stage: "E72" },
+    // E72 C2 (12.11.2026): the Monocubs' record (gm-stores.mjs `cubStore`, the crime witness's mark) is the GMs' with its
+    // owner's copy, whose ask and answer are monocub.mjs's socket (`registerCubCopy`).
+        entry: { bridge: ["monocub.ability"], sockets: ["call-effects.mjs", "monocub.mjs"] }, scenarios: ["40-flow", "83-roll-integrity"], status: "partial", stage: "E72" },
     // Partial until E32 when E30 wrote it (E32's grid was to complete it). At the 1.2.66 release (03.10.2026) four of
     // its five actions are sent from a player's browser in a ci scenario - murder.crisis and murder.betrayal (13),
     // murder.park (30, 61), murder.cleanup (72) - and murder.openingResult in none: each scenario resolves the opening

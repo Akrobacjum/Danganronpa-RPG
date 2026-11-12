@@ -269,7 +269,11 @@ const INVARIANTS = [
         const ACTED_ON = ["grants", "grantsHope", "damage", "progress", "feedsOverflow",
                           "reroll", "announces", "sealsRoom", "silences", "chains",
                           "gathersEveryone", "freeMoves", "freeActions", "freeRest",
-                          "setsMotive"];
+                          "setsMotive",
+                          // E72 C15: a Bribe is offered, and paid on its yes, outside `applyCall` (calls.mjs `spendHopeCall`).
+                          "bribe",
+                          // E72 C16: a Bounty is posted, owed and claimed outside `applyCall` (calls.mjs `spendDespairCallFor`).
+                          "bounty"];
         const check = (source, label) => {
             for (const [key, call] of Object.entries(source)) {
                 ok(typeof call.cost === "number", `${label} ${key} has no numeric cost`);
@@ -277,7 +281,10 @@ const INVARIANTS = [
                 const acts = ACTED_ON.some(field => call[field])
                     // The two that do their work through the picker rather than
                     // through a field of their own.
-                    || call.target === "item";
+                    || call.target === "item"
+                    // CHANGED ON PURPOSE (E72, 12.11.2026): a tile of choices (Talent) acts through the rows it offers,
+                    // each held to this check itself.
+                    || (Array.isArray(call.choices) && call.choices.every(k => source[k] && k !== key));
                 ok(acts, `${label} ${key} has no effect any branch of applyCall acts on`);
             }
         };
@@ -7087,6 +7094,13 @@ const INVARIANTS = [
             ["Actor flag lastAction",
                 s => { s.actors[1].flags[MOD].lastAction = {}; },
                 h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190BYSTANDER001" && h.path === `flags.${MOD}.lastAction`],
+            // E72 C2: which Monocub saw the crime is the GMs' (monocub.mjs `cubStore`'s `witness`), not an actor flag.
+            ["Actor flag silencedChapter",
+                s => { s.actors[1].flags[MOD].silencedChapter = { chapter: 1, epoch: 0 }; },
+                h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190BYSTANDER001" && h.path === `flags.${MOD}.silencedChapter`],
+            ["unlinked token's Actor flag silencedChapter",
+                s => { s.tokens[0].delta.flags[MOD].silencedChapter = 1; },
+                h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190SCENE0000001.R190TOKEN0000001" && h.path === `delta.flags.${MOD}.silencedChapter`],
             // E05's fix round (S1-m4): the same bookmark on an unlinked token's own actor data, where
             // 1.2.63 wrote it from a sheet opened from the token.
             ["unlinked token's Actor flag lastAction",
@@ -10721,7 +10735,8 @@ const INVARIANTS = [
             /return byUser\.get\(userId\)\?\.target \?\? null;/.test(answer) && !/locateActor/.test(answer)]),
             JSON.stringify([
                 [null, null, null, null, null, null], 1, false, true, 0,
-                [V.liveKitRoomFor(school.id, "Dorm A"), V.liveKitRoomFor(school.id, "Cafeteria"), null,
+                // The dead student outside the trial: the main room (null) until E72 C8, its account's own dead room since (R3806).
+                [V.liveKitRoomFor(school.id, "Dorm A"), V.liveKitRoomFor(school.id, "Cafeteria"), "drpg-dead-R117PLAYERC00000",
                     V.liveKitRoomFor(school.id, "Dorm B"), V.liveKitRoomFor(school.id, "Hall"), null],
                 true, true, true]),
             "[in the trial: the targets of two living students in two rooms, a dead student, a Monocub, Monokuma, an account with no "
@@ -23380,6 +23395,45 @@ const INVARIANTS = [
             "[on: the first line of the diagnosis, the same with avclient-livekit off, the plan], [off: whether those lines name it]");
     }],
 
+    ["R3806 - the ordinary dead talk in a room of their own account outside the trial: a silenced death, public or kept secret, is placed in `deadRoomFor(userId)`, one room per account that nobody else is sent, never the main room; the trial keeps everybody in the main room; the room is the dead's own to speak in (E72 C8; S18-53, the owner's A9, the coordinator's decision of 12.11.2026)", async () => {
+        /*
+         * E72 C8, 12.11.2026; audit S18-53, the plan's A9, the coordinator's decision of 12.11 (the mic block stays in the
+         * trial; the ordinary dead outside it get their own voice channel, with no write to the user record). Until C8 a
+         * public death, once silenced, went to the main room (`voiceClaim`'s "the main room"), where every living player
+         * heard it, and a secret one to the one dead channel every secret death shared (`DEAD_ROOM`), where two dead
+         * players heard each other - a second death the first was not told of. Read here on plain objects, nothing
+         * written: `voiceClaim` for a silenced death of two accounts, public and secret, and for the same in the trial;
+         * the room's name (voice-client.mjs `deadRoomFor`) beside the Eclipse's (`silentRoomFor`); `micHold` in one's
+         * own dead room and in the main room. Red at 377a476: no `deadRoomFor`, the public death the main room.
+         */
+        const V = await import("./voice.mjs");
+        const VC = await import("./voice-client.mjs");
+        ok(typeof VC.deadRoomFor === "function", "voice-client.mjs has no deadRoomFor - the dead have no room of their own (E72 C8)");
+        if (typeof VC.deadRoomFor !== "function") return;
+        const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
+        const a = account("R3806PA000000000"), b = account("R3806PB000000000");
+        const claim = (user, secret, trial = false) => {
+            const row = V.voiceClaim({ user, trial, silenced: () => true, secret: () => secret });
+            return [row.target ?? "main", row.claim];
+        };
+        const own = id => VC.deadRoomFor(id);
+        const read = {
+            public: claim(a, false), secret: claim(a, true), other: claim(b, false),
+            trial: claim(a, false, true),
+            names: [own(a.id).startsWith(VC.ROOM_PREFIX), own(a.id) !== own(b.id), own(a.id) !== VC.silentRoomFor(a.id)],
+            hold: [V.micHold({ user: a, room: own(a.id), external: false, connected: true, canBroadcastAudio: true, actors: [] }),
+                V.micHold({ user: a, room: null, external: false, connected: true, canBroadcastAudio: true, actors: [] })]
+        };
+        const dead = V.voiceClaim({ user: a, silenced: () => true }).claim;
+        equal(stableJson(read), stableJson({
+            public: [own(a.id), dead], secret: [own(a.id), dead], other: [own(b.id), dead],
+            trial: ["main", V.voiceClaim({ user: a, trial: true }).claim],
+            names: [true, true, true],
+            hold: [{ reason: "deadAlone", held: false }, null]
+        }), "[the room of a silenced public death, a secret one, another account's public one, a death in the trial; the names: ours, "
+            + "one per account, not the Eclipse's; micHold in one's own dead room and in the main room]");
+    }],
+
     ["R815 - the dead channel: a dead student keeps the voice of the room they lie in until the incident ends, the body is found, a GM silences them or a living witness from outside the cast is there; then a secret death talks in the dead channel and a public one in the main room, each room to its account alone, a witness's after the victim's (E19-12 to E19-16)", async () => {
         /*
          * E19 C3, 19.10.2026; S11-26, D8, the owner's A9 of 11.10. Until C3 a death the GMs held sent its account to
@@ -23402,13 +23456,13 @@ const INVARIANTS = [
         const school = { id: "R815SCHOOL000000", name: "R815 School" };
         const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
         const silencedNow = V.voiceClaim({ user: account("R815ANYONE000000"), silenced: () => true, secret: () => true });
-        ok(silencedNow.target === `${VC.ROOM_PREFIX}dead`,
-            `a death kept secret, once its voice is silenced, goes to ${silencedNow.target ?? "the main room"}, where every player hears it (A9-K3)`);
+        // E72 C8 (12.11.2026): the dead room is the account's own (`deadRoomFor`), for a public death as for a secret one (R3806).
+        ok(silencedNow.target === VC.deadRoomFor("R815ANYONE000000"),
+            `a death kept secret, once its voice is silenced, goes to ${silencedNow.target ?? "the main room"}, not its account's own dead room (A9-K3)`);
         const NAMES = ["placeVoices", "deathVoiceGone", "sendInPasses", "onVoiceSocket", "createVoiceLedger"];
         ok(NAMES.every(name => typeof V[name] === "function"),
             `voice.mjs has no ${NAMES.filter(name => typeof V[name] !== "function").join(", ")}: nothing keeps a victim in the room until the trigger, or holds a witness's room for the victim's`);
         if (!NAMES.every(name => typeof V[name] === "function")) return;
-        const DEAD = VC.DEAD_ROOM;
 
         const [one, two] = game.users.filter(u => !u.isGM);
         const gm = account("R815GM0000000000", true);
@@ -23423,8 +23477,9 @@ const INVARIANTS = [
         };
         const owner = { victim: "victim", killer: "killer", witness: "witness", bystander: "bystander", third: "third", spare: "victim", late: "victim", cub: "cub" };
         const userOf = a => (a === A.monokuma ? gm : users[owner[Object.keys(A).find(k => A[k] === a)]] ?? null);
-        const label = target => (target === null ? "main" : target === DEAD ? "dead"
-            : ["Kitchen", "Hall", "Dorm"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
+        // Since E72 C8 each dead account's room is its own: "dead" names it only for the account it is sent to (`deadRoomFor`).
+        const label = (target, userId) => (target === null ? "main" : target === VC.deadRoomFor(userId) ? "dead"
+            : VC.isDeadRoom(target) ? "?another's dead room" : ["Kitchen", "Hall", "Dorm"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
         const running = { active: true, stage: "incident", killerId: A.killer.id, victimId: A.victim.id };
         let asked = 0;
         /* One case: who is dead (`dead`), whose death is public (`deceased`), where each stands, the incident, its cast held
@@ -23446,7 +23501,7 @@ const INVARIANTS = [
             const { rows, byUser, waits } = placed;
             const who = id => Object.keys(users).find(k => users[k].id === id) ?? (id === gm.id ? "gm" : id);
             return {
-                rooms: Object.fromEntries([...byUser].map(([id, row]) => [who(id), row.keep ? "kept" : label(row.target ?? null)])),
+                rooms: Object.fromEntries([...byUser].map(([id, row]) => [who(id), row.keep ? "kept" : label(row.target ?? null, id)])),
                 waits: Object.fromEntries([...waits].map(([id, list]) => [who(id), list.map(who)])),
                 byUser, rows, waitMap: waits, held: placed.held
             };
@@ -23491,7 +23546,7 @@ const INVARIANTS = [
             });
             const { byUser, waitMap: waits } = await place({ cast: ["victim", "killer", "witness", "bystander", "monokuma"], where: { witness: "Kitchen" } });
             const who = id => Object.keys(users).find(k => users[k].id === id) ?? (id === gm.id ? "gm" : id);
-            const log = () => sent.map(s => `${who(s.target)}:${label(s.room)}`);
+            const log = () => sent.map(s => `${who(s.target)}:${label(s.room, s.target)}`);
             const tick = () => new Promise(resolve => setTimeout(resolve, 0));
             const out = {};
             const pass = V.sendInPasses(V.applyOrder(byUser, gm.id), waits, {
@@ -23502,11 +23557,11 @@ const INVARIANTS = [
             out.waiting = [...timers.values()].map(t => t.ms).sort((a, b) => a - b);
             const victimPacket = sent.find(s => s.target === users.victim.id);
             if (forged) {
-                V.onVoiceSocket({ action: VC.VOICE.applied, room: DEAD, state: "applied", requestId: victimPacket?.requestId, userId: users.victim.id }, users.witness.id, L);
+                V.onVoiceSocket({ action: VC.VOICE.applied, room: VC.deadRoomFor(users.victim.id), state: "applied", requestId: victimPacket?.requestId, userId: users.victim.id }, users.witness.id, L);
                 await tick();
                 out.forged = log().length;
             }
-            if (answer) V.onVoiceSocket({ action: VC.VOICE.applied, room: DEAD, state: "applied", requestId: victimPacket?.requestId }, users.victim.id, L);
+            if (answer) V.onVoiceSocket({ action: VC.VOICE.applied, room: VC.deadRoomFor(users.victim.id), state: "applied", requestId: victimPacket?.requestId }, users.victim.id, L);
             else {
                 const [id, timer] = [...timers].find(([, t]) => t.ms === 1500) ?? [];
                 timers.delete(id);
@@ -23530,7 +23585,7 @@ const INVARIANTS = [
         seen.push(["kept, sent", keptSent.includes(users.victim.id), keptSent.includes(users.killer.id), keptSent.length]);
 
         const hold = room => V.micHold({ user: account(one.id), room, external: false, connected: true, canBroadcastAudio: true, actors: [] });
-        seen.push(["micHold", hold(DEAD), hold(null), V.micHold({ user: gm, room: DEAD, external: false, connected: true, canBroadcastAudio: true, actors: [] }),
+        seen.push(["micHold", hold(VC.deadRoomFor(one.id)), hold(null), V.micHold({ user: gm, room: VC.deadRoomFor(gm.id), external: false, connected: true, canBroadcastAudio: true, actors: [] }),
             game.i18n.has("DRPG.Voice.held.deadAlone")]);
 
         const key = name => ({ key: `${MODULE_ID}.${name}` });
@@ -23551,9 +23606,9 @@ const INVARIANTS = [
             ["cast not here", { ...kitchen, victim: "kept" }],
             ["cast arrived", kitchen],
             ["killer dead in public, in the incident", kitchen],
-            ["killer dead in public, after", { ...kitchen, killer: "main" }],
+            ["killer dead in public, after", { ...kitchen, killer: "dead" }], // the main room until E72 C8
             ["outside the cast, secret", { ...kitchen, bystander: "dead" }],
-            ["outside the cast, public", { ...kitchen, bystander: "main" }],
+            ["outside the cast, public", { ...kitchen, bystander: "dead" }], // the main room until E72 C8
             ["no incident, secret", { ...kitchen, bystander: "dead" }],
             ["the body found", out],
             ["silenced by a GM", out],
@@ -23596,7 +23651,7 @@ const INVARIANTS = [
         const T = await import("./voice-tile.mjs");
         const VC = await import("./voice-client.mjs");
         const me = { id: game.user.id, name: "R831", active: true, isGM: false };
-        const hold = (extra = {}) => V.micHold({ user: me, room: VC.DEAD_ROOM, external: false, connected: true, canBroadcastAudio: true, actors: [], ...extra });
+        const hold = (extra = {}) => V.micHold({ user: me, room: VC.deadRoomFor(me.id), external: false, connected: true, canBroadcastAudio: true, actors: [], ...extra });
         const writes = [], told = [];
         const settings = muted => ({
             get: (scope, key) => (scope === "client" && key === `users.${game.user.id}.muted` ? muted : undefined),
@@ -23647,7 +23702,6 @@ const INVARIANTS = [
         const V = await import("./voice.mjs");
         const VC = await import("./voice-client.mjs");
         const { participantIds } = await import("./incident-store.mjs");
-        const DEAD = VC.DEAD_ROOM;
         const school = { id: "R832SCHOOL000000", name: "R832 School" };
         const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
         const [one, two] = game.users.filter(u => !u.isGM);
@@ -23660,8 +23714,9 @@ const INVARIANTS = [
             monokuma: actor("R832AMONOKUMA000", { [FLAGS.monokuma]: true }) };
         const nameOf = a => Object.keys(A).find(k => A[k].id === a.id);
         const who = id => Object.keys(users).find(k => users[k].id === id) ?? (id === gm.id ? "gm" : id);
-        const label = target => (target === null ? "main" : target === DEAD ? "dead"
-            : ["Kitchen", "Hall", "Dorm"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
+        // Since E72 C8 each dead account's room is its own: "dead" names it only for the account it is sent to (`deadRoomFor`).
+        const label = (target, userId) => (target === null ? "main" : target === VC.deadRoomFor(userId) ? "dead"
+            : VC.isDeadRoom(target) ? "?another's dead room" : ["Kitchen", "Hall", "Dorm"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
         const running = { active: true, stage: "incident", killerId: A.killer.id, victimId: A.victim.id, thirdId: A.pub.id };
         const place = ({ hydrated, where = {} }) => V.placeVoices({
             actors: Object.values(A), eclipse: false, trial: false,
@@ -23679,7 +23734,7 @@ const INVARIANTS = [
                 cancel: id => timers.delete(id)
             });
             const io = { assign: (id, room, force) => L.assignUser(id, room, { force }), waitFor: (id, room) => L.waitApplied(id, room) };
-            return { L, sent, timers, io, log: () => sent.map(s => `${who(s.target)}:${label(s.room)}`), alone: () => sent.every(s => s.to?.length === 1 && s.to[0] === s.target) };
+            return { L, sent, timers, io, log: () => sent.map(s => `${who(s.target)}:${label(s.room, s.target)}`), alone: () => sent.every(s => s.to?.length === 1 && s.to[0] === s.target) };
         };
         const tick = () => new Promise(resolve => setTimeout(resolve, 0));
         const seen = [];
@@ -23707,7 +23762,7 @@ const INVARIANTS = [
             out.first = log();
             out.timers = [...timers.values()].map(t => t.ms).sort((a, b) => a - b);
             const victimPacket = sent.find(s => s.target === users.victim.id);
-            if (answer) V.onVoiceSocket({ action: VC.VOICE.applied, room: DEAD, state: "applied", requestId: victimPacket?.requestId }, users.victim.id, L);
+            if (answer) V.onVoiceSocket({ action: VC.VOICE.applied, room: VC.deadRoomFor(users.victim.id), state: "applied", requestId: victimPacket?.requestId }, users.victim.id, L);
             else {
                 const [id, timer] = [...timers].find(([, t]) => t.ms === 1500) ?? [];
                 timers.delete(id);
@@ -23722,7 +23777,7 @@ const INVARIANTS = [
         seen.push(["asked inside the wait, no answer", await waited(false)]);
         // The victim already settled in the dead channel: the witness is answered at once.
         const settledLedger = ledger();
-        settledLedger.L.answer(users.victim.id, { room: DEAD, state: "applied" });
+        settledLedger.L.answer(users.victim.id, { room: VC.deadRoomFor(users.victim.id), state: "applied" });
         seen.push(["asked, the victim settled", await V.answerWhoAmI(users.witness.id, warm, settledLedger.io), settledLedger.log()]);
 
         const voice = stripComments((await moduleSources()).get("voice.mjs") ?? "");
@@ -23734,7 +23789,7 @@ const INVARIANTS = [
         equal(stableJson(seen), stableJson([
             ["the pass, the cast not here", ["bystander", "gm"]],
             ["asked, the cast not here", { victim: "kept", pub: "kept", witness: "held", killer: "held", bystander: "sent" },
-                ["victim:dead", "pub:main", "bystander:Dorm"], true],
+                ["victim:dead", "pub:dead", "bystander:Dorm"], true], // pub: the main room until E72 C8
             ["the waits", { witness: ["victim"] }],
             ["asked inside the wait, the victim answers", { first: ["victim:dead"], timers: [1500, 2000], said: "waited",
                 all: ["victim:dead", "witness:Kitchen"], alone: true }],
@@ -23844,7 +23899,6 @@ const INVARIANTS = [
         const V = await import("./voice.mjs");
         const VC = await import("./voice-client.mjs");
         const { participantIds } = await import("./incident-store.mjs");
-        const DEAD = VC.DEAD_ROOM;
         const school = { id: "R835SCHOOL000000", name: "R835 School" };
         const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
         const gm = account("R835GM0000000000", true);
@@ -23857,8 +23911,9 @@ const INVARIANTS = [
         const owner = { bob: "p", alice: "p", carol: "carol", killer: "killer", victim: "victim" };
         const nameOf = a => Object.keys(A).find(k => A[k].id === a.id);
         const who = id => Object.keys(users).find(k => users[k].id === id) ?? (id === gm.id ? "gm" : id);
-        const label = target => (target === null ? "main" : target === DEAD ? "dead"
-            : ["Gym", "Library", "Hall", "Kitchen", "Dining"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
+        // Since E72 C8 each dead account's room is its own: "dead" names it only for the account it is sent to (`deadRoomFor`).
+        const label = (target, userId) => (target === null ? "main" : target === VC.deadRoomFor(userId) ? "dead"
+            : VC.isDeadRoom(target) ? "?another's dead room" : ["Gym", "Library", "Hall", "Kitchen", "Dining"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
         const running = { active: true, stage: "incident", killerId: A.killer.id, victimId: A.victim.id };
         const records = { alice: { chapter: 1, day: 3 }, victim: { chapter: 2, day: 1 } };
         /* Chapter 2. Alice died in chapter 1 (public: the flag; secret: the GMs' row alone), her token in the Gym; Bob
@@ -23872,10 +23927,10 @@ const INVARIANTS = [
             userOf: a => users[owner[nameOf(a)]], dead: a => ["alice", "victim"].includes(nameOf(a)), monokumaOf: () => false
         });
         const rooms = placed => Object.fromEntries([...placed.byUser].map(([id, row]) => [who(id),
-            row.keep ? "kept" : placed.held.has(id) ? "held" : label(row.target ?? null)]));
+            row.keep ? "kept" : placed.held.has(id) ? "held" : label(row.target ?? null, id)]));
         const asked = async placed => {
             const sent = [];
-            const io = { assign: (id, room) => { sent.push(`${who(id)}:${label(room)}`); return true; }, waitFor: async () => "applied" };
+            const io = { assign: (id, room) => { sent.push(`${who(id)}:${label(room, id)}`); return true; }, waitFor: async () => "applied" };
             const said = {};
             for (const name of ["p", "carol", "victim", "killer"]) said[name] = await V.answerWhoAmI(users[name].id, placed, io);
             return [said, sent];
@@ -23883,7 +23938,7 @@ const INVARIANTS = [
         const pass = async placed => {
             const sent = [];
             await V.sendInPasses(V.applyOrder(placed.byUser, gm.id), placed.waits, { ownId: gm.id, held: placed.held,
-                assign: (userId, row) => { sent.push(`${who(userId)}:${label(row?.target ?? null)}`); return true; }, waitFor: async () => "applied" });
+                assign: (userId, row) => { sent.push(`${who(userId)}:${label(row?.target ?? null, userId)}`); return true; }, waitFor: async () => "applied" });
             return sent;
         };
         const seen = [];
@@ -23930,7 +23985,7 @@ const INVARIANTS = [
         const V = await import("./voice.mjs");
         ok(typeof V.placeVoices === "function", "voice.mjs has no `placeVoices`: the trial's room is not asked of the decision the dead channel changes");
         if (typeof V.placeVoices !== "function") return;
-        const { DEAD_ROOM } = await import("./voice-client.mjs");
+        const { isDeadRoom } = await import("./voice-client.mjs");
         const school = { id: "R816SCHOOL000000", name: "R816 School" };
         const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
         const actor = (id, flags = {}) => ({ id, name: id, type: "character", getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
@@ -23953,7 +24008,7 @@ const INVARIANTS = [
         const targets = [...byUser.values()].map(row => row.target ?? null);
         const claim = V.voiceClaim({ user: account("R816P20000000000"), trial: true, silenced: () => true, secret: () => true });
         const voice = stripComments((await moduleSources()).get("voice.mjs") ?? "");
-        equal(stableJson([targets, new Set(targets).size, rows.some(r => r.target === DEAD_ROOM), waits.size, asked,
+        equal(stableJson([targets, new Set(targets).size, rows.some(r => isDeadRoom(r.target)), waits.size, asked,
             claim.target ?? null, claim.why === game.i18n.localize("DRPG.Voice.claimTrial"),
             /death: eclipse \|\| trial \? null : await deathFacts\(\)/.test(fnSource(voice, "voiceTargets"))]),
         stableJson([[null, null, null, null, null], 1, false, 0, 0, null, true, true]),
@@ -30099,12 +30154,13 @@ const INVARIANTS = [
          * put evidence on every screen (the sheet's Present asked only for a Class Trial), and a player who wanted to show a
          * Truth Bullet without the reading their Analyze bought had to show it all. Pure functions on hand-made floors and
          * views; nothing is written, no world is read (the names are handed in). Red at cbce376f: no `presentRefusal`, no
-         * `analysisOffered`, no `unreadView`.
+         * `analysisOffered`, no `unreadView`. E72 C11 (12.11.2026; D114) adds the Closing's exchange, changed on purpose: a
+         * student outside its Objection and Rebuttal is refused at Present; red at 7ab4cc6 (C presented).
          */
         const F = await import("./trial-floor.mjs");
         const T = await import("./trial.mjs");
         const read = { fns: [typeof F.presentRefusal, typeof T.analysisOffered, typeof T.unreadView] };
-        const names = { A: "R1045 Aoi", B: "R1045 Bo" };
+        const names = { A: "R1045 Aoi", B: "R1045 Bo", C: "R1045 Cy" };
         const nameOf = id => names[id] ?? null;
         if (typeof F.presentRefusal === "function") {
             const floors = {
@@ -30119,7 +30175,15 @@ const INVARIANTS = [
             };
             read.matrix = Object.fromEntries(Object.entries(floors).map(([k, floor]) =>
                 [k, ["A", "B"].map(id => F.presentRefusal(floor, id, { nameOf }))]));
+            /* THE CLOSING'S EXCHANGE (E72 C11, 12.11.2026; the owner's D114 of 31.10): an Objection at the Closing's speaker B
+               and its Rebuttal are the debate's modes with the Closing's field still on the floor (floor-machine.mjs
+               `closingOf`); A and B are in the exchange, C is not. Until C11 everybody presented there, as in a debate. */
+            const exchange = { objection: { active: true, mode: "objection", holderId: "A", targetId: "B", closing: { phase: "speak", speakerId: "B" } },
+                rebuttal: { active: true, mode: "rebuttal", holderId: "A", targetId: "B", closing: { phase: "speak", speakerId: "B" } } };
+            read.exchange = Object.fromEntries(Object.entries(exchange).map(([k, floor]) =>
+                [k, ["A", "B", "C"].map(id => F.presentRefusal(floor, id, { nameOf }))]));
         }
+        const pair = game.i18n.has("DRPG.Trial.presentPair") ? game.i18n.format("DRPG.Trial.presentPair", { a: names.A, b: names.B }) : "DRPG.Trial.presentPair";
         const only = game.i18n.format("DRPG.Trial.presentOnly", { name: names.A });
         const panic = `${only} ${game.i18n.format("DRPG.Trial.objectionNoneInMode", { mode: game.i18n.localize("DRPG.Floor.mode.panic") })}`;
         const nobody = game.i18n.localize("DRPG.Trial.presentNobody");
@@ -30145,11 +30209,13 @@ const INVARIANTS = [
                 none: [null, null], debate: [null, null], objection: [null, null], rebuttal: [null, null],
                 testimony: [null, only], panic: [null, panic], closing: [null, only], volunteers: [nobody, nobody]
             },
+            exchange: { objection: [null, null, pair], rebuttal: [null, null, pair] },
             offered: [false, false, true, true, true, false],
             unread: [["neutral", "", false, false, "R1045 the words", "R1045 bullet"], ["key", "", false, true, "R1045 the words", "R1045 bullet"],
                 ["neutral", "", false, false, "R1045 the words", "R1045 bullet"], ["key", "", true, true, "R1045 the words", "R1045 bullet"]],
             untouched: true
         }), "Present's rule per mode or its with-or-without choice is not the owner's [the three functions; who of the speaker A and B may present on each floor, "
+            + "who of A, B and C in the Closing's exchange (A objecting at B: C is outside it, D114), "
             + "with the reason; the choice offered for an unread bullet, an unread Key, an analysed one, an analysed Key, one read as Neutral; the view without the reading - type, reading, Faint, identified, the words, the name; the view handed in untouched]");
     }],
     ["R1046 - the floor's modes and their music, one row a mode (E70 C13, E70-82): Testimony, Panic Round and the Closing Argument play the trial's discussion, an Objection and its rebuttal the Objection's in every mode, the Closing's exchange too", async () => {
@@ -32134,7 +32200,7 @@ const INVARIANTS = [
             "the run's ok, failed and unknown lists do not count its rows");
         equal(stableJson(mod.contractState()), before, "a run on rows handed in replaced this load's contract, which the report reads");
 
-        // Unknown is a warning: one console line naming each such row, and no notice (a notice is a failed row's).
+        // Unknown is not a failure: no warning naming it, and no notice (a notice is a failed row's).
         const notices = [];
         const log = watchLog();
         try {
@@ -32143,8 +32209,9 @@ const INVARIANTS = [
         } finally {
             log.stop();
         }
-        equal(stableJson([log.count(/R1540 cannot-tell/), log.count(/R1540 hook/), notices.length]), stableJson([1, 1, 0]),
-            "a row that cannot be read is not one warning line each, or it raised a notice [cannot tell | hook | notices]");
+        // Since E91 C1 (the owner's note of 09.11) an unread row is no warning: one info line counts them (R3810).
+        equal(stableJson([log.count(/R1540 cannot-tell/), log.count(/R1540 hook/), notices.length]), stableJson([0, 0, 0]),
+            "a row that cannot be read is a warning line, or it raised a notice [cannot tell | hook | notices]");
 
         // At ready: after the requirements, on the primary GM only, from the ready hook that runs once.
         const src = (await moduleSources()).get("module.mjs") ?? "";
@@ -32152,6 +32219,419 @@ const INVARIANTS = [
         const gate = ready.indexOf("requirementsMet()"), run = ready.indexOf("announceAtReady(");
         ok(gate >= 0 && run > gate, "module.mjs's ready does not run the contract after it checked the requirements");
         ok(run >= 0 && /isPrimaryGm\(\)/.test(lineAround(ready, run)), "module.mjs's ready runs the contract on a client that is not the primary GM");
+    }],
+
+    ["R3815 - the Final Trial's verdict settles the Ghost Bets: a step finalBets after the card and before the pick is cleared, the bet won only on the executed Mastermind (E72, the coordinator's bug of 12.11)", async () => {
+        /*
+         * E72, 12.11.2026; the coordinator's note of 12.11 ("the Final Trial runs no 'bets' step, so a Ghost Bet there stays
+         * unpaid. That is a bug"). verdict.mjs `FINAL_VERDICT_STEPS` had no step that called monocub.mjs `settleBets`: a bet
+         * placed before the Final stayed in the Monocub's row until a reset. Now the step `finalBets` runs after
+         * `finalLevelUps` and before `mastermind` (which clears the pick the outcome is read from), needs `finalCard`, and
+         * settles with `finalBetsRecord(final)` (pure): a right verdict on the Mastermind when the Final executed them, the
+         * one sentenced; none else. The record of the Final Trial names nobody, so the record is built from the GMs' side.
+         * Red before: no finalBets.
+         */
+        const V = await import("./verdict.mjs");
+        const src = stripComments(new Map(await otherSources()).get("verdict.mjs") ?? "");
+        const steps = /const FINAL_VERDICT_STEPS = Object\.freeze\(\[([^\]]*)\]\)/.exec(src)?.[1]?.match(/"(\w+)"/g)?.map(x => x.slice(1, -1)) ?? [];
+        const at = name => steps.indexOf(name);
+        equal(JSON.stringify([at("finalBets") > at("finalLevelUps") && at("finalLevelUps") >= 0, at("finalBets") < at("mastermind"),
+            /finalBets:\s*"finalCard"/.test(src)]), JSON.stringify([true, true, true]),
+            "the Final Trial's steps have no finalBets after its Level Ups and before the pick is cleared, needing its card");
+        ok(typeof V.finalBetsRecord === "function", "verdict.mjs has no finalBetsRecord");
+        if (typeof V.finalBetsRecord !== "function") return;
+        equal(JSON.stringify([V.finalBetsRecord({ executed: true, mastermind: { id: "R3815MM" } }), V.finalBetsRecord({ executed: false, mastermind: { id: "R3815MM" } }),
+            V.finalBetsRecord({ executed: true, mastermind: null })]),
+            JSON.stringify([{ correct: true, executedIds: ["R3815MM"] }, { correct: false, executedIds: [] }, { correct: false, executedIds: [] }]),
+            "the Final's bets are not settled on the executed Mastermind alone ([executed, escaped, no Mastermind known])");
+    }],
+
+    ["R3816 - the GM's Despair Calls draw no Bounty tile: Fuel a Monocub's tile offers Fuel or Bounty, each with its own price and secrecy (E72, the owner's tiles decision of 12.11)", async () => {
+        /*
+         * E72, 12.11.2026; the owner ("chcemy zachowac te sama liczbe kafli", "Tak chodzilo o bounty"), relayed by the
+         * coordinator: the GM's Calls keep their number of tiles, so the Bounty (E72 C16) lives inside Fuel a Monocub's.
+         * config.mjs DESPAIR_CALLS.bounty is kept for its rules and marked `inside: "fuelTheCub"`; calls.mjs
+         * `despairCallsFor` (the grid's list) leaves such a row out; `fuelTheCub.choices` lists the two; sheet.mjs `runCall`
+         * asks which before anything else (`callChoice`). Red before: a Bounty tile, no choices.
+         */
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const { despairCallsFor } = await import("./calls.mjs");
+        const keys = despairCallsFor(99).map(c => c.key);
+        equal(JSON.stringify([keys.includes("bounty"), keys.includes("fuelTheCub"), DESPAIR_CALLS.bounty?.inside ?? null,
+            DESPAIR_CALLS.fuelTheCub?.choices ?? null]),
+            JSON.stringify([false, true, "fuelTheCub", ["fuelTheCub", "bounty"]]),
+            "the GM's Calls draw a Bounty tile, or Fuel a Monocub's tile does not offer Fuel and Bounty");
+        const sheet = stripComments(new Map(await otherSources()).get("sheet.mjs") ?? "");
+        // Since R3818 (E72, the action's layout) the window is call-pickers.mjs `pickChoice`, sheet.mjs `callChoice` gone.
+        ok(/call\.choices/.test(fnSource(sheet, "runCall")) && /\bpickChoice\s*\(/.test(fnSource(sheet, "runCall")),
+            "sheet.mjs runCall does not ask which Call of a tile's choices (pickChoice)");
+    }],
+
+    ["R3817 - Experience and Ultimate are one Hope Call, Talent: ten Hope Call tiles with Bribe among them, Talent offering both effects, the two rows kept so an armed one still resolves (E72, the owner's decision of 12.11)", async () => {
+        /*
+         * E72, 12.11.2026; the owner's pick (option 1, relayed by the coordinator): Bribe stays among the Hope Calls and
+         * the Hope Calls stay at ten, so Experience and Ultimate become one Call, Talent (cost 1; the player writes how an
+         * experience or their Ultimate applies, a GM approves or refuses, the Hope paid only on the yes; in its window the
+         * player picks one effect for the next roll: an experience's value, or advantage). config.mjs HOPE_CALLS.talent
+         * holds the tile (`choices: ["experience", "ultimate"]`); the two rows stay, each `inside: "talent"`, with every
+         * guard of theirs, so an Experience or an Ultimate armed before the update resolves by its key as before; calls.mjs
+         * `affordableHopeCalls` (the grid's list) leaves them out; sheet.mjs `runCall` asks which (`callChoice`) for a Hope
+         * Call as for a Despair one. Red before: no talent row, eleven tiles.
+         */
+        const { HOPE_CALLS } = await import("./config.mjs");
+        const { affordableHopeCalls } = await import("./calls.mjs");
+        const [actor] = studentActors();
+        const keys = affordableHopeCalls(actor).map(c => c.key);
+        equal(JSON.stringify([keys.length, keys.includes("talent"), keys.includes("bribe"), keys.includes("experience"), keys.includes("ultimate"),
+            HOPE_CALLS.talent?.choices ?? null, HOPE_CALLS.talent?.cost ?? null, HOPE_CALLS.experience?.inside ?? null, HOPE_CALLS.ultimate?.inside ?? null,
+            Boolean(HOPE_CALLS.experience?.needsGm && HOPE_CALLS.ultimate?.needsGm)]),
+            JSON.stringify([10, true, true, false, false, ["experience", "ultimate"], 1, "talent", "talent", true]),
+            "the Hope Calls are not ten tiles with Talent holding Experience and Ultimate ([tiles, Talent, Bribe, Experience, Ultimate, Talent's choices, its price, "
+            + "where each of the two lives, both still wait for a GM])");
+        const sheet = stripComments(new Map(await otherSources()).get("sheet.mjs") ?? "");
+        ok(!/despair\s*&&\s*Array\.isArray\(call\.choices\)/.test(fnSource(sheet, "runCall")) && /Array\.isArray\(call\.choices\)/.test(fnSource(sheet, "runCall")),
+            "sheet.mjs runCall asks a tile's choice for a Despair Call only");
+    }],
+
+    ["R3818 - a Call window that asks a choice or a text is drawn as an action's: the header and its facts on the left, the rows (radio buttons, not a dropdown) and the text or the note to the GM on the right, its side's class kept; Talent's two rows and the note are one window, a shut row greyed with its reason; a Call that asks nothing is the left column alone (E72, the owner's of 12.11)", async () => {
+        /*
+         * E72, 12.11.2026; the owner, relayed by the coordinator: "Ekrany calli niech przypominaja ekran akcji od teraz
+         * apropo zmian e72, skoro maja wybory i wpisy do gma". call-pickers.mjs `callWindow` takes `layout: "action"`
+         * (action-menus.mjs `actionWindow`, R3200's builder), and its rows are the action window's (`callRowsHtml` on
+         * ui-columns.mjs `choiceRowHtml`). Opened here with DialogV2.wait held by a stand-in that keeps each window until
+         * the test closes it (cancelled: nothing paid, armed or written), as R1111 does: a picker (Bounty's student), a
+         * text (New Rule), a tile's choice (Fuel a Monocub's, `pickChoice`), Talent's confirmation with its two rows and
+         * the note (Experience shut), a confirmation that asks nothing (Sprint) and the GM's ruling. The Monocub's ability
+         * window needs a Monocub, so it is read from its source (tier 2's tests open it). Red at 478a8e7: one column, a
+         * dropdown, Talent's choice a window of buttons before the note's.
+         */
+        needs(world.atLeast("livingStudents", 2), "Bounty's picker lists a living student other than the one aiming it");
+        const { pickTarget } = await import("./call-effects.mjs");
+        const calls = await import("./calls.mjs");
+        const pickers = await import("./call-pickers.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { HOPE_CALLS, DESPAIR_CALLS } = await import("./config.mjs");
+        const who = livingStudents()[0];
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const held = [];
+        const look = cfg => {
+            const root = document.createElement("div");
+            if (typeof cfg.content === "string") root.innerHTML = cfg.content;
+            else if (cfg.content) root.append(cfg.content.cloneNode(true));
+            const ask = root.querySelector(".drpg-variant-ask");
+            const radios = [...(ask?.querySelectorAll(".drpg-choice input[type=radio]") ?? [])];
+            return {
+                action: (cfg.classes ?? []).includes("drpg-action-window"),
+                side: (cfg.classes ?? []).find(c => /^drpg-(?:hope|despair)-dialog$/.test(c)) ?? null,
+                header: Boolean(root.querySelector(".drpg-variant-brief .drpg-call-header")),
+                ask: Boolean(ask),
+                rows: radios.length,
+                picked: radios.find(r => r.checked)?.value ?? null,
+                shut: radios.filter(r => r.disabled).map(r => r.value),
+                why: radios.filter(r => r.disabled).map(r => r.closest(".drpg-choice")?.querySelector("small")?.textContent.trim() ?? ""),
+                words: [...(ask?.querySelectorAll("textarea") ?? [])].map(t => t.name),
+                select: root.querySelectorAll("select").length,
+                routed: (cfg.buttons ?? []).filter(b => /\bdrpg-gm-route\b/.test(String(b.class ?? ""))).map(b => b.action)
+            };
+        };
+        const closeAll = answer => { for (const w of held.splice(0)) w.resolve(answer); };
+        const opened = async answer => {
+            const got = await until(() => held.length >= 1, 3000);
+            const seen = got ? look(held[0].config) : "(no window opened)";
+            closeAll(answer);
+            return seen;
+        };
+        const read = {};
+        D.wait = config => new Promise(resolve => held.push({ config, resolve }));
+        try {
+            const run = async (name, promise, answer = null) => { read[name] = await opened(answer); await promise; };
+            await run("bounty", pickTarget(who, DESPAIR_CALLS.bounty, "despair"));
+            await run("newRule", pickTarget(who, DESPAIR_CALLS.newRule, "despair"));
+            await run("fuel", pickers.pickChoice(DESPAIR_CALLS.fuelTheCub, "despair"));
+            await run("talent", calls.confirmCall(HOPE_CALLS.talent, { kind: "hope", held: 12, choices: HOPE_CALLS.talent.choices,
+                shut: { experience: "R3818 shut" } }), "cancel");
+            await run("sprint", calls.confirmCall(HOPE_CALLS.sprint, { kind: "hope", held: 12 }), "cancel");
+            await run("ruling", calls.askHopeCallApproval({ callLabel: "R3818", cost: 1, effect: "R3818", actorName: who.name, note: "R3818 words" }));
+        } finally {
+            closeAll(null);
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+        }
+        const base = { action: true, header: true, ask: true, rows: 0, picked: null, shut: [], why: [], words: [], select: 0, routed: [] };
+        const J = stableJson;
+        const got = Object.fromEntries(Object.entries(read).map(([k, v]) => [k, typeof v === "string" ? v
+            : k === "bounty" ? { ...v, rows: v.rows >= 1 } : v]));
+        equal(J(got), J({
+            bounty: { ...base, side: "drpg-despair-dialog", rows: true, picked: got.bounty?.picked ?? "(none)" },
+            newRule: { ...base, side: "drpg-despair-dialog", words: ["text"] },
+            fuel: { ...base, side: "drpg-despair-dialog", rows: 2, picked: "fuelTheCub" },
+            talent: { ...base, side: "drpg-hope-dialog", rows: 2, picked: "ultimate", shut: ["experience"], why: ["R3818 shut"], words: ["callNote"], routed: ["spend"] },
+            sprint: { ...base, side: "drpg-hope-dialog", ask: false },
+            ruling: { ...base, side: "drpg-hope-dialog" }
+        }), "a Call window is not drawn as an action's ([the action's window, its side, the header on the left, a right column, its rows, the row picked, "
+            + "the rows shut and why, the text fields on the right, a dropdown, the GM's road] for Bounty's picker, New Rule, Fuel's choice, Talent, Sprint, the ruling)");
+        ok(got.bounty?.picked !== null, "Bounty's picker has no row picked at opening");
+
+        // The Monocub's ability window, read from its source: the action's layout, the targets as rows, no dropdown.
+        const cub = topLevelFunction(stripComments(new Map(await otherSources()).get("monocub.mjs") ?? ""), "cubAbilityDialog") ?? "";
+        must(cub.length > 200, "monocub.mjs cubAbilityDialog was not read - this would measure nothing");
+        equal(J([/layout:\s*"action"/.test(cub), /\bcallRowsHtml\s*\(/.test(cub), /<select\b/.test(cub)]), J([true, true, false]),
+            "monocub.mjs cubAbilityDialog does not draw the action's layout with its targets as rows ([layout, rows, a dropdown])");
+    }],
+
+    ["R3819 - the Mastermind's room is locked by the GM's own lock (D038 (1), the owner's \"Budujemy\" of 12.11): one writer of a room's lock, vault-store.mjs `writeRoomLock`, which Room Setup's save and mastermind.mjs `lockLair` both call - the same flag, the same refusal, the same card when it opens; `lockLair` is the primary GM's and writes for the one who acts as the Mastermind alone, refusing anyone else with nothing carried out; the bridge's `mastermind.lairLock` asks it, in both languages", async () => {
+        /*
+         * E91 C4 (D038 (1)), 12.11.2026; the owner's answer relayed by the coordinator: "the lock must not be a tell - from
+         * a student's side the Mastermind's locked room must look and refuse exactly like any other locked room, and the GM
+         * can lock any room the same way". So the lair carries no lock of its own: `lockLair` writes the room's
+         * `ROOM_FLAGS.locked` through the writer Room Setup uses (`writeRoomLock`: every piece, and the unlock's card), and a
+         * student meets movement.mjs `isLocked` and "The door is locked." as at any locked door. Read here: the two callers'
+         * sources, the run's refusal for an asker who is not the Mastermind (this GM asks for a student it does not act as
+         * the Mastermind for: nothing written, tier 1's dump holds it), the bridge's row and its words. Tier 2 "D038 lair
+         * lock" writes it. Red at 5c93301: no writer, no `lockLair`, no row.
+         */
+        const sources = new Map(await otherSources());
+        const clean = name => stripComments(sources.get(name) ?? "");
+        const V = await import("./vault-store.mjs");
+        const M = await import("./mastermind.mjs");
+        const { BRIDGE_ACTIONS } = await import("./bridge-table.mjs");
+        const J = stableJson;
+        const setup = clean("room-setup.mjs"), lair = typeof M.lockLair === "function" ? fnSource(clean("mastermind.mjs"), "lockLair") : "";
+        must(setup.length > 1000, "room-setup.mjs was not read - this would measure nothing");
+        const [student] = studentActors();
+        must(student, "no student in the world - the refusal below would ask nothing");
+        const refused = typeof M.lockLair === "function" ? await M.lockLair({ actorId: student.id, lock: true }, { asker: { id: "R3819NOBODY", isGM: false } }) : null;
+        const row = BRIDGE_ACTIONS["mastermind.lairLock"] ?? null;
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json()).catch(() => ({}));
+        equal(J({
+            writer: typeof V.writeRoomLock === "function",
+            setup: /\bwriteRoomLock\s*\(/.test(setup) && !/updateRoom\([^;]*ROOM_FLAGS\.locked\}`\]/.test(setup),
+            lair: /\bwriteRoomLock\s*\(/.test(lair),
+            refused: typeof refused?.refused === "string" && refused.refused.startsWith("nothing was carried out: "),
+            row: row ? [row.answer, typeof row.run === "function", (row.guards ?? []).length, Object.keys(row.claims ?? {})] : null,
+            words: [game.i18n.localize("DRPG.Bridge.what.mastermind.lairLock") !== "DRPG.Bridge.what.mastermind.lairLock", typeof pl?.DRPG?.Bridge?.what?.["mastermind.lairLock"] === "string"]
+        }), J({ writer: true, setup: true, lair: true, refused: true, row: ["reply", true, 2, []], words: [true, true] }),
+            "the lair's lock is not the GM's lock through one writer ([vault-store.mjs writeRoomLock, Room Setup calls it and writes the lock no other way, "
+            + "lockLair calls it, a non-Mastermind asker refused with nothing carried out, the bridge's row [answer, run, guards, claims], its words EN/PL])");
+    }],
+
+    ["R3820 - the Mastermind seals a passage at their door as the GM's tab closes one (D038 (2)): passages-gm.mjs `sealLairPassage`, the primary's, closes an open passage with a side in the lair through the tab's own close, for the one who acts as the Mastermind alone, refusing anyone else with nothing carried out; the bridge's `passage.lairSeal` asks it; 'Known passages' draws Seal only on a row the sheet marks `seal`, and its rows carry their two rooms", async () => {
+        /*
+         * E91 C5 (D038 (2)), 12.11.2026. A closed passage reads the same whoever closed it: the GM's tab (`closePassage`),
+         * a finished Seal the passage project, and now the Mastermind at their own door - each the one `setState` close,
+         * the copies sent without it and a GM-only log row. Read here: the source (the close is the tab's), the refusal for
+         * an asker who is not the Mastermind, the bridge's row and words, and a drawn row with and without `seal`. Tier 2
+         * "D038 lair seal" closes one. Red at 5c93301: none of it.
+         */
+        const sources = new Map(await otherSources());
+        const P = await import("./passages-gm.mjs");
+        const S = await import("./sheet.mjs");
+        const { BRIDGE_ACTIONS } = await import("./bridge-table.mjs");
+        const J = stableJson;
+        const seal = typeof P.sealLairPassage === "function" ? fnSource(stripComments(sources.get("passages-gm.mjs") ?? ""), "sealLairPassage") : "";
+        const [student] = studentActors();
+        must(student, "no student in the world - the refusal below would ask nothing");
+        const refused = typeof P.sealLairPassage === "function"
+            ? await P.sealLairPassage({ actorId: student.id, passageId: "R3820NOPASSAGE" }, { asker: { id: "R3820NOBODY", isGM: false } }) : null;
+        const row = BRIDGE_ACTIONS["passage.lairSeal"] ?? null;
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json()).catch(() => ({}));
+        const drawn = flag => {
+            const li = S.knownPassageItem({ passage: { id: "R3820P" }, label: "R3820 A - R3820 B", shut: false, way: null, seal: flag });
+            return Boolean(li.querySelector(".drpg-passage-seal"));
+        };
+        const sides = typeof S.knownPassageRows === "function" ? fnSource(stripComments(sources.get("sheet.mjs") ?? ""), "knownPassageRows") : "";
+        equal(J({
+            close: /\bsetState\(\s*passageId,\s*"closed",\s*\["secret"\]/.test(seal) && /presetSideRefusal\(/.test(seal),
+            refused: typeof refused?.refused === "string" && refused.refused.startsWith("nothing was carried out: "),
+            row: row ? [row.answer, typeof row.run === "function", (row.guards ?? []).length, Object.keys(row.claims ?? {}).sort()] : null,
+            words: [game.i18n.localize("DRPG.Bridge.what.passage.lairSeal") !== "DRPG.Bridge.what.passage.lairSeal", typeof pl?.DRPG?.Bridge?.what?.["passage.lairSeal"] === "string"],
+            drawn: [drawn(true), drawn(false)],
+            rooms: /rows\.push\(\{[^}]*\brooms\b/.test(sides)
+        }), J({ close: true, refused: true, row: ["reply", true, 2, ["passageId"]], words: [true, true], drawn: [true, false], rooms: true }),
+            "the Mastermind's seal is not the tab's close ([the close and the side's judge, a non-Mastermind asker refused, the bridge's row, its words EN/PL, "
+            + "Seal drawn with and without the row's mark, the rows' rooms])");
+    }],
+
+    ["R3821 - a GM's \"Silence now\" (E72 C8, the plan's A9): the cast holds `silencedDead`, stamped per student and in no player's copy; incident-store.mjs `silenceDeadNow` writes it for a death the GMs keep and refuses anything else with nothing written; the Students row of such a death draws Silence now, or Silenced once written, and the incident tracker's footer offers it for its victim; the words EN and PL", async () => {
+        /*
+         * E72 C8, 12.11.2026 (the part left from C8; the plan's amendment A9 of 11.10: the per-account channel starts at
+         * `deathVoiceGone`, "the end of the incident, the body's announcement, or a GM's new Silence now"). voice.mjs
+         * `deathVoiceGone` read `silencedDead` since E19 C3 and nothing wrote it. Now: gm-stores.mjs CAST_FIELDS and the
+         * cast's split carry it (two GMs silencing two students both stay), incident-store.mjs `castCopyFor` leaves it out
+         * of every player's copy, `silenceDeadNow` writes it on a GM's browser (the GMs' store syncs it to the primary,
+         * whose `drpgCastChanged` moves the voice). Read here: the lists, a copy built for a player, the refusal for a
+         * living student (tier 1 writes nothing), the two windows' sources, the words. Tier 2 "E72 C8 Silence now" writes
+         * it. Red at f05fe96: none of it.
+         */
+        const S = await import("./gm-stores.mjs");
+        const I = await import("./incident-store.mjs");
+        const sources = new Map(await otherSources());
+        const clean = name => stripComments(sources.get(name) ?? "");
+        const [student] = studentActors();
+        must(student, "no student in the world - the refusal below would ask nothing");
+        const player = game.users.find(u => !u.isGM);
+        const copy = I.castFor(player?.id ?? "R3821NOBODY", { victimId: student.id, killerId: null, silencedDead: { [student.id]: true } });
+        const refused = typeof I.silenceDeadNow === "function" ? await I.silenceDeadNow(student) : "no silenceDeadNow";
+        const students = fnSource(clean("gm-students.mjs"), "aliveTableHtml") ?? clean("gm-students.mjs");
+        const tracker = bodyOf(clean("murder-ui.mjs"), "function incidentButtons(", { until: "\nfunction emptyButtons" });
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json()).catch(() => ({}));
+        const said = key => [game.i18n.localize(key) !== key, typeof key.split(".").slice(1).reduce((o, k) => o?.[k], pl.DRPG) === "string"];
+        equal(stableJson({
+            field: S.CAST_FIELDS.includes("silencedDead"),
+            split: /split:\s*\[[^\]]*"silencedDead"/.test(clean("gm-stores.mjs")),
+            copy: Object.hasOwn(copy ?? {}, "silencedDead"),
+            refused: refused === false,
+            students: [/data-drpg-silence=/.test(students), /DRPG\.Voice\.silenceNow\b/.test(students), /DRPG\.Voice\.silenced\b/.test(students)],
+            tracker: /action:\s*"silence"/.test(tracker),
+            words: ["DRPG.Voice.silenceNow", "DRPG.Voice.silenceNowTip", "DRPG.Voice.silenced"].map(said)
+        }), stableJson({ field: true, split: true, copy: false, refused: true, students: [true, true, true], tracker: true,
+            words: [[true, true], [true, true], [true, true]] }),
+            "Silence now is not built ([the cast's field, its split, in a player's copy, a living student refused, the Students row's button and words, "
+            + "the tracker's action, the words EN/PL])");
+    }],
+
+    ["R3810 - the contract's console at load: a warning only for a failed row; the rows not read yet are one info line with their count and where to read them; a row only a table can check is not in the console at all (E91 C1)", async () => {
+        /*
+         * E91 C1, 12.11.2026; the owner's note of 09.11 ("put the error I sent off to E91"). Until C1 every load
+         * warned "The contract: N row(s) could not be read here" with each row's note - a warning on a load where
+         * nothing failed, read at the table as an error. Now: failed rows warn as before; the rows a probe could not
+         * read yet (a hook not fired, a sheet not rendered) are one console.info line with a count and the call that
+         * lists them; the rows only a table check reads (`table`, B-E52-2 and B-E52-3) are left out of the console.
+         * Stand-in rows here. Red before C1: the unknown rows were a warning naming each.
+         */
+        const mod = await import("./patches.mjs");
+        const row = (id, probe, extra = {}) => ({
+            id, kind: "override", target: `R3810 ${id}`, owner: "foundry", file: "fog.mjs", symbol: "registerDoorControls",
+            why: "R3810", when: "always", fallback: `R3810 ${id}: what the table gets`, probe, ...extra
+        });
+        const rows = [
+            row("holds", () => ({ present: true, ours: true })),
+            row("blind", () => ({ present: null, ours: null })),
+            row("unfired", () => ({ present: true, ours: null }), { kind: "hook" }),
+            row("table", () => ({ present: null, ours: null, note: "a probe cannot read it" }), { kind: "call", table: "B-E52-2" })
+        ];
+        const lines = { warn: [], info: [], log: [] }, kept = { warn: console.warn, info: console.info, log: console.log };
+        for (const level of Object.keys(kept)) console[level] = (...args) => { lines[level].push(args.map(String).join(" ")); };
+        const notices = [];
+        let contract;
+        try {
+            contract = mod.announceContract({ rows, told: new Set(), notify: text => notices.push(text) });
+        } finally {
+            Object.assign(console, kept);
+        }
+        const all = [...lines.warn, ...lines.info, ...lines.log];
+        equal(stableJson([contract.unknown.length, contract.failed.length]), stableJson([3, 0]), "the stand-in rows are not read as three unknown and none failed");
+        equal(stableJson(lines.warn.filter(l => /R3810|contract/i.test(l))), "[]", "a load with no failed row still warns about the contract");
+        const info = [...lines.info, ...lines.log].filter(l => /contract/i.test(l));
+        equal(info.length, 1, "the rows not read yet are not one info line");
+        ok(/\b2\b/.test(info[0] ?? "") && /diagnosePatches\(\)/.test(info[0] ?? ""),
+            `the info line does not give the count of rows not read (2, the table row left out) and where to see them: ${info[0]}`);
+        equal(all.filter(l => l.includes("R3810 table")).length, 0, "a row only a table can check is named in the console at load");
+        equal(notices.length, 0, "an unread row raised a GM notice");
+
+        // A failed row still warns, once, and the info line stays one.
+        lines.warn.length = 0; lines.info.length = 0; lines.log.length = 0;
+        for (const level of Object.keys(kept)) console[level] = (...args) => { lines[level].push(args.map(String).join(" ")); };
+        try {
+            mod.announceContract({ rows: [...rows, row("gone", () => ({ present: false, ours: null }))], told: new Set(), notify: text => notices.push(text) });
+        } finally {
+            Object.assign(console, kept);
+        }
+        equal(stableJson([lines.warn.filter(l => l.includes("R3810 gone")).length, notices.length]), stableJson([1, 1]),
+            "a failed row is not one warning and one notice");
+    }],
+
+    ["R3811 - game.drpg.passages makes a passage public or secret by the tab's own write: makePublic and makeSecret, each refusing an unknown id with nothing written (E91 C3, D117)", async () => {
+        /*
+         * E91 C3, 12.11.2026; the owner's deferred item D117. The Passages tab's Make public and Make secret buttons
+         * (passages-tab.mjs, `makePassagePublic` and `makePassageSecret` of passages-gm.mjs) had no console road: the API
+         * held create, grant, revoke, close, open, delete, list, log and audit. Read here without a write: both are
+         * functions on the live object, an unknown id answers false, and api.mjs hands each to the tab's write. Red
+         * before C3: neither on the object.
+         */
+        const api = game.drpg?.passages ?? {};
+        equal(stableJson(["makePublic", "makeSecret"].map(k => typeof api[k])), stableJson(["function", "function"]),
+            "game.drpg.passages has no makePublic or makeSecret");
+        if (typeof api.makePublic !== "function" || typeof api.makeSecret !== "function") return;
+        const warn = console.warn;
+        console.warn = () => {};
+        let answers;
+        try {
+            answers = [await api.makePublic("SUITER3811NONE00"), await api.makeSecret("SUITER3811NONE00")];
+        } finally {
+            console.warn = warn;
+        }
+        equal(stableJson(answers), stableJson([false, false]), "an unknown passage was not refused by makePublic or makeSecret");
+        const src = (await moduleSources()).get("api.mjs") ?? "";
+        const block = bodyOf(src, "    passages: {", { until: "\n    }," });
+        ok(/makePublic:\s*passageId\s*=>\s*makePassagePublic\(passageId\)/.test(block) && /makeSecret:\s*passageId\s*=>\s*makePassageSecret\(passageId\)/.test(block),
+            "api.mjs does not hand makePublic and makeSecret to the tab's own write (passages-gm.mjs makePassagePublic, makePassageSecret)");
+    }],
+
+    ["R3813 - a room a breach forced, renamed in full, is read by its new name: the breach's row carries forced.room and forced.from with its rooms, so a second breach and the undo find it (E91 C7, D037)", async () => {
+        /*
+         * E91 C7, 12.11.2026; the owner's deferred item D037 ("a forced room renamed in full: the breach read by the old
+         * name"). passages-gm.mjs `carryPassageRooms` (a GM's rename, carried on the primary) carried a row's `rooms` and
+         * the 'when they leave' cells, and not the breach's `forced` (`{ room, from, ... }`, E15 part 2 C4): after a full
+         * rename `forcingRows` (which asks forced.room) found no standing breach of the room, so a second breach counted
+         * the room as broken by hand (`already`), the first one's undo took the break off while the second stood, and the
+         * undo's reseal named a room no longer drawn. Stores of the suite's own (an engine opened here, as R561 does): a
+         * breach row whose forced room is the Kitchen, from the Hall; both renamed. Red before C7: the old names.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        let now = 9_500_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R3813GM", isGM: () => true, isPrimary: () => true, worldId: () => "R3813WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R3813GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r3813${name}`, key: `r3813${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), season: def(S.passageSeasonStore, "Season"), access: def(S.passageAccessStore, "Access"),
+            log: def(S.passageLogStore, "Log"), mastermind: eng.define({ name: "r3813mm", key: "r3813mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        await eng.open();
+        const ID = "R3813SCENE.breach1";
+        await stores.season.patch(ID, { sceneId: "R3813SCENE", level: null, shape: "wall", rooms: ["R3813 Hall", "R3813 Kitchen"], state: "secret",
+            startAccess: [], breach: { breachId: "R3813B1", originalWallId: "R3813W", pieceIds: [], forced: { room: "R3813 Kitchen", from: "R3813 Hall",
+                already: false, unsealed: null, pieceIds: ["R3813RK"] } } });
+        await P.carryPassageRooms("R3813SCENE", "R3813 Kitchen", "R3813 Scullery", { stores });
+        await P.carryPassageRooms("R3813SCENE", "R3813 Hall", "R3813 Great Hall", { stores });
+        const row = stores.season.get(ID);
+        equal(JSON.stringify([row?.rooms, row?.breach?.forced?.room, row?.breach?.forced?.from, row?.breach?.forced?.pieceIds, row?.breach?.breachId]),
+            JSON.stringify([["R3813 Great Hall", "R3813 Scullery"], "R3813 Scullery", "R3813 Great Hall", ["R3813RK"], "R3813B1"]),
+            "a breach's forced room is read by the old name after a full rename ([rooms, forced.room, forced.from, its pieces kept, the breach kept])");
+    }],
+
+    ["R3814 - rest stamps written before E17 C9 (no chapter) are migrated once: one of the window now gets the current chapter, any other goes; stamps with a chapter are left; a migration step runs it on the primary (E91 C8, D068)", async () => {
+        /*
+         * E91 C8, 12.11.2026; the owner's deferred item D068 ("migrate rest markers written before the update with no
+         * chapter"). Since E17 fix p2-G3 a stamp of the old shape (`d${day}:${timeOfDay}`, `s${session}`) was read on every
+         * check as the current chapter's (rest.mjs `legacyRestStamp`), so one from an earlier chapter at the same day and
+         * time of day refused a rest. Now rest.mjs `migratedRests(rests, clock)` (pure) answers what a migration writes:
+         * an old-shape stamp of the window now (the current day and time of day, or session) is given the clock's
+         * chapter, any other old-shape stamp is dropped (`drop`), a stamp with a chapter is kept; and migrate.mjs has the
+         * step `chapterRestStamps`. Default, owner may revise. Red before C8: no migratedRests.
+         */
+        const R = await import("./rest.mjs");
+        ok(typeof R.migratedRests === "function", "rest.mjs has no migratedRests - the old rest stamps are not migrated");
+        if (typeof R.migratedRests !== "function") return;
+        const clock = { chapter: 3, day: 2, timeOfDay: "afternoon", session: 5 };
+        const cases = [
+            [{ short: "d2:afternoon", long: "s5" }, { set: { short: "c3d2:afternoon", long: "c3s5" }, drop: [] }],
+            [{ short: "d1:morning", long: "s4" }, { set: {}, drop: ["long", "short"] }],
+            [{ short: "c3d2:afternoon", long: "c2s5" }, { set: {}, drop: [] }],
+            [{}, { set: {}, drop: [] }],
+            [null, { set: {}, drop: [] }]
+        ];
+        const got = cases.map(([rests]) => { const out = R.migratedRests(rests, clock); return { set: out.set, drop: [...out.drop].sort() }; });
+        equal(JSON.stringify(got), JSON.stringify(cases.map(([, want]) => want)),
+            "the old rest stamps are not migrated as D068's default says ([of the window now, of another, with a chapter, none, no flag])");
+        const src = stripComments(new Map(await otherSources()).get("migrate.mjs") ?? "");
+        ok(/key:\s*"chapterRestStamps"/.test(src) && /migrateRestStamps\(/.test(src), "migrate.mjs has no chapterRestStamps step calling rest.mjs migrateRestStamps");
     }],
 
     ["R1541 - a failed row of the contract: one permanent GM notice a load naming its target, file:symbol and fallback, and the same rows on Pre-season's checks; every row's file:symbol is a function of that file", async () => {
@@ -38447,7 +38927,7 @@ const INVARIANTS = [
         const sources = new Map(await moduleSources());
         const SOURCE = [["boundary.mjs", "placementTable"], ["enforced.mjs", "openGiveBackFoundry"], ["enforced.mjs", "askHoldAgain"],
             ["gm-students.mjs", "openWhoIsAliveDialog"], ["gm-team-dialog.mjs", "openGmTeamDialog"], ["investigation.mjs", "openInvestigationDashboard"],
-            ["monocub.mjs", "openMonocubDialog"], ["murder-ui.mjs", "openIncidentTracker"], ["projects-ui.mjs", "openProjectManager"],
+            ["murder-ui.mjs", "openIncidentTracker"], ["projects-ui.mjs", "openProjectManager"],
             ["room-setup.mjs", "openRoomSetupDialog"], ["rules.mjs", "openRulesManager"], ["sound-panel.mjs", "openPlayerSoundDialog"],
             ["sound-panel.mjs", "openSoundDialog"], ["trial.mjs", "openObjectionLog"]];
         const source = {};
@@ -38812,6 +39292,9 @@ const INVARIANTS = [
          * question and before `setFinalTrial`, and the answer a return. The select: `verdictCandidates` with the Final
          * Trial's `final` and no accused opens on "Nobody named" (id ""); since E41 C10b, before this stage - not red here,
          * read so the row stays true. Red on C3a's tree: `finalVerdict` in the footer, no body button, no refusal.
+         * SINCE 12.11.2026 NO VERDICT IN THIS WINDOW AT ALL (the GM screen review, approved by the owner, relayed by the
+         * coordinator): the Class Trial console's Verdict opens the same window in a Final Trial (trial-floor-ui.mjs; tier 0
+         * holds that road, `finalConsole`), so the body's button went. `verdict` is null; red at bf09855.
          */
         needs(world.atLeast("livingStudents", 2), "the accused select lists the students");
         const MM = await import("./mastermind.mjs");
@@ -38835,7 +39318,7 @@ const INVARIANTS = [
             verdict: button ? [button.closest("footer") === null, Boolean(button.closest("fieldset")?.querySelector(".notes")), button.disabled === !MM.mastermindActor()] : null,
             refusal: [at(/!mastermindActor\(\)/) > 0, at(/!mastermindActor\(\)/) < at(/drpgConfirm\(/), at(/!mastermindActor\(\)/) < at(/setFinalTrial\(/)],
             opens: [opens, opens === students[0]?.id]
-        }), stableJson({ footer: ["save", "cancel"], verdict: [true, true, true], refusal: [true, true, true], opens: ["", false] }),
+        }), stableJson({ footer: ["save", "cancel"], verdict: null, refusal: [true, true, true], opens: ["", false] }),
             "[the footer's buttons; the verdict (out of the footer, with its note, disabled exactly when nobody is set); the refusal before the question and the write; the accused select's first choice and whether it is the first student]");
     }],
     ["R1363 - the incident tracker and Mark as Monokuma (E22 C3b; S03-34): murder-ui.mjs `incidentButtons` makes Close the default with no primary, Pass the turn and the ask-again ways on beside it, End the murder destructive and last, apart from Close, and no Pass in the resolution; `openIncidentTracker` refuses a Pass within PASS_COOLDOWN_MS (1500) of the last on this client; End the murder's label is its own; and the sheet's header offers a GM Mark as Monokuma for a student and Unmark for a Monokuma (the Actors directory's menu until E24 C3a), a mark of a player's character asked first with a destructive yes", async () => {
@@ -39418,7 +39901,8 @@ const INVARIANTS = [
             ["cleanup.mjs#askTransform", /gmRoute: \[\{\s*action: "change",\s*label: game\.i18n\.localize\("DRPG\.Cleanup\.transformChange"\)/, "DRPG.Cleanup.transformNote"],
             ["cleanup.mjs#askTransformChange", /gmRoute: \[\{\s*action: "go",\s*label: game\.i18n\.localize\("DRPG\.Cleanup\.transformGo"\)/, "DRPG.Cleanup.transformActionNote"],
             ["action-murder.mjs#performDirectMurder", /yes: \{ role: "gmRoute", label: game\.i18n\.localize\("DRPG\.Dialog\.yes"\) \}/, "DRPG.Action.murderConfirmEclipse"],
-            ["calls.mjs#confirmCall", /gmRoute: Boolean\(call\.needsGm\),/, "DRPG.Calls.waitsForGm"],
+            // Since E72 by calls.mjs `callAsksGm` (a row a GM rules, or Talent's tile of two such rows; read in `tiles` below).
+            ["calls.mjs#confirmCall", /gmRoute: asksGm,/, "DRPG.Calls.waitsForGm"],
             // E68 C4: a crisis row whose statistic a GM approves, and a project's statistic proposal; each sentence says the GM approves.
             ["action-murder.mjs#openCrisisMenu", /gmRoute: asks\(\{ key, def, free \}\),/, "DRPG.Murder.gmPicksTrait"],
             ["action-project.mjs#proposeProjectTrait", /gmRoute: \[\{\s*action: "propose",\s*label: game\.i18n\.localize\("DRPG\.TraitRuling\.propose"\)/, "DRPG.TraitRuling.projectBody"],
@@ -39478,9 +39962,12 @@ const INVARIANTS = [
         const sheet = src("sheet.mjs");
         const call = fnSource(sheet, "callButton"), use = fnSource(sheet, "addUseButton");
         read.tiles = {
-            call: /const askGm = Boolean\(call\.needsGm\) && !pending;/.test(call) && /\$\{askGm \? ` \$\{GM_ROUTE_CLASS\}` : ""\}/.test(call)
+            call: /const askGm = callAsksGm\(call, monokuma \? "despair" : "hope"\) && !pending;/.test(call)
+                && /const asksGm = callAsksGm\(call, kind\);/.test(fnSource(src("calls.mjs"), "confirmCall")) && /\$\{askGm \? ` \$\{GM_ROUTE_CLASS\}` : ""\}/.test(call)
                 && /<span class="drpg-action-gm">\$\{game\.i18n\.localize\("DRPG\.Action\.waitsForGm"\)\}<\/span>/.test(call),
             needsGm: Object.entries(HOPE_CALLS).filter(([, c]) => c.needsGm).map(([key]) => key).sort(),
+            asksGm: await import("./calls.mjs").then(C => typeof C.callAsksGm === "function"
+                ? Object.keys(HOPE_CALLS).filter(key => C.callAsksGm(HOPE_CALLS[key], "hope")).sort() : "calls.mjs exports no callAsksGm"),
             use: /const askGm = !broken && usedCreatively\(item\) && !inCrisis\(app\.document\);/.test(use) && /"DRPG\.Items\.useTier0Tooltip"/.test(use)
                 && /\$\{askGm \? ` \$\{GM_ROUTE_CLASS\}` : ""\}/.test(use),
             useItem: /if \(usedCreatively\(held\)\) return/.test(fnSource(src("use-items.mjs"), "useItem")),
@@ -39496,7 +39983,7 @@ const INVARIANTS = [
             cls: ["drpg-gm-route", true, []],
             dynamic: [true, true, 1],
             analyze: { note: ["hint"], stash: true },
-            tiles: { call: true, needsGm: ["experience", "ultimate"], use: true, useItem: true, words: [[true, true], [true, true]] },
+            tiles: { call: true, needsGm: ["experience", "ultimate"], asksGm: ["experience", "talent", "ultimate"], use: true, useItem: true, words: [[true, true], [true, true]] },
             creative: [true, false, false, false],
             stripe: ["gm", "stress", "gm", "free"]
         }), "[the GM's road: marks with no census row, rows whose mark is gone, rows whose mark is not the road's, sentences naming no GM (EN, PL); "

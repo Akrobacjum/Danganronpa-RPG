@@ -1067,6 +1067,26 @@ export async function sealPassageDone(projectId, { passageId = null, builderId =
 }
 
 /**
+ * THE MASTERMIND SEALS THE PASSAGE AT THEIR DOOR (E91 C5, D038 (2), 12.11.2026; the owner's "Budujemy"): an open passage
+ * with a side in the lair (`presetSideRefusal`, as a Seal the passage project's side is judged) closed by the tab's own
+ * close (`setState`: the knowers' cells kept, the copies sent without it, a GMs' log row naming the Mastermind), on the
+ * primary, for the one who acts as the Mastermind through that character (`actsAsMastermind`), the lair the GMs' record
+ * (never the packet's). A closed passage reads the same whoever closed it - the GM's Close, a finished Seal the passage,
+ * this - so a student learns nothing of who. A GM may open it again (the tab's Open). Every refusal is "nothing was carried
+ * out" and says nothing of which check failed. Answers `{ id, sealed: true }` or `{ refused }` with nothing written.
+ */
+export async function sealLairPassage({ actorId = null, passageId = null } = {}, { asker = game.user, stores = PASSAGE_STORES } = {}) {
+    const no = { refused: "nothing was carried out: the passage was not sealed" };
+    if (!isPrimaryGm() || typeof passageId !== "string" || !passageId) return no;
+    const actor = typeof actorId === "string" ? game.actors?.get(actorId) ?? null : null;
+    if (!actor || !actsAsMastermind(actor, asker)) return no;
+    const lair = mastermindStore.get(RECORD)?.room;
+    if (typeof lair !== "string" || !lair || rowsOf(stores).get(passageId)?.state !== "secret") return no;
+    if (await presetSideRefusal({ passageId, room: lair }, stores)) return no;
+    return (await setState(passageId, "closed", ["secret"], stores, { actorId: actor.id })) ? { id: passageId, sealed: true } : no;
+}
+
+/**
  * A Seal the passage's completion taken back (the row's `onUncrossed`, D40; kept for the Reroll as a Secret Passage's):
  * each passage this project closed and nobody opened or closed again since (`sealedBy`) is open again. Answers how many.
  */
@@ -1909,7 +1929,8 @@ export async function passageRoomsOnMap(passageId, { stores = PASSAGE_STORES, sc
 /**
  * On the primary, once a GM's rename of the room `from` on the scene `sceneId` to `to` is carried
  * (fog.mjs `carryRename`): each passage of that scene shows the new name (`rooms`), and a student who
- * keeps a passage until leaving the room (`leave`) keeps it until leaving the renamed room. Until review
+ * keeps a passage until leaving the room (`leave`) keeps it until leaving the renamed room; a breach's forced room and
+ * the room it was cut from are carried too (E91 C7). Until review
  * round 1 (cor F1; the goal reviewer's note on 'Revoke when they leave', 15.10.2026) neither was carried,
  * and `revokeLeavers`, which compares names, revoked the passage at the student's next route inside the
  * room. Answers how many rows and cells it carried.
@@ -1922,6 +1943,15 @@ export async function carryPassageRooms(sceneId, from, to, { stores = PASSAGE_ST
         if (row?.sceneId !== sceneId) continue;
         here.add(id);
         if (Array.isArray(row.rooms) && row.rooms.includes(from)) rows[id] = { rooms: row.rooms.map(room => (room === from ? to : room)) };
+        /* A breach's forced room and the room it was cut from (E91 C7; the owner's deferred item D037): `forcingRows` and
+           the undo read `forced.room` by name, so after a full rename a standing breach of the room was not found - a
+           second breach read the room as broken by hand, the first's undo took the break off under it, and its reseal
+           named a room no longer drawn. Carried with the row's rooms, the rest of `breach` as it stands. */
+        const forced = row.breach?.forced;
+        if (forced && (forced.room === from || forced.from === from)) {
+            rows[id] = { ...(rows[id] ?? {}), breach: { ...row.breach, forced: { ...forced,
+                ...(forced.room === from ? { room: to } : {}), ...(forced.from === from ? { from: to } : {}) } } };
+        }
     }
     for (const [key, cell] of Object.entries(stores.access.entries())) {
         if (!key.startsWith("touch/") && cell?.leave === from && here.has(key.slice(0, key.lastIndexOf("/")))) cells[key] = { leave: to };

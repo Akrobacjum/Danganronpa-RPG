@@ -166,7 +166,9 @@ export const WORLD_SECRET_RULES = Object.freeze({
         // GMs' `lootTraces` store (handover.mjs `liftLootTraces`; S05-39 (3)).
         // E06 C10: an armed Call names nobody who bought it - a Monocub's Confusion named the Monocub
         // on its target (call-effects.mjs `unsigned`; S09-10). A `*` is any index of the armed list.
-        Actor: Object.freeze(["lastAction", "lootTrace", "pendingCall.*.from"]),
+        // E72 C2: which Monocub saw the crime is the row's `witness` in the GMs' `cubStore` and its owner's copy; the
+        // flag `silencedChapter` that held it goes at the update (monocub.mjs `liftCubWitness`; S18-51).
+        Actor: Object.freeze(["lastAction", "lootTrace", "pendingCall.*.from", "silencedChapter"]),
         // E05 C6: a player's pre-session note for the GMs - "Am I planning to kill? How?" - is a GM
         // store; the flag keeps only `{ updatedAt, written }` (pre-session-note.mjs; S11-03, S01-08).
         User: Object.freeze(["preSessionNote.text"]),

@@ -453,12 +453,29 @@ export function externalAV() {
 export const ROOM_PREFIX = "drpg-";
 
 /**
- * The dead channel (E19 C3; S11-26, D8, the owner's A9 of 11.10): one room for every student whose death is not
- * public, from the first of its triggers on (voice.mjs `deathVoiceGone`). One of ours by the prefix, so
- * `landedCorrectly` reads it as a breakout; a room `liveKitRoomFor` names carries a scene id, a slug and a hash
- * after the prefix, and an Eclipse room `eclipse-`, so none is named the same. `micHold` reads it off `desiredRoom()` for the tile's "deadAlone".
+ * The dead's own room (E72 C8, 12.11.2026; audit S18-53, the plan's A9, the coordinator's decision of 12.11): one room
+ * per account, for a student dead outside the trial from the first of its triggers on (voice.mjs `deathVoiceGone`),
+ * whether the death is public or kept secret. Nobody else is sent it, so nobody hears the dead and the dead hear
+ * nobody, and no document is written for it: the trial's block (`BROADCAST_AUDIO`, E70) stays the trial's.
+ *
+ * ONE PER ACCOUNT, NOT ONE FOR ALL (E19 C3 had `DEAD_ROOM`, `drpg-dead`, for every death kept secret, and sent a
+ * public one to the main room): in the shared room two dead players heard each other, so the first learnt of a second
+ * death nobody had found; in the main room every living player heard a public death. One of ours by the prefix, so
+ * `landedCorrectly` reads it as a breakout; a room `liveKitRoomFor` names carries a scene id, a slug and a hash after
+ * the prefix, and an Eclipse room `eclipse-`, so none is named the same. `micHold` reads it off `desiredRoom()` for
+ * the tile's "deadAlone".
+ *
+ * @param {string} userId
+ * @returns {string}
  */
-export const DEAD_ROOM = `${ROOM_PREFIX}dead`;
+export function deadRoomFor(userId) {
+    return `${ROOM_PREFIX}dead-${userId}`;
+}
+
+/** Whether `room` is a dead account's own room (`deadRoomFor`), whoever's. */
+export function isDeadRoom(room) {
+    return typeof room === "string" && room.startsWith(`${ROOM_PREFIX}dead-`);
+}
 
 /**
  * The Spectators' room (E92 C6; the owner's 04.11 amend: "Spectators have their own LiveKit room where they talk among

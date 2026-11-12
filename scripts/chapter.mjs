@@ -41,7 +41,7 @@ import {
 } from "./truth-bullets.mjs";
 import { remnantsOn, remnantData, setRemnantFlagsMany, publishTiesFor, handTiesOn, fightKey } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { announce, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc, isPrimaryGm, primaryGmId,
+import { announce, whisperToGms, gmIds, ownerIdsOf, log, warn, error, plural, esc, isPrimaryGm, primaryGmId,
     serverNow, listOf } from "./utils.mjs";
 // The kit's frame (E21 C3a): every window of the case's chapter is a `drpgWindow` or a `drpgConfirm`, answering as before.
 import { drpgWindow, drpgConfirm, emptyOption, box } from "./ui-kit.mjs";
@@ -53,7 +53,7 @@ import { registerSeasonState, everyPart } from "./season-reset.mjs";
 import { caseMark, deathStore, deferredOfferStore, lootTraceStore } from "./gm-stores.mjs";
 // A leaf (config.mjs alone): the scenes of the discovery window and a discovery handed no scene (E12 C5).
 import { placeScenes, roomNames, sceneOfRoom } from "./rooms.mjs";
-import { leaveBody, removeBodyTiles } from "./body-tile.mjs";
+import { leaveBody, removeBodyTiles, bodyPlaceOf } from "./body-tile.mjs";
 
 /* ==========================================================================
  * DEATH
@@ -1447,7 +1447,8 @@ export function bodiesToDiscover({ actors = [], clock = getClock(), epoch = seas
  * THE WITNESSES OF A WALK-IN (E11 C1, 1.2.73; audit S06-14, S13-02; DC7/DX1; tier 0 R348). The
  * tokens of `tokens` standing in `room` that count toward the two: a student's character
  * (`students`, which leaves a Monokuma out), not hidden, not one of the `bodies`, and alive for
- * the GMs - the dead are not witnesses, only a Monocub is. Until 1.2.73 a dead student's token
+ * the GMs - the dead are not witnesses, and since E72 C3 a Monocub neither (DC7: "never"; until
+ * then a Monocub was the one dead witness; `monocubs` keeps it one for a reader that finds no body). Until 1.2.73 a dead student's token
  * standing in the room counted, so one living student walking in on a body beside an earlier
  * victim's was "two witnesses". `held` and `pending` as `bodiesToDiscover` reads them; `roomOf` is
  * movement.mjs `roomOfToken`, or `lawfulRoomOf` (E12 C12).
@@ -1457,7 +1458,7 @@ export function bodiesToDiscover({ actors = [], clock = getClock(), epoch = seas
  * discovery the rule of two keeps for two people. One token a student is kept, the first that counts.
  */
 export function witnessesOf({ tokens = [], room = null, bodies = new Set(), students = new Set(), held = actor => actor,
-    pending = id => pendingDeath({ id }), roomOf = () => null } = {}) {
+    pending = id => pendingDeath({ id }), roomOf = () => null, monocubs = false } = {}) {
     const counted = new Set();
     return [...tokens].filter(t => {
         const actor = t.actor;
@@ -1465,8 +1466,10 @@ export function witnessesOf({ tokens = [], room = null, bodies = new Set(), stud
         if (t.hidden) return false;
         if (bodies.has(actor.id)) return false;
         if (!students.has(actor.id)) return false;            // excludes Monokumas
+        // No dead student finds a body, a Monocub neither (E72 C3, 12.11.2026; the owner's DC7, "never"). `monocubs` for
+        // a reader that is no discovery: who sees what one student does to another (frisk.mjs `roomWitnessesOnGm`, A11-12).
         const view = held(actor);
-        if (deadIn(view, pending) && !view.getFlag(MODULE_ID, FLAGS.monocub)) return false;
+        if (deadIn(view, pending) && !(monocubs && view.getFlag(MODULE_ID, FLAGS.monocub))) return false;
         if (roomOf(t) !== room || counted.has(actor.id)) return false;
         counted.add(actor.id);
         return true;
@@ -1491,7 +1494,7 @@ export function witnessesOf({ tokens = [], room = null, bodies = new Set(), stud
  * too: walking back to your own crime scene alongside a witness is still being
  * found there. A Monokuma is not a witness either - see `maybeThirdParty`,
  * same rule - and nor is a hidden token, a second body or, since E11 C1, the
- * dead who are not Monocubs (`witnessesOf`).
+ * dead (`witnessesOf`; a Monocub among them since E72 C3).
  *
  * Two is the count, and at least one of the two has to be unconnected to the
  * incident - a room full of nothing but killers and accomplices is not a
@@ -1550,10 +1553,14 @@ async function checkBodyFound(tokenDoc) {
     const room = roomOfToken(tokenDoc);
     if (!room) return null;
 
-    // The body has to be in the room somebody just walked into.
+    /* The body has to be in the room somebody just walked into - WHERE THE BODY LIES (E72 C3, 12.11.2026; the plan's
+       Q-E72-3, default taken): its tile since E63, its token where it has none (body-tile.mjs `bodyPlaceOf`, as Frisk's
+       gate reads it), with the GMs' flags. Until E72 the victim's token was read, and a token walks on from its tile. */
     const scene = tokenDoc.parent;
-    const bodyHere = scene?.tokens?.find(t =>
-        t.actor && bodies.has(t.actor.id) && !t.hidden && roomOfToken(t) === room);
+    const bodyHere = [...bodies].map(id => game.actors.get(id)).find(actor => {
+        const place = actor ? bodyPlaceOf(actor, { held: flagsHeldNow }) : null;
+        return Boolean(place) && !place.hidden && place.scene?.id === scene?.id && place.room === room;
+    });
     if (!bodyHere) return null;
 
     /* AND THE KILLERS STILL CLEANING UP (22.09). The Blackened register is written when the
@@ -1562,7 +1569,7 @@ async function checkBodyFound(tokenDoc) {
        their own Stage 6. The running incident's killers count as involved too. */
     const involved = new Set([...blackenedIds(), ...killerIds(murderState())]);
 
-    // And the dead are not witnesses, only a Monocub is (E11 C1; `witnessesOf`). Nor is a student
+    // And the dead are not witnesses, a Monocub neither since E72 C3 (E11 C1; `witnessesOf`). Nor is a student
     // who reached the room by a crossing the rules refuse, until they stand somewhere lawful (E12
     // C12, the owner's Q3 a): the room they count in is the witness judge's (movement.mjs
     // `lawfulRoomOf`), read in this same step. Scenario 66 I1 read Aiko, jumped into the locked
@@ -1592,7 +1599,7 @@ async function checkBodyFound(tokenDoc) {
     log(`Body found in ${room}: ${witnesses.map(t => t.actor.name).join(", ")} walked in.`);
     // Already inside the queue: straight to the work, not back through `discoverBody`,
     // which would wait behind this very call.
-    return await runDiscovery({ room, victim: bodyHere.actor, scene, by: "witnesses" });
+    return await runDiscovery({ room, victim: bodyHere, scene, by: "witnesses" });
 }
 
 /**
@@ -1602,22 +1609,25 @@ async function checkBodyFound(tokenDoc) {
  * player who already knows is told nothing again. Answers how many bodies they learnt of.
  */
 async function tellLoneFinder(finder, scene, room) {
-    const user = ownerOf(finder);
-    if (!user || user.isGM) return 0;
+    // Every player who owns the finder (E91 C6, D078): a co-owner shares its sheet and its screen's marks.
+    const users = ownerIdsOf(finder).map(id => game.users.get(id)).filter(Boolean);
+    if (!users.length) return 0;
     const { roomOfToken } = await import("./movement.mjs");
     const { knowsOfDeath, tellDeaths, tellFinder } = await import("./murder.mjs");
     const found = [];
     for (const t of scene?.tokens ?? []) {
         const id = t.actor?.id;
         const row = id ? deathStore.get(id) : null;
-        if (!row || t.hidden || roomOfToken(t) !== room || knowsOfDeath(user, id, row)) continue;
-        await deathStore.patch(id, { known: [...(Array.isArray(row.known) ? row.known : []), user.id] });
-        found.push(t);
+        if (!row || t.hidden || roomOfToken(t) !== room) continue;
+        const fresh = users.filter(user => !knowsOfDeath(user, id, row));
+        if (!fresh.length) continue;
+        await deathStore.patch(id, { known: [...new Set([...(Array.isArray(row.known) ? row.known : []), ...fresh.map(u => u.id)])] });
+        found.push([t, fresh]);
     }
     if (!found.length) return 0;
-    tellDeaths([user.id]);
-    for (const t of found) tellFinder(user.id, t, room);
-    log(`${finder.name} found ${found.map(t => t.name).join(", ")} alone in ${room}; their player was told privately.`);
+    tellDeaths([...new Set(found.flatMap(([, fresh]) => fresh.map(u => u.id)))]);
+    for (const [t, fresh] of found) for (const user of fresh) tellFinder(user.id, t, room);
+    log(`${finder.name} found ${found.map(([t]) => t.name).join(", ")} alone in ${room}; their player(s) were told privately.`);
     return found.length;
 }
 

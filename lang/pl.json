@@ -795,7 +795,9 @@
         "shut": "droga zamknięta",
         "cross": "Przejdź",
         "oneWay": "Tylko w jedną stronę, z: {from}, do: {to}.",
-        "walk": "Przejdź przez tajne przejście."
+        "walk": "Przejdź przez tajne przejście.",
+        "seal": "Zamknij",
+        "sealTip": "Zamyka to tajne przejście. Otworzyć je może już tylko GM."
       },
       "show": {
         "button": "Pokaż tajne przejście",
@@ -1216,7 +1218,39 @@
       "tile": "Ciało: {name}"
     },
     "Monocub": {
-      "meddleRefused": "Confusion ich nie dosięga. Chwila minęła, zanim zdążyło zadziałać.",
+      "meddleRefused": "Confusion ich nie dosięga. Nie tracisz akcji ani Hope.",
+      "wrongVerdictTitle": "Werdykt był błędny",
+      "wrongVerdictCard": "Sprawca chodzi wolno. Do następnej rozprawy nie używaj swoich ruchów na korzyść ani na szkodę tej osoby, jej projektów, Bribe ani Ghost Bet.",
+      "wrongVerdictTold": "Wiedzą, że werdykt puścił sprawcę: {names}.",
+      "inviteTitle": "Zostać Monocubem?",
+      "inviteIntro": "GM-owie zapraszają postać {name} z powrotem jako Monocuba: grasz dalej z boku, z Confusion, Tinker, Redeem i Ask for Hope.",
+      "ruleTitle": "Zasada Monocuba",
+      "rule": "Nigdy nie mówisz żywym tego, co wiedzą tylko zmarli: kto cię zabił, jak, ani co widzisz od teraz.",
+      "ruleSteps": "Gdy Zasada zostanie złamana:",
+      "ruleStep1": "za pierwszym razem rozmowa z GM-em;",
+      "ruleStep2": "za drugim razem rola Monocuba zostaje odebrana;",
+      "ruleStep3": "za trzecim razem opuszczasz grę.",
+      "inviteAccept": "Przyjmuję Zasadę",
+      "inviteDecline": "Nie teraz",
+      "invited": "{name}: zaproszenie wysłane. Postać zostaje Monocubem, gdy gracz przyjmie Zasadę Monocuba.",
+      "inviteDeclined": "Gracz postaci {name} odrzucił zaproszenie Monocuba.",
+      "inviteSent": "Zaproszenie wysłane",
+      "cancelInvite": "Wycofaj",
+      "redeem": "Redeem",
+      "ask": "Ask for Hope",
+      "redeemUsed": "Redeem wykorzystany dziś. Wraca jutro.",
+      "hopeFull": "Masz pełne Hope.",
+      "darkened": "Zaciemnienie blokuje Hope w tej porze dnia.",
+      "askStillOpen": "Twoje Ask for Hope wciąż czeka na GM-a.",
+      "moveRefused": "Ten ruch teraz nie przechodzi. Nie tracisz akcji ani Hope.",
+      "redeemDone": "Redeem: +1 Hope.",
+      "askTitle": "Ask for Hope",
+      "askBody": "{name} prosi GM-ów o Hope.",
+      "askGive": "Daj {n} Hope",
+      "askNotNow": "Nie teraz",
+      "askGiven": "{n} Hope od: {name}.",
+      "askDeclined": "{name}: nie teraz.",
+      "askNotNowTold": "Twoje Ask for Hope: nie teraz. Możesz poprosić znowu.",
       "tickFirst": "Najpierw zaznacz Monocub",
       "student": "Uczeń",
       "panelTitle": "Monocub",
@@ -1238,8 +1272,8 @@
       "giveHope": "Zamień Despair Monokumy w Hope",
       "giveHopeColumn": "Despair → Hope",
       "give": "Daj",
-      "silenced": "Uciszony",
-      "silencedNote": "Zaznacz, jeśli ten Monocub natknął się na miejsce zbrodni. Nie może o nim mówić do końca rozdziału, ale Confusion wciąż działa.",
+      "silenced": "Świadek zbrodni",
+      "silencedNote": "Zaznacza się samo, gdy ten Monocub jest w pokoju morderstwa. Zaznacz, jeśli widział zbrodnię inaczej. Nie może o niej mówić do końca rozdziału; Confusion wciąż działa.",
       "notCub": "Nie jest Monocubem",
       "needHope": "Confusion kosztuje Hope, a nie masz żadnego. Poproś GM-a o zamianę Despair.",
       "nobodyHere": "Nie ma tu nikogo, na kim dałoby się użyć Confusion.",
@@ -1259,6 +1293,51 @@
       "tierBeaten": "Przebite {n}: {what}.",
       "tierMissed": "Poniżej {n}: nic z tego nie wychodzi.",
       "meddledOn": "Confusion użyte na: {name}.",
+      "tinkerIntro": "Popchnij o krok w przód albo w tył projekt w swoim pokoju, jeśli ktoś nad nim pracował o tej porze dnia. Pokój widzi rzut i kierunek, ale nie widzi, przy czym.",
+      "tinkerRefused": "Tinker tam nie sięga. Nie tracisz akcji ani Hope.",
+      "noProjectHere": "W tym pokoju nie ma projektu, na którym dałoby się użyć Tinker.",
+      "grantStep": "projekt o krok do przodu przy Pomóż, do tyłu przy Przeszkódź",
+      "helpStep": "projekt o krok do przodu",
+      "hinderStep": "projekt o krok do tyłu",
+      "tinkerForward": "Tinker: {name} idzie o krok do przodu.",
+      "tinkerBack": "Tinker: {name} cofa się o krok.",
+      "tinkerStill": "Tinker: {name} się nie rusza.",
+      "tinkerHeld": "Tinker: {name} zatrzymuje się krok przed końcem. Skończyć go musi ktoś żywy.",
+      "tinkerHopeBack": "Krytyk: Hope do ciebie wraca.",
+      "purseLine": "Sakiewka: {n} Hope, wydawane najpierw.",
+      "purseTip": "z tego {n} w sakiewce",
+      "bribeTitle": "Bribe",
+      "bribeAsk": "{name} oferuje postaci {cub} {cost} Hope za przysługę, którą ustalicie. Przyjmij, a Hope trafi do sakiewki.",
+      "bribeAccept": "Przyjmij",
+      "bribeRefuse": "Odrzuć",
+      "bribeOffered": "Proponujesz postaci {name} Bribe: {cost} Hope. Płacisz tylko wtedy, gdy przyjmie.",
+      "bribeOfferedCub": "{name} proponuje ci Bribe: {cost} Hope.",
+      "bribeRefused": "{name} odrzuca twój Bribe. Hope zostaje u ciebie.",
+      "bribeAccepted": "{name} przyjmuje twój Bribe: zapłacono {cost} Hope.",
+      "bribeAcceptedCub": "Przyjmujesz Bribe od postaci {name}: {cost} Hope w twojej sakiewce.",
+      "bribeUnpaid": "Twojego Bribe dla postaci {name} nie dało się zapłacić i jest zamknięty. Hope zostaje u ciebie.",
+      "bribeUnpaidCub": "Bribe od postaci {name} nie dało się zapłacić i jest zamknięty.",
+      "bribeLapsed": "Twój Bribe dla postaci {name} został bez odpowiedzi i wygasł. Hope zostaje u ciebie.",
+      "bountyPosted": "Bounty: {reward} Hope dla pierwszego Monocuba, którego Confusion przeszkodzi postaci {name}.",
+      "bountyClaimed": "Bounty na postać {name} odebrane.",
+      "bountyPaid": "Odbierasz Bounty na postać {name}: {n} Hope w twojej sakiewce.",
+      "bountyNoDespair": "W twojej puli nie ma Despair na Bounty.",
+      "bet": "Postaw",
+      "betIntro": "Wskaż, kogo skaże trafny werdykt. Jeśli tak będzie, sakiewka dostaje 4 Hope przed ogłoszeniem ciała, 3 po nim, 2 w rozprawie, 1 w trakcie głosowania.",
+      "betPlaced": "Twój Ghost Bet już stoi. Rozliczy go werdykt.",
+      "betOwnCase": "Bez Ghost Bet, dopóki trwa twoja własna sprawa.",
+      "betWitness": "Świadek zbrodni nie stawia Ghost Bet.",
+      "betClosed": "Głosowanie się skończyło: żadnego Ghost Bet do następnej sprawy.",
+      "betStands": "Twój Ghost Bet stoi: {name}, za {n} Hope, jeśli trafny werdykt skaże tę osobę.",
+      "betPaid": "Twój Ghost Bet wygrywa: {n} Hope w twojej sakiewce.",
+      "betLost": "Twój Ghost Bet nie wygrywa.",
+      "panelOffer": "{name} proponuje ci Bribe: {cost} Hope.",
+      "panelBounty": "Bounty: {name}, {reward} Hope.",
+      "panelBet": "Twój Ghost Bet: {name}, {n} Hope.",
+      "flag": {
+        "killer": "Bribe od Blackened tego rozdziału: {name} płaci postaci {cub}.",
+        "third": "Trzeci Bribe w tym rozdziale między {name} a {cub}."
+      },
       "meddleFailed": "Nic z tego nie wychodzi.",
       "critHelpNothing": "Gracz miał wszystkie akcje: nie było czego oddać.",
       "critHelpNothingTarget": "Chwila szczęścia, ale żadna twoja akcja nie była wydana: nic nie wraca.",
@@ -1267,8 +1346,8 @@
       "silencedNoteShort": "Zbrodnia na twoich oczach. Bez rozmów o niej do następnego rozdziału.",
       "noneYet": "Nikt jeszcze nie dołączył jako Monocub.",
       "hopeShort": "{held} Hope",
-      "silenceTitle": "Zobowiązany do milczenia",
-      "silenceOn": "Zbrodnia na twoich oczach. Nie możesz o niej mówić do końca tego rozdziału.",
+      "silenceTitle": "Milczenie o zbrodni",
+      "silenceOn": "Jesteś świadkiem: nie możesz mówić o zbrodni do końca tego rozdziału.",
       "silenceOff": "Milczenie zdjęte. Znów możesz mówić o zbrodni.",
       "meddleCostShort": {
         "one": "{hope} Hope, {actions} akcja",
@@ -1276,13 +1355,20 @@
         "many": "{hope} Hope, {actions} akcji",
         "other": "{hope} Hope, {actions} akcji"
       },
-      "silencedBadge": "Zobowiązany do milczenia",
-      "silencedTooltip": "Zbrodnia na twoich oczach. Nie możesz o niej mówić do końca tego rozdziału; Confusion wciąż działa.",
+      "silencedBadge": "Milczenie o zbrodni",
+      "silencedTooltip": "Jesteś świadkiem: nie możesz mówić o zbrodni do końca tego rozdziału; Confusion wciąż działa.",
       "invite": "Zaproś jako Monocuba",
-      "onlyTwoActions": "Monocub ma dwie rzeczy do zrobienia: przejście do innego pokoju i Confusion. Reszta panelu akcji należy do żywych.",
+      "onlyTwoActions": "Monocub chodzi swobodnie i używa swoich kafelków: Confusion, Tinker, Redeem, Ask for Hope i Ghost Bet.",
       "giveAtLeast": "Wpisz, ile Despair zamienić w Hope - co najmniej {n}."
     },
     "Mastermind": {
+      "lair": {
+        "room": "Twój pokój: {room}",
+        "locked": "Zamknięty",
+        "open": "Otwarty",
+        "lock": "Zamknij na klucz",
+        "unlock": "Otwórz"
+      },
       "noLair": "- bez pokoju -",
       "dialogTitle": "Mastermind",
       "lairLabel": "Pokój Masterminda",
@@ -1302,9 +1388,6 @@
       "finalTruthPlaced": "Final Truth Remnant został już umieszczony w tym rozdziale.",
       "finalTruthReminder": "W tym rozdziale nie ma Final Truth Remnant. Dodaj go poniżej - wskazuje Masterminda.",
       "verdictTitle": "Werdykt Final Trial",
-      "verdictOpen": "Wydaj werdykt Final Trial",
-      "verdictBodyNote": "Na koniec Final Trial: powiedz, czy klasa wskazała Masterminda. Tego nie da się cofnąć.",
-      "verdictNobody": "Nie ustawiono Masterminda, więc nie ma werdyktu do wydania. Najpierw ustaw go wyżej.",
       "verdictIntro": "Tylko ty wiesz, czy głosowanie wskazało Masterminda. Powiedz, kogo oskarżono, i wybierz wynik.",
       "alreadyDeadNote": "Mastermind zginął wcześniej w tym sezonie. Zasada jest ta sama, kogokolwiek oskarżono: ujawnij prawdę, nie stracaj nikogo nowego.",
       "whoWasAccused": "Kogo oskarżyło głosowanie?",
@@ -1719,6 +1802,8 @@
       "pickerLabel": "Zacznij tryb"
     },
     "Events": {
+      "redeemTitle": "Redeem czeka",
+      "redeemMeta": "+1 Hope za darmo, raz dziennie.",
       "overflowMetaGm": "{count} z {max} w kapeluszu",
       "bodyTitle": "Znaleziono ciało",
       "bodySubRoom": "{victim}, w: {room}",
@@ -1738,7 +1823,8 @@
         "body": "Znaleziono ciało",
         "trial": "Class Trial",
         "assembly": "Zgromadzenie",
-        "motive": "Motive"
+        "motive": "Motive",
+        "redeemHope": "Redeem"
       },
       "incidentTitle": "Zabójstwo w ciemności",
       "incidentTitleDirect": "Twarzą w twarz",
@@ -2031,12 +2117,15 @@
         "offers": "Level Up Blackened",
         "despair": "pule Despair",
         "rule": "zasada Blackened",
+        "bets": "Ghost Bet",
+        "remind": "przypomnienie Monocubom",
         "overflow": "Despair overflow",
         "finalSentence": "wyrok Final Trial",
         "finalCard": "karta Final Trial",
         "finalClose": "zamknięcie Final Trial",
         "finalExecution": "egzekucja",
         "finalLevelUps": "Level Upy, które czekały",
+        "finalBets": "Ghost Bet",
         "mastermind": "czyszczenie wyboru Masterminda"
       }
     },
@@ -2753,6 +2842,7 @@
       "fogUncovered": "{pct}% powierzchni tej sceny nie należy do żadnego regionu pokoju - będzie widoczne jako stała mgła, nie jako luka w ścianie, co zwykle znaczy, że jakiś pokój trzeba jeszcze narysować.",
       "fogNote": "Odkryj wszystko / Ukryj wszystko zaznaczają albo czyszczą każde pole powyżej dla każdej postaci naraz. Nic się nie zmienia, dopóki nie klikniesz Zastosuj. Pojedyncze pola to jeden pokój, jedna postać.",
       "discoverAll": "Odkryj wszystko",
+      "fogMastermind": "Mastermind zna każdy pokój.",
       "hideAll": "Ukryj wszystko",
       "unlockedAnnounce": "Drzwi do: {room} są otwarte.",
       "inspectTitle": "Zajrzyj do skrytek",
@@ -3107,6 +3197,7 @@
       "presentByButton": "Dowody przedstawia się przyciskiem Present na karcie postaci, a kartę publikuje przeglądarka MG. Ta karta nie powstała w ten sposób, więc nikomu jej nie pokazano.",
       "presented": "{name} trafia na stół.",
       "presentOnly": "Teraz dowody może przedstawiać tylko {name}.",
+      "presentPair": "Teraz dowody mogą przedstawiać tylko {a} i {b}.",
       "presentNobody": "Teraz nikt nie przedstawia dowodów.",
       "presentWithAnalysis": "Pokaż z wynikiem mojego Analyze",
       "presentWithoutNote": "Bez zaznaczenia karta i kopia każdego pokazują dowód jako nigdy nieanalizowany: bez odczytu i bez typu, jaki się okazał.",
@@ -3554,7 +3645,11 @@
       "alreadyChained": "{name} jest już w łańcuchach.",
       "gatherRoomGone": "Zgromadzenie nie mogło się odbyć: „{room}” nie jest już pokojem na tamtej scenie. Polecenie zostało wyczyszczone - wydany na nie Despair nie wróci, a obsadę trzeba przenieść ręcznie.",
       "notArmedNotCharged": "{call} nie został uzbrojony i nie pobrano za niego Hope.",
-      "despairGmOnly": "Despair Calle wydaje Monokuma, a Monokuma to GM."
+      "despairGmOnly": "Despair Calle wydaje Monokuma, a Monokuma to GM.",
+      "choiceAsk": "Które z dwóch?",
+      "talentAsk": "Na następny rzut: doświadczenie czy Ultimate?",
+      "rowNoExperiences": "Na karcie nie ma jeszcze doświadczeń.",
+      "rowArmed": "Masz to już na następny rzut."
     },
     "Monokuma": {
       "toggle": "Oznacz jako Monokumę",
@@ -4167,6 +4262,8 @@
         "handover.item": "Przekazanie przedmiotu",
         "passage.share": "Pokazanie tajnego przejścia",
         "passage.cross": "Przejście tajnym przejściem",
+        "passage.lairSeal": "Zamknięcie tajnego przejścia przy twoich drzwiach",
+        "mastermind.lairLock": "Zamknięcie lub otwarcie twojego pokoju",
         "vault.steal": "Skrytka",
         "action.steal": "Palm",
         "vault.findStash": "Find Stash",
@@ -4183,6 +4280,9 @@
         "murder.betrayal": "Zdrada",
         "murder.park": "Direct Murder",
         "monocub.ability": "Zdolność Monocuba",
+        "monocub.answer": "Odpowiedź na zaproszenie Monocuba",
+        "bribe.offer": "Bribe",
+        "bribe.answer": "Odpowiedź na Bribe",
         "body.loot": "Przeszukanie ciała",
         "advancement": {
           "apply": "Level Up",
@@ -4290,6 +4390,8 @@
         "noGm": "Żaden GM nie jest połączony.",
         "noAnswer": "Klient GM-a nie odpowiedział na czas.",
         "spectator": "Widz nie wykonuje akcji.",
+        "capReached": "Ten uczeń miał już ruch Monocuba o tej porze dnia. Nie tracisz akcji ani Hope.",
+        "capDay": "Ten uczeń miał już dziś dwa ruchy Monocuba. Nie tracisz akcji ani Hope.",
         "answerKeyMissing": "Przeglądarka GM-a nie ma klucza odpowiedzi do tego bulletu. GM został powiadomiony.",
         "keysNotOpen": "Przeglądarka GM-a jeszcze nie otworzyła kluczy odpowiedzi. GM został powiadomiony.",
         "rollUnknown": "Klient GM-a nie ma twojego rzutu, na podstawie którego mógłby to rozliczyć.",
@@ -4629,7 +4731,7 @@
       "checksImagesBytes": "{mb} MB",
       "seasonChecks": "Kontrola przed sezonem",
       "whoIsAlive": "Uczniowie",
-      "whoIsAliveNote": "Stan tylko przestawia flagi, po Zastosuj - narzędzie naprawcze na pomyłkę. Rola zmienia się od razu. Przyciski robią to naprawdę: śmierć niszczy Truth Bullets, zaproszenie tworzy Monocuba.",
+      "whoIsAliveNote": "Stan tylko przestawia flagi, po Zastosuj - narzędzie naprawcze na pomyłkę. Rola zmienia się od razu. Przyciski robią to naprawdę: śmierć niszczy Truth Bullets. Monocub, przyciskiem albo z listy Stan, wysyła zaproszenie: uczeń zostaje Monocubem, gdy jego gracz przyjmie Zasadę Monocuba.",
       "doColumn": "Zrób",
       "refundCrossing": "Zwróć ostatnie przejście",
       "refundCrossingNote": "{to} z powrotem do {from}",
@@ -5234,6 +5336,9 @@
       "tabChat": "Czat"
     },
     "Voice": {
+      "silenceNow": "Wycisz teraz",
+      "silenceNowTip": "Przenosi głos tego gracza z pokoju już teraz, zanim ktoś znajdzie ciało.",
+      "silenced": "Wyciszony",
       "contested": "Głos: {name} ma postacie w więcej niż jednym miejscu ({places}). Klient głosowy może być tylko w jednym pokoju, więc {name} trafia do „{room}”, a reszta jest pomijana. Oddaj zapasowe postacie innemu kontu albo zdejmij ich tokeny z mapy.",
       "mainRoom": "główny pokój",
       "deadRoom": "kanał zmarłych",
@@ -6569,6 +6674,10 @@
         }
       },
       "HOPE_CALLS": {
+        "talent": {
+          "label": "Talent",
+          "effect": "Opisz, jak doświadczenie albo Ultimate pasuje do następnego rzutu. GM zatwierdza, a płacisz dopiero wtedy. Rzut dodaje doświadczenie albo dostaje przewagę."
+        },
         "support": {
           "label": "Support",
           "effect": "Daj przewagę na następny rzut innemu uczniowi w twoim pokoju; jego okno rzutu ma ją już włączoną. Jeśli na jego rzut czeka już Support, Call zostaje odrzucony, zanim wydasz Hope."
@@ -6608,6 +6717,10 @@
         "freeCrit": {
           "label": "Loaded Die",
           "effect": "Przy twoim następnym rzucie jedna z dwóch kości, losowo, staje na 12, a drugą rzucasz. Krytyk jest tylko wtedy, gdy i ona wypadnie 12; inaczej rzut jest z Hope albo z Despair, zależnie od tego, która kość stoi na 12."
+        },
+        "bribe": {
+          "label": "Bribe",
+          "effect": "Zaproponuj Monocubowi {cost} Hope za przysługę. Płacisz, tylko gdy przyjmie; nikt inny się nie dowie."
         }
       },
       "DESPAIR_CALLS": {
@@ -6670,6 +6783,10 @@
         "newRule": {
           "label": "New Rule",
           "effect": "Wprowadź jedną nową zasadę killing game własnego wyboru."
+        },
+        "bounty": {
+          "label": "Bounty",
+          "effect": "Tajne Bounty: jedno Hope dla pierwszego Monocuba, którego Confusion przeszkodzi wskazanemu uczniowi. Wiedzą tylko Monocuby i GM-owie; Despair schodzi w następnej porze dnia."
         }
       },
       "PROJECT_SCALE": {
@@ -6824,6 +6941,10 @@
       },
       "MONOCUB": {
         "abilities": {
+          "redeem": { "label": "Redeem" },
+          "askHope": { "label": "Ask for Hope" },
+          "tinker": { "label": "Tinker" },
+          "bet": { "label": "Ghost Bet" },
           "meddle": {
             "label": "Confusion",
             "thresholds": {
@@ -7649,6 +7770,10 @@
         "crossings": "Ostatnie przejście każdej postaci między pokojami, jego koszt i czy GM je zwrócił",
         "traceDigest": "Ślady zostawione od ostatniego zestawienia dla GM-ów, podane o następnej porze dnia",
         "confusions": "Confusion uzbrojone na postaci, a jeszcze nierzucone",
+        "cubs": "Zapis Monocubów: który Monocub był świadkiem zbrodni",
+        "cubTargets": "Ile ruchów Monocubów miał każdy uczeń tego dnia",
+        "projectWork": "Kto pracował nad każdym projektem w tej porze dnia",
+        "bounties": "Otwarte Bounty na uczniów, dla Monocubów",
         "rerollBookmarks": "Ostatni rzut każdej postaci, który cofnąłby Reroll, i to, co zrobili dla niego GM-owie",
         "cleanupAttempts": "Ostatnie sprzątanie każdej postaci, zachowane, by Reroll mógł je cofnąć",
         "rerollJournal": "Reroll, który właśnie robi GM, krok po kroku, by przeładowanie w połowie dało się naprawić",

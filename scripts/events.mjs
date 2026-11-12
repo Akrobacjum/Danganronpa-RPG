@@ -19,7 +19,7 @@
  * rows, so that theme stays exactly the look it was.
  */
 
-import { MODULE_ID, TRIAL } from "./config.mjs";
+import { MODULE_ID, TRIAL, MONOCUB } from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { error, plural, tickerRuns } from "./utils.mjs";
 import { pairOf, reserveLine } from "./murder-ui.mjs";
@@ -36,6 +36,7 @@ import { overflowEffect, overflowStatus, overflowRules, overflowWhat } from "./o
 import { SAFEWORD_FLAG } from "./safeword.mjs";
 import { trialProgress, votesIn, pendingVoters, ballotInHere } from "./vote.mjs";
 import { narrowColumn } from "./narrow.mjs";
+import { isMonocub, cubBlockSaid } from "./monocub.mjs";
 
 const WIDGET_ID = "drpg-events";
 
@@ -669,6 +670,27 @@ function overflowCard() {
     }
 }
 
+/**
+ * REDEEM IS WAITING (E72 C9, 12.11.2026; audit S18-62, the plan's C9). A Monocub's Redeem comes back once a day, and
+ * only the sheet's tile said whether it had. The card is for the Monocub's own player: the Monocubs `user` owns whose
+ * Redeem none of its blocks shuts, read as the tile reads them (monocub.mjs `cubBlockSaid`, from the owner's copy of the
+ * Monocubs' record). A GM's screen draws none: the Students window carries the Monocubs for the GMs. One card, the
+ * first such Monocub's name on it; a player who plays two Monocubs is not a case the rules name.
+ */
+export function redeemCard(user = game.user) {
+    if (!user || user.isGM) return null;
+    const row = MONOCUB.abilities?.redeem;
+    if (!row) return null;
+    const cub = game.actors?.find(a => isMonocub(a) && a.testUserPermission(user, "OWNER") && !cubBlockSaid(a, row));
+    if (!cub) return null;
+    return {
+        kind: "redeemHope",
+        title: game.i18n.localize("DRPG.Events.redeemTitle"),
+        sub: cub.name,
+        meta: game.i18n.localize("DRPG.Events.redeemMeta")
+    };
+}
+
 /* ---- the panel ------------------------------------------------------------ */
 
 /* The state each card showed last time it was drawn, so a redraw can tell a change
@@ -866,7 +888,7 @@ export function renderEvents() {
         /* The safeword is first because it outranks everything: while the scene
            is stopped, nothing else on this panel is happening. */
         const cards = [safewordCard(clock), trialCard(clock), openingCard(), incidentCard(),
-            bodyCard(clock), overflowCard(), assemblyCard(), motiveCard()].filter(Boolean);
+            bodyCard(clock), overflowCard(), assemblyCard(), motiveCard(), redeemCard()].filter(Boolean);
         if (!cards.length) { existing?.remove(); return; }
 
         // Redraw only when something changed: the panel is on the curtain, and

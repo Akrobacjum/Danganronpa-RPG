@@ -2137,9 +2137,22 @@ export const HOPE_CALLS = {
         effect: "Give another student in your room advantage on their next roll; a student who already has an unused "
             + "Support cannot get another, and you keep your Hope."
     },
+    /*
+     * TALENT: EXPERIENCE AND ULTIMATE AS ONE TILE (E72, 12.11.2026; the owner's pick, relayed by the coordinator: Bribe
+     * stays among the Hope Calls, which stay ten). The tile is this row; what it buys is one of the two rows below,
+     * chosen in its confirmation with the note to the GM (calls.mjs `confirmCall`'s `choices`), each with its own guards - the GM's yes, the Hope paid on it, one at
+     * a time, the trial's rules - and its own key, so a Call armed before the update resolves as it did.
+     */
+    talent: {
+        label: "Talent", icon: "fa-star", cost: 1, target: "none", choices: ["experience", "ultimate"], ask: "DRPG.Calls.talentAsk",
+        effect: "Say how an experience or your Ultimate fits your next roll. A GM approves, and you pay only then. The roll adds "
+            + "the experience or gets advantage."
+    },
     experience: {
         // Waits for the GM - see the note on Ultimate above. This is the Call
         // the "genuinely applies" gate was written for in the first place.
+        // Chosen in Talent's tile since E72 (12.11.2026): no tile of its own.
+        inside: "talent",
         needsGm: true,
         label: "Experience", icon: "fa-graduation-cap", cost: 1, target: "none", grants: "experience",
         effect: "Write how one of your experiences applies to your next roll; a GM approves or refuses, and you pay "
@@ -2176,6 +2189,8 @@ export const HOPE_CALLS = {
          * (bridge-guards.mjs `guardArmGmYes`). Until then only the asking browser
          * waited for the ruling, and a console armed both with none asked.
          */
+        // Chosen in Talent's tile since E72 (12.11.2026): no tile of its own.
+        inside: "talent",
         needsGm: true,
         label: "Ultimate", icon: "fa-star", cost: 1, target: "none", grants: "advantage",
         effect: "Write how your Ultimate applies to your next roll; a GM approves or refuses, and you pay the Hope "
@@ -2333,6 +2348,16 @@ export const HOPE_CALLS = {
         effect: "For your next roll, a random one of the two dice is set to 12 and the other is thrown. A 12 on the "
             + "thrown die makes a critical; otherwise the roll is with Hope if the Hope die was set, with Despair if "
             + "not."
+    },
+    /*
+     * BRIBE (E72 C15, 12.11.2026; the owner's DC25, DC26, DC39; the inventory's row 74). Not a grant: an offer to a
+     * Monocub, paid into its purse only on its yes (monocub.mjs `offerBribeOnGm`, `answerBribeOnGm`; calls.mjs
+     * `spendHopeCall` hands it there before anything is paid). Secret between the two: no public card. The price is a
+     * default, owner may revise.
+     */
+    bribe: {
+        label: "Bribe", icon: "fa-money-bills", cost: 1, target: "monocub", bribe: true,
+        effect: "Offer a Monocub {cost} Hope for a favour. You pay only if they accept; nobody else knows."
     }
 };
 
@@ -2536,6 +2561,8 @@ export const DESPAIR_CALLS = {
         // Hope, and the Monokuma is buying a Monocub's single Meddle.
         label: "Fuel a Monocub", icon: "fa-hand-holding-heart", cost: 1, target: "monocub",
         grantsHope: 1,
+        // The tile's two Calls (the owner, 12.11.2026: the GM's Calls keep their number of tiles): this one, or a Bounty.
+        choices: ["fuelTheCub", "bounty"],
         effect: "Turn {cost} Despair into {hope} Hope for a Monocub, so they can use Confusion."
     },
     /*
@@ -2681,6 +2708,20 @@ export const DESPAIR_CALLS = {
          */
         label: "New Rule", icon: "fa-gavel", cost: 9, target: "none", announces: true,
         effect: "Introduce one new killing game rule of your choice."
+    },
+    /*
+     * BOUNTY (E72 C16, 12.11.2026; the owner's DC27 = 2, DC40; the inventory's row 75). The one Call that is not public:
+     * for the Monocubs and the GMs. Its price is owed from the pool through the debt buffer, paid at the next time of
+     * day; `reward` is the Hope into the purse of the first Monocub whose Confusion hinders the student (monocub.mjs
+     * `postBounty`, `claimBounty`; calls.mjs `spendDespairCallFor` hands it there). Defaults, owner may revise: the claim
+     * and the lapse at the next time of day.
+     */
+    bounty: {
+        label: "Bounty", icon: "fa-sack-dollar", cost: 1, reward: 1, target: "player", bounty: true,
+        // No tile of its own (the owner, 12.11.2026): chosen in Fuel a Monocub's tile (calls.mjs `despairCallsFor`).
+        inside: "fuelTheCub",
+        effect: "A secret Bounty: one Hope for the first Monocub whose Confusion hinders the named student. Only the Monocubs "
+            + "and the GMs know; the Despair goes at the next time of day."
     }
 };
 
@@ -3247,12 +3288,22 @@ export const MONOCUB = {
             target: "roomStudent",
             /** Help or Hinder: the picker's two buttons, the first the default. */
             choices: ["help", "hinder"],
-            /** Shut in an Eclipse and a Class Trial (CUB_LOCKS; CALL-16, T-1) - on the picker and before paying only. */
+            /** Shut in an Eclipse and a Class Trial (CUB_LOCKS; CALL-16, T-1) - on the picker, and on the GM before the price (E72 C1). */
             locks: ["eclipse", "classTrial"],
+            /**
+             * How often a student may be its target (E72 C4; audit S18-59, the owner's DC32 = 2): once per time of day
+             * and twice per game day, counted per target student over every Monocub, a failed move counted; asked on
+             * the GM before the price (monocub.mjs `cubCapRefusal`). null for a row with no target student.
+             */
+            caps: { perTimeOfDay: 1, perDay: 2 },
+            /** A move done to order costs only its action (E72 C17; DC34): monocub.mjs `priceOf`. */
+            executionCost: { cost: 1, hopeCost: 0 },
             /** "Stat: -": the flat 2d12 the GM throws (CUB_ROLLS). */
             roll: "flat2d12",
             /** Scored on the GM's own throw by `scoreMeddle` (CUB_RESOLVERS). */
             resolve: "meddle",
+            /** What the GM whispers when it refuses one (E72 C5: a row without it says `DRPG.Monocub.moveRefused`). */
+            refusedSay: "DRPG.Monocub.meddleRefused",
             // The lower tier grants a flat +1/-1, the upper tier grants full
             // advantage/disadvantage. Both are armed on the target's very next
             // roll through the same Call machinery Support/Obstacle already use -
@@ -3282,6 +3333,91 @@ export const MONOCUB = {
                 hinderTarget: "A moment's confusion: the action is wasted."
             },
             failure: "The attempt fails."
+        },
+        /**
+         * REDEEM (E72 C5, 12.11.2026; audit S18-60, the owner's DC22): +1 Hope from nothing, once a game day, shut at the
+         * Hope's maximum and in a darkened hour (`blocks`, monocub.mjs `CUB_BLOCKS`). One action, no Hope, no dice; aimed
+         * at the Monocub itself. Its price is a default taken (STATUS, owner to confirm).
+         */
+        redeem: {
+            label: "Redeem",
+            icon: "fa-ticket",
+            // Free (the owner on DRPG-D1, 12.11.2026: "Redeem tez za darmo"); once a game day, shut at full Hope and darkened.
+            cost: 0,
+            hopeCost: 0,
+            target: "self",
+            choices: ["redeem"],
+            locks: ["eclipse", "classTrial"],
+            blocks: ["oncePerDay", "hopeFull", "darkened"],
+            roll: "none",
+            resolve: "redeem",
+            caps: null,
+            thresholds: []
+        },
+        /**
+         * ASK FOR HOPE (E72 C5; audit S18-60): a card in the Monocub's thread for the GMs, Give 1, Give 2 or Not now,
+         * settled by one GM (bridge-asks.mjs `claimCard`) and paid from that GM's Despair (despair.mjs
+         * `convertDespairToHope`). Free; one ask open at a time (`blocks`). No dice.
+         */
+        askHope: {
+            label: "Ask for Hope",
+            icon: "fa-hands-praying",
+            cost: 0,
+            hopeCost: 0,
+            target: "self",
+            choices: ["ask"],
+            locks: ["eclipse", "classTrial"],
+            blocks: ["askOpen", "hopeFull"],
+            roll: "none",
+            resolve: "askHope",
+            caps: null,
+            thresholds: []
+        },
+        /**
+         * TINKER (E72 C13, 12.11.2026; the owner's DC23, DC24, DC35; the inventory's row 73): Confusion aimed at a
+         * project. A public, unfinished, unfrozen project in the Monocub's room that a living student worked on this
+         * time of day (monocub.mjs `CUB_TARGETS.project`); 1 action and 1 Hope, taken on the GM after the conditions; a
+         * flat 2d12, 12 or more moves it one step forward or back (`scoreTinker`), a double gives the Hope back. A
+         * project it would finish holds one short (default, owner may revise): no completion card, no trap armed. Its
+         * tier says its words through `DRPG.Monocub.*Step` (monocub.mjs TIER_WORDS), so the row holds no sentence.
+         */
+        tinker: {
+            label: "Tinker",
+            icon: "fa-screwdriver-wrench",
+            cost: 1,
+            hopeCost: 1,
+            target: "project",
+            choices: ["help", "hinder"],
+            locks: ["eclipse", "classTrial"],
+            roll: "flat2d12",
+            resolve: "tinker",
+            refusedSay: "DRPG.Monocub.tinkerRefused",
+            intro: "DRPG.Monocub.tinkerIntro",
+            caps: null,
+            executionCost: { cost: 1, hopeCost: 0 },
+            thresholds: [{ min: 12, grants: "step" }]
+        },
+        /**
+         * GHOST BET (E72 C18, 12.11.2026; the owner's DC12, DC31 and the 06.11 amendments; the inventory's row 72): a
+         * Monocub names the student it thinks the verdict will sentence, for the Hope of the window it bets in
+         * (monocub.mjs `betWindowNow`: 4 before this chapter's body is announced, 3 after, 2 in the Class Trial before
+         * the vote, 1 while it is open), paid into its purse only when a right verdict sentences that student
+         * (`settleBets`, the verdict's step "bets"). Defaults, owner may revise: free, one bet until the next verdict.
+         */
+        bet: {
+            label: "Ghost Bet",
+            icon: "fa-dice",
+            cost: 0,
+            hopeCost: 0,
+            target: "student",
+            choices: ["bet"],
+            locks: ["betWindow"],
+            blocks: ["betPlaced", "ownCase", "crimeWitness"],
+            roll: "none",
+            resolve: "bet",
+            intro: "DRPG.Monocub.betIntro",
+            caps: null,
+            thresholds: []
         }
     }
 };
