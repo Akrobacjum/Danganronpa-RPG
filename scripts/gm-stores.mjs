@@ -785,6 +785,8 @@ export const verdictStore = defineGmStore({
  * (`restoreTrialBlock`); a user a GM blocked by hand before has no row, so nothing of the GM's is ever put back. Synced
  * between the GMs, so a new primary ends the trial's mute the old one began; no player copy, nothing a player reads.
  * Cut by the reset's trial group beside the verdict, after the phase's write has put every grant back.
+ * A SPECTATOR'S BLOCK IS A ROW HERE TOO (E92 C2): the same write in every phase, by `settleTrialVoices`, so the role
+ * given back - or the reset's release - puts back exactly what the block found, by the trial's own rule.
  */
 export const trialMuteStore = defineGmStore({
     name: "trialMute", key: SETTINGS.gmTrialMute,

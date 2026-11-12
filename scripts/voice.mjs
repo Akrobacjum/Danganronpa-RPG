@@ -47,7 +47,7 @@ import { SETTINGS, getSetting, getClock, isDeadForGm, isDeceased, isEclipse, dea
 // this GM happens to be looking at.
 import { allRooms, moveRefused, moveVerdict, whenAtRest } from "./movement.mjs";
 import { roomPieces, roomRegions, isMoveChange, isTrialScene } from "./rooms.mjs";
-import { isMonokuma, poolUserFor, studentActors, characterIds } from "./monokuma.mjs";
+import { isMonokuma, isSpectator, poolUserFor, studentActors, characterIds } from "./monokuma.mjs";
 import { isMonocub, ownCaseOpen } from "./monocub.mjs";
 import { deathStore, trialMuteStore } from "./gm-stores.mjs";
 import { VOICE, ROOM_PREFIX, DEAD_ROOM, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
@@ -1131,6 +1131,8 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
     canBroadcastAudio = broadcastAllowed(user), actors, trial = trialFacts() } = {}) {
     if (!user) return null;
     if (external) return { reason: "external", held: false };
+    // A Spectator's account is held in every phase (E92 C2): it listens where its token stands, and speaks nowhere.
+    if (spectatorAccount(user, { actors })) return { reason: "spectator", held: true };
     const eclipse = !user.isGM && room === eclipseRoomFor(user);
     // In an Eclipse a player's browser is out of voice on purpose (E19 C4): no connection is the Eclipse's, not "offline".
     if (!connected && !eclipse) return { reason: "offline", held: false };
@@ -1172,9 +1174,33 @@ export function moduleHoldsMic(user, { actors, eclipse = isEclipse(), trial = ge
     if (!game.user?.isGM || !user) return null;
     const row = accountRow(user, { actors, eclipse, trial, silenced: actor => silencedByDeath(actor, dead), listed: trial ? mutedDeadIds() : null });
     const actor = row?.actor;
+    // A Spectator's block is the module's (E92 C2, `settleTrialVoices`): the GM's own block is not offered over it.
+    if (spectatorAccount(user, { actors })) return { reason: "spectator", held: true };
     if (actor && !row.monokuma && trial && isMutedDead(actor)) return { reason: "deadMuted", held: true };
     if (actor && !row.monokuma && dead(actor) && !isDeceased(actor)) return { reason: "secretDead", held: true };
     return null;
+}
+
+/**
+ * A SPECTATOR'S ACCOUNT (E92 C2, 12.11.2026; the owner's E92 goal (2): "always muted: the microphone is blocked in every
+ * phase, but it hears the voice channel of the room its token stands in"). An account no GM plays whose every
+ * character but a Monokuma is a Spectator, at least one - read through `held`, the GMs' flags on a GM's road
+ * (sheet-audit.mjs `flagsHeldNow`), as `deadForTrial` reads the dead, so a player who unset the flag from the console
+ * is not given the microphone before the audit's put-back. `actors` are the account's characters, or the world's.
+ * Where it listens is `voiceTargets`' as for the living - its token's room, the Eclipse's and the trial's branches -
+ * and it is never a witness and never in another's hold.
+ */
+export function spectatorAccount(user, { actors = null, held = actor => actor } = {}) {
+    if (!user || user.isGM) return false;
+    let watching = 0;
+    for (const actor of actors ?? game.actors ?? []) {
+        if (actor?.type !== "character" || !actor.testUserPermission?.(user, "OWNER")) continue;
+        const flags = held(actor) ?? actor;
+        if (isMonokuma(flags)) continue;
+        if (!isSpectator(flags)) return false;
+        watching += 1;
+    }
+    return watching > 0;
 }
 
 /**
@@ -1431,7 +1457,10 @@ export async function settleTrialVoices({ release = false } = {}) {
             if (user.isGM) continue;
             const voice = listed.size ? trialVoiceActorOf(user, game.actors, list) : null;
             const row = trialMuteStore.get(user.id);
-            if (voice && listed.has(voice.id)) {
+            // A Spectator's account is blocked in every phase, by the same write and the same row (E92 C2), so the
+            // trial's exit and a role given back put back exactly what the block found; `release` gives it back too.
+            const watching = !release && spectatorAccount(user, { held: flagsHeldNow });
+            if (watching || (voice && listed.has(voice.id))) {
                 if (!row?.wrote && await blockForTrial(user) === "blocked") out.blocked.push(user.id);
             } else if (row?.wrote && await restoreTrialBlock(user, row) === "restored") out.restored.push(user.id);
         }
@@ -1460,7 +1489,9 @@ export async function askTrialVoices() {
 let settleTimer = null;
 function trialVoicesPending() {
     const stored = getSetting(SETTINGS.trialProgress) ?? {};
-    return Object.hasOwn(stored, "mutedDead") || Object.keys(trialMuteStore.entries() ?? {}).length > 0;
+    // Or a Spectator in the world (E92 C2): its block is written outside any trial.
+    return Object.hasOwn(stored, "mutedDead") || Object.keys(trialMuteStore.entries() ?? {}).length > 0
+        || Boolean(game.actors?.some?.(actor => isSpectator(actor)));
 }
 function scheduleTrialVoices() {
     if (!isPrimaryGm() || !trialVoicesPending()) return;

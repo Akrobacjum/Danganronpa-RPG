@@ -47376,15 +47376,25 @@ const INVARIANTS = [
          * E92 C0, 12.11.2026. The facts are handed (`micHold` takes them all), so no LiveKit and no world is read.
          * Red on C0's tree: null for the Spectator.
          */
-        const { micHold } = await import("./voice.mjs");
+        const { micHold, moduleHoldsMic, spectatorAccount } = await import("./voice.mjs");
         const user = { id: "R3853user", isGM: false, name: "R3853" };
         const watcher = e92Char("R3853-watch", { spectator: true }, user.id), student = e92Char("R3853-student", {}, user.id);
         const at = (actors, trial = null) => micHold({ user, room: "drpg-room-hall", external: false, connected: true, canBroadcastAudio: true, actors, trial });
         const trial = { clock: { phase: "classTrial", chapter: 1 }, floor: null, record: {}, epoch: 0 };
-        equal(stableJson({ daily: at([watcher]), trial: at([watcher], trial), student: at([student]) }),
-            stableJson({ daily: { reason: "spectator", held: true }, trial: { reason: "spectator", held: true }, student: null }),
-            "[micHold for the Spectator's account in Daily Life and the trial; a student's account]");
-    }, expectedRed("E92", "C2 holds the Spectator's microphone")],
+        const kuma = e92Char("R3853-kuma", { [FLAGS.monokuma]: true }, user.id);
+        const forged = e92Char("R3853-forged", { spectator: true }, user.id);
+        const accounts = { watcher: spectatorAccount(user, { actors: [watcher, kuma] }), mixed: spectatorAccount(user, { actors: [watcher, student] }),
+            none: spectatorAccount(user, { actors: [kuma] }), gm: spectatorAccount({ id: "R3853gm", isGM: true }, { actors: [watcher] }),
+            held: spectatorAccount(user, { actors: [forged], held: () => e92Char("R3853-forged") }) };
+        const gmView = moduleHoldsMic(user, { actors: [watcher], eclipse: false, trial: false, dead: () => false });
+        const src = new Map(await otherSources());
+        const settle = stripComments(fnSource(stripComments(src.get("voice.mjs") ?? ""), "settleTrialVoices"));
+        equal(stableJson({ daily: at([watcher]), trial: at([watcher], trial), student: at([student]), accounts, gmView,
+            settle: /spectatorAccount\(user, \{ held: flagsHeldNow \}\)/.test(settle) }),
+            stableJson({ daily: { reason: "spectator", held: true }, trial: { reason: "spectator", held: true }, student: null,
+                accounts: { watcher: true, mixed: false, none: false, gm: false, held: false }, gmView: { reason: "spectator", held: true }, settle: true }),
+            "[micHold for the Spectator's account in Daily Life and the trial; a student's account; spectatorAccount; the GMs' view; the settle blocks it as the GMs hold the flag]");
+    }],
     ["R3854 - a Spectator walks as a ghost (E92 C3; the owner's E92 goal (3)): movement.mjs `crossingVerdict` lets it through as a Monokuma, before the trial's and the incident's locks; fog.mjs `recordDiscovery` writes nothing for it; movement.mjs `judgeMove` charges it nothing; movement-audit.mjs `auditMove` exempts it; the bridge has `spectator.move`, guarded by `knownSender` and `owns`", async () => {
         /*
          * E92 C0, 12.11.2026. The clock is answered in the Class Trial while the verdicts are read (`game.settings.get`

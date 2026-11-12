@@ -40949,6 +40949,60 @@ const SCENARIOS = [
             size: [true, true, true]
         }), "(1) a failed sentence asked again: dead, the cause, the death's phase, the stamp, bodies to find; (2) a Final sentence not held here: named twice, the GMs told, the store backed up; (3) the trial's size: every player of a student who takes part, at least the ballot's, a listed student not counted");
     }],
+    ["a Spectator's microphone is blocked outside the trial and in it, by the trial's own write and row, and given back as it was found when the role is taken off (E92 C2)", async () => {
+        /*
+         * E92 C2, 12.11.2026 (the owner's E92 goal (2): "always muted: the microphone is blocked in every phase"). On this
+         * primary: a living student whose player is here and has no other voice is given a grant of its own, made a
+         * Spectator by the GM's road (monokuma.mjs `setSpectator`), and the voices settled as the flag's hook settles them
+         * (voice.mjs `settleTrialVoices`): (1) in Daily Life the player's BROADCAST_AUDIO off, the store's row naming the
+         * grant it found; (2) the Class Trial written raw and settled again: still blocked, one row; (3) the role taken off
+         * and settled: the grant put back as found, no row. Red before C2: nothing blocked. The flag, the clock, the
+         * player's permission and the store are put back.
+         */
+        needs(env.primaryGm(), "the voices are settled on the primary GM");
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student whose player is here");
+        const voice = await import("./voice.mjs");
+        const { studentActors, isMonokuma, setSpectator, isSpectator } = await import("./monokuma.mjs");
+        const { isDeadForGm } = await import("./chapter.mjs");
+        const stores = await import("./gm-stores.mjs");
+        const ownerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER")) ?? null;
+        const only = (a, u) => game.actors.filter(b => b.type === "character" && !isMonokuma(b) && b.testUserPermission(u, "OWNER")).every(b => b.id === a.id);
+        const picked = studentActors().map(a => ({ actor: a, user: ownerOf(a) })).find(p => p.user && !isDeadForGm(p.actor) && only(p.actor, p.user));
+        must(picked, "no living student that is its player's only character - the probe above counts the students with a player here");
+        const { actor, user } = picked;
+        const perm = u => { const own = (u._source ?? u).permissions ?? {}; return [Object.hasOwn(own, "BROADCAST_AUDIO"), own.BROADCAST_AUDIO ?? null]; };
+        const before = perm(user);
+        const clock = foundry.utils.deepClone(getClock());
+        const row = () => { const r = stores.trialMuteStore.get(user.id); return r ? { had: r.had, value: r.value, wrote: r.wrote } : null; };
+        const settleNow = async () => { await voice.settleTrialVoices(); await settle(); };
+        const read = {};
+        try {
+            await user.update({ "permissions.BROADCAST_AUDIO": true });
+            await setSpectator(actor, true);
+            await settleNow();
+            read.daily = { perm: perm(user), row: row(), held: voice.moduleHoldsMic(user)?.reason ?? null };
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), phase: "classTrial", eclipse: false });
+            await settleNow();
+            read.trial = { perm: perm(user), rows: Object.keys(stores.trialMuteStore.entries()).filter(id => id === user.id).length };
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await setSpectator(actor, false);
+            await settleNow();
+            read.back = { perm: perm(user), row: row(), spectator: isSpectator(actor) };
+        } finally {
+            if (isSpectator(actor)) await setSpectator(actor, false);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await settleNow();
+            if (JSON.stringify(perm(user)) !== JSON.stringify(before)) await user.update({ "permissions.BROADCAST_AUDIO": before[0] ? before[1] : forcedDeletion() });
+            if (stores.trialMuteStore.has(user.id)) await stores.trialMuteStore.drop(user.id);
+            await gmStoresIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            daily: { perm: [true, false], row: { had: true, value: true, wrote: true }, held: "spectator" },
+            trial: { perm: [true, false], rows: 1 },
+            back: { perm: [true, true], row: null, spectator: false }
+        }), "a Spectator's microphone (1) in Daily Life: its permission, the store's row, the GMs' view; (2) in the Class Trial; (3) the role taken off");
+    }],
     ["the dead are muted for the trial, a death nobody found too, and nobody else; a death in the trial joins, a new Monocub leaves; the exit puts back only what the trial wrote and leaves a GM's block (E70-T8)", async () => {
         /*
          * E70 C5, 28.10.2026; E70-18, E70-20, E70-21, E70-23 (the owner's TR30 = 2, DC19; amend 6, answer 3 (b)). Read on
