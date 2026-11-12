@@ -1703,7 +1703,7 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         return true;`, { timeout: 30000 });
     await settle(800);
     check("E69-B: p1's tail on Botan in Aiko's room is paid with one action, its Shadow and effect drawn on the GM, and the GM keeps the tail - none refused",
-        Boolean(e69b.p1?.targets?.includes(IDS.botan)) && e69b.p1?.target === "Botan" && typeof e69b.p1?.seen === "boolean"
+        Boolean(e69b.p1?.targets?.includes(IDS.botan)) && e69b.p1?.target === "Botan Kage" && typeof e69b.p1?.seen === "boolean"
             && e69b.p1?.actions === 2 && JSON.stringify(e69b.row?.slice(0, 2)) === JSON.stringify([IDS.botan, true]) && e69b.logged.length === 0,
         JSON.stringify(e69b), { flow: "tail" });
 
