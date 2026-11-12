@@ -40,6 +40,7 @@ import { reducedMotion } from "./motion.mjs";
 import { count } from "./perf-counters.mjs";
 import { esc } from "./utils.mjs";
 import { slideAt } from "./glass-close.mjs";
+import { spectatorViewer } from "./spectator.mjs";
 
 export const SEQUENCE_HOST_ID = "drpg-sequence";
 export const SEQUENCE_ATTR = "data-drpg-sequence";
@@ -593,9 +594,14 @@ export async function moodInputs() {
  * school's mood as the GM published it. No number of Hope or Despair (the owner's word of 12.11.2026: "Chowamy hope i
  * despair w podsumowaniu"), no other player's row, no secret event, no Overflow count. Pure but for the reads it is
  * handed.
+ *
+ * A SPECTATOR'S BOARD (E92 with E94; the owner's word of 12.11.2026: "Dostaje tylko koniec dnia i nastroj szkoly"):
+ * `watcher` true, the board is the day that ends and the mood's word alone - no chapter, no rows, no tally or quiet day,
+ * no public card, whatever it is handed (R3868).
  */
-export function dayEndBoard({ clock = {}, rows = [], publicCards = [], mood = null } = {}) {
+export function dayEndBoard({ clock = {}, rows = [], publicCards = [], mood = null, watcher = false } = {}) {
     const day = Number(clock?.day) || 0;
+    if (watcher) return { day, chapter: null, rows: [], count: 0, found: 0, events: [], mood: MOOD_BANDS.includes(mood) ? mood : null, watcher: true };
     return {
         day, chapter: clock?.chapter ?? null,
         rows: rows.slice(-6).map(r => ({ action: String(r.action ?? ""), room: r.room ? String(r.room) : "", found: Boolean(r.item) })),
@@ -611,6 +617,11 @@ export function dayEndElement(board) {
     const el = document.createElement("div");
     el.className = "drpg-seq-day drpg-seq-dayend";
     const sub = board.chapter != null ? game.i18n.format("DRPG.Sequence.dayEndSub", { chapter: board.chapter }) : "";
+    const mood = board.mood ? `<div class="drpg-seq-mood" data-drpg-mood="${board.mood}"><small>${esc(L("DRPG.Sequence.moodLabel"))}</small>${esc(L(`DRPG.Sequence.mood.${board.mood}`))}</div>` : "";
+    if (board.watcher) {
+        el.innerHTML = `<h2 class="drpg-seq-day-title">${esc(game.i18n.format("DRPG.Sequence.dayEndTitle", { day: board.day }))}</h2>${mood}`;
+        return el;
+    }
     el.innerHTML = `<h2 class="drpg-seq-day-title">${esc(game.i18n.format("DRPG.Sequence.dayEndTitle", { day: board.day }))}</h2>
         ${sub ? `<div class="drpg-seq-day-sub">${esc(sub)}</div>` : ""}
         <div class="drpg-seq-dayend-cols">
@@ -620,7 +631,7 @@ export function dayEndElement(board) {
                 : `<p class="drpg-seq-tally">${esc(L("DRPG.Sequence.quietDay"))}</p>`}</section>
             ${board.events.length ? `<section class="drpg-seq-events"><h3>${esc(L("DRPG.Sequence.publicEvents"))}</h3><ol>${board.events.map(e => `<li class="drpg-seq-row">${esc(e)}</li>`).join("")}</ol></section>` : ""}
         </div>
-        ${board.mood ? `<div class="drpg-seq-mood" data-drpg-mood="${board.mood}"><small>${esc(L("DRPG.Sequence.moodLabel"))}</small>${esc(L(`DRPG.Sequence.mood.${board.mood}`))}</div>` : ""}`;
+        ${mood}`;
     return el;
 }
 
@@ -670,17 +681,28 @@ async function dayEndReads(before, clock) {
 }
 
 /**
+ * The end-of-day board this browser shows for the day that ended (`before`) at the new clock (`clock`): a Spectator's
+ * (scripts/spectator.mjs `spectatorViewer`) the heading and the mood alone, with the day's reads never made; anybody
+ * else's from its own reads (`reads`, the suite's to hand, or `dayEndReads`). The mood is the new clock's word.
+ */
+export async function dayEndBoardFor(before, clock, { watcher = spectatorViewer(), reads = null } = {}) {
+    if (watcher) return dayEndBoard({ clock: before, mood: clock?.mood ?? null, watcher: true });
+    const got = reads ?? await dayEndReads(before, clock);
+    return dayEndBoard({ clock: before, rows: got.rows, publicCards: got.publicCards, mood: clock?.mood ?? null });
+}
+
+/**
  * The end-of-day board on this browser, at the day's roll-over (transitions.mjs, E62's `newDay`), before the start-of-day
  * board, which it hands on to (`then`). About 6 s, Esc earlier; still under reduced motion; with the switch off, nothing
  * plays and `then` runs at once. What it showed goes to this browser's notice history as one card, which stays until
  * closed (the plan's C3), and stands in for the Night's own summary (Q-E94-5's default; day-summary.mjs). `before` is the
- * clock of the day that ended, `clock` the new one. `keep` false puts up no card (the suite's: tiers 0-1 write nothing, and
+ * clock of the day that ended, `clock` the new one; a Spectator's browser shows the heading and the mood alone
+ * (`dayEndBoardFor`). `keep` false puts up no card (the suite's: tiers 0-1 write nothing, and
  * the notice history is a setting). Answers what `playSequence` answered.
  */
 export async function playDayEnd(before, clock = getClock(), { on = sequencesOn(), then = null, reads = null, keep = true } = {}) {
     if (!before || !clock || !ready) { then?.("none"); return null; }
-    const got = reads ?? await dayEndReads(before, clock);
-    const board = dayEndBoard({ clock: before, rows: got.rows, publicCards: got.publicCards, mood: clock.mood ?? null });
+    const board = await dayEndBoardFor(before, clock, { reads });
     const played = playSequence("dayEnd", `dayEnd:${before.season ?? ""}:${board.day}:${before.session ?? ""}`, ctx => drawDayEnd(ctx, board),
         { sound: () => playSound("dayEnd"), on, then });
     if (played === null) then?.("none");

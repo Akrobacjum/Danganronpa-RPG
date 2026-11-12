@@ -73,6 +73,10 @@ other gain.
   Despair and the mood. **For the E92 merge**: the plan wants a Spectator to see the start board and no end board of its
   own; in `playDayEnd` (sequence.mjs) answer `then("none")` at once for a Spectator, before `dayEndReads`, and add the
   case to R3722. Nothing in this line names E92's predicate, so the merge has to write it.
+  **Done on the 1.2.109 line (12.11.2026), on the owner's word "Dostaje tylko koniec dnia i nastroj szkoly"**: a
+  Spectator gets an end board of its own after all, holding the day's heading and the mood's word and nothing else
+  (sequence.mjs `dayEndBoardFor`, `dayEndBoard`'s `watcher`; the day's reads are not made); R3868 and scenario 93's
+  part "board", both red at 7872146d.
 - C5's frame-work reading (86-frame-work with the boards): not extended. The boards play once a day, not per move; their
   frame time is LIVE-E94-01.
 

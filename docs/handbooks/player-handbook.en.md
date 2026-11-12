@@ -78,7 +78,7 @@ The roll window is locked for players: dice, statistic, advantage, experiences a
 
 ### If you are a Spectator
 
-The GM may make your character a **Spectator**: you watch and do not play. You have no actions, Hope, Calls or Level Ups, and nobody counts you anywhere. Other players do not see your token. Your microphone is off; **Talk with the Spectators** on your voice tile lets you talk with the other Spectators, and **Go back to your room** brings you back. If the GM turned the voice tile off, that button is not there. Drag your token to move, at no cost; whether walls stop you has not been tried at a table yet. You see every room the class has found, everybody's token and every project, secret ones too. You have no chat.
+The GM may make your character a **Spectator**: you watch and do not play. You have no actions, Hope, Calls or Level Ups, and nobody counts you anywhere. Other players do not see your token. Your microphone is off; **Talk with the Spectators** on your voice tile lets you talk with the other Spectators, and **Go back to your room** brings you back. If the GM turned the voice tile off, that button is not there. Drag your token to move, at no cost; whether walls stop you has not been tried at a table yet. You see every room the class has found, everybody's token and every project, secret ones too. At the day's end you see only the end of the day and the school's mood. You have no chat.
 
 
 ---

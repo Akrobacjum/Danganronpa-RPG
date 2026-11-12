@@ -49993,7 +49993,9 @@ const INVARIANTS = [
         /*
          * E92 C7, 12.11.2026. The board is built as `playDayStart` builds it, from the roster, with a student flagged a
          * Spectator in memory (`e24HeldFlagged`); the players are read in the source (no viewer, user or role gate).
-         * Green from C1 (the roster); the source half holds that E61, E62 and E94 stay ungated.
+         * Green from C1 (the roster); the source half holds that E61, E62 and E94 stay ungated. The end-of-day board
+         * plays on a Spectator's browser too, but holds the day's heading and the mood alone (the owner's 12.11, R3868):
+         * `playDayEnd` is not among the three read here.
          */
         const S = await import("./sequence.mjs");
         const owned = a => game.users.some(u => !u.isGM && a.testUserPermission?.(u, "OWNER"));
@@ -50129,6 +50131,44 @@ const INVARIANTS = [
             accounts: [...spectatorUserIds(users, actors)].sort() }),
             stableJson({ viewer: S.OBSERVER, watcher: S.OBSERVER, other: 0, gms: false, accounts: ["R3867a"] }),
             "[the map's entry for a viewer, a Spectator and another player; a GM in it; the accounts that play a Spectator]");
+    }],
+    ["R3868 - a Spectator's end-of-day board holds the day's heading and the school's mood, and nothing else (scripts/sequence.mjs `dayEndBoard`, `dayEndElement`, `dayEndBoardFor`, `playDayEnd`; scripts/spectator.mjs `spectatorViewer`; E92 with E94, the owner's word of 12.11.2026: \"Dostaje tylko koniec dnia i nastroj szkoly\"): on a Spectator's browser the board names the day that ends and the mood's word, and holds no row, no tally or quiet day, no public card and no chapter line, and the day's rows and cards handed to it are not used; a player's board, handed the same, is as before - its chapter, its rows, its cards and its mood", async () => {
+        /*
+         * E92 with E94, 12.11.2026, on the 1.2.109 line. Red at 7872146d: `dayEndBoard` had no Spectator's case, so a
+         * Spectator's browser drew a player's board with no rows of its own ("A quiet day.") and the school's public
+         * cards, and `dayEndBoardFor` did not exist. The viewer is `spectatorViewer` on documents handed here (a user and
+         * one character, flagged and not), so the suite's GM is nobody's Spectator; scenario 93's part "board" reads the
+         * same on p3's and p1's own browsers.
+         */
+        const S = await import("./sequence.mjs"), SP = await import("./spectator.mjs");
+        const rows = [{ action: "Search", room: "Gym", item: "a key" }, { action: "Listen", room: "" }];
+        const cards = ["A body was found", "The project is done"];
+        const clock = { day: 3, chapter: 2 };
+        const user = { id: "R3868u", isGM: false };
+        const actor = flag => ({ id: "R3868a", type: "character", testUserPermission: () => true,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.spectator ? flag : undefined) });
+        const watching = SP.spectatorViewer(user, [actor(true)]), playing = SP.spectatorViewer(user, [actor(false)]);
+        const read = el => ({ title: el.querySelector(".drpg-seq-day-title")?.textContent ?? null, sub: Boolean(el.querySelector(".drpg-seq-day-sub")),
+            yours: Boolean(el.querySelector(".drpg-seq-yours")), rows: el.querySelectorAll(".drpg-seq-row").length,
+            events: Boolean(el.querySelector(".drpg-seq-events")), mood: el.querySelector(".drpg-seq-mood")?.dataset.drpgMood ?? null, parts: el.children.length });
+        const handed = watcher => S.dayEndBoard({ clock, rows, publicCards: cards, mood: "uneasy", watcher });
+        const plain = S.dayEndBoard({ clock, rows, publicCards: cards, mood: "uneasy" });
+        // the road playDayEnd takes, with the day's reads handed: a Spectator's and a player's
+        let road = "sequence.mjs has no dayEndBoardFor";
+        if (typeof S.dayEndBoardFor === "function") {
+            const before = { ...clock, dayStartedAt: 1 }, after = { day: 4, chapter: 2, mood: "uneasy", timeOfDayStartedAt: 2 };
+            const w = await S.dayEndBoardFor(before, after, { watcher: true, reads: { rows, publicCards: cards } });
+            const p = await S.dayEndBoardFor(before, after, { watcher: false, reads: { rows, publicCards: cards } });
+            road = { watcher: [w.day, w.count, w.events.length, w.mood], player: [p.day, p.count, p.events.length, p.mood] };
+        }
+        const title = game.i18n.format("DRPG.Sequence.dayEndTitle", { day: 3 });
+        equal(stableJson({ watching, playing, watcher: read(S.dayEndElement(handed(watching))), player: read(S.dayEndElement(handed(playing))),
+            unchanged: stableJson(handed(playing)) === stableJson(plain), road }),
+        stableJson({ watching: true, playing: false,
+            watcher: { title, sub: false, yours: false, rows: 0, events: false, mood: "uneasy", parts: 2 },
+            player: { title, sub: true, yours: true, rows: 4, events: true, mood: "uneasy", parts: 4 },
+            unchanged: true, road: { watcher: [3, 0, 0, "uneasy"], player: [3, 2, 2, "uneasy"] } }),
+        "[the viewer read on a Spectator's documents and a student's; a Spectator's board drawn; a player's drawn; a player's board as without the case; the road playDayEnd takes, for each]");
     }],
     ["R3858 - the census of `type === \"character\"` holds (E92 C0; the plan's risk R1): every line in scripts/ outside the suite that reads an actor's type as \"character\" is one docs/dev/e92/CENSUS.md classified - a new one fails here until it is classified there and counted here", async () => {
         /*

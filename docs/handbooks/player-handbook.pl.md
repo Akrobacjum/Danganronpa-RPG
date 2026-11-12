@@ -78,7 +78,7 @@ Okno rzutu jest dla graczy zablokowane: kości, statystyka, przewaga, doświadcz
 
 ### Jeśli jesteś Widzem
 
-GM może zrobić z twojej postaci **Widza**: oglądasz i nie grasz. Nie masz akcji, Hope, Calli ani Level Upów i nikt cię nigdzie nie liczy. Inni gracze nie widzą twojego żetonu. Twój mikrofon jest wyłączony; **Porozmawiaj z Widzami** na twoim kafelku głosu pozwala rozmawiać z innymi Widzami, a **Wróć do swojego pokoju** cię cofa. Jeśli GM wyłączył kafelek głosu, tego przycisku nie ma. Przeciągaj żeton, by się ruszać, bez kosztu; czy ściany cię zatrzymają, nie sprawdzono jeszcze przy stole. Widzisz każdy pokój, który klasa odkryła, żetony wszystkich i każdy projekt, także tajny. Nie masz czatu.
+GM może zrobić z twojej postaci **Widza**: oglądasz i nie grasz. Nie masz akcji, Hope, Calli ani Level Upów i nikt cię nigdzie nie liczy. Inni gracze nie widzą twojego żetonu. Twój mikrofon jest wyłączony; **Porozmawiaj z Widzami** na twoim kafelku głosu pozwala rozmawiać z innymi Widzami, a **Wróć do swojego pokoju** cię cofa. Jeśli GM wyłączył kafelek głosu, tego przycisku nie ma. Przeciągaj żeton, by się ruszać, bez kosztu; czy ściany cię zatrzymają, nie sprawdzono jeszcze przy stole. Widzisz każdy pokój, który klasa odkryła, żetony wszystkich i każdy projekt, także tajny. Na koniec dnia widzisz tylko koniec dnia i nastrój szkoły. Nie masz czatu.
 
 
 ---

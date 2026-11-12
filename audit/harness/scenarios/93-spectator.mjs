@@ -16,6 +16,8 @@
  *            `paintSpectatorTalk`, round 3): a press writes p3's own flag, a second takes it off;
  *   ghost    p3 drags Chie into Aiko's room and then into the Hall (its own token write): no action spent, no room
  *            found for her, and she is nobody in Aiko's room (`othersInRoom`);
+ *   board    the end-of-day board on p3's browser holds the day's heading and the school's mood alone, and p1's keeps
+ *            its own day (sequence.mjs `playDayEnd`, `dayEndBoardFor`);
  *   back     the GM makes her a student again: p3's microphone as it was found, the class's rooms off her map,
  *            p3's browser no Spectator's.
  * Everything is put back: the role, the token, the cells, the Mastermind, p3's permission.
@@ -191,6 +193,31 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
             intoDorm?.ok === true && company?.room === "Dorm A" && !company.others.includes(IDS.chie)
             && intoHall?.ok === true && ghost?.room === "Hall" && ghost.found === false && ghost.actions === before.actions,
             JSON.stringify({ intoDorm, company, intoHall, ghost }));
+
+        phase("board");
+        /* The owner's word of 12.11.2026 on E92 with E94: "Dostaje tylko koniec dnia i nastroj szkoly". Each browser plays
+           the end-of-day board as transitions.mjs does at a new day (`playDayEnd`, no card kept), over a day that began at
+           the epoch, so whatever the world's chat holds counts; the drawn board is read from the page, then cut. p3's
+           holds the heading and the mood's word alone; p1's keeps its own day and its chapter. Red at 7872146d, whose
+           Spectator's board was a player's with "A quiet day." and the school's cards. */
+        const boardOf = c => c.eval(`const S = ${imp("sequence.mjs")}, C = ${imp("settings.mjs")};
+            const was = C.getClock(), day = 9000 + Math.floor(Math.random() * 999);
+            const before = { ...was, day, chapter: was.chapter ?? 1, dayStartedAt: 1 }, after = { ...was, day: day + 1, mood: "uneasy", timeOfDayStartedAt: Date.now() };
+            const played = await S.playDayEnd(before, after, { on: true, keep: false });
+            const el = document.querySelector("#" + S.SEQUENCE_HOST_ID + " .drpg-seq-dayend");
+            const read = el ? { title: el.querySelector(".drpg-seq-day-title")?.textContent ?? null, want: game.i18n.format("DRPG.Sequence.dayEndTitle", { day }),
+                sub: Boolean(el.querySelector(".drpg-seq-day-sub")), yours: Boolean(el.querySelector(".drpg-seq-yours")),
+                rows: el.querySelectorAll(".drpg-seq-row").length, mood: el.querySelector(".drpg-seq-mood")?.dataset.drpgMood ?? null,
+                parts: [...el.children].map(x => x.className) } : null;
+            S.endSequence("cut");
+            return { played, read };`);
+        const boardP3 = await boardOf(p3), boardP1 = await boardOf(p1);
+        const w = boardP3?.read, pl = boardP1?.read;
+        check("board: p3's end-of-day board holds the day's heading and the school's mood and nothing else; p1's keeps its own day and its chapter",
+            Boolean(w) && w.title === w.want && w.sub === false && w.yours === false && w.rows === 0 && w.mood === "uneasy"
+            && JSON.stringify(w.parts) === JSON.stringify(["drpg-seq-day-title", "drpg-seq-mood"])
+            && Boolean(pl) && pl.title === pl.want && pl.sub === true && pl.yours === true && pl.mood === "uneasy",
+            JSON.stringify({ boardP3, boardP1 }));
 
         phase("back");
         const back = await gm.eval(`const GS = ${imp("gm-students.mjs")}, M = ${imp("monokuma.mjs")};
