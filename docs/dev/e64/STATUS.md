@@ -180,6 +180,33 @@ Every red-first reading is quoted in its commit. Every rule is in the GM's and t
 | Q-E64-11 | the hint box below the fold | owner confirmed 12.11 (moved up; 8b17220) |
 | Q-E64-12 | Tamper with no action left | owner confirmed 12.11 (no Sanity; f657e7d) |
 
+## S02-57 and S02-75, measured for the owner (12.11, DRPG-D1; no code changed)
+
+Exact sums over 2d12 (any double is a hit and a critical); a weapon's advantage read as +d6 and night's disadvantage
+as -d6 (read in the rules, not measured at a table). One try per roll; no whole-incident model is in this checkout.
+
+**S02-57** (the audit: an armed victim with 6 Hope and a Loaded Die almost always reverses the roles; no code change
+before 1.3.0). Self-Defense at +1 hits, needing 18 (19 with E64's defence): plain 31% (25%), weapon 54% (47%),
+Loaded Die 67% (58%), weapon and Loaded Die 92% (86%), weapon and a Reroll for 3 Hope 79% (72%). Self-Defense then Role
+Reversal, one try each, a critical taking it free: no weapon 19% (16%), weapon 42% (35%), weapon and 3 Hope 61% (52%),
+weapon and Loaded Die 70% (61%). Proposed for session 0's data: per incident, the victim's weapon, Hope and Loaded Die,
+and whether the roles flipped. My own note, not S02-57: a Hope hit on Role Reversal also clears all the reverser's marks.
+
+**S02-75** (the audit's numbers, unverified there; checked here):
+
+| Claim | Holds? | Reading |
+| --- | --- | --- |
+| a sabotage forces 3.2 repair actions on average | yes, per attempt | repairs 3 / 6 / 8 (hit at 12, at 18, critical); Work 1 at 12, 2 at 18, a critical 2 and the action back; per attempt 3.11 (saboteur and repairer 0), 3.10 (+1); 4.2-4.9 given a hit; 2 actions a time of day, 10 a day |
+| a trap at night kills about 87-90% | the opening, yes | the victim's notice (Eye/Head 20, night disadvantage) 10.0 / 11.3 / 13.4% at 0 / +1 / +2; by day 16.7 / 20.8 / 25.0%; the incident after a miss not modelled |
+| Palm steals 75-87%, surer than Search Tier 1 | yes | steal (Hand 10) 77.8 / 83.3 / 87.5%; Search Tier 1 (12) 65.3 / 72.2 / 77.8%; unseen (Shadow 15) 43.1 / 50.0 / 58.3% |
+
+Options sent (each keep, or): sabotage - a hit at 12 makes 2 (2.68 per attempt) or a critical makes 6 (2.94); trap -
+no night disadvantage (16.7-25.0%) or 18 at night (13.4 / 16.2 / 19.7%); Palm - 12 (65.3 / 72.2 / 77.8%) or 11 (72.2
+/ 77.8 / 83.3%). E64 changes none of the three numbers. Nothing built until the owner picks.
+
+DA39's migration: the data records no pick; the proposal (infer from the maxima with a GM's dry run, and the
+retroactive rise for past Head/Body/Leg points) is with the owner. Not built.
+
 ## In progress
 
 The owner's DRPG-D1 answers of 12.11: the DA39 migration of past picks (Q-E64-4), the sabotage lever, trap and Palm
