@@ -18462,7 +18462,7 @@ const INVARIANTS = [
             none.remove();
         }
     }],
-    ["R3530 - the gear's window is the same for a GM and a player and holds every row the Look window held (E49 A1d; the owner on A1's shots, 11.11.2026): settings-window.mjs's client columns are one markup for a user who may modify settings and one who may not, with no world row; they hold the language, the theme, the scale and its line, the pixel face, the pulse, the ticker, the blur, reduced motion, high contrast and the list's foot, each once, and the button to the Sound window (which holds the messenger's sounds and both volumes since E100 item 2, R3918); the gear (sfx.mjs) opens look.mjs `openLookDialog`, which opens `openSettingsWindow`; Configure Settings' menu opens the same", async () => {
+    ["R3530 - the gear's window is the same for a GM and a player but for the verbose log, a GM's row since E100 item 3 (R3919), and holds every row the Look window held (E49 A1d; the owner on A1's shots, 11.11.2026): settings-window.mjs's client columns are one markup for a user who may modify settings and one who may not, with no world row; they hold the language, the theme, the scale and its line, the pixel face, the pulse, the ticker, the blur, reduced motion, high contrast and the list's foot, each once, and the button to the Sound window (which holds the messenger's sounds and both volumes since E100 item 2, R3918); the gear (sfx.mjs) opens look.mjs `openLookDialog`, which opens `openSettingsWindow`; Configure Settings' menu opens the same", async () => {
         /*
          * E49 A1d, 11.11.2026. The owner: "Gm pod przyciskiem zebatki nie powinien miec innych ustawien niz gracz" and
          * "zniknela czesc ustawien np push to talk, urzadzenia wejsciowe i wyjsciowe". The Look window's rows read off
@@ -18487,7 +18487,9 @@ const INVARIANTS = [
         const sources = new Map(await moduleSources());
         const src = file => stripComments(sources.get(file) ?? "");
         const read = {
-            same: html(gm) === html(player) && html(gm).length > 1000,
+            /* Who may modify settings changes nothing; being a GM adds the verbose log alone (E100 item 3, R3919). */
+            same: html({ isGM: false, can: () => true }) === html(player) && html(gm).length > 1000,
+            gmOnly: [/data-drpg-setting="debug"/.test(html(gm)), /data-drpg-setting="debug"/.test(html(player))],
             world: box.querySelectorAll('[data-drpg-scope="world"]').length,
             look: LOOK.map(rows),
             volumes: [...box.querySelectorAll("[data-drpg-slider] input[type=\"range\"]")].map(i => i.name),
@@ -18498,8 +18500,8 @@ const INVARIANTS = [
                 /settings-window\.mjs[\s\S]{0,40}openSettingsWindow\(\)/.test(fnSource(src("look.mjs"), "openLookDialog")),
                 /import\(\s*"\.\/settings-window\.mjs"\s*\)\.then\(\s*m\s*=>\s*m\.openSettingsWindow\(\)/.test(src("settings.mjs"))]
         };
-        equal(JSON.stringify(read), JSON.stringify({ same: true, world: 0, look: LOOK.map(() => 1), volumes: [], soundDoor: 1, lines: [1, true, false], doors: [true, true, true] }),
-            "{one markup for a GM and a player; world rows; each of the Look window's settings' rows; the volume sliders (none since E100 item 2); the Sound window's button; [the scale's line, the list's foot, the voice's line (drawn with a voice alone since E100 item 2)]; "
+        equal(JSON.stringify(read), JSON.stringify({ same: true, gmOnly: [true, false], world: 0, look: LOOK.map(() => 1), volumes: [], soundDoor: 1, lines: [1, true, false], doors: [true, true, true] }),
+            "{one markup whether the user may modify settings or not; the verbose log's row for a GM, for a player; world rows; each of the Look window's settings' rows; the volume sliders (none since E100 item 2); the Sound window's button; [the scale's line, the list's foot, the voice's line (drawn with a voice alone since E100 item 2)]; "
             + "[the gear opens openLookDialog, which opens the settings window, and so does the menu]}");
     }],
     ["R3531 - the game's settings are a window of their own, for a user who may modify settings (E49 A1d; the owner on A1's shots and on the panel, 11.11.2026): settings-window.mjs `gameSettingsColumns` draws every world setting of the 35 and Vary the sounds, each once, and Give back, no client row; nothing for a user who may not; one section pane shown at first and the section list switches it; `openGameSettingsWindow` is the kit's wide window with Save and Cancel, class `drpg-window-game-settings`, refusing a user who may not", async () => {
@@ -50100,6 +50102,35 @@ const INVARIANTS = [
             gmWindow: { glass: three, legacy: three }, sectionKeys: false }),
             "{the gear's Sound pane drawn; its sliders; its Messenger sounds rows; its buttons that open the Sound window; the button wired to openSoundDialog; "
             + "the player's Sound window's fields of the three; a GM's Sound window's, per theme; Messenger sounds still a row of a settings section}");
+    }],
+    ["R3919 - the verbose console log is a GM's row (E100 item 3; the owner's 12.11.2026, the player-screens review's #4): the gear's window draws `debug` (Verbose console logging) for a GM and not for a player, whose window has no Technical section left; the setting stays this browser's (`scope: \"client\"`), so the one road to it on a player's browser is the console line the GM handbook gives - there is no road from a GM's browser to another browser's client setting, and none is added", async () => {
+        /*
+         * E100 item 3, 12.11.2026. The review: "Szczegółowe logi w konsoli" is diagnostic, a player turns it on only when
+         * a GM asks (the GM handbook's voice recipe). The owner: hide it from players; if a GM can switch it on for a
+         * player's browser today, keep that road, else keep it GM-only and say so. Read on 0dead12b: `debug` is a client
+         * setting read by utils.mjs `debug` alone, no socket or bridge row writes it, so there is no such road. Red at
+         * dbf260d3: the player's window drew the row and the Technical section.
+         */
+        const W = await import("./settings-window.mjs");
+        const gm = { isGM: true, can: () => true }, player = { isGM: false, can: () => false };
+        const draw = user => {
+            const box = document.createElement("div");
+            box.innerHTML = W.settingsWindowColumns(user, { voice: false }).map(c => c.html).join("");
+            return box;
+        };
+        const g = draw(gm), p = draw(player);
+        const sections = box => [...box.querySelectorAll("[data-drpg-section]")].map(b => b.dataset.drpgSection);
+        const sources = new Map(await moduleSources());
+        const writes = [...sources].filter(([file, text]) => !file.startsWith("tests") && /SETTINGS\.debug\b/.test(stripComments(text))).map(([file]) => file).sort();
+        const read = {
+            gm: [g.querySelectorAll('[data-drpg-setting="debug"]').length, sections(g)],
+            player: [p.querySelectorAll('[data-drpg-setting="debug"]').length, sections(p)],
+            scope: game.settings.settings.get(`${MODULE_ID}.${SETTINGS.debug}`)?.scope ?? null,
+            readers: writes
+        };
+        equal(stableJson(read), stableJson({ gm: [1, ["look", "effects", "sound", "tech"]], player: [0, ["look", "effects", "sound"]], scope: "client",
+            readers: ["settings.mjs", "utils.mjs"] }),
+            "{[debug rows, sections] for a GM; for a player; the setting's scope; the module files that name SETTINGS.debug (its registration and its one reader)}");
     }],
 ];
 

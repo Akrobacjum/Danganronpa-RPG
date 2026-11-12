@@ -14,7 +14,7 @@
  * wyjsciowe"). A1 drew one window of seven sections, the world rows for a GM alone, so a GM's gear and a player's
  * differed, and the Look window the gear opened (look.mjs, with the volumes and the Voice section) stood beside it.
  * Since A1d:
- *   - THIS BROWSER'S WINDOW (`openSettingsWindow`), the same for a GM and a player: every client setting of the 35
+ *   - THIS BROWSER'S WINDOW (`openSettingsWindow`), the same for a GM and a player (a GM alone has the verbose log since E100 item 3): every client setting of the 35
  *     (`CLIENT_SECTIONS`: look, effects, sound, tech) and what the Look window held besides them - the two volumes
  *     (sfx.mjs `volumeSliders`, saved as they move, as they were; since E100 item 2 in the Sound window alone, with the
  *     messenger's sounds, and here a button that opens it) and the Voice section (voice-panel.mjs
@@ -126,10 +126,20 @@ export function mayModifyWorld(user = game.user) {
     }
 }
 
-/** The keys of a section `user` is drawn: a client section's to everybody, a game one's to a user who may write them. */
+/*
+ * A GM'S ROWS OF THIS BROWSER'S WINDOW (E100 item 3, 12.11.2026; the owner on the player-screens review, #4: "Szczegółowe
+ * logi w konsoli" is diagnostic, a GM asks for it). Verbose console logging is still this browser's own setting
+ * (`scope: "client"`), drawn for a GM alone; a player's window has no Technical section left. No road from a GM's
+ * browser writes another browser's client setting (read on 12.11.2026: utils.mjs `debug` is its one reader, no socket
+ * or bridge row names it), so none was kept: when a GM asks a player for the log, the GM handbook's recipe gives the
+ * console line. This is the one place the gear's window differs between a GM and a player (R3530, R3919).
+ */
+const GM_ONLY_CLIENT_KEYS = Object.freeze(["debug"]);
+
+/** The keys of a section `user` is drawn: a client section's to everybody (a GM's rows to a GM), a game one's to a user who may write them. */
 export function keysFor(section, user = game.user) {
     if (section.place === "game" && !mayModifyWorld(user)) return [];
-    return section.keys.filter(key => registered(key));
+    return section.keys.filter(key => registered(key) && (user?.isGM || !GM_ONLY_CLIENT_KEYS.includes(key)));
 }
 
 /** The theme that claims `key` alone (look.mjs `themeOnlyKeys`), or null. */
@@ -246,7 +256,7 @@ export function sectionColumns(sections, { theme = getSetting(SETTINGS.theme), p
     return [{ cls: "drpg-settings-nav", html: list }, { cls: "drpg-settings-main", html: `<div class="drpg-settings-panes">${panes}</div>` }];
 }
 
-/** This browser's window's columns: the client sections, the same for every user (E49 A1d). */
+/** This browser's window's columns: the client sections, the same for every user (E49 A1d) but a GM's rows (`GM_ONLY_CLIENT_KEYS`, E100 item 3). */
 export function settingsWindowColumns(user = game.user, { theme = getSetting(SETTINGS.theme), picked = null, voice = false } = {}) {
     return sectionColumns(sectionsFor(CLIENT_SECTIONS, user, { voice }), { theme, picked, foot: localize("DRPG.Look.note") });
 }
