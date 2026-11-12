@@ -8048,6 +8048,60 @@ const REGRESSIONS = [
             "a Monocub threshold reads the sheet's Hope alone ([the functions of monocub.mjs that read it, CUB_BLOCKS reads it])");
     }],
 
+    ["R3812 - a student's co-owners (D078): every ownerOf call is one owner on purpose, by the census; no check of \"is the owner\" names one owner but the Mastermind's; a ruling goes to the thread its card is in; the lone finder tells every owner (E91 C6)", async () => {
+        /*
+         * E91 C6, 12.11.2026; the owner's deferred item D078 ("a student's co-owners: rolls, cards, threads, 'is the
+         * owner'") and Q-E91-1's default (the goal's four; the rest recorded per call). utils.mjs `ownerOf` answers ONE
+         * player (the first connected owner, else the first); a check written `ownerOf(actor)?.id === user.id` answered
+         * no for a second owner. Read here, comments blanked, every module file: each file's `ownerOf(` calls are the
+         * census below, each with why one owner is right there; no `ownerOf(...)?.id ===` or `!==` outside the
+         * Mastermind's (actsAsMastermind and the door: one player on purpose, R560); messenger-app.mjs's rulings post to
+         * `rulingThread` (the card's own thread); chapter.mjs `tellLoneFinder` reads `ownerIdsOf`. Rolls and an
+         * incident's audience took every owner at E18 fix e1-G7, and cards go to every owner (`whisperToOwner`). Red
+         * before C6: incident-store.mjs, sfx.mjs, trial-prompt.mjs and chapter.mjs called it, messenger-app.mjs seven
+         * times.
+         */
+        const CENSUS = {
+            // threadOf's fallback: a card no asker owns goes to one thread, the first owner's.
+            "call-gm.mjs": 1,
+            // The Mastermind's player: one on purpose (the door flag twice, the door's packet once; R560).
+            "mastermind.mjs": 3,
+            // rulingThread's fallback: a card in no player's thread goes to the first owner's.
+            "messenger-app.mjs": 1,
+            // A GM's read of the owner's copy (the same for every owner); "a player owns it" at all; the change's author;
+            // the Ask for Hope's card in one thread.
+            "monocub.mjs": 5,
+            // The opening roll is asked of one player.
+            "murder-rules.mjs": 1,
+            // The secrets one account is in on, read for the observer's first owner.
+            "observe.mjs": 1,
+            // The Mastermind (actsAsMastermind, the door's row, roomNamerFor's reading of it): one player on purpose.
+            "passages-gm.mjs": 3,
+            // A character's sound to the one connected owner.
+            "sfx-play.mjs": 1
+        };
+        const sources = await moduleSources();
+        const found = {};
+        const compared = [];
+        for (const [file, raw] of sources) {
+            if (/^tests/.test(file) || file === "utils.mjs") continue;
+            const src = stripComments(raw);
+            const n = (src.match(/\bownerOf\(/g) ?? []).length;
+            if (n) found[file] = n;
+            if (/\bownerOf\([^;]*?\)\?\.id\s*[!=]==/.test(src) && !["mastermind.mjs", "passages-gm.mjs"].includes(file)) compared.push(file);
+        }
+        must(Object.keys(found).length > 3, "no module file was read - this would measure nothing");
+        const sorted = o => JSON.stringify(Object.fromEntries(Object.entries(o).sort(([x], [y]) => x.localeCompare(y))));
+        equal(sorted(found), sorted(CENSUS), "an ownerOf call is not in the census (a co-owner left out), or the census names one gone");
+        equal(JSON.stringify(compared), "[]", "a check of 'is the owner' asks ownerOf, which names one owner");
+        const app = stripComments(sources.get("messenger-app.mjs") ?? "");
+        const rulings = ["ruleItemWorksOrItemNoEffectOrItemRefuse", "ruleDeclineProject", "ruleReply", "ruleSearchMiss", "ruleObserveMiss", "ruleDecline",
+            "ruleDeclineMurder"].map(name => [name, /rulingThread\(actor, message\)/.test(fnSource(app, name) ?? "")]);
+        equal(JSON.stringify(rulings.filter(([, ok]) => !ok).map(([name]) => name)), "[]", "a ruling does not go to the thread its card is in");
+        const finder = fnSource(stripComments(sources.get("chapter.mjs") ?? ""), "tellLoneFinder") ?? "";
+        ok(/ownerIdsOf\(finder\)/.test(finder), "the lone finder's death is told to one owner");
+    }],
+
     ["R3809 - the handbooks and the brochure tell part B of the Monocub: the player texts name Tinker, Ghost Bet and the Bribe, the player handbook the purse and the Bounty, the GM handbook all five and the move to order, in English and in Polish (E72 C20; S18-63)", async () => {
         /*
          * E72 C20, 12.11.2026; audit S18-63, the plan's C20. Part B gave the Monocub Tinker, a purse, the Bribe a living

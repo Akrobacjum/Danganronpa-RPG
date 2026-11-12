@@ -34889,6 +34889,57 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             "[the card went to the asker's thread], [each owner among an old roll's readers], [each owner in the incident's audience] - a co-owner's question went to the other owner's thread, or a co-owner was left off a reader list");
     }],
 
+    ["a GM's ruling on a card goes to the thread the card is in: a co-owner's card is answered in the co-owner's thread (E91 C6, D078)", async () => {
+        /*
+         * E91 C6, 12.11.2026; the owner's deferred item D078 (threads). Since E18 fix e1-G7 a co-owner's question goes to
+         * the co-owner's thread, but the ruling on it went to the first owner's (messenger-app.mjs's rules asked
+         * `ownerOf`): the asker never read the answer. A student with a player is given a second owner (put back
+         * after); a card in that second owner's thread with Decline (`callGm`'s `thread`), pressed by this GM. Read:
+         * the threads the new notes went to. Red before C6: the first owner's.
+         */
+        needs(world.atLeast("playerAccounts", 2), "a second player to share the student");
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player");
+        const { isPrimaryGm, ownerOf, forcedDeletion } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM - this would measure nothing");
+        const { callGm } = await import("./gm-bridge.mjs");
+        const { pressCard } = await import("./messenger-app.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const student = livingStudents().find(a => ownerOf(a)?.active);
+        must(student, "no living student has a connected player - this would measure nothing");
+        const first = ownerOf(student);
+        const second = game.users.find(u => !u.isGM && u.id !== first.id && u.active);
+        must(second, "no second connected player - this would measure nothing");
+        const ownership = foundry.utils.deepClone(student.ownership ?? {});
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const info = ui.notifications.info;
+        let granted = false, read = null;
+        try {
+            ui.notifications.info = () => null;
+            await student.update({ [`ownership.${second.id}`]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER });
+            granted = true;
+            await settle();
+            const asker = [first, second].find(u => u.id !== ownerOf(student)?.id);
+            await callGm(student, { title: "E91 C6", body: "<p>E91 C6 a project</p>", thread: asker.id,
+                actions: [{ action: "declineProject", label: "Decline", data: { by: student.id } }] });
+            await settle();
+            const card = game.messages.contents.find(m => !had.has(m.id) && cardFlag(m, "thread") === asker.id);
+            must(card, "no card was posted in the asker's thread - this would measure nothing");
+            const before = new Set(game.messages.contents.map(m => m.id));
+            await pressCard(card, "declineProject", { by: student.id });
+            await settle();
+            const notes = game.messages.contents.filter(m => !before.has(m.id) && cardFlag(m, "thread"));
+            read = notes.map(m => (cardFlag(m, "thread") === asker.id ? "asker" : "other"));
+        } finally {
+            ui.notifications.info = info;
+            for (const message of game.messages.contents.filter(m => !had.has(m.id))) await message.delete().catch(() => {});
+            if (granted) await student.update({ [`ownership.${second.id}`]: second.id in ownership ? ownership[second.id] : forcedDeletion() });
+            await (await import("./sheet-audit.mjs")).sheetAuditIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson(["asker"]), "the ruling's note did not go to the thread its card was in, or went to more than one");
+    }],
+
     ["a Frisk's ask its searcher stopped waiting for ends on the primary: only that searcher's expiry of that ask, once its wait could have run out, ends it, as interrupted, the target's window withdrawn and a yes after it not kept; a refusal's open force ends as 'Leave it' does; a GM whose socket comes back drops its asks (E18 C7)", async () => {
         /*
          * E18 C7, 26.10.2026; amend 5 (A11's Frisk ask on E18's one road), the stage's row E18-31. An open Frisk's ask is
