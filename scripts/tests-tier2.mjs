@@ -27108,6 +27108,57 @@ const SCENARIOS = [
         }
     }],
 
+    ["planner autosave: a node's edit on the Map is saved when its editor closes and when the window closes mid-edit, with no Save pressed (the owner, 12.11.2026: \"Moduly przy edycji nie powinny czekac na save, tylko zapisywac sie po zamknieciu edycji\")", async () => {
+        /*
+         * Planner autosave, 12.11.2026. A fixture Remnant, the dashboard drawn on the Map, its node opened, its name
+         * changed; then the editor's Close (no Save): the world holds the name. Again, its name changed and the window
+         * closed with the node still open (as Escape or the X close it, Foundry's close): the world holds that name too.
+         * Red at cebe4c6: the fields waited for the footer's Save, and closing anything else dropped them.
+         */
+        const remnants = await import("./remnants.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture Remnant stands on the scene on screen");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const scene = canvas.scene;
+        let token = null, win = null;
+        const seen = {};
+        try {
+            token = await remnants.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene, chapter: getClock().chapter,
+                note: "test fixture - planner autosave" });
+            must(token, "could not place the fixture Remnant");
+            await remnants.setRemnantPublic(token, { name: "SUITE autosave as drawn" });
+            await gmStoresIdle();
+            const node = `${scene.id}.${token.id}`, key = `${scene.id}__${token.id}`;
+            const open = async () => {
+                const root = win.app?.element;
+                root?.querySelector(`[data-drpg-node="${CSS.escape(node)}"]`)?.click();
+                await until(() => root?.querySelector(`.drpg-case-edit[data-drpg-edit="${CSS.escape(node)}"]:not([hidden]) [name="name.${CSS.escape(key)}"]`), 3000).catch(() => {});
+                return root?.querySelector(`.drpg-case-edit[data-drpg-edit="${CSS.escape(node)}"]:not([hidden])`) ?? null;
+            };
+            win = await drawnCaseWindow({ view: "map" });
+            let edit = await open();
+            must(edit, "the fixture's node did not open on the Map");
+            win.field(`name.${key}`).value = "SUITE autosave closed";
+            edit.querySelector("[data-drpg-case-close]")?.click();
+            await until(() => remnants.remnantData(token)?.public?.name === "SUITE autosave closed", 4000).catch(() => {});
+            seen.closed = remnants.remnantData(token)?.public?.name ?? null;
+            edit = await open();
+            must(edit, "the fixture's node did not open again");
+            win.field(`name.${key}`).value = "SUITE autosave window";
+            await win.close();
+            win = null;
+            await until(() => remnants.remnantData(token)?.public?.name === "SUITE autosave window", 4000).catch(() => {});
+            seen.window = remnants.remnantData(token)?.public?.name ?? null;
+        } finally {
+            if (win) await win.close().catch(() => {});
+            if (token) {
+                await remnants.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+        }
+        equal(stableJson(seen), stableJson({ closed: "SUITE autosave closed", window: "SUITE autosave window" }),
+            "{the name after the editor's Close, no Save; the name after the window closed mid-edit}");
+    }],
+
     ["E97 C6: a case node's name, mode and inputs edited on the Map are saved by the panel's Save, and a name another GM moved under the window is refused and told", async () => {
         /*
          * E97 C6, 12.11.2026; Q-E97-6's default (schema edits ride Save, refused where another GM moved them). A fixture

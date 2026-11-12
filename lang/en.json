@@ -5968,6 +5968,7 @@
       "sortLabel": "Order in a column",
       "moveUp": "Move up",
       "moveDown": "Move down",
+      "notSaved": "Not saved. Your text is still in the fields.",
       "field": {
         "label": "Name",
         "text": "Note for the GMs",

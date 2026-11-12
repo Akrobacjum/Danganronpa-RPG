@@ -7736,6 +7736,7 @@
       "sortLabel": "Kolejność w kolumnie",
       "moveUp": "W górę",
       "moveDown": "W dół",
+      "notSaved": "Nie zapisano. Wpisany tekst został w polach.",
       "field": {
         "label": "Nazwa",
         "text": "Notatka dla GM-ów",

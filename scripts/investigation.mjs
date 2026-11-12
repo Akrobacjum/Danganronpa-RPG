@@ -44,7 +44,7 @@ import { WIDE } from "./ui-columns.mjs";
 import { caseGraph, caseRows, caseNodeOf, caseModes, setCaseNode, setCaseMeta, dropCaseNode, newCaseNodeId, CASE_SORTS, reachability, checkCase } from "./case-schema.mjs";
 import { layoutCase } from "./case-layout.mjs";
 import { caseMapHtml, wireCaseMap, glyphHtml, editRow, caseToolsHtml } from "./case-map.mjs";
-import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, RAISED } from "./live.mjs";
+import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, keepDrawn, RAISED } from "./live.mjs";
 import { keyPlanStore, remnantStore, caseSchemaStore, blackenedStore, castStore, deathStore } from "./gm-stores.mjs";
 import { murderState, blackenedIds, killerIds } from "./incident-store.mjs";
 import { bridgeRequest } from "./bridge-guards.mjs";
@@ -2702,6 +2702,34 @@ function wireCase(dialog) {
     }
 }
 
+/*
+ * A NODE SAVES WHEN ITS EDITING CLOSES (the owner, 12.11.2026: "Moduly przy edycji nie powinny czekac na save, tylko
+ * zapisywac sie po zamknieciu edycji"). The open node's fields are read as Save reads the form, scoped to that node's
+ * fieldset, and written then: on its Close or Escape, on a pick of another node, on a switch to the Table, and when
+ * the window closes (by its X, Escape or a footer button other than Save, whose own write covers every field). One
+ * write per close, none per keystroke; the writes run one after another. A field that is written takes its value as
+ * drawn, so the Save after it hands nothing on twice; a field the world moved under is refused and told as Save tells
+ * it. A write that throws keeps the typed text in its fields, still the GM's change, and says so in one line.
+ */
+let nodeWrites = Promise.resolve();
+
+/** The open node's changed fields in `root`, written. Answers what `applyDashboardSave` answered, or null. */
+function saveOpenNode(root) {
+    const open = root?.querySelector?.(".drpg-case-edit:not([hidden])");
+    const fields = open ? [...open.querySelectorAll("[name]")].filter(isDirty) : [];
+    if (!fields.length) return nodeWrites;
+    const result = readDashboardForm({ element: { querySelector: () => open } });
+    const drawn = fields.map(field => [field, keepDrawn(field)]);
+    const write = () => applyDashboardSave(result, { traces: allTraces(), plan: keyPlan(), quiet: true }).catch(err => {
+        for (const [field, was] of drawn) keepDrawn(field, was);
+        error("A case node's fields could not be saved", err);
+        ui.notifications.error(game.i18n.localize("DRPG.CaseMap.notSaved"));
+        return null;
+    });
+    nodeWrites = nodeWrites.then(write, write);
+    return nodeWrites;
+}
+
 /** The Map's nodes, fold, overview and camera (E97 C5; on the nodes since the E97 fix): an open node, a fold, the
  *  overview and the camera are the window's own state, the first three redrawn; the focus goes back to the node the GM
  *  was on, which a redraw replaced. */
@@ -2710,9 +2738,16 @@ function wireMap(dialog, reading, refresh) {
     const chapterNow = () => Number(root?.querySelector(".drpg-case-live")?.dataset.drpgChapter ?? mapChapterOf(reading).chapter);
     const fail = what => err => error(`The case map could not ${what}`, err);
     wireCaseMap(root, {
-        onPick: id => { reading.node = reading.node === id ? null : id; reading.focus = id; refresh(); },
-        // Escape on the open node, or a click on the graph's empty space: its fields shut, the focus on its face
-        onClose: id => { if (reading.node !== id) return; reading.node = null; reading.focus = id; refresh(); },
+        // A pick closes the node open before it, and its fields are written first (the owner, 12.11.2026)
+        onPick: id => {
+            saveOpenNode(root).then(() => { reading.node = reading.node === id ? null : id; reading.focus = id; refresh(); });
+        },
+        // Close, Escape on the open node, or a click on the graph's empty space: its fields written, then shut, the
+        // focus on its face
+        onClose: id => {
+            if (reading.node !== id) return;
+            saveOpenNode(root).then(() => { reading.node = null; reading.focus = id; refresh(); });
+        },
         onFold: () => { reading.fold = !reading.fold; refresh(); },
         onOverview: open => { reading.overview = open; },
         camera: { get: () => reading.camera, set: cam => { reading.camera = cam; } },
@@ -2981,6 +3016,8 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
         overview: false, camera: null };
     /** The live region's handle, so a filter can ask it to redraw. */
     let live = null;
+    /** The window's element as drawn: the open node's fields are read off it after the window closed. */
+    let drawnRoot = null;
 
     const buildCase = () => caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter });
 
@@ -3009,6 +3046,8 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
            own User and the region redrawn in the other view, the frame, header and footer untouched (C2). */
         onMode: key => {
             if (!INVESTIGATION_VIEWS.includes(key) || key === reading.view) return;
+            // Leaving the Map closes its open node: written first (the owner, 12.11.2026)
+            if (reading.view === "map") saveOpenNode(drawnRoot);
             reading.view = key;
             Promise.resolve(game.user.setFlag?.(MODULE_ID, "investigationView", key))
                 .catch(err => error("Could not remember the Investigation view on this user", err));
@@ -3053,6 +3092,7 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
             rows: 2
         },
         render: (event, dialog) => {
+            drawnRoot = dialog.element;
             wireCase(dialog);
             wireCaseFilters(dialog, reading, () => live?.refresh?.());
             wireMap(dialog, reading, () => live?.refresh?.());
@@ -3127,6 +3167,10 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
         rejectClose: false
     });
 
+    /* CLOSED WITH A NODE OPEN, NOT BY SAVE (the owner, 12.11.2026): its fields written now, off the element as it was
+       closed (a closed window's element keeps its fields), before a button's reopened window reads the world. Save
+       hands on every changed field, the node's among them, so it writes nothing here. */
+    if (!action || typeof action === "string") await saveOpenNode(drawnRoot);
     if (!action || action === "close") return null;
 
     const ran = await runDashboardButton(action);
@@ -3175,7 +3219,7 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
  *
  * @returns {Promise<{tracesChanged: number, refused: number}>}
  */
-export async function applyDashboardSave(result, { traces, plan }) {
+export async function applyDashboardSave(result, { traces, plan, quiet = false }) {
     let tracesChanged = 0;
     const refused = [];
     for (const row of result.traces) {
@@ -3224,7 +3268,8 @@ export async function applyDashboardSave(result, { traces, plan }) {
 
     const parts = [];
     if (tracesChanged) parts.push(plural("DRPG.Investigation.tracesSaved", { n: tracesChanged }));
-    if (parts.length) ui.notifications.info(parts.join(" "));
+    // A node's write when its editing closes is said only when it refused something (the owner, 12.11.2026)
+    if (parts.length && !quiet) ui.notifications.info(parts.join(" "));
 
     /* SAID, AND IT STAYS UP. The window closes after a Save (E24 C6; it reopened on the ledger from
        E09 C13 until then), and the GM's own value of a refused field is in no window - this message

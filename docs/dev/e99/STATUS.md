@@ -437,3 +437,27 @@ replace the node entirely.
   (f0b4f9b) and after: 24 pages each, 0 failing.
 - GM handbook (EN, PL): the fields open in the node's place, and Close.
 - Shots, before and after, 1366x768, both themes, PL then EN: https://claude.ai/artifact/2hGySDAeJ8vJTxCW5USYbd.
+
+## A node saves when its editing closes (12.11.2026; the owner through the coordinator, for 1.2.111)
+
+The owner: "Moduly przy edycji nie powinny czekac na save, tylko zapisywac sie po zamknieciu edycji".
+
+- investigation.mjs `saveOpenNode`: the open node's changed fields, read as Save reads the form but only inside that
+  node's fieldset, are written by `applyDashboardSave` (quiet: no "saved" toast; a refused field is told as Save tells
+  it) on the node's Close or Escape, a click on empty space, a pick of another node, the switch to the Table, and when
+  the window closes by its X, Escape or a footer button other than Save. The writes run one after another. A written
+  field takes its value as drawn (live.mjs `keepDrawn`), so a later Save does not hand it on again.
+- Red first: tier 2 "planner autosave: ..." - a Remnant's name changed on the Map, Close without Save: stored; changed
+  again, the window closed with the node open: stored. Red at cebe4c6 (both names stayed as drawn).
+- GM handbook (EN, PL): the fields save on close, no Save needed.
+
+Defaults, as built (the owner may revise):
+
+| Question | Default |
+| --- | --- |
+| A Save button in the node's fields | none; the footer's Save stays for the Table |
+| When it writes | the node's Close, Escape, a click on empty space, a pick of another node, the switch to the Table, the window closed (X, Escape, a footer button) |
+| Per keystroke | no: one write per close |
+| An empty or invalid field | written as `applyDashboardSave` takes it (the same rules as Save); nothing typed is lost |
+| A write that fails | one line, "Not saved. Your text is still in the fields." / "Nie zapisano. Wpisany tekst został w polach."; the fields keep the text and stay the GM's change |
+| Escape | saves, like Close (no earlier ruling gives Escape a "discard" meaning) |
