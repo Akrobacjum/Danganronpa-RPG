@@ -11,6 +11,13 @@ the questions #8-#11 (read with the Artifact tool, `mock/seq/day-start.js`, `day
 
 Tests: R3714, R3715 (tier 1).
 
+Results (12.11.2026, at 1262ebe): tiers 0-1 whole 1190 ran, 1174 passed, 0 failed, 16 skipped, 1 red (expected). An
+earlier whole run (5180954) failed R1157, the plural census: the board's "alive: 6 of 8" put a count before an
+agreeing word outside a plural family; reworded as a ratio ("Alive: 6/8", "Ocaleli: 6/8") in 1262ebe. Scenarios that
+read the changed files (config.mjs, lang/*.json; sequence.mjs and transitions.mjs are named by none): 00, 10, 13, 20,
+30, 33, 40, 50, 61 (alone), 62, 66, 71, 72, 81, 83, 86, 87, 88 green at 5180954; 00, 33, 50, 62, 72 green again at
+1262ebe after the language change.
+
 ## Not done
 
 - C1, the GM's morning line: no field to write it yet, so the board never shows one (MK-R2 #10's "empty is hidden" holds).
