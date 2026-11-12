@@ -2314,7 +2314,7 @@ function caseMapRegion(reading) {
     const finders = findersByAnyRemnant();
     const authors = new Map();
     for (const { token, data, scene } of allTraces()) if (data.sourceName) authors.set(`${scene.id}.${token.id}`, data.sourceName);
-    return `<div class="drpg-case-live drpg-case-view" data-drpg-view="map"><form>${caseMapHtml({ graph, layout, finders, authors, reading })}</form></div>`;
+    return `<div class="drpg-case-live drpg-case-view" data-drpg-view="map"><form class="drpg-case-form">${caseMapHtml({ graph, layout, finders, authors, reading })}</form></div>`;
 }
 
 /** What Save hands back: the three tabs' fields, read fresh off the form. */
@@ -2714,7 +2714,9 @@ export async function openInvestigationDashboard({ said = null } = {}) {
                 { action: "clearFaint", label: game.i18n.localize("DRPG.Panel.clearFaint") },
                 { action: "sweepBullets", label: game.i18n.localize("DRPG.Panel.sweepBullets") }
             ],
-            close: { role: "cancel", action: "close" }
+            close: { role: "cancel", action: "close" },
+            // Two rows at every width, in both views (E97 C2; the owner's Q-C): the kit's grid footer.
+            rows: 2
         },
         render: (event, dialog) => {
             wireCase(dialog);

@@ -139,8 +139,16 @@ export function footerButtons(footer = {}) {
     const chosen = all.find(b => b.action === named) ?? null;
     if (footer.default && !chosen) throw new Error(`ui-kit: the footer's default "${footer.default}" is none of its buttons`);
     if (chosen && !BUTTON_ROLES[chosen.role].mayDefault) throw new Error(`ui-kit: a ${chosen.role} button may never be a window's default ("${chosen.action}")`);
-    return all.map(b => ({ ...b, side: b.side ?? BUTTON_ROLES[b.role].side, default: b === chosen }));
+    const out = all.map(b => ({ ...b, side: b.side ?? BUTTON_ROLES[b.role].side, default: b === chosen }));
+    /* `rows: 2` (E97 C2; the owner's Q-C of 11.11.2026, "the footer ALWAYS two rows at every size"): the footer one grid
+       of its buttons in two rows, whatever the window's width, instead of the sides wrapping by what fits
+       (components.css `drpg-kit-footer-rows`). Opt-in: no other window's footer moves. */
+    if (footer.rows === 2) out.rows = 2;
+    return out;
 }
+
+/** The class of a footer drawn in two rows (`footer.rows: 2`, E97 C2). */
+export const FOOTER_ROWS_CLASS = "drpg-kit-footer-rows";
 
 /** The DialogV2 `buttons` of a footer: Foundry's own shape, the role's classes in `class`. */
 function dialogButtons(list) {
@@ -161,7 +169,7 @@ function dialogButtons(list) {
 export function footerMarkup(footer = {}) {
     const list = footerButtons(footer);
     const side = s => list.filter(b => b.side === s).map(b => footerButton(b)).join("");
-    return `<footer class="form-footer drpg-kit-footer"><div class="drpg-kit-right">${side("right")}</div><div class="drpg-kit-left">${side("left")}</div></footer>`;
+    return `<footer class="form-footer drpg-kit-footer${list.rows === 2 ? ` ${FOOTER_ROWS_CLASS}` : ""}"><div class="drpg-kit-right">${side("right")}</div><div class="drpg-kit-left">${side("left")}</div></footer>`;
 }
 
 /** One button of a kit footer, `footerButtons`'s `b`: its role's classes, `default` and `autofocus` on the default. */
@@ -259,6 +267,7 @@ function dressFooter(root, list) {
     const doc = footer.ownerDocument;
     const focused = footer.contains(doc.activeElement) ? doc.activeElement : null;
     footer.classList.add("drpg-kit-footer");
+    if (list.rows === 2) footer.classList.add(FOOTER_ROWS_CLASS);
     const right = doc.createElement("div");
     right.className = "drpg-kit-right";
     const left = doc.createElement("div");

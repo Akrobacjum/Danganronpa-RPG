@@ -8048,7 +8048,8 @@ const INVARIANTS = [
                     kids,
                     slots: bar ? [...bar.children].map(el => el.dataset.drpgSlot ?? null) : null,
                     said: bar?.querySelector('[data-drpg-slot="controls"] > .drpg-case-result')?.textContent ?? null,
-                    view: body.querySelector(":scope > .drpg-case-live")?.classList.contains("drpg-case-view") ?? null
+                    view: body.querySelector(":scope > .drpg-case-live")?.classList.contains("drpg-case-view") ?? null,
+                    rows: root.querySelector("footer.form-footer")?.classList.contains("drpg-kit-footer-rows") ?? null
                 };
             } finally {
                 for (const a of open()) await a.close().catch(() => {});
@@ -8067,7 +8068,7 @@ const INVARIANTS = [
                 + `<div class="drpg-case-toolbar"><div class="drpg-case-switch"></div><div class="drpg-case-controls"><p class="drpg-case-result">x</p></div></div>`
                 + `<div class="drpg-case-live drpg-case-view"><form><section class="drpg-tab-pane" data-drpg-pane="traces"><div class="drpg-data-table-box"><table class="drpg-data-table"><thead><tr><th>Visibility</th></tr></thead></table></div></section>`
                 + `<section class="drpg-tab-pane" data-drpg-pane="key"><div class="drpg-data-table-box"><table class="drpg-data-table"><colgroup><col class="drpg-data-col-case-scale"><col class="drpg-data-col-case-key-name"></colgroup><thead><tr><th>Difficulty</th><th>Name</th></tr></thead></table></div></section>`
-                + `</form></div></div></div><footer class="form-footer drpg-kit-footer"><div class="drpg-kit-right"><button class="drpg-role-primary">S</button></div><div class="drpg-kit-left"><button class="drpg-role-cancel">C</button></div></footer></form></section></div>`;
+                + `</form></div></div></div><footer class="form-footer drpg-kit-footer drpg-kit-footer-rows"><div class="drpg-kit-right"><button class="drpg-role-primary">S</button></div><div class="drpg-kit-left"><button class="drpg-role-cancel">C</button></div></footer></form></section></div>`;
             const q = sel => body.querySelector(sel);
             const from = (el, prop) => { const w = el ? C.winner(el, prop) : null; return w ? `${w.value.trim()} (${String(w.file).split("/").pop()})` : null; };
             const view = q(".drpg-case-view"), foot = q("footer");
@@ -8085,13 +8086,13 @@ const INVARIANTS = [
             foot: ["grid (components.css)", "repeat(4, minmax(0, 1fr)) (components.css)", "repeat(2, auto) (components.css)", "contents (components.css)", "contents (components.css)", "3 (components.css)"],
             said: "nowrap (components.css)" };
         equal(stableJson({ plain, told: told.said, read }), stableJson({
-            plain: { fit: false, width: true, asked: kitWidth(WIDE.width), kids: ["drpg-case-toolbar", "drpg-case-live drpg-case-view"], slots: ["switch", "controls"], said: null, view: true },
+            plain: { fit: false, width: true, asked: kitWidth(WIDE.width), kids: ["drpg-case-toolbar", "drpg-case-live drpg-case-view"], slots: ["switch", "controls"], said: null, view: true, rows: true },
             told: "SUITE R3650 said",
             read: {
                 "drpg-theme-monokuma-legacy": { ...both, heads: ["normal (components.css)", "normal (components.css)"], traces: ["130% (components.css)", "auto (components.css)"], keyShares: ["13% (components.css)", "15% (components.css)"] },
                 "drpg-theme-stained-glass": { ...both, heads: ["anywhere (components.css)", "anywhere (components.css)"], traces: ["0 (components.css)", "auto (components.css)"], keyShares: ["11% (components.css)", "17% (components.css)"] }
             }
-        }), "{plain: the drawn window [a fit window; one that states its width; the width it asked (WIDE's, held to this screen by the kit); the body's children; the toolbar's slots; a said line; the live region is the view's box]; told: the said line in the controls' slot; read: per theme, the winning declaration [the view's height from the screen's and its overflow; the body's overflow; the toolbar's height; the footer's display, columns, rows, its two sides' display and Save's order; the said line's wrap; the Traces and Key heads' overflow-wrap; the Traces table's min-width and its box's overflow-x; the Key planner's Difficulty and Name shares]}");
+        }), "{plain: the drawn window [a fit window; one that states its width; the width it asked (WIDE's, held to this screen by the kit); the body's children; the toolbar's slots; a said line; the live region is the view's box; the footer the kit's two rows (\`footer.rows: 2\`)]; told: the said line in the controls' slot; read: per theme, the winning declaration [the view's height from the screen's and its overflow; the body's overflow; the toolbar's height; the footer's display, columns, rows, its two sides' display and Save's order; the said line's wrap; the Traces and Key heads' overflow-wrap; the Traces table's min-width and its box's overflow-x; the Key planner's Difficulty and Name shares]}");
     }],
     ["R3652 - the Map / Table switch (E97 C5; the owner's Q-B and Q-D, 11.11.2026): a GM with no view flag opens on the Table; the toolbar's Map button draws the Map in the same live region and its Table button the Table again, each remembered on this GM's own User (`setFlag` on game.user, nothing else), with no GM store written, and the window's body, toolbar and footer the same nodes throughout (the harness draws no header); the Map draws every node of the chapter's graph - each Remnant of the chapter the Table's filter names, each Key slot, each schema node", async () => {
         /*
@@ -36556,7 +36557,8 @@ const INVARIANTS = [
         for (const [file, fn] of SOURCE) {
             const body = fnSource(stripComments(sources.get(file) ?? ""), fn);
             // Fit, or a width the window states (E47-C2: the tracker's `width: "tracker"`, the kit's fixed width in place of the fit).
-            source[`${file} ${fn}`] = !body ? "gone" : [/\bdrpgWindow\(\{/.test(body), /\bfit: true\b|\bwidth: "[a-z]+"/.test(body), /\bfooter\b/.test(body), /\bbuttons:\s*\[/.test(body)];
+            // or a width in pixels (E97 C2: the Investigation panel's `width: WIDE.width`, ui-columns.mjs's 1120 px)
+            source[`${file} ${fn}`] = !body ? "gone" : [/\bdrpgWindow\(\{/.test(body), /\bfit: true\b|\bwidth: (?:"[a-z]+"|WIDE\.width\b)/.test(body), /\bfooter\b/.test(body), /\bbuttons:\s*\[/.test(body)];
         }
         /* Each opener with its window's class, the role per footer action, and the actions it must show. Give back's
            and Hold them again's windows share a class; Despair Flow's pool buttons depend on the world's accounts. */
@@ -36597,7 +36599,8 @@ const INVARIANTS = [
             const problems = [];
             if (!cfg.classes?.includes(cls)) problems.push(`not ${cls}: ${(cfg.classes ?? []).join(" ")}`);
             if (!cfg.classes?.includes("drpg-ui")) problems.push("no drpg-ui root");
-            if (!cfg.classes?.includes(K.FIT_CLASS)) problems.push("not fit");
+            // fit, or a stated width (WIDTH_CLASS: E47-C2's tracker, E97 C2's Investigation panel)
+            if (!cfg.classes?.includes(K.FIT_CLASS) && !cfg.classes?.includes(K.WIDTH_CLASS)) problems.push("not fit");
             for (const b of cfg.buttons ?? []) {
                 const role = roleOf(b);
                 if (!role) problems.push(`${b.action}: no role`);

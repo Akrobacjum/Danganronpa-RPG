@@ -279,6 +279,32 @@ body .application.dialog footer.form-footer.drpg-kit-footer { flex-wrap: nowrap;
 .drpg-kit-footer > .drpg-kit-left { order: 1; display: flex; flex-wrap: wrap; gap: var(--drpg-kit-gap); flex: 1 1 auto; min-width: 0; }
 .drpg-kit-footer > .drpg-kit-right { order: 2; display: flex; flex-wrap: wrap; gap: var(--drpg-kit-gap); flex: 0 0 auto; margin-left: auto; }
 @media (max-width: 480px) { body .application.dialog footer.form-footer.drpg-kit-footer { flex-wrap: wrap; } }
+/* A FOOTER IN TWO ROWS (`footer.rows: 2`, ui-kit.mjs FOOTER_ROWS_CLASS; E97 C2, the owner's Q-C of 11.11.2026: "the
+   footer ALWAYS two rows at every size"; the Investigation panel). One grid of four equal columns over the whole
+   footer, its two sides' wrappers `display: contents`, so eight buttons take two rows of four at every width a desk has
+   instead of wrapping by what fits; the primary last on screen (`order`; still first in the tree, so Enter presses it);
+   a label longer than its cell breaks between its words inside the button. Its place stated: danganronpa.css pins a
+   dialog's footer across its scroll, with the window's padding and a negative margin, only while the content holds a
+   table (`:has(.dialog-content table)`, 0,6,1 - outranked here by the kit's `drpg-ui`), which moved the panel's footer
+   12 px between its Table and its Map (Chromium, 1366x768). */
+body .application.dialog.drpg-ui footer.form-footer.drpg-kit-footer.drpg-kit-footer-rows {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: repeat(2, auto);
+    grid-auto-flow: row;
+    align-items: stretch;
+    position: static;
+    margin: 10px 0 0;
+    padding: 10px 0 0;
+}
+.application.dialog footer.drpg-kit-footer.drpg-kit-footer-rows > :is(.drpg-kit-left, .drpg-kit-right) { display: contents; }
+.application.dialog footer.drpg-kit-footer.drpg-kit-footer-rows .drpg-role-primary { order: 3; }
+body .application.dialog.drpg-ui footer.form-footer.drpg-kit-footer.drpg-kit-footer-rows button {
+    min-width: 0;
+    width: 100%;
+    margin: 0;
+    white-space: normal;
+}
 /* Each button as wide as its word (at least today's 8.5rem), never stretched across its side: danganronpa.css's
    dialog rule (0,4,2, `flex: 1 1 auto`) stretched the lone Cancel to 866 px of M1's 1366 px footer under Legacy; this
    is 0,4,3. */
@@ -2899,10 +2925,7 @@ body .application.drpg-window-case table.drpg-data-table td.drpg-data-col-case-k
    holds two rows: a toolbar of a stated height (the view switch's slot and the view's controls') and the view's box,
    the live region itself (`.drpg-case-view`), at a height stated from the screen's and the one box that scrolls, both
    ways - a table wider than the box scrolls in it, the window never. So no tab, no view and no said line moves the frame,
-   its header or its footer. The footer is always two rows (Q-C): one grid of four equal columns over the whole footer, its two
-   sides' wrappers `display: contents`, so the eight buttons take two rows of four at every width a desk has instead of
-   wrapping by what fits, Save last (`order`; first in the tree still, so Enter presses it: ui-kit.mjs's header); a
-   label longer than its cell breaks between its words inside the button. ---- */
+   its header or its footer. The footer in two rows is the kit's (`footer.rows: 2`, "A FOOTER IN TWO ROWS" above). ---- */
 .application.drpg-ui.drpg-window-case .drpg-kit-body {
     display: flex;
     flex-direction: column;
@@ -2972,7 +2995,7 @@ body .application.drpg-window-case .drpg-case-view td.drpg-data-col-case-key-sta
    the selected look, a counter and the solution by their edge, a planned slot and the unrelated evidence by a dashed
    one. Both themes, through the kit's tokens. ---- */
 .application.drpg-ui.drpg-window-case .drpg-case-view[data-drpg-view="map"] { overflow: hidden; }
-.application.drpg-ui.drpg-window-case .drpg-case-view[data-drpg-view="map"] > form { height: 100%; margin: 0; }
+.application.drpg-window-case .drpg-case-form { height: 100%; margin: 0; }
 .application.drpg-window-case .drpg-case-map { display: flex; gap: var(--drpg-kit-gap); height: 100%; min-height: 0; }
 .application.drpg-window-case .drpg-case-graph {
     flex: 1 1 auto;
@@ -3093,30 +3116,6 @@ body .application.drpg-window-case button.drpg-case-fold {
 .application.drpg-window-case .drpg-case-switch-bar { display: flex; gap: 0; }
 .application.drpg-window-case .drpg-case-switch-bar > button { display: inline-flex; align-items: center; gap: 0.375rem; min-width: 0; }
 .application.drpg-window-case .drpg-case-glyph:empty { display: none; }
-body .application.dialog.drpg-window-case footer.form-footer.drpg-kit-footer {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-template-rows: repeat(2, auto);
-    grid-auto-flow: row;
-    align-items: stretch;
-}
-.application.dialog.drpg-window-case footer.drpg-kit-footer > :is(.drpg-kit-left, .drpg-kit-right) { display: contents; }
-/* The footer's place the same in both views: danganronpa.css pins a dialog's footer across its scroll, with the window's
-   padding and a negative margin, only while the content holds a table (`:has(.dialog-content table)`), so the Table view's
-   footer stood 12 px lower and 22 px taller than the Map's and the frame 6 px taller (Chromium, 1366x768, glass; 4 px
-   under Legacy, its footer 32 px wider). Here the body never scrolls (C2), so the footer has nothing to pin across. */
-body .application.dialog.drpg-ui.drpg-window-case footer.form-footer.drpg-kit-footer {
-    position: static;
-    margin: 10px 0 0;
-    padding: 10px 0 0;
-}
-.application.dialog.drpg-window-case footer.drpg-kit-footer .drpg-role-primary { order: 3; }
-body .application.dialog.drpg-window-case footer.form-footer.drpg-kit-footer button {
-    min-width: 0;
-    width: 100%;
-    margin: 0;
-    white-space: normal;
-}
 
 /* ---- The project windows (E47-C6, 09.11.2026; cards M16-M19 of E47-M, approved by the owner on 09.11 with O1a, O2b, O3b
    and O4 as a setting; D31): the manager's `dataTable` and the create, edit and propose forms on `formGrid`. The rules
