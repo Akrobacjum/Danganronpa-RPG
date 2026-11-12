@@ -128,6 +128,17 @@ Legacy; play the fade or the return; Esc (button and key) to the end state; a sc
 sequences switch (both: the end state at once, the sound still played); pulse off (the batches go out with no flicker,
 only the edges flicker); slow x4; the test tone. Not Foundry; the pulse is static; the spectator token is not in it.
 
+## The owner's answers to MK-C3 (12.11.2026, 23:37 UTC, read from the page's answers, 3 of 3, `_done` written)
+
+| Ref | Question on the page | Answer | Note |
+| --- | --- | --- | --- |
+| MK-C3 #1 | "Gaśnięcie (Stained Glass i Legacy) tak, jak działa w tej makiecie?" | approve | none |
+| MK-C3 #2 | "Powrót przy Monocubie (Stained Glass i Legacy) tak, jak działa w tej makiecie?" | approve | none |
+| MK-C3 #3 | "Dźwięk gaśnięcia: nowy wiersz "Gaśnięcie" w oknie Sound (kategoria incydentu), domyślnie plik "death", gra raz na starcie, tylko u ofiary. Zgoda?" | approve | none |
+
+So C3's visual part is approved as the motion spec above and the mockup draw it: the fade in both themes, the return,
+and the Sound row. The build waits until after 1.2.112 (the coordinator) and takes the spec below with it.
+
 ## The dead as Spectators: the owner's answers (12.11.2026, about 00:40 CET, relayed by the coordinator)
 
 - A, "Tak": every death (murder, execution, any other) makes the dead a Spectator at the moment of death.
