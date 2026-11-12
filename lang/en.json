@@ -239,8 +239,8 @@
       "stampInnocent": "NOT GUILTY",
       "votesCounted": "VOTES COUNTED",
       "dayTitle": "Day {day}",
-      "daySub": "Chapter {chapter} · {time} · alive: {alive} of {total}",
-      "daySubNoChapter": "{time} · alive: {alive} of {total}",
+      "daySub": "Chapter {chapter} · {time} · Alive: {alive}/{total}",
+      "daySubNoChapter": "{time} · Alive: {alive}/{total}",
       "weRemember": "we remember",
       "morningLine": "MORNING ANNOUNCEMENT"
     },

@@ -239,8 +239,8 @@
       "stampInnocent": "NIEWINNY",
       "votesCounted": "GŁOSY POLICZONE",
       "dayTitle": "Dzień {day}",
-      "daySub": "Rozdział {chapter} · {time} · żyje: {alive} z {total}",
-      "daySubNoChapter": "{time} · żyje: {alive} z {total}",
+      "daySub": "Rozdział {chapter} · {time} · Ocaleli: {alive}/{total}",
+      "daySubNoChapter": "{time} · Ocaleli: {alive}/{total}",
       "weRemember": "pamiętamy",
       "morningLine": "OGŁOSZENIE PORANNE"
     },
