@@ -8931,6 +8931,64 @@ const SCENARIOS = [
             "a pick card a player wrote, a GM's for another project or naming a statistic a project does not list held the Work, a GM's own pick did not, a roll with no pick was thrown on its claim rather than the lowest it lists, or a player's difficulty card was read over the GM's (per Work: statistic flags, thrown, whose card; the difficulty)");
     }],
 
+    ["a GM's pick card that lands while a drawn roll waits for it is read as it lands, not at the next poll, and with no card the wait still ends at its bound (DH212 1)", async () => {
+        /*
+         * DH212 1, 12.11.2026 (the roll-delay report, docs/dev/DH212/WAITS.md). A roll whose definition lists several
+         * statistics waits on the GM for the pick card's meta (roll-draw.mjs `TRAIT_SOURCES`, rows `gm` and `search`),
+         * which can land after the answer the player rolled on: the answer leaves before the card is settled
+         * (messenger-app.mjs `rulePickTrait`, then `settleCall`). Until DH212 the wait read the messages every 100 ms
+         * for up to `PICK_WAIT_MS`, so a card that landed was read up to 100 ms late. Driven on this GM: a project
+         * stored without a statistic (the `gm` row, four listed), its reading started, and 130 ms later a GM's card
+         * naming the highest settled on it; read: the statistic and how long after the settle the reading answered.
+         * Then the control, no card: the reading answers the lowest, at the bound and not before.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the character is a player's, as a drawn roll's is");
+        const { theirs } = playerAndCharacters();
+        const P = await import("./projects.mjs");
+        const D = await import("./roll-draw.mjs");
+        const { ACTIONS, TRAITS } = await import("./config.mjs");
+        const { whisperToGms } = await import("./utils.mjs");
+        const { settleCall } = await import("./gm-bridge.mjs");
+        const value = t => Number(theirs.system.traits?.[TRAITS[t]?.dh]?.value) || 0;
+        const listed = ACTIONS.project.traits.filter(t => Object.hasOwn(TRAITS, t));
+        const highest = listed.reduce((high, t) => (value(t) > value(high) ? t : high));
+        const lowest = listed.reduce((low, t) => (value(t) < value(low) ? t : low));
+        must(value(highest) > value(lowest), `${theirs.name}'s statistics a project lists are all equal - the pick and the lowest would read the same`);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        let project = null;
+        const lags = [], picked = [];
+        let boundAt = null, unpicked = null;
+        try {
+            project = (await P.createProject({ name: "SUITE DH212 pick wait", target: 6, room: null, trait: null }))?.id ?? null;
+            must(project, "a project stored without a statistic was not made - this would measure nothing");
+            // Five cards, each landing at its own moment: a poll's lag is where the card falls between two reads (0-100 ms),
+            // so all five under 25 ms happen to a poll about once in a thousand runs, and to a hook every time.
+            for (const wait of [130, 170, 210, 250, 290]) {
+                const reading = D.expectedFor(theirs, { actionKey: "project", context: { projectId: project } }).then(e => ({ e, at: performance.now() }));
+                await new Promise(resolve => setTimeout(resolve, wait));
+                const m = await whisperToGms("<p>SUITE DH212 pick</p>");
+                must(m, "no card to settle a pick on - this would measure nothing");
+                await settleCall(m, "SUITE DH212", { type: "trait", actorId: theirs.id, kind: "project", key: project, variant: null, trait: highest });
+                const settledAt = performance.now();
+                const { e, at } = await reading;
+                picked.push(e.trait ?? null);
+                lags.push(Math.round(at - settledAt));
+                await m.delete();
+            }
+            const started = performance.now();
+            const bare = await D.expectedFor(theirs, { actionKey: "project", context: { projectId: project } });
+            boundAt = Math.round(performance.now() - started);
+            unpicked = bare.trait ?? null;
+        } finally {
+            for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+            if (project) await P.deleteProject(project).catch(() => {});
+        }
+        equal(stableJson(picked), stableJson(Array(5).fill(highest)), "a card that landed during the wait did not hold the roll to its statistic");
+        ok(lags.length === 5 && lags.every(lag => lag < 25), `the reading answered ${stableJson(lags)} ms after each card was settled; a card is read as it lands (each under 25 ms), not at a poll`);
+        equal(unpicked, lowest, "with no card the reading did not fall to the lowest listed");
+        ok(boundAt >= 1900 && boundAt < 3000, `with no card the reading answered after ${boundAt} ms; the wait's bound is PICK_WAIT_MS (2000)`);
+    }],
+
     ["a pass after a GM's \"Change to\" voids that card's ruling: a later roll is held to no pick, a Search to Eye, and a pass for another definition voids nothing (E68 review R3)", async () => {
         /*
          * E68 review R3, 10.11.2026; DA46. A player's pass after "Change to" (trait-ruling.mjs `rollChanged`) wrote a line

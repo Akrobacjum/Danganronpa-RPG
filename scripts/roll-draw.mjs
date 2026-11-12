@@ -1921,6 +1921,41 @@ function gmPickOf(actor, spec, listed) {
     return null;
 }
 
+/*
+ * A PICK CARD IS READ AS IT LANDS (DH212 1, 12.11.2026; docs/dev/DH212/WAITS.md). The answer a player rolls on leaves
+ * the GM before its card is settled (messenger-app.mjs `rulePickTrait`, then `settleCall`), so a roll can reach this GM
+ * before the card's meta. Until DH212 the wait read the messages every 100 ms for up to `PICK_WAIT_MS`: a card that
+ * landed was read up to 100 ms late (tier 2's "a GM's pick card that lands while a drawn roll waits ...", at 9c088110:
+ * [97,29,86,58,6] ms after five settles). Now `gmPickOf` is read again at every chat card made or changed on this
+ * browser and at every private card's words and meta stored here (secret.mjs `drpgSecretStored`: a veiled card's
+ * ruling travels in its meta, not on the document, so no `updateChatMessage` says it came), and once more at the
+ * bound; the bound and the answer are the poll's.
+ */
+const PICK_HOOKS = Object.freeze(["createChatMessage", "updateChatMessage", "drpgSecretStored"]);
+function pickArriving(actor, spec, listed, ms = PICK_WAIT_MS) {
+    const now = gmPickOf(actor, spec, listed);
+    if (now || !(ms > 0)) return Promise.resolve(now);
+    return new Promise(resolve => {
+        let timer = null;
+        const done = found => {
+            clearTimeout(timer);
+            for (const name of PICK_HOOKS) Hooks.off(name, look);
+            resolve(found);
+        };
+        function look() {
+            let found = null;
+            try { found = gmPickOf(actor, spec, listed); } catch { found = null; }
+            if (found) done(found);
+        }
+        for (const name of PICK_HOOKS) Hooks.on(name, look);
+        timer = setTimeout(() => {
+            let found = null;
+            try { found = gmPickOf(actor, spec, listed); } catch { found = null; }
+            done(found);
+        }, ms);
+    });
+}
+
 /** Of the statistics `listed`, the one lowest in the character's numbers (`sheetOf`), the first listed of equals - what a roll whose pick did not come is thrown on (the `gm` row below). */
 const lowestOf = (sheet, listed) => listed.reduce((low, trait) => ((sheet.traits[trait] ?? 0) < (sheet.traits[low] ?? 0) ? trait : low));
 
@@ -1978,12 +2013,7 @@ const TRAIT_SOURCES = Object.freeze([
         // claim decides only the wait - the most common Search is drawn at once. A claim of another waits as before.
         if (listed.length < 2 || told === eye.trait) return eye;
         const spec = { kind: "action", key: "search", variant: null };
-        let found = gmPickOf(actor, spec, listed);
-        for (const end = Date.now() + PICK_WAIT_MS; !found && Date.now() < end;) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            found = gmPickOf(actor, spec, listed);
-        }
-        return found ?? eye;
+        return (await pickArriving(actor, spec, listed)) ?? eye;
     } },
     { from: "project", read: async (actor, { key, context }) => {
         if (key !== "project" && key !== "sabotage") return null;
@@ -1994,12 +2024,7 @@ const TRAIT_SOURCES = Object.freeze([
     { from: "gm", read: async (actor, { key, context, listed }) => {
         if (listed.length < 2) return null;
         const spec = await pickSpecOf(actor, key, context);
-        let found = gmPickOf(actor, spec, listed);
-        for (const end = Date.now() + PICK_WAIT_MS; !found && Date.now() < end;) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            found = gmPickOf(actor, spec, listed);
-        }
-        return found ?? { lowest: listed };
+        return (await pickArriving(actor, spec, listed)) ?? { lowest: listed };
     } },
     { from: "fixed", read: (actor, { listed }) => (listed.length === 1 ? { trait: listed[0] } : null) }
 ]);

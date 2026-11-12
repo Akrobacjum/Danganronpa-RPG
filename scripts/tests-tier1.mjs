@@ -9220,9 +9220,9 @@ const INVARIANTS = [
         const sent = bodyOf(src, "const CONTEXT_SENT = Object.freeze({", { until: "});" });
         const spec = fnSource(src, "pickSpecOf");
         const search = bodyOf(src, '{ from: "search", read:', { until: '{ from: "project"' });
-        equal(JSON.stringify([/\bpart: "text"/.test(sent), /key === "search"\) return \{ kind: "action", key: "search"/.test(spec), /gmPickOf\(actor, spec, listed\)/.test(search)]),
+        equal(JSON.stringify([/\bpart: "text"/.test(sent), /key === "search"\) return \{ kind: "action", key: "search"/.test(spec), /pickArriving\(actor, spec, listed\)/.test(search) && /gmPickOf\(actor, spec, listed\)/.test(fnSource(src, "pickArriving"))]),
             JSON.stringify([true, true, true]),
-            "the packet's context does not carry part, or a Search's card is asked under another definition, or the search row reads no card (part sent, the spec, the card read)");
+            "the packet's context does not carry part, or a Search's card is asked under another definition, or the search row reads no card (part sent, the spec, the card read; since DH212 1 through `pickArriving`)");
     }],
     ["R3152 - Stage 6 rolls Shadow and asks nobody: every clean-up step but Move the Body lists Shadow alone, the ruling answers it with no card and no window on a player's browser and a GM's, Move the Body stays Body, and the GM's draw holds a clean-up to Shadow (E68 C5; DA4)", async () => {
         /*
