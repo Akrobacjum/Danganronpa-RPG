@@ -269,7 +269,7 @@ The slow game: many actions over many times of day, and the one thing that can c
   - **Breach the Wall** (Body, Complex 6): a hole in that wall, for everyone to see and walk through. Until the wall is repaired, the room beyond's lock and its bedroom door stop nobody, and a seal on it is lifted until the end of the time of day; being Chained still holds you, and the courtroom stays shut. The people in both rooms are told, and they learn your name only if you stand at the hole; the rooms beside hear a crash.
   - **Seal the passage** (Hand, Complex 6): closes a passage you know with a side in your room, for everyone who knows it. A GM can open it again.
   - **Close the breach** (Body, Complex 6): the wall stands whole again.
-  - **Repair an item** (Hand; Trivial 3 for Tier 0 or 1, Complex 6 for Tier 2 or 3): one broken or worn usable or tool of your own, carried or in your stash, comes back whole.
+  - **Repair an item** (Hand; Trivial 3 for Tier 0 or 1, Complex 6 for Tier 2 or 3): one broken or worn usable or tool of your own, carried or in your stash, comes back whole. If the item's tier goes up before the repair is done, the repair may need to be bigger: the GM is told.
 
   The GM approves it like any proposal, and checks it again when it is finished: if the wall, the passage or the item is no longer what it was, nothing happens and the GM is told why. A Reroll of the roll that finished a Secret Passage, a breach or a seal takes it back.
 - Some projects are secret to the people working on them. If you cannot see one, it is not on your list.

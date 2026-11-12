@@ -88493,6 +88493,93 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ receipt: null, asked: true, went: false, kept: 1 }),
             `a Tier 0 Use an item was counted as used before the GM ruled [the receipt's used item, the card says it waits, the card says it went in, the item's count]: ${stableJson(read)}`);
     }],
+    ["E64 D039 and D034 - a Repair an item's size is held to its item's tier at the completion, unless the GM chose another size in the approval window, which the GMs' half records", async () => {
+        /*
+         * E64, D039 and D034 (the owner's word of 12.11.2026: fixed; the details are this stage's defaults). The approval
+         * window opens on the size the item's tier asks (projects-ui.mjs `presetApproval`, passages-gm.mjs `presetScale`:
+         * Trivial for Tier 0 and 1, Complex for 2 and 3), and the GM may pick another; until E64 nothing kept that the GM
+         * had, and the completion mended whatever the project's size. D039: the window's Create keeps the size the GM
+         * picked in the GMs' half (`target.sizedByGm`), null where it is the tier's. D034: at the completion the item's
+         * tier as the GMs hold it then asks its size again (inventory.mjs `repairItem`'s `size`), and a smaller project
+         * mends nothing and tells the GMs why - unless the GM chose that size. A broken Tier 1 tool of one student's: two
+         * approvals through the window (the tier's 3 kept; 8 picked), read the record; then two projects of 3 made
+         * directly, the tool raised to Tier 3 before each ends, one recorded as the GM's 3: read the tool broken or not.
+         * Red before E64: no `sizedByGm`, and both completions mended.
+         */
+        const [mine] = cast(1);
+        needs(world.ownedByPlayer(mine), "the builder is a player's student");
+        const PR = await import("./projects.mjs");
+        const UI = await import("./projects-ui.mjs");
+        const INV = await import("./inventory.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const createTitle = game.i18n.localize("DRPG.Project.createTitle");
+        const projects = [], owned = [], posted = [];
+        const heard = Hooks.on("createChatMessage", message => { posted.push(message); });
+        let pick = null;
+        const windows = answerWindows((cfg, root) => {
+            if ((cfg?.window?.title ?? "") !== createTitle) return null;
+            const opened = Number([...(root.querySelector('select[name="target"]')?.options ?? [])].find(o => o.selected)?.value ?? NaN);
+            return { name: "SUITE E64 D039 approved", target: pick ?? opened, room: null, trait: "hand", murder: false, condition: "",
+                trigger: { kind: "manual", targetId: null, afterDark: false, notBuilder: false }, secret: false, viewers: [], was: [], img: null, glyph: null,
+                passageTo: null, passage: null, description: "SUITE E64 D039 its words" };
+        });
+        const approve = async (item, size) => {
+            pick = size;
+            const before = new Set(PR.allProjects().map(p => p.id));
+            await UI.openProjectDialog({ preset: { name: "SUITE E64 D039", target: 3, room: null, trait: "hand", indirectMurder: false, condition: "",
+                preset: "repairItem", to: item.id, by: mine.id } });
+            const made = PR.allProjects().filter(p => !before.has(p.id));
+            projects.push(...made.map(p => p.id));
+            return made[0] ? [made[0].start ?? null, PR.secretsOf(made[0].id).target?.sizedByGm ?? null] : null;
+        };
+        const tool = async name => {
+            const item = await INV.grantItem(mine, { name, category: "tool", tier: 1, override: true, quiet: true });
+            must(item, `"${name}" was not given - this would measure nothing`);
+            owned.push(item);
+            await INV.breakItem(item);
+            return item;
+        };
+        const read = {};
+        try {
+            const first = await tool("SUITE E64 D039 spanner");
+            await sheetAuditIdle();
+            read.window = [await approve(first, null), await approve(first, 8)];
+            for (const id of projects.splice(0)) await PR.deleteProject(id);
+            read.completion = [];
+            for (const sizedByGm of [null, 3]) {
+                const item = await tool(`SUITE E64 D034 wrench ${sizedByGm ?? "tier"}`);
+                const made = await PR.createProject({ name: `SUITE E64 D034 Repair ${sizedByGm ?? "tier"}`, target: 3, trait: "hand", by: mine.id,
+                    presetTarget: { preset: "repairItem", itemId: item.id, sizedByGm } });
+                must(made?.id, "the repair was not made - this would measure nothing");
+                projects.push(made.id);
+                await trustedWrite(item, { [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.tier}`]: 3 }, { reason: "gmRuling" });
+                await sheetAuditIdle();
+                const done = await PR.applyProjectChange(made.id, { delta: 3 }, { by: { kind: "gm", userId: game.user.id } });
+                await settle();
+                await sheetAuditIdle();
+                read.completion.push([done?.crossed ?? null, INV.isBroken(item)]);
+            }
+            // A piece of the reason with no apostrophe in it, which the card escapes.
+            const why = game.i18n.localize("DRPG.Passage.why.repairTooSmall").split(", and it asks")[0].split("tier ").at(-1);
+            must(why.length > 20, "the repairTooSmall text is not in the language file, or reads otherwise - this would measure nothing");
+            read.told = posted.some(m => (m.whisper ?? []).length && m.whisper.every(id => game.users.get(id)?.isGM)
+                && String(contentOf(m) ?? "").includes(why));
+        } finally {
+            windows.restore();
+            Hooks.off("createChatMessage", heard);
+            for (const id of projects.splice(0)) await PR.deleteProject(id).catch(() => {});
+            await sheetAuditIdle();
+            for (const item of owned) if (item.parent?.items?.has(item.id)) await item.parent.deleteEmbeddedDocuments("Item", [item.id]).catch(() => {});
+            for (const message of posted) await game.messages.get(message.id)?.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ window: [[3, null], [8, 8]], completion: [[true, true], [true, false]], told: true }),
+            "a repair's size was not recorded as the GM's, or not held to its item's tier at the completion ([the window's size kept, 8 picked: the project's "
+            + "size, the recorded GM's size]; [a project of 3 for a tool raised to Tier 3, then the same recorded as the GM's: crossed, the tool still broken]; "
+            + `the GMs told why): ${stableJson(read)}`);
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

@@ -10,7 +10,7 @@
  */
 
 import { MODULE_ID, ITEM_CATEGORIES, ITEM_DURABILITY, LIMIT_GROUPS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS, itemIcon,
-    BEDROOM_KEY_FLAG, ACTIONS }
+    BEDROOM_KEY_FLAG, ACTIONS, PROJECT_SCALE }
     from "./config.mjs";
 import { whisperToOwner, whisperToGms, log, warn, error, serialWrite } from "./utils.mjs";
 import { trustedWrite, trustedCreate, trustedDelete } from "./resource-guard.mjs";
@@ -331,13 +331,23 @@ export function repairRefusal(actor, item, { held = item } = {}) {
  * it was (the stage's open default). A player's own mend on the sheet is still put back (sheet-audit.mjs). Answers
  * `{ id, name, was: { broken, wear } }`, or `{ refused }` with nothing written.
  */
-export async function repairItem(actor, itemId, { ref = null } = {}) {
+export async function repairItem(actor, itemId, { ref = null, size = null, sizedByGm = null } = {}) {
     if (!game.user?.isGM) return { refused: "only a GM mends one." };
     const item = actor?.items?.get?.(typeof itemId === "string" ? itemId : "") ?? null;
     const { itemsHeldNow } = await import("./sheet-audit.mjs");
     const held = item ? itemsHeldNow(actor).find(each => each.id === item.id) ?? item : null;
     const refused = repairRefusal(actor, item, { held });
     if (refused) return { refused };
+    /* HELD TO THE ITEM'S TIER AT THE COMPLETION (E64, D034; the owner's word of 12.11.2026). The approval sized the repair
+       by the item's tier then (passages-gm.mjs `presetScale`); a tier raised since - a GM's edit, a mark put back - asked
+       nothing more, and a Trivial repair mended a Tier 3 tool. `size` is the project's (projects.mjs, the row's `ctx`): a
+       project smaller than the item's tier asks now mends nothing, and the GMs are told why - unless the GM picked that
+       size in the approval window (`sizedByGm`, D039), whose choice stands. A caller that names no size is not held. */
+    if (Number(size) > 0 && !(Number(sizedByGm) > 0)) {
+        const [{ presetScale }, { tierOf }] = await Promise.all([import("./passages-gm.mjs"), import("./use-items.mjs")]);
+        const asks = PROJECT_SCALE[presetScale("repairItem", { tier: tierOf(held) })]?.progress ?? 0;
+        if (Number(size) < asks) return { refused: "the item's tier asks a bigger repair than this one." };
+    }
     const was = { broken: isBroken(held), wear: wearOf(held), flag: held.getFlag?.(MODULE_ID, ITEM_FLAGS.broken) ?? null };
     await trustedWrite(item, { [`flags.${MODULE_ID}.${ITEM_FLAGS.broken}`]: false, [`flags.${MODULE_ID}.${ITEM_FLAGS.wear}`]: 0 },
         { reason: "gmRuling", ref });

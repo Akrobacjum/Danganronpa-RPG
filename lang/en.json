@@ -680,6 +680,7 @@
         "nothingBack": "there is nothing to put back. Cut the breach again by hand if it should stand.",
         "itemBack": "there was nothing to put back on the item.",
         "brokenSince": "the item was broken or worn again since, and is left as it is.",
+        "repairTooSmall": "the item's tier is higher than when this repair was approved, and it asks a bigger repair: nothing was mended. Approve a new repair at the size it asks, or pick the size yourself in the window.",
         "unknown": "the module could not say why; the reason is in the GM's console."
       },
       "engineOff": "Secret passages cannot open here: every token stops at their walls. Check for an update of Danganronpa RPG, or turn off the modules that change how tokens move.",

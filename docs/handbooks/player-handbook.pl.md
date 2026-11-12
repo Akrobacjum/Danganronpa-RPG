@@ -269,7 +269,7 @@ Powolna gra: wiele akcji przez wiele pór dnia i jedyna rzecz, która może zmie
   - **Breach the Wall** (Body, Complex 6): wyłom w tej ścianie, który wszyscy widzą i przez który każdy przejdzie. Dopóki ściana nie zostanie naprawiona, zamek i drzwi sypialni pokoju za nią nikogo nie zatrzymują, a pieczęć na nim jest zerwana do końca tej pory dnia; skucie dalej cię trzyma, a sala rozpraw zostaje zamknięta. Ci w obu pokojach dowiadują się o tym, a twoje imię poznają tylko wtedy, gdy stoisz przy dziurze; pokoje obok słyszą łomot.
   - **Seal the passage** (Hand, Complex 6): zasypuje przejście, które znasz i które ma bok w twoim pokoju, dla wszystkich, którzy je znają. GM może je otworzyć ponownie.
   - **Close the breach** (Body, Complex 6): ściana znów jest cała.
-  - **Repair an item** (Hand; Trivial 3 dla Tier 0 lub 1, Complex 6 dla Tier 2 lub 3): jeden twój zepsuty albo zużyty przedmiot użytkowy albo narzędzie, noszone albo w skrytce, znów jest cały.
+  - **Repair an item** (Hand; Trivial 3 dla Tier 0 lub 1, Complex 6 dla Tier 2 lub 3): jeden twój zepsuty albo zużyty przedmiot użytkowy albo narzędzie, noszone albo w skrytce, znów jest cały. Jeśli tier przedmiotu wzrośnie przed końcem naprawy, naprawa może musieć być większa: GM dostaje o tym wiadomość.
 
   GM zatwierdza go jak każdą propozycję i sprawdza jeszcze raz, gdy jest ukończony: jeśli ściana, przejście albo przedmiot nie są już tym, czym były, nic się nie dzieje, a GM dowiaduje się dlaczego. Reroll rzutu, który ukończył Secret Passage, wyłom albo zasypanie, cofa je.
 - Niektóre projekty są tajne dla osób, które nad nimi pracują. Jeśli któregoś nie widzisz, nie ma go na twojej liście.

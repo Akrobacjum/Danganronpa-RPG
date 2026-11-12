@@ -691,6 +691,7 @@
         "nothingBack": "nie ma czego przywrócić. Jeśli wyłom ma zostać, zrób go ponownie ręcznie.",
         "itemBack": "na przedmiocie nie było czego przywrócić.",
         "brokenSince": "przedmiot w międzyczasie znów się zepsuł albo zużył i zostaje taki, jaki jest.",
+        "repairTooSmall": "tier przedmiotu jest wyższy niż przy zatwierdzeniu tej naprawy i wymaga większej naprawy: niczego nie naprawiono. Zatwierdź nową naprawę w rozmiarze, którego wymaga, albo sam wybierz rozmiar w oknie.",
         "unknown": "moduł nie umie powiedzieć dlaczego; powód jest w konsoli GM-a."
       },
       "engineOff": "Tajne przejścia nie mogą się tu otworzyć: każdy token zatrzyma się na ich ścianach. Sprawdź, czy jest aktualizacja Danganronpa RPG, albo wyłącz moduły, które zmieniają ruch tokenów.",
