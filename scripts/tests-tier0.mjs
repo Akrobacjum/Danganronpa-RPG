@@ -8036,7 +8036,9 @@ const REGRESSIONS = [
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
         const keys = ["redeemTitle", "redeemMeta"].map(k => [en.DRPG?.Events?.[k], pl.DRPG?.Events?.[k]])
             .concat([[en.DRPG?.Events?.ticker?.redeemHope, pl.DRPG?.Events?.ticker?.redeemHope]]);
-        const read = [/export function redeemCard\(/.test(events), /\bredeemCard\(\)/.test(render),
+        // Drawn through the Monocub's one card since the C19 fix (12.11.2026; `cubCard`, R3824).
+        const cubCard = bodyOf(events, "export function cubCard(", { until: "\n}\n" });
+        const read = [/export function redeemCard\(/.test(events), /\bcubCard\(\)/.test(render) && /\bredeemCard\(user\)/.test(cubCard),
             /Hooks\.on\("drpgCubsChanged",[^;]*renderEvents\(\)/.test(hud),
             /\.drpg-event\[data-kind="redeemHope"\] \.drpg-event-glyph \{ --drpg-glyph: var\(--drpg-pix-redeem\); \}/.test(css)
                 && /\.drpg-event\[data-kind="redeemHope"\] \{ --acc:/.test(css) && /--drpg-pix-redeem:/.test(rootBlock),
@@ -8070,7 +8072,9 @@ const REGRESSIONS = [
         const words = keys => keys.every(k => [en, pl].every(l => typeof k.split(".").reduce((o, x) => o?.[x], l.DRPG?.Events) === "string"));
         equal(JSON.stringify({
             built: [/export function bribeWaitCard\(/.test(events), /export function betCard\(/.test(events)],
-            drawn: [/\bbribeWaitCard\(\)/.test(render), /\bbetCard\(\)/.test(render)],
+            // Through the Monocub's one card since the C19 fix (`cubCard`, R3824).
+            drawn: [/\bcubCard\(\)/.test(render) && /\bbribeWaitCard\(user\)/.test(bodyOf(events, "export function cubCard(", { until: "\n}\n" })),
+                /\bcubCard\(\)/.test(render) && /\bbetCard\(user\)/.test(bodyOf(events, "export function cubCard(", { until: "\n}\n" }))],
             looks: [card("bribeHope", "bribe"), card("betHope", "ghost-bet")],
             words: [words(["bribeWaitTitle", "bribeWaitMeta", "ticker.bribeHope"]), words(["betTitle", "betMeta", "ticker.betHope"])],
             gm: [typeof E.bribeWaitCard === "function" ? E.bribeWaitCard(gm) : "none", typeof E.betCard === "function" ? E.betCard(gm) : "none"]
