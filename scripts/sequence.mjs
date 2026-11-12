@@ -39,7 +39,7 @@ import { SETTINGS, getSetting, getClock, isDeceased } from "./settings.mjs";
 import { reducedMotion } from "./motion.mjs";
 import { count } from "./perf-counters.mjs";
 import { esc } from "./utils.mjs";
-import { growPolys } from "./glass-close.mjs";
+import { slideAt } from "./glass-close.mjs";
 
 export const SEQUENCE_HOST_ID = "drpg-sequence";
 export const SEQUENCE_ATTR = "data-drpg-sequence";
@@ -218,28 +218,28 @@ function leadRound(g, poly, acc) {
 }
 
 /**
- * The new panes as one canvas over the screen: `draw(polys)` paints each pane at the polygon it stands at this frame
- * (glass-close.mjs `growPolys`) with its own glass from the closed curtain, clipped to that polygon, and the lead round
- * it. Answers how many panes it drew.
+ * The new panes as one canvas over the screen: `draw(offsets)` paints each pane moved by its offset this frame
+ * (glass-close.mjs `slideAt`: along its edge's normal, at its own size), clipped to its own place - so what is still
+ * behind the edge it slides from is not seen - with the lead round it. Answers how many panes it drew.
  */
-function growCanvas(fill, W, H, acc) {
+function slideCanvas(fill, W, H, acc) {
     const canvas = document.createElement("canvas");
     canvas.width = W; canvas.height = H;
     canvas.className = "drpg-seq-grow";
     canvas.style.cssText = `position:absolute;left:0;top:0;width:${W}px;height:${H}px;`;
     const g = canvas.getContext("2d");
     let shown = 0;
-    const draw = polys => {
+    const draw = offsets => {
         g.clearRect(0, 0, W, H);
         shown = 0;
-        polys.forEach((poly, i) => {
-            if (!poly) return;
-            const p = fill[i];
+        offsets.forEach((o, i) => {
+            if (!o) return;
+            const p = fill[i], moved = p.poly.map(([x, y]) => [x + o[0], y + o[1]]);
             g.save();
-            g.beginPath(); poly.forEach((q, k) => (k ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]))); g.closePath(); g.clip();
-            g.drawImage(p.canvas, p.box.x0, p.box.y0);
+            g.beginPath(); p.poly.forEach((q, k) => (k ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]))); g.closePath(); g.clip();
+            g.drawImage(p.canvas, p.box.x0 + o[0], p.box.y0 + o[1]);
+            leadRound(g, moved, acc);
             g.restore();
-            leadRound(g, poly, acc);
             shown++;
         });
         return shown;
@@ -259,8 +259,8 @@ function closedCanvas(look) {
 
 /**
  * The entry's frames. Under Stained Glass with a curtain painted, the panes stand where they are and the hole they
- * leave fills with new panes of the curtain's kind, each growing into place from a smaller copy of itself, the outer
- * ones first (glass.mjs `entryPieces`, glass-close.mjs; the owner's reviews of rounds 1 and 2, 12.11.2026); closed, the
+ * leave fills with new panes of the curtain's kind, each sliding out at its own size from behind an edge it shares with
+ * glass already there (glass.mjs `entryPieces`, glass-close.mjs; the owner's reviews of rounds 1 to 3, 12.11.2026); closed, the
  * curtain is the curtain's own paint of the whole cut; it opens the same way in reverse onto the trial's cut.
  * Otherwise - Monokuma Legacy, a narrow screen, a curtain not cut yet - two lids close from above and below (MK-R1:
  * "two black panels with a red edge"). Both carry the title.
@@ -277,7 +277,7 @@ function drawTrialEntry(ctx, glass, clock = getClock()) {
             host.append(closed);
         } else {
             const close = pieceLayer(glass.close.panes, "is-close"), open = pieceLayer(glass.open.panes, "is-open");
-            const growIn = growCanvas(glass.close.fill, glass.W, glass.H, glass.acc), growOut = growCanvas(glass.open.fill, glass.W, glass.H, glass.acc);
+            const growIn = slideCanvas(glass.close.fill, glass.W, glass.H, glass.acc), growOut = slideCanvas(glass.open.fill, glass.W, glass.H, glass.acc);
             close.layer.append(growIn.canvas);
             open.layer.append(growOut.canvas);
             closed.hidden = true;
@@ -291,9 +291,9 @@ function drawTrialEntry(ctx, glass, clock = getClock()) {
                 if (!host.isConnected) return;
                 // a frame's stamp is its start, which can fall before `t0` when the pieces' cut held the thread
                 const ms = Math.max(0, now - t0);
-                if (phase === "close") growIn.draw(growPolys(glass.close.fill, ms));
+                if (phase === "close") growIn.draw(slideAt(glass.close.fill, ms));
                 else if (phase === "open") {
-                    if (!growOut.draw(growPolys(glass.open.fill, ms - T.titleOut, { open: true })) && ms > T.titleOut + 50) return;
+                    if (!growOut.draw(slideAt(glass.open.fill, ms - T.titleOut, { open: true })) && ms > T.titleOut + 50) return;
                 }
                 if (phase !== "held") frame = requestAnimationFrame(step);
             };
@@ -313,7 +313,7 @@ function drawTrialEntry(ctx, glass, clock = getClock()) {
             at(T.titleOut, () => {
                 closed.remove();
                 open.layer.hidden = false;
-                growOut.draw(glass.open.fill.map(p => p.poly));
+                growOut.draw(glass.open.fill.map(() => [0, 0]));
                 phase = "open";
                 frame = requestAnimationFrame(step);
             });

@@ -11,9 +11,8 @@
  *   along the standing panes' own edges, pieces are joined where the join is still a convex pane of at most five
  *   corners, and a piece larger than the standing panes' median area is split by a straight cut across its length.
  *   The standing panes keep their exact place and shape; the new ones fill what is left, and nothing else.
- * - `insetPoly` is a pane drawn smaller by moving every edge inward along its normal by one distance; a new pane grows
- *   from its inset to its full shape, so it is a pane of the same corners from its first frame, and since an inset
- *   lies inside its pane no two panes overlap at any frame.
+ * - `slidePlan` and `slideAt` (round 4, below): a new pane keeps its size and slides out from behind an edge it shares
+ *   with glass already there, drawn only inside its own place (`visibleAt`), so no two panes overlap at any frame.
  * - `tilingReading` is what the tests read: every point of the screen in exactly one pane, and the new panes' areas,
  *   corners and angles against the standing panes'.
  *
@@ -115,25 +114,6 @@ function edgesOut(P) {
     if ((cx - a[0]) * nx + (cy - a[1]) * ny > 0) { nx = -nx; ny = -ny; }
     return { a, nx, ny };
   });
-}
-
-/** The pane with every edge moved inward along its normal by `d`; null once nothing is left. */
-export function insetPoly(P, d) {
-  if (d <= 0) return P.map(q => [q[0], q[1]]);
-  let Q = P;
-  for (const { a, nx, ny } of edgesOut(P)) {
-    // keep the side away from the normal, past the line moved in by d
-    Q = splitPoly(Q, a[0] - nx * d, a[1] - ny * d, -nx, -ny)[0];
-    if (!Q) return null;
-  }
-  return Q;
-}
-
-/** The largest inset a pane takes before it is gone (its inradius), to a tenth of a pixel. */
-export function inradius(P) {
-  let lo = 0, hi = Math.sqrt(area(P));
-  while (hi - lo > 0.1) { const m = (lo + hi) / 2; if (insetPoly(P, m)) lo = m; else hi = m; }
-  return lo;
 }
 
 /* the screen less the standing panes, as convex pieces cut along the panes' own edges */
@@ -302,6 +282,13 @@ export function tilingReading(standing, fresh, W, H, step = 6) {
   return { read, gaps, doubles, standing: range, fresh: fr, count: fresh.length, outOfRange };
 }
 
+/** What is seen of a pane moved by `o`: its moved copy cut to its own place (both convex); null when nothing is. */
+export function visibleAt(poly, o) {
+  let V = poly.map(([x, y]) => [x + o[0], y + o[1]]);
+  for (const { a, nx, ny } of edgesOut(poly)) { V = splitPoly(V, a[0], a[1], -nx, -ny)[0]; if (!V) return null; }
+  return V;
+}
+
 /** Pairs of panes that overlap among `polys` (convex), for a frame's check. */
 export function overlapsIn(polys) {
   let n = 0;
@@ -309,35 +296,95 @@ export function overlapsIn(polys) {
   return n;
 }
 
-/* ---- the growth: when each new pane comes in, and how large it stands at a moment ---- */
 const ease = s => (s <= 0 ? 0 : s >= 1 ? 1 : 1 - Math.pow(1 - s, 3));
-/** Of its inradius, how much a new pane is inset at its first frame: it comes in as a smaller pane of the same corners (0.8 made a long pane a line at first; 0.65 read on the 50 % frame, 12.11). */
-export const GROW_FROM = 0.65;
 
-/**
- * The order and times of the new panes: the outermost first (from the screen's middle, as the curtain's own batches
- * run), each `dur` ms long, their starts spread over `spread` ms. Answers the panes with `delay`, `dur` and `r` (the
- * inradius) added.
- */
-export function growPlan(fresh, W, H, { spread = 440, dur = 420 } = {}) {
-  const far = fresh.map((p, i) => { const [x, y] = centroid(p.poly); return [Math.hypot((x - W / 2) / (W / 2), (y - H / 2) / (H / 2)), i]; }).sort((a, b) => b[0] - a[0]);
-  const rank = []; far.forEach(([, i], k) => { rank[i] = k; });
-  const n = Math.max(1, fresh.length - 1);
-  return fresh.map((p, i) => ({ ...p, delay: Math.round(spread * rank[i] / n), dur, r: inradius(p.poly) }));
+/* ---- round 4: a new pane slides out from behind the curtain's edge (the owner's note on round 3, 12.11.2026) ----
+   "poszczególne kafelki wyskakują poprzez powiększenie, a powinny się wysuwać ... ruchem zza krawędzi kurtyny, a nie
+   przez skalowanie w górę". A new pane keeps its size and shape from its first frame to its last: it starts wholly
+   behind one of its own edges - one it shares with glass already there, a standing pane's or a new pane's that came
+   before it - and moves to its place along that edge's normal; it is drawn only inside its own place, so what is still
+   behind the edge is never seen and no two panes ever cover one point. */
+
+/* the length two convex panes share along one edge each, and the edge of A it lies on (its index) */
+function sharedEdge(A, B) {
+  let best = 0, at = -1;
+  for (let i = 0; i < A.length; i++) {
+    const a = A[i], b = A[(i + 1) % A.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (L < 1) continue;
+    const ux = (b[0] - a[0]) / L, uy = (b[1] - a[1]) / L;
+    for (let j = 0; j < B.length; j++) {
+      const c = B[j], d = B[(j + 1) % B.length];
+      const off = q => Math.abs((q[0] - a[0]) * uy - (q[1] - a[1]) * ux);
+      if (off(c) > 0.75 || off(d) > 0.75) continue;
+      const s = q => (q[0] - a[0]) * ux + (q[1] - a[1]) * uy;
+      const lo = Math.max(0, Math.min(s(c), s(d))), hi = Math.min(L, Math.max(s(c), s(d)));
+      if (hi - lo > best) { best = hi - lo; at = i; }
+    }
+  }
+  return { length: best, edge: at };
 }
 
 /**
- * Each new pane's polygon at `ms` into the closing (`open` false) or into the opening (`open` true, the reverse: the
- * last to come in goes first); null where a pane is not on screen. A pane is its own inset, from `GROW_FROM` of its
- * inradius to none, on the arrival's curve.
+ * The slide of each new pane: its source edge (one it shares with a standing pane, or with a new pane that slides
+ * before it - the longest such edge), the edge's normal into the pane (`nx`, `ny`), how far the pane lies past the
+ * edge (`depth`: the whole pane starts that far back, behind the edge), its generation (`rank`: 0 beside a standing
+ * pane), and its start and length. A generation starts when the one before it is `lead` of the way through, so a pane
+ * comes out from under glass that is already there; the whole closing takes `total` ms. A pane that touches no glass
+ * at all (none in any cut read) slides from its edge nearest the screen's middle.
  */
-export function growPolys(plan, ms, { open = false } = {}) {
+export function slidePlan(standing, fresh, W, H, { total = 860, lead = 0.7 } = {}) {
+  const S = standing.map(p => p.poly), F = fresh.map(p => p.poly), rank = F.map(() => -1), src = F.map(() => null);
+  const pick = (i, others, r) => {
+    let best = null;
+    for (const Q of others) { const s = sharedEdge(F[i], Q); if (s.length > 2 && (!best || s.length > best.length)) best = s; }
+    if (best) { rank[i] = r; src[i] = best.edge; }
+  };
+  F.forEach((_, i) => pick(i, S, 0));
+  for (let r = 1; rank.includes(-1) && r < F.length; r++) {
+    const prev = F.filter((_, k) => rank[k] === r - 1 || (rank[k] >= 0 && rank[k] < r));
+    F.forEach((_, i) => { if (rank[i] === -1) pick(i, prev, r); });
+    if (!rank.some(x => x === r)) break;
+  }
+  const R = Math.max(0, ...rank);
+  F.forEach((P, i) => {
+    if (rank[i] >= 0) return;
+    rank[i] = R + 1;
+    let near = 0, nd = Infinity;
+    P.forEach((a, k) => { const b = P[(k + 1) % P.length], m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], d = Math.hypot(m[0] - W / 2, m[1] - H / 2); if (d < nd) { nd = d; near = k; } });
+    src[i] = near;
+  });
+  // inside a generation the starts are spread over `spread` of a slide, outermost first, so it reads as glass coming
+  // out pane by pane rather than one move
+  const gens = Math.max(0, ...rank) + 1, spread = 0.45, dur = Math.round(total / (1 + lead * (gens - 1) + spread));
+  const within = F.map(() => 0);
+  for (let r = 0; r < gens; r++) {
+    const ids = F.map((P, i) => i).filter(i => rank[i] === r);
+    const far = i => { const [x, y] = centroid(F[i]); return Math.hypot((x - W / 2) / (W / 2), (y - H / 2) / (H / 2)); };
+    ids.sort((x, y) => far(y) - far(x)).forEach((i, k) => { within[i] = ids.length > 1 ? k / (ids.length - 1) : 0; });
+  }
+  return F.map((P, i) => {
+    const a = P[src[i]], b = P[(src[i] + 1) % P.length], [cx, cy] = centroid(P);
+    let nx = -(b[1] - a[1]), ny = b[0] - a[0];
+    const l = Math.hypot(nx, ny) || 1; nx /= l; ny /= l;
+    if ((cx - a[0]) * nx + (cy - a[1]) * ny < 0) { nx = -nx; ny = -ny; }
+    const depth = Math.max(...P.map(q => (q[0] - a[0]) * nx + (q[1] - a[1]) * ny));
+    return { ...fresh[i], edge: [a, b], nx, ny, depth, rank: rank[i], delay: Math.round((rank[i] * lead + within[i] * spread) * dur), dur };
+  });
+}
+
+/**
+ * Where each new pane stands at `ms` into the closing (`open` false) or the opening (`open` true: the last
+ * generation goes back first, each pane back behind its edge): its offset from its place, [dx, dy] along its edge's
+ * normal, at scale 1; null where the pane is wholly behind its edge. Drawn inside its own place only.
+ */
+export function slideAt(plan, ms, { open = false } = {}) {
   const last = Math.max(0, ...plan.map(p => p.delay));
   return plan.map(p => {
     const start = open ? last - p.delay : p.delay;
     const s = (ms - start) / p.dur;
-    if (open ? s >= 1 : s <= 0) return null;
-    const k = open ? 1 - ease(Math.max(0, s)) : ease(Math.min(1, s));
-    return k >= 1 ? p.poly : insetPoly(p.poly, p.r * GROW_FROM * (1 - k));
+    const k = open ? 1 - ease(Math.max(0, Math.min(1, s))) : ease(Math.max(0, Math.min(1, s)));
+    if (k <= 0) return null;
+    const back = (1 - k) * p.depth;
+    return [-p.nx * back, -p.ny * back];
   });
 }

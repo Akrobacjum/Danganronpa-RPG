@@ -48984,43 +48984,40 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson(Object.keys(E61_CUTS).map(want)),
             "[per cut: ten new panes or more, grid points in no pane, in two, new panes out of the standing range, every new pane convex, the new panes' middle area near the standing panes']");
     }],
-    ["R3716 - the entry's panes never overlap at any frame, and a new pane grows as a pane (scripts/glass-close.mjs `growPlan`, `growPolys`, `insetPoly`, `overlapsIn`; E61 C3 round 3, the owner's reviews of 12.11.2026: \"Kafle kurtyny nigdy nie powinny na siebie nachodzić\"): on both rings at both sizes, at every 20 ms of the closing and of the opening, no two panes on screen overlap, standing or new; each new pane on screen lies within its own final pane and keeps three to its pane's corners; the new panes start one after another, outer first; at the closing's end every new pane stands whole, and at the opening's end none is left; the reading catches a planted pane grown past its edges and a planted new pane laid over a standing one", async () => {
+    ["R3716 - the entry's panes never overlap at any frame of the closing or the opening (scripts/glass-close.mjs `slidePlan`, `slideAt`, `visibleAt`, `overlapsIn`; E61 C3 rounds 3 and 4, the owner's reviews of 12.11.2026: \"Kafle kurtyny nigdy nie powinny na siebie nachodzić\"): on both rings and on three cuts the generator made, at every 20 ms of the closing and of the opening, no two panes on screen overlap - the standing ones and what is seen of each new one, its moved copy cut to its own place; what is seen of a new pane lies within its place; the new panes start one after another; at the closing's end every new pane stands whole in its place, and at the opening's end none is seen; the reading catches a planted pane drawn uncut past its place and a planted pane laid over a standing one", async () => {
         /*
-         * E61 C3 round 3, 12.11.2026. Red at 8937575: glass-close.mjs exports no growPlan or growPolys. The frames are
-         * the ones the sequence draws (sequence.mjs `drawTrialEntry` asks `growPolys` each frame), read here at a
-         * fixed step instead of the browser's; the closing lasts `SEQUENCE_TIMES.trialEntry.close`.
+         * E61 C3, 12.11.2026. Round 3 read a pane's inset growing (`growPolys`); round 4's panes slide, so the frames
+         * are `slideAt`'s offsets, each pane seen only inside its own place (`visibleAt`), as sequence.mjs
+         * `slideCanvas` clips it; a corner is outside its place when it is more than a hundredth of a pixel past an edge (a
+         * clip puts corners on the edges, to float precision). Red at 8937575: glass-close.mjs had neither.
          */
         const C = await import("./glass-close.mjs"), S = await import("./sequence.mjs");
-        if (typeof C.growPolys !== "function") { ok(false, "glass-close.mjs exports no growPolys"); return; }
+        if (typeof C.slideAt !== "function" || typeof C.visibleAt !== "function") { ok(false, "glass-close.mjs exports no slideAt or visibleAt"); return; }
         const T = S.SEQUENCE_TIMES.trialEntry, read = [];
-        const inside = (P, x, y) => { let sg = 0; for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length]; const cr = (b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0]); if (Math.abs(cr) < 0.01) continue; if (sg && Math.sign(cr) !== sg) return false; sg = Math.sign(cr); } return true; };
-        for (const [W, H] of [[1600, 900], [1366, 768]]) for (const jag of [false, true]) {
-            const standing = curtainRing(W, H, jag);
+        const inside = (P, x, y) => { let sg = 0; for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length]; const cr = ((b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0])) / (Math.hypot(b[0] - a[0], b[1] - a[1]) || 1); if (Math.abs(cr) < 0.01) continue; if (sg && Math.sign(cr) !== sg) return false; sg = Math.sign(cr); } return true; };
+        const cases = [...[[1600, 900], [1366, 768]].flatMap(([W, H]) => [false, true].map(jag => [`ring-${W}x${H}${jag ? "-jag" : ""}`, W, H, curtainRing(W, H, jag)])),
+            ...Object.entries(E61_CUTS).map(([key, polys]) => { const [W, H] = key.match(/(\d+)x(\d+)/).slice(1).map(Number); return [key, W, H, polys.map(poly => ({ poly }))]; })];
+        for (const [key, W, H, standing] of cases) {
             let sd = 11; const rnd = () => { sd = (sd * 1664525 + 1013904223) % 4294967296; return sd / 4294967296; };
-            const plan = C.growPlan(C.fillHole(standing, W, H, rnd), W, H);
-            let overlaps = 0, outside = 0, corners = 0, frames = 0;
+            const plan = C.slidePlan(standing, C.fillHole(standing, W, H, rnd), W, H);
+            let overlaps = 0, outside = 0, frames = 0;
             for (const open of [false, true]) for (let ms = 0; ms <= T.close + 40; ms += 20) {
-                const polys = C.growPolys(plan, ms, { open });
+                const seen = C.slideAt(plan, ms, { open }).map((o, i) => (o ? C.visibleAt(plan[i].poly, o) : null));
                 frames++;
-                overlaps += C.overlapsIn([...standing.map(p => p.poly), ...polys.filter(Boolean)]);
-                polys.forEach((q, i) => {
-                    if (!q) return;
-                    if (!q.every(([x, y]) => inside(plan[i].poly, x, y))) outside++;
-                    if (q.length < 3 || q.length > plan[i].poly.length) corners++;
-                });
+                overlaps += C.overlapsIn([...standing.map(p => p.poly), ...seen.filter(Boolean)]);
+                seen.forEach((q, i) => { if (q && !q.every(([x, y]) => inside(plan[i].poly, x, y))) outside++; });
             }
-            const delays = plan.map(p => p.delay), far = plan.map(p => { const n = p.poly.length, x = p.poly.reduce((t, q) => t + q[0], 0) / n, y = p.poly.reduce((t, q) => t + q[1], 0) / n; return Math.hypot((x - W / 2) / (W / 2), (y - H / 2) / (H / 2)); });
-            const outerFirst = far.every((f, i) => far.every((g, k) => !(f > g + 1e-9) || delays[i] <= delays[k]));
-            const end = C.growPolys(plan, T.close + 40), gone = C.growPolys(plan, T.close + 40, { open: true });
-            // plant 1: one new pane drawn 6 px past its own edges; plant 2: one new pane laid over a standing pane
-            const grownPast = C.overlapsIn([...standing.map(p => p.poly), ...plan.map((p, i) => i === 0 ? outset(p.poly, 6) : p.poly)]);
+            const end = C.slideAt(plan, T.close + 40), gone = C.slideAt(plan, T.close + 40, { open: true });
+            // plant 1: one new pane drawn uncut, 40 px back along its normal; plant 2: one laid over a standing pane
+            const p0 = plan[0], uncut = p0.poly.map(([x, y]) => [x - p0.nx * 40, y - p0.ny * 40]);
+            const drawnUncut = C.overlapsIn([...standing.map(p => p.poly), ...plan.slice(1).map(p => p.poly), uncut]);
             const laidOver = C.overlapsIn([...standing.map(p => p.poly), standing[0].poly.map(([x, y]) => [x + 3, y + 3])]);
-            read.push({ W, jag, frames: frames > 80, overlaps, outside, corners, staggered: new Set(delays).size > 2, outerFirst,
-                whole: end.every((q, i) => q === plan[i].poly), gone: gone.every(q => q === null), plants: [grownPast > 0, laidOver > 0] });
+            read.push({ key, frames: frames > 80, overlaps, outside, staggered: new Set(plan.map(p => p.delay)).size > 2,
+                whole: end.every(o => o && Math.hypot(o[0], o[1]) < 1e-9), gone: gone.every(o => o === null), plants: [drawnUncut > 0, laidOver > 0] });
         }
-        const want = (W, jag) => ({ W, jag, frames: true, overlaps: 0, outside: 0, corners: 0, staggered: true, outerFirst: true, whole: true, gone: true, plants: [true, true] });
-        equal(stableJson(read), stableJson([want(1600, false), want(1600, true), want(1366, false), want(1366, true)]),
-            "[per screen and ring: frames read, overlapping pairs over all frames, frame corners outside their pane, frames with another number of corners, starts spread, outer first, whole at the close, gone at the open's end, the two plants seen]");
+        const want = key => ({ key, frames: true, overlaps: 0, outside: 0, staggered: true, whole: true, gone: true, plants: [true, true] });
+        equal(stableJson(read), stableJson(cases.map(([key]) => want(key))),
+            "[per ring or cut: frames read, overlapping pairs over all frames, corners seen outside their pane's place, starts spread, whole at the close, gone at the open's end, the two plants seen]");
     }],
     ["R3704 - every road into the Class Trial plays the entry from the phase's one event, and the curtain's own turn stands aside for it (scripts/sequence.mjs `onPhaseChanged`, `playTrialEntry`; scripts/glass.mjs `entryPieces`, `rebuildAll`; E61 C3, C4): the clock's row fires `drpgPhaseChanged` once a phase moved, which the sequences hear; the entry's key is the trial's edge stamp, so a second hearing starts nothing; a phase change ends a running sequence; with no curtain the entry closes two lids (Monokuma Legacy's look), with no glass code run; and while the entry takes its pieces `rebuildAll` turns nothing", async () => {
         /*
@@ -49139,6 +49136,56 @@ const INVARIANTS = [
             frame5: [Boolean(person?.querySelector(".drpg-seq-portrait .drpg-seq-stamp")), Boolean(person?.querySelector(".drpg-seq-name")), el.querySelectorAll(".drpg-seq-vrow").length, Boolean(el.querySelector(".drpg-seq-sentence"))]
         }), stableJson({ flag: true, fromCard: true, notFromVote: true, frame5: [true, true, 1, true] }),
             "[the card's verdictCut flag; the cut-in hears a GM's new message; the vote's close does not start it; frame 5: the stamp on the portrait, the name, the vote rows, the sentence]");
+    }],
+    ["R3718 - a new pane of the entry slides out from behind the curtain's edge at its own size, never grows (scripts/glass-close.mjs `slidePlan`, `slideAt`; scripts/sequence.mjs `drawTrialEntry`; E61 C3 round 4, the owner's note on round 3, 12.11.2026: \"powinny się wysuwać ... ruchem zza krawędzi kurtyny, a nie przez skalowanie w górę\"): on three cuts the generator made, at every 10 ms of the closing and of the opening, every new pane on screen is its own place moved along its edge's normal - each edge as long as in its place (scale 1); at its start it lies behind its edge (no corner more than 1 px past it); its edge is one it shares with a standing pane or with a new pane that started before it; and the sequence draws each pane from this slide, clipped to its own place, and no longer from a grown inset", async () => {
+        /*
+         * E61 C3 round 4, 12.11.2026. Red at 8ab5124: glass-close.mjs exports no slidePlan or slideAt, and
+         * `drawTrialEntry` draws `growPolys`, a pane's inset from 0.65 of its inradius to none - a pane born small and
+         * grown. The frames are the ones the sequence asks for, read at a fixed step.
+         */
+        const C = await import("./glass-close.mjs"), S = await import("./sequence.mjs");
+        const sources = await moduleSources();
+        const draw = fnSource(stripComments(sources.get("sequence.mjs") ?? ""), "drawTrialEntry");
+        must(draw.length > 500, "drawTrialEntry was not read - this reads nothing");
+        const read = { drawsSlide: /slideAt\(/.test(draw) && !/growPolys\(/.test(draw) };
+        if (typeof C.slidePlan !== "function" || typeof C.slideAt !== "function") { read.api = false; equal(stableJson(read), stableJson({ drawsSlide: true }), "[the sequence draws the slide; glass-close.mjs has slidePlan and slideAt]"); return; }
+        const T = S.SEQUENCE_TIMES.trialEntry, len = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+        read.cuts = [];
+        for (const [key, polys] of Object.entries(E61_CUTS)) {
+            const [W, H] = key.match(/(\d+)x(\d+)/).slice(1).map(Number), standing = polys.map(poly => ({ poly }));
+            let sd = 11; const rnd = () => { sd = (sd * 1664525 + 1013904223) % 4294967296; return sd / 4294967296; };
+            const plan = C.slidePlan(standing, C.fillHole(standing, W, H, rnd), W, H);
+            let scaled = 0, offNormal = 0, frames = 0;
+            for (const open of [false, true]) for (let ms = 0; ms <= T.close + 20; ms += 10) {
+                frames++;
+                C.slideAt(plan, ms, { open }).forEach((o, i) => {
+                    if (!o) return;
+                    const p = plan[i], moved = p.poly.map(([x, y]) => [x + o[0], y + o[1]]);
+                    if (moved.some((q, k) => Math.abs(len(q, moved[(k + 1) % moved.length]) - len(p.poly[k], p.poly[(k + 1) % p.poly.length])) > 1e-6)) scaled++;
+                    if (Math.abs(o[0] * p.ny - o[1] * p.nx) > 1e-6 || o[0] * p.nx + o[1] * p.ny > 1e-6) offNormal++;
+                });
+            }
+            // each pane at its start (a tenth of a millisecond in: the slide eases out, so it moves fastest there)
+            const behind = plan.every((p, i) => {
+                const o = C.slideAt(plan, p.delay + 0.1)[i];
+                if (!o) return false;
+                const [a] = p.edge;
+                return Math.max(...p.poly.map(([x, y]) => (x + o[0] - a[0]) * p.nx + (y + o[1] - a[1]) * p.ny)) <= 1;
+            });
+            const shares = (A, B) => A.some((a, k) => { const b = A[(k + 1) % A.length]; return B.some((c, j) => { const d = B[(j + 1) % B.length]; return [c, d].every(q => Math.abs((q[0] - a[0]) * (b[1] - a[1]) - (q[1] - a[1]) * (b[0] - a[0])) / (len(a, b) || 1) <= 0.75); }); });
+            const fromGlass = plan.every(p => p.rank === 0
+                ? standing.some(s => shares(p.edge.concat(), s.poly) || shares(s.poly, p.edge))
+                : plan.some(q => q !== p && q.rank < p.rank && q.delay < p.delay && shares(q.poly, p.edge)));
+            const outside = C.slideAt(plan, -1).every(o => o === null) && C.slideAt(plan, T.close + 20, { open: true }).every(o => o === null);
+            const placed = C.slideAt(plan, T.close + 20).every(o => o && Math.hypot(o[0], o[1]) < 1e-9);
+            read.cuts.push({ key, frames: frames > 150, scaled, offNormal, behind, fromGlass, outside, placed });
+        }
+        // the clip is the drawing helper's (`slideCanvas`), on the pane's own place before the moved glass is drawn
+        const paint = fnSource(stripComments(sources.get("sequence.mjs") ?? ""), "slideCanvas");
+        read.clipped = /slideCanvas\(/.test(draw) && /p\.poly\.forEach[^;]*;\s*g\.closePath\(\);\s*g\.clip\(\);\s*g\.drawImage\(p\.canvas, p\.box\.x0 \+ o\[0\]/.test(paint);
+        const want = key => ({ key, frames: true, scaled: 0, offNormal: 0, behind: true, fromGlass: true, outside: true, placed: true });
+        equal(stableJson(read), stableJson({ drawsSlide: true, cuts: Object.keys(E61_CUTS).map(want), clipped: true }),
+            "[the sequence draws the slide, not the growth; per cut: frames read, panes drawn at another size, offsets off the edge's normal, every pane behind its edge at its first frame, every edge on glass already there, none before the start or after the opening, all in place at the close; the drawing clipped to the pane's place]");
     }],
     ["R3717 - the verdict's cut-in brings every part of its board in with motion, and none under reduced motion (scripts/sequence.mjs `drawVerdictCut`; E61 C5, the owner's review of round 1, 12.11.2026: the window's contents are to arrive with motion and easing, not appear): with motion on, the band, the portrait, the name, the stamp, the count's heading, each vote row, each bar with a vote and the sentence are each animated from another place, scale or opacity, eased (never linear), the rows one after another; under reduced motion nothing is animated and the board stands whole", async () => {
         /*

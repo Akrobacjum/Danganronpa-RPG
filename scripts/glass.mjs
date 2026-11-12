@@ -23,7 +23,7 @@ import { log, AV_LIFT_EVENT } from "./utils.mjs";
 import { inFoundryWindow } from "./foundry-windows.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
-import { fillHole, growPlan } from "./glass-close.mjs";
+import { fillHole, slidePlan } from "./glass-close.mjs";
 
 /** Self-check results of the last geometry pass, for diagnostics. */
 export const CHECKS = [];
@@ -4338,9 +4338,10 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
    fronts flood the hole, and the owner's word on it was that the new glass did not match the old in size, look or
    shape. Round 3 closes the curtain with panes of the curtain's own kind: the standing panes keep their place, and
    the hole they leave is tiled with new convex panes of the standing panes' corners and sizes (glass-close.mjs
-   `fillHole`), painted by the curtain's own paint (`curtainPaint`: the same fill, ink, pulse and lead), each growing
-   into place from a smaller copy of itself (`growPolys`). The closed curtain is the curtain's paint of the standing
-   panes and the new ones as one cut. */
+   `fillHole`), painted by the curtain's own paint (`curtainPaint`: the same fill, ink, pulse and lead). Round 4 (the
+   owner's note on round 3: the panes are to slide out from behind the curtain's edge, not scale up): each new pane
+   keeps its size and slides out from behind an edge it shares with glass already there (`slidePlan`, `slideAt`).
+   The closed curtain is the curtain's paint of the standing panes and the new ones as one cut. */
 const FILL_SEED = 4099;
 /* THE ENTRY'S CUT. What the sequence draws: the panes on screen cut from the look as it stands (Investigation's
    colour) over the same cut painted at once in the new phase's colour with no turn of its own (`entryHold`: the entry
@@ -4390,12 +4391,13 @@ export function entryPieces() {
     const box = boxOf([poly], 1);
     return { box, poly, batch, canvas: cutLook(look, [poly], box, "drpg-seq-pane"), old: old ? cutLook(old, [poly], box, "drpg-seq-pane") : null };
   };
-  const grown = (fill, look) => growPlan(fill, W, H).map(p => ({ ...p, ...piece(p.poly, look) }));
+  // each new pane's slide out from behind the glass beside it (round 4), and its glass cut from the closed curtain
+  const slid = (standing, fill, look) => slidePlan(standing.map(p => ({ poly: p.poly })), fill, W, H).map(p => ({ ...p, ...piece(p.poly, look) }));
   return {
     W, H, acc: j.acc,
-    close: { panes: oldPanes.map((p, i) => piece(p.poly, newLook, oldLook, batchOf[i] ?? 0)), fill: grown(fillA, lookA), batchOf },
+    close: { panes: oldPanes.map((p, i) => piece(p.poly, newLook, oldLook, batchOf[i] ?? 0)), fill: slid(oldPanes, fillA, lookA), batchOf },
     closed: lookB,
-    open: { panes: trial.map(p => piece(p.poly, newLook)), fill: grown(fillB, lookB) }
+    open: { panes: trial.map(p => piece(p.poly, newLook)), fill: slid(trial, fillB, lookB) }
   };
 }
 function rebuild() {
