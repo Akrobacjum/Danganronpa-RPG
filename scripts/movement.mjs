@@ -59,7 +59,7 @@ import { askerOf, auditMove, registerMoveAudit, RULE_CODES } from "./movement-au
 import { actsAsMastermind } from "./passages-gm.mjs";
 // The Eclipse's count, for the crossings the primary sees (E17 C2, `noteSeenCrossing`): gm-stores.mjs is in this file's
 // static graph already, through passages-gm.mjs and passages.mjs, so the edge adds no module and no cycle (R161).
-import { eclipseMoveStore, crossingStore, watchStore } from "./gm-stores.mjs";
+import { eclipseMoveStore, crossingStore, watchStore, lockpickStore, lockpickCopy } from "./gm-stores.mjs";
 // E89 fix FG2 (G3): the waits for a token at rest counted (perf-counters.mjs; a leaf, no cycle).
 import { count } from "./perf-counters.mjs";
 
@@ -1185,6 +1185,16 @@ function eclipseSighting(student, from, tokenDoc, { adjacent = true } = {}) {
     return { actorId: student.id, eclipse: id, seen: seen + crossings };
 }
 
+/**
+ * Whether `actor` holds Pick the Lock's pass to `room` on `scene` (E74, DA9; lockpick-gm.mjs): a GM reads the GMs' store,
+ * the owner's browser its copy of its own characters' passes (gm-stores.mjs `lockpickCopy`). Asked by `restrictedFrom`.
+ */
+export function holdsPass(actor, scene, room) {
+    if (!actor?.id || !scene?.id || !room) return false;
+    const row = game.user?.isGM ? lockpickStore.get(actor.id) : (lockpickCopy.read() ?? {})[actor.id];
+    return Boolean(row) && row.sceneId === scene.id && row.room === room;
+}
+
 /** Whether `student` keeps watch over `from` through the running Eclipse, as the GMs hold it (gm-stores.mjs `watchStore`). */
 export function watchHolds(student, from) {
     const row = student?.id ? watchStore.get(student.id) : null;
@@ -1962,7 +1972,8 @@ function lockedInIncident(actor, keyed = false) {
 function restrictedFrom(actor, to, scene, mover = null, { via = null, keyed = false } = {}) {
     try {
         if (isChained(actor)) return refusal(keyed, "chained", game.i18n.localize("DRPG.Calls.chainedBlocked"));
-        if (to && !(mover ? mover.mastermind : iAmTheMastermind())) {
+        // Pick the Lock's pass (E74, DA9): its holder walks into that one room past a lock, a bedroom and a seal.
+        if (to && !(mover ? mover.mastermind : iAmTheMastermind()) && !holdsPass(actor, scene, to)) {
             if (isLocked(scene, to)) return refusal(keyed, "doorLocked", game.i18n.localize("DRPG.Move.locked"));
             if (isSealed(to)) return refusal(keyed, "roomSealed", game.i18n.format("DRPG.Calls.sealedBlocked", { room: to }));
             // Somebody's bedroom. The owner walks in; anybody else needs the

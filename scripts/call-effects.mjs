@@ -135,6 +135,16 @@ export function armOwnSituational(value) { own = Math.trunc(Number(value)) || 0;
 export function clearOwnSituational() { own = 0; }
 
 /**
+ * A hindrance die given to this roll by name, its cause not said (E74, DA44 option A: the killer's opening against a
+ * watch of 18 or more, murder-rules.mjs `throwOpeningRoll`). Counted in `situationalAdvantage`, so the roll's claim holds
+ * the die the GM draws, and shown by the window as a source of its own (roll-dialog.mjs `advantageSources`).
+ */
+let hindrance = 0;
+export function armOwnHindrance(count) { hindrance = Math.max(0, Math.trunc(Number(count)) || 0); }
+export function clearOwnHindrance() { hindrance = 0; }
+export function ownHindrance() { return hindrance; }
+
+/**
  * A signed count: the action's die, zero while a supporting roll is shielded, and
  * the roll's own (`armOwnSituational`), which is not.
  *
@@ -144,7 +154,7 @@ export function clearOwnSituational() { own = 0; }
  * not shielded and never was - see `stateGrant` in roll-dialog.mjs.
  */
 export function situationalAdvantage() {
-    return (shielded ? 0 : situational) + own;
+    return (shielded ? 0 : situational) + own - hindrance;
 }
 
 /**

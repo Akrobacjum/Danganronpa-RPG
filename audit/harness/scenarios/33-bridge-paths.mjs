@@ -1785,6 +1785,59 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         e74b.p1?.before === "Dorm A" && e74b.p1?.after === "Dorm A" && e74b.cards === 1 && e74b.logged.length === 0,
         JSON.stringify(e74b).slice(0, 2000), { flow: "door-knock" });
 
+    /* E74-C. A WALK THROUGH A PICKED LOCK, FROM p1'S OWN PAGE (E74, 12.11.2026; DA9 as the plan has it). The legal control of
+       the pick's pass and its owner's copy (lockpick-gm.mjs): Dorm A and Dorm B are made neighbours, Dorm B is locked by a GM,
+       and the primary gives Aiko the pass an open of Pick the Lock gives (`grantPass`, as `pickLock` calls it). p1's browser
+       holds it in its copy; p1 walks Aiko into Dorm B as a player drags a token, and neither the veto nor the GMs' audit
+       stops it; the settled crossing marks the pass in use. Back out to Dorm A ends it, p1's copy loses it, and a walk in
+       again is refused. Read: the copy on p1, the rooms, the GMs' row. Put back: the pass, the lock, the neighbours, Aiko's
+       place and actions. */
+    phase("a walk through a picked lock", { flow: "door-pick" });
+    const e74c = { setup: await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"); const R = await import("${repoUrl}/scripts/rooms.mjs");
+        const L = await import("${repoUrl}/scripts/lockpick-gm.mjs");
+        const scene = canvas.scene, aiko = game.actors.get("${IDS.aiko}"), tok = scene.tokens.get("TOKAIKO000000000");
+        const was = { at: { x: tok.x, y: tok.y }, actions: aiko.system.resources.actions.value, flags: {} };
+        for (const room of ["Dorm A", "Dorm B"]) for (const piece of R.roomRegions(scene, room)) was.flags[piece.id] = {
+            n: piece.getFlag("${MOD}", M.ROOM_FLAGS.neighbours) ?? null, l: piece.getFlag("${MOD}", M.ROOM_FLAGS.locked) ?? null };
+        for (const [room, list] of [["Dorm A", "Dorm B"], ["Dorm B", "Dorm A"]]) for (const piece of R.roomRegions(scene, room)) await piece.setFlag("${MOD}", M.ROOM_FLAGS.neighbours, list);
+        for (const piece of R.roomRegions(scene, "Dorm B")) await piece.setFlag("${MOD}", M.ROOM_FLAGS.locked, true);
+        await tok.update(M.positionIn("Dorm A", tok), { teleport: true, movementAction: "displace", animate: false });
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        await trustedWrite(aiko, { "system.resources.actions.value": 3 }, { reason: "gmRuling" });
+        await L.grantPass(aiko, scene, "Dorm B");
+        return was;`, { timeout: 60000 }) };
+    await settle(1200);
+    const e74cWalk = to => p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+        const tok = canvas.scene.tokens.get("TOKAIKO000000000"), aiko = game.actors.get("${IDS.aiko}");
+        const pass = M.holdsPass(aiko, canvas.scene, "Dorm B");
+        try { await tok.update(M.positionIn(${JSON.stringify(to)}, tok)); } catch {}
+        await new Promise(r => setTimeout(r, 2500));
+        return { pass, room: M.roomOfToken(canvas.scene.tokens.get("TOKAIKO000000000")) };`, { timeout: 60000 });
+    const e74cRow = () => gm.eval(`const L = await import("${repoUrl}/scripts/lockpick-gm.mjs"); const r = L.passOf("${IDS.aiko}"); return r ? [r.room, Boolean(r.entered)] : null;`);
+    e74c.in = await e74cWalk("Dorm B");
+    await settle(1500);
+    e74c.inRow = await e74cRow();
+    e74c.out = await e74cWalk("Dorm A");
+    await settle(1500);
+    e74c.outRow = await e74cRow();
+    e74c.again = await e74cWalk("Dorm B");
+    await settle(800);
+    await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"); const L = await import("${repoUrl}/scripts/lockpick-gm.mjs");
+        const scene = canvas.scene, was = ${JSON.stringify(e74c.setup ?? {})}, aiko = game.actors.get("${IDS.aiko}");
+        if (L.passOf("${IDS.aiko}")) await L.endPass("${IDS.aiko}");
+        for (const [id, value] of Object.entries(was.flags ?? {})) { const piece = scene.regions.get(id); if (!piece) continue;
+            for (const [key, v] of [[M.ROOM_FLAGS.neighbours, value.n], [M.ROOM_FLAGS.locked, value.l]]) {
+                if (v === null) await piece.unsetFlag("${MOD}", key); else await piece.setFlag("${MOD}", key, v); } }
+        if (was.at) await scene.tokens.get("TOKAIKO000000000").update(was.at, { teleport: true, movementAction: "displace", animate: false });
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        await trustedWrite(aiko, { "system.resources.actions.value": ${JSON.stringify(e74c.setup?.actions ?? 3)} }, { reason: "gmRuling" });
+        return true;`, { timeout: 60000 });
+    await settle(800);
+    check("E74-C: p1's copy holds Aiko's pass to the locked Dorm B and p1's walk in on it stands, the GMs marking it in use; the walk back out ends it, p1's copy loses it, and a walk in again is refused on p1's browser",
+        e74c.in?.pass === true && e74c.in?.room === "Dorm B" && JSON.stringify(e74c.inRow) === JSON.stringify(["Dorm B", true])
+            && e74c.out?.room === "Dorm A" && e74c.outRow === null && e74c.again?.pass === false && e74c.again?.room === "Dorm A",
+        JSON.stringify(e74c).slice(0, 2000), { flow: "door-pick" });
+
     /* ------------------------------------------- A. the Assistant as the primary */
 
     phase("the Assistant as the primary", { flow: "give-take-stash" });

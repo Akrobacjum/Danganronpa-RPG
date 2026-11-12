@@ -2128,8 +2128,10 @@ export const INFILTRATE = Object.freeze({
     // the `cover`, Shadow, says whether the two rooms see who it was.
     pick: Object.freeze({ traits: Object.freeze(["hand"]), cost: 1, dc: 15, clean: 18,
         cover: Object.freeze({ trait: "shadow", threshold: 16 }) }),
-    // Keep Watch (E74 C6; DA34): Body, declared before an Eclipse; a roll below `dc` keeps no watch (a default taken).
-    keepWatch: Object.freeze({ traits: Object.freeze(["body"]), cost: 1, dc: 12 })
+    // Keep Watch (E74 C6; DA34): Body, declared before an Eclipse; a roll below `dc` keeps no watch (the owner's "Zgoda",
+    // 12.11.2026). A watch of `hindranceAt` or more, or a critical, puts one hindrance die on the killer's opening roll
+    // against the watcher (DA44 option A, the owner 12.11.2026: named in the killer's window, its cause not).
+    keepWatch: Object.freeze({ traits: Object.freeze(["body"]), cost: 1, dc: 12, hindranceAt: 18 })
 });
 
 /* ==========================================================================

@@ -97,7 +97,8 @@ export async function performForce(actor, options = {}) {
 
 /**
  * Pick the Lock (E74 C4; `INFILTRATE.pick`): the door, one action, the Shadow cover and the Hand, both drawn on the GM, then
- * `door.pick` (doors-gm.mjs `pickLock`), which walks the character in on an open. Answers `{ opened, held, room }` or null.
+ * `door.pick` (doors-gm.mjs `pickLock`), which gives the character a pass to the room on an open (lockpick-gm.mjs, DA9).
+ * Answers `{ opened, held, room }` or null.
  */
 export async function performPick(actor, options = {}) {
     const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");

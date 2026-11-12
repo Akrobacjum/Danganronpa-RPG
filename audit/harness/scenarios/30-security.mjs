@@ -6686,6 +6686,21 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && knock.open.reasons[0].includes("the character is not in that room"),
         JSON.stringify(knock).slice(0, 2000), { flow: "door-knock" });
 
+    /* A FORGED PASS (E74, 12.11.2026; DA9 as the plan has it). The pick's pass reaches its owner as a GM's packet
+       (lockpick-gm.mjs, `lockpick.passes`), which the owner's move veto reads. p2's console sends p1 one, for Aiko into the
+       locked Dorm B, addressed to p1 and stamped far ahead: p1's browser takes a pass only from a GM, so its copy holds
+       nothing and its veto reads no pass. The legal road is 33's E74-C. */
+    phase("a forged pass", { flow: "door-pick" });
+    const forgedPass = await p2.eval(`game.socket.emit("module.${MOD}", { action: "lockpick.passes", userId: "USERP10000000000",
+        passes: { "${ids.aiko}": { sceneId: canvas.scene.id, room: "Dorm B" } }, stamps: { "${ids.aiko}": Date.now() + 86400000 } },
+        { recipients: ["USERP10000000000"] }); return true;`);
+    await settle(800);
+    const passOnP1 = await p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return { copy: Object.keys(S.lockpickCopy.read() ?? {}), holds: M.holdsPass(game.actors.get("${ids.aiko}"), canvas.scene, "Dorm B") };`);
+    check("SECURITY: a pass a player's console sends another player is not taken - the copy holds nothing and the veto reads no pass",
+        forgedPass === true && JSON.stringify(passOnP1) === JSON.stringify({ copy: [], holds: false }),
+        JSON.stringify({ forgedPass, passOnP1 }), { flow: "door-pick" });
+
     /* A PLAYER'S CARD IN THE GM'S NOTICE HISTORY (E81 C7, 12.10.2026). A public card of the module's, posted from p1's
        console with markup in it, is a card the GM's browser draws and keeps (popup.mjs `onCreateChatMessage`, E81 C3).
        The GM then opens the history window, every entry in it, and moves the pointer over every element there: what the

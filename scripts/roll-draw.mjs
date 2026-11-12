@@ -2055,13 +2055,17 @@ function openingSideOf(actor, context, state) {
  * project's and a clean-up's roll (1 each, not 0). Written on the side line before fix r2-H3 met it, this reading
  * awaited `actorAsHeld` itself; the merge of the two lines (06.10.2026) reads it in the one step instead.
  */
-function situationReading(actor, { key, context, ready: { vault, murder, items, cleanup, heldNow } }) {
+function situationReading(actor, { key, context, ready: { vault, murder, items, cleanup, watch, heldNow } }) {
     if (key === "search") return searchOdds(actor, roomOfActor(actor), context.category ?? null, vault).situational;
     if (key === "murderOpening") {
-        // The Night's die, the opening roll's own (murder-rules.mjs `throwOpeningRoll`, `rollTrait`'s `situational`).
-        const side = openingSideOf(actor, context, murder.murderState());
+        // The Night's die, the opening roll's own (murder-rules.mjs `throwOpeningRoll`, `rollTrait`'s `situational`), and
+        // the hindrance die a victim's watch of 18 or more puts on the killer's (E74, DA44; watch-gm.mjs `openingHindrance`,
+        // `rollTrait`'s `hindrance`), read off the GMs' watches here as the invitation read them.
+        const state = murder.murderState();
+        const side = openingSideOf(actor, context, state);
         const def = side ? MURDER_OPENING[side] ?? {} : {};
-        return side && murder.atNight() ? (def.nightAdvantage ? 1 : def.nightDisadvantage ? -1 : 0) : 0;
+        const night = side && murder.atNight() ? (def.nightAdvantage ? 1 : def.nightDisadvantage ? -1 : 0) : 0;
+        return night - (side ? watch.openingHindrance(side, state) : 0);
     }
     if (key === "crisis") {
         const crisis = typeof context.crisis === "string" && Object.hasOwn(CRISIS_ACTIONS, context.crisis) ? context.crisis : null;
@@ -2160,9 +2164,10 @@ const legal = (key, actor, draw) => LEGAL_READERS[key](actor, draw, LEGAL[key]);
 
 /** What the list's rows need that takes time, ready before them: the audit's wait, the modules the rows read with (and the audit's reading of a character's items as the GMs hold them, `heldNow`, fix r2-H20), and where the statistic comes from (`traitReading`). */
 async function readyFor(actor, draw) {
-    const [{ judgedFor, actorHeldNow }, { ADVANTAGE_CAP }, vault, murder, items, cleanup] = await Promise.all([import("./sheet-audit.mjs"),
-        import("./roll-dialog.mjs"), import("./vault.mjs"), import("./murder.mjs"), import("./use-items.mjs"), import("./cleanup.mjs")]);
-    return { judgedFor, heldNow: actorHeldNow, advantageCap: ADVANTAGE_CAP, vault, murder, items, cleanup, trait: await traitReading(actor, draw) };
+    const [{ judgedFor, actorHeldNow }, { ADVANTAGE_CAP }, vault, murder, items, cleanup, watch] = await Promise.all([import("./sheet-audit.mjs"),
+        import("./roll-dialog.mjs"), import("./vault.mjs"), import("./murder.mjs"), import("./use-items.mjs"), import("./cleanup.mjs"),
+        import("./watch-gm.mjs")]);
+    return { judgedFor, heldNow: actorHeldNow, advantageCap: ADVANTAGE_CAP, vault, murder, items, cleanup, watch, trait: await traitReading(actor, draw) };
 }
 
 /**

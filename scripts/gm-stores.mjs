@@ -980,6 +980,32 @@ export const barricadeStore = defineGmStore({
 });
 
 /**
+ * THE PICK'S PASSES (E74, 12.11.2026; DA9 as the plan has it, the owner's "Wole zgodnie z planem" of that day). A row per
+ * picker, keyed by the picker's actor id - one pass a picker, a new one replaces it: `{ actorId, sceneId, room, mark,
+ * entered, at }`, `room` the room an open of Pick the Lock lets that character into past its lock, a bedroom's or a seal,
+ * `mark` the time of day it was given (a pass not used in it is lost), `entered` whether the picker has walked in (one
+ * who has keeps it until they leave the room). Written, read and dropped by the primary alone (lockpick-gm.mjs); synced;
+ * backed up, and its owners told again after a restore, as every store a player's copy is made of is (R182). Cut by the
+ * reset's "actions" group. No old key.
+ */
+export const lockpickStore = defineGmStore({
+    name: "lockpicks", key: SETTINGS.gmLockpicks,
+    kind: "ledger", resetGroup: "actions", backup: true, sync: true,
+    afterRestore: () => import("./lockpick-gm.mjs").then(m => m.retellPasses()),
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * AN OWNER'S PASSES (E74, DA9): `{ actorId: { sceneId, room } }` for the characters this user owns, as the primary GM
+ * sent them, a stamp per character - taken by the offers' rule (`offersCombine`). Read by the owner's move veto
+ * (movement.mjs `holdsPass`), so an honest walk through a picked door is not refused before the GMs judge it.
+ */
+export const lockpickCopy = defineGmCopy({
+    name: "lockpicks", key: SETTINGS.mineLockpicks, from: "lockpicks", resetGroup: "actions", fallback: {},
+    combine: offersCombine
+});
+
+/**
  * THE TAILS UNDER WAY (E69 C3, 12.11.2026; the owner's audit entry E69, DA8, DA19-DA21, DA26). A row per tailer, keyed by
  * the tailer's actor id - one tail a tailer (DA26), a new one replaces it: `{ tailerId, targetId, total, critical, day,
  * at, userId }`, `total` and `critical` the effect roll's off the GMs' record of it (a Dash loses a tail below its total,

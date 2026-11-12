@@ -9,8 +9,9 @@
  * and `forced`, `pickRoom`, `opened` and the cover's, `watchKept`, `facilityKey` and `facilitySuccess`), and answers the
  * facts it changed, which reroll.mjs writes on the row once.
  *
- * WHAT A REPLAY CANNOT TAKE BACK, AND SAYS SO. A door forced, a lock picked (the picker walked in) and a room action's
- * effects applied stand when the new roll is lower: each line says the first result stands. Spent free crossings are not
+ * WHAT A REPLAY CANNOT TAKE BACK, AND SAYS SO. A door forced, a lock picked whose pass the picker has used (they walked
+ * in) and a room action's effects applied stand when the new roll is lower: each line says the first result stands. A
+ * pass not yet used is taken back. Spent free crossings are not
  * taken back (only those left). Everything else is replaced: a Dash's crossings, a tail's and a barricade's strength, a
  * watch kept or let go, a door forced and a lock picked by a higher roll, a room action's effects by a success.
  */
@@ -97,9 +98,20 @@ async function settleForce(actor, bookmark, total, isCritical, withHope, done) {
     return { forced: Boolean(out.forced) };
 }
 
-/** A lock: picked already, the picker is in; not picked, the new Hand is tried, the cover as the first throw had it. */
+/**
+ * A lock. Picked by the first roll: a pass the picker has used stands (they walked in); one not used is taken back by a new
+ * roll below the number (lockpick-gm.mjs `endPass`). Not picked: the new Hand is tried, the cover as the first throw had it.
+ */
 async function settlePick(actor, bookmark, total, isCritical, withHope, done) {
     if (bookmark.opened) {
+        const { passOf, endPass } = await import("./lockpick-gm.mjs");
+        const row = passOf(actor.id);
+        const unused = row && !row.entered && row.room === (bookmark.pickRoom ?? null);
+        if (unused && !isCritical && total < INFILTRATE.pick.dc) {
+            await endPass(actor.id);
+            done.push(line("pickTaken"));
+            return { opened: false };
+        }
         done.push(line("pickStands"));
         return {};
     }

@@ -27,14 +27,13 @@
  * forced, wherever they are.
  *
  * PICK THE LOCK (E74 C4; DA9, DA29, DA30, DA31 = 2). At a door to a neighbouring room held by a lock (a GM's or a bedroom's)
- * or a seal, never a barricade: Hand at `INFILTRATE.pick.dc` (15) opens it, a critical too, and the GM walks the picker
- * through it into the room (a GM's move, which no door stops) - the pass used at once, so it needs no store and no copy (a
- * default taken where the plan keeps a pass until the picker leaves the room; docs/dev/e74/STATUS.md). The lock stays
- * locked for everyone else. The owner of a bedroom is warned on an open below `clean` (18) and on a miss with Despair
+ * or a seal, never a barricade: Hand at `INFILTRATE.pick.dc` (15) opens it, a critical too, and the picker holds a pass to
+ * that room until they leave it (lockpick-gm.mjs; DA9 as the plan has it, the owner's "Wole zgodnie z planem" of
+ * 12.11.2026, which replaced the walk-through at once this file did before). The lock stays locked for everyone else. The owner of a bedroom is warned on an open below `clean` (18) and on a miss with Despair
  * (DA30); the Shadow cover below its threshold (16) lets the two rooms see who it was.
  *
- * NOT BUILT IN THIS ROUND (docs/dev/e74/STATUS.md): the "Someone tries to get in" card to a barricade's author, the
- * Remnants (a barricade's neutral one, Force's Evident one, a pick's by its band), Repair the Lock, Keep Watch.
+ * BUILT SINCE (E74, 12.11.2026): the "Someone tries to get in" card to a barricade's author (`knockDoor`), the doors'
+ * Remnants (`leaveDoorTrace`, `pickTrace`), Repair the Lock (below), Keep Watch (watch-gm.mjs).
  */
 
 import { MODULE_ID, FLAGS, INFILTRATE, ROOM_OWNER_FLAG } from "./config.mjs";
@@ -191,9 +190,10 @@ export async function pickLock({ actor, room, total = 0, isCritical = false, wit
     const sum = Number(total) || 0;
     const lockish = held.length > 0 && !held.includes("barricade");
     const opened = lockish && (isCritical || sum >= rule.dc);
+    // An open is a pass for the picker alone, kept until they leave the room (DA9 as the plan has it; lockpick-gm.mjs).
     if (opened) {
-        const token = place.tokenDoc;
-        await token.update(M.positionIn(room, token), { teleport: true, movementAction: "displace", animate: false });
+        const { grantPass } = await import("./lockpick-gm.mjs");
+        await grantPass(actor, place.scene, room);
     }
     const seen = !(coverCritical || (Number(coverTotal) || 0) >= rule.cover.threshold);
     // `tell` false: a Reroll's replay (infiltrate-reroll.mjs), whose cover the two rooms were told of by the first throw.

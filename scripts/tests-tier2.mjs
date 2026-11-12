@@ -3304,6 +3304,23 @@ const MODIFIER_FIXTURES = Object.freeze([
         },
         claim: (t, s, on) => ({ actionKey: "murderOpening", trait: "body", window: true, situational: on ? 1 : 0, edit: p => ({ ...p, context: { side: "killer" } }) }),
         expect: 1, moves: 4 },
+    // E74 (DA44 option A, the owner 12.11.2026): a victim's watch of 18 or more puts one hindrance die on the killer's opening.
+    { key: "situation", situation: "murderOpening", cite: "player-handbook.en.md (Keep Watch: a watch of 18 or more, one hindrance die on the opening)",
+        road: "an incident opened by a GM at noon, the victim's watch of 18 written by a GM",
+        arrange: async t => {
+            const M = await import("./murder.mjs");
+            const S = await import("./gm-stores.mjs");
+            const clock = getClock() ?? {};
+            await setClock({ timeOfDay: "noon" });
+            await S.watchStore.patch(t.other.id, { actorId: t.other.id, total: 18, critical: false, post: "E74 post", entered: 0, left: 0, at: Date.now() });
+            await heldInvitations(() => M.openMurder({ killerId: t.theirs.id, victimId: t.other.id, openingTrait: "body" }));
+            const state = M.murderState();
+            must(state?.stage === "openingRoll" && state.killerId === t.theirs.id, `the opening roll is not ${t.theirs.name}'s to throw: ${stableJson(state)}`);
+            const drop = async () => { if (S.watchStore.get(t.other.id)) await S.watchStore.drop(t.other.id); };
+            return { off: drop, undo: async () => { await drop(); await c3Incident(clock); } };
+        },
+        claim: (t, s, on) => ({ actionKey: "murderOpening", trait: "body", window: true, situational: on ? -1 : 0, edit: p => ({ ...p, context: { side: "killer" } }) }),
+        expect: -1, moves: -4 },
     { key: "situation", situation: "crisis", cite: "player-handbook.en.md:560 (Self-defence: an item usable as a weapon gives advantage)", road: "a fight opened by a GM, a weapon in hand",
         arrange: async t => {
             const M = await import("./murder.mjs");
@@ -88315,7 +88332,7 @@ const SCENARIOS = [
             both: [[false, "barricade+lock"], [true, "barricade+lock"], false, true], far: "notThere", theirs: "notYours", noRoll: "rollUnknown" }),
             "{barricade: [at its strength, above it, still up]; heard: the banging next door; lock: [17, 18, broken, still locked]; seal: [17, 18, still sealed]; both: [19, 21, barricade up, broken]; far; theirs; noRoll} - a door forced on the GMs' record of its roll");
     }],
-    ["E74-T3 - Pick the Lock opens a lock or a seal for the picker alone, on the GMs' record of its Hand and its Shadow cover (scripts/doors-gm.mjs `pickLock`, bridge-table.mjs `door.pick`, config.mjs INFILTRATE.pick; E74 C4; DA9, DA29, DA30, DA31 = 2): a GM's lock holds 14 and opens at 15, the GM walking the picker in, and stays locked; a cover below 16 shows the room beyond who it was, one of 16 nobody; a bedroom's owner is warned of an open at 15 and of a miss with Despair, never of one at 18; a seal opens at 15; a barricade is no lock to pick; a door to a room not next to the character's is refused notThere; another player's character notYours; a packet naming no roll rollUnknown", async () => {
+    ["E74-T3 - Pick the Lock opens a lock or a seal for the picker alone, on the GMs' record of its Hand and its Shadow cover (scripts/doors-gm.mjs `pickLock`, bridge-table.mjs `door.pick`, config.mjs INFILTRATE.pick; E74 C4; DA9, DA29, DA30, DA31 = 2): a GM's lock holds 14 and opens at 15, a pass for the picker, who is not moved (E74-T11), and stays locked; a cover below 16 shows the room beyond who it was, one of 16 nobody; a bedroom's owner is warned of an open at 15 and of a miss with Despair, never of one at 18; a seal opens at 15; a barricade is no lock to pick; a door to a room not next to the character's is refused notThere; another player's character notYours; a packet naming no roll rollUnknown", async () => {
         /*
          * E74 C4, 12.11.2026. Judged as the primary judges the player's packet (`G.judge`), each roll a message of the
          * character's with the GMs' record of it (`recordFor`). Rooms as E74-T2's: the character's A, the door's B (where
@@ -88368,11 +88385,15 @@ const SCENARIOS = [
         const cards = () => game.messages.filter(m => !seenIds.has(m.id) && m.speaker?.actor === other.id && m.whisper?.length).length;
         const roomNow = () => M.roomOfToken(scene.tokens.get(tokens[0].id));
         const backToA = async () => { await tokens[0].update(M.positionIn(A, tokens[0]), PLACE); await settle(); };
+        // The third column: a pass to B held and the picker still in A (E74, DA9 as the plan has it: an open walks nobody).
+        const P = await import("./lockpick-gm.mjs");
         const step = async (hand, cover, withHope = true) => {
             const before = cards();
             const out = await ask(await rolls(hand, cover, withHope));
-            const row = typeof out === "string" ? out : [out?.opened ?? null, [...(out?.held ?? [])].sort().join("+"), roomNow() === B, cards() - before];
-            if (roomNow() === B) await backToA();
+            const row = typeof out === "string" ? out : [out?.opened ?? null, [...(out?.held ?? [])].sort().join("+"),
+                roomNow() === A && P.passOf(actor.id)?.room === B, cards() - before];
+            if (P.passOf(actor.id)) await P.endPass(actor.id);
+            if (roomNow() !== A) await backToA();
             return row;
         };
         const read = {};
@@ -88410,6 +88431,7 @@ const SCENARIOS = [
             }
             for (const { message, kept } of made) { await kept.putBack(); await game.messages.get(message.id)?.delete(); }
             await D.endBarricade(D.barricadeKey(scene.id, B));
+            if (P.passOf(actor.id)) await P.endPass(actor.id);
             await W.liftSeal(B);
             for (const [piece, key, value] of flagsWere) {
                 if (value === null) await piece.unsetFlag(MODULE_ID, key);
@@ -88422,7 +88444,7 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ lock: [[false, "lock", false, 0], [true, "lock", true, 0], true], seen: [[false, "lock", false, 1], [false, "lock", false, 0]],
             owner: [[true, "lock", true, 1], [true, "lock", true, 0], [false, "lock", false, 1], [false, "lock", false, 0]],
             seal: [true, "seal", true, 0], barricade: [false, "barricade", false, 0], far: "notThere", theirs: "notYours", noRoll: "rollUnknown" }),
-            "{lock: [[opened, held, walked in, cards to the room beyond] at 14 and 15, still locked]; seen: [a cover of 10, of 16]; owner: [15, 18, a miss with Despair, a miss with Hope]; seal: 15; barricade: 30; far; theirs; noRoll} - a lock picked on the GMs' record of its rolls");
+            "{lock: [[opened, held, a pass to it held from where the picker stood, cards to the room beyond] at 14 and 15, still locked]; seen: [a cover of 10, of 16]; owner: [15, 18, a miss with Despair, a miss with Hope]; seal: 15; barricade: 30; far; theirs; noRoll} - a lock picked on the GMs' record of its rolls");
     }],
     ["E74-T4 - Keep Watch is kept on the GMs' record of its Body roll and tells the watcher who is at the post, who comes and who leaves through the Eclipse (scripts/watch-gm.mjs, bridge-table.mjs `watch.declare`, config.mjs INFILTRATE.keepWatch; E74 C6; DA34): a roll below its number keeps no watch, one at it does; at the Eclipse's start the post is the watcher's room and a card names who is in it; a crossing into the post and one out of it are a card each, one elsewhere none, and none while no Eclipse runs; at its end a summary and the watch is over; another player's character notYours; a packet naming no roll rollUnknown", async () => {
         /*
@@ -88617,7 +88639,9 @@ const SCENARIOS = [
             read.force = [await reroll("force", { forceRoom: B, forced: false }), M.roomBroken(scene, B)];
             await M.setRoomBroken(scene, B, false);
             // The same lock the first roll did not pick (its cover unseen).
-            read.pick = [await reroll("pick", { pickRoom: B, opened: false, coverTotal: 20, coverCritical: false }), M.roomOfToken(scene.tokens.get(token.id))];
+            read.pick = [await reroll("pick", { pickRoom: B, opened: false, coverTotal: 20, coverCritical: false }), M.roomOfToken(scene.tokens.get(token.id)) === B
+                ? "walked" : (await import("./lockpick-gm.mjs")).passOf(actor.id)?.room ?? null];
+            { const P = await import("./lockpick-gm.mjs"); if (P.passOf(actor.id)) await P.endPass(actor.id); }
             await token.update(M.positionIn(A, token), PLACE);
             await settle();
             // A watch the first roll kept none of, then one it kept, rerolled into a miss.
@@ -88639,7 +88663,7 @@ const SCENARIOS = [
         const ok1 = { stood: true, noReplay: false };
         equal(stableJson(read), stableJson({ dash: [ok1, 2], tail: [ok1, 19], shut: [ok1, 19], force: [ok1, true], pick: [ok1, B],
             watch: [ok1, true], unwatch: [ok1, false] }),
-            "{each: [{the Reroll stood, a line was the no-replay line}, what the replay left]: dash: free crossings; tail, shut: the strength; force: B broken; pick: the room the picker stands in; watch, unwatch: a watch kept} - a Reroll replays the new rolls");
+            "{each: [{the Reroll stood, a line was the no-replay line}, what the replay left]: dash: free crossings; tail, shut: the strength; force: B broken; pick: the room of the picker's pass (E74 DA9: no walk); watch, unwatch: a watch kept} - a Reroll replays the new rolls");
     }],
     ["E74-T7 - the GMs' run of a Dash and of a room action write the facts a Reroll replays on the roll's own row, and a failed room action rerolled into a success gives its effects (scripts/bridge-runs-acts.mjs `factsForReroll`, infiltrate-reroll.mjs; E93, E69 C7): a Dash at 12 keeps one crossing on its row; a GM's room action of difficulty 30 missed at 5 keeps its key and no success, and its Reroll into a critical turns it into one and gives its Hope", async () => {
         /*
@@ -88851,6 +88875,185 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ shut: ["done", ["subtle"]], pickBands: ["evident", "subtle", "subtle", "hidden", "hidden"],
             knock: [null, 1], again: [{ told: false }, 1], far: "the character is not in that room", held: [true, false, false], sanity: [1, 1] }),
             "{shut: [answer, the Remnants placed]; pickBands; knock, again: [answer (none: a report nobody waits on), the author's cards]; far; held: [the post, another room, another student]; sanity: [after a miss with Despair, after one with Hope]} - the doors' Remnants, the knock and the watch's rules");
+    }],
+    ["E74-T10 - a watch of 18 or more puts one hindrance die on the killer's opening roll against the watcher, named in the killer's window as a hindrance die and nowhere with its cause (scripts/watch-gm.mjs `openingHindrance`, murder-rules.mjs `rollOpening`, roll-draw.mjs `situationReading`, roll-dialog.mjs `advantageSources`; E74 C6; DA44 option A, the owner 12.11.2026): the victim's running watch of 18 and a critical one hinder the GM's draw by one die, one of 17, one not yet at its post and none do not, and the victim's own side is never hindered; the invitation to the killer's browser carries `hindrance: 1` and nothing of the watch, the watcher or the victim, and the card that goes with it reads the same with and without; the window names the die a hindrance die", async () => {
+        /*
+         * E74, 12.11.2026 (the owner's answer to DA44, through the coordinator). An incident opened by this GM at noon,
+         * the killer a connected player's character, the victim another student; the watch a row of the GMs' store
+         * written here as watch-gm.mjs writes one. The invitations are caught at the socket and not sent (as
+         * `heldInvitations` does), and re-asked as the tracker's "Ask again" does (`rollOpening`). The GM's draw is read
+         * through `expectedFor`, as the primary reads a drawn roll's dice. Put back: the incident, the watch, the clock,
+         * the cards. Red at b00171f: no `openingHindrance`, no `hindrance` on the invitation, no window source.
+         */
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const E = await import("./call-effects.mjs");
+        const RD = await import("./roll-dialog.mjs");
+        const W = await import("./watch-gm.mjs");
+        const { expectedFor } = await import("./roll-draw.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const other = game.actors.find(a => a.type === "character" && a.id !== actor.id && !a.testUserPermission(player, "OWNER")
+            && !a.getFlag(MODULE_ID, FLAGS.monokuma) && !a.getFlag(MODULE_ID, FLAGS.monocub));
+        must(other, "no student the player does not own - this would measure nothing");
+        must(typeof W.openingHindrance === "function", "watch-gm.mjs has no openingHindrance");
+        const clock = getClock() ?? {};
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const sent = [];
+        const socket = game.socket;
+        const own = Object.getOwnPropertyDescriptor(socket, "emit");
+        const send = socket.emit;
+        socket.emit = function (event, packet, ...rest) {
+            if (packet?.action === "murder.openingAsk") { sent.push(foundry.utils.deepClone(packet)); return true; }
+            return send.call(this, event, packet, ...rest);
+        };
+        const watch = fields => S.watchStore.patch(other.id, { actorId: other.id, total: 18, critical: false, post: where.room,
+            entered: 0, left: 0, at: Date.now(), ...fields });
+        const drawn = async (who, side) => (await expectedFor(who, { actionKey: "murderOpening", context: { side } })).read?.situation ?? null;
+        const { contentOf } = await import("./secret.mjs");
+        // A whisper's words as this GM wrote them (a secret card keeps them aside, secret.mjs `contentOf`).
+        const cardsTo = () => game.messages.filter(m => !seenIds.has(m.id) && m.whisper?.includes(player.id)).map(m => contentOf(m));
+        const read = {};
+        try {
+            await setClock({ timeOfDay: "noon" });
+            await watch({});
+            await M.openMurder({ killerId: actor.id, victimId: other.id, openingTrait: "body" });
+            const state = M.murderState();
+            must(state?.stage === "openingRoll" && state.killerId === actor.id, `the opening roll is not ${actor.name}'s to throw: ${stableJson(state)}`);
+            read.gm = [await drawn(actor, "killer")];
+            const asked = async () => { const at = sent.length, cards = cardsTo().length; await M.rollOpening("killer", M.murderState()); await settle();
+                return { packet: sent.slice(at).at(-1) ?? null, cards: cardsTo().slice(cards) }; };
+            const at18 = await asked();
+            await watch({ total: 17 });
+            read.gm.push(await drawn(actor, "killer"));
+            const at17 = await asked();
+            await watch({ total: 3, critical: true });
+            read.gm.push(await drawn(actor, "killer"));
+            await watch({ post: null });
+            read.gm.push(await drawn(actor, "killer"));
+            await S.watchStore.drop(other.id);
+            read.gm.push(await drawn(actor, "killer"));
+            await S.watchStore.patch(actor.id, { actorId: actor.id, total: 20, critical: false, post: where.room, entered: 0, left: 0, at: Date.now() });
+            read.victimSide = await W.openingHindrance("victim", M.murderState());
+            await S.watchStore.drop(actor.id);
+            const words = [other.id, other.name, "watch", game.i18n.localize("DRPG.Infiltrate.row.keepWatch.label").toLowerCase()];
+            const said = JSON.stringify([at18.packet, at17.packet]).toLowerCase();
+            read.packets = [Object.keys(at18.packet ?? {}).sort(), at18.packet?.hindrance ?? null, Object.keys(at17.packet ?? {}).sort(),
+                words.filter(w => w && said.includes(String(w).toLowerCase()))];
+            // Each re-ask's own card, its last: the open's card may still be arriving into the first.
+            const last18 = at18.cards.at(-1) ?? null, last17 = at17.cards.at(-1) ?? null;
+            read.cards = [Boolean(last18) && !last18.includes("data-drpg-secret"), last18 === last17];
+            E.armOwnHindrance(1);
+            try {
+                const src = RD.advantageSources({}, actor);
+                read.window = [E.situationalAdvantage(), src.sources.filter(x => x.key === "hindrance"),
+                    game.i18n.localize(RD.explainAdvantage(src.sign, src.count, src.capped, src.sources))];
+            } finally {
+                E.clearOwnHindrance();
+            }
+            read.window.push(E.situationalAdvantage());
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            for (const id of [other.id, actor.id]) if (S.watchStore.get(id)) await S.watchStore.drop(id);
+            await c3Incident(clock);
+            for (const m of game.messages.filter(m => !seenIds.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ gm: [-1, 0, -1, 0, 0], victimSide: 0,
+            packets: [["action", "actorId", "hindrance", "side", "trait", "userId"], 1, ["action", "actorId", "side", "trait", "userId"], []],
+            cards: [true, true],
+            window: [-1, [{ key: "hindrance", value: -1 }], game.i18n.localize("DRPG.RollDialog.forcedByHindrance"), 0] }),
+            "{gm: the GM's die at a watch of 18, 17, a critical, one not at its post, none; victimSide; packets: [the invitation's keys at 18, its hindrance, its keys at 17, the watch's words found in either]; cards: [a card with its words went, the same at 18 and 17]; window: [the claim's dice armed, the window's hindrance source, its sentence, the claim after]} - the watch's die on the killer's opening");
+        ok(game.i18n.localize("DRPG.RollDialog.forcedByHindrance") !== "DRPG.RollDialog.forcedByHindrance", "the window's sentence for a hindrance die has no text");
+    }],
+    ["E74-T11 - Pick the Lock's open is a pass for the picker alone, kept until the picker leaves the room it opens (scripts/lockpick-gm.mjs, movement.mjs `holdsPass`, doors-gm.mjs `pickLock`, infiltrate-reroll.mjs; E74 C4; DA9 as the plan has it, the owner 12.11.2026 \"Wole zgodnie z planem\"): an open at 15 moves nobody and gives the picker a pass to that room, in the copy of the picker's player alone; the picker's walk in through the locked door is let through and another student's is refused doorLocked; the picker's settled crossing in keeps it, the one out ends it and the door is locked to them again; a new time of day takes a pass not yet used and leaves one in use; a seal's pass lets the picker past it; a Reroll below 15 takes back a pass not yet used, and leaves one used", async () => {
+        /*
+         * E74, 12.11.2026 (the owner's answer to DA9, through the coordinator). Called on this GM as the run of `door.pick`
+         * calls it (`pickLock`, `tell` off: no card, no Remnant), the crossings handed to the listener as crossing-settle.mjs
+         * would hand them, the copy read as the primary would send it (`passesFor`). Rooms as E74-T3's: A the character's, B its door's (a
+         * GM's lock), C beyond. Put back: the passes, the flags, the seal, the tokens. Red at b00171f: no lockpick-gm.mjs.
+         */
+        const M = await import("./movement.mjs");
+        const D = await import("./doors-gm.mjs");
+        const W = await import("./call-world.mjs");
+        const { settleInfiltrate } = await import("./infiltrate-reroll.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        needs(world.atLeast("namedRooms", 2), "a room, its door's room and one beyond");
+        const L = await import("./lockpick-gm.mjs").catch(() => null);
+        must(L, "there is no lockpick-gm.mjs");
+        const { player, actor } = await playerInRoom();
+        const other = game.actors.find(a => a.type === "character" && a.id !== actor.id && !a.testUserPermission(player, "OWNER")
+            && !a.getFlag(MODULE_ID, FLAGS.monokuma) && canvas?.scene?.tokens?.some(t => t.actorId === a.id));
+        must(other, "no student the player does not own with a token on the scene on screen - this would measure nothing");
+        const scene = canvas.scene;
+        const token = scene.tokens.find(t => t.actorId === actor.id);
+        const rooms = M.allRooms(scene);
+        must(rooms.length >= 3, `the scene on screen has ${rooms.length} rooms - too few for A, B and C`);
+        const [A, B, C] = rooms;
+        const doors = { [A]: [B], [B]: [A, C], [C]: [B] };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const was = { x: token.x, y: token.y };
+        const flagsWere = [];
+        const keep = (piece, key) => flagsWere.push([piece, key, piece.getFlag(MODULE_ID, key) ?? null]);
+        const stranger = game.users.find(u => !u.isGM && u.id !== player.id && !actor.testUserPermission(u, "OWNER"));
+        const walk = (who, from, to) => { const v = M.crossingVerdict(who, from, to, scene, null, { mover: { gm: false, mastermind: false }, pay: false, keyed: true }); return v === true ? true : v?.code ?? v; };
+        const pass = () => { const row = L.passOf(actor.id); return row ? [row.room, Boolean(row.entered)] : null; };
+        const pick = total => D.pickLock({ actor, room: B, total, coverTotal: 16, tell: false });
+        const read = {};
+        try {
+            for (const [room, list] of Object.entries(doors)) for (const piece of roomRegions(scene, room)) {
+                keep(piece, M.ROOM_FLAGS.neighbours);
+                await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, list.join(", "));
+            }
+            for (const piece of roomRegions(scene, B)) { keep(piece, M.ROOM_FLAGS.locked); await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.locked, true); }
+            await token.update(M.positionIn(A, token), PLACE);
+            await settle();
+            const out = await pick(15);
+            await settle();
+            read.open = [out.opened, M.roomOfToken(scene.tokens.get(token.id)), pass(), walk(actor, A, B), walk(other, A, B)];
+            // What the owner's copy is sent (tier 2 holds the stores' sending: scenario 33 E74-C reads the packet itself).
+            const mine = L.passesFor(player.id).passes, theirs = stranger ? L.passesFor(stranger.id).passes : null;
+            read.copy = [mine[actor.id]?.room ?? null, mine[actor.id]?.sceneId === scene.id, theirs ? Object.keys(theirs).includes(actor.id) : false];
+            await L.onPassCrossing({ actorId: actor.id, from: A, to: B });
+            read.inside = [pass(), walk(actor, A, B)];
+            await L.onPassCrossing({ actorId: actor.id, from: B, to: C });
+            read.left = [pass(), walk(actor, A, B)];
+            await pick(15);
+            await L.passesAtNewTimeOfDay();
+            read.unused = pass();
+            await pick(15);
+            await L.onPassCrossing({ actorId: actor.id, from: A, to: B });
+            await L.passesAtNewTimeOfDay();
+            read.inUse = pass();
+            await L.endPass(actor.id);
+            for (const piece of roomRegions(scene, B)) await piece.unsetFlag(MODULE_ID, M.ROOM_FLAGS.locked);
+            await W.sealRoom(B);
+            read.seal = [(await pick(15)).opened, walk(actor, A, B), walk(other, A, B)];
+            await W.liftSeal(B);
+            for (const piece of roomRegions(scene, B)) await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.locked, true);
+            await L.endPass(actor.id);
+            await pick(15);
+            const done = [];
+            await settleInfiltrate(actor, { actionKey: "pick", opened: true, pickRoom: B, coverTotal: 16 }, { total: 10, withHope: true }, done);
+            read.reroll = [pass(), done.length];
+            await pick(15);
+            await L.onPassCrossing({ actorId: actor.id, from: A, to: B });
+            const kept = [];
+            await settleInfiltrate(actor, { actionKey: "pick", opened: true, pickRoom: B, coverTotal: 16 }, { total: 10, withHope: true }, kept);
+            read.rerollUsed = [pass(), kept.length];
+        } finally {
+            if (L?.passOf?.(actor.id)) await L.endPass(actor.id);
+            await W.liftSeal(B);
+            for (const [piece, key, value] of flagsWere) {
+                if (value === null) await piece.unsetFlag(MODULE_ID, key);
+                else await piece.setFlag(MODULE_ID, key, value);
+            }
+            if (scene.tokens.has(token.id)) await token.update(was, PLACE);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ open: [true, A, [B, false], true, "doorLocked"], copy: [B, true, false],
+            inside: [[B, true], true], left: [null, "doorLocked"], unused: null, inUse: [B, true], seal: [true, true, "roomSealed"],
+            reroll: [null, 1], rerollUsed: [[B, true], 1] }),
+            "{open: [opened, the picker's room after, the pass, the picker's walk in, another's]; copy: [the room in the owner's copy, its scene, whether another player's copy holds it]; inside, left: [the pass, the picker's walk in] after the crossing in and out; unused, inUse: the pass after a new time of day; seal: [opened, the picker's walk, another's]; reroll, rerollUsed: [the pass, lines] after a Reroll of 10 before and after the entry} - the pick's pass");
     }],
     ["E69-T4 - Tail Someone begins on the GMs' record of its two rolls and sends its cards from a settled crossing (scripts/tail-gm.mjs, bridge-runs-acts.mjs `handleTailStart`, bridge-table.mjs `tail.start`, config.mjs INFILTRATE.tail; E69 C3, C4; DA8, DA20, DA21, DA26): a player's tail on a student in the room with Shadow 16 is unseen and kept with the effect's total; with Shadow 10 the target's owners are told the tailer's name; the tailer itself, another player's character and a packet naming no rolls are refused; the target's settled crossing sends the tailer one card naming the room, and one the tailer is not in or beside ends the tail lost; a Dash above the effect's total ends it, one below does not; a critical tail falls only to a critical Dash", async () => {
         /*

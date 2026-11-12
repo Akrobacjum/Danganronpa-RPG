@@ -345,11 +345,11 @@ Przy drzwiach z twojego pokoju do sąsiedniego: jeden rzut na Body przeciw wszys
 
 ### Pick the Lock - Shadow, potem Hand, 1 akcja
 
-Przy zamkniętych albo zapieczętowanych drzwiach z twojego pokoju do sąsiedniego (nie przy barykadzie): Hand 15 lub więcej je otwiera i wślizgujesz się - tylko ty; dla reszty zamek zostaje zamknięty. Najpierw rzut na Shadow: 16 lub więcej i nikt w pokoju za drzwiami nie widzi, kto to był. Właściciel sypialni dostaje wiadomość, że ktoś był przy zamku, gdy otworzysz poniżej 18 albo spudłujesz z Despair; przy 18 lub więcej - nigdy.
+Przy zamkniętych albo zapieczętowanych drzwiach z twojego pokoju do sąsiedniego (nie przy barykadzie): Hand 15 lub więcej otwiera je tylko dla ciebie: możesz wejść do tego pokoju, tymi drzwiami albo innymi, i zostać w nim, dopóki z niego nie wyjdziesz; dla reszty zamek zostaje zamknięty. Wejście, z którego nie skorzystasz w tej porze dnia, przepada. Najpierw rzut na Shadow: 16 lub więcej i nikt w pokoju za drzwiami nie widzi, kto to był. Właściciel sypialni dostaje wiadomość, że ktoś był przy zamku, gdy otworzysz poniżej 18 albo spudłujesz z Despair; przy 18 lub więcej - nigdy.
 
 ### Keep Watch - Body, 1 akcja
 
-Przed Eclipse (nie w trakcie i nie przed nocnym Eclipse): rzut na Body 12 lub więcej i czuwasz przez nadchodzący Eclipse w pokoju, w którym stoisz, gdy się zacznie. Dowiadujesz się wtedy, kto w nim jest, z imienia; przez cały Eclipse - kto wchodzi i kto wychodzi, z imienia, nigdy skąd ani dokąd; a na koniec ile osób weszło i wyszło. Kto zgodził się, by jego postać była ofiarą morderstwa, nie używa Keep Watch, by tego uniknąć.
+Przed Eclipse (nie w trakcie i nie przed nocnym Eclipse): rzut na Body 12 lub więcej i czuwasz przez nadchodzący Eclipse w pokoju, w którym stoisz, gdy się zacznie. Dowiadujesz się wtedy, kto w nim jest, z imienia; przez cały Eclipse - kto wchodzi i kto wychodzi, z imienia, nigdy skąd ani dokąd; a na koniec ile osób weszło i wyszło. Przez cały Eclipse zostajesz na posterunku. Porażka z Despair zdejmuje 1 Sanity. Czuwanie z wynikiem 18 lub więcej albo krytycznym utrudnia zaskoczenie cię: kto otwiera na tobie morderstwo, rzuca na otwarcie z jedną kością utrudnienia, a jego okno nie mówi dlaczego. Kto zgodził się, by jego postać była ofiarą morderstwa, nie używa Keep Watch, by tego uniknąć.
 
 ### Dash - Leg, 1 akcja
 

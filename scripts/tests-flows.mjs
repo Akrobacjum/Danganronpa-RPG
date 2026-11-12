@@ -82,8 +82,10 @@ export const FLOWS = Object.freeze([
     { id: "keep-watch", what: "Keep Watch: the Body roll drawn on the GM, the watch kept by the GM and its cards through the Eclipse",
         entry: { bridge: ["watch.declare"] }, scenarios: ["30-security"], status: "partial", stage: "E74" },
     // E74 C4 (12.11.2026): 30 forges the packet; the tier-2 test E74-T3 picks a lock and a seal.
-    { id: "door-pick", what: "Pick the Lock: the Hand and its cover drawn on the GM, the picker walked in by the GM on an open",
-        entry: { bridge: ["door.pick"] }, scenarios: ["30-security"], status: "partial", stage: "E74" },
+    // E74 (DA9 as the plan has it, 12.11.2026): an open is a pass, kept by the GMs and copied to its owner (lockpick-gm.mjs's
+    // socket), until the picker leaves the room; scenario 33 E74-C walks the picker in on it from the player's page.
+    { id: "door-pick", what: "Pick the Lock: the Hand and its cover drawn on the GM, a pass for the picker alone on an open, its owner's copy",
+        entry: { bridge: ["door.pick"], sockets: ["lockpick-gm.mjs"] }, scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E74" },
     // E74 C3 (12.11.2026): 30 forges the packet; the tier-2 test E74-T2 forces a barricade, a lock and a seal.
     { id: "door-force", what: "Force the Door: the Body roll drawn on the GM against everything that holds the door, read on the GM",
         entry: { bridge: ["door.force"] }, scenarios: ["30-security"], status: "partial", stage: "E74" },

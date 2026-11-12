@@ -16,9 +16,16 @@
  * struck through in Night, as the audit says), not by a character the GMs hold dead, one a watcher. A roll below
  * `INFILTRATE.keepWatch.dc` keeps no watch (a default taken; docs/dev/e74/STATUS.md).
  *
- * NOT BUILT IN THIS ROUND (docs/dev/e74/STATUS.md): the watcher held to the post during the Eclipse (`judgeEclipseCrossing`),
- * a Sanity mark for a miss with Despair, the hindrance die an 18+ watch adds to an opening roll (DA44: `LEGAL_ROLL_MODIFIERS`,
- * `expectedFor`, `rollOpening`).
+ * HELD TO THE POST, AND A SANITY (E74, 12.11.2026). The primary's Eclipse sighting puts a walk out of the post back
+ * (movement.mjs `watchHolds`, code `onWatch`); a watch missed with Despair marks a Sanity (`declareWatch`).
+ *
+ * THE HINDRANCE DIE (DA44 option A, the owner 12.11.2026 through the coordinator). A watch kept at
+ * `INFILTRATE.keepWatch.hindranceAt` (18) or more, or on a critical, and running (its post taken at the Eclipse's start),
+ * puts one hindrance die on the opening roll of the one who opens a murder on the watcher (`openingHindrance`). The primary reads it
+ * twice: when it asks the killer's browser to throw (murder-rules.mjs `rollOpening`, whose invitation carries
+ * `hindrance: 1` and nothing else of it) and when it draws that roll (roll-draw.mjs `situationReading`, the `situation`
+ * row of the GMs' list), so the killer's window throws the die the GM expects and calls it "a hindrance die", never why.
+ * The watch, its post and its total stay the GMs'.
  */
 
 import { MODULE_ID, FLAGS, INFILTRATE } from "./config.mjs";
@@ -26,6 +33,18 @@ import { getClock, incomingTimeOfDay, isEclipse, isDeadForGm } from "./settings.
 import { isPrimaryGm, whisperToOwnerOnly, log, error, esc } from "./utils.mjs";
 import { watchStore } from "./gm-stores.mjs";
 import { CROSSING_SETTLED } from "./crossing-settle.mjs";
+
+/**
+ * The hindrance dice an opening roll of `side` takes from the victim's watch, as this GM holds the watches: 1 on the
+ * killer's side when the victim keeps a running watch of `hindranceAt` or more (or a critical), else 0. Pure but for the
+ * store's read; asked by `rollOpening` and by the GM's draw.
+ */
+export function openingHindrance(side, state) {
+    if (side !== "killer" || !state?.victimId) return 0;
+    const row = watchStore.get(state.victimId);
+    if (!row?.post) return 0;
+    return row.critical || (Number(row.total) || 0) >= INFILTRATE.keepWatch.hindranceAt ? 1 : 0;
+}
 
 /** Why `actor` may not keep watch now, as the GMs read it, or null. English: the bridge maps it to a code. */
 export async function watchRefusal(actor) {

@@ -3194,9 +3194,9 @@
         "yourDoor": "Ktoś wyważył drzwi: {room}. Zamek zostaje zepsuty, póki ktoś go nie naprawi."
       },
       "pick": {
-        "prompt": "Otwórz zamek z: {room}. Hand {n} go otwiera i przechodzisz; {clean} lub więcej i właściciel się nie dowie. Shadow {cover} lub więcej i nikt nie widzi, kto to był.",
+        "prompt": "Otwórz zamek z: {room}. Hand {n} go otwiera dla ciebie samego, dopóki nie wyjdziesz z pokoju za nim; {clean} lub więcej i właściciel się nie dowie. Shadow {cover} lub więcej i nikt nie widzi, kto to był.",
         "coverTitle": "Pick the Lock - czy ktoś widzi?",
-        "opened": "Zamek ustępuje. Wślizgujesz się do: {room}.",
+        "opened": "Zamek ustępuje. Możesz wejść do: {room}, dopóki z niego nie wyjdziesz; dla wszystkich innych zostaje zamknięty.",
         "held": "Zamek do: {room} trzyma.",
         "open": "Żaden zamek nie trzyma drzwi do: {room}.",
         "seenBy": "{name} majstruje przy zamku do: {room}.",
@@ -3265,7 +3265,7 @@
         },
         "pick": {
           "label": "Pick the Lock",
-          "hint": "Hand przy zamkniętych albo zapieczętowanych drzwiach obok: wchodzisz ty i nikt więcej."
+          "hint": "Hand przy zamkniętych albo zapieczętowanych drzwiach obok: wejście otwarte tylko dla ciebie, dopóki nie wyjdziesz z tego pokoju."
         },
         "keepWatch": {
           "label": "Keep Watch",
@@ -4088,6 +4088,7 @@
       "unlockedByCall": "Odblokowane przez opłacony Call.",
       "freeCritArmed": "Loaded Die uzbrojony. Jedna z dwóch kości, losowo, ustawiona na 12, druga rzucana - bardzo wysoki wynik, a krytyk tylko, jeśli i ta wypadnie 12.",
       "forcedByCall": "Ustawione przez opłacony Call. Nie da się tego wyłączyć.",
+      "forcedByHindrance": "Na tym rzucie jest kość utrudnienia. Nie da się tego wyłączyć.",
       "forcedBySituation": "Ustawione przez to, gdzie jesteś i czego szukasz. Nie da się tego wyłączyć.",
       "forcedByState": "Jesteś w Breakdown - każdy rzut z utrudnieniem, dopóki nie wróci trochę Sanity. Nie da się tego wyłączyć.",
       "lockedByCall": "O modyfikatorze tego rzutu zdecydował już Call.",
@@ -4103,6 +4104,7 @@
       },
       "source": {
         "call": "Call",
+        "hindrance": "kość utrudnienia",
         "situation": "miejsce, w którym jesteś",
         "state": "Breakdown"
       }
@@ -5033,9 +5035,10 @@
         "forceRefused": "Po Rerollu: tych drzwi nie da się stąd spróbować ponownie.",
         "forced": "Po Rerollu: drzwi ustępują teraz.",
         "forceHeld": "Po Rerollu: drzwi dalej trzymają.",
-        "pickStands": "Po Rerollu: pierwszy rzut otworzył zamek i postać jest już w środku.",
+        "pickStands": "Po Rerollu: pierwszy rzut otworzył zamek i postać już przez niego przeszła, więc to zostaje.",
+        "pickTaken": "Po Rerollu: zamek jednak trzyma, a przejście otwarte pierwszym rzutem przepada.",
         "pickRefused": "Po Rerollu: tego zamka nie da się stąd spróbować ponownie.",
-        "picked": "Po Rerollu: zamek ustępuje teraz i postać wślizguje się do środka.",
+        "picked": "Po Rerollu: zamek ustępuje teraz i postać może wejść.",
         "pickHeld": "Po Rerollu: zamek dalej trzyma.",
         "watchStands": "Po Rerollu: czuwania nie da się już ustalić, więc zostaje wynik pierwszego rzutu.",
         "watchKept": "Po Rerollu: czuwanie zostaje.",
@@ -7579,6 +7582,7 @@
         "tails": "Kto dziś śledzi kogo, i jak dobrze",
         "barricades": "Które pokoje są zabarykadowane, przez kogo i jak mocno",
         "watches": "Kto czuwa przez Eclipse, w którym pokoju i co widział",
+        "lockpicks": "Kto może przejść przez zamek, który otworzył wytrychem, i do którego pokoju",
         "clockBeat": "Kiedy główny GM był ostatnio przy stole, żeby przerwa między sesjami nie liczyła się do pory dnia",
         "takeBack": "Co dał ostatni początek pory dnia, przez pięć minut, żeby pomyłkę dało się cofnąć",
         "crossings": "Ostatnie przejście każdej postaci między pokojami, jego koszt i czy GM je zwrócił",

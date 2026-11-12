@@ -460,6 +460,13 @@ export const SETTINGS = {
     /** THE WATCHES KEPT (E74 C6, 12.11.2026): a GM store (gm-stores.mjs `watchStore`), a row per watcher. Synced, not backed up. */
     gmWatches: "gmWatches",
     /**
+     * THE PICK'S PASSES (E74, 12.11.2026; DA9 as the plan has it): a GM store (gm-stores.mjs `lockpickStore`), a row per
+     * picker `{ actorId, sceneId, room, mark, entered, at }`, and each owner's copy of their own characters' passes
+     * (`mineLockpicks`, gm-stores.mjs `lockpickCopy`), which their move veto reads. Synced and backed up.
+     */
+    gmLockpicks: "gmLockpicks",
+    mineLockpicks: "mineLockpicks",
+    /**
      * WHICH GM ROOM ACTIONS ARE CLOSED NOW (E93 C1): `{ mark, keys }`, the time of day and the keys of the GM's
      * actions used in it (`g:<sceneId>:<room>:<actionId>`), written by the primary GM (facilities-gm.mjs
      * `closeForAll`). A world setting every browser holds, so an honest Facilities window greys a closed action
@@ -2051,6 +2058,20 @@ export function registerSettings() {
     });
     // The watches kept (E74 C6): no `onChange` - read by the primary at an Eclipse and a crossing (watch-gm.mjs).
     game.settings.register(MODULE_ID, SETTINGS.gmWatches, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The pick's passes (E74, DA9): the GMs' store and each owner's copy; no `onChange` - read by the move veto and the
+    // GMs' audit when a crossing is judged (movement.mjs `holdsPass`).
+    game.settings.register(MODULE_ID, SETTINGS.gmLockpicks, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.mineLockpicks, {
         scope: "client",
         config: false,
         type: Object,

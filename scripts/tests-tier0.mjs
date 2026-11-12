@@ -8172,7 +8172,6 @@ const REGRESSIONS = [
             ["music-play.mjs", "rewindTo", "playlist", "a playlist moved to a track"],
             ["music-play.mjs", "stopPlaylistDead", "playlist", "a playlist stopped"],
             ["notice-history.mjs", "updateNotice", "engine", "the notice history's own engine, not a document: a kept entry's state or snapshot, in this browser's setting (E81 C3; R293)"],
-            ["gm-bridge.mjs", "pickLock", "token", "a token walked through a picked door by the primary GM (E74 C4): the lock judged and the Hand read off the GMs' record before it, in the run of `door.pick`"],
             ["passages-gm.mjs", "crossTunnel", "doc", "a token moved through a tunnel by the primary GM: 'Go through', its default write, the crossing judged and paid before it (E80 C2; a bridge run, gated on the primary)"],
             ["projects-tray.mjs", "leaveIconOnly", "game.user", "the user's own view of the projects tray"],
             ["remnants.mjs", "placeRemnant", "target", "a Remnant's token, placed on a scene"],
@@ -10653,7 +10652,6 @@ const REGRESSIONS = [
             ["OPT movement.mjs#tunnelStepTarget#displace -> exempt", "this file's own: as `movementAction` above (H81-14)"],
             ["OPT movement.mjs#judgeMove#REVERT -> exempt", "this file's own: the mover's client charges nothing for its own revert; no judge takes it as an exemption"],
             ["OPT passages-gm.mjs#crossTunnel#displace -> exempt", "the primary GM's own write of a 'Go through' (E80 C2: `teleport`, `displace`, no animation): a GM's move is let through because a GM made it (the hook's user), not because of these options; the crossing was judged before it by the doors' rules (`tunnelVerdict`; A10-18)"],
-            ["OPT gm-bridge.mjs#pickLock#displace -> exempt", "the primary GM's own write walking a picker through the door it opened (E74 C4, doors-gm.mjs `pickLock`: `teleport`, `displace`, no animation): a GM's move is let through because a GM made it (the hook's user), not because of these options"],
             ["OPT projects-map.mjs#moveProjectToken#displace -> exempt", "the primary GM's own write of a project token into its project's room (E36 C4: `teleport`, `displace`, no animation, and the module's own move option, which the project's drag handler skips): a GM's move is let through because a GM made it (the hook's user), not because of these options; a project token is no character and crosses nothing"],
             ["OPT call-world.mjs#fallbackGather#displace -> exempt", "a GM's own write (`updateEmbeddedDocuments` with REVERT, `teleport` and `displace`): a GM's move is let through because a GM made it (the hook's user), not because of these options"],
             // ---- the packets
@@ -14821,7 +14819,8 @@ const REGRESSIONS = [
                 && /\{ teleport: true, movementAction: "displace", animate: false, \[M\.TUNNEL_CROSSING\]: true \}/.test(cross),
             doors: /crossingVerdict\(actor, here, to, scene, \{ from: near\.level, to: near\.far\.level \},/.test(verdict)
                 && /via: "passage", known, joined: true, keyed: true/.test(verdict)
-                && /if \(to && !\(mover \? mover\.mastermind : iAmTheMastermind\(\)\)\) \{\s*if \(isLocked\(scene, to\)\)/.test(fnSource(movement, "restrictedFrom")),
+                // E74 (DA9): the pick's pass is the one holder past the fixed rules, and a passage still passes none of them.
+                && /if \(to && !\(mover \? mover\.mastermind : iAmTheMastermind\(\)\)( && !holdsPass\(actor, scene, to\))?\) \{\s*if \(isLocked\(scene, to\)\)/.test(fnSource(movement, "restrictedFrom")),
             landing: /for \(let ring = 0; ring <= 3; ring\+\+\)/.test(landing) && /=== room;/.test(landing) && /inside && free\(spot\)/.test(landing),
             findPassage: ACTIONS.analyze?.passageThreshold === 16,
             findWhat: /row\.actorIds\.includes\(actor\.id\)\) continue;/.test(find) && /first\(a\.id\) - first\(b\.id\)/.test(find)
