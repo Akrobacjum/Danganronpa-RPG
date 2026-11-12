@@ -130,7 +130,7 @@ export const FLOWS = Object.freeze([
     // (C7) drive the legal road, 30 a student's forged packet of it (another's token, its own, its own with a forged flag); partial until its
     // release names it (covered names the release it arrived in).
     { id: "spectator-move", what: "A Spectator's token moved where its player asks, through any wall, at no price, finding no room",
-        entry: { bridge: ["spectator.move"] }, scenarios: ["30-security", "33-bridge-paths", "92-spectator"], status: "partial", stage: "E92" },
+        entry: { bridge: ["spectator.move"] }, scenarios: ["30-security", "33-bridge-paths", "93-spectator"], status: "partial", stage: "E92" },
     // E08+E28 C8 (03.10.2026): a player's road is gone - a Reroll's point is the GM's own (C4b), and a
     // player's `despair.adjust` is refused (`undoIsTheGms`; 30 and 33 send one). 33's A7 drives the GM road.
     // E17 C5 (26.10.2026): another GM's overflow added on the primary (`overflow.add`, gmOnly); tier 2 E17-T8 judges a

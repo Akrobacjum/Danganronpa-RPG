@@ -14,10 +14,10 @@ Updated 12.11.2026. Final: all seven commits in, tested, pushed. The plan is `do
 | C4 | `tokenShownTo`: its token hidden from every other player, its view sees every character; its map the class's ledger folded into its own row without the Mastermind's (`spectatorFogSection`), retold on the flag, unticked on the way back (`forgetSpectatorMap`); scripts/spectator.mjs (a leaf) | 82c988f |
 | C5 | `sheetMode` "spectator"; scripts/spectator-ui.mjs: the line under the clock (its room, "Watch a room" picker through `spectator.move`) and the hidden chat (`drpg-spectator`, components.css) | e08aaec, b50184f |
 | C6 | The Spectators' voice room (`SPECTATOR_ROOM`) behind "Talk with the Spectators" (the player's own User flag, honoured for a Spectator's account alone); the microphone opens there only | c9d0d4b |
-| C7 | Scenario 92-spectator (ci); R3861 (E61's entry and cut-in, E62's transitions, E94's board as a Spectator sees them); GM and player handbooks EN and PL | 88343c0 |
+| C7 | Scenario 93-spectator (ci); R3861 (E61's entry and cut-in, E62's transitions, E94's board as a Spectator sees them); GM and player handbooks EN and PL | 88343c0 |
 | fixes | The module's own censuses given the new roads' rows (R6, R220, R379, R432, R553, R382, R1281 - found by the full tiers 0-1 run at C7); 33's ghost check moved before the phases that take the GMs away | 81c740e, 7f0f2bc |
 
-New files: scripts/spectator.mjs, scripts/spectator-ui.mjs, audit/harness/scenarios/92-spectator.mjs. Their rows in
+New files: scripts/spectator.mjs, scripts/spectator-ui.mjs, audit/harness/scenarios/93-spectator.mjs. Their rows in
 `.claude/rules/code.md`'s table are not written (that file is not this line's to touch): for the coordinator.
 
 Tests: R3850-R3861 (tier 1, 12 numbers of 50 reserved); tier 2 "a Spectator's microphone is blocked outside the trial

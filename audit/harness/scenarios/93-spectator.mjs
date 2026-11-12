@@ -1,5 +1,5 @@
 /**
- * 92-spectator: a Spectator at the table, from its assignment in the Students window to its return to the class
+ * 93-spectator: a Spectator at the table, from its assignment in the Students window to its return to the class
  * (E92 C7, 12.11.2026; plan docs/dev/plans/E92.md on claude/plan-130, the owner's E92 goal and its 04.11 amends).
  *
  * The GM and three players; p3's Chie is made a Spectator by the Students window's Role (gm-students.mjs

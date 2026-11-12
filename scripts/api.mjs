@@ -376,7 +376,7 @@ export const DrpgApi = {
     /** Open the GM panel (also the launcher in the left rail). */
     gmPanel: openGmPanel,
 
-    /** Open the clock editor (also "Edit campaign" on the GM panel). */
+    /** Open the clock editor, Edit campaign (its fields are also at the top of the GM panel's Season setup since E49 A1e). */
     editClock: openClockDialog,
 
     /** Force the top-of-screen HUD to redraw. */

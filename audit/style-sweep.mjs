@@ -1103,8 +1103,8 @@ async function panelPass(browser) {
 
 /*
  * THE SETTINGS WINDOW (`--settings`; E49 A1, 11.11.2026; the owner's rule of 10.11, "no state may add, remove or shift a
- * control", and [11]: no scrolling). Pages: probe 08's `drpg-settings` (a GM's seven sections) and
- * `drpg-settings-player` (a player's client sections), at 1366x768 and 1920x1080, both themes, in English and - with
+ * control", and [11]: no scrolling). Pages: probe 08's `drpg-settings` (a GM's) and `drpg-settings-player` (a
+ * player's; one window since E49 A1d, this browser's four sections; the panes `data-drpg-settings-pane` since), at 1366x768 and 1920x1080, both themes, in English and - with
  * `--pl-windows <dir>`, a probe 08 run with DRPG_CAPTURE_LANG=pl and DRPG_CAPTURE_OUT=<dir> - in Polish (the page's
  * `/audit/windows/` answered from <dir>). Each section is picked through the window's own `showSection`
  * (settings-window.mjs) and read: the window's outer rect, the body's scroll (`.drpg-kit-body` scrollHeight less
@@ -1132,7 +1132,7 @@ async function settingsRead(page) {
             showSection(win, key);
             await new Promise(r => globalThis.requestAnimationFrame(() => globalThis.requestAnimationFrame(r)));
             const rect = win.getBoundingClientRect();
-            const pane = win.querySelector(`[data-drpg-pane="${key}"]`);
+            const pane = win.querySelector(`[data-drpg-settings-pane="${key}"]`);
             const paneRight = pane?.getBoundingClientRect().right ?? 0;
             const over = Math.max(0, ...[...(pane?.querySelectorAll(".drpg-settings-row") ?? [])].map(r => Math.round((r.getBoundingClientRect().right - paneRight) * 10) / 10));
             rows.push({ key, w: Math.round(rect.width * 10) / 10, h: Math.round(rect.height * 10) / 10,

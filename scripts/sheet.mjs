@@ -37,6 +37,7 @@ import { restShutReason } from "./rest.mjs";
 // `availableCrisisActions` and `isTheirTurn` went to the Direct Murder tile's
 // menu with the crisis grid - see `openCrisisMenu` in action-murder.mjs.
 import { murderState, sideOf, betrayalTarget, isTheirTurn, crisisTileLabel } from "./murder.mjs";
+import { incidentTurnText, actingActor } from "./events.mjs";
 // Two different rules, each under its own name since 1.2.69 (E33 C9, D39): the
 // crime-witness marker on a Monocub (information only - it refuses nothing) and
 // the Despair Call "Silence" on a living student (no Hope Calls until the time of
@@ -75,6 +76,7 @@ import { safeword } from "./safeword.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 import { debug, error, plural, proseOf, markLanguage, GM_ROUTE_CLASS, markFired } from "./utils.mjs";
 import { drpgConfirm } from "./ui-kit.mjs";
+import { markStatName, statOfTrait } from "./stat-glyphs.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { announceSheetSteps } from "./requirements.mjs";
 import { overflowBlocksCalls, overflowBlocksFreeMove } from "./overflow.mjs";
@@ -994,6 +996,7 @@ export const SHEET_STEPS = [
     ["removeSystemCreators", ({ app, element, mode }) => removeSystemCreators(app, element, mode)],
     ["leaveLoadoutTab", ({ app, element }) => leaveLoadoutTab(app, element)],
     ["frameTraits", ({ element }) => frameTraits(element)],
+    ["markTraitGlyphs", ({ element }) => markTraitGlyphs(element)],
     ["injectUltimate", ({ app, element, mode }) => injectUltimate(app, element, mode)],
     ["markSheetState", ({ app, element, mode }) => markSheetState(app, element, mode)],
     ["injectInitButton", ({ app, element, mode }) => injectInitButton(app, element, mode)],
@@ -1468,6 +1471,32 @@ function frameTraits(element) {
     const values = element.querySelectorAll(".character-traits .trait-value, .trait .trait-value");
     for (const value of values) {
         (value.closest(".trait") ?? value.parentElement ?? value).classList.add("drpg-trait-frame");
+    }
+}
+
+/*
+ * EACH STATISTIC'S GLYPH IN ITS MARK (E49, the owner's ask of 11.11.2026 night and his answer of 12.11.2026; stat-glyphs.mjs).
+ * Daggerheart 2.6.5's header (header.hbs:107) draws `.character-traits > .trait[data-attribute="<its key>"]`, and in each
+ * `.trait-name` a `.tier-mark` before the name's span: a disc half outside the plate's left end that shows
+ * `system.traits.<key>.tierMarked` as the class `marked` (a gold dot) - set only by Daggerheart's own level-up automation
+ * (character.mjs `prepareBaseData`), which the module never feeds, and with no action of its own (a click on it is the
+ * trait's `rollAttribute`). The owner: enlarge the marks and put the glyph inside them. So the glyph goes in the mark, the
+ * mark is marked `drpg-stat-mark` and its plate `drpg-stat-named` (danganronpa.css and stained-glass.css size and paint them
+ * by those, the plate padded clear of the larger mark), and `marked` is left as Daggerheart drew it, so the state still
+ * shows: marked, the holder is drawn in reverse (R3594). A sheet whose trait has no mark gets the glyph first in its name
+ * instead. The statistic is read off `data-attribute`, not off the label (a translation). Every render draws the header
+ * anew, and `markStatName` keeps a glyph already there, so a step that runs again adds nothing.
+ */
+function markTraitGlyphs(element) {
+    for (const trait of element.querySelectorAll(".character-traits .trait[data-attribute]")) {
+        const plate = trait.querySelector(".trait-name"), mark = plate?.querySelector(":scope > .tier-mark");
+        const key = statOfTrait(trait.dataset.attribute);
+        if (!key || !plate) continue;
+        if (mark) {
+            mark.classList.add("drpg-stat-mark");
+            plate.classList.add("drpg-stat-named");
+        }
+        markStatName(mark ?? plate.querySelector(":scope > span"), key);
     }
 }
 
@@ -4767,9 +4796,27 @@ function abilityButton(actor, key, def) {
  * and a player who does not know they still have it will pay an action for a
  * door they could have walked through.
  */
-function budgetLine(actor) {
+export function budgetLine(actor, state = murderState()) {
     const line = document.createElement("p");
     line.className = "notes drpg-keep drpg-budget-line";
+
+    /*
+     * IN A FIGHT THIS ROW SAYS WHOSE TURN IT IS (E49 B2's turn line; audit S03-30, "the victim, at the start of their
+     * turn, sees only the sheet and nothing says 'your turn'"; its fix: "in an incident, the turn's banner in the sheet
+     * itself"). The same row, not a new one: the owner's rule of 10.11 is that a state changes the look and never the
+     * layout, and in an incident the budget has nothing to say - every tile but the fight's is shut and a crisis action
+     * spends no action (`costOf`). The words are the incident card's (events.mjs `incidentTurnText`), so the card and
+     * the sheet cannot disagree; the light is `isTheirTurn`'s, the predicate that dims the fight's tile under it. Every
+     * seat `sideOf` names (a third party who walked in too: their tiles are shut as well) reads it; anyone outside the
+     * incident reads the budget as before.
+     */
+    if (state?.stage === "incident" && sideOf(actor, state)) {
+        const mine = isTheirTurn(actor, state);
+        line.textContent = incidentTurnText({ state, mine: actor.id, myTurn: mine, acting: actingActor(state) });
+        line.classList.add("drpg-budget-turn");
+        if (mine) line.classList.add("drpg-budget-mine");
+        return line;
+    }
 
     const left = actionsLeft(actor);
     const parts = [plural("DRPG.Actions.leftOf", {

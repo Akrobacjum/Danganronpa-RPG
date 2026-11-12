@@ -3,27 +3,28 @@
   "writtenBy": "audit/gate/local-gate.mjs",
   "module": {
     "id": "danganronpa-rpg",
-    "version": "1.2.104"
+    "version": "1.2.106"
   },
-  "commit": "1a84f27fedb8f53d3f6db6f4e8a89898e90adb51",
+  "commit": "6cce91ef9d87fbcbb99ad27ffc0ecedd747f17f5",
   "bound": {
-    "scripts": "c0987b16eda90fcb6ed50c19648910aff40b9996",
-    "styles": "a35510f2c7f43ca346cbbfd8ff25487169682470",
-    "lang": "87f5d9667545a2ada9a0c15332b2373d375d0d48",
+    "scripts": "de51be90d78e560977dcaa82a01a8de4403a2542",
+    "styles": "01c2bcd2ccad1f139010fe70d0357e05c67545b9",
+    "lang": "0a0ec7886dd6a577e1df89fb095c812683195c8c",
     "fonts": "a4beff91a36f010341b1b4a0b049698cca2f68c2",
-    "icons": "c3cfbab605a18fb537c230913ffa3c74d874a406",
-    "module.json": "4b2be31bf08258f8bd2ea9156dec4a5592945d7c",
+    "icons": "03c09f975b629eddfee20959f60ed357b8d02664",
+    "module.json": "94b089fbe307877983ec89317103c75948f82c9d",
     "audit/gate/local-gate.mjs": "c14592cd32b3e81fb34f96f6b4f2e718f0935be7",
     "audit/gate/gate-lib.mjs": "4c31bef421cc6337a06a6cd8304dc799aae1b7d9",
-    "audit/live": "4edd07a84bd3738480b190214bbb9c55e1956e12",
+    "audit/live": "0f1efdcbd589f52a69c14c13e91963e632b83146",
     "audit/harness/lib/seed.mjs": "631648825551c068a82d83f080f6bc78877717e5",
     "audit/harness/scenarios/14-quiet.mjs": "80d0c37db5208cace79fecbb7fc3b34b0d005d56",
     "audit/harness/scenarios/60-ledger.mjs": "62ae55bdb85a1708f04045dffa44971cdb1af282",
     "audit/harness/scenarios/81-render-budget.mjs": "4f0c592c86e2f988c7f49aad46f838e9966b37dc",
-    "audit/harness/scenarios/83-roll-integrity.mjs": "3b0425959a8d41f2e6c80382bbdddf8edeecc768"
+    "audit/harness/scenarios/83-roll-integrity.mjs": "87a7f1b568b92d8411cd772a73ebff2ad76fbab0",
+    "audit/harness/scenarios/84-viewports.mjs": "fcc7933d6f753787663c1523b494c491863c243e"
   },
-  "startedAt": "2026-11-11T01:40:13.979Z",
-  "finishedAt": "2026-11-11T01:40:14.083Z",
+  "startedAt": "2026-11-12T09:06:15.945Z",
+  "finishedAt": "2026-11-12T09:06:16.077Z",
   "host": {
     "node": "v22.22.0",
     "platform": "linux-x64",
@@ -106,15 +107,24 @@
       "reason": "no-server",
       "why": "nothing answered at http://localhost:30099 (connect ECONNREFUSED 127.0.0.1:30099)",
       "evidence": []
+    },
+    {
+      "id": "sandbox-84-viewports",
+      "layer": "sandbox",
+      "scenario": "audit/harness/scenarios/84-viewports.mjs",
+      "status": "not-run",
+      "reason": "no-server",
+      "why": "nothing answered at http://localhost:30099 (connect ECONNREFUSED 127.0.0.1:30099)",
+      "evidence": []
     }
   ],
   "counts": {
     "passed": 0,
     "failed": 0,
     "error": 0,
-    "notRun": 7
+    "notRun": 8
   },
   "verdict": "incomplete",
-  "digest": "sha256:4788c2fe969455de9923e3a15804673ccd3028043be669673c529403673651fa",
+  "digest": "sha256:e127b4afbb486ecbc4e979278581dc5190cd7eb0a3c29e6adab5f95f6ae58642",
   "hmac": null
 }

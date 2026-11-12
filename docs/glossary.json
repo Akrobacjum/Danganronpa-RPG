@@ -1437,6 +1437,66 @@
         "source": ["D31", "E44 plan"],
         "open": true,
         "note": "The window's name in the words of its tile label DRPG.Look.launcherTooltip, from the owner's approval of card M11 (docs/design/windows.md, DR-E44-M1, 04.11.2026) and the plan's amend of 05.10; added in E44 C7a. The gear's window (look.mjs openLookDialog; its title DRPG.Look.title has the same words). No other name for the window was read in the interface or the handbooks (a common noun after the name - \"the Sound window\" - is a description, not a variant), so the entry is open and forbids nothing."
+      },
+      {
+        "id": "case-map",
+        "en": "Map",
+        "pl": "Mapa",
+        "gender": "f",
+        "inflection": null,
+        "forbidden": {"en": {"variants": [], "scope": ["ui", "handbooks"]}, "pl": {"variants": [], "scope": ["ui", "handbooks"]}},
+        "stage": "E97",
+        "source": ["E97 plan"],
+        "open": true,
+        "note": "The Investigation panel's view of the case as a graph (E97 C5, the plan's Q-E97-2), its switch beside the Table. In Polish \"Mapa\" also names Foundry's scene map; in the panel the switch says which. Open: forbids nothing."
+      },
+      {
+        "id": "case-deduction",
+        "en": "Deduction",
+        "pl": "Wniosek",
+        "gender": "m",
+        "inflection": null,
+        "forbidden": {"en": {"variants": [], "scope": ["ui", "handbooks"]}, "pl": {"variants": [], "scope": ["ui", "handbooks"]}},
+        "stage": "E97",
+        "source": ["E97 plan"],
+        "open": true,
+        "note": "A node of the case map that follows from evidence (E97 C3, C6; Q-E97-2). Open: forbids nothing."
+      },
+      {
+        "id": "case-counter",
+        "en": "Counter",
+        "pl": "Kontra",
+        "gender": "f",
+        "inflection": null,
+        "forbidden": {"en": {"variants": [], "scope": ["ui", "handbooks"]}, "pl": {"variants": [], "scope": ["ui", "handbooks"]}},
+        "stage": "E97",
+        "source": ["E97 plan"],
+        "open": true,
+        "note": "A node of the case map that refutes a deduction (E97 C3, C6; Q-E97-2). Open: forbids nothing."
+      },
+      {
+        "id": "case-solution",
+        "en": "Solution",
+        "pl": "Rozwiązanie",
+        "gender": "n",
+        "inflection": null,
+        "forbidden": {"en": {"variants": [], "scope": ["ui", "handbooks"]}, "pl": {"variants": [], "scope": ["ui", "handbooks"]}},
+        "stage": "E97",
+        "source": ["E97 plan"],
+        "open": true,
+        "note": "The case map's last node, what the trial should reach (E97 C3, C6; Q-E97-2). Open: forbids nothing."
+      },
+      {
+        "id": "case-realization",
+        "en": "Realization",
+        "pl": "Realizacja",
+        "gender": "f",
+        "inflection": null,
+        "forbidden": {"en": {"variants": [], "scope": ["ui", "handbooks"]}, "pl": {"variants": [], "scope": ["ui", "handbooks"]}},
+        "stage": "E97",
+        "source": ["E97 plan"],
+        "open": true,
+        "note": "Placing what the case plans (the Key Remnant slots) on the map, with its preview and its undo (E97 C10; Q-E97-2). American spelling (text-style EN1). Open: forbids nothing."
       }
     ],
     "retired": [

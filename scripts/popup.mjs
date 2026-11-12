@@ -892,11 +892,23 @@ export function showPopup(bodyHtml, {
     /* And a heading that only says the title given again goes from the words too (E18 fix e1-G3; the end review's
        E18-END-8): a card posted with its title and opening with the same heading read it twice, bar and body. */
     const first = [...body.childNodes].find(node => node.nodeType !== Node.TEXT_NODE || node.textContent.trim());
-    const heading = first?.nodeType === Node.ELEMENT_NODE && /^H[1-4]$/.test(first.tagName) ? first.textContent.trim() : "";
+    /* A CHAT CARD'S TITLE IS ITS HEADING (E49 B5a): chat-card.mjs draws the title as the card head's `h3`, inside the
+       card, where the old cards opened with it. It is lifted the same way, the head with it (its glyph is the card's
+       mark in the log; the bar is the notice's), and the history keeps the heading first as before. */
+    const cardHead = first?.nodeType === Node.ELEMENT_NODE && first.matches?.(".drpg-chat-kit")
+        ? first.querySelector(":scope > .drpg-chat-kit-head") : null;
+    const cardTitle = cardHead?.querySelector(":scope > h3.drpg-chat-kit-title") ?? null;
+    const heading = cardTitle ? cardTitle.textContent.trim()
+        : first?.nodeType === Node.ELEMENT_NODE && /^H[1-4]$/.test(first.tagName) ? first.textContent.trim() : "";
     if (heading && (!title || heading === String(title).trim())) {
         title = heading;
-        lifted = first.outerHTML;
-        first.remove();
+        if (cardTitle) {
+            lifted = `<h3>${foundry.utils.escapeHTML(heading)}</h3>`;
+            cardHead.remove();
+        } else {
+            lifted = first.outerHTML;
+            first.remove();
+        }
     }
     if (!title) title = kindWord;
     const critical = tone === "critical";

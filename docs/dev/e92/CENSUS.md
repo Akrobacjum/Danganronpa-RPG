@@ -30,6 +30,7 @@ ones.
 | camera-view.mjs:235, 239 | a GM's Monokuma; a player's own character for the camera | character here |
 | cleanup.mjs:3049 | a refund log line | character here |
 | config.mjs:231 | a comment | - |
+| dh-settings.mjs `isCharacterSettings` (from the release line, merged 12.11) | Daggerheart's character settings window over a character | character here |
 | diagnostics.mjs:1772 | a timing probe on the first character | character here |
 | events.mjs:150 | the opening card's own characters (the cast decides) | character here |
 | fog.mjs:1827 `isMine` | which tokens are "mine" for the fog (the rooms I stand in) | leave it out (C4): a Spectator stands in no room it discovers |

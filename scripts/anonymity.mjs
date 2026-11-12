@@ -714,9 +714,9 @@ async function lowerOwnership(actor, { closedHere = false } = {}) {
         try {
             const updated = await actor.update({ "ownership.default": OBSERVER });
             if (!updated) return;   // somebody else's write got there first
-            await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Anonymity.reverted", {
+            await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Anonymity.reverted", {
                 actor: foundry.utils.escapeHTML(actor.name)
-            })}</p>`);
+            })}</p>` });
             debug(`Lowered the default ownership of "${actor.name}" back to OBSERVER.`);
         } finally {
             lowering.delete(actor.id);

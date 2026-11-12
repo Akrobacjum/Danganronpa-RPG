@@ -2538,8 +2538,8 @@ async function record(actor, user, found, options) {
         })).join("");
         let message = null;
         try {
-            message = await whisperToGms(`<p class="drpg-warning">${esc(game.i18n.format("DRPG.Audit.putBack", {
-                player: user?.name ?? "?", name: actor.name }))}</p><ul>${lines}</ul>`, { flags: { [MODULE_ID]: { sheetAudit: actor.id } } });
+            message = await whisperToGms({ tone: "warning", body: `<p>${esc(game.i18n.format("DRPG.Audit.putBack", {
+                player: user?.name ?? "?", name: actor.name }))}</p><ul>${lines}</ul>` }, { flags: { [MODULE_ID]: { sheetAudit: actor.id } } });
         } catch (err) {
             error("Could not tell the GMs of a write put back", err);
         }
@@ -2701,9 +2701,9 @@ export async function onForgedCard(message) {
     const change = Object.fromEntries(flags.map(path => [path, [null, shown(foundry.utils.getProperty(message, path))]]));
     const id = await recordTrace("forged", { actorId: actor?.id ?? null, userId: author?.id ?? null, messageId: message.id, change });
     try {
-        await whisperToGms(`<p class="drpg-warning">${esc(game.i18n.format("DRPG.Audit.forgedCard", {
+        await whisperToGms({ tone: "warning", body: `<p>${esc(game.i18n.format("DRPG.Audit.forgedCard", {
             player: author?.name ?? "?", name: actor?.name ?? message.speaker?.alias ?? "?",
-            flags: flags.map(path => path.split(".").slice(2).join(".")).join(", ") }))}</p>`,
+            flags: flags.map(path => path.split(".").slice(2).join(".")).join(", ") }))}</p>` },
         { flags: { [MODULE_ID]: { sheetAudit: actor?.id ?? null, forgedCard: message.id } } });
     } catch (err) {
         error("Could not tell the GMs of a message carrying a GM's flags", err);

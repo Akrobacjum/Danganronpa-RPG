@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.104";
+    --drpg-css-version: "1.2.106";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -596,7 +596,9 @@ body {
     --color-text-primary: #efe6d8;
     --color-text-secondary: #e7d1b1;
     --color-text-subtle: #9f8475;
-    --color-text-selection-bg: #584a75;
+    /* Foundry's own cool violet #584a75 until E105 FT-16 (11.11.2026): a Bone wash, for what components.css's own
+       `::selection` rule (selected text inverted) does not reach */
+    --color-text-selection-bg: rgba(var(--drpg-bone-rgb), 0.35);
 
     --table-background-color: rgba(11, 10, 19, 0.5);
     --table-header-bg-color: #302831;
@@ -1105,6 +1107,14 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     opacity: 1;
     background: none;
     border-color: var(--color-border, currentColor);
+    box-shadow: none;
+}
+
+/* Their ink under Legacy (E105 FT-20, 11.11.2026): stated, as the glass states its own - it was `#interface`'s at a
+   table and the page's in the harness, at rest and under the pointer. */
+body:not(.drpg-theme-stained-glass) #drpg-hud .drpg-hud-button,
+body:not(.drpg-theme-stained-glass) #drpg-hud .drpg-hud-button:hover {
+    color: var(--drpg-bone);
 }
 
 #drpg-hud .drpg-hud-button:disabled,
@@ -1275,6 +1285,15 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     opacity: 1;
     background: none;
     border-color: var(--drpg-blood);
+    box-shadow: none;
+}
+
+/* The tracker's ink under Legacy (E105 FT-20): the count, the overflow line and the - and + took `#interface`'s colour
+   at a table; the Bone the HUD's text wears, stated on the block and on its buttons (a button does not inherit it). */
+body:not(.drpg-theme-stained-glass) #drpg-despair,
+body:not(.drpg-theme-stained-glass) #drpg-despair .drpg-despair-button,
+body:not(.drpg-theme-stained-glass) #drpg-despair .drpg-despair-button:hover {
+    color: var(--drpg-bone);
 }
 
 #drpg-despair .drpg-despair-button:disabled {
@@ -1570,6 +1589,13 @@ body.drpg-player.drpg-resources-locked .party .actor-resources [data-action="tog
     letter-spacing: 0.1em;
     color: var(--drpg-bone);
     text-shadow: 0 1px 2px rgba(var(--drpg-shadow-rgb), 0.75);
+}
+
+/* The panel's notes - the budget line, the dead's two lines and "nobody has found you" - in the window's ink, both
+   themes (E105 FT-24, 11.11.2026): Daggerheart's `.notes` colour at a table, black in the harness. An empty budget's
+   crimson (0,3,0) stays its own. */
+.drpg-action-panel p.notes {
+    color: var(--drpg-kit-ink);
 }
 
 /* Always five per row - never fewer, whatever the sheet width. The media
@@ -1986,6 +2012,14 @@ body.drpg-reduced-motion .drpg-bullet-group > summary .drpg-bullet-group-name::b
     opacity: 1;
 }
 
+/* In a fight the row says whose turn it is (sheet.mjs `budgetLine`, E49 B2's turn line; S03-30): the same row, so
+   nothing moves when the incident starts or ends, and lit at full ink in the turn that is yours - the light, not a
+   colour, since red is the GM's and gold is Hope's. */
+.drpg-action-panel .drpg-budget-line.drpg-budget-mine {
+    font-weight: bold;
+    opacity: 1;
+}
+
 /* "You are carrying one but holding none." A hint, not a warning - nothing is
    wrong, there is just a click that would change what happens in an incident. */
 .drpg-inventory-group .drpg-equip-nudge {
@@ -2026,8 +2060,11 @@ body.drpg-reduced-motion .drpg-bullet-group > summary .drpg-bullet-group-name::b
     flex: 0 0 auto;
 }
 
+/* The item's name in the window's ink, both themes (E105 FT-23, 11.11.2026): it took Daggerheart's sheet colour at a table
+   and black in the harness - black on the rows' dark ground. */
 .drpg-inventory-list .drpg-item-name {
     flex: 1 1 auto;
+    color: var(--drpg-kit-ink);
 }
 
 /* What is left in a tool, in the row that carries it.
@@ -2934,6 +2971,24 @@ body.drpg-pixel-font textarea,
 body.drpg-pixel-font select,
 body.drpg-pixel-font [contenteditable] {
     font-family: var(--font-primary, sans-serif);
+}
+
+/* PROSE IN THE PIXEL FACE GETS ITS LINES APART, AND NO HYPHEN (E49, the half of audit S03-20 E48 K6 left open: "the
+   trace's metadata breaks with a line height under 1; the Equipped prose has about 1.0 and splits words"; its fix,
+   "line-height at least 1.2-1.25 for the prose and the metadata, hyphens: none"). The face's `normal` line height is
+   its em: measured in Chromium on the style harness under Monokuma Legacy (the pixel face on, 1366x768, every captured
+   window and the sheet's parts), the step between two lines of a wrapped paragraph, a note, a list item or the trace's
+   context line read 1.00 of the font size in 310 elements of 52 kinds, and 0.96 on the mini buttons. Prose and the
+   lines that read as prose only - paragraphs, notes, hints, the kit's boxes, list items, the trace's context, an item's label and an
+   experience's name on the sheet - at 1.25; headings, buttons, labels and table heads keep the face's own, and a rule
+   that names a line height of its own at a class's weight or more keeps it (the scope is `:where()`). `hyphens: none`
+   because a word split in a 5x7 face reads as two words; Foundry's own `hyphens: auto` on a sheet is not in the
+   harness, so that half is read as written, not measured. */
+body.drpg-theme-monokuma-legacy.drpg-pixel-font :where(.drpg-panel, .drpg-ui, .application.sheet.actor)
+    :where(p, li, .notes, .hint, .drpg-box, .drpg-trace-context, .item-labels .label, .experience-name) {
+    line-height: 1.25;
+    hyphens: none;
+    -webkit-hyphens: none;
 }
 
 /* ==========================================================================
@@ -4769,6 +4824,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    block. Measured: without it the paragraph computed to 672px, centred. */
 .application.dialog.drpg-room-setup :is(p, .notes):not(td):not(th):not(table *),
 .application.dialog.drpg-window-season :is(p, .notes):not(td):not(th):not(table *),
+.application.dialog.drpg-window-season-checklist :is(p, .notes):not(td):not(th):not(table *),
 .application.dialog.drpg-sound :is(p, .notes):not(td):not(th):not(table *),
 .application.dialog.drpg-window-tables :is(p, .notes):not(td):not(th):not(table *),
 .drpg-room-guide :is(p, .notes) {
@@ -6234,9 +6290,9 @@ body.drpg-dock-hidden {
     --drpg-av-lift: 0px !important;
 }
 
-/* THE GEAR'S VOICE SECTION (E78 C5; voice-panel.mjs): the Look window's third fieldset, its rows laid
-   out as the look's (stained-glass.css `.drpg-look label`, which both themes read) - a name column and
-   the control beside it. */
+/* THE GEAR'S VOICE SECTION (E78 C5; voice-panel.mjs): the Look window's third fieldset until E49 A1d, the
+   settings window's Sound section's since; its rows laid out as the look's were - a name column and the
+   control beside it. */
 fieldset.drpg-voice-panel { margin-top: 8px; }
 .drpg-voice-panel :is(.drpg-voice-panel-row, .drpg-voice-panel-key) { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
 .drpg-voice-panel :is(.drpg-voice-panel-row > span:first-child, .drpg-voice-panel-mode-label) { flex: 0 0 11ch; }
@@ -7847,8 +7903,53 @@ html body {
    advancement, which this module replaces outright and never sets - so the dot
    is permanently in its unmarked state. Painting it is the smaller change;
    hiding it is the other honest option. */
-.application.sheet.actor .trait-name .tier-mark {
+.application.sheet.actor .trait-name .tier-mark:not(.drpg-stat-mark) {
     background: var(--drpg-bone) !important;
+}
+
+/* THE MARK HOLDS THE STATISTIC'S GLYPH (E49, the owner's answer of 12.11.2026: "enlarge those and put the stat's glyph inside
+   them"; sheet.mjs `markTraitGlyphs` puts it there and names the mark `drpg-stat-mark`, its plate `drpg-stat-named`). Both
+   themes: the mark is shown (Stained Glass's rule that meant to hide it is gone, stained-glass.css says where), larger -
+   `--drpg-stat-mark-size`, 22 px here for Font Awesome's 12 px icon, 28 px under the glass for its 24 px drawing - and it
+   still stands half outside the plate's left end as Daggerheart drew it, 9 px out as its 1rem disc stood, the plate's start
+   padded so the name clears it. ITS STATE STAYS: Daggerheart shows `tierMarked` as the class `marked` with a gold dot inside
+   (`::before`), which would lie on the glyph; marked, the holder is drawn in reverse instead - Ink with the glyph in Bone and
+   a Bone edge - and unmarked it is Bone with the glyph in Ink, as the bare disc was (the rule above, which keeps its
+   `!important` for any other mark). Daggerheart's own selector with the module's class and `body`: (0,12,1) over its
+   (0,11,0), no `!important`; the group rule's `color: ... !important` on every `.tier-mark` is the mark's, and the glyph
+   states its own. Read in Chromium on the stand-in (S/stages/E105/e49stat, 12.11.2026). */
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name.drpg-stat-named {
+    --drpg-stat-mark-size: 22px;
+    padding-inline-start: calc(var(--drpg-stat-mark-size) - 4px);
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name .tier-mark.drpg-stat-mark {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--drpg-stat-mark-size);
+    height: var(--drpg-stat-mark-size);
+    right: calc(100% - var(--drpg-stat-mark-size) + 9px);
+    box-sizing: border-box;
+    background: var(--drpg-bone);
+    z-index: 1;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name .tier-mark.drpg-stat-mark > i.drpg-stat-glyph {
+    margin: 0;
+    color: var(--drpg-ink);
+    /* 12 px at 100 %, following the Interface scale (R60; a bare 12px until the merge into 1.2.105, 12.11.2026): 16.8 px
+       at 140 %, still inside the 22 px holder */
+    font-size: calc(12px * var(--drpg-legacy-scale, 1));
+    line-height: 1;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name .tier-mark.drpg-stat-mark.marked {
+    background: var(--drpg-ink);
+    box-shadow: inset 0 0 0 2px var(--drpg-bone);
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name .tier-mark.drpg-stat-mark.marked > i.drpg-stat-glyph {
+    color: var(--drpg-bone);
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name .tier-mark.drpg-stat-mark.marked::before {
+    content: none;
 }
 
 .application.sheet.actor .glassy,
@@ -7866,8 +7967,22 @@ html body {
    class (`drpg-gm-hotbar`); the owner had it gone again the same day (DZ5,
    "niepotrzebne", on a tablet), so it is hidden for everybody in every theme
    as in 1.2.73. The five macros the repository carries (macros/) and a GM's
-   own run from the Macro Directory. */
-#hotbar {
+   own run from the Macro Directory. The combat tracker (its sidebar tab, the tab's pane and its popped-out window) and
+   Daggerheart's effects display share the rule since E49 FT batch 3 (E105 FT-36; the owner, 11.11.2026, "Tak": hidden
+   for everybody, as the hotbar). A display rule only: no Combat or effect is touched, and a condition stays visible
+   where the game reads it - the token's status icons and the sheet. Read before hiding (scripts/, 11.11): nothing
+   needs the tracker or the display - call-world.mjs only re-points a moved token's combatants, and relay-guard.mjs
+   only lists Daggerheart's effects-display refresh among the socket messages it lets through. No top initiative bar
+   is named: none is in v13's chrome as this module knows it, nor in Daggerheart 2.10.11's ui (countdowns,
+   effects-display, resources, the darkness slider); if a table shows one, its id read there joins this rule. */
+#hotbar,
+#sidebar-tabs button.ui-control[data-tab="combat"],
+#sidebar .tabs button.ui-control[data-tab="combat"],
+#sidebar #combat,
+#sidebar .combat-sidebar,
+#combat-popout,
+#effects-display,
+#effects-panel {
     display: none !important;
 }
 
@@ -10766,8 +10881,19 @@ body.drpg-theme-monokuma-legacy .drpg-action-button:disabled[data-drpg-cost-kind
    no name may be shown, the action), on one row where it fits, so the card's own words keep their place in the corner tile. In the critical's own light red (`--drpg-critical`, K2b's name for it; the owner's 4c, kept), flat: one edge,
    no tint, no gradient, no glow (the card's ground under it is the critical's already). The same in both themes but for the glyph, which Stained Glass draws from its
    set (`fa-burst` -> `loaded`, pixel-icons.css) and Monokuma Legacy keeps as Font Awesome's (option A). One line in
-   every critical notice and in no other card, so nothing here appears or goes with a state. */
-.drpg-popup .drpg-crit-line {
+   every critical notice and in no other card, so nothing here appears or goes with a state.
+   WHEREVER THE LINE IS DRAWN (E49, 11.11.2026; the owner's "Tak" to E105 compare2's finding "Critical successAiko
+   Hoshino" run together in the chat log, both themes, present since 1.2.104): these rules named `.drpg-popup` alone,
+   so outside a notice the words fell back to inline text with no gap. `critLine` prepends the line to the notice's own
+   copy of the card (popup.mjs `showPopup`, a new `div` from the message's HTML), so the chat message the module posts
+   does not carry it; the notice history's kept snapshot does (notice-history.mjs `noticeSnapshot`, a
+   `.drpg-notice-snapshot` opened in the history window), and the comparison's chat stand-in drew the notice's body in
+   a `.chat-message`. The line reads apart in all three, at the weight it had (0,2,0): the notice and a chat message
+   here, the snapshot in components.css with the history's other parts (R1330: no other sheet styles them), the same
+   declarations. The duality total's rule below
+   stays the notice's: it is about the corner tile's room. Read in Chromium on the comparison's chat stand-in, both
+   themes: S/stages/E49/pan-shots/index.txt; R3544 holds the scope. */
+:is(.drpg-popup, .chat-message) .drpg-crit-line {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -10777,13 +10903,13 @@ body.drpg-theme-monokuma-legacy .drpg-action-button:disabled[data-drpg-cost-kind
     color: var(--drpg-critical);
 }
 
-.drpg-popup .drpg-crit-glyph {
+:is(.drpg-popup, .chat-message) .drpg-crit-glyph {
     flex: none;
     font-size: 1.3em;
     color: var(--drpg-critical);
 }
 
-.drpg-popup .drpg-crit-words {
+:is(.drpg-popup, .chat-message) .drpg-crit-words {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
@@ -10792,13 +10918,13 @@ body.drpg-theme-monokuma-legacy .drpg-action-button:disabled[data-drpg-cost-kind
     line-height: 1.2;
 }
 
-.drpg-popup .drpg-crit-result {
+:is(.drpg-popup, .chat-message) .drpg-crit-result {
     color: var(--drpg-critical);
     letter-spacing: 0.06em;
     text-transform: uppercase;
 }
 
-.drpg-popup .drpg-crit-who {
+:is(.drpg-popup, .chat-message) .drpg-crit-who {
     color: var(--drpg-bone);
     font-size: 0.85em;
 }
@@ -15336,25 +15462,30 @@ body.drpg-theme-monokuma-legacy .drpg-window-tables fieldset.drpg-tables-new > .
    The reset is scoped per key, exactly as the Call tiles are: a tile added
    later without a glyph keeps its Font Awesome icon rather than rendering as
    an empty square.
+
+   Edit campaign, Despair Flow, Killing game rules and The Mastermind left the
+   panel for Season setup in E49 A1e (11.11.2026), and their four rules went
+   with their tiles. Three came back on 12.11.2026 with the tiles of Season
+   setup's row (gm-panel.mjs SEASON_TILES, the panel's own tile markup), each
+   its drawing of before; the row's Season checklist keeps its Font Awesome
+   icon here (no rule: the owner, 12.11.2026); Edit campaign's stays out.
    ========================================================================== */
 
 /* The icon slot becomes a mask box. Font Awesome still ships the element, so
    its glyph is switched off explicitly - and the box needs a length rather
    than the `1.1em` it had, because `font-size: 0` makes an em zero. */
 .drpg-gmp-button[data-drpg-run="projects"] > i,
-.drpg-gmp-button[data-drpg-run="jump"] > i,
-.drpg-gmp-button[data-drpg-run="rules"] > i,
 .drpg-gmp-button[data-drpg-run="whoIsAlive"] > i,
 .drpg-gmp-button[data-drpg-run="murder"] > i,
 .drpg-gmp-button[data-drpg-run="investigation"] > i,
 .drpg-gmp-button[data-drpg-run="trial"] > i,
-.drpg-gmp-button[data-drpg-run="gmTeam"] > i,
 .drpg-gmp-button[data-drpg-run="roomSetup"] > i,
 .drpg-gmp-button[data-drpg-run="tables"] > i,
 .drpg-gmp-button[data-drpg-run="seasonSetup"] > i,
-.drpg-gmp-button[data-drpg-run="mastermind"] > i,
-.drpg-gmp-button[data-drpg-run="seasonReset"] > i,
 .drpg-gmp-button[data-drpg-run="failureLog"] > i,
+.drpg-gmp-button[data-drpg-run="gmTeam"] > i,
+.drpg-gmp-button[data-drpg-run="mastermind"] > i,
+.drpg-gmp-button[data-drpg-run="rules"] > i,
 i.drpg-pix-foot {
     flex: 0 0 24px;
     width: 24px;
@@ -15371,19 +15502,17 @@ i.drpg-pix-foot {
 }
 
 .drpg-gmp-button[data-drpg-run="projects"] > i::before,
-.drpg-gmp-button[data-drpg-run="jump"] > i::before,
-.drpg-gmp-button[data-drpg-run="rules"] > i::before,
 .drpg-gmp-button[data-drpg-run="whoIsAlive"] > i::before,
 .drpg-gmp-button[data-drpg-run="murder"] > i::before,
 .drpg-gmp-button[data-drpg-run="investigation"] > i::before,
 .drpg-gmp-button[data-drpg-run="trial"] > i::before,
-.drpg-gmp-button[data-drpg-run="gmTeam"] > i::before,
 .drpg-gmp-button[data-drpg-run="roomSetup"] > i::before,
 .drpg-gmp-button[data-drpg-run="tables"] > i::before,
 .drpg-gmp-button[data-drpg-run="seasonSetup"] > i::before,
-.drpg-gmp-button[data-drpg-run="mastermind"] > i::before,
-.drpg-gmp-button[data-drpg-run="seasonReset"] > i::before,
 .drpg-gmp-button[data-drpg-run="failureLog"] > i::before,
+.drpg-gmp-button[data-drpg-run="gmTeam"] > i::before,
+.drpg-gmp-button[data-drpg-run="mastermind"] > i::before,
+.drpg-gmp-button[data-drpg-run="rules"] > i::before,
 i.drpg-pix-foot::before {
     content: none !important;
 }
@@ -15391,16 +15520,6 @@ i.drpg-pix-foot::before {
 .drpg-gmp-button[data-drpg-run="projects"] > i {
     -webkit-mask-image: var(--drpg-pix-projects);
     mask-image: var(--drpg-pix-projects);
-}
-
-.drpg-gmp-button[data-drpg-run="jump"] > i {
-    -webkit-mask-image: var(--drpg-pix-jump);
-    mask-image: var(--drpg-pix-jump);
-}
-
-.drpg-gmp-button[data-drpg-run="rules"] > i {
-    -webkit-mask-image: var(--drpg-pix-new-rule);
-    mask-image: var(--drpg-pix-new-rule);
 }
 
 .drpg-gmp-button[data-drpg-run="whoIsAlive"] > i {
@@ -15423,11 +15542,6 @@ i.drpg-pix-foot::before {
     mask-image: var(--drpg-pix-trial);
 }
 
-.drpg-gmp-button[data-drpg-run="gmTeam"] > i {
-    -webkit-mask-image: var(--drpg-pix-gm-team);
-    mask-image: var(--drpg-pix-gm-team);
-}
-
 .drpg-gmp-button[data-drpg-run="roomSetup"] > i {
     -webkit-mask-image: var(--drpg-pix-room-setup);
     mask-image: var(--drpg-pix-room-setup);
@@ -15443,19 +15557,28 @@ i.drpg-pix-foot::before {
     mask-image: var(--drpg-pix-season-setup);
 }
 
+/* The Settings tile (E49 A1d) stood here wearing the corner gear's drawing, the Look launcher's: one glyph per
+   function, so since E105 FT batch 2 (11.11.2026) it wears its own markup's Font Awesome sliders under Monokuma Legacy,
+   as the Sound and Voice reset tiles wear theirs, and Stained Glass's own `settings` drawing (pixel-icons.css). */
+
+.drpg-gmp-button[data-drpg-run="failureLog"] > i {
+    -webkit-mask-image: var(--drpg-pix-failure-log);
+    mask-image: var(--drpg-pix-failure-log);
+}
+
+.drpg-gmp-button[data-drpg-run="gmTeam"] > i {
+    -webkit-mask-image: var(--drpg-pix-gm-team);
+    mask-image: var(--drpg-pix-gm-team);
+}
+
 .drpg-gmp-button[data-drpg-run="mastermind"] > i {
     -webkit-mask-image: var(--drpg-pix-mastermind);
     mask-image: var(--drpg-pix-mastermind);
 }
 
-.drpg-gmp-button[data-drpg-run="seasonReset"] > i {
-    -webkit-mask-image: var(--drpg-pix-season-reset);
-    mask-image: var(--drpg-pix-season-reset);
-}
-
-.drpg-gmp-button[data-drpg-run="failureLog"] > i {
-    -webkit-mask-image: var(--drpg-pix-failure-log);
-    mask-image: var(--drpg-pix-failure-log);
+.drpg-gmp-button[data-drpg-run="rules"] > i {
+    -webkit-mask-image: var(--drpg-pix-new-rule);
+    mask-image: var(--drpg-pix-new-rule);
 }
 
 /* The token toolbar's own button - the module's front door.
@@ -16227,6 +16350,628 @@ i.drpg-pix-foot {
 #sidebar-tabs button[data-tab="daggerheartMenu"]::before {
     -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 0h4v1H4zM5 1h2v1H5zM5 2h2v1H5zM1 3h10v1H1zM1 4h10v1H1zM4 5h4v1H4zM4 6h4v1H4zM4 7h4v1H4zM4 8h4v1H4zM5 9h2v1H5zM5 10h2v1H5zM5 11h2v1H5z'/%3E%3C/svg%3E");
     mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 0h4v1H4zM5 1h2v1H5zM5 2h2v1H5zM1 3h10v1H1zM1 4h10v1H1zM4 5h4v1H4zM4 6h4v1H4zM4 7h4v1H4zM4 8h4v1H4zM5 9h2v1H5zM5 10h2v1H5zM5 11h2v1H5z'/%3E%3C/svg%3E");
+}
+
+/* STAINED GLASS WEARS THESE ON THE 24 GRID (E48 batch 5, 12.11.2026; Q11, the owner 10.11: Stained Glass wears every
+   drawing on 24, Monokuma Legacy keeps its 12). The same selectors under the theme's body, each masked with its glass
+   row (tests-glyphs.mjs `glassChromeOf`: the row carrying the chrome row's key, else the glass row of its name), so the
+   rules above stay Legacy's, byte for byte. The box is the glass set's own (pixel-icons.css's glass box: max(1.15em,
+   22px), the drawing contained and centred), where the 12 drawings fill a 1em box: a 24 drawing at 1em would lose
+   every other row on a 16px button. */
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-user-large::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-user-large::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-user-large::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-bullseye::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-bullseye::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-bullseye::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-ruler::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-ruler::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-ruler::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-ghost::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-ghost::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-ghost::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-game-board::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-game-board::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-game-board::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-expand::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-expand::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-expand::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-ruler-combined::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-ruler-combined::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-ruler-combined::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.icon-fa-rectangle::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.icon-fa-rectangle::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.icon-fa-rectangle::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-circle::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-circle::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-circle::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-circle-regular::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-circle-regular::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-circle-regular::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.icon-fa-ellipse::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.icon-fa-ellipse::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.icon-fa-ellipse::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.icon-fa-cone::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.icon-fa-cone::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.icon-fa-cone::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-eye::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-eye::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-eye::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-horizontal-rule::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-horizontal-rule::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-horizontal-rule::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-podcast::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-podcast::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-podcast::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-draw-polygon::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-draw-polygon::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-draw-polygon::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-object-subtract::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-object-subtract::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-object-subtract::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-trash::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-trash::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-trash::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-pencil::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-pencil::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-pencil::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-signature::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-signature::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-signature::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-font::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-font::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-font::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-palette::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-palette::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-palette::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-cubes::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-cubes::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-cubes::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-cube::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-cube::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-cube::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-folder::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-folder::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-folder::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-block-brick::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-block-brick::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-block-brick::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-share-nodes::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-share-nodes::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-share-nodes::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-bars::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-bars::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-bars::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-mountain::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-mountain::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-mountain::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-eye-slash::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-eye-slash::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-eye-slash::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-mask::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-mask::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-mask::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-door-open::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-door-open::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-door-open::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-user-secret::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-user-secret::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-user-secret::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-window-frame::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-window-frame::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-window-frame::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-door-closed::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-door-closed::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-door-closed::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-music::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-music::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-music::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-volume-high::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-volume-high::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-volume-high::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-headphones::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-headphones::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-headphones::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-lightbulb::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-lightbulb::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-lightbulb::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-sun::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-sun::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-sun::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-moon::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-moon::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-moon::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-cloud::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-cloud::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-cloud::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-bookmark::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-bookmark::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-bookmark::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-book-open::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-book-open::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-book-open::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-map-pin::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-map-pin::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-map-pin::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-comments::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-comments::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-comments::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-swords::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-swords::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-swords::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-map::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-map::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-map::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-puzzle-piece::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-puzzle-piece::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-puzzle-piece::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-user::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-user::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-user::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-suitcase::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-suitcase::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-suitcase::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-table-list::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-table-list::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-table-list::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-cards::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-cards::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-cards::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-code::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-code::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-code::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-book-atlas::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-book-atlas::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-book-atlas::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-dice-d20::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-dice-d20::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-dice-d20::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-gears::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-gears::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-gears::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-caret-left::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-caret-left::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-caret-left::before,
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-clock::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-clock::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-clock::before,
+body.drpg-theme-stained-glass .application .window-header .header-control[data-action="close"]::before,
+body.drpg-theme-stained-glass .application .window-header .header-control[data-action="toggleControls"]::before,
+body.drpg-theme-stained-glass #sidebar-tabs button[data-tab="daggerheartMenu"]::before {
+    width: max(1.15em, 22px);
+    height: max(1.15em, 22px);
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-user-large::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-user-large::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-user-large::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 1h6v1H9zM7 2h10v1H7zM6 3h12v1H6zM5 4h14v1H5zM5 5h14v1H5zM5 6h14v1H5zM5 7h14v1H5zM5 8h14v1H5zM6 9h12v1H6zM7 10h10v1H7zM9 11h6v1H9zM2 12h4v1H2zM18 12h4v1H18zM1 13h6v1H1zM17 13h6v1H17zM1 14h8v1H1zM15 14h8v1H15zM1 15h22v1H1zM1 16h22v1H1zM1 17h22v1H1zM1 18h22v1H1zM1 19h22v1H1zM1 20h22v1H1zM1 21h22v1H1zM1 22h22v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 1h6v1H9zM7 2h10v1H7zM6 3h12v1H6zM5 4h14v1H5zM5 5h14v1H5zM5 6h14v1H5zM5 7h14v1H5zM5 8h14v1H5zM6 9h12v1H6zM7 10h10v1H7zM9 11h6v1H9zM2 12h4v1H2zM18 12h4v1H18zM1 13h6v1H1zM17 13h6v1H17zM1 14h8v1H1zM15 14h8v1H15zM1 15h22v1H1zM1 16h22v1H1zM1 17h22v1H1zM1 18h22v1H1zM1 19h22v1H1zM1 20h22v1H1zM1 21h22v1H1zM1 22h22v1H1z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-bullseye::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-bullseye::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-bullseye::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 1h8v1H8zM5 2h4v1H5zM15 2h4v1H15zM4 3h2v1H4zM18 3h2v1H18zM3 4h2v1H3zM19 4h2v1H19zM2 5h2v1H2zM20 5h2v1H20zM2 6h2v1H2zM9 6h6v1H9zM20 6h2v1H20zM1 7h2v1H1zM7 7h4v1H7zM13 7h4v1H13zM21 7h2v1H21zM1 8h2v1H1zM6 8h2v1H6zM16 8h2v1H16zM21 8h2v1H21zM1 9h2v1H1zM6 9h2v1H6zM16 9h2v1H16zM21 9h2v1H21zM1 10h2v1H1zM6 10h2v1H6zM10 10h4v1H10zM16 10h2v1H16zM21 10h2v1H21zM1 11h2v1H1zM6 11h2v1H6zM10 11h4v1H10zM16 11h2v1H16zM21 11h2v1H21zM1 12h2v1H1zM6 12h2v1H6zM10 12h4v1H10zM16 12h2v1H16zM21 12h2v1H21zM1 13h2v1H1zM6 13h2v1H6zM10 13h4v1H10zM16 13h2v1H16zM21 13h2v1H21zM1 14h2v1H1zM6 14h2v1H6zM16 14h2v1H16zM21 14h2v1H21zM1 15h2v1H1zM6 15h2v1H6zM16 15h2v1H16zM21 15h2v1H21zM1 16h2v1H1zM7 16h4v1H7zM13 16h4v1H13zM21 16h2v1H21zM2 17h2v1H2zM9 17h6v1H9zM20 17h2v1H20zM2 18h2v1H2zM20 18h2v1H20zM3 19h2v1H3zM19 19h2v1H19zM4 20h2v1H4zM18 20h2v1H18zM5 21h4v1H5zM15 21h4v1H15zM8 22h8v1H8z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 1h8v1H8zM5 2h4v1H5zM15 2h4v1H15zM4 3h2v1H4zM18 3h2v1H18zM3 4h2v1H3zM19 4h2v1H19zM2 5h2v1H2zM20 5h2v1H20zM2 6h2v1H2zM9 6h6v1H9zM20 6h2v1H20zM1 7h2v1H1zM7 7h4v1H7zM13 7h4v1H13zM21 7h2v1H21zM1 8h2v1H1zM6 8h2v1H6zM16 8h2v1H16zM21 8h2v1H21zM1 9h2v1H1zM6 9h2v1H6zM16 9h2v1H16zM21 9h2v1H21zM1 10h2v1H1zM6 10h2v1H6zM10 10h4v1H10zM16 10h2v1H16zM21 10h2v1H21zM1 11h2v1H1zM6 11h2v1H6zM10 11h4v1H10zM16 11h2v1H16zM21 11h2v1H21zM1 12h2v1H1zM6 12h2v1H6zM10 12h4v1H10zM16 12h2v1H16zM21 12h2v1H21zM1 13h2v1H1zM6 13h2v1H6zM10 13h4v1H10zM16 13h2v1H16zM21 13h2v1H21zM1 14h2v1H1zM6 14h2v1H6zM16 14h2v1H16zM21 14h2v1H21zM1 15h2v1H1zM6 15h2v1H6zM16 15h2v1H16zM21 15h2v1H21zM1 16h2v1H1zM7 16h4v1H7zM13 16h4v1H13zM21 16h2v1H21zM2 17h2v1H2zM9 17h6v1H9zM20 17h2v1H20zM2 18h2v1H2zM20 18h2v1H20zM3 19h2v1H3zM19 19h2v1H19zM4 20h2v1H4zM18 20h2v1H18zM5 21h4v1H5zM15 21h4v1H15zM8 22h8v1H8z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-ruler::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-ruler::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-ruler::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M18 2h2v1H18zM17 3h4v1H17zM16 4h6v1H16zM15 5h7v1H15zM18 6h3v1H18zM13 7h7v1H13zM12 8h7v1H12zM13 9h5v1H13zM10 10h7v1H10zM9 11h7v1H9zM12 12h3v1H12zM7 13h7v1H7zM6 14h7v1H6zM7 15h5v1H7zM4 16h7v1H4zM3 17h7v1H3zM2 18h7v1H2zM2 19h6v1H2zM3 20h4v1H3zM4 21h2v1H4z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M18 2h2v1H18zM17 3h4v1H17zM16 4h6v1H16zM15 5h7v1H15zM18 6h3v1H18zM13 7h7v1H13zM12 8h7v1H12zM13 9h5v1H13zM10 10h7v1H10zM9 11h7v1H9zM12 12h3v1H12zM7 13h7v1H7zM6 14h7v1H6zM7 15h5v1H7zM4 16h7v1H4zM3 17h7v1H3zM2 18h7v1H2zM2 19h6v1H2zM3 20h4v1H3zM4 21h2v1H4z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-ghost::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-ghost::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-ghost::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h8v1H8zM6 3h12v1H6zM5 4h14v1H5zM4 5h16v1H4zM3 6h18v1H3zM3 7h18v1H3zM3 8h4v1H3zM10 8h4v1H10zM17 8h4v1H17zM3 9h4v1H3zM10 9h4v1H10zM17 9h4v1H17zM3 10h4v1H3zM10 10h4v1H10zM17 10h4v1H17zM3 11h4v1H3zM10 11h4v1H10zM17 11h4v1H17zM3 12h18v1H3zM3 13h18v1H3zM3 14h18v1H3zM3 15h18v1H3zM3 16h18v1H3zM3 17h18v1H3zM3 18h18v1H3zM3 19h18v1H3zM3 20h3v1H3zM9 20h6v1H9zM18 20h3v1H18zM3 21h2v1H3zM10 21h4v1H10zM19 21h2v1H19z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h8v1H8zM6 3h12v1H6zM5 4h14v1H5zM4 5h16v1H4zM3 6h18v1H3zM3 7h18v1H3zM3 8h4v1H3zM10 8h4v1H10zM17 8h4v1H17zM3 9h4v1H3zM10 9h4v1H10zM17 9h4v1H17zM3 10h4v1H3zM10 10h4v1H10zM17 10h4v1H17zM3 11h4v1H3zM10 11h4v1H10zM17 11h4v1H17zM3 12h18v1H3zM3 13h18v1H3zM3 14h18v1H3zM3 15h18v1H3zM3 16h18v1H3zM3 17h18v1H3zM3 18h18v1H3zM3 19h18v1H3zM3 20h3v1H3zM9 20h6v1H9zM18 20h3v1H18zM3 21h2v1H3zM10 21h4v1H10zM19 21h2v1H19z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-game-board::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-game-board::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-game-board::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 2h20v1H2zM2 3h20v1H2zM2 4h6v1H2zM12 4h4v1H12zM20 4h2v1H20zM2 5h6v1H2zM12 5h4v1H12zM20 5h2v1H20zM2 6h6v1H2zM12 6h4v1H12zM20 6h2v1H20zM2 7h6v1H2zM12 7h4v1H12zM20 7h2v1H20zM2 8h2v1H2zM8 8h4v1H8zM16 8h6v1H16zM2 9h2v1H2zM8 9h4v1H8zM16 9h6v1H16zM2 10h2v1H2zM8 10h4v1H8zM16 10h6v1H16zM2 11h2v1H2zM8 11h4v1H8zM16 11h6v1H16zM2 12h6v1H2zM12 12h4v1H12zM20 12h2v1H20zM2 13h6v1H2zM12 13h4v1H12zM20 13h2v1H20zM2 14h6v1H2zM12 14h4v1H12zM20 14h2v1H20zM2 15h6v1H2zM12 15h4v1H12zM20 15h2v1H20zM2 16h2v1H2zM8 16h4v1H8zM16 16h6v1H16zM2 17h2v1H2zM8 17h4v1H8zM16 17h6v1H16zM2 18h2v1H2zM8 18h4v1H8zM16 18h6v1H16zM2 19h2v1H2zM8 19h4v1H8zM16 19h6v1H16zM2 20h20v1H2zM2 21h20v1H2z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 2h20v1H2zM2 3h20v1H2zM2 4h6v1H2zM12 4h4v1H12zM20 4h2v1H20zM2 5h6v1H2zM12 5h4v1H12zM20 5h2v1H20zM2 6h6v1H2zM12 6h4v1H12zM20 6h2v1H20zM2 7h6v1H2zM12 7h4v1H12zM20 7h2v1H20zM2 8h2v1H2zM8 8h4v1H8zM16 8h6v1H16zM2 9h2v1H2zM8 9h4v1H8zM16 9h6v1H16zM2 10h2v1H2zM8 10h4v1H8zM16 10h6v1H16zM2 11h2v1H2zM8 11h4v1H8zM16 11h6v1H16zM2 12h6v1H2zM12 12h4v1H12zM20 12h2v1H20zM2 13h6v1H2zM12 13h4v1H12zM20 13h2v1H20zM2 14h6v1H2zM12 14h4v1H12zM20 14h2v1H20zM2 15h6v1H2zM12 15h4v1H12zM20 15h2v1H20zM2 16h2v1H2zM8 16h4v1H8zM16 16h6v1H16zM2 17h2v1H2zM8 17h4v1H8zM16 17h6v1H16zM2 18h2v1H2zM8 18h4v1H8zM16 18h6v1H16zM2 19h2v1H2zM8 19h4v1H8zM16 19h6v1H16zM2 20h20v1H2zM2 21h20v1H2z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-expand::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-expand::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-expand::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h6v1H1zM17 1h6v1H17zM1 2h5v1H1zM18 2h5v1H18zM1 3h4v1H1zM19 3h4v1H19zM1 4h5v1H1zM18 4h5v1H18zM1 5h2v1H1zM4 5h3v1H4zM17 5h3v1H17zM21 5h2v1H21zM1 6h1v1H1zM5 6h3v1H5zM16 6h3v1H16zM22 6h1v1H22zM6 7h3v1H6zM15 7h3v1H15zM7 8h3v1H7zM14 8h3v1H14zM8 9h3v1H8zM13 9h3v1H13zM8 14h3v1H8zM13 14h3v1H13zM7 15h3v1H7zM14 15h3v1H14zM6 16h3v1H6zM15 16h3v1H15zM1 17h1v1H1zM5 17h3v1H5zM16 17h3v1H16zM22 17h1v1H22zM1 18h2v1H1zM4 18h3v1H4zM17 18h3v1H17zM21 18h2v1H21zM1 19h5v1H1zM18 19h5v1H18zM1 20h4v1H1zM19 20h4v1H19zM1 21h5v1H1zM18 21h5v1H18zM1 22h6v1H1zM17 22h6v1H17z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h6v1H1zM17 1h6v1H17zM1 2h5v1H1zM18 2h5v1H18zM1 3h4v1H1zM19 3h4v1H19zM1 4h5v1H1zM18 4h5v1H18zM1 5h2v1H1zM4 5h3v1H4zM17 5h3v1H17zM21 5h2v1H21zM1 6h1v1H1zM5 6h3v1H5zM16 6h3v1H16zM22 6h1v1H22zM6 7h3v1H6zM15 7h3v1H15zM7 8h3v1H7zM14 8h3v1H14zM8 9h3v1H8zM13 9h3v1H13zM8 14h3v1H8zM13 14h3v1H13zM7 15h3v1H7zM14 15h3v1H14zM6 16h3v1H6zM15 16h3v1H15zM1 17h1v1H1zM5 17h3v1H5zM16 17h3v1H16zM22 17h1v1H22zM1 18h2v1H1zM4 18h3v1H4zM17 18h3v1H17zM21 18h2v1H21zM1 19h5v1H1zM18 19h5v1H18zM1 20h4v1H1zM19 20h4v1H19zM1 21h5v1H1zM18 21h5v1H18zM1 22h6v1H1zM17 22h6v1H17z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-ruler-combined::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-ruler-combined::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-ruler-combined::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 2h6v1H2zM2 3h6v1H2zM2 4h3v1H2zM2 5h6v1H2zM2 6h4v1H2zM2 7h6v1H2zM2 8h3v1H2zM2 9h6v1H2zM2 10h4v1H2zM2 11h6v1H2zM2 12h3v1H2zM2 13h6v1H2zM2 14h4v1H2zM2 15h6v1H2zM2 16h7v1H2zM10 16h1v1H10zM12 16h1v1H12zM14 16h1v1H14zM16 16h1v1H16zM18 16h1v1H18zM20 16h2v1H20zM2 17h7v1H2zM10 17h1v1H10zM12 17h1v1H12zM14 17h1v1H14zM16 17h1v1H16zM18 17h1v1H18zM20 17h2v1H20zM2 18h7v1H2zM10 18h3v1H10zM14 18h3v1H14zM18 18h4v1H18zM2 19h20v1H2zM2 20h20v1H2zM2 21h20v1H2z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 2h6v1H2zM2 3h6v1H2zM2 4h3v1H2zM2 5h6v1H2zM2 6h4v1H2zM2 7h6v1H2zM2 8h3v1H2zM2 9h6v1H2zM2 10h4v1H2zM2 11h6v1H2zM2 12h3v1H2zM2 13h6v1H2zM2 14h4v1H2zM2 15h6v1H2zM2 16h7v1H2zM10 16h1v1H10zM12 16h1v1H12zM14 16h1v1H14zM16 16h1v1H16zM18 16h1v1H18zM20 16h2v1H20zM2 17h7v1H2zM10 17h1v1H10zM12 17h1v1H12zM14 17h1v1H14zM16 17h1v1H16zM18 17h1v1H18zM20 17h2v1H20zM2 18h7v1H2zM10 18h3v1H10zM14 18h3v1H14zM18 18h4v1H18zM2 19h20v1H2zM2 20h20v1H2zM2 21h20v1H2z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.icon-fa-rectangle::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.icon-fa-rectangle::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.icon-fa-rectangle::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 4h20v1H2zM2 5h20v1H2zM2 6h2v1H2zM20 6h2v1H20zM2 7h2v1H2zM20 7h2v1H20zM2 8h2v1H2zM20 8h2v1H20zM2 9h2v1H2zM20 9h2v1H20zM2 10h2v1H2zM20 10h2v1H20zM2 11h2v1H2zM20 11h2v1H20zM2 12h2v1H2zM20 12h2v1H20zM2 13h2v1H2zM20 13h2v1H20zM2 14h2v1H2zM20 14h2v1H20zM2 15h2v1H2zM20 15h2v1H20zM2 16h2v1H2zM20 16h2v1H20zM2 17h2v1H2zM20 17h2v1H20zM2 18h20v1H2zM2 19h20v1H2z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 4h20v1H2zM2 5h20v1H2zM2 6h2v1H2zM20 6h2v1H20zM2 7h2v1H2zM20 7h2v1H20zM2 8h2v1H2zM20 8h2v1H20zM2 9h2v1H2zM20 9h2v1H20zM2 10h2v1H2zM20 10h2v1H20zM2 11h2v1H2zM20 11h2v1H20zM2 12h2v1H2zM20 12h2v1H20zM2 13h2v1H2zM20 13h2v1H20zM2 14h2v1H2zM20 14h2v1H20zM2 15h2v1H2zM20 15h2v1H20zM2 16h2v1H2zM20 16h2v1H20zM2 17h2v1H2zM20 17h2v1H20zM2 18h20v1H2zM2 19h20v1H2z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-circle::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-circle::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-circle::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h8v1H8zM6 3h4v1H6zM14 3h4v1H14zM5 4h2v1H5zM17 4h2v1H17zM4 5h2v1H4zM18 5h2v1H18zM3 6h2v1H3zM19 6h2v1H19zM3 7h2v1H3zM19 7h2v1H19zM2 8h2v1H2zM20 8h2v1H20zM2 9h2v1H2zM20 9h2v1H20zM2 10h2v1H2zM20 10h2v1H20zM2 11h2v1H2zM20 11h2v1H20zM2 12h2v1H2zM20 12h2v1H20zM2 13h2v1H2zM20 13h2v1H20zM2 14h2v1H2zM20 14h2v1H20zM2 15h2v1H2zM20 15h2v1H20zM3 16h2v1H3zM19 16h2v1H19zM3 17h2v1H3zM19 17h2v1H19zM4 18h2v1H4zM18 18h2v1H18zM5 19h2v1H5zM17 19h2v1H17zM6 20h4v1H6zM14 20h4v1H14zM8 21h8v1H8z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h8v1H8zM6 3h4v1H6zM14 3h4v1H14zM5 4h2v1H5zM17 4h2v1H17zM4 5h2v1H4zM18 5h2v1H18zM3 6h2v1H3zM19 6h2v1H19zM3 7h2v1H3zM19 7h2v1H19zM2 8h2v1H2zM20 8h2v1H20zM2 9h2v1H2zM20 9h2v1H20zM2 10h2v1H2zM20 10h2v1H20zM2 11h2v1H2zM20 11h2v1H20zM2 12h2v1H2zM20 12h2v1H20zM2 13h2v1H2zM20 13h2v1H20zM2 14h2v1H2zM20 14h2v1H20zM2 15h2v1H2zM20 15h2v1H20zM3 16h2v1H3zM19 16h2v1H19zM3 17h2v1H3zM19 17h2v1H19zM4 18h2v1H4zM18 18h2v1H18zM5 19h2v1H5zM17 19h2v1H17zM6 20h4v1H6zM14 20h4v1H14zM8 21h8v1H8z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-circle-regular::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-circle-regular::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-circle-regular::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h8v1H8zM6 3h4v1H6zM14 3h4v1H14zM5 4h2v1H5zM17 4h2v1H17zM4 5h2v1H4zM18 5h2v1H18zM3 6h2v1H3zM19 6h2v1H19zM3 7h2v1H3zM19 7h2v1H19zM2 8h2v1H2zM20 8h2v1H20zM2 9h2v1H2zM20 9h2v1H20zM2 10h2v1H2zM20 10h2v1H20zM2 11h2v1H2zM20 11h2v1H20zM2 12h2v1H2zM20 12h2v1H20zM2 13h2v1H2zM20 13h2v1H20zM2 14h2v1H2zM20 14h2v1H20zM2 15h2v1H2zM20 15h2v1H20zM3 16h2v1H3zM19 16h2v1H19zM3 17h2v1H3zM19 17h2v1H19zM4 18h2v1H4zM18 18h2v1H18zM5 19h2v1H5zM17 19h2v1H17zM6 20h4v1H6zM14 20h4v1H14zM8 21h8v1H8z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h8v1H8zM6 3h4v1H6zM14 3h4v1H14zM5 4h2v1H5zM17 4h2v1H17zM4 5h2v1H4zM18 5h2v1H18zM3 6h2v1H3zM19 6h2v1H19zM3 7h2v1H3zM19 7h2v1H19zM2 8h2v1H2zM20 8h2v1H20zM2 9h2v1H2zM20 9h2v1H20zM2 10h2v1H2zM20 10h2v1H20zM2 11h2v1H2zM20 11h2v1H20zM2 12h2v1H2zM20 12h2v1H20zM2 13h2v1H2zM20 13h2v1H20zM2 14h2v1H2zM20 14h2v1H20zM2 15h2v1H2zM20 15h2v1H20zM3 16h2v1H3zM19 16h2v1H19zM3 17h2v1H3zM19 17h2v1H19zM4 18h2v1H4zM18 18h2v1H18zM5 19h2v1H5zM17 19h2v1H17zM6 20h4v1H6zM14 20h4v1H14zM8 21h8v1H8z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.icon-fa-ellipse::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.icon-fa-ellipse::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.icon-fa-ellipse::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 5h8v1H8zM5 6h4v1H5zM15 6h4v1H15zM3 7h3v1H3zM18 7h3v1H18zM2 8h2v1H2zM20 8h2v1H20zM1 9h2v1H1zM21 9h2v1H21zM1 10h2v1H1zM21 10h2v1H21zM1 11h2v1H1zM21 11h2v1H21zM1 12h2v1H1zM21 12h2v1H21zM1 13h2v1H1zM21 13h2v1H21zM1 14h2v1H1zM21 14h2v1H21zM2 15h2v1H2zM20 15h2v1H20zM3 16h3v1H3zM18 16h3v1H18zM5 17h4v1H5zM15 17h4v1H15zM8 18h8v1H8z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 5h8v1H8zM5 6h4v1H5zM15 6h4v1H15zM3 7h3v1H3zM18 7h3v1H18zM2 8h2v1H2zM20 8h2v1H20zM1 9h2v1H1zM21 9h2v1H21zM1 10h2v1H1zM21 10h2v1H21zM1 11h2v1H1zM21 11h2v1H21zM1 12h2v1H1zM21 12h2v1H21zM1 13h2v1H1zM21 13h2v1H21zM1 14h2v1H1zM21 14h2v1H21zM2 15h2v1H2zM20 15h2v1H20zM3 16h3v1H3zM18 16h3v1H18zM5 17h4v1H5zM15 17h4v1H15zM8 18h8v1H8z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.icon-fa-cone::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.icon-fa-cone::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.icon-fa-cone::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 2h4v1H10zM10 3h4v1H10zM9 4h2v1H9zM13 4h2v1H13zM9 5h2v1H9zM13 5h2v1H13zM8 6h2v1H8zM14 6h2v1H14zM8 7h2v1H8zM14 7h2v1H14zM7 8h2v1H7zM15 8h2v1H15zM7 9h2v1H7zM15 9h2v1H15zM6 10h2v1H6zM16 10h2v1H16zM6 11h2v1H6zM16 11h2v1H16zM5 12h2v1H5zM17 12h2v1H17zM5 13h2v1H5zM17 13h2v1H17zM4 14h2v1H4zM18 14h2v1H18zM4 15h2v1H4zM18 15h2v1H18zM3 16h2v1H3zM19 16h2v1H19zM2 17h2v1H2zM20 17h2v1H20zM2 18h4v1H2zM18 18h4v1H18zM4 19h6v1H4zM14 19h6v1H14zM8 20h8v1H8z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 2h4v1H10zM10 3h4v1H10zM9 4h2v1H9zM13 4h2v1H13zM9 5h2v1H9zM13 5h2v1H13zM8 6h2v1H8zM14 6h2v1H14zM8 7h2v1H8zM14 7h2v1H14zM7 8h2v1H7zM15 8h2v1H15zM7 9h2v1H7zM15 9h2v1H15zM6 10h2v1H6zM16 10h2v1H16zM6 11h2v1H6zM16 11h2v1H16zM5 12h2v1H5zM17 12h2v1H17zM5 13h2v1H5zM17 13h2v1H17zM4 14h2v1H4zM18 14h2v1H18zM4 15h2v1H4zM18 15h2v1H18zM3 16h2v1H3zM19 16h2v1H19zM2 17h2v1H2zM20 17h2v1H20zM2 18h4v1H2zM18 18h4v1H18zM4 19h6v1H4zM14 19h6v1H14zM8 20h8v1H8z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-eye::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-eye::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-eye::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 5h8v1H8zM5 6h4v1H5zM15 6h4v1H15zM3 7h3v1H3zM10 7h4v1H10zM18 7h3v1H18zM2 8h2v1H2zM8 8h8v1H8zM20 8h2v1H20zM1 9h2v1H1zM7 9h10v1H7zM21 9h2v1H21zM1 10h2v1H1zM6 10h3v1H6zM11 10h7v1H11zM21 10h2v1H21zM1 11h2v1H1zM6 11h3v1H6zM11 11h7v1H11zM21 11h2v1H21zM1 12h2v1H1zM6 12h12v1H6zM21 12h2v1H21zM1 13h2v1H1zM7 13h10v1H7zM21 13h2v1H21zM2 14h2v1H2zM8 14h8v1H8zM20 14h2v1H20zM3 15h3v1H3zM10 15h4v1H10zM18 15h3v1H18zM5 16h4v1H5zM15 16h4v1H15zM8 17h8v1H8z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 5h8v1H8zM5 6h4v1H5zM15 6h4v1H15zM3 7h3v1H3zM10 7h4v1H10zM18 7h3v1H18zM2 8h2v1H2zM8 8h8v1H8zM20 8h2v1H20zM1 9h2v1H1zM7 9h10v1H7zM21 9h2v1H21zM1 10h2v1H1zM6 10h3v1H6zM11 10h7v1H11zM21 10h2v1H21zM1 11h2v1H1zM6 11h3v1H6zM11 11h7v1H11zM21 11h2v1H21zM1 12h2v1H1zM6 12h12v1H6zM21 12h2v1H21zM1 13h2v1H1zM7 13h10v1H7zM21 13h2v1H21zM2 14h2v1H2zM8 14h8v1H8zM20 14h2v1H20zM3 15h3v1H3zM10 15h4v1H10zM18 15h3v1H18zM5 16h4v1H5zM15 16h4v1H15zM8 17h8v1H8z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-horizontal-rule::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-horizontal-rule::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-horizontal-rule::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 9h6v1H1zM17 9h6v1H17zM1 10h6v1H1zM17 10h6v1H17zM1 11h22v1H1zM1 12h22v1H1zM1 13h6v1H1zM17 13h6v1H17zM1 14h6v1H1zM17 14h6v1H17z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 9h6v1H1zM17 9h6v1H17zM1 10h6v1H1zM17 10h6v1H17zM1 11h22v1H1zM1 12h22v1H1zM1 13h6v1H1zM17 13h6v1H17zM1 14h6v1H1zM17 14h6v1H17z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-podcast::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-podcast::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-podcast::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 4h2v1H5zM17 4h2v1H17zM4 5h2v1H4zM18 5h2v1H18zM3 6h2v1H3zM19 6h2v1H19zM2 7h2v1H2zM8 7h2v1H8zM14 7h2v1H14zM20 7h2v1H20zM2 8h2v1H2zM7 8h2v1H7zM15 8h2v1H15zM20 8h2v1H20zM2 9h2v1H2zM6 9h2v1H6zM16 9h2v1H16zM20 9h2v1H20zM2 10h2v1H2zM6 10h2v1H6zM10 10h4v1H10zM16 10h2v1H16zM20 10h2v1H20zM2 11h2v1H2zM6 11h2v1H6zM10 11h4v1H10zM16 11h2v1H16zM20 11h2v1H20zM2 12h2v1H2zM6 12h2v1H6zM10 12h4v1H10zM16 12h2v1H16zM20 12h2v1H20zM2 13h2v1H2zM6 13h2v1H6zM10 13h4v1H10zM16 13h2v1H16zM20 13h2v1H20zM2 14h2v1H2zM6 14h2v1H6zM16 14h2v1H16zM20 14h2v1H20zM2 15h2v1H2zM7 15h2v1H7zM15 15h2v1H15zM20 15h2v1H20zM2 16h2v1H2zM8 16h2v1H8zM14 16h2v1H14zM20 16h2v1H20zM3 17h2v1H3zM19 17h2v1H19zM4 18h2v1H4zM18 18h2v1H18zM5 19h2v1H5zM17 19h2v1H17z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 4h2v1H5zM17 4h2v1H17zM4 5h2v1H4zM18 5h2v1H18zM3 6h2v1H3zM19 6h2v1H19zM2 7h2v1H2zM8 7h2v1H8zM14 7h2v1H14zM20 7h2v1H20zM2 8h2v1H2zM7 8h2v1H7zM15 8h2v1H15zM20 8h2v1H20zM2 9h2v1H2zM6 9h2v1H6zM16 9h2v1H16zM20 9h2v1H20zM2 10h2v1H2zM6 10h2v1H6zM10 10h4v1H10zM16 10h2v1H16zM20 10h2v1H20zM2 11h2v1H2zM6 11h2v1H6zM10 11h4v1H10zM16 11h2v1H16zM20 11h2v1H20zM2 12h2v1H2zM6 12h2v1H6zM10 12h4v1H10zM16 12h2v1H16zM20 12h2v1H20zM2 13h2v1H2zM6 13h2v1H6zM10 13h4v1H10zM16 13h2v1H16zM20 13h2v1H20zM2 14h2v1H2zM6 14h2v1H6zM16 14h2v1H16zM20 14h2v1H20zM2 15h2v1H2zM7 15h2v1H7zM15 15h2v1H15zM20 15h2v1H20zM2 16h2v1H2zM8 16h2v1H8zM14 16h2v1H14zM20 16h2v1H20zM3 17h2v1H3zM19 17h2v1H19zM4 18h2v1H4zM18 18h2v1H18zM5 19h2v1H5zM17 19h2v1H17z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-draw-polygon::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-draw-polygon::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-draw-polygon::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 2h4v1H2zM18 2h4v1H18zM2 3h20v1H2zM2 4h20v1H2zM2 5h4v1H2zM18 5h4v1H18zM3 6h2v1H3zM19 6h2v1H19zM3 7h2v1H3zM19 7h2v1H19zM3 8h2v1H3zM19 8h2v1H19zM3 9h2v1H3zM19 9h2v1H19zM3 10h2v1H3zM19 10h2v1H19zM3 11h2v1H3zM19 11h2v1H19zM3 12h2v1H3zM19 12h2v1H19zM2 13h4v1H2zM19 13h2v1H19zM2 14h4v1H2zM19 14h2v1H19zM2 15h7v1H2zM19 15h2v1H19zM2 16h10v1H2zM19 16h2v1H19zM9 17h6v1H9zM19 17h2v1H19zM12 18h10v1H12zM15 19h7v1H15zM18 20h4v1H18zM18 21h4v1H18z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 2h4v1H2zM18 2h4v1H18zM2 3h20v1H2zM2 4h20v1H2zM2 5h4v1H2zM18 5h4v1H18zM3 6h2v1H3zM19 6h2v1H19zM3 7h2v1H3zM19 7h2v1H19zM3 8h2v1H3zM19 8h2v1H19zM3 9h2v1H3zM19 9h2v1H19zM3 10h2v1H3zM19 10h2v1H19zM3 11h2v1H3zM19 11h2v1H19zM3 12h2v1H3zM19 12h2v1H19zM2 13h4v1H2zM19 13h2v1H19zM2 14h4v1H2zM19 14h2v1H19zM2 15h7v1H2zM19 15h2v1H19zM2 16h10v1H2zM19 16h2v1H19zM9 17h6v1H9zM19 17h2v1H19zM12 18h10v1H12zM15 19h7v1H15zM18 20h4v1H18zM18 21h4v1H18z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-object-subtract::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-object-subtract::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-object-subtract::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 2h14v1H2zM2 3h14v1H2zM2 4h14v1H2zM2 5h14v1H2zM2 6h14v1H2zM2 7h14v1H2zM2 8h6v1H2zM2 9h6v1H2zM9 9h13v1H9zM2 10h6v1H2zM9 10h13v1H9zM2 11h6v1H2zM9 11h2v1H9zM20 11h2v1H20zM2 12h6v1H2zM9 12h2v1H9zM20 12h2v1H20zM2 13h6v1H2zM9 13h2v1H9zM20 13h2v1H20zM2 14h6v1H2zM9 14h2v1H9zM20 14h2v1H20zM2 15h6v1H2zM9 15h2v1H9zM20 15h2v1H20zM9 16h2v1H9zM20 16h2v1H20zM9 17h2v1H9zM20 17h2v1H20zM9 18h2v1H9zM20 18h2v1H20zM9 19h2v1H9zM20 19h2v1H20zM9 20h13v1H9zM9 21h13v1H9z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 2h14v1H2zM2 3h14v1H2zM2 4h14v1H2zM2 5h14v1H2zM2 6h14v1H2zM2 7h14v1H2zM2 8h6v1H2zM2 9h6v1H2zM9 9h13v1H9zM2 10h6v1H2zM9 10h13v1H9zM2 11h6v1H2zM9 11h2v1H9zM20 11h2v1H20zM2 12h6v1H2zM9 12h2v1H9zM20 12h2v1H20zM2 13h6v1H2zM9 13h2v1H9zM20 13h2v1H20zM2 14h6v1H2zM9 14h2v1H9zM20 14h2v1H20zM2 15h6v1H2zM9 15h2v1H9zM20 15h2v1H20zM9 16h2v1H9zM20 16h2v1H20zM9 17h2v1H9zM20 17h2v1H20zM9 18h2v1H9zM20 18h2v1H20zM9 19h2v1H9zM20 19h2v1H20zM9 20h13v1H9zM9 21h13v1H9z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-trash::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-trash::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-trash::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h6v1H9zM9 3h2v1H9zM13 3h2v1H13zM3 4h18v1H3zM3 5h18v1H3zM4 7h16v1H4zM4 8h2v1H4zM8 8h2v1H8zM14 8h2v1H14zM18 8h2v1H18zM4 9h2v1H4zM8 9h2v1H8zM14 9h2v1H14zM18 9h2v1H18zM4 10h2v1H4zM8 10h2v1H8zM14 10h2v1H14zM18 10h2v1H18zM4 11h2v1H4zM8 11h2v1H8zM14 11h2v1H14zM18 11h2v1H18zM4 12h2v1H4zM8 12h2v1H8zM14 12h2v1H14zM18 12h2v1H18zM4 13h2v1H4zM8 13h2v1H8zM14 13h2v1H14zM18 13h2v1H18zM4 14h2v1H4zM8 14h2v1H8zM14 14h2v1H14zM18 14h2v1H18zM4 15h2v1H4zM8 15h2v1H8zM14 15h2v1H14zM18 15h2v1H18zM4 16h2v1H4zM8 16h2v1H8zM14 16h2v1H14zM18 16h2v1H18zM4 17h2v1H4zM8 17h2v1H8zM14 17h2v1H14zM18 17h2v1H18zM4 18h2v1H4zM8 18h2v1H8zM14 18h2v1H14zM18 18h2v1H18zM4 19h2v1H4zM8 19h2v1H8zM14 19h2v1H14zM18 19h2v1H18zM4 20h16v1H4zM4 21h16v1H4z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h6v1H9zM9 3h2v1H9zM13 3h2v1H13zM3 4h18v1H3zM3 5h18v1H3zM4 7h16v1H4zM4 8h2v1H4zM8 8h2v1H8zM14 8h2v1H14zM18 8h2v1H18zM4 9h2v1H4zM8 9h2v1H8zM14 9h2v1H14zM18 9h2v1H18zM4 10h2v1H4zM8 10h2v1H8zM14 10h2v1H14zM18 10h2v1H18zM4 11h2v1H4zM8 11h2v1H8zM14 11h2v1H14zM18 11h2v1H18zM4 12h2v1H4zM8 12h2v1H8zM14 12h2v1H14zM18 12h2v1H18zM4 13h2v1H4zM8 13h2v1H8zM14 13h2v1H14zM18 13h2v1H18zM4 14h2v1H4zM8 14h2v1H8zM14 14h2v1H14zM18 14h2v1H18zM4 15h2v1H4zM8 15h2v1H8zM14 15h2v1H14zM18 15h2v1H18zM4 16h2v1H4zM8 16h2v1H8zM14 16h2v1H14zM18 16h2v1H18zM4 17h2v1H4zM8 17h2v1H8zM14 17h2v1H14zM18 17h2v1H18zM4 18h2v1H4zM8 18h2v1H8zM14 18h2v1H14zM18 18h2v1H18zM4 19h2v1H4zM8 19h2v1H8zM14 19h2v1H14zM18 19h2v1H18zM4 20h16v1H4zM4 21h16v1H4z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-pencil::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-pencil::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-pencil::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M18 2h2v1H18zM17 3h4v1H17zM18 4h4v1H18zM15 5h2v1H15zM19 5h2v1H19zM14 6h4v1H14zM13 7h6v1H13zM12 8h6v1H12zM11 9h6v1H11zM10 10h6v1H10zM9 11h6v1H9zM8 12h6v1H8zM7 13h6v1H7zM6 14h1v1H6zM8 14h4v1H8zM5 15h3v1H5zM9 15h2v1H9zM5 16h4v1H5zM4 17h5v1H4zM4 18h3v1H4zM3 19h3v1H3zM2 20h2v1H2z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M18 2h2v1H18zM17 3h4v1H17zM18 4h4v1H18zM15 5h2v1H15zM19 5h2v1H19zM14 6h4v1H14zM13 7h6v1H13zM12 8h6v1H12zM11 9h6v1H11zM10 10h6v1H10zM9 11h6v1H9zM8 12h6v1H8zM7 13h6v1H7zM6 14h1v1H6zM8 14h4v1H8zM5 15h3v1H5zM9 15h2v1H9zM5 16h4v1H5zM4 17h5v1H4zM4 18h3v1H4zM3 19h3v1H3zM2 20h2v1H2z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-signature::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-signature::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-signature::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 2h4v1H6zM5 3h2v1H5zM9 3h2v1H9zM5 4h2v1H5zM9 4h2v1H9zM5 5h2v1H5zM9 5h2v1H9zM6 6h2v1H6zM9 6h2v1H9zM6 7h2v1H6zM9 7h2v1H9zM7 8h4v1H7zM7 9h3v1H7zM6 10h4v1H6zM5 11h2v1H5zM8 11h2v1H8zM17 11h2v1H17zM4 12h2v1H4zM8 12h2v1H8zM16 12h4v1H16zM3 13h2v1H3zM8 13h2v1H8zM15 13h2v1H15zM19 13h2v1H19zM2 14h2v1H2zM8 14h2v1H8zM14 14h2v1H14zM20 14h2v1H20zM2 15h2v1H2zM8 15h3v1H8zM13 15h2v1H13zM9 16h5v1H9zM2 19h20v1H2zM2 20h20v1H2z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 2h4v1H6zM5 3h2v1H5zM9 3h2v1H9zM5 4h2v1H5zM9 4h2v1H9zM5 5h2v1H5zM9 5h2v1H9zM6 6h2v1H6zM9 6h2v1H9zM6 7h2v1H6zM9 7h2v1H9zM7 8h4v1H7zM7 9h3v1H7zM6 10h4v1H6zM5 11h2v1H5zM8 11h2v1H8zM17 11h2v1H17zM4 12h2v1H4zM8 12h2v1H8zM16 12h4v1H16zM3 13h2v1H3zM8 13h2v1H8zM15 13h2v1H15zM19 13h2v1H19zM2 14h2v1H2zM8 14h2v1H8zM14 14h2v1H14zM20 14h2v1H20zM2 15h2v1H2zM8 15h3v1H8zM13 15h2v1H13zM9 16h5v1H9zM2 19h20v1H2zM2 20h20v1H2z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-font::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-font::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-font::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM9 4h6v1H9zM9 5h2v1H9zM12 5h4v1H12zM8 6h2v1H8zM13 6h4v1H13zM8 7h2v1H8zM13 7h4v1H13zM7 8h2v1H7zM14 8h4v1H14zM7 9h2v1H7zM14 9h4v1H14zM6 10h2v1H6zM15 10h4v1H15zM6 11h2v1H6zM15 11h4v1H15zM5 12h2v1H5zM16 12h4v1H16zM5 13h15v1H5zM4 14h16v1H4zM4 15h2v1H4zM17 15h4v1H17zM4 16h2v1H4zM17 16h4v1H17zM3 17h2v1H3zM18 17h4v1H18zM3 18h2v1H3zM18 18h4v1H18zM1 19h6v1H1zM15 19h8v1H15zM1 20h6v1H1zM15 20h8v1H15z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM9 4h6v1H9zM9 5h2v1H9zM12 5h4v1H12zM8 6h2v1H8zM13 6h4v1H13zM8 7h2v1H8zM13 7h4v1H13zM7 8h2v1H7zM14 8h4v1H14zM7 9h2v1H7zM14 9h4v1H14zM6 10h2v1H6zM15 10h4v1H15zM6 11h2v1H6zM15 11h4v1H15zM5 12h2v1H5zM16 12h4v1H16zM5 13h15v1H5zM4 14h16v1H4zM4 15h2v1H4zM17 15h4v1H17zM4 16h2v1H4zM17 16h4v1H17zM3 17h2v1H3zM18 17h4v1H18zM3 18h2v1H3zM18 18h4v1H18zM1 19h6v1H1zM15 19h8v1H15zM1 20h6v1H1zM15 20h8v1H15z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-palette::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-palette::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-palette::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h8v1H8zM6 3h12v1H6zM5 4h14v1H5zM4 5h7v1H4zM14 5h6v1H14zM3 6h8v1H3zM14 6h7v1H14zM3 7h8v1H3zM14 7h7v1H14zM2 8h4v1H2zM9 8h7v1H9zM19 8h3v1H19zM2 9h4v1H2zM9 9h7v1H9zM19 9h3v1H19zM2 10h4v1H2zM9 10h7v1H9zM19 10h3v1H19zM2 11h20v1H2zM2 12h20v1H2zM2 13h3v1H2zM8 13h14v1H8zM2 14h3v1H2zM8 14h10v1H8zM2 15h3v1H2zM8 15h8v1H8zM2 16h13v1H2zM3 17h12v1H3zM3 18h15v1H3zM4 19h16v1H4zM6 20h12v1H6zM8 21h8v1H8z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h8v1H8zM6 3h12v1H6zM5 4h14v1H5zM4 5h7v1H4zM14 5h6v1H14zM3 6h8v1H3zM14 6h7v1H14zM3 7h8v1H3zM14 7h7v1H14zM2 8h4v1H2zM9 8h7v1H9zM19 8h3v1H19zM2 9h4v1H2zM9 9h7v1H9zM19 9h3v1H19zM2 10h4v1H2zM9 10h7v1H9zM19 10h3v1H19zM2 11h20v1H2zM2 12h20v1H2zM2 13h3v1H2zM8 13h14v1H8zM2 14h3v1H2zM8 14h10v1H8zM2 15h3v1H2zM8 15h8v1H8zM2 16h13v1H2zM3 17h12v1H3zM3 18h15v1H3zM4 19h16v1H4zM6 20h12v1H6zM8 21h8v1H8z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-cubes::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-cubes::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-cubes::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 2h3v1H10zM8 3h7v1H8zM7 4h9v1H7zM7 5h1v1H7zM9 5h5v1H9zM15 5h1v1H15zM7 6h2v1H7zM10 6h3v1H10zM14 6h2v1H14zM7 7h3v1H7zM11 7h1v1H11zM13 7h3v1H13zM7 8h4v1H7zM12 8h4v1H12zM7 9h4v1H7zM12 9h4v1H12zM8 10h3v1H8zM12 10h3v1H12zM10 11h1v1H10zM12 11h1v1H12zM5 12h3v1H5zM16 12h3v1H16zM3 13h7v1H3zM14 13h7v1H14zM2 14h9v1H2zM13 14h9v1H13zM2 15h1v1H2zM4 15h5v1H4zM10 15h1v1H10zM13 15h1v1H13zM15 15h5v1H15zM21 15h1v1H21zM2 16h2v1H2zM5 16h3v1H5zM9 16h2v1H9zM13 16h2v1H13zM16 16h3v1H16zM20 16h2v1H20zM2 17h3v1H2zM6 17h1v1H6zM8 17h3v1H8zM13 17h3v1H13zM17 17h1v1H17zM19 17h3v1H19zM2 18h4v1H2zM7 18h4v1H7zM13 18h4v1H13zM18 18h4v1H18zM2 19h4v1H2zM7 19h4v1H7zM13 19h4v1H13zM18 19h4v1H18zM3 20h3v1H3zM7 20h3v1H7zM14 20h3v1H14zM18 20h3v1H18zM5 21h1v1H5zM7 21h1v1H7zM16 21h1v1H16zM18 21h1v1H18z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 2h3v1H10zM8 3h7v1H8zM7 4h9v1H7zM7 5h1v1H7zM9 5h5v1H9zM15 5h1v1H15zM7 6h2v1H7zM10 6h3v1H10zM14 6h2v1H14zM7 7h3v1H7zM11 7h1v1H11zM13 7h3v1H13zM7 8h4v1H7zM12 8h4v1H12zM7 9h4v1H7zM12 9h4v1H12zM8 10h3v1H8zM12 10h3v1H12zM10 11h1v1H10zM12 11h1v1H12zM5 12h3v1H5zM16 12h3v1H16zM3 13h7v1H3zM14 13h7v1H14zM2 14h9v1H2zM13 14h9v1H13zM2 15h1v1H2zM4 15h5v1H4zM10 15h1v1H10zM13 15h1v1H13zM15 15h5v1H15zM21 15h1v1H21zM2 16h2v1H2zM5 16h3v1H5zM9 16h2v1H9zM13 16h2v1H13zM16 16h3v1H16zM20 16h2v1H20zM2 17h3v1H2zM6 17h1v1H6zM8 17h3v1H8zM13 17h3v1H13zM17 17h1v1H17zM19 17h3v1H19zM2 18h4v1H2zM7 18h4v1H7zM13 18h4v1H13zM18 18h4v1H18zM2 19h4v1H2zM7 19h4v1H7zM13 19h4v1H13zM18 19h4v1H18zM3 20h3v1H3zM7 20h3v1H7zM14 20h3v1H14zM18 20h3v1H18zM5 21h1v1H5zM7 21h1v1H7zM16 21h1v1H16zM18 21h1v1H18z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-cube::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-cube::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-cube::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 2h4v1H10zM8 3h8v1H8zM6 4h12v1H6zM4 5h16v1H4zM2 6h20v1H2zM5 7h14v1H5zM2 8h2v1H2zM7 8h10v1H7zM20 8h2v1H20zM2 9h4v1H2zM9 9h6v1H9zM18 9h4v1H18zM2 10h6v1H2zM11 10h2v1H11zM16 10h6v1H16zM2 11h8v1H2zM14 11h8v1H14zM2 12h9v1H2zM13 12h9v1H13zM2 13h9v1H2zM13 13h9v1H13zM2 14h9v1H2zM13 14h9v1H13zM2 15h9v1H2zM13 15h9v1H13zM2 16h9v1H2zM13 16h9v1H13zM4 17h7v1H4zM13 17h7v1H13zM6 18h5v1H6zM13 18h5v1H13zM8 19h3v1H8zM13 19h3v1H13zM10 20h1v1H10zM13 20h1v1H13z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 2h4v1H10zM8 3h8v1H8zM6 4h12v1H6zM4 5h16v1H4zM2 6h20v1H2zM5 7h14v1H5zM2 8h2v1H2zM7 8h10v1H7zM20 8h2v1H20zM2 9h4v1H2zM9 9h6v1H9zM18 9h4v1H18zM2 10h6v1H2zM11 10h2v1H11zM16 10h6v1H16zM2 11h8v1H2zM14 11h8v1H14zM2 12h9v1H2zM13 12h9v1H13zM2 13h9v1H2zM13 13h9v1H13zM2 14h9v1H2zM13 14h9v1H13zM2 15h9v1H2zM13 15h9v1H13zM2 16h9v1H2zM13 16h9v1H13zM4 17h7v1H4zM13 17h7v1H13zM6 18h5v1H6zM13 18h5v1H13zM8 19h3v1H8zM13 19h3v1H13zM10 20h1v1H10zM13 20h1v1H13z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-folder::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-folder::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-folder::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 3h7v1H2zM2 4h8v1H2zM2 5h16v1H2zM2 6h2v1H2zM16 6h2v1H16zM2 7h2v1H2zM16 7h2v1H16zM2 8h2v1H2zM16 8h2v1H16zM2 9h2v1H2zM6 9h16v1H6zM2 10h2v1H2zM6 10h16v1H6zM2 11h2v1H2zM5 11h16v1H5zM2 12h2v1H2zM5 12h16v1H5zM2 13h2v1H2zM5 13h16v1H5zM2 14h18v1H2zM2 15h18v1H2zM2 16h18v1H2zM2 17h17v1H2zM2 18h17v1H2zM2 19h16v1H2zM2 20h16v1H2z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 3h7v1H2zM2 4h8v1H2zM2 5h16v1H2zM2 6h2v1H2zM16 6h2v1H16zM2 7h2v1H2zM16 7h2v1H16zM2 8h2v1H2zM16 8h2v1H16zM2 9h2v1H2zM6 9h16v1H6zM2 10h2v1H2zM6 10h16v1H6zM2 11h2v1H2zM5 11h16v1H5zM2 12h2v1H2zM5 12h16v1H5zM2 13h2v1H2zM5 13h16v1H5zM2 14h18v1H2zM2 15h18v1H2zM2 16h18v1H2zM2 17h17v1H2zM2 18h17v1H2zM2 19h16v1H2zM2 20h16v1H2z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-block-brick::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-block-brick::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-block-brick::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 3h7v1H1zM9 3h6v1H9zM16 3h7v1H16zM1 4h7v1H1zM9 4h6v1H9zM16 4h7v1H16zM1 5h7v1H1zM9 5h6v1H9zM16 5h7v1H16zM1 7h3v1H1zM5 7h7v1H5zM13 7h6v1H13zM20 7h3v1H20zM1 8h3v1H1zM5 8h7v1H5zM13 8h6v1H13zM20 8h3v1H20zM1 9h3v1H1zM5 9h7v1H5zM13 9h6v1H13zM20 9h3v1H20zM1 11h7v1H1zM9 11h6v1H9zM16 11h7v1H16zM1 12h7v1H1zM9 12h6v1H9zM16 12h7v1H16zM1 13h7v1H1zM9 13h6v1H9zM16 13h7v1H16zM1 15h3v1H1zM5 15h7v1H5zM13 15h6v1H13zM20 15h3v1H20zM1 16h3v1H1zM5 16h7v1H5zM13 16h6v1H13zM20 16h3v1H20zM1 17h3v1H1zM5 17h7v1H5zM13 17h6v1H13zM20 17h3v1H20zM1 19h7v1H1zM9 19h6v1H9zM16 19h7v1H16zM1 20h7v1H1zM9 20h6v1H9zM16 20h7v1H16zM1 21h7v1H1zM9 21h6v1H9zM16 21h7v1H16z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 3h7v1H1zM9 3h6v1H9zM16 3h7v1H16zM1 4h7v1H1zM9 4h6v1H9zM16 4h7v1H16zM1 5h7v1H1zM9 5h6v1H9zM16 5h7v1H16zM1 7h3v1H1zM5 7h7v1H5zM13 7h6v1H13zM20 7h3v1H20zM1 8h3v1H1zM5 8h7v1H5zM13 8h6v1H13zM20 8h3v1H20zM1 9h3v1H1zM5 9h7v1H5zM13 9h6v1H13zM20 9h3v1H20zM1 11h7v1H1zM9 11h6v1H9zM16 11h7v1H16zM1 12h7v1H1zM9 12h6v1H9zM16 12h7v1H16zM1 13h7v1H1zM9 13h6v1H9zM16 13h7v1H16zM1 15h3v1H1zM5 15h7v1H5zM13 15h6v1H13zM20 15h3v1H20zM1 16h3v1H1zM5 16h7v1H5zM13 16h6v1H13zM20 16h3v1H20zM1 17h3v1H1zM5 17h7v1H5zM13 17h6v1H13zM20 17h3v1H20zM1 19h7v1H1zM9 19h6v1H9zM16 19h7v1H16zM1 20h7v1H1zM9 20h6v1H9zM16 20h7v1H16zM1 21h7v1H1zM9 21h6v1H9zM16 21h7v1H16z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-share-nodes::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-share-nodes::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-share-nodes::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M16 2h4v1H16zM15 3h6v1H15zM15 4h6v1H15zM15 5h6v1H15zM15 6h6v1H15zM14 7h6v1H14zM12 8h3v1H12zM4 9h4v1H4zM10 9h3v1H10zM3 10h8v1H3zM3 11h6v1H3zM3 12h6v1H3zM3 13h8v1H3zM4 14h4v1H4zM10 14h3v1H10zM12 15h3v1H12zM14 16h6v1H14zM15 17h6v1H15zM15 18h6v1H15zM15 19h6v1H15zM15 20h6v1H15zM16 21h4v1H16z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M16 2h4v1H16zM15 3h6v1H15zM15 4h6v1H15zM15 5h6v1H15zM15 6h6v1H15zM14 7h6v1H14zM12 8h3v1H12zM4 9h4v1H4zM10 9h3v1H10zM3 10h8v1H3zM3 11h6v1H3zM3 12h6v1H3zM3 13h8v1H3zM4 14h4v1H4zM10 14h3v1H10zM12 15h3v1H12zM14 16h6v1H14zM15 17h6v1H15zM15 18h6v1H15zM15 19h6v1H15zM15 20h6v1H15zM16 21h4v1H16z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-bars::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-bars::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-bars::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 4h18v1H3zM2 5h20v1H2zM2 6h20v1H2zM3 7h18v1H3zM3 10h18v1H3zM2 11h20v1H2zM2 12h20v1H2zM3 13h18v1H3zM3 16h18v1H3zM2 17h20v1H2zM2 18h20v1H2zM3 19h18v1H3z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 4h18v1H3zM2 5h20v1H2zM2 6h20v1H2zM3 7h18v1H3zM3 10h18v1H3zM2 11h20v1H2zM2 12h20v1H2zM3 13h18v1H3zM3 16h18v1H3zM2 17h20v1H2zM2 18h20v1H2zM3 19h18v1H3z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-mountain::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-mountain::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-mountain::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 2h2v1H11zM10 3h4v1H10zM10 4h4v1H10zM9 5h6v1H9zM9 6h6v1H9zM8 7h8v1H8zM8 8h3v1H8zM13 8h3v1H13zM7 9h2v1H7zM10 9h1v1H10zM13 9h1v1H13zM15 9h2v1H15zM7 10h2v1H7zM15 10h2v1H15zM6 11h2v1H6zM16 11h2v1H16zM6 12h2v1H6zM16 12h2v1H16zM5 13h2v1H5zM17 13h2v1H17zM5 14h2v1H5zM17 14h2v1H17zM4 15h2v1H4zM18 15h2v1H18zM4 16h2v1H4zM18 16h2v1H18zM3 17h2v1H3zM19 17h2v1H19zM3 18h2v1H3zM19 18h2v1H19zM2 19h2v1H2zM20 19h2v1H20zM2 20h20v1H2zM2 21h20v1H2z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 2h2v1H11zM10 3h4v1H10zM10 4h4v1H10zM9 5h6v1H9zM9 6h6v1H9zM8 7h8v1H8zM8 8h3v1H8zM13 8h3v1H13zM7 9h2v1H7zM10 9h1v1H10zM13 9h1v1H13zM15 9h2v1H15zM7 10h2v1H7zM15 10h2v1H15zM6 11h2v1H6zM16 11h2v1H16zM6 12h2v1H6zM16 12h2v1H16zM5 13h2v1H5zM17 13h2v1H17zM5 14h2v1H5zM17 14h2v1H17zM4 15h2v1H4zM18 15h2v1H18zM4 16h2v1H4zM18 16h2v1H18zM3 17h2v1H3zM19 17h2v1H19zM3 18h2v1H3zM19 18h2v1H19zM2 19h2v1H2zM20 19h2v1H20zM2 20h20v1H2zM2 21h20v1H2z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-eye-slash::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-eye-slash::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-eye-slash::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 2h2v1H3zM4 3h2v1H4zM5 4h2v1H5zM6 5h2v1H6zM7 6h2v1H7zM10 6h6v1H10zM5 7h2v1H5zM8 7h2v1H8zM11 7h8v1H11zM3 8h3v1H3zM9 8h2v1H9zM18 8h3v1H18zM2 9h2v1H2zM10 9h2v1H10zM13 9h1v1H13zM20 9h2v1H20zM1 10h2v1H1zM9 10h1v1H9zM11 10h2v1H11zM14 10h1v1H14zM21 10h2v1H21zM1 11h2v1H1zM9 11h2v1H9zM12 11h2v1H12zM21 11h2v1H21zM1 12h2v1H1zM9 12h3v1H9zM13 12h2v1H13zM21 12h2v1H21zM1 13h2v1H1zM9 13h4v1H9zM14 13h2v1H14zM21 13h2v1H21zM2 14h2v1H2zM10 14h4v1H10zM15 14h2v1H15zM20 14h2v1H20zM3 15h3v1H3zM16 15h2v1H16zM19 15h2v1H19zM5 16h11v1H5zM17 16h2v1H17zM8 17h8v1H8zM18 17h2v1H18zM19 18h2v1H19zM20 19h2v1H20zM21 20h2v1H21z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 2h2v1H3zM4 3h2v1H4zM5 4h2v1H5zM6 5h2v1H6zM7 6h2v1H7zM10 6h6v1H10zM5 7h2v1H5zM8 7h2v1H8zM11 7h8v1H11zM3 8h3v1H3zM9 8h2v1H9zM18 8h3v1H18zM2 9h2v1H2zM10 9h2v1H10zM13 9h1v1H13zM20 9h2v1H20zM1 10h2v1H1zM9 10h1v1H9zM11 10h2v1H11zM14 10h1v1H14zM21 10h2v1H21zM1 11h2v1H1zM9 11h2v1H9zM12 11h2v1H12zM21 11h2v1H21zM1 12h2v1H1zM9 12h3v1H9zM13 12h2v1H13zM21 12h2v1H21zM1 13h2v1H1zM9 13h4v1H9zM14 13h2v1H14zM21 13h2v1H21zM2 14h2v1H2zM10 14h4v1H10zM15 14h2v1H15zM20 14h2v1H20zM3 15h3v1H3zM16 15h2v1H16zM19 15h2v1H19zM5 16h11v1H5zM17 16h2v1H17zM8 17h8v1H8zM18 17h2v1H18zM19 18h2v1H19zM20 19h2v1H20zM21 20h2v1H21z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-mask::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-mask::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-mask::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 5h4v1H2zM18 5h4v1H18zM1 6h7v1H1zM16 6h7v1H16zM1 7h10v1H1zM13 7h10v1H13zM1 8h22v1H1zM1 9h22v1H1zM1 10h4v1H1zM9 10h6v1H9zM19 10h4v1H19zM1 11h3v1H1zM10 11h4v1H10zM20 11h3v1H20zM1 12h3v1H1zM10 12h4v1H10zM20 12h3v1H20zM1 13h4v1H1zM9 13h6v1H9zM19 13h4v1H19zM1 14h22v1H1zM2 15h8v1H2zM14 15h8v1H14zM3 16h6v1H3zM15 16h6v1H15zM4 17h4v1H4zM16 17h4v1H16z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 5h4v1H2zM18 5h4v1H18zM1 6h7v1H1zM16 6h7v1H16zM1 7h10v1H1zM13 7h10v1H13zM1 8h22v1H1zM1 9h22v1H1zM1 10h4v1H1zM9 10h6v1H9zM19 10h4v1H19zM1 11h3v1H1zM10 11h4v1H10zM20 11h3v1H20zM1 12h3v1H1zM10 12h4v1H10zM20 12h3v1H20zM1 13h4v1H1zM9 13h6v1H9zM19 13h4v1H19zM1 14h22v1H1zM2 15h8v1H2zM14 15h8v1H14zM3 16h6v1H3zM15 16h6v1H15zM4 17h4v1H4zM16 17h4v1H16z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-door-open::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-door-open::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-door-open::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h12v1H9zM7 3h14v1H7zM5 4h6v1H5zM19 4h2v1H19zM4 5h7v1H4zM19 5h2v1H19zM4 6h7v1H4zM19 6h2v1H19zM4 7h7v1H4zM19 7h2v1H19zM4 8h7v1H4zM19 8h2v1H19zM4 9h7v1H4zM19 9h2v1H19zM4 10h7v1H4zM19 10h2v1H19zM4 11h2v1H4zM8 11h3v1H8zM19 11h2v1H19zM4 12h2v1H4zM8 12h3v1H8zM19 12h2v1H19zM4 13h7v1H4zM19 13h2v1H19zM4 14h7v1H4zM19 14h2v1H19zM4 15h7v1H4zM19 15h2v1H19zM4 16h7v1H4zM19 16h2v1H19zM4 17h7v1H4zM19 17h2v1H19zM4 18h7v1H4zM19 18h2v1H19zM4 19h7v1H4zM19 19h2v1H19zM1 20h22v1H1zM1 21h22v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h12v1H9zM7 3h14v1H7zM5 4h6v1H5zM19 4h2v1H19zM4 5h7v1H4zM19 5h2v1H19zM4 6h7v1H4zM19 6h2v1H19zM4 7h7v1H4zM19 7h2v1H19zM4 8h7v1H4zM19 8h2v1H19zM4 9h7v1H4zM19 9h2v1H19zM4 10h7v1H4zM19 10h2v1H19zM4 11h2v1H4zM8 11h3v1H8zM19 11h2v1H19zM4 12h2v1H4zM8 12h3v1H8zM19 12h2v1H19zM4 13h7v1H4zM19 13h2v1H19zM4 14h7v1H4zM19 14h2v1H19zM4 15h7v1H4zM19 15h2v1H19zM4 16h7v1H4zM19 16h2v1H19zM4 17h7v1H4zM19 17h2v1H19zM4 18h7v1H4zM19 18h2v1H19zM4 19h7v1H4zM19 19h2v1H19zM1 20h22v1H1zM1 21h22v1H1z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-user-secret::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-user-secret::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-user-secret::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h6v1H9zM8 3h8v1H8zM8 4h8v1H8zM3 5h18v1H3zM3 6h18v1H3zM6 8h12v1H6zM6 9h2v1H6zM11 9h2v1H11zM16 9h2v1H16zM6 10h2v1H6zM11 10h2v1H11zM16 10h2v1H16zM6 11h12v1H6zM7 12h10v1H7zM9 13h6v1H9zM5 15h5v1H5zM14 15h5v1H14zM4 16h6v1H4zM11 16h2v1H11zM14 16h6v1H14zM3 17h7v1H3zM11 17h2v1H11zM14 17h7v1H14zM2 18h8v1H2zM11 18h2v1H11zM14 18h8v1H14zM2 19h20v1H2zM2 20h20v1H2z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h6v1H9zM8 3h8v1H8zM8 4h8v1H8zM3 5h18v1H3zM3 6h18v1H3zM6 8h12v1H6zM6 9h2v1H6zM11 9h2v1H11zM16 9h2v1H16zM6 10h2v1H6zM11 10h2v1H11zM16 10h2v1H16zM6 11h12v1H6zM7 12h10v1H7zM9 13h6v1H9zM5 15h5v1H5zM14 15h5v1H14zM4 16h6v1H4zM11 16h2v1H11zM14 16h6v1H14zM3 17h7v1H3zM11 17h2v1H11zM14 17h7v1H14zM2 18h8v1H2zM11 18h2v1H11zM14 18h8v1H14zM2 19h20v1H2zM2 20h20v1H2z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-window-frame::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-window-frame::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-window-frame::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 2h18v1H3zM3 3h18v1H3zM3 4h2v1H3zM11 4h2v1H11zM19 4h2v1H19zM3 5h2v1H3zM11 5h2v1H11zM19 5h2v1H19zM3 6h2v1H3zM11 6h2v1H11zM19 6h2v1H19zM3 7h2v1H3zM11 7h2v1H11zM19 7h2v1H19zM3 8h2v1H3zM11 8h2v1H11zM19 8h2v1H19zM3 9h2v1H3zM11 9h2v1H11zM19 9h2v1H19zM3 10h18v1H3zM3 11h18v1H3zM3 12h2v1H3zM11 12h2v1H11zM19 12h2v1H19zM3 13h2v1H3zM11 13h2v1H11zM19 13h2v1H19zM3 14h2v1H3zM11 14h2v1H11zM19 14h2v1H19zM3 15h2v1H3zM11 15h2v1H11zM19 15h2v1H19zM3 16h2v1H3zM11 16h2v1H11zM19 16h2v1H19zM3 17h2v1H3zM11 17h2v1H11zM19 17h2v1H19zM3 18h2v1H3zM11 18h2v1H11zM19 18h2v1H19zM3 19h18v1H3zM1 20h22v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 2h18v1H3zM3 3h18v1H3zM3 4h2v1H3zM11 4h2v1H11zM19 4h2v1H19zM3 5h2v1H3zM11 5h2v1H11zM19 5h2v1H19zM3 6h2v1H3zM11 6h2v1H11zM19 6h2v1H19zM3 7h2v1H3zM11 7h2v1H11zM19 7h2v1H19zM3 8h2v1H3zM11 8h2v1H11zM19 8h2v1H19zM3 9h2v1H3zM11 9h2v1H11zM19 9h2v1H19zM3 10h18v1H3zM3 11h18v1H3zM3 12h2v1H3zM11 12h2v1H11zM19 12h2v1H19zM3 13h2v1H3zM11 13h2v1H11zM19 13h2v1H19zM3 14h2v1H3zM11 14h2v1H11zM19 14h2v1H19zM3 15h2v1H3zM11 15h2v1H11zM19 15h2v1H19zM3 16h2v1H3zM11 16h2v1H11zM19 16h2v1H19zM3 17h2v1H3zM11 17h2v1H11zM19 17h2v1H19zM3 18h2v1H3zM11 18h2v1H11zM19 18h2v1H19zM3 19h18v1H3zM1 20h22v1H1z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-door-closed::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-door-closed::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-door-closed::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 2h12v1H6zM6 3h12v1H6zM6 4h12v1H6zM6 5h12v1H6zM6 6h12v1H6zM6 7h12v1H6zM6 8h12v1H6zM6 9h12v1H6zM6 10h12v1H6zM6 11h8v1H6zM16 11h2v1H16zM6 12h8v1H6zM16 12h2v1H16zM6 13h12v1H6zM6 14h12v1H6zM6 15h12v1H6zM6 16h12v1H6zM6 17h12v1H6zM6 18h12v1H6zM6 19h12v1H6zM1 20h22v1H1zM1 21h22v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 2h12v1H6zM6 3h12v1H6zM6 4h12v1H6zM6 5h12v1H6zM6 6h12v1H6zM6 7h12v1H6zM6 8h12v1H6zM6 9h12v1H6zM6 10h12v1H6zM6 11h8v1H6zM16 11h2v1H16zM6 12h8v1H6zM16 12h2v1H16zM6 13h12v1H6zM6 14h12v1H6zM6 15h12v1H6zM6 16h12v1H6zM6 17h12v1H6zM6 18h12v1H6zM6 19h12v1H6zM1 20h22v1H1zM1 21h22v1H1z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-music::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-music::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-music::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M16 4h4v1H16zM11 5h9v1H11zM6 6h14v1H6zM6 7h9v1H6zM18 7h2v1H18zM6 8h5v1H6zM18 8h2v1H18zM6 9h2v1H6zM18 9h2v1H18zM6 10h2v1H6zM18 10h2v1H18zM6 11h2v1H6zM18 11h2v1H18zM6 12h2v1H6zM18 12h2v1H18zM6 13h2v1H6zM18 13h2v1H18zM6 14h2v1H6zM15 14h5v1H15zM6 15h2v1H6zM14 15h6v1H14zM3 16h5v1H3zM13 16h7v1H13zM2 17h6v1H2zM13 17h6v1H13zM1 18h7v1H1zM14 18h4v1H14zM1 19h6v1H1zM2 20h4v1H2z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M16 4h4v1H16zM11 5h9v1H11zM6 6h14v1H6zM6 7h9v1H6zM18 7h2v1H18zM6 8h5v1H6zM18 8h2v1H18zM6 9h2v1H6zM18 9h2v1H18zM6 10h2v1H6zM18 10h2v1H18zM6 11h2v1H6zM18 11h2v1H18zM6 12h2v1H6zM18 12h2v1H18zM6 13h2v1H6zM18 13h2v1H18zM6 14h2v1H6zM15 14h5v1H15zM6 15h2v1H6zM14 15h6v1H14zM3 16h5v1H3zM13 16h7v1H13zM2 17h6v1H2zM13 17h6v1H13zM1 18h7v1H1zM14 18h4v1H14zM1 19h6v1H1zM2 20h4v1H2z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-volume-high::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-volume-high::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-volume-high::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M18 2h2v1H18zM19 3h2v1H19zM9 4h2v1H9zM20 4h2v1H20zM8 5h3v1H8zM15 5h2v1H15zM21 5h2v1H21zM7 6h4v1H7zM16 6h2v1H16zM21 6h2v1H21zM6 7h5v1H6zM17 7h2v1H17zM21 7h2v1H21zM1 8h10v1H1zM12 8h2v1H12zM17 8h2v1H17zM21 8h2v1H21zM1 9h10v1H1zM13 9h2v1H13zM17 9h2v1H17zM21 9h2v1H21zM1 10h10v1H1zM13 10h2v1H13zM17 10h2v1H17zM21 10h2v1H21zM1 11h10v1H1zM13 11h2v1H13zM17 11h2v1H17zM21 11h2v1H21zM1 12h10v1H1zM13 12h2v1H13zM17 12h2v1H17zM21 12h2v1H21zM1 13h10v1H1zM13 13h2v1H13zM17 13h2v1H17zM21 13h2v1H21zM1 14h10v1H1zM13 14h2v1H13zM17 14h2v1H17zM21 14h2v1H21zM1 15h10v1H1zM12 15h2v1H12zM17 15h2v1H17zM21 15h2v1H21zM6 16h5v1H6zM17 16h2v1H17zM21 16h2v1H21zM7 17h4v1H7zM16 17h2v1H16zM21 17h2v1H21zM8 18h3v1H8zM15 18h2v1H15zM21 18h2v1H21zM9 19h2v1H9zM20 19h2v1H20zM19 20h2v1H19zM18 21h2v1H18z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M18 2h2v1H18zM19 3h2v1H19zM9 4h2v1H9zM20 4h2v1H20zM8 5h3v1H8zM15 5h2v1H15zM21 5h2v1H21zM7 6h4v1H7zM16 6h2v1H16zM21 6h2v1H21zM6 7h5v1H6zM17 7h2v1H17zM21 7h2v1H21zM1 8h10v1H1zM12 8h2v1H12zM17 8h2v1H17zM21 8h2v1H21zM1 9h10v1H1zM13 9h2v1H13zM17 9h2v1H17zM21 9h2v1H21zM1 10h10v1H1zM13 10h2v1H13zM17 10h2v1H17zM21 10h2v1H21zM1 11h10v1H1zM13 11h2v1H13zM17 11h2v1H17zM21 11h2v1H21zM1 12h10v1H1zM13 12h2v1H13zM17 12h2v1H17zM21 12h2v1H21zM1 13h10v1H1zM13 13h2v1H13zM17 13h2v1H17zM21 13h2v1H21zM1 14h10v1H1zM13 14h2v1H13zM17 14h2v1H17zM21 14h2v1H21zM1 15h10v1H1zM12 15h2v1H12zM17 15h2v1H17zM21 15h2v1H21zM6 16h5v1H6zM17 16h2v1H17zM21 16h2v1H21zM7 17h4v1H7zM16 17h2v1H16zM21 17h2v1H21zM8 18h3v1H8zM15 18h2v1H15zM21 18h2v1H21zM9 19h2v1H9zM20 19h2v1H20zM19 20h2v1H19zM18 21h2v1H18z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-headphones::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-headphones::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-headphones::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 3h8v1H8zM6 4h12v1H6zM5 5h3v1H5zM16 5h3v1H16zM4 6h3v1H4zM17 6h3v1H17zM3 7h3v1H3zM18 7h3v1H18zM3 8h2v1H3zM19 8h2v1H19zM2 9h3v1H2zM19 9h3v1H19zM2 10h2v1H2zM20 10h2v1H20zM2 11h2v1H2zM20 11h2v1H20zM2 12h2v1H2zM6 12h3v1H6zM15 12h3v1H15zM20 12h2v1H20zM2 13h2v1H2zM5 13h4v1H5zM15 13h4v1H15zM20 13h2v1H20zM2 14h2v1H2zM5 14h4v1H5zM15 14h4v1H15zM20 14h2v1H20zM2 15h2v1H2zM5 15h4v1H5zM15 15h4v1H15zM20 15h2v1H20zM2 16h2v1H2zM5 16h4v1H5zM15 16h4v1H15zM20 16h2v1H20zM2 17h2v1H2zM5 17h4v1H5zM15 17h4v1H15zM20 17h2v1H20zM2 18h2v1H2zM5 18h4v1H5zM15 18h4v1H15zM20 18h2v1H20zM2 19h2v1H2zM6 19h3v1H6zM15 19h3v1H15zM20 19h2v1H20zM3 20h4v1H3zM17 20h4v1H17z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 3h8v1H8zM6 4h12v1H6zM5 5h3v1H5zM16 5h3v1H16zM4 6h3v1H4zM17 6h3v1H17zM3 7h3v1H3zM18 7h3v1H18zM3 8h2v1H3zM19 8h2v1H19zM2 9h3v1H2zM19 9h3v1H19zM2 10h2v1H2zM20 10h2v1H20zM2 11h2v1H2zM20 11h2v1H20zM2 12h2v1H2zM6 12h3v1H6zM15 12h3v1H15zM20 12h2v1H20zM2 13h2v1H2zM5 13h4v1H5zM15 13h4v1H15zM20 13h2v1H20zM2 14h2v1H2zM5 14h4v1H5zM15 14h4v1H15zM20 14h2v1H20zM2 15h2v1H2zM5 15h4v1H5zM15 15h4v1H15zM20 15h2v1H20zM2 16h2v1H2zM5 16h4v1H5zM15 16h4v1H15zM20 16h2v1H20zM2 17h2v1H2zM5 17h4v1H5zM15 17h4v1H15zM20 17h2v1H20zM2 18h2v1H2zM5 18h4v1H5zM15 18h4v1H15zM20 18h2v1H20zM2 19h2v1H2zM6 19h3v1H6zM15 19h3v1H15zM20 19h2v1H20zM3 20h4v1H3zM17 20h4v1H17z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-lightbulb::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-lightbulb::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-lightbulb::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h6v1H9zM7 3h10v1H7zM6 4h12v1H6zM5 5h4v1H5zM11 5h8v1H11zM5 6h3v1H5zM10 6h9v1H10zM5 7h3v1H5zM10 7h9v1H10zM5 8h14v1H5zM5 9h14v1H5zM6 10h12v1H6zM6 11h12v1H6zM7 12h10v1H7zM8 13h8v1H8zM8 14h8v1H8zM8 16h8v1H8zM8 17h8v1H8zM9 19h6v1H9zM10 20h4v1H10z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h6v1H9zM7 3h10v1H7zM6 4h12v1H6zM5 5h4v1H5zM11 5h8v1H11zM5 6h3v1H5zM10 6h9v1H10zM5 7h3v1H5zM10 7h9v1H10zM5 8h14v1H5zM5 9h14v1H5zM6 10h12v1H6zM6 11h12v1H6zM7 12h10v1H7zM8 13h8v1H8zM8 14h8v1H8zM8 16h8v1H8zM8 17h8v1H8zM9 19h6v1H9zM10 20h4v1H10z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-sun::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-sun::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-sun::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 2h2v1H11zM3 3h2v1H3zM10 3h4v1H10zM19 3h2v1H19zM3 4h3v1H3zM9 4h6v1H9zM18 4h3v1H18zM4 5h2v1H4zM18 5h2v1H18zM9 7h6v1H9zM8 8h8v1H8zM4 9h1v1H4zM7 9h10v1H7zM19 9h1v1H19zM3 10h2v1H3zM7 10h10v1H7zM19 10h2v1H19zM2 11h3v1H2zM7 11h10v1H7zM19 11h3v1H19zM2 12h3v1H2zM7 12h10v1H7zM19 12h3v1H19zM3 13h2v1H3zM7 13h10v1H7zM19 13h2v1H19zM4 14h1v1H4zM7 14h10v1H7zM19 14h1v1H19zM8 15h8v1H8zM9 16h6v1H9zM4 18h2v1H4zM18 18h2v1H18zM3 19h3v1H3zM9 19h6v1H9zM18 19h3v1H18zM3 20h2v1H3zM10 20h4v1H10zM19 20h2v1H19zM11 21h2v1H11z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 2h2v1H11zM3 3h2v1H3zM10 3h4v1H10zM19 3h2v1H19zM3 4h3v1H3zM9 4h6v1H9zM18 4h3v1H18zM4 5h2v1H4zM18 5h2v1H18zM9 7h6v1H9zM8 8h8v1H8zM4 9h1v1H4zM7 9h10v1H7zM19 9h1v1H19zM3 10h2v1H3zM7 10h10v1H7zM19 10h2v1H19zM2 11h3v1H2zM7 11h10v1H7zM19 11h3v1H19zM2 12h3v1H2zM7 12h10v1H7zM19 12h3v1H19zM3 13h2v1H3zM7 13h10v1H7zM19 13h2v1H19zM4 14h1v1H4zM7 14h10v1H7zM19 14h1v1H19zM8 15h8v1H8zM9 16h6v1H9zM4 18h2v1H4zM18 18h2v1H18zM3 19h3v1H3zM9 19h6v1H9zM18 19h3v1H18zM3 20h2v1H3zM10 20h4v1H10zM19 20h2v1H19zM11 21h2v1H11z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-moon::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-moon::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-moon::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 2h5v1H10zM7 3h7v1H7zM5 4h8v1H5zM4 5h8v1H4zM3 6h8v1H3zM3 7h7v1H3zM2 8h8v1H2zM2 9h8v1H2zM2 10h7v1H2zM2 11h7v1H2zM2 12h7v1H2zM2 13h7v1H2zM2 14h8v1H2zM2 15h8v1H2zM3 16h7v1H3zM3 17h8v1H3zM4 18h8v1H4zM5 19h8v1H5zM7 20h7v1H7zM10 21h5v1H10z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 2h5v1H10zM7 3h7v1H7zM5 4h8v1H5zM4 5h8v1H4zM3 6h8v1H3zM3 7h7v1H3zM2 8h8v1H2zM2 9h8v1H2zM2 10h7v1H2zM2 11h7v1H2zM2 12h7v1H2zM2 13h7v1H2zM2 14h8v1H2zM2 15h8v1H2zM3 16h7v1H3zM3 17h8v1H3zM4 18h8v1H4zM5 19h8v1H5zM7 20h7v1H7zM10 21h5v1H10z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-cloud::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-cloud::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-cloud::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 6h4v1H10zM8 7h8v1H8zM7 8h10v1H7zM6 9h12v1H6zM6 10h12v1H6zM6 11h13v1H6zM4 12h16v1H4zM3 13h18v1H3zM2 14h20v1H2zM2 15h20v1H2zM2 16h20v1H2zM3 17h18v1H3zM4 18h16v1H4z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 6h4v1H10zM8 7h8v1H8zM7 8h10v1H7zM6 9h12v1H6zM6 10h12v1H6zM6 11h13v1H6zM4 12h16v1H4zM3 13h18v1H3zM2 14h20v1H2zM2 15h20v1H2zM2 16h20v1H2zM3 17h18v1H3zM4 18h16v1H4z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-bookmark::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-bookmark::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-bookmark::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 2h10v1H7zM6 3h12v1H6zM6 4h12v1H6zM6 5h12v1H6zM6 6h12v1H6zM6 7h12v1H6zM6 8h12v1H6zM6 9h12v1H6zM6 10h12v1H6zM6 11h12v1H6zM6 12h12v1H6zM6 13h12v1H6zM6 14h12v1H6zM6 15h12v1H6zM6 16h5v1H6zM13 16h5v1H13zM6 17h4v1H6zM14 17h4v1H14zM6 18h3v1H6zM15 18h3v1H15zM6 19h2v1H6zM16 19h2v1H16z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 2h10v1H7zM6 3h12v1H6zM6 4h12v1H6zM6 5h12v1H6zM6 6h12v1H6zM6 7h12v1H6zM6 8h12v1H6zM6 9h12v1H6zM6 10h12v1H6zM6 11h12v1H6zM6 12h12v1H6zM6 13h12v1H6zM6 14h12v1H6zM6 15h12v1H6zM6 16h5v1H6zM13 16h5v1H13zM6 17h4v1H6zM14 17h4v1H14zM6 18h3v1H6zM15 18h3v1H15zM6 19h2v1H6zM16 19h2v1H16z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-book-open::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-book-open::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-book-open::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 5h4v1H1zM19 5h4v1H19zM1 6h8v1H1zM15 6h8v1H15zM1 7h10v1H1zM13 7h10v1H13zM1 8h10v1H1zM13 8h10v1H13zM1 9h2v1H1zM9 9h2v1H9zM13 9h2v1H13zM21 9h2v1H21zM1 10h10v1H1zM13 10h10v1H13zM1 11h10v1H1zM13 11h10v1H13zM1 12h2v1H1zM9 12h2v1H9zM13 12h2v1H13zM21 12h2v1H21zM1 13h10v1H1zM13 13h10v1H13zM1 14h10v1H1zM13 14h10v1H13zM1 15h2v1H1zM9 15h2v1H9zM13 15h2v1H13zM21 15h2v1H21zM1 16h10v1H1zM13 16h10v1H13zM1 17h10v1H1zM13 17h10v1H13zM1 18h10v1H1zM13 18h10v1H13zM1 19h22v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 5h4v1H1zM19 5h4v1H19zM1 6h8v1H1zM15 6h8v1H15zM1 7h10v1H1zM13 7h10v1H13zM1 8h10v1H1zM13 8h10v1H13zM1 9h2v1H1zM9 9h2v1H9zM13 9h2v1H13zM21 9h2v1H21zM1 10h10v1H1zM13 10h10v1H13zM1 11h10v1H1zM13 11h10v1H13zM1 12h2v1H1zM9 12h2v1H9zM13 12h2v1H13zM21 12h2v1H21zM1 13h10v1H1zM13 13h10v1H13zM1 14h10v1H1zM13 14h10v1H13zM1 15h2v1H1zM9 15h2v1H9zM13 15h2v1H13zM21 15h2v1H21zM1 16h10v1H1zM13 16h10v1H13zM1 17h10v1H1zM13 17h10v1H13zM1 18h10v1H1zM13 18h10v1H13zM1 19h22v1H1z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-map-pin::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-map-pin::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-map-pin::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h6v1H9zM7 3h10v1H7zM6 4h12v1H6zM6 5h3v1H6zM11 5h7v1H11zM6 6h3v1H6zM11 6h7v1H11zM6 7h12v1H6zM6 8h12v1H6zM6 9h12v1H6zM7 10h10v1H7zM9 11h6v1H9zM11 12h2v1H11zM11 13h2v1H11zM11 14h2v1H11zM11 15h2v1H11zM11 16h2v1H11zM11 17h2v1H11zM11 18h2v1H11zM11 19h2v1H11zM11 20h2v1H11z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h6v1H9zM7 3h10v1H7zM6 4h12v1H6zM6 5h3v1H6zM11 5h7v1H11zM6 6h3v1H6zM11 6h7v1H11zM6 7h12v1H6zM6 8h12v1H6zM6 9h12v1H6zM7 10h10v1H7zM9 11h6v1H9zM11 12h2v1H11zM11 13h2v1H11zM11 14h2v1H11zM11 15h2v1H11zM11 16h2v1H11zM11 17h2v1H11zM11 18h2v1H11zM11 19h2v1H11zM11 20h2v1H11z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-comments::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-comments::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-comments::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 3h11v1H3zM2 4h13v1H2zM1 5h15v1H1zM1 6h15v1H1zM1 7h15v1H1zM17 7h5v1H17zM1 8h15v1H1zM20 8h2v1H20zM1 9h15v1H1zM20 9h2v1H20zM2 10h13v1H2zM20 10h2v1H20zM3 11h11v1H3zM20 11h2v1H20zM3 12h4v1H3zM20 12h2v1H20zM3 13h3v1H3zM8 13h2v1H8zM20 13h2v1H20zM3 14h2v1H3zM8 14h2v1H8zM20 14h2v1H20zM8 15h2v1H8zM20 15h2v1H20zM8 16h14v1H8zM9 17h12v1H9zM16 18h4v1H16zM17 19h3v1H17zM18 20h2v1H18z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 3h11v1H3zM2 4h13v1H2zM1 5h15v1H1zM1 6h15v1H1zM1 7h15v1H1zM17 7h5v1H17zM1 8h15v1H1zM20 8h2v1H20zM1 9h15v1H1zM20 9h2v1H20zM2 10h13v1H2zM20 10h2v1H20zM3 11h11v1H3zM20 11h2v1H20zM3 12h4v1H3zM20 12h2v1H20zM3 13h3v1H3zM8 13h2v1H8zM20 13h2v1H20zM3 14h2v1H3zM8 14h2v1H8zM20 14h2v1H20zM8 15h2v1H8zM20 15h2v1H20zM8 16h14v1H8zM9 17h12v1H9zM16 18h4v1H16zM17 19h3v1H17zM18 20h2v1H18z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-swords::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-swords::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-swords::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 2h2v1H2zM20 2h2v1H20zM3 3h2v1H3zM19 3h2v1H19zM4 4h2v1H4zM18 4h2v1H18zM5 5h2v1H5zM17 5h2v1H17zM6 6h2v1H6zM16 6h2v1H16zM7 7h2v1H7zM15 7h2v1H15zM8 8h2v1H8zM14 8h2v1H14zM9 9h2v1H9zM13 9h2v1H13zM10 10h4v1H10zM11 11h2v1H11zM10 12h4v1H10zM5 13h2v1H5zM9 13h2v1H9zM13 13h2v1H13zM17 13h2v1H17zM6 14h4v1H6zM14 14h4v1H14zM7 15h2v1H7zM15 15h2v1H15zM6 16h4v1H6zM14 16h4v1H14zM5 17h2v1H5zM9 17h2v1H9zM13 17h2v1H13zM17 17h2v1H17zM4 18h2v1H4zM18 18h2v1H18zM3 19h2v1H3zM19 19h2v1H19zM2 20h3v1H2zM19 20h3v1H19zM2 21h3v1H2zM19 21h3v1H19z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 2h2v1H2zM20 2h2v1H20zM3 3h2v1H3zM19 3h2v1H19zM4 4h2v1H4zM18 4h2v1H18zM5 5h2v1H5zM17 5h2v1H17zM6 6h2v1H6zM16 6h2v1H16zM7 7h2v1H7zM15 7h2v1H15zM8 8h2v1H8zM14 8h2v1H14zM9 9h2v1H9zM13 9h2v1H13zM10 10h4v1H10zM11 11h2v1H11zM10 12h4v1H10zM5 13h2v1H5zM9 13h2v1H9zM13 13h2v1H13zM17 13h2v1H17zM6 14h4v1H6zM14 14h4v1H14zM7 15h2v1H7zM15 15h2v1H15zM6 16h4v1H6zM14 16h4v1H14zM5 17h2v1H5zM9 17h2v1H9zM13 17h2v1H13zM17 17h2v1H17zM4 18h2v1H4zM18 18h2v1H18zM3 19h2v1H3zM19 19h2v1H19zM2 20h3v1H2zM19 20h3v1H19zM2 21h3v1H2zM19 21h3v1H19z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-map::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-map::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-map::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 3h2v1H6zM9 3h2v1H9zM20 3h2v1H20zM4 4h4v1H4zM9 4h4v1H9zM18 4h4v1H18zM2 5h6v1H2zM9 5h6v1H9zM16 5h6v1H16zM2 6h6v1H2zM9 6h6v1H9zM16 6h6v1H16zM2 7h6v1H2zM9 7h6v1H9zM16 7h2v1H16zM20 7h2v1H20zM2 8h6v1H2zM9 8h6v1H9zM16 8h2v1H16zM20 8h2v1H20zM2 9h6v1H2zM9 9h6v1H9zM16 9h6v1H16zM2 10h6v1H2zM9 10h6v1H9zM16 10h6v1H16zM2 11h6v1H2zM9 11h2v1H9zM13 11h2v1H13zM16 11h6v1H16zM2 12h6v1H2zM9 12h2v1H9zM13 12h2v1H13zM16 12h6v1H16zM2 13h6v1H2zM9 13h6v1H9zM16 13h6v1H16zM2 14h2v1H2zM6 14h2v1H6zM9 14h6v1H9zM16 14h6v1H16zM2 15h2v1H2zM6 15h2v1H6zM9 15h6v1H9zM16 15h6v1H16zM2 16h6v1H2zM9 16h6v1H9zM16 16h6v1H16zM2 17h6v1H2zM9 17h6v1H9zM16 17h6v1H16zM2 18h6v1H2zM9 18h6v1H9zM16 18h6v1H16zM2 19h4v1H2zM11 19h4v1H11zM16 19h4v1H16zM2 20h2v1H2zM13 20h2v1H13zM16 20h2v1H16z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 3h2v1H6zM9 3h2v1H9zM20 3h2v1H20zM4 4h4v1H4zM9 4h4v1H9zM18 4h4v1H18zM2 5h6v1H2zM9 5h6v1H9zM16 5h6v1H16zM2 6h6v1H2zM9 6h6v1H9zM16 6h6v1H16zM2 7h6v1H2zM9 7h6v1H9zM16 7h2v1H16zM20 7h2v1H20zM2 8h6v1H2zM9 8h6v1H9zM16 8h2v1H16zM20 8h2v1H20zM2 9h6v1H2zM9 9h6v1H9zM16 9h6v1H16zM2 10h6v1H2zM9 10h6v1H9zM16 10h6v1H16zM2 11h6v1H2zM9 11h2v1H9zM13 11h2v1H13zM16 11h6v1H16zM2 12h6v1H2zM9 12h2v1H9zM13 12h2v1H13zM16 12h6v1H16zM2 13h6v1H2zM9 13h6v1H9zM16 13h6v1H16zM2 14h2v1H2zM6 14h2v1H6zM9 14h6v1H9zM16 14h6v1H16zM2 15h2v1H2zM6 15h2v1H6zM9 15h6v1H9zM16 15h6v1H16zM2 16h6v1H2zM9 16h6v1H9zM16 16h6v1H16zM2 17h6v1H2zM9 17h6v1H9zM16 17h6v1H16zM2 18h6v1H2zM9 18h6v1H9zM16 18h6v1H16zM2 19h4v1H2zM11 19h4v1H11zM16 19h4v1H16zM2 20h2v1H2zM13 20h2v1H13zM16 20h2v1H16z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-puzzle-piece::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-puzzle-piece::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-puzzle-piece::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 2h5v1H7zM6 3h7v1H6zM6 4h7v1H6zM7 5h5v1H7zM8 6h3v1H8zM2 7h15v1H2zM2 8h15v1H2zM2 9h15v1H2zM2 10h15v1H2zM2 11h15v1H2zM19 11h2v1H19zM2 12h1v1H2zM6 12h11v1H6zM18 12h4v1H18zM7 13h15v1H7zM7 14h15v1H7zM7 15h15v1H7zM2 16h1v1H2zM6 16h11v1H6zM18 16h4v1H18zM2 17h15v1H2zM19 17h2v1H19zM2 18h15v1H2zM2 19h15v1H2zM2 20h15v1H2zM2 21h15v1H2z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 2h5v1H7zM6 3h7v1H6zM6 4h7v1H6zM7 5h5v1H7zM8 6h3v1H8zM2 7h15v1H2zM2 8h15v1H2zM2 9h15v1H2zM2 10h15v1H2zM2 11h15v1H2zM19 11h2v1H19zM2 12h1v1H2zM6 12h11v1H6zM18 12h4v1H18zM7 13h15v1H7zM7 14h15v1H7zM7 15h15v1H7zM2 16h1v1H2zM6 16h11v1H6zM18 16h4v1H18zM2 17h15v1H2zM19 17h2v1H19zM2 18h15v1H2zM2 19h15v1H2zM2 20h15v1H2zM2 21h15v1H2z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-user::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-user::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-user::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h6v1H9zM8 3h8v1H8zM7 4h3v1H7zM14 4h3v1H14zM7 5h2v1H7zM15 5h2v1H15zM7 6h2v1H7zM15 6h2v1H15zM7 7h2v1H7zM15 7h2v1H15zM7 8h3v1H7zM14 8h3v1H14zM8 9h8v1H8zM9 10h6v1H9zM6 12h12v1H6zM4 13h16v1H4zM3 14h3v1H3zM18 14h3v1H18zM2 15h3v1H2zM19 15h3v1H19zM2 16h2v1H2zM20 16h2v1H20zM2 17h2v1H2zM20 17h2v1H20zM2 18h2v1H2zM20 18h2v1H20zM2 19h2v1H2zM20 19h2v1H20zM2 20h20v1H2zM2 21h20v1H2z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h6v1H9zM8 3h8v1H8zM7 4h3v1H7zM14 4h3v1H14zM7 5h2v1H7zM15 5h2v1H15zM7 6h2v1H7zM15 6h2v1H15zM7 7h2v1H7zM15 7h2v1H15zM7 8h3v1H7zM14 8h3v1H14zM8 9h8v1H8zM9 10h6v1H9zM6 12h12v1H6zM4 13h16v1H4zM3 14h3v1H3zM18 14h3v1H18zM2 15h3v1H2zM19 15h3v1H19zM2 16h2v1H2zM20 16h2v1H20zM2 17h2v1H2zM20 17h2v1H20zM2 18h2v1H2zM20 18h2v1H20zM2 19h2v1H2zM20 19h2v1H20zM2 20h20v1H2zM2 21h20v1H2z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-suitcase::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-suitcase::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-suitcase::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 3h8v1H8zM8 4h2v1H8zM14 4h2v1H14zM8 5h2v1H8zM14 5h2v1H14zM3 6h18v1H3zM2 7h20v1H2zM2 8h4v1H2zM7 8h10v1H7zM18 8h4v1H18zM2 9h4v1H2zM7 9h10v1H7zM18 9h4v1H18zM2 10h4v1H2zM7 10h10v1H7zM18 10h4v1H18zM2 11h4v1H2zM7 11h10v1H7zM18 11h4v1H18zM2 12h4v1H2zM7 12h10v1H7zM18 12h4v1H18zM2 13h4v1H2zM7 13h10v1H7zM18 13h4v1H18zM2 14h4v1H2zM7 14h10v1H7zM18 14h4v1H18zM2 15h4v1H2zM7 15h10v1H7zM18 15h4v1H18zM2 16h4v1H2zM7 16h10v1H7zM18 16h4v1H18zM2 17h4v1H2zM7 17h10v1H7zM18 17h4v1H18zM2 18h4v1H2zM7 18h10v1H7zM18 18h4v1H18zM2 19h4v1H2zM7 19h10v1H7zM18 19h4v1H18zM3 20h18v1H3z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 3h8v1H8zM8 4h2v1H8zM14 4h2v1H14zM8 5h2v1H8zM14 5h2v1H14zM3 6h18v1H3zM2 7h20v1H2zM2 8h4v1H2zM7 8h10v1H7zM18 8h4v1H18zM2 9h4v1H2zM7 9h10v1H7zM18 9h4v1H18zM2 10h4v1H2zM7 10h10v1H7zM18 10h4v1H18zM2 11h4v1H2zM7 11h10v1H7zM18 11h4v1H18zM2 12h4v1H2zM7 12h10v1H7zM18 12h4v1H18zM2 13h4v1H2zM7 13h10v1H7zM18 13h4v1H18zM2 14h4v1H2zM7 14h10v1H7zM18 14h4v1H18zM2 15h4v1H2zM7 15h10v1H7zM18 15h4v1H18zM2 16h4v1H2zM7 16h10v1H7zM18 16h4v1H18zM2 17h4v1H2zM7 17h10v1H7zM18 17h4v1H18zM2 18h4v1H2zM7 18h10v1H7zM18 18h4v1H18zM2 19h4v1H2zM7 19h10v1H7zM18 19h4v1H18zM3 20h18v1H3z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-table-list::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-table-list::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-table-list::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 3h20v1H2zM2 4h20v1H2zM2 5h20v1H2zM2 6h2v1H2zM7 6h2v1H7zM20 6h2v1H20zM2 7h2v1H2zM7 7h2v1H7zM20 7h2v1H20zM2 8h2v1H2zM7 8h2v1H7zM20 8h2v1H20zM2 9h20v1H2zM2 10h20v1H2zM2 11h2v1H2zM7 11h2v1H7zM20 11h2v1H20zM2 12h2v1H2zM7 12h2v1H7zM20 12h2v1H20zM2 13h2v1H2zM7 13h2v1H7zM20 13h2v1H20zM2 14h20v1H2zM2 15h20v1H2zM2 16h2v1H2zM7 16h2v1H7zM20 16h2v1H20zM2 17h2v1H2zM7 17h2v1H7zM20 17h2v1H20zM2 18h2v1H2zM7 18h2v1H7zM20 18h2v1H20zM2 19h20v1H2zM2 20h20v1H2z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 3h20v1H2zM2 4h20v1H2zM2 5h20v1H2zM2 6h2v1H2zM7 6h2v1H7zM20 6h2v1H20zM2 7h2v1H2zM7 7h2v1H7zM20 7h2v1H20zM2 8h2v1H2zM7 8h2v1H7zM20 8h2v1H20zM2 9h20v1H2zM2 10h20v1H2zM2 11h2v1H2zM7 11h2v1H7zM20 11h2v1H20zM2 12h2v1H2zM7 12h2v1H7zM20 12h2v1H20zM2 13h2v1H2zM7 13h2v1H7zM20 13h2v1H20zM2 14h20v1H2zM2 15h20v1H2zM2 16h2v1H2zM7 16h2v1H7zM20 16h2v1H20zM2 17h2v1H2zM7 17h2v1H7zM20 17h2v1H20zM2 18h2v1H2zM7 18h2v1H7zM20 18h2v1H20zM2 19h20v1H2zM2 20h20v1H2z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-cards::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-cards::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-cards::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h13v1H9zM9 3h13v1H9zM9 4h2v1H9zM20 4h2v1H20zM9 5h2v1H9zM20 5h2v1H20zM20 6h2v1H20zM2 7h12v1H2zM20 7h2v1H20zM2 8h12v1H2zM20 8h2v1H20zM2 9h12v1H2zM20 9h2v1H20zM2 10h12v1H2zM20 10h2v1H20zM2 11h5v1H2zM9 11h5v1H9zM20 11h2v1H20zM2 12h4v1H2zM10 12h4v1H10zM20 12h2v1H20zM2 13h4v1H2zM10 13h4v1H10zM20 13h2v1H20zM2 14h5v1H2zM9 14h5v1H9zM20 14h2v1H20zM2 15h12v1H2zM15 15h7v1H15zM2 16h12v1H2zM15 16h7v1H15zM2 17h12v1H2zM2 18h12v1H2zM2 19h12v1H2zM2 20h12v1H2zM2 21h12v1H2z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h13v1H9zM9 3h13v1H9zM9 4h2v1H9zM20 4h2v1H20zM9 5h2v1H9zM20 5h2v1H20zM20 6h2v1H20zM2 7h12v1H2zM20 7h2v1H20zM2 8h12v1H2zM20 8h2v1H20zM2 9h12v1H2zM20 9h2v1H20zM2 10h12v1H2zM20 10h2v1H20zM2 11h5v1H2zM9 11h5v1H9zM20 11h2v1H20zM2 12h4v1H2zM10 12h4v1H10zM20 12h2v1H20zM2 13h4v1H2zM10 13h4v1H10zM20 13h2v1H20zM2 14h5v1H2zM9 14h5v1H9zM20 14h2v1H20zM2 15h12v1H2zM15 15h7v1H15zM2 16h12v1H2zM15 16h7v1H15zM2 17h12v1H2zM2 18h12v1H2zM2 19h12v1H2zM2 20h12v1H2zM2 21h12v1H2z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-code::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-code::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-code::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M14 3h2v1H14zM14 4h2v1H14zM14 5h2v1H14zM5 6h2v1H5zM13 6h2v1H13zM17 6h2v1H17zM4 7h3v1H4zM13 7h2v1H13zM17 7h3v1H17zM3 8h3v1H3zM13 8h2v1H13zM18 8h3v1H18zM2 9h3v1H2zM12 9h2v1H12zM19 9h3v1H19zM1 10h3v1H1zM12 10h2v1H12zM20 10h3v1H20zM1 11h2v1H1zM12 11h2v1H12zM21 11h2v1H21zM1 12h2v1H1zM11 12h2v1H11zM21 12h2v1H21zM1 13h3v1H1zM11 13h2v1H11zM20 13h3v1H20zM2 14h3v1H2zM11 14h2v1H11zM19 14h3v1H19zM3 15h3v1H3zM10 15h2v1H10zM18 15h3v1H18zM4 16h3v1H4zM10 16h2v1H10zM17 16h3v1H17zM5 17h2v1H5zM10 17h2v1H10zM17 17h2v1H17zM9 18h2v1H9zM9 19h2v1H9zM9 20h2v1H9z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M14 3h2v1H14zM14 4h2v1H14zM14 5h2v1H14zM5 6h2v1H5zM13 6h2v1H13zM17 6h2v1H17zM4 7h3v1H4zM13 7h2v1H13zM17 7h3v1H17zM3 8h3v1H3zM13 8h2v1H13zM18 8h3v1H18zM2 9h3v1H2zM12 9h2v1H12zM19 9h3v1H19zM1 10h3v1H1zM12 10h2v1H12zM20 10h3v1H20zM1 11h2v1H1zM12 11h2v1H12zM21 11h2v1H21zM1 12h2v1H1zM11 12h2v1H11zM21 12h2v1H21zM1 13h3v1H1zM11 13h2v1H11zM20 13h3v1H20zM2 14h3v1H2zM11 14h2v1H11zM19 14h3v1H19zM3 15h3v1H3zM10 15h2v1H10zM18 15h3v1H18zM4 16h3v1H4zM10 16h2v1H10zM17 16h3v1H17zM5 17h2v1H5zM10 17h2v1H10zM17 17h2v1H17zM9 18h2v1H9zM9 19h2v1H9zM9 20h2v1H9z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-book-atlas::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-book-atlas::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-book-atlas::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 2h16v1H4zM4 3h16v1H4zM4 4h5v1H4zM15 4h5v1H15zM4 5h4v1H4zM9 5h2v1H9zM13 5h2v1H13zM16 5h4v1H16zM4 6h3v1H4zM8 6h2v1H8zM11 6h2v1H11zM14 6h2v1H14zM17 6h3v1H17zM4 7h3v1H4zM8 7h2v1H8zM11 7h2v1H11zM14 7h2v1H14zM17 7h3v1H17zM4 8h3v1H4zM8 8h2v1H8zM11 8h2v1H11zM14 8h2v1H14zM17 8h3v1H17zM4 9h3v1H4zM17 9h3v1H17zM4 10h3v1H4zM8 10h2v1H8zM11 10h2v1H11zM14 10h2v1H14zM17 10h3v1H17zM4 11h3v1H4zM8 11h2v1H8zM11 11h2v1H11zM14 11h2v1H14zM17 11h3v1H17zM4 12h4v1H4zM9 12h2v1H9zM13 12h2v1H13zM16 12h4v1H16zM4 13h5v1H4zM15 13h5v1H15zM4 14h16v1H4zM4 15h16v1H4zM4 16h16v1H4zM4 17h16v1H4zM4 18h2v1H4zM4 19h2v1H4zM7 19h13v1H7zM4 20h2v1H4zM5 21h15v1H5z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 2h16v1H4zM4 3h16v1H4zM4 4h5v1H4zM15 4h5v1H15zM4 5h4v1H4zM9 5h2v1H9zM13 5h2v1H13zM16 5h4v1H16zM4 6h3v1H4zM8 6h2v1H8zM11 6h2v1H11zM14 6h2v1H14zM17 6h3v1H17zM4 7h3v1H4zM8 7h2v1H8zM11 7h2v1H11zM14 7h2v1H14zM17 7h3v1H17zM4 8h3v1H4zM8 8h2v1H8zM11 8h2v1H11zM14 8h2v1H14zM17 8h3v1H17zM4 9h3v1H4zM17 9h3v1H17zM4 10h3v1H4zM8 10h2v1H8zM11 10h2v1H11zM14 10h2v1H14zM17 10h3v1H17zM4 11h3v1H4zM8 11h2v1H8zM11 11h2v1H11zM14 11h2v1H14zM17 11h3v1H17zM4 12h4v1H4zM9 12h2v1H9zM13 12h2v1H13zM16 12h4v1H16zM4 13h5v1H4zM15 13h5v1H15zM4 14h16v1H4zM4 15h16v1H4zM4 16h16v1H4zM4 17h16v1H4zM4 18h2v1H4zM4 19h2v1H4zM7 19h13v1H7zM4 20h2v1H4zM5 21h15v1H5z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-dice-d20::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-dice-d20::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-dice-d20::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 1h2v1H11zM9 2h6v1H9zM7 3h10v1H7zM5 4h4v1H5zM11 4h2v1H11zM15 4h4v1H15zM3 5h4v1H3zM10 5h4v1H10zM17 5h4v1H17zM2 6h3v1H2zM9 6h2v1H9zM13 6h2v1H13zM19 6h3v1H19zM2 7h2v1H2zM9 7h2v1H9zM13 7h2v1H13zM20 7h2v1H20zM2 8h2v1H2zM8 8h2v1H8zM14 8h2v1H14zM20 8h2v1H20zM2 9h2v1H2zM7 9h2v1H7zM15 9h2v1H15zM20 9h2v1H20zM2 10h2v1H2zM7 10h2v1H7zM15 10h2v1H15zM20 10h2v1H20zM2 11h2v1H2zM6 11h2v1H6zM16 11h2v1H16zM20 11h2v1H20zM2 12h2v1H2zM5 12h2v1H5zM17 12h2v1H17zM20 12h2v1H20zM2 13h2v1H2zM5 13h2v1H5zM17 13h2v1H17zM20 13h2v1H20zM2 14h4v1H2zM18 14h4v1H18zM2 15h20v1H2zM2 16h20v1H2zM2 17h3v1H2zM19 17h3v1H19zM3 18h4v1H3zM17 18h4v1H17zM5 19h4v1H5zM15 19h4v1H15zM7 20h4v1H7zM13 20h4v1H13zM9 21h6v1H9zM11 22h2v1H11z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 1h2v1H11zM9 2h6v1H9zM7 3h10v1H7zM5 4h4v1H5zM11 4h2v1H11zM15 4h4v1H15zM3 5h4v1H3zM10 5h4v1H10zM17 5h4v1H17zM2 6h3v1H2zM9 6h2v1H9zM13 6h2v1H13zM19 6h3v1H19zM2 7h2v1H2zM9 7h2v1H9zM13 7h2v1H13zM20 7h2v1H20zM2 8h2v1H2zM8 8h2v1H8zM14 8h2v1H14zM20 8h2v1H20zM2 9h2v1H2zM7 9h2v1H7zM15 9h2v1H15zM20 9h2v1H20zM2 10h2v1H2zM7 10h2v1H7zM15 10h2v1H15zM20 10h2v1H20zM2 11h2v1H2zM6 11h2v1H6zM16 11h2v1H16zM20 11h2v1H20zM2 12h2v1H2zM5 12h2v1H5zM17 12h2v1H17zM20 12h2v1H20zM2 13h2v1H2zM5 13h2v1H5zM17 13h2v1H17zM20 13h2v1H20zM2 14h4v1H2zM18 14h4v1H18zM2 15h20v1H2zM2 16h20v1H2zM2 17h3v1H2zM19 17h3v1H19zM3 18h4v1H3zM17 18h4v1H17zM5 19h4v1H5zM15 19h4v1H15zM7 20h4v1H7zM13 20h4v1H13zM9 21h6v1H9zM11 22h2v1H11z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-gears::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-gears::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-gears::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 1h4v1H7zM3 2h2v1H3zM7 2h4v1H7zM13 2h2v1H13zM3 3h12v1H3zM4 4h10v1H4zM3 5h4v1H3zM11 5h4v1H11zM1 6h5v1H1zM12 6h5v1H12zM1 7h5v1H1zM12 7h5v1H12zM1 8h5v1H1zM12 8h5v1H12zM1 9h5v1H1zM12 9h5v1H12zM3 10h4v1H3zM11 10h4v1H11zM4 11h10v1H4zM3 12h12v1H3zM3 13h2v1H3zM7 13h4v1H7zM13 13h2v1H13zM7 14h4v1H7zM17 14h3v1H17zM15 15h1v1H15zM17 15h3v1H17zM21 15h1v1H21zM15 16h7v1H15zM14 17h3v1H14zM20 17h3v1H20zM14 18h3v1H14zM20 18h3v1H20zM14 19h3v1H14zM20 19h3v1H20zM15 20h7v1H15zM15 21h1v1H15zM17 21h3v1H17zM21 21h1v1H21zM17 22h3v1H17z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 1h4v1H7zM3 2h2v1H3zM7 2h4v1H7zM13 2h2v1H13zM3 3h12v1H3zM4 4h10v1H4zM3 5h4v1H3zM11 5h4v1H11zM1 6h5v1H1zM12 6h5v1H12zM1 7h5v1H1zM12 7h5v1H12zM1 8h5v1H1zM12 8h5v1H12zM1 9h5v1H1zM12 9h5v1H12zM3 10h4v1H3zM11 10h4v1H11zM4 11h10v1H4zM3 12h12v1H3zM3 13h2v1H3zM7 13h4v1H7zM13 13h2v1H13zM7 14h4v1H7zM17 14h3v1H17zM15 15h1v1H15zM17 15h3v1H17zM21 15h1v1H21zM15 16h7v1H15zM14 17h3v1H14zM20 17h3v1H20zM14 18h3v1H14zM20 18h3v1H20zM14 19h3v1H14zM20 19h3v1H20zM15 20h7v1H15zM15 21h1v1H15zM17 21h3v1H17zM21 21h1v1H21zM17 22h3v1H17z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-caret-left::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-caret-left::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-caret-left::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M14 4h2v1H14zM13 5h3v1H13zM12 6h4v1H12zM11 7h5v1H11zM10 8h6v1H10zM9 9h7v1H9zM8 10h8v1H8zM7 11h9v1H7zM7 12h9v1H7zM8 13h8v1H8zM9 14h7v1H9zM10 15h6v1H10zM11 16h5v1H11zM12 17h4v1H12zM13 18h3v1H13zM14 19h2v1H14z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M14 4h2v1H14zM13 5h3v1H13zM12 6h4v1H12zM11 7h5v1H11zM10 8h6v1H10zM9 9h7v1H9zM8 10h8v1H8zM7 11h9v1H7zM7 12h9v1H7zM8 13h8v1H8zM9 14h7v1H9zM10 15h6v1H10zM11 16h5v1H11zM12 17h4v1H12zM13 18h3v1H13zM14 19h2v1H14z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #scene-controls button.ui-control.fa-clock::before,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.fa-clock::before,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control.fa-clock::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h8v1H8zM6 3h12v1H6zM4 4h4v1H4zM16 4h4v1H16zM3 5h3v1H3zM18 5h3v1H18zM3 6h2v1H3zM11 6h2v1H11zM19 6h2v1H19zM2 7h3v1H2zM11 7h2v1H11zM19 7h3v1H19zM2 8h2v1H2zM11 8h2v1H11zM20 8h2v1H20zM2 9h2v1H2zM11 9h2v1H11zM20 9h2v1H20zM2 10h2v1H2zM11 10h2v1H11zM20 10h2v1H20zM2 11h2v1H2zM11 11h6v1H11zM20 11h2v1H20zM2 12h2v1H2zM11 12h6v1H11zM20 12h2v1H20zM2 13h2v1H2zM20 13h2v1H20zM2 14h2v1H2zM20 14h2v1H20zM2 15h2v1H2zM20 15h2v1H20zM2 16h3v1H2zM19 16h3v1H19zM3 17h2v1H3zM19 17h2v1H19zM3 18h3v1H3zM18 18h3v1H18zM4 19h4v1H4zM16 19h4v1H16zM6 20h12v1H6zM8 21h8v1H8z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h8v1H8zM6 3h12v1H6zM4 4h4v1H4zM16 4h4v1H16zM3 5h3v1H3zM18 5h3v1H18zM3 6h2v1H3zM11 6h2v1H11zM19 6h2v1H19zM2 7h3v1H2zM11 7h2v1H11zM19 7h3v1H19zM2 8h2v1H2zM11 8h2v1H11zM20 8h2v1H20zM2 9h2v1H2zM11 9h2v1H11zM20 9h2v1H20zM2 10h2v1H2zM11 10h2v1H11zM20 10h2v1H20zM2 11h2v1H2zM11 11h6v1H11zM20 11h2v1H20zM2 12h2v1H2zM11 12h6v1H11zM20 12h2v1H20zM2 13h2v1H2zM20 13h2v1H20zM2 14h2v1H2zM20 14h2v1H20zM2 15h2v1H2zM20 15h2v1H20zM2 16h3v1H2zM19 16h3v1H19zM3 17h2v1H3zM19 17h2v1H19zM3 18h3v1H3zM18 18h3v1H18zM4 19h4v1H4zM16 19h4v1H16zM6 20h12v1H6zM8 21h8v1H8z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass .application .window-header .header-control[data-action="close"]::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 3h3v1H3zM18 3h3v1H18zM3 4h4v1H3zM17 4h4v1H17zM4 5h4v1H4zM16 5h4v1H16zM5 6h4v1H5zM15 6h4v1H15zM6 7h4v1H6zM14 7h4v1H14zM7 8h4v1H7zM13 8h4v1H13zM8 9h8v1H8zM9 10h6v1H9zM10 11h4v1H10zM10 12h4v1H10zM9 13h6v1H9zM8 14h8v1H8zM7 15h4v1H7zM13 15h4v1H13zM6 16h4v1H6zM14 16h4v1H14zM5 17h4v1H5zM15 17h4v1H15zM4 18h4v1H4zM16 18h4v1H16zM3 19h4v1H3zM17 19h4v1H17zM3 20h3v1H3zM18 20h3v1H18z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 3h3v1H3zM18 3h3v1H18zM3 4h4v1H3zM17 4h4v1H17zM4 5h4v1H4zM16 5h4v1H16zM5 6h4v1H5zM15 6h4v1H15zM6 7h4v1H6zM14 7h4v1H14zM7 8h4v1H7zM13 8h4v1H13zM8 9h8v1H8zM9 10h6v1H9zM10 11h4v1H10zM10 12h4v1H10zM9 13h6v1H9zM8 14h8v1H8zM7 15h4v1H7zM13 15h4v1H13zM6 16h4v1H6zM14 16h4v1H14zM5 17h4v1H5zM15 17h4v1H15zM4 18h4v1H4zM16 18h4v1H16zM3 19h4v1H3zM17 19h4v1H17zM3 20h3v1H3zM18 20h3v1H18z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass .application .window-header .header-control[data-action="toggleControls"]::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM10 4h4v1H10zM10 5h4v1H10zM10 6h4v1H10zM10 10h4v1H10zM10 11h4v1H10zM10 12h4v1H10zM10 13h4v1H10zM10 17h4v1H10zM10 18h4v1H10zM10 19h4v1H10zM10 20h4v1H10z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM10 4h4v1H10zM10 5h4v1H10zM10 6h4v1H10zM10 10h4v1H10zM10 11h4v1H10zM10 12h4v1H10zM10 13h4v1H10zM10 17h4v1H10zM10 18h4v1H10zM10 19h4v1H10zM10 20h4v1H10z'/%3E%3C/svg%3E");
+}
+
+body.drpg-theme-stained-glass #sidebar-tabs button[data-tab="daggerheartMenu"]::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 1h4v1H10zM9 2h6v1H9zM10 3h4v1H10zM10 4h4v1H10zM10 5h4v1H10zM10 6h4v1H10zM4 7h16v1H4zM4 8h16v1H4zM9 9h6v1H9zM9 10h6v1H9zM9 11h6v1H9zM9 12h6v1H9zM9 13h6v1H9zM10 14h4v1H10zM10 15h4v1H10zM10 16h4v1H10zM10 17h4v1H10zM11 18h2v1H11zM11 19h2v1H11zM11 20h2v1H11z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 1h4v1H10zM9 2h6v1H9zM10 3h4v1H10zM10 4h4v1H10zM10 5h4v1H10zM10 6h4v1H10zM4 7h16v1H4zM4 8h16v1H4zM9 9h6v1H9zM9 10h6v1H9zM9 11h6v1H9zM9 12h6v1H9zM9 13h6v1H9zM10 14h4v1H10zM10 15h4v1H10zM10 16h4v1H10zM10 17h4v1H10zM11 18h2v1H11zM11 19h2v1H11zM11 20h2v1H11z'/%3E%3C/svg%3E");
 }
 
 /* == /CHROME PIXEL ICONS == */
@@ -17578,3 +18323,560 @@ body.drpg-flicker:not(.drpg-theme-stained-glass) :is(#drpg-hud, #drpg-status, #d
 #drpg-sequence .drpg-seq-who.is-dead b { opacity: 0.6; }
 #drpg-sequence .drpg-seq-announce { display: grid; gap: calc(4 * var(--drpg-seq-u)); font: calc((var(--drpg-seq-text-size) + 2) * var(--drpg-seq-u)) var(--drpg-seq-font); }
 #drpg-sequence .drpg-seq-announce small { font-size: 0.7em; letter-spacing: 0.12em; opacity: 0.8; }
+
+/* ==========================================================================
+   E105 FT, BATCH 3 - FOUNDRY'S AND DAGGERHEART'S CHROME IN THE MODULE'S DRESS, BOTH THEMES
+   --------------------------------------------------------------------------
+   The owner, 11.11.2026: "Chcialbym pozbyc sie z calego modulu miejsc gdzie przebija sie grafika lub kolor z foundry".
+   The survey (E105 foundry-through, LIST.md, 54493dbf) read each piece below from the CSSOM: no module rule set its
+   ground, edge or ink in the theme named, so at a table core's or Daggerheart's paint shows. One block, at the end of
+   this file and nowhere else (batch 3's; batches 1 and 2 hold components.css, stained-glass.css and pixel-icons.css),
+   each theme's rules scoped inside it. Look only: no control is added, removed or moved, no box changes size - an edge
+   a piece did not have is an inset shadow, not a border - and no `!important` and no colour literal (tools/css-budget.json
+   holds this sheet at 647 and 246): every colour is a token of the palette. Red is the GM's road (D11): no red fill.
+   NOT MEASURED HERE: whether these outweigh v14's and Daggerheart 2.10's own rules at a table. This sheet sits in the
+   `modules` layer, later than core's and the system's layered rules, and loses to an unlayered one (this file's DIALOGS
+   note; its E7 note says Daggerheart's chip rules are unlayered). No harness loads Foundry's sheets: the before/after
+   crops (S/stages/E105/foundry-through/fix3-shots, index.txt) draw these pieces on a stand-in page of v13/v14's
+   documented ids and classes, with Daggerheart's stylesheet (E49's compiled copy) in a `system` layer under the
+   module's. Legacy is `body.drpg-theme-monokuma-legacy`, Stained Glass `body.drpg-theme-stained-glass`.
+   ========================================================================== */
+
+/* FT-29 + FT-33: the tooltip and the toasts under Monokuma Legacy. Stained Glass has dressed both since E23
+   (stained-glass.css: the tooltip "the one piece of its chrome that appears INSIDE our windows", the toasts B1b); the
+   Legacy twins: Ink, Bone, the window's edge, the theme's face. A toast's level is the edge on its left, as the glass
+   draws it: info the strong line, warning the attention's (the glass's too), error crimson, success the evidence's - an edge, never a red ground.
+   `color-scheme: dark` because the window edge is a `light-dark()` and these two are not under a module root. Before: no
+   module property on either (chrome.json: tooltip Legacy "pointer-events" only; toasts `.notification-pip` only). */
+body.drpg-theme-monokuma-legacy :is(#tooltip, .locked-tooltip),
+body.drpg-theme-monokuma-legacy #notifications .notification {
+    color-scheme: dark;
+    background: var(--drpg-ink);
+    color: var(--drpg-bone);
+    border: 1px solid var(--drpg-window-edge);
+    border-radius: 2px;
+    box-shadow: var(--drpg-panel-shadow);
+    text-shadow: none;
+    font-family: var(--drpg-font-pixel, var(--drpg-font-ui));
+    font-size: var(--drpg-text-sm);
+    line-height: 1.3;
+}
+body.drpg-theme-monokuma-legacy #notifications .notification { border-left: 3px solid var(--drpg-line-strong); }
+body.drpg-theme-monokuma-legacy #notifications .notification.warning { border-left-color: var(--drpg-attention); }
+body.drpg-theme-monokuma-legacy #notifications .notification.error { border-left-color: var(--drpg-crimson); }
+body.drpg-theme-monokuma-legacy #notifications .notification.success { border-left-color: var(--drpg-evidence); }
+
+/* FT-30: the context menu (right-click on a directory entry, a chat message, the rail), both themes. Before: the glass
+   set its font only (stained-glass.css's face list), Legacy nothing. The menu wears the tooltip's dress in each theme;
+   a row under the pointer or the keyboard takes the kit's hover wash. Under the glass the edge is Bone, not the
+   tooltip's hour (the CSS lint's meanings: the hour never colours a card, a bar or a button). */
+body.drpg-theme-monokuma-legacy #context-menu {
+    color-scheme: dark;
+    background: var(--drpg-ink);
+    color: var(--drpg-bone);
+    border: 1px solid var(--drpg-window-edge);
+    border-radius: 2px;
+    box-shadow: var(--drpg-panel-shadow);
+    font-family: var(--drpg-font-pixel, var(--drpg-font-ui));
+}
+body.drpg-theme-stained-glass #context-menu {
+    color-scheme: dark;
+    background: color-mix(in srgb, var(--drpg-sg-ink) 92%, transparent);
+    color: var(--drpg-sg-bone);
+    border: 1px solid color-mix(in srgb, var(--drpg-sg-bone) 35%, transparent);
+    border-radius: 0;
+    box-shadow: none;
+}
+:is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass) #context-menu .context-item {
+    color: inherit;
+    background: transparent;
+}
+body.drpg-theme-monokuma-legacy #context-menu .context-item:is(:hover, :focus-visible) {
+    background: var(--drpg-kit-hover-bg);
+    color: var(--drpg-bone);
+}
+body.drpg-theme-stained-glass #context-menu .context-item:is(:hover, :focus-visible) {
+    background: color-mix(in srgb, var(--drpg-sg-bone) 18%, transparent);
+    color: var(--drpg-sg-bone);
+}
+
+/* FT-32: Foundry's Configure Settings window as the module leaves it. Since E49 A1d the module's settings live in its
+   own windows (settings-window.mjs: the gear's window and the game's settings), so what stands here is core's and
+   Daggerheart's rows and the module's one menu button. Stained Glass dresses it with every window (the generic
+   `.application:not(.drpg-panel)` block); Legacy left it Foundry's whole (module: row layout and `accent-color`,
+   components.css). The Legacy twin: the window Ink with the window edge, its title band, the category list as the kit's
+   tabs read under this theme (the picked one Bone on Ink with a Bone edge - the attention's colour under this theme, R3541), labels Bone, hints Bone-dim, fields
+   on Ink with the strong line, the footer's button the kit's face. Both themes: the range and the checkbox in the
+   theme's ink (`accent-color`), and v13's `range-picker` and `multi-select`, which no rule named in either theme.
+   The face is left core's: the pixel face, tried on the stand-in, ran the category list and every label onto two
+   and three lines (S/stages/E105/foundry-through/fix3-shots). v14's markup of this window is not read here (the
+   stand-in is v13's documented classes). */
+body.drpg-theme-monokuma-legacy #settings-config {
+    color-scheme: dark;
+    background: var(--drpg-ink);
+    color: var(--drpg-bone);
+    border-color: var(--drpg-window-edge);
+}
+body.drpg-theme-monokuma-legacy #settings-config > .window-header {
+    background: color-mix(in srgb, var(--drpg-bone) 6%, transparent);
+    color: var(--drpg-bone);
+    border-bottom: 1px solid var(--drpg-line-strong);
+}
+body.drpg-theme-monokuma-legacy #settings-config :is(.tabs > a, .tabs > button) {
+    color: var(--drpg-bone-dim);
+    background: transparent;
+}
+body.drpg-theme-monokuma-legacy #settings-config :is(.tabs > a, .tabs > button):hover {
+    color: var(--drpg-bone);
+    background: var(--drpg-kit-hover-bg);
+}
+body.drpg-theme-monokuma-legacy #settings-config :is(.tabs > a, .tabs > button).active {
+    color: var(--drpg-bone);
+    background: var(--drpg-ink);
+    box-shadow: inset 2px 0 0 var(--drpg-bone);
+}
+body.drpg-theme-monokuma-legacy #settings-config :is(label, legend, h2, h3, h4) { color: var(--drpg-bone); }
+body.drpg-theme-monokuma-legacy #settings-config :is(.hint, .notes) { color: var(--drpg-bone-dim); }
+body.drpg-theme-monokuma-legacy #settings-config :is(input:not([type="checkbox"], [type="radio"], [type="range"]), select, textarea) {
+    background: color-mix(in srgb, var(--drpg-ink) 70%, transparent);
+    color: var(--drpg-bone);
+    border-color: var(--drpg-line-strong);
+}
+body.drpg-theme-monokuma-legacy #settings-config :is(button, .form-footer button) {
+    background: var(--drpg-kit-btn-bg);
+    color: var(--drpg-kit-btn-ink);
+    border-color: var(--drpg-kit-btn-edge);
+    border-radius: var(--drpg-kit-btn-radius);
+    box-shadow: none;
+    text-shadow: none;
+}
+body.drpg-theme-monokuma-legacy #settings-config button:hover:not(:disabled) {
+    background: var(--drpg-kit-hover-bg);
+    border-color: var(--drpg-kit-hover-edge);
+}
+body.drpg-theme-monokuma-legacy #settings-config :is(input, select, textarea, button, a):focus-visible {
+    outline: 2px solid var(--drpg-attention);
+    outline-offset: 1px;
+}
+body.drpg-theme-monokuma-legacy #settings-config :is(input[type="checkbox"], input[type="range"], range-picker, toggle-switch) {
+    accent-color: var(--drpg-bone);
+}
+body.drpg-theme-stained-glass #settings-config :is(input[type="range"], range-picker, toggle-switch) {
+    accent-color: var(--drpg-sg-bone);
+}
+:is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass) #settings-config multi-select .tag {
+    background: transparent;
+    color: inherit;
+    border: 1px solid var(--drpg-line-strong);
+    border-radius: 2px;
+}
+
+/* FT-35: the sidebar's directory lists (Actors, Items, Journal, Compendium, Tables, Playlists) - the GM's, since a
+   player's sidebar is hidden. No module rule named `.directory` or its rows in either theme: the module dressed
+   `#sidebar`'s frame and its tab rail only. Here: the header's create buttons the kit's face (an inset edge, so they keep
+   core's box), its search field on Ink with a line, each row Bone with the kit's hover wash and the open one marked by
+   a Bone edge on its left, a folder's header a faint Bone band - and a folder somebody coloured keeps its
+   colour, which core writes inline on the header and no rule here outweighs. The face is left core's, as the
+   settings window's: a list's names wrap in Legacy's pixel face. */
+body.drpg-theme-monokuma-legacy #sidebar .directory { color: var(--drpg-bone); }
+body.drpg-theme-stained-glass #sidebar .directory { color: var(--drpg-sg-bone); }
+body.drpg-theme-monokuma-legacy #sidebar .directory-header button {
+    background: var(--drpg-kit-btn-bg);
+    color: var(--drpg-kit-btn-ink);
+    border-color: transparent;
+    border-radius: var(--drpg-kit-btn-radius);
+    box-shadow: inset 0 0 0 1px var(--drpg-kit-btn-edge);
+    text-shadow: none;
+}
+body.drpg-theme-stained-glass #sidebar .directory-header button {
+    background: color-mix(in srgb, var(--drpg-sg-ink) 55%, transparent);
+    color: var(--drpg-sg-bone);
+    border-color: transparent;
+    border-radius: 0;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--drpg-sg-bone) 55%, transparent);
+    text-shadow: none;
+    font-family: var(--drpg-font-chrome);
+}
+body.drpg-theme-monokuma-legacy #sidebar .directory-header button:hover:not(:disabled) {
+    background: var(--drpg-kit-hover-bg);
+    box-shadow: inset 0 0 0 1px var(--drpg-kit-hover-edge);
+}
+body.drpg-theme-stained-glass #sidebar .directory-header button:hover:not(:disabled) {
+    background: var(--drpg-sg-bone);
+    color: var(--drpg-sg-ink);
+}
+body.drpg-theme-monokuma-legacy #sidebar .directory-header input {
+    background: color-mix(in srgb, var(--drpg-ink) 70%, transparent);
+    color: var(--drpg-bone);
+    border-color: var(--drpg-line-strong);
+}
+body.drpg-theme-stained-glass #sidebar .directory-header input {
+    background: color-mix(in srgb, var(--drpg-sg-ink) 70%, transparent);
+    color: var(--drpg-sg-bone);
+    border-color: color-mix(in srgb, var(--drpg-sg-bone) 35%, transparent);
+    border-radius: 0;
+    font-family: var(--drpg-font-chrome);
+}
+body.drpg-theme-monokuma-legacy #sidebar .directory-header input::placeholder { color: var(--drpg-bone-dim); }
+body.drpg-theme-stained-glass #sidebar .directory-header input::placeholder { color: var(--drpg-sg-bone-dim); }
+:is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass) #sidebar .directory-item :is(.entry-name, .entry-name > a, .document-name) {
+    color: inherit;
+}
+body.drpg-theme-monokuma-legacy #sidebar .directory-item.document:hover { background: var(--drpg-kit-hover-bg); }
+body.drpg-theme-stained-glass #sidebar .directory-item.document:hover { background: color-mix(in srgb, var(--drpg-sg-bone) 14%, transparent); }
+body.drpg-theme-monokuma-legacy #sidebar .directory-item.document.active { box-shadow: inset 2px 0 0 var(--drpg-bone); }
+body.drpg-theme-stained-glass #sidebar .directory-item.document.active { box-shadow: inset 2px 0 0 var(--drpg-sg-bone); }
+body.drpg-theme-monokuma-legacy #sidebar .directory-item.folder > .folder-header {
+    background-color: color-mix(in srgb, var(--drpg-bone) 8%, transparent);
+    color: var(--drpg-bone);
+    border-color: var(--drpg-line);
+}
+body.drpg-theme-stained-glass #sidebar .directory-item.folder > .folder-header {
+    background-color: color-mix(in srgb, var(--drpg-sg-bone) 8%, transparent);
+    color: var(--drpg-sg-bone);
+    border-color: color-mix(in srgb, var(--drpg-sg-bone) 22%, transparent);
+    font-family: var(--drpg-font-chrome);
+}
+:is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass) #sidebar .directory :is(button, input, .directory-item, a):focus-visible {
+    outline: 2px solid var(--drpg-attention);
+    outline-offset: -2px;
+}
+
+/* FT-37: the scene's loading bar, which no rule named in either theme. An Ink track with the window's edge and the fill
+   in the theme's Bone at 30 % with a full edge at its end - a bar, not a red one, and not the attention's (the CSS
+   lint's meanings keep that for focus and selection) - and the two labels in
+   Bone over both. */
+:is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass) #loading {
+    color-scheme: dark;
+    background: color-mix(in srgb, var(--drpg-ink) 85%, transparent);
+    border: 1px solid var(--drpg-window-edge);
+    border-radius: 2px;
+    box-shadow: var(--drpg-panel-shadow);
+}
+body.drpg-theme-monokuma-legacy #loading { --drpg-ft-fill: var(--drpg-bone); }
+body.drpg-theme-stained-glass #loading { --drpg-ft-fill: var(--drpg-sg-bone); }
+:is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass) #loading #loading-bar {
+    background: color-mix(in srgb, var(--drpg-ft-fill) 30%, transparent);
+    box-shadow: inset -2px 0 0 var(--drpg-ft-fill);
+    border: 0;
+    border-radius: 0;
+}
+:is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass) #loading :is(#context, #progress) {
+    color: var(--drpg-bone);
+    text-shadow: 0 0 3px var(--drpg-ink);
+    font-family: var(--drpg-font-pixel, var(--drpg-font-ui));
+}
+body.drpg-theme-stained-glass #loading :is(#context, #progress) { font-family: var(--drpg-font-chrome); }
+
+/* FT-38: a window's resize corner, on the module's windows and the character sheet, both themes (Stained Glass hides
+   the character sheet's, stained-glass.css 7b, and this does not show it again: no `display` here). Before: Foundry's
+   glyph. Now a pixel staircase of six 2 px squares in the theme's dim Bone, drawn as background layers so the handle
+   keeps core's box, position and cursor - the control is where it was. Whatever core draws inside it (a glyph element or
+   a pseudo-element; v14's is not read here) is put out of sight, not removed: the handle still takes the drag. */
+:is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass) :is(.application[class*="drpg-"], .application.sheet.actor) > .window-resize-handle {
+    --drpg-ft-corner: var(--drpg-bone-dim);
+    background-color: transparent;
+    background-image:
+        linear-gradient(var(--drpg-ft-corner), var(--drpg-ft-corner)), linear-gradient(var(--drpg-ft-corner), var(--drpg-ft-corner)),
+        linear-gradient(var(--drpg-ft-corner), var(--drpg-ft-corner)), linear-gradient(var(--drpg-ft-corner), var(--drpg-ft-corner)),
+        linear-gradient(var(--drpg-ft-corner), var(--drpg-ft-corner)), linear-gradient(var(--drpg-ft-corner), var(--drpg-ft-corner));
+    background-position: right 2px bottom 2px, right 6px bottom 2px, right 10px bottom 2px, right 2px bottom 6px, right 6px bottom 6px, right 2px bottom 10px;
+    background-size: 2px 2px;
+    background-repeat: no-repeat;
+    -webkit-mask-image: none;
+    mask-image: none;
+    border: 0;
+}
+body.drpg-theme-stained-glass :is(.application[class*="drpg-"], .application.sheet.actor) > .window-resize-handle { --drpg-ft-corner: var(--drpg-sg-bone-dim); }
+body.drpg-theme-monokuma-legacy :is(.application[class*="drpg-"], .application.sheet.actor) > .window-resize-handle:hover { --drpg-ft-corner: var(--drpg-bone); }
+body.drpg-theme-stained-glass :is(.application[class*="drpg-"], .application.sheet.actor) > .window-resize-handle:hover { --drpg-ft-corner: var(--drpg-sg-bone); }
+:is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass) :is(.application[class*="drpg-"], .application.sheet.actor) > .window-resize-handle > * {
+    visibility: hidden;
+}
+:is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass) :is(.application[class*="drpg-"], .application.sheet.actor) > .window-resize-handle::before {
+    content: none;
+}
+
+/* FT-22: Daggerheart's countdown tray (Projects) under Monokuma Legacy. The rows' layout is this theme's already
+   (E23 fix G3, above); their controls were Daggerheart's: the minus and plus links, the count's tag and the row's icons
+   took its colour and focus. Now the links Bone-dim, Bone with the kit's wash under the pointer and the attention ring
+   on the keyboard; the count Bone on no ground in tabular figures, as the glass draws it; the icons Bone-dim. Sizes
+   and places are Daggerheart's and this theme's, unchanged. The survey's measure on the glass harness's GM page
+   (tools/analyze.js) read 6 elements of the tray with 14 open properties under Legacy at 7d59dcfe, and none after. */
+body.drpg-theme-monokuma-legacy #countdowns .countdown-tool-controls a {
+    color: var(--drpg-bone-dim);
+    border-radius: 2px;
+    text-shadow: none;
+}
+body.drpg-theme-monokuma-legacy #countdowns .countdown-tool-controls a:hover {
+    color: var(--drpg-bone);
+    background: var(--drpg-kit-hover-bg);
+}
+body.drpg-theme-monokuma-legacy #countdowns .countdown-tool-controls a:focus-visible {
+    outline: 2px solid var(--drpg-attention);
+    outline-offset: 1px;
+}
+body.drpg-theme-monokuma-legacy #countdowns .countdown-tools .progress-tag {
+    color: var(--drpg-bone);
+    background: transparent;
+    border-color: transparent;
+    font-variant-numeric: tabular-nums;
+}
+body.drpg-theme-monokuma-legacy #countdowns :is(.countdowns-header > i, .countdown-tool-icons i) { color: var(--drpg-bone-dim); }
+/* NO FOUNDRY OR DAGGERHEART PICTURE ON A ROW, EITHER THEME (E49 FT batch 3; the owner, 11.11.2026 night: "Projects tray
+   picture: Foundry/Daggerheart picture removed; the DRPG icon kept"). Daggerheart 2.10.11's countdowns.hbs draws every
+   row's stored `img`, and what is stored is, read in its source and ours: core's icons/magic/time/hourglass-yellow-green.webp
+   (its countdown model's initial and `defaultCountdown`, and the module's own default for a project made without one,
+   projects.mjs `createProject`); before 90c32902 whatever file a GM browsed to; on a row made by the system, its own. The
+   glass never drew it (stained-glass.css, "the tray's rows", `!important`); Legacy did, at 34 px. Now a picture outside
+   the module's folder is hidden in both themes, and Legacy draws in its place what the glass draws: the module's own
+   drawing of the row's glyph (`--drpg-project-glyph`, written by projects-tray.mjs `paintProgress`; the hourglass where
+   none is chosen), from the legacy set on :root (pixel-icons.css), in Bone, 24 px (two device pixels a cell at a scale
+   of 2) centred in the picture's own box, so a row's name starts where it did and where a kept picture's does (the
+   shots of 11.11 night: in a 24 px box the names stood 10 px left of a kept picture's). A picture in the module's folder
+   is the module's own and stays, with no glyph beside it. Only what is drawn: the stored `img` is not touched (R3578). */
+#countdowns .countdown-container img:not([src^="modules/danganronpa-rpg/"], [src^="/modules/danganronpa-rpg/"]) { display: none; }
+body.drpg-theme-monokuma-legacy #countdowns .countdown-main-container:not(:has(> img:is([src^="modules/danganronpa-rpg/"], [src^="/modules/danganronpa-rpg/"])))::before {
+    content: "";
+    flex: 0 0 auto;
+    width: var(--drpg-project-row);
+    height: var(--drpg-project-row);
+    background-color: var(--drpg-bone);
+    -webkit-mask: var(--drpg-project-glyph, var(--drpg-pix-hourglass)) center / 24px 24px no-repeat;
+    mask: var(--drpg-project-glyph, var(--drpg-pix-hourglass)) center / 24px 24px no-repeat;
+    image-rendering: pixelated;
+}
+/* The glass's links had their colour (the hour's, stained-glass.css) but no hover and no keyboard ring of their own: the
+   survey's measure read hover and focus open on each of the four (glass-gm, 7d59dcfe). Bone under the pointer, the
+   attention ring on the keyboard. */
+body.drpg-theme-stained-glass #countdowns .countdown-tool-controls a:hover { color: var(--drpg-sg-bone); }
+body.drpg-theme-stained-glass #countdowns .countdown-tool-controls a:focus-visible {
+    outline: 2px solid var(--drpg-attention);
+    outline-offset: 1px;
+}
+
+/* FT-26: Daggerheart's roll dialog, the controls the module had left the system's. The window, its title band, its
+   selects and its Roll button are the module's (this file's ROLL DIALOG notes, components.css); the experience chips,
+   the Advantage and Disadvantage chips and the situational field kept Daggerheart's: a gold wash, and a green and a red
+   chip whose picked face is a green or red gradient - a red fill for an ordinary choice (D11). Both themes now draw the
+   three chips as the kit's chips: no ground, a 1 px inset edge (Daggerheart's 5 px padding keeps the box), Bone ink;
+   picked, a Bone wash and the full Bone edge; the label says which is which. A chip a Call forced or unlocked keeps its
+   own rule (`.drpg-call-unlocked`, this file). Legacy also gives the situational field and the fieldsets' lines the
+   window's ink; the glass's generic field rule draws them already. */
+body.drpg-theme-monokuma-legacy .application.roll-selection :is(.experience-chip, .advantage-chip, .disadvantage-chip):not(.drpg-call-unlocked) {
+    background: transparent;
+    color: var(--drpg-bone);
+    box-shadow: inset 0 0 0 1px var(--drpg-kit-btn-edge);
+    border-radius: var(--drpg-kit-btn-radius);
+}
+body.drpg-theme-monokuma-legacy .application.roll-selection :is(.experience-chip, .advantage-chip, .disadvantage-chip):not(.drpg-call-unlocked):is(.selected, :hover) {
+    background: var(--drpg-kit-hover-bg);
+    color: var(--drpg-bone);
+    box-shadow: inset 0 0 0 1px var(--drpg-bone);
+}
+body.drpg-theme-stained-glass .application.roll-selection :is(.experience-chip, .advantage-chip, .disadvantage-chip):not(.drpg-call-unlocked) {
+    background: transparent;
+    color: var(--drpg-sg-bone);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--drpg-sg-bone) 55%, transparent);
+    border-radius: 0;
+}
+body.drpg-theme-stained-glass .application.roll-selection :is(.experience-chip, .advantage-chip, .disadvantage-chip):not(.drpg-call-unlocked):is(.selected, :hover) {
+    background: var(--drpg-sg-bone);
+    color: var(--drpg-sg-ink);
+    box-shadow: inset 0 0 0 1px var(--drpg-sg-bone);
+}
+:is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass) .application.roll-selection :is(.experience-chip, .advantage-chip, .disadvantage-chip) :is(.label, i) {
+    color: inherit;
+}
+:is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass) .application.roll-selection :is(.experience-chip, .advantage-chip, .disadvantage-chip):focus-visible {
+    outline: 2px solid var(--drpg-attention);
+    outline-offset: 1px;
+}
+body.drpg-theme-monokuma-legacy .application.roll-selection input[type="text"] {
+    background: color-mix(in srgb, var(--drpg-ink) 70%, transparent);
+    color: var(--drpg-bone);
+    border-color: var(--drpg-line-strong);
+}
+body.drpg-theme-monokuma-legacy .application.roll-selection input[type="text"]::placeholder { color: var(--drpg-bone-dim); }
+body.drpg-theme-monokuma-legacy .application.roll-selection fieldset { border-color: var(--drpg-line-strong); }
+body.drpg-theme-monokuma-legacy .application.roll-selection .formula-label { color: var(--drpg-bone); }
+
+/* FT-28: Daggerheart's sheet beyond the module's parts, under Monokuma Legacy - the visible remainder, looked at on
+   Daggerheart's inventory tab (inventory.hbs, inventory-item-V2.hbs) with its stylesheet under the module's. Stained
+   Glass dresses the sheet's buttons, rows and tabs (stained-glass.css's brush, 383 rules); Legacy left these four:
+   the inventory's search field (Daggerheart's pill), its filter link and each row's controls (Daggerheart's links),
+   an item's tags (Daggerheart's chips) and a row under the pointer. Now: the field on Ink with the strong line, the
+   links Bone-dim and Bone under the pointer with the attention ring on the keyboard, the tags a Bone line on no ground,
+   a row the kit's hover wash. Only these: the rest of the tab was already the theme's or reads as it. */
+body.drpg-theme-monokuma-legacy .application.sheet.actor .search-section input[type="search"] {
+    background: color-mix(in srgb, var(--drpg-ink) 70%, transparent);
+    color: var(--drpg-bone);
+    box-shadow: inset 0 0 0 1px var(--drpg-line-strong);
+    border-color: transparent;
+}
+body.drpg-theme-monokuma-legacy .application.sheet.actor .search-section input[type="search"]::placeholder { color: var(--drpg-bone-dim); }
+body.drpg-theme-monokuma-legacy .application.sheet.actor :is(.search-section .icon, .filter-button, .inventory-item .controls a) {
+    color: var(--drpg-bone-dim);
+}
+body.drpg-theme-monokuma-legacy .application.sheet.actor :is(.filter-button, .inventory-item .controls a):hover {
+    color: var(--drpg-bone);
+}
+body.drpg-theme-monokuma-legacy .application.sheet.actor :is(.filter-button, .inventory-item .controls a, .search-section input):focus-visible {
+    outline: 2px solid var(--drpg-attention);
+    outline-offset: 1px;
+}
+body.drpg-theme-monokuma-legacy .application.sheet.actor .item-tags .tag {
+    background: transparent;
+    color: var(--drpg-bone);
+    border-color: var(--drpg-line-strong);
+    border-radius: 2px;
+}
+body.drpg-theme-monokuma-legacy .application.sheet.actor li.inventory-item:hover > .item-main { background: var(--drpg-kit-hover-bg); }
+
+/* FT-28 and FT-29, the glass's twins (E105 fix batch 3, after the first measure): the survey's analyze.js on the stand-in
+   page read, under Stained Glass, the inventory's search field (ground, edge, ink, focus, placeholder) and its two
+   links (ink, hover, focus) left to Daggerheart - the glass's brush names the sheet's buttons, rows and tabs, not these -
+   and a locked tooltip's ink and face left to core (stained-glass.css dresses `#tooltip` only). Each now as its
+   neighbours under the glass: the field the glass's dark well with a Bone line, the links Bone-dim and Bone, the locked
+   tooltip the tooltip's plate. */
+body.drpg-theme-stained-glass .application.sheet.actor .search-section input[type="search"] {
+    background: color-mix(in srgb, var(--drpg-sg-ink) 70%, transparent);
+    color: var(--drpg-sg-bone);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--drpg-sg-bone) 35%, transparent);
+    border-color: transparent;
+}
+body.drpg-theme-stained-glass .application.sheet.actor .search-section input[type="search"]::placeholder { color: var(--drpg-sg-bone-dim); }
+body.drpg-theme-stained-glass .application.sheet.actor :is(.search-section .icon, .filter-button, .inventory-item .controls a) {
+    color: var(--drpg-sg-bone-dim);
+}
+body.drpg-theme-stained-glass .application.sheet.actor :is(.filter-button, .inventory-item .controls a):hover { color: var(--drpg-sg-bone); }
+body.drpg-theme-stained-glass .application.sheet.actor :is(.filter-button, .inventory-item .controls a, .search-section input):focus-visible {
+    outline: 2px solid var(--drpg-attention);
+    outline-offset: 1px;
+}
+body.drpg-theme-stained-glass .locked-tooltip {
+    border-radius: 0;
+    border: 1px solid color-mix(in srgb, var(--drpg-sg-bone) 35%, transparent);
+    background: color-mix(in srgb, var(--drpg-sg-ink) 92%, transparent);
+    color: var(--drpg-sg-bone);
+    font-family: var(--drpg-font-chrome);
+}
+
+/* FT-26, THE DICE (the owner on the shots, 11.11.2026: "kosci w oknie rzutu sa teraz biale, podczas gdy one doslownie sa
+   koscia hope i koscia despair"). The white dice were the stand-in's: its two `img.dice-icon` had a data: source, and the
+   module colours each die by its img's source (this file's ROLL DIALOG note, `:has(img[src*="hope"])`), so neither
+   matched - before this batch as after it. Read now by the die's own select as well (`roll.dice.dHope`, `roll.dice.dFear`,
+   Daggerheart's rollSelection.hbs), so a die whose picture is not the system's still wears its side: Hope's token and
+   Despair's, each theme's own (Legacy `--drpg-gold` and `--drpg-blood`, the glass `--drpg-sg-hope` and `--drpg-sg-despair`;
+   the same two colours today). */
+body.drpg-theme-monokuma-legacy .application.roll-selection .dice-option:is(:has(img[src*="hope"]), :has([name="roll.dice.dHope"]))::before { background-color: var(--drpg-gold); }
+body.drpg-theme-monokuma-legacy .application.roll-selection .dice-option:is(:has(img[src*="fear"]), :has([name="roll.dice.dFear"]))::before { background-color: var(--drpg-blood); }
+body.drpg-theme-stained-glass .application.roll-selection .dice-option:is(:has(img[src*="hope"]), :has([name="roll.dice.dHope"]))::before { background-color: var(--drpg-sg-hope); }
+body.drpg-theme-stained-glass .application.roll-selection .dice-option:is(:has(img[src*="fear"]), :has([name="roll.dice.dFear"]))::before { background-color: var(--drpg-sg-despair); }
+
+/* FT-31 + FT-34: FOUNDRY'S OWN WINDOWS - the FilePicker, a core confirm, an item sheet, the journal, a compendium, a
+   macro, a playlist, a roll table - in the module's dress, both themes (the owner, 11.11.2026, "Tak" to both rows).
+   Colours, frames, title bars, buttons, fields; NOT the layout: no width, height, padding, margin, gap, display or font
+   size is stated, a new edge is an inset shadow and never a border a box did not have, and the face stays as it is
+   (Legacy's pixel-font rule hands these windows back to Signika on purpose, this file's PIXEL FONT note). Which windows:
+   every framed `.application` (one with its own `.window-header`, so no rail, HUD or list of core's UI is reached) that
+   is not the module's (`[class*="drpg-"]`) and not Daggerheart's, plus Daggerheart's item sheets
+   (the owner's "item sheets"); the character sheet, the roll dialog and the character setup (FT-27, another batch's) keep
+   their own rules. Under Stained Glass these windows already wear the liquid-glass ground, the title band and the
+   fields (stained-glass.css, "Foundry's own windows" and its section 3); the glass adds here the buttons (core's violet),
+   the tabs, the frame's edge and the hints. Under Legacy everything below is new: until now the window was Foundry's but
+   for the font and the frame's edge variable. The window-header's control buttons are batch 1's (FT-06) and are not
+   named here. */
+body.drpg-theme-monokuma-legacy :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) {
+    color-scheme: dark;
+    background: var(--drpg-ink);
+    color: var(--drpg-bone);
+    border-color: var(--drpg-window-edge);
+}
+body.drpg-theme-monokuma-legacy :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) > .window-header {
+    background: color-mix(in srgb, var(--drpg-bone) 6%, transparent);
+    color: var(--drpg-bone);
+    box-shadow: inset 0 -1px 0 var(--drpg-line-strong);
+}
+body.drpg-theme-monokuma-legacy :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) .window-content { color: var(--drpg-bone); }
+body.drpg-theme-monokuma-legacy :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) .window-content :is(label, legend, h1, h2, h3, h4) { color: var(--drpg-bone); }
+body.drpg-theme-monokuma-legacy :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) .window-content :is(.hint, .notes, p.hint) { color: var(--drpg-bone-dim); }
+body.drpg-theme-monokuma-legacy :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) .window-content :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]), select, textarea) {
+    background: color-mix(in srgb, var(--drpg-ink) 70%, transparent);
+    color: var(--drpg-bone);
+    border-color: var(--drpg-line-strong);
+}
+body.drpg-theme-monokuma-legacy :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) .window-content :is(input, textarea)::placeholder { color: var(--drpg-bone-dim); }
+body.drpg-theme-monokuma-legacy :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) .window-content :is(input[type="checkbox"], input[type="radio"], input[type="range"]) { accent-color: var(--drpg-bone); }
+body.drpg-theme-monokuma-legacy :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) :is(.window-content, .form-footer, footer) button:not(.header-control) {
+    background: var(--drpg-kit-btn-bg);
+    color: var(--drpg-kit-btn-ink);
+    border-color: var(--drpg-kit-btn-edge);
+    border-radius: var(--drpg-kit-btn-radius);
+    box-shadow: none;
+    text-shadow: none;
+}
+body.drpg-theme-monokuma-legacy :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) :is(.window-content, .form-footer, footer) button:not(.header-control):hover:not(:disabled) {
+    background: var(--drpg-kit-hover-bg);
+    border-color: var(--drpg-kit-hover-edge);
+}
+body.drpg-theme-monokuma-legacy :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) :is(.window-content, .form-footer, footer) button:not(.header-control):disabled {
+    color: var(--drpg-dim);
+    border-color: var(--drpg-line);
+}
+body.drpg-theme-monokuma-legacy :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) :is(nav.tabs, nav.sheet-tabs) > :is(a, button) {
+    color: var(--drpg-bone-dim);
+    background: transparent;
+}
+body.drpg-theme-monokuma-legacy :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) :is(nav.tabs, nav.sheet-tabs) > :is(a, button):hover { color: var(--drpg-bone); }
+body.drpg-theme-monokuma-legacy :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) :is(nav.tabs, nav.sheet-tabs) > :is(a, button).active {
+    color: var(--drpg-bone);
+    box-shadow: inset 0 -2px 0 var(--drpg-bone);
+}
+body.drpg-theme-monokuma-legacy :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) :is(input, select, textarea, button, a, [tabindex]):focus-visible {
+    outline: 2px solid var(--drpg-attention);
+    outline-offset: 1px;
+}
+body.drpg-theme-stained-glass :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) { border-color: color-mix(in srgb, var(--drpg-sg-bone) 35%, transparent); }
+/* The glass states the ground of these windows and not their ink, so on the stand-in (no core sheet) the FilePicker's
+   folders and files read dark on the dark glass; core's own ink is its theme's at a table. Bone, as every pane of the
+   glass. */
+body.drpg-theme-stained-glass :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) :is(> .window-header, .window-content) { color: var(--drpg-sg-bone); }
+body.drpg-theme-stained-glass :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) .window-content :is(.hint, .notes, p.hint) { color: var(--drpg-sg-bone-dim); }
+body.drpg-theme-stained-glass :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) :is(.window-content, .form-footer, footer) button:not(.header-control) {
+    background: color-mix(in srgb, var(--drpg-sg-ink) 55%, transparent);
+    color: var(--drpg-sg-bone);
+    border-color: color-mix(in srgb, var(--drpg-sg-bone) 55%, transparent);
+    border-radius: 0;
+    box-shadow: none;
+    text-shadow: none;
+}
+body.drpg-theme-stained-glass :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) :is(.window-content, .form-footer, footer) button:not(.header-control):hover:not(:disabled) {
+    background: var(--drpg-sg-bone);
+    color: var(--drpg-sg-ink);
+    border-color: var(--drpg-sg-bone);
+}
+body.drpg-theme-stained-glass :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) :is(.window-content, .form-footer, footer) button:not(.header-control):disabled {
+    color: var(--drpg-sg-bone-dim);
+    border-style: dashed;
+}
+body.drpg-theme-stained-glass :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) :is(nav.tabs, nav.sheet-tabs) > :is(a, button) { color: var(--drpg-sg-bone-dim); }
+body.drpg-theme-stained-glass :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) :is(nav.tabs, nav.sheet-tabs) > :is(a, button):hover { color: var(--drpg-sg-bone); }
+body.drpg-theme-stained-glass :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) :is(nav.tabs, nav.sheet-tabs) > :is(a, button).active {
+    color: var(--drpg-sg-bone);
+    box-shadow: inset 0 -2px 0 var(--drpg-sg-bone);
+}
+body.drpg-theme-stained-glass :is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header) :is(input, select, textarea, button, a, [tabindex]):focus-visible {
+    outline: 2px solid var(--drpg-attention);
+    outline-offset: 1px;
+}
+/* The FilePicker's lists (v13's file-picker.hbs: `ol.subdirs` of folders, `ol.files-list` of files, the chosen one
+   `.picked`): a row under the pointer the theme's wash, the picked one the theme's Bone edge on its left. */
+body.drpg-theme-monokuma-legacy .application:is(.filepicker, .file-picker) :is(.files-list, .subdirs) > li:hover { background: var(--drpg-kit-hover-bg); }
+body.drpg-theme-monokuma-legacy .application:is(.filepicker, .file-picker) :is(.files-list, .subdirs) > li.picked { box-shadow: inset 2px 0 0 var(--drpg-bone); }
+body.drpg-theme-stained-glass .application:is(.filepicker, .file-picker) :is(.files-list, .subdirs) > li:hover { background: color-mix(in srgb, var(--drpg-sg-bone) 14%, transparent); }
+body.drpg-theme-stained-glass .application:is(.filepicker, .file-picker) :is(.files-list, .subdirs) > li.picked { box-shadow: inset 2px 0 0 var(--drpg-sg-bone); }
+
+/* FT-36: Foundry's combat tracker and Daggerheart's effects display are hidden for everybody in every theme, as the
+   hotbar is (the owner, 11.11.2026, "Tak"). The hide lives in the hotbar's own rule ("surfaces this game does not use",
+   above): it needs that rule's `!important` against core, and tools/css-budget.json allows this sheet no new one. */
