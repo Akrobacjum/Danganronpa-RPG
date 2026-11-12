@@ -1,0 +1,9 @@
+import fs from "node:fs";import path from "node:path";
+const R="/home/user/Danganronpa-RPG/";
+function walk(d,re,out=[]){for(const e of fs.readdirSync(d,{withFileTypes:true})){if(e.name==="node_modules")continue;const p=path.join(d,e.name);if(e.isDirectory())walk(p,re,out);else if(re.test(e.name))out.push(p);}return out;}
+export const prod=[...walk(R+"scripts",/\.mjs$/).filter(f=>!/\/tests(-[\w-]+)?\.mjs$/.test(f)),...walk(R+"macros",/./)].map(f=>[f.replace(R,""),fs.readFileSync(f,"utf8")]);
+export const tests=walk(R+"scripts",/^tests(-[\w-]+)?\.mjs$/).map(f=>[f.replace(R,""),fs.readFileSync(f,"utf8")]);
+export const harness=[...walk(R+"audit",/\.(mjs|html|js|json)$/).filter(f=>!/style-baseline|perf-baseline/.test(f))].map(f=>[f.replace(R,""),fs.readFileSync(f,"utf8")]);
+export const lang=walk(R+"lang",/\.json$/).map(f=>[f.replace(R,""),fs.readFileSync(f,"utf8")]);
+export const prodText=prod.map(x=>x[1]).join("\n");
+export function where(str,set){return set.filter(([f,t])=>t.includes(str)).map(([f])=>f);}

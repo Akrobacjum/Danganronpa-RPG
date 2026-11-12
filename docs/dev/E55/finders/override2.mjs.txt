@@ -1,0 +1,20 @@
+import fs from "node:fs";import {spec,split,cmp} from "./at.mjs";
+const all=JSON.parse(fs.readFileSync("rules.json")).filter(r=>!r.atrule);all.forEach((r,i)=>r.idx=i);
+const norm=s=>s.replace(/\s*([>+~])\s*/g," $1 ").replace(/\s+/g," ").trim();
+const map=new Map();
+for(const r of all){const ctx=r.at.join("&&");for(const s of split(r.selector).map(norm))for(const d of r.decls){const k=ctx+"|"+s+"|"+d.prop;if(!map.has(k))map.set(k,[]);map.get(k).push({r,d,s});}}
+const G=["body.drpg-theme-stained-glass "],L=["body:not(.drpg-theme-stained-glass) ","body.drpg-theme-monokuma-legacy "],B=["body "];
+const beats=(x,y)=>{ // does x win over y
+ if(x.d.important!==y.d.important)return x.d.important;const c=cmp(spec(x.s),spec(y.s));if(c)return c>0;return x.r.idx>y.r.idx;};
+const res=[];
+for(const r of all){if(/drpg-theme|^body/.test(r.selector))continue;const ctx=r.at.join("&&");const sels=split(r.selector).map(norm);
+ for(const d of r.decls){let allDead=true;const why=[];
+  for(const s of sels){const me={r,d,s};
+   const find=pre=>{for(const p of pre){const l=map.get(ctx+"|"+p+s+"|"+d.prop);if(l){const w=l.find(x=>beats(x,me));if(w)return w;}}return null;};
+   const b=find(B);if(b){why.push("body: "+b.r.file.replace("styles/","")+":"+b.r.line);continue;}
+   const g=find(G),l=find(L);if(g&&l){why.push("glass "+g.r.file.replace("styles/","")+":"+g.r.line+" + legacy "+l.r.file.replace("styles/","")+":"+l.r.line);continue;}
+   allDead=false;break;}
+  if(allDead)res.push({f:r.file.replace("styles/",""),l:r.line,e:r.end,prop:d.prop,v:d.value.slice(0,40),why,sel:r.selector.slice(0,90),n:r.decls.length,rule:r});}}
+for(const x of res)console.log(x.f+":"+x.l,x.prop+": "+x.v,"<=",x.why.join("; "),"|",x.sel);
+const rules=new Map();for(const x of res)rules.set(x.rule,(rules.get(x.rule)||0)+1);let full=0,lines=0;for(const [r,n] of rules)if(n===r.decls.length){full++;lines+=r.end-r.line+1;console.log("FULL",r.file,r.line,r.end);}
+console.log("decls",res.length,"fully dead rules",full,"lines",lines);

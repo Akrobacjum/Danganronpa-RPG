@@ -1,0 +1,17 @@
+import fs from "node:fs";import {scopeOf} from "./scope.mjs";
+const all=JSON.parse(fs.readFileSync("rules.json")).filter(r=>!r.atrule&&r.file!=="styles/pixel-icons.css"&&!r.at.some(a=>/keyframes|forced-colors|prefers-contrast/.test(a)));
+const S=[["sheet (actor)",/sheet\.actor|character-(header|sidebar|main)-sheet|\.drpg-action-button|\.drpg-call-button|\.drpg-action-panel|drpg-(hope|despair|monokuma)-panel|\.drpg-inventory|\.hope-section|\.drpg-actions-section|\.drpg-ultimate|\.drpg-bullet-sort|\.drpg-action-(name|cost|icon|pip)/],
+["chat cards",/#chat\b|#chat-log|\.chat-message|\.drpg-chat-card|\.message\.|duality|\.drpg-card\b|\.drpg-audit-card|\.drpg-away-card/],
+["HUD (clock)",/#drpg-hud|\.drpg-hud-/],["Despair rail",/#drpg-despair|\.drpg-despair-/],["player status strip",/#drpg-player-status|\.drpg-status-/],
+["Event panel",/#drpg-events|\.drpg-event/],["popups/notices",/#drpg-popups|\.drpg-popup|notices/],["launchers",/launcher|#drpg-foundry-tools|\.drpg-launch/],
+["projects tray (#countdowns)",/#countdowns|drpg-projects-/],["GM panel",/drpg-gm-panel|drpg-gmp-/],["messenger",/messenger/],["room/voice tiles",/#drpg-room-tile|#drpg-voice-|drpg-tile-row/],["pause",/#pause/],
+["window frame/dialog chrome",/\.window-header|\.window-title|\.window-content|\.application\.dialog|form-footer|\.drpg-kit-footer|\.drpg-tabs|\.application\.drpg-ui(?![\w-])|\.drpg-panel(?![\w-])/]];
+const P={colour:/^(color|background|background-color|border(-top|-bottom|-left|-right)?-color|border(-top|-bottom|-left|-right)?|outline-color|fill)$/,font:/^(font-size|font)$/,width:/^(width|min-width|max-width|inline-size)$/};
+const out={};
+for(const r of all){const sel=r.selector;const sc=scopeOf(sel);const sl=sel.replace(/:not\((?:[^()]|\([^()]*\))*\)/g,"");
+ const s=S.find(([n,re])=>re.test(sl));if(!s)continue;
+ for(const [pk,pre] of Object.entries(P)){const ds=r.decls.filter(d=>pre.test(d.prop));if(!ds.length)continue;
+  if(pk==="colour"&&!ds.some(d=>!/^border/.test(d.prop)||/#|rgb|var\(|color-mix|transparent|currentColor|inherit/.test(d.value)))continue;
+  const k=s[0];out[k]=out[k]||{};out[k][pk]=out[k][pk]||{both:0,legacy:0,glass:0,files:{},imp:0};
+  const o=out[k][pk];const t=sc.includes("glass")&&!sc.includes("both")?"glass":sc.includes("legacy")&&!sc.includes("both")?"legacy":"both";o[t]++;o.files[r.file.replace("styles/","").replace(".css","")]=(o.files[r.file.replace("styles/","").replace(".css","")]||0)+1;o.imp+=ds.filter(d=>d.important).length;}}
+for(const [k,v] of Object.entries(out)){for(const [pk,o] of Object.entries(v))console.log([k,pk,o.both,o.legacy,o.glass,o.imp,Object.entries(o.files).map(([f,n])=>f+" "+n).join(", ")].join(" | "));}

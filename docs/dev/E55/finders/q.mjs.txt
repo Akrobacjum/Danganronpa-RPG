@@ -1,0 +1,5 @@
+import fs from "node:fs";import {scopeOf} from "./scope.mjs";
+const re=new RegExp(process.argv[2]);const decl=process.argv[3]?new RegExp(process.argv[3]):null;
+const all=JSON.parse(fs.readFileSync("rules.json")).filter(r=>!r.atrule&&re.test(r.selector.replace(/:not\((?:[^()]|\([^()]*\))*\)/g,""))&&(!decl||r.decls.some(d=>decl.test(d.prop))));
+for(const r of all)console.log(r.file.replace("styles/",""),r.line+"-"+r.end,scopeOf(r.selector),r.at.join(" ").slice(0,30),"|",r.decls.filter(d=>!decl||decl.test(d.prop)).map(d=>d.prop+":"+d.value.slice(0,40)+(d.important?"!":"")).join("; ").slice(0,150),"|",r.selector.slice(0,120));
+console.log("count",all.length);

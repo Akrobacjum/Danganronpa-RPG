@@ -1,0 +1,6 @@
+import {parse} from "./parse.mjs";import fs from "node:fs";
+const R="/home/user/Danganronpa-RPG/";const m=JSON.parse(fs.readFileSync(R+"module.json"));
+const all=[];m.styles.forEach((f,ord)=>{for(const r of parse(R+f)){r.file=f;r.ord=ord;all.push(r);}});
+fs.writeFileSync("rules.json",JSON.stringify(all));
+const by={};for(const r of all){by[r.file]=by[r.file]||{rules:0,decls:0,imp:0};by[r.file].rules++;by[r.file].decls+=r.decls.length;by[r.file].imp+=r.decls.filter(d=>d.important).length;}
+console.log(by);

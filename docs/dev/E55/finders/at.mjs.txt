@@ -1,0 +1,17 @@
+import fs from "node:fs";
+const all=JSON.parse(fs.readFileSync("rules.json")).filter(r=>!r.atrule);
+export function spec(sel){ // single complex selector
+ let a=0,b=0,c=0;let s=sel;
+ // handle functional pseudo
+ const fn=/:(is|not|has|where)\(/g;let out="";let i=0;
+ while(i<s.length){const m=/:(is|not|has|where)\(/y;m.lastIndex=i;const mm=m.exec(s);if(mm){let d=1,j=i+mm[0].length;for(;j<s.length&&d;j++){if(s[j]==='(')d++;else if(s[j]===')')d--;}const inner=s.slice(i+mm[0].length,j-1);i=j;if(mm[1]==='where')continue;const parts=split(inner).map(spec);const mx=parts.reduce((x,y)=>cmp(x,y)>=0?x:y,[0,0,0]);a+=mx[0];b+=mx[1];c+=mx[2];continue;}out+=s[i];i++;}
+ s=out.replace(/\[[^\]]*\]/g,()=>{b++;return " ";});
+ a+=(s.match(/#[\w-]+/g)||[]).length;b+=(s.match(/\.[\w-]+/g)||[]).length;
+ b+=(s.match(/(?<!:):(?!:)[\w-]+(\([^)]*\))?/g)||[]).length;
+ c+=(s.match(/::[\w-]+/g)||[]).length;
+ c+=(s.replace(/[#.:][\w-]+(\([^)]*\))?/g," ").match(/(^|[\s>+~])([a-zA-Z][\w-]*)/g)||[]).length;
+ return [a,b,c];}
+export function split(s){const out=[];let d=0,cur="";for(const ch of s){if(ch==='('||ch==='[')d++;if(ch===')'||ch===']')d--;if(ch===','&&!d){out.push(cur.trim());cur="";continue;}cur+=ch;}if(cur.trim())out.push(cur.trim());return out;}
+export function cmp(x,y){for(let k=0;k<3;k++){if(x[k]!==y[k])return x[k]-y[k];}return 0;}
+export function ruleAt(f,l){return all.find(r=>r.file.endsWith(f)&&r.line===l);}
+if(process.argv[2]){for(const a of process.argv.slice(2)){const [f,l]=a.split(":");const r=ruleAt(f,+l);if(!r){console.log("none",a);continue;}console.log(`== ${f}:${r.line}-${r.end} [${r.at.join(" ")}]`);for(const s of split(r.selector))console.log("  sel",JSON.stringify(spec(s)),s.slice(0,180));for(const d of r.decls)console.log("   ",d.prop+":",d.value.slice(0,90),d.important?"!important":"");}}

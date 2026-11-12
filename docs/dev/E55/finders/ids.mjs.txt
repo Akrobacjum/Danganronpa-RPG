@@ -1,0 +1,16 @@
+import fs from "node:fs";import {prod,tests,harness,lang,prodText,where} from "./corpus.mjs";
+const all=JSON.parse(fs.readFileSync("rules.json")).filter(r=>!r.atrule);
+const ids=new Map(),attrs=new Map(),classes=new Map();
+function add(m,k,r){if(!m.has(k))m.set(k,[]);m.get(k).push(r);}
+for(const r of all){const s=r.selector.replace(/:not\((?:[^()]|\([^()]*\))*\)/g," ");
+ for(const m of s.matchAll(/#([A-Za-z_][\w-]*)/g))add(ids,m[1],r);
+ for(const m of s.matchAll(/\[([\w-]+)/g))add(attrs,m[1],r);
+ for(const m of s.matchAll(/\.([A-Za-z_][\w-]*)/g))add(classes,m[1],r);}
+const out={ids:[],attrs:[],classes:[]};
+for(const [id,rs] of ids){if(prodText.includes(id))continue;out.ids.push({id,rules:rs.length,lines:rs.map(r=>r.file.replace("styles/","")+":"+r.line).slice(0,6),tests:where(id,tests).length,harness:where(id,harness).map(x=>x).slice(0,4)});}
+for(const [a,rs] of attrs){if(prodText.includes(a))continue;out.attrs.push({a,rules:rs.length,lines:rs.map(r=>r.file.replace("styles/","")+":"+r.line).slice(0,6)});}
+for(const [c,rs] of classes){if(prodText.includes(c))continue;out.classes.push({c,rules:rs.length,drpg:/drpg/.test(c),lines:rs.map(r=>r.file.replace("styles/","")+":"+r.line).slice(0,5)});}
+fs.writeFileSync("ids.json",JSON.stringify(out,null,1));
+console.log("ids not in prod:",out.ids.length,"of",ids.size);for(const x of out.ids)console.log(" #"+x.id,x.rules,x.lines.join(" "),"tests:"+x.tests,"harness:"+x.harness.join(","));
+console.log("attrs not in prod:",out.attrs.length,"of",attrs.size);for(const x of out.attrs)console.log(" ["+x.a,x.rules,x.lines.join(" "));
+console.log("classes not in prod (substring):",out.classes.length,"of",classes.size, "drpg-containing:",out.classes.filter(c=>c.drpg).map(c=>c.c).join(" "));

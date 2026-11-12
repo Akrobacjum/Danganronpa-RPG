@@ -1,0 +1,30 @@
+import fs from "node:fs";
+export function stripComments(t){let o="";let i=0;while(i<t.length){if(t[i]==='/'&&t[i+1]==='*'){const e=t.indexOf('*/',i+2);const seg=t.slice(i,e<0?t.length:e+2);o+=seg.replace(/[^\n]/g,' ');i=e<0?t.length:e+2;continue;}if(t[i]==='"'||t[i]==="'"){const q=t[i];let j=i+1;while(j<t.length&&t[j]!==q){if(t[j]==='\\')j++;j++;}o+=t.slice(i,j+1);i=j+1;continue;}o+=t[i];i++;}return o;}
+const BLOCK_AT=/^@(media|container|supports|layer|document|scope|starting-style)\b/i;
+export function parse(file){
+  const raw=fs.readFileSync(file,"utf8");const t=stripComments(raw);
+  const lineAt=[];let ln=1;for(let i=0;i<t.length;i++){lineAt[i]=ln;if(t[i]==='\n')ln++;}
+  const rules=[];
+  function findClose(i){let d=0;for(let j=i;j<t.length;j++){const c=t[j];if(c==='"'||c==="'"){const q=c;j++;while(j<t.length&&t[j]!==q){if(t[j]==='\\')j++;j++;}continue;}if(c==='{')d++;else if(c==='}'){d--;if(d===0)return j;}}return t.length;}
+  function walk(start,end,at,parentSel){
+    let i=start;let buf="";let bufStart=i;
+    while(i<end){const c=t[i];
+      if(c==='"'||c==="'"){const q=c;let j=i+1;while(j<end&&t[j]!==q){if(t[j]==='\\')j++;j++;}buf+=t.slice(i,j+1);i=j+1;continue;}
+      if(c==='('){let d=0,j=i;for(;j<end;j++){if(t[j]==='(')d++;else if(t[j]===')'){d--;if(!d)break;}else if(t[j]==='"'||t[j]==="'"){const q=t[j];j++;while(j<end&&t[j]!==q){if(t[j]==='\\')j++;j++;}}}buf+=t.slice(i,j+1);i=j+1;continue;}
+      if(c===';'){buf="";i++;bufStart=i;continue;}
+      if(c==='{'){const pre=buf.trim();const close=findClose(i);const preStart=bufStart+ (buf.length-buf.trimStart().length);
+        if(BLOCK_AT.test(pre)){walk(i+1,close,[...at,pre.replace(/\s+/g,' ')],parentSel);}
+        else if(/^@/.test(pre)){rules.push({file,line:lineAt[preStart],end:lineAt[close],selector:pre.replace(/\s+/g,' '),at,atrule:true,decls:[]});}
+        else{const sel=pre.replace(/\s+/g,' ');const full=parentSel?sel.split(',').map(s=>s.includes('&')?s.replace(/&/g,parentSel):parentSel+' '+s).join(','):sel;
+          const body=t.slice(i+1,close);const r={file,line:lineAt[preStart],end:lineAt[close],selector:full,at,decls:[]};
+          // decls: top-level of body, skipping nested blocks
+          let d=0,cur="",nested=false;for(let k=0;k<body.length;k++){const ch=body[k];if(ch==='"'||ch==="'"){const q=ch;let j=k+1;while(j<body.length&&body[j]!==q){if(body[j]==='\\')j++;j++;}if(!d)cur+=body.slice(k,j+1);k=j;continue;}
+            if(ch==='('&&!d){let pd=0,j=k;for(;j<body.length;j++){if(body[j]==='(')pd++;else if(body[j]===')'){pd--;if(!pd)break;}}cur+=body.slice(k,j+1);k=j;continue;}
+            if(ch==='{'){d++;nested=true;cur="";continue;}if(ch==='}'){d--;cur="";continue;}if(d)continue;if(ch===';'){pushDecl(r,cur);cur="";continue;}cur+=ch;}
+          pushDecl(r,cur);rules.push(r);if(nested)walk(i+1,close,at,full);}
+        i=close+1;buf="";bufStart=i;continue;}
+      if(c==='}'){i++;buf="";bufStart=i;continue;}
+      buf+=c;i++;}
+  }
+  function pushDecl(r,s){s=s.trim();if(!s)return;const m=s.match(/^([-\w]+)\s*:\s*([\s\S]*)$/);if(!m)return;let v=m[2].trim();const imp=/!\s*important\s*$/i.test(v);v=v.replace(/!\s*important\s*$/i,'').trim();r.decls.push({prop:m[1].toLowerCase(),value:v,important:imp});}
+  walk(0,t.length,[],null);return rules;}

@@ -1,0 +1,23 @@
+import fs from "node:fs";
+const all=JSON.parse(fs.readFileSync("rules.json")).filter(r=>!r.atrule);
+all.forEach((r,i)=>r.idx=i); // module.json order then source order
+const split=s=>{const out=[];let d=0,cur="";for(const c of s){if(c==='('||c==='[')d++;if(c===')'||c===']')d--;if(c===','&&!d){out.push(cur.trim());cur="";continue;}cur+=c;}out.push(cur.trim());return out;};
+const norm=s=>s.replace(/\s*([>+~])\s*/g," $1 ").replace(/\s+/g," ").trim();
+// map key (ctx|complex|prop) -> list of {rule, decl}
+const map=new Map();
+for(const r of all){const ctx=r.at.join(" && ");const sels=split(r.selector).map(norm);
+ r.sels=sels;
+ for(const d of r.decls){for(const s of sels){const k=ctx+"|"+s+"|"+d.prop;if(!map.has(k))map.set(k,[]);map.get(k).push({r,d});}}}
+// for each rule decl: dead if for every complex selector, there is a winner other than this decl
+const deadDecl=[];const ruleDead=new Map();
+for(const r of all){const ctx=r.at.join(" && ");let deadCount=0;
+ for(const d of r.decls){let dead=true;const killers=[];
+  for(const s of r.sels){const list=map.get(ctx+"|"+s+"|"+d.prop);
+   const win=list.reduce((a,b)=>{const ka=[a.d.important?1:0,a.r.idx],kb=[b.d.important?1:0,b.r.idx];return (kb[0]>ka[0]||(kb[0]===ka[0]&&kb[1]>=ka[1]))?b:a;});
+   if(win.r===r&&win.d===d){dead=false;break;} killers.push(win.r.file.replace("styles/","")+":"+win.r.line+(win.d.important?"!":""));}
+  if(dead){deadCount++;deadDecl.push({file:r.file,line:r.line,sel:r.selector,prop:d.prop,value:d.value,imp:d.important,killers:[...new Set(killers)],custom:d.prop.startsWith("--")});}}
+ if(r.decls.length&&deadCount===r.decls.length)ruleDead.set(r,true);}
+fs.writeFileSync("override.json",JSON.stringify({deadDecl,deadRules:[...ruleDead.keys()].map(r=>({file:r.file,line:r.line,end:r.end,sel:r.selector,n:r.decls.length}))},null,1));
+const byFile={};for(const x of deadDecl){byFile[x.file]=byFile[x.file]||{decl:0,imp:0,custom:0,cross:0};byFile[x.file].decl++;if(x.imp)byFile[x.file].imp++;if(x.custom)byFile[x.file].custom++;if(x.killers.some(k=>!x.file.endsWith(k.split(":")[0])))byFile[x.file].cross++;}
+console.log("dead decls by file",byFile);
+const dr=[...ruleDead.keys()];const lines={};for(const r of dr){lines[r.file]=(lines[r.file]||0)+(r.end-r.line+1);}console.log("fully dead rules",dr.length,lines);

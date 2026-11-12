@@ -1,0 +1,16 @@
+import fs from "node:fs";
+const all=JSON.parse(fs.readFileSync("rules.json")).filter(r=>!r.atrule);
+const RE=/#[0-9a-fA-F]{3,8}\b|(?:rgba?|hsla?)\([^()]*\)/g;
+const norm=s=>s.toLowerCase().replace(/\s+/g,"").replace(/,/g,", ");
+const tokens=new Map(); // value -> names
+const rgbTok=new Map();
+for(const r of all)for(const d of r.decls)if(d.prop.startsWith("--drpg")){const v=norm(d.value);if(!tokens.has(v))tokens.set(v,new Set());tokens.get(v).add(d.prop);if(/-rgb$/.test(d.prop)){const ch=d.value.replace(/\s+/g,"").replace(/,/g,", ");if(!rgbTok.has(ch))rgbTok.set(ch,new Set());rgbTok.get(ch).add(d.prop);}}
+const perFile={},lit={};let total=0;
+for(const r of all){for(const d of r.decls){if(d.prop.startsWith("--"))continue;const ms=d.value.match(RE);if(!ms)continue;total++;const f=r.file.replace("styles/","");perFile[f]=(perFile[f]||0)+1;for(const m of ms){const k=norm(m);lit[k]=lit[k]||{n:0,files:{}};lit[k].n++;lit[k].files[f]=(lit[k].files[f]||0)+1;}}}
+console.log("decls with literal",total,perFile);
+const hex2=h=>{h=h.slice(1);if(h.length===3)h=[...h].map(c=>c+c).join("");return [0,2,4].map(i=>parseInt(h.slice(i,i+2),16)).join(", ");};
+const rows=Object.entries(lit).sort((a,b)=>b[1].n-a[1].n);
+console.log("distinct literals",rows.length);
+for(const [k,v] of rows.slice(0,40)){let tok=tokens.get(k)?[...tokens.get(k)].join(" "):"";if(!tok){let ch=null;if(k.startsWith("#"))ch=hex2(k);else{const m=k.match(/rgba?\(([\d.]+), ([\d.]+), ([\d.]+)/);if(m)ch=m.slice(1,4).join(", ");}
+ if(ch&&rgbTok.has(ch))tok="channels: "+[...rgbTok.get(ch)].join(" ");else if(ch){for(const [tv,names] of tokens){if(tv.startsWith("#")&&(tv.length===7||tv.length===4)&&hex2(tv)===ch){tok="same rgb as "+[...names].join(" ");break;}}}}
+ console.log(v.n,k,JSON.stringify(v.files),"|",tok||"-");}

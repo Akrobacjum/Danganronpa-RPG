@@ -1,0 +1,4 @@
+import fs from "node:fs";
+const all=JSON.parse(fs.readFileSync("rules.json"));
+export function scopeOf(sel){const parts=sel.split(/,(?![^(]*\))/).map(s=>s.trim());const sc=new Set();for(const p of parts){const noNot=p.replace(/:not\([^)]*\)/g,'');if(/drpg-theme-stained-glass/.test(noNot))sc.add('glass');else if(/:not\([^)]*drpg-theme-stained-glass[^)]*\)/.test(p)||/drpg-theme-monokuma-legacy/.test(p))sc.add('legacy');else sc.add('both');}return [...sc].sort().join('+');}
+if (process.argv[2]==="run"){const out={};for(const r of all){if(r.atrule)continue;const s=scopeOf(r.selector);const k=r.file;out[k]=out[k]||{};out[k][s]=out[k][s]||{rules:0,lines:0};out[k][s].rules++;out[k][s].lines+=r.end-r.line+1;}console.log(JSON.stringify(out,null,1));}

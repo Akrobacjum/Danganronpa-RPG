@@ -1,0 +1,14 @@
+import fs from "node:fs";
+const all=JSON.parse(fs.readFileSync("rules.json")).filter(r=>!r.atrule&&!r.at.some(a=>/keyframes/.test(a)));
+const strip=s=>s.replace(/body(\.[\w-]+|:not\([^)]*\))*/g,"").replace(/:root/g,"");
+const foreign=all.filter(r=>r.file!=="styles/pixel-icons.css"&&!/drpg|curtain/.test(strip(r.selector).replace(/:not\((?:[^()]|\([^()]*\))*\)/g,"")));
+const groups=[["actor sheet (Daggerheart .application.sheet.actor / character-*-sheet)",/sheet\.actor|character-(sidebar|header|main|tabs)|\.sheet-tabs|tab-navigation|inventory|\.item-sheet|\.feature-|domain-card|\.experience|\.resources-section|\.loadout|\.trait|\.sheet\b|\.daggerheart\.sheet|\.adversary|\.companion|\.environment/],
+["chat (#chat-log, .chat-message, Daggerheart roll cards)",/chat|\.message|duality|roll-|\.dice|daggerheart-chat|\.result/],
+["countdowns / Daggerheart UI panels",/#countdowns|countdown|#resource|fear/],
+["Foundry sidebar/rails/players/hotbar/nav",/#sidebar|#players|#hotbar|#scene-|#ui-|#interface|#controls|#navigation|#camera|#performance|#loading|#context-menu|#tooltip|#notifications|menu|#pause|\.control-tool|#board|#chat-popout|#combat|#effects/],
+["Foundry windows/dialogs/forms",/\.application|\.window-|\.dialog|form-|\.app\b|\.form-group|input|select|button|prose-?mirror|\.editor/],
+["roots / html / theme / misc",/^/]];
+const out={};for(const r of foreign){const s=strip(r.selector);const g=groups.find(([n,re])=>re.test(s))[0];out[g]=out[g]||{};const f=r.file.replace("styles/","");out[g][f]=out[g][f]||{rules:0,lines:0,imp:0};out[g][f].rules++;out[g][f].lines+=r.end-r.line+1;out[g][f].imp+=r.decls.filter(d=>d.important).length;}
+console.log(JSON.stringify(out,null,0).replace(/\},"/g,'},\n"'));
+console.log("total foreign",foreign.length,foreign.reduce((a,r)=>a+r.end-r.line+1,0));
+fs.writeFileSync("foreign.json",JSON.stringify(foreign.map(r=>({f:r.file,l:r.line,e:r.end,s:r.selector,g:groups.find(([n,re])=>re.test(strip(r.selector)))[0]}))));
