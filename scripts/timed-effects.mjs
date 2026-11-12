@@ -53,7 +53,8 @@ const KINDS = Object.freeze({
             const { trustedWrite } = await import("./resource-guard.mjs");
             await trustedWrite(actor, { [`system.traits.${TRAITS[row.trait].dh}.value`]: traitValue(actor, row.trait) - row.n }, { reason: "facility" });
         },
-        line: row => game.i18n.format("DRPG.Facility.timed.traitBonus", { n: row.n, trait: TRAITS[row.trait]?.label ?? row.trait })
+        line: row => game.i18n.format("DRPG.Facility.timed.traitBonus", { n: row.n, trait: TRAITS[row.trait]?.label ?? row.trait }),
+        short: row => game.i18n.format("DRPG.Facility.badge.traitBonus", { n: row.n, trait: TRAITS[row.trait]?.label ?? row.trait })
     }),
     // An Experience of the GM's name and value X, added to the sheet under an id of its own kept on the row (`ref`), and
     // deleted by that id at the end - never one the character had.
@@ -69,23 +70,27 @@ const KINDS = Object.freeze({
             const { forcedDeletion } = await import("./utils.mjs");
             await trustedWrite(actor, { [`system.experiences.${row.ref}`]: forcedDeletion() ?? null }, { reason: "facility" });
         },
-        line: row => game.i18n.format("DRPG.Facility.timed.experience", { n: row.n, label: row.label ?? "" })
+        line: row => game.i18n.format("DRPG.Facility.timed.experience", { n: row.n, label: row.label ?? "" }),
+        short: row => game.i18n.format("DRPG.Facility.badge.experience", { n: row.n })
     }),
     // Nothing is written when it is given: the award reads the row (`takeDespairShield`) and the first point it stops uses
     // it up.
     despairShield: Object.freeze({
         give: async () => {},
-        line: () => game.i18n.localize("DRPG.Facility.timed.despairShield")
+        line: () => game.i18n.localize("DRPG.Facility.timed.despairShield"),
+        short: () => game.i18n.localize("DRPG.Facility.badge.despairShield")
     }),
     // Nothing is written when it is given: the Ultimate's arming reads the row (`boostUltimate`) and uses it up.
     ultimateBoost: Object.freeze({
         give: async () => {},
-        line: () => game.i18n.localize("DRPG.Facility.timed.ultimateBoost")
+        line: () => game.i18n.localize("DRPG.Facility.timed.ultimateBoost"),
+        short: () => game.i18n.localize("DRPG.Facility.badge.ultimateBoost")
     }),
     // Nothing is written when it is given: the Eclipse's judges read the rows (gm-stores.mjs `timedCrossingsOf`).
     eclipseCrossing: Object.freeze({
         give: async () => {},
-        line: row => game.i18n.format("DRPG.Facility.timed.eclipseCrossing", { n: row.n })
+        line: row => game.i18n.format("DRPG.Facility.timed.eclipseCrossing", { n: row.n }),
+        short: row => game.i18n.format("DRPG.Facility.badge.eclipseCrossing", { n: row.n })
     })
 });
 
@@ -220,11 +225,12 @@ export function timedLine(row) {
 
 /**
  * The sheet's badges of `actor`'s timed effects on this browser, beside the armed Calls (sheet.mjs `pendingStack`; the
- * owner's ask of 12.11.2026): `{ what, until }`, what it does on the badge and what ends it in the tooltip.
+ * owner's asks of 12.11.2026): `{ short, what, until }` - a name of one or two words on the badge, what it does and what
+ * ends it in the tooltip.
  */
 export function effectBadges(actor) {
     return rowsHere(actor).filter(row => KINDS[row?.kind])
-        .map(row => ({ what: KINDS[row.kind].line(row), until: game.i18n.localize(`DRPG.Facility.until.${row.until}`) }));
+        .map(row => ({ short: KINDS[row.kind].short(row), what: KINDS[row.kind].line(row), until: game.i18n.localize(`DRPG.Facility.until.${row.until}`) }));
 }
 
 /** The sheet's lines of `actor`'s timed effects on this browser. */

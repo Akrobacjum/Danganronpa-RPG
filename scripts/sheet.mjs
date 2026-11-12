@@ -1766,16 +1766,17 @@ export function pendingStack(actor) {
         stack.append(badge);
     }
 
-    // A room action's timed effects (the owner's answer to Q-E93-3; the owner's ask of 12.11.2026, "w podobnym miejscu co efekty
-    // hope calls"): a Call's badge, in Hope's colour - what it does on the badge, what ends it in the tooltip - read on a
-    // GM off the GMs' store and on an owner's browser off their copy (timed-effects.mjs `effectBadges`). Their words may
-    // wrap (the stylesheet's `.drpg-timed-badge`): a Call's name is a word, an effect's a sentence.
-    for (const { what, until } of timedBadges(actor)) {
+    // A room action's timed effects (the owner's answer to Q-E93-3; the owner's asks of 12.11.2026, "w podobnym miejscu co
+    // efekty hope calls", then a name of one or two words, the rest in the tooltip, and white): a Call's badge as a white
+    // chip, apart from the Hope Calls' gold - its short name on it, what it does and until when in the tooltip - read on a
+    // GM off the GMs' store and on an owner's browser off their copy (timed-effects.mjs `effectBadges`). Stained Glass
+    // wears the candle on it (tools/glyphs.json glass "timed-effect").
+    for (const { short, what, until } of timedBadges(actor)) {
         const badge = document.createElement("div");
-        badge.className = "drpg-pending-call drpg-pending-hope drpg-timed-badge";
-        badge.dataset.tooltip = game.i18n.format("DRPG.Facility.timedBadge", { until });
+        badge.className = "drpg-pending-call drpg-pending-timed drpg-timed-badge";
+        badge.dataset.tooltip = game.i18n.format("DRPG.Facility.timedBadge", { what, until });
         badge.innerHTML = `<i class="fa-solid fa-hourglass-half" inert></i>
-                           <span>${foundry.utils.escapeHTML(what)}</span>`;
+                           <span>${foundry.utils.escapeHTML(short)}</span>`;
         stack.append(badge);
     }
     return stack;

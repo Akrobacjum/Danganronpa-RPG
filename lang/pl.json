@@ -3451,7 +3451,8 @@
       }
     },
     "Facility": {
-      "timedBadge": "Z akcji w pokoju, {until}",
+      "timedBadge": "{what}, {until}",
+      "badge": {"traitBonus": "+{n} {trait}", "experience": "Experience +{n}", "despairShield": "Tarcza Despair", "eclipseCrossing": "Eclipse +{n}", "ultimateBoost": "Mocne Ultimate"},
       "timed": {
         "traitBonus": "+{n} {trait}",
         "experience": "Experience {label} +{n}",

@@ -89327,12 +89327,13 @@ const SCENARIOS = [
             other: [[1], 1], ultimate: [[2], 0], next: [1] }),
             "{clean; given: [rows, sheet lines]; other: [the window's Call dice, rows] after another Call; ultimate: the same after the Ultimate; next: the next Ultimate's dice} - a stronger next Ultimate");
     }],
-    ["E93-T14 - a room action's timed effect is drawn on the sheet where its armed Hope Calls are, in the same badge (scripts/sheet.mjs `pendingStack`, timed-effects.mjs `effectBadges`; the owner's answer to Q-E93-3 and the owner's ask of 12.11.2026, \"w podobnym miejscu co efekty hope calls\"): given, it is a Call's badge in the stack beside the action pips - what it does on the badge, its end in the tooltip - and nothing of it is drawn under the states; ended, the stack holds none", async () => {
+    ["E93-T14 - a room action's timed effect is drawn on the sheet where its armed Hope Calls are, in the same badge (scripts/sheet.mjs `pendingStack`, timed-effects.mjs `effectBadges`; the owner's answer to Q-E93-3 and the owner's ask of 12.11.2026, \"w podobnym miejscu co efekty hope calls\"): given, it is a Call's badge in the stack beside the action pips - its short name on a white chip, not Hope's gold, what it does and until when in the tooltip - and nothing of it is drawn under the states; ended, the stack holds none", async () => {
         /*
          * E93, 12.11.2026. The stack as the header draws it (`pendingStack`, the armed Calls' badges), and the sidebar's
          * resources section as the system draws it, painted by `paintReserves` (as the sheet's reserve tests build it), for
          * this GM. Whether a badge's words are cut is Chromium's to measure (the review page). Red at fbe4453: the line was
-         * a badge of a row of its own under the states, and the stack held none.
+         * a badge of a row of its own under the states, and the stack held none. Red again at fce3acc (the owner's asks of
+         * 12.11: a short name, the whole effect in the tooltip, a white chip): the badge held the whole effect in Hope's gold.
          */
         const T = await import("./timed-effects.mjs");
         const F = await import("./facilities.mjs");
@@ -89351,7 +89352,8 @@ const SCENARIOS = [
         const look = () => {
             SH.paintReserves({ document: actor }, root, actor, game.user);
             const stack = SH.pendingStack(actor);
-            return { stack: [...stack.querySelectorAll(".drpg-pending-call.drpg-timed-badge")].map(b => [b.textContent.trim(), b.dataset.tooltip ?? ""]),
+            return { stack: [...stack.querySelectorAll(".drpg-pending-call.drpg-timed-badge")].map(b => [b.textContent.trim(), b.dataset.tooltip ?? "",
+                b.classList.contains("drpg-pending-timed"), b.classList.contains("drpg-pending-hope")]),
                 underStates: root.querySelectorAll(".drpg-timed-badge").length };
         };
         try {
@@ -89370,10 +89372,16 @@ const SCENARIOS = [
             await settle();
         }
         must(read.badges?.length === 1, "the effect gave no badge - this would measure nothing of where it is drawn");
-        const { what, until } = read.badges[0];
+        // The words read off the lang files, not off the code under test (the owner's asks of 12.11.2026: a name of one or two
+        // words on the badge, what it does and until when in the tooltip, a white chip apart from the Hope Calls' gold).
+        const { TRAITS } = await import("./config.mjs");
+        const short = game.i18n.format("DRPG.Facility.badge.traitBonus", { n: 1, trait: TRAITS.body.label });
+        const what = game.i18n.format("DRPG.Facility.timed.traitBonus", { n: 1, trait: TRAITS.body.label });
+        const tip = game.i18n.format("DRPG.Facility.timedBadge", { what, until: game.i18n.localize("DRPG.Facility.until.timeOfDay") });
+        must(short.split(/\s+/).length <= 2, `the badge's name is ${short.split(/\s+/).length} words, not one or two`);
         equal(stableJson({ given: read.given, ended: read.ended }), stableJson({
-            given: { stack: [[what, game.i18n.format("DRPG.Facility.timedBadge", { until })]], underStates: 0 }, ended: { stack: [], underStates: 0 } }),
-            "{given: [the stack's timed badges as [words, tooltip], timed badges under the states]; ended: the same after its end} - with the armed Calls");
+            given: { stack: [[short, tip, true, false]], underStates: 0 }, ended: { stack: [], underStates: 0 } }),
+            "{given: [the stack's timed badges as [words, tooltip, the white chip's class, Hope's class], timed badges under the states]; ended: the same after its end} - beside the armed Calls");
     }],
     ["E69-T2 - a crossing settles once, on the primary, where the token still stands (scripts/crossing-settle.mjs `scheduleSettle`, movement.mjs `recordCrossingInStep`; E69 C2, S18-28, A10): a crossing into the room the token stands in fires drpgCrossingSettled once with its actor, rooms, way and Eclipse after the wait; two crossings in a row fire one event from the first room to the last; a crossing into a room the token is not in when the wait ends (put back) fires none; and the GMs' record of a crossing schedules one", async () => {
         /*

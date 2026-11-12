@@ -3189,7 +3189,8 @@
       }
     },
     "Facility": {
-      "timedBadge": "From a room action, {until}",
+      "timedBadge": "{what}, {until}",
+      "badge": {"traitBonus": "+{n} {trait}", "experience": "Experience +{n}", "despairShield": "Despair shield", "eclipseCrossing": "Eclipse +{n}", "ultimateBoost": "Ultimate boost"},
       "timed": {
         "traitBonus": "+{n} {trait}",
         "experience": "Experience {label} +{n}",

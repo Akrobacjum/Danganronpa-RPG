@@ -658,7 +658,10 @@ export const FACE_RULES = [
     /* E105 FT batch 2 follow-up (the owner's "Tak", 11.11.2026: one function, one glyph): the Projects tray's Manage
        projects button (projects-ui.mjs, `<button class="drpg-projects-gear"><i class="fa-solid fa-gear">`) wore FACES's
        gear, the corner Look launcher's gear with its sound waves. */
-    ["the Projects tray's Manage projects (its fa-gear is the corner Look launcher's)", ".drpg-projects-gear > i.fa-gear", "projects-manage"]
+    ["the Projects tray's Manage projects (its fa-gear is the corner Look launcher's)", ".drpg-projects-gear > i.fa-gear", "projects-manage"],
+    /* E93 (the owner's ask of 12.11.2026): a room action's timed effect on the sheet, a white chip beside the armed Calls
+       (sheet.mjs `pendingStack`); its fa-hourglass-half has no glass drawing, and Stained Glass's hourglass is the projects'. */
+    ["a timed effect's badge beside the Hope Calls (its fa-hourglass-half has no glass drawing)", ".drpg-pending-call.drpg-timed-badge > i.fa-hourglass-half", "timed-effect"]
 ];
 
 /** A state of a control that wears a drawing of its own under Stained Glass: [what, the glyph element's selector, glyph,
