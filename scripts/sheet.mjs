@@ -2322,6 +2322,27 @@ function paintStateBadges(section, actor) {
         row.className = "drpg-state-badges";
         section.after(row);
     }
+    // A room action's timed effects (the owner's answer to Q-E93-3, 12.11.2026) in a row of their own under the states:
+    // what each does and what ends it, read on a GM off the GMs' store and on an owner's browser off their copy
+    // (timed-effects.mjs `effectLines`). Not in the states' row, whose one line at its reserved height cut each to a few
+    // letters (measured 12.11 at the sheet stand-in's 275px sidebar: "+2 Bod", "Your next", "Next Ulti"); this row
+    // wraps, and takes no room while none is held (the stylesheet's `:empty`).
+    let timed = row.nextElementSibling?.classList?.contains("drpg-timed-badges") ? row.nextElementSibling : null;
+    if (!timed) {
+        timed = document.createElement("div");
+        timed.className = "drpg-timed-badges";
+        row.after(timed);
+    }
+    timed.replaceChildren(...timedLines(actor).map(line => {
+        const badge = document.createElement("span");
+        badge.className = "drpg-state-badge drpg-timed-badge";
+        badge.dataset.tooltip = game.i18n.localize("DRPG.Facility.timedBadge");
+        badge.tabIndex = 0;
+        const name = document.createElement("span");
+        name.textContent = line;
+        badge.append(name);
+        return badge;
+    }));
     row.replaceChildren(...held.map(state => {
         const badge = document.createElement("span");
         badge.className = "drpg-state-badge";
@@ -2334,17 +2355,6 @@ function paintStateBadges(section, actor) {
         const name = document.createElement("span");
         name.textContent = game.i18n.localize(`DRPG.States.${state.id}.name`);
         badge.append(icon, name);
-        return badge;
-    }), ...timedLines(actor).map(line => {
-        // A room action's timed effect (the owner's answer to Q-E93-3, 12.11.2026): what it does and what ends it, read
-        // on a GM off the GMs' store and on an owner's browser off their copy (timed-effects.mjs `effectLines`).
-        const badge = document.createElement("span");
-        badge.className = "drpg-state-badge drpg-timed-badge";
-        badge.dataset.tooltip = game.i18n.localize("DRPG.Facility.timedBadge");
-        badge.tabIndex = 0;
-        const name = document.createElement("span");
-        name.textContent = line;
-        badge.append(name);
         return badge;
     }));
 }

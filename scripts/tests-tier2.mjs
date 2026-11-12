@@ -88481,6 +88481,49 @@ const SCENARIOS = [
             other: [[1], 1], ultimate: [[2], 0], next: [1] }),
             "{clean; given: [rows, sheet lines]; other: [the window's Call dice, rows] after another Call; ultimate: the same after the Ultimate; next: the next Ultimate's dice} - a stronger next Ultimate");
     }],
+    ["E93-T14 - a room action's timed effect is drawn on the sheet in a row of its own under the states, not in the states' one line (scripts/sheet.mjs `paintStateBadges`, timed-effects.mjs `effectLines`; the owner's answer to Q-E93-3, 12.11.2026): given, its line is a badge of the timed row and none of the states'; ended and painted again, the timed row is empty", async () => {
+        /*
+         * E93, 12.11.2026. The sidebar's resources section as the system draws it (as the sheet's reserve tests build it),
+         * painted for this GM by `paintReserves`, which ends in `paintStateBadges`. The width is Chromium's to measure
+         * (docs/dev/e93/STATUS.md: at the sheet stand-in's 275px the states' row cut each timed badge to a few letters); this
+         * reads where the badge stands. Red at b1af9a5: the line was a badge of the states' row and there was no timed row.
+         */
+        const T = await import("./timed-effects.mjs");
+        const F = await import("./facilities.mjs");
+        const SH = await import("./sheet.mjs");
+        const { applyEffects } = await import("./facilities-gm.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const root = document.createElement("div");
+        root.innerHTML = `<div class="window-content"><aside class="character-sidebar-sheet"><div class="info-section"><div class="resources-section">${["hitPoints", "stress"].map(key => {
+            const { value, max } = actor.system.resources[key];
+            return `<div class="status-bar"><div class="status-value"><progress class="progress-bar" max="${max}" value="${value}"></progress>`
+                + `<input class="bar-input" name="system.resources.${key}.value" min="0" max="${max}" value="${value}" type="number"><span>/</span>`
+                + `<span class="bar-label">${max}</span></div><div class="status-label pointy"><h4>${key}</h4></div></div>`;
+        }).join("")}</div></div></aside></div>`;
+        const rows = () => ({ states: [...root.querySelectorAll(".drpg-state-badges > .drpg-timed-badge")].map(b => b.textContent),
+            timed: [...root.querySelectorAll(".drpg-timed-badges > .drpg-timed-badge")].map(b => b.textContent) });
+        const read = {};
+        try {
+            const effect = F.cleanEffect({ kind: "traitBonus", trait: "body", n: 1, until: "timeOfDay" });
+            must(effect, "no traitBonus effect - this would measure nothing");
+            await applyEffects(actor, [effect], where, player);
+            await settle();
+            SH.paintReserves({ document: actor }, root, actor, game.user);
+            read.given = rows();
+            read.line = T.effectLines(actor);
+            for (const row of T.timedEffectsOf(actor.id)) await T.endTimedEffect(row.id);
+            await settle();
+            SH.paintReserves({ document: actor }, root, actor, game.user);
+            read.ended = rows();
+        } finally {
+            for (const row of T.timedEffectsOf(actor.id)) await T.endTimedEffect(row.id);
+            for (const m of game.messages.filter(m => m.speaker?.actor === actor.id && m.whisper?.length && Date.now() - (m.timestamp ?? 0) < 60000)) await m.delete();
+            await settle();
+        }
+        must(read.line?.length === 1, "the effect gave no sheet line - this would measure nothing of where it is drawn");
+        equal(stableJson({ given: read.given, ended: read.ended }), stableJson({ given: { states: [], timed: read.line }, ended: { states: [], timed: [] } }),
+            "{given: [timed badges in the states' row, in the timed row]; ended: the same after its end} - the timed effects' own row");
+    }],
     ["E69-T2 - a crossing settles once, on the primary, where the token still stands (scripts/crossing-settle.mjs `scheduleSettle`, movement.mjs `recordCrossingInStep`; E69 C2, S18-28, A10): a crossing into the room the token stands in fires drpgCrossingSettled once with its actor, rooms, way and Eclipse after the wait; two crossings in a row fire one event from the first room to the last; a crossing into a room the token is not in when the wait ends (put back) fires none; and the GMs' record of a crossing schedules one", async () => {
         /*
          * E69 C2, 12.11.2026. The wait is the test's own (`ms`), so nothing waits 2 s; the token is not moved: the room it

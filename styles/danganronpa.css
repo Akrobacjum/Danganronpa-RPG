@@ -8812,6 +8812,24 @@ body.drpg-reduced-motion .application.sheet.actor .character-sidebar-sheet .drpg
     line-height: 1.3;
     white-space: nowrap;
 }
+/* A room action's timed effects (E93, Q-E93-3): their own row under the states', wrapping, a badge's words free to break,
+   and no room taken while none is held. */
+.application.sheet.actor .character-sidebar-sheet .drpg-timed-badges {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+    margin: 0 0 4px;
+}
+.application.sheet.actor .character-sidebar-sheet .drpg-timed-badges:empty {
+    display: none;
+}
+.application.sheet.actor .character-sidebar-sheet .drpg-timed-badges > .drpg-timed-badge {
+    max-width: 100%;
+    box-sizing: border-box;
+    white-space: normal;
+    text-align: center;
+}
 .application.sheet.actor .character-sidebar-sheet .drpg-state-badge > img {
     width: 16px;
     height: 16px;
