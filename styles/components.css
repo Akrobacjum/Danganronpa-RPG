@@ -4358,18 +4358,46 @@ body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drp
 }
 
 /* ---- the Class Trial console on mockup B (E73, 12.11.2026; the owner's "wybieram wersje B") ----
-   The status at the top, the mode in the middle, the case schema under it, the management at the bottom: one column,
-   the top and the bottom edged so the middle reads as the console's body. The schema's slot (`[data-drpg-trial-schema]`,
-   E99's) is the console's sibling, outside the region redrawn every second, so the running console is `display:
-   contents` and its three regions and the slot are items of one flex column, set in place by `order`. While a trial
-   runs the slot keeps E99's graph height (clamp(12rem, 30vh, 24rem), its rule in components.css on claude/e97-98), so
-   a mount moves nothing below it; with no trial it is not drawn (the console is one line). The picker's starts wrap as
-   the bar's ops do; a greyed start keeps its title (its reason). Not measured at a table: LIVE-E73-05 (1366x768 and
-   1920x1080, both themes). */
+   While a trial runs: the status at the top, the bar pinned at the bottom, and between them the read-out (the mode and
+   the management, `[data-drpg-trial-read]`, scrolling by itself) beside the case schema's slot (`[data-drpg-trial-schema]`,
+   E99's), which fills the rest of the height; the footer's buttons under it all. The owner (via the coordinator, 12.11):
+   the schema visible in the running console without scrolling, where the modes, Overrule and Objection are run. The slot
+   is the console's sibling, outside the region redrawn every second, so the running console is `display: contents` and
+   its regions and the slot are items of one grid. The window stands the screen's height and 1280 px wide (trial-floor-ui.mjs
+   `consoleWidth`): the body asks for the screen's height (`flex-basis: 100dvh`), so the window grows to the kit frame's
+   own ceiling (the screen less 8 px a side) and the body shrinks into what the header and the footer leave - no rule of
+   the window's own frame (R1357), so a `height` Foundry writes inline undoes nothing. The body is a flex column the grid
+   fills (`flex: 1 1 0`), so the grid is exactly its height and the
+   body has nothing to scroll; the read-out scrolls. Measured in Chromium, 12.11: the frame at `100cqh` under a size
+   container read 0 px, at `100%` the content's 1007 px (the body's height is not definite for a percentage); the
+   flex item is definite. The body is `overflow: hidden` while a trial runs: the grid fills it to a fraction of a pixel
+   (524.09 of 524.09 at 1366x768), which `scrollHeight` rounds up to a 1 px scroll. Under 44rem of body the two columns
+   stack and the frame scrolls instead of the body. Under
+   44rem of body (a narrow screen) the two columns stack. With no trial the console is one
+   line and the slot is not drawn. Measured in Chromium (style harness): round 4's numbers in docs/dev/e73/STATUS.md; at a
+   table: LIVE-E73-05. The picker's starts wrap as the bar's ops do; a greyed start keeps its title (its reason). */
 .drpg-trial-frame {
     display: flex;
     flex-direction: column;
     gap: 8px;
+}
+
+.application.drpg-ui.drpg-panel.drpg-window-trial:has(.drpg-trial-console[data-drpg-trial-running]) .drpg-kit-body {
+    container-type: inline-size;
+    display: flex;
+    flex-direction: column;
+    flex-basis: 100dvh;
+    overflow: hidden;
+}
+
+.drpg-trial-frame:has(> .drpg-trial-console[data-drpg-trial-running]) {
+    display: grid;
+    flex: 1 1 0;
+    min-height: 0;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas: "status status" "read schema" "bar bar";
+    gap: 8px 16px;
 }
 
 .drpg-trial-frame > .drpg-trial-console[data-drpg-trial-running] {
@@ -4377,29 +4405,81 @@ body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drp
 }
 
 .drpg-trial-frame .drpg-trial-top {
-    order: 1;
+    grid-area: status;
     padding-bottom: 6px;
     border-bottom: 1px solid color-mix(in srgb, var(--drpg-bone) 35%, transparent);
 }
 
-.drpg-trial-frame .drpg-trial-middle {
-    order: 2;
+/* The status kept short (round 4, 12.11: under Stained Glass its five lines stood 312 px of a 752 px window at 1366x768,
+   the schema's slot 146): the lead, then the trial's time, the table and the register on one wrapping row, the picker
+   under them, the theme's paragraph margins taken in. */
+.application.drpg-ui.drpg-window-trial .drpg-trial-frame .drpg-trial-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 1.5em;
+}
+
+.application.drpg-ui.drpg-window-trial .drpg-trial-frame .drpg-trial-top > :is(p, div, h4) {
+    margin: 0;
+}
+
+.application.drpg-ui.drpg-window-trial .drpg-trial-frame .drpg-trial-top > :is(h4, .drpg-trial-lead, .drpg-box, .drpg-trial-picker) {
+    flex: 1 0 100%;
+}
+
+.application.drpg-ui.drpg-window-trial .drpg-trial-frame .drpg-trial-top > .drpg-trial-picker {
+    margin-top: 4px;
+}
+
+.drpg-trial-frame .drpg-trial-read {
+    grid-area: read;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 4px;
+}
+
+.drpg-trial-frame .drpg-trial-read > .drpg-trial-bottom {
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid color-mix(in srgb, var(--drpg-bone) 35%, transparent);
 }
 
 .drpg-trial-frame > .drpg-trial-schema {
-    order: 3;
+    grid-area: schema;
     display: none;
+    min-height: 0;
 }
 
 .drpg-trial-frame:has(> .drpg-trial-console[data-drpg-trial-running]) > .drpg-trial-schema {
     display: block;
-    min-height: clamp(12rem, 30vh, 24rem);
+    overflow: auto;
+    border: 1px dashed color-mix(in srgb, var(--drpg-bone) 35%, transparent);
 }
 
-.drpg-trial-frame .drpg-trial-bottom {
-    order: 4;
+.drpg-trial-frame .drpg-trial-controls {
+    grid-area: bar;
     padding-top: 6px;
     border-top: 1px solid color-mix(in srgb, var(--drpg-bone) 35%, transparent);
+}
+
+@container (max-width: 44rem) {
+    .drpg-trial-frame:has(> .drpg-trial-console[data-drpg-trial-running]) {
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto auto clamp(12rem, 30vh, 24rem) auto;
+        grid-template-areas: "status" "read" "schema" "bar";
+    }
+
+    /* Stacked, the frame scrolls and the read-out is as tall as it reads: its `min-height: 0` and its own scroll gave
+       its `auto` row 0 px in a grid with no free space (700x700, 12.11, measured: the row 0 px, the read-out under the
+       slot). */
+    .drpg-trial-frame .drpg-trial-read {
+        min-height: auto;
+        overflow-y: visible;
+    }
 }
 
 .drpg-trial-console .drpg-trial-picker {
@@ -4416,7 +4496,9 @@ body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drp
     font-size: var(--drpg-text-sm);
 }
 
-.drpg-trial-console .drpg-trial-pick[aria-disabled="true"] {
+/* Over Stained Glass's `opacity: 1` for a panel's buttons (`body.drpg-theme-stained-glass .drpg-panel button:not(...)`,
+   0-5-2), which left a greyed start looking pressable under the glass (round 4's shots, 12.11; read in Chromium). */
+.application.drpg-ui.drpg-window-trial .drpg-trial-console .drpg-trial-pick[aria-disabled="true"] {
     opacity: 0.45;
     cursor: not-allowed;
 }

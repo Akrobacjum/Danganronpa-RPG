@@ -8867,8 +8867,16 @@ const INVARIANTS = [
             return {
                 regions,
                 status: [inRegion("status", ".drpg-trial-lead"), inRegion("status", ".drpg-trial-picker")],
-                middle: [inRegion("mode", ".drpg-trial-bar") || !root.querySelector(".drpg-trial-bar"), inRegion("mode", '[data-drpg-console="log"]'),
-                    inRegion("mode", '[data-drpg-console="findings"]')],
+                middle: [inRegion("mode", '[data-drpg-console="log"]'), inRegion("mode", '[data-drpg-console="findings"]')],
+                /* THE COORDINATOR'S LAYOUT FOR B (12.11, the owner: the schema visible in the running console): the status
+                   at the top, the bar pinned at the bottom (its own region, the console's last), and between them the
+                   read-out - the mode and the management - in one column that scrolls by itself (`data-drpg-trial-read`),
+                   the schema's slot beside it. */
+                pinned: [inRegion("bar", ".drpg-trial-bar") || !root.querySelector(".drpg-trial-bar"),
+                    root.querySelector(".drpg-trial-console")?.lastElementChild?.dataset?.drpgTrialRegion === "bar",
+                    Boolean(root.querySelector('[data-drpg-trial-read] [data-drpg-trial-region="mode"]')),
+                    Boolean(root.querySelector('[data-drpg-trial-read] [data-drpg-trial-region="manage"]')),
+                    !root.querySelector('[data-drpg-trial-read] [data-drpg-trial-region="status"], [data-drpg-trial-read] [data-drpg-trial-region="bar"]')],
                 manage: inRegion("manage", ".drpg-trial-vote"),
                 picks: picks.map(b => [b.dataset.drpgModeAction, b.dataset.drpgMode, b.getAttribute("aria-disabled") === "true", Boolean(b.title), b.textContent.trim().length > 0])
             };
@@ -8888,19 +8896,26 @@ const INVARIANTS = [
             sibling: slots[0]?.previousElementSibling?.classList.contains("drpg-trial-console") ?? false,
             notInConsole: !UI.trialConsoleHtml(view(straw)).includes("data-drpg-trial-schema"),
             region: /region:\s*"\.drpg-trial-console"/.test(manage), bodyUsed: /body:\s*trialBodyHtml\(/.test(manage) };
+        /* The window's width (the coordinator: "the window may be wider than 704 px... clamped to what fits at 1366
+           wide"): `consoleWidth` 1280 px while a trial runs (the kit holds it to the screen less 8 px a side), the
+           console's 44rem with none; the console's window asks it. */
+        const widths = typeof UI.consoleWidth === "function" ? [UI.consoleWidth(view(straw)), UI.consoleWidth({ ...view(null), running: false })] : null;
+        const widthAsked = /width:\s*consoleWidth\(view\)/.test(manage);
         const footer = UI.trialFooter({ ...view(null), isDefault: () => false });
         const footActions = [...(footer.secondary ?? []), ...(footer.destructive ?? []), ...(footer.primary ? [footer.primary] : [])].map(b => b.action);
         equal(stableJson({
             regions: open.regions, status: open.status, middle: open.middle, manage: open.manage,
             picks: open.picks.map(p => [p[0], p[1]]), named: open.picks.every(p => p[4]),
             busyGreyed: busy.picks.filter(p => p[1] !== "straw").every(p => p[2] && p[3]), busyMiddle: busy.middle, slot,
+            pinned: open.pinned, busyPinned: busy.pinned, widths, widthAsked,
             footerStarts: footActions.filter(a => ["startTestimony", "startPanic", "startClosing", "zones"].includes(a))
         }), stableJson({
-            regions: ["status", "mode", "manage"], status: [true, true], middle: [true, true, true], manage: true,
+            regions: ["status", "mode", "manage", "bar"], status: [true, true], middle: [true, true], manage: true,
             picks: starts, named: true,
-            busyGreyed: true, busyMiddle: [true, true, true],
+            busyGreyed: true, busyMiddle: [true, true],
+            pinned: [true, true, true, true, true], busyPinned: [true, true, true, true, true], widths: [1280, "console"], widthAsked: true,
             slot: { count: 1, outside: true, empty: true, sibling: true, notInConsole: true, region: true, bodyUsed: true }, footerStarts: []
-        }), "{regions in order; status: [lead, picker]; middle: [bar, log, Findings]; manage: the vote; slot: the schema's one empty slot, right after the console and outside it, the console still the redrawn region and the body built with the slot; picks: each MODE_STARTS start in the picker [action, mode]; named; busyGreyed: every other start greyed with a reason while a Straw Poll runs; footerStarts: mode starts left in the footer}");
+        }), "{regions in order; status: [lead, picker]; middle: [log, Findings]; manage: the vote; pinned: [the bar in the bar region, the bar region last, the mode and the management in the read-out column, neither the status nor the bar in it]; widths: running, none; slot: the schema's one empty slot, right after the console and outside it, the console still the redrawn region and the body built with the slot; picks: each MODE_STARTS start in the picker [action, mode]; named; busyGreyed: every other start greyed with a reason while a Straw Poll runs; footerStarts: mode starts left in the footer}");
     }],
     ["R3661 - the case's ticks at a trial are a GM store no player holds (E99 C3; Q-E99-8): gm-stores.mjs `caseTickStore` is the ledger `caseTicks` under `gmCaseTicks`, a client setting, not in the backup, synced, cut with the trial's group; on a player's engine its write is refused and nothing stored; case-schema.mjs `setCaseTick` asks for a GM", async () => {
         /*

@@ -51,16 +51,27 @@ on the vote's opening card; the GM edits, deletes and marks "Monokuma confirms" 
   "manage" (the Reveal, the vote); the footer no longer holds the mode starts.
 - **The case schema's slot (E99's hook, the coordinator 12.11; claude/e97-98 afeeb68):** one empty
   `<div class="drpg-trial-schema" data-drpg-trial-schema>`, built by trial-floor-ui.mjs `trialBodyHtml` right after
-  `.drpg-trial-console` and outside it, so the console's `keepLive` redraw (every second) never draws over it. Both sit in
-  `.drpg-trial-frame`, one flex column; the running console is `display: contents`, and `order` puts the slot between
-  the mode and the management. While a trial runs the slot reserves E99's graph height, `min-height: clamp(12rem, 30vh,
-  24rem)`, so a mount of that height moves nothing; a mount taller than that still grows it (E99's legend or lines
-  under the graph are not reserved: not measured, E99's markup is not on this branch). With no trial it is not drawn
-  (`:has`, the console is one line). No import of case-trial.mjs: the `mountTrialSchema` call comes with 1.2.109's
-  merge. Measured in Chromium (style harness, 1366 wide): at 768 px high the window's body shows 437 px of 1376, so
-  the management sits below the fold, behind the slot's reserved height; at 1500 px it fits in Monokuma Legacy, not in
-  Stained Glass (owner to see, round 3's page).
-  Its layout facts: R3911, green on 5fc377d.
+  `.drpg-trial-console` and outside it, so the console's `keepLive` redraw (every second) never draws over it. No import
+  of case-trial.mjs: the `mountTrialSchema` call comes with 1.2.109's merge.
+- **The running console's layout (the coordinator's decision, 12.11 ~10:38; the owner: "Schemat ma byc widoczny w class
+  trial na konsoli triala, tam gdzie zarzadzamy trybami/overrule/objection itd"):** while a trial runs the window is
+  1280 px wide (`consoleWidth`, held to the screen less 8 px a side) and the screen's height (the body asks
+  `flex-basis: 100dvh`, the kit frame's ceiling stops it; no rule on the window's own frame, R1357), opened 8 px from the
+  top. Inside: the status at the top (the lead; the time, the table and the register on one row; the mode picker); the
+  read-out (`[data-drpg-trial-read]`: the mode and the management, Key Remnants and the vote) on the left with its own
+  scroll, kept across the redraw by keepLive; the schema's slot on the right, filling the height; the bar
+  (`data-drpg-trial-region="bar"`) pinned under both; the footer's buttons under it. The window's body has nothing to
+  scroll (`overflow: hidden`; its `scrollHeight` is 1 px over under Stained Glass, a rounding). Under 44rem of body the
+  columns stack and the frame scrolls. With no trial: the console's 44rem, one line and the footer, no slot.
+- **Measured in Chromium** (style harness: the module's sheets, no Foundry CSS and no Foundry header; the harness places
+  the window 24 px down, not 8, so its last 8 px pass a 768 px screen there), 12.11, fc05a9d + this round: at 1366x768
+  and 1920x1080, Stained Glass and Monokuma Legacy, EN and PL, a Nonstop Debate, an Objection and a Straw Poll (24
+  cases): the status, the bar, the footer's buttons and the slot's whole box inside the window and the screen in all 24.
+  The slot: 290-322 px tall at 1366x768 under the glass, 406-423 under Legacy; 602-634 and 718-735 at 1920x1080. The
+  read-out scrolls by itself under the glass at 1366x768 (307-338 px more than it shows), not at all under Legacy. Not
+  measured: a real Foundry window (LIVE-E73-05), and E99's schema mounted in the slot.
+- Seen on round 4's shots and fixed: under Stained Glass a greyed mode start stood at full opacity (the glass's panel
+  button rule, 0-5-2, over the picker's); it reads 0.45 now in both themes.
 - Q-E73-1: the scenario is 68-trial-zones. Q-E73-3: the set editor a kit window, the run in the console. Q-E73-4 as
   above. Q-E73-5: the modes are in floor-machine.mjs `MODES`, so E99's `caseModes` and the census have them.
 - A wrong majority in Logic Dive ends the set as a tie does, and shows no truth either (the set stays replayable).
@@ -83,7 +94,9 @@ for the reason named in the commit; green on the commit.
 | e94630a | Merge of origin/claude/fervent-sagan-gme4vt (fa73b601); E99's census renumbered R3659 -> R3910 (the release line's R3659 took the number); R3510 pins trial-zones.mjs and case-summary.mjs; AUDIT 9 items renumbered 488-495 | tiers 0-1 |
 | 5fc377d | Mockup B console (above) | R3911; R1020, R1025, R1036, R1046, R1257 follow the regions |
 | 781b4b9 | The tier-2 "Back up the case, then Restore" test gains its `diveSets` fixture: CI on ec0775f (run 43164287414) and 38654b1 (run 43164772167) failed there, shard 7, the one failure of each | that test by name, red in CI, green here |
-| (this) | The case schema's slot moved out of the redrawn console: `data-drpg-trial-schema` after `.drpg-trial-console` (`trialBodyHtml`), placed in the middle by the frame's CSS, its height reserved while a trial runs | R3911 red before (no `trialBodyHtml`, the slot inside the console), green after; tiers 0-1 1246 passed, 0 failed, 16 skipped, 0 red; scenarios 41, 63, 68, 86, 88 green |
+| fc05a9d | The case schema's slot moved out of the redrawn console: `data-drpg-trial-schema` after `.drpg-trial-console` (`trialBodyHtml`), placed in the middle by the frame's CSS, its height reserved while a trial runs | R3911 red before (no `trialBodyHtml`, the slot inside the console), green after; tiers 0-1 1246 passed, 0 failed, 16 skipped, 0 red; scenarios 41, 63, 68, 86, 88 green |
+
+| (this) | The running console on the coordinator's layout: 1280 px and the screen's height, status at the top, the read-out scrolling beside the schema's slot, the bar pinned at the bottom; probe 08 rows `class-trial--debate`, `class-trial--objection`; the greyed picker under the glass | R3911 red before (regions without "bar", no read-out column, no `consoleWidth`), green after; R1357 red on the first try (a rule on the window's own frame), green after; tiers 0-1 1246 passed, 0 failed, 16 skipped, 0 red; tier 2 by name (E73, E70-T, E99, Testimony, Closing Argument, Objection) 86 green; scenarios 41, 63, 68, 72, 86, 88 green on this round's markup (CSS changed after them, not run again) |
 
 ## Test results
 

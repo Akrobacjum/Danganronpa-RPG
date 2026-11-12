@@ -193,6 +193,14 @@ const DROP_HALL = `const h = globalThis.__probe08hall;
 const SEED_STRAW = SEED_HALL + `
     globalThis.__probe08hall.at = Date.now();
     await game.drpg.startStrawPoll({ question: "Was the library locked from inside?", a: "Inside", b: "Outside" });`;
+/* E73 round 4 (the coordinator, 12.11: shots of mockup B "in a running debate and with an Objection up"): a Nonstop Debate
+   on the probe's hall (`SEED_DEBATE`), and one of its students objecting to another (`SEED_OBJECTION`); DROP_HALL closes
+   the floor and puts the record back. */
+const SEED_DEBATE = SEED_HALL + `
+    globalThis.__probe08hall.at = Date.now();
+    await (await import(\`\${repoUrl}/scripts/trial-floor.mjs\`)).startFloor({ topic: "Who locked the library?" });`;
+const SEED_OBJECTION = SEED_DEBATE + `
+    await (await import(\`\${repoUrl}/scripts/trial-floor.mjs\`)).openObjection(students[0].id, students[1].id);`;
 const SEED_DIVE = `const { diveSetStore } = await import(\`\${repoUrl}/scripts/gm-stores.mjs\`);
     await diveSetStore.patch("probe08set", { name: "The library door", conclusion: "The door was locked from inside", made: Date.now(), questions: [
         { question: "Was the window shut?", a: "Shut", b: "Open", truth: "a" }, { question: "When was the door locked?", a: "At night", b: "In the morning", truth: "a" }] });`;
@@ -225,6 +233,8 @@ export const WINDOWS = [
     // E73 C7: the zone modes' windows - the console while a Straw Poll runs, the picker, a Logic Dive set's editor, the
     // Findings, and Room setup's Scenes tab with the zones picked.
     { id: "class-trial--straw", module: "trial-floor-ui.mjs", before: SEED_STRAW, after: DROP_HALL, perTab: false, call: "m.manageClassTrial()" },
+    { id: "class-trial--debate", module: "trial-floor-ui.mjs", before: SEED_DEBATE, after: DROP_HALL, perTab: false, call: "m.manageClassTrial()" },
+    { id: "class-trial--objection", module: "trial-floor-ui.mjs", before: SEED_OBJECTION, after: DROP_HALL, perTab: false, call: "m.manageClassTrial()" },
     { id: "zone-picker", module: "trial-zones-ui.mjs", before: SEED_HALL + SEED_DIVE, after: DROP_DIVE + DROP_HALL, call: "m.openZonePicker({ mode: \"dive\" })" },
     { id: "dive-editor", module: "trial-zones-ui.mjs", before: SEED_DIVE, after: DROP_DIVE, call: "m.editDiveSet(\"probe08set\")" },
     { id: "findings", module: "trial-zones-ui.mjs", before: SEED_FINDINGS, after: DROP_FINDINGS, call: "m.openFindings()" },

@@ -1272,13 +1272,16 @@ export function trialConsoleHtml(view) {
         }
 
         /* MOCKUP B (E73, 12.11.2026; the owner: "wybieram wersje B", and for E97/E99 "schemat na środku ekranu rozprawy,
-           status na górze, zarządzanie na dole"). Three regions, one under the other: the STATUS at the top - the lead,
-           the trial's time, the table, the register and the one mode picker (`modePickerHtml`, every start of
-           trial-floor.mjs MODE_STARTS); the MODE in the middle - the floor's line or the zone mode's panel, the bar, the
-           evidence log and Findings; the MANAGEMENT at the bottom - the Reveal and the vote - above the footer's buttons.
-           Each region is a `data-drpg-trial-region` (R3911). The case schema stands between the mode and the management,
-           but not in here: this element is the region `keepLive` redraws every second, so the schema's slot is its
-           sibling (`trialBodyHtml`, below), and the stylesheet sets it in place. */
+           status na górze, zarządzanie na dole"; and "Schemat ma byc widoczny w class trial na konsoli triala, tam gdzie
+           zarzadzamy trybami/overrule/objection itd", with the coordinator's layout for it, 12.11). The STATUS at the top
+           - the lead, the trial's time, the table, the register and the one mode picker (`modePickerHtml`, every start of
+           trial-floor.mjs MODE_STARTS); the READ-OUT under it in one column that scrolls by itself
+           (`data-drpg-trial-read`) - the MODE (the floor's line or the zone mode's panel, the evidence log and Findings)
+           and the MANAGEMENT (the Reveal and the vote); the BAR last, pinned at the bottom above the footer's buttons.
+           Each region is a `data-drpg-trial-region` (R3911). The case schema stands beside the read-out, but not in here:
+           this element is the region `keepLive` redraws every second, so the schema's slot is its sibling
+           (`trialBodyHtml`, below), and the stylesheet sets the regions and the slot on one grid. keepLive carries the
+           read-out's scroll across a redraw (live.mjs `capture`, every scrolled node of the region). */
         return `<div class="drpg-trial-console" data-drpg-trial-running>
             <section class="drpg-trial-top" data-drpg-trial-region="status">
             <h4>${game.i18n.localize("DRPG.Floor.sectionTrial")}</h4>
@@ -1290,6 +1293,7 @@ export function trialConsoleHtml(view) {
             ${modePickerHtml(view)}
             </section>
 
+            <div class="drpg-trial-read" data-drpg-trial-read>
             <section class="drpg-trial-middle" data-drpg-trial-region="mode">
             <h4>${floor ? esc(game.i18n.localize(`DRPG.Floor.mode.${floor.mode}`)) : game.i18n.localize("DRPG.Floor.sectionDebate")}</h4>
             ${debateLine}
@@ -1299,7 +1303,6 @@ export function trialConsoleHtml(view) {
             ${closingOf(floor) && floor.mode !== FLOOR_MODES.closing ? `<p>${game.i18n.localize("DRPG.Floor.closing.inExchange")}</p>` : ""}
             ${closingConsole(view)}
             ${!floor && running && progress.closing?.done ? `<p>${game.i18n.localize("DRPG.Floor.closing.already")}</p>` : ""}
-            ${trialBar(view)}
             ${logButton(view)}
             </section>
 
@@ -1312,7 +1315,23 @@ export function trialConsoleHtml(view) {
             ${gateLine}
             </div>
             </section>
+            </div>
+
+            <section class="drpg-trial-controls" data-drpg-trial-region="bar">
+            ${trialBar(view)}
+            </section>
         </div>`;
+}
+
+/**
+ * THE CONSOLE'S WIDTH (E73, 12.11.2026; the coordinator's layout for mockup B: "the window may be wider than 704 px for
+ * this: use the viewport, clamped to what fits at 1366 wide"). While a trial runs, 1280 px: the read-out and the
+ * schema's slot side by side, the kit holding it to the screen less 8 px a side (ui-kit.mjs `kitWidth`), so 1280 at
+ * 1366 and at 1920; with no trial the console's 44rem (E47 C1), one line and the footer. Read when the window opens,
+ * and the window opens again when a trial starts or ends (`trialSignature`).
+ */
+export function consoleWidth(view) {
+    return view?.running ? 1280 : "console";
 }
 
 /**
@@ -1583,8 +1602,11 @@ export async function manageClassTrial() {
     // The frame only (M6; E21 C4): the console's layout is E47's; its footer by roles (`trialFooter`).
     const action = await drpgWindow({
         classes: ["drpg-panel", "drpg-window-trial"],
-        // A fixed width (E47 C1; S12-51, S04-38: it jumped with its content), the text column the whole of it.
-        width: "console",
+        // A fixed width (E47 C1; S12-51, S04-38: it jumped with its content): the console's 44rem with no trial, 1280 px
+        // while one runs (`consoleWidth`, E73's mockup B). A running console stands the screen's height (components.css),
+        // so it opens at the top, 8 px down, the edge the kit holds every window to (ui-kit.mjs `keepInScreen`).
+        width: consoleWidth(view),
+        ...(view.running ? { position: { top: 8 } } : {}),
         title: game.i18n.localize("DRPG.Floor.manageTrial"),
         body: trialBodyHtml(view),
         footer: consoleFooter(view),
