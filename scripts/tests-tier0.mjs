@@ -20751,7 +20751,8 @@ const REGRESSIONS = [
         const roles = [...table.matchAll(/^\s+(\w+): Object\.freeze\(/gm)].map(m => m[1]);
         must(roles.length >= 6, `BUTTON_ROLES reads ${roles.length} role(s) - the table was not found`);
         equal(JSON.stringify(roles), JSON.stringify(["primary", "gmRoute", "close", "cancel", "secondary", "destructive"]), "[BUTTON_ROLES's roles]");
-        const slots = new Set(["primary", "gmRoute", "close", "secondary", "destructive", "default"]);
+        // and `rows`, the footer's layout, no button (E97 C2: ui-kit.mjs `footer.rows: 2`)
+        const slots = new Set(["primary", "gmRoute", "close", "secondary", "destructive", "default", "rows"]);
         const SITE = /\bDialogV2\s*\.\s*(wait|confirm|prompt|query|input)\s*\(|\bnew\s+(?:[\w$]+\.)*DialogV2\s*\(/g;
         const KIT = /\b(?:(?:footerMarkup|footerButtons)\s*\(\s*|footer\s*:\s*)\{/g;
         const keysOf = (blank, open) => {
