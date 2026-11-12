@@ -26,6 +26,7 @@ Counts are changes, one per plural form; a key changed in two areas counts in bo
 | overexplains (T29) | 27 | 25 | 18 (player handbook: starting resources, the Eclipse, Rooms, Voice, Truth Bullets, the messenger's waits and Note, the settings window; EN and PL) | T29, the owner's rule of 12.11.2026, added to docs/text-style.md section 2 |
 | settings | 5 | 5 | 0 | EN14/PL-o (DB10): "Only affects this browser." / "Dotyczy tylko tej przeglądarki."; T29 on two of them |
 | glossary | 22 | 2 | 0 | EN7/DB17 "Search Token" capitalized (glossary search-token); glossary refuse: "Odmów" on two GM buttons |
+| X1 refusals | 7 | 5 | 0 | X1 (confirmed in the pilot) and O8: "You keep your action/Hope" instead of "Nothing was spent"; pairs N28-N30 the model |
 | handbooks: GM-a | 0 | 0 | 67 (Polish handbooks, unfrozen sections) | PL-i/D33c (glossary `gm-a`, scope handbooks) |
 | Polish grammar | 0 | 14 | 7 (Polish handbooks, unfrozen sections: "Class Trialu" -> "Class Trial") | no bracketed gender endings ("zgłosił(a)"); PL-a/DB4 (Class Trial indeclinable); PL-b/DB28 (Eclipse neuter) |
 
@@ -80,6 +81,7 @@ edited unless the row says so.
 | 12.11, run e | e95cf62d and the Polish grammar edits | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run g | 7463785e and the settings endings | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run h | 23ecea60 and the glossary edits | 1230 passed, 0 failed, 16 skipped, 0 red |
+| 12.11, run i | 190142fc and the X1 refusals | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run f | 0a5ea4d3 and the GM-side T29 cuts (the bridge's refusals, the trial hall, the vote's privacy note) | 1230 passed, 0 failed, 16 skipped, 0 red |
 
 ## Tests whose expected wording changed
