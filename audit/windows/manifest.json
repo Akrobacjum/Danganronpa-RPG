@@ -818,6 +818,34 @@
       "file": "investigation--final.html"
     },
     {
+      "id": "chapter-end",
+      "client": "gm",
+      "opener": "chapter.mjs m.openChapterEndDialog()",
+      "captured": true,
+      "title": "End the chapter",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": true
+        },
+        {
+          "action": "ok",
+          "label": "End chapter 1",
+          "default": false
+        }
+      ],
+      "file": "chapter-end.html"
+    },
+    {
       "id": "class-trial",
       "client": "gm",
       "opener": "trial-floor-ui.mjs m.manageClassTrial()",

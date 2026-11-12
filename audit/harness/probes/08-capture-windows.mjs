@@ -177,6 +177,8 @@ export const WINDOWS = [
     { id: "investigation--map-trace", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, click: ".drpg-case-node--trace", call: "m.openInvestigationDashboard()" },
     { id: "case-realize", module: "case-realize.mjs", before: SEED_CASE, after: DROP_CASE, call: "m.openRealization()" },
     { id: "case-body-ask", module: "case-realize.mjs", before: SEED_CASE, after: DROP_CASE, call: "m.askAtBody(globalThis.__probe08case.ch)" },
+    // E64-inv (12.11.2026): End the chapter, as this world has it - for the fit pass, which holds it to 1366x768 unscrolled (style-sweep.mjs STILL).
+    { id: "chapter-end", module: "chapter.mjs", call: "m.openChapterEndDialog()" },
     { id: "gm-panel--case-asks", module: "gm-panel.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, call: "m.openGmPanel()" },
     { id: "class-trial", module: "trial-floor-ui.mjs", call: "m.manageClassTrial()" },
     // E21 C4: the trial's questions a GM opens with no world state (M13's Reveal with a row of its own, End the trial with

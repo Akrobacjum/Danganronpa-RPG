@@ -8471,6 +8471,128 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify({ tabs: ["traces", "key", "final", "who"], first: "nav", pane: [true, livingStudentsForGm().map(a => a.name)] }),
             "{tabs: the Table's tab keys; first: what stands first in its live region; pane: Who has what [its counts table, the students listed by name]}");
     }],
+    ["R3967 - the Investigation bar after the owner's pick (E64-inv; the Investigation review of 12.11.2026, \"Na reszte sie zgadzam\"): the drawn dashboard's footer is Save, New Remnant, Issue Autopsy Truth Bullet, Body found, Realization preview and Cancel - no evidence log, no Clear Faint, no Sweep, no Undo realization; and every road those buttons took is still reachable where it remains: End the chapter's Collect and Clear Faint boxes, the trial console's evidence log, and Undo in the realization's preview while a run's marks stand", async () => {
+        /*
+         * E64-inv, 12.11.2026. The owner's verdict on the Investigation review (STATUS): remove Clear Faint and Sweep from
+         * the bar (End the chapter keeps them), remove the evidence log (the trial console keeps it), tuck Undo realization
+         * away (the realization's preview, behind its question). The footer is read off the drawn dashboard; the roads off
+         * End the chapter's form (`chapterEndForm`, counts chosen here), the trial console's source and the preview's
+         * footer (`realizationFooter`, pure). Red at 235c321: ten actions on the bar, no `realizationFooter`.
+         */
+        needs(env.dialogs(), "the footer is read off the drawn dashboard");
+        const I = await import("./investigation.mjs");
+        const C = await import("./chapter.mjs");
+        const CR = await import("./case-realize.mjs");
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
+        must(open().length === 0, "a dashboard stands open already - nothing here would be read cleanly");
+        const answer = Promise.resolve().then(() => I.openInvestigationDashboard({ view: "table" })).catch(e => `threw: ${e?.message ?? e}`);
+        let bar = null;
+        try {
+            await until(() => open().some(a => a.element?.querySelector("footer.drpg-kit-footer")), 6000).catch(() => {});
+            const footer = open()[0]?.element?.querySelector("footer.drpg-kit-footer");
+            bar = footer ? [...footer.querySelectorAll("button[data-action]")].map(b => b.dataset.action).sort() : null;
+        } finally {
+            for (const a of open()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(3000)]);
+        }
+        const form = document.createElement("div");
+        form.innerHTML = C.chapterEndForm({ chapter: 1, session: 1, day: 1, sweepable: 2, faintable: 3 });
+        const live = name => Boolean(form.querySelector(`input[name="${name}"]:not([disabled])`));
+        const consoleSource = stripComments((await moduleSources()).get("trial-floor-ui.mjs") ?? "");
+        const realizeSource = fnSource(stripComments((await moduleSources()).get("case-realize.mjs") ?? ""), "openRealization");
+        const footerOf = made => (typeof CR.realizationFooter === "function" ? (CR.realizationFooter({ made }).destructive ?? []).map(b => b.action) : "none");
+        must(consoleSource.length > 1000 && realizeSource.length > 100, "a source was not read - this would measure nothing");
+        equal(stableJson({
+            bar,
+            endChapter: [live("sweep"), live("faint")],
+            trialLog: /data-drpg-console="log"/.test(consoleSource) && /openObjectionLog\(\)/.test(consoleSource),
+            undo: [footerOf(0), footerOf(2), /picks === "undo"\)\s*return confirmUndoRealization\(/.test(realizeSource)]
+        }), stableJson({
+            bar: ["autopsy", "bodyFound", "close", "newTrace", "realize", "save"],
+            endChapter: [true, true],
+            trialLog: true,
+            undo: [[], ["undo"], true]
+        }), "{bar: the drawn footer's actions, sorted; endChapter: [Collect, Clear Faint] live with something to take; trialLog: the console's "
+            + "button opens the log; undo: [the preview's destructive actions with no marks, with two, its Undo asks first]}");
+    }],
+    ["R3968 - Who has what is one view (E64-inv; the Investigation review of 12.11.2026): the Table's Who has what pane holds one table and no list under it; each living student's row names their Truth Bullets one by one (the Breakdown column) and their other items by name (an Items column)", async () => {
+        /*
+         * E64-inv, 12.11.2026. Until this the pane drew the counts table and, under it, the Map's list of the same students
+         * by name (`studentsListHtml`). Read off the drawn window against the world: `livingStudentsForGm`, each one's
+         * bullets (truth-bullets.mjs `bulletsOf`) and their other items. Red at 235c321: the list under the table, no
+         * Items column, the Breakdown kinds by count.
+         */
+        needs(env.dialogs(), "the pane is read off the drawn dashboard");
+        needs(world.atLeast("livingStudents"), "the rows are read against the living students");
+        const I = await import("./investigation.mjs");
+        const { livingStudentsForGm } = await import("./chapter.mjs");
+        const { bulletsOf, isTruthBullet } = await import("./truth-bullets.mjs");
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
+        must(open().length === 0, "a dashboard stands open already - nothing here would be read cleanly");
+        const answer = Promise.resolve().then(() => I.openInvestigationDashboard({ view: "table" })).catch(e => `threw: ${e?.message ?? e}`);
+        let read = null;
+        const names = cell => {
+            if (!cell || cell.textContent.trim() === "-") return [];
+            return cell.innerHTML.split(/<br\s*\/?>/).map(part => {
+                const div = document.createElement("div");
+                div.innerHTML = part;
+                return div.firstChild?.textContent?.trim() ?? "";
+            });
+        };
+        try {
+            await until(() => open().some(a => a.element?.querySelector('[data-drpg-pane="who"] table')), 6000).catch(() => {});
+            const pane = open()[0]?.element?.querySelector('.drpg-case-live [data-drpg-pane="who"]');
+            const table = pane?.querySelector("table");
+            const cols = table ? [...table.querySelectorAll("col")].map(c => c.dataset.drpgCol) : [];
+            const at = key => cols.indexOf(key);
+            read = pane ? {
+                tables: pane.querySelectorAll("table").length,
+                list: pane.querySelectorAll(".drpg-case-students").length,
+                rows: [...table.querySelectorAll("tbody tr")].map(tr => [tr.children[at("student")]?.textContent.trim() ?? null,
+                    names(tr.children[at("breakdown")]), names(tr.children[at("items")])])
+            } : null;
+        } finally {
+            for (const a of open()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(3000)]);
+        }
+        const want = livingStudentsForGm().map(actor => [actor.name, bulletsOf(actor).map(i => i.name),
+            [...actor.items].filter(i => !isTruthBullet(i)).map(i => i.name)]);
+        equal(stableJson(read), stableJson({ tables: 1, list: 0, rows: want }),
+            "{tables: tables in the pane; list: a students list under it; rows: [student, their Truth Bullets by name, their other items by name]}");
+    }],
+    ["R3969 - one name for a Remnant's visibility (E64-inv; the Investigation review of 12.11.2026): every select of a Remnant's visibility in investigation.mjs (`name=\"vis\"`) is labelled `DRPG.Investigation.visibility`, the rules' word, never `DRPG.Investigation.difficulty` (the Key plan's scale keeps that one)", async () => {
+        /*
+         * E64-inv, 12.11.2026. New Remnant labelled its visibility "Difficulty" ("Trudność") while Create a Key Remnant here
+         * and the Remnants table said "Visibility" ("Widoczność") for the same field; the rules and the handbook call it
+         * visibility (config.mjs REMNANT_VISIBILITY_LABELS). Read off the source: the label each `<select name="vis">` sits
+         * in. Red at 235c321: New Remnant's read `difficulty`.
+         */
+        const source = stripComments((await moduleSources()).get("investigation.mjs") ?? "");
+        const labels = [...source.matchAll(/localize\("DRPG\.Investigation\.(\w+)"\)\}\s*<select name="vis"/g)].map(m => m[1]);
+        must(labels.length >= 2, "fewer than two labelled visibility selects were read - this would measure nothing");
+        equal(stableJson([...new Set(labels)]), stableJson(["visibility"]), "[the keys labelling every visibility select]");
+    }],
+    ["R3970 - the Investigation's standing hints are short (E64-inv; the Investigation review of 12.11.2026, the owner's text rule of 12.11): the Remnants tab's hint, New Remnant's intro and End the chapter's note on the reveal are each one sentence of at most 20 words in English and in Polish, and End the chapter's closing note, which said again what each box's \"cannot be undone\" says, is gone from both files and from chapter.mjs", async () => {
+        /*
+         * E64-inv, 12.11.2026. The owner: "im krotsze teksty, tym lepiej, przy zachowaniu naturalnosci jezyka codziennego".
+         * Words counted on whitespace; a sentence ends at ". " or the end. Red at 235c321: 26 to 37 words each, two of the three
+         * two sentences, and `DRPG.Chapter.endNote` drawn by `chapterEndForm`.
+         */
+        const files = {};
+        for (const lang of ["en", "pl"]) files[lang] = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
+        const at = (obj, key) => key.split(".").reduce((o, k) => o?.[k], obj);
+        const KEYS = ["DRPG.Investigation.neverOnePerson", "DRPG.Investigation.newTraceIntro", "DRPG.Chapter.revealKeeps"];
+        const read = {};
+        for (const lang of ["en", "pl"]) for (const key of KEYS) {
+            const text = at(files[lang], key);
+            read[`${lang} ${key}`] = typeof text === "string" ? [text.trim().split(/\s+/).length <= 20, text.trim().split(/\.\s+/).length === 1] : "missing";
+        }
+        const chapter = stripComments((await moduleSources()).get("chapter.mjs") ?? "");
+        must(chapter.length > 1000, "chapter.mjs was not read - this would measure nothing");
+        read.endNote = [at(files.en, "DRPG.Chapter.endNote") ?? null, at(files.pl, "DRPG.Chapter.endNote") ?? null, chapter.includes("DRPG.Chapter.endNote")];
+        equal(stableJson(read), stableJson({ ...Object.fromEntries(Object.keys(read).filter(k => k !== "endNote").map(k => [k, [true, true]])), endNote: [null, null, false] }),
+            "{<lang> <key>: [at most 20 words, one sentence]; endNote: [en, pl, drawn by chapter.mjs]}");
+    }],
     ["R3659 - a field of the case schema's editor is read out by its row's name (E97; CI run 43144994202, suite 3/8): editRow names the one field of its cell with the row's label, and leaves a field that already has a name, and a cell of a checkbox's own label, as they are", async () => {
         /*
          * 12.11.2026. Tier 2's "every control in the module's own chrome has a name to be read out" reads whatever is

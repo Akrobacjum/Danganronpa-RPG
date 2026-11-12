@@ -96,7 +96,10 @@ const FIT_SIZES = [[1920, 1080], [1366, 768], [1280, 800], [1024, 768]];
 const FIT_PHONE = [390, 844];
 /* Pages that must not scroll at all at 1366x768 and above (the doneWhen: "Observe fits with no scrolling"); every action
    window probe 08 captures since E68 C12 (one layout for every action, the owner's Q1 and Q4 of round M). */
-const STILL = ["action-observe", "action-search", "action-analyze", "action-tamper", "action-rest", "action-project", "action-dynamic"];
+const STILL = ["action-observe", "action-search", "action-analyze", "action-tamper", "action-rest", "action-project", "action-dynamic",
+    /* E64-inv (12.11.2026; the owner's pick of the Investigation review): End the chapter shows its clock options and the
+       case's backup without a scroll. Red at 235c321: its body scrolled at 1366x768 in both themes. */
+    "chapter-end"];
 /* From E21 C6 on, a page not on the kit fails; before it, it is E21's list (STAGE.md "The measure"). */
 const OUTSIDE_FAILS = false;
 
