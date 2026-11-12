@@ -170,6 +170,13 @@ export const FLAGS = {
      * player's write of it is put back (sheet-audit.mjs `GM_FLAGS`).
      */
     levelUpExperiences: "levelUpExperiences",
+    /**
+     * Character: the Health and Sanity maxima DA39's rule has given this character, `{ hitPoints, stress }` (E64; the
+     * owner's DRPG-D1 of 12.11.2026). Added to by `applyAdvancement` with each statistic point's rise and by the DA39
+     * migration (level-up.mjs `applyDa39Migration`) with the rises it owes; read by `da39Row`, so a maximum the rule
+     * gave is never taken for an old +1 Health or +1 Sanity pick. A GM's flag (sheet-audit.mjs `GM_FLAGS`).
+     */
+    da39Rises: "da39Rises",
     /** Character: has this character already taken their free Move this time of day? */
     freeMoveUsed: "freeMoveUsed",
     /**
@@ -3135,12 +3142,12 @@ export const LEVEL_UP = {
 };
 
 /**
- * WHAT A STATISTIC'S POINT RAISES WITH IT (E64 C6, 12.11.2026; the owner's DA39 of 05.10, audit S18-27; default
- * taken, owner to confirm). The options lost "+1 Health" and "+1 Sanity": a point in Head raises the Sanity maximum
+ * WHAT A STATISTIC'S POINT RAISES WITH IT (E64 C6, 12.11.2026; the owner's DA39 of 05.10, audit S18-27; approved
+ * 12.11 with the migration of past picks). The options lost "+1 Health" and "+1 Sanity": a point in Head raises the Sanity maximum
  * by 1, a point in Body or in Leg the Health maximum by 1, in the same write (level-up.mjs `applyAdvancement`). Keyed
  * by Daggerheart's statistic (`TRAITS.*.dh`): Head is `knowledge`, Body `strength`, Leg `agility`. A world whose
- * students took +1 Health or +1 Sanity before keeps what they took (Q-E64-4): nothing is rewritten, and the next Level
- * Up is the new rule's.
+ * students took +1 Health or +1 Sanity before is brought under this rule once, on the GM's word (level-up.mjs
+ * `offerDa39Migration`; the owner's DRPG-D1 of 12.11.2026, Q-E64-4): the old picks back, a statistic point for each.
  */
 export const LEVEL_UP_TRAIT_RESOURCES = Object.freeze({
     knowledge: Object.freeze({ stress: 1 }),

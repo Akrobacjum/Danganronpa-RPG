@@ -526,6 +526,8 @@ export const SETTINGS = {
     gmDiceLooks: "gmDiceLooks",
     /** The Daggerheart version this GM was last told its rolls are not drawn by the GM on (E08+E28 C12a, roll-draw.mjs). */
     rollDrawWarned: "rollDrawWarned",
+    /** Whether this world's past +1 Health and +1 Sanity Level Up picks were brought under DA39 (E64; level-up.mjs `offerDa39Migration`). */
+    levelUpsMigrated: "levelUpsMigrated",
     /** Whether this browser's GM was told where to start on a world with no season yet (E20 C4, S01-61; season-setup.mjs `offerStartHere`). */
     startHereShown: "startHereShown",
     /** The handbook this browser last had open, read again after an F5 (E51 C8, E51-46; handbooks.mjs `openingBook`). */
@@ -2126,6 +2128,15 @@ export function registerSettings() {
     /* The Daggerheart version this browser's GM was told its players' rolls are not drawn
        by the GM on (E08+E28 C12a, roll-draw.mjs `announceRollDraw`): once per version, as
        the relay warning above. */
+    /* THE DA39 MIGRATION, ONCE PER WORLD (E64; the owner's DRPG-D1 of 12.11.2026, "Rekompensujemy by lvl upy byly
+       spojne"). Set by the primary GM when the pass is applied, or when it finds nothing to do (level-up.mjs
+       `offerDa39Migration`); a world flag, not a GM's own, so a second GM's load asks nothing again. */
+    game.settings.register(MODULE_ID, SETTINGS.levelUpsMigrated, {
+        scope: "world",
+        config: false,
+        type: Boolean,
+        default: false
+    });
     game.settings.register(MODULE_ID, SETTINGS.rollDrawWarned, {
         scope: "client",
         config: false,

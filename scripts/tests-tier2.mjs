@@ -88580,6 +88580,71 @@ const SCENARIOS = [
             + "size, the recorded GM's size]; [a project of 3 for a tool raised to Tier 3, then the same recorded as the GM's: crossed, the tool still broken]; "
             + `the GMs told why): ${stableJson(read)}`);
     }],
+    ["E64 DA39 migration - past +1 Health and +1 Sanity picks are read off a stamped sheet's maxima, taken back and handed out as statistic points on an offer limited to statistics; past Head, Body and Leg points get their rise; a second pass finds nothing; a pick of another option on that offer is refused", async () => {
+        /*
+         * E64, the owner's DRPG-D1 of 12.11.2026 ("Rekompensujemy by lvl upy byly spojne"; "Akceptuje nowe E64": the
+         * proposal (a) and (b)). A Level Up writes its rises straight onto the sheet and counts `advances`, so no pick is
+         * recorded; a sheet the module set up (`initCharacter`: Health 4, Sanity 6 and the season's stamp `sheetAtStart`)
+         * shows its old picks as the maxima above those. One student's sheet, stamped here: Health max 6 with 6 marks (two
+         * old Health picks), Sanity max 7 (one old Sanity pick), and Body and Head each a point above the stamp (points no
+         * rise went with). Read: the plan's row, the sheet after the pass, the offer it left (its picks, limited to
+         * statistics), a second plan, and the GMs' answer to a player's picks on that offer with a new experience among
+         * them. Red before this commit: level-up.mjs has no plan and no pass.
+         */
+        needs(env.primaryGm(), "the pass and the offers are the primary GM's");
+        const [student] = cast(1);
+        needs(world.ownedByPlayer(student), "the offer is a player's to answer");
+        const L = await import("./level-up.mjs");
+        const present = typeof L.da39MigrationPlan === "function" && typeof L.applyDa39Migration === "function";
+        ok(present, "level-up.mjs has no DA39 migration");
+        if (!present) return;
+        const { handleAdvancement } = await import("./bridge-runs-acts.mjs");
+        const { offerStore } = await import("./gm-stores.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const R = "system.resources", T = "system.traits";
+        const putBack = sheetAsFound(student, [`${R}.hitPoints.max`, `${R}.hitPoints.value`, `${R}.stress.max`, `${R}.stress.value`,
+            `${T}.strength.value`, `${T}.knowledge.value`, `flags.${MODULE_ID}.${FLAGS.sheetAtStart}`, `flags.${MODULE_ID}.${FLAGS.da39Rises}`]);
+        const rowWas = foundry.utils.deepClone(offerStore.get(student.id) ?? null);
+        const migratedWas = game.settings.get(MODULE_ID, SETTINGS.levelUpsMigrated);
+        const read = {};
+        try {
+            const traits = Object.fromEntries(["agility", "strength", "finesse", "instinct", "presence", "knowledge"]
+                .map(key => [key, Number(student._source.system.traits?.[key]?.value) || 0]));
+            await trustedWrite(student, { [`${R}.hitPoints.max`]: 6, [`${R}.hitPoints.value`]: 6, [`${R}.stress.max`]: 7, [`${R}.stress.value`]: 0,
+                [`${T}.strength.value`]: traits.strength + 1, [`${T}.knowledge.value`]: traits.knowledge + 1,
+                [`flags.${MODULE_ID}.${FLAGS.sheetAtStart}`]: { traits, experiences: {}, at: Date.now(), levelUpsMarked: true },
+                [`flags.${MODULE_ID}.${FLAGS.da39Rises}`]: null }, { reason: "gmRuling" });
+            await sheetAuditIdle();
+            const plan = await L.da39MigrationPlan();
+            const row = plan.find(entry => entry.actorId === student.id) ?? null;
+            read.row = row ? [row.hpOld, row.sanOld, row.hpRetro, row.sanRetro, row.points, row.hpMax, row.stressMax] : null;
+            await L.applyDa39Migration(plan.filter(entry => entry.actorId === student.id));
+            await sheetAuditIdle();
+            await settle();
+            const s = student._source.system.resources;
+            read.sheet = [s.hitPoints.max, s.hitPoints.value, s.stress.max, s.stress.value];
+            const offer = L.standingOffers(student).at(-1) ?? null;
+            read.offer = offer ? [L.offerPicks(offer), offer.only ?? null] : null;
+            read.again = (await L.da39MigrationPlan()).some(entry => entry.actorId === student.id);
+            read.done = game.settings.get(MODULE_ID, SETTINGS.levelUpsMigrated);
+            const out = offer ? await handleAdvancement({ actorId: student.id, offerId: offer.id,
+                picks: [{ option: "experienceNew", name: "SUITE E64 DA39" }, { option: "trait", trait: "strength" }, { option: "trait", trait: "knowledge" }] },
+                ownerOf(student), {}) : null;
+            read.refused = out?.refused ?? null;
+        } finally {
+            if (rowWas) await offerStore.patch(student.id, rowWas); else if (offerStore.has(student.id)) await offerStore.drop(student.id);
+            await game.settings.set(MODULE_ID, SETTINGS.levelUpsMigrated, migratedWas);
+            await putBack();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ row: [2, 1, 1, 1, 3, 5, 7], sheet: [5, 5, 7, 0], offer: [3, "trait"], again: false, done: true,
+            refused: "that offer is for statistics only" }),
+            "[the plan's row: old Health picks, old Sanity picks, Health and Sanity rises owed to past points, the points handed out, the new maxima]; "
+            + "[the sheet: Health max, its marks, Sanity max, its marks]; [the offer's picks, what it is limited to]; a second plan names the student; "
+            + "the world marked done; the GMs' answer to a new experience on that offer");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

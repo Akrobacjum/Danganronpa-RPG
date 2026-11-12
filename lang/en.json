@@ -4139,6 +4139,23 @@
       "whichTrait": "Which statistic?",
       "raisesHealth": "also +1 to the Health maximum",
       "raisesSanity": "also +1 to the Sanity maximum",
+      "da39": {
+        "title": "Level Ups under the new rule",
+        "intro": "Level Ups no longer offer +1 Health or +1 Sanity: a point in Head raises the Sanity maximum, a point in Body or Leg the Health maximum. These students' sheets were read for the old picks - the maxima above the starting 4 Health and 6 Sanity - and for points in Head, Body and Leg that raised nothing. Apply takes the old picks back, hands each student one statistic point per pick to place on their sheet, and adds the rises the points earn:",
+        "handNote": "A maximum you raised by hand reads like an old pick. Check the list before you apply; Cancel changes nothing and asks again at the next load.",
+        "apply": "Apply",
+        "health": "{n} Health max",
+        "sanity": "{n} Sanity max",
+        "points": {
+          "one": "{n} statistic point to place",
+          "other": "{n} statistic points to place"
+        },
+        "noPlayer": "no player owns this student, so give the points with your own Level Up",
+        "toPlayer": {
+          "one": "Level Ups follow the new rule now: your +1 Health or +1 Sanity pick was taken back. You have {n} statistic point to place - press the button beside your name on your sheet.",
+          "other": "Level Ups follow the new rule now: your +1 Health and +1 Sanity picks were taken back. You have {n} statistic points to place - press the button beside your name on your sheet."
+        }
+      },
       "whichExperience": "Which experience?",
       "newExperienceName": "New experience",
       "newExperiencePlaceholder": "a word or a sentence about who they are",

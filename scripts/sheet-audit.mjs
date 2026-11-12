@@ -157,7 +157,7 @@ import { box, roleButton } from "./ui-kit.mjs";
  * `notInClass` since E24 C3a (08.11.2026; R1454, 30-security's forgery): a player who set it on their own student
  * would leave every ballot, Level Up and incident's cast the GMs build from monokuma.mjs `studentActors`.
  */
-const GM_FLAGS = [...["deceased", "monocub", "silencedChapter", "advances", "sheetAtStart", "levelUpExperiences", "lootTrace",
+const GM_FLAGS = [...["deceased", "monocub", "silencedChapter", "advances", "sheetAtStart", "levelUpExperiences", "da39Rises", "lootTrace",
     "swungWeapon", "betrayalWindow", "monokuma", "notInClass"].map(key => FLAGS[key]),
     /* The stashes a student has found (vault-store.mjs `VAULT_FLAGS.found`, written by the GMs' `resolveStashSearch`), since E16
        part 2 C3 (design-notes D10): its owner could write it, no judgement read it (`kindOf` answered null), and

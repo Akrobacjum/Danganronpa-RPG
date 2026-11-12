@@ -740,7 +740,7 @@ The GM decides who picks each Level Up. If it is you, you are told and the Level
 | Increase one experience by +1 |
 | Add a new experience worth +2 |
 
-The same option may be taken more than once on a Reinforced Level Up.
+The same option may be taken more than once on a Reinforced Level Up. If you took +1 Health or +1 Sanity before this rule, the GM may bring your sheet in line: those picks are taken back and you get the same number of statistic points to place, with the rises they bring.
 
 ### The Final Trial
 

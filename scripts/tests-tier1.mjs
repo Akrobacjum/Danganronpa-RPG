@@ -49734,6 +49734,35 @@ const INVARIANTS = [
         }), stableJson({ gmOnly: true, newNonce: true, keepsBy: true, told: true, thrownRoad: true, drawnRoad: true, drawnRecords: true }),
         "a Loaded Die that did not hold is not given back on one of its roads");
     }],
+    ["R3963 - the DA39 migration's row is read off the sheet alone (E64; the owner's DRPG-D1 of 12.11.2026): level-up.mjs `da39Row` takes old Health and Sanity picks as the maxima above STARTING's 4 and 6, less the rises DA39 already gave (`da39Rises`), never below 0; owes Head, Body and Leg points since the season's stamp their DA39 rise, less those given; hands out one point per old pick; a sheet with no stamp owes no rise; `offerList` keeps an offer's `only: \"trait\"` and nothing else under that name", async () => {
+        /*
+         * E64, 12.11.2026. A pure reading: stand-in sheets, no world. Red before this commit: level-up.mjs exports no
+         * `da39Row`.
+         */
+        const L = await import("./level-up.mjs");
+        ok(typeof L.da39Row === "function", "level-up.mjs has no DA39 migration row");
+        if (typeof L.da39Row !== "function") return;
+        const row = args => { const r = L.da39Row(args); return [r.hpOld, r.sanOld, r.hpRetro, r.sanRetro, r.points, r.hpMax, r.stressMax]; };
+        const snapshot = { strength: 0, agility: 1, knowledge: 0 };
+        equal(stableJson({
+            plain: row({ hpMax: 4, stressMax: 6, traits: { strength: 0, agility: 1, knowledge: 0 }, snapshot }),
+            oldPicks: row({ hpMax: 6, stressMax: 7, traits: { strength: 0, agility: 1, knowledge: 0 }, snapshot }),
+            retro: row({ hpMax: 4, stressMax: 6, traits: { strength: 1, agility: 2, knowledge: 1 }, snapshot }),
+            given: row({ hpMax: 6, stressMax: 7, traits: { strength: 1, agility: 2, knowledge: 1 }, snapshot, rises: { hitPoints: 2, stress: 1 } }),
+            noStamp: row({ hpMax: 6, stressMax: 6, traits: { strength: 3 }, snapshot: null }),
+            below: row({ hpMax: 3, stressMax: 5, traits: {}, snapshot: {} }),
+            offers: L.offerList({ offers: [{ id: "a", kind: "standard", extra: 2, only: "trait" }, { id: "b", kind: "standard", only: "hp" }] })
+                .map(offer => [offer.id, offer.only ?? null])
+        }), stableJson({
+            plain: [0, 0, 0, 0, 0, 4, 6],
+            oldPicks: [2, 1, 0, 0, 3, 4, 6],
+            retro: [0, 0, 2, 1, 0, 6, 7],
+            given: [0, 0, 0, 0, 0, 6, 7],
+            noStamp: [2, 0, 0, 0, 2, 4, 6],
+            below: [0, 0, 0, 0, 0, 3, 5],
+            offers: [["a", "trait"], ["b", null]]
+        }), "a DA39 migration row read the old picks, the rises owed or the points handed out wrongly");
+    }],
 ];
 
 /**

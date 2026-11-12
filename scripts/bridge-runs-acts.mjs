@@ -168,6 +168,11 @@ export async function handleAdvancement(payload, sender, ctx) {
     if (picks.some(p => !LEVEL_UP_OPTIONS[p?.option])) {
         return { refused: "a pick names something that is not an option" };
     }
+    /* AN OFFER OF STATISTIC POINTS TAKES STATISTICS (E64; the DA39 migration, level-up.mjs `applyDa39Migration`): its
+       picker draws that option alone, and a packet carrying another is refused here, the offer standing. */
+    if (offer.only === "trait" && picks.some(p => p.option !== "trait")) {
+        return { refused: "that offer is for statistics only" };
+    }
 
     /* Bounded on arrival as well as caught on the player's screen (level-up.mjs):
        a packet from an older client, or a forged one, must not spend the offer on

@@ -4492,6 +4492,27 @@
       "whichTrait": "Która statystyka?",
       "raisesHealth": "także +1 do maksimum Health",
       "raisesSanity": "także +1 do maksimum Sanity",
+      "da39": {
+        "title": "Level Upy według nowej zasady",
+        "intro": "Level Upy nie dają już +1 Health ani +1 Sanity: punkt w Head podnosi maksimum Sanity, punkt w Body albo Leg maksimum Health. Odczytano karty tych uczniów: stare wybory - maksima ponad startowe 4 Health i 6 Sanity - oraz punkty w Head, Body i Leg, które niczego nie podniosły. Zastosuj cofa stare wybory, daje każdemu uczniowi jeden punkt statystyki za każdy wybór do rozdania na karcie i dodaje to, co dają punkty:",
+        "handNote": "Maksimum podniesione przez ciebie ręcznie wygląda jak stary wybór. Sprawdź listę przed zastosowaniem; Anuluj niczego nie zmienia i zapyta znowu przy następnym wczytaniu.",
+        "apply": "Zastosuj",
+        "health": "{n} do maksimum Health",
+        "sanity": "{n} do maksimum Sanity",
+        "points": {
+          "one": "{n} punkt statystyki do rozdania",
+          "few": "{n} punkty statystyki do rozdania",
+          "many": "{n} punktów statystyki do rozdania",
+          "other": "{n} punktu statystyki do rozdania"
+        },
+        "noPlayer": "tego ucznia nie prowadzi żaden gracz, więc daj punkty własnym Level Upem",
+        "toPlayer": {
+          "one": "Level Upy działają teraz według nowej zasady: twój wybór +1 Health albo +1 Sanity został cofnięty. Masz {n} punkt statystyki do rozdania - naciśnij przycisk obok swojego imienia na karcie.",
+          "few": "Level Upy działają teraz według nowej zasady: twoje wybory +1 Health i +1 Sanity zostały cofnięte. Masz {n} punkty statystyki do rozdania - naciśnij przycisk obok swojego imienia na karcie.",
+          "many": "Level Upy działają teraz według nowej zasady: twoje wybory +1 Health i +1 Sanity zostały cofnięte. Masz {n} punktów statystyki do rozdania - naciśnij przycisk obok swojego imienia na karcie.",
+          "other": "Level Upy działają teraz według nowej zasady: twoje wybory +1 Health i +1 Sanity zostały cofnięte. Masz {n} punktu statystyki do rozdania - naciśnij przycisk obok swojego imienia na karcie."
+        }
+      },
       "whichExperience": "Które doświadczenie?",
       "newExperienceName": "Nowe doświadczenie",
       "newExperiencePlaceholder": "słowo albo zdanie o tym, kim są",

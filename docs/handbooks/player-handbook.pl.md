@@ -740,7 +740,7 @@ GM decyduje, kto wybiera każdy Level Up. Jeśli ty, dowiadujesz się o tym, a p
 | Zwiększ jedno doświadczenie o +1 |
 | Dodaj nowe doświadczenie warte +2 |
 
-Przy Reinforced Level Up to samo można wziąć więcej niż raz.
+Przy Reinforced Level Up to samo można wziąć więcej niż raz. Jeśli przed tą zasadą wziąłeś +1 Health albo +1 Sanity, GM może wyrównać twoją kartę: te wybory zostają cofnięte, a ty dostajesz tyle samo punktów statystyki do rozdania, razem z tym, co one dają.
 
 ### Final Trial
 

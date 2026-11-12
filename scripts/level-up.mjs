@@ -186,7 +186,7 @@ export function offerList(row) {
     if (Array.isArray(row.offers)) {
         return row.offers.filter(offer => typeof offer?.id === "string" && offer.id && LEVEL_UP[offer.kind]?.picks)
             .map(offer => ({ id: offer.id, kind: offer.kind, extra: wholeCount(offer.extra), deferred: wholeCount(offer.deferred),
-                at: Number(offer.at) || 0 }));
+                at: Number(offer.at) || 0, ...(offer.only === "trait" ? { only: "trait" } : {}) }));
     }
     return LEVEL_UP[row.kind]?.picks ? [{ id: LEGACY_OFFER, kind: row.kind, extra: 0, deferred: 0, at: Number(row.at) || 0 }] : [];
 }
@@ -240,8 +240,12 @@ export async function recordOffer(actorId, offer) {
         if (!LEVEL_UP[asked.kind]?.picks) return null;
         await offerStore.whenHydrated();
         const row = offerStore.get(actorId);
+        /* `only: "trait"`: an offer of statistic points alone, the DA39 migration's (E64; `applyDa39Migration`), which
+           the picker draws with that option alone and the GMs hold a player's picks to (bridge-runs-acts.mjs
+           `handleAdvancement`). Recorded on the primary only: a second GM's offer goes through the bridge, which carries
+           none. */
         added = { id: foundry.utils.randomID(), kind: asked.kind, extra: wholeCount(asked.extra), deferred: wholeCount(asked.deferred),
-            at: Date.now() };
+            at: Date.now(), ...(asked.only === "trait" ? { only: "trait" } : {}) };
         await offerStore.patch(actorId, listFields(row, [...offerList(row), added]));
     }
     await tellOwners(actorId);
@@ -592,7 +596,7 @@ export async function openAdvancement(actor, kind = "standard", { extraPicks = 0
         // A prompt the game waits on: kept above the sheet the player compares it with (stacking.mjs; E23 C5a).
         prompt: true,
         // The GM's window says for whom it is; a player's own picker is their own character's.
-        body: buildContent(picks, experiences, why, asPlayer ? null : actor.name),
+        body: buildContent(picks, experiences, why, asPlayer ? null : actor.name, { only: asPlayer ? offer.only ?? null : null }),
         footer: {
             primary: {
                 action: "apply",
@@ -655,7 +659,7 @@ export async function openAdvancement(actor, kind = "standard", { extraPicks = 0
  *                               "For {name}: {reason}" once and the intro does not repeat the reason; null
  *                               for a player's own picker, which keeps the reason in its intro
  */
-function buildContent(picks, experiences, reasons, forName = null) {
+function buildContent(picks, experiences, reasons, forName = null, { only = null } = {}) {
     const why = reasons.map(key => game.i18n.localize(key)).join(" ");
     const intro = game.i18n.format(
         picks === 1 ? "DRPG.Advance.introOne" : "DRPG.Advance.introMany",
@@ -671,7 +675,7 @@ function buildContent(picks, experiences, reasons, forName = null) {
         <fieldset class="drpg-advance-pick" data-index="${i}">
             ${picks > 1 ? `<legend>${game.i18n.format("DRPG.Advance.choice", { n: i + 1 })}</legend>` : ""}
             <select name="pick.${i}.option" data-pick="${i}" aria-label="${game.i18n.localize("DRPG.Advance.whichImprovement")}">
-                ${Object.entries(LEVEL_UP_OPTIONS)
+                ${Object.entries(LEVEL_UP_OPTIONS).filter(([key]) => !only || key === only)
                     .map(([key, opt]) => `<option value="${key}"${key === "experienceUp" && !experiences.length ? " disabled" : ""}>${proseOf(opt, "label")}</option>`)
                     .join("")}
             </select>
@@ -826,8 +830,8 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
     for (const pick of picks) {
         switch (pick.option) {
             /*
-             * NO "+1 HEALTH" OR "+1 SANITY" ANY MORE (E64 C6, 12.11.2026; the owner's DA39; default taken, owner to
-             * confirm). They were options until 1.2.105; a statistic's point raises a maximum instead - Head the
+             * NO "+1 HEALTH" OR "+1 SANITY" ANY MORE (E64 C6, 12.11.2026; the owner's DA39, approved 12.11 with the
+             * migration of past picks, `applyDa39Migration`). They were options until 1.2.105; a statistic's point raises a maximum instead - Head the
              * Sanity's, Body and Leg the Health's (`LEVEL_UP_TRAIT_RESOURCES`), counted here into the same rises.
              * A pick naming either old option is no option: refused above with the rest (`LEVEL_UP_OPTIONS`).
              */
@@ -938,6 +942,12 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
                 const recorded = flagsHeldNow(actor).getFlag(MODULE_ID, FLAGS.levelUpExperiences);
                 update[`flags.${MODULE_ID}.${FLAGS.levelUpExperiences}`] =
                     [...new Set([...(Array.isArray(recorded) ? recorded.filter(id => typeof id === "string") : []), ...added])];
+            }
+            /* WHAT DA39 GAVE, WRITTEN DOWN (E64; the owner's DRPG-D1 of 12.11.2026): the maxima a statistic's point
+               raised, added to `da39Rises`, so the migration (`da39Row`) never takes a rise of the rule for an old pick. */
+            if (hpUp || stressUp) {
+                const given = flagsHeldNow(actor).getFlag(MODULE_ID, FLAGS.da39Rises) ?? {};
+                update[`flags.${MODULE_ID}.${FLAGS.da39Rises}`] = { hitPoints: wholeCount(given.hitPoints) + hpUp, stress: wholeCount(given.stress) + stressUp };
             }
             const taken = from(`flags.${MODULE_ID}.${FLAGS.advances}`) + 1;
             update[`flags.${MODULE_ID}.${FLAGS.advances}`] = taken;
@@ -1244,3 +1254,178 @@ async function askWhoPicks(rows) {
         rejectClose: false
     });
 }
+
+/* ==========================================================================
+ * THE DA39 MIGRATION (E64; the owner's DRPG-D1 of 12.11.2026)
+ * --------------------------------------------------------------------------
+ * The owner: "co z graczami ktorzy juz rozdali level up w maks health/sanity? Trzeba to jakos zmigrowac" and
+ * "Rekompensujemy by lvl upy byly spojne"; the proposal accepted as written ("Akceptuje nowe E64"). A world played
+ * before DA39 holds +1 Health and +1 Sanity picks, and statistic points that raised no maximum. No pick is recorded:
+ * `applyAdvancement` writes its rises onto the sheet and counts `advances`. A sheet the module set up
+ * (`initCharacter`: Health STARTING.hp, Sanity STARTING.stress, and the season's stamp `sheetAtStart`) shows the old
+ * picks as the maxima above those, and the points since the stamp as the statistics above it. A maximum a GM raised by
+ * hand reads the same, so the pass is shown to the GM first and applied only on the GM's word (`offerDa39Migration`).
+ * ========================================================================== */
+
+/**
+ * One sheet's row, pure (R3963): `hpMax`, `stressMax`, `traits` (Daggerheart's statistic keys) as the GMs hold them,
+ * `snapshot` the stamp's statistics (null for none) and `rises` the `da39Rises` the rule gave already. Old picks are the
+ * maxima above STARTING less those rises, never below 0, and each is handed out as one statistic point; the points since
+ * the stamp in a statistic of `LEVEL_UP_TRAIT_RESOURCES` owe their rise, less what was given. Answers the counts and
+ * the maxima after.
+ */
+export function da39Row({ hpMax = 0, stressMax = 0, traits = {}, snapshot = null, rises = null } = {}) {
+    const whole = value => Math.max(0, Math.trunc(Number(value) || 0));
+    const given = { hitPoints: whole(rises?.hitPoints), stress: whole(rises?.stress) };
+    const hpOld = whole(Number(hpMax) - STARTING.hp - given.hitPoints);
+    const sanOld = whole(Number(stressMax) - STARTING.stress - given.stress);
+    let hpOwed = 0, sanOwed = 0;
+    if (snapshot && typeof snapshot === "object") {
+        for (const [key, rise] of Object.entries(LEVEL_UP_TRAIT_RESOURCES)) {
+            const points = whole((Number(traits?.[key]) || 0) - (Number(snapshot[key]) || 0));
+            hpOwed += points * whole(rise.hitPoints);
+            sanOwed += points * whole(rise.stress);
+        }
+    }
+    const hpRetro = whole(hpOwed - given.hitPoints);
+    const sanRetro = whole(sanOwed - given.stress);
+    return { hpOld, sanOld, hpRetro, sanRetro, points: hpOld + sanOld,
+        hpMax: Number(hpMax) - hpOld + hpRetro, stressMax: Number(stressMax) - sanOld + sanRetro };
+}
+
+/** A student's row as the GMs hold the sheet, or null for one the module did not set up (no stamp) or with nothing to change. */
+async function da39RowOf(actor) {
+    const { numberHeld, flagsHeldNow } = await import("./sheet-audit.mjs");
+    const flags = flagsHeldNow(actor);
+    const stamp = flags.getFlag(MODULE_ID, FLAGS.sheetAtStart);
+    if (!stamp?.traits || flags.getFlag(MODULE_ID, FLAGS.monokuma)) return null;
+    const traits = Object.fromEntries(Object.keys(LEVEL_UP_TRAIT_RESOURCES)
+        .map(key => [key, numberHeld(actor, `system.traits.${key}.value`) ?? 0]));
+    const row = da39Row({ hpMax: numberHeld(actor, "system.resources.hitPoints.max"), stressMax: numberHeld(actor, "system.resources.stress.max"),
+        traits, snapshot: stamp.traits, rises: flags.getFlag(MODULE_ID, FLAGS.da39Rises) });
+    return row.hpOld || row.sanOld || row.hpRetro || row.sanRetro ? { actorId: actor.id, name: actor.name, ...row } : null;
+}
+
+/** The pass as it would run now, a row per student that changes: read only. A GM's. */
+export async function da39MigrationPlan() {
+    if (!game.user?.isGM) return [];
+    const rows = [];
+    for (const actor of game.actors ?? []) {
+        if (actor.type !== "character") continue;
+        const row = await da39RowOf(actor);
+        if (row) rows.push(row);
+    }
+    return rows;
+}
+
+/** A row's change in the table's words: "-2 Health max, +1 Sanity max, 3 statistic points". */
+function da39Words(row) {
+    const parts = [];
+    const net = (old, retro, key) => {
+        const delta = retro - old;
+        if (delta) parts.push(game.i18n.format(key, { n: delta > 0 ? `+${delta}` : `${delta}` }));
+    };
+    net(row.hpOld, row.hpRetro, "DRPG.Advance.da39.health");
+    net(row.sanOld, row.sanRetro, "DRPG.Advance.da39.sanity");
+    if (row.points) parts.push(plural("DRPG.Advance.da39.points", { n: row.points }));
+    return parts.join(", ");
+}
+
+/**
+ * The pass, on the primary GM: each row read again in the student's queue (`meansWrite`) and written in one write -
+ * the maxima, the marks held to them, and the rises now given (`da39Rises`) - then the points handed out as one offer
+ * limited to statistics (`only: "trait"`), its owner told. A student no player owns gets no offer; the GM's card says
+ * so, for the GM's own Level Up. The world is marked done, and the GMs are told who changed and how. Answers the rows
+ * written.
+ */
+export async function applyDa39Migration(rows) {
+    if (!isPrimaryGm()) return [];
+    const { meansWrite, numberHeld, flagsHeldNow } = await import("./sheet-audit.mjs");
+    const { trustedWrite } = await import("./resource-guard.mjs");
+    const { whisperToOwner, whisperToGms, esc } = await import("./utils.mjs");
+    const { SETTINGS } = await import("./settings.mjs");
+    const done = [];
+    for (const asked of Array.isArray(rows) ? rows : []) {
+        const actor = game.actors.get(asked?.actorId ?? "");
+        if (!actor) continue;
+        const row = await meansWrite(actor, async () => {
+            const now = await da39RowOf(actor);
+            if (!now) return null;
+            const given = flagsHeldNow(actor).getFlag(MODULE_ID, FLAGS.da39Rises) ?? {};
+            const whole = value => Math.max(0, Math.trunc(Number(value) || 0));
+            const update = {
+                "system.resources.hitPoints.max": now.hpMax,
+                "system.resources.stress.max": now.stressMax,
+                [`flags.${MODULE_ID}.${FLAGS.da39Rises}`]: { hitPoints: whole(given.hitPoints) + now.hpRetro, stress: whole(given.stress) + now.sanRetro }
+            };
+            const hp = numberHeld(actor, "system.resources.hitPoints.value") ?? 0;
+            const san = numberHeld(actor, "system.resources.stress.value") ?? 0;
+            if (hp > now.hpMax) update["system.resources.hitPoints.value"] = now.hpMax;
+            if (san > now.stressMax) update["system.resources.stress.value"] = now.stressMax;
+            await trustedWrite(actor, update, { reason: "levelUp" });
+            return now;
+        });
+        if (!row) continue;
+        let offered = false;
+        if (row.points && ownerIdsOf(actor).length) {
+            offered = Boolean(await recordOffer(actor.id, { kind: "standard", extra: row.points - 1, only: "trait" }));
+            if (offered) {
+                await whisperToOwner(actor, `<p><strong>${game.i18n.localize("DRPG.Advance.offerTitle")}</strong></p><p>${
+                    plural("DRPG.Advance.da39.toPlayer", { n: row.points })}</p>`, { veiled: true });
+            }
+        }
+        done.push({ ...row, offered });
+        log(`DA39 migration: ${actor.name} - Health max ${row.hpMax}, Sanity max ${row.stressMax}, ${row.points} statistic point(s)${row.points && !offered ? " not offered (no player)" : ""}.`);
+    }
+    await game.settings.set(MODULE_ID, SETTINGS.levelUpsMigrated, true);
+    if (done.length) {
+        const items = done.map(row => `<li>${esc(row.name)}: ${esc(da39Words(row))}${row.points && !row.offered
+            ? ` - ${esc(game.i18n.localize("DRPG.Advance.da39.noPlayer"))}` : ""}</li>`).join("");
+        await whisperToGms(`<p><strong>${esc(game.i18n.localize("DRPG.Advance.da39.title"))}</strong></p><ul>${items}</ul>`)
+            .catch(err => error("Could not tell the GMs what the DA39 migration changed", err));
+    }
+    return done;
+}
+
+/**
+ * On the primary GM's load (migrate.mjs `runMigrationOnLoad`, after the data migration's pass): once per world, the
+ * plan; with nothing to do the world is marked done, awaited; else the window (`offerDa39Migration`) opens and is not
+ * waited on. Answers the plan's length, or null where nothing was asked.
+ */
+export async function startDa39Migration() {
+    if (!isPrimaryGm()) return null;
+    const { SETTINGS } = await import("./settings.mjs");
+    if (game.settings.get(MODULE_ID, SETTINGS.levelUpsMigrated)) return null;
+    const plan = await da39MigrationPlan();
+    if (!plan.length) {
+        await game.settings.set(MODULE_ID, SETTINGS.levelUpsMigrated, true);
+        return 0;
+    }
+    void offerDa39Migration(plan).catch(err => error("The DA39 migration's window could not open", err));
+    return plan.length;
+}
+
+/**
+ * The window: each student's change listed, applied on the GM's word (`applyDa39Migration`); Cancel writes nothing, and
+ * the next load asks again. `plan` read now when none is given. Answers the rows written, or null.
+ */
+export async function offerDa39Migration(plan = null) {
+    if (!isPrimaryGm()) return null;
+    plan ??= await da39MigrationPlan();
+    if (!plan.length) return null;
+    const { esc } = await import("./utils.mjs");
+    const items = plan.map(row => `<li>${esc(row.name)}: ${esc(da39Words(row))}</li>`).join("");
+    const answer = await drpgWindow({
+        title: game.i18n.localize("DRPG.Advance.da39.title"),
+        classes: ["drpg-panel"],
+        body: `<p>${esc(game.i18n.localize("DRPG.Advance.da39.intro"))}</p><ul>${items}</ul><p class="drpg-help">${
+            esc(game.i18n.localize("DRPG.Advance.da39.handNote"))}</p>`,
+        footer: {
+            primary: { action: "apply", label: game.i18n.localize("DRPG.Advance.da39.apply"), callback: () => "apply" },
+            close: { role: "cancel", action: "later", callback: () => "later" }
+        },
+        rejectClose: false
+    });
+    return answer === "apply" ? applyDa39Migration(plan) : null;
+}
+
