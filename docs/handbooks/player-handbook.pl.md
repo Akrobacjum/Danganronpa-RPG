@@ -393,6 +393,7 @@ Hope jest twój. Masz najwyżej **6**. Wraca, gdy rzuty idą po twojej myśli (+
 | **Burst** | 4 | Twoja następna akcja nic nie kosztuje - cała akcja, ile by nie kosztowała. |
 | **Relief** | 4 | Weź Short Rest od razu: bez akcji, bez oznaczonego pokoju i nie zużywa tego z tej pory dnia. |
 | **Loaded Die** | 6 | Przy następnym rzucie jedna z dwóch kości, losowo, jest ustawiona na 12, a druga rzucana. Bardzo wysoki wynik, a krytyk tylko, jeśli i ta druga wypadnie 12. Gdy ustawiona jest kość Despair, rzut wychodzi z Despair. |
+| **Bribe** | 1 | Zaproponuj Monocubowi 1 Hope za przysługę, którą ustalicie między sobą. Płacisz tylko wtedy, gdy Monocub przyjmie, do jego sakiewki; propozycja bez odpowiedzi wygasa w następnej porze dnia. Nikt inny się nie dowie. |
 
 Call wpływający na rzut - Support, Experience, Ultimate, Resolve, Loaded Die - kupuje się w przeglądarce GMa, która pobiera Hope: bez połączonego GMa nie da się go kupić i nic nie zostaje wydane (odczytane z kodu, niezmierzone dla Calla). Czeka na twój następny rzut i jest zużyty w chwili rzutu. Call nałożony na ciebie po otwarciu okna rzutu nie wchodzi do tego rzutu: okno to mówi, a Call czeka na twój następny - chyba że ci utrudnia (utrudnienie albo ujemna premia) i nałożono go ponad minutę przed rzutem, który rzuca przeglądarka GMa: taki rzut go liczy, czy okno go pokazuje, czy nie. Sprint i Burst idą do zapasu i trwają do końca pory dnia.
 
@@ -424,6 +425,7 @@ Każdy twój rzut zakończony Despair zasila pulę Monokumy, który cię pilnuje
 | Public Announcement | 6 | Wszyscy wezwani do jednego pokoju na początek następnej pory dnia. Macie czas do tej pory; gdzie będziecie, gdy się zacznie, zależy od was. |
 | Motive | 6 | Żądanie, termin w porach dnia i cena zignorowania go - ogłoszone wszystkim słowo w słowo. Odliczanie wisi na panelu zdarzeń. |
 | New Rule | 9 | Jedna nowa zasada killing game wybrana przez Monokumę. Zasady lądują na zakładce Zasady każdego arkusza. |
+| Bounty | 1 | Tajne, tylko dla Monocubów i GM-ów: jedno Hope dla pierwszego Monocuba, którego Confusion przeszkodzi wskazanemu uczniowi. Despair schodzi w następnej porze dnia. |
 
 ### Overflow
 
@@ -760,7 +762,7 @@ Ktoś wśród was mógł zbudować to miejsce. **Final Truth Remnants** - jeden 
 
 ### Gra Monocubem
 
-Gdy twoja śmierć stanie się jawna dla stołu, GMowie mogą cię zaprosić do dalszej gry jako **Monocub**. Okno pokazuje ci **Zasadę Monocuba** - *Nigdy nie mówisz żywym tego, co wiedzą tylko zmarli: kto cię zabił, jak, ani co widzisz od teraz.* - i co grozi za jej złamanie: za pierwszym razem rozmowa z GM-em, za drugim odebranie roli Monocuba, za trzecim opuszczenie gry. **Przyjmuję Zasadę** robi z ciebie Monocuba; **Nie teraz** zamyka zaproszenie, a GMowie się o tym dowiadują. Ten sam aktor, ten sam arkusz; panel akcji staje się **Move**, **Confusion**, **Redeem** i **Ask for Hope**.
+Gdy twoja śmierć stanie się jawna dla stołu, GMowie mogą cię zaprosić do dalszej gry jako **Monocub**. Okno pokazuje ci **Zasadę Monocuba** - *Nigdy nie mówisz żywym tego, co wiedzą tylko zmarli: kto cię zabił, jak, ani co widzisz od teraz.* - i co grozi za jej złamanie: za pierwszym razem rozmowa z GM-em, za drugim odebranie roli Monocuba, za trzecim opuszczenie gry. **Przyjmuję Zasadę** robi z ciebie Monocuba; **Nie teraz** zamyka zaproszenie, a GMowie się o tym dowiadują. Ten sam aktor, ten sam arkusz; panel akcji staje się **Move**, **Confusion**, **Redeem**, **Ask for Hope**, **Tinker** i **Ghost Bet**.
 
 - Zaczynasz z 0 Hope, z pełnym Health i Sanity, i masz tyle akcji co żyjący, niezraniony uczeń - Wounded nigdy nie odbiera Monocubowi akcji. Twoje rzuty widzą wszyscy, którzy stoją w twoim pokoju.
 - **Poruszasz się swobodnie.** Przejście do połączonego pokoju nie kosztuje cię akcji ani Free Move, także podczas Eclipse; pokój, w którym trwa morderstwo, cię nie wpuszcza, słowami Pieczęci.
@@ -769,6 +771,11 @@ Gdy twoja śmierć stanie się jawna dla stołu, GMowie mogą cię zaprosić do 
 - **Jeden uczeń, dwa ruchy dziennie.** Uczeń może być celem jednego ruchu Monocuba na porę dnia i dwóch na dzień gry, licząc wszystkie Monocuby przy stole; ruch nieudany też się liczy.
 - **Redeem** kosztuje 1 akcję i daje ci +1 Hope, raz na dzień gry; nie przy pełnym Hope i nie wtedy, gdy zaciemnienie blokuje Hope. Gdy jest do użycia, panel zdarzeń mówi *Redeem czeka*.
 - **Ask for Hope** nic nie kosztuje: GMowie dostają kartę i dają ci 1 albo 2 Hope albo odpowiadają *Nie teraz*. Jedna prośba naraz i nie przy pełnym Hope.
+- **Tinker** kosztuje **1 akcję i 1 Hope**: Confusion wymierzone w projekt. Jawny, nieukończony projekt w twoim pokoju, nad którym w tej porze dnia pracował żywy uczeń; 12 lub więcej przesuwa go o krok do przodu (Pomóż) albo do tyłu (Przeszkódź), nigdy aż do ukończenia, a krytyk oddaje ci Hope. Pokój widzi, że rzucasz i w którą stronę, nigdy przy czym.
+- **Twoja sakiewka.** Hope, które płaci ci Bribe, Bounty albo Ghost Bet, trafia do sakiewki trzymanej dla ciebie przez GM-ów. Liczy się razem z Hope z arkusza do limitu, cena jest płacona najpierw z niej, a twój panel ją pokazuje.
+- **Bribe** to propozycja żywego ucznia: 1 Hope za przysługę, którą ustalicie między sobą. Przyjmujesz ją albo odrzucasz w oknie lub na swoim panelu; Hope trafia do sakiewki tylko wtedy, gdy przyjmiesz, a propozycja bez odpowiedzi wygasa w następnej porze dnia. Nikt inny się nie dowie. Przyjęty Bribe sprawia też, że twoje następne Confusion albo Tinker w tej porze dnia jest ruchem na zlecenie, który kosztuje tylko akcję.
+- **Bounty** to tajemnica GM-ów: jedno Hope dla pierwszego Monocuba, którego Confusion przeszkodzi wskazanemu uczniowi i trafi. Twój panel pokazuje otwarte; wygasają w następnej porze dnia.
+- **Ghost Bet** nic nie kosztuje: wskaż ucznia, którego według ciebie skaże werdykt. Trafny werdykt na tę osobę płaci do twojej sakiewki 4 Hope, jeśli postawisz przed ogłoszeniem ciała, 3 po nim, 2 w rozprawie przed głosowaniem, 1 w trakcie głosowania; po jego zamknięciu nie stawiasz. Jeden zakład do werdyktu, żaden, dopóki trwa twoja własna sprawa, ani jako świadek zbrodni. Karta nie nazywa nikogo poza twoim własnym wyborem.
 - Kafel, którego teraz nie da się użyć, jest przygaszony i mówi dlaczego (*Redeem wykorzystany dziś. Wraca jutro.*, *Masz pełne Hope.*, *Twoje Ask for Hope wciąż czeka na GM-a.*).
 - Po błędnym werdykcie Monocub ze sprawy tej śmierci i każdy świadek zbrodni tego rozdziału dostaje kartę: do następnej rozprawy nie używaj swoich ruchów na korzyść ani na szkodę sprawcy, jego projektów, Bribe ani Ghost Bet. Karta nikogo nie nazywa.
 - Gdy zginiesz, twoje ciało zostaje tam, gdzie leży twój token, gdy twoja śmierć stanie się jawna, jako kafel z obrazkiem twojej postaci, znacznikiem śmierci na nim i twoim imieniem pod nim („Ciało: {name}”), i to, co miało przy sobie, przeszukuje się tam; jako Monocub odchodzisz od niego. Każde ciało znika, gdy kończy się Class Trial; potem to, co miałeś przy sobie, przeszukuje się obok twojego tokenu.

@@ -45,11 +45,13 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
 
 | C19 | Part B on the panel and the GMs' flags: monocub.mjs `cubPanelLines` (each Bribe waiting with Accept / Refuse, each open Bounty, the Monocub's own Ghost Bet, which now rides in the copy), drawn by sheet.mjs under the tiles; `bribeFlags` whispers the GMs when an accepted Bribe comes from this chapter's Blackened ("killer") or is the pair's third this chapter ("third", `cubStore`'s `pairs`). Not done: the HUD, the Events card and the Students columns for part B (the Students Hope column shows the purse since C14) | tier 2 "the Monocub's panel says part B's state ..." (new; red at 43c5362); R1157 changed on purpose |
 
+| C20 | Part B's texts: the player handbook's Monocub section (Tinker, the purse, Bribe, Bounty, the move to order, Ghost Bet) and its Call tables (Bribe; Bounty), the brochure's line, the GM handbook's Monocub paragraph and Despair Call table; EN and PL. Not done: the known-leaks row for the weak signal (a move with no sheet Hope drop tells a console the purse paid) and the README paragraph - README is outside this line; both under "For the coordinator" | R3809 (new; red at 4dc8125) |
+
 | C10 | A Monocub sees every room the class found (gm-stores.mjs `fogSectionFor`, `cubFogSection`): its owner is sent, under the Monocub's own row, the rooms every student found, the Mastermind's row out, the rows joined so nobody's finds are named; tier 2 "a Monocub's owner is sent every room the class found ..." (new; red at base). And a Monocub's crossing (28.10, 04.11, 06.11): no Move, no action and no Eclipse count, the Eclipse too (`crossingVerdict`, `chargeRoute`), the connected rooms still holding it; the room of a running incident refused to it on a GM judging a player's step with the Seal's code and words (`roomSealed`, `DRPG.Calls.sealedBlocked`), a GM's own move and a Monocub already inside not refused | tier 2 "a Monocub crosses to a connected room with no Move and no action, and the room of a running murder refuses it ..." (new; red at base: noBudget, the murder room let through); R558 changed on purpose |
 
 ## In progress
 
-- Part A done but C8's "Silence now" and D101 (see below). Part B: C13-C19 done (C19 in part). Next: C19's shots, C20 (texts), C21 (end review), then E91.
+- Part A done but C8's "Silence now" and D101 (see below). Part B: C13-C19 done (C19 in part). C19's shots (round 4) and C20 done. Next: C21 (end review), then E91.
 
 ## Next, in order
 
@@ -79,6 +81,10 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
   and the row's field: "Foundry v14 keeps a user's permissions, BROADCAST_AUDIO among them, in the user document every
   connected client holds; the owner chose that the trial mutes every ordinary dead student, a death nobody has found
   among them (TR30 = 2)." Until then the row's check fails once E72 is registered as shipped.
+
+- Part B's weak signal for known-leaks.json and the README (C20; the plan's line): "a Monocub's move with no Hope drop on
+  its sheet tells a console that watches the sheet that its purse paid" - a row and a paragraph this line does not write
+  (README is outside it; the known-leaks row needs a detector a scenario runs). Proposed wording kept here.
 
 ## CI
 

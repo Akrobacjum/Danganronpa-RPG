@@ -393,6 +393,7 @@ Hope is yours. You hold at most **6**. It comes back when rolls go your way (+1 
 | **Burst** | 4 | Your next action costs nothing - the whole action, however many it would have cost. |
 | **Relief** | 4 | Take a Short Rest right now: no action, no marked room, and it does not use up this time of day's. |
 | **Loaded Die** | 6 | On the next roll one of the two dice, at random, is set to 12 and the other is thrown. A very high total, and a critical only if that other die comes up 12 too. When it is the Despair die that is set, the roll comes out with Despair. |
+| **Bribe** | 1 | Offer a Monocub 1 Hope for a favour you two agree. You pay only if the Monocub accepts, into its purse; an offer nobody answered lapses at the next time of day. Nobody else is told. |
 
 A Call that affects a roll - Support, Experience, Ultimate, Resolve, Loaded Die - is bought on the GM's browser, which takes the Hope: with no GM connected it cannot be bought, and nothing is spent (read in the code, not measured for a Call). It waits on your next roll and is spent the moment you throw. One armed on you after your roll window opened is not part of that roll: the window says so, and it waits for your next one - unless it hinders you (a disadvantage or a negative bonus) and was armed more than a minute before a roll the GM's browser throws, which counts it whether the window shows it or not. Sprint and Burst bank instead and last until the time of day ends.
 
@@ -424,6 +425,7 @@ Every roll of yours that lands with Despair feeds the pool of the Monokuma who w
 | Public Announcement | 6 | Everyone is called to one room at the start of the next time of day. You have until then; where you are when it starts is up to you. |
 | Motive | 6 | A demand, a deadline in times of day, and the price of ignoring it - announced to everyone word for word. The countdown sits on the Event panel. |
 | New Rule | 9 | One new killing game rule of Monokuma's choice. Rules land on the Rules tab of every sheet. |
+| Bounty | 1 | Secret, for the Monocubs and the GMs only: one Hope to the first Monocub whose Confusion hinders the named student. The Despair is taken at the next time of day. |
 
 ### The overflow
 
@@ -760,7 +762,7 @@ Somebody among you may have built this place. The **Final Truth Remnants** - one
 
 ### Playing a Monocub
 
-Once your death is known to the table, the GMs may invite you to play on as a **Monocub**. A window shows you **the Monocub Rule** - *You never tell the living what only the dead know: who killed you, how, or what you see from now on.* - and what follows if it is broken: the first time a talk with the GM, the second time the Monocub role is taken away, the third time you leave the game. **I accept the Rule** makes you a Monocub; **Not now** closes the invitation, and the GMs are told. Same actor, same sheet; the action panel becomes **Move**, **Confusion**, **Redeem** and **Ask for Hope**.
+Once your death is known to the table, the GMs may invite you to play on as a **Monocub**. A window shows you **the Monocub Rule** - *You never tell the living what only the dead know: who killed you, how, or what you see from now on.* - and what follows if it is broken: the first time a talk with the GM, the second time the Monocub role is taken away, the third time you leave the game. **I accept the Rule** makes you a Monocub; **Not now** closes the invitation, and the GMs are told. Same actor, same sheet; the action panel becomes **Move**, **Confusion**, **Redeem**, **Ask for Hope**, **Tinker** and **Ghost Bet**.
 
 - You start with 0 Hope and all your Health and Sanity left, and have the same action budget as an unwounded living student - Wounded never takes one from a Monocub. Your rolls are shown to everyone standing in your room.
 - **You move freely.** Crossing to a connected room costs you no action and no Free Move, in an Eclipse too; the room where a murder is under way refuses you, with the Seal's words.
@@ -769,6 +771,11 @@ Once your death is known to the table, the GMs may invite you to play on as a **
 - **One student, two moves a day.** A student can be the target of one Monocub move per time of day and two per game day, counted over every Monocub at the table; a move that fails counts too.
 - **Redeem** costs 1 action and gives you +1 Hope, once a game day; not while your Hope is full or the darkening blocks Hope. While it is free to use, the Event panel says *Redeem is waiting*.
 - **Ask for Hope** costs nothing: the GMs get a card and give you 1 or 2 Hope, or answer *Not now*. One ask at a time, and not while your Hope is full.
+- **Tinker** costs **1 action and 1 Hope**: Confusion aimed at a project. A public, unfinished project in your room that a living student worked on this time of day; 12 or more moves it one step forward (Help) or back (Hinder), never all the way to finished, and a critical gives your Hope back. The room sees you roll and which way, never at what.
+- **Your purse.** Hope a Bribe, a Bounty or a Ghost Bet pays you goes into a purse the GMs keep for you. It counts with your sheet's Hope toward the limit, a price is paid from it first, and your panel shows it.
+- **A Bribe** is a living student's offer: 1 Hope for a favour you two agree. You accept or refuse it in a window or on your panel; the Hope reaches your purse only if you accept, and an offer you leave lapses at the next time of day. Nobody else is told. A Bribe you accept also makes your next Confusion or Tinker this time of day a move to order, which costs only its action.
+- **A Bounty** is the GMs' secret: one Hope to the first Monocub whose Confusion hinders the named student and lands. Your panel lists the open ones; they lapse at the next time of day.
+- **Ghost Bet** costs nothing: name the student you think the verdict will sentence. A right verdict on them pays your purse 4 Hope if you bet before the body was announced, 3 after it, 2 in the trial before the vote, 1 while the vote is open; no bet once it has closed. One bet until the verdict, none while your own case is open or as a witness of the crime. The card names nobody but your own choice.
 - A tile that cannot be used now is dimmed and says why (*You've used Redeem today. It comes back tomorrow.*, *Your Hope is full.*, *Your Ask for Hope is still waiting for a GM.*).
 - After a wrong verdict, a Monocub of the case's death and every witness of the chapter's crime gets a card: until the next trial, do not use your moves for or against the one who did it, their projects, Bribes or Ghost Bets. It names nobody.
 - When you die, your body stays where your token lies once your death is known to the table, as a tile with your character's picture, the dead marker over it and your name under it ("{name}'s body"), and what it carried is searched there; as a Monocub you walk away from it. Every body is taken away when a Class Trial ends; after that, what you carried is searched beside your token.

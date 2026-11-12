@@ -8046,6 +8046,29 @@ const REGRESSIONS = [
             "a Monocub threshold reads the sheet's Hope alone ([the functions of monocub.mjs that read it, CUB_BLOCKS reads it])");
     }],
 
+    ["R3809 - the handbooks and the brochure tell part B of the Monocub: the player texts name Tinker, Ghost Bet and the Bribe, the player handbook the purse and the Bounty, the GM handbook all five and the move to order, in English and in Polish (E72 C20; S18-63)", async () => {
+        /*
+         * E72 C20, 12.11.2026; audit S18-63, the plan's C20. Part B gave the Monocub Tinker, a purse, the Bribe a living
+         * student offers it, the GMs' Bounty, a move to order and the Ghost Bet (C13-C18); the texts stopped at part A.
+         * Read off the six files the module serves: each names what its reader meets - the player handbook all of them
+         * (the purse in its language's word), the brochure the tiles and the Bribe, the GM handbook all of them and the
+         * move to order. Red at 4dc8125: none named past Redeem and Ask for Hope.
+         */
+        const read = {};
+        for (const lang of ["en", "pl"]) {
+            const doc = async name => fetch(`/modules/${MODULE_ID}/docs/handbooks/${name}.${lang}.md`).then(r => (r.ok ? lfText(r) : ""));
+            const [player, brochure, gm] = [await doc("player-handbook"), await doc("player-brochure"), await doc("gm-handbook")];
+            must(player.length > 10000 && brochure.length > 1000 && gm.length > 10000, `the ${lang} handbooks were not read - this would measure nothing`);
+            const purse = lang === "en" ? /\bpurse\b/ : /sakiewk/;
+            const order = lang === "en" ? /move to order/ : /na zlecenie/;
+            const has = (text, words) => words.every(word => (word instanceof RegExp ? word.test(text) : text.includes(word)));
+            read[lang] = [has(player, ["Tinker", "Ghost Bet", "Bribe", "Bounty", purse]), has(brochure, ["Tinker", "Ghost Bet", "Bribe"]),
+                has(gm, ["Tinker", "Ghost Bet", "Bribe", "Bounty", purse, order])];
+        }
+        equal(JSON.stringify(read), JSON.stringify({ en: [true, true, true], pl: [true, true, true] }),
+            "a text stops at part A of the Monocub ({language: [the player handbook, the brochure, the GM handbook name part B]})");
+    }],
+
     ["R302 - a private roll's whisper is written first and in its own try, its mode after and apart, and CONST.DICE_ROLL_MODES and core.rollMode are used nowhere (S02-68)", async () => {
         /*
          * E33 C11 (audit S02-68; the plan's V7). Until 1.2.69 private-rolls.mjs wrote a roll's
