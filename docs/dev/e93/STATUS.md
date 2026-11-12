@@ -32,9 +32,9 @@ All nine killed. Not run as mutants: the draw's room check in roll-draw.mjs (sce
   payment, not its size (roll-draw.mjs: a ticket is one write). A console paying one under Toll rolls all the same.
 - A Reroll of a Facilities roll: not measured. Nothing in E93 replays a use after a Reroll; what reroll.mjs does with a
   roll of `actionKey` "facility" was not read or run in this round.
- Read on 12.11 (reroll.mjs `replayAction`, not run): a roll of that action key has no `case`, so a Reroll falls to
-  `default` - the GMs are told `DRPG.Reroll.noReplay` and what the first roll did stands - whose words ("this roll left no lasting
-  effect") are not true of these actions, which did leave one.
+ Built since (E74 C7, the coordinator's item 2): reroll.mjs hands these keys to infiltrate-reroll.mjs, which replays
+  each from the facts the GMs' run wrote on the roll's row; E74-T6 and E74-T7 (tier 2), red at a123ff1. What stands when
+  the new roll is lower: a door forced, a lock picked, a room action's effects - each said on its line.
 
 ## Test results
 

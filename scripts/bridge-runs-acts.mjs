@@ -136,8 +136,19 @@ export async function handleFacilityUse(payload, sender) {
         await tellUse(actor, offer, success, lines);
         debug(`${actor.name} used the room action "${offer.label}" in ${place.room} (${offer.source}): ${success ? "success" : "failure"}.`);
         Hooks.callAll("drpgFacilityUsed", { actor, source: offer.source, key: offer.key, success });
+        if (offer.source === "gm") await factsForReroll(payload.rollId, sender, actor.id, "facility", { facilityKey: offer.key, facilitySuccess: success });
         return { reply: { success, source: offer.source, label: offer.label, lines } };
     });
+}
+
+/**
+ * The facts a Reroll's replay reads (infiltrate-reroll.mjs), on the GMs' row of the roll `rollId` names (action-pipeline.mjs
+ * `noteFactOfRoll`, which keeps them only on that sender's roll of that character for `key`). Nothing where no roll is named.
+ */
+async function factsForReroll(rollId, sender, actorId, key, facts) {
+    if (typeof rollId !== "string" || !rollId || !sender?.id) return false;
+    const { noteFactOfRoll } = await import("./action-pipeline.mjs");
+    return noteFactOfRoll(rollId, { by: sender.id, actorId, actions: [key] }, facts);
 }
 
 /**
@@ -147,7 +158,7 @@ export async function handleFacilityUse(payload, sender) {
  * critical, none on a miss - are granted by this GM (actions.mjs `grantFreeMoves`, the reason `infiltrate`, a GM's alone).
  * Answers `{ reply: { moves } }`.
  */
-export async function handleDash(payload) {
+export async function handleDash(payload, sender) {
     const actor = game.actors.get(payload.actorId ?? "");
     if (!actor) return { refused: "no such character" };
     const { INFILTRATE } = await import("./config.mjs");
@@ -162,6 +173,7 @@ export async function handleDash(payload) {
     // A tail on the dasher below the Dash's total is lost (E69 C4; tail-gm.mjs `tailsAfterDash`).
     const { tailsAfterDash } = await import("./tail-gm.mjs");
     await tailsAfterDash(actor, total, Boolean(payload.isCritical));
+    await factsForReroll(payload.rollId, sender, actor.id, "dash", { dashMoves: moves });
     debug(`${actor.name} dashed: ${moves} free crossing(s).`);
     return { reply: { moves } };
 }
@@ -176,6 +188,9 @@ export async function handleDoorShut(payload, sender) {
     const { shutDoor } = await import("./doors-gm.mjs");
     const out = await shutDoor({ actor, total: payload.total, user: sender });
     if (out.refused) return { refused: out.refused };
+    const { barricadeKey } = await import("./doors-gm.mjs");
+    const { gmPlaceOf } = await import("./movement.mjs");
+    await factsForReroll(payload.rollId, sender, actor.id, "shut", { barricadeKey: barricadeKey(gmPlaceOf(actor)?.scene?.id ?? "", out.room) });
     return { reply: { room: out.room } };
 }
 
@@ -183,12 +198,13 @@ export async function handleDoorShut(payload, sender) {
  * FORCE THE DOOR (E74 C3, 12.11.2026; doors-gm.mjs). What holds the door is read on this GM, the roll off the GMs' record of
  * it. Answers `{ reply: { forced, held } }`.
  */
-export async function handleDoorForce(payload) {
+export async function handleDoorForce(payload, sender) {
     const actor = game.actors.get(payload.actorId ?? "");
     if (!actor) return { refused: "no such character" };
     const { forceDoor } = await import("./doors-gm.mjs");
     const out = await forceDoor({ actor, room: payload.room, total: payload.total, isCritical: payload.isCritical, withHope: payload.withHope });
     if (out.refused) return { refused: out.refused };
+    await factsForReroll(payload.rollId, sender, actor.id, "force", { forceRoom: payload.room, forced: Boolean(out.forced) });
     return { reply: { forced: out.forced, held: out.held } };
 }
 
@@ -201,13 +217,15 @@ export function pickRolls(actor) {
 }
 
 /** PICK THE LOCK (E74 C4, 12.11.2026; doors-gm.mjs). Answers `{ reply: { opened, held } }`. */
-export async function handleDoorPick(payload) {
+export async function handleDoorPick(payload, sender) {
     const actor = game.actors.get(payload.actorId ?? "");
     if (!actor) return { refused: "no such character" };
     const { pickLock } = await import("./doors-gm.mjs");
     const out = await pickLock({ actor, room: payload.room, total: payload.total, isCritical: payload.isCritical, withHope: payload.withHope,
         coverTotal: payload.coverTotal, coverCritical: payload.coverCritical });
     if (out.refused) return { refused: out.refused };
+    await factsForReroll(payload.rollId, sender, actor.id, "pick", { pickRoom: payload.room, opened: Boolean(out.opened),
+        coverTotal: Number(payload.coverTotal) || 0, coverCritical: Boolean(payload.coverCritical) });
     return { reply: { opened: out.opened, held: out.held } };
 }
 
@@ -218,6 +236,7 @@ export async function handleWatchDeclare(payload, sender) {
     const { declareWatch } = await import("./watch-gm.mjs");
     const out = await declareWatch({ actor, total: payload.total, isCritical: payload.isCritical, userId: sender?.id ?? null });
     if (out.refused) return { refused: out.refused };
+    await factsForReroll(payload.rollId, sender, actor.id, "keepWatch", { watchKept: Boolean(out.kept) });
     return { reply: { kept: out.kept } };
 }
 
@@ -242,6 +261,7 @@ export async function handleTailStart(payload, sender) {
     const out = await startTail({ tailer, target, total: payload.total, isCritical: payload.isCritical,
         unseenTotal: payload.unseenTotal, unseenCritical: payload.unseenCritical, userId: sender?.id ?? null });
     if (out.refused) return { refused: out.refused };
+    await factsForReroll(payload.rollId, sender, tailer.id, "tail", { tailTargetId: target.id });
     return { reply: { seen: out.seen } };
 }
 

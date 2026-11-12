@@ -1072,6 +1072,9 @@ async function replayAction(actor, bookmark, after, done, rerolled = null, befor
             // A Frisk's hand (E80 part 2 C4): the cover is a supporting roll and keeps no row.
             case "rummage": return await settleRummage(actor, bookmark, after, done);
             case "frisk": return settleForce(done);
+            // The Infiltrate tile's rolls and a Facilities roll (E69, E74 C7, E93): their replays are a file of their own.
+            case "dash": case "tail": case "shut": case "force": case "pick": case "keepWatch": case "facility":
+                return await (await import("./infiltrate-reroll.mjs")).settleInfiltrate(actor, bookmark, after, done);
             default:
                 // A trait rolled straight from the sheet, or an action from
                 // before this bookmark existed. The dice are the whole result.

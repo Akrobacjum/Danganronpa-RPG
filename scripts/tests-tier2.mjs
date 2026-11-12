@@ -88528,6 +88528,158 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ drawn: [true, false], after: [false, true, true] }),
             "{drawn: [the broken room's box, another room's]; after: [broken, locked to the rules, the lock flag kept]} - Room setup's Broken column");
     }],
+    ["E74-T6 - a Reroll of a Dash, a tail, a barricade, a forced door, a picked lock and a watch replaces what the first roll did, and never tells the GMs the roll left nothing (scripts/reroll.mjs `replayAction`; E69 C7, E74 C7): a Dash of no crossings rerolled into 19 grants two; a tail's strength and a barricade's are the new total; a door the first roll did not force and a lock it did not pick are forced and picked by the new one; a watch the first roll kept none of is kept, and one it kept is let go by a miss; no line is the no-replay line", async () => {
+        /*
+         * E69 and E74 C7, 12.11.2026 (the coordinator's item 2). Each case: the state the first roll left, written as the GMs'
+         * runs write it, the GMs' row of the roll (`playerRollBookmark`) with the facts those runs write, and the Reroll made
+         * on this GM as the player's (`rerollOnGm`) onto new faces (`rerollableRoll`: 11 and 8, 19 with Hope; for the watch let
+         * go, 2 and 1). Rooms as E74-T2's for the door and the lock. Put back: everything. Red at a123ff1: no `case` for these
+         * keys - every one falls to `default` and says the no-replay line.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls are a connected player's, as Foundry names only those");
+        const R = await import("./reroll.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./movement.mjs");
+        const D = await import("./doors-gm.mjs");
+        const { freeMovesLeft } = await import("./actions.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        const { player, actor } = await playerInRoom();
+        const other = game.actors.find(a => a.type === "character" && a.id !== actor.id && !a.getFlag(MODULE_ID, FLAGS.monokuma)
+            && canvas?.scene?.tokens?.some(t => t.actorId === a.id));
+        must(other, "no second student on the scene on screen - this would measure nothing");
+        const scene = canvas.scene;
+        const token = scene.tokens.find(t => t.actorId === actor.id);
+        const rooms = M.allRooms(scene);
+        must(rooms.length >= 2, "the scene on screen has fewer than two rooms");
+        const [A, B] = rooms;
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const was = { x: token.x, y: token.y, grants: freeMovesLeft(actor), hope: actor.system.resources.hope.value };
+        const flagsWere = [];
+        for (const room of [A, B]) for (const piece of roomRegions(scene, room)) {
+            flagsWere.push([piece, foundry.utils.deepClone(piece.flags?.[MODULE_ID] ?? {})]);
+        }
+        const noReplay = game.i18n.localize("DRPG.Reroll.noReplay");
+        const reroll = async (actionKey, facts, next = { hope: 11, fear: 8 }) => {
+            const B2 = await playerRollBookmark(player, actor, actionKey, {});
+            const stand = rerollableRoll(B2.message, { first: { hope: 2, fear: 1 }, next });
+            try {
+                await S.rerollBookmarkStore.patch(actor.id, { facts: { ...(B2.row()?.facts ?? {}), ...facts } });
+                await trustedWrite(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) }, { reason: "gmRuling" });
+                const out = await R.rerollOnGm(actor, player);
+                await settle();
+                const lines = (out?.lines ?? []).map(l => (typeof l === "string" ? l : JSON.stringify(l)));
+                return { stood: Array.isArray(out?.lines), noReplay: lines.includes(noReplay) };
+            } finally {
+                stand.putBack();
+                await B2.putBack();
+            }
+        };
+        const read = {};
+        try {
+            for (const [room, list] of [[A, [B]], [B, [A]]]) for (const piece of roomRegions(scene, room)) await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.neighbours, list.join(", "));
+            await token.update(M.positionIn(A, token), PLACE);
+            await settle();
+            // A Dash of no crossings.
+            await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: 0 }, { reason: "gmRuling" });
+            read.dash = [await reroll("dash", { dashMoves: 0 }), freeMovesLeft(actor)];
+            // A tail of 5 on the other student.
+            await S.tailStore.patch(actor.id, { tailerId: actor.id, targetId: other.id, total: 5, critical: false, day: "x", at: Date.now() });
+            read.tail = [await reroll("tail", { tailTargetId: other.id }), S.tailStore.get(actor.id)?.total ?? null];
+            await S.tailStore.drop(actor.id);
+            // A barricade of 5 on A.
+            await S.barricadeStore.patch(D.barricadeKey(scene.id, A), { sceneId: scene.id, room: A, authorId: actor.id, strength: 5, at: Date.now() });
+            await M.setRoomBarricaded(scene, A, true);
+            read.shut = [await reroll("shut", { barricadeKey: D.barricadeKey(scene.id, A) }), S.barricadeStore.get(D.barricadeKey(scene.id, A))?.strength ?? null];
+            await D.endBarricade(D.barricadeKey(scene.id, A));
+            // A GM's lock on B the first roll did not force.
+            for (const piece of roomRegions(scene, B)) await piece.setFlag(MODULE_ID, M.ROOM_FLAGS.locked, true);
+            read.force = [await reroll("force", { forceRoom: B, forced: false }), M.roomBroken(scene, B)];
+            await M.setRoomBroken(scene, B, false);
+            // The same lock the first roll did not pick (its cover unseen).
+            read.pick = [await reroll("pick", { pickRoom: B, opened: false, coverTotal: 20, coverCritical: false }), M.roomOfToken(scene.tokens.get(token.id))];
+            await token.update(M.positionIn(A, token), PLACE);
+            await settle();
+            // A watch the first roll kept none of, then one it kept, rerolled into a miss.
+            read.watch = [await reroll("keepWatch", { watchKept: false }), Boolean(S.watchStore.get(actor.id))];
+            read.unwatch = [await reroll("keepWatch", { watchKept: true }, { hope: 2, fear: 1 }), Boolean(S.watchStore.get(actor.id))];
+        } finally {
+            if (S.tailStore.get(actor.id)) await S.tailStore.drop(actor.id);
+            if (S.watchStore.get(actor.id)) await S.watchStore.drop(actor.id);
+            await D.endBarricade(D.barricadeKey(scene.id, A));
+            await M.setRoomBroken(scene, B, false);
+            for (const [piece, flags] of flagsWere) {
+                for (const key of Object.keys(piece.flags?.[MODULE_ID] ?? {})) if (!Object.hasOwn(flags, key)) await piece.unsetFlag(MODULE_ID, key);
+                for (const [key, value] of Object.entries(flags)) await piece.setFlag(MODULE_ID, key, value);
+            }
+            await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: was.grants, "system.resources.hope.value": was.hope }, { reason: "gmRuling" });
+            if (scene.tokens.has(token.id)) await token.update({ x: was.x, y: was.y }, PLACE);
+            await settle();
+        }
+        const ok1 = { stood: true, noReplay: false };
+        equal(stableJson(read), stableJson({ dash: [ok1, 2], tail: [ok1, 19], shut: [ok1, 19], force: [ok1, true], pick: [ok1, B],
+            watch: [ok1, true], unwatch: [ok1, false] }),
+            "{each: [{the Reroll stood, a line was the no-replay line}, what the replay left]: dash: free crossings; tail, shut: the strength; force: B broken; pick: the room the picker stands in; watch, unwatch: a watch kept} - a Reroll replays the new rolls");
+    }],
+    ["E74-T7 - the GMs' run of a Dash and of a room action write the facts a Reroll replays on the roll's own row, and a failed room action rerolled into a success gives its effects (scripts/bridge-runs-acts.mjs `factsForReroll`, infiltrate-reroll.mjs; E93, E69 C7): a Dash at 12 keeps one crossing on its row; a GM's room action of difficulty 30 missed at 5 keeps its key and no success, and its Reroll into a critical turns it into one and gives its Hope", async () => {
+        /*
+         * E93 and E69 C7, 12.11.2026. The roll is a player's with the GMs' row and record of it (`playerRollBookmark` with
+         * `record`); the packet judged as the primary judges it (`B.ask`); the Reroll made on this GM as the player's onto 6
+         * and 6 (a critical). The room action is set on the character's room and put back. Red at a123ff1: no facts on the
+         * row, and the replay's no-replay line.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls are a connected player's, as Foundry names only those");
+        const R = await import("./reroll.mjs");
+        const F = await import("./facilities.mjs");
+        const { freeMovesLeft } = await import("./actions.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { facilityUseStore } = await import("./gm-stores.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const was = { grants: freeMovesLeft(actor), hope: actor.system.resources.hope.value, actions: actor.system.resources.actions.value,
+            room: foundry.utils.deepClone(F.roomActions(where.scene, where.room)) };
+        const key = F.gmActionKey(where.scene.id, where.room, "e74t7");
+        const noReplay = game.i18n.localize("DRPG.Reroll.noReplay");
+        const read = {};
+        try {
+            const dash = await playerRollBookmark(player, actor, "dash", {}, { record: { total: 12 } });
+            try {
+                await dash.ask({ action: "dash.settle", requestId: `E74T7${foundry.utils.randomID(6)}`, actorId: actor.id, total: 12, rollId: dash.message.id });
+                await settle();
+                read.dash = dash.row()?.facts?.dashMoves ?? null;
+            } finally { await dash.putBack(); }
+            await trustedWrite(actor, { "system.resources.hope.value": 2, [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: was.grants }, { reason: "gmRuling" });
+            await F.setRoomActions(where.scene, where.room, [{ id: "e74t7", label: "E74-T7 tea", trait: "eye", dc: 30, effects: [{ kind: "hope", n: 1 }] }]);
+            const use = await playerRollBookmark(player, actor, "facility", {}, { record: { total: 5 } });
+            const stand = rerollableRoll(use.message, { first: { hope: 3, fear: 2 }, next: { hope: 6, fear: 6 } });
+            try {
+                await use.ask({ action: "facility.use", requestId: `E74T7${foundry.utils.randomID(6)}`, actorId: actor.id, actionId: "e74t7", total: 5, rollId: use.message.id });
+                await settle();
+                const facts = use.row()?.facts ?? {};
+                read.facility = [facts.facilityKey === key, facts.facilitySuccess ?? null];
+                const out = await R.rerollOnGm(actor, player);
+                await settle();
+                const lines = (out?.lines ?? []).map(l => (typeof l === "string" ? l : JSON.stringify(l)));
+                // The Reroll costs Hope and its critical gives some, so the effect is read off the replay's own line, not the count.
+                read.reroll = [lines.includes(noReplay), facilityUseStore.get(key)?.success ?? null,
+                    lines.some(l => l.startsWith(`${actor.name}:`) && l.includes("Hope")), use.row()?.facts?.facilitySuccess ?? null];
+            } finally { stand.putBack(); await use.putBack(); }
+        } finally {
+            if (was.room.length) await F.setRoomActions(where.scene, where.room, was.room);
+            else {
+                const { FACILITIES } = await import("./config.mjs");
+                const { roomRegions } = await import("./rooms.mjs");
+                for (const piece of roomRegions(where.scene, where.room)) if (piece.flags?.[MODULE_ID]?.[FACILITIES.flag] !== undefined) await piece.unsetFlag(MODULE_ID, FACILITIES.flag);
+            }
+            if (facilityUseStore.get(key)) await facilityUseStore.drop(key);
+            await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: was.grants, "system.resources.hope.value": was.hope,
+                "system.resources.actions.value": was.actions }, { reason: "gmRuling" });
+            const closed = game.settings.get(MODULE_ID, SETTINGS.facilityClosed) ?? {};
+            if ((closed.keys ?? []).includes(key)) await game.settings.set(MODULE_ID, SETTINGS.facilityClosed, { ...closed, keys: closed.keys.filter(k => k !== key) });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ dash: 1, facility: [true, false], reroll: [false, true, true, true] }),
+            "{dash: the crossings on the Dash's row; facility: [its key on the row, its success]; reroll: [the no-replay line, the use a success now, Hope given, the row's success]} - the facts a Reroll replays");
+    }],
     ["E69-T4 - Tail Someone begins on the GMs' record of its two rolls and sends its cards from a settled crossing (scripts/tail-gm.mjs, bridge-runs-acts.mjs `handleTailStart`, bridge-table.mjs `tail.start`, config.mjs INFILTRATE.tail; E69 C3, C4; DA8, DA20, DA21, DA26): a player's tail on a student in the room with Shadow 16 is unseen and kept with the effect's total; with Shadow 10 the target's owners are told the tailer's name; the tailer itself, another player's character and a packet naming no rolls are refused; the target's settled crossing sends the tailer one card naming the room, and one the tailer is not in or beside ends the tail lost; a Dash above the effect's total ends it, one below does not; a critical tail falls only to a critical Dash", async () => {
         /*
          * E69 C3 and C4, 12.11.2026. Judged as the primary judges the player's packet (`G.judge`), each roll a message of the

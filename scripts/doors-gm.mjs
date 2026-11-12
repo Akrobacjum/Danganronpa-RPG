@@ -171,7 +171,7 @@ export async function forceDoor({ actor, room, total = 0, isCritical = false, wi
  * Pick a lock on the primary GM (the run of `door.pick`): `room` the room beyond; `total`, `isCritical`, `withHope` the Hand
  * roll's and `coverTotal`, `coverCritical` the Shadow's, each the GMs' record. Answers `{ refused }` or `{ opened, held }`.
  */
-export async function pickLock({ actor, room, total = 0, isCritical = false, withHope = true, coverTotal = 0, coverCritical = false }) {
+export async function pickLock({ actor, room, total = 0, isCritical = false, withHope = true, coverTotal = 0, coverCritical = false, tell = true }) {
     const M = await import("./movement.mjs");
     const { getClock } = await import("./settings.mjs");
     const { isChained } = await import("./call-world.mjs");
@@ -193,7 +193,8 @@ export async function pickLock({ actor, room, total = 0, isCritical = false, wit
         await token.update(M.positionIn(room, token), { teleport: true, movementAction: "displace", animate: false });
     }
     const seen = !(coverCritical || (Number(coverTotal) || 0) >= rule.cover.threshold);
-    if (seen && lockish) {
+    // `tell` false: a Reroll's replay (infiltrate-reroll.mjs), whose cover the two rooms were told of by the first throw.
+    if (tell && seen && lockish) {
         await tellRooms(place.scene, [place.room, room], game.i18n.format("DRPG.Infiltrate.pick.seenBy", { name: actor.name, room }), new Set([actor.id]));
     }
     const owner = roomFlag(place.scene, room, ROOM_OWNER_FLAG);
