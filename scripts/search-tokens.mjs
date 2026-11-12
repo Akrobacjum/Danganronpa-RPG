@@ -13,7 +13,7 @@
 import { MODULE_ID, TIMING } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { isPrimaryGm, whisperToGms, debug, error, serialWrite, plural } from "./utils.mjs";
-import { ownsActor, judge, table, pick, as, knownSender, bridgeRequest } from "./bridge-guards.mjs";
+import { ownsActor, judge, table, pick, as, knownSender, notSpectator, bridgeRequest } from "./bridge-guards.mjs";
 import { overflowTokenPenalty, overflowFloor } from "./overflow.mjs";
 import { roomFlag, roomNames, viewedScene } from "./rooms.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
@@ -862,7 +862,7 @@ async function plantHeld(identity) {
 export const SEARCH_ACTIONS = table({
     [ACTION_SPEND]: {
         label: "DRPG.Bridge.what.searchTokens.spend",
-        guards: [knownSender, guardSearchRoom],
+        guards: [knownSender, notSpectator("actorId"), guardSearchRoom],
         // The character is the guard's to find, off the packet as it came; the run reads it only to
         // settle a refused Search's record, for a character the sender plays (`settleUnclaimed`).
         sanitize: pick({ roomName: as.text, sceneId: as.id, actorId: as.id }),
@@ -872,7 +872,7 @@ export const SEARCH_ACTIONS = table({
     },
     [ACTION_TAKE_PLANT]: {
         label: "DRPG.Bridge.what.searchTokens.takePlant",
-        guards: [knownSender, guardSearchRoom],
+        guards: [knownSender, notSpectator("actorId"), guardSearchRoom],
         sanitize: pick({ roomName: as.text, sceneId: as.id, actorId: as.id, rollId: as.id }),
         run: runTakePlant,
         answer: "reply", timeoutMs: TIMING.plantRequestMs,

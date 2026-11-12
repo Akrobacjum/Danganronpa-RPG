@@ -51,7 +51,7 @@ import { SETTINGS, getSetting, isDeadForGm, incidentSeats } from "./settings.mjs
 import { locateActor, occupantsOf } from "./movement.mjs";
 import { monokumaActors, poolOwnerOf } from "./monokuma.mjs";
 import { gmIds, ownerIdsOf, error, warn, debug, isPrimaryGm, MESSAGE_FLAG, markFired } from "./utils.mjs";
-import { judge, table, pick, as, knownSender, owns, gmOnly, guardRollAuthor, guardDrawnRoll, guardDrawnCosts, bridgeRequest } from "./bridge-guards.mjs";
+import { judge, table, pick, as, knownSender, notSpectator, owns, gmOnly, guardRollAuthor, guardDrawnRoll, guardDrawnCosts, bridgeRequest } from "./bridge-guards.mjs";
 // Who is in the incident, read on the primary GM for the incident's dice (E06 C6). Static
 // and safe: nothing in murder.mjs's own import closure leads back to this file (R161).
 import { murderState, incidentAudienceIds } from "./murder.mjs";
@@ -1109,7 +1109,7 @@ export function keepSubject(messageId, actorId, userId) {
 export const ROLL_ACTIONS = table({
     "roll.subject": {
         label: "DRPG.Bridge.what.roll.subject",
-        guards: [knownSender, owns("actorId", "sender does not own that character"), guardRollAuthor],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character"), guardRollAuthor],
         sanitize: pick({ messageId: as.id, actorId: as.id }),
         run: keepRollSubject,
         answer: "none", quiet: true,
@@ -1134,7 +1134,7 @@ export const ROLL_ACTIONS = table({
      */
     "roll.draw": {
         label: "DRPG.Bridge.what.roll.draw",
-        guards: [knownSender, owns("actorId", "sender does not own that character"), guardDrawnRoll, guardDrawnCosts],
+        guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own that character"), guardDrawnRoll, guardDrawnCosts],
         sanitize: pick({ actorId: as.id, actionKey: as.maybeText, nonce: as.id, claimed: as.bool, loaded: as.id, costs: as.raw, roll: as.raw,
             trait: as.maybeText, experiences: as.raw, calls: as.raw, context: as.raw, situational: as.num }),
         run: drawRollOnGm,

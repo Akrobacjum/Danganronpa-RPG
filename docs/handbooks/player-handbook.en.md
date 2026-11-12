@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.107, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.109, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides".
 
@@ -76,6 +76,11 @@ The roll window is locked for players: dice, statistic, advantage, experiences a
 
 **With no GM connected** an action waits: pressing it tells you that an action roll waits for a GM, and nothing is paid. Any other roll - a statistic from your sheet, which counts as a reaction then, or a reaction - is still thrown, and its card says that it was thrown with no GM connected and that the GM will see it. It moves no Hope, Sanity or Despair until a GM, back at the table, grants it, and a reaction - the statistic included - moves nothing even then.
 
+### If you are a Spectator
+
+The GM may make your character a **Spectator**: you watch and do not play. You have no actions, Hope, Calls or Level Ups, and nobody counts you anywhere. Other players do not see your token. Your microphone is off; **Talk with the Spectators** on your voice tile lets you talk with the other Spectators, and **Go back to your room** brings you back. If the GM turned the voice tile off, that button is not there. Drag your token to move, at no cost; whether walls stop you has not been tried at a table yet. You see every room the class has found, everybody's token and every project, secret ones too. At the day's end you see only the end of the day and the school's mood. You have no chat.
+
+
 ---
 
 ## 2. Time
@@ -101,14 +106,24 @@ Before each time of day the lights go out. That placement window is the **Eclips
 - Nobody's screen shows anybody else's token, in any room. No player is in voice: you hear nobody and nobody hears you until the lights come back. (The dark is the screens': where every token stands still reaches every browser, as Foundry sends it.)
 - You place your token: up to **2 connected room crossings**, doors and gaps still apply. The **Night Eclipse** is the exception - pick **any room on the map**. The GM's browser counts your crossings as it sees them: one past the allowance goes back, and with no GM connected a crossing is refused.
 - Your actions are already refilled when the Eclipse opens, but nothing spends them except a **Direct Murder**. No Calls until the lights come up.
-- A summary card of what you did during the time of day that just ended opens for you - what you found, what you left behind. The same card opens when a time of day ends without an Eclipse, as the GM moves the clock on; it opens once for each time of day.
+- A summary card of what you did during the time of day that just ended opens for you - what you found, what you left behind. The same card opens when a time of day ends without an Eclipse, as the GM moves the clock on; it opens once for each time of day, in the middle of the screen, once the clock has turned.
 - The Eclipse is the game's one moment of total cover, and it is where a murder usually starts. It is not part of the day: the clock does not move until the GM ends it.
 
 **Before the clock moves**, the GM may ask whether you are done: a window says what the GM wants to do - start the Eclipse, end it, or end this time of day - with **Done** and **One moment**. One moment tells the GM you need a little longer, and the window stays with Done alone. Once every player has said Done the game goes on by itself; the GM may also go on earlier. The window closes when the GM goes on or decides to wait a little longer. If you close it yourself, a card stays on your screen while the GM is waiting; click it to answer.
 
 A darkened time of day (see the overflow, chapter 6) can pull the crossings down or take the free placement away.
 
----
+### Full-screen moments
+
+A few moments fill every screen for a few seconds (since 1.2.109). Esc skips one; with reduced motion you see a still frame; the GM can switch them off.
+
+- **The Class Trial's entry.** The screen closes on **CLASS TRIAL** and opens onto the trial.
+- **The verdict.** The sentenced student's portrait, the votes, and the stamp: **GUILTY** if the class got it right, **NOT GUILTY** if not.
+- **The clock's turns.** The curtain turns when the time of day changes. The Investigation opens with flashing panes; a body's announcement makes it flicker.
+- **The end of the day.** What you did that day, what the school saw, and **the school's mood**: Calm, Uneasy or Close to spilling. It stays in your notice history.
+- **The start of the day.** The day, everyone in their place - the dead greyed, "we remember" - and the GM's **morning line**, if there is one.
+
+If you join after one of these moments, you miss it.
 
 ## 3. Moving and seeing
 
@@ -741,6 +756,10 @@ The GM decides who picks each Level Up. If it is you, you are told and the Level
 | Add a new experience worth +2 |
 
 The same option may be taken more than once on a Reinforced Level Up.
+
+### The hall's zones
+
+In a **Straw Poll**, a **Logic Dive** or a **Scrum Debate** you answer by where your token stands in the trial hall: in **Zone A** or in **Zone B**, each named with its answer. Move your token into the zone you choose; if you do not move, you answer with the zone your stand lies in. A token on the line between the zones, or outside both, counts for neither side. With no token in the hall you get a window to pick a side. In a Straw Poll two thirds of the class on one side is a **Finding** - *The class thinks: ...*. In a Logic Dive the majority answers each question; a wrong answer or a tie ends the set, and the right answer is not shown. In a Scrum Debate the camps speak in turn and anyone may cross at any time; a camp that empties loses. Everybody presents freely in a Straw Poll and a Logic Dive, only the speaker in a Scrum Debate, and nobody objects in any of them. When the mode ends, your token goes back to its stand.
 
 ### The Final Trial
 

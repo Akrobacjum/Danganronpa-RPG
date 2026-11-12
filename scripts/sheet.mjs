@@ -22,7 +22,7 @@ import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
 import { resourceMax, resourceValue, initCharacter, needsStartingResources, RESERVES, reserveOf, reserveView, reserveRow }
     from "./character.mjs";
 import { standingOffers, advanceKindName } from "./level-up.mjs";
-import { isMonokuma, isNotInClass, poolUserFor } from "./monokuma.mjs";
+import { isMonokuma, isNotInClass, isSpectator, poolUserFor } from "./monokuma.mjs";
 import { spendableDespair } from "./despair.mjs";
 import { hopeHeld, hopeMax, affordableHopeCalls, despairCallsFor } from "./calls.mjs";
 import { isEclipse, movesLeft as eclipseMovesLeft } from "./eclipse.mjs";
@@ -114,18 +114,20 @@ export function sheetMode(actor, user = game.user, { app = null, editable, facts
     // A stand-in with no flags at all (a Party sheet's member read by its uuid, the suite's) is a student of the class.
     const flagged = typeof actor?.getFlag === "function";
     const monokuma = flagged && isMonokuma(actor);
-    const npc = flagged && isNotInClass(actor);
+    // A Spectator (E92 C5): a watcher's sheet - no student's panel, Calls, rows, Level Up, strip, OBJECTION! or tile.
+    const spectator = flagged && !monokuma && isSpectator(actor);
+    const npc = flagged && !spectator && isNotInClass(actor);
     const monocub = flagged && isMonocub(actor);
     const dead = owner ? isDeadForGm(actor) : isDeceased(actor);
-    const mode = monokuma ? "monokuma" : npc ? "npc" : monocub ? "monocub" : dead ? "dead" : "student";
+    const mode = monokuma ? "monokuma" : spectator ? "spectator" : npc ? "npc" : monocub ? "monocub" : dead ? "dead" : "student";
     // A Monocub's sheet plays on; the dead's and an NPC's header is still (E24 C3a).
     const cub = dead && monocub;
-    const header = Object.freeze({ acts: (!dead || cub) && !npc, dead, mark: dead && !cub, npc });
+    const header = Object.freeze({ acts: (!dead || cub) && !npc && !spectator, dead, mark: dead && !cub, npc });
     // The action panel, by the order it always asked: a Monokuma's Despair Calls, an NPC's line (to a GM), a Monocub's
     // two tiles, the dead's panel, the student's grid; nothing on a sheet the viewer may not edit.
-    const actions = !canEdit ? null : monokuma ? "calls" : npc ? (gm ? "npc" : null) : monocub ? "monocub" : dead ? "dead" : "grid";
+    const actions = !canEdit || spectator ? null : monokuma ? "calls" : npc ? (gm ? "npc" : null) : monocub ? "monocub" : dead ? "dead" : "grid";
     // The row buttons (D15: a Monocub's body keeps its items, so no Use, Discard or Stash for it either).
-    const live = canEdit && !monokuma && !dead;
+    const live = canEdit && !monokuma && !dead && !spectator;
     const rows = Object.freeze({ use: live, equip: live, discard: live, stash: live, give: live, bullets: live });
     // Present (E70 C10): hidden outside a trial, for the table's dead and the trial's muted dead; held by the floor
     // with trial-floor.mjs `presentRefusal`'s line, the Present window's own (trial.mjs). Asked only by the Present
@@ -137,14 +139,14 @@ export function sheetMode(actor, user = game.user, { app = null, editable, facts
         return { shown, held: shown ? presentRefusal(floor, actor?.id) : null };
     };
     return Object.freeze({
-        mode, gm, owner, viewer: !owner, editable: canEdit, dead, monokuma, npc, monocub,
+        mode, gm, owner, viewer: !owner, editable: canEdit, dead, monokuma, npc, monocub, spectator,
         // Dead, and nobody has found them yet (E05 C10): the victim's own player, and a GM.
         unfound: dead && !isDeceased(actor),
         header, actions, rows,
         calls: actions === "grid" || actions === "calls",
-        levelUp: !npc, offers: owner, init: gm && !monokuma, itemButton: gm && !monokuma, classControls: gm,
+        levelUp: !npc && !spectator, offers: owner, init: gm && !monokuma, itemButton: gm && !monokuma, classControls: gm,
         // The Stop is a player's (E49 B2, S03-31): a Monokuma's sheet, a GM's character, draws none.
-        safeword: !monokuma,
+        safeword: !monokuma && !spectator,
         pipEdit: gm, realBullets: gm, otherRemove: gm && canEdit, creators: gm,
         // A Monokuma's sheet is no student's (S03-33): no student groups, no Equipped or Experience, no biography.
         groups: !monokuma, equipped: !monokuma, experience: !monokuma, biography: !monokuma, inventory: !monokuma,
@@ -178,11 +180,11 @@ export function sheetMode(actor, user = game.user, { app = null, editable, facts
             }
         },
         // The curtain's strip (player-status.mjs): nothing for a Monokuma or an NPC, the dead's one row, else full.
-        strip: monokuma || npc ? "none" : dead && !monocub ? "dead" : "full",
+        strip: monokuma || npc || spectator ? "none" : dead && !monocub ? "dead" : "full",
         // The HUD's OBJECTION! (hud.mjs `objectionControl`): a living student of the class.
         objection: mode === "student",
         // The room tile (room-tile.mjs `viewerRoom`): a body lies in its room and a Monocub walks; an NPC is no student.
-        tile: !npc
+        tile: !npc && !spectator
     });
 }
 

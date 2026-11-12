@@ -165,6 +165,10 @@ export const SETTINGS = {
     uiScale: "uiScale",
     /** This browser's own "reduced motion", independent of what the system says. */
     reducedMotion: "reducedMotion",
+    /** The table's switch for the full-screen sequences (E61 C1, sequence.mjs): the trial's entry, the verdict's cut-in, and the later stages' boards. */
+    sequences: "sequences",
+    /** A GM's morning line for the next day, on that GM's browser until the day starts (E94 C1; clock.mjs `advanceTimeOfDay`). */
+    morningLineDraft: "morningLineDraft",
     /** This client's own high contrast, on top of whatever `prefers-contrast` says. */
     highContrast: "highContrast",
     /** The state's name running as an outline behind the clock. */
@@ -600,6 +604,9 @@ export const SETTINGS = {
     legacyKeyRemnantPlan: "keyRemnantPlan",
     /** THE CASE SCHEMA (E97 C3, 1.2.107): a GM store (gm-stores.mjs `caseSchemaStore`), a row per chapter and node. */
     gmCaseSchema: "gmCaseSchema",
+    gmCaseTicks: "gmCaseTicks",
+    /** LOGIC DIVE'S SETS (E73 C4): a GM store (gm-stores.mjs `diveSetStore`), a row per set, the truth of each question in it. */
+    gmDiveSets: "gmDiveSets",
     /**
      * WHICH OF THE TRIAL HALL'S TOKENS THE TRIAL SHOWS (E13 C2, 1.2.74; audit S06-57, decision D7):
      * a GM store (gm-stores.mjs `trialCastStore`), never a token's flag, which its owner writes.
@@ -1033,7 +1040,7 @@ const TABLE_SETTINGS = [
     SETTINGS.foundryBefore, SETTINGS.foundryGivenBack, SETTINGS.musicEnabled, SETTINGS.sfxVary, SETTINGS.safeword,
     SETTINGS.migratedVersion, SETTINGS.caseMark, SETTINGS.moveAudit, SETTINGS.foundryToolWindows, SETTINGS.isoTokenShield,
     SETTINGS.regionFog, SETTINGS.despairFromRolls, SETTINGS.lockRollDialog, SETTINGS.roomVisibility, SETTINGS.lockPlayerResources,
-    SETTINGS.friskForce, SETTINGS.autoApproveTraits, SETTINGS.chargeMovement, SETTINGS.legacyKeyRemnantPlan, SETTINGS.legacyPendingMurders, SETTINGS.legacyEclipseMoves
+    SETTINGS.friskForce, SETTINGS.autoApproveTraits, SETTINGS.chargeMovement, SETTINGS.sequences, SETTINGS.legacyKeyRemnantPlan, SETTINGS.legacyPendingMurders, SETTINGS.legacyEclipseMoves
 ];
 /** Every world setting the module registers, by its key -> "season", "campaign" or "table" (above). */
 export const WORLD_LIFETIMES = Object.freeze(Object.fromEntries([
@@ -1097,6 +1104,29 @@ export const DEFAULT_CLOCK = {
      * from "What you did" after it. The pauses are `pausedTotalMs` now.
      */
     timeOfDayStartedAt: null,
+    /**
+     * WHEN THIS DAY BEGAN, as `serverNow()` (E94 C3), or null until the day first moves: clock.mjs `setClock` stamps it
+     * on any change of `day`, and the end-of-day board reads the day's own rows from it (sequence.mjs `dayEndReads`,
+     * which reads null as not known). Named here with the two below (E94 fix ci-1, 12.11.2026; CI run 43287328954 on
+     * b30f9444, suites 2/8, 3/8, 4/8, 7/8, 8/8) because a field this object does not name is one no write of a whole
+     * clock can take away: `setClock` spreads its patch over the clock it read, and tier 2's restore hands it the clock
+     * `getClock` recorded - these defaults under what was stored - so a field absent from both stayed. Five tests that
+     * move the day left "restore left: world:danganronpa-rpg.clock.dayStartedAt (none) -> <stamp>" and
+     * "clock.mood (none) -> calm"; named here, the restore writes null back, which the world dump reads as none.
+     */
+    dayStartedAt: null,
+    /**
+     * THE SCHOOL'S MOOD, one of sequence.mjs `MOOD_BANDS`, or null (E94 C4): worked out on the advancing GM at the day's
+     * roll-over and written as the word alone (clock.mjs `advanceTimeOfDay`, sequence.mjs `dayStartPatch`; never its
+     * numbers - world-secrets.mjs, the clock's row).
+     */
+    mood: null,
+    /**
+     * THE GM'S MORNING LINE, or null (E94 C1): the draft (`morningLineDraft`, a client setting) folded in by the
+     * Night-to-Morning advance and shown on the start-of-day board; cleared by the next move of the clock
+     * (`dayStartPatch`).
+     */
+    morningLine: null,
     /**
      * When the last Class Trial ended (`serverNow()`), or `null` before any has. Written by
      * `setClock` on the trial's exit edge, whichever door left it; read with a discovery's stamp
@@ -1559,6 +1589,27 @@ export function registerSettings() {
         type: Boolean,
         default: true,
         onChange: () => applyTheme()
+    });
+
+    /* The table's switch for the sequences (E61 C1; SB-R1 of 05.11: "a world setting lets the GM switch the sequences off
+       for the whole table, on by default"). Read by sequence.mjs at each event, so a change holds from the next one. */
+    game.settings.register(MODULE_ID, SETTINGS.sequences, {
+        name: "DRPG.Settings.sequences.name",
+        hint: "DRPG.Settings.sequences.hint",
+        scope: "world",
+        config: false,
+        type: Boolean,
+        default: true
+    });
+
+    /* A GM's morning line for the next day (E94 C1; the plan's default: written in Edit campaign). Per browser and out of
+       the settings window: it stays on the GM's machine, in no world data, until the Night's advance folds it into the
+       clock's one write at the day's start (clock.mjs `advanceTimeOfDay`), and is emptied there. */
+    game.settings.register(MODULE_ID, SETTINGS.morningLineDraft, {
+        scope: "client",
+        config: false,
+        type: String,
+        default: ""
     });
 
     game.settings.register(MODULE_ID, SETTINGS.reducedMotion, {
@@ -2266,6 +2317,22 @@ export function registerSettings() {
     // The case schema (E97 C3): a GM store since it exists (`caseSchemaStore`), a row per chapter and node. No `onChange`:
     // the Investigation panel reads it at each redraw (live.mjs `keepLive`), as it reads the Key plan.
     game.settings.register(MODULE_ID, SETTINGS.gmCaseSchema, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The case's ticks at a trial (E99 C3): a GM store (`caseTickStore`), a row per chapter and node. No `onChange`: the
+    // trial's case window reads it at each redraw.
+    game.settings.register(MODULE_ID, SETTINGS.gmCaseTicks, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // Logic Dive's sets (E73 C4): a GM store (`diveSetStore`), a row per set with each question's truth. No `onChange`:
+    // the set editor and the console read it at each redraw, and the primary at each question.
+    game.settings.register(MODULE_ID, SETTINGS.gmDiveSets, {
         scope: "client",
         config: false,
         type: Object,
@@ -3828,7 +3895,15 @@ export function pixelFontOn() {
  * separate number from the one above because a wide short window - 1600 x 600 -
  * has no collisions to fix and keeps the desk layout it always had.
  */
-export const BREAKPOINTS = { narrow: 1224, short: 620 };
+/*
+ * LOW IS THE CLASS TRIAL CONSOLE'S (E99 round 6, 12.11.2026; the owner: "Zgadzam sie na zmiany w oknach class trial").
+ * The console stands the screen's height, and while a trial runs the case schema's slot takes what its header, status,
+ * bar and footer leave: at 1366 x 768 under glass that was 352 px, and the case's smallest words after Fit to view read
+ * 10.3 px (audit/case-map-sweep.mjs). Under 800 px of height the console's header and footer are drawn compact
+ * (components.css, `body.drpg-low`), which gives the schema the height for 11 px; above it, 1920 x 1080 among them, the
+ * console stays as it was.
+ */
+export const BREAKPOINTS = { narrow: 1224, short: 620, low: 800 };
 
 /* A measurement of zero is a window that has not been laid out yet - a hidden
    iframe, a client mid-boot - and it must not read as "tiny": nothing stacks,
@@ -3886,6 +3961,11 @@ export function narrowScreen(w = innerWidth) {
 export function shortScreen(h = layoutHeight()) {
     return measured(h) < BREAKPOINTS.short;
 }
+/** True when the Class Trial console draws its header and footer compact (BREAKPOINTS.low, above): the layout height, as
+    `shortScreen`. */
+export function lowScreen(h = layoutHeight()) {
+    return measured(h) < BREAKPOINTS.low;
+}
 /**
  * The screen's own factor under the slider.
  *
@@ -3941,7 +4021,7 @@ let screenWatched = false, screenTimer = 0, screenFactor = 0, screenShape = "";
    restacks the module and crossing 620 px of height puts the glass to sleep, and
    both can happen without the factor moving a hundredth (it is at its floor on every
    screen under 1792 x 1008 anyway). One key covers all three. */
-const shapeKey = () => (narrowScreen() ? "n" : "-") + (shortScreen() ? "s" : "-");
+const shapeKey = () => (narrowScreen() ? "n" : "-") + (shortScreen() ? "s" : "-") + (lowScreen() ? "l" : "-");
 function watchScreen() {
     screenFactor = autoScale();
     screenShape = shapeKey();
@@ -4042,9 +4122,11 @@ export function applyTheme() {
        place to change them and no chance of the sheet and the curtain disagreeing
        about where a screen stops being a desk. One class for "the blocks stack"
        and one for "and there is no height either", which is the only distinction
-       styles/narrow.css needs to draw. */
+       styles/narrow.css needs to draw; a third, `drpg-low`, is the trial console's alone. */
     document.body.classList.toggle("drpg-stacked", narrowScreen());
     document.body.classList.toggle("drpg-short", shortScreen());
+    // the Class Trial console's compact frame (BREAKPOINTS.low; components.css)
+    document.body.classList.toggle("drpg-low", lowScreen());
     // On the body, where the theme's own rules live: a value on <html> was shadowed by
     // the sheet's default on body (v1.2.15), so the scale never applied.
     const total = String(effectiveScale());

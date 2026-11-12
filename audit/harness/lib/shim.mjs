@@ -953,6 +953,22 @@ export function buildDocumentClasses(ctx) {
         static get documentName() { return "ActiveEffect"; }
         get disabled() { return !!this._source.disabled; }
         get statuses() { return new Set(this._source.statuses ?? []); }
+        /* Its changes where Daggerheart reads them, `system.changes` (sheet-audit.mjs's note: 2.10.5 keeps them there;
+           2.12.8's MoveContext reads `c.system.changes.find(...)` on every applied effect as a roll is configured,
+           move-context.mjs:154-158). An effect the harness was handed with its changes at the top (the suite's
+           fixtures, a status) shows those there, not written into its source; one with `system.changes` keeps its own.
+           Without it every roll of a character holding an effect threw "Cannot read properties of undefined (reading
+           'find')" on the 2.12 copy (the 1.2.109 release's CI run 43287328954, suite shard 7). How v14 and Daggerheart
+           2.12 move changes written at the top is not read here. */
+        get system() {
+            const system = super.system;
+            if (!Object.hasOwn(system, "changes")) {
+                const source = this._source;
+                Object.defineProperty(system, "changes", { configurable: true, enumerable: false,
+                    get: () => Array.isArray(source.changes) ? source.changes : [] });
+            }
+            return system;
+        }
     }
     class RegionBehaviorImpl extends BaseDocument { static get documentName() { return "RegionBehavior"; } }
     /* A wall's floors as a region's (E12 fix r2-S2, 11.10.2026): v14's typings give a wall `levels`, the ids of the

@@ -194,10 +194,11 @@ belongs to.
 | 65 | scenarios/65-season.mjs | ci | exists | E11 | the chapter, the body's discovery and the season reset as they are today: two scenes with projects, a duplicate and an orphan token (A), a body found by two, the hold, an Eclipse during it, the trial and a wrong verdict (B), the chapter ended twice and the time moved back past a called assembly (C), a death kept past its chapter and announced in the next (Q), a season played (D), the reset (R), a reset whose chat deletion throws (F), the canvas drawn again on a world already reset (G) - each check today's reading, naming the E11 commit that changes it |
 | 66 | scenarios/66-rooms.mjs | ci | exists | E12 | rooms, scenes and floors as they are today: the shim's floors and `Scene#view` (S), a project's manager saved with the GM's camera on the Annex (A), Room Setup applied after the camera moved (B), a Teleport region (C), a room of two pieces locked and walked into (D), what a player knows of a project and the gather with the camera elsewhere (E), an actor on two scenes and a murder judged from the Annex (F), a scene of two floors (G), the room-marking clause (H), a player's jump into a locked room beside a body (I), a region a player draws and a player's untick of a room (J) - each check today's reading, naming the E12 commit that changes it |
 | 67 | scenarios/67-trial-modes.mjs | ci | exists | E70 | the Class Trial's tools beside the debate (E70 part 2, 1.2.90): a Testimony on every player with its turn windows, Done and Pass from the players' own pages, an Objection at the speaker and the queue back (T); a Panic Round moved on by the players' browsers while the GM's heartbeat is held, its Objection refused (P); a death nobody has found given no turn, and on the trial's list of the dead on p1's browser - known leak TR30, red on purpose until E72 (part A, formerly E67) (D); the Closing Argument with its volunteers in the GMs' store, a pick, both decisions after an exchange and an Overrule (C); Monokuma's Reveal of a Key nobody found (R); Present's card and copies as shown, with and without the Analyze result (S); a turn's change with the GM's console and a sheet open: the console's region and no sheet rendered, the row's Present painted in place (M, E70-83; its HUD and sheet-pass counts 81's part F since E37); the canary's player scan after every phase |
+| 68 | scenarios/68-trial-zones.mjs | ci | exists | E73 | the trial hall's zones (E73 C7): a hall of its own linked with Zone A and Zone B; a zone mode refused with no zones (N); a Straw Poll whose sides every player reads off the tokens, a player's move, Count now's Finding, the stands back, then a split with Scrum Debate the next step (S); a side picked by a participant with no hall token, and one refused for a token in the hall (P); a Logic Dive with no truth on any player, right then a tie, the set ended unrevealed and the replay's warning (D); a Scrum Debate, the smaller camp first, a thesis from a player's page and a crossing that empties a camp (C); the canary's player scan after every phase |
 | 64 | scenarios/64-migration-drill.mjs | local-gate | planned | E38 | migrations on copies of real worlds (v1.1.0, 1.2.13, the table's 1.2.56); planned as 62 until E09 C0 took the number the E09 plan had given its investigation scenario, then as 63 until E10 C0 gave 63 to the Class Trial |
 | 70 | scenarios/70-movement.mjs | ci | planned | E39 | the movement rules end to end |
 | 71 | scenarios/71-sheet.mjs | ci | exists | E45 | the character sheet on the GM and two players through the harness's render after a write (E45 C3a): Health written fast from the field and by the GM, repainted on every client with no render and the same reserve, the pip layout on p1 and the bar on p2 (A); a write resource-guard.mjs or overflow.mjs cuts in preUpdate, then an item created: its row on every client's sheet (B); a Monocub's Confusion tile lit by the GM's Hope top-up with no render (C); a Health hit read alike on the sheets and the token's bar, no Sanity on a viewer's (D); the gates - dead, Monocub, NPC, Monokuma - as owner and viewer (E); the biography saved once by the X and by a tab change, untouched nothing, read-only for a viewer (F); a redacted sheet with no Sanity number in any tooltip or label (G); the Level Up offer offered, taken and taken back, the GM's button unlit after the take (H); the biography held unsaved while the GM writes it: the GM's text stands, the typist told once, their next save theirs (I, E45-C3b); the Party sheet's Sanity to a non-owner, a redacted sheet repainted after the owner's writes with no Sanity or Hope in it, a Hope maximum written alone (J, E45-C3b). Stand-in sheets and the render are the harness's model (LIVE-E45-01); a real table is LIVE-E45-01..04 |
-| 72 | scenarios/72-canary.mjs | ci | exists | E30 | what a player's browser holds: the canary's self-test, planted secrets at rest, and (E05) a chapter, scanned after every phase with the world-secrets rule, and (E06) the chat each phase's bystanders hold, read for the cast and the secret actions' titles; E43 takes it to the season |
+| 72 | scenarios/72-canary.mjs | ci | exists | E30 | what a player's browser holds: the canary's self-test, planted secrets at rest, and (E05) a chapter, scanned after every phase with the world-secrets rule, and (E06) the chat each phase's bystanders hold, read for the cast and the secret actions' titles, and (E99) the case summary after the wrong verdict, scanned for the schema's unticked nodes, GM note and solution; E43 takes it to the season |
 | 73 | scenarios/73-notice-history.mjs | ci | exists | E81 | a player's notice history after F5, the GM's own diet |
 | 74 | scenarios/74-room-tile.mjs | ci | exists | E77 | the room tile: every browser shows its own character's room, painted once the move has settled (a refused move draws nothing), the GM's text only as text (E77 C3: the GM's Room Setup on the viewer's tile and on no other's, every state a player's tile can take (A), a crossing and a refused crossing (B)); the curtain's cut, also with Foundry's windows open, comes with E77's later commits |
 | 75 | scenarios/75-voice-tile.mjs | ci | exists | E78 | the voice tile: who each browser hears in its own LiveKit room, on the harness's LiveKit shim (`lib/livekit.mjs`), which only this scenario installs (E78 C1: the shim measured on its own - a Room on `liveKitClientInitialized`, its participants mapped to users, an `<audio>` for each written from the client settings, a new Room at each connect, and no Room where it is not installed (0)); the tile (A, C3), the microphone (B, C4), the list 'Who you hear', the GM's block and the gear's Voice section (C, C5); the curtain's cut comes with C6 |
@@ -214,6 +215,7 @@ belongs to.
 | 90 | - | - | retired | E30 | results/90-a11ycost.json came from a scratch scenario outside the repository; not reused |
 | 91 | scenarios/91-old-keys-ignored.mjs | ci | exists | E76 | the old keys `-=` and `==` in the "ignored" reading (E76 C4; DY7; lib/old-keys.mjs, lib/operators.mjs): a GM's `-=gone` and `==bookmark` on a world flag change nothing on any client, each reported once with the reading (A); `_del`, a ForcedDeletion and `unsetFlag` remove (B); p1's `-=` on a GM-only module flag of the student p1 owns changes nothing and leaves the GMs no row (C). Which reading v14 has is LIVE-E76-03 |
 | 92 | scenarios/92-old-keys-honoured.mjs | ci | exists | E76 | the same in the "honoured" reading (Foundry issue 14806 as read for 14.369+): the GM's old keys delete and replace on every client (A); the module's deletes still remove (B); p1's `-=` deletes the GM-only flag, and the primary GM puts it back and keeps one `putBack` row naming p1 (C) |
+| 93 | scenarios/93-spectator.mjs | ci | exists | E92 | a Spectator from its assignment to its return to the class (E92 C7): p3's Chie made a Spectator by the Students window's Role - out of the GM's roster and the trial's cast, p3's browser watching with its chat hidden, her token hidden on p1 and every student's left to Foundry on p3 (A); p3's microphone blocked by the trial's row and named held on its tile (B); p3's map one row under Chie's id with the room Aiko found and not the Mastermind's, and p3's world data read against world-secrets.mjs (C); the "Talk with the Spectators" switch on p3's voice tile and not on p1's, a press writing p3's flag and a second taking it off (the LiveKit shim on both, as 75; round 3); p3 dragging her token, its own write, into Aiko's room, where she is nobody, and into the Hall, at no price and finding nothing (D); the end-of-day board on p3's browser holding the day's heading and the school's mood alone, p1's its own day (the owner's 12.11, R3868); a student again, p3's microphone and map as they were (E). The shim's LiveKit only; a real drag through a wall, the grey token and the chat's CSS are LIVE-E92-02, -04 |
 <!-- scenarios:end -->
 
 ## Checks
@@ -414,9 +416,14 @@ part of a roll comes from:
 - **Daggerheart's code, copied verbatim** - `lib/dh-dice/dice/`: baseRoll.mjs,
   dhRoll.mjs, d20Roll.mjs, dualityRoll.mjs, helpers.mjs and die/ (_module,
   baseDie, dualityDie, hopeDie, fearDie, advantageDie, disadvantageDie), from
-  tag 2.10.5 (commit 6bf4b69f98), `module/dice/`. Each is the file byte for
-  byte under a header; never edit one, re-copy them on an upgrade. Lint skips
-  them as it skips dh-relay.mjs (eslint.config.mjs). The licence:
+  tag 2.12.8 (commit 71c318de25), `module/dice/` (2.10.5's until E76 C3b,
+  12.11.2026); since then also `lib/dh-dice/data/action/move-context.mjs` (2.12's
+  roll config, which the harness's `rollTrait` builds) and
+  `lib/dh-dice/helpers/functional.mjs` (what it imports), from the same tag.
+  Each is the file byte for byte under a header; never edit one, re-copy them
+  on an upgrade. Lint skips them as it skips dh-relay.mjs (eslint.config.mjs).
+  The rest of `lib/dh-dice/` is the harness's glue at the paths those files
+  import (the window, `helpers/utils.mjs`, the two `ResourceUpdateMap` paths). The licence:
   `lib/dh-dice/LICENSE`. A copy checks against the tag's file with
   `sed '1,/^ \*\/$/d' <copy> | tail -n +2 | cmp - <tag>/module/dice/<file>`.
   A line number a comment cites in one of them (`dualityRoll.mjs:125`) is the
@@ -550,16 +557,22 @@ roll at a table.
   localStorage, read now or as it closed. The seeded four do not come back, a
   role changes only by a write, nobody is logged out for it, and there is no
   `game.users.activeGM`. `opLog` and `settingLog` say who wrote what.
-- **Daggerheart.** Its GM relay is 2.10.11's own code (`lib/dh-relay.mjs`,
-  re-copied in E75 C1), and its duality roll is 2.10.5's own code since E33 C2a
+- **Daggerheart.** Its GM relay is 2.12.8's own code (`lib/dh-relay.mjs`,
+  re-copied in E76 C1b; 2.10.11's from E75 C1), and its duality roll is 2.12.8's
+  own code since E76 C3b (2.10.5's from E33 C2a). Since E76 C3c a trait roll
+  takes 2.12's road: `rollTrait` builds Daggerheart's own `MoveContext` and
+  `diceRoll` hands it to the actor's roll class (client-entry.mjs), so what that
+  config keeps of the module's options is Daggerheart's (the module carries its
+  marks through it: scripts/roll-marks.mjs)
   ("Daggerheart's dice" above, with C2b's
   glue window, which the module's roll hooks run on unchanged); scenario 83 drives
   every legal road of a player's roll on it and on `audit/live/sandbox-cluster.mjs`
-  alike, taking only what both hand a scenario. A trait
-  roll's config is built as 2.6.5's `rollTrait` and `diceRoll` build it
-  (`lib/daggerheart.mjs`, E30), the card is the harness's, and the resource step
+  alike, taking only what both hand a scenario. Until E76 C3c a trait
+  roll's config was built as 2.6.5's `rollTrait` and `diceRoll` build it
+  (`lib/daggerheart.mjs`, E30); the card is the harness's, and the resource step
   (`addDualityResourceUpdates`, with its Hope-and-Fear automation gate, reaction,
-  `skips`, defeated-actor and reroll rules) fills a `ResourceUpdateMap` that the
+  `skips` and defeated-actor rules, read off `config.evaluated` since 2.12; 2.10.5's
+  had reroll rules too) fills a `ResourceUpdateMap` that the
   caller commits. The faces are scripted by `__forceRoll`, the Automation
   setting is Daggerheart's own shape (the seed turns `hopeFear` on for both), and
   `CONFIG.DH.RESOURCE` is built as Daggerheart builds it. A commit is the

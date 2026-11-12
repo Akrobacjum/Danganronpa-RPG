@@ -23,6 +23,7 @@ import { log, AV_LIFT_EVENT } from "./utils.mjs";
 import { inFoundryWindow } from "./foundry-windows.mjs";
 // E88 C0: the counters `fps()` and scenario 86 read (perf-counters.mjs); an increment each, nothing timed.
 import { count } from "./perf-counters.mjs";
+import { fillHole, slidePlan } from "./glass-close.mjs";
 
 /** Self-check results of the last geometry pass, for diagnostics. */
 export const CHECKS = [];
@@ -3798,6 +3799,40 @@ const boxOf = (polys, pad) => {
   return { x0: Math.floor(x0 - pad), y0: Math.floor(y0 - pad), x1: Math.ceil(x1 + pad), y1: Math.ceil(y1 + pad) };
 };
 /**
+ * THE DIRECTION OF A TRANSITION (E62 C1, 12.11.2026; the owner's storyboard SB-R1 and MK-R1/MK-R2 of 05.11): the panes'
+ * indices in the order their batches turn. "centre" from the screen's centre outward (every turn until E62; the
+ * Eclipse's entry, E62-4), "inward" its mirror (the Eclipse's end), "top" by the pane's centre from the top down
+ * (evening to night, E62-1, and every hour forward), "bottom" from the bottom up (night to morning, E62-2, and a
+ * rewind), "random" a seeded shuffle with no direction (Investigation's entry, E62-3: "random panels, no direction").
+ * Pure; ties by index.
+ */
+export function paneOrder(panes, W, H, how = "centre", seed = 1) {
+  const idx = panes.map((_, i) => i);
+  if (how === "random") {
+    let x = (seed >>> 0) || 1;
+    const rnd = () => { x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; };
+    const keys = idx.map(() => rnd());
+    return idx.sort((a, b) => keys[a] - keys[b] || a - b);
+  }
+  if (how === "top" || how === "bottom") {
+    const y = panes.map(p => meanOf(p.poly)[1]);
+    return idx.sort((a, b) => (how === "top" ? y[a] - y[b] : y[b] - y[a]) || a - b);
+  }
+  const { dist } = centreOrder(panes, W, H);
+  return idx.sort((a, b) => (how === "inward" ? dist[b] - dist[a] : dist[a] - dist[b]) || a - b);
+}
+/* THE NEXT TURN'S DIRECTION (E62 C1). The curtain hears the body's attributes, not the clock (`onStateChange`), so the
+   clock's hooks (transitions.mjs) hand it the direction of the change they heard; the turn the attributes start takes
+   it if it came within `TURN_HINT_MS`, and a turn with none runs from the centre as before. */
+const TURN_HINT_MS = 1500;
+let turnHint = null;
+/** The next turn's `{ how, seed, groups, delays, dur }` (E62 C1), or null to drop one given. */
+export function hintTurn(hint) { turnHint = hint ? { ...hint, at: performance.now() } : null; }
+/** The direction the next turn will take, or null (for the suite: R3712). */
+export function pendingTurnHint() { return turnHint && performance.now() - turnHint.at < TURN_HINT_MS ? { ...turnHint } : null; }
+/** End the turn running on this browser where it stands: its end state is already painted underneath (E62 C8, Esc). */
+export function skipTurn() { let ended = false; for (const j of curtains) if (j.turn) { j.turn.cancel(); ended = true; } return ended; }
+/**
  * The plan of a turn, pure (E23 C1b; exported for R1377-R1379): the panes `from` (what stood) and `to` (what stands
  * now), each `{ poly, content, tone }`, the frame and the two accents in; keyframes out. Each new pane is matched to the
  * old one it comes from as `morph` matched them (the same `content`, the nearest centre, 200 px against a tone that
@@ -3807,16 +3842,21 @@ const boxOf = (polys, pad) => {
  * when the accent changed. `none` when there is nothing to turn - reduced motion, nothing painted before, the same
  * colour and under TURN_WORTH of the panes moving.
  */
-export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 1200, move = TURN_MOVE, curve = ARRIVE, flash = true, reduced = false, force = false } = {}) {
+export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 1200, move = TURN_MOVE, curve = ARRIVE, flash = true, reduced = false, force = false, how = null, seed = 1, groups = TURN_BATCHES, delays = null } = {}) {
   const none = { none: true, recolour: false, recut: false, dur, move: { ms: move, curve }, order: [], batchOf: [], delayOf: [], gap: 0, moves: [], batches: [], flashes: [], frost: null, glow: null };
   if (reduced || !from?.length || !to?.length) return none;
   const recolour = Boolean(fromAcc && acc && fromAcc !== acc);
-  const { dist, order } = centreOrder(to, W, H);
-  const per = Math.ceil(order.length / TURN_BATCHES);
+  const { dist } = centreOrder(to, W, H);
+  // E62 C1: the direction of a transition (`how`, `paneOrder`), its number of batches and their onsets (`delays`);
+  // with none of them, the centre outward in eight batches `gap` apart, as every turn ran until E62
+  const order = paneOrder(to, W, H, how ?? "centre", seed);
+  const nb = Math.max(1, Math.min(order.length, groups | 0 || TURN_BATCHES));
+  const per = Math.ceil(order.length / nb);
   const batchOf = [];
   order.forEach((i, k) => { batchOf[i] = Math.floor(k / per); });
-  const gap = Math.min(120, Math.max(70, Math.floor((dur - FLASH.ms) / (TURN_BATCHES - 1))));
-  const delayOf = batchOf.map(b => b * gap);
+  const gap = Math.min(120, Math.max(70, Math.floor((dur - FLASH.ms) / Math.max(1, nb - 1))));
+  const at = b => (Array.isArray(delays) && Number.isFinite(delays[b]) ? delays[b] : b * gap);
+  const delayOf = batchOf.map(at);
   const ease = curveOf(curve);
   const used = new Set(), moves = [], items = [], statics = [], holes = [];
   to.forEach((p, i) => {
@@ -3908,7 +3948,7 @@ export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 120
   const batches = [];
   for (const it of items) {
     let b = batches.find(x => x.k === it.batch);
-    if (!b) { b = { k: it.batch, delay: it.batch * gap, ms: TURN_FADE, easing: cssCurve(curve), panes: [], box: null, frames: [{ offset: 0, opacity: 1 }, { offset: 1, opacity: 0 }] }; batches.push(b); }
+    if (!b) { b = { k: it.batch, delay: at(it.batch), ms: TURN_FADE, easing: cssCurve(curve), panes: [], box: null, frames: [{ offset: 0, opacity: 1 }, { offset: 1, opacity: 0 }] }; batches.push(b); }
     if (!b.panes.includes(it.from)) b.panes.push(it.from);
   }
   batches.sort((p, q) => p.k - q.k);
@@ -3924,6 +3964,8 @@ export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 120
        from corners that are not its own. */
     carry: recolour ? "old" : hold ? "both" : "old", hold, snap, holes: recolour ? holes : [],
     none: false, recolour, recut: moves.length > 0, dur, move: { ms: move, curve }, order, batchOf, delayOf, gap, moves, batches, flashes,
+    // each batch's onset (E62 C2: a transition's own `delays`, else `gap` apart), which the turn's layers read
+    batchDelay: Array.from({ length: nb }, (_, b) => at(b)),
     frost: moves.length ? { out: FROST_OUT, in: FROST_IN } : null,
     glow: { ms: Math.max(moves.length ? move : 0, fadeEnd) || move }
   };
@@ -3943,7 +3985,7 @@ const layerBox = b => "left:" + b.x0 + "px;top:" + b.y0 + "px;width:" + (b.x1 - 
    on the screen is one of the look's. What it costs: a seam crossing the screen in a move is drawn in steps of a
    pixel, not smoothed (seen at four times its size); at rest and in the standing layers nothing
    changes. Headless and software; a table's pixels are a live reading's, not this one's. */
-function cutLook(look, polys, box, cls) {
+function cutLook(look, polys, box, cls, ink = null) {
   const c = document.createElement("canvas"), moves = cls === "drpg-turn-pane";
   c.className = cls; c.width = Math.max(1, box.x1 - box.x0); c.height = Math.max(1, box.y1 - box.y0);
   c.style.cssText = TURN_LAYER + layerBox(box) + (moves ? "image-rendering:pixelated;" : "");
@@ -3954,6 +3996,8 @@ function cutLook(look, polys, box, cls) {
     g.beginPath();
     for (const poly of polys) poly.forEach((q, i) => (i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1])));
     g.closePath(); g.clip();
+    // a piece of the closed curtain stands on the glass's ink (E61 C3): the look alone is translucent glass
+    if (ink) { g.fillStyle = ink; g.fillRect(box.x0, box.y0, box.x1 - box.x0, box.y1 - box.y0); }
     g.drawImage(look, 0, 0);
   }
   return c;
@@ -4123,7 +4167,10 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
   if (!job || !to) return null;
   look = lookOnScreen(job, look);
   job.turn?.cancel();
-  const plan = turnPlan(from, to, { W: job.W, H: job.H, fromAcc, acc, dur, move, curve, flash, reduced: REDUCED(), force });
+  const hint = turnHint && performance.now() - turnHint.at < TURN_HINT_MS ? turnHint : null;
+  if (hint) { turnHint = null; count("glass.turn.hinted"); if (hint.dur) dur = hint.dur; }
+  const plan = turnPlan(from, to, { W: job.W, H: job.H, fromAcc, acc, dur, move, curve, flash, reduced: REDUCED(), force,
+    how: hint?.how ?? null, seed: hint?.seed ?? 1, groups: hint?.groups ?? TURN_BATCHES, delays: hint?.delays ?? null });
   if (plan.none || !look) return null;
   /* THE PULSE IS IN THE NEW LOOK (E23 fix G1, 08.11.2026; the end review's correctness M1). `curtainPaint` has just set
      the pulse layer's size again, which clears it (`layerAfter`), and the loop draws it on its next frame - after this
@@ -4185,7 +4232,7 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
   let pairs = 0;
   if (fresh) {
     const moved = new Set(plan.moves.map(m => m.to));
-    const delayOf = k => k * plan.gap, easing = plan.batches[0].easing;
+    const delayOf = k => plan.batchDelay?.[k] ?? k * plan.gap, easing = plan.batches[0].easing;
     const ks = [...new Set([...plan.batches.map(b => b.k), ...[...moved].map(i => plan.batchOf[i])])];
     const span = Math.max(plan.moves.length ? plan.move.ms : 0, ...ks.map(k => delayOf(k) + TURN_FADE));
     // the layer is shown only by its animation: at 0 before its delay, at 1 from its fade's end to the span's
@@ -4286,6 +4333,73 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
   job.turn = h;
   return frame ? startTurn(h, frame) : startTurn(h);
 }
+/* ---- THE ENTRY'S CURTAIN (E61 C3; round 3, 12.11.2026, on the owner's review of round 2) ----
+   Round 1 moved every pane to a closed plan by an affine map, and the panes overlapped; round 2 let the standing panes'
+   fronts flood the hole, and the owner's word on it was that the new glass did not match the old in size, look or
+   shape. Round 3 closes the curtain with panes of the curtain's own kind: the standing panes keep their place, and
+   the hole they leave is tiled with new convex panes of the standing panes' corners and sizes (glass-close.mjs
+   `fillHole`), painted by the curtain's own paint (`curtainPaint`: the same fill, ink, pulse and lead). Round 4 (the
+   owner's note on round 3: the panes are to slide out from behind the curtain's edge, not scale up): each new pane
+   keeps its size and slides out from behind an edge it shares with glass already there (`slidePlan`, `slideAt`).
+   The closed curtain is the curtain's paint of the standing panes and the new ones as one cut. */
+const FILL_SEED = 4099;
+/* THE ENTRY'S CUT. What the sequence draws: the panes on screen cut from the look as it stands (Investigation's
+   colour) over the same cut painted at once in the new phase's colour with no turn of its own (`entryHold`: the entry
+   owns this edge, so `rebuildAll` paints and does not turn), each pane's old colour fading in its batch, outer panes
+   first (MK-R2 #2); the new panes that close the hole, each cut from the closed curtain's look, with their growth's
+   plan (`close.fill`); the closed curtain itself (`closed`); and the trial's cut the curtain opens onto, with its own
+   new panes (`open`). Null with no curtain painted (a narrow screen, Legacy, the curtain not cut yet): the sequence
+   then draws the lids. Writes no setting and no document; the curtain is painted again as the trial's cut before it
+   answers. */
+let entryHold = false;
+export function entryPieces() {
+  const j = curtains[0];
+  if (!j?.panes || !j.painted || !glassRoom()) return null;
+  j.turn?.cancel();
+  pulseJob(j, performance.now());
+  const oldPanes = snapshotPanes(j), oldLook = snapshotLook(j);
+  if (!oldLook) return null;
+  clearTimeout(stateTimer);
+  entryHold = true;
+  try { rebuildAll(); } finally { entryHold = false; }
+  pulseJob(j, performance.now());
+  const newLook = snapshotLook(j, true) ?? oldLook;
+  const W = j.W, H = j.H, trial = j.panes;
+  const same = oldPanes.length === trial.length && oldPanes.every((p, i) => p.poly.length === trial[i].poly.length && p.poly.every((q, k) => q[0] === trial[i].poly[k][0] && q[1] === trial[i].poly[k][1]));
+  const fillA = fillHole(oldPanes, W, H, rng(j.seed + FILL_SEED));
+  const fillB = same ? fillA : fillHole(trial.map(p => ({ poly: p.poly })), W, H, rng(j.seed + FILL_SEED));
+  // the closed curtain, in the trial's colour: the curtain's own paint of the standing panes and the new ones as one cut
+  const paintClosed = (standing, fill) => {
+    const all = [...standing, ...fill.map(f => ({ poly: f.poly, content: false, kind: "fill" }))];
+    all.meta = trial.meta;
+    j.panes = all;
+    try { curtainPaint(j); pulseJob(j, performance.now()); return snapshotLook(j, true); } finally { j.panes = trial; }
+  };
+  let lookA = null, lookB = null;
+  try {
+    lookA = paintClosed(oldPanes, fillA);
+    lookB = same ? lookA : paintClosed(trial, fillB);
+  } finally {
+    curtainPaint(j);
+    pulseJob(j, performance.now());
+  }
+  if (!lookA || !lookB) return null;
+  const order = paneOrder(oldPanes, W, H, "inward"), per = Math.ceil(order.length / TURN_BATCHES), batchOf = [];
+  order.forEach((i, k) => { batchOf[i] = Math.floor(k / per); });
+  count("sequence.glassPieces", oldPanes.length + fillA.length);
+  const piece = (poly, look, old = null, batch = 0) => {
+    const box = boxOf([poly], 1);
+    return { box, poly, batch, canvas: cutLook(look, [poly], box, "drpg-seq-pane"), old: old ? cutLook(old, [poly], box, "drpg-seq-pane") : null };
+  };
+  // each new pane's slide out from behind the glass beside it (round 4), and its glass cut from the closed curtain
+  const slid = (standing, fill, look) => slidePlan(standing.map(p => ({ poly: p.poly })), fill, W, H).map(p => ({ ...p, ...piece(p.poly, look) }));
+  return {
+    W, H, acc: j.acc,
+    close: { panes: oldPanes.map((p, i) => piece(p.poly, newLook, oldLook, batchOf[i] ?? 0)), fill: slid(oldPanes, fillA, lookA), batchOf },
+    closed: lookB,
+    open: { panes: trial.map(p => piece(p.poly, newLook)), fill: slid(trial, fillB, lookB) }
+  };
+}
 function rebuild() {
   try { rebuildAll(); } finally { if (document.body.hasAttribute("data-drpg-measuring")) measuring(false); }
 }
@@ -4332,7 +4446,7 @@ function rebuildAll() {
            and bakes it before the next frame and lets the browser run it; a turn that moves glass
            clips the frost to the new cut once its moves are over, and a new cut with no such turn
            (reduced motion, nothing painted before, a corner not worth a turn) clips it here. */
-        const turn = oldLook ? glassTurn({ job: j, from: oldPanes, look: oldLook, glow: oldGlow, fromAcc: oldAcc, force: j.foldTurn === true, flash: j.foldTurn !== true }) : null;
+        const turn = oldLook && !entryHold ? glassTurn({ job: j, from: oldPanes, look: oldLook, glow: oldGlow, fromAcc: oldAcc, force: j.foldTurn === true, flash: j.foldTurn !== true }) : null;
         if (!turn?.plan.frost) clipToCut(frostOf(j), j.pathD);
         /* A NEW CUT, AND ONLY A NEW CUT, IS ANNOUNCED (E77 C4). The room tile's picture follows
            its pane here, and `drpgGlassCut` is what a test counts to say that a new description,

@@ -18,7 +18,8 @@
  * .claude/rules/code.md).
  */
 
-import { TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES, CHAPTERS_PER_SEASON } from "./config.mjs";
+import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES, CHAPTERS_PER_SEASON } from "./config.mjs";
+import { SETTINGS } from "./settings.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { resetAllActions } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
@@ -181,6 +182,19 @@ export function campaignRows(clock, { extra = [], autofocus = false } = {}) {
     ];
 }
 
+/**
+ * The next morning's line, Edit campaign's last field (E94 C1; the plan's default: "a GM field in Edit campaign"): what
+ * the start-of-day board says under MORNING ANNOUNCEMENT. It is kept on this browser (`morningLineDraft`), in no world
+ * data, until the Night's advance puts it on the clock at the day's start; empty, the board shows no line.
+ */
+export function morningLineRow() {
+    const id = stepperId();
+    let draft = "";
+    try { draft = String(game.settings.get(MODULE_ID, SETTINGS.morningLineDraft) ?? ""); } catch { draft = ""; }
+    return { label: game.i18n.localize("DRPG.Clock.morningLine"), id,
+        field: `<textarea name="morningLine" id="${id}" rows="2" maxlength="200">${foundry.utils.escapeHTML(draft)}</textarea>${helpText("DRPG.Clock.morningLineHint")}` };
+}
+
 /** Edit campaign. `roads.endChapter` stands in for chapter.mjs `openChapterEndDialog` (the suite's; E49 A2). */
 export async function openClockDialog({ roads = {} } = {}) {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
@@ -200,7 +214,7 @@ export async function openClockDialog({ roads = {} } = {}) {
     const result = await drpgWindow({
         title: game.i18n.localize("DRPG.Panel.jump"),
         classes: ["drpg-panel", "drpg-window-clock"],
-        body: `<form>${formGrid(campaignRows(clock))}</form>${endChapterPart()}`,
+        body: `<form>${formGrid(campaignRows(clock, { extra: [morningLineRow()] }))}</form>${endChapterPart()}`,
         render: (event, dialog) => {
             dialog.element.querySelector("[data-drpg-end-chapter]")?.addEventListener("click", ev => {
                 ev.preventDefault();
@@ -213,7 +227,7 @@ export async function openClockDialog({ roads = {} } = {}) {
             primary: {
                 action: "ok",
                 label: game.i18n.localize("DRPG.Panel.apply"),
-                callback: (event, button, dialog) => readClockForm(dialog)
+                callback: (event, button, dialog) => ({ ...readClockForm(dialog), morningLine: dialog.element.querySelector("[name=morningLine]")?.value ?? "" })
             },
             close: { role: "cancel", action: "cancel" }
         },
@@ -222,6 +236,8 @@ export async function openClockDialog({ roads = {} } = {}) {
 
     if (endAsked) return endTheChapter(roads.endChapter ?? (() => import("./chapter.mjs").then(m => m.openChapterEndDialog())));
     if (!result || result === "cancel") return;
+    // the next morning's line stays on this browser until the day starts (E94 C1; clock.mjs `advanceTimeOfDay`)
+    await game.settings.set(MODULE_ID, SETTINGS.morningLineDraft, String(result.morningLine ?? "").slice(0, 400)).catch(() => null);
     return applyCampaignForm(result);
 }
 

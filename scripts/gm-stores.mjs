@@ -785,6 +785,8 @@ export const verdictStore = defineGmStore({
  * (`restoreTrialBlock`); a user a GM blocked by hand before has no row, so nothing of the GM's is ever put back. Synced
  * between the GMs, so a new primary ends the trial's mute the old one began; no player copy, nothing a player reads.
  * Cut by the reset's trial group beside the verdict, after the phase's write has put every grant back.
+ * A SPECTATOR'S BLOCK IS A ROW HERE TOO (E92 C2): the same write in every phase, by `settleTrialVoices`, so the role
+ * given back - or the reset's release - puts back exactly what the block found, by the trial's own rule.
  */
 export const trialMuteStore = defineGmStore({
     name: "trialMute", key: SETTINGS.gmTrialMute,
@@ -1329,6 +1331,34 @@ export const caseSchemaStore = defineGmStore({
 });
 
 /**
+ * THE CASE'S TICKS AT A TRIAL (E99 C3; the owner's goal for E99: "a box to tick on every conclusion, counter and
+ * solution ... the module only hints, the GM decides"; Q-E99-8: every GM, an Assistant too). A row per chapter and
+ * schema node, `${chapter}:${nodeId}` - `{ ticked, by, at }`: ticked at the trial or not, by which GM, when. A GM store,
+ * so no player holds it (the ticks are the trial's reading of the solution); two GMs ticking two nodes both keep theirs,
+ * one node ticked and unticked by two at once keeps the later stamp. Not in the case's backup (the trial's state, as
+ * the floor's), cut with the trial's group.
+ */
+export const caseTickStore = defineGmStore({
+    name: "caseTicks", key: SETTINGS.gmCaseTicks,
+    kind: "ledger", resetGroup: "trialProgress", backup: false, sync: true
+});
+
+/**
+ * LOGIC DIVE'S SETS (E73 C4, 12.11.2026; the owner's TR3 = 2, TR4 = 2, TR9 = 1, TR32 = 2). A row per set, keyed by its
+ * id: `{ name, chapter, questions: [{ question, a, b, truth }], conclusion, usedAt, endedAt, stoppedAt, outcome,
+ * made, by }` - 1 to 5 questions, each with its two answers and the side that is true ("a" or "b"); the Finding a solved
+ * set gives (`conclusion`, optional); when it was last played (`usedAt`), how and where it ended (`endedAt`, `outcome`,
+ * `stoppedAt` the question it stopped at). The truth is the GMs' alone: the floor carries a question and its answers,
+ * never which is true (world-secrets.mjs, `trialQueue`'s `truth`), so a set is a GM store, backed up with the case it
+ * belongs to and cut with it (`resetGroup` "keyPlan"). Any GM writes it, an Assistant too; the primary reads it at
+ * each judgement (trial-zones.mjs). No old key: nothing held it before E73.
+ */
+export const diveSetStore = defineGmStore({
+    name: "diveSets", key: SETTINGS.gmDiveSets,
+    kind: "ledger", resetGroup: "keyPlan", backup: true, sync: true
+});
+
+/**
  * WHICH OF THE HALL'S TOKENS THE TRIAL SHOWS (E13 C2, 12.10.2026; plan-E13 3.3, decision D7, audit
  * S06-57). A row per actor of the linked trial hall's cast the GMs chose for, keyed `sceneId.actorId`
  * since E81 DZ6 (12.10.2026; `sceneId.tokenId` until then, moved by trial-scene.mjs `tidyTrialHall`,
@@ -1478,6 +1508,43 @@ export function fogSectionFor(user) {
     const mine = key => Boolean(game.actors?.get(String(key).split("/")[1] ?? "")?.testUserPermission?.(user, "OWNER"));
     const pickOwn = part => Object.fromEntries(Object.entries(all[part] ?? {}).filter(([key]) => mine(key)));
     return { e: pickOwn("e"), t: pickOwn("t"), d: pickOwn("d"), cleared: all.cleared ?? 0 };
+}
+
+/**
+ * A SPECTATOR'S MAP (E92 C4, 12.11.2026; the owner's E92 goal (4): "it sees the whole map the players have discovered -
+ * the discovery ledger without the Mastermind's row"; the plan's risk R2). Every row of the discovery store's `section`
+ * but the Mastermind's (`mastermindId`, the GMs' pick) folded into ONE row under the Spectator's own id, scene by
+ * scene, so the copy names no other character and nobody's walks - which student found which room, or where the
+ * Mastermind has been, is not in it. A room any of them holds found is found, at the newest stamp of the finds; a room
+ * none holds found keeps its newest untick, so a GM's untick of the last finder reaches the copy. Pure; the section's
+ * watermark is kept, its tombstones are not (they name the characters whose rows went). The copy merges it cell by
+ * cell (`fogCopy`), as a student's own row.
+ */
+export function spectatorFogSection(section, watcherId, { mastermindId = null } = {}) {
+    const out = { e: {}, t: {}, d: {}, cleared: section?.cleared ?? 0 };
+    if (!watcherId) return out;
+    const scenes = new Map();
+    for (const [key, cells] of Object.entries(section?.e ?? {})) {
+        const [sceneId, actorId] = String(key).split("/");
+        if (!sceneId || !actorId || actorId === mastermindId || !cells || typeof cells !== "object") continue;
+        const t = section.t?.[key];
+        const stampOf = room => (typeof t === "number" ? t : t && Object.hasOwn(t, room) ? t[room] : (t?.[""] ?? 0));
+        const rooms = scenes.get(sceneId) ?? new Map();
+        scenes.set(sceneId, rooms);
+        for (const [room, found] of Object.entries(cells)) {
+            if (room === "__proto__" || room === "constructor" || room === "prototype") continue;
+            const v = Boolean(found), s = Number(stampOf(room)) || 0, had = rooms.get(room);
+            if (!had || (v && !had.v)) rooms.set(room, { v, s });
+            else if (v === had.v && s > had.s) had.s = s;
+        }
+    }
+    for (const [sceneId, rooms] of scenes) {
+        if (!rooms.size) continue;
+        const key = `${sceneId}/${watcherId}`;
+        out.e[key] = Object.fromEntries([...rooms].map(([room, c]) => [room, c.v]));
+        out.t[key] = { "": 0, ...Object.fromEntries([...rooms].map(([room, c]) => [room, c.s])) };
+    }
+    return out;
 }
 
 /** Whether a store's old key changed since this browser claimed it (a 1.2.x session wrote it since: the design's H1). */
@@ -2415,7 +2482,8 @@ export function sameDecision(shown, now) {
  */
 export async function enterCastByHand() {
     if (!game.user?.isGM) return null;
-    const students = (game.actors?.contents ?? []).filter(a => a.type === "character");
+    // No Spectator (E92 C1): it is in nobody's incident.
+    const students = (game.actors?.contents ?? []).filter(a => a.type === "character" && !a.getFlag?.(MODULE_ID, FLAGS.spectator));
     const options = [emptyOption("DRPG.Case.castNobody"),
         ...students.map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`)].join("");
     const seat = (name, key) => `<label>${esc(game.i18n.localize(key))} <select name="${name}">${options}</select></label>`;
