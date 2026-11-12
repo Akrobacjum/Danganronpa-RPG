@@ -85,6 +85,10 @@ red, the switch's glyph and the third-button rules' selector: both updated with 
 Spectator's microphone) 6 passed; scenarios 93, 75, 30, 33, 10, 15, 40, 41, 61, 63, 66, 72, 73, 76, 83, 88 green - every
 scenario `git grep` finds naming a changed file, 01 and 84 aside; `node tools/check.mjs` 17 parts green; lint 0 problems.
 
+CI: the push of e574990 queued run 43211150866; cancelled before it started, on the coordinator's word of 12.11 (CI runs
+once per release, on the train's PR head; every push carries "[skip ci]" from now on). The local results above stand
+in its place.
+
 Defaults taken, owner to confirm:
 - Q-E92-9 (new): with the GM's `voiceTile` switch off, Foundry's own dock is shown and the module draws no switch there:
   a Spectator has no way to talk with the Spectators then. Putting a button into Foundry's dock would read v14's dock
