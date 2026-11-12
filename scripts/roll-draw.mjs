@@ -57,6 +57,7 @@ import { answerKeysOpen, rollStore, sheetMarkStore } from "./gm-stores.mjs";
 import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf, readHere, awaitDrawn, isDrawnRoll, forgedFlagsOf, isReadableHere,
     rollNonceOf, gmsInRoomOf } from "./private-rolls.mjs";
 import { LOADED_DIE, loadDie, loadedAtOf, standAsideFor } from "./forced-roll.mjs";
+import { adoptMarks } from "./roll-marks.mjs";
 import { DRPG_ACTION_ROLL, DRAWN_ROLL, searchOdds, stashStepFor } from "./action-rolls.mjs";
 import { actionsLeft, freeActionsLeft } from "./actions.mjs";
 import { armedCallsShown, situationalAdvantage, spendCallsByNonce } from "./call-effects.mjs";
@@ -131,32 +132,37 @@ export function rollDrawState() {
  * "changed", with the review's reason. Split out in fix r2-H6 (05.10.2026; review m3) so R217
  * reads the decision on a build that is not the reviewed one, not only the review.
  */
-export function seamFor(cls, { rollTrait = CONFIG.Actor?.documentClass?.prototype?.rollTrait } = {}) {
+export function seamFor(cls, { rollTrait = CONFIG.Actor?.documentClass?.prototype?.rollTrait,
+    MoveContext = game.system?.api?.data?.actions?.MoveContext ?? null } = {}) {
     const review = reviewBuild(cls);
     if (!review.ok) return { state: "changed", why: review.why };
-    const road = reviewTraitRoad(rollTrait);
+    const road = reviewTraitRoad(rollTrait, MoveContext);
     return road.ok ? { state: "ok", why: "" } : { state: "changed", why: road.why };
 }
 
 /**
- * THE ROAD AN ACTION'S OPTIONS TAKE TO THE BUILD (E76 C3, 12.11.2026; R3602). The draw reads the
- * module's marks off the config `build` is handed - `drpgActionRoll` decides an action from a statistic
- * on the sheet (`drawOrThrow`), the nonce the claim - and they reach it only if Daggerheart's
- * `rollTrait` hands its options on. Up to 2.10.x it does. From 2.12 (read in 2.12.8: actor.mjs
- * `rollTrait` :727-743, move-context.mjs's constructor) it builds a `MoveContext`, which copies only
- * the properties it names, so every module mark is gone and an action would be drawn as a statistic
- * from the sheet. A `rollTrait` that names a MoveContext, or whose source cannot be read (a bound or
- * native function), is a road this draw was not written for: "changed", the roll thrown on the
- * player's browser and the GM told once per version. Not having one (no Actor class here) is not
- * judged: the build's review decides alone. Carrying the marks through a MoveContext is the 2.12
- * rework the plan splits off (Q-E76-5).
+ * THE ROAD AN ACTION'S OPTIONS TAKE TO THE BUILD (E76 C3, 12.11.2026; R3602; narrowed in E76b). The draw
+ * reads the module's marks off the config `build` is handed - `drpgActionRoll` decides an action from a
+ * statistic on the sheet (`drawOrThrow`), the nonce the claim - and up to 2.10.x Daggerheart's
+ * `rollTrait` hands its options on. From 2.12 (read in 2.12.8: actor.mjs `rollTrait` :727-743,
+ * move-context.mjs's constructor) it builds a `MoveContext`, which copies only the properties it names:
+ * every module mark is gone, but the caller's own event is kept (`this.event ??= data.event`), and the
+ * module carries its marks on that (roll-marks.mjs; `drawnBuild` and the `daggerheart.preRollDuality`
+ * hook put them back). So a `rollTrait` that names a MoveContext is a road this draw was written for only
+ * where the MoveContext this Daggerheart offers (game.system.api.data.actions) keeps the event, read off
+ * its constructor's text; where it keeps none, where none is offered, or where `rollTrait`'s source cannot
+ * be read (a bound or native function), the build is "changed": the roll thrown on the player's browser
+ * and the GM told once per version. Not having one (no Actor class here) is not judged: the build's
+ * review decides alone.
  */
-function reviewTraitRoad(rollTrait) {
+function reviewTraitRoad(rollTrait, MoveContext) {
     if (typeof rollTrait !== "function") return { ok: true, why: "" };
     const text = Function.prototype.toString.call(rollTrait);
     if (/\{\s*\[native code\]\s*\}/.test(text)) return { ok: false, why: "the actor's rollTrait cannot be read" };
-    if (/\bMoveContext\b/.test(text)) return { ok: false, why: "the actor's rollTrait builds a MoveContext, which keeps none of the module's roll marks" };
-    return { ok: true, why: "" };
+    if (!/\bMoveContext\b/.test(text)) return { ok: true, why: "" };
+    const made = typeof MoveContext === "function" ? Function.prototype.toString.call(MoveContext) : "";
+    if (/this\.event\s*(?:\?\?=|=)\s*data\.event\b/.test(made)) return { ok: true, why: "" };
+    return { ok: false, why: "the actor's rollTrait builds a MoveContext that keeps no event to carry the module's roll marks" };
 }
 
 /**
@@ -181,6 +187,9 @@ export function registerRollDraw() {
     Hooks.once("ready", () => { for (const actor of game.actors ?? []) notePayments(actor); });
     Hooks.on("createActor", actor => notePayments(actor));
     Hooks.on("updateActor", notePayments);
+    // On any build, drawn or not (E76b): Daggerheart's `buildConfigure` calls this before the window opens and the
+    // roll is made, so the window, the roll's options and the claim's nonce read the marks a 2.12 MoveContext dropped.
+    Hooks.on(`${CONFIG.DH?.id ?? "daggerheart"}.preRollDuality`, config => { adoptMarks(config); });
     const decided = seamFor(cls);
     if (decided.state !== "ok") {
         seam = decided;
@@ -189,6 +198,8 @@ export function registerRollDraw() {
     }
     const original = cls.build;
     async function drawnBuild(config = {}, message = {}) {
+        // The module's marks back on a 2.12 MoveContext before the draw reads them (roll-marks.mjs, E76b).
+        adoptMarks(config);
         return drawOrThrow(this, original, config, message);
     }
     drawnBuild[SEAM] = true;

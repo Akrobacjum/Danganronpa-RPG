@@ -414,9 +414,14 @@ part of a roll comes from:
 - **Daggerheart's code, copied verbatim** - `lib/dh-dice/dice/`: baseRoll.mjs,
   dhRoll.mjs, d20Roll.mjs, dualityRoll.mjs, helpers.mjs and die/ (_module,
   baseDie, dualityDie, hopeDie, fearDie, advantageDie, disadvantageDie), from
-  tag 2.10.5 (commit 6bf4b69f98), `module/dice/`. Each is the file byte for
-  byte under a header; never edit one, re-copy them on an upgrade. Lint skips
-  them as it skips dh-relay.mjs (eslint.config.mjs). The licence:
+  tag 2.12.8 (commit 71c318de25), `module/dice/` (2.10.5's until E76 C3b,
+  12.11.2026); since then also `lib/dh-dice/data/action/move-context.mjs` (2.12's
+  roll config, which the harness's `rollTrait` builds) and
+  `lib/dh-dice/helpers/functional.mjs` (what it imports), from the same tag.
+  Each is the file byte for byte under a header; never edit one, re-copy them
+  on an upgrade. Lint skips them as it skips dh-relay.mjs (eslint.config.mjs).
+  The rest of `lib/dh-dice/` is the harness's glue at the paths those files
+  import (the window, `helpers/utils.mjs`, the two `ResourceUpdateMap` paths). The licence:
   `lib/dh-dice/LICENSE`. A copy checks against the tag's file with
   `sed '1,/^ \*\/$/d' <copy> | tail -n +2 | cmp - <tag>/module/dice/<file>`.
   A line number a comment cites in one of them (`dualityRoll.mjs:125`) is the
@@ -550,16 +555,22 @@ roll at a table.
   localStorage, read now or as it closed. The seeded four do not come back, a
   role changes only by a write, nobody is logged out for it, and there is no
   `game.users.activeGM`. `opLog` and `settingLog` say who wrote what.
-- **Daggerheart.** Its GM relay is 2.10.11's own code (`lib/dh-relay.mjs`,
-  re-copied in E75 C1), and its duality roll is 2.10.5's own code since E33 C2a
+- **Daggerheart.** Its GM relay is 2.12.8's own code (`lib/dh-relay.mjs`,
+  re-copied in E76 C1b; 2.10.11's from E75 C1), and its duality roll is 2.12.8's
+  own code since E76 C3b (2.10.5's from E33 C2a). Since E76 C3c a trait roll
+  takes 2.12's road: `rollTrait` builds Daggerheart's own `MoveContext` and
+  `diceRoll` hands it to the actor's roll class (client-entry.mjs), so what that
+  config keeps of the module's options is Daggerheart's (the module carries its
+  marks through it: scripts/roll-marks.mjs)
   ("Daggerheart's dice" above, with C2b's
   glue window, which the module's roll hooks run on unchanged); scenario 83 drives
   every legal road of a player's roll on it and on `audit/live/sandbox-cluster.mjs`
-  alike, taking only what both hand a scenario. A trait
-  roll's config is built as 2.6.5's `rollTrait` and `diceRoll` build it
-  (`lib/daggerheart.mjs`, E30), the card is the harness's, and the resource step
+  alike, taking only what both hand a scenario. Until E76 C3c a trait
+  roll's config was built as 2.6.5's `rollTrait` and `diceRoll` build it
+  (`lib/daggerheart.mjs`, E30); the card is the harness's, and the resource step
   (`addDualityResourceUpdates`, with its Hope-and-Fear automation gate, reaction,
-  `skips`, defeated-actor and reroll rules) fills a `ResourceUpdateMap` that the
+  `skips` and defeated-actor rules, read off `config.evaluated` since 2.12; 2.10.5's
+  had reroll rules too) fills a `ResourceUpdateMap` that the
   caller commits. The faces are scripted by `__forceRoll`, the Automation
   setting is Daggerheart's own shape (the seed turns `hopeFear` on for both), and
   `CONFIG.DH.RESOURCE` is built as Daggerheart builds it. A commit is the

@@ -569,6 +569,11 @@ const env = Object.freeze({
     desk: () => probe("env.desk", !narrowScreen(), "a stacked screen, narrower than BREAKPOINTS.narrow"),
     canvas: () => probe("env.canvas", canvasAvailable(), "no canvas renderer here"),
     systemSheets: () => probe("env.systemSheets", systemSheetsAvailable(), "Daggerheart's sheets are not registered here"),
+    /* Daggerheart's MoveContext (E76b, 12.11.2026): the config 2.12's `actor.rollTrait` builds its roll from
+       (game.system.api.data.actions.MoveContext, daggerheart.mjs:137-145, 2.12.8). Up to 2.10.x there is none, and a
+       test of what the module carries through it skips there; the harness runs 2.12.8's copy since E76 C3c. */
+    moveContext: () => probe("env.moveContext", typeof game.system?.api?.data?.actions?.MoveContext === "function",
+        "this Daggerheart builds no MoveContext (before 2.12)"),
     dialogs: () => probe("env.dialogs", dialogsDrawn(), "DialogV2 draws no window here"),
     unprepared: () => probe("env.unprepared", sourceUnprepared(), "Foundry prepares a character's data here, so a test cannot stand in for the preparation"),
     markdown: () => probe("env.markdown", Boolean(globalThis.showdown?.Converter), "no Markdown converter here"),

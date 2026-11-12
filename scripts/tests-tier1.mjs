@@ -8910,18 +8910,16 @@ const INVARIANTS = [
             "the seam would be put on a build that is not the reviewed one, or left off the reviewed one (this world's, the reviewed fake, the reordered fake)");
     }],
 
-    ["R3602 - the draw is left off a Daggerheart whose rollTrait passes its options through a MoveContext, which keeps none of the module's roll marks (2.12); this world's rollTrait is not one", async () => {
+    ["R3602 - the draw is left off a Daggerheart whose rollTrait passes its options through a MoveContext that keeps no event to carry the module's roll marks, or whose rollTrait cannot be read; this world's rollTrait is not one", async () => {
         /*
          * E76 C3 (12.11.2026; the plan's Q-E76-5, default taken: the 2.12 rework split off, the seam reading "changed"
-         * there). Read in Daggerheart 2.12.8 (git show on the tag, 71c318de25): actor.mjs `rollTrait` (:727-743) builds
-         * `MoveContext.build({ ..., ...options, actor })`, and move-context.mjs's constructor (:21-) copies the properties
-         * it names and sets `this.dialog = {}`: the module's `drpgActionRoll`, its nonce, `LOADED_DIE` and `TRAIT_BY_GM`
-         * never reach `DualityRoll.build`. Up to 2.10.x rollTrait handed the options on (the harness's copy, client-entry.mjs).
-         * `reviewBuild` reads the roll class alone, and 2.12.8's still has every member it asks for (build's three steps in
-         * order, the hook template, the Duality hooks, fromData, toMessage, buildEvaluate, dualityUpdate: read in the tag),
-         * so the seam would have wrapped it and drawn every action's roll as a statistic from the sheet. The harm: an
-         * action drawn as a reaction, its economy and its Calls lost on the GM. Not run on 2.12.8: the harness's dice are
-         * 2.10.5's (LIVE-E76-04).
+         * there), narrowed in E76b. Read in Daggerheart 2.12.8 (git show on the tag, 71c318de25): actor.mjs `rollTrait`
+         * (:727-743) builds `MoveContext.build({ ..., ...options, actor })`, and move-context.mjs's constructor (:21-)
+         * copies the properties it names and sets `this.dialog = {}`: the module's `drpgActionRoll`, its nonce,
+         * `LOADED_DIE` and `TRAIT_BY_GM` never reach `DualityRoll.build` as options. It keeps `this.event ??= data.event`,
+         * the caller's own object, and since E76b the module carries its marks on that (roll-marks.mjs, R3604), so 2.12's
+         * road is "changed" only where the MoveContext it can reach keeps no event, where none can be reached, or where
+         * `rollTrait` cannot be read. The harm: an action drawn as a reaction, its economy and its Calls lost on the GM.
          */
         const { seamFor } = await import("./roll-draw.mjs");
         const live = game.system?.api?.dice?.DualityRoll;
@@ -8936,11 +8934,103 @@ const INVARIANTS = [
             const config = { roll: { trait }, ...options };
             return this.diceRoll(config);
         };
+        const keeps = class MoveContext { constructor(data = {}) { this.event ??= data.event; this.dialog = {}; } };
+        const drops = class MoveContext { constructor(data = {}) { this.title = data.title; this.dialog = {}; } };
         ok(typeof CONFIG.Actor?.documentClass?.prototype?.rollTrait === "function", "this world's Actor class has no rollTrait for the seam to read");
-        const verdicts = [seamFor(live, { rollTrait: road212 }), seamFor(live, { rollTrait: road210 }), seamFor(live), seamFor(live, { rollTrait: rolled })];
-        equal(JSON.stringify(verdicts.map(v => v.state)), JSON.stringify(["changed", "ok", "ok", "changed"]),
-            "[2.12's road, 2.10's road, this world's rollTrait, a rollTrait whose source cannot be read] - the seam's verdict");
+        const verdicts = [seamFor(live, { rollTrait: road212, MoveContext: drops }), seamFor(live, { rollTrait: road212, MoveContext: null }),
+            seamFor(live, { rollTrait: road210, MoveContext: drops }), seamFor(live, { rollTrait: rolled, MoveContext: keeps }),
+            seamFor(live, { rollTrait: road212, MoveContext: keeps })];
+        equal(JSON.stringify(verdicts.map(v => v.state)), JSON.stringify(["changed", "changed", "ok", "changed", "ok"]),
+            "[2.12's road with a MoveContext that keeps no event, with none to reach, 2.10's road, a rollTrait whose source cannot be read, 2.12's road with one that keeps the event] - the seam's verdict");
         ok(/MoveContext/.test(verdicts[0].why) && /marks/.test(verdicts[0].why), `the reason does not say what 2.12's road loses: ${verdicts[0].why}`);
+    }],
+
+    ["R3604 - the module's roll marks reach Daggerheart 2.12's build through its MoveContext: carried on the options' own event, put back on the config, and the window's configure as the module asked", async () => {
+        /*
+         * E76b (12.11.2026; the owner's yes of 12.11, relayed by the coordinator). Daggerheart 2.12's `rollTrait` builds a
+         * MoveContext from the module's options, which keeps only what it names (move-context.mjs:21-, 2.12.8): of the
+         * module's options the event alone (`this.event ??= data.event`, the caller's own object), and `dialog` is set to
+         * {} and filled from the event's keys. The harm, measured on the harness at ca44459 (2.12.8's road, no carrier):
+         * an action's roll reached the GM's build as a statistic from the sheet, its nonce and Loaded Die gone, its window
+         * opened whatever the module asked - 83-roll-integrity 53/110, 40-flow 65/88. Run on Daggerheart's own
+         * MoveContext (the harness's copy of 2.12.8; a table's own at 2.12+), with nothing written.
+         */
+        needs(env.moveContext());
+        const M = await import("./roll-marks.mjs");
+        const MoveContext = game.system.api.data.actions.MoveContext;
+        const marks = { drpgActionRoll: true, drpgRollNonce: "R3604NONCE", drpgLoadedDie: "R3604LOAD", drpgTraitByGm: "approved" };
+        const options = M.carryMarks({ event: { shiftKey: false, altKey: false, ctrlKey: false }, dialog: { configure: false }, ...marks });
+        const config = await MoveContext.build({ title: "R3604", roll: { type: "trait", trait: "agility" }, actionType: "action", ...options });
+        const lost = Object.keys(marks).filter(key => config[key] === undefined);
+        const before = config.dialog?.configure;
+        const adopted = M.adoptMarks(config);
+        equal(JSON.stringify([lost.length, before, adopted, Object.fromEntries(Object.keys(marks).map(key => [key, config[key]])), config.dialog?.configure]),
+            JSON.stringify([4, true, true, marks, false]),
+            "[marks Daggerheart's MoveContext dropped, the window it would open, adopted, the marks on the config after, the window after]");
+        equal(JSON.stringify([M.adoptMarks(config), M.adoptMarks({ event: {} }), M.adoptMarks(null), M.adoptMarks({})]), JSON.stringify([true, false, false, false]),
+            "[a second adopt, an event the module never carried, no config, no event] - adopted");
+        const own = await MoveContext.build({ title: "R3604b", roll: { type: "trait", trait: "agility" }, actionType: "action",
+            ...M.carryMarks({ event: { shiftKey: false, altKey: false, ctrlKey: false }, drpgActionRoll: true }) });
+        own.drpgActionRoll = false;
+        M.adoptMarks(own);
+        equal(own.drpgActionRoll, false, "a mark already on the config is written over by the carried one");
+        ok(!("drpgRollNonce" in M.carryMarks({ event: {} })), "carryMarks adds marks the options did not carry");
+    }],
+
+    ["R3606 - a Daggerheart 2.12 roll's outcome is read where 2.10 wrote it: its duality, faces, total and critical on config.roll, and nothing 2.10 wrote is changed", async () => {
+        /*
+         * E76b (12.11.2026). Up to 2.10 the duality roll's outcome was written onto `config.roll` (dhRoll.mjs:88-101,
+         * dualityRoll.mjs:213-239, d20Roll.mjs:180, 2.10.5); from 2.12 `config.roll` keeps what the roll was asked to be and
+         * the outcome is the Roll on `config.evaluated` (dhRoll.mjs:98-107, 2.12.8). The module's readers read
+         * `config.roll`: measured at ca44459 with the marks carried, 40-flow's Sabotage with Fear left its readied tool
+         * whole ("broken": false), its duality read as none. Read on a stand-in for 2.12's Roll with the getters 2.12.8's
+         * dualityRoll.mjs answers (dHope, dFear, withHope, withFear, isCritical, total, totalLabel), and the module's own
+         * `dualityOf`.
+         */
+        const M = await import("./roll-marks.mjs");
+        const { dualityOf } = await import("./action-pipeline.mjs");
+        const die = (denomination, total) => ({ denomination, total, formula: `1${denomination}`, results: [{ result: total, active: true }] });
+        const evaluated = (hope, fear) => ({ total: hope + fear + 2, formula: "1d12 + 1d12 + 2", dice: [die("d12", hope), die("d12", fear)],
+            dHope: die("d12", hope), dFear: die("d12", fear), withHope: hope > fear, withFear: fear > hope, isCritical: hope === fear, totalLabel: "x" });
+        const fear = { roll: { type: "trait", trait: "agility" }, evaluated: evaluated(4, 6) };
+        const before = dualityOf(fear.roll);
+        const filled = M.fillRollFacts(fear);
+        equal(JSON.stringify([before.withFear, filled, dualityOf(fear.roll), fear.roll.total, fear.roll.hope?.value, fear.roll.fear?.value, fear.roll.trait]),
+            JSON.stringify([false, true, { isCritical: false, withHope: false, withFear: true }, 12, 4, 6, "agility"]),
+            "[read before, filled, the duality after, the total, the Hope face, the Fear face, the statistic kept]");
+        const crit = { roll: { type: "trait" }, evaluated: evaluated(7, 7) };
+        M.fillRollFacts(crit);
+        equal(JSON.stringify(dualityOf(crit.roll)), JSON.stringify({ isCritical: true, withHope: false, withFear: false }), "a 2.12 critical read as something else");
+        const old = { roll: { total: 9, isCritical: false, result: { duality: 1 }, hope: { value: 6 } }, evaluated: evaluated(2, 9) };
+        M.fillRollFacts(old);
+        equal(JSON.stringify([old.roll.total, old.roll.result, old.roll.hope]), JSON.stringify([9, { duality: 1 }, { value: 6 }]), "a fact already on config.roll was written over");
+        equal(JSON.stringify([M.fillRollFacts({ roll: {} }), M.fillRollFacts({ roll: {}, evaluated: {} }), M.fillRollFacts(null)]), JSON.stringify([false, false, false]),
+            "[no evaluated roll, one not evaluated, no config] - filled");
+    }],
+
+    ["R3605 - a critical on Daggerheart 2.12 pays the guide's 2 Hope and clears no Sanity: the rule reads the roll's outcome where 2.12 writes it", async () => {
+        /*
+         * E76b (12.11.2026). Daggerheart 2.12 reads a duality roll's outcome off `config.evaluated` (isCritical, withHope,
+         * withFear; dualityRoll.mjs `addDualityResourceUpdates`, 2.12.8:237-262) where 2.10 read `config.roll.isCritical`
+         * and `config.roll.result.duality`. critical.mjs asked `config.roll.isCritical` after Daggerheart's step, so on 2.12
+         * a critical paid Daggerheart's +1 Hope and cleared a Stress (measured at ca44459: 20-crit-hope "critical pays
+         * exactly +2 Hope (guide), not +3 - delta=1"). Run on the installed step with a map of its own: nothing is written.
+         */
+        needs(world.atLeast("livingStudents"));
+        const DualityRoll = game.system?.api?.dice?.DualityRoll;
+        must(typeof DualityRoll?.addDualityResourceUpdates === "function", "this Daggerheart has no duality resource step");
+        const actor = studentActors().find(a => !["dead", "defeated", "unconscious"].some(s => a.statuses?.has?.(s)));
+        must(actor, "no living student to roll for");
+        const run = async shape => {
+            const map = new Map();
+            map.addResources = function (resources) { for (const r of resources ?? []) this.set(r.key, r); };
+            await DualityRoll.addDualityResourceUpdates({ source: { actor: actor.uuid }, actionType: "action", resourceUpdates: map, ...shape });
+            return { hope: map.get("hope")?.value ?? null, stress: map.get("stress")?.value ?? null, fear: map.get("fear")?.value ?? null };
+        };
+        const crit212 = await run({ evaluated: { isCritical: true, withHope: true, withFear: false }, roll: { type: "trait", trait: "agility" } });
+        const hope212 = await run({ evaluated: { isCritical: false, withHope: true, withFear: false }, roll: { type: "trait", trait: "agility" } });
+        equal(JSON.stringify([crit212, hope212]), JSON.stringify([{ hope: 2, stress: null, fear: null }, { hope: 1, stress: null, fear: null }]),
+            "[a critical, a roll with Hope] - the Hope, the Stress and the Fear Daggerheart's step and the rule leave");
     }],
 
     ["R219 - what one client must decide is decided on the primary GM: another GM asks it, as a player does", async () => {
