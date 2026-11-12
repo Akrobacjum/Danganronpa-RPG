@@ -15558,6 +15558,59 @@ const INVARIANTS = [
             "the move backend here is not the module's: no token passes a passage on this browser (PATCHES, passages.mjs)");
         ok(!CONFIG.Canvas?.polygonBackends?.sight?.[MARK], "the sight backend carries the passages' mark: every eye would see through a passage");
     }],
+
+    ["R3601 - a passage's cut leans on Foundry's sweep only as 14.370 declares it: `_identifyEdges()` with no argument filling `edges`, a Set; each piece built as new Edge(a, b, options) with no option but the nine Edge options, this Foundry's sweep the same shape", async () => {
+        /*
+         * E76 C5, 12.11.2026 (the owner's A10, 11.10: Foundry's change list read for the passages' geometry). What
+         * `PassageMovePolygon` and `clipPassages` lean on, held to Foundry 14.370 as foundry-vtt-types 14.370.0 declares it
+         * (commit 2923f0c5, 07.11.2026; src/foundry/client/canvas/geometry/clockwise-sweep.d.mts: `edges: Set<Edge>`,
+         * `protected _identifyEdges(): void`; edges/edge.d.mts: `constructor(a, b, options?)`, its options id, object, type,
+         * direction, light, move, sight, sound, threshold). Typings, not Foundry's source (foundryvtt.com is not reachable
+         * from this session); whether 14.370's sweep keeps the cut pieces is LIVE-E76-06 and LIVE-E79-01. The harms: a cut
+         * that passes Foundry an option it does not have, an argument `_identifyEdges` does not take, or an edge made some
+         * other way; and the harness's sweep (lib/shim.mjs `buildPolygonBackends`) drifting from that shape, so scenario 76
+         * and R556 drive a sweep 14.370 does not have.
+         */
+        const L = await import("./passages.mjs");
+        const J = v => JSON.stringify(v);
+        const OPTIONS = ["id", "object", "type", "direction", "light", "move", "sight", "sound", "threshold"];
+        const built = [];
+        class Edge {
+            constructor(...args) {
+                built.push({ args: args.length, a: args[0], b: args[1], keys: Object.keys(args[2] ?? {}) });
+                [this.a, this.b] = args;
+                Object.assign(this, args[2] ?? {});
+            }
+        }
+        const wall = new Edge({ x: 0, y: 0 }, { x: 300, y: 0 }, { id: "R3601W", object: { id: "R3601W" }, type: "wall",
+            direction: 0, light: 20, move: 20, sight: 20, sound: 20, threshold: null });
+        built.length = 0;
+        const asked = [];
+        class Base {
+            _identifyEdges(...args) {
+                asked.push(args.length);
+                this.edges = new Set([wall]);
+            }
+        }
+        const Passage = L.passageMovePolygon(Base);
+        const polygon = new Passage();
+        polygon.config = { type: "move", drpgPassages: [{ id: "R3601P", wallId: "R3601W", x1: 100, y1: 0, x2: 200, y2: 0 }] };
+        polygon._identifyEdges();
+        const left = [...polygon.edges];
+        equal(J([asked, left.length, built.length, built.every(b => b.args === 3), built.flatMap(b => b.keys.filter(k => !OPTIONS.includes(k)))]),
+            J([[0], 2, 2, true, []]),
+            "[the base asked with no argument, two pieces left, two edges built, each as (a, b, options), options that are no Edge option]");
+        ok(polygon.edges instanceof Set && !polygon.edges.has(wall), "the cut does not leave `edges` a Set without the passage's wall");
+
+        // This Foundry's sweep - the harness's (lib/shim.mjs `buildPolygonBackends`) headless, Foundry's own at a table -
+        // read off the sight backend, which the module leaves as it found it: the members the subclass leans on, as 14.370
+        // declares them, so what R556 and scenario 76 drive is that shape. Nothing is constructed or swept here.
+        const Sweep = CONFIG.Canvas?.polygonBackends?.sight;
+        equal(J([typeof Sweep, typeof Sweep?.prototype?._identifyEdges, Sweep?.prototype?._identifyEdges?.length,
+            typeof Sweep?.prototype?._testCollision, typeof Sweep?.testCollision]),
+        J(["function", "function", 0, "function", "function"]),
+        "[a sight backend, its _identifyEdges a method, taking no argument, _testCollision a method, testCollision a static]");
+    }],
     ["R557 - the frame opens a secret passage only for whoever may take it: a character that knows it on a player's browser, never one that does not, a GM's browser or no character, and not into a room a GM locked; the cut walls leave the gap and nothing else; no character and a GM draw today's outline; the outline is redrawn on a change of the passages by one listener, with no sound", async () => {
         /*
          * E79 C3, 14.10.2026; the E79 plan's A10-4 (P7-0, the owner's Q9: the gap is the veto's own predicate, per
