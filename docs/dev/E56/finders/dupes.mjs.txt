@@ -1,0 +1,25 @@
+import fs from "node:fs"; import { createRequire } from "node:module";
+const req = createRequire("/opt/node-tools/node_modules/"); const acorn = req("acorn"); const walk = req("acorn-walk");
+const R = process.argv[2]; const groups = new Map(); const byName = new Map();
+for (const f of fs.readdirSync(`${R}/scripts`).filter(f => f.endsWith(".mjs") && !f.startsWith("tests"))) {
+  const src = fs.readFileSync(`${R}/scripts/${f}`, "utf8");
+  const ast = acorn.parse(src, { ecmaVersion: "latest", sourceType: "module" });
+  const fns = [];
+  walk.full(ast, n => {
+    if (n.type === "FunctionDeclaration" && n.id) fns.push([n.id.name, n]);
+    else if (n.type === "VariableDeclarator" && n.id.type === "Identifier" && /Function/.test(n.init?.type ?? "")) fns.push([n.id.name, n.init]);
+  });
+  for (const [name, n] of fns) {
+    const body = src.slice(n.body?.start ?? n.start, n.body?.end ?? n.end);
+    const params = (n.params ?? []).map(p => src.slice(p.start, p.end)).join(",");
+    const norm = (params + "=>" + body).replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "").replace(/\s+/g, "");
+    if (norm.length < 25) continue;
+    const line = src.slice(0, n.start).split("\n").length;
+    (groups.get(norm) ?? groups.set(norm, []).get(norm)).push(`${f}:${line} ${name}`);
+    (byName.get(name) ?? byName.set(name, []).get(name)).push(`${f}:${line}`);
+  }
+}
+console.log("IDENTICAL BODIES (comments and whitespace aside), in 2+ places:");
+for (const [k, v] of groups) if (v.length > 1 && new Set(v.map(x => x.split(":")[0])).size > 1) console.log(`  ${v.join(" | ")}  [${k.length} chars]`);
+console.log("SAME NAME DECLARED IN 3+ FILES:");
+for (const [k, v] of byName) { const files = new Set(v.map(x => x.split(":")[0])); if (files.size >= 3) console.log(`  ${k}: ${v.join(", ")}`); }

@@ -1,0 +1,126 @@
+// E56 inventory: every export of scripts/*.mjs (not tests*) and who reads it.
+// Read-only. Usage: node exports.mjs <repo> > out.json
+import fs from "node:fs";
+import path from "node:path";
+import { createRequire } from "node:module";
+const require = createRequire("/opt/node-tools/node_modules/");
+const acorn = require("acorn");
+const walk = require("acorn-walk");
+
+const REPO = process.argv[2];
+const rel = f => path.relative(REPO, f).split(path.sep).join("/");
+function list(dir, re, skip = /node_modules|harness\/results|gate\/evidence|gate\/\.work/) {
+    const out = [];
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, e.name);
+        if (skip.test(p)) continue;
+        if (e.isDirectory()) out.push(...list(p, re, skip));
+        else if (re.test(e.name)) out.push(p);
+    }
+    return out;
+}
+const scriptFiles = list(path.join(REPO, "scripts"), /\.mjs$/);
+const otherJs = [...list(path.join(REPO, "tools"), /\.mjs$/), ...list(path.join(REPO, "audit"), /\.(mjs|js)$/),
+    ...list(path.join(REPO, "macros"), /\.js$/), path.join(REPO, "eslint.config.mjs")];
+const textFiles = [path.join(REPO, "module.json"), ...list(path.join(REPO, "audit"), /\.html$/), ...list(path.join(REPO, "tools"), /\.json$/)];
+
+const parse = src => {
+    for (const sourceType of ["module", "script"]) {
+        try { return acorn.parse(src, { ecmaVersion: "latest", sourceType, allowHashBang: true, allowAwaitOutsideFunction: true, allowReturnOutsideFunction: true }); } catch {}
+    }
+    return null;
+};
+
+// Per file: tokens outside import/re-export statements (identifier names, and words in strings/templates),
+// imports, re-exports, exports.
+const info = new Map();
+for (const f of [...scriptFiles, ...otherJs]) {
+    const src = fs.readFileSync(f, "utf8");
+    const ast = parse(src);
+    const r = { file: rel(f), parsed: !!ast, idents: new Map(), words: new Map(), imports: [], reexports: [], exports: [], dyn: [] };
+    info.set(r.file, r);
+    if (!ast) { for (const w of src.split(/[^A-Za-z0-9_$]+/)) r.words.set(w, (r.words.get(w) ?? 0) + 1); continue; }
+    const skipRanges = [];
+    for (const node of ast.body) {
+        if (node.type === "ImportDeclaration") {
+            skipRanges.push([node.start, node.end]);
+            for (const s of node.specifiers) r.imports.push({ from: node.source.value, imported: s.type === "ImportSpecifier" ? (s.imported.name ?? s.imported.value) : s.type === "ImportDefaultSpecifier" ? "default" : "*", local: s.local.name, start: node.start });
+        } else if ((node.type === "ExportNamedDeclaration" && node.source) || node.type === "ExportAllDeclaration") {
+            skipRanges.push([node.start, node.end]);
+            if (node.type === "ExportAllDeclaration") r.reexports.push({ from: node.source.value, local: "*", exported: "*" });
+            else for (const s of node.specifiers) r.reexports.push({ from: node.source.value, local: s.local.name ?? s.local.value, exported: s.exported.name ?? s.exported.value });
+        } else if (node.type === "ExportNamedDeclaration") {
+            const d = node.declaration;
+            if (d?.type === "FunctionDeclaration" || d?.type === "ClassDeclaration") r.exports.push({ name: d.id.name, line: src.slice(0, node.start).split("\n").length, kind: d.type === "ClassDeclaration" ? "class" : "function" });
+            else if (d?.type === "VariableDeclaration") for (const dec of d.declarations) {
+                const names = [];
+                walk.fullAncestor?.call; // noop
+                const collect = p => { if (!p) return; if (p.type === "Identifier") names.push(p.name); else if (p.type === "ObjectPattern") p.properties.forEach(q => collect(q.value ?? q.argument)); else if (p.type === "ArrayPattern") p.elements.forEach(collect); else if (p.type === "AssignmentPattern") collect(p.left); else if (p.type === "RestElement") collect(p.argument); };
+                collect(dec.id);
+                for (const n of names) r.exports.push({ name: n, line: src.slice(0, node.start).split("\n").length, kind: d.kind });
+            }
+            else if (!d) { skipRanges.push([node.start, node.end]); for (const s of node.specifiers) { r.listed = r.listed ?? new Set(); r.listed.add(s.local.name); } for (const s of node.specifiers) r.exports.push({ name: s.exported.name ?? s.exported.value, local: s.local.name, line: src.slice(0, node.start).split("\n").length, kind: "list" }); }
+        } else if (node.type === "ExportDefaultDeclaration") {
+            r.exports.push({ name: "default", line: src.slice(0, node.start).split("\n").length, kind: "default" });
+        }
+    }
+    walk.full(ast, n => { if (n.type === "ImportExpression" && n.source.type === "Literal") r.dyn.push(n.source.value); });
+    const inSkip = pos => skipRanges.some(([a, b]) => pos >= a && pos < b);
+    for (const t of acorn.tokenizer(src, { ecmaVersion: "latest", sourceType: "module", allowHashBang: true, allowAwaitOutsideFunction: true, allowReturnOutsideFunction: true })) {
+        if (inSkip(t.start)) continue;
+        if (t.type.label === "name" || t.type.keyword) r.idents.set(t.value, (r.idents.get(t.value) ?? 0) + 1);
+        else if (t.type.label === "string" || t.type.label === "template") for (const w of String(t.value).split(/[^A-Za-z0-9_$]+/)) if (w) r.words.set(w, (r.words.get(w) ?? 0) + 1);
+    }
+}
+for (const f of textFiles) {
+    const r = { file: rel(f), parsed: false, idents: new Map(), words: new Map(), imports: [], reexports: [], exports: [], dyn: [] };
+    for (const w of fs.readFileSync(f, "utf8").split(/[^A-Za-z0-9_$]+/)) if (w) r.words.set(w, (r.words.get(w) ?? 0) + 1);
+    info.set(r.file, r);
+}
+
+const isTest = f => /^scripts\/tests/.test(f);
+const isFacadeFile = f => { const r = info.get(f); return r && r.reexports.length > 0; };
+const rows = [];
+for (const f of scriptFiles.map(rel).filter(f => !isTest(f))) {
+    const r = info.get(f);
+    for (const e of r.exports) {
+        const N = e.name; if (N === "default") continue;
+        const ownUses = (r.idents.get(N) ?? 0) - 1; // minus the declaration (a list export's name is skipped)
+        const readers = [], reexp = [], words = [], importedUnused = [];
+        for (const [g, s] of info) {
+            if (g === f) continue;
+            const rx = s.reexports.filter(x => x.local === N && x.from.endsWith("/" + path.basename(f)));
+            if (rx.length) reexp.push(g);
+            const id = s.idents.get(N) ?? 0, w = s.words.get(N) ?? 0;
+            const imp = s.imports.some(x => x.imported === N);
+            if (id > 0) readers.push(`${g}${isTest(g) ? " (test)" : ""}`);
+            else if (w > 0) words.push(g);
+            else if (imp) importedUnused.push(g);
+        }
+        rows.push({ file: f, name: N, line: e.line, kind: e.kind, ownUses, readers, reexp, words, importedUnused });
+    }
+}
+// Unused imports: an imported local never read in the file outside its import.
+const unusedImports = [];
+for (const [g, s] of info) {
+    if (!s.parsed) continue;
+    for (const im of s.imports) if ((s.idents.get(im.local) ?? 0) === 0 && (s.words.get(im.local) ?? 0) === 0 && !(s.listed?.has(im.local))) unusedImports.push(`${g}: ${im.local}${im.imported !== im.local ? ` (${im.imported})` : ""} from ${im.from}`);
+}
+// Double imports: the same module source in two import statements of one file, or the same name imported twice.
+const doubles = [];
+for (const [g, s] of info) {
+    const bySrc = new Map();
+    for (const im of s.imports) { const k = path.posix.normalize(path.posix.join(path.posix.dirname(g), im.from)); (bySrc.get(k) ?? bySrc.set(k, new Set()).get(k)).add(im.start); }
+    for (const [k, starts] of bySrc) if (starts.size > 1) doubles.push(`${g}: ${starts.size} import statements of ${k}`);
+    const names = new Map();
+    for (const im of s.imports) if (im.imported !== "*" && im.imported !== "default") { const k = im.imported; names.set(k, [...(names.get(k) ?? []), im.from]); }
+    for (const [k, froms] of names) if (froms.length > 1) doubles.push(`${g}: ${k} imported ${froms.length}x (${froms.join(", ")})`);
+}
+// Static import of a module also reached by dynamic import() in the same file
+const staticAndDyn = [];
+for (const [g, s] of info) {
+    const st = new Set(s.imports.map(i => i.from));
+    for (const d of new Set(s.dyn)) if (st.has(d)) staticAndDyn.push(`${g}: ${d}`);
+}
+fs.writeFileSync(process.argv[3], JSON.stringify({ rows, unusedImports, doubles, staticAndDyn, unparsed: [...info.values()].filter(r => !r.parsed && /\.(m?js)$/.test(r.file)).map(r => r.file) }, null, 1));
+console.log("rows", rows.length);

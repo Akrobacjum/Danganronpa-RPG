@@ -1,0 +1,63 @@
+// E56 inventory: lang/en.json keys against their readers. Read-only.
+import fs from "node:fs";
+import path from "node:path";
+import { createRequire } from "node:module";
+const require = createRequire("/opt/node-tools/node_modules/");
+const acorn = require("acorn");
+const REPO = process.argv[2];
+const rel = f => path.relative(REPO, f).split(path.sep).join("/");
+function list(dir, re, skip = /node_modules|harness\/results|gate\/evidence|gate\/\.work/) {
+    const out = [];
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, e.name);
+        if (skip.test(p)) continue;
+        if (e.isDirectory()) out.push(...list(p, re, skip)); else if (re.test(e.name)) out.push(p);
+    }
+    return out;
+}
+const flat = (o, p = "", out = {}) => { for (const [k, v] of Object.entries(o)) { const q = p ? `${p}.${k}` : k; if (v && typeof v === "object") flat(v, q, out); else out[q] = v; } return out; };
+const en = flat(JSON.parse(fs.readFileSync(path.join(REPO, "lang/en.json"), "utf8")));
+const pl = flat(JSON.parse(fs.readFileSync(path.join(REPO, "lang/pl.json"), "utf8")));
+
+const groups = { runtime: [], test: [], other: [] };
+for (const f of list(path.join(REPO, "scripts"), /\.mjs$/)) (/\/tests-[^/]*\.mjs$/.test(f) ? groups.test : groups.runtime).push(f);
+groups.other.push(...list(path.join(REPO, "tools"), /\.(mjs|json)$/), ...list(path.join(REPO, "audit"), /\.(mjs|js|html|json)$/), ...list(path.join(REPO, "macros"), /\.js$/), path.join(REPO, "module.json"));
+
+// Strings (and template chunks) per group; comments are not strings. A file that does not tokenize is read whole.
+const strings = { runtime: new Set(), test: new Set(), other: new Set() };
+const fragmentsRuntime = new Set();
+for (const [g, files] of Object.entries(groups)) for (const f of files) {
+    const src = fs.readFileSync(f, "utf8");
+    let toks = null;
+    if (/\.m?js$/.test(f)) { try { toks = [...acorn.tokenizer(src, { ecmaVersion: "latest", sourceType: "module", allowHashBang: true, allowAwaitOutsideFunction: true, allowReturnOutsideFunction: true })]; } catch { toks = null; } }
+    const vals = toks ? toks.filter(t => t.type.label === "string" || t.type.label === "template").map(t => String(t.value)) : [src];
+    for (const v of vals) {
+        for (const m of v.matchAll(/(?:DRPG|DAGGERHEART|GAME)\.[A-Za-z0-9_.-]*/g)) {
+            strings[g].add(m[0]);
+            if (g === "runtime") fragmentsRuntime.add(m[0]);
+        }
+    }
+}
+const runtimeWords = new Set();
+for (const f of groups.runtime) { const src = fs.readFileSync(f, "utf8"); try { for (const t of acorn.tokenizer(src, { ecmaVersion: "latest", sourceType: "module" })) { if (t.type.label === "name") runtimeWords.add(t.value); else if (t.type.label === "string" || t.type.label === "template") for (const w of String(t.value).split(/[^A-Za-z0-9_$-]+/)) runtimeWords.add(w); } } catch {} }
+const FORMS = /\.(one|other|few|many|zero|two)$/;
+const literalIn = (g, k) => strings[g].has(k) || (FORMS.test(k) && strings[g].has(k.replace(FORMS, "")));
+// A runtime fragment that is a proper prefix of the key at a segment boundary: the key may be built from it.
+const fragList = [...fragmentsRuntime].filter(f => f !== "DRPG.");
+const prefixOf = k => fragList.filter(f => f !== k && k.startsWith(f) && (f.endsWith(".") || k[f.length] === ".")).sort((a, b) => b.length - a.length)[0] ?? null;
+
+const out = { total: 0, external: [], runtime: [], prefixOnly: [], testOnly: [], otherOnly: [], none: [] };
+for (const k of Object.keys(en)) {
+    out.total++;
+    if (!k.startsWith("DRPG.")) { out.external.push(k); continue; }
+    if (k.startsWith("DRPG.Config.")) { out.external.push(k); continue; }
+    if (literalIn("runtime", k)) { out.runtime.push(k); continue; }
+    const pre = prefixOf(k);
+    if (pre) { const tail = k.slice(pre.length).replace(/^\./, "").split(".")[0]; out.prefixOnly.push([k, pre, runtimeWords.has(tail)]); continue; }
+    if (literalIn("test", k)) { out.testOnly.push(k); continue; }
+    if (literalIn("other", k)) { out.otherOnly.push(k); continue; }
+    out.none.push(k);
+}
+const enOnly = Object.keys(en).filter(k => !(k in pl)), plOnly = Object.keys(pl).filter(k => !(k in en));
+fs.writeFileSync(process.argv[3], JSON.stringify({ ...out, enOnly, plOnly }, null, 1));
+console.log(`en ${out.total}: external/config ${out.external.length}, runtime literal ${out.runtime.length}, prefix-built only ${out.prefixOnly.length}, test-only ${out.testOnly.length}, tools/audit-only ${out.otherOnly.length}, none ${out.none.length}; en-only ${enOnly.length}, pl-only ${plOnly.length}`);

@@ -1,0 +1,187 @@
+TEST-ONLY total 920 of which own=0 (code reached only by tests): 78
+  scripts/a11y.mjs:193 a11yWatch [function] tests=tier2
+  scripts/action-pipeline.mjs:353 forgetRollInHand [function] tests=tier2
+  scripts/body-tile.mjs:88 tileCentre [function] tests=tier1
+  scripts/body-tile.mjs:161 bodyRoomOf [function] tests=tier1,tier2 words=scripts/tests-tier0.mjs
+  scripts/body-tile.mjs:239 holdBodyTiles [function] tests=tier2,scripts/tests
+  scripts/body-tile.mjs:245 heldBodyTiles [function] tests=tier2
+  scripts/dice-look.mjs:62 LOOK_CODES [const] tests=tier1
+  scripts/dice-sync.mjs:486 worldCopyIdle [function] tests=tier2
+  scripts/dice-sync.mjs:985 forgetFuses [function] tests=tier2 words=audit/harness/scenarios/17-assistant.mjs
+  scripts/dice-sync.mjs:992 ageFuses [function] tests=tier2
+  scripts/fog.mjs:1491 saveDiscoveryMatrix [function] tests=tier2
+  scripts/frisk.mjs:986 forgetFriskAsks [function] tests=tier2 words=audit/harness/scenarios/30-security.mjs,audit/harness/scenarios/40-flow.mjs,audit/harness/scenarios/72-canary.mjs
+  scripts/glass.mjs:1022 rotationWrites [function] tests=tier1
+  scripts/glass.mjs:3147 cutBoxes [function] tests=tier1 words=audit/harness/scenarios/75-voice-tile.mjs
+  scripts/glass.mjs:3591 glassLifecycle [function] tests=tier1,tier2
+  scripts/gm-store.mjs:1672 gmCopyNames [const] tests=tier0,tier1,scripts/tests
+  scripts/gm-store.mjs:1673 gmCopySpec [const] tests=tier0,tier1,scripts/tests
+  scripts/gm-store.mjs:1691 applyGmStoreCuts [const] tests=tier2
+  scripts/gm-store.mjs:1695 gmStoreHold [const] tests=scripts/tests words=scripts/tests-tier1.mjs,audit/harness/scenarios/61-gmstore-case.mjs
+  scripts/gm-store.mjs:1697 withGmStoreWorld [const] tests=tier2
+  scripts/gm-store.mjs:1699 withGmStoreLegacy [const] tests=tier2
+  scripts/gm-stores.mjs:554 withLivingProjects [function] tests=tier2
+  scripts/gm-stores.mjs:1622 whenGmStoresLoaded [function] tests=tier1,scripts/tests words=audit/harness/scenarios/01-runtests.mjs,audit/harness/scenarios/61-gmstore-case.mjs
+  scripts/handbooks.mjs:91 markdownToHtml [function] tests=tier1
+  scripts/incident-store.mjs:563 castFor [function] tests=grid,tier2 facade=scripts/murder.mjs words=audit/harness/scenarios/61-gmstore-case.mjs
+  scripts/investigation.mjs:230 archiveKeyPlan [function] tests=tier2
+  scripts/investigation.mjs:1684 caseStudentRows [function] tests=tier1,tier2
+  scripts/investigation.mjs:1817 caseTraceRows [function] tests=tier1,tier2
+  scripts/investigation.mjs:1997 caseKeyRows [function] tests=tier1,tier2
+  scripts/notice-history.mjs:1191 holdNoticeHistory [const] tests=tier1,scripts/tests words=audit/harness/scenarios/75-voice-tile.mjs
+  scripts/observe.mjs:1261 pendingShape [function] tests=tier2
+  scripts/passages-gm.mjs:1210 WHY_CODES [const] tests=tier0
+  scripts/passages-gm.mjs:2975 PASSAGE_LOOK [const] tests=tier1
+  scripts/patches.mjs:1355 contractState [function] tests=tier1,tier2
+  scripts/patches.mjs:1413 contractAtReady [function] tests=tier2
+  scripts/player-status.mjs:421 showsDeathOnly [function] tests=tier1
+  scripts/private-rolls.mjs:1277 isPublicRoll [function] tests=tier2 words=audit/harness/scenarios/12-social.mjs
+  scripts/projects.mjs:2011 setProjectImage [function] tests=tier2
+  scripts/remnants.mjs:809 traceDigestIdle [function] tests=tier2
+  scripts/reroll.mjs:843 cutRerollAfter [function] tests=tier2
+  scripts/roll-draw.mjs:169 standInSeam [function] tests=tier1,tier2
+  scripts/roll-draw.mjs:1121 paymentsOf [function] tests=tier2 words=audit/harness/scenarios/30-security.mjs
+  scripts/roll-draw.mjs:1124 forgetPayments [function] tests=tier2 words=audit/harness/scenarios/30-security.mjs
+  scripts/rooms.mjs:493 levelThrowListener [function] tests=tier2
+  scripts/rooms.mjs:506 standInLevelFailure [function] tests=tier1
+  scripts/rooms.mjs:591 CAMERA_READERS [const] tests=tier0
+  scripts/season-reset.mjs:147 lifetimeProblems [function] tests=tier0
+  scripts/settings-window.mjs:94 SETTINGS_SECTIONS [const] tests=tier0
+  scripts/settings.mjs:1042 WORLD_LIFETIMES [const] tests=tier0
+  scripts/settings.mjs:3576 bodyAnnounced [function] tests=tier2
+  scripts/settings.mjs:3583 chapterBodyFound [function] tests=tier2
+  scripts/settings.mjs:4232 sheetBox [function] tests=tier0 words=audit/style-harness.html
+  scripts/sheet-audit.mjs:703 sheetAuditIdle [function] tests=tier2 words=audit/harness/lib/old-keys.mjs,audit/harness/scenarios/10-murder.mjs,audit/harness/scenarios/15-held.mjs,audit/harness/scenarios/20-crit-hope.mjs,audit/harness/scenarios/30-security.mjs,audit/harness/scenarios/33-bridge-paths.mjs,audit/harness/scenarios/40-flow.mjs,audit/harness/scenarios/61-gmstore-case.mjs,audit/harness/scenarios/62-investigation.mjs,audit/harness/scenarios/63-class-trial.mjs,audit/harness/scenarios/83-roll-integrity.mjs,audit/harness/scenarios/87-messenger-sound.mjs
+  scripts/sheet.mjs:209 headerGate [function] tests=tier1
+  scripts/sound-panel.mjs:81 musicMapRows [function] tests=tier1 facade=scripts/music.mjs
+  scripts/style-snapshot.mjs:162 FLOOR_SURFACES [const] tests=tier0,tier1
+  scripts/sync.mjs:302 syncIdle [function] tests=tier1,tier2
+  scripts/sync.mjs:335 clockHeard [const] tests=tier1
+  scripts/trait-ruling.mjs:154 ruledDefinitions [function] tests=tier0
+  scripts/trial-floor.mjs:138 modeCensus [function] tests=tier1
+  scripts/trial-modes.mjs:59 testimonyRefusal [function] tests=tier1
+  scripts/trial-modes.mjs:64 panicRefusal [function] tests=tier1
+  scripts/trial-progress.mjs:389 trialRecordProblems [function] tests=tier0
+  scripts/truth-bullets.mjs:1452 forgetBulletGuard [function] tests=tier2 words=audit/harness/scenarios/30-security.mjs
+  scripts/truth-bullets.mjs:1461 bulletGuardStatus [function] tests=tier2 words=audit/harness/scenarios/30-security.mjs,audit/harness/scenarios/62-investigation.mjs
+  scripts/ui-kit.mjs:805 readStepper [function] tests=tier0,tier1
+  scripts/ui-kit.mjs:965 modeBar [function] tests=tier1 words=scripts/tests-flows.mjs,scripts/tests-tier0.mjs,audit/harness/scenarios/88-flow-length.mjs,audit/style-harness.html
+  scripts/ui-kit.mjs:1018 builtBy [function] tests=tier1,tier2
+  scripts/use-items.mjs:168 readiedItem [function] tests=tier2
+  scripts/user-match.mjs:154 matchSettled [function] tests=scripts/tests
+  scripts/utils.mjs:157 worldLocalize [function] tests=tier1
+  scripts/utils.mjs:327 forgetFired [function] tests=tier1
+  scripts/vault-store.mjs:716 regionsByName [function] tests=tier2 facade=scripts/vault.mjs words=scripts/tests-tier0.mjs,audit/harness/scenarios/30-security.mjs,audit/harness/scenarios/40-flow.mjs,audit/harness/scenarios/60-ledger.mjs,audit/harness/scenarios/83-roll-integrity.mjs
+  scripts/vault-store.mjs:853 vaultRoomOwnedBy [function] tests=tier2 facade=scripts/vault.mjs
+  scripts/vault-store.mjs:1271 sharedRooms [function] tests=tier2 facade=scripts/vault.mjs
+  scripts/voice-client.mjs:748 voiceDrop [function] tests=tier1 words=audit/harness/scenarios/75-voice-tile.mjs
+  scripts/vote.mjs:728 standInOpenAtLoad [function] tests=tier2
+  scripts/vote.mjs:770 ballotInRound [function] tests=tier2
+WORDS-ONLY (read by name only inside a string): 107
+  scripts/boundary.mjs:235 READY_KEY own=4 words=scripts/bridge-table.mjs,scripts/tests-tier0.mjs
+  scripts/bridge-asks.mjs:260 requestTrialKeyword own=0 words=scripts/tests-tier0.mjs,audit/harness/scenarios/68-trial-zones.mjs facade=scripts/gm-bridge.mjs
+  scripts/call-gm.mjs:41 CALL_GM_WHAT own=3 words=scripts/tests-tier0.mjs facade=scripts/gm-bridge.mjs
+  scripts/call-gm.mjs:359 observeAsks own=6 words=scripts/tests-tier0.mjs
+  scripts/case-realize.mjs:188 askAtBody own=1 words=audit/harness/probes/08-capture-windows.mjs
+  scripts/chapter.mjs:1368 announceArrivedBodies own=1 words=scripts/tests-tier0.mjs
+  scripts/chapter.mjs:1775 revealPlan own=2 words=scripts/tests-tier0.mjs,scripts/tests-tier1.mjs,audit/harness/scenarios/65-season.mjs
+  scripts/chapter.mjs:1831 sparedBySweep own=3 words=scripts/tests-tier0.mjs,scripts/tests-tier1.mjs
+  scripts/chrome.mjs:91 injectFilters own=1 words=audit/glass-harness.html
+  scripts/config.mjs:2713 PROSE_NUMBERS own=3 words=scripts/tests-tier0.mjs
+  scripts/day-summary.mjs:187 showDaySummary own=1 words=scripts/tests-tier0.mjs,scripts/tests-tier1.mjs
+  scripts/dh-settings.mjs:63 SETTINGS_FIELDS own=1 words=scripts/tests-tier1.mjs
+  scripts/dh-settings.mjs:88 isCharacterSettings own=1 words=scripts/tests-tier1.mjs
+  scripts/events.mjs:277 killerActingId own=2 words=scripts/tests-tier2.mjs
+  scripts/fog-diagnostics.mjs:717 showOnMap own=1 words=scripts/case-map.mjs,scripts/projects-ui.mjs
+  scripts/fog.mjs:1207 resetLedger own=1 words=audit/harness/scenarios/60-ledger.mjs
+  scripts/fog.mjs:1323 askForShares own=1 words=scripts/tests-tier0.mjs,audit/harness/scenarios/60-ledger.mjs
+  scripts/fog.mjs:1719 setDiscovery own=0 words=audit/harness/scenarios/17-assistant.mjs,audit/harness/scenarios/60-ledger.mjs,audit/harness/scenarios/61-gmstore-case.mjs,audit/harness/scenarios/66-rooms.mjs,audit/harness/scenarios/81-render-budget.mjs,audit/harness/scenarios/86-frame-work.mjs
+  scripts/fog.mjs:3333 floorSwitcher own=2 words=scripts/rooms.mjs
+  scripts/foundry-windows.mjs:194 keepTokensLayer own=2 words=scripts/tests-tier0.mjs,scripts/tests-tier1.mjs
+  scripts/foundry-windows.mjs:365 escapeFallsToWindows own=1 words=scripts/patches.mjs,audit/windows/pre-season-checks.html
+  scripts/frisk.mjs:1005 friskPacketRefusal own=1 words=scripts/tests-tier0.mjs
+  scripts/glass.mjs:184 NOTE_MIN own=3 words=audit/glass-harness.html
+  scripts/glass.mjs:424 placeFlatRoomTile own=3 words=audit/glass-harness.html
+  scripts/gm-overlay.mjs:21 OVERLAY_NAME own=2 words=scripts/tests-tier0.mjs
+  scripts/gm-panel.mjs:1135 advanceHtml own=1 words=scripts/tests-tier1.mjs
+  scripts/gm-store.mjs:388 sectionDigest own=3 words=audit/harness/scenarios/61-gmstore-case.mjs
+  scripts/gm-store.mjs:1676 mineStamp own=4 words=audit/harness/scenarios/61-gmstore-case.mjs
+  scripts/gm-store.mjs:1677 mineStamps own=4 words=audit/harness/scenarios/13-murder-signals.mjs,audit/harness/scenarios/61-gmstore-case.mjs
+  scripts/gm-stores.mjs:2068 bulletsWithoutAnswer own=0 words=scripts/tests-tier0.mjs
+  scripts/gm-stores.mjs:2303 runHealthCheck own=7 words=scripts/tests-tier0.mjs,scripts/tests-tier1.mjs
+  scripts/handbooks.mjs:369 renderBookLauncher own=2 words=scripts/tests-tier1.mjs
+  scripts/i18n.mjs:93 applyModuleLanguage own=1 words=audit/harness/probes/08-capture-windows.mjs,audit/harness/scenarios/33-bridge-paths.mjs,audit/harness/scenarios/50-lang.mjs
+  scripts/incident-store.mjs:949 clearSeasonIncident own=1 words=scripts/tests-tier0.mjs
+  scripts/incident-store.mjs:1259 sendDeathsTo own=2 words=scripts/tests-tier1.mjs facade=scripts/murder.mjs
+  scripts/investigation.mjs:339 clearSeasonKeyPlan own=1 words=scripts/tests-tier0.mjs
+  scripts/investigation.mjs:1430 placeKeyRow own=1 words=scripts/rooms.mjs,tools/text-map.mjs
+  scripts/investigation.mjs:1822 caseTraceColumns own=1 words=scripts/tests-tier1.mjs
+  scripts/investigation.mjs:2289 investigationView own=1 words=scripts/tests-tier1.mjs,audit/harness/probes/08-capture-windows.mjs
+  scripts/investigation.mjs:2804 deleteTraceRow own=1 words=scripts/tests-tier1.mjs
+  scripts/messenger.mjs:120 lastMessage own=0 words=scripts/tests-tier1.mjs
+  scripts/messenger.mjs:219 unreadCount own=0 words=scripts/tests-tier1.mjs,audit/harness/scenarios/13-murder-signals.mjs,audit/harness/scenarios/87-messenger-sound.mjs
+  scripts/movement-audit.mjs:457 onSentBack own=1 words=scripts/tests-tier0.mjs
+  scripts/movement.mjs:443 noteRegionCreated own=1 words=scripts/tests-tier0.mjs
+  scripts/movement.mjs:477 judgeRoomFlagChange own=2 words=scripts/tests-tier0.mjs,audit/harness/scenarios/66-rooms.mjs
+  scripts/movement.mjs:3572 neighbourAnswer own=3 words=scripts/tests-tier1.mjs
+  scripts/notice-history.mjs:1262 noticeCardChanged own=1 words=scripts/tests-tier0.mjs
+  scripts/notice-history.mjs:1270 noticeSecretStored own=1 words=scripts/tests-tier0.mjs
+  scripts/overflow.mjs:528 clearSeasonOverflow own=1 words=scripts/tests-tier1.mjs
+  scripts/passages-gm.mjs:350 onPassageRequest own=1 words=scripts/tests-tier0.mjs
+  scripts/passages-gm.mjs:471 wallNeighbours own=1 words=scripts/tests-tier0.mjs
+  scripts/passages-gm.mjs:1678 onSceneCreated own=1 words=scripts/tests-tier0.mjs
+  scripts/passages-gm.mjs:2581 stretchOnMap own=1 words=scripts/tests-tier0.mjs
+  scripts/passages.mjs:617 onPassageRows own=1 words=scripts/tests-tier0.mjs
+  scripts/passages.mjs:624 requestPassages own=2 words=scripts/tests-tier0.mjs,audit/harness/scenarios/65-season.mjs
+  scripts/pre-session-note.mjs:104 noteUnsent own=3 words=audit/harness/scenarios/33-bridge-paths.mjs,audit/harness/scenarios/61-gmstore-case.mjs
+  scripts/pre-session-note.mjs:135 clearSeasonNotes own=1 words=scripts/tests-tier0.mjs
+  scripts/pre-session-note.mjs:289 sendNoteTo own=4 words=scripts/tests-tier1.mjs,audit/harness/scenarios/61-gmstore-case.mjs
+  scripts/private-rolls.mjs:1557 refillReadable own=1 words=audit/harness/scenarios/12-social.mjs
+  scripts/projects-map.mjs:451 refreshProjectToken own=1 words=scripts/tests-tier0.mjs
+  scripts/projects.mjs:239 tellDescription own=1 words=scripts/tests-tier0.mjs
+  scripts/projects.mjs:2193 tallySeasonProjects own=1 words=audit/harness/scenarios/65-season.mjs
+  scripts/remnants.mjs:1197 clearSeasonRemnants own=1 words=scripts/tests-tier0.mjs
+  scripts/remnants.mjs:2397 tieWaitNow own=3 words=scripts/tests-tier0.mjs
+  scripts/room-tile.mjs:568 decodeImage own=2 words=scripts/tests-tier0.mjs
+  scripts/room-tile.mjs:714 refreshRoomTile own=6 words=scripts/tests-tier0.mjs
+  scripts/rules.mjs:318 clearSeasonMotive own=1 words=scripts/tests-tier0.mjs
+  scripts/search-tokens.mjs:584 guardSearchRoom own=6 words=scripts/tests-tier0.mjs
+  scripts/season-setup.mjs:1306 startHereDue own=1 words=scripts/tests-tier1.mjs
+  scripts/secret.mjs:1552 pruneOrphans own=1 words=audit/harness/scenarios/30-security.mjs
+  scripts/settings-window.mjs:341 saveSettings own=2 words=scripts/tests-tier2.mjs
+  scripts/settings.mjs:3898 layoutHeight own=7 words=scripts/tests-tier1.mjs
+  scripts/sheet-audit.mjs:2695 onForgedCard own=3 words=scripts/tests-tier0.mjs
+  scripts/sync.mjs:585 eclipsePacketNews own=1 words=scripts/tests-tier1.mjs
+  scripts/trial-floor.mjs:482 startRoundInStep own=2 words=scripts/bridge-table.mjs,scripts/tests-tier0.mjs
+  scripts/trial-floor.mjs:838 startFloorInStep own=1 words=scripts/tests-tier0.mjs,scripts/tests-tier1.mjs,scripts/trial-progress.mjs
+  scripts/trial-floor.mjs:1093 openRebuttalInStep own=1 words=scripts/tests-tier0.mjs
+  scripts/trial-floor.mjs:1108 fillObjection own=0 words=scripts/tests-tier0.mjs
+  scripts/trial-floor.mjs:1230 extendFloorInStep own=2 words=scripts/tests-tier0.mjs
+  scripts/trial-floor.mjs:1282 endFloorInStep own=3 words=scripts/tests-tier0.mjs
+  scripts/trial-floor.mjs:1434 overruleInStep own=1 words=scripts/tests-tier0.mjs,scripts/trial-progress.mjs
+  scripts/trial-modes.mjs:366 revealRefusal own=2 words=scripts/tests-tier0.mjs
+  scripts/trial-progress.mjs:300 clearSeasonTrialRecord own=1 words=scripts/tests-tier0.mjs
+  scripts/trial-scene.mjs:151 TRIAL_RETURN_FLAG own=2 words=scripts/tests-tier1.mjs
+  scripts/trial-scene.mjs:406 TRIAL_SEATS_FLAG own=2 words=scripts/tests-tier1.mjs
+  scripts/trial-scene.mjs:689 castActorIds own=1 words=scripts/tests-tier0.mjs
+  scripts/trial-scene.mjs:832 standingTwice own=1 words=scripts/tests-tier0.mjs
+  scripts/trial-scene.mjs:1062 heldHidden own=2 words=audit/harness/scenarios/41-trial-scene.mjs
+  scripts/trial-scene.mjs:1349 hallRoomWrite own=1 words=scripts/tests-tier0.mjs
+  scripts/trial-scene.mjs:1363 setHallRoom own=1 words=scripts/tests-tier0.mjs,audit/harness/scenarios/41-trial-scene.mjs
+  scripts/trial-zones-ui.mjs:100 replayWarning own=3 words=audit/harness/scenarios/68-trial-zones.mjs
+  scripts/trial-zones-ui.mjs:485 drawZones own=1 words=scripts/rooms.mjs
+  scripts/trial.mjs:531 holderView own=2 words=scripts/tests-tier0.mjs
+  scripts/trial.mjs:763 clearSeasonFloor own=1 words=scripts/tests-tier0.mjs
+  scripts/truth-bullets.mjs:1368 guardedPathsIn own=2 words=scripts/tests-tier0.mjs
+  scripts/truth-bullets.mjs:1836 sendBulletRefsTo own=2 words=scripts/tests-tier1.mjs
+  scripts/ui-columns.mjs:33 columnsHtml own=1 words=scripts/tests-tier0.mjs
+  scripts/ui-kit.mjs:426 keepInScreen own=1 words=scripts/tests-tier1.mjs,audit/style-harness.html
+  scripts/ui-kit.mjs:1358 fitKitWidth own=1 words=audit/style-harness.html
+  scripts/user-match.mjs:215 matchAccounts own=1 words=scripts/tests-tier1.mjs
+  scripts/utils.mjs:971 guardTextFields own=1 words=scripts/tests-tier0.mjs,scripts/tests-tier1.mjs
+  scripts/vault-store.mjs:1490 clearSplitPiece own=1 words=scripts/tests-tier0.mjs facade=scripts/vault.mjs
+  scripts/verdict.mjs:383 verdictRefusal own=4 words=scripts/tests-tier0.mjs
+  scripts/voice-tile.mjs:147 STICK_MS own=2 words=audit/harness/scenarios/75-voice-tile.mjs
+  scripts/voice-tile.mjs:1229 toggleMuteAll own=1 words=scripts/tests-tier0.mjs,scripts/tests-tier1.mjs
+  scripts/vote.mjs:933 askForBallot own=3 words=audit/harness/scenarios/63-class-trial.mjs
+  scripts/zone-machine.mjs:105 zoneText own=9 words=scripts/tests-tier0.mjs

@@ -1,0 +1,72 @@
+// E56 inventory: names cited in comments of scripts/*.mjs that no code holds; line-number citations; doubled/orphan JSDoc.
+import fs from "node:fs";
+import path from "node:path";
+import { createRequire } from "node:module";
+const require = createRequire("/opt/node-tools/node_modules/");
+const acorn = require("acorn");
+const REPO = process.argv[2];
+const rel = f => path.relative(REPO, f).split(path.sep).join("/");
+function list(dir, re, skip = /node_modules|harness\/results|gate\/evidence|gate\/\.work/) {
+    const out = [];
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, e.name);
+        if (skip.test(p)) continue;
+        if (e.isDirectory()) out.push(...list(p, re, skip)); else if (re.test(e.name)) out.push(p);
+    }
+    return out;
+}
+const OPTS = { ecmaVersion: "latest", sourceType: "module", allowHashBang: true, allowAwaitOutsideFunction: true, allowReturnOutsideFunction: true };
+const codeFiles = [...list(path.join(REPO, "scripts"), /\.mjs$/), ...list(path.join(REPO, "tools"), /\.mjs$/), ...list(path.join(REPO, "audit"), /\.(mjs|js)$/), ...list(path.join(REPO, "macros"), /\.js$/)];
+// Every word code holds outside comments: identifiers, property names, words in strings and templates.
+const codeWords = new Set();
+const comments = new Map(); // file -> [{ value, line, start, end, block }]
+for (const f of codeFiles) {
+    const src = fs.readFileSync(f, "utf8");
+    const cs = [];
+    try {
+        for (const t of acorn.tokenizer(src, { ...OPTS, onComment: (block, value, start, end, sl) => cs.push({ block, value, start, end }) })) {
+            if (t.type.label === "name" || t.type.keyword) codeWords.add(t.value);
+            else if (t.type.label === "string" || t.type.label === "template" || t.type.label === "regexp") for (const w of String(t.value?.pattern ?? t.value).split(/[^A-Za-z0-9_$]+/)) codeWords.add(w);
+        }
+    } catch { for (const w of src.split(/[^A-Za-z0-9_$]+/)) codeWords.add(w); }
+    if (/\/scripts\//.test(f)) comments.set(rel(f), { src, cs });
+}
+// Also: lang keys' segments, CSS words, HTML of audit (names a comment may cite that are not JS).
+const flat = (o, p = "", out = []) => { for (const [k, v] of Object.entries(o)) { out.push(k); if (v && typeof v === "object") flat(v, k, out); } return out; };
+for (const l of ["lang/en.json", "lang/pl.json"]) flat(JSON.parse(fs.readFileSync(path.join(REPO, l), "utf8"))).forEach(k => codeWords.add(k));
+for (const f of [...list(path.join(REPO, "styles"), /\.css$/), ...list(path.join(REPO, "audit"), /\.html$/), path.join(REPO, "module.json"), ...list(path.join(REPO, "tools"), /\.json$/)])
+    for (const w of fs.readFileSync(f, "utf8").split(/[^A-Za-z0-9_$]+/)) codeWords.add(w);
+
+const lineOf = (src, pos) => src.slice(0, pos).split("\n").length;
+const HIST = /\b(until|was|were|used to|no longer|renamed|removed|gone|retired|old|before|formerly|deleted|dropped|replaced|once|had|earlier|previous|instead of)\b/i;
+const missing = [], lineRefs = [], jsdocDouble = [], jsdocOrphan = [];
+for (const [file, { src, cs }] of comments) {
+    if (/^scripts\/tests/.test(file)) continue;
+    for (const c of cs) {
+        for (const m of c.value.matchAll(/`([A-Za-z_$][\w$]*)(\([^`]*\))?`/g)) {
+            const name = m[1];
+            if (name.length < 4 || codeWords.has(name)) continue;
+            const at = c.start + 2 + m.index;
+            const lineText = src.split("\n")[lineOf(src, at) - 1].trim();
+            missing.push({ file, line: lineOf(src, at), name, call: Boolean(m[2]), hist: HIST.test(lineText), text: lineText.slice(0, 200) });
+        }
+        for (const m of c.value.matchAll(/\b(?:line|lines|l\.)\s+\d{2,}|\bL\d{2,}\b|\b[\w-]+\.(?:mjs|css|json|js|md):\d+/gi)) {
+            const at = c.start + 2 + m.index;
+            lineRefs.push({ file, line: lineOf(src, at), ref: m[0], text: src.split("\n")[lineOf(src, at) - 1].trim().slice(0, 200) });
+        }
+    }
+    // JSDoc: two /** */ blocks with only whitespace between them; or a /** */ followed by nothing that declares.
+    const docs = cs.filter(c => c.block && c.value.startsWith("*"));
+    for (let i = 0; i < docs.length; i++) {
+        const d = docs[i];
+        const after = src.slice(d.end);
+        const gap = after.match(/^\s*/)[0];
+        const next = after.slice(gap.length);
+        if (next.startsWith("/**")) jsdocDouble.push({ file, line: lineOf(src, d.start), text: src.slice(d.end + gap.length).split("\n")[0].slice(0, 100), nextDecl: (src.slice(docs[i + 1]?.end ?? d.end).match(/^\s*([^\n]*)/) ?? [])[1]?.slice(0, 100) });
+        else if (next.startsWith("//") || next.startsWith("/*")) continue;
+        else if (!/^(export\s+)?(default\s+)?(async\s+)?(function\*?|class|const|let|var|static|get |set |#?[A-Za-z_$][\w$]*\s*[:(=,]|[A-Za-z_$][\w$]*\s*\(|async|\[|"|'|\.\.\.|[A-Za-z_$][\w$]*,?\s*$|[A-Za-z_$][\w$]*\s*[,}\n])/.test(next))
+            jsdocOrphan.push({ file, line: lineOf(src, d.start), next: next.split("\n")[0].slice(0, 100) });
+    }
+}
+fs.writeFileSync(process.argv[3], JSON.stringify({ missing, lineRefs, jsdocDouble, jsdocOrphan }, null, 1));
+console.log(`cited names no code holds: ${missing.length} (history-worded ${missing.filter(m => m.hist).length}); line refs ${lineRefs.length}; doubled JSDoc ${jsdocDouble.length}; JSDoc before no declaration ${jsdocOrphan.length}`);

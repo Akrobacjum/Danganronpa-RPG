@@ -1,0 +1,14 @@
+import fs from "node:fs"; import { createRequire } from "node:module";
+const acorn = createRequire("/opt/node-tools/node_modules/")("acorn");
+const R = process.argv[2];
+const files = process.argv.slice(3);
+for (const f of files) {
+  const ast = acorn.parse(fs.readFileSync(`${R}/scripts/${f}`, "utf8"), { ecmaVersion: "latest", sourceType: "module" });
+  let own = 0; const re = {};
+  for (const n of ast.body) {
+    if (n.type === "ExportNamedDeclaration" && n.source) re[n.source.value] = (re[n.source.value] ?? 0) + n.specifiers.length;
+    else if (n.type === "ExportNamedDeclaration") own += n.declaration ? (n.declaration.declarations?.length ?? 1) : n.specifiers.length;
+  }
+  const tot = Object.values(re).reduce((a, b) => a + b, 0);
+  console.log(`${f}: own ${own}, re-exported ${tot} ${JSON.stringify(re)}`);
+}

@@ -1,0 +1,134 @@
+NOT HISTORY-WORDED 132
+distinct names 142
+  scripts/a11y.mjs:201 `assertive` | * POLITE: they wait for the reader to finish what it is saying. `assertive`
+  scripts/action-observe.mjs:251 `sceneid` | // would come back as `sceneid` and read undefined.
+  scripts/action-pipeline.mjs:223 `autoRollForSuite` | * question with its own scenario. See `autoRollForSuite`.
+  scripts/action-pipeline.mjs:339 `ClientSettings` | * under `<namespace>.<key>` - read in Foundry's `ClientSettings`, not measured at a
+  scripts/action-project.mjs:418 `killerid` | // come back as `killerid` and quietly read undefined.
+  scripts/action-search.mjs:339 `tierWanted` | // `tierWanted` would come back as `tierwanted` and read undefined.
+  scripts/action-search.mjs:339 `tierwanted` | // `tierWanted` would come back as `tierwanted` and read undefined.
+  scripts/analyze.mjs:300 `typeHint` | * `typeHint` is the module's own line about what this CATEGORY means and it
+  scripts/bridge-asks.mjs:5 `requestX` | * `requestX` that asks through bridge-table.mjs's `ask` and answers the
+  scripts/bridge-guards.mjs:58 `handleCustomSocket` | * cannot be set by the sender - see `handleCustomSocket` in the server's
+  scripts/bridge-table.mjs:1224 `trialKeyword` | * A SCRUM SPEAKER'S THESIS (E73 C5; the audit's `trialKeyword`): the speaker of the running turn posts a short thesis
+  scripts/cleanup.mjs:531 `attemptTransform` | * A second `attemptTransform` would have been a copy of ninety lines with
+  scripts/cleanup.mjs:1631 `raisesVisibility` | * the argument - and no outcome carries `raisesVisibility` any more.
+  scripts/config.mjs:101 `migrateIncidentSecrets` | * `game.actors`. The keys stay so `migrateIncidentSecrets` can lift a live
+  scripts/config.mjs:873 `bestWeaponTier` | * `bestWeaponTier` reads first.
+  scripts/config.mjs:3103 `defeatedConditions` | * `defeatedConditions`, read into `CONFIG.statusEffects` at its setup); `daggerheart` is that field's
+  scripts/config.mjs:4136 `raisesVisibility` | * So both failures now leave a Tamper Remnant, and `raisesVisibility` is
+  scripts/config.mjs:4517 `detune` | * a Web Audio buffer source has `playbackRate` and `detune`, and `detune` is
+  scripts/config.mjs:4517 `detune` | * a Web Audio buffer source has `playbackRate` and `detune`, and `detune` is
+  scripts/despair.mjs:1130 `renderOverflowCaption` | // Only the OVERFLOW stays masked for a player - see `renderOverflowCaption`.
+  scripts/dh-settings.mjs:5 `settingSheet` | * header.hbs:137, `data-action="openSettings"`) renders the sheet's `settingSheet`: DHCharacterSettings
+  scripts/dh-settings.mjs:96 `formGroup` | * The wrapper a field stands in: Foundry's `formGroup` draws `div.form-group > .form-fields > input`, and Max Evasion
+  scripts/dice-look.mjs:11 `sanitizeAppearance` | * `sanitizeAppearance`). So nothing here asks another browser anything (the owner's answer of 03.11, "lekka": no
+  scripts/dice-look.mjs:105 `DEFAULT_SFX` | * `ALL_CUSTOMIZATION`, 6.4's `DEFAULT_SFX` and Daggerheart 2.12's `MoveContext` (E60's fix round, FG5).
+  scripts/dice-look.mjs:226 `sanitizeAppearance` | * tell. Read as DSN 6.2.9's `sanitizeAppearance` reads them (Utils.js): the systems off the factory, the colorsets and
+  scripts/dice-sync.mjs:20 `playDelayBase` | * result has started, 100 ms plus 0-750 ms at random each (DiceSFXManager.js `playDelayBase` 100, `playDelayJitter` 750;
+  scripts/dice-sync.mjs:20 `playDelayJitter` | * result has started, 100 ms plus 0-750 ms at random each (DiceSFXManager.js `playDelayBase` 100, `playDelayJitter` 750;
+  scripts/dice-sync.mjs:695 `SAVED` | * (`SAVED`, :160-163). Without `sfx: true` DSN throws with `DEFAULT_SFX()`, the lines packages register through
+  scripts/dice-sync.mjs:695 `DEFAULT_SFX()` | * (`SAVED`, :160-163). Without `sfx: true` DSN throws with `DEFAULT_SFX()`, the lines packages register through
+  scripts/dice-sync.mjs:696 `SFX_LIST` | * `game.dice3d.addSFXDefaults`, whatever the user's `sfxList` holds (`SFX_LIST`, :249-253); without `appearance: true` it
+  scripts/dice-sync.mjs:697 `APPEARANCE` | * merges the package's "basic" role look under the user's own (`APPEARANCE`, :191-196). So a forced user is written the
+  scripts/dice-sync.mjs:699 `addSFXDefaults` | * their own would throw with a package's effects. Daggerheart 2.12.8 registers none (no `addSFXDefaults` in its module/,
+  scripts/events.mjs:12 `buildIncident` | * GM, and to nobody else - the same rule `buildIncident` in hud.mjs applied,
+  scripts/events.mjs:48 `buildMotive` | * of the same four facts - `motiveCard` here and `buildMotive` in hud.mjs, and
+  scripts/events.mjs:136 `buildIncident` | * who is a participant - see hud.mjs `buildIncident` for why not
+  scripts/fog-diagnostics.mjs:580 `getSnappedPoint` | * learnt to cry wolf is worse than no check. `getSnappedPoint` is no help
+  scripts/fog-reveal.mjs:192 `SmoothGraphics` | * "Cannot read properties of null (reading 'clear')" out of `SmoothGraphics`,
+  scripts/fog.mjs:453 `RenderedCanvasGroup` | // Leaving a scene does not tear this layer down - `RenderedCanvasGroup`
+  scripts/fog.mjs:1849 `CanvasVisibility` | * `CanvasVisibility` builds its vision mask:
+  scripts/fog.mjs:2766 `viewedDocuments()` | * level-aware `viewedDocuments()`) - then a stairwell the viewer stands in on the floor below
+  scripts/fog.mjs:3471 `fract()` | * coordinates with `fract()`. The derivative of that jumps at every
+  scripts/fog.mjs:4016 `heldBusy` | * whenever the picture is not the frame's, and the render into the picture itself (`heldBusy` on the node).
+  scripts/glass.mjs:1985 `tailHug` | it run into the wall (`tailHug` below); the strip is cut around them (`cutStrips`). A rail whose run
+  scripts/glass.mjs:3746 `byCentre` | /* the panes from the centre of the screen outward (MK-R1 `byCentre`): the order a phase's colour and its flash take */
+  scripts/gm-bridge.mjs:22 `requestX` | *   bridge-asks.mjs          every `requestX` and the asks that call `ask`
+  scripts/gm-students.mjs:454 `anyCub` | * row above it made exactly this mistake with `anyCub` and says so.
+  scripts/handbooks.mjs:217 `_onPosition` | * resized to through `--drpg-window-h`, which `_onPosition` mirrored (22.09: the 70 KB book came out 1038 px tall with its
+  scripts/hud.mjs:385 `buildMotive` | * alone. `buildMotive`, `buildAssembly`, `buildIncident` and `buildBody` went
+  scripts/hud.mjs:385 `buildAssembly` | * alone. `buildMotive`, `buildAssembly`, `buildIncident` and `buildBody` went
+  scripts/hud.mjs:385 `buildIncident` | * alone. `buildMotive`, `buildAssembly`, `buildIncident` and `buildBody` went
+  scripts/hud.mjs:385 `buildBody` | * alone. `buildMotive`, `buildAssembly`, `buildIncident` and `buildBody` went
+  scripts/investigation.mjs:782 `openKeyPlanner()` | * Apply the Key Remnant planner's rows the GM changed, exactly as `openKeyPlanner()`
+  scripts/investigation.mjs:3141 `shownTraces` | // `shownTraces`/`shownKeyPlan` snapshots of S1-m7 and E05 C5).
+  scripts/investigation.mjs:3141 `shownKeyPlan` | // `shownTraces`/`shownKeyPlan` snapshots of S1-m7 and E05 C5).
+  scripts/iso-shield.mjs:73 `patchConfig` | * token config - the same discovery walk its `patchConfig` callers make, so
+  scripts/iso-shield.mjs:94 `isoDepthSortTokenMixin` | * class (`isoDepthSortTokenMixin` at its init: `CONFIG.Token.objectClass =
+  scripts/level-up.mjs:889 `prepareBaseData` | // maximum and a Level Up's picks to a statistic or a maximum (character.mjs `prepareBaseData`, 2.10.5). The
+  scripts/messenger-app.mjs:1060 `ruleApproveMurder` | same split `ruleApproveMurder` draws. */
+  scripts/monocub.mjs:242 `meddleButton` | * sheet.mjs `meddleButton`), so a second one would have been a fourth copy of
+  scripts/motion.mjs:468 `_preClose` | * `close()` awaits `_preClose` first - for however long a subclass takes - and
+  scripts/motion.mjs:470 `_preClose` | * animation started here would already have finished during a slow `_preClose`,
+  scripts/movement-audit.mjs:69 `orient2dFast` | /** Foundry's `orient2dFast`: > 0 one side of a -> b, < 0 the other, 0 on its line. */
+  scripts/movement-audit.mjs:76 `orient2dFast` | * (`orient2dFast` < 0 is LEFT, > 0 RIGHT). Not read in v14's source.
+  scripts/movement.mjs:2788 `_onUpdateMovement` | in favour of `moveToken` / `_onUpdateMovement` since v13. Every one of
+  scripts/music-play.mjs:476 `startInterruption` | // shared with the GM-cue path (`startInterruption`, `adoptRunningInterruption`),
+  scripts/music-play.mjs:633 `pauseAll` | * Foundry has `playAll` and `stopAll` and no `pauseAll`; pausing is a property
+  scripts/music-play.mjs:995 `playNext` | * the interruption: `Playlist#_onSoundEnd` calls `playNext` for a Sequential or
+  scripts/passages-gm.mjs:443 `PROJECT_KINDS` | * `PROJECT_KINDS`, which this table goes into.
+  scripts/private-rolls.mjs:155 `enrichChatMessage()` | * element inside `enrichChatMessage()`, and it calls that from its own
+  scripts/private-rolls.mjs:1020 `incidentAudience` | * for on a sheet included (d666a2a private-rolls.mjs `incidentAudience`), and such a list
+  scripts/private-rolls.mjs:1406 `shouldInterceptMessage` | * (main.js `shouldInterceptMessage`, :458-516, read in 6.3.1). A Reroll threw its
+  scripts/projects-secrecy.mjs:44 `editCountdown` | * that is no project, the system's private handler (`editCountdown`), which the module does not wrap - a whole write
+  scripts/projects-ui.mjs:137 `editCountdown` | * Countdowns setting itself: its -/+ (`editCountdown`, read from the row's
+  scripts/projects-ui.mjs:139 `toggleVisibility` | * the module's queue, and its Reveal and Hide (`toggleVisibility`) flip a
+  scripts/relay-guard.mjs:144 `name$1` | /** Daggerheart's listener by name; rollup renames a clashing function `name$1`. */
+  scripts/relay-guard.mjs:231 `name$1` | // Rollup renames a clashing function `name$1`; the name is still there.
+  scripts/relay-guard.mjs:587 `takeHealing` | * when a player's ability heals or damages somebody else (`takeHealing`,
+  scripts/relay-guard.mjs:588 `takeDamage` | * `takeDamage`, damageField.mjs). The game keeps it to the GM; nobody at the
+  scripts/relay-guard.mjs:827 `onRollSave` | // message (chatMessage.mjs `onRollSave`, 2.12.8:274-290), and socket.mjs's case
+  scripts/relay-guard.mjs:831 `rollSave` | // to 2.12.4 Daggerheart sent the packet anyway, with no roll in it (`rollSave`
+  scripts/remnants.mjs:155 `difficultyTag` | * `difficultyTag` turned a trace's Observe DC into one of four wide words -
+  scripts/remnants.mjs:188 `difficultyTag` | * same leak `difficultyTag` exists to close on the finder's side of the same
+  scripts/reroll-receipts.mjs:48 `_getEntryContextOptions` | /** The labels of Daggerheart's two chat-menu rerolls (chatLog.mjs `_getEntryContextOptions`, read in 2.6.5 and 2.10.5). */
+  scripts/reroll.mjs:2003 `guardRemnantEditReceipt` | * readings (a14db4e bridge-guards.mjs `guardRemnantEditReceipt`). On a refusal the trace stays,
+  scripts/resources.mjs:19 `characterBaseResources` | /** Definition handed to Daggerheart. Shape mirrors `characterBaseResources`. */
+  scripts/roll-dialog.mjs:600 `allowTraitsForNextRoll` | * Search offered Eye or Hand through a one-window handoff (`allowTraitsForNextRoll`).
+  scripts/roll-dialog.mjs:902 `isLite` | * for a reaction either (2.9.4 rollSelection.hbs hides only under `isLite`). Read off the cascade jsdom computes
+  scripts/roll-dialog.mjs:932 `maybeRollItself` | * `maybeRollItself` lived here. With the lock on and no Call armed the dialog
+  scripts/season-setup.mjs:1394 `avVideo` | // E78 C5 (the owner's Q11, the A9 design's `avVideo`): a world in audio-and-video mode sends every camera while
+  scripts/secret.mjs:1017 `incidentVeil` | * their call sites (`incidentVeil`: a Loaded Die's notice, a tool worn or broken, a Hope
+  scripts/secret.mjs:1030 `incidentVeil` | * half's `active` (incident-store.mjs `PUBLIC_INCIDENT`) - never of the cast. `incidentVeil` veiled a
+  scripts/sfx-play.mjs:227 `AudioBufferSourceNode` | * a rate can only be bent on an `AudioBufferSourceNode`, and Foundry decides
+  scripts/sheet-audit.mjs:232 `applyChangeField` | * Foundry's own application (activeEffect.mjs `applyChangeField`, read), and the module reads prepared
+  scripts/sheet-audit.mjs:277 `prepareBaseData` | * `system.hitPoints` to the Health maximum (data/actor/character.mjs, `prepareBaseData`, read
+  scripts/sheet-audit.mjs:280 `isMulticlass` | * (`isMulticlass`) is not judged: a second one comes only as an item created, which the GMs are
+  scripts/sheet-audit.mjs:304 `prepareBaseData` | * `prepareBaseData`, read 05.10.2026). No player road writes them: the module's Level Up is
+  scripts/sheet-audit.mjs:307 `prepareDerivedData` | * less them (character.mjs `prepareDerivedData`, 2.10.5 :752). No road writes them: not the module's, and Daggerheart's
+  scripts/sheet-audit.mjs:344 `allApplicableEffects` | * is unless it says otherwise (Daggerheart 2.10.5 `baseEffect.mjs`, actor.mjs `allApplicableEffects`, read).
+  scripts/sheet-audit.mjs:378 `allApplicableEffects` | * 2.10.5 applies an item's transferred effects to the actor that carries it (actor.mjs `allApplicableEffects`),
+  scripts/sheet-audit.mjs:954 `prepareBaseData` | * Health's maximum, a Level Up's picks to a statistic or a maximum (character.mjs `prepareBaseData`, 2.10.5 :678-700,
+  scripts/sheet-audit.mjs:1623 `prepareBaseData` | * picks to the sheet's Health maximum, and the picks to Sanity's (character.mjs `prepareBaseData`, read
+  scripts/sheet-audit.mjs:1626 `prepareBaseData` | * whatever the sheet's maximum holds (`prepareBaseData`, `prepareDerivedData`, both versions): a write
+  scripts/sheet-audit.mjs:1626 `prepareDerivedData` | * whatever the sheet's maximum holds (`prepareBaseData`, `prepareDerivedData`, both versions): a write
+  scripts/sheet.mjs:1149 `addNewItemV2` | * a substring so a rename to `addNewItemV2` does not restart this cycle.
+  scripts/sheet.mjs:1480 `prepareBaseData` | * (character.mjs `prepareBaseData`), which the module never feeds, and with no action of its own (a click on it is the
+  scripts/sheet.mjs:2604 `equippedItems` | * That list is Daggerheart's `equippedItems`, which means its own weapons and
+  scripts/sheet.mjs:5489 `nothingToBreak` | // `nothingToBreak` lived here: the sabotage tile went out entirely when its
+  scripts/states.mjs:28 `stateAdvantage()` | *   Breakdown  `stateAdvantage()` below, folded into the roll dialog's own
+  scripts/states.mjs:151 `toggleDefeated` | * condition from `toggleDefeated`, and there is no hook between either of them
+  scripts/states.mjs:198 `defineSchema` | /* Daggerheart's own initial values of the two fields (2.6.5's Automation.mjs `defineSchema`, as the harness copies
+  scripts/states.mjs:468 `drawBars` | * v13 behaviour as recalled (no v14 source on this machine): the HUD and `drawBars`
+  scripts/states.mjs:475 `_drawEffects` | * `_drawEffects` draws each status's icon on every client's token. Its
+  scripts/states.mjs:556 `_drawEffects` | * `_drawEffects` and `_drawOverlay` read as no icon). An effect it is not handed is matched by its image, Breakdown's
+  scripts/states.mjs:556 `_drawOverlay` | * `_drawEffects` and `_drawOverlay` read as no icon). An effect it is not handed is matched by its image, Breakdown's
+  scripts/states.mjs:632 `defeatedConditions()` | * `defeatedConditions()`; the setting's onChange, `DhAutomation#handleChange`, only stores the new value), so
+  scripts/trial-scene.mjs:18 `ensureTrialTokens` | * `ensureTrialTokens`, `clearTrialTokens`).
+  scripts/trial-scene.mjs:18 `clearTrialTokens` | * `ensureTrialTokens`, `clearTrialTokens`).
+  scripts/trial-speakers.mjs:162 `LiveKitClient` | * @param {object|null} client  avclient-livekit's `LiveKitClient`
+  scripts/truth-bullets.mjs:23 `handleCustomSocket` | * (`handleCustomSocket` honours `recipients` server-side). A player's client
+  scripts/ui-kit.mjs:353 `_onKeyDown` | * `_onKeyDown` intercepts Escape only, so Enter goes through the browser's implicit submission, which picks the first
+  scripts/utils.mjs:1250 `_initializeApplicationOptions` | * own `_initializeApplicationOptions` immediately reads `content.innerHTML`
+  scripts/voice-client.mjs:23 `breakout()` | *   3. avclient-livekit's `breakout()` clears `breakoutRoom` back to undefined
+  scripts/voice-client.mjs:356 `AVMaster` | * `AVMaster` builds `this.client` from `CONFIG.WebRTC.clientClass` in its
+  scripts/voice-client.mjs:357 `LiveKitAVClient` | * constructor, and `LiveKitAVClient`'s own constructor creates `_liveKitClient`
+  scripts/voice-client.mjs:494 `breakout()` | * Sets the same `breakoutRoom` property avclient-livekit's own `breakout()`
+  scripts/voice-client.mjs:571 `breakout()` | // `breakout()` in avclient-livekit clears `breakoutRoom` on a failed
+  scripts/voice-panel.mjs:12 `setSinkId` | *   - the sound output: `getAudioSinks()`, the row left out where it lists nothing (a browser without `setSinkId`,
+  scripts/voice-tile.mjs:476 `LiveKitClient` | * @param {object} client       avclient-livekit's `LiveKitClient`
+  scripts/voice-tile.mjs:498 `LiveKitClient` | * @param {object|null} client  avclient-livekit's `LiveKitClient`
+  scripts/voice-tile.mjs:598 `getUserAudioElement` | * in for a user's `<audio>`, LiveKitClient.ts `getUserAudioElement`, external) and the camera popouts Foundry has
+  scripts/voice.mjs:425 `breakout()` | * The other two live inside avclient-livekit's `breakout()`, which this module
+  scripts/voice.mjs:1989 `userlist` | * volume 0, and raises them only for tokens carrying its own `userlist` flag

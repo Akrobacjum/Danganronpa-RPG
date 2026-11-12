@@ -1,0 +1,200 @@
+scripts/action-pipeline.mjs:89
+   A: /** * Roll through the system so dice, skins and chat cards behave normally.
+   B(98): /** * @param {Actor} actor
+scripts/action-project.mjs:806
+   A: /** * Pick a project from an explicit list, and - only when at least one
+   B(820): /** * One project as an <option>: its name, how far along it is, and where.
+scripts/action-report.mjs:164
+   A: /** * The header for a card that reports a roll and nothing more about it.
+   B(180): /** * WHAT THE DICE DID, AS A COLOUR.
+scripts/action-tamper.mjs:35
+   A: /** * Cleaning up, and lying with the evidence, as an ordinary action.
+   B(51): /** The Tamper menu: cover, reshape, frame, and - for the killer on their own night - the body. */ async function chooseTamper(act
+scripts/actions.mjs:306
+   A: /** * Take a Move. Uses the free one if it is still available, otherwise spends an
+   B(314): /** * The ref a crossing's price is stamped with (`takeMove`; E17 fix e1-G2, 26.10.2026; the review's E17P1-SEC-6). The primary
+scripts/chapter.mjs:76
+   A: /** * Kill a character.
+   B(107): /** * Mark somebody dead and say nothing (F16, 20.09).
+scripts/chapter.mjs:1924
+   A: /** * The GM's end-of-chapter panel.
+   B(1930): /** * Take this chapter's planted Key Remnants off the map.
+scripts/cleanup.mjs:349
+   A: /** * How hard this trace is to erase, with the tool in hand taken off the top.
+   B(355): /** * Was this character standing in the incident that is running?
+scripts/cleanup.mjs:1877
+   A: /** * Cover what you are doing, when somebody is watching you do it.
+   B(1900): /** * Who in this room could tell on you (D13, Dawid 29.08).
+scripts/cleanup.mjs:3572
+   A: /** * RUINED, NOT VANISHED.
+   B(3586): /** * The things this character used in the incident, as far as anything wrote them
+scripts/config.mjs:61
+   A: /** * A Level Up the GM has handed to the player (N-2, Dawid 20.09).
+   B(69): /** Character: the student's Ultimate talent, shown under their name. */ ultimate: "ultimate",
+scripts/config.mjs:759
+   A: /** * The two kinds of Usable Item, and which resource each one mends.
+   B(773): /** * `chip` is the short form, for the tag on an inventory row.
+scripts/config.mjs:877
+   A: /** * Categories that share one carry limit between them.
+   B(899): /** * How much one stash holds (D10b).
+scripts/config.mjs:4159
+   A: /** * G-20: what a critical may turn a trace INTO, instead of erasing it.
+   B(4183): /** * TRANSFORM AS AN ACTION OF ITS OWN (Z5), not only a critical's reward.
+scripts/config.mjs:4252
+   A: /** * Both tools are destroyed when Stage 6 closes, not per attempt.
+   B(4261): /** * The crime tool goes when Stage 6 closes. The cleaning tool does NOT.
+scripts/config.mjs:4513
+   A: /** * How far a varied sound may bend, as a fraction of its normal rate.
+   B(4551): /** * How far a repeated sound is allowed to wander.
+scripts/despair.mjs:930
+   A: /** Build or rebuild the Despair rows. Safe to call repeatedly. */ /**
+   B(931): /** * THE NAME COLUMN IS AS WIDE AS THE LONGEST NAME (Dawid, 22.09: "napisy w despair pool nachodza
+scripts/enforced.mjs:71
+   A: /** * @typedef {object} EnforcedRow
+   B(88): /** @type {EnforcedRow[]} */ export const ENFORCED = [
+scripts/events.mjs:134
+   A: /** * The open incident, for its participants and the GM only. Ownership decides
+   B(139): /** * A murder that has opened but not yet reached its incident: the GM's own card, and the
+scripts/gm-items.mjs:945
+   A: /** * Hand one Truth Bullet over - copied from a trace, or written out by hand.
+   B(964): /** The traces on the scene as options, marking the ones this student already holds a copy of. */ function bulletTraceOptions(trac
+scripts/gm-items.mjs:1409
+   A: /** Remove one item the module knows about. */ /**
+   B(1410): /** * @param {Actor} [actor]        Whose pockets, as a default the window can change.
+scripts/gm-panel.mjs:686
+   A: /** * Announce (or end) the Final Trial. World-scoped and public on purpose - the
+   B(691): /** * Alive / dead / Monocub, in one place, in both directions.
+scripts/gm-panel.mjs:691
+   A: /** * Alive / dead / Monocub, in one place, in both directions.
+   B(707): /** * Everything this client has failed at since the page loaded.
+scripts/handbooks.mjs:89
+   A: /** One handbook as HTML: fetched and converted once per session and language. */ /** The converter on its own, for the suite: Mar
+   B(90): /** The converter on its own, for the suite: Markdown in, the viewer's HTML out. */ export function markdownToHtml(markdown) {
+scripts/handover.mjs:364
+   A: /** * Move an item from one character to another.
+   B(375): /** * Take something off a body.
+scripts/inventory.mjs:113
+   A: /** * The flags a COPY of an item has to carry to still be the same object.
+   B(127): /** * Does finding this thing leave a trace? The rule of D-28.08: a trace is
+scripts/inventory.mjs:681
+   A: /** * Create a found item on the character.
+   B(699): /** * THE OLD TIER 3 WORDING ON ITEMS ALREADY MADE (E14 fix e1-G5, 24.10.2026; the review's E14R-08). C5 changed what a tier
+scripts/inventory.mjs:877
+   A: /** * ONE IN A HAND, ONE STOWED, NEVER TWO STOWED - on the way IN as well (D4,
+   B(901): /** * The piece of `group` that goes into the hand when `item` arrives and the shape needs one: `item` itself where it
+scripts/investigation.mjs:1544
+   A: /** * The Investigation at a glance - and, now, the one place a GM edits any of
+   B(1572): /** * The Truth Bullet sweep, asked for by a person (Z7).
+scripts/investigation.mjs:2097
+   A: /** The Key Remnants tab: the planner and its warnings. */ /**
+   B(2098): /** * The warning that the case is getting thin (E66 C3; S13-29, E66-14): a plural family on the Key Remnants found, and
+scripts/mastermind.mjs:217
+   A: /** * `iAmTheMastermind()` used to live here and now lives in settings.mjs, beside
+   B(225): /** * The Mastermind's own room, on the client that holds the part - null for
+scripts/mastermind.mjs:404
+   A: /** * Pick, clear, or top up the Mastermind. The one screen for all of it, since
+   B(410): /** * Announce or withdraw the Final Trial. Moved here from the GM panel, which used
+scripts/mastermind.mjs:410
+   A: /** * Announce or withdraw the Final Trial. Moved here from the GM panel, which used
+   B(415): /** * Exported for the Class Trial console, which is where the button lives now
+scripts/monocub.mjs:707
+   A: /** "Wastes an action" - unconditional, unlike `spendAction`, which can refuse. */ /** A critical Hinder's write. Answers whether 
+   B(708): /** A critical Hinder's write. Answers whether an action was there to waste. */ async function wasteAction(actor) {
+scripts/overflow.mjs:284
+   A: /** * Feed the counter. GM only.
+   B(293): /** Whether this GM is not the primary while another GM, connected, is (`addOverflow`; E37 C7 `takeOverflow`, `checkOverflow`). */
+scripts/overflow.mjs:1077
+   A: /** The pane's HTML, for the Despair Flow window's Overflow tab (gm-team-dialog.mjs, `kitTabs`). */ /**
+   B(1078): /** * The one line of `overflowSection` that moves on its own.
+scripts/player-status.mjs:284
+   A: /** * The same marks the sheet draws, in the same order.
+   B(297): /** * @param {{from: number, to: number}|null} [options.spent]  Which pips went out
+scripts/remnants.mjs:2130
+   A: /** Set the sweep-related flags on one Remnant token. GM only. */ /**
+   B(2131): /** * The trace that handed over this object is part of the murder now.
+scripts/remnants.mjs:2456
+   A: /** * Table of every Remnant on the scene, with its three flags editable.
+   B(2463): /** * Count the Faint traces that would go, confirm, then clear them.
+scripts/reroll.mjs:1150
+   A: /** * Take back a Search and run it again.
+   B(1172): /** * Whether a Search's Reroll takes a hidden stash's step again. For a roll the GM drew, the
+scripts/room-setup.mjs:56
+   A: /** * One screen for everything a room IS.
+   B(69): /** * Write the live search-token count into every cell that has one.
+scripts/season-setup.mjs:173
+   A: /** * One row per thing a season needs, each able to say whether it is done.
+   B(181): /** Is this student carrying anything that counts as their opening item? */ function hasOpeningItem(actor) {
+scripts/season-wipe.mjs:577
+   A: /** * THE RESET'S OWN ENTRIES (E42 C3). Six groups have no owner but the reset: three cast groups whose part on each
+   B(584): /** The season's items on every student, the bedroom keys handed back at once (`wipeStudent`'s `items` part, D12). */ async functi
+scripts/secret.mjs:652
+   A: /** * What a card SAYS on this client.
+   B(659): /** * Anyone waiting for a card's words to arrive, by message id - a list: a popup, a
+scripts/settings.mjs:3010
+   A: /** * Who is in the incident, as a bare list of actor ids.
+   B(3029): /** * The discovery ledger as THIS client may know it: the union on a GM's
+scripts/settings.mjs:4218
+   A: /** * The character sheet's box on a screen of `vw` x `vh` at the slider's `scale`, in `theme` ("glass" or "legacy"), as
+   B(4223): /** * The memo a window's scaled box is kept under (E21 C5a): the slider and the layout height (`layoutHeight`, which an
+scripts/sfx.mjs:664
+   A: /** * Wire the panel from the dialog's `render`, never before it.
+   B(676): /** * Every `[data-drpg-slider]` under `root` wired: its range writes its volume as it moves (`setSfxVolume`), its output
+scripts/sheet.mjs:441
+   A: /** * Say what kind of thing this is, under its name.
+   B(453): /** * How many bad rolls are left in a thing, drawn where it is carried.
+scripts/sheet.mjs:946
+   A: /** * @param {object} options  The render's own options. `isFirstRender` is the one
+   B(954): /** * Run the module's injections with the system's transitions held still.
+scripts/sheet.mjs:2601
+   A: /** * Put the readied Crime and Cleaning Tool into the sidebar's Equipped list.
+   B(2616): /** * A row about something that has stopped existing (trap 91).
+scripts/sheet.mjs:3941
+   A: /** * One Truth Bullet, as a row.
+   B(3953): /** * The badges a Truth Bullet wears, as one string.
+scripts/sheet.mjs:3953
+   A: /** * The badges a Truth Bullet wears, as one string.
+   B(3963): /** * A value fit to stand in a `class` attribute: letters, digits, `-` and `_` only.
+scripts/sheet.mjs:4918
+   A: /** * A Call tile, built to exactly the same template as an action tile: icon on
+   B(4923): /** * Why every Call on one drawer is grey right now, or null.
+scripts/states.mjs:318
+   A: /** * Bring one character's two conditions into line with their tracks.
+   B(325): /** * One pass at a time, per actor.
+scripts/truth-bullets.mjs:142
+   A: /** * TWO FACTS THAT GO PUBLIC AT THE MOMENT OF ANALYSIS, and not before
+   B(152): /** Which action left the source trace - drives the Remnant token's icon. */ sourceAction: "sourceAction",
+scripts/truth-bullets.mjs:303
+   A: /** * Can this bullet still be analysed, by whoever is holding it?
+   B(315): /** * Does the holder know what this bullet is?
+scripts/truth-bullets.mjs:577
+   A: /** * Create a Truth Bullet on a character. The single path - the GM's dialog,
+   B(631): /** * A Truth Bullet you hold is a Remnant you have seen (Dawid, 31.08).
+scripts/use-items.mjs:83
+   A: /** * What this character is holding ready that can do the job of `role`.
+   B(104): /** * How good a thing is, as a number, or 0 when nothing says.
+scripts/use-items.mjs:425
+   A: /** * Use a Usable Item.
+   B(436): /** * What the GM needs on a "somebody used this" card to recognise a trap.
+scripts/use-items.mjs:796
+   A: /** * Get rid of a broken item, somewhere, and leave the trace of having done it.
+   B(815): /** * Which kind of trace throwing a broken thing away leaves.
+scripts/utils.mjs:448
+   A: /** The player user who owns this actor, if any. */ /**
+   B(449): /** * "an evident trace", not "a evident trace".
+scripts/visibility.mjs:586
+   A: /** * A revealed Remnant is visible to the table by Foundry's own `hidden` flag,
+   B(594): /** * A project's token, hidden from anybody who does not know it is there.
+scripts/vote.mjs:288
+   A: /** * Open the vote. Every player with a living or dead student gets a ballot; the
+   B(297): /** * @param {object} [options]
+count 63
+ORPHAN scripts/action-rolls.mjs:77 -> export { roomOfActor as currentRoom };
+ORPHAN scripts/clock.mjs:29 -> export { getClock };
+ORPHAN scripts/critical.mjs:107 -> patched.original = original;
+ORPHAN scripts/eclipse.mjs:40 -> export { ECLIPSE_MOVES };
+ORPHAN scripts/gm-store.mjs:1070 -> handle.resetRecord = (fields = {}, { keep = [] } = {}) => {
+ORPHAN scripts/murder.mjs:1 -> export {
+ORPHAN scripts/tables.mjs:1 -> export {
+ORPHAN scripts/ui-kit.mjs:455 -> export { eachPane };
+ORPHAN scripts/vault.mjs:1 -> export {
+ORPHAN scripts/voice.mjs:274 -> Hooks.on("userConnected", (user, connected) => {
