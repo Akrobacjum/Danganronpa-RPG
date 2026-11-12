@@ -253,27 +253,27 @@
       },
       "forcePrivateRolls": {
         "name": "Force private player rolls",
-        "hint": "Every player roll is whispered to that player and the GMs, and a GM's roll to the GMs. Nobody sees anyone else's dice. The one roll everybody sees is a GM's game.drpg.publicRoll (a macro) - a vote's tie, Monokuma's lottery."
+        "hint": "Every player roll is whispered to that player and the GMs, a GM's roll to the GMs. Only a GM's game.drpg.publicRoll macro is seen by all."
       },
       "enforceAnonymity": {
         "name": "Keep character sheets anonymous",
-        "hint": "Another player's sheet opens redacted: name, portrait, Health, and what they are holding. Statistics, Sanity, Hope, actions, inventory and Truth Bullets are hidden. Each player still owns their own sheet in full."
+        "hint": "Another player's sheet shows only their name, portrait, Ultimate, Health, what they hold, and how many Experiences they have. Each player's own sheet stays whole."
       },
       "searchTokensPerRoom": {
         "name": "Search Tokens per room",
-        "hint": "How many Search Tokens each room has per time of day. Every Search that reaches the roll uses one; a room with none left cannot be searched."
+        "hint": "Search Tokens per room each time of day, 0 to 10. A Search uses one; a room with none left cannot be searched."
       },
       "lockRollDialog": {
         "name": "Lock the roll window for players",
-        "hint": "Players cannot touch the dice, the statistic, advantage, experiences, or the bonus - those come from the action, a Hope Call or the GM. Spending an experience is the Experience Hope Call. GMs are unaffected."
+        "hint": "Players cannot change the dice, statistic, advantage, experiences, or bonus in the roll window; those come from the action, a Hope Call or the GM. GMs are unaffected."
       },
       "roomVisibility": {
         "name": "Players only see who is in their room",
-        "hint": "Hides other characters unless they stand in the same room. Walls and vision get most of the way there; this closes the gaps left by doorways, archways, and maps built without walls. GMs see everything."
+        "hint": "Hides other characters unless they stand in the same room, through gaps in the walls too. GMs see everything."
       },
       "isoTokenShield": {
         "name": "Guard token editing from Isometric Perspective",
-        "hint": "Keeps the isometric-perspective module out of token configuration windows, where it breaks editing. The map projection and Scene configuration are untouched. Turn it off to reach that module's Isometric tab; no reload."
+        "hint": "Keeps the isometric-perspective module out of the token configuration window, where it breaks editing. Turn it off to reach its Isometric tab."
       },
       "regionFog": {
         "name": "Rooms decide what players can see",
@@ -281,7 +281,7 @@
       },
       "lockPlayerResources": {
         "name": "Lock players' resources on the sheet",
-        "hint": "Those move through play - spend an action, take a rest, earn a Level Up. On, a player's own edits of them are put back or flagged to the GMs, and their pips are display-only for players; off, they are only listed for the GMs. Items and effects are judged either way, and so is what changed while no GM was connected, when one returns. GMs are unaffected."
+        "hint": "Actions, Hope, Health, Sanity, and statistics change only through play. On, a player's own edits of them are put back or flagged to the GMs; off, they are only listed. Items and effects are checked either way. GMs are unaffected."
       },
       "autoApproveTraits": {
         "name": "Players' statistics without approval",
@@ -293,7 +293,7 @@
       },
       "chargeMovement": {
         "name": "Crossing rooms costs a Move",
-        "hint": "Moving inside a room is free. Each time of day, the first crossing between rooms uses the Free Move; later ones cost an action or a crossing bought with Sprint. Turn it off to handle movement yourself."
+        "hint": "Moving inside a room is free. The first crossing each time of day uses the Free Move; later ones cost an action or a Sprint crossing. Off, you handle movement yourself."
       },
       "despairFromRolls": {
         "name": "Rolls grant Despair",
@@ -309,11 +309,11 @@
       },
       "enforceDhWelcome": {
         "name": "Keep Daggerheart's welcome window closed for everyone",
-        "hint": "Daggerheart opens its welcome journal the first time each account starts. On, it stays closed for everyone, the GM included. Off, Daggerheart shows it as before."
+        "hint": "Daggerheart's welcome journal opens for nobody, the GM included."
       },
       "enforcePlayerFiles": {
         "name": "Keep players out of the file browser",
-        "hint": "Players and Trusted Players can neither browse nor upload files, and clicking a portrait opens nothing for them. Pictures already in the world still show. Off, you can give both back in Foundry's permissions."
+        "hint": "Players cannot browse or upload files, and a click on a portrait opens nothing. Pictures already in the world still show."
       },
       "liveKitInFoundry": {
         "name": "Voice inside the Foundry window for everyone",
@@ -321,7 +321,7 @@
       },
       "pixelFont": {
         "name": "Pixel font",
-        "hint": "Monokuma Legacy only, and on by default there: Press Start 2P on interface chrome - HUD, Despair, character name, statistic labels, tabs. Journals, chat, and editable fields keep the normal face so long text stays readable. The Stained Glass theme has its own two faces and ignores this."
+        "hint": "Monokuma Legacy only: Press Start 2P on the HUD, tabs, names, and labels. Long text keeps the normal face."
       },
       "wideProjectWindows": {
         "name": "Wide project windows",
@@ -329,7 +329,7 @@
       },
       "language": {
         "name": "Language",
-        "hint": "Sets the language of this module's character sheet, panel, windows, and cards; Foundry keeps its own language setting. Names such as Truth Bullet, Remnant, and Despair stay in English. Needs a reload. Only affects this browser."
+        "hint": "The language of this module's windows, cards, and sheet; Foundry keeps its own. Game names such as Truth Bullet stay in English. Needs a reload. Only affects this browser."
       },
       "documentLanguage": {
         "name": "Document language",
@@ -381,7 +381,7 @@
       },
       "uiScale": {
         "name": "Interface scale",
-        "hint": "One factor on the interface, 80% to 140%. Under Stained Glass the screen's own factor rides under it (2560 x 1440 is 100%, a smaller screen down to 70%); under Monokuma Legacy the slider is the whole factor. It sizes this module's text and panels, and with them Foundry's own chrome and the character sheet; the map is never scaled, and text stops at 10px. Only affects this browser."
+        "hint": "The size of the module's windows and text, and with them Foundry's own and the sheet, 80% to 140%. The map is not scaled. Only affects this browser."
       },
       "debug": {
         "name": "Verbose console logging",
@@ -389,7 +389,7 @@
       },
       "musicEnabled": {
         "name": "Music follows the game state",
-        "hint": "Swaps the playlist when the Eclipse opens, a trial, or investigation begins, the time of day turns, or the game goes on hold. Map the playlists first: GM panel, Sound, Music. The murder row is separate: it plays only for the people in the incident and the GMs, whatever this says."
+        "hint": "Changes the playlist with the game: an Eclipse, a trial, an investigation, the time of day, a pause. Map the playlists first in the Sound window."
       },
       "voiceEnabled": {
         "name": "Separate voice in each room",
@@ -467,7 +467,7 @@
       "otherHint": "Not under any heading yet. Ask the GM to file it.",
       "biographyLabel": "Background",
       "biographyPlaceholder": "Who you were before the killing game.",
-      "biographyChanged": "Someone else changed this character's Background meanwhile. Your text is still in the field, not saved: leave the field again and it replaces theirs."
+      "biographyChanged": "Someone else changed this Background meanwhile. Your text is not saved yet: leave the field again to replace theirs."
     },
     "Guard": {
       "blocked": "Only the GM changes that. Actions, Hope, and statistics move through play.",
@@ -564,7 +564,7 @@
       "splitEvenly": "Split evenly",
       "splitDone": "Students split evenly between Monokumas.",
       "failed": "The division could not be saved. See the console.",
-      "noMonokumas": "Nobody holds a Despair pool yet: every full GM account holds one, and this world has none. Give an account the Gamemaster role, then open Despair Flow again; Assistant GMs can be granted a pool there.",
+      "noMonokumas": "Nobody holds a Despair pool: this world has no Gamemaster account. Give one the Gamemaster role, then open Despair Flow again.",
       "nobody": "- nobody -",
       "implicitHint": "Never assigned: this student feeds the first pool until you pick one.",
       "footnote": "Despair from a student's rolls goes to the pool of the Monokuma they are assigned to here. “(fallback)” marks a student not assigned to any Monokuma: their Despair goes to the first pool. Set an NPC or a template to “- nobody -” to keep it out of every pool. This is not secret: every player's browser can read who is set to nobody."
@@ -1682,7 +1682,7 @@
       "executionPending": "Execution when the trial ends: {names}.",
       "executionNow": "The sentence is carried out now: {names}.",
       "executionCardTitle": "THE EXECUTION",
-      "executionFailed": "The sentence could not be carried out on {names}. It is tried again at the next change of phase and when the GM reloads; if it still fails, mark the death in the Players window.",
+      "executionFailed": "The sentence on {names} did not go through. It is tried again at the next phase and when the GM reloads; if it still fails, mark the death in the Players window.",
       "finalSentenceMissing": "A Final Trial verdict waits to be carried out, but this browser does not hold who was sentenced. Load the GMs' backup on this browser, or give the Final verdict again.",
       "levelUpGranted": {
         "one": "{n} survivor took their Level Up here: {kind}.",

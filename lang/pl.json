@@ -253,27 +253,27 @@
       },
       "forcePrivateRolls": {
         "name": "Wymuszaj prywatne rzuty graczy",
-        "hint": "Każdy rzut gracza jest szeptany do tego gracza i do GM-ów, a rzut GM-a do GM-ów. Nikt nie widzi cudzych kości. Jedyny rzut widoczny dla wszystkich to rzut GM-a z makra game.drpg.publicRoll - remis w głosowaniu, loteria Monokumy."
+        "hint": "Każdy rzut gracza widzi tylko on i GM-owie, a rzut GM-a tylko GM-owie. Wszyscy widzą jedynie rzut z makra GM-a game.drpg.publicRoll."
       },
       "enforceAnonymity": {
         "name": "Anonimowe karty postaci",
-        "hint": "Karta innego gracza otwiera się ocenzurowana: imię, portret, Health i to, co trzyma w rękach. Statystyki, Sanity, Hope, akcje, ekwipunek i Truth Bullets są ukryte. Każdy gracz wciąż w pełni widzi własną kartę."
+        "hint": "Karta innego gracza pokazuje tylko imię, portret, Ultimate, Health, to, co trzyma w rękach, i ile ma doświadczeń. Własną kartę każdy widzi w całości."
       },
       "searchTokensPerRoom": {
         "name": "Search Tokens na pokój",
-        "hint": "Ile Search Tokenów ma każdy pokój, od 0 do 10. Każdy Search zabiera jeden token po rzucie, a w pokoju bez tokenów Search zostaje odrzucony, zanim gracz wyda akcję. Tokeny odnawiają się z każdą nową porą dnia."
+        "hint": "Search Tokeny na pokój na porę dnia, od 0 do 10. Search zużywa jeden; w pokoju bez tokenów nie da się szukać."
       },
       "lockRollDialog": {
         "name": "Zablokuj graczom okno rzutu",
-        "hint": "Gracze nie mogą ruszać kości, statystyki, przewagi, doświadczeń ani premii - te biorą się z akcji, Hope Call albo od GM-a. Wydanie doświadczenia to Hope Call „Experience”. GM-ów to nie dotyczy."
+        "hint": "Gracze nie zmieniają w oknie rzutu kości, statystyki, przewagi, doświadczeń ani premii; te biorą się z akcji, Hope Call albo od GM-a. GM-ów to nie dotyczy."
       },
       "roomVisibility": {
         "name": "Gracze widzą tylko osoby w swoim pokoju",
-        "hint": "Ukrywa inne postacie, chyba że stoją w tym samym pokoju. Ściany i widzenie załatwiają większość; to domyka luki po drzwiach, przejściach i mapach bez ścian. GM-owie widzą wszystko."
+        "hint": "Ukrywa inne postacie, chyba że stoją w tym samym pokoju, także przez luki w ścianach. GM-owie widzą wszystko."
       },
       "isoTokenShield": {
         "name": "Chroń edycję tokenów przed Isometric Perspective",
-        "hint": "Trzyma moduł isometric-perspective z dala od okien konfiguracji tokenu, gdzie psuje edycję. Rzut mapy i konfiguracja sceny są nietknięte. Wyłącz, by dostać się do zakładki Isometric tego modułu; bez przeładowania."
+        "hint": "Trzyma moduł isometric-perspective z dala od okna konfiguracji tokenu, gdzie psuje edycję. Wyłącz, by dostać się do jego zakładki Isometric."
       },
       "regionFog": {
         "name": "Pokoje decydują, co widzą gracze",
@@ -281,7 +281,7 @@
       },
       "lockPlayerResources": {
         "name": "Zablokuj graczom zasoby na karcie",
-        "hint": "Te zmieniają się przez grę - wydaj akcję, odpocznij, zdobądź Level Up. Włączone: ręczne zmiany gracza są cofane albo zgłaszane GM-om, a ich pola są dla graczy tylko do odczytu; wyłączone: są tylko odnotowywane dla GM-ów. Przedmioty i efekty są oceniane zawsze, tak samo jak to, co zmieniło się bez połączonego GM-a - gdy któryś wróci. GM-ów to nie dotyczy."
+        "hint": "Akcje, Hope, Health, Sanity i statystyki zmieniają się tylko przez grę. Włączone: ręczne zmiany gracza są cofane albo zgłaszane GM-om; wyłączone: tylko odnotowywane. Przedmioty i efekty są sprawdzane zawsze. GM-ów to nie dotyczy."
       },
       "autoApproveTraits": {
         "name": "Statystyki graczy bez zatwierdzania",
@@ -293,7 +293,7 @@
       },
       "chargeMovement": {
         "name": "Przejście między pokojami kosztuje Move",
-        "hint": "Ruch w obrębie pokoju jest darmowy. Pierwsze przejście do innego pokoju o danej porze dnia zużywa Free Move, każde kolejne kosztuje przejście kupione Callem Sprint albo akcję. Wyłącz, by rozliczać ruch ręcznie."
+        "hint": "Ruch w pokoju jest darmowy. Pierwsze przejście o danej porze dnia zużywa Free Move, kolejne kosztują akcję albo przejście kupione Sprintem. Wyłączone: ruch rozliczasz ręcznie."
       },
       "despairFromRolls": {
         "name": "Rzuty dają Despair",
@@ -309,11 +309,11 @@
       },
       "enforceDhWelcome": {
         "name": "Trzymaj okno powitalne Daggerheart zamknięte u wszystkich",
-        "hint": "Daggerheart otwiera swój dziennik powitalny przy pierwszym starcie każdego konta. Włączone: okno nie otwiera się u nikogo, także u GM-a. Wyłączone: Daggerheart pokazuje je jak dawniej."
+        "hint": "Dziennik powitalny Daggerheart nie otworzy się nikomu, także GM-owi."
       },
       "enforcePlayerFiles": {
         "name": "Bez przeglądarki plików dla graczy",
-        "hint": "Gracze i zaufani gracze nie mogą przeglądać ani wysyłać plików, a kliknięcie portretu nic im nie otwiera. Obrazy, które już są w świecie, nadal się wyświetlają. Wyłączone: oba uprawnienia możesz znów nadać w uprawnieniach Foundry."
+        "hint": "Gracze nie przeglądają ani nie wysyłają plików, a kliknięcie portretu nic nie otwiera. Obrazy, które już są w świecie, nadal widać."
       },
       "liveKitInFoundry": {
         "name": "Głos w oknie Foundry u wszystkich",
@@ -321,7 +321,7 @@
       },
       "pixelFont": {
         "name": "Czcionka pikselowa",
-        "hint": "Tylko Monokuma Legacy, tam domyślnie włączona: Press Start 2P na elementach interfejsu - HUD, Despair, imię postaci, etykiety statystyk, zakładki. Dzienniki, czat i pola edycji zachowują zwykły krój, by długi tekst dało się czytać. Motyw Stained Glass ma własne dwa kroje i to ignoruje."
+        "hint": "Tylko Monokuma Legacy: Press Start 2P na HUD-zie, zakładkach, imionach i etykietach. Długi tekst zostaje w zwykłym kroju."
       },
       "wideProjectWindows": {
         "name": "Szerokie okna projektów",
@@ -329,7 +329,7 @@
       },
       "language": {
         "name": "Język",
-        "hint": "Język okien, kart, panelu i arkusza postaci tego modułu; języka Foundry to nie zmienia. Nazwy własne gry, takie jak Truth Bullet, Remnant i Despair, zostają po angielsku. Zmiana zadziała po przeładowaniu. Dotyczy tylko tej przeglądarki."
+        "hint": "Język okien, kart i arkusza tego modułu; Foundry ma własne ustawienie. Nazwy gry, jak Truth Bullet, zostają po angielsku. Działa po przeładowaniu. Dotyczy tylko tej przeglądarki."
       },
       "documentLanguage": {
         "name": "Język dokumentów",
@@ -377,7 +377,7 @@
       },
       "uiScale": {
         "name": "Skala interfejsu",
-        "hint": "Jeden mnożnik na interfejs, 80% do 140%. W Stained Glass nakłada się na mnożnik ekranu (2560 x 1440 to 100%, mniejszy ekran do 70%); w Monokuma Legacy suwak jest całym mnożnikiem. Zmienia tekst i panele modułu, a z nimi elementy Foundry i arkusz postaci; mapy nie skaluje, a tekst nie schodzi poniżej 10 px. Dotyczy tylko tej przeglądarki."
+        "hint": "Wielkość okien i napisów modułu, a z nimi elementów Foundry i arkusza postaci, od 80% do 140%. Mapy nie skaluje. Dotyczy tylko tej przeglądarki."
       },
       "debug": {
         "name": "Szczegółowe logi w konsoli",
@@ -385,7 +385,7 @@
       },
       "musicEnabled": {
         "name": "Muzyka podąża za stanem gry",
-        "hint": "Zmienia playlistę, gdy zaczyna się Eclipse, Class Trial albo Investigation, zmienia się pora dnia albo gra zostaje wstrzymana. Najpierw przypisz playlisty: panel GM-a, Dźwięk, Muzyka. Wiersz morderstwa działa osobno: gra tylko dla osób w incydencie i GM-ów, niezależnie od tego ustawienia."
+        "hint": "Zmienia playlistę razem z grą: Eclipse, Class Trial, Investigation, pora dnia, pauza. Najpierw przypisz playlisty w oknie Dźwięk."
       },
       "voiceEnabled": {
         "name": "Głos osobno w każdym pokoju",
@@ -472,7 +472,7 @@
       "otherHint": "Jeszcze nie ma go pod żadnym nagłówkiem. Poproś GM-a, żeby go przypisał.",
       "biographyLabel": "Przeszłość",
       "biographyPlaceholder": "Kim była twoja postać, zanim zaczęła się killing game.",
-      "biographyChanged": "Ktoś inny zmienił w międzyczasie przeszłość tej postaci. Twój tekst nadal jest w polu, niezapisany: wyjdź z pola jeszcze raz, a zastąpi tamten."
+      "biographyChanged": "Ktoś inny zmienił w międzyczasie przeszłość tej postaci. Twój tekst nie jest jeszcze zapisany: wyjdź z pola jeszcze raz, by zastąpić tamten."
     },
     "Guard": {
       "blocked": "To zmienia tylko GM. Akcje, Hope i statystyki zmieniają się przez grę.",
@@ -553,7 +553,7 @@
       "splitEvenly": "Podziel po równo",
       "splitDone": "Uczniowie podzieleni po równo między Monokumy.",
       "failed": "Nie udało się zapisać podziału. Zajrzyj do konsoli.",
-      "noMonokumas": "Nikt jeszcze nie ma puli Despair: ma ją każde konto pełnego GM-a, a w tym świecie nie ma żadnego. Nadaj kontu rolę Gamemastera i otwórz Despair Flow ponownie; tam można przyznać pulę Asystentom GM-a.",
+      "noMonokumas": "Nikt nie ma puli Despair: w tym świecie nie ma konta Gamemastera. Nadaj komuś tę rolę i otwórz Despair Flow ponownie.",
       "nobody": "- nikt -",
       "implicitHint": "Nigdy nie przypisano: ten uczeń zasila pierwszą pulę, dopóki nie wybierzesz innej.",
       "footnote": "Despair z rzutów ucznia trafia do puli tego Monokumy, do którego jest tu przypisany. „(domyślnie)” oznacza ucznia bez przypisania: zasila on pierwszą pulę. Uczeń ustawiony na „- nikt -” nie zasila żadnej puli; to ustawienie dla NPC albo szablonu. Przypisania dostaje przeglądarka każdego gracza, więc gracz może odczytać, kto jest ustawiony na „- nikt -”."
@@ -1794,7 +1794,7 @@
       "executionPending": "Egzekucja, gdy rozprawa się skończy: {names}.",
       "executionNow": "Wyrok zostaje wykonany teraz: {names}.",
       "executionCardTitle": "EGZEKUCJA",
-      "executionFailed": "Nie udało się wykonać wyroku na: {names}. Moduł spróbuje ponownie przy następnej zmianie fazy i po przeładowaniu strony przez GM-a; jeśli znów się nie uda, oznacz śmierć w oknie graczy.",
+      "executionFailed": "Wyrok na: {names} się nie wykonał. Moduł spróbuje ponownie przy następnej fazie i po przeładowaniu u GM-a; jeśli dalej się nie uda, oznacz śmierć w oknie graczy.",
       "finalSentenceMissing": "Werdykt Final Trial czeka na wykonanie, ale ta przeglądarka nie wie, kogo skazano. Wczytaj tu kopię zapasową GM-ów albo wydaj werdykt Final jeszcze raz.",
       "levelUpGranted": {
         "one": "{n} ocalały dostał tu swój Level Up: {kind}.",

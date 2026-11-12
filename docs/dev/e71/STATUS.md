@@ -43,6 +43,7 @@ Counts are changes, one per plural form; a key changed in two areas counts in bo
 | Polish grammar | 2 | 23 | 10 (Polish handbooks, unfrozen sections: "Class Trialu" -> "Class Trial", three neuter Eclipse/Overflow) | no bracketed gender endings ("zgłosił(a)"); PL-a/DB4 (Class Trial indeclinable); PL-b/DB28 (Eclipse neuter); X13, PL7, P2 on single values (`Move.dead`, `Vote.reminded.few`, `Vote.opened`) |
 | GM screen review | 136 | 142 | 20 (GM handbook sections 1, 2, 6.3 and 12, player handbook section 2: the renamed settings and buttons where they are quoted; the GM's copy of `Season.roomGuide` cut to the short guide, the rest of its rules kept on a new line 137; the quote of `Vault.descriptionNote`) | the owner's approval of every proposal of the GM screen review (12.11.2026): its "niejasna nazwa" renames and its "Teksty do skrócenia" lines, as T29; EN written to match the approved Polish; `DRPG.Project.scaleOption` new (the window's English "progress"), held by R2077 |
 | player screen review | 3 | 4 | 0 | the same approval, items #6 (module mechanics a player reads) and #9 (the Daily Life explainer's count) |
+| overexplains (T29), round 2 | 17 | 17 | 0 | T29 on the texts T4 still counts over their word budget and that no open line touches: 13 settings hints, the Background clash, the Despair Flow empty pool, the sentence that failed; `enforceAnonymity.hint` also given the two things anonymity.mjs shows that it left out (Ultimate, the count of Experiences) |
 
 ## Text rules exercised ("to confirm in E71"), and the outcome
 
@@ -105,6 +106,7 @@ edited unless the row says so.
 | lang/en.json, lang/pl.json | `Chapter.revealKeeps`, `Investigation.neverOnePerson`, `newTraceIntro`, `unidentified`, `TruthBullet.analyzedTextNote` | A new branch, e64-inv, edits these and 25 keys beside them; this pass had changed eight of their values (Remnant, US spelling, T29) in earlier commits. Put back to the base's value so the two merge cleanly (and `Chapter.typeless`, which quotes the term "not analysed", with it: R357); FROZEN.md now reads every remote claude/* branch, not a list. | Frozen by e64-inv. |
 | docs/dev/R-REGISTRY.md | the generated registry | R4000's row and the "Next free" line conflict with main and with the six branches that add tests (e64-inv, e72, e93, e97-98, gaps-61, fervent-sagan). Every branch that adds a test does this; `node tools/registry.mjs --write` after the merge writes the file again. | Kept: a test needs its row (check registry). |
 | lang/en.json, lang/pl.json | `DRPG.Murder.indirectCost` | The GM review's short form ("Pułapka to projekty: około {low}-{high} postępu, {fewest}-{actions}.") is ready, but R1160 pins the text in lines that e64 edits beside it, so the test cannot change without a merge conflict. | Put back to the old text; for after e64 merges. |
+| T4's list, round 2 | `Settings.documentLanguage.hint`, `Body.noToken`, `Floor.newTrialRefused`, `Hud.bodyFoundTooltip`, `Items.brokenTooltip` | Over their budget too, but tests read their words (tier 1 for the first two, tier 2 for the third, which this line runs only by name) or they are already a short sentence. | Left. |
 
 ## Merge check (12.11, 16:10; again before the review commit)
 
@@ -140,6 +142,7 @@ edited unless the row says so.
 | 12.11, run aa | 90ec7ae7 and the GM and player screen reviews | 1220 passed, 11 failed (the review's texts against R806, R819, R825, R902, R975, R1157, R1160, R1161, R1163, R2077, R3150; each fixed, the 12 green together), 16 skipped |
 | 12.11, run ab | the same tree with run aa's fixes | 1230 passed, 1 failed (R357: `Chapter.typeless` spelt "analyzed" beside the dashboard term "Not analysed" that e64-inv now freezes; put back to "analysed", R357 green alone), 16 skipped |
 | 12.11, run ac | 90ec7ae7 and the screen reviews, after run aa's and ab's fixes and the merge fixes | 1230 passed, 0 failed, 16 skipped, 0 red (389 s) |
+| 12.11, run ad | d640019e and T29 round 2 | 1230 passed, 0 failed, 16 skipped, 0 red (317 s); `npm run quick` green |
 | 12.11, run f | 0a5ea4d3 and the GM-side T29 cuts (the bridge's refusals, the trial hall, the vote's privacy note) | 1230 passed, 0 failed, 16 skipped, 0 red |
 
 ## Tests whose expected wording changed
