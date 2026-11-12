@@ -335,6 +335,10 @@ While the tail lasts, each time they cross into another room and stay about two 
 
 The tail ends with a card when you are neither in the room they left nor in the one they reached (you lost track), when the day ends, when a body is found, or when they Dash higher than your second roll (a critical tail falls only to a critical Dash). It ends without a card when either of you dies or an incident begins. One tail at a time: a new one replaces it. A tail cannot be begun in an Eclipse, an investigation or a Class Trial.
 
+### Shut the Door - Body, 1 action
+
+Barricade the room you stand in, from inside. It works in a room with at most two doors that open, in your own bedroom but not in another's. While you stay inside, nobody walks in through a door: the door does not give. A secret passage, a breach or a tunnel still lets people through. The barricade comes down when you leave the room, when the time of day ends and when an Eclipse begins. The room shows that it is barricaded, never by whom. (Forcing a barricaded door comes later.)
+
 ### Dash - Leg, 1 action
 
 Run: a Leg roll gives free crossings until the time of day ends, spent like a Free Move.

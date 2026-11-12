@@ -43,7 +43,9 @@ const SOCKET_EVENT = `module.${MODULE_ID}`;
  * Since E17 C2 a crossing the primary sees past the Eclipse's allowance too (`eclipseSpent`; movement.mjs
  * `eclipseSighting`). movement.mjs reads this list (it imports this file, R161).
  */
-export const RULE_CODES = Object.freeze(["cannotLeave", "doorLocked", "roomSealed", "chained", "cannotNow", "trialLocked", "eclipseSpent"]);
+export const RULE_CODES = Object.freeze(["cannotLeave", "doorLocked", "roomSealed", "chained", "cannotNow", "trialLocked", "eclipseSpent",
+    // E74 C1: a barricaded room (movement.mjs `barricadedFrom`).
+    "barricaded"]);
 
 /** The codes a `move.sentBack` may carry: a wall, and since E80 C2 a floor the doors' rules do not join, and since E17 C1
  *  the rules' codes (`RULE_CODES`) - the things the audit sends a token back for, one packet for all of them. */

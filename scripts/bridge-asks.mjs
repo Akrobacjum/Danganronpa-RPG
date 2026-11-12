@@ -34,7 +34,7 @@ import {
     ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT, ACTION_FRISK_UNSEEN,
     ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS, ACTION_OPENING_RESULT, ACTION_CLEANUP,
     ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_DONE, ACTION_LOOT, ACTION_NOTE_SAVE,
-    ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_FACILITY_USE, ACTION_DASH, ACTION_TAIL_START
+    ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_FACILITY_USE, ACTION_DASH, ACTION_TAIL_START, ACTION_DOOR_SHUT
 } from "./bridge-wire.mjs";
 import { ask } from "./bridge-table.mjs";
 
@@ -61,6 +61,14 @@ export function requestFacilityUse({ actorId, actionId, total = 0, isCritical = 
 }
 
 /** Settle a Dash's Leg roll into free crossings on the primary (E69 C5; bridge-runs-acts.mjs `handleDash`). */
+/** Shut the Door (E74 C2): the Body roll named by its message; answers `{ room }` as `.value`. */
+export function requestDoorShut({ actorId, total = 0, rollId = null }) {
+    const packet = { actorId, total, rollId };
+    return ask(ACTION_DOOR_SHUT, packet, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDoorShut(packet, game.user))
+    });
+}
+
 /** Begin a tail (E69 C3): the two rolls named by their messages; answers `{ seen }` as `.value`. */
 export function requestTailStart({ tailerId, targetId, total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false,
     rollId = null, unseenRollId = null }) {

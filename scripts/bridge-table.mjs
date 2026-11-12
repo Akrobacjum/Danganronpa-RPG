@@ -47,7 +47,7 @@ import {
     ACTION_FRISK_UNSEEN, ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS,
     ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_LOOT,
     ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_FACILITY_USE, ACTION_DASH,
-    ACTION_TAIL_START
+    ACTION_TAIL_START, ACTION_DOOR_SHUT
 } from "./bridge-wire.mjs";
 import {
     handleObserveTarget, handleCleanupTraces, handleObserveResolve, handleAnalyzeResolve, handleAdvancement,
@@ -57,7 +57,7 @@ import {
     friskForceRoll, handleVaultSteal, searchTheftOf, handleOpeningResult, handleCrisis, handleParkMurder,
     handleBetrayal, handleCleanup, handleCubAbility, handleHopeCall, handleCallYes, handleDynamicAnswer,
     handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling, handleFacilityUse, handleDash,
-    handleTailStart, tailRolls
+    handleTailStart, tailRolls, handleDoorShut
 } from "./bridge-runs-acts.mjs";
 import {
     handleProgress, handleShare, TRACE_OF_ROLL, handleRemnant, traceBandOf, progressOf, repairOf, handleTieTrace,
@@ -169,6 +169,17 @@ export const BRIDGE_ACTIONS = table({
            character, the sender's, settled once (bridge-guards.mjs `rollRefusal`); with no roll named it is refused. */
         rolled: { field: "rollId", actor: "actorId", kind: "dash" },
         claims: { rollId: "the roll the free crossings are read from (bridge-guards.mjs rollRefusal): the sender's own drawn Dash roll of that character, settling one Dash" }
+    },
+    [ACTION_DOOR_SHUT]: {
+        label: "DRPG.Bridge.what.door.shut",
+        guards: [knownSender, guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, total: as.num, rollId: as.id }),
+        run: handleDoorShut,
+        // The asker's card says the door is shut, or nothing was (`performShut`).
+        answer: "reply",
+        // Always a roll: the barricade's strength is the GMs' record of the Body roll `rollId` names (rollRefusal).
+        rolled: { field: "rollId", actor: "actorId", kind: "shut" },
+        claims: { rollId: "the roll the barricade's strength is read from (bridge-guards.mjs rollRefusal): the sender's own drawn Shut the Door roll of that character" }
     },
     [ACTION_TAIL_START]: {
         label: "DRPG.Bridge.what.tail.start",

@@ -2915,6 +2915,9 @@
       "discardNote": "{actor} threw away {item} in {room} (rolled {total})."
     },
     "Infiltrate": {
+      "shut": {
+        "done": "You barricade {room}. Nobody walks in through a door while you stay inside, until the time of day ends."
+      },
       "tail": {
         "nobody": "Nobody else stands in this room to tail.",
         "prompt": "Pick whom to follow. Shadow {n} or more and they do not notice you; below it they learn who follows them.",
@@ -2942,6 +2945,10 @@
         "tail": {
           "label": "Tail Someone",
           "hint": "Follow somebody in your room and learn where they go."
+        },
+        "shut": {
+          "label": "Shut the Door",
+          "hint": "Body: barricade the room you stand in from inside."
         },
         "dash": {
           "label": "Dash",
@@ -3736,6 +3743,7 @@
         "facility.use": "Room action",
         "dash.settle": "Dash",
         "tail.start": "Tail Someone",
+        "door.shut": "Shut the Door",
         "handover.bullet": "Share a Truth Bullet",
         "handover.item": "Hand over an item",
         "passage.share": "Show a secret passage",
@@ -3887,6 +3895,7 @@
         "oneWay": "This passage cannot be taken from this side.",
         "doorLocked": "The door is locked.",
         "roomSealed": "That room is sealed for this time of day. Nobody gets in.",
+        "barricaded": "The door does not give.",
         "chained": "You are chained here until this time of day ends.",
         "cannotLeave": "You are in an incident. The only way out is a crisis action - Survive, Escape Together, a Finishing Blow, or, if you only walked in on it, Averted Eyes.",
         "trialLocked": "The Class Trial is in session. Nobody leaves the courtroom until it ends.",
@@ -5750,6 +5759,7 @@
         "rifles": "Which stash each character has gone through, and in which time of day",
         "facilityUses": "Which room actions each character used, and in which time of day",
         "tails": "Who is tailing whom today, and how well",
+        "barricades": "Which rooms are barricaded, by whom and how strongly",
         "clockBeat": "When the primary GM was last at the table, so the gap between two sessions is no time of day",
         "takeBack": "What the last start of a time of day gave, for five minutes, so a misclick can be taken back",
         "crossings": "Each character's last crossing between rooms, what it cost, and whether a GM gave it back",

@@ -3177,6 +3177,9 @@
       "cardUnread": "Jeszcze nie przeanalizowane. Użyj Analyze, by odczytać resztę."
     },
     "Infiltrate": {
+      "shut": {
+        "done": "Barykadujesz: {room}. Nikt nie wejdzie drzwiami, póki zostajesz w środku, do końca pory dnia."
+      },
       "tail": {
         "nobody": "Nikt inny nie stoi w tym pokoju, by go śledzić.",
         "prompt": "Wybierz, kogo śledzić. Shadow {n} lub więcej: bez zauważenia; poniżej cel dowie się, kto go śledzi.",
@@ -3204,6 +3207,10 @@
         "tail": {
           "label": "Tail Someone",
           "hint": "Idź za kimś z twojego pokoju i dowiedz się, dokąd idzie."
+        },
+        "shut": {
+          "label": "Shut the Door",
+          "hint": "Body: zabarykaduj od środka pokój, w którym stoisz."
         },
         "dash": {
           "label": "Dash",
@@ -4065,6 +4072,7 @@
         "facility.use": "Akcja w pokoju",
         "dash.settle": "Dash",
         "tail.start": "Tail Someone",
+        "door.shut": "Shut the Door",
         "handover.bullet": "Przekazanie Truth Bulleta",
         "handover.item": "Przekazanie przedmiotu",
         "passage.share": "Pokazanie tajnego przejścia",
@@ -4218,6 +4226,7 @@
         "oneWay": "Tym przejściem nie da się przejść z tej strony.",
         "doorLocked": "Drzwi są zamknięte.",
         "roomSealed": "To pomieszczenie jest zapieczętowane na tę porę dnia. Nikt nie wchodzi.",
+        "barricaded": "Drzwi nie ustępują.",
         "chained": "Jesteś tu przykuty do końca tej pory dnia.",
         "cannotLeave": "Jesteś w incydencie. Jedyne wyjście to akcja kryzysowa - Survive, Escape Together, Finishing Blow albo, jeśli to tylko przypadkowe wejście, Averted Eyes.",
         "trialLocked": "Class Trial trwa. Nikt nie opuszcza sali, dopóki się nie skończy.",
@@ -7478,6 +7487,7 @@
         "rifles": "Którą skrytkę każda postać przetrząsnęła, i o jakiej porze dnia",
         "facilityUses": "Których akcji w pokojach użyła każda postać, i o jakiej porze dnia",
         "tails": "Kto dziś śledzi kogo, i jak dobrze",
+        "barricades": "Które pokoje są zabarykadowane, przez kogo i jak mocno",
         "clockBeat": "Kiedy główny GM był ostatnio przy stole, żeby przerwa między sesjami nie liczyła się do pory dnia",
         "takeBack": "Co dał ostatni początek pory dnia, przez pięć minut, żeby pomyłkę dało się cofnąć",
         "crossings": "Ostatnie przejście każdej postaci między pokojami, jego koszt i czy GM je zwrócił",

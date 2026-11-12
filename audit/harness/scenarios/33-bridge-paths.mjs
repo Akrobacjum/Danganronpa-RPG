@@ -1707,6 +1707,41 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
             && e69b.p1?.actions === 2 && JSON.stringify(e69b.row?.slice(0, 2)) === JSON.stringify([IDS.botan, true]) && e69b.logged.length === 0,
         JSON.stringify(e69b), { flow: "tail" });
 
+    /* E74-A. SHUT THE DOOR FROM p1'S OWN PAGE (E74 C2, 12.11.2026). The legal control of `door.shut`: p1 barricades Aiko's
+       room as the Infiltrate window does (action-doors.mjs `performShut`): an action paid, a Body roll the GM draws, the
+       barricade kept by the GM with that roll's total and the public flag set on the room. Read: the answer, Aiko's
+       actions, the GMs' row, the flag on p2's browser, and the GM's log of refusals (none). Put back: the barricade and
+       Aiko's actions. */
+    phase("Shut the Door", { flow: "door-shut" });
+    const e74a = { before: await gm.eval(`const a = game.actors.get("${IDS.aiko}"); const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const was = { actions: a.system.resources.actions.value };
+        await trustedWrite(a, { "system.resources.actions.value": 3 }, { reason: "gmRuling" });
+        return was;`, { timeout: 30000 }) };
+    await settle(500);
+    await clearFailures(gm);
+    e74a.p1 = await p1.eval(`const D = await import("${repoUrl}/scripts/action-doors.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        globalThis.__forceRoll = { hope: 9, fear: 3 };
+        let out = null;
+        try { out = await D.performShut(aiko); } finally { delete globalThis.__forceRoll; }
+        await new Promise(r => setTimeout(r, 600));
+        return { room: out?.room ?? null, total: out?.roll?.total ?? null, actions: aiko.system.resources.actions.value };`, { timeout: 60000 });
+    e74a.logged = await refusalsLogged(gm, "door.shut");
+    e74a.row = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const r = Object.values(S.barricadeStore.entries() ?? {}).find(x => x?.authorId === "${IDS.aiko}");
+        return r ? [r.room, r.strength] : null;`);
+    await settle(400);
+    e74a.p2 = await p2.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"); return M.roomBarricaded(game.scenes.get("${IDS.scene}"), ${JSON.stringify(e74a.p1?.room ?? "")});`);
+    await gm.eval(`const a = game.actors.get("${IDS.aiko}"); const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const D = await import("${repoUrl}/scripts/doors-gm.mjs");
+        await D.endAllBarricades();
+        await trustedWrite(a, { "system.resources.actions.value": ${JSON.stringify(e74a.before?.actions ?? 3)} }, { reason: "gmRuling" });
+        return true;`, { timeout: 30000 });
+    await settle(500);
+    check("E74-A: p1's Shut the Door is paid with one action, its Body roll drawn on the GM, and the GM keeps the barricade at that roll's total with the room's public flag, which p2's browser reads - none refused",
+        typeof e74a.p1?.room === "string" && e74a.p1.room !== "" && e74a.p1?.actions === 2
+            && JSON.stringify(e74a.row) === JSON.stringify([e74a.p1.room, e74a.p1.total]) && e74a.p2 === true && e74a.logged.length === 0,
+        JSON.stringify(e74a), { flow: "door-shut" });
+
     /* ------------------------------------------- A. the Assistant as the primary */
 
     phase("the Assistant as the primary", { flow: "give-take-stash" });

@@ -166,6 +166,19 @@ export async function handleDash(payload) {
     return { reply: { moves } };
 }
 
+/**
+ * SHUT THE DOOR (E74 C2, 12.11.2026; doors-gm.mjs). The room and its rules are judged on this GM (`shutRefusal`); the
+ * strength is the GMs' record of the Body roll (the runner's `onRecord`). Answers `{ reply: { room } }`.
+ */
+export async function handleDoorShut(payload, sender) {
+    const actor = game.actors.get(payload.actorId ?? "");
+    if (!actor) return { refused: "no such character" };
+    const { shutDoor } = await import("./doors-gm.mjs");
+    const out = await shutDoor({ actor, total: payload.total, user: sender });
+    if (out.refused) return { refused: out.refused };
+    return { reply: { room: out.room } };
+}
+
 /** The two rolls of a tail, as `rolled` names them (E69 C3): the effect's and the Shadow the target's noticing is read from. */
 export function tailRolls(actor) {
     return [

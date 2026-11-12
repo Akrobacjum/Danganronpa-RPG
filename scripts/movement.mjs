@@ -100,8 +100,40 @@ export const ROOM_FLAGS = {
      * it or the courtroom. Taken off when the wall is given back (passages-gm.mjs `restoreBreach`) and by the
      * season's reset. A value with no builder, user or project in it: every browser holds the scene's regions.
      */
-    broken: "drpgBroken"
+    broken: "drpgBroken",
+
+    /**
+     * A room shut from inside (E74 C2, 12.11.2026; DA25, DA47): Shut the Door's barricade, `true` on every piece of the
+     * room while it stands - no author, no strength (those are the GMs', gm-stores.mjs `barricadeStore`). Written by
+     * `setRoomBarricaded` alone, read by `roomBarricaded` alone; stops a walk in through a door (`barricadedFrom`), never a
+     * passage, a breach or a tunnel (A10), and never the GM. The one public trace a barricade leaves (DA47: the accepted
+     * leak, audit/harness/known-leaks.json).
+     */
+    barricaded: "drpgBarricaded"
 };
+
+/** Is this room barricaded from inside, on this scene (`ROOM_FLAGS.barricaded`)? The one reader of the flag (E74 C2). */
+export function roomBarricaded(scene, room) {
+    if (!room) return false;
+    return Boolean(roomFlag(scene, room, ROOM_FLAGS.barricaded));
+}
+
+/**
+ * Barricade a room, or take the barricade down (`on` false): the flag on every piece of the room on `scene`, a GM's write
+ * (the primary's, doors-gm.mjs). The one writer of `ROOM_FLAGS.barricaded`; taken off with `unsetFlag`. Answers how many
+ * pieces were written.
+ */
+export async function setRoomBarricaded(scene, room, on = true) {
+    if (!game.user?.isGM || !scene || !room) return 0;
+    let wrote = 0;
+    for (const piece of roomRegions(scene, room)) {
+        if (Boolean(piece.getFlag(MODULE_ID, ROOM_FLAGS.barricaded)) === Boolean(on)) continue;
+        if (on) await piece.setFlag(MODULE_ID, ROOM_FLAGS.barricaded, true);
+        else await piece.unsetFlag(MODULE_ID, ROOM_FLAGS.barricaded);
+        wrote++;
+    }
+    return wrote;
+}
 
 /**
  * Has this room been forced open, on this scene (`ROOM_FLAGS.broken`)? The one reader of the flag (R981): a room
@@ -1623,6 +1655,10 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
     const passage = joined || passesThrough(actor, from, to, scene, floors, { mover, known, elevation });
     const blocked = restrictedFrom(actor, to, scene, mover, { via: passage && via === "passage" ? "passage" : null, keyed });
     if (blocked) return blocked;
+    // A barricade (E74 C1): read here and by the GMs' audit through this verdict, never by the passages' glow, which asks
+    // `restrictedFrom` alone - so no surface shows a barricade before a pull on its door (the plan's risk 2).
+    const barred = barricadedFrom(actor, to, scene, mover, { via: passage ? "passage" : via, keyed });
+    if (barred) return barred;
 
     const clock = game.settings.get(MODULE_ID, SETTINGS.clock);
 
@@ -1926,6 +1962,24 @@ function restrictedFrom(actor, to, scene, mover = null, { via = null, keyed = fa
         }
     } catch {
         // A restriction we cannot read must not block an ordinary move.
+    }
+    return false;
+}
+
+/**
+ * THE BARRICADE'S PART OF THE DOORS' RULES (E74 C1, 12.11.2026; A10). Apart from `restrictedFrom`, the fixed part - a lock,
+ * a seal, a bedroom, the chain - which the passages' glow reads too: a barricade is shown by no surface before somebody
+ * pulls on its door. A walk in through a door is refused for everyone but a GM moving a token and a Monokuma (the
+ * verdict's first line); a passage, a breach or a tunnel (`via`) goes through. The words say only that the door does not
+ * give.
+ */
+function barricadedFrom(actor, to, scene, mover = null, { via = null, keyed = false } = {}) {
+    try {
+        if (!to || ["passage", "breach", "tunnel"].includes(via)) return false;
+        if (mover ? mover.gm : game.user?.isGM) return false;
+        if (roomBarricaded(scene, to)) return refusal(keyed, "barricaded", game.i18n.localize("DRPG.Bridge.why.barricaded"));
+    } catch {
+        // A barricade we cannot read must not block an ordinary move.
     }
     return false;
 }

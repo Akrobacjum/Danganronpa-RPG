@@ -162,7 +162,7 @@ export const REASONS = Object.freeze([
     "notEligible", "sameTwice", "wrongCount", "notKnown", "recipientDead", "floorClosed", "noSpeaker", "noBullet",
     "objectionOver", "relay", "sheetPutBack", "failed",
     "notAtPassage", "doorLocked", "roomSealed", "chained", "cannotLeave", "trialLocked", "noBudget", "eclipseSpent",
-    "oneWay", "roundMovedOn", "notInRound", "refused", "noGm", "noAnswer"
+    "oneWay", "roundMovedOn", "notInRound", "refused", "noGm", "noAnswer", "barricaded"
 ]);
 
 /**
@@ -415,6 +415,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["cannotNow", /^the character's token moved while the price was taken$/],
     ["doorLocked", /^the room beyond is locked$/],
     ["roomSealed", /^the room beyond is sealed$/],
+    // E74 C2: Shut the Door in a room with more open doors than a barricade holds (doors-gm.mjs `shutRefusal`).
+    ["cannotNow", /^that room has too many doors to hold$/],
     ["chained", /^the character is chained where it stands$/],
     ["cannotLeave", /^the character is held in the incident$/],
     ["trialLocked", /^the Class Trial is in session$/],

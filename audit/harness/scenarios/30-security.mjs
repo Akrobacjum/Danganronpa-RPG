@@ -6618,6 +6618,19 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && tail.theirs.forOwnership && tail.noRoll.reasons[0].includes("no roll the GM drew is named"),
         JSON.stringify(tail).slice(0, 2000), { flow: "tail" });
 
+    /* FORGERIES OF SHUT THE DOOR (E74 C2, 12.11.2026). `door.shut` from p1's console: for Botan's character, and for Aiko
+       with no roll named - each refused, no barricade kept and no flag set. The legal road is 33's E74-A. */
+    phase("forgeries of Shut the Door", { flow: "door-shut" });
+    const readBarricades = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); return game.user.isGM ? Object.keys(S.barricadeStore.entries() ?? {}).sort() : [];`;
+    const shut = {
+        theirs: await forge("door.shut", { actorId: ids.botan, total: 30 }, readBarricades),
+        noRoll: await forge("door.shut", { actorId: ids.aiko, total: 30 }, readBarricades)
+    };
+    check("SECURITY: a console's Shut the Door is refused for another's character and with no roll named - no barricade kept - and each refusal is logged on the GM and told to p1",
+        Object.values(shut).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
+            && shut.theirs.forOwnership && shut.noRoll.reasons[0].includes("no roll the GM drew is named"),
+        JSON.stringify(shut).slice(0, 2000), { flow: "door-shut" });
+
     /* A PLAYER'S CARD IN THE GM'S NOTICE HISTORY (E81 C7, 12.10.2026). A public card of the module's, posted from p1's
        console with markup in it, is a card the GM's browser draws and keeps (popup.mjs `onCreateChatMessage`, E81 C3).
        The GM then opens the history window, every entry in it, and moves the pointer over every element there: what the

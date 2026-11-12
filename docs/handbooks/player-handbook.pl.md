@@ -335,6 +335,10 @@ Póki śledzenie trwa, za każdym razem, gdy cel przejdzie do innego pokoju i po
 
 Śledzenie kończy się kartą, gdy nie jesteś ani w pokoju, który cel opuścił, ani w tym, do którego doszedł (zgubiony trop), gdy kończy się dzień, gdy znaleziono ciało albo gdy cel użyje Dash z wynikiem wyższym niż twój drugi rzut (krytyczne śledzenie przerywa tylko krytyczny Dash). Kończy się bez karty, gdy któreś z was zginie albo zacznie się incydent. Jedno śledzenie naraz: nowe zastępuje stare. Śledzenia nie da się zacząć w Eclipse, w śledztwie ani na Class Trial.
 
+### Shut the Door - Body, 1 akcja
+
+Zabarykaduj od środka pokój, w którym stoisz. Działa w pokoju, z którego otwiera się najwyżej dwoje drzwi, we własnej sypialni, ale nie w cudzej. Póki zostajesz w środku, nikt nie wejdzie drzwiami: drzwi nie ustępują. Tajne przejście, wyłom albo tunel wciąż przepuszczają. Barykada znika, gdy wyjdziesz z pokoju, gdy kończy się pora dnia i gdy zaczyna się Eclipse. Pokój pokazuje, że jest zabarykadowany, nigdy przez kogo. (Wyważenie zabarykadowanych drzwi dojdzie później.)
+
 ### Dash - Leg, 1 akcja
 
 Bieg: rzut na Leg daje darmowe przejścia do końca pory dnia, wydawane jak Free Move.

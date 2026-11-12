@@ -484,6 +484,10 @@ export async function clearSeasonActions(ctx) {
     // The GM room actions closed this time of day (E93 C1): a list of another mark is none already, so this only
     // leaves the new season with nothing of the old one's in its world data.
     if (Object.keys(game.settings.get(MODULE_ID, SETTINGS.facilityClosed) ?? {}).length) await game.settings.set(MODULE_ID, SETTINGS.facilityClosed, {});
+    // Every barricade's public flag (E74 C2): the GMs' rows go with this group's stores, and a flag left standing would
+    // shut its room into the next season.
+    const { allRooms, roomBarricaded, setRoomBarricaded } = await import("./movement.mjs");
+    for (const scene of game.scenes ?? []) for (const room of allRooms(scene)) if (roomBarricaded(scene, room)) await setRoomBarricaded(scene, room, false);
 }
 
 registerSeasonState({ group: "actions", clear: clearSeasonActions, settings: [SETTINGS.facilityClosed] });

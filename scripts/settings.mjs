@@ -453,6 +453,11 @@ export const SETTINGS = {
      */
     gmTails: "gmTails",
     /**
+     * THE BARRICADES STANDING (E74 C2, 12.11.2026): a GM store (gm-stores.mjs `barricadeStore`), a row per barricaded
+     * room `{ sceneId, room, authorId, strength, at, userId }`. Synced, not backed up; no player copy.
+     */
+    gmBarricades: "gmBarricades",
+    /**
      * WHICH GM ROOM ACTIONS ARE CLOSED NOW (E93 C1): `{ mark, keys }`, the time of day and the keys of the GM's
      * actions used in it (`g:<sceneId>:<room>:<actionId>`), written by the primary GM (facilities-gm.mjs
      * `closeForAll`). A world setting every browser holds, so an honest Facilities window greys a closed action
@@ -2037,6 +2042,13 @@ export function registerSettings() {
     // The room actions used (E93 C1): no `onChange` - shown nowhere, read by the next use on the GM that serves it
     // (facilities-gm.mjs `handleFacilityUse`).
     game.settings.register(MODULE_ID, SETTINGS.gmFacilityUses, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The barricades standing (E74 C2): no `onChange` - the table reads the public flag (doors-gm.mjs).
+    game.settings.register(MODULE_ID, SETTINGS.gmBarricades, {
         scope: "client",
         config: false,
         type: Object,

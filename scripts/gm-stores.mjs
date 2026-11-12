@@ -955,6 +955,19 @@ export const facilityUseStore = defineGmStore({
 });
 
 /**
+ * THE BARRICADES STANDING (E74 C2, 12.11.2026; the owner's audit entry E74, DA25, DA47). A row per barricaded room, keyed
+ * `<sceneId>:<room>`: `{ sceneId, room, authorId, strength, at, userId }` - `strength` the Body roll's total off the GMs'
+ * record (Force the Door contests it, a later commit), `authorId` the character inside who put it up. Written, read and
+ * dropped by the primary alone (doors-gm.mjs); synced; not backed up: a row lasts a time of day at most. Cut by the
+ * reset's "actions" group. No player copy: the table sees one public flag with neither author nor strength (movement.mjs
+ * `ROOM_FLAGS.barricaded`, DA47). No old key.
+ */
+export const barricadeStore = defineGmStore({
+    name: "barricades", key: SETTINGS.gmBarricades,
+    kind: "ledger", resetGroup: "actions", backup: false, sync: true
+});
+
+/**
  * THE TAILS UNDER WAY (E69 C3, 12.11.2026; the owner's audit entry E69, DA8, DA19-DA21, DA26). A row per tailer, keyed by
  * the tailer's actor id - one tail a tailer (DA26), a new one replaces it: `{ tailerId, targetId, total, critical, day,
  * at, userId }`, `total` and `critical` the effect roll's off the GMs' record of it (a Dash loses a tail below its total,

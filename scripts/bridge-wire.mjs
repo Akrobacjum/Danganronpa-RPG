@@ -114,6 +114,8 @@ export const ACTION_FACILITY_USE = "facility.use";
 export const ACTION_DASH = "dash.settle";
 /** player -> primary GM: a tail begun, its two rolls on the GMs' record (E69 C3; tail-gm.mjs `startTail`). */
 export const ACTION_TAIL_START = "tail.start";
+/** player -> primary GM: a barricade put up, its Body roll on the GMs' record (E74 C2; doors-gm.mjs `shutDoor`). */
+export const ACTION_DOOR_SHUT = "door.shut";
 /* N-2: the player picked their own Level Up and the GM's client writes it. */
 export const ACTION_ADVANCEMENT = "advancement.apply";
 /* ...and where the offer itself lives: a GM asks the primary to record or withdraw
