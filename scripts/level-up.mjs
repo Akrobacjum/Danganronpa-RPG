@@ -1279,18 +1279,48 @@ export function da39Row({ hpMax = 0, stressMax = 0, traits = {}, snapshot = null
     const given = { hitPoints: whole(rises?.hitPoints), stress: whole(rises?.stress) };
     const hpOld = whole(Number(hpMax) - STARTING.hp - given.hitPoints);
     const sanOld = whole(Number(stressMax) - STARTING.stress - given.stress);
-    let hpOwed = 0, sanOwed = 0;
+    /* The rises owed, per statistic (`retroByTrait`), each one a change the GM confirms on its own
+       (`offerDa39Migration`): the points since the stamp, less the rises the rule gave already - taken off the
+       statistics in LEVEL_UP_TRAIT_RESOURCES' order, as the flag does not say which point a rise was for. */
+    const left = { ...given };
+    const retroByTrait = {};
     if (snapshot && typeof snapshot === "object") {
         for (const [key, rise] of Object.entries(LEVEL_UP_TRAIT_RESOURCES)) {
             const points = whole((Number(traits?.[key]) || 0) - (Number(snapshot[key]) || 0));
-            hpOwed += points * whole(rise.hitPoints);
-            sanOwed += points * whole(rise.stress);
+            const resource = whole(rise.hitPoints) ? "hitPoints" : "stress";
+            const covered = Math.min(points, left[resource]);
+            left[resource] -= covered;
+            if (points - covered) retroByTrait[key] = points - covered;
         }
     }
-    const hpRetro = whole(hpOwed - given.hitPoints);
-    const sanRetro = whole(sanOwed - given.stress);
-    return { hpOld, sanOld, hpRetro, sanRetro, points: hpOld + sanOld,
+    const owed = resource => Object.entries(retroByTrait)
+        .reduce((sum, [key, n]) => sum + n * whole(LEVEL_UP_TRAIT_RESOURCES[key]?.[resource]), 0);
+    const hpRetro = owed("hitPoints");
+    const sanRetro = owed("stress");
+    return { hpOld, sanOld, hpRetro, sanRetro, retroByTrait, points: hpOld + sanOld,
         hpMax: Number(hpMax) - hpOld + hpRetro, stressMax: Number(stressMax) - sanOld + sanRetro };
+}
+
+/**
+ * A row held to the changes the GM said yes to (`take`: `{ hpOld, sanOld, rises: { [trait]: n } }`, each a count no
+ * larger than the row's; the owner's DRPG-D1 of 12.11.2026, "oba wymagajace potwierdzenia gma do kazdego przypadku"):
+ * a change refused is left as it was - its pick kept and no point for it, its rise not given. Pure.
+ */
+export function da39Taken(row, take = {}) {
+    const whole = value => Math.max(0, Math.trunc(Number(value) || 0));
+    const hpOld = Math.min(row.hpOld, whole(take.hpOld));
+    const sanOld = Math.min(row.sanOld, whole(take.sanOld));
+    const retroByTrait = {};
+    for (const [key, n] of Object.entries(row.retroByTrait ?? {})) {
+        const yes = Math.min(n, whole(take.rises?.[key]));
+        if (yes) retroByTrait[key] = yes;
+    }
+    const owed = resource => Object.entries(retroByTrait)
+        .reduce((sum, [key, n]) => sum + n * whole(LEVEL_UP_TRAIT_RESOURCES[key]?.[resource]), 0);
+    const hpRetro = owed("hitPoints"), sanRetro = owed("stress");
+    const hpMax = row.hpMax + row.hpOld - row.hpRetro, stressMax = row.stressMax + row.sanOld - row.sanRetro;
+    return { ...row, hpOld, sanOld, hpRetro, sanRetro, retroByTrait, points: hpOld + sanOld,
+        hpMax: hpMax - hpOld + hpRetro, stressMax: stressMax - sanOld + sanRetro };
 }
 
 /** A student's row as the GMs hold the sheet, or null for one the module did not set up (no stamp) or with nothing to change. */
@@ -1332,25 +1362,28 @@ function da39Words(row) {
 }
 
 /**
- * The pass, on the primary GM: each row read again in the student's queue (`meansWrite`) and written in one write -
- * the maxima, the marks held to them, and the rises now given (`da39Rises`) - then the points handed out as one offer
- * limited to statistics (`only: "trait"`), its owner told. A student no player owns gets no offer; the GM's card says
- * so, for the GM's own Level Up. The world is marked done, and the GMs are told who changed and how. Answers the rows
- * written.
+ * The pass, on the primary GM, with what the GM said yes to: `takes` is `[{ actorId, hpOld, sanOld, rises }]`, each a
+ * student's counts of confirmed changes (`da39Taken`; the owner's DRPG-D1 of 12.11.2026, "oba wymagajace potwierdzenia
+ * gma do kazdego przypadku"). Each student's row is read again in their queue (`meansWrite`), held to those counts and
+ * written in one write - the maxima, the marks held to them, the rises given (`da39Rises`); then the points of the
+ * picks taken back are handed out as one offer limited to statistics (`only: "trait"`), its owner told. A student no
+ * player owns gets no offer; the GMs' card says so. The world is marked done (`levelUpsMigrated`) whatever was
+ * confirmed: a change refused stays as it is. Answers the rows written.
  */
-export async function applyDa39Migration(rows) {
+export async function applyDa39Migration(takes) {
     if (!isPrimaryGm()) return [];
     const { meansWrite, numberHeld, flagsHeldNow } = await import("./sheet-audit.mjs");
     const { trustedWrite } = await import("./resource-guard.mjs");
     const { whisperToOwner, whisperToGms, esc } = await import("./utils.mjs");
     const { SETTINGS } = await import("./settings.mjs");
     const done = [];
-    for (const asked of Array.isArray(rows) ? rows : []) {
-        const actor = game.actors.get(asked?.actorId ?? "");
+    for (const take of Array.isArray(takes) ? takes : []) {
+        const actor = game.actors.get(take?.actorId ?? "");
         if (!actor) continue;
         const row = await meansWrite(actor, async () => {
-            const now = await da39RowOf(actor);
-            if (!now) return null;
+            const found = await da39RowOf(actor);
+            const now = found ? da39Taken(found, take) : null;
+            if (!now || !(now.hpOld || now.sanOld || now.hpRetro || now.sanRetro)) return null;
             const given = flagsHeldNow(actor).getFlag(MODULE_ID, FLAGS.da39Rises) ?? {};
             const whole = value => Math.max(0, Math.trunc(Number(value) || 0));
             const update = {
@@ -1405,27 +1438,68 @@ export async function startDa39Migration() {
     return plan.length;
 }
 
+/** The statistic's name as the table reads it (Head, Body, Leg), from Daggerheart's key. */
+function traitName(dh) {
+    return Object.values(TRAITS).find(trait => trait.dh === dh)?.label ?? dh;
+}
+
 /**
- * The window: each student's change listed, applied on the GM's word (`applyDa39Migration`); Cancel writes nothing, and
- * the next load asks again. `plan` read now when none is given. Answers the rows written, or null.
+ * The window's changes, one box each, none ticked (pure): a +1 Health pick, a +1 Sanity pick, a point's rise. Each box's
+ * name is `da39.<actorId>.<what>.<n>`, `what` one of `hpOld`, `sanOld` or `rise-<trait>` - what `readDa39Answers` counts.
+ */
+export function da39Boxes(plan) {
+    const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
+    return plan.map(row => {
+        const boxes = [];
+        const box = (what, n, text) => boxes.push(`<label class="drpg-choice"><input type="checkbox" name="da39.${esc(row.actorId)}.${what}.${n}">`
+            + `<span class="drpg-choice-text">${esc(text)}</span></label>`);
+        for (let n = 0; n < row.hpOld; n++) box("hpOld", n, game.i18n.localize("DRPG.Advance.da39.takeHealth"));
+        for (let n = 0; n < row.sanOld; n++) box("sanOld", n, game.i18n.localize("DRPG.Advance.da39.takeSanity"));
+        for (const [key, count] of Object.entries(row.retroByTrait ?? {})) {
+            const what = LEVEL_UP_TRAIT_RESOURCES[key]?.hitPoints ? "DRPG.Advance.da39.riseHealth" : "DRPG.Advance.da39.riseSanity";
+            for (let n = 0; n < count; n++) box(`rise-${key}`, n, game.i18n.format(what, { trait: traitName(key) }));
+        }
+        return `<fieldset class="drpg-da39-row" data-drpg-da39="${esc(row.actorId)}"><legend>${esc(row.name)}</legend>${boxes.join("")}</fieldset>`;
+    }).join("");
+}
+
+/** The ticked boxes as `applyDa39Migration`'s `takes` (pure on the names): a count per student and change. */
+export function readDa39Answers(names) {
+    const takes = new Map();
+    for (const name of names ?? []) {
+        const [head, actorId, what] = String(name).split(".");
+        if (head !== "da39" || !actorId || !what) continue;
+        const take = takes.get(actorId) ?? { actorId, hpOld: 0, sanOld: 0, rises: {} };
+        if (what === "hpOld" || what === "sanOld") take[what] += 1;
+        else if (what.startsWith("rise-")) take.rises[what.slice(5)] = (take.rises[what.slice(5)] ?? 0) + 1;
+        takes.set(actorId, take);
+    }
+    return [...takes.values()];
+}
+
+/**
+ * The window: every change of every student a box of its own, none ticked; Apply writes the ticked ones
+ * (`applyDa39Migration`), and a box left empty leaves its change as it was; Cancel writes nothing, and the next load asks
+ * again. `plan` read now when none is given. Answers the rows written, or null.
  */
 export async function offerDa39Migration(plan = null) {
     if (!isPrimaryGm()) return null;
     plan ??= await da39MigrationPlan();
     if (!plan.length) return null;
     const { esc } = await import("./utils.mjs");
-    const items = plan.map(row => `<li>${esc(row.name)}: ${esc(da39Words(row))}</li>`).join("");
     const answer = await drpgWindow({
         title: game.i18n.localize("DRPG.Advance.da39.title"),
         classes: ["drpg-panel"],
-        body: `<p>${esc(game.i18n.localize("DRPG.Advance.da39.intro"))}</p><ul>${items}</ul><p class="drpg-help">${
-            esc(game.i18n.localize("DRPG.Advance.da39.handNote"))}</p>`,
+        body: `<form><p>${esc(game.i18n.localize("DRPG.Advance.da39.intro"))}</p>${da39Boxes(plan)}<p class="drpg-help">${
+            esc(game.i18n.localize("DRPG.Advance.da39.handNote"))}</p></form>`,
         footer: {
-            primary: { action: "apply", label: game.i18n.localize("DRPG.Advance.da39.apply"), callback: () => "apply" },
+            primary: { action: "apply", label: game.i18n.localize("DRPG.Advance.da39.apply"), callback: (event, button, dialog) => {
+                const root = dialog?.element ?? dialog;
+                return { ticked: [...(root?.querySelectorAll?.('input[type="checkbox"]:checked') ?? [])].map(input => input.name) };
+            } },
             close: { role: "cancel", action: "later", callback: () => "later" }
         },
         rejectClose: false
     });
-    return answer === "apply" ? applyDa39Migration(plan) : null;
+    return answer && typeof answer === "object" ? applyDa39Migration(readDa39Answers(answer.ticked)) : null;
 }
-

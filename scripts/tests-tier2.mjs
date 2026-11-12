@@ -88580,22 +88580,24 @@ const SCENARIOS = [
             + "size, the recorded GM's size]; [a project of 3 for a tool raised to Tier 3, then the same recorded as the GM's: crossed, the tool still broken]; "
             + `the GMs told why): ${stableJson(read)}`);
     }],
-    ["E64 DA39 migration - past +1 Health and +1 Sanity picks are read off a stamped sheet's maxima, taken back and handed out as statistic points on an offer limited to statistics; past Head, Body and Leg points get their rise; a second pass finds nothing; a pick of another option on that offer is refused", async () => {
+    ["E64 DA39 migration - past +1 Health and +1 Sanity picks are read off a stamped sheet's maxima and each change is the GM's to confirm: a pick taken back hands out a statistic point on an offer limited to statistics, a past Head, Body or Leg point gets its rise, a change left unticked stays; the world is asked once; a pick of another option on that offer is refused", async () => {
         /*
-         * E64, the owner's DRPG-D1 of 12.11.2026 ("Rekompensujemy by lvl upy byly spojne"; "Akceptuje nowe E64": the
-         * proposal (a) and (b)). A Level Up writes its rises straight onto the sheet and counts `advances`, so no pick is
-         * recorded; a sheet the module set up (`initCharacter`: Health 4, Sanity 6 and the season's stamp `sheetAtStart`)
-         * shows its old picks as the maxima above those. One student's sheet, stamped here: Health max 6 with 6 marks (two
-         * old Health picks), Sanity max 7 (one old Sanity pick), and Body and Head each a point above the stamp (points no
-         * rise went with). Read: the plan's row, the sheet after the pass, the offer it left (its picks, limited to
-         * statistics), a second plan, and the GMs' answer to a player's picks on that offer with a new experience among
-         * them. Red before this commit: level-up.mjs has no plan and no pass.
+         * E64, the owner's DRPG-D1 of 12.11.2026 ("Rekompensujemy by lvl upy byly spojne"; "Akceptuje nowe E64"; "Co do
+         * level upow - A) i B), oba wymagajace potwierdzenia gma do kazdego przypadku"). A Level Up writes its rises
+         * straight onto the sheet and counts `advances`, so no pick is recorded; a sheet the module set up
+         * (`initCharacter`: Health 4, Sanity 6 and the season's stamp `sheetAtStart`) shows its old picks as the maxima
+         * above those. One student's sheet, stamped here: Health max 6 with 6 marks (two old Health picks), Sanity max 7
+         * (one old Sanity pick), Body and Head each a point above the stamp. The window (`offerDa39Migration`) answered as
+         * a GM would: every box ticked but the second Health pick. Read: the plan's row, the boxes drawn, the sheet after,
+         * the offer it left (its picks, limited to statistics), whether a later load asks again, and the GMs' answer to a
+         * player's picks on that offer with a new experience among them. Red at 7242cce: one confirm for the whole list, no
+         * box per change.
          */
         needs(env.primaryGm(), "the pass and the offers are the primary GM's");
         const [student] = cast(1);
         needs(world.ownedByPlayer(student), "the offer is a player's to answer");
         const L = await import("./level-up.mjs");
-        const present = typeof L.da39MigrationPlan === "function" && typeof L.applyDa39Migration === "function";
+        const present = typeof L.da39MigrationPlan === "function" && typeof L.offerDa39Migration === "function";
         ok(present, "level-up.mjs has no DA39 migration");
         if (!present) return;
         const { handleAdvancement } = await import("./bridge-runs-acts.mjs");
@@ -88608,6 +88610,14 @@ const SCENARIOS = [
             `${T}.strength.value`, `${T}.knowledge.value`, `flags.${MODULE_ID}.${FLAGS.sheetAtStart}`, `flags.${MODULE_ID}.${FLAGS.da39Rises}`]);
         const rowWas = foundry.utils.deepClone(offerStore.get(student.id) ?? null);
         const migratedWas = game.settings.get(MODULE_ID, SETTINGS.levelUpsMigrated);
+        const title = game.i18n.localize("DRPG.Advance.da39.title");
+        const drawn = [];
+        const windows = answerWindows((cfg, root) => {
+            if ((cfg?.window?.title ?? "") !== title) return null;
+            const names = [...root.querySelectorAll(`[data-drpg-da39="${student.id}"] input[type="checkbox"]`)].map(input => input.name);
+            drawn.push(names.map(name => name.split(".").slice(2).join(".")));
+            return { ticked: names.filter(name => !name.endsWith(".hpOld.1")) };
+        });
         const read = {};
         try {
             const traits = Object.fromEntries(["agility", "strength", "finesse", "instinct", "presence", "knowledge"]
@@ -88617,33 +88627,37 @@ const SCENARIOS = [
                 [`flags.${MODULE_ID}.${FLAGS.sheetAtStart}`]: { traits, experiences: {}, at: Date.now(), levelUpsMarked: true },
                 [`flags.${MODULE_ID}.${FLAGS.da39Rises}`]: null }, { reason: "gmRuling" });
             await sheetAuditIdle();
-            const plan = await L.da39MigrationPlan();
-            const row = plan.find(entry => entry.actorId === student.id) ?? null;
+            const plan = (await L.da39MigrationPlan()).filter(entry => entry.actorId === student.id);
+            const row = plan[0] ?? null;
             read.row = row ? [row.hpOld, row.sanOld, row.hpRetro, row.sanRetro, row.points, row.hpMax, row.stressMax] : null;
-            await L.applyDa39Migration(plan.filter(entry => entry.actorId === student.id));
+            await game.settings.set(MODULE_ID, SETTINGS.levelUpsMigrated, false);
+            await L.offerDa39Migration(plan);
             await sheetAuditIdle();
             await settle();
+            read.boxes = drawn[0] ?? null;
             const s = student._source.system.resources;
             read.sheet = [s.hitPoints.max, s.hitPoints.value, s.stress.max, s.stress.value];
             const offer = L.standingOffers(student).at(-1) ?? null;
             read.offer = offer ? [L.offerPicks(offer), offer.only ?? null] : null;
-            read.again = (await L.da39MigrationPlan()).some(entry => entry.actorId === student.id);
             read.done = game.settings.get(MODULE_ID, SETTINGS.levelUpsMigrated);
+            read.askedAgain = typeof L.startDa39Migration === "function" ? await L.startDa39Migration() : "none";
             const out = offer ? await handleAdvancement({ actorId: student.id, offerId: offer.id,
-                picks: [{ option: "experienceNew", name: "SUITE E64 DA39" }, { option: "trait", trait: "strength" }, { option: "trait", trait: "knowledge" }] },
+                picks: [{ option: "experienceNew", name: "SUITE E64 DA39" }, { option: "trait", trait: "strength" }] },
                 ownerOf(student), {}) : null;
             read.refused = out?.refused ?? null;
         } finally {
+            windows.restore();
             if (rowWas) await offerStore.patch(student.id, rowWas); else if (offerStore.has(student.id)) await offerStore.drop(student.id);
             await game.settings.set(MODULE_ID, SETTINGS.levelUpsMigrated, migratedWas);
             await putBack();
             await settle();
         }
-        equal(stableJson(read), stableJson({ row: [2, 1, 1, 1, 3, 5, 7], sheet: [5, 5, 7, 0], offer: [3, "trait"], again: false, done: true,
-            refused: "that offer is for statistics only" }),
+        equal(stableJson(read), stableJson({ row: [2, 1, 1, 1, 3, 5, 7],
+            boxes: ["hpOld.0", "hpOld.1", "sanOld.0", "rise-knowledge.0", "rise-strength.0"],
+            sheet: [6, 6, 7, 0], offer: [2, "trait"], done: true, askedAgain: null, refused: "that offer is for statistics only" }),
             "[the plan's row: old Health picks, old Sanity picks, Health and Sanity rises owed to past points, the points handed out, the new maxima]; "
-            + "[the sheet: Health max, its marks, Sanity max, its marks]; [the offer's picks, what it is limited to]; a second plan names the student; "
-            + "the world marked done; the GMs' answer to a new experience on that offer");
+            + "the window's boxes for the student; [the sheet after every box but the second Health pick: Health max, its marks, Sanity max, its marks]; "
+            + "[the offer's picks, what it is limited to]; the world marked done; a later load asks nothing; the GMs' answer to a new experience on that offer");
     }],
 ];
 

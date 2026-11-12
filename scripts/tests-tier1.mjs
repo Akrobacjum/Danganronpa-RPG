@@ -49752,7 +49752,16 @@ const INVARIANTS = [
             noStamp: row({ hpMax: 6, stressMax: 6, traits: { strength: 3 }, snapshot: null }),
             below: row({ hpMax: 3, stressMax: 5, traits: {}, snapshot: {} }),
             offers: L.offerList({ offers: [{ id: "a", kind: "standard", extra: 2, only: "trait" }, { id: "b", kind: "standard", only: "hp" }] })
-                .map(offer => [offer.id, offer.only ?? null])
+                .map(offer => [offer.id, offer.only ?? null]),
+            // Per change (the owner's "oba wymagajace potwierdzenia gma do kazdego przypadku"): the rises owed per statistic,
+            // a row held to the GM's yes, and the ticked boxes read back as counts.
+            byTrait: L.da39Row({ hpMax: 4, stressMax: 6, traits: { strength: 1, agility: 2, knowledge: 1 }, snapshot,
+                rises: { hitPoints: 1 } }).retroByTrait,
+            taken: typeof L.da39Taken === "function" ? (r => [r.hpOld, r.sanOld, r.hpRetro, r.sanRetro, r.points, r.hpMax, r.stressMax])(
+                L.da39Taken(L.da39Row({ hpMax: 6, stressMax: 7, traits: { strength: 1, agility: 2, knowledge: 1 }, snapshot }),
+                    { hpOld: 1, sanOld: 0, rises: { agility: 1, knowledge: 5 } })) : null,
+            answers: typeof L.readDa39Answers === "function" ? L.readDa39Answers(["da39.A.hpOld.0", "da39.A.hpOld.1", "da39.A.rise-strength.0",
+                "da39.B.sanOld.0", "other.A.hpOld.0"]) : null
         }), stableJson({
             plain: [0, 0, 0, 0, 0, 4, 6],
             oldPicks: [2, 1, 0, 0, 3, 4, 6],
@@ -49760,8 +49769,11 @@ const INVARIANTS = [
             given: [0, 0, 0, 0, 0, 6, 7],
             noStamp: [2, 0, 0, 0, 2, 4, 6],
             below: [0, 0, 0, 0, 0, 3, 5],
-            offers: [["a", "trait"], ["b", null]]
-        }), "a DA39 migration row read the old picks, the rises owed or the points handed out wrongly");
+            offers: [["a", "trait"], ["b", null]],
+            byTrait: { agility: 1, knowledge: 1 },
+            taken: [1, 0, 1, 1, 1, 6, 8],
+            answers: [{ actorId: "A", hpOld: 2, sanOld: 0, rises: { strength: 1 } }, { actorId: "B", hpOld: 0, sanOld: 1, rises: {} }]
+        }), "a DA39 migration row read the old picks, the rises owed, the GM's yes or the ticked boxes wrongly");
     }],
 ];
 

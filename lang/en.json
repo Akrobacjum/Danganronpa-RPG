@@ -4141,7 +4141,11 @@
       "raisesSanity": "also +1 to the Sanity maximum",
       "da39": {
         "title": "Level Ups under the new rule",
-        "intro": "Level Ups no longer offer +1 Health or +1 Sanity: a point in Head raises the Sanity maximum, a point in Body or Leg the Health maximum. These students' sheets were read for the old picks - the maxima above the starting 4 Health and 6 Sanity - and for points in Head, Body and Leg that raised nothing. Apply takes the old picks back, hands each student one statistic point per pick to place on their sheet, and adds the rises the points earn:",
+        "intro": "Level Ups no longer offer +1 Health or +1 Sanity: a point in Head raises the Sanity maximum, a point in Body or Leg the Health maximum. These students' sheets were read for the old picks - the maxima above the starting 4 Health and 6 Sanity - and for points in Head, Body and Leg that raised nothing. Tick each change you confirm. A pick taken back gives the student one statistic point to place on their sheet. A change left unticked stays as it is.",
+        "takeHealth": "Take back a +1 Health pick: Health max -1, one statistic point to place",
+        "takeSanity": "Take back a +1 Sanity pick: Sanity max -1, one statistic point to place",
+        "riseHealth": "A point in {trait} since the season began: Health max +1",
+        "riseSanity": "A point in {trait} since the season began: Sanity max +1",
         "handNote": "A maximum you raised by hand reads like an old pick. Check the list before you apply; Cancel changes nothing and asks again at the next load.",
         "apply": "Apply",
         "health": "{n} Health max",
