@@ -7617,6 +7617,24 @@
       "showPreview": "Pokaż podgląd",
       "notNow": "Nie teraz"
     },
+    "CaseSummary": {
+      "show": "Pokaż podsumowanie",
+      "previewTitle": "Podsumowanie sprawy",
+      "intro": "Tylko tyle dostaną gracze: to, co znaleźli, wnioski i kontry, które odhaczyłeś, i rozwiązanie tylko wtedy, gdy klasa zagłosowała dobrze. Wyślij pokazuje je wszystkim.",
+      "send": "Wyślij wszystkim",
+      "sent": "Podsumowanie sprawy wysłane.",
+      "already": "Podsumowanie sprawy w tym rozdziale już wysłano.",
+      "noVerdict": "Podsumowanie przychodzi po werdykcie.",
+      "title": "Rozdział {chapter}: jak rozwiązano sprawę",
+      "speaker": "Podsumowanie sprawy",
+      "noSolution": "Klasa nie zagłosowała dobrze, więc rozwiązanie zostaje zamknięte.",
+      "role": {
+        "evidence": "Dowody",
+        "deduction": "Wnioski",
+        "counter": "Kontry",
+        "solution": "Rozwiązanie"
+      }
+    },
     "Reveal": {
       "section": "Brakujące Key Remnanty",
       "left": "Do ujawnienia: {n}",

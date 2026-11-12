@@ -23040,6 +23040,64 @@ const REGRESSIONS = [
             placed: [[["S.T9", "trace", true, false, "incident-a"], ["deduction-x", "deduction", false, false, null]], [{ from: "S.T9", to: "deduction-x", kind: "input" }]]
         }), "{lines: each slot's line under a limit of 3; unlimited: with none; planned, placed: the graph's nodes [id, kind, evidence, planned, incident row] and edges, before and after the Remnant is on the map}");
     }],
+    ["R3660 - the players' case summary holds only what was discovered (E99 C6; the owner's goal for E99, Q-E99-2, -3, -4, -12): case-summary.mjs `composeCaseSummary` keeps each piece of evidence on the schema a student found, by its public name and words, each deduction and counter ticked at the trial by name, and the solution only on a right vote; it carries no node id, no author, nothing of an unfound Remnant, an untied one, a planned slot, an unticked deduction, and with a wrong vote no solution", async () => {
+        /*
+         * E99 C6, 12.11.2026. Pure: a fixture graph with a marker in every place that must not cross (an unfound tied
+         * Remnant, an untied found one, a planned slot, an unticked deduction, the solution, an author, every node id),
+         * composed with a wrong and with a right vote, the payload read as JSON. Red at 1e1c61c: no case-summary.mjs.
+         */
+        let C = null;
+        try { C = await import("./case-summary.mjs"); } catch { C = null; }
+        must(C && typeof C.composeCaseSummary === "function", "there is no case-summary.mjs with composeCaseSummary - the players have no summary");
+        const S = await import("./case-schema.mjs");
+        const traces = [
+            { key: "SX.FOUND1", type: "key", name: "ok-found-name", playerText: "ok-found-words", tiedToCrime: true, sourceName: "MARK-author" },
+            { key: "SX.UNFOUND1", type: "prep", name: "MARK-unfound", playerText: "MARK-unfound-words", tiedToCrime: true },
+            { key: "SX.LOOSE1", type: "neutral", name: "MARK-untied", tiedToCrime: false }
+        ];
+        const rows = {
+            "deduction-ok1": { kind: "deduction", label: "ok-ticked", text: "MARK-gm-note", inputs: ["SX.FOUND1", "SX.UNFOUND1"] },
+            "deduction-no1": { kind: "deduction", label: "MARK-unticked", inputs: ["SX.FOUND1"] },
+            "counter-ok1": { kind: "counter", label: "ok-counter", refutes: ["deduction-ok1"] },
+            "solution-z1": { kind: "solution", label: "SOL-name", text: "SOL-words", inputs: ["deduction-ok1"] }
+        };
+        const graph = S.graphOf({ chapter: 4, traces, rows, slots: [{ slot: 0, name: "MARK-planned" }] });
+        const ticks = { "deduction-ok1": true, "counter-ok1": true };
+        const found = ["SX.FOUND1", "SX.LOOSE1"];
+        const wrong = C.composeCaseSummary({ graph, ticks, found, correct: false });
+        const right = C.composeCaseSummary({ graph, ticks, found, correct: true });
+        const text = JSON.stringify(wrong), textRight = JSON.stringify(right);
+        equal(JSON.stringify({
+            marks: /MARK|SOL-/.test(text), ids: /SX\.|deduction-|counter-|solution-|key:/.test(text + textRight), markRight: /MARK/.test(textRight),
+            wrong, right: [right.nodes.map(n => [n.role, n.name]), right.links]
+        }), JSON.stringify({
+            marks: false, ids: false, markRight: false,
+            wrong: { chapter: 4, correct: false, nodes: [{ role: "evidence", name: "ok-found-name", text: "ok-found-words" }, { role: "deduction", name: "ok-ticked", text: "" },
+                { role: "counter", name: "ok-counter", text: "" }], links: [{ from: 0, to: 1, kind: "input" }, { from: 2, to: 1, kind: "refutes" }] },
+            right: [[["evidence", "ok-found-name"], ["deduction", "ok-ticked"], ["counter", "ok-counter"], ["solution", "SOL-name"]],
+                [{ from: 0, to: 1, kind: "input" }, { from: 2, to: 1, kind: "refutes" }, { from: 1, to: 3, kind: "input" }]]
+        }), "{marks: a marker of what must not cross, in the wrong vote's payload; ids: a node id in either; markRight: a marker in the right vote's; wrong: its payload; right: its nodes and links}");
+    }],
+    ["R3662 - the case summary's card draws its payload and nothing more (E99 C7; case-summary.mjs `caseSummaryHtml`): one column per role present, in the payload's order, each entry its name and words escaped, the links in words, and with a wrong vote the line that the solution stays closed", async () => {
+        /*
+         * E99 C7, 12.11.2026. Pure: a payload with a tag in a name. Red at c53849d's parent: no caseSummaryHtml.
+         */
+        const C = await import("./case-summary.mjs");
+        must(typeof C.caseSummaryHtml === "function", "case-summary.mjs has no caseSummaryHtml - the summary has no card");
+        const payload = { chapter: 3, correct: false, nodes: [{ role: "evidence", name: "a <b>clock</b>", text: "stopped" }, { role: "deduction", name: "before 23:40", text: "" }],
+            links: [{ from: 0, to: 1, kind: "input" }] };
+        const d = document.createElement("div");
+        d.innerHTML = C.caseSummaryHtml(payload, { L: k => k });
+        equal(JSON.stringify({
+            heads: [...d.querySelectorAll(".drpg-case-summary-col h4")].map(h => h.textContent),
+            entries: [...d.querySelectorAll(".drpg-case-summary-col li strong")].map(x => x.textContent),
+            bold: d.querySelectorAll("b").length, links: [...d.querySelectorAll(".drpg-case-summary-links li")].map(li => li.textContent),
+            note: d.querySelector(".drpg-case-summary-note")?.textContent ?? null
+        }), JSON.stringify({
+            heads: ["DRPG.CaseSummary.role.evidence", "DRPG.CaseSummary.role.deduction"], entries: ["a <b>clock</b>", "before 23:40"], bold: 0,
+            links: ["a <b>clock</b> → before 23:40"], note: "DRPG.CaseSummary.noSolution"
+        }), "{heads: the columns; entries: their names; bold: a tag drawn; links: in words; note: the closed solution's line}");
+    }],
 ];
 
 

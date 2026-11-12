@@ -96,6 +96,42 @@ export const MODE_RULES = Object.freeze({
     [MODES.closing]: Object.freeze({ family: "closing", speak: "holder", present: "holder", object: true, target: "holder", adjust: true })
 });
 
+/**
+ * HOW EACH MODE STARTS (E99 C2; the owner's 09.11: "stages adding trial minigames must wire into the builder (mode list
+ * read from the trial's mode table + a census test)"; Q-E99-10's default). Every key of floor-machine.mjs `MODES`, the
+ * console's action that starts it (trial-floor-ui.mjs `trialButtons`), or none with the reason it has no start button -
+ * raised by a player. The case map's trial view (E99 C5) and R3659's census read it; a stage that adds a mode adds its
+ * row here, or the census fails.
+ */
+export const MODE_STARTS = Object.freeze({
+    debate: Object.freeze({ action: "openDebate", reason: null }),
+    objection: Object.freeze({ action: null, reason: "raisedByPlayer" }),
+    rebuttal: Object.freeze({ action: null, reason: "raisedByPlayer" }),
+    testimony: Object.freeze({ action: "startTestimony", reason: null }),
+    panic: Object.freeze({ action: "startPanic", reason: null }),
+    closing: Object.freeze({ action: "startClosing", reason: null })
+});
+
+/** The reasons a mode has no start button (MODE_STARTS). */
+export const MODE_START_REASONS = Object.freeze(["raisedByPlayer"]);
+
+/**
+ * THE MODES' CENSUS (E99 C2; pure): what is wrong between the trial's modes (`modes`, floor-machine.mjs MODES), their
+ * starts (`starts`, MODE_STARTS) and the console's actions (`actions`): a mode with no row, a row of no mode, a row with
+ * neither an action the console has nor a known reason. Empty when they agree.
+ */
+export function modeCensus(modes = MODES, starts = MODE_STARTS, actions = []) {
+    const out = [];
+    const keys = Object.values(modes);
+    for (const m of keys) {
+        const row = starts[m];
+        if (!row) { out.push(`${m}: no start row`); continue; }
+        if (row.action ? !actions.includes(row.action) : !MODE_START_REASONS.includes(row.reason)) out.push(`${m}: neither a console action nor a reason`);
+    }
+    for (const m of Object.keys(starts)) if (!keys.includes(m)) out.push(`${m}: a start row of no mode`);
+    return out;
+}
+
 /** The console's family of `floor`'s mode, "none" with no floor (trial-floor-ui.mjs `trialSignature`). */
 export function floorFamily(floor = trialFloor()) {
     // The Closing's exchange is the Closing's (E70 C8): its footer, End the Closing Argument, stands through it.

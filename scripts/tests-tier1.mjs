@@ -8250,6 +8250,59 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify({ tabs: ["traces", "key", "final", "who"], first: "nav", pane: [true, livingStudentsForGm().map(a => a.name)] }),
             "{tabs: the Table's tab keys; first: what stands first in its live region; pane: Who has what [its counts table, the students listed by name]}");
     }],
+    ["R3659 - the trial modes' census (E99 C2; the owner's 09.11: every trial minigame wires into the case map, read from the trial's mode table, with a census test; Q-E99-10): every mode of floor-machine.mjs MODES has a row in trial-floor.mjs MODE_STARTS - an action the console's trialButtons draws, or a reason it has none - and a name in both languages (`DRPG.Floor.mode.<mode>`); a mode planted with no row, a row of no mode and a row with an unknown action are each found", async () => {
+        /*
+         * E99 C2, 12.11.2026. The console's actions are read off trial-floor-ui.mjs's source (`action: "..."` in
+         * trialButtons), the names off both language files as served. Red at 1e1c61c: no MODE_STARTS.
+         */
+        const F = await import("./trial-floor.mjs");
+        must(F.MODE_STARTS && typeof F.modeCensus === "function", "trial-floor.mjs has no MODE_STARTS or modeCensus - the modes have no census");
+        const { MODES } = await import("./floor-machine.mjs");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/trial-floor-ui.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const actions = [...fnSource(src, "trialButtons").matchAll(/action: "([A-Za-z]+)"/g)].map(m => m[1]);
+        must(actions.length > 3, "trialButtons read no action - this would measure nothing");
+        const lang = async l => fetch(`/modules/${MODULE_ID}/lang/${l}.json`).then(r => r.json());
+        const [en, pl] = [await lang("en"), await lang("pl")];
+        const named = obj => Object.values(MODES).filter(m => typeof obj?.DRPG?.Floor?.mode?.[m] !== "string" || !obj.DRPG.Floor.mode[m]);
+        equal(JSON.stringify({
+            census: F.modeCensus(MODES, F.MODE_STARTS, actions), unnamed: [named(en), named(pl)],
+            planted: [F.modeCensus({ ...MODES, poll: "poll" }, F.MODE_STARTS, actions), F.modeCensus(MODES, { ...F.MODE_STARTS, gone: { action: "openDebate", reason: null } }, actions),
+                F.modeCensus(MODES, { ...F.MODE_STARTS, panic: { action: "startNothing", reason: null } }, actions)]
+        }), JSON.stringify({
+            census: [], unnamed: [[], []],
+            planted: [["poll: no start row"], ["gone: a start row of no mode"], ["panic: neither a console action nor a reason"]]
+        }), "{census: what is wrong between the modes, their starts and the console's actions; unnamed: modes with no name in en, pl; planted: a mode with no row, a row of no mode, an unknown action}");
+    }],
+    ["R3661 - the case's ticks at a trial are a GM store no player holds (E99 C3; Q-E99-8): gm-stores.mjs `caseTickStore` is the ledger `caseTicks` under `gmCaseTicks`, a client setting, not in the backup, synced, cut with the trial's group; on a player's engine its write is refused and nothing stored; case-schema.mjs `setCaseTick` asks for a GM", async () => {
+        /*
+         * E99 C3, 12.11.2026; as R3374 reads the schema's store. Red at 1e1c61c: no caseTickStore.
+         */
+        const G = await import("./gm-store.mjs");
+        const stores = await import("./gm-stores.mjs");
+        must(stores.caseTickStore?.spec, "gm-stores.mjs has no caseTickStore - the trial's ticks have no store");
+        const spec = stores.caseTickStore.spec;
+        const stored = new Map();
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R3661P", isGM: () => false, isFullGM: () => false, isPrimary: () => false, worldId: () => "R3661WORLD",
+            activeGmIds: () => [], primaryGmId: () => null, senderIsGM: () => false, senderIsFullGM: () => false, userName: u => u,
+            send: () => {}, storage: { read: k => stored.get(k) ?? null, write: async (k, v) => { stored.set(k, JSON.stringify(v)); } },
+            readLegacy: () => undefined, now: () => 1000, timers: { set: (fn, ms) => setTimeout(fn, ms), clear: h => clearTimeout(h) },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const handle = eng.define({ ...spec, key: "r3661CaseTicks" });
+        await eng.open();
+        await handle.patch("2:deduction-r3661", { ticked: true });
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/case-schema.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const setting = game.settings.settings.get(`${MODULE_ID}.${spec.key}`);
+        equal(JSON.stringify({
+            spec: [spec.name, spec.key, spec.kind, spec.resetGroup, spec.backup, spec.sync, spec.fullGmOnly ?? false],
+            setting: [setting?.scope ?? null, setting?.config ?? null],
+            player: [handle.get("2:deduction-r3661") ?? null, stored.has("r3661CaseTicks") && stored.get("r3661CaseTicks").includes("r3661")],
+            asks: /game\.user\??\.isGM/.test(fnSource(src, "setCaseTick"))
+        }), JSON.stringify({
+            spec: ["caseTicks", "gmCaseTicks", "ledger", "trialProgress", false, true, false], setting: ["client", false], player: [null, false], asks: true
+        }), "[the store's name, key, kind, reset group, backup, sync, any GM; its setting's scope and config; on a player's engine the row and what was stored; the writer asks for a GM]");
+    }],
     ["R3332 - a statistic card under the kind action is asked only for an action a card is read for: Search, and no other", async () => {
         /*
          * E68 review R7, 10.11.2026. Kind `action` was opened for Search (E68 C6), and the GMs' guard
@@ -37214,12 +37267,12 @@ const INVARIANTS = [
             footers: {
                 none: [["start", "primary", true], ["close", "close", false], ["toggleFinal", "destructive", false]],
                 running: [["openDebate", "primary", true], ["close", "close", false], ["startTestimony", "secondary", false],
-                    ["startPanic", "secondary", false], ["startClosing", "secondary", false], ["vote", "secondary", false], ["verdict", "secondary", false],
+                    ["startPanic", "secondary", false], ["startClosing", "secondary", false], ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false],
                     ["chapterEnd", "destructive", false], ["end", "destructive", false], ["toggleFinal", "destructive", false]],
-                chapterNext: [["close", "close", true], ["vote", "secondary", false], ["verdict", "secondary", false],
+                chapterNext: [["close", "close", true], ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false],
                     ["start", "secondary", false], ["chapterEnd", "destructive", false], ["toggleFinal", "destructive", false]],
                 final: [["openDebate", "primary", true], ["close", "close", false], ["startTestimony", "secondary", false],
-                    ["startPanic", "secondary", false], ["startClosing", "secondary", false], ["vote", "secondary", false], ["verdict", "secondary", false],
+                    ["startPanic", "secondary", false], ["startClosing", "secondary", false], ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false],
                     ["toggleFinal", "secondary", false], ["chapterEnd", "destructive", false], ["end", "destructive", false]]
             },
             ended: null,

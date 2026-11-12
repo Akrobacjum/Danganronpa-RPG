@@ -5867,6 +5867,24 @@
       "showPreview": "Show the preview",
       "notNow": "Not now"
     },
+    "CaseSummary": {
+      "show": "Show summary",
+      "previewTitle": "The case's summary",
+      "intro": "This is all the players get: what they found, the deductions and counters you ticked, and the solution only if the class voted right. Send posts it for everyone.",
+      "send": "Send to everyone",
+      "sent": "The case's summary is out.",
+      "already": "The case's summary was sent this chapter.",
+      "noVerdict": "The summary comes after the verdict.",
+      "title": "Chapter {chapter}: how the case was solved",
+      "speaker": "Case summary",
+      "noSolution": "The class did not vote right, so the solution stays closed.",
+      "role": {
+        "evidence": "Evidence",
+        "deduction": "Deductions",
+        "counter": "Counters",
+        "solution": "Solution"
+      }
+    },
     "Reveal": {
       "section": "Missing Key Remnants",
       "left": "Left to reveal: {n}",

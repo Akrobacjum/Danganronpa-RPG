@@ -598,6 +598,7 @@ export const SETTINGS = {
     legacyKeyRemnantPlan: "keyRemnantPlan",
     /** THE CASE SCHEMA (E97 C3, 1.2.106): a GM store (gm-stores.mjs `caseSchemaStore`), a row per chapter and node. */
     gmCaseSchema: "gmCaseSchema",
+    gmCaseTicks: "gmCaseTicks",
     /**
      * WHICH OF THE TRIAL HALL'S TOKENS THE TRIAL SHOWS (E13 C2, 1.2.74; audit S06-57, decision D7):
      * a GM store (gm-stores.mjs `trialCastStore`), never a token's flag, which its owner writes.
@@ -2258,6 +2259,14 @@ export function registerSettings() {
     // The case schema (E97 C3): a GM store since it exists (`caseSchemaStore`), a row per chapter and node. No `onChange`:
     // the Investigation panel reads it at each redraw (live.mjs `keepLive`), as it reads the Key plan.
     game.settings.register(MODULE_ID, SETTINGS.gmCaseSchema, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The case's ticks at a trial (E99 C3): a GM store (`caseTickStore`), a row per chapter and node. No `onChange`: the
+    // trial's case window reads it at each redraw.
+    game.settings.register(MODULE_ID, SETTINGS.gmCaseTicks, {
         scope: "client",
         config: false,
         type: Object,
