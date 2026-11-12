@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.106, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.108, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z twojego krzesła: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co kliknąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje".
 
@@ -741,6 +741,10 @@ GM decyduje, kto wybiera każdy Level Up. Jeśli ty, dowiadujesz się o tym, a p
 | Dodaj nowe doświadczenie warte +2 |
 
 Przy Reinforced Level Up to samo można wziąć więcej niż raz. Jeśli przed tą zasadą wziąłeś +1 Health albo +1 Sanity, GM może wyrównać twoją kartę: te wybory zostają cofnięte, a ty dostajesz tyle samo punktów statystyki do rozdania, razem z tym, co one dają.
+
+### Strefy sali
+
+W **Straw Poll**, **Logic Dive** albo **Scrum Debate** odpowiadasz tym, gdzie stoi twój token w sali rozpraw: w **Strefie A** albo w **Strefie B**, każda nazwana swoją odpowiedzią. Przesuń token do wybranej strefy; jeśli się nie ruszysz, odpowiadasz strefą, w której leży twoje stanowisko. Token na linii między strefami albo poza obiema nie liczy się po żadnej stronie. Bez tokenu w sali dostajesz okno wyboru strony. W Straw Poll dwie trzecie klasy po jednej stronie to **Finding** - *Klasa uważa: ...*. W Logic Dive na każde pytanie odpowiada większość; zła odpowiedź albo remis kończą zestaw, a dobra odpowiedź nie zostaje pokazana. W Scrum Debate obozy mówią na zmianę i każdy może w każdej chwili przejść na drugą stronę; obóz, który się opróżni, przegrywa. W Straw Poll i Logic Dive każdy prezentuje swobodnie, w Scrum Debate tylko mówca, a w żadnym z nich nie ma Objection. Gdy tryb się kończy, twój token wraca na stanowisko.
 
 ### Final Trial
 

@@ -776,6 +776,51 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         check(`${letter}0: phase ${letter} measured something`, (counts[letter] ?? 0) > 0, J(counts));
     }
 
+    /* ------------------------------ S. the case's ticks and summary (E99) ------------------------------ */
+
+    /* E99 C3, C7, C8 (12.11.2026), run after the phases above are counted. The verdict of I was correct and stands. The
+       primary GM (gm2 since D) writes this chapter's case - two deductions and the solution - and ticks one deduction;
+       gm3, connected for this part, reads that tick and ticks the other, which gm2 reads back (the GMs' store, any GM).
+       gm2 then sends the summary: p1's
+       card holds both ticked deductions and, the vote being right, the solution. The schema is dropped after. */
+    begin("S", "the case's ticks on two GMs, and the summary after the correct verdict with its solution (E99)");
+    await connect("gm3");
+    await settle(1000);
+    const CS = `const CS = await import("${repoUrl}/scripts/case-schema.mjs"); const ch = (await import("${repoUrl}/scripts/clock.mjs")).getClock().chapter;`;
+    const caseText = { d1: "The door was locked from inside", d2: "The key never left the office", s1: "It was done before the lights went out" };
+    await gm2.eval(`${CS}
+        await CS.setCaseNode(ch, "s63-d1", { kind: "deduction", label: "${caseText.d1}" });
+        await CS.setCaseNode(ch, "s63-d2", { kind: "deduction", label: "${caseText.d2}" });
+        await CS.setCaseNode(ch, "s63-s1", { kind: "solution", label: "${caseText.s1}", inputs: ["s63-d1", "s63-d2"] });
+        await CS.setCaseTick(ch, "s63-d1", true); return true;`, { timeout: 30000 });
+    const onGm3 = await gm3.eval(`${until} ${CS}
+        const read = Boolean(await until(() => CS.caseTicks(ch)["s63-d1"] === true || null, 8000));
+        await CS.setCaseTick(ch, "s63-d2", true); return read;`, { timeout: 30000 });
+    const onGmS = await gm2.eval(`${until} ${CS} return Boolean(await until(() => CS.caseTicks(ch)["s63-d2"] === true || null, 8000));`, { timeout: 30000 });
+    verdict("a tick on gm2, the primary now, reaches gm3, and gm3's reaches gm2 (C3; any GM ticks)", onGm3 === true && onGmS === true, J({ onGm3, onGmS }));
+    const sentS = await gm2.eval(`globalThis.__dialogAnswers.push(async function summary(cfg) {
+            if (!(cfg.classes ?? []).includes("drpg-window-case-summary")) { globalThis.__dialogAnswers.unshift(summary); return null; }
+            return "send";
+        });
+        try { return await (await import("${repoUrl}/scripts/case-summary.mjs")).showCaseSummary(); }
+        finally { const q = globalThis.__dialogAnswers, at = q.findIndex(f => f?.name === "summary"); if (at >= 0) q.splice(at, 1); }`, { timeout: 60000 });
+    const cardS = await p1.eval(`${until} const m = await until(() => game.messages.contents.findLast(m => m.flags?.["${MOD}"]?.caseSummary === true) ?? null, 10000);
+        return m ? m.content : null;`, { timeout: 30000 });
+    verdict("gm2's Show summary reaches p1 with both ticked deductions and, the vote being right, the solution (C7)",
+        typeof sentS === "string" && typeof cardS === "string" && Object.values(caseText).every(t => cardS.includes(t)), J({ sentS, cardS: cardS?.slice(0, 600) }));
+    /* Once per trial (Q-E99-9, round 6): the trial's record holds when it went out, and a second press - here gm3's, another
+       GM - says so and sends nothing; p1 holds one summary card. */
+    const againS = await gm3.eval(`return await (await import("${repoUrl}/scripts/case-summary.mjs")).showCaseSummary();`, { timeout: 30000 });
+    await settle(800);
+    const onceS = await p1.eval(`return game.messages.contents.filter(m => m.flags?.["${MOD}"]?.caseSummary === true).length;`);
+    const shownS = await gm2.eval(`${V} return V.trialProgress().summaryShown;`);
+    verdict("the summary goes out once a trial: the record holds its time, gm3's second press sends nothing, p1 holds one card (Q-E99-9)",
+        againS === null && onceS === 1 && Number.isFinite(shownS), J({ againS, onceS, shownS }));
+    await gm2.eval(`${V} await V.setTrialProgress({ summaryShown: null }); return true;`, { timeout: 30000 });
+    await gm2.eval(`${CS} for (const id of ["s63-d1", "s63-d2", "s63-s1"]) { await CS.setCaseTick(ch, id, false); await CS.dropCaseNode(ch, id); } return true;`, { timeout: 30000 });
+    await disconnect("gm3");
+    check("S0: phase S measured something", (counts.S ?? 0) > 0, J(counts));
+
     /* ------------------------------ U. a verdict on a death nobody has found ------------------------------ */
 
     /* E10 fix r1-G4 (1.2.71; round 1's cor F1 = sec F2; the owner's Q-E10-2 (a), 10.10.2026), run after the phases

@@ -25,13 +25,15 @@
  */
 
 import { TRIAL } from "./config.mjs";
+import { ZONE_MODES, isZoneMode, zoneStart, zoneStep } from "./zone-machine.mjs";
 
 /**
  * The floor's modes, spelled once (trial-floor.mjs `FLOOR_MODES` is this object): the debate and its exchange, and since
- * E70 C7 the two rounds, Testimony and Panic Round (S18-72), whose speaker is the round's, one after another.
+ * E70 C7 the two rounds, Testimony and Panic Round (S18-72), whose speaker is the round's, one after another; since E73
+ * the three zone modes, Straw Poll, Logic Dive and Scrum Debate, whose rows are zone-machine.mjs's.
  */
 export const MODES = Object.freeze({ debate: "debate", objection: "objection", rebuttal: "rebuttal", testimony: "testimony", panic: "panic",
-    closing: "closing" });
+    closing: "closing", ...ZONE_MODES });
 
 /*
  * THE ROUNDS (E70 C7, 28.10.2026; S18-72; the owner's TR6 "Zeznanie - maks 2 minuty na osobe. Nie 3.", TR14 = 3, of
@@ -479,7 +481,7 @@ export function nextFloor(floor, event = {}, ctx = {}) {
            `startFloor` or another GM's "open" over a running Closing dropped it without its record's `done`, so the trial
            could start a second Closing (E70-50); over a round it dropped the queue unannounced. Ended first, by its own
            End this mode, then a debate opens. Over a debate or an exchange of one, a fresh debate as before. */
-        if (floor && (isRoundMode(floor.mode) || roundOf(floor) || closingOf(floor))) return { refused: "DRPG.Floor.startBusy" };
+        if (floor && (isRoundMode(floor.mode) || roundOf(floor) || closingOf(floor) || isZoneMode(floor.mode))) return { refused: "DRPG.Floor.startBusy" };
         return { floor: {
             active: true, mode: MODES.debate, holderId: null, targetId: null,
             seconds: Number(event.seconds) > 0 ? Number(event.seconds) : TRIAL.speakSeconds,
@@ -507,6 +509,9 @@ export function nextFloor(floor, event = {}, ctx = {}) {
         const opened = turnAt(base, { mode: event.mode, order, index: -1, step: 0, seconds, openedAt: now }, 0, now, [], ctx.absent, 1);
         return opened.floor ? opened : { refused: "DRPG.Floor.round.nobody" };
     }
+    // The zone modes (E73): their start, and every event on their floor, are zone-machine.mjs's rows.
+    if (type === "zone") return zoneStart(floor, event, ctx);
+    if (floor && isZoneMode(floor.mode)) return zoneStep(floor, event, ctx);
     if (type === "closing" || type === "claim" || type === "confirm" || type === "pick" || type === "continue" || type === "resume") {
         return closingStep(floor, event, ctx, now);
     }

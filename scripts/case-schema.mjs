@@ -19,7 +19,7 @@
  */
 
 import { MODES } from "./floor-machine.mjs";
-import { caseSchemaStore, keyPlanStore } from "./gm-stores.mjs";
+import { caseSchemaStore, keyPlanStore, caseTickStore } from "./gm-stores.mjs";
 import { remnantsOn, remnantData, keyOf } from "./remnants.mjs";
 import { getClock } from "./clock.mjs";
 import { sameSeason } from "./settings.mjs";
@@ -111,13 +111,16 @@ export function graphOf({ chapter = null, rows = {}, meta = null, traces = [], s
         nodes.push({
             id: t.key, kind: t.type === "final" ? "final" : (t.type === "key" || s ? "key" : "trace"), evidence: true, planned: false,
             slot: s ? s.slot : null, trace: t.key, type: t.type ?? null, label: t.name || t.label || "", tied: t.tiedToCrime === true,
-            faint: Boolean(t.faint), room: t.room ?? null, chapter: t.chapter ?? null, foundAt: t.foundAt ?? null
+            faint: Boolean(t.faint), room: t.room ?? null, chapter: t.chapter ?? null, foundAt: t.foundAt ?? null,
+            // its description (the player's words): drawn whole on its node since the E97 fix, and E99 C6's summary words
+            text: typeof t.text === "string" ? t.text : typeof t.playerText === "string" ? t.playerText : ""
         });
     }
     for (const s of slots ?? []) {
         if (!Number.isInteger(s?.slot) || placed.has(s.slot)) continue;
         nodes.push({ id: `${SLOT}${s.slot}`, kind: "key", evidence: true, planned: true, slot: s.slot, trace: null, type: "key",
-            label: s.name || s.text || "", tied: true, faint: false, room: s.createIn ?? null, chapter, foundAt: null, scale: s.scale ?? null });
+            label: s.name || s.text || "", tied: true, faint: false, room: s.createIn ?? null, chapter, foundAt: null, scale: s.scale ?? null,
+            text: s.name && typeof s.text === "string" ? s.text : "" });
     }
     const traceKeys = new Set(nodes.filter(n => n.trace).map(n => n.trace));
     for (const [id, raw] of Object.entries(rows ?? {})) {
@@ -187,7 +190,7 @@ export function caseGraph(chapter = getClock().chapter, { chapters = "this", slo
         for (const token of remnantsOn(scene)) {
             const data = remnantData(token);
             if (!data || (chapters !== "all" && (data.chapter !== chapter || !sameSeason(data)))) continue;
-            traces.push({ ...data, key: keyOf(token), name: data.public?.name ?? "" });
+            traces.push({ ...data, key: keyOf(token), name: data.public?.name ?? "", text: data.public?.playerText ?? "" });
         }
     }
     const slots = [];
@@ -340,4 +343,23 @@ export function checkCase(graph, { reach = {}, cycle = [], modes = caseModes(), 
     const keys = nodes.filter(n => n.evidence && n.kind === "key").length;
     if (keys > keyMax) out.push({ code: "tooManyKeys", node: null, ref: String(keys) });
     return out;
+}
+
+/** The chapter's ticks at its trial (E99 C3): node id -> true, on a GM; empty on any other browser. */
+export function caseTicks(chapter) {
+    if (!game.user?.isGM) return {};
+    const prefix = `${chapter}:`;
+    const out = {};
+    for (const [key, row] of Object.entries(caseTickStore.entries() ?? {})) {
+        if (key.startsWith(prefix) && row?.ticked === true) out[key.slice(prefix.length)] = true;
+    }
+    return out;
+}
+
+/** Tick or untick one node at the trial, on a GM (E99 C3): `{ ticked, by, at }`. Answers the row, or null. */
+export async function setCaseTick(chapter, nodeId, ticked) {
+    if (!game.user?.isGM || !Number.isInteger(chapter) || !validNodeId(nodeId)) return null;
+    const key = caseKeyOf(chapter, nodeId);
+    await caseTickStore.patch(key, { ticked: Boolean(ticked), by: game.user.id, at: Date.now() });
+    return caseTickStore.get(key) ?? null;
 }

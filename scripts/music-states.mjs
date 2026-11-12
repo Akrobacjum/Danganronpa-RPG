@@ -42,7 +42,12 @@ export const TRIAL_MODE_MUSIC = Object.freeze({
     [FLOOR_MODES.debate]: "trial.debate",
     [FLOOR_MODES.testimony]: "trial.discussion",
     [FLOOR_MODES.panic]: "trial.discussion",
-    [FLOOR_MODES.closing]: "trial.discussion"
+    [FLOOR_MODES.closing]: "trial.discussion",
+    // The zone modes (E73 C6; the plan's "music trial.debate covers the zone modes"): the class arguing as one, so the
+    // debate's music, which the GM has mapped already.
+    [FLOOR_MODES.straw]: "trial.debate",
+    [FLOOR_MODES.dive]: "trial.debate",
+    [FLOOR_MODES.scrum]: "trial.debate"
 });
 
 /** The trial's music state for `floor` in `phase` (a clock's phase), or null outside a Class Trial with no floor. */

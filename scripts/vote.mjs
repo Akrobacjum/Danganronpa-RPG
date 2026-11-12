@@ -50,7 +50,7 @@ import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
 import {
     announce, isPrimaryGm, primaryGmId, activeGmIds, log, warn, error, plural, serverNow
 } from "./utils.mjs";
-import { trialProgress, setTrialProgress, retrySentence } from "./trial-progress.mjs";
+import { trialProgress, setTrialProgress, retrySentence, findingsHtml } from "./trial-progress.mjs";
 import { drpgWindow, box } from "./ui-kit.mjs";
 export {
     trialProgress, trialProgressChapter, TRIAL_PROGRESS_KEY, setTrialProgress, RECORD_FIELDS, recordPatchOf,
@@ -487,6 +487,7 @@ async function openRound(progress, op, picks) {
         content: `<div class="drpg-evidence-card">
             <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Vote.banner")}</div>
             <p>${plural("DRPG.Vote.opened", { n: voters.length })}</p>
+            ${findingsHtml(progress?.findings)}
         </div>`
     });
 
