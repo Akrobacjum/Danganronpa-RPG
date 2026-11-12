@@ -131,7 +131,7 @@ You are turned back by:
 
 | Cause | Details |
 |---|---|
-| a room that is **not connected** to yours | the refusal names only the neighbouring rooms you have already been in |
+| a room that is **not connected** to yours | the refusal names only the neighboring rooms you have already been in |
 | a **floor** the stairs do not lead to from your room | on a map with stairs, only they take you up or down |
 | a **locked door** | the GM locked the room |
 | a **sealed room** | the Behind Closed Doors Despair Call, for one time of day |
@@ -149,7 +149,7 @@ Your GM may turn off the price of crossings; then which rooms connect, the stair
 
 ### What you can see
 
-- The room you are in is in full colour. Rooms you have already visited show through a veil. The rest of the school is fogged until you walk into it - a room is discovered by entering it, once, per character. During an Eclipse even the room you stand in is only veiled.
+- The room you are in is in full color. Rooms you have already visited show through a veil. The rest of the school is fogged until you walk into it - a room is discovered by entering it, once, per character. During an Eclipse even the room you stand in is only veiled.
 - On a map of several floors you see one floor at a time. The **Floors** buttons beside the HUD offer the floors your character stands on and every floor holding a room you have found, lowest first. A room you have found looks the same on any floor - under the veil, with nobody you can see in it - and a room you have never been in stays fogged on every floor.
 - You see the door controls of the rooms you can see - the one you stand in and the ones you have been in - not every door on the map.
 - You only see the people standing in your room. Nobody else is on the map for you.
@@ -162,7 +162,7 @@ Your GM may turn off the price of crossings; then which rooms connect, the stair
 With regional voice on, every room is its own voice channel: you hear whoever stands in the room with you, and whoever has just stepped out of it into a doorway or a corridor that is no room (they keep its channel until they enter another room - below), and your voice follows your token the moment it crosses into another room. During an Eclipse no player is in voice, and when it ends you are back in the room your token stands in. During the Class Trial everybody is in one voice room, the dead too, wherever their token stands (chapter 12). A Monokuma who walks into your room hears you like anyone else, and you see them. Standing in a doorway or in a corridor that is no room, you keep the channel of the room you came from until you step into another room, so walking through a door changes your channel once.
 
 **The voice tile.** While you are in voice, Foundry's camera dock is not on your screen: a small tile stands in for it - under Stained Glass a pane of the glass at the right edge, under the Projects tray; under Monokuma Legacy at the right edge, over the corner's buttons; on a narrow screen in the row beside the room tile. It shows the portrait and the name of whoever you hear speaking in your own voice channel, and nobody outside it, and fades a moment after they stop. The dock's camera pictures, its connection quality and its pop-out windows go with it; if the GM turns the tile off, the dock comes back. While nobody speaks, the tile says in one word where your voice stands: **Connected**; **Connecting** while you join, move to another channel or the connection comes back; **Disconnected** when voice is lost - a **Voice disconnected** card then says your browser is joining again, or, when only a reload helps, to press F5; **Eclipsed** during an Eclipse; **Blocked** when the GM blocked your microphone; **Own window** when voice runs in its own window. Point at the word for the whole sentence. Two buttons sit on the tile:
-- **The microphone** mutes and unmutes your own microphone and nobody else's; a key in Foundry's Controls does the same, once you bind one. Struck through, it is muted - by you, or by the GM when a small lock shows on it (**The GM blocked your microphone.**). Grey and struck through, the game holds it during an Eclipse, with the reason under it; a click then changes nothing and tells you why. In the channel of the dead it stays yours to mute and unmute, with a line under it saying where you are. With a small dot you are not connected to voice, or voice runs in its own window. It lights up while your microphone carries your voice. With push to talk it wears **PTT**: hold your key to speak. A Monocub keeps its microphone during an Eclipse and is told that nobody hears it until the lights come back.
+- **The microphone** mutes and unmutes your own microphone and nobody else's; a key in Foundry's Controls does the same, once you bind one. Struck through, it is muted - by you, or by the GM when a small lock shows on it (**The GM blocked your microphone.**). Gray and struck through, the game holds it during an Eclipse, with the reason under it; a click then changes nothing and tells you why. In the channel of the dead it stays yours to mute and unmute, with a line under it saying where you are. With a small dot you are not connected to voice, or voice runs in its own window. It lights up while your microphone carries your voice. With push to talk it wears **PTT**: hold your key to speak. A Monocub keeps its microphone during an Eclipse and is told that nobody hears it until the lights come back.
 - **The speaker** shows how many others are in your channel - everyone who can hear you, speaking or not - and opens **Who you hear**: each of them with a volume slider and **Mute *name* for you** (then **Hear *name* again**), and at the top **Mute everybody for you**. All of it is yours alone - nobody else hears the difference - and this browser keeps it. Escape or a click outside closes the list.
 
 > [!TIP]
@@ -211,7 +211,7 @@ What you can ask for:
 
 What turns up is what the room holds: a room the GM has stocked answers first, so what you find can be another kind of thing than you asked for, or of a lower tier - never of a higher one than your roll earned.
 
-Some rooms are good places to look for a category and some are bad; the roll window tells you when the room favours or hinders what you ask for. If somebody else keeps a stash with something in it in this room, a successful Search takes from that stash instead - an open one first, a hidden one with one more step of disadvantage on your roll (one of your bonus dice set aside, or one more penalty die). The window does not show that step, because it would tell you a hidden stash is here before you had spent anything: it is taken once the dice have fallen, and your card says what it did.
+Some rooms are good places to look for a category and some are bad; the roll window tells you when the room favors or hinders what you ask for. If somebody else keeps a stash with something in it in this room, a successful Search takes from that stash instead - an open one first, a hidden one with one more step of disadvantage on your roll (one of your bonus dice set aside, or one more penalty die). The window does not show that step, because it would tell you a hidden stash is here before you had spent anything: it is taken once the dice have fallen, and your card says what it did.
 
 > [!WARNING]
 > Taking a Murder Weapon or a Cleaning Tool **leaves a Prep Remnant** in the room - a Remnant that you were here gathering tools. A Tool leaves nothing unless what turns up is also a weapon.
@@ -494,7 +494,7 @@ An item can also serve as another category (a screwdriver under Tools that is al
 
 A **Remnant** is a Remnant on the map. Most of what you do in a room leaves one: taking a weapon, a Dynamic Action, sabotaging, working on a murder project, throwing something away, going through a body's pockets, a fight, a clean-up. How hard it is to see is its **visibility**: Obvious, Evident, Subtle, Hidden. Some are **Reinforced** - nobody can remove them.
 
-A Remnant appears on your map <ins>only once you hold a Truth Bullet copied from it</ins> (the Remnants of a fight you are in show as they are made). On your screen it carries your copy's name and picture - nobody else's screen does: the Remnant itself keeps one neutral name. It wears a question mark until your copy is analysed, and then the icon of what left it - a Search, a Dynamic Action, a project, a sabotage, the fight itself, a clean-up, a thing thrown away, a body gone through, the GM's own hand. Its frame takes the colour of what your copy says it is.
+A Remnant appears on your map <ins>only once you hold a Truth Bullet copied from it</ins> (the Remnants of a fight you are in show as they are made). On your screen it carries your copy's name and picture - nobody else's screen does: the Remnant itself keeps one neutral name. It wears a question mark until your copy is analyzed, and then the icon of what left it - a Search, a Dynamic Action, a project, a sabotage, the fight itself, a clean-up, a thing thrown away, a body gone through, the GM's own hand. Its frame takes the color of what your copy says it is.
 
 | Remnant | What it means |
 |---|---|
@@ -502,7 +502,7 @@ A Remnant appears on your map <ins>only once you hold a Truth Bullet copied from
 | Prep Remnant | Left while preparing a murder or gathering tools. |
 | Incident Remnant | Left during the confrontation or the victim's death. |
 | Tamper Remnant | Left by tampering - the too-clean patch, the thing moved back slightly wrong. |
-| Faint Remnant | Doubtful connection to the case. Faint is also a mark a Prep Remnant can carry - the one a Search for a tool, a Sabotage or a Misleading Trail leaves. A Remnant with it is cleared by the GM unless tied to the murder; a Truth Bullet with it stays with you through the chapter's end, unread, and can still be analysed. |
+| Faint Remnant | Doubtful connection to the case. Faint is also a mark a Prep Remnant can carry - the one a Search for a tool, a Sabotage or a Misleading Trail leaves. A Remnant with it is cleared by the GM unless tied to the murder; a Truth Bullet with it stays with you through the chapter's end, unread, and can still be analyzed. |
 | Autopsy Remnant | The state of the body. Handed out at the start of an Investigation, no roll. |
 | Final Truth Remnant | One per chapter. Points at the Mastermind. Unremovable. |
 

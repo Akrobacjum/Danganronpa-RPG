@@ -285,7 +285,7 @@
       },
       "autoApproveTraits": {
         "name": "Approve statistic proposals in Daily Life automatically",
-        "hint": "On, a player's proposed statistic for a Search or a project without a statistic is approved without a GM's press, and the card in their thread says so. Fights, openings, and Dynamic actions always ask a GM; Resolve asks nobody."
+        "hint": "On, a player's proposed statistic for a Search or a project without a statistic is approved without a GM's press, and the card in their thread says so. Fights, openings, and Dynamic Actions always ask a GM; Resolve asks nobody."
       },
       "friskForce": {
         "name": "Frisk: forcing after a refusal",

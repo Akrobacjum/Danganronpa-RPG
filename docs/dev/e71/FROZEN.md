@@ -10,14 +10,14 @@ Also not edited in this pass, whatever the diff says: `scripts/config.mjs` (its 
 key, and four branches change it), and therefore the Polish `DRPG.Config.*` prose twins in `lang/pl.json`, so the English
 and Polish of one config entry never drift apart across branches.
 
-Read at origin/main 235c3210 on 12.11.2026.
+Read at origin/main 4dfac3a9 on 12.11.2026.
 
 | Branch | Head | Merge base |
 | --- | --- | --- |
-| e61-62 | 463d12ff | fa73b601 |
+| e61-62 | aa8771c5 | fa73b601 |
 | e76-106 | 1d62225e | 14619ce2 |
-| e97-98 | a5844ac0 | 7fa07aee |
-| e73 | 6a914d02 | fa73b601 |
+| e97-98 | a5844ac0 | 9ca7fcc1 |
+| e73 | 6a914d02 | 6a914d02 |
 | e92 | ce1ffadb | fa73b601 |
 | e93 | ca2a6491 | f22a7e87 |
 | e72 | 5c933012 | f22a7e87 |
@@ -31,8 +31,8 @@ Read at origin/main 235c3210 on 12.11.2026.
 | gm-handbook.en.md | ## 10. Items | e64 |
 | gm-handbook.en.md | ## 11. Projects and traps | e64, e93 |
 | gm-handbook.en.md | ## 14. Investigation | e64 |
-| gm-handbook.en.md | ## 15. The Class Trial | e64, e72, e73, e97-98 |
-| gm-handbook.en.md | ## 16. End of chapter and season reset | e61-62, e73, e97-98, gaps-a |
+| gm-handbook.en.md | ## 15. The Class Trial | e64, e72, e97-98 |
+| gm-handbook.en.md | ## 16. End of chapter and season reset | e61-62, gaps-a |
 | gm-handbook.en.md | ## 20. Troubleshooting | gaps-a |
 | gm-handbook.en.md | ## 3. The GM panel | e72 |
 | gm-handbook.en.md | ## 4. The clock | e61-62 |
@@ -43,7 +43,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | gm-handbook.en.md | ### 13.2 The incident (Stage 5) | e64 |
 | gm-handbook.en.md | ### 13.3 Cleaning up (Stage 6) and Tamper | e64 |
 | gm-handbook.en.md | ### 13.4 After the incident, and body discovery | e72 |
-| gm-handbook.en.md | ### 15.1 The trial hall | e61-62, e73, e97-98 |
+| gm-handbook.en.md | ### 15.1 The trial hall | e61-62, e97-98 |
 | gm-handbook.en.md | ### 6.1 Hope Calls (`HOPE_CALLS`) | e64, e72 |
 | gm-handbook.en.md | ### 6.2 Despair Calls (`DESPAIR_CALLS`) | e72 |
 | gm-handbook.en.md | ### 9.1 Rooms and Room Setup | e93 |
@@ -52,8 +52,8 @@ Read at origin/main 235c3210 on 12.11.2026.
 | gm-handbook.pl.md | ## 10. Przedmioty | e64 |
 | gm-handbook.pl.md | ## 11. Projekty i pułapki | e64, e93 |
 | gm-handbook.pl.md | ## 14. Investigation | e64 |
-| gm-handbook.pl.md | ## 15. Class Trial | e64, e72, e73, e97-98 |
-| gm-handbook.pl.md | ## 16. Koniec rozdziału i reset sezonu | e61-62, e73, e97-98, gaps-a |
+| gm-handbook.pl.md | ## 15. Class Trial | e64, e72, e97-98 |
+| gm-handbook.pl.md | ## 16. Koniec rozdziału i reset sezonu | e61-62, gaps-a |
 | gm-handbook.pl.md | ## 20. Rozwiązywanie problemów | gaps-a |
 | gm-handbook.pl.md | ## 3. Panel GMa | e72 |
 | gm-handbook.pl.md | ## 4. Zegar | e61-62 |
@@ -64,7 +64,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | gm-handbook.pl.md | ### 13.2 Incydent (Stage 5) | e64 |
 | gm-handbook.pl.md | ### 13.3 Sprzątanie (Stage 6) i Tamper | e64 |
 | gm-handbook.pl.md | ### 13.4 Po incydencie i odkrycie ciała | e72 |
-| gm-handbook.pl.md | ### 15.1 Sala rozpraw | e61-62, e73, e97-98 |
+| gm-handbook.pl.md | ### 15.1 Sala rozpraw | e61-62, e97-98 |
 | gm-handbook.pl.md | ### 6.1 Hope Calls (`HOPE_CALLS`) | e64, e72 |
 | gm-handbook.pl.md | ### 6.2 Despair Calls (`DESPAIR_CALLS`) | e72 |
 | gm-handbook.pl.md | ### 9.1 Pokoje i Ustawienia pokoi | e93 |
@@ -84,7 +84,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | player-handbook.en.md | ### Despair Calls - what Monokuma can do to you | e72 |
 | player-handbook.en.md | ### If you are the killer | e64 |
 | player-handbook.en.md | ### If you are the victim | e64 |
-| player-handbook.en.md | ### Level Up | e64, e73, e97-98 |
+| player-handbook.en.md | ### Level Up | e64 |
 | player-handbook.en.md | ### Listen - Shadow, 1 action | e93 |
 | player-handbook.en.md | ### Observe - Eye, 1 action | e64 |
 | player-handbook.en.md | ### Palm - Hand, 1 action | e64, e93 |
@@ -94,7 +94,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | player-handbook.en.md | ### Rolling | e92 |
 | player-handbook.en.md | ### Tamper - Shadow, 1 action | e64 |
 | player-handbook.en.md | ### The Eclipse | e61-62 |
-| player-handbook.en.md | ### The Final Trial | e64, e73, e97-98 |
+| player-handbook.en.md | ### The Final Trial | e64 |
 | player-handbook.en.md | ### The morning after | e72 |
 | player-handbook.en.md | ### The opening roll | e64 |
 | player-handbook.en.md | ### The overflow | e72 |
@@ -109,12 +109,12 @@ Read at origin/main 235c3210 on 12.11.2026.
 | player-handbook.pl.md | ### Despair Calls - co Monokuma może ci zrobić | e72 |
 | player-handbook.pl.md | ### Dwa stany, których nie chcesz | e64 |
 | player-handbook.pl.md | ### Eclipse | e61-62 |
-| player-handbook.pl.md | ### Final Trial | e64, e73, e97-98 |
+| player-handbook.pl.md | ### Final Trial | e64 |
 | player-handbook.pl.md | ### Gra Monocubem | e64, e72 |
 | player-handbook.pl.md | ### Głosowanie | e72 |
 | player-handbook.pl.md | ### Jeśli jesteś ofiarą | e64 |
 | player-handbook.pl.md | ### Jeśli jesteś zabójcą | e64 |
-| player-handbook.pl.md | ### Level Up | e64, e73, e97-98 |
+| player-handbook.pl.md | ### Level Up | e64 |
 | player-handbook.pl.md | ### Listen - Shadow, 1 akcja | e93 |
 | player-handbook.pl.md | ### Następny poranek | e72 |
 | player-handbook.pl.md | ### Observe - Eye, 1 akcja | e64 |
@@ -127,7 +127,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | player-handbook.pl.md | ### Sypialnie, klucze, skrytki | e64 |
 | player-handbook.pl.md | ### Tamper - Shadow, 1 akcja | e64 |
 
-## Lang keys (377 paths; a path that is an object freezes its opening line only, its leaves are listed one by one)
+## Lang keys (340 paths; a path that is an object freezes its opening line only, its leaves are listed one by one)
 
 | Key | Branches |
 | --- | --- |
@@ -142,7 +142,6 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.Bridge.what.advancement.apply` | e72 |
 | `DRPG.Bridge.what.analyze.resolve` | e93 |
 | `DRPG.Bridge.what.body.loot` | e72 |
-| `DRPG.Bridge.what.bridge.ack` | e73, e97-98 |
 | `DRPG.Bridge.what.call.arm` | e72 |
 | `DRPG.Bridge.what.handover.bullet` | e93 |
 | `DRPG.Bridge.what.handover.item` | e93 |
@@ -152,11 +151,6 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.Bridge.what.observe.resolve` | e93 |
 | `DRPG.Bridge.what.overflow.check` | e93 |
 | `DRPG.Bridge.what.passage.share` | e93 |
-| `DRPG.Bridge.what.ready.answer` | e73, e97-98 |
-| `DRPG.Bridge.what.ready.open` | e73, e97-98 |
-| `DRPG.Bridge.what.trial.claim` | e73, e97-98 |
-| `DRPG.Bridge.what.trial.present` | e73, e97-98 |
-| `DRPG.Bridge.what.trial.turn` | e73, e97-98 |
 | `DRPG.Bridge.why.answerKeyMissing` | e72, e92 |
 | `DRPG.Bridge.why.cannotLeave` | e93 |
 | `DRPG.Bridge.why.chained` | e93 |
@@ -180,10 +174,8 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.Calls.grants.disadvantage` | e64 |
 | `DRPG.Calls.notArmedNotCharged` | e72 |
 | `DRPG.Calls.sealedBlocked` | e64 |
-| `DRPG.Case.row` | e73, e97-98 |
 | `DRPG.Case.store.cleanupAttempts` | e72 |
 | `DRPG.Case.store.clockBeat` | e93 |
-| `DRPG.Case.store.closingClaim` | e73, e97-98 |
 | `DRPG.Case.store.confusions` | e72 |
 | `DRPG.Case.store.crossings` | e72, e93 |
 | `DRPG.Case.store.lootRolls` | e93 |
@@ -191,12 +183,13 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.Case.store.rerollBookmarks` | e72 |
 | `DRPG.Case.store.rerollJournal` | e72 |
 | `DRPG.Case.store.rifles` | e93 |
-| `DRPG.Case.store.ruledCards` | e73, e97-98 |
 | `DRPG.Case.store.takeBack` | e93 |
 | `DRPG.Case.store.traceDigest` | e72 |
-| `DRPG.Case.store.trialMute` | e73, e97-98 |
-| `DRPG.CaseRealize.notNow` | e73, e97-98 |
-| `DRPG.CaseRealize.showPreview` | e73, e97-98 |
+| `DRPG.CaseSummary` | e97-98 |
+| `DRPG.CaseSummary.intro` | e97-98 |
+| `DRPG.CaseSummary.previewTitle` | e97-98 |
+| `DRPG.CaseSummary.send` | e97-98 |
+| `DRPG.CaseSummary.show` | e97-98 |
 | `DRPG.Chapter.lastChapter` | gaps-a |
 | `DRPG.Chapter.optNextChapter` | gaps-a |
 | `DRPG.Chapter.optNextMorning` | gaps-a |
@@ -259,21 +252,13 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.Config.SFX_EVENTS.debateOpen.hint` | e61-62, e92 |
 | `DRPG.Config.SFX_EVENTS.debateOpen.label` | e61-62, e92 |
 | `DRPG.Config.SFX_EVENTS.execution` | e61-62, e92 |
-| `DRPG.Config.SFX_EVENTS.execution.hint` | e97-98 |
-| `DRPG.Config.SFX_EVENTS.execution.label` | e97-98 |
-| `DRPG.Config.SFX_EVENTS.keyReveal` | e73, e97-98 |
-| `DRPG.Config.SFX_EVENTS.keyReveal.hint` | e73, e97-98 |
-| `DRPG.Config.SFX_EVENTS.keyReveal.label` | e73, e97-98 |
-| `DRPG.Config.SFX_EVENTS.trialClose` | e97-98 |
-| `DRPG.Config.SFX_EVENTS.trialClose.hint` | e97-98 |
-| `DRPG.Config.SFX_EVENTS.trialClose.label` | e97-98 |
 | `DRPG.Config.SFX_EVENTS.verdict` | e61-62, e92 |
 | `DRPG.Config.SFX_EVENTS.verdict.hint` | e61-62, e92 |
 | `DRPG.Config.SFX_EVENTS.verdict.label` | e61-62, e92 |
 | `DRPG.DhSettings` | e61-62, e92 |
 | `DRPG.DhSettings.details` | e61-62, e92 |
 | `DRPG.DhSettings.title` | e61-62, e92 |
-| `DRPG.Events` | e72, e73, e97-98, gaps-a |
+| `DRPG.Events` | e72, gaps-a |
 | `DRPG.Events.bodySubRoom` | e72, gaps-a |
 | `DRPG.Events.bodyTitle` | e72, gaps-a |
 | `DRPG.Events.incidentTitle` | e72 |
@@ -286,32 +271,18 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.Explain.status.actionsWhat` | e64 |
 | `DRPG.Explain.status.actionsWounded` | e64 |
 | `DRPG.Explain.status.moveTitle` | e64 |
-| `DRPG.Floor` | e73, e97-98 |
-| `DRPG.Floor.bar.inClosing` | e73, e97-98 |
-| `DRPG.Floor.bar.minusSeconds` | e73, e97-98 |
-| `DRPG.Floor.bar.plusSeconds` | e73, e97-98 |
-| `DRPG.Floor.discussionNote` | e73, e97-98 |
-| `DRPG.Floor.endClosing` | e72, e73, e97-98, gaps-a |
-| `DRPG.Floor.gmStepTitle` | e73, e97-98 |
+| `DRPG.Floor.endClosing` | e72, gaps-a |
 | `DRPG.Floor.lead.chapterEnd` | e97-98 |
-| `DRPG.Floor.lead.closing` | e73, e97-98 |
+| `DRPG.Floor.lead.closing` | e97-98 |
 | `DRPG.Floor.lead.finishElsewhere` | e97-98 |
-| `DRPG.Floor.lead.round` | e73, e97-98 |
-| `DRPG.Floor.lead.sentenceWaits` | e73, e97-98 |
+| `DRPG.Floor.lead.round` | e97-98 |
+| `DRPG.Floor.lead.sentenceWaits` | e97-98 |
 | `DRPG.Floor.lead.verdictElsewhere` | e97-98 |
-| `DRPG.Floor.mode.closing` | e73, e97-98 |
-| `DRPG.Floor.mode.panic` | e73, e97-98 |
-| `DRPG.Floor.mode.testimony` | e73, e97-98 |
-| `DRPG.Floor.next` | e73, e97-98 |
-| `DRPG.Floor.next.chapterEnd` | e73, e97-98 |
-| `DRPG.Floor.next.finishElsewhere` | e73, e97-98 |
-| `DRPG.Floor.next.start` | e73, e97-98 |
-| `DRPG.Floor.next.verdictElsewhere` | e73, e97-98 |
-| `DRPG.Floor.nobodyForTrial` | e73, e97-98 |
-| `DRPG.Floor.objectionNote` | e73, e97-98 |
-| `DRPG.Floor.startClosing` | e73, e97-98 |
-| `DRPG.Mastermind.finalAddNote` | e73, e97-98 |
-| `DRPG.Mastermind.finalPlacedIn` | e73, e97-98 |
+| `DRPG.Floor.next.chapterEnd` | e97-98 |
+| `DRPG.Floor.next.endZone` | e97-98 |
+| `DRPG.Floor.next.finishElsewhere` | e97-98 |
+| `DRPG.Floor.next.scrum` | e97-98 |
+| `DRPG.Floor.next.verdictElsewhere` | e97-98 |
 | `DRPG.Monocub` | e72 |
 | `DRPG.Monocub.cannotMeddle` | e72 |
 | `DRPG.Monocub.critHelpNothing` | e72 |
@@ -435,9 +406,6 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.Rest.noRegions` | e93 |
 | `DRPG.Rest.short` | e93 |
 | `DRPG.Rest.shortColumn` | e93 |
-| `DRPG.Reveal` | e73, e97-98 |
-| `DRPG.Reveal.left` | e73, e97-98 |
-| `DRPG.Reveal.section` | e73, e97-98 |
 | `DRPG.RollDialog.advantageCapped` | e93 |
 | `DRPG.RollDialog.forcedByCall` | e93 |
 | `DRPG.RollDialog.forcedBySituation` | e93 |
@@ -464,11 +432,6 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.Trial.presentWithAnalysis` | e72 |
 | `DRPG.Trial.presentWithoutNote` | e72 |
 | `DRPG.Trial.presented` | e72 |
-| `DRPG.TrialScene.castHeading` | e73, e97-98 |
-| `DRPG.TrialScene.hallRoom.words` | e73, e97-98 |
-| `DRPG.TrialScene.noCast` | e73, e97-98 |
-| `DRPG.TrialScene.noScene` | e73, e97-98 |
-| `DRPG.TrialScene.reveal` | e73, e97-98 |
 | `DRPG.Vault.descriptionColumn` | e93 |
 | `DRPG.Vault.descriptionPlaceholder` | e93 |
 | `DRPG.Vault.discoverAll` | e72 |
@@ -512,8 +475,6 @@ Read at origin/main 235c3210 on 12.11.2026.
 ## config.mjs hunks (base lines, for the record)
 
 - e61-62: 2040-2045; 4885-4890; 4925-4930; 4927-4932; 5026-5031
-- e97-98: 3942-3946; 4910-4915; 4935-4940
-- e73: 3942-3946; 4910-4915
 - e92: 243-247; 4885-4890; 4925-4930; 4927-4932
 - e93: 1653-1658; 1656-1660; 1672-1677; 1675-1679; 1679-1683; 2081-2086; 2409-2414; 5028-5033
 - e72: 2103-2108; 2106-2111; 2142-2147; 2299-2304; 2502-2507; 2647-2652; 3194-3198; 3195-3200; 3199-3204; 3225-3230

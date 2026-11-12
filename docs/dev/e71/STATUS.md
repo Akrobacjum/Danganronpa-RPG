@@ -25,12 +25,13 @@ Counts are changes, one per plural form; a key changed in two areas counts in bo
 | Remnant in sentences | 85 | 119 | 4 (GM section 1's quote of `Vault.descriptionNote`, player section 11's tables note; EN and PL) | EN15/PL-r, DB15 (glossary `remnant`, stage E71), DB4 for the Polish cases |
 | overexplains (T29) | 28 | 26 | 18 (player handbook: starting resources, the Eclipse, Rooms, Voice, Truth Bullets, the messenger's waits and Note, the settings window; EN and PL) | T29, the owner's rule of 12.11.2026, added to docs/text-style.md section 2 |
 | settings | 5 | 5 | 0 | EN14/PL-o (DB10): "Only affects this browser." / "Dotyczy tylko tej przeglądarki."; T29 on two of them |
-| glossary | 22 | 2 | 0 | EN7/DB17 "Search Token" capitalized (glossary search-token); glossary refuse: "Odmów" on two GM buttons |
+| glossary | 23 | 2 | 0 | EN7/DB17 "Search Token" capitalized (glossary search-token); glossary refuse: "Odmów" on two GM buttons |
 | X1 refusals | 7 | 5 | 0 | X1 (confirmed in the pilot) and O8: "You keep your action/Hope" instead of "Nothing was spent"; pairs N28-N30 the model |
 | X10 fillers | 7 | 5 | 2 (GM section 2's copy of `Season.roomGuide`, EN and PL) | X10 (confirmed in the pilot): "simply", "actually", "just" as a filler, „po prostu”, „naprawdę” as a filler; "just" meaning "a moment ago" and "actually" setting truth against appearance (`TruthBullet.reallyTooltip`) stay |
 | Oxford comma | 49 | 0 | 3 (the setting's name where the GM and player handbooks quote it) | EN2/DB35: the comma before the last "and"/"or" of a list; T17's candidates read one by one, 18 left as not a list ("folded or open", "kill and revive") or as a sentence a frozen handbook section copies (`Contract.*`) |
 | Remnant in sentences (handbooks) | 0 | 0 | 49 lines (unfrozen sections of all six handbooks) | EN15/PL-r, DB15 (glossary remnant, scope handbooks), Polish in DB4's cases; code spans and the five Trace names kept |
 | X6 telegraph | 1 | 0 | 0 | X6 (to confirm in E71): `Cleanup.bareHands` as a whole sentence, the facts of the owner's pair N49 |
+| spelling (handbooks) | 0 | 0 | 23 lines (English handbooks, unfrozen sections) | EN1/DB9, D33e (glossary scope handbooks), "Room setup" (D31); code spans kept; 31 lines in frozen sections left |
 | handbooks: GM-a | 0 | 0 | 67 (Polish handbooks, unfrozen sections) | PL-i/D33c (glossary `gm-a`, scope handbooks) |
 | Polish grammar | 2 | 23 | 10 (Polish handbooks, unfrozen sections: "Class Trialu" -> "Class Trial", three neuter Eclipse/Overflow) | no bracketed gender endings ("zgłosił(a)"); PL-a/DB4 (Class Trial indeclinable); PL-b/DB28 (Eclipse neuter); X13, PL7, P2 on single values (`Move.dead`, `Vote.reminded.few`, `Vote.opened`) |
 
@@ -99,6 +100,7 @@ edited unless the row says so.
 | 12.11, run o | 6fcaa102 and Remnant in the handbooks | 1229 passed, 1 failed (R310: two player handbook regexes read "no trace"/"żaden ślad"; fixed, R310 green alone), 16 skipped |
 | 12.11, run p | 7a216634 and the Steal, Handover and Rest edits | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run q | c62d325c and three handbook genders | 1230 passed, 0 failed, 16 skipped, 0 red; scenario 50-lang (Polish on four clients) 44/44 on c62d325c |
+| 12.11, run r | 47cf5aed and the handbooks' American spelling | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run f | 0a5ea4d3 and the GM-side T29 cuts (the bridge's refusals, the trial hall, the vote's privacy note) | 1230 passed, 0 failed, 16 skipped, 0 red |
 
 ## Tests whose expected wording changed
