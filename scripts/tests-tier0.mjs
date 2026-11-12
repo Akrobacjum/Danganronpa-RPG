@@ -8122,6 +8122,39 @@ const REGRESSIONS = [
             "the Event panel has no Redeem card, does not draw it, is not redrawn for it, has no glyph for it, or lacks its words ([builder, drawn, redrawn, glyph and accent, words])");
     }],
 
+    ["R3823 - the Event panel tells a Monocub's own player of part B (E72 C19; the owner's option A of 12.11): a card while a Bribe waits for its answer and a card while its Ghost Bet stands, each in renderEvents' list, redrawn with the Monocubs' copy, with its glyph on :root for both themes, its accent and its words in both languages; a GM's screen draws neither", async () => {
+        /*
+         * E72 C19, 12.11.2026; the owner's answer A to the coordinator's question (the Events card for part B: the
+         * Monocub's own player only). events.mjs `bribeWaitCard` (the first open offer's payer, as the sheet's panel lists
+         * it, monocub.mjs `cubPanelLines`) and `betCard` (whom the bet names); hud.mjs redraws on `drpgCubsChanged`
+         * (R3805's); danganronpa.css gives the kinds the Bribe's and the Ghost Bet's glyphs, declared on pixel-icons.css's
+         * :root (the Ghost Bet's legacy row put there by this commit, tools/glyphs.json). Read off the source; a GM user
+         * asked for both answers none. Red at 848b449: none of it.
+         */
+        const sources = new Map(await otherSources());
+        const events = stripComments(sources.get("events.mjs") ?? "");
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => (r.ok ? lfText(r) : "")).catch(() => ""));
+        const icons = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(r => (r.ok ? lfText(r) : "")).catch(() => "");
+        must(events.length > 5000 && css.length > 5000 && icons.length > 5000, "events.mjs, danganronpa.css or pixel-icons.css not read - this would measure nothing");
+        const rootBlock = bodyOf(icons, ":root {", { until: "\n}\n" });
+        const render = bodyOf(events, "export function renderEvents(", { until: "\n}\n" });
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const E = await import("./events.mjs");
+        const gm = { id: "R3823GM", isGM: true };
+        const card = (kind, glyph) => new RegExp(`\\.drpg-event\\[data-kind="${kind}"\\] \\.drpg-event-glyph \\{ --drpg-glyph: var\\(--drpg-pix-${glyph}\\); \\}`).test(css)
+            && new RegExp(`\\.drpg-event\\[data-kind="${kind}"\\] \\{ --acc:`).test(css) && new RegExp(`--drpg-pix-${glyph}:`).test(rootBlock);
+        const words = keys => keys.every(k => [en, pl].every(l => typeof k.split(".").reduce((o, x) => o?.[x], l.DRPG?.Events) === "string"));
+        equal(JSON.stringify({
+            built: [/export function bribeWaitCard\(/.test(events), /export function betCard\(/.test(events)],
+            drawn: [/\bbribeWaitCard\(\)/.test(render), /\bbetCard\(\)/.test(render)],
+            looks: [card("bribeHope", "bribe"), card("betHope", "ghost-bet")],
+            words: [words(["bribeWaitTitle", "bribeWaitMeta", "ticker.bribeHope"]), words(["betTitle", "betMeta", "ticker.betHope"])],
+            gm: [typeof E.bribeWaitCard === "function" ? E.bribeWaitCard(gm) : "none", typeof E.betCard === "function" ? E.betCard(gm) : "none"]
+        }), JSON.stringify({ built: [true, true], drawn: [true, true], looks: [true, true], words: [true, true], gm: [null, null] }),
+            "the Event panel does not tell a Monocub of part B ([builders, drawn in the list, glyph on :root and accent, words EN/PL, a GM's screen draws none])");
+    }],
+
     ["R3807 - the handbooks and the brochure tell the Monocub as it plays since E72: each player text quotes the Monocub Rule as lang says it and names the four tiles, Redeem and Ask for Hope among them; each GM handbook names the invitation's button as lang does and says no tile pays before the GM's side carries the move out (E72 C12; S18-63)", async () => {
         /*
          * E72 C12, 12.11.2026; audit S18-63. Part A changed what a Monocub is - invited and bound by the Monocub Rule (C6), four

@@ -10044,6 +10044,9 @@ body[data-drpg-phase="eclipse"] .drpg-hud-phase-glyph { --drpg-glyph: var(--drpg
 .drpg-event[data-kind="overflow"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-heartcrack); }
 /* E72 C9: a Monocub's Redeem, waiting - the ticket its tile wears. */
 .drpg-event[data-kind="redeemHope"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-redeem); }
+/* Part B's two cards for a Monocub's own player (E72 C19): the Bribe's tile glyph and the Ghost Bet's, both on :root. */
+.drpg-event[data-kind="bribeHope"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-bribe); }
+.drpg-event[data-kind="betHope"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-ghost-bet); }
 
 /* --- the Event panel, in both themes --------------------------------------
    `.drpg-hud-motive` and `.drpg-hud-assembly` were here: two rows of the clock
@@ -10218,6 +10221,8 @@ body.drpg-reduced-motion .drpg-event.mine .drpg-event-meta { animation: none; }
 .drpg-event[data-kind="overflow"] { --acc: var(--drpg-crimson); }
 /* Redeem gives back Hope, and Hope's colour means Hope alone (E48 K1). */
 .drpg-event[data-kind="redeemHope"] { --acc: var(--drpg-gold); }
+.drpg-event[data-kind="bribeHope"] { --acc: var(--drpg-gold); }
+.drpg-event[data-kind="betHope"] { --acc: var(--drpg-gold); }
 
 /* ==========================================================================
    STAGE 5, THIRD TRANCHE - THE FOURTEEN CRISIS ACTIONS

@@ -36,7 +36,7 @@ import { overflowEffect, overflowStatus, overflowRules, overflowWhat } from "./o
 import { SAFEWORD_FLAG } from "./safeword.mjs";
 import { trialProgress, votesIn, pendingVoters, ballotInHere } from "./vote.mjs";
 import { narrowColumn } from "./narrow.mjs";
-import { isMonocub, cubBlockSaid } from "./monocub.mjs";
+import { isMonocub, cubBlockSaid, cubPanelLines } from "./monocub.mjs";
 
 const WIDGET_ID = "drpg-events";
 
@@ -691,6 +691,46 @@ export function redeemCard(user = game.user) {
     };
 }
 
+/**
+ * PART B ON THE PANEL (E72 C19, 12.11.2026; the owner's option A, relayed by the coordinator): a Monocub's own player is
+ * told, as the Redeem card tells it, while a Bribe waits for its answer and while its Ghost Bet stands - read off the
+ * owner's copy of the Monocubs' record as the sheet's panel reads it (monocub.mjs `cubPanelLines`). Both are secret to
+ * their parties (DC39), so a GM's screen and every other player's draws neither; the GMs have the Students window. The
+ * first such Monocub of the user's; a player who plays two Monocubs is not a case the rules name.
+ */
+function cubLineFor(user, kind) {
+    if (!user || user.isGM) return null;
+    for (const cub of game.actors?.filter(a => isMonocub(a) && a.testUserPermission(user, "OWNER")) ?? []) {
+        const line = cubPanelLines(cub).find(l => l.kind === kind);
+        if (line) return { cub, line };
+    }
+    return null;
+}
+
+/** A Bribe waits for this Monocub's player's answer (E72 C19): who offers it. */
+export function bribeWaitCard(user = game.user) {
+    const found = cubLineFor(user, "offer");
+    if (!found) return null;
+    return {
+        kind: "bribeHope",
+        title: game.i18n.localize("DRPG.Events.bribeWaitTitle"),
+        sub: found.cub.name,
+        meta: game.i18n.format("DRPG.Events.bribeWaitMeta", { name: found.line.name || "?" })
+    };
+}
+
+/** This Monocub's Ghost Bet stands (E72 C19): whom it names. */
+export function betCard(user = game.user) {
+    const found = cubLineFor(user, "bet");
+    if (!found) return null;
+    return {
+        kind: "betHope",
+        title: game.i18n.localize("DRPG.Events.betTitle"),
+        sub: found.cub.name,
+        meta: game.i18n.format("DRPG.Events.betMeta", { name: found.line.name || "?" })
+    };
+}
+
 /* ---- the panel ------------------------------------------------------------ */
 
 /* The state each card showed last time it was drawn, so a redraw can tell a change
@@ -888,7 +928,7 @@ export function renderEvents() {
         /* The safeword is first because it outranks everything: while the scene
            is stopped, nothing else on this panel is happening. */
         const cards = [safewordCard(clock), trialCard(clock), openingCard(), incidentCard(),
-            bodyCard(clock), overflowCard(), assemblyCard(), motiveCard(), redeemCard()].filter(Boolean);
+            bodyCard(clock), overflowCard(), assemblyCard(), motiveCard(), redeemCard(), bribeWaitCard(), betCard()].filter(Boolean);
         if (!cards.length) { existing?.remove(); return; }
 
         // Redraw only when something changed: the panel is on the curtain, and

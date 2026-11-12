@@ -167,13 +167,20 @@ where that line leaves the rule open the default is written here (default, owner
 | C8 (dedc76d) | D064, D068, D090 | D064: already one road since E37 C2 (R1194), no code. D068: migration step `chapterRestStamps` (1.2.117): a chapterless stamp of the window now gets the clock's chapter, any other is dropped (R3814, new; default, owner may revise). D090: under quiet the planted Gear stays stowed and the victim's other working stowed piece is readied without a word or redraw (default, owner may revise: which piece is readied); E35-T7 changed on purpose |
 | C4/C5 | D038 (1) the Mastermind's room as a keyed room; (2) a road to seal the passage at their door | built (the owner's "Budujemy", 12.11; see "D038" below). R3819, R3820 new; tier 2 "D038 lair lock", "D038 lair seal"; 33 A22, 30 "forged asks at the Mastermind's door". Shots: round 8 |
 
-## C19's rest (HUD, Events, Students for part B) - read 12.11, not built, asked of the coordinator
+## C19's rest (HUD, Events, Students for part B) - done 12.11 (the owner's option A)
 
 - Already there since C14/C19: the status strip (the HUD's student row) counts a Monocub's Hope with its purse
   (player-status.mjs, `hopeHeld + purseOf`); the Students window's Hope column shows the sum with the purse in its
   tooltip; the Monocub's sheet panel lists each Bribe waiting (Accept / Refuse), each open Bounty and its own Ghost Bet.
-- Not built: an Event panel card for part B. The plan names it with no content, and every part B dealing is secret to its
-  parties (DC39, the veiled cards), so a card's content is a decision, not a default. Asked of the coordinator.
+- Built (option A): two Event panel cards for the Monocub's own player alone, events.mjs `bribeWaitCard` ("A Bribe
+  waits", from whom) and `betCard` ("Your Ghost Bet", on whom), read off the owner's copy as the sheet panel reads it
+  (`cubPanelLines`); a GM's and every other player's screen draws neither. Kinds `bribeHope` and `betHope` (gold is
+  Hope's alone, R3410), the Bribe's glyph and the Ghost Bet's, whose legacy row tools/glyphs.json now puts on :root for
+  both themes (pixel-icons.css regenerated). Words EN/PL. R3823 (tier 0) and tier 2 "the Event panel tells a Monocub's
+  own player ..." new, both red at 848b449 (R3823 measured red after a first run that threw). Checks: quick gate green;
+  tiers 0-1 1276 passed, 0 failed, 16 skipped, 0 red; tier 2 `--only` Event panel, Monocub, Bribe, Ghost Bet (105 ran)
+  109 passed, 0 failed; 33 77/78 (foundry-cub-purse), 72 132/136 (its 4). Shots: round 12,
+  https://claude.ai/artifact/RWYASS6An8CDWiiQh5d2jf
 
 ## The owner's standing rule of 12.11: no fold in an action window (checked on the Call windows)
 
