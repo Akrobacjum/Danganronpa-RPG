@@ -70,8 +70,30 @@ const KINDS = Object.freeze({
             await trustedWrite(actor, { [`system.experiences.${row.ref}`]: forcedDeletion() ?? null }, { reason: "facility" });
         },
         line: row => game.i18n.format("DRPG.Facility.timed.experience", { n: row.n, label: row.label ?? "" })
+    }),
+    // Nothing is written when it is given: the award reads the row (`takeDespairShield`) and the first point it stops uses
+    // it up.
+    despairShield: Object.freeze({
+        give: async () => {},
+        line: () => game.i18n.localize("DRPG.Facility.timed.despairShield")
     })
 });
+
+/**
+ * On the primary, for a fresh roll's point of Despair (despair-award.mjs `awardRollDespair`): whether `actor` holds a
+ * protection from Despair, which is then used up and the roll's message marked (`despairShielded`, a GM's flag) so a
+ * Reroll of it moves no Despair either way (reroll.mjs `settleDespair`). Answers whether the point is stopped.
+ */
+export async function takeDespairShield(actor, message = null) {
+    if (!actor?.id || !isPrimaryGm()) return false;
+    const row = timedEffectsOf(actor.id).find(r => r.kind === "despairShield");
+    if (!row) return false;
+    await writeList(actor.id, timedEffectsOf(actor.id).filter(r => r.id !== row.id));
+    tellOwners(actor);
+    if (message?.setFlag) await message.setFlag(MODULE_ID, "despairShielded", true).catch(err => error("Could not mark a shielded roll", err));
+    log(`${actor.name}'s protection from Despair stopped a roll's point.`);
+    return true;
+}
 
 /** The kinds this file keeps. */
 export const TIMED_KINDS = Object.freeze(Object.keys(KINDS));

@@ -88212,6 +88212,56 @@ const SCENARIOS = [
             window: [{ key: "call", value: 1 }], spent: [] }),
             "{clean; armed: [grants, armed by a GM] of the room action's Calls; window: the roll window's Call source; spent: after the roll spends it} - advantage on the next roll");
     }],
+    ["E93-T8 - a room action's protection from Despair stops the point the character's next roll with Fear would give, once, and marks that roll (scripts/timed-effects.mjs `takeDespairShield`, despair-award.mjs `awardRollDespair`, reroll.mjs `settleDespair`; the owner's answer to Q-E93-3, 12.11.2026): given until the time of day ends, a roll with Fear gives its Monokuma no point, the roll is marked shielded and the protection is used up; the next roll with Fear gives its point; an unused one ends with the time of day", async () => {
+        /*
+         * E93, 12.11.2026. The rolls thrown on this GM, whose chat hook awards a fresh roll's point as the primary does at a
+         * table (despair-award.mjs `onChatMessage` -> `awardRollDespair` with the message), with "Rolls grant Despair" on. Put back: the pool, the setting, the rows, the messages.
+         * Red at e1b0ac4: no kind "despairShield".
+         */
+        const T = await import("./timed-effects.mjs");
+        const F = await import("./facilities.mjs");
+        const D = await import("./despair-award.mjs");
+        const P = await import("./despair.mjs");
+        const { applyEffects } = await import("./facilities-gm.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const monokuma = (await import("./assignments.mjs")).monokumaFor(actor);
+        must(monokuma, `${actor.name} has no Monokuma to feed - this would measure nothing`);
+        const settingWas = game.settings.get(MODULE_ID, SETTINGS.despairFromRolls);
+        const poolWas = P.getDespair(monokuma.id);
+        const clock = getClock();
+        const nextTime = { ...clock, timeOfDay: TIMES_OF_DAY[TIMES_OF_DAY.indexOf(clock.timeOfDay) + 1] ?? TIMES_OF_DAY[0] };
+        const made = [];
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.despairFromRolls, true);
+            if (poolWas > 0) await P.adjustDespair(monokuma.id, -poolWas);
+            const effect = F.cleanEffect({ kind: "despairShield", until: "timeOfDay" });
+            must(effect, "no despairShield effect - this would measure nothing past the cleaning");
+            await applyEffects(actor, [effect], where, player);
+            const roll = async () => { const { message } = await neutralRoll(actor, { faces: { hope: 3, fear: 9 } }); made.push(message); return message; };
+            // The primary's chat hook awards a fresh roll's point (despair-award.mjs `onChatMessage`), the road at a table.
+            const first = await roll();
+            await settle();
+            read.first = [P.getDespair(monokuma.id), Boolean(first.getFlag(MODULE_ID, "despairShielded")), T.timedEffectsOf(actor.id).length];
+            const second = await roll();
+            await settle();
+            read.second = [P.getDespair(monokuma.id), Boolean(second.getFlag(MODULE_ID, "despairShielded"))];
+            await applyEffects(actor, [effect], where, player);
+            await T.endTimedEffects({ clock: nextTime });
+            read.unused = T.timedEffectsOf(actor.id).length;
+        } finally {
+            for (const row of T.timedEffectsOf(actor.id)) await T.endTimedEffect(row.id);
+            const now = P.getDespair(monokuma.id);
+            if (now !== poolWas) await P.adjustDespair(monokuma.id, poolWas - now);
+            await game.settings.set(MODULE_ID, SETTINGS.despairFromRolls, settingWas);
+            for (const m of made) await game.messages.get(m?.id)?.delete();
+            for (const m of game.messages.filter(m => m.speaker?.actor === actor.id && m.whisper?.length && Date.now() - (m.timestamp ?? 0) < 60000)) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ first: [0, true, 0], second: [1, false], unused: 0 }),
+            "{first: [the pool, the roll marked, rows left] after a roll with Fear; second: [the pool, marked] after the next; unused: rows after a time of day} - protection from Despair");
+    }],
     ["E69-T2 - a crossing settles once, on the primary, where the token still stands (scripts/crossing-settle.mjs `scheduleSettle`, movement.mjs `recordCrossingInStep`; E69 C2, S18-28, A10): a crossing into the room the token stands in fires drpgCrossingSettled once with its actor, rooms, way and Eclipse after the wait; two crossings in a row fire one event from the first room to the last; a crossing into a room the token is not in when the wait ends (put back) fires none; and the GMs' record of a crossing schedules one", async () => {
         /*
          * E69 C2, 12.11.2026. The wait is the test's own (`ms`), so nothing waits 2 s; the token is not moved: the room it

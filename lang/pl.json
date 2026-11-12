@@ -3281,7 +3281,8 @@
       "timedBadge": "Efekt akcji w pokoju",
       "timed": {
         "traitBonus": "+{n} {trait}",
-        "experience": "Experience {label} +{n}"
+        "experience": "Experience {label} +{n}",
+        "despairShield": "Twój następny rzut z Fear nie daje Despair"
       },
       "until": {
         "timeOfDay": "do końca pory dnia",
@@ -3361,6 +3362,7 @@
         "traitBonus": "Statystyka, podniesiona na jakiś czas",
         "experience": "Experience na jakiś czas",
         "advantage": "Przewaga przy następnym rzucie",
+        "despairShield": "Ochrona przed Despair przy rzucie",
         "health": "Health",
         "sanity": "Sanity",
         "hope": "Hope",

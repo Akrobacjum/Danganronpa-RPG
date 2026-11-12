@@ -2186,7 +2186,10 @@ export const FACILITIES = Object.freeze({
         experience: Object.freeze({ amount: 3, label: true, untils: Object.freeze(["timeOfDay", "day"]) }),
         // One die of advantage on the character's next roll: a Call the GM arms (key "facility"), which ends with that roll as
         // every armed Call does, so it keeps no row of its own in the timed store.
-        advantage: Object.freeze({ amount: 1 })
+        advantage: Object.freeze({ amount: 1 }),
+        // The character's next roll with Fear gives its Monokuma no Despair: used up by the first point it stops, and waits
+        // no longer than its end (despair-award.mjs `awardRollDespair`, timed-effects.mjs `takeDespairShield`).
+        despairShield: Object.freeze({ amount: 1, untils: Object.freeze(["timeOfDay", "day"]) })
     }),
     /** When a timed effect ends (timed-effects.mjs): the time of day's end, the day's end, the next roll the GM draws, the next Eclipse's end. */
     timedUntil: Object.freeze(["timeOfDay", "day", "nextRoll", "eclipse"]),

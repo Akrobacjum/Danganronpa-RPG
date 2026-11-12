@@ -653,7 +653,8 @@ async function makeReroll(actor, sender) {
      */
     await settleDualityReroll(original, rerolled, actor);
     if (original.options?.actionType !== "reaction") {
-        await settleDespair(actor, before, after, done);
+        // A roll a protection from Despair stopped the point of moves none on its Reroll (Q-E93-3, timed-effects.mjs).
+        if (!message?.getFlag?.(MODULE_ID, "despairShielded")) await settleDespair(actor, before, after, done);
         await settleCritHope(actor, before, after, done);
     }
 

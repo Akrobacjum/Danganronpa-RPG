@@ -3019,7 +3019,8 @@
       "timedBadge": "An effect from a room action",
       "timed": {
         "traitBonus": "+{n} {trait}",
-        "experience": "Experience {label} +{n}"
+        "experience": "Experience {label} +{n}",
+        "despairShield": "Your next roll with Fear gives no Despair"
       },
       "until": {
         "timeOfDay": "until the time of day ends",
@@ -3097,6 +3098,7 @@
         "traitBonus": "Statistic, raised for a while",
         "experience": "Experience, for a while",
         "advantage": "Advantage on the next roll",
+        "despairShield": "Protection from Despair on a roll",
         "health": "Health",
         "sanity": "Sanity",
         "hope": "Hope",
