@@ -267,7 +267,11 @@ function dressFooter(root, list) {
     const doc = footer.ownerDocument;
     const focused = footer.contains(doc.activeElement) ? doc.activeElement : null;
     footer.classList.add("drpg-kit-footer");
-    if (list.rows === 2) footer.classList.add(FOOTER_ROWS_CLASS);
+    if (list.rows === 2) {
+        footer.classList.add(FOOTER_ROWS_CLASS);
+        // as many columns as two rows need (E97 C10: ten buttons, five a row)
+        footer.style.setProperty("--drpg-kit-footer-cols", String(Math.max(1, Math.ceil(list.length / 2))));
+    }
     const right = doc.createElement("div");
     right.className = "drpg-kit-right";
     const left = doc.createElement("div");

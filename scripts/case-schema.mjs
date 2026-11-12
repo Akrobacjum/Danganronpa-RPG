@@ -24,8 +24,9 @@ import { remnantsOn, remnantData, keyOf } from "./remnants.mjs";
 import { getClock } from "./clock.mjs";
 import { sameSeason } from "./settings.mjs";
 
-/** The three kinds of a schema row; evidence nodes are "trace", "key" and "final". */
-export const CASE_KINDS = Object.freeze(["deduction", "counter", "solution"]);
+/** The kinds of a schema row: three the GM reasons with, and (E97 C12) "incident", an Incident Remnant the case plans and
+ *  a GM places by hand - evidence, planned until its `trace` is on the map. Evidence nodes are "trace", "key", "final". */
+export const CASE_KINDS = Object.freeze(["deduction", "counter", "solution", "incident"]);
 /** The column orders (STAGE C4): by the GM's arrows, by kind, by room, by state, and with the fewest crossings. */
 export const CASE_SORTS = Object.freeze(["manual", "kind", "room", "state", "uncrossed"]);
 const META = "meta";
@@ -64,18 +65,25 @@ export function caseNodeOf(raw) {
         refutes: ids(raw.refutes),
         mode: typeof raw.mode === "string" && raw.mode ? raw.mode : null,
         order: Number.isFinite(raw.order) ? raw.order : null,
-        made: typeof raw.made === "string" && raw.made ? raw.made : null
+        made: typeof raw.made === "string" && raw.made ? raw.made : null,
+        // E97 C12: a planned Incident Remnant's room, and the Remnant that stands for it once placed
+        room: typeof raw.room === "string" && raw.room ? raw.room : null,
+        trace: typeof raw.trace === "string" && raw.trace ? raw.trace : null
     };
 }
 
-/** A chapter's meta row as the map reads it: a sort it does not know is "kind"; `manual` keeps numbers only. Pure. */
+/** A chapter's meta row as the map reads it: a sort it does not know is "kind"; `manual` keeps numbers only; `made` the
+ *  realization's marks, each `{ run, slot }` (E97 C10). Pure. */
 export function caseMetaOf(raw) {
     const row = isPlain(raw) ? raw : {};
     return {
         sort: CASE_SORTS.includes(row.sort) ? row.sort : "kind",
         manual: Object.fromEntries(Object.entries(isPlain(row.manual) ? row.manual : {}).filter(([, v]) => Number.isFinite(v))),
         run: typeof row.run === "string" && row.run ? row.run : null,
-        askedAt: Number.isFinite(row.askedAt) ? row.askedAt : null
+        askedAt: Number.isFinite(row.askedAt) ? row.askedAt : null,
+        // E97 C10: what a realization placed, by the Remnant's key: `{ run, slot }`
+        made: Object.fromEntries(Object.entries(isPlain(row.made) ? row.made : {})
+            .filter(([, v]) => isPlain(v) && typeof v.run === "string" && v.run && Number.isInteger(v.slot)).map(([k, v]) => [k, { run: v.run, slot: v.slot }]))
     };
 }
 
@@ -111,9 +119,24 @@ export function graphOf({ chapter = null, rows = {}, meta = null, traces = [], s
         nodes.push({ id: `${SLOT}${s.slot}`, kind: "key", evidence: true, planned: true, slot: s.slot, trace: null, type: "key",
             label: s.name || s.text || "", tied: true, faint: false, room: s.createIn ?? null, chapter, foundAt: null, scale: s.scale ?? null });
     }
+    const traceKeys = new Set(nodes.filter(n => n.trace).map(n => n.trace));
     for (const [id, raw] of Object.entries(rows ?? {})) {
         const node = validNodeId(id) ? caseNodeOf(raw) : null;
-        if (node) nodes.push({ id, evidence: false, planned: false, ...node });
+        if (!node) continue;
+        /* A PLANNED INCIDENT REMNANT (E97 C12) is evidence: placed, it is its Remnant (the row's id read as the trace's
+           key, the trace's node marked with the row); not yet, a planned node of its own in the evidence column. */
+        if (node.kind === "incident") {
+            if (node.trace && traceKeys.has(node.trace)) {
+                alias.set(id, node.trace);
+                const t = nodes.find(n => n.id === node.trace);
+                if (t) t.incident = id;
+                continue;
+            }
+            nodes.push({ id, kind: "incident", evidence: true, planned: true, slot: null, trace: null, type: "incident", label: node.label,
+                tied: true, faint: false, room: node.room, chapter, foundAt: null, incident: id, text: node.text });
+            continue;
+        }
+        nodes.push({ id, evidence: false, planned: false, ...node });
     }
     const known = new Set(nodes.map(n => n.id));
     const edges = [];
@@ -154,10 +177,10 @@ export function caseRows(chapter) {
 
 /**
  * The chapter's graph, read off the world on a GM: this season's traces of the chapter (`sameSeason`; every chapter's
- * with `chapters: "all"`), the Key plan's slots of the chapter that a GM wrote, the schema's rows. `{}`-shaped and
+ * with `chapters: "all"`), the Key plan's slots of the chapter that a GM wrote (or `slots`, as given), the schema's rows. `{}`-shaped and
  * empty on any other browser, which holds none of the three.
  */
-export function caseGraph(chapter = getClock().chapter, { chapters = "this" } = {}) {
+export function caseGraph(chapter = getClock().chapter, { chapters = "this", slots: given = null } = {}) {
     if (!game.user?.isGM) return graphOf({ chapter });
     const traces = [];
     for (const scene of game.scenes ?? []) {
@@ -176,11 +199,13 @@ export function caseGraph(chapter = getClock().chapter, { chapters = "this" } = 
     }
     slots.sort((a, b) => a.slot - b.slot);
     const { rows, meta } = caseRows(chapter);
-    return graphOf({ chapter, rows, meta, traces, slots });
+    /* `slots` given (E97 C6): the Key plan's every slot as investigation.mjs `keyPlan` reads it, a slot no GM wrote among
+       them, so the Map has a node - and the Table's fields - for each slot the Table draws a row for. */
+    return graphOf({ chapter, rows, meta, traces, slots: Array.isArray(given) ? given : slots });
 }
 
-const NODE_FIELDS = Object.freeze(["kind", "label", "text", "inputs", "refutes", "mode", "order", "made"]);
-const META_FIELDS = Object.freeze(["sort", "manual", "run", "askedAt"]);
+const NODE_FIELDS = Object.freeze(["kind", "label", "text", "inputs", "refutes", "mode", "order", "made", "room", "trace"]);
+const META_FIELDS = Object.freeze(["sort", "manual", "run", "askedAt", "made"]);
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
 /**
@@ -209,7 +234,9 @@ export async function setCaseNode(chapter, nodeId, fields = {}, { base = null } 
     const key = caseKeyOf(chapter, nodeId);
     const held = caseSchemaStore.get(key);
     if (!caseNodeOf({ ...(held ?? {}), ...(isPlain(fields) ? fields : {}) })) return null;
-    const patch = patchOf(fields, NODE_FIELDS, raw => caseNodeOf(raw) ?? {}, base);
+    /* Shaped over the row held (E97 C6): a write of one field carries no `kind`, and `caseNodeOf` reads a row with no
+       kind as none - the field came out undefined and nothing was written (the Map's Save, measured in tier 2). */
+    const patch = patchOf(fields, NODE_FIELDS, raw => caseNodeOf({ ...(held ?? {}), ...raw }) ?? {}, base);
     if (Object.keys(patch).length) await caseSchemaStore.patch(key, patch, { changedOnly: true });
     return caseSchemaStore.get(key) ?? null;
 }
@@ -270,5 +297,47 @@ export function reachability(graph, holders = {}, { culpritId = null, living = n
         return out[id].reachable;
     };
     for (const n of nodes) if (!n.evidence) reach(n.id);
+    return out;
+}
+
+/** The codes `checkCase` names, in the order it reads them. */
+export const CASE_PROBLEMS = Object.freeze(["noInputs", "cycle", "missing", "noTarget", "noSolution", "twoSolutions", "solutionUnreached", "badMode", "culpritOnly", "tooManyKeys"]);
+
+/**
+ * THE CASE'S CONSISTENCY (E97 C8; STAGE C8, Q-E97-7's default: warnings that block nothing). Pure: `graph` of `graphOf`,
+ * `reach` of `reachability`, `cycle` the nodes the layout found on a cycle, `modes` the trial's modes, `keyMax` the Key
+ * Remnants a chapter prepares. Answers `[{ code, node, ref }]`, one per problem, in CASE_PROBLEMS' order:
+ * - noInputs: a deduction or the solution resting on nothing;
+ * - cycle: a node on a circle of inputs (the map leaves those out);
+ * - missing: a node naming a node, Remnant or Key slot that is not there (`ref` the name);
+ * - noTarget: a counter refuting nothing;
+ * - noSolution: a schema with deductions and no solution; twoSolutions: more than one (each after the first);
+ * - solutionUnreached: a solution that names inputs none of which is on the map (every one gone), so nothing leads to it;
+ * - badMode: a trial mode the trial does not have (a stage that renamed or dropped one);
+ * - culpritOnly: a deduction an input of which only the culprit holds (B: it does not count until someone else does);
+ * - tooManyKeys: more Key Remnant nodes than a chapter prepares.
+ */
+export function checkCase(graph, { reach = {}, cycle = [], modes = caseModes(), keyMax = Infinity } = {}) {
+    const nodes = graph?.nodes ?? [];
+    const out = [];
+    const into = new Map(nodes.map(n => [n.id, []]));
+    for (const e of graph?.edges ?? []) if (e.kind === "input" && into.has(e.to)) into.get(e.to).push(e.from);
+    const schema = nodes.filter(n => !n.evidence);
+    for (const n of schema) if (n.kind !== "counter" && !n.inputs.length) out.push({ code: "noInputs", node: n.id });
+    for (const id of cycle ?? []) out.push({ code: "cycle", node: id });
+    for (const m of graph?.missing ?? []) out.push({ code: "missing", node: m.node, ref: m.ref });
+    for (const n of schema) if (n.kind === "counter" && !n.refutes.length) out.push({ code: "noTarget", node: n.id });
+    const solutions = schema.filter(n => n.kind === "solution");
+    if (!solutions.length && schema.some(n => n.kind === "deduction")) out.push({ code: "noSolution", node: null });
+    for (const n of solutions.slice(1)) out.push({ code: "twoSolutions", node: n.id });
+    for (const n of solutions) if (n.inputs.length && !(into.get(n.id) ?? []).length) out.push({ code: "solutionUnreached", node: n.id });
+    for (const n of schema) if (n.mode && !modes.includes(n.mode)) out.push({ code: "badMode", node: n.id, ref: n.mode });
+    for (const n of schema) {
+        if (n.kind !== "deduction") continue;
+        const only = (into.get(n.id) ?? []).filter(id => reach?.[id]?.culpritOnly);
+        for (const ref of only) out.push({ code: "culpritOnly", node: n.id, ref });
+    }
+    const keys = nodes.filter(n => n.evidence && n.kind === "key").length;
+    if (keys > keyMax) out.push({ code: "tooManyKeys", node: null, ref: String(keys) });
     return out;
 }

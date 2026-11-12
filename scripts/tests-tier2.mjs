@@ -27054,6 +27054,243 @@ const SCENARIOS = [
         }
     }],
 
+    ["E97 C6: a Remnant edited on the Map is saved by the Table's one Save, as the Table's row saves it (the owner's 09.11 \"remnants editable from the map, same write path as the table\")", async () => {
+        /*
+         * E97 C6, 12.11.2026; STAGE C6 "an edit on the Map and the same edit in the Table write the same ledger fields".
+         * The Map's side panel carries the Table's own cells for each Remnant (investigation.mjs `mapEditors`), so the
+         * name typed there is `name.<scene>__<token>`, read by `readDashboardForm` and written by `applyDashboardSave`
+         * unchanged. A fixture Remnant is placed, the window drawn on the Map (this GM's view flag read as "map", not
+         * written), its node picked, its name and its tie to the murder changed in the panel, Save pressed; the world
+         * then holds both. Red at fde1c64: the Map has no field.
+         */
+        const remnants = await import("./remnants.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture Remnant stands on the scene on screen");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const scene = canvas.scene;
+        const realGet = game.user.getFlag;
+        let token = null, win = null;
+        try {
+            token = await remnants.placeRemnant({
+                type: "prep", visibility: "evident", x: 0, y: 0, scene, chapter: getClock().chapter,
+                note: "test fixture - E97 C6 an edit on the Map"
+            });
+            must(token, "could not place the fixture Remnant");
+            await remnants.setRemnantPublic(token, { name: "SUITE E97C6 as drawn" });
+            await gmStoresIdle();
+            game.user.getFlag = function (scope, key) { return key === "investigationView" ? "map" : realGet.call(this, scope, key); };
+            win = await drawnCaseWindow();
+            const root = win.app?.element;
+            const node = `${scene.id}.${token.id}`, key = `${scene.id}__${token.id}`;
+            root?.querySelector(`[data-drpg-node="${CSS.escape(node)}"]`)?.click();
+            await until(() => root?.querySelector(`.drpg-case-edit[data-drpg-edit="${CSS.escape(node)}"]:not([hidden])`), 3000).catch(() => {});
+            const shown = Boolean(root?.querySelector(`.drpg-case-edit[data-drpg-edit="${CSS.escape(node)}"]:not([hidden]) [name="name.${CSS.escape(key)}"]`));
+            must(win.field(`name.${key}`)?.value === "SUITE E97C6 as drawn", `the Map does not carry the fixture's name field as drawn: ${stableJson({
+                view: root?.querySelector(".drpg-case-live")?.dataset.drpgView ?? null, value: win.field(`name.${key}`)?.value ?? null })}`);
+            win.field(`name.${key}`).value = "SUITE E97C6 saved";
+            const crime = win.field(`crime.${key}`);
+            if (crime) crime.value = "tied";
+            await win.save();
+            await gmStoresIdle();
+            await wait(200);
+            const data = remnants.remnantData(token);
+            equal(stableJson({ shown, name: data?.public?.name ?? null, tied: data?.tiedToCrime ?? null }),
+                stableJson({ shown: true, name: "SUITE E97C6 saved", tied: true }),
+                "{shown: the picked node's fields shown in the side panel; name: the Remnant's name in the world after Save; tied: its tie to the murder}");
+        } finally {
+            game.user.getFlag = realGet;
+            if (win) await win.close().catch(() => {});
+            if (token) {
+                await remnants.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+        }
+    }],
+
+    ["E97 C6: a case node's name, mode and inputs edited on the Map are saved by the panel's Save, and a name another GM moved under the window is refused and told", async () => {
+        /*
+         * E97 C6, 12.11.2026; Q-E97-6's default (schema edits ride Save, refused where another GM moved them). A fixture
+         * deduction is written to the GMs' store; the Map is drawn (this GM's view read as "map", not written), the node
+         * picked, its name and mode changed and one input ticked; Save. Then a second round: the name changed in the store
+         * under the open window (as another GM's merge lands), the GM's own change refused with a permanent warning.
+         * Red at 5b124a4: the Map has no schema field.
+         */
+        const S = await import("./case-schema.mjs");
+        needs(env.dialogs(), "the dashboard is pressed on its drawn window");
+        const chapter = getClock().chapter;
+        const id = "deduction-suitec6";
+        const realGet = game.user.getFlag;
+        const warned = [];
+        const warn = ui.notifications.warn;
+        let win = null, second = null;
+        try {
+            await S.setCaseNode(chapter, id, { kind: "deduction", label: "SUITE C6 as drawn" });
+            await gmStoresIdle();
+            game.user.getFlag = function (scope, key) { return key === "investigationView" ? "map" : realGet.call(this, scope, key); };
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            win = await drawnCaseWindow();
+            win.app?.element?.querySelector(`[data-drpg-node="${id}"]`)?.click();
+            await wait(400);
+            const base = `case:${chapter}:${id}`;
+            must(win.field(`${base}:label`)?.value === "SUITE C6 as drawn", `the Map draws no name field for the fixture node: ${stableJson({
+                view: win.app?.element?.querySelector(".drpg-case-live")?.dataset.drpgView ?? null })}`);
+            win.field(`${base}:label`).value = "SUITE C6 saved";
+            win.field(`${base}:mode`).value = "testimony";
+            const box = win.app.element.querySelector(`[name^="${CSS.escape(`${base}:in:`)}"]`);
+            const ticked = box ? box.getAttribute("name").slice(`${base}:in:`.length) : null;
+            if (box) box.checked = true;
+            await win.save();
+            win = null;
+            await gmStoresIdle();
+            const saved = S.caseNodeOf(S.caseRows(chapter).rows[id]);
+            second = await drawnCaseWindow();
+            second.app?.element?.querySelector(`[data-drpg-node="${id}"]`)?.click();
+            await wait(400);
+            second.field(`${base}:label`).value = "SUITE C6 mine";
+            await S.setCaseNode(chapter, id, { label: "SUITE C6 theirs" });
+            await gmStoresIdle();
+            await wait(300);
+            await second.save();
+            second = null;
+            await gmStoresIdle();
+            equal(stableJson({ label: saved?.label, mode: saved?.mode, inputs: saved?.inputs, after: S.caseNodeOf(S.caseRows(chapter).rows[id])?.label,
+                told: warned.some(w => w.includes("SUITE C6 mine")) }),
+                stableJson({ label: "SUITE C6 saved", mode: "testimony", inputs: ticked ? [ticked] : [], after: "SUITE C6 theirs", told: true }),
+                "{label, mode, inputs: the node after the first Save; after: its name after the second, moved under the window; told: the refused value named in a warning}");
+        } finally {
+            game.user.getFlag = realGet;
+            ui.notifications.warn = warn;
+            if (win) await win.close().catch(() => {});
+            if (second) await second.close().catch(() => {});
+            await S.dropCaseNode(chapter, id).catch(() => {});
+        }
+    }],
+
+    ["E97 C10: the realization's preview writes nothing; Run places the slot picked in its room and marks it; Undo takes back what nobody found and frees the slot", async () => {
+        /*
+         * E97 C10, 12.11.2026; the goal's "the realization has a preview and does nothing until the GM clicks Run" and
+         * Q5. The chapter's Key plan as it stands; the first slot a run would create is used. The preview is opened and
+         * closed: the GMs' case store, the Key plan and the scene's tokens unchanged. Then `runRealization` with that slot
+         * in the first room of the place scenes: one Key Remnant there, the slot pointing at it, the mark in the meta row.
+         * Then `undoRealization`: the Remnant gone, the slot free, no mark. Red at a860754: no case-realize.mjs.
+         */
+        const R = await import("./case-realize.mjs");
+        const I = await import("./investigation.mjs");
+        const S = await import("./case-schema.mjs");
+        const { caseSchemaStore, keyPlanStore } = await import("./gm-stores.mjs");
+        const { placeRoomOptions } = await import("./utils.mjs");
+        needs(env.dialogs(), "the preview is opened on its drawn window");
+        needs(world.atLeast("sceneOnScreen"), "the Key Remnant is placed on a scene with rooms");
+        const plan = I.keyPlan();
+        const line = R.realizationLines({ plan, status: I.keyPlanStatus(), limit: I.caseKeyCount(plan.chapter) }).find(l => l.action === "create");
+        must(line, "the chapter's plan has no slot a run would create");
+        const holder = document.createElement("select");
+        holder.innerHTML = placeRoomOptions();
+        const opt = holder.querySelector("option");
+        must(opt, "no room on any place scene");
+        const digest = () => JSON.stringify([caseSchemaStore.entries(), keyPlanStore.entries(), game.scenes.contents.map(sc => sc.tokens.size)]);
+        const before = digest();
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case-realize"));
+        const preview = R.openRealization({ chapter: plan.chapter }).catch(() => null);
+        await until(() => open().some(a => a.element), 6000).catch(() => {});
+        const drawn = open()[0]?.element?.querySelectorAll('tr[data-drpg-line="create"]').length ?? 0;
+        for (const a of open()) await a.close().catch(() => {});
+        await Promise.race([preview, wait(3000)]);
+        await gmStoresIdle();
+        const quiet = digest() === before;
+        let run = null, undo = null, placedKey = null, slotAfterRun = null, slotAfterUndo = null, markAfter = null;
+        try {
+            run = await R.runRealization(plan.chapter, [{ slot: line.slot, room: opt.value, sceneId: opt.dataset.scene }]);
+            await gmStoresIdle();
+            const made = R.madeOf(plan.chapter);
+            placedKey = Object.keys(made)[0] ?? null;
+            slotAfterRun = I.keyPlan().entries[line.slot]?.tokenId ?? null;
+            undo = await R.undoRealization(plan.chapter);
+            await gmStoresIdle();
+            slotAfterUndo = I.keyPlan().entries[line.slot]?.tokenId ?? null;
+            markAfter = Object.keys(R.madeOf(plan.chapter)).length;
+        } finally {
+            await S.setCaseMeta(plan.chapter, { made: {}, run: null }).catch(() => {});
+        }
+        equal(stableJson({ drawn: drawn > 0, quiet, placed: run?.placed ?? null, linked: Boolean(placedKey) && Boolean(slotAfterRun) && placedKey.endsWith(`.${slotAfterRun}`),
+            undo, slotAfterUndo, markAfter }), stableJson({ drawn: true, quiet: true, placed: 1, linked: true, undo: { removed: 1, kept: 0 }, slotAfterUndo: null, markAfter: 0 }),
+        "{drawn: the preview lists a slot to create; quiet: nothing written by the preview; placed: Run's count; linked: the slot points at the marked Remnant; undo: removed and kept; slotAfterUndo: the slot's token; markAfter: marks left}");
+    }],
+
+    ["E97 C11: a body found asks the primary GM about the realization once, and a rehearsal or a second body asks nothing", async () => {
+        /*
+         * E97 C11, 12.11.2026; Q4. The hook is called as the writer of a discovery calls it (`writer: true`), with a
+         * chapter whose case holds a node. The question's window opens once, its answer left (Not now); a second call
+         * opens none (`askedAt`), nor does a rehearsal's. Red at a860754: no listener.
+         */
+        const S = await import("./case-schema.mjs");
+        const { BODY_ANNOUNCED_HOOK } = await import("./chapter.mjs");
+        const { primaryGmId } = await import("./utils.mjs");
+        needs(env.dialogs(), "the question is read off its drawn window");
+        must(game.user.id === primaryGmId(), "this GM is not the primary - the question would not be asked here");
+        const chapter = getClock().chapter;
+        const id = "deduction-suitec11";
+        const asks = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case-ask"));
+        const counts = [];
+        try {
+            await S.setCaseMeta(chapter, { askedAt: null, run: null });
+            await S.setCaseNode(chapter, id, { kind: "deduction", label: "SUITE C11" });
+            await gmStoresIdle();
+            Hooks.callAll(BODY_ANNOUNCED_HOOK, { chapter, writer: true, rehearsal: true });
+            await wait(500);
+            counts.push(asks().length);
+            Hooks.callAll(BODY_ANNOUNCED_HOOK, { chapter, writer: true });
+            await until(() => asks().length > 0, 3000).catch(() => {});
+            counts.push(asks().length);
+            for (const a of asks()) await a.close().catch(() => {});
+            await wait(200);
+            Hooks.callAll(BODY_ANNOUNCED_HOOK, { chapter, writer: true });
+            await wait(500);
+            counts.push(asks().length);
+        } finally {
+            for (const a of asks()) await a.close().catch(() => {});
+            await S.dropCaseNode(chapter, id).catch(() => {});
+            await S.setCaseMeta(chapter, { askedAt: null }).catch(() => {});
+        }
+        equal(JSON.stringify(counts), JSON.stringify([0, 1, 0]), "[question windows after a rehearsal, after the first body, after a second]");
+    }],
+
+    ["E97 C12: the GM panel lists the case's Incident Remnants to place, each with Place on the map, and one on the map with Show", async () => {
+        /*
+         * E97 C12, 12.11.2026. Two planned Incident Remnants in the GMs' store, one of them pointed at a Remnant on the
+         * map; the GM panel's standing block is read. Red at a860754: no such line.
+         */
+        const S = await import("./case-schema.mjs");
+        const P = await import("./gm-panel.mjs");
+        const remnants = await import("./remnants.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the placed one stands on the scene on screen");
+        needs(env.dialogs(), "the panel is read off its drawn window");
+        const chapter = getClock().chapter;
+        let token = null;
+        const panel = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.querySelector(".drpg-gmp-standing")) ?? null;
+        let read = null;
+        try {
+            token = await remnants.placeRemnant({ type: "incident", visibility: "evident", x: 0, y: 0, scene: canvas.scene, chapter, note: "test fixture - E97 C12" });
+            must(token, "could not place the fixture Remnant");
+            await S.setCaseNode(chapter, "incident-suitea", { kind: "incident", label: "SUITE C12 waits", room: "Library" });
+            await S.setCaseNode(chapter, "incident-suiteb", { kind: "incident", label: "SUITE C12 placed", trace: `${canvas.scene.id}.${token.id}` });
+            await gmStoresIdle();
+            const opened = Promise.resolve(P.openGmPanel()).catch(() => null);
+            await until(() => panel()?.element?.querySelector(".drpg-case-asks"), 6000).catch(() => {});
+            const el = panel()?.element?.querySelector(".drpg-case-asks");
+            read = el ? { head: el.querySelector("strong")?.textContent ?? null,
+                rows: [...el.querySelectorAll("li")].map(li => [li.querySelector("span")?.textContent ?? "", li.querySelector("[data-drpg-case-place]") ? "place" : li.querySelector("[data-drpg-case-show]") ? "show" : null]) } : null;
+            await panel()?.close().catch(() => {});
+            await Promise.race([opened, wait(2000)]);
+        } finally {
+            await S.dropCaseNode(chapter, "incident-suitea").catch(() => {});
+            await S.dropCaseNode(chapter, "incident-suiteb").catch(() => {});
+            if (token) { await remnants.dropRemnantSecret(token).catch(() => {}); await token.delete().catch(() => {}); }
+        }
+        const { plural } = await import("./utils.mjs");
+        equal(stableJson(read), stableJson({ head: plural("DRPG.CaseMap.waiting", { n: 1 }), rows: [["SUITE C12 waits · Library", "place"], ["SUITE C12 placed", "show"]] }),
+            "{head: the line's count; rows: each planned Incident Remnant [its name and room, its button]}");
+    }],
+
     ["a field changed under the window is marked and refused while the rest is saved", async () => {
         /*
          * E09 C3 (S05-26). A GM types a name, rewrites the words and ticks Reinforced on a

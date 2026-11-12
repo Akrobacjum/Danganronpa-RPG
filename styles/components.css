@@ -281,7 +281,8 @@ body .application.dialog footer.form-footer.drpg-kit-footer { flex-wrap: nowrap;
 @media (max-width: 480px) { body .application.dialog footer.form-footer.drpg-kit-footer { flex-wrap: wrap; } }
 /* A FOOTER IN TWO ROWS (`footer.rows: 2`, ui-kit.mjs FOOTER_ROWS_CLASS; E97 C2, the owner's Q-C of 11.11.2026: "the
    footer ALWAYS two rows at every size"; the Investigation panel). One grid of four equal columns over the whole
-   footer, its two sides' wrappers `display: contents`, so eight buttons take two rows of four at every width a desk has
+   footer (half its buttons, rounded up: `--drpg-kit-footer-cols`, which the kit writes), its two sides' wrappers
+   `display: contents`, so its buttons take two rows at every width a desk has
    instead of wrapping by what fits; the primary last on screen (`order`; still first in the tree, so Enter presses it);
    a label longer than its cell breaks between its words inside the button. Its place stated: danganronpa.css pins a
    dialog's footer across its scroll, with the window's padding and a negative margin, only while the content holds a
@@ -289,7 +290,7 @@ body .application.dialog footer.form-footer.drpg-kit-footer { flex-wrap: nowrap;
    12 px between its Table and its Map (Chromium, 1366x768). */
 body .application.dialog.drpg-ui footer.form-footer.drpg-kit-footer.drpg-kit-footer-rows {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--drpg-kit-footer-cols, 4), minmax(0, 1fr));
     grid-template-rows: repeat(2, auto);
     grid-auto-flow: row;
     align-items: stretch;
@@ -299,7 +300,15 @@ body .application.dialog.drpg-ui footer.form-footer.drpg-kit-footer.drpg-kit-foo
 }
 .application.dialog footer.drpg-kit-footer.drpg-kit-footer-rows > :is(.drpg-kit-left, .drpg-kit-right) { display: contents; }
 .application.dialog footer.drpg-kit-footer.drpg-kit-footer-rows .drpg-role-primary { order: 3; }
-body .application.dialog.drpg-ui footer.form-footer.drpg-kit-footer.drpg-kit-footer-rows button {
+.application.drpg-window-case-realize table.drpg-case-realize { width: 100%; }
+/* The GM panel's line of the case's Incident Remnants to place (E97 C12): one row each, its button at the end. */
+.drpg-case-asks ul { margin: 0.25rem 0 0; padding: 0; list-style: none; }
+.drpg-case-asks .drpg-case-ask { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 2px 0; }
+.drpg-case-asks .drpg-case-ask.is-placed > span { color: var(--drpg-kit-help-ink); }
+.application.drpg-window-case-realize table.drpg-case-realize select { width: 100%; min-width: 0; }
+/* `[data-drpg-role]`, which every kit footer button carries: the glass's button rule (stained-glass.css, `.drpg-panel
+   button:not(...)` x5, 0,7,2) holds a button's words on one line, and they were cut in a cell of a fifth of the footer */
+body .application.dialog.drpg-ui footer.form-footer.drpg-kit-footer.drpg-kit-footer-rows button[data-drpg-role] {
     min-width: 0;
     width: 100%;
     margin: 0;
@@ -2958,7 +2967,7 @@ body .application.drpg-window-case table.drpg-data-table td.drpg-data-col-case-k
 }
 .application.drpg-ui.drpg-window-case .drpg-case-view {
     flex: 0 0 auto;
-    height: clamp(16rem, calc(100vh - 20rem), 46rem);
+    height: clamp(16rem, calc(100vh - 21.5rem), 45.5rem);
     overflow: auto;
     overscroll-behavior: contain;
 }
@@ -3086,6 +3095,17 @@ body .application.drpg-window-case button.drpg-case-node--solution { border-colo
 .application.drpg-window-case .drpg-case-node-mode { flex: 0 0 auto; padding: 0 0.375rem; border: 1px solid var(--drpg-kit-chip-edge); border-radius: 999px; }
 .application.drpg-window-case .drpg-case-node-state { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 0.25rem; color: var(--drpg-kit-help-ink); }
 .application.drpg-window-case .is-held .drpg-case-node-state { color: var(--drpg-kit-check-done); }
+.application.drpg-window-case .drpg-case-node-reach { flex: 0 0 auto; font-weight: 700; color: var(--drpg-kit-help-ink); }
+.application.drpg-window-case .drpg-case-node-warn { flex: 0 0 auto; font-weight: 700; color: var(--drpg-kit-ink); padding: 0 0.25rem; border: 1px solid var(--drpg-kit-warn-edge); border-radius: 999px; }
+body .application.drpg-ui.drpg-window-case .drpg-case-canvas > button.drpg-case-node.has-warn { border-color: var(--drpg-kit-warn-edge); }
+.application.drpg-window-case .drpg-case-check-head { display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0 0.25rem; font-size: var(--drpg-text-sm); }
+body .application.drpg-window-case .drpg-case-check-head > button { flex: 0 0 auto; margin: 0; padding: 2px 8px; font-size: var(--drpg-text-xs); }
+.application.drpg-window-case .drpg-case-problems { margin: 0; padding-left: 1rem; font-size: var(--drpg-text-sm); }
+.application.drpg-window-case .drpg-case-node-reach.is-reachable { color: var(--drpg-kit-check-done); }
+.application.drpg-window-case .drpg-case-students { padding: 0.25rem 0 0.5rem; border-bottom: 1px solid var(--drpg-kit-line); }
+.application.drpg-window-case .drpg-case-student { padding: 0.25rem 0; font-size: var(--drpg-text-sm); }
+.application.drpg-window-case .drpg-case-student ul { margin: 0; padding-left: 1rem; }
+.application.drpg-window-case .drpg-case-student-part { padding-left: 0.5rem; }
 .application.drpg-window-case .drpg-case-node-name {
     display: -webkit-box;
     -webkit-box-orient: vertical;
@@ -3113,6 +3133,26 @@ body .application.drpg-window-case button.drpg-case-fold {
     background: none;
     border: none;
 }
+/* The side panel's editors (E97 C6): each node's fields are the Table's cells, one under another at the panel's width;
+   a node not picked keeps its fields in the form, out of sight. */
+.application.drpg-window-case .drpg-case-edit { margin: 0.5rem 0 0; padding: 0; border: none; min-width: 0; }
+.application.drpg-window-case .drpg-case-tools { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.25rem 0; border-bottom: 1px solid var(--drpg-kit-line); }
+.application.drpg-window-case .drpg-case-tools-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; }
+body .application.drpg-window-case .drpg-case-tools-row > button { flex: 1 1 auto; min-width: 0; margin: 0; padding: 2px 6px; font-size: var(--drpg-text-xs); }
+.application.drpg-window-case .drpg-case-sort { display: flex; align-items: center; gap: 0.25rem; flex: 1 1 100%; font-size: var(--drpg-text-xs); }
+.application.drpg-window-case .drpg-case-sort > select { flex: 1 1 auto; min-width: 0; }
+.application.drpg-window-case .drpg-case-checklist { display: flex; flex-direction: column; gap: 2px; max-height: 12rem; overflow-y: auto; }
+.application.drpg-window-case .drpg-case-check { display: flex; align-items: center; gap: 0.375rem; font-size: var(--drpg-text-xs); }
+.application.drpg-window-case .drpg-case-edit[hidden] { display: none; }
+.application.drpg-window-case .drpg-case-edit h5 { margin: 0.5rem 0 0.25rem; font-size: var(--drpg-text-sm); }
+.application.drpg-window-case .drpg-case-edit-row { display: flex; flex-direction: column; gap: 2px; padding: 0.25rem 0; }
+.application.drpg-window-case .drpg-case-edit-label { font-size: var(--drpg-text-xs); color: var(--drpg-kit-help-ink); }
+.application.drpg-window-case .drpg-case-edit-field { min-width: 0; font-size: var(--drpg-text-sm); }
+.application.drpg-window-case .drpg-case-edit-field :is(input[type="text"], textarea, select) { width: 100%; min-width: 0; box-sizing: border-box; }
+.application.drpg-window-case .drpg-case-edit-field .drpg-project-portrait { max-width: 4rem; max-height: 4rem; }
+.application.drpg-window-case .drpg-case-edit-actions { display: flex; justify-content: flex-end; padding-top: 0.25rem; }
+.application.drpg-window-case .drpg-case-edit-summary label { display: block; margin: 0.25rem 0; font-size: var(--drpg-text-sm); }
+.application.drpg-window-case .drpg-case-edit-summary label :is(input[type="text"], select) { display: block; width: 100%; min-width: 0; box-sizing: border-box; }
 .application.drpg-window-case .drpg-case-switch-bar { display: flex; gap: 0; }
 .application.drpg-window-case .drpg-case-switch-bar > button { display: inline-flex; align-items: center; gap: 0.375rem; min-width: 0; }
 .application.drpg-window-case .drpg-case-glyph:empty { display: none; }

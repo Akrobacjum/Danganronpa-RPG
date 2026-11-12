@@ -8083,7 +8083,7 @@ const INVARIANTS = [
             };
         }
         const both = { view: [true, "auto (components.css)"], body: "hidden (components.css)", bar: "2.25rem (components.css)",
-            foot: ["grid (components.css)", "repeat(4, minmax(0, 1fr)) (components.css)", "repeat(2, auto) (components.css)", "contents (components.css)", "contents (components.css)", "3 (components.css)"],
+            foot: ["grid (components.css)", "repeat(var(--drpg-kit-footer-cols, 4), minmax(0, 1fr)) (components.css)", "repeat(2, auto) (components.css)", "contents (components.css)", "contents (components.css)", "3 (components.css)"],
             said: "nowrap (components.css)" };
         equal(stableJson({ plain, told: told.said, read }), stableJson({
             plain: { fit: false, width: true, asked: kitWidth(WIDE.width), kids: ["drpg-case-toolbar", "drpg-case-live drpg-case-view"], slots: ["switch", "controls"], said: null, view: true, rows: true },
@@ -8129,7 +8129,11 @@ const INVARIANTS = [
             const onMap = view();
             const drawn = [...root.querySelectorAll(".drpg-case-live [data-drpg-node]")].map(b => b.dataset.drpgNode).sort();
             const n = Number(chapterPicked);
-            const graph = chapterPicked && Number.isInteger(n) ? S.caseGraph(n) : S.caseGraph(getClock().chapter, { chapters: chapterPicked === "" ? "all" : "this" });
+            // every slot of the Key plan as the planner reads it, as the Map draws them (E97 C6)
+            const plan = I.keyPlan();
+            const ch = chapterPicked && Number.isInteger(n) ? n : getClock().chapter;
+            const slots = ch === plan.chapter ? plan.entries.map((e, slot) => ({ ...e, slot })) : null;
+            const graph = S.caseGraph(ch, { chapters: chapterPicked && Number.isInteger(n) ? "this" : chapterPicked === "" ? "all" : "this", slots });
             const kept = frame().map((el, i) => Boolean(el) && el === first[i]);
             root.querySelector('.drpg-case-switch [data-drpg-mode="table"]')?.click();
             await until(() => view() === "table", 3000).catch(() => {});
@@ -8149,8 +8153,9 @@ const INVARIANTS = [
         /*
          * E97 C5, 12.11.2026. Read off the drawn markup, not written out: the names of every control in the Table's live
          * region (`[name]`, the three tabs together) and its action buttons (`data-drpg-key-place`, `data-drpg-trace-
-         * delete`), then the same of the Map's. A field the Table gains and the Map lacks fails this. Red until the Map's
-         * side panel carries the Table's fields (C6); the Map becomes the default only once it passes (C9, Q-E).
+         * delete`), then the same of the Map's. A field the Table gains and the Map lacks fails this. Red (expectedRed "E97")
+         * from C5 until the Map's side panel carried the Table's fields (C6, green since); the Map becomes the default
+         * only once it passes (C9, Q-E).
          */
         const I = await import("./investigation.mjs");
         const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
@@ -8183,7 +8188,68 @@ const INVARIANTS = [
         const missing = kind => [...table[kind]].filter(x => !map[kind].has(x)).sort();
         equal(JSON.stringify({ view: map.view, names: missing("names"), actions: missing("actions") }), JSON.stringify({ view: "map", names: [], actions: [] }),
             "{view: the region drawn after the Map button; names: the Table's fields the Map lacks; actions: its row buttons the Map lacks}");
-    }, expectedRed("E97", "the Map draws the case and no field of the Table yet: the side panel's editors on the Table's names are C6, and C9 makes the Map the default once this passes")],
+    }],
+    ["R3656 - who has what, by name, on the Map (E97 C7; the owner's Q-A of 11.11 and E47-21): with no node picked the side panel lists each living student by name, under each their Truth Bullets by name and what each really is, then their other items by name; a dead student is not listed", async () => {
+        /*
+         * E97 C7, 12.11.2026. Read off the drawn window (this GM's view read as "map", not written) against the world:
+         * `livingStudentsForGm`, each one's bullets (truth-bullets.mjs `bulletsOf`) and the rest of their items. Red at
+         * 5b124a4: no students list on the Map.
+         */
+        needs(world.atLeast("livingStudents"), "the list is read against the living students");
+        const I = await import("./investigation.mjs");
+        const { livingStudentsForGm } = await import("./chapter.mjs");
+        const { bulletsOf, isTruthBullet } = await import("./truth-bullets.mjs");
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
+        must(open().length === 0, "a dashboard stands open already - nothing here would be read cleanly");
+        const realGet = game.user.getFlag;
+        game.user.getFlag = function (scope, key) { return key === "investigationView" ? "map" : realGet.call(this, scope, key); };
+        const answer = Promise.resolve().then(() => I.openInvestigationDashboard()).catch(e => `threw: ${e?.message ?? e}`);
+        let drawn = null;
+        try {
+            await until(() => open().some(a => a.element?.querySelector(".drpg-case-students")), 6000).catch(() => {});
+            const list = open()[0]?.element?.querySelector(".drpg-case-students");
+            drawn = list ? [...list.querySelectorAll(".drpg-case-student")].map(el => ({
+                name: el.querySelector("strong")?.textContent ?? null,
+                parts: [...el.querySelectorAll(".drpg-case-student-part")].map(part => [...part.querySelectorAll("li")].map(li => li.firstChild?.textContent ?? ""))
+            })) : null;
+        } finally {
+            for (const a of open()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(3000)]);
+            game.user.getFlag = realGet;
+        }
+        const want = livingStudentsForGm().map(actor => ({ name: actor.name, parts: [bulletsOf(actor).map(i => i.name),
+            [...actor.items].filter(i => !isTruthBullet(i)).map(i => i.name)] }));
+        equal(JSON.stringify(drawn), JSON.stringify(want), "[each student listed: the name, the Truth Bullets' names, the other items' names]");
+    }],
+    ["R3658 - Who has what is a tab of its own in the Table view (E98 C4; the owner's comparison 2, E47-21; Q-E98-5's default): the Table's tabs are Remnants, Key Remnants, Final Truth Remnants and Who has what; nothing stands above the tabs; the Who has what pane holds the counts table and, under it, each living student by name with their Truth Bullets and items by name", async () => {
+        /*
+         * E98 C4, 12.11.2026. Read off the drawn window on the Table view. Red at ae538b7: the counts above the tabs, no
+         * fourth tab.
+         */
+        needs(world.atLeast("livingStudents"), "the list is read against the living students");
+        const I = await import("./investigation.mjs");
+        const { livingStudentsForGm } = await import("./chapter.mjs");
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
+        must(open().length === 0, "a dashboard stands open already - nothing here would be read cleanly");
+        const answer = Promise.resolve().then(() => I.openInvestigationDashboard()).catch(e => `threw: ${e?.message ?? e}`);
+        let read = null;
+        try {
+            await until(() => open().some(a => a.element?.querySelector(".drpg-case-live nav")), 6000).catch(() => {});
+            // the region itself: its own <form> is dropped where the window's form holds it (a form in a form)
+            const form = open()[0]?.element?.querySelector(".drpg-case-live");
+            const pane = form?.querySelector('[data-drpg-pane="who"]');
+            read = {
+                tabs: [...(form?.querySelectorAll("nav.drpg-tabs [data-drpg-tab-key]") ?? [])].map(b => b.dataset.drpgTabKey),
+                first: form?.firstElementChild?.tagName?.toLowerCase() ?? null,
+                pane: pane ? [Boolean(pane.querySelector("table.drpg-data-table")), [...pane.querySelectorAll(".drpg-case-student strong")].map(el => el.textContent)] : null
+            };
+        } finally {
+            for (const a of open()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(3000)]);
+        }
+        equal(JSON.stringify(read), JSON.stringify({ tabs: ["traces", "key", "final", "who"], first: "nav", pane: [true, livingStudentsForGm().map(a => a.name)] }),
+            "{tabs: the Table's tab keys; first: what stands first in its live region; pane: Who has what [its counts table, the students listed by name]}");
+    }],
     ["R3332 - a statistic card under the kind action is asked only for an action a card is read for: Search, and no other", async () => {
         /*
          * E68 review R7, 10.11.2026. Kind `action` was opened for Search (E68 C6), and the GMs' guard
@@ -36569,8 +36635,8 @@ const INVARIANTS = [
             ["./gm-students.mjs", "openWhoIsAliveDialog", undefined, "drpg-window-alive", { save: "primary", cancel: "cancel" }, ["save", "cancel"]],
             ["./gm-team-dialog.mjs", "openGmTeamDialog", undefined, "drpg-window-gmteam", { save: "primary", addPool: "secondary", removePool: "secondary", auto: "secondary", cancel: "cancel" }, ["save", "cancel"]],
             ["./investigation.mjs", "openInvestigationDashboard", undefined, "drpg-window-case",
-                { save: "primary", newTrace: "secondary", autopsy: "secondary", log: "secondary", bodyFound: "secondary", clearFaint: "destructive", sweepBullets: "destructive", close: "cancel" },
-                ["save", "newTrace", "autopsy", "log", "bodyFound", "clearFaint", "sweepBullets", "close"]],
+                { save: "primary", newTrace: "secondary", autopsy: "secondary", log: "secondary", bodyFound: "secondary", realize: "secondary", clearFaint: "destructive", sweepBullets: "destructive", unrealize: "destructive", close: "cancel" },
+                ["save", "newTrace", "autopsy", "log", "bodyFound", "realize", "clearFaint", "sweepBullets", "unrealize", "close"]],
             ["./look.mjs", "openLookDialog", undefined, "drpg-window-look", { close: "close" }, ["close"]],
             ["./room-setup.mjs", "openRoomSetupDialog", undefined, "drpg-window-rooms", { ok: "primary", cancel: "cancel" }, ["ok", "cancel"]],
             ["./rules.mjs", "openRulesManager", undefined, "drpg-window-rules", { save: "primary", cancel: "cancel" }, ["save", "cancel"]],
@@ -44924,7 +44990,8 @@ const INVARIANTS = [
         let who = null;
         try {
             await until(() => open().some(a => a.element), 6000);
-            const table = open()[0]?.element?.querySelector(".drpg-case-live table") ?? null;
+            // its own tab since E98 C4 (the pane `who`), the first table there
+            const table = open()[0]?.element?.querySelector('.drpg-case-live [data-drpg-pane="who"] table') ?? null;
             must(table, "the dashboard drew no WHO HAS WHAT");
             const box = table.closest(".drpg-data-table-box") ?? table.parentElement;
             const ths = [...table.querySelectorAll("thead th")];

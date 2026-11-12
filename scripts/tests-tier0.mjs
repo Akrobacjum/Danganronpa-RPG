@@ -22773,10 +22773,10 @@ const REGRESSIONS = [
             modes: JSON.stringify(S.caseModes()) === JSON.stringify(Object.values(MODES))
         }), JSON.stringify({
             keys: ["2:deduction-a", "2:meta", false, false, true],
-            node: { kind: "deduction", label: "R3373 who", text: "", inputs: ["S1.T1", "key:1"], refutes: [], mode: "debate", order: 2, made: null },
-            other: null, empty: { kind: "counter", label: "", text: "", inputs: [], refutes: [], mode: null, order: null, made: null },
-            meta: [{ sort: "kind", manual: { a: 1 }, run: null, askedAt: null }, { sort: "room", manual: {}, run: "R1", askedAt: 9 }],
-            sorts: ["manual", "kind", "room", "state", "uncrossed"], kinds: ["deduction", "counter", "solution"],
+            node: { kind: "deduction", label: "R3373 who", text: "", inputs: ["S1.T1", "key:1"], refutes: [], mode: "debate", order: 2, made: null, room: null, trace: null },
+            other: null, empty: { kind: "counter", label: "", text: "", inputs: [], refutes: [], mode: null, order: null, made: null, room: null, trace: null },
+            meta: [{ sort: "kind", manual: { a: 1 }, run: null, askedAt: null, made: {} }, { sort: "room", manual: {}, run: "R1", askedAt: 9, made: {} }],
+            sorts: ["manual", "kind", "room", "state", "uncrossed"], kinds: ["deduction", "counter", "solution", "incident"],
             nodes: [["S1.T1", "trace", true, false, null], ["S1.T2", "key", true, false, 1], ["S1.T3", "final", true, false, null], ["S1.T4", "trace", true, false, null],
                 ["key:0", "key", true, true, 0], ["deduction-a", "deduction", false, false, null], ["counter-b", "counter", false, false, null], ["solution-c", "solution", false, false, null]],
             edges: [{ from: "S1.T1", to: "deduction-a", kind: "input" }, { from: "S1.T2", to: "deduction-a", kind: "input" },
@@ -22939,6 +22939,105 @@ const REGRESSIONS = [
             folded: [layout.columns.flat().filter(id => !layout.unrelated.includes(id)), "false"],
             arrows: ["c", "b", "c", null]
         }), "{at: a node's place and the gap's middle; edges: across a column and within one; states: each node's; open: the drawn graph [each button's id, label, current, left, top; the edges; a bold tag escaped; the fold open]; folded: the buttons left and the fold shut; arrows: right, down, up, left from a corner}");
+    }],
+    ["R3654 - the case's consistency (E97 C8; case-schema.mjs `checkCase`, Q-E97-7's default): a clean case reads no problem; each fault reads its code on its node - a deduction resting on nothing, a node on a cycle, a reference to a node that is gone, a counter refuting nothing, deductions with no solution, a second solution, a solution whose every input is gone, a mode the trial lacks, an input only the culprit holds, more Key Remnants than a chapter prepares", async () => {
+        /*
+         * E97 C8, 12.11.2026. Pure: graphs of `graphOf` with one fault each, `reach` of `reachability` with a culprit.
+         * Red at a7146dd: case-schema.mjs exports no checkCase.
+         */
+        const S = await import("./case-schema.mjs");
+        must(typeof S.checkCase === "function", "case-schema.mjs exports no checkCase - the case has no consistency check");
+        const traces = [{ key: "S.T1", type: "prep", name: "a", tiedToCrime: true }, { key: "S.T2", type: "key", name: "b", tiedToCrime: true }];
+        const g = rows => S.graphOf({ chapter: 1, rows, traces });
+        const codes = (rows, opts = {}) => S.checkCase(g(rows), opts).map(p => [p.code, p.node, p.ref ?? null]);
+        const clean = { "d1": { kind: "deduction", label: "d", inputs: ["S.T1", "S.T2"], mode: "debate" }, "c1": { kind: "counter", label: "c", refutes: ["d1"] },
+            "s1": { kind: "solution", label: "s", inputs: ["d1"] } };
+        const culprit = S.reachability(g(clean), { "S.T1": ["K"], "S.T2": ["A"] }, { culpritId: "K" });
+        equal(JSON.stringify({
+            clean: codes(clean),
+            noInputs: codes({ ...clean, d2: { kind: "deduction", label: "e" } }),
+            cycle: S.checkCase(g(clean), { cycle: ["d1"] }).map(p => p.code),
+            missing: codes({ ...clean, s1: { kind: "solution", label: "s", inputs: ["d1", "gone"] } }),
+            noTarget: codes({ ...clean, c1: { kind: "counter", label: "c" } }),
+            noSolution: codes({ d1: clean.d1 }),
+            twoSolutions: codes({ ...clean, s2: { kind: "solution", label: "t", inputs: ["d1"] } }),
+            unreached: codes({ ...clean, s1: { kind: "solution", label: "s", inputs: ["gone"] } }),
+            badMode: codes({ ...clean, d1: { ...clean.d1, mode: "rapGame" } }),
+            culpritOnly: S.checkCase(g(clean), { reach: culprit }).map(p => [p.code, p.node, p.ref]),
+            keys: S.checkCase(g(clean), { keyMax: 0 }).map(p => [p.code, p.ref])
+        }), JSON.stringify({
+            clean: [],
+            noInputs: [["noInputs", "d2", null]],
+            cycle: ["cycle"],
+            missing: [["missing", "s1", "gone"]],
+            noTarget: [["noTarget", "c1", null]],
+            noSolution: [["noSolution", null, null]],
+            twoSolutions: [["twoSolutions", "s2", null]],
+            unreached: [["missing", "s1", "gone"], ["solutionUnreached", "s1", null]],
+            badMode: [["badMode", "d1", "rapGame"]],
+            culpritOnly: [["culpritOnly", "d1", "S.T1"]],
+            keys: [["tooManyKeys", "1"]]
+        }), "{each case: what checkCase names [code, node, what it names]}");
+    }],
+    ["R3655 - what the Map draws of a node's reach and problems (E97 C7, C8; case-map.mjs): a deduction past half reads \"x/y\" marked reachable, one short of it unmarked, evidence none; a node with a problem is marked and says so in its label; the side panel's summary lists every problem in words and carries the Check consistency button, and the picked node lists its own", async () => {
+        /*
+         * E97 C7, C8, 12.11.2026; the owner's A of 09.11 ("strictly more than half"). Pure drawing of a fixture graph.
+         * Red at a7146dd: no reach and no problems drawn.
+         */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        must(typeof S.checkCase === "function", "case-schema.mjs exports no checkCase - nothing to draw");
+        const traces = [{ key: "S.T1", type: "prep", name: "a", tiedToCrime: true }, { key: "S.T2", type: "key", name: "b", tiedToCrime: true }];
+        const graph = S.graphOf({ chapter: 1, traces, rows: {
+            "d-one": { kind: "deduction", label: "one", inputs: ["S.T1"] }, "d-two": { kind: "deduction", label: "two", inputs: ["S.T1", "S.T2"] },
+            "d-none": { kind: "deduction", label: "none" } } });
+        const layout = layoutCase(graph);
+        const reach = S.reachability(graph, { "S.T1": ["A"] });
+        const problems = S.checkCase(graph, { reach });
+        const d = document.createElement("div");
+        d.innerHTML = M.caseMapHtml({ graph, layout, reach, problems, reading: {} });
+        const btn = id => d.querySelector(`[data-drpg-node="${id}"]`);
+        const reachOf = id => { const r = btn(id)?.querySelector(".drpg-case-node-reach"); return r ? [r.textContent, r.classList.contains("is-reachable")] : null; };
+        const d2 = document.createElement("div");
+        d2.innerHTML = M.caseMapHtml({ graph, layout, reach, problems, reading: { node: "d-none" } });
+        equal(JSON.stringify({
+            reach: ["d-one", "d-two", "S.T1"].map(reachOf),
+            warn: ["d-none", "d-one"].map(id => [btn(id)?.classList.contains("has-warn"), (btn(id)?.getAttribute("aria-label") ?? "").includes(game.i18n.localize("DRPG.CaseMap.hasProblem"))]),
+            list: [...d.querySelectorAll(".drpg-case-problems li")].map(li => li.textContent),
+            check: Boolean(d.querySelector("[data-drpg-case-check]")),
+            picked: [...d2.querySelectorAll(".drpg-case-panel-read .drpg-case-panel-warn")].map(p => p.textContent)
+        }), JSON.stringify({
+            reach: [["1/1", true], ["1/2", false], null],
+            warn: [[true, true], [false, false]],
+            list: [game.i18n.format("DRPG.CaseMap.problem.noInputs", { node: "none", ref: "" }), game.i18n.localize("DRPG.CaseMap.problem.noSolution")],
+            check: true,
+            picked: [game.i18n.format("DRPG.CaseMap.problem.noInputs", { node: "none", ref: "" })]
+        }), "{reach: the x/y and its mark on a deduction past half, one at half, and evidence; warn: a node with a problem and one without [marked, said]; list: the summary's problems; check: its button; picked: the picked node's own problems}");
+    }],
+    ["R3657 - what a realization would do, and a planned Incident Remnant (E97 C10, C12): case-realize.mjs `realizationLines` reads each Key plan slot as \"create\" (not on the map, within the limit), \"placed\" or \"overLimit\"; case-schema.mjs `graphOf` draws an incident row as planned evidence in the first column until its Remnant is on the map, then as that Remnant, an input naming the row read as the Remnant's", async () => {
+        /*
+         * E97 C10, C12, 12.11.2026. Pure. Red at df8be16's parent (a860754): no case-realize.mjs, no incident kind.
+         */
+        let R = null;
+        try { R = await import("./case-realize.mjs"); } catch { R = null; }
+        must(R && typeof R.realizationLines === "function", "there is no case-realize.mjs with realizationLines - the case cannot be realized");
+        const S = await import("./case-schema.mjs");
+        const plan = { chapter: 2, entries: [{ name: "a", tokenId: "T1", sceneId: "S" }, { name: "b" }, { name: "c" }, { name: "d" }] };
+        const status = { entries: [{ placed: true }, { placed: false }, { placed: false }, { placed: false }] };
+        const lines = R.realizationLines({ plan, status, limit: 3 }).map(l => [l.action, l.slot]);
+        const unlimited = R.realizationLines({ plan, status, limit: null }).map(l => l.action);
+        const traces = [{ key: "S.T9", type: "incident", name: "glass", tiedToCrime: true }];
+        const rows = { "incident-a": { kind: "incident", label: "broken case", room: "Library" }, "deduction-x": { kind: "deduction", label: "x", inputs: ["incident-a"] } };
+        const planned = S.graphOf({ chapter: 2, traces: [], rows });
+        const placed = S.graphOf({ chapter: 2, traces, rows: { ...rows, "incident-a": { ...rows["incident-a"], trace: "S.T9" } } });
+        const brief = g => g.nodes.map(n => [n.id, n.kind, n.evidence, n.planned, n.incident ?? null]);
+        equal(JSON.stringify({ lines, unlimited, planned: [brief(planned), planned.edges], placed: [brief(placed), placed.edges] }), JSON.stringify({
+            lines: [["placed", 0], ["create", 1], ["create", 2], ["overLimit", 3]],
+            unlimited: ["placed", "create", "create", "create"],
+            planned: [[["incident-a", "incident", true, true, "incident-a"], ["deduction-x", "deduction", false, false, null]], [{ from: "incident-a", to: "deduction-x", kind: "input" }]],
+            placed: [[["S.T9", "trace", true, false, "incident-a"], ["deduction-x", "deduction", false, false, null]], [{ from: "S.T9", to: "deduction-x", kind: "input" }]]
+        }), "{lines: each slot's line under a limit of 3; unlimited: with none; planned, placed: the graph's nodes [id, kind, evidence, planned, incident row] and edges, before and after the Remnant is on the map}");
     }],
 ];
 

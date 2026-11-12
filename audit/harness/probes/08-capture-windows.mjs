@@ -123,15 +123,17 @@ const SEED_CASE = `const CS = await import(\`\${repoUrl}/scripts/case-schema.mjs
     const ch = (await import(\`\${repoUrl}/scripts/clock.mjs\`)).getClock().chapter;
     const ev = CS.caseGraph(ch).nodes.filter(n => n.evidence).map(n => n.id);
     const real = game.user.getFlag;
-    globalThis.__probe08case = { ch, real, ids: ["probe08-d1", "probe08-d2", "probe08-c1", "probe08-s1"] };
+    globalThis.__probe08case = { ch, real, ids: ["probe08-d1", "probe08-d2", "probe08-c1", "probe08-s1", "incident-probe08a"] };
     game.user.getFlag = function (scope, key) { return key === "investigationView" ? "map" : real.call(this, scope, key); };
     await CS.setCaseNode(ch, "probe08-d1", { kind: "deduction", label: "The killing was before 23:40", inputs: ev.slice(0, 2), mode: "debate" });
     await CS.setCaseNode(ch, "probe08-d2", { kind: "deduction", label: "The culprit came in with a key", inputs: ev.slice(1, 3) });
     await CS.setCaseNode(ch, "probe08-c1", { kind: "counter", label: "The clock could have stopped by itself", refutes: ["probe08-d1"] });
-    await CS.setCaseNode(ch, "probe08-s1", { kind: "solution", label: "It was done in the library", inputs: ["probe08-d1", "probe08-d2"] });`;
+    await CS.setCaseNode(ch, "probe08-s1", { kind: "solution", label: "It was done in the library", inputs: ["probe08-d1", "probe08-d2"] });
+    await CS.setCaseNode(ch, "incident-probe08a", { kind: "incident", label: "The broken display case", room: "Library" });
+    await CS.setCaseMeta(ch, { askedAt: null, run: null });`;
 const DROP_CASE = `const CS = await import(\`\${repoUrl}/scripts/case-schema.mjs\`);
     const c = globalThis.__probe08case;
-    if (c) { for (const id of c.ids) await CS.dropCaseNode(c.ch, id); game.user.getFlag = c.real; }
+    if (c) { for (const id of c.ids) await CS.dropCaseNode(c.ch, id); await CS.setCaseMeta(c.ch, { askedAt: null }); game.user.getFlag = c.real; }
     delete globalThis.__probe08case;`;
 export const WINDOWS = [
     ...ROOM_TABS.map(tab => ({ id: `rooms-${tab}`, module: "room-setup.mjs", call: `m.openRoomSetupDialog({ tab: ${JSON.stringify(tab)} })`, perTab: false })),
@@ -144,6 +146,10 @@ export const WINDOWS = [
     { id: "investigation", module: "investigation.mjs", call: "m.openInvestigationDashboard()" },
     { id: "investigation--map", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, call: "m.openInvestigationDashboard()" },
     { id: "investigation--map-node", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, click: ".drpg-case-node--deduction", call: "m.openInvestigationDashboard()" },
+    { id: "investigation--map-trace", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, click: ".drpg-case-node--trace", call: "m.openInvestigationDashboard()" },
+    { id: "case-realize", module: "case-realize.mjs", before: SEED_CASE, after: DROP_CASE, call: "m.openRealization()" },
+    { id: "case-body-ask", module: "case-realize.mjs", before: SEED_CASE, after: DROP_CASE, call: "m.askAtBody(globalThis.__probe08case.ch)" },
+    { id: "gm-panel--case-asks", module: "gm-panel.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, call: "m.openGmPanel()" },
     { id: "class-trial", module: "trial-floor-ui.mjs", call: "m.manageClassTrial()" },
     // E21 C4: the trial's questions a GM opens with no world state (M13's Reveal with a row of its own, End the trial with
     // no hall, the vote window before a vote); Your turn and I volunteer open only on a round's speaker's own browser.
