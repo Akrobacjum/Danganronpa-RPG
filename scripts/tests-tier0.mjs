@@ -15626,6 +15626,7 @@ const REGRESSIONS = [
             ["analyze.mjs#identify", "gm", null, "`resolveAnalyze` runs on a GM: the run of `analyze.resolve`, or a GM's own (`local`)"],
             ["cleanup.mjs#proposeReshape", "gm", null, "`resolveCleanup` runs on a GM: the run of `murder.cleanup`, or a GM's own (`local`); its false is read"],
             ["eclipse.mjs#askGmToAllow", "gm", null, "`writeParkedMurder` runs on a GM: the run of `murder.park`, or a GM's own (`local`)"],
+            ["monocub.mjs#postHopeAsk", "gm", null, "an Ask for Hope's card (E72 C5): `CUB_RESOLVERS.askHope` runs on a GM, in `cubAbilityOnGm` (the run of `monocub.ability`, or a GM's own); its false leaves the ask closed"],
             ["projects.mjs#announceTrapReady", "gm", null, "`addProgress` asks a GM on a player's browser and runs this on a GM's"],
             ["projects.mjs#announceTrapReady (2)", "gm", null, "the same, the manual trap's card"],
             ["projects.mjs#offerRepick", "gm", null, "a refused completion's card (E68 C11; D023): the primary's, in the completion's `after`"],
@@ -18819,7 +18820,9 @@ const REGRESSIONS = [
                 "Reroll.interruptedGivingBack", "Reroll.interruptedPaying", "Reroll.sabotageRedone", "Rolls.awayHope",
                 // E66 C4: a number put where a digit stood, before Health or Sanity (`{n}`, `{drain}`, `{hp}`, `{stress}`).
                 "Cleanup.freeTonight", "Config.CRISIS_ACTIONS.roleReversal.failure", "Config.CRISIS_ACTIONS.selfDefence.failure",
-                "Config.CRISIS_ACTIONS.strike.failure", "Config.CRISIS_ACTIONS.strike.hint", "Config.CRISIS_ACTIONS.survive.failure"
+                "Config.CRISIS_ACTIONS.strike.failure", "Config.CRISIS_ACTIONS.strike.hint", "Config.CRISIS_ACTIONS.survive.failure",
+                // E72 C5: Ask for Hope's Give and its settled line, a count before Hope.
+                "Monocub.askGive", "Monocub.askGiven"
             ].map(key => [key, "U"]),
             ...[
                 "Floor.bar.minusSeconds", "Floor.bar.plusSeconds", "Floor.closing.gmVolunteers", "Floor.gmNoteAdjust",
@@ -18862,7 +18865,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 52, S: 25, R: 26, D: 1, P: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 54, S: 25, R: 26, D: 1, P: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");
