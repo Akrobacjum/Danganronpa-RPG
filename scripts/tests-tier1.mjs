@@ -49707,6 +49707,33 @@ const INVARIANTS = [
             openings: [[true, false], [true, false], [true, false]]
         }), "{cap; rows [key, side, trait]; Strike at the victim's Body 2, 1, 0, -1; Keep Your Distance at Leg 3; Self-Defense at the killer's Body 1; Survive at the killer's Leg 2; Leave a Clue, no defence; openings [read their own threshold, read a defence]}");
     }],
+    ["R3962 - a Loaded Die that did not hold gives its Call back on both roads (E64, D052; the owner's default, confirmed 12.11.2026): call-effects.mjs `giveBackLoadedDie` arms the entry again on a GM under a new nonce, keeping its `by`, and whispers \"loadedDieBack\"; action-pipeline.mjs `throwDice` calls it for a roll this browser threw whose die did not hold, and roll-draw.mjs `throwDrawn` for a drawn roll whose die did not hold, after its spend, and records and answers `loaded` as held", async () => {
+        /*
+         * E64, 12.11.2026. The GM's own road is measured in tier 2 ("E64 D052 - ..."): red before this commit. The drawn road
+         * runs only on a primary GM answering a player's packet, which tier 2 does not build, so it is read here off the
+         * source; what it reads, `loadedDieHeld`, is E16-T35's. Each field is a reading of the text, not of a run.
+         */
+        const sources = await moduleSources();
+        const ce = stripComments(sources.get("call-effects.mjs") ?? "");
+        const ap = stripComments(sources.get("action-pipeline.mjs") ?? "");
+        const rd = stripComments(sources.get("roll-draw.mjs") ?? "");
+        must(ce.length > 5000 && ap.length > 5000 && rd.length > 5000, "a source was not read - this would measure nothing");
+        const give = fnSource(ce, "giveBackLoadedDie");
+        const thrown = fnSource(ap, "throwDice");
+        const drawn = fnSource(rd, "throwDrawn");
+        const spendAt = drawn.indexOf("spendCallsByNonce(actor, used)");
+        const giveAt = drawn.indexOf("giveBackLoadedDie(");
+        equal(stableJson({
+            gmOnly: /game\.user\?\.isGM/.test(give),
+            newNonce: /nonce:\s*foundry\.utils\.randomID\(\)/.test(give),
+            keepsBy: /entry\.by/.test(give) && /appendArmedCall\(/.test(give),
+            told: /DRPG\.Calls\.loadedDieBack/.test(give),
+            thrownRoad: /free && !drawn && !loaded/.test(thrown) && /giveBackLoadedDie\(actor, armed\)/.test(thrown),
+            drawnRoad: /loadedDieHeld\(config\)/.test(drawn) && giveAt > spendAt && spendAt > 0,
+            drawnRecords: /loaded: dieHeld, at:/.test(drawn) && /stash, loaded: dieHeld, roll:/.test(drawn)
+        }), stableJson({ gmOnly: true, newNonce: true, keepsBy: true, told: true, thrownRoad: true, drawnRoad: true, drawnRecords: true }),
+        "a Loaded Die that did not hold is not given back on one of its roads");
+    }],
 ];
 
 /**

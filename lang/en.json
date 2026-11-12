@@ -3037,6 +3037,7 @@
       "sealedBlocked": "{room} is sealed for this time of day. Nobody gets in.",
       "freeCritTitle": "Loaded Die",
       "freeCritUsed": "{name} takes the action with one die already set to 12 and throws the other.",
+      "loadedDieBack": "{name}'s Loaded Die did not hold: the dice showed their own faces. The Call is armed again for the next roll.",
       "grants": {
         "advantage": "advantage",
         "disadvantage": "disadvantage",

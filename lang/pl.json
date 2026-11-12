@@ -3299,6 +3299,7 @@
       "sealedBlocked": "{room} zapieczętowany na tę porę dnia. Nikt nie wchodzi.",
       "freeCritTitle": "Loaded Die",
       "freeCritUsed": "{name} wykonuje akcję z jedną kością już ustawioną na 12 i rzuca drugą.",
+      "loadedDieBack": "Loaded Die postaci {name} nie zadziałał: kości pokazały własne ścianki. Call jest znów uzbrojony na następny rzut.",
       "grants": {
         "advantage": "przewagę",
         "disadvantage": "utrudnienie",

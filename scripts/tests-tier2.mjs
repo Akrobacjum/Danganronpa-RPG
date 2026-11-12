@@ -88318,6 +88318,60 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ scars: 2, proficiency: 3, evasion: 1, instinct: 2, experience: "E49 save" }),
             "the character after the save: the three hidden fields, the statistic changed in the window, the experience");
     }],
+    ["E64 D052 - a Loaded Die that did not hold gives its Call back: armed again under a new nonce, the owner told, and the next roll loads", async () => {
+        /*
+         * E64, D052 (the owner's default, confirmed 12.11.2026). E16-T35's setting: two action rolls on this GM, the
+         * first with the Hope and Fear dice's faces mapped as a dice method that ignores the sample (7 and 4), so the
+         * Loaded Die does not hold; the second on the harness's dice. Read after each: the student's armed critical
+         * Calls (their nonces), whether a card says "loadedDieBack", and the roll's Free Critical. Red before E64: the
+         * Call was spent by the first roll, so none was armed after it and the second roll was an honest one.
+         */
+        const [who] = cast(1);
+        const { appendArmedCall, pendingCalls, consumeCalls } = await import("./call-effects.mjs");
+        const { wordsOf, contentOf } = await import("./secret.mjs");
+        const dice = game.system?.api?.dice?.diceTypes ?? {};
+        must(typeof dice.HopeDie === "function" && typeof dice.FearDie === "function",
+            "Daggerheart's Hope and Fear die classes are not here - the method's faces could not be set and this would measure nothing");
+        const back = game.i18n.format("DRPG.Calls.loadedDieBack", { name: foundry.utils.escapeHTML(who.name) });
+        must(!back.includes("DRPG.Calls"), "the loadedDieBack text is not in the language file");
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const first = foundry.utils.randomID();
+        const own = [dice.HopeDie, dice.FearDie].map(C => [C, Object.getOwnPropertyDescriptor(C.prototype, "mapRandomFace")]);
+        const criticals = () => pendingCalls(who).filter(entry => entry?.grants === "critical").map(entry => entry.nonce);
+        const read = [];
+        try {
+            must(await appendArmedCall(who, { key: "freeCrit", kind: "hope", grants: "critical", nonce: first }),
+                "the Free Critical was not armed - this would measure nothing");
+            for (const method of ["another method", "randomUniform"]) {
+                const seen = new Set(game.messages.contents.map(m => m.id));
+                if (method !== "randomUniform") {
+                    dice.HopeDie.prototype.mapRandomFace = () => 7;
+                    dice.FearDie.prototype.mapRandomFace = () => 4;
+                }
+                let r = null;
+                try {
+                    r = await neutralRoll(who, { remember: true, faces: { hope: 5, fear: 3 } });
+                } finally {
+                    for (const [C, d] of own) {
+                        if (d) Object.defineProperty(C.prototype, "mapRandomFace", d); else delete C.prototype.mapRandomFace;
+                    }
+                }
+                await settle();
+                const said = [];
+                for (const m of game.messages.contents.filter(m => !seen.has(m.id))) said.push(contentOf(m) || String(await wordsOf(m, 1500) ?? ""));
+                const armed = criticals();
+                read.push({ method, free: r?.outcome?.freeCritical ?? null, armed: armed.length, newNonce: armed.length === 1 && armed[0] !== first,
+                    told: said.some(t => t.includes(back)) });
+            }
+        } finally {
+            await consumeCalls(who);
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+        }
+        equal(stableJson(read), stableJson([
+            { method: "another method", free: false, armed: 1, newNonce: true, told: true },
+            { method: "randomUniform", free: true, armed: 0, newNonce: false, told: false }
+        ]), `a Loaded Die that did not hold did not give its Call back, or one that held did [per roll: its Free Critical, the critical Calls armed after it, under a new nonce, the "loadedDieBack" card]: ${stableJson(read)}`);
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

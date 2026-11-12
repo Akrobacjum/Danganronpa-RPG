@@ -22164,7 +22164,7 @@ const REGRESSIONS = [
             "action-report.mjs": {"built": 1}, "analyze.mjs": {"card": 1, "heading": 1, "line": 2},
             "anonymity.mjs": {"card": 2}, "bridge-runs-acts.mjs": {"card": 1},
             "bridge-runs-records.mjs": {"action": 1, "message": 1},
-            "call-effects.mjs": {"action": 1, "card": 1, "message": 1}, "call-gm.mjs": {"built": 1},
+            "call-effects.mjs": {"action": 2, "card": 1, "message": 1}, "call-gm.mjs": {"built": 1},
             "call-world.mjs": {"message": 3}, "calls.mjs": {"heading": 1, "message": 1},
             "chapter.mjs": {"card": 4, "heading": 1, "message": 1},
             "cleanup.mjs": {"action": 5, "built": 1, "card": 4, "heading": 2, "line": 7, "message": 1},

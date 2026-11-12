@@ -332,7 +332,7 @@ Wydawane z arkusza postaci, szeptem do gracza. Call, który zmienia rzut - Suppo
 | Resolve | 2 | Na jeden rzut sam wybierz dowolną statystykę; nikt nie jest pytany | nie |
 | Burst | 4 | Następna akcja nic nie kosztuje, ile by nie kosztowała | nie |
 | Relief | 4 | Weź Short Rest teraz: bez akcji, bez pokoju odpoczynku, nie zużywa tego z tej pory dnia | nie |
-| Loaded Die | 6 | Przy następnym rzucie jedna z dwóch kości, losowo, ustawiona na 12, druga rzucona; krytyk tylko, jeśli i ona wypadnie 12, a rzut z ustawioną kością Despair wychodzi z Despair | nie |
+| Loaded Die | 6 | Przy następnym rzucie jedna z dwóch kości, losowo, ustawiona na 12, druga rzucona; krytyk tylko, jeśli i ona wypadnie 12, a rzut z ustawioną kością Despair wychodzi z Despair; kość, która nie zadziała (metoda kości bez losowania jednostajnego), oddaje Call na następny rzut, ze szeptem (E64) | nie |
 
 **Resolve** (2 Hope; 3 przed 1.2.104) to Call, który wybiera statystykę: uzbrojony pozwala graczowi wybrać dowolną statystykę w oknie rzutu na ten jeden rzut, wszędzie tam, gdzie akcja wymienia kilka, i nikt nie jest pytany - bez karty, bez twojego rozstrzygnięcia. Jest wydawany na rzut, na który go uzbrojono, tak jak inne Calle zmieniające rzut.
 

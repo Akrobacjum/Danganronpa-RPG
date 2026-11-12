@@ -56,10 +56,10 @@ import { readDuality, awardRollDespair } from "./despair-award.mjs";
 import { answerKeysOpen, rollStore, sheetMarkStore } from "./gm-stores.mjs";
 import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf, readHere, awaitDrawn, isDrawnRoll, forgedFlagsOf, isReadableHere,
     rollNonceOf, gmsInRoomOf } from "./private-rolls.mjs";
-import { LOADED_DIE, loadDie, loadedAtOf, standAsideFor } from "./forced-roll.mjs";
+import { LOADED_DIE, loadDie, loadedAtOf, loadedDieHeld, standAsideFor } from "./forced-roll.mjs";
 import { DRPG_ACTION_ROLL, DRAWN_ROLL, searchOdds, stashStepFor } from "./action-rolls.mjs";
 import { actionsLeft, freeActionsLeft } from "./actions.mjs";
-import { armedCallsShown, situationalAdvantage, spendCallsByNonce } from "./call-effects.mjs";
+import { armedCallsShown, giveBackLoadedDie, situationalAdvantage, spendCallsByNonce } from "./call-effects.mjs";
 import { isBrokenDown } from "./character.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { roomOfActor } from "./movement.mjs";
@@ -1596,6 +1596,11 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     const flags = checkRoll(legal, told, expected);
     const used = [...applied, ...hostile].map(call => call.nonce);
     if (used.length) await spendCallsByNonce(actor, used);
+    // Loaded is not held (E64, D052): a dice method on this GM that draws no uniform sample shows an honest face
+    // (forced-roll.mjs `loadedDieHeld`), and the Call it was bought for is armed again for the next roll
+    // (call-effects.mjs `giveBackLoadedDie`). The roller is answered `loaded` as it held, so no "freeCritUsed" is told.
+    const dieHeld = loads && loadedDieHeld(config);
+    if (loads && !dieHeld) await giveBackLoadedDie(actor, applied.find(call => call?.grants === "critical" && call.nonce === loaded));
     await keepRecord({
         rollId, actorId: actor.id, userId: sender.id, actionKey: key,
         messageId: message.id, claimed: Boolean(claimed), formula: roll.formula,
@@ -1609,7 +1614,7 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
         isCritical: Boolean(roll.isCritical), withHope: Boolean(roll.withHope), withFear: Boolean(roll.withFear),
         modifiers: (Array.isArray(config.roll?.modifiers) ? config.roll.modifiers : []).map(m => Number(m?.value) || 0),
         // What the GM read (`legal`), what it threw of it (`scored`) and the packet's numbers (`claim`), E29 C10.
-        legal: recordOf(expected), scored: legal.scored, claim: legal.claim, flags, used: { calls: used, stash, loaded: loads, at: loads ? loadedAtOf(roll) : null }, versions: [],
+        legal: recordOf(expected), scored: legal.scored, claim: legal.claim, flags, used: { calls: used, stash, loaded: dieHeld, at: loads ? loadedAtOf(roll) : null }, versions: [],
         // What the roll was drawn for beyond its action (fix r2-H1): the crisis action it names, the
         // incident's turn it was thrown in, and the later roll of its action that replaced it, if one does;
         // and the project a Work's or a Sabotage's names, null where it named none (fix r2-H2); a
@@ -1626,7 +1631,7 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     });
     if (flags.length) await tellUnexpected(actor, flags);
     await tellRoller(sender, legal);
-    return { reply: { rollId, messageId: message.id, faces: facesOf(roll), total: roll.total, stash, loaded: loads, roll: legal.json } };
+    return { reply: { rollId, messageId: message.id, faces: facesOf(roll), total: roll.total, stash, loaded: dieHeld, roll: legal.json } };
 }
 
 /* ==========================================================================

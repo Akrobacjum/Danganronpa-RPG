@@ -332,7 +332,7 @@ Spent from the character sheet, whispered to the player. A Call that changes a r
 | Resolve | 2 | For one roll, choose any statistic yourself; nobody is asked | no |
 | Burst | 4 | The next action costs nothing, however much it would have cost | no |
 | Relief | 4 | Take a Short Rest now: no action, no rest room, does not use up this time of day's | no |
-| Loaded Die | 6 | On the next roll one of the two dice, at random, is set to 12 and the other is thrown; a critical only if that die is 12 too, and a roll whose Despair die was set comes out with Despair | no |
+| Loaded Die | 6 | On the next roll one of the two dice, at random, is set to 12 and the other is thrown; a critical only if that die is 12 too, and a roll whose Despair die was set comes out with Despair; a die that does not hold (a dice method that draws no uniform sample) gives the Call back for the next roll, with a whisper (E64) | no |
 
 **Resolve** (2 Hope; 3 before 1.2.104) is the Call that picks a statistic: armed, it lets the player choose any statistic in the roll window for that one roll, wherever the action lists several, and nobody is asked - no card, no ruling from you. It is spent on the roll it is armed for, as the other Calls that change a roll are.
 
