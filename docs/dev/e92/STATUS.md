@@ -1,6 +1,6 @@
 # E92 - status (work line claude/e92)
 
-Updated 12.11.2026. Final: all seven commits in, tested, pushed. The plan is `docs/dev/plans/E92.md` on `claude/plan-130` (read whole). Base: claude/e61-62 at 59d1935
+Updated 12.11.2026. Final: all seven commits in, tested, pushed; the owner fix of 12.11 in (below). Ships as 1.2.110 (the coordinator). The plan is `docs/dev/plans/E92.md` on `claude/plan-130` (read whole). Base: claude/e61-62 at 59d1935
 (E61, E62 and E94). The census of what a Spectator would be counted in: `docs/dev/e92/CENSUS.md`.
 
 ## Done
@@ -43,7 +43,24 @@ is the base; 0c70a0c = 0a0f211 (C0), 81601e2 = 75839e1 (C1), c5e654a = 83acdee (
   file, but 01 (the whole suite) and 84 (hangs headless).
 - At 81c740e: tiers 0-1 whole 1202 ran, 1186 passed, 0 failed, 16 skipped, 1 red (E94's). At 7f0f2bc: 33 and 92 green.
 
+## Owner fix (12.11.2026, after the owner's review)
+
+The owner: "przyciski karty postaci i dania przedmiotu niech beda w osobnej kolumnie niz imie i nazwisko, zawsze na tej
+samej szerokosci". Base first: claude/fervent-sagan-gme4vt (fa73b60) merged in 63d3c9c (conflicts with E61/E62's base
+resolved there; the Spectator's scenario renumbered 93-spectator, since the release line took 92). Fix babd4f3: the
+Students window's sheet and items buttons in a column "Open" / "Otwórz" of their own, at 5rem fixed, a Monokuma's items
+slot kept empty; R3862 (red at 63d3c9c), R2080 and R2083 updated. Measured in Chromium: the same x and width in every row,
+97 px under the glass and 89 px under Legacy in both languages. The glass picker's arrow (round 1's open point) is inside
+the box: the glass skews the clock; the picker is at most 14rem now.
+
+Results at babd4f3: tiers 0-1 1271 ran, 1256 passed, 0 failed, 16 skipped; own tier 2 (R2080, R2083, E47-T6, "a Students
+row opens ...", the Spectator's microphone) 9 passed; scenarios 93, 14, 50, 74, 75 green.
+
 ## Review shots
+
+Round 2 (the owner fix): https://claude.ai/artifact/BWonLj62dbaAKf8Pv3iejb - the Students window with the buttons' column,
+both themes, EN and PL, 1920 and 1280, with the measurements; the Spectator's line under the clock. Under Legacy the
+harness draws icons as underscores and the Role and State selects overlap, as on the window's capture from before E92.
 
 Round 1: https://claude.ai/artifact/Hp4fmi4bm5u8gCA2EcnX3S - the Students window with the Spectator's Role (both themes,
 EN and PL, 1920 and 1280) and the Spectator's line under the clock (both themes, EN and PL, the switch off and on). Drawn
