@@ -349,7 +349,7 @@ Three things behind the tile. An attempt costs **1 action**; with no action left
 | Evident | 15 |
 | Obvious | 18 |
 
-Each is 3 lower while no body has been found. A Cleaning Tool in hand gives advantage and takes its tier off the number.
+Each is 3 lower while a killing is fresh: an incident is running, or a body of this chapter lies where nobody has found it yet - until the body is found or the Investigation starts. A Cleaning Tool in hand gives advantage and takes its tier off the number.
 
 | Result | What happens |
 |---|---|

@@ -806,7 +806,7 @@ When the incident ends with a body, the killer can finally see the Remnants they
 | Evident | 15 |
 | Obvious | 18 |
 
-**The scene is still warm:** **-3** on every DC until the body is found or the Investigation starts (`CLEANUP.freshScene`). Outcomes:
+**The scene is still warm:** **-3** on every DC while an incident runs or a body of this chapter lies unfound, until the body is found or the Investigation starts (`CLEANUP.freshScene`, its `onlyWith`). With no incident and no unfound body - an ordinary day - there is no discount. Outcomes:
 
 | Erasing | The trace |
 |---|---|

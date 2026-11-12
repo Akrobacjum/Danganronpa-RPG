@@ -68,7 +68,8 @@ import { MODULE_ID, CLEANUP, RESOLUTION_STRESS_COST, REMNANT_VISIBILITY, REMNANT
 import { getClock } from "./clock.mjs";
 import { bodyDiscovery, seasonEpoch } from "./settings.mjs";
 import { murderState, killerIds, blackenedIds, refOf, swungWeaponOf, spendFreeCleanup } from "./murder.mjs";
-import { usedToolStore, blackenedStore, cleanupAttemptStore, caseMark } from "./gm-stores.mjs";
+import { usedToolStore, blackenedStore, cleanupAttemptStore, caseMark, deathStore } from "./gm-stores.mjs";
+import { readMine } from "./gm-store.mjs";
 import {
     remnantsInRoom, remnantData, removeRemnant, dropRemnant, setRemnantPublic, tieState, remnantPublic,
     remnantById, sceneOfRemnant
@@ -393,7 +394,7 @@ export function cleanupDc(visibility, actor) {
  * lower than the one in the handbook. A discount nobody is told about is not a
  * discount, it is a bug they will report.
  */
-export function freshSceneBonus() {
+export function freshSceneBonus({ clock, found, incident, deaths } = {}) {
     const rule = CLEANUP.freshScene;
     if (!rule?.bonus) return 0;
     try {
@@ -401,14 +402,39 @@ export function freshSceneBonus() {
         // since D5 that is no longer the same event as the phase moving. The
         // record is cleared when Stage 7 starts, which is exactly when the
         // phase read below takes over.
-        if (bodyDiscovery()) return 0;
-        const phase = getClock().phase;
-        return rule.until?.includes(phase) ? 0 : rule.bonus;
+        if (found === undefined ? bodyDiscovery() : found) return 0;
+        const now = clock ?? getClock();
+        if (rule.until?.includes(now.phase)) return 0;
+        /*
+         * ONLY WHERE THERE IS A SCENE TO BE FRESH (E64 C1a, 12.11.2026; audit S05-60; default taken, owner to
+         * confirm). Until 1.2.105 the -3 held whenever no body had been found and the phase was not Stage 7 or the
+         * trial: on any ordinary afternoon with no killing at all, so a Tamper in Daily Life read 9/12/15/18 as
+         * 6/9/12/15. The warm scene is a killing's: a running incident (`murderState`), or a body of this chapter
+         * that nobody has found yet - a row of the GMs' deaths store (a player's copy on a player, which holds the
+         * bodies that user may know: the killer's own victim is one). `rule.onlyWith` names the two; a rule that
+         * names neither keeps the old reading. The arguments stand in for the world, so tier 1 R3950 asks a table.
+         */
+        const need = rule.onlyWith ?? [];
+        if (!need.length) return rule.bonus;
+        const running = incident === undefined ? Boolean(murderState()?.active) : Boolean(incident);
+        if (need.includes("incident") && running) return rule.bonus;
+        if (need.includes("unfoundBody") && unfoundBodyIn(now.chapter, deaths)) return rule.bonus;
+        return 0;
     } catch {
         // No clock is not a fresh scene. Failing towards the harder number is
         // the safe direction: it never hands out a discount nobody earned.
         return 0;
     }
+}
+
+/**
+ * A body of this chapter nobody has found (E64 C1a): a row of the deaths `{ actorId: { chapter, ... } }` - the GMs'
+ * store on a GM, this user's copy on a player (settings.mjs `pendingDeath` reads them the same way) - whose chapter is
+ * the clock's. `deaths` stands in for the world in a test.
+ */
+function unfoundBodyIn(chapter, deaths) {
+    const rows = deaths ?? (game.user?.isGM ? deathStore.entries() : readMine("deaths")) ?? {};
+    return Object.values(rows).some(row => row && typeof row === "object" && (row.chapter ?? 1) === (chapter ?? 1));
 }
 
 /** The tier of the readied Cleaning Tool, or 0 for bare hands. */

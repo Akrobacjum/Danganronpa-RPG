@@ -4048,8 +4048,13 @@ export const CLEANUP = {
      * killer: `discoverBody` writes `SETTINGS.bodyFound`, and that IS the moment
      * the room stops being theirs. The phase in `until` below carries the rest
      * of it, for the stretch after the GM has started Stage 7.
+     *
+     * ONLY WITH A KILLING TO BE FRESH (E64 C1a, 12.11.2026; audit S05-60; default taken, owner to confirm).
+     * `onlyWith`: the discount holds while an incident runs or a body of this chapter lies unfound
+     * (cleanup.mjs `freshSceneBonus`). Before, it held on every day with no body found - a Tamper on a
+     * quiet afternoon read 6/9/12/15 instead of 9/12/15/18.
      */
-    freshScene: { bonus: 3, until: ["investigation", "classTrial"] },
+    freshScene: { bonus: 3, until: ["investigation", "classTrial"], onlyWith: ["incident", "unfoundBody"] },
 
     /**
      * Covering your tracks is a Shadow job.

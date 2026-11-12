@@ -48781,6 +48781,32 @@ const INVARIANTS = [
         const P = "(styles/components.css)", want = [`repeat(6, minmax(min-content, 1fr)) ${P}`, `nowrap ${P}`];
         equal(stableJson(read), stableJson({ glass: want, legacy: want }), "per theme: [the cells' grid columns, a name's white-space] - each with the sheet it came from");
     }],
+    ["R3950 - the fresh-scene discount holds only with a killing to be fresh (E64 C1a; audit S05-60; default taken, owner to confirm): `CLEANUP.freshScene.onlyWith` names the running incident and an unfound body of this chapter, and cleanup.mjs `freshSceneBonus` answers its bonus with either, none with neither, none once the body is found or in the Investigation and the trial, and none for a body of another chapter", async () => {
+        /*
+         * E64 C1a, 12.11.2026. Red at 3ccfde3e: `onlyWith` was not in the config and `freshSceneBonus` took no
+         * arguments, reading the world alone - the quiet afternoon (no incident, no body) answered 3, so a Tamper in
+         * Daily Life read every rung of the 9/12/15/18 ladder 3 lower.
+         */
+        const Cl = await import("./cleanup.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        must(typeof Cl.freshSceneBonus === "function", "cleanup.mjs exports no freshSceneBonus - this would measure nothing");
+        const bonus = CLEANUP.freshScene?.bonus;
+        must(bonus === 3, `the fresh-scene bonus is ${bonus}, not the 3 this test was written for`);
+        const day = { phase: "dailyLife", chapter: 2 };
+        const body = { a1: { chapter: 2, day: 1, timeOfDay: "night" } };
+        const read = {
+            onlyWith: CLEANUP.freshScene.onlyWith ?? null,
+            quiet: Cl.freshSceneBonus({ clock: day, found: null, incident: false, deaths: {} }),
+            incident: Cl.freshSceneBonus({ clock: day, found: null, incident: true, deaths: {} }),
+            unfound: Cl.freshSceneBonus({ clock: day, found: null, incident: false, deaths: body }),
+            otherChapter: Cl.freshSceneBonus({ clock: { ...day, chapter: 3 }, found: null, incident: false, deaths: body }),
+            found: Cl.freshSceneBonus({ clock: day, found: { at: 1 }, incident: true, deaths: body }),
+            investigation: Cl.freshSceneBonus({ clock: { ...day, phase: "investigation" }, found: null, incident: true, deaths: body }),
+            trial: Cl.freshSceneBonus({ clock: { ...day, phase: "classTrial" }, found: null, incident: false, deaths: body })
+        };
+        equal(stableJson(read), stableJson({ onlyWith: ["incident", "unfoundBody"], quiet: 0, incident: 3, unfound: 3, otherChapter: 0, found: 0, investigation: 0, trial: 0 }),
+            "the rule's list, then the bonus per case");
+    }],
 ];
 
 /**

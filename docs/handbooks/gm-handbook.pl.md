@@ -806,7 +806,7 @@ Gdy incydent kończy się ciałem, zabójca wreszcie widzi na arkuszu zostawione
 | Evident | 15 |
 | Obvious | 18 |
 
-**Scena jest jeszcze ciepła:** **-3** na każdym DC, dopóki ciało nie zostanie znalezione albo nie ruszy Investigation (`CLEANUP.freshScene`). Wyniki:
+**Scena jest jeszcze ciepła:** **-3** na każdym DC, gdy trwa incydent albo ciało z tego rozdziału leży nieznalezione, dopóki ciało nie zostanie znalezione albo nie ruszy Investigation (`CLEANUP.freshScene`, jego `onlyWith`). Bez incydentu i bez nieznalezionego ciała - w zwykły dzień - zniżki nie ma. Wyniki:
 
 | Usuwanie | Ślad |
 |---|---|
