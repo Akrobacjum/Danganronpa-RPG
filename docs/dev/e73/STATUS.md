@@ -160,6 +160,31 @@ Tokens so far: not measured by this line.
   rozprawy, status na górze, zarządzanie na dole". Mockup B holds the slot for it (`data-drpg-trial-schema`, above);
   E99 (1.2.109) mounts into it. E73 does not draw the schema there.
 
+## Merge note for E99 (the case schema's slot, as built at ce05852)
+
+The owner accepted the console's layout at ce05852 (12.11, "Konsola rozprawy wyglada niezle!"). What E99 mounts into:
+
+- **One element, both states**: `<div class="drpg-trial-schema" data-drpg-trial-schema></div>`, built by
+  trial-floor-ui.mjs `trialBodyHtml(view)` as the window's body, right after `.drpg-trial-console` and outside it, so the
+  console's `keepLive` (region `.drpg-trial-console`, every second) never redraws it. The window opens again when a trial
+  starts or ends (`trialSignature`), so a mount happens per window: once with no trial, once while one runs.
+- **A grid item**: the slot sits in `.drpg-trial-frame`'s grid, area `schema`. With no trial, one column, rows
+  `auto minmax(0, 1fr)`: the console's lines, then the slot filling the rest. While a trial runs, two columns
+  (5fr read-out, 6fr slot) between the status row and the bar row. The slot carries `min-height: 0` and
+  `overflow: auto`, so a schema taller than its cell scrolls inside the slot and moves nothing else. Its size: 290-833 px
+  tall and about 670 px (running) or the window's width less the padding (no trial) wide, measured in the style harness.
+- **What an E99 rule must not set on the slot** (`.drpg-trial-schema` or `[data-drpg-trial-schema]` itself): `display`
+  (a `display: none` fails R3911; another display breaks the grid item), `grid-area` or any grid placement, `order`, and
+  a fixed `height` / `min-height` / `max-height` (the cell sets its height; a fixed one overflows the window at 1366x768).
+  Style the schema's own markup inside the slot (`.drpg-case-trial` and below) freely; give the graph a height relative
+  to the slot (`height: 100%` of a flex or grid child of the slot, or the slot's own scroll) rather than `30vh`.
+- **The call** stays E99's: `import("./case-trial.mjs").then(m => m.mountTrialSchema(dialog))` in manageClassTrial's
+  `render`, at the merge. Nothing on this branch imports case-trial.mjs.
+- **Ticks**: the owner's 12:00 answer - the window with no trial shows the schema only, nothing ticked. While a trial runs,
+  E99's own rules.
+- R3911 holds the slot: one, empty as drawn here, outside the console and right after it, never hidden by a rule; keepLive's
+  region `.drpg-trial-console`; the body built by `trialBodyHtml`; `consoleWidth` 1280.
+
 ## Waits for other lines
 
 - **E72** (Monocub, inactive Confusions, bribes, rewards): in a zone mode they are not wired; the zone modes count no
