@@ -23640,6 +23640,31 @@ const REGRESSIONS = [
             "the templates read off a character sheet and a roll window: an npc's sheet, a class four levels down and a path that is no template left out, a shared one once");
         equal(JSON.stringify(W.templatePaths({ config: {}, api: null })), "[]", "a Foundry with no sheet classes and a system with no API gives no template");
     }],
+    ["R4203 - a warming step waits for the browser's idle time with no deadline, so a busy page is never pushed", async () => {
+        /*
+         * perf-open line, 12.11.2026 (the coordinator's ask of the same day). The boards and the curtain of 1.2.109 play at
+         * load and at a change of day, and no event marks their end; a step forced after 3 s of a busy page could land in
+         * the middle of one. So `whenIdle` asks `requestIdleCallback` with no `timeout`: a page that is never idle simply
+         * waits. Read on stand-ins for the two: the callback asked once, with no deadline; the step not done before the
+         * browser calls back, and done after; and with no `requestIdleCallback` (Safari) a 50 ms timer instead.
+         */
+        const W = await import("./open-cost.mjs");
+        const asked = [];
+        let call = null;
+        const ric = (cb, options) => { asked.push(options ?? null); call = cb; return 1; };
+        let done = false;
+        const step = W.whenIdle({ ric, later: () => { throw new Error("the timer was asked while requestIdleCallback is there"); } }).then(() => { done = true; });
+        await null; await null;
+        equal(asked.length, 1, "requestIdleCallback asked for one step");
+        equal(JSON.stringify(asked[0]?.timeout ?? null), "null", "the step's idle wait has a deadline - a busy page would be pushed after it");
+        ok(!done, "the step went on before the browser called back");
+        call();
+        await step;
+        ok(done, "the step did not go on once the browser called back");
+        const timers = [];
+        await W.whenIdle({ ric: null, later: (fn, ms) => { timers.push(ms); fn(); } });
+        equal(JSON.stringify(timers), "[50]", "with no requestIdleCallback the step waits one 50 ms timer");
+    }],
 ];
 
 

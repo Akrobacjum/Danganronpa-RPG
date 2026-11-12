@@ -79,7 +79,7 @@ G, the glass band: 1.2-3.9 ms a paint at every width, the first of a width no de
 ## What changed
 
 1. `scripts/open-cost.mjs` (new), registered at ready on every client (`module.mjs`, after the API):
-   - **warming at idle**: 4 s after ready, one step an idle callback (`requestIdleCallback`, 3 s at most a wait): the
+   - **warming at idle**: 4 s after ready, one step an idle callback (`requestIdleCallback` with no deadline since R4203: a busy page waits; a 50 ms timer where the browser has none): the
      files reached only by `import()` (`WARM_IMPORTS`: everyone's eight, the GMs' three more; `NOT_WARMED` names
      `patches.mjs`, which ready imports anyway), then Daggerheart's part templates of the character and party sheets and
      of the classes under `game.system.api.applications` (`templatePaths`, six at a time, through Foundry's
@@ -135,3 +135,13 @@ What this line cannot show here: the fetch's time at a table, Daggerheart's temp
   (`openTimes` not yet in tools/api-surface.json); with its row added, R1560 and R4200-R4202 run again by name: 5 passed,
   0 failed. The whole of tiers 0-1 was not run again after that one row.
 - `node cluster.mjs scenarios/00-boot.mjs`: 33/33. `node cluster.mjs scenarios/86-frame-work.mjs`: 104/104, 173 s.
+
+## The idle wait without a deadline (12.11.2026, the coordinator's ask)
+
+1.2.109's boards and curtain play at load and at a change of day, and no event marks their end. `whenIdle` now asks
+`requestIdleCallback` with no `timeout` (it was 3000 ms): a busy page waits. R4203 (tier 0, red on the 3000 ms
+deadline before the fix) reads it on stand-ins. What a step starts (a file's parse, a template's compile) still runs
+when the server's answer lands, outside the idle period; each step stays one file, six templates or one face. Open:
+once 1.2.109 is on main, read its transition code for a "playing" state and skip a step while one plays.
+
+Runs: `npm run quick` green; tiers 0-1 in full 1271 tests, 1256 passed, 0 failed, 16 skipped, 0 red, 392.7 s.

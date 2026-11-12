@@ -49,9 +49,12 @@ export const NOT_WARMED = Object.freeze({
 });
 
 /* How long after ready the first step waits: the boot's own work - the GM stores, the migration, the first canvas
-   draw - goes first. Then one step an idle callback, each bounded by IDLE_TIMEOUT_MS so a busy page still gets there. */
+   draw - goes first. Then one step an idle callback, with NO deadline (R4203; the coordinator, 12.11.2026): the boards
+   and the curtain of 1.2.109 play at load and at a change of day and no event marks their end, so a page that is busy
+   simply waits rather than being handed a step after a few seconds. What a step starts - a file's parse, a template's
+   compile - still runs as its own task when the server's answer lands, outside the idle period: each step is one file,
+   six templates or one face, so that is kept small. */
 const START_DELAY_MS = 4000;
-const IDLE_TIMEOUT_MS = 3000;
 /* Templates asked of the server at once: a hosted server answers a handful in parallel as fast as one. */
 const TEMPLATE_BATCH = 6;
 /* A font's two subsets (the stylesheets' unicode-range): Latin, and the Latin Extended file Polish letters live in. */
@@ -61,10 +64,20 @@ const FONT_SAMPLES = Object.freeze(["Aa", "ąęłńóśźżĄĘŁ"]);
 const state = { started: null, finished: null, imports: { ok: 0, failed: [] }, templates: { ok: 0, failed: [], skipped: null }, fonts: { ok: 0, failed: [], skipped: null } };
 let warming = null;
 
-const idle = () => new Promise(resolve => {
-    if (typeof globalThis.requestIdleCallback === "function") globalThis.requestIdleCallback(() => resolve(), { timeout: IDLE_TIMEOUT_MS });
-    else setTimeout(resolve, 50);
-});
+/** One step's wait: the browser's next idle period (`requestIdleCallback`, no deadline), or 50 ms where it has none
+ *  (Safari). `ric` and `later` stand in for the two in R4203. */
+export function whenIdle({ ric = undefined, later = undefined } = {}) {
+    // Each called where it is named, never taken as a value (R571): a browser runs a window's function on the window.
+    const asked = ric === undefined ? typeof globalThis.requestIdleCallback === "function" : typeof ric === "function";
+    return new Promise(resolve => {
+        if (asked) {
+            if (ric) ric(() => resolve());
+            else globalThis.requestIdleCallback(() => resolve());
+        } else if (later) later(resolve, 50);
+        else setTimeout(resolve, 50);
+    });
+}
+const idle = () => whenIdle();
 
 /** The files this browser warms: everyone's, and the GMs' on a GM. */
 export function warmPlan({ gm = Boolean(globalThis.game?.user?.isGM) } = {}) {
