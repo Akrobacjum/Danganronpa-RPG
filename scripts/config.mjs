@@ -4032,6 +4032,13 @@ export const CLEANUP = {
     dc: { hidden: 9, subtle: 12, evident: 15, obvious: 18 },
 
     /**
+     * THE FLOOR AFTER EVERY RELIEF (E64 C1b, 12.11.2026; the owner's DA12 of 05.10, audit S18-06; default taken,
+     * owner to confirm). The tool's tier, the fresh scene and a reshape's 3 come off the number above; what is left
+     * is never below this (cleanup.mjs `atLeastFloor`, on the GM where the attempt is scored). Before: 0.
+     */
+    minDc: 8,
+
+    /**
      * THE SCENE IS STILL WARM (Z5): −3 while nobody has found the body.
      *
      * The season run measured Stage 6 erasing about ONE trace in six chapters.

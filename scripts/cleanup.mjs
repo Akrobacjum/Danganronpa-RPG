@@ -378,7 +378,18 @@ export function cleanupDc(visibility, actor) {
     const base = CLEANUP.dc[visibility];
     if (base === undefined) return null;
     const tool = CLEANUP.toolTierReducesDc ? cleaningTier(actor) : 0;
-    return Math.max(0, base - tool - freshSceneBonus());
+    return atLeastFloor(base - tool - freshSceneBonus());
+}
+
+/**
+ * NO CLEAN-UP BELOW 8 (E64 C1b, 12.11.2026; the owner's DA12 of 05.10, audit S18-06; default taken, owner to
+ * confirm): a clean-up's threshold after every relief - the tool's tier, the fresh scene and a reshape's 3 - is at
+ * least `CLEANUP.minDc`. Until 1.2.105 the reliefs stopped only at 0, so a Hidden trace reshaped with a Tier 3 tool in
+ * a fresh scene needed 9 - 3 - 3 - 3 = 0: any roll. Read on the GM where it scores (`cleanupVerdict`) and wherever the
+ * number is shown (the briefing's ladder and the roll window read `cleanupDc` too), so the two cannot differ.
+ */
+export function atLeastFloor(n) {
+    return Math.max(Number(CLEANUP.minDc) || 0, n);
 }
 
 /**
@@ -638,11 +649,11 @@ export async function attemptCleanup(actor, tokenId, {
         try {
             const relief = mode === "transform" ? (CLEANUP.transformAction?.dcRelief ?? 0) : 0;
             const listed = Number.isFinite(Number(dc)) && dc !== null && dc !== "" ? Number(dc) : null;
-            if (listed !== null) return Math.max(0, listed - relief);
+            if (listed !== null) return atLeastFloor(listed - relief);
             const data = remnantData(findRemnantToken(tokenId));
             if (!data || data.reinforced) return null;
             const base = cleanupDc(data.visibility, actor);
-            return base === null ? null : Math.max(0, base - relief);
+            return base === null ? null : atLeastFloor(base - relief);
         } catch { return null; }
     })();
 
@@ -1449,7 +1460,7 @@ function cleanupVerdict(held, data, { total, isCritical, withHope, mode }) {
     /*
      * LYING IS EASIER THAN ERASING (Z5) - the transform road takes its relief
      * off the same threshold, after the tool and after the fresh-scene window.
-     * Clamped at zero by `cleanupDc`; taken here rather than inside it because
+     * Held to `CLEANUP.minDc` (E64 C1b) after it; taken here rather than inside `cleanupDc` because
      * a discount that depends on WHICH action was attempted is not a property
      * of the trace.
      */
@@ -1457,7 +1468,7 @@ function cleanupVerdict(held, data, { total, isCritical, withHope, mode }) {
     const relief = transforming ? (CLEANUP.transformAction?.dcRelief ?? 0) : 0;
     const dc = (() => {
         const base = cleanupDc(data.visibility, held);
-        return base === null ? null : Math.max(0, base - relief);
+        return base === null ? null : atLeastFloor(base - relief);
     })();
     const success = isCritical || (dc !== null && total >= dc);
     const band = isCritical ? "critical" : (success ? (withHope ? "hope" : "despair") : "failure");

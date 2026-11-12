@@ -349,7 +349,7 @@ Trzy rzeczy za kafelkiem. Próba kosztuje **1 akcję**; gdy nie masz już akcji,
 | Evident | 15 |
 | Obvious | 18 |
 
-Każdy o 3 niżej, gdy zabójstwo jest świeże: trwa incydent albo ciało z tego rozdziału leży tam, gdzie nikt go jeszcze nie znalazł - dopóki ciało nie zostanie znalezione albo nie ruszy Investigation. Narzędzie do sprzątania w ręku daje przewagę i zdejmuje swój Tier z progu.
+Każdy o 3 niżej, gdy zabójstwo jest świeże: trwa incydent albo ciało z tego rozdziału leży tam, gdzie nikt go jeszcze nie znalazł - dopóki ciało nie zostanie znalezione albo nie ruszy Investigation. Narzędzie do sprzątania w ręku daje przewagę i zdejmuje swój Tier z progu. Po wszystkich ulgach - narzędziu, świeżej scenie, 3 za przerobienie - żadna próba nie wymaga mniej niż **8**.
 
 | Wynik | Co się dzieje |
 |---|---|

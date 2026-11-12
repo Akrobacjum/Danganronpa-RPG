@@ -806,7 +806,7 @@ When the incident ends with a body, the killer can finally see the Remnants they
 | Evident | 15 |
 | Obvious | 18 |
 
-**The scene is still warm:** **-3** on every DC while an incident runs or a body of this chapter lies unfound, until the body is found or the Investigation starts (`CLEANUP.freshScene`, its `onlyWith`). With no incident and no unfound body - an ordinary day - there is no discount. Outcomes:
+**The scene is still warm:** **-3** on every DC while an incident runs or a body of this chapter lies unfound, until the body is found or the Investigation starts (`CLEANUP.freshScene`, its `onlyWith`). With no incident and no unfound body - an ordinary day - there is no discount. After every relief (the tool, the fresh scene, a reshape's 3) a clean-up DC is never below **8** (`CLEANUP.minDc`), on the card and where the GM scores it. Outcomes:
 
 | Erasing | The trace |
 |---|---|

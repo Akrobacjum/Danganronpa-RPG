@@ -48807,6 +48807,30 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ onlyWith: ["incident", "unfoundBody"], quiet: 0, incident: 3, unfound: 3, otherChapter: 0, found: 0, investigation: 0, trial: 0 }),
             "the rule's list, then the bonus per case");
     }],
+    ["R3951 - no clean-up threshold falls below 8 after its reliefs (E64 C1b; the owner's DA12, audit S18-06; default taken, owner to confirm): `CLEANUP.minDc` is 8, cleanup.mjs `atLeastFloor` lifts a lower number to it and leaves a higher one, `cleanupDc` answers through it, and the GM's scoring (`cleanupVerdict`) and the roll window's number (`attemptCleanup`) take a reshape's relief off and then lift it, never clamping at 0", async () => {
+        /*
+         * E64 C1b, 12.11.2026. Red at 629f52e: no `minDc`, no `atLeastFloor`, and both reliefs clamped at 0 - a
+         * Hidden trace reshaped with a Tier 3 tool in a fresh scene read 9 - 3 - 3 - 3 = 0.
+         */
+        const Cl = await import("./cleanup.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        must(typeof Cl.cleanupDc === "function", "cleanup.mjs exports no cleanupDc - this would measure nothing");
+        const src = await moduleSources();
+        const file = src.get("cleanup.mjs");
+        must(typeof file === "string" && file.length > 1000, "cleanup.mjs's source was not read - this would measure nothing");
+        const lift = typeof Cl.atLeastFloor === "function" ? [0, -3, 7, 8, 12].map(n => Cl.atLeastFloor(n)) : null;
+        const body = name => { try { return fnSource(file, name); } catch { return ""; } };
+        const read = {
+            minDc: CLEANUP.minDc ?? null,
+            lift,
+            cleanupDc: /return atLeastFloor\(base - tool - freshSceneBonus\(\)\)/.test(body("cleanupDc")),
+            verdict: [/atLeastFloor\(base - relief\)/.test(body("cleanupVerdict")), /Math\.max\(0, base - relief\)/.test(body("cleanupVerdict"))],
+            window: [/atLeastFloor\(listed - relief\)/.test(body("attemptCleanup")), /atLeastFloor\(base - relief\)/.test(body("attemptCleanup")), /Math\.max\(0, (listed|base) - relief\)/.test(body("attemptCleanup"))],
+            hidden: Cl.cleanupDc("hidden", null) >= 8
+        };
+        equal(stableJson(read), stableJson({ minDc: 8, lift: [8, 8, 8, 8, 12], cleanupDc: true, verdict: [true, false], window: [true, true, false], hidden: true }),
+            "the floor, what it answers for 0/-3/7/8/12, and where it is read");
+    }],
 ];
 
 /**
