@@ -47066,6 +47066,25 @@ const INVARIANTS = [
                 variants: ["listen", "tail", "dash", "shut", "force", "pick", "keepWatch"], asksFirst: true }),
             "{rows: per student [the rows' keys, Listen shut exactly when the room has no neighbour, its line, a price on every row]; variants; asksFirst: performListen asks the rows before Listen's room} - the Infiltrate window");
     }],
+    ["R3757 - a GM's room action is drawn only on a payment of its whole price (E93 C3, C6; the coordinator's fix of 12.11.2026, from E93's watched gap): the GM's price is one action, two under Toll; a payment's size is what its one write took down, a Burst's covering any price; a ticket of one action does not cover two, one of two and a Burst's do", async () => {
+        /*
+         * Pure readings, so tier 1 changes nothing. Until this test a ticket was "one payment" whatever it took down
+         * (roll-draw.mjs `notePayments`), so under Toll a console that paid one action drew the roll of a two-action room
+         * action as well as an honest player who paid two (docs/dev/e93/STATUS.md, "What a console can still do").
+         * Scenario 30's "a forged single payment under Toll" is the same on the road. Red at 30ad52a: no `paymentSize`.
+         */
+        const F = await import("./facilities.mjs");
+        const D = await import("./roll-draw.mjs");
+        ok(typeof D.paymentSize === "function" && typeof D.ticketCovers === "function", "roll-draw.mjs exports no paymentSize or ticketCovers");
+        const read = {
+            price: [F.facilityCost("gm", null, 0), F.facilityCost("gm", null, 1)],
+            size: [D.paymentSize({ action: 3, grant: 0 }, { action: 2, grant: 0 }), D.paymentSize({ action: 3, grant: 0 }, { action: 1, grant: 0 }),
+                D.paymentSize({ action: 3, grant: 1 }, { action: 3, grant: 0 }) === Infinity],
+            covers: [D.ticketCovers({ size: 1 }, 2), D.ticketCovers({ size: 2 }, 2), D.ticketCovers({ size: Infinity }, 2), D.ticketCovers({ size: 1 }, 1), D.ticketCovers({}, 1)]
+        };
+        equal(JSON.stringify(read), JSON.stringify({ price: [1, 2], size: [1, 2, true], covers: [false, true, true, true, true] }),
+            "{price: a GM's room action without Toll and under it; size: one action taken, two, a Burst; covers: one for two, two for two, a Burst for two, one for one, a ticket of no size for one}");
+    }],
 ];
 
 /**

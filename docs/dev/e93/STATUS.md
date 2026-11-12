@@ -28,8 +28,21 @@ All nine killed. Not run as mutants: the draw's room check in roll-draw.mjs (sce
 
 ## What a console can still do (watched, not caught)
 
-- Under Toll a GM's action costs 2 actions; the roller's browser pays both before the roll, and the GM's draw sees one
-  payment, not its size (roll-draw.mjs: a ticket is one write). A console paying one under Toll rolls all the same.
+- ~~Under Toll a GM's action costs 2 actions; the roller's browser pays both before the roll, and the GM's draw sees one
+  payment, not its size. A console paying one under Toll rolls all the same.~~ Fixed (the coordinator's item of
+  12.11.2026): the GM's draw of a GM's room action needs a payment of its whole price as the GM reads it - one action, the
+  Toll's more (facilities.mjs `facilityCost` with overflow.mjs `overflowFacilityToll`) - and a ticket keeps the size of
+  the write that paid it, a Burst covering any price (roll-draw.mjs `paymentSize`, `ticketCovers`). A payment of less
+  draws no roll, so its `facility.use` names no drawn roll and is refused. R3757 (tier 1); scenario 30, "under Toll the
+  GM draws no roll of a GM's room action on a console's payment of one action, and draws it on a payment of two".
+  The other paid things of the Facilities tile, read for the same gap:
+  - a completed project's action: its price is taken by the GM in the run (bridge-runs-acts.mjs `handleFacilityUse`,
+    `spendAction` on the GM, refused when too few), never the console's;
+  - the two rests: not drawn, judged by the sheet audit, which covers a rest's gains only when the write took the rest's
+    whole `actionCost` or a Burst (sheet-audit.mjs `restCovers`); Toll does not raise them (Q-E93-4's default).
+  What stays open, as for every roll: with the GM's draw off (an older Daggerheart build, or Daggerheart 2.12 since
+  1.2.106) no roll is drawn and no ticket is read, so the price is the roller's browser's; that is the trust model's
+  "a roll not drawn".
 - A Reroll of a Facilities roll: not measured. Nothing in E93 replays a use after a Reroll; what reroll.mjs does with a
   roll of `actionKey` "facility" was not read or run in this round.
  Built since (E74 C7, the coordinator's item 2): reroll.mjs hands these keys to infiltrate-reroll.mjs, which replays
@@ -47,6 +60,11 @@ All nine killed. Not run as mutants: the draw's room check in roll-draw.mjs (sce
 | 12.11, C3 | scenarios at afdc430 | 30, 33 and the 27 others that name a changed file (10-88, without 01 and 84) all green |
 | 12.11, C2+C4 | tiers 0-1 at b271ae1 | 1163 passed, 0 failed, 16 skipped, 1 red (older); own tier 2: 8 passed |
 | 12.11, C2+C4 | scenarios at b271ae1 | 30, 33, 40, 41, 50, 66, 74, 76 green |
+| 12.11, Toll's price | R3757 at 30ad52a's code (the test alone) | 1 passed, 1 failed: "roll-draw.mjs exports no paymentSize or ticketCovers" |
+| 12.11, Toll's price | scenario 30 at 30ad52a's code | 283/285, 1 failed: "under Toll ..." - the one-action payment drawn ("messageId":"ie8zhAQnPzsU06kC") |
+| 12.11, Toll's price | R3757; scenario 30; tier 2 by name ("E93-T", "every legal modifier", "payment", "paid", "ticket") | 2 passed; 284/285, the one its Foundry-limit red; 55 ran, 58 passed, 0 failed, 1 skipped |
+| 12.11, Toll's price | lint; check.mjs; tiers 0-1 | 0 problems; 17 parts green; 1182 ran, 1166 passed, 0 failed, 16 skipped, 1 red (older) |
+| 12.11, Toll's price | scenarios 83, 33, 40 (the drawn rolls' roads) | 110/110, 79/79, 88/88 |
 
 ## Defaults taken, owner to confirm
 

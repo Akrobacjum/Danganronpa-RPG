@@ -59,7 +59,7 @@ import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf, r
 import { LOADED_DIE, loadDie, loadedAtOf, standAsideFor } from "./forced-roll.mjs";
 import { DRPG_ACTION_ROLL, DRAWN_ROLL, searchOdds, stashStepFor } from "./action-rolls.mjs";
 import { actionsLeft, freeActionsLeft } from "./actions.mjs";
-import { overflowFacilityDie } from "./overflow.mjs";
+import { overflowFacilityDie, overflowFacilityToll } from "./overflow.mjs";
 import { armedCallsShown, situationalAdvantage, spendCallsByNonce } from "./call-effects.mjs";
 import { isBrokenDown } from "./character.mjs";
 import { isMonokuma } from "./monokuma.mjs";
@@ -920,11 +920,28 @@ function notePayments(actor, changes = null, options = null, userId = null) {
     };
     const rise = Math.max(0, now.action - was.action) + Math.max(0, now.grant - was.grant);
     if (rise) undo("action", rise);
-    else if (now.action < was.action || now.grant < was.grant) paid("action");
+    // The payment's size, so a draw of a price above one reads it (`ticketCovers`): what this write took down.
+    else if (now.action < was.action || now.grant < was.grant) paid("action", paymentSize(was, now));
     if (now.hope < was.hope) paid("hope", was.hope - now.hope);
     else if (now.hope > was.hope) undo("hope", now.hope - was.hope);
     if (now.stress > was.stress) paid("stress");
     else if (now.stress < was.stress) undo("stress", was.stress - now.stress);
+}
+
+/**
+ * THE SIZE OF A PAYMENT (the coordinator's fix of 12.11.2026, from E93's watched gap: "under Toll a GM's room action costs
+ * 2 actions; the roller's browser pays both before the roll, and the GM's draw sees one payment, not its size"). How much
+ * one write of the player's took down: the actions it took (`was`, `now` are `budgetOf`'s readings), or, where it took a
+ * Burst, any price - a Burst covers the whole call whatever it was charging for (actions.mjs `spendAction`). Pure.
+ */
+export function paymentSize(was, now) {
+    if ((Number(now?.grant) || 0) < (Number(was?.grant) || 0)) return Infinity;
+    return Math.max(1, (Number(was?.action) || 0) - (Number(now?.action) || 0));
+}
+
+/** Whether `ticket` paid at least `need` (a ticket of no recorded size paid one). Pure. */
+export function ticketCovers(ticket, need = 1) {
+    return (ticket?.size ?? 1) >= need;
 }
 
 /**
@@ -944,13 +961,13 @@ function paysFor(key) {
  * The ticket a draw of `key` would take: one its partner was drawn on, else the oldest undrawn one it can be paid by, else
  * - for a part that only rides - the one a GM before this one drew its partner on (`handedOver`); or null.
  */
-function ticketFor(actorId, key) {
+function ticketFor(actorId, key, need = 1) {
     const tickets = ticketsOf(actorId);
     const partners = ROLLED_TOGETHER.find(set => set.includes(key)) ?? [];
     const riding = [...tickets].reverse().find(t => t.kinds.length && !t.kinds.includes(key) && t.kinds.every(k => partners.includes(k)));
     if (riding) return riding;
     const pays = paysFor(key);
-    return tickets.find(t => !t.kinds.length && pays.includes(t.pay)) ?? handedOver(actorId, key)?.ticket ?? null;
+    return tickets.find(t => !t.kinds.length && pays.includes(t.pay) && ticketCovers(t, need)) ?? handedOver(actorId, key)?.ticket ?? null;
 }
 
 /**
@@ -1031,10 +1048,13 @@ async function drawRefusal(actor, key, context) {
     // A GM's room action is drawn only for one the room the GMs hold the character in has, and that no use closed this time
     // of day (E93 C3): else a console draws rolls of a statistic it chose for an action that is not there.
     if (key === "facility" && !await facilityOfDraw(actor, context, { open: true })) return "that cannot be done now";
-    for (const end = Date.now() + PAY_WAIT_MS; !ticketFor(actor.id, key) && Date.now() < end;) {
+    // Its whole price, as this GM reads it (the coordinator's fix of 12.11.2026): a GM's room action costs one action and
+    // the Toll's more (facilities.mjs `facilityCost`), and a payment of less draws nothing (`ticketCovers`).
+    const need = key === "facility" ? (await import("./facilities.mjs")).facilityCost("gm", null, overflowFacilityToll()) : 1;
+    for (const end = Date.now() + PAY_WAIT_MS; !ticketFor(actor.id, key, need) && Date.now() < end;) {
         await new Promise(resolve => setTimeout(resolve, 100));
     }
-    const ticket = ticketFor(actor.id, key);
+    const ticket = ticketFor(actor.id, key, need);
     if (!ticket) return "no payment of that character's stands for that roll";
     // An undrawn ticket a riding part takes is one a GM before this one drew its partner on (`handedOver`): both are stamped.
     const handed = !ticket.kinds.length && RIDES_ONLY.includes(key) ? handedOver(actor.id, key) : null;

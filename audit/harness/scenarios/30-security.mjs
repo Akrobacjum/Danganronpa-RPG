@@ -6586,6 +6586,43 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     check("SECURITY: the GM draws no Facilities roll for an action not in the character's room, and draws one claimed on Hand on the Eye the GM set, its record naming the action",
         facDraw.gym?.messageId === null && Boolean(facDraw.hand?.messageId) && facDraw.record?.facility === "SECfac" && facDraw.record?.trait === "eye",
         JSON.stringify(facDraw), { flow: "facility" });
+    /* A FORGED SINGLE PAYMENT UNDER TOLL (the coordinator's fix of 12.11.2026, from E93's watched gap). Under the Overflow's
+       Toll a GM's room action costs two actions, and the GM draws its roll only on a payment of the whole price, read on the
+       GM (roll-draw.mjs `ticketCovers`, the price facilities.mjs `facilityCost` with the Toll the GM reads). p1's console
+       pays one action and asks the draw: not drawn. The control: p1 pays two in one write, as the Facilities window does,
+       and the roll is drawn. Red at 30ad52a: the one-action payment was drawn. */
+    const tollWas = await gm.eval(`const o = await import("${repoUrl}/scripts/overflow.mjs"); const { getClock } = await import("${repoUrl}/scripts/clock.mjs");
+        const clock = getClock();
+        const stored = foundry.utils.deepClone(game.settings.get("${MOD}", "overflow") ?? {});
+        const rules = foundry.utils.deepClone(game.settings.get("${MOD}", "overflowRules") ?? {});
+        const effects = Object.fromEntries(Object.keys(o.overflowRules().effects).map(key => [key, { on: key === "toll" }]));
+        await game.settings.set("${MOD}", "overflowRules", { ...rules, effects });
+        await game.settings.set("${MOD}", "overflow", { ...stored, active: { session: clock.session, day: clock.day ?? 1, timeOfDay: clock.timeOfDay, effect: "toll" } });
+        return { stored, rules, toll: o.overflowFacilityToll() };`, { timeout: 60000 });
+    await settle(500);
+    const payTwo = `{ const { spendAction, actionsLeft } = await import("${repoUrl}/scripts/actions.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const who = game.actors.get("${ids.aiko}");
+        if (actionsLeft(who) < 2) await trustedWrite(who, { "system.resources.actions.value": 3 }, { reason: "gmRuling" });
+        await new Promise(r => setTimeout(r, 400));
+        await spendAction(who, 2, { quiet: true }); }`;
+    const tollDraw = {
+        toll: tollWas?.toll ?? null,
+        one: await drawnRoll(p1, ids.aiko, "facility", "eye", { hope: 9, fear: 3 }, { context: { facilityId: "SECfac" } }),
+        two: await p1.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+            ${payTwo}
+            globalThis.__forceRoll = { hope: 9, fear: 3 };
+            let out = null;
+            try { out = await A.rollTrait(game.actors.get("${ids.aiko}"), "eye", { actionKey: "facility", remember: false, context: { facilityId: "SECfac" } }); }
+            catch {} finally { delete globalThis.__forceRoll; }
+            return { messageId: out?.raw?.[A.DRAWN_ROLL]?.messageId ?? null };`, { timeout: 60000 })
+    };
+    await gm.eval(`await game.settings.set("${MOD}", "overflowRules", ${JSON.stringify(tollWas?.rules ?? {})});
+        await game.settings.set("${MOD}", "overflow", ${JSON.stringify(tollWas?.stored ?? {})}); return true;`, { timeout: 60000 });
+    await settle(500);
+    check("SECURITY: under Toll the GM draws no roll of a GM's room action on a console's payment of one action, and draws it on a payment of two",
+        tollDraw.toll === 1 && tollDraw.one?.messageId === null && Boolean(tollDraw.two?.messageId),
+        JSON.stringify(tollDraw), { flow: "facility" });
     await gm.eval(`const F = await import("${repoUrl}/scripts/facilities.mjs"); const scene = game.scenes.get("${IDS.scene}");
         await F.setRoomActions(scene, "Cafeteria", []); await F.setRoomActions(scene, "Gym", []);
         await game.settings.set("${MOD}", "facilityClosed", ${JSON.stringify(facSetup?.closed ?? {})});
