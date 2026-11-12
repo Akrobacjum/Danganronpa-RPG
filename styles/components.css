@@ -810,39 +810,6 @@ body:not(.drpg-theme-stained-glass) .drpg-notice-snapshot { font-size: var(--drp
 .drpg-notice-snapshot :is(p, ul, ol, dl, blockquote, table) { margin: 0 0 4px; }
 .drpg-notice-snapshot img { max-width: 100%; height: auto; }
 .drpg-notice-snapshot :is(td, th) { padding: 2px 4px; border-bottom: 1px solid var(--drpg-kit-notice-edge); }
-/* A critical's line in a kept card (popup.mjs `critLine`; E49): the notice's own rules (danganronpa.css, "THE CRITICAL'S
-   LINE"), the same declarations at the same weight, here because the history's parts are this sheet's (R1330). */
-.drpg-notice-snapshot .drpg-crit-line {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 0 0 6px;
-    padding: 3px 8px;
-    border-left: 4px solid var(--drpg-critical);
-    color: var(--drpg-critical);
-}
-.drpg-notice-snapshot .drpg-crit-glyph {
-    flex: none;
-    font-size: 1.3em;
-    color: var(--drpg-critical);
-}
-.drpg-notice-snapshot .drpg-crit-words {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    column-gap: 8px;
-    min-width: 0;
-    line-height: 1.2;
-}
-.drpg-notice-snapshot .drpg-crit-result {
-    color: var(--drpg-critical);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-}
-.drpg-notice-snapshot .drpg-crit-who {
-    color: var(--drpg-bone);
-    font-size: 0.85em;
-}
 .drpg-notice-clipped { margin: 0; opacity: 0.8; }
 body:not(.drpg-theme-stained-glass) .drpg-notice-clipped { font-size: var(--drpg-kit-notice-xs-size); }
 .drpg-notices-unsaved { margin: 0 auto 0 0; opacity: 0.8; }
@@ -4066,4 +4033,42 @@ body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drp
     display: block;
     margin: 0 0 2px;
     text-align: center;
+}
+
+/* ---- A critical's line in a kept card (popup.mjs `critLine`; E49): the notice's own rules (danganronpa.css, "THE
+   CRITICAL'S LINE"), the same declarations at the same weight (R3544), in this sheet because the history's parts are
+   its alone (R1330). They keep the notice's look, not a kit component's - its colours are the critical's, its sizes
+   the notice's em - so they stand below the A8 banner, where R1322 holds a rule to the sheet's own contract (no
+   `!important`, no literal, no width above 390 px) and not to the kit's tokens. They stood in the kit's part above
+   the notice history's footer until the merge into 1.2.105 (12.11.2026), where R1322 read eight faults in them. ---- */
+.drpg-notice-snapshot .drpg-crit-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 6px;
+    padding: 3px 8px;
+    border-left: 4px solid var(--drpg-critical);
+    color: var(--drpg-critical);
+}
+.drpg-notice-snapshot .drpg-crit-glyph {
+    flex: none;
+    font-size: 1.3em;
+    color: var(--drpg-critical);
+}
+.drpg-notice-snapshot .drpg-crit-words {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 8px;
+    min-width: 0;
+    line-height: 1.2;
+}
+.drpg-notice-snapshot .drpg-crit-result {
+    color: var(--drpg-critical);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+.drpg-notice-snapshot .drpg-crit-who {
+    color: var(--drpg-bone);
+    font-size: 0.85em;
 }
