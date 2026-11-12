@@ -3207,8 +3207,11 @@ export const MONOCUB = {
             // `help`/`hinder` are the Monocub's receipt; `helpTarget`/`hinderTarget`
             // are what the student it happened to reads (DESP-06) - anonymous, in
             // their own second person, never "the player".
+            // FIRST TIER 11 (E64 C5a, 12.11.2026; the owner's DC5 of 05.10; default taken, owner to confirm): it was
+            // 12. With a double as a critical, a hit of either kind comes up 104 of the 144 throws of 2d12 (72.2%),
+            // where it was 94 (65.3%).
                 thresholds: [
-                { min: 12, grants: "bonus",
+                { min: 11, grants: "bonus",
                   help: "You grant the player +1 on their next roll.",
                   hinder: "You inflict −1 on the player's next roll.",
                   helpTarget: "Something steadies your hand: +1 on your next roll.",

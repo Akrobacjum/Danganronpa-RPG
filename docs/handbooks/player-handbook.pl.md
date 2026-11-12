@@ -769,7 +769,7 @@ Gdy skończy się twój własny Class Trial, możesz dołączyć do GMów jako *
 
 | Rzut Confusion | Pomóż | Przeszkódź |
 |---|---|---|
-| 12+ | +1 | -1 |
+| 11+ | +1 | -1 |
 | 16+ | przewaga | utrudnienie |
 | krytyk | oddaje mu akcję | marnuje mu akcję |
 

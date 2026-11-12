@@ -769,7 +769,7 @@ Once your own Class Trial has ended, you may join the GMs as a **Monocub**. Same
 
 | Confusion roll | Help | Hinder |
 |---|---|---|
-| 12+ | +1 | -1 |
+| 11+ | +1 | -1 |
 | 16+ | advantage | disadvantage |
 | critical | returns their action | wastes their action |
 

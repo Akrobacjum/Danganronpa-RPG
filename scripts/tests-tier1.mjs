@@ -48831,6 +48831,32 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ minDc: 8, lift: [8, 8, 8, 8, 12], cleanupDc: true, verdict: [true, false], window: [true, true, false], hidden: true }),
             "the floor, what it answers for 0/-3/7/8/12, and where it is read");
     }],
+    ["R3952 - Confusion's first tier is beaten at 11 (E64 C5a; the owner's DC5 of 05.10; default taken, owner to confirm): MONOCUB.abilities.meddle's tiers are 11 (+1/-1) and 16 (advantage/disadvantage), the threshold reader (utils.mjs `resolveThreshold`, which `scoreMeddle` asks) grants the +1 at 11 and nothing at 10, and both player handbooks' Confusion table says 11+", async () => {
+        /*
+         * E64 C5a, 12.11.2026. Red at 383cf11: the tiers read [12, 16], a total of 11 granted nothing, and the
+         * books' table said 12+. Counted by hand over the 144 throws of 2d12, a double being a critical and so a hit:
+         * 12+ or a double is 89 + 5 = 94 (65.3%), 11+ or a double 99 + 5 = 104 (72.2%), the owner's DC5 numbers - the
+         * ten throws that sum to 11 move from a miss to +1/-1.
+         */
+        const { MONOCUB } = await import("./config.mjs");
+        const { resolveThreshold } = await import("./utils.mjs");
+        const row = MONOCUB.abilities?.meddle;
+        must(row?.thresholds?.length >= 2, "the meddle row holds fewer than two tiers - this would measure nothing");
+        const books = {};
+        for (const lang of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/player-handbook.${lang}.md`);
+            must(res.ok, `docs/handbooks/player-handbook.${lang}.md did not load - this would measure nothing`);
+            const book = await lfText(res);
+            books[lang] = [/^\| 11\+ \| \+1 \| -1 \|$/m.test(book), /^\| 12\+ \| \+1 \| -1 \|$/m.test(book)];
+        }
+        equal(stableJson({
+            mins: row.thresholds.map(t => [t.min, t.grants]),
+            at11: resolveThreshold(11, row.thresholds)?.grants ?? null,
+            at10: resolveThreshold(10, row.thresholds)?.grants ?? null,
+            books
+        }), stableJson({ mins: [[11, "bonus"], [16, "advantage"]], at11: "bonus", at10: null, books: { en: [true, false], pl: [true, false] } }),
+            "the tiers, what 11 and 10 grant, and each book's table row [11+, 12+]");
+    }],
 ];
 
 /**
