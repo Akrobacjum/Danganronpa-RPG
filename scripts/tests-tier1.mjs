@@ -40434,6 +40434,11 @@ const INVARIANTS = [
             "cleanup.mjs tamperWatchBlock": "a threshold: no Sanity left and watched refuses the concealment",
             "config.mjs LEGAL_ROLL_MODIFIERS": "the legal roll's reader for Breakdown's die (roll-draw.mjs), a rule's table",
             "diagnostics.mjs diagnoseCharacters": "the GMs' set-up check: each maximum at least the starting numbers",
+            /* E49's character settings window (dh-settings.mjs, 1.2.105): the system's own form, whose maximums the module
+               words and keeps; added at the merge into 1.2.105 (12.11.2026), where this census read the three unlisted */
+            "dh-settings.mjs SETTINGS_FIELDS": "the system's settings window's fields by name (the two maximums among them), the ones the module uses: the system's markup",
+            "dh-settings.mjs WINDOW_WORDS": "the module's labels for the same window, keyed on the maximums' field names: the system's markup",
+            "dh-settings.mjs dressCharacterSettings": "finds Health's maximum field in the system's window to take its tooltip off: the system's markup, no number drawn",
             "level-up.mjs applyAdvancement": "a Level Up raises a maximum, written",
             "monocub.mjs setMonocub": "a Monocub starts with no marks, written",
             "murder-rules.mjs resolveKillerOpening": "the opening's Despair fills the victim's Sanity track, written",
