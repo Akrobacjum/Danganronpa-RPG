@@ -83,6 +83,13 @@ killed.
 | 12.11, C5 | E74-T5 on a worktree of d8905af with only tests-tier2.mjs copied in | failed: "Room setup drew no Broken box" |
 | 12.11, C5 | E74-T5 on the tree (after its put-back was made to restore the room's flags whole); tiers 0-1 | 5 passed; 1164 passed, 1 failed (R2010: the Doors tab's new column, intended), green after |
 
+| 12.11, C3-C6 | the 34 scenarios at f64d5f6 | 33 green; 30 RED: its two door forgeries read `ids.scene`, which it has not - Force's read measured nothing, Pick's threw (fixed in 32b4c1a; 30 green after) |
+| 12.11, C5 and after | 30, 33, 40, 41, 60, 65, 66, 74, 76, 83 at 97ef581 (those that read vault.mjs, Room Setup's facade, or action-doors.mjs) | all green |
+
+## Pushed
+
+To 32b4c1a (C1-C6 and the fixes); the STATUS commits after it.
+
 ## Blockers
 
 None.
