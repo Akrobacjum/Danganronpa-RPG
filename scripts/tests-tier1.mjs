@@ -36899,14 +36899,20 @@ const INVARIANTS = [
            the curtain's two tiles, three on the desk's and two on the stacked screen's - curtain 2:922e5665 ->
            2:ac4af798, desk 1:3ef3f4a9 -> 1:08875275, stacked 1:da1cfc2b -> 1:86229667. That declaration stood in
            stained-glass.css and was `left`; it is components.css's now, in the rule that draws the button under the
-           glass (the same selector, so the same prints). Every other print, `left` and the @media rules as they were. */
+           glass (the same selector, so the same prints). Every other print, `left` and the @media rules as they were.
+           The voice tile's curtain print under Stained Glass since E92 round 3 (12.11.2026): the compact tile's two rules
+           for a third button, which win its face's `padding-right` and its state word's `right` while OBJECTION! stands
+           there, read `:has(:is(.drpg-voice-objection, .drpg-voice-spectator-talk))` now, so a Spectator's switch takes
+           the same room - the same rules, the same values, another selector - 2:ac4af798 -> 2:ce15ad40, re-measured
+           headless; the pressed switch's rules match nothing this test draws. Every other print, `left` and the @media
+           rules as they were. */
         const C5 = {
             "curtain|monokuma-legacy|foundry-tools": "1:b845ef88", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:999f5b79",
             "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:bb393327", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
             "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:af4cb5e9", "curtain|stained-glass|foundry-tools": "1:7a915054",
             "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:ae4eb686", "curtain|stained-glass|room-art": "1:b38f7ef7",
             "curtain|stained-glass|room-tile": "1:1e31f8f3", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
-            "curtain|stained-glass|voice-tile": "2:ac4af798", "desk|monokuma-legacy|foundry-tools": "1:b845ef88", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
+            "curtain|stained-glass|voice-tile": "2:ce15ad40", "desk|monokuma-legacy|foundry-tools": "1:b845ef88", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
             "desk|monokuma-legacy|gm-launcher": "1:999f5b79", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:74d54c24",
             "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:ebf26e39",
             "desk|stained-glass|foundry-tools": "1:7a915054", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:ae4eb686",
@@ -49385,7 +49391,7 @@ const INVARIANTS = [
                 accounts: { watcher: true, mixed: false, none: false, gm: false, held: false }, gmView: { reason: "spectator", held: true }, settle: true }),
             "[micHold for the Spectator's account in Daily Life and the trial; a student's account; spectatorAccount; the GMs' view; the settle blocks it as the GMs hold the flag]");
     }],
-    ["R3854 - a Spectator walks as a ghost (E92 C3; the owner's E92 goal (3)): movement.mjs `crossingVerdict` lets it through as a Monokuma, before the trial's and the incident's locks; fog.mjs `recordDiscovery` writes nothing for it; movement.mjs `judgeMove` charges it nothing; movement-audit.mjs `auditMove` exempts it; the bridge has `spectator.move`, guarded by `knownSender` and `ownsActorAt` of the token", async () => {
+    ["R3854 - a Spectator walks as a ghost (E92 C3; the owner's E92 goal (3)): movement.mjs `crossingVerdict` lets it through as a Monokuma, before the trial's and the incident's locks; fog.mjs `recordDiscovery` writes nothing for it; movement.mjs `judgeMove` charges it nothing; movement-audit.mjs `auditMove` exempts it (it moves by dragging its own token; the bridge action `spectator.move` went in E92 round 3, R3863)", async () => {
         /*
          * E92 C0, 12.11.2026. The clock is answered in the Class Trial while the verdicts are read (`game.settings.get`
          * stood in, the setting untouched); the rest is read in the source. Red on C0's tree: the trial's lock.
@@ -49405,10 +49411,8 @@ const INVARIANTS = [
         const cut = (file, fn) => stripComments(fnSource(stripComments(src.get(file) ?? ""), fn));
         const names = cut("fog.mjs", "recordDiscovery").includes("isSpectator(") && cut("movement.mjs", "judgeMove").includes("isSpectator(")
             && cut("movement-audit.mjs", "auditMove").includes("isSpectator(");
-        const wire = /ACTION_SPECTATOR_MOVE\s*=\s*"spectator\.move"/.test(src.get("bridge-wire.mjs") ?? "");
-        const row = /\[ACTION_SPECTATOR_MOVE\]:\s*\{[^}]*guards:\s*\[knownSender,\s*ownsActorAt\(tokenActorOf,/s.test(stripComments(src.get("bridge-table.mjs") ?? ""));
-        equal(stableJson({ verdicts, names, wire, row }), stableJson({ verdicts: { watcher: true, student: false }, names: true, wire: true, row: true }),
-            "[a crossing in the Class Trial for a Spectator and a student; the ledger, the charge and the audit pass it over; the bridge's road]");
+        equal(stableJson({ verdicts, names }), stableJson({ verdicts: { watcher: true, student: false }, names: true }),
+            "[a crossing in the Class Trial for a Spectator and a student; the ledger, the charge and the audit pass it over]");
     }],
     ["R3855 - who sees a Spectator's token, and what a Spectator sees (E92 C4; the owner's E92 goal (1), (4)): visibility.mjs `tokenShownTo` hides a Spectator's token from every other player whatever the room, the Eclipse or the setting, shows it to its owner, and leaves the GM's to Foundry; to a Spectator's browser every character's token is left to Foundry (seen whatever the room), its own as well", async () => {
         /*
@@ -49461,31 +49465,7 @@ const INVARIANTS = [
         const want = { mode: "spectator", actions: null, calls: false, use: false, levelUp: false, strip: "none", objection: false, tile: false, safeword: false, acts: false, spectator: true };
         equal(stableJson({ owner: read(owner), gm: read(gm) }), stableJson({ owner: want, gm: want }), "[sheetMode of a Spectator for its owner and a GM]");
     }],
-    ["R3859 - a Spectator's line under the clock (scripts/spectator-ui.mjs `spectatorLineHtml`; E92 C5, the owner's E92 goal (3), (5)): it says the room the Spectator's token stands in, or that it stands outside the rooms, and offers every room handed - the class's found rooms - in its order, the room it stands in not to be picked, under a label that says what the picker does; with no room to offer the picker is shut; a GM's browser is no Spectator's (scripts/spectator.mjs `spectatorViewer`)", async () => {
-        /*
-         * E92 C5, 12.11.2026. The markup is pure; it is read in a detached element, in this browser's language. Red
-         * before C5: no spectator-ui.mjs.
-         */
-        const UI = await import("./spectator-ui.mjs");
-        const { spectatorViewer } = await import("./spectator.mjs");
-        const read = html => {
-            const root = document.createElement("div");
-            root.innerHTML = html;
-            const line = root.querySelector("[data-drpg-spectator-line]");
-            const select = line?.querySelector("select");
-            return { where: line?.querySelector(".drpg-spectator-where")?.textContent ?? null, label: select?.getAttribute("aria-label") ?? null,
-                shut: Boolean(select?.disabled), options: [...(select?.options ?? [])].map(o => [o.value, o.disabled]) };
-        };
-        const L = (key, data) => (data ? game.i18n.format(key, data) : game.i18n.localize(key));
-        const here = read(UI.spectatorLineHtml({ room: "R3859 Gym", rooms: ["R3859 Dorm", "R3859 Gym"] }));
-        const outside = read(UI.spectatorLineHtml({ room: null, rooms: [] }));
-        equal(stableJson({ here, outside, gm: spectatorViewer({ id: "R3859gm", isGM: true }, [e92Char("R3859-watch", { spectator: true })]) }), stableJson({
-            here: { where: L("DRPG.Spectator.watching", { room: "R3859 Gym" }), label: L("DRPG.Spectator.watchLabel"), shut: false,
-                options: [["", false], ["R3859 Dorm", false], ["R3859 Gym", true]] },
-            outside: { where: L("DRPG.Spectator.watchingOutside"), label: L("DRPG.Spectator.watchLabel"), shut: true, options: [["", false]] },
-            gm: false }), "[the line in a room with two found; outside every room with none; a GM's browser]");
-    }],
-    ["R3860 - the Spectators' room (E92 C6; the owner's 04.11 amend \"a 'Spectator talk' switch moves them to their room until they return\"): voice.mjs `placeVoices` sends a Spectator's account whose switch is on (its own User flag, scripts/spectator.mjs `SPECTATOR_TALK_FLAG`) to voice-client.mjs `SPECTATOR_ROOM`, and back to its token's room when it is off; a student's account with the flag stays in its room; `micHold` opens the microphone in the Spectators' room alone (\"spectatorTalk\", not held) and the line's switch says which way it goes", async () => {
+    ["R3860 - the Spectators' room (E92 C6; the owner's 04.11 amend \"a 'Spectator talk' switch moves them to their room until they return\"): voice.mjs `placeVoices` sends a Spectator's account whose switch is on (its own User flag, scripts/spectator.mjs `SPECTATOR_TALK_FLAG`) to voice-client.mjs `SPECTATOR_ROOM`, and back to its token's room when it is off; a student's account with the flag stays in its room; `micHold` opens the microphone in the Spectators' room alone (\"spectatorTalk\", not held) and the voice tile's switch says which way it goes (voice-tile.mjs `paintSpectatorTalk`, round 3; the line under the clock until then)", async () => {
         /*
          * E92 C6, 12.11.2026. Stand-in accounts and characters; the room each stands in is handed (`locate`), the deaths
          * answered none. Red before C6: no SPECTATOR_ROOM, the Spectator in its token's room.
@@ -49493,7 +49473,7 @@ const INVARIANTS = [
         const V = await import("./voice.mjs");
         const { SPECTATOR_ROOM } = await import("./voice-client.mjs");
         const { SPECTATOR_TALK_FLAG } = await import("./spectator.mjs");
-        const UI = await import("./spectator-ui.mjs");
+        const VT = await import("./voice-tile.mjs");
         const account = (id, talk) => ({ id, name: id, isGM: false, active: true,
             getFlag: (scope, key) => (scope === MODULE_ID && key === SPECTATOR_TALK_FLAG ? talk : undefined) });
         const place = async (talk) => {
@@ -49508,16 +49488,15 @@ const INVARIANTS = [
         const user = { id: "R3860mic", isGM: false }, mine = [e92Char("R3860-mine", { spectator: true }, "R3860mic")];
         const mic = room => V.micHold({ user, room, external: false, connected: true, canBroadcastAudio: true, actors: mine, trial: null });
         const button = talking => {
-            const root = document.createElement("div");
-            root.innerHTML = UI.spectatorLineHtml({ room: "Gym", rooms: ["Gym"], talking });
-            const b = root.querySelector("[data-drpg-spectator-talk]");
-            return [b?.textContent?.trim() ?? null, b?.getAttribute("aria-pressed") ?? null];
+            const tile = VT.buildVoiceTile({ onMic: () => null, onSpeaker: () => null });
+            const b = VT.paintSpectatorTalk(tile, { watching: true, talking, onToggle: () => null });
+            return [b?.getAttribute("aria-label") ?? null, b?.getAttribute("aria-pressed") ?? null];
         };
         equal(stableJson({ on: await place(true), off: await place(false), micThere: mic(SPECTATOR_ROOM), micHere: mic(gym), on2: button(true), off2: button(false) }),
             stableJson({ on: { watch: SPECTATOR_ROOM, pupil: gym }, off: { watch: gym, pupil: gym },
                 micThere: { reason: "spectatorTalk", held: false }, micHere: { reason: "spectator", held: true },
                 on2: [game.i18n.localize("DRPG.Spectator.talkBack"), "true"], off2: [game.i18n.localize("DRPG.Spectator.talk"), "false"] }),
-            "[the switch on and off: the Spectator's and a student's rooms; the microphone in the Spectators' room and in its token's; the line's switch]");
+            "[the switch on and off: the Spectator's and a student's rooms; the microphone in the Spectators' room and in its token's; the tile's switch]");
     }],
     ["R3861 - what a Spectator sees of E61, E62 and E94 (E92 C7; the owner's 08.11 amend: \"E92 checks what a Spectator sees at the trial entry and cut-in, the day boards and phase transitions\"): the start-of-day board's cast, monokuma.mjs `studentActors`, leaves a Spectator out, as it leaves an NPC; and the trial's entry, the verdict's cut-in, the day's board and every transition play on every browser that hears them - none of sequence.mjs `playTrialEntry`, `playVerdictCut`, `playDayStart` or transitions.mjs asks who the viewer is, so a Spectator's browser plays them as a player's does", async () => {
         /*
@@ -49566,6 +49545,60 @@ const INVARIANTS = [
         const odd = rows.filter(r => r.nameButtons !== 0 || !r.next || !/^sheet,(items|kept)$/.test(r.slots ?? "") || r.tab !== true);
         equal(stableJson({ odd, rule }), stableJson({ odd: [], rule: true }),
             "[the rows whose name cell holds a button, whose buttons are not the next cell, or whose slots are not the sheet's then the items'; the column's fixed width in components.css]");
+    }],
+    ["R3863 - no line under the clock for a Spectator, and no road it walked (E92 round 3; the owner's 12.11.2026: \"Usuwamy liste\"): scripts/spectator-ui.mjs draws no watching line and no room picker (`spectatorLineHtml`, `paintSpectatorLine` gone), no module file names the line, its picker or the bridge action `spectator.move` (a Spectator moves by dragging its own token), and the chat stays hidden on its browser (components.css `body.drpg-spectator`)", async () => {
+        /*
+         * E92 round 3, 12.11.2026. Read in the source, comments stripped, the suite's own files left out; the stylesheet's
+         * chat rule read whole. Red at 56f4dab: the line, its picker and `spectator.move` were there.
+         */
+        const UI = await import("./spectator-ui.mjs");
+        const src = new Map(await otherSources());
+        must(src.size > 50, "the sources read are almost none - this would measure nothing");
+        const naming = [...src].filter(([, text]) => /spectator\.move|SPECTATOR_MOVE|SpectatorMove|drpg-spectator-line|drpg-spectator-rooms|DRPG\.Spectator\.watch/.test(stripComments(text)))
+            .map(([file]) => file.replace(/^.*\//, "")).sort();
+        const css = await moduleStyles();
+        equal(stableJson({ exports: [e92Export(UI, "spectatorLineHtml"), e92Export(UI, "paintSpectatorLine")].filter(Boolean).length, naming,
+            lineCss: /drpg-spectator-line/.test(css), chat: /body\.drpg-spectator\s+#chat-log/.test(css) }),
+            stableJson({ exports: 0, naming: [], lineCss: false, chat: true }),
+            "[spectator-ui.mjs's line exports; the files that name the line, its picker or spectator.move; the line's rules; the chat's rule]");
+    }],
+    ["R3864 - the \"Talk with the Spectators\" switch stands in the voice tile, among its buttons, on a Spectator's browser alone (E92 round 3; the owner's 12.11.2026: \"przycisk przenoszenia sie miedzy czatem spectatorow a sluchaniem dajemy w panelu livekit po prawej stronie ekranu, tam gdzie reszta przyciskow\"): voice-tile.mjs `paintSpectatorTalk` puts one native button after the microphone and the speaker, named for a screen reader and its tooltip by DRPG.Spectator.talk, pressed and named DRPG.Spectator.talkBack while the switch is on, a click toggling the switch once; on any other browser no such button, and one drawn goes when the browser stops watching; `paintControls` paints it with the tile's other buttons", async () => {
+        /*
+         * E92 round 3, 12.11.2026. A tile of the suite's own (`buildVoiceTile` with stand-in clicks), detached; who watches
+         * and the switch are handed, the click's toggle is a spy. Red at 56f4dab: no `paintSpectatorTalk`.
+         */
+        const V = await import("./voice-tile.mjs");
+        const paint = e92Export(V, "paintSpectatorTalk");
+        const tile = V.buildVoiceTile({ onMic: () => null, onSpeaker: () => null });
+        const L = key => game.i18n.localize(key);
+        let toggled = 0;
+        const read = () => {
+            const controls = tile.querySelector(".drpg-voice-tile-controls");
+            const b = controls?.querySelector(".drpg-voice-spectator-talk") ?? null;
+            if (!b) return null;
+            const order = [...controls.children].map(c => (c.classList.contains("drpg-voice-mic") ? "mic" : c.classList.contains("drpg-voice-speaker") ? "speaker"
+                : c === b ? "talk" : "other")).join(",");
+            return { tag: b.tagName, type: b.getAttribute("type"), label: b.getAttribute("aria-label"), tip: b.dataset.tooltipText ?? null,
+                pressed: b.getAttribute("aria-pressed"), order, tab: b.tabIndex };
+        };
+        const got = {};
+        if (paint) {
+            paint(tile, { watching: true, talking: false, onToggle: () => { toggled += 1; } });
+            got.off = read();
+            tile.querySelector(".drpg-voice-spectator-talk")?.click();
+            await new Promise(r => setTimeout(r, 0));
+            got.clicks = toggled;
+            paint(tile, { watching: true, talking: true, onToggle: () => { toggled += 1; } });
+            got.on = read();
+            got.count = tile.querySelectorAll(".drpg-voice-spectator-talk").length;
+            paint(tile, { watching: false, talking: true });
+            got.gone = read();
+        }
+        const painter = stripComments(fnSource(stripComments((new Map(await otherSources())).get("voice-tile.mjs") ?? ""), "paintControls")).includes("paintSpectatorTalk(");
+        const button = (key, pressed) => ({ tag: "BUTTON", type: "button", label: L(key), tip: L(key), pressed, order: "mic,speaker,talk", tab: 0 });
+        equal(stableJson({ ...got, painter }), stableJson({ off: button("DRPG.Spectator.talk", "false"), clicks: 1, on: button("DRPG.Spectator.talkBack", "true"),
+            count: 1, gone: null, painter: true }),
+            "[the switch off, a click, the switch on, how many buttons, the browser no longer watching; paintControls paints it]");
     }],
     ["R3858 - the census of `type === \"character\"` holds (E92 C0; the plan's risk R1): every line in scripts/ outside the suite that reads an actor's type as \"character\" is one docs/dev/e92/CENSUS.md classified - a new one fails here until it is classified there and counted here", async () => {
         /*

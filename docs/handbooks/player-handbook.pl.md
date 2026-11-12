@@ -78,7 +78,7 @@ Okno rzutu jest dla graczy zablokowane: kości, statystyka, przewaga, doświadcz
 
 ### Jeśli jesteś Widzem
 
-GM może zrobić z twojej postaci **Widza**: oglądasz grę i nie bierzesz w niej udziału. Nie masz akcji, Hope, Calli ani Level Upów, nikt nie liczy cię w pokoju i nie liczy cię żadne głosowanie, Class Trial ani incydent. Inni gracze nie widzą twojego żetonu. Twój mikrofon jest wyłączony w każdej fazie, a ty słyszysz pokój, w którym stoi twój żeton; **Porozmawiaj z Widzami** pod twoim zegarem przenosi cię do osobnego pokoju głosowego Widzów, gdzie możesz mówić, a **Wróć do swojego pokoju** cię cofa. Przechodzisz przez ściany i zamknięte drzwi bez kosztu, a **Oglądaj pokój** przenosi twój żeton do każdego pokoju, który klasa odkryła. Widzisz pokoje, które klasa odkryła, i żetony wszystkich, ale nic tajnego. Czat jest na twoim ekranie ukryty.
+GM może zrobić z twojej postaci **Widza**: oglądasz grę i nie bierzesz w niej udziału. Nie masz akcji, Hope, Calli ani Level Upów, nikt nie liczy cię w pokoju i nie liczy cię żadne głosowanie, Class Trial ani incydent. Inni gracze nie widzą twojego żetonu. Twój mikrofon jest wyłączony w każdej fazie, a ty słyszysz pokój, w którym stoi twój żeton; **Porozmawiaj z Widzami**, przycisk na twoim kafelku głosu obok mikrofonu i głośnika, przenosi cię do osobnego pokoju głosowego Widzów, gdzie możesz mówić, a **Wróć do swojego pokoju** cię cofa. Poruszasz się, przeciągając własny żeton, bez kosztu; moduł nie zatrzymuje cię na żadnej ścianie ani zamkniętych drzwiach, ale czy Foundry przepuszcza twoje przeciągnięcie przez ścianę na v14, nie zostało jeszcze sprawdzone przy stole. Widzisz pokoje, które klasa odkryła, i żetony wszystkich, ale nic tajnego. Czat jest na twoim ekranie ukryty.
 
 
 ---

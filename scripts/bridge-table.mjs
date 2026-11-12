@@ -46,7 +46,7 @@ import {
     ACTION_PASSAGE_FIND, ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT,
     ACTION_FRISK_UNSEEN, ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS,
     ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_LOOT,
-    ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_SPECTATOR_MOVE
+    ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM
 } from "./bridge-wire.mjs";
 import {
     handleObserveTarget, handleCleanupTraces, handleObserveResolve, handleAnalyzeResolve, handleAdvancement,
@@ -55,7 +55,7 @@ import {
     handleFindStash, handleSteal, handleFriskUnseen, handleFriskAsk, handleFriskAnswer, handleFriskFollow,
     friskForceRoll, handleVaultSteal, searchTheftOf, handleOpeningResult, handleCrisis, handleParkMurder,
     handleBetrayal, handleCleanup, handleCubAbility, handleHopeCall, handleCallYes, handleDynamicAnswer,
-    handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling, handleSpectatorMove
+    handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling
 } from "./bridge-runs-acts.mjs";
 import {
     handleProgress, handleShare, TRACE_OF_ROLL, handleRemnant, traceBandOf, progressOf, repairOf, handleTieTrace,
@@ -207,22 +207,6 @@ export const BRIDGE_ACTIONS = table({
         run: handleRefundCrossing,
         answer: "reply",
         claims: { actorId: "movement.mjs refundLastCrossing gives back only the GMs' own record of that character's newest crossing (gm-stores.mjs `crossingStore`), once, on the primary" }
-    },
-    /*
-     * A SPECTATOR'S GHOST MOVE (E92 C3, 12.11.2026; the owner's E92 goal (3): "it passes through walls and closed doors,
-     * no movement limit and no fees"). Foundry stops a player's own drag at a wall; the primary writes the landing with
-     * walls ignored, as a GM's put-back is written (movement.mjs `sendBack`), so no fee is charged (a GM's move,
-     * `judgeMove`), no room is discovered (fog.mjs `recordDiscovery`), no trap, crossing, sighting or body discovery
-     * follows (none of them takes a Spectator). The sender owns the token's character (`ownsActorAt`); the run asks the
-     * flag as the GMs hold it, so a console's forged flag on a student moves nothing; the spot is on the scene.
-     */
-    [ACTION_SPECTATOR_MOVE]: {
-        label: "DRPG.Bridge.what.spectator.move",
-        guards: [knownSender, ownsActorAt(tokenActorOf, "sender does not own that token", ["sceneId", "tokenId"])],
-        sanitize: pick({ sceneId: as.id, tokenId: as.id, x: as.num, y: as.num }),
-        run: handleSpectatorMove,
-        answer: "ack",
-        claims: { x: "the run's: a spot on the token's scene, else refused", y: "the run's: a spot on the token's scene, else refused" }
     },
     [ACTION_PASSAGE_FIND]: {
         label: "DRPG.Bridge.what.passage.find",

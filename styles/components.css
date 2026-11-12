@@ -1297,6 +1297,14 @@ body:not(.drpg-theme-stained-glass) > #drpg-room-tile[data-place="notes"] {
     cursor: not-allowed;
 }
 
+/* "TALK WITH THE SPECTATORS" WHILE IT IS ON (E92 round 3): a Spectator's switch on its tile (voice-tile.mjs
+   `paintSpectatorTalk`), filled in the rim's bone while pressed - the corner's look of a lit button - so the player sees
+   which room they talk in without its tooltip. Under the glass the hexagon's rim and ground take the accent (below). */
+.drpg-voice-spectator-talk[aria-pressed="true"] {
+    background: var(--drpg-bone);
+    color: light-dark(var(--drpg-paper-alt), var(--drpg-ink));
+}
+
 /* OBJECTION! on the tile (E70 C11; the owner's B3): grey while held - outside a trial, with no debate, while an
    Objection runs - as the held microphone is, but not struck (nothing of the viewer's is switched off); still pressed,
    and a press says why (hud.mjs `objectionControl`). */
@@ -2098,6 +2106,12 @@ body.drpg-theme-stained-glass .drpg-voice-mic.is-gm-blocked::after { content: no
 
 body.drpg-theme-stained-glass .drpg-voice-mic.is-held::before { border-color: var(--drpg-line-strong); }
 
+/* "Talk with the Spectators" while it is on (E92 round 3): the hexagon's rim in the accent whole and its ground tinted. */
+body.drpg-theme-stained-glass .drpg-voice-spectator-talk[aria-pressed="true"]::before {
+    border-color: var(--drpg-glass-accent);
+    background: color-mix(in srgb, var(--drpg-glass-accent) 40%, var(--drpg-a8-glass-ground));
+}
+
 /* OBJECTION! held on the tile (E70 C11): the held microphone's grey rim, no strike. */
 body.drpg-theme-stained-glass .drpg-voice-objection[aria-disabled="true"] {
     color: var(--drpg-line-strong);
@@ -2338,12 +2352,13 @@ body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="co
 }
 
 /* A player's tile holds a third button, OBJECTION! (E70 C11): the clear space at the right grows by the button and the
-   6 px before it, 82 + 36. Not read in a browser at this commit (the glass harness's tile has two buttons); LIVE-E70-12. */
-body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"]:has(.drpg-voice-objection) .drpg-voice-tile-face {
+   6 px before it, 82 + 36. Not read in a browser at this commit (the glass harness's tile has two buttons); LIVE-E70-12.
+   A Spectator's tile holds a third as well, "Talk with the Spectators" (E92 round 3), and never OBJECTION!. */
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"]:has(:is(.drpg-voice-objection, .drpg-voice-spectator-talk)) .drpg-voice-tile-face {
     padding-right: 118px;
 }
 
-body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"]:has(.drpg-voice-objection) .drpg-voice-tile-state {
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"]:has(:is(.drpg-voice-objection, .drpg-voice-spectator-talk)) .drpg-voice-tile-state {
     right: 118px;
 }
 
@@ -4011,19 +4026,13 @@ span.drpg-chat-kit-warn { padding: 0 0.3rem; }
 }
 
 /* E92 C5 (12.11.2026; the owner's E92 goal and its 04.11 amend "the Spectator does NOT read the chat"). On a Spectator's
-   browser (`body.drpg-spectator`, spectator-ui.mjs `paintSpectatorLine`) the chat log, its pop-up notifications and the box
-   a message is typed in are not drawn: a display only, every message still reaches the browser (Q-E92-4). THE WATCHING
-   LINE under the clock: where the token stands, then the room picker, wrapping under it on a narrow clock. */
+   browser (`body.drpg-spectator`, spectator-ui.mjs `paintSpectatorUi`) the chat log, its pop-up notifications and the box
+   a message is typed in are not drawn: a display only, every message still reaches the browser (Q-E92-4). The line
+   under the clock with its room picker went in round 3 (the owner's "Usuwamy liste"); the "Talk with the Spectators"
+   switch is a button of the voice tile (voice-tile.mjs `paintSpectatorTalk`). */
 body.drpg-spectator #chat-log,
 body.drpg-spectator #chat-notifications,
 body.drpg-spectator #chat-message { display: none; }
-#drpg-hud > .drpg-spectator-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 4px; font-size: 0.85em; }
-#drpg-hud > .drpg-spectator-line > .drpg-spectator-where { flex: 1 1 auto; min-width: 0; }
-/* At most 14rem (E92 owner fix): across the whole line the glass's skew of the clock lifted the box's right end, its arrow
-   with it, so the arrow read as standing above the box (round 1's shots). */
-#drpg-hud > .drpg-spectator-line > .drpg-spectator-rooms { flex: 0 1 12rem; min-width: 10rem; max-width: min(14rem, 100%); height: auto; padding: 1px 4px;
-    appearance: auto; background: transparent; color: inherit; border: 1px solid currentColor; font: inherit; }
-#drpg-hud > .drpg-spectator-line > .drpg-spectator-rooms > option { color: initial; background: initial; }
 
 /* ---- Daggerheart's character settings window (E49, 1.2.105; scripts/dh-settings.mjs; the owner's 11.11.2026: the
    wrench's window "nieruszane w obu motywach"). Daggerheart 2.6.5 draws it (templates/sheets-settings/

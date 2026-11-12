@@ -3403,10 +3403,6 @@
       "role": "Widz",
       "marked": "{name} jest teraz Widzem.",
       "unmarked": "{name} nie jest już Widzem.",
-      "watching": "Oglądasz z pokoju {room}.",
-      "watchingOutside": "Oglądasz spoza pokojów.",
-      "watchRoom": "Oglądaj pokój",
-      "watchLabel": "Przenieś swój żeton do pokoju, który klasa już odkryła",
       "talk": "Porozmawiaj z Widzami",
       "talkBack": "Wróć do swojego pokoju"
     },
@@ -3998,7 +3994,6 @@
         "vault.findStash": "Find Stash",
         "passage.find": "Szukanie tajnego przejścia",
         "token.refundCrossing": "Zwrot ostatniego przejścia postaci",
-        "spectator.move": "Ruch żetonu Widza",
         "action.plant": "Podłożenie",
         "action.friskUnseen": "Frisk (ukradkiem)",
         "action.friskAsk": "Frisk (prośba)",

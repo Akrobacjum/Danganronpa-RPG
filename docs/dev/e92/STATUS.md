@@ -1,6 +1,6 @@
 # E92 - status (work line claude/e92)
 
-Updated 12.11.2026. Final: all seven commits in, tested, pushed; the owner fix of 12.11 in (below). Ships as 1.2.110 (the coordinator). Head 44b1777, CI run 43198264490 green. The plan is `docs/dev/plans/E92.md` on `claude/plan-130` (read whole). Base: claude/e61-62 at 59d1935
+Updated 12.11.2026. Final: all seven commits in, tested, pushed; the owner fix of 12.11 in; round 3 (the talk switch on the voice tile, the line under the clock and `spectator.move` gone) in. Ships as 1.2.110 (the coordinator). The plan is `docs/dev/plans/E92.md` on `claude/plan-130` (read whole). Base: claude/e61-62 at 59d1935
 (E61, E62 and E94). The census of what a Spectator would be counted in: `docs/dev/e92/CENSUS.md`.
 
 ## Done
@@ -10,9 +10,9 @@ Updated 12.11.2026. Final: all seven commits in, tested, pushed; the owner fix o
 | C0 | The census (52 roster calls, 73 `type === "character"` reads, the early returns that decide for a Spectator), each classified; red tests R3850-R3858, R3858 the census's own guard (it fails on an unclassified new read; it caught spectator.mjs's in C4) | 0a0f211 |
 | C1 | `FLAGS.spectator` (a GM's flag, `GM_FLAGS`), `isSpectator`, `setSpectator`, `ownSpectator`; the roster and every list the census named leave it out; nobody in the room (`countsAsPresent`, `maybeThirdParty`); a fourth Role in the Students window with a "Spectators" group; glossary "Spectator" / "Widz" | 75839e1 |
 | C2 | The microphone held in every phase (`micHold` "spectator", `spectatorAccount`), blocked by the trial's own write and `trialMuteStore` row and put back as found | 83acdee |
-| C3 | The ghost: `crossingVerdict`, `judgeMove`, `auditMove`, `recordDiscovery` pass it over; bridge action `spectator.move` (the five steps; 33 legal control, 30 three forged packets); its token greyed with a dark outline on a GM's canvas; LIVE-E92-01..04 in AUDIT 9.2 | 621d24e |
+| C3 | The ghost: `crossingVerdict`, `judgeMove`, `auditMove`, `recordDiscovery` pass it over; bridge action `spectator.move` (the five steps; 33 legal control, 30 three forged packets; removed in round 3); its token greyed with a dark outline on a GM's canvas; LIVE-E92-01..04 in AUDIT 9.2 | 621d24e |
 | C4 | `tokenShownTo`: its token hidden from every other player, its view sees every character; its map the class's ledger folded into its own row without the Mastermind's (`spectatorFogSection`), retold on the flag, unticked on the way back (`forgetSpectatorMap`); scripts/spectator.mjs (a leaf) | 82c988f |
-| C5 | `sheetMode` "spectator"; scripts/spectator-ui.mjs: the line under the clock (its room, "Watch a room" picker through `spectator.move`) and the hidden chat (`drpg-spectator`, components.css) | e08aaec, b50184f |
+| C5 | `sheetMode` "spectator"; scripts/spectator-ui.mjs: the line under the clock (its room, "Watch a room" picker through `spectator.move`; both removed in round 3) and the hidden chat (`drpg-spectator`, components.css) | e08aaec, b50184f |
 | C6 | The Spectators' voice room (`SPECTATOR_ROOM`) behind "Talk with the Spectators" (the player's own User flag, honoured for a Spectator's account alone); the microphone opens there only | c9d0d4b |
 | C7 | Scenario 93-spectator (ci); R3861 (E61's entry and cut-in, E62's transitions, E94's board as a Spectator sees them); GM and player handbooks EN and PL | 88343c0 |
 | fixes | The module's own censuses given the new roads' rows (R6, R220, R379, R432, R553, R382, R1281 - found by the full tiers 0-1 run at C7); 33's ghost check moved before the phases that take the GMs away | 81c740e, 7f0f2bc |
@@ -56,7 +56,48 @@ the box: the glass skews the clock; the picker is at most 14rem now.
 Results at babd4f3: tiers 0-1 1271 ran, 1256 passed, 0 failed, 16 skipped; own tier 2 (R2080, R2083, E47-T6, "a Students
 row opens ...", the Spectator's microphone) 9 passed; scenarios 93, 14, 50, 74, 75 green.
 
+## Round 3 (12.11.2026, the owner's decision after round 2)
+
+The owner: "Usuwamy liste, przycisk przenoszenia sie miedzy czatem spectatorow a sluchaniem dajemy w panelu livekit po
+prawej stronie ekranu, tam gdzie reszta przyciskow". Done in one commit (the head of this line, below):
+
+- The line under the clock is gone, its room label and "Watch a room" picker with it (scripts/spectator-ui.mjs keeps the
+  body class that hides the chat, and the switch's write `toggleSpectatorTalk`). With no caller left the bridge action
+  `spectator.move` is removed whole: wire, row, run, ask, its two reason patterns, `DRPG.Bridge.what.spectator.move`, the
+  flow `spectator-move`, 30's and 33's phases, the census rows (R220, R553, R1281) and R3854's half that read it. 30 keeps
+  one check: the Spectator's flag a student's console writes is put back. The lang keys removed (`watching`,
+  `watchingOutside`, `watchRoom`, `watchLabel`, the bridge's) were this stage's own and never released; no other key is
+  touched.
+- A Spectator moves by dragging its own token: `crossingVerdict`, `judgeMove` and `auditMove` let it through; Foundry's own
+  wall stop on a player's drag is LIVE-E92-02 (rewritten: if v14 stops it, the Spectator does not cross a wall at all, and
+  a new road is the owner's to decide). Both handbooks, EN and PL, say so in a sentence, as not yet tried on v14.
+- "Talk with the Spectators" / "Go back to your room" is a mini button of the voice tile, after the microphone and the
+  speaker (voice-tile.mjs `paintSpectatorTalk`, painted by `paintControls` on every repaint, the user's own flag change
+  among them), on a Spectator's browser alone: the same flag (`SPECTATOR_TALK_FLAG`), the same keys, a native button named
+  for a screen reader and the tooltip, `aria-pressed`; shown pressed in both themes (components.css).
+- Tests: R3863 (no line, no picker, no `spectator.move`; the chat rule kept) and R3864 (the button: place, names, pressed,
+  one click, gone off a Spectator's browser, painted by `paintControls`), both red at 56f4dab; R3859 removed (its row kept,
+  "removed in E92"); R3860 reads the tile's button; scenario 93's ghost phase drags the token by p3's own write and a new
+  phase "talk" presses the button on p3's tile (LiveKit shim installed on p3 and p1, as 75 does, and taken off).
+
+Results before the push: tiers 0-1 whole 1272 ran, 1257 passed, 0 failed, 16 skipped (a first run found R552 and R1333
+red, the switch's glyph and the third-button rules' selector: both updated with the reason, then green); own tier 2 (the
+Spectator's microphone) 6 passed; scenarios 93, 75, 30, 33, 10, 15, 40, 41, 61, 63, 66, 72, 73, 76, 83, 88 green - every
+scenario `git grep` finds naming a changed file, 01 and 84 aside; `node tools/check.mjs` 17 parts green; lint 0 problems.
+
+Defaults taken, owner to confirm:
+- Q-E92-9 (new): with the GM's `voiceTile` switch off, Foundry's own dock is shown and the module draws no switch there:
+  a Spectator has no way to talk with the Spectators then. Putting a button into Foundry's dock would read v14's dock
+  markup, not read here.
+
+Measured in Chromium (glass-harness.html, the button added to its tile as `paintSpectatorTalk` draws it): inside the
+tile at 1366x768 and 1920x1080 in both themes; under Legacy it touches nothing; under the glass its box meets the
+speaker's by 6 px², as the microphone's meets the speaker's (6.24 px², the slanted column), the hexagons apart.
+
 ## Review shots
+
+Round 3 (the switch on the voice tile): https://claude.ai/artifact/DHpNXnsctFWBkw1xeTNJVt - both themes, EN and PL, 1366
+and 1920, off and on, the GM's tile, and the measurements. Not Foundry; the dock of Foundry is not shown.
 
 Round 2 (the owner fix): https://claude.ai/artifact/BWonLj62dbaAKf8Pv3iejb - the Students window with the buttons' column,
 both themes, EN and PL, 1920 and 1280, with the measurements; the Spectator's line under the clock. Under Legacy the

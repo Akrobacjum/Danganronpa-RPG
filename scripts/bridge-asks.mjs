@@ -31,7 +31,7 @@ import {
     ACTION_RULING_EXPIRED, ACTION_RULING_RECEIVED, ACTION_DYNAMIC_ANSWER, ACTION_OBSERVE_TARGET, ACTION_OBSERVE_RESOLVE,
     ACTION_OBSERVE_PICK, ACTION_CLEANUP_TRACES, ACTION_ANALYZE_RESOLVE, ACTION_ADVANCEMENT, ACTION_ADVANCEMENT_OFFER,
     ACTION_SHARE_BULLET, ACTION_GIVE_ITEM, ACTION_PASSAGE_SHARE, ACTION_PASSAGE_CROSS, ACTION_PASSAGE_FIND,
-    ACTION_REFUND_CROSSING, ACTION_SPECTATOR_MOVE, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT, ACTION_FRISK_UNSEEN,
+    ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT, ACTION_FRISK_UNSEEN,
     ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS, ACTION_OPENING_RESULT, ACTION_CLEANUP,
     ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_DONE, ACTION_LOOT, ACTION_NOTE_SAVE,
     ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM
@@ -449,11 +449,6 @@ export function requestProjectChange(countdownId, change, by = null) {
 /** A player whose token cannot be moved back asks the GM to do it. */
 export function requestSendBack(sceneId, tokenId, position) {
     return ask(ACTION_SENDBACK, { sceneId, tokenId, position });
-}
-
-/** Move my Spectator's token to a spot, through any wall (E92 C3; bridge-runs-acts.mjs `handleSpectatorMove`). */
-export function requestSpectatorMove(sceneId, tokenId, x, y) {
-    return ask(ACTION_SPECTATOR_MOVE, { sceneId, tokenId, x, y });
 }
 
 /** Count an Eclipse crossing in the GMs' store; `to` is the room crossed into, for its card. */

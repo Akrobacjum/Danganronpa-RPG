@@ -3133,10 +3133,6 @@
       "role": "Spectator",
       "marked": "{name} is now a Spectator.",
       "unmarked": "{name} is no longer a Spectator.",
-      "watching": "You watch from {room}.",
-      "watchingOutside": "You watch from outside the rooms.",
-      "watchRoom": "Watch a room",
-      "watchLabel": "Move your token to a room the class has found",
       "talk": "Talk with the Spectators",
       "talkBack": "Go back to your room"
     },
@@ -3671,7 +3667,6 @@
         "vault.findStash": "Find Stash",
         "passage.find": "Find a secret passage",
         "token.refundCrossing": "Give back a character's last crossing",
-        "spectator.move": "Move a Spectator's token",
         "action.plant": "Plant",
         "action.friskUnseen": "Frisk (unseen)",
         "action.friskAsk": "Frisk (asking)",

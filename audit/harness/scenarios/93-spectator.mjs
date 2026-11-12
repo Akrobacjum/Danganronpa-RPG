@@ -12,8 +12,10 @@
  *   map      Aiko has found the Cafeteria and Botan, the Mastermind, the Hall: p3's copy of the ledger is one row
  *            under Chie's own id (gm-stores.mjs `spectatorFogSection`), with the Cafeteria and not the Hall; p3's
  *            world data read against world-secrets.mjs and for the Mastermind's id (`canary.worldScan`);
- *   ghost    p3 moves Chie into Aiko's room and then into the Hall, through any wall (`spectator.move`): no action
- *            spent, no room found for her, and she is nobody in Aiko's room (`othersInRoom`);
+ *   talk     the "Talk with the Spectators" switch on p3's voice tile and not on p1's (voice-tile.mjs
+ *            `paintSpectatorTalk`, round 3): a press writes p3's own flag, a second takes it off;
+ *   ghost    p3 drags Chie into Aiko's room and then into the Hall (its own token write): no action spent, no room
+ *            found for her, and she is nobody in Aiko's room (`othersInRoom`);
  *   back     the GM makes her a student again: p3's microphone as it was found, the class's rooms off her map,
  *            p3's browser no Spectator's.
  * Everything is put back: the role, the token, the cells, the Mastermind, p3's permission.
@@ -87,24 +89,57 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
             JSON.stringify(map));
         await canary.worldScan({ who: ["p3"], ids: [IDS.botan] });
 
+        phase("talk");
+        /* The switch in the voice tile (E92 round 3): on p3's tile, after its microphone and speaker; on p1's none. A press
+           writes p3's own User flag and the primary sends p3 to the Spectators' room; a second press takes it back. */
+        /* The harness draws a tile only on a browser with its LiveKit shim (lib/livekit.mjs, as 75 installs it); both
+           browsers read are given one and put back in the finally. */
+        const voiceOn = c => c.eval(`if (typeof globalThis.__liveKit?.install !== "function") return false;
+            const installed = await __liveKit.install(); await game.webrtc.connect();
+            (${imp("voice-tile.mjs")}).refreshVoiceTile(); return installed;`, { timeout: 15000 });
+        const shims = { p3: await voiceOn(p3), p1: await voiceOn(p1) };
+        await settle(800);
+        const tileOf = c => c.eval(`const t = document.getElementById("drpg-voice-tile");
+            const b = t?.querySelector(".drpg-voice-tile-controls > .drpg-voice-spectator-talk");
+            return { tile: Boolean(t), button: b ? { label: b.getAttribute("aria-label"), pressed: b.getAttribute("aria-pressed"),
+                after: b.previousElementSibling?.classList.contains("drpg-voice-speaker") ?? false } : null };`);
+        const press = () => p3.eval(`document.querySelector("#drpg-voice-tile .drpg-voice-spectator-talk")?.click(); return true;`);
+        const talkOff = await tileOf(p3), talkP1 = await tileOf(p1);
+        await press();
+        await settle(2000);
+        const talkOn = await tileOf(p3);
+        const there = await gm.eval(`const { SPECTATOR_ROOM } = ${imp("voice-client.mjs")};
+            const u = game.users.get("${p3User}");
+            return { flag: u.getFlag("danganronpa-rpg", "spectatorTalk") ?? null, room: SPECTATOR_ROOM };`);
+        await press();
+        await settle(2000);
+        const talkBack = await tileOf(p3);
+        const flagBack = await gm.eval(`return game.users.get("${p3User}").getFlag("danganronpa-rpg", "spectatorTalk") ?? null;`);
+        check("talk: p3's tile holds the switch after its speaker and p1's none; a press turns it on, a second takes it off, the label following",
+            talkOff?.button?.pressed === "false" && talkOff.button.after === true && talkP1?.tile === true && talkP1.button === null
+            && there?.flag === true && talkOn?.button?.pressed === "true" && talkOn.button.label !== talkOff.button.label
+            && talkBack?.button?.pressed === "false" && flagBack === null,
+            JSON.stringify({ shims, talkOff, talkP1, there, talkOn, talkBack, flagBack }));
+
         phase("ghost");
-        const ask = (x, y) => p3.eval(`const B = ${imp("bridge-asks.mjs")};
-            const res = await B.requestSpectatorMove(canvas.scene.id, "TOKCHIE000000000", ${x}, ${y});
-            return { ok: res.ok === true, refused: res.refused ?? null };`);
-        const intoDorm = await ask(400, 400);
+        /* A Spectator moves by dragging its own token (round 3 took the room picker and its bridge action out): p3's own
+           write of Chie's token, as Foundry's drag makes it. The harness models no wall stop (LIVE-E92-02). */
+        const drag = (x, y) => p3.eval(`try { await canvas.scene.tokens.get("TOKCHIE000000000").update({ x: ${x}, y: ${y} }); return { ok: true }; }
+            catch (err) { return { ok: false, error: String(err?.message ?? err) }; }`);
+        const intoDorm = await drag(400, 400);
         await settle(1500);
         const company = await gm.eval(`const M = ${imp("movement.mjs")};
             return { room: M.roomOfToken(canvas.scene.tokens.get("TOKCHIE000000000")), others: M.othersInRoom(game.actors.get("${IDS.aiko}")).map(a => a.id) };`);
-        const intoHall = await ask(2400, 400);
+        const intoHall = await drag(2400, 400);
         await settle(1500);
         const ghost = await gm.eval(`const F = ${imp("fog.mjs")}, M = ${imp("movement.mjs")};
             const t = canvas.scene.tokens.get("TOKCHIE000000000");
             return { x: t.x, y: t.y, room: M.roomOfToken(t), found: F.discoveredFor(canvas.scene.id, "${IDS.chie}").includes("Hall"),
                 actions: game.drpg.actionsLeft(game.actors.get("${IDS.chie}")) };`);
-        check("ghost: p3 moves Chie into Aiko's room, where she is nobody, then into the Hall: no action spent, no room found",
+        check("ghost: p3 drags Chie into Aiko's room, where she is nobody, then into the Hall: no action spent, no room found",
             intoDorm?.ok === true && company?.room === "Dorm A" && !company.others.includes(IDS.chie)
             && intoHall?.ok === true && ghost?.room === "Hall" && ghost.found === false && ghost.actions === before.actions,
-            JSON.stringify({ intoDorm, company, intoHall, ghost }), { flow: "spectator-move" });
+            JSON.stringify({ intoDorm, company, intoHall, ghost }));
 
         phase("back");
         const back = await gm.eval(`const GS = ${imp("gm-students.mjs")}, M = ${imp("monokuma.mjs")};
@@ -122,6 +157,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
             && after.row === false && p3After?.viewer === false && p3After.chatHidden === false && !p3After.rooms.includes("Cafeteria"),
             JSON.stringify({ back, after, p3After }));
     } finally {
+        for (const c of [p3, p1]) {
+            await c.eval(`if (globalThis.__liveKit?.installed === true) { __liveKit.uninstall(); (${imp("voice-tile.mjs")}).refreshVoiceTile(); } return true;`).catch(() => null);
+        }
         await gm.eval(`const GS = ${imp("gm-students.mjs")}, M = ${imp("monokuma.mjs")}, F = ${imp("fog.mjs")}, MM = ${imp("mastermind.mjs")};
             const { forcedDeletion } = ${imp("utils.mjs")};
             const chie = game.actors.get("${IDS.chie}"), scene = canvas.scene, u = game.users.get("${p3User}");
@@ -137,6 +175,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
             if (mm) await MM.setMastermind(game.actors.get(mm)); else await MM.clearMastermind();
             const perm = ${JSON.stringify(before?.perm ?? [false, null])};
             await u.update({ "permissions.BROADCAST_AUDIO": perm[0] ? perm[1] : forcedDeletion() });
+            if (u.getFlag("danganronpa-rpg", "spectatorTalk") !== undefined) await u.unsetFlag("danganronpa-rpg", "spectatorTalk");
             return true;`, { timeout: 60000 });
         await settle(1500);
     }
