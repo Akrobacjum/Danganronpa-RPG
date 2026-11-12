@@ -18336,6 +18336,8 @@ body.drpg-flicker:not(.drpg-theme-stained-glass) :is(#drpg-hud, #drpg-status, #d
 #drpg-sequence .drpg-seq-announce small { font-size: 0.7em; letter-spacing: 0.12em; opacity: 0.8; }
 /* E94 C3, C4: the end-of-day board - the day's rows (this browser's own), what the school saw, Hope and Despair counted up,
    and the school's mood as a word; the same frame as the start-of-day board's */
+/* The owner on the end board (12.11): more room between the chapter line and the rest - 22 units on the grid's 14 */
+#drpg-sequence .drpg-seq-dayend .drpg-seq-day-sub { margin-bottom: calc(22 * var(--drpg-seq-u)); }
 #drpg-sequence .drpg-seq-dayend-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(320 * var(--drpg-seq-u)), 1fr)); gap: calc(24 * var(--drpg-seq-u)); text-align: left; }
 #drpg-sequence .drpg-seq-dayend h3 { margin: 0 0 calc(8 * var(--drpg-seq-u)); border: 0; font: calc((var(--drpg-seq-text-size) - 2) * var(--drpg-seq-u)) var(--drpg-seq-font); letter-spacing: 0.12em; opacity: 0.8; color: var(--drpg-seq-light); }
 #drpg-sequence .drpg-seq-dayend ol { margin: 0; padding: 0; list-style: none; display: grid; gap: calc(6 * var(--drpg-seq-u)); }

@@ -49669,6 +49669,18 @@ const INVARIANTS = [
         }), stableJson({ delays: [hour?.dur ?? -1, 0, 0, 0, 0], waits: true, rows: true, css: true }),
             "[an hour's turn, reduced motion, the switch off, no clock before, no change; sumUp waits; each row its place; the rows' slide and its reduced-motion rule]");
     }],
+    ["R3731 - the end-of-day board's chapter line stands apart from the rest (styles/danganronpa.css; the owner's word of 12.11 on the review page: \"W podsumowaniu dnia powiekszylbym odstep miedzy rozdzialem a reszta\"): below the chapter line the end board adds 22 of the sequence's units to the grid's 14, in both themes; the start board keeps its spacing", async () => {
+        /*
+         * E94 C3, 12.11.2026. Red at 463d12f: the line stood the grid's 14 units (12 px at 1366x768) from the columns.
+         * Measured in Chromium on the glass harness at 1366x768, both themes, EN and PL: 12 px before, 31 px after, the
+         * board inside the screen in all four (STATUS). Read here in the stylesheet, as the suite has no layout.
+         */
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
+        equal(stableJson({
+            end: /#drpg-sequence \.drpg-seq-dayend \.drpg-seq-day-sub \{[^}]*margin-bottom: calc\(22 \* var\(--drpg-seq-u\)\)/.test(css),
+            start: /#drpg-sequence \.drpg-seq-day-sub \{[^}]*margin/.test(css)
+        }), stableJson({ end: true, start: false }), "[the end board's chapter line has its own space below; the shared rule adds none]");
+    }],
     ["R3714 - the start-of-day board names the cast as the table knows it (scripts/sequence.mjs `dayStartBoard`, `dayStartElement`; E94 C2, MK-R2 #4, #9, #10): the day, the chapter and the time of day in this language; every student in their place, the dead by the published flag alone - greyed, with their name and \"we remember\", never struck through - and a death the GMs keep not shown as one; the alive count; an empty morning line not drawn", async () => {
         /*
          * E94 C2, 12.11.2026. Red at 3c36fcb: sequence.mjs exports no dayStartBoard. The students are stand-ins with
