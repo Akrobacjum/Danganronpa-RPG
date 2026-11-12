@@ -15368,8 +15368,8 @@ body.drpg-theme-monokuma-legacy .drpg-window-tables fieldset.drpg-tables-new > .
    panel for Season setup in E49 A1e (11.11.2026), and their four rules went
    with their tiles. Three came back on 12.11.2026 with the tiles of Season
    setup's row (gm-panel.mjs SEASON_TILES, the panel's own tile markup), each
-   its drawing of before, beside the row's Season checklist (the legacy
-   checklist); Edit campaign's stays out.
+   its drawing of before; the row's Season checklist keeps its Font Awesome
+   icon here (no rule: the owner, 12.11.2026); Edit campaign's stays out.
    ========================================================================== */
 
 /* The icon slot becomes a mask box. Font Awesome still ships the element, so
@@ -15388,7 +15388,6 @@ body.drpg-theme-monokuma-legacy .drpg-window-tables fieldset.drpg-tables-new > .
 .drpg-gmp-button[data-drpg-run="gmTeam"] > i,
 .drpg-gmp-button[data-drpg-run="mastermind"] > i,
 .drpg-gmp-button[data-drpg-run="rules"] > i,
-.drpg-gmp-button[data-drpg-run="seasonChecklist"] > i,
 i.drpg-pix-foot {
     flex: 0 0 24px;
     width: 24px;
@@ -15417,7 +15416,6 @@ i.drpg-pix-foot {
 .drpg-gmp-button[data-drpg-run="gmTeam"] > i::before,
 .drpg-gmp-button[data-drpg-run="mastermind"] > i::before,
 .drpg-gmp-button[data-drpg-run="rules"] > i::before,
-.drpg-gmp-button[data-drpg-run="seasonChecklist"] > i::before,
 i.drpg-pix-foot::before {
     content: none !important;
 }
@@ -15485,11 +15483,6 @@ i.drpg-pix-foot::before {
 .drpg-gmp-button[data-drpg-run="rules"] > i {
     -webkit-mask-image: var(--drpg-pix-new-rule);
     mask-image: var(--drpg-pix-new-rule);
-}
-
-.drpg-gmp-button[data-drpg-run="seasonChecklist"] > i {
-    -webkit-mask-image: var(--drpg-pix-checklist);
-    mask-image: var(--drpg-pix-checklist);
 }
 
 /* The token toolbar's own button - the module's front door.

@@ -366,8 +366,9 @@ const PANEL_SECTIONS = [
  * checklist, the window Season setup's rows moved to (season-setup.mjs `openSeasonChecklist`; Pre-season checks is its
  * button). Here and not in season-setup.mjs because they are the panel's tiles: drawn by `tileHtml`, worn by the glyphs
  * keyed on `data-drpg-run` (tests-glyphs.mjs reads this file's `{ key, icon }` rows); season-setup.mjs reads them by
- * `import()` (this file imports it). The checklist's icon is the list one, its glyph the checklist drawing the Projects
- * tile wears (tests-glyphs.mjs ELEMENTS).
+ * `import()` (this file imports it). The checklist's icon is the list one; under Stained Glass it wears a drawing of its
+ * own, season-checklist (tests-glyphs.mjs ELEMENTS; the owner, 12.11.2026: not the Projects tile's), under Legacy the
+ * icon itself.
  */
 export const SEASON_TILES = Object.freeze([
     { key: "gmTeam", icon: "fa-users-gear", labelKey: "DRPG.Panel.despairFlow",

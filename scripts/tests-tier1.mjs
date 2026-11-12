@@ -17543,7 +17543,7 @@ const INVARIANTS = [
         }), "{asked: the windows in order [the checklist, Pre-season checks, the checklist back]; title; width: the tables'; parts: the body's in order; rows: "
             + "the checklist's keys (steps() not of the First session); fields: named fields in the window; footer: [action, role] sorted; checks: its label; player: [the answer, windows asked]}");
     }],
-    ["R3585 - Season setup's tiles are the GM panel's, in look and in glyph, in both themes (E49 A1e; the owner, 12.11.2026: \"the same shape as the GM panel's tiles\", \"the glyphs those windows had as tiles\"): each tile Season setup draws is gm-panel.mjs `tileHtml`'s markup of its `SEASON_TILES` row; the cascade gives a Season setup tile what it gives a tile of the panel's window, property by property, under Monokuma Legacy and under Stained Glass; and its icon wears the drawing tests-glyphs.mjs names for it - under the glass Despair Flow team, The Mastermind mask, Killing game rules rules and the Season checklist checklist, under Legacy the hand drawings the three tiles wore at ecba3f21 and the legacy checklist", async () => {
+    ["R3585 - Season setup's tiles are the GM panel's, in look and in glyph, in both themes (E49 A1e; the owner, 12.11.2026: \"the same shape as the GM panel's tiles\", \"the glyphs those windows had as tiles\"): each tile Season setup draws is gm-panel.mjs `tileHtml`'s markup of its `SEASON_TILES` row; the cascade gives a Season setup tile what it gives a tile of the panel's window, property by property, under Monokuma Legacy and under Stained Glass; and its icon wears the drawing tests-glyphs.mjs names for it - under the glass Despair Flow team, The Mastermind mask, Killing game rules rules and the Season checklist season-checklist (a drawing of its own, not the Projects tile's), under Legacy the hand drawings the three tiles wore at ecba3f21 and the Season checklist's Font Awesome icon", async () => {
         /*
          * E49 A1e, 12.11.2026. The tiles' look is the panel's own rules (danganronpa.css's base tile, stained-glass.css's
          * brush, components.css's equal tiles and icon ink, scoped since this stage to the panel's window and Season
@@ -17615,8 +17615,8 @@ const INVARIANTS = [
             host.remove();
             THEMES.forEach((n, i) => page.classList.toggle(n, classWas[i]));
         }
-        const WANT = { "drpg-theme-stained-glass": ["--drpg-pix-team", "--drpg-pix-mask", "--drpg-pix-rules", "--drpg-pix-checklist"],
-            "drpg-theme-monokuma-legacy": ["--drpg-pix-gm-team", "--drpg-pix-mastermind", "--drpg-pix-new-rule", "--drpg-pix-checklist"] };
+        const WANT = { "drpg-theme-stained-glass": ["--drpg-pix-team", "--drpg-pix-mask", "--drpg-pix-rules", "--drpg-pix-season-checklist"],
+            "drpg-theme-monokuma-legacy": ["--drpg-pix-gm-team", "--drpg-pix-mastermind", "--drpg-pix-new-rule", "fa:fa-list-check"] };
         const looks = ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"].map(look);
         must(read >= 40, `${read} property value(s) won on Season setup's tiles in both themes - the look was not measured`);
         equal(stableJson({
