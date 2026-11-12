@@ -8688,6 +8688,40 @@ const INVARIANTS = [
                 texts: [[true, true], [true, true]], before: ["caseSummary", false], after: [false, true, true] }),
             "{the step for [not sent, sent, a Final Trial, no record of it, the trial ended, another GM's verdict]; the step view's Final Trial flag; [EN, PL] the step's text and lead; the footer before [its primary, the button greyed]; after [Show summary still primary, greyed, its label changed]}");
     }],
+    ["R3918 - the verdict and the chapter's end are steps of the trial's flow, not standing buttons, and no Final Trial starts inside an ordinary one (the owner, 12.11.2026, through the coordinator: \"czy werdykt nie powinien byc usunietym przyciskiem z konsoli trial? Zamiast tego byc kolejnym etapem glosowania? Tak samo end the chapter. A start final trial w ogole tez nie powinno byc w trakcie trwania zwyklego class triala opcja\"): the console's footer (`consoleFooter`) holds the Verdict only while it is the next step (the vote counted), End of chapter only while it is the next step (after the verdict and the summary) and never as the Enter default, and no Start the Final Trial while an ordinary trial runs; with no trial Start the Final Trial is where it was, and in a Final Trial End the Final Trial", async () => {
+        /* Red at a5844ac: the Verdict and End of chapter stood in every state of a trial, Start the Final Trial too. */
+        const UI = await import("./trial-floor-ui.mjs");
+        const K = await import("./ui-kit.mjs");
+        const F = await import("./trial-floor.mjs");
+        const view = (over, p = {}) => {
+            const v = { floor: null, running: true, afterwards: true, finalNow: false, mastermind: true, stopped: null, runner: null, table: null, restrictive: false, ...over,
+                progress: { voteClosed: false, verdictApplied: false, debateAgain: false, againAfterOverrule: null, closing: null, vote: { open: false }, summaryShown: null, ...p } };
+            v.next = F.trialNextStep(v);
+            return v;
+        };
+        const read = v => {
+            const list = K.footerButtons(UI.consoleFooter(v));
+            const has = a => list.some(b => b.action === a);
+            return [v.next, has("verdict"), has("chapterEnd"), has("toggleFinal"), list.find(b => b.default)?.action ?? null];
+        };
+        const states = {
+            discussion: read(view({})), vote: read(view({}, { vote: { open: true } })), counted: read(view({}, { voteClosed: true })),
+            countedInDebate: read(view({ floor: { mode: "debate" } }, { voteClosed: true })),
+            given: read(view({}, { voteClosed: true, verdictApplied: true })), sent: read(view({}, { voteClosed: true, verdictApplied: true, summaryShown: 1700000000000 })),
+            stopped: read(view({ stopped: "Level Ups" }, { voteClosed: true, verdictApplied: true })),
+            elsewhere: read(view({ runner: "otherGM000000000" }, { voteClosed: true, verdictApplied: true })),
+            noTrial: read(view({ running: false, afterwards: false })),
+            final: read(view({ finalNow: true }, {})), finalGiven: read(view({ finalNow: true }, { voteClosed: true, verdictApplied: true }))
+        };
+        equal(stableJson(states), stableJson({
+            discussion: ["openDebate", false, false, false, "openDebate"], vote: ["vote", false, false, false, "vote"],
+            counted: ["verdict", true, false, false, "verdict"], countedInDebate: ["closeDebate", false, false, false, "closeDebate"],
+            given: ["caseSummary", false, false, false, "caseSummary"], sent: ["chapterEnd", false, true, false, "close"],
+            stopped: ["finishVerdict", false, false, false, "finishVerdict"], elsewhere: ["verdictElsewhere", false, false, false, "close"],
+            noTrial: ["start", false, false, true, "start"],
+            final: ["openDebate", false, false, true, "openDebate"], finalGiven: ["chapterEnd", false, true, true, "close"]
+        }), "{state: [the next step, a Verdict button, an End of chapter button, the Final Trial's switch, the Enter default]}");
+    }],
     ["R3900 - the hall's zones as shapes (E73 C1; TR20 = 1, Q-E73-4): zone-geometry.mjs `zoneAt` names the zone a point is in - a region's `testPoint` with the elevation first, its polygon tree or box only where it cannot be asked, a hole asked answering no, a point both hold on the line; `zoneCoverage` finds a gap and an overlap by the grid's squares and says a gridless hall past its budget was not checked; `zoneWarnings` names none picked, one, the same region twice, a region gone, an overlap and a gap, and nothing for two zones that tile the hall", async () => {
         /*
          * E73 C1, 12.11.2026. Planted regions and halls, no world. Red at 4077664: no zone-geometry.mjs.
@@ -38818,16 +38852,16 @@ const INVARIANTS = [
             closeAnswers
         };
         equal(stableJson({ footers, ended: ended ?? null, asked, revealButtons, sources }), stableJson({
+            // The owner, 12.11.2026 (E99 round 7): the Verdict and End of chapter are steps of the flow, in the footer only
+            // while each is the next step (R3918), and no Start the Final Trial inside an ordinary trial.
             footers: {
                 none: [["start", "primary", true], ["close", "close", false], ["toggleFinal", "destructive", false]],
                 running: [["openDebate", "primary", true], ["close", "close", false],
-                    ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false],
-                    ["chapterEnd", "destructive", false], ["end", "destructive", false], ["toggleFinal", "destructive", false]],
-                chapterNext: [["close", "close", true], ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false],
+                    ["vote", "secondary", false], ["caseSummary", "secondary", false], ["end", "destructive", false]],
+                chapterNext: [["close", "close", true], ["vote", "secondary", false], ["caseSummary", "secondary", false],
                     ["start", "secondary", false], ["chapterEnd", "destructive", false], ["toggleFinal", "destructive", false]],
                 final: [["openDebate", "primary", true], ["close", "close", false],
-                    ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false],
-                    ["toggleFinal", "secondary", false], ["chapterEnd", "destructive", false], ["end", "destructive", false]]
+                    ["vote", "secondary", false], ["caseSummary", "secondary", false], ["toggleFinal", "secondary", false], ["end", "destructive", false]]
             },
             ended: null,
             asked: [hall ? EXIT : END, EXIT, END],
@@ -46857,7 +46891,7 @@ const INVARIANTS = [
         equal(new Set(read.map(r => r[0])).size, 12, "the views do not reach the twelve steps of a running trial - this would measure less than it says");
     }],
 
-    ["R2052 - the console's footer slots (E47 C1; the owner's 05.10 D (2), E47-02; S13-36 (1)): `consoleFooter` across a family's states keeps Close first on the left and the destructive zone - End of chapter, End the trial, Start the Final Trial - last, never the default; the right slot holds the next step alone (the primary), Close the default while an Objection runs; Start the Final Trial greyed with its reason while no Mastermind is set; the console redraws the footer in place (`liveFooter`) and reopens only on its signature, which reads the trial's start and the floor's family alone", async () => {
+    ["R2052 - the console's footer slots (E47 C1; the owner's 05.10 D (2), E47-02; S13-36 (1)): `consoleFooter` across a family's states keeps Close first on the left and the destructive zone - End the trial, and End of chapter at its step (E99 round 7) - last, never the default; the right slot holds the next step alone (the primary), Close the default while an Objection runs; Start the Final Trial greyed with its reason while no Mastermind is set; the console redraws the footer in place (`liveFooter`) and reopens only on its signature, which reads the trial's start and the floor's family alone", async () => {
         /*
          * E47 C1, 09.11.2026. Pure: the footer of a reading (`consoleFooter`) through ui-kit.mjs `footerButtons`, in the
          * running trial's states with no floor (discussion, after an exchange, the vote, the count, the verdict, the verdict
@@ -46892,20 +46926,24 @@ const INVARIANTS = [
         const debate = { debate: slots(view({ floor: { mode: "debate" } })), objection: slots(view({ floor: { mode: "objection" } })) };
         const all = { ...none, ...debate };
         const tail = s => s.left.filter(([, role]) => role === "destructive").map(([a]) => a);
-        equal(stableJson(Object.fromEntries(Object.entries(all).map(([k, s]) => [k, [s.left[0]?.[0] ?? null, tail(s), s.left.slice(-3).every(([, r]) => r === "destructive")]]))),
-            stableJson(Object.fromEntries(Object.keys(all).map(k => [k, ["close", ["chapterEnd", "end", "toggleFinal"], true]]))),
+        // The owner, 12.11.2026 (E99 round 7): End of chapter only while it is the next step (here the verdict's state:
+        // these views carry no record of the case summary) and no Start the Final Trial inside an ordinary trial (R3918).
+        equal(stableJson(Object.fromEntries(Object.entries(all).map(([k, s]) => [k, [s.left[0]?.[0] ?? null, tail(s), s.left.slice(-tail(s).length).every(([, r]) => r === "destructive")]]))),
+            stableJson(Object.fromEntries(Object.keys(all).map(k => [k, ["close", k === "verdict" ? ["chapterEnd", "end"] : ["end"], true]]))),
             "{state: [the first button on the left, the destructive zone, the zone last on the left]}");
         equal(stableJson(Object.fromEntries(Object.entries(all).map(([k, s]) => [k, [s.right, s.def, s.defRole === "destructive"]]))), stableJson({
             discussion: [["openDebate"], "openDebate", false], again: [["reopen"], "reopen", false], vote: [["vote"], "vote", false],
             counted: [["verdict"], "verdict", false], verdict: [[], "close", false], stopped: [["finishVerdict"], "finishVerdict", false],
             elsewhere: [[], "close", false], debate: [["closeDebate"], "closeDebate", false], objection: [["closeDebate"], "close", false]
         }), "{state: [the right slot, the default, the default destructive]}");
-        // The same set of buttons in every state of the family with no floor: only which one stands on the right changes.
-        const set = s => [...s.right, ...s.left.map(([a]) => a)].sort().join(",");
+        // The same set of buttons in every state of the family with no floor, the Verdict aside: only which one stands on
+        // the right changes - the Verdict, a step of the flow since E99 round 7, stands only at its step (R3918).
+        const set = s => [...s.right, ...s.left.map(([a]) => a)].filter(a => a !== "verdict").sort().join(",");
         equal(new Set(["discussion", "again", "vote", "counted"].map(k => set(none[k]).replace(/openDebate|reopen/, "debate"))).size, 1,
             "the buttons of the family with no floor are not the same set in each state (a button came or went, not only moved)");
-        const final = K.footerButtons(UI.consoleFooter(view({ mastermind: false }))).find(b => b.action === "toggleFinal");
-        const set2 = K.footerButtons(UI.consoleFooter(view({ mastermind: true }))).find(b => b.action === "toggleFinal");
+        // With no trial running: Start the Final Trial is not offered inside an ordinary trial (E99 round 7, R3918).
+        const final = K.footerButtons(UI.consoleFooter(view({ mastermind: false, running: false, afterwards: false }))).find(b => b.action === "toggleFinal");
+        const set2 = K.footerButtons(UI.consoleFooter(view({ mastermind: true, running: false, afterwards: false }))).find(b => b.action === "toggleFinal");
         const running = K.footerButtons(UI.consoleFooter(view({ finalNow: true, mastermind: false }))).find(b => b.action === "toggleFinal");
         equal(stableJson([[final?.role, final?.disabled ?? false, final?.tooltip ?? null], [set2?.disabled ?? false, set2?.tooltip ?? null], [running?.role, running?.disabled ?? false]]),
             stableJson([["destructive", true, game.i18n.localize("DRPG.Mastermind.noneSet")], [false, null], ["secondary", false]]),

@@ -86575,7 +86575,9 @@ const SCENARIOS = [
             if (fresh.length) await ChatMessage.deleteDocuments(fresh);
             await settle();
         }
-        const zone = ["chapterEnd", "end", "toggleFinal"];
+        // An ordinary trial runs in each state: End of chapter only at its step and no Start the Final Trial (the owner,
+        // 12.11.2026; E99 round 7, R3918), so the destructive zone is End the trial alone.
+        const zone = ["end"];
         const ended = read.ended?.step ?? "?";
         equal(stableJson(read), stableJson({
             discussion: { step: "openDebate", right: ["openDebate"], close: "close", zone, enter: false, panel: true, lead: "openDebate" },

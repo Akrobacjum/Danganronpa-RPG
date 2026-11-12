@@ -1421,17 +1421,18 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                 // pressable, and Send the ballots would have opened a vote outside a trial.
                 { action: "vote", label: game.i18n.localize("DRPG.Vote.openTitle"),
                   disabled: !running, default: isDefault("vote") },
-                // Disabled rather than hidden, so the order of the trial is
-                // visible from the first time this window is opened.
-                // Closed again once it is applied (17.09, F2): a second verdict
-                // executed the dropdown's default, refilled every pool and handed
-                // out a second round of Level Ups.
-                // In a Final Trial it is the Final Trial's verdict, and says so
-                // (E10 C10, S06-16): `TRIAL_ACTIONS.verdict` opens that window then.
-                { action: "verdict", label: game.i18n.localize(finalNow
-                    ? "DRPG.Mastermind.verdictTitle" : "DRPG.Vote.verdictTitle"),
-                  disabled: !progress.voteClosed || progress.verdictApplied,
-                  default: isDefault("verdict") },
+                /* THE VERDICT IS THE VOTE'S NEXT STAGE, NOT A STANDING BUTTON (the owner, 12.11.2026, through the
+                   coordinator: "czy werdykt nie powinien byc usunietym przyciskiem z konsoli trial? Zamiast tego byc
+                   kolejnym etapem glosowania?"). It stands in the footer only while it is the trial's next step - the vote
+                   counted, no floor open (trial-floor.mjs `TRIAL_NEXT_STEPS`) - as the primary; until E99's round 7 it
+                   stood greyed in every state "so the order of the trial is visible", and once applied it closed again
+                   (17.09, F2: a second verdict executed the dropdown's default, refilled every pool and handed out a
+                   second round of Level Ups) - the step's table now never offers it after the verdict. In a Final Trial
+                   it is the Final Trial's verdict, and says so (E10 C10, S06-16). Its road is unchanged:
+                   `TRIAL_ACTIONS.verdict`, the verdict's window and its runner on the primary. */
+                ...(isDefault("verdict") && progress.voteClosed && !progress.verdictApplied
+                    ? [{ action: "verdict", label: game.i18n.localize(finalNow ? "DRPG.Mastermind.verdictTitle" : "DRPG.Vote.verdictTitle"), default: true }]
+                    : []),
                 // Only while a verdict stands stopped halfway: the lock above
                 // keeps a second verdict out, and this runs the steps the first
                 // one did not finish (E10 C5, S06-39).
@@ -1443,10 +1444,12 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                 // Greyed and named as sent once this trial's summary is out (the record's `summaryShown`), on every GM's console
                 { action: "caseSummary", label: game.i18n.localize(progress.summaryShown ? "DRPG.CaseSummary.shown" : "DRPG.CaseSummary.show"),
                   disabled: !progress.verdictApplied || Boolean(finalNow) || Boolean(progress.summaryShown), default: isDefault("caseSummary") },
-                // Reachable before the verdict (a chapter can end without
-                // one). Never the default since E22 C4: it cannot be undone (the destructive role, `trialFooter`), so
-                // after the verdict, when it is the next step, the lead names it and Enter presses Close.
-                { action: "chapterEnd", role: "destructive", label: game.i18n.localize("DRPG.Chapter.endTitle") }
+                /* END OF CHAPTER, THE LAST STEP (the owner, 12.11.2026: "Tak samo end the chapter"): only while it is
+                   the trial's next step - after the verdict and, in an ordinary trial, the case summary. Never the default
+                   since E22 C4: it cannot be undone (the destructive role, `trialFooter`), so the lead names it and Enter
+                   presses Close. A chapter that ends without a verdict ends from the part at the bottom of Edit campaign
+                   (gm-campaign.mjs `openClockDialog`), as since E49 A2; the window and its steps are the same road. */
+                ...(isDefault("chapterEnd") ? [{ action: "chapterEnd", role: "destructive", label: game.i18n.localize("DRPG.Chapter.endTitle") }] : [])
               ]
             : []),
         // The table's door (E13 C6), labelled by what it does now, as the Final Trial's switch below.
@@ -1464,9 +1467,12 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
         // Ending it puts the flag back, and is a secondary.
         // GREYED WITH ITS REASON while no Mastermind is set (E47 C1, 09.11.2026; S13-36 (1)): it answered with
         // `toggleFinalTrialFlag`'s toast, which stays as that door's own refusal (mastermind.mjs).
-        { action: "toggleFinal", ...(finalNow ? {} : { role: "destructive" }), label: game.i18n.localize(finalNow
+        // NOT INSIDE AN ORDINARY TRIAL (the owner, 12.11.2026: "A start final trial w ogole tez nie powinno byc w trakcie
+        // trwania zwyklego class triala opcja"): Start the Final Trial is offered with no trial running, as before, and
+        // End the Final Trial during one; while an ordinary Class Trial runs the switch is not drawn at all.
+        ...(running && !finalNow ? [] : [{ action: "toggleFinal", ...(finalNow ? {} : { role: "destructive" }), label: game.i18n.localize(finalNow
             ? "DRPG.Mastermind.endFinalTrial" : "DRPG.Mastermind.startFinalTrial"),
-          ...(finalNow || mastermind ? {} : { disabled: true, tooltip: game.i18n.localize("DRPG.Mastermind.noneSet") }) },
+          ...(finalNow || mastermind ? {} : { disabled: true, tooltip: game.i18n.localize("DRPG.Mastermind.noneSet") }) }]),
         { action: "close", role: "close", label: game.i18n.localize("DRPG.Panel.close") }
     ];
 }

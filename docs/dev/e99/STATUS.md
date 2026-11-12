@@ -390,3 +390,30 @@ R3659-R3662 take the 1.2.107 line's tests. Every mention in this file was moved 
   none of the first trial's ticks and the summary is unsent.
 - GM handbook section 15 (EN, PL): one sentence each on the next step and "Summary sent", and that ticks belong to the
   current trial.
+
+## Round 7: the verdict and the chapter's end as steps of the flow (12.11.2026; the owner through the coordinator)
+
+The owner: "czy werdykt nie powinien byc usunietym przyciskiem z konsoli trial? Zamiast tego byc kolejnym etapem
+glosowania? Tak samo end the chapter. A start final trial w ogole tez nie powinno byc w trakcie trwania zwyklego class
+triala opcja". **Defaults taken, owner to confirm:**
+
+1. **The Verdict** leaves the console's footer as a standing button: it stands there only while it is the trial's next
+   step (the vote counted, no floor open), as the primary; the console's first line, the GM panel's Next line and the
+   vote window's lead already name it then. Not in the vote window as a button of its own (the vote's footer is
+   unchanged).
+2. **End the chapter** likewise: only while it is the next step - after the verdict and, in an ordinary trial, the case
+   summary. Still the destructive role, never the Enter default (Close is). A chapter that ends without a verdict ends,
+   as since E49 A2, from the part at the bottom of Edit campaign.
+3. **Start the Final Trial** is not drawn while an ordinary Class Trial runs (hidden, not greyed); with no trial it is
+   where it was (greyed with its reason when no Mastermind is set), and during a Final Trial End the Final Trial stays.
+
+Every road that writes the verdict or ends the chapter is unchanged (`TRIAL_ACTIONS.verdict`, the verdict's window and
+its runner on the primary; `TRIAL_ACTIONS.chapterEnd`, the chapter-end window): only where the GM reaches them moved.
+
+- **Red first**: R3918 (tier 1), the footer's census over eleven states (the next step, a Verdict, an End of chapter, the
+  Final Trial switch, the Enter default) - red at a5844ac (all three in every state). R1364's four footers, R2052's
+  zone and set, and tier 2 E47-T1's zone follow the owner's change, each with the reason written beside it.
+- GM handbook section 15 (EN, PL): one paragraph, "The footer follows the trial", naming the buttons as drawn.
+- Probe 08: three new captures - the count, the verdict given, the summary sent - each a patch of the trial's record.
+- The sweep over the console's five captures (40 pages, 0 failing): glass at 1366x768 during a trial 12.6 px after
+  Fit, Legacy as it was; at 1920x1080 the slot grew 664 -> 707 px (the footer holds fewer buttons).
