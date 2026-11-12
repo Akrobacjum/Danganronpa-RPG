@@ -11,7 +11,7 @@ mockups MK-R1 and MK-R2 of 05.11 (both read with the Artifact tool, with `mock/s
 | --- | --- | --- |
 | C1 | The sequence engine: one start per event (`started`, by the event's key), one at a time (a new one or a phase change cuts the running one), Escape in a capture listener registered before foundry-windows.mjs's (it takes the key only while a sequence plays), the still frame under reduced motion, the table's switch (world setting `sequences`, on by default, in the DRPG Settings window's Effects section; since the merge of the 1.2.107 line, its game section's GM list, where that line put it), Foundry tools and Map tools hidden by a body attribute for the span (never `toggleFoundryTools`), the notice stack raised over the host, counters `sequence.*` | scripts/sequence.mjs (new), settings.mjs, settings-window.mjs, module.mjs, styles/danganronpa.css |
 | C2 | Two sound slots, `trialStart` (the title's frame) and `verdictCut` (the stamp's), incident rows in EN and PL; the old `verdict` row (played at the vote's count) relabelled "The vote's result" / "Wynik głosowania", key kept (Q-E61-7 default) | config.mjs, lang/*.json |
-| C3 | E61-A under Stained Glass, rebuilt in round 3 on the owner's review of round 2 (12.11: the new glass matched the old in neither size, look nor shape): the standing panes keep their exact place and the hole they leave is tiled with new convex panes of the standing panes' corner count and size range, cut by straight lines (`fillHole`); the closed curtain is the curtain's own paint (`curtainPaint`) of the standing and the new panes as one cut, so fill, ink and lead are the curtain's; each new pane grows from its own inset (every edge moved in along its normal by one distance, from 0.65 of its inradius to none) to its full shape, 420 ms each, starts spread over 440 ms, outer first; the opening is the reverse onto the trial's cut. The panes' colour goes from the Investigation's blue to the trial's pink in eight batches, outer first; title at 1400 ms, open 2500-3360. Rounds 1 (affine closed plan) and 2 (fronts flooding the hole) are gone | glass-close.mjs (`fillHole`, `growPlan`, `growPolys`, `insetPoly`, `tilingReading`), glass.mjs (`entryPieces`), sequence.mjs (`drawTrialEntry`), styles |
+| C3 | E61-A under Stained Glass, rebuilt in round 3 on the owner's review of round 2 (12.11: the new glass matched the old in neither size, look nor shape): the standing panes keep their exact place and the hole they leave is tiled with new convex panes of the standing panes' corner count and size range, cut by straight lines (`fillHole`); the closed curtain is the curtain's own paint (`curtainPaint`) of the standing and the new panes as one cut, so fill, ink and lead are the curtain's; round 4 (the owner's note on round 3: panes are to slide out from behind the curtain's edge, not scale up): each new pane keeps its size and shape from its first frame and slides out from behind an edge it shares with glass already there - a standing pane, or a new pane that started before it - along that edge's normal, drawn only inside its own place (`slidePlan`, `slideAt`, sequence.mjs `slideCanvas`); generations start when the one before is 70 % through, starts spread outer first within a generation, 860 ms in all; the opening is the reverse onto the trial's cut. The panes' colour goes from the Investigation's blue to the trial's pink in eight batches, outer first; title at 1400 ms, open 2500-3360. Rounds 1 (affine closed plan) and 2 (fronts flooding the hole) are gone | glass-close.mjs (`fillHole`, `slidePlan`, `slideAt`, `visibleAt`, `tilingReading`), glass.mjs (`entryPieces`), sequence.mjs (`drawTrialEntry`), styles |
 | C4 | E61-A under Monokuma Legacy (and wherever no curtain is cut): two lids with a red edge, the same title, times, sound, Esc and still frame; no glass code runs | sequence.mjs, danganronpa.css |
 | C5 | E61-B, the verdict's cut-in, from a GM's verdict card (`createChatMessage`, a message with `verdictAt`): band 0, portrait 250, votes 900, the stamp's hit 1700, the card's sentence 1950, frame 5 held to 3500, 180 ms fade; variants guilty / not guilty / nobody; two sentenced side by side (Q-E61-3 default). The card carries a new flag `verdictCut: { sentenced, right }` - what its words already say. `verdictBoardElement` is frame 5 alone, for E99. Round 2 (the owner's review): the count's heading and each vote row now come in one after another (320 ms each, 90 ms apart, eased), each bar growing after its row, and the sentence in 380 ms; before, the rows came as one block in 180 ms. Nothing animates under reduced motion | sequence.mjs, verdict.mjs, styles |
 
@@ -46,10 +46,24 @@ Glass and Monokuma Legacy as recordings and frame strips, the closed curtain's s
 deviceScaleFactor 2, the verdict cut-in's recording and strip, and the measurements below; Polish captions. The glass
 harness in headless Chromium, PL and GM only on the pictures (the page says what they are not).
 
-Round 3 (the owner's review of round 2): https://claude.ai/artifact/JsXyBFu8skaSKzXME2n3ji - the entry under Stained
+Round 4 (the owner's note on round 3), the same page republished as version 2: https://claude.ai/artifact/JsXyBFu8skaSKzXME2n3ji -
+frame strips every 75 ms of one closing and one opening at 1366x768 and 1920x1080 (drawn with `slideAt` on a held
+clock, not filmed), real-time recordings at 1366x768 in both themes, close-ups at 25/50/75 % in both themes, and the
+table below. Round 3's page (version 1 of the same address): the entry under Stained
 Glass and Monokuma Legacy as recordings and frame strips, close-ups at 25 %, 50 % and 75 % of the closing and the
 closed curtain in both themes at deviceScaleFactor 2, and the table below per size and role; Polish captions; what the
 pictures are not is on the page.
+
+## Round 4 results (12.11.2026, 1db3f62)
+
+- The real cut on the glass harness in Chromium, 7 sizes, GM and player: 0 overlapping pairs in each of 92 frames,
+  0 frames with a pane drawn at another size, every pane wholly behind its edge (within 1 px) at its start, every point
+  of a 6 px grid in exactly one pane; 2-4 generations, a pane's slide 242-400 ms. The end state is round 3's.
+- R3718 (new): red at 8ab5124 (no `slidePlan` or `slideAt`; `drawTrialEntry` drew `growPolys`), green at 1db3f62.
+  R3716 now reads the slide's frames (what is seen of each pane, its moved copy cut to its place), on the rings and on
+  the three cuts. Tiers 0-1 whole: 1246 passed, 0 failed, 16 skipped. Scenarios 14, 74, 75 green.
+- Headless recording at 1920x1080 caught 2-3 frames of the closing (software rendering, 51 panes, another test
+  running), so the motion is shown as frames drawn on a held clock; smoothness at a table is LIVE-E61-01.
 
 ## Round 3 results (12.11.2026)
 
