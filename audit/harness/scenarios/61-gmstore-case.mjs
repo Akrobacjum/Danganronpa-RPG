@@ -483,8 +483,29 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     const tracesOnA = await gma.eval(traceRows(idsD.slice(0, 2)));
     const statesForA = socketTraffic.slice(trafficFrom).filter(t => t.action === "gms.state"
         && (t.from === "gma" || (Array.isArray(t.to) && t.to.includes(GMA))));
-    check("D5: the same browser back in world A reads its traces intact, and no GM had to send it a section",
-        J(tracesOnA) === J(expectD.slice(0, 2)) && !statesForA.length, J({ tracesOnA, statesForA: statesForA.slice(0, 4) }));
+    /* A SECTION THE GMs MOVED ON SINCE THE COPY IS NOT ONE THE COPY LOST (gaps G5, 12.11.2026; the coordinator's
+       reading, confirmed here). The browser's world-A sections are the primary's as `copied` read them, before world B;
+       a store the primary wrote in world A since then is one beat or one write ahead of that copy, and the GMs send it
+       as they would to any GM who was away - D5 means a section the copy no longer held as it was. The primary's beat
+       (gm-stores.mjs `clockBeatStore`, hud-elapsed.mjs `CLOCK_BEAT_MS`, 60 s) lands in the ~11 s from the copy to this
+       browser's hello whenever the run is slow enough: measured, 61 alone 5 of 5 green (another line, 12.11), two
+       copies in parallel 2 of 2 green, three in parallel 6 of 6 red, every section sent `clockBeat` (222 bytes, from
+       gm and gm2 to gma and gma's own back, the store read off cluster.mjs's packet log since this commit). So a
+       state is explained only by its store's world-A section in the primary's storage now differing from the copy's;
+       a state of any store the primary did not move, or one the log cannot name, still fails D5. */
+    const nowOnGm = await storageOf("gm");
+    const storeKeys = await gm.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs");
+        return Object.fromEntries(${J([...new Set(statesForA.map(t => t.store).filter(Boolean))])}
+            .map(name => [name, E.gmStoreByName(name)?.spec?.key ?? null]));`);
+    const movedOn = name => {
+        const key = storeKeys[name] ? `${MOD}.${storeKeys[name]}` : null;
+        const of = storage => { try { return J(JSON.parse(storage?.[key] ?? "null")?.worlds?.[worldA] ?? null); } catch { return "unreadable"; } };
+        return Boolean(key) && of(copied) !== of(nowOnGm);
+    };
+    const unexplained = statesForA.filter(t => !t.store || !movedOn(t.store));
+    check("D5: the same browser back in world A reads its traces intact, and no GM had to send it a section its copy no longer held as it was (a store the GMs moved on since the copy, the primary's clock beat, is theirs to send)",
+        J(tracesOnA) === J(expectD.slice(0, 2)) && !unexplained.length,
+        J({ tracesOnA, unexplained: unexplained.slice(0, 4), movedOn: [...new Set(statesForA.filter(t => t.store && movedOn(t.store)).map(t => t.store))], states: statesForA.length }));
     await disconnect("gma");
     await disconnect("gm2");
     await settle(300);

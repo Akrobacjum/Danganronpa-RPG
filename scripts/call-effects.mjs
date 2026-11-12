@@ -53,7 +53,7 @@ export {
 /** Let the victim of a Call know what has been done to them. */
 async function tell(actor, key) {
     try {
-        await whisperToOwner(actor, `<p class="drpg-warning">${game.i18n.localize(key)}</p>`);
+        await whisperToOwner(actor, { tone: "warning", body: `<p>${game.i18n.localize(key)}</p>` });
     } catch {
         // The restriction stands whether or not the notice got through.
     }

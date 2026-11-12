@@ -59,6 +59,7 @@
  */
 
 import { PRICE_CHAINS, ACTIONS } from "./config.mjs";
+import { cardWarn } from "./chat-card.mjs";
 // The chain, and the one payer (T-1). Tamper's price is an action, or a Sanity
 // mark when there is no action - never both, which is what this file used to do.
 import { quotePrice, payPrice, refundPrice, paidLine, priceLabel } from "./price.mjs";
@@ -993,7 +994,7 @@ export function reshapeCardParts(data, { name = "", text = "", softer = null, ti
         band ? `<br>${esc(band)}` : ""
     ].join("");
     const gmBody = `<p>${esc(game.i18n.format("DRPG.Cleanup.reshapeRulingWas", { was, now }))}${
-        tie ? `<br><span class="drpg-warning">${esc(game.i18n.localize("DRPG.Cleanup.reshapeRulingTies"))}</span>` : ""}${
+        tie ? `<br>${cardWarn(esc(game.i18n.localize("DRPG.Cleanup.reshapeRulingTies")), "span")}` : ""}${
         copies > 0 ? `<br>${esc(plural("DRPG.Cleanup.reshapeRulingCopies", { n: copies }))}` : ""}</p>`;
     return { body, gmBody };
 }
@@ -1077,8 +1078,8 @@ async function proposeReshape(actor, token, data, {
      * is the one outcome this change must not create.
      */
     if (sent === false) {
-        await whisperToGms(`<p class="drpg-warning">${
-            game.i18n.localize("DRPG.Cleanup.reshapeUnsent")}</p>`);
+        await whisperToGms({ tone: "warning", body: `<p>${
+            game.i18n.localize("DRPG.Cleanup.reshapeUnsent")}</p>` });
         done.push(game.i18n.localize("DRPG.Cleanup.reshapeUnsentPlayer"));
         return false;
     }
@@ -2794,8 +2795,8 @@ function receiptTie(actorId, field, tie) {
 async function undoLastCleanup(actor, tokenId) {
     const receipt = await attemptOf(actor.id);
     if (!receipt) {
-        await whisperToGms(`<p class="drpg-warning">${
-            game.i18n.localize("DRPG.Cleanup.rerollLost")}</p>`);
+        await whisperToGms({ tone: "warning", body: `<p>${
+            game.i18n.localize("DRPG.Cleanup.rerollLost")}</p>` });
         return false;
     }
     if (receipt.tokenId !== tokenId) {
@@ -2804,8 +2805,8 @@ async function undoLastCleanup(actor, tokenId) {
         // told. The Reroll asks this before its payment (reroll.mjs `replayRefusal`),
         // so only a receipt that changed while the dice were thrown again reaches
         // here, and that Reroll is given back (fix r1-G3).
-        await whisperToGms(`<p class="drpg-warning">${
-            game.i18n.localize("DRPG.Cleanup.rerollLost")}</p>`);
+        await whisperToGms({ tone: "warning", body: `<p>${
+            game.i18n.localize("DRPG.Cleanup.rerollLost")}</p>` });
         return false;
     }
 
@@ -3048,8 +3049,8 @@ async function paidBack(actor, step, { grant = false, by = null } = {}) {
     const named = { pay: step.pay, amount: step.amount, grant: false };
     if (by && !game.users.get(by)?.isGM && actor.type === "character" && !isMonokuma(actor)) {
         log(`Gave ${actor.name} nothing back for a claimed ${step.pay}: this client holds no mark of them.`);
-        await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Cleanup.refundUnheld", {
-            name: foundry.utils.escapeHTML(actor.name), what: priceLabel(named) })}</p>`);
+        await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Cleanup.refundUnheld", {
+            name: foundry.utils.escapeHTML(actor.name), what: priceLabel(named) })}</p>` });
         return { ...named, amount: 0 };
     }
     return { ...named, amount: await refundPrice(actor, named, { quiet: true }) ? step.amount : 0 };

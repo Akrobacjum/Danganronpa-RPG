@@ -398,6 +398,25 @@ if (!base) {
 let browser;
 try { browser = await chromium.launch(opt("--chromium") ? { executablePath: opt("--chromium") } : {}); }
 catch (err) { srv?.kill(); console.log(`glass-sweep: Chromium did not launch (--chromium <executable> names one): ${err.message.split("\n")[0]}`); process.exit(2); }
+/* A PAGE THAT CRASHES ENDS THE SWEEP, RED, AT ONCE (E105, 11.11.2026). Three sweeps that day sat 61 minutes at 0 % CPU
+   holding the harness lock, at the room check's third pass (glass-harness `drpgRoomCheck`, `readCuts`): Chromium's
+   renderer had crashed ("Target crashed" when the page was driven by hand) and the evaluate waiting on it never
+   returned. The cause was the machine's: `/` held 456 MB, and headless Chromium keeps its shared memory in files
+   under TMPDIR (`--disable-dev-shm-usage`), which the curtain's turn layers outgrew at 1920x1080 - the same page with
+   TMPDIR on a tmpfs read the check ok in 4 s, at 7d59dcfe and at 957ee3bd (9.11) alike. Every page is watched now:
+   its crash prints why and where TMPDIR is, and the sweep exits 1. */
+{
+    const newPage = browser.newPage.bind(browser);
+    browser.newPage = async (...a) => {
+        const p = await newPage(...a);
+        p.on("crash", () => {
+            console.log(`FAIL: the page crashed (Chromium's renderer) - the sweep stops here. Its shared memory is in files under ${process.env.TMPDIR || "/tmp"}: is that disk full?`);
+            srv?.kill();
+            process.exit(1);
+        });
+        return p;
+    };
+}
 
 /* THE CURTAIN'S PRICE (E88 C0, 27.10.2026; E88-04): `--frame-cost` runs this instead of the sweep. At each size (by
    default 1920x1080 and 1366x768) in each theme, the page is loaded once and the mean ms per frame over `--frames`
@@ -1530,10 +1549,12 @@ async function plantVoice() {
    (E78 fix r2-H2); and (H81 fix r1, the review's H81C2-02) the still word stood where dc35104 stood it, in the 69 px
    left of the buttons, must fail on its band. */
 async function plantVoiceNone() {
-    const tile = document.getElementById("drpg-voice-tile"), was = tile.style.getPropertyValue("bottom"), res = {};
-    tile.style.setProperty("bottom", "-150px");
+    /* moved by `translate`, not `bottom` (E105, 12.11.2026): since E48 K6 the tile stands under the tray by its top
+       (`data-place="tray"`, --drpg-voice-y), and a `bottom` moved nothing - "voice control off reads as a pass" */
+    const tile = document.getElementById("drpg-voice-tile"), was = tile.style.getPropertyValue("translate"), res = {};
+    tile.style.setProperty("translate", `0 ${innerHeight}px`);
     const r = await window.drpgVoiceCheck({ cuts: false });
-    if (was) tile.style.setProperty("bottom", was); else tile.style.removeProperty("bottom");
+    if (was) tile.style.setProperty("translate", was); else tile.style.removeProperty("translate");
     res.off = { ok: r.ok, why: r.why, pass: !r.ok && /on a screen/.test(r.why) };
     const style = document.createElement("style");
     style.textContent = "body.drpg-no-ticker #drpg-voice-tile .drpg-voice-tile-state { top: 6px !important; right: 76px !important; }";
@@ -1690,7 +1711,7 @@ function deskAgain() {
     return { ok, why: JSON.stringify(got), pass: ok };
 }
 
-const trayControlled = new Set();
+const trayControlled = new Set(), foldRead = new Set();
 let trackControlled = false, schemeControlled = false;
 let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, paneControlled = false, stackedRead = false, placesControlled = false, placesRead = false, voiceRead = false, voiceControlled = false, voiceNoneControlled = false, voiceRowControlled = false, idleRead = false, fillControlled = false, objectionControlled = false, dockControlled = false;
 try {
@@ -1947,6 +1968,25 @@ try {
                         const pass = ctl.why.some(w => /not Font Awesome/.test(w));
                         console.log(`  tray control chrome ${pass ? "sees it" : "MISSES IT"}: ${ctl.why.join("; ").slice(0, 110)}`);
                         if (!pass) fails.push("tray control chrome reads as a pass");
+                    }
+                }
+            }
+            /* THE GLASS TURNS WITH THE TRAY'S FOLD (E105 follow-up, 11.11.2026): once a theme with a curtain, the first size
+               it is up at, the page's `drpgTrayFold` - the tray folded and unfolded by its class, each must recut the glass
+               and turn it (motion on). Its control, once: the same reading with reduced motion planted, which must read
+               "turned nothing". Monokuma Legacy has no curtain: not read. The line prints `fold ok <frames turned>`. */
+            if (theme === "stained" && !foldRead.has(theme) && await page.evaluate(() => Boolean(document.getElementById("drpg-curtain")))) {
+                foldRead.add(theme);
+                const tf = await page.evaluate(() => window.drpgTrayFold?.() ?? null);
+                if (!tf) fails.push("the page defines no drpgTrayFold");
+                else {
+                    line += ` | fold ${tf.why.length ? "NOT ok" : "ok"} ${(tf.read ?? []).map(r => `${r.recut?.ms ?? "-"}ms/${r.turned}`).join(",")}`;
+                    if (tf.why.length) fails.push("fold: " + tf.why.join("; "));
+                    if (control) {
+                        const ctl = await page.evaluate(() => window.drpgTrayFold({ plant: true }));
+                        const pass = ctl.why.some(w => /turned nothing/.test(w));
+                        console.log(`  fold control reduced motion ${pass ? "sees it" : "MISSES IT"}: ${ctl.why.join("; ").slice(0, 110)}`);
+                        if (!pass) fails.push("fold control reads as a pass");
                     }
                 }
             }

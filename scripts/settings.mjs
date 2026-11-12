@@ -2,8 +2,10 @@
  * Danganronpa RPG - world settings.
  * ---------------------------------------------------------------------------
  * Registered during `init`. Every setting is `config: false` since E49 A1: what a GM or a
- * player may flip is a row of the DRPG Settings window (settings-window.mjs `SETTINGS_SECTIONS`),
- * the one button the module keeps in Foundry's settings window; internal state is in no window.
+ * player may flip is a row of the DRPG Settings window, this browser's (settings-window.mjs
+ * `CLIENT_SECTIONS`, the one button the module keeps in Foundry's settings window, and the gear),
+ * or of the game's settings, a tab of the GM panel (`GAME_SECTIONS`, E49 A1d); internal state is
+ * in no window.
  */
 
 import { MODULE_ID, FLAGS, ROOMS, TIMES_OF_DAY, SFX_VOLUME_KEYS, SHEET_SIZE } from "./config.mjs";
@@ -637,6 +639,11 @@ export const SETTINGS = {
      */
     gmKeyPlan: "gmKeyPlan",
     legacyKeyRemnantPlan: "keyRemnantPlan",
+    /** THE CASE SCHEMA (E97 C3, 1.2.107): a GM store (gm-stores.mjs `caseSchemaStore`), a row per chapter and node. */
+    gmCaseSchema: "gmCaseSchema",
+    gmCaseTicks: "gmCaseTicks",
+    /** LOGIC DIVE'S SETS (E73 C4): a GM store (gm-stores.mjs `diveSetStore`), a row per set, the truth of each question in it. */
+    gmDiveSets: "gmDiveSets",
     /**
      * WHICH OF THE TRIAL HALL'S TOKENS THE TRIAL SHOWS (E13 C2, 1.2.74; audit S06-57, decision D7):
      * a GM store (gm-stores.mjs `trialCastStore`), never a token's flag, which its owner writes.
@@ -1239,9 +1246,10 @@ export const DEFAULT_CLOCK = {
 
 /**
  * The one button of the module's in Configure Settings (E49 A1, 11.11.2026; the owner's [11] and Q3): DRPG Settings, a
- * menu's key, not a setting. It opens settings-window.mjs's window, which holds every setting this file registered
- * with `config: true` until E49 (35 of them, each `config: false` since) and Give back Foundry's settings, a menu of its
- * own here from E20 C6 until E49 (its key, "giveBackFoundry", is no longer registered).
+ * menu's key, not a setting. It opens settings-window.mjs's window - this browser's settings, the gear's window, the
+ * same for every user since E49 A1d; the world's of the 35 this file registered with `config: true` until E49 (each
+ * `config: false` since) and Give back Foundry's settings, a menu of its own here from E20 C6 until E49 (its key,
+ * "giveBackFoundry", is no longer registered), are the GM panel's tab of the game's settings.
  */
 const SETTINGS_MENU = "drpgSettings";
 
@@ -1744,10 +1752,11 @@ export function registerSettings() {
             .catch(err => console.error("danganronpa-rpg | Could not give back or hold Foundry's settings", err))
     });
     /* Configure Settings' one row of the module's (E49 A1): Foundry renders the menu's class; this one opens the
-       module's own window instead (settings-window.mjs `openSettingsWindow`), for every user - a player's holds the
-       client settings alone (Q2). How v14's settings window constructs and renders a menu's class is not measured here:
-       the harness's `registerMenu` is a no-op (LIVE-E49-02). Give back Foundry's settings, the menu E20 C6 registered
-       here, is a row of the window's Technical section since (Q3), enforced.mjs's gates unchanged. */
+       module's own window instead (settings-window.mjs `openSettingsWindow`), the same for every user since E49 A1d:
+       this browser's settings, the gear's window; the world's are the GM panel's tab. How v14's settings window
+       constructs and renders a menu's class is not measured here: the harness's `registerMenu` is a no-op
+       (LIVE-E49-02). Give back Foundry's settings, the menu E20 C6 registered here, is a row of that tab's Foundry and
+       the system section since (Q3; A1d), enforced.mjs's gates unchanged. */
     const Base = foundry.applications?.api?.ApplicationV2 ?? class {};
     class DrpgSettingsMenu extends Base {
         render() {
@@ -1803,7 +1812,11 @@ export function registerSettings() {
     // Whether the events marked `vary` bend on each play. Default on: the ten
     // that carry the flag are the ones heard dozens of times a session, and an
     // identical click on the fortieth press is the thing this exists to stop.
+    /* Its name and hint are the switch's words (E49 A1d): it is a row of the game's settings, the GM panel's tab
+       (settings-window.mjs GAME_SECTIONS), where it moved from the volumes the gear's window held for a GM. */
     game.settings.register(MODULE_ID, SETTINGS.sfxVary, {
+        name: "DRPG.Sound.varyLabel",
+        hint: "DRPG.Sound.varyHint",
         scope: "world",
         config: false,
         type: Boolean,
@@ -2356,6 +2369,30 @@ export function registerSettings() {
     // (live.mjs `keepLive`) - so another GM's edit reaches an open dashboard at its next
     // one, and not the moment it merges (read, not measured at a table).
     game.settings.register(MODULE_ID, SETTINGS.gmKeyPlan, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The case schema (E97 C3): a GM store since it exists (`caseSchemaStore`), a row per chapter and node. No `onChange`:
+    // the Investigation panel reads it at each redraw (live.mjs `keepLive`), as it reads the Key plan.
+    game.settings.register(MODULE_ID, SETTINGS.gmCaseSchema, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The case's ticks at a trial (E99 C3): a GM store (`caseTickStore`), a row per chapter and node. No `onChange`: the
+    // trial's case window reads it at each redraw.
+    game.settings.register(MODULE_ID, SETTINGS.gmCaseTicks, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // Logic Dive's sets (E73 C4): a GM store (`diveSetStore`), a row per set with each question's truth. No `onChange`:
+    // the set editor and the console read it at each redraw, and the primary at each question.
+    game.settings.register(MODULE_ID, SETTINGS.gmDiveSets, {
         scope: "client",
         config: false,
         type: Object,
@@ -3918,7 +3955,15 @@ export function pixelFontOn() {
  * separate number from the one above because a wide short window - 1600 x 600 -
  * has no collisions to fix and keeps the desk layout it always had.
  */
-export const BREAKPOINTS = { narrow: 1224, short: 620 };
+/*
+ * LOW IS THE CLASS TRIAL CONSOLE'S (E99 round 6, 12.11.2026; the owner: "Zgadzam sie na zmiany w oknach class trial").
+ * The console stands the screen's height, and while a trial runs the case schema's slot takes what its header, status,
+ * bar and footer leave: at 1366 x 768 under glass that was 352 px, and the case's smallest words after Fit to view read
+ * 10.3 px (audit/case-map-sweep.mjs). Under 800 px of height the console's header and footer are drawn compact
+ * (components.css, `body.drpg-low`), which gives the schema the height for 11 px; above it, 1920 x 1080 among them, the
+ * console stays as it was.
+ */
+export const BREAKPOINTS = { narrow: 1224, short: 620, low: 800 };
 
 /* A measurement of zero is a window that has not been laid out yet - a hidden
    iframe, a client mid-boot - and it must not read as "tiny": nothing stacks,
@@ -3976,6 +4021,11 @@ export function narrowScreen(w = innerWidth) {
 export function shortScreen(h = layoutHeight()) {
     return measured(h) < BREAKPOINTS.short;
 }
+/** True when the Class Trial console draws its header and footer compact (BREAKPOINTS.low, above): the layout height, as
+    `shortScreen`. */
+export function lowScreen(h = layoutHeight()) {
+    return measured(h) < BREAKPOINTS.low;
+}
 /**
  * The screen's own factor under the slider.
  *
@@ -4031,7 +4081,7 @@ let screenWatched = false, screenTimer = 0, screenFactor = 0, screenShape = "";
    restacks the module and crossing 620 px of height puts the glass to sleep, and
    both can happen without the factor moving a hundredth (it is at its floor on every
    screen under 1792 x 1008 anyway). One key covers all three. */
-const shapeKey = () => (narrowScreen() ? "n" : "-") + (shortScreen() ? "s" : "-");
+const shapeKey = () => (narrowScreen() ? "n" : "-") + (shortScreen() ? "s" : "-") + (lowScreen() ? "l" : "-");
 function watchScreen() {
     screenFactor = autoScale();
     screenShape = shapeKey();
@@ -4132,9 +4182,11 @@ export function applyTheme() {
        place to change them and no chance of the sheet and the curtain disagreeing
        about where a screen stops being a desk. One class for "the blocks stack"
        and one for "and there is no height either", which is the only distinction
-       styles/narrow.css needs to draw. */
+       styles/narrow.css needs to draw; a third, `drpg-low`, is the trial console's alone. */
     document.body.classList.toggle("drpg-stacked", narrowScreen());
     document.body.classList.toggle("drpg-short", shortScreen());
+    // the Class Trial console's compact frame (BREAKPOINTS.low; components.css)
+    document.body.classList.toggle("drpg-low", lowScreen());
     // On the body, where the theme's own rules live: a value on <html> was shadowed by
     // the sheet's default on body (v1.2.15), so the scale never applied.
     const total = String(effectiveScale());

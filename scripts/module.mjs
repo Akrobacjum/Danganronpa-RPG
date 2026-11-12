@@ -30,6 +30,7 @@ import { registerDoors } from "./doors-gm.mjs";
 import { registerWatches } from "./watch-gm.mjs";
 import { registerLockpicks } from "./lockpick-gm.mjs";
 import { registerTimedEffects } from "./timed-effects.mjs";
+import { registerCaseAsk } from "./case-realize.mjs";
 import { registerActionResource } from "./resources.mjs";
 import { registerGmPanel, registerGmChrome, injectLauncher } from "./gm-panel.mjs";
 import { offerStartHere } from "./season-setup.mjs";
@@ -107,6 +108,7 @@ import { registerTrialSpeakers } from "./trial-speakers.mjs";
 import { registerFoundryWindows } from "./foundry-windows.mjs";
 import { registerA11y } from "./a11y.mjs";
 import { registerChrome } from "./chrome.mjs";
+import { registerDhSettings } from "./dh-settings.mjs";
 import { registerApi } from "./api.mjs";
 import { registerEnforced, offerHoldAgain } from "./enforced.mjs";
 import { registerUserMatch } from "./user-match.mjs";
@@ -186,6 +188,9 @@ Hooks.once("init", () => {
 
     // A paint-path workaround, not decoration - see the note on the function.
     safely("the select picker skin", injectSelectPickerSkin);
+    // Daggerheart's character settings window on the kit, its unused fields hidden (E49; dh-settings.mjs): before the
+    // theme's own controls, so they and every later listener of the same hook see its `.drpg-panel` on the first render.
+    safely("the character settings window", registerDhSettings);
     safely("the theme's own controls", registerChrome);
     // Every window, not a list of them - see `guardTextFields`.
     safely("the text field guard", registerTextGuard);
@@ -234,6 +239,8 @@ Hooks.once("init", () => {
     safely("the watches", registerWatches);
     safely("the pick's passes", registerLockpicks);
     safely("the timed effects", registerTimedEffects);
+    // E97 C11: the case's question at a body, on the primary GM, once a chapter
+    safely("the case's question at a body", registerCaseAsk);
     // AFTER the Remnant rings, so a Remnant token that somehow belongs to a player
     // is drawn as evidence first and as theirs second (W-6).
     safely("the own-token ring", registerOwnRing);

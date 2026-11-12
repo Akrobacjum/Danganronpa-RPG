@@ -23,7 +23,7 @@
  */
 
 import { MODULE_ID, TRUTH_BULLET_TYPES, REMNANT_VISIBILITY_LABELS } from "./config.mjs";
-import { REMNANT_FLAGS, remnantData, setRemnantPublic, setRemnantFlags, markRemnantEdited, keyOf as remnantKeyOf,
+import { REMNANT_FLAGS, remnantData, setRemnantPublic, setRemnantFlags, setRemnantAuthor, authorOptions, markRemnantEdited, keyOf as remnantKeyOf,
     traceWhen, actionLabelOf, bandOptions } from "./remnants.mjs";
 import { TRUTH_BULLET_FLAGS, isIdentified, hasReading } from "./truth-bullets.mjs";
 // The viewer's own bullets, indexed by the Remnant they came from and memoised
@@ -36,6 +36,8 @@ import { myBulletForRemnant } from "./visibility.mjs";
    adds no cycle. */
 import { projectIdOf } from "./projects-map.mjs";
 import { debug, error, esc, cssColour, forgetCssColours } from "./utils.mjs";
+import { studentActors } from "./monokuma.mjs";
+import { drpgConfirm } from "./ui-kit.mjs";
 // The ledger's key, for the repaint after a change to it (E90). utils.mjs imports settings.mjs already: no new cycle.
 import { SETTINGS } from "./settings.mjs";
 import { glassOn as motionGlassOn } from "./motion.mjs";
@@ -270,6 +272,35 @@ export function wireCardEditing(body, tokenOrActor) {
             ui.notifications.error(game.i18n.localize("DRPG.Remnant.cardSaveFailed"));
         }
     });
+    /* WHO LEFT IT (E97 C1). An author a GM sets acts as a player's (Q2: Observe's preference, an incident's tie, Tamper),
+       so replacing one asks first; naming one where there was none does not. Through `setRemnantAuthor`, both fields
+       of the row together; a closed or refused question puts the select back. */
+    const author = body.querySelector("select[data-drpg-author]");
+    author?.addEventListener("change", async () => {
+        const was = author.dataset.drpgWas ?? "";
+        const value = author.value;
+        if (value === was) return;
+        if (was) {
+            const name = id => (id ? game.actors.get(id)?.name ?? id : game.i18n.localize("DRPG.Remnant.authorUnknown"));
+            const sure = await drpgConfirm({
+                title: game.i18n.localize("DRPG.Remnant.authorReplaceTitle"),
+                classes: ["drpg-panel"],
+                body: `<p>${esc(game.i18n.format("DRPG.Remnant.authorReplace", { was: name(was), now: name(value) }))}</p>`,
+                yes: { label: game.i18n.localize("DRPG.Remnant.authorReplaceYes") }
+            });
+            if (sure !== true) { author.value = was; return; }
+        }
+        try {
+            if (!await setRemnantAuthor(tokenOrActor, value ? game.actors.get(value) ?? null : null)) throw new Error("no row of the trace on this GM");
+            author.dataset.drpgWas = value;
+            author.classList.add("drpg-saved");
+            setTimeout(() => author.classList.remove("drpg-saved"), 1200);
+        } catch (err) {
+            error("Could not save who left the Remnant", err);
+            ui.notifications.error(game.i18n.localize("DRPG.Remnant.cardSaveFailed"));
+            author.value = was;
+        }
+    });
     for (const field of body.querySelectorAll("[data-drpg-public]")) {
         field.addEventListener("blur", async () => {
             const key = field.dataset.drpgPublic;
@@ -319,7 +350,11 @@ export function gmRemnantCard(tokenOrActor, esc) {
             esc(t("DRPG.Investigation.visibility"))}">${bandOptions(data.visibility)}</select>`],
         [t("DRPG.Remnant.cardWhere"), esc(data.room ?? "-")],
         [t("DRPG.Remnant.cardWhen"), esc(when || "-")],
-        [t("DRPG.Remnant.cardWho"), esc(data.sourceName ?? "-")],
+        /* WHO LEFT IT, AS A SELECT (E97 C1; Q2, Q6): the GMs' alone - this card is drawn for a GM (`playerRemnantCard`
+           is the other's) - written through `setRemnantAuthor` on change, `wireCardEditing` asking first when it
+           replaces a name. */
+        [t("DRPG.Remnant.cardWho"), `<select data-drpg-author data-drpg-was="${esc(data.sourceActor ?? "")}" aria-label="${
+            esc(t("DRPG.Remnant.authorLabel"))}">${authorOptions(data.sourceActor ?? null, studentActors(), data.sourceName ?? "")}</select>`],
         [t("DRPG.Remnant.cardAction"), esc(actionLabelOf(data.action) ?? "-")],
         [t("DRPG.Remnant.cardSubject"), esc(data.subject ?? "-")]
     ];

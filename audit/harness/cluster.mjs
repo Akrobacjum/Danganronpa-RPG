@@ -21,7 +21,7 @@ import * as U from "./lib/futil.mjs";
 import { IDS, world, storage as seedStorage } from "./lib/seed.mjs";
 import { readVersions } from "./lib/versions.mjs";
 import { createCanary } from "./lib/canary.mjs";
-import { kindOf, replacementOf } from "./lib/operators.mjs";
+import { kindOf, replacementOf, legacyReading, setLegacyReading } from "./lib/operators.mjs";
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 /*
@@ -491,12 +491,18 @@ function onClientMessage(who, entry, msg) {
         case "op": {
             let result, error;
             try {
+                /* The old keys in the "honoured" reading (E76 C4; lib/operators.mjs): turned into
+                   operators before the write is judged, applied and sent on, as a v14 server's clean
+                   is read to do from 14.369. In the "ignored" reading this changes nothing. */
+                const told = (path, extra = {}) => reportLegacyKey({ who, where: msg.op.action, coll: msg.op.coll, docId: msg.op.docId ?? null, ...extra, path });
+                if (msg.op.action === "update") msg.op.changes = U.honourLegacy(msg.op.changes, path => told(path));
+                if (msg.op.action === "embedded-update" && Array.isArray(msg.op.payload)) {
+                    msg.op.payload = msg.op.payload.map(u => U.honourLegacy(u, path => told(path, { embeddedName: msg.op.embeddedName, embeddedId: u?._id ?? null })));
+                }
                 if (!canWrite(entry.userId, msg.op)) {
                     throw new Error(`User lacks permission: ${msg.op.action} ${msg.op.coll}${msg.op.embeddedName ? "." + msg.op.embeddedName : ""}`);
                 }
-                const applied = applyOp(entry.userId, msg.op, (path, extra = {}) => reportLegacyKey({
-                    who, where: msg.op.action, coll: msg.op.coll, docId: msg.op.docId ?? null, ...extra, path
-                }));
+                const applied = applyOp(entry.userId, msg.op, told);
                 result = applied.result;
                 opLog.push({ who, action: msg.op.action, coll: msg.op.coll, docId: msg.op.docId ?? null,
                     embeddedName: msg.op.embeddedName ?? null, at: Date.now() });
@@ -542,7 +548,10 @@ function onClientMessage(who, entry, msg) {
             const recipients = Array.isArray(msg.args?.[1]?.recipients) ? new Set(msg.args[1].recipients) : null;
             socketTraffic.push({
                 from: who, channel: msg.channel, size: JSON.stringify(msg.args ?? []).length,
-                action: msg.args?.[0]?.action ?? null, to: recipients ? [...recipients] : "all"
+                action: msg.args?.[0]?.action ?? null, to: recipients ? [...recipients] : "all",
+                /* which GM store a `gms.*` packet carries (gaps G5, 12.11.2026): 61 D5 tells a section a GM had to send
+                   from one the GMs' store moved on since the copy, and a packet log without it could not say which */
+                ...(typeof msg.args?.[0]?.store === "string" ? { store: msg.args[0].store } : {})
             });
             for (const [other, target] of clients) {
                 if (other === who || target.gone) continue;
@@ -700,12 +709,15 @@ async function disconnect(who) {
  */
 const legacyKeys = [];
 function reportLegacyKey(record) {
+    record = { ...record, reading: legacyReading() };
     legacyKeys.push(record);
     const at = [record.who, record.coll, record.docId, record.embeddedName, record.embeddedId].filter(Boolean).join(" ");
     const spelling = /(?:^|\.)(-=|==)[^.]*$/.exec(record.path ?? "")?.[1] ?? "-=";
     console.log(record.where === "foundry.utils.mergeObject"
         ? `[harness] '${spelling}' deleted by foundry.utils.mergeObject, which is not a document write: ${at} ${record.path}`
-        : `[harness] v14 ignores '${spelling}' (${record.where}): ${at} ${record.path}`);
+        : record.reading === "honoured"
+            ? `[harness] '${spelling}' honoured as an operator, the "honoured" reading of the old keys (${record.where}): ${at} ${record.path}`
+            : `[harness] v14 ignores '${spelling}' (${record.where}): ${at} ${record.path}`);
 }
 
 /* --------------------------- scenario API --------------------------------- */
@@ -975,6 +987,11 @@ async function main() {
        it exports decides which users the world has, and a file that throws on
        import now ends the run before four browsers boot for nothing. */
     const scenario = await import(url.pathToFileURL(scenarioFile).href);
+    /* The reading of the old keys a scenario names (E76 C4; lib/operators.mjs) is this process's
+       and, through the environment every client is forked with, every client's. */
+    if (scenario.legacyReading !== undefined) {
+        process.env.DRPG_LEGACY_KEYS = setLegacyReading(scenario.legacyReading);
+    } else process.env.DRPG_LEGACY_KEYS = legacyReading();
     /* What run() is handed, the clients' handles added once they are forked. An account's
        `who` may be none of these names (E30 review, 25.09.2026): the list of taken names was
        kept by hand, lacked phase, dump, canary and environment, and an account named `phase`
@@ -1093,7 +1110,7 @@ async function main() {
         // some (01-runtests keeps the suite's results list, which suite-diff --json reads).
         canary: canaryResult ?? { planted: 0 },
         results, notes, ...(probe ? { evidence: evidence ?? null } : evidence !== undefined ? { evidence } : {}),
-        permissionDenials, socketTraffic: socketTraffic.slice(0, 200), legacyKeysIgnored: legacyKeys,
+        permissionDenials, socketTraffic: socketTraffic.slice(0, 200), legacyKeysIgnored: legacyKeys, legacyReading: legacyReading(),
         opLog: opLog.slice(0, 500), settingLog: settingLog.slice(0, 500),
         bootInfo: Object.fromEntries([...bootInfo.entries()].map(([k, v]) => [k, { t: v.t, drpg: v.drpg, settingsRegistered: v.settingsRegistered, stylesheets: v.stylesheets ?? null, error: v.error?.slice?.(0, 800) }]))
     };

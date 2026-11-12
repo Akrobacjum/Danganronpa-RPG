@@ -95,7 +95,7 @@ function warnGms(key, message, user, userId) {
         name: esc(user?.name ?? String(userId ?? "?")),
         roll: esc(actor?.name ?? message.speaker?.alias ?? message.id)
     });
-    void whisperToGms(`<p class="drpg-warning">${text}</p>`);
+    void whisperToGms({ tone: "warning", body: `<p>${text}</p>` });
     return text;
 }
 

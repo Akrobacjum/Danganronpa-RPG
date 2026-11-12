@@ -1245,17 +1245,17 @@ export async function transferItem(from, to, item, { mode, quiet = false, asker 
             } catch (err) {
                 error(`Could not take back the copy of "${name}" from ${to.name}`, err);
             }
-            await whisperToGms(`<p class="drpg-warning">${game.i18n.format(undone ? "DRPG.Handover.changedMidway" : "DRPG.Handover.changedMidwayKept", {
+            await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format(undone ? "DRPG.Handover.changedMidway" : "DRPG.Handover.changedMidwayKept", {
                 name: esc(name), from: esc(from.name), to: esc(to.name)
-            })}</p>`);
+            })}</p>` });
             log(`"${name}" changed on ${from.name}'s sheet while it went to ${to.name}; ${undone ? "nothing moved" : "the copy could not be taken back"}.`);
             if (!undone) return { ok: true, copy, left: null, keyHeld: null, stuck: true };
             return taken.gone ? { missing: true } : { failed: true };
         }
         if (taken.stuck) {
-            await whisperToGms(`<p class="drpg-warning">${game.i18n.format(TRANSFER_STUCK[mode], {
+            await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format(TRANSFER_STUCK[mode], {
                 name: esc(name), from: esc(from.name), to: esc(to.name)
-            })}</p>`);
+            })}</p>` });
             return { ok: true, copy, left: taken.left ?? pieces, keyHeld: null, stuck: true };
         }
         return { ok: true, copy, left: taken.left, keyHeld: null, stuck: false };

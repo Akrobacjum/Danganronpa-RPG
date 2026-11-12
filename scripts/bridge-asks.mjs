@@ -26,7 +26,7 @@ import {
     ACTION_OVERFLOW_ADD, ACTION_OVERFLOW_CLEAR, ACTION_DESPAIR_SET, ACTION_DESPAIR_ALL, ACTION_DESPAIR_ROSTER,
     ACTION_OVERFLOW_TAKE, ACTION_OVERFLOW_CHECK, ACTION_DIFFICULTY, ACTION_VOTE_CAST, ACTION_VOTE_ASK,
     ACTION_TRIAL_OBJECT, ACTION_TRIAL_EVIDENCE, ACTION_TRIAL_WITHDRAW, ACTION_FLOOR_REPOINT, ACTION_TRIAL_GM,
-    ACTION_TRIAL_TURN, ACTION_TRIAL_CLAIM, ACTION_TRIAL_PRESENT, ACTION_READY_OPEN, ACTION_READY_ANSWER,
+    ACTION_TRIAL_TURN, ACTION_TRIAL_CLAIM, ACTION_TRIAL_SIDE, ACTION_TRIAL_KEYWORD, ACTION_TRIAL_PRESENT, ACTION_READY_OPEN, ACTION_READY_ANSWER,
     ACTION_READY_END, ACTION_RESHAPE_RULING, ACTION_TRAIT_RULING, ACTION_HOPE_CALL, ACTION_CALL_YES,
     ACTION_RULING_EXPIRED, ACTION_RULING_RECEIVED, ACTION_DYNAMIC_ANSWER, ACTION_OBSERVE_TARGET, ACTION_OBSERVE_RESOLVE,
     ACTION_OBSERVE_PICK, ACTION_CLEANUP_TRACES, ACTION_ANALYZE_RESOLVE, ACTION_ADVANCEMENT, ACTION_ADVANCEMENT_OFFER,
@@ -288,12 +288,14 @@ export function requestRepoint(targetId) {
  * floor written, `{}` for an end; the primary itself runs it in place.
  */
 export function requestTrialGm(op, { seconds = null, actorId = null, targetId = null, messageId = null, text = null, order = null,
-    slot = null, beyondPaid = false } = {}) {
+    slot = null, beyondPaid = false, a = null, b = null, thesis = null, set = null, from = null } = {}) {
     // A round's order travels as one string of ids (E70 C7; the row's `as.text`).
     const joined = Array.isArray(order) ? order.join(",") : order;
-    return ask(ACTION_TRIAL_GM, { op, seconds, actorId, targetId, messageId, text, order: joined, slot, beyondPaid }, {
+    // The zone modes' fields (E73): the answers, a Scrum's thesis, a Logic Dive's set and the question it starts at.
+    const zone = { a, b, thesis, set, from };
+    return ask(ACTION_TRIAL_GM, { op, seconds, actorId, targetId, messageId, text, order: joined, slot, beyondPaid, ...zone }, {
         onPrimary: true,
-        local: () => import("./trial-floor.mjs").then(m => m.floorOnPrimary(op, { seconds, actorId, targetId, messageId, text, order: joined, slot, beyondPaid }))
+        local: () => import("./trial-floor.mjs").then(m => m.floorOnPrimary(op, { seconds, actorId, targetId, messageId, text, order: joined, slot, beyondPaid, ...zone }))
     });
 }
 
@@ -306,6 +308,28 @@ export function requestClaim({ actorId }) {
         onPrimary: true,
         local: () => import("./trial-modes.mjs").then(m => m.volunteerOnPrimary({ actorId })).then(out => {
             if (out?.refused) sayNotDone(ACTION_TRIAL_CLAIM, reasonOf(out.refused));
+            return out?.reply ?? null;
+        })
+    });
+}
+
+/** A side picked from this browser (E73 C2; trial-zones-ui.mjs): `actorId` this player's student, `side` "a" or "b". */
+export function requestTrialSide({ actorId, side }) {
+    return ask(ACTION_TRIAL_SIDE, { actorId, side }, {
+        onPrimary: true,
+        local: () => import("./trial-zones.mjs").then(m => m.sideOnPrimary({ actorId, side })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_TRIAL_SIDE, reasonOf(out.refused));
+            return out?.reply ?? null;
+        })
+    });
+}
+
+/** A Scrum speaker's thesis from this browser (E73 C5; trial-zones-ui.mjs): `actorId` the speaking student, `text` the thesis. */
+export function requestTrialKeyword({ actorId, text }) {
+    return ask(ACTION_TRIAL_KEYWORD, { actorId, text }, {
+        onPrimary: true,
+        local: () => import("./trial-zones.mjs").then(m => m.thesisOnPrimary({ actorId, text })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_TRIAL_KEYWORD, reasonOf(out.refused));
             return out?.reply ?? null;
         })
     });

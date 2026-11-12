@@ -336,7 +336,7 @@ export async function handleAdvancement(payload, sender, ctx) {
         if ((!offerStore.isHydrated() || !Object.keys(offerStore.entries()).length) && !offerMissingTold.has(actor.id)) {
             // Once per character and load: a player pressing again is not news, and a whisper each time would be a way to flood the GMs.
             offerMissingTold.add(actor.id);
-            void whisperToGms(`<p class="drpg-warning">${esc(game.i18n.format("DRPG.Advance.notOfferedHere", { name: actor.name, player: sender.name }))}</p>`)
+            void whisperToGms({ tone: "warning", body: `<p>${esc(game.i18n.format("DRPG.Advance.notOfferedHere", { name: actor.name, player: sender.name }))}</p>` })
                 .catch(err => debug("Could not tell the GMs about a Level Up this browser does not hold", err));
         }
         return { refused: "no Level Up is on offer for that character" };

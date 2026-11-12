@@ -11,16 +11,16 @@ Every rule ends with exactly one status, in brackets:
 
 - `[survives: <source>]` - the rule's content survives in a source, quoted or named. DB1-DB41 are the owner's answers:
   they bind, whole and as decided, and are cited by number, never marked rebuilt.
-- `[rebuilt 30.10 from <source>, to confirm in E71 (row 1.2.121)]` - the rule's own wording is lost; it is rebuilt from what
+- `[rebuilt 30.10 from <source>, to confirm in E71 (row 1.2.122)]` - the rule's own wording is lost; it is rebuilt from what
   survives of it, and the source is named.
-- `[rebuilt 30.10 from the number alone, to confirm in E71 (row 1.2.121)]` - only the rule's number survives; its content is a
+- `[rebuilt 30.10 from the number alone, to confirm in E71 (row 1.2.122)]` - only the rule's number survives; its content is a
   reconstruction.
 - `confirmed in the pilot 01.11.2026` in place of the "to confirm": the owner's pilot confirmed the rebuilt rule.
 - "number assigned 30.10" inside a status: the content survives in a summary, but which number it carried does not.
 
 No rebuilt rule is the original (section 13). The pilot (prepared in E65 C14, read by the owner in C-pilot, DB23) is
 where a rebuilt rule is confirmed or changed; a rule the pilot does not exercise stays "to confirm" after it, and E71
-(row 1.2.121) confirms it: E71 turns T4, T5, T11, T12, T13, T15, T16, T21, T24 and T25 to FAIL (MODES in
+(row 1.2.122) confirms it: E71 turns T4, T5, T11, T12, T13, T15, T16, T21, T24 and T25 to FAIL (MODES in
 `scripts/tests-text.mjs`), so it measures each rule against the texts it rewrites. Until the pilot the status read
 "to confirm in the pilot"; the E65 fix round (01.11.2026) named E71 in each that the pilot left.
 
@@ -58,14 +58,14 @@ autorytet reguł, PH 0.2.2 i angielski podręcznik modułu jako autorytet brzmie
 etykiet)”]
 
 5. This guide, then the glossary for words. [rebuilt 30.10 from the plan's goal (docs/text-style.md and
-   docs/glossary.json as the stage's two sources of style and words), to confirm in E71 (row 1.2.121)]
+   docs/glossary.json as the stage's two sources of style and words), to confirm in E71 (row 1.2.122)]
 
 - **Sources 1** Where a DB answer and a rebuilt rule disagree, the DB answer wins; where an answer overrode an earlier
   recommendation, the answer holds - DB34's „akcje uniwersalne” over the recommendation (b). [survives: DB34
   „Rekomendacja po krytyce polszczyzny była inna (b), ale decyzja ... jest wiążąca”]
 - **Sources 2** A decision that names a stage: this guide states the rule, the glossary's entry the stage from which it
   holds (DB7's labels: the entries `crime-silence-badge` and `crime-witness`). [rebuilt 30.10 from the stage's plan (C5's
-  edge cases), to confirm in E71 (row 1.2.121)]
+  edge cases), to confirm in E71 (row 1.2.122)]
 
 ## 2. O1-O19: how a text is built
 
@@ -84,7 +84,7 @@ etykiet)”]
   helping you.”
 - **O5** Numbers only from placeholders: a count, cost or threshold the code knows reaches the text as a placeholder,
   never as a digit typed into the prose (M5). [rebuilt 30.10 from the plan's summary, „liczby tylko z placeholderów”,
-  number assigned 30.10, to confirm in E71 (row 1.2.121)]
+  number assigned 30.10, to confirm in E71 (row 1.2.122)]
   Example: `DRPG.Action.dcStash` “Finding a stash: {n}+.” / „Znalezienie skrytki: {n}+.”
   Pilot 01.11.2026: stays to confirm. Two approved Polish afters write a number the code knows into the prose -
   `DRPG.Settings.searchTokensPerRoom.hint` „od 0 do 10” (the setting's range) and `DRPG.Config.PHASES.dailyLife.hint`
@@ -103,7 +103,7 @@ etykiet)”]
   Example: `DRPG.Vote.finalSentenceMissing` “A Final Trial verdict waits to be carried out, but this browser does not
   hold who was sentenced. Load the GMs' backup on this browser, or give the Final verdict again.”
 - **O8** A refusal says what the reader keeps. [rebuilt 30.10 from E68's text, „według O8 z E65: «You keep your
-  action.» / «Nie tracisz akcji.»”, to confirm in E71 (row 1.2.121)]
+  action.» / «Nie tracisz akcji.»”, to confirm in E71 (row 1.2.122)]
   Example (E68's text): “You keep your action.” / „Nie tracisz akcji.” - where the module has `DRPG.Bridge.nothingSpent`
   “Nothing was spent.” / „Nic nie wydano.” (X1).
   Pilot 01.11.2026: stays to confirm. Applied in `DRPG.Action.noRoom` and `DRPG.Config.HOPE_CALLS.relief.effect`; the EN
@@ -111,15 +111,15 @@ etykiet)”]
   on a refusal before any price (`DRPG.Actions.notEnough`) waits for the owner.
 - **O9** No design rationale in a UI string: why it was built so belongs in code comments and the handbooks. [rebuilt
   30.10 from S18-30, „odpowiadają na pytanie „dlaczego tak zaprojektowano”, a nie „co się stało i co mogę zrobić””, and
-  the plan's P1, to confirm in E71 (row 1.2.121)]
+  the plan's P1, to confirm in E71 (row 1.2.122)]
 - **O10** No reassurance tail, unless it is about safety. [rebuilt 30.10 from the number alone (its subject from the
   plan's typical message: result, justification, exception, reassurance), confirmed in the pilot 01.11.2026]
 - **O11** A button is a verb with its object. [rebuilt 30.10 from a stage text that quotes it, „mają czasownik z
-  dopełnieniem według O11”, to confirm in E71 (row 1.2.121)]
+  dopełnieniem według O11”, to confirm in E71 (row 1.2.122)]
   Example: `DRPG.Project.createButton` “Create project” / „Utwórz projekt”.
 - **O12** A text written to this guide after E66 is checked by the lint and the glossary, and left as it is if it
   passes. [rebuilt 30.10 from E71's text, „tylko sprawdza lintem i słowniczkiem i zostawia, jeśli przechodzą (O12)”, to
-  confirm in E71 (row 1.2.121)]
+  confirm in E71 (row 1.2.122)]
 - **O13** An exception gets a sentence only where the reader can meet it. [rebuilt 30.10 from the number alone,
   confirmed in the pilot 01.11.2026]
 - **O14** One name per mechanic, the glossary's; no synonym for variety (DB33, DB37). [rebuilt 30.10 from the number
@@ -128,14 +128,14 @@ etykiet)”]
   confirmed in the pilot 01.11.2026]
 - **O16** A stage that is not a text stage edits a text minimally and writes the fact or style error it saw into the
   table for E71, instead of rewriting it. [rebuilt 30.10 from E66's and E25's texts, „do tabeli dla E71 (O16), zamiast
-  redagować”, „edycją minimalną (O16)”, to confirm in E71 (row 1.2.121)]
+  redagować”, „edycją minimalną (O16)”, to confirm in E71 (row 1.2.122)]
 - **O17** Each language for its own reader: the Polish is written from the facts, not from the English sentence by
   sentence (DB26). [rebuilt 30.10 from the number alone, confirmed in the pilot 01.11.2026]
   Pilot 01.11.2026: the Polish of the 40 was written from the facts and the old Polish with no English in its input, as
   section 12's step 2 has it.
 - **O18** A rule that forbids a shape shows the sentence that replaces it; the pilot's approved pairs are the model.
   [rebuilt 30.10 from the number alone (its reason in the plan's risk, „Wytyczne, które tylko zakazują, dają nowy styl
-  AI”), to confirm in E71 (row 1.2.121)]
+  AI”), to confirm in E71 (row 1.2.122)]
 - **O19** A text for a player says only the mechanics a player needs: what they do, what it costs and when, what is
   rolled, what can come of it, and the conditions of play that decide it. It never says which browser or client checks,
   stores or plays a step, that a GM must be connected, or what happens when a GM leaves; the refusal at that moment says
@@ -153,7 +153,7 @@ Where a text is shown decides who reads it, what it holds and what it never hold
 the pilot's quotas (S18-32: tiles and config descriptions, toasts and player cards, settings hints, GM diagnostics,
 the world voice, plural families) and S18-30 („macierzy powierzchni”), confirmed in the pilot 01.11.2026 for the seven
 rows the 40 pairs stand on - tile hint, config description, toast, player chat card, settings name and hint (its hint),
-GM diagnostics, world-voice announcement - and to confirm in E71 (row 1.2.121) for the other seven]
+GM diagnostics, world-voice announcement - and to confirm in E71 (row 1.2.122) for the other seven]
 
 | Surface | Who reads it | What it holds | What it never holds | A key of it (31.10) |
 | --- | --- | --- | --- | --- |
@@ -179,7 +179,7 @@ GM diagnostics, world-voice announcement - and to confirm in E71 (row 1.2.121) f
   reason. [survives: DB11 „cel (raport) i limit twardy ok. 1,5 razy cel (FAIL) dla tekstów gracza i ustawień;
   diagnostyka GM-a tylko raport; allowlista z powodem”]
 - **B2** The numbers, in words per string (the limit is the target times 1.5, rounded up). [rebuilt 30.10 from DB11 and
-  the stage's plan (Appendix A, section 4), to confirm in E71 (row 1.2.121)]
+  the stage's plan (Appendix A, section 4), to confirm in E71 (row 1.2.122)]
   Pilot 01.11.2026: stays to confirm. The owner's verdicts named no number, so docs/text-budgets.json is unchanged; read
   by the pilot's surface, 22 approved texts (a language and a form) in 12 keys are over the target - tile hints up to 43
   words, config descriptions up to 41, settings hints up to 37 - and none is over the limit.
@@ -203,7 +203,7 @@ GM diagnostics, world-voice announcement - and to confirm in E71 (row 1.2.121) f
   `.title` or `...Title`, the diagnostics' key groups; a toast by `ui.notifications`, a player card by `whisperToOwner`
   and the room's or the incident's audience, a GM card by `whisperToGms`, the world voice by `announce` with no whisper
   list. A key no rule names is "unclassified" in the report. The rules are `rules` in `docs/text-budgets.json`. [rebuilt
-  30.10 from the stage's plan (Appendix A, section 4), to confirm in E71 (row 1.2.121)]
+  30.10 from the stage's plan (Appendix A, section 4), to confirm in E71 (row 1.2.122)]
   Measured 31.10 by the key rules alone: 623 of 4953 keys (en.json 4438, config.mjs's prose 515) are named, 4330 are
   not; a rule by sender needs the call that posts the key.
 - **B4** A handbook has no word target: its word goals are only a guide, and nothing is cut to meet them. [survives:
@@ -225,40 +225,40 @@ calls „wzorce jednoznaczne” (unambiguous); their content was rebuilt to fit 
   `DRPG.TraitRuling.refused`, `DRPG.Overflow.hopeBlocked`): T5 finds X1's shape in the three befores and in none of the
   100 approved afters (the pilot's 40 in both languages, the 60 pairs).
 - **X2** A design rationale in the string (O9). [rebuilt 30.10 from the number alone (its subject from the plan's P1),
-  to confirm in E71 (row 1.2.121)]
+  to confirm in E71 (row 1.2.122)]
 - **X3** The antithesis "X, not Y" as a sentence shape. [rebuilt 30.10 from E71's why (the shape counted in its
-  strings), to confirm in E71 (row 1.2.121)]
+  strings), to confirm in E71 (row 1.2.122)]
   Found: `DRPG.Hud.trialTooltip` “The Class Trial. The debate runs from the GM's console, not here.” / „Class Trial.
   Debatę prowadzi GM ze swojej konsoli, nie stąd.”
 - **X4** A dash that tacks a moral or an aside on to a sentence. [rebuilt 30.10 from E71's why (the shape counted in EN
-  and PL), to confirm in E71 (row 1.2.121)]
+  and PL), to confirm in E71 (row 1.2.122)]
   Found: `DRPG.Monocub.dialogIntro` “... Tick to opt them in - the timing is your judgement, not the module's.” /
   „... Zaznacz, by go włączyć - moment wybierasz ty, nie moduł.”
   Pilot 01.11.2026: stays to confirm. The rewrite took the dash out of 8 English and 7 Polish befores, and two approved
   Polish afters keep one - `DRPG.Config.ACTIONS.tamper.hint` „a gdy nie masz już akcji - Sanity” and
   `DRPG.Chapter.bodyCalled` „Investigation jeszcze nie trwa - rozpocznie je GM”.
 - **X5** A bracketed plural "(s)": a count is a plural family (`plural()`). [rebuilt 30.10 from the number alone (one
-  of E71's five unambiguous numbers), to confirm in E71 (row 1.2.121)]
+  of E71's five unambiguous numbers), to confirm in E71 (row 1.2.122)]
   Found: `DRPG.Advance.offered` “... you have {n} pick(s).”
 - **X6** Telegraph style: articles and verbs dropped. [rebuilt 30.10 from the plan's risk, „telegrafia”, to confirm in
-  E71 (row 1.2.121)]
+  E71 (row 1.2.122)]
   Pilot 01.11.2026: stays to confirm. The EN reviewer's note that a settings hint opening with a verb and no subject
   (“Takes effect at once.”, EN14's own sentence) is the settings convention, not telegraph style, waits for the owner.
 - **X7** A chain of label-colon-value inside a sentence. [rebuilt 30.10 from the plan's risk, „łańcuchy dwukropków”, to
-  confirm in E71 (row 1.2.121)]
+  confirm in E71 (row 1.2.122)]
   Found: `DRPG.Action.dcAnalyze` “Identifying a bullet, by how visible its trace was - of the crime: {rows}; faint:
   {faint}; Key and Final: {key}.”
-- **X8** "please" or "sorry" in system text. [rebuilt 30.10 from the number alone, to confirm in E71 (row 1.2.121)]
+- **X8** "please" or "sorry" in system text. [rebuilt 30.10 from the number alone, to confirm in E71 (row 1.2.122)]
   Found: `DRPG.Reroll.rulingVoid` “... Please rule again.” / „... Zdecyduj ponownie.”
 - **X9** A doubled space, or a space before punctuation. [rebuilt 30.10 from the number alone (one of E71's five
-  unambiguous numbers), to confirm in E71 (row 1.2.121)]
+  unambiguous numbers), to confirm in E71 (row 1.2.122)]
 - **X10** Hedges and fillers: "just", "simply", "actually", „po prostu”, „właściwie”. [rebuilt 30.10 from the number
   alone, confirmed in the pilot 01.11.2026]
   Found: `DRPG.Murder.escapeIntro` “... The incident simply ends.” / „... Incydent po prostu się kończy.”
   Pilot 01.11.2026 (E65-PILOT-R2): applied in N25 and N27 (`DRPG.Config.ACTIONS.palm.description`,
   `DRPG.Murder.freeResolution`): T5 finds „po prostu” in both befores and in none of the 100 approved afters.
 - **X11** A passive that hides the reader as the one who acts. [rebuilt 30.10 from the number alone, to confirm in E71
-  (row 1.2.121)]
+  (row 1.2.122)]
   Pilot 01.11.2026: stays to confirm. The EN reviewer's note that a passive which does not hide the reader
   (`DRPG.Config.ACTIONS.observe.hint`'s draft “is copied into your inventory”) should not be read by the rule waits for
   the owner.
@@ -274,20 +274,20 @@ calls „wzorce jednoznaczne” (unambiguous); their content was rebuilt to fit 
   it; T5's X13 matcher finds the shape in none of the three befores and none of the 100 approved afters, so the
   confirmation rests on the pairs the owner approved, not on the matcher.
 - **X14** A negated question, or a double negation, on a button. [rebuilt 30.10 from the number alone, to confirm in
-  E71 (row 1.2.121)]
+  E71 (row 1.2.122)]
 - **X15** An exclamation mark in system text and in the world voice. [rebuilt 30.10 from the number alone (one of
-  E71's five unambiguous numbers), to confirm in E71 (row 1.2.121)]
+  E71's five unambiguous numbers), to confirm in E71 (row 1.2.122)]
   Found: `DRPG.Floor.debateOpenedTitle` “Nonstop Debate!”
 - **X16** ALL-CAPS emphasis (acronyms such as GM, NPC and HUD, and names, aside). [rebuilt 30.10 from the number alone
-  (one of E71's five unambiguous numbers), to confirm in E71 (row 1.2.121)]
+  (one of E71's five unambiguous numbers), to confirm in E71 (row 1.2.122)]
 - **X17** Stacked qualifiers: "only ... unless ... except". [rebuilt 30.10 from the number alone, to confirm in E71
-  (row 1.2.121)]
+  (row 1.2.122)]
 - **X18** "successfully" / „pomyślnie”. [rebuilt 30.10 from the number alone (one of E71's five unambiguous numbers),
-  to confirm in E71 (row 1.2.121)]
-- **X19** A hint that restates its label. [rebuilt 30.10 from the number alone, to confirm in E71 (row 1.2.121)]
+  to confirm in E71 (row 1.2.122)]
+- **X19** A hint that restates its label. [rebuilt 30.10 from the number alone, to confirm in E71 (row 1.2.122)]
 - **X20** A "Note:", "Tip:" or „Uwaga:” lead-in in UI text. [rebuilt 30.10 from the number alone, to confirm in E71
-  (row 1.2.121)]
-- **X21** A rhetorical question in system text. [rebuilt 30.10 from the number alone, to confirm in E71 (row 1.2.121)]
+  (row 1.2.122)]
+- **X21** A rhetorical question in system text. [rebuilt 30.10 from the number alone, to confirm in E71 (row 1.2.122)]
 
 ## 6. English
 
@@ -414,7 +414,7 @@ dało się je policzyć.
 - **M4** Conditions and exceptions stay whole when a text is shortened. [rebuilt 30.10 from the hand-off's „fakty
   zachowane” column, confirmed in the pilot 01.11.2026]
 - **M5** No digit is added to prose; a number comes from a placeholder (O5). [rebuilt 30.10 from E66's text, „nie
-  dopisuje cyfr do prozy (M5)”, to confirm in E71 (row 1.2.121)]
+  dopisuje cyfr do prozy (M5)”, to confirm in E71 (row 1.2.122)]
   Pilot 01.11.2026: stays to confirm, as O5.
 - **M6** Outcome words only as DB18 has them (EN8, PL-q). [rebuilt 30.10 from the number alone, confirmed in the pilot
   01.11.2026]
@@ -442,9 +442,9 @@ dało się je policzyć.
   01.11.2026]
   Pilot 01.11.2026: the 40 approved pairs keep every placeholder of their befores, 80 of 80 (key, language).
 - **N3** Config ids, flag keys and setting keys stay - the `listen` key stays when its tile is relabelled (DA27).
-  [rebuilt 30.10 from the number alone, to confirm in E71 (row 1.2.121)]
+  [rebuilt 30.10 from the number alone, to confirm in E71 (row 1.2.122)]
 - **N4** The console's names, and diagnostics.mjs's console in English (DB12), stay. [rebuilt 30.10 from the number
-  alone, to confirm in E71 (row 1.2.121)]
+  alone, to confirm in E71 (row 1.2.122)]
 - **N5** The key-labels `ITEM_CATEGORIES.*.plural` and `.label`, `USABLE_KINDS.*.label` and `USABLE_GOALS.*.label`
   change only with the old wording added to `LEGACY_PLURALS` or `LEGACY_GOAL_LABELS` (scripts/tables-pools.mjs), and those
   lists are only appended to (DB13; T14). [survives: the plan, „etykiety-klucze ITEM_CATEGORIES.*.plural i .label,
@@ -454,20 +454,20 @@ dało się je policzyć.
   frozen) and the legacy lists against their contents there. A word a stage adds to a legacy list after that commit is
   held by N5's "only appended to" and by review, not by T14.
 - **N6** The handbook section numbers the UI links to stay (D35). [rebuilt 30.10 from the number alone, to confirm in
-  E71 (row 1.2.121)]
+  E71 (row 1.2.122)]
 - **N7** The names of documents the module finds by name stay. [rebuilt 30.10 from the number alone, to confirm in E71
-  (row 1.2.121)]
+  (row 1.2.122)]
 - **N8** A posted record - a chat card in the log - is not rewritten. [rebuilt 30.10 from the number alone, to confirm
-  in E71 (row 1.2.121)]
+  in E71 (row 1.2.122)]
 
 ## 10. Three voices and the perspective
 
 - **V1** The interface speaks to the one acting: second person, what they see and can do (O4). [rebuilt 30.10 from
-  DB1, DB12 and the pilot's quotas, to confirm in E71 (row 1.2.121)]
+  DB1, DB12 and the pilot's quotas, to confirm in E71 (row 1.2.122)]
 - **V2** The world speaks in a neutral voice, in the third person, with no lines of Monokuma. [survives: DB1]
 - **V3** The GM's diagnostics speak to a GM: what is wrong, where, what to do; the console of diagnostics.mjs stays in
   English. [rebuilt 30.10 from DB11 and DB12 („konsola diagnostics.mjs zostaje po angielsku”), to confirm in E71
-  (row 1.2.121)]
+  (row 1.2.122)]
 - **P1** When more than one person reads a text, the third person with the role, or a name. [survives: DB19 „trzecia
   osoba z rolą („The victim…”, „Ofiara…”)”]
 - **P2** The second person only to the one acting, never to many readers at once (T16). [rebuilt 30.10 from DB19 and
@@ -476,7 +476,7 @@ dało się je policzyć.
   Wskażcie, kto waszym zdaniem jest Blackened.” - a card to the whole table.
 - **P3** Who reads a key is read off the code that sends it (the audience map, I11): `whisperToOwner`,
   `roomAudience`, `incidentAudienceIds`, `announce`, `whisperToGms`, `ui.notifications`. [rebuilt 30.10 from S18-34, to
-  confirm in E71 (row 1.2.121)]
+  confirm in E71 (row 1.2.122)]
 
 ## 11. The hand-off format of a batch
 
@@ -487,7 +487,7 @@ with code or a decision. [survives: E71's verify, its columns]
 ## 12. Test naturalności PL
 
 Metoda w ośmiu krokach. [rebuilt 30.10 from the number alone („metoda w ośmiu krokach”; the steps from DB26, DB23 and
-the plan's reviewer roles), to confirm in E71 (row 1.2.121)]
+the plan's reviewer roles), to confirm in E71 (row 1.2.122)]
 
 1. Fakty klucza: co się dzieje, komu, ile kosztuje, z jakimi wyjątkami (O6).
 2. Polski z faktów, kodu i starego PL, bez wglądu w nowy EN; EN dopiero przy kontroli parytetu (DB26).
@@ -728,7 +728,7 @@ item names an unshipped stage with a row in `tools/stages.json`; a stage number 
 
 - **The rebuilt rules the pilot did not confirm**: 37 rules (section 1's fifth source, Sources 2, O5, O8, O9, O11,
   O12, O16, O18, B2, B3, X2-X9, X11, X14-X21, M5, N3, N4, N6-N8, V1, V3 and P3), the other seven rows of section 3
-  and section 12's method: to confirm in E71 (row 1.2.121), which turns the report detectors to FAIL. Of the 41 the
+  and section 12's method: to confirm in E71 (row 1.2.122), which turns the report detectors to FAIL. Of the 41 the
   first page left, the 60 pairs of the second confirmed X1, X10, X13 and M8; X3 and O9 stay, because an approved
   after holds their shape by T5 (N24's „, nie wracają” for X3; the pilot's `DRPG.Diagnostics.cast.poolFix` „celowo”
   for O9, through X2), and X7 because a reviewer's point on it in the pilot's file still waits. The questions the C14
@@ -737,7 +737,7 @@ item names an unshipped stage with a row in `tools/stages.json`; a stage number 
   test of the pilot, was not measured in E66 - E71, with the rules it turns to FAIL.
 - **The 60 naturalness pairs** (section 12): approved by the owner on E65-PILOT-R2 (01.11.2026), nothing open; they
   are applied to `lang/pl.json` by the stage the rule of `docs/dev/text-review-E65.md` gives - E66 (row 1.2.96) where
-  a pair changes a name, E71 (row 1.2.121) otherwise - and T27 reports each until then.
+  a pair changes a name, E71 (row 1.2.122) otherwise - and T27 reports each until then.
 - **The open glossary entries** (`open: true`: no source read decides them, so they forbid nothing), each with the
   stage that settles it, as the glossary's stage rule gives it (its `$comment`): `db3-english` (DB3's question is not
   in the sources read) and `mechanic-capitals` (which names DB25 listed) - E25, which settles the DB residue;
@@ -769,7 +769,7 @@ item names an unshipped stage with a row in `tools/stages.json`; a stage number 
   crossing of `DRPG.Config.HOPE_CALLS.sprint.effect` is a word with no `PROSE_NUMBERS` row (Open 46) - E71; the
   reviewers' points B01a left open (texts with one: en 4, coldEn 5, pl 5, mechanics 3; the file's `reviews`) - E71, with
   its batches; the style and fact errors E66 saw in the texts it only re-routed (O16; E66 STATUS Open 15, 28, 34, 36, 38,
-  39) - E71. Added at E66's fix round r2 (01.11.2026, from the two end reviews), each E71's (row 1.2.121): B01a's other
+  39) - E71. Added at E66's fix round r2 (01.11.2026, from the two end reviews), each E71's (row 1.2.122): B01a's other
   `needsCode` items, approved texts that say in words a number config holds, where a placeholder needs a
   `PROSE_NUMBERS` row and so the owner's text change - `CRISIS_ACTIONS.leaveClue.hint` and `secureTrace.hint`'s "a
   critical leaves two" / „a krytyk zostawia dwa” (`indirectVictim.count.critical`, 2; R1159 holds the two in its

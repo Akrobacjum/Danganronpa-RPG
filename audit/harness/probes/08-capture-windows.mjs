@@ -75,9 +75,9 @@ const OUT = process.env.DRPG_CAPTURE_OUT ? path.resolve(process.env.DRPG_CAPTURE
 const STUDENT = "const student = (await import(`${repoUrl}/scripts/monokuma.mjs`)).studentActors()[0];";
 
 /*
- * The windows, each `{ id, client, module, call, press }`: the opener's module under scripts/ and the call made on it
+ * The windows, each `{ id, client, module, call, press, click }`: the opener's module under scripts/ and the call made on it
  * (`m` is the module), on the GM unless `client` names a player; with `press`, the window the opener drew is a step on
- * the way, and the one its footer's button of that action opens is captured (Pre-season checks, from Season setup). The list is E44's mockup set as far as an opener
+ * the way, and the one its footer's button of that action opens is captured (Pre-season checks, from the Season checklist). The list is E44's mockup set as far as an opener
  * opens it with no state built first; a window that needs one (a trial running, a vote, a roll drawn with no GM) is
  * the mockup round's to build, not this probe's.
  */
@@ -116,6 +116,130 @@ const SEED_PASSAGES = `const PG = await import(\`\${repoUrl}/scripts/passages-gm
 const DROP_PASSAGES = `const st = (await import(\`\${repoUrl}/scripts/passages-gm.mjs\`)).PASSAGE_STORES;
     await st.access.dropMany(globalThis.__probe08seed?.access ?? []); await st.map.dropMany(globalThis.__probe08seed?.rows ?? []);
     delete globalThis.__probe08seed;`;
+const VOICE_ON = `const AVM = "avclient-livekit", mod = game.modules.get(AVM);
+    globalThis.__probe08voice = { mod, active: mod?.active, rtc: Object.getOwnPropertyDescriptor(game, "webrtc"), keys: Object.getOwnPropertyDescriptor(game, "keybindings") };
+    if (mod) mod.active = true; else game.modules.set(AVM, { id: AVM, active: true, __probe08: true });
+    const keys = game.keybindings;
+    Object.defineProperty(game, "webrtc", { configurable: true, writable: true, value: { mode: 1,
+        settings: { client: { audioSrc: "mic1", audioSink: "out1", voice: { mode: "ptt" } }, world: { mode: 1 }, set: async () => {} },
+        client: { getAudioSources: async () => ({ mic1: "USB microphone (Blue Yeti)", mic2: "Built-in microphone" }),
+            getAudioSinks: async () => ({ out1: "Headphones (USB)", out2: "Speakers" }) } } });
+    Object.defineProperty(game, "keybindings", { configurable: true, writable: true, value: { get: (ns, k) => (ns === "core" && k === "pushToTalk" ? [{ key: "Backquote" }] : keys?.get?.(ns, k)) } });`;
+const VOICE_OFF = `const v = globalThis.__probe08voice ?? {};
+    if (v.mod) v.mod.active = v.active; else if (game.modules.get("avclient-livekit")?.__probe08) game.modules.delete("avclient-livekit");
+    if (v.rtc) Object.defineProperty(game, "webrtc", v.rtc); else delete game.webrtc;
+    if (v.keys) Object.defineProperty(game, "keybindings", v.keys); else delete game.keybindings;
+    delete globalThis.__probe08voice;`;
+/* E97 C5: the Investigation panel's Map view, with a small case seeded in the GMs' store (two deductions on the
+   chapter's evidence, a counter, the solution) and dropped after; the view is the GM's own User flag, stubbed for the
+   capture (`getFlag` answers "map" for it) rather than written, so the world dump is the same before and after. */
+const SEED_CASE = `const CS = await import(\`\${repoUrl}/scripts/case-schema.mjs\`);
+    const ch = (await import(\`\${repoUrl}/scripts/clock.mjs\`)).getClock().chapter;
+    const ev = CS.caseGraph(ch).nodes.filter(n => n.evidence).map(n => n.id);
+    const real = game.user.getFlag;
+    /* E97 fix (12.11.2026): one Remnant with a long name and description, so a node's whole content is what the Map
+       captures are measured on (audit/case-map-sweep.mjs); dropped with the case. */
+    const R = await import(\`\${repoUrl}/scripts/remnants.mjs\`);
+    const long = await R.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene: canvas.scene, chapter: ch, note: "probe 08 - a long Remnant" });
+    if (long) await R.setRemnantPublic(long, { name: "The torn page of the library's lending ledger, with the last borrower's name scratched out",
+        playerText: "A page torn from the ledger by the library desk. The last line is scratched out with a pen pressed hard enough to tear the paper, and the date beside it reads the night of the murder." });
+    globalThis.__probe08case = { ch, real, long, ids: ["probe08-d1", "probe08-d2", "probe08-c1", "probe08-s1", "incident-probe08a"] };
+    game.user.getFlag = function (scope, key) { return key === "investigationView" ? "map" : real.call(this, scope, key); };
+    await CS.setCaseNode(ch, "probe08-d1", { kind: "deduction", label: "The killing was before 23:40, while the library was still lit and the desk lamp on", inputs: ev.slice(0, 2), mode: "debate",
+        text: "The clock stopped at 23:40 when it fell, and the lamp's bulb was still warm when the body was found: whoever did it left before the night patrol." });
+    await CS.setCaseNode(ch, "probe08-d2", { kind: "deduction", label: "The culprit came in with a key", inputs: ev.slice(1, 3) });
+    await CS.setCaseNode(ch, "probe08-c1", { kind: "counter", label: "The clock could have stopped by itself", refutes: ["probe08-d1"] });
+    await CS.setCaseNode(ch, "probe08-s1", { kind: "solution", label: "It was done in the library", inputs: ["probe08-d1", "probe08-d2"] });
+    await CS.setCaseNode(ch, "incident-probe08a", { kind: "incident", label: "The broken display case", room: "Library" });
+    await CS.setCaseMeta(ch, { askedAt: null, run: null });`;
+const DROP_CASE = `const CS = await import(\`\${repoUrl}/scripts/case-schema.mjs\`);
+    const c = globalThis.__probe08case;
+    if (c) {
+        for (const id of c.ids) await CS.dropCaseNode(c.ch, id);
+        await CS.setCaseMeta(c.ch, { askedAt: null });
+        game.user.getFlag = c.real;
+        if (c.long) { const R = await import(\`\${repoUrl}/scripts/remnants.mjs\`); await R.dropRemnantSecret(c.long).catch(() => {}); await c.long.delete().catch(() => {}); }
+    }
+    delete globalThis.__probe08case;`;
+/* E99 C5: the trial's Case schema window over the same case, a deduction ticked and two nodes given a startable mode;
+   the ticks and the modes taken back after. */
+const SEED_TRIAL = SEED_CASE + `
+    await CS.setCaseNode(globalThis.__probe08case.ch, "probe08-d2", { mode: "testimony" });
+    await CS.setCaseNode(globalThis.__probe08case.ch, "probe08-s1", { mode: "closing" });
+    await CS.setCaseTick(globalThis.__probe08case.ch, "probe08-d1", true);`;
+const DROP_TRIAL = `await (await import(\`\${repoUrl}/scripts/case-schema.mjs\`)).setCaseTick(globalThis.__probe08case.ch, "probe08-d1", false);
+    ` + DROP_CASE;
+/* E99 C5 placed, round 3b: the console in a running Class Trial - a debate's floor (the bar), then an Objection on it -
+   over the same case; the clock, the floor and the record put back after. */
+const RUN_TRIAL = `globalThis.__probe08trial = { clock: foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "clock")),
+        queue: foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "trialQueue") ?? {}),
+        progress: foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "trialProgress") ?? {}) };
+    await game.drpg.setClock({ phase: "classTrial" });
+    await game.drpg.startFloor();`;
+const OBJECT = `const F = await import(\`\${repoUrl}/scripts/trial-floor.mjs\`);
+    const two = game.actors.filter(a => a.type === "character" && a.hasPlayerOwner).slice(0, 2);
+    if (two.length === 2) await F.openObjection(two[0].id, two[1].id);`;
+const STOP_TRIAL = `const F = await import(\`\${repoUrl}/scripts/trial-floor.mjs\`);
+    await F.endFloor().catch(() => {});
+    const t = globalThis.__probe08trial;
+    if (t) { await game.settings.set("danganronpa-rpg", "trialQueue", t.queue); await game.settings.set("danganronpa-rpg", "trialProgress", t.progress);
+        await game.settings.set("danganronpa-rpg", "clock", t.clock); }
+    delete globalThis.__probe08trial;
+    `;
+/* E73 C7: a hall of the probe's own linked with Zone A and Zone B, three students' tokens on stands, the phase the trial's
+   (`SEED_HALL`); a Straw Poll running on it (`SEED_STRAW`); a Logic Dive set in the GMs' store (`SEED_DIVE`); two Findings
+   in the record (`SEED_FINDINGS`). Each taken back by its DROP: the floor closed, the roles, the clock and the record as
+   they were, the hall and the set gone. */
+const SEED_HALL = `const { getClock, setClock } = await import(\`\${repoUrl}/scripts/clock.mjs\`);
+    const keepRoles = foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "sceneRoles") ?? {});
+    const keepProgress = foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "trialProgress") ?? {});
+    const keepClock = foundry.utils.deepClone(getClock());
+    const hall = await Scene.create({ name: "Probe trial hall", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+    const [za, zb] = await hall.createEmbeddedDocuments("Region", [
+        { name: "Left stands", shapes: [{ type: "rectangle", x: 0, y: 0, width: 1000, height: 1000 }], behaviors: [] },
+        { name: "Right stands", shapes: [{ type: "rectangle", x: 1000, y: 0, width: 1000, height: 1000 }], behaviors: [] }]);
+    const students = game.actors.filter(a => a.type === "character" && !a.getFlag("danganronpa-rpg", "monokuma")).slice(0, 3);
+    await hall.createEmbeddedDocuments("Token", students.map((a, i) => ({ actorId: a.id, actorLink: true, name: a.name, x: i ? 1100 + i * 200 : 100, y: 100, width: 1, height: 1 })));
+    await game.settings.set("danganronpa-rpg", "sceneRoles", { ...keepRoles, trial: hall.id, zones: { a: za.id, b: zb.id } });
+    (await import(\`\${repoUrl}/scripts/rooms.mjs\`)).forgetSceneRoles();
+    await setClock({ ...keepClock, phase: "classTrial" });
+    await game.settings.set("danganronpa-rpg", "trialQueue", {});
+    globalThis.__probe08hall = { hall: hall.id, keepRoles, keepProgress, keepClock };`;
+const DROP_HALL = `const h = globalThis.__probe08hall;
+    if (h) {
+        const F = await import(\`\${repoUrl}/scripts/trial-floor.mjs\`);
+        if (F.trialFloor()) await F.endFloor();
+        await game.settings.set("danganronpa-rpg", "trialQueue", {});
+        await game.settings.set("danganronpa-rpg", "sceneRoles", h.keepRoles);
+        (await import(\`\${repoUrl}/scripts/rooms.mjs\`)).forgetSceneRoles();
+        await game.settings.set("danganronpa-rpg", "trialProgress", h.keepProgress);
+        await (await import(\`\${repoUrl}/scripts/clock.mjs\`)).setClock(h.keepClock);
+        await game.scenes.get(h.hall)?.delete();
+        const fresh = game.messages.filter(m => m.timestamp >= (h.at ?? Date.now())).map(m => m.id);
+        if (fresh.length) await ChatMessage.deleteDocuments(fresh);
+    }
+    delete globalThis.__probe08hall;`;
+const SEED_STRAW = SEED_HALL + `
+    globalThis.__probe08hall.at = Date.now();
+    await game.drpg.startStrawPoll({ question: "Was the library locked from inside?", a: "Inside", b: "Outside" });`;
+/* E73 round 4 (the coordinator, 12.11: shots of mockup B "in a running debate and with an Objection up"): a Nonstop Debate
+   on the probe's hall (`SEED_DEBATE`), and one of its students objecting to another (`SEED_OBJECTION`); DROP_HALL closes
+   the floor and puts the record back. */
+const SEED_DEBATE = SEED_HALL + `
+    globalThis.__probe08hall.at = Date.now();
+    await (await import(\`\${repoUrl}/scripts/trial-floor.mjs\`)).startFloor({ topic: "Who locked the library?" });`;
+const SEED_OBJECTION = SEED_DEBATE + `
+    await (await import(\`\${repoUrl}/scripts/trial-floor.mjs\`)).openObjection(students[0].id, students[1].id);`;
+const SEED_DIVE = `const { diveSetStore } = await import(\`\${repoUrl}/scripts/gm-stores.mjs\`);
+    await diveSetStore.patch("probe08set", { name: "The library door", conclusion: "The door was locked from inside", made: Date.now(), questions: [
+        { question: "Was the window shut?", a: "Shut", b: "Open", truth: "a" }, { question: "When was the door locked?", a: "At night", b: "In the morning", truth: "a" }] });`;
+const DROP_DIVE = `await (await import(\`\${repoUrl}/scripts/gm-stores.mjs\`)).diveSetStore.drop("probe08set");`;
+const SEED_FINDINGS = `globalThis.__probe08findings = foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "trialProgress") ?? {});
+    await game.settings.set("danganronpa-rpg", "trialProgress", { ...globalThis.__probe08findings, findings: [
+        { id: "probe08f1", text: "Inside", question: "Was the library locked from inside?", mode: "straw", confirmed: true, at: 1 },
+        { id: "probe08f2", text: "The door was locked from inside", mode: "dive", confirmed: false, at: 2 }] });`;
+const DROP_FINDINGS = `if (globalThis.__probe08findings) await game.settings.set("danganronpa-rpg", "trialProgress", globalThis.__probe08findings);
+    delete globalThis.__probe08findings;`;
 export const WINDOWS = [
     ...ROOM_TABS.map(tab => ({ id: `rooms-${tab}`, module: "room-setup.mjs", call: `m.openRoomSetupDialog({ tab: ${JSON.stringify(tab)} })`, perTab: false })),
     // E49 A5: Passages with four rows seeded (the header's SEEDED).
@@ -123,9 +247,30 @@ export const WINDOWS = [
     { id: "sound", module: "sound-panel.mjs", call: "m.openSoundDialog()" },
     { id: "despair-flow", module: "gm-team-dialog.mjs", call: "m.openGmTeamDialog()" },
     { id: "season-setup", module: "season-setup.mjs", call: "m.openSeasonSetup()" },
-    { id: "pre-season-checks", module: "season-setup.mjs", call: "m.openSeasonSetup()", press: "checks" },
-    { id: "investigation", module: "investigation.mjs", call: "m.openInvestigationDashboard()" },
+    // The Season checklist, Season setup's lower half until E49 A1e, and Pre-season checks from its footer since.
+    { id: "season-checklist", module: "season-setup.mjs", call: "m.openSeasonChecklist()" },
+    { id: "pre-season-checks", module: "season-setup.mjs", call: "m.openSeasonChecklist()", press: "checks" },
+    { id: "investigation", module: "investigation.mjs", call: "m.openInvestigationDashboard({ view: \"table\" })" },
+    { id: "investigation--map", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, call: "m.openInvestigationDashboard()" },
+    { id: "investigation--map-node", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, click: ".drpg-case-node--deduction", call: "m.openInvestigationDashboard()" },
+    { id: "investigation--map-trace", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, click: ".drpg-case-node--trace", call: "m.openInvestigationDashboard()" },
+    { id: "case-realize", module: "case-realize.mjs", before: SEED_CASE, after: DROP_CASE, call: "m.openRealization()" },
+    { id: "case-body-ask", module: "case-realize.mjs", before: SEED_CASE, after: DROP_CASE, call: "m.askAtBody(globalThis.__probe08case.ch)" },
+    { id: "gm-panel--case-asks", module: "gm-panel.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, call: "m.openGmPanel()" },
     { id: "class-trial", module: "trial-floor-ui.mjs", call: "m.manageClassTrial()" },
+    // E99 C5 placed: the console with the case schema in its middle (the same seeded case as case-trial's).
+    { id: "class-trial--case", module: "trial-floor-ui.mjs", before: SEED_TRIAL, after: DROP_TRIAL, call: "m.manageClassTrial()" },
+    { id: "class-trial--case-debate", module: "trial-floor-ui.mjs", before: SEED_TRIAL + "\n    " + RUN_TRIAL, after: STOP_TRIAL + DROP_TRIAL, call: "m.manageClassTrial()" },
+    { id: "class-trial--case-objection", module: "trial-floor-ui.mjs", before: SEED_TRIAL + "\n    " + RUN_TRIAL + "\n    " + OBJECT, after: STOP_TRIAL + DROP_TRIAL, call: "m.manageClassTrial()" },
+    // E73 C7: the zone modes' windows - the console while a Straw Poll runs, the picker, a Logic Dive set's editor, the
+    // Findings, and Room setup's Scenes tab with the zones picked.
+    { id: "class-trial--straw", module: "trial-floor-ui.mjs", before: SEED_STRAW, after: DROP_HALL, perTab: false, call: "m.manageClassTrial()" },
+    { id: "class-trial--debate", module: "trial-floor-ui.mjs", before: SEED_DEBATE, after: DROP_HALL, perTab: false, call: "m.manageClassTrial()" },
+    { id: "class-trial--objection", module: "trial-floor-ui.mjs", before: SEED_OBJECTION, after: DROP_HALL, perTab: false, call: "m.manageClassTrial()" },
+    { id: "zone-picker", module: "trial-zones-ui.mjs", before: SEED_HALL + SEED_DIVE, after: DROP_DIVE + DROP_HALL, call: "m.openZonePicker({ mode: \"dive\" })" },
+    { id: "dive-editor", module: "trial-zones-ui.mjs", before: SEED_DIVE, after: DROP_DIVE, call: "m.editDiveSet(\"probe08set\")" },
+    { id: "findings", module: "trial-zones-ui.mjs", before: SEED_FINDINGS, after: DROP_FINDINGS, call: "m.openFindings()" },
+    { id: "rooms-scenes--zones", module: "room-setup.mjs", before: SEED_HALL, after: DROP_HALL, perTab: false, call: "m.openRoomSetupDialog({ tab: \"scenes\" })" },
     // E21 C4: the trial's questions a GM opens with no world state (M13's Reveal with a row of its own, End the trial with
     // no hall, the vote window before a vote); Your turn and I volunteer open only on a round's speaker's own browser.
     { id: "reveal-confirm", module: "trial-floor-ui.mjs", call: "m.confirmReveal({ id: \"probe08\", name: \"The torn ticket\", text: \"\" }, { left: 0 })" },
@@ -140,8 +285,13 @@ export const WINDOWS = [
     // E49 A4: Room pools with a room pool seeded (the header's SEEDED).
     { id: "item-tables--rooms", module: "tables-editor.mjs", before: SEED_ROOM_POOL, after: DROP_ROOM_POOL, open: "editRooms", perTab: false, call: "m.openItemTables()" },
     { id: "look-gm", module: "look.mjs", call: "m.openLookDialog()" },
-    // E49 A1: the DRPG Settings window, every section drawn (one shown), as a GM and as a player (the client rows alone).
+    // E49 A1: the DRPG Settings window, every section drawn (one shown), as a GM and as a player - the same window since
+    // A1d (this browser's settings; look-gm and look-player open it too, through the gear's `openLookDialog`). The game's
+    // settings are a window of their own (`game-settings`), the GM panel's Settings tile. `drpg-settings-player-voice`:
+    // p1's window with a voice to set (VOICE_ON: avclient-livekit active, an audio world, two named devices of each kind,
+    // push to talk on a key), every stand-in put back after; the harness has no voice of its own outside 75-voice-tile.
     { id: "drpg-settings", module: "settings-window.mjs", call: "m.openSettingsWindow()" },
+    { id: "game-settings", module: "settings-window.mjs", call: "m.openGameSettingsWindow()" },
     { id: "notices-gm", module: "notice-history-app.mjs", call: "m.openNotices()" },
     { id: "gm-panel", module: "gm-panel.mjs", call: "m.openGmPanel()" },
     // E46 C0: the four GM windows E46 and E47 change that open with no state built.
@@ -152,6 +302,7 @@ export const WINDOWS = [
     { id: "sound-player", client: "p1", module: "sound-panel.mjs", call: "m.openSoundDialog()" },
     { id: "look-player", client: "p1", module: "look.mjs", call: "m.openLookDialog()" },
     { id: "drpg-settings-player", client: "p1", module: "settings-window.mjs", call: "m.openSettingsWindow()" },
+    { id: "drpg-settings-player-voice", client: "p1", module: "settings-window.mjs", before: VOICE_ON, after: VOICE_OFF, call: "m.openSettingsWindow()" },
     { id: "notices-player", client: "p1", module: "notice-history-app.mjs", call: "m.openNotices()" },
     ...ACTION_WINDOWS.map(key => ({ id: `action-${key}`, client: "p1", module: "action-rolls.mjs", call: `m.performAction(${MINE}, ${JSON.stringify(key)})` })),
     { id: "notices-player-250", client: "p1", module: "notice-history-app.mjs", before: NOTICES_250, call: "m.openNotices()" },
@@ -181,6 +332,12 @@ const capture = (repoUrl, w) => `
     if (app && open) {
         app.element.querySelector(\`nav.drpg-tabs > button[data-drpg-tab-key="\${open}"]\`)?.click();
         await new Promise(r => setTimeout(r, 150));
+    }
+    /* A node of the drawn window clicked before it is kept (E97 C5: a node of the case map picked). */
+    const click = ${JSON.stringify(w.click ?? null)};
+    if (app && click) {
+        app.element.querySelector(click)?.click();
+        await new Promise(r => setTimeout(r, 300));
     }
     const press = ${JSON.stringify(w.press ?? null)};
     if (app && press) {
