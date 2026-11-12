@@ -1644,6 +1644,20 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
             && a21.after.hope === 1 && a21.after.purse === 1 && a21.after.open === 0
             && a21.refused.every(n => n === 0) && a21.logged.length === 0,
         JSON.stringify(a21), { flow: "monocub-bribe" });
+    /* The known leak, a Foundry limit (E72, 12.11.2026; the purse's weak signal, the owner's DC37 and the coordinator's
+       request): the purse is the GMs' (`cubStore`), the sheet every browser's. A move's price paid from the purse
+       (`spendCubHope`, as `cubAbilityOnGm` takes it) leaves the sheet's Hope where it was on every browser, so a console
+       that watches a Monocub's actions fall with no Hope beside them reads that its purse paid - that someone bribed it,
+       a Bounty paid it, or a bet came in. Green when p3's copy of Botan shows the Hope go; red, as known-leaks.json says,
+       while it does not - measured only when the GMs' total fell by the one point. */
+    const a21b = { before: await p3.eval(`return game.actors.get("${IDS.botan}")?.system?.resources?.hope?.value ?? null;`),
+        paid: await gm.eval(`const Mc = await import("${repoUrl}/scripts/monocub.mjs"); const b = game.actors.get("${IDS.botan}");
+            const total = Mc.cubHopeTotal(b); const paid = await Mc.spendCubHope(b, 1); return { paid, fell: total - Mc.cubHopeTotal(b) };`) };
+    await settle(800);
+    a21b.after = await p3.eval(`return game.actors.get("${IDS.botan}")?.system?.resources?.hope?.value ?? null;`);
+    check("A21b: a Monocub's move paid from its purse is read off its sheet - p3's copy of Botan shows no Hope go while the GMs' purse pays",
+        a21b.after !== a21b.before, JSON.stringify(a21b),
+        { knownLeak: "foundry-cub-purse", measured: a21b.paid?.paid?.purse === 1 && a21b.paid?.fell === 1 && a21b.before !== null, flow: "monocub-bribe" });
     await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
         const S = await import("${repoUrl}/scripts/gm-stores.mjs"), RG = await import("${repoUrl}/scripts/resource-guard.mjs");
         const a = game.actors.get("${IDS.aiko}"), b = game.actors.get("${IDS.botan}");

@@ -291,7 +291,10 @@ a token that goes through a tunnel or up its stairs leave one end and land at
 the other. <!-- leak:foundry-passage-tunnel --> Foundry's own secret doors are
 walls on every browser's map, and a player's console can open one; the GM's
 browser shuts it again, and Convert to passages turns them into secret
-passages. <!-- leak:foundry-secret-door-type --> It is a curtain, not a
+passages. <!-- leak:foundry-secret-door-type --> A Monocub's purse stays
+with the GMs and its player, but its sheet does not: a move the purse paid for
+takes its actions and leaves its Hope, which tells a watching console that the
+purse paid. <!-- leak:foundry-cub-purse --> It is a curtain, not a
 wall, and it works at a table that does not go looking behind it.
 
 **Several GMs.** The primary GM's browser writes the shared world state. The

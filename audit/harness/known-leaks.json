@@ -124,6 +124,16 @@
       "closes": "E72",
       "detectedBy": [{"scenario": "67-trial-modes", "check": "D2: no death nobody has found reaches a player's browser on the trial's list of the dead (TR30, E70-24)"}],
       "measuredAt": "E70 C13, 28.10.2026, before its commit (parent 4c58d5a7): in 67-trial-modes phase D, with Botan killed with nobody told and the trial's voices settled, p1's browser read the clock's phase classTrial, Botan on trialProgress.mutedDead, and no deceased flag on Botan (D2 expected red, measured); 72-canary reads the list gone from p1 after the trial"
+    },
+    {
+      "id": "foundry-cub-purse",
+      "class": "metadata",
+      "severity": "low",
+      "what": "A Monocub's purse (the Hope a Bribe, a Bounty or a Ghost Bet paid it) is the GMs' and its owner's, but its sheet's Hope and actions reach every browser: a move whose Hope price the purse paid lowers the actions and leaves the sheet's Hope where it was, so a console that watches the Monocub reads that its purse paid - that someone bribed it, a Bounty paid it or a bet came in. Who paid, and how much the purse holds, stay with the GMs and the owner.",
+      "foundryLimit": "Foundry v14 sends every Actor document, its resources among them, to every connected client; a purse kept on the sheet would show the purse itself.",
+      "detectedBy": [{"scenario": "33-bridge-paths", "check": "A21b: a Monocub's move paid from its purse is read off its sheet - p3's copy of Botan shows no Hope go while the GMs' purse pays"}],
+      "readme": "leak:foundry-cub-purse",
+      "measuredAt": "E72, 12.11.2026, before its commit (parent f5ec657): in 33-bridge-paths A21b, after Botan accepted Aiko's Bribe (purse 1), the GMs' spendCubHope took the 1 from the purse (total 1 -> 0) and p3's copy of Botan read Hope 0 before and after"
     }
   ]
 }
