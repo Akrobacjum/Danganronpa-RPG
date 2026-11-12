@@ -7966,14 +7966,17 @@ const REGRESSIONS = [
          * comes back once a day, and nothing outside the sheet's tile said so. Read off the source: events.mjs builds a
          * `redeemCard` and renderEvents' list draws it; hud.mjs redraws the panel on `drpgCubsChanged` (the owner's copy
          * of the Monocubs' record, where Redeem's day is) and on a Hope of a Monocub changing; danganronpa.css gives the
-         * card the Redeem glyph; lang/en.json and lang/pl.json hold its title, its line and its ticker word. What the card
+         * card the Redeem glyph, declared on pixel-icons.css's :root for both themes; lang/en.json and lang/pl.json hold its title, its line and its ticker word. What the card
          * says, and to whom, is tier 2's. Red at f837c2f: none of it.
          */
         const sources = new Map(await otherSources());
         const events = stripComments(sources.get("events.mjs") ?? "");
         const hud = stripComments(sources.get("hud.mjs") ?? "");
         const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => (r.ok ? lfText(r) : "")).catch(() => ""));
-        must(events.length > 5000 && hud.length > 5000 && css.length > 5000, "events.mjs, hud.mjs or danganronpa.css not read - this would measure nothing");
+        const icons = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(r => (r.ok ? lfText(r) : "")).catch(() => "");
+        must(events.length > 5000 && hud.length > 5000 && css.length > 5000 && icons.length > 5000, "events.mjs, hud.mjs, danganronpa.css or pixel-icons.css not read - this would measure nothing");
+        // The glyph on :root, for both themes: until the legacy row (tools/glyphs.json), Stained Glass alone declared it and Monokuma Legacy drew a square.
+        const rootBlock = bodyOf(icons, ":root {", { until: "\n}\n" });
         const render = bodyOf(events, "export function renderEvents(", { until: "\n}\n" });
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
@@ -7982,7 +7985,7 @@ const REGRESSIONS = [
         const read = [/export function redeemCard\(/.test(events), /\bredeemCard\(\)/.test(render),
             /Hooks\.on\("drpgCubsChanged",[^;]*renderEvents\(\)/.test(hud),
             /\.drpg-event\[data-kind="redeemHope"\] \.drpg-event-glyph \{ --drpg-glyph: var\(--drpg-pix-redeem\); \}/.test(css)
-                && /\.drpg-event\[data-kind="redeemHope"\] \{ --acc:/.test(css),
+                && /\.drpg-event\[data-kind="redeemHope"\] \{ --acc:/.test(css) && /--drpg-pix-redeem:/.test(rootBlock),
             keys.every(pair => pair.every(v => typeof v === "string" && v.length > 0))];
         equal(JSON.stringify(read), JSON.stringify([true, true, true, true, true]),
             "the Event panel has no Redeem card, does not draw it, is not redrawn for it, has no glyph for it, or lacks its words ([builder, drawn, redrawn, glyph and accent, words])");
