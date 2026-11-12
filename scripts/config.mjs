@@ -3405,6 +3405,17 @@ export const INCIDENT = {
  * victim takes something of the killer's and makes evidence of it" is a
  * sentence a human has to finish.
  */
+/**
+ * DEFENCE IN AN INCIDENT (E64, 12.11.2026; the owner's DA6/DA23 of 05.10, S18-04, and answer of 12.11: "Ok. Nigdy nie
+ * dotyczy otwarcia"). A crisis action aimed at the other side is harder when that side is strong: eight rows of
+ * CRISIS_ACTIONS carry `defense: { side, trait }` - whose statistic resists (the victim's or the killer's) and which
+ * one - and murder-rules.mjs `crisisThreshold` adds the defender's statistic held to 0..`cap` (`crisisDefense`), so a
+ * statistic of 1 or more is +1 and nothing else moves it. The eight rows and their statistics are a default the owner may
+ * revise (STATUS). Never the opening rolls (MURDER_OPENING): they read their own threshold. Not the Finishing Blow,
+ * whose threshold falls to free as the victim runs out of Health.
+ */
+export const DEFENSE = Object.freeze({ cap: 1 });
+
 export const CRISIS_ACTIONS = {
     /**
      * USE AN ITEM, mid-incident. Guide p. 21 ("Użycie przedmiotu"), threshold
@@ -3531,6 +3542,7 @@ export const CRISIS_ACTIONS = {
      */
     selfDefence: {
         side: "victim", label: "Self-Defense", icon: "fa-shield-halved",
+        defense: { side: "killer", trait: "body" },
         threshold: 18, traits: ["hand", "leg", "body"],
         hint: "A hit with Hope unlocks Survive and Role Reversal; with Despair, only Role Reversal, unless the "
             + "incident denies it. A critical unlocks both, stops your Health and Sanity loss, and lets you take one "
@@ -3587,6 +3599,7 @@ export const CRISIS_ACTIONS = {
     },
     survive: {
         side: "victim", label: "Survive", icon: "fa-person-running",
+        defense: { side: "killer", trait: "leg" },
         threshold: 18, traits: ["leg"], kind: "resolution",
         // Closed until Self-defence lands - see `selfDefence.unlocks`.
         lockedUntil: "selfDefence",
@@ -3605,6 +3618,7 @@ export const CRISIS_ACTIONS = {
     },
     roleReversal: {
         side: "victim", label: "Role Reversal", icon: "fa-arrows-rotate",
+        defense: { side: "killer", trait: "body" },
         threshold: 15, traits: ["hand", "leg", "body"], kind: "resolution",
         lockedUntil: "selfDefence",
         hint: "Turn the tables. On a hit, you become the killer and your attacker loses Health and Sanity instead; "
@@ -3645,6 +3659,7 @@ export const CRISIS_ACTIONS = {
     /* ---- the killer ---------------------------------------------------- */
     strike: {
         side: "killer", label: "Strike", icon: "fa-hand-fist",
+        defense: { side: "victim", trait: "body" },
         threshold: 15, traits: ["hand", "leg", "body"],
         hint: "A hit takes {hp} Health and {stress} Sanity off the victim and leaves a Remnant, Hidden with Hope and "
             + "Subtle with Despair. On a critical, the whole blow lands on Health or on Sanity, as you choose, and you "
@@ -3668,6 +3683,7 @@ export const CRISIS_ACTIONS = {
     },
     pin: {
         side: "killer", label: "Pin Them Down", icon: "fa-down-long",
+        defense: { side: "victim", trait: "body" },
         threshold: 12, traits: ["body"],
         hint: "Put the victim's Leave a Clue and Survive at disadvantage for their {turns}, or block both on a "
             + "critical. With Despair, a hit leaves a Subtle Remnant, and a miss leaves an Evident one.",
@@ -3679,6 +3695,7 @@ export const CRISIS_ACTIONS = {
     },
     keepDistance: {
         side: "killer", label: "Keep Your Distance", icon: "fa-arrows-left-right",
+        defense: { side: "victim", trait: "leg" },
         threshold: 12, traits: ["leg"],
         hint: "Put the victim's Secure a Trace and Role Reversal at disadvantage for their {turns}, or block both on a "
             + "critical. With Despair, a hit leaves a Subtle Remnant, and a miss leaves an Evident one.",
@@ -3690,6 +3707,7 @@ export const CRISIS_ACTIONS = {
     },
     weaponAttack: {
         side: "killer", label: "Attack with a Weapon", icon: "fa-khanda",
+        defense: { side: "victim", trait: "body" },
         threshold: 15, traits: ["body", "hand", "leg"],
         hint: "A hit takes Health off the victim, more with a higher-tier weapon and on a critical. Without a readied "
             + "weapon you roll at disadvantage, and if you carry none, a hit gives you an improvised one. The weapon's "
@@ -3772,6 +3790,7 @@ export const CRISIS_ACTIONS = {
      */
     sharedEscape: {
         side: "third", label: "Escape Together", icon: "fa-door-open",
+        defense: { side: "killer", trait: "leg" },
         threshold: 15, traits: ["leg"], kind: "resolution",
         hint: "Get the victim out with you. A hit ends the incident, and with Hope or on a critical it also restores "
             + "their Health and Sanity; a critical gives you and the victim immunity for this chapter and the next.",
@@ -5081,6 +5100,7 @@ export const DRPG = {
     LEVEL_UP_OPTIONS,
     LEVEL_UP,
     LEVEL_UP_TRAIT_RESOURCES,
+    DEFENSE,
     MONOCUB,
     MURDER_OPENING,
     INCIDENT,

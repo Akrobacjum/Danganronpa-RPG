@@ -2109,6 +2109,10 @@
       "actionDenied": "That action is not open to you now.",
       "failedNothing": "Nothing comes of it.",
       "thresholdShort": "Beat {n}",
+      "thresholdDefended": {
+        "victim": "Beat {n} (+{d} for the victim's {trait})",
+        "killer": "Beat {n} (+{d} for the killer's {trait})"
+      },
       "noRollNeeded": "No roll",
       "unlockedActions": "Unlocked: {names}.",
       "drainStopped": "The bleeding stops - no further Health or Sanity is lost this incident.",

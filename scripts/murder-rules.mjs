@@ -65,7 +65,7 @@
 
 import {
     MODULE_ID, MURDER_OPENING, INCIDENT, CRISIS_ACTIONS, KEY_REMNANTS, RESOLUTION_HEALTH_COST, TIMING,
-    USABLE_EFFECTS
+    USABLE_EFFECTS, DEFENSE, TRAITS
 } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isDeadForGm, SETTINGS } from "./settings.mjs";
@@ -234,10 +234,31 @@ function isFreeTake(def, side, state) {
  * `applyCrisisAction`, which scores the total against it on the GM's own state - the window's number is what the
  * player is told, never what is judged.
  */
-export function crisisThreshold(key, state = murderState()) {
+export function crisisThreshold(key, state = murderState(), { traitOf } = {}) {
     const def = CRISIS_ACTIONS[key];
     if (!def || def.noRoll) return null;
-    return key === "finishingBlow" ? finishingBlowThreshold(state) : def.threshold ?? null;
+    if (key === "finishingBlow") return finishingBlowThreshold(state);
+    const base = def.threshold ?? null;
+    return base === null ? null : base + crisisDefense(key, state, { traitOf });
+}
+
+/**
+ * WHAT THE OTHER SIDE'S DEFENCE ADDS (E64, 12.11.2026; DA6/DA23, config.mjs `DEFENSE`): for a row with `defense`, the
+ * defender's statistic (`TRAITS[trait].dh`) held to 0..`DEFENSE.cap`, read off the defender as this browser holds them -
+ * on the GM, where the action is judged, the GMs'; 0 for any other row, or with no incident or defender. The menu, the
+ * roll window and the GM's judgement all read it through `crisisThreshold`, so the three cannot differ. `traitOf(id, dh)`
+ * stands in for the actors in a test. The opening never reads it (MURDER_OPENING has no `defense`; R3961).
+ */
+export function crisisDefense(key, state = murderState(), { traitOf } = {}) {
+    const rule = CRISIS_ACTIONS[key]?.defense;
+    const cap = Math.max(0, Number(DEFENSE.cap) || 0);
+    if (!rule || !state || !cap) return 0;
+    const id = rule.side === "victim" ? state.victimId : rule.side === "killer" ? state.killerId : null;
+    const dh = TRAITS[rule.trait]?.dh;
+    if (!id || !dh) return 0;
+    const read = traitOf ?? ((actorId, stat) => game.actors?.get(actorId)?.system?.traits?.[stat]?.value);
+    const value = Number(read(id, dh));
+    return Number.isFinite(value) ? Math.max(0, Math.min(cap, value)) : 0;
 }
 
 /** Crisis actions this actor may take right now, with their hindered flags. */
@@ -291,6 +312,8 @@ export function availableCrisisActions(actor, state = murderState()) {
                 // it falls as the victim runs out of Health. `null` for the three
                 // decisions that have no dice at all.
                 threshold: crisisThreshold(key, state),
+                // What of that number is the other side's defence (E64; `crisisDefense`), so the tile can say why.
+                defense: crisisDefense(key, state),
                 hindered: (hindered[key] ?? 0) > 0,
                 // Self-defence gates the victim's two ways out, and closes
                 // itself once it lands. `blocked` already means "you may not

@@ -2260,6 +2260,10 @@
       "actionDenied": "Ta akcja nie jest teraz dla ciebie dostępna.",
       "failedNothing": "Nic z tego nie wychodzi.",
       "thresholdShort": "Pobij {n}",
+      "thresholdDefended": {
+        "victim": "Pobij {n} (+{d} za {trait} ofiary)",
+        "killer": "Pobij {n} (+{d} za {trait} zabójcy)"
+      },
       "noRollNeeded": "Bez rzutu",
       "unlockedActions": "Odblokowane: {names}.",
       "drainStopped": "Krwawienie ustaje - w tym incydencie nie tracisz już Health ani Sanity.",

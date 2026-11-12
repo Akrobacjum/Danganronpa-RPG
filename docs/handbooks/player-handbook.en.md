@@ -633,6 +633,8 @@ Your side of the same table, behind the **Crisis actions** tile:
 
 Finishing Blow is a resolution action too: 1 Sanity, or 1 Health once your Sanity is gone.
 
+An action aimed at the other side is 1 harder when that side is strong: Strike, Attack with a Weapon and Pin Them Down need 1 more when the victim's Body is +1 or better, Keep Your Distance when the victim's Leg is; Self-Defense and Role Reversal when the killer's Body is, Survive and Escape Together when the killer's Leg is. The tile says so ("Beat 16 (+1 for the victim's Body)"). The opening rolls never change this way.
+
 Then the **clean-up**. Your Tamper tile now lists every trace in the room you are standing in - not only yours - and you can spend **1 Sanity** per attempt:
 
 | Option | Roll, and what it does |
