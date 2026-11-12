@@ -17117,7 +17117,8 @@ const REGRESSIONS = [
                 && typeof game.drpg?.reopenDebate === "function",
             topic: /"DRPG\.Floor\.topic"/.test(fnSource(floorUi, "openDebate")),
             budget: /budget: \{ minutesAt16: 270 \}/.test(config) && /minutesAt16\) \|\| 270\) \* size \/ 16/.test(fnSource(floorUi, "trialTime")),
-            noKill: /const VERDICT_STEPS = \{\s*correct: \["sentence", "card", "levelUps", "overflow"\],\s*wrong: \["sentence", "card", "offers", "despair", "rule", "overflow"\]\s*\};/.test(vote),
+            // E72 C7: the wrong verdict's "remind" (a card to the Monocubs; it kills nobody either).
+            noKill: /const VERDICT_STEPS = \{\s*correct: \["sentence", "card", "levelUps", "overflow"\],\s*(?:\/\/[^\n]*\n\s*)?wrong: \["sentence", "card", "offers", "despair", "rule", "remind", "overflow"\]\s*\};/.test(vote),
             atExit: /\bexecuteAtExit\(\)/.test(reconcile) && /\bexecuteAtExit\(\)/.test(fnSource(floorUi, "closeTrial")),
             mutedDead: /\bisMutedDead\(actor\)/.test(fnSource(vote, "trialParticipants")) && fnSource(voice, "settleTrialVoices").length > 0,
             api: ["skipStep", "adjustTime", "overruleObjection", "endMode", "returnToDebate", "advanceFloorNow", "extendFloor", "endFloor"]
