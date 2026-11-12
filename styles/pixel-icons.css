@@ -1138,9 +1138,11 @@ body.drpg-theme-stained-glass {
     --drpg-pix-case-backup: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 1h4v1h-4zM10 2h4v1h-4zM10 3h4v1h-4zM10 4h4v1h-4zM7 5h10v1h-10zM8 6h8v1h-8zM9 7h6v1h-6zM10 8h4v1h-4zM2 10h20v1h-20zM2 11h20v1h-20zM2 12h20v1h-20zM3 14h18v1h-18zM3 15h18v1h-18zM3 16h7v1h-7zM14 16h7v1h-7zM3 17h7v1h-7zM14 17h7v1h-7zM3 18h18v1h-18zM3 19h18v1h-18zM3 20h18v1h-18zM3 21h18v1h-18z'/%3E%3C/svg%3E");
     --drpg-pix-caution: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h8v1h-8zM7 3h10v1h-10zM6 4h3v1h-3zM15 4h3v1h-3zM5 5h3v1h-3zM16 5h3v1h-3zM4 6h3v1h-3zM10 6h4v1h-4zM17 6h3v1h-3zM3 7h3v1h-3zM10 7h4v1h-4zM18 7h3v1h-3zM2 8h3v1h-3zM10 8h4v1h-4zM19 8h3v1h-3zM2 9h2v1h-2zM10 9h4v1h-4zM20 9h2v1h-2zM2 10h2v1h-2zM10 10h4v1h-4zM20 10h2v1h-2zM2 11h2v1h-2zM10 11h4v1h-4zM20 11h2v1h-2zM2 12h2v1h-2zM10 12h4v1h-4zM20 12h2v1h-2zM2 13h2v1h-2zM10 13h4v1h-4zM20 13h2v1h-2zM2 14h2v1h-2zM20 14h2v1h-2zM2 15h3v1h-3zM19 15h3v1h-3zM3 16h3v1h-3zM10 16h4v1h-4zM18 16h3v1h-3zM4 17h3v1h-3zM10 17h4v1h-4zM17 17h3v1h-3zM5 18h3v1h-3zM16 18h3v1h-3zM6 19h3v1h-3zM15 19h3v1h-3zM7 20h10v1h-10zM8 21h8v1h-8z'/%3E%3C/svg%3E");
     --drpg-pix-project-new: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 2h12v1h-12zM2 3h12v1h-12zM3 4h10v1h-10zM3 5h10v1h-10zM4 6h8v1h-8zM5 7h6v1h-6zM6 8h4v1h-4zM7 9h2v1h-2zM7 10h2v1h-2zM6 11h4v1h-4zM5 12h6v1h-6zM17 12h4v1h-4zM4 13h8v1h-8zM17 13h4v1h-4zM3 14h10v1h-10zM17 14h4v1h-4zM3 15h10v1h-10zM15 15h8v1h-8zM2 16h12v1h-12zM15 16h8v1h-8zM2 17h12v1h-12zM15 17h8v1h-8zM15 18h8v1h-8zM17 19h4v1h-4zM17 20h4v1h-4zM17 21h4v1h-4z'/%3E%3C/svg%3E");
+    --drpg-pix-projects-manage: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 3h10v1h-10zM1 4h10v1h-10zM2 5h2v1h-2zM8 5h2v1h-2zM2 6h2v1h-2zM8 6h2v1h-2zM3 7h2v1h-2zM7 7h2v1h-2zM4 8h4v1h-4zM5 9h2v1h-2zM16 9h3v1h-3zM5 10h2v1h-2zM13 10h1v1h-1zM16 10h3v1h-3zM21 10h1v1h-1zM5 11h2v1h-2zM13 11h9v1h-9zM4 12h4v1h-4zM14 12h7v1h-7zM3 13h2v1h-2zM7 13h2v1h-2zM12 13h4v1h-4zM19 13h4v1h-4zM2 14h2v1h-2zM8 14h2v1h-2zM12 14h3v1h-3zM20 14h3v1h-3zM2 15h2v1h-2zM5 15h2v1h-2zM8 15h2v1h-2zM12 15h4v1h-4zM19 15h4v1h-4zM2 16h8v1h-8zM14 16h7v1h-7zM2 17h8v1h-8zM13 17h9v1h-9zM1 18h10v1h-10zM13 18h1v1h-1zM16 18h3v1h-3zM21 18h1v1h-1zM1 19h10v1h-10zM16 19h3v1h-3z'/%3E%3C/svg%3E");
     --drpg-pix-gm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1h-1zM22 6h2v1h-2zM20 7h3v1h-3zM19 8h4v1h-4zM17 9h6v1h-6zM7 10h1v1h-1zM16 10h6v1h-6zM6 11h3v1h-3zM14 11h8v1h-8zM5 12h5v1h-5zM12 12h9v1h-9zM4 13h17v1h-17zM4 14h10v1h-10zM16 14h4v1h-4zM4 15h7v1h-7zM17 15h1v1h-1zM2 16h7v1h-7zM1 17h3v1h-3zM8 17h1v1h-1zM0 18h2v1h-2z'/%3E%3C/svg%3E");
     --drpg-pix-mic-lock: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 2h6v1h-6zM5 3h8v1h-8zM5 4h8v1h-8zM5 5h2v1h-2zM11 5h2v1h-2zM5 6h8v1h-8zM5 7h2v1h-2zM11 7h2v1h-2zM5 8h8v1h-8zM2 9h2v1h-2zM5 9h2v1h-2zM11 9h2v1h-2zM14 9h2v1h-2zM2 10h2v1h-2zM5 10h8v1h-8zM14 10h2v1h-2zM2 11h2v1h-2zM5 11h8v1h-8zM14 11h2v1h-2zM2 12h2v1h-2zM6 12h6v1h-6zM14 12h2v1h-2zM2 13h3v1h-3zM13 13h3v1h-3zM3 14h4v1h-4zM11 14h4v1h-4zM18 14h3v1h-3zM5 15h8v1h-8zM17 15h2v1h-2zM20 15h2v1h-2zM7 16h4v1h-4zM17 16h2v1h-2zM20 16h2v1h-2zM7 17h4v1h-4zM16 17h7v1h-7zM7 18h4v1h-4zM16 18h7v1h-7zM3 19h12v1h-12zM16 19h3v1h-3zM20 19h3v1h-3zM3 20h12v1h-12zM16 20h3v1h-3zM20 20h3v1h-3zM16 21h7v1h-7zM16 22h7v1h-7z'/%3E%3C/svg%3E");
     --drpg-pix-unseen: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M0 6h2v1h-2zM22 6h2v1h-2zM0 7h3v1h-3zM21 7h3v1h-3zM1 8h3v1h-3zM20 8h3v1h-3zM2 9h4v1h-4zM18 9h4v1h-4zM3 10h6v1h-6zM15 10h6v1h-6zM5 11h14v1h-14zM5 12h14v1h-14zM3 13h2v1h-2zM7 13h10v1h-10zM19 13h2v1h-2zM2 14h2v1h-2zM7 14h2v1h-2zM11 14h2v1h-2zM15 14h2v1h-2zM20 14h2v1h-2zM1 15h2v1h-2zM7 15h2v1h-2zM11 15h2v1h-2zM15 15h2v1h-2zM21 15h2v1h-2zM0 16h2v1h-2zM7 16h2v1h-2zM11 16h2v1h-2zM15 16h2v1h-2zM22 16h2v1h-2zM11 17h2v1h-2z'/%3E%3C/svg%3E");
+    --drpg-pix-countdown-loop: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 3h1v1h-1zM9 4h2v1h-2zM9 5h3v1h-3zM3 6h10v1h-10zM15 6h6v1h-6zM3 7h10v1h-10zM15 7h6v1h-6zM3 8h2v1h-2zM9 8h3v1h-3zM19 8h2v1h-2zM3 9h2v1h-2zM9 9h2v1h-2zM19 9h2v1h-2zM3 10h2v1h-2zM9 10h1v1h-1zM19 10h2v1h-2zM3 11h2v1h-2zM19 11h2v1h-2zM3 12h2v1h-2zM19 12h2v1h-2zM3 13h2v1h-2zM19 13h2v1h-2zM3 14h2v1h-2zM19 14h2v1h-2zM3 15h2v1h-2zM19 15h2v1h-2zM3 16h18v1h-18zM3 17h18v1h-18z'/%3E%3C/svg%3E");
     --drpg-pix-end-chapter: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 2h2v1h-2zM2 3h2v1h-2zM5 3h4v1h-4zM13 3h4v1h-4zM2 4h2v1h-2zM5 4h4v1h-4zM13 4h4v1h-4zM2 5h2v1h-2zM5 5h4v1h-4zM13 5h4v1h-4zM2 6h2v1h-2zM5 6h4v1h-4zM13 6h4v1h-4zM2 7h2v1h-2zM9 7h4v1h-4zM17 7h4v1h-4zM2 8h2v1h-2zM9 8h4v1h-4zM17 8h4v1h-4zM2 9h2v1h-2zM9 9h4v1h-4zM17 9h4v1h-4zM2 10h2v1h-2zM9 10h4v1h-4zM17 10h4v1h-4zM2 11h2v1h-2zM5 11h4v1h-4zM13 11h4v1h-4zM2 12h2v1h-2zM5 12h4v1h-4zM13 12h4v1h-4zM2 13h2v1h-2zM5 13h4v1h-4zM13 13h4v1h-4zM2 14h2v1h-2zM5 14h4v1h-4zM13 14h4v1h-4zM2 15h2v1h-2zM9 15h4v1h-4zM17 15h4v1h-4zM2 16h2v1h-2zM9 16h4v1h-4zM17 16h4v1h-4zM2 17h2v1h-2zM9 17h4v1h-4zM17 17h4v1h-4zM2 18h2v1h-2zM9 18h4v1h-4zM17 18h4v1h-4zM2 19h2v1h-2zM2 20h2v1h-2zM1 21h6v1h-6z'/%3E%3C/svg%3E");
 }
 body.drpg-theme-stained-glass .drpg-action-button[data-drpg-action="search"] .drpg-action-icon,
@@ -1214,9 +1216,11 @@ body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="failureLog"] > i,
 body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="caseWindow"] > i,
 body.drpg-theme-stained-glass .drpg-callout-caution .drpg-callout-title i,
 body.drpg-theme-stained-glass .drpg-choice:has(> input[value="start"]) > i.fa-lightbulb,
+body.drpg-theme-stained-glass .drpg-projects-gear > i.fa-gear,
 body.drpg-theme-stained-glass #countdowns i.fa-minus,
 body.drpg-theme-stained-glass #countdowns i.fa-plus,
-body.drpg-theme-stained-glass #countdowns i.fa-eye-slash {
+body.drpg-theme-stained-glass #countdowns i.fa-eye-slash,
+body.drpg-theme-stained-glass #countdowns i.fa-repeat {
     display: inline-block;
     width: max(1.15em, 22px);
     height: max(1.15em, 22px);
@@ -1305,9 +1309,11 @@ body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="failureLog"] > i::
 body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="caseWindow"] > i::before,
 body.drpg-theme-stained-glass .drpg-callout-caution .drpg-callout-title i::before,
 body.drpg-theme-stained-glass .drpg-choice:has(> input[value="start"]) > i.fa-lightbulb::before,
+body.drpg-theme-stained-glass .drpg-projects-gear > i.fa-gear::before,
 body.drpg-theme-stained-glass #countdowns i.fa-minus::before,
 body.drpg-theme-stained-glass #countdowns i.fa-plus::before,
-body.drpg-theme-stained-glass #countdowns i.fa-eye-slash::before { content: none; }
+body.drpg-theme-stained-glass #countdowns i.fa-eye-slash::before,
+body.drpg-theme-stained-glass #countdowns i.fa-repeat::before { content: none; }
 body.drpg-theme-stained-glass .drpg-action-button[data-drpg-action="search"] .drpg-action-icon { --drpg-glyph: var(--drpg-pix-search); }
 body.drpg-theme-stained-glass .drpg-action-button[data-drpg-action="observe"] .drpg-action-icon { --drpg-glyph: var(--drpg-pix-observe); }
 body.drpg-theme-stained-glass .drpg-action-button[data-drpg-action="analyze"] .drpg-action-icon { --drpg-glyph: var(--drpg-pix-brain); }
@@ -1379,6 +1385,7 @@ body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="failureLog"] > i {
 body.drpg-theme-stained-glass .drpg-gmp-button[data-drpg-run="caseWindow"] > i { --drpg-glyph: var(--drpg-pix-case-backup); }
 body.drpg-theme-stained-glass .drpg-callout-caution .drpg-callout-title i { --drpg-glyph: var(--drpg-pix-caution); }
 body.drpg-theme-stained-glass .drpg-choice:has(> input[value="start"]) > i.fa-lightbulb { --drpg-glyph: var(--drpg-pix-project-new); }
+body.drpg-theme-stained-glass .drpg-projects-gear > i.fa-gear { --drpg-glyph: var(--drpg-pix-projects-manage); }
 body.drpg-theme-stained-glass .drpg-remnant-glyph[data-drpg-act="search"] { -webkit-mask-image: var(--drpg-pix-search); mask-image: var(--drpg-pix-search); }
 body.drpg-theme-stained-glass .drpg-remnant-glyph[data-drpg-act="project"] { -webkit-mask-image: var(--drpg-pix-hourglass); mask-image: var(--drpg-pix-hourglass); }
 body.drpg-theme-stained-glass .drpg-remnant-glyph[data-drpg-act="sabotage"] { -webkit-mask-image: var(--drpg-pix-tamper); mask-image: var(--drpg-pix-tamper); }
@@ -1392,6 +1399,7 @@ body.drpg-theme-stained-glass .drpg-voice-mic.is-gm-blocked > .drpg-pxi:first-ch
 body.drpg-theme-stained-glass #countdowns i.fa-minus { --drpg-glyph: var(--drpg-pix-minus); }
 body.drpg-theme-stained-glass #countdowns i.fa-plus { --drpg-glyph: var(--drpg-pix-plus); }
 body.drpg-theme-stained-glass #countdowns i.fa-eye-slash { --drpg-glyph: var(--drpg-pix-unseen); }
+body.drpg-theme-stained-glass #countdowns i.fa-repeat { --drpg-glyph: var(--drpg-pix-countdown-loop); }
 body.drpg-theme-stained-glass [data-drpg-end-chapter]::before {
     content: "";
     display: inline-block;

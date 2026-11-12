@@ -576,11 +576,14 @@ export const FACES = {
  *  countdown's mark as `fa-eye-slash`, in `#countdowns`, whose ancestors carry no drpg- class; under Stained Glass they
  *  were the one Font Awesome in the dressed tray (the survey's glass-harness reading: 5 icons on the GM's page, 1 on a
  *  player's). The minus and plus step a count, the function the kit's steppers' minus and plus are (FACES); the hidden
- *  mark is not Averted Eyes (FACES's eye-slash), so it wears a drawing of its own, `unseen`. The tray's header clock is
- *  hidden under the glass (stained-glass.css) and its loop (`fa-repeat`) is not drawn by any page here: neither is
- *  mapped. Monokuma Legacy keeps Font Awesome in the tray (option A). */
+ *  mark is not Averted Eyes (FACES's eye-slash), so it wears a drawing of its own, `unseen`. The owner's follow-up
+ *  ("Tak", 11.11.2026): a looping countdown's `<a class="looping-container"><i class="loop-marker fa-solid fa-repeat">` is
+ *  drawn too, with a drawing of its own (`countdown-loop`; FACES's repeat is the Reroll Hope Call's). No harness page
+ *  draws a looping row; the fix's shots add one to the glass harness's tray as a stand-in of countdowns.hbs's markup.
+ *  The tray's header clock is hidden under the glass (stained-glass.css) and is not mapped. Monokuma Legacy keeps Font
+ *  Awesome in the tray (option A). */
 export const HOST_FACES = [
-    ["#countdowns", "Daggerheart's countdown tray: a row's -1, +1 and hidden mark", { minus: "minus", plus: "plus", "eye-slash": "unseen" }]
+    ["#countdowns", "Daggerheart's countdown tray: a row's -1, +1 and hidden mark", { minus: "minus", plus: "plus", "eye-slash": "unseen", repeat: "countdown-loop" }]
 ];
 
 /** Stained Glass's themes: the one constant option B changes (A1: B = add "monokuma-legacy"; not built). */
@@ -625,7 +628,11 @@ export const REMNANT_ACTS = { search: "search", project: "hourglass", sabotage: 
 /** Markup with no key and an FA class another meaning shares: [what, selector, glyph]. */
 export const FACE_RULES = [
     ["the handbooks' CAUTION callout (its fa-hand is Palm's)", ".drpg-callout-caution .drpg-callout-title i", "caution"],
-    ["Project's Start row (its fa-lightbulb is the handbooks' TIP)", '.drpg-choice:has(> input[value="start"]) > i.fa-lightbulb', "project-new"]
+    ["Project's Start row (its fa-lightbulb is the handbooks' TIP)", '.drpg-choice:has(> input[value="start"]) > i.fa-lightbulb', "project-new"],
+    /* E105 FT batch 2 follow-up (the owner's "Tak", 11.11.2026: one function, one glyph): the Projects tray's Manage
+       projects button (projects-ui.mjs, `<button class="drpg-projects-gear"><i class="fa-solid fa-gear">`) wore FACES's
+       gear, the corner Look launcher's gear with its sound waves. */
+    ["the Projects tray's Manage projects (its fa-gear is the corner Look launcher's)", ".drpg-projects-gear > i.fa-gear", "projects-manage"]
 ];
 
 /** A state of a control that wears a drawing of its own under Stained Glass: [what, the glyph element's selector, glyph,
@@ -752,6 +759,7 @@ export function glyphProbes(keyed) {
     }
     out.push(["rule.caution", `<div class="drpg-callout drpg-callout-caution"><p class="drpg-callout-title">${i("fa-hand")}</p></div>`]);
     out.push(["rule.project-new", `<div class="drpg-choices"><label class="drpg-choice"><input type="radio" name="variant" value="start">${i("fa-lightbulb")}</label></div>`]);
+    out.push(["rule.projects-manage", `<div class="countdowns-header"><button type="button" class="drpg-projects-gear">${i("fa-gear")}</button></div>`]);
     for (const act of Object.keys(REMNANT_ACTS)) out.push([`remnant.${act}`, `<div class="drpg-remnant-ring"><span class="drpg-remnant-glyph" data-drpg-act="${act}" data-drpg-probe aria-hidden="true"></span></div>`]);
     for (const fa of Object.keys(FACES)) out.push([`face.fa-${fa}`, `<div class="drpg-glyph-probe">${i(`fa-${fa}`)}</div>`]);
     return out;
@@ -1150,6 +1158,8 @@ export const LEGACY_ICONS = {
     "gm.caseWindow": "fa:fa-box-archive",
     "rule.caution": "fa:fa-hand",
     "rule.project-new": "fa:fa-lightbulb",
+    /* E105 FT batch 2 follow-up (11.11.2026): the Projects tray's Manage projects probe; Legacy keeps its Font Awesome gear. */
+    "rule.projects-manage": "fa:fa-gear",
     "remnant.search": "--drpg-pix-search",
     "remnant.project": "--drpg-pix-project",
     "remnant.sabotage": "--drpg-pix-sabotage",

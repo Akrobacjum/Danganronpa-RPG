@@ -280,7 +280,14 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     for (const e of document.querySelectorAll(sel)) {
       if (!drawn(e)) continue;
       const { cs, m, det, w, h, cx, cy } = shape(e);
-      const pts = corners(cs.clipPath, w, h);
+      /* THE MESSENGER'S HEX IS ITS ::before (stained-glass.css since 7820aff1, E49 S11-49: the button clips nothing, so its
+         badge is drawn whole, and its ::before - `inset: -2px`, the border box - carries the polygon). Read as the button's
+         own clip-path, `none`, it was the whole square: its corners stand nearer the neighbours than the hex does, and
+         every pair with the messenger read 2.31 px against the others' 6.00 (E105, 11.11.2026, at 7d59dcfe and after;
+         the sweep's "gaps unequal"). The ::before's polygon on the border box is what is drawn. */
+      const before = getComputedStyle(e, "::before");
+      const clip = (!cs.clipPath || cs.clipPath === "none") && before.content !== "none" && before.clipPath && before.clipPath !== "none" ? before.clipPath : cs.clipPath;
+      const pts = corners(clip, w, h);
       if ([cs.rotate, cs.translate, cs.scale].some(v => v && v !== "none") || Math.abs(det) < 1e-6 || !pts) { out.unmeasured.push(e.id || e.className); continue; }
       out.buttons++;
       const hex = pts.map(([x, y]) => { const dx = x - w / 2, dy = y - h / 2; return [cx - at.left + m.a * dx + m.c * dy, cy - at.top + m.b * dx + m.d * dy]; });
@@ -1114,8 +1121,49 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
      `body.drpg-pixel-font #interface i[class*="fa-"]` restores Font Awesome at a higher specificity (read here,
      27.10.2026), so the sweep runs the control under Stained Glass alone. Since E105 FT-14 (11.11.2026) Stained Glass draws
      the minus, the plus and the eye-slash as the module's pixel masks (pixel-icons.css HOST_FACES), Font Awesome's ::before
-     off; the masks set no face, so this reading and its control read as before, and the face still draws the loop. Answers
+     off (the loop's too, the owner's follow-up of the same day); the masks set no face, so this reading and its control read
+     as before. Answers
      { read, why }. */
+  /* THE GLASS TURNS WITH THE PROJECTS TRAY'S FOLD (E105 follow-up, 11.11.2026; the owner: "projects przy zwijaniu i
+     rozwijaniu nie animuje kurtyny"). projects-tray.mjs folds the tray with a class (`drpg-projects-collapsed`, its list
+     `display: none`); glass.mjs heard it 150 ms later through a ResizeObserver, and its recut moved a corner - too few
+     panes for a turn - so the glass jumped a debounce behind the tray. `drpgTrayFold()` folds the tray, then unfolds
+     it, by that class, and reads each for 40 frames: the frame and the milliseconds after the toggle at which the
+     curtain's clip path changed (the recut), and how many of those frames a layer of the turn (`#drpg-curtain-turn`)
+     was running. Each must recut, and with motion on each must turn; under reduced motion none may turn. At 1b0ebb73
+     both read a recut and 0 frames of a turn. `{ plant: true }` is the control: the page's reduced-motion class put on
+     for the reading only, while the reading still expects motion - it must read not ok. The tray is left as found.
+     Answers { read, why } (async). */
+  window.drpgTrayFold = async ({ plant = false } = {}) => {
+    const tray = document.getElementById("countdowns"), cur = document.getElementById("drpg-curtain");
+    if (!tray || !cur) return { read: null, why: ["no Projects tray or no curtain on this page"] };
+    const reduced = document.body.classList.contains("drpg-reduced-motion"), was = tray.classList.contains("drpg-projects-collapsed");
+    const frame = () => new Promise(r => requestAnimationFrame(() => r()));
+    const read = [], why = [];
+    if (plant && !reduced) document.body.classList.add("drpg-reduced-motion");
+    try {
+      for (const fold of [!was, was]) {
+        const clip0 = cur.style.clipPath, t0 = performance.now();
+        tray.classList.toggle("drpg-projects-collapsed", fold);
+        let recut = null, turned = 0;
+        for (let n = 1; n <= 40; n++) {
+          await frame();
+          if (!recut && cur.style.clipPath !== clip0) recut = { frame: n, ms: Math.round(performance.now() - t0) };
+          if (document.getAnimations().some(a => a.playState === "running" && a.effect?.target?.closest?.("#drpg-curtain-turn"))) turned++;
+        }
+        const what = fold ? "folding" : "unfolding";
+        read.push({ fold, recut, turned });
+        if (!recut) why.push(`${what} the tray did not recut the glass in 40 frames`);
+        if (!reduced && !turned) why.push(`${what} the tray turned nothing: the glass jumped`);
+        if (reduced && turned) why.push(`${what} the tray turned the glass under reduced motion (${turned} frames)`);
+        await new Promise(r => setTimeout(r, 1200));
+      }
+    } finally {
+      if (plant && !reduced) document.body.classList.remove("drpg-reduced-motion");
+      tray.classList.toggle("drpg-projects-collapsed", was);
+    }
+    return { read, why };
+  };
   window.drpgTrayIcons = ({ plant = false } = {}) => {
     const why = [], icons = [...document.querySelectorAll('#countdowns i[class*="fa-"]')];
     const stand = document.createElement("style");
