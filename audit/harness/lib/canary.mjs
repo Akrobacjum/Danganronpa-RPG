@@ -80,6 +80,11 @@ export const SEEDS = Object.freeze({
     "item.name": { cls: "metadata", field: "the name of an item a student carries", plantedBy: "72-canary" },
     // A found trace's public name as the GM names it: the GM's and its finder's (planted since E05 C13).
     "remnant.publicName": { cls: "answer-key", field: "a found trace's public name, as the GM names it", plantedBy: "72-canary" },
+    // E99 C8: the case's schema after a wrong verdict - what the players' summary may never carry (72's summary phase).
+    "case.note": { cls: "gm-notes", field: "a ticked deduction's GM note in the case schema", plantedBy: "72-canary" },
+    "case.unticked": { cls: "answer-key", field: "the name of a deduction the GMs did not tick", plantedBy: "72-canary" },
+    "case.solution": { cls: "answer-key", field: "the case's solution's name, after a wrong vote", plantedBy: "72-canary" },
+    "case.solutiontext": { cls: "answer-key", field: "the case's solution's words, after a wrong vote", plantedBy: "72-canary" },
     // No marker: what `worldScan` finds (E05 C2).
     "world.id": { cls: "killer-identity", field: "an actor id world data may not name (72: the killer's), in a module world setting or a document's module flags", plantedBy: "72-canary (worldScan)" },
     "world.field": { cls: "answer-key", field: "a field scripts/world-secrets.mjs keeps out of world data", plantedBy: "72-canary (worldScan)" },

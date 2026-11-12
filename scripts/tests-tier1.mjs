@@ -34979,7 +34979,9 @@ const INVARIANTS = [
         }
         const OPENERS = {
             "gm-panel.mjs": { cls: "drpg-window-panel", open: () => import("./gm-panel.mjs").then(m => m.openGmPanel()) },
-            "sound-panel.mjs": { cls: "drpg-window-sound", open: () => import("./sound-panel.mjs").then(m => m.openSoundDialog()) }
+            "sound-panel.mjs": { cls: "drpg-window-sound", open: () => import("./sound-panel.mjs").then(m => m.openSoundDialog()) },
+            // E99 C5: the trial's Case schema window, which redraws on the floor's key (a GM's window; tier 1 runs on one)
+            "case-trial.mjs": { cls: "drpg-window-case-trial", open: () => import("./case-trial.mjs").then(m => m.openTrialSchema()) }
         };
         /* NOT OPENED HERE, and why: each stands only while the world holds what it is about, which is a world write tier 1
            may not make. The readiness round's GM window (boundary.mjs `roundWindow`) while a round is open; its build reads

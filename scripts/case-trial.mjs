@@ -24,7 +24,7 @@ import { layoutCase } from "./case-layout.mjs";
 import { caseGraph, caseTicks, setCaseTick } from "./case-schema.mjs";
 import { presentationHints, casePresentations } from "./case-hints.mjs";
 import { MODE_STARTS, trialFloor } from "./trial-floor.mjs";
-import { caseTickStore, caseSchemaStore, keyPlanStore } from "./gm-stores.mjs";
+import { caseTickStore, caseSchemaStore, keyPlanStore, blackenedStore } from "./gm-stores.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { WIDE } from "./ui-columns.mjs";
 import { caseCulprit } from "./investigation.mjs";
@@ -113,7 +113,7 @@ export async function openTrialSchema() {
             live = keepLive(dialog, {
                 region: ".drpg-case-trial-live",
                 build: () => trialSchemaHtml(trialSchemaState(chapter)),
-                watch: { items: true, settings: [SETTINGS.trialQueue], stores: [caseTickStore, caseSchemaStore, keyPlanStore], hooks: ["createChatMessage", "updateChatMessage", "deleteChatMessage"] },
+                watch: { items: true, settings: [SETTINGS.trialQueue, SETTINGS.clock, SETTINGS.murderState], stores: [caseTickStore, caseSchemaStore, keyPlanStore, blackenedStore], hooks: ["createChatMessage", "updateChatMessage", "deleteChatMessage"] },
                 after: wire
             });
         },

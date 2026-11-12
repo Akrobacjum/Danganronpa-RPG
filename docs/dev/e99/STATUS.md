@@ -45,6 +45,21 @@ arise in a window of its own, whose region redraws only on its watches.
 
 Red first: R3663-R3666 and the tier-2 "E99 C5" test red at 946c031 (no case-hints.mjs, no case-trial.mjs), green here.
 
+- **C5 fix (R1317)**: tiers 0-1 on c6d1e96 failed R1317 - the window's region read the clock and the incident's
+  setting without declaring them, so it would not have redrawn on either. It now watches `clock` and `murderState` (and
+  the Blackened register, a GM store, which R1317 does not read), and R1317 opens the window among its openers.
+- **C8, the scenarios**: 72-canary's `summary` phase (after its wrong verdict: a ticked deduction's GM note, an unticked
+  deduction and the solution's name and words as markers; Show summary sent; every player scanned, p1's and p2's world
+  data and chat read; p1's card holds the ticked deduction and no id of Chie's). Four seeds in lib/canary.mjs. A mutant
+  composer that passes unticked deductions is caught: the marker found in the chat card on p1, p2 and p3 (measured,
+  then reverted). 63-class-trial's part S (after I's correct verdict, gm3 connected for it): a tick on gm2 read on
+  gm3 and gm3's on gm2; gm2's Show summary on p1 with both ticks and the solution. 63: 74/74 (71 before).
+  Not done of C8's list: a hint after p1's Present in 63 (tier 1 R3663 and R3664 hold the rule and the read), the
+  console's census in the DOM in 63 (R3659, R3665), the board on p1-p4 (E61).
+- **C9, the text**: the GM handbook's section 15 in both languages (the schema at the trial, ticking, hints, Show
+  summary); glossary `case-schema`, `case-summary` (E99, open); AUDIT 9.2 items 481-483 (LIVE-E99-01, -04, -05; -02 and
+  -03 are the board's, E61). The player handbook's trial section waits for the board (what it shows).
+
 ## Not done yet, and why
 
 - **The animated board** (C7's board, D's "an animated board like the verdict's"): E61's verdict board, its event, its
@@ -54,7 +69,6 @@ Red first: R3663-R3666 and the tier-2 "E99 C5" test red at 946c031 (no case-hint
 - **C5's frame glyph** (`case-map`, `node-check`): drawn in tools/glyphs.json, not declared in pixel-icons.css (E48's;
   the same note as E97's in docs/dev/e97/STATUS.md); the button and the boxes carry no glyph.
 - **C1 three-digit stage ids**: touches tools/stages.mjs, the coordinator's; not done here (Q-E99-11 stays open).
-- **C8 scenarios (63, 72 phases), C9 handbooks and glossary**: next.
 - No tier-2 test of `showCaseSummary` yet (a verdict fixture is needed): the composer and the card are tested pure.
 
 ## Defaults taken, owner to confirm
