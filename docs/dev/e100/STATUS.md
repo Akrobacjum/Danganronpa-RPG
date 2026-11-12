@@ -37,6 +37,7 @@ re-runs `node tools/registry.mjs --write` (the file is generated, and conflicts 
 | 7 | #9 The explainers' count | explain.mjs `phaseExplanation` (Daily Life's paragraph in the clock's window) and `actionsExplained` (the strip's window) fill `{actions}` with the shown character's own maximum (actions.mjs `actionsMax`, the number "Masz 3 z 3" beside it reads) and Wounded's sentence with that maximum less what a wound takes; with no character, or a Monokuma, the rule's (`baseActions`). Code only: the texts line rewords the keys (texts-e71 d640019e), no lang value changed here. R503's census gains the clock window's read of the character. | R4106 (6bc3b8c8: both answered the rule's number) | d168919c |
 | 8 | the owner's rule, found by E93 and E72 | No fold in an action window: "Rolls: <statistic>" stands in the lead after the description (`drpg-briefing-rolls`), once, left out where the description names the statistic; Details keeps the cost, the room and the thresholds. An unpicked row keeps its description line (`.drpg-action-window` overrules the columns' `display: none`, the rule itself untouched so E72's Call-window override merges clean). | R4108, R4109 (bf0ce376) | fb04ba2a |
 | 9 | the owner at a table on 1.2.108 | The sheet's Stop shows the table's word alone (no "Safeword" caption; tooltip and aria-label keep it). The left column no longer scrolls sideways: under the glass the brush behind the Equipped row overhung it by 5 px a side (278 in 274, Chromium); inside the column it stands in its box. The chosen tab is marked under the glass again: since E48 K2 its brush was Bone on the Bone bar; Ink now, its words Bone. Legacy: the chosen tab reads marked in the model; not reproduced there. | R4110, R4112, R3488 changed (fb04ba2a) | 69520df9 |
+| 10 | the owner at a table: "W trialu usunięto tackę actions/move/hope, która jest nad projects. Przywróćmy ją." | The box that went in a trial is the GM's strip (the table's view, "Still to act"). Hidden on purpose since E23 C3a (the owner's Q-E23-3, 1.2.101): in a trial nobody spends the day's actions, and the count fell at an execution; with its one row gone the strip is not drawn at all. `quietActions` now leaves the row out only while an incident runs. A player's strip never went in a trial (measured headless, p1 in classTrial: actions, move, hope). GM handbook en/pl 230. | R1392 changed (69520df9: classTrial null), R1118 changed | d1451f72 |
 
 Each commit's message holds its red and green readings and its gate.
 
@@ -85,6 +86,7 @@ After the reverts and R4107 (a006deb4): quick green; tiers 0-1 1258 passed, 0 fa
 Settings window saves" and "Search on Eye asks nobody" green; scenarios 75 and 71 41/41.
 Tiers 0-1 at bf0ce376: 1258 passed, 0 failed, 16 skipped. Items 8 and 9 (at 69520df9): quick green; tiers 0-1 1262
 passed, 0 failed, 16 skipped; scenario 71 41/41 on item 9's first cut.
+Item 10 (d1451f72): quick green; tiers 0-1 1262 passed, 0 failed, 16 skipped; scenarios 14-quiet 7/7, 40-flow 88/88.
 No run in a real Foundry; the review page's shots are the harness's (see the page).
 
 ## Open
@@ -92,7 +94,11 @@ No run in a real Foundry; the review page's shots are the harness's (see the pag
 1. **For the coordinator: the code rules file (`rules/code.md` in the agent folder) rows 49 and 52** still name `NEEDS_OWN_BRIEFING` and Move's
    briefing window (`briefing`) in action-rolls.mjs's and action-briefing.mjs's rows; both are gone (item 1). This line
    does not edit that folder.
-2. `git merge-tree` at the last push: no conflict with origin/main, e72, e93 or texts-e71; with e64 and e97-98 only
+2. `git merge-tree` at the last push (d1451f72): no conflict with origin/main, e72, e93 or texts-e71; with e64 and e97-98 only
    `docs/dev/R-REGISTRY.md`, the generated file (re-run `--write` after the merge).
 3. The Monocub's Move tile and the HUD's tooltip are not seen at a table: the harness draws no tooltip and no real
    sheet (LIVE: look at a Monocub's sheet and hover the HUD's Move row).
+4. Item 10 read the owner's "actions/move/hope" as the GM's strip: it is the only box above the Projects tray that a
+   trial takes away (a player's strip, which does carry Actions, Move and Hope, stays in a trial in the harness and in
+   the glass harness). If the owner saw it go on a player's page, that is not reproduced here: a table screenshot
+   would settle it.
