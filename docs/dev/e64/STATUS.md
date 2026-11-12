@@ -14,7 +14,7 @@ Each rule change is its own commit, so one can be reverted alone. The owner answ
 | Q-E64-1 | E53's balance log does not exist yet; where are before and after written? | Here: the "Before and after" table below; E53 imports it | approved, owner 12.11 (DRPG-D1) |
 | Q-E64-2 | E72's numbers ship on another line; review them here? | Review E68's and topic A/C numbers now; E72 reviews its own | approved, owner 12.11 (DRPG-D1) |
 | Q-E64-3 | S02-58: a Tamper attempt limit per time of day? | Yes, 2 attempts per character per time of day | owner confirmed 12.11: no cap; 1 action and no Sanity (b42cc23, f657e7d) |
-| Q-E64-4 | DA39 on a world with past +1 Health / +1 Sanity picks | Keep what was taken; the new rule from the next Level Up | owner 12.11 (DRPG-D1): changed - past picks are migrated so every level-up follows DA39 ("Rekompensujemy by lvl upy byly spojne"); in progress |
+| Q-E64-4 | DA39 on a world with past +1 Health / +1 Sanity picks | Keep what was taken; the new rule from the next Level Up | owner 12.11 (DRPG-D1): changed - past picks are migrated so every level-up follows DA39 ("Rekompensujemy by lvl upy byly spojne"); the proposal accepted ("Akceptuje nowe E64"); built in 7242cce |
 | Q-E64-5 | S02-75: the sabotage lever | No change before 1.3.0; logged for sessions 0 | owner 12.11 (DRPG-D1): changed - analyse and propose changes before 1.3.0; in progress |
 | Q-E64-6 | The incident model (S18-05) is outside the repository; who reruns it? | The auditor's session, with the result quoted in the ledger | approved, owner 12.11 (DRPG-D1) |
 | Q-E64-7 | S02-57 Hope's armour on Role reversal | No change unless the rebuilt model moves lethality by more than 5 points | owner 12.11 (DRPG-D1): "Nie rozumiem" - a plain explanation sent to the coordinator; no code change yet |
@@ -46,6 +46,7 @@ One row per rule. "State" is "default taken, owner to confirm" for every row tha
 | D003 (orphan) | a Tier 0 Use an item in a crisis answered `{ pending: true }` and the receipt counted the item used | the GM reads the item as held (`usedCreatively`): no item used on the receipt, no Hope read, the card says the use waits ("useItemAsked"); the GM's ruling uses it up | 95a15b0 | tier 2 "E64 D003"; the bookmark test's bandage made Tier 1 | owner confirmed 12.11 (fix) |
 | D039 (orphan) | the approval window's size for a Repair an item was not recorded when the GM picked another than the tier's | recorded in the GMs' half (`target.sizedByGm`) | 56c9762 | tier 2 "E64 D039 and D034" | owner confirmed 12.11 (fix; the detail a default) |
 | D034 (orphan) | a repair's size was the item's tier at the approval; a tier raised since asked nothing more | at the completion a project smaller than the item's tier asks then mends nothing and the GMs are told why ("repairTooSmall") - unless the GM picked the size (D039) | 56c9762 | tier 2 "E64 D039 and D034"; E15-T15, E15-T17 | owner confirmed 12.11 (fix; the detail a default) |
+| DA39 migration (Q-E64-4) | past +1 Health / +1 Sanity picks kept; past Head/Body/Leg points raised nothing | once per world, on the primary GM's load, a window lists each stamped student's change: old picks read as the maxima above 4 Health and 6 Sanity (less what DA39 gave, `da39Rises`), taken back, and handed out as statistic points on an offer limited to statistics (`only: "trait"`); points since the season's stamp get their DA39 rise; Apply writes and tells the owner and the GMs, Cancel asks again; the world is marked done (`levelUpsMigrated`) | 7242cce | R3963; tier 2 "E64 DA39 migration" | owner 12.11 (DRPG-D1): "Trzeba to jakos zmigrowac", "Rekompensujemy by lvl upy byly spojne", "Akceptuje nowe E64" |
 | D057 (orphan) | - | **not built here**: it belongs to E39 (the owner's word of 12.11) | - | - | left to E39 |
 
 ## The review (C7) - no number changed
@@ -205,12 +206,14 @@ no night disadvantage (16.7-25.0%) or 18 at night (13.4 / 16.2 / 19.7%); Palm - 
 / 77.8 / 83.3%). E64 changes none of the three numbers. Nothing built until the owner picks.
 
 DA39's migration: the data records no pick; the proposal (infer from the maxima with a GM's dry run, and the
-retroactive rise for past Head/Body/Leg points) is with the owner. Not built.
+retroactive rise for past Head/Body/Leg points) was accepted by the owner ("Akceptuje nowe E64") and built in 7242cce.
+Only a sheet the module set up (with the season's stamp) is read: the harness's seeded students have none, and a
+sheet never stamped has no known start.
 
 ## In progress
 
-The owner's DRPG-D1 answers of 12.11: the DA39 migration of past picks (Q-E64-4), the sabotage lever, trap and Palm
-before 1.3.0 (Q-E64-5), and a plain explanation of S02-57 for the owner (Q-E64-7).
+Nothing built is open. Waiting on the owner: S02-57 and S02-75 are measured, with options sent (no code until the owner
+picks).
 
 ## A note on the history
 
