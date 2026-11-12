@@ -49731,6 +49731,8 @@ const SCENARIOS = [
         must(trait, "the student has no traits to raise");
         const path = `system.traits.${trait}.value`, value = () => foundry.utils.getProperty(student._source, path);
         const was = value();
+        // Since E64 C6 a point in Head, Body or Leg raises a maximum with it (LEVEL_UP_TRAIT_RESOURCES); put back with the rest.
+        const maxima = sheetAsFound(student, ["system.resources.hitPoints.max", "system.resources.stress.max"]);
         await sheetAuditIdle();
         let read = null;
         try {
@@ -49744,6 +49746,7 @@ const SCENARIOS = [
         } finally {
             await student.update({ [path]: was });
             await sheetAuditIdle();
+            await maxima();
         }
         equal(stableJson(read), stableJson([true, was + 1, "putBack", was + 1, was + 1]),
             "the GM's Level Up was not the student's new mark: a player's next write went back past it, or was not put back");
