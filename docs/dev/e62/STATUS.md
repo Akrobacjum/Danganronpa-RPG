@@ -17,7 +17,12 @@ uneven onsets, and Chromium refused a negative duration (no turn drawn). `turnPl
 
 ## Tests
 
-R3708-R3713 (tier 1). Results below.
+R3708-R3713 (tier 1).
+
+Results (12.11.2026, at 5dce8f1): tiers 0-1 whole 1188 ran, 1172 passed, 0 failed, 16 skipped, 1 red (expected);
+R3708-R3713 green by name. Scenarios that read the files E62 changes (glass.mjs, module.mjs, config.mjs, lang/pl.json;
+84 left out), each `--only NN`: 10, 13, 14, 20, 30, 33, 40, 50, 61 (alone), 62, 66, 71, 72, 74, 75, 81, 83, 86, 87, 88
+all green. `node tools/check.mjs` 17/17, lint green.
 
 ## Not done, and why
 
