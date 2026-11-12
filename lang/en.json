@@ -1206,6 +1206,13 @@
       "betStands": "Your Ghost Bet stands: {name}, for {n} Hope if a right verdict sentences them.",
       "betPaid": "Your Ghost Bet pays: {n} Hope in your purse.",
       "betLost": "Your Ghost Bet does not pay.",
+      "panelOffer": "{name} offers you a Bribe of {cost} Hope.",
+      "panelBounty": "Bounty: {name}, {reward} Hope.",
+      "panelBet": "Your Ghost Bet: {name}, {n} Hope.",
+      "flag": {
+        "killer": "A Bribe from this chapter's Blackened: {name} paid {cub}.",
+        "third": "A third Bribe this chapter between {name} and {cub}."
+      },
       "meddleFailed": "Nothing comes of it.",
       "critHelpNothing": "The player had every action left: there was none to give back.",
       "critHelpNothingTarget": "A moment's luck, but no action of yours was spent: nothing comes back.",

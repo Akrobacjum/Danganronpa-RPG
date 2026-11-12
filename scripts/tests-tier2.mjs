@@ -17644,6 +17644,72 @@ const SCENARIOS = [
             "the Redeem card is not drawn for the Monocub's player alone while Redeem is free ([kind, names the Monocub] for its player, a GM, used today, the Hope full)");
     }],
 
+    ["the Monocub's panel says part B's state - offers waiting, Bounties open, its own Ghost Bet - and the GMs are flagged a Bribe from this chapter's killer and a pair's third accepted Bribe (E72 C19)", async () => {
+        /*
+         * E72 C19, 12.11.2026; the plan's C19 (the panel for part B; the log's flags). monocub.mjs `cubPanelLines(actor)`
+         * answers what the panel draws under the tiles from the row as this browser holds it (the owner's copy, or the
+         * GMs' row): each Bribe waiting (`kind` "offer", with its id for the panel's Accept and Refuse), each open Bounty
+         * ("bounty") and the Monocub's own Ghost Bet ("bet"); the bet now rides in the copy (`copyRowOf`). The GMs are
+         * whispered a flag (`bribeFlags`) when a Bribe accepted comes from this chapter's Blackened, and when it is the
+         * third accepted of one pair. A Monocub, a payer and a student; the payer recorded this chapter's Blackened for
+         * the second part. Read: the lines' kinds and names; the flags of three accepted Bribes. Red at 43c5362: no
+         * cubPanelLines, no flags.
+         */
+        const [cub, payer, other] = cast(3);
+        needs(world.ownedByPlayer(cub), "the Monocub's player");
+        needs(world.ownedByPlayer(payer), "the payer's player");
+        const M = await import("./monocub.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const owner = a => game.users.find(u => !u.isGM && a.testUserPermission(u, "OWNER"));
+        const had = [cub, payer].map(a => a.system.resources.hope.value);
+        const rowWas = foundry.utils.deepClone(S.cubStore?.get(cub.id) ?? null);
+        const blackWas = foundry.utils.deepClone(S.blackenedStore?.entries?.() ?? {});
+        const read = {};
+        try {
+            ok(typeof M.cubPanelLines === "function" && typeof M.bribeFlags === "function", "monocub.mjs has no cubPanelLines or bribeFlags (E72 C19)");
+            if (typeof M.cubPanelLines !== "function" || typeof M.bribeFlags !== "function") return;
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await trustedWrite(cub, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            await trustedWrite(payer, { "system.resources.hope.value": 5 }, { reason: "gmRuling" });
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            await settle();
+            await M.offerBribeOnGm({ actorId: payer.id, cubId: cub.id }, owner(payer));
+            await S.bountyStore.patch(other.id, { by: game.user.id, reward: 1, at: 1, targetName: other.name });
+            await S.cubStore.patch(cub.id, { bet: { targetId: other.id, value: 3, at: 1 } });
+            read.lines = M.cubPanelLines(cub).map(line => [line.kind, line.name ?? null]);
+            read.copied = M.copyRowOf(M.cubsFor(owner(cub).id).cubs[cub.id])?.bet ?? null;
+            await S.bountyStore.drop(other.id);
+            await S.cubStore.patch(cub.id, { bet: null, bribes: null });
+            const accept = async () => {
+                const offer = await M.offerBribeOnGm({ actorId: payer.id, cubId: cub.id }, owner(payer));
+                await M.answerBribeOnGm({ cubId: cub.id, bribeId: offer?.bribeId, accept: true }, owner(cub));
+                await S.cubStore.patch(cub.id, { purse: 0 });
+            };
+            const chapter = getClock().chapter;
+            const flagsOf = () => M.bribeFlags(cub, payer);
+            await accept();
+            read.first = flagsOf();
+            await S.blackenedStore.patch(payer.id, { chapter, epoch: seasonEpoch(), at: 1 });
+            await accept();
+            read.second = flagsOf();
+            await accept();
+            read.third = flagsOf();
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            for (const [i, a] of [cub, payer].entries()) await trustedWrite(a, { "system.resources.hope.value": had[i] }, { reason: "gmRuling" });
+            if (S.bountyStore?.has?.(other.id)) await S.bountyStore.drop(other.id);
+            if (S.blackenedStore?.has?.(payer.id) && !Object.hasOwn(blackWas, payer.id)) await S.blackenedStore.drop(payer.id);
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            if (rowWas) await S.cubStore.patch(cub.id, rowWas);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            lines: [["offer", payer.name], ["bounty", other.name], ["bet", other.name]], copied: { targetName: other.name, value: 3 },
+            first: [], second: ["killer"], third: ["killer", "third"]
+        }), "the panel's lines or the GMs' flags are not part B's ({the lines: [kind, name]; the bet in the copy; the flags after the first, second and third accepted Bribe of the pair, the payer this chapter's Blackened from the second})");
+    }],
+
     ["a Ghost Bet names a student for the window's Hope, one bet a Monocub, shut to a crime witness, paid into the purse only when a right verdict sentences that student, its cards naming nobody else (E72 C18)", async () => {
         /*
          * E72 C18, 12.11.2026; the owner's DC12, DC31 and the 06.11 amendments; defaults, owner may revise: free to place,

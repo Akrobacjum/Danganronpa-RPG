@@ -43,11 +43,13 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
 
 | C18 | Ghost Bet (DC12, DC31, the 06.11 amendments): the row `bet` (inventory row 72), free (default); the value is the window when placed (`betWindowNow`: 4 before this chapter's body is announced, 3 after, 2 in the trial before the vote, 1 while it is open, 0 once it closed - the lock `betWindow`); blocks `betPlaced`, `ownCase` (DC15), `crimeWitness`; target any student of the class but the Monocub and another Monocub (`CUB_TARGETS.student`); settled by the verdict's new step "bets" after the overflow on both verdicts (`settleBets`): a right verdict sentencing the student pays the value into the purse, any other pays nothing, the card names nobody. Defaults, owner may revise: free, one bet until the next verdict, the value fixed when placed; the +4 with no case carried until the next verdict (Q-E72-4) | tier 2 "a Ghost Bet names a student ..." (new; red at 3f87a53); R1036, R1157, R1192, R1252 changed on purpose |
 
+| C19 | Part B on the panel and the GMs' flags: monocub.mjs `cubPanelLines` (each Bribe waiting with Accept / Refuse, each open Bounty, the Monocub's own Ghost Bet, which now rides in the copy), drawn by sheet.mjs under the tiles; `bribeFlags` whispers the GMs when an accepted Bribe comes from this chapter's Blackened ("killer") or is the pair's third this chapter ("third", `cubStore`'s `pairs`). Not done: the HUD, the Events card and the Students columns for part B (the Students Hope column shows the purse since C14) | tier 2 "the Monocub's panel says part B's state ..." (new; red at 43c5362); R1157 changed on purpose |
+
 | C10 | A Monocub sees every room the class found (gm-stores.mjs `fogSectionFor`, `cubFogSection`): its owner is sent, under the Monocub's own row, the rooms every student found, the Mastermind's row out, the rows joined so nobody's finds are named; tier 2 "a Monocub's owner is sent every room the class found ..." (new; red at base). And a Monocub's crossing (28.10, 04.11, 06.11): no Move, no action and no Eclipse count, the Eclipse too (`crossingVerdict`, `chargeRoute`), the connected rooms still holding it; the room of a running incident refused to it on a GM judging a player's step with the Seal's code and words (`roomSealed`, `DRPG.Calls.sealedBlocked`), a GM's own move and a Monocub already inside not refused | tier 2 "a Monocub crosses to a connected room with no Move and no action, and the room of a running murder refuses it ..." (new; red at base: noBudget, the murder room let through); R558 changed on purpose |
 
 ## In progress
 
-- Part A done but C8's "Silence now" and D101 (see below). Part B: C13-C18 done. Next: C19 (the panel for part B), C20 (texts), C21 (end review), then E91.
+- Part A done but C8's "Silence now" and D101 (see below). Part B: C13-C19 done (C19 in part). Next: C19's shots, C20 (texts), C21 (end review), then E91.
 
 ## Next, in order
 

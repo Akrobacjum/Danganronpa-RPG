@@ -42,7 +42,7 @@ import { murderState, sideOf, betrayalTarget, isTheirTurn, crisisTileLabel } fro
 // the Despair Call "Silence" on a living student (no Hope Calls until the time of
 // day ends). Until then both arrived under one bare name and were renamed at this door,
 // which is how a reader of this file took one for the other.
-import { isMonocub, isCrimeSilenced, cubBlockSaid, purseOf } from "./monocub.mjs";
+import { isMonocub, isCrimeSilenced, cubBlockSaid, purseOf, cubPanelLines } from "./monocub.mjs";
 import { isCallSilenced, isChained, pendingGather, armedCallsShown, alreadyArmed } from "./call-effects.mjs";
 import { isDeceased, isDeadForGm } from "./chapter.mjs";
 
@@ -4711,6 +4711,35 @@ function injectMonocubPanel(tab, actor) {
         const line = document.createElement("p");
         line.className = "notes drpg-monocub-purse";
         line.textContent = game.i18n.format("DRPG.Monocub.purseLine", { n: purse });
+        panel.append(line);
+    }
+
+    /* PART B, UNDER THE TILES (E72 C19): each Bribe waiting with its Accept and Refuse (the same answer as the window,
+       monocub.mjs `openBribeOffer`), each open Bounty, and the Monocub's own Ghost Bet (`cubPanelLines`). Words only, as
+       the purse's line: no side, colour or title (DC39). */
+    for (const item of cubPanelLines(actor)) {
+        const line = document.createElement("p");
+        line.className = `notes drpg-monocub-${item.kind}`;
+        const words = document.createElement("span");
+        words.textContent = item.kind === "offer" ? game.i18n.format("DRPG.Monocub.panelOffer", { name: item.name, cost: item.cost })
+            : item.kind === "bounty" ? game.i18n.format("DRPG.Monocub.panelBounty", { name: item.name, reward: item.reward })
+                : game.i18n.format("DRPG.Monocub.panelBet", { name: item.name, n: item.value });
+        line.append(words);
+        // Wherever the panel is drawn (sheetMode's question, asked once above): the GM side judges the answer's sender.
+        if (item.kind === "offer") {
+            for (const accept of [true, false]) {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "drpg-mini-button";
+                button.textContent = game.i18n.localize(accept ? "DRPG.Monocub.bribeAccept" : "DRPG.Monocub.bribeRefuse");
+                button.addEventListener("click", async () => {
+                    button.disabled = true;
+                    const { requestBribeAnswer } = await import("./gm-bridge.mjs");
+                    await requestBribeAnswer({ cubId: actor.id, bribeId: item.id, accept });
+                });
+                line.append(" ", button);
+            }
+        }
         panel.append(line);
     }
 

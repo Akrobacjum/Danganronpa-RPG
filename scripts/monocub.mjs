@@ -53,6 +53,7 @@ import { resolveThreshold, whisperToOwner, log, warn, error, plural, isPrimaryGm
 import { cubStore, cubCopy, cubTargetStore, bountyStore } from "./gm-stores.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { senderOf, replyForMe } from "./bridge-guards.mjs";
+import { blackenedIds as blackenedIdsNow } from "./incident-store.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 // Confusion's window is a Call window (E51 C2): call-pickers.mjs reaches this file only through a lazy import().
 import { callWindow, callHeader } from "./call-pickers.mjs";
@@ -219,7 +220,9 @@ export function cubsFor(userId) {
             // The Bribes offered to this Monocub (E72 C15): the payer's name and the price, for its player's answer.
             bribes: row.bribes ? Object.fromEntries(Object.entries(row.bribes).map(([id, b]) => [id, { fromName: b?.fromName ?? "", cost: b?.cost ?? 0 }])) : null,
             // The open Bounties (E72 C16), to every Monocub's owner and nobody else's.
-            bounties: isMonocub(actor) ? openBounties() : null };
+            bounties: isMonocub(actor) ? openBounties() : null,
+            // The Monocub's own Ghost Bet (E72 C19): the name it chose and the value, for its panel.
+            bet: row.bet ? { targetName: game.actors.get(row.bet.targetId)?.name ?? "", value: Math.max(0, Math.trunc(Number(row.bet.value) || 0)) } : null };
     }
     return { cubs, stamps };
 }
@@ -279,6 +282,29 @@ export async function receiveCubs(cubs, stamps) {
 }
 
 /**
+ * WHAT THE PANEL SAYS OF PART B (E72 C19, 12.11.2026; the plan's C19): the lines under the Monocub's tiles, from the row as
+ * this browser holds it - the owner's copy, or on a GM the row its owner would be sent (`cubsFor`'s, through
+ * `copyRowOf`). Each Bribe waiting (`{ kind: "offer", id, name, cost }`, which the panel draws with Accept and Refuse),
+ * each open Bounty (`{ kind: "bounty", name, reward }`) and the Monocub's own Ghost Bet (`{ kind: "bet", name, value }`).
+ */
+export function cubPanelLines(actor) {
+    if (!actor) return [];
+    let row = null;
+    if (game.user?.isGM) {
+        const owner = ownerOf(actor);
+        row = owner ? copyRowOf(cubsFor(owner.id).cubs[actor.id]) : null;
+    } else {
+        row = cubRowOf(actor);
+    }
+    if (!row) return [];
+    return [
+        ...Object.entries(row.bribes ?? {}).map(([id, offer]) => ({ kind: "offer", id, name: offer.fromName, cost: offer.cost })),
+        ...(row.bounties ?? []).map(b => ({ kind: "bounty", name: b.targetName, reward: b.reward })),
+        ...(row.bet ? [{ kind: "bet", name: row.bet.targetName, value: row.bet.value }] : [])
+    ];
+}
+
+/**
  * A row of the GMs' copy as the owner keeps it, each field held to its shape (E72 C2; the purse C14, the open Bribes
  * C15), or null for no row. Exported for the suite: the owner's side is a player's browser, which tier 2 does not run.
  */
@@ -293,9 +319,11 @@ export function copyRowOf(row) {
     }
     const bounties = (Array.isArray(row.bounties) ? row.bounties : []).filter(b => b && typeof b === "object")
         .map(b => ({ targetName: String(b.targetName ?? ""), reward: Math.max(0, Math.trunc(Number(b.reward) || 0)) }));
+    const bet = row.bet && typeof row.bet === "object" && typeof row.bet.targetName === "string"
+        ? { targetName: row.bet.targetName, value: Math.max(0, Math.trunc(Number(row.bet.value) || 0)) } : null;
     return { witness: witnessShape(row.witness), redeemDay: day, askOpen: row.askOpen === true, invited: row.invited === true,
         purse: Math.max(0, Math.trunc(Number(row.purse) || 0)), bribes: Object.keys(bribes).length ? bribes : null,
-        bounties: bounties.length ? bounties : null };
+        bounties: bounties.length ? bounties : null, bet };
 }
 
 /** Owner: ask the primary for this user's rows. */
@@ -1537,13 +1565,37 @@ export async function answerBribeOnGm({ cubId, bribeId, accept } = {}, sender = 
         }
         await trustedWrite(payer, { "system.resources.hope.value": resourceValue(payer, "hope") - offer.cost }, { reason: "call" });
         await addToPurse(cub, offer.cost);
-        // The move it orders this time of day (E72 C17).
-        await patchCubRow(cub.id, { order: { from: payer.id, ...moveSlotNow() } });
+        // The move it orders this time of day (E72 C17), and the pair's count this chapter (E72 C19).
+        const pairs = { ...(cubRowOf(cub)?.pairs ?? {}) };
+        const held = pairs[payer.id];
+        const chapter = getClock()?.chapter ?? null, epoch = seasonEpoch();
+        pairs[payer.id] = { chapter, epoch, n: (held?.chapter === chapter && held?.epoch === epoch ? Number(held.n) || 0 : 0) + 1 };
+        await patchCubRow(cub.id, { order: { from: payer.id, ...moveSlotNow() }, pairs });
+        const flags = bribeFlags(cub, payer);
+        if (flags.length) {
+            const { whisperToGms } = await import("./utils.mjs");
+            const esc2 = foundry.utils.escapeHTML;
+            await whisperToGms(flags.map(flag => `<p>${esc2(game.i18n.format(`DRPG.Monocub.flag.${flag}`, { cub: cub.name, name: payer.name }))}</p>`).join(""));
+        }
         await tell("bribeAccepted");
         await whisperToOwner(cub, `<p>${esc(game.i18n.format("DRPG.Monocub.bribeAcceptedCub", { name: payer.name, cost: offer.cost }))}</p>`, { veiled: true });
         log(`The Monocub ${cub.name} accepted ${payer.name}'s Bribe: ${offer.cost} Hope into its purse.`);
         return { accepted: true };
     });
+}
+
+/**
+ * THE LOG'S FLAGS (E72 C19; the plan's C19): what the GMs are whispered about an accepted Bribe - "killer", the payer is
+ * this chapter's Blackened (incident-store.mjs `blackenedIds`, the GMs' register); "third", it is the third or later the
+ * pair has made this chapter (`cubStore`'s `pairs`). GM-side; the flags of the pair as they stand.
+ */
+export function bribeFlags(cub, payer) {
+    if (!game.user?.isGM || !cub || !payer) return [];
+    const flags = [];
+    if (blackenedIdsNow().includes(payer.id)) flags.push("killer");
+    const held = cubRowOf(cub)?.pairs?.[payer.id];
+    if (held && held.chapter === (getClock()?.chapter ?? null) && held.epoch === seasonEpoch() && Number(held.n) >= 3) flags.push("third");
+    return flags;
 }
 
 /** GM: every Bribe still open lapses, unpaid, its payer told (each time of day, clock.mjs). Answers how many lapsed. */
