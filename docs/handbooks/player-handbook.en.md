@@ -760,12 +760,19 @@ Somebody among you may have built this place. The **Final Truth Remnants** - one
 
 ### Playing a Monocub
 
-Once your own Class Trial has ended, you may join the GMs as a **Monocub**. Same actor, same sheet; the action panel becomes **Move** and **Confusion**.
+Once your death is known to the table, the GMs may invite you to play on as a **Monocub**. A window shows you **the Monocub Rule** - *You never tell the living what only the dead know: who killed you, how, or what you see from now on.* - and what follows if it is broken: the first time a talk with the GM, the second time the Monocub role is taken away, the third time you leave the game. **I accept the Rule** makes you a Monocub; **Not now** closes the invitation, and the GMs are told. Same actor, same sheet; the action panel becomes **Move**, **Confusion**, **Redeem** and **Ask for Hope**.
 
-- You start with 0 Hope and all your Health and Sanity left, and have the same action budget as an unwounded living student - Wounded never takes one from a Monocub. You see only your own room. Your rolls are shown to everyone standing in it.
-- **Confusion** costs **1 action and 1 Hope**, and your Hope exists only because a Monokuma converted Despair into it (Fuel a Monocub). It is a flat 2d12 with no statistic. Pick somebody in your room and help or hinder their next roll (see the table below). They are told something steadied or rattled them, never who - but everyone in your room sees you roll, so they may work out it was you.
+- You start with 0 Hope and all your Health and Sanity left, and have the same action budget as an unwounded living student - Wounded never takes one from a Monocub. Your rolls are shown to everyone standing in your room.
+- **You move freely.** Crossing to a connected room costs you no action and no Free Move, in an Eclipse too; the room where a murder is under way refuses you, with the Seal's words.
+- **You see every room the class has found**, without knowing who found which; the Mastermind's finds are not among them.
+- **Confusion** costs **1 action and 1 Hope**, and your Hope comes from a Monokuma converting Despair into it (Fuel a Monocub) or from the moves below. It is a flat 2d12 with no statistic. Pick somebody in your room and help or hinder their next roll (see the table below). They are told something steadied or rattled them, never who - but everyone in your room sees you roll, so they may work out it was you. Nothing is paid until the GM's side carries the move out; a move it refuses costs you nothing (*Confusion doesn't reach them. You keep your action and Hope.*).
+- **One student, two moves a day.** A student can be the target of one Monocub move per time of day and two per game day, counted over every Monocub at the table; a move that fails counts too.
+- **Redeem** costs 1 action and gives you +1 Hope, once a game day; not while your Hope is full or the darkening blocks Hope. While it is free to use, the Event panel says *Redeem is waiting*.
+- **Ask for Hope** costs nothing: the GMs get a card and give you 1 or 2 Hope, or answer *Not now*. One ask at a time, and not while your Hope is full.
+- A tile that cannot be used now is dimmed and says why (*You've used Redeem today. It comes back tomorrow.*, *Your Hope is full.*, *Your Ask for Hope is still waiting for a GM.*).
+- After a wrong verdict, a Monocub of the case's death and every witness of the chapter's crime gets a card: until the next trial, do not use your moves for or against the one who did it, their projects, Bribes or Ghost Bets. It names nobody.
 - When you die, your body stays where your token lies once your death is known to the table, as a tile with your character's picture, the dead marker over it and your name under it ("{name}'s body"), and what it carried is searched there; as a Monocub you walk away from it. Every body is taken away when a Class Trial ends; after that, what you carried is searched beside your token.
-- A Monocub who stumbles onto the crime scene is sworn to silence about it until the chapter ends. Confusion still works.
+- A Monocub who stands in the room of a murder - there when it happens, or walking in while it runs - becomes a **crime witness**: sworn to silence about it until the chapter ends. Confusion still works.
 
 | Confusion roll | Help | Hinder |
 |---|---|---|

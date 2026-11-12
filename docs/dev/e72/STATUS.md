@@ -29,16 +29,17 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
 
 | C11 | The trial carry-ins (Q-E72-7: the audit's one line each is all there is). D102: a Final Trial's execution posts the execution card, as an ordinary trial's (trial-progress.mjs `postExecutionCard`; until now only the sound). D114: in the Closing's exchange (an Objection at the Closing's speaker, its Rebuttal) only its two present evidence; a third is refused, "Only {a} and {b} can present right now." / "Teraz dowody mogą przedstawiać tylko {a} i {b}." (`modeAllows`, `presentRefusal`; player handbook EN/PL). D101: not built - see "For the coordinator" | tier 2 "an execution in the Final Trial posts the execution card ..." (new; red at 7ab4cc6: no card); R1045 changed on purpose (the exchange's matrix; red at 7ab4cc6: C presented) |
 
+| C12 | Part A's texts (S18-63): the player handbook's "Playing a Monocub" (the invitation and the Rule, four tiles, free movement, every room the class found, the price after the GM's checks, the caps, Redeem, Ask for Hope, the dimmed tiles, the wrong verdict's card, the crime witness), the brochure's Death line (the own voice room, the invitation), the GM handbook's Monocub paragraphs; EN and PL | R3807 (new; red at 97d09e1: all six texts); R1041 changed on purpose (the Final's sound is the card's since C11) |
+
 | C10 | A Monocub sees every room the class found (gm-stores.mjs `fogSectionFor`, `cubFogSection`): its owner is sent, under the Monocub's own row, the rooms every student found, the Mastermind's row out, the rows joined so nobody's finds are named; tier 2 "a Monocub's owner is sent every room the class found ..." (new; red at base). And a Monocub's crossing (28.10, 04.11, 06.11): no Move, no action and no Eclipse count, the Eclipse too (`crossingVerdict`, `chargeRoute`), the connected rooms still holding it; the room of a running incident refused to it on a GM judging a player's step with the Seal's code and words (`roomSealed`, `DRPG.Calls.sealedBlocked`), a GM's own move and a Monocub already inside not refused | tier 2 "a Monocub crosses to a connected room with no Move and no action, and the room of a running murder refuses it ..." (new; red at base: noBudget, the murder room let through); R558 changed on purpose |
 
 ## In progress
 
-- C6, C8 (the decided part), C9 and C11 (D102, D114) done. Next: C12, then part B.
+- Part A done but C8's "Silence now" and D101 (see below). Next: part B (C13-C21), then E91.
 
 ## Next, in order
 
 1. C8's "Silence now" (a GM's button writing `silencedDead`), if time allows after part B.
-2. C12 (part A's texts: both handbooks, the brochure, the Rule).
 3. Part B: C13-C21 (Tinker, the purse, Bribe, Bounty, a move to order, Ghost Bet, the panel, texts, end review).
 4. E91.
 

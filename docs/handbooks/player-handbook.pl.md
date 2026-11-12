@@ -760,12 +760,19 @@ Ktoś wśród was mógł zbudować to miejsce. **Final Truth Remnants** - jeden 
 
 ### Gra Monocubem
 
-Gdy skończy się twój własny Class Trial, możesz dołączyć do GMów jako **Monocub**. Ten sam aktor, ten sam arkusz; panel akcji staje się **Move** i **Confusion**.
+Gdy twoja śmierć stanie się jawna dla stołu, GMowie mogą cię zaprosić do dalszej gry jako **Monocub**. Okno pokazuje ci **Zasadę Monocuba** - *Nigdy nie mówisz żywym tego, co wiedzą tylko zmarli: kto cię zabił, jak, ani co widzisz od teraz.* - i co grozi za jej złamanie: za pierwszym razem rozmowa z GM-em, za drugim odebranie roli Monocuba, za trzecim opuszczenie gry. **Przyjmuję Zasadę** robi z ciebie Monocuba; **Nie teraz** zamyka zaproszenie, a GMowie się o tym dowiadują. Ten sam aktor, ten sam arkusz; panel akcji staje się **Move**, **Confusion**, **Redeem** i **Ask for Hope**.
 
-- Zaczynasz z 0 Hope, z pełnym Health i Sanity, i masz tyle akcji co żyjący, niezraniony uczeń - Wounded nigdy nie odbiera Monocubowi akcji. Widzisz tylko własny pokój. Twoje rzuty widzą wszyscy, którzy w nim stoją.
-- **Confusion** kosztuje **1 akcję i 1 Hope**, a twój Hope istnieje tylko dlatego, że Monokuma zamienił w niego Despair (Fuel a Monocub). To goły rzut 2d12, bez statystyki. Wybierz kogoś w swoim pokoju i pomóż albo przeszkódź przy jego następnym rzucie (zobacz tabelę poniżej). Dowiadują się, że coś uspokoiło ich rękę albo ich rozproszyło, nigdy kto - ale wszyscy w twoim pokoju widzą, że rzucasz, więc mogą się domyślić, że to ty.
+- Zaczynasz z 0 Hope, z pełnym Health i Sanity, i masz tyle akcji co żyjący, niezraniony uczeń - Wounded nigdy nie odbiera Monocubowi akcji. Twoje rzuty widzą wszyscy, którzy stoją w twoim pokoju.
+- **Poruszasz się swobodnie.** Przejście do połączonego pokoju nie kosztuje cię akcji ani Free Move, także podczas Eclipse; pokój, w którym trwa morderstwo, cię nie wpuszcza, słowami Pieczęci.
+- **Widzisz każdy pokój, który znalazła klasa**, nie wiedząc, kto który znalazł; tego, co znalazł Mastermind, wśród nich nie ma.
+- **Confusion** kosztuje **1 akcję i 1 Hope**, a twój Hope bierze się z tego, że Monokuma zamienia w niego Despair (Fuel a Monocub), albo z ruchów niżej. To goły rzut 2d12, bez statystyki. Wybierz kogoś w swoim pokoju i pomóż albo przeszkódź przy jego następnym rzucie (zobacz tabelę poniżej). Dowiadują się, że coś uspokoiło ich rękę albo ich rozproszyło, nigdy kto - ale wszyscy w twoim pokoju widzą, że rzucasz, więc mogą się domyślić, że to ty. Nic nie płacisz, dopóki strona GMa nie wykona ruchu; ruch, którego odmówi, nic cię nie kosztuje (*Confusion ich nie dosięga. Nie tracisz akcji ani Hope.*).
+- **Jeden uczeń, dwa ruchy dziennie.** Uczeń może być celem jednego ruchu Monocuba na porę dnia i dwóch na dzień gry, licząc wszystkie Monocuby przy stole; ruch nieudany też się liczy.
+- **Redeem** kosztuje 1 akcję i daje ci +1 Hope, raz na dzień gry; nie przy pełnym Hope i nie wtedy, gdy zaciemnienie blokuje Hope. Gdy jest do użycia, panel zdarzeń mówi *Redeem czeka*.
+- **Ask for Hope** nic nie kosztuje: GMowie dostają kartę i dają ci 1 albo 2 Hope albo odpowiadają *Nie teraz*. Jedna prośba naraz i nie przy pełnym Hope.
+- Kafel, którego teraz nie da się użyć, jest przygaszony i mówi dlaczego (*Redeem wykorzystany dziś. Wraca jutro.*, *Masz pełne Hope.*, *Twoje Ask for Hope wciąż czeka na GM-a.*).
+- Po błędnym werdykcie Monocub ze sprawy tej śmierci i każdy świadek zbrodni tego rozdziału dostaje kartę: do następnej rozprawy nie używaj swoich ruchów na korzyść ani na szkodę sprawcy, jego projektów, Bribe ani Ghost Bet. Karta nikogo nie nazywa.
 - Gdy zginiesz, twoje ciało zostaje tam, gdzie leży twój token, gdy twoja śmierć stanie się jawna, jako kafel z obrazkiem twojej postaci, znacznikiem śmierci na nim i twoim imieniem pod nim („Ciało: {name}”), i to, co miało przy sobie, przeszukuje się tam; jako Monocub odchodzisz od niego. Każde ciało znika, gdy kończy się Class Trial; potem to, co miałeś przy sobie, przeszukuje się obok twojego tokenu.
-- Monocub, który natknie się na miejsce zbrodni, jest zobowiązany do milczenia o nim do końca rozdziału. Confusion wciąż działa.
+- Monocub, który stoi w pokoju morderstwa - gdy do niego dochodzi albo gdy wejdzie tam w jego trakcie - zostaje **świadkiem zbrodni**: zobowiązany do milczenia o niej do końca rozdziału. Confusion wciąż działa.
 
 | Rzut Confusion | Pomóż | Przeszkódź |
 |---|---|---|

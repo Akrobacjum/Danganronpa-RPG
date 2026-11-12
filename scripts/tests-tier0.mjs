@@ -7991,6 +7991,33 @@ const REGRESSIONS = [
             "the Event panel has no Redeem card, does not draw it, is not redrawn for it, has no glyph for it, or lacks its words ([builder, drawn, redrawn, glyph and accent, words])");
     }],
 
+    ["R3807 - the handbooks and the brochure tell the Monocub as it plays since E72: each player text quotes the Monocub Rule as lang says it and names the four tiles, Redeem and Ask for Hope among them; each GM handbook names the invitation's button as lang does and says no tile pays before the GM's side carries the move out (E72 C12; S18-63)", async () => {
+        /*
+         * E72 C12, 12.11.2026; audit S18-63. Part A changed what a Monocub is - invited and bound by the Monocub Rule (C6), four
+         * tiles (C5, C9), paid on the GM after the conditions (C1), every room the class found (C10) - and the player's texts
+         * still said "after your trial ... Move and Confusion", the GM's "Invite them from Students ... exactly two things". Read
+         * off the six files the module serves: each player handbook and brochure quotes `DRPG.Monocub.rule` of its own language
+         * and names Redeem and Ask for Hope; each GM handbook names `DRPG.Monocub.invite` of its language and says the price is
+         * taken after the checks (EN "takes the action and the Hope only then", PL "dopiero potem bierze akcję i Hope"). Red at
+         * 97d09e1: none of the six.
+         */
+        const read = {};
+        for (const lang of ["en", "pl"]) {
+            const words = (await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json())).DRPG.Monocub;
+            const doc = async name => fetch(`/modules/${MODULE_ID}/docs/handbooks/${name}.${lang}.md`).then(r => (r.ok ? lfText(r) : ""));
+            const [player, brochure, gm] = [await doc("player-handbook"), await doc("player-brochure"), await doc("gm-handbook")];
+            must(player.length > 10000 && brochure.length > 1000 && gm.length > 10000, `the ${lang} handbooks were not read - this would measure nothing`);
+            const tiles = text => text.includes("Redeem") && text.includes("Ask for Hope");
+            const rule = String(words.rule ?? "").replace(/[.]$/, "");
+            const paid = lang === "en" ? "takes the action and the Hope only then" : "dopiero potem bierze akcję i Hope";
+            read[lang] = [player.includes(words.rule) && tiles(player),
+                brochure.includes(lang === "en" ? "Monocub Rule" : "Zasadę Monocuba") && tiles(brochure),
+                gm.includes(`**${words.invite}**`) && gm.includes(rule) && gm.includes(paid)];
+        }
+        equal(JSON.stringify(read), JSON.stringify({ en: [true, true, true], pl: [true, true, true] }),
+            "a text tells the Monocub as before E72 ({language: [the player handbook quotes the Rule and names the four tiles, the brochure names the Rule and the tiles, the GM handbook names the invitation's button, quotes the Rule and says the price comes after the checks]})");
+    }],
+
     ["R302 - a private roll's whisper is written first and in its own try, its mode after and apart, and CONST.DICE_ROLL_MODES and core.rollMode are used nowhere (S02-68)", async () => {
         /*
          * E33 C11 (audit S02-68; the plan's V7). Until 1.2.69 private-rolls.mjs wrote a roll's
@@ -17316,7 +17343,10 @@ const REGRESSIONS = [
         const moved = [en.DRPG?.Floor?.nowMovedOn ?? "", pl.DRPG?.Floor?.nowMovedOn ?? ""];
         equal(JSON.stringify({
             close: /sfx: \{ key: "trialClose", gm: true \}/.test(close),
-            final: /playSfxForUsers\(game\.users\.map\(u => u\.id\), "execution"\)/.test(card),
+            // Since E72 C11 (D102) a Final Trial's execution posts the execution card too, and its sound is the card's own
+            // (the same flag, played as an ordinary trial's card plays it), not a sound alone: one
+            // road, read as a card with "execution" and no branch for the Final. Changed on purpose.
+            final: /sfx: \{ key: "execution", gm: true \}/.test(card) && !/\bfinal\b/.test(card),
             rebuttal: /DRPG\.Floor\.gmNoteOverrule/.test(floor) && /!overruled\) playSfx\("rebuttal"\)/.test(floor),
             hud: /\btrialVoiceLine\(\)/.test(time) && /drpg-voice-tile/.test(time),
             bar: /data-drpg-target/.test(bar) && /overruleTargetId\(floor\)/.test(bar) && /drpgTarget/.test(console_),
