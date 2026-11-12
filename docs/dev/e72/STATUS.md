@@ -51,18 +51,53 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
 
 ## In progress
 
-- Part A done but C8's "Silence now" and D101 (see below). Part B: C13-C19 done (C19 in part). C19's shots (round 4) and C20 done. Next: C21 (end review), then E91.
+- E72: part A done but C8's "Silence now" and D101 (see below); part B C13-C20 done (C19 in part); C21's end review
+  done and its fix round committed (d5fa19c, "Fix round" below). E91: C1 committed (3b04cac); C2 next.
 
 ## Next, in order
 
-1. C8's "Silence now" (a GM's button writing `silencedDead`), if time allows after part B.
-3. Part B: C13-C21 (Tinker, the purse, Bribe, Bounty, a move to order, Ghost Bet, the panel, texts, end review).
-4. E91.
+1. E91 C2-C8, in the plan's order (D053, D117, D067+D038, D038 (2), D078, D037+D072+D076, D064+D068+D090).
+2. If time allows: C8's "Silence now"; 30-security forgeries and 33 legal controls for bribe.offer/answer; C19's HUD,
+   Events and Students columns for part B.
 
-- 12.11.2026, second push: 094f735 (C10's movement half, the Back up fixture). Tiers 0-1 at 094f735 1162 passed, 0 failed,
-  16 skipped, 1 red; tier 2 named Monocub, "a Monocub crosses", "Back up the case" 75 passed; scenarios at 3aa2ed3:
-  66-rooms 76/76, 14-quiet 7/7, 74-room-tile 44/44 green, 76-passages 117/118 (U, a tunnel crossing seen - the same at
-  f22a7e8 here, and green in CI at c595854).
+## Fix round (C21's end review, 12.11.2026)
+
+A read-only review of f22a7e8..8367f80 (security first). Each finding below was read again in the code; each fix has a
+tier-2 test red before it (run against the old monocub.mjs by hand for the three checks of one test).
+
+| # | Finding | Read | Fix |
+| --- | --- | --- | --- |
+| 1 | Tinker's double to order gave back 1 Hope it never took | confirmed: [.., 0, 2] for [.., 0, 1] | refund only what `paid` names; the sheet held to its maximum |
+| 2 | Bounties never reached a Monocub's copy (stamp from its row only) | confirmed: the stamp did not rise on a post or a lapse | the copy's stamp the newer of the row's and the Bounties' store's |
+| 3 | two Bribes of one payer paid from one Hope; purse writes in step lost one | confirmed: [0, 1, 1]; 3 additions kept 1 | a lock a payer for the check and payment; one lock a Monocub for every purse write |
+| 4 | two Monocubs on one student both took its share | confirmed: both done | the share's check, the price and the note in one lock a target |
+| 4b | a Bounty claimed twice | not real: the store's `drop` writes the section synchronously, so the second claim finds none | none |
+| 5 | Ask for Hope and Fuel ignored the purse in the limit | confirmed: 8 against a limit of 6 | `creditHopeFromDespair` counts a Monocub's purse |
+| 6a | an invitation accepted after a revive kept the Rule and answered "accepted" | confirmed | closed unanswered, refused (nothing carried out) |
+| 6b | a Bribe accepted once the role was gone was paid | confirmed: [true, 0, 1] | not paid |
+| 6c | a settled bet cleared before its payment | read in the code | cleared in the patch that pays it; the throw not planted |
+| 7 | GM handbook: "its execution posts no card" (Final Trial) | confirmed, EN and PL | follows D102 |
+
+Open, default taken (owner may revise): the Final Trial's verdict has no "bets" step, so a Ghost Bet placed before the
+Final stays unpaid in its Monocub's row until a season reset that clears the deaths (the `cubs` store's group; read
+in the code). Not built.
+
+## E91 (leftovers from stage notes), on this branch after E72 (the coordinator's order)
+
+The plan: `git show origin/claude/plan-130:docs/dev/plans/E91.md`. The deferred-items file (D037-D090's paragraphs) is
+not in the repository (Q-E91-2); each item is built from its one line in the plan's goal and a reading of the code, and
+where that line leaves the rule open the default is written here (default, owner may revise).
+
+| Commit | Item | State |
+| --- | --- | --- |
+| C1 (3b04cac) | the contract's log levels (09.11) | built: failed rows warn; unread rows one console.info line with the count and `game.drpg.diagnosePatches()`; table-only rows not logged. R3810 new, R1540 changed on purpose. Q-E91-3's default: console only |
+| C2 (3ab0a52) | D053: a refused `passage.find` keeps the price | built: the answer read; a refusal (bridge's, or a GM's own false) refunds; a wait with no answer keeps it. Tier-2 test red before |
+| C3 (c6e1aa1) | D117: `game.drpg.passages.makePublic` / `makeSecret` | built: the tab's own write. R3811 new. tools/api-surface.json lists the top level only, unchanged |
+| C4 (521b8d7) | D067: readers of `discoveredFor` for the Mastermind | read: fog.mjs (3), projects.mjs, passages-gm.mjs already count every room; Room setup's Fog tab did not. Built: the Mastermind's column ticked and disabled, tooltip `DRPG.Vault.fogMastermind`, the "all" buttons pass it by. Tier-2 test red before. Shots: round 5 |
+| C6 (7523428) | D078: a student's co-owners | the census of every `ownerOf` call (R3812, new): "is the owner" checks take any player owner (`playerOwns`: the betrayal offer in the third's copy, your-turn and Monocub sounds, the floor's turn prompt); a ruling goes to the thread its card is in (`rulingThread`, seven rulings; tier-2 test red before); the lone finder tells every owner. One owner on purpose, each written in R3812: the Mastermind's player (R560), the opening roll asked of one, a thread with no asker, a character's sound, the observer's secrets, a Monocub's row read by a GM, the Ask for Hope's card. Rolls and the incident's audience took every owner at E18 fix e1-G7. Q-E91-1's default. Not located: 1.2.101's carry "chapter.mjs, eclipse.mjs, frisk.mjs and the Key fee still read the roster off the document" - too vague to place without its note |
+| C7 (89cbdac) | D037, D072, D076 | D037: `carryPassageRooms` carries a breach's `forced.room`/`forced.from` (R3813, new). D072: a Search for something specific whose card is not posted gives the token back on the primary GM's own browser; a player's whose last GM left, or another GM's, keep it taken (no road back there; written in the code). D076: the Dynamic window names the GMs' actor by id, the packet's name only as a fallback. Tier-2 tests red before |
+| C8 (dedc76d) | D064, D068, D090 | D064: already one road since E37 C2 (R1194), no code. D068: migration step `chapterRestStamps` (1.2.117): a chapterless stamp of the window now gets the clock's chapter, any other is dropped (R3814, new; default, owner may revise). D090: under quiet the planted Gear stays stowed and the victim's other working stowed piece is readied without a word or redraw (default, owner may revise: which piece is readied); E35-T7 changed on purpose |
+| C4/C5 | D038 (1) the Mastermind's room as a keyed room; (2) a road to seal the passage at their door | NOT BUILT, waiting for D038's paragraph (Q-E91-2). Read: the lair (`mastermindStore.room`) has no key today - it is the watchtower (visibility.mjs), and a key gate exists only for bedrooms (vault-store.mjs `mayEnterBedroom`). A locked room that is no one's bedroom would tell the class it is special, and so point at the Mastermind: a rule for that is the owner's |
 
 ## Decisions received (the coordinator, 12.11.2026, for the owner's free hand until Fri 13.11 18:00)
 
@@ -88,6 +123,10 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
 
 ## CI
 
+- Run 43196838938 at c33e556 (C16): red on one job, "scenarios b3": 65-season X4 and X6 (the copies after a season
+  reset read empty). 65 green here at 8367f80 and at 7263f18 (57/59, the 2 expected red), so read as a timing miss
+  under CI's load, not measured further; the suite's 8 shards were green. Watching the next runs for it.
+
 - Run 43178407244 at 377a476: see the newest line of "Pushed" for its result.
 - Run 43157335032 at daedc00: green (every job).
 
@@ -95,6 +134,14 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
   every store back" had no fixture for the two new stores (cubs, cubTargets). Fixed in a4cd1ed (green alone).
 
 ## Pushed
+
+- 12.11.2026, afternoon: 3b04cac..7263f18 (E91 C1-C8 and the follow-up, the E72 fix round, 30/33 for the Bribe). Before
+  it, at 7263f18: tiers 0-1 1173 passed, 0 failed, 16 skipped, 1 red; tier 2 by name (the fix round's, E91's and the
+  neighbours they touch: E35-T*, A10-7, E46-T1, Dynamic, R220, migrations, the co-owner and lone finder tests) 79
+  passed; scenarios at HEAD's code (30 and 33 with their new checks, the rest before e2baf99/7263f18, which changed a
+  comment and the two scenarios only): 10, 12, 13, 15, 17, 19, 30 (278/279, 1 expected red), 33 (75/75), 40, 41, 50,
+  60, 61, 62, 63, 65 (57/59, 2 expected red), 66, 67 (45/46, 1 expected red), 71, 72 (124/128, 4 expected red), 73, 74,
+  75, 76 (117/118, 1 expected red), 81, 83, 87, 88, 89 - all green. Not run here: 84-viewports (never headless).
 
 - 12.11.2026: c595854 (C1-C7, C9) to claude/e72. Before it: tiers 0-1 at cf4b885 (C9 head but its last wording fix)
   1162 passed, 0 failed, 16 skipped, 1 red; the commit's own tests at c595854 7 passed. Scenarios, each from a worktree
@@ -191,6 +238,8 @@ in 7ab4cc6, no block outside the trial, nothing written on the user.
 None.
 
 ## Shots
+
+- Round 5 (E91 C4, the Fog tab's Mastermind column): https://claude.ai/artifact/SUdMFCxFkXva7ByUSMyWex
 
 - Round 1 (12.11.2026): https://claude.ai/artifact/BZqYRZA6foPGz62DRg85vD - C6's invitation window (player) and the
   Students window's rows with an open invitation (GM), Stained Glass and Monokuma Legacy, EN and PL, 1366x768 at
