@@ -22967,6 +22967,14 @@ const INVARIANTS = [
          * the disconnect warning shown as a toast (regional voice is off in the harness's world). A drop at a real
          * table is not measured here (LIVE-E19-01); DisconnectReason's numbers are livekit-client's as
          * voice-client.mjs reads them, not read off its source here.
+         *
+         * THE SELF-CHECK'S TIMER HELD (CI run 513 on 4dfac3a9, 12.11.2026, suite 1/8, 01-runtests A2). The 45 s
+         * self-check runs on its own phase, and one run inside the 50 ms after the leave this browser asked for saw a
+         * Room not live and showed the drop's card: the row "own leave" read 1 card and a reconnect told, though the
+         * Room's own path had done nothing (voice-client.mjs, THE TIMER'S RUN HELD FOR A READING, has the probe). So
+         * the timer's runs are held for the whole reading (`holdSelfCheck`), and the row runs the timer's tick itself
+         * right after the leave, the moment that run came: held, it shows nothing. Red at this fix's parent, which
+         * has no `selfCheckTick`: the row runs `selfCheck`, the timer's run there, and reads the card.
          */
         needs(env.liveKitShim(), "the harness's LiveKit stand-in, to drop a connection on purpose");
         needs(world.moduleActive("avclient-livekit"), "avclient-livekit enabled, so the module reads LiveKit at all");
@@ -22998,6 +23006,9 @@ const INVARIANTS = [
             return done;
         };
         const seen = [];
+        const heldBefore = typeof VC.holdSelfCheck === "function" ? VC.holdSelfCheck(true) : null;
+        // What the 45 s timer runs: `selfCheckTick`, or at this fix's parent `selfCheck` itself.
+        const timerRun = () => (typeof VC.selfCheckTick === "function" ? VC.selfCheckTick() : VC.selfCheck());
         await NH.holdNoticeHistory(true);
         try {
             const ctl = await install({});
@@ -23009,6 +23020,7 @@ const INVARIANTS = [
             await wait(50);
             seen.push(["switch", switched, since(had).length, told()]);
             ctl.drop(1);
+            timerRun();
             await wait(50);
             seen.push(["own leave", since(had).length, told(), await VC.applyBreakout(A)]);
 
@@ -23056,6 +23068,7 @@ const INVARIANTS = [
             }
             Hooks.callAll("drpgVoiceApplying", false);
             refreshVoiceTile();
+            if (heldBefore !== null) VC.holdSelfCheck(heldBefore);
         }
         const muted = typeof V.breakoutToastMuted === "function"
             ? [V.breakoutToastMuted(`${t("LIVEKITAVCLIENT.onDisconnected")}: R812 a reason`), V.breakoutToastMuted("R812 a toast of somebody else's")]
@@ -23074,7 +23087,7 @@ const INVARIANTS = [
             ["blip", 1, true, A, "connected"],
             ["closed", [["error", "mine", true, true]], { retry: false, step: 0, waiting: false }, 0, "applied", null],
             ["toasts", [true, false], true, 0, 0]]),
-        "[up], [a switch of rooms: the answer, cards, told], [a leave this browser asked for: cards, told, the room again], "
+        "[up], [a switch of rooms: the answer, cards, told], [a leave this browser asked for, the self-check's timer run at once: cards, told, the room again], "
             + "[a drop, connects refused: the card (kind, source, title, text), told], [the first reconnect refused: after the first step, told], "
             + "[the GM's apply: the answer, told, the card gone, its entry kept], [a drop that comes back: cards, back between 1 and 2 s, "
             + "client.room, the Room], [closed by another window: the card, told, reconnects in 1.2 s, the room again, told], "

@@ -235,9 +235,37 @@ function regionalVoiceOn() {
 const SELF_CHECK_MS = 45000;
 let selfCheckTimer = null;
 
+/*
+ * THE TIMER'S RUN HELD FOR A READING (CI run 513 on 4dfac3a9, 12.11.2026, suite 1/8, 01-runtests A2). R812 reads
+ * what the Room's own `disconnected` does: after a leave this browser asked for (CLIENT_INITIATED) it waits 50 ms,
+ * the Room left disconnected, and wants no card. This timer runs on its own phase, from `ready`, and a run inside
+ * those 50 ms sees a Room that is not live with nobody moving it - a drop, by its own rule above - and shows the
+ * card: that row read 1 card and a reconnect told where 0 and nothing were wanted. Lined up on purpose (12.11.2026,
+ * the harness inside a Class Trial: a probe that watched which reads came from `selfCheck` and made the leave land
+ * 10 ms before its next run): the suite's own R812 failed 2 runs of 2 on that row alone, with exactly that reading,
+ * and 2 of 2 passed with this hold; a copy of its body not lined up passed 5 of 5. About 50 ms in 45 s, so one run of
+ * R812 in some 900, and shard 1 runs it four times (A1, A2, A3, C); none of the 159 shard-1 jobs of CI runs 327-512
+ * had failed on it. Run 513's own reading is in its results file, which this machine could not fetch.
+ * So the timer calls `selfCheckTick`, which does nothing while a test holds it (`holdSelfCheck`); `selfCheck()`
+ * called by name is not held. The table's own self-check is unchanged: nothing but a test holds it.
+ */
+let selfCheckHeld = false;
+
+/** Hold (true) or let go (false) the timer's runs of the self-check; answers whether they were held before. */
+export function holdSelfCheck(held) {
+    const was = selfCheckHeld;
+    selfCheckHeld = Boolean(held);
+    return was;
+}
+
+/** One run of the timer: the self-check, unless a test holds it (above). */
+export function selfCheckTick() {
+    return selfCheckHeld ? null : selfCheck();
+}
+
 function startSelfCheck() {
     if (selfCheckTimer) clearInterval(selfCheckTimer);
-    selfCheckTimer = setInterval(selfCheck, SELF_CHECK_MS);
+    selfCheckTimer = setInterval(selfCheckTick, SELF_CHECK_MS);
 }
 
 export function selfCheck() {
