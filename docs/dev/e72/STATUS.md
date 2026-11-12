@@ -40,6 +40,11 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
 3. Part B: C13-C21 (Tinker, the purse, Bribe, Bounty, a move to order, Ghost Bet, the panel, texts, end review).
 4. E91.
 
+- 12.11.2026, second push: 094f735 (C10's movement half, the Back up fixture). Tiers 0-1 at 094f735 1162 passed, 0 failed,
+  16 skipped, 1 red; tier 2 named Monocub, "a Monocub crosses", "Back up the case" 75 passed; scenarios at 3aa2ed3:
+  66-rooms 76/76, 14-quiet 7/7, 74-room-tile 44/44 green, 76-passages 117/118 (U, a tunnel crossing seen - the same at
+  f22a7e8 here, and green in CI at c595854).
+
 ## CI
 
 - Run 43151316668 at c595854: every job green but "suite 7/8": the tier-2 test "Back up the case, then Restore, brings
