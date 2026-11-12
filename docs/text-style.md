@@ -730,9 +730,6 @@ decyduje GM, „Wyślij do GM-a”; przycisk, który tylko prowadzi do następne
 | `DRPG.Action.gotIt` | przycisk okna Move | - | - | usunięty z oknem |
 | `DRPG.Move.drag` | dymek wiersza Move na HUD-zie | “To move to another room, drag your token there.” | „Żeby przejść do innego pokoju, przeciągnij tam swój token.” | nowy |
 | `DRPG.Move.dragShort` | linia na kaflu Move | “Drag your token” | „Przeciągnij token” | nowy |
-| `DRPG.SettingsWindow.soundOpen` | przycisk w sekcji Dźwięk i głos | “Open the Sound window” | „Otwórz okno Dźwięk” | nowy |
-| `DRPG.SettingsWindow.soundOpenLine` | linia pod nim | “Sound, Music and the messenger's sounds are set in the Sound window.” | „Głośność dźwięków i muzyki oraz dźwięki komunikatora ustawiasz w oknie Dźwięk.” | nowy |
-| `DRPG.SettingsWindow.liveNote` | linia nad sekcją głosu | “The voice settings apply as you change them; the rest waits for Save.” | „Ustawienia głosu działają od razu; reszta czeka na Zapisz.” | już bez głośności |
 | `DRPG.Notices.filter.more` | pierwsza pozycja menu filtrów | “More filters” | „Więcej filtrów” | nowy |
 | `DRPG.Notices.filter.moreLabel` | nazwa menu dla czytnika ekranu | “More filters” | „Więcej filtrów” | nowy |
 | `DRPG.Notices.filter.withCount` | pozycja menu z liczbą | “{label} ({n})” | „{label} ({n})” | nowy |

@@ -554,10 +554,9 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             const out = { form: Boolean(form()), panel: Boolean(panel()) };
             if (!panel()) return out;
             out.names = [...new Set([...panel().querySelectorAll("[name]")].map(el => el.name))];
-            // E79 C12 (N9), E49 A1d: in the Sound section, after every volume slider; since E100 item 2 after the
-            // button that opens the Sound window, which holds the volumes now (R4101)
+            // E79 C12 (N9), E49 A1d: in the Sound section, after every volume slider
             const sound = form().querySelector('[data-drpg-settings-pane="sound"]');
-            const sliders = [...(sound?.querySelectorAll("[data-drpg-open-sound]") ?? [])];
+            const sliders = [...(sound?.querySelectorAll("[data-drpg-slider]") ?? [])];
             out.between = sliders.length > 0 && sound.contains(panel()) && sliders.every(s => Boolean(s.compareDocumentPosition(panel()) & Node.DOCUMENT_POSITION_FOLLOWING));
             out.note = panel().querySelector(".drpg-voice-panel-mic-note")?.textContent === game.i18n.localize("DRPG.Voice.panel.micNote");
             const ptt = panel().querySelector("[name='voice:mode'][value='ptt']");
@@ -572,7 +571,7 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             closeOpen("drpg-window-settings");
         }`, { timeout: 15000 });
     const gearP1 = await gear(p1), gearP3 = await gear(p3);
-    check("C: the gear's window has the Voice section on p1 - the microphone's line (the shim names no device), the mode and nothing else, standing in its Sound section after the button to the Sound window (E79 C12, N9; E49 A1d; E100 item 2); choosing push to talk writes p1's voice.mode - and on p3, with no voice, there is no section",
+    check("C: the gear's window has the Voice section on p1 - the microphone's line (the shim names no device), the mode and nothing else, standing in its Sound section after the volumes (E79 C12, N9; E49 A1d); choosing push to talk writes p1's voice.mode - and on p3, with no voice, there is no section",
         J(gearP1) === J({ form: true, panel: true, names: ["voice:mode"], between: true, note: true, wrote: "ptt" }) && J(gearP3) === J({ form: true, panel: false }),
         J({ gearP1, gearP3 }));
 

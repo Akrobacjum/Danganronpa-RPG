@@ -413,9 +413,7 @@
       "gameTitle": "Ustawienia gry",
       "mayNot": "Ustawienia gry otworzy tylko użytkownik, któremu Foundry pozwala zmieniać ustawienia świata.",
       "gameNote": "To ustawienia całego stołu: zmiana tutaj zmienia grę dla wszystkich.",
-      "liveNote": "Ustawienia głosu działają od razu; reszta czeka na Zapisz.",
-      "soundOpen": "Otwórz okno Dźwięk",
-      "soundOpenLine": "Głośność dźwięków i muzyki oraz dźwięki komunikatora ustawiasz w oknie Dźwięk.",
+      "liveNote": "Głośność i ustawienia głosu działają od razu; reszta czeka na Zapisz.",
       "sections": {
         "audio": "Muzyka i głos",
         "foundry": "Foundry i system",

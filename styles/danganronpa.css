@@ -13915,9 +13915,6 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
 .drpg-sound-slider input[type="range"] {
     width: 100% !important;
     margin: 0 !important;
-    /* Shrinks into its grid column on a phone (E100 item 2: the volumes live in the Sound window alone now, so the
-       promise R3140 held on the gear's window, E47-FD, is held here). */
-    min-width: 0;
 }
 
 .drpg-sound-slider output {

@@ -413,9 +413,7 @@
       "gameTitle": "Game settings",
       "mayNot": "Only a user Foundry lets change the world's settings can open the game's settings.",
       "gameNote": "These are the whole table's settings: a change here changes the game for everybody.",
-      "liveNote": "The voice settings apply as you change them; the rest waits for Save.",
-      "soundOpen": "Open the Sound window",
-      "soundOpenLine": "Sound, Music and the messenger's sounds are set in the Sound window.",
+      "liveNote": "The volumes and the voice settings apply as you move them; the rest waits for Save.",
       "sections": {
         "audio": "Music and voice",
         "foundry": "Foundry and the system",

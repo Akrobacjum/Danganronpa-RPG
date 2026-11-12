@@ -856,7 +856,7 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 - **Ograniczone animacje** i **wysoki kontrast**, pod oboma motywami; każde z nich idzie też za systemem operacyjnym, gdy ten o nie prosi.
 
 **Gdy ekran się przycina**, w oknie ustawień i po jednym: najpierw wyłącz **szkło rozmywa mapę**, potem przełączniki **puls szkła** i **nazwa stanu za zegarem**, potem włącz **ograniczone animacje**, a na końcu spróbuj motywu Monokuma Legacy. Każde z nich zmienia tylko twój ekran. Gdy GM zapyta, jak szybko działa twój ekran, stań w miejscu, otwórz konsolę (F12), wpisz `await game.drpg.fps({ toChat: false })` i skopiuj to, co wypisze po mniej więcej dwudziestu sekundach: w czasie pomiaru szkło i efekty mapy wyłączają się każde najwyżej na sekundę i wracają same, a na końcu mapa stoi przez sekundę.
-- **Otwórz okno Dźwięk**, w sekcji Dźwięk i głos: tam ustawiasz głośność **Dźwięk** i **Muzyka** oraz **Dźwięki komunikatora**, które działają od razu, gdy je przesuwasz.
+- **Dźwięki komunikatora** oraz głośność **Dźwięk** i **Muzyka**.
 - **Głos**, gdy jesteś w głosie - twój mikrofon i wyjście dźwięku, tryb mikrofonu (**Zawsze włączony** albo **Naciśnij, aby mówić**) i klawisz mówienia. Jeśli lista nie ma mikrofonu, pozwól przeglądarce go używać i otwórz okno ponownie.
 
 > [!NOTE]

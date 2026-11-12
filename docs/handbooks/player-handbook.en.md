@@ -856,7 +856,7 @@ Bottom-left of your character sheet is a button with a word on it - **Safe Word*
 - **Reduced motion** and **high contrast**, under both themes; each also follows your operating system when it asks for them.
 
 **If the screen stutters**, in the settings window and one at a time: turn **glass blurs the map** off first, then **glass pulse** and **state name behind the clock**, then turn **reduced motion** on, and last try the theme Monokuma Legacy. Each changes only your own screen. If the GM asks how fast your screen runs, stand still, open the console (F12), type `await game.drpg.fps({ toChat: false })` and copy what it prints after about twenty seconds: while it measures, the glass and the map's effects switch off for a second at most each and come back by themselves, and at the end the map stands still for a second.
-- **Open the Sound window**, in Sound and voice: the **Sound** and **Music** volumes and **Messenger sounds** are set there, and apply as you move them.
+- **Messenger sounds**, and the **Sound** and **Music** volumes.
 - **Voice**, while you are in voice - your microphone and sound output, the microphone's mode (**Always on** or **Push to talk**) and the push-to-talk key. If no microphone is listed, allow the browser to use it and open the window again.
 
 > [!NOTE]

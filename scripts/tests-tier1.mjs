@@ -18420,7 +18420,7 @@ const INVARIANTS = [
         }
     }],
 
-    ["R586 - the gear puts the voice settings in its Sound section: the Voice section stands after the button that opens the Sound window (after the last volume slider until E100 item 2), once; with no voice there is no place and no section (E79 C12; E49 A1d)", async () => {
+    ["R586 - the gear puts the voice settings with the volumes: in the settings window's Sound section the Voice section stands after the last volume slider, once; with no voice there is no place and no section (E79 C12; E49 A1d)", async () => {
         /*
          * E79 C12 (16.10.2026; the owner's N9 of 14.10: "move the LiveKit sound between the volume and the theme
          * settings"), carried by E49 A1d (11.11.2026): the Look window is the settings window now, and the Voice section
@@ -18451,19 +18451,19 @@ const INVARIANTS = [
             const section = await W.voiceSection({ available: () => true, build });
             const placed = [W.placeVoice(box, section)];
             const pane = box.querySelector('[data-drpg-settings-pane="sound"]');
-            const panel = pane?.querySelector("fieldset.drpg-voice-panel") ?? null, sliders = [...(pane?.querySelectorAll("[data-drpg-open-sound]") ?? [])];
+            const panel = pane?.querySelector("fieldset.drpg-voice-panel") ?? null, sliders = [...(pane?.querySelectorAll("[data-drpg-slider]") ?? [])];
             const order = panel ? [sliders.length, sliders.every(s => Boolean(s.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING))] : "no section";
             placed.push(W.placeVoice(box, await W.voiceSection({ available: () => true, build })), box.querySelectorAll("fieldset.drpg-voice-panel").length);
             placed.push(await W.voiceSection({ available: () => false, build }), Boolean(none.querySelector("[data-drpg-voice-slot]")));
-            equal(JSON.stringify([order, placed]), JSON.stringify([[1, true], [true, false, 1, null, false]]),
-                "[[the Sound pane's buttons to the Sound window (E100 item 2); the section after each]; [placed; placed again; sections in the window; "
+            equal(JSON.stringify([order, placed]), JSON.stringify([[2, true], [true, false, 1, null, false]]),
+                "[[the Sound pane's volume sliders; the section after each]; [placed; placed again; sections in the window; "
                 + "the section with no voice; a place drawn with no voice]]");
         } finally {
             box.remove();
             none.remove();
         }
     }],
-    ["R3530 - the gear's window is the same for a GM and a player but for the verbose log, a GM's row since E100 item 3 (R4102), and holds every row the Look window held (E49 A1d; the owner on A1's shots, 11.11.2026): settings-window.mjs's client columns are one markup for a user who may modify settings and one who may not, with no world row; they hold the language, the theme, the scale and its line, the pixel face, the pulse, the ticker, the blur, reduced motion, high contrast and the list's foot, each once, and the button to the Sound window (which holds the messenger's sounds and both volumes since E100 item 2, R4101); the gear (sfx.mjs) opens look.mjs `openLookDialog`, which opens `openSettingsWindow`; Configure Settings' menu opens the same", async () => {
+    ["R3530 - the gear's window is the same for a GM and a player but for the verbose log, a GM's row since E100 item 3 (R4102), and holds every row the Look window held (E49 A1d; the owner on A1's shots, 11.11.2026): settings-window.mjs's client columns are one markup for a user who may modify settings and one who may not, with no world row; they hold the language, the theme, the scale and its line, the pixel face, the pulse, the ticker, the blur, reduced motion, high contrast, the messenger's sounds, both volumes, the line that they apply at once and the list's foot, each once; the gear (sfx.mjs) opens look.mjs `openLookDialog`, which opens `openSettingsWindow`; Configure Settings' menu opens the same", async () => {
         /*
          * E49 A1d, 11.11.2026. The owner: "Gm pod przyciskiem zebatki nie powinien miec innych ustawien niz gracz" and
          * "zniknela czesc ustawien np push to talk, urzadzenia wejsciowe i wyjsciowe". The Look window's rows read off
@@ -18483,8 +18483,7 @@ const INVARIANTS = [
         const box = document.createElement("div");
         box.innerHTML = html(player);
         const rows = name => box.querySelectorAll(`[data-drpg-setting="${name}"]`).length;
-        /* Messenger sounds and the volumes are the Sound window's since E100 item 2 (R4101): the Sound section holds its button. */
-        const LOOK = ["language", "theme", "uiScale", "pixelFont", "glassPulse", "hudTicker", "glassBlur", "reducedMotion", "highContrast"];
+        const LOOK = ["language", "theme", "uiScale", "pixelFont", "glassPulse", "hudTicker", "glassBlur", "reducedMotion", "highContrast", "messengerSound"];
         const sources = new Map(await moduleSources());
         const src = file => stripComments(sources.get(file) ?? "");
         const read = {
@@ -18494,15 +18493,14 @@ const INVARIANTS = [
             world: box.querySelectorAll('[data-drpg-scope="world"]').length,
             look: LOOK.map(rows),
             volumes: [...box.querySelectorAll("[data-drpg-slider] input[type=\"range\"]")].map(i => i.name),
-            soundDoor: box.querySelectorAll("button[data-drpg-open-sound]").length,
             lines: [box.querySelectorAll("[data-drpg-scale-note]").length, box.querySelector(".drpg-settings-foot")?.textContent === game.i18n.localize("DRPG.Look.note"),
                 [...box.querySelectorAll("[data-drpg-settings-note]")].some(n => n.textContent === game.i18n.localize("DRPG.SettingsWindow.liveNote"))],
             doors: [/import\(\s*"\.\/look\.mjs"\s*\)[\s\S]{0,80}openLookDialog\(\)/.test(fnSource(src("sfx.mjs"), "renderSoundLauncher")),
                 /settings-window\.mjs[\s\S]{0,40}openSettingsWindow\(\)/.test(fnSource(src("look.mjs"), "openLookDialog")),
                 /import\(\s*"\.\/settings-window\.mjs"\s*\)\.then\(\s*m\s*=>\s*m\.openSettingsWindow\(\)/.test(src("settings.mjs"))]
         };
-        equal(JSON.stringify(read), JSON.stringify({ same: true, gmOnly: [true, false], world: 0, look: LOOK.map(() => 1), volumes: [], soundDoor: 1, lines: [1, true, false], doors: [true, true, true] }),
-            "{one markup whether the user may modify settings or not; the verbose log's row for a GM, for a player; world rows; each of the Look window's settings' rows; the volume sliders (none since E100 item 2); the Sound window's button; [the scale's line, the list's foot, the voice's line (drawn with a voice alone since E100 item 2)]; "
+        equal(JSON.stringify(read), JSON.stringify({ same: true, gmOnly: [true, false], world: 0, look: LOOK.map(() => 1), volumes: ["vol:sound", "vol:music"], lines: [1, true, true], doors: [true, true, true] }),
+            "{one markup whether the user may modify settings or not; the verbose log's row for a GM, for a player; world rows; each of the Look window's settings' rows; the volume sliders; [the scale's line, the list's foot, the volumes' line]; "
             + "[the gear opens openLookDialog, which opens the settings window, and so does the menu]}");
     }],
     ["R3531 - the game's settings are a window of their own, for a user who may modify settings (E49 A1d; the owner on A1's shots and on the panel, 11.11.2026): settings-window.mjs `gameSettingsColumns` draws every world setting of the 35 and Vary the sounds, each once, and Give back, no client row; nothing for a user who may not; one section pane shown at first and the section list switches it; `openGameSettingsWindow` is the kit's wide window with Save and Cancel, class `drpg-window-game-settings`, refusing a user who may not", async () => {
@@ -48587,28 +48585,28 @@ const INVARIANTS = [
         const want = [["textarea", "100%", "border-box"], ["select", "100%", "border-box"], ["input", "100%", "border-box"]];
         equal(stableJson(read), stableJson({ glass: want, legacy: want }), "{each theme: [the control, its width, its box-sizing]}");
     }],
-    ["R3140 - the volumes hold to a phone (components.css, the E47-FD section, carried to THE SETTINGS WINDOW by E49 A1d and to the Sound window by E100 item 2; the owner's default on comparison 3, q-cuts; E47-FB Open 2): a volume's range in the Sound window has `min-width: 0` and stands in the middle column of its row's grid (`5.5em 1fr 3.2em`) under both themes - the Look window's fieldset held the promise until A1, the settings window's Sound section until E100 item 2 moved the volumes out of it (R4101)", async () => {
+    ["R3140 - the gear's window's volumes hold to a phone (components.css, the E47-FD section, carried to THE SETTINGS WINDOW by E49 A1d; the owner's default on comparison 3, q-cuts; E47-FB Open 2): a volume's range in the settings window's Sound section has `min-width: 0` and shrinks into its row (`flex-shrink` not 0) under both themes - the Look window's fieldset, which held the promise until A1d, is gone", async () => {
         /*
          * E47-FD, 10.11.2026. A fieldset is at least as wide as its content's least width, and the Interface scale
          * row's least was the slider's own 129 px beside the name column and the percentage: at 390x844 the Look
          * fieldset ran 2..354 in a 333 px body under the glass, 2..376 under Legacy (Chromium on probe 08's
-         * look-player); after, both inside. E49 A1d (11.11.2026): the volumes were the settings window's ranges. E100
-         * item 2 (12.11.2026): the volumes are the Sound window's alone (sfx.mjs `soundSlidersHtml`), a grid row of
-         * three columns; the same promise read on its range, from the sheets' text, on a body of each theme. Red at
-         * dbf260d3: the Sound window's range had no `min-width` rule (its grid column's least was the range's own).
+         * look-player); after, both inside. E49 A1d (11.11.2026): the Look window's rows are the settings window's
+         * (settings-window.mjs), the scale a stepper there, the volumes the ranges; the same promise read on a volume's
+         * row as the window draws it, from the sheets' text, on a body of each theme. Red on 35a6f3b0 for the fieldset;
+         * at 54493dbf the settings window had no volume row.
          */
         const C = await styleCascade();
-        const read = Object.fromEntries(Object.entries({ glass: "drpg-theme-stained-glass drpg-player", legacy: "drpg-theme-monokuma-legacy drpg-player" }).map(([dress, classes]) => {
+        const read = Object.fromEntries(Object.entries({ glass: "drpg-theme-stained-glass drpg-gm", legacy: "drpg-theme-monokuma-legacy drpg-gm" }).map(([dress, classes]) => {
             const html = document.createElement("html"), body = document.createElement("body");
             body.className = classes;
             html.append(body);
-            body.innerHTML = `<div class="application dialog drpg-window-sound drpg-sound drpg-sound-player drpg-ui drpg-panel"><div class="drpg-kit-body"><form><fieldset class="drpg-sound-volumes">`
-                + `<label class="drpg-sound-slider" data-drpg-slider="sound"><span class="drpg-sound-slider-name">Sound</span>`
-                + `<input type="range" name="vol:sound" min="0" max="100" step="1" value="100"><output>100%</output><span class="notes">-</span></label></fieldset></form></div></div>`;
-            const range = body.querySelector('.drpg-sound-slider input[type="range"]'), row = body.querySelector(".drpg-sound-slider");
-            return [dress, [C.winner(range, "min-width")?.value ?? null, C.winner(row, "grid-template-columns")?.value ?? null]];
+            body.innerHTML = `<div class="application dialog drpg-window-settings drpg-ui drpg-panel"><div class="drpg-kit-body"><div class="drpg-settings-rows">`
+                + `<div class="drpg-settings-row drpg-settings-volume" data-drpg-slider="sound"><div class="drpg-settings-control"><label class="drpg-settings-label">Sound</label>`
+                + `<input type="range" name="vol:sound" min="0" max="100" step="1" value="100"><output>100%</output></div></div></div></div></div>`;
+            const range = body.querySelector('.drpg-settings-volume input[type="range"]');
+            return [dress, [C.winner(range, "min-width")?.value ?? null, C.winner(range, "flex")?.value ?? null]];
         }));
-        equal(stableJson(read), stableJson({ glass: ["0", "5.5em 1fr 3.2em"], legacy: ["0", "5.5em 1fr 3.2em"] }), "{each theme: [a volume's range's min-width, its row's grid columns]}");
+        equal(stableJson(read), stableJson({ glass: ["0", "1 1 8rem"], legacy: ["0", "1 1 8rem"] }), "{each theme: [a volume's range's min-width, its flex]}");
     }],
 
     /* ======================================================================
@@ -48651,61 +48649,6 @@ const INVARIANTS = [
             tile: ["DIV", null, "move", true], hud: [true, true], words: true }),
             "{performAction's answer; DialogV2 waits asked; windows opened; action-briefing.mjs `briefing`; Got it in en, pl; "
             + "the Monocub's Move tile [tag, data-drpg-action, data-drpg-tile, the drag line on its face]; the HUD's Move row [drawn, its tooltip opens with the drag sentence]; the words in both}");
-    }],
-    ["R4101 - the volumes and the messenger's sounds are in one place, the Sound window (E100 item 2; the owner's 12.11.2026, the player-screens review's #3): the gear's Sound section draws no volume slider and no Messenger sounds row, and in their place one button that opens the Sound window (`data-drpg-open-sound`, wired to music.mjs `openSoundDialog`); the Sound window holds Sound, Music and the messenger's sounds for a player and, in both themes, for a GM; no setting is lost - every one of the 35 is in a section of the two settings windows or, Messenger sounds alone, in the Sound window", async () => {
-        /*
-         * E100 item 2, 12.11.2026. The review: "Ustawienia gracza i okno Dźwięk dublują się" - Dźwięk, Muzyka and
-         * Dźwięki komunikatora in both. The owner: keep them in the Sound window. A GM's Sound window drew the sliders
-         * under Monokuma Legacy alone (glass had them in the gear's window), so with the gear's gone they are drawn in
-         * both themes. Red at 0dead12b: the gear's Sound section held two sliders and the messenger's row, no button,
-         * and a GM's Sound window under the glass no slider.
-         */
-        const W = await import("./settings-window.mjs"), F = await import("./sfx.mjs");
-        const player = { isGM: false, can: () => false };
-        const box = document.createElement("div");
-        box.innerHTML = W.settingsWindowColumns(player, { voice: false }).map(c => c.html).join("");
-        const pane = box.querySelector('[data-drpg-settings-pane="sound"]');
-        const sound = document.createElement("div");
-        sound.innerHTML = F.soundSlidersHtml();
-        const names = root => [...root.querySelectorAll("input[name]")].map(i => i.name).sort();
-        /* A GM's Sound window, drawn with DialogV2.wait stood in for, under each theme. */
-        const D = foundry.applications.api.DialogV2, own = Object.getOwnPropertyDescriptor(D, "wait");
-        const M = await import("./music.mjs");
-        const gmWindow = {};
-        const was = document.body.className;
-        must(game.user.isGM, "this reads a GM's Sound window and runs on a GM");
-        try {
-            for (const [theme, cls] of [["glass", "drpg-theme-stained-glass"], ["legacy", "drpg-theme-monokuma-legacy"]]) {
-                document.body.classList.remove("drpg-theme-stained-glass", "drpg-theme-monokuma-legacy");
-                document.body.classList.add(cls);
-                let content = null;
-                D.wait = async config => { content = config?.content; return null; };
-                await M.openSoundDialog();
-                const el = document.createElement("div");
-                if (typeof content === "string") el.innerHTML = content; else if (content) el.append(content.cloneNode?.(true) ?? content);
-                gmWindow[theme] = names(el).filter(n => n.startsWith("vol:") || n === "messengerSound");
-            }
-        } finally {
-            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
-            document.body.className = was;
-        }
-        const src = stripComments((await moduleSources()).get("settings-window.mjs") ?? "");
-        must(src.length > 1000, "settings-window.mjs was not read");
-        const read = {
-            pane: Boolean(pane),
-            sliders: pane?.querySelectorAll("[data-drpg-slider], input[type=\"range\"]").length ?? null,
-            messengerRow: pane?.querySelectorAll('[data-drpg-setting="messengerSound"]').length ?? null,
-            button: pane?.querySelectorAll("button[data-drpg-open-sound]").length ?? null,
-            wired: /data-drpg-open-sound[\s\S]{0,400}openSoundDialog\(\)/.test(src),
-            playerWindow: names(sound).filter(n => n.startsWith("vol:") || n === "messengerSound"),
-            gmWindow,
-            sectionKeys: W.SETTINGS_SECTIONS.flatMap(s => s.keys).includes("messengerSound")
-        };
-        const three = ["messengerSound", "vol:music", "vol:sound"];
-        equal(stableJson(read), stableJson({ pane: true, sliders: 0, messengerRow: 0, button: 1, wired: true, playerWindow: three,
-            gmWindow: { glass: three, legacy: three }, sectionKeys: false }),
-            "{the gear's Sound pane drawn; its sliders; its Messenger sounds rows; its buttons that open the Sound window; the button wired to openSoundDialog; "
-            + "the player's Sound window's fields of the three; a GM's Sound window's, per theme; Messenger sounds still a row of a settings section}");
     }],
     ["R4102 - the verbose console log is a GM's row (E100 item 3; the owner's 12.11.2026, the player-screens review's #4): the gear's window draws `debug` (Verbose console logging) for a GM and not for a player, whose window has no Technical section left; the setting stays this browser's (`scope: \"client\"`), so the one road to it on a player's browser is the console line the GM handbook gives - there is no road from a GM's browser to another browser's client setting, and none is added", async () => {
         /*
@@ -50239,6 +50182,7 @@ const INVARIANTS = [
         const P = "(styles/components.css)", want = [`repeat(6, minmax(min-content, 1fr)) ${P}`, `nowrap ${P}`];
         equal(stableJson(read), stableJson({ glass: want, legacy: want }), "per theme: [the cells' grid columns, a name's white-space] - each with the sheet it came from");
     }],
+
 ];
 
 /**
