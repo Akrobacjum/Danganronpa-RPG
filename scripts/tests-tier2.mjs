@@ -69640,7 +69640,7 @@ const SCENARIOS = [
             + "(the owner's second, stashed key made before the second)], the owner, whether the holder opens the door");
     }],
 
-    ["a bedroom given away from the console takes the old owner's keys as Room Setup does, and a copy the old owner gave stays with its holder, named to the GM and its text naming the new owner; a key text a GM wrote is left (E14 fix e1-G2, S08-11)", async () => {
+    ["a bedroom given away from the console takes the old owner's keys as Room Setup does, and every copy of the key goes with the room too, its holder named to the GM and told; the new owner's key names the new owner (E14 fix e1-G2, S08-11; E64 D008)", async () => {
         /*
          * E14 fix e1-G2, 24.10.2026; the review's E14R-1, E14R-2, E14R-09 and E14R-08. C2 took the old owner's keys only in
          * Room Setup's Apply (room-setup.mjs `applyRoomRows`), so `game.drpg.setVaultRoom(room, { owner })`, the console road
@@ -69652,6 +69652,9 @@ const SCENARIOS = [
          * third's text rewritten as a GM might; then the Dorm given to the second by `setVaultRoom`. Read: each one's keys
          * to the Dorm, whether the second's and the third's texts name the old owner or the new, and the GM's notices.
          * Red at b355cb03 (g2-red.log): the old owner kept the key, no notice named a copy, the copy named the old owner.
+         * E64, D008 (the owner's default, confirmed 12.11.2026): the copies go with the room. The third's copy - its text a
+         * GM's own, which changes nothing - is taken, the GM told who lost one ("keyCopiesTakenGm") and the third whispered
+         * ("keyCopyTakenBack"). Red at e42bbe0: the copy stayed, and the GM was told to take it by hand ("keyCopiesGm").
          */
         const V = await import("./vault.mjs");
         const R = await import("./rooms.mjs");
@@ -69663,6 +69666,7 @@ const SCENARIOS = [
         const keysTo = actor => actor.items.filter(i => i.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === ROOM);
         const read = {};
         const said = [];
+        const had = new Set(game.messages.contents.map(m => m.id));
         const own = Object.getOwnPropertyDescriptor(ui.notifications, "info"), info = ui.notifications.info;
         await G.withGmStoreWorld(`suite-e14g2-${foundry.utils.randomID(8)}`, async () => {
             let setup = null;
@@ -69685,9 +69689,17 @@ const SCENARIOS = [
                 const text = who => String(keysTo(who)[0]?.system?.description ?? "");
                 read.keys = [owner, heir, third].map(who => keysTo(who).length);
                 read.owner = V.vaultOwnerOf(ROOM, setup) === heir.id;
-                read.texts = [[text(heir).includes(heir.name), text(heir).includes(owner.name)], text(third) === OWN_TEXT];
+                read.texts = [text(heir).includes(heir.name), text(heir).includes(owner.name)];
                 read.told = [said.some(m => m === game.i18n.format("DRPG.Vault.keyTakenGm", { actor: owner.name, room: ROOM })),
-                    said.some(m => m === game.i18n.format("DRPG.Vault.keyCopiesGm", { room: ROOM, holders: third.name }))];
+                    said.some(m => m === game.i18n.format("DRPG.Vault.keyCopiesTakenGm", { room: ROOM, holders: third.name }))];
+                const back = game.i18n.format("DRPG.Vault.keyCopyTakenBack", { room: ROOM });
+                const { wordsOf, contentOf } = await import("./secret.mjs");
+                let whispered = false;
+                for (const m of game.messages.contents.filter(m => !had.has(m.id) && (m.whisper ?? []).some(id => !game.users.get(id)?.isGM
+                    && third.testUserPermission?.(game.users.get(id), "OWNER")))) {
+                    if ((contentOf(m) || String(await wordsOf(m, 1500) ?? "")).includes(back)) whispered = true;
+                }
+                read.whispered = !back.includes("DRPG.Vault") && whispered;
             } finally {
                 if (own) Object.defineProperty(ui.notifications, "info", own);
                 else delete ui.notifications.info;
@@ -69699,10 +69711,10 @@ const SCENARIOS = [
                 await settle();
             }
         });
-        equal(stableJson(read), stableJson({ keys: [0, 1, 1], owner: true, texts: [[true, false], true], told: [true, true] }),
-            "a bedroom given away by setVaultRoom left the old owner a key, or a copy went unnamed or kept the old owner's name ([keys to the room of "
-            + "the old owner, the new, a third holding a copy]; the room's owner the new; [the new owner's key names the new owner, still names the "
-            + "old], the third's own text kept; [the GM told the old owner's key was taken, told who still holds a copy])");
+        equal(stableJson(read), stableJson({ keys: [0, 1, 0], owner: true, texts: [true, false], told: [true, true], whispered: true }),
+            "a bedroom given away by setVaultRoom left the old owner a key or a copy with its holder, or the GM was not told who lost one ([keys to "
+            + "the room of the old owner, the new, a third holding a copy]; the room's owner the new; [the new owner's key names the new owner, still "
+            + "names the old]; [the GM told the old owner's key was taken, told who lost a copy]; the copy's holder whispered)");
     }],
 
     ["the dead keep their hands still: a dead student's sheet offers no Use, Ready, Discard, Put away or Take out, on a death the GMs keep too; useItem, toggleEquipped, discardBroken, stow and retrieve refuse before any question; the GMs do not count a dead one's use, nor let its count, a break or a retrieve stand (E14-T4, S08-12, S08-30)", async () => {
