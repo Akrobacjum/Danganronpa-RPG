@@ -1275,10 +1275,11 @@ export function trialConsoleHtml(view) {
            status na górze, zarządzanie na dole"). Three regions, one under the other: the STATUS at the top - the lead,
            the trial's time, the table, the register and the one mode picker (`modePickerHtml`, every start of
            trial-floor.mjs MODE_STARTS); the MODE in the middle - the floor's line or the zone mode's panel, the bar, the
-           evidence log and Findings, and the slot E99 puts the case schema in (`data-drpg-trial-schema-slot`, empty
-           here); the MANAGEMENT at the bottom - the Reveal and the vote - above the footer's buttons. Each region is a
-           `data-drpg-trial-region` (R3911). */
-        return `<div class="drpg-trial-console drpg-trial-frame">
+           evidence log and Findings; the MANAGEMENT at the bottom - the Reveal and the vote - above the footer's buttons.
+           Each region is a `data-drpg-trial-region` (R3911). The case schema stands between the mode and the management,
+           but not in here: this element is the region `keepLive` redraws every second, so the schema's slot is its
+           sibling (`trialBodyHtml`, below), and the stylesheet sets it in place. */
+        return `<div class="drpg-trial-console" data-drpg-trial-running>
             <section class="drpg-trial-top" data-drpg-trial-region="status">
             <h4>${game.i18n.localize("DRPG.Floor.sectionTrial")}</h4>
             ${lead}
@@ -1300,7 +1301,6 @@ export function trialConsoleHtml(view) {
             ${!floor && running && progress.closing?.done ? `<p>${game.i18n.localize("DRPG.Floor.closing.already")}</p>` : ""}
             ${trialBar(view)}
             ${logButton(view)}
-            <div class="drpg-trial-schema-slot" data-drpg-trial-schema-slot></div>
             </section>
 
             <section class="drpg-trial-bottom" data-drpg-trial-region="manage">
@@ -1313,6 +1313,18 @@ export function trialConsoleHtml(view) {
             </div>
             </section>
         </div>`;
+}
+
+/**
+ * THE WINDOW'S BODY: the console and, after it, the case schema's slot (E73, 12.11.2026; mockup B and the coordinator's
+ * hook for E99, claude/e97-98 afeeb68). One empty `data-drpg-trial-schema` element, right after `.drpg-trial-console`
+ * and outside it, so the console's redraw every second (`keepLive`'s region) never draws over what E99 mounts there
+ * (case-trial.mjs `mountTrialSchema`, called at the console's render from 1.2.109's merge; nothing is imported here).
+ * The frame lays the console's three regions and the slot out in one column, the slot between the mode and the
+ * management, and keeps its height while the trial runs, so mounting into it moves nothing (components.css; R3911).
+ */
+export function trialBodyHtml(view) {
+    return `<div class="drpg-trial-frame">${trialConsoleHtml(view)}<div class="drpg-trial-schema" data-drpg-trial-schema></div></div>`;
 }
 
 /*
@@ -1574,7 +1586,7 @@ export async function manageClassTrial() {
         // A fixed width (E47 C1; S12-51, S04-38: it jumped with its content), the text column the whole of it.
         width: "console",
         title: game.i18n.localize("DRPG.Floor.manageTrial"),
-        body: buildConsole(),
+        body: trialBodyHtml(view),
         footer: consoleFooter(view),
         render: (event, dialog) => {
             const live = keepLive(dialog, {

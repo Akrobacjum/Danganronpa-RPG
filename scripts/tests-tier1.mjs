@@ -8868,7 +8868,7 @@ const INVARIANTS = [
                 regions,
                 status: [inRegion("status", ".drpg-trial-lead"), inRegion("status", ".drpg-trial-picker")],
                 middle: [inRegion("mode", ".drpg-trial-bar") || !root.querySelector(".drpg-trial-bar"), inRegion("mode", '[data-drpg-console="log"]'),
-                    inRegion("mode", '[data-drpg-console="findings"]'), inRegion("mode", "[data-drpg-trial-schema-slot]")],
+                    inRegion("mode", '[data-drpg-console="findings"]')],
                 manage: inRegion("manage", ".drpg-trial-vote"),
                 picks: picks.map(b => [b.dataset.drpgModeAction, b.dataset.drpgMode, b.getAttribute("aria-disabled") === "true", Boolean(b.title), b.textContent.trim().length > 0])
             };
@@ -8876,18 +8876,31 @@ const INVARIANTS = [
         const open = read(draw(view(null)));
         const busy = read(draw(view(straw)));
         const starts = Object.entries(F.MODE_STARTS).filter(([, row]) => row.action).map(([mode, row]) => [row.action, mode]);
+        /* THE SCHEMA'S SLOT (E73, 12.11.2026; the coordinator for E99, claude/e97-98 afeeb68): one empty element
+           `data-drpg-trial-schema` in the window's body (`trialBodyHtml`), outside `.drpg-trial-console`, the region
+           `keepLive` redraws every second, so what E99 mounts there is not drawn over; the console stays the region. */
+        const body = document.createElement("div");
+        body.innerHTML = typeof UI.trialBodyHtml === "function" ? UI.trialBodyHtml(view(straw)) : "";
+        const slots = [...body.querySelectorAll("[data-drpg-trial-schema]")];
+        const uiSrc = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/trial-floor-ui.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const manage = fnSource(uiSrc, "manageClassTrial");
+        const slot = { count: slots.length, outside: slots.every(el => !el.closest(".drpg-trial-console")), empty: slots.every(el => !el.innerHTML.trim()),
+            sibling: slots[0]?.previousElementSibling?.classList.contains("drpg-trial-console") ?? false,
+            notInConsole: !UI.trialConsoleHtml(view(straw)).includes("data-drpg-trial-schema"),
+            region: /region:\s*"\.drpg-trial-console"/.test(manage), bodyUsed: /body:\s*trialBodyHtml\(/.test(manage) };
         const footer = UI.trialFooter({ ...view(null), isDefault: () => false });
         const footActions = [...(footer.secondary ?? []), ...(footer.destructive ?? []), ...(footer.primary ? [footer.primary] : [])].map(b => b.action);
         equal(stableJson({
             regions: open.regions, status: open.status, middle: open.middle, manage: open.manage,
             picks: open.picks.map(p => [p[0], p[1]]), named: open.picks.every(p => p[4]),
-            busyGreyed: busy.picks.filter(p => p[1] !== "straw").every(p => p[2] && p[3]), busyMiddle: busy.middle,
+            busyGreyed: busy.picks.filter(p => p[1] !== "straw").every(p => p[2] && p[3]), busyMiddle: busy.middle, slot,
             footerStarts: footActions.filter(a => ["startTestimony", "startPanic", "startClosing", "zones"].includes(a))
         }), stableJson({
-            regions: ["status", "mode", "manage"], status: [true, true], middle: [true, true, true, true], manage: true,
+            regions: ["status", "mode", "manage"], status: [true, true], middle: [true, true, true], manage: true,
             picks: starts, named: true,
-            busyGreyed: true, busyMiddle: [true, true, true, true], footerStarts: []
-        }), "{regions in order; status: [lead, picker]; middle: [bar, log, Findings, schema slot]; manage: the vote; picks: each MODE_STARTS start in the picker [action, mode]; named; busyGreyed: every other start greyed with a reason while a Straw Poll runs; footerStarts: mode starts left in the footer}");
+            busyGreyed: true, busyMiddle: [true, true, true],
+            slot: { count: 1, outside: true, empty: true, sibling: true, notInConsole: true, region: true, bodyUsed: true }, footerStarts: []
+        }), "{regions in order; status: [lead, picker]; middle: [bar, log, Findings]; manage: the vote; slot: the schema's one empty slot, right after the console and outside it, the console still the redrawn region and the body built with the slot; picks: each MODE_STARTS start in the picker [action, mode]; named; busyGreyed: every other start greyed with a reason while a Straw Poll runs; footerStarts: mode starts left in the footer}");
     }],
     ["R3661 - the case's ticks at a trial are a GM store no player holds (E99 C3; Q-E99-8): gm-stores.mjs `caseTickStore` is the ledger `caseTicks` under `gmCaseTicks`, a client setting, not in the backup, synced, cut with the trial's group; on a player's engine its write is refused and nothing stored; case-schema.mjs `setCaseTick` asks for a GM", async () => {
         /*

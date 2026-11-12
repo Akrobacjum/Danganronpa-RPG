@@ -4358,22 +4358,46 @@ body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drp
 }
 
 /* ---- the Class Trial console on mockup B (E73, 12.11.2026; the owner's "wybieram wersje B") ----
-   The status at the top, the mode in the middle (where E99 puts the case schema, `.drpg-trial-schema-slot`), the
-   management at the bottom: three regions one under the other, each with its own heading, the top and the bottom
-   edged so the middle reads as the console's body. The picker's starts wrap as the bar's ops do; a greyed start keeps
-   its title (its reason). Not measured at a table: LIVE-E73-05 (1366x768 and 1920x1080, both themes). */
-.drpg-trial-console.drpg-trial-frame {
+   The status at the top, the mode in the middle, the case schema under it, the management at the bottom: one column,
+   the top and the bottom edged so the middle reads as the console's body. The schema's slot (`[data-drpg-trial-schema]`,
+   E99's) is the console's sibling, outside the region redrawn every second, so the running console is `display:
+   contents` and its three regions and the slot are items of one flex column, set in place by `order`. While a trial
+   runs the slot keeps E99's graph height (clamp(12rem, 30vh, 24rem), its rule in components.css on claude/e97-98), so
+   a mount moves nothing below it; with no trial it is not drawn (the console is one line). The picker's starts wrap as
+   the bar's ops do; a greyed start keeps its title (its reason). Not measured at a table: LIVE-E73-05 (1366x768 and
+   1920x1080, both themes). */
+.drpg-trial-frame {
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
 
-.drpg-trial-frame > .drpg-trial-top {
+.drpg-trial-frame > .drpg-trial-console[data-drpg-trial-running] {
+    display: contents;
+}
+
+.drpg-trial-frame .drpg-trial-top {
+    order: 1;
     padding-bottom: 6px;
     border-bottom: 1px solid color-mix(in srgb, var(--drpg-bone) 35%, transparent);
 }
 
-.drpg-trial-frame > .drpg-trial-bottom {
+.drpg-trial-frame .drpg-trial-middle {
+    order: 2;
+}
+
+.drpg-trial-frame > .drpg-trial-schema {
+    order: 3;
+    display: none;
+}
+
+.drpg-trial-frame:has(> .drpg-trial-console[data-drpg-trial-running]) > .drpg-trial-schema {
+    display: block;
+    min-height: clamp(12rem, 30vh, 24rem);
+}
+
+.drpg-trial-frame .drpg-trial-bottom {
+    order: 4;
     padding-top: 6px;
     border-top: 1px solid color-mix(in srgb, var(--drpg-bone) 35%, transparent);
 }
@@ -4397,6 +4421,3 @@ body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drp
     cursor: not-allowed;
 }
 
-.drpg-trial-console .drpg-trial-schema-slot:empty {
-    display: none;
-}
