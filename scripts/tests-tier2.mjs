@@ -68932,7 +68932,7 @@ const SCENARIOS = [
         }), "a road into full hands moved what its policy keeps, kept what it moves, or told its asker another road's line, or none (per road, with no stash of the taker's and with one: [the taker's copies, of them in a stash, the giver still holds it, the lines the asker's players read, the lines the other student's read])");
     }],
 
-    ["one gate in transferItem: a give, a Palm's steal and a Plant are refused across rooms, by or to the dead, in an Eclipse and a Class Trial, and a steal or a Plant at a Monocub, by a Monokuma or at a hidden token, each with a code of the closed list; a body the GMs keep from a player is robbed as a living one; the roads hand the refusal on to be told (E14-T1, S08-01, S16-30, S08-20)", async () => {
+    ["one gate in transferItem: a give, a Palm's steal and a Plant are refused across rooms, by or to the dead, in an Eclipse and a Class Trial, and a give (since E64, D001), a steal or a Plant at a Monocub, by a Monokuma or at a hidden token, each with a code of the closed list; a body the GMs keep from a player is robbed as a living one; the roads hand the refusal on to be told (E14-T1, S08-01, S16-30, S08-20)", async () => {
         /*
          * E14 part 1 C1, 24.10.2026; E14-01, E14-02, E14-05. The harm: inventory.mjs `transferItem`, the one road an item
          * changes owner by since E35, judged nothing of where the two stood or whether they lived - each caller kept its
@@ -69061,8 +69061,9 @@ const SCENARIOS = [
             control: all("moved"), apart: all("notThere"), roads: [...all("notThere"), "notThere"],
             takerDead: all("cannotNow"), giverDead: all("cannotNow"), keptFromPlayer: "moved",
             eclipse: all("cannotNow"), classTrial: all("cannotNow"),
-            monocubGiver: ["moved", "cannotNow", "cannotNow"], monokumaTaker: ["moved", "cannotNow", "notThere"],
-            hiddenTaker: ["moved", "moved", "notThere"]
+            // A give through the person gate since E64 (D001): a Monocub giving, a Monokuma or a hidden token taking are refused as a Plant is.
+            monocubGiver: all("cannotNow"), monokumaTaker: ["notThere", "cannotNow", "notThere"],
+            hiddenTaker: ["notThere", "moved", "notThere"]
         }), "a move was not judged by the one gate as the GMs read the two (per case, give, steal, Plant: the code each refusal is told with, or moved; the roads across two rooms: the code each hands on, or what it answered)");
     }],
 
@@ -88390,6 +88391,58 @@ const SCENARIOS = [
             { method: "another method", free: false, armed: 1, newNonce: true, told: true },
             { method: "randomUniform", free: true, armed: 0, newNonce: false, told: false }
         ]), `a Loaded Die that did not hold did not give its Call back, or one that held did [per roll: its Free Critical, the critical Calls armed after it, under a new nonce, the "loadedDieBack" card]: ${stableJson(read)}`);
+    }],
+    ["E64 D001 - a give goes through the same person gate as a steal, a Plant and a loot: a hidden token, a Monocub on either side and a Monokuma giving are refused, the two standing together pass", async () => {
+        /*
+         * E64, D001 (the owner's word of 12.11.2026: fixed). inventory.mjs `transferRefusal` asked frisk.mjs
+         * `personActionRefusal` for a steal, a Plant and a loot, and for a give only the Eclipse, the Class Trial, a death
+         * and movement.mjs `sameRoom` - so a give reached a token the GMs had hidden, a Monocub, and was made by a Monokuma.
+         * Two students stood alone in one room (`aloneTogether`, as A11-9), each case read as the bridge's code
+         * (`reasonOf`), null where the gate lets it through. Red before E64: the hidden token and the Monocub cases read null.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 2), "the giver and the taker, each a token on the scene on screen");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
+        const { transferRefusal } = await import("./inventory.mjs");
+        const { reasonOf } = await import("./bridge-guards.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const scene = canvas.scene;
+        const [giver, taker] = livingStudents().filter(a => scene?.tokens?.some(t => t.actorId === a.id));
+        must(giver && taker, "no two living students on the scene - this would measure nothing");
+        const takerToken = scene.tokens.find(t => t.actorId === taker.id);
+        const gate = async () => {
+            const why = await transferRefusal(giver, taker, { mode: "give" });
+            return why === null ? null : reasonOf(why);
+        };
+        const read = {};
+        const flagsWere = [giver, taker].flatMap(who => [FLAGS.monocub, FLAGS.monokuma].map(key => [who, key, who.getFlag(MODULE_ID, key)]));
+        const stood = await aloneTogether(giver, taker);
+        try {
+            read.control = await gate();
+            await takerToken.update({ hidden: true });
+            await settle();
+            read.hidden = await gate();
+            await takerToken.update({ hidden: false });
+            await settle();
+            for (const [who, key, label] of [[taker, FLAGS.monocub, "monocubTaking"], [giver, FLAGS.monocub, "monocubGiving"], [giver, FLAGS.monokuma, "monokumaGiving"]]) {
+                const was = who.getFlag(MODULE_ID, key);
+                await who.setFlag(MODULE_ID, key, true);
+                await settle();
+                read[label] = await gate();
+                if (was === undefined) await who.unsetFlag(MODULE_ID, key); else await who.setFlag(MODULE_ID, key, was);
+                await settle();
+            }
+            read.after = await gate();
+        } finally {
+            if (takerToken.hidden) await takerToken.update({ hidden: false });
+            for (const [who, key, was] of flagsWere) {
+                if (who.getFlag(MODULE_ID, key) === was) continue;
+                if (was === undefined) await who.unsetFlag(MODULE_ID, key); else await who.setFlag(MODULE_ID, key, was);
+            }
+            await stood.back();
+        }
+        equal(stableJson(read), stableJson({ control: null, hidden: "notThere", monocubTaking: "cannotNow", monocubGiving: "cannotNow",
+            monokumaGiving: "cannotNow", after: null }),
+            `a give was let through where a steal or a Plant is refused, or refused standing together [the code per case]: ${stableJson(read)}`);
     }],
 ];
 

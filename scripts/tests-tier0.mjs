@@ -22510,7 +22510,7 @@ const REGRESSIONS = [
         };
         equal(JSON.stringify(read), JSON.stringify({
             gateReads: ["gmPlaceOf", "bodyPlaceOf", "gmPlaceOf"], bodyBranch: true, hiddenFromPlace: true, friskImports: true,
-            lootBody: [], lootAsks: true, transferLoot: true, transferReads: ["sameRoom"], greyReads: [], greyAsks: true
+            lootBody: [], lootAsks: true, transferLoot: true, transferReads: [], greyReads: [], greyAsks: true
         }), "{the gate's room reads, its body branch on bodyPlaceOf, its hidden read from the place, frisk.mjs importing body-tile.mjs; lootBody's room reads and its ask; transferRefusal's loot line and room reads; greyRefused's room reads and its ask}");
     }],
 
