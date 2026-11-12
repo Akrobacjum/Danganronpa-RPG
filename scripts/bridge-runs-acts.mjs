@@ -317,6 +317,22 @@ export async function handlePassageCross(payload, sender) {
     return { reply: true };
 }
 
+/** The run of `mastermind.lairLock` (E91 C4, D038): mastermind.mjs `lockLair` for its sender, its reply or its refusal. */
+export async function handleLairLock(payload, sender) {
+    const { lockLair } = await import("./mastermind.mjs");
+    const out = await lockLair({ actorId: payload.actorId, lock: payload.lock !== false }, { asker: sender });
+    if (out?.refused) return { refused: out.refused };
+    return { reply: { locked: Boolean(out?.locked) } };
+}
+
+/** The run of `passage.lairSeal` (E91 C5, D038): passages-gm.mjs `sealLairPassage` for its sender, its reply or its refusal. */
+export async function handlePassageLairSeal(payload, sender) {
+    const { sealLairPassage } = await import("./passages-gm.mjs");
+    const out = await sealLairPassage({ actorId: payload.actorId, passageId: payload.passageId }, { asker: sender });
+    if (out?.refused) return { refused: out.refused };
+    return { reply: true };
+}
+
 /** The run of `token.refundCrossing` (E17 C3): the primary's own refund (movement.mjs `refundLastCrossing`), its reply or its refusal. */
 export async function handleRefundCrossing(payload) {
     const { refundLastCrossing } = await import("./movement.mjs");

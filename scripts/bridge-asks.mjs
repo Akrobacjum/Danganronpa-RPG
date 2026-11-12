@@ -30,7 +30,7 @@ import {
     ACTION_READY_END, ACTION_RESHAPE_RULING, ACTION_TRAIT_RULING, ACTION_HOPE_CALL, ACTION_CALL_YES,
     ACTION_RULING_EXPIRED, ACTION_RULING_RECEIVED, ACTION_DYNAMIC_ANSWER, ACTION_OBSERVE_TARGET, ACTION_OBSERVE_RESOLVE,
     ACTION_OBSERVE_PICK, ACTION_CLEANUP_TRACES, ACTION_ANALYZE_RESOLVE, ACTION_ADVANCEMENT, ACTION_ADVANCEMENT_OFFER,
-    ACTION_SHARE_BULLET, ACTION_GIVE_ITEM, ACTION_PASSAGE_SHARE, ACTION_PASSAGE_CROSS, ACTION_PASSAGE_FIND,
+    ACTION_SHARE_BULLET, ACTION_GIVE_ITEM, ACTION_PASSAGE_SHARE, ACTION_PASSAGE_CROSS, ACTION_PASSAGE_FIND, ACTION_PASSAGE_LAIR_SEAL, ACTION_LAIR_LOCK,
     ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT, ACTION_FRISK_UNSEEN,
     ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS, ACTION_OPENING_RESULT, ACTION_CLEANUP,
     ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_DONE, ACTION_LOOT, ACTION_NOTE_SAVE,
@@ -934,6 +934,32 @@ export function requestBetrayal({ actorId, note = "", proposed = null }) {
     // `proposed` (E68 C9): the opening's statistic the betrayer proposes, for the GM's opening window.
     return ask(ACTION_BETRAYAL, { actorId, note, proposed }, {
         local: () => import("./murder.mjs").then(m => m.betrayAsPlayer(actorId, { note, proposed }))
+    });
+}
+
+/**
+ * The Mastermind locks (`lock` true) or opens their own room (E91 C4, D038; mastermind.mjs `lockLair`), judged on the
+ * primary GM; a GM's own browser does it here when it is the primary, and says a refusal as the bridge would. Its value
+ * is `{ locked }` once written.
+ */
+export function requestLairLock({ actorId, lock }) {
+    return ask(ACTION_LAIR_LOCK, { actorId, lock: Boolean(lock) }, {
+        onPrimary: true,
+        local: () => import("./mastermind.mjs").then(m => m.lockLair({ actorId, lock: Boolean(lock) }, { asker: game.user })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_LAIR_LOCK, reasonOf(out.refused));
+            return out?.refused ? null : { locked: Boolean(out?.locked) };
+        })
+    });
+}
+
+/** The Mastermind seals a passage at their door (E91 C5, D038; passages-gm.mjs `sealLairPassage`), as `requestLairLock`. */
+export function requestLairSeal({ actorId, passageId }) {
+    return ask(ACTION_PASSAGE_LAIR_SEAL, { actorId, passageId }, {
+        onPrimary: true,
+        local: () => import("./passages-gm.mjs").then(m => m.sealLairPassage({ actorId, passageId }, { asker: game.user })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_PASSAGE_LAIR_SEAL, reasonOf(out.refused));
+            return out?.refused ? null : true;
+        })
     });
 }
 

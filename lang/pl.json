@@ -742,7 +742,9 @@
         "shut": "droga zamknięta",
         "cross": "Przejdź",
         "oneWay": "Tylko w jedną stronę, z: {from}, do: {to}.",
-        "walk": "Przejdź przez tajne przejście."
+        "walk": "Przejdź przez tajne przejście.",
+        "seal": "Zamknij",
+        "sealTip": "Zamyka to tajne przejście. Otworzyć je może już tylko GM."
       },
       "show": {
         "button": "Pokaż tajne przejście",
@@ -1307,6 +1309,13 @@
       "giveAtLeast": "Wpisz, ile Despair zamienić w Hope - co najmniej {n}."
     },
     "Mastermind": {
+      "lair": {
+        "room": "Twój pokój: {room}",
+        "locked": "Zamknięty",
+        "open": "Otwarty",
+        "lock": "Zamknij na klucz",
+        "unlock": "Otwórz"
+      },
       "noLair": "- bez pokoju -",
       "dialogTitle": "Mastermind",
       "lairLabel": "Pokój Masterminda",
@@ -4028,6 +4037,8 @@
         "handover.item": "Przekazanie przedmiotu",
         "passage.share": "Pokazanie tajnego przejścia",
         "passage.cross": "Przejście tajnym przejściem",
+        "passage.lairSeal": "Zamknięcie tajnego przejścia przy twoich drzwiach",
+        "mastermind.lairLock": "Zamknięcie lub otwarcie twojego pokoju",
         "vault.steal": "Skrytka",
         "action.steal": "Palm",
         "vault.findStash": "Find Stash",

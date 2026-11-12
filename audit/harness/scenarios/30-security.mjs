@@ -6276,6 +6276,49 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     await settle(300);
 
     /*
+     * FORGED ASKS AT THE MASTERMIND'S DOOR (E91 C4, C5; D038, 12.11.2026). `mastermind.lairLock` and `passage.lairSeal` are
+     * judged on the sender's own character (`owns` actorId), then on the primary whether that character is the Mastermind
+     * and the sender the owner the door names (`actsAsMastermind`), the lair the GMs' record's. The GM makes Chie (p3's)
+     * the Mastermind with a room of the scene as the lair and cuts a tunnel from it to another room. From p1's console:
+     * each action in Chie's name (refused for ownership, told) and in Aiko's, p1's own, who is not the Mastermind
+     * (refused, told `refused` and nothing more: the role is not said); the lair's lock and the tunnel as they were each
+     * time. The control - p3 locks the Gym and seals its tunnel - is 33-bridge-paths A22.
+     */
+    phase("forged asks at the Mastermind's door", { flow: "mastermind-door" });
+    const doorSetup = await gm.eval(`const MM = await import("${repoUrl}/scripts/mastermind.mjs"), P = await import("${repoUrl}/scripts/passages-gm.mjs");
+        const R = await import("${repoUrl}/scripts/rooms.mjs"), M = await import("${repoUrl}/scripts/movement.mjs");
+        const scene = game.scenes.get("${IDS.scene}");
+        const centre = name => { const r = R.roomRegions(scene, name)[0]?.shapes?.[0]; return r?.type === "rectangle" ? { x: r.x + r.width / 2, y: r.y + r.height / 2, level: null } : null; };
+        const rooms = R.roomNames(scene).filter(n => centre(n) && !M.isLocked(scene, n));
+        const [lair, beyond] = rooms;
+        globalThis.__s30door = { actorId: MM.mastermindActor()?.id ?? null, room: MM.mastermindLair(), lair };
+        await MM.setMastermind(game.actors.get("${ids.chie}"), { room: lair });
+        const passageId = await P.createPassage({ sceneId: scene.id, shape: "tunnel", ends: [centre(lair), centre(beyond)] }, { scene });
+        globalThis.__s30door.passageId = passageId;
+        return { lair, beyond, passageId };`, { timeout: 60000 });
+    await settle(800);
+    const readLairDoor = `const M = await import("${repoUrl}/scripts/movement.mjs"), P = await import("${repoUrl}/scripts/passages-gm.mjs");
+        return { locked: M.isLocked(game.scenes.get("${IDS.scene}"), ${JSON.stringify(doorSetup?.lair ?? "")}), state: P.PASSAGE_STORES.map.get(${JSON.stringify(doorSetup?.passageId ?? "")})?.state ?? null };`;
+    const lockForChie = await forge("mastermind.lairLock", { actorId: ids.chie, lock: true }, readLairDoor);
+    const lockForAiko = await forge("mastermind.lairLock", { actorId: ids.aiko, lock: true }, readLairDoor);
+    const sealForChie = await forge("passage.lairSeal", { actorId: ids.chie, passageId: doorSetup?.passageId ?? "" }, readLairDoor);
+    const sealForAiko = await forge("passage.lairSeal", { actorId: ids.aiko, passageId: doorSetup?.passageId ?? "" }, readLairDoor);
+    const plainRefusal = (f, action) => f.unchanged && !f.forOwnership && f.reasons.length === 1 && /nothing was carried out/.test(f.reasons[0])
+        && f.told.some(t => t.what === action);
+    check("SEC-D038: p1's forged lock of the Mastermind's room and seal of the passage at its door, in Chie's name and in Aiko's, change nothing - Chie's refused for ownership, Aiko's refused with nothing carried out and no reason (E91 C4, C5)",
+        Boolean(doorSetup?.passageId) && lockForChie.before.locked === false && lockForChie.before.state === "secret"
+            && lockForChie.unchanged && lockForChie.forOwnership && sealForChie.unchanged && sealForChie.forOwnership
+            && plainRefusal(lockForAiko, "mastermind.lairLock") && plainRefusal(sealForAiko, "passage.lairSeal"),
+        JSON.stringify({ doorSetup, lockForChie, lockForAiko, sealForChie, sealForAiko }), { flow: "mastermind-door" });
+    await gm.eval(`const MM = await import("${repoUrl}/scripts/mastermind.mjs"), P = await import("${repoUrl}/scripts/passages-gm.mjs");
+        const was = globalThis.__s30door; delete globalThis.__s30door;
+        if (was?.passageId) await P.deletePassage(was.passageId);
+        if (was?.actorId) await MM.setMastermind(game.actors.get(was.actorId), { room: was.room ?? null });
+        else await MM.clearMastermind();
+        return true;`, { timeout: 60000 });
+    await settle(300);
+
+    /*
      * FORGERIES OF AN OBJECTION (E79 C16, 1.2.79; the owner, 17.10.2026). OBJECTION! is aimed at whoever the primary
      * GM's LiveKit Room counts as speaking (trial.mjs `objectOnPrimary`), its Truth Bullet is chosen after it on the
      * objector's own pending Objection inside its 30 s (`evidenceOnPrimary`), and the card is the primary's. The

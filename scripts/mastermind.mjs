@@ -286,6 +286,33 @@ export async function setMastermindLair(room) {
     notifyDoorAccess(now.actorId ?? null, now.actorId ?? null, now.room ?? null);
 }
 
+/**
+ * THE MASTERMIND LOCKS THEIR OWN ROOM (E91 C4, D038 (1), 12.11.2026; the owner's "Budujemy", the coordinator's default:
+ * "the lock must not be a tell"). No lock of the lair's own: the room's lock as Room Setup writes it (vault-store.mjs
+ * `writeRoomLock`, every piece on every scene with a room of the lair's name, and the card when it opens), so from a
+ * student's side it is any locked door - the same "The door is locked.", the same look, a GM can lock any room so. On
+ * the primary GM, for the one who acts as the Mastermind through that character (passages-gm.mjs `actsAsMastermind`),
+ * the room the GMs' record names (never the packet's); a GM opens or locks it in Room Setup as any room. The Mastermind
+ * walks in either way (movement.mjs `restrictedFrom`). Every refusal is "nothing was carried out" and says nothing of
+ * which check failed. Answers `{ room, locked }`, or `{ refused }` with nothing written.
+ */
+export async function lockLair({ actorId = null, lock = true } = {}, { asker = game.user } = {}) {
+    const no = { refused: "nothing was carried out: the room's lock was not changed" };
+    if (!isPrimaryGm()) return no;
+    const actor = typeof actorId === "string" ? game.actors?.get(actorId) ?? null : null;
+    const { actsAsMastermind } = await import("./passages-gm.mjs");
+    if (!actor || !actsAsMastermind(actor, asker)) return no;
+    const room = readStore().room ?? null;
+    if (typeof room !== "string" || !room) return no;
+    const { writeRoomLock } = await import("./vault-store.mjs");
+    const { roomRegions } = await import("./rooms.mjs");
+    // A lair no scene draws is a done for nothing: refused, as every other refusal.
+    const scenes = [...(game.scenes ?? [])].filter(scene => roomRegions(scene, room).length);
+    if (!scenes.length) return no;
+    for (const scene of scenes) await writeRoomLock(scene, room, Boolean(lock));
+    return { room, locked: Boolean(lock) };
+}
+
 /** Clear the pick - a fresh season, or a correction. The lair goes with it: both stamped null. */
 export async function clearMastermind() {
     if (!game.user.isGM) return;

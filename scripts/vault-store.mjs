@@ -66,7 +66,7 @@ import { ROOM_FLAGS, roomBroken } from "./movement.mjs";
 import { isDeceased, getClock } from "./settings.mjs";
 import { SEARCH_FLAGS } from "./search-tokens.mjs";
 import {
-    whisperToOwner, whisperToGms, log, error, plural, serialWrite, esc, isPrimaryGm, forgeAsset, localeFormat
+    whisperToOwner, whisperToGms, log, error, plural, serialWrite, esc, isPrimaryGm, forgeAsset, localeFormat, announce
 } from "./utils.mjs";
 // A leaf (it imports config.mjs alone): what a room is, and the writer of its flag.
 import {
@@ -731,6 +731,28 @@ export async function updateRoom(scene, room, update) {
     const pieces = writablePieces(scene, room);
     if (pieces.length) await scene.updateEmbeddedDocuments("Region", pieces.map(r => ({ _id: r.id, ...update })));
     return pieces;
+}
+
+/**
+ * A room locked or opened, on every piece of it on this scene (`updateRoom`) - THE ONE WRITER OF A ROOM'S LOCK (E91 C4,
+ * D038, 12.11.2026). Room Setup's save and the Mastermind's own lair (mastermind.mjs `lockLair`) both write through it,
+ * so a lair the Mastermind locked is the GM's lock: the same flag (`ROOM_FLAGS.locked`, which movement.mjs `isLocked`
+ * reads), the same "The door is locked." at the door, and the same card when it opens. Only unlocking is announced: a
+ * GM locking a door mid-session is often the point the players finding out is meant to come from walking into it and
+ * reading "Drzwi są zamknięte." themselves - the same reasoning `toggleFinalTrialFlag` in mastermind.mjs applies to
+ * starting versus ending; unlocking has no such in-fiction moment of its own, so it says so out loud. Nothing is written
+ * or said when the room already stands so. A GM's write; answers whether it changed.
+ */
+export async function writeRoomLock(scene, room, locked) {
+    if (!game.user?.isGM || !scene || !room) return false;
+    const pieces = writablePieces(scene, room);
+    // Read as Room Setup and the door read a room of pieces (`flagOver`: the first piece that carries the flag), and
+    // written unless every piece already says it, so a lock left on one piece by an old writer is made whole.
+    const was = Boolean(flagOver(pieces, ROOM_FLAGS.locked));
+    if (!pieces.length || pieces.every(piece => Boolean(piece.getFlag(MODULE_ID, ROOM_FLAGS.locked)) === Boolean(locked))) return false;
+    await updateRoom(scene, room, { [`flags.${MODULE_ID}.${ROOM_FLAGS.locked}`]: Boolean(locked) });
+    if (was && !locked) await announce({ content: `<p>${game.i18n.format("DRPG.Vault.unlockedAnnounce", { room: esc(room) })}</p>` });
+    return true;
 }
 
 /**

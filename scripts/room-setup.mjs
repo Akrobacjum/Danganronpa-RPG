@@ -35,7 +35,7 @@ import { SearchTokens } from "./search-tokens.mjs";
 // `import("./vault.mjs")`).
 import { roomStockTables } from "./tables.mjs";
 import {
-    dialogContent, announce, plural, workingScene,
+    dialogContent, plural, workingScene,
     forcedDeletion, wirePortraitPickers
 } from "./utils.mjs";
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, box, dataTable, stepper, toggle, iconButton } from "./ui-kit.mjs";
@@ -46,7 +46,7 @@ import {
 } from "./rooms.mjs";
 import {
     VAULT_FLAGS, reconcileBedroomKeys, safeRoomImage, updateRoom, vaultOwnerOf, stashIn, setStash, ensureBedroomStash,
-    startLocked, isConcealed, stashItemsIn, roomCensusOf, roomRatioLine, setVaultRoom
+    startLocked, isConcealed, stashItemsIn, roomCensusOf, roomRatioLine, setVaultRoom, writeRoomLock
 } from "./vault-store.mjs";
 
 /* ==========================================================================
@@ -1065,21 +1065,9 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
         // only one of them survives a mid-season change to the lock itself.
         await updateRoom(scene, row.room, { [`flags.${MODULE_ID}.${ROOM_FLAGS.lockedAtStart}`]: row.lockedAtStart });
 
-        if (wasLocked !== row.locked) {
-            await updateRoom(scene, row.room, { [`flags.${MODULE_ID}.${ROOM_FLAGS.locked}`]: row.locked });
-            // Only unlocking is announced. A GM locking a door mid-session is
-            // often the point the players finding out is meant to come from
-            // walking into it and reading "Drzwi są zamknięte." themselves -
-            // the same reasoning `toggleFinalTrialFlag` in mastermind.mjs
-            // applies to starting versus ending. Unlocking has no such
-            // in-fiction moment of its own, so it says so out loud.
-            if (wasLocked && !row.locked) {
-                await announce({
-                    content: `<p>${game.i18n.format("DRPG.Vault.unlockedAnnounce",
-                        { room: foundry.utils.escapeHTML(row.room) })}</p>`
-                });
-            }
-        }
+        // The one writer of a room's lock, and its card when it opens (vault-store.mjs `writeRoomLock`; E91 C4, D038):
+        // the Mastermind's own lair is locked through it too, so it is this lock.
+        if (wasLocked !== row.locked) await writeRoomLock(scene, row.room, row.locked);
 
         changed.add(row.room);
     }

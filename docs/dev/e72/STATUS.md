@@ -165,7 +165,34 @@ where that line leaves the rule open the default is written here (default, owner
 | C6 (7523428) | D078: a student's co-owners | the census of every `ownerOf` call (R3812, new): "is the owner" checks take any player owner (`playerOwns`: the betrayal offer in the third's copy, your-turn and Monocub sounds, the floor's turn prompt); a ruling goes to the thread its card is in (`rulingThread`, seven rulings; tier-2 test red before); the lone finder tells every owner. One owner on purpose, each written in R3812: the Mastermind's player (R560), the opening roll asked of one, a thread with no asker, a character's sound, the observer's secrets, a Monocub's row read by a GM, the Ask for Hope's card. Rolls and the incident's audience took every owner at E18 fix e1-G7. Q-E91-1's default. Not located: 1.2.101's carry "chapter.mjs, eclipse.mjs, frisk.mjs and the Key fee still read the roster off the document" - too vague to place without its note |
 | C7 (89cbdac) | D037, D072, D076 | D037: `carryPassageRooms` carries a breach's `forced.room`/`forced.from` (R3813, new). D072: a Search for something specific whose card is not posted gives the token back on the primary GM's own browser; a player's whose last GM left, or another GM's, keep it taken (no road back there; written in the code). D076: the Dynamic window names the GMs' actor by id, the packet's name only as a fallback. Tier-2 tests red before |
 | C8 (dedc76d) | D064, D068, D090 | D064: already one road since E37 C2 (R1194), no code. D068: migration step `chapterRestStamps` (1.2.117): a chapterless stamp of the window now gets the clock's chapter, any other is dropped (R3814, new; default, owner may revise). D090: under quiet the planted Gear stays stowed and the victim's other working stowed piece is readied without a word or redraw (default, owner may revise: which piece is readied); E35-T7 changed on purpose |
-| C4/C5 | D038 (1) the Mastermind's room as a keyed room; (2) a road to seal the passage at their door | NOT BUILT, waiting for D038's paragraph (Q-E91-2). Read: the lair (`mastermindStore.room`) has no key today - it is the watchtower (visibility.mjs), and a key gate exists only for bedrooms (vault-store.mjs `mayEnterBedroom`). A locked room that is no one's bedroom would tell the class it is special, and so point at the Mastermind: a rule for that is the owner's |
+| C4/C5 | D038 (1) the Mastermind's room as a keyed room; (2) a road to seal the passage at their door | built (the owner's "Budujemy", 12.11; see "D038" below). R3819, R3820 new; tier 2 "D038 lair lock", "D038 lair seal"; 33 A22, 30 "forged asks at the Mastermind's door". Shots: round 8 |
+
+## D038 - the Mastermind's door (built 12.11; the owner's "Budujemy", the coordinator's default)
+
+- DEFAULT, FOR THE OWNER TO CONFIRM: the lock is no tell. The lair has no lock of its own: the Mastermind's player locks
+  or opens it with the GM's own room lock (vault-store.mjs `writeRoomLock`, the one writer Room Setup now uses too), so a
+  student meets the same "The door is locked.", the same look, and the same "The door to {room} is unlocked." card when it
+  opens; a GM can lock any room so, so a locked non-bedroom room is ordinary.
+- (1) mastermind.mjs `lockLair`, on the primary, for the one who acts as the Mastermind through that character
+  (`actsAsMastermind`), the room the GMs' record's; bridge `mastermind.lairLock`. (2) passages-gm.mjs `sealLairPassage`:
+  an open passage with a side in the lair closed by the tab's own close (`setState`: no card to anyone, a GMs' log row
+  naming the Mastermind; a GM reopens it); bridge `passage.lairSeal`. Every refusal is "nothing was carried out" with no
+  reason, so a refusal does not name the role.
+- On the sheet: the Mastermind's player's browser alone (settings.mjs `myMastermindLair`) draws a line above 'Known
+  passages' - the room, Locked/Open, Lock/Unlock - and a Seal on each listed passage with a side in the lair. The player's
+  browser does not know which of its characters is the Mastermind, so the line shows on each student sheet that player
+  owns; the GM's check refuses the others. The GM handbook's Mastermind paragraph says it (EN/PL).
+- Defaults taken (owner may revise): the lair starts unlocked (nothing locks it by itself: a lock appearing when the GM
+  picks the lair would be a timing signal); the Mastermind may unlock as well as lock; Seal only closes (a GM opens).
+- Tests: R3819, R3820 (tier 1, new), tier 2 "D038 lair lock" and "D038 lair seal" - all four red at 5c93301 on a worktree
+  with the new test files. Changed on purpose: R164 (the two runs' delegates and `presetSideRefusal`), R472 (two notice
+  rows). Flow `mastermind-door` (E91). Checks (12.11): quick gate green; tiers 0-1 1179 passed, 0 failed, 16 skipped,
+  1 red; tier 2 `--only` D038, Room setup, lock, Mastermind, passage, Seal (317 ran) 315 passed, 0 failed, 6 skipped;
+  33 76/77 (A22 green; foundry-cub-purse), 30 279/280 (SEC-D038 green; foundry-secret-door-type), 66 76/76, 76 117/118
+  (foundry-passage-tunnel), 72 124/128 (its four expected reds).
+- What remains a signal, not removed: the moment a door locks is world data every browser sees, so a lock that flips
+  while one player is busy at their sheet is a timing hint at the table, as a GM's own lock at that moment would be.
+  Writes come from the primary GM, as Room Setup's do when the primary applies them.
 
 ## Decisions received (the coordinator, 12.11.2026, for the owner's free hand until Fri 13.11 18:00)
 
@@ -180,8 +207,7 @@ where that line leaves the rule open the default is written here (default, owner
 
 ## For the coordinator
 
-- D038 (E91 C4/C5: the Mastermind's room as a keyed room; a road to seal the passage at their door) is not built, waiting
-  on the owner. Nothing built waits on it.
+- D038 is built (below); its default waits for the owner's confirmation.
 - The purse's detector is 33-bridge-paths A21b, not 72-canary: the signal is a number that does not move (the sheet's
   Hope), which 72's markers do not plant; A21b reproduces it where the Bribe flow already stands.
 
@@ -342,6 +368,8 @@ None.
 
 - Round 5 (E91 C4, the Fog tab's Mastermind column; E91 since reverted): https://claude.ai/artifact/SUdMFCxFkXva7ByUSMyWex
 - Round 6 (Talent's and Fuel a Monocub's choice windows): https://claude.ai/artifact/Pgavfbd965pUWnsrLp55a6
+- Round 8 (D038, the Mastermind's sheet line: Lock/Unlock and Seal, both themes, EN and PL):
+  https://claude.ai/artifact/GuyE1C7ACdsJSkvSXEGtbG
 - Round 7 (every Call window with a choice or a text beside the Action window, both themes, EN and PL, 1366x768):
   https://claude.ai/artifact/QANWftg9GNPFnqKo4qhpJP . Looked at: the Polish effect line was English because the shot's
   page copied only the labels (a client in Foundry rewrites every field, i18n.mjs `localizeConfig`) - the published PL

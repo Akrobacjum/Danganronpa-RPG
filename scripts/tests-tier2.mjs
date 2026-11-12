@@ -87222,6 +87222,122 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             + "the English reason or a raw key}");
     }],
     /* ---- E46-C2a (09.11.2026): Room setup on the kit, its writes held. ---- */
+    ["D038 lair lock - the Mastermind's player locks and opens their room with the GM's own lock: the same flag Room Setup's writer puts on another room, the same card when it opens, nothing for another player's ask (E91 C4, D038)", async () => {
+        /*
+         * E91 C4, 12.11.2026; the owner's "Budujemy" for D038, the coordinator's default: the lock must not be a tell. On a
+         * scene of the suite's own (a Lair and a Hall, each a room), in a GM-store world of its own: a student the suite's
+         * player owns made the Mastermind with the Lair. Asked as the bridge's run asks it (mastermind.mjs `lockLair`,
+         * `asker` the sender): another user first (refused, nothing written), then the Mastermind's player locks it, and
+         * the GM locks the Hall through Room Setup's writer (vault-store.mjs `writeRoomLock`); the module flags each room's
+         * pieces gained are compared. Then both open: the card each posts, its room's name taken out, compared. Red at
+         * 5c93301: no `lockLair`.
+         */
+        needs(env.primaryGm(), "the lock is written on the primary GM alone");
+        const [student] = cast(1);
+        needs(world.ownedByPlayer(student), "the Mastermind's player is the one the suite has");
+        const { ownerOf } = await import("./utils.mjs");
+        const asker = ownerOf(student);
+        const MM = await import("./mastermind.mjs");
+        const V = await import("./vault-store.mjs");
+        const R = await import("./rooms.mjs");
+        const M = await import("./movement.mjs");
+        const G = await import("./gm-store.mjs");
+        const LAIR = "SUITE D038 Lair", HALL = "SUITE D038 Hall";
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 600, height: 600 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] });
+        const seen = new Set(game.messages.map(m => m.id));
+        const flagsOf = (scene, name) => R.roomRegions(scene, name).map(r => stableJson(r.flags?.[MODULE_ID] ?? {}));
+        let scene = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE D038 the lair", width: 1200, height: 600, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room(LAIR, 0), room(HALL, 600)]);
+            read = await G.withGmStoreWorld(`suite-d038-lock-${foundry.utils.randomID(8)}`, async () => {
+                must(await MM.setMastermind(student, { room: LAIR }), "the student was not made the Mastermind - this would measure nothing");
+                await settle();
+                const lock = typeof MM.lockLair === "function" ? MM.lockLair : async () => ({ refused: "no lockLair" });
+                const other = await lock({ actorId: student.id, lock: true }, { asker: { id: "SUITED038OTHER", isGM: false, active: true } });
+                const after = [M.isLocked(scene, LAIR)];
+                const before = { lair: flagsOf(scene, LAIR), hall: flagsOf(scene, HALL) };
+                const locked = await lock({ actorId: student.id, lock: true }, { asker });
+                const lockedNow = M.isLocked(scene, LAIR);
+                await V.writeRoomLock(scene, HALL, true);
+                await settle();
+                const flags = { lair: flagsOf(scene, LAIR), hall: flagsOf(scene, HALL) };
+                const cards = () => game.messages.filter(m => !seen.has(m.id)).map(m => String(m.content ?? ""));
+                const opened = await lock({ actorId: student.id, lock: false }, { asker });
+                await settle();
+                const lairCard = cards();
+                await V.writeRoomLock(scene, HALL, false);
+                await settle();
+                const hallCard = cards().slice(lairCard.length);
+                return {
+                    other: [typeof other?.refused === "string" && other.refused.startsWith("nothing was carried out: "), ...after],
+                    locked: [locked?.locked ?? locked, lockedNow],
+                    // What each room's pieces gained: the same keys and values but for the room's own name (none here).
+                    same: stableJson(flags.lair) === stableJson(flags.hall) && stableJson(before.lair) === stableJson(before.hall),
+                    opened: [opened?.locked ?? opened, M.isLocked(scene, LAIR)],
+                    cards: [lairCard.length, hallCard.length, lairCard[0]?.replace(LAIR, "ROOM") === hallCard[0]?.replace(HALL, "ROOM")]
+                };
+            });
+        } finally {
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            if (scene) await scene.delete();
+        }
+        equal(stableJson(read), stableJson({ other: [true, false], locked: [true, true], same: true, opened: [false, false], cards: [1, 1, true] }),
+            "the Mastermind's lock is not the GM's lock ([another's ask refused, the Lair then unlocked; the Mastermind's lock written and read by the door; "
+            + "the Lair's flags as the Hall's under Room Setup's writer; opened and read open; one card each, the same but the room])");
+    }],
+
+    ["D038 lair seal - the Mastermind's player seals a passage at their door by the tab's own close; one with no side in the lair, or another player's ask, closes nothing; a GM opens it again (E91 C5, D038)", async () => {
+        /*
+         * E91 C5, 12.11.2026. On a scene of the suite's own (a Lair, a Hall, a Bath), in a GM-store world of its own: the
+         * Mastermind's student and two tunnels, Lair-Hall and Hall-Bath. Asked as the bridge's run asks it (passages-gm.mjs
+         * `sealLairPassage`): another user on the Lair's tunnel, the Mastermind's player on the Bath's (no side in the
+         * Lair), then on the Lair's; each tunnel's state read, and the GMs' log row of the close. Then the tab's Open on it.
+         * Red at 5c93301: no `sealLairPassage`.
+         */
+        needs(env.primaryGm(), "a passage is closed on the primary GM alone");
+        const [student] = cast(1);
+        needs(world.ownedByPlayer(student), "the Mastermind's player is the one the suite has");
+        const { ownerOf } = await import("./utils.mjs");
+        const asker = ownerOf(student);
+        const MM = await import("./mastermind.mjs");
+        const P = await import("./passages-gm.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 600, height: 600 }], flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] });
+        let scene = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE D038 the seal", width: 1800, height: 600, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room("SUITE D038S Lair", 0), room("SUITE D038S Hall", 600), room("SUITE D038S Bath", 1200)]);
+            read = await G.withGmStoreWorld(`suite-d038-seal-${foundry.utils.randomID(8)}`, async () => {
+                must(await MM.setMastermind(student, { room: "SUITE D038S Lair" }), "the student was not made the Mastermind - this would measure nothing");
+                await settle();
+                const lairWay = await P.createPassage({ sceneId: scene.id, shape: "tunnel", ends: [{ x: 300, y: 300, level: null }, { x: 900, y: 300, level: null }] }, { scene });
+                const bathWay = await P.createPassage({ sceneId: scene.id, shape: "tunnel", ends: [{ x: 900, y: 200, level: null }, { x: 1500, y: 300, level: null }] }, { scene });
+                must(typeof lairWay === "string" && typeof bathWay === "string", "the tunnels were not made - this would measure nothing");
+                const state = id => P.PASSAGE_STORES.map.get(id)?.state ?? null;
+                const seal = typeof P.sealLairPassage === "function" ? P.sealLairPassage : async () => ({ refused: "no sealLairPassage" });
+                const refusedOf = out => typeof out?.refused === "string" && out.refused.startsWith("nothing was carried out: ");
+                const other = await seal({ actorId: student.id, passageId: lairWay }, { asker: { id: "SUITED038OTHER", isGM: false, active: true } });
+                const far = await seal({ actorId: student.id, passageId: bathWay }, { asker });
+                const steps = [[refusedOf(other), state(lairWay)], [refusedOf(far), state(bathWay)]];
+                const done = await seal({ actorId: student.id, passageId: lairWay }, { asker });
+                await settle();
+                const logged = Object.values(P.PASSAGE_STORES.log.entries?.() ?? {}).some(row => row?.passageId === lairWay && row?.what === "close" && row?.actorId === student.id);
+                steps.push([done?.sealed ?? done, state(lairWay), state(bathWay)]);
+                await P.openPassage(lairWay);
+                await settle();
+                steps.push(state(lairWay));
+                return { steps, logged };
+            });
+        } finally {
+            if (scene) await scene.delete();
+        }
+        equal(stableJson(read), stableJson({ steps: [[true, "secret"], [true, "secret"], [true, "closed", "secret"], "secret"], logged: true }),
+            "the Mastermind's seal is not the tab's close ([another's ask refused, the Lair's tunnel open; the Bath's refused and open; the Lair's sealed, "
+            + "closed, the Bath's open; the tab's Open opens it], the GMs' log row of the close)");
+    }],
+
     ["Room setup's Fog tab draws the Mastermind's column as knowing every room, its boxes ticked and shut, and Discover all or Hide all leaves them (E91 C4, D067)", async () => {
         /*
          * E91 C4, 12.11.2026; the owner's deferred item D067 ("the other places that read discoveredFor for the

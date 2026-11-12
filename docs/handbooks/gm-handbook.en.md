@@ -451,7 +451,7 @@ A Monocub's Hope comes from a GM converting Despair (Fuel a Monocub, or the Stud
 > [!CAUTION]
 > The window names the Mastermind, so do not share your screen while it is open.
 
-Their **lair** is a room: <ins>while standing in it</ins> they see every token on the map, as you do; step out and it is gone. Locked doors, seals, other people's bedrooms and hidden stashes are open to them everywhere, and every room counts as already visited for their fog and for the public projects in it - they built the building. Despair converts to their Hope **1:1** from the same window, once a Mastermind has been picked and applied. The endgame runs on the ordinary trial:
+Their **lair** is a room: <ins>while standing in it</ins> they see every token on the map, as you do; step out and it is gone. Locked doors, seals, other people's bedrooms and hidden stashes are open to them everywhere, and every room counts as already visited for their fog and for the public projects in it - they built the building. On their own sheet they can lock or open the lair and seal a secret passage that leads into it. The lock is the one in **Room Setup**, so to everyone else it is any locked door, and you can open either again. Despair converts to their Hope **1:1** from the same window, once a Mastermind has been picked and applied. The endgame runs on the ordinary trial:
 
 | Piece | Where | Notes |
 |---|---|---|

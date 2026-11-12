@@ -3763,6 +3763,12 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
    gap of one in a wall, or which way a one-way tunnel goes. In the dim ink of 'the way is shut', not in italics, since
    it is an instruction and not a state. Chosen, not measured: the harness lays nothing out. */
 .drpg-passage-note { font-size: 0.9em; color: var(--drpg-dim); }
+/* The Mastermind's own room above the list (E91 C4, C5; D038; sheet.mjs `lairBlock`): its name, whether the door is
+   locked in the dim ink of 'the way is shut', and Lock or Unlock; a passage at that door gets a Seal beside its Show.
+   Drawn on the Mastermind's player's browser alone. Chosen, not measured: the harness lays nothing out. */
+.drpg-lair-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0 0 6px; }
+.drpg-lair-state { font-size: 0.9em; color: var(--drpg-dim); }
+.drpg-lair-lock, .drpg-passage-seal { white-space: nowrap; }
 /* Which way a tunnel goes, under its Shape in the GMs' Passages tab (H81-02; passages-tab.mjs `wayPicker`): the column's
    width at most, so a long room name does not widen the table (R606's sum). Chosen; in a Chromium mock-up with this
    stylesheet alone (20.10.2026, the stage's shots) its words wrap inside the 110 px column, five lines for "Only from Gym

@@ -451,7 +451,7 @@ Hope Monocuba pochodzi z zamiany Despair przez GMa (Fuel a Monocub albo okno Ucz
 > [!CAUTION]
 > Okno wymienia Masterminda, więc nie udostępniaj ekranu, dopóki jest otwarte.
 
-Jego **pokój** (kryjówka) to region: <ins>stojąc w nim</ins> widzi każdy token na mapie, tak jak ty; wyjdzie i to znika. Zamknięte drzwi, pieczęcie, cudze sypialnie i ukryte skrytki stoją przed nim otworem wszędzie, a każdy pokój liczy się jako odwiedzony dla jego mgły i dla jawnych projektów w nim - to on zbudował ten budynek. Despair zamienia się w jego Hope **1:1** z tego samego okna, gdy Mastermind zostanie już wybrany i zastosowany. Finał toczy się na zwykłym Class Trial:
+Jego **pokój** (kryjówka) to region: <ins>stojąc w nim</ins> widzi każdy token na mapie, tak jak ty; wyjdzie i to znika. Zamknięte drzwi, pieczęcie, cudze sypialnie i ukryte skrytki stoją przed nim otworem wszędzie, a każdy pokój liczy się jako odwiedzony dla jego mgły i dla jawnych projektów w nim - to on zbudował ten budynek. Na swojej karcie może zamknąć lub otworzyć kryjówkę i zamknąć prowadzące do niej tajne przejście. To ten sam zamek co w **Ustawieniach pokoi**, więc dla innych to zwykłe zamknięte drzwi, a ty możesz otworzyć jedno i drugie. Despair zamienia się w jego Hope **1:1** z tego samego okna, gdy Mastermind zostanie już wybrany i zastosowany. Finał toczy się na zwykłym Class Trial:
 
 | Element | Gdzie | Uwagi |
 |---|---|---|

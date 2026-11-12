@@ -122,6 +122,10 @@ export const ACTION_GIVE_ITEM = "handover.item";
 export const ACTION_PASSAGE_SHARE = "passage.share";
 /** player -> GM: my character at a tunnel's end goes through it (E80 C2) - see passages-gm.mjs `crossTunnel`. */
 export const ACTION_PASSAGE_CROSS = "passage.cross";
+/** player -> GM: the Mastermind seals a passage at their own door (E91 C5, D038) - see passages-gm.mjs `sealLairPassage`. */
+export const ACTION_PASSAGE_LAIR_SEAL = "passage.lairSeal";
+/** player -> GM: the Mastermind locks or opens their own room, with the GM's lock (E91 C4, D038) - see mastermind.mjs `lockLair`. */
+export const ACTION_LAIR_LOCK = "mastermind.lairLock";
 /** player -> GM: my character's Analyze was a Find Passage (E80 C3) - see passages-gm.mjs `resolvePassageSearch`. */
 export const ACTION_PASSAGE_FIND = "passage.find";
 /** GM -> primary GM: give back a character's last crossing, its price and its token (E17 C3) - see movement.mjs `refundLastCrossing`. */

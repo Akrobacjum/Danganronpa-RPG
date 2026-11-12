@@ -30195,6 +30195,79 @@ const INVARIANTS = [
             "monocub.mjs cubAbilityDialog does not draw the action's layout with its targets as rows ([layout, rows, a dropdown])");
     }],
 
+    ["R3819 - the Mastermind's room is locked by the GM's own lock (D038 (1), the owner's \"Budujemy\" of 12.11): one writer of a room's lock, vault-store.mjs `writeRoomLock`, which Room Setup's save and mastermind.mjs `lockLair` both call - the same flag, the same refusal, the same card when it opens; `lockLair` is the primary GM's and writes for the one who acts as the Mastermind alone, refusing anyone else with nothing carried out; the bridge's `mastermind.lairLock` asks it, in both languages", async () => {
+        /*
+         * E91 C4 (D038 (1)), 12.11.2026; the owner's answer relayed by the coordinator: "the lock must not be a tell - from
+         * a student's side the Mastermind's locked room must look and refuse exactly like any other locked room, and the GM
+         * can lock any room the same way". So the lair carries no lock of its own: `lockLair` writes the room's
+         * `ROOM_FLAGS.locked` through the writer Room Setup uses (`writeRoomLock`: every piece, and the unlock's card), and a
+         * student meets movement.mjs `isLocked` and "The door is locked." as at any locked door. Read here: the two callers'
+         * sources, the run's refusal for an asker who is not the Mastermind (this GM asks for a student it does not act as
+         * the Mastermind for: nothing written, tier 1's dump holds it), the bridge's row and its words. Tier 2 "D038 lair
+         * lock" writes it. Red at 5c93301: no writer, no `lockLair`, no row.
+         */
+        const sources = new Map(await otherSources());
+        const clean = name => stripComments(sources.get(name) ?? "");
+        const V = await import("./vault-store.mjs");
+        const M = await import("./mastermind.mjs");
+        const { BRIDGE_ACTIONS } = await import("./bridge-table.mjs");
+        const J = stableJson;
+        const setup = clean("room-setup.mjs"), lair = typeof M.lockLair === "function" ? fnSource(clean("mastermind.mjs"), "lockLair") : "";
+        must(setup.length > 1000, "room-setup.mjs was not read - this would measure nothing");
+        const [student] = studentActors();
+        must(student, "no student in the world - the refusal below would ask nothing");
+        const refused = typeof M.lockLair === "function" ? await M.lockLair({ actorId: student.id, lock: true }, { asker: { id: "R3819NOBODY", isGM: false } }) : null;
+        const row = BRIDGE_ACTIONS["mastermind.lairLock"] ?? null;
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json()).catch(() => ({}));
+        equal(J({
+            writer: typeof V.writeRoomLock === "function",
+            setup: /\bwriteRoomLock\s*\(/.test(setup) && !/updateRoom\([^;]*ROOM_FLAGS\.locked\}`\]/.test(setup),
+            lair: /\bwriteRoomLock\s*\(/.test(lair),
+            refused: typeof refused?.refused === "string" && refused.refused.startsWith("nothing was carried out: "),
+            row: row ? [row.answer, typeof row.run === "function", (row.guards ?? []).length, Object.keys(row.claims ?? {})] : null,
+            words: [game.i18n.localize("DRPG.Bridge.what.mastermind.lairLock") !== "DRPG.Bridge.what.mastermind.lairLock", typeof pl?.DRPG?.Bridge?.what?.["mastermind.lairLock"] === "string"]
+        }), J({ writer: true, setup: true, lair: true, refused: true, row: ["reply", true, 2, []], words: [true, true] }),
+            "the lair's lock is not the GM's lock through one writer ([vault-store.mjs writeRoomLock, Room Setup calls it and writes the lock no other way, "
+            + "lockLair calls it, a non-Mastermind asker refused with nothing carried out, the bridge's row [answer, run, guards, claims], its words EN/PL])");
+    }],
+
+    ["R3820 - the Mastermind seals a passage at their door as the GM's tab closes one (D038 (2)): passages-gm.mjs `sealLairPassage`, the primary's, closes an open passage with a side in the lair through the tab's own close, for the one who acts as the Mastermind alone, refusing anyone else with nothing carried out; the bridge's `passage.lairSeal` asks it; 'Known passages' draws Seal only on a row the sheet marks `seal`, and its rows carry their two rooms", async () => {
+        /*
+         * E91 C5 (D038 (2)), 12.11.2026. A closed passage reads the same whoever closed it: the GM's tab (`closePassage`),
+         * a finished Seal the passage project, and now the Mastermind at their own door - each the one `setState` close,
+         * the copies sent without it and a GM-only log row. Read here: the source (the close is the tab's), the refusal for
+         * an asker who is not the Mastermind, the bridge's row and words, and a drawn row with and without `seal`. Tier 2
+         * "D038 lair seal" closes one. Red at 5c93301: none of it.
+         */
+        const sources = new Map(await otherSources());
+        const P = await import("./passages-gm.mjs");
+        const S = await import("./sheet.mjs");
+        const { BRIDGE_ACTIONS } = await import("./bridge-table.mjs");
+        const J = stableJson;
+        const seal = typeof P.sealLairPassage === "function" ? fnSource(stripComments(sources.get("passages-gm.mjs") ?? ""), "sealLairPassage") : "";
+        const [student] = studentActors();
+        must(student, "no student in the world - the refusal below would ask nothing");
+        const refused = typeof P.sealLairPassage === "function"
+            ? await P.sealLairPassage({ actorId: student.id, passageId: "R3820NOPASSAGE" }, { asker: { id: "R3820NOBODY", isGM: false } }) : null;
+        const row = BRIDGE_ACTIONS["passage.lairSeal"] ?? null;
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json()).catch(() => ({}));
+        const drawn = flag => {
+            const li = S.knownPassageItem({ passage: { id: "R3820P" }, label: "R3820 A - R3820 B", shut: false, way: null, seal: flag });
+            return Boolean(li.querySelector(".drpg-passage-seal"));
+        };
+        const sides = typeof S.knownPassageRows === "function" ? fnSource(stripComments(sources.get("sheet.mjs") ?? ""), "knownPassageRows") : "";
+        equal(J({
+            close: /\bsetState\(\s*passageId,\s*"closed",\s*\["secret"\]/.test(seal) && /presetSideRefusal\(/.test(seal),
+            refused: typeof refused?.refused === "string" && refused.refused.startsWith("nothing was carried out: "),
+            row: row ? [row.answer, typeof row.run === "function", (row.guards ?? []).length, Object.keys(row.claims ?? {}).sort()] : null,
+            words: [game.i18n.localize("DRPG.Bridge.what.passage.lairSeal") !== "DRPG.Bridge.what.passage.lairSeal", typeof pl?.DRPG?.Bridge?.what?.["passage.lairSeal"] === "string"],
+            drawn: [drawn(true), drawn(false)],
+            rooms: /rows\.push\(\{[^}]*\brooms\b/.test(sides)
+        }), J({ close: true, refused: true, row: ["reply", true, 2, ["passageId"]], words: [true, true], drawn: [true, false], rooms: true }),
+            "the Mastermind's seal is not the tab's close ([the close and the side's judge, a non-Mastermind asker refused, the bridge's row, its words EN/PL, "
+            + "Seal drawn with and without the row's mark, the rows' rooms])");
+    }],
+
     ["R3810 - the contract's console at load: a warning only for a failed row; the rows not read yet are one info line with their count and where to read them; a row only a table can check is not in the console at all (E91 C1)", async () => {
         /*
          * E91 C1, 12.11.2026; the owner's note of 09.11 ("put the error I sent off to E91"). Until C1 every load

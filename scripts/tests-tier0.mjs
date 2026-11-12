@@ -6288,6 +6288,8 @@ const REGRESSIONS = [
             refundLastCrossing: "refused",
             // E80 C3: a Find Passage, judged on the primary (passages-gm.mjs), its reasons by code.
             resolvePassageSearch: "refused",
+            // E91 C4, C5 (D038): the Mastermind's lock and seal, judged on the primary (mastermind.mjs, passages-gm.mjs).
+            lockLair: "refused", sealLairPassage: "refused", presetSideRefusal: "returns",
             // E80 part 2 C1: one student acting on another in their room, the primary's gate (frisk.mjs); C2 and C3 ask it.
             lootDrawRefusal: "returns",
             personActionRefusal: "returns",
@@ -10073,6 +10075,8 @@ const REGRESSIONS = [
             ["NOTDONE gm-bridge.mjs#requestPlant", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E14 part 1 C1)"],
             ["NOTDONE gm-bridge.mjs#requestPassageShare", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E79 C7)"],
             ["NOTDONE gm-bridge.mjs#requestPassageCross", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter, or here from the waiter's quiet result where the drag's road hushes `cannotNow`, H81 fix C3); kept as a notDone entry: read, these words and no others (R297; E80 C2)"],
+            ["NOTDONE gm-bridge.mjs#requestLairLock", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E91 C4, D038)"],
+            ["NOTDONE gm-bridge.mjs#requestLairSeal", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E91 C5, D038)"],
             ["NOTDONE gm-bridge.mjs#requestPassageFind", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 C3)"],
             ["NOTDONE gm-bridge.mjs#requestRefundCrossing", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; another GM's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E17 C3)"],
             ["NOTDONE gm-bridge.mjs#requestObject", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a refusal of an Objection kept like the rest, as a notDone entry (R297; E79 C16)"],

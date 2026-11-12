@@ -1671,6 +1671,48 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         return true;`, { timeout: 60000 });
     await settle(500);
 
+    /* The Mastermind's door (E91 C4, C5; D038, 12.11.2026): Chie (p3's) made the Mastermind with the Gym as the lair, a
+       tunnel cut from the Gym to Storage; p3's own browser asks `mastermind.lairLock` and `passage.lairSeal` as the sheet's
+       Lock and Seal ask them. On the primary the Gym is locked with the GM's lock and the tunnel closed, nothing refused or
+       logged. The forged asks are 30-security's "forged asks at the Mastermind's door". Put back after: the lock (its card
+       taken away), the tunnel, the Mastermind as it was. */
+    phase("the Mastermind locks their room and seals the passage at their door", { flow: "mastermind-door" });
+    await clearFailures(gm);
+    const a22Refused = (await refusedSince(p3)).length;
+    const a22Setup = await gm.eval(`const MM = await import("${repoUrl}/scripts/mastermind.mjs"), P = await import("${repoUrl}/scripts/passages-gm.mjs");
+        const M = await import("${repoUrl}/scripts/movement.mjs");
+        const scene = game.scenes.get("${IDS.scene}");
+        globalThis.__a22Was = { actorId: MM.mastermindActor()?.id ?? null, room: MM.mastermindLair(), messages: game.messages.map(m => m.id) };
+        await MM.setMastermind(game.actors.get("${IDS.chie}"), { room: "Gym" });
+        const passageId = await P.createPassage({ sceneId: scene.id, shape: "tunnel", ends: [{ x: 1600, y: 1500, level: null }, { x: 2500, y: 1500, level: null }] }, { scene });
+        globalThis.__a22Was.passageId = passageId;
+        return { passageId, locked: M.isLocked(scene, "Gym"), state: P.PASSAGE_STORES.map.get(passageId)?.state ?? null };`, { timeout: 60000 });
+    await settle(1500);
+    const a22Asks = await p3.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        const lock = await B.requestLairLock({ actorId: "${IDS.chie}", lock: true });
+        const seal = await B.requestLairSeal({ actorId: "${IDS.chie}", passageId: ${JSON.stringify(a22Setup?.passageId ?? "")} });
+        return { lock: [lock.ok, lock.value ?? null], seal: [seal.ok, seal.value ?? null] };`, { timeout: 60000 });
+    await settle(1500);
+    const a22 = { setup: a22Setup, asks: a22Asks,
+        after: await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"), P = await import("${repoUrl}/scripts/passages-gm.mjs");
+            return { locked: M.isLocked(game.scenes.get("${IDS.scene}"), "Gym"), state: P.PASSAGE_STORES.map.get(${JSON.stringify(a22Setup?.passageId ?? "")})?.state ?? null };`),
+        refused: (await refusedSince(p3)).length - a22Refused,
+        logged: [...await refusalsLogged(gm, "mastermind.lairLock"), ...await refusalsLogged(gm, "passage.lairSeal")] };
+    check("A22: p3, Chie's player and the Mastermind, locks the Gym and seals the tunnel at its door from its own browser - on the primary the Gym locked with the GM's lock, the tunnel closed, nothing refused or logged (E91 C4, C5)",
+        a22.setup?.locked === false && a22.setup?.state === "secret" && a22.asks.lock[0] === true && a22.asks.seal[0] === true
+            && a22.after.locked === true && a22.after.state === "closed" && a22.refused === 0 && a22.logged.length === 0,
+        JSON.stringify(a22), { flow: "mastermind-door" });
+    await gm.eval(`const MM = await import("${repoUrl}/scripts/mastermind.mjs"), P = await import("${repoUrl}/scripts/passages-gm.mjs");
+        const V = await import("${repoUrl}/scripts/vault-store.mjs");
+        const was = globalThis.__a22Was; delete globalThis.__a22Was;
+        await V.writeRoomLock(game.scenes.get("${IDS.scene}"), "Gym", false);
+        for (const m of game.messages.filter(m => !(was?.messages ?? []).includes(m.id))) await m.delete();
+        if (was?.passageId) await P.deletePassage(was.passageId);
+        if (was?.actorId) await MM.setMastermind(game.actors.get(was.actorId), { room: was.room ?? null });
+        else await MM.clearMastermind();
+        return true;`, { timeout: 60000 });
+    await settle(500);
+
     /* ------------------------------------------- A. the Assistant as the primary */
 
     phase("the Assistant as the primary", { flow: "give-take-stash" });

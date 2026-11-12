@@ -731,7 +731,9 @@
         "shut": "the way is shut",
         "cross": "Go through",
         "oneWay": "One way only: from {from} to {to}.",
-        "walk": "Walk through the secret passage."
+        "walk": "Walk through the secret passage.",
+        "seal": "Seal",
+        "sealTip": "Close this passage. Only a GM can open it again."
       },
       "show": {
         "button": "Show the passage",
@@ -1263,6 +1265,13 @@
       "invite": "Invite as a Monocub"
     },
     "Mastermind": {
+      "lair": {
+        "room": "Your room: {room}",
+        "locked": "Locked",
+        "open": "Open",
+        "lock": "Lock",
+        "unlock": "Unlock"
+      },
       "noLair": "- no room -",
       "dialogTitle": "The Mastermind",
       "lairLabel": "The Mastermind's room",
@@ -3701,6 +3710,8 @@
         "handover.item": "Hand over an item",
         "passage.share": "Show a secret passage",
         "passage.cross": "Go through a secret passage",
+        "passage.lairSeal": "Seal a passage at your door",
+        "mastermind.lairLock": "Lock or open your room",
         "vault.steal": "Stash",
         "action.steal": "Palm",
         "vault.findStash": "Find Stash",

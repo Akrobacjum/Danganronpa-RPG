@@ -16,7 +16,7 @@ import {
     ECLIPSE_MOVES, TIMES_OF_DAY,
     EQUIPPABLE,
     BEDROOM_KEY_FLAG, HOPE_CALLS, DESPAIR_CALLS, PRICE_CHAINS, SHEET_SIZE, STATES } from "./config.mjs";
-import { SETTINGS, isMutedDead } from "./settings.mjs";
+import { SETTINGS, isMutedDead, myMastermindLair } from "./settings.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
     canPayFor, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
 import { resourceMax, resourceValue, initCharacter, needsStartingResources, RESERVES, reserveOf, reserveView, reserveRow }
@@ -60,8 +60,8 @@ import { isCleaner, tamperQuote, witnessesTo, freeTonightText } from "./cleanup.
 // reads (T-1). Synchronous by design - this file calls it from a render path.
 import { quotePrice, priceLabel, stripeKindFor } from "./price.mjs";
 import { roomOfActor, neighbouringRooms, othersInRoom, locateActor, sceneOfActor, passageRooms, passageOpenFor,
-    roomsKnownToMe, tunnelVerdict, tunnelRefusalText, tunnelStepTarget, whenAtRest, isPlacing, gmSpotWhy } from "./movement.mjs";
-import { isMoveChange, levelOf } from "./rooms.mjs";
+    roomsKnownToMe, tunnelVerdict, tunnelRefusalText, tunnelStepTarget, whenAtRest, isPlacing, gmSpotWhy, isLocked } from "./movement.mjs";
+import { isMoveChange, levelOf, roomRegions } from "./rooms.mjs";
 // The sheet's 'Known passages' (E79 C7): this browser's passages, the Mastermind as the GMs hold it, and the
 // rooms named as Listen names them - a room this viewer has not found is "Unexplored room n".
 import { passagesKnownBy, passageSpot, viewPassage, tunnelEndsFor } from "./passages.mjs";
@@ -147,6 +147,8 @@ export function sheetMode(actor, user = game.user, { app = null, editable, facts
         // A Monokuma's sheet is no student's (S03-33): no student groups, no Equipped or Experience, no biography.
         groups: !monokuma, equipped: !monokuma, experience: !monokuma, biography: !monokuma, inventory: !monokuma,
         passages: owner && !monokuma, mastermind: gm && isMastermindActor(actor),
+        // The Mastermind's own room, on their player's browser alone (E91 C4, C5; D038; `injectKnownPassages`).
+        lair: owner && !gm && !monokuma ? myMastermindLair() : null,
         present,
         get presentShown() {
             return presentFor();
@@ -2747,7 +2749,7 @@ export function knownPassageRows(actor, { known, mastermind = false, sceneOf = i
         // was read (H81 fix r1, movement.mjs `passageRooms`' note). The label's rooms are the map's, for no token.
         const elevation = from !== null && Number.isFinite(here?.tokenDoc?.elevation) ? here.tokenDoc.elevation : null;
         const shut = !opens(actor, passage, scene, { from, level: passage.level, mover: mastermind ? { mastermind: true } : null, elevation, ...given });
-        rows.push({ passage, label, shut, way });
+        rows.push({ passage, label, shut, way, rooms: [rooms[0] ?? null, rooms[1] ?? null] });
     }
     return rows.sort((a, b) => a.label.localeCompare(b.label));
 }
@@ -2903,8 +2905,47 @@ export function knownPassageItem(row) {
     li.innerHTML = `<a class="drpg-passage-where" role="button" tabindex="0" title="${t("DRPG.Passage.list.where")}">${
         foundry.utils.escapeHTML(row.label)}</a>${row.shut ? `<span class="drpg-passage-shut">${t("DRPG.Passage.list.shut")}</span>` : ""}${note}`
         + (tunnel ? `<button type="button" class="drpg-mini-button drpg-passage-cross">${t("DRPG.Passage.list.cross")}</button>` : "")
-        + `<button type="button" class="drpg-mini-button drpg-passage-show">${t("DRPG.Passage.show.button")}</button>`;
+        + `<button type="button" class="drpg-mini-button drpg-passage-show">${t("DRPG.Passage.show.button")}</button>`
+        // The Mastermind's Seal on a passage at their door (E91 C5, D038; `injectKnownPassages` marks the row).
+        + (row.seal ? `<button type="button" class="drpg-mini-button drpg-passage-seal" data-tooltip="${t("DRPG.Passage.list.sealTip")}">${
+            t("DRPG.Passage.list.seal")}</button>` : "");
     return li;
+}
+
+/**
+ * THE MASTERMIND'S DOOR ON THEIR SHEET (E91 C4, C5; D038, 12.11.2026). On the browser of the player who holds the part
+ * (settings.mjs `myMastermindLair`; a GM locks rooms in Room Setup and closes passages in the tab): a line naming the
+ * room and whether its door is locked, with Lock or Unlock, and a Seal on every passage the sheet lists with a side in
+ * it. The lock is the GM's room lock (`isLocked`, as the door reads it), asked of the primary GM (bridge-asks.mjs
+ * `requestLairLock`, `requestLairSeal`). Nothing here is drawn on anybody else's browser.
+ */
+function lairLocked(room) {
+    return [...(game.scenes ?? [])].some(scene => roomRegions(scene, room).length && isLocked(scene, room));
+}
+
+function lairBlock(actor, room) {
+    const t = key => foundry.utils.escapeHTML(game.i18n.localize(key));
+    const locked = lairLocked(room);
+    const div = document.createElement("div");
+    div.className = "drpg-lair-line";
+    div.innerHTML = `<span class="drpg-lair-room">${foundry.utils.escapeHTML(game.i18n.format("DRPG.Mastermind.lair.room", { room }))}</span>`
+        + `<span class="drpg-lair-state">${t(locked ? "DRPG.Mastermind.lair.locked" : "DRPG.Mastermind.lair.open")}</span>`
+        + `<button type="button" class="drpg-mini-button drpg-lair-lock">${t(locked ? "DRPG.Mastermind.lair.unlock" : "DRPG.Mastermind.lair.lock")}</button>`;
+    const button = div.querySelector(".drpg-lair-lock");
+    button.addEventListener("click", async event => {
+        event.preventDefault();
+        event.stopPropagation();
+        button.disabled = true;
+        try {
+            const { requestLairLock } = await import("./gm-bridge.mjs");
+            await requestLairLock({ actorId: actor.id, lock: !locked });
+        } catch (err) {
+            error("Could not change the room's lock", err);
+        } finally {
+            actor.sheet?.render(false);
+        }
+    });
+    return div;
 }
 
 /** The list, after the Experience, on an owner's sheet of a student that knows a passage; none for a Monokuma. */
@@ -2916,17 +2957,31 @@ function injectKnownPassages(app, element, mode = modeOf(app)) {
     host.querySelector(".drpg-passages-section")?.remove();
     if (!actor || !mode.passages) return;
     const { mastermind } = mode;
-    const rows = knownPassageRows(actor, { mastermind });
-    if (!rows.length) return;
+    // The Mastermind's own room, on their player's browser alone (`lairBlock`).
+    const lair = mode.lair ?? null;
+    const rows = knownPassageRows(actor, { mastermind }).map(row => ({ ...row, seal: Boolean(lair) && row.rooms.includes(lair) }));
+    if (!rows.length && !lair) return;
 
     const t = key => foundry.utils.escapeHTML(game.i18n.localize(key));
     const section = document.createElement("div");
     section.className = "drpg-passages-section";
-    section.innerHTML = `<div class="title"><side-line-div class="invert"></side-line-div><h3>${t("DRPG.Passage.list.title")}</h3>`
-        + `<side-line-div></side-line-div></div><ul class="drpg-passage-list"></ul>`;
+    section.innerHTML = (rows.length ? `<div class="title"><side-line-div class="invert"></side-line-div><h3>${t("DRPG.Passage.list.title")}</h3>`
+        + `<side-line-div></side-line-div></div>` : "") + `<ul class="drpg-passage-list"></ul>`;
     const list = section.querySelector("ul");
+    if (lair) list.before(lairBlock(actor, lair));
     for (const row of rows) {
         const li = knownPassageItem(row);
+        li.querySelector(".drpg-passage-seal")?.addEventListener("click", async event => {
+            event.preventDefault();
+            event.stopPropagation();
+            event.currentTarget.disabled = true;
+            try {
+                const { requestLairSeal } = await import("./gm-bridge.mjs");
+                await requestLairSeal({ actorId: actor.id, passageId: row.passage.id });
+            } catch (err) {
+                error("Could not seal a secret passage", err);
+            }
+        });
         const where = li.querySelector(".drpg-passage-where");
         const pan = event => {
             event.preventDefault();
