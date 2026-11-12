@@ -29,6 +29,7 @@ import { secretSummaries } from "./secret.mjs";
 import { error, esc, plural } from "./utils.mjs";
 import { showPopup } from "./popup.mjs";
 import { murderState, clockHiddenHere } from "./murder.mjs";
+import { sequencesOn } from "./sequence.mjs";
 
 /*
  * WHAT THIS PAGE LAST SAW OF THE CLOCK, AND THE LAST BOUNDARY IT SUMMED UP (E37 C4, 01.11.2026; E37-16, D44c, audit
@@ -85,7 +86,26 @@ function sumUp(clock) {
     if (!window) return;
     shownFor = { stamp: window.stamp, until: window.until };
     if (clockHiddenHere(murderState())) return;
+    // THE NIGHT'S SUMMARY IS THE END-OF-DAY BOARD'S (E94 C3; the plan's Q-E94-5 default): at the day's roll-over, with the
+    // table's switch on, the board holds the whole day's rows and keeps a card of them, so the Night's own card is not put up
+    if (nightFoldsIntoBoard(window, clock)) return;
     showDaySummary(window).catch(err => error("Could not show the day summary", err));
+}
+
+/**
+ * The end-of-day board kept as one card in this browser's notice history (E94 C3): `html` is the board's last frame as
+ * sequence.mjs drew it (its names escaped there), `title` the board's own i18n title. Sticky, kept as a summary, the
+ * Night's summary it stands in for (`nightFoldsIntoBoard`); posted here so the sequence engine itself puts up no notice.
+ */
+export function keepDayEndCard(html, title) {
+    if (typeof html !== "string" || !html) return;
+    showPopup(html, { title, sticky: true, source: "summary" });
+}
+
+/** Whether the summary of `window` folds into the end-of-day board: the day's last time of day closed by the roll-over to a new day, with the table's switch on. Pure but for the switch. */
+export function nightFoldsIntoBoard(window, after, on = sequencesOn()) {
+    return Boolean(on && window && window.timeOfDay === TIMES_OF_DAY[TIMES_OF_DAY.length - 1]
+        && after?.timeOfDay === TIMES_OF_DAY[0] && after?.eclipse !== true);
 }
 
 const calendarOf = clock => JSON.stringify([clock?.season ?? null, clock?.chapter ?? null, clock?.session ?? null,

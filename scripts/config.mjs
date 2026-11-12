@@ -4888,7 +4888,13 @@ export const SFX_EVENTS = {
     /* E94 C2: the start-of-day board's chime (MK-R2 #4), played once as the board rises on each browser. */
     dayStart: {
         label: "Start of the day",
-        hint: "The start-of-day board rises when a new day begins. Heard by the whole table.",
+        hint: "The start-of-day board rises when a new day begins. Heard by the whole table, but not with the sequences switched off.",
+        category: "incident"
+    },
+    /* E94 C3: the end-of-day board's chime, played once as the board rises, before the start-of-day board. */
+    dayEnd: {
+        label: "End of the day",
+        hint: "The end-of-day board rises when the day ends, before the new day's board. Heard by the whole table, but not with the sequences switched off.",
         category: "incident"
     },
     /* E62 C2: one flash of the Investigation's entry (MK-R1 #11, MK-R3): played at each of its six onsets, its pitch

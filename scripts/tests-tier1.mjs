@@ -7181,7 +7181,11 @@ const INVARIANTS = [
             // E17 fix ci-2: the clock keeps no boundary's take-back - its snapshot named every character by id.
             ["clock.lastAdvance",
                 s => { s.settings.clock.lastAdvance = { for: "[1,1,1,1,\"noon\"]", at: 1, snapshot: { actions: { R190BYSTANDER001: { value: 1 } } } }; },
-                h => h.kind === "field" && h.doc === "setting" && h.id === "clock" && h.path === "lastAdvance"]
+                h => h.kind === "field" && h.doc === "setting" && h.id === "clock" && h.path === "lastAdvance"],
+            // E94 C4: the mood's word may ride in the clock, the Overflow's numbers it is read from may not
+            ...["overflowCount", "overflowThreshold"].map(f => [`clock.${f}`,
+                s => { s.settings.clock.mood = "uneasy"; s.settings.clock[f] = 4; },
+                h => h.kind === "field" && h.doc === "setting" && h.id === "clock" && h.path === f])
         ];
         /* The exemptions: [what, plant, whether the hits are right]. projectMeta's own map token, as
            projects-map.mjs writes it (E05 C5): it reads clean there, and a tokenId planted in the clock
@@ -46506,7 +46510,9 @@ const INVARIANTS = [
             stepper: chapter ? [chapter.min, chapter.max] : null, reads, wrapped: [clock, murder].map(r => r.querySelectorAll("label > select, label > .drpg-kit-stepper").length)
         }), stableJson({
             clock: [[L("DRPG.Clock.campaignName"), "campaignName", "input"], [L("DRPG.Clock.chapter"), "chapter", "input"], [L("DRPG.Clock.phase"), "phase", "select"],
-                [L("DRPG.Clock.day"), "day", "input"], [L("DRPG.Clock.session"), "session", "input"], [L("DRPG.Clock.timeOfDay"), "timeOfDay", "select"]],
+                [L("DRPG.Clock.day"), "day", "input"], [L("DRPG.Clock.session"), "session", "input"], [L("DRPG.Clock.timeOfDay"), "timeOfDay", "select"],
+                // E94 C1 (12.11.2026): the next morning's line, last, a textarea (gm-campaign.mjs `morningLineRow`)
+                [L("DRPG.Clock.morningLine"), "morningLine", "textarea"]],
             murder: [[L("DRPG.Murder.killer"), "killer", "select"], [L("DRPG.Murder.victim"), "victim", "select"], [L("DRPG.Murder.openingStatistic"), "openingTrait", "select"]],
             select: false, stepper: ["1", String(top)], reads: season.map(n => [n, n]),
             wrapped: [0, 0]
@@ -49215,6 +49221,135 @@ const INVARIANTS = [
             stableJson({ shareRatio: true, aspect: true, at1366: AT_1366_ROUND4 }),
             `[the 1920x1080 median share over 1366x768's, a mean over eight seeds, within 0.9-1.1 (read ${r.toFixed(3)}); the 1920x1080 median aspect no narrower (read ${aF.toFixed(3)} against ${aR.toFixed(3)}); 1366x768's median area and count for seed 11 as round 4 made them]`);
     }],
+    ["R3720 - the GM's morning line reaches the start-of-day board at the day's start and no sooner (scripts/sequence.mjs `morningLineOf`, `dayStartPatch`, `dayStartElement`; scripts/gm-campaign.mjs `morningLineRow`; scripts/clock.mjs `advanceTimeOfDay`; E94 C1, the plan's default: a field in Edit campaign): the line is trimmed, its spaces folded and cut to 200 characters, an empty one none; the roll-over to a new day writes it into the clock's one write and any other move clears it; Edit campaign has the field and keeps it on the GM's browser; the advance folds the patch into its one write and empties the draft; the board shows the line under MORNING ANNOUNCEMENT, and none when it is empty", async () => {
+        /* E94 C1, 12.11.2026. Red at 7bbbd3c: sequence.mjs has no morningLineOf or dayStartPatch, Edit campaign no field. */
+        const S = await import("./sequence.mjs");
+        const sources = await moduleSources();
+        const clockSrc = stripComments(sources.get("clock.mjs") ?? ""), campaign = stripComments(sources.get("gm-campaign.mjs") ?? "");
+        must(clockSrc.length > 5000 && campaign.length > 2000, "a source was not read - this reads nothing");
+        const advance = bodyOf(clockSrc, "export async function advanceTimeOfDay(", { until: "\nexport function " });
+        const dialog = bodyOf(campaign, "export async function openClockDialog(", { until: "\nexport async function applyCampaignForm(" });
+        if (typeof S.dayStartPatch !== "function") { ok(false, "sequence.mjs has no dayStartPatch"); return; }
+        const board = line => S.dayStartElement(S.dayStartBoard({ day: 3, chapter: 1, timeOfDay: "morning" }, [], line ?? ""));
+        equal(stableJson({
+            line: [S.morningLineOf("  Good   morning, class.  "), S.morningLineOf(""), S.morningLineOf("x".repeat(300)).length],
+            rollOver: S.dayStartPatch({ rolledOver: true, draft: " Wake up! ", mood: "uneasy" }),
+            later: [S.dayStartPatch({ rolledOver: false, before: { morningLine: "Wake up!" } }), S.dayStartPatch({ rolledOver: false, before: {} })],
+            field: /morningLineRow\(\)/.test(dialog) && /morningLineDraft/.test(dialog),
+            advance: /dayStartPatch\(/.test(advance) && /\.\.\.dayPatch/.test(advance) && /morningLineDraft, ""/.test(advance),
+            shown: [board("Wake up!").querySelector(".drpg-seq-announce")?.textContent.includes("Wake up!") ?? false, Boolean(board("").querySelector(".drpg-seq-announce"))]
+        }), stableJson({
+            line: ["Good morning, class.", null, 200],
+            rollOver: { morningLine: "Wake up!", mood: "uneasy" },
+            later: [{ morningLine: null }, {}],
+            field: true, advance: true, shown: [true, false]
+        }), "[the line trimmed, empty, cut; the roll-over's patch; a later move's patch, with and without a line; the field; the advance's one write and the draft emptied; shown, and hidden when empty]");
+    }],
+    ["R3721 - the end-of-day board holds only what this browser may know (scripts/sequence.mjs `dayRowsFor`, `publicCardsOf`; E94 C3, C0's privacy red): a player's rows are its own student's (and those of no student), never another player's; a GM's rows are the table's; the public cards are the module's own messages of the day nobody is whispered and no roll is blind - a whisper, a blind roll, a card from before the day and a message not the module's are not among them", async () => {
+        /* E94 C3, 12.11.2026. Red at 7bbbd3c: sequence.mjs has no dayRowsFor or publicCardsOf. */
+        const S = await import("./sequence.mjs");
+        if (typeof S.dayRowsFor !== "function" || typeof S.publicCardsOf !== "function") { ok(false, "sequence.mjs has no dayRowsFor or publicCardsOf"); return; }
+        const entries = [{ actorId: "mine", action: "Search" }, { actorId: "theirs", action: "Sabotage" }, { actorId: null, action: "Listen" }];
+        const owns = id => id === "mine";
+        const flags = { [MODULE_ID]: { any: true } };
+        const msgs = [
+            { timestamp: 100, flavor: "A body was found", flags },
+            { timestamp: 110, flavor: "Whispered to the GM", flags, whisper: ["gm"] },
+            { timestamp: 120, flavor: "Blind roll", flags, blind: true },
+            { timestamp: 50, flavor: "Yesterday's card", flags },
+            { timestamp: 130, flavor: "Somebody's own chat" },
+            { timestamp: 140, content: "<h3>The project is done</h3><p>details</p>", flags },
+            { timestamp: 300, flavor: "Tomorrow's card", flags }
+        ];
+        equal(stableJson({
+            player: S.dayRowsFor(entries, { gm: false, owns }).map(e => e.action),
+            gm: S.dayRowsFor(entries, { gm: true, owns }).map(e => e.action),
+            cards: S.publicCardsOf(msgs, 100, 300)
+        }), stableJson({ player: ["Search", "Listen"], gm: ["Search", "Sabotage", "Listen"], cards: ["A body was found", "The project is done"] }),
+            "[a player's rows; a GM's rows; the day's public cards]");
+    }],
+    ["R3722 - the end-of-day board shows the day, its rows, what the school saw, Hope and Despair and the mood, and hands on to the start-of-day board (scripts/sequence.mjs `dayEndBoard`, `dayEndElement`, `playDayEnd`, `playSequence` `then`; scripts/transitions.mjs `onClockHeard`; E94 C3, the plan's C3 and Q-E94-5): the board names the day and chapter, lists at most six rows and counts all, lists at most four public cards, shows Hope and Despair with their maximum and the mood as its word only; a quiet day says so; `then` runs once the sequence ends on its own or is skipped, never when another cuts it, and at once with the switch off; a new day plays the end board before the start board", async () => {
+        /* E94 C3, 12.11.2026. Red at 7bbbd3c: sequence.mjs has no end-of-day board, and playSequence no `then`. */
+        const S = await import("./sequence.mjs");
+        if (typeof S.dayEndBoard !== "function") { ok(false, "sequence.mjs has no dayEndBoard"); return; }
+        const rows = Array.from({ length: 8 }, (_, i) => ({ action: `A${i}`, room: i % 2 ? "Gym" : "", item: i === 7 ? "a key" : null }));
+        const b = S.dayEndBoard({ clock: { day: 4, chapter: 2 }, rows, publicCards: ["c1", "c2", "c3", "c4", "c5"], hope: { value: 3, max: 6 }, despair: { value: 5, max: 12 }, mood: "uneasy" });
+        const el = S.dayEndElement(b), quiet = S.dayEndElement(S.dayEndBoard({ clock: { day: 4 }, mood: 9 }));
+        const thens = [];
+        const kick = (key, why) => { S.playSequence("dayEnd", `R3722:${key}:${Math.random()}`, () => null, { on: true, then: w => thens.push([key, w]) }); S.endSequence(why); };
+        kick("ended", "ended"); kick("skipped", "skipped"); kick("cut", "cut");
+        S.playSequence("dayEnd", `R3722:off:${Math.random()}`, () => null, { on: false, then: w => thens.push(["off", w]) });
+        await new Promise(r => setTimeout(r, 20));
+        const sources = await moduleSources();
+        const heard = fnSource(stripComments(sources.get("transitions.mjs") ?? ""), "onClockHeard");
+        equal(stableJson({
+            title: el.querySelector(".drpg-seq-day-title")?.textContent.includes("4") ?? false,
+            rows: [el.querySelectorAll(".drpg-seq-yours .drpg-seq-row").length, el.querySelector(".drpg-seq-tally")?.textContent.includes("8") ?? false],
+            events: el.querySelectorAll(".drpg-seq-events .drpg-seq-row").length,
+            nums: [...el.querySelectorAll(".drpg-seq-num")].map(n => n.dataset.drpgNum),
+            mood: [el.querySelector(".drpg-seq-mood")?.dataset.drpgMood ?? null, /\d/.test(el.querySelector(".drpg-seq-mood")?.textContent ?? "")],
+            quiet: [Boolean(quiet.querySelector(".drpg-seq-yours ol")), Boolean(quiet.querySelector(".drpg-seq-mood"))],
+            thens,
+            order: /playDayEnd\(before, clock, \{ on,(?: keep,)? then: \(\) => playDayStart\(clock/.test(heard)
+        }), stableJson({
+            title: true, rows: [6, true], events: 4, nums: ["3", "5"], mood: ["uneasy", false], quiet: [false, false],
+            thens: [["ended", "ended"], ["skipped", "skipped"], ["off", "off"]], order: true
+        }), "[the title's day; six rows named and eight counted; four public cards; Hope and Despair; the mood's word and no number; a quiet day without rows or mood; then's calls; the end board before the start board]");
+    }],
+    ["R3723 - the school's mood is a word, never the Overflow count (scripts/sequence.mjs `moodBand`, `MOOD_BANDS`, `dayStartPatch`; scripts/clock.mjs `advanceTimeOfDay`; E94 C4, the plan's Q-E94-3 default): the count's share of X maps to calm below a third, uneasy below two thirds, close to spilling from there, calm with no count or no X; the patch the roll-over writes holds one of the three words or none, never a number; the advance reads the count where a GM reads it (overflow.mjs) and folds the word alone into the clock's write", async () => {
+        /* E94 C4, 12.11.2026. Red at 7bbbd3c: sequence.mjs has no moodBand. */
+        const S = await import("./sequence.mjs");
+        if (typeof S.moodBand !== "function") { ok(false, "sequence.mjs has no moodBand"); return; }
+        const sources = await moduleSources();
+        const advance = bodyOf(stripComments(sources.get("clock.mjs") ?? ""), "export async function advanceTimeOfDay(", { until: "\nexport function " });
+        must(advance.length > 500, "advanceTimeOfDay was not read - this reads nothing");
+        equal(stableJson({
+            bands: [[0, 9], [2, 9], [3, 9], [5, 9], [6, 9], [9, 9], [20, 9], [4, 0], [NaN, 9]].map(([c, x]) => S.moodBand(c, x)),
+            words: S.MOOD_BANDS,
+            patch: [S.dayStartPatch({ rolledOver: true, mood: 7 }).mood, S.dayStartPatch({ rolledOver: true, mood: "spilling" }).mood],
+            read: /overflowCount\(\)/.test(advance) && /moodBand\(/.test(advance)
+        }), stableJson({
+            bands: ["calm", "calm", "uneasy", "uneasy", "spilling", "spilling", "spilling", "calm", "calm"],
+            words: ["calm", "uneasy", "spilling"], patch: [null, "spilling"], read: true
+        }), "[the bands for each count and X; the three words; a number refused, a word kept; the advance reads the count and writes the word]");
+    }],
+    ["R3724 - the Night's own summary folds into the end-of-day board (scripts/day-summary.mjs `nightFoldsIntoBoard`, `sumUp`; E94 C3, the plan's Q-E94-5 default): with the table's switch on, the summary of the day's last time of day closed by the roll-over to the next morning is not put up - the board holds the whole day and keeps a card of it; with the switch off, at an Eclipse's start and at any other time of day it is put up as before", async () => {
+        /* E94 C3, 12.11.2026. Red at 7bbbd3c: day-summary.mjs has no nightFoldsIntoBoard. */
+        const D = await import("./day-summary.mjs"), { TIMES_OF_DAY } = await import("./config.mjs");
+        if (typeof D.nightFoldsIntoBoard !== "function") { ok(false, "day-summary.mjs has no nightFoldsIntoBoard"); return; }
+        const last = TIMES_OF_DAY[TIMES_OF_DAY.length - 1], first = TIMES_OF_DAY[0];
+        const sources = await moduleSources();
+        const sum = fnSource(stripComments(sources.get("day-summary.mjs") ?? ""), "sumUp");
+        equal(stableJson([
+            D.nightFoldsIntoBoard({ timeOfDay: last }, { timeOfDay: first }, true),
+            D.nightFoldsIntoBoard({ timeOfDay: last }, { timeOfDay: first }, false),
+            D.nightFoldsIntoBoard({ timeOfDay: last }, { timeOfDay: last, eclipse: true }, true),
+            D.nightFoldsIntoBoard({ timeOfDay: first }, { timeOfDay: TIMES_OF_DAY[1] }, true),
+            /nightFoldsIntoBoard\(window, clock\)\) return/.test(sum)
+        ]), stableJson([true, false, false, false, true]), "[the night at the roll-over, switch on; switch off; an Eclipse's start; another time of day; sumUp asks it]");
+    }],
+    ["R3725 - the clock stamps when the day began (scripts/clock.mjs `setClock`; E94 C3): a write that moves the day sets `dayStartedAt` to the new time of day's own stamp, or the server's clock, unless the write sets it itself; the end-of-day board reads its rows from it", async () => {
+        /* E94 C3, 12.11.2026. Red at 7bbbd3c: setClock writes no dayStartedAt. The write itself is tier 2's (tiers 0-1 write no setting). */
+        const sources = await moduleSources();
+        const set = bodyOf(stripComments(sources.get("clock.mjs") ?? ""), "export async function setClock(", { until: "\nexport " });
+        const seq = stripComments(sources.get("sequence.mjs") ?? "");
+        must(set.length > 500, "setClock was not read - this reads nothing");
+        equal(stableJson({
+            stamp: /patch\.day !== undefined && Number\(patch\.day\) !== Number\(before\.day\) && patch\.dayStartedAt === undefined/.test(set) && /next\.dayStartedAt = next\.timeOfDayStartedAt \?\? serverNow\(\)/.test(set),
+            read: /before\?\.dayStartedAt/.test(fnSource(seq, "dayEndReads"))
+        }), stableJson({ stamp: true, read: true }), "[setClock stamps dayStartedAt on a new day; the board reads it]");
+    }],
+    ["R3726 - no file the module serves holds a merge's conflict marker (scripts, styles, lang): a line that is seven <, = or > alone or before a space is none of the module's own; one found 12.11.2026 in styles/danganronpa.css, left by the merge of the 1.2.107 line, dropped the rule after it (Monokuma Legacy's notifications)", async () => {
+        /* 12.11.2026. Red at 7bbbd3c: styles/danganronpa.css line 18324 was "=======". */
+        const sources = await moduleSources(), css = String(await moduleStyles() ?? "");
+        must(sources.size > 100 && css.length > 100000, "the module's files were not read - this reads nothing");
+        const marker = /^(?:<{7}|={7}|>{7})(?: |$)/m;
+        const found = [];
+        for (const [name, text] of sources) if (marker.test(text)) found.push(name);
+        if (marker.test(css)) found.push("styles");
+        for (const lang of ["en", "pl"]) { const t = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(lfText); if (marker.test(t)) found.push(`${lang}.json`); }
+        equal(stableJson(found), stableJson([]), "[the files with a conflict marker]");
+    }],
     ["R3717 - the verdict's cut-in brings every part of its board in with motion, and none under reduced motion (scripts/sequence.mjs `drawVerdictCut`; E61 C5, the owner's review of round 1, 12.11.2026: the window's contents are to arrive with motion and easing, not appear): with motion on, the band, the portrait, the name, the stamp, the count's heading, each vote row, each bar with a vote and the sentence are each animated from another place, scale or opacity, eased (never linear), the rows one after another; under reduced motion nothing is animated and the board stands whole", async () => {
         /*
          * E61 C5, 12.11.2026. Red at 6049386: the count's rows came in as one block (`.drpg-seq-votes`, 180 ms) and the
@@ -49375,6 +49510,55 @@ const INVARIANTS = [
         }), stableJson({ taken: true, skipped: 1, notHeld: true, played: 4, lit: true, out: true, rehearsal: null, still: null, row: ["incident", true, true] }),
             "[Escape taken while held; the skip run once; the next not taken; the announcement's onsets; lit; put out; a rehearsal; reduced motion; the Sound row]");
     }],
+    ["R3727 - two changes of the clock close together end on the second (scripts/transitions.mjs `onClockHeard`; E62 C1, C2, C8, the coordinator's list of 12.11.2026): the Investigation's entry heard, and an hour forward 120 ms after it - the first's flashes still to come are dropped, so its onset at 0 is the only one lit; the curtain is handed the second's direction; and Escape is held for the second", async () => {
+        /*
+         * E94 round, 12.11.2026 (the E62 part of the coordinator's list: "a test of two clock changes close together").
+         * Not red first: it guards what E62 C8 built (`clearFlashes` at the head of `onClockHeard`, the hint replaced,
+         * `holdEscape` taking the newer skip); it was written after, and read green at 7bbbd3c as at this commit. Planted
+         * by hand on a scratch copy (the `clearFlashes()` line taken out), it read 3 flickers, not 1 (12.11.2026). The
+         * flicker is counted by the body's class as it is set, on this page; the curtain's own turn is not drawn here
+         * (jsdom has no canvas), so the direction read is the one handed to it (`pendingTurnHint`), as R3712 reads it.
+         */
+        const T = await import("./transitions.mjs");
+        const G = await import("./glass.mjs");
+        const S = await import("./sequence.mjs");
+        const { watchWrites } = await import("./tests-kit.mjs");
+        const w = watchWrites(() => "R3727");
+        const c = (timeOfDay, phase) => ({ day: 3, timeOfDay, phase, eclipse: false });
+        const body = document.body;
+        let lit = 0;
+        const mo = new MutationObserver(() => {
+            const on = body.classList.contains("drpg-flicker");
+            if (on && !mo.was) lit++;
+            mo.was = on;
+        });
+        const read = {};
+        try {
+            G.hintTurn(null);
+            T.onClockHeard(c("morning", "dailyLife"), { on: false, still: true });
+            mo.was = body.classList.contains("drpg-flicker");
+            mo.observe(body, { attributes: true, attributeFilter: ["class"] });
+            read.first = T.onClockHeard(c("morning", "investigation"), { on: true, still: false })?.kind ?? null;
+            await wait(120);
+            read.second = T.onClockHeard(c("noon", "investigation"), { on: true, still: false })?.kind ?? null;
+            await settle();
+            read.hint = G.pendingTurnHint()?.how ?? null;
+            // past the first's second onset (360 ms), and still inside the second's hold of Escape (1150 + 200 ms)
+            await wait(T.INVESTIGATION_ONSETS[1] + 400);
+            mo.takeRecords();
+            read.lit = lit;
+            const esc = new KeyboardEvent("keydown", { key: "Escape", cancelable: true, bubbles: true });
+            window.dispatchEvent(esc);
+            read.escTaken = esc.defaultPrevented;
+        } finally {
+            mo.disconnect(); w.stop(); G.hintTurn(null); S.holdEscape(0, null);
+            body.classList.remove("drpg-flicker");
+            T.onClockHeard(c("morning", "dailyLife"), { on: false, still: true });
+        }
+        read.writes = w.seen.filter(x => x.includes("R3727"));
+        equal(stableJson(read), stableJson({ first: "investigation", second: "hour", hint: "top", lit: 1, escTaken: true, writes: [] }),
+            "[the first heard; the second heard; the direction handed last; flickers lit; Escape taken while the second is held; the world written]");
+    }],
     ["R3714 - the start-of-day board names the cast as the table knows it (scripts/sequence.mjs `dayStartBoard`, `dayStartElement`; E94 C2, MK-R2 #4, #9, #10): the day, the chapter and the time of day in this language; every student in their place, the dead by the published flag alone - greyed, with their name and \"we remember\", never struck through - and a death the GMs keep not shown as one; the alive count; an empty morning line not drawn", async () => {
         /*
          * E94 C2, 12.11.2026. Red at 3c36fcb: sequence.mjs exports no dayStartBoard. The students are stand-ins with
@@ -49414,16 +49598,20 @@ const INVARIANTS = [
             S.endSequence("cut");
             // primed with the switch off: the jump from the clock this module saw last plays nothing
             T.onClockHeard(c(day, "night"), { on: false, still: true });
-            T.onClockHeard(c(day + 1, "morning"), { on: true, still: true });
+            // E94 C3 (12.11.2026): the day that ended has its board first, which hands on to the new day's when it ends
+            T.onClockHeard(c(day + 1, "morning"), { on: true, still: true, keep: false });
+            await until(() => S.sequenceNow()?.key === `dayEnd:R3715:${day}:${day}`, 3000);
+            read.endFirst = S.sequenceNow();
+            S.endSequence("skipped");
             await until(() => S.sequenceNow()?.key === `day:R3715:${day + 1}:${day + 1}`, 3000);
             read.started = S.sequenceNow();
             read.through = getComputedStyle(document.getElementById(S.SEQUENCE_HOST_ID) ?? body).pointerEvents;
             S.endSequence("cut");
             read.again = await S.playDayStart(c(day + 1, "morning"), { on: true });
-            T.onClockHeard(c(day + 1, "noon"), { on: true, still: true }); await settle();
+            T.onClockHeard(c(day + 1, "noon"), { on: true, still: true, keep: false }); await settle();
             read.hour = S.sequenceNow();
-            T.onClockHeard(c(day + 1, "night"), { on: false, still: true });
-            T.onClockHeard(c(day + 2, "morning"), { on: false, still: true }); await settle();
+            T.onClockHeard(c(day + 1, "night"), { on: false, still: true, keep: false });
+            T.onClockHeard(c(day + 2, "morning"), { on: false, still: true, keep: false }); await settle();
             read.off = S.sequenceNow();
         } finally {
             S.endSequence("cut");
@@ -49431,8 +49619,8 @@ const INVARIANTS = [
         }
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
         read.row = [SFX_EVENTS.dayStart?.category ?? null, typeof pl.DRPG?.Config?.SFX_EVENTS?.dayStart?.label === "string"];
-        equal(stableJson(read), stableJson({ started: { kind: "dayStart", key: `day:R3715:${day + 1}:${day + 1}`, mode: "still" }, through: "none", again: null, hour: null, off: null, row: ["incident", true] }),
-            "[a new day's board; its host lets clicks through; the same day again; an hour; the switch off; the Sound row]");
+        equal(stableJson(read), stableJson({ endFirst: { kind: "dayEnd", key: `dayEnd:R3715:${day}:${day}`, mode: "still" }, started: { kind: "dayStart", key: `day:R3715:${day + 1}:${day + 1}`, mode: "still" }, through: "none", again: null, hour: null, off: null, row: ["incident", true] }),
+            "[the ended day's board first; a new day's board after it; its host lets clicks through; the same day again; an hour; the switch off; the Sound row]");
     }],
     ["R3550 - the wrench's window hides exactly the statistics the module does not use (dh-settings.mjs `dressCharacterSettings`, `SETTINGS_FIELDS`; E49, the owner's 11.11.2026 on Daggerheart's character settings window): on Daggerheart 2.6.5's Details and Experiences drawn as Foundry frames them (tests-kit.mjs `dhSettingsStandIn`), Scars, Proficiency and Max Evasion Increase stand in a hidden cell and nothing else does - the six statistics, Max Health, Max Sanity and each experience's name, value and description shown; the hidden three are `UNUSED_FIELDS`, and outside dh-settings.mjs no module code names proficiency or evasion, and scars only sheet-audit.mjs, which holds them for Hope's maximum, while each shown field is read", async () => {
         /*
