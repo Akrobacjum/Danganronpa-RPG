@@ -143,7 +143,7 @@ Order: leaves first, so no commit leaves a new file that imports one not yet wri
 
 | Id | What |
 | --- | --- |
-| E1 | code.md's table gets a row per new file (see Q-E54-8: work lines may not edit the agent rules directory). |
+| E1 | code.md's table gets a row per new file: **coordinator to apply**, from Appendix B (Q-E54-8: work lines may not edit the agent rules directory). Counts and line numbers are written at the stage's end, from the files as they land. |
 | E2 | The end review; `node tools/stages.mjs` row untouched (the release sets `version`). |
 
 About 26 commits: 3 + 8 + 6 + 4 + 5 to 6 + 1.
@@ -216,6 +216,31 @@ review.
 | Q-E54-6 | If W4 or W5's red-first test is green at the base, drop the commit? | Drop, and record the reading. |
 | Q-E54-7 | The sheet's own height (`holdActionsTab`, `growForCalls`): computed in windows.mjs too, so the done line's "one place" holds for the sheet? | Yes: the height arithmetic as a windows.mjs function, the DOM wiring stays in sheet-fit.mjs (a behaviour commit after S3, with W6's test). |
 | Q-E54-8 | code.md's table needs a row per new file, and the agent rules directory is closed to the work lines. Who writes the rows? | The coordinator or the owner, from the stage's end report. |
+
+## Appendix B - code.md rows (coordinator to apply)
+
+Drafts for code.md's "Where the code lives" table, in its form (`File | What lives there | Its facade`), as the
+default arrangement of section 3 would land. The counts of names (own, re-exported) and the line counts are
+left out on purpose: they are read at the stage's end from the files as they land, or dropped (E56's Q-E56-4).
+A row changes if the owner answers Q-E54-1..7 otherwise.
+
+| File | What lives there | Its facade |
+| --- | --- | --- |
+| `scripts/sheet.mjs` | the character sheet's facade (E54): `registerSheetTweaks` and its hooks, the step table `SHEET_STEPS` with `runSheetSteps`, and `onRenderCharacterSheet`, which builds the render's mode and runs the steps; every other sheet name re-exported. New sheet code goes into the file of its role below, never here | itself (the family's top) |
+| `scripts/sheet-mode.mjs` | what the person looking at a sheet may see and do (E54): `sheetMode`, the render's mode kept for the row builders (`RENDER_MODES`, `modeOf`), the row's and the header's gates (`rowGate`, `headerGate`) and the sheets open for an actor (`sheetsFor`); a leaf of the family | `sheet.mjs` |
+| `scripts/sheet-item.mjs` | the item sheet cut to what an item is (E54): its tabs, editors and heading dropped, its kind labelled, name and description locked, the wear line (`wearMarkup`), a Truth Bullet's badges (`bulletBadges`, `classSafe`) and the tab dropper the sheet shares (`dropTab`) | `sheet.mjs` |
+| `scripts/sheet-repaint.mjs` | the flicker's repair (E54): `renderPlan` and `installRenderPlan`, which repaint a sheet in place for a resource write instead of rendering it, `repaintInPlace` with the priced tiles, the Calls and the Monocub tiles it refreshes, and `settle` | `sheet.mjs` |
+| `scripts/sheet-fit.mjs` | how the sheet fits its window (E54): the Loadout tab left, a tab's scroll kept, the action tiles' fit (`fitActionTiles`, `fitTileText`, `watchTileFit`, `LONGEST_TILE_WORD`, `softWrap`) and the sheet's height held and grown for the Calls (`holdActionsTab`, `growForCalls`) | `sheet.mjs` |
+| `scripts/sheet-header.mjs` | the sheet's header (E54): the trait frames and glyphs, the action bar with the time of day and Hope's flash (`injectActionBar`, `moveSlots`, `moveFeetHtml`, `moveLegend`), the starting resources' button, Advancement, the death mark and the GM's controls, give and take items, the Ultimate and its public helpers (`getUltimate`, `setUltimate`, `findDuplicateUltimates`) | `sheet.mjs` |
+| `scripts/sheet-sidebar.mjs` | the sheet's sidebar and its other tabs (E54): the sidebar tidied, the reserves (`paintReserves`, `writeReserve`, `paintPartyReserves`), the equipped tools, an empty experience, the known passages and the step through one (`knownPassageRows`, `knownPassageItem`, `onTunnelStep`), the safeword and the biography (`tidyBiography`, `saveBiography`) | `sheet.mjs` |
+| `scripts/sheet-inventory.mjs` | the inventory (E54): the system's create buttons removed, the groups the player chose, the rows and their buttons (use, equip, discard, stash, present, hand over: `guardRow` among them), the open stashes and the Truth Bullets' groups, order and folds (`bulletGroups`) | `sheet.mjs` |
+| `scripts/sheet-actions.mjs` | the action panel (E54): the rules panel that replaces the Effects tab, `injectActionPanel` with the Monocub and Calls panels and their buttons (`budgetLine`, `runCall`, `roomBlockFor`), whether Tamper has anything to work on (`forgetTamper`), and the tile itself with its price (`actionButton`) | `sheet.mjs` |
+| `scripts/windows.mjs` | one place for a module window's size (E54): the width that shows a table (`windowWidthFor`), each tab pane measured in turn (`eachPane`), the scaled box (`scaledBox`, `scaleMemo`, `sheetBox`), the sheet below the curtain's band (`sheetBandFoot`), `scaleWindow`, `rescaleSheets` and `registerWindows`, which module.mjs calls under `safely()` and which hands it the slider, the layout height and "registered" from settings.mjs | `utils.mjs`, `settings.mjs` |
+| `scripts/key-remnants.mjs` | the Key Remnants (E54): the plan and its store (`keyPlan`, `setKeyPlan`, `archiveKeyPlan`, `liftKeyPlan` ...), the keys a case holds and those still to place (`caseKeyCount`, `keysToPlace`, `keyPlanStatus`, `missingKeyRows`), the fee for those not found (`keyFeeOf`, `chargeForUnfoundKeys`, `askToChargeForUnfoundKeys`), a point in a region (`randomPointIn`) and placing a key (`openKeyRemnantHere`, `placeInSlot`, `placeKeyRow`) | `investigation.mjs` |
+| `scripts/cleanup-reshape.mjs` | the reshape road (E54): the killer's change asked (`askTransform`, `askTransformChange`), the words bounded (`plainText`), the reshape proposed and ruled on by a GM (`proposeReshape`, `applyReshapeRuling`, `declineReshapeRuling`, `ruleReshape`), and the clean-up's receipts it writes, which the Reroll's undo reads (`attemptOf`, `keepAttempt`, `forgetAttempt`, `keepAttemptFact`, `recreationDataFor`), with the veiled `whisperToOwner` and `findRemnantToken` | `cleanup.mjs` |
+| `scripts/death.mjs` | a death (E54): who is alive (`livingStudents`, `livingStudentsForGm`), a death marked, kept secret, published and taken back (`markDeceased`, `killCharacter`, `publishDeath`, `reviveCharacter`), the victim's Truth Bullets, the deaths a season reset clears and the death window (`openDeathDialog`); the predicates stay in settings.mjs and chapter.mjs re-exports them | `chapter.mjs` |
+| `scripts/body.mjs` | a body found (E54): the prep traces promoted, the discovery and its queue (`discoverBody`, `runDiscovery`), the announcement and its hook (`announceBody`, `BODY_ANNOUNCED_HOOK`, `registerBodyAnnounced`), who finds and who witnesses (`bodiesToDiscover`, `witnessesOf`, `maybeBodyFound`) and the discovery window; the body's tile is body-tile.mjs's | `chapter.mjs` |
+| `scripts/glass-geometry.mjs` | the curtain's geometry (E54): convex polygons and half-planes (`split`, `clipRect`, `area`, `overlaps`, `inside` ...), the affine and polygon math of the turn, and the two partitions with explicit arguments (`curtainShapes` for a desk, `stackShapes` for a stacked screen, with `deskShapes`, `meetBands` and `windowShapes`); no DOM, no module state | `glass.mjs` |
 
 ## Appendix A - re-measuring at the base
 
