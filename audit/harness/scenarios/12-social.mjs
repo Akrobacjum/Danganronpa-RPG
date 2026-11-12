@@ -378,8 +378,9 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
     /* THE ROLLER'S COPY IS THE GM'S ROLL (E29 C10, 05.10.2026; the stage plan's 3.6; the owner's Q1 (a)). Aiko's window puts
        on a bonus the GMs do not hold - p1's own configuration hook adds 5 to her roll, as a bonus field would, and lists it
        among the roll's modifiers - and she throws a statistic from her sheet, which the GM draws (roll-draw.mjs `legalRollOf`)
-       and her browser plays back (`rollerCopyOf`). Read on p1: what her browser holds of the roll (`config.roll`'s total and
-       modifiers, the message's total); on the GM: the record's total, flat sums and flags, and the roller's line; on p1 and
+       and her browser plays back (`rollerCopyOf`). Read on p1: what her browser holds of the roll (its total - on Daggerheart
+       2.12 the evaluated Roll on `config.evaluated`, whose `buildEvaluate` no longer writes a total into `config.roll`
+       (dhRoll.mjs:98-106, 2.12.8; up to 2.10 `config.roll.total`) - `config.roll`'s modifiers, the message's total); on the GM: the record's total, flat sums and flags, and the roller's line; on p1 and
        p2: whether the words of a card since the roll say that line. Until C10 her browser read the 5 in its modifiers and the
        GM counted it. */
     phase("a drawn roll's claim");
@@ -395,7 +396,7 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
         });
         try {
             const cfg = await actor.rollTrait("instinct", {});
-            return { id: cfg?.message?.id ?? null, total: cfg?.roll?.total ?? null, modifiers: (cfg?.roll?.modifiers ?? []).map(m => m?.value),
+            return { id: cfg?.message?.id ?? null, total: cfg?.evaluated?.total ?? cfg?.roll?.total ?? null, modifiers: (cfg?.roll?.modifiers ?? []).map(m => m?.value),
                 message: cfg?.message?.rolls?.[0]?.total ?? null };
         } finally { Hooks.off(game.system.id + ".postDualityRollConfiguration", hook); globalThis.__forceRoll = force; }`, { timeout: 60000 });
     await settle(400);

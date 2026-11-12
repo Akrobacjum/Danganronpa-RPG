@@ -647,8 +647,19 @@ function harnessEvaluate(daggerheart) {
  * The message, as the harness wrote it before C10 (E06 C1 and its fixes, the block comment
  * above `rollTrait`): a chat card faithful enough for despair-award.readDuality - two d12
  * dice in Hope-then-Fear order, plus the actionType the reaction guard reads.
+ *
+ * ITS ROLL WRITTEN AS FOUNDRY WRITES IT (E76b's release fix, 12.11.2026). Daggerheart's `toMessage` creates the
+ * message with `rolls: [roll]` (dhRoll.mjs:197, 2.12.8), which Foundry stores as the roll's JSON, so the roll is
+ * written to JSON here first and a roll that cannot be written throws as it would there; and the options written
+ * are the roll's own (`roll.options`), not the config's - the two are one object on a roll Daggerheart builds, and
+ * not on the GM's draw since this fix (roll-draw.mjs `throwDrawn`). Until then each key of the config was copied
+ * under a try that dropped any key JSON could not write: 2.12's `buildEvaluate` hangs the Roll on the config
+ * (`evaluated`), the GM's draw's config was the roll's options, and its JSON was circular - dropped here without a
+ * word, while a table's Foundry would have refused the message (the suite's "the GM's legal roll keeps its
+ * advantage die's class through fromData" read the throw; the 1.2.109 release's CI run 43287328954, shard 3).
  */
 async function harnessMessage(roll, config) {
+    JSON.stringify(roll);
     // The harness's own `config.actor` (E30), or - for a roll the GM drew (E08+E28 C12a), whose
     // config came over the wire without it - the character its `source.actor` names, as
     // Daggerheart's `toMessage` reads the speaker off the roll's data rather than a key of ours.
@@ -661,7 +672,7 @@ async function harnessMessage(roll, config) {
         dHope: { total: hope }, dFear: { total: fear },
         dice: [{ faces: 12, total: hope, results: [{ result: hope, active: true }] },
                { faces: 12, total: fear, results: [{ result: fear, active: true }] }],
-        options: { ...configKeys(config), title: config.title ?? "", headerTitle: config.headerTitle ?? "", source: { actor: config.source.actor },
+        options: { ...configKeys(roll.options), title: config.title ?? "", headerTitle: config.headerTitle ?? "", source: { actor: config.source.actor },
             data: config.data, effects: [...(actor?.effects?.contents ?? [])].map(e => e.toObject?.() ?? e),
             experiences: [...(config.experiences ?? [])],
             // The roll's own modifiers where its options hold them, as Daggerheart's message keeps the
@@ -1130,12 +1141,20 @@ classes.Actor.prototype.rollTrait = async function rollTrait(traitKey, options =
 /* actor.mjs `modifyResource` (lib/daggerheart.mjs): a GM writes, a player asks the GM relay (E30, G9). */
 classes.Actor.prototype.modifyResource = function (resources) { return modifyResource(this, resources); };
 
-/* The config's keys as its roll's options carry them: a JSON copy, less what the harness hangs on it. */
+/* The config's keys as its roll's options carry them: a JSON copy, less what the harness hangs on it.
+   A 2.12 MoveContext is read as its own `toJSON` gives it (move-context.mjs:237-241, 2.12.8: without the actor, item,
+   action, effects, event and `evaluated`), the view Foundry's JSON of the roll takes of its options. Read off its keys
+   instead (E76 C3c to 12.11.2026), the config's `evaluated` - the Roll 2.12's `buildEvaluate` hangs on it
+   (dhRoll.mjs:98-106) - reached the message with its own options inside, the character's uuid, the action's title and
+   the experiences among them: four suite tests of a roll's document read the character there, a key Daggerheart's own
+   `toJSON` leaves out (the 1.2.109 release's CI run 43287328954, suite shards 4-7). */
 function configKeys(config) {
     const out = {};
-    for (const [key, value] of Object.entries(config ?? {})) {
+    const view = typeof config?.toJSON === "function" ? config.toJSON() : config;
+    for (const [key, value] of Object.entries(view ?? {})) {
         if (["roll", "actor", "message"].includes(key) || value === undefined || typeof value === "function") continue;
-        try { out[key] = JSON.parse(JSON.stringify(value)); } catch { /* not JSON, so not on a message either */ }
+        // Not caught: a key JSON cannot write is a message Foundry cannot write (see `harnessMessage`).
+        out[key] = JSON.parse(JSON.stringify(value));
     }
     return out;
 }
