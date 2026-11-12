@@ -139,3 +139,18 @@ waits for E61. Open from C8: a hint after a Present in 63. E98's 60-Remnant meas
 - Round 3 (12.11.2026): https://claude.ai/artifact/XwXm4DyQ9xWQtUohqxUrvC - the trial console with the schema in its
   middle, both themes, EN and PL, 1366x768 and 1920x1080, no trial running. Not Foundry, and not yet E73's layout; at
   1366x768 the tick list starts at the fold and scrolls with the console.
+
+## Round 3b (12.11, after the owner's 11:35 note: the schema in the console where modes, Overrule and Objection run)
+
+- That console is the one window: `drpg-window-trial` (trialConsoleHtml draws the bar). No other window runs modes,
+  Overrule or Objection: `drpg-objection-pick` is a player's bullet picker, `drpg-window-objections` the GMs' log.
+- Tier 2 "E99 C5: the case schema stays in the trial console in every floor state the bar has": debate, Objection,
+  rebuttal, Testimony, Panic Round, Closing Argument, after the vote, after the verdict - all eight reached, the slot
+  in the console outside the read-out and filled in each. A guard written after the placement, not red first; the
+  first run left the Panic Round unreached (the test's 60 s a turn is out of the round's 10-15), fixed in the test.
+- **Open, a layout decision for E73 / the owner**: in a running trial the read-out (the trial, the debate with its bar,
+  Missing Key Remnants, the vote) is taller than the window at 1366x768 and at 1920x1080 in today's 704 px console, so
+  the schema under it is reached by scrolling. Tried and not committed: the read-out capped at 34vh with its own
+  scroll - the schema then shows at once, but the bar scrolls out of sight in the read-out. Both are on the round-3b
+  page. Showing read-out, bar and schema together takes a wider console or E73's mockup B.
+- Shots: https://claude.ai/artifact/XwXm4DyQ9xWQtUohqxUrvC (round 3b on top).

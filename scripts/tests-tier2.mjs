@@ -39780,6 +39780,74 @@ const SCENARIOS = [
         }
     }],
 
+    ["E99 C5: the case schema stays in the trial console in every floor state the bar has - a debate, an Objection and its rebuttal, a round, the closing, after the vote and after the verdict", async () => {
+        /*
+         * E99 C5 placed (12.11.2026; the owner's 11:35 note through the coordinator: the schema belongs in the console
+         * where modes, Overrule and Objection are run). The console is opened in a running Class Trial with a debate,
+         * then the floor is walked through each state the bar has, as the primary writes them (trial-floor.mjs
+         * floorStep, openObjection, openRebuttal; the record's voteClosed and verdictApplied); in each state the console
+         * holds the slot outside its read-out, filled with the planted deduction's tick box. A round opens only with
+         * participants (vote.mjs trialParticipants) and at seconds in its range; a state that did not open fails the test.
+         * Written after the placement (afeeb68): a guard, not red first.
+         */
+        const floorMod = await import("./trial-floor.mjs");
+        const ui2 = await import("./trial-floor-ui.mjs");
+        const S = await import("./case-schema.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        needs(env.dialogs(), "the console is read in its drawn window");
+        const [a, b] = cast(2);
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting("trialProgress") ?? {});
+        const chapter = clock.chapter;
+        const id = "deduction-suitee99states";
+        const consoleApp = () => [...foundry.applications.instances.values()]
+            .find(app => app.rendered && app.options?.classes?.includes("drpg-window-trial"));
+        const read = async () => {
+            await settle();
+            await until(() => consoleApp()?.element?.querySelector(`[data-drpg-trial-schema] input[data-drpg-case-tick="${id}"]`), 4000).catch(() => {});
+            const el = consoleApp()?.element;
+            const slot = el?.querySelector("[data-drpg-trial-schema]");
+            return { open: Boolean(el), slot: Boolean(slot), outside: Boolean(slot) && !slot.closest(".drpg-trial-console"),
+                box: Boolean(slot?.querySelector(`input[data-drpg-case-tick="${id}"]`)), bar: Boolean(el?.querySelector(".drpg-trial-console [data-drpg-bar], .drpg-trial-console .drpg-trial-bar")) };
+        };
+        const seen = {}, notReached = [];
+        try {
+            await S.setCaseNode(chapter, id, { kind: "deduction", label: "SUITE E99 STATES" });
+            await gmStoresIdle();
+            await setClock({ ...clock, phase: "classTrial" });
+            await floorMod.startFloor({ seconds: 180 });
+            ui2.manageClassTrial().catch(() => {});
+            await until(() => consoleApp()?.element, 6000);
+            seen.debate = await read();
+            if (await floorMod.openObjection(a.id, b.id)) seen.objection = await read(); else notReached.push("objection");
+            if (await floorMod.openRebuttal()) seen.rebuttal = await read(); else notReached.push("rebuttal");
+            await floorMod.endFloor();
+            // Each round at seconds in its range (Testimony 30-120, Panic Round 10-15): out of it the machine opens nothing.
+            for (const [mode, seconds] of [["testimony", 60], ["panic", 15]]) {
+                if (await floorMod.floorStep(mode, { seconds })) seen[mode] = await read(); else notReached.push(mode);
+                await floorMod.endFloor();
+            }
+            if (await floorMod.floorStep("closing")) seen.closing = await read(); else notReached.push("closing");
+            await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, "trialProgress", { ...progress, voteClosed: true });
+            seen.vote = await read();
+            await game.settings.set(MODULE_ID, "trialProgress", { ...progress, voteClosed: true, verdictApplied: true });
+            seen.verdict = await read();
+        } finally {
+            closeOpen("drpg-window-trial");
+            await floorMod.endFloor().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, "trialProgress", progress);
+            await setClock(clock);
+            await S.dropCaseNode(chapter, id).catch(() => {});
+            await settle();
+        }
+        equal(JSON.stringify(notReached), "[]", "a floor state the walk did not reach - its console was not read");
+        const bad = Object.entries(seen).filter(([, r]) => !(r.open && r.slot && r.outside && r.box)).map(([state, r]) => `${state}: ${JSON.stringify(r)}`);
+        equal(JSON.stringify(bad), "[]", `a floor state where the console lost the schema (reached: ${Object.keys(seen).join(", ")}; not reached: ${notReached.join(", ") || "none"})`);
+    }],
+
     ["the trial console hears a ballot land", async () => {
         /*
          * F8's second half. With NO floor open the one-second tick returns early, so

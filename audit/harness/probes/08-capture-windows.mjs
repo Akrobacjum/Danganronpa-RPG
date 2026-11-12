@@ -143,6 +143,23 @@ const SEED_TRIAL = SEED_CASE + `
     await CS.setCaseTick(globalThis.__probe08case.ch, "probe08-d1", true);`;
 const DROP_TRIAL = `await (await import(\`\${repoUrl}/scripts/case-schema.mjs\`)).setCaseTick(globalThis.__probe08case.ch, "probe08-d1", false);
     ` + DROP_CASE;
+/* E99 C5 placed, round 3b: the console in a running Class Trial - a debate's floor (the bar), then an Objection on it -
+   over the same case; the clock, the floor and the record put back after. */
+const RUN_TRIAL = `globalThis.__probe08trial = { clock: foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "clock")),
+        queue: foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "trialQueue") ?? {}),
+        progress: foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "trialProgress") ?? {}) };
+    await game.drpg.setClock({ phase: "classTrial" });
+    await game.drpg.startFloor();`;
+const OBJECT = `const F = await import(\`\${repoUrl}/scripts/trial-floor.mjs\`);
+    const two = game.actors.filter(a => a.type === "character" && a.hasPlayerOwner).slice(0, 2);
+    if (two.length === 2) await F.openObjection(two[0].id, two[1].id);`;
+const STOP_TRIAL = `const F = await import(\`\${repoUrl}/scripts/trial-floor.mjs\`);
+    await F.endFloor().catch(() => {});
+    const t = globalThis.__probe08trial;
+    if (t) { await game.settings.set("danganronpa-rpg", "trialQueue", t.queue); await game.settings.set("danganronpa-rpg", "trialProgress", t.progress);
+        await game.settings.set("danganronpa-rpg", "clock", t.clock); }
+    delete globalThis.__probe08trial;
+    `;
 export const WINDOWS = [
     ...ROOM_TABS.map(tab => ({ id: `rooms-${tab}`, module: "room-setup.mjs", call: `m.openRoomSetupDialog({ tab: ${JSON.stringify(tab)} })`, perTab: false })),
     // E49 A5: Passages with four rows seeded (the header's SEEDED).
@@ -162,6 +179,8 @@ export const WINDOWS = [
     { id: "class-trial", module: "trial-floor-ui.mjs", call: "m.manageClassTrial()" },
     // E99 C5 placed: the console with the case schema in its middle (the same seeded case as case-trial's).
     { id: "class-trial--case", module: "trial-floor-ui.mjs", before: SEED_TRIAL, after: DROP_TRIAL, call: "m.manageClassTrial()" },
+    { id: "class-trial--case-debate", module: "trial-floor-ui.mjs", before: SEED_TRIAL + "\n    " + RUN_TRIAL, after: STOP_TRIAL + DROP_TRIAL, call: "m.manageClassTrial()" },
+    { id: "class-trial--case-objection", module: "trial-floor-ui.mjs", before: SEED_TRIAL + "\n    " + RUN_TRIAL + "\n    " + OBJECT, after: STOP_TRIAL + DROP_TRIAL, call: "m.manageClassTrial()" },
     // E21 C4: the trial's questions a GM opens with no world state (M13's Reveal with a row of its own, End the trial with
     // no hall, the vote window before a vote); Your turn and I volunteer open only on a round's speaker's own browser.
     { id: "reveal-confirm", module: "trial-floor-ui.mjs", call: "m.confirmReveal({ id: \"probe08\", name: \"The torn ticket\", text: \"\" }, { left: 0 })" },
