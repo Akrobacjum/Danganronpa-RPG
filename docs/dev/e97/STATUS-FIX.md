@@ -114,3 +114,16 @@ Screenshots: in the session's scratchpad only, not in git.
   another number.
 - `.claude/rules/code.md`'s file table has no row for case-view.mjs (nor for case-schema/layout/map, as STATUS.md
   says); `.claude/` is not this line's to edit.
+
+### CI
+
+- **Run 484 on 0db8dca9** (every code change of this line): all 21 jobs green - lint, check, gate; suite shards 1-8;
+  scenario buckets b1-b8 (61-gmstore-case in b1, 62-investigation in b6); `verdict` green, with "The shards together
+  are the whole suite (INFRA I2)" and "Every job green". GitHub lists the run's conclusion as "cancelled" (11:58 UTC),
+  after verdict had passed; this line did not cancel it.
+- **Runs 485 (db3ef6ac) and 489 (1cb13422)**, which add only this file: cancelled around 12:00 UTC while queued, not
+  by this line. The push carrying this section starts a run on the new head; its result is reported to the coordinator
+  by message.
+- Review page for the owner (private): https://claude.ai/artifact/DgkveodkL1U2xhqE1ELyQG - 40 shots of the sweep's
+  captures (Map closed, a node open, the long Remnant whole, Fit to view, + twice), PL/EN, both themes, both sizes,
+  Polish captions.
