@@ -358,3 +358,13 @@ R3659-R3662 take the 1.2.107 line's tests. Every mention in this file was moved 
 | Q-E99-12 | no count of what was not found | as proposed (R3671) |
 | Q-E99-13 | a hint after presentations by E98's rule | as proposed (R3674, R3675) |
 | C7 | a `showSummary` next step before the chapter's end, and a `summaryShown` record row | the record row built (above). The next step not built: it changes the one table three readers share (trial-floor.mjs `TRIAL_NEXT_STEPS`: R2050's 31 views and its step count, R2051's panel line, R1364's footer primary, the console's leads, two texts) and needs a Final Trial flag `trialStepView` does not carry - not small. After the verdict the next step stays End of chapter; Show summary is a secondary button beside it. Left for the owner or a later stage |
+
+## Round 6's local checks (aa4a8f6, 61d9d9c, a3e77af)
+
+- Quick gate green (lint, check 17/17, gate 37/37) on a3e77af; the first run read the contract red on a `split(".")[1]`
+  in R190's new fixture (rule 3), rewritten in a3e77af - R156 and R190 by name green after it.
+- Tiers 0-1: 1251 passed, 1 failed (R156, that same line; green on a3e77af), 16 skipped, 0 red.
+- Tier 2 by name ("E99", "E97", "E73", "E21"): 94 passed, 0 failed.
+- Scenarios, 0 failed in each: 63 75/75 (the summary once a trial, the record's time), 72 132/136 with its 4 expected
+  red, 41 51/51, 50 44/44, 62 51/51, 67 45/46 with 1 expected red (TR30 until E72), 68 20/20, 86 104/104, 88 26/26.
+- The sweep: 48 pages, 0 failing (the 1366x768 numbers in round 6's table).
