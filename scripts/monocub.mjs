@@ -41,7 +41,7 @@
  * `appendArmedCall` sends it there.
  */
 
-import { MODULE_ID, FLAGS, MONOCUB, ACTIONS_RESOURCE } from "./config.mjs";
+import { MODULE_ID, FLAGS, MONOCUB, ACTIONS_RESOURCE, HOPE_CALLS } from "./config.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { isDeceased, isDeadForGm } from "./chapter.mjs";
 import { isMonokuma } from "./monokuma.mjs";
@@ -215,7 +215,9 @@ export function cubsFor(userId) {
         stamps[actor.id] = cubStore.newest(actor.id);
         const row = cubStore.get(actor.id);
         if (row) cubs[actor.id] = { witness: row.witness ?? null, redeemDay: row.redeemDay ?? null, askOpen: Boolean(row.askOpen), invited: Boolean(row.invite),
-            purse: Math.max(0, Math.trunc(Number(row.purse) || 0)) };
+            purse: Math.max(0, Math.trunc(Number(row.purse) || 0)),
+            // The Bribes offered to this Monocub (E72 C15): the payer's name and the price, for its player's answer.
+            bribes: row.bribes ? Object.fromEntries(Object.entries(row.bribes).map(([id, b]) => [id, { fromName: b?.fromName ?? "", cost: b?.cost ?? 0 }])) : null };
     }
     return { cubs, stamps };
 }
@@ -260,20 +262,35 @@ export async function receiveCubs(cubs, stamps) {
     for (const [actorId, stamp] of Object.entries(stamps ?? {})) {
         if (!game.actors.get(actorId)?.isOwner) continue;
         own[actorId] = Number(stamp) || 0;
-        const row = cubs?.[actorId];
-        if (row && typeof row === "object") {
-            const day = row.redeemDay && typeof row.redeemDay === "object" && Number.isInteger(row.redeemDay.day)
-                ? { chapter: row.redeemDay.chapter ?? null, epoch: row.redeemDay.epoch ?? null, day: row.redeemDay.day } : null;
-            mine[actorId] = { witness: witnessShape(row.witness), redeemDay: day, askOpen: row.askOpen === true, invited: row.invited === true };
-        }
+        const row = copyRowOf(cubs?.[actorId]);
+        if (row) mine[actorId] = row;
     }
     const taken = await cubCopy.receive(mine, own);
-    // An invitation the copy now holds opens its window on the owner's browser (E72 C6), once per invitation here.
+    // An invitation the copy now holds opens its window on the owner's browser (E72 C6), once per invitation here;
+    // so does each Bribe offered to the Monocub (E72 C15), once per offer.
     for (const [actorId, row] of Object.entries(cubCopy.read() ?? {})) {
         if (row?.invited) openInvitation(game.actors.get(actorId));
         else invitationsShown.delete(actorId);
+        for (const [bribeId, offer] of Object.entries(row?.bribes ?? {})) openBribeOffer(game.actors.get(actorId), bribeId, offer);
     }
     return taken;
+}
+
+/**
+ * A row of the GMs' copy as the owner keeps it, each field held to its shape (E72 C2; the purse C14, the open Bribes
+ * C15), or null for no row. Exported for the suite: the owner's side is a player's browser, which tier 2 does not run.
+ */
+export function copyRowOf(row) {
+    if (!row || typeof row !== "object") return null;
+    const day = row.redeemDay && typeof row.redeemDay === "object" && Number.isInteger(row.redeemDay.day)
+        ? { chapter: row.redeemDay.chapter ?? null, epoch: row.redeemDay.epoch ?? null, day: row.redeemDay.day } : null;
+    const bribes = {};
+    for (const [id, offer] of Object.entries(row.bribes && typeof row.bribes === "object" ? row.bribes : {})) {
+        if (typeof id !== "string" || !offer || typeof offer !== "object") continue;
+        bribes[id] = { fromName: String(offer.fromName ?? ""), cost: Math.max(0, Math.trunc(Number(offer.cost) || 0)) };
+    }
+    return { witness: witnessShape(row.witness), redeemDay: day, askOpen: row.askOpen === true, invited: row.invited === true,
+        purse: Math.max(0, Math.trunc(Number(row.purse) || 0)), bribes: Object.keys(bribes).length ? bribes : null };
 }
 
 /** Owner: ask the primary for this user's rows. */
@@ -1333,6 +1350,163 @@ export async function answerHopeAsk(actor, n) {
     await patchCubRow(actor.id, { askOpen: null });
     await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Monocub.askNotNowTold")}</p>`, { veiled: true });
     return game.i18n.format("DRPG.Monocub.askDeclined", { name: game.user.name });
+}
+
+/** A living student offers `cub` a Bribe (calls.mjs `spendHopeCall`): the GM's on a GM's browser, else `bribe.offer`. */
+export async function offerBribe(actor, cub) {
+    if (!actor || !cub) return null;
+    if (game.user?.isGM) return offerBribeOnGm({ actorId: actor.id, cubId: cub.id }, game.user);
+    const { requestBribeOffer } = await import("./gm-bridge.mjs");
+    const res = await requestBribeOffer({ actorId: actor.id, cubId: cub.id });
+    return res.ok ? (res.value ?? null) : null;
+}
+
+/** The offers whose window this browser opened, so a copy received again does not open a second. */
+const bribesShown = new Set();
+
+/**
+ * A Bribe's window on the Monocub's player's browser (E72 C15): who offers, the price, Accept or Refuse ("Odrzuć", the
+ * one place the glossary keeps it). No side, colour or title (DC39): the kit's plain window. Closed with no answer, the
+ * offer stays open until the time of day turns.
+ */
+export async function openBribeOffer(actor, bribeId, offer) {
+    if (!actor || game.user?.isGM || !actor.isOwner || bribesShown.has(bribeId)) return null;
+    bribesShown.add(bribeId);
+    const esc = foundry.utils.escapeHTML;
+    const answer = await drpgWindow({
+        title: game.i18n.localize("DRPG.Monocub.bribeTitle"),
+        classes: ["drpg-panel", "drpg-cub-bribe"],
+        body: `<p>${esc(game.i18n.format("DRPG.Monocub.bribeAsk", { name: offer?.fromName ?? "?", cost: offer?.cost ?? 0, cub: actor.name }))}</p>`,
+        footer: {
+            primary: { action: "accept", label: game.i18n.localize("DRPG.Monocub.bribeAccept"), callback: () => "accept" },
+            secondary: [{ action: "refuse", label: game.i18n.localize("DRPG.Monocub.bribeRefuse"), callback: () => "refuse" }]
+        },
+        rejectClose: false
+    });
+    if (answer !== "accept" && answer !== "refuse") {
+        bribesShown.delete(bribeId);
+        return null;
+    }
+    const { requestBribeAnswer } = await import("./gm-bridge.mjs");
+    const res = await requestBribeAnswer({ cubId: actor.id, bribeId, accept: answer === "accept" });
+    return res.ok ? res.value ?? null : null;
+}
+
+/*
+ * A BRIBE (E72 C15, 12.11.2026; the owner's DC25, DC26, DC39: "secret between student and Monocub; no sides, colours
+ * or titles"). A living student's Hope Call (config.mjs HOPE_CALLS.bribe) offers a Monocub its price for a favour the
+ * two agree between them. The offer waits in the Monocub's row (`cubStore`'s `bribes`, `{ id: { from, fromName, cost,
+ * at } }`), which its owner's copy carries and nobody else's, and is paid only on the Monocub's player's yes, on the GM in
+ * one step under the Monocub's key: the payer's Hope down (reason "call"), the Monocub's purse up (`addToPurse`, C14). A
+ * no, a payer who can no longer pay, a purse with no room or the darkening close it unpaid; what is still open lapses at
+ * the next time of day (`settleBribes`, clock.mjs). One open offer a pair. Every card is veiled and goes to the two
+ * players alone (`whisperToOwner`); the world's data keeps only the payer's Hope drop. Defaults, owner may revise: the
+ * price 1 Hope, any Monocub at the table, the lapse at the next time of day.
+ */
+
+/** Why `payer` may not offer `cub` a Bribe now, or null: a living student and a Monocub, each a character of its own. */
+async function bribeRefusal(payer, cub, sender) {
+    if (!payer || payer.type !== "character") return "the payer is not a character";
+    if (sender && !sender.isGM && !payer.testUserPermission(sender, "OWNER")) return "the sender does not own the payer";
+    if (isMonocub(payer) || isDeadForGm(payer) || isMonokuma(payer)) return "only a living student offers a Bribe";
+    if (!cub || !isMonocub(cub) || cub.id === payer.id) return "the Bribe's Monocub is not one";
+    const { callBarred } = await import("./calls.mjs");
+    if (await callBarred(payer)) return "no Call can be made now";
+    return null;
+}
+
+/** The price of a Bribe: its Call's. */
+function bribeCost() {
+    return Math.max(1, Math.trunc(Number(HOPE_CALLS.bribe?.cost) || 1));
+}
+
+/** GM: `payer` offers `cub` a Bribe (`bribe.offer`, or a GM's own). Answers `{ bribeId }`, or null when refused. */
+export async function offerBribeOnGm({ actorId, cubId } = {}, sender = null) {
+    if (!game.user?.isGM) return null;
+    return serialWrite(`drpg-bribe:${cubId}`, async () => {
+        const payer = game.actors.get(actorId), cub = game.actors.get(cubId);
+        const why = await bribeRefusal(payer, cub, sender);
+        const cost = bribeCost();
+        const open = cub ? (cubRowOf(cub)?.bribes ?? {}) : {};
+        const refused = why ?? (Object.values(open).some(b => b?.from === payer.id) ? "an offer of this pair is still open"
+            : resourceValue(payer, "hope") < cost ? "the payer has not the Hope for it" : null);
+        if (refused) {
+            warn(`Refused a Bribe of ${payer?.name ?? actorId} to ${cub?.name ?? cubId}: ${refused}.`);
+            return null;
+        }
+        const bribeId = foundry.utils.randomID();
+        await patchCubRow(cub.id, { bribes: { ...open, [bribeId]: { from: payer.id, fromName: payer.name, cost, at: serverNow() } } });
+        const esc = foundry.utils.escapeHTML;
+        await whisperToOwner(payer, `<p>${esc(game.i18n.format("DRPG.Monocub.bribeOffered", { name: cub.name, cost }))}</p>`, { veiled: true });
+        await whisperToOwner(cub, `<p>${esc(game.i18n.format("DRPG.Monocub.bribeOfferedCub", { name: payer.name, cost }))}</p>`, { veiled: true });
+        log(`${payer.name} offered the Monocub ${cub.name} a Bribe of ${cost} Hope.`);
+        return { bribeId };
+    });
+}
+
+/** GM: the Monocub's player answers a Bribe (`bribe.answer`). Answers `{ accepted }`, or null for no such offer or sender. */
+export async function answerBribeOnGm({ cubId, bribeId, accept } = {}, sender = null) {
+    if (!game.user?.isGM) return null;
+    return serialWrite(`drpg-bribe:${cubId}`, async () => {
+        const cub = game.actors.get(cubId);
+        const open = cub ? { ...(cubRowOf(cub)?.bribes ?? {}) } : {};
+        const offer = open[bribeId];
+        if (!cub || !offer) return null;
+        if (sender && !sender.isGM && !cub.testUserPermission(sender, "OWNER")) return null;
+        delete open[bribeId];
+        await patchCubRow(cub.id, { bribes: Object.keys(open).length ? open : null });
+        const payer = game.actors.get(offer.from);
+        const esc = foundry.utils.escapeHTML;
+        const tell = async key => {
+            if (payer) await whisperToOwner(payer, `<p>${esc(game.i18n.format(`DRPG.Monocub.${key}`, { name: cub.name, cost: offer.cost }))}</p>`, { veiled: true });
+        };
+        if (!accept) {
+            await tell("bribeRefused");
+            log(`The Monocub ${cub.name} refused ${offer.fromName}'s Bribe.`);
+            return { accepted: false };
+        }
+        const { overflowBlocksHope } = await import("./overflow.mjs");
+        const room = resourceMax(cub, "hope") - cubHopeTotal(cub);
+        const unpaid = !payer || isDeadForGm(payer) ? "the payer is gone"
+            : resourceValue(payer, "hope") < offer.cost ? "the payer has not the Hope for it"
+                : overflowBlocksHope() ? "the darkening blocks Hope" : room < offer.cost ? "the Monocub's Hope is full" : null;
+        if (unpaid) {
+            warn(`A Bribe of ${offer.fromName} to ${cub.name} was closed unpaid: ${unpaid}.`);
+            await tell("bribeUnpaid");
+            await whisperToOwner(cub, `<p>${esc(game.i18n.format("DRPG.Monocub.bribeUnpaidCub", { name: offer.fromName }))}</p>`, { veiled: true });
+            return { accepted: false };
+        }
+        await trustedWrite(payer, { "system.resources.hope.value": resourceValue(payer, "hope") - offer.cost }, { reason: "call" });
+        await addToPurse(cub, offer.cost);
+        await tell("bribeAccepted");
+        await whisperToOwner(cub, `<p>${esc(game.i18n.format("DRPG.Monocub.bribeAcceptedCub", { name: payer.name, cost: offer.cost }))}</p>`, { veiled: true });
+        log(`The Monocub ${cub.name} accepted ${payer.name}'s Bribe: ${offer.cost} Hope into its purse.`);
+        return { accepted: true };
+    });
+}
+
+/** GM: every Bribe still open lapses, unpaid, its payer told (each time of day, clock.mjs). Answers how many lapsed. */
+export async function settleBribes() {
+    if (!game.user?.isGM) return 0;
+    let lapsed = 0;
+    for (const [cubId, row] of Object.entries(cubStore.entries() ?? {})) {
+        if (!Object.keys(row?.bribes ?? {}).length) continue;
+        await serialWrite(`drpg-bribe:${cubId}`, async () => {
+            const now = cubStore.get(cubId)?.bribes ?? {};
+            if (!Object.keys(now).length) return;
+            await patchCubRow(cubId, { bribes: null });
+            const cub = game.actors.get(cubId);
+            for (const offer of Object.values(now)) {
+                lapsed += 1;
+                const payer = game.actors.get(offer?.from);
+                if (payer) {
+                    await whisperToOwner(payer, `<p>${foundry.utils.escapeHTML(game.i18n.format("DRPG.Monocub.bribeLapsed", { name: cub?.name ?? "?" }))}</p>`, { veiled: true });
+                }
+            }
+        });
+    }
+    if (lapsed) log(`${lapsed} Bribe(s) lapsed unanswered at the turn of the time of day.`);
+    return lapsed;
 }
 
 /**

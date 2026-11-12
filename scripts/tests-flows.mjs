@@ -226,6 +226,10 @@ export const FLOWS = Object.freeze([
     // 30-security sends the packet from consoles.
     { id: "monocub-invite", what: "A dead student's player answers the GMs' invitation to become a Monocub",
         entry: { bridge: ["monocub.answer"] }, scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E72" },
+    // E72 C15 (12.11.2026): a living student's Bribe to a Monocub, offered and answered as `bribe.offer` and `bribe.answer`;
+    // tier 2 judges both on the GM, and no scenario drives the two windows yet.
+    { id: "monocub-bribe", what: "A living student offers a Monocub a Bribe, which its player accepts or refuses",
+        entry: { bridge: ["bribe.offer", "bribe.answer"] }, scenarios: [], status: "partial", stage: "E72" },
     { id: "monocub-meddle", what: "A Monocub meddles: asked on the player's side, applied by the GM",
     // E72 C2 (12.11.2026): the Monocubs' record (gm-stores.mjs `cubStore`, the crime witness's mark) is the GMs' with its
     // owner's copy, whose ask and answer are monocub.mjs's socket (`registerCubCopy`).

@@ -17644,6 +17644,76 @@ const SCENARIOS = [
             "the Redeem card is not drawn for the Monocub's player alone while Redeem is free ([kind, names the Monocub] for its player, a GM, used today, the Hope full)");
     }],
 
+    ["a Bribe is offered to a Monocub and paid only on its yes, from the payer's Hope into the Monocub's purse, one open offer a pair, refused offers and lapsed ones costing nothing (E72 C15)", async () => {
+        /*
+         * E72 C15, 12.11.2026; the owner's DC25, DC26, DC39 (defaults, owner may revise: 1 Hope, any Monocub, lapsing at the
+         * next time of day). A living student's Hope Call Bribe (config.mjs HOPE_CALLS.bribe) offers a Monocub its price; the
+         * offer waits in the Monocub's row (gm-stores.mjs `cubStore`'s `bribes`, which its owner's copy carries), and is
+         * paid only when the Monocub's player accepts it, on the primary in one step: the payer's Hope down, the
+         * Monocub's purse up (monocub.mjs `offerBribeOnGm`, `answerBribeOnGm`); `settleBribes` lapses what is open at
+         * each time of day. A payer with 3 Hope and a Monocub with none, each with its player. Read, after each step:
+         * the answer, the payer's Hope, the Monocub's purse, the offers open. Red at f1ee74a: no Bribe.
+         */
+        needs(world.atLeast("playerAccounts", 2), "the payer's player and the Monocub's player");
+        const owned = a => game.users.find(u => !u.isGM && a.testUserPermission(u, "OWNER"));
+        const [payer, cub] = cast(2);
+        needs(world.ownedByPlayer(payer), "the payer's player");
+        needs(world.ownedByPlayer(cub), "the Monocub's player");
+        const M = await import("./monocub.mjs");
+        const { HOPE_CALLS } = await import("./config.mjs");
+        const { cubStore } = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const hadHope = [payer.system.resources.hope.value, cub.system.resources.hope.value];
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const read = {};
+        try {
+            ok(Boolean(HOPE_CALLS.bribe) && typeof M.offerBribeOnGm === "function" && typeof M.answerBribeOnGm === "function"
+                && typeof M.settleBribes === "function", "no Bribe: HOPE_CALLS.bribe, monocub.mjs offerBribeOnGm, answerBribeOnGm or settleBribes is missing (E72 C15)");
+            if (!HOPE_CALLS.bribe || typeof M.offerBribeOnGm !== "function") return;
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await trustedWrite(payer, { "system.resources.hope.value": 3 }, { reason: "gmRuling" });
+            await trustedWrite(cub, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            await settle();
+            const [payerUser, cubUser] = [owned(payer), owned(cub)];
+            const state = () => [payer.system.resources.hope.value, M.purseOf(cub), Object.keys(cubStore.get(cub.id)?.bribes ?? {}).length];
+            const offer = async () => M.offerBribeOnGm({ actorId: payer.id, cubId: cub.id }, payerUser);
+            const answer = async (bribeId, accept, by = cubUser) => M.answerBribeOnGm({ cubId: cub.id, bribeId, accept }, by);
+            const first = await offer();
+            read.offered = [Boolean(first?.bribeId), ...state()];
+            // The offer reaches the Monocub's player's copy, the payer's name and the price, and no copy of the payer's.
+            read.copy = [stableJson(M.copyRowOf(M.cubsFor(cubUser.id).cubs[cub.id])?.bribes ?? null)
+                === stableJson({ [first?.bribeId]: { fromName: payer.name, cost: 1 } }), M.cubsFor(payerUser.id).cubs[cub.id] ?? null];
+            read.again = [Boolean((await offer())?.bribeId), ...state()];
+            read.byPayer = [Boolean((await answer(first?.bribeId, true, payerUser))?.accepted), ...state()];
+            read.accepted = [Boolean((await answer(first?.bribeId, true))?.accepted), ...state()];
+            read.twice = [Boolean((await answer(first?.bribeId, true))?.accepted), ...state()];
+            const second = await offer();
+            read.refused = [(await answer(second?.bribeId, false))?.accepted ?? null, ...state()];
+            await offer();
+            read.lapsed = [await M.settleBribes(), ...state()];
+            read.notCub = Boolean((await M.offerBribeOnGm({ actorId: cub.id, cubId: payer.id }, cubUser))?.bribeId);
+            // An offer needs the price when it is made; one the payer can no longer pay when it is accepted closes unpaid.
+            await trustedWrite(payer, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            read.broke = Boolean((await offer())?.bribeId);
+            await trustedWrite(payer, { "system.resources.hope.value": 1 }, { reason: "gmRuling" });
+            const poor = await offer();
+            await trustedWrite(payer, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            read.poor = [Boolean(poor?.bribeId), Boolean((await answer(poor?.bribeId, true))?.accepted), ...state()];
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await trustedWrite(payer, { "system.resources.hope.value": hadHope[0] }, { reason: "gmRuling" });
+            await trustedWrite(cub, { "system.resources.hope.value": hadHope[1] }, { reason: "gmRuling" });
+            if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            if (rowWas) await cubStore.patch(cub.id, rowWas);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            offered: [true, 3, 0, 1], copy: [true, null], again: [false, 3, 0, 1], byPayer: [false, 3, 0, 1], accepted: [true, 2, 1, 0], twice: [false, 2, 1, 0],
+            refused: [false, 2, 1, 0], lapsed: [1, 2, 1, 0], notCub: false, broke: false, poor: [true, false, 0, 1, 0]
+        }), "a Bribe is not offered, paid or closed as DC25/DC26 ask ({each step: [its answer], the payer's Hope, the Monocub's purse, the offers open})");
+    }],
+
     ["a Monocub's purse is spent before its sheet, counts toward the Hope limit, is given back where it was paid from and is sent to its owner (E72 C14)", async () => {
         /*
          * E72 C14, 12.11.2026; the owner's DC37. A Monocub's Hope is its sheet's and its purse's (the GMs' row, `cubStore`'s
@@ -17686,7 +17756,8 @@ const SCENARIOS = [
             await cubStore.patch(cub.id, { purse: 0 });
             read.added = [await M.addToPurse(cub, 3), ...where(), M.cubHopeTotal(cub) === max];
             read.full = M.cubBlockSaid(cub, MONOCUB.abilities.redeem);
-            read.copy = M.cubsFor(player.id).cubs[cub.id]?.purse ?? null;
+            // As the owner keeps it (`copyRowOf`, the player's side): until C15 that side dropped the purse.
+            read.copy = typeof M.copyRowOf === "function" ? M.copyRowOf(M.cubsFor(player.id).cubs[cub.id])?.purse ?? null : null;
         } finally {
             await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
             await trustedWrite(cub, { "system.resources.hope.value": was }, { reason: "gmRuling" });

@@ -8040,7 +8040,8 @@ const REGRESSIONS = [
         const blocks = bodyOf(src, "export const CUB_BLOCKS", { until: "\n});\n" });
         equal(JSON.stringify([[...readers].sort(), /resourceValue\([^)]*"hope"\)|resources\.hope\b/.test(blocks)]),
             // setMonocub writes the sheet's Hope to 0 at the start (a Monocub starts clean, E15 C4), a write and no threshold.
-            JSON.stringify([["cubHopeTotal", "redeemHope", "refundCubHope", "setMonocub", "spendCubHope"], false]),
+            // offerBribeOnGm and answerBribeOnGm read the payer's Hope, a living student's (E72 C15), and no Monocub's.
+            JSON.stringify([["answerBribeOnGm", "cubHopeTotal", "offerBribeOnGm", "redeemHope", "refundCubHope", "setMonocub", "spendCubHope"], false]),
             "a Monocub threshold reads the sheet's Hope alone ([the functions of monocub.mjs that read it, CUB_BLOCKS reads it])");
     }],
 
@@ -18955,7 +18956,10 @@ const REGRESSIONS = [
                 // E72 C5: Ask for Hope's Give and its settled line, a count before Hope.
                 "Monocub.askGive", "Monocub.askGiven",
                 // E72 C14: the purse's line and its tooltip, a count before Hope.
-                "Monocub.purseLine", "Monocub.purseTip"
+                "Monocub.purseLine", "Monocub.purseTip",
+                // E72 C15: a Bribe's price, a count before Hope.
+                "Monocub.bribeAccepted", "Monocub.bribeAcceptedCub", "Monocub.bribeAsk", "Monocub.bribeOffered", "Monocub.bribeOfferedCub",
+                "Config.HOPE_CALLS.bribe.effect"
             ].map(key => [key, "U"]),
             ...[
                 "Floor.bar.minusSeconds", "Floor.bar.plusSeconds", "Floor.closing.gmVolunteers", "Floor.gmNoteAdjust",
@@ -18998,7 +19002,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 56, S: 25, R: 26, D: 1, P: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 62, S: 25, R: 26, D: 1, P: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");
@@ -19315,7 +19319,8 @@ const REGRESSIONS = [
                     "Zakończ incydent. Próg to pozostałe Health ofiary razy 7, więc gdy ofiara nie ma już Health, wynosi 0. Trafienie z Despair zostawia Evident Remnant, a krytyk sprawia, że twoja pierwsza próba sprzątania nie kosztuje Sanity.", "Żyjecie w zamkniętym miejscu. 5 akcji na porę dnia.",
                     "Dodaj nowe doświadczenie warte +3"]
             },
-            calls: [], callCount: 7,
+            // 8 since E72 C15: Bribe's "{cost} Hope".
+            calls: [], callCount: 8,
             planted: ["a {nope} b", "T", ""],
             digits: { read: true, flagged: [], stale: [] },
             words: { flagged: [], stale: [] },

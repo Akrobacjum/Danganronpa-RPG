@@ -2299,6 +2299,17 @@ export const HOPE_CALLS = {
         effect: "For your next roll, a random one of the two dice is set to 12 and the other is thrown. A 12 on the "
             + "thrown die makes a critical; otherwise the roll is with Hope if the Hope die was set, with Despair if "
             + "not."
+    },
+    /*
+     * BRIBE (E72 C15, 12.11.2026; the owner's DC25, DC26, DC39; the inventory's row 74). Not a grant: an offer to a
+     * Monocub, paid into its purse only on its yes (monocub.mjs `offerBribeOnGm`, `answerBribeOnGm`; calls.mjs
+     * `spendHopeCall` hands it there before anything is paid). Secret between the two: no public card. The price is a
+     * default, owner may revise.
+     */
+    bribe: {
+        label: "Bribe", icon: "fa-money-bills", cost: 1, target: "monocub", bribe: true,
+        effect: "Offer a Monocub {cost} Hope for a favour you agree between you. You pay only if they accept; nobody else "
+            + "is told."
     }
 };
 

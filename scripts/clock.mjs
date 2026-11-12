@@ -650,6 +650,8 @@ async function applyTimeOfDayChange(clock, {
 
     // "Behind Closed Doors" seals a room for one time of day.
     await import("./call-effects.mjs").then(m => m.clearSeals()).catch(() => {});
+    // A Bribe still unanswered lapses, unpaid, at the turn (E72 C15; monocub.mjs `settleBribes`).
+    await import("./monocub.mjs").then(m => m.settleBribes()).catch(err => warn("Could not lapse the open Bribes", err));
 
     /*
      * ONE TIME OF DAY OFF MONOKUMA'S DEADLINE.

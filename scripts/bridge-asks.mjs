@@ -33,7 +33,7 @@ import {
     ACTION_SHARE_BULLET, ACTION_GIVE_ITEM, ACTION_PASSAGE_SHARE, ACTION_PASSAGE_CROSS, ACTION_PASSAGE_FIND,
     ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT, ACTION_FRISK_UNSEEN,
     ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS, ACTION_OPENING_RESULT, ACTION_CLEANUP,
-    ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_DONE, ACTION_LOOT, ACTION_NOTE_SAVE,
+    ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_DONE, ACTION_LOOT, ACTION_NOTE_SAVE,
     ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM
 } from "./bridge-wire.mjs";
 import { ask } from "./bridge-table.mjs";
@@ -941,6 +941,20 @@ export function requestBetrayal({ actorId, note = "", proposed = null }) {
 export function requestCubAnswer({ actorId, accept }) {
     return ask(ACTION_CUB_ANSWER, { actorId, accept: Boolean(accept) }, {
         local: () => import("./monocub.mjs").then(m => m.answerMonocubOffer({ actorId, accept: Boolean(accept) }, game.user))
+    });
+}
+
+/** Offer a Monocub a Bribe (E72 C15): answers `{ bribeId }` once the GM wrote the offer; nothing is paid before its yes. */
+export function requestBribeOffer({ actorId, cubId }) {
+    return ask(ACTION_BRIBE_OFFER, { actorId, cubId }, {
+        local: () => import("./monocub.mjs").then(m => m.offerBribeOnGm({ actorId, cubId }, game.user))
+    });
+}
+
+/** A Monocub's player answers a Bribe (E72 C15): `accept` true pays it into the purse. Answers `{ accepted }`. */
+export function requestBribeAnswer({ cubId, bribeId, accept }) {
+    return ask(ACTION_BRIBE_ANSWER, { cubId, bribeId, accept: Boolean(accept) }, {
+        local: () => import("./monocub.mjs").then(m => m.answerBribeOnGm({ cubId, bribeId, accept: Boolean(accept) }, game.user))
     });
 }
 

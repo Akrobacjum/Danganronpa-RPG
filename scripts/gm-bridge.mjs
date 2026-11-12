@@ -59,7 +59,7 @@ export {
     answerHopeCall, askReshapeRuling, answerDynamic, requestHopeCallApproval, requestDynamicDifficulty,
     requestTraitRuling, requestObserveTarget, requestCleanableTraces, requestObserveResolve, requestAnalyzeResolve,
     requestAdvancement, requestShareBullet, requestGiveItem, requestCrisisResult, requestRollBookmark, requestReroll,
-    requestCleanup, requestParkMurder, requestBetrayal, requestCubAbility, requestCubAnswer, requestVaultSteal, requestSteal,
+    requestCleanup, requestParkMurder, requestBetrayal, requestCubAbility, requestCubAnswer, requestBribeOffer, requestBribeAnswer, requestVaultSteal, requestSteal,
     requestFriskUnseen, requestFriskAsk, requestFriskAnswer, requestFriskFollow, requestPlant, requestStashSearch,
     requestProjectProgress, requestProjectShare, claimCard
 } from "./bridge-asks.mjs";

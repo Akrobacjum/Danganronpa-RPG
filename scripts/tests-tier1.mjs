@@ -269,7 +269,9 @@ const INVARIANTS = [
         const ACTED_ON = ["grants", "grantsHope", "damage", "progress", "feedsOverflow",
                           "reroll", "announces", "sealsRoom", "silences", "chains",
                           "gathersEveryone", "freeMoves", "freeActions", "freeRest",
-                          "setsMotive"];
+                          "setsMotive",
+                          // E72 C15: a Bribe is offered, and paid on its yes, outside `applyCall` (calls.mjs `spendHopeCall`).
+                          "bribe"];
         const check = (source, label) => {
             for (const [key, call] of Object.entries(source)) {
                 ok(typeof call.cost === "number", `${label} ${key} has no numeric cost`);

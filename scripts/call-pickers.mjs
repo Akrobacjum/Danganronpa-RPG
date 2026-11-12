@@ -211,7 +211,7 @@ export function callHeader(call, kind, { held = null, effect = null, price = nul
  * spend Hope on, and a living one is not what this Call is for.
  */
 async function pickMonocub(ask) {
-    const { monocubActors } = await import("./monocub.mjs");
+    const { monocubActors, cubHopeTotal } = await import("./monocub.mjs");
     const cubs = monocubActors();
 
     if (!cubs.length) {
@@ -219,11 +219,13 @@ async function pickMonocub(ask) {
         return null;
     }
 
+    /* A GM's Despair Call (Fuel a Monocub) names each Monocub's Hope, its sheet's and its purse's (E72 C14); a player's
+       Hope Call (a Bribe, E72 C15) names the Monocub alone - the purse is the GMs' and the Monocub's. */
     const id = await choose(ask, "DRPG.Monocub.who",
         cubs.map(a => ({
             value: a.id,
-            label: `${a.name} - ${game.i18n.format("DRPG.Monocub.hopeShort", {
-                held: a.system?.resources?.hope?.value ?? 0
+            label: ask.kind === "hope" ? a.name : `${a.name} - ${game.i18n.format("DRPG.Monocub.hopeShort", {
+                held: cubHopeTotal(a)
             })}`
         })));
     if (!id) return null;

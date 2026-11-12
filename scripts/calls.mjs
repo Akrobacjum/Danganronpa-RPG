@@ -158,6 +158,11 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
 
         // The Reroll is the GM's to pay for and make (E08+E28 C4a): `askReroll` below.
         if (call.reroll) return await askReroll(actor, key, call, { note, choice });
+        // A Bribe is an offer, paid on the Monocub's yes on the GM (E72 C15): nothing is paid here.
+        if (call.bribe) {
+            const { offerBribe } = await import("./monocub.mjs");
+            return (await offerBribe(actor, choice?.target ?? null)) ? call : null;
+        }
 
         let held = hopeHeld(actor);
         if (held < call.cost) {

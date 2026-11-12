@@ -764,6 +764,22 @@ export async function handleCubAnswer(payload, sender) {
     return { reply: out };
 }
 
+/** E72 C15: a Bribe offered (monocub.mjs `offerBribeOnGm`), refused as nothing carried out when it judged it not one. */
+export async function handleBribeOffer(payload, sender) {
+    const { offerBribeOnGm } = await import("./monocub.mjs");
+    const out = await offerBribeOnGm({ actorId: payload.actorId, cubId: payload.cubId }, sender);
+    if (!out) return { refused: "nothing was carried out: that Bribe cannot be offered now" };
+    return { reply: out };
+}
+
+/** E72 C15: a Bribe answered (monocub.mjs `answerBribeOnGm`); no such open offer is nothing carried out. */
+export async function handleBribeAnswer(payload, sender) {
+    const { answerBribeOnGm } = await import("./monocub.mjs");
+    const out = await answerBribeOnGm({ cubId: payload.cubId, bribeId: payload.bribeId, accept: payload.accept }, sender);
+    if (!out) return { refused: "nothing was carried out: no such Bribe is open" };
+    return { reply: out };
+}
+
 export async function handleCubAbility(payload, sender, ctx) {
     const { cubAbilityOnGm } = await import("./monocub.mjs");
     const out = await cubAbilityOnGm({ actorId: payload.actorId, key: payload.key, targetId: payload.targetId, choice: payload.choice });

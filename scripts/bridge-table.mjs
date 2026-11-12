@@ -45,7 +45,7 @@ import {
     ACTION_ADVANCEMENT_ASK, ACTION_SHARE_BULLET, ACTION_GIVE_ITEM, ACTION_PASSAGE_SHARE, ACTION_PASSAGE_CROSS,
     ACTION_PASSAGE_FIND, ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT,
     ACTION_FRISK_UNSEEN, ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS,
-    ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_LOOT,
+    ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_BRIBE_OFFER, ACTION_BRIBE_ANSWER, ACTION_LOOT,
     ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM
 } from "./bridge-wire.mjs";
 import {
@@ -54,7 +54,7 @@ import {
     handleRefundCrossing, handlePassageFind, friskRolls, findPassageRoll, notFindPassageRoll, palmRolls, handlePlant,
     handleFindStash, handleSteal, handleFriskUnseen, handleFriskAsk, handleFriskAnswer, handleFriskFollow,
     friskForceRoll, handleVaultSteal, searchTheftOf, handleOpeningResult, handleCrisis, handleParkMurder,
-    handleBetrayal, handleCleanup, handleCubAbility, handleCubAnswer, handleHopeCall, handleCallYes, handleDynamicAnswer,
+    handleBetrayal, handleCleanup, handleCubAbility, handleCubAnswer, handleBribeOffer, handleBribeAnswer, handleHopeCall, handleCallYes, handleDynamicAnswer,
     handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling
 } from "./bridge-runs-acts.mjs";
 import {
@@ -432,6 +432,26 @@ export const BRIDGE_ACTIONS = table({
         run: handleCubAnswer,
         // The player's window says what came of it (a Monocub now, or the invitation closed).
         answer: "reply"
+    },
+    [ACTION_BRIBE_OFFER]: {
+        label: "DRPG.Bridge.what.bribe.offer",
+        // E72 C15: the payer is the sender's own student; the Monocub is judged in the run (`bribeRefusal`).
+        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, cubId: as.id }),
+        run: handleBribeOffer,
+        // The payer's Call says it was offered, or nothing was spent.
+        answer: "reply",
+        claims: { cubId: "judged by monocub.mjs bribeRefusal in offerBribeOnGm before anything is written: a Monocub, not the payer" }
+    },
+    [ACTION_BRIBE_ANSWER]: {
+        label: "DRPG.Bridge.what.bribe.answer",
+        // E72 C15: the Monocub's own player; the offer is the GMs' row's (`cubStore`'s `bribes`), never the packet's.
+        guards: [knownSender, owns("cubId", "sender does not own that Monocub")],
+        sanitize: pick({ cubId: as.id, bribeId: as.id, accept: as.bool }),
+        run: handleBribeAnswer,
+        // The Monocub's window says what came of it.
+        answer: "reply",
+        claims: { bribeId: "judged by monocub.mjs answerBribeOnGm: an offer open in the GMs' row of that Monocub, never the packet's" }
     },
     [ACTION_HOPE_CALL]: {
         label: "DRPG.Bridge.what.call.approve",

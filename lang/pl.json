@@ -1251,6 +1251,18 @@
       "tinkerHopeBack": "Krytyk: Hope do ciebie wraca.",
       "purseLine": "Sakiewka: {n} Hope, trzymane przez GM-ów i wydawane przed Hope z arkusza.",
       "purseTip": "z tego {n} w sakiewce",
+      "bribeTitle": "Bribe",
+      "bribeAsk": "{name} proponuje postaci {cub} Bribe: {cost} Hope za przysługę, którą ustalicie między sobą. Przyjmij, a Hope trafi do twojej sakiewki.",
+      "bribeAccept": "Przyjmij",
+      "bribeRefuse": "Odrzuć",
+      "bribeOffered": "Proponujesz postaci {name} Bribe: {cost} Hope. Płacisz tylko wtedy, gdy przyjmie.",
+      "bribeOfferedCub": "{name} proponuje ci Bribe: {cost} Hope.",
+      "bribeRefused": "{name} odrzuca twój Bribe. Hope zostaje u ciebie.",
+      "bribeAccepted": "{name} przyjmuje twój Bribe: zapłacono {cost} Hope.",
+      "bribeAcceptedCub": "Przyjmujesz Bribe od postaci {name}: {cost} Hope w twojej sakiewce.",
+      "bribeUnpaid": "Twojego Bribe dla postaci {name} nie dało się zapłacić i jest zamknięty. Hope zostaje u ciebie.",
+      "bribeUnpaidCub": "Bribe od postaci {name} nie dało się zapłacić i jest zamknięty.",
+      "bribeLapsed": "Twój Bribe dla postaci {name} został bez odpowiedzi i wygasł. Hope zostaje u ciebie.",
       "meddleFailed": "Nic z tego nie wychodzi.",
       "critHelpNothing": "Gracz miał wszystkie akcje: nie było czego oddać.",
       "critHelpNothingTarget": "Chwila szczęścia, ale żadna twoja akcja nie była wydana: nic nie wraca.",
@@ -4006,6 +4018,8 @@
         "murder.park": "Direct Murder",
         "monocub.ability": "Zdolność Monocuba",
         "monocub.answer": "Odpowiedź na zaproszenie Monocuba",
+        "bribe.offer": "Bribe",
+        "bribe.answer": "Odpowiedź na Bribe",
         "body.loot": "Przeszukanie ciała",
         "advancement": {
           "apply": "Level Up",
@@ -6398,6 +6412,10 @@
         "freeCrit": {
           "label": "Loaded Die",
           "effect": "Przy twoim następnym rzucie jedna z dwóch kości, losowo, staje na 12, a drugą rzucasz. Krytyk jest tylko wtedy, gdy i ona wypadnie 12; inaczej rzut jest z Hope albo z Despair, zależnie od tego, która kość stoi na 12."
+        },
+        "bribe": {
+          "label": "Bribe",
+          "effect": "Zaproponuj Monocubowi {cost} Hope za przysługę, którą ustalicie między sobą. Płacisz tylko wtedy, gdy przyjmie; nikt inny się nie dowie."
         }
       },
       "DESPAIR_CALLS": {

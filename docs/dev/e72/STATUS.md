@@ -31,11 +31,17 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
 
 | C12 | Part A's texts (S18-63): the player handbook's "Playing a Monocub" (the invitation and the Rule, four tiles, free movement, every room the class found, the price after the GM's checks, the caps, Redeem, Ask for Hope, the dimmed tiles, the wrong verdict's card, the crime witness), the brochure's Death line (the own voice room, the invitation), the GM handbook's Monocub paragraphs; EN and PL | R3807 (new; red at 97d09e1: all six texts); R1041 changed on purpose (the Final's sound is the card's since C11) |
 
+| C13 | Tinker (S18-52, S18-64; DC23, DC24): the row `tinker` (inventory row 73, its own tile; default, owner may revise: DC35 reads "Confusion (student or project)"), 1 action + 1 Hope taken on the GM after the conditions; a public, unfinished, unfrozen project in the Monocub's room that a living student worked on this time of day (gm-stores.mjs `projectWorkStore`, written by `applyProjectChange` for "player", "call", "reroll" forward changes); 12+ moves it one step as a "monocub" change, a double gives the Hope back; a project it would finish holds one short (default: no completion card, no trap armed); a secret project never listed or reached, an unknown id refused as a missing one | two tier-2 tests (Tinker; who worked this time of day), both red at b22d2d0 |
+
+| C14 | The purse (DC37): `cubStore`'s `purse`, sent with the owner's copy (`copyRowOf`); `cubHopeTotal`, `spendCubHope` (purse first, where each point came from kept), `refundCubHope`, `addToPurse` (to the limit; nothing in the darkening); the price, the hopeFull block, Redeem's limit, the Tinker refund read the sum; the panel's purse line, the status strip and the Students column show it | R3808 (new; red at 51df7b4), tier 2 "a Monocub's purse ..." (red at 51df7b4); R3800, R1157 changed on purpose. The owner's side dropped the purse until C15 (`copyRowOf`), found while building C15 |
+
+| C15 | Bribe (DC25, DC26, DC39): `HOPE_CALLS.bribe` (target "monocub", inventory row 74; defaults, owner may revise: 1 Hope, any Monocub, lapsing at the next time of day); the offer waits in the Monocub's row (`cubStore`'s `bribes`, the owner's copy carries the payer's name and the price; no `bribeStore` - default, the row already has the owner's copy) and its player answers in a window (Accept / Refuse, "Przyjmij" / "Odrzuć"); paid on the primary in one step under the Monocub's key, the payer's Hope into the purse; refused, unpayable, a full purse or the darkening close it unpaid; `settleBribes` at each time of day (clock.mjs); every card veiled to the two players; bridge `bribe.offer`, `bribe.answer`; flow `monocub-bribe` (partial: no scenario drives the windows yet) | tier 2 "a Bribe is offered to a Monocub ..." (new; red at f1ee74a); R1b, R1157, R1159, R3808 and the Call tables' two tests changed on purpose |
+
 | C10 | A Monocub sees every room the class found (gm-stores.mjs `fogSectionFor`, `cubFogSection`): its owner is sent, under the Monocub's own row, the rooms every student found, the Mastermind's row out, the rows joined so nobody's finds are named; tier 2 "a Monocub's owner is sent every room the class found ..." (new; red at base). And a Monocub's crossing (28.10, 04.11, 06.11): no Move, no action and no Eclipse count, the Eclipse too (`crossingVerdict`, `chargeRoute`), the connected rooms still holding it; the room of a running incident refused to it on a GM judging a player's step with the Seal's code and words (`roomSealed`, `DRPG.Calls.sealedBlocked`), a GM's own move and a Monocub already inside not refused | tier 2 "a Monocub crosses to a connected room with no Move and no action, and the room of a running murder refuses it ..." (new; red at base: noBudget, the murder room let through); R558 changed on purpose |
 
 ## In progress
 
-- Part A done but C8's "Silence now" and D101 (see below). Next: part B (C13-C21), then E91.
+- Part A done but C8's "Silence now" and D101 (see below). Part B: C13-C15 done. Next: C16 (Bounty), C17, C18 (Ghost Bet), C19-C21, then E91.
 
 ## Next, in order
 
@@ -161,6 +167,10 @@ in 7ab4cc6, no block outside the trial, nothing written on the user.
 - C11, D102: the execution card names the executed, and in a Final Trial that is the Mastermind; the defeat's banner
   names nobody ("THE MASTERMIND IS DEFEATED"). Default: the name, as an ordinary trial's card - owner may want it
   without the name.
+
+- 61-gmstore-case D5 ("the same browser back in world A reads its traces intact") failed once at 51df7b4 while three harness
+  runs shared the container; alone at the same commit it passed 113/113. Read as load, not as C13; kept to two runs at once
+  since.
 
 ## Blockers
 

@@ -151,6 +151,10 @@ export const ACTION_PARK_MURDER = "murder.park";
 export const ACTION_CUB_ABILITY = "monocub.ability";
 /** player -> GM: a dead student's player answers the GMs' invitation to become a Monocub (E72 C6) - see monocub.mjs `answerMonocubOffer`. */
 export const ACTION_CUB_ANSWER = "monocub.answer";
+/** player -> GM: a living student offers a Monocub a Bribe (E72 C15) - see monocub.mjs `offerBribeOnGm`. */
+export const ACTION_BRIBE_OFFER = "bribe.offer";
+/** player -> GM: a Monocub's player answers a Bribe (E72 C15) - see monocub.mjs `answerBribeOnGm`. */
+export const ACTION_BRIBE_ANSWER = "bribe.answer";
 /** GM -> player: a request carried out, with its answer - see `bridgeRequest` in bridge-guards.mjs. */
 export const ACTION_DONE = "bridge.done";
 /** A GM's world has finished loading - see `registerGmBridge`. */
