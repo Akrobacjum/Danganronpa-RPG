@@ -46,7 +46,7 @@ import { holdRowLines } from "./ui-hold.mjs";
  * A proposal is one container, `drpg-trait-proposal` (E68 C7, 10.11.2026): the select and the words together, so a
  * layout can place the field as one block (the orchestrator's note for E68 C12's right column).
  */
-export function traitFieldHtml(actor, traits, { note = "", propose = false, how = propose, howLabel = "DRPG.TraitRuling.howLabel" } = {}) {
+export function traitFieldHtml(actor, traits, { note = "", propose = false, how = propose, howLabel = "DRPG.TraitRuling.howLabel", fold = false } = {}) {
     const allowed = traits ?? [];
     if (allowed.length < 2) return "";
 
@@ -62,6 +62,14 @@ export function traitFieldHtml(actor, traits, { note = "", propose = false, how 
         <select name="${propose ? "proposed" : "trait"}">${options}</select>
         ${note ? `<small class="notes">${note}</small>` : ""}
     </label>`;
+    /* FOLDED AWAY WHERE ANOTHER STATISTIC IS A RARE ASK (E100 item 5, 12.11.2026; the owner on the player-screens review,
+       #8: Search asked "Which statistic do you propose?" with six choices every time, and Search rolls Eye). With `fold`
+       the proposal stands in a closed `details` under "Another statistic"; its first choice is the list's first, Eye
+       for Search, and a window read unopened proposes it - which asks nobody (action-search.mjs `searchTrait`). R3921. */
+    if (propose && fold) {
+        return `<details class="drpg-trait-other"><summary>${game.i18n.localize("DRPG.TraitRuling.otherTrait")}</summary>`
+            + `<div class="drpg-trait-proposal">${field}${words}</div></details>`;
+    }
     return propose ? `<div class="drpg-trait-proposal">${field}${words}</div>` : `${field}${words}`;
 }
 

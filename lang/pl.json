@@ -3981,6 +3981,7 @@
       "passedLine": "Rezygnuję z rzutu ({stat}). Nic nie zeszło.",
       "autoApproved": "Zatwierdzone automatycznie.",
       "proposeLabel": "Którą statystykę proponujesz?",
+      "otherTrait": "Inna statystyka",
       "howLabel": "Jak to robisz? (opcjonalnie)",
       "projectBody": "Ten projekt zapisano bez statystyki. Zaproponuj jedną: GM ją zatwierdza albo zmienia i zostaje ona statystyką projektu.",
       "propose": "Zaproponuj",
