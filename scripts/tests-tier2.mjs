@@ -17598,6 +17598,64 @@ const SCENARIOS = [
             "a Monocub's tile does not say why it is shut ([Redeem's, Ask for Hope's sentence] free, Redeem used, an ask open, the Hope full)");
     }],
 
+    ["a Monocub crosses to a connected room with no Move and no action, and the room of a running murder refuses it on the GM in a Seal's code and words (E72 C10)", async () => {
+        /*
+         * E72 C10, 12.11.2026; the owner's amendments of 28.10, 04.11 and 06.11; Q-E72-5's default. A Monocub paid for a
+         * crossing like a living student, and walked into a murder's room. movement.mjs `crossingVerdict` lets a Monocub
+         * cross to a connected room whatever its budget, and on a GM judging a player's step refuses it the room a running
+         * incident happens in with the Seal's refusal ("roomSealed", `DRPG.Calls.sealedBlocked`); a GM's own move is not
+         * refused. A killer and a victim alone in a room, the fight open; a Monocub with no action, no Free Move and the
+         * movement cost on, in a connected room. Read: the verdict for a step to another connected room, and for the step
+         * into the murder's room as a player's (keyed) and as a GM's. Red at f22a7e8's runtime: no budget; the murder's
+         * room let through.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 3), "a killer, a victim and a Monocub stood in rooms by their tokens");
+        const MU = await import("./murder.mjs");
+        const MV = await import("./movement.mjs");
+        const [killer, victim, cub] = cast(3);
+        const scene = canvas.scene;
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        const { room, back } = await aloneTogether(killer, victim);
+        // The free step on a plain scene of the suite's own (no document: nothing is written), a Hall and a Study across
+        // one wall, as "a corner is not a door; ..." builds one; the harness's rooms are drawn with no shared wall. The
+        // murder's room is asked on the real scene from any other room: the seal's check stands before the walls' rule.
+        const R = await import("./rooms.mjs");
+        const plain = (name, x, y) => ({ id: `suite-e72-c10-${name}`, name, behaviors: [], levels: new Set(), bounds: { x, y, width: 400, height: 400 },
+            getFlag: (scope, key) => (scope === MODULE_ID ? { [R.ROOM_FLAG]: true }[key] : undefined) });
+        const fake = { id: "suite-e72-c10-scene", name: "SUITE E72 C10", grid: { size: 100 }, regions: new Set([plain("Hall", 1000, 1000), plain("Study", 1000, 580)]) };
+        const pair = MV.neighbouringRooms(fake, "Hall").includes("Study") ? ["Hall", "Study"] : null;
+        const from = MV.allRooms(scene).find(r => r !== room) ?? null;
+        const chargeWas = game.settings.get(MODULE_ID, SETTINGS.chargeMovement);
+        const was = cub.system.resources.actions.value;
+        const moveWas = cub.getFlag(MODULE_ID, FLAGS.freeMoveUsed);
+        const read = {};
+        try {
+            must(pair && from, "no two connected rooms on the suite's plain scene, or no room but the murder's - this would measure nothing");
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await cub.update({ "system.resources.actions.value": 0 });
+            await cub.setFlag(MODULE_ID, FLAGS.freeMoveUsed, true);
+            await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+            await fightOpen(MU, killer, victim);
+            await settle();
+            const player = { gm: false, mastermind: false };
+            read.free = MV.crossingVerdict(cub, pair[0], pair[1], fake, null, { mover: player, keyed: true });
+            read.murderRoom = MV.crossingVerdict(cub, from, room, scene, null, { mover: player, keyed: true });
+            read.byGm = MV.crossingVerdict(cub, from, room, scene, null, { mover: { gm: true, mastermind: false }, keyed: true });
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await cub.update({ "system.resources.actions.value": was });
+            if (moveWas === undefined) await cub.unsetFlag(MODULE_ID, FLAGS.freeMoveUsed);
+            else await cub.setFlag(MODULE_ID, FLAGS.freeMoveUsed, moveWas);
+            await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, chargeWas);
+            await back();
+        }
+        const sealed = { code: "roomSealed", text: game.i18n.format("DRPG.Calls.sealedBlocked", { room }) };
+        equal(stableJson([read.free, read.murderRoom?.code ?? read.murderRoom, read.murderRoom?.text ?? null, read.byGm]),
+            stableJson([true, sealed.code, sealed.text, true]),
+            "a Monocub paid for a crossing, or walked into a murder's room, or was told something a Seal does not say, or a GM's move was refused ([free step, the murder room's code and words, a GM's move])");
+    }],
+
     ["in an Eclipse the picker is shut and the GM refuses Confusion with nothing paid (E72 C1)", async () => {
         /*
          * E33 C10; CALL-16 and the plan's 2.7. The row's locks (`CUB_LOCKS`: the Eclipse, the

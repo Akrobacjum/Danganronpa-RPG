@@ -21,9 +21,12 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
 
 | C9 (part) | The Monocub's tiles say why they are shut (S18-62, DC22): `cubBlockSaid` (the row's blocks from the owner's copy) dims a tile and says its sentence; a row with no Hope says its price in the grid's own words (`DRPG.Action.costActions`, `costFree`); `onlyTwoActions` names the three moves | R3803 (new), tier 2 "the Monocub's tiles say why they are shut ..." (new); both red at base |
 
+| C10 (part) | A Monocub's crossing (28.10, 04.11, 06.11): no Move, no action and no Eclipse count, the Eclipse too (`crossingVerdict`, `chargeRoute`), the connected rooms still holding it; the room of a running incident refused to it on a GM judging a player's step with the Seal's code and words (`roomSealed`, `DRPG.Calls.sealedBlocked`), a GM's own move and a Monocub already inside not refused | tier 2 "a Monocub crosses to a connected room with no Move and no action, and the room of a running murder refuses it ..." (new; red at base: noBudget, the murder room let through); R558 changed on purpose |
+
 ## In progress
 
-- C8 is open, with a question for the owner (below, "C8 needs a decision"). Next: C10 (movement and sight) while it waits.
+- C8 is open, with a question for the owner (below, "C8 needs a decision"). C10's sight half (the ledger's rooms for a
+  Monocub, fog.mjs) next.
 
 ## Pushed
 
@@ -99,6 +102,11 @@ C2-C12 (part A), then C13-C21 (part B), then E91.
   sentenced, and hold the ordinary dead outside the trial by the per-account channel the plan's A9 names
   (`dead-{userId}`, a voice room nobody living is in), which writes no document; the permission outside the trial
   only if the owner wants it at the cost above.
+
+- C10: the murder room's refusal is judged where the incident's room is known: on a GM's browser judging a player's
+  step. The Monocub's own browser does not know where a murder runs, so its veto lets the step through and the GM's
+  judge sends it back - the refusal it is told is the Seal's either way. Q-E72-5 default (no action, no crossing limit,
+  Eclipse too) taken; the connected rooms' rule kept (the amendments name the budget, not the walls) - owner to confirm.
 
 ## Blockers
 

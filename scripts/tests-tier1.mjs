@@ -15648,8 +15648,9 @@ const INVARIANTS = [
         equal(J([viaLines.length, /bedroomShut\(/.test(viaLines[1] ?? ""), /isLocked|isSealed|isChained/.test(viaLines.join("\n")),
             (verdict.match(/passage \? false : crossingRefused\(scene, from, to, floors\)/g) ?? []).length,
             verdict.split("\n").filter(line => /classTrial/.test(line)).some(line => /\bvia\b|passage/.test(line))]),
-        J([2, true, false, 2, false]),
-        "[lines of restrictedFrom naming via (its signature and one rule), the bedroom's, a lock, seal or chain under via, both of the verdict's connected-rooms rules asking the passage, the courtroom under via]");
+        // E72 C10 (changed on purpose): the Monocub's free step asks the connected rooms' rule too, the passage with it - three.
+        J([2, true, false, 3, false]),
+        "[lines of restrictedFrom naming via (its signature and one rule), the bedroom's, a lock, seal or chain under via, the verdict's three connected-rooms rules asking the passage (the Monocub's since E72 C10), the courtroom under via]");
         const eclipse = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/eclipse.mjs`).then(lfText));
         const judge = fnSource(eclipse, "judgeEclipseCrossing");
         // `elevation` since H81 fix r1: a passage in a wall is read at the crossing token's height (movement.mjs `passageRooms`' note).
