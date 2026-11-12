@@ -237,13 +237,13 @@ export const ownerIdsOfId = actorId => ownerIdsOf(game.actors.get(actorId ?? "")
  * included. Secrecy has to be spelled out per user: an explicit NONE for every
  * player who is not a viewer.
  */
-export function ownershipMap(viewerIds = []) {
+export function ownershipMap(viewerIds = [], watching = spectatorUserIds()) {
     const viewers = new Set(viewerIds.filter(Boolean));
     /* EVERY SPECTATOR OBSERVES (E92, the owner's DRPG-D1 of 12.11.2026: "Widzi wszystkie projekty w tym prywatne"). A
        Spectator's account is an observer of every secret project, so Daggerheart draws it on that browser's tray; it is
        no viewer (`viewersOf`, `sharedIds` leave it out), so no share, seal or card counts it in, and it leaves the map
-       when it stops being one (projects.mjs `seeAsSpectators`). Read as the GMs hold the flag (scripts/spectator.mjs). */
-    const watching = spectatorUserIds();
+       when it stops being one (projects.mjs `seeAsSpectators`). Read as the GMs hold the flag (scripts/spectator.mjs); the
+       suite hands its own (R3867). */
     const map = { default: NONE };          // kept for our own isSecret() read
     for (const user of game.users) {
         if (user.isGM) continue;            // GMs are owners unconditionally

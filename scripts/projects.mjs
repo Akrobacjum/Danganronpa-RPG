@@ -244,9 +244,8 @@ export async function tellDescription(countdownId) {
     const words = secretsOf(countdownId).description;
     if (typeof words !== "string" || !words) return 0;
     const told = { ...(secretsOf(countdownId).descriptionTold ?? {}) };
-    // The Spectators read a secret project's words as its insiders do (E92 DRPG-D1): the card is whispered to them alone.
-    const readers = [...new Set([...insidersOf(countdownId), ...spectatorUserIds()])]
-        .filter(id => game.users.get(id) && !game.users.get(id).isGM && told[id] !== words);
+    // Not to a Spectator (E92, the coordinator's 12.11: "secret projects stay secret (GMs' half untouched)"): it sees the name and progress.
+    const readers = insidersOf(countdownId).filter(id => game.users.get(id) && !game.users.get(id).isGM && told[id] !== words);
     if (!readers.length) return 0;
     const name = rawCountdown(countdownId)?.name ?? "?";
     const posted = await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Project.descriptionTold", { name }))}</p><p>${esc(words).replace(/\n/g, "<br>")}</p>`,
@@ -2312,11 +2311,11 @@ export async function resealSecretProjects() {
 
 /**
  * THE SPECTATORS' SIGHT, AFTER A ROLE CHANGED (E92, the owner's DRPG-D1 of 12.11.2026: a Spectator sees every project,
- * the secret ones too). Called by monokuma.mjs `setSpectator` once the flag is written, on a GM. `gone` are the users
- * who stopped playing a Spectator with it: each is taken off every secret project it does not build (an `unshare`, the
- * entry's own), since a Spectator's observer entry is not told from a share in the map - so a student who watched and
- * comes back loses the secret projects it was let in on before (the GM shares them again). Then every secret project is
- * resealed, which puts the Spectators in (`ownershipMap`), and its words told to them (`tellDescription`).
+ * the secret ones too - their name and progress; the GMs' half, the words among it, stays theirs). Called by monokuma.mjs
+ * `setSpectator` once the flag is written, on a GM. `gone` are the users who stopped playing a Spectator with it: each is
+ * taken off every secret project it does not build (an `unshare`, the entry's own), since a Spectator's observer entry is
+ * not told from a share in the map - so a student who watched and comes back loses the secret projects it was let in on
+ * before (the GM shares them again). Then every secret project is resealed, which puts the Spectators in (`ownershipMap`).
  */
 export async function seeAsSpectators(gone = []) {
     if (!game.user?.isGM) return 0;
@@ -2327,9 +2326,7 @@ export async function seeAsSpectators(gone = []) {
             await applyProjectChange(project.id, { unshare: userId }, { by: { kind: "system" } });
         }
     }
-    const fixed = await resealSecretProjects();
-    for (const project of secret) await tellDescription(project.id);
-    return fixed;
+    return resealSecretProjects();
 }
 
 /* ==========================================================================

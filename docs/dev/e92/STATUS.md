@@ -18,7 +18,7 @@ Updated 12.11.2026. Final: all seven commits in, tested, pushed; the owner fix o
 | fixes | The module's own censuses given the new roads' rows (R6, R220, R379, R432, R553, R382, R1281 - found by the full tiers 0-1 run at C7); 33's ghost check moved before the phases that take the GMs away | 81c740e, 7f0f2bc |
 
 New files: scripts/spectator.mjs, scripts/spectator-ui.mjs, audit/harness/scenarios/93-spectator.mjs. Their rows in
-`.claude/rules/code.md`'s table are not written (that file is not this line's to touch): for the coordinator.
+the code rules file's "Where the code lives" table are not written (that file is not this line's to touch): for the coordinator.
 
 Tests: R3850-R3861 (tier 1, 12 numbers of 50 reserved); tier 2 "a Spectator's microphone is blocked outside the trial
 and in it ..."; flow `spectator-move` (partial until its release); scenario checks in 30, 33 and 92.
@@ -107,8 +107,8 @@ both player handbooks say so as a known limit. Q-E92-7: "zgadzam sie, zlecaj" - 
   Spectator" when the character the packet names is one as the GMs hold its flags (sheet-audit.mjs `flagsHeldNow`);
   `senderNotSpectator` refuses "the sender plays a Spectator" when the sender's account plays a Spectator and no student
   (voice.mjs `spectatorAccount` on the same held flags). A GM is never refused. Both map to a new code of the closed
-  list, "spectator", said as DRPG.Bridge.why.spectator ("A Spectator watches and takes no action." / "Widz ogląda i nie
-  wykonuje żadnych akcji.").
+  list, "spectator", said as DRPG.Bridge.why.spectator ("A Spectator takes no actions." / "Widz nie wykonuje akcji."; trimmed
+  12.11 under the owner's text rule).
 - Every player row of the four tables (BRIDGE_ACTIONS, TRAP_ACTIONS, SEARCH_ACTIONS, ROLL_ACTIONS) names one, right after `knownSender`: the character's on each row with an owner
   question (`owns`, `ownsActorAt`, the trap report's and the Search's actorId), the account's on the ballot, the vote's
   ask, the Level Up's ask, the readiness answer, a card, a project shared and a tied trace. Six rows need none, each with
@@ -170,6 +170,38 @@ Approved: Q-E92-1, 2, 3, 5 and 8. Changed, three items, built (red first each):
 Results before the push: tiers 0-1 whole 1274 ran, 1259 passed, 0 failed, 16 skipped; tier 2 by name (the Spectator's
 microphone, E36-T*) 17 passed; scenario 93 15/15; scenarios 30 (275/276, the expected secret-door red), 61, 33, 10, 11, 12,
 13, 15, 17, 20, 40, 62, 63, 65, 66, 71, 72, 73, 75, 76, 81, 83, 86, 87 green; the quick gate green.
+
+## The coordinator's follow-up (12.11, written before the DRPG-D1 report reached it)
+
+- The token: 0.3 of its alpha, one constant (`SPECTATOR_ALPHA`), and nothing else - no grey tint, no outline (16ab04b had
+  0.28, the tint and an outline at 0.3). R3866 red at 16ab04b, green now. The shot sent with DRPG-D1 shows 0.28 with the
+  tint; the new look is not shot (no canvas headless; LIVE-E92-04, rewritten).
+- Secret projects: "every project's public face (name, progress) in every room; secret projects stay secret (GMs' half
+  untouched)". 16ab04b also whispered a secret project's words to the Spectators; taken out. A Spectator sees each
+  secret project's name and progress (its observer entry), not its words or any field of the GMs' store. Scenario 93's
+  "projects" now asks for no words on p3: red at 16ab04b (p3 held them), green now. R3867 (tier 1): `ownershipMap` with the
+  Spectators handed, and `spectatorUserIds` over stand-ins; red at 16ab04b. A tier-2 test was asked for "what its browser
+  holds": tier 2 runs on one browser, a GM's, so a Spectator's and a student's browsers are read in scenario 93 instead.
+- The chat: as built in 16ab04b (refused on its browser with "A Spectator has no chat.", undrawn everywhere, removed by
+  the primary). There was no GM-side judge of chat messages to put it in; it stands in spectator-ui.mjs.
+- Texts trimmed under the owner's rule of 12.11 (short, everyday, nothing about how the module works): the four handbook
+  paragraphs (GM and player, EN and PL), the bridge's "spectator" reason, the two voice lines.
+
+Results before the push: tiers 0-1 whole 1275 ran, 1260 passed, 0 failed, 16 skipped; scenario 93 15/15; scenarios 30
+(275/276, the expected secret-door red), 61, 65, 66, 72, 13, 40, 62, 75, 76, 81, 86 green; the quick gate green. The shot page
+(https://claude.ai/artifact/W4Ua5rfCY4YbPPzR2PZfeA) now shows 0.3 without tint or outline: a reconstruction on the
+repo's own GM screenshot, not a Foundry render.
+
+## For the coordinator
+
+- `touches` for E92 in tools/stages.json (yours to write): ["sockets", "scenes"] - the bridge's guard and the chat's
+  removal answer sockets; the token's drawing, its moves and the map answer scenes.
+- A known-leaks row, proposed (audit/harness/known-leaks.json is not this line's): "a Spectator's chat message is
+  broadcast by Foundry's server to every browser before the primary GM removes it (spectator-ui.mjs `dropSpectatorMessage`);
+  a console listening for createChatMessage reads it for that moment. Foundry gives a module no way to refuse a player's
+  chat document before the server sends it; the Spectator's own browser refuses it first (a courtesy)." Not measured as a
+  scan in 72-canary; scenario 93's "chat" reads no message left on any browser after the GMs had it.
+- The rows of scripts/spectator.mjs and scripts/spectator-ui.mjs in the code rules file's "Where the code lives" table (not this line's file).
 
 ## Review shots
 

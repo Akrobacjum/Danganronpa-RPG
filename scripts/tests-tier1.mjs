@@ -49602,21 +49602,44 @@ const INVARIANTS = [
             count: 1, gone: null, painter: true }),
             "[the switch off, a click, the switch on, how many buttons, the browser no longer watching; paintControls paints it]");
     }],
-    ["R3866 - a Spectator's token on a GM's canvas is barely visible (E92, the owner's DRPG-D1 of 12.11.2026: \"Gm widzi zeton widza, ale zeton widza jest transparentny/ledwie widoczny, by nie mylil sie z graczami\"): visibility.mjs `dressSpectator` draws its sprite at 0.28 of the token's own alpha (in the owner's 25-30 %), its outline as faint, and gives a token whose actor is no Spectator any more its own alpha back", async () => {
+    ["R3866 - a Spectator's token on a GM's canvas is barely visible (E92, the owner's DRPG-D1 of 12.11.2026: \"Gm widzi zeton widza, ale zeton widza jest transparentny/ledwie widoczny, by nie mylil sie z graczami\"): visibility.mjs `dressSpectator` draws it at 0.3 of the token's own alpha (one constant, the coordinator's pick in the owner's 25-30 %), with no grey tint and no outline, and gives a token whose actor is no Spectator any more its own alpha back", async () => {
         /*
          * E92, 12.11.2026. A stand-in token (no canvas headless: the real map's look is LIVE-E92-04); its actor answers the
-         * flag as handed. Red at 7d907a7: the sprite at 0.6.
+         * flag as handed. Red at 7d907a7: the sprite at 0.6; red at 16ab04b: 0.28, tinted grey, an outline drawn.
          */
         const { dressSpectator } = await import("./visibility.mjs");
         let watching = true;
+        const children = [];
         const token = { actor: { getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.spectator ? watching : undefined) },
-            mesh: { tint: 0xffffff, alpha: 1 }, document: { alpha: 0.9 }, children: [], w: 100, h: 100 };
+            mesh: { tint: 0xffffff, alpha: 1 }, document: { alpha: 0.9 }, children, addChild: child => children.push(child), w: 100, h: 100 };
         const drawn = dressSpectator(token);
-        const faint = Math.round(token.mesh.alpha * 1000) / 1000;
+        const faint = Math.round(token.mesh.alpha * 1000) / 1000, tint = token.mesh.tint, outline = children.length;
         watching = false;
         dressSpectator(token);
-        equal(stableJson({ drawn, faint, back: token.mesh.alpha }), stableJson({ drawn: true, faint: Math.round(0.28 * 0.9 * 1000) / 1000, back: 0.9 }),
-            "[dressed; its sprite's alpha for a token of alpha 0.9; the alpha given back]");
+        equal(stableJson({ drawn, faint, tint, outline, back: token.mesh.alpha }), stableJson({ drawn: true, faint: 0.27, tint: 0xffffff, outline: 0, back: 0.9 }),
+            "[dressed; its sprite's alpha for a token of alpha 0.9; its tint; outlines added; the alpha given back]");
+    }],
+    ["R3867 - a Spectator observes every secret project, and is nobody's viewer (E92, the owner's DRPG-D1 of 12.11.2026: \"Widzi wszystkie projekty w tym prywatne\"): projects-secrecy.mjs `ownershipMap` gives every Spectator's account OBSERVER beside the viewers handed and every other player NONE; scripts/spectator.mjs `spectatorUserIds` names an account whose every character but a Monokuma is a Spectator, and not one that also plays a student or plays nobody", async () => {
+        /*
+         * E92, 12.11.2026. The map is built over the world's users, with the Spectators handed; the census of accounts over
+         * stand-ins. What a Spectator's and a student's browsers then hold is scenario 93's ("projects"): a tier-2 test runs
+         * on one browser, a GM's. Red at 16ab04b: `ownershipMap` took no Spectators.
+         */
+        const S = await import("./projects-secrecy.mjs");
+        const { spectatorUserIds } = await import("./spectator.mjs");
+        const players = game.users.filter(u => !u.isGM).map(u => u.id);
+        must(players.length >= 3, "fewer than three players - the map would measure nothing");
+        const [viewer, watcher, other] = players;
+        const map = S.ownershipMap([viewer], new Set([watcher]));
+        const actor = (id, owner, flags) => ({ id, type: "character", testUserPermission: u => u.id === owner,
+            getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const users = ["R3867a", "R3867b", "R3867c", "R3867d"].map(id => ({ id, isGM: false }));
+        const actors = [actor("A1", "R3867a", { spectator: true }), actor("B1", "R3867b", {}),
+            actor("C1", "R3867c", { spectator: true }), actor("C2", "R3867c", {}), actor("D1", "R3867d", { monokuma: true })];
+        equal(stableJson({ viewer: map[viewer], watcher: map[watcher], other: map[other], gms: game.users.filter(u => u.isGM).some(u => u.id in map),
+            accounts: [...spectatorUserIds(users, actors)].sort() }),
+            stableJson({ viewer: S.OBSERVER, watcher: S.OBSERVER, other: 0, gms: false, accounts: ["R3867a"] }),
+            "[the map's entry for a viewer, a Spectator and another player; a GM in it; the accounts that play a Spectator]");
     }],
     ["R3858 - the census of `type === \"character\"` holds (E92 C0; the plan's risk R1): every line in scripts/ outside the suite that reads an actor's type as \"character\" is one docs/dev/e92/CENSUS.md classified - a new one fails here until it is classified there and counted here", async () => {
         /*
