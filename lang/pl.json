@@ -5162,6 +5162,7 @@
         "kind": "rodzaj rzutu"
       },
       "waitsForGm": "Rzut akcji czeka na GM-a: żaden GM nie jest połączony, więc akcja się nie odbyła i nic nie zapłacono.",
+      "gmThrowing": "GM rzuca twoimi kośćmi.",
       "unwitnessed": "Rzucono bez połączonego GM-a - GM to zobaczy.",
       "awayTitle": "Rzuty wykonane bez połączonego GM-a",
       "awayLine": "{name}: kość Hope {hope}, kość Despair {fear} - {moves}",

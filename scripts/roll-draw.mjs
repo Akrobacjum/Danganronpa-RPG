@@ -353,8 +353,10 @@ async function drawAndPlay(cls, config, message) {
     const drawn = awaitDrawn(config[ROLL_NONCE]);
     const start = awaitStart(config[ROLL_NONCE], primaryGmId());
     const asked = performance.now();
+    const signDown = drawSign(start);
     try {
         const answer = await bridgeRequest("roll.draw", drawPacketOf(roll, config, claim), { settle: "reply", timeoutMs: DRAW_ANSWER_MS });
+        signDown();
         const answered = performance.now() - asked;
         // Refused, or no answer: the waiter has said so once (`sayNotDone`); the roll is not made. A draw the GM wrote
         // the message of and then failed has had its dice start here at that message (`startOnMessage`): said in the log.
@@ -366,10 +368,57 @@ async function drawAndPlay(cls, config, message) {
         await playBack(cls, roll, config, message, answer.value, claim.subject, start);
         keepTrip("drawn", { at: Date.now(), answered, started: start.at - asked, atMessage: start.atMessage, shown: performance.now() - asked });
     } finally {
+        signDown();
         drawn();
         start.stop();
     }
     return config;
+}
+
+/*
+ * THE ROLLER IS TOLD THE GM IS THROWING (DH212 3, 12.11.2026; the owner's "a big delay before the dice show",
+ * docs/dev/DH212/WAITS.md). While the GM draws, the roll's window has closed and this screen showed nothing until the
+ * dice, or a warning at the ack's 8 s or the answer's 30 s. A draw whose dice have not started `DRAW_SIGN_MS` after it
+ * was asked now puts up "The GM is throwing your dice." (`DRPG.Rolls.gmThrowing`, popup.mjs `showWaiting`, kept
+ * nowhere), taken down when the dice start at the GM's message (`startOnMessage` calls the wait's `onStart`), when the
+ * answer comes, or when the draw ends. A draw as fast as the harness's (325 ms to the dice at 80 ms each way, scenario
+ * 33's A17) shows nothing. R3990.
+ */
+/** How long a draw's dice may take before the roller is told the GM is throwing them. Chosen, not measured: about twice the harness's 325 ms. */
+export const DRAW_SIGN_MS = 600;
+
+/** The notice itself, from popup.mjs (imported late: popup.mjs reaches this file's importers). Answers its dismiss. */
+async function drawSignNotice(text) {
+    const { showWaiting } = await import("./popup.mjs");
+    return showWaiting(text);
+}
+
+/**
+ * Put the sign up for `wait` (`awaitStart`'s) once `delayMs` have passed with its dice not started; answers the function
+ * that takes it down, which the wait's `onStart` is too. `show` draws the notice and answers its dismiss (R3990's stand-in).
+ */
+export function drawSign(wait, { delayMs = DRAW_SIGN_MS, show = drawSignNotice } = {}) {
+    let over = false;
+    let dismiss = null;
+    const down = () => {
+        if (over) return;
+        over = true;
+        clearTimeout(timer);
+        try { dismiss?.(); } catch { /* already gone */ }
+        dismiss = null;
+    };
+    const timer = setTimeout(async () => {
+        if (over || wait?.at !== null) return;
+        try {
+            const taken = await show(game.i18n.localize("DRPG.Rolls.gmThrowing"));
+            if (over) taken?.();
+            else dismiss = taken;
+        } catch (err) {
+            debug(`The sign that the GM is throwing could not be shown: ${err?.message ?? err}`);
+        }
+    }, delayMs);
+    if (wait && typeof wait === "object") wait.onStart = down;
+    return down;
 }
 
 /*
@@ -445,6 +494,7 @@ function startOnMessage(message) {
         wait.messageId = message.id;
         wait.atMessage = true;
         wait.started = playDice(message.rolls);
+        wait.onStart?.();
     } catch (err) {
         error("Could not start the dice of a roll the GM drew at its message", err);
     }

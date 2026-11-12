@@ -9224,6 +9224,51 @@ const INVARIANTS = [
             JSON.stringify([true, true, true]),
             "the packet's context does not carry part, or a Search's card is asked under another definition, or the search row reads no card (part sent, the spec, the card read; since DH212 1 through `pickArriving`)");
     }],
+    ["R3990 - a roll the GM draws says so on the roller's screen once its dice are late: not before DRAW_SIGN_MS, not once they started, taken down as they start or the draw ends (DH212 3)", async () => {
+        /*
+         * DH212 3, 12.11.2026 (the owner's "a big delay before the dice show"; docs/dev/DH212/WAITS.md: while the GM draws,
+         * the roller's window has closed and nothing is shown until a warning at 8 s or 30 s). roll-draw.mjs `drawSign`
+         * puts up "The GM is throwing your dice." (`DRPG.Rolls.gmThrowing`) when a draw's dice have not started
+         * `DRAW_SIGN_MS` after it was asked, and takes it down when they start (`startOnMessage` calls the wait's
+         * `onStart`) or the draw ends. Read on stand-ins of the wait and of the notice, with a 30 ms delay: (a) no start -
+         * shown once with that text, then taken down at the end; (b) started before the delay - never shown; (c) ended
+         * before the delay - never shown; (d) a notice whose drawing resolves after the end - taken down at once; (e)
+         * started after it was shown - taken down then. And the wiring, read off the source: `drawAndPlay` puts it up and
+         * `startOnMessage` starts the wait's `onStart`. Red at 3306602c: `drawSign` does not exist.
+         */
+        const D = await import("./roll-draw.mjs");
+        must(typeof D.drawSign === "function", "roll-draw.mjs exports no drawSign");
+        const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+        const run = async ({ startAt = null, endAt = 80, slowShow = 0 } = {}) => {
+            const wait = { at: null };
+            const seen = { shown: [], dismissed: 0 };
+            const show = async text => {
+                seen.shown.push(text);
+                if (slowShow) await pause(slowShow);
+                return () => { seen.dismissed += 1; };
+            };
+            const end = D.drawSign(wait, { delayMs: 30, show });
+            const steps = [];
+            if (startAt !== null) steps.push(pause(startAt).then(() => { wait.at = performance.now(); wait.onStart?.(); }));
+            await Promise.all([...steps, pause(endAt)]);
+            end();
+            await pause(slowShow + 10);
+            return [seen.shown.length, seen.dismissed];
+        };
+        const read = [await run(), await run({ startAt: 5 }), await run({ endAt: 5 }), await run({ endAt: 40, slowShow: 40 }), await run({ startAt: 50, endAt: 90 })];
+        equal(JSON.stringify(read), JSON.stringify([[1, 1], [0, 0], [0, 0], [1, 1], [1, 1]]),
+            "the sign was not shown once and taken down where the dice were late, or was shown where they started or the draw ended first (per case: shown, taken down)");
+        const texts = [];
+        const end = D.drawSign({ at: null }, { delayMs: 1, show: async text => { texts.push(text); return () => {}; } });
+        await pause(20);
+        end();
+        equal(texts[0], game.i18n.localize("DRPG.Rolls.gmThrowing"), "the sign does not say DRPG.Rolls.gmThrowing");
+        const sources = new Map(await otherSources());
+        const src = stripComments(sources.get("roll-draw.mjs") ?? "");
+        equal(JSON.stringify([/\bdrawSign\(start\b/.test(fnSource(src, "drawAndPlay")), /\bonStart\?\.\(\)/.test(fnSource(src, "startOnMessage")),
+            typeof D.DRAW_SIGN_MS === "number" && D.DRAW_SIGN_MS > 0]), JSON.stringify([true, true, true]),
+            "drawAndPlay does not put the sign up for its wait, startOnMessage does not take it down, or DRAW_SIGN_MS is not a delay");
+    }],
     ["R3152 - Stage 6 rolls Shadow and asks nobody: every clean-up step but Move the Body lists Shadow alone, the ruling answers it with no card and no window on a player's browser and a GM's, Move the Body stays Body, and the GM's draw holds a clean-up to Shadow (E68 C5; DA4)", async () => {
         /*
          * E68 C5, 10.11.2026; DA4 (the planned R-next (c)). The definitions a clean-up is asked under (trait-ruling.mjs

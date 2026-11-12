@@ -4752,6 +4752,7 @@
         "kind": "the roll's kind"
       },
       "waitsForGm": "An action roll waits for a GM: no GM is connected, so the action was not taken and nothing was paid.",
+      "gmThrowing": "The GM is throwing your dice.",
       "unwitnessed": "Thrown with no GM connected - the GM will see it.",
       "awayTitle": "Rolls made while no GM was connected",
       "awayLine": "{name}: Hope die {hope}, Despair die {fear} - {moves}",
