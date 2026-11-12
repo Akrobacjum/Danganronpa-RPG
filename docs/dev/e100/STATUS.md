@@ -18,10 +18,10 @@ one place Move's description stood, so a Monocub's panel now shows it as a line 
 
 ## R numbers
 
-R4100-R4107, tier 1, registry Since E100 (R4101 and R4104 removed with the reverts; their rows kept, marked) (set by hand: `tools/stages.json` has no E100 row, so `--write` stamps a new
+R4100-R4110 and R4112, tier 1, registry Since E100 (R4111 not used) (R4101 and R4104 removed with the reverts; their rows kept, marked) (set by hand: `tools/stages.json` has no E100 row, so `--write` stamps a new
 row with the first unshipped stage, E61, and keeps a row's Since once written). Not R3917-R3922, which
 `node tools/registry.mjs --next` gave on main: the e97-98 line already holds R3917 and R3918, e64 holds R3950-R3970
-and the texts line wrote and dropped R4000. The registry's "Next free" line now reads R4108; whoever merges
+and the texts line wrote and dropped R4000. The registry's "Next free" line now reads R4113; whoever merges
 re-runs `node tools/registry.mjs --write` (the file is generated, and conflicts with e64's and e97-98's).
 
 ## The items
@@ -35,6 +35,8 @@ re-runs `node tools/registry.mjs --write` (the file is generated, and conflicts 
 | 5 | #8 Search's statistic | **Reverted at the owner's word** (7f7e4209): the statistic choice stands open in Search as in 1.2.108. What was built: the proposal folded under "Another statistic". | R4104 (removed with the revert) | b123a686, reverted by 7f7e4209 |
 | 6 | #10 Button words | One word per kind: rolls "Rzuć" / "Roll", the GM decides "Wyślij do GM-a" / "Send to the GM", leads on "Dalej" / "Next". The list is below. | R4105 (b123a686: "Rzut", Do it in five openers, "Send to GM", "Send it to the GM", "Roll it") | fa450138 |
 | 7 | #9 The explainers' count | explain.mjs `phaseExplanation` (Daily Life's paragraph in the clock's window) and `actionsExplained` (the strip's window) fill `{actions}` with the shown character's own maximum (actions.mjs `actionsMax`, the number "Masz 3 z 3" beside it reads) and Wounded's sentence with that maximum less what a wound takes; with no character, or a Monokuma, the rule's (`baseActions`). Code only: the texts line rewords the keys (texts-e71 d640019e), no lang value changed here. R503's census gains the clock window's read of the character. | R4106 (6bc3b8c8: both answered the rule's number) | d168919c |
+| 8 | the owner's rule, found by E93 and E72 | No fold in an action window: "Rolls: <statistic>" stands in the lead after the description (`drpg-briefing-rolls`), once, left out where the description names the statistic; Details keeps the cost, the room and the thresholds. An unpicked row keeps its description line (`.drpg-action-window` overrules the columns' `display: none`, the rule itself untouched so E72's Call-window override merges clean). | R4108, R4109 (bf0ce376) | fb04ba2a |
+| 9 | the owner at a table on 1.2.108 | The sheet's Stop shows the table's word alone (no "Safeword" caption; tooltip and aria-label keep it). The left column no longer scrolls sideways: under the glass the brush behind the Equipped row overhung it by 5 px a side (278 in 274, Chromium); inside the column it stands in its box. The chosen tab is marked under the glass again: since E48 K2 its brush was Bone on the Bone bar; Ink now, its words Bone. Legacy: the chosen tab reads marked in the model; not reproduced there. | R4110, R4112, R3488 changed (fb04ba2a) | 69520df9 |
 
 Each commit's message holds its red and green readings and its gate.
 
@@ -81,6 +83,8 @@ last commit of the six and its renumbering: quick green, tiers 0-1 1258 passed, 
 (41/41, at item 2), 73 (32/32, at item 4) and 71 (41/41, at the renumbering).
 After the reverts and R4107 (a006deb4): quick green; tiers 0-1 1258 passed, 0 failed, 16 skipped; tier 2 "the DRPG
 Settings window saves" and "Search on Eye asks nobody" green; scenarios 75 and 71 41/41.
+Tiers 0-1 at bf0ce376: 1258 passed, 0 failed, 16 skipped. Items 8 and 9 (at 69520df9): quick green; tiers 0-1 1262
+passed, 0 failed, 16 skipped; scenario 71 41/41 on item 9's first cut.
 No run in a real Foundry; the review page's shots are the harness's (see the page).
 
 ## Open
