@@ -3168,6 +3168,16 @@ body .application.drpg-window-case table.drpg-data-table td:is(.drpg-data-col-ca
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-trace-name { width: 12%; }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-text { width: 13%; }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-pick { width: 9%; }
+/* A picker's chosen words wrap inside it (E64-inv, 12.11.2026): "Prep Remnant" and "- nie rozstrzygnięto -" were wider than
+   their columns - cut under Stained Glass, drawn over the next cell under Monokuma Legacy (Chromium, both languages,
+   1366x768 and 1920x1080). The cells say shorter words now (investigation.mjs `caseTraceCells`) and the shares below give
+   the longest word room; a phrase that is still wider wraps and the row grows. */
+body .application.drpg-window-case table.drpg-data-table td.drpg-data-col-case-pick select {
+    white-space: normal;
+    height: auto;
+    text-overflow: clip;
+    overflow: hidden;
+}
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-check { width: 7%; text-align: center; }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-found { width: 8%; }
 /* Visibility, the one select whose head is one long word, a share of its own (under Legacy "Visibility" broke in two at
@@ -3832,14 +3842,19 @@ body .application.drpg-ui .drpg-box > :last-child { margin-bottom: 0; }
 /* the shares are the columns' (`col`): a head or cell that states its class's share too is read beside its column's by
    Chromium's fixed layout (the wider wins: the name's column stood 141 px, its 12 % and not its 8 %) */
 body .application.drpg-window-case table.drpg-data-table :is(th, td) { width: auto; }
+/* E64-inv (12.11.2026): the kind's and the band's pickers at their longest word ("Incident" 22 px past 10 % under Glass,
+   "Oczywisty" 12 px past 12 %; Chromium, both languages, 1366x768 and 1920x1080): the kind 10 -> 12.5 %, the band 12 ->
+   13.5 %, paid by the tie (11 -> 9.5 %: its words are "?",
+   "Yes", "No" now; "Powiązany" still fits its head under Legacy), Reinforced 12 -> 10.5 %, Found 9 -> 8.5 % and each
+   description 12 -> 11.75 %, each head word still whole under Legacy at 130 % of the view. */
 .application.drpg-window-case table.drpg-data-table col.drpg-data-col-case-trace-name { width: 7.5%; }
-.application.drpg-window-case table.drpg-data-table col.drpg-data-col-case-text { width: 12%; }
-.application.drpg-window-case table.drpg-data-table col[data-drpg-col="type"] { width: 10%; }
-.application.drpg-window-case table.drpg-data-table col[data-drpg-col="vis"] { width: 12%; }
+.application.drpg-window-case table.drpg-data-table col.drpg-data-col-case-text { width: 11.75%; }
+.application.drpg-window-case table.drpg-data-table col[data-drpg-col="type"] { width: 12.5%; }
+.application.drpg-window-case table.drpg-data-table col[data-drpg-col="vis"] { width: 13.5%; }
 .application.drpg-window-case table.drpg-data-table col[data-drpg-col="faint"] { width: 7.5%; }
-.application.drpg-window-case table.drpg-data-table col[data-drpg-col="crime"] { width: 11%; }
-.application.drpg-window-case table.drpg-data-table col[data-drpg-col="reinf"] { width: 12%; }
-.application.drpg-window-case table.drpg-data-table col[data-drpg-col="found"] { width: 9%; }
+.application.drpg-window-case table.drpg-data-table col[data-drpg-col="crime"] { width: 9.5%; }
+.application.drpg-window-case table.drpg-data-table col[data-drpg-col="reinf"] { width: 10.5%; }
+.application.drpg-window-case table.drpg-data-table col[data-drpg-col="found"] { width: 8.5%; }
 .application.drpg-window-case table.drpg-data-table col[data-drpg-col="delete"] { width: 7%; }
 /* the Key planner's status picker on one line: the cell wraps its words (`white-space: normal`, above), and a select
    took that inside itself under Legacy - "- no Remnant" over a lone "-" (ac069) */

@@ -1794,6 +1794,8 @@ function traceShows(data) {
  * option values; `tieTaken` turns one back into the ledger's.
  */
 const TIE_OPTIONS = Object.freeze({ "": "DRPG.Remnant.tieOpen", tied: "DRPG.Remnant.tieTied", untied: "DRPG.Remnant.tieUntied" });
+/* The same three in the Remnants table's narrow column (E64-inv): "?", "Yes", "No" under the column's head, which names the tie. */
+const TIE_SHORT = Object.freeze({ "": "DRPG.Remnant.tieShortOpen", tied: "DRPG.Remnant.tieShortTied", untied: "DRPG.Remnant.tieShortUntied" });
 const tieShown = tie => tie === true ? "tied" : tie === false ? "untied" : "";
 const tieTaken = shown => shown === "tied" ? true : shown === "untied" ? false : null;
 
@@ -1906,17 +1908,22 @@ function caseTraceCells(shown, finders) {
                the code: Observe's list drops a kind with no number). A row
                already of such a kind keeps it in its list, so the select says what the
                trace is and a Save leaves it alone. */
+            /* THE KIND'S OWN WORD IN THE CELL (E64-inv, 12.11.2026): "Prep Remnant" was wider than the 9 % column, cut under
+               Stained Glass and drawn over the next cell under Monokuma Legacy (Chromium, 1366x768 and 1920x1080, both
+               languages). Every option is a Remnant, so the column says the kind alone ("Prep", "Final Truth"); New
+               Remnant's window keeps the whole name. */
             type: `<select name="type.${key}"${aria("DRPG.Investigation.traceType")}>${Object.entries(REMNANT_TYPES)
                 .filter(([value]) => findableKind(value) || value === shows.type).map(([value, def]) =>
                 `<option value="${esc(value)}"${value === shows.type ? " selected" : ""}>${
-                    esc(def.label)}</option>`).join("")}</select>`,
+                    esc(String(def.label).replace(/ Remnant$/, ""))}</option>`).join("")}</select>`,
             /* HOW HARD IT IS TO SPOT, FOR EVERY TRACE (E60 C4a, 03.11.2026; the owner's ask of 28.10, Q-E60-3's
                alternative): the band Observe reads its number from, found or not - a found trace's copies keep
                the band they were made with (remnants.mjs `setRemnantFlags`). */
             vis: `<select name="vis.${key}"${aria("DRPG.Investigation.visibility")}>${bandOptions(shows.vis)}</select>`,
             // the two checkboxes centred by the column's rule (components.css `drpg-data-col-case-check`), not inline
             faint: `<input type="checkbox" name="faint.${key}"${aria("DRPG.Remnant.faintColumn")} ${shows.faint ? "checked" : ""} />`,
-            crime: `<select name="crime.${key}"${aria("DRPG.Remnant.crimeColumn")}>${Object.entries(TIE_OPTIONS).map(([value, label]) =>
+            // the tie's short words in the cell (E64-inv, as the kind's above): "- nie rozstrzygnięto -" ran 178 px past it
+            crime: `<select name="crime.${key}"${aria("DRPG.Remnant.crimeColumn")}>${Object.entries(TIE_SHORT).map(([value, label]) =>
                 `<option value="${value}"${value === shows.crime ? " selected" : ""}>${esc(game.i18n.localize(label))}</option>`).join("")}</select>`,
             reinf: `<input type="checkbox" name="reinf.${key}"${aria("DRPG.Remnant.reinforcedColumn")} ${shows.reinf ? "checked" : ""} />`,
             found,

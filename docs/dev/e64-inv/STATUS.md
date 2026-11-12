@@ -92,3 +92,22 @@ Built:
 
 After: 32 of 32 in English and 32 of 32 in Polish. Not changed: under Legacy two pickers of the Remnants table still
 draw over the next cell (the kind's and the tie's), as before this round.
+
+## Round 5 (12.11.2026, on claude/e64): the Remnants table's pickers
+
+Under Monokuma Legacy the kind's and the tie's pickers drew their words over the next cell; under Stained Glass the same
+words were cut. Measured in Chromium (a scratch script, not a test: each picker's longest option word against its
+field's content box, both themes, both languages, 1366x768 and 1920x1080, on fresh captures):
+
+- Before (f27ee87): the chosen words alone, 16 of 24 readings past their field ("Prep Remnant" +55 to +61 px, "- nie
+  rozstrzygnięto -" up to +178 px). By the longest word of any option, after the first fix: "Incident" +22 px under
+  Glass, "Oczywisty" +12 px in the band's column.
+- Built: the cells say shorter words - the kind alone ("Prep", "Final Truth"; New Remnant keeps the whole name) and the
+  tie as "?", "Yes", "No" / "?", "Tak", "Nie" (new keys `DRPG.Remnant.tieShort*`; a bare "-" is refused by tier 0) - a
+  picker's words wrap where they still would not fit, and the shares move: the kind 10 -> 12.5 %, the band 12 -> 13.5 %,
+  the tie 11 -> 9.5 %, Reinforced 12 -> 10.5 %, Found 9 -> 8.5 %, each description 12 -> 11.75 %.
+- After: 0 of 24 pickers past their field (every option's longest word), no head of the Remnants table wider than its
+  cell under Legacy, the other three tabs 0 of 20; the fit pass on the dashboard 32 of 32 in both languages.
+
+Not changed: the Delete button's word stands 5 px past its own box under Glass (its width is its content's, 70 px in a
+116 px cell; the letters' spacing), as before this round.
