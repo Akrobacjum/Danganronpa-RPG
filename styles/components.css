@@ -2894,6 +2894,92 @@ body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-data-tab
    line (`.drpg-panel table td.act`, chrome.mjs marks it), which put the Place button 21 px past the table at 1366x768 */
 body .application.drpg-window-case table.drpg-data-table td.drpg-data-col-case-key-status { white-space: normal; text-align: start; }
 
+/* ---- THE CASE PANEL'S FIXED FRAME (E97 C2; the owner's Q-C and Q-D of 11.11.2026, and the fixed-layout rule of 10.11:
+   a state changes look, never layout). The window states its width (investigation.mjs, WIDE's 1120 px), and its body
+   holds two rows: a toolbar of a stated height (the view switch's slot and the view's controls') and the view's box,
+   the live region itself (`.drpg-case-view`), at a height stated from the screen's and the one box that scrolls, both
+   ways - a table wider than the box scrolls in it, the window never. So no tab, no view and no said line moves the frame,
+   its header or its footer. The footer is always two rows (Q-C): one grid of four equal columns over the whole footer, its two
+   sides' wrappers `display: contents`, so the eight buttons take two rows of four at every width a desk has instead of
+   wrapping by what fits, Save last (`order`; first in the tree still, so Enter presses it: ui-kit.mjs's header); a
+   label longer than its cell breaks between its words inside the button. ---- */
+.application.drpg-ui.drpg-window-case .drpg-kit-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--drpg-kit-gap);
+    overflow: hidden;
+}
+.application.drpg-ui.drpg-window-case .drpg-case-toolbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: var(--drpg-kit-gap);
+    height: 2.25rem;
+    min-width: 0;
+}
+.application.drpg-ui.drpg-window-case .drpg-case-switch { flex: 0 0 auto; display: flex; align-items: center; gap: var(--drpg-kit-gap); }
+.application.drpg-ui.drpg-window-case .drpg-case-controls {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--drpg-kit-gap);
+    overflow: hidden;
+}
+.application.drpg-ui.drpg-window-case .drpg-case-controls > .drpg-case-result {
+    margin: 0;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.application.drpg-ui.drpg-window-case .drpg-case-view {
+    flex: 0 0 auto;
+    height: clamp(16rem, calc(100vh - 20rem), 46rem);
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+/* In the stated frame a table is the view's width: the `min-width` above was the fit window's measure (94 % of the
+   screen less the frame), which at 1366x768 held the tables at 1204 px in a 1086 px view - a sideways scroll on every
+   tab, WHO HAS WHAT's last column past the edge (Chromium, both themes, E97 C2). */
+.application.drpg-window-case .drpg-case-view .drpg-data-table-box > table.drpg-data-table { min-width: 0; }
+/* LEGACY'S ONE-WORD HEADS (AUDIT 449, left to E98 by E47-FB and built with the frame, E97 C2). Under Monokuma Legacy's
+   pixel face a head word is wider than its column's share at 1120 px, and `overflow-wrap: anywhere` broke it inside the
+   word. Each head's longest word, padding in (Chromium, Legacy, 1366x768, English / Polish): Traces - Name 65 / Nazwa
+   78, description 156 / gracza 91, analysis 117 / analiza 104, really 91 / naprawdę 117, Visibility / Widoczność 143,
+   Faint 78, crime 78 / Powiązany 130, Reinforced 143, Found 78 / Znalazł 104, Delete 91 / Usuń 65: 1157 px at the
+   least, more than the 1086 px view holds. So under Legacy the Traces table keeps its shares at 130 % of its box
+   (1412 px; at 122 %, 1325 px, Visibility, Reinforced, Widoczność, Powiązany and naprawdę still stood 2-4 px over
+   their heads' room) and scrolls sideways in its own box (Q-D), the view and the window never; the Key planner's Difficulty (130 / Trudność 117) takes 13 % from the name's
+   17 %, and fits. A head breaks between its words only. The glass keeps its shares, all of whose words fit at 1120 px
+   (the same reading). */
+.application.drpg-window-case .drpg-case-view .drpg-data-table-box { overflow-x: auto; }
+body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-case-view [data-drpg-pane="traces"] .drpg-data-table-box > table.drpg-data-table { min-width: 130%; }
+body:not(.drpg-theme-stained-glass) .application.drpg-window-case table.drpg-data-table col.drpg-data-col-case-scale { width: 13%; }
+body:not(.drpg-theme-stained-glass) .application.drpg-window-case table.drpg-data-table col.drpg-data-col-case-key-name { width: 15%; }
+body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-case-view table.drpg-data-table > thead th { overflow-wrap: normal; word-break: normal; hyphens: manual; }
+/* the Key planner's Status picker at its cell's width: under Legacy it read 203 px in a 179 px cell, and the view
+   scrolled sideways by 18 px (Chromium, 1366x768, E97 C2) */
+body .application.drpg-window-case .drpg-case-view td.drpg-data-col-case-key-status select { max-width: 100%; min-width: 0; }
+/* and the cell's own overflow clipped: with the picker in, the cell still reported 17 px of scroll under Legacy (scrollWidth
+   210 in 193) with no box of it past its edge (each child read at or inside the cell, Chromium, E97 C2) */
+.application.drpg-window-case .drpg-case-view td.drpg-data-col-case-key-status { overflow-x: clip; }
+body .application.dialog.drpg-window-case footer.form-footer.drpg-kit-footer {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: repeat(2, auto);
+    grid-auto-flow: row;
+    align-items: stretch;
+}
+.application.dialog.drpg-window-case footer.drpg-kit-footer > :is(.drpg-kit-left, .drpg-kit-right) { display: contents; }
+.application.dialog.drpg-window-case footer.drpg-kit-footer .drpg-role-primary { order: 3; }
+body .application.dialog.drpg-window-case footer.form-footer.drpg-kit-footer button {
+    min-width: 0;
+    width: 100%;
+    margin: 0;
+    white-space: normal;
+}
+
 /* ---- The project windows (E47-C6, 09.11.2026; cards M16-M19 of E47-M, approved by the owner on 09.11 with O1a, O2b, O3b
    and O4 as a setting; D31): the manager's `dataTable` and the create, edit and propose forms on `formGrid`. The rules
    that styled them in danganronpa.css and stained-glass.css (`.drpg-viewer-list`, `-group`, `-head`, `-tick`,

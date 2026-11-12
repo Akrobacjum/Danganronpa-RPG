@@ -40,6 +40,7 @@ import {
     plural, wirePortraitPickers, whisperToGms, log, isPrimaryGm,
     workingScene, esc, placeRoomOptions, listOf, error } from "./utils.mjs";
 import { kitTabs, wireKitTabs, emptyOption, drpgWindow, drpgConfirm, box, dataTable } from "./ui-kit.mjs";
+import { WIDE } from "./ui-columns.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty, RAISED } from "./live.mjs";
 import { keyPlanStore, remnantStore } from "./gm-stores.mjs";
 import { murderState } from "./incident-store.mjs";
@@ -2242,7 +2243,11 @@ function caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter }) {
     const shown = readTracesAs(traces, reading);
     const placed = placedKeyRemnants();
 
-    return `<div class="drpg-case-live"><form>
+    /* THE VIEW'S BOX IS THE LIVE REGION ITSELF (E97 C2): it is the one box of the window that scrolls, at a height the
+       stylesheet states (components.css, "THE CASE PANEL'S FIXED FRAME"), so what it holds - any tab, either view - moves
+       neither the window's frame nor its footer. `keepLive` carries a region's own scroll ("self", live.mjs `keysOf`),
+       so a redraw keeps where the GM had scrolled to as it did when the window's body scrolled. */
+    return `<div class="drpg-case-live drpg-case-view" data-drpg-view="table"><form>
         <h4>${game.i18n.localize("DRPG.Investigation.whoHasWhat")}</h4>
         ${caseStudentTable(students)}
 
@@ -2585,8 +2590,14 @@ export async function openInvestigationDashboard({ said = null } = {}) {
 
     const buildCase = () => caseHtml(reading, { finalRemnants, finalTruthPlacedThisChapter });
 
-    // What the button that reopened this window did (`runDashboardButton`), over the live region, which a redraw rebuilds.
-    const body = `${said ? `<p class="drpg-case-result notes" role="status">${esc(said)}</p>` : ""}${buildCase()}`;
+    /* THE FIXED FRAME (E97 C2; the owner's Q-D of 11.11.2026, "one fixed size for both views; a wide table scrolls in its
+       own box", and the fixed-layout rule of 10.11: a state changes look, never layout). Above the view, one toolbar row
+       of a stated height in two slots: the view switch's (E97 C5) and the view's own controls'. What the button that
+       reopened this window did (`runDashboardButton`) is told in the controls' slot, one line, so a said line no longer
+       adds a row to the window as it did over the live region until C2. */
+    const body = `<div class="drpg-case-toolbar"><div class="drpg-case-switch" data-drpg-slot="switch"></div>`
+        + `<div class="drpg-case-controls" data-drpg-slot="controls">${said
+            ? `<p class="drpg-case-result notes" role="status" title="${esc(said)}">${esc(said)}</p>` : ""}</div></div>${buildCase()}`;
 
     /* THE FOOTER BY ROLE (E21 C2a, E22): Save the primary; the views and the body secondary; Clear Faint and Sweep,
        which take what cannot be put back, destructive - each asks first (`confirmClearFaint`, `confirmSweepBullets`)
@@ -2594,8 +2605,11 @@ export async function openInvestigationDashboard({ said = null } = {}) {
     const action = await drpgWindow({
         title: game.i18n.localize("DRPG.Investigation.dashboardTitle"),
         classes: ["drpg-panel", "drpg-projects", "drpg-window-case"],
-        // On the kit's frame, as wide as its widest table (ui-kit.mjs `fitKitWidth`; utils.mjs `tableDialog` until E21 C2a).
-        fit: true,
+        /* One stated width, the action windows' (ui-columns.mjs WIDE, 1120 px; E97 C2, Q-D). Until C2 the window was
+           as wide as its widest table (`fit`, ui-kit.mjs `fitKitWidth`), so its frame followed what it held; the Map
+           beside the Table would have moved it at every switch. The kit holds a stated width to the screen less 16 px
+           (`kitWidth`). */
+        width: WIDE.width,
         body,
         footer: {
             primary: {

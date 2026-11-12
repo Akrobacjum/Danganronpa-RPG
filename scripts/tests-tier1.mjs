@@ -8019,6 +8019,80 @@ const INVARIANTS = [
             asks: [true, true, true]
         }), "[the store's name, key, kind, reset group, backup, sync and that any GM may write it; its setting's scope and config; on a player's engine the row and what was stored; the gate from a player, on a player's browser, from a GM; each writer asks for a GM]");
     }],
+    ["R3650 - the Investigation panel's fixed frame (E97 C2; the owner's Q-C and Q-D, 11.11.2026): the window states WIDE's width and is no `fit` window; its body is a toolbar (the view switch's slot and the controls' slot, a said line in the controls') and the view's box, the live region itself; components.css states the view's height from the screen's and lets it alone scroll, the toolbar's height, the body no scroll of its own, and the footer one grid of four columns in two rows; under Legacy no Traces or Key head breaks inside a word, the Traces table wider than its box and scrolled there", async () => {
+        /*
+         * E97 C2, 12.11.2026. The panel was a `fit` window, as wide as its widest table, so its frame followed what it
+         * held; the Map beside the Table (C5) would have moved it at every switch, which the owner's fixed-layout rule
+         * forbids (Q-D: "one fixed size for both views; a wide table scrolls in its own box"; Q-C: "the footer ALWAYS
+         * two rows at every size"). jsdom lays nothing out, so this reads the drawn markup and the cascade (`styleCascade`:
+         * which declaration wins, from which file); the sizes Chromium draws are the commit's reading (STATUS: the frame
+         * 1120 x 710 under the glass and 1120 x 684 under Legacy at 1366x768 on every tab, the view the one box that
+         * scrolls, the footer two rows; no head word wider than its head, English and Polish). Red at 9b572a1: the window
+         * is `fit`, no toolbar, no view box, no rule.
+         */
+        const I = await import("./investigation.mjs");
+        const { WIDE } = await import("./ui-columns.mjs");
+        const { kitWidth } = await import("./ui-kit.mjs");
+        const C = await styleCascade();
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
+        must(open().length === 0, "a dashboard stands open already - nothing here would be read cleanly");
+        const drawn = async said => {
+            const answer = Promise.resolve().then(() => I.openInvestigationDashboard({ said })).catch(e => `threw: ${e?.message ?? e}`);
+            try {
+                await until(() => open().some(a => a.element?.querySelector(".drpg-kit-body")), 6000);
+                const app = open()[0], root = app.element, body = root.querySelector(".drpg-kit-body");
+                const kids = [...body.children].map(el => [...el.classList].join(" "));
+                const bar = body.querySelector(":scope > .drpg-case-toolbar");
+                return {
+                    fit: root.classList.contains("drpg-kit-fit"), width: root.classList.contains("drpg-kit-width"), asked: app.options?.position?.width ?? null,
+                    kids,
+                    slots: bar ? [...bar.children].map(el => el.dataset.drpgSlot ?? null) : null,
+                    said: bar?.querySelector('[data-drpg-slot="controls"] > .drpg-case-result')?.textContent ?? null,
+                    view: body.querySelector(":scope > .drpg-case-live")?.classList.contains("drpg-case-view") ?? null
+                };
+            } finally {
+                for (const a of open()) await a.close().catch(() => {});
+                await Promise.race([answer, wait(3000)]);
+            }
+        };
+        const plain = await drawn(null);
+        const told = await drawn("SUITE R3650 said");
+        const read = {};
+        for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-gm`;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-panel drpg-projects drpg-window-case drpg-ui drpg-kit-width"><section class="window-content">`
+                + `<form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-kit-body">`
+                + `<div class="drpg-case-toolbar"><div class="drpg-case-switch"></div><div class="drpg-case-controls"><p class="drpg-case-result">x</p></div></div>`
+                + `<div class="drpg-case-live drpg-case-view"><form><section class="drpg-tab-pane" data-drpg-pane="traces"><div class="drpg-data-table-box"><table class="drpg-data-table"><thead><tr><th>Visibility</th></tr></thead></table></div></section>`
+                + `<section class="drpg-tab-pane" data-drpg-pane="key"><div class="drpg-data-table-box"><table class="drpg-data-table"><colgroup><col class="drpg-data-col-case-scale"><col class="drpg-data-col-case-key-name"></colgroup><thead><tr><th>Difficulty</th><th>Name</th></tr></thead></table></div></section>`
+                + `</form></div></div></div><footer class="form-footer drpg-kit-footer"><div class="drpg-kit-right"><button class="drpg-role-primary">S</button></div><div class="drpg-kit-left"><button class="drpg-role-cancel">C</button></div></footer></form></section></div>`;
+            const q = sel => body.querySelector(sel);
+            const from = (el, prop) => { const w = el ? C.winner(el, prop) : null; return w ? `${w.value.trim()} (${String(w.file).split("/").pop()})` : null; };
+            const view = q(".drpg-case-view"), foot = q("footer");
+            read[theme] = {
+                view: [/100vh/.test(from(view, "height") ?? "") && /components\.css/.test(from(view, "height")), from(view, "overflow")],
+                body: from(q(".drpg-kit-body"), "overflow"), bar: from(q(".drpg-case-toolbar"), "height"),
+                foot: [from(foot, "display"), from(foot, "grid-template-columns"), from(foot, "grid-template-rows"), from(q(".drpg-kit-left"), "display"), from(q(".drpg-kit-right"), "display"), from(q(".drpg-role-primary"), "order")],
+                said: from(q(".drpg-case-result"), "white-space"),
+                heads: [from(q('[data-drpg-pane="traces"] th'), "overflow-wrap"), from(q('[data-drpg-pane="key"] th'), "overflow-wrap")],
+                traces: [from(q('[data-drpg-pane="traces"] table'), "min-width"), from(q('[data-drpg-pane="traces"] .drpg-data-table-box'), "overflow-x")],
+                keyShares: [from(q("col.drpg-data-col-case-scale"), "width"), from(q("col.drpg-data-col-case-key-name"), "width")]
+            };
+        }
+        const both = { view: [true, "auto (components.css)"], body: "hidden (components.css)", bar: "2.25rem (components.css)",
+            foot: ["grid (components.css)", "repeat(4, minmax(0, 1fr)) (components.css)", "repeat(2, auto) (components.css)", "contents (components.css)", "contents (components.css)", "3 (components.css)"],
+            said: "nowrap (components.css)" };
+        equal(stableJson({ plain, told: told.said, read }), stableJson({
+            plain: { fit: false, width: true, asked: kitWidth(WIDE.width), kids: ["drpg-case-toolbar", "drpg-case-live drpg-case-view"], slots: ["switch", "controls"], said: null, view: true },
+            told: "SUITE R3650 said",
+            read: {
+                "drpg-theme-monokuma-legacy": { ...both, heads: ["normal (components.css)", "normal (components.css)"], traces: ["130% (components.css)", "auto (components.css)"], keyShares: ["13% (components.css)", "15% (components.css)"] },
+                "drpg-theme-stained-glass": { ...both, heads: ["anywhere (components.css)", "anywhere (components.css)"], traces: ["0 (components.css)", "auto (components.css)"], keyShares: ["11% (components.css)", "17% (components.css)"] }
+            }
+        }), "{plain: the drawn window [a fit window; one that states its width; the width it asked (WIDE's, held to this screen by the kit); the body's children; the toolbar's slots; a said line; the live region is the view's box]; told: the said line in the controls' slot; read: per theme, the winning declaration [the view's height from the screen's and its overflow; the body's overflow; the toolbar's height; the footer's display, columns, rows, its two sides' display and Save's order; the said line's wrap; the Traces and Key heads' overflow-wrap; the Traces table's min-width and its box's overflow-x; the Key planner's Difficulty and Name shares]}");
+    }],
     ["R3332 - a statistic card under the kind action is asked only for an action a card is read for: Search, and no other", async () => {
         /*
          * E68 review R7, 10.11.2026. Kind `action` was opened for Search (E68 C6), and the GMs' guard
