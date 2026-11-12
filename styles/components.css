@@ -2669,6 +2669,17 @@ body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-know
 body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-knows-start { width: calc(130px * var(--drpg-legacy-scale, 1)); }
 body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-state { width: calc(134px * var(--drpg-legacy-scale, 1)); }
 body .application.drpg-window-rooms table.drpg-data-table col.drpg-data-col-actions { width: calc(256px * var(--drpg-legacy-scale, 1)); }
+/* LEGACY'S POLISH "POCHODZENIE" WHOLE (gaps G2, 12.11.2026; the 1.2.105 notes' Known gaps). Under Monokuma Legacy's pixel
+   face the Origin head is 143.5 px of text, and in 130 px less its 12 px of padding it stood 20 px past its cell, cut by the
+   next column (Chromium on the style harness, probe 08's Polish capture, at 1280x720, 1366x768 and 1920x1080; under the
+   glass and under Legacy without the pixel face it is inside its cell). On this tab under Legacy alone Origin takes 156,
+   paid for by Rooms 150 -> 143 and Who knows 156 -> 137 (its head "Kto zna" / "Who knows" stays on one line, its chips
+   wrap), so the eight still sum to 1162 (R606's room at 1280x720 is 1169). Read after: every head whole in both languages
+   and themes at the three sizes, no button past its cell, no cell past the body, and no word broken that was not before
+   (style-sweep `--tables`; R3662). The glass's widths are untouched. */
+body.drpg-theme-monokuma-legacy .application.drpg-window-rooms [data-drpg-passages] table.drpg-data-table col.drpg-data-col-room { width: calc(143px * var(--drpg-legacy-scale, 1)); }
+body.drpg-theme-monokuma-legacy .application.drpg-window-rooms [data-drpg-passages] table.drpg-data-table col.drpg-data-col-origin { width: calc(156px * var(--drpg-legacy-scale, 1)); }
+body.drpg-theme-monokuma-legacy .application.drpg-window-rooms [data-drpg-passages] table.drpg-data-table col.drpg-data-col-knows { width: calc(137px * var(--drpg-legacy-scale, 1)); }
 /* a button fills its place in the grid and wraps its words, inside the cell: the glass's panel button rule keeps a button on
    one line (stained-glass.css, 0,7,2), and this is 0,7,4 */
 body .application.drpg-window-rooms table.drpg-data-table td .drpg-passage-actions > button.drpg-mini-button.drpg-mini-button[type="button"] {

@@ -1323,8 +1323,10 @@ async function settingsPass(browser) {
  * picker offers, shown by ui-hold.mjs `showRoomGroup` (the very function the window's change calls), each equal to the
  * first within 0.5 px, and the body's content height equal too (41 names fill the screen at every size read, so the window
  * stands at its ceiling whatever is shown and its size alone would read nothing: the scrolled height is what moves). Passages: every button of the actions' column inside its cell (0.5 px), and every cell inside
- * the window body (a column past the window is a button past it too). THE CONTROLS first (the stackShapes lesson): the
- * actions' buttons forced onto one line (`nowrap`, no wrap) must read buttons past their cell; the groups' floor taken
+ * the window body (a column past the window is a button past it too), and every head of the table whole inside its cell
+ * (gaps G2: no head's words past the cell's right edge, nothing of it scrolled). THE CONTROLS first (the stackShapes lesson): the
+ * actions' buttons forced onto one line (`nowrap`, no wrap) must read buttons past their cell; the Origin column forced
+ * to 30 px must read a head past its cell (gaps G2); the groups' floor taken
  * off (`min-height: 0`) must read a change of size or of the body's content height between two categories.
  */
 /* 1280x720 beside the stage's two (E49 A5): the smallest desk the module supports (D32 as [17] narrowed it), where the
@@ -1378,8 +1380,20 @@ async function tablesRead(page, id) {
         }
         const cellsPast = cells.filter(td => td.getBoundingClientRect().right > right + 0.5).length;
         const rows = cells.length ? new Set(cells.map(td => td.parentElement)).size : 0;
+        /* THE HEADS WHOLE (gaps G2, 12.11.2026): each head's words end inside its cell's border box, and nothing of it
+           scrolls - Legacy's Polish "Pochodzenie" ran 25.5 px past its content box and 20 px past the cell at 1280x720,
+           cut by the next column. The glass's padding takes its own 2 px (the head inside its cell, read whole). */
+        const heads = [];
+        for (const th of win.querySelectorAll("[data-drpg-passages] thead th")) {
+            const text = th.textContent.replace(/\s+/g, " ").trim();
+            if (!text) continue;
+            const range = globalThis.document.createRange();
+            range.selectNodeContents(th);
+            const by = Math.max(...[...range.getClientRects()].map(x => x.right)) - th.getBoundingClientRect().right;
+            if (by > 0.5 || th.scrollWidth > th.clientWidth) heads.push(`"${text}" ${r1(Math.max(by, th.scrollWidth - th.clientWidth))}`);
+        }
         return { rows, buttons: cells.filter(c => c.classList.contains("drpg-data-col-actions")).reduce((n, td) => n + td.querySelectorAll("button").length, 0),
-            outside, cellsPast, past: pastOf(win.querySelector("[data-drpg-passages]") ?? win), size: size() };
+            outside, cellsPast, heads, past: pastOf(win.querySelector("[data-drpg-passages]") ?? win), size: size() };
     }, id);
 }
 
@@ -1408,6 +1422,12 @@ async function tablesPass(browser) {
         const seen = (p.outside?.length ?? 0) > 0;
         console.log(`style-sweep: --tables control (the actions on one line): ${p.outside?.length ?? 0} button(s) past their cell ${seen ? "read" : "NOT read"}`);
         if (!seen) problems.push("control: the actions forced onto one line read no button past its cell");
+        await load(page, url("rooms-passages--rows", "glass"));
+        await page.addStyleTag({ content: "[data-drpg-passages] col.drpg-data-col-origin { width: 30px !important; }" });
+        const c = await tablesRead(page, "rooms-passages--rows");
+        const cut = (c.heads?.length ?? 0) > 0;
+        console.log(`style-sweep: --tables control (the Origin column 30 px): ${c.heads?.length ?? 0} head(s) past their cell ${cut ? "read" : "NOT read"}`);
+        if (!cut) problems.push("control: the Origin column at 30 px read no head past its cell");
         await load(page, url("item-tables--rooms", "glass"));
         await page.addStyleTag({ content: "[data-drpg-room-groups] { min-height: 0 !important; }" });
         const t = await tablesRead(page, "item-tables--rooms");
@@ -1444,7 +1464,8 @@ async function tablesPass(browser) {
                         if (r.rows !== 4) bad.push(`${r.rows} row(s) drawn (4 seeded)`);
                         if (r.outside.length) bad.push(`${r.outside.length} of ${r.buttons} button(s) past their cell (${r.outside.slice(0, 4).join(", ")})`);
                         if (r.cellsPast) bad.push(`${r.cellsPast} cell(s) past the window's body`);
-                        console.log(`style-sweep: --tables ${where}: ${r.rows} row(s), ${r.buttons} button(s), ${r.outside.length} past their cell, ${r.cellsPast} cell(s) past the body, window ${r.size.join("x")}${bad.length ? ` - RED: ${bad.join("; ")}` : ""}`);
+                        if (r.heads.length) bad.push(`${r.heads.length} head(s) cut (${r.heads.join(", ")})`);
+                        console.log(`style-sweep: --tables ${where}: ${r.rows} row(s), ${r.buttons} button(s), ${r.outside.length} past their cell, ${r.cellsPast} cell(s) past the body, ${r.heads.length} head(s) cut, window ${r.size.join("x")}${bad.length ? ` - RED: ${bad.join("; ")}` : ""}`);
                     }
                     problems.push(...bad.map(b => `${where}: ${b}`));
                     if (SHOTS && w === 1366) {

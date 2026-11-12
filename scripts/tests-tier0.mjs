@@ -14643,7 +14643,9 @@ const REGRESSIONS = [
         equal(cols.length, 8, "the Passages table's columns, read off passages-tab.mjs PASSAGE_COLUMNS - and nothing below is read");
         ok(/\bdataTable\(\{\s*columns: PASSAGE_COLUMNS\b/.test(stripComments(fnSource(sources.get("passages-tab.mjs") ?? "", "passagesTabBody"))),
             "passagesTabBody draws its table from PASSAGE_COLUMNS");
-        const css = await moduleStyles();
+        /* The unthemed rules alone: Legacy's own widths on this tab (gaps G2) are R3662's, and a theme's rule would
+           otherwise be read here as the glass's. */
+        const css = (await moduleStyles()).replace(/body\.drpg-theme-monokuma-legacy[^{}]*\{[^}]*\}/g, "");
         /* A width the Passages tab gives a column of its own (E49 A5: the Rooms column, `[data-drpg-passages]`) before the
            room tabs' shared one. */
         const widthOf = cls => {
@@ -14662,6 +14664,46 @@ const REGRESSIONS = [
         const actions = css.match(/\.drpg-passage-actions\s*\{([^}]*)\}/)?.[1] ?? "";
         ok(/display:\s*grid\b/.test(actions) && /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/.test(actions),
             `the buttons' cell (.drpg-passage-actions { ${actions.trim()} }) is not a grid of two columns inside its width - five buttons on one line run past it`);
+    }],
+    ["R3662 - Legacy's Passages heads are whole at 1280x720 and the glass's columns stay as they are (gaps G2): under Monokuma Legacy the Origin column is at least the 156 px Chromium measured \"Pochodzenie\" to need, paid for on this tab by Rooms and Who knows, so Legacy's eight columns still sum to no more than Room Setup leaves the table at 1280x720 (R606's room); the Stained Glass widths are the ones E49 A5 chose, untouched", async () => {
+        /*
+         * Gaps G2, 12.11.2026 (the 1.2.105 release notes' Known gaps: Legacy's Polish "Pochodzenie" head cut in Passages'
+         * Origin column). MEASURED in Chromium on the style harness (probe 08's Polish capture of rooms-passages--rows,
+         * DRPG_CAPTURE_LANG=pl, kept out of git; audit/style-sweep.mjs --tables, whose heads check this commit adds):
+         * under Legacy with its pixel face the head's text is 143.5 px in a column of 130 (12 px of padding), 20 px past
+         * the cell, cut by the next column, at 1280x720, 1366x768 and 1920x1080; under the glass and under Legacy without
+         * the pixel face it is inside its cell. At Origin 156, Rooms 143 and Who knows 137 under Legacy (1162 px, as
+         * before) every head is whole in both languages and themes at the three sizes, no word breaks that did not
+         * break before, no button leaves its cell and no cell the window's body. Headless there is no layout, so this
+         * holds the cause off components.css: the three Legacy rules, their sum against R606's room, and the glass's
+         * unthemed widths as E49 A5 left them. Red at fbe2214a: no Legacy width for the Passages columns.
+         */
+        const T = await import("./passages-tab.mjs");
+        const cols = (T.PASSAGE_COLUMNS ?? []).map(c => `drpg-data-col-${c.cls}`);
+        equal(cols.length, 8, "the Passages table's columns, read off passages-tab.mjs PASSAGE_COLUMNS - and nothing below is read");
+        const css = (await moduleStyles()).replace(/\/\*[\s\S]*?\*\//g, "");
+        const LEGACY = "body\\.drpg-theme-monokuma-legacy\\s+\\.application";
+        const rule = (scope, cls) => new RegExp(`(^|\\})\\s*${scope}\\.drpg-window-rooms\\s+(\\[data-drpg-passages\\]\\s+)?table\\.drpg-data-table\\s+col\\.${cls}\\s*\\{\\s*width:\\s*calc\\((\\d+)px\\s*\\*\\s*var\\(--drpg-legacy-scale,\\s*1\\)\\)`, "g");
+        // Each column's width in a theme: its own rule on this tab before the room tabs' shared one, the last of each in the file.
+        const widthIn = (scope, cls) => {
+            const all = [...css.matchAll(rule(scope, cls))];
+            const tab = all.filter(m => m[2]).at(-1), shared = all.filter(m => !m[2]).at(-1);
+            return Number((tab ?? shared)?.[3] ?? NaN);
+        };
+        const glass = cols.map(c => widthIn("body\\s+\\.application", c));
+        const legacy = cols.map((c, i) => { const w = widthIn(LEGACY, c); return Number.isFinite(w) ? w : glass[i]; });
+        const cap = Number(css.match(/:root\s*\{[^}]*--drpg-window-max:\s*(\d+)px/)?.[1]);
+        must(Number.isFinite(cap) && glass.every(Number.isFinite), "the glass's widths or --drpg-window-max were not read - this would measure nothing");
+        const room = Math.floor(Math.min(1280 * 0.94, cap)) - 34;
+        const at = cls => cols.indexOf(`drpg-data-col-${cls}`);
+        const read = {
+            glass: glass.join(","),
+            legacyOrigin: legacy[at("origin")] >= 156,
+            legacySum: legacy.reduce((a, b) => a + b, 0) <= room,
+            legacyOwn: ["origin", "room", "knows"].map(c => Number.isFinite(widthIn(LEGACY, `drpg-data-col-${c}`)))
+        };
+        equal(JSON.stringify(read), JSON.stringify({ glass: "150,96,110,130,156,130,134,256", legacyOrigin: true, legacySum: true, legacyOwn: [true, true, true] }),
+            `{glass: the eight widths under the glass (${cols.map(c => c.slice(14)).join(", ")}); legacyOrigin: Legacy's Origin >= 156; legacySum: Legacy's eight (${legacy.join("+")}) <= ${room}; legacyOwn: a Legacy rule for Origin, Rooms, Who knows}`);
     }],
     ["R909 - every region teleport of the module is made inside movement.mjs `whilePlacing`, and the sheet's step onto a tunnel's end skips a token this browser is placing (H81 fix C3): the gather, the cast's placing and a Clean-up's body land a knower on a tunnel's end without taking it through", async () => {
         /*
