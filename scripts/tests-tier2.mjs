@@ -86810,7 +86810,11 @@ const SCENARIOS = [
             await game.settings.set(MODULE_ID, SETTINGS.migratedVersion, "1.2.105");
             const report = await Mi.migrate1_2_0({ only: ["openCaseBodies"], quiet: true });
             await settle();
-            read.stamped = [report?.skipped?.includes("openCaseBodies") ?? null, at(a).length, at(b).length];
+            /* "Skipped" is either answer migrate1_2_0 gives a world stamped 1.2.105: with the module past it, a report that
+               lists the clause as skipped; with the module at 1.2.105 itself, no pass at all (`null`, "already at"). The
+               test was written with the module at 1.2.104 and read only the first, so the release commit's bump turned it
+               red (CI on ca2b5cc9, suite 6/8: stamped [null, 1, 1]); the tiles left as they were hold the rest. */
+            read.stamped = [report === null || (report?.skipped?.includes("openCaseBodies") ?? false), at(a).length, at(b).length];
             read.status = Mi.migrationStatus().clauses.some(c => c.key === "openCaseBodies" && c.since === "1.2.105");
         } finally {
             for (const x of [a, b]) if (C.isDeadForGm(x)) await C.reviveCharacter(x, { quiet: true });
