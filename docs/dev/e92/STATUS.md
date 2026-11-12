@@ -1,6 +1,6 @@
 # E92 - status (work line claude/e92)
 
-Updated 12.11.2026. Final: all seven commits in, tested, pushed; the owner fix of 12.11 in (below). Ships as 1.2.110 (the coordinator). The plan is `docs/dev/plans/E92.md` on `claude/plan-130` (read whole). Base: claude/e61-62 at 59d1935
+Updated 12.11.2026. Final: all seven commits in, tested, pushed; the owner fix of 12.11 in (below). Ships as 1.2.110 (the coordinator). Head 44b1777, CI run 43198264490 green. The plan is `docs/dev/plans/E92.md` on `claude/plan-130` (read whole). Base: claude/e61-62 at 59d1935
 (E61, E62 and E94). The census of what a Spectator would be counted in: `docs/dev/e92/CENSUS.md`.
 
 ## Done
@@ -81,6 +81,10 @@ the picker cut short under Legacy (b50184f). Open: under the glass the picker's 
 - Owner's 04.11 plan line "token hidden": done as display (`tokenShownTo`), not Foundry's `hidden`, so the owner can still see and drag it.
 
 ## Not done / limits
+
+- Seen once, not reproduced: CI run 43167701858 (push of 3b8d87e) failed one tier-2 test in suite shard 5/8, "an effect a
+  player puts on a resource's value or a module flag is put back, as one on a statistic is". It passes alone and in shard
+  5/8 run locally at babd4f3 (192 passed, 0 failed), and CI run 43198264490 at 44b1777 is green. Possibly order-dependent.
 
 - LIVE-E92-01..04 (AUDIT 9.2): one LiveKit connection in two rooms, a drag through a wall on v14, the real BROADCAST_AUDIO, the grey token on a real map.
 - `forgetSpectatorMap` writes unticks for the character: a GM's Fog tab shows them as unticked cells (as before, not found).
