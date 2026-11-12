@@ -3288,7 +3288,8 @@ const INVARIANTS = [
         const text = async file => fetch(`/modules/${MODULE_ID}/${file}`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
         const glyphs = G.parseGlyphs(await text("tools/glyphs.json")).glyphs;
         const keyed = G.keyedElements(C, await text("scripts/gm-panel.mjs"));
-        must(keyed.length >= 80 && glyphs.length >= 400, `${keyed.length} keyed element(s), ${glyphs.length} glyph row(s) read`);
+        // 70, not 80, since E49 A1e: four GM tiles left the panel for Season setup (78 keyed elements read on 11.11.2026).
+        must(keyed.length >= 70 && glyphs.length >= 400, `${keyed.length} keyed element(s), ${glyphs.length} glyph row(s) read`);
         const icon = new Map(keyed);
         equal(stableJson(Object.entries(G.KEY_ICONS).filter(([id, fa]) => icon.get(id) !== fa).map(([id, fa]) => [id, fa, icon.get(id) ?? null])), "[]",
             "[the rules' FA class against config.mjs's icon: id, the rule's, config's]");
@@ -3350,7 +3351,8 @@ const INVARIANTS = [
         const text = async file => fetch(`/modules/${MODULE_ID}/${file}`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
         const glyphs = G.parseGlyphs(await text("tools/glyphs.json")).glyphs;
         const keyed = G.keyedElements(C, await text("scripts/gm-panel.mjs"));
-        must(keyed.length >= 80 && glyphs.length >= 400, `${keyed.length} keyed element(s), ${glyphs.length} glyph row(s) read`);
+        // 70, not 80, since E49 A1e: four GM tiles left the panel for Season setup (78 keyed elements read on 11.11.2026).
+        must(keyed.length >= 70 && glyphs.length >= 400, `${keyed.length} keyed element(s), ${glyphs.length} glyph row(s) read`);
         const body = document.body, CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], classWas = CLASSES.map(n => body.classList.contains(n));
         const host = document.createElement("div");
         host.className = "drpg-glyph-probes";
@@ -3452,6 +3454,171 @@ const INVARIANTS = [
             `Monokuma Legacy, the GM's lock (the control): ${at("legacy.gmBlock")}, not --drpg-pix-mic inline-block`);
         ok(G.readingMatches("--drpg-pix-mic", seen["legacy.none"]?.[0]) && seen["legacy.none"]?.[1] === "none",
             `Monokuma Legacy, unlocked: ${at("legacy.none")}, not --drpg-pix-mic none`);
+    }],
+
+    ["R3511 - under Stained Glass the GM's manual mic lock is drawn by its drawing alone: the voice tile's mic in the GM's lock (`is-gm-blocked`) draws no diagonal \"blocked\" stroke over the mic-lock glyph, while a muted or held mic keeps its stroke and Monokuma Legacy keeps it on the GM's lock (E48, the owner's \"Ok\" of 11.11.2026)", async () => {
+        /*
+         * E48 (the mic lock), 11.11.2026; E48 STATUS mic-lock's open: components.css draws a 22 px diagonal stroke on the
+         * `::after` of any blocked mini launcher (`.drpg-launch-mini:is(.is-muted, .is-held, .is-gm-blocked)::after`), and
+         * under Stained Glass the GM's lock wears the mic-lock drawing (R3460) - so the mic read crossed and locked at once.
+         * Read with the kit's cascade (`styleCascade`, the module's sheets read from their text): which rule wins
+         * `content` on the mic's `::after`, the mic built as voice-tile.mjs builds it (R3460's). jsdom computes no
+         * pseudo-element's style ("Not implemented: ... with pseudo-elements", read on the harness 11.11.2026), so this is
+         * the cascade of the sheets' text, not a browser's computed style; @media rules are not read by it. THE CONTROLS:
+         * a muted and a held mic under the glass, and the GM's lock under Legacy, keep the stroke (`content: ""`).
+         * Red first on 15f44581: glass.gmBlock read "\"\"" (the stroke drawn).
+         */
+        const C = await styleCascade();
+        const { launcher, launcherState } = await import("./ui-kit.mjs");
+        const shell = document.implementation.createHTMLDocument("R3511");
+        const page = shell.body;
+        const host = shell.createElement("div");
+        host.className = "drpg-voice-tile";
+        page.append(host);
+        const mic = shell.importNode(launcher({ mini: true, className: "drpg-voice-mic", glyph: "mic", label: "mic" }), true);
+        host.append(mic);
+        const seen = {};
+        for (const [theme, cls] of [["glass", "drpg-theme-stained-glass"], ["legacy", "drpg-theme-monokuma-legacy"]]) {
+            page.className = cls;
+            for (const state of ["gmBlock", "muted", "held"]) {
+                launcherState(mic, state);
+                seen[`${theme}.${state}`] = C.winner(mic, "content", "::after")?.value ?? null;
+            }
+        }
+        must(Object.values(seen).some(v => v !== null), "no ::after rule of the mini launcher was read - this would measure nothing");
+        equal(stableJson(seen), stableJson({ "glass.gmBlock": "none", "glass.muted": "\"\"", "glass.held": "\"\"",
+            "legacy.gmBlock": "\"\"", "legacy.muted": "\"\"", "legacy.held": "\"\"" }),
+            "{theme.state: the content of the mic's ::after - \"\" draws the blocked stroke, none draws nothing}");
+    }],
+
+    ["R3560 - where Foundry showed through a module window, the module states the face (E105 FT batch 1, 11.11.2026; the owner's \"pozbyc sie ... miejsc gdzie przebija sie grafika lub kolor z foundry\"): under Monokuma Legacy a kit window's body buttons (an icon button, a secondary, a bare one, Delete and Place), a DrpgApp window's footer buttons, its search field, its title plate, a table's head and a checkbox, the messenger's write field, the room tile's chevron, the HUD's and the Despair tracker's ink; in both themes a title-bar control's ground, a label's ink, the picture button's ink and the sheet's item names and panel notes - each property won by a rule of the module's sheets; a window of Foundry's own keeps none of them", async () => {
+        /*
+         * E105 FT-01..06, FT-09, FT-11, FT-12, FT-17..20, FT-23, FT-24 (S/stages/E105/foundry-through/LIST.md, the survey of
+         * 11.11.2026): its reader found these properties set by no rule of the module's sheets - at a table core's
+         * `button`, `input`, `label`, `th` rules and Daggerheart's sheet colours paint them. Read here with the kit's cascade
+         * (`styleCascade`, the sheets from their text; `:where()` weighs nothing, so a rule that only fills a gap still
+         * answers when nothing else does) on markup built as the kit builds it, on a body of its own: which rule wins
+         * each property, `set` when one does. THE CONTROL: the same body button and label in a window of Foundry's own
+         * (`.application` with no `drpg-` class) must stay `open` - the module does not repaint Foundry's windows (batch 3
+         * decides those), so a reader that answered "set" for any button would be red here. Red first on 7d59dcfe: 38 of the
+         * 42 module readings `open` (the four `set`: the glass's label, item name, note and picture button by older rules).
+         */
+        const C = await styleCascade();
+        const shell = document.implementation.createHTMLDocument("R3560");
+        const page = shell.body;
+        page.innerHTML = `<div class="application drpg-ui drpg-panel drpg-window-notices" id="w"><header class="window-header"><h1 class="window-title">t</h1><button type="button" class="header-control" data-action="close"></button></header>`
+            + `<section class="window-content"><div class="drpg-kit-content"><div class="drpg-notices-search"><input type="search" placeholder="s"></div><div class="drpg-kit-body">`
+            + `<button type="button" class="drpg-kit-icon-button"><i></i></button><button type="button" class="drpg-role-secondary">o</button><button type="button">b</button>`
+            + `<button type="button" class="drpg-trace-delete">d</button><button type="button" class="drpg-key-place">p</button>`
+            + `<table class="drpg-data-table"><thead><tr><th>h</th></tr></thead></table><label>l <input type="checkbox"></label></div>`
+            + `<footer class="form-footer drpg-kit-footer"><div class="drpg-kit-right"></div><div class="drpg-kit-left"><button type="button" class="drpg-role-close" data-drpg-role="close">c</button>`
+            + `<button type="button" class="drpg-role-destructive drpg-destructive" data-drpg-role="destructive">x</button></div></footer></div></section></div>`
+            + `<div class="application drpg-messenger"><header class="window-header"><button type="button" class="header-control"></button></header><section class="window-content"><div class="drpg-messenger-input"><textarea></textarea></div></section></div>`
+            + `<div id="drpg-room-tile" class="drpg-room-tile"><button type="button" class="drpg-room-tile-open"></button><button type="button" class="drpg-room-tile-more"><i></i></button></div>`
+            + `<div id="drpg-hud"><button type="button" class="drpg-hud-button"></button></div><div id="drpg-despair"><span class="drpg-despair-count">1</span><button type="button" class="drpg-despair-button"></button></div>`
+            + `<div class="application sheet actor"><section class="window-content"><ul class="drpg-inventory-list"><li><span class="drpg-item-name">n</span></li></ul>`
+            + `<div class="drpg-action-panel"><p class="notes drpg-dead-still">d</p></div></section></div>`
+            + `<div class="application foundry-own"><section class="window-content"><button type="button">f</button><label>f</label></section></div>`;
+        const $ = sel => page.querySelector(sel);
+        const BG = ["background", "background-color"], EDGE = ["border", "border-color", "border-top-color", "border-style"], INK = ["color"];
+        const kit = "#w .drpg-kit-body";
+        const LEGACY = [
+            ["iconButton", `${kit} .drpg-kit-icon-button`, [BG, EDGE, INK]], ["secondary", `${kit} .drpg-role-secondary`, [BG, EDGE, INK]],
+            ["bare", `${kit} > button:not([class])`, [BG, EDGE, INK]], ["traceDelete", `${kit} .drpg-trace-delete`, [BG, EDGE]], ["keyPlace", `${kit} .drpg-key-place`, [BG, EDGE]],
+            ["close", "#w .drpg-role-close", [BG, EDGE]], ["destructive", "#w .drpg-role-destructive", [BG, EDGE]], ["search", "#w input[type=search]", [BG, EDGE]],
+            ["plate", "#w > .window-header", [BG]], ["th", `${kit} th`, [INK]], ["checkbox", `${kit} input[type=checkbox]`, [["accent-color"]]],
+            ["messengerField", ".drpg-messenger-input textarea", [BG, INK]], ["tileMore", ".drpg-room-tile-more", [BG, EDGE, INK]],
+            ["hudButton", ".drpg-hud-button", [INK]], ["despair", "#drpg-despair", [INK]], ["despairButton", ".drpg-despair-button", [INK]]
+        ];
+        const BOTH = [
+            ["headerControl", "#w .header-control", [BG]], ["messengerControl", ".drpg-messenger .header-control", [BG]], ["label", `${kit} label`, [INK]],
+            ["tileOpen", ".drpg-room-tile-open", [INK]], ["itemName", ".drpg-item-name", [INK]], ["deadNote", ".drpg-dead-still", [INK]]
+        ];
+        const CONTROL = [["foundryButton", ".foundry-own button", [BG, EDGE]], ["foundryLabel", ".foundry-own label", [INK]]];
+        const seen = {}, want = {};
+        let asked = 0;
+        const read = (theme, rows, expect) => {
+            for (const [name, sel, groups] of rows) {
+                const el = $(sel);
+                must(el, `${name}: ${sel} was not built - point the markup at it again`);
+                groups.forEach((names, i) => {
+                    asked++;
+                    const key = `${theme}.${name}.${i}`;
+                    seen[key] = C.winner(el, names) ? "set" : "open";
+                    want[key] = expect;
+                });
+            }
+        };
+        for (const [theme, cls] of [["legacy", "drpg-theme-monokuma-legacy"], ["glass", "drpg-theme-stained-glass"]]) {
+            page.className = cls;
+            if (theme === "legacy") { read(theme, LEGACY, "set"); read(theme, CONTROL, "open"); }
+            read(theme, BOTH, "set");
+        }
+        must(asked > 40, `${asked} properties asked - this would measure too little`);
+        equal(stableJson(seen), stableJson(want), "{theme.element.property group: set - a rule of the module's sheets wins it, open - none does}");
+    }],
+
+    ["R3561 - the states Foundry drew in a module window are the module's (E105 FT batch 1, 11.11.2026): a rule of the module's sheets states the keyboard's ring (outline) on a step button, a chip, a checkbox, a summary, a title-bar control, the room tile's chevron and the sheet's reserve field and biography under Legacy, and on a summary and a slider under the glass; the face under the pointer of a kit body button and a title-bar control and no glow under it on a mini button; a field's placeholder ink and selected text's ground in both themes; and none of these for a window of Foundry's own under Legacy", async () => {
+        /*
+         * E105 FT-01, FT-06..08, FT-10, FT-16, FT-18, FT-25: the survey's reader counts a state as the module's when a rule
+         * of its sheets whose selector names that state (or that pseudo-element) matches the element and declares the
+         * property. jsdom matches no `:hover` and no `:focus-visible`, and the kit's cascade reads no pseudo-element but
+         * ::before and ::after, so this reads the rules the same way: every selector of every rule of `styleCascade`'s
+         * (the module's sheets from their text) that names the state, the state taken out and the rest matched against
+         * the element (a pseudo-element after a space, `X ::placeholder`, read as `X *`). Whether the rule then wins the
+         * property is R3560's question for the resting state, not this one's. THE CONTROL: a button, a field and a
+         * paragraph in a window of Foundry's own (`.application` with no `drpg-` class) under Legacy - `none` there, so a
+         * reader that matched every rule would be red. Red first on 7d59dcfe: all 20 module readings `none`.
+         */
+        const C = await styleCascade();
+        const shell = document.implementation.createHTMLDocument("R3561");
+        const page = shell.body;
+        page.innerHTML = `<div class="application drpg-ui drpg-panel" id="w"><header class="window-header"><button type="button" class="header-control"></button></header><section class="window-content"><div class="drpg-kit-body">`
+            + `<span class="drpg-kit-stepper"><button type="button" class="drpg-step drpg-step-plus" data-drpg-step="1">+</button></span><div class="drpg-chips"><button type="button" class="drpg-chip">c</button></div>`
+            + `<input type="checkbox"><details><summary>s</summary></details><input type="range"><input type="text" placeholder="p"><p>t</p>`
+            + `<button type="button" class="drpg-kit-icon-button"><i></i></button><button type="button" class="drpg-mini-button">m</button></div></section></div>`
+            + `<div id="drpg-room-tile" class="drpg-room-tile"><button type="button" class="drpg-room-tile-more"></button></div>`
+            + `<div class="application sheet actor"><section class="window-content"><div class="character-sidebar-sheet"><input type="number" class="drpg-reserve-field"></div>`
+            + `<textarea class="drpg-biography-text" placeholder="b"></textarea></section></div>`
+            + `<div class="application foundry-own"><section class="window-content"><button type="button">f</button><input type="text" placeholder="f"><p>f</p></section></div>`;
+        const $ = sel => page.querySelector(sel);
+        const split = text => { const out = []; let depth = 0, part = ""; for (const ch of text) { if (ch === "(" || ch === "[") depth++; if (ch === ")" || ch === "]") depth--; if (ch === "," && !depth) { out.push(part.trim()); part = ""; } else part += ch; } out.push(part.trim()); return out; };
+        const RING = ["outline", "outline-color", "outline-style", "outline-width", "box-shadow"];
+        const states = (el, state, props) => C.rules.some(rule => rule.decls.some(d => props.includes(d.property)) && split(rule.selector).some(sel => {
+            if (!sel.includes(state)) return false;
+            const rest = sel.replaceAll(` ${state}`, " *").replaceAll(state, "").trim();
+            try { return el.matches(rest); } catch { return false; }
+        }));
+        const kit = "#w .drpg-kit-body";
+        const LEGACY = [
+            ["stepFocus", `${kit} .drpg-step`, ":focus-visible", RING], ["chipFocus", `${kit} .drpg-chip`, ":focus-visible", RING],
+            ["checkboxFocus", `${kit} input[type=checkbox]`, ":focus-visible", RING], ["summaryFocus", `${kit} summary`, ":focus-visible", RING],
+            ["controlFocus", "#w .header-control", ":focus-visible", RING], ["tileMoreFocus", ".drpg-room-tile-more", ":focus-visible", RING],
+            ["reserveFocus", ".drpg-reserve-field", ":focus-visible", RING], ["biographyFocus", ".drpg-biography-text", ":focus-visible", RING],
+            ["iconHoverGround", `${kit} .drpg-kit-icon-button`, ":hover", ["background", "background-color"]], ["iconHoverEdge", `${kit} .drpg-kit-icon-button`, ":hover", ["border", "border-color"]],
+            ["controlHover", "#w .header-control", ":hover", ["background", "background-color"]], ["miniHoverGlow", `${kit} .drpg-mini-button`, ":hover", ["box-shadow"]]
+        ];
+        const GLASS = [["summaryFocus", `${kit} summary`, ":focus-visible", RING], ["rangeFocus", `${kit} input[type=range]`, ":focus-visible", RING]];
+        const BOTH = [["placeholder", `${kit} input[type=text]`, "::placeholder", ["color"]], ["biographyPlaceholder", ".drpg-biography-text", "::placeholder", ["color"]],
+            ["selection", `${kit} p`, "::selection", ["background", "background-color"]]];
+        const CONTROL = [["foundryFocus", ".foundry-own button", ":focus-visible", RING], ["foundryHover", ".foundry-own button", ":hover", ["box-shadow"]],
+            ["foundryPlaceholder", ".foundry-own input", "::placeholder", ["color"]], ["foundrySelection", ".foundry-own p", "::selection", ["background", "background-color"]]];
+        const seen = {}, want = {};
+        const read = (theme, rows, expect) => {
+            for (const [name, sel, state, props] of rows) {
+                const el = $(sel);
+                must(el, `${name}: ${sel} was not built - point the markup at it again`);
+                seen[`${theme}.${name}`] = states(el, state, props) ? "stated" : "none";
+                want[`${theme}.${name}`] = expect;
+            }
+        };
+        must(C.rules.length > 2000, `${C.rules.length} rules read - the module's sheets were not read whole`);
+        for (const [theme, cls] of [["legacy", "drpg-theme-monokuma-legacy"], ["glass", "drpg-theme-stained-glass"]]) {
+            page.className = cls;
+            if (theme === "legacy") { read(theme, LEGACY, "stated"); read(theme, CONTROL, "none"); } else read(theme, GLASS, "stated");
+            read(theme, BOTH, "stated");
+        }
+        equal(stableJson(seen), stableJson(want), "{theme.element: stated - a rule of the module's sheets names the state and declares it, none - no rule does}");
     }],
 
     ["R548 - Foundry tools wears the module's pixel anvil in both themes: its one child is an inert, classless i masked with --drpg-pix-anvil in the colour the handbooks' book is drawn in, and no Foundry logo is on the page or in the module's stylesheets", async () => {
@@ -4020,7 +4187,7 @@ const INVARIANTS = [
             + "its label; Foundry tools' children, the first one's tag, class and inert, its label; the windows and aria-pressed closed, after a click, after a second]");
         ok(!/NaN/.test(stableJson({ seen, want })), `a length in the upper row could not be read: ${stableJson({ seen, want })}`);
         equal(stableJson(seen), stableJson(want),
-            `the upper row at ${innerWidth}x${innerHeight} [per theme and reading: the clip-paths the chat's; the GM's and Foundry tools' sizes; `
+            `the upper row at ${innerWidth}x${innerHeight} [per theme and reading: the clip-paths the corner's; the GM's and Foundry tools' sizes; `
             + "their right and bottom less settings' and the handbooks'; the gaps chat-GM, chat-tools, GM-tools]");
     }],
 
@@ -4580,6 +4747,60 @@ const INVARIANTS = [
         equal(judge("DhGMUpdate", { action: "DhGMUpdateFear", data: 12 }).ops?.[0]?.step, 1, "a Fear packet asking for +8 moves Fear by more than one");
         const tick = passed["a countdown the rules tick"].ops?.[0]?.deltas ?? [];
         equal(JSON.stringify(tick), JSON.stringify([{ id: "T1", current: -1, start: 0 }]), "the tick is not applied as the one difference it is");
+    }],
+
+    ["R3600 - a player's save is judged in Daggerheart's shape up to 2.12.4 and in 2.12.5's, and forwarded in both", async () => {
+        /*
+         * E76 C2, 12.11.2026. Daggerheart 2.12.5 changed what a player's save sends: chatMessage.mjs
+         * `onRollSave` (2.12.8:274-290) sends `{ action, message, token, saveTotal, isCritical }` where
+         * 2.10.11 sent `{ action, message, token, result }`, and socket.mjs's UpdateSaveMessage case
+         * (sha1 59fbfd4bd9 up to 2.12.4, 89f7472022 from 2.12.5 to 2.12.8; read with `git show` on the
+         * tags) calls `updateSaveMessage(data.data.saveTotal, data.data.isCritical, message, token)`.
+         * The guard read `result.roll.total` alone, so every 2.12.5 save was dropped as "a save with no
+         * roll in it", and what it forwarded was a `result` 2.12.5's handler no longer reads. The
+         * listener the guard wraps does not hold that case (it is in `EVENT_HANDLERS`, reached through a
+         * hook), so the build cannot be read off it: the packet passed on carries the one judged total
+         * in both shapes, and each build's handler reads its own.
+         */
+        const { judgeRelay } = await import("./relay-guard.mjs");
+        const player = { id: "SUITEPLAYER00001", name: "Suite player", isGM: false };
+        const mine = { documentName: "Actor", type: "character", testUserPermission: user => user?.id === player.id };
+        const theirs = { documentName: "Actor", type: "character", testUserPermission: () => false };
+        const world = {
+            message: id => (id === "M1" ? { id: "M1" } : null),
+            tokenFor: (message, tokenId) => (tokenId === "TOKMINE" ? { actor: mine } : tokenId === "TOKTHEIRS" ? { actor: theirs } : null),
+            now: () => 1e12
+        };
+        const save = inner => judgeRelay({ action: "DhGMUpdate", data: { action: "DhGMUpdateSaveMessage", data: { message: "M1", ...inner } } }, player, world);
+        const sent = verdict => verdict.packet?.data?.data ?? {};
+        const shapes = {
+            "2.12.5": save({ action: "Compendium.x.Item.y.Action.z", token: "TOKMINE", saveTotal: 14, isCritical: true }),
+            "2.10.11": save({ token: "TOKMINE", result: { roll: { total: 14, isCritical: true } } })
+        };
+        for (const [build, verdict] of Object.entries(shapes)) {
+            equal(verdict.verdict, "forward", `a save in ${build}'s shape for the sender's own token is not forwarded (${verdict.why})`);
+            equal(sent(verdict).saveTotal, 14, `a save in ${build}'s shape is forwarded without the total 2.12.5's handler reads`);
+            equal(sent(verdict).isCritical, true, `a save in ${build}'s shape is forwarded without the critical 2.12.5's handler reads`);
+            equal(JSON.stringify(sent(verdict).result), JSON.stringify({ roll: { total: 14, isCritical: true } }),
+                `a save in ${build}'s shape is forwarded without the result 2.10.11's handler reads`);
+            equal(sent(verdict).token, "TOKMINE", `a save in ${build}'s shape is forwarded for another token`);
+        }
+        equal(save({ token: "TOKTHEIRS", saveTotal: 14, isCritical: false }).verdict, "refuse",
+            "a save in 2.12.5's shape for a token the sender does not play is not refused");
+        for (const saveTotal of [undefined, null, "lots", Number.NaN, Infinity]) {
+            equal(save({ token: "TOKMINE", saveTotal, isCritical: false }).verdict, "drop",
+                `a save in 2.12.5's shape with no total (${String(saveTotal)}) is not dropped`);
+        }
+        // One total, both fields: a packet carrying two different totals is forwarded with 2.12.5's
+        // in both, so the two builds' handlers can never mark the card with different numbers.
+        const both = sent(save({ token: "TOKMINE", saveTotal: 9, isCritical: false, result: { roll: { total: 20, isCritical: true } } }));
+        ok(both.saveTotal === 9 && both.result?.roll?.total === 9 && both.isCritical === false && both.result?.roll?.isCritical === false,
+            `a save carrying two totals is forwarded with two different numbers: ${JSON.stringify(both)}`);
+        equal(sent(save({ token: "TOKMINE", saveTotal: 13.6, isCritical: "yes" })).saveTotal, 14, "a save's total is not forwarded whole");
+        // A `saveTotal` key is 2.12.5's shape whatever else rides with it: its null is no roll,
+        // as 2.12.5's `updateSaveMessage` marks nothing for it, and a `result` beside it is not read.
+        equal(save({ token: "TOKMINE", saveTotal: null, result: { roll: { total: 5 } } }).verdict, "drop",
+            "a save in 2.12.5's shape with a null total is marked from a result 2.12.5 never sends");
     }],
 
     ["R136 - a sabotage is taken back only as the pair it wrote", async () => {
@@ -7905,7 +8126,7 @@ const INVARIANTS = [
          * (C5-C7) shows who left each Remnant beside who holds it, and E99 reads the bullet's author once the trace is
          * gone, so the bullet's answer key (`bulletStore`, GM-only) carries it: off the trace's row at the find, off the
          * giver's key at a hand-over (the trace may be gone by then). A row with no author - every trace a GM placed
-         * before 1.2.106, Q6 - reads null and nothing is written for it: no migration, so the reading is held to leave
+         * before 1.2.107, Q6 - reads null and nothing is written for it: no migration, so the reading is held to leave
          * each trace's newest stamp as it was. Pure and a read of the source; the world's traces are read, not written.
          * Red at b97028e1: no `leftByOf`, and neither road names the author.
          */
@@ -8390,6 +8611,32 @@ const INVARIANTS = [
             spec: ["caseTicks", "gmCaseTicks", "ledger", "trialProgress", false, true, false], setting: ["client", false], player: [null, false], asks: true
         }), "[the store's name, key, kind, reset group, backup, sync, any GM; its setting's scope and config; on a player's engine the row and what was stored; the writer asks for a GM]");
     }],
+    ["R3659 - a field of the case schema's editor is read out by its row's name (E97; CI run 43144994202, suite 3/8): editRow names the one field of its cell with the row's label, and leaves a field that already has a name, and a cell of a checkbox's own label, as they are", async () => {
+        /*
+         * 12.11.2026. Tier 2's "every control in the module's own chrome has a name to be read out" reads whatever is
+         * on screen when it runs; in CI's suite shard 3/8 on 1e1c61c9 a Map left open by an earlier test held the
+         * schema editor, and the sweep reported "3 control kinds carry no name a screen reader can read" (the Name
+         * field `case:1:deduction-...:label`, the Note textarea, the Trial mode select). editRow put its label in a
+         * <span> beside the cell, which names nothing. This test draws the rows itself, so it does not hang on which
+         * window another test left open.
+         */
+        const { editRow } = await import("./case-map.mjs");
+        const { nameControls } = await import("./a11y.mjs");
+        const host = document.createElement("div");
+        host.className = "drpg-panel";
+        host.innerHTML = editRow("Name", `<input type="text" name="case:1:x:label" value="" />`)
+            + editRow("Note", `<textarea name="case:1:x:text" rows="3"></textarea>`)
+            + editRow("Trial mode", `<select name="case:1:x:mode"><option value="">-</option></select>`)
+            + editRow("Kept", `<input type="text" name="kept" aria-label="Its own" />`)
+            + editRow("Links", `<label class="drpg-case-check"><input type="checkbox" name="l:a" /> A</label>`);
+        document.body.append(host);
+        try {
+            nameControls(host);
+            const read = [...host.querySelectorAll("input, select, textarea")].map(el => el.getAttribute("aria-label") ?? (el.labels?.length ? "label" : null));
+            equal(JSON.stringify(read), JSON.stringify(["Name", "Note", "Trial mode", "Its own", "label"]),
+                "the aria-label of each field (null: none; \"label\": a checkbox named by its own label)");
+        } finally { host.remove(); }
+    }],
     ["R3332 - a statistic card under the kind action is asked only for an action a card is read for: Search, and no other", async () => {
         /*
          * E68 review R7, 10.11.2026. Kind `action` was opened for Search (E68 C6), and the GMs' guard
@@ -8801,6 +9048,39 @@ const INVARIANTS = [
         equal(JSON.stringify([seamFor(live), seamFor(reviewed), seamFor(reordered)]),
             JSON.stringify([{ state: "ok", why: "" }, { state: "ok", why: "" }, { state: "changed", why: verdicts[1].why }]),
             "the seam would be put on a build that is not the reviewed one, or left off the reviewed one (this world's, the reviewed fake, the reordered fake)");
+    }],
+
+    ["R3602 - the draw is left off a Daggerheart whose rollTrait passes its options through a MoveContext, which keeps none of the module's roll marks (2.12); this world's rollTrait is not one", async () => {
+        /*
+         * E76 C3 (12.11.2026; the plan's Q-E76-5, default taken: the 2.12 rework split off, the seam reading "changed"
+         * there). Read in Daggerheart 2.12.8 (git show on the tag, 71c318de25): actor.mjs `rollTrait` (:727-743) builds
+         * `MoveContext.build({ ..., ...options, actor })`, and move-context.mjs's constructor (:21-) copies the properties
+         * it names and sets `this.dialog = {}`: the module's `drpgActionRoll`, its nonce, `LOADED_DIE` and `TRAIT_BY_GM`
+         * never reach `DualityRoll.build`. Up to 2.10.x rollTrait handed the options on (the harness's copy, client-entry.mjs).
+         * `reviewBuild` reads the roll class alone, and 2.12.8's still has every member it asks for (build's three steps in
+         * order, the hook template, the Duality hooks, fromData, toMessage, buildEvaluate, dualityUpdate: read in the tag),
+         * so the seam would have wrapped it and drawn every action's roll as a statistic from the sheet. The harm: an
+         * action drawn as a reaction, its economy and its Calls lost on the GM. Not run on 2.12.8: the harness's dice are
+         * 2.10.5's (LIVE-E76-04).
+         */
+        const { seamFor } = await import("./roll-draw.mjs");
+        const live = game.system?.api?.dice?.DualityRoll;
+        must(typeof live === "function", "this world's Daggerheart has no DualityRoll to draw");
+        const moveContext = { MoveContext: { build: async data => data } };
+        const road212 = async function rollTrait(trait, options = {}) {
+            const config = await moveContext.MoveContext.build({ roll: { type: "trait", trait }, actionType: "action", ...options, actor: this });
+            return this.diceRoll(config);
+        };
+        const rolled = road212.bind(null);
+        const road210 = async function rollTrait(trait, options = {}) {
+            const config = { roll: { trait }, ...options };
+            return this.diceRoll(config);
+        };
+        ok(typeof CONFIG.Actor?.documentClass?.prototype?.rollTrait === "function", "this world's Actor class has no rollTrait for the seam to read");
+        const verdicts = [seamFor(live, { rollTrait: road212 }), seamFor(live, { rollTrait: road210 }), seamFor(live), seamFor(live, { rollTrait: rolled })];
+        equal(JSON.stringify(verdicts.map(v => v.state)), JSON.stringify(["changed", "ok", "ok", "changed"]),
+            "[2.12's road, 2.10's road, this world's rollTrait, a rollTrait whose source cannot be read] - the seam's verdict");
+        ok(/MoveContext/.test(verdicts[0].why) && /marks/.test(verdicts[0].why), `the reason does not say what 2.12's road loses: ${verdicts[0].why}`);
     }],
 
     ["R219 - what one client must decide is decided on the primary GM: another GM asks it, as a player does", async () => {
@@ -9943,7 +10223,8 @@ const INVARIANTS = [
         must(["trial-floor-ui.mjs", "gm-panel.mjs", "trial-scene.mjs"].every(file => files.has(file)), "the files the window and the doors live in are not served - this would measure nothing");
         // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
         const ui = stripComments(files.get("trial-floor-ui.mjs")), panel = stripComments(panelText(files));
-        const start = fnSource(ui, "startClassTrial"), edit = fnSource(panel, "openClockDialog");
+        // E49 A1e: Edit campaign's Apply runs `applyCampaignForm` (Season setup's Save too), where the trial's question now stands.
+        const start = fnSource(ui, "startClassTrial"), edit = fnSource(panel, "openClockDialog") + fnSource(panel, "applyCampaignForm");
         const at = text => start.indexOf(text);
         // Where Start's window opens: the kit's `drpgWindow` since E21 C4, DialogV2.wait before.
         const OPEN = start.includes("drpgWindow(") ? "drpgWindow(" : "DialogV2.wait(";
@@ -11024,7 +11305,8 @@ const INVARIANTS = [
         const { GM_ROUTE_CLASS: GM_ROUTE } = await import("./utils.mjs");
         // E41 C3 (1.2.97): every file of the action family (the kit's ACTION_FAMILY), where action-rolls.mjs alone was read.
         // E68 C12: ui-columns.mjs too, where the menu's row moved (`choiceRowHtml`) with the columns' own classes.
-        for (const file of ["day-summary.mjs", "popup.mjs", "secret.mjs", "messenger-app.mjs", "trial.mjs", "safeword.mjs", "ui-columns.mjs", ...ACTION_FAMILY]) {
+        // E49 B5a: chat-card.mjs, the module's chat card and its warning line (`chatCard`, `cardWarn`).
+        for (const file of ["day-summary.mjs", "popup.mjs", "secret.mjs", "messenger-app.mjs", "trial.mjs", "safeword.mjs", "ui-columns.mjs", "chat-card.mjs", ...ACTION_FAMILY]) {
             const src = stripComments(sources.get(file) ?? "");
             must(src.length > 0, `${file} was not read - the class grep would be measured on nothing`);
             for (const m of src.matchAll(/class=(["'])/g)) {
@@ -15379,7 +15661,7 @@ const INVARIANTS = [
             /applyDockHidden\(\s*dockHiddenFor\(\s*available,\s*on\s*\)\s*\)/.test(fnSource(source, "refreshVoiceTile"))
                 && /getSetting\(\s*SETTINGS\.voiceTile\s*\)/.test(fnSource(source, "refreshVoiceTile")), worlds, facts, rtcDock]),
         JSON.stringify([[[false, false], [true, "none", "none", true, true, true, true], [false, false]], [true, false, false, false],
-            // Not in Foundry's settings window since E49 A1 (`config: false`): a row of the DRPG Settings window (R3420).
+            // Not in Foundry's settings window since E49 A1 (`config: false`): a row of the GM panel's game settings since A1d (R3420).
             ["world", false, "true", true], ["client", false, "{}", true], true,
             [[false, false], [true, true], [false, false], [true, true], [false, false]], true, [true, SETTINGS.voiceTile]]),
         "[the dock and a popout without the class; with it: the class, their display, the dock, the popout and their <audio> in the document; without "
@@ -16037,6 +16319,59 @@ const INVARIANTS = [
         equal(J([row?.owner ?? null, row?.probe?.() ?? null]), J(["foundry", { present: true, ours: true }]),
             "the move backend here is not the module's: no token passes a passage on this browser (PATCHES, passages.mjs)");
         ok(!CONFIG.Canvas?.polygonBackends?.sight?.[MARK], "the sight backend carries the passages' mark: every eye would see through a passage");
+    }],
+
+    ["R3601 - a passage's cut leans on Foundry's sweep only as 14.370 declares it: `_identifyEdges()` with no argument filling `edges`, a Set; each piece built as new Edge(a, b, options) with no option but the nine Edge options, this Foundry's sweep the same shape", async () => {
+        /*
+         * E76 C5, 12.11.2026 (the owner's A10, 11.10: Foundry's change list read for the passages' geometry). What
+         * `PassageMovePolygon` and `clipPassages` lean on, held to Foundry 14.370 as foundry-vtt-types 14.370.0 declares it
+         * (commit 2923f0c5, 07.11.2026; src/foundry/client/canvas/geometry/clockwise-sweep.d.mts: `edges: Set<Edge>`,
+         * `protected _identifyEdges(): void`; edges/edge.d.mts: `constructor(a, b, options?)`, its options id, object, type,
+         * direction, light, move, sight, sound, threshold). Typings, not Foundry's source (foundryvtt.com is not reachable
+         * from this session); whether 14.370's sweep keeps the cut pieces is LIVE-E76-06 and LIVE-E79-01. The harms: a cut
+         * that passes Foundry an option it does not have, an argument `_identifyEdges` does not take, or an edge made some
+         * other way; and the harness's sweep (lib/shim.mjs `buildPolygonBackends`) drifting from that shape, so scenario 76
+         * and R556 drive a sweep 14.370 does not have.
+         */
+        const L = await import("./passages.mjs");
+        const J = v => JSON.stringify(v);
+        const OPTIONS = ["id", "object", "type", "direction", "light", "move", "sight", "sound", "threshold"];
+        const built = [];
+        class Edge {
+            constructor(...args) {
+                built.push({ args: args.length, a: args[0], b: args[1], keys: Object.keys(args[2] ?? {}) });
+                [this.a, this.b] = args;
+                Object.assign(this, args[2] ?? {});
+            }
+        }
+        const wall = new Edge({ x: 0, y: 0 }, { x: 300, y: 0 }, { id: "R3601W", object: { id: "R3601W" }, type: "wall",
+            direction: 0, light: 20, move: 20, sight: 20, sound: 20, threshold: null });
+        built.length = 0;
+        const asked = [];
+        class Base {
+            _identifyEdges(...args) {
+                asked.push(args.length);
+                this.edges = new Set([wall]);
+            }
+        }
+        const Passage = L.passageMovePolygon(Base);
+        const polygon = new Passage();
+        polygon.config = { type: "move", drpgPassages: [{ id: "R3601P", wallId: "R3601W", x1: 100, y1: 0, x2: 200, y2: 0 }] };
+        polygon._identifyEdges();
+        const left = [...polygon.edges];
+        equal(J([asked, left.length, built.length, built.every(b => b.args === 3), built.flatMap(b => b.keys.filter(k => !OPTIONS.includes(k)))]),
+            J([[0], 2, 2, true, []]),
+            "[the base asked with no argument, two pieces left, two edges built, each as (a, b, options), options that are no Edge option]");
+        ok(polygon.edges instanceof Set && !polygon.edges.has(wall), "the cut does not leave `edges` a Set without the passage's wall");
+
+        // This Foundry's sweep - the harness's (lib/shim.mjs `buildPolygonBackends`) headless, Foundry's own at a table -
+        // read off the sight backend, which the module leaves as it found it: the members the subclass leans on, as 14.370
+        // declares them, so what R556 and scenario 76 drive is that shape. Nothing is constructed or swept here.
+        const Sweep = CONFIG.Canvas?.polygonBackends?.sight;
+        equal(J([typeof Sweep, typeof Sweep?.prototype?._identifyEdges, Sweep?.prototype?._identifyEdges?.length,
+            typeof Sweep?.prototype?._testCollision, typeof Sweep?.testCollision]),
+        J(["function", "function", 0, "function", "function"]),
+        "[a sight backend, its _identifyEdges a method, taking no argument, _testCollision a method, testCollision a static]");
     }],
     ["R557 - the frame opens a secret passage only for whoever may take it: a character that knows it on a player's browser, never one that does not, a GM's browser or no character, and not into a room a GM locked; the cut walls leave the gap and nothing else; no character and a GM draw today's outline; the outline is redrawn on a change of the passages by one listener, with no sound", async () => {
         /*
@@ -17612,47 +17947,613 @@ const INVARIANTS = [
         }
     }],
 
-    ["R586 - the gear puts the voice settings between the volumes and the look: the Voice section stands after the last volume slider and before the look's fieldset", async () => {
+    ["R586 - the gear puts the voice settings with the volumes: in the settings window's Sound section the Voice section stands after the last volume slider, once; with no voice there is no place and no section (E79 C12; E49 A1d)", async () => {
         /*
          * E79 C12 (16.10.2026; the owner's N9 of 14.10: "move the LiveKit sound between the volume and the theme
-         * settings"). look.mjs `wireVoice` on the Look window's own form (`lookFormHtml`, the markup `openLookDialog`
-         * draws), in a detached box, with voice standing in (`available`) and the section built by voice-panel.mjs's
-         * `voiceFieldset` from devices the suite names, so nothing is asked of this browser or written: the section
-         * after every volume slider and right before the look's fieldset; wired again, nothing added; on a form with
-         * no look fieldset, at its end; with no voice, nothing. The real window with the shim's LiveKit is 75-voice-tile's
-         * phase C. Red before C12: the section followed the look.
+         * settings"), carried by E49 A1d (11.11.2026): the Look window is the settings window now, and the Voice section
+         * is its Sound section's, after the volumes (the owner on A1's shots: "zniknela czesc ustawien np push to talk,
+         * urzadzenia wejsciowe i wyjsciowe"). settings-window.mjs's columns as the window draws them (`settingsWindowColumns`
+         * with a voice built), in a detached box, with voice standing in (`available`) and the section built by
+         * voice-panel.mjs's `voiceFieldset` from devices the suite names, so nothing is asked of this browser or written:
+         * `placeVoice` puts it after every volume row of the Sound pane; placed again, nothing added; with no voice
+         * `voiceSection` answers null and the columns draw no place. The real window with the shim's LiveKit is
+         * 75-voice-tile's phase C. Red at 54493dbf: settings-window.mjs exports no `voiceSection` or `placeVoice` (look.mjs
+         * `wireVoice` put the section before the look's fieldset in the Look window).
          */
-        const L = await import("./look.mjs"), P = await import("./voice-panel.mjs");
-        ok(typeof L.wireVoice === "function" && typeof L.lookFormHtml === "function", "look.mjs exports no `wireVoice` or `lookFormHtml` to read the gear's form with");
-        if (typeof L.wireVoice !== "function" || typeof L.lookFormHtml !== "function") return;
+        const W = await import("./settings-window.mjs"), P = await import("./voice-panel.mjs");
+        ok(typeof W.voiceSection === "function" && typeof W.placeVoice === "function" && typeof W.settingsWindowColumns === "function",
+            "settings-window.mjs exports no `voiceSection`, `placeVoice` or `settingsWindowColumns` to read the gear's window with");
+        if (typeof W.voiceSection !== "function" || typeof W.placeVoice !== "function") return;
         const build = () => P.voiceFieldset({ client: { getAudioSources: async () => ({ R586MIC: "R586 Mic" }), getAudioSinks: async () => ({}) },
             settings: { client: {}, set: async () => { throw new Error("R586 writes nothing"); } }, key: null });
-        const box = document.createElement("div");
-        box.hidden = true;
-        box.innerHTML = await L.lookFormHtml();
-        document.body.append(box);
-        const bare = document.createElement("div");
-        bare.hidden = true;
-        bare.innerHTML = "<form><label class=\"drpg-sound-slider\"></label></form>";
-        document.body.append(bare);
+        const draw = voice => {
+            const box = document.createElement("div");
+            box.hidden = true;
+            box.innerHTML = W.settingsWindowColumns(game.user, { voice }).map(c => c.html).join("");
+            document.body.append(box);
+            return box;
+        };
+        const box = draw(true), none = draw(false);
         try {
-            const form = box.querySelector("form"), deps = { available: () => true, build };
-            const added = [await L.wireVoice(box, deps)];
-            const panel = form.querySelector("fieldset.drpg-voice-panel"), sliders = [...form.querySelectorAll(".drpg-sound-slider")];
-            const order = panel ? [sliders.length > 0, sliders.every(s => Boolean(s.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING)),
-                panel.nextElementSibling?.matches("fieldset.drpg-look") === true] : "no section";
-            added.push(await L.wireVoice(box, deps), form.querySelectorAll("fieldset.drpg-voice-panel").length);
-            added.push(await L.wireVoice(bare, deps), bare.querySelector("form").lastElementChild?.matches("fieldset.drpg-voice-panel") === true);
-            const none = document.createElement("div");
-            none.innerHTML = await L.lookFormHtml();
-            added.push(await L.wireVoice(none, { available: () => false, build }), Boolean(none.querySelector("fieldset.drpg-voice-panel")));
-            equal(JSON.stringify([order, added]), JSON.stringify([[true, true, true], [true, false, 1, true, true, false, false]]),
-                "[[the form has volume sliders; the section after each; right before the look's fieldset]; [added; added again; sections in the form; "
-                + "added to a form with no look; at its end; added with no voice; a section there]]");
+            const section = await W.voiceSection({ available: () => true, build });
+            const placed = [W.placeVoice(box, section)];
+            const pane = box.querySelector('[data-drpg-settings-pane="sound"]');
+            const panel = pane?.querySelector("fieldset.drpg-voice-panel") ?? null, sliders = [...(pane?.querySelectorAll("[data-drpg-slider]") ?? [])];
+            const order = panel ? [sliders.length, sliders.every(s => Boolean(s.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING))] : "no section";
+            placed.push(W.placeVoice(box, await W.voiceSection({ available: () => true, build })), box.querySelectorAll("fieldset.drpg-voice-panel").length);
+            placed.push(await W.voiceSection({ available: () => false, build }), Boolean(none.querySelector("[data-drpg-voice-slot]")));
+            equal(JSON.stringify([order, placed]), JSON.stringify([[2, true], [true, false, 1, null, false]]),
+                "[[the Sound pane's volume sliders; the section after each]; [placed; placed again; sections in the window; "
+                + "the section with no voice; a place drawn with no voice]]");
         } finally {
             box.remove();
-            bare.remove();
+            none.remove();
         }
+    }],
+    ["R3530 - the gear's window is the same for a GM and a player and holds every row the Look window held (E49 A1d; the owner on A1's shots, 11.11.2026): settings-window.mjs's client columns are one markup for a user who may modify settings and one who may not, with no world row; they hold the language, the theme, the scale and its line, the pixel face, the pulse, the ticker, the blur, reduced motion, high contrast, the messenger's sounds, both volumes, the line that they apply at once and the list's foot, each once; the gear (sfx.mjs) opens look.mjs `openLookDialog`, which opens `openSettingsWindow`; Configure Settings' menu opens the same", async () => {
+        /*
+         * E49 A1d, 11.11.2026. The owner: "Gm pod przyciskiem zebatki nie powinien miec innych ustawien niz gracz" and
+         * "zniknela czesc ustawien np push to talk, urzadzenia wejsciowe i wyjsciowe". The Look window's rows read off
+         * look.mjs at 54493dbf (`lookFieldset`, sfx.mjs `soundSlidersHtml`): language, theme, pixelFont, uiScale with its
+         * line, glassPulse, hudTicker, glassBlur, reducedMotion, highContrast (with the system's line where it asks), the
+         * note "Everything in this window is this browser's own"; the volumes' fieldset: the two sliders, their line,
+         * messengerSound, and for a GM sfxVary (the game's tab now, R3531); the Voice section (R586). Two stand-in users,
+         * `can("SETTINGS_MODIFY")` true and false, read nothing of the world's users. The doors read in source: the
+         * launcher's click, `openLookDialog`, the menu's `render`. Red at 54493dbf: a GM's columns held the world rows
+         * and the Look window was a window of its own.
+         */
+        const W = await import("./settings-window.mjs");
+        const gm = { isGM: true, can: () => true }, player = { isGM: false, can: () => false };
+        /* A select's and a stepper's id are the kit's counter (ui-kit.mjs `stepperId`), new on every draw: read as one. */
+        const html = user => (typeof W.settingsWindowColumns === "function" ? W.settingsWindowColumns(user, { voice: false }).map(c => c.html).join("") : "")
+            .replace(/drpg-kit-step-\d+/g, "drpg-kit-step-N");
+        const box = document.createElement("div");
+        box.innerHTML = html(player);
+        const rows = name => box.querySelectorAll(`[data-drpg-setting="${name}"]`).length;
+        const LOOK = ["language", "theme", "uiScale", "pixelFont", "glassPulse", "hudTicker", "glassBlur", "reducedMotion", "highContrast", "messengerSound"];
+        const sources = new Map(await moduleSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        const read = {
+            same: html(gm) === html(player) && html(gm).length > 1000,
+            world: box.querySelectorAll('[data-drpg-scope="world"]').length,
+            look: LOOK.map(rows),
+            volumes: [...box.querySelectorAll("[data-drpg-slider] input[type=\"range\"]")].map(i => i.name),
+            lines: [box.querySelectorAll("[data-drpg-scale-note]").length, box.querySelector(".drpg-settings-foot")?.textContent === game.i18n.localize("DRPG.Look.note"),
+                [...box.querySelectorAll("[data-drpg-settings-note]")].some(n => n.textContent === game.i18n.localize("DRPG.SettingsWindow.liveNote"))],
+            doors: [/import\(\s*"\.\/look\.mjs"\s*\)[\s\S]{0,80}openLookDialog\(\)/.test(fnSource(src("sfx.mjs"), "renderSoundLauncher")),
+                /settings-window\.mjs[\s\S]{0,40}openSettingsWindow\(\)/.test(fnSource(src("look.mjs"), "openLookDialog")),
+                /import\(\s*"\.\/settings-window\.mjs"\s*\)\.then\(\s*m\s*=>\s*m\.openSettingsWindow\(\)/.test(src("settings.mjs"))]
+        };
+        equal(JSON.stringify(read), JSON.stringify({ same: true, world: 0, look: LOOK.map(() => 1), volumes: ["vol:sound", "vol:music"], lines: [1, true, true], doors: [true, true, true] }),
+            "{one markup for a GM and a player; world rows; each of the Look window's settings' rows; the volume sliders; [the scale's line, the list's foot, the volumes' line]; "
+            + "[the gear opens openLookDialog, which opens the settings window, and so does the menu]}");
+    }],
+    ["R3531 - the game's settings are a window of their own, for a user who may modify settings (E49 A1d; the owner on A1's shots and on the panel, 11.11.2026): settings-window.mjs `gameSettingsColumns` draws every world setting of the 35 and Vary the sounds, each once, and Give back, no client row; nothing for a user who may not; one section pane shown at first and the section list switches it; `openGameSettingsWindow` is the kit's wide window with Save and Cancel, class `drpg-window-game-settings`, refusing a user who may not", async () => {
+        /*
+         * E49 A1d, 11.11.2026. The owner: "To co powstalo w podgladzie jest fajne, ale nadaje sie jako zakladka do gm panel
+         * skoro jest ustawieniami calej gry", then "W wolne miejsce wejda nowe ustawienia gma jako "Settings"": the GM
+         * panel's Settings tile (R3532) opens them. The columns with two stand-in users on a detached box; the opener read
+         * in source. The window saving: the tier-2 test "the game's settings window saves". Red at 54493dbf: no
+         * `gameSettingsColumns`.
+         */
+        const W = await import("./settings-window.mjs");
+        must(typeof W.gameSettingsColumns === "function" && Array.isArray(W.GAME_SECTIONS), "settings-window.mjs exports no `gameSettingsColumns` or `GAME_SECTIONS`");
+        const gm = { isGM: true, can: () => true }, player = { isGM: false, can: () => false };
+        const box = document.createElement("div");
+        box.hidden = true;
+        box.innerHTML = W.gameSettingsColumns(gm).map(c => c.html).join("");
+        document.body.append(box);
+        try {
+            const world = W.GAME_SECTIONS.flatMap(s => s.keys);
+            const scopes = [...box.querySelectorAll("[data-drpg-setting][data-drpg-scope]")].map(r => r.dataset.drpgScope);
+            const shown = () => [...box.querySelectorAll("[data-drpg-settings-pane]")].filter(p => !p.hidden).map(p => p.dataset.drpgSettingsPane);
+            const first = shown();
+            W.showSection(box, "privacy");
+            const opener = fnSource(stripComments(new Map(await moduleSources()).get("settings-window.mjs") ?? ""), "openGameSettingsWindow");
+            const read = {
+                none: W.gameSettingsColumns(player).length,
+                rows: world.map(k => box.querySelectorAll(`[data-drpg-setting="${k}"]`).length),
+                client: scopes.filter(x => x !== "world").length,
+                giveBack: box.querySelectorAll("[data-drpg-give-back]").length,
+                first, picked: shown(),
+                opener: [/wideWindow\(\{/.test(opener), /classes:\s*\["drpg-window-game-settings"\]/.test(opener), /action:\s*"save"/.test(opener) && /role:\s*"cancel"/.test(opener),
+                    /if \(!columns\.length\)[\s\S]{0,40}warn\(/.test(opener)]
+            };
+            equal(JSON.stringify(read), JSON.stringify({ none: 0, rows: world.map(() => 1), client: 0, giveBack: 1, first: ["audio"], picked: ["privacy"], opener: [true, true, true, true] }),
+                "{columns for a user who may not modify settings; each game key's rows; client rows; Give back; the panes shown at first, after Privacy picked; "
+                + "[openGameSettingsWindow: the kit's wide window, its class, Save and Cancel, the refusal]}");
+        } finally {
+            box.remove();
+        }
+    }],
+    ["R3532 - Reset the season is Season setup's, and Settings takes its tile (E49 A1d; the owner, 11.11.2026): in gm-panel.mjs `PANEL_SECTIONS` no tile `seasonReset`, a tile `settings` last in Between sessions that opens settings-window.mjs `openGameSettingsWindow` and is disabled for a user who may not modify settings; season-setup.mjs `openSeasonSetup`'s footer has a destructive `reset` named by `DRPG.Season.resetTitle`, and its answer runs season-wipe.mjs `resetSeason`; the window and its tile are Season setup / Ustawienia sezonu, the new tile Settings / Ustawienia gry", async () => {
+        /*
+         * E49 A1d, 11.11.2026. The owner: "Chcialbym wrzucic season reset w set the season up, a calosc przemianowac na
+         * "season setup". W wolne miejsce wejda nowe ustawienia gma jako "Settings"". Read in source (the tiles' list
+         * walked as R3345 walks it) and the lang files. The Polish twins: "Ustawienia sezonu", the gm-handbook.pl.md's
+         * word for the window before this commit; "Ustawienia gry" for Settings, since the gear's tooltip and the Look
+         * window's title are "Ustawienia" (lang/pl.json DRPG.Look). Red at 54493dbf: a `seasonReset` tile, no `settings`.
+         */
+        const sources = new Map(await moduleSources());
+        const panel = stripComments(sources.get("gm-panel.mjs") ?? ""), season = stripComments(sources.get("season-setup.mjs") ?? "");
+        const list = panel.match(/^const PANEL_SECTIONS = \[[\s\S]*?^\];/m)?.[0] ?? "";
+        must(list, "gm-panel.mjs has no PANEL_SECTIONS - this would measure nothing");
+        const sections = [];
+        for (const m of list.matchAll(/\bkey:\s*"(\w+)"\s*,\s*(icon:)?/g)) {
+            if (m[2]) sections.at(-1)?.[1].push(m[1]);
+            else sections.push([m[1], []]);
+        }
+        const between = sections.find(([k]) => k === "between")?.[1] ?? [];
+        const tile = list.match(/key:\s*"settings"[\s\S]{0,400}/)?.[0] ?? "";
+        const open = fnSource(season, "openSeasonSetup");
+        const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const en = await lang("en"), pl = await lang("pl");
+        const read = {
+            tiles: [sections.some(([, t]) => t.includes("seasonReset")), between.at(-1) ?? null],
+            tile: [/openGameSettingsWindow\(\)/.test(tile), /disabled:\s*\(\)\s*=>\s*!mayModifySettings\(\)/.test(tile)],
+            footer: [/destructive:\s*\[\{\s*action:\s*"reset",\s*label:\s*game\.i18n\.localize\("DRPG\.Season\.resetTitle"\)/.test(open),
+                /if \(result === "reset"\) return \(await import\("\.\/season-wipe\.mjs"\)\)\.resetSeason\(\);/.test(open)],
+            words: [en.DRPG?.Season?.title, pl.DRPG?.Season?.title, en.DRPG?.Panel?.settings, pl.DRPG?.Panel?.settings]
+        };
+        equal(JSON.stringify(read), JSON.stringify({ tiles: [false, "settings"], tile: [true, true], footer: [true, true],
+            words: ["Season setup", "Ustawienia sezonu", "Settings", "Ustawienia gry"] }),
+            "{tiles: [a seasonReset tile anywhere, Between sessions' last tile]; tile: [Settings opens the game's window, disabled without the permission]; "
+            + "footer: [Season setup's destructive reset, its answer runs resetSeason]; words: [Season setup en, pl, Settings en, pl]}");
+    }],
+    ["R3533 - Season setup's footer stands in one row on a 1366x768 screen (E49 A1d; the owner's approval of 11.11.2026): season-setup.mjs `openSeasonSetup` states the kit's `tables` width, at least the widest four buttons measured (780 px), and its footer is Save, Reset the season (destructive) and Cancel, Pre-season checks gone from it to the row of windows (E49 A1e, R3580); The Mastermind, right before Season setup in Between sessions until E49 A1e, is no tile there (R3582)", async () => {
+        /*
+         * E49 A1d, 11.11.2026. The owner: "zamieniamy miejscami the mastermind z ustawienia sezonu", and Season setup at
+         * 1366x768 with its footer in one row and the window on the screen. MEASURED in Chromium (probe 08's capture on
+         * the style harness, `?fit=1`, S/stages/E49/set-tools/measure.mjs): at "wide" (704 px) the four buttons stood in
+         * two rows in both themes and languages - Cancel 136, Pre-season checks 201 / 241 / 252 / 307, Reset the season
+         * 191 / 227 / 171 / 201, Save 136 px (EN glass, EN Legacy, PL glass, PL Legacy) - and at "tables" (928 px) in one
+         * row, the window 0..752 px in a 768 px viewport, in all four. Headless there is no layout, so this holds the
+         * cause: the width stated and named in ui-kit.mjs, at least the widest row measured (780 px, PL Legacy, without
+         * the gaps), and the four buttons. Red at d2dc9bc9: "wide", Season setup before The Mastermind.
+         * E49 A1e, 11.11.2026 (the owner: Season setup the one place for setting up the season): Pre-season checks went
+         * from the footer to the row of windows under Edit campaign and The Mastermind's tile into it, so this holds the
+         * footer's three and no Mastermind tile; the width stays the one approved (the row and the order are R3580's).
+         */
+        const K = await import("./ui-kit.mjs");
+        const sources = new Map(await moduleSources());
+        const open = fnSource(stripComments(sources.get("season-setup.mjs") ?? ""), "openSeasonSetup");
+        const list = stripComments(sources.get("gm-panel.mjs") ?? "").match(/^const PANEL_SECTIONS = \[[\s\S]*?^\];/m)?.[0] ?? "";
+        must(open && list, "season-setup.mjs `openSeasonSetup` or gm-panel.mjs `PANEL_SECTIONS` was not read");
+        const keys = [...list.matchAll(/\bkey:\s*"(\w+)"\s*,\s*icon:/g)].map(m => m[1]);
+        const width = /\bwidth:\s*"(\w+)"/.exec(open)?.[1] ?? null;
+        const read = {
+            width, px: width && K.WINDOW_WIDTHS[width]?.rem ? K.WINDOW_WIDTHS[width].rem * 16 >= 780 : false,
+            // E49 A1e: Pre-season checks left the footer (no `checks` action in the opener) and The Mastermind the panel.
+            footer: [/primary:\s*\{\s*action:\s*"save"/.test(open), /action:\s*"checks"/.test(open), /destructive:\s*\[\{\s*action:\s*"reset"/.test(open), /close:\s*\{\s*role:\s*"cancel"/.test(open)],
+            order: [keys.includes("seasonSetup"), keys.includes("mastermind")]
+        };
+        equal(JSON.stringify(read), JSON.stringify({ width: "tables", px: true, footer: [true, false, true, true], order: [true, false] }),
+            "{the width Season setup states; it at the root's 16 px is at least 780 px; [Save, a Pre-season checks button in the footer, Reset the season destructive, Cancel]; [a Season setup tile, a Mastermind tile]}");
+    }],
+    ["R3580 - Season setup is the one place a season is set up, in its order (E49 A1e; the owner, 11.11 and 12.11.2026): season-setup.mjs `openSeasonSetup` draws Edit campaign and nothing else in the body that scrolls - one block, `fieldset.drpg-setup-campaign` named \"Edit campaign\", holding Edit campaign's six fields in their order, the safeword, the refill box and End the chapter's destructive button at its foot, each field once in the window - and under it, pinned (`.drpg-kit-pinned`, the body's next sibling), the GM panel's tiles for Despair Flow, The Mastermind, Killing game rules and the Season checklist, each with its icon and its window's title; no checklist row; the footer is Save (primary), Reset the season (destructive) and Cancel, and nothing else", async () => {
+        /*
+         * E49 A1e. The owner, 11.11.2026: Season setup "becomes the one place for setting up the season": at its top Edit
+         * campaign, "the first thing seen", with the fields Season setup had of its own that Edit campaign has too (the
+         * name, the chapter) drawn once; under it a row of buttons; the footer Save / Cancel and Reset the season. And
+         * 12.11.2026: the checklist out to a window of its own opened from the row, the row the GM panel's tiles, "always
+         * at the bottom of Season setup, always visible" - only Edit campaign scrolling. Read on this GM with DialogV2's
+         * `wait` stood in for (it answers null, read as Cancel: nothing written), the window's content drawn detached:
+         * the body's parts in order, the block's named fields, the pinned part's place and its tiles, the footer's buttons
+         * with their roles. Red at ecba3f21: the block "This campaign" with three fields, no row. Red at 5e0f8d76: the row
+         * the kit's text buttons inside the body, the checklist under it.
+         */
+        const SS = await import("./season-setup.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const seen = [];
+        D.wait = async cfg => { seen.push(cfg); return null; };
+        try { await SS.openSeasonSetup(); } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+        const cfg = seen.find(c => (c.classes ?? []).includes("drpg-window-season")) ?? null;
+        must(cfg, "Season setup opened no window on this GM - this would measure nothing");
+        const root = document.createElement("div");
+        root.innerHTML = cfg.content?.outerHTML ?? String(cfg.content ?? "");
+        const body = root.querySelector(".drpg-kit-body"), pinned = root.querySelector(".drpg-kit-pinned");
+        const form = body?.querySelector("form") ?? null;
+        const L = key => game.i18n.localize(key);
+        const part = el => el.matches("fieldset.drpg-setup-campaign") ? "campaign" : el.tagName.toLowerCase();
+        const block = form?.querySelector("fieldset.drpg-setup-campaign") ?? null;
+        const names = [...root.querySelectorAll("[name]")].map(el => el.name);
+        const roleOf = b => /\bdrpg-role-([\w-]+)/.exec(String(b.class ?? ""))?.[1] ?? null;
+        const end = block?.querySelector("[data-drpg-end-chapter]") ?? null;
+        equal(stableJson({
+            parts: form ? [...form.children].map(part) : null,
+            body: [Boolean(body?.querySelector(".drpg-gmp-button")), root.querySelectorAll("li.drpg-check-row").length],
+            pinned: [Boolean(pinned) && body?.nextElementSibling === pinned, Boolean(pinned?.querySelector("[name]"))],
+            legend: block?.querySelector(":scope > legend")?.textContent?.trim() ?? null,
+            fields: [...(block?.querySelectorAll("[name]") ?? [])].map(el => el.name),
+            once: ["campaignName", "chapter", "safeword"].map(n => names.filter(x => x === n).length),
+            end: [end?.dataset?.drpgRole ?? null, Boolean(end && [...block.querySelectorAll("[name]")].every(f => f.compareDocumentPosition(end) & Node.DOCUMENT_POSITION_FOLLOWING))],
+            tiles: [...(pinned?.querySelectorAll(".drpg-gm-panel.drpg-season-tiles > .drpg-gmp-grid > button.drpg-gmp-button") ?? [])].map(b =>
+                [b.dataset.drpgRun ?? null, [...(b.querySelector(":scope > i.fa-solid")?.classList ?? [])].find(c => c.startsWith("fa-") && c !== "fa-solid") ?? null,
+                    b.querySelector(":scope > span")?.textContent.trim() ?? null]),
+            group: pinned?.querySelector(".drpg-gmp-grid")?.getAttribute("aria-label") ?? null,
+            footer: (cfg.buttons ?? []).map(b => [b.action, roleOf(b)]).sort()
+        }), stableJson({
+            parts: ["campaign"],
+            body: [false, 0],
+            pinned: [true, false],
+            legend: L("DRPG.Panel.jump"),
+            fields: ["campaignName", "chapter", "phase", "day", "session", "timeOfDay", "safeword", "reset"],
+            once: [1, 1, 1],
+            end: ["destructive", true],
+            tiles: [["gmTeam", "fa-users-gear", L("DRPG.Panel.despairFlow")], ["mastermind", "fa-user-secret", L("DRPG.Mastermind.dialogTitle")],
+                ["rules", "fa-gavel", L("DRPG.Rules.manageTitle")], ["seasonChecklist", "fa-list-check", L("DRPG.Season.checklistTitle")]],
+            group: L("DRPG.Season.windows"),
+            footer: [["close", "cancel"], ["reset", "destructive"], ["save", "primary"]]
+        }), "{parts: the form's parts in order; body: [a tile in the body that scrolls, checklist rows in the window]; pinned: [the pinned part the body's "
+            + "next sibling, a field in it]; legend: the block's name; fields: the block's named fields in order; once: how often the name, the chapter "
+            + "and the safeword stand in the window; end: [End the chapter's role, after every field]; tiles: the pinned tiles [key, icon, label]; group: "
+            + "the row's name; footer: [action, role] sorted}");
+    }],
+    ["R3581 - each tile of Season setup's row opens its window (E49 A1e): Despair Flow gm-team-dialog.mjs `openGmTeamDialog`, The Mastermind mastermind.mjs `openMastermindDialog`, Killing game rules rules.mjs `openRulesManager`, the Season checklist season-setup.mjs `openSeasonChecklist`, each pressed on the drawn window through its own wiring; then Season setup closes and comes back, its fields as typed and the focus on the tile pressed", async () => {
+        /*
+         * E49 A1e. The tiles stand where three of these windows' tiles stood (the GM panel's Between sessions, 11.11.2026)
+         * and where the checklist stood (Season setup's lower half, until 12.11.2026). Read on this GM with DialogV2's
+         * `wait` stood in for (every window answers null, read as dismissed: nothing written): Season setup opened, its
+         * render run on the drawn content in a stand-in window attached to the page (closed by the round trip, counted),
+         * a name typed, each tile clicked, and the windows asked for after the press read by their classes; the copy that
+         * comes back read for the typed name and its focused tile. A window of the four already open on this browser is
+         * raised rather than opened (`alreadyOpen`), so a press finding one open counts it as opened. Red at ecba3f21: no
+         * row; at 5e0f8d76: the row's buttons `data-drpg-open`, no tiles, no Season checklist.
+         */
+        const SS = await import("./season-setup.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const seen = [];
+        D.wait = async cfg => { seen.push(cfg); return null; };
+        const CLASSES = { gmTeam: "drpg-window-gmteam", mastermind: "drpg-window-mastermind", rules: "drpg-window-rules", seasonChecklist: "drpg-window-season-checklist" };
+        const openAlready = cls => [...foundry.applications.instances.values()].some(a => a.rendered && (a.options?.classes ?? []).includes(cls));
+        const read = {};
+        const roots = [];
+        const drawn = cfg => cfg.content instanceof HTMLElement ? cfg.content : Object.assign(document.createElement("div"), { innerHTML: String(cfg.content ?? "") });
+        try {
+            for (const key of Object.keys(CLASSES)) {
+                seen.length = 0;
+                await SS.openSeasonSetup();
+                const cfg = seen.find(c => (c.classes ?? []).includes("drpg-window-season"));
+                must(cfg && typeof cfg.render === "function", "Season setup opened no window with a render - this would measure nothing");
+                const root = document.createElement("div");
+                root.className = "application dialog drpg-window-season";
+                root.append(drawn(cfg));
+                document.body.append(root);
+                roots.push(root);
+                let closed = 0;
+                cfg.render(null, { element: root, close: async () => { closed++; root.remove(); }, addEventListener: () => {} });
+                root.querySelector('[name="campaignName"]').value = `R3581 ${key}`;
+                const before = openAlready(CLASSES[key]);
+                seen.length = 0;
+                root.querySelector(`.drpg-season-tiles button[data-drpg-run="${key}"]`)?.click();
+                const back = await until(() => closed > 0 && seen.some(c => (c.classes ?? []).includes("drpg-window-season")), 8000);
+                const again = seen.find(c => (c.classes ?? []).includes("drpg-window-season")) ?? null;
+                let name = null, focus = null;
+                if (again) {
+                    const copy = document.createElement("div");
+                    copy.className = "application dialog drpg-window-season";
+                    copy.append(drawn(again));
+                    document.body.append(copy);
+                    roots.push(copy);
+                    again.render(null, { element: copy, close: async () => copy.remove(), addEventListener: () => {} });
+                    name = copy.querySelector('[name="campaignName"]')?.value ?? null;
+                    focus = document.activeElement?.dataset?.drpgRun ?? null;
+                }
+                read[key] = [before || seen.some(c => (c.classes ?? []).includes(CLASSES[key])), Boolean(back), closed, name, focus];
+            }
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            for (const root of roots) root.remove();
+        }
+        equal(stableJson(read), stableJson(Object.fromEntries(Object.keys(CLASSES).map(key => [key, [true, true, 1, `R3581 ${key}`, key]]))),
+            "{per tile: [its window asked for (or already open), Season setup back, the copy that closed closed once, the name typed carried back, the tile focused on the copy back]}");
+    }],
+    ["R3582 - the GM panel's Between sessions keeps Room Setup, Item tables, Season setup and Settings, in that order, and no tile for Edit campaign, Despair Flow, Killing game rules or The Mastermind anywhere (E49 A1e; the owner, 11.11.2026); every other door to the four stays: game.drpg's `editClock`, `gmTeamPanel`, `mastermindDialog` and `rulesManager` are the windows' own openers, and Season setup's row opens the three, beside the Season checklist (gm-panel.mjs `SEASON_TILES`: each the tile it was, by its key, its icon and its call)", async () => {
+        /*
+         * E49 A1e, 11.11.2026. The owner: the GM panel's "Between sessions" loses the separate tiles for Edit campaign,
+         * Despair Flow, The Mastermind and Killing game rules; what stays is Room Setup, Item tables, Season setup, Settings
+         * and anything else not named; every other route to those windows stays, so nothing becomes unreachable. Read: the
+         * panel's sections as `buildSections` draws them (`panelUnder`, nothing written), game.drpg's four calls compared
+         * with the openers by identity, and Season setup's tiles (12.11.2026: the panel's tiles, each with the icon it
+         * wore in Between sessions at ecba3f21). Red at ecba3f21: the four tiles in Between sessions, no row; at 5e0f8d76:
+         * the row `SEASON_WINDOWS`, no tiles.
+         */
+        const tiles = await panelUnder({}, root => [...root.querySelectorAll(".drpg-gmp-section")].map(s => [s.dataset.drpgKey, [...s.querySelectorAll("[data-drpg-run]")].map(t => t.dataset.drpgRun)]));
+        must(tiles.length >= 4, `the panel drew ${tiles.length} section(s) - this would measure nothing`);
+        const [GC, GT, M, R, GP] = await Promise.all(["./gm-campaign.mjs", "./gm-team-dialog.mjs", "./mastermind.mjs", "./rules.mjs", "./gm-panel.mjs"].map(f => import(f)));
+        const gone = ["jump", "gmTeam", "rules", "mastermind"];
+        equal(stableJson({
+            between: tiles.find(([k]) => k === "between")?.[1] ?? null,
+            gone: tiles.flatMap(([, keys]) => keys).filter(k => gone.includes(k)),
+            api: [game.drpg?.editClock === GC.openClockDialog, game.drpg?.gmTeamPanel === GT.openGmTeamDialog,
+                game.drpg?.mastermindDialog === M.openMastermindDialog, game.drpg?.rulesManager === R.openRulesManager],
+            hub: (GP.SEASON_TILES ?? []).map(t => [t.key, t.icon, t.labelKey, typeof t.run])
+        }), stableJson({
+            between: ["roomSetup", "tables", "seasonSetup", "settings"], gone: [], api: [true, true, true, true],
+            hub: [["gmTeam", "fa-users-gear", "DRPG.Panel.despairFlow", "function"], ["mastermind", "fa-user-secret", "DRPG.Mastermind.dialogTitle", "function"],
+                ["rules", "fa-gavel", "DRPG.Rules.manageTitle", "function"], ["seasonChecklist", "fa-list-check", "DRPG.Season.checklistTitle", "function"]]
+        }), "{between: Between sessions' tiles in order; gone: any of the four tiles in any section; api: game.drpg's editClock, gmTeamPanel, "
+            + "mastermindDialog, rulesManager are the openers; hub: Season setup's tiles [key, icon, label, its call]}");
+    }],
+    ["R3583 - Edit campaign's writes have one writer, whichever window: gm-campaign.mjs `openClockDialog` and season-setup.mjs `openSeasonSetup` both hand their form to `applyCampaignForm`, the one function of the two files that calls `setClock`, and Season setup reads its form through Edit campaign's `readClockForm` (E49 A1e; the owner: \"keep its data writes exactly as they are\")", async () => {
+        /*
+         * E49 A1e, 11.11.2026. The owner's condition on the merge: Edit campaign's data writes as they are - the same
+         * store, the same writer, the same rules - and a stop if the merge changed what is written or who writes it. Edit
+         * campaign's Apply was the tail of `openClockDialog`; it is `applyCampaignForm` now, moved unchanged, which Edit
+         * campaign's Apply and Season setup's Save both call. Read in source with comments taken out: each opener's call,
+         * the `setClock(` calls of both files by the top-level function they stand in, the readers. Tier 2 "E49-A1e -
+         * Season setup's Save writes what Edit campaign's Apply writes" runs the two windows on one world and compares the
+         * clock each leaves. Red at ecba3f21: no `applyCampaignForm`, Season setup's own `setClock`.
+         */
+        const sources = new Map(await moduleSources());
+        const campaign = stripComments(sources.get("gm-campaign.mjs") ?? ""), season = stripComments(sources.get("season-setup.mjs") ?? "");
+        must(campaign.length > 2000 && season.length > 2000, "gm-campaign.mjs or season-setup.mjs was not read - this would measure nothing");
+        const writers = text => [...text.matchAll(/\bsetClock\(/g)].map(m => {
+            const head = text.slice(0, m.index).match(/^(?:export\s+)?(?:async\s+)?function\s+(\w+)/gm);
+            return head ? head.at(-1).replace(/^(?:export\s+)?(?:async\s+)?function\s+/, "") : "(top)";
+        });
+        equal(stableJson({
+            clock: /return applyCampaignForm\(result\);/.test(fnSource(campaign, "openClockDialog")),
+            season: /await applyCampaignForm\(result\);/.test(fnSource(season, "openSeasonSetup")),
+            writers: { campaign: writers(campaign), season: writers(season) },
+            readers: [/\.\.\.readClockForm\(d\)/.test(fnSource(season, "readSeasonForm")), /readClockForm\(dialog\)/.test(fnSource(campaign, "openClockDialog"))]
+        }), stableJson({ clock: true, season: true, writers: { campaign: ["applyCampaignForm"], season: [] }, readers: [true, true] }),
+            "{clock: Edit campaign's Apply hands its form on; season: Season setup's Save does; writers: the functions calling setClock in each file; readers: [Season setup reads through readClockForm, Edit campaign does]}");
+    }],
+    ["R3584 - the Season checklist is a window of its own (E49 A1e; the owner, 12.11.2026: Season setup's lower half \"moves OUT of Season setup into a NEW window\", Pre-season checks with it): season-setup.mjs `openSeasonChecklist` draws `drpg-window-season-checklist` under DRPG.Season.checklistTitle at the tables' width - the intro, every step not of the First session as a row, the First session's rows, the note - with Pre-season checks (secondary) and Close in its footer; Pre-season checks opens `runPreSessionChecks`'s window and the checklist comes back after it; one copy at a time, and a player is refused", async () => {
+        /*
+         * E49 A1e, 12.11.2026. The rows were Season setup's lower half (E46-C5b's checklist, E51 C8's First session rows);
+         * Pre-season checks was Season setup's footer button until 11.11 and a button of its row until 12.11. Read on this
+         * GM with DialogV2's `wait` stood in for: the first checklist answers what its Pre-season checks button's own
+         * callback hands back on its drawn content (`{ checks, draft }`), every other window null (dismissed: nothing is
+         * written). The windows asked for, in order, by their classes; the body's parts; the rows' keys against `steps()`;
+         * the footer's [action, role]. Red at 5e0f8d76: no `openSeasonChecklist`.
+         */
+        const SS = await import("./season-setup.mjs");
+        must(typeof SS.openSeasonChecklist === "function", "season-setup.mjs exports no openSeasonChecklist");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const seen = [];
+        let first = null;
+        const KNOWN = ["drpg-window-season-checklist", "drpg-window-preseason"];
+        D.wait = async cfg => {
+            seen.push(cfg);
+            if (!first && (cfg.classes ?? []).includes(KNOWN[0])) {
+                first = cfg;
+                const root = document.createElement("div");
+                root.className = "application dialog drpg-window-season-checklist";
+                root.innerHTML = cfg.content?.outerHTML ?? String(cfg.content ?? "");
+                return cfg.buttons?.find(b => b.action === "checks")?.callback?.(null, null, { element: root }) ?? null;
+            }
+            return null;
+        };
+        try { await SS.openSeasonChecklist(); } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+        must(first, "the Season checklist opened no window on this GM - this would measure nothing");
+        const root = document.createElement("div");
+        root.innerHTML = first.content?.outerHTML ?? String(first.content ?? "");
+        const body = root.querySelector(".drpg-kit-body");
+        const part = el => el.matches("ul.drpg-checklist") ? "checklist" : el.matches('section[data-drpg-group="firstSession"]') ? "firstSession" : el.tagName.toLowerCase();
+        const roleOf = b => /\bdrpg-role-([\w-]+)/.exec(String(b.class ?? ""))?.[1] ?? null;
+        const want = SS.steps().filter(s => s.group !== SS.FIRST_SESSION).map(s => s.key);
+        const L = key => game.i18n.localize(key);
+        // A player: the window refuses (DRPG.Panel.gmOnly) and asks for nothing.
+        const wasGM = Object.getOwnPropertyDescriptor(game.user, "isGM");
+        const asked = [];
+        D.wait = async cfg => { asked.push(cfg); return null; };
+        let player = "unread";
+        try {
+            Object.defineProperty(game.user, "isGM", { configurable: true, get: () => false });
+            player = await SS.openSeasonChecklist();
+        } finally {
+            if (wasGM) Object.defineProperty(game.user, "isGM", wasGM); else delete game.user.isGM;
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        equal(stableJson({
+            asked: seen.map(c => KNOWN.find(k => (c.classes ?? []).includes(k)) ?? null),
+            title: first.window?.title ?? null,
+            width: (first.classes ?? []).includes("drpg-kit-width-tables"),
+            parts: body ? [...body.children].map(part) : null,
+            rows: [...(body?.querySelectorAll(":scope > ul.drpg-checklist > li.drpg-check-row") ?? [])].map(li => li.dataset.drpgKey),
+            fields: root.querySelectorAll("[name]").length,
+            footer: (first.buttons ?? []).map(b => [b.action, roleOf(b)]).sort(),
+            checks: (first.buttons ?? []).find(b => b.action === "checks")?.label ?? null,
+            player: [player, asked.length]
+        }), stableJson({
+            asked: [KNOWN[0], KNOWN[1], KNOWN[0]],
+            title: L("DRPG.Season.checklistTitle"),
+            width: true,
+            parts: ["p", "checklist", "firstSession", "p"],
+            rows: want,
+            fields: 0,
+            footer: [["checks", "secondary"], ["close", "close"]],
+            checks: L("DRPG.Panel.seasonChecks"),
+            player: [null, 0]
+        }), "{asked: the windows in order [the checklist, Pre-season checks, the checklist back]; title; width: the tables'; parts: the body's in order; rows: "
+            + "the checklist's keys (steps() not of the First session); fields: named fields in the window; footer: [action, role] sorted; checks: its label; player: [the answer, windows asked]}");
+    }],
+    ["R3585 - Season setup's tiles are the GM panel's, in look and in glyph, in both themes (E49 A1e; the owner, 12.11.2026: \"the same shape as the GM panel's tiles\", \"the glyphs those windows had as tiles\"): each tile Season setup draws is gm-panel.mjs `tileHtml`'s markup of its `SEASON_TILES` row; the cascade gives a Season setup tile what it gives a tile of the panel's window, property by property, under Monokuma Legacy and under Stained Glass; and its icon wears the drawing tests-glyphs.mjs names for it - under the glass Despair Flow team, The Mastermind mask, Killing game rules rules and the Season checklist season-checklist (a drawing of its own, not the Projects tile's), under Legacy the hand drawings the three tiles wore at ecba3f21 and the Season checklist's Font Awesome icon", async () => {
+        /*
+         * E49 A1e, 12.11.2026. The tiles' look is the panel's own rules (danganronpa.css's base tile, stained-glass.css's
+         * brush, components.css's equal tiles and icon ink, scoped since this stage to the panel's window and Season
+         * setup's), and the glyphs are keyed on `data-drpg-run` (pixel-icons.css under the glass, danganronpa.css's mask
+         * rules under Legacy). Read: Season setup's content drawn with DialogV2's `wait` stood in for (nothing written);
+         * each tile against `tileHtml` of its row, whitespace folded; then, in a document of each theme's body class, a
+         * Season setup window holding its tiles and the panel's window holding the same markup, each tile asked for the
+         * winning value of each property in PROPS (`styleCascade`); then each icon's glyph read as R3347 and R3348 read
+         * theirs (`glyphReading`). Red at 5e0f8d76: the row was the kit's text buttons, no glyph.
+         */
+        needs(env.tools(), "the glyphs are named against tools/glyphs.json (an installed module's zip leaves tools/ out)");
+        const [SS, GP, G] = await Promise.all([import("./season-setup.mjs"), import("./gm-panel.mjs"), import("./tests-glyphs.mjs")]);
+        must(Array.isArray(GP.SEASON_TILES) && typeof GP.tileHtml === "function", "gm-panel.mjs exports no SEASON_TILES or tileHtml");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const seen = [];
+        D.wait = async cfg => { seen.push(cfg); return null; };
+        try { await SS.openSeasonSetup(); } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+        const cfg = seen.find(c => (c.classes ?? []).includes("drpg-window-season")) ?? null;
+        must(cfg, "Season setup opened no window on this GM - this would measure nothing");
+        const box = document.createElement("div");
+        box.innerHTML = cfg.content?.outerHTML ?? String(cfg.content ?? "");
+        const fold = html => String(html ?? "").replace(/\s+/g, " ").replace(/> </g, "><").trim();
+        const pinned = box.querySelector(".drpg-kit-pinned")?.innerHTML ?? "";
+        const same = GP.SEASON_TILES.map(t => {
+            const one = document.createElement("div");
+            one.innerHTML = GP.tileHtml(t);
+            const drawn = box.querySelector(`.drpg-season-tiles button[data-drpg-run="${t.key}"]`);
+            return [t.key, Boolean(drawn) && fold(drawn.outerHTML) === fold(one.firstElementChild?.outerHTML)];
+        });
+        const C = await styleCascade();
+        let read = 0;
+        const PROPS = ["display", "align-items", "align-self", "gap", "height", "min-height", "padding", "border", "border-radius", "background",
+            "color", "box-shadow", "font-size", "text-transform", "letter-spacing", "justify-content"];
+        const look = theme => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-gm`;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-ui drpg-panel drpg-window-season"><section class="window-content"><form class="dialog-form">`
+                + `<div class="dialog-content"><div class="drpg-kit-body"></div>${box.querySelector(".drpg-kit-pinned")?.outerHTML ?? ""}</div></form></section></div>`
+                + `<div class="application dialog drpg-ui drpg-panel drpg-gm-panel-window drpg-window-panel"><section class="window-content"><form class="dialog-form">`
+                + `<div class="dialog-content"><div class="drpg-kit-body"><div class="drpg-gm-panel"><details class="drpg-gmp-section" open><summary>x</summary>`
+                + `<div class="drpg-gmp-grid">${GP.SEASON_TILES.map(t => GP.tileHtml(t)).join("")}</div></details></div></div></div></form></section></div>`;
+            const [season, panel] = body.querySelectorAll(".application");
+            read += GP.SEASON_TILES.reduce((n, t) => n + PROPS.filter(prop => C.winner(season.querySelector(`[data-drpg-run="${t.key}"]`), prop)?.value != null).length, 0);
+            return GP.SEASON_TILES.flatMap(t => PROPS.filter(prop => {
+                const a = C.winner(season.querySelector(`[data-drpg-run="${t.key}"]`), prop)?.value ?? null;
+                const b = C.winner(panel.querySelector(`[data-drpg-run="${t.key}"]`), prop)?.value ?? null;
+                return a !== b;
+            }).map(prop => `${t.key} ${prop}`));
+        };
+        const glyphs = G.parseGlyphs(await fetch(`/modules/${MODULE_ID}/tools/glyphs.json`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""))).glyphs;
+        const page = document.body, THEMES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], classWas = THEMES.map(n => page.classList.contains(n));
+        const host = document.createElement("div");
+        host.className = "application dialog drpg-ui drpg-panel drpg-window-season";
+        host.setAttribute("aria-hidden", "true");
+        host.style.cssText = "position: absolute; left: -10000px; top: 0;";
+        host.innerHTML = pinned;
+        const worn = {};
+        try {
+            page.append(host);
+            for (const [i, theme] of THEMES.entries()) {
+                page.classList.add(theme);
+                page.classList.remove(THEMES[1 - i]);
+                const tokens = G.glyphTokens(page, window, glyphs);
+                worn[theme] = GP.SEASON_TILES.map(t => G.glyphReading(host.querySelector(`[data-drpg-run="${t.key}"] > i`), window, tokens));
+            }
+        } finally {
+            host.remove();
+            THEMES.forEach((n, i) => page.classList.toggle(n, classWas[i]));
+        }
+        const WANT = { "drpg-theme-stained-glass": ["--drpg-pix-team", "--drpg-pix-mask", "--drpg-pix-rules", "--drpg-pix-season-checklist"],
+            "drpg-theme-monokuma-legacy": ["--drpg-pix-gm-team", "--drpg-pix-mastermind", "--drpg-pix-new-rule", "fa:fa-list-check"] };
+        const looks = ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"].map(look);
+        must(read >= 40, `${read} property value(s) won on Season setup's tiles in both themes - the look was not measured`);
+        equal(stableJson({
+            keys: GP.SEASON_TILES.map(t => t.key),
+            same,
+            looks,
+            glyphs: Object.fromEntries(THEMES.map(theme => [theme, worn[theme].map((got, i) => G.readingMatches(WANT[theme][i], got) ? WANT[theme][i] : got)]))
+        }), stableJson({
+            keys: ["gmTeam", "mastermind", "rules", "seasonChecklist"],
+            same: [["gmTeam", true], ["mastermind", true], ["rules", true], ["seasonChecklist", true]],
+            looks: [[], []],
+            glyphs: WANT
+        }), "{keys: SEASON_TILES in order; same: [key, Season setup's tile is tileHtml's]; looks: the properties where a Season setup tile and the panel's differ "
+            + "[Legacy, the glass]; glyphs: each tile's icon's drawing [the glass, Legacy]}");
+    }],
+    ["R3586 - a kit window can pin markup under its body, above the footer (E49 A1e; the owner, 12.11.2026: Season setup's row \"always at the bottom, always visible\"): ui-kit.mjs `drpgWindow`'s `pinned` draws `div.drpg-kit-pinned` as the next sibling of `.drpg-kit-body`, holding what it was handed, and a window that names none draws no such part; components.css gives the pinned part its own height (`flex: 0 0 auto`) beside the body's `flex: 1 1 auto` with `min-height: 0` and `overflow: auto`, so in a short window the body scrolls and the pinned part stays", async () => {
+        /*
+         * E49 A1e, 12.11.2026. The kit's frame (E21 C2b): `.window-content` a flex column, the body the one box that
+         * scrolls, the footer after it; the tab bar keeps its height the same way (`.drpg-tabs { flex: 0 0 auto }`). Read:
+         * `drpgWindow` with DialogV2's `wait` stood in for, once with `pinned` and once without, the content drawn
+         * detached; and components.css's rules with comments taken out. The harness lays nothing out, so that the row
+         * stays on screen in a short window is read from the rules here and measured in Chromium in the stage's shots
+         * (1366x768 and 1366x600). Red at 5e0f8d76: no `pinned`.
+         */
+        const K = await import("./ui-kit.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const seen = [];
+        D.wait = async cfg => { seen.push(cfg); return null; };
+        try {
+            await K.drpgWindow({ classes: ["drpg-r3586"], title: "R3586", body: "<p>body</p>", pinned: '<b data-r3586="pinned">pinned</b>', footer: { close: { role: "close", action: "close" } } });
+            await K.drpgWindow({ classes: ["drpg-r3586"], title: "R3586", body: "<p>body</p>", footer: { close: { role: "close", action: "close" } } });
+        } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+        must(seen.length === 2, `${seen.length} window(s) asked for - this would measure nothing`);
+        const drawn = cfg => { const d = document.createElement("div"); d.innerHTML = cfg.content?.outerHTML ?? String(cfg.content ?? ""); return d; };
+        const [withPin, without] = seen.map(drawn);
+        const body = withPin.querySelector(".drpg-kit-body"), pin = withPin.querySelector(".drpg-kit-pinned");
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/components.css`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : "")));
+        must(css.length > 10000, "components.css was not read - this would measure nothing");
+        const rule = sel => bodyOf(css, `\n${sel} {`, { until: "}" }).replace(`\n${sel} {`, "").replace(/\s+/g, " ").trim();
+        equal(stableJson({
+            pinned: [Boolean(pin) && body?.nextElementSibling === pin, pin?.querySelector('[data-r3586="pinned"]')?.textContent ?? null, Boolean(body?.querySelector(".drpg-kit-pinned"))],
+            without: [without.querySelectorAll(".drpg-kit-pinned").length, Boolean(without.querySelector(".drpg-kit-body"))],
+            css: {
+                pinned: rule(".application.drpg-ui.drpg-panel .drpg-kit-pinned"),
+                body: /flex: 1 1 auto;.*min-height: 0;.*overflow: auto;/.test(rule(".application.drpg-ui.drpg-panel .drpg-kit-body") ?? "")
+            }
+        }), stableJson({
+            pinned: [true, "pinned", false],
+            without: [0, true],
+            css: { pinned: "flex: 0 0 auto;", body: true }
+        }), "{pinned: [the pinned part the body's next sibling, what it holds, a pinned part inside the body]; without: [pinned parts, a body]; css: [the pinned "
+            + "part's rule, the body grows, shrinks to nothing and scrolls]}");
+    }],
+    ["R3587 - the GM panel's Next line sends a season not set up to the Season checklist, where its rows are (E49 A1e, 12.11.2026): `nextStep` names the first row not done with the action `seasonChecklist` (and so the second line of a game under way), its button says DRPG.Panel.goSeasonChecklistButton in English and in Polish, and pressing it in the panel opens season-setup.mjs `openSeasonChecklist`'s window", async () => {
+        /*
+         * E49 A1e, 12.11.2026. The Next line's "Season setup" opened the window whose rows it named; the rows moved to the
+         * Season checklist, so the line opens that. Read: `nextStep` on a fresh clock with a list whose first required row
+         * is not done (R1512's), the line drawn (`nextLineHtml`), the button's label in both languages' files, and the GM
+         * panel opened with DialogV2's `wait` stood in for (every window null: dismissed, nothing written), its render run
+         * on its drawn content in a stand-in window, the Next line's button pressed through the panel's own listener.
+         * Red at 5e0f8d76: the action `seasonSetup`, no `seasonChecklist`.
+         */
+        const [GP, CFG] = await Promise.all([import("./gm-panel.mjs"), import("./config.mjs")]);
+        const clock = { ...getClock(), phase: "dailyLife", chapter: 1, day: 1, session: 1, timeOfDay: CFG.TIMES_OF_DAY[0], refilledFor: null };
+        const row = (key, done, optional = false) => ({ key, done, optional, missing: () => [] });
+        const step = GP.nextStep(clock, { setupList: [row("name", true), row("cast", false)], incident: false, eclipse: false });
+        const box = document.createElement("div");
+        box.innerHTML = GP.nextLineHtml(step);
+        const go = box.querySelector(".drpg-gmp-next-go");
+        const json = async lang => fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => (r.ok ? r.json() : {}));
+        const [en, pl] = await Promise.all([json("en"), json("pl")]);
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const seen = [];
+        D.wait = async cfg => { seen.push(cfg); return null; };
+        let opened = false;
+        const root = document.createElement("div");
+        try {
+            await GP.openGmPanel();
+            const cfg = seen.find(c => (c.classes ?? []).includes("drpg-window-panel"));
+            must(cfg && typeof cfg.render === "function", "the GM panel opened no window with a render - this would measure nothing");
+            root.className = "application dialog drpg-window-panel";
+            root.innerHTML = cfg.content?.outerHTML ?? String(cfg.content ?? "");
+            root.insertAdjacentHTML("beforeend", GP.nextLineHtml(step));
+            document.body.append(root);
+            cfg.render(null, { element: root, close: async () => root.remove(), addEventListener: () => {} });
+            seen.length = 0;
+            [...root.querySelectorAll(".drpg-gmp-next-go")].at(-1)?.click();
+            opened = await until(() => seen.some(c => (c.classes ?? []).includes("drpg-window-season-checklist")), 8000);
+            // The panel comes back after the window it ran answers: waited for here, so it meets the stand-in, not a real window.
+            if (opened) await until(() => seen.some(c => (c.classes ?? []).includes("drpg-window-panel")), 8000);
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            root.remove();
+        }
+        equal(stableJson({
+            step: [step?.text ?? null, step?.action ?? null],
+            go: [go?.dataset?.drpgRun ?? null, go?.textContent.trim() ?? null],
+            words: [en?.DRPG?.Panel?.goSeasonChecklistButton ?? null, pl?.DRPG?.Panel?.goSeasonChecklistButton ?? null],
+            opened
+        }), stableJson({
+            step: [game.i18n.format("DRPG.Panel.nextSeasonSetup", { step: game.i18n.localize("DRPG.Season.step.cast") }), "seasonChecklist"],
+            go: ["seasonChecklist", game.i18n.localize("DRPG.Panel.goSeasonChecklistButton")],
+            words: ["Season checklist", "Lista kontrolna sezonu"],
+            opened: true
+        }), "{step: the Next line [text, action]; go: its button [action, label]; words: the button's label [en, pl]; opened: the press opened the Season checklist}");
     }],
     ["R588 - the voice tile names its state in one word, as the Room says it: Connecting while LiveKit connects or reconnects or the module moves the Room, Disconnected with no Room or a lost one, Connected only when the Room says connected, Eclipsed in either Eclipse hold, Blocked, Own window, whether or not a speaker is drawn (H81-10), and while one is, a connected Room's sentence is not 'Nobody is speaking' and the live text is hidden; the word runs in two aria-hidden copies, the sentence is the word's title and a visually hidden live text, and the word stays, still, under reduced motion and with the ticker off, in English and in Polish", async () => {
         /*
@@ -20684,7 +21585,9 @@ const INVARIANTS = [
         const gm = stub(GM, CONST.USER_ROLES.GAMEMASTER, gmFlags, "#aa0000");
         const copy = S.sourceLookOf(gm);
         const look = S.lookFrom(gm, copy);
-        const holding = (id, role, sfxList) => stub(id, role, sfxList === undefined ? { appearance: owned } : { appearance: owned, sfxList });
+        // Each holds Dice So Nice 6.4's saved marker (E76 C6; R3603 reads a user without it), so this reads the look alone.
+        const saved = { appearance: true, sfx: true };
+        const holding = (id, role, sfxList) => stub(id, role, sfxList === undefined ? { appearance: owned, saved } : { appearance: owned, sfxList, saved });
         const users = [holding("R940P1", CONST.USER_ROLES.PLAYER, asWritten), holding("R940P2", CONST.USER_ROLES.PLAYER),
             holding("R940P3", CONST.USER_ROLES.TRUSTED, own), holding("R940A1", CONST.USER_ROLES.ASSISTANT, asWritten)];
         equal(J({ look, copy: [J(copy.appearance) === J(appearance), J(copy.sfxList) === J(effects), copy.color], gm: J(gmFlags) === J({ appearance, sfxList: effects }) }),
@@ -20714,6 +21617,32 @@ const INVARIANTS = [
         const rest = src.replace(fnSource(src, "sourceLookOf"), "").replace(fnSource(src, "lookOf"), "");
         equal(J([reads(src) >= 2, reads(rest), (src.match(/\bspecialEffects\b/g) ?? []).length]), J([true, 0, 0]),
             "dice-sync.mjs reads a user's effects list somewhere other than the source's copy (`sourceLookOf`) and a user's own look (`lookOf`), or reads Dice So Nice's `specialEffects` anywhere: a forced user's look may be built from the GM's effects there ([the copy and a user's own read, `getFlag` reads elsewhere, `specialEffects` read])");
+    }],
+    ["R3603 - a forced user holds the table's dice look only with Dice So Nice 6.4's saved marker, appearance and effects both, beside it", async () => {
+        /*
+         * E76 C6, 12.11.2026 (the coordinator's decision of 12.11: write DSN's `saved` marker with the forced look). Read in
+         * Dice So Nice 6.4.5's source (tag b365efc, 04.11.2026; module/settings/DsnSettings.js): `SAVED(user)` reads the flag
+         * `dice-so-nice.saved` (:160-163); `SFX_LIST` answers `DEFAULT_SFX()` - the lines packages register through
+         * `game.dice3d.addSFXDefaults` - for a user without `saved.sfx`, whatever its `sfxList` holds (:249-253), and
+         * `APPEARANCE` merges the package's "basic" role look under the user's own for one without `saved.appearance`
+         * (:191-196). The harm: a forced player who never saved a look of their own throws with a package's effects, against
+         * the module's "no special effect" (dice-sync.mjs `lookFrom`), and a part of the look the GM did not set comes from a
+         * package rather than from DSN's default. So a user is behind the table's look until both marks are true, and the
+         * sweep and the put-back write it. Read on stubs, pure; scenario 17 G1b holds the write on every client. What 6.4.5
+         * draws from it is LIVE-E76-07.
+         */
+        const S = await import("./dice-sync.mjs");
+        const J = v => stableJson(v);
+        const DSN = "dice-so-nice";
+        const look = { appearance: { global: { colorset: "fire" } }, sfxList: [] };
+        const stub = flags => ({ id: "R3603P", name: "R3603P", role: CONST.USER_ROLES.PLAYER, getFlag: (scope, key) => (scope === DSN ? flags[key] : undefined) });
+        const held = saved => S.holdsTableLook(stub({ ...foundry.utils.deepClone(look), ...(saved === undefined ? {} : { saved }) }), look);
+        equal(J([held({ appearance: true, sfx: true }), held(undefined), held({ appearance: true }), held({ sfx: true }),
+            held({ appearance: true, sfx: false }), held({ appearance: true, sfx: true, extra: 1 })]),
+        J([true, false, false, false, false, true]),
+        "[both marks, no marker, appearance alone, effects alone, effects false, both and a key of DSN's own] - holds the table's look");
+        ok(!S.holdsTableLook(stub({ appearance: { global: { colorset: "ice" } }, sfxList: [], saved: { appearance: true, sfx: true } }), look),
+            "a user with the marker and another appearance is taken to hold the table's look");
     }],
     ["R941 - the GMs' overlay says where each secret tunnel and stairs end leads (H82-04): under each end's ring on a GM's board, 'Secret passage to {room}' with the room beyond as the map names it, 'Secret passage from {room}' at a one-way tunnel's way out, at a knower's mark's size (max(20, grid x 0.36), keyline max(4, grid x 0.07), grid x 0.38 under the end) and dimmed to 0.7; a one-way tunnel's link carries an arrowhead pointing to its way out, a two-way tunnel and stairs none; a closed tunnel and a stretch in a wall keep their dashes alone, one Graphics a passage as before; and drawn as a player, whose copy may name every passage as the Mastermind's does, nothing", async () => {
         /*
@@ -21206,7 +22135,7 @@ const INVARIANTS = [
             else store.setItem(KEPT, hadKept);
         }
         equal(stableJson(seen), stableJson([
-            // Not in Foundry's settings window since E49 A1 (`config: false`): a row of the DRPG Settings window (R3420).
+            // Not in Foundry's settings window since E49 A1 (`config: false`): a row of the GM panel's game settings since A1d (R3420).
             [AV, KEY, false, null, "liveKitInFoundry", "world", false, true, true],
             ["before", true, true, "external", true],
             ["held", ["liveKitInFoundry"], false, false, null],
@@ -23603,6 +24532,10 @@ const INVARIANTS = [
          * The reader is held first to the rule as d99adf4b had it, planted back: it must see the chrome face win
          * on the minus. Red at d99adf4b: the minus, plus, eye-slash and loop all read the chrome face. In Chromium
          * the same is the glass harness's `drpgTrayIcons` (the sweep's "tray" clause).
+         * Since E105 FT-14 (11.11.2026) Stained Glass masks the minus, the plus and the eye-slash with the module's glyphs
+         * (pixel-icons.css HOST_FACES; R3571), which switch Font Awesome's ::before off and set no face on the icon: what
+         * this reads - that no module face lands on an icon - holds as before; the owner's follow-up of the same day masks
+         * the loop too (R3571).
          */
         const C = await styleCascade();
         const ICONS = ["fa-minus", "fa-plus", "fa-eye-slash", "fa-repeat"];
@@ -29235,7 +30168,7 @@ const INVARIANTS = [
         const line = list => { const s = GP.nextStep(clock, { setupList: list, incident: false, eclipse: false });
             return [s?.text ?? null, s?.action ?? null]; };
         const emptyFirst = SS.firstOutstandingStep(empty);
-        const setupLine = key => [game.i18n.format("DRPG.Panel.nextSeasonSetup", { step: game.i18n.localize(`DRPG.Season.step.${key}`) }), "seasonSetup"];
+        const setupLine = key => [game.i18n.format("DRPG.Panel.nextSeasonSetup", { step: game.i18n.localize(`DRPG.Season.step.${key}`) }), "seasonChecklist"];
         const sources = await moduleSources();
         must(sources.get("gm-panel.mjs")?.length, "gm-panel.mjs is not among the module's sources - this would measure nothing");
         const tile = /key:\s*"seasonSetup"/.test(stripComments(sources.get("gm-panel.mjs")));
@@ -29243,10 +30176,10 @@ const INVARIANTS = [
         equal(stableJson({
             empty: [emptyFirst ? [emptyFirst.done, Boolean(emptyFirst.optional)] : null, line(empty)[1], stableJson(line(empty)) === stableJson(setupLine(emptyFirst?.key))],
             pending: line(pending), first: SS.firstOutstandingStep(pending)?.key ?? null,
-            held: [SS.firstOutstandingStep(held), heldLine[1] === "seasonSetup", heldLine[1] === "eclipse" || heldLine[1] === null],
+            held: [SS.firstOutstandingStep(held), heldLine[1] === "seasonChecklist", heldLine[1] === "eclipse" || heldLine[1] === null],
             tile
         }), stableJson({
-            empty: [[false, false], "seasonSetup", true],
+            empty: [[false, false], "seasonChecklist", true],
             pending: setupLine("cast"), first: "cast",
             held: [null, false, true],
             tile: true
@@ -29345,13 +30278,15 @@ const INVARIANTS = [
         must(src.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
         const open = fnSource(src, "openSeasonSetup"), wire = fnSource(src, "wireSetupSteps");
         equal(stableJson({
-            opening, fields, blockFirst: open.indexOf("campaignFieldsHtml(") >= 0 && open.indexOf("campaignFieldsHtml(") < open.indexOf("${rows}"),
+            // E49 A1e (12.11.2026): the list is the Season checklist's; Edit campaign's block is the body, the tiles pinned after it.
+            opening, fields, blockFirst: open.indexOf("campaignFieldsHtml(") >= 0 && open.indexOf("campaignFieldsHtml(") < open.indexOf("pinned: seasonTilesHtml("),
             opened, raised, counts: apps.map(a => a.raised),
             // E20 fix round (C-2): the opener hands the place a round trip carried as a second argument (R1524).
             wired: [/seasonOpening\(dialog\.element\b/.test(open), /raiseOpened\(/.test(open), /windowStack\(\)/.test(wire)]
         }), stableJson({
             opening: ["campaignName", "campaignName", null],
-            fields: [["campaignName", true], ["chapter", false], ["safeword", false]], blockFirst: true,
+            // E49 A1e: Edit campaign's fields (the selects are not inputs: phase, time of day), the safeword, the refill box.
+            fields: [["campaignName", true], ["chapter", false], ["day", false], ["session", false], ["safeword", false], ["reset", false]], blockFirst: true,
             opened: ["r1514old", "r1514sheet"], raised: ["r1514old", "r1514sheet"], counts: [0, 1, 1, 0, 0],
             wired: [true, true, true]
         }), "Set the season up opens away from its top, or a row's Open stays behind it [the opening: focused, the page's focus, an autofocus left in "
@@ -29753,10 +30688,10 @@ const INVARIANTS = [
             drawn, underway,
             looks: ["drpg-theme-monokuma-legacy drpg-gm", "drpg-theme-stained-glass drpg-gm"].map(look)
         }), stableJson({
-            before: [game.i18n.format("DRPG.Panel.nextSeasonSetup", { step: name }), "seasonSetup", false],
-            during: [true, true, game.i18n.format("DRPG.Panel.nextSeasonSetupAside", { step: name }), "seasonSetup"],
+            before: [game.i18n.format("DRPG.Panel.nextSeasonSetup", { step: name }), "seasonChecklist", false],
+            during: [true, true, game.i18n.format("DRPG.Panel.nextSeasonSetupAside", { step: name }), "seasonChecklist"],
             held: false,
-            drawn: [true, daily.action ?? null, game.i18n.format("DRPG.Panel.nextSeasonSetupAside", { step: name }), "seasonSetup", true],
+            drawn: [true, daily.action ?? null, game.i18n.format("DRPG.Panel.nextSeasonSetupAside", { step: name }), "seasonChecklist", true],
             underway: [false, true, true, true, true, true, true, false],
             looks: [["var(--drpg-text-sm)", "var(--drpg-dim)"], ["var(--drpg-sg-floor)", "var(--drpg-sg-bone-dim)"]]
         }), "the Next line puts Season setup over a running game's line, or not over a fresh season's [a fresh clock, a row not done: the line, its action, "
@@ -29813,15 +30748,17 @@ const INVARIANTS = [
          * so whether the row is in view at a table is not measured here. With comments blanked, the row and the footer
          * hand the place on and the opener reads it. Nothing is written. Red at 689040ee: `readDraft` was not exported.
          */
-        let SS = null;
-        try { SS = await import("./season-setup.mjs"); } catch { SS = null; }
+        let SS = null, GP = null;
+        try { [SS, GP] = await Promise.all([import("./season-setup.mjs"), import("./gm-panel.mjs")]); } catch { SS = null; }
         ok(typeof SS?.readDraft === "function" && typeof SS?.seasonOpening === "function", "season-setup.mjs exports no readDraft or seasonOpening");
         const rows = [{ key: "ultimate", done: false, missing: () => ["R1524 a"], open: () => null }, { key: "items", done: false, missing: () => ["R1524 b"], open: () => null }];
         const make = () => {
             const root = document.createElement("div");
             root.className = "application dialog drpg-window-season";
+            // E49 A1e (12.11.2026): the rows and Pre-season checks are the Season checklist's, Season setup's tiles pinned under
+            // Edit campaign; one stand-in holds the three, as the reader of each is one function for both windows.
             root.innerHTML = `<section class="window-content"><form>${SS.campaignFieldsHtml({ campaignName: "R1524" }, "R1524word")}
-                ${SS.setupRows(rows)}</form></section>
+                ${SS.setupRows(rows)}</form></section>${SS.seasonTilesHtml(GP.SEASON_TILES, GP.tileHtml)}
                 <footer class="form-footer"><button type="submit" data-action="save" autofocus>R1524 save</button><button type="button" data-action="checks">R1524 checks</button></footer>`;
             document.body.append(root);
             return root;
@@ -29831,16 +30768,16 @@ const INVARIANTS = [
         try {
             const first = make(); made.push(first);
             first.querySelector(".window-content").scrollTop = 420;
-            const row = SS.readDraft(first, { step: "items" }), checks = SS.readDraft(first, { action: "checks" });
+            const row = SS.readDraft(first, { step: "items" }), checks = SS.readDraft(first, { action: "checks" }), tile = SS.readDraft(first, { action: "mastermind" });
             const opened = place => {
                 const back = make(); made.push(back);
                 const focused = SS.seasonOpening(back, place);
                 // A row's button is the kit's (E46-C5b): its step is the row's key.
-                return [focused?.closest?.("li.drpg-check-row")?.dataset?.drpgKey ?? focused?.dataset?.action ?? focused?.name ?? null, document.activeElement === focused,
+                return [focused?.closest?.("li.drpg-check-row")?.dataset?.drpgKey ?? focused?.dataset?.action ?? focused?.dataset?.drpgRun ?? focused?.name ?? null, document.activeElement === focused,
                     back.querySelector(".window-content").scrollTop, Boolean(back.querySelector("footer [autofocus]"))];
             };
             out = { place: [row?.place ?? null, checks?.place ?? null], fields: [row?.campaignName, row?.safeword],
-                row: opened(row?.place), checks: opened(checks?.place), fresh: opened(null) };
+                row: opened(row?.place), checks: opened(checks?.place), tile: opened(tile?.place), fresh: opened(null) };
         } finally {
             for (const root of made) root.remove();
         }
@@ -29848,18 +30785,20 @@ const INVARIANTS = [
         const src = stripComments(sources.get("season-setup.mjs") ?? "");
         must(src.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
         const wired = [/readDraft\(dialog\.element, \{ step: step\.key \}\)/.test(fnSource(src, "wireSetupSteps")),
-            /readDraft\(d\.element, \{ action: "checks" \}\)/.test(fnSource(src, "openSeasonSetup")),
-            /seasonOpening\(dialog\.element, draft\?\.place \?\? null\)/.test(fnSource(src, "openSeasonSetup"))];
+            /readDraft\(dialog\.element, \{ action: entry\.key \}\)/.test(fnSource(src, "wireSeasonTiles")),
+            /readDraft\(d\.element, \{ action: "checks" \}\)/.test(fnSource(src, "openSeasonChecklist")),
+            ...["openSeasonSetup", "openSeasonChecklist"].map(fn => /seasonOpening\(dialog\.element, draft\?\.place \?\? null\)/.test(fnSource(src, fn)))];
         equal(stableJson({ ...out, wired }), stableJson({
             place: [{ scrollTop: 420, step: "items", action: null }, { scrollTop: 420, step: null, action: "checks" }],
             fields: ["R1524", "R1524word"],
             row: ["items", true, 420, false],
             checks: ["checks", true, 420, false],
+            tile: ["mastermind", true, 420, false],
             fresh: ["campaignName", true, 0, false],
-            wired: [true, true, true]
+            wired: [true, true, true, true, true]
         }), "a round trip of Set the season up comes back at its top [what the copy that closed carries: a row's press, Pre-season checks | the fields | "
             + "a copy back after the row: focused, the page's focus, its scroll, an autofocus left in the footer | after Pre-season checks | a fresh open | "
-            + "the row hands its place, Pre-season checks hands its place, the opener reads it]");
+            + "after a tile of Season setup's row | the row hands its place, a tile does, Pre-season checks does, each opener reads it]");
     }],
     ["R1525 - the share of a map in no room is read floor by floor, the worst floor answers by name (E20 fix round, the correctness review's C-4): a school whose first floor is covered whole and whose second by half reads 50% on Floor 2, in the rooms row and Pre-season's scene line", async () => {
         /*
@@ -32401,8 +33340,9 @@ const INVARIANTS = [
         const sources = await moduleSources();
         must(sources.get("season-setup.mjs")?.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
         const code = stripComments(sources.get("season-setup.mjs"));
-        const opener = bodyOf(code, "export async function openSeasonSetup(", { until: "export function startHereDue(" });
-        const wiring = bodyOf(code, "function wireSetupSteps(", { until: "export async function openSeasonSetup(" });
+        // The Season checklist's since E49 A1e (12.11.2026: Season setup's rows went to a window of their own).
+        const opener = bodyOf(code, "export async function openSeasonChecklist(", { until: "export function startHereDue(" });
+        const wiring = bodyOf(code, "function wireSetupSteps(", { until: "function wireSeasonTiles(" });
         equal(JSON.stringify({
             keys: off.map(r => r.key), optional: off.every(r => r.optional === true),
             state: [off.map(r => r.done), on.map(r => r.done)],
@@ -34091,7 +35031,7 @@ const INVARIANTS = [
         ]), "stepsReport does not say a result as one report (per result: lines, the groups' sentences in order, the toast's level and text)");
         const html = document.createElement("div");
         html.innerHTML = all.content;
-        equal(stableJson([[...html.querySelectorAll("li")].map(li => li.textContent), [...html.querySelectorAll("p")].map(p => p.classList.contains("drpg-warning"))]),
+        equal(stableJson([[...html.querySelectorAll("li")].map(li => li.textContent), [...html.querySelectorAll("p")].map(p => p.classList.contains("drpg-chat-kit-warn"))]),
             stableJson([["one", "two"], [false, false, true, true]]),
             "the report's card does not list the lines and say each group, the failed and the not run as warnings");
     }],
@@ -36029,6 +36969,13 @@ const INVARIANTS = [
             }
         }
         /* Measured on C5's tree (e65fbb33) with this test and tests-kit.mjs's pseudo-elements, 04.11.2026: 48 surfaces, 19153 readings. */
+        /* Fifteen prints moved by E105 FT batch 1 (11.11.2026), read with this test on 1391e4ba's sheets against 7d59dcfe's,
+           each surface's winners compared line by line: the room tile in every place and theme by its new rules (the
+           chevron's Legacy face, the picture button's ink, both buttons' focus ring), and the voice tile in both themes and
+           Foundry tools under Legacy by one line each, the roots' `--color-text-selection-bg` (#584a75, Foundry's violet,
+           to a Bone wash: FT-16). Not moved here: Stained Glass's Foundry tools, which read 1:d0296c9e and named
+           `body.drpg-theme-stained-glass #drpg-foundry-tools` as a winner already on 7d59dcfe, before this batch - that
+           red is not this batch's to bless. */
         /* The `@media` rules of the section, which `styleCascade` does not read: each must stand after every rule of the
            section's top level it overrides - the same selector - or the system's reduced motion stops nothing (E44 C6's
            mutant c6-m1: the reduced-motion block moved above the word's run). Read from the sheet's text, in order.
@@ -36075,24 +37022,43 @@ const INVARIANTS = [
            The voice tile's curtain print under Stained Glass since E48 mic-lock (11.11.2026): the mic drawn in the GM's
            lock (the place that reads its four states) wears batch 5's mic-lock, pixel-icons.css's glass rule winning its
            mask-image, and the lock badge's display is won by the rule that stands it down - 2:7c097704 -> 2:1b6f197e,
-           re-measured headless; Legacy's, the desk's and the stacked screen's, `left` and the @media rules as they were. */
+           re-measured headless; Legacy's, the desk's and the stacked screen's, `left` and the @media rules as they were.
+           And since the E48 mic lock's stroke (11.11.2026, R3511): the GM's lock under the glass draws no blocked stroke on
+           the mic's `::after` (components.css), so the same place's print moves again - 2:1b6f197e -> 2:c7b2c17b,
+           re-measured headless; every other print, `left` and the @media rules as they were.
+           Foundry tools' three Stained Glass prints since E49 (11.11.2026; the owner's "Tak" to E105 compare2's badge, S11-49's
+           follow-up): components.css's glass rule sets the tools' z-index to 69, one under the corner's 70, so the
+           messenger's unread badge paints over their hexagon (R3543) - 1:9978c959 -> 1:d0296c9e at each place, re-measured
+           headless; Legacy's, every other print, `left` (none: the rule stands in components.css, not stained-glass.css)
+           and the @media rules as they were.
+           Eighteen prints since the merge into 1.2.105 (12.11.2026), read with this test's winners dumped per surface at
+           7d59dcfe and at each merge of the line, line by line: the merge of E105 FT batch 1 (422edee0) kept the map of
+           the GM panel's branch and none of batch 1's fifteen above, so they are pinned here as batch 1 measured them,
+           and Stained Glass's Foundry tools at each place by the same one line, the root's `--color-text-selection-bg`
+           (FT-16, 1391e4ba) - 1:d0296c9e -> 1:7a915054, the red batch 1 left to the line. Then FT batch 2 (1b0ebb73,
+           merged in 4049cba8) gave the voice tile's mic and speaker the chrome face under the glass (FT-21, R3572): a
+           `font-family` won on each mini launcher by `body.drpg-theme-stained-glass .drpg-launch-mini`, five lines on
+           the curtain's two tiles, three on the desk's and two on the stacked screen's - curtain 2:922e5665 ->
+           2:ac4af798, desk 1:3ef3f4a9 -> 1:08875275, stacked 1:da1cfc2b -> 1:86229667. That declaration stood in
+           stained-glass.css and was `left`; it is components.css's now, in the rule that draws the button under the
+           glass (the same selector, so the same prints). Every other print, `left` and the @media rules as they were. */
         const C5 = {
-            "curtain|monokuma-legacy|foundry-tools": "1:742fc6be", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:999f5b79",
-            "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:cf9e2a77", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
-            "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:7268133b", "curtain|stained-glass|foundry-tools": "1:9978c959",
+            "curtain|monokuma-legacy|foundry-tools": "1:b845ef88", "curtain|monokuma-legacy|foundry-window": "2:b098bf53", "curtain|monokuma-legacy|gm-launcher": "1:999f5b79",
+            "curtain|monokuma-legacy|room-art": "1:b38f7ef7", "curtain|monokuma-legacy|room-tile": "1:bb393327", "curtain|monokuma-legacy|voice-art": "1:811c9dc5",
+            "curtain|monokuma-legacy|voice-list": "1:4671c967", "curtain|monokuma-legacy|voice-tile": "2:af4cb5e9", "curtain|stained-glass|foundry-tools": "1:7a915054",
             "curtain|stained-glass|foundry-window": "2:1900e75b", "curtain|stained-glass|gm-launcher": "1:ae4eb686", "curtain|stained-glass|room-art": "1:b38f7ef7",
-            "curtain|stained-glass|room-tile": "1:7a2b083d", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
-            "curtain|stained-glass|voice-tile": "2:1b6f197e", "desk|monokuma-legacy|foundry-tools": "1:742fc6be", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
-            "desk|monokuma-legacy|gm-launcher": "1:999f5b79", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:3a251bf8",
-            "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:cfb69a33",
-            "desk|stained-glass|foundry-tools": "1:9978c959", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:ae4eb686",
-            "desk|stained-glass|room-art": "1:b38f7ef7", "desk|stained-glass|room-tile": "1:ae49e2fb", "desk|stained-glass|voice-art": "1:393b7dc4",
-            "desk|stained-glass|voice-list": "1:e9f9c48e", "desk|stained-glass|voice-tile": "1:9028bf8f", "stacked|monokuma-legacy|foundry-tools": "1:742fc6be",
+            "curtain|stained-glass|room-tile": "1:1e31f8f3", "curtain|stained-glass|voice-art": "1:393b7dc4", "curtain|stained-glass|voice-list": "1:e9f9c48e",
+            "curtain|stained-glass|voice-tile": "2:ac4af798", "desk|monokuma-legacy|foundry-tools": "1:b845ef88", "desk|monokuma-legacy|foundry-window": "2:b098bf53",
+            "desk|monokuma-legacy|gm-launcher": "1:999f5b79", "desk|monokuma-legacy|room-art": "1:b38f7ef7", "desk|monokuma-legacy|room-tile": "1:74d54c24",
+            "desk|monokuma-legacy|voice-art": "1:811c9dc5", "desk|monokuma-legacy|voice-list": "1:4671c967", "desk|monokuma-legacy|voice-tile": "1:ebf26e39",
+            "desk|stained-glass|foundry-tools": "1:7a915054", "desk|stained-glass|foundry-window": "2:1900e75b", "desk|stained-glass|gm-launcher": "1:ae4eb686",
+            "desk|stained-glass|room-art": "1:b38f7ef7", "desk|stained-glass|room-tile": "1:23e449cb", "desk|stained-glass|voice-art": "1:393b7dc4",
+            "desk|stained-glass|voice-list": "1:e9f9c48e", "desk|stained-glass|voice-tile": "1:08875275", "stacked|monokuma-legacy|foundry-tools": "1:b845ef88",
             "stacked|monokuma-legacy|foundry-window": "2:3ad17c49", "stacked|monokuma-legacy|gm-launcher": "1:999f5b79", "stacked|monokuma-legacy|room-art": "1:b38f7ef7",
-            "stacked|monokuma-legacy|room-tile": "1:164e7a4a", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:4671c967",
-            "stacked|monokuma-legacy|voice-tile": "1:66481022", "stacked|stained-glass|foundry-tools": "1:9978c959", "stacked|stained-glass|foundry-window": "2:8b75b7bd",
-            "stacked|stained-glass|gm-launcher": "1:ae4eb686", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:af1b01b1",
-            "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:e9f9c48e", "stacked|stained-glass|voice-tile": "1:4a4823b1"
+            "stacked|monokuma-legacy|room-tile": "1:a85b1630", "stacked|monokuma-legacy|voice-art": "1:811c9dc5", "stacked|monokuma-legacy|voice-list": "1:4671c967",
+            "stacked|monokuma-legacy|voice-tile": "1:40d6d310", "stacked|stained-glass|foundry-tools": "1:7a915054", "stacked|stained-glass|foundry-window": "2:8b75b7bd",
+            "stacked|stained-glass|gm-launcher": "1:ae4eb686", "stacked|stained-glass|room-art": "1:b38f7ef7", "stacked|stained-glass|room-tile": "1:897a26e1",
+            "stacked|stained-glass|voice-art": "1:393b7dc4", "stacked|stained-glass|voice-list": "1:e9f9c48e", "stacked|stained-glass|voice-tile": "1:86229667"
         };
         equal(stableJson({ left: [...left].sort(), prints, sectionMedia }), stableJson({ left: [], prints: C5, sectionMedia: [] }),
             `[a rule written for these surfaces that still wins from danganronpa.css or stained-glass.css; per place, theme and surface, the number of roots and the fingerprint of its winners; the section's @media rules] (${readings} reading(s))`);
@@ -36758,7 +37724,7 @@ const INVARIANTS = [
         const sources = new Map(await moduleSources());
         const SOURCE = [["boundary.mjs", "placementTable"], ["enforced.mjs", "openGiveBackFoundry"], ["enforced.mjs", "askHoldAgain"],
             ["gm-students.mjs", "openWhoIsAliveDialog"], ["gm-team-dialog.mjs", "openGmTeamDialog"], ["investigation.mjs", "openInvestigationDashboard"],
-            ["look.mjs", "openLookDialog"], ["monocub.mjs", "openMonocubDialog"], ["murder-ui.mjs", "openIncidentTracker"], ["projects-ui.mjs", "openProjectManager"],
+            ["monocub.mjs", "openMonocubDialog"], ["murder-ui.mjs", "openIncidentTracker"], ["projects-ui.mjs", "openProjectManager"],
             ["room-setup.mjs", "openRoomSetupDialog"], ["rules.mjs", "openRulesManager"], ["sound-panel.mjs", "openPlayerSoundDialog"],
             ["sound-panel.mjs", "openSoundDialog"], ["trial.mjs", "openObjectionLog"]];
         const source = {};
@@ -36779,7 +37745,9 @@ const INVARIANTS = [
             ["./investigation.mjs", "openInvestigationDashboard", undefined, "drpg-window-case",
                 { save: "primary", newTrace: "secondary", autopsy: "secondary", log: "secondary", bodyFound: "secondary", realize: "secondary", clearFaint: "destructive", sweepBullets: "destructive", unrealize: "destructive", close: "cancel" },
                 ["save", "newTrace", "autopsy", "log", "bodyFound", "realize", "clearFaint", "sweepBullets", "unrealize", "close"]],
-            ["./look.mjs", "openLookDialog", undefined, "drpg-window-look", { close: "close" }, ["close"]],
+            /* The Look window's row left with the window (E49 A1d): the gear opens the settings window (settings-window.mjs,
+               the kit's wide window at a stated width, not fit), whose Save and Cancel the tier-2 test "the DRPG Settings
+               window saves as Foundry's form did" presses. */
             ["./room-setup.mjs", "openRoomSetupDialog", undefined, "drpg-window-rooms", { ok: "primary", cancel: "cancel" }, ["ok", "cancel"]],
             ["./rules.mjs", "openRulesManager", undefined, "drpg-window-rules", { save: "primary", cancel: "cancel" }, ["save", "cancel"]],
             ["./sound-panel.mjs", "openSoundDialog", undefined, "drpg-window-sound", { close: "close" }, ["close"]]
@@ -36838,7 +37806,7 @@ const INVARIANTS = [
          * Next line's button the step's own verb (`nextGoKey`), in both lang files, never "Do it". Red on C2a's tree: every
          * opener a DialogV2 call, the tiles `drpg-gm-route`, the Next button `DRPG.Panel.nextGo`.
          */
-        const SOURCE_B = [["gm-panel.mjs", "openGmPanel"], ["gm-panel.mjs", "openFailureLog"], ["season-setup.mjs", "openSeasonSetup"],
+        const SOURCE_B = [["gm-panel.mjs", "openGmPanel"], ["gm-panel.mjs", "openFailureLog"], ["season-setup.mjs", "openSeasonSetup"], ["season-setup.mjs", "openSeasonChecklist"],
             ["season-setup.mjs", "askStartHere"], ["season-setup.mjs", "runPreSessionChecks"], ["season-wipe.mjs", "resetSeason"],
             ["gm-campaign.mjs", "confirmCorrection"], ["gm-campaign.mjs", "openClockDialog"], ["gm-items.mjs", "openItemManager"],
             ["gm-items.mjs", "giveKeyDialog"], ["gm-items.mjs", "gmGiveItemDialog"], ["gm-items.mjs", "giveTruthBulletDialog"],
@@ -36868,7 +37836,10 @@ const INVARIANTS = [
         for (const [file, fn, pattern] of DESTRUCTIVE) destructiveB[`${file} ${fn}`] = pattern.test(fnSource(stripComments(sources.get(file) ?? ""), fn) ?? "");
         const OPEN_B = [
             ["./gm-panel.mjs", "openGmPanel", undefined, "drpg-window-panel", { close: "close" }, ["close"]],
-            ["./season-setup.mjs", "openSeasonSetup", undefined, "drpg-window-season", { save: "primary", checks: "secondary", close: "cancel" }, ["save", "close"]],
+            // E49 A1d: Reset the season moved in from its tile, destructive (R3532). E49 A1e: Pre-season checks left the footer
+            // (R3580) for the Season checklist's, a read-out's Close beside it (R3584).
+            ["./season-setup.mjs", "openSeasonSetup", undefined, "drpg-window-season", { save: "primary", reset: "destructive", close: "cancel" }, ["save", "reset", "close"]],
+            ["./season-setup.mjs", "openSeasonChecklist", undefined, "drpg-window-season-checklist", { checks: "secondary", close: "close" }, ["checks", "close"]],
             ["./season-setup.mjs", "resetSeason", undefined, "drpg-window-season-reset", { reset: "destructive", cancel: "cancel" }, ["reset", "cancel"]],
             ["./gm-campaign.mjs", "openClockDialog", undefined, "drpg-window-clock", { ok: "primary", cancel: "cancel" }, ["ok", "cancel"]],
             ["./gm-items.mjs", "openItemManager", undefined, "drpg-window-items",
@@ -36908,9 +37879,10 @@ const INVARIANTS = [
                 // drpgWindow hands DialogV2 its content as an element (utils.mjs `dialogContent`).
                 panel.innerHTML = cfg.content?.outerHTML ?? String(cfg.content ?? "");
                 const tile = key => panel.querySelector(`.drpg-gmp-button[data-drpg-run="${key}"]`);
-                for (const key of ["murder", "seasonReset"]) if (!tile(key)?.classList.contains("drpg-destructive")) problems.push(`tile ${key}: not drpg-destructive`);
+                // Reset the season's tile went into Season setup (E49 A1d; its button there is destructive, OPEN_B's row).
+                for (const key of ["murder"]) if (!tile(key)?.classList.contains("drpg-destructive")) problems.push(`tile ${key}: not drpg-destructive`);
                 if (panel.querySelector(".drpg-gm-route")) problems.push(`drpg-gm-route on ${panel.querySelectorAll(".drpg-gm-route").length} control(s)`);
-                if (!tile("murder") || !tile("seasonReset")) problems.push("a tile is missing");
+                if (!tile("murder") || !tile("settings") || tile("seasonReset")) problems.push("a tile is missing, or Reset the season is a tile again");
             }
             readB[fn] = problems;
         }
@@ -36919,7 +37891,7 @@ const INVARIANTS = [
         const en = await (await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" })).json();
         const pl = await (await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" })).json();
         const at = (tree, key) => key.split(".").reduce((node, k) => node?.[k], tree);
-        const ACTIONS_NEXT = ["murder", "advance", "chapterEnd", "trial", "investigation", "startInvestigation", "autopsy", "bodyDialog", "seasonSetup"];
+        const ACTIONS_NEXT = ["murder", "advance", "chapterEnd", "trial", "investigation", "startInvestigation", "autopsy", "bodyDialog", "seasonChecklist"];
         const next = {};
         if (typeof G.nextGoKey !== "function") next.nextGoKey = "missing";
         else {
@@ -37223,7 +38195,7 @@ const INVARIANTS = [
         const wideAdded = [...sources].filter(([file]) => !/^tests/.test(file)).filter(([, text]) => /["'`]drpg-wide["'`]/.test(stripComments(text))).map(([file]) => file);
         // Each window that had a width rule, and the name it states now.
         const SITES = [["sound-panel.mjs", "openSoundDialog", "wide"], ["tables-editor.mjs", "placeResultDialog", "wide"], ["tables-editor.mjs", "openItemTables", "tables"],
-            ["diagnostics.mjs", "openReport", "wide"], ["season-setup.mjs", "openSeasonSetup", "wide"], ["season-setup.mjs", "runPreSessionChecks", "wide"],
+            ["diagnostics.mjs", "openReport", "wide"], ["season-setup.mjs", "openSeasonSetup", "tables"], ["season-setup.mjs", "runPreSessionChecks", "wide"],
             ["dice-look.mjs", "diagnoseDiceLook", "wide"], ["gm-panel.mjs", "openFailureLog", "wide"], ["gm-panel.mjs", "openGmPanel", "panel"], ["projects-ui.mjs", "openProjectManager", "matrix"]];
         const sites = SITES.filter(([file, fn, name]) => !new RegExp(`\\bwidth:\\s*"${name}"`).test(fnSource(stripComments(sources.get(file) ?? ""), fn))).map(([file, fn]) => `${file} ${fn}`);
         // The kit: the width's classes and position, its screen cap, the GM panel's ultrawide box, a ceiling alone.
@@ -40194,6 +41166,11 @@ const INVARIANTS = [
             "cleanup.mjs tamperWatchBlock": "a threshold: no Sanity left and watched refuses the concealment",
             "config.mjs LEGAL_ROLL_MODIFIERS": "the legal roll's reader for Breakdown's die (roll-draw.mjs), a rule's table",
             "diagnostics.mjs diagnoseCharacters": "the GMs' set-up check: each maximum at least the starting numbers",
+            /* E49's character settings window (dh-settings.mjs, 1.2.105): the system's own form, whose maximums the module
+               words and keeps; added at the merge into 1.2.105 (12.11.2026), where this census read the three unlisted */
+            "dh-settings.mjs SETTINGS_FIELDS": "the system's settings window's fields by name (the two maximums among them), the ones the module uses: the system's markup",
+            "dh-settings.mjs WINDOW_WORDS": "the module's labels for the same window, keyed on the maximums' field names: the system's markup",
+            "dh-settings.mjs dressCharacterSettings": "finds Health's maximum field in the system's window to take its tooltip off: the system's markup, no number drawn",
             "level-up.mjs applyAdvancement": "a Level Up raises a maximum, written",
             "monocub.mjs setMonocub": "a Monocub starts with no marks, written",
             "murder-rules.mjs resolveKillerOpening": "the opening's Despair fills the victim's Sanity track, written",
@@ -44317,6 +45294,587 @@ const INVARIANTS = [
         "{heading: h3s on the Actions panel; first: the budget its first row; named: its aria-label; rulesTitle: the Rules panel's h3; tab: the tab's word; pad: the Actions and Rules panels' padding} - the panels must not repeat their tab and must sit alike");
         ok(L("DRPG.Rules.sheetTitle") !== L("DRPG.Rules.tab"), "the Rules panel's title is still the tab's word");
     }],
+    ["R3520 - in a fight the sheet's budget row says whose turn it is, in the incident card's words (sheet.mjs `budgetLine`, events.mjs `incidentTurnText`, `actingActor`; E49 B2's turn line, audit S03-30): the victim on their turn and the killer on theirs read \"your turn\" lit (`drpg-budget-mine`), the killer waiting reads the victim's name as the card does, the victim waiting \"their turn\"; the same one row in every state (a `p.drpg-budget-line`), and outside an incident the budget as before", async () => {
+        /*
+         * E49 B2's leftover, 11.11.2026. S03-30: "the victim at the start of their turn sees only the sheet and nothing
+         * says 'your turn'"; its fix: "in an incident, the turn's banner in the sheet itself". The row is the budget's (the
+         * owner's rule of 10.11: a state changes the look, never the layout). Read on stand-in states of two of this
+         * world's students - nothing written; the incident card's own line is asked for the same seat to show they agree.
+         */
+        needs(world.atLeast("livingStudents", 2), "a victim and a killer from this world's students");
+        const S = await import("./sheet.mjs");
+        const E = await import("./events.mjs");
+        const [V, K] = studentActors();
+        const L = k => game.i18n.localize(k);
+        const read = (actor, state) => {
+            if (typeof S.budgetLine !== "function") return null;
+            const p = S.budgetLine(actor, state);
+            return { tag: p.tagName, cls: [...p.classList].join(" "), text: p.textContent };
+        };
+        const base = { active: true, stage: "incident", killerId: K.id, victimId: V.id, turn: 1 };
+        const victims = { ...base, turnSide: "victim" }, killers = { ...base, turnSide: "killer" };
+        const row = "notes drpg-keep drpg-budget-line drpg-budget-turn";
+        const got = { victimOnTheirs: read(V, victims), killerWaiting: read(K, victims), killerOnTheirs: read(K, killers), victimWaiting: read(V, killers) };
+        equal(stableJson(got), stableJson({
+            victimOnTheirs: { tag: "P", cls: `${row} drpg-budget-mine`, text: L("DRPG.Murder.yourTurn") },
+            killerWaiting: { tag: "P", cls: row, text: game.i18n.format("DRPG.Events.waitingFor", { name: V.name }) },
+            killerOnTheirs: { tag: "P", cls: `${row} drpg-budget-mine`, text: L("DRPG.Murder.yourTurn") },
+            victimWaiting: { tag: "P", cls: row, text: L("DRPG.Murder.theirTurn") }
+        }), "{seat on whose turn: the row's tag, classes and words} - in a fight the budget row must say whose turn it is, lit on yours");
+        const card = typeof E.incidentTurnText === "function" ? E.incidentLines({ state: victims, mine: K.id, myTurn: false, victim: V, acting: E.actingActor(victims) }).turn : null;
+        equal(card, got.killerWaiting?.text ?? null, "the incident card's turn line and the sheet's row must say the same thing to the same seat");
+        const out = read(V, null);
+        ok(out && out.tag === "P" && out.cls.startsWith("notes drpg-keep drpg-budget-line") && !out.cls.includes("drpg-budget-turn")
+            && out.text !== L("DRPG.Murder.yourTurn"), `outside an incident the row is the budget: ${JSON.stringify(out)}`);
+    }],
+    ["R3521 - the messenger launcher's hexagon is its ::before under Stained Glass, so the unread badge is drawn whole (styles/stained-glass.css; E49, audit S11-49): the button itself no clip-path and no pointer, its ::before the corner's polygon on the border box and the pointer (the hit area stays the hex), the badge the pointer back; the sound launcher keeps its own clip", async () => {
+        /*
+         * E49, 11.11.2026. S11-49: "the red counter on the launcher (top/right -4px) is cut by the chat's hexagon at
+         * 1024-1366, only the rim of its circle shows". Chromium on the glass harness at 1366x768 (`?msgr=1`, a badge of
+         * "3"): 65 of the badge's 588 px drawn before, 230-336 after; read here as the sheet's last word per property,
+         * in file order (jsdom draws no clip).
+         */
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText));
+        const rules = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const decl = (body, prop) => body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`))?.[1]?.trim() ?? null;
+        const last = (sel, prop) => { let v = null; for (const r of rules) if (r.sel.split(",").some(s => s.trim() === sel) && decl(r.body, prop) !== null) v = decl(r.body, prop); return v; };
+        const HEX = "polygon(50% 0, 100% 28%, 100% 72%, 50% 100%, 0 72%, 0 28%)";
+        const B = "body.drpg-theme-stained-glass #drpg-messenger-launcher";
+        equal(stableJson({ buttonClip: last(B, "clip-path") ?? "none", buttonPointer: last(B, "pointer-events"), beforeClip: last(`${B}::before`, "clip-path"),
+            beforePointer: last(`${B}::before`, "pointer-events"), beforeInset: last(`${B}::before`, "inset"), beforeContent: last(`${B}::before`, "content"),
+            badgePointer: last(`${B} .drpg-messenger-badge`, "pointer-events"), soundClip: last("body.drpg-theme-stained-glass #drpg-sound-launcher", "clip-path") }),
+        stableJson({ buttonClip: "none", buttonPointer: "none", beforeClip: HEX, beforePointer: "auto", beforeInset: "-2px", beforeContent: '""', badgePointer: "auto", soundClip: HEX }),
+        "{the messenger launcher's clip-path and pointer, its ::before's clip-path, pointer, inset and content, the badge's pointer, the sound launcher's clip-path} - the hex must be the ::before's so the badge is not cut");
+    }],
+    ["R3522 - prose in the pixel face has its lines apart and no hyphen under Monokuma Legacy (styles/danganronpa.css; E49, the half of audit S03-20 E48 K6 left open): one rule, scoped to the module's windows and the sheet at `:where()` weight, gives paragraphs, notes, hints, the kit's boxes, list items, the trace's context, an item's label and an experience's name a line height of 1.2 or more and `hyphens: none`", async () => {
+        /*
+         * E49, 11.11.2026. S03-20: "the trace's metadata breaks with a line height under 1; the Equipped prose has about
+         * 1.0 and splits words"; its fix "line-height at least 1.2-1.25 for the prose and the metadata, hyphens: none".
+         * Chromium on the style harness under Legacy with the pixel face (1366x768, every captured window and the sheet's
+         * parts): the step between a wrapped element's lines read 1.00 of its font size in 310 elements before, 177 after
+         * (headings, labels, buttons and table heads keep the face's own); read here as the rule.
+         */
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
+        const rules = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const decl = (body, prop) => body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`))?.[1]?.trim() ?? null;
+        const rule = rules.find(r => r.sel.startsWith("body.drpg-theme-monokuma-legacy.drpg-pixel-font ") && r.sel.includes(".drpg-trace-context")) ?? null;
+        const scopes = [".drpg-panel", ".drpg-ui", ".application.sheet.actor"], targets = ["p", "li", ".notes", ".hint", ".drpg-box", ".drpg-trace-context", ".item-labels .label", ".experience-name"];
+        const list = rule?.sel.match(/:where\(([^)]*)\)\s*$/)?.[1]?.split(",").map(s => s.trim()) ?? [];
+        equal(stableJson({ found: Boolean(rule), scoped: scopes.every(s => rule?.sel.includes(s) ?? false), where: /^body\.drpg-theme-monokuma-legacy\.drpg-pixel-font :where\(/.test(rule?.sel ?? ""),
+            missing: targets.filter(t => !list.includes(t)), lineHeight: Number(decl(rule?.body ?? "", "line-height")) >= 1.2, hyphens: decl(rule?.body ?? "", "hyphens") }),
+        stableJson({ found: true, scoped: true, where: true, missing: [], lineHeight: true, hyphens: "none" }),
+        "{a Legacy pixel-face prose rule; scoped to the windows and the sheet; at :where() weight; prose targets it misses; line-height >= 1.2; hyphens} - prose in the pixel face must have its lines apart and no hyphen");
+    }],
+    ["R3540 - the GM panel's top part is centred in both themes, and E105's four findings on the panel are mended (styles/components.css, styles/stained-glass.css; E49, the owner's \"Panel gma - wysrodkujmy gorna czesc\", 11.11, and E105 gmtabs): one rule of no theme centres the standing block's heading and its two lines and names no other child, so the Next line and the case warning keep their own alignment (drawn here, the three read `center` and the Next line does not); under Legacy the Next line's words take 1.3, the phase is a stamp with a gap, the Diagnostics bar's dimmed words are at 0.75 (6.42:1, AA) and the case tile's label does not shrink while its second line takes the room left; under the glass a tile's padding is 12 px a side", async () => {
+        /*
+         * E49, 11.11.2026. The owner on the E105 comparison (after-gm-panel-as-opened, both themes, 1366x768 and
+         * 1920x1080): the campaign's name, the clock's line and the students line stood flush left above centred
+         * tiles. Red first on 54493dbf: no rule, and the three drawn lines read no
+         * `text-align` in jsdom's cascade ("") and `start` in Chromium. The rule is read as text (its selector, its one declaration); then a standing block of
+         * `buildPanelContent`'s shape is drawn inside a stand-in panel window, read by `getComputedStyle` and removed -
+         * the cascade of whatever sheets this page loaded, in the theme it is in. Positions are Chromium's
+         * (S/stages/E49/pan-shots), not read here: a headless page lays nothing out.
+         * E105 gmtabs at 54493dbf (the owner's look at the panel, 11.11), each read in Chromium before and after (index.txt):
+         * Legacy's Next line at `normal` (13 px rows for 13 px glyphs), 16.9 px after; the phase with no gap ("Morning Daily
+         * Life"), a stamp 8 px off after; the Diagnostics bar's words (109, 104, 106) on Bone 4.10:1, (79, 75, 79) 6.42:1
+         * after; the case tile's line three rows of 91 px, two of 167 px after; under the glass, Polish, "DZIENNIK
+         * DEBUGOWANIA" 8 px off each edge of its tile, two rows 54 px off after. Red first on 96844743: each read as before.
+         */
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/components.css`).then(lfText));
+        const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const glass = stripComments(await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText));
+        const decl = (body, prop) => body?.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`))?.[1]?.trim() ?? null;
+        const L = "body.drpg-theme-monokuma-legacy .application.drpg-window-panel ";
+        /* the case tile's two rules name Season setup's window beside the panel's since E49 A1e round 2 (af0aea09: its row
+           wears the GM panel's tiles), read in either form since the merge into 1.2.105 (12.11.2026) */
+        const LS = "body.drpg-theme-monokuma-legacy .application:is(.drpg-window-panel, .drpg-window-season) ";
+        const at = (sel, prop) => decl(rules.find(r => (r.sel === L + sel || r.sel === LS + sel) && decl(r.body, prop) !== null)?.body, prop);
+        const tile = [...glass.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(m => m[1].trim() === "body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button")
+            .map(m => decl(m[2], "padding")).filter(Boolean);
+        const legacy = { nextLine: at(".drpg-gmp-next-text", "line-height"), phaseGap: at(".drpg-gmp-phase", "margin-inline-start"), phaseEdge: at(".drpg-gmp-phase", "border"),
+            dim: at(".drpg-gmp-section > summary > em.drpg-gmp-dim", "opacity"), caseLabel: at(".drpg-gmp-button:has(> small.notes) > span", "flex"), caseNotes: at(".drpg-gmp-button > small.notes", "flex"),
+            glassTile: tile.at(-1) ?? null };
+        const mine = rules.filter(r => r.sel.includes(".drpg-gmp-standing"));
+        const rule = mine.find(r => /text-align:\s*center/.test(r.body)) ?? null;
+        const host = document.createElement("div");
+        host.className = "application drpg-window-panel";
+        host.style.cssText = "position:absolute;left:-9999px;top:0;width:600px";
+        host.innerHTML = `<div class="drpg-gm-panel"><div class="drpg-gmp-standing"><h3>World</h3>`
+            + `<p class="r-clock"><strong>Chapter 1</strong> <span class="drpg-gmp-phase">Daily Life</span> <button type="button" class="drpg-gmp-next-go drpg-gmp-advance">Next</button></p>`
+            + `<div class="drpg-gmp-next"><span class="drpg-gmp-next-label">Next</span><span class="drpg-gmp-next-text">Words</span></div>`
+            + `<p class="drpg-gmp-students">4 students <button type="button" class="drpg-gmp-next-go">Students</button></p></div></div>`;
+        document.body.append(host);
+        let drawn;
+        try {
+            const align = sel => getComputedStyle(host.querySelector(sel)).textAlign;
+            drawn = { heading: align("h3"), clock: align(".r-clock"), students: align(".drpg-gmp-students"), nextCentred: align(".drpg-gmp-next") === "center" };
+        } finally { host.remove(); }
+        equal(stableJson({ rule: rule?.sel ?? null, body: rule?.body.trim().replace(/\s+/g, " ") ?? null, rules: mine.length, drawn, legacy }),
+            stableJson({ rule: "body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-standing > :is(h3, p)", body: "text-align: center;", rules: 1,
+                drawn: { heading: "center", clock: "center", students: "center", nextCentred: false },
+                legacy: { nextLine: "1.3", phaseGap: "8px", phaseEdge: "1px solid var(--drpg-kit-line-strong)", dim: "0.75", caseLabel: "none", caseNotes: "0 1 auto", glassTile: "10px 12px" } }),
+            "{the centring rule's selector; its declarations; rules in components.css naming the standing block; drawn: the heading's, the clock line's, the students line's text-align, and whether the Next line is centred; legacy: the Next line's line-height, the phase's gap and edge, the Diagnostics words' opacity, the case label's and line's flex, and the glass tile's padding} - the panel's top part must be centred, its Next line left alone");
+    }],
+    ["R3541 - under Monokuma Legacy the selected kit tab is Bone on Ink with the attention edge, not a red fill (styles/components.css; E48 Q13, S03-20, D11; the owner's \"tak\" 10.11 and \"Zrobmy to juz\" 11.11): the theme's three selected-tab tokens name no Eye, a 2 px inset bar of the edge along the selected tab's foot, the selected rule sets no size, and Stained Glass's tokens are the ones they were", async () => {
+        /*
+         * E48 Q13, carried out in E49 (11.11.2026). Every kit tab bar (`kitTabs`: the GM Team, the GM's items, the
+         * Investigation dashboard, Room Setup, the Sound window, the item tables, the handbooks) read its selected tab from `--drpg-kit-tab-on-*`, under
+         * Legacy Bone on rgba(Eye, 0.25) with an Eye frame - the red the owner saw on the comparison. Red first on
+         * 54493dbf: the bg and the edge named the Eye and no bar. WCAG 2 by hex: Bone #e4ded8 on Ink #1d1a21 12.88:1,
+         * the edge the same (components.css's token comment). The size: the selected rule may set colour, ground and
+         * frame colour only, and the bar is an inset shadow, so a tab's box is the one it had (Chromium's boxes, before
+         * and after, in S/stages/E49/pan-shots/index.txt).
+         * The hover (E49, the owner's "tak zmieniamy", 11.11): it was the Eye at 0.15, red again on a tab not selected; a Bone
+         * wash at 0.16 now, 8.49:1 (components.css's token comment; Chromium's reading in index.txt). Red first on 414acf21.
+         */
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/components.css`).then(lfText));
+        const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const decl = (body, prop) => body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`))?.[1]?.trim() ?? null;
+        const tokens = sel => {
+            const body = rules.find(r => r.sel === sel && /--drpg-kit-tab-on-bg:/.test(r.body))?.body ?? "";
+            return ["bg", "edge", "ink"].map(k => decl(body, `--drpg-kit-tab-on-${k}`)).concat(decl(body, "--drpg-kit-tab-selected-edge") ?? [], decl(body, "--drpg-kit-tab-hover") ?? []);
+        };
+        const T = '.application .drpg-tabs[role="tablist"] > button[data-drpg-tab-key][role="tab"][aria-selected="true"]';
+        const bar = rules.find(r => r.sel === `body:not(.drpg-theme-stained-glass) ${T}`)?.body ?? "";
+        const sized = rules.filter(r => r.sel === `body ${T}`).flatMap(r => [...r.body.matchAll(/(?:^|;)\s*([a-z-]+)\s*:/g)].map(m => m[1]))
+            .filter(p => !["color", "background", "border-color"].includes(p));
+        equal(stableJson({ legacy: tokens("body"), glass: tokens("body.drpg-theme-stained-glass"), bar: decl(bar, "box-shadow"), sized }),
+            stableJson({ legacy: ["var(--drpg-ink)", "var(--drpg-kit-tab-selected-edge)", "var(--drpg-bone)", "var(--drpg-attention)", "rgba(var(--drpg-bone-rgb), 0.16)"], glass: ["transparent", "transparent", "var(--drpg-sg-ink)", "transparent"],
+                bar: "inset 0 -2px 0 var(--drpg-kit-tab-on-edge)", sized: [] }),
+            "{legacy: the selected tab's [ground, edge, ink, the edge's selected token] and a tab's hover under Legacy; glass: under Stained Glass; bar: Legacy's edge bar; sized: properties the selected rule sets besides colour, ground and frame colour} - Legacy's selected tab must not be filled red");
+    }],
+    ["R3542 - under Monokuma Legacy the DRPG Settings window's picked section is Bone on Ink with the attention edge, not a red fill (styles/components.css; E48 Q13, D11): it reads the kit tab's three tokens, a 3 px inset bar of the edge along its start, its rule sets no size, and the crisis menu's picked row is not touched", async () => {
+        /*
+         * E48 Q13, carried out in E49 (11.11.2026). The section list (settings-window.mjs `settingsWindowColumns`,
+         * `aria-pressed` on the picked one) takes the kit tab's selected tokens (R3541), so the red went with them; the
+         * edge is a bar along the start, as the item tables' picked row, a column's mark. Red first on 54493dbf: no
+         * bar. Chromium on the style harness (1366x768, Legacy): the picked section rgb(29, 26, 33) under rgb(228, 222, 216),
+         * 12.88:1 (before rgba(224, 24, 47, 0.25) over Ink, 10.50:1), its box 240x32 before and after
+         * (S/stages/E49/pan-shots/index.txt). The crisis menu's
+         * picked row stays as the owner kept it ("Tak", no change): its rules name no kit tab token.
+         */
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/components.css`).then(lfText));
+        const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const decl = (body, prop) => body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`))?.[1]?.trim() ?? null;
+        /* the window's rules name the game's settings window beside the DRPG Settings window since E49 A1d (d6680c1f, on
+           the line before this test came in: the GM panel's Settings tile draws the same columns), read so since the merge
+           into 1.2.105 (12.11.2026) */
+        const P = '.application.drpg-ui.drpg-panel:is(.drpg-window-settings, .drpg-window-game-settings) .drpg-variant-columns .drpg-settings-sections > button.drpg-settings-tab[type="button"][aria-pressed="true"]';
+        const picked = rules.find(r => r.sel === `body ${P}`)?.body ?? "";
+        const bar = rules.find(r => r.sel === `body:not(.drpg-theme-stained-glass) ${P}`)?.body ?? "";
+        const sized = [...picked.matchAll(/(?:^|;)\s*([a-z-]+)\s*:/g)].map(m => m[1]).filter(p => !["color", "background", "border-color"].includes(p));
+        const crisis = rules.filter(r => /crisis/.test(r.sel) && /--drpg-kit-tab-on-/.test(r.body)).map(r => r.sel);
+        equal(stableJson({ reads: ["color", "background", "border-color"].map(p => decl(picked, p)), bar: decl(bar, "box-shadow"), sized, crisis }),
+            stableJson({ reads: ["var(--drpg-kit-tab-on-ink)", "var(--drpg-kit-tab-on-bg)", "var(--drpg-kit-tab-on-edge)"], bar: "inset 3px 0 0 var(--drpg-kit-tab-on-edge)", sized: [], crisis: [] }),
+            "{reads: the picked section's ink, ground and frame; bar: Legacy's edge bar; sized: properties its rule sets besides those; crisis: crisis rules reading a tab token} - Legacy's picked section must not be filled red");
+    }],
+    ["R3543 - under Stained Glass the messenger's unread badge is drawn over Foundry tools' hex (styles/components.css; E49, the owner's \"Tak\" to E105 compare2's finding): Foundry tools stand at 69, one under the corner's 70, so the messenger and its badge paint over them; the launcher keeps 70 (the expanded chat's 71 stays above the cluster, R1405), and nothing of the badge's or the hex's build changes", async () => {
+        /*
+         * E49, 11.11.2026. E105 compare2, GM's page under the glass at 1366x768: elementFromPoint at the badge's top read
+         * `#drpg-foundry-tools`; every corner button stood at 70 and the tools, later in the body, painted over the
+         * badge. Red first on 6421cc08: the tools read 70 (components.css). Read here by the kit's cascade (`styleCascade`: the
+         * module's sheets in load order, by specificity), as R1405 reads the cluster; Chromium's hit map before and after is in S/stages/E49/pan-shots/index.txt.
+         */
+        const C = await styleCascade();
+        const z = (theme, id) => {
+            const html = document.createElement("html"), body = document.createElement("body"), button = document.createElement("button");
+            body.className = theme;
+            button.id = id;
+            html.append(body);
+            body.append(button);
+            return C.winner(button, "z-index")?.value ?? null;
+        };
+        const badge = (() => {
+            const html = document.createElement("html"), body = document.createElement("body"), button = document.createElement("button"), b = document.createElement("span");
+            body.className = "drpg-theme-stained-glass";
+            button.id = "drpg-messenger-launcher";
+            b.className = "drpg-messenger-badge";
+            html.append(body);
+            body.append(button);
+            button.append(b);
+            return C.winner(b, "pointer-events")?.value ?? null;
+        })();
+        equal(stableJson({ tools: z("drpg-theme-stained-glass", "drpg-foundry-tools"), messenger: z("drpg-theme-stained-glass", "drpg-messenger-launcher"),
+            legacyTools: z("drpg-theme-monokuma-legacy", "drpg-foundry-tools"), badgePointer: badge }),
+        stableJson({ tools: "69", messenger: "70", legacyTools: "70", badgePointer: "auto" }),
+            "{Foundry tools' z-index under the glass, the messenger launcher's, Foundry tools' outside the glass, the badge's pointer} - the badge must paint over the tools' hex under the glass");
+    }],
+    ["R3544 - the critical's line reads apart wherever it is drawn, not only in a notice (styles/danganronpa.css; E49, the owner's \"Tak\" to E105 compare2's \"Critical successAiko Hoshino\"): the line's five rules are scoped to the notice and a chat message (danganronpa.css) and to the history's kept snapshot (components.css, the history's parts' one sheet, R1330), each at (0,2,0), and the words keep their flex row and its 8 px gap; the duality total stays hidden in the notice alone", async () => {
+        /*
+         * E49, 11.11.2026. E105 compare2's chat stand-in drew the notice's body in a chat message: the words ran together
+         * ("Critical successAiko Hoshino"), both themes, because every rule of the line named `.drpg-popup`. Red first on
+         * 6421cc08: the five rules read `.drpg-popup` only. Then a line of `critLine`'s shape is drawn in a stand-in chat
+         * message and in a history snapshot and its words' `display` and `column-gap` read by getComputedStyle (the
+         * cascade this page loaded), and removed. The snapshot's half moved to components.css the same day (R1330: the
+         * history's parts are that sheet's alone; red on 7d59dcfe, the merge with e49set).
+         */
+        const read = async file => [...stripComments(await fetch(`/modules/${MODULE_ID}/styles/${file}`).then(lfText)).matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+            .map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const rules = await read("danganronpa.css"), kit = await read("components.css");
+        const scoped = ["crit-line", "crit-glyph", "crit-words", "crit-result", "crit-who"].map(c => {
+            const here = rules.find(r => r.sel === `:is(.drpg-popup, .chat-message) .drpg-${c}`), there = kit.find(r => r.sel === `.drpg-notice-snapshot .drpg-${c}`);
+            return Boolean(here && there) && here.body.replace(/\s+/g, " ").trim() === there.body.replace(/\s+/g, " ").trim();
+        });
+        const duality = rules.some(r => r.sel === ".drpg-popup .drpg-crit-line ~ .drpg-duality .drpg-duality-result" && /display:\s*none/.test(r.body));
+        const line = `<div class="drpg-crit-line" data-drpg-crit=""><i class="fa-solid fa-burst drpg-crit-glyph" aria-hidden="true"></i><span class="drpg-crit-words"><strong class="drpg-crit-result">Critical success</strong><span class="drpg-crit-who">Aiko</span></span></div>`;
+        const host = document.createElement("div");
+        host.style.cssText = "position:absolute;left:-9999px;top:0;width:400px";
+        host.innerHTML = `<ol><li class="chat-message message"><div class="message-content">${line}</div></li></ol><div class="drpg-notice-snapshot">${line}</div>`;
+        document.body.append(host);
+        let drawn;
+        try {
+            drawn = [...host.querySelectorAll(".drpg-crit-words")].map(w => { const s = getComputedStyle(w); return `${s.display} ${s.columnGap}`; });
+        } finally { host.remove(); }
+        equal(stableJson({ scoped, duality, drawn }), stableJson({ scoped: [true, true, true, true, true], duality: true, drawn: ["flex 8px", "flex 8px"] }),
+            "{scoped: the line's, glyph's, words', result's and who's rule on the notice and a chat message, and the same declarations on the snapshot in components.css; duality: the total hidden in the notice; drawn: the words' display and gap in a chat message and in a snapshot} - the critical's line must read apart outside a notice");
+    }],
+    ["R3575 - Foundry's default pictures are not drawn as a picture in the module's windows (E105 FT-13; the owner's \"pozbyc sie [...] miejsc gdzie przebija sie grafika [...] z foundry\", 11.11.2026): Despair flow > Monokumas draws gm-team-dialog.mjs `shownPortrait` (core's mystery man and no picture -> icons/portrait-none.svg), Item tables' rows tables-editor.mjs `shownResultImg` (core's item bag, core's d20 and no picture -> the group's `itemIcon`), and Projects' window and manager draw no picture at all (the owner's \"usunmy [...] ikonke countdown foundry\", 11.11): no `data-drpg-portrait`, no file browser, the manager no picture column or field, the window the picture as a hidden field only; any other picture is drawn as it is; the drawing is served", async () => {
+        /*
+         * E105 fix batch 3, 11.11.2026. The survey (LIST.md FT-13, 54493dbf) read the captured `src`: 5 of 5 Monokumas rows
+         * core's mystery man, 41 of 41 room-pool rows core's item bag, the project window core's hourglass. Red first on
+         * 7d59dcfe: none of the three helpers is declared (the first `fnSource` stops the test) and neither drawing exists.
+         * Each helper is cut from its source and run on stand-in values; nothing is written. The stored value is not
+         * changed by any of them - the hidden field and the documents keep what they held (read in the source's lines).
+         * The owner on the shots (11.11): the project's picture is Foundry's countdown image and the module has its own
+         * glyphs, so the windows stopped drawing it; the module's hourglass the first commit drew there went with it.
+         */
+        const src = async name => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${name}`).then(lfText));
+        const [team, tables, projects] = await Promise.all(["gm-team-dialog.mjs", "tables-editor.mjs", "projects-ui.mjs"].map(src));
+        const portrait = new Function("UNSET_PORTRAIT", "CORE_PORTRAITS", `${fnSource(team, "shownPortrait")}; return shownPortrait;`)(
+            "OWN", new Set(["icons/svg/mystery-man.svg"]));
+        const result = new Function("CORE_RESULT_IMGS", "itemIcon", `${fnSource(tables, "shownResultImg")}; return shownResultImg;`)(
+            new Set(["icons/svg/item-bag.svg", "icons/svg/d20-black.svg"]), home => `own:${home}`);
+        const drawn = {
+            portrait: [portrait("icons/svg/mystery-man.svg"), portrait(""), portrait(undefined), portrait("worlds/w/kaede.webp")],
+            result: [result("icons/svg/item-bag.svg", "tool"), result("icons/svg/d20-black.svg", null), result("", "usable"), result("modules/x/icons/item-tool.svg", "tool")]
+        };
+        const consts = {
+            portrait: /const UNSET_PORTRAIT = `modules\/\$\{MODULE_ID\}\/icons\/portrait-none\.svg`/.test(team),
+            bag: /const CORE_RESULT_IMGS = new Set\(\[DEFAULT_RESULT_IMG, "icons\/svg\/d20-black\.svg"\]\)/.test(tables)
+        };
+        const used = {
+            team: team.includes('<img src="${foundry.utils.escapeHTML(shownPortrait(actor.img))}" alt="" class="drpg-monokuma-portrait"'),
+            tables: tables.includes('<img src="${esc(shownResultImg(r.img, home))}" alt="" class="drpg-table-item-icon"'),
+            projectsNoPicture: !/data-drpg-portrait|drpg-project-portrait|wirePortraitPickers|FilePicker|name="img\.|key: "portrait"/.test(projects),
+            projectWindowField: projects.includes('<input type="hidden" name="img" value="${esc(img)}" />') && projects.includes("img: f.img.value || null")
+        };
+        const served = await Promise.all(["portrait-none.svg"].map(async f => {
+            const res = await fetch(`/modules/${MODULE_ID}/icons/${f}`);
+            return res.ok && /^<svg [^>]*viewBox="-2 -2 16 16"[^>]*shape-rendering="crispEdges"/.test(await lfText(res));
+        }));
+        equal(stableJson({ drawn, consts, used, served }), stableJson({
+            drawn: { portrait: ["OWN", "OWN", "OWN", "worlds/w/kaede.webp"], result: ["own:tool", "own:null", "own:usable", "modules/x/icons/item-tool.svg"] },
+            consts: { portrait: true, bag: true },
+            used: { team: true, tables: true, projectsNoPicture: true, projectWindowField: true },
+            served: [true]
+        }), "{drawn: each helper on core's defaults, no picture and a chosen one; consts: the module's drawing and core's two table defaults; used: each window's img drawn through its helper, projects-ui drawing and offering no picture (no portrait, picker, file browser, picture field or column) while the window keeps the stored picture as a hidden field Save reads; served: the drawing, in the item drawings' 16 x 16 crispEdges view}");
+    }],
+    ["R3576 - Foundry's and Daggerheart's chrome wears the module's dress in both themes (E105 FT-22, FT-26, FT-28..30, FT-32, FT-33, FT-35, FT-37, FT-38; styles/danganronpa.css's batch-3 block): one block at the file's end holds, per piece and theme, the rule that sets its ground, edge or ink from the palette's tokens - Legacy's tooltip, toasts (a level's edge each), context menu, Configure Settings window, directory lists, loading bar, resize corner, countdown controls, roll dialog chips and field, sheet's search, links and tags; the glass's context menu, settings' range, directory lists, loading bar, resize corner and roll chips - with no `!important` and no colour literal; a stand-in roll chip and resize handle read the block's values in this page's cascade", async () => {
+        /*
+         * E105 fix batch 3, 11.11.2026. The survey (LIST.md D, chrome.json at 54493dbf) found no module rule setting
+         * these pieces' ground/edge/ink in the theme named. Red first on 7d59dcfe: the block's heading is not in the file, so the cut
+         * stops the test; a first draft that sliced by hand read every row below false there, and the stand-in chip no inset
+         * shadow and the corner `auto` (jsdom's cascade). The rules are read as text (selector, one declaration); then a Daggerheart advantage
+         * chip and a sheet's resize handle are drawn in stand-ins of their windows, read by getComputedStyle (whatever
+         * sheets this page loaded, in its theme) and removed: the chip's edge is an inset shadow, the corner six 2 px
+         * squares. Whether these outweigh v14's and Daggerheart's own rules at a table is not read (no Foundry sheet here).
+         */
+        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
+        const block = stripComments(`/*${bodyOf(raw, "E105 FT, BATCH 3")}`);
+        const rules = [...block.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const L = "body.drpg-theme-monokuma-legacy", G = "body.drpg-theme-stained-glass", B = ":is(body.drpg-theme-monokuma-legacy, body.drpg-theme-stained-glass)";
+        const has = (scope, piece, prop) => rules.some(r => r.sel.split(/,(?![^(]*\))/).some(s => s.trim().startsWith(scope) && s.includes(piece))
+            && new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*[^;]*var\\(--drpg-`).test(r.body));
+        const rows = {
+            "FT-29 tooltip, Legacy": has(L, ".locked-tooltip", "background") && has(L, "#tooltip", "color"),
+            "FT-33 toasts, Legacy": has(L, "#notifications .notification", "background") && ["warning", "error", "success"].every(k => has(L, `.notification.${k}`, "border-left-color")),
+            "FT-30 context menu, Legacy": has(L, "#context-menu", "background") && has(L, ".context-item:is(:hover", "background"),
+            "FT-30 context menu, glass": has(G, "#context-menu", "background") && has(G, ".context-item:is(:hover", "background"),
+            "FT-32 settings, Legacy": has(L, "#settings-config", "background") && has(L, "#settings-config > .window-header", "border-bottom") && has(L, "#settings-config :is(button", "background"),
+            "FT-32 settings range, glass": has(G, "#settings-config :is(input[type=\"range\"]", "accent-color"),
+            "FT-35 directories, Legacy": has(L, "#sidebar .directory-header button", "background") && has(L, "#sidebar .directory-item.document:hover", "background"),
+            "FT-35 directories, glass": has(G, "#sidebar .directory-header button", "background") && has(G, "#sidebar .directory-item.document:hover", "background"),
+            "FT-37 loading bar, both": has(B, "#loading", "background") && has(B, "#loading #loading-bar", "background"),
+            "FT-38 resize corner, both": has(B, "> .window-resize-handle", "background-image") && has(G, "> .window-resize-handle", "--drpg-ft-corner"),
+            "FT-22 tray controls, Legacy": has(L, "#countdowns .countdown-tool-controls a", "color") && has(L, "#countdowns .countdown-tool-controls a:focus-visible", "outline"),
+            "FT-26 roll chips, Legacy": has(L, ".application.roll-selection :is(.experience-chip, .advantage-chip, .disadvantage-chip)", "box-shadow") && has(L, ".application.roll-selection input[type=\"text\"]", "background"),
+            "FT-26 roll chips, glass": has(G, ".application.roll-selection :is(.experience-chip, .advantage-chip, .disadvantage-chip)", "box-shadow"),
+            "FT-28 sheet remainder, Legacy": has(L, ".application.sheet.actor .search-section input[type=\"search\"]", "background") && has(L, ".application.sheet.actor .item-tags .tag", "border-color")
+        };
+        const clean = block.length > 0 && !/!important/.test(block) && !/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i.test(block);
+        const host = document.createElement("div");
+        host.style.cssText = "position:absolute;left:-9999px;top:0;width:400px";
+        host.innerHTML = `<div class="application daggerheart dialog dh-style views roll-selection"><div class="modifier-container"><button type="button" class="advantage-chip">A</button></div></div>`
+            + `<div class="application sheet actor character" style="position:relative;width:200px;height:100px"><div class="window-resize-handle"></div></div>`;
+        document.body.append(host);
+        let read;
+        try {
+            const themed = document.body.classList.contains("drpg-theme-monokuma-legacy") || document.body.classList.contains("drpg-theme-stained-glass");
+            const chip = getComputedStyle(host.querySelector(".advantage-chip")).boxShadow;
+            const corner = getComputedStyle(host.querySelector(".window-resize-handle")).backgroundSize;
+            read = { themed, chipInset: /inset/.test(chip), corner };
+        } finally { host.remove(); }
+        equal(stableJson({ rows, clean, read }), stableJson({
+            rows: Object.fromEntries(Object.keys(rows).map(k => [k, true])), clean: true, read: { themed: true, chipInset: true, corner: "2px 2px" }
+        }), "{rows: each piece's rule in its theme(s), setting the property from a palette token; clean: the block holds no !important and no colour literal; read: this page wears a theme, a roll chip's edge an inset shadow and a resize corner of 2 px squares in its cascade}");
+    }],
+    ["R3577 - the owner's three after batch 3's shots (E105 FT-26's dice, FT-31, FT-34, FT-36; the owner's \"Tak\", 11.11.2026; styles/danganronpa.css): Daggerheart's Hope and Fear dice are coloured by their own select as well as their picture, Hope's token and Despair's in each theme; Foundry's own framed windows (FilePicker, confirms, item sheets, journal, compendium, macro, playlist, roll tables - not the module's, not Daggerheart's but its item sheets) take the module's ground, title band, fields, buttons, tabs and focus in Legacy and its buttons, tabs, edge and focus under the glass, no layout property; the combat tracker's tab, pane and window and Daggerheart's effects display are hidden in the hotbar's own rule; a stand-in confirm's button reads the theme's corner in this page's cascade", async () => {
+        /*
+         * E49 FT batch 3, 11.11.2026, after the owner looked at the shots: (1) "kosci w oknie rzutu sa teraz biale" - the
+         * stand-in's dice had a data: picture and the module colours a die by its picture's source, so the white was the
+         * stand-in's; the dice are now read by `roll.dice.dHope` / `roll.dice.dFear` too. (3) FT-31, (4) FT-34, (5) FT-36,
+         * each "Tak". Red first on fda638e9: none of the rules below, the hotbar's rule holds `#hotbar` alone, and the
+         * stand-in button's corner reads "" (no rule names a framed core window's button). The stand-in is a detached-class
+         * box with no id (a table's own windows are not touched) and is removed.
+         */
+        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
+        const block = stripComments(`/*${bodyOf(raw, "E105 FT, BATCH 3")}`);
+        const all = stripComments(raw);
+        const rules = text => [...text.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const mine = rules(block);
+        const L = "body.drpg-theme-monokuma-legacy", G = "body.drpg-theme-stained-glass";
+        const W = ':is(.application:not([class*="drpg-"]):not(.daggerheart), .application.daggerheart.sheet.item:not([class*="drpg-"])):has(> .window-header)';
+        const sets = (sel, prop, token) => mine.some(r => r.sel === sel && new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*[^;]*var\\(${token}`).test(r.body));
+        const dice = {
+            legacyHope: sets(`${L} .application.roll-selection .dice-option:is(:has(img[src*="hope"]), :has([name="roll.dice.dHope"]))::before`, "background-color", "--drpg-gold\\)"),
+            legacyFear: sets(`${L} .application.roll-selection .dice-option:is(:has(img[src*="fear"]), :has([name="roll.dice.dFear"]))::before`, "background-color", "--drpg-blood\\)"),
+            glassHope: sets(`${G} .application.roll-selection .dice-option:is(:has(img[src*="hope"]), :has([name="roll.dice.dHope"]))::before`, "background-color", "--drpg-sg-hope\\)"),
+            glassFear: sets(`${G} .application.roll-selection .dice-option:is(:has(img[src*="fear"]), :has([name="roll.dice.dFear"]))::before`, "background-color", "--drpg-sg-despair\\)")
+        };
+        const windows = {
+            legacyGround: sets(`${L} ${W}`, "background", "--drpg-ink"),
+            legacyBand: sets(`${L} ${W} > .window-header`, "box-shadow", "--drpg-line-strong"),
+            legacyField: sets(`${L} ${W} .window-content :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]), select, textarea)`, "background", "--drpg-ink"),
+            legacyButton: sets(`${L} ${W} :is(.window-content, .form-footer, footer) button:not(.header-control)`, "background", "--drpg-kit-btn-bg"),
+            glassButton: sets(`${G} ${W} :is(.window-content, .form-footer, footer) button:not(.header-control)`, "background", "--drpg-sg-ink"),
+            glassEdge: sets(`${G} ${W}`, "border-color", "--drpg-sg-bone"),
+            pickedFile: sets(`${L} .application:is(.filepicker, .file-picker) :is(.files-list, .subdirs) > li.picked`, "box-shadow", "--drpg-bone"),
+            noLayout: mine.filter(r => r.sel.includes(W)).every(r => !/(?:^|;)\s*(?:width|height|padding|margin|gap|display|font-size|position)\s*:/.test(r.body))
+        };
+        const hotbar = rules(all).find(r => r.sel.split(/,\s*/).includes("#hotbar"));
+        const hidden = Boolean(hotbar) && /display:\s*none\s*!important/.test(hotbar.body)
+            && ['#sidebar-tabs button.ui-control[data-tab="combat"]', "#sidebar #combat", "#combat-popout", "#effects-display", "#effects-panel"].every(s => hotbar.sel.split(/,\s*/).includes(s));
+        const host = document.createElement("div");
+        host.style.cssText = "position:absolute;left:-9999px;top:0;width:300px";
+        host.innerHTML = `<div class="application dialog"><header class="window-header"><h1 class="window-title">Stand-in</h1></header><section class="window-content"><p>?</p></section><footer class="form-footer"><button type="button">Yes</button></footer></div>`;
+        document.body.append(host);
+        let corner;
+        try {
+            const glass = document.body.classList.contains("drpg-theme-stained-glass");
+            const r = getComputedStyle(host.querySelector("footer button")).borderRadius;
+            corner = glass ? r === "0px" : /^(2px|var\(--drpg-kit-btn-radius\))$/.test(r);
+        } finally { host.remove(); }
+        equal(stableJson({ dice, windows, hidden, corner }), stableJson({
+            dice: { legacyHope: true, legacyFear: true, glassHope: true, glassFear: true },
+            windows: { legacyGround: true, legacyBand: true, legacyField: true, legacyButton: true, glassButton: true, glassEdge: true, pickedFile: true, noLayout: true },
+            hidden: true, corner: true
+        }), "{dice: each die's colour by picture or select, each theme's Hope and Despair token; windows: a framed core window's ground, title band, field and button under Legacy, button and edge under the glass, the FilePicker's picked row, no layout property in any of these rules; hidden: the hotbar's rule hides the combat tab, pane and window and the effects display; corner: a stand-in core confirm's button wears this theme's corner}");
+    }],
+    ["R3578 - the Projects tray shows no Foundry or Daggerheart picture, in either theme (E49 FT batch 3; the owner, 11.11.2026 night: the tray's stored picture still drawn under Monokuma Legacy - Foundry's or Daggerheart's removed, the module's own project icon kept): a row's `img` whose path is not in the module's own folder (core's hourglass webp, which is Daggerheart's countdown default and the module's stored default; any other core or system file; a world's own file; none) is hidden in both themes, and under Monokuma Legacy the row draws the module's own pixel drawing of its glyph in its place - `--drpg-project-glyph`, the hourglass where none is chosen, as the glass does; a picture in the module's folder stays and draws no glyph beside it; every glyph the tray can name is declared on :root, so it resolves under Legacy; painting the tray leaves each row's `src` and the stored projects as they were", async () => {
+        /*
+         * E49 FT batch 3, the owner's question 6 of 11.11.2026 night, decided: "Projects tray picture: Foundry/Daggerheart
+         * picture removed; the DRPG icon kept". What the tray can show was read, not guessed: Daggerheart 2.10.11's
+         * countdowns.hbs draws `<img src="{{countdown.img}}">` on every row, and its countdown model's `img` is a
+         * FilePathField whose initial is core's icons/magic/time/hourglass-yellow-green.webp, as its `defaultCountdown`;
+         * the module stores the same file for a project made without one (projects.mjs `createProject`,
+         * `applyProjectChange`'s create) and, until 90c32902, offered the file browser for any other. The module's own
+         * project icon is its glyph (config.mjs PROJECT_GLYPHS): the pixel drawing tools/glyphs.json's legacy rows put on
+         * :root for both themes, which Stained Glass already draws in the state colour in place of the picture
+         * (stained-glass.css, "the tray's rows"). Read here by the sheets' cascade (`styleCascade`) on Daggerheart's row
+         * built on a body of its own per theme, five pictures a row each, and projects-tray.mjs `paintProgress` on a
+         * planted row. Red first on 90c32902: under Legacy every picture drawn (no rule hides one) and no row draws a
+         * glyph. Nothing is written.
+         */
+        const C = await styleCascade();
+        const { PROJECT_GLYPHS } = await import("./config.mjs");
+        const { allProjects } = await import("./projects.mjs");
+        const OWN = `modules/${MODULE_ID}/icons/remnant-project.svg`;
+        const PICTURES = { core: "icons/magic/time/hourglass-yellow-green.webp", system: "systems/daggerheart/assets/icons/countdown.webp",
+            world: "worlds/stand-in/project.png", none: null, own: OWN };
+        const rowOf = (key, src) => `<div class="countdown-container" data-countdown="r3578${key}"><div class="countdown-main-container">`
+            + `<img alt=""${src === null ? "" : ` src="${src}"`}><div class="countdown-content"><header>R3578 ${key}</header><div class="countdown-tools">`
+            + `<div class="countdown-tool-controls"><div class="progress-tag">1/4</div></div><div class="countdown-tool-icons"></div></div></div></div></div>`;
+        const read = {};
+        for (const [theme, cls] of [["legacy", "drpg-theme-monokuma-legacy"], ["glass", "drpg-theme-stained-glass"]]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${cls} drpg-gm`;
+            html.append(body);
+            body.innerHTML = `<div id="countdowns"><div class="countdowns-container"><div class="countdown-category-container">${
+                Object.entries(PICTURES).map(([key, src]) => rowOf(key, src)).join("")}</div></div></div>`;
+            read[theme] = {};
+            for (const key of Object.keys(PICTURES)) {
+                const row = body.querySelector(`[data-countdown="r3578${key}"]`);
+                const drawn = (C.winner(row.querySelector("img"), "display")?.value ?? "").trim() !== "none";
+                const main = row.querySelector(".countdown-main-container");
+                const content = C.winner(main, "content", "::before")?.value?.trim() ?? null;
+                const mask = C.winner(main, ["mask", "mask-image"], "::before")?.value?.replace(/\s+/g, " ") ?? null;
+                read[theme][key] = { drawn, glyph: content !== null && content !== "none" ? mask : null };
+            }
+        }
+        const GLYPH = "var(--drpg-project-glyph, var(--drpg-pix-hourglass)) center / 24px 24px no-repeat";
+        const legacyRow = drawn => ({ drawn, glyph: drawn ? null : GLYPH });
+        const rootDeclares = Object.keys(PROJECT_GLYPHS).filter(key => !C.winner(document.documentElement, `--drpg-pix-${key}`));
+
+        const PT = await import("./projects-tray.mjs");
+        const before = stableJson(allProjects().map(p => [p.id, p.img ?? null, p.glyph ?? null]));
+        const root = document.createElement("div");
+        root.innerHTML = `<div class="countdowns-container"><div class="countdown-category-container">${rowOf("core", PICTURES.core)}${rowOf("own", OWN)}</div></div>`;
+        PT.paintProgress(root);
+        const kept = {
+            src: [...root.querySelectorAll("img")].map(img => img.getAttribute("src")),
+            stored: stableJson(allProjects().map(p => [p.id, p.img ?? null, p.glyph ?? null])) === before
+        };
+        equal(stableJson({ legacy: read.legacy, glass: read.glass, rootDeclares, kept }), stableJson({
+            legacy: { core: legacyRow(false), system: legacyRow(false), world: legacyRow(false), none: legacyRow(false), own: legacyRow(true) },
+            glass: Object.fromEntries(Object.keys(PICTURES).map(key => [key, { drawn: false, glyph: null }])),
+            rootDeclares: [],
+            kept: { src: [PICTURES.core, OWN], stored: true }
+        }), "{legacy / glass: per picture (core's hourglass webp, a system file, a world's file, none, the module's own), whether the img is drawn and the "
+            + "mask the row's content box draws before it (null: none); rootDeclares: PROJECT_GLYPHS keys with no --drpg-pix- token on :root; kept: the planted "
+            + "rows' src after paintProgress, and the stored projects' [id, img, glyph] unchanged}");
+    }],
+    ["R3570 - the messenger's corner launcher wears the module's chat glyph in both themes, as its four neighbours wear theirs, not Font Awesome's comments (styles/stained-glass.css; E49, E105 FT-14): its icon a 24 px mask of --drpg-pix-chat with Font Awesome's glyph off, the book's mask the reader's control", async () => {
+        /*
+         * E105 FT-14, 11.11.2026 (the owner: "places where Foundry's graphics show through"). The survey (Chromium, the glass
+         * harness, both themes) read the launcher's `fa-comments` drawn in Font Awesome's face beside the gear, the book,
+         * the anvil and the GM's eye, all pixel masks: pixel-icons.css masks an FA name only inside a drpg- element and the
+         * button is `#drpg-messenger-launcher` alone. Red first on 7d59dcfe: no rule masked the icon (mask-image, width and
+         * ::before all null here). Read by the kit's cascade (`styleCascade`: the module's sheets in load order) on the markup
+         * messenger-app.mjs writes, on a body of each theme; the handbooks' book, masked the same way, is the control.
+         */
+        const C = await styleCascade();
+        const read = (theme, id, cls) => {
+            const html = document.createElement("html"), body = document.createElement("body"), button = document.createElement("button"), i = document.createElement("i");
+            body.className = theme;
+            button.id = id;
+            i.className = cls;
+            html.append(body);
+            body.append(button);
+            button.append(i);
+            return [C.winner(i, ["mask-image", "-webkit-mask-image"])?.value ?? null, C.winner(i, "width")?.value ?? null, C.winner(i, "content", "::before")?.value ?? null];
+        };
+        const got = {};
+        for (const [name, theme] of [["glass", "drpg-theme-stained-glass"], ["legacy", "drpg-theme-monokuma-legacy"]]) {
+            got[name] = read(theme, "drpg-messenger-launcher", "fa-solid fa-comments");
+            got[`${name}Book`] = read(theme, "drpg-book-launcher", "")[0];
+        }
+        equal(stableJson(got), stableJson({ glass: ["var(--drpg-pix-chat)", "24px", "none"], glassBook: "var(--drpg-pix-book)",
+            legacy: ["var(--drpg-pix-chat)", "24px", "none"], legacyBook: "var(--drpg-pix-book)" }),
+            "{each theme: the launcher's icon [mask, width, ::before content], the book's mask} - the messenger's launcher must wear the module's chat glyph, as the book beside it wears its own");
+    }],
+    ["R3571 - under Stained Glass Daggerheart's countdown tray wears the module's glyphs, not Font Awesome: a row's -1 and +1 the pixel minus and plus, a hidden countdown's mark a drawing of its own (unseen, not Averted Eyes' eye-slash), a looping one's mark its own (countdown-loop, not Reroll's), and Tamper's Misleading Trail row its trail; Monokuma Legacy keeps Font Awesome in the tray (styles/pixel-icons.css from tests-glyphs.mjs HOST_FACES and FACES; E49, E105 FT-14)", async () => {
+        /*
+         * E105 FT-14, 11.11.2026. The tray's markup is Daggerheart's (countdowns.hbs 2.10.11, the glass harness's copy):
+         * `<a data-action="decreaseCountdown"><i class="fa-solid fa-minus">`, the same with `fa-plus`, and a hidden
+         * countdown's `<i class="fa-solid fa-eye-slash">` in `.countdown-tool-icons`, in `#countdowns`, whose ancestors carry
+         * no drpg- class - so FACES's rules never reached them, and the survey read 5 Font Awesome icons in the dressed tray
+         * on the GM's page and 1 on a player's. Tamper's Misleading Trail row (`fa-signs-post`) was the one row of its
+         * picker FACES did not name. Red first on 7d59dcfe: every reading below null under the glass. Read by the kit's
+         * cascade on a body of each theme: the slot each icon's mask reads (`--drpg-glyph`) and the mask itself; and that the
+         * glass declares `unseen` and `eye-slash` as two drawings (the hidden mark is not Averted Eyes). The owner's follow-up
+         * ("Tak", the same day): a looping countdown's `a.looping-container > i.loop-marker.fa-repeat` (countdowns.hbs) is
+         * read too, its drawing apart from the Reroll Hope Call's (FACES's repeat); red on 1b0ebb73 for that icon alone.
+         */
+        const C = await styleCascade();
+        const tray = theme => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            body.innerHTML = `<div id="countdowns"><div class="countdowns-container"><div class="countdown-container"><div class="countdown-content"><header>R3571</header>
+                <div class="countdown-tools"><div class="countdown-tool-controls"><a data-action="decreaseCountdown"><i class="fa-solid fa-minus"></i></a>
+                <div class="progress-tag">1/6</div><a data-action="increaseCountdown"><i class="fa-solid fa-plus"></i></a></div>
+                <div class="countdown-tool-icons"><i class="fa-solid fa-eye-slash"></i><span><a class="looping-container" data-action="loopCountdown"><i class="loop-marker fa-solid fa-repeat"></i></a></span></div></div></div></div></div></div>
+                <div class="application drpg-ui drpg-action-window"><div class="drpg-choices"><label class="drpg-choice"><input type="radio" name="variant" value="frame"><i class="fa-solid fa-signs-post"></i></label></div></div>`;
+            return Object.fromEntries(["fa-minus", "fa-plus", "fa-eye-slash", "fa-repeat", "fa-signs-post"].map(fa => {
+                const i = body.querySelector(`i.${fa}`);
+                return [fa, [C.winner(i, "--drpg-glyph")?.value ?? null, C.winner(i, ["mask-image", "-webkit-mask-image"])?.value ?? null]];
+            }));
+        };
+        const glassBody = (() => { const html = document.createElement("html"), body = document.createElement("body"); body.className = "drpg-theme-stained-glass"; html.append(body); return body; })();
+        const declared = name => C.winner(glassBody, name)?.value ?? null;
+        const masked = glyph => [`var(--drpg-pix-${glyph})`, "var(--drpg-glyph)"];
+        equal(stableJson({ glass: tray("drpg-theme-stained-glass"), legacy: tray("drpg-theme-monokuma-legacy") }), stableJson({
+            glass: { "fa-minus": masked("minus"), "fa-plus": masked("plus"), "fa-eye-slash": masked("unseen"), "fa-repeat": masked("countdown-loop"), "fa-signs-post": masked("misleading-trail") },
+            legacy: { "fa-minus": [null, null], "fa-plus": [null, null], "fa-eye-slash": [null, null], "fa-repeat": [null, null], "fa-signs-post": [null, null] } }),
+            "{each theme: each icon's [glyph slot, mask]} - under the glass the tray's -1, +1 and hidden mark and Tamper's trail must wear the module's glyphs; Legacy keeps Font Awesome (option A)");
+        const unseen = declared("--drpg-pix-unseen"), eyeSlash = declared("--drpg-pix-eye-slash");
+        ok(/^url\("data:image\/svg\+xml,/.test(unseen ?? "") && /^url\("data:image\/svg\+xml,/.test(eyeSlash ?? "") && unseen !== eyeSlash,
+            `the glass declares the hidden mark's drawing (${String(unseen).slice(0, 40)}) apart from Averted Eyes' (${String(eyeSlash).slice(0, 40)})`);
+        const loop = declared("--drpg-pix-countdown-loop"), reroll = declared("--drpg-pix-reroll");
+        ok(/^url\("data:image\/svg\+xml,/.test(loop ?? "") && /^url\("data:image\/svg\+xml,/.test(reroll ?? "") && loop !== reroll,
+            `the glass declares the loop mark's drawing (${String(loop).slice(0, 40)}) apart from Reroll's (${String(reroll).slice(0, 40)})`);
+    }],
+    ["R3574 - the Projects tray's Manage projects button wears a glyph of its own under Stained Glass, not the corner Look launcher's gear with its sound waves (one function, one glyph; tests-glyphs.mjs FACE_RULES projects-manage); Monokuma Legacy keeps its Font Awesome gear (E49, E105 FT batch 2 follow-up)", async () => {
+        /*
+         * The owner's "Tak", 11.11.2026, to batch 2's report: the button projects-ui.mjs writes into Daggerheart's tray header
+         * (`<button class="drpg-projects-gear"><i class="fa-solid fa-gear" inert>`) wore FACES's gear under the glass - the
+         * drawing of the corner launcher that opens the Look dialog. Red first on 1b0ebb73: its slot read the gear. Read by
+         * the kit's cascade on that markup in the tray, on a body of each theme, and the glass's two declarations held apart.
+         */
+        const C = await styleCascade();
+        const read = theme => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            body.innerHTML = `<div id="countdowns"><div class="countdowns-header"><i class="fa-solid fa-clock"></i><span class="window-title">Projects</span><button type="button" class="drpg-projects-gear"><i class="fa-solid fa-gear" inert></i></button></div></div>`;
+            const i = body.querySelector(".drpg-projects-gear > i");
+            return { body, slot: [C.winner(i, "--drpg-glyph")?.value ?? null, C.winner(i, ["mask-image", "-webkit-mask-image"])?.value ?? null] };
+        };
+        const glass = read("drpg-theme-stained-glass"), legacy = read("drpg-theme-monokuma-legacy");
+        equal(stableJson({ glass: glass.slot, legacy: legacy.slot }), stableJson({ glass: ["var(--drpg-pix-projects-manage)", "var(--drpg-glyph)"], legacy: [null, null] }),
+            "{each theme: the Manage projects icon's [glyph slot, mask]} - the button must wear its own glyph under the glass, never the corner gear's");
+        const own = C.winner(glass.body, "--drpg-pix-projects-manage")?.value ?? null, gear = C.winner(glass.body, "--drpg-pix-gear")?.value ?? null;
+        ok(/^url\("data:image\/svg\+xml,/.test(own ?? "") && /^url\("data:image\/svg\+xml,/.test(gear ?? "") && own !== gear,
+            `the glass declares Manage projects' drawing (${String(own).slice(0, 40)}) apart from the corner gear's (${String(gear).slice(0, 40)})`);
+    }],
+    ["R3572 - the voice tile's mic and speaker, the notices' corner and the Projects gear leave no state to Foundry's button rules (styles/stained-glass.css; E49, E105 FT-21): under the glass the two voice buttons take the chrome face and keep their box bare on hover with the hexagon's edge lit; the corner's and the gear's hover edge is stated in both themes", async () => {
+        /*
+         * E105 FT-21, 11.11.2026. The survey read on these buttons properties no rule of the module's sheets set, which a
+         * table leaves to core's `button` rules: the voice buttons' face (Chromium's Arial) and hover ground and edge under
+         * the glass - where the button's own ground and edge are `none` and `0` and its hexagon is its ::before, so a core
+         * hover ground would fill the square behind the hexagon - and the corner's and gear's hover edge in both themes.
+         * Red first on 7d59dcfe: no font rule and none of the three hover rules. The face is read by the kit's cascade; a
+         * hover is no state `matches` can be asked for here, so each hover rule is read from stained-glass.css's text: its
+         * selector, and the properties it states.
+         */
+        const C = await styleCascade();
+        const html = document.createElement("html"), body = document.createElement("body"), button = document.createElement("button");
+        body.className = "drpg-theme-stained-glass";
+        button.className = "drpg-launch-mini drpg-voice-mic";
+        html.append(body);
+        body.append(button);
+        const face = C.winner(button, "font-family")?.value ?? null;
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText));
+        const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim().replace(/\s+/g, " "), body: m[2] }));
+        const states = sel => { const r = rules.find(x => x.sel === sel); return r ? [...r.body.matchAll(/(^|;)\s*([a-z-]+)\s*:/g)].map(m => m[2]).sort() : null; };
+        equal(stableJson({ face,
+            voiceHover: states("body.drpg-theme-stained-glass .drpg-launch-mini:is(:hover, :focus-visible)"),
+            voiceHoverEdge: states("body.drpg-theme-stained-glass .drpg-launch-mini:is(:hover, :focus-visible)::before"),
+            cornerAndGear: states("#drpg-notices-corner:is(:hover, :focus-visible), #countdowns .drpg-projects-gear:is(:hover, :focus-visible)") }),
+        stableJson({ face: "var(--drpg-font-chrome)", voiceHover: ["background", "border-color"], voiceHoverEdge: ["border-color"], cornerAndGear: ["border-color"] }),
+            "{the voice button's face under the glass; the properties its hover, its hexagon's hover and the corner's and gear's hover state} - no state of the four buttons may be left to Foundry's");
+    }],
+    ["R3573 - the GM panel's Settings tile wears a glyph of its own, not the corner gear's (one glyph per function, the owner): under Stained Glass the sliders drawn for it (--drpg-pix-settings, not --drpg-pix-gear), under Monokuma Legacy its markup's Font Awesome sliders, no mask (tests-glyphs.mjs ELEMENTS, styles/danganronpa.css; E49)", async () => {
+        /*
+         * E49 A1d put the game's settings behind a GM panel tile (`{ key: "settings", icon: "fa-sliders" }`) and gave it the
+         * corner gear's drawing in both themes - under the glass through ELEMENTS (`gear`, the Look launcher's gear with its
+         * sound waves), under Legacy through danganronpa.css's hand-masked tiles (`--drpg-pix-gear`, the launcher's again):
+         * the glyph check's one "shared not SAME" gap (R3338 red). Red first on 7d59dcfe: the glass slot read the gear and
+         * Legacy a mask of it. Read by the kit's cascade on the panel's markup, on a body of each theme.
+         */
+        const C = await styleCascade();
+        const read = theme => {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = theme;
+            html.append(body);
+            body.innerHTML = `<div class="drpg-gmp-grid"><button type="button" class="drpg-gmp-button" data-drpg-run="settings"><i class="fa-solid fa-sliders" inert></i><span>Settings</span></button></div>`;
+            const i = body.querySelector("i");
+            return [C.winner(i, "--drpg-glyph")?.value ?? null, C.winner(i, ["mask-image", "-webkit-mask-image"])?.value ?? null];
+        };
+        equal(stableJson({ glass: read("drpg-theme-stained-glass"), legacy: read("drpg-theme-monokuma-legacy") }),
+            stableJson({ glass: ["var(--drpg-pix-settings)", "var(--drpg-glyph)"], legacy: [null, null] }),
+            "{each theme: the Settings tile's icon [glyph slot, mask]} - the tile must wear its own glyph, never the corner gear's");
+    }],
     ["R2018 - Room setup's Scenes tab on the kit (E46-C2b; E46-08, E47's 05.10 point 5): trial-scene.mjs `scenesTabHtml` is a kit `formGrid` (the school and the hall selects, each its label's `for`), the hall's name, picture and words a `formGrid` of their own, the warnings a `box(\"warning\")`, the prepare ticks kit switches, `SCENES_ZONE_SLOT` a row of `scenesTabRows` that draws nothing (where E73 puts Zone A and Zone B), the hall's cast pick (`castPickerHtml`) a kit `dataTable` with a switch an actor; `readScenesTab`'s answer for a seeded form the one it gave before", async () => {
         /*
          * E46-C2b. Red first on C2a's tree (f90e89a7): labels around the selects, a list of checkboxes, `p.drpg-warning`, no
@@ -45042,7 +46600,7 @@ const INVARIANTS = [
         const { CHAPTERS_PER_SEASON } = await import("./config.mjs");
         const { getClock } = await import("./clock.mjs");
         const GC = await import("./gm-campaign.mjs");
-        const { readSeasonForm } = await import("./season-setup.mjs");
+        const { readSeasonForm, campaignFieldsHtml } = await import("./season-setup.mjs");
         needs(world.atLeast("livingStudents", 1), "a living student, for the murder window's lists");
         const D = foundry.applications.api.DialogV2;
         const own = Object.getOwnPropertyDescriptor(D, "wait");
@@ -45072,9 +46630,12 @@ const INVARIANTS = [
         const chapter = clock.querySelector('.drpg-kit-stepper > input[type="number"][name="chapter"]');
         const typed = ["99", "0", "-2", "2.5", ""];
         const seasonRead = v => {
+            // E49 A1e: Season setup's form is Edit campaign's rows with the safeword (`campaignFieldsHtml`), its chapter's `max` the same.
             const season = document.createElement("div");
-            season.innerHTML = `<form><input name="campaignName" value=""><input type="number" name="chapter" min="1" max="${top}" value="${v}"><input name="safeword" value=""></form>`;
-            return readSeasonForm({ element: season }).chapter;
+            season.innerHTML = `<form>${campaignFieldsHtml(getClock(), "")}</form>`;
+            const field = season.querySelector('[name="chapter"]');
+            if (field) field.value = v;
+            return Number(field?.max) === top ? readSeasonForm({ element: season }).chapter : null;
         };
         const season = typed.map(seasonRead);
         must(season[0] === top && season[1] === 1 && season[4] === 1, `readSeasonForm no longer holds the chapter to 1..${top}: ${stableJson(season)}`);
@@ -45234,6 +46795,8 @@ const INVARIANTS = [
          * Cancel), from projects and players made up here, so the world's own do not enter. The setting (this browser's, scope
          * client) is answered both ways by a stand-in for `game.settings.get`, nothing written. Red on f4a5083a: no `projectManagerBody`, no `wireManagerDeletes`,
          * no setting; the forms a run of labels, the warnings `p.drpg-warning`.
+         * E49 FT batch 3 (the owner, 11.11.2026, "usunmy [...] ikonke countdown foundry"): the picture's column went, so the
+         * head's first group spans 6, the heads start at the title and a row has no `img.<id>` field.
          */
         const UI = await import("./projects-ui.mjs");
         const AP = await import("./action-project.mjs");
@@ -45317,10 +46880,10 @@ const INVARIANTS = [
         const t = key => game.i18n.localize(key);
         const viewers = game.users.some(u => !u.isGM) ? ["viewers"] : [];
         equal(stableJson(got), stableJson({
-            manager: { table: true, group: [["", 7], [t("DRPG.Project.visibleTo"), 2]],
-                heads: ["", t("DRPG.Project.title"), t("DRPG.Project.room"), t("DRPG.Project.indirect"), t("DRPG.Project.secret"), t("DRPG.Project.edit"), t("DRPG.Project.delete"), "R2076 player with a long name", "R2076 two"],
+            manager: { table: true, group: [["", 6], [t("DRPG.Project.visibleTo"), 2]],
+                heads: [t("DRPG.Project.title"), t("DRPG.Project.room"), t("DRPG.Project.indirect"), t("DRPG.Project.secret"), t("DRPG.Project.edit"), t("DRPG.Project.delete"), "R2076 player with a long name", "R2076 two"],
                 cut: [true, true], rooms: [[t("DRPG.Project.anyRoom"), "2"]], rows: ["R2076PROJECTA", "R2076PROJECTB"],
-                fields: ["img.R2076PROJECTA", "room.R2076PROJECTA", "murder.R2076PROJECTA", "secret.R2076PROJECTA", "viewers.R2076PROJECTA"],
+                fields: ["room.R2076PROJECTA", "murder.R2076PROJECTA", "secret.R2076PROJECTA", "viewers.R2076PROJECTA"],
                 deleteButtons: [`${t("DRPG.Project.delete")}: R2076 project 0`, `${t("DRPG.Project.delete")}: R2076 project 1`], deleteBoxes: 0, notes: 2 },
             ask: { asked: true, yes: [true, false], named: true, left: 2 },
             create: { grid: true, labelled: true, fields: [...createFields, ...viewers], oldWarnings: 0 },
@@ -45729,7 +47292,9 @@ const INVARIANTS = [
         }), stableJson({
             // E49 A2 moved three tiles and took one out (R3345 holds the four moves): the order as it stands after them.
             tiles: [["now", ["whoIsAlive", "projects", "sound"]], ["case", ["murder", "investigation", "trial"]],
-                ["between", ["jump", "gmTeam", "roomSetup", "tables", "rules", "seasonSetup", "mastermind", "seasonReset"]],
+                // E49 A1d: Reset the season into Season setup, Settings in its place (R3532). E49 A1e: Edit campaign, Despair Flow,
+                // Killing game rules and The Mastermind into Season setup (R3582).
+                ["between", ["roomSetup", "tables", "seasonSetup", "settings"]],
                 ["fixes", ["failureLog", "voiceReset", "caseWindow"]]],
             caseTile: ["fixes", en["DRPG.Case.tile"] === undefined ? "?" : game.i18n.localize("DRPG.Case.tile"), age],
             diag: [0, 2], en: [], pl: [], keys: [[false, false], [false, false]]
@@ -46528,25 +48093,28 @@ const INVARIANTS = [
         const want = [["textarea", "100%", "border-box"], ["select", "100%", "border-box"], ["input", "100%", "border-box"]];
         equal(stableJson(read), stableJson({ glass: want, legacy: want }), "{each theme: [the control, its width, its box-sizing]}");
     }],
-    ["R3140 - the Look window's fieldset holds to a phone (components.css, the E47-FD section; the owner's default on comparison 3, q-cuts; E47-FB Open 2): the Look fieldset's least width is 0, not its rows' least, and its scale slider shrinks into its row - the glass's 14ch least kept, Legacy's none", async () => {
+    ["R3140 - the gear's window's volumes hold to a phone (components.css, the E47-FD section, carried to THE SETTINGS WINDOW by E49 A1d; the owner's default on comparison 3, q-cuts; E47-FB Open 2): a volume's range in the settings window's Sound section has `min-width: 0` and shrinks into its row (`flex-shrink` not 0) under both themes - the Look window's fieldset, which held the promise until A1d, is gone", async () => {
         /*
          * E47-FD, 10.11.2026. A fieldset is at least as wide as its content's least width, and the Interface scale
          * row's least was the slider's own 129 px beside the name column and the percentage: at 390x844 the Look
          * fieldset ran 2..354 in a 333 px body under the glass, 2..376 under Legacy (Chromium on probe 08's
-         * look-player); after, both inside. Read from the sheets' text on the fieldset as sound-panel.mjs draws it in
-         * the Look window's kit frame, on a body of each theme. Red on 35a6f3b0: the fieldset's min-width null (the
-         * browser's min-content), Legacy's slider null.
+         * look-player); after, both inside. E49 A1d (11.11.2026): the Look window's rows are the settings window's
+         * (settings-window.mjs), the scale a stepper there, the volumes the ranges; the same promise read on a volume's
+         * row as the window draws it, from the sheets' text, on a body of each theme. Red on 35a6f3b0 for the fieldset;
+         * at 54493dbf the settings window had no volume row.
          */
         const C = await styleCascade();
         const read = Object.fromEntries(Object.entries({ glass: "drpg-theme-stained-glass drpg-gm", legacy: "drpg-theme-monokuma-legacy drpg-gm" }).map(([dress, classes]) => {
             const html = document.createElement("html"), body = document.createElement("body");
             body.className = classes;
             html.append(body);
-            body.innerHTML = `<div class="application dialog drpg-panel drpg-projects drpg-sound drpg-sound-player drpg-window-look drpg-ui drpg-kit-fit"><div class="drpg-kit-body"><fieldset class="drpg-look"><legend>Look</legend>`
-                + `<label><span>Interface scale</span><input type="range" name="look:uiScale" min="0.8" max="1.4" step="0.05" value="1"><output>100%</output></label></fieldset></div></div>`;
-            return [dress, [C.winner(body.querySelector("fieldset.drpg-look"), "min-width")?.value ?? null, C.winner(body.querySelector('.drpg-look input[type="range"]'), "min-width")?.value ?? null]];
+            body.innerHTML = `<div class="application dialog drpg-window-settings drpg-ui drpg-panel"><div class="drpg-kit-body"><div class="drpg-settings-rows">`
+                + `<div class="drpg-settings-row drpg-settings-volume" data-drpg-slider="sound"><div class="drpg-settings-control"><label class="drpg-settings-label">Sound</label>`
+                + `<input type="range" name="vol:sound" min="0" max="100" step="1" value="100"><output>100%</output></div></div></div></div></div>`;
+            const range = body.querySelector('.drpg-settings-volume input[type="range"]');
+            return [dress, [C.winner(range, "min-width")?.value ?? null, C.winner(range, "flex")?.value ?? null]];
         }));
-        equal(stableJson(read), stableJson({ glass: ["0", "14ch"], legacy: ["0", "0"] }), "{each theme: [the Look fieldset's min-width, its scale slider's]}");
+        equal(stableJson(read), stableJson({ glass: ["0", "1 1 8rem"], legacy: ["0", "1 1 8rem"] }), "{each theme: [a volume's range's min-width, its flex]}");
     }],
 
     ["R3141 - a body lies where its tile is, and where its token is when it has none (body-tile.mjs `bodyPlaceOf`, E95 C0): the current death's earliest tile, measured by its centre on the floor it stores, its `hidden` the tile's; an older death's tile, another student's and none fall back to the token", async () => {
@@ -47343,6 +48911,10 @@ const INVARIANTS = [
          * has no glow; the voice tile does not stand right under the Projects tray". Chromium, the glass harness at
          * 1366x768, a player, Legacy, before: the tray 982-1344 x 74-196, the voice tile 1181-1344 x 395-583 (199 px
          * under it), the room tile's box-shadow none. jsdom lays nothing out, so the tray's box is handed in.
+         * E105, 12.11.2026: and clear of the corner's launchers. The glass sweep's Legacy check read the GM's tile at
+         * 1366x560 over the GM launcher and Foundry tools (the tile 1181-1344 x 204-392, the cluster's top 383); the third
+         * reading hands in that tile (163x188) and a launcher of the cluster at 1250-1344 x 383-560: the tile keeps its
+         * top and steps left to stand 8 px clear (right 124, its edge at 1242). Red on f06d0405: right 22.
          */
         const G = await import("./glass.mjs");
         ok(typeof G.flatVoicePlacement === "function", "glass.mjs exports no flatVoicePlacement");
@@ -47357,6 +48929,23 @@ const INVARIANTS = [
             read.push(G.flatVoicePlacement(1366));
             Object.defineProperty(tray, "offsetWidth", { configurable: true, get: () => 0 });
             read.push(G.flatVoicePlacement(1366));
+            Object.defineProperty(tray, "offsetWidth", { configurable: true, get: () => 362 });
+            const tilePlanted = !document.getElementById("drpg-voice-tile");
+            const tile = document.getElementById("drpg-voice-tile") ?? Object.assign(document.createElement("div"), { id: "drpg-voice-tile" });
+            if (tilePlanted) document.body.append(tile);
+            const launcher = Object.assign(document.createElement("button"), { id: "r3506-launcher" });
+            launcher.dataset.drpgCluster = "";
+            launcher.getBoundingClientRect = () => ({ left: 1250, top: 383, right: 1344, bottom: 560, width: 94, height: 177 });
+            document.body.append(launcher);
+            try {
+                Object.defineProperty(tile, "offsetWidth", { configurable: true, get: () => 163 });
+                Object.defineProperty(tile, "offsetHeight", { configurable: true, get: () => 188 });
+                read.push(G.flatVoicePlacement(1366));
+            } finally {
+                delete tile.offsetWidth; delete tile.offsetHeight;
+                launcher.remove();
+                if (tilePlanted) tile.remove();
+            }
         } finally {
             delete tray.offsetWidth; delete tray.getBoundingClientRect;
             if (planted) tray.remove();
@@ -47364,7 +48953,7 @@ const INVARIANTS = [
         const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
         const seat = /body:not\(\.drpg-theme-stained-glass\) > #drpg-voice-tile\[data-place="tray"\]\s*\{[^}]*top:\s*var\(--drpg-voice-y\)[^}]*right:\s*var\(--drpg-voice-right\)/.test(css);
         const glow = /body:not\(\.drpg-theme-stained-glass\)\[data-drpg-phase\] #drpg-room-tile\s*\{[^}]*box-shadow:[^}]*var\(--drpg-room-phase\) 28%/.test(css);
-        equal(stableJson({ read, seat, glow }), stableJson({ read: [{ place: "tray", y: 204, right: 22 }, null], seat: true, glow: true }),
+        equal(stableJson({ read, seat, glow }), stableJson({ read: [{ place: "tray", y: 204, right: 22 }, null, { place: "tray", y: 204, right: 124 }], seat: true, glow: true }),
             "{read: the placement with the tray drawn and with none; seat: the sheet's rule; glow: the room tile's phase glow} - Legacy's tiles must stand at Stained Glass's anchors");
     }],
     ["R3507 - the notice history window wears the active theme's ground (styles/components.css; E48 K6, S12-100): under the theme that is not glass its content is the kit's `--drpg-kit-notice-ground`, Legacy's panel ground", async () => {
@@ -47411,6 +49000,519 @@ const INVARIANTS = [
         }
         equal(stableJson(read), stableJson({ first: { fits: true, top: 126 }, foot: 126, later: null, none: null }),
             "{foot: the band's foot; first: the first render's top and height; later: a later render's top; none: the foot with no band} - a sheet must open below the band");
+    }],
+    ["R3550 - the wrench's window hides exactly the statistics the module does not use (dh-settings.mjs `dressCharacterSettings`, `SETTINGS_FIELDS`; E49, the owner's 11.11.2026 on Daggerheart's character settings window): on Daggerheart 2.6.5's Details and Experiences drawn as Foundry frames them (tests-kit.mjs `dhSettingsStandIn`), Scars, Proficiency and Max Evasion Increase stand in a hidden cell and nothing else does - the six statistics, Max Health, Max Sanity and each experience's name, value and description shown; the hidden three are `UNUSED_FIELDS`, and outside dh-settings.mjs no module code names proficiency or evasion, and scars only sheet-audit.mjs, which holds them for Hope's maximum, while each shown field is read", async () => {
+        /*
+         * E49, 11.11.2026. The owner: "sa tam statystyki nieuzywane przez modul" - the window the character sheet's wrench
+         * opens (Daggerheart's DHCharacterSettings) shows statistics the module does not use. Which are "used" is read off
+         * the module's code (comments stripped, the suite's own files left out): Scars, Proficiency and Max Evasion Increase
+         * are named by no rule of the game. Red at 54493dbf: no dh-settings.mjs, so nothing was hidden.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs has no `dressCharacterSettings` - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const source = {
+            traits: { agility: { value: 1 }, strength: { value: 0 }, finesse: { value: 1 }, instinct: { value: 2 }, presence: { value: 1 }, knowledge: { value: -1 } },
+            resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 2, proficiency: 3, evasion: 1,
+            experiences: { r3550a: { name: "R3550 one", value: 2, description: "d" }, r3550b: { name: "R3550 two", value: 2, description: "" } }
+        };
+        const win = K.dhSettingsStandIn(source, { name: "R3550" });
+        const said = D.dressCharacterSettings(win);
+        const fields = [...win.querySelectorAll("[name]")];
+        must(fields.length === 17, `${fields.length} named field(s) in the stand-in, and Daggerheart 2.6.5 draws 17 with two experiences - this would measure nothing`);
+        const sorted = list => [...list].sort();
+        const read = {
+            hidden: sorted(fields.filter(el => el.closest("[hidden]")).map(el => el.name)),
+            said: sorted(said),
+            unused: sorted(D.UNUSED_FIELDS),
+            shown: fields.filter(el => !el.closest("[hidden]")).length
+        };
+        const code = new Map((await otherSources()).map(([file, text]) => [file, stripComments(text)]));
+        must(code.has("dh-settings.mjs") && code.has("character.mjs"), "the module's sources were not read - this would measure nothing");
+        const readers = word => [...code].filter(([file, text]) => file !== "dh-settings.mjs" && text.includes(word)).map(([file]) => file).sort();
+        read.code = {
+            proficiency: readers("proficiency"), evasion: readers("evasion"), scars: readers("scars"),
+            read: ["system.traits", "system.resources.hitPoints.max", "system.resources.stress.max", "system.experiences"].filter(path => readers(path).length === 0)
+        };
+        const three = ["system.evasion", "system.proficiency", "system.scars"];
+        equal(stableJson(read), stableJson({ hidden: three, said: three, unused: three, shown: 14,
+            code: { proficiency: [], evasion: [], scars: ["sheet-audit.mjs"], read: [] } }),
+            "hidden: the named fields in a hidden cell; said: what the dressing answered; unused: UNUSED_FIELDS; shown: the fields not hidden (six statistics, two maxima, two experiences' three each); "
+            + "code: the module files that name each unused word, and the shown paths no file reads");
+    }],
+    ["R3551 - the wrench's window is dressed through Foundry's render, on the kit, and no other window is (dh-settings.mjs `registerDhSettings`, `isCharacterSettings`, `settingsWidth`; module.mjs; E49): a window drawn by ApplicationV2's render with Daggerheart's classes `daggerheart dh-style dialog character-settings` over a character carries `drpg-ui`, `drpg-panel`, the window's `drpg-window-dh-settings` and the kit's `drpg-kit-width`, its three unused cells hidden, and opens at `settingsWidth()`; Daggerheart's adversary settings and a `character-settings` window of another package carry none of them", async () => {
+        /*
+         * E49, 11.11.2026. The hook is Foundry's `renderApplicationV2`, registered in module.mjs's init; the windows here are
+         * ApplicationV2s of the suite's own whose `_renderHTML` hands over Daggerheart's markup (tests-kit.mjs
+         * `dhSettingsMarkup`) - Daggerheart's own class is not drawn by the harness. The width: Daggerheart opens it at 455 px,
+         * the kit at the module's popup width (`settingsWidth`). Red at 54493dbf: no hook dressed it.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.settingsWidth === "function", "dh-settings.mjs has no `settingsWidth` - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const { ApplicationV2 } = foundry.applications.api;
+        const source = { traits: { instinct: { value: 1 } }, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 1, evasion: 0, experiences: {} };
+        const markup = K.dhSettingsMarkup(source, { name: "R3551" });
+        const windowOf = classes => class DHCharacterSettings extends ApplicationV2 {
+            static DEFAULT_OPTIONS = { tag: "form", classes, position: { width: 455 }, window: { title: "R3551" } };
+            async _renderHTML() { return markup; }
+            _replaceHTML(html, target) { target.innerHTML = html; }
+        };
+        const OURS = ["drpg-ui", "drpg-panel", "drpg-window-dh-settings", "drpg-kit-width"];
+        const cases = {
+            character: [["daggerheart", "dh-style", "dialog", "character-settings"], { documentName: "Actor", type: "character" }],
+            adversary: [["daggerheart", "dh-style", "dialog", "adversary-settings"], { documentName: "Actor", type: "adversary" }],
+            elsewhere: [["dialog", "character-settings"], { documentName: "Actor", type: "character" }]
+        };
+        const read = {};
+        for (const [key, [classes, doc]] of Object.entries(cases)) {
+            const app = new (windowOf(classes))({ id: `r3551-${key}-${Date.now().toString(36)}` });
+            app.document = doc;
+            try {
+                await app.render({ force: true });
+                const el = app.element;
+                must(el?.querySelector?.('[name="system.scars"]'), `the ${key} window drew no fields - this would measure nothing`);
+                read[key] = { classes: OURS.filter(name => el.classList.contains(name)), hidden: el.querySelectorAll("[hidden]").length,
+                    width: key === "character" ? app.position?.width === D.settingsWidth() : null };
+            } finally {
+                await app.close();
+            }
+        }
+        equal(stableJson(read), stableJson({ character: { classes: OURS, hidden: 3, width: true },
+            adversary: { classes: [], hidden: 0, width: null }, elsewhere: { classes: [], hidden: 0, width: null } }),
+            "per window: the module's classes it carries, its hidden cells, and (the character's) whether it opened at settingsWidth()");
+    }],
+    ["R3552 - a hidden field goes with every save at the value it holds (dh-settings.mjs; E49; the owner's rule: hidden, never deleted): the dressed window's form read as Foundry reads a sheet's form on submit (`FormDataExtended` where Foundry has it, else each named field by its type) holds Scars 2, Proficiency 3 and Max Evasion Increase 1 as the actor holds them, beside a statistic just changed in the window", async () => {
+        /*
+         * E49, 11.11.2026. Daggerheart's window submits the whole form on every change (`form.submitOnChange`), and a
+         * submit's data is the update - so a hidden field must stand in the form at its stored value, never be emptied or
+         * taken out (the save itself, on a character of the suite's own, is tier 2's "the character settings window keeps
+         * a hidden field's value through a save"). The harness has no FormDataExtended; there each named field is read as it
+         * reads one: a number field or `data-dtype="Number"` as a number. Red at 54493dbf: no dh-settings.mjs.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs has no `dressCharacterSettings` - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const source = { traits: { instinct: { value: 0 }, knowledge: { value: 1 } }, resources: { hitPoints: { max: 6 }, stress: { max: 5 } },
+            scars: 2, proficiency: 3, evasion: 1, experiences: { r3552: { name: "R3552", value: 2, description: "" } } };
+        const win = K.dhSettingsStandIn(source, { name: "R3552" });
+        D.dressCharacterSettings(win);
+        must(win.querySelectorAll("[hidden]").length === 3, "the dressing hid no cell - this would measure nothing");
+        win.querySelector('[name="system.traits.instinct.value"]').value = "2";
+        const FDE = foundry.applications?.ux?.FormDataExtended ?? globalThis.FormDataExtended;
+        const flat = FDE ? new FDE(win).object : Object.fromEntries([...win.querySelectorAll("[name]")].map(el =>
+            [el.name, el.type === "number" || el.dataset.dtype === "Number" ? (el.value === "" ? null : Number(el.value)) : el.value]));
+        const data = foundry.utils.expandObject(flat);
+        equal(stableJson({ scars: data.system?.scars, proficiency: data.system?.proficiency, evasion: data.system?.evasion,
+            instinct: data.system?.traits?.instinct?.value, health: data.system?.resources?.hitPoints?.max }),
+            stableJson({ scars: 2, proficiency: 3, evasion: 1, instinct: 2, health: 6 }),
+            "the submit's data: the three hidden fields, the statistic changed in the window, Max Health");
+    }],
+    ["R3553 - the wrench's window is the kit's in both themes (styles/components.css, the block of `drpg-window-dh-settings`; E49): read through the suite's cascade (tests-kit.mjs `styleCascade`, the module's sheets as module.json loads them) on the dressed stand-in under Monokuma Legacy and under Stained Glass, every declaration the block states for a part wins there, and each part - the name, the tabs (the selected one and the other), each group and its heading, a statistic's cell, name and field, Max Health's label and field, New, an experience's box, its fields and its bin, the description, the window's body - takes its colour, ground, edge and type from a rule of the module; the hidden cells are `display: none` and a number field shows no spinner", async () => {
+        /*
+         * E49, 11.11.2026. What the cascade reads is the module's sheets alone: Daggerheart's and Foundry's are not loaded
+         * here, so "from a rule of the module" is the module stating the property, and a rule of theirs that would outrank
+         * it is not seen (the block is written one class above Daggerheart's selectors, read off its compiled 2.6.5 sheet,
+         * which no test reads). Red at 54493dbf: no block, and no class to hang one on.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs has no `dressCharacterSettings` - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const C = await styleCascade();
+        const block = C.rules.filter(rule => rule.file === "styles/components.css" && rule.selector.includes("drpg-window-dh-settings"));
+        must(block.length > 20, `${block.length} rule(s) of components.css name the window - the block was not read`);
+        const LONG = { background: ["background-color", "background-image"], border: ["border-color", "border-width", "border-style", "border-top", "border-bottom", "border-left", "border-right", "border-bottom-width"],
+            font: ["font-size", "font-family", "font-weight"] };
+        const names = prop => [prop, ...(LONG[prop] ?? [])];
+        const source = { traits: { instinct: { value: 1 } }, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 1, evasion: 0,
+            experiences: { r3553: { name: "R3553", value: 2, description: "" } } };
+        const PARTS = {
+            name: [".dialog-header h1", ["color", "font-size"]],
+            tab: ["nav.sheet-tabs > a:not(.active)", ["color", "background", "border", "font-size"]],
+            tabOn: ["nav.sheet-tabs > a.active", ["color", "background", "border"]],
+            group: ["fieldset", ["border", "background"]],
+            heading: ["fieldset > legend", ["color", "font-size"]],
+            cell: [".trait-container", ["background", "border"]],
+            cellName: [".trait-container span", ["color", "font-size"]],
+            cellField: [".trait-container input", ["color", "background", "border", "font-size"]],
+            label: [".two-columns .form-group:not([hidden]) > label", ["color", "font-size"]],
+            field: [".two-columns .form-group:not([hidden]) input", ["color", "background", "border", "font-size"]],
+            add: [".add-experience-btn", ["color", "background"]],
+            entry: [".experience-item", ["border"]],
+            entryField: [".experience-item input.name", ["color", "background", "border", "font-size"]],
+            bin: [".experience-item a[data-action='removeExperience']", ["color"]],
+            description: [".experience-item textarea", ["color", "background", "border", "font-size"]],
+            body: [":scope > .window-content", ["scrollbar-color"]]
+        };
+        const problems = {};
+        let checked = 0;
+        for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-player`;
+            html.append(body);
+            const lost = [];
+            for (const tab of ["details", "experiences"]) {
+                const win = K.dhSettingsStandIn(source, { name: "R3553", tab });
+                body.append(win);
+                D.dressCharacterSettings(win);
+                for (const el of [win, ...win.querySelectorAll("*")]) {
+                    const onEl = C.on(el);
+                    for (const rule of block) {
+                        if (!rule.selector.split(/,(?![^(]*\))/).some(sel => { try { return el.matches(sel.trim()); } catch { return false; } })) continue;
+                        for (const d of rule.decls) {
+                            checked++;
+                            const w = onEl(names(d.property));
+                            if (w?.file !== "styles/components.css") lost.push(`${tab} ${el.localName}.${[...el.classList].join(".")} ${d.property}: ${w ? `${w.file} ${w.selector}` : "nobody"}`);
+                        }
+                    }
+                }
+                for (const [part, [selector, props]] of Object.entries(PARTS)) {
+                    const els = selector.startsWith(":scope") ? [win.querySelector(selector)] : [...win.querySelectorAll(selector)];
+                    if (!els.length || !els[0]) { lost.push(`${tab} ${part}: not drawn`); continue; }
+                    for (const prop of props) { checked++; if (!C.winner(els[0], names(prop))) lost.push(`${tab} ${part} ${prop}: no rule of the module`); }
+                }
+                const unused = [...win.querySelectorAll(".drpg-dh-unused")].map(el => C.winner(el, ["display"])?.value ?? "none stated");
+                const spin = C.winner(win.querySelector('input[type="number"]'), ["appearance"])?.value ?? "none stated";
+                if (stableJson(unused) !== stableJson(["none", "none", "none"]) || spin !== "textfield") lost.push(`${tab} hidden cells ${stableJson(unused)}, number field appearance ${spin}`);
+                win.remove();
+            }
+            if (lost.length) problems[theme] = lost;
+        }
+        ok(checked > 200, `${checked} reading(s) - the stand-in's parts were not read`);
+        equal(stableJson(problems), "{}", "per theme: a declaration of the block won by another rule, or a part of the window no rule of the module dresses");
+    }],
+    ["R3554 - under Monokuma Legacy the wrench's window's selected tab is the kit's selected tab (styles/components.css, the block of `drpg-window-dh-settings`; E48 Q13, the owner's \"Tak\" of 11.11.2026 to the comparison: its active tab was still red-filled): read through the suite's cascade on the dressed stand-in, the selected tab's ink, ground and edge are the three selected-tab tokens and it wears their 2 px inset bar along its foot, as every Legacy kit tab bar does; the tab not selected wears no bar; the tokens name no Eye", async () => {
+        /*
+         * E49, 11.11.2026, after the merge of e49pan (E48 Q13: Bone on Ink with the attention edge, components.css's three
+         * `--drpg-kit-tab-on-*` tokens and the kit tab's inset bar). The window's tabs are Daggerheart's links, not the
+         * kit's buttons, so the bar is stated for them in the window's block. Red at b6f00ad6: the selected link took no
+         * bar (`box-shadow: none`), and on 1.2.104's tokens its ground was the Eye's red.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs has no `dressCharacterSettings` - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const C = await styleCascade();
+        const tokens = C.rules.filter(rule => rule.file === "styles/components.css" && rule.selector === "body").flatMap(rule => rule.decls)
+            .filter(d => /^--drpg-kit-tab-(on-(bg|edge|ink)|selected-edge)$/.test(d.property)).map(d => `${d.property}: ${d.value}`);
+        must(tokens.length >= 3, `${tokens.length} selected-tab token(s) read under Legacy - the token block was not read`);
+        const html = document.createElement("html"), body = document.createElement("body");
+        body.className = "drpg-theme-monokuma-legacy drpg-player";
+        html.append(body);
+        const win = K.dhSettingsStandIn({ traits: {}, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 0, evasion: 0, experiences: {} }, { name: "R3554" });
+        body.append(win);
+        D.dressCharacterSettings(win);
+        const on = win.querySelector("nav.sheet-tabs > a.active"), off = win.querySelector("nav.sheet-tabs > a:not(.active)");
+        must(on && off, "the stand-in drew no tabs - this would measure nothing");
+        const v = (el, props) => C.winner(el, props)?.value ?? null;
+        const read = {
+            on: { color: v(on, ["color"]), background: v(on, ["background", "background-color"]), edge: v(on, ["border-color", "border"]), bar: v(on, ["box-shadow"]) },
+            off: { bar: v(off, ["box-shadow"]) },
+            eye: tokens.filter(line => /eye/i.test(line))
+        };
+        equal(stableJson(read), stableJson({
+            on: { color: "var(--drpg-kit-tab-on-ink)", background: "var(--drpg-kit-tab-on-bg)", edge: "var(--drpg-kit-tab-on-edge)", bar: "inset 0 -2px 0 var(--drpg-kit-tab-on-edge)" },
+            off: { bar: "none" }, eye: [] }), "the selected tab's [ink, ground, edge, bar], the other's bar, and the selected-tab tokens that name an Eye");
+    }],
+    ["R3555 - the wrench's window speaks the module's words, in English and in Polish, and Daggerheart's own keys are left alone (dh-settings.mjs `WINDOW_WORDS`, `dressCharacterSettings`; lang/en.json and lang/pl.json `DRPG.DhSettings`; E49, the owner's \"Tak\" of 11.11.2026: Polish labels for this window only): on the dressed stand-in the title, both tabs, both headings, Max Health, Max Sanity and New read this client's `DRPG.DhSettings.*`, each bin's tooltip and each experience field's name too; the Polish file says Ustawienia postaci, Szczegóły, Doświadczenia, Statystyki, Health i Sanity, Health (maks.), Sanity (maks.), Nowe doświadczenie and Usuń, every key has its English twin, and neither file writes a Daggerheart key the window drew", async () => {
+        /*
+         * E49, 11.11.2026. Daggerheart has no Polish file and its keys are shared with its other windows, so the words are
+         * replaced in the drawn window from the module's own keys. Red at b6f00ad6: the window kept Daggerheart's English.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(Array.isArray(D?.WINDOW_WORDS), "dh-settings.mjs has no `WINDOW_WORDS` - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const win = K.dhSettingsStandIn({ traits: { instinct: { value: 1 } }, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 0, evasion: 0,
+            experiences: { r3555: { name: "R3555", value: 2, description: "" } } }, { name: "R3555" });
+        D.dressCharacterSettings(win);
+        const word = key => game.i18n.localize(`DRPG.DhSettings.${key}`);
+        const drawn = D.WINDOW_WORDS.map(({ selector, field, key }) => {
+            const el = field ? win.querySelector(`[name="${field}"]`)?.closest(".form-group")?.querySelector(":scope > label") : win.querySelector(selector);
+            return el ? (el.textContent === word(key) ? "ours" : `"${el.textContent}"`) : "not drawn";
+        });
+        const item = win.querySelector(".experience-item");
+        const extras = [item?.querySelector("span[data-tooltip]")?.dataset.tooltip === word("delete"),
+            ["input.name", "input.modifier", "textarea"].map(sel => item?.querySelector(sel)?.getAttribute("aria-label")).join("|") === ["name", "value", "description"].map(word).join("|")];
+        const files = {};
+        for (const code of ["en", "pl"]) files[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const PL = { title: "Ustawienia postaci", details: "Szczegóły", experiences: "Doświadczenia", statistics: "Statystyki", reserves: "Health i Sanity",
+            maxHealth: "Health (maks.)", maxSanity: "Sanity (maks.)", newExperience: "Nowe doświadczenie", delete: "Usuń" };
+        const en = files.en.DRPG?.DhSettings ?? {}, pl = files.pl.DRPG?.DhSettings ?? {};
+        const DH_KEYS = ["Tabs.settings", "Tabs.details", "Tabs.experiences", "basics", "maxWithThing", "experience"];
+        const read = {
+            drawn: [...new Set(drawn)], extras,
+            pl: Object.keys(PL).filter(key => pl[key] !== PL[key]),
+            twins: [...Object.keys(en).filter(key => !(key in pl)), ...Object.keys(pl).filter(key => !(key in en))],
+            dh: ["en", "pl"].flatMap(code => DH_KEYS.filter(path => foundry.utils.getProperty(files[code], `DAGGERHEART.GENERAL.${path}`) !== undefined).map(path => `${code} ${path}`))
+        };
+        equal(stableJson(read), stableJson({ drawn: ["ours"], extras: [true, true], pl: [], twins: [], dh: [] }),
+            "drawn: each worded part (ours, or the text it kept); extras: [the bin's tooltip, the experience fields' names]; pl: the Polish words that differ; twins: a key without its twin; dh: a Daggerheart key of the window the module's files write");
+    }],
+    ["R3556 - under Stained Glass Max Health and Max Sanity fill their columns and the bin is the help line's size (styles/components.css, the block of `drpg-window-dh-settings`; E49, the owner's \"Tak\" of 11.11.2026 to the comparison: the two fields stood narrower than their columns and the bin at the glass's 21 px floor): read through the suite's cascade on the dressed stand-in under the glass, the two fields' grid is as wide as its group, each field's cell a flex row as wide as its column with the field growing into it, and the bin's glyph takes `--drpg-kit-help-size` from the window's block", async () => {
+        /*
+         * E49, 11.11.2026. Measured in Chromium on the stand-in before the change (S/stages/E49/dh-shots): under the glass
+         * the two fields were about 140 px in columns of about 230, Foundry's `.form-fields` not loaded there, and the bin
+         * inherited the glass's floor from its span. Layout is not read here (jsdom has none): the rules that set it are.
+         * Red at b6f00ad6: no rule on the field's cell or the glyph.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs has no `dressCharacterSettings` - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const C = await styleCascade();
+        const html = document.createElement("html"), body = document.createElement("body");
+        body.className = "drpg-theme-stained-glass drpg-player";
+        html.append(body);
+        const win = K.dhSettingsStandIn({ traits: {}, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 0, evasion: 0,
+            experiences: { r3556: { name: "R3556", value: 2, description: "" } } }, { name: "R3556", tab: "experiences" });
+        body.append(win);
+        D.dressCharacterSettings(win);
+        const cells = ["system.resources.hitPoints.max", "system.resources.stress.max"].map(name => win.querySelector(`[name="${name}"]`));
+        const glyph = win.querySelector('.experience-item a[data-action="removeExperience"] > i');
+        must(cells.every(Boolean) && glyph, "the stand-in drew no Health, Sanity or bin - this would measure nothing");
+        const at = (el, props) => { const w = C.winner(el, props); return w ? `${w.value} (${w.file})` : null; };
+        const read = cells.map(input => ({ cell: [at(input.parentElement, ["display"]), at(input.parentElement, ["width"])], field: [at(input, ["width"]), at(input, ["flex", "flex-grow"])] }));
+        read.push({ grid: at(win.querySelector(".tab.details .two-columns"), ["width"]), bin: at(glyph, ["font-size"]) });
+        const S = "(styles/components.css)";
+        const each = { cell: [`flex ${S}`, `100% ${S}`], field: [`100% ${S}`, `1 1 auto ${S}`] };
+        equal(stableJson(read), stableJson([each, each, { grid: `100% ${S}`, bin: `var(--drpg-kit-help-size) ${S}` }]),
+            "Max Health, Max Sanity: their cell's [display, width] and the field's [width, flex]; the two fields' grid's width; the bin's glyph's size - each with the sheet it came from");
+    }],
+    ["R3590 - each of the six statistics in the wrench's window wears its glyph before its name, in both themes (stat-glyphs.mjs `markStatName`, dh-settings.mjs `dressCharacterSettings`; E49, the owner's ask of 11.11.2026 night): on the dressed stand-in each field's name holds first an `i.drpg-stat-glyph` keyed by the statistic, aria-hidden and inert, with stat-glyphs.mjs STAT_ICONS's Font Awesome class; the name's text, the fields' names and values are as Daggerheart drew them, and a second dressing adds no second glyph; on the page Stained Glass masks it with --drpg-pix-stat-<statistic> and Monokuma Legacy draws its Font Awesome icon", async () => {
+        /*
+         * E49, 11.11.2026 night. The glyph is one element for both themes: Legacy keeps Font Awesome (the owner's rule), Stained
+         * Glass keys its drawing on data-drpg-stat (the generated glass section, tests-glyphs.mjs STAT_GLYPHS). Read with
+         * tests-glyphs.mjs `glyphReading`, as R3347 and R3348 read every other glyph. Red at 527cc7c7: no glyph is drawn.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        const SG = await import("./stat-glyphs.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function" && SG?.STAT_ICONS, "dh-settings.mjs or stat-glyphs.mjs is not there - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const G = await import("./tests-glyphs.mjs");
+        const C = await import("./config.mjs");
+        equal(stableJson(SG.STAT_ICONS), stableJson({ eye: "fa-eye", head: "fa-brain", body: "fa-person", leg: "fa-shoe-prints", hand: "fa-hand", shadow: "fa-user-secret" }),
+            "stat-glyphs.mjs STAT_ICONS: Legacy's Font Awesome class of each statistic, as proposed to the owner");
+        const traits = Object.fromEntries(Object.values(C.TRAITS).map((t, n) => [t.dh, { value: n - 1 }]));
+        const win = K.dhSettingsStandIn({ traits, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 0, evasion: 0, experiences: {} }, { name: "R3590" });
+        const fields = () => [...win.querySelectorAll('.traits-inner-container .trait-container input[name^="system.traits."]')].map(input => `${input.name}=${input.value}`);
+        const before = { fields: fields(), names: [...win.querySelectorAll(".traits-inner-container .trait-container > span")].map(s => s.textContent) };
+        must(before.fields.length === 6, `the stand-in drew ${before.fields.length} statistic field(s) - this would measure nothing`);
+        D.dressCharacterSettings(win);
+        D.dressCharacterSettings(win);
+        const read = [...win.querySelectorAll(".traits-inner-container .trait-container")].map(cell => {
+            const name = cell.querySelector(":scope > span"), dh = /^system\.traits\.([a-z]+)\.value$/.exec(cell.querySelector("input")?.name ?? "")?.[1];
+            const stat = C.TRAIT_BY_DH[dh], glyphs = name?.querySelectorAll(":scope > i.drpg-stat-glyph") ?? [];
+            const i = glyphs[0];
+            return { stat, count: glyphs.length, first: name?.firstChild === i,
+                key: i?.dataset.drpgStat ?? null, fa: i?.classList.contains(SG.STAT_ICONS[stat]) ?? false,
+                hidden: i?.getAttribute("aria-hidden") ?? null, inert: i?.hasAttribute("inert") ?? false };
+        });
+        const after = { fields: fields(), names: [...win.querySelectorAll(".traits-inner-container .trait-container > span")].map(s => s.textContent) };
+        const body = document.body, CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], classWas = CLASSES.map(n => body.classList.contains(n));
+        const themes = {};
+        win.style.cssText = "position: absolute; left: -10000px; top: 0;";
+        try {
+            body.append(win);
+            for (const [theme, on] of [["glass", 0], ["legacy", 1]]) {
+                body.classList.add(CLASSES[on]);
+                body.classList.remove(CLASSES[1 - on]);
+                const tokens = G.glyphTokens(body, window, Object.keys(SG.STAT_ICONS).map(k => ({ name: `stat-${k}` })));
+                themes[theme] = Object.fromEntries([...win.querySelectorAll("i.drpg-stat-glyph")].map(i => [i.dataset.drpgStat, G.glyphReading(i, window, tokens)]));
+            }
+        } finally {
+            win.remove();
+            CLASSES.forEach((n, i) => body.classList.toggle(n, classWas[i]));
+        }
+        const keys = Object.keys(C.TRAITS);
+        equal(stableJson({ read, kept: stableJson(before) === stableJson(after), themes }), stableJson({
+            read: read.map(r => ({ stat: r.stat, count: 1, first: true, key: r.stat, fa: true, hidden: "true", inert: true })), kept: true,
+            themes: { glass: Object.fromEntries(keys.map(k => [k, `--drpg-pix-stat-${k}`])), legacy: Object.fromEntries(keys.map(k => [k, `fa:${SG.STAT_ICONS[k]}`])) } }),
+            "each field's name: [the statistic, its glyphs, the glyph first, its key, its FA class, aria-hidden, inert]; the names, fields and values kept; what each glyph wears under Stained Glass and Monokuma Legacy");
+    }],
+    ["R3591 - each of the six statistics on the character sheet wears its glyph inside Daggerheart's mark at the left of its name, in both themes, and the mark still shows its state (stat-glyphs.mjs `markStatName`, sheet.mjs SHEET_STEPS `markTraitGlyphs`; E49, the owner's ask of 11.11.2026 night and his answer of 12.11.2026: the glyph in the enlarged mark, not before the name): on a stand-in of Daggerheart's header (`.character-traits`) the step puts in each `.trait-name > .tier-mark` an `i.drpg-stat-glyph` keyed by the statistic Daggerheart's `data-attribute` names, aria-hidden and inert, the mark marked `drpg-stat-mark` and its plate `drpg-stat-named`; the mark's `marked` class is left as drawn (one trait marked, five not); the name's span holds no glyph and its text, the trait's data-attribute and data-value and its value are as drawn; a second run adds nothing; a trait drawn with no mark gets its glyph first in its name instead; Stained Glass masks the glyph with --drpg-pix-stat-<statistic> and Monokuma Legacy draws its Font Awesome icon", async () => {
+        /*
+         * E49, 12.11.2026. The mark is Daggerheart 2.6.5's `.tier-mark` (header.hbs:111): it shows `system.traits.<key>.tierMarked`
+         * - set only by Daggerheart's own level-up automation (character.mjs prepareBaseData), which the module never feeds - as
+         * the class `marked`, and it has no action of its own (a click on it is the trait's `rollAttribute`). The glyph goes in
+         * it and the class stays, so the state is still drawn (R3594 reads how). The header is tests-kit.mjs `dhTraitsStandIn`.
+         * Red at 7e51cd98: the glyph stood first in the name.
+         */
+        const SH = await import("./sheet.mjs");
+        const SG = await import("./stat-glyphs.mjs").catch(() => null);
+        const step = SH.SHEET_STEPS?.find(([name]) => name === "markTraitGlyphs")?.[1];
+        must(SG?.STAT_ICONS && step, "stat-glyphs.mjs or the sheet step is not there - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const G = await import("./tests-glyphs.mjs");
+        const C = await import("./config.mjs");
+        const traits = Object.fromEntries(Object.values(C.TRAITS).map((t, n) => [t.dh, { value: n - 2, tierMarked: t.dh === "instinct" }]));
+        const root = K.dhTraitsStandIn(traits);
+        const state = () => [...root.querySelectorAll(".character-traits .trait")].map(t => [t.dataset.attribute, t.dataset.value, t.querySelector(".trait-name > span")?.textContent,
+            t.querySelector(".trait-value")?.textContent, t.querySelector(".tier-mark")?.classList.contains("marked") ?? null]);
+        const before = state();
+        must(before.length === 6, `the stand-in drew ${before.length} statistic(s) - this would measure nothing`);
+        const steps = SH.SHEET_STEPS.map(([name]) => name);
+        for (let n = 0; n < 2; n++) step({ element: root });
+        const read = [...root.querySelectorAll(".character-traits .trait")].map(trait => {
+            const stat = C.TRAIT_BY_DH[trait.dataset.attribute], mark = trait.querySelector(".trait-name > .tier-mark");
+            const glyphs = trait.querySelectorAll("i.drpg-stat-glyph"), i = glyphs[0];
+            return { stat, count: glyphs.length, inMark: Boolean(mark) && i?.parentElement === mark, holder: mark?.classList.contains("drpg-stat-mark") ?? false,
+                plate: trait.querySelector(".trait-name")?.classList.contains("drpg-stat-named") ?? false, inName: trait.querySelectorAll(".trait-name > span i").length,
+                key: i?.dataset.drpgStat ?? null, fa: i?.classList.contains(SG.STAT_ICONS[stat]) ?? false, hidden: i?.getAttribute("aria-hidden") ?? null, inert: i?.hasAttribute("inert") ?? false };
+        });
+        const kept = stableJson(state()) === stableJson(before);
+        const bare = K.dhTraitsStandIn(traits, { noMark: ["presence"] });
+        step({ element: bare });
+        const fallback = (() => { const span = bare.querySelector('.trait[data-attribute="presence"] .trait-name > span'); return span?.firstChild?.dataset?.drpgStat ?? null; })();
+        const body = document.body, CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], classWas = CLASSES.map(n => body.classList.contains(n));
+        const themes = {};
+        root.style.cssText = "position: absolute; left: -10000px; top: 0;";
+        try {
+            body.append(root);
+            for (const [theme, on] of [["glass", 0], ["legacy", 1]]) {
+                body.classList.add(CLASSES[on]);
+                body.classList.remove(CLASSES[1 - on]);
+                const tokens = G.glyphTokens(body, window, Object.keys(SG.STAT_ICONS).map(k => ({ name: `stat-${k}` })));
+                themes[theme] = Object.fromEntries([...root.querySelectorAll("i.drpg-stat-glyph")].map(i => [i.dataset.drpgStat, G.glyphReading(i, window, tokens)]));
+            }
+        } finally {
+            root.remove();
+            CLASSES.forEach((n, i) => body.classList.toggle(n, classWas[i]));
+        }
+        const keys = Object.keys(C.TRAITS);
+        equal(stableJson({ step: steps.indexOf("markTraitGlyphs") > steps.indexOf("frameTraits"), read, kept, fallback, themes }), stableJson({ step: true,
+            read: read.map(r => ({ stat: r.stat, count: 1, inMark: true, holder: true, plate: true, inName: 0, key: r.stat, fa: true, hidden: "true", inert: true })), kept: true, fallback: "shadow",
+            themes: { glass: Object.fromEntries(keys.map(k => [k, `--drpg-pix-stat-${k}`])), legacy: Object.fromEntries(keys.map(k => [k, `fa:${SG.STAT_ICONS[k]}`])) } }),
+            "[the step after frameTraits]; each statistic: [its key, its glyphs, the glyph in the mark, the mark a holder, the plate marked, glyphs left in the name, its data- key, its FA class, aria-hidden, inert]; the names, data-attribute, data-value, values and each mark's `marked` kept; the glyph of a trait with no mark (first in its name); what each glyph wears under Stained Glass and Monokuma Legacy");
+    }],
+    ["R3592 - the six statistics' drawings come through the glyph pipeline (tools/glyphs.json, tools/glyph-map.mjs, tests-glyphs.mjs STAT_GLYPHS; E49, the owner's ask of 11.11.2026 night): STAT_GLYPHS, stat-glyphs.mjs STAT_ICONS and config.mjs TRAITS name the same six statistics; each one's drawing is a glass row `stat-<statistic>` on the 24 grid, the six one contiguous block of glyphs.json, no row's faults (dataProblems: no two rows the same pixels); the glass section keys each on `i.drpg-stat-glyph[data-drpg-stat]` and the served pixel-icons.css and sprite are what the generator writes from the served glyphs.json", async () => {
+        /*
+         * E49, 11.11.2026 night. The block at the end of glyphs.json is the owner's: another branch adds glyphs too, and a
+         * contiguous block keeps the merge simple. R3333 holds the generated files whole; this holds the six to their place.
+         * Red at 527cc7c7: no STAT_GLYPHS, no row. Since the merge into 1.2.105 (12.11.2026) the block is held where it
+         * stands, not at the end: the other branches' rows (E49 A1e's season-checklist, FT batch 2's settings, unseen,
+         * projects-manage and countdown-loop) came after it, as the block was meant to let them.
+         */
+        needs(env.tools(), "the drawings are read from tools/glyphs.json (an installed module's zip leaves tools/ out)");
+        const G = await import("./tests-glyphs.mjs");
+        const SG = await import("./stat-glyphs.mjs").catch(() => null);
+        const C = await import("./config.mjs");
+        const text = async file => fetch(`/modules/${MODULE_ID}/${file}`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
+        const glyphs = G.parseGlyphs(await text("tools/glyphs.json")).glyphs;
+        must(glyphs.length >= 400, `${glyphs.length} glyph row(s) read - glyphs.json was not read`);
+        const keys = Object.keys(C.TRAITS), table = G.STAT_GLYPHS ?? {};
+        const from = glyphs.findIndex(g => g.name.startsWith("stat-"));
+        const block = from < 0 ? [] : glyphs.slice(from, from + keys.length).map(g => `${g.family}:${g.name}:${g.grid}`);
+        const strays = glyphs.filter((g, i) => g.name.startsWith("stat-") && (i < from || i >= from + keys.length)).map(g => g.name);
+        const rules = G.glassRules().filter(([id]) => id.startsWith("stat.")).map(([id, sel, glyph, how]) => `${id} ${sel} ${glyph} ${how}`);
+        const problems = G.dataProblems(glyphs).filter(p => /stat-/.test(p));
+        const served = { css: await text(G.PIXEL_CSS), sprite: await text(G.SPRITE) };
+        const read = {
+            keys: [Object.keys(table), Object.keys(SG?.STAT_ICONS ?? {})].map(list => stableJson(list) === stableJson(keys)),
+            glyphs: keys.map(k => table[k]),
+            block, strays, problems, rules,
+            generated: [served.css === G.pixelCssOf(glyphs), served.sprite === G.spriteOf(glyphs)],
+            worn: keys.map(k => served.css.includes(`--drpg-pix-stat-${k}: url(`))
+        };
+        equal(stableJson(read), stableJson({
+            keys: [true, true], glyphs: keys.map(k => `stat-${k}`), block: keys.map(k => `glass:stat-${k}:24`), strays: [], problems: [],
+            rules: keys.map(k => `stat.${k} i.drpg-stat-glyph[data-drpg-stat="${k}"] stat-${k} box`),
+            generated: [true, true], worn: keys.map(() => true) }),
+            "[STAT_GLYPHS and STAT_ICONS name TRAITS's keys]; each statistic's glyph; the six rows from glyphs.json's first stat row; the stat rows outside them; a stat row's faults; the glass rules; [pixel-icons.css, the sprite] as generated; each drawing declared under Stained Glass");
+    }],
+    ["R3593 - a statistic's glyph in the wrench's window keeps a space from its name under Stained Glass and stands over it under Monokuma Legacy (styles/components.css `i.drpg-stat-glyph` and the window's block; E49, the owner's ask of 11.11.2026 night, and his answer of 12.11.2026 to round 1's question 3: the icon over the name stays): read through the suite's cascade on the dressed stand-in, under Stained Glass the glyph's inline end margin is a quarter of its name's size and it stays on the name's line; under Monokuma Legacy it is a block of its own, centred, the space below it", async () => {
+        /*
+         * E49, 11.11.2026 night. Measured in Chromium on the stand-in (S/stages/E105/e49stat): with no margin the glass drawing
+         * touched the name ("Shadow"); under Legacy the window's "Shadow" is 79 px in a 74 px cell, and its icon beside it ran into
+         * Head's. Layout is not read here (jsdom has none): the rules that set it are. Since 12.11.2026 the sheet's glyph sits in
+         * Daggerheart's mark, not beside the name (R3591, R3594), so this reads the window alone.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs is not there - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const C = await styleCascade();
+        const at = (el, props) => { const w = C.winner(el, props); return w ? `${w.value} (${w.file})` : null; };
+        const read = {};
+        for (const [theme, cls] of [["glass", "drpg-theme-stained-glass"], ["legacy", "drpg-theme-monokuma-legacy"]]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${cls} drpg-player`;
+            html.append(body);
+            const win = K.dhSettingsStandIn({ traits: { instinct: { value: 1 } }, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 0, evasion: 0, experiences: {} }, { name: "R3593" });
+            body.append(win);
+            D.dressCharacterSettings(win);
+            const glyph = win.querySelector('i.drpg-stat-glyph[data-drpg-stat="eye"]');
+            must(glyph, "no glyph was drawn - this would measure nothing");
+            read[theme] = { gap: at(glyph, ["margin-inline-end", "margin-right", "margin"]), line: at(glyph, ["display"]), align: at(glyph, ["text-align"]) };
+        }
+        const P = "(styles/components.css)";
+        equal(stableJson(read), stableJson({ glass: { gap: `0.25em ${P}`, line: "inline-block (styles/pixel-icons.css)", align: null },
+            legacy: { gap: `0 0 2px ${P}`, line: `block ${P}`, align: `center ${P}` } }),
+            "per theme: the window's glyph's [end margin, display, text-align] - each with the sheet it came from");
+    }],
+    ["R3594 - on the character sheet Daggerheart's mark at the left of each statistic's name is the glyph's holder in both themes, larger, and still shows whether it is marked (styles/danganronpa.css and stained-glass.css, `.tier-mark.drpg-stat-mark`; E49, the owner's answer of 12.11.2026: enlarge the marks and put the glyph inside them): read through the suite's cascade on the stand-in run through `markTraitGlyphs`, the holder is drawn in both themes (Stained Glass's old rule that hid the marks is gone), 22 px under Monokuma Legacy and 28 px under Stained Glass, its plate padded by the holder's width less its overhang; unmarked it is Bone with the glyph in Ink, marked Ink with the glyph in Bone and a Bone edge, and Daggerheart's dot is not drawn over the glyph; under Stained Glass the drawing is 24 px, on its grid; no margin beside the glyph in the holder", async () => {
+        /*
+         * E49, 12.11.2026. Daggerheart draws the mark 1rem round (header.less :254), half outside the plate's left end, and
+         * a gold dot inside it when `marked` (`::before`). The module painted it Bone (danganronpa.css "the system's gold
+         * furniture") and squared it under the glass, where a rule meant to hide it ("NO TIER MARKS") lost to Daggerheart's
+         * own on weight, so the white squares showed (S/stages/E105/e49stat round 1). That rule's intent is replaced by the
+         * owner's: the mark is shown in both themes and holds the glyph. Red at 7e51cd98: no holder rule; the glass rule hid it.
+         */
+        const SH = await import("./sheet.mjs");
+        const step = SH.SHEET_STEPS?.find(([name]) => name === "markTraitGlyphs")?.[1];
+        must(step, "sheet.mjs has no markTraitGlyphs step - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const C = await styleCascade();
+        const at = (el, props, pseudo = null) => { const w = C.winner(el, props, pseudo); return w ? `${w.value} (${w.file.replace("styles/", "")})` : null; };
+        const read = {};
+        for (const [theme, cls] of [["glass", "drpg-theme-stained-glass"], ["legacy", "drpg-theme-monokuma-legacy"]]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${cls} drpg-player`;
+            html.append(body);
+            const sheet = K.dhTraitsStandIn({ instinct: { value: 1, tierMarked: true }, knowledge: { value: 0 } });
+            body.append(sheet);
+            step({ element: sheet });
+            const mark = dh => sheet.querySelector(`.trait[data-attribute="${dh}"] .tier-mark`);
+            const on = mark("instinct"), off = mark("knowledge"), plate = off?.parentElement;
+            must(on?.classList.contains("marked") && off && !off.classList.contains("marked"), "the stand-in drew no marked and unmarked mark - this would measure nothing");
+            const glyph = el => el.querySelector("i.drpg-stat-glyph");
+            read[theme] = {
+                shown: at(off, ["display"]), size: [at(off, ["width"]), at(off, ["height"])], var: at(plate, ["--drpg-stat-mark-size"]), pad: at(plate, ["padding-inline-start", "padding-left"]),
+                off: [at(off, ["background", "background-color"]), at(glyph(off), ["color"])],
+                on: [at(on, ["background", "background-color"]), at(glyph(on), ["color"]), at(on, ["box-shadow"]), at(on, ["content"], "::before")],
+                glyph: [at(glyph(off), ["margin", "margin-inline-end"]), theme === "glass" ? at(glyph(off), ["width"]) : null]
+            };
+        }
+        const D = "danganronpa.css", SG = "stained-glass.css";
+        const common = { shown: `flex (${D})`, size: [`var(--drpg-stat-mark-size) (${D})`, `var(--drpg-stat-mark-size) (${D})`], pad: `calc(var(--drpg-stat-mark-size) - 4px) (${D})`,
+            off: [`var(--drpg-bone) (${D})`, `var(--drpg-ink) (${D})`], on: [`var(--drpg-ink) (${D})`, `var(--drpg-bone) (${D})`, `inset 0 0 0 2px var(--drpg-bone) (${D})`, `none (${D})`] };
+        equal(stableJson(read), stableJson({
+            glass: { ...common, var: `28px (${SG})`, glyph: [`0 (${D})`, `24px (${SG})`] },
+            legacy: { ...common, var: `22px (${D})`, glyph: [`0 (${D})`, null] } }),
+            "per theme: the unmarked mark's display, [width, height], the plate's holder size and start padding; unmarked [the mark's ground, the glyph's ink]; marked [ground, ink, edge, Daggerheart's dot]; the glyph's [margin, width under the glass] - each with the sheet it came from");
+    }],
+    ["R3595 - in the wrench's window each statistic's cell is at least as wide as its name (styles/components.css, the window's block; E49, the owner's answer of 12.11.2026: \"Shadow\" was clipped under Monokuma Legacy, 79 px in a 74 px cell): read through the suite's cascade on the dressed stand-in in both themes, the six cells' grid gives each column at least its content's width and shares the rest equally (`minmax(min-content, 1fr)`), and a name does not wrap", async () => {
+        /*
+         * E49, 12.11.2026. Measured in Chromium on the stand-in at 1366x768 (S/stages/E105/e49stat): under Legacy the pixel face
+         * sets "Shadow" 79 px wide in cells of 74 (six equal columns, `minmax(0, 1fr)`), so its last letter was cut by the cell's
+         * edge (at 527cc7c7 already); the five other names are at most 50. Layout is not read here (jsdom has none): the rule is.
+         * Red at 7e51cd98: `repeat(6, minmax(0, 1fr))`.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs is not there - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const C = await styleCascade();
+        const at = (el, props) => { const w = C.winner(el, props); return w ? `${w.value} (${w.file})` : null; };
+        const read = {};
+        for (const [theme, cls] of [["glass", "drpg-theme-stained-glass"], ["legacy", "drpg-theme-monokuma-legacy"]]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${cls} drpg-player`;
+            html.append(body);
+            const win = K.dhSettingsStandIn({ traits: { presence: { value: 1 } }, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 0, evasion: 0, experiences: {} }, { name: "R3595" });
+            body.append(win);
+            D.dressCharacterSettings(win);
+            const grid = win.querySelector(".traits-inner-container"), name = win.querySelector(".trait-container > span");
+            must(grid && name, "the stand-in drew no statistics - this would measure nothing");
+            read[theme] = [at(grid, ["grid-template-columns"]), at(name, ["white-space"])];
+        }
+        const P = "(styles/components.css)", want = [`repeat(6, minmax(min-content, 1fr)) ${P}`, `nowrap ${P}`];
+        equal(stableJson(read), stableJson({ glass: want, legacy: want }), "per theme: [the cells' grid columns, a name's white-space] - each with the sheet it came from");
     }],
 ];
 
@@ -47639,7 +49741,7 @@ function cascadePx(el, prop, view = { w: innerWidth, h: innerHeight }) {
 /**
  * The corner's buttons as the cascade places them and the drawn shape's gap between two of them (E81 C12, 12.10.2026,
  * out of `cornerReading` in E77 C6 so that R512 reads the upper row with the same arithmetic): `place(id)` is a
- * button's right and bottom insets and its size through `cascadePx`, `clip` the chat's clip-path and `k` its slant
+ * button's right and bottom insets and its size through `cascadePx`, `clip` the corner's clip-path (the sound launcher's) and `k` its slant
  * (null with none), `gap(a, b)` flat to flat on one row, slanted to slanted across rows, or rim to rim between circles.
  */
 function cornerGeometry() {
@@ -47647,7 +49749,9 @@ function cornerGeometry() {
         const el = document.getElementById(id);
         return { el, right: cascadePx(el, "right"), bottom: cascadePx(el, "bottom"), w: cascadePx(el, "width"), h: cascadePx(el, "height") };
     };
-    const clip = getComputedStyle(document.getElementById("drpg-messenger-launcher")).clipPath ?? "none";
+    // The corner's shape, read off the sound launcher: since E49 (S11-49) the chat's hexagon is its ::before, so the
+    // chat button itself carries no clip; the three launchers' shared rule still clips settings, the handbooks and tools.
+    const clip = getComputedStyle(document.getElementById("drpg-sound-launcher")).clipPath ?? "none";
     const slant = /^polygon\(\s*50%\s+0(?:px|%)?\s*,\s*100%\s+([\d.]+)%/.exec(clip);
     const k = slant ? Number(slant[1]) / 100 : null, norm = k === null ? 1 : Math.hypot(k, 0.5);
     const centre = q => ({ x: q.right + q.w / 2, y: q.bottom + q.h / 2 });

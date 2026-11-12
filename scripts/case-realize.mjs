@@ -52,7 +52,9 @@ export function madeOf(chapter) {
 
 /** The preview's body: a table of the lines, a room picker on each line a run would create. */
 function previewHtml(lines) {
-    const room = slot => `<select name="room:${slot}"><option value="">${esc(L("DRPG.CaseRealize.noRoom"))}</option>${placeRoomOptions()}</select>`;
+    /* Named by its column and its slot (E97 fix, 12.11.2026): a select in a table cell has no label of its own, and
+       tier 2's "every control ... has a name to be read out" read it nameless once the preview had been opened. */
+    const room = slot => `<select name="room:${slot}" aria-label="${esc(`${L("DRPG.CaseRealize.colRoom")}, ${F("DRPG.CaseMap.slotNumber", { n: slot + 1 })}`)}"><option value="">${esc(L("DRPG.CaseRealize.noRoom"))}</option>${placeRoomOptions()}</select>`;
     const rows = lines.map(l => `<tr data-drpg-line="${l.action}"><td>${esc(L(`DRPG.CaseRealize.action.${l.action}`))}</td>`
         + `<td>${esc(F("DRPG.CaseMap.slotNumber", { n: l.slot + 1 }))}</td><td>${esc(l.name || L("DRPG.CaseMap.noName"))}</td>`
         + `<td>${l.action === "create" ? room(l.slot) : ""}</td></tr>`).join("");

@@ -971,10 +971,10 @@ export async function discardBroken(actor, item) {
         // A discard begun before the trial and landing in it (E51 C6): the GM refused it (`cannotNow`); the roll is spent,
         // the item kept, and the whisper says why it stays, beside the bridge's own sentence.
         const late = noDiscardNow();
-        await whisperToOwner(actor, `<p class="drpg-warning">${late ? `${late} ` : ""}${
+        await whisperToOwner(actor, { tone: "warning", body: `<p>${late ? `${late} ` : ""}${
             game.i18n.format(tokenFor(actor) ? "DRPG.Items.discardKept" : "DRPG.Items.discardNoTrace", {
                 item: foundry.utils.escapeHTML(name)
-            })}</p>`);
+            })}</p>` });
         return null;
     }
 

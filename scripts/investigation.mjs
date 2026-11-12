@@ -721,7 +721,7 @@ export async function chargeForUnfoundKeys() {
        no answer key anywhere, does not hold it. */
     const fee = await keyFeeOf(now);
     if (fee.held) {
-        await whisperToGms(`<p class="drpg-warning">${plural("DRPG.Case.chargeHeld", { n: fee.held })}</p>`);
+        await whisperToGms({ tone: "warning", body: `<p>${plural("DRPG.Case.chargeHeld", { n: fee.held })}</p>` });
         return null;
     }
     const short = fee.short;
@@ -1787,7 +1787,7 @@ const FIELD_LABELS = {
     type: "DRPG.Investigation.traceType", vis: "DRPG.Investigation.visibility", faint: "DRPG.Remnant.faintColumn",
     crime: "DRPG.Remnant.crimeColumn", reinf: "DRPG.Remnant.reinforcedColumn",
     note: "DRPG.Investigation.keyNoteLabel", token: "DRPG.Investigation.onMap",
-    // E97 C6: a schema node's fields, on the Map's side panel
+    // E97 C6: a schema node's fields, on its node on the Map (in the side panel until the E97 fix)
     label: "DRPG.CaseMap.field.label", gmText: "DRPG.CaseMap.field.text", mode: "DRPG.CaseMap.field.mode",
     inputs: "DRPG.CaseMap.field.inputs", refutes: "DRPG.CaseMap.field.refutes"
 };
@@ -2334,7 +2334,7 @@ function caseMapRegion(reading, { finalRemnants, finalTruthPlacedThisChapter }) 
     const reach = caseReach(graph);
     // The case's consistency (E97 C8): warnings on their nodes and in the summary; nothing is refused for them.
     const problems = checkCase(graph, { reach, cycle: layout.cycle ?? [], keyMax: KEY_REMNANTS.prepared });
-    const tools = caseToolsHtml({ sort: graph.meta?.sort ?? "kind", picked: reading.node, sorts: CASE_SORTS });
+    const tools = caseToolsHtml({ sort: graph.meta?.sort ?? "kind", sorts: CASE_SORTS });
     return `<div class="drpg-case-live drpg-case-view" data-drpg-view="map" data-drpg-chapter="${esc(graph.chapter)}"><form class="drpg-case-form">${
         caseMapHtml({ graph, layout, finders, authors, reading, editors, summary, tools, reach, problems })}</form></div>`;
 }
@@ -2374,7 +2374,7 @@ export function caseCulprit(chapter) {
 /**
  * WHO HAS WHAT, BY NAME (E97 C7; the owner's Q-A of 11.11 and comparison 2's E47-21: "not only how many, but which"):
  * each living student, their Truth Bullets by name with what each really is (the GMs' answer key), then the rest of
- * what they carry by name. In the Map's summary, while no node is picked.
+ * what they carry by name. In the Map's overview (the side panel's summary until the E97 fix).
  */
 function studentsListHtml() {
     const L = key => game.i18n.localize(key);
@@ -2547,7 +2547,7 @@ async function applySchemaSave(schema = []) {
 }
 
 /** The chapter's own fields on the Map (E97 C6): the Key limit's override, as the planner draws it, and the Final Truth
- *  Remnant's form (`caseFinalPanel`), shown in the side panel while no node is picked. */
+ *  Remnant's form (`caseFinalPanel`), in the Map's overview over the graph (the side panel's summary until the E97 fix). */
 function mapSummaryEditor({ plan, status, limit, finalRemnants, finalTruthPlacedThisChapter }) {
     const visOptions = REMNANT_VISIBILITY.map(v => `<option value="${v}"${v === "evident" ? " selected" : ""}>${
         esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("");
@@ -2623,7 +2623,7 @@ function readDashboardForm(d) {
         }),
         // Every slot, its `fields` empty where nothing changed: `saveKeyPlan` skips those, which
         // is what keeps a Save from filling in the chapter's scales by itself.
-        // The case schema's fields (E97 C6), on the Map's side panel; none in the Table's view.
+        // The case schema's fields (E97 C6), on their nodes on the Map; none in the Table's view.
         schema: readSchemaForm(form),
         keyRows: plan.entries.map((entry, i) => ({
             slot: i, scale: entry.scale,
@@ -2702,28 +2702,33 @@ function wireCase(dialog) {
     }
 }
 
-/** The Map's nodes and fold (E97 C5): a pick or a fold is the window's own state, redrawn; the focus goes back to the
- *  node the GM was on, which a redraw replaced. */
+/** The Map's nodes, fold, overview and camera (E97 C5; on the nodes since the E97 fix): an open node, a fold, the
+ *  overview and the camera are the window's own state, the first three redrawn; the focus goes back to the node the GM
+ *  was on, which a redraw replaced. */
 function wireMap(dialog, reading, refresh) {
     const root = dialog.element;
     const chapterNow = () => Number(root?.querySelector(".drpg-case-live")?.dataset.drpgChapter ?? mapChapterOf(reading).chapter);
     const fail = what => err => error(`The case map could not ${what}`, err);
     wireCaseMap(root, {
         onPick: id => { reading.node = reading.node === id ? null : id; reading.focus = id; refresh(); },
+        // Escape on the open node, or a click on the graph's empty space: its fields shut, the focus on its face
+        onClose: id => { if (reading.node !== id) return; reading.node = null; reading.focus = id; refresh(); },
         onFold: () => { reading.fold = !reading.fold; refresh(); },
+        onOverview: open => { reading.overview = open; },
+        camera: { get: () => reading.camera, set: cam => { reading.camera = cam; } },
         /* ADD, SORT, MOVE, REMOVE: AT ONCE (E97 C6; Q-E97-6's default keeps the fields on Save). A node added is the
-           schema's arrangement, as New Remnant's trace is the world's: written now, picked, its fields then edited and
+           schema's arrangement, as New Remnant's trace is the world's: written now, opened, its fields then edited and
            saved with the rest. The column's order is the GMs' shared arrangement of the map, not a field of a node. */
         onAdd: kind => {
             const id = newCaseNodeId(kind);
             setCaseNode(chapterNow(), id, { kind, label: game.i18n.localize(`DRPG.CaseMap.newLabel.${kind}`) })
-                .then(() => { reading.node = id; refresh(); }, fail("add a node"));
+                .then(() => { reading.node = id; reading.focus = id; refresh(); }, fail("add a node"));
         },
         onSort: sort => { setCaseMeta(chapterNow(), { sort }).then(() => refresh(), fail("set the column order")); },
-        onMove: step => moveCaseNode(chapterNow(), reading.node, step).then(() => refresh(), fail("move a node")),
+        onMove: (id, step) => { reading.focus = id; moveCaseNode(chapterNow(), id, step).then(() => refresh(), fail("move a node")); },
         onDrop: id => dropMapNode(chapterNow(), id).then(gone => { if (gone) { reading.node = null; refresh(); } }, fail("remove a node")),
-        // "Check consistency" (Q-C): the summary's list read again now, with no node picked.
-        onCheck: () => { reading.node = null; refresh(); },
+        // "Check consistency" (Q-C): the overview's list read again now, the overview left open.
+        onCheck: () => { reading.overview = true; refresh(); },
         onPlace: ref => {
             const [chapter, id] = ref.split(":");
             placeIncident(Number(chapter), id).then(() => refresh(), fail("place an Incident Remnant"));
@@ -2749,7 +2754,7 @@ export async function placeIncident(chapter, id) {
 }
 
 /**
- * The picked node one place up or down its column (E97 C6, the proposal's arrows): the column as it is drawn now, the
+ * A node one place up or down its column (E97 C6, the proposal's arrows; its open fields' buttons since the E97 fix): the column as it is drawn now, the
  * two swapped, and every node of that column given its place in the chapter's `manual` order, the sort set to "manual"
  * so the drawn order is the one kept. A node at the column's end stays.
  */
@@ -2970,7 +2975,10 @@ export async function openInvestigationDashboard({ said = null, node = null, vie
     // below. "" is a real value here - it means every chapter.
     /* THE MAP'S OWN (E97 C5): which view, the node the GM picked, whether the unrelated evidence is folded, and the node
        to hand the focus back to after a redraw (keepLive carries a field's focus, not a button's). */
-    const reading = { order: "room", player: "", room: "", chapter: null, view: node ? "map" : INVESTIGATION_VIEWS.includes(view) ? view : investigationView(), node, fold: false, focus: null };
+    /* Since the E97 fix: `node` is the node whose fields are open on it, `overview` the chapter's overview strip open,
+       `camera` the schema's camera ({ x, y, z }, null until the GM moves it), kept here so a redraw keeps the view. */
+    const reading = { order: "room", player: "", room: "", chapter: null, view: node ? "map" : INVESTIGATION_VIEWS.includes(view) ? view : investigationView(), node, fold: false, focus: null,
+        overview: false, camera: null };
     /** The live region's handle, so a filter can ask it to redraw. */
     let live = null;
 

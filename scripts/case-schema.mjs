@@ -112,14 +112,15 @@ export function graphOf({ chapter = null, rows = {}, meta = null, traces = [], s
             id: t.key, kind: t.type === "final" ? "final" : (t.type === "key" || s ? "key" : "trace"), evidence: true, planned: false,
             slot: s ? s.slot : null, trace: t.key, type: t.type ?? null, label: t.name || t.label || "", tied: t.tiedToCrime === true,
             faint: Boolean(t.faint), room: t.room ?? null, chapter: t.chapter ?? null, foundAt: t.foundAt ?? null,
-            // E99 C6: the words its players read (the public half), for the players' summary
-            text: typeof t.playerText === "string" ? t.playerText : ""
+            // its description (the player's words): drawn whole on its node since the E97 fix, and E99 C6's summary words
+            text: typeof t.text === "string" ? t.text : typeof t.playerText === "string" ? t.playerText : ""
         });
     }
     for (const s of slots ?? []) {
         if (!Number.isInteger(s?.slot) || placed.has(s.slot)) continue;
         nodes.push({ id: `${SLOT}${s.slot}`, kind: "key", evidence: true, planned: true, slot: s.slot, trace: null, type: "key",
-            label: s.name || s.text || "", tied: true, faint: false, room: s.createIn ?? null, chapter, foundAt: null, scale: s.scale ?? null });
+            label: s.name || s.text || "", tied: true, faint: false, room: s.createIn ?? null, chapter, foundAt: null, scale: s.scale ?? null,
+            text: s.name && typeof s.text === "string" ? s.text : "" });
     }
     const traceKeys = new Set(nodes.filter(n => n.trace).map(n => n.trace));
     for (const [id, raw] of Object.entries(rows ?? {})) {
@@ -189,7 +190,7 @@ export function caseGraph(chapter = getClock().chapter, { chapters = "this", slo
         for (const token of remnantsOn(scene)) {
             const data = remnantData(token);
             if (!data || (chapters !== "all" && (data.chapter !== chapter || !sameSeason(data)))) continue;
-            traces.push({ ...data, key: keyOf(token), name: data.public?.name ?? "", playerText: data.public?.playerText ?? "" });
+            traces.push({ ...data, key: keyOf(token), name: data.public?.name ?? "", text: data.public?.playerText ?? "" });
         }
     }
     const slots = [];

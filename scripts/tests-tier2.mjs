@@ -35753,7 +35753,9 @@ const SCENARIOS = [
         const src = stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/events.mjs`).then(lfText));
 
-        const body = fnSource(src, "incidentCard");
+        // The acting killer's id is read by `killerActingId`, which the card calls on the merged state (E49: the
+        // sheet's turn line words the same turn through it), so the card's reading is its body and that helper's.
+        const body = fnSource(src, "incidentCard") + fnSource(src, "killerActingId");
 
         ok(/incidentCast\(\)/.test(body),
             "the incident card no longer merges the cast, so every id it reads is "
@@ -39540,7 +39542,7 @@ const SCENARIOS = [
             await settle();
             app = [...foundry.applications.instances.values()]
                 .find(a => a.element?.matches?.('.application.dialog[class*="drpg-"]'));
-            ok(app, "the Look window did not open, so nothing could be measured");
+            ok(app, "the gear's settings window did not open, so nothing could be measured");
 
             for (const instance of foundry.applications.instances.values()) {
                 const el = instance.element;
@@ -49053,7 +49055,8 @@ const SCENARIOS = [
         const S = await import("./gm-stores.mjs");
         const M = await import("./mastermind.mjs");
         const A = await import("./assignments.mjs");
-        const { openSeasonSetup } = await import("./season-setup.mjs");
+        // The Season checklist's rows since E49 A1e (12.11.2026: Season setup's lower half, a window of its own).
+        const { openSeasonChecklist } = await import("./season-setup.mjs");
         const [student] = cast(1);
         const before = foundry.utils.deepClone(A.assignments());
         const title = game.i18n.localize("DRPG.Season.step.nobodyPublic");
@@ -49071,7 +49074,7 @@ const SCENARIOS = [
                 }));
                 return null;
             };
-            await openSeasonSetup();
+            await openSeasonChecklist();
             const health = (await S.gmStoreHealth())?.rows ?? [];
             return { unpooled: M.mastermindUnpooled(), rows, health: health.filter(r => r.id === "nobodyPublic").map(r => r.level) };
         };
@@ -60420,9 +60423,9 @@ const SCENARIOS = [
          * region decided" read the scene on the GM's screen, so a GM viewing one floor saw it done
          * while regions drawn on another since the migration were nobody's rooms. Here a scene of the
          * suite's own holds one named region nobody marked, and the camera stays where it is; the
-         * checklist is opened and its row read. Red on 8eb3801: the row named nothing.
+         * checklist is opened and its row read. Red on 8eb3801: the row named nothing. The Season checklist since E49 A1e.
          */
-        const { openSeasonSetup } = await import("./season-setup.mjs");
+        const { openSeasonChecklist } = await import("./season-setup.mjs");
         const UNDECIDED = "SUITE E12 fix r1-G2 a region drawn since";
         const title = game.i18n.localize("DRPG.Season.step.roomsMarked");
         const home = canvas?.scene ?? null;
@@ -60432,7 +60435,7 @@ const SCENARIOS = [
             await floor.createEmbeddedDocuments("Region", [{ name: UNDECIDED, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }], behaviors: [] }]);
             await settle();
             must(canvas?.scene === home && home !== floor, "the scene on screen moved - this would measure nothing");
-            const drawn = await withFormAnswered(() => false, () => openSeasonSetup());
+            const drawn = await withFormAnswered(() => false, () => openSeasonChecklist());
             const row = [...(drawn[0]?.querySelectorAll("li.drpg-check-row") ?? [])].find(li => li.querySelector(".drpg-check-title")?.textContent === title);
             must(row, "the checklist drew no row for the named regions - this would measure nothing");
             reading = [(row.querySelector(".drpg-setup-missing")?.textContent ?? "").includes(UNDECIDED)];
@@ -60443,6 +60446,70 @@ const SCENARIOS = [
         equal(stableJson(reading), stableJson([true]), `Season setup's row "${title}" with a region nobody decided on a scene not on screen ([whether the row names it])`);
     }],
 
+    ["E49-A1e - Season setup's Save writes what Edit campaign's Apply writes: from one clock, the same name, day and session typed in each window, and the chapter moved one on with its question answered Cancel, then OK - the same questions asked, the same clock left behind (gm-campaign.mjs `applyCampaignForm`; season-setup.mjs `openSeasonSetup`)", async () => {
+        /*
+         * E49 A1e, 11.11.2026. The owner merged Edit campaign into the top of Season setup on one condition: Edit
+         * campaign's data writes stay exactly as they are (the same store, the same writer, the same rules). Both windows
+         * now hand their form to `applyCampaignForm` (R3583 holds it in source); this runs them. Each window is answered
+         * on its own content (`answerWindows`): its fields typed as a GM types them and its default button pressed through
+         * its own callback, so the form is read by the window's reader; the chapter's question ("this is a correction")
+         * answered Cancel in the first round and OK in the second, every other window closed. Before each window the clock
+         * is put back to where the test found it (the phase Daily Life, no Eclipse); after each, the clock's fields that
+         * Edit campaign writes are read. Season setup's safeword is left as drawn, so it writes no safeword. The clock and
+         * the safeword are put back after. Red at ecba3f21: Season setup asked nothing, kept the day and the session and
+         * moved the chapter unasked.
+         */
+        const { openClockDialog } = await import("./gm-campaign.mjs");
+        const { openSeasonSetup } = await import("./season-setup.mjs");
+        const L = key => game.i18n.localize(key);
+        const titles = { clock: L("DRPG.Panel.jump"), season: L("DRPG.Season.title"), chapter: L("DRPG.Clock.chapterCorrectTitle") };
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const wordBefore = getSetting(SETTINGS.safeword);
+        const start = { ...clockBefore, phase: "dailyLife", eclipse: false };
+        const chapter = Number(clockBefore.chapter) || 1;
+        const FIELDS = ["campaignName", "chapter", "phase", "day", "session", "timeOfDay"];
+        let answer = "cancel";
+        const asked = [];
+        const windows = answerWindows((cfg, root) => {
+            const title = cfg?.window?.title ?? "";
+            const kind = Object.keys(titles).find(k => titles[k] === title) ?? "other";
+            asked.push(kind);
+            if (kind === "chapter") return answer;
+            if (kind !== "clock" && kind !== "season") return "close";
+            const set = (name, value) => { const field = root.querySelector(`form [name="${name}"]`); if (field) field.value = String(value); };
+            set("campaignName", `SUITE E49-A1e ${answer}`);
+            set("day", Number(start.day ?? 1) + 1);
+            set("session", Number(start.session ?? 1) + 1);
+            set("chapter", chapter + 1);
+            return press(cfg, root);
+        });
+        const read = {};
+        try {
+            for (const round of ["cancel", "ok"]) {
+                answer = round;
+                for (const [kind, open] of [["clock", openClockDialog], ["season", openSeasonSetup]]) {
+                    await game.settings.set(MODULE_ID, SETTINGS.clock, start);
+                    await settle();
+                    asked.length = 0;
+                    await open();
+                    await settle();
+                    const c = getClock();
+                    read[`${round} ${kind}`] = { asked: [...asked], clock: Object.fromEntries(FIELDS.map(f => [f, c[f]])) };
+                }
+            }
+        } finally {
+            windows.restore();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            if (getSetting(SETTINGS.safeword) !== wordBefore) await game.settings.set(MODULE_ID, SETTINGS.safeword, wordBefore);
+            await settle();
+        }
+        const expect = round => ({ campaignName: `SUITE E49-A1e ${round}`, chapter: round === "ok" ? chapter + 1 : chapter, phase: "dailyLife",
+            day: Number(start.day ?? 1) + 1, session: Number(start.session ?? 1) + 1, timeOfDay: start.timeOfDay });
+        equal(stableJson(read), stableJson({
+            "cancel clock": { asked: ["clock", "chapter"], clock: expect("cancel") }, "cancel season": { asked: ["season", "chapter"], clock: expect("cancel") },
+            "ok clock": { asked: ["clock", "chapter"], clock: expect("ok") }, "ok season": { asked: ["season", "chapter"], clock: expect("ok") }
+        }), "{per round (the chapter's question answered cancel, then ok) and window (Edit campaign, Season setup): the windows asked, the clock's fields after}");
+    }],
     ["the Mastermind window applied with another scene on screen keeps the lair it did not show", async () => {
         /*
          * E12 fix r1-G2, 11.10.2026; review round 1 CR1-5 and CR1-6. The lair select listed the rooms
@@ -61617,9 +61684,10 @@ const SCENARIOS = [
         const box = x => [{ type: "rectangle", x, y: 100, width: 400, height: 400 }];
         const room = owner => ({ [MODULE_ID]: { [R.ROOM_FLAG]: true, [V.VAULT_FLAGS.owner]: owner.id, [V.VAULT_FLAGS.stashes]: owner === aiko ? [{ actorId: aiko.id, concealed: true }] : [] } });
         const messagesBefore = new Set(game.messages.contents.map(m => m.id));
-        // The join's whisper is the one with a warning's class that names both rooms (vault-store.mjs `clearSplitPiece`).
+        // The join's whisper is the one in a warning's tone that names both rooms (vault-store.mjs `clearSplitPiece`; a card
+        // in the warning tone since E49 B5a, a `drpg-warning` line before).
         const told = () => game.messages.contents.filter(m => !messagesBefore.has(m.id))
-            .filter(m => /drpg-warning/.test(String(contentOf(m) ?? "")) && String(contentOf(m) ?? "").includes(DORM_A) && String(contentOf(m) ?? "").includes(DORM_B)).length;
+            .filter(m => /data-drpg-tone="warning"/.test(String(contentOf(m) ?? "")) && String(contentOf(m) ?? "").includes(DORM_A) && String(contentOf(m) ?? "").includes(DORM_B)).length;
         let scene = null, key = null, item = null, read = null;
         try {
             scene = await Scene.create({ name: "SUITE E12 H4 two bedrooms", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
@@ -71736,7 +71804,7 @@ const SCENARIOS = [
             + "frozen, gone, cards; the lowered target: crossed, cards; the kept project: there after its crossing, gone once the bookmark moved on]");
     }],
 
-    ["the GMs' roads change a project through the one entry (E36-T4): each of create, edit, portrait, secrecy, share, revoke, reveal, reseal, a Rearm, a dragged token, the manager's Save and Delete waits for the queue and writes once; the manager's unchanged row writes nothing; the tray's -/+ on a project row is one change of 1 or -1 and its Delete deleteProject, with no Reveal or Hide on it", async () => {
+    ["the GMs' roads change a project through the one entry (E36-T4): each of create, edit, portrait, secrecy, share, revoke, reveal, reseal, a Rearm, a dragged token, the manager's Save and Delete waits for the queue and writes once; the manager draws no portrait and its Save writes none; the manager's unchanged row writes nothing; the tray's -/+ on a project row is one change of 1 or -1 and its Delete deleteProject, with no Reveal or Hide on it", async () => {
         /*
          * E36 C2, 25.10.2026; E36-09 to E36-11, audit S17-18, S09-36. Each GM's road read the Countdowns setting and wrote
          * it whole outside any queue, and a manager row wrote the image, the meta and the secrecy as three writes, so a
@@ -71745,7 +71813,10 @@ const SCENARIOS = [
          * `COUNTDOWNS_KEY` open: what it changed while held (nothing, if it waits in the queue), what it changed once let
          * go, and how many times it wrote the Countdowns setting and projectMeta (a counter on `game.settings.set`, this
          * browser's own writes). The manager is driven through DialogV2.wait as E12 C5's test drives it: one row given a
-         * portrait and sealed, every other row left as it was. The tray is a planted root in Daggerheart 2.10.5's markup
+         * sealed, every other row left as it was; since E49 FT batch 3 (90c32902, the owner's second round: no countdown
+         * picture in the project windows) the manager draws no portrait cell and no `img.<id>` field, so the row's Save
+         * must find none and leave the project's picture as it was (a portrait field coming back is red here; the
+         * project's own picture is still set by `setProjectImage`, the road above). The tray is a planted root in Daggerheart 2.10.5's markup
          * (`.countdown-container[data-countdown]`, `[data-action="increaseCountdown"]`), with a bubbling listener standing
          * in for its ApplicationV2 action handler, and its menu entries in 2.10.5's shape (`label`, `visible`, `onClick`);
          * whether v14 draws them so is a real table's (LIVE-E36-02), not this test's. At d0ede27a every road but the Rearm writes while the
@@ -71846,24 +71917,26 @@ const SCENARIOS = [
                 () => P.roomOf(placed));
             seen.drag = { held: drag.held.read, after: drag.after, meta: drag.meta };
 
-            // The manager's Save: one row given a portrait and sealed, every other row as the window drew it.
+            // The manager's Save: one row sealed, every other row as the window drew it; no portrait field drawn (90c32902).
             const rows = P.allProjects().length;
+            const imgBefore = project(placed)?.img ?? null;
+            let portraitField = null;
             D.wait = async cfg => {
                 const element = document.createElement("div"), form = document.createElement("form");
                 if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
                 else if (cfg?.content) form.append(cfg.content.cloneNode(true));
                 element.append(form);
                 const field = name => form.querySelector(`[name="${name}.${CSS.escape(placed)}"]`);
-                must(field("img") && field("secret"), "the manager drew no portrait or Secret for this test's row - the answer would change nothing");
-                field("img").value = "icons/svg/d20.svg";
+                must(field("secret"), "the manager drew no Secret for this test's row - the answer would change nothing");
+                portraitField = Boolean(field("img") || form.querySelector(`[data-project="${CSS.escape(placed)}"] img`));
                 field("secret").checked = true;
                 const save = (cfg.buttons ?? []).find(b => b.action === "save");
                 return save.callback(new Event("click"), save, { element });
             };
-            const manager = await road(() => UI.openProjectManager(), () => [project(placed)?.img, P.isSecret(placed)]);
+            const manager = await road(() => UI.openProjectManager(), () => [(project(placed)?.img ?? null) === imgBefore, P.isSecret(placed)]);
             if (ownWait) Object.defineProperty(D, "wait", ownWait);
             else delete D.wait;
-            seen.manager = { rows: rows > 1, held: manager.held.wrote, after: manager.after, cd: manager.cd, meta: manager.meta };
+            seen.manager = { rows: rows > 1, portraitField, held: manager.held.wrote, after: manager.after, cd: manager.cd, meta: manager.meta };
 
             // The tray: -/+ on a project row and on a row that is no project, and its menu.
             root = document.createElement("div");
@@ -71916,13 +71989,13 @@ const SCENARIOS = [
             reseal: { held: 0, resealed: true, cd: 1, meta: 0 },
             rearm: { held: false, after: true },
             drag: { held: room, after: elsewhere, meta: 1 },
-            manager: { rows: true, held: 0, after: ["icons/svg/d20.svg", true], cd: 1, meta: 1 },
+            manager: { rows: true, portraitField: false, held: 0, after: [true, true], cd: 1, meta: 1 },
             tray: { tray: true, plus: [0, 1, 1], minus: [1, 0, 1], reached: [["suiteE36T4NoProject", "increaseCountdown"]] },
             menu: { menu: true, shown: [[false, true], [false, true], [true, true]], clicked: ["CONTROLS.CommonDelete"], held: true, after: false },
             remove: { held: true, after: false, cd: 1, meta: 1 }
         }), "a GM's road does not change a project through the one entry [each road: what it changed while the queue was held, after, "
             + "its Countdowns and projectMeta writes; the reseal; the Rearm's armed while held and after; the dragged token's room; the manager's "
-            + "Save (more than one row, the sealed row's portrait and secrecy); the tray's + and - (the bar while held, after, its writes) and what "
+            + "Save (more than one row, no portrait drawn on the row, its picture unchanged and its secrecy); the tray's + and - (the bar while held, after, its writes) and what "
             + "reached the system's handler; the menu (Reveal, Hide, Delete shown on the project row and on the other), what the system's "
             + "Delete did, the project's Delete; deleteProject]");
     }],
@@ -79467,6 +79540,9 @@ const SCENARIOS = [
         const stamp = foundry.utils.deepClone(ann.getFlag(MODULE_ID, FLAGS.sheetAtStart));
         const move = { by: 0 };
         const windows = answerWindows((cfg, root) => {
+            // E49 A1e: Season setup's Save is Edit campaign's Apply (gm-campaign.mjs `applyCampaignForm`), which asks before
+            // it moves the chapter; answered yes, as Edit campaign's own tests answer it.
+            if (cfg?.window?.title === game.i18n.localize("DRPG.Clock.chapterCorrectTitle")) return "ok";
             const field = root.querySelector("form [name=chapter]");
             if (!field || cfg?.window?.title !== game.i18n.localize("DRPG.Season.title")) return "close";
             field.value = String(Number(field.value) + move.by);
@@ -87204,7 +87280,11 @@ const SCENARIOS = [
             await game.settings.set(MODULE_ID, SETTINGS.migratedVersion, "1.2.105");
             const report = await Mi.migrate1_2_0({ only: ["openCaseBodies"], quiet: true });
             await settle();
-            read.stamped = [report?.skipped?.includes("openCaseBodies") ?? null, at(a).length, at(b).length];
+            /* "Skipped" is either answer migrate1_2_0 gives a world stamped 1.2.105: with the module past it, a report that
+               lists the clause as skipped; with the module at 1.2.105 itself, no pass at all (`null`, "already at"). The
+               test was written with the module at 1.2.104 and read only the first, so the release commit's bump turned it
+               red (CI on ca2b5cc9, suite 6/8: stamped [null, 1, 1]); the tiles left as they were hold the rest. */
+            read.stamped = [report === null || (report?.skipped?.includes("openCaseBodies") ?? false), at(a).length, at(b).length];
             read.status = Mi.migrationStatus().clauses.some(c => c.key === "openCaseBodies" && c.since === "1.2.105");
         } finally {
             for (const x of [a, b]) if (C.isDeadForGm(x)) await C.reviveCharacter(x, { quiet: true });
@@ -88184,14 +88264,16 @@ const SCENARIOS = [
         equal(JSON.stringify(read), JSON.stringify({ rest: yes, current: yes, disabled: yes }),
             "[per state: every grid row's tiles within 1 px of one height, every tile where it stood at rest, the lowest label at 4.5:1 or more, the lowest icon at 3:1 or more]");
     }],
-    ["the DRPG Settings window saves as Foundry's form did: a world Boolean, a client range and the language, each read back as saved, each `onChange` once, the reload asked once for the language's `requiresReload`; Save with nothing changed and Cancel write nothing (scripts/settings-window.mjs `saveSettings`, `openSettingsWindow`; E49 A1; STAGE E49 Risks 2)", async () => {
+    ["the DRPG Settings window saves as Foundry's form did: a Boolean, a range and the language of this browser, each read back as saved, each `onChange` once, the reload asked once for the language's `requiresReload`; Save with nothing changed and Cancel write nothing (scripts/settings-window.mjs `saveSettings`, `openSettingsWindow`; E49 A1, A1d; STAGE E49 Risks 2)", async () => {
         /*
          * E49 A1, 11.11.2026. Foundry's Configure Settings wrote a changed setting by `game.settings.set` (its `onChange`
          * then runs) and none it left as it was, and asked `SettingsConfig.reloadConfirm({ world })` once after the last
          * write when one of them had `requiresReload` (v13's `#onSubmit`, read as text). The window drawn by its own wait on
-         * this GM, three fields changed - despairFromRolls (world, a switch), uiScale (client, a stepper with a range), the
-         * language (client, `requiresReload`) - then Save pressed; each setting's `onChange` wrapped to count its runs (the
-         * language and despairFromRolls have none: Foundry would call one if there were); `reloadConfirm` stood in for
+         * this GM, three fields changed - messengerSound (a switch), uiScale (a stepper with a range), the language
+         * (`requiresReload`), all three this browser's since E49 A1d moved the world rows to the GM panel's tab (the tier-2
+         * test "the GM panel's Game settings tab saves"; despairFromRolls was this test's switch until then) - then Save
+         * pressed; each setting's `onChange` wrapped to count its runs (the language and messengerSound have none: Foundry
+         * would call one if there were); `reloadConfirm` stood in for
          * Foundry's, counting (no reload). Then Save with nothing changed, and Cancel after a change: nothing written, no
          * reload. Every value put back after. Red on 13531607: settings-window.mjs does not exist.
          */
@@ -88199,10 +88281,10 @@ const SCENARIOS = [
         const W = await import("./settings-window.mjs");
         const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-settings"));
         must(of().length === 0, "a DRPG Settings window stands open already");
-        const keys = ["despairFromRolls", "uiScale", "language"];
+        const keys = ["messengerSound", "uiScale", "language"];
         const get = k => game.settings.get(MODULE_ID, k);
         const was = Object.fromEntries(keys.map(k => [k, get(k)]));
-        const want = { despairFromRolls: !was.despairFromRolls, uiScale: was.uiScale === 1.1 ? 1 : 1.1, language: was.language === "pl" ? "en" : "pl" };
+        const want = { messengerSound: !was.messengerSound, uiScale: was.uiScale === 1.1 ? 1 : 1.1, language: was.language === "pl" ? "en" : "pl" };
         const asStored = clientStored();
         const defs = Object.fromEntries(keys.map(k => [k, game.settings.settings.get(`${MODULE_ID}.${k}`)]));
         const own = Object.fromEntries(keys.map(k => [k, Object.hasOwn(defs[k], "onChange") ? defs[k].onChange : undefined]));
@@ -88214,11 +88296,11 @@ const SCENARIOS = [
         const realConfirm = SC?.reloadConfirm;
         const round = async ({ change, press }) => {
             const done = Promise.resolve().then(() => W.openSettingsWindow()).catch(err => `threw: ${err?.message}`);
-            await until(() => of()[0]?.element?.querySelector('[name="despairFromRolls"]'), 6000);
+            await until(() => of()[0]?.element?.querySelector('[name="messengerSound"]'), 6000);
             const root = of()[0]?.element ?? null;
             if (change) {
-                const box = root?.querySelector('[name="despairFromRolls"]');
-                if (box) box.checked = want.despairFromRolls;
+                const box = root?.querySelector('[name="messengerSound"]');
+                if (box) box.checked = want.messengerSound;
                 const scale = root?.querySelector('[name="uiScale"]');
                 if (scale) scale.value = String(want.uiScale);
                 const lang = root?.querySelector('[name="language"]');
@@ -88249,7 +88331,6 @@ const SCENARIOS = [
             }
             if (SC) SC.reloadConfirm = realConfirm;
             else if (!hadSettings) delete apps.settings;
-            await game.settings.set(MODULE_ID, "despairFromRolls", was.despairFromRolls);
             putBackStored(asStored);
             await settle();
         }
@@ -88260,6 +88341,74 @@ const SCENARIOS = [
             unchanged: { got: "save", values: after, runs: [1, 1, 1], reloads: 1, open: 0 },
             cancelled: { got: "cancel", values: after, runs: [1, 1, 1], reloads: 1, open: 0 }
         }), "{saved, unchanged, cancelled: [what the window answered, the three values after, each onChange's runs so far, reloads asked so far, windows open]; asked: the reload's options}");
+    }],
+    ["the game's settings window saves as this browser's does: a world Boolean and a world choice, each read back as saved, each `onChange` once, no reload asked; Save with nothing changed and Cancel write nothing (scripts/settings-window.mjs `openGameSettingsWindow`, `saveSettings`; the GM panel's Settings tile; E49 A1d)", async () => {
+        /*
+         * E49 A1d, 11.11.2026 (the owner: the game's settings a GM panel's own, "W wolne miejsce wejda nowe ustawienia gma
+         * jako "Settings""). The window drawn by its own wait on this GM, two world fields changed - despairFromRolls (a
+         * switch) and moveAudit (a select) - then Save pressed; each setting's `onChange` wrapped to count its runs;
+         * `reloadConfirm` stood in for Foundry's, counting (neither asks a reload). Then Save with nothing changed, and
+         * Cancel after a change. Every value put back after. Red at 54493dbf: no `openGameSettingsWindow`.
+         */
+        needs(env.dialogs(), "the window is drawn and its buttons pressed");
+        const W = await import("./settings-window.mjs");
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-game-settings"));
+        must(of().length === 0, "a game settings window stands open already");
+        const keys = ["despairFromRolls", "moveAudit"];
+        const get = k => game.settings.get(MODULE_ID, k);
+        const was = Object.fromEntries(keys.map(k => [k, get(k)]));
+        const defs = Object.fromEntries(keys.map(k => [k, game.settings.settings.get(`${MODULE_ID}.${k}`)]));
+        const audits = Object.keys(defs.moveAudit?.choices ?? {});
+        must(audits.length > 1, "moveAudit has no second choice to pick");
+        const want = { despairFromRolls: !was.despairFromRolls, moveAudit: audits.find(v => v !== was.moveAudit) };
+        const own = Object.fromEntries(keys.map(k => [k, Object.hasOwn(defs[k], "onChange") ? defs[k].onChange : undefined]));
+        const runs = Object.fromEntries(keys.map(k => [k, 0]));
+        const reloads = [];
+        const apps = foundry.applications;
+        const hadSettings = Object.hasOwn(apps, "settings");
+        const SC = apps.settings?.SettingsConfig;
+        const realConfirm = SC?.reloadConfirm;
+        const round = async ({ change, press }) => {
+            const done = Promise.resolve().then(() => W.openGameSettingsWindow()).catch(err => `threw: ${err?.message}`);
+            await until(() => of()[0]?.element?.querySelector('[name="despairFromRolls"]'), 6000);
+            const root = of()[0]?.element ?? null;
+            if (change) {
+                const box = root?.querySelector('[name="despairFromRolls"]');
+                if (box) box.checked = want.despairFromRolls;
+                const audit = root?.querySelector('[name="moveAudit"]');
+                if (audit) audit.value = want.moveAudit;
+            }
+            root?.querySelector(`footer button[data-action="${press}"]`)?.click();
+            const got = await Promise.race([done, wait(6000).then(() => "timeout")]);
+            await settle();
+            return { got: typeof got === "string" ? got : stableJson(got), values: keys.map(get), runs: keys.map(k => runs[k]), reloads: reloads.length, open: of().length };
+        };
+        const read = {};
+        try {
+            for (const k of keys) defs[k].onChange = (...args) => { runs[k] += 1; return own[k]?.(...args); };
+            const confirm = async options => { reloads.push(stableJson(options ?? null)); return false; };
+            if (SC) SC.reloadConfirm = confirm;
+            else apps.settings = { SettingsConfig: { reloadConfirm: confirm } };
+            read.saved = await round({ change: true, press: "save" });
+            read.unchanged = await round({ change: false, press: "save" });
+            read.cancelled = await round({ change: true, press: "cancel" });
+        } finally {
+            for (const a of of()) await a.close().catch(() => {});
+            for (const k of keys) {
+                if (own[k] === undefined) delete defs[k].onChange;
+                else defs[k].onChange = own[k];
+            }
+            if (SC) SC.reloadConfirm = realConfirm;
+            else if (!hadSettings) delete apps.settings;
+            for (const k of keys) if (get(k) !== was[k]) await game.settings.set(MODULE_ID, k, was[k]);
+            await settle();
+        }
+        const after = keys.map(k => want[k]);
+        equal(stableJson(read), stableJson({
+            saved: { got: "save", values: after, runs: [1, 1], reloads: 0, open: 0 },
+            unchanged: { got: "save", values: after, runs: [1, 1], reloads: 0, open: 0 },
+            cancelled: { got: "cancel", values: after, runs: [1, 1], reloads: 0, open: 0 }
+        }), "{saved, unchanged, cancelled: [what the window answered, the two values after, each onChange's runs so far, reloads asked, windows open]}");
     }],
     ["the standing outline's light is drawn again when the hour turns, on a real canvas (E49 B4; S07-34, LIVE-E49-04)", async () => {
         /*
@@ -88293,6 +88442,41 @@ const SCENARIOS = [
             fx.destroy();
             if (was?.fx && !was.fx.destroyed && was.region) FR.flashOutline(was.fx, was.region, was.rect, was.level, { actor: was.actor ?? null, elevation: was.elevation ?? null, quiet: true });
         }
+    }],
+    ["the character settings window keeps a hidden field's value through a save (E49; dh-settings.mjs, R3550-R3552; the owner's rule: hidden, never deleted): on a character of the suite's own holding Scars 2, Proficiency 3 and Max Evasion Increase 1, Daggerheart's window drawn from its source and dressed, a statistic changed in it and the form saved as the window saves it (its data the actor's update) leaves the three as they were and the statistic changed", async () => {
+        /*
+         * E49, 11.11.2026. Daggerheart's window submits the whole form on every change; its data goes to `actor.update`
+         * (DocumentSheetV2's `_processSubmitData`). The form is read as R3552 reads it - Foundry's FormDataExtended where it
+         * is, else each named field by its type - and the character is the suite's own, made and deleted here. Red at
+         * 54493dbf: no dh-settings.mjs to dress the window.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs has no `dressCharacterSettings` - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        let actor = null;
+        let read = null;
+        try {
+            actor = await Actor.create({ name: "SUITE E49 settings", type: "character", ownership: { default: 0 }, system: {
+                traits: { instinct: { value: 0 }, knowledge: { value: 1 } }, resources: { hitPoints: { value: 0, max: 6 }, stress: { value: 0, max: 6 } },
+                scars: 2, proficiency: 3, evasion: 1, experiences: { e49save: { name: "E49 save", value: 2, description: "" } } } });
+            must(actor, "the suite's character was not made - this would measure nothing");
+            const win = K.dhSettingsStandIn(foundry.utils.deepClone(actor._source.system), { name: actor.name });
+            D.dressCharacterSettings(win);
+            must(win.querySelectorAll("[hidden]").length === 3, "the dressing hid no cell - this would measure nothing");
+            win.querySelector('[name="system.traits.instinct.value"]').value = "2";
+            const FDE = foundry.applications?.ux?.FormDataExtended ?? globalThis.FormDataExtended;
+            const flat = FDE ? new FDE(win).object : Object.fromEntries([...win.querySelectorAll("[name]")].map(el =>
+                [el.name, el.type === "number" || el.dataset.dtype === "Number" ? (el.value === "" ? null : Number(el.value)) : el.value]));
+            await actor.update(foundry.utils.expandObject(flat));
+            await settle();
+            const s = game.actors.get(actor.id)?._source?.system ?? {};
+            read = { scars: s.scars, proficiency: s.proficiency, evasion: s.evasion, instinct: s.traits?.instinct?.value, experience: s.experiences?.e49save?.name };
+        } finally {
+            await actor?.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ scars: 2, proficiency: 3, evasion: 1, instinct: 2, experience: "E49 save" }),
+            "the character after the save: the three hidden fields, the statistic changed in the window, the experience");
     }],
 ];
 

@@ -1181,15 +1181,18 @@ export const PROMPT_CLASS = "drpg-prompt";
  * window states: a name of WINDOW_WIDTHS or a number of pixels (`kitWidth`, below), the window's opening width and,
  * without `fit`, its width; with `fit` the measure wins and the width is where it starts (E21 W1). No stylesheet states
  * a kit window's width (R1376): a window without either takes the module's popup width rules. `prompt` puts PROMPT_CLASS
- * on a window the game waits on (above).
+ * on a window the game waits on (above). `pinned` (E49 A1e, 12.11.2026; the owner: Season setup's row of windows "always
+ * at the bottom, always visible") is markup drawn under the body that scrolls, in `div.drpg-kit-pinned`, which keeps its
+ * height as the tab bar and the footer do; a window that names none draws what it drew before, byte for byte.
  */
-export function drpgWindow({ id = null, classes = [], title = "", body = "", tabs = null, footer = {}, live = null, render = null, modal = false, onMode = null, fit = false, width = null, prompt = false, ...rest } = {}) {
+export function drpgWindow({ id = null, classes = [], title = "", body = "", tabs = null, footer = {}, live = null, render = null, modal = false, onMode = null, fit = false, width = null, prompt = false, pinned = null, ...rest } = {}) {
     const DialogV2 = foundry.applications.api.DialogV2;
     const sized = width === null ? null : widthSpec(width);
     const list = footerButtons(footer);
     const open = tabs ? openKey(tabs.sections, tabs.active) : null;
     const markup = (tabs ? tabNav(tabs.sections, open) : "")
-        + `<div class="drpg-kit-body">${body}${tabs ? tabPanes(tabs.sections, open) : ""}</div>`;
+        + `<div class="drpg-kit-body">${body}${tabs ? tabPanes(tabs.sections, open) : ""}</div>`
+        + (pinned ? `<div class="drpg-kit-pinned">${pinned}</div>` : "");
     const config = {
         ...rest,
         classes: [...classes, ...KIT_CLASSES, ...(prompt ? [PROMPT_CLASS] : []), ...(fit ? [FIT_CLASS] : []), ...(sized ? sized.classes : [])],

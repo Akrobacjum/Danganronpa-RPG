@@ -245,9 +245,13 @@ export function sheetProblems(glyphs, sheets) {
         const { drawings, counted, read } = sheetDrawings(css);
         if (read !== counted) out.push(`${file}: ${counted} SVG data URI(s), ${read} of them in a custom property or a rule's mask-image - the rest are read by nothing here`);
         const rows = glyphs.filter(g => g.sheet === file);
+        /* E48 batch 5 (12.11.2026): chromeCss draws each chrome rule again under Stained Glass with its glass row
+           (`glassChromeOf`), keyed by the chrome row's rule under the theme's body; each held to that row as the rest. */
+        const twins = rows.map(g => [g, glassChromeOf(glyphs, g)]).filter(([, t]) => t).map(([g, t]) => ({ key: `${GLASS} ${g.rule}`, row: t }));
         const found = new Set();
         for (const d of drawings) {
-            const row = rows.find(g => d.kind === "prop" ? g.prop === d.key : g.rule === d.key);
+            const row = rows.find(g => d.kind === "prop" ? g.prop === d.key : g.rule === d.key)
+                ?? (d.kind === "rule" ? twins.find(t => t.key === d.key)?.row : null);
             if (!row) { out.push(`${file}:${d.line}: ${d.key} draws a glyph tools/glyphs.json has no row for`); continue; }
             if (found.has(id(row))) { out.push(`${file}:${d.line}: ${d.key} is drawn twice in the sheet`); continue; }
             found.add(id(row));
@@ -262,6 +266,7 @@ export function sheetProblems(glyphs, sheets) {
             held++;
         }
         for (const g of rows.filter(g => !found.has(id(g)))) out.push(`${id(g)}: ${file} no longer draws ${g.prop ?? g.rule}`);
+        for (const t of twins.filter(t => !found.has(id(t.row)))) out.push(`${id(t.row)}: ${file} no longer draws ${t.key}`);
     }
     for (const g of glyphs.filter(g => g.sheet && !(g.sheet in sheets))) out.push(`${id(g)}: names ${g.sheet}, which is not a sheet read here`);
     return { problems: out, held };
@@ -312,7 +317,7 @@ export function glyphProblems(files) {
     const families = {};
     for (const g of glyphs) families[g.family] = (families[g.family] ?? 0) + 1;
     return { problems, counts: { glyphs: glyphs.length, families, generated: set.length, fa: Object.keys(FA).length,
-        current, sheetHeld: held, sheetRows: glyphs.filter(g => g.sheet).length, same: glyphs.filter(g => g.same).length, chrome } };
+        current, sheetHeld: held, sheetRows: glyphs.filter(g => g.sheet).length + glyphs.filter(g => glassChromeOf(glyphs, g)).length, same: glyphs.filter(g => g.same).length, chrome } };
 }
 
 /**
@@ -350,14 +355,17 @@ export function selfCheck(files) {
         if (!got.some(p => p.includes(words))) misses.push(`planted "${what}" was not seen (wanted a problem with "${words}"; read: ${got.slice(0, 2).join(" | ") || "nothing"})`);
     }
     /* THE CONTROL (the owner, 10.11: Glass on 24, Legacy keeps its 12 and 8): one name in `glass` on 24 and in
-       `legacy` on 12 is no fault, and each theme finds its own. */
+       `legacy` on 12 is no fault, and each theme finds its own. The planted pair takes a name no row has (E48 batch 5,
+       12.11.2026: the chrome row's own name, which this used until then, has its glass 24 row now - glass:user-large - so
+       the plant read as that row written twice). */
     const two = structuredClone(data.glyphs.filter(g => g.family === "chrome" && g.grid === 12).slice(0, 1));
     if (two.length) {
-        const legacy = { ...two[0], family: "legacy", same: `chrome:${two[0].name}`, sheet: undefined, rule: undefined, key: undefined };
-        const glass = { family: "glass", name: two[0].name, grid: 24, from: "control", rows: Array.from({ length: 24 }, (_, y) => (y === 12 ? "#" : ".").repeat(24)) };
+        const name = "glyph-map-two-themes";
+        const legacy = { ...two[0], family: "legacy", name, same: `chrome:${two[0].name}`, sheet: undefined, rule: undefined, key: undefined };
+        const glass = { family: "glass", name, grid: 24, from: "control", rows: Array.from({ length: 24 }, (_, y) => (y === 12 ? "#" : ".").repeat(24)) };
         const both = [...data.glyphs, JSON.parse(JSON.stringify(legacy)), glass];
         if (dataProblems(both).length) misses.push(`one name drawn for glass on 24 and for legacy on 12 reads as a fault: ${dataProblems(both)[0]}`);
-        if (drawingOf(both, two[0].name, "glass")?.grid !== 24 || drawingOf(both, two[0].name, "legacy")?.grid !== 12) misses.push("a theme does not find its own drawing of one name");
+        if (drawingOf(both, name, "glass")?.grid !== 24 || drawingOf(both, name, "legacy")?.grid !== 12) misses.push("a theme does not find its own drawing of one name");
     } else misses.push("no 12-grid chrome row to build the two-theme control from");
     return { misses, plants: plants.length + 1 };
 }
@@ -408,10 +416,20 @@ export const ELEMENTS = {
     "TRAP_TRIGGERS.stash": "stash", "TRAP_TRIGGERS.passage": "passage", "TRAP_TRIGGERS.manual": "trap-manual",
     "CLEANUP.actions.eraseTrace": "erase-trace", "CLEANUP.actions.misleadingTrail": "misleading-trail",
     "CLEANUP.actions.moveBody": "move-body", "gm.whoIsAlive": "pulse", "gm.projects": "checklist", "gm.sound": "sound",
-    "gm.rules": "rules", "gm.murder": "gm-murder", "gm.investigation": "lens", "gm.trial": "scale", "gm.jump": "calendar",
-    "gm.gmTeam": "team", "gm.roomSetup": "room-setup", "gm.tables": "table", "gm.voiceReset": "voice-reset",
-    "gm.seasonSetup": "wand", "gm.mastermind": "mask", "gm.seasonReset": "trash",
-    "gm.failureLog": "bug", "gm.caseWindow": "case-backup"
+    "gm.murder": "gm-murder", "gm.investigation": "lens", "gm.trial": "scale",
+    "gm.roomSetup": "room-setup", "gm.tables": "table", "gm.voiceReset": "voice-reset",
+    "gm.seasonSetup": "wand", "gm.settings": "settings",
+    "gm.failureLog": "bug", "gm.caseWindow": "case-backup",
+    "gm.rules": "rules", "gm.gmTeam": "team", "gm.mastermind": "mask", "gm.seasonChecklist": "season-checklist"
+    /* E49 A1e: gm.jump left with its tile on 11.11.2026 (Edit campaign is Season setup's top block now). gm.gmTeam,
+       gm.rules and gm.mastermind left the panel with theirs and came back on 12.11.2026 as tiles of Season setup's row
+       (gm-panel.mjs SEASON_TILES; the owner: "the same shape as the GM panel's tiles", the glyphs they wore), each the
+       drawing it wore before. gm.seasonChecklist is the row's fourth, the Season checklist: a drawing of its own, the glass
+       row season-checklist (a calendar page with a check; the owner's free hand, 12.11.2026), not the Projects tile's
+       checklist, which it wore for a day as the closest the rounds drew and which R3338 named as a shared pair. gm.settings
+       (the game's settings, E49 A1d) wore the corner launcher's gear (F8: this browser's settings, another window),
+       a pair R3338 named from A1d on; it wears its own drawing since E105 FT batch 2 (the glass row settings, three
+       sliders, as its icon fa-sliders; E49 A1e drew the same sliders again as game-settings, dropped at the merge). */
 };
 
 /** What later stages build, by the inventory (S/stages/E48/GLYPH-INVENTORY.md, 10.11.2026): [row, stage, element,
@@ -563,8 +581,28 @@ export const FACES = {
     "id-card": "sheet", "masks-theater": "monokuma-mark", "paper-plane": "send", "pen-nib": "reshape", "thumbs-up": "favours",
     "thumbs-down": "hinders", "user-pen": "gm-picks", "wand-sparkles": "init",
     "box-archive": "stash", "dungeon": "passage", "eraser": "erase-trace", "microphone-lines": "voice-reset",
-    "microphone-slash": "mic-off", "volume-xmark": "sound-off", "camera": "photo"
+    "microphone-slash": "mic-off", "volume-xmark": "sound-off", "camera": "photo",
+    /* E105 FT-14 (11.11.2026): Tamper's Misleading Trail row (action-tamper.mjs, `fa-signs-post`) kept Font Awesome
+       under the glass - the one row of its picker FACES did not name; it wears the keyed CLEANUP row's drawing, the
+       same function (UNWORN.CLEANUP: "its picker rows are Tamper's, worn through FACES"). */
+    "signs-post": "misleading-trail"
 };
+
+/** Font Awesome icons in markup with no drpg- element round them, which FACES's `[class*="drpg-"]` cannot reach: [the
+ *  host's selector, what, { FA name: glyph }]. E105 FT-14 (11.11.2026): Daggerheart's countdown tray (countdowns.hbs
+ *  2.10.11, the module's Projects tray) draws a row's -1 and +1 as `<a><i class="fa-solid fa-minus|fa-plus">` and a hidden
+ *  countdown's mark as `fa-eye-slash`, in `#countdowns`, whose ancestors carry no drpg- class; under Stained Glass they
+ *  were the one Font Awesome in the dressed tray (the survey's glass-harness reading: 5 icons on the GM's page, 1 on a
+ *  player's). The minus and plus step a count, the function the kit's steppers' minus and plus are (FACES); the hidden
+ *  mark is not Averted Eyes (FACES's eye-slash), so it wears a drawing of its own, `unseen`. The owner's follow-up
+ *  ("Tak", 11.11.2026): a looping countdown's `<a class="looping-container"><i class="loop-marker fa-solid fa-repeat">` is
+ *  drawn too, with a drawing of its own (`countdown-loop`; FACES's repeat is the Reroll Hope Call's). No harness page
+ *  draws a looping row; the fix's shots add one to the glass harness's tray as a stand-in of countdowns.hbs's markup.
+ *  The tray's header clock is hidden under the glass (stained-glass.css) and is not mapped. Monokuma Legacy keeps Font
+ *  Awesome in the tray (option A). */
+export const HOST_FACES = [
+    ["#countdowns", "Daggerheart's countdown tray: a row's -1, +1 and hidden mark", { minus: "minus", plus: "plus", "eye-slash": "unseen", repeat: "countdown-loop" }]
+];
 
 /** Stained Glass's themes: the one constant option B changes (A1: B = add "monokuma-legacy"; not built). */
 export const GLASS_THEMES = ["stained-glass"];
@@ -608,7 +646,11 @@ export const REMNANT_ACTS = { search: "search", project: "hourglass", sabotage: 
 /** Markup with no key and an FA class another meaning shares: [what, selector, glyph]. */
 export const FACE_RULES = [
     ["the handbooks' CAUTION callout (its fa-hand is Palm's)", ".drpg-callout-caution .drpg-callout-title i", "caution"],
-    ["Project's Start row (its fa-lightbulb is the handbooks' TIP)", '.drpg-choice:has(> input[value="start"]) > i.fa-lightbulb', "project-new"]
+    ["Project's Start row (its fa-lightbulb is the handbooks' TIP)", '.drpg-choice:has(> input[value="start"]) > i.fa-lightbulb', "project-new"],
+    /* E105 FT batch 2 follow-up (the owner's "Tak", 11.11.2026: one function, one glyph): the Projects tray's Manage
+       projects button (projects-ui.mjs, `<button class="drpg-projects-gear"><i class="fa-solid fa-gear">`) wore FACES's
+       gear, the corner Look launcher's gear with its sound waves. */
+    ["the Projects tray's Manage projects (its fa-gear is the corner Look launcher's)", ".drpg-projects-gear > i.fa-gear", "projects-manage"]
 ];
 
 /** A state of a control that wears a drawing of its own under Stained Glass: [what, the glyph element's selector, glyph,
@@ -622,6 +664,15 @@ export const STATE_RULES = [
     ["the GM's manual mic lock (F5)", ".drpg-voice-mic.is-gm-blocked > .drpg-pxi:first-child", "mic-lock", ".drpg-voice-mic.is-gm-blocked > .drpg-voice-mic-lock"]
 ];
 
+/** The six statistics (config.mjs TRAITS) -> the glyph Stained Glass wears before each one's name (E49, the owner's ask of
+ *  11.11.2026 night): stat-glyphs.mjs draws one `<i class="fa-solid fa-<its FA> drpg-stat-glyph" data-drpg-stat="<key>">`
+ *  in the wrench's window and on the sheet; Monokuma Legacy draws its Font Awesome icon (option A), Stained Glass masks it
+ *  with this drawing, keyed on the statistic. Kept here as well as in stat-glyphs.mjs because this file imports nothing;
+ *  R3592 holds the two and TRAITS to the same keys. The rule's selector names the element (`i`) beside its class and key,
+ *  so it equals FACES's `[class*="drpg-"] i.fa-<name>` in specificity (0,3,2 with the theme's body) and wins it by coming
+ *  later in the file: an `fa-eye` here is the Eye statistic's, not Observe's. */
+export const STAT_GLYPHS = { eye: "stat-eye", head: "stat-head", body: "stat-body", leg: "stat-leg", hand: "stat-hand", shadow: "stat-shadow" };
+
 /** Every rule the glass section writes: [id, selector, glyph, how] - how "box" (the FA box, the slot set), "image" (an
  *  element that is a mask box already: only its image), "before" (a text button given a glyph before its label). */
 export function glassRules() {
@@ -633,6 +684,8 @@ export function glassRules() {
     for (const [what, sel, glyph] of FACE_RULES) out.push([`rule.${glyph}`, sel, glyph, "box"]);
     for (const [act, glyph] of Object.entries(REMNANT_ACTS)) out.push([`remnant.${act}`, `.drpg-remnant-glyph[data-drpg-act="${act}"]`, glyph, "image"]);
     for (const [, sel, glyph] of STATE_RULES) out.push([`state.${glyph}`, sel, glyph, "image"]);
+    for (const [stat, glyph] of Object.entries(STAT_GLYPHS)) out.push([`stat.${stat}`, `i.drpg-stat-glyph[data-drpg-stat="${stat}"]`, glyph, "box"]);
+    for (const [host, , faces] of HOST_FACES) for (const [fa, glyph] of Object.entries(faces)) out.push([`host.${host}.fa-${fa}`, `${host} i.fa-${fa}`, glyph, "box"]);
     /* No rule for the GM launcher: its glass glyph is today's eye pixel for pixel (glass:gm same g:monokuma-eye, the owner
        11.11), so the chrome rule that draws it already draws the glass set's; a rule here would only move the winner of
        its mask (R1333's hexagon prints) for the same picture. */
@@ -642,11 +695,20 @@ export function glassRules() {
     return out;
 }
 
-/** The names Stained Glass wears (FACES and the rules), each with the row it wears, in first-use order; `problems`
- *  names a worn name no row draws, and a worn non-glass row whose name a pix row holds (the declaration would repaint
- *  that pix drawing under Stained Glass). */
+/** The small marks the sheets read by name on both themes (danganronpa.css: the sheet's Hope diamonds, the Action and
+ *  status dots, Despair's skull and its masked query; `var(--drpg-pix-<name>)` declared on :root by their legacy rows,
+ *  on 8). E48 batch 5 (12.11.2026; Q11, the owner 10.11: Stained Glass wears every drawing on 24, Legacy keeps its 8 and
+ *  12): each has a glass row of its name on 24, declared here under the theme's body over Legacy's, so the rules that
+ *  read them wear the glass drawing under Stained Glass and Legacy's under Monokuma Legacy with no rule of their own.
+ *  Until batch 5 FACES kept `dot` and `skull` out of the glass set on purpose (its note): a declaration of either would
+ *  have repainted these marks with a drawing nobody had approved for them; batch 5's are those drawings. */
+export const SHEET_MARKS = ["diamond", "diamond-empty", "dot", "dot-empty", "skull", "query"];
+
+/** The names Stained Glass wears (FACES, the rules and SHEET_MARKS), each with the row it wears, in first-use order;
+ *  `problems` names a worn name no row draws, and a worn non-glass row whose name a pix row holds (the declaration
+ *  would repaint that pix drawing under Stained Glass). */
 export function glassWorn(glyphs) {
-    const names = [...new Set([...Object.values(FACES), ...glassRules().map(r => r[2])])];
+    const names = [...new Set([...Object.values(FACES), ...glassRules().map(r => r[2]), ...SHEET_MARKS])];
     const worn = [], problems = [];
     for (const name of names) {
         const row = drawingOf(glyphs, name, "glass");
@@ -734,6 +796,7 @@ export function glyphProbes(keyed) {
     }
     out.push(["rule.caution", `<div class="drpg-callout drpg-callout-caution"><p class="drpg-callout-title">${i("fa-hand")}</p></div>`]);
     out.push(["rule.project-new", `<div class="drpg-choices"><label class="drpg-choice"><input type="radio" name="variant" value="start">${i("fa-lightbulb")}</label></div>`]);
+    out.push(["rule.projects-manage", `<div class="countdowns-header"><button type="button" class="drpg-projects-gear">${i("fa-gear")}</button></div>`]);
     for (const act of Object.keys(REMNANT_ACTS)) out.push([`remnant.${act}`, `<div class="drpg-remnant-ring"><span class="drpg-remnant-glyph" data-drpg-act="${act}" data-drpg-probe aria-hidden="true"></span></div>`]);
     for (const fa of Object.keys(FACES)) out.push([`face.fa-${fa}`, `<div class="drpg-glyph-probe">${i(`fa-${fa}`)}</div>`]);
     return out;
@@ -861,8 +924,11 @@ export function mapGaps(glyphs, { keyed, danganronpaCss = "" }) {
         if (classes.length > 1) shared.push(`${glyph}: ${classes.map(c => c.ids.join(" + ")).join(" | ")}`);
         else joined.push(glyph);
     }
+    /* A chrome mask's glass row is found by its key as well as by its name (E48 batch 5: four of them are named for their
+       meaning - their chrome names are drawings Stained Glass already wears on the module's markup; `glassChromeOf`). */
     const offGrid = glyphs.filter(g => THEMES.glass.includes(g.family) && g.grid !== 24
-        && !glyphs.some(o => o.family === "glass" && o.name === g.name && o.grid === 24)).map(id);
+        && !glyphs.some(o => o.family === "glass" && o.name === g.name && o.grid === 24)
+        && !(g.family === "chrome" && glassChromeOf(glyphs, g))).map(id);
     return { keyedUndrawn, deadTiles, opposites, futureUndrawn, shared, offGrid,
         counts: { keyed: keyedIds.size, future: FUTURE.length, sharedToday: shared.length + joined.length, sameJoined: joined.length } };
 }
@@ -990,18 +1056,39 @@ const EMIT_VARS = {};
    the one row this held, the tool as it stood at 120a8003 would have written a
    second declaration into the sheet - four lines, measured on a copy. */
 
+/** The glass row a chrome mask wears under Stained Glass (E48 batch 5, 12.11.2026; Q11, the owner 10.11): the glass row
+ *  on 24 that carries the chrome row's key, else the glass row of its name on 24. Batch 5's 60 rows carry the key (four
+ *  of them are named for their meaning: `trash`, `sun`, `moon` and `mask` are drawings Stained Glass already wears on
+ *  the module's own markup, so a glass row of that name would repaint those); glass:eye-slash and glass:music, drawn in
+ *  earlier rounds for the module's own markup, are the two found by name alone. Null for a row with no key or already
+ *  on 24 (the GM launcher's eye, which glass:gm is pixel for pixel: the chrome rule draws the glass set's already). */
+export function glassChromeOf(glyphs, chrome) {
+    if (chrome?.family !== "chrome" || !chrome.key || chrome.grid === 24) return null;
+    return glyphs.find(o => o.family === "glass" && o.grid === 24 && o.key === chrome.key)
+        ?? glyphs.find(o => o.family === "glass" && o.grid === 24 && o.name === chrome.name) ?? null;
+}
+
+/** Where a chrome row's mask lands: SPECIAL's selectors for its key, else each of HOSTS with its class. */
+export const chromeSelectorsOf = key => SPECIAL[key] ?? HOSTS.map(h => `${h}.${key}::before`);
+
 export function chromeCss(glyphs) {
     const ICONS = iconsOf(glyphs);
     const MAPPING = Object.fromEntries(Object.keys(ICONS).map(k => [k, k]));
     const perIcon = [];
     const allSelectors = [];
+    const glassIcon = [], glassSelectors = [];
 
     for (const [cls, spriteKey] of Object.entries(MAPPING)) {
         const art = ICONS[spriteKey];
         if (!art) continue;
-        const selectors = SPECIAL[cls] ?? HOSTS.map(h => `${h}.${cls}::before`);
+        const selectors = chromeSelectorsOf(cls);
         allSelectors.push(...selectors);
         perIcon.push(`${selectors.join(",\n")} {\n    -webkit-mask-image: ${encode(art)};\n    mask-image: ${encode(art)};\n}`);
+        const twin = glassChromeOf(glyphs, glyphs.find(g => g.family === "chrome" && g.key === cls));
+        if (!twin) continue;
+        const under = selectors.map(sel => `${GLASS} ${sel}`);
+        glassSelectors.push(...under);
+        glassIcon.push(`${under.join(",\n")} {\n    -webkit-mask-image: ${encode(twin.rows)};\n    mask-image: ${encode(twin.rows)};\n}`);
     }
 
     const base = `${allSelectors.join(",\n")} {
@@ -1045,10 +1132,62 @@ export function chromeCss(glyphs) {
 ${varBlock}${base}
 
 ${perIcon.join("\n\n")}
+${glassIcon.length ? `
+/* STAINED GLASS WEARS THESE ON THE 24 GRID (E48 batch 5, 12.11.2026; Q11, the owner 10.11: Stained Glass wears every
+   drawing on 24, Monokuma Legacy keeps its 12). The same selectors under the theme's body, each masked with its glass
+   row (tests-glyphs.mjs \`glassChromeOf\`: the row carrying the chrome row's key, else the glass row of its name), so the
+   rules above stay Legacy's, byte for byte. The box is the glass set's own (pixel-icons.css's glass box: max(1.15em,
+   22px), the drawing contained and centred), where the 12 drawings fill a 1em box: a 24 drawing at 1em would lose
+   every other row on a 16px button. */
+${glassSelectors.join(",\n")} {
+    width: max(1.15em, 22px);
+    height: max(1.15em, 22px);
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+}
 
+${glassIcon.join("\n\n")}
+` : ""}
 /* == /CHROME PIXEL ICONS == */`;
 }
 
+
+/** Each theme's drawing in danganronpa.css's chrome section (E48 batch 5, 12.11.2026; Q11, the owner 10.11), read off
+ *  the sheet's text (the masks sit on ::before, which a computed style headless does not read): for every chrome row on
+ *  12, each selector it lands on wears that row's 12 drawing as written (Monokuma Legacy), and the same selector under
+ *  Stained Glass's body its glass row's 24 drawing (`glassChromeOf`), decoded pixel for pixel (`rasterOf`, not the
+ *  generator's encoder); and the section less its glass part is, byte for byte, what chromeCss writes from the rows with
+ *  no glass row at all, so batch 5 changed nothing Legacy reads. `read` counts the selectors held. */
+export function chromeThemeProblems(glyphs, css) {
+    const START = "/* ==========================================================================\n   CHROME PIXEL ICONS - GENERATED";
+    const END = "/* == /CHROME PIXEL ICONS == */";
+    const text = lf(css ?? ""), a = text.indexOf(START), b = text.indexOf(END);
+    if (a < 0 || b < a) return { problems: ["danganronpa.css has no CHROME PIXEL ICONS section"], read: 0 };
+    const section = text.slice(a, b + END.length), out = [];
+    const GLASS_PART = "\n/* STAINED GLASS WEARS THESE ON THE 24 GRID";
+    const g0 = section.indexOf(GLASS_PART);
+    const legacyPart = g0 < 0 ? section : section.slice(0, g0) + section.slice(section.indexOf("\n" + END));
+    if (legacyPart !== chromeCss(glyphs.filter(g => g.family !== "glass"))) out.push("the section less its glass part is not what chromeCss writes from the rows without a glass row: Legacy's rules moved");
+    const masks = new Map();
+    for (const m of blankComments(section).matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const mask = /(?<![-\w])mask-image\s*:\s*url\("data:image\/svg\+xml,([^"]*)"\)/.exec(m[2]);
+        if (mask) for (const sel of m[1].split(",")) masks.set(sel.trim().split(/\s+/).join(" "), rasterOf(mask[1]));
+    }
+    const same = (r, row) => r && r.grid === row.grid && r.rows.join("") === row.rows.join("");
+    let read = 0;
+    for (const row of glyphs.filter(g => g.family === "chrome" && g.key && g.grid !== 24)) {
+        const twin = glassChromeOf(glyphs, row);
+        if (!twin) out.push(`${id(row)} has no glass row on 24 to wear under Stained Glass`);
+        for (const sel of chromeSelectorsOf(row.key)) {
+            read++;
+            if (!same(masks.get(sel), row)) out.push(`${sel}: not ${id(row)}'s 12 drawing (Monokuma Legacy)`);
+            if (twin && !same(masks.get(`${GLASS} ${sel}`), twin)) out.push(`${GLASS} ${sel}: not ${id(twin)}'s 24 drawing (Stained Glass)`);
+        }
+    }
+    return { problems: out, read };
+}
 
 /** Monokuma Legacy's icons before E48 G3 (R3348): probe id -> reading, recorded headless on 11.11.2026 at 7b5b4da9 with
  *  G3's probes and HEAD's stylesheets, before pixel-icons.css was regenerated (199 readings: the tiles and Calls on
@@ -1056,7 +1195,11 @@ ${perIcon.join("\n\n")}
  *  E48 G4 (11.11.2026) renamed the 60 token readings to the one prefix and changed no reading: each named a g-prefixed
  *  token (59) or the r-prefixed `trash` and now names `--drpg-pix-<n>` of the legacy row that took that drawing over, pixel for pixel
  *  (tools/glyphs.json's `from` names the old token; `palm` alone was renamed, to `palm-action`, because the px hand the
- *  objection launcher reads keeps `palm`); the 139 `fa:` readings are as recorded. */
+ *  objection launcher reads keeps `palm`); the 139 `fa:` readings are as recorded. E49 A1e (11.11.2026) took out the
+ *  four GM tiles that left the panel for Season setup (gm.jump, gm.gmTeam, gm.rules, gm.mastermind); on 12.11.2026 three
+ *  came back as tiles of Season setup's row, each its reading of before, and the row's Season checklist keeps its Font
+ *  Awesome icon under Legacy (`fa:fa-list-check`; the owner: Legacy keeps an FA icon - the Projects tile beside it
+ *  wears its hand drawing there, not this icon); gm.jump stays out. No other reading changed. */
 export const LEGACY_ICONS = {
     "ACTIONS.search": "--drpg-pix-search",
     "ACTIONS.observe": "--drpg-pix-observe",
@@ -1113,22 +1256,27 @@ export const LEGACY_ICONS = {
     "gm.whoIsAlive": "--drpg-pix-who-is-alive",
     "gm.projects": "--drpg-pix-projects",
     "gm.sound": "fa:fa-volume-high",
-    "gm.rules": "--drpg-pix-new-rule",
     "gm.murder": "--drpg-pix-direct-murder",
     "gm.investigation": "--drpg-pix-investigation",
     "gm.trial": "--drpg-pix-trial",
-    "gm.jump": "--drpg-pix-jump",
-    "gm.gmTeam": "--drpg-pix-gm-team",
     "gm.roomSetup": "--drpg-pix-room-setup",
     "gm.tables": "--drpg-pix-tables",
     "gm.voiceReset": "fa:fa-microphone-lines",
     "gm.seasonSetup": "--drpg-pix-season-setup",
-    "gm.mastermind": "--drpg-pix-mastermind",
-    "gm.seasonReset": "--drpg-pix-season-reset",
+    /* E105 FT batch 2 (11.11.2026): E49 A1d's Settings tile was added to danganronpa.css's hand-masked tiles with the
+       corner gear's drawing (legacy gear, the Look launcher's); one glyph per function, so under Legacy it wears its own
+       markup's Font Awesome sliders (gm-panel.mjs `icon: "fa-sliders"`), as the Sound and Voice reset tiles wear theirs. */
+    "gm.settings": "fa:fa-sliders",
     "gm.failureLog": "--drpg-pix-failure-log",
     "gm.caseWindow": "fa:fa-box-archive",
+    "gm.rules": "--drpg-pix-new-rule",
+    "gm.gmTeam": "--drpg-pix-gm-team",
+    "gm.mastermind": "--drpg-pix-mastermind",
+    "gm.seasonChecklist": "fa:fa-list-check",
     "rule.caution": "fa:fa-hand",
     "rule.project-new": "fa:fa-lightbulb",
+    /* E105 FT batch 2 follow-up (11.11.2026): the Projects tray's Manage projects probe; Legacy keeps its Font Awesome gear. */
+    "rule.projects-manage": "fa:fa-gear",
     "remnant.search": "--drpg-pix-search",
     "remnant.project": "--drpg-pix-project",
     "remnant.sabotage": "--drpg-pix-sabotage",
@@ -1256,5 +1404,7 @@ export const LEGACY_ICONS = {
     "face.fa-microphone-lines": "fa:fa-microphone-lines",
     "face.fa-microphone-slash": "fa:fa-microphone-slash",
     "face.fa-volume-xmark": "fa:fa-volume-xmark",
-    "face.fa-camera": "fa:fa-camera"
+    "face.fa-camera": "fa:fa-camera",
+    /* E105 FT-14 (11.11.2026): FACES's new name, Tamper's Misleading Trail row; Legacy keeps its Font Awesome (option A). */
+    "face.fa-signs-post": "fa:fa-signs-post"
 };

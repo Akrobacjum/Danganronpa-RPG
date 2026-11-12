@@ -70,6 +70,7 @@ export async function showCaseSummary() {
     const { findersByAnyRemnant } = await import("./investigation.mjs");
     const { trialProgress } = await import("./vote.mjs");
     const { getClock } = await import("./clock.mjs");
+    const { chatCard } = await import("./chat-card.mjs");
     const L = k => game.i18n.localize(k);
     const chapter = getClock().chapter;
     const mark = `${chapter}:summary`;
@@ -92,7 +93,8 @@ export async function showCaseSummary() {
     if (caseTickStore.get(mark)?.shown) return null;
     await caseTickStore.patch(mark, { shown: Date.now(), by: game.user.id });
     await ChatMessage.create({
-        content: `<h3>${esc(game.i18n.format("DRPG.CaseSummary.title", { chapter }))}</h3>${html}`,
+        // On the chat kit (chat-card.mjs `chatCard`, E49 B5a's one road for a card): the title in the card's head
+        content: chatCard({ glyph: "scale-balanced", title: game.i18n.format("DRPG.CaseSummary.title", { chapter }), body: html }),
         speaker: { alias: L("DRPG.CaseSummary.speaker") },
         flags: { [MODULE_ID]: { caseSummary: true } }
     });

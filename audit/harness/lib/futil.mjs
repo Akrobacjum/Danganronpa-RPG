@@ -3,7 +3,7 @@
  * the module's state handling depends on merge/expand/diff behaviour.
  */
 
-import { isOperator, kindOf, replacementOf, LEGACY } from "./operators.mjs";
+import { isOperator, kindOf, replacementOf, LEGACY, WIRE, legacyReading } from "./operators.mjs";
 
 /** An object to walk into: not null, not an array, not an operator in either form (lib/operators.mjs). */
 const walkable = v => v !== null && typeof v === "object" && !Array.isArray(v) && !isOperator(v);
@@ -269,6 +269,12 @@ export const EMBEDDED_ARRAYS = {
  * Before this, every write went through `mergeObject(..., { performDeletions: true })`,
  * which deleted on `-=` and stored an operator as the plain object JSON had made of
  * it. For a write with no operator and no legacy key the two give the same source.
+ *
+ * In the "honoured" reading of the old keys (E76 C4; lib/operators.mjs) the first rule
+ * reads instead: `-=key` deletes `key` and `==key` puts a copy of its value in place of
+ * `key`, each still handed to `onLegacyKey`. The cluster turns a write's old keys into
+ * operators before it judges and sends it (`honourLegacy`), so this branch is reached by a
+ * client's local writes (the shim's updateSource and clone) alone.
  */
 export function applyUpdate(target, changes, { onLegacyKey = null } = {}) {
     return applyExpanded(target, expandObject(changes), onLegacyKey, "");
@@ -277,7 +283,15 @@ export function applyUpdate(target, changes, { onLegacyKey = null } = {}) {
 function applyExpanded(target, expanded, onLegacyKey, at) {
     for (const [k, v] of Object.entries(expanded)) {
         const where = at ? `${at}.${k}` : k;
-        if (LEGACY.test(k)) { onLegacyKey?.(where); continue; }
+        if (LEGACY.test(k)) {
+            onLegacyKey?.(where);
+            if (legacyReading() === "honoured") {
+                const name = k.slice(2);
+                if (k.startsWith("-=")) delete target[name];
+                else target[name] = deepClone(v);
+            }
+            continue;
+        }
         const kind = kindOf(v);
         if (kind === "ForcedDeletion") { delete target[k]; continue; }
         if (kind === "ForcedReplacement") { target[k] = deepClone(replacementOf(v)); continue; }
@@ -289,6 +303,32 @@ function applyExpanded(target, expanded, onLegacyKey, at) {
         target[k] = deepClone(v);
     }
     return target;
+}
+
+/**
+ * A write's old keys as the "honoured" reading has a v14 server clean them (E76 C4, 12.11.2026;
+ * lib/operators.mjs): a copy of `changes`, expanded, with each `-=key` turned into a ForcedDeletion
+ * of `key` and each `==key` into a ForcedReplacement of `key` by its value, in the operators' wire
+ * form, so the write is judged, applied and handed to every browser's hook with the operator in
+ * place of the old key. Each is handed to `onLegacyKey(path)` as it is turned. An array is walked
+ * entry by entry (an embedded list's patches). In the "ignored" reading the changes come back as
+ * they are: the old key is then the apply's to skip and say (`applyExpanded`).
+ */
+export function honourLegacy(changes, onLegacyKey = null, at = "") {
+    if (legacyReading() !== "honoured") return changes;
+    if (Array.isArray(changes)) return changes.map((entry, i) => honourLegacy(entry, onLegacyKey, at ? `${at}.${i}` : String(i)));
+    if (!walkable(changes)) return changes;
+    const out = {};
+    for (const [k, v] of Object.entries(expandObject(changes))) {
+        const where = at ? `${at}.${k}` : k;
+        if (LEGACY.test(k)) {
+            onLegacyKey?.(where);
+            out[k.slice(2)] = k.startsWith("-=") ? { [WIRE]: "ForcedDeletion" } : { [WIRE]: "ForcedReplacement", replacement: deepClone(v) };
+            continue;
+        }
+        out[k] = walkable(v) || Array.isArray(v) ? honourLegacy(v, onLegacyKey, where) : v;
+    }
+    return out;
 }
 
 /**

@@ -231,6 +231,21 @@
     }
   },
   "DRPG": {
+    "DhSettings": {
+      "title": "Ustawienia postaci",
+      "details": "Szczegóły",
+      "experiences": "Doświadczenia",
+      "statistics": "Statystyki",
+      "reserves": "Health i Sanity",
+      "maxHealth": "Health (maks.)",
+      "maxSanity": "Sanity (maks.)",
+      "newExperience": "Nowe doświadczenie",
+      "delete": "Usuń",
+      "coreExperience": "To doświadczenie dał Level Up; nie da się go tu usunąć.",
+      "name": "Nazwa",
+      "value": "Wartość",
+      "description": "Opis"
+    },
     "Settings": {
       "forceDiceLook": {
         "name": "Jeden wygląd kości przy stole",
@@ -395,7 +410,13 @@
       "scopeWorld": "Cały stół",
       "glassOnly": "Tylko Stained Glass: wybierz ten motyw, by to zmienić.",
       "legacyOnly": "Tylko Monokuma Legacy: wybierz ten motyw, by to zmienić.",
+      "gameTitle": "Ustawienia gry",
+      "mayNot": "Ustawienia gry otworzy tylko użytkownik, któremu Foundry pozwala zmieniać ustawienia świata.",
+      "gameNote": "To ustawienia całego stołu: zmiana tutaj zmienia grę dla wszystkich.",
+      "liveNote": "Głośność i ustawienia głosu działają od razu; reszta czeka na Zapisz.",
       "sections": {
+        "audio": "Muzyka i głos",
+        "foundry": "Foundry i system",
         "look": "Wygląd",
         "effects": "Efekty i dostępność",
         "sound": "Dźwięk i głos",
@@ -4257,6 +4278,7 @@
       "takenBack": "Cofnięte: akcje, Free Move, Search Tokens i pieczęcie są takie, jak przed początkiem tej pory dnia."
     },
     "Panel": {
+      "settings": "Ustawienia gry",
       "nextStartTrial": "Wszystkie zaplanowane Key Remnants zostały znalezione. Rozpocznij Class Trial z konsoli trialu.",
       "title": "Danganronpa - panel GM-a",
       "launcher": "Otwórz panel GM-a",
@@ -4280,7 +4302,7 @@
       "goStartInvestigationButton": "Rozpocznij Investigation",
       "goAutopsyButton": "Wydaj sekcję zwłok",
       "goBodyButton": "Ogłoś ciało",
-      "goSeasonSetupButton": "Ustaw sezon",
+      "goSeasonChecklistButton": "Lista kontrolna sezonu",
       "nextIncident": "Trwa incydent. Doprowadź go do końca, zanim zrobisz cokolwiek innego.",
       "nextEclipse": "Eclipse trwa. Zamknij go, gdy wszyscy się ustawią.",
       "nextBodyFound": "Znaleziono ciało. Rozpocznij Investigation, gdy sala będzie gotowa.",
@@ -4302,8 +4324,8 @@
         "other": "{n} uczniów ma jeszcze akcje do wydania."
       },
       "nextAllDone": "Wszyscy wydali akcje. Zacznij Eclipse: jego otwarcie odnawia wszystkim akcje, a zamknięcie przesuwa zegar.",
-      "nextSeasonSetup": "Sezon nie jest jeszcze ustawiony. Następne w oknie Ustaw sezon: {step}.",
-      "nextSeasonSetupAside": "Okno Ustaw sezon wciąż czeka na: {step}.",
+      "nextSeasonSetup": "Sezon nie jest jeszcze ustawiony. Następne na Liście kontrolnej sezonu: {step}.",
+      "nextSeasonSetupAside": "Lista kontrolna sezonu wciąż czeka na: {step}.",
       "advance": "Następna pora dnia",
       "advanceTooltip": "Przesuń zegar bez Eclipse: odnawia akcje, Free Moves i Search Tokens. Nocą zaczyna też następny dzień i sesję.",
       "advanceOffEclipse": "Trwa Eclipse: jego koniec przesuwa zegar.",
@@ -4573,7 +4595,7 @@
         "permissions": "uprawnień do plików"
       },
       "failed": "Nie udało się oddać ani przejąć ustawień Foundry. Konsola mówi dlaczego.",
-      "preSeason": "Ustawienia Foundry są oddane: moduł nie trzyma żadnego z nich - automatyk Daggerheart, uprawnień do plików ani pilnowanych ustawień graczy. Żeby znów je trzymał, otwórz „Oddaj ustawienia Foundry” (Ustaw sezon albo ustawienia tego modułu) i naciśnij „Przejmij je znowu”.",
+      "preSeason": "Ustawienia Foundry są oddane: moduł nie trzyma żadnego z nich - automatyk Daggerheart, uprawnień do plików ani pilnowanych ustawień graczy. Żeby znów je trzymał, otwórz „Oddaj ustawienia Foundry” (Ustawienia sezonu albo ustawienia tego modułu) i naciśnij „Przejmij je znowu”.",
       "heldNothing": "Ustawienia Foundry zostały oddane, więc moduł nie trzyma teraz żadnego z nich: automatyki Vulnerable i Defeated z Daggerheart, uprawnienia do plików i pilnowane ustawienia graczy zostają takie, jakie są. Przejmij je znowu, żeby moduł grał tak, jak powinien, albo zostaw je oddane."
     },
     "Enforced": {
@@ -5326,12 +5348,9 @@
     "Season": {
       "missingPool": "jeszcze nie ma puli Despair (ma ją każde pełne konto Gamemastera)",
       "missingMonokumaActor": "żadna postać nie jest oznaczona jako Monokuma (Despair Flow albo menu pod prawym przyciskiem na liście Actors)",
-      "title": "Ustaw sezon",
+      "title": "Ustawienia sezonu",
       "introOutstanding": "Jeszcze {n} do zrobienia. Sezon może ruszyć bez nich; każdy brak ujawni się w chwili, gdy zacznie mieć znaczenie.",
       "introReady": "Każdy wiersz, którego ta lista wymaga, jest zrobiony. Kontrola przed sezonem sprawdza więcej niż ta lista - obrazy pokoi, głos, kto może otworzyć karty - więc uruchom ją przed pierwszą sesją.",
-      "campaignName": "Nazwa kampanii",
-      "campaignPlaceholder": "Hope's Peak: Utopione lato",
-      "chapter": "Rozdział",
       "note": "Każdy wiersz to coś, czego sezon potrzebuje, w kolejności, w jakiej sezon naprawdę się buduje.",
       "resourcesButton": "Nadaj zasoby startowe",
       "cursorButton": "Ukryj kursor GM-ów",
@@ -5508,9 +5527,10 @@
       "firstSessionNote": "Ustawiane raz, przed pierwszą sesją: gdzie odbywa się rozprawa, co moduł trzyma z Foundry i kości.",
       "safeword": "Safeword",
       "safewordNote": "Słowo, które zatrzymuje scenę, wydrukowane na każdym arkuszu postaci. Wybierz coś, czego stół nie pomyli z niczym innym. Zostaw puste, by użyć domyślnego.",
-      "campaignBlock": "Ta kampania",
+      "windows": "Okna sezonu",
+      "checklistTitle": "Lista kontrolna sezonu",
       "startHereTitle": "Od czego zacząć",
-      "startHereText": "Zacznij tutaj: panel GM-a > Ustaw sezon. Jego lista prowadzi przez sezon w kolejności, w jakiej się go buduje, a linia Dalej w panelu GM-a podaje pierwszą rzecz, która została do zrobienia.",
+      "startHereText": "Zacznij tutaj: panel GM-a > Ustawienia sezonu. Jego Lista kontrolna sezonu prowadzi przez sezon w kolejności, w jakiej się go buduje, a linia Dalej w panelu GM-a podaje pierwszą rzecz, która została do zrobienia.",
       "fixedCursor": {
         "one": "Wyłączono udostępnianie kursora dla {n} roli.",
         "few": "Wyłączono udostępnianie kursora dla {n} ról.",
@@ -7490,6 +7510,13 @@
     },
     "CaseMap": {
       "viewSwitch": "Widok śledztwa",
+      "editLabel": "Pola: {name}",
+      "toolsLabel": "Narzędzia mapy",
+      "cameraLabel": "Kamera",
+      "zoomOut": "Oddal",
+      "zoomIn": "Przybliż",
+      "zoomLevel": "Przybliżenie",
+      "zoomFit": "Dopasuj do widoku",
       "viewMap": "Mapa",
       "viewTable": "Tabela",
       "graphLabel": "Mapa sprawy, rozdział {chapter}",
