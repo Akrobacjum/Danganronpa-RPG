@@ -7379,6 +7379,8 @@
         "critical-rule": "krytyk zostaje przy liczbach samego Daggerheart",
         "roll-dialog-context": "to, co wymusza Call, jest wpisywane do okna rzutu dopiero po jego otwarciu, jak dotąd",
         "roll-draw": "rzuty są wykonywane w przeglądarce samego gracza, jak w 1.2.66",
+        "roll-marks-move-context": "znaczniki modułu na rzucie giną: rzut akcji wygląda jak rzut statystyką z karty, a kość Loaded Die nie jest ładowana",
+        "roll-outcome-evaluated": "rzut akcji nie ma wyniku tam, gdzie moduł go czyta, więc akcja się nie odbywa",
         "dice-random-uniform": "nic nie zastępuje generatora losowego Foundry",
         "no-scrolling-text": "napisy nad tokenami unoszą się tak, jak rysuje je Foundry",
         "window-close": "okna zamykają się bez wyjścia i dźwięku z modułu",

@@ -155,7 +155,8 @@ export function seamFor(cls, { rollTrait = CONFIG.Actor?.documentClass?.prototyp
  * and the GM told once per version. Not having one (no Actor class here) is not judged: the build's
  * review decides alone.
  */
-function reviewTraitRoad(rollTrait, MoveContext) {
+/** Exported for patches.mjs `moveContextRow` (DH212 5), which reads the same road the seam does. */
+export function reviewTraitRoad(rollTrait, MoveContext) {
     if (typeof rollTrait !== "function") return { ok: true, why: "" };
     const text = Function.prototype.toString.call(rollTrait);
     if (/\{\s*\[native code\]\s*\}/.test(text)) return { ok: false, why: "the actor's rollTrait cannot be read" };

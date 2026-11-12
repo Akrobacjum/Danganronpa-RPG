@@ -9269,6 +9269,94 @@ const INVARIANTS = [
             typeof D.DRAW_SIGN_MS === "number" && D.DRAW_SIGN_MS > 0]), JSON.stringify([true, true, true]),
             "drawAndPlay does not put the sign up for its wait, startOnMessage does not take it down, or DRAW_SIGN_MS is not a delay");
     }],
+    ["R3991 - the contract register reads Daggerheart 2.12's roll road: a row for the MoveContext the module's roll marks ride, a row for where the roll's outcome is written, and the critical rule's row failed where Daggerheart reads the critical somewhere critical.mjs does not look (DH212 5)", async () => {
+        /*
+         * DH212 5, 12.11.2026 (docs/dev/DH212/STATUS.md rows 1, 3 and 4). On Daggerheart 2.12.8 under 1.2.108 the critical
+         * rule's row read ok (`ours: true`) while its wrapper could never fire: 2.12 writes no `config.roll.isCritical`
+         * (dualityRoll.mjs:237-262 reads `config.evaluated`). And the two roads E76b made the module depend on - the
+         * MoveContext `actor.rollTrait` builds (move-context.mjs:39 keeps the caller's event, which roll-marks.mjs carries
+         * the marks on) and the outcome `buildEvaluate` writes (`config.evaluated`, dhRoll.mjs:98-107, which
+         * `fillRollFacts` writes back where 2.10 put it) - had no row, so the next change to either would be found by a
+         * wrong number, not at load. Read: the three probes on stand-ins of each shape (2.10's, 2.12's, an unknown one),
+         * and on this world's Daggerheart. Red at f61a2450: no row and no probe of the first two.
+         */
+        const P = await import("./patches.mjs");
+        must(typeof P.moveContextRow === "function" && typeof P.rollOutcomeRow === "function" && typeof P.criticalRow === "function",
+            "patches.mjs exports no moveContextRow, rollOutcomeRow or criticalRow");
+        const ids = P.PATCHES.map(row => row.id);
+        equal(JSON.stringify(["roll-marks-move-context", "roll-outcome-evaluated"].map(id => ids.includes(id))), "[true,true]",
+            "the register has no row for the MoveContext road or the roll's outcome");
+        const fn = text => new Function(`return (${text});`)();
+        const road = {
+            old: fn("async function rollTrait(trait, options = {}) { const config = { ...options }; return this.diceRoll(config); }"),
+            kept: fn("async function rollTrait(trait, options = {}) { const config = await MoveContext.build({ ...options }); return config; }"),
+            context: fn("class MoveContext { constructor(data = {}) { this.event ??= data.event; } }"),
+            dropped: fn("class MoveContext { constructor(data = {}) { this.title = data.title; } }")
+        };
+        const state = row => row?.state ?? (row?.present === false ? "failed" : "unknown");
+        const moves = [P.moveContextRow(road.old, null), P.moveContextRow(road.kept, road.context), P.moveContextRow(road.kept, road.dropped)].map(state);
+        const outcome = {
+            old: fn("class R { static async buildEvaluate(roll, config) { await roll.evaluate(); config.roll.total = roll.total; config.roll.isCritical = roll.isCritical; } }"),
+            now: fn("class R { static async buildEvaluate(roll, config) { await roll.evaluate(); config.roll = { ...config.roll }; config.evaluated = roll; } }"),
+            neither: fn("class R { static async buildEvaluate(roll, config) { await roll.evaluate(); config.result = roll; } }")
+        };
+        const outcomes = [P.rollOutcomeRow(outcome.old), P.rollOutcomeRow(outcome.now), P.rollOutcomeRow(outcome.neither)].map(state);
+        const marked = f => Object.assign(f, { [Symbol.for("drpgCriticalRule")]: true });
+        const critical = {
+            old: fn("async function addDualityResourceUpdates(config) { if (config.roll.isCritical) return 1; }"),
+            now: fn("async function addDualityResourceUpdates(config) { if (config.evaluated?.isCritical) return 1; }"),
+            neither: fn("async function addDualityResourceUpdates(config) { if (config.outcome.crit) return 1; }")
+        };
+        const wrap = original => marked(Object.assign(async () => {}, { original }));
+        const criticals = [P.criticalRow(wrap(critical.old)), P.criticalRow(wrap(critical.now)), P.criticalRow(wrap(critical.neither))].map(state);
+        equal(JSON.stringify([moves, outcomes, criticals]), JSON.stringify([["ok", "ok", "failed"], ["ok", "ok", "failed"], ["ok", "ok", "failed"]]),
+            "a probe does not read 2.10's road and 2.12's as ok and an unknown one as failed (MoveContext: 2.10, kept event, dropped; outcome: config.roll, config.evaluated, neither; critical: config.roll, config.evaluated, neither)");
+        const live = ["roll-marks-move-context", "roll-outcome-evaluated", "critical-rule"].map(id => state(P.PATCHES.find(row => row.id === id)?.probe?.()));
+        equal(JSON.stringify(live), JSON.stringify(["ok", "ok", "ok"]), "this world's Daggerheart reads other than ok on the three rows (MoveContext, outcome, critical)");
+        equal(JSON.stringify(["roll-marks-move-context", "roll-outcome-evaluated"].map(id => [Boolean(game.i18n.has?.(`DRPG.Contract.instead.${id}`)),
+            game.i18n.localize(`DRPG.Contract.instead.${id}`) !== `DRPG.Contract.instead.${id}`])), "[[true,true],[true,true]]",
+            "a new row has no sentence of what the table gets instead (DRPG.Contract.instead.<id>)");
+    }],
+    ["R3992 - a GM's Reroll of a drawn roll with no record of what it scored throws the character's roll effects: the ones applicable and not suppressed whose roll conditions pass, read as Daggerheart 2.10 and 2.12 read them (DH212 5)", async () => {
+        /*
+         * DH212 5, 12.11.2026 (docs/dev/DH212/STATUS.md row 8). reroll.mjs `rollAsThrown` read a roll's effects through
+         * `game.system.api.data.actions.actionsTypes.base.getActionRelevantEffects(actor)`, the 2.6.5 signature
+         * (baseAction.mjs:351, `(actor, effectParent)`). 2.10 took `(rollData, actor)` (baseAction.mjs:369, 2.10.11) and
+         * answered [] for the module's one argument; 2.12 has no such static at all (move-context.mjs:198 is a MoveContext's
+         * own method), so `?? []` answered [] there too: no Active Effect's roll bonus was in a Reroll rebuilt off the
+         * character. `rollEffectsOf` reads them as both read them: `allApplicableEffects({ noTransferArmor, noSelfArmor })`,
+         * not suppressed, whose roll-phase conditions pass on the character's roll data. Read on a stand-in character:
+         * four effects - one that counts, one suppressed, one whose condition fails, one with no condition reader - and the
+         * call the reader made. Red at f61a2450: reroll.mjs exports no rollEffectsOf.
+         */
+        const R = await import("./reroll.mjs");
+        must(typeof R.rollEffectsOf === "function", "reroll.mjs exports no rollEffectsOf");
+        const asked = [];
+        const effect = (name, { suppressed = false, passes = true, reader = true } = {}) => ({
+            name, isSuppressed: suppressed,
+            system: reader ? { testConditionals: (data, opts) => { asked.push([name, data?.mark ?? null, opts?.phase ?? null]); return passes; } } : {}
+        });
+        const actor = {
+            getRollData: () => ({ mark: "rollData" }),
+            * allApplicableEffects(opts) {
+                asked.push(["opts", Boolean(opts?.noTransferArmor), Boolean(opts?.noSelfArmor)]);
+                yield effect("counts");
+                yield effect("suppressed", { suppressed: true });
+                yield effect("fails", { passes: false });
+                yield effect("plain", { reader: false });
+            }
+        };
+        const names = (await R.rollEffectsOf(actor)).map(e => e.name);
+        const phase = CONFIG.DH?.EFFECTS?.conditionalPhases?.roll?.id ?? null;
+        equal(JSON.stringify([names, asked]), JSON.stringify([["counts", "plain"],
+            [["opts", true, true], ["counts", "rollData", phase], ["fails", "rollData", phase]]]),
+            "the Reroll's effects are not the applicable, unsuppressed ones whose roll conditions pass (names kept; the calls made)");
+        equal(JSON.stringify(await R.rollEffectsOf({})), "[]", "a character with no effects to read gave other than none");
+        const sources = new Map(await otherSources());
+        const src = stripComments(sources.get("reroll.mjs") ?? "");
+        ok(!/getActionRelevantEffects/.test(src) && /\brollEffectsOf\(actor\)/.test(fnSource(src, "rollAsThrown")),
+            "rollAsThrown still reads Daggerheart's getActionRelevantEffects, or does not read rollEffectsOf");
+    }],
     ["R3152 - Stage 6 rolls Shadow and asks nobody: every clean-up step but Move the Body lists Shadow alone, the ruling answers it with no card and no window on a player's browser and a GM's, Move the Body stays Body, and the GM's draw holds a clean-up to Shadow (E68 C5; DA4)", async () => {
         /*
          * E68 C5, 10.11.2026; DA4 (the planned R-next (c)). The definitions a clean-up is asked under (trait-ruling.mjs

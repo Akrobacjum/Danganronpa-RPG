@@ -106,8 +106,8 @@ async function rerollKeepingDice(original, actor, message, bookmark = null) {
  * the options, and would drop the statistic's value, the experiences' bonuses
  * and the effects'. So the roll is rebuilt here with them put back: the
  * character's data from the actor the Reroll was asked for (`getRollData()`, as
- * actor.mjs `diceRoll` gives it), its effects as `rollTrait` finds them
- * (actor.mjs:576; none where the system has no such call), and the statistic
+ * actor.mjs `diceRoll` gives it), its effects as Daggerheart's roll finds them
+ * (`rollEffectsOf`, DH212 5; none where the system has no such call), and the statistic
  * and the experiences from the GMs' bookmark (action-pipeline.mjs `keepGmBookmark`;
  * the roller's own browser's until E08+E28 C4a) - which is kept only for the roll
  * the bookmark names - or, for a roll the GM drew, from its record (E08+E28 C12b). A roll
@@ -155,13 +155,35 @@ export async function rollAsThrown(original, actor, message, bookmark = null) {
     options.roll = { ...(options.roll ?? {}), trait };
     options.experiences = Array.isArray(kept.experiences) ? [...kept.experiences] : [];
     // The character as the GMs hold it: read once every write heard on it has been judged (fix r2-H3).
-    // Daggerheart's `getActionRelevantEffects` awaits nothing (baseAction.mjs:368-380, 2.10.5), so no
-    // write lands between the wait and the constructor, which reads the data and the effects.
+    // `rollEffectsOf` awaits nothing, so no write lands between the wait and the constructor, which reads the data
+    // and the effects.
     const { judgedFor } = await import("./sheet-audit.mjs");
     await judgedFor(actor?.id);
-    options.effects = await game.system?.api?.data?.actions?.actionsTypes?.base?.getActionRelevantEffects?.(actor) ?? [];
+    options.effects = rollEffectsOf(actor);
     options.data = actor.getRollData();
     return new original.constructor(original._formula ?? original.formula, {}, options);
+}
+
+/*
+ * A ROLL'S EFFECTS, READ AS DAGGERHEART READS THEM (DH212 5, 12.11.2026; docs/dev/DH212/STATUS.md row 8). Until DH212
+ * `rollAsThrown` asked `game.system.api.data.actions.actionsTypes.base.getActionRelevantEffects(actor)`, the 2.6.5
+ * signature (baseAction.mjs:351, `(actor, effectParent)`). 2.10 took `(rollData, actor)` (baseAction.mjs:369, 2.10.11)
+ * and answered [] for the module's one argument; 2.12 has no such static (move-context.mjs:198, 2.12.8, is a
+ * MoveContext's own method), and `?? []` answered [] there: no Active Effect's roll bonus was in a Reroll rebuilt off the
+ * character. Now read as 2.10 and 2.12 both read them: the character's applicable effects without the armour's own
+ * (`allApplicableEffects({ noTransferArmor: true, noSelfArmor: true })`), not suppressed, whose roll-phase conditions
+ * pass on its roll data (`testConditionals`, `CONFIG.DH.EFFECTS.conditionalPhases.roll`); an effect with no condition
+ * reader counts. None where the character has no such call. Awaits nothing. R3992. Not seen at a table.
+ */
+export function rollEffectsOf(actor) {
+    if (typeof actor?.allApplicableEffects !== "function") return [];
+    const data = typeof actor.getRollData === "function" ? actor.getRollData() : {};
+    const phase = CONFIG.DH?.EFFECTS?.conditionalPhases?.roll?.id;
+    return [...actor.allApplicableEffects({ noTransferArmor: true, noSelfArmor: true })].filter(effect => {
+        if (!effect || effect.isSuppressed) return false;
+        const test = effect.system?.testConditionals;
+        return typeof test !== "function" || test.call(effect.system, data, { phase }) !== false;
+    });
 }
 
 /**
