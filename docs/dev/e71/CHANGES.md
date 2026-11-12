@@ -986,3 +986,18 @@ whose meaning would change was left and, if it seemed wrong, listed in STATUS.md
 | player-brochure.pl.md | `line 39 (## Hope Calle w skrócie)` | \| **Contribution** \| 2 \| \| | \| **Contribution** \| 2 \| +1 postępu projektu w twoim pokoju, bez rzutu. \| | S12-73 (E25's issue list): the brochure's empty "In short" cells, filled from the Call's effect in config.mjs HOPE_CALLS (experience, ultimate, contribution with progress 1, reroll). |
 | player-brochure.en.md | `line 41 (## Hope Calls at a glance)` | \| **Reroll** \| 3 \| \| | \| **Reroll** \| 3 \| Your last roll again, its action replayed. \| | S12-73 (E25's issue list): the brochure's empty "In short" cells, filled from the Call's effect in config.mjs HOPE_CALLS (experience, ultimate, contribution with progress 1, reroll). |
 | player-brochure.pl.md | `line 41 (## Hope Calle w skrócie)` | \| **Reroll** \| 3 \| \| | \| **Reroll** \| 3 \| Twój ostatni rzut jeszcze raz, akcja rozgrywa się od nowa. \| | S12-73 (E25's issue list): the brochure's empty "In short" cells, filled from the Call's effect in config.mjs HOPE_CALLS (experience, ultimate, contribution with progress 1, reroll). |
+
+## M7 reserve (3)
+
+| File | Key / section | Before | After | Why |
+| --- | --- | --- | --- | --- |
+| player-handbook.en.md | `line 467 (### Categories and what you can carry)` | Sanity Relief clears Sanity. | Sanity Relief restores Sanity. | M7 and D5 (S13-40): a resource is said as its reserve - Sanity is restored, never "cleared". |
+| player-handbook.pl.md | `line 467 (### Kategorie i ile nosisz)` | uspokajające oczyszczają Sanity. | uspokajające przywracają Sanity. | M7 and D5 (S13-40): a resource is said as its reserve - Sanity is restored, never "cleared". |
+| en.json | `DRPG.Action.goalStressHint` | Small comforts. Clears Sanity. | Small comforts that restore Sanity. | M7 and D5 (S13-40): a resource is said as its reserve - Sanity is restored, never "cleared". The Polish is the owner's pair N48 ("Drobne pocieszenia przywracają Sanity."). |
+
+## fact fixes (2)
+
+| File | Key / section | Before | After | Why |
+| --- | --- | --- | --- | --- |
+| en.json | `DRPG.Panel.gmOnly` | Only a GM can open the panel. | Only a GM can do this. | S06-51 (E25's issue list), M2: the key refuses 47 different GM-only steps (chapter.mjs, character.mjs and more), not only opening the panel, so it says the general fact. |
+| pl.json | `DRPG.Panel.gmOnly` | Tylko GM może otworzyć panel. | Tylko GM może to zrobić. | S06-51 (E25's issue list), M2: the key refuses 47 different GM-only steps (chapter.mjs, character.mjs and more), not only opening the panel, so it says the general fact. |

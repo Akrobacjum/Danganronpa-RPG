@@ -34,6 +34,8 @@ Counts are changes, one per plural form; a key changed in two areas counts in bo
 | spelling (handbooks) | 0 | 0 | 23 lines (English handbooks, unfrozen sections) | EN1/DB9, D33e (glossary scope handbooks), "Room setup" (D31); code spans kept; 31 lines in frozen sections left |
 | glossary (handbooks) | 0 | 0 | 9 lines (unfrozen sections, EN and PL) | EN7/DB17: "Search Token" capitalized; 13 lines in frozen sections left |
 | brochure | 0 | 0 | 8 cells and 2 lines (EN and PL) | S12-73: the four empty "In short" cells of the Hope Calls table, from config.mjs HOPE_CALLS; T29 on the safeword's history |
+| M7 reserve | 1 | 0 | 2 (player handbook's Usables row, EN and PL) | M7/D5 (S13-40): Sanity is restored, not "cleared"; the Polish lang key already had pair N48 |
+| fact fixes | 1 | 1 | 0 | S06-51: `DRPG.Panel.gmOnly` refuses 47 GM-only steps, not only opening the panel |
 | handbooks: GM-a | 0 | 0 | 67 (Polish handbooks, unfrozen sections) | PL-i/D33c (glossary `gm-a`, scope handbooks) |
 | Polish grammar | 2 | 23 | 10 (Polish handbooks, unfrozen sections: "Class Trialu" -> "Class Trial", three neuter Eclipse/Overflow) | no bracketed gender endings ("zgłosił(a)"); PL-a/DB4 (Class Trial indeclinable); PL-b/DB28 (Eclipse neuter); X13, PL7, P2 on single values (`Move.dead`, `Vote.reminded.few`, `Vote.opened`) |
 
@@ -81,6 +83,9 @@ edited unless the row says so.
 | docs/handbooks/gm-handbook.en.md and .pl.md, sections 12, 13 and 19 (lines 722, 739, 1104), and section 6.3's line 372 | source-file lists | Several GM handbook sections open with the files and config tables behind them (`scripts/eclipse.mjs`, `ECLIPSE_MOVES` ...). T29 would move them to a part marked for a GM who debugs (M10's appendix). | A structural move of the handbook: E57's, which owns the handbooks' form. |
 | lang/pl.json (frozen keys) | `DRPG.Monocub.meddledOn` (N14), `Cleanup.moveIntro` (N17), `Observe.critPrompt` (N47), `Overflow.rulesChanged` (N52) | Four of the owner's approved naturalness pairs (docs/text-style.md section 12) wait in frozen keys; T27 lists them. | For the owning lines, or this line after their merge. |
 | docs/handbooks/gm-handbook.pl.md:956 (section 15, frozen) | "przeglądarki MG" | "MG" for GM (PL-i, glossary gm-a). | Frozen. |
+| lang/en.json:2954 and its pl twin | `DRPG.Rest.noRooms` | S02-37 (E25's list): "marked for a {kind}" reads wrong when the code passes an empty kind. | Whether `{kind}` can be empty is the code's (rest.mjs); not a text-only fix. |
+| lang/en.json:3222 and its pl twin | `DRPG.Eclipse.noMovesLeft` | S07-39 (E25's list): "Your token has been put back." - movement.mjs:1149 and :1674 return it as a refusal before a move, where nothing was put back. | Needs the code read per caller (eclipse.mjs:1022 is a third); E25's C4. |
+| lang/en.json:4771 and its pl twin | `DRPG.Note.intro` | S01-25 (E25's list): "the first four questions" - the count depends on the template. | Needs the template's real count; E25's C4. |
 | scripts/config.mjs and `DRPG.Config.*` in pl.json | config prose | Not edited in this pass at all (see FROZEN.md); the pilot's config afters and pair N25 (`ACTIONS.palm.description`) wait there. | Four open branches change config.mjs by line. |
 
 ## Test runs
@@ -106,6 +111,7 @@ edited unless the row says so.
 | 12.11, run s | 6c6745d2 and Search Token in the handbooks | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run t | d5c17f9d and the player handbook's version notes | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run u | 5c5cdc23 and the brochure | 1230 passed, 0 failed, 16 skipped, 0 red |
+| 12.11, run v | d5e4bfc0 and the M7 and gmOnly edits | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run f | 0a5ea4d3 and the GM-side T29 cuts (the bridge's refusals, the trial hall, the vote's privacy note) | 1230 passed, 0 failed, 16 skipped, 0 red |
 
 ## Tests whose expected wording changed

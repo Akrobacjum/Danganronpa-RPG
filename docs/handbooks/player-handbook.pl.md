@@ -464,7 +464,7 @@ Despair zdobyty ponad pełną pulę nie znika - zbiera się w jednym wspólnym l
 
 | Kategoria | Limit | Uwagi |
 |---|---|---|
-| **Użytkowe** | 3 | Leczące przywracają Health, uspokajające oczyszczają Sanity. Używasz z wiersza w ekwipunku. |
+| **Użytkowe** | 3 | Leczące przywracają Health, uspokajające przywracają Sanity. Używasz z wiersza w ekwipunku. |
 | **Sprzęt**: narzędzia zbrodni, narzędzia do sprzątania, narzędzia | 2 wspólne miejsca | Tylko **jedno** może być schowane - noszenie dwóch znaczy, że jedno jest w ręku. |
 | **Truth Bullets** | brak | Dowody. To, co wiesz, nie rzecz w szufladzie. |
 | **Klucze do pokoi** | brak | Otwiera jedną sypialnię. |

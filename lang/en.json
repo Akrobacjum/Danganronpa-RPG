@@ -911,7 +911,7 @@
       "goalHealing": "Something to patch me up",
       "goalHealingHint": "Food and medicine. Restores Health.",
       "goalStress": "Something to settle my nerves",
-      "goalStressHint": "Small comforts. Clears Sanity.",
+      "goalStressHint": "Small comforts that restore Sanity.",
       "goalCrimeHint": "A potential murder tool. Leaves a Prep Remnant.",
       "goalCleaningHint": "A cleaning tool. Leaves a Prep Remnant.",
       "substitute": "Not what you were looking for - it is what this room had.",
@@ -3937,7 +3937,7 @@
       "nextStartTrial": "Every planned Key Remnant has been found. Start the Class Trial from the trial console.",
       "title": "Danganronpa - GM Panel",
       "launcher": "Open the GM panel",
-      "gmOnly": "Only a GM can open the panel.",
+      "gmOnly": "Only a GM can do this.",
       "noSceneNamed": "game.drpg.{fn} was given no scene and found none for it, so it did nothing: hand it the scene.",
       "noActorNamed": "game.drpg.{fn} was given \"{value}\", which is no actor's id or name, so it had no actor to act on: check the spelling.",
       "actorNameShared": {

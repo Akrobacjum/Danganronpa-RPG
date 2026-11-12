@@ -464,7 +464,7 @@ None of these ever takes you below one action or one search token (a room the GM
 
 | Category | Limit | Notes |
 |---|---|---|
-| **Usables** | 3 | Healing restores Health, Sanity Relief clears Sanity. Use from the inventory row. |
+| **Usables** | 3 | Healing restores Health, Sanity Relief restores Sanity. Use from the inventory row. |
 | **Gear**: Murder Weapons, Cleaning Tools, Tools | 2 slots shared | Only **one** may be stowed - carrying two means one is in your hand. |
 | **Truth Bullets** | none | Evidence. What you know, not a thing in a drawer. |
 | **Room Keys** | none | Opens one bedroom. |
