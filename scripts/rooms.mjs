@@ -109,7 +109,19 @@ export function namedRegions(scene, name = null) {
  */
 export function unmarkedRegions(scene) {
     const players = playerRegionIds();
-    return namedRegions(scene).filter(r => !hasBehaviours(r) && !players.has(r.id) && !roomDecided(r));
+    return namedRegions(scene).filter(r => !hasBehaviours(r) && !players.has(r.id) && !roomDecided(r) && !isZoneRegion(r));
+}
+
+/**
+ * Whether `region` is one of the linked hall's two zones (E73 C1, 12.11.2026; `sceneRoles().zones`, zone-geometry.mjs):
+ * the GM decided it, as a zone - so Season setup's undecided regions do not name it. Never a room either way: the hall
+ * holds none (`roomPieces`). Handed `roles`, it reads nothing else.
+ */
+export function isZoneRegion(region, roles = sceneRoles()) {
+    const zones = roles?.zones;
+    if (!region?.id || !zones || typeof zones !== "object") return false;
+    if (region.parent?.id && region.parent.id !== roleId(roles, "trial")) return false;
+    return region.id === zones.a || region.id === zones.b;
 }
 
 /*
@@ -129,7 +141,7 @@ export function unmarkedRegions(scene) {
  * readers that walk every scene's tokens without asking about rooms first (movement.mjs
  * `placesOf`, voice.mjs `sceneRoomWarnings`) ask `isPlaceScene` and `isTrialScene`, and so does
  * the arrival judge (movement.mjs `arrivalVerdict`), whose last room may predate the link. Regions the
- * hall holds for later modes (two side zones, amend 28.09) are read by nothing in this version.
+ * hall holds for the trial's zone modes (two side zones, amend 28.09) are read by zone-geometry.mjs alone (E73 C1).
  *
  * THE SCHOOL WINS. `homeScene()` answers the linked school first, whatever is active or on
  * screen, and E12's guess only when no school is linked or its scene is gone.

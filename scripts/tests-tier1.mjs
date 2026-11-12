@@ -8359,6 +8359,86 @@ const INVARIANTS = [
         }), JSON.stringify({ button: true, action: true, player: [null, null, null], refused: null }),
         "{the console's button; its action; a player's open, tick and start; a start of what is no mode's}");
     }],
+    ["R3900 - the hall's zones as shapes (E73 C1; TR20 = 1, Q-E73-4): zone-geometry.mjs `zoneAt` names the zone a point is in - a region's `testPoint` with the elevation first, its polygon tree or box only where it cannot be asked, a hole asked answering no, a point both hold on the line; `zoneCoverage` finds a gap and an overlap by the grid's squares and says a gridless hall past its budget was not checked; `zoneWarnings` names none picked, one, the same region twice, a region gone, an overlap and a gap, and nothing for two zones that tile the hall", async () => {
+        /*
+         * E73 C1, 12.11.2026. Planted regions and halls, no world. Red at 4077664: no zone-geometry.mjs.
+         */
+        const G = await import("./zone-geometry.mjs").catch(() => null);
+        must(G && typeof G.zoneAt === "function" && typeof G.zoneCoverage === "function", "there is no zone-geometry.mjs - the hall has no zones");
+        // A rectangle region asked by testPoint; a hole cut out of it; one with no testPoint, asked by its box.
+        const rect = (id, x, y, w, h, hole = null) => ({ id, name: id, testPoint: ({ x: px, y: py, elevation }) => elevation === 0
+            && px >= x && px <= x + w && py >= y && py <= y + h && !(hole && px >= hole.x && px <= hole.x + hole.w && py >= hole.y && py <= hole.y + hole.h) });
+        const boxOnly = (id, x, y, w, h) => ({ id, name: id, shapes: [{ type: "rectangle", x, y, width: w, height: h }] });
+        const A = rect("A", 0, 0, 500, 1000, { x: 100, y: 100, w: 100, h: 100 });
+        const B = boxOnly("B", 500, 0, 500, 1000);
+        const hall = (regions, grid = { size: 100, type: 1 }) => ({ id: "H", grid, dimensions: { sceneRect: { x: 0, y: 0, width: 1000, height: 1000 } },
+            regions: new Map(regions.map(r => [r.id, r])) });
+        const at = [G.zoneAt({ a: A, b: B }, 50, 50, 0), G.zoneAt({ a: A, b: B }, 150, 150, 0), G.zoneAt({ a: A, b: B }, 700, 50, 0),
+            G.zoneAt({ a: A, b: B }, 500, 50, 0), G.zoneAt({ a: A, b: B }, 50, 50, 5), G.zoneAt({ a: A, b: B }, 1200, 50, 0)];
+        const tiled = hall([rect("A", 0, 0, 500, 1000), rect("B", 500, 0, 500, 1000)]);
+        const gappy = hall([rect("A", 0, 0, 400, 1000), rect("B", 600, 0, 400, 1000)]);
+        const overlapping = hall([rect("A", 0, 0, 700, 1000), rect("B", 300, 0, 700, 1000)]);
+        const cover = scene => { const c = G.zoneCoverage(scene, { a: scene.regions.get("A"), b: scene.regions.get("B") }); return c && [c.checked, c.gap, c.overlap]; };
+        // A gridless hall whose clock runs a second a sample: past 200 ms it stops and says so.
+        let tick = 0;
+        const gridless = hall([rect("A", 0, 0, 500, 1000), rect("B", 500, 0, 500, 1000)], { size: 100, type: 0 });
+        const slow = G.zoneCoverage(gridless, { a: gridless.regions.get("A"), b: gridless.regions.get("B") }, { now: () => (tick += 1000) });
+        const roles = zones => ({ trial: "H", zones });
+        const warn = (scene, zones) => G.zoneWarnings(scene, roles(zones));
+        equal(stableJson({
+            at, cover: [cover(tiled), cover(gappy), cover(overlapping)], slow: slow && [slow.checked],
+            warnings: [warn(tiled, {}), warn(tiled, { a: "A" }), warn(tiled, { a: "A", b: "A" }), warn(tiled, { a: "A", b: "GONE" }),
+                warn(tiled, { a: "A", b: "B" }), warn(gappy, { a: "A", b: "B" }), warn(overlapping, { a: "A", b: "B" }), warn(null, { a: "A", b: "B" })]
+        }), stableJson({
+            at: ["a", null, "b", "line", null, null], cover: [[true, false, false], [true, true, false], [true, false, true]], slow: [false],
+            warnings: [["zonesNone"], ["zoneMissing"], ["zonesSame"], ["zoneMissing"], [], ["zonesGap"], ["zonesOverlap"], []]
+        }), "{at: [in A, in A's hole, in B by its box, on the line both hold, A above its floor, outside both]; cover: [checked, gap, overlap] for two that tile, a gap, an overlap; slow: a gridless hall past its budget checked; warnings: none, one, the same twice, one gone, right, a gap, an overlap, no hall}");
+    }],
+    ["R3901 - Zone A and Zone B in Room Setup's Scenes tab (E73 C1; TR20 = 1, DX5 = 1): trial-scene.mjs `scenesTabRows` draws two zone selects after the school and the hall, listing the hall's regions that are not rooms, the stored zones selected; `readScenesTab` reads them with what each drew; `scenesTabWrites` writes `zones` merged into the stored roles when a select changed or the hall did, and nothing when neither moved; `sceneReport` says each zone warning in both languages", async () => {
+        /*
+         * E73 C1, 12.11.2026. A stand-in hall of three regions (one a room) handed to `scenesZoneRows`; the writes asked
+         * of plain objects. Red at 4077664: no scenesZoneRows, `readScenesTab` read no zones.
+         */
+        const T = await import("./trial-scene.mjs");
+        must(typeof T.scenesZoneRows === "function", "trial-scene.mjs has no scenesZoneRows - the Scenes tab has no zones");
+        const region = (id, name, room = false) => ({ id, name, getFlag: (m, k) => (k === "room" ? room : undefined) });
+        const hall = { id: "R3901H", regions: [region("rB", "Right stand"), region("rA", "Left stand"), region("rR", "Witness box", true)] };
+        const rows = T.scenesZoneRows({ trial: "R3901H", zones: { a: "rA", b: "rB" } }, hall);
+        const root = document.createElement("div");
+        root.innerHTML = `<form><select name="scenes:school" data-drawn=""></select><select name="scenes:trial" data-drawn="R3901H"><option value="R3901H" selected>H</option></select>${rows.map(r => r.field).join("")}</form>`;
+        const options = name => [...root.querySelectorAll(`[name="scenes:${name}"] option`)].map(o => [o.value, o.selected]);
+        const drawn = { options: options("zoneA"), labels: rows.map(r => r.label), selected: [root.querySelector('[name="scenes:zoneA"]').value, root.querySelector('[name="scenes:zoneB"]').value] };
+        root.querySelector('[name="scenes:zoneB"]').value = "";
+        const read = T.readScenesTab(root);
+        const stored = { school: "S", trial: "R3901H", zones: { a: "rA", b: "rB" }, later: 1 };
+        const writes = [T.scenesTabWrites(read, stored).roles,
+            T.scenesTabWrites({ ...read, zones: { a: "rA", b: "rB", drawn: { a: "rA", b: "rB" } } }, stored).roles,
+            T.scenesTabWrites({ ...read, trial: "OTHER", zones: { a: "", b: "", drawn: { a: "rA", b: "rB" } } }, stored).roles];
+        const report = T.sceneReport({ hall: { id: "R3901H" }, zones: ["zonesNone", "zonesGap"] }).map(r => r.key);
+        const lang = async l => fetch(`/modules/${MODULE_ID}/lang/${l}.json`).then(r => r.json());
+        const [en, pl] = [await lang("en"), await lang("pl")];
+        const keys = ["zonesNone", "zoneMissing", "zonesSame", "zonesOverlap", "zonesGap", "zonesUnchecked"];
+        const said = obj => keys.filter(k => typeof obj?.DRPG?.TrialScene?.zones?.[k] === "string" && obj.DRPG.TrialScene.zones[k]).length;
+        equal(stableJson({ drawn, read: read.zones, writes, report, said: [said(en), said(pl)], names: [en.DRPG.TrialScene.zoneA, pl.DRPG.TrialScene.zoneA, en.DRPG.TrialScene.zoneB, pl.DRPG.TrialScene.zoneB] }), stableJson({
+            drawn: { options: [["", false], ["rA", true], ["rB", false]], labels: [game.i18n.localize("DRPG.TrialScene.zoneA"), game.i18n.localize("DRPG.TrialScene.zoneB")], selected: ["rA", "rB"] },
+            read: { a: "rA", b: "", drawn: { a: "rA", b: "rB" } },
+            writes: [{ school: "S", trial: "R3901H", zones: { a: "rA", b: null }, later: 1 }, null, { school: "S", trial: "OTHER", zones: { a: null, b: null }, later: 1 }],
+            report: ["noSchoolLinked", "zonesNone", "zonesGap"], said: [6, 6], names: ["Zone A", "Strefa A", "Zone B", "Strefa B"]
+        }), "{drawn: [the regions by name, not the room, A selected], the labels, both selected; read: B cleared; writes: [B cleared merged, nothing moved, a new hall's zones none]; report: the keys; said: six warnings in en, pl; names: glossary's}");
+    }],
+    ["R3902 - a zone is no room and no undecided region (E73 C1; DZ7 'zones are ignored outside the modes'): rooms.mjs `isZoneRegion` names the linked hall's two zones and no region of another scene; `unmarkedRegions` leaves them out, so Season setup's undecided regions never ask about a zone; the hall still holds no room piece (`roomPieces`)", async () => {
+        /* E73 C1, 12.11.2026. Plain objects; the stored roles handed in. Red at 4077664: no isZoneRegion. */
+        const R = await import("./rooms.mjs");
+        must(typeof R.isZoneRegion === "function", "rooms.mjs has no isZoneRegion - a zone is asked about as an undecided region");
+        const roles = { trial: "H", zones: { a: "zA", b: "zB" } };
+        const region = (id, parent) => ({ id, parent: { id: parent } });
+        equal(JSON.stringify([R.isZoneRegion(region("zA", "H"), roles), R.isZoneRegion(region("zB", "H"), roles), R.isZoneRegion(region("zA", "OTHER"), roles),
+            R.isZoneRegion(region("x", "H"), roles), R.isZoneRegion(region("zA", "H"), { trial: "H" })]), JSON.stringify([true, true, false, false, false]),
+            "[Zone A, Zone B, a region of that id on another scene, another region of the hall, no zones stored]");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/rooms.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        ok(fnSource(src, "unmarkedRegions").includes("isZoneRegion("), "unmarkedRegions does not leave the zones out");
+        ok(/if \(isTrialScene\(scene\)\) return \[\];/.test(fnSource(src, "roomPieces")), "roomPieces no longer answers none for the hall");
+    }],
     ["R3661 - the case's ticks at a trial are a GM store no player holds (E99 C3; Q-E99-8): gm-stores.mjs `caseTickStore` is the ledger `caseTicks` under `gmCaseTicks`, a client setting, not in the backup, synced, cut with the trial's group; on a player's engine its write is refused and nothing stored; case-schema.mjs `setCaseTick` asks for a GM", async () => {
         /*
          * E99 C3, 12.11.2026; as R3374 reads the schema's store. Red at 1e1c61c: no caseTickStore.
@@ -44316,7 +44396,7 @@ const INVARIANTS = [
         "{heading: h3s on the Actions panel; first: the budget its first row; named: its aria-label; rulesTitle: the Rules panel's h3; tab: the tab's word; pad: the Actions and Rules panels' padding} - the panels must not repeat their tab and must sit alike");
         ok(L("DRPG.Rules.sheetTitle") !== L("DRPG.Rules.tab"), "the Rules panel's title is still the tab's word");
     }],
-    ["R2018 - Room setup's Scenes tab on the kit (E46-C2b; E46-08, E47's 05.10 point 5): trial-scene.mjs `scenesTabHtml` is a kit `formGrid` (the school and the hall selects, each its label's `for`), the hall's name, picture and words a `formGrid` of their own, the warnings a `box(\"warning\")`, the prepare ticks kit switches, `SCENES_ZONE_SLOT` a row of `scenesTabRows` that draws nothing (where E73 puts Zone A and Zone B), the hall's cast pick (`castPickerHtml`) a kit `dataTable` with a switch an actor; `readScenesTab`'s answer for a seeded form the one it gave before", async () => {
+    ["R2018 - Room setup's Scenes tab on the kit (E46-C2b; E46-08, E47's 05.10 point 5): trial-scene.mjs `scenesTabHtml` is a kit `formGrid` (the school and the hall selects, each its label's `for`), the hall's name, picture and words a `formGrid` of their own, the warnings a `box(\"warning\")`, the prepare ticks kit switches, the zones' two selects after the hall's (E73 C1 filled E46's reserved row), the hall's cast pick (`castPickerHtml`) a kit `dataTable` with a switch an actor; `readScenesTab`'s answer for a seeded form the one it gave before", async () => {
         /*
          * E46-C2b. Red first on C2a's tree (f90e89a7): labels around the selects, a list of checkboxes, `p.drpg-warning`, no
          * `SCENES_ZONE_SLOT` and no `scenesTabRows`; `readScenesTab`'s part green there (the answer written below is the one
@@ -44335,10 +44415,13 @@ const INVARIANTS = [
         };
         const switchOf = name => Boolean(root.querySelector(`label.drpg-toggle > input[type="checkbox"][role="switch"][name="${name}"]`));
         const rows = typeof T.scenesTabRows === "function" ? T.scenesTabRows() : [];
-        const drawnRows = rows.filter(r => r !== T.SCENES_ZONE_SLOT);
+        /* E73 C1 (12.11.2026) filled the reserved row: two zone selects where SCENES_ZONE_SLOT stood, a list of two rows
+           spliced in after the school and the hall, each labelled in the grid. */
+        const zoneRows = rows[2];
         const cells = grid ? grid.children.length : -1;
-        const slot = { exported: T.SCENES_ZONE_SLOT !== undefined, inRows: rows.includes(T.SCENES_ZONE_SLOT), empty: Array.isArray(T.SCENES_ZONE_SLOT) && T.SCENES_ZONE_SLOT.length === 0 && Object.isFrozen(T.SCENES_ZONE_SLOT),
-            draws: cells === drawnRows.reduce((n, r) => n + (r.full !== undefined ? 1 : 2), 0), afterHall: rows.indexOf(T.SCENES_ZONE_SLOT) === 2 };
+        const slot = { exported: typeof T.scenesZoneRows === "function", inRows: Array.isArray(zoneRows) && zoneRows.length === 2,
+            labelled: [labelled("scenes:zoneA"), labelled("scenes:zoneB")],
+            draws: cells === rows.flatMap(r => (Array.isArray(r) ? r : [r])).reduce((n, r) => n + (r.full !== undefined ? 1 : 2), 0), afterHall: true };
         // The warnings: both selects on no scene (the school's warning, whatever this world links), redrawn by the tab's
         // own wiring, in one warning box.
         for (const role of ["school", "trial"]) root.querySelector(`[name="scenes:${role}"]`).value = "";
@@ -44372,12 +44455,13 @@ const INVARIANTS = [
             switches: [switchOf("scenes:prepare"), switchOf("scenes:preparePlaylist")], slot, warn, cast, read
         }), stableJson({
             grid: [true, true, true, [true, true, true]], switches: [true, true],
-            slot: { exported: true, inRows: true, empty: true, draws: true, afterHall: true }, warn: [true, 0], cast: [true, true, true, 0],
+            slot: { exported: true, inRows: true, labelled: [true, true], draws: true, afterHall: true }, warn: [true, 0], cast: [true, true, true, 0],
             read: { school: first?.id ?? "", trial: "", drawn,
                 cast: { sceneId: "R2018HALL", changes: actors[0] ? { [actors[0].id]: !was } : {} },
+                zones: { a: "", b: "", drawn: { a: "", b: "" } },
                 hallRoom: { name: "R2018 Gallery", picture: "r2018/hall.webp", words: "R2018 words" },
                 prepare: { playlist: true, voice: false } }
-        }), "{grid: [the tab a formGrid, the school's and the hall's selects labelled in it, the hall's three fields labelled]; switches: prepare and the playlist; slot: SCENES_ZONE_SLOT [exported, in the rows, an empty frozen list, the grid drawing nothing for it, after the two selects]; warn: [the report in a warning box, old warning lines]; cast: [a kit table, a row an actor, a switch a row, list items left]; read: readScenesTab's answer}");
+        }), "{grid: [the tab a formGrid, the school's and the hall's selects labelled in it, the hall's three fields labelled]; switches: prepare and the playlist; slot: the zones' rows (E73 C1) [scenesZoneRows exported, two rows third in the list, each select labelled, the grid drawing every row]; warn: [the report in a warning box, old warning lines]; cast: [a kit table, a row an actor, a switch a row, list items left]; read: readScenesTab's answer}");
     }],
 
     ["R2030 - Despair Flow's three tables on the kit (E46-C5a; E46-15, card M3): Pools, Monokumas and Students each one `dataTable` in its tab, today's columns in today's order, one row per account, character and student, the fields' names unchanged; two Monokumas ticked onto one pool are said in a `box(\"warning\")` above the Monokumas' table", async () => {

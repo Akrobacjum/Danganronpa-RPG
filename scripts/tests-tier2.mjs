@@ -27297,6 +27297,60 @@ const SCENARIOS = [
         equal(JSON.stringify(seen), JSON.stringify([false, true, false, true]), "[ticked before, after a click, after a second click, the ticks unchanged by a presentation's read]");
     }],
 
+    ["E73 C1: Zone A and Zone B picked in Room Setup's Scenes tab are stored in sceneRoles, read back after a reload, and the tab warns of a gap", async () => {
+        /*
+         * E73 C1, 12.11.2026; plan E73 C1's red ("saved and read after F5; warnings for none, duplicate, gap, overlap").
+         * A hall of the suite's own with three regions - two zones that leave a strip uncovered, and a room - is linked
+         * (the setting written here and put back). The Scenes tab is drawn in a form, its zone selects set, read and
+         * applied as Room Setup applies it (`applyScenesTab`); the roles are then read as a reload reads them
+         * (`forgetSceneRoles`, then `sceneRoles`), and the tab's report is drawn again with the zones stored. Red at
+         * 4077664: the tab had no zone selects and the roles kept no zones.
+         */
+        const R = await import("./rooms.mjs");
+        const T = await import("./trial-scene.mjs");
+        must(typeof T.scenesZoneRows === "function", "trial-scene.mjs has no scenesZoneRows - the Scenes tab has no zones");
+        const KEY = "sceneRoles", linkable = game.settings.settings.has(`${MODULE_ID}.${KEY}`);
+        must(linkable, "the scene roles are not registered - nothing could be stored");
+        const rolesBefore = game.settings.get(MODULE_ID, KEY) ?? {};
+        const rect = (name, x, w, flags = {}) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: w, height: 1000 }], flags, behaviors: [] });
+        let hall = null, read = null;
+        try {
+            hall = await Scene.create({ name: "SUITE E73 C1 the trial hall", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            const [a, b] = await hall.createEmbeddedDocuments("Region", [rect("SUITE left", 0, 800), rect("SUITE right", 1200, 800),
+                rect("SUITE stand", 900, 100, { [MODULE_ID]: { [R.ROOM_FLAG]: true } })]);
+            await game.settings.set(MODULE_ID, KEY, { ...rolesBefore, trial: hall.id });
+            R.forgetSceneRoles();
+            await settle();
+            const root = document.createElement("div");
+            root.innerHTML = `<form>${T.scenesTabHtml()}</form>`;
+            T.wireScenesTab(root, () => {});
+            const listed = [...root.querySelectorAll('[name="scenes:zoneA"] option')].map(o => o.textContent.trim());
+            for (const [name, id] of [["zoneA", a.id], ["zoneB", b.id]]) {
+                const select = root.querySelector(`[name="scenes:${name}"]`);
+                select.value = id;
+                select.dispatchEvent(new Event("change"));
+            }
+            const live = [...root.querySelectorAll("[data-drpg-scene-warning]")].map(p => p.dataset.drpgSceneWarning).filter(k => k.startsWith("zone"));
+            const done = await T.applyScenesTab(T.readScenesTab(root));
+            R.forgetSceneRoles();
+            const back = R.sceneRoles().zones ?? null;
+            const again = document.createElement("div");
+            again.innerHTML = `<form>${T.scenesTabHtml()}</form>`;
+            read = { listed, live, roles: done?.roles ?? null, back, stored: game.settings.get(MODULE_ID, KEY)?.trial === hall.id,
+                selected: [again.querySelector('[name="scenes:zoneA"]')?.value, again.querySelector('[name="scenes:zoneB"]')?.value],
+                warned: [...again.querySelectorAll("[data-drpg-scene-warning]")].map(p => p.dataset.drpgSceneWarning).filter(k => k.startsWith("zone")),
+                ids: [a.id, b.id] };
+        } finally {
+            await game.settings.set(MODULE_ID, KEY, rolesBefore);
+            R.forgetSceneRoles();
+            await hall?.delete();
+            await settle();
+        }
+        equal(stableJson({ ...read, ids: undefined }), stableJson({
+            listed: [game.i18n.localize("DRPG.TrialScene.noZone"), "SUITE left", "SUITE right"], live: ["zonesGap"], roles: true,
+            back: { a: read.ids[0], b: read.ids[1] }, stored: true, selected: read.ids, warned: ["zonesGap"], ids: undefined
+        }), "{listed: Zone A's options (no room); live: the warning as the selects change; roles: written; back: the zones after a reload; stored: the hall kept; selected: drawn again; warned: the gap again}");
+    }],
     ["E97 C12: the GM panel lists the case's Incident Remnants to place, each with Place on the map, and one on the map with Show", async () => {
         /*
          * E97 C12, 12.11.2026. Two planned Incident Remnants in the GMs' store, one of them pointed at a Remnant on the

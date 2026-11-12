@@ -2788,6 +2788,17 @@
         "words": "Opis"
       },
       "noScene": "- brak -",
+      "zoneA": "Strefa A",
+      "zoneB": "Strefa B",
+      "noZone": "- brak -",
+      "zones": {
+        "zonesNone": "Sala rozpraw nie ma stref. Straw Poll, Logic Dive i Scrum Debate potrzebują Strefy A i Strefy B: wybierz powyżej dwa regiony sali.",
+        "zoneMissing": "Wybrano tylko jedną strefę albo region strefy zniknął. Wybierz Strefę A i Strefę B.",
+        "zonesSame": "Strefa A i Strefa B to ten sam region. Wybierz dwa różne regiony.",
+        "zonesOverlap": "Strefa A i Strefa B nachodzą na siebie. Token, którego środek stoi w obu, nie liczy się po żadnej stronie.",
+        "zonesGap": "Strefy nie pokrywają całej sali. Token poza obiema nie liczy się po żadnej stronie.",
+        "zonesUnchecked": "Ta sala nie ma siatki i nie udało się na czas sprawdzić, czy strefy ją pokrywają."
+      },
       "castHeading": "Kto bierze udział",
       "reveal": "Zaznaczony: bierze udział - ma token w sali, gdy zaczyna się Class Trial (własny token GM-ów, jeśli jest, a jeśli nie, zrobiony przez moduł), i trafia do pokoju, który wybierze Zakończ Class Trial. Bez zaznaczenia: żaden jego token nie jest pokazywany i po rozprawie nie jest przenoszony - uczeń testowy albo gracz, którego nikt jeszcze nie powinien widzieć.",
       "noCast": "W świecie nie ma jeszcze żadnego ucznia ani Monokumy.",
