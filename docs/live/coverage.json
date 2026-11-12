@@ -3,6 +3,61 @@
  "module": "1.2.107",
  "written": "2026-11-12",
  "checks": {
+  "N1": {
+   "title": "Wersje i odczyt pod \"verified\"",
+   "weight": "krytyczne",
+   "time": "5 min"
+  },
+  "N2": {
+   "title": "Rzut gracza losuje GM, krytyk i napis \"GM rzuca twoimi kośćmi\"",
+   "weight": "krytyczne",
+   "time": "10 min"
+  },
+  "N3": {
+   "title": "Przycisk \"Zakończ rozdział\" (1.2.110)",
+   "weight": "ważne",
+   "time": "5 min"
+  },
+  "N4": {
+   "title": "Wejście do Class Trial i cut-in werdyktu",
+   "weight": "ważne",
+   "time": "10 min"
+  },
+  "N5": {
+   "title": "Obroty zegara i błyski",
+   "weight": "ważne",
+   "time": "10 min"
+  },
+  "N6": {
+   "title": "Plansze dnia i ich ramka",
+   "weight": "ważne",
+   "time": "10 min"
+  },
+  "N7": {
+   "title": "Widz",
+   "weight": "ważne",
+   "time": "15 min"
+  },
+  "N8": {
+   "title": "Zasady E64 i okno Level Up (1.2.110)",
+   "weight": "ważne",
+   "time": "10 min"
+  },
+  "N9": {
+   "title": "Monocub z E72 i pokój głosowy zmarłych (1.2.110)",
+   "weight": "ważne",
+   "time": "15 min"
+  },
+  "N10": {
+   "title": "Strefy sali i schemat sprawy w konsoli",
+   "weight": "ważne",
+   "time": "15 min"
+  },
+  "N11": {
+   "title": "Pierwsze otwarcie okien i pomiar stołu",
+   "weight": "miłe",
+   "time": "10 min"
+  },
   "A1": {
    "title": "Wersje i czysta konsola",
    "weight": "krytyczne",
@@ -241,7 +296,7 @@
   "LIVE-E41-01": {
    "status": "covered",
    "checks": [
-    "A1"
+    "N11"
    ],
    "pos": "369",
    "title": "czas ładowania modułu z 35 nowymi plikami (E41 C3-C10b; E41-09 do E41-18)"
@@ -249,11 +304,11 @@
   "LIVE-E76-01": {
    "status": "covered",
    "checks": [
-    "A1"
+    "N1"
    ],
    "pos": "475",
    "title": "Foundry 14.370 z Daggerheart 2.12.8 i Dice So Nice 6.4.5 (E76; LIVE-E75-05 dla wersji z 12.11.2026)",
-   "note": "Wersje stołu: odczytaj numer kompilacji w A1 (właściciel 12.11: najnowsza v14); 14.370 jest numerem z notatek, nie odczytem."
+   "note": "Wersje stołu: odczytaj numer kompilacji w N1 i A1 (właściciel 12.11: najnowsza v14); 14.370 jest numerem z notatek, nie odczytem."
   },
   "LIVE-E75-05": {
    "status": "not-coverable",
@@ -1056,10 +1111,10 @@
   "LIVE-E76-04": {
    "status": "covered",
    "checks": [
-    "B4"
+    "N2"
    ],
    "pos": "478",
-   "title": "rzut akcji na Daggerheart 2.12.8 (E76 C3; roll-draw.mjs `seamFor`, R3602; LIVE-E33-01 jeszcze raz)"
+   "title": "rzut akcji na Daggerheart 2.12.8 (E76 C3, E76b; roll-draw.mjs `seamFor`, roll-marks.mjs, R3602, R3604-R3606; LIVE-E33-01 jeszcze raz)"
   },
   "LIVE-E28-12": {
    "status": "covered",
@@ -1096,10 +1151,10 @@
   "LIVE-E76-02": {
    "status": "covered",
    "checks": [
-    "B4"
+    "N2"
    ],
    "pos": "476",
-   "title": "rzut obronny gracza na Daggerheart 2.12.8 (E76 C2; relay-guard.mjs `judgeSave`, R3600, scenariusz 33 A8)"
+   "title": "rzut obronny gracza na Daggerheart 2.12.8 (E76 C2, C1b; relay-guard.mjs `judgeSave`, R3600, scenariusz 33 A8)"
   },
   "LIVE-E33-10": {
    "status": "covered",
@@ -2497,7 +2552,7 @@
   "LIVE-E19-05": {
    "status": "covered",
    "checks": [
-    "E1"
+    "N9"
    ],
    "pos": "287",
    "title": "kanał umarłych na prawdziwym LiveKit, z F5 głównego GM-a (E19 C3, fix r1-G1; E19-19, D8)"
@@ -2949,7 +3004,7 @@
   "LIVE-E09-05": {
    "status": "covered",
    "checks": [
-    "G2"
+    "N3"
    ],
    "pos": "141",
    "title": "koniec rozdziału przy stole"
@@ -2957,7 +3012,7 @@
   "LIVE-E11-08": {
    "status": "covered",
    "checks": [
-    "G2"
+    "N3"
    ],
    "pos": "161",
    "title": "okno Koniec rozdziału"
@@ -4070,6 +4125,158 @@
    ],
    "pos": "271",
    "title": "Frisk na The Forge z dwoma kontami, jego zegary i GM, który wraca bez przeładowania (E80 część 2, C3; fix r1-G1, r1-G2, r1-G3, r1-G4, r2-G3)"
+  },
+  "LIVE-E61-01": {
+   "status": "covered",
+   "checks": [
+    "N4"
+   ],
+   "pos": "500",
+   "title": "wejście do Rozprawy przy prawdziwym stole (E61 C3, C4; runda 5 z 12.11.2026, przyjęta przez właściciela przy 1366x768 i 1920x1080)"
+  },
+  "LIVE-E61-08": {
+   "status": "covered",
+   "checks": [
+    "N4"
+   ],
+   "pos": "501",
+   "title": "mikrofon pod sekwencją (E61 C3, C5; A9)"
+  },
+  "LIVE-E62-01": {
+   "status": "covered",
+   "checks": [
+    "N5"
+   ],
+   "pos": "503",
+   "title": "obroty zegara przy prawdziwym stole (E62 C1, C2, C4, C8)"
+  },
+  "LIVE-E94-01": {
+   "status": "covered",
+   "checks": [
+    "N6"
+   ],
+   "pos": "504",
+   "title": "plansze dnia przy prawdziwym stole (E94 C2, C3, C4)"
+  },
+  "LIVE-E94-02": {
+   "status": "covered",
+   "checks": [
+    "N6"
+   ],
+   "pos": "505",
+   "title": "gracz dołączający w środku dnia (E94 C2, C3; Q-E94-4)"
+  },
+  "LIVE-E94-03": {
+   "status": "covered",
+   "checks": [
+    "N6"
+   ],
+   "pos": "506",
+   "title": "plansze w trakcie incydentu (E94 C3)"
+  },
+  "LIVE-E92-01": {
+   "status": "covered",
+   "checks": [
+    "N7"
+   ],
+   "pos": "496",
+   "title": "jedno połączenie avclient-livekit: słuchać w jednym pokoju, mówić w innym (E92 C6; plan E92, Q-E92 \"Spectator talk\")"
+  },
+  "LIVE-E92-02": {
+   "status": "covered",
+   "checks": [
+    "N7"
+   ],
+   "pos": "497",
+   "title": "Widz przeciąga żeton przez ścianę i zamknięte drzwi (E92 C3; movement.mjs `crossingVerdict`, `judgeMove`, movement-audit.mjs `auditMove`)"
+  },
+  "LIVE-E92-03": {
+   "status": "covered",
+   "checks": [
+    "N7"
+   ],
+   "pos": "498",
+   "title": "zablokowany BROADCAST_AUDIO naprawdę wycisza Widza w każdej fazie i wraca po zdjęciu roli (E92 C2; voice.mjs `settleTrialVoices`, `spectatorAccount`)"
+  },
+  "LIVE-E92-04": {
+   "status": "covered",
+   "checks": [
+    "N7"
+   ],
+   "pos": "499",
+   "title": "ledwie widoczny żeton Widza u GMa na prawdziwej mapie (E92 C3, DRPG-D1 12.11.2026; visibility.mjs `dressSpectator`)"
+  },
+  "LIVE-E73-02": {
+   "status": "covered",
+   "checks": [
+    "N10"
+   ],
+   "pos": "492",
+   "title": "ruch między strefami na prawdziwym serwerze (E73 C2, C3)"
+  },
+  "LIVE-E73-03": {
+   "status": "covered",
+   "checks": [
+    "N10"
+   ],
+   "pos": "493",
+   "title": "rysowanie stref i animacja wejścia w obu motywach (E73 C2)"
+  },
+  "LIVE-E73-04": {
+   "status": "covered",
+   "checks": [
+    "N10"
+   ],
+   "pos": "494",
+   "title": "przeładowanie GM-a w trakcie pytania Logic Dive (E73 C4)"
+  },
+  "LIVE-E73-05": {
+   "status": "covered",
+   "checks": [
+    "N10"
+   ],
+   "pos": "495",
+   "title": "konsola Class Trial w układzie B na prawdziwym stole (E73)"
+  },
+  "LIVE-E99-01": {
+   "status": "covered",
+   "checks": [
+    "N10"
+   ],
+   "pos": "488",
+   "title": "schemat sprawy w konsoli rozprawy przy prawdziwym stole (E99 C5, rundy 4-6)"
+  },
+  "LIVE-E99-04": {
+   "status": "covered",
+   "checks": [
+    "N10"
+   ],
+   "pos": "489",
+   "title": "Asystent GM wysyła podsumowanie (E99 C7)"
+  },
+  "LIVE-E99-05": {
+   "status": "covered",
+   "checks": [
+    "N10"
+   ],
+   "pos": "490",
+   "title": "dwóch GM-ów zaznacza naraz (E99 C3)"
+  },
+  "LIVE-E73-01": {
+   "status": "covered",
+   "checks": [
+    "L1"
+   ],
+   "pos": "491",
+   "title": "liczenie tokenów w strefach sali na v14 (E73 C1, C2)"
+  },
+  "LIVE-E61-06": {
+   "status": "covered",
+   "checks": [
+    "K3"
+   ],
+   "pos": "502",
+   "title": "dwa piętra na prawdziwej scenie (E61 C7, nie zbudowane; pytanie planu Q-E61-6)"
   }
  },
  "unnumbered": {
@@ -4240,37 +4447,10 @@
   }
  },
  "branches": {
-  "LIVE-E61-01": {
-   "status": "after-release",
-   "checks": [
-    "F1"
-   ],
-   "branch": "claude/e61-62",
-   "stage": "E61",
-   "when": "po wydaniu E61"
-  },
-  "LIVE-E61-06": {
-   "status": "after-release",
-   "checks": [
-    "K3"
-   ],
-   "branch": "claude/e61-62",
-   "stage": "E61",
-   "when": "po wydaniu E61"
-  },
-  "LIVE-E61-08": {
-   "status": "after-release",
-   "checks": [
-    "F1"
-   ],
-   "branch": "claude/e61-62",
-   "stage": "E61",
-   "when": "po wydaniu E61"
-  },
   "LIVE-E64-01": {
    "status": "after-release",
    "checks": [
-    "D5"
+    "N8"
    ],
    "branch": "claude/e64",
    "stage": "E64",
@@ -4284,87 +4464,6 @@
    "branch": "claude/e93",
    "stage": "E69",
    "when": "po wydaniu E69"
-  },
-  "LIVE-E73-01": {
-   "status": "after-release",
-   "checks": [
-    "L1"
-   ],
-   "branch": "claude/e73",
-   "stage": "E73",
-   "when": "po wydaniu E73"
-  },
-  "LIVE-E73-02": {
-   "status": "after-release",
-   "checks": [
-    "F2"
-   ],
-   "branch": "claude/e73",
-   "stage": "E73",
-   "when": "po wydaniu E73"
-  },
-  "LIVE-E73-03": {
-   "status": "after-release",
-   "checks": [
-    "F1"
-   ],
-   "branch": "claude/e73",
-   "stage": "E73",
-   "when": "po wydaniu E73"
-  },
-  "LIVE-E73-04": {
-   "status": "after-release",
-   "checks": [
-    "J1"
-   ],
-   "branch": "claude/e73",
-   "stage": "E73",
-   "when": "po wydaniu E73"
-  },
-  "LIVE-E73-05": {
-   "status": "after-release",
-   "checks": [
-    "F2"
-   ],
-   "branch": "claude/e73",
-   "stage": "E73",
-   "when": "po wydaniu E73"
-  },
-  "LIVE-E92-01": {
-   "status": "after-release",
-   "checks": [
-    "B3"
-   ],
-   "branch": "claude/e92",
-   "stage": "E92",
-   "when": "po wydaniu E92"
-  },
-  "LIVE-E92-02": {
-   "status": "after-release",
-   "checks": [
-    "C1"
-   ],
-   "branch": "claude/e92",
-   "stage": "E92",
-   "when": "po wydaniu E92"
-  },
-  "LIVE-E92-03": {
-   "status": "after-release",
-   "checks": [
-    "F1"
-   ],
-   "branch": "claude/e92",
-   "stage": "E92",
-   "when": "po wydaniu E92"
-  },
-  "LIVE-E92-04": {
-   "status": "after-release",
-   "checks": [
-    "C1"
-   ],
-   "branch": "claude/e92",
-   "stage": "E92",
-   "when": "po wydaniu E92"
   },
   "LIVE-E93-01": {
    "status": "after-release",
@@ -4392,33 +4491,6 @@
    "branch": "claude/e93",
    "stage": "E93",
    "when": "po wydaniu E93"
-  },
-  "LIVE-E99-01": {
-   "status": "after-release",
-   "checks": [
-    "F2"
-   ],
-   "branch": "claude/e97-98",
-   "stage": "E99",
-   "when": "po wydaniu E99"
-  },
-  "LIVE-E99-04": {
-   "status": "after-release",
-   "checks": [
-    "H1"
-   ],
-   "branch": "claude/e97-98",
-   "stage": "E99",
-   "when": "po wydaniu E99"
-  },
-  "LIVE-E99-05": {
-   "status": "after-release",
-   "checks": [
-    "H1"
-   ],
-   "branch": "claude/e97-98",
-   "stage": "E99",
-   "when": "po wydaniu E99"
   }
  }
 }

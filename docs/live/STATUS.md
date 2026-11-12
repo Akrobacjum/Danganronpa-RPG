@@ -2,6 +2,41 @@
 
 Updated 12.11.2026 (second push: the owner's answers). Built on `main` at 235c3210 (1.2.107). Nothing outside `docs/live/` was changed.
 
+## Update for 1.2.109 and 1.2.110 (12.11.2026, late evening)
+
+At the coordinator's request: the pack brought up to date for 1.2.109 (shipped, on main at 421f2395) and 1.2.110 (to
+ship the same night). main was merged into this branch first (7f08d295, `git merge-tree` clean before it), so the pack
+now reads main's AUDIT 9.2: **496** LIVE ids, 19 more than 1.2.107's 477 (E61-01, E61-06, E61-08, E62-01, E73-01..05,
+E92-01..04, E94-01..03, E99-01, E99-04, E99-05). `check-coverage.mjs` caught the move at once (34 failures: rows in
+"branches" that the tree's audit now has) before the update.
+
+- **New block N** at the top of SESJA-0.pl.md (before A): eleven checks, N1-N11, about two hours, one GM and one
+  player (a second GM or Assistant for N10): versions and the diagnose rows for the "verified" bump (N1); Daggerheart
+  2.12.8 rolls drawn by the GM, criticals, the "GM rzuca twoimi kośćmi" line and perf()/rollFlags() (N2); the End the
+  chapter button (N3); the trial's entry and the verdict's cut-in with fps() and the microphone (N4); the clock's turns
+  and flashes (N5); the day's boards, their frame and where the morning line is typed (N6); the Spectator (N7); E64's
+  rules and the Level Up window (N8); E72's Monocub moves and the dead's voice room, with E100's Move tile (N9); the trial
+  hall's zones and the case schema in the console (N10); first opens, openTimes() and perf()/fps() (N11).
+- **Ids moved into block N**: the 18 new ids a table can settle (E73-01 went to L1, the sandbox; E61-06 to K3, the
+  two-floor scene), and seven older ones whose subject block N now covers best: E76-01 (N1), E76-02 and E76-04 (N2),
+  E09-05 and E11-08 (N3), E19-05 (N9), E41-01 (N11). The old steps that said "(po wydaniu E61/E64/E73/E99)" now point
+  to block N.
+- **Branch ids left**: 5 (E64-01 on `claude/e64`, now mapped to N8; E69-04 and E93-01..03 on `claude/e93`).
+- **What block N could not read in code**: three things in the coordinator's list - the day's boards started from the
+  curtain clock and the GM panel's top (never from Edit campaign), the board's frame and the End the chapter button -
+  were on no branch readable at 23:50 (main, dh-212b, e62-c3, perf-open-b, e64, e72, e100, e101, gaps-108 searched for
+  their strings and commits). N3 and N6 are written from his description and say so; the owner records what 1.2.110
+  actually shows. Whether `openTimes()` (perf-open-b) is in 1.2.110 was not known; N11 asks to run it only if present.
+
+```
+audit 9.2: 496 LIVE ids; unnumbered items (9.2 and section 7): 28; open branches: 5 LIVE ids
+ids: covered 450, partial 29, not-coverable 17
+unnumbered: covered 23, partial 1, not-coverable 4
+branches: after-release 5
+pack: 56 checks
+check-coverage: every id exactly once, every check in the pack, every id named in its check's section
+```
+
 ## What is here
 
 | File | What |

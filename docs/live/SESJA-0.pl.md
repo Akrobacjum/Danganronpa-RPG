@@ -1,6 +1,6 @@
 # Sesja 0 - pakiet sprawdzeń przy prawdziwym stole
 
-Wersja modułu: **1.2.107**. Spisane 12.11.2026 z `audit/AUDIT-1.2.42.md` (sekcja 9.2 i sekcja 7, która według 9.2
+Wersja modułu: **1.2.107**, a blok N: **1.2.109** i **1.2.110** (dopisany 12.11.2026 wieczorem). Spisane 12.11.2026 z `audit/AUDIT-1.2.42.md` (sekcja 9.2 i sekcja 7, która według 9.2
 "pozostaje w mocy"), `audit/gate/` i `audit/perf-baseline.json`, notatek wydań `.github/release-notes/v1.2.*.md`,
 podręczników z `docs/handbooks/` i plików `docs/dev/*/STATUS.md` na otwartych gałęziach.
 
@@ -82,6 +82,7 @@ drugim profilu przeglądarki.
 
 | Blok | Co | Kiedy | Czas |
 | --- | --- | --- | --- |
+| N | Nowości 1.2.109 i 1.2.110 (najpierw) | najbliższa sesja, GM i jeden gracz | około 2 h |
 | A | Przygotowanie, GM sam | dzień przed albo godzinę przed sesją | 75-120 min (A5 na kopii: +45 min) |
 | B | Gracze wchodzą | pierwsze 20 minut sesji | 20-30 min |
 | C | Pierwszy dzień (Daily Life) | w trakcie gry | 60-90 min gry, z tego ok. 20 min celowo |
@@ -112,6 +113,235 @@ dojdzie.
 
 ---
 
+## Blok N - nowości 1.2.109 i 1.2.110 (jedna sesja, GM i jeden gracz)
+
+Dopisane 12.11.2026 wieczorem, po wydaniu 1.2.109 i przed 1.2.110. To jest to, co warto zrobić **najpierw**, przy
+najbliższej sesji: rzeczy, których jeszcze nikt nie widział przy prawdziwym stole. Wystarczy GM i jeden gracz (drugi
+profil przeglądarki też wystarczy, poza N7 i N11, gdzie przyda się drugi GM albo Asystent).
+
+Skąd to jest: notatki wydania `.github/release-notes/v1.2.109.md` (sekcje *Known gaps* i *Checked*), AUDIT 9.2
+(pozycje 488-506) i gałęzie, z których ma powstać 1.2.110 (`claude/dh-212b`, `claude/e64`, `claude/e72`,
+`claude/e100`, `claude/e101`, `claude/perf-open-b`). **Uwaga:** trzy rzeczy z listy koordynatora - plansze dnia
+uruchamiane z zegara kurtyny i z góry panelu GM-a (a nie z *Edytuj kampanię*), ramka planszy i przycisk *Zakończ
+rozdział* - nie były w kodzie żadnej gałęzi, którą dało się przeczytać 12.11 o 23:50. Te kroki są napisane z jego
+opisu; jeśli w 1.2.110 wyglądają inaczej, zapisz, jak wyglądają.
+
+Kolejność: od najkrótszego. Przy każdym "zgłoś" wpisz wynik w `RESULTS-TEMPLATE.md` pod kodem N1, N2 itd.
+
+### N1 Wersje i odczyt pod "verified" [krytyczne] · 5 min · GM
+
+**Co zrobić:**
+1. W konsoli GM-a: `game.version`, `game.system.version`, `game.modules.get("dice-so-nice")?.version`,
+   `game.modules.get("danganronpa-rpg").version`.
+2. `game.drpg.relayGuard().state`.
+3. `game.drpg.diagnose()` - część o umowie z Foundry i Daggerheart. W 1.2.110 są w niej dwa nowe wiersze o drodze rzutu
+   Daggerhearta 2.12 (`roll-marks-move-context`, `roll-outcome-evaluated`, z gałęzi `claude/dh-212b`) i wiersz
+   `critical-rule`.
+4. Okno "Daggerheart jest nowszy niż wersja, na której ten moduł był mierzony" może się pokazać - to oczekiwane, bo
+   moduł nadal podaje "verified" 2.6.5.
+
+**Co powinno być:** Foundry 14.370 (albo 14.365), Daggerheart 2.12.8; `state` "ok"; w raporcie żaden `failed`, a wiersze
+`roll-draw`, `critical-rule` i oba nowe są `ok`.
+**Porażka:** `failed` w którymkolwiek wierszu o rzucie; `state` inny niż "ok".
+**Zgłoś:** cztery wersje; `state`; liczby ok/failed/unknown i nazwy wierszy, które nie są `ok`. To są dane, na których
+właściciel podniesie "verified" na 14.370 i 2.12.8.
+**Rozstrzyga:** [LIVE-E76-01]
+
+Opis w AUDIT 9.2: poz. 475.
+
+### N2 Rzut gracza losuje GM, krytyk i napis "GM rzuca twoimi kośćmi" [krytyczne] · 10 min · GM i gracz
+
+**Co zrobić:**
+1. Gracz robi Search i klika statystykę na karcie, pięć razy w sumie. Monokuma GM-a stoi w jego pokoju.
+2. Raz gracz rzuca obronę z karty czatu akcji z obroną.
+3. Gdy wypadnie krytyk (albo Loaded Die): zapisz, ile Hope i ile Sanity/stresu zmieniło się u postaci.
+4. (1.2.110) Gdy kości spóźniają się o ponad pół sekundy, gracz ma zobaczyć "GM rzuca twoimi kośćmi." - zapisz, czy się
+   pojawił i czy zniknął przy kościach.
+5. GM robi Reroll jednego z tych rzutów.
+6. Na koniec u gracza `game.drpg.perf()` i u GM-a `game.drpg.rollFlags()`.
+
+**Co powinno być:** rzut na czacie z postacią gracza w nagłówku; w konsoli gracza nie ma "Could not send … to the GM" ani
+szeptu "Daggerheart 2.12.8 buduje rzuty inaczej…"; krytyk liczy się tak, jak mówi podręcznik gracza (zasada modułu, nie
+liczby Daggerhearta); `rollFlags()` pusta lista; obrona oznaczona raz.
+**Porażka:** rzut losowany w przeglądarce gracza (szept o tym do GM-a); krytyk bez skutku albo podwójny; flaga w
+`rollFlags()` po zwykłym rzucie.
+**Zgłoś:** z `perf()` mediany wierszy "drawn for this browser, asked to dice started" i "asked to dice shown" (z "the
+answer in"); `rollFlags()`; co dał krytyk.
+**Rozstrzyga:** [LIVE-E76-04, LIVE-E76-02]
+
+Opis w AUDIT 9.2: poz. 478, 476.
+
+### N3 Przycisk "Zakończ rozdział" (1.2.110) [ważne] · 5 min · GM, na duplikacie świata albo na końcu rozdziału
+
+Opis z wiadomości koordynatora; w kodzie gałęzi nie odczytany (patrz wstęp bloku).
+
+**Co zrobić:**
+1. Znajdź przycisk **Zakończ rozdział** tam, gdzie 1.2.110 go stawia, i zapisz gdzie.
+2. Naciśnij go raz, potem w oknie od razu Enter (ma wybrać Anuluj).
+3. Na końcu prawdziwego rozdziału albo na duplikacie: przejdź okno do końca.
+
+**Co powinno być:** przycisk łatwo znaleźć; Enter nic nie kończy; okno końca rozdziału pokazuje liczby, wyłączone pola
+są przygaszone.
+**Zgłoś:** gdzie był przycisk; zrzut okna.
+**Rozstrzyga:** [LIVE-E09-05, LIVE-E11-08]
+
+Opis w AUDIT 9.2: poz. 141, 161.
+
+### N4 Wejście do Class Trial i cut-in werdyktu [ważne] · 10 min · GM i gracz, w obu motywach
+
+**Co zrobić:**
+1. Gracz ma w konsoli gotowe `await game.drpg.fps({ toChat: false })`. GM naciska **Zacznij Class Trial**; gracz w tej
+   samej chwili uruchamia `fps()`.
+2. Patrzcie na wejście (3,4 s): w Stained Glass nowe kafle wysuwają się zza krawędzi szkła obok, mają od początku swój
+   rozmiar i nigdy się nie nakładają; zamknięta kurtyna wygląda jak jedno cięcie z tytułem **CLASS TRIAL**. W Monokuma
+   Legacy dwie czarne klapy.
+3. W trakcie wejścia gracz naciska swój klawisz mikrofonu.
+4. Na końcu rozprawy GM ogłasza werdykt: cut-in (3,7 s) z portretem i imieniem skazanego, głosami i pieczątką
+   **WINNY** albo **NIEWINNY**.
+5. Raz naciśnij Esc w trakcie wejścia; raz włącz *Ograniczone animacje*.
+
+**Co powinno być:** płynnie; Esc pomija sekwencję na tym ekranie; przy ograniczonym ruchu jedna nieruchoma klatka;
+mikrofon działa, kafel głosu wraca w tym samym stanie.
+**Porażka:** zacięcia, kafle na sobie, kurtyna się nie otwiera, mikrofon nie działa pod sekwencją.
+**Zgłoś:** wynik `fps()`; na oko, ile trwało, zanim kurtyna zaczęła się zamykać (notatki podają 110-429 ms bez karty
+graficznej); zrzut cut-inu.
+**Rozstrzyga:** [LIVE-E61-01, LIVE-E61-08]
+
+Opis w AUDIT 9.2: poz. 500, 501.
+
+### N5 Obroty zegara i błyski [ważne] · 10 min · GM i gracz
+
+**Co zrobić:**
+1. GM po kolei: godzina naprzód (obrót od góry), cofnięcie (od dołu), Eclipse (do środka, potem na zewnątrz),
+   rozpoczęcie Investigation (sześć grup błysków z dźwiękiem *Błysk szyby*), ogłoszenie ciała (cztery mrugnięcia),
+   koniec rozprawy (od środka).
+2. W trakcie jednego obrotu gracz uruchamia `await game.drpg.fps({ toChat: false })`.
+3. Raz Esc w trakcie obrotu; raz dwie zmiany zegara szybko po sobie.
+4. (Opcjonalnie) ogłoś ciało w pierwszych sekundach Investigation: notatki mówią, że wtedy oba ciągi błysków mogą się
+   nałożyć (odczyt kodu, niesprawdzone).
+
+**Co powinno być:** każdy obrót w swoją stronę; Esc daje od razu stan końcowy; przy dwóch szybkich zmianach kończy się na
+drugiej; błyski nie częściej niż trzy na sekundę.
+**Porażka:** obrót w złą stronę, zacięcie, błyski, które męczą oczy (zapisz to wprost).
+**Zgłoś:** wynik `fps()`; który obrót wyglądał źle; czy krok 4 dał więcej błysków.
+**Rozstrzyga:** [LIVE-E62-01]
+
+Opis w AUDIT 9.2: poz. 503.
+
+### N6 Plansze dnia i ich ramka [ważne] · 10 min · GM i gracz
+
+**Co zrobić:**
+1. GM wpisuje zdanie na następny poranek. **1.2.110 według koordynatora:** pole jest przy zegarze kurtyny i u góry
+   panelu GM-a, a nie w *Edytuj kampanię* - zapisz, gdzie je znalazłeś.
+2. GM przesuwa zegar z Nocy na Rano (z zegara kurtyny albo z góry panelu GM-a). Gracz w tym czasie uruchamia
+   `await game.drpg.fps({ toChat: false })`.
+3. Patrzcie: najpierw plansza końca dnia (około 6 s): twój dzień, co widziała szkoła i nastrój szkoły jako słowo
+   (Spokój, Niepokój, Na krawędzi); potem plansza początku dnia (około 5 s) z dniem, porą, obsadą i zdaniem GM-a.
+   Zapisz, jak wygląda ramka planszy.
+4. Gracz sprawdza, czy karta końca dnia jest w historii powiadomień.
+5. Gracz przeładowuje stronę w środku dnia: planszy początku dnia nie dostaje.
+6. Jeśli koniec dnia wypadnie w trakcie morderstwa: co widzi gracz spoza incydentu.
+
+**Co powinno być:** obie plansze, w tej kolejności, z Dice So Nice i kurtyną; nastrój tylko słowem, bez liczb; zdanie GM-a
+na planszy porannej.
+**Porażka:** plansze się nie pokazują albo zdradzają ruch zegara postronnemu w incydencie; pole zdania GM-a nadal tylko w
+*Edytuj kampanię*.
+**Zgłoś:** wynik `fps()`; zrzut obu plansz; gdzie było pole zdania.
+**Rozstrzyga:** [LIVE-E94-01, LIVE-E94-02, LIVE-E94-03]
+
+Opis w AUDIT 9.2: poz. 504, 505, 506.
+
+### N7 Widz [ważne] · 15 min · GM i gracz (dwóch Widzów do kroku 5)
+
+**Co zrobić:**
+1. GM w oknie **Uczniowie** ustawia graczowi Rolę **Widz**.
+2. GM patrzy na żeton Widza na jasnej i ciemnej podłodze: ma być bardzo blady (około 30 %). Gracz widzi swój żeton
+   normalnie; inny gracz wcale.
+3. Widz przeciąga żeton przez ścianę i przez zamknięte drzwi: zapisz, czy Foundry go zatrzymuje. Jeśli przejdzie: bez
+   kosztu akcji i bez odkrywania pokoju.
+4. Widz próbuje mówić w Daily Life, w Eclipse i w Class Trial: nikt go nie słyszy. GM oddaje mu rolę ucznia: mikrofon
+   wraca taki, jaki był.
+5. (Dwóch Widzów, LiveKit) Widz naciska na kafelku głosu **Porozmawiaj z Widzami**: zapisz, co słychać w każdej
+   przeglądarce.
+6. Na koniec dnia Widz widzi tylko planszę końca dnia z nastrojem szkoły.
+
+**Co powinno być:** jak w krokach.
+**Porażka:** Widza słychać; żeton Widza widoczny dla innych graczy.
+**Zgłoś:** co się stało przy ścianie (to decyduje, czy potrzebna jest nowa droga ruchu Widza); co słychać w kroku 5.
+**Rozstrzyga:** [LIVE-E92-01, LIVE-E92-02, LIVE-E92-03, LIVE-E92-04]
+
+Opis w AUDIT 9.2: poz. 496, 497, 498, 499.
+
+### N8 Zasady E64 i okno Level Up (1.2.110) [ważne] · 10 min · GM i gracz
+
+**Co zrobić:**
+1. Gracz otwiera Level Up: nie ma opcji +1 Health ani +1 Sanity; punkt w Head, Body albo Leg mówi, co jeszcze podnosi.
+2. Tamper kosztuje jedną akcję i nie bierze Sanity.
+3. Wounded zabiera akcję tylko w Daily Life i w Investigation.
+4. W Stage 6: Move the Body z wyborem pokoju dwa dalej, raz z krytykiem, raz bez krytyka.
+5. Na świecie, gdzie ktoś wcześniej wybrał +1 Health albo +1 Sanity: GM dostaje jedno pytanie o przeniesienie tych
+   wyborów (DA39), gracz szept.
+
+**Co powinno być:** jak w krokach; teksty krótkie, bez opisu działania modułu.
+**Zgłoś:** zrzut okna Level Up; co dał krytyk przy Move the Body.
+**Rozstrzyga:** [LIVE-E64-01 (po wydaniu E64)]
+
+### N9 Monocub z E72 i pokój głosowy zmarłych (1.2.110) [ważne] · 15 min · GM i gracz z Monocubem
+
+**Co zrobić:**
+1. Gracz z Monocubem: na arkuszu kafle Tinker, Redeem, Ask for Hope i Ghost Bet; zamknięty kafel jest przyciemniony ze
+   zdaniem dlaczego. (Z `claude/e100`: Move nie otwiera okna, jego zdanie stoi na kaflu; pod kaflami samo "Free".)
+2. Uczeń proponuje Monocubowi Bribe: Monocub dostaje okno z Accept / Refuse.
+3. GM w kaflu *Fuel a Monocub* wybiera Bounty.
+4. Ghost Bet: Monocub obstawia, kogo werdykt skaże.
+5. Głos: uczeń ginie poza rozprawą - trafia do własnego pokoju głosowego zmarłych; po Silence GM-a głos zatrzymanej
+   śmierci wychodzi z pokoju.
+6. Karta w panelu Event mówi Monocubowi, że czeka Bribe i że jego Ghost Bet stoi; nic nie jest ucięte na dole.
+
+**Co powinno być:** jak w krokach.
+**Porażka:** zmarły słyszalny w pokoju żywych; kafel bez powodu przyciemnienia.
+**Zgłoś:** zrzut arkusza Monocuba i panelu Event.
+**Rozstrzyga:** [LIVE-E19-05]
+
+Opis w AUDIT 9.2: poz. 287.
+
+### N10 Strefy sali i schemat sprawy w konsoli [ważne] · 15 min · GM, gracz, drugi GM lub Asystent
+
+**Co zrobić:**
+1. GM otwiera konsolę Class Trial bez rozprawy (panel GM-a, Sprawa, Class Trial): przyciski Zamknij, Zacznij Final
+   Trial i Zacznij Class Trial widać bez przewijania.
+2. W rozprawie: Straw Poll. Strefy narysowane jak odkryte pokoje, nazwane odpowiedziami. Gracz wchodzi do strefy
+   (obrys i dźwięk), a w ostatnich sekundach przechodzi do drugiej: liczniki na żywo i końcowe się zgadzają.
+3. Logic Dive: główny GM przeładowuje w połowie pytania - po powrocie pytanie trwa z tym samym zegarem.
+4. Schemat sprawy w prawej części konsoli: zaznacz wniosek w czasie debaty - widać to u drugiego GM-a. Dwóch GM-ów
+   zaznacza różne wnioski w tej samej sekundzie: oba zostają. **Dopasuj do widoku** przy 1366x768: tekst czytelny,
+   stopka się mieści.
+5. Asystent GM-a: **Pokaż podsumowanie**, potem **Wyślij wszystkim**.
+
+**Co powinno być:** jak w krokach.
+**Zgłoś:** zrzuty konsoli w obu stanach; liczby z Straw Poll u GM-a i u gracza.
+**Rozstrzyga:** [LIVE-E73-02, LIVE-E73-03, LIVE-E73-04, LIVE-E73-05, LIVE-E99-01, LIVE-E99-04, LIVE-E99-05]
+
+Opis w AUDIT 9.2: poz. 492, 493, 494, 495, 488, 489, 490.
+
+### N11 Pierwsze otwarcie okien i pomiar stołu [miłe] · 10 min · GM i gracz
+
+**Co zrobić:**
+1. Po świeżym wczytaniu świata otwórz po raz pierwszy: panel GM-a, DRPG Settings, okno akcji gracza. Zapisz na oko, które
+   otwiera się wolno za pierwszym razem (zgłoszenie właściciela z 1.2.108).
+2. Jeśli 1.2.110 ma `game.drpg.openTimes()` (z `claude/perf-open-b`): uruchom je i wklej wynik. W 1.2.109 tego polecenia
+   nie ma ("is not a function" to wtedy nie błąd).
+3. Wszyscy stoją, gracz sam w pokoju: `await game.drpg.perf()` i `await game.drpg.fps({ toChat: false })` u GM-a i u
+   gracza, w obu motywach.
+
+**Co powinno być:** pomiar, bez progu zaliczenia.
+**Zgłoś:** cały tekst `perf()` i `fps()` z każdego komputera; wynik `openTimes()`, jeśli jest.
+**Rozstrzyga:** [LIVE-E41-01]
+
+Opis w AUDIT 9.2: poz. 369.
+
+---
+
 ## Blok A - przed sesją (GM sam)
 
 Na świecie stołu, przed wejściem graczy. Wszystko w A1-A4 i A6-A7 tylko czyta albo otwiera okna. A5 robisz tylko na duplikacie świata na The Forge.
@@ -134,9 +364,9 @@ Na świecie stołu, przed wejściem graczy. Wszystko w A1-A4 i A6-A7 tylko czyta
 **Porażka:** czerwony błąd z `danganronpa-rpg`, HUD się nie pojawia, wersje inne niż wyżej (wtedy zapisz je i daj znać -
 część sprawdzeń zależy od wersji).
 **Co zapisać:** wersje; czas ładowania; liczba i rozmiar plików; zrzut konsoli (także pustej).
-**Rozstrzyga:** [LIVE-E30-08, LIVE-E41-01, LIVE-E76-01, LIVE-E75-05 (nie przy sesji 0, zob. niżej), LIVE-E75-04 (nie przy sesji 0, zob. niżej)]
+**Rozstrzyga:** [LIVE-E30-08, LIVE-E75-05 (nie przy sesji 0, zob. niżej), LIVE-E75-04 (nie przy sesji 0, zob. niżej)]
 
-Opis w AUDIT 9.2: poz. 32, 369, 475, 153, 152.
+Opis w AUDIT 9.2: poz. 32, 153, 152.
 
 ### A2 Strażnik przekaźnika i raport `diagnose()` [krytyczne] · 10 min · GM
 
@@ -386,7 +616,7 @@ Opis w AUDIT 9.2: poz. 372, 269, 270, 479, 481, 375, 376, 275, 279, 280, 118, 94
 **Co powinno być:** każdy słyszy każdego w tym samym pokoju; blokada GM-a działa; nic nie zasłania kafla.
 **Porażka:** ktoś nie słyszy po F5; blokada GM-a nie wycisza; okno Join się pojawia.
 **Co zapisać:** zrzuty kafla w każdym stanie (oba motywy, 1920x1080 i 1366x768); wynik `diagnoseVoice()`.
-**Rozstrzyga:** [LIVE-E19-06, LIVE-E19-07, LIVE-E78-02, LIVE-E78-03, LIVE-E78-04, LIVE-E52-03, LIVE-E05-11, LIVE-E44-04, LIVE-E79-21, LIVE-H84-03, LIVE-E79-20, LIVE-E19-10, LIVE-E50-06, LIVE-E78-10, LIVE-E92-01 (po wydaniu E92)]
+**Rozstrzyga:** [LIVE-E19-06, LIVE-E19-07, LIVE-E78-02, LIVE-E78-03, LIVE-E78-04, LIVE-E52-03, LIVE-E05-11, LIVE-E44-04, LIVE-E79-21, LIVE-H84-03, LIVE-E79-20, LIVE-E19-10, LIVE-E50-06, LIVE-E78-10]
 
 Opis w AUDIT 9.2: poz. 281, 282, 224, 225, 226, B-E52-3, 63, 380, 258, 319, 257, 290, 351, 232.
 
@@ -417,9 +647,9 @@ send ... to the GM"; `relayGuard().refused` bez `unknownSender`; odliczanie, kt�
 `unknownSender`.
 **Co zapisać:** linia z konsoli gracza (także pusta); `relayGuard().refused` przed i po; zrzut karty rzutu u rzucającego,
 u GM-a i u postronnego.
-**Rozstrzyga:** [LIVE-E84-01, AUDIT 9.2 poz. 18 (bez id), LIVE-E76-04, LIVE-E28-12, LIVE-E29-10, LIVE-E28-14, LIVE-E28-09, LIVE-E76-02, LIVE-E33-10, LIVE-E06-02 (częściowo), LIVE-E06-04, LIVE-E33-03, LIVE-E29-07, LIVE-E16-01 (częściowo), LIVE-E60-08, LIVE-E16-02, LIVE-E28-04 (częściowo), LIVE-E29-08 (częściowo), LIVE-E28-02 (nie przy sesji 0, zob. niżej), LIVE-E33-04]
+**Rozstrzyga:** [LIVE-E84-01, AUDIT 9.2 poz. 18 (bez id), LIVE-E28-12, LIVE-E29-10, LIVE-E28-14, LIVE-E28-09, LIVE-E33-10, LIVE-E06-02 (częściowo), LIVE-E06-04, LIVE-E33-03, LIVE-E29-07, LIVE-E16-01 (częściowo), LIVE-E60-08, LIVE-E16-02, LIVE-E28-04 (częściowo), LIVE-E29-08 (częściowo), LIVE-E28-02 (nie przy sesji 0, zob. niżej), LIVE-E33-04]
 
-Opis w AUDIT 9.2: poz. 237, 478, 105, 119, 107, 102, 476, 134, 68, 70, 127, 116, 267, 374, 268, 97, 117, 95, 128.
+Opis w AUDIT 9.2: poz. 237, 105, 119, 107, 102, 134, 68, 70, 127, 116, 267, 374, 268, 97, 117, 95, 128.
 
 **Zostaje:**
 
@@ -456,7 +686,7 @@ token A pojawia się na granicy, nie w starym pokoju.
 ścianą.
 **Co zapisać:** na oko albo ze stoperem: czas od puszczenia tokenu do kafla i do mgły u A, u drugiego właściciela i u
 GM-a; liczba aktualizacji z kroku 4.
-**Rozstrzyga:** [LIVE-E78-14, LIVE-E79-19, LIVE-E77-15, AUDIT 9.2 poz. 15 (bez id), AUDIT 7, punkt 7, LIVE-E89-03, AUDIT 9.2 poz. 22 (bez id), LIVE-E12-07, LIVE-E79-24 (częściowo), LIVE-E17-02, LIVE-E69-04 (po wydaniu E69), LIVE-E92-02 (po wydaniu E92), LIVE-E92-04 (po wydaniu E92)]
+**Rozstrzyga:** [LIVE-E78-14, LIVE-E79-19, LIVE-E77-15, AUDIT 9.2 poz. 15 (bez id), AUDIT 7, punkt 7, LIVE-E89-03, AUDIT 9.2 poz. 22 (bez id), LIVE-E12-07, LIVE-E79-24 (częściowo), LIVE-E17-02, LIVE-E69-04 (po wydaniu E69)]
 
 Opis w AUDIT 9.2: poz. 236, 256, 219, 344, 169, 261, 308.
 
@@ -832,12 +1062,12 @@ Opis w AUDIT 9.2: poz. 82, 72, 301.
 3. Rękawiczki odłożone po sprzątaniu pękają przy odkryciu ciała, przy którym sprzątały.
 4. Przy ujawnieniu śmierci gracz, który wziął coś z ciała przed odkryciem, widzi token śladu łupu z nazwą i obrazkiem
    swojego nowego bulletu.
-5. (Po wydaniu E64) Move the Body z wyborem pokoju dwa dalej, raz z krytykiem, raz bez.
+5. Move the Body o dwa pokoje (E64, od 1.2.110): blok N, N8.
 
 **Co powinno być:** jak w krokach; przed odkryciem gracz nie ma żadnego kafla ciała.
 **Porażka:** kafel ciała u gracza przed odkryciem; rzut Shadow przy samotnym Take.
 **Co zapisać:** wynik kroku 2 (liczba).
-**Rozstrzyga:** [LIVE-E68-03, LIVE-E63-02, LIVE-E63-04, LIVE-E05-14, LIVE-E07-07, LIVE-E64-01 (po wydaniu E64)]
+**Rozstrzyga:** [LIVE-E68-03, LIVE-E63-02, LIVE-E63-04, LIVE-E05-14, LIVE-E07-07]
 
 Opis w AUDIT 9.2: poz. 460, 464, 466, 66, 83.
 
@@ -874,9 +1104,9 @@ u głównego GM-a także `Hooks.on("createChatMessage", m => console.log("E95 ca
 zbiórki; u każdego innego dokładnie jeden z `writer` false; jedna karta.
 **Porażka:** dwie karty; brak wpisu u kogoś; podwojony token.
 **Co zapisać:** wszystkie linie "E95" z czasami z każdej przeglądarki; zrzut kafla ciała u GM-a i u gracza.
-**Rozstrzyga:** [LIVE-E11-03, LIVE-E11-04, LIVE-E05-03, LIVE-E05-05, LIVE-E95-01, LIVE-E95-04, LIVE-E63-01, LIVE-E24-13, LIVE-E19-05, LIVE-E05-01, LIVE-E11-05, LIVE-E51-04, LIVE-E95-03]
+**Rozstrzyga:** [LIVE-E11-03, LIVE-E11-04, LIVE-E05-03, LIVE-E05-05, LIVE-E95-01, LIVE-E95-04, LIVE-E63-01, LIVE-E24-13, LIVE-E05-01, LIVE-E11-05, LIVE-E51-04, LIVE-E95-03]
 
-Opis w AUDIT 9.2: poz. 156, 157, 55, 57, 455, 454, 463, 430, 287, 53, 158, 358, 456.
+Opis w AUDIT 9.2: poz. 156, 157, 55, 57, 455, 454, 463, 430, 53, 158, 358, 456.
 
 ### E2 Śledztwo: Observe, Analyze, mapa sprawy [ważne] · w trakcie gry · gracze, GM
 
@@ -930,12 +1160,12 @@ Opis w AUDIT 9.2: poz. 140, 446, 482, 486, 318, 472, 391, 394, 396, 45, 139.
    motywach, ukryta dla graczy; nawigacja scen i pasek makr ukryte.
 8. GM: `game.drpg.perf()` (na kopii, jeśli nie chcesz szeptu) zaraz po wejściu - ile kosztuje zrobienie ok. 8 tokenów;
    czy gracze widzą tokeny przed narysowaniem sali.
-9. (Po wydaniu E61) wejście do Rozprawy w obu motywach: kafle wysuwają się zza krawędzi; mikrofon pod sekwencją działa.
+9. Wejście do Rozprawy (sekwencja z 1.2.109) i mikrofon pod nią: blok N, N4.
 
 **Co powinno być:** cały stół w sali bez ręcznej pomocy; nikt nie zostaje w szkole.
 **Porażka:** gracz zostaje na starej scenie; brakujący token; zmarły nadal mówi.
 **Co zapisać:** gdzie wylądował gracz z kroku 2; komunikat serwera z kroku 5; zrzut sali u GM-a i u gracza.
-**Rozstrzyga:** [LIVE-E13-01, LIVE-E13-02, LIVE-E13-03, LIVE-E13-04, LIVE-E13-05, LIVE-E13-06, LIVE-E13-08, LIVE-E13-09, LIVE-E79-13, LIVE-E79-14, LIVE-E81-15, LIVE-E81-18, LIVE-E70-04, LIVE-E70-05, LIVE-E61-01 (po wydaniu E61), LIVE-E61-08 (po wydaniu E61), LIVE-E73-03 (po wydaniu E73), LIVE-E92-03 (po wydaniu E92)]
+**Rozstrzyga:** [LIVE-E13-01, LIVE-E13-02, LIVE-E13-03, LIVE-E13-04, LIVE-E13-05, LIVE-E13-06, LIVE-E13-08, LIVE-E13-09, LIVE-E79-13, LIVE-E79-14, LIVE-E81-15, LIVE-E81-18, LIVE-E70-04, LIVE-E70-05]
 
 Opis w AUDIT 9.2: poz. 172, 173, 174, 175, 176, 177, 179, 180, 250, 251, 197, 200, 332, 333.
 
@@ -961,12 +1191,12 @@ Opis w AUDIT 9.2: poz. 172, 173, 174, 175, 176, 177, 179, 180, 250, 251, 197, 20
    okno "Podsumuję?" (Enter = Nie ja).
 10. W Stained Glass przyciski *Zamknij i policz* i *Zacznij Final Trial* bez ustawionego Masterminda są wyraźnie szare.
 11. Na koniec `game.drpg.a11y()` u jednego gracza w trakcie debaty - zapisz, co zgłasza.
-12. (Po wydaniu E73, E99) strefy sali i Straw Poll, Logic Dive, schemat sprawy obok konsoli.
+12. Strefy sali, Straw Poll, Logic Dive i schemat sprawy w konsoli (1.2.108): blok N, N10.
 
 **Co powinno być:** debata idzie bez ręcznej pomocy; każdy ma swoją kartę.
 **Porażka:** spóźniony gracz bez karty; replika nie zamyka głosu; Enter wysyła kopię.
 **Co zapisać:** sekundy z kroku 4 i 9; milisekundy z kroku 5; zrzut konsoli w każdym trybie; wynik `a11y()`.
-**Rozstrzyga:** [LIVE-E10-01, LIVE-E70-01, LIVE-E70-03, LIVE-E10-05, LIVE-E79-22, LIVE-E79-23, LIVE-E70-12, LIVE-E47-01, LIVE-E47-11, LIVE-E10-03, AUDIT 9.2 poz. 16 (bez id), AUDIT 7, punkt 12, LIVE-E70-10, LIVE-E70-11, LIVE-E70-08 (częściowo), LIVE-E70-09, LIVE-E70-07 (nie przy sesji 0, zob. niżej), LIVE-E73-02 (po wydaniu E73), LIVE-E73-05 (po wydaniu E73), LIVE-E99-01 (po wydaniu E99)]
+**Rozstrzyga:** [LIVE-E10-01, LIVE-E70-01, LIVE-E70-03, LIVE-E10-05, LIVE-E79-22, LIVE-E79-23, LIVE-E70-12, LIVE-E47-01, LIVE-E47-11, LIVE-E10-03, AUDIT 9.2 poz. 16 (bez id), AUDIT 7, punkt 12, LIVE-E70-10, LIVE-E70-11, LIVE-E70-08 (częściowo), LIVE-E70-09, LIVE-E70-07 (nie przy sesji 0, zob. niżej)]
 
 Opis w AUDIT 9.2: poz. 142, 331, 335, 146, 259, 260, 342, 438, 452, 144, 340, 341, 338, 339, 337.
 
@@ -1037,9 +1267,9 @@ Opis w AUDIT 9.2: poz. 336, 178, 181, 202, 465, 199.
 **Co powinno być:** jak w krokach.
 **Porażka:** okno końca rozdziału wisi; odpoczynek zablokowany w nowym rozdziale.
 **Co zapisać:** zrzut okna końca rozdziału z liczbami.
-**Rozstrzyga:** [LIVE-E09-05, LIVE-E11-08, LIVE-E17-10 (częściowo), LIVE-E09-01 (częściowo)]
+**Rozstrzyga:** [LIVE-E17-10 (częściowo), LIVE-E09-01 (częściowo)]
 
-Opis w AUDIT 9.2: poz. 141, 161, 315, 137.
+Opis w AUDIT 9.2: poz. 315, 137.
 
 **Zostaje:**
 
@@ -1080,12 +1310,12 @@ naraz" - umówcie się na głos ("trzy, dwa, jeden, klik").
     Eclipse gracze przestawiają tokeny, GM klika pipy, Asystent zmienia pasek: każdy klik odpowiada od razu.
 11. Karta głównego GM-a w tle (inna karta przeglądarki): ile czeka losowanie rzutu gracza.
 12. GM naciska kafelek panelu dokładnie wtedy, gdy akcja gracza zapisuje Despair albo zegar: okno otwiera się raz.
-13. (Po wydaniu E99) Asystent GM wysyła podsumowanie; dwóch GM-ów zaznacza wnioski naraz.
+13. Asystent GM wysyła podsumowanie; dwóch GM-ów zaznacza wnioski naraz: blok N, N10.
 
 **Co powinno być:** każda wspólna decyzja zapisana dokładnie raz; nic nie przepada przy zmianie głównego.
 **Porażka:** coś przyznane dwa razy; utracona karta przy zmianie głównego; okno otwarte u niegłównego GM-a.
 **Co zapisać:** wynik `gmStoreStatus()` u obu; przy każdej porażce: kto kliknął, o której, co zostało zapisane.
-**Rozstrzyga:** [LIVE-E04-02, LIVE-E09-02, LIVE-E10-04, LIVE-E28-06, LIVE-E28-11, LIVE-E29-05, LIVE-E28-16, LIVE-E08-03, LIVE-E07-10, LIVE-E11-09, LIVE-E36-01, LIVE-H84-06, LIVE-E50-04, LIVE-E47-04, LIVE-E70-02, LIVE-E97-04, LIVE-E97-03, LIVE-E30-04, LIVE-E18-02, LIVE-E17-05, LIVE-E04-09, LIVE-E28-07, AUDIT 7, punkt 11, LIVE-E44-02, LIVE-E99-04 (po wydaniu E99), LIVE-E99-05 (po wydaniu E99)]
+**Rozstrzyga:** [LIVE-E04-02, LIVE-E09-02, LIVE-E10-04, LIVE-E28-06, LIVE-E28-11, LIVE-E29-05, LIVE-E28-16, LIVE-E08-03, LIVE-E07-10, LIVE-E11-09, LIVE-E36-01, LIVE-H84-06, LIVE-E50-04, LIVE-E47-04, LIVE-E70-02, LIVE-E97-04, LIVE-E97-03, LIVE-E30-04, LIVE-E18-02, LIVE-E17-05, LIVE-E04-09, LIVE-E28-07, AUDIT 7, punkt 11, LIVE-E44-02]
 
 Opis w AUDIT 9.2: poz. 42, 138, 145, 99, 104, 114, 109, 91, 86, 162, 299, 322, 353, 441, 334, 485, 484, 29, 294, 311, 49, 100, 378.
 
@@ -1119,12 +1349,12 @@ Rób je po rozprawie albo na osobnej próbie, najlepiej na kopii świata, z grac
 11. Wymazanie śladu przerzucone Rerollem: ślad wraca pod swoim id.
 12. *Reduced motion* włączone: wiersz panelu GM-a i krok *Ustaw sezon*, które oddają okno, wracają bez sekundowej pauzy.
 13. Sześć sabotaży naraz (kilku graczy klika jednocześnie): każde potwierdzenie przychodzi.
-14. (Po wydaniu E73) przeładowanie GM-a w połowie pytania Logic Dive.
+14. Przeładowanie GM-a w połowie pytania Logic Dive: blok N, N10.
 
 **Co powinno być:** nic nie przepada w ciszy: albo wraca, albo gracz i GM dostają komunikat.
 **Porażka:** akcja zapłacona i niewykonana bez komunikatu; Hope stracony; incydent, którego nie da się dokończyć.
 **Co zapisać:** przy każdej porażce: krok, godzina, co gracz widział, zrzut konsoli GM-a.
-**Rozstrzyga:** [LIVE-E31-03, LIVE-E28-05, LIVE-E47-05, LIVE-E29-06, LIVE-E05-10, LIVE-E33-07, LIVE-E08-02, LIVE-E04-04, LIVE-E30-05, LIVE-E29-13, LIVE-E04-08, LIVE-E42-02, LIVE-E31-02, LIVE-E04-11, LIVE-E31-05, LIVE-E08-04, LIVE-E73-04 (po wydaniu E73)]
+**Rozstrzyga:** [LIVE-E31-03, LIVE-E28-05, LIVE-E47-05, LIVE-E29-06, LIVE-E05-10, LIVE-E33-07, LIVE-E08-02, LIVE-E04-04, LIVE-E30-05, LIVE-E29-13, LIVE-E04-08, LIVE-E42-02, LIVE-E31-02, LIVE-E04-11, LIVE-E31-05, LIVE-E08-04]
 
 Opis w AUDIT 9.2: poz. 37, 98, 442, 115, 62, 131, 90, 44, 30, 122, 48, 371, 36, 51, 39, 92.
 
@@ -1342,10 +1572,11 @@ Szkoła właściciela ma jedno piętro, więc to tylko na scenie testowej (Level
    `canvas.scene.tiles.contents.map(t => [t.x, t.y, t.width, t.height, t.elevation, t.level, t.levels])`.
 3. Gracz z konsoli przenosi swój token na wyższe piętro do zamkniętego pokoju: GM odsyła go tam, skąd przyszedł.
 4. Tajne przejście na dwóch piętrach i z Isometric Perspective.
-5. (Po wydaniu E61) przekrój pięter.
-**Rozstrzyga:** [LIVE-E12-02, LIVE-E12-03, LIVE-E17-03, LIVE-E79-03, LIVE-E95-02, LIVE-E61-06 (po wydaniu E61)]
+5. Co rysują Foundry i Isometric Perspective dla drugiego piętra, gdy gracz stoi na pierwszym, i czy przełącznik pięter
+   wystarcza (od tego zależy, czy powstanie przekrój pięter).
+**Rozstrzyga:** [LIVE-E12-02, LIVE-E12-03, LIVE-E17-03, LIVE-E79-03, LIVE-E95-02, LIVE-E61-06]
 
-Opis w AUDIT 9.2: poz. 164, 165, 309, 240, 453.
+Opis w AUDIT 9.2: poz. 164, 165, 309, 240, 453, 502.
 
 ### K4 Moduły towarzyszące wyłączone [miłe] · 20 min · GM, na duplikacie świata
 
@@ -1388,9 +1619,9 @@ Ostatni zapis bramki (`audit/gate/local-gate.json`, 1.2.107, 12.11.2026) ma wszy
 
 **Co powinno być:** `local-gate.json` z werdyktem "passed".
 **Co zapisać:** plik `local-gate.json` i `audit/gate/evidence/` (zapisuje je sam runner).
-**Rozstrzyga:** [LIVE-E33-01, LIVE-E30-06, LIVE-E37-01, LIVE-E81-01, LIVE-E81-10, LIVE-E81-11, LIVE-E79-07, LIVE-E15-02, LIVE-E81-13, LIVE-E73-01 (po wydaniu E73)]
+**Rozstrzyga:** [LIVE-E33-01, LIVE-E30-06, LIVE-E37-01, LIVE-E81-01, LIVE-E81-10, LIVE-E81-11, LIVE-E79-07, LIVE-E15-02, LIVE-E81-13, LIVE-E73-01]
 
-Opis w AUDIT 9.2: poz. 125, 31, 365, 183, 192, 193, 244, 302, 195.
+Opis w AUDIT 9.2: poz. 125, 31, 365, 183, 192, 193, 244, 302, 195, 491.
 
 ---
 
@@ -1430,23 +1661,8 @@ przypisany do sprawdzenia, przy którym warto go zrobić, gdy wydanie wyjdzie.
 
 | Id | Gałąź | Etap | Sprawdzenie |
 | --- | --- | --- | --- |
-| LIVE-E61-01 | `claude/e61-62` | E61 | F1 |
-| LIVE-E61-06 | `claude/e61-62` | E61 | K3 |
-| LIVE-E61-08 | `claude/e61-62` | E61 | F1 |
-| LIVE-E64-01 | `claude/e64` | E64 | D5 |
+| LIVE-E64-01 | `claude/e64` | E64 | N8 |
 | LIVE-E69-04 | `claude/e93` | E69 | C1 |
-| LIVE-E73-01 | `claude/e73` | E73 | L1 |
-| LIVE-E73-02 | `claude/e73` | E73 | F2 |
-| LIVE-E73-03 | `claude/e73` | E73 | F1 |
-| LIVE-E73-04 | `claude/e73` | E73 | J1 |
-| LIVE-E73-05 | `claude/e73` | E73 | F2 |
-| LIVE-E92-01 | `claude/e92` | E92 | B3 |
-| LIVE-E92-02 | `claude/e92` | E92 | C1 |
-| LIVE-E92-03 | `claude/e92` | E92 | F1 |
-| LIVE-E92-04 | `claude/e92` | E92 | C1 |
 | LIVE-E93-01 | `claude/e93` | E93 | C3 |
 | LIVE-E93-02 | `claude/e93` | E93 | C6 |
 | LIVE-E93-03 | `claude/e93` | E93 | A7 |
-| LIVE-E99-01 | `claude/e97-98` | E99 | F2 |
-| LIVE-E99-04 | `claude/e97-98` | E99 | H1 |
-| LIVE-E99-05 | `claude/e97-98` | E99 | H1 |

@@ -74,7 +74,7 @@ for (const id of Object.keys(branches)) {
 }
 
 /* The pack's checks and the text under each heading. */
-const headings = [...pack.matchAll(/^### ([A-Z]\d) .*\[(krytyczne|ważne|miłe)\]/gm)];
+const headings = [...pack.matchAll(/^### ([A-Z]\d+) .*\[(krytyczne|ważne|miłe)\]/gm)];
 const section = {};
 headings.forEach((h, i) => {
     const end = i + 1 < headings.length ? headings[i + 1].index : pack.length;

@@ -25,6 +25,17 @@ napisz, co zrobione). Gdy sprawdzenie ma kilka kroków, a padł jeden, wpisz X i
 
 | Kod | Sprawdzenie | Waga | Wynik | Notatka (godzina, co się stało, numer kroku) | Zrzuty / pliki |
 | --- | --- | --- | --- | --- | --- |
+| N1 | Wersje i odczyt pod "verified" | krytyczne | | | |
+| N2 | Rzut gracza losuje GM, krytyk i napis "GM rzuca twoimi kośćmi" | krytyczne | | | |
+| N3 | Przycisk "Zakończ rozdział" (1.2.110) | ważne | | | |
+| N4 | Wejście do Class Trial i cut-in werdyktu | ważne | | | |
+| N5 | Obroty zegara i błyski | ważne | | | |
+| N6 | Plansze dnia i ich ramka | ważne | | | |
+| N7 | Widz | ważne | | | |
+| N8 | Zasady E64 i okno Level Up (1.2.110) | ważne | | | |
+| N9 | Monocub z E72 i pokój głosowy zmarłych (1.2.110) | ważne | | | |
+| N10 | Strefy sali i schemat sprawy w konsoli | ważne | | | |
+| N11 | Pierwsze otwarcie okien i pomiar stołu | miłe | | | |
 | A1 | Wersje i czysta konsola | krytyczne | | | |
 | A2 | Strażnik przekaźnika i raport `diagnose()` | krytyczne | | | |
 | A3 | Testy tierów 0-1 i odczyty stylu | krytyczne | | | |
