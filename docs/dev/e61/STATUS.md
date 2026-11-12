@@ -28,7 +28,12 @@ R3420 (`sequences` is the first key born in the DRPG Settings window; effects 5 
   re-run green by name (3 passed with the runner's own line). R3700-R3707 and R3420 green by name after the last change.
 - Mutant: R3703 with the closed plan's growth capped at 0.9 fails (gaps over 0), as it should.
 - `node tools/check.mjs` 17/17 green; `npm run lint` green.
-- Scenarios: see below (running at the time of writing).
+- Scenarios that read the files this stage changes (found with `git grep` over audit/harness/scenarios: glass.mjs,
+  verdict.mjs, module.mjs, settings.mjs, config.mjs, lang/*.json; 84-viewports left out, it hangs headless), each with
+  `node run-all.mjs scenarios --only NN`, at d03c509: 00, 10, 12, 13, 14, 17, 19, 20, 30, 33, 40, 41, 50, 60, 62, 63,
+  65, 66, 71, 72, 74, 75, 81, 83, 86, 87, 88 green. 61-gmstore-case failed one check (D5, a browser back in world A
+  reads its traces) when run beside a second stream of scenarios, and was green alone, 113/113 - read as load, not this
+  stage (no file it reads changed in the store's road); to watch in CI.
 
 ## Review shots
 
