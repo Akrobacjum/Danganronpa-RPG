@@ -642,7 +642,7 @@
         "panic": "Panic Round",
         "closing": "Closing Argument"
       },
-      "trialTooltip": "The Class Trial. The debate runs from the GM's console, not here.",
+      "trialTooltip": "The Class Trial. The GM runs the debate from the trial console.",
       "trialClockTooltip": "How long this part of the debate has left.",
       "trialEveryone": "Everyone",
       "trialVersus": "vs {who}",
@@ -1403,7 +1403,7 @@
       "startTrialStepDiscussion": "The trial opens in discussion. You open the debate when you want one.",
       "gateVote": "The verdict opens once the vote has been counted.",
       "startTrialNote": "The time of day's stopwatch on the HUD starts again from zero when the trial starts, and again when it ends.",
-      "startTrialHall": "Every browser goes to {hall}; the students ticked below get a token there, and it is taken away when the trial ends.",
+      "startTrialHall": "Everyone is taken to {hall}; the students ticked below get a token there, and it is taken away when the trial ends.",
       "startTrialNoHall": "No trial hall is linked, so the table stays on the scene it is on. Room setup's Scenes tab links one.",
       "tableRuleDead": "The table's rule: the dead listen but do not speak in the trial.",
       "tableRuleVoices": "The dead's microphones are off until the trial ends, a death nobody has found too. A Monocub speaks only while no mode runs and listens from the vote on. The convicted die when the trial ends.",
@@ -1621,7 +1621,7 @@
     "Vote": {
       "openTitle": "The vote",
       "openIntro": "Send the ballots, wait for them to come back, then close and count.",
-      "privacyNote": "The GMs' browsers keep who chose whom until the next vote is opened, and no player's browser is sent it. The table sees the totals, not the ballots.",
+      "privacyNote": "Only the GMs see who chose whom, until the next vote opens. The table sees the totals, not the ballots.",
       "sendFirst": "Send the ballots first: Close and count waits for a vote to be open.",
       "nobodyConnected": "Nobody is connected with a student who can vote - there is nobody to hand a ballot to.",
       "recipients": {
@@ -2568,7 +2568,7 @@
         "one": "{n} living student in the room still has a token on another scene, left where it stood: {names}.",
         "other": "{n} living students in the room still have a token on another scene, left where it stood: {names}."
       },
-      "scenesIntro": "Link the two scenes of the season once: the school, where the students live, and the trial hall, a scene of its own for the Class Trial. Opening the trial takes every browser to the hall and gives each student ticked below a token there - the GMs' own token in the hall if there is one, else one the module makes; ending it takes the module's tokens away, remembering where they stood, hides the GMs' and takes the table back - End the trial to the room you choose, with the living students who took part from every scene with rooms, any other road to the school. The module never deletes a token the GMs placed in the hall.",
+      "scenesIntro": "Link the two scenes of the season once: the school, where the students live, and the trial hall, a scene of its own for the Class Trial. Opening the trial takes everyone to the hall and gives each student ticked below a token there - the GMs' own token in the hall if there is one, else one the module makes; ending it takes the module's tokens away, remembering where they stood, hides the GMs' and takes the table back - End the trial to the room you choose, with the living students who took part from every scene with rooms, any other road to the school. The module never deletes a token the GMs placed in the hall.",
       "school": "School",
       "hall": "Trial hall",
       "hallRoom": {
@@ -2598,7 +2598,7 @@
       "showHall": "Show the hall",
       "backToSchool": "Back to school",
       "noWayBack": "No school is linked and the scene the trial opened from is gone, so the table stays in the trial hall. Link a school in Room setup's Scenes tab.",
-      "phaseSwitchesScene": "It also takes every browser to the trial hall, {hall}, and places the tokens of the students chosen for it.",
+      "phaseSwitchesScene": "It also takes everyone to the trial hall, {hall}, and places the tokens of the students chosen for it.",
       "castPickHeading": "Who takes part in this trial",
       "notPlaced": {
         "one": "The trial hall has no token for {n} of the trial's cast, so the trial cannot show them: {names}. The module makes none for Monokuma, and one it could not make is in the console - place one on the hall's scene by hand.",
@@ -3721,7 +3721,7 @@
         "gmOnly": "Only a GM can ask for that.",
         "cannotSee": "You cannot see that project.",
         "missing": "What it names is not there any more.",
-        "badRequest": "The GM's client did not recognize the request.",
+        "badRequest": "The GM's side could not read that request.",
         "outOfRange": "A number in it is out of range.",
         "busy": "It is already being written. Wait a moment and look again.",
         "notOffered": "No Level Up is on offer for that character.",
@@ -3752,7 +3752,7 @@
         "cannotFrame": "That student cannot be framed.",
         "notThere": "The character is not where it needs to be.",
         "relay": "This game leaves that change to the GM.",
-        "failed": "It failed on the GM's client; the GM's console has the details.",
+        "failed": "It failed on the GM's side; the GM can see the details.",
         "refused": "The GM's client refused it.",
         "noGm": "No GM is connected.",
         "noAnswer": "The GM's client did not answer in time.",
@@ -3766,10 +3766,10 @@
         "rollMissed": "The roll it names did not earn that.",
         "projectFrozen": "That project is frozen by a sabotage until its repair is finished.",
         "rollReplaced": "A later roll of the same action replaced the roll it names.",
-        "notPaid": "The GM's client saw no action paid for that roll. Take the action again.",
+        "notPaid": "No action was paid for that roll. Take the action again.",
         "rollThrown": "That action's roll has been thrown already.",
-        "callNotPaid": "The GM's client saw no Hope paid for that Call.",
-        "callNotApproved": "The GM's client holds no GM's yes for that Call. Ask for it again.",
+        "callNotPaid": "No Hope was paid for that Call.",
+        "callNotApproved": "That Call has no yes from a GM. Ask for it again.",
         "itemNotDecided": "No GM has decided yet on that item, which a player made on a sheet: it changes no hands until one does.",
         "notEligible": "You hold no ballot in this vote.",
         "sameTwice": "Your ballot names somebody twice.",
@@ -4410,7 +4410,7 @@
       "gmIncident": { "one": "{who} asks {target} to turn out their pockets. {target} is in the incident, so nobody is asked: in {s} second {who} hears that there is no answer.", "other": "{who} asks {target} to turn out their pockets. {target} is in the incident, so nobody is asked: in {s} seconds {who} hears that there is no answer." },
       "gmKeptNow": "{who} asks {target} to turn out their pockets. {target} is a body you keep, and their player is not here, so nobody is asked: {who} hears at once that there is no answer. You may open the discovery yourself.",
       "gmIncidentNow": "{who} asks {target} to turn out their pockets. {target} is in the incident, and their player is not here, so nobody is asked: {who} hears at once that there is no answer.",
-      "noReceipt": "{who}'s player's browser did not confirm the answer to the Frisk of {target}, so the ask ends as 'Leave it'."
+      "noReceipt": "The answer to the Frisk of {target} did not arrive from {who}'s player, so the ask ends as 'Leave it'."
     },
     "Reroll": {
       "lastRoll": "Your {action} roll: {total} {duality}.",
@@ -4447,7 +4447,7 @@
       "interruptedPaying": "{name}'s Reroll was cut short by a reload while its {cost} Hope was being paid, before the dice were thrown again. The first roll stands and can still be rerolled. Check {name}'s Hope by hand: the payment may or may not have been written.",
       "interruptedGivingBack": "{name}'s Reroll did not stand, and a reload cut short the giving back of its {cost} Hope. The first roll is back on the card and can still be rerolled. Check {name}'s Hope by hand: it may or may not have come back.",
       "interruptedHope": "{name}'s Reroll was cut short by a reload. The first roll stands; the GM will check the Hope.",
-      "stillMaking": "The GM's client did not answer the Reroll in time, but it may still be made: if it is, its card follows; if it is not, its Hope is not taken.",
+      "stillMaking": "The GM did not answer the Reroll in time, but it may still be made: if it is, its card follows; if it is not, its Hope is not taken.",
       "cardReplaced": "Rerolled: {from} -> {to} (see the Reroll card).",
       "observeBusy": "The GM is still describing what this Observe found. Reroll it once the result is in. Nothing was spent.",
       "diceChanged": "This roll's dice are not the ones the GMs kept: a change to them is being put back. Reroll it in a moment. Nothing was spent.",
@@ -4976,7 +4976,7 @@
       "step.hallTokens": "The trial hall and its tokens (optional)",
       "hint.hallTokens": "A trial hall linked on Room setup's Scenes tab, holding nothing that tab warns of: a student the module makes no token for, a second or an unlinked token, a room, a dark hall. Optional: a table may hold its trial on the school's map.",
       "step.diceSoNice": "Dice So Nice (optional)",
-      "hint.diceSoNice": "The module draws every player's throw on the GM's browser and keeps each player's dice look for Dice So Nice. Without it the rolls are the same and nobody sees the dice. The button opens Foundry's module list, where it is switched on.",
+      "hint.diceSoNice": "Dice So Nice shows the dice as they fall. Without it the rolls are the same and nobody sees the dice. The button opens Foundry's module list, where it is switched on.",
       "resetTitle": "Reset the season",
       "resetWarning": "This cannot be undone, by this module or by anything else.",
       "resetGoes": "This goes:",

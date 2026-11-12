@@ -14,13 +14,13 @@ Read at origin/main 235c3210 on 12.11.2026.
 
 | Branch | Head | Merge base |
 | --- | --- | --- |
-| e61-62 | b07dec9e | fa73b601 |
+| e61-62 | 130443cf | fa73b601 |
 | e76-106 | 1d62225e | 14619ce2 |
 | e97-98 | 1b8d19af | 7fa07aee |
 | e73 | 6a914d02 | fa73b601 |
 | e92 | 16ab04b3 | fa73b601 |
 | e93 | e59d3731 | f22a7e87 |
-| e72 | 587de41e | f22a7e87 |
+| e72 | bc55fc85 | f22a7e87 |
 | e64 | 951cd1fd | fa73b601 |
 | gaps-a | 2338c823 | fa73b601 |
 
@@ -43,7 +43,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | gm-handbook.en.md | ### 13.3 Cleaning up (Stage 6) and Tamper | e64 |
 | gm-handbook.en.md | ### 13.4 After the incident, and body discovery | e72 |
 | gm-handbook.en.md | ### 15.1 The trial hall | e61-62, e73, e97-98 |
-| gm-handbook.en.md | ### 6.1 Hope Calls (`HOPE_CALLS`) | e64 |
+| gm-handbook.en.md | ### 6.1 Hope Calls (`HOPE_CALLS`) | e64, e72 |
 | gm-handbook.en.md | ### 6.2 Despair Calls (`DESPAIR_CALLS`) | e72 |
 | gm-handbook.en.md | ### 9.1 Rooms and Room Setup | e93 |
 | gm-handbook.en.md | ### 9.3 Movement and charging | e64 |
@@ -63,7 +63,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | gm-handbook.pl.md | ### 13.3 Sprzątanie (Stage 6) i Tamper | e64 |
 | gm-handbook.pl.md | ### 13.4 Po incydencie i odkrycie ciała | e72 |
 | gm-handbook.pl.md | ### 15.1 Sala rozpraw | e61-62, e73, e97-98 |
-| gm-handbook.pl.md | ### 6.1 Hope Calls (`HOPE_CALLS`) | e64 |
+| gm-handbook.pl.md | ### 6.1 Hope Calls (`HOPE_CALLS`) | e64, e72 |
 | gm-handbook.pl.md | ### 6.2 Despair Calls (`DESPAIR_CALLS`) | e72 |
 | gm-handbook.pl.md | ### 9.1 Pokoje i Ustawienia pokoi | e93 |
 | gm-handbook.pl.md | ### 9.3 Ruch i naliczanie | e64 |
@@ -123,7 +123,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | player-handbook.pl.md | ### Sypialnie, klucze, skrytki | e64 |
 | player-handbook.pl.md | ### Tamper - Shadow, 1 akcja | e64 |
 
-## Lang keys (356 paths; a path that is an object freezes its opening line only, its leaves are listed one by one)
+## Lang keys (363 paths; a path that is an object freezes its opening line only, its leaves are listed one by one)
 
 | Key | Branches |
 | --- | --- |
@@ -166,11 +166,15 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.Bridge.why.roomSealed` | e93 |
 | `DRPG.Bridge.why.trialLocked` | e93 |
 | `DRPG.Calls` | e93 |
+| `DRPG.Calls.despairGmOnly` | e72 |
 | `DRPG.Calls.freeCritTitle` | e64 |
 | `DRPG.Calls.freeCritUsed` | e64 |
+| `DRPG.Calls.gatherNoRefund` | e72 |
+| `DRPG.Calls.gatherRoomGone` | e72 |
 | `DRPG.Calls.grants` | e64 |
 | `DRPG.Calls.grants.advantage` | e64 |
 | `DRPG.Calls.grants.disadvantage` | e64 |
+| `DRPG.Calls.notArmedNotCharged` | e72 |
 | `DRPG.Calls.sealedBlocked` | e64 |
 | `DRPG.Case.row` | e73, e97-98 |
 | `DRPG.Case.store.cleanupAttempts` | e72 |
@@ -225,9 +229,13 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.Config.DESPAIR_CALLS.newRule` | e72 |
 | `DRPG.Config.DESPAIR_CALLS.newRule.effect` | e72 |
 | `DRPG.Config.DESPAIR_CALLS.newRule.label` | e72 |
+| `DRPG.Config.HOPE_CALLS` | e72 |
 | `DRPG.Config.HOPE_CALLS.freeCrit` | e72 |
 | `DRPG.Config.HOPE_CALLS.freeCrit.effect` | e72 |
 | `DRPG.Config.HOPE_CALLS.freeCrit.label` | e72 |
+| `DRPG.Config.HOPE_CALLS.support` | e72 |
+| `DRPG.Config.HOPE_CALLS.support.effect` | e72 |
+| `DRPG.Config.HOPE_CALLS.support.label` | e72 |
 | `DRPG.Config.LEVEL_UP_OPTIONS` | e64 |
 | `DRPG.Config.LEVEL_UP_OPTIONS.hp` | e64 |
 | `DRPG.Config.LEVEL_UP_OPTIONS.hp.label` | e64 |
@@ -327,6 +335,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.Monocub.tierBeaten` | e72 |
 | `DRPG.Monocub.tierMissed` | e72 |
 | `DRPG.Monocub.unopted` | e72 |
+| `DRPG.Monokuma` | e72 |
 | `DRPG.Murder.actionBlocked` | e64 |
 | `DRPG.Murder.actionDenied` | e64 |
 | `DRPG.Murder.actionHindered` | e64 |
@@ -450,12 +459,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.TrialScene.reveal` | e73, e97-98 |
 | `DRPG.Vault.descriptionColumn` | e93 |
 | `DRPG.Vault.descriptionPlaceholder` | e93 |
-| `DRPG.Vault.discoverAll` | e72 |
-| `DRPG.Vault.fogNote` | e72 |
-| `DRPG.Vault.fogUncovered` | e72 |
 | `DRPG.Vault.hasEveryKey` | e64 |
-| `DRPG.Vault.hideAll` | e72 |
-| `DRPG.Vault.inspectTitle` | e72 |
 | `DRPG.Vault.isRoomColumn` | e93 |
 | `DRPG.Vault.isRoomHint` | e93 |
 | `DRPG.Vault.keyCopiesGm` | e64 |
@@ -470,7 +474,6 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.Vault.tabRest` | e93 |
 | `DRPG.Vault.tabSearching` | e93 |
 | `DRPG.Vault.takeKey` | e93 |
-| `DRPG.Vault.unlockedAnnounce` | e72 |
 | `DRPG.Voice.held.deadAlone` | e92 |
 | `DRPG.Voice.held.eclipse` | e92 |
 | `DRPG.Voice.held.eclipseHeard` | e92 |
@@ -479,7 +482,11 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.Voice.held.offline` | e92 |
 | `DRPG.Vote.verdictSteps.despair` | e72 |
 | `DRPG.Vote.verdictSteps.finalCard` | e72 |
+| `DRPG.Vote.verdictSteps.finalClose` | e72 |
+| `DRPG.Vote.verdictSteps.finalExecution` | e72 |
+| `DRPG.Vote.verdictSteps.finalLevelUps` | e72 |
 | `DRPG.Vote.verdictSteps.finalSentence` | e72 |
+| `DRPG.Vote.verdictSteps.mastermind` | e72 |
 | `DRPG.Vote.verdictSteps.offers` | e72 |
 | `DRPG.Vote.verdictSteps.overflow` | e72 |
 | `DRPG.Vote.verdictSteps.rule` | e72 |
@@ -491,7 +498,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 - e73: 3942-3946; 4910-4915
 - e92: 243-247; 4885-4890; 4925-4930; 4927-4932
 - e93: 1653-1658; 1656-1660; 1672-1677; 1675-1679; 1679-1683; 2081-2086; 2409-2414; 5028-5033
-- e72: 2299-2304; 2647-2652; 3194-3198; 3195-3200; 3199-3204; 3225-3230
+- e72: 2103-2108; 2106-2111; 2142-2147; 2299-2304; 2502-2507; 2647-2652; 3194-3198; 3195-3200; 3199-3204; 3225-3230
 - e64: 1792-1797; 3094-3098; 3118-3123; 3129-3134; 3207-3212; 3209-3213; 3383-3388; 3509-3514; 3565-3570; 3583-3588; 3623-3628; 3646-3651; 3657-3662; 3668-3673; 3750-3755; 4031-4036; 4048-4053; 4050-4054; 4324-4331; 5043-5048
 
 ## Sections frozen after this line edited them

@@ -23,7 +23,7 @@ Counts are changes, one per plural form; a key changed in two areas counts in bo
 | X12 colons (PL) | 0 | 81 | 0 | X12 (confirmed in the pilot): "w pokoju {room}", "postaci {name}" |
 | caps and please | 8 | 2 | 0 | X16, X8 (to confirm in E71) |
 | Remnant in sentences | 85 | 119 | 4 (GM section 1's quote of `Vault.descriptionNote`, player section 11's tables note; EN and PL) | EN15/PL-r, DB15 (glossary `remnant`, stage E71), DB4 for the Polish cases |
-| overexplains (T29) | 14 | 13 | 18 (player handbook: starting resources, the Eclipse, Rooms, Voice, Truth Bullets, the messenger's waits and Note, the settings window; EN and PL) | T29, the owner's rule of 12.11.2026, added to docs/text-style.md section 2 |
+| overexplains (T29) | 27 | 25 | 18 (player handbook: starting resources, the Eclipse, Rooms, Voice, Truth Bullets, the messenger's waits and Note, the settings window; EN and PL) | T29, the owner's rule of 12.11.2026, added to docs/text-style.md section 2 |
 | handbooks: GM-a | 0 | 0 | 67 (Polish handbooks, unfrozen sections) | PL-i/D33c (glossary `gm-a`, scope handbooks) |
 | Polish grammar | 0 | 14 | 7 (Polish handbooks, unfrozen sections: "Class Trialu" -> "Class Trial") | no bracketed gender endings ("zgłosił(a)"); PL-a/DB4 (Class Trial indeclinable); PL-b/DB28 (Eclipse neuter) |
 
@@ -74,6 +74,7 @@ edited unless the row says so.
 | 12.11, run c | ffddd0ee and the T29/GM-a edits | 1228 passed, 2 failed (R387, R603), 16 skipped; both fixed and run green alone |
 | 12.11, run d | e95cf62d | 1230 passed, 0 failed, 16 skipped, 0 red (`node run-tests.mjs --tier 1`, 384 s) |
 | 12.11, run e | e95cf62d and the Polish grammar edits | 1230 passed, 0 failed, 16 skipped, 0 red |
+| 12.11, run f | 0a5ea4d3 and the GM-side T29 cuts (the bridge's refusals, the trial hall, the vote's privacy note) | 1230 passed, 0 failed, 16 skipped, 0 red |
 
 ## Tests whose expected wording changed
 
