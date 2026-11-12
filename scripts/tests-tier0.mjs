@@ -23560,6 +23560,86 @@ const REGRESSIONS = [
             css: [true, true]
         }), "{pure: clamp, a zoom about a point, a zoom at the limit, fit, the pan held, a node revealed; reads: the drawn map's camera [start; the wheel about the pointer; a drag on empty space; a drag on a node; + then -; eased; the tools' zoom out and its readout; still under reduced motion; 0 fits; the transform; the viewport never scrolled]; css: the viewport clips, reduced motion stops the ease}");
     }],
+    ["R3917 - a window's file that would be fetched on its first open is fetched at idle after ready instead", async () => {
+        /*
+         * perf-open line, 12.11.2026. The owner, at a table on 1.2.108 (Foundry 14.365 on a hosted server): the module's
+         * windows are slow the first time each opens, and fine after. Probe 09 (audit/harness/probes/09-open-cost.mjs)
+         * found no first-open premium in the module's own code headless, and the style harness none worth the name in
+         * Chromium (docs/dev/PERF-OPEN/STATUS.md); what a first open does that a second does not, and the harness cannot
+         * time, is fetch: a file reached only by `import()` is asked of the server the first time a window needs it -
+         * the Settings window is three such fetches in a row (settings-window.mjs, then look.mjs, then voice-panel.mjs).
+         * open-cost.mjs fetches them at idle after ready (`WARM_IMPORTS`). This holds the list to the code: every file
+         * that `import()` reaches and module.mjs's static graph does not is in it, or in `NOT_WARMED` with its reason,
+         * and nothing in it is loaded at boot already. The reader is shown a planted graph first.
+         */
+        const lazyOf = files => {
+            const boot = new Set();
+            const queue = ["module.mjs"];
+            while (queue.length) {
+                const file = queue.pop();
+                if (boot.has(file) || !files.has(file)) continue;
+                boot.add(file);
+                queue.push(...staticImports(files.get(file)));
+            }
+            const reached = new Set([...files.values()].flatMap(text => [...text.matchAll(/\bimport\(\s*["'`]\.\/([\w-]+\.mjs)["'`]\s*\)/g)].map(m => m[1])));
+            return [...reached].filter(file => files.has(file) && !boot.has(file)).sort();
+        };
+        const planted = new Map([
+            ["module.mjs", `import "./a.mjs";`],
+            ["a.mjs", `import { b } from "./b.mjs";\nexport const later = () => import("./lazy.mjs");`],
+            ["b.mjs", `export const b = () => import('./a.mjs');\nexport const gone = () => import("./missing.mjs");`],
+            ["lazy.mjs", `export const x = 1;`]
+        ]);
+        equal(JSON.stringify(lazyOf(planted)), JSON.stringify(["lazy.mjs"]),
+            "the reader does not find exactly the one planted file reached only by import() - it would read the module's graph wrong too");
+
+        const sources = new Map([...await moduleSources()].map(([file, text]) => [file, stripComments(text)]));
+        must(sources.has("module.mjs") && sources.has("settings-window.mjs"), "module.mjs or settings-window.mjs is not served - this test reads nothing until they are");
+        const served = new Map([...sources].filter(([file]) => !/^tests(-[\w-]+)?\.mjs$/.test(file)));
+        const lazy = lazyOf(served);
+        ok(lazy.includes("settings-window.mjs"), `the reader finds ${lazy.length} lazy file(s) and not settings-window.mjs, which the gear reaches by import(): ${lazy.join(", ")}`);
+        const W = await import("./open-cost.mjs");
+        const planned = [...W.WARM_IMPORTS.everyone, ...W.WARM_IMPORTS.gm];
+        const left = lazy.filter(file => !planned.includes(file) && !W.NOT_WARMED[file]);
+        ok(!left.length, `reached only by import() and neither warmed nor named in NOT_WARMED: ${left.join(", ")}`);
+        const stale = [...planned, ...Object.keys(W.NOT_WARMED)].filter(file => !lazy.includes(file));
+        ok(!stale.length, `listed in open-cost.mjs but loaded at boot already, or not served: ${stale.join(", ")}`);
+        const twice = planned.filter((file, i) => planned.indexOf(file) !== i || W.NOT_WARMED[file]);
+        ok(!twice.length, `listed twice in open-cost.mjs: ${twice.join(", ")}`);
+        const bare = Object.entries(W.NOT_WARMED).filter(([, why]) => typeof why !== "string" || why.length < 20).map(([file]) => file);
+        ok(!bare.length, `a file left cold with no reason written beside it: ${bare.join(", ")}`);
+        log(`R3917: ${lazy.length} file(s) reached only by import(), ${planned.length} warmed, ${Object.keys(W.NOT_WARMED).length} left cold with a reason`);
+    }],
+    ["R3918 - the open times are read first open against later ones, and the templates off the classes' parts", async () => {
+        /*
+         * perf-open line, 12.11.2026. open-cost.mjs's two pure readers, on fixtures: `summarizeOpens`, the table
+         * `game.drpg.openTimes()` prints (a window's first open, the middle of its later ones, an open no click came before
+         * left blank), and `templatePaths`, the Daggerheart templates the warming asks for - every part's `template` and
+         * `templates` of the character and party sheets' classes and of the classes under the system's
+         * `api.applications`, three levels deep, a path that is no template left out, each once.
+         */
+        const W = await import("./open-cost.mjs");
+        const rows = [
+            { key: "A", first: true, toRender: 900, toFrame: 950 },
+            { key: "A", first: false, toRender: 100, toFrame: 140 },
+            { key: "B", first: true, toRender: null, toFrame: null },
+            { key: "A", first: false, toRender: 120, toFrame: 160 },
+            { key: "A", first: false, toRender: 80, toFrame: 130 }
+        ];
+        equal(JSON.stringify(W.summarizeOpens(rows)), JSON.stringify([
+            { window: "A", firstRender: 900, firstShown: 950, laterRender: 100, laterShown: 140, laterOpens: 3 },
+            { window: "B", firstRender: null, firstShown: null, laterRender: null, laterShown: null, laterOpens: 0 }
+        ]), "the summary of five opens of two windows: [window, first render, first shown, later render, later shown, later opens]");
+        class Sheet { static PARTS = { a: { template: "s/a.hbs" }, b: { template: "s/b.hbs", templates: ["s/p.hbs", "not-a-template"] } }; }
+        class Roll { static PARTS = { f: { template: "s/a.hbs" }, g: { template: "s/d.html" } }; }
+        class Deep { static PARTS = { x: { template: "s/deep.hbs" } }; }
+        class Bare {}
+        const config = { Actor: { sheetClasses: { character: { "dh.Sheet": { cls: Sheet } }, npc: { "dh.Npc": { cls: Deep } } } } };
+        const api = { applications: { dialogs: { Roll, Bare }, one: { two: { three: { four: { Deep } } } } } };
+        equal(JSON.stringify(W.templatePaths({ config, api }).sort()), JSON.stringify(["s/a.hbs", "s/b.hbs", "s/d.html", "s/p.hbs"]),
+            "the templates read off a character sheet and a roll window: an npc's sheet, a class four levels down and a path that is no template left out, a shared one once");
+        equal(JSON.stringify(W.templatePaths({ config: {}, api: null })), "[]", "a Foundry with no sheet classes and a system with no API gives no template");
+    }],
 ];
 
 

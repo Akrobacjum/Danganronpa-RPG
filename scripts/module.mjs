@@ -105,6 +105,7 @@ import { registerA11y } from "./a11y.mjs";
 import { registerChrome } from "./chrome.mjs";
 import { registerDhSettings } from "./dh-settings.mjs";
 import { registerApi } from "./api.mjs";
+import { registerOpenCost } from "./open-cost.mjs";
 import { registerEnforced, offerHoldAgain } from "./enforced.mjs";
 import { registerUserMatch } from "./user-match.mjs";
 import { requirementsMet, announceMissingRequirements, announceNewerSystem,
@@ -397,6 +398,9 @@ Hooks.once("ready", () => {
     // they exist would show a dash until the next redraw.
     safely("private cards", registerSecrets);
     safely("the API", registerApi);
+    // A window's first open (perf-open line, 12.11.2026): the opens timed from here on, and the files, templates and
+    // font subsets a first open would ask the server for fetched at idle a few seconds after this hook (open-cost.mjs).
+    safely("the windows' first opens", registerOpenCost);
     // The look: theme class, glass effects, UI scale, then the curtain that
     // depends on all three. After the API, before anything that renders a block.
     safely("the theme", applyTheme);

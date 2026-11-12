@@ -50003,6 +50003,21 @@ const INVARIANTS = [
         const P = "(styles/components.css)", want = [`repeat(6, minmax(min-content, 1fr)) ${P}`, `nowrap ${P}`];
         equal(stableJson(read), stableJson({ glass: want, legacy: want }), "per theme: [the cells' grid columns, a name's white-space] - each with the sheet it came from");
     }],
+    ["R3919 - the files a window reaches only by import() are fetched at idle after ready, each without an error", async () => {
+        /*
+         * perf-open line, 12.11.2026 (open-cost.mjs, R3917). The warming starts a few seconds after ready on every
+         * client; by the time this tier runs it has finished. Every file of this browser's plan - everyone's, and the
+         * GMs' on a GM - was imported, none failed (a path the list spells wrong fails here, where R3917 reads only the
+         * list), and the warming says how long it took.
+         */
+        const W = await import("./open-cost.mjs");
+        const warmed = await Promise.race([W.warmFirstOpens(), new Promise(resolve => setTimeout(() => resolve(null), 30000))]);
+        must(warmed, "the warming had not finished 30 s into this test - it starts 4 s after ready and fetches one file an idle callback");
+        const plan = W.warmPlan();
+        equal(JSON.stringify(warmed.imports.failed), "[]", "files of the plan that did not load");
+        equal(warmed.imports.ok, plan.length, `files imported, of the ${plan.length} in this browser's plan (${plan.join(", ")})`);
+        ok(typeof warmed.ms === "number" && warmed.ms >= 0, `the warming's time is not read: ${warmed.ms}`);
+    }],
 ];
 
 /**

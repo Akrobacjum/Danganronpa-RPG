@@ -76,6 +76,7 @@ import {
     diagnoseWindows, diagnoseCharacters, traceClicks, fileSizes, perfReport, whySlow, frameCost, countersNow, diagnose
 } from "./diagnostics.mjs";
 import { diagnoseLive } from "./live.mjs";
+import { openTimes } from "./open-cost.mjs";
 import { diagnoseDiceLook } from "./dice-look.mjs";
 import { diagnoseOwnRings } from "./own-ring.mjs";
 import { unregisterCriticalRule } from "./critical.mjs";
@@ -1492,6 +1493,11 @@ export const DrpgApi = {
     /** The module's counters as they stand and the filters on the canvas now (E88 C0, perf-counters.mjs);
      *  `game.drpg.counters({ reset: true })` reads them, then zeroes them. */
     counters: countersNow,
+    /** Each window opened on THIS page (perf-open line, open-cost.mjs): its first open against the middle of its later
+     *  ones, in ms from the click to the window built and to the frame that shows it, and what the warming at idle
+     *  fetched ahead of them (the files reached by import(), Daggerheart's templates, the fonts' subsets).
+     *  `game.drpg.openTimes()` after opening each window twice; `{ reset: true }` forgets the opens read. */
+    openTimes,
     /** The GM's two Foundry windows, 'Foundry tools' (the sidebar) and 'Map tools' (the scene
      *  controls), opened together, or closed together when either is open (E77 C5; the corner's
      *  launcher, `#drpg-foundry-tools`, since C6). `game.drpg.toggleFoundryTools()`; `true` or `false` asks for one state. */
