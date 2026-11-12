@@ -53,10 +53,20 @@ all green. `node tools/check.mjs` 17/17, lint green.
   zegar", frames at 0-840 ms, both themes, on the glass harness's static clock. Checked: tiers 0-1 whole 1256 passed, 0
   failed, 16 skipped; scenarios 13, 40, 41, 63 green; check 17/17, lint green.
 
+- **C5, the centre cards** (Q8 default: raised over the windows until touched, owner to confirm): `showPopup`'s new
+  `centre` puts a card on the middle stage the trial's evidence uses (no history button there), raised until its first
+  pointerdown; a chat card asks for it with `popupCentre`, honoured from a GM's card only (R472 census row). The day
+  summary waits for the clock's turn (`summaryDelay`: the turn's length, 0 with none, under reduced motion or with the
+  switch off) and stands in the centre, its rows sliding in 160 ms apart from 150 ms (none under reduced motion). The
+  body's card ("Body found!") stands in the centre for everyone. Both are kept in the history as before. R3729, R3730,
+  red at 6230945. Q4 ("card rules in the centre", 04.10) stays out: no card is named. Shots: the review page's section
+  "1.2.109 · E62 C5", both themes, EN and PL, 1366x768 and 1920x1080. Not shot: 393x852.
+  Checked: tiers 0-1 whole 1258 passed, 0 failed, 16 skipped; scenarios 13, 15, 30, 40, 50, 61, 62, 63, 72, 73, 75 green;
+  check 17/17, lint green.
+
 ## Not done, and why
 
 - C3 (death fade, Monocub return): the owner's 05.11 amend says these "get a storyboard and a mockup before E62 is built"; no such mockup exists in what I could read. Not started; owner's step.
-- C5 (centre cards with rows sliding in): not started on this line yet.
 - C6 (the interface following a recut per frame) and C7 (texture constant through a turn): the plan's two riskiest parts; not started. C7's first reading is now taken (`turn-baseline.json`, above).
 
 ## Defaults taken, owner to confirm

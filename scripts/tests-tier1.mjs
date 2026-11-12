@@ -49618,6 +49618,57 @@ const INVARIANTS = [
             again: { from: "Daily Life", to: "Investigation", elapsed: 300 }, wound: 300, after: [null, null, null, 0], render: true
         }), "[a new phase; its keyframes and length; a redraw during it; wound on; after the turn, a page load, reduced motion - nothing slid; renderHud hands the old label on]");
     }],
+    ["R3729 - a centre card stands in the middle of the screen over the windows until touched, with no history button on it (scripts/popup.mjs `showPopup` `centre`, `onCreateChatMessage`; scripts/day-summary.mjs `showDaySummary`; scripts/chapter.mjs the body's card; E62 C5, the plan's Q8 default): `centre` puts the card on the centre stage, raised until its first pointerdown, and nothing else of the card changes; a chat card asks for it with `popupCentre`, honoured from a GM's card only; the day summary and the body's card ask for it", async () => {
+        /*
+         * E62 C5 (1.2.109), 12.11.2026. Red at 6230945: showPopup has no `centre`. The stage is the one the trial's
+         * evidence stands on (`#drpg-evidence`), which carries no history button; the card is kept in the history as any
+         * card is (`record`, untouched here: tiers 0-1 write no setting, so the stand-in passes `record: false`).
+         */
+        const P = await import("./popup.mjs");
+        const close = P.showPopup("<p>R3729 centre</p>", { title: "R3729", sticky: true, centre: true, record: false });
+        const card = [...document.querySelectorAll(".drpg-popup")].find(c => c.textContent.includes("R3729 centre"));
+        const stage = card?.parentElement ?? null;
+        const raisedBefore = [Boolean(card?.classList.contains("is-raised")), Boolean(stage?.classList.contains("is-raised"))];
+        card?.dispatchEvent(new Event("pointerdown"));
+        const raisedAfter = [Boolean(card?.classList.contains("is-raised")), Boolean(stage?.classList.contains("is-raised"))];
+        const button = Boolean(stage?.querySelector(".drpg-notices-corner"));
+        if (typeof close === "function") close({ instant: true }); else card?.remove();
+        const sources = await moduleSources();
+        const popup = stripComments(sources.get("popup.mjs") ?? "");
+        const catchAll = fnSource(popup, "onCreateChatMessage");
+        const summary = fnSource(stripComments(sources.get("day-summary.mjs") ?? ""), "showDaySummary");
+        const chapter = stripComments(sources.get("chapter.mjs") ?? "");
+        must(catchAll.length > 200 && summary.length > 200, "the catch-all or the summary was not read - this reads nothing");
+        equal(stableJson({
+            stage: stage?.id ?? null, centreClass: Boolean(card?.classList.contains("drpg-popup-centre")), raisedBefore, raisedAfter, button,
+            flag: /popupCentre/.test(catchAll) && /cardFlag\(message, "popupCentre"\) === true && Boolean\(cardWriter\(message\)\?\.isGM\)/.test(catchAll),
+            summary: /centre: true/.test(summary), body: /popupCentre: true,\s*popupKind: "objection"/.test(chapter)
+        }), stableJson({
+            stage: "drpg-evidence", centreClass: true, raisedBefore: [true, true], raisedAfter: [false, false], button: false,
+            flag: true, summary: true, body: true
+        }), "[the centre stage; marked a centre card; raised until touched; sunk after; no history button on the stage; the chat flag from a GM's card only; the summary asks for it; the body's card asks for it]");
+    }],
+    ["R3730 - the day summary waits for the clock's turn, and its rows come in one after another (scripts/day-summary.mjs `summaryDelay`, `sumUp`, `showDaySummary`; styles/danganronpa.css; E62 C5, MK-R2's card): the summary is put up when the turn of the change that closed its time of day has ended - at once with no turn, under reduced motion or with the table's switch off; each row carries its place, and the centre card's rows slide in 160 ms apart from 150 ms, none under reduced motion", async () => {
+        /* E62 C5 (1.2.109), 12.11.2026. Red at 6230945: day-summary.mjs has no summaryDelay. */
+        const D = await import("./day-summary.mjs"), T = await import("./transitions.mjs");
+        if (typeof D.summaryDelay !== "function") { ok(false, "day-summary.mjs has no summaryDelay"); return; }
+        const c = (timeOfDay, phase = "dailyLife", eclipse = false) => ({ day: 3, timeOfDay, phase, eclipse });
+        const hour = T.transitionFor(c("morning"), c("noon"));
+        const sources = await moduleSources();
+        const sum = fnSource(stripComments(sources.get("day-summary.mjs") ?? ""), "sumUp");
+        const show = fnSource(stripComments(sources.get("day-summary.mjs") ?? ""), "showDaySummary");
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
+        equal(stableJson({
+            delays: [D.summaryDelay(c("morning"), c("noon"), { on: true, still: false }), D.summaryDelay(c("morning"), c("noon"), { on: true, still: true }),
+                D.summaryDelay(c("morning"), c("noon"), { on: false, still: false }), D.summaryDelay(null, c("noon"), { on: true, still: false }),
+                D.summaryDelay(c("noon"), c("noon"), { on: true, still: false })],
+            waits: /summaryDelay\(/.test(sum) && /setTimeout\(/.test(sum),
+            rows: /--drpg-row:\$\{/.test(show),
+            css: /\.drpg-popup-centre \.drpg-sum-row \{[^}]*animation:[^}]*calc\(150ms \+ var\(--drpg-row, 0\) \* 160ms\)/.test(css)
+                && /body\.drpg-reduced-motion \.drpg-popup-centre \.drpg-sum-row \{[^}]*animation: none/.test(css)
+        }), stableJson({ delays: [hour?.dur ?? -1, 0, 0, 0, 0], waits: true, rows: true, css: true }),
+            "[an hour's turn, reduced motion, the switch off, no clock before, no change; sumUp waits; each row its place; the rows' slide and its reduced-motion rule]");
+    }],
     ["R3714 - the start-of-day board names the cast as the table knows it (scripts/sequence.mjs `dayStartBoard`, `dayStartElement`; E94 C2, MK-R2 #4, #9, #10): the day, the chapter and the time of day in this language; every student in their place, the dead by the published flag alone - greyed, with their name and \"we remember\", never struck through - and a death the GMs keep not shown as one; the alive count; an empty morning line not drawn", async () => {
         /*
          * E94 C2, 12.11.2026. Red at 3c36fcb: sequence.mjs exports no dayStartBoard. The students are stand-ins with

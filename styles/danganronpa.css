@@ -6033,6 +6033,19 @@ body.drpg-theme-stained-glass #drpg-popups {
 #drpg-evidence.is-raised {
     z-index: 99989;
 }
+/* A CENTRE CARD'S ROWS COME IN ONE AFTER ANOTHER (E62 C5, 1.2.109; MK-R2's summary card: rows 160 ms apart from 150 ms,
+   about a second for six). `--drpg-row` is each row's place, written by day-summary.mjs. None under reduced motion. */
+@keyframes drpg-sum-row-in {
+    from { opacity: 0; transform: translateX(-16px); }
+    to { opacity: 1; transform: none; }
+}
+.drpg-popup-centre .drpg-sum-row {
+    animation: drpg-sum-row-in 220ms ease-out both;
+    animation-delay: calc(150ms + var(--drpg-row, 0) * 160ms);
+}
+body.drpg-reduced-motion .drpg-popup-centre .drpg-sum-row {
+    animation: none;
+}
 #drpg-evidence .drpg-popup {
     pointer-events: auto;
     width: 100%;
