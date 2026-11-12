@@ -282,3 +282,13 @@ R3659-R3662 take the 1.2.107 line's tests. Every mention in this file was moved 
   55 tests, 59 passed, 0 failed; scenarios 41 51/51, 50 44/44, 62 51/51, 63 74/74, 67 45/46 with 1 expected red
   (TR30 until E72), 68 20/20, 72 132/136 with 4 expected red (S17-31 until E43, three Foundry limits), 86 104/104,
   88 26/26 - 0 failed in each; the sweep 48 pages, 0 failing (the trial's console and the Map, EN and PL).
+
+## Texts trimmed (12.11, the owner's standing text rule through the coordinator: shorter, natural, no overexplaining)
+
+- `DRPG.CaseTrial` (empty, floorOpen, hint, unknown) and `DRPG.CaseSummary` (intro, sent, already, noVerdict,
+  noSolution), EN and PL; Polish with no gendered past form ("zaznaczone wnioski", not "odhaczyłeś"). The GM handbook's
+  two E99 paragraphs of section 15 rewritten shorter; they also said the camera's buttons stood in the schema's corner
+  and that a start was greyed with no trial running, both untrue since round 5 and round 4. `DRPG.CaseMap` (E97/E98)
+  read and left: its texts are already one short sentence each.
+- Checked: parity, text, prose, dashes green; the quick gate green; R125, R1364, R3670-R3675, R3913 and tier 2's
+  "E99" 22 passed, 0 failed; scenarios 50 44/44, 63 74/74, 72 132/136 with its 4 expected red, 0 failed.

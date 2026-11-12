@@ -7813,31 +7813,31 @@
     },
     "CaseTrial": {
       "title": "Schemat sprawy",
-      "empty": "Ten rozdział nie ma jeszcze schematu sprawy. Zbuduj go na Mapie w panelu Investigation.",
-      "floorOpen": "Trwa tryb rozprawy. Zamknij go, zanim zaczniesz kolejny.",
+      "empty": "Brak schematu sprawy. Zbuduj go na Mapie w panelu Investigation.",
+      "floorOpen": "Trwa inny tryb. Najpierw go zakończ.",
       "tickLabel": "Zaznaczone: {name}",
       "startLabel": "Zacznij {mode} od węzła {name}",
-      "hint": "Podpowiedź: pokazane dowody to unoszą",
+      "hint": "Podpowiedź: pokazane dowody to wspierają",
       "presented": "Pokazany",
       "ticked": "Zaznaczony",
       "unknown": {
-        "one": "{n} pokazana karta nie wskazuje Remnantu ze schematu, więc nie daje podpowiedzi.",
-        "few": "{n} pokazane karty nie wskazują Remnantu ze schematu, więc nie dają podpowiedzi.",
-        "many": "{n} pokazanych kart nie wskazuje Remnantu ze schematu, więc nie dają podpowiedzi.",
-        "other": "{n} pokazanej karty nie wskazuje Remnantu ze schematu, więc nie daje podpowiedzi."
+        "one": "{n} pokazana karta nie jest na schemacie.",
+        "few": "{n} pokazane karty nie są na schemacie.",
+        "many": "{n} pokazanych kart nie jest na schemacie.",
+        "other": "{n} pokazanej karty nie ma na schemacie."
       }
     },
     "CaseSummary": {
       "show": "Pokaż podsumowanie",
       "previewTitle": "Podsumowanie sprawy",
-      "intro": "Tylko tyle dostaną gracze: to, co znaleźli, wnioski i kontry, które odhaczyłeś, i rozwiązanie tylko wtedy, gdy klasa zagłosowała dobrze. Wyślij pokazuje je wszystkim.",
+      "intro": "Gracze dostaną tylko to: co znaleźli, zaznaczone wnioski i kontry, a rozwiązanie, jeśli zagłosowali dobrze.",
       "send": "Wyślij wszystkim",
-      "sent": "Podsumowanie sprawy wysłane.",
-      "already": "Podsumowanie sprawy w tym rozdziale już wysłano.",
-      "noVerdict": "Podsumowanie przychodzi po werdykcie.",
+      "sent": "Podsumowanie wysłane.",
+      "already": "Już wysłane w tym rozdziale.",
+      "noVerdict": "Dopiero po werdykcie.",
       "title": "Rozdział {chapter}: jak rozwiązano sprawę",
       "speaker": "Podsumowanie sprawy",
-      "noSolution": "Klasa nie zagłosowała dobrze, więc rozwiązanie zostaje zamknięte.",
+      "noSolution": "Klasa zagłosowała źle, więc rozwiązanie zostaje ukryte.",
       "role": {
         "evidence": "Dowody",
         "deduction": "Wnioski",

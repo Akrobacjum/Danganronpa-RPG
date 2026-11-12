@@ -6047,29 +6047,29 @@
     },
     "CaseTrial": {
       "title": "Case schema",
-      "empty": "This chapter has no case schema yet. Build it on the Map in the Investigation panel.",
-      "floorOpen": "A floor is open. Close it before you start another mode.",
+      "empty": "No case schema yet. Build it on the Map in the Investigation panel.",
+      "floorOpen": "Another mode is running. End it first.",
       "tickLabel": "Ticked: {name}",
       "startLabel": "Start {mode} from {name}",
-      "hint": "Hint: the presented evidence carries this",
+      "hint": "Hint: the evidence shown supports this",
       "presented": "Presented",
       "ticked": "Ticked",
       "unknown": {
-        "one": "{n} presented card names no Remnant on the schema, so it gives no hint.",
-        "other": "{n} presented cards name no Remnant on the schema, so they give no hint."
+        "one": "{n} presented card isn't on the schema.",
+        "other": "{n} presented cards aren't on the schema."
       }
     },
     "CaseSummary": {
       "show": "Show summary",
       "previewTitle": "The case's summary",
-      "intro": "This is all the players get: what they found, the deductions and counters you ticked, and the solution only if the class voted right. Send posts it for everyone.",
+      "intro": "Players get only this: what they found, the ticked deductions and counters, and the solution if they voted right.",
       "send": "Send to everyone",
-      "sent": "The case's summary is out.",
-      "already": "The case's summary was sent this chapter.",
-      "noVerdict": "The summary comes after the verdict.",
+      "sent": "Summary sent.",
+      "already": "Already sent this chapter.",
+      "noVerdict": "Only after the verdict.",
       "title": "Chapter {chapter}: how the case was solved",
       "speaker": "Case summary",
-      "noSolution": "The class did not vote right, so the solution stays closed.",
+      "noSolution": "The class voted wrong, so the solution stays hidden.",
       "role": {
         "evidence": "Evidence",
         "deduction": "Deductions",
