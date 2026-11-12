@@ -4749,6 +4749,60 @@ const INVARIANTS = [
         equal(JSON.stringify(tick), JSON.stringify([{ id: "T1", current: -1, start: 0 }]), "the tick is not applied as the one difference it is");
     }],
 
+    ["R3600 - a player's save is judged in Daggerheart's shape up to 2.12.4 and in 2.12.5's, and forwarded in both", async () => {
+        /*
+         * E76 C2, 12.11.2026. Daggerheart 2.12.5 changed what a player's save sends: chatMessage.mjs
+         * `onRollSave` (2.12.8:274-290) sends `{ action, message, token, saveTotal, isCritical }` where
+         * 2.10.11 sent `{ action, message, token, result }`, and socket.mjs's UpdateSaveMessage case
+         * (sha1 59fbfd4bd9 up to 2.12.4, 89f7472022 from 2.12.5 to 2.12.8; read with `git show` on the
+         * tags) calls `updateSaveMessage(data.data.saveTotal, data.data.isCritical, message, token)`.
+         * The guard read `result.roll.total` alone, so every 2.12.5 save was dropped as "a save with no
+         * roll in it", and what it forwarded was a `result` 2.12.5's handler no longer reads. The
+         * listener the guard wraps does not hold that case (it is in `EVENT_HANDLERS`, reached through a
+         * hook), so the build cannot be read off it: the packet passed on carries the one judged total
+         * in both shapes, and each build's handler reads its own.
+         */
+        const { judgeRelay } = await import("./relay-guard.mjs");
+        const player = { id: "SUITEPLAYER00001", name: "Suite player", isGM: false };
+        const mine = { documentName: "Actor", type: "character", testUserPermission: user => user?.id === player.id };
+        const theirs = { documentName: "Actor", type: "character", testUserPermission: () => false };
+        const world = {
+            message: id => (id === "M1" ? { id: "M1" } : null),
+            tokenFor: (message, tokenId) => (tokenId === "TOKMINE" ? { actor: mine } : tokenId === "TOKTHEIRS" ? { actor: theirs } : null),
+            now: () => 1e12
+        };
+        const save = inner => judgeRelay({ action: "DhGMUpdate", data: { action: "DhGMUpdateSaveMessage", data: { message: "M1", ...inner } } }, player, world);
+        const sent = verdict => verdict.packet?.data?.data ?? {};
+        const shapes = {
+            "2.12.5": save({ action: "Compendium.x.Item.y.Action.z", token: "TOKMINE", saveTotal: 14, isCritical: true }),
+            "2.10.11": save({ token: "TOKMINE", result: { roll: { total: 14, isCritical: true } } })
+        };
+        for (const [build, verdict] of Object.entries(shapes)) {
+            equal(verdict.verdict, "forward", `a save in ${build}'s shape for the sender's own token is not forwarded (${verdict.why})`);
+            equal(sent(verdict).saveTotal, 14, `a save in ${build}'s shape is forwarded without the total 2.12.5's handler reads`);
+            equal(sent(verdict).isCritical, true, `a save in ${build}'s shape is forwarded without the critical 2.12.5's handler reads`);
+            equal(JSON.stringify(sent(verdict).result), JSON.stringify({ roll: { total: 14, isCritical: true } }),
+                `a save in ${build}'s shape is forwarded without the result 2.10.11's handler reads`);
+            equal(sent(verdict).token, "TOKMINE", `a save in ${build}'s shape is forwarded for another token`);
+        }
+        equal(save({ token: "TOKTHEIRS", saveTotal: 14, isCritical: false }).verdict, "refuse",
+            "a save in 2.12.5's shape for a token the sender does not play is not refused");
+        for (const saveTotal of [undefined, null, "lots", Number.NaN, Infinity]) {
+            equal(save({ token: "TOKMINE", saveTotal, isCritical: false }).verdict, "drop",
+                `a save in 2.12.5's shape with no total (${String(saveTotal)}) is not dropped`);
+        }
+        // One total, both fields: a packet carrying two different totals is forwarded with 2.12.5's
+        // in both, so the two builds' handlers can never mark the card with different numbers.
+        const both = sent(save({ token: "TOKMINE", saveTotal: 9, isCritical: false, result: { roll: { total: 20, isCritical: true } } }));
+        ok(both.saveTotal === 9 && both.result?.roll?.total === 9 && both.isCritical === false && both.result?.roll?.isCritical === false,
+            `a save carrying two totals is forwarded with two different numbers: ${JSON.stringify(both)}`);
+        equal(sent(save({ token: "TOKMINE", saveTotal: 13.6, isCritical: "yes" })).saveTotal, 14, "a save's total is not forwarded whole");
+        // A `saveTotal` key is 2.12.5's shape whatever else rides with it: its null is no roll,
+        // as 2.12.5's `updateSaveMessage` marks nothing for it, and a `result` beside it is not read.
+        equal(save({ token: "TOKMINE", saveTotal: null, result: { roll: { total: 5 } } }).verdict, "drop",
+            "a save in 2.12.5's shape with a null total is marked from a result 2.12.5 never sends");
+    }],
+
     ["R136 - a sabotage is taken back only as the pair it wrote", async () => {
         /*
          * E03, 24.09.2026; audit S10-03, S09-02. `undoSabotage` deleted whatever id
@@ -8434,6 +8488,39 @@ const INVARIANTS = [
         equal(JSON.stringify([seamFor(live), seamFor(reviewed), seamFor(reordered)]),
             JSON.stringify([{ state: "ok", why: "" }, { state: "ok", why: "" }, { state: "changed", why: verdicts[1].why }]),
             "the seam would be put on a build that is not the reviewed one, or left off the reviewed one (this world's, the reviewed fake, the reordered fake)");
+    }],
+
+    ["R3602 - the draw is left off a Daggerheart whose rollTrait passes its options through a MoveContext, which keeps none of the module's roll marks (2.12); this world's rollTrait is not one", async () => {
+        /*
+         * E76 C3 (12.11.2026; the plan's Q-E76-5, default taken: the 2.12 rework split off, the seam reading "changed"
+         * there). Read in Daggerheart 2.12.8 (git show on the tag, 71c318de25): actor.mjs `rollTrait` (:727-743) builds
+         * `MoveContext.build({ ..., ...options, actor })`, and move-context.mjs's constructor (:21-) copies the properties
+         * it names and sets `this.dialog = {}`: the module's `drpgActionRoll`, its nonce, `LOADED_DIE` and `TRAIT_BY_GM`
+         * never reach `DualityRoll.build`. Up to 2.10.x rollTrait handed the options on (the harness's copy, client-entry.mjs).
+         * `reviewBuild` reads the roll class alone, and 2.12.8's still has every member it asks for (build's three steps in
+         * order, the hook template, the Duality hooks, fromData, toMessage, buildEvaluate, dualityUpdate: read in the tag),
+         * so the seam would have wrapped it and drawn every action's roll as a statistic from the sheet. The harm: an
+         * action drawn as a reaction, its economy and its Calls lost on the GM. Not run on 2.12.8: the harness's dice are
+         * 2.10.5's (LIVE-E76-04).
+         */
+        const { seamFor } = await import("./roll-draw.mjs");
+        const live = game.system?.api?.dice?.DualityRoll;
+        must(typeof live === "function", "this world's Daggerheart has no DualityRoll to draw");
+        const moveContext = { MoveContext: { build: async data => data } };
+        const road212 = async function rollTrait(trait, options = {}) {
+            const config = await moveContext.MoveContext.build({ roll: { type: "trait", trait }, actionType: "action", ...options, actor: this });
+            return this.diceRoll(config);
+        };
+        const rolled = road212.bind(null);
+        const road210 = async function rollTrait(trait, options = {}) {
+            const config = { roll: { trait }, ...options };
+            return this.diceRoll(config);
+        };
+        ok(typeof CONFIG.Actor?.documentClass?.prototype?.rollTrait === "function", "this world's Actor class has no rollTrait for the seam to read");
+        const verdicts = [seamFor(live, { rollTrait: road212 }), seamFor(live, { rollTrait: road210 }), seamFor(live), seamFor(live, { rollTrait: rolled })];
+        equal(JSON.stringify(verdicts.map(v => v.state)), JSON.stringify(["changed", "ok", "ok", "changed"]),
+            "[2.12's road, 2.10's road, this world's rollTrait, a rollTrait whose source cannot be read] - the seam's verdict");
+        ok(/MoveContext/.test(verdicts[0].why) && /marks/.test(verdicts[0].why), `the reason does not say what 2.12's road loses: ${verdicts[0].why}`);
     }],
 
     ["R219 - what one client must decide is decided on the primary GM: another GM asks it, as a player does", async () => {
@@ -15673,6 +15760,59 @@ const INVARIANTS = [
             "the move backend here is not the module's: no token passes a passage on this browser (PATCHES, passages.mjs)");
         ok(!CONFIG.Canvas?.polygonBackends?.sight?.[MARK], "the sight backend carries the passages' mark: every eye would see through a passage");
     }],
+
+    ["R3601 - a passage's cut leans on Foundry's sweep only as 14.370 declares it: `_identifyEdges()` with no argument filling `edges`, a Set; each piece built as new Edge(a, b, options) with no option but the nine Edge options, this Foundry's sweep the same shape", async () => {
+        /*
+         * E76 C5, 12.11.2026 (the owner's A10, 11.10: Foundry's change list read for the passages' geometry). What
+         * `PassageMovePolygon` and `clipPassages` lean on, held to Foundry 14.370 as foundry-vtt-types 14.370.0 declares it
+         * (commit 2923f0c5, 07.11.2026; src/foundry/client/canvas/geometry/clockwise-sweep.d.mts: `edges: Set<Edge>`,
+         * `protected _identifyEdges(): void`; edges/edge.d.mts: `constructor(a, b, options?)`, its options id, object, type,
+         * direction, light, move, sight, sound, threshold). Typings, not Foundry's source (foundryvtt.com is not reachable
+         * from this session); whether 14.370's sweep keeps the cut pieces is LIVE-E76-06 and LIVE-E79-01. The harms: a cut
+         * that passes Foundry an option it does not have, an argument `_identifyEdges` does not take, or an edge made some
+         * other way; and the harness's sweep (lib/shim.mjs `buildPolygonBackends`) drifting from that shape, so scenario 76
+         * and R556 drive a sweep 14.370 does not have.
+         */
+        const L = await import("./passages.mjs");
+        const J = v => JSON.stringify(v);
+        const OPTIONS = ["id", "object", "type", "direction", "light", "move", "sight", "sound", "threshold"];
+        const built = [];
+        class Edge {
+            constructor(...args) {
+                built.push({ args: args.length, a: args[0], b: args[1], keys: Object.keys(args[2] ?? {}) });
+                [this.a, this.b] = args;
+                Object.assign(this, args[2] ?? {});
+            }
+        }
+        const wall = new Edge({ x: 0, y: 0 }, { x: 300, y: 0 }, { id: "R3601W", object: { id: "R3601W" }, type: "wall",
+            direction: 0, light: 20, move: 20, sight: 20, sound: 20, threshold: null });
+        built.length = 0;
+        const asked = [];
+        class Base {
+            _identifyEdges(...args) {
+                asked.push(args.length);
+                this.edges = new Set([wall]);
+            }
+        }
+        const Passage = L.passageMovePolygon(Base);
+        const polygon = new Passage();
+        polygon.config = { type: "move", drpgPassages: [{ id: "R3601P", wallId: "R3601W", x1: 100, y1: 0, x2: 200, y2: 0 }] };
+        polygon._identifyEdges();
+        const left = [...polygon.edges];
+        equal(J([asked, left.length, built.length, built.every(b => b.args === 3), built.flatMap(b => b.keys.filter(k => !OPTIONS.includes(k)))]),
+            J([[0], 2, 2, true, []]),
+            "[the base asked with no argument, two pieces left, two edges built, each as (a, b, options), options that are no Edge option]");
+        ok(polygon.edges instanceof Set && !polygon.edges.has(wall), "the cut does not leave `edges` a Set without the passage's wall");
+
+        // This Foundry's sweep - the harness's (lib/shim.mjs `buildPolygonBackends`) headless, Foundry's own at a table -
+        // read off the sight backend, which the module leaves as it found it: the members the subclass leans on, as 14.370
+        // declares them, so what R556 and scenario 76 drive is that shape. Nothing is constructed or swept here.
+        const Sweep = CONFIG.Canvas?.polygonBackends?.sight;
+        equal(J([typeof Sweep, typeof Sweep?.prototype?._identifyEdges, Sweep?.prototype?._identifyEdges?.length,
+            typeof Sweep?.prototype?._testCollision, typeof Sweep?.testCollision]),
+        J(["function", "function", 0, "function", "function"]),
+        "[a sight backend, its _identifyEdges a method, taking no argument, _testCollision a method, testCollision a static]");
+    }],
     ["R557 - the frame opens a secret passage only for whoever may take it: a character that knows it on a player's browser, never one that does not, a GM's browser or no character, and not into a room a GM locked; the cut walls leave the gap and nothing else; no character and a GM draw today's outline; the outline is redrawn on a change of the passages by one listener, with no sound", async () => {
         /*
          * E79 C3, 14.10.2026; the E79 plan's A10-4 (P7-0, the owner's Q9: the gap is the veto's own predicate, per
@@ -20885,7 +21025,9 @@ const INVARIANTS = [
         const gm = stub(GM, CONST.USER_ROLES.GAMEMASTER, gmFlags, "#aa0000");
         const copy = S.sourceLookOf(gm);
         const look = S.lookFrom(gm, copy);
-        const holding = (id, role, sfxList) => stub(id, role, sfxList === undefined ? { appearance: owned } : { appearance: owned, sfxList });
+        // Each holds Dice So Nice 6.4's saved marker (E76 C6; R3603 reads a user without it), so this reads the look alone.
+        const saved = { appearance: true, sfx: true };
+        const holding = (id, role, sfxList) => stub(id, role, sfxList === undefined ? { appearance: owned, saved } : { appearance: owned, sfxList, saved });
         const users = [holding("R940P1", CONST.USER_ROLES.PLAYER, asWritten), holding("R940P2", CONST.USER_ROLES.PLAYER),
             holding("R940P3", CONST.USER_ROLES.TRUSTED, own), holding("R940A1", CONST.USER_ROLES.ASSISTANT, asWritten)];
         equal(J({ look, copy: [J(copy.appearance) === J(appearance), J(copy.sfxList) === J(effects), copy.color], gm: J(gmFlags) === J({ appearance, sfxList: effects }) }),
@@ -20915,6 +21057,32 @@ const INVARIANTS = [
         const rest = src.replace(fnSource(src, "sourceLookOf"), "").replace(fnSource(src, "lookOf"), "");
         equal(J([reads(src) >= 2, reads(rest), (src.match(/\bspecialEffects\b/g) ?? []).length]), J([true, 0, 0]),
             "dice-sync.mjs reads a user's effects list somewhere other than the source's copy (`sourceLookOf`) and a user's own look (`lookOf`), or reads Dice So Nice's `specialEffects` anywhere: a forced user's look may be built from the GM's effects there ([the copy and a user's own read, `getFlag` reads elsewhere, `specialEffects` read])");
+    }],
+    ["R3603 - a forced user holds the table's dice look only with Dice So Nice 6.4's saved marker, appearance and effects both, beside it", async () => {
+        /*
+         * E76 C6, 12.11.2026 (the coordinator's decision of 12.11: write DSN's `saved` marker with the forced look). Read in
+         * Dice So Nice 6.4.5's source (tag b365efc, 04.11.2026; module/settings/DsnSettings.js): `SAVED(user)` reads the flag
+         * `dice-so-nice.saved` (:160-163); `SFX_LIST` answers `DEFAULT_SFX()` - the lines packages register through
+         * `game.dice3d.addSFXDefaults` - for a user without `saved.sfx`, whatever its `sfxList` holds (:249-253), and
+         * `APPEARANCE` merges the package's "basic" role look under the user's own for one without `saved.appearance`
+         * (:191-196). The harm: a forced player who never saved a look of their own throws with a package's effects, against
+         * the module's "no special effect" (dice-sync.mjs `lookFrom`), and a part of the look the GM did not set comes from a
+         * package rather than from DSN's default. So a user is behind the table's look until both marks are true, and the
+         * sweep and the put-back write it. Read on stubs, pure; scenario 17 G1b holds the write on every client. What 6.4.5
+         * draws from it is LIVE-E76-07.
+         */
+        const S = await import("./dice-sync.mjs");
+        const J = v => stableJson(v);
+        const DSN = "dice-so-nice";
+        const look = { appearance: { global: { colorset: "fire" } }, sfxList: [] };
+        const stub = flags => ({ id: "R3603P", name: "R3603P", role: CONST.USER_ROLES.PLAYER, getFlag: (scope, key) => (scope === DSN ? flags[key] : undefined) });
+        const held = saved => S.holdsTableLook(stub({ ...foundry.utils.deepClone(look), ...(saved === undefined ? {} : { saved }) }), look);
+        equal(J([held({ appearance: true, sfx: true }), held(undefined), held({ appearance: true }), held({ sfx: true }),
+            held({ appearance: true, sfx: false }), held({ appearance: true, sfx: true, extra: 1 })]),
+        J([true, false, false, false, false, true]),
+        "[both marks, no marker, appearance alone, effects alone, effects false, both and a key of DSN's own] - holds the table's look");
+        ok(!S.holdsTableLook(stub({ appearance: { global: { colorset: "ice" } }, sfxList: [], saved: { appearance: true, sfx: true } }), look),
+            "a user with the marker and another appearance is taken to hold the table's look");
     }],
     ["R941 - the GMs' overlay says where each secret tunnel and stairs end leads (H82-04): under each end's ring on a GM's board, 'Secret passage to {room}' with the room beyond as the map names it, 'Secret passage from {room}' at a one-way tunnel's way out, at a knower's mark's size (max(20, grid x 0.36), keyline max(4, grid x 0.07), grid x 0.38 under the end) and dimmed to 0.7; a one-way tunnel's link carries an arrowhead pointing to its way out, a two-way tunnel and stairs none; a closed tunnel and a stretch in a wall keep their dashes alone, one Graphics a passage as before; and drawn as a player, whose copy may name every passage as the Mastermind's does, nothing", async () => {
         /*
