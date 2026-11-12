@@ -2202,7 +2202,11 @@ export const FACILITIES = Object.freeze({
         endBreakdown: Object.freeze({ amount: 1, state: "breakdown" }),
         // X progress to the oldest unfinished project in the room the user can see (the first on the board, the order they
         // were made in; projects.mjs `projectsAvailableIn`), an indirect murder passed by. A project's, so `once`.
-        projectProgress: Object.freeze({ amount: 3, once: true })
+        projectProgress: Object.freeze({ amount: 3, once: true }),
+        // The character's next Ultimate Call gives a second die of advantage: when that Call is armed (call-effects.mjs
+        // `appendArmedCall`), the GM arms one more Call of advantage beside it (key "facility") and the row is used up
+        // (timed-effects.mjs `boostUltimate`). Waits no longer than its end.
+        ultimateBoost: Object.freeze({ amount: 1, untils: Object.freeze(["timeOfDay", "day"]) })
     }),
     /** When a timed effect ends (timed-effects.mjs): the time of day's end, the day's end, the next roll the GM draws, the next Eclipse's end. */
     timedUntil: Object.freeze(["timeOfDay", "day", "nextRoll", "eclipse"]),

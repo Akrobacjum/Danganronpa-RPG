@@ -413,6 +413,14 @@ export async function appendArmedCall(actor, payload, { by = game.user } = {}) {
     const { judgedFor } = await import("./sheet-audit.mjs");
     await judgedFor(actor.id);
     await actor.setFlag(MODULE_ID, FLAGS.pendingCall, [...pendingCallsRaw(actor), entry].map(unsigned));
+    // A room action's stronger next Ultimate (E93, the owner's answer to Q-E93-3): a second die beside the Ultimate armed.
+    if (entry.key === "ultimate") {
+        try {
+            await (await import("./timed-effects.mjs")).boostUltimate(actor);
+        } catch (err) {
+            error(`Could not strengthen ${actor.name}'s Ultimate`, err);
+        }
+    }
     return true;
 }
 

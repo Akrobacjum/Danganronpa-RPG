@@ -3283,7 +3283,8 @@
         "traitBonus": "+{n} {trait}",
         "experience": "Experience {label} +{n}",
         "despairShield": "Twój następny rzut z Fear nie daje Despair",
-        "eclipseCrossing": "Przejścia w Eclipse +{n}"
+        "eclipseCrossing": "Przejścia w Eclipse +{n}",
+        "ultimateBoost": "Następne Ultimate: druga kość przewagi"
       },
       "until": {
         "timeOfDay": "do końca pory dnia",
@@ -3377,6 +3378,7 @@
         "endWounded": "Koniec stanu Wounded",
         "endBreakdown": "Koniec stanu Breakdown",
         "projectProgress": "Postęp najstarszego projektu w pomieszczeniu",
+        "ultimateBoost": "Mocniejsze następne Ultimate",
         "health": "Health",
         "sanity": "Sanity",
         "hope": "Hope",

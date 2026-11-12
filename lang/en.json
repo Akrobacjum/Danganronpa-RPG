@@ -3021,7 +3021,8 @@
         "traitBonus": "+{n} {trait}",
         "experience": "Experience {label} +{n}",
         "despairShield": "Your next roll with Fear gives no Despair",
-        "eclipseCrossing": "Eclipse crossings +{n}"
+        "eclipseCrossing": "Eclipse crossings +{n}",
+        "ultimateBoost": "Next Ultimate: a second die of advantage"
       },
       "until": {
         "timeOfDay": "until the time of day ends",
@@ -3113,6 +3114,7 @@
         "endWounded": "End Wounded",
         "endBreakdown": "End Breakdown",
         "projectProgress": "Progress to the room's oldest project",
+        "ultimateBoost": "Stronger next Ultimate",
         "health": "Health",
         "sanity": "Sanity",
         "hope": "Hope",

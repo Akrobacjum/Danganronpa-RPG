@@ -88436,6 +88436,51 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ clean: { kind: "projectProgress", n: 2, scope: "self" }, moved: [2, 0], line: true, none: true }),
             "{clean (a project's effect has no scope); moved: [the first project's progress, other projects moved]; line: the card names it; none: a room with none} - X progress to the oldest project");
     }],
+    ["E93-T13 - a room action's stronger next Ultimate gives the character's next Ultimate Call a second die of advantage, once (scripts/timed-effects.mjs `boostUltimate`, call-effects.mjs `appendArmedCall`; the owner's answer to Q-E93-3, 12.11.2026): held until its end and on the sheet, a Call other than the Ultimate leaves it; the Ultimate armed then counts two dice in the roll window and uses it up; the next Ultimate counts one", async () => {
+        /*
+         * E93, 12.11.2026. Given as a use of a room action gives it (`applyEffects`), on this GM; the Calls armed as the
+         * primary arms them, the GM's road and the player's both ending in `appendArmedCall` (bridge-runs-records.mjs
+         * `handleArm`, `armPaidByPlayer`). Put back: the rows and the Calls. Red at 0cb1723: no kind "ultimateBoost".
+         */
+        const T = await import("./timed-effects.mjs");
+        const F = await import("./facilities.mjs");
+        const E = await import("./call-effects.mjs");
+        const RD = await import("./roll-dialog.mjs");
+        const { applyEffects } = await import("./facilities-gm.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const arm = key => E.appendArmedCall(actor, { key, kind: "hope", grants: "advantage", amount: null, nonce: foundry.utils.randomID(16) }, { by: game.user });
+        const dice = () => RD.advantageSources({}, actor).sources.filter(x => x.key === "call").map(x => x.value);
+        const spendAll = async () => { const n = E.armedCallsShown(actor).map(c => c.nonce).filter(Boolean); if (n.length) await E.spendCallsByNonce(actor, n); await settle(); };
+        const read = {};
+        try {
+            const effect = F.cleanEffect({ kind: "ultimateBoost", until: "day" });
+            must(effect, "no ultimateBoost effect - this would measure nothing past the cleaning");
+            read.clean = effect;
+            await spendAll();
+            await applyEffects(actor, [effect], where, player);
+            await settle();
+            read.given = [T.timedEffectsOf(actor.id).map(r => r.kind), T.effectLines(actor).length];
+            await arm("support");
+            await settle();
+            read.other = [dice(), T.timedEffectsOf(actor.id).length];
+            await spendAll();
+            await arm("ultimate");
+            await settle();
+            read.ultimate = [dice(), T.timedEffectsOf(actor.id).length];
+            await spendAll();
+            await arm("ultimate");
+            await settle();
+            read.next = dice();
+        } finally {
+            await spendAll();
+            for (const row of T.timedEffectsOf(actor.id)) await T.endTimedEffect(row.id);
+            for (const m of game.messages.filter(m => m.speaker?.actor === actor.id && m.whisper?.length && Date.now() - (m.timestamp ?? 0) < 60000)) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ clean: { kind: "ultimateBoost", n: 1, scope: "self", until: "day" }, given: [["ultimateBoost"], 1],
+            other: [[1], 1], ultimate: [[2], 0], next: [1] }),
+            "{clean; given: [rows, sheet lines]; other: [the window's Call dice, rows] after another Call; ultimate: the same after the Ultimate; next: the next Ultimate's dice} - a stronger next Ultimate");
+    }],
     ["E69-T2 - a crossing settles once, on the primary, where the token still stands (scripts/crossing-settle.mjs `scheduleSettle`, movement.mjs `recordCrossingInStep`; E69 C2, S18-28, A10): a crossing into the room the token stands in fires drpgCrossingSettled once with its actor, rooms, way and Eclipse after the wait; two crossings in a row fire one event from the first room to the last; a crossing into a room the token is not in when the wait ends (put back) fires none; and the GMs' record of a crossing schedules one", async () => {
         /*
          * E69 C2, 12.11.2026. The wait is the test's own (`ms`), so nothing waits 2 s; the token is not moved: the room it

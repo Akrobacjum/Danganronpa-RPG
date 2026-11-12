@@ -77,6 +77,11 @@ const KINDS = Object.freeze({
         give: async () => {},
         line: () => game.i18n.localize("DRPG.Facility.timed.despairShield")
     }),
+    // Nothing is written when it is given: the Ultimate's arming reads the row (`boostUltimate`) and uses it up.
+    ultimateBoost: Object.freeze({
+        give: async () => {},
+        line: () => game.i18n.localize("DRPG.Facility.timed.ultimateBoost")
+    }),
     // Nothing is written when it is given: the Eclipse's judges read the rows (gm-stores.mjs `timedCrossingsOf`).
     eclipseCrossing: Object.freeze({
         give: async () => {},
@@ -106,6 +111,23 @@ export async function takeDespairShield(actor, message = null) {
     tellOwners(actor);
     if (message?.setFlag) await message.setFlag(MODULE_ID, "despairShielded", true).catch(err => error("Could not mark a shielded roll", err));
     log(`${actor.name}'s protection from Despair stopped a roll's point.`);
+    return true;
+}
+
+/**
+ * On a GM, once the character's Ultimate Call is armed (call-effects.mjs `appendArmedCall`, where the GM's road and the
+ * player's both end): when `actor` holds a stronger next Ultimate, one more Call of advantage armed beside it, from this
+ * GM (key "facility", spent with the same roll as every armed Call), and the row used up. Answers whether it did.
+ */
+export async function boostUltimate(actor) {
+    if (!actor?.id || !game.user?.isGM) return false;
+    const row = timedEffectsOf(actor.id).find(r => r.kind === "ultimateBoost");
+    if (!row) return false;
+    await writeList(actor.id, timedEffectsOf(actor.id).filter(r => r.id !== row.id));
+    tellOwners(actor);
+    const { appendArmedCall } = await import("./call-effects.mjs");
+    await appendArmedCall(actor, { key: "facility", kind: "hope", grants: "advantage", amount: null, nonce: foundry.utils.randomID(16) }, { by: game.user });
+    log(`${actor.name}'s Ultimate is stronger this once: a second die of advantage.`);
     return true;
 }
 
