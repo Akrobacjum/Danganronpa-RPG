@@ -3083,6 +3083,7 @@
       "roomColumn": "Room actions",
       "applied": {
         "timed": "{name}: {what}",
+        "advantage": "{name}: advantage on the next roll",
         "health": { "one": "{name}: +{n} Health", "other": "{name}: +{n} Health" },
         "sanity": { "one": "{name}: +{n} Sanity", "other": "{name}: +{n} Sanity" },
         "hope": { "one": "{name}: +{n} Hope", "other": "{name}: +{n} Hope" },
@@ -3095,6 +3096,7 @@
       "effect": {
         "traitBonus": "Statistic, raised for a while",
         "experience": "Experience, for a while",
+        "advantage": "Advantage on the next roll",
         "health": "Health",
         "sanity": "Sanity",
         "hope": "Hope",

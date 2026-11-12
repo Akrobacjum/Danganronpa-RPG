@@ -2183,7 +2183,10 @@ export const FACILITIES = Object.freeze({
            the default). `trait`: the GM picks a statistic in the editor. */
         traitBonus: Object.freeze({ amount: 3, trait: true, untils: Object.freeze(["timeOfDay", "day"]) }),
         // `label`: the GM names it in the editor (the line's text box); an Experience of that name and value X.
-        experience: Object.freeze({ amount: 3, label: true, untils: Object.freeze(["timeOfDay", "day"]) })
+        experience: Object.freeze({ amount: 3, label: true, untils: Object.freeze(["timeOfDay", "day"]) }),
+        // One die of advantage on the character's next roll: a Call the GM arms (key "facility"), which ends with that roll as
+        // every armed Call does, so it keeps no row of its own in the timed store.
+        advantage: Object.freeze({ amount: 1 })
     }),
     /** When a timed effect ends (timed-effects.mjs): the time of day's end, the day's end, the next roll the GM draws, the next Eclipse's end. */
     timedUntil: Object.freeze(["timeOfDay", "day", "nextRoll", "eclipse"]),

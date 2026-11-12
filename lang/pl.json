@@ -3347,6 +3347,7 @@
       "roomColumn": "Akcje w pokoju",
       "applied": {
         "timed": "{name}: {what}",
+        "advantage": "{name}: przewaga przy następnym rzucie",
         "health": { "one": "{name}: +{n} Health", "few": "{name}: +{n} Health", "many": "{name}: +{n} Health", "other": "{name}: +{n} Health" },
         "sanity": { "one": "{name}: +{n} Sanity", "few": "{name}: +{n} Sanity", "many": "{name}: +{n} Sanity", "other": "{name}: +{n} Sanity" },
         "hope": { "one": "{name}: +{n} Hope", "few": "{name}: +{n} Hope", "many": "{name}: +{n} Hope", "other": "{name}: +{n} Hope" },
@@ -3359,6 +3360,7 @@
       "effect": {
         "traitBonus": "Statystyka, podniesiona na jakiś czas",
         "experience": "Experience na jakiś czas",
+        "advantage": "Przewaga przy następnym rzucie",
         "health": "Health",
         "sanity": "Sanity",
         "hope": "Hope",

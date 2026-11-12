@@ -88177,6 +88177,41 @@ const SCENARIOS = [
             ended: [[], 0] }),
             "{clean: [the effect, one with no name]; given: [the Experiences of that name, rows, the sheet's line]; ended: after the next time of day} - a temporary Experience");
     }],
+    ["E93-T7 - a room action's advantage on the next roll is a Call armed by the GM, counted by the roll window and spent with that roll (scripts/facilities-gm.mjs `applyEffects`, call-effects.mjs `appendArmedCall`; the owner's answer to Q-E93-3, 12.11.2026): the use arms one Call of advantage on the character, from a GM, which the roll window counts as one die and the sheet lists; spent, it is gone", async () => {
+        /*
+         * E93, 12.11.2026. Given as a use of a room action gives it (`applyEffects`), on this GM. The armed Calls already end
+         * with the next roll and are drawn by the GM from the list it holds, so the effect is one of them (key "facility"),
+         * not a row of the timed store. Put back: the Call. Red at f43bc1d: no kind "advantage" (`cleanEffect` null).
+         */
+        const F = await import("./facilities.mjs");
+        const E = await import("./call-effects.mjs");
+        const RD = await import("./roll-dialog.mjs");
+        const { applyEffects } = await import("./facilities-gm.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const mine = () => E.armedCallsShown(actor).filter(c => c?.key === "facility").map(c => [c.grants, Boolean(c.by)]);
+        const read = {};
+        try {
+            const effect = F.cleanEffect({ kind: "advantage", n: 1 });
+            read.clean = effect;
+            must(effect, "no advantage effect - this would measure nothing past the cleaning");
+            await applyEffects(actor, [effect], where, player);
+            await settle();
+            read.armed = mine();
+            read.window = RD.advantageSources({}, actor).sources.filter(x => x.key === "call");
+            const nonces = E.armedCallsShown(actor).filter(c => c?.key === "facility").map(c => c.nonce);
+            await E.spendCallsByNonce(actor, nonces);
+            await settle();
+            read.spent = mine();
+        } finally {
+            const left = E.armedCallsShown(actor).filter(c => c?.key === "facility").map(c => c.nonce);
+            if (left.length) await E.spendCallsByNonce(actor, left);
+            for (const m of game.messages.filter(m => m.speaker?.actor === actor.id && m.whisper?.length && Date.now() - (m.timestamp ?? 0) < 60000)) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ clean: { kind: "advantage", n: 1, scope: "self" }, armed: [["advantage", true]],
+            window: [{ key: "call", value: 1 }], spent: [] }),
+            "{clean; armed: [grants, armed by a GM] of the room action's Calls; window: the roll window's Call source; spent: after the roll spends it} - advantage on the next roll");
+    }],
     ["E69-T2 - a crossing settles once, on the primary, where the token still stands (scripts/crossing-settle.mjs `scheduleSettle`, movement.mjs `recordCrossingInStep`; E69 C2, S18-28, A10): a crossing into the room the token stands in fires drpgCrossingSettled once with its actor, rooms, way and Eclipse after the wait; two crossings in a row fire one event from the first room to the last; a crossing into a room the token is not in when the wait ends (put back) fires none; and the GMs' record of a crossing schedules one", async () => {
         /*
          * E69 C2, 12.11.2026. The wait is the test's own (`ms`), so nothing waits 2 s; the token is not moved: the room it
