@@ -10,7 +10,8 @@ notes, one commit each, red test first. Written 12.11.2026.
 | G1 lastChapter names Season setup | 45bc8a0d | R3660 (tier 1) | at fa73b601: `window [false,false]`, `between [true,true,false]`; 1 passed, 1 failed | 2 passed, 0 failed |
 | G3 a11y() lists Details | fbe2214a | R3661 (tier 1) | at 45bc8a0d: the report named no Details (`listed 0`); 1 passed, 1 failed | 2 passed, 0 failed |
 | G2 Legacy "Pochodzenie" whole | 3f885f86 | R3662 (tier 0), R606 adjusted, style-sweep `--tables` heads check | at fbe2214a: R3662 `legacyOrigin false`; Chromium: "Pochodzenie" cut by 20 px, pl legacy at 1280x720, 1366x768, 1920x1080 | R3662 + R606 3 passed; `--tables` green, 0 heads cut |
-| G4 Event panel steady empty region | b40f98d7 | R3663 (tier 1) | at 3f885f86: `empty: null`, `again.same false`, no CSS, no lang key; 1 passed, 1 failed | with R3462, R1430, R1394: 5 passed, 0 failed |
+| G4 Event panel steady empty region | b40f98d7, fix 1111185c + 82edb6eb | R3663 (tier 1), R1401 | at 3f885f86: `empty: null`, `again.same false`, no CSS, no lang key; 1 passed, 1 failed. CI 43198461948 shard 1: R1401 and R3663 red inside 01's incident and trial (see "G4 after CI") | with R3462, R1430, R1394, R1401: 6 passed; local shard 1/8 green |
+| G5 61 D5 and the clock beat | 60119b3e (in 1.2.107 as d220d7a7) | 61 D5, cluster.mjs packet log | 3 in parallel 6 of 6 red, every section `clockBeat` | 3 in parallel 3/3, alone 3/3, 113/113 each |
 
 Head, CI and the full local runs: see "Runs" at the end.
 
@@ -94,6 +95,31 @@ Head, CI and the full local runs: see "Runs" at the end.
   deleted before it comes back - D5 FAILS, `unexplained` naming `remnants` (gm, gm2 -> gma, 1148 bytes).
 - After the fix: three in parallel 3 of 3 green (113/113 each; the last one's D5 detail `movedOn ["clockBeat"]`,
   4 states, 0 unexplained); alone three times 3 of 3 green (113/113 each, D5 with no section sent: `states 0`, no beat in the window).
+
+### G4 after CI
+
+CI run 43198461948 (89e2c656) went red in suite shard 1 only: R1401 and R3663 failed inside 01-runtests' parts A1
+(an incident open) and A2 (inside a Class Trial); the plain tiers 0-1 run here had been green (1231 passed).
+- R3663 read an empty panel through `renderEvents`, which cannot be empty where the world draws a card. It now
+  drives events.mjs `paintEvents` (the drawing, split out of `renderEvents`) with cards of its own.
+- R1401 read the panel in front of the rail on a desk: a real fault the standing panel exposed. `renderEvents`
+  checked the panel's place only on a change of cards (the rail is rebuilt and appended at its column's end), and
+  narrow.mjs `restoreDesk` put the panel back by a neighbour recorded while it stood before the clock. Fixed in
+  both places (`paintEvents` places it before the same-cards return; `restoreDesk` puts it after the rail).
+- Measured with a scratch scenario (not committed) running R1401 and R3663 plain, in A1 and in A2: red at 60119b3e
+  (A1, A2: 2 failed each), green after both fixes; `DRPG_SUITE_SHARD=1/8 node run-all.mjs suite` here: 21/21
+  checks, suite 1234 passed, 0 failed, 16 skipped (1469 s, at 1111185c's code).
+- 1111185c was pushed with `check registry` red (R3663's renamed row; a chained command did not stop on it);
+  82edb6eb regenerates the registry, quick green there.
+
+## Runs
+
+- Head: 82edb6eb (then this STATUS commit, `[skip ci]`).
+- CI: fbe2214a green (run 43195351645, all 21 jobs). 89e2c656 red (run 43198461948: suite 1/8, R1401 and R3663, fixed
+  above). The runs of 60119b3e, 1111185c and 82edb6eb were cancelled while queued, on the owner's decision of 12.11
+  relayed by the coordinator (CI once a release, on the train's PR head), so the head has no CI result; the local
+  readings above stand in for it: quick green at 82edb6eb, tiers 0-1 1231 passed 0 failed at b40f98d7, shard 1/8
+  green at 1111185c's code, 61 alone and in parallel green at 60119b3e.
 
 ### Not touched
 
