@@ -281,7 +281,7 @@ body .application.dialog footer.form-footer.drpg-kit-footer { flex-wrap: nowrap;
 @media (max-width: 480px) { body .application.dialog footer.form-footer.drpg-kit-footer { flex-wrap: wrap; } }
 /* A FOOTER IN TWO ROWS (`footer.rows: 2`, ui-kit.mjs FOOTER_ROWS_CLASS; E97 C2, the owner's Q-C of 11.11.2026: "the
    footer ALWAYS two rows at every size"; the Investigation panel). One grid of four equal columns over the whole
-   footer (half its buttons, rounded up: `--drpg-kit-footer-cols`, which the kit writes), its two sides' wrappers
+   footer (half its buttons, rounded up, which the kit writes on the footer; four in the sheet), its two sides' wrappers
    `display: contents`, so its buttons take two rows at every width a desk has
    instead of wrapping by what fits; the primary last on screen (`order`; still first in the tree, so Enter presses it);
    a label longer than its cell breaks between its words inside the button. Its place stated: danganronpa.css pins a
@@ -290,7 +290,7 @@ body .application.dialog footer.form-footer.drpg-kit-footer { flex-wrap: nowrap;
    12 px between its Table and its Map (Chromium, 1366x768). */
 body .application.dialog.drpg-ui footer.form-footer.drpg-kit-footer.drpg-kit-footer-rows {
     display: grid;
-    grid-template-columns: repeat(var(--drpg-kit-footer-cols, 4), minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     grid-template-rows: repeat(2, auto);
     grid-auto-flow: row;
     align-items: stretch;

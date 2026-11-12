@@ -8083,7 +8083,7 @@ const INVARIANTS = [
             };
         }
         const both = { view: [true, "auto (components.css)"], body: "hidden (components.css)", bar: "2.25rem (components.css)",
-            foot: ["grid (components.css)", "repeat(var(--drpg-kit-footer-cols, 4), minmax(0, 1fr)) (components.css)", "repeat(2, auto) (components.css)", "contents (components.css)", "contents (components.css)", "3 (components.css)"],
+            foot: ["grid (components.css)", "repeat(4, minmax(0, 1fr)) (components.css)", "repeat(2, auto) (components.css)", "contents (components.css)", "contents (components.css)", "3 (components.css)"],
             said: "nowrap (components.css)" };
         equal(stableJson({ plain, told: told.said, read }), stableJson({
             plain: { fit: false, width: true, asked: kitWidth(WIDE.width), kids: ["drpg-case-toolbar", "drpg-case-live drpg-case-view"], slots: ["switch", "controls"], said: null, view: true, rows: true },

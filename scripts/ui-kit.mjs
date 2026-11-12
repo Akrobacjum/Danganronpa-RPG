@@ -270,7 +270,7 @@ function dressFooter(root, list) {
     if (list.rows === 2) {
         footer.classList.add(FOOTER_ROWS_CLASS);
         // as many columns as two rows need (E97 C10: ten buttons, five a row)
-        footer.style.setProperty("--drpg-kit-footer-cols", String(Math.max(1, Math.ceil(list.length / 2))));
+        footer.style.gridTemplateColumns = `repeat(${Math.max(1, Math.ceil(list.length / 2))}, minmax(0, 1fr))`;
     }
     const right = doc.createElement("div");
     right.className = "drpg-kit-right";

@@ -7556,8 +7556,8 @@
         "solution": "Rozwiązanie",
         "incident": "Nowy Incident Remnant"
       },
-      "reachYes": "{held} z {of}: uczniowie mogą do tego dojść",
-      "reachNo": "{held} z {of}: jeszcze nie",
+      "reachYes": "{held}/{of}: uczniowie mogą do tego dojść",
+      "reachNo": "{held}/{of}: jeszcze nie",
       "panelReach": "Uczniowie mają",
       "culpritOnly": "Ma go tylko sprawca, więc się nie liczy.",
       "studentBullets": "Truth Bullety",
@@ -7570,14 +7570,14 @@
       "problem": {
         "noInputs": "{node} nie wynika z niczego.",
         "cycle": "{node} leży na kole wejść, więc mapa go nie rysuje.",
-        "missing": "{node} wskazuje {ref}, którego już nie ma.",
+        "missing": "{node} wskazuje „{ref}”, a tego już nie ma na mapie.",
         "noTarget": "{node} niczego nie obala.",
         "noSolution": "Sprawa ma wnioski, ale nie ma rozwiązania.",
         "twoSolutions": "{node} to drugie rozwiązanie.",
         "solutionUnreached": "Nic na mapie nie prowadzi do: {node}.",
-        "badMode": "{node} wskazuje tryb, którego rozprawa nie ma: {ref}.",
+        "badMode": "{node}: rozprawa nie ma takiego trybu, „{ref}”.",
         "culpritOnly": "{ref}, wejście węzła {node}, ma tylko sprawca, więc się nie liczy.",
-        "tooManyKeys": "Sprawa ma {ref} Key Remnantów, więcej niż rozdział przygotowuje."
+        "tooManyKeys": "Key Remnanty w sprawie: {ref}, więcej niż przygotowuje rozdział."
       },
       "addIncident": "Dodaj Incident Remnant",
       "placeOnMap": "Postaw na mapie",

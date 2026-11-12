@@ -5808,8 +5808,8 @@
         "solution": "Solution",
         "incident": "New Incident Remnant"
       },
-      "reachYes": "{held} of {of}: the students can reach it",
-      "reachNo": "{held} of {of}: not yet",
+      "reachYes": "{held}/{of}: the students can reach it",
+      "reachNo": "{held}/{of}: not yet",
       "panelReach": "Students hold",
       "culpritOnly": "Only the culprit holds it, so it does not count.",
       "studentBullets": "Truth Bullets",
@@ -5822,14 +5822,14 @@
       "problem": {
         "noInputs": "{node} rests on nothing.",
         "cycle": "{node} is on a circle of inputs, so the map leaves it out.",
-        "missing": "{node} names {ref}, which is gone.",
+        "missing": "{node} refers to “{ref}”, which is gone.",
         "noTarget": "{node} refutes nothing.",
         "noSolution": "The case has deductions and no solution.",
         "twoSolutions": "{node} is a second solution.",
         "solutionUnreached": "Nothing on the map leads to {node}.",
-        "badMode": "{node} names a trial mode the trial does not have: {ref}.",
+        "badMode": "{node} asks for a trial mode the trial does not have, “{ref}”.",
         "culpritOnly": "Only the culprit holds {ref}, an input of {node}, so it does not count.",
-        "tooManyKeys": "The case has {ref} Key Remnants, more than a chapter prepares."
+        "tooManyKeys": "Key Remnants in the case: {ref}, more than a chapter prepares."
       },
       "addIncident": "Add Incident Remnant",
       "placeOnMap": "Place on the map",

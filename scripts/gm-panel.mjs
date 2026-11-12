@@ -555,27 +555,14 @@ export async function openGmPanel() {
             // above the tiles redraws itself while the panel is open (see
             // below), and a listener bound to a button that has since been
             // replaced is a "Do it" that does nothing.
-            /* THE CASE'S INCIDENT REMNANTS (E97 C12): Place on the map opens New Remnant filled in, Show the Investigation
-               panel on the Remnant's node; the panel comes back after either, as after a tile. */
             dialog.element.addEventListener("click", async ev => {
-                const place = ev.target.closest?.("[data-drpg-case-place]"), show = ev.target.closest?.("[data-drpg-case-show]");
-                if (!place && !show) return;
-                ev.preventDefault();
-                await dialog.close();
-                try {
-                    const I = await import("./investigation.mjs");
-                    if (place) {
-                        const [chapter, id] = place.dataset.drpgCasePlace.split(":");
-                        await I.placeIncident(Number(chapter), id);
-                    } else if ((await I.openInvestigationDashboard({ node: show.dataset.drpgCaseShow })) === RAISED) return;
-                } catch (err) { error("The GM panel's case line failed", err); }
-                openGmPanel().catch(err => error("Could not reopen the GM panel", err));
-            });
-            dialog.element.addEventListener("click", async ev => {
-                const button = ev.target.closest?.("[data-drpg-run]");
+                /* THE CASE'S INCIDENT REMNANTS (E97 C12): Place on the map and Show run as a tile does, so the panel comes
+                   back after them from the one place below (R1318). */
+                const caseLine = ev.target.closest?.("[data-drpg-case-place], [data-drpg-case-show]");
+                const button = caseLine ?? ev.target.closest?.("[data-drpg-run]");
                 if (!button || !dialog.element.contains(button)) return;
                 ev.preventDefault();
-                const item = lookup.get(button.dataset.drpgRun);
+                const item = caseLine ? { key: "caseLine", run: () => runCaseLine(caseLine) } : lookup.get(button.dataset.drpgRun);
                 if (!item) return;
                 await dialog.close();
                 let answer = null;
@@ -597,6 +584,17 @@ export async function openGmPanel() {
         },
         rejectClose: false
     });
+}
+
+/** The case line's buttons (E97 C12): Place on the map opens New Remnant filled in; Show, the Investigation panel on the
+ *  Remnant's node (answering RAISED where that window stood open already). */
+async function runCaseLine(button) {
+    const I = await import("./investigation.mjs");
+    if (button.dataset.drpgCasePlace) {
+        const [chapter, id] = button.dataset.drpgCasePlace.split(":");
+        return I.placeIncident(Number(chapter), id);
+    }
+    return I.openInvestigationDashboard({ node: button.dataset.drpgCaseShow });
 }
 
 /**
