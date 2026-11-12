@@ -36,8 +36,9 @@ killed.
   its legal road, judged by `G.judge` as the primary judges a player's packet.
 - E53's ledger counters (Q-E74-5).
 - ~~Pick the Lock's pass (DA9)~~: built as the plan has it after the owner's answer of 12.11.2026 (the row DA9 above).
-  Read where the plan was not exact, a default: "that room" is the room the lock opens; a pass not used is lost at the
-  time of day's end; a pass in use is kept until its holder leaves that room.
+  Read where the plan was not exact, then confirmed by the owner (12.11.2026, 13:25 Warsaw, through the coordinator:
+  "tak", "tak"): "that room" is the room the lock opens; a pass in use is kept until its holder leaves that room. A pass
+  not used is lost at the time of day's end (the plan's own words).
 - The owner's warning at the next entry, from `crossingSettled` (DA30): it is sent at once, wherever the owner is.
 - A door forced, a lock picked whose pass was used, and a room action's effects are not taken back by a lower Reroll;
   each line says so. A pass not used is taken back.
