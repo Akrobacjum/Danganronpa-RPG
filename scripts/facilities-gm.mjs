@@ -126,6 +126,19 @@ export async function applyEffects(actor, effects, place, sender = null) {
             } else if (effect.kind === "text") {
                 await whisperToOwner(target, `<p>${esc(effect.text)}</p>`);
                 lines.push(t("text", { name }));
+            } else if (rule.state) {
+                // A state ended (the owner's answer to Q-E93-3): one mark off its full track; the primary's hook on the
+                // write takes the status off (states.mjs `syncStates`).
+                const { STATES } = await import("./config.mjs");
+                const { stateHeld } = await import("./states.mjs");
+                const state = STATES[rule.state], path = state?.resource;
+                const marks = Number(r[path]?.value) || 0;
+                if (state && stateHeld(target, state) && marks > 0) {
+                    await trustedWrite(target, { [`system.resources.${path}.value`]: marks - 1 }, { reason: "facility" });
+                    lines.push(game.i18n.format("DRPG.Facility.applied.stateEnded", { name, state: game.i18n.localize(`DRPG.Facility.state.${rule.state}`) }));
+                } else {
+                    lines.push(game.i18n.format("DRPG.Facility.applied.stateNotHeld", { name, state: game.i18n.localize(`DRPG.Facility.state.${rule.state}`) }));
+                }
             } else if (effect.kind === "durability") {
                 const { mendWear } = await import("./inventory.mjs");
                 const mended = await mendWear(target, effect.n);

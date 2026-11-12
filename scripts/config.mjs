@@ -2195,7 +2195,11 @@ export const FACILITIES = Object.freeze({
         eclipseCrossing: Object.freeze({ amount: 2, untils: Object.freeze(["eclipse"]) }),
         // X points of durability back on the character's most worn thing that is not broken (inventory.mjs `mendWear`): at
         // once, keeps no row. A broken thing stays a Repair project's work (the stage's default, docs/dev/e93/STATUS.md).
-        durability: Object.freeze({ amount: 3 })
+        durability: Object.freeze({ amount: 3 }),
+        // Wounded or Breakdown ended (`state`, a key of `STATES`): one mark off its full track, at once, when the character
+        // is in it (states.mjs `stateHeld`); the GM picks which by the kind. One mark ends it, so the amount is 1.
+        endWounded: Object.freeze({ amount: 1, state: "wounded" }),
+        endBreakdown: Object.freeze({ amount: 1, state: "breakdown" })
     }),
     /** When a timed effect ends (timed-effects.mjs): the time of day's end, the day's end, the next roll the GM draws, the next Eclipse's end. */
     timedUntil: Object.freeze(["timeOfDay", "day", "nextRoll", "eclipse"]),

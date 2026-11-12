@@ -3359,8 +3359,11 @@
         "searchToken": "{room}: +{n} search token",
         "overflowDown": "Despair overflow: -{n}",
         "durability": { "one": "{name}: {item}, +{n} wytrzymałości", "few": "{name}: {item}, +{n} wytrzymałości", "many": "{name}: {item}, +{n} wytrzymałości", "other": "{name}: {item}, +{n} wytrzymałości" },
-        "durabilityNone": "{name}: nie ma nic zużytego do naprawy"
+        "durabilityNone": "{name}: nie ma nic zużytego do naprawy",
+        "stateEnded": "{name}: koniec stanu {state}",
+        "stateNotHeld": "{name}: nie ma stanu {state}, nic się nie zmienia"
       },
+      "state": { "wounded": "Wounded", "breakdown": "Breakdown" },
       "effect": {
         "traitBonus": "Statystyka, podniesiona na jakiś czas",
         "experience": "Experience na jakiś czas",
@@ -3368,6 +3371,8 @@
         "despairShield": "Ochrona przed Despair przy rzucie",
         "eclipseCrossing": "Przejścia w najbliższym Eclipse",
         "durability": "Wytrzymałość z powrotem dla najbardziej zużytego przedmiotu",
+        "endWounded": "Koniec stanu Wounded",
+        "endBreakdown": "Koniec stanu Breakdown",
         "health": "Health",
         "sanity": "Sanity",
         "hope": "Hope",

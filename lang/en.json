@@ -3095,8 +3095,11 @@
         "searchToken": "{room}: +{n} search token",
         "overflowDown": "Despair overflow: -{n}",
         "durability": { "one": "{name}: {item}, +{n} durability", "other": "{name}: {item}, +{n} durability" },
-        "durabilityNone": "{name}: nothing worn to mend"
+        "durabilityNone": "{name}: nothing worn to mend",
+        "stateEnded": "{name}: no longer {state}",
+        "stateNotHeld": "{name}: not {state}, nothing changed"
       },
+      "state": { "wounded": "Wounded", "breakdown": "Breakdown" },
       "effect": {
         "traitBonus": "Statistic, raised for a while",
         "experience": "Experience, for a while",
@@ -3104,6 +3107,8 @@
         "despairShield": "Protection from Despair on a roll",
         "eclipseCrossing": "Crossings in the next Eclipse",
         "durability": "Durability back on the most worn thing",
+        "endWounded": "End Wounded",
+        "endBreakdown": "End Breakdown",
         "health": "Health",
         "sanity": "Sanity",
         "hope": "Hope",

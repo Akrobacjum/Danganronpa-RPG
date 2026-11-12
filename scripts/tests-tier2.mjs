@@ -88350,6 +88350,44 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ clean: { kind: "durability", n: 2, scope: "self" }, after: [0, 1, true], line: true, none: true }),
             "{clean; after: [the most worn's wear, the other's, the broken one still broken]; line: the card names it; none: a line for nothing worn} - X points of durability back");
     }],
+    ["E93-T11 - a room action ends Wounded or Breakdown, the one its GM picked (scripts/facilities-gm.mjs `applyEffects`, states.mjs `stateHeld`; the owner's answer to Q-E93-3, 12.11.2026): on a character in Breakdown it takes one mark off Sanity and the state goes; on one not Wounded it writes nothing and the card says so", async () => {
+        /*
+         * E93, 12.11.2026. Given as a use of a room action gives it (`applyEffects`), on this GM; the character's Sanity
+         * marked full first, and its tracks and statuses put back. Red at 176eaa5: no kind "endBreakdown".
+         */
+        const F = await import("./facilities.mjs");
+        const { stateHeld, syncStates } = await import("./states.mjs");
+        const { STATES } = await import("./config.mjs");
+        const { applyEffects } = await import("./facilities-gm.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const before = foundry.utils.deepClone(actor.system.resources);
+        const read = {};
+        try {
+            const end = F.cleanEffect({ kind: "endBreakdown", n: 3 }), wound = F.cleanEffect({ kind: "endWounded", n: 1 });
+            must(end && wound, "no endBreakdown or endWounded effect - this would measure nothing past the cleaning");
+            read.clean = [end, wound];
+            const max = Number(actor.system.resources.stress?.max) || 0;
+            must(max > 0, "the character has no Sanity track - this would measure nothing");
+            await actor.update({ "system.resources.stress.value": max, "system.resources.hitPoints.value": 0 });
+            await syncStates(actor);
+            await settle();
+            must(stateHeld(actor, STATES.breakdown) && !stateHeld(actor, STATES.wounded), "the character is not in Breakdown alone - this would measure nothing");
+            const lines = await applyEffects(actor, [end, wound], where, player);
+            await settle();
+            await syncStates(actor);
+            read.after = [Number(actor.system.resources.stress.value) === max - 1, stateHeld(actor, STATES.breakdown),
+                actor.statuses?.has?.(STATES.breakdown.id) ?? null, Number(actor.system.resources.hitPoints.value)];
+            read.lines = lines.length;
+        } finally {
+            await actor.update({ "system.resources.stress.value": before.stress?.value ?? 0, "system.resources.hitPoints.value": before.hitPoints?.value ?? 0 });
+            await syncStates(actor);
+            for (const m of game.messages.filter(m => m.speaker?.actor === actor.id && m.whisper?.length && Date.now() - (m.timestamp ?? 0) < 60000)) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ clean: [{ kind: "endBreakdown", n: 1, scope: "self" }, { kind: "endWounded", n: 1, scope: "self" }],
+            after: [true, false, false, 0], lines: 2 }),
+            "{clean; after: [Sanity one mark less, Breakdown held, its status, Health marks]; lines: one per effect} - a room action ends the state picked");
+    }],
     ["E69-T2 - a crossing settles once, on the primary, where the token still stands (scripts/crossing-settle.mjs `scheduleSettle`, movement.mjs `recordCrossingInStep`; E69 C2, S18-28, A10): a crossing into the room the token stands in fires drpgCrossingSettled once with its actor, rooms, way and Eclipse after the wait; two crossings in a row fire one event from the first room to the last; a crossing into a room the token is not in when the wait ends (put back) fires none; and the GMs' record of a crossing schedules one", async () => {
         /*
          * E69 C2, 12.11.2026. The wait is the test's own (`ms`), so nothing waits 2 s; the token is not moved: the room it
