@@ -4461,6 +4461,7 @@
       "nextReady": "Gracze dostali pytanie przed przesunięciem zegara. Otwórz je ponownie.",
       "roleColumn": "Rola",
       "openSheet": "Otwórz arkusz: {name}",
+      "openColumn": "Otwórz",
       "role": {
         "student": "Uczeń"
       },

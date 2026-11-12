@@ -3489,6 +3489,12 @@ body .application.drpg-project-form .drpg-form-full > .drpg-specific-note > text
 .drpg-window-alive tbody tr[data-actor]:hover { background: var(--drpg-alive-row-hover-bg); }
 .drpg-window-alive td.drpg-data-col-silenced { text-align: center; }
 .drpg-window-alive td.drpg-data-col-name { white-space: nowrap; }
+/* E92 owner fix (12.11.2026; the owner: the sheet's and the items' buttons in a column of their own, "zawsze na tej samej
+   szerokosci"): one fixed width, the two buttons on one line, the kept slot of a Monokuma's row taking its place unseen. */
+.drpg-window-alive td.drpg-data-col-open { width: 5rem; min-width: 5rem; max-width: 5rem; white-space: nowrap; }
+.drpg-window-alive th.drpg-data-col-open { width: 5rem; min-width: 5rem; max-width: 5rem; overflow-wrap: anywhere; }
+.drpg-window-alive td.drpg-data-col-open > button + button { margin-left: 4px; }
+.drpg-window-alive td.drpg-data-col-open > [data-drpg-items-slot] { visibility: hidden; }
 /* A student who is not a Monocub, in the three Monocub columns that stand in every table since E49 A3 (gm-students.mjs
    `aliveTableHtml`): a "-" in the help line's ink, centred, so the column reads empty and not missing. */
 .drpg-window-alive td > .drpg-alive-none { display: block; text-align: center; color: var(--drpg-kit-help-ink); }
@@ -4013,7 +4019,9 @@ body.drpg-spectator #chat-notifications,
 body.drpg-spectator #chat-message { display: none; }
 #drpg-hud > .drpg-spectator-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 4px; font-size: 0.85em; }
 #drpg-hud > .drpg-spectator-line > .drpg-spectator-where { flex: 1 1 auto; min-width: 0; }
-#drpg-hud > .drpg-spectator-line > .drpg-spectator-rooms { flex: 1 1 12rem; min-width: 10rem; max-width: 100%; height: auto; padding: 1px 4px;
+/* At most 14rem (E92 owner fix): across the whole line the glass's skew of the clock lifted the box's right end, its arrow
+   with it, so the arrow read as standing above the box (round 1's shots). */
+#drpg-hud > .drpg-spectator-line > .drpg-spectator-rooms { flex: 0 1 12rem; min-width: 10rem; max-width: min(14rem, 100%); height: auto; padding: 1px 4px;
     appearance: auto; background: transparent; color: inherit; border: 1px solid currentColor; font: inherit; }
 #drpg-hud > .drpg-spectator-line > .drpg-spectator-rooms > option { color: initial; background: initial; }
 

@@ -144,6 +144,20 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, reso
     const otherRow = a => ({ id: a.id, ...shared(a), state: "", actions: "", freeMove: "", hope: "", give: "", silenced: "", do: "" });
 
     /*
+     * THE SHEET AND ITEMS BUTTONS IN A COLUMN OF THEIR OWN (E92 owner fix, 12.11.2026; the owner: "przyciski karty postaci
+     * i dania przedmiotu niech beda w osobnej kolumnie niz imie i nazwisko, zawsze na tej samej szerokosci"). They stood
+     * after the name in its cell, so each row's buttons began where its name ended. Now the name's cell holds the name
+     * alone and the next cell the two buttons, the sheet's then the items', in every row; a Monokuma, whose sheet has no
+     * Inventory, keeps the items' slot empty (a copy of the button no one sees, reads or reaches with Tab), so its sheet
+     * button stands where every other row's does. components.css gives the column one fixed width (R3862).
+     */
+    const sheetButton = a => iconButton({ icon: "fa-solid fa-id-card", label: game.i18n.format("DRPG.Panel.openSheet", { name: a.name }),
+        cls: "drpg-mini-button", attrs: { "data-drpg-sheet": a.id } });
+    const itemsButton = a => iconButton({ icon: "fa-solid fa-box-open", label: L("DRPG.Items.hubButton"), cls: "drpg-mini-button", attrs: { "data-drpg-items": a.id } });
+    const keptSlot = () => iconButton({ icon: "fa-solid fa-box-open", label: L("DRPG.Items.hubButton"), cls: "drpg-mini-button drpg-alive-slot",
+        attrs: { "data-drpg-items-slot": "", "aria-hidden": "true", tabindex: "-1" }, disabled: true });
+
+    /*
      * What every row carries: the name with its sheet and its Items, the Role, the Level Up. NO ITEMS ON A MONOKUMA'S ROW (E95 C7; the owner's 10.11): its sheet has no Inventory tab, so no road opens one.
      THE SHEET FROM THE ROW
      * (E95 C6; the owner's 10.11): an icon button beside the name opens that character's sheet (`openSheet`, the
@@ -154,9 +168,8 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, reso
         const role = roleOf(a);
         const n = offers(a);
         return {
-            name: `${esc(a.name)} ${iconButton({ icon: "fa-solid fa-id-card", label: game.i18n.format("DRPG.Panel.openSheet", { name: a.name }),
-                cls: "drpg-mini-button", attrs: { "data-drpg-sheet": a.id } })}${role === "monokuma" ? "" : ` ${iconButton({ icon: "fa-solid fa-box-open", label: L("DRPG.Items.hubButton"),
-                cls: "drpg-mini-button", attrs: { "data-drpg-items": a.id } })}`}`,
+            name: esc(a.name),
+            open: `${sheetButton(a)}${role === "monokuma" ? keptSlot() : itemsButton(a)}`,
             role: `<select name="role:${a.id}" data-drpg-role-select="${a.id}" aria-label="${esc(`${a.name}: ${L("DRPG.Panel.roleColumn")}`)}">${
                 ROLES.map(r => `<option value="${r}"${r === role ? " selected" : ""}>${L(ROLE_WORDS[r])}</option>`).join("")}</select>`,
             levelUp: !levelUp(a) ? "" : roleButton({ role: "secondary", cls: "drpg-mini-button", attrs: { "data-drpg-levelup": a.id },
@@ -175,6 +188,7 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, reso
     const rows = groups.flatMap(([key, list, build]) => [...(headed ? [{ group: L(`DRPG.Panel.group.${key}`), count: list.length }] : []), ...list.map(build)]);
     const columns = [
         { key: "name", label: L("DRPG.Panel.character"), cls: "name" },
+        { key: "open", label: L("DRPG.Panel.openColumn"), cls: "open" },
         { key: "role", label: L("DRPG.Panel.roleColumn") },
         { key: "state", label: L("DRPG.Panel.stateColumn") },
         { key: "actions", label: L("DRPG.Actions.label") },

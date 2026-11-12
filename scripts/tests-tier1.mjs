@@ -46790,7 +46790,8 @@ const INVARIANTS = [
                 const tr = table.querySelector(`tbody tr[data-actor="${CSS.escape(id)}"]`);
                 if (!tr) return null;
                 const cells = [...tr.children];
-                return [Boolean(cells[0]?.querySelector(`[data-drpg-items="${CSS.escape(id)}"]`)),
+                // In the buttons' own column, the second cell, since the E92 owner fix (12.11.2026; R3862): beside the name, not in its cell.
+                return [Boolean(cells[1]?.querySelector(`[data-drpg-items="${CSS.escape(id)}"]`)),
                     tr.querySelector("select[data-drpg-role-select]")?.value ?? null,
                     Boolean(tr.querySelector(`select[name="state.${CSS.escape(id)}"]`)),
                     tr.querySelector(`[data-drpg-levelup="${CSS.escape(id)}"]`)?.textContent.trim() ?? null,
@@ -46810,7 +46811,7 @@ const INVARIANTS = [
         }
         // Actions and Free Move after State since E49 A2 (the owner's Q6: two columns of each row; R3345 and tier 2 read their cells);
         // the three Monocub columns in every table since E49 A3 (R3406 reads their dimmed cells).
-        const heads = [T("DRPG.Panel.character"), T("DRPG.Panel.roleColumn"), T("DRPG.Panel.stateColumn"), T("DRPG.Actions.label"), T("DRPG.Panel.freeMove"),
+        const heads = [T("DRPG.Panel.character"), T("DRPG.Panel.openColumn"), T("DRPG.Panel.roleColumn"), T("DRPG.Panel.stateColumn"), T("DRPG.Actions.label"), T("DRPG.Panel.freeMove"),
             T("DRPG.Monocub.hope"), T("DRPG.Monocub.giveHopeColumn"), T("DRPG.Monocub.silenced"),
             T("DRPG.Panel.levelUpColumn"), T("DRPG.Panel.doColumn")];
         const shown = [["students", students], ["monokumas", kumas], ["notInClass", npcs]].filter(([, list]) => list.length);
@@ -46947,7 +46948,8 @@ const INVARIANTS = [
         let got = null;
         try {
             const el = () => w.of()[0]?.element ?? null;
-            const beside = rows.map(a => Boolean(el()?.querySelector(`tr[data-actor="${CSS.escape(a.id)}"] > td:first-child [data-drpg-items="${CSS.escape(a.id)}"]`)));
+            // The second cell, the buttons' own column beside the name, since the E92 owner fix (12.11.2026; R3862).
+            const beside = rows.map(a => Boolean(el()?.querySelector(`tr[data-actor="${CSS.escape(a.id)}"] > td:nth-child(2) [data-drpg-items="${CSS.escape(a.id)}"]`)));
             const footer = [...(el()?.querySelectorAll("footer [data-action]") ?? [])].map(b => b.dataset.action);
             const firstWindow = w.of()[0];
             el()?.querySelector(`[data-drpg-items="${CSS.escape(first.id)}"]`)?.click();
@@ -46961,7 +46963,7 @@ const INVARIANTS = [
             await w.close();
         }
         equal(stableJson(got), stableJson({ beside: rows.map(a => a.getFlag(MODULE_ID, "monokuma") !== true), footer: ["save", "cancel"], calls: [first.id], whileHub: 0, back: true }),
-            "{beside: an Items button in each row's first cell but a Monokuma's (E95 C7); footer: its actions; calls: the actors openItemManager was called with; whileHub: Students windows drawn while the hub ran; back: the window drawn again after}");
+            "{beside: an Items button in each row's second cell, the buttons' column, but a Monokuma's (E95 C7; E92 owner fix); footer: its actions; calls: the actors openItemManager was called with; whileHub: Students windows drawn while the hub ran; back: the window drawn again after}");
     }],
 
     ["R2084 - the Students window is a GM's (scripts/gm-students.mjs; E47-C8): on a player's browser `openWhoIsAliveDialog` opens nothing, and the Role's roads called from it write nothing (monokuma.mjs `setMonokuma` and `setNotInClass` refuse on `game.user.isGM`, `markFromSheet` through them); Refund last crossing on the kit's secondary role", async () => {
@@ -49537,6 +49539,33 @@ const INVARIANTS = [
         equal(stableJson({ before, after, ungated, transitions: tr.length > 200 && !gate.test(tr) }),
             stableJson({ before: true, after: false, ungated: [["playTrialEntry", true], ["playVerdictCut", true], ["playDayStart", true]], transitions: true }),
             "[the day board's cast with the student, then flagged a Spectator; the three players and the transitions ask no viewer]");
+    }],
+    ["R3862 - the Students window's sheet and items buttons stand in a column of their own, beside the name and never in its cell, at one width in every row (scripts/gm-students.mjs `aliveTableHtml`; E92 owner fix, the owner's 12.11.2026: \"przyciski karty postaci i dania przedmiotu niech beda w osobnej kolumnie niz imie i nazwisko, zawsze na tej samej szerokosci\"): every row - a student's, a Monokuma's, a Spectator's - has a name cell with no button and a buttons cell right after it holding two slots in one order, the sheet's then the items' (a Monokuma's items slot kept, empty, hidden from a screen reader and the Tab key); the stylesheet gives that column one fixed width and keeps its buttons on one line", async () => {
+        /*
+         * E92 owner fix, 12.11.2026. The window is drawn (R2081's `studentsWindow`); jsdom lays nothing out, so the same x
+         * and width in every row is held by the table itself (one column) and by the column's fixed width in the stylesheet
+         * - measured in Chromium on the review page's shots. Red at 63d3c9c: the buttons in the name's cell, after the name.
+         */
+        needs(env.dialogs(), "the Students window is drawn");
+        const w = await studentsWindow();
+        let rows;
+        try {
+            const root = w.app?.element;
+            must(root, "no Students window drew");
+            rows = [...root.querySelectorAll("tr[data-actor]")].map(tr => {
+                const cells = [...tr.children];
+                const name = tr.querySelector("td.drpg-data-col-name"), open = tr.querySelector("td.drpg-data-col-open");
+                const slots = open ? [...open.children].map(c => (c.matches("[data-drpg-sheet]") ? "sheet" : c.matches("[data-drpg-items]") ? "items"
+                    : c.matches("[data-drpg-items-slot]") && c.getAttribute("aria-hidden") === "true" ? "kept" : "other")) : null;
+                return { nameButtons: name ? name.querySelectorAll("button").length : null, next: Boolean(open) && cells.indexOf(open) === cells.indexOf(name) + 1,
+                    slots: slots?.join(",") ?? null, tab: open ? [...open.querySelectorAll("[data-drpg-items-slot]")].every(e => e.tabIndex === -1) : null };
+            });
+        } finally { await w.close(); }
+        must(rows.length >= 3, "the window drew fewer than three rows - this would measure nothing");
+        const rule = /\.drpg-window-alive\s+td\.drpg-data-col-open\s*\{[^}]*\bwidth:\s*[\d.]+rem[^}]*white-space:\s*nowrap/.test(await moduleStyles());
+        const odd = rows.filter(r => r.nameButtons !== 0 || !r.next || !/^sheet,(items|kept)$/.test(r.slots ?? "") || r.tab !== true);
+        equal(stableJson({ odd, rule }), stableJson({ odd: [], rule: true }),
+            "[the rows whose name cell holds a button, whose buttons are not the next cell, or whose slots are not the sheet's then the items'; the column's fixed width in components.css]");
     }],
     ["R3858 - the census of `type === \"character\"` holds (E92 C0; the plan's risk R1): every line in scripts/ outside the suite that reads an actor's type as \"character\" is one docs/dev/e92/CENSUS.md classified - a new one fails here until it is classified there and counted here", async () => {
         /*

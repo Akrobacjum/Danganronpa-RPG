@@ -4093,6 +4093,7 @@
       "nextReady": "The players have been asked before the clock moves. Open the question again.",
       "roleColumn": "Role",
       "openSheet": "Open {name}'s sheet",
+      "openColumn": "Open",
       "role": {
         "student": "Student"
       },
