@@ -49787,6 +49787,19 @@ const INVARIANTS = [
         equal(stableJson([C.ACTIONS.sabotage.simpleRepair ?? null, scale(12), scale(17), scale(18), scale(5, true)]),
             stableJson([2, 2, 2, 6, 8]), "[the constant, a hit at 12, at 17, at 18, a critical] - a sabotage's repair is not the owner's");
     }],
+    ["R3965 - a trap's victim notices it at Night as by day (E64; S02-75, the owner's DRPG-D1 of 12.11.2026: \"Zgoda na zmiany z kolumny opcje\", \"Zostaje to co wdrazamy i tylko to\"): config.mjs `MURDER_OPENING.victim.nightDisadvantage` is false, so murder-rules.mjs and roll-draw.mjs give the victim's opening no -1 at Night; the killer's opening keeps its Night advantage and the victim's threshold stays 20", async () => {
+        /*
+         * E64, 12.11.2026. S02-75's reading (STATUS): Eye or Head against 20 with disadvantage at Night noticed 10.0 / 11.3 /
+         * 13.4% at 0 / +1 / +2; without it 16.7 / 20.8 / 25.0%, the day's. The two readers ask the flag (`def.nightDisadvantage
+         * ? -1 : 0`), read here off their source. Red before this commit: the flag was true.
+         */
+        const C = await import("./config.mjs");
+        const sources = await moduleSources();
+        const reads = ["murder-rules.mjs", "roll-draw.mjs"].map(file => /def\.nightDisadvantage\s*\?\s*-1\s*:\s*0/.test(stripComments(sources.get(file) ?? "")));
+        equal(stableJson([C.MURDER_OPENING.victim.nightDisadvantage, C.MURDER_OPENING.victim.threshold, C.MURDER_OPENING.killer.nightAdvantage, reads]),
+            stableJson([false, 20, true, [true, true]]),
+            "[the victim's Night disadvantage, the victim's threshold, the killer's Night advantage, the two readers ask the flag] - a trap's notice at Night is not the owner's");
+    }],
 ];
 
 /**

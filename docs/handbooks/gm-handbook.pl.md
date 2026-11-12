@@ -753,7 +753,7 @@ Dwie drogi. Gracz zgłasza **Direct Murder** podczas Eclipse (zgoda gracza ofiar
 | Krytyk | zaczyna się, zostawiając najmniej Key Remnants | **3** |
 | Porażka | brak incydentu; ofiara nigdy nie dowiaduje się, że coś próbowano; akcja wydana | - |
 
-Liczba ma minimum **3** (`KEY_REMNANTS.minimum`). Pułapka otwiera się rzutem **ofiary**: Eye albo Head przeciw **20**, z utrudnieniem nocą, i wybierasz między nimi tak samo; ofiara słyszy tylko, że przygotowuje się dla niej rzut.
+Liczba ma minimum **3** (`KEY_REMNANTS.minimum`). Pułapka otwiera się rzutem **ofiary**: Eye albo Head przeciw **20**, nocą tak samo jak za dnia (od E64 bez utrudnienia nocą), i wybierasz między nimi tak samo; ofiara słyszy tylko, że przygotowuje się dla niej rzut.
 
 | Rzut ofiary | Co się dzieje |
 |---|---|

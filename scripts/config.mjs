@@ -3366,8 +3366,13 @@ export const MURDER_OPENING = {
         label: "Opening roll - victim",
         threshold: 20,
         traits: ["eye", "head"],
-        /** Night works against the victim. */
-        nightDisadvantage: true,
+        /*
+         * NO NIGHT DISADVANTAGE ANY MORE (E64; S02-75, the owner's DRPG-D1 of 12.11.2026: "Zgoda na zmiany z kolumny
+         * opcje", "Zostaje to co wdrazamy i tylko to"). With it the victim noticed a trap at Night 10.0 / 11.3 / 13.4% of
+         * the time at 0 / +1 / +2 (STATUS); without it as by day, 16.7 / 20.8 / 25.0%. The readers (murder-rules.mjs,
+         * roll-draw.mjs) still ask the flag: one value to flip back.
+         */
+        nightDisadvantage: false,
         hope: "Something is wrong with this room, and you have no idea why. Spend your "
             + "Free Move, if you still have it, and you live.",
         despair: "You work out what has been set up here, and you can tell the others. "

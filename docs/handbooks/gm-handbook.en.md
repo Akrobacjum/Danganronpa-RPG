@@ -753,7 +753,7 @@ Two roads. A player declares a **Direct Murder** during an Eclipse (consent from
 | Critical | it begins, leaving the fewest Key Remnants | **3** |
 | Failure | no incident; the victim never learns anything was attempted; the action is spent | - |
 
-The count is floored at **3** (`KEY_REMNANTS.minimum`). A trap opens on the **victim's** roll: Eye or Head against **20**, with disadvantage at Night, and you pick between the two the same way; the victim is told only that a roll is being set up for them.
+The count is floored at **3** (`KEY_REMNANTS.minimum`). A trap opens on the **victim's** roll: Eye or Head against **20**, the same by night as by day (no disadvantage at Night since E64), and you pick between the two the same way; the victim is told only that a roll is being set up for them.
 
 | Victim's roll | What happens |
 |---|---|

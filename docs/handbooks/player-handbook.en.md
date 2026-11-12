@@ -584,7 +584,7 @@ There is exactly one, and the kind of murder decides whose it is.
 
 The victim sees nothing while the killer rolls - no card, no music, nothing on the Event panel. When the roll succeeds they are told at once that the incident has begun, and who is moving on them: a direct murder is face to face. A failure leaves them nothing at all.
 
-**Indirect murder (a trap):** the **victim** rolls (Eye or Head, against **20**; disadvantage at Night; the GM picks which). Being asked to roll is itself the warning: you are told that a roll is being set up for you, and the window reads "Something feels wrong".
+**Indirect murder (a trap):** the **victim** rolls (Eye or Head, against **20**, the same at Night as by day; the GM picks which). Being asked to roll is itself the warning: you are told that a roll is being set up for you, and the window reads "Something feels wrong".
 
 | Victim's roll | What happens |
 |---|---|
