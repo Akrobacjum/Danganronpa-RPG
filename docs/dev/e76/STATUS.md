@@ -34,10 +34,59 @@ the planner's branch (plan-130). This file is the work line's record; the coordi
   - Mutants (on a copy of the tree, R3600 + R133): forward without `saveTotal`/`isCritical` - KILLED; owner check dropped -
     KILLED; a null `saveTotal` falling back to `result` - KILLED (after a test was added for it; it first SURVIVED).
 
-## In progress / next
+- **C4 - the old keys `-=` and `==` in both readings** (harness only: lib/operators.mjs, lib/futil.mjs, cluster.mjs;
+  scenarios 91-old-keys-ignored and 92-old-keys-honoured on one body, lib/old-keys.mjs). `legacyReading()` is "ignored"
+  (the module's measured notes, the default and the model since E30) or "honoured" (Foundry issue 14806 as read for 14.369+:
+  the cluster turns `-=key` into a ForcedDeletion and `==key` into a ForcedReplacement before the write is judged, applied and
+  sent on). `DRPG_LEGACY_KEYS` picks a whole run's; a scenario's `export const legacyReading` wins; every results file
+  records `legacyReading`. Red first: scenario 92 on a copy of the tree with the old harness files, 4/8 ("A (honoured): a
+  GM's '-=' and '==' on a world flag delete and replace" and the reports and the put-back row failed). Green: 91 8/8, 92 8/8.
+  In 92, p1's `{"flags.danganronpa-rpg.-=silencedChapter": null}` on Aiko is put back by the primary GM with one row
+  `putBack`, "flags.danganronpa-rpg.silencedChapter: 97 -> -", naming PlayerOne: sheet-audit.mjs already judges a `-=` part
+  as the whole key (`reachOf`), so the honoured reading needs no module change.
+  - **Deviation from the plan, owner to confirm:** the plan said "default to the reading of the target version". The
+    default stays "ignored": the honoured reading is read off an issue title, not measured, and switching every scenario to
+    it on that reading is the change LIVE-E76-03 should decide.
+  - **Proposed wording for the coordinator** (the root rules file, "Delete a key with forcedDeletion() or unsetFlag"; this line does not
+    edit that file): "A `-=key` in an update removed nothing in the 14.36x this module was measured on, and may remove on
+    14.369+ (Foundry issue 14806; LIVE-E76-03). Either way the module never spells one: R152 fails any update in the module
+    spelt that way, and the harness runs both readings (scenarios 91 and 92, `DRPG_LEGACY_KEYS`)."
+- **C5 - Foundry's geometry contract (A10).** R3601: what `PassageMovePolygon` and `clipPassages` lean on, held to Foundry
+  14.370 as foundry-vtt-types 14.370.0 declares it (commit 2923f0c5, 07.11.2026: `edges: Set<Edge>`,
+  `protected _identifyEdges(): void`, `constructor(a, b, options?)` with the nine options), and this Foundry's sight backend
+  (the harness's headless) to the same members. Typings, not Foundry's source. Nothing to be red in the module (a pin); its
+  mutants: an extra option in the cut KILLED, an argument passed to `_identifyEdges` KILLED, the harness's `_identifyEdges`
+  taking a parameter KILLED (a first try with a default parameter was a bad mutant: `.length` does not count it).
+  Not done: the census rows of the plan's C5 list (`Edge`, `PointMovementSource`, per-Level edges, `TokenDocument#movement`,
+  wall fields, `teleport`, `displace`, `BaseWall.#canUpdate`, "releasing control cancels the drag") need Foundry's notes or
+  source, which this session cannot reach; LIVE-E76-06 carries the drag.
+- **C3, the part this line could do: the draw left off 2.12** (roll-draw.mjs `seamFor`, R3602). Read in 2.12.8:
+  `actor.rollTrait` builds `MoveContext.build({ ..., ...options, actor })` (actor.mjs:727-743), and MoveContext's constructor
+  copies only the properties it names and sets `this.dialog = {}` (move-context.mjs:21-): the module's `drpgActionRoll`, the
+  nonce, `LOADED_DIE`, `TRAIT_BY_GM` and `dialog.configure` never reach the build. `reviewBuild` alone would have read 2.12.8
+  as "ok" and the GM would have drawn every action as a statistic from the sheet. `seamFor` now also reads the Actor class's
+  `rollTrait`: one naming a MoveContext, or one whose source cannot be read, is "changed" (Q-E76-5's default: the rework
+  split off, the roll thrown on the player's browser and the GM told once per version). Red first: R3602 measured
+  `["ok","ok","ok","ok"]` where `["changed","ok","ok","changed"]` was expected. Mutant: the unreadable-source check dropped -
+  KILLED. **What 2.12.8 does to the module's action rolls beyond the draw is not known and likely broken** (the claim by
+  nonce in private-rolls.mjs `supersedingRoll`, the Loaded Die, the window always open): that is the split-off rework, and
+  the owner's.
+- **C6 - the dice look on Dice So Nice 6.4.5: read, not changed.** Read in DSN 6.4.5's source (tag b365efc, 04.11.2026):
+  `ALL_CUSTOMIZATION` is a static of the internal `DsnSettings` (module/settings/DsnSettings.js:264), not of `Dice3D`, and DSN's
+  api.js exports only `DiceSystem` and `DiceSFX`; so `canonicalLook` falls back to the GM's raw `appearance` flag, as its
+  comment says for 6.3+. New in 6.4: a `dice-so-nice.saved` flag (`SAVED`, :160-163). A user without `saved.sfx` throws with
+  `DEFAULT_SFX()` - the lines packages register through `game.dice3d.addSFXDefaults` - whatever their `sfxList` flag holds,
+  and a user without `saved.appearance` has the package's "basic" role look merged under their own flag (`APPEARANCE`,
+  :191-196). The module's forced look writes `appearance` and `sfxList: []` but no `saved` marker, so on 6.4 a forced player
+  who never saved their own look would get any package's default effects, against the module's "no special effect"
+  (dice-sync.mjs `lookFrom`). Daggerheart 2.12.8 registers no defaults (no `addSFXDefaults` in its module/, git grep), so
+  with Daggerheart alone the list is empty. Not changed here: the fix (writing and putting back DSN's `saved` marker with the
+  look) changes what players see, can only be checked with Dice So Nice at a table (no canvas headless; LIVE-E76-05), and
+  needs the owner's screenshots review. Proposed for the owner. Daggerheart 2.10+ dice roles: not read further.
 
-- C4 (old keys `-=`, `==` in both readings, `lib/operators.mjs`), C5 (`PassageMovePolygon` contract), C6 (dice look on
-  DSN 6.4 / Daggerheart 2.12), C7 (notes).
+## Next
+
+- C7: release notes material and versions.mjs comments are the coordinator's at release; nothing else planned on this line.
 
 ## Blocked: the owner's decision
 
@@ -68,7 +117,7 @@ the planner's branch (plan-130). This file is the work line's record; the coordi
 | Q-E76-2 | Targets: Foundry 14.370, Daggerheart 2.12.8, Dice So Nice 6.4.5. |
 | Q-E76-3 | foundryvtt.com not allowed in this session; the Foundry half stays secondhand. Not asked of the owner (the brief). |
 | Q-E76-4 | module.json untouched: no `verified` raised without a table run (LIVE-E76-01). |
-| Q-E76-5 | C3 not done here at all (blocked above), so the split question is the owner's with C3. |
+| Q-E76-5 | Split: the 2.12 rework (carrying the module's marks through a MoveContext) is not in E76; the draw reads "changed" on 2.12 (R3602) and the GM is told once per version. |
 
 ## Live checks added (AUDIT 9.2, items 475-480)
 
@@ -76,8 +125,11 @@ LIVE-E76-01 .. LIVE-E76-06, as the plan's section 4 proposed.
 
 ## Screenshots
 
-None so far: C2 changes nothing a player or GM sees except that a 2.12.5+ save is marked on the card (not drawable
-headless; LIVE-E76-02).
+None. Nothing this line changed is drawn headless: C2 marks a 2.12.5+ save on Daggerheart's own card (LIVE-E76-02), C3
+changes which browser throws a roll on 2.12 and adds no text a player or GM reads (the GMs' whisper is the existing
+`DRPG.Rolls.notDrawnHere`, which names only the version; the new reason is in the English console line alone), C4 and
+C5 are the harness's and the suite's.
+No lang key was added or changed.
 
 ## Test results
 
@@ -88,6 +140,11 @@ headless; LIVE-E76-02).
 | 12.11, C2 | `node run-all.mjs lint check gate` | green: lint 0 problems, check 17 parts, gate 37/37 |
 | 12.11, C2 | `node tools/config-prose.mjs --check lang/pl.json` | 517 strings, missing 0, extra 0 |
 | 12.11, C2 | `node run-tests.mjs --tier 1` (whole) | 1175 ran, 1159 passed, 0 failed, 16 skipped, 1 red (R3339, E48's expected red, on the base), 311.7 s |
+| 12.11, C2 | scenarios 17-assistant, 30-security, 83-roll-integrity | green: 45/45; 273/274 + 1 expected red, 0 failed; 110/110 |
+| 13.11, C3-C5 | `node run-all.mjs lint check gate` | green: lint 295 files 0 problems, check 17 parts, gate 37/37 |
+| 13.11, C3-C5 | `node run-tests.mjs --tier 1` (whole) | 1177 ran, 1161 passed, 0 failed, 16 skipped, 1 red (R3339, E48's), 297.2 s |
+| 13.11, C3-C5 | own: R3600, R3601, R3602 with R133, R217, R556 | all pass |
+| 13.11, C3-C5 | scenarios 00-boot, 91-old-keys-ignored, 92-old-keys-honoured, 83-roll-integrity, 20-crit-hope | green: 33/33, 8/8, 8/8, 110/110, 6/6 |
 
 ## Tokens so far
 

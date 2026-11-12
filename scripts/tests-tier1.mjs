@@ -8323,6 +8323,39 @@ const INVARIANTS = [
             "the seam would be put on a build that is not the reviewed one, or left off the reviewed one (this world's, the reviewed fake, the reordered fake)");
     }],
 
+    ["R3602 - the draw is left off a Daggerheart whose rollTrait passes its options through a MoveContext, which keeps none of the module's roll marks (2.12); this world's rollTrait is not one", async () => {
+        /*
+         * E76 C3 (12.11.2026; the plan's Q-E76-5, default taken: the 2.12 rework split off, the seam reading "changed"
+         * there). Read in Daggerheart 2.12.8 (git show on the tag, 71c318de25): actor.mjs `rollTrait` (:727-743) builds
+         * `MoveContext.build({ ..., ...options, actor })`, and move-context.mjs's constructor (:21-) copies the properties
+         * it names and sets `this.dialog = {}`: the module's `drpgActionRoll`, its nonce, `LOADED_DIE` and `TRAIT_BY_GM`
+         * never reach `DualityRoll.build`. Up to 2.10.x rollTrait handed the options on (the harness's copy, client-entry.mjs).
+         * `reviewBuild` reads the roll class alone, and 2.12.8's still has every member it asks for (build's three steps in
+         * order, the hook template, the Duality hooks, fromData, toMessage, buildEvaluate, dualityUpdate: read in the tag),
+         * so the seam would have wrapped it and drawn every action's roll as a statistic from the sheet. The harm: an
+         * action drawn as a reaction, its economy and its Calls lost on the GM. Not run on 2.12.8: the harness's dice are
+         * 2.10.5's (LIVE-E76-04).
+         */
+        const { seamFor } = await import("./roll-draw.mjs");
+        const live = game.system?.api?.dice?.DualityRoll;
+        must(typeof live === "function", "this world's Daggerheart has no DualityRoll to draw");
+        const moveContext = { MoveContext: { build: async data => data } };
+        const road212 = async function rollTrait(trait, options = {}) {
+            const config = await moveContext.MoveContext.build({ roll: { type: "trait", trait }, actionType: "action", ...options, actor: this });
+            return this.diceRoll(config);
+        };
+        const rolled = road212.bind(null);
+        const road210 = async function rollTrait(trait, options = {}) {
+            const config = { roll: { trait }, ...options };
+            return this.diceRoll(config);
+        };
+        ok(typeof CONFIG.Actor?.documentClass?.prototype?.rollTrait === "function", "this world's Actor class has no rollTrait for the seam to read");
+        const verdicts = [seamFor(live, { rollTrait: road212 }), seamFor(live, { rollTrait: road210 }), seamFor(live), seamFor(live, { rollTrait: rolled })];
+        equal(JSON.stringify(verdicts.map(v => v.state)), JSON.stringify(["changed", "ok", "ok", "changed"]),
+            "[2.12's road, 2.10's road, this world's rollTrait, a rollTrait whose source cannot be read] - the seam's verdict");
+        ok(/MoveContext/.test(verdicts[0].why) && /marks/.test(verdicts[0].why), `the reason does not say what 2.12's road loses: ${verdicts[0].why}`);
+    }],
+
     ["R219 - what one client must decide is decided on the primary GM: another GM asks it, as a player does", async () => {
         /*
          * E08+E28 fix r2-H7, 05.10.2026; the round-2 review's S2-7 and m5. A request's `local`
