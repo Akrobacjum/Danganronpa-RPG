@@ -7509,6 +7509,13 @@
     },
     "CaseMap": {
       "viewSwitch": "Widok śledztwa",
+      "editLabel": "Pola: {name}",
+      "toolsLabel": "Narzędzia mapy",
+      "cameraLabel": "Kamera",
+      "zoomOut": "Oddal",
+      "zoomIn": "Przybliż",
+      "zoomLevel": "Przybliżenie",
+      "zoomFit": "Dopasuj do widoku",
       "viewMap": "Mapa",
       "viewTable": "Tabela",
       "graphLabel": "Mapa sprawy, rozdział {chapter}",

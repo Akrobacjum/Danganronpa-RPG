@@ -137,9 +137,16 @@ const SEED_CASE = `const CS = await import(\`\${repoUrl}/scripts/case-schema.mjs
     const ch = (await import(\`\${repoUrl}/scripts/clock.mjs\`)).getClock().chapter;
     const ev = CS.caseGraph(ch).nodes.filter(n => n.evidence).map(n => n.id);
     const real = game.user.getFlag;
-    globalThis.__probe08case = { ch, real, ids: ["probe08-d1", "probe08-d2", "probe08-c1", "probe08-s1", "incident-probe08a"] };
+    /* E97 fix (12.11.2026): one Remnant with a long name and description, so a node's whole content is what the Map
+       captures are measured on (audit/case-map-sweep.mjs); dropped with the case. */
+    const R = await import(\`\${repoUrl}/scripts/remnants.mjs\`);
+    const long = await R.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene: canvas.scene, chapter: ch, note: "probe 08 - a long Remnant" });
+    if (long) await R.setRemnantPublic(long, { name: "The torn page of the library's lending ledger, with the last borrower's name scratched out",
+        playerText: "A page torn from the ledger by the library desk. The last line is scratched out with a pen pressed hard enough to tear the paper, and the date beside it reads the night of the murder." });
+    globalThis.__probe08case = { ch, real, long, ids: ["probe08-d1", "probe08-d2", "probe08-c1", "probe08-s1", "incident-probe08a"] };
     game.user.getFlag = function (scope, key) { return key === "investigationView" ? "map" : real.call(this, scope, key); };
-    await CS.setCaseNode(ch, "probe08-d1", { kind: "deduction", label: "The killing was before 23:40", inputs: ev.slice(0, 2), mode: "debate" });
+    await CS.setCaseNode(ch, "probe08-d1", { kind: "deduction", label: "The killing was before 23:40, while the library was still lit and the desk lamp on", inputs: ev.slice(0, 2), mode: "debate",
+        text: "The clock stopped at 23:40 when it fell, and the lamp's bulb was still warm when the body was found: whoever did it left before the night patrol." });
     await CS.setCaseNode(ch, "probe08-d2", { kind: "deduction", label: "The culprit came in with a key", inputs: ev.slice(1, 3) });
     await CS.setCaseNode(ch, "probe08-c1", { kind: "counter", label: "The clock could have stopped by itself", refutes: ["probe08-d1"] });
     await CS.setCaseNode(ch, "probe08-s1", { kind: "solution", label: "It was done in the library", inputs: ["probe08-d1", "probe08-d2"] });
@@ -147,7 +154,12 @@ const SEED_CASE = `const CS = await import(\`\${repoUrl}/scripts/case-schema.mjs
     await CS.setCaseMeta(ch, { askedAt: null, run: null });`;
 const DROP_CASE = `const CS = await import(\`\${repoUrl}/scripts/case-schema.mjs\`);
     const c = globalThis.__probe08case;
-    if (c) { for (const id of c.ids) await CS.dropCaseNode(c.ch, id); await CS.setCaseMeta(c.ch, { askedAt: null }); game.user.getFlag = c.real; }
+    if (c) {
+        for (const id of c.ids) await CS.dropCaseNode(c.ch, id);
+        await CS.setCaseMeta(c.ch, { askedAt: null });
+        game.user.getFlag = c.real;
+        if (c.long) { const R = await import(\`\${repoUrl}/scripts/remnants.mjs\`); await R.dropRemnantSecret(c.long).catch(() => {}); await c.long.delete().catch(() => {}); }
+    }
     delete globalThis.__probe08case;`;
 export const WINDOWS = [
     ...ROOM_TABS.map(tab => ({ id: `rooms-${tab}`, module: "room-setup.mjs", call: `m.openRoomSetupDialog({ tab: ${JSON.stringify(tab)} })`, perTab: false })),

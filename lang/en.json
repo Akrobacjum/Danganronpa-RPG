@@ -5761,6 +5761,13 @@
     },
     "CaseMap": {
       "viewSwitch": "Investigation view",
+      "editLabel": "Fields of {name}",
+      "toolsLabel": "Map tools",
+      "cameraLabel": "Camera",
+      "zoomOut": "Zoom out",
+      "zoomIn": "Zoom in",
+      "zoomLevel": "Zoom",
+      "zoomFit": "Fit to view",
       "viewMap": "Map",
       "viewTable": "Table",
       "graphLabel": "Case map, chapter {chapter}",

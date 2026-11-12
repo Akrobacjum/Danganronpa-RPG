@@ -23096,16 +23096,19 @@ const REGRESSIONS = [
         const L = k => game.i18n.localize(k);
         const open = read(M.caseGraphHtml({ graph, layout, finders, authors, selected: "d-a" }));
         const folded = read(M.caseGraphHtml({ graph, layout, finders, authors, fold: true }));
+        // a place's x and y (its measured w and h are R3660's, E97 fix)
+        const xy = p => (p ? { x: p.x, y: p.y } : null);
         const pts = [{ id: "a", x: 0, y: 0 }, { id: "b", x: 0, y: 66 }, { id: "c", x: 244, y: 0 }, { id: "d", x: 244, y: 66 }];
         equal(JSON.stringify({
-            at: [place.at["key:0"], place.at["d-a"], place.gapY],
+            at: [xy(place.at["key:0"]), xy(place.at["d-a"]), place.gapY],
             edges: [M.edgePath({ x: 0, y: 0 }, { x: 244, y: 66 }), M.edgePath({ x: 244, y: 132 }, { x: 244, y: 66 })],
             states: graph.nodes.map(n => [n.id, M.nodeState(n, finders)]),
             open, folded: [folded.buttons.map(b => b[0]), folded.fold],
             arrows: [M.neighbourOf(pts, "a", "ArrowRight"), M.neighbourOf(pts, "a", "ArrowDown"), M.neighbourOf(pts, "d", "ArrowUp"), M.neighbourOf(pts, "a", "ArrowLeft")]
         }), JSON.stringify({
             at: [{ x: g.pad, y: g.head + g.pad }, { x: g.pad + g.nodeW + g.colGap, y: g.head + g.pad }, g.head + g.pad + layout.gapAt * g.pitch + Math.round(g.nodeH / 2)],
-            edges: [`M196 27 C220 27 220 93 244 93`, `M244 159 H232 V93 H244`],
+            // a node's least width is MAP_GEOMETRY's (196 at C5, 240 since the E97 fix): the curve's start and middle follow it
+            edges: [`M${g.nodeW} 27 C${Math.round((g.nodeW + 244) / 2)} 27 ${Math.round((g.nodeW + 244) / 2)} 93 244 93`, `M244 159 H232 V93 H244`],
             states: [["S.T1", "held"], ["S.T2", "onMap"], ["key:0", "planned"], ["d-a", "schema"], ["c-b", "schema"]],
             open: {
                 buttons: layout.columns.flat().map(id => {
@@ -23164,7 +23167,7 @@ const REGRESSIONS = [
             keys: [["tooManyKeys", "1"]]
         }), "{each case: what checkCase names [code, node, what it names]}");
     }],
-    ["R3655 - what the Map draws of a node's reach and problems (E97 C7, C8; case-map.mjs): a deduction past half reads \"x/y\" marked reachable, one short of it unmarked, evidence none; a node with a problem is marked and says so in its label; the side panel's summary lists every problem in words and carries the Check consistency button, and the picked node lists its own", async () => {
+    ["R3655 - what the Map draws of a node's reach and problems (E97 C7, C8; case-map.mjs): a deduction past half reads \"x/y\" marked reachable, one short of it unmarked, evidence none; a node with a problem is marked and says so in its label; the overview (the side panel's summary until the E97 fix) lists every problem in words and carries the Check consistency button, and the open node lists its own on itself", async () => {
         /*
          * E97 C7, C8, 12.11.2026; the owner's A of 09.11 ("strictly more than half"). Pure drawing of a fixture graph.
          * Red at a7146dd: no reach and no problems drawn.
@@ -23191,7 +23194,7 @@ const REGRESSIONS = [
             warn: ["d-none", "d-one"].map(id => [btn(id)?.classList.contains("has-warn"), (btn(id)?.getAttribute("aria-label") ?? "").includes(game.i18n.localize("DRPG.CaseMap.hasProblem"))]),
             list: [...d.querySelectorAll(".drpg-case-problems li")].map(li => li.textContent),
             check: Boolean(d.querySelector("[data-drpg-case-check]")),
-            picked: [...d2.querySelectorAll(".drpg-case-panel-read .drpg-case-panel-warn")].map(p => p.textContent)
+            picked: [...d2.querySelectorAll('.drpg-case-edit[data-drpg-edit="d-none"]:not([hidden]) .drpg-case-info-warn')].map(p => p.textContent)
         }), JSON.stringify({
             reach: [["1/1", true], ["1/2", false], null],
             warn: [[true, true], [false, false]],
@@ -23223,6 +23226,248 @@ const REGRESSIONS = [
             planned: [[["incident-a", "incident", true, true, "incident-a"], ["deduction-x", "deduction", false, false, null]], [{ from: "incident-a", to: "deduction-x", kind: "input" }]],
             placed: [[["S.T9", "trace", true, false, "incident-a"], ["deduction-x", "deduction", false, false, null]], [{ from: "S.T9", to: "deduction-x", kind: "input" }]]
         }), "{lines: each slot's line under a limit of 3; unlimited: with none; planned, placed: the graph's nodes [id, kind, evidence, planned, incident row] and edges, before and after the Remnant is on the map}");
+    }],
+    ["R3660 - every node of the case map is sized to its whole content (E97 fix; the owner's review of 12.11.2026, \"opisy sa poucinane\"): `mapPlace` given each node's measured size stacks a column with no two nodes overlapping, keeps the gap's row and widens a column to its widest node; `edgePath` meets each node's measured middle; `relayoutCaseMap` places the drawn nodes and redraws the edges at the sizes it reads; a node draws its whole name and words; and no rule of the module's sheets cuts a node's text (a fixed height, a line clamp, an ellipsis, nowrap or overflow hidden)", async () => {
+        /*
+         * E97 fix, 12.11.2026. Pure geometry, the drawing read back, and the stylesheets' text; the look itself is
+         * measured in Chromium (audit/case-map-sweep.mjs, STATUS-FIX.md). The DOM step runs on a detached canvas whose
+         * nodes are given their sizes by hand (offsetWidth and offsetHeight defined on each), so it reads the same in
+         * jsdom and in Foundry. Red at fa73b601: there is no case-view.mjs.
+         */
+        let V = null;
+        try { V = await import("./case-view.mjs"); } catch { V = null; }
+        must(V && typeof V.relayoutCaseMap === "function", "there is no case-view.mjs with relayoutCaseMap - a node keeps the fixed box that cuts its text");
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const g = V.MAP_GEOMETRY;
+        const long = "R3660 ".repeat(40).trim();
+        const graph = S.graphOf({
+            chapter: 3,
+            rows: { "d-a": { kind: "deduction", label: long, text: `R3660 note ${long}`, inputs: ["S.T1", "S.T2"], mode: "debate" },
+                "d-b": { kind: "deduction", label: "R3660 b", inputs: ["S.T2"] }, "s-c": { kind: "solution", label: "R3660 c", inputs: ["d-a", "d-b"] } },
+            traces: [{ key: "S.T1", type: "prep", name: "R3660 knife", text: "R3660 words of the knife", tiedToCrime: true },
+                { key: "S.T2", type: "neutral", name: "R3660 dust", tiedToCrime: true }, { key: "S.T3", type: "neutral", name: "R3660 loose", tiedToCrime: false }]
+        });
+        const layout = layoutCase(graph, { sort: "kind" });
+        const sizes = new Map([["S.T1", { w: 196, h: 140 }], ["S.T2", { w: 196, h: 90 }], ["d-a", { w: 352, h: 400 }], ["d-b", { w: 196, h: 54 }], ["s-c", { w: 196, h: 60 }]]);
+        const place = V.mapPlace(layout, g, sizes);
+        const boxes = Object.entries(place.at);
+        const overlaps = [];
+        for (const [a, p] of boxes) for (const [b, q] of boxes) {
+            if (a < b && p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h) overlaps.push(`${a}/${b}`);
+        }
+        const colOf = id => layout.positions[id].col;
+        const dCol = colOf("d-a");
+        // the drawing: the whole name and words on the node, and the place data the relayout reads
+        const host = document.createElement("div");
+        host.innerHTML = M.caseGraphHtml({ graph, layout, editors: new Map() });
+        const canvas = host.querySelector(".drpg-case-canvas");
+        const btn = id => canvas?.querySelector(`button[data-drpg-node="${CSS.escape(id)}"]`);
+        const drawn = { name: btn("d-a")?.querySelector(".drpg-case-node-name")?.textContent ?? null, text: btn("d-a")?.querySelector(".drpg-case-node-text")?.textContent ?? null,
+            trace: btn("S.T1")?.querySelector(".drpg-case-node-text")?.textContent ?? null, title: btn("d-a")?.hasAttribute("title") ?? null };
+        // the relayout at the sizes each node reads
+        for (const [id, s] of sizes) {
+            const b = btn(id);
+            if (!b) continue;
+            Object.defineProperty(b, "offsetWidth", { configurable: true, get: () => s.w });
+            Object.defineProperty(b, "offsetHeight", { configurable: true, get: () => s.h });
+        }
+        const laid = canvas ? V.relayoutCaseMap(canvas) : null;
+        const at = id => ({ x: parseFloat(btn(id)?.style.left), y: parseFloat(btn(id)?.style.top) });
+        const path = canvas?.querySelector('path[data-drpg-edge="S.T1>d-a"]')?.getAttribute("d") ?? null;
+        let rules = "";
+        try { rules = await moduleStyles(); } catch { rules = ""; }
+        must(rules.length > 2000, `the module's stylesheets read ${rules.length} characters - this test would read nothing`);
+        const cuts = [];
+        for (const m of rules.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+            const sel = m[1].trim(), body = m[2];
+            if (!/drpg-case-node(?!--)|drpg-case-node-(?:head|kind|name|text|mode|state)/.test(sel)) continue;
+            for (const [what, re] of [["line-clamp", /line-clamp\s*:/], ["ellipsis", /text-overflow\s*:\s*ellipsis/], ["nowrap", /white-space\s*:\s*nowrap/],
+                ["overflow hidden", /(?:^|;|\s)overflow(?:-[xy])?\s*:\s*hidden/], ["a fixed height", /(?:^|;|\s)(?:max-)?height\s*:\s*\d/]]) if (re.test(body)) cuts.push(`${sel}: ${what}`);
+        }
+        equal(JSON.stringify({
+            overlaps, heights: ["S.T1", "S.T2", "d-a"].map(id => place.at[id]?.h),
+            stack: place.at["S.T2"] && place.at["S.T1"] ? Math.abs(place.at["S.T2"].y - place.at["S.T1"].y) - (layout.positions["S.T2"].row > layout.positions["S.T1"].row ? 140 : 90) : null,
+            colX: place.cols[dCol].x - (place.cols[dCol - 1].x + place.cols[dCol - 1].w), colW: place.cols[dCol].w,
+            gap: place.gapY !== null && place.gapY > Math.max(place.at["S.T1"].y + 140, place.at["S.T2"].y + 90) && place.gapY < place.at["S.T3"].y,
+            edge: V.edgePath({ x: 0, y: 0, w: 196, h: 140 }, { x: 244, y: 10, w: 352, h: 400 }),
+            drawn, laid: Boolean(laid), placed: ["S.T1", "S.T2", "d-a", "d-b", "s-c"].map(id => [at(id).x === place.at[id].x, at(id).y === place.at[id].y]),
+            path: path === V.edgePath(place.at["S.T1"], place.at["d-a"]), measured: canvas?.dataset.drpgMeasured ?? null, cuts
+        }), JSON.stringify({
+            overlaps: [], heights: [140, 90, 400], stack: g.pitch - g.nodeH, colX: g.colGap, colW: 352, gap: true,
+            edge: "M196 70 C220 70 220 210 244 210",
+            drawn: { name: long, text: `R3660 note ${long}`, trace: "R3660 words of the knife", title: false }, laid: true,
+            placed: [[true, true], [true, true], [true, true], [true, true], [true, true]], path: true, measured: "1", cuts: []
+        }), "{overlaps: pairs of measured nodes that overlap; heights: as measured; stack: the gap between two nodes of a column; colX, colW: the open node's column's gap and width; gap: the unrelated evidence's row below the tall nodes; edge: a path's ends at measured middles; drawn: a node's whole name and words, no title standing in for a cut; laid, placed: the relayout's places; path: the edge redrawn; measured: the canvas marked; cuts: the sheets' rules that cut a node's text}");
+    }],
+    ["R3661 - a node is edited on itself, and the Map has no side panel (E97 fix; the owner's \"edycja niech nie odbywa sie po prawej stronie ekranu (usuwamy panel), tylko na samych modulach\"): the open node's fields stand in the canvas under it at its place and the rest are hidden; the chapter's own fields and problems are in the overview over the graph; the tools are one row over it and the camera's buttons in its corner; its face opens and shuts the fields, Escape and a click on empty space shut them (Escape goes no further), its arrows and Remove act on it; the Map holds no field the editors did not hand it, and every control of it has a name to be read out", async () => {
+        /*
+         * E97 fix, 12.11.2026. The drawing read back and `wireCaseMap` driven on a detached copy (jsdom and Foundry
+         * alike); what Save then writes is tier 2's (the "E97 C6" tests, which open a node and save its fields). Red at
+         * fa73b601: the fields stand in an aside beside the graph.
+         */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { CONTROLS } = await import("./a11y.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const graph = S.graphOf({ chapter: 4, traces: [{ key: "S.T1", type: "prep", name: "R3661 knife", tiedToCrime: true }],
+            rows: { "d-a": { kind: "deduction", label: "R3661 a", inputs: ["S.T1"] }, "d-b": { kind: "deduction", label: "R3661 b" } } });
+        const layout = layoutCase(graph);
+        const problems = S.checkCase(graph, {});
+        const editors = new Map([
+            ["S.T1", M.editRow("Name", `<input type="text" name="name.S__T1" value="R3661 knife" />`)],
+            ["d-a", M.editRow("Name", `<input type="text" name="case:4:d-a:label" value="R3661 a" />`) + `<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-drop="d-a">Remove</button></div>`],
+            ["d-b", M.editRow("Name", `<input type="text" name="case:4:d-b:label" value="R3661 b" />`)]
+        ]);
+        const summary = `<label><input type="checkbox" name="keyOverride" /> R3661 override</label>`;
+        const draw = reading => {
+            const d = document.createElement("div");
+            d.innerHTML = M.caseMapHtml({ graph, layout, reading, editors, summary, problems, tools: M.caseToolsHtml({ sort: "kind", sorts: ["kind", "manual"] }) });
+            return d;
+        };
+        const d = draw({ node: "d-a" });
+        const canvas = d.querySelector(".drpg-case-canvas");
+        const shownEdit = canvas?.querySelector('.drpg-case-edit[data-drpg-edit="d-a"]');
+        const face = canvas?.querySelector('button[data-drpg-node="d-a"]');
+        const bWarn = [...draw({ node: "d-b" }).querySelectorAll('.drpg-case-edit[data-drpg-edit="d-b"]:not([hidden]) .drpg-case-info-warn')].map(p => p.textContent);
+        const names = [...d.querySelectorAll("[name]")].map(el => el.getAttribute("name")).sort();
+        const nameless = [...d.querySelectorAll(CONTROLS)].filter(el => !(el.getAttribute("aria-label")?.trim()
+            || (!el.matches("input, select, textarea") && el.textContent.trim()) || el.closest("label"))).map(el => el.outerHTML.slice(0, 80));
+        const drawn = {
+            aside: d.querySelectorAll("aside, .drpg-case-panel").length,
+            open: shownEdit ? [shownEdit.hidden, Boolean(shownEdit.querySelector('[name="case:4:d-a:label"]')), shownEdit.style.left === face?.style.left,
+                parseFloat(shownEdit.style.top) > parseFloat(face?.style.top), Boolean(shownEdit.querySelector("[data-drpg-case-move]")),
+                [...shownEdit.querySelectorAll(".drpg-case-info-warn")].length] : null, bWarn,
+            others: [...canvas.querySelectorAll(".drpg-case-edit[data-drpg-edit]")].filter(f => f.dataset.drpgEdit !== "d-a").map(f => [f.dataset.drpgEdit, f.hidden]),
+            face: [face?.getAttribute("type"), face?.getAttribute("aria-expanded")],
+            overview: [Boolean(d.querySelector('.drpg-case-overview [name="keyOverride"]')), d.querySelectorAll(".drpg-case-overview .drpg-case-problems li").length,
+                Boolean(d.querySelector(".drpg-case-overview [data-drpg-case-check]"))],
+            tools: [d.querySelector(".drpg-case-map > .drpg-case-tools") !== null, d.querySelectorAll(".drpg-case-tools [data-drpg-case-add]").length,
+                ["in", "out", "fit"].map(k => Boolean(d.querySelector(`.drpg-case-graph > .drpg-case-camera [data-drpg-case-camera="${k}"]`)))],
+            names, nameless
+        };
+        must(shownEdit && !drawn.aside, `the open node draws no fields on itself - they stand in a side panel: ${JSON.stringify({ aside: drawn.aside, open: drawn.open })}`);
+        // the wiring, driven
+        const said = [];
+        const w = draw({ node: "d-a" });
+        let outside = 0;
+        w.addEventListener("keydown", () => { outside++; });
+        M.wireCaseMap(w, { onPick: id => said.push(["pick", id]), onClose: id => said.push(["close", id]), onMove: (id, step) => said.push(["move", id, step]),
+            onDrop: id => said.push(["drop", id]), onCheck: () => said.push(["check"]), onAdd: k => said.push(["add", k]) });
+        const wc = w.querySelector(".drpg-case-canvas");
+        wc.querySelector('button[data-drpg-node="d-b"]').click();
+        wc.querySelector('.drpg-case-edit[data-drpg-edit="d-a"] [data-drpg-case-move="-1"]').click();
+        wc.querySelector('.drpg-case-edit[data-drpg-edit="d-a"] [data-drpg-case-drop]').click();
+        const esc = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+        wc.querySelector('[name="case:4:d-a:label"]').dispatchEvent(esc);
+        wc.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        w.querySelector("[data-drpg-case-check]").click();
+        w.querySelector('[data-drpg-case-add="counter"]').click();
+        equal(JSON.stringify({ drawn, said, escape: [esc.defaultPrevented, outside] }), JSON.stringify({
+            drawn: {
+                aside: 0, open: [false, true, true, true, true, 0], bWarn: [game.i18n.format("DRPG.CaseMap.problem.noInputs", { node: "R3661 b", ref: "" })],
+                others: [["S.T1", true], ["d-b", true]], face: ["button", "true"],
+                overview: [true, 2, true], tools: [true, 4, [true, true, true]],
+                names: ["case:4:d-a:label", "case:4:d-b:label", "keyOverride", "name.S__T1"], nameless: []
+            },
+            said: [["pick", "d-b"], ["move", "d-a", -1], ["drop", "d-a"], ["close", "d-a"], ["close", "d-a"], ["check"], ["add", "counter"]],
+            escape: [true, 0]
+        }), "{drawn: [asides; the open node's fields (hidden, its field, at its left, under it, its arrows, its problems: none); bWarn: an open node's own problem; the others' (hidden); its face (a button, expanded); the overview (the chapter's field, its problems, the check); the tools (over the graph, the adds; the camera in the graph's corner)]; names: every field of the Map; nameless: controls with no name to be read out; said: what a click on another node, the arrows, Remove, Escape, a click on empty space, the check and an add asked; escape: Escape's default stopped and it reached nothing outside the map}");
+    }],
+    ["R3662 - the case map's camera (E97 fix; the owner's \"ruch i oddalanie i przyblizanie 'kamery' na schemacie\"): the zoom is clamped; a zoom about a point keeps that point of the graph under it and a zoom at a limit moves nothing; fit shows the whole case centred and never enlarges a small one; the pan keeps a margin of the graph in view; a node is brought into view; and on a drawn map the wheel zooms about the pointer, a drag on empty space pans and one on a node does not, + - 0 zoom and fit, the tools' buttons zoom and say the zoom, and the buttons' zoom eases unless motion is reduced", async () => {
+        /*
+         * E97 fix, 12.11.2026. Pure functions, then `wireCaseMap` driven on a detached copy whose viewport is given a size
+         * by hand (clientWidth, clientHeight), so it reads the same in jsdom and in Foundry; how it feels is the commit's
+         * Chromium reading. Red at fa73b601: there is no case-view.mjs and the graph's box scrolls.
+         */
+        let V = null;
+        try { V = await import("./case-view.mjs"); } catch { V = null; }
+        must(V && typeof V.zoomAt === "function", "there is no case-view.mjs with zoomAt - the schema has no camera");
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const lim = V.CAMERA_LIMITS;
+        const under = (cam, px) => (px - cam.x) / cam.z;
+        const z1 = V.zoomAt({ x: 10, y: 20, z: 1 }, 1.5, 300, 200);
+        const atMax = V.zoomAt({ x: 10, y: 20, z: lim.max }, 2, 300, 200);
+        const pure = {
+            clamp: [V.clampZoom(0.01), V.clampZoom(99), V.clampZoom("x"), V.clampZoom(1.1)],
+            keeps: [Math.round(under({ x: 10, y: 20, z: 1 }, 300) * 1000) === Math.round(under(z1, 300) * 1000), z1.z],
+            atMax: [atMax.x, atMax.y, atMax.z],
+            fit: [V.fitCamera({ w: 2000, h: 1000 }, { w: 1000, h: 400 }), V.fitCamera({ w: 200, h: 100 }, { w: 1000, h: 400 })],
+            held: V.clampCamera({ x: 5000, y: -5000, z: 1 }, { w: 800, h: 600 }, { w: 1000, h: 400 }),
+            reveal: V.revealCamera({ x: 0, y: 0, z: 1 }, { x: 1200, y: 500, w: 200, h: 100 }, { w: 1000, h: 400 })
+        };
+        const graph = S.graphOf({ chapter: 5, traces: [{ key: "S.T1", type: "prep", name: "R3662 knife", tiedToCrime: true }],
+            rows: { "d-a": { kind: "deduction", label: "R3662 a", inputs: ["S.T1"] } } });
+        const d = document.createElement("div");
+        const reading = {};
+        d.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading, tools: M.caseToolsHtml({ sort: "kind", sorts: ["kind"] }) });
+        const view = d.querySelector(".drpg-case-graph");
+        must(view, "the Map drew no graph viewport");
+        Object.defineProperty(view, "clientWidth", { configurable: true, get: () => 1000 });
+        Object.defineProperty(view, "clientHeight", { configurable: true, get: () => 400 });
+        let cam = null;
+        const wasStill = document.body.classList.contains("drpg-reduced-motion");
+        document.body.classList.remove("drpg-reduced-motion");
+        let reads;
+        try {
+            M.wireCaseMap(d, { camera: { get: () => cam, set: c => { cam = c; } } });
+            const canvas = view.querySelector(".drpg-case-canvas");
+            const t0 = canvas.style.transform;
+            const pointer = (type, x, y, target = view) => {
+                const e = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 });
+                Object.defineProperty(e, "pointerId", { value: 1 });
+                target.dispatchEvent(e);
+            };
+            // a wheel event as the browser sends one (jsdom has no WheelEvent: a MouseEvent carrying its two fields)
+            const wheel = new MouseEvent("wheel", { bubbles: true, cancelable: true, clientX: 400, clientY: 100 });
+            Object.defineProperty(wheel, "deltaY", { value: -200 });
+            Object.defineProperty(wheel, "deltaMode", { value: 0 });
+            view.dispatchEvent(wheel);
+            const afterWheel = { ...cam };
+            pointer("pointerdown", 100, 100); pointer("pointermove", 160, 130); pointer("pointerup", 160, 130);
+            const afterDrag = { ...cam };
+            const node = view.querySelector("button[data-drpg-node]");
+            pointer("pointerdown", 100, 100, node); pointer("pointermove", 200, 200, node); pointer("pointerup", 200, 200, node);
+            const afterNodeDrag = { ...cam };
+            view.dispatchEvent(new KeyboardEvent("keydown", { key: "+", bubbles: true, cancelable: true }));
+            const plus = cam.z;
+            const eased = canvas.classList.contains("is-easing");
+            view.dispatchEvent(new KeyboardEvent("keydown", { key: "-", bubbles: true, cancelable: true }));
+            const minus = cam.z;
+            d.querySelector('[data-drpg-case-camera="out"]').click();
+            const out = [cam.z, d.querySelector("[data-drpg-case-zoom-level]")?.textContent];
+            document.body.classList.add("drpg-reduced-motion");
+            d.querySelector('[data-drpg-case-camera="in"]').click();
+            const still = canvas.classList.contains("is-easing");
+            view.dispatchEvent(new KeyboardEvent("keydown", { key: "0", bubbles: true, cancelable: true }));
+            const fitted = { ...cam };
+            reads = {
+                start: t0, wheel: [afterWheel.z > 1, Math.round((400 - afterWheel.x) / afterWheel.z) === 400],
+                drag: [afterDrag.x - afterWheel.x, afterDrag.y - afterWheel.y], nodeDrag: [afterNodeDrag.x === afterDrag.x, afterNodeDrag.y === afterDrag.y],
+                keys: [Math.round(plus / afterNodeDrag.z * 100) / 100, Math.round(minus * 100) / 100 === Math.round(afterNodeDrag.z * 100) / 100], eased,
+                out: [Math.round(out[0] * 1000) === Math.round(afterWheel.z / lim.step * 1000), out[1] === `${Math.round(out[0] * 100)}%`],
+                still, fitted: fitted.z, transform: canvas.style.transform === V.cameraTransform(fitted), clip: view.scrollLeft
+            };
+        } finally {
+            document.body.classList.toggle("drpg-reduced-motion", wasStill);
+        }
+        let rules = "";
+        try { rules = await moduleStyles(); } catch { rules = ""; }
+        equal(JSON.stringify({ pure, reads, css: [/\.drpg-case-graph\s*\{[^}]*overflow:\s*clip/.test(rules), /body\.drpg-reduced-motion[^{]*\.drpg-case-canvas\s*\{[^}]*transition:\s*none/.test(rules)] }), JSON.stringify({
+            pure: {
+                clamp: [lim.min, lim.max, 1, 1.1], keeps: [true, 1.5], atMax: [10, 20, lim.max],
+                fit: [{ x: 100, y: 0, z: 0.4 }, { x: 400, y: 150, z: 1 }], held: { x: 1000 - lim.margin, y: lim.margin - 600, z: 1 },
+                reveal: { x: -408, y: -208, z: 1 }
+            },
+            reads: {
+                start: "translate(0px, 0px) scale(1)", wheel: [true, true], drag: [60, 30], nodeDrag: [true, true],
+                keys: [lim.step, true], eased: true, out: [true, true], still: false, fitted: 1, transform: true, clip: 0
+            },
+            css: [true, true]
+        }), "{pure: clamp, a zoom about a point, a zoom at the limit, fit, the pan held, a node revealed; reads: the drawn map's camera [start; the wheel about the pointer; a drag on empty space; a drag on a node; + then -; eased; the tools' zoom out and its readout; still under reduced motion; 0 fits; the transform; the viewport never scrolled]; css: the viewport clips, reduced motion stops the ease}");
     }],
 ];
 
