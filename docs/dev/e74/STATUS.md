@@ -18,7 +18,7 @@ origin/claude/plan-130.
 
 ## Next
 
-C8's shots of this round (Start New with the preset). Then the coordinator's next word.
+The coordinator's next word.
 
 ## Mutants (12.11, on a worktree of 32b4c1a)
 
@@ -117,6 +117,11 @@ To 32b4c1a (C1-C6 and the fixes); the STATUS commits after it.
 None.
 
 ## Shots
+
+Round 2 (12.11, at 55dab3e): https://claude.ai/artifact/PbPPeXNmoJqYPhz4NiGEDf - the Infiltrate window's rows wearing E48's
+drawings under Stained Glass, and Start New offering Repair the Lock (player), both themes, EN and PL. Monokuma Legacy shows
+no row icons there: the harness has no Font Awesome; at a table the rows wear Font Awesome's (Shut `fa-road-barrier`, Force
+`fa-hand-fist`).
 
 Round 1 (12.11, C1-C6): https://claude.ai/artifact/KH6J3QM34VnLosMt9prJpU - the Infiltrate window with its seven rows,
 Force the Door's and Pick the Lock's windows (player), Stained Glass and Monokuma Legacy, EN and PL, 1366x768 at scale 2.
