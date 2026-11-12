@@ -48585,7 +48585,8 @@ const SCENARIOS = [
         const S = await import("./gm-stores.mjs");
         const M = await import("./mastermind.mjs");
         const A = await import("./assignments.mjs");
-        const { openSeasonSetup } = await import("./season-setup.mjs");
+        // The Season checklist's rows since E49 A1e (12.11.2026: Season setup's lower half, a window of its own).
+        const { openSeasonChecklist } = await import("./season-setup.mjs");
         const [student] = cast(1);
         const before = foundry.utils.deepClone(A.assignments());
         const title = game.i18n.localize("DRPG.Season.step.nobodyPublic");
@@ -48603,7 +48604,7 @@ const SCENARIOS = [
                 }));
                 return null;
             };
-            await openSeasonSetup();
+            await openSeasonChecklist();
             const health = (await S.gmStoreHealth())?.rows ?? [];
             return { unpooled: M.mastermindUnpooled(), rows, health: health.filter(r => r.id === "nobodyPublic").map(r => r.level) };
         };
@@ -59952,9 +59953,9 @@ const SCENARIOS = [
          * region decided" read the scene on the GM's screen, so a GM viewing one floor saw it done
          * while regions drawn on another since the migration were nobody's rooms. Here a scene of the
          * suite's own holds one named region nobody marked, and the camera stays where it is; the
-         * checklist is opened and its row read. Red on 8eb3801: the row named nothing.
+         * checklist is opened and its row read. Red on 8eb3801: the row named nothing. The Season checklist since E49 A1e.
          */
-        const { openSeasonSetup } = await import("./season-setup.mjs");
+        const { openSeasonChecklist } = await import("./season-setup.mjs");
         const UNDECIDED = "SUITE E12 fix r1-G2 a region drawn since";
         const title = game.i18n.localize("DRPG.Season.step.roomsMarked");
         const home = canvas?.scene ?? null;
@@ -59964,7 +59965,7 @@ const SCENARIOS = [
             await floor.createEmbeddedDocuments("Region", [{ name: UNDECIDED, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }], behaviors: [] }]);
             await settle();
             must(canvas?.scene === home && home !== floor, "the scene on screen moved - this would measure nothing");
-            const drawn = await withFormAnswered(() => false, () => openSeasonSetup());
+            const drawn = await withFormAnswered(() => false, () => openSeasonChecklist());
             const row = [...(drawn[0]?.querySelectorAll("li.drpg-check-row") ?? [])].find(li => li.querySelector(".drpg-check-title")?.textContent === title);
             must(row, "the checklist drew no row for the named regions - this would measure nothing");
             reading = [(row.querySelector(".drpg-setup-missing")?.textContent ?? "").includes(UNDECIDED)];
@@ -59975,6 +59976,70 @@ const SCENARIOS = [
         equal(stableJson(reading), stableJson([true]), `Season setup's row "${title}" with a region nobody decided on a scene not on screen ([whether the row names it])`);
     }],
 
+    ["E49-A1e - Season setup's Save writes what Edit campaign's Apply writes: from one clock, the same name, day and session typed in each window, and the chapter moved one on with its question answered Cancel, then OK - the same questions asked, the same clock left behind (gm-campaign.mjs `applyCampaignForm`; season-setup.mjs `openSeasonSetup`)", async () => {
+        /*
+         * E49 A1e, 11.11.2026. The owner merged Edit campaign into the top of Season setup on one condition: Edit
+         * campaign's data writes stay exactly as they are (the same store, the same writer, the same rules). Both windows
+         * now hand their form to `applyCampaignForm` (R3583 holds it in source); this runs them. Each window is answered
+         * on its own content (`answerWindows`): its fields typed as a GM types them and its default button pressed through
+         * its own callback, so the form is read by the window's reader; the chapter's question ("this is a correction")
+         * answered Cancel in the first round and OK in the second, every other window closed. Before each window the clock
+         * is put back to where the test found it (the phase Daily Life, no Eclipse); after each, the clock's fields that
+         * Edit campaign writes are read. Season setup's safeword is left as drawn, so it writes no safeword. The clock and
+         * the safeword are put back after. Red at ecba3f21: Season setup asked nothing, kept the day and the session and
+         * moved the chapter unasked.
+         */
+        const { openClockDialog } = await import("./gm-campaign.mjs");
+        const { openSeasonSetup } = await import("./season-setup.mjs");
+        const L = key => game.i18n.localize(key);
+        const titles = { clock: L("DRPG.Panel.jump"), season: L("DRPG.Season.title"), chapter: L("DRPG.Clock.chapterCorrectTitle") };
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const wordBefore = getSetting(SETTINGS.safeword);
+        const start = { ...clockBefore, phase: "dailyLife", eclipse: false };
+        const chapter = Number(clockBefore.chapter) || 1;
+        const FIELDS = ["campaignName", "chapter", "phase", "day", "session", "timeOfDay"];
+        let answer = "cancel";
+        const asked = [];
+        const windows = answerWindows((cfg, root) => {
+            const title = cfg?.window?.title ?? "";
+            const kind = Object.keys(titles).find(k => titles[k] === title) ?? "other";
+            asked.push(kind);
+            if (kind === "chapter") return answer;
+            if (kind !== "clock" && kind !== "season") return "close";
+            const set = (name, value) => { const field = root.querySelector(`form [name="${name}"]`); if (field) field.value = String(value); };
+            set("campaignName", `SUITE E49-A1e ${answer}`);
+            set("day", Number(start.day ?? 1) + 1);
+            set("session", Number(start.session ?? 1) + 1);
+            set("chapter", chapter + 1);
+            return press(cfg, root);
+        });
+        const read = {};
+        try {
+            for (const round of ["cancel", "ok"]) {
+                answer = round;
+                for (const [kind, open] of [["clock", openClockDialog], ["season", openSeasonSetup]]) {
+                    await game.settings.set(MODULE_ID, SETTINGS.clock, start);
+                    await settle();
+                    asked.length = 0;
+                    await open();
+                    await settle();
+                    const c = getClock();
+                    read[`${round} ${kind}`] = { asked: [...asked], clock: Object.fromEntries(FIELDS.map(f => [f, c[f]])) };
+                }
+            }
+        } finally {
+            windows.restore();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            if (getSetting(SETTINGS.safeword) !== wordBefore) await game.settings.set(MODULE_ID, SETTINGS.safeword, wordBefore);
+            await settle();
+        }
+        const expect = round => ({ campaignName: `SUITE E49-A1e ${round}`, chapter: round === "ok" ? chapter + 1 : chapter, phase: "dailyLife",
+            day: Number(start.day ?? 1) + 1, session: Number(start.session ?? 1) + 1, timeOfDay: start.timeOfDay });
+        equal(stableJson(read), stableJson({
+            "cancel clock": { asked: ["clock", "chapter"], clock: expect("cancel") }, "cancel season": { asked: ["season", "chapter"], clock: expect("cancel") },
+            "ok clock": { asked: ["clock", "chapter"], clock: expect("ok") }, "ok season": { asked: ["season", "chapter"], clock: expect("ok") }
+        }), "{per round (the chapter's question answered cancel, then ok) and window (Edit campaign, Season setup): the windows asked, the clock's fields after}");
+    }],
     ["the Mastermind window applied with another scene on screen keeps the lair it did not show", async () => {
         /*
          * E12 fix r1-G2, 11.10.2026; review round 1 CR1-5 and CR1-6. The lair select listed the rooms
@@ -79000,6 +79065,9 @@ const SCENARIOS = [
         const stamp = foundry.utils.deepClone(ann.getFlag(MODULE_ID, FLAGS.sheetAtStart));
         const move = { by: 0 };
         const windows = answerWindows((cfg, root) => {
+            // E49 A1e: Season setup's Save is Edit campaign's Apply (gm-campaign.mjs `applyCampaignForm`), which asks before
+            // it moves the chapter; answered yes, as Edit campaign's own tests answer it.
+            if (cfg?.window?.title === game.i18n.localize("DRPG.Clock.chapterCorrectTitle")) return "ok";
             const field = root.querySelector("form [name=chapter]");
             if (!field || cfg?.window?.title !== game.i18n.localize("DRPG.Season.title")) return "close";
             field.value = String(Number(field.value) + move.by);

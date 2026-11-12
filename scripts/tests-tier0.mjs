@@ -680,7 +680,8 @@ const REGRESSIONS = [
      */
     ["R3334 - every keyed element (config.mjs's ACTIONS, HOPE_CALLS, DESPAIR_CALLS, CRISIS_ACTIONS, MONOCUB, TRAP_TRIGGERS, CLEANUP and gm-panel.mjs's tiles) has a row in tests-glyphs.mjs ELEMENTS and its glyph is drawn for Stained Glass (E48 G2)", async () => {
         const { G, gaps, keyed, structure } = await glyphMapInputs();
-        must(keyed.length >= 80, `${keyed.length} keyed element(s) read - config.mjs or gm-panel.mjs was not read`);
+        // 70, not 80, since E49 A1e: four GM tiles left the panel for Season setup (78 keyed elements read on 11.11.2026).
+        must(keyed.length >= 70, `${keyed.length} keyed element(s) read - config.mjs or gm-panel.mjs was not read`);
         equal(JSON.stringify(structure), "[]", "the map's structure");
         equal(JSON.stringify(gaps.keyedUndrawn), "[]", `keyed elements whose glyph no row draws (of ${Object.keys(G.ELEMENTS).length})`);
     }],
@@ -3957,8 +3958,9 @@ const REGRESSIONS = [
         const sources = new Map(await otherSources());
         // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
         const panel = stripComments(panelText(sources));
-        const clockWin = bodyOf(panel, "export async function openClockDialog");
-        const list = bodyOf(clockWin, "const stated", { until: "const result" });
+        // E49 A1e: the fields left the window's body for `campaignRows`, which Edit campaign and Season setup both draw.
+        const clockWin = bodyOf(panel, "export function campaignRows");
+        const list = bodyOf(clockWin, "const stated", { until: "return [" });
         ok(list.length > 80, "the chapter list has moved or gone");
         ok(/Math\.max\(CHAPTERS_PER_SEASON/.test(clockWin),
             "the chapter list is six long whatever the clock says, so a campaign past "
@@ -3974,10 +3976,11 @@ const REGRESSIONS = [
         // AND THE RULE REACHES THE OTHER WINDOW WITH THE SAME CAP. A number input
         // whose value is out of range fails constraint validation, so Apply there
         // submitted nothing at all. E44 C4b (04.11.2026): the field is ui-kit.mjs's `stepper`, its cap the `max` it passes.
+        // E49 A1e: Season setup draws Edit campaign's own rows, so its chapter is the field read above.
         const season = stripComments(sources.get("season-setup.mjs") ?? "");
-        const field = bodyOf(season, 'stepper({ name: "chapter"', { length: 240 });
-        ok(/\bmax:\s*Math\.max\(CHAPTERS_PER_SEASON/.test(field),
-            "the Season setup window still caps its chapter field at six");
+        const fields = bodyOf(season, "export function campaignFieldsHtml(", { until: "export function seasonTilesHtml(" });
+        ok(/\bcampaignRows\(/.test(fields) && !/stepper\(\{ name: "chapter"/.test(season),
+            "the Season setup window draws a chapter field of its own again, which this cap does not reach");
     }],
 
     ["R69 - the Eclipse warning fires on a clock that moved", async () => {
@@ -3991,7 +3994,8 @@ const REGRESSIONS = [
          */
         // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
         const panel = stripComments(panelText(await otherSources()));
-        const win = bodyOf(panel, "export async function openClockDialog");
+        // E49 A1e: Apply's writes left the window for `applyCampaignForm`, which Edit campaign and Season setup both run.
+        const win = bodyOf(panel, "export async function applyCampaignForm");
         ok(!/result\.timeOfDay\s*!==\s*undefined/.test(win),
             "the Eclipse warning is gated on a field the form always fills");
         ok(/before\.timeOfDay/.test(win),
@@ -4181,9 +4185,17 @@ const REGRESSIONS = [
         ok(/paintDraft\(dialog\.element, draft\)/.test(season),
             "a carried draft is never painted back");
 
-        const rows = bodyOf(season, "function wireSetupSteps(", { until: "export async function openSeasonSetup(" });
-        ok(/handOff\(dialog, \(\) => openSeasonSetup\(\{ draft(, [^}]*)? \}\)\)/.test(rows),
+        // E49 A1e (12.11.2026): the rows are the Season checklist's, and the row reopens the window it stands in (`reopen`),
+        // which the checklist hands as itself; Season setup's tiles make the same round trip back to Season setup.
+        ok(/openSeasonChecklist\(\{ draft = null(, [^}]*)? \} = \{\}\)/.test(season),
+            "the checklist's opener cannot be handed a draft");
+        const rows = bodyOf(season, "function wireSetupSteps(", { until: "function wireSeasonTiles(" });
+        ok(/handOff\(dialog, \(\) => reopen\(\{ draft(, [^}]*)? \}\)\)/.test(rows)
+            && /wireSetupSteps\(dialog, trip => \{ roundTrip = trip; \}, openSeasonChecklist\)/.test(season),
             "the row still closes and reopens on its own, so the close answers the caller");
+        const tiles = bodyOf(season, "function wireSeasonTiles(", { until: "export async function openSeasonSetup(" });
+        ok(/handOff\(dialog, \(\) => openSeasonSetup\(\{ draft(, [^}]*)? \}\)\)/.test(tiles) && !/await dialog\.close\(\)/.test(tiles),
+            "a tile of Season setup's row closes and reopens on its own, so the close answers the caller");
         ok(!/await dialog\.close\(\)/.test(rows),
             "the row awaits the close itself, which is what resolves the opener early");
         ok(/step\.fixedKey \?\? "DRPG\.Season\.fixed"/.test(rows),
@@ -4193,10 +4205,12 @@ const REGRESSIONS = [
         ok(/!\(step\.fix \|\| step\.open\)/.test(builder),
             "a row with nothing to fix and nothing to open still offers a button");
 
-        const opener = bodyOf(season, "export async function openSeasonSetup(");
-        const tail = bodyOf(opener, "rejectClose: false");
-        ok(/if \(roundTrip\) return roundTrip;/.test(tail),
-            "the round trip is not returned, so the GM panel reopens itself over it");
+        for (const name of ["openSeasonSetup", "openSeasonChecklist"]) {
+            const opener = bodyOf(season, `export async function ${name}(`);
+            const tail = bodyOf(opener, "rejectClose: false");
+            ok(/if \(roundTrip\) return roundTrip;/.test(tail),
+                `${name}: the round trip is not returned, so the GM panel reopens itself over it`);
+        }
     }],
 
     ["R75 - revoking a Despair pool is asked first, and the form survives it", async () => {
@@ -18024,6 +18038,8 @@ const REGRESSIONS = [
          * shorthand `name` is the template's `${name}`), and the readers are the same lines as before. Comments blanked.
          * Red at C7's parent: no `wholeNumber` in utils.mjs and no reader asks it; at C4b's parent, the twelve bare inputs.
          * E47-C2, 09.11.2026: Edit campaign's Chapter is a stepper (the owner's Q-E47-1), read in `readClockForm`.
+         * E49 A1e, 11.11.2026: Season setup draws Edit campaign's rows and reads them through `readClockForm`, so its own
+         * chapter field and reader (`f.chapter.value`) are gone; `readDraft` still carries the typed values as strings.
          */
         const src = new Map((await otherSources()).map(([file, raw]) => [file, stripComments(raw)]));
         must(src.size > 50, "the module's sources were not read - this would measure nothing");
@@ -18039,7 +18055,7 @@ const REGRESSIONS = [
             ["monocub.mjs", "amount:${a.id}", /\[name="amount:\$\{id\}"\]`\)\?\.value/g],
             ["overflow.mjs", "ovf-${key}-by", /\bby\.value\b/g],
             ["overflow.mjs", "ovf-threshold", /\[name="ovf-threshold"\]'\)\?\.value/g],
-            ["season-setup.mjs", "chapter", /\bf\.chapter\.value\b/g],
+            // E49 A1e: Season setup's own chapter field went; it draws and reads Edit campaign's (`campaignRows`, `readClockForm`).
             // E49 A1: the DRPG Settings window's two number settings (Search Tokens per room, Interface scale), by the setting's key.
             ["settings-window.mjs", "${name}", /\bNumber\(field\.value\)/g],
             ["trial-floor-ui.mjs", "seconds", /\("form"\)\.seconds\.value\b/g],
@@ -22595,7 +22611,8 @@ const REGRESSIONS = [
             end: [/\$\{endChapterPart\(\)\}/.test(clock), /box\("warning"/.test(part) && /role: "destructive"/.test(part), /if \(endAsked\) return endTheChapter\(/.test(clock),
                 /drpgConfirm\(/.test(ask) && /role: "destructive"/.test(ask) && /if \(yes !== true\) return null;/.test(ask), /openChapterEndDialog\(\)/.test(clock)]
         }), JSON.stringify({
-            twice: [], moved: { rules: ["between"], voiceReset: ["fixes"], chapterEndTile: [] },
+            // E49 A1e: Killing game rules left Between sessions for Season setup's row of windows (R3582).
+            twice: [], moved: { rules: [], voiceReset: ["fixes"], chapterEndTile: [] },
             standing: [false, true], line: [true, true, true, true], columns: [true, true, true], end: [true, true, true, true, true]
         }), "{twice: tile keys in more than one place; moved: the sections holding each of the four; standing: [a table in the standing block, the students line in it]; "
             + "line: [plural's words, the door to Students, the acting cast, counted by actions left]; columns: [Actions, Free Move, read from actions.mjs]; "

@@ -30,7 +30,6 @@ import { firstOutstandingStep } from "./season-setup.mjs";
 import { roundOf, readyRecord } from "./boundary.mjs";
 import { trialNextStep, trialStepView, trialStepText } from "./trial-floor.mjs";
 import { openWhoIsAliveDialog } from "./gm-students.mjs";
-import { openClockDialog } from "./gm-campaign.mjs";
 export { openWhoIsAliveDialog, applyAliveStates } from "./gm-students.mjs";
 export { correctsTheHour, openClockDialog } from "./gm-campaign.mjs";
 
@@ -269,12 +268,13 @@ const PANEL_SECTIONS = [
         key: "between",
         collapsed: true,
         items: [
-            // Down from "Right now" (Dawid, 03.09): the campaign's name and the
-            // clock are things a GM sets between sessions, not mid-scene.
-            { key: "jump", icon: "fa-calendar-days", labelKey: "DRPG.Panel.jump",
-              run: () => openClockDialog() },
-            { key: "gmTeam", icon: "fa-users-gear", labelKey: "DRPG.Panel.despairFlow",
-              run: () => import("./gm-team-dialog.mjs").then(m => m.openGmTeamDialog()) },
+            // EDIT CAMPAIGN, DESPAIR FLOW, KILLING GAME RULES AND THE MASTERMIND ARE NO TILES HERE SINCE E49 A1e (the owner,
+            // 11.11.2026: Season setup "becomes the one place for setting up the season" - Edit campaign at its top, a row
+            // of buttons under it - and their tiles leave Between sessions). Edit campaign's fields and Apply are
+            // gm-campaign.mjs's (`campaignRows`, `applyCampaignForm`), drawn and run by season-setup.mjs `openSeasonSetup`;
+            // the three others are tiles of Season setup's row (`SEASON_TILES`, below). The other doors stay: api.mjs's
+            // `game.drpg.editClock` (Edit campaign's own window), `gmTeamPanel`, `mastermindDialog` and `rulesManager`,
+            // and the checklist rows' Open for Despair Flow and The Mastermind.
             // Room Setup carries the locks and the search-token counters now, so
             // the two quick toggles that used to live in the panel are columns
             // on the table that already says everything else about a room.
@@ -285,24 +285,16 @@ const PANEL_SECTIONS = [
             // first minute is editing.
             { key: "tables", icon: "fa-table-list", labelKey: "DRPG.Tables.editorTitle",
               run: () => import("./tables.mjs").then(m => m.openItemTables()) },
-            // From Right now (E49 A2; the owner's 10.11 words above, at the tile's old place).
-            { key: "rules", icon: "fa-gavel", labelKey: "DRPG.Rules.manageTitle",
-              run: () => import("./rules.mjs").then(m => m.openRulesManager()) },
             // Beside the checks it answers: the season checklist carries the
             // pre-session diagnostics as a button now, because "what is missing"
             // and "fix it" are the same list read from the two ends.
             { key: "seasonSetup", icon: "fa-wand-magic-sparkles", labelKey: "DRPG.Season.title",
               run: () => import("./season-setup.mjs").then(m => m.openSeasonSetup()) },
-            // Moved out of the trial-only section it used to sit in. The
-            // endgame is prepared between sessions, and this is the one place
-            // it is edited: the Mastermind's identity, the Final Trial and the
-            // Final Key Remnants, all on one window.
-            { key: "mastermind", icon: "fa-user-secret", labelKey: "DRPG.Mastermind.dialogTitle",
-              run: () => import("./mastermind.mjs").then(m => m.openMastermindDialog()) },
             // END THE CHAPTER IS NO TILE SINCE E49 A2 (the owner, 10.11.2026: "End the chapter wrzucmy do edit
             // campaign"). A chapter that ends without a verdict - stretched because nobody died, closed on a
             // confession, a one-chapter season - still has its door: the part apart at the bottom of Edit campaign
-            // (gm-campaign.mjs `openClockDialog`), in a warning frame, asking first. After a verdict the Next line
+            // (gm-campaign.mjs `openClockDialog`; and of Season setup's Edit campaign block since E49 A1e), in a
+            // warning frame, asking first. After a verdict the Next line
             // offers it as before (`nextStep`'s chapterEnd, EXTRA_ACTIONS), and the trial console's button stays.
             // THE CASE (E04) moved to Diagnostics as one tile (E47-C3, the owner's 27.09): see `fixes` below. The
             // chapter's end keeps its own backup button (chapter.mjs); the reset window has none (the owner accepts it).
@@ -367,6 +359,28 @@ const PANEL_SECTIONS = [
     }
 ];
 
+/**
+ * SEASON SETUP'S ROW OF TILES (E49 A1e, 12.11.2026; the owner: the row's buttons "the same shape as the GM panel's tiles",
+ * with the glyphs those windows wore as tiles, always at the bottom of Season setup). Despair Flow, The Mastermind and
+ * Killing game rules, each the tile it was in Between sessions - its key, its icon, its label, its call - and the Season
+ * checklist, the window Season setup's rows moved to (season-setup.mjs `openSeasonChecklist`; Pre-season checks is its
+ * button). Here and not in season-setup.mjs because they are the panel's tiles: drawn by `tileHtml`, worn by the glyphs
+ * keyed on `data-drpg-run` (tests-glyphs.mjs reads this file's `{ key, icon }` rows); season-setup.mjs reads them by
+ * `import()` (this file imports it). The checklist's icon is the list one; under Stained Glass it wears a drawing of its
+ * own, season-checklist (tests-glyphs.mjs ELEMENTS; the owner, 12.11.2026: not the Projects tile's), under Legacy the
+ * icon itself.
+ */
+export const SEASON_TILES = Object.freeze([
+    { key: "gmTeam", icon: "fa-users-gear", labelKey: "DRPG.Panel.despairFlow",
+      run: () => import("./gm-team-dialog.mjs").then(m => m.openGmTeamDialog()) },
+    { key: "mastermind", icon: "fa-user-secret", labelKey: "DRPG.Mastermind.dialogTitle",
+      run: () => import("./mastermind.mjs").then(m => m.openMastermindDialog()) },
+    { key: "rules", icon: "fa-gavel", labelKey: "DRPG.Rules.manageTitle",
+      run: () => import("./rules.mjs").then(m => m.openRulesManager()) },
+    { key: "seasonChecklist", icon: "fa-list-check", labelKey: "DRPG.Season.checklistTitle",
+      run: () => import("./season-setup.mjs").then(m => m.openSeasonChecklist()) }
+]);
+
 /** Whether this user may write the world's settings (Foundry's SETTINGS_MODIFY; settings-window.mjs `mayModifyWorld`'s rule). */
 function mayModifySettings(user = game.user) {
     try { return typeof user?.can === "function" ? Boolean(user.can("SETTINGS_MODIFY")) : Boolean(user?.isGM); } catch { return false; }
@@ -411,6 +425,12 @@ const EXTRA_ACTIONS = {
     startInvestigation: {
         key: "startInvestigation",
         run: () => import("./clock.mjs").then(m => m.setPhase("investigation"))
+    },
+    // The season checklist (E49 A1e): the rows the Next line names before the season starts live there since Season
+    // setup became Edit campaign and its row of windows (season-setup.mjs `openSeasonChecklist`).
+    seasonChecklist: {
+        key: "seasonChecklist",
+        run: () => import("./season-setup.mjs").then(m => m.openSeasonChecklist())
     },
     // The GM's own announcement, for the Next line's body nobody has found yet (E11 C2).
     bodyDialog: {
@@ -459,11 +479,21 @@ export function buildSections() {
         <details class="drpg-gmp-section${section.dim ? " dim" : ""}${
             inSeason ? " in-season" : ""}" data-drpg-key="${section.key}"${open ? " open" : ""}>
             <summary>${section.dim ? `<em class="drpg-gmp-dim">${title}</em>` : title}</summary>
-            <div class="drpg-gmp-grid">${section.items.map(item => {
-                const blocked = Boolean(item.disabled?.());
-                const reason = blocked ? esc(game.i18n.localize(item.disabledReason)) : "";
-                const why = `drpg-gmp-why-${item.key}`;
-                return `
+            <div class="drpg-gmp-grid">${section.items.map(item => tileHtml(item, current)).join("")}</div>
+        </details>`;
+    }).join("")}</div>`;
+}
+
+/**
+ * One tile of the panel: its key on `data-drpg-run`, its icon, its label, its second line, disabled with its reason, the
+ * phase's tile current (`current`, a key or null). Out of `buildSections` since E49 A1e, unchanged, so Season setup's row
+ * draws the panel's own tiles (`SEASON_TILES`; season-setup.mjs `seasonTilesHtml`).
+ */
+export function tileHtml(item, current = null) {
+    const blocked = Boolean(item.disabled?.());
+    const reason = blocked ? esc(game.i18n.localize(item.disabledReason)) : "";
+    const why = `drpg-gmp-why-${item.key}`;
+    return `
                 <button type="button" class="drpg-gmp-button${
                     item.destructive ? " drpg-destructive" : ""}${
                     blocked ? " drpg-disabled" : ""}${
@@ -475,9 +505,6 @@ export function buildSections() {
                     item.subtitle ? `<small class="notes">${esc(item.subtitle())}</small>` : ""}${
                     blocked ? `<span class="drpg-kit-sr" id="${why}">${reason}</span>` : ""}
                 </button>`;
-            }).join("")}</div>
-        </details>`;
-    }).join("")}</div>`;
 }
 
 /** Whether an incident runs: the murder's world half (`murderState`, through the API as `nextStep` reads it). */
@@ -943,7 +970,7 @@ export function nextStep(clock, { setupList, incident = game.drpg?.murderState?.
        the row comes under it as a second, quieter line (`setup`, drawn by `nextLineHtml`). R1522. */
     const stepName = outstanding ? game.i18n.localize(`DRPG.Season.step.${outstanding.key}`) : "";
     if (outstanding && !seasonUnderway(clock)) {
-        return { text: game.i18n.format("DRPG.Panel.nextSeasonSetup", { step: stepName }), action: "seasonSetup" };
+        return { text: game.i18n.format("DRPG.Panel.nextSeasonSetup", { step: stepName }), action: "seasonChecklist" };
     }
 
     // Daily Life. The one number that decides whether the time of day is over.
@@ -956,7 +983,7 @@ export function nextStep(clock, { setupList, incident = game.drpg?.murderState?.
             action: null }
         : { text: game.i18n.localize("DRPG.Panel.nextAllDone"), action: "eclipse" };
     return outstanding
-        ? { ...line, setup: { text: game.i18n.format("DRPG.Panel.nextSeasonSetupAside", { step: stepName }), action: "seasonSetup" } }
+        ? { ...line, setup: { text: game.i18n.format("DRPG.Panel.nextSeasonSetupAside", { step: stepName }), action: "seasonChecklist" } }
         : line;
 }
 
@@ -1011,7 +1038,8 @@ const NEXT_GO = Object.freeze({
     startInvestigation: "DRPG.Panel.goStartInvestigationButton",
     autopsy: "DRPG.Panel.goAutopsyButton",
     bodyDialog: "DRPG.Panel.goBodyButton",
-    seasonSetup: "DRPG.Panel.goSeasonSetupButton"
+    // The season checklist since E49 A1e (Season setup's rows moved there; the Next line names one of them).
+    seasonChecklist: "DRPG.Panel.goSeasonChecklistButton"
 });
 
 /** The key of the Next line's button for `action` (`NEXT_GO`); exported for R1358. */

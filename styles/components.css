@@ -290,6 +290,8 @@ body .application.drpg-ui.drpg-panel:not(.minimized) > .window-content {
     overscroll-behavior: contain;
 }
 .application.drpg-ui.drpg-panel .drpg-tabs { flex: 0 0 auto; }
+/* What a window pins under its body (ui-kit.mjs `drpgWindow`'s `pinned`, E49 A1e): its own height, as the tab bar's. */
+.application.drpg-ui.drpg-panel .drpg-kit-pinned { flex: 0 0 auto; }
 
 /* ---- the footer contract: the closing word, the secondary and the destructive ones on the left, the primary on
    the right. The right group is first in the tree (Enter presses the first submit button: ui-kit.mjs's header);
@@ -2966,19 +2968,28 @@ body .application.dialog.drpg-ui.drpg-window-gmteam .dialog-content .drpg-form-f
    Season setup: a row's hint, the line of what it waits on and its extra (the room guide, Check rooms) each a block of the
    row's detail, the line in the row's state - the blocking red beside a cross, the warning's ink beside "!", the fine print
    otherwise; the row's button beside its text on one line (`.drpg-setup-do` before). The scrollbar's gutter kept on the body
-   that scrolls (E20 C4, S01-19; danganronpa.css before). Pre-season: a fix line under its row, the contract's unread rows
+   that scrolls (E20 C4, S01-19; danganronpa.css before). The rows are the Season checklist's since E49 A1e (12.11.2026:
+   `openSeasonChecklist`), each rule held in both windows. Pre-season: a fix line under its row, the contract's unread rows
    folded under their count (E52 C4). */
-body .application.drpg-window-season .drpg-check-detail > .drpg-setup-missing { margin-top: 2px; overflow-wrap: anywhere; }
+body .application:is(.drpg-window-season, .drpg-window-season-checklist) .drpg-check-detail > .drpg-setup-missing { margin-top: 2px; overflow-wrap: anywhere; }
 /* The hint at the module's base size and the line of what a row waits on at text-sm, in both themes (E20 C4, S01-21,
    S06-30; Q-4: R1515), over the kit's fine print; a done row steps back by its title (E20 C4, S12-20), its mark the
    kit's evidence colour. */
-body .application.drpg-window-season .drpg-check-detail > .drpg-setup-hint { font-size: var(--drpg-text-base); }
-body .application.drpg-window-season .drpg-check-detail > .drpg-setup-missing { font-size: var(--drpg-text-sm); }
-body .application.drpg-window-season li.drpg-check-row[data-drpg-state="done"] > .drpg-check-text > .drpg-check-title { color: var(--drpg-kit-check-quiet); }
-body .application.drpg-window-season li.drpg-check-row[data-drpg-state="blocking"] .drpg-check-detail > .drpg-setup-missing { color: var(--drpg-kit-check-blocking); }
-body .application.drpg-window-season li.drpg-check-row[data-drpg-state="warning"] .drpg-check-detail > .drpg-setup-missing { color: var(--drpg-kit-check-warning); }
-body .application.drpg-window-season li.drpg-check-row > button[data-drpg-action] { align-self: center; white-space: nowrap; }
-body .application.drpg-window-season .drpg-kit-body { scrollbar-gutter: stable; }
+body .application:is(.drpg-window-season, .drpg-window-season-checklist) .drpg-check-detail > .drpg-setup-hint { font-size: var(--drpg-text-base); }
+body .application:is(.drpg-window-season, .drpg-window-season-checklist) .drpg-check-detail > .drpg-setup-missing { font-size: var(--drpg-text-sm); }
+body .application:is(.drpg-window-season, .drpg-window-season-checklist) li.drpg-check-row[data-drpg-state="done"] > .drpg-check-text > .drpg-check-title { color: var(--drpg-kit-check-quiet); }
+body .application:is(.drpg-window-season, .drpg-window-season-checklist) li.drpg-check-row[data-drpg-state="blocking"] .drpg-check-detail > .drpg-setup-missing { color: var(--drpg-kit-check-blocking); }
+body .application:is(.drpg-window-season, .drpg-window-season-checklist) li.drpg-check-row[data-drpg-state="warning"] .drpg-check-detail > .drpg-setup-missing { color: var(--drpg-kit-check-warning); }
+body .application:is(.drpg-window-season, .drpg-window-season-checklist) li.drpg-check-row > button[data-drpg-action] { align-self: center; white-space: nowrap; }
+body .application:is(.drpg-window-season, .drpg-window-season-checklist) .drpg-kit-body { scrollbar-gutter: stable; }
+/* THE ROW OF TILES PINNED UNDER EDIT CAMPAIGN (E49 A1e, 12.11.2026; season-setup.mjs `seasonTilesHtml`, in ui-kit.mjs
+   `drpgWindow`'s `pinned`): Despair Flow, The Mastermind, Killing game rules and the Season checklist, the GM panel's
+   tiles (their look is the panel's, below: "the GM panel's tiles"), four to a row at the window's 58rem. The panel's
+   columns are 15rem under Legacy (danganronpa.css `.drpg-gmp-grid`, three to a row here, the fourth under them) and 150 px
+   under the glass; 10rem holds four in both. A line above it, as the footer has, so it reads as the window's and not
+   as the end of Edit campaign's block; its own height (`.drpg-kit-pinned`), so the body above scrolls and the row stays. */
+body .application.drpg-window-season .drpg-kit-pinned { padding: 10px 0 2px; border-top: 1px solid var(--drpg-line-strong); }
+body .application.drpg-window-season .drpg-season-tiles .drpg-gmp-grid { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
 body .application.drpg-window-preseason .drpg-check-detail > .drpg-check-line { display: block; overflow-wrap: anywhere; }
 body .application.drpg-window-preseason .drpg-check-title { overflow-wrap: anywhere; }
 body .application.drpg-window-preseason .drpg-check-unknown > summary { cursor: pointer; }
@@ -2990,7 +3001,7 @@ body .application.drpg-window-preseason .drpg-check-unknown > div { color: var(-
    the fix lines a line height of their own (the marks' face is the kit's since E47-KFa: danganronpa.css's exception to
    the pixel face, beside the icon fonts', reaches every checklist). Pre-season's fine print (the cast's header, "no scene has rooms") from the
    start, where the dialog's paragraph rule centred it. */
-body:not(.drpg-theme-stained-glass) .application:is(.drpg-window-season, .drpg-window-preseason) :is(.drpg-check-title, .drpg-check-line) { line-height: 1.4; }
+body:not(.drpg-theme-stained-glass) .application:is(.drpg-window-season, .drpg-window-season-checklist, .drpg-window-preseason) :is(.drpg-check-title, .drpg-check-line) { line-height: 1.4; }
 body .application.dialog.drpg-window-preseason .drpg-check-part > p.drpg-help { text-align: start; max-width: none; margin: 0 0 6px; }
 
 /* ---- the Class Trial console and the vote (E47 C1, 09.11.2026; M6, the owner's q-console; S12-51, S18-89) ----
@@ -3255,15 +3266,18 @@ body .application.drpg-project-form .drpg-form-full > .drpg-specific-note > text
    under the pointer. Without `!important`: the window's classes outrank every base rule of the tile, and a disabled
    tile's dashed edge could not win over an `!important` edge (S10-64). The glass keeps its brush (stained-glass.css's
    shared button rules); the states below write it. A destructive tile wears crimson in both themes (it was one
-   unscoped `!important` rule). R2061 reads the cascade. The grounds are the window's own properties, read below. */
-body .application.drpg-window-panel {
+   unscoped `!important` rule). R2061 reads the cascade. The grounds are the window's own properties, read below.
+   AND SEASON SETUP'S ROW (E49 A1e, 12.11.2026; the owner: its buttons "the same shape as the GM panel's tiles"): the row
+   is the panel's tiles (gm-panel.mjs `SEASON_TILES`, `tileHtml`, inside `.drpg-gm-panel .drpg-gmp-grid`), so each rule of
+   a tile here holds in that window too, by the same selector with the window's class beside the panel's. */
+body .application:is(.drpg-window-panel, .drpg-window-season) {
     --drpg-gmp-hover-bg: rgba(var(--drpg-eye-rgb), 0.3);
     --drpg-gmp-route-hover-bg: rgba(var(--drpg-crimson-rgb), 0.28);
     --drpg-gmp-route-bg: rgba(var(--drpg-crimson-rgb), 0.14);
     --drpg-gmp-off-bg: rgba(var(--drpg-eye-rgb), 0.07);
     --drpg-gmp-off-edge: rgba(var(--drpg-eye-rgb), 0.35);
 }
-body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button {
+body.drpg-theme-monokuma-legacy .application:is(.drpg-window-panel, .drpg-window-season) .drpg-gmp-button {
     color: var(--drpg-bone);
     background: transparent;
     border: 1px solid var(--drpg-eye);
@@ -3275,39 +3289,40 @@ body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button 
    the width of its longest word and stood as a three-line column at the tile's right (E105 gmtabs, "last backup: never",
    E49 11.11). Now the label does not shrink (`flex: none`, its word whole) and the line takes the room left, wrapping
    only where that room ends (Chromium on the style harness at 1366x768 and 1920x1080, English: "last backup: never" three
-   rows 91 px wide before, two rows 167 px wide after, the tile 69 px tall before and 53 px after; index.txt). The tile's box is the grid cell's, as before. */
-body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button:has(> small.notes) > span { flex: none; }
-body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button > small.notes { flex: 0 1 auto; min-width: 0; }
-body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button:hover:not(:disabled) {
+   rows 91 px wide before, two rows 167 px wide after, the tile 69 px tall before and 53 px after; index.txt). The tile's box is the grid cell's, as before.
+   Season setup's row of tiles (E49 A1e) wears the same rules. */
+body.drpg-theme-monokuma-legacy .application:is(.drpg-window-panel, .drpg-window-season) .drpg-gmp-button:has(> small.notes) > span { flex: none; }
+body.drpg-theme-monokuma-legacy .application:is(.drpg-window-panel, .drpg-window-season) .drpg-gmp-button > small.notes { flex: 0 1 auto; min-width: 0; }
+body.drpg-theme-monokuma-legacy .application:is(.drpg-window-panel, .drpg-window-season) .drpg-gmp-button:hover:not(:disabled) {
     background: var(--drpg-gmp-hover-bg);
     border-color: var(--drpg-eye-light);
 }
-body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button.drpg-destructive { border-color: var(--drpg-crimson); }
-body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button.drpg-destructive:hover:not(:disabled) { background: var(--drpg-gmp-route-hover-bg); }
-body.drpg-theme-stained-glass .application.drpg-window-panel .drpg-gmp-button.drpg-destructive {
+body.drpg-theme-monokuma-legacy .application:is(.drpg-window-panel, .drpg-window-season) .drpg-gmp-button.drpg-destructive { border-color: var(--drpg-crimson); }
+body.drpg-theme-monokuma-legacy .application:is(.drpg-window-panel, .drpg-window-season) .drpg-gmp-button.drpg-destructive:hover:not(:disabled) { background: var(--drpg-gmp-route-hover-bg); }
+body.drpg-theme-stained-glass .application:is(.drpg-window-panel, .drpg-window-season) .drpg-gmp-button.drpg-destructive {
     background-color: var(--drpg-gmp-route-bg);
     border-color: var(--drpg-crimson);
 }
 /* A TILE THAT CANNOT BE PRESSED SAYS SO (S10-64): a dashed edge and its ink dimmed (the icon wears it: E49 A3, below), the reason in its
    title and in `aria-describedby` (gm-panel.mjs `buildSections`). After the glass's route rule in the cascade (a later
    sheet), and `drpg-disabled` with the panel's classes outranks the glass's shared button rule (0,6,1 against 0,5,2). */
-body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-button.drpg-disabled:disabled {
+body .application:is(.drpg-window-panel, .drpg-window-season) .drpg-gm-panel .drpg-gmp-button.drpg-disabled:disabled {
     border-style: dashed;
     cursor: not-allowed;
 }
-body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button:disabled {
+body.drpg-theme-monokuma-legacy .application:is(.drpg-window-panel, .drpg-window-season) .drpg-gmp-button:disabled {
     color: var(--drpg-dim);
     background: var(--drpg-gmp-off-bg);
     border-color: var(--drpg-gmp-off-edge);
 }
 /* THE TILE OF THE PHASE THE TABLE IS IN (`is-current`, S10-64): the pressed look, no new colour - the kit's on-ground
    under Legacy (a pressed mode's), the brush on under the glass (a pressed button's). */
-body.drpg-theme-monokuma-legacy .application.drpg-window-panel .drpg-gmp-button.is-current {
+body.drpg-theme-monokuma-legacy .application:is(.drpg-window-panel, .drpg-window-season) .drpg-gmp-button.is-current {
     color: var(--drpg-kit-btn-on-ink);
     background: var(--drpg-kit-btn-on-bg);
     border-color: var(--drpg-kit-btn-on-edge);
 }
-body.drpg-theme-stained-glass .application.drpg-window-panel .drpg-gmp-button.is-current {
+body.drpg-theme-stained-glass .application:is(.drpg-window-panel, .drpg-window-season) .drpg-gmp-button.is-current {
     --brush-on: 1;
     --brush-ink: var(--drpg-sg-ink);
     --brush-edge: var(--brush);
@@ -3321,8 +3336,8 @@ body.drpg-theme-stained-glass .application.drpg-window-panel .drpg-gmp-button.is
    own height. Headless both themes read 0 px (no Foundry sheet): style-sweep `--panel`'s control plants that model
    (`align-self: start`, one tile taller) and reads 116 px; tier 2 "the panel's tiles in a row are one height ..." reads
    the real layout (LIVE-E49-01). With the window's classes (0,5,1), over Foundry's element rule and the base tile. */
-body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-grid { align-items: stretch; }
-body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-grid > .drpg-gmp-button {
+body .application:is(.drpg-window-panel, .drpg-window-season) .drpg-gm-panel .drpg-gmp-grid { align-items: stretch; }
+body .application:is(.drpg-window-panel, .drpg-window-season) .drpg-gm-panel .drpg-gmp-grid > .drpg-gmp-button {
     align-self: stretch;
     box-sizing: border-box;
     height: auto;
@@ -3338,7 +3353,7 @@ body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-grid > .drpg-gmp-bu
    (4.5:1 by the kit's and the brush's pairs), the icon has, at full opacity. One rule, (0,4,2): over the glass's icon
    rules (0,4,1) and the base tile's 0.85. A disabled tile says so by its dashed edge and its dimmed ink, its icon with
    it. */
-body .application.drpg-window-panel .drpg-gm-panel .drpg-gmp-button > i {
+body .application:is(.drpg-window-panel, .drpg-window-season) .drpg-gm-panel .drpg-gmp-button > i {
     color: inherit;
     opacity: 1;
 }

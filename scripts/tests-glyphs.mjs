@@ -408,10 +408,19 @@ export const ELEMENTS = {
     "TRAP_TRIGGERS.stash": "stash", "TRAP_TRIGGERS.passage": "passage", "TRAP_TRIGGERS.manual": "trap-manual",
     "CLEANUP.actions.eraseTrace": "erase-trace", "CLEANUP.actions.misleadingTrail": "misleading-trail",
     "CLEANUP.actions.moveBody": "move-body", "gm.whoIsAlive": "pulse", "gm.projects": "checklist", "gm.sound": "sound",
-    "gm.rules": "rules", "gm.murder": "gm-murder", "gm.investigation": "lens", "gm.trial": "scale", "gm.jump": "calendar",
-    "gm.gmTeam": "team", "gm.roomSetup": "room-setup", "gm.tables": "table", "gm.voiceReset": "voice-reset",
-    "gm.seasonSetup": "wand", "gm.mastermind": "mask", "gm.settings": "gear",
-    "gm.failureLog": "bug", "gm.caseWindow": "case-backup"
+    "gm.murder": "gm-murder", "gm.investigation": "lens", "gm.trial": "scale",
+    "gm.roomSetup": "room-setup", "gm.tables": "table", "gm.voiceReset": "voice-reset",
+    "gm.seasonSetup": "wand", "gm.settings": "game-settings",
+    "gm.failureLog": "bug", "gm.caseWindow": "case-backup",
+    "gm.rules": "rules", "gm.gmTeam": "team", "gm.mastermind": "mask", "gm.seasonChecklist": "season-checklist"
+    /* E49 A1e: gm.jump left with its tile on 11.11.2026 (Edit campaign is Season setup's top block now). gm.gmTeam,
+       gm.rules and gm.mastermind left the panel with theirs and came back on 12.11.2026 as tiles of Season setup's row
+       (gm-panel.mjs SEASON_TILES; the owner: "the same shape as the GM panel's tiles", the glyphs they wore), each the
+       drawing it wore before. gm.seasonChecklist is the row's fourth, the Season checklist: a drawing of its own, the glass
+       row season-checklist (a calendar page with a check; the owner's free hand, 12.11.2026), not the Projects tile's
+       checklist, which it wore for a day as the closest the rounds drew and which R3338 named as a shared pair. gm.settings
+       (the game's settings, E49 A1d) wore the corner launcher's gear (F8: this browser's settings, another window),
+       a pair R3338 named from A1d on; it wears game-settings since 12.11.2026, three sliders, as its icon fa-sliders. */
 };
 
 /** What later stages build, by the inventory (S/stages/E48/GLYPH-INVENTORY.md, 10.11.2026): [row, stage, element,
@@ -1066,7 +1075,11 @@ ${perIcon.join("\n\n")}
  *  E48 G4 (11.11.2026) renamed the 60 token readings to the one prefix and changed no reading: each named a g-prefixed
  *  token (59) or the r-prefixed `trash` and now names `--drpg-pix-<n>` of the legacy row that took that drawing over, pixel for pixel
  *  (tools/glyphs.json's `from` names the old token; `palm` alone was renamed, to `palm-action`, because the px hand the
- *  objection launcher reads keeps `palm`); the 139 `fa:` readings are as recorded. */
+ *  objection launcher reads keeps `palm`); the 139 `fa:` readings are as recorded. E49 A1e (11.11.2026) took out the
+ *  four GM tiles that left the panel for Season setup (gm.jump, gm.gmTeam, gm.rules, gm.mastermind); on 12.11.2026 three
+ *  came back as tiles of Season setup's row, each its reading of before, and the row's Season checklist keeps its Font
+ *  Awesome icon under Legacy (`fa:fa-list-check`; the owner: Legacy keeps an FA icon - the Projects tile beside it
+ *  wears its hand drawing there, not this icon); gm.jump stays out. No other reading changed. */
 export const LEGACY_ICONS = {
     "ACTIONS.search": "--drpg-pix-search",
     "ACTIONS.observe": "--drpg-pix-observe",
@@ -1123,20 +1136,20 @@ export const LEGACY_ICONS = {
     "gm.whoIsAlive": "--drpg-pix-who-is-alive",
     "gm.projects": "--drpg-pix-projects",
     "gm.sound": "fa:fa-volume-high",
-    "gm.rules": "--drpg-pix-new-rule",
     "gm.murder": "--drpg-pix-direct-murder",
     "gm.investigation": "--drpg-pix-investigation",
     "gm.trial": "--drpg-pix-trial",
-    "gm.jump": "--drpg-pix-jump",
-    "gm.gmTeam": "--drpg-pix-gm-team",
     "gm.roomSetup": "--drpg-pix-room-setup",
     "gm.tables": "--drpg-pix-tables",
     "gm.voiceReset": "fa:fa-microphone-lines",
     "gm.seasonSetup": "--drpg-pix-season-setup",
-    "gm.mastermind": "--drpg-pix-mastermind",
     "gm.settings": "--drpg-pix-gear",
     "gm.failureLog": "--drpg-pix-failure-log",
     "gm.caseWindow": "fa:fa-box-archive",
+    "gm.rules": "--drpg-pix-new-rule",
+    "gm.gmTeam": "--drpg-pix-gm-team",
+    "gm.mastermind": "--drpg-pix-mastermind",
+    "gm.seasonChecklist": "fa:fa-list-check",
     "rule.caution": "fa:fa-hand",
     "rule.project-new": "fa:fa-lightbulb",
     "remnant.search": "--drpg-pix-search",

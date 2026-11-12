@@ -2064,7 +2064,7 @@ function stringLiterals(code, offset = 0, out = []) {
 const STANDING = [
     "openSoundDialog", "openInvestigationDashboard", "manageClassTrial",
     "openProjectManager", "openRoomSetupDialog", "openVaultInspector",
-    "openItemTables", "openSeasonSetup", "openMastermindDialog",
+    "openItemTables", "openSeasonSetup", "openSeasonChecklist", "openMastermindDialog",
     "openRulesManager", "openMonocubDialog", "openGmTeamDialog",
     "openItemManager", "openGmPanel", "openWhoIsAliveDialog",
     "openFailureLog", "openClockDialog", "openIncidentTracker",
