@@ -36,7 +36,7 @@ branch for a tail (`settleTail`) and a Dash.
 See SPEC.md: the ear glyph kept, Listen's approved description kept, Dash's bands. And for Tail Someone:
 
 - A tail cannot be begun in an Eclipse (the gate of a person's action, as Palm and Frisk); one begun keeps sending cards
-  through every Eclipse (DA20, DA33). The plan's C3 lists the Eclipse among the target refusals and its goal says cards
+  through every Eclipse (DA20, DA33). **Confirmed by the owner, 12.11.2026: "Tak"** (through the coordinator). The plan's C3 lists the Eclipse among the target refusals and its goal says cards
   "also in every Eclipse": read together as this.
 - "Range": the tail is lost when, at the target's settled crossing, the tailer stands in neither the room the target
   left nor the one it reached.
