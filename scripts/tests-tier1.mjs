@@ -18816,6 +18816,87 @@ const INVARIANTS = [
             "{the footer's actions; the what bar; the panes; shown on open; Item > Create new: [shown, Give off with no name, Give on with one]; "
             + "Room key: [shown, the from bar hidden]; Truth Bullet > new: [shown, the from bar's words, hidden]; Give's answer: [go, what, the student, mode, name]}");
     }],
+    ["R4061 - Interface scale shows a short number and one short line (E101 table note 5; the owner at a 1.2.108 table: the field read 0.95000000 and its hint lines lay over each other): a stepper's - and + land on the step's own places (0.9 + 0.05 is 0.95, not 0.9500000000000001), and the settings window's Interface scale row says one sentence with no tooltip (DRPG.SettingsWindow.uiScaleHint) over the total on this screen (DRPG.SettingsWindow.scaleNow)", async () => {
+        /*
+         * E101 table note 5, 12.11.2026. The field: a float step's noise (1 - 0.05 - 0.05 + 0.05 in binary) drawn in a narrow
+         * number field showed its first digits, 0.95000000. The hint: its first sentence with the rest as a tooltip, which
+         * Foundry draws over the line under it when the pointer rests on the hint - read as two texts on top of each other
+         * (the harness has no tooltip; the review page says what is not measured). Read: a stepper of the setting's range
+         * stepped down, down and up on a detached box; the row as the window draws it. Red at 2e10420d.
+         */
+        const K = await import("./ui-kit.mjs");
+        const W = await import("./settings-window.mjs");
+        const box = document.createElement("div");
+        box.innerHTML = K.stepper({ name: "r4061", value: "1", min: 0.8, max: 1.4, step: 0.05 });
+        K.wireSteppers(box);
+        const input = box.querySelector("input"), seen = [];
+        for (const sign of ["-1", "-1", "1"]) {
+            box.querySelector(`button[data-drpg-step="${sign}"]`).click();
+            seen.push(input.value);
+        }
+        const row = document.createElement("div");
+        row.innerHTML = W.settingRowHtml("uiScale");
+        const hint = row.querySelector(".drpg-settings-hint:not([data-drpg-scale-note])");
+        const note = row.querySelector("[data-drpg-scale-note]")?.textContent ?? "";
+        const shape = new RegExp(`^${game.i18n.localize("DRPG.SettingsWindow.scaleNow").replace(/[.*+?^$()|[\]\\]/g, "\\$&").replace(/\{total\}/, "\\d+")}$`);
+        equal(JSON.stringify([seen, hint?.textContent ?? null, hint?.hasAttribute("data-tooltip") ?? null, shape.test(note)]),
+            JSON.stringify([["0.95", "0.9", "0.95"], game.i18n.localize("DRPG.SettingsWindow.uiScaleHint"), false, true]),
+            "[the field after -, -, +; the row's hint; whether it carries a tooltip; the line under it is the total on this screen]");
+    }],
+    ["R4062 - the microphone's mode is a one-of-two choice that shows which is on (E101 table note 6; the owner at a 1.2.108 table: Always on and Push to talk did not show the one chosen, and choosing seemed to do nothing): voice-panel.mjs `voiceFieldset` keeps its two radios `voice:mode` and each one's label is the face - a click on Always on's label checks it and writes the mode; components.css hides the radio itself and draws the label pressed while its radio is checked (`:has(> input:checked)`), in both themes", async () => {
+        /*
+         * E101 table note 6, 12.11.2026. The radios were drawn by Foundry's sheet and the theme's together: under the glass
+         * a small square of the state colour in the checked one, read at the table as "half filled", and nothing on the
+         * other. Read: the fieldset with a stand-in A/V client and settings (as R542), Always on's label clicked; the
+         * module's sheet served, its rules for the label. What each theme draws is the review page's (Chromium). Red at
+         * 2e10420d: no rule draws the label.
+         */
+        const P = await import("./voice-panel.mjs");
+        const writes = [];
+        const set = await P.voiceFieldset({
+            client: { getAudioSources: async () => ({ R4062MIC: "R4062 Mic" }), getAudioSinks: async () => ({}) },
+            settings: { client: { audioSrc: "R4062MIC", voice: { mode: "ptt" } }, set: async (scope, key, value) => { writes.push(`${scope}.${key}=${value}`); } }, key: "R4062KEY"
+        });
+        document.body.append(set);
+        let read = null;
+        try {
+            const labels = [...set.querySelectorAll("label.drpg-voice-panel-radio")];
+            const before = labels.map(l => l.querySelector("input")?.checked);
+            labels.find(l => l.querySelector("input")?.value === "always")?.click();
+            await new Promise(resolve => setTimeout(resolve, 0));
+            read = [labels.map(l => l.querySelector("input")?.value), before, labels.map(l => l.querySelector("input")?.checked), writes.splice(0)];
+        } finally { set.remove(); }
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/components.css`, { cache: "no-cache" }).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, "");
+        const rules = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].map(m => [m[1].trim(), m[2]]);
+        const hidden = rules.some(([sel, body]) => /\.drpg-voice-panel-radio\s*>\s*input\[type="radio"\]/.test(sel) && /opacity:\s*0/.test(body) && /position:\s*absolute/.test(body));
+        const pressed = rules.some(([sel, body]) => /\.drpg-voice-panel-radio:has\(>\s*input:checked\)/.test(sel) && /background:\s*var\(--drpg-kit-btn-on-bg\)/.test(body));
+        equal(JSON.stringify([read, hidden, pressed]), JSON.stringify([[["always", "ptt"], [false, true], [true, false], ["client.voice.mode=always"]], true, true]),
+            "[[the two choices, checked before, checked after a click on Always on's label, what was written], the radio hidden, the label pressed while checked]");
+    }],
+    ["R4063 - the Class Trial console's row of modes never scrolls (E101 table note 8; the owner at a 1.2.108 table: a thin bar under each start, \"wywalmy scroll\"): components.css draws `.drpg-trial-picker` wrapping, with no overflow of its own, and no rule gives it a sideways scroll", async () => {
+        /*
+         * E101 table note 8, 12.11.2026. E99's round 5 put the picker on one row that scrolls sideways when it does not
+         * fit (`overflow-x: auto`), to give the case map the height of a second row; at the owner's table the row's
+         * scrollbar stood under the starts. The owner's word over that default: the starts fit or wrap. Read in the
+         * served sheet; whether the row is wider than its box, in Chromium, is the review page's. Red at 2e10420d.
+         */
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/components.css`, { cache: "no-cache" }).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, "");
+        const rules = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].filter(m => /\.drpg-trial-picker\s*$/.test(m[1].trim()) || /\.drpg-trial-picker\s*,/.test(m[1]));
+        must(rules.length, "no rule names the trial's picker - this would measure nothing");
+        const bodies = rules.map(m => m[2]);
+        equal(JSON.stringify([bodies.some(b => /overflow(-x)?:\s*(auto|scroll)/.test(b)), bodies.some(b => /flex-wrap:\s*nowrap/.test(b)), bodies.some(b => /flex-wrap:\s*wrap/.test(b))]),
+            JSON.stringify([false, false, true]), "[a rule gives the picker a scroll, a rule keeps it on one row, a rule wraps it]");
+    }],
+    ["R4064 - the settings window's Sound and Music volumes stand in one column, one under the other (E101 table note 9; the owner on a player's window at 1.2.108): components.css spans a volume row over both of the section's columns", async () => {
+        /*
+         * E101 table note 9, 12.11.2026. The section's rows are a two-column grid filled in order, so the messenger's switch,
+         * Sound and Music fell into two columns. Read in the served sheet; where each slider stands, in Chromium, is the
+         * review page's. Red at 2e10420d.
+         */
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/components.css`, { cache: "no-cache" }).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, "");
+        const span = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].some(m => /\.drpg-settings-rows\s*>\s*\.drpg-settings-volume\s*$/.test(m[1].trim()) && /grid-column:\s*1\s*\/\s*-1/.test(m[2]));
+        equal(span, true, "a volume row spans both columns of its section");
+    }],
     ["R3532 - Reset the season is Season setup's, and Settings takes its tile (E49 A1d; the owner, 11.11.2026): in gm-panel.mjs `PANEL_SECTIONS` no tile `seasonReset`, a tile `settings` last in Between sessions that opens settings-window.mjs `openGameSettingsWindow` and is disabled for a user who may not modify settings; season-setup.mjs `openSeasonSetup`'s footer has a destructive `reset` named by `DRPG.Season.resetTitle`, and its answer runs season-wipe.mjs `resetSeason`; the window and its tile are Season setup / Ustawienia sezonu, the new tile Settings / Ustawienia gry", async () => {
         /*
          * E49 A1d, 11.11.2026. The owner: "Chcialbym wrzucic season reset w set the season up, a calosc przemianowac na

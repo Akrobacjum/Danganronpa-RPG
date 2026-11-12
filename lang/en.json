@@ -408,6 +408,8 @@
       "save": "Save changes",
       "scopeClient": "This browser only",
       "scopeWorld": "The whole table",
+      "uiScaleHint": "Makes this module's text and windows larger or smaller in this browser.",
+      "scaleNow": "On this screen: {total}%.",
       "glassOnly": "Stained Glass only: pick that theme to change it.",
       "legacyOnly": "Monokuma Legacy only: pick that theme to change it.",
       "gameTitle": "Game settings",

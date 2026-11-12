@@ -841,7 +841,10 @@ function wireStepper(wrap) {
             const min = bound(input.min, -Infinity), max = bound(input.max, Infinity);
             const current = Number(input.value);
             const from = input.value !== "" && Number.isFinite(current) ? current : (Number.isFinite(min) ? min : 0);
-            const next = Math.min(max, Math.max(min, from + Number(button.dataset.drpgStep) * size));
+            // On the step's own places (E101 table note 5): 0.9 + 0.05 is 0.9500000000000001 in binary, which a narrow
+            // field showed as 0.95000000 at the owner's table. A whole step keeps no places; a value off the step keeps its own.
+            const places = Math.max(...[input.step, from].map(v => (String(v).split(".")[1] ?? "").length));
+            const next = Number(Math.min(max, Math.max(min, from + Number(button.dataset.drpgStep) * size)).toFixed(Math.min(places, 10)));
             if (next === current && input.value !== "") return;
             input.value = String(next);
             input.dispatchEvent(new Event("input", { bubbles: true }));

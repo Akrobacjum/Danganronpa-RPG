@@ -4023,6 +4023,34 @@ body .application.drpg-ui.drpg-panel:is(.drpg-window-settings, .drpg-window-game
 :is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-note { margin: 4px 0 2px; line-height: 1.2; color: var(--drpg-kit-help-ink); font-size: var(--drpg-kit-help-size); }
 :is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-nav > .drpg-settings-foot { margin-top: 10px; }
 :is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-volume > .drpg-settings-control > input[type="range"] { flex: 1 1 8rem; min-width: 0; margin: 0; }
+/* THE VOLUMES ONE UNDER THE OTHER (E101 table note 9, 12.11.2026; the owner on a player's window): each volume row takes
+   the section's whole width, so Sound and Music stand in one column whatever the switches before them, and its control
+   and line keep a column's width. R4064. */
+:is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-rows > .drpg-settings-volume { grid-column: 1 / -1; }
+:is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-rows > .drpg-settings-volume > * { max-width: calc(50% - 8px); }
+/* THE MICROPHONE'S MODE AS TWO BUTTONS (E101 table note 6, 12.11.2026; the owner at a 1.2.108 table: the one chosen was
+   not shown, and choosing seemed to do nothing). Voice-panel.mjs keeps its two radios `voice:mode`, so a form and the
+   writes read what they read; the radio itself is hidden and its label is the face, pressed in the kit's colours while
+   its radio is checked, in both themes - Foundry's sheet and the glass's drew the radio together, a small square in the
+   checked one, read at the table as half filled. The radio keeps the focus; the label shows it. R4062. */
+body .drpg-voice-panel label.drpg-voice-panel-radio {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    cursor: pointer;
+    color: var(--drpg-kit-btn-ink);
+    background: var(--drpg-kit-btn-bg);
+    border: 1px solid var(--drpg-kit-btn-edge);
+    border-radius: var(--drpg-kit-btn-radius);
+}
+body .drpg-voice-panel label.drpg-voice-panel-radio > input[type="radio"] { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
+body .drpg-voice-panel label.drpg-voice-panel-radio:has(> input:checked) {
+    color: var(--drpg-kit-btn-on-ink);
+    background: var(--drpg-kit-btn-on-bg);
+    border-color: var(--drpg-kit-btn-on-edge);
+}
+body .drpg-voice-panel label.drpg-voice-panel-radio:has(> input:focus-visible) { outline: 2px solid var(--drpg-kit-btn-on-edge); outline-offset: 2px; }
 :is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-volume > .drpg-settings-control > output { flex: 0 0 4ch; text-align: end; font-variant-numeric: tabular-nums; }
 :is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-volume > .drpg-settings-control > .drpg-settings-label { flex: 0 1 8rem; }
 :is(.drpg-window-settings, .drpg-window-game-settings) .drpg-settings-voice > fieldset.drpg-voice-panel { margin: 4px 0 0; min-width: 0; }
@@ -4638,13 +4666,13 @@ body.drpg-low .application.dialog.drpg-ui.drpg-panel.drpg-window-trial footer.fo
 /* THE PICKER ON ONE COMPACT ROW (E99 round 5, 12.11.2026; the coordinator's step 5, the default chosen of three): at
    1366x768 while a trial runs the schema's fit was bound by the slot's height (glass 296 px of viewport for a 641 px case,
    the case's smallest words 9.7 px), so a wider schema - a narrower read-out, or the window at the screen's width - gained
-   nothing there; the picker's second row (glass 75 px for the two) was the height to take back. One row, the starts at
-   the theme's small text, never wrapped and never cut: a row that does not fit scrolls sideways. Measured in
-   audit/case-map-sweep.mjs (docs/dev/e99/STATUS.md, round 5). */
+   nothing there; the picker's second row (glass 75 px for the two) was the height to take back. The starts at the theme's
+   small text, never cut. Measured in audit/case-map-sweep.mjs (docs/dev/e99/STATUS.md, round 5).
+   NO SCROLL (E101 table note 8, 12.11.2026; the owner at a 1.2.108 table, "wywalmy scroll"): round 5 let a row that did
+   not fit scroll sideways, and its scrollbar stood under the starts at the table. The row wraps instead; one row where
+   the starts fit, as round 5 measured, a second only where they do not. R4063. */
 .application.drpg-ui.drpg-window-trial .drpg-trial-frame .drpg-trial-top > .drpg-trial-picker {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
+    flex-wrap: wrap;
     margin-top: 2px;
 }
 

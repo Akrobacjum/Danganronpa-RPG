@@ -60,12 +60,12 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS, getSetting } from "./settings.mjs";
+import { SETTINGS, getSetting, autoScale } from "./settings.mjs";
 import { esc, error, wholeNumber } from "./utils.mjs";
 import { toggle, stepper, stepperId } from "./ui-kit.mjs";
 import { sectionHtml, wideWindow } from "./ui-columns.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
-import { themeOnlyKeys, scaleNote, systemWantsContrast } from "./look.mjs";
+import { themeOnlyKeys, systemWantsContrast, isStainedGlass } from "./look.mjs";
 import { volumeSliders, wireVolumeSliders } from "./sfx.mjs";
 
 /**
@@ -174,8 +174,13 @@ export function settingRowHtml(key, { theme = getSetting(SETTINGS.theme) } = {})
     if (!reg) return "";
     const owner = ownerTheme(key);
     const off = Boolean(owner && owner !== theme);
-    const value = game.settings.get(MODULE_ID, SETTINGS[key] ?? key);
-    const hint = reg.hint ? localize(reg.hint) : "";
+    const stored = game.settings.get(MODULE_ID, SETTINGS[key] ?? key);
+    // A number as short as it is (E101 table note 5): a stored 0.9500000000000001 is drawn 0.95.
+    const value = reg.type === Number && Number.isFinite(Number(stored)) ? Number(Number(stored).toFixed(6)) : stored;
+    /* Interface scale's row says what it does in one sentence of the window's own (E101 table note 5): the setting's
+       hint explains the factors, and its rest, a tooltip, stood over the line under it at the owner's table. */
+    const own = (SETTINGS[key] ?? key) === SETTINGS.uiScale;
+    const hint = own ? localize("DRPG.SettingsWindow.uiScaleHint") : reg.hint ? localize(reg.hint) : "";
     const rest = restOf(hint);
     const world = reg.scope === "world";
     const scope = localize(world ? "DRPG.SettingsWindow.scopeWorld" : "DRPG.SettingsWindow.scopeClient");
@@ -186,12 +191,19 @@ export function settingRowHtml(key, { theme = getSetting(SETTINGS.theme) } = {})
         + `<div class="drpg-settings-hint"${rest ? ` data-tooltip="${esc(rest)}"` : ""}>${esc(firstSentence(hint))}</div>${scaleLine(key, value)}</div>`;
 }
 
-/* Under Interface scale, the Look window's line (look.mjs `scaleNote`): what this screen's factor and the slider make,
-   in the row itself, so it stands under the field it reads (E49 A1d's shots: as a line of the section it fell under the
-   section's last row). The window's render keeps it following the field before Save. */
+/* Under Interface scale, what the slider makes on this screen, in the row itself, so it stands under the field it reads
+   (E49 A1d's shots: as a line of the section it fell under the section's last row). The window's render keeps it
+   following the field before Save. Since E101 table note 5 the total alone (the owner: a player reads what it does, not
+   how the factors ride on each other): under Stained Glass this screen's factor times the slider, under Legacy the
+   slider; the Look window's longer line (look.mjs `scaleNote`) is not drawn here. */
+function scaleNow(slider) {
+    const total = Math.round((isStainedGlass() ? slider * autoScale() : slider) * 100);
+    return game.i18n.format("DRPG.SettingsWindow.scaleNow", { total });
+}
+
 function scaleLine(key, value) {
     if ((SETTINGS[key] ?? key) !== SETTINGS.uiScale) return "";
-    return `<div class="drpg-settings-hint drpg-settings-note" data-drpg-scale-note>${esc(scaleNote(Number(value) || 1))}</div>`;
+    return `<div class="drpg-settings-hint drpg-settings-note" data-drpg-scale-note>${esc(scaleNow(Number(value) || 1))}</div>`;
 }
 
 /* Give back Foundry's settings, in Foundry and the system (Q3; Technical until A1d): the menu's words, the button that opened it from Configure Settings. */
@@ -427,7 +439,7 @@ export async function openSettingsWindow() {
             root.querySelector(`[name="${SETTINGS.theme}"]`)?.addEventListener("change", ev => syncTheme(root, ev.currentTarget.value));
             /* The scale's line follows the field before Save, as the Look window's followed its slider. */
             const scale = root.querySelector(`[name="${SETTINGS.uiScale}"]`), line = root.querySelector("[data-drpg-scale-note]");
-            const follow = () => { if (line) line.textContent = scaleNote(Number(scale.value) || 1); };
+            const follow = () => { if (line) line.textContent = scaleNow(Number(scale.value) || 1); };
             scale?.addEventListener("input", follow);
             scale?.addEventListener("change", follow);
             wireVolumeSliders(root);

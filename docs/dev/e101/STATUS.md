@@ -4,7 +4,7 @@ The owner said yes on 12.11.2026 to the GM screens' review (artifact T8eePyz1, s
 not Foundry). Seven numbered items, plus the smaller structural proposals beside each window that no other line holds.
 Base: origin/main 4dfac3a (1.2.108). Branch: `claude/e101`.
 
-R numbers: E101 takes R4050-R4099 (the open lines hold R3750s, R3800s and R3900-R3966); used so far R4050-R4060.
+R numbers: E101 takes R4050-R4099 (the open lines hold R3750s, R3800s and R3900-R3966); used so far R4050-R4064.
 Registry Since: the rows read E61, the stamp `node tools/registry.mjs --write` gives (the first stage tools/stages.json
 has not shipped); `--stage E101` is refused, E101 not being a stage of that file. Until 12.11 this line said E101, which
 no row carried.
@@ -26,6 +26,11 @@ no row carried.
 | Table note 2: Give / take items, no separate Give buttons | gm-items.mjs `openItemManager`: the Give tab asks What (Item, Truth Bullet, Room key) and From (From the tables / Create new; From a Remnant / Write a new one; none for a key) and shows that one form in the hub (`hubGivePane`, `wireHubGive`); the footer has one Give (primary) and Take's three doors. Give reads the shown form (`readHubGive`), the hub closes, the give runs as its own window's would (`giveItemNow`, `giveBulletNow`, `giveKeyNow`, split out of `gmGiveItemDialog`, `giveTruthBulletDialog`, `giveKeyDialog`, which stay for the messenger and the suite), and the hub opens again on the same student and choice. Give is off while the shown form cannot give. The five panes stand in one form, so the new bullet's name is `bulletName` and the recipient is the hub's `who`. The from words are the specific ones, not "Existing / New" (two keys if the owner wants those). New keys `DRPG.Items.giveWhat`, `whatItem`, `whatBullet`, `whatKey`, `giveFrom`, `fromTables`, `giveButton` (EN, PL). Probe 08 rows `item-manager--item-new`, `--bullet`, `--bullet-new`, `--key` (`click` takes a list). | R4060 and tier 2 E101-T5 red at 251b0136 | R4060; E101-T5 (gives an item and a Truth Bullet through the drawn hub, takes them away); changed on purpose: R974, the footer roles' census (OPEN_B), the two tier-2 tests that hand a trace over from the hub ("a copy made between the death and the discovery ...", "a loot after the close ...") |
 | Table note 3: the settings window changes size | settings-window.mjs `holdSectionHeight`: on render (and once the fonts are ready) each section shown in turn, the content column's min-height set to the tallest; both `openSettingsWindow` and `openGameSettingsWindow`. NOT REPRODUCED: in the style harness (Chromium, 1920x1080) Game settings stood 933 px in every section before and 934 px after; the guard is kept, and the size at a table is still to be looked at. | R4059 red at 251b0136 (no function) | R4059 |
 | Table note 4: Season setup refreshes when a child window closes | season-setup.mjs `wireSeasonTiles` opens the tile's window and nothing else: no `handOff`, no close and reopen of Season setup (the checklist's rows keep their round trip). | tier 2 E101-T4 red at 251b0136 | E101-T4 (the same window, the typed name and the scroll after Despair Flow came and went); R3581, R1524, R74 changed on purpose |
+| Table note 5: Interface scale's field and hint | ui-kit.mjs `wireStepper`'s - and + land on the step's places (0.9 + 0.05 read 0.9500000000000001, which a narrow field showed as 0.95000000); settings-window.mjs draws a stored number short, and Interface scale's row says one sentence with no tooltip (new `DRPG.SettingsWindow.uiScaleHint`) over the total on this screen (new `DRPG.SettingsWindow.scaleNow`, `scaleNow`). The setting's own hint is left as it is (the texts line rewrites it). The overlap is read as Foundry's tooltip of the hint's rest drawn over the line under it: not reproduced (the harness has no tooltip). | R4061 red at 2e10420d | R4061 |
+| Table note 6: the microphone's mode | components.css draws each of voice-panel.mjs's two radio labels as a button, pressed while its radio is checked (`:has(> input:checked)`), the radio itself hidden; the radios, their names and the writes are as they were. In the harness a click on either label already checked it and wrote the mode before the change; what the table saw is read as the drawing (Foundry's and the glass's radio together). To look at again at a table. | R4062 red at 2e10420d (no rule) | R4062; R542 and scenario 75 unchanged and green |
+| Table note 7 (with 3): the settings window keeps one size | Measured in Chromium at 1366x768 with `[hidden] { display: none !important }` planted (whether Foundry's sheet has that rule is not read here): the player's window 520 / 569 / 621 / 402 px by section without `holdSectionHeight`, 621 px in each with it; the GM's 520 / 569 / 402 / 402 px, 570 px with it. | - | R4059 |
+| Table note 8: the Class Trial console's row of modes scrolls | components.css: the picker wraps and has no scroll (E99 round 5 had made it one row with `overflow-x: auto`). Measured in Chromium, 1366x768, Straw Poll seeded: under the glass the row was 4 px wider than its box (1250 / 1246: the brush stands 5 px out of each start) and scrolled; after, it scrolls in neither theme. | R4063 red at 2e10420d | R4063 |
+| Table note 9: Sound and Music in one column | components.css: a volume row spans the section's columns, its control and line a column wide. The player's window with voice: 718 px under the glass (621 before), 573 under Legacy (499), within 768. | R4064 red at 2e10420d | R4064 |
 | 3 (#4) Room setup: one line about Apply, Search's "arrows" | not started | - | - |
 | 4 (#5) Room setup: Rooms tab, Doors' headers | not started | - | - |
 | 5 (#6) Room setup > Scenes into Season setup | not started | - | - |
@@ -53,9 +58,14 @@ shots, main 1.2.108) and after (this branch), PL first then EN, Stained Glass an
   named Give or Truth Bullet): 0 failed; scenarios 00-boot 33/33, 41-trial-scene 51/51, 50-lang 44/44,
   61-gmstore-case 113/113, 65-season 57/59 (2 expected red), 88-flow-length 26/26, 71-sheet 41/41, 0 failed in each.
 
+- Table notes 5-9 (12.11.2026): `npm run quick` green (lint 0, check 17 parts, gate 37/37); tiers 0-1 1267 passed,
+  0 failed, 16 skipped, 0 red (before a test-only change: three served-file reads moved to the kit's `lfText`, the four
+  new tests run again after, green); scenarios 00-boot 33/33, 50-lang 44/44, 75-voice-tile 41/41, 63-class-trial 75/75,
+  41-trial-scene 51/51, 88-flow-length 26/26, 0 failed in each.
+
 ## The table notes' review page
 
-https://claude.ai/artifact/Co7mFGUoBsRaEAJaVkw1GK (private, the owner's): notes 1 and 2 before (251b0136) and after,
+https://claude.ai/artifact/Co7mFGUoBsRaEAJaVkw1GK (private, the owner's): notes 1 and 2 before (251b0136) and after, notes 5, 6, 8 and 9 before (2e10420d) and after,
 PL first then EN, both themes, 1366x768; notes 3 and 4 in words (nothing to see in a still). Harness captures in the
 style harness, not Foundry; the GM panel's shots carry `.application button { display: flex }` planted on both sides.
 

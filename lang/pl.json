@@ -408,6 +408,8 @@
       "save": "Zapisz zmiany",
       "scopeClient": "Tylko ta przeglądarka",
       "scopeWorld": "Cały stół",
+      "uiScaleHint": "Powiększa albo pomniejsza tekst i okna modułu w tej przeglądarce.",
+      "scaleNow": "Na tym ekranie: {total}%.",
       "glassOnly": "Tylko Stained Glass: wybierz ten motyw, by to zmienić.",
       "legacyOnly": "Tylko Monokuma Legacy: wybierz ten motyw, by to zmienić.",
       "gameTitle": "Ustawienia gry",
