@@ -48649,11 +48649,13 @@ const INVARIANTS = [
             themes: { glass: Object.fromEntries(keys.map(k => [k, `--drpg-pix-stat-${k}`])), legacy: Object.fromEntries(keys.map(k => [k, `fa:${SG.STAT_ICONS[k]}`])) } }),
             "[the step after frameTraits]; each statistic: [its key, its glyphs, the glyph in the mark, the mark a holder, the plate marked, glyphs left in the name, its data- key, its FA class, aria-hidden, inert]; the names, data-attribute, data-value, values and each mark's `marked` kept; the glyph of a trait with no mark (first in its name); what each glyph wears under Stained Glass and Monokuma Legacy");
     }],
-    ["R3592 - the six statistics' drawings come through the glyph pipeline (tools/glyphs.json, tools/glyph-map.mjs, tests-glyphs.mjs STAT_GLYPHS; E49, the owner's ask of 11.11.2026 night): STAT_GLYPHS, stat-glyphs.mjs STAT_ICONS and config.mjs TRAITS name the same six statistics; each one's drawing is a glass row `stat-<statistic>` on the 24 grid, the six one contiguous block at the end of glyphs.json, no row's faults (dataProblems: no two rows the same pixels); the glass section keys each on `i.drpg-stat-glyph[data-drpg-stat]` and the served pixel-icons.css and sprite are what the generator writes from the served glyphs.json", async () => {
+    ["R3592 - the six statistics' drawings come through the glyph pipeline (tools/glyphs.json, tools/glyph-map.mjs, tests-glyphs.mjs STAT_GLYPHS; E49, the owner's ask of 11.11.2026 night): STAT_GLYPHS, stat-glyphs.mjs STAT_ICONS and config.mjs TRAITS name the same six statistics; each one's drawing is a glass row `stat-<statistic>` on the 24 grid, the six one contiguous block of glyphs.json, no row's faults (dataProblems: no two rows the same pixels); the glass section keys each on `i.drpg-stat-glyph[data-drpg-stat]` and the served pixel-icons.css and sprite are what the generator writes from the served glyphs.json", async () => {
         /*
          * E49, 11.11.2026 night. The block at the end of glyphs.json is the owner's: another branch adds glyphs too, and a
          * contiguous block keeps the merge simple. R3333 holds the generated files whole; this holds the six to their place.
-         * Red at 8c8ece5c: no STAT_GLYPHS, no row.
+         * Red at 8c8ece5c: no STAT_GLYPHS, no row. Since the merge into 1.2.105 (12.11.2026) the block is held where it
+         * stands, not at the end: the other branches' rows (E49 A1e's season-checklist, FT batch 2's settings, unseen,
+         * projects-manage and countdown-loop) came after it, as the block was meant to let them.
          */
         needs(env.tools(), "the drawings are read from tools/glyphs.json (an installed module's zip leaves tools/ out)");
         const G = await import("./tests-glyphs.mjs");
@@ -48663,22 +48665,24 @@ const INVARIANTS = [
         const glyphs = G.parseGlyphs(await text("tools/glyphs.json")).glyphs;
         must(glyphs.length >= 400, `${glyphs.length} glyph row(s) read - glyphs.json was not read`);
         const keys = Object.keys(C.TRAITS), table = G.STAT_GLYPHS ?? {};
-        const tail = glyphs.slice(-keys.length).map(g => `${g.family}:${g.name}:${g.grid}`);
+        const from = glyphs.findIndex(g => g.name.startsWith("stat-"));
+        const block = from < 0 ? [] : glyphs.slice(from, from + keys.length).map(g => `${g.family}:${g.name}:${g.grid}`);
+        const strays = glyphs.filter((g, i) => g.name.startsWith("stat-") && (i < from || i >= from + keys.length)).map(g => g.name);
         const rules = G.glassRules().filter(([id]) => id.startsWith("stat.")).map(([id, sel, glyph, how]) => `${id} ${sel} ${glyph} ${how}`);
         const problems = G.dataProblems(glyphs).filter(p => /stat-/.test(p));
         const served = { css: await text(G.PIXEL_CSS), sprite: await text(G.SPRITE) };
         const read = {
             keys: [Object.keys(table), Object.keys(SG?.STAT_ICONS ?? {})].map(list => stableJson(list) === stableJson(keys)),
             glyphs: keys.map(k => table[k]),
-            tail, problems, rules,
+            block, strays, problems, rules,
             generated: [served.css === G.pixelCssOf(glyphs), served.sprite === G.spriteOf(glyphs)],
             worn: keys.map(k => served.css.includes(`--drpg-pix-stat-${k}: url(`))
         };
         equal(stableJson(read), stableJson({
-            keys: [true, true], glyphs: keys.map(k => `stat-${k}`), tail: keys.map(k => `glass:stat-${k}:24`), problems: [],
+            keys: [true, true], glyphs: keys.map(k => `stat-${k}`), block: keys.map(k => `glass:stat-${k}:24`), strays: [], problems: [],
             rules: keys.map(k => `stat.${k} i.drpg-stat-glyph[data-drpg-stat="${k}"] stat-${k} box`),
             generated: [true, true], worn: keys.map(() => true) }),
-            "[STAT_GLYPHS and STAT_ICONS name TRAITS's keys]; each statistic's glyph; the last rows of glyphs.json; a stat row's faults; the glass rules; [pixel-icons.css, the sprite] as generated; each drawing declared under Stained Glass");
+            "[STAT_GLYPHS and STAT_ICONS name TRAITS's keys]; each statistic's glyph; the six rows from glyphs.json's first stat row; the stat rows outside them; a stat row's faults; the glass rules; [pixel-icons.css, the sprite] as generated; each drawing declared under Stained Glass");
     }],
     ["R3593 - a statistic's glyph in the wrench's window keeps a space from its name under Stained Glass and stands over it under Monokuma Legacy (styles/components.css `i.drpg-stat-glyph` and the window's block; E49, the owner's ask of 11.11.2026 night, and his answer of 12.11.2026 to round 1's question 3: the icon over the name stays): read through the suite's cascade on the dressed stand-in, under Stained Glass the glyph's inline end margin is a quarter of its name's size and it stays on the name's line; under Monokuma Legacy it is a block of its own, centred, the space below it", async () => {
         /*
