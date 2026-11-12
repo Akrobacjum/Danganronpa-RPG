@@ -27,17 +27,18 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
 
 | C8 | The ordinary dead's voice (S18-53; the coordinator's decision of 12.11: the mic block stays in the trial, the ordinary dead outside it get their own voice channel, no write to the user record): a silenced death outside the trial, public or secret, goes to its account's own room (voice-client.mjs `deadRoomFor`, `drpg-dead-<userId>`), which nobody else is sent - not the main room (public, until now: the living heard it) and not one shared dead channel (`DEAD_ROOM`, gone: a victim heard a second death nobody had found). No document written; the trial unchanged (E70's block). "deadAlone" read off the account's own room. Default, owner may revise: per account (the plan's A9) rather than one room for the dead. Not done of the plan's C8, by the decision: `mutePolicy`, `deadMuteStore`, the BROADCAST_AUDIO block outside the trial; also not done: "Silence now" in the Students row and the tracker (deathVoiceGone already reads `silencedDead`; nothing writes it yet) | R3806 (new; red at 377a476); R815, R816, R832, R835, R117 changed on purpose (a public death: "main" -> its own dead room), R831 reads the own room; 75-voice-tile E reads `drpg-dead-<p2>`; handbooks GM 557, player 754, EN/PL |
 
+| C11 | The trial carry-ins (Q-E72-7: the audit's one line each is all there is). D102: a Final Trial's execution posts the execution card, as an ordinary trial's (trial-progress.mjs `postExecutionCard`; until now only the sound). D114: in the Closing's exchange (an Objection at the Closing's speaker, its Rebuttal) only its two present evidence; a third is refused, "Only {a} and {b} can present right now." / "Teraz dowody mogą przedstawiać tylko {a} i {b}." (`modeAllows`, `presentRefusal`; player handbook EN/PL). D101: not built - see "For the coordinator" | tier 2 "an execution in the Final Trial posts the execution card ..." (new; red at 7ab4cc6: no card); R1045 changed on purpose (the exchange's matrix; red at 7ab4cc6: C presented) |
+
 | C10 | A Monocub sees every room the class found (gm-stores.mjs `fogSectionFor`, `cubFogSection`): its owner is sent, under the Monocub's own row, the rooms every student found, the Mastermind's row out, the rows joined so nobody's finds are named; tier 2 "a Monocub's owner is sent every room the class found ..." (new; red at base). And a Monocub's crossing (28.10, 04.11, 06.11): no Move, no action and no Eclipse count, the Eclipse too (`crossingVerdict`, `chargeRoute`), the connected rooms still holding it; the room of a running incident refused to it on a GM judging a player's step with the Seal's code and words (`roomSealed`, `DRPG.Calls.sealedBlocked`), a GM's own move and a Monocub already inside not refused | tier 2 "a Monocub crosses to a connected room with no Move and no action, and the room of a running murder refuses it ..." (new; red at base: noBudget, the murder room let through); R558 changed on purpose |
 
 ## In progress
 
-- C8 is open, with a question for the owner (below, "C8 needs a decision").
-- C6, C8 (the decided part) and C9 done. Next: C11-C12, then part B.
+- C6, C8 (the decided part), C9 and C11 (D102, D114) done. Next: C12, then part B.
 
 ## Next, in order
 
 1. C8's "Silence now" (a GM's button writing `silencedDead`), if time allows after part B.
-2. C11 (D101, D102, D114 - the audit text only, Q-E72-7), C12 (part A's texts: both handbooks, the brochure, the Rule).
+2. C12 (part A's texts: both handbooks, the brochure, the Rule).
 3. Part B: C13-C21 (Tinker, the purse, Bribe, Bounty, a move to order, Ghost Bet, the panel, texts, end review).
 4. E91.
 
@@ -66,6 +67,7 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
 
 ## CI
 
+- Run 43178407244 at 377a476: see the newest line of "Pushed" for its result.
 - Run 43157335032 at daedc00: green (every job).
 
 - Run 43151316668 at c595854: every job green but "suite 7/8": the tier-2 test "Back up the case, then Restore, brings
@@ -93,9 +95,8 @@ release on the death's own roads, awaited (the publication, the revive, the Mono
 R537 and R1192 change on purpose again (both measured with d098aa7: a dead student on the sheet held as "deadKnown",
 two new walkers of the cast to list).
 
-## Next
-
-C2-C12 (part A), then C13-C21 (part B), then E91.
+Superseded by the coordinator's decision of 12.11 (the block stays in the trial): C8 built as the account's own dead room
+in 7ab4cc6, no block outside the trial, nothing written on the user.
 
 ## Deviations from the plan, and defaults taken (default, owner may revise)
 
@@ -132,7 +133,7 @@ C2-C12 (part A), then C13-C21 (part B), then E91.
   revoke function that also hands back a bet, asks, the purse and the mute (those parts come with C8, C14, C18);
   33-bridge-paths' legal control and 30-security's forgery of `monocub.answer`.
 
-- C8 NEEDS A DECISION (owner/coordinator). Second attempt (12.11.2026, not committed; its diff kept outside the repo):
+- C8 (decided 12.11 by the coordinator: the own room, built in 7ab4cc6; kept for the record). Second attempt (12.11.2026, not committed; its diff kept outside the repo):
   the block outside the trial asked, awaited, by the death's own roads (chapter.mjs `markDeceased`, `reviveCharacter`,
   monocub.mjs `setMonocub`). Its own tests and the E63 test that raced were green (130 passed, 2 skipped), but the
   tier-2 tests that kill or revive (353 run) gave 3 failures: two tests that put a death back without
@@ -149,6 +150,16 @@ C2-C12 (part A), then C13-C21 (part B), then E91.
   step. The Monocub's own browser does not know where a murder runs, so its veto lets the step through and the GM's
   judge sends it back - the refusal it is told is the Seal's either way. Q-E72-5 default (no action, no crossing limit,
   Eclipse too) taken; the connected rooms' rule kept (the amendments name the budget, not the walls) - default, owner may revise.
+
+- C11, D101 ("the discovery stamp at an execution, E70-16's wording") is not built: E70-16 calls the death record's phase
+  the "discovery stamp", and an execution already writes phase "classTrial" and cause "executed", so no walk finds the
+  body (tier 2 "a sentence that could not be carried out ..." and "a body the verdict executed is not found again" hold
+  it). Writing a real discovery stamp (`bodiesFound`) at the execution would raise "A body is discovered" for the
+  executed and give the next Investigation its body (`bodyFoundSinceTrial`), which no reading of D101 asks for. A
+  reading that names the code to change is needed; default: no change.
+- C11, D102: the execution card names the executed, and in a Final Trial that is the Mastermind; the defeat's banner
+  names nobody ("THE MASTERMIND IS DEFEATED"). Default: the name, as an ordinary trial's card - owner may want it
+  without the name.
 
 ## Blockers
 

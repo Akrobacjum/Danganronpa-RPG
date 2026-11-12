@@ -41566,6 +41566,52 @@ const SCENARIOS = [
             + "(3) two more roads, one after a lost stamp: execution cards, the stamp; (4) a verdict after End the trial: dead, the cause, the stamp, cards; "
             + "(5) an old record's Finish: the stage, the sentenced dead, cards; (6) after the reset's take-back: dead, cards, the sentence");
     }],
+    ["an execution in the Final Trial posts the execution card, naming the executed, as an ordinary trial's does (E72 C11; D102)", async () => {
+        /*
+         * E72 C11, 12.11.2026; the owner's D102 of 31.10 ("an execution in the Final Trial posts the execution card"), the
+         * audit's line all there is of it (Q-E72-7). trial-progress.mjs `postExecutionCard` posted no card for a Final
+         * Trial's sentence - only the sound - so a Final execution reached the table as the defeat's banner alone. A Final
+         * verdict whose sentence waits (`sentencePending`, the GMs' store naming A for that verdict), carried out at the
+         * trial's exit (`executeAtExit`). Read: the execution cards posted, each public or not, with its sound, and whether
+         * one names A executed. Red at 7ab4cc6: no card. A, the clock, the record and the store are put back.
+         */
+        needs(env.primaryGm(), "a sentence is carried out on the primary GM");
+        const [A] = cast(1);
+        const V = await import("./vote.mjs");
+        const { reviveCharacter, isDeadForGm } = await import("./chapter.mjs");
+        const { verdictStore } = await import("./gm-stores.mjs");
+        const { RECORD } = await import("./gm-store.mjs");
+        const esc = foundry.utils.escapeHTML;
+        must(!isDeadForGm(A), `${A.name} is dead before the verdict - this would measure nothing`);
+        const clock = foundry.utils.deepClone(getClock());
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        await verdictStore.whenHydrated();
+        const kept = foundry.utils.deepClone(verdictStore.record());
+        const seen = new Set(game.messages.map(m => m.id));
+        let read = null;
+        try {
+            const chapter = getClock().chapter;
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), phase: "dailyLife" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter, verdictApplied: true,
+                verdict: { stage: "done", final: true, by: game.user.id, at: 4343, done: [], failed: [], sentencePending: true }, executedAt: null, execution: null });
+            await verdictStore.patch(RECORD, { finalAt: 4343, finalSentenced: [A.id] });
+            await V.executeAtExit({ chapter });
+            await settle();
+            const cards = game.messages.filter(m => !seen.has(m.id) && m.getFlag(MODULE_ID, "executionCard"));
+            read = [isDeadForGm(A), cards.length, cards.map(m => (m.whisper?.length ?? 0) === 0), cards.map(m => m.getFlag(MODULE_ID, "sfx")?.key ?? null),
+                cards.some(m => String(m.content ?? "").includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(A.name) })))];
+        } finally {
+            if (isDeadForGm(A)) await reviveCharacter(A, { quiet: true });
+            await verdictStore.patch(RECORD, { finalAt: kept.finalAt ?? null, finalSentenced: kept.finalSentenced ?? [] });
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, 1, [true], ["execution"], true]),
+            "a Final Trial's execution posts no execution card, or not one public card with its sound naming the executed "
+            + "([executed, cards, each public, each card's sound, one names the executed])");
+    }],
+
     ["a sentence that could not be carried out is carried out when asked again and leaves no body to find, a Final sentence this browser does not hold is told to the GMs, and the trial's size counts every player of a student who takes part (E70 fix p1-G2)", async () => {
         /*
          * E70 fix p1-G2, 28.10.2026; the review's BEH-2, BEH-6 = E70P1-R16, E70P1-R10, E70P1-R08 (goal). Read on this

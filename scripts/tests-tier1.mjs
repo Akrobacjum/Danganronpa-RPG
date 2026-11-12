@@ -27969,12 +27969,13 @@ const INVARIANTS = [
          * put evidence on every screen (the sheet's Present asked only for a Class Trial), and a player who wanted to show a
          * Truth Bullet without the reading their Analyze bought had to show it all. Pure functions on hand-made floors and
          * views; nothing is written, no world is read (the names are handed in). Red at cbce376f: no `presentRefusal`, no
-         * `analysisOffered`, no `unreadView`.
+         * `analysisOffered`, no `unreadView`. E72 C11 (12.11.2026; D114) adds the Closing's exchange, changed on purpose: a
+         * student outside its Objection and Rebuttal is refused at Present; red at 7ab4cc6 (C presented).
          */
         const F = await import("./trial-floor.mjs");
         const T = await import("./trial.mjs");
         const read = { fns: [typeof F.presentRefusal, typeof T.analysisOffered, typeof T.unreadView] };
-        const names = { A: "R1045 Aoi", B: "R1045 Bo" };
+        const names = { A: "R1045 Aoi", B: "R1045 Bo", C: "R1045 Cy" };
         const nameOf = id => names[id] ?? null;
         if (typeof F.presentRefusal === "function") {
             const floors = {
@@ -27989,7 +27990,15 @@ const INVARIANTS = [
             };
             read.matrix = Object.fromEntries(Object.entries(floors).map(([k, floor]) =>
                 [k, ["A", "B"].map(id => F.presentRefusal(floor, id, { nameOf }))]));
+            /* THE CLOSING'S EXCHANGE (E72 C11, 12.11.2026; the owner's D114 of 31.10): an Objection at the Closing's speaker B
+               and its Rebuttal are the debate's modes with the Closing's field still on the floor (floor-machine.mjs
+               `closingOf`); A and B are in the exchange, C is not. Until C11 everybody presented there, as in a debate. */
+            const exchange = { objection: { active: true, mode: "objection", holderId: "A", targetId: "B", closing: { phase: "speak", speakerId: "B" } },
+                rebuttal: { active: true, mode: "rebuttal", holderId: "A", targetId: "B", closing: { phase: "speak", speakerId: "B" } } };
+            read.exchange = Object.fromEntries(Object.entries(exchange).map(([k, floor]) =>
+                [k, ["A", "B", "C"].map(id => F.presentRefusal(floor, id, { nameOf }))]));
         }
+        const pair = game.i18n.has("DRPG.Trial.presentPair") ? game.i18n.format("DRPG.Trial.presentPair", { a: names.A, b: names.B }) : "DRPG.Trial.presentPair";
         const only = game.i18n.format("DRPG.Trial.presentOnly", { name: names.A });
         const panic = `${only} ${game.i18n.format("DRPG.Trial.objectionNoneInMode", { mode: game.i18n.localize("DRPG.Floor.mode.panic") })}`;
         const nobody = game.i18n.localize("DRPG.Trial.presentNobody");
@@ -28015,11 +28024,13 @@ const INVARIANTS = [
                 none: [null, null], debate: [null, null], objection: [null, null], rebuttal: [null, null],
                 testimony: [null, only], panic: [null, panic], closing: [null, only], volunteers: [nobody, nobody]
             },
+            exchange: { objection: [null, null, pair], rebuttal: [null, null, pair] },
             offered: [false, false, true, true, true, false],
             unread: [["neutral", "", false, false, "R1045 the words", "R1045 bullet"], ["key", "", false, true, "R1045 the words", "R1045 bullet"],
                 ["neutral", "", false, false, "R1045 the words", "R1045 bullet"], ["key", "", true, true, "R1045 the words", "R1045 bullet"]],
             untouched: true
         }), "Present's rule per mode or its with-or-without choice is not the owner's [the three functions; who of the speaker A and B may present on each floor, "
+            + "who of A, B and C in the Closing's exchange (A objecting at B: C is outside it, D114), "
             + "with the reason; the choice offered for an unread bullet, an unread Key, an analysed one, an analysed Key, one read as Neutral; the view without the reading - type, reading, Faint, identified, the words, the name; the view handed in untouched]");
     }],
     ["R1046 - the floor's modes and their music, one row a mode (E70 C13, E70-82): Testimony, Panic Round and the Closing Argument play the trial's discussion, an Objection and its rebuttal the Objection's in every mode, the Closing's exchange too", async () => {

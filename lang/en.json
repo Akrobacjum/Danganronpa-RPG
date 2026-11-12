@@ -2657,6 +2657,7 @@
       "presentByButton": "Evidence is presented with Present on your sheet, and the GM's browser posts its card. That card was not posted that way, so nobody was shown it.",
       "presented": "{name} went on the table.",
       "presentOnly": "Only {name} can present right now.",
+      "presentPair": "Only {a} and {b} can present right now.",
       "presentNobody": "Nobody presents evidence right now.",
       "presentWithAnalysis": "Show it with my Analyze result",
       "presentWithoutNote": "Unticked, the card and everybody's copy show it as never analysed: no reading, no type it turned out to be.",
