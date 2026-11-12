@@ -48935,7 +48935,7 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ still: "still", stillMode: "still", stillHeard: 1, off: "off", offHost: false, offHeard: 1, motion: "motion", motionAtOnce: 0, motionAtFrame: 1, switchDefault: true }),
             "[reduced motion: what it played, the host's mode, the sound at once; switch off: what it played, a host, the sound; in motion: what it played, the sound at once, the sound at its frame; the switch's default]");
     }],
-    ["R3702 - the two sound slots and the table's switch are rows a GM can see (scripts/config.mjs `SFX_EVENTS`, scripts/settings.mjs, scripts/settings-window.mjs; E61 C1, C2, MK-R1 #9, #10, the plan's Q-E61-7 default): `trialStart` and `verdictCut` are incident rows with a label and a hint in English and Polish; the vote's count's row `verdict` is labelled as the vote's result; the switch `sequences` is a world Boolean, on by default, of the table's lifetime, in the Effects section, named in both languages", async () => {
+    ["R3702 - the two sound slots and the table's switch are rows a GM can see (scripts/config.mjs `SFX_EVENTS`, scripts/settings.mjs, scripts/settings-window.mjs; E61 C1, C2, MK-R1 #9, #10, the plan's Q-E61-7 default): `trialStart` and `verdictCut` are incident rows with a label and a hint in English and Polish; the vote's count's row `verdict` is labelled as the vote's result; the switch `sequences` is a world Boolean, on by default, of the table's lifetime, in the window's game section (its GM list, since the 1.2.107 line's merge), named in both languages", async () => {
         /* E61 C1, C2, 12.11.2026. Red at f22a7e87: no row `trialStart` or `verdictCut`, no setting `sequences`. */
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
@@ -48955,38 +48955,67 @@ const INVARIANTS = [
         };
         equal(stableJson(read), stableJson({
             trialStart: ["incident", true, true], verdictCut: ["incident", true, true], verdictLabel: ["The vote's result", "Wynik głosowania"],
-            setting: ["world", true, true, false], lifetime: "table", section: ["effects"], words: [true, true]
+            setting: ["world", true, true, false], lifetime: "table", section: ["gm"], words: [true, true]
         }), "[the trial's start row; the cut-in's row; the vote's row's labels; the switch's scope, type, default, shown by Foundry; its lifetime; its section; its words in both]");
     }],
-    ["R3703 - the closed curtain is the panes on screen, moved, with no gap (scripts/glass.mjs `closedPlan`, `closedPoint`; E61 C3, MK-R1 #13, MK-R2 #2): on a ring of 24 panes around a hole, at 1600x900 and 1366x768, the closed plan keeps one entry a pane, covers every point of its 48x27 grid (`gaps` 0), batches the outer panes first; the radial map leaves the screen's corner where it is and sends the hole's edge to the centre", async () => {
+    ["R3703 - the entry's curtain closes by the panes' fronts and leaves no gap (scripts/glass-close.mjs `holeOf`, `holeField`, `paintClosing`; scripts/glass.mjs `entryPieces`; E61 C3, the owner's review of round 1, 12.11.2026): on a ring of 24 panes around a hole and on a jagged ring whose inner corners alternate in depth, at 1600x900 and 1366x768, the panes leave one hole; at offset 0 no cell of it is covered, at the field's reach every cell is, and each frame covers what the one before it covered and more; the painted frame at the reach covers the hole whole and paints nothing outside it", async () => {
         /*
-         * E61 C3, 12.11.2026. Red at f22a7e87: glass.mjs exports neither. The ring is the curtain's shape in small - a frame
-         * of panes around the map, its inner edge at 0.55 of the half-screen - not a cut of `curtainShapes`, which needs a
-         * layout jsdom has not got; the cut's own closed state is read in Chromium (audit/glass-sweep.mjs `--entry`).
+         * E61 C3, rebuilt 12.11.2026. Red at 6049386: glass-close.mjs does not exist (round 1 carried the panes to a
+         * closed plan by an affine map, which the owner turned down: the panes overlapped). The rings are the curtain's
+         * shape in small - a frame of panes around the map - not a cut of `curtainShapes`, which needs a layout jsdom has
+         * not got; the cut's own closing is read in Chromium on the glass harness (STATUS, round 2).
          */
-        const G = await import("./glass.mjs");
-        ok(typeof G.closedPlan === "function" && typeof G.closedPoint === "function", "glass.mjs exports no closedPlan or closedPoint");
-        if (typeof G.closedPlan !== "function") return;
-        const ring = (W, H) => {
-            const cx = W / 2, cy = H / 2, at = (t, r) => { const a = t * Math.PI * 2, u = Math.cos(a), v = Math.sin(a), m = Math.max(Math.abs(u), Math.abs(v)); return [cx + cx * r * u / m, cy + cy * r * v / m]; };
-            return Array.from({ length: 24 }, (_, i) => ({ poly: [at(i / 24, 0.55), at((i + 1) / 24, 0.55), at((i + 1) / 24, 1), at(i / 24, 1)] }));
-        };
-        const read = [[1600, 900], [1366, 768]].map(([W, H]) => {
-            const panes = ring(W, H), plan = G.closedPlan(panes, W, H);
-            // outer as the curtain's own batches read it (glass.mjs `centreOrder`): the mean corner's reach, in half-screens
-            const far = panes.map((p, i) => { const m = p.poly.reduce((s, q) => [s[0] + q[0] / 4, s[1] + q[1] / 4], [0, 0]); return [Math.hypot((m[0] - W / 2) / (W / 2), (m[1] - H / 2) / (H / 2)), i]; });
-            return {
-                n: plan?.panes?.length ?? null, gaps: plan?.gaps ?? null,
-                batches: plan ? [Math.min(...plan.panes.map(p => p.batch)), Math.max(...plan.panes.map(p => p.batch))] : null,
-                cornerFirst: plan ? plan.panes[far.sort((a, b) => b[0] - a[0])[0][1]].batch === 0 : null,
-                corner: G.closedPoint([W, H], W, H, 0.55).map(v => Math.round(v)),
-                edge: G.closedPoint([W / 2 + 0.55 * W / 2, H / 2], W, H, 0.55).map(v => Math.round(v))
-            };
-        });
-        equal(stableJson(read), stableJson([
-            { n: 24, gaps: 0, batches: [0, 7], cornerFirst: true, corner: [1600, 900], edge: [800, 450] },
-            { n: 24, gaps: 0, batches: [0, 7], cornerFirst: true, corner: [1366, 768], edge: [683, 384] }
-        ]), "[per screen: panes in the plan, the grid's share uncovered, the batches' range, the farthest pane in the first batch, the corner's image, the hole's edge's image]");
+        const C = await import("./glass-close.mjs"), G = await import("./glass.mjs");
+        ok(typeof G.entryPieces === "function", "glass.mjs exports no entryPieces");
+        const read = [];
+        for (const [W, H] of [[1600, 900], [1366, 768]]) for (const jag of [false, true]) {
+            const panes = curtainRing(W, H, jag), hole = C.holeOf(panes, W, H);
+            const field = hole ? C.holeField(hole, W, H, 2) : null;
+            if (!field) { read.push({ W, jag, hole: null }); continue; }
+            const cells = field.owner.reduce((n, o) => n + (o >= 0 ? 1 : 0), 0);
+            const frames = [0, 0.1, 0.25, 0.4, 0.55, 0.7, 0.85, 1].map(f => {
+                const rgba = new Uint8ClampedArray(field.w * field.h * 4);
+                return { n: C.paintClosing(field, rgba, f * field.reach, () => [9, 9, 9]), rgba };
+            });
+            const outside = frames.at(-1).rgba.reduce((n, v, i) => n + ((i & 3) === 3 && v && field.owner[i >> 2] < 0 ? 1 : 0), 0);
+            read.push({
+                W, jag, loops: hole.loops, cellsMany: cells > 1000,
+                atZero: frames[0].n, atReach: frames.at(-1).n === cells,
+                growing: frames.every((fr, i) => i === 0 || fr.n >= frames[i - 1].n) && frames[3].n > frames[0].n && frames[6].n > frames[3].n,
+                outside
+            });
+        }
+        const want = (W, jag) => ({ W, jag, loops: 1, cellsMany: true, atZero: 0, atReach: true, growing: true, outside: 0 });
+        equal(stableJson(read), stableJson([want(1600, false), want(1600, true), want(1366, false), want(1366, true)]),
+            "[per screen and ring: the hole's loops, cells read, cells covered at offset 0, all covered at the reach, every frame grows, painted cells outside the hole]");
+    }],
+    ["R3716 - the entry's panes never overlap and their fronts move only along their edges' normals (scripts/glass-close.mjs `holeField`, `fieldReading`; E61 C3, the owner's review of round 1, 12.11.2026: \"Kafle kurtyny nigdy nie powinny na siebie nachodzić, ale mają prawo podbierać sobie nawzajem miejsce\"): on both rings at both sizes, no cell a front covers lies inside a standing pane, every cell is its nearest pane's (no other pane's front would reach it first), and every cell is covered at exactly its distance from its own pane's edges, which for most of the hole is the perpendicular distance from one edge (its foot inside the edge, not at a corner); the reading catches a planted pane pushed into the hole and a planted front that runs ahead of its normal", async () => {
+        /*
+         * E61 C3, 12.11.2026. Red at 6049386: glass-close.mjs does not exist. `fieldReading` measures the field apart
+         * from how it was built: the pane test is the polygon's own, the distance is recomputed from the edge's line.
+         * Every cell is held to its distance from its own pane's edges; `checked` counts the cells whose foot falls inside
+         * an edge (not at a corner, where the front turns as an arc round the corner and has no one normal), and must
+         * be most of the hole. The first reading (12.11) skipped a cell nearer its edge than the field said, and so
+         * missed plant 2: the plant is why it counts every cell now. The plants are the two faults the owner named: a tile over another, and a front that moves off its
+         * normal (round 1's affine map moved each edge along a radius, not its normal).
+         */
+        const C = await import("./glass-close.mjs");
+        const read = [];
+        for (const [W, H] of [[1600, 900], [1366, 768]]) for (const jag of [false, true]) {
+            const panes = curtainRing(W, H, jag), hole = C.holeOf(panes, W, H), field = C.holeField(hole, W, H, 2);
+            const r = C.fieldReading(field, hole, panes);
+            const nearest = field.apart.every((v, k) => field.owner[k] < 0 || v >= -1e-3);
+            // plant 1: one pane pushed 60 px into the hole, read against the field of the panes as they stood
+            const pushed = panes.map((p, i) => i !== 3 ? p : { poly: p.poly.map(([x, y]) => [x + (W / 2 - x) * 0.25, y + (H / 2 - y) * 0.25]) });
+            const plantOver = C.fieldReading(field, hole, pushed).inPane;
+            // plant 2: every cell's distance taken a fifth short, as a front that runs ahead of its normal
+            const ahead = { ...field, dist: field.dist.map(d => d * 0.8) };
+            const plantAhead = C.fieldReading(ahead, hole, panes).offNormal;
+            read.push({ W, jag, inPane: r.inPane, offNormal: r.offNormal, nearest, mostChecked: r.checked > r.cells * 0.5, plantOver: plantOver > 0, plantAhead: plantAhead > 0 });
+        }
+        const want = (W, jag) => ({ W, jag, inPane: 0, offNormal: 0, nearest: true, mostChecked: true, plantOver: true, plantAhead: true });
+        equal(stableJson(read), stableJson([want(1600, false), want(1600, true), want(1366, false), want(1366, true)]),
+            "[per screen and ring: cells inside a standing pane, cells off their edge's normal, every cell its nearest pane's, most cells measured, the planted overlap seen, the planted run-ahead seen]");
     }],
     ["R3704 - every road into the Class Trial plays the entry from the phase's one event, and the curtain's own turn stands aside for it (scripts/sequence.mjs `onPhaseChanged`, `playTrialEntry`; scripts/glass.mjs `entryPieces`, `rebuildAll`; E61 C3, C4): the clock's row fires `drpgPhaseChanged` once a phase moved, which the sequences hear; the entry's key is the trial's edge stamp, so a second hearing starts nothing; a phase change ends a running sequence; with no curtain the entry closes two lids (Monokuma Legacy's look), with no glass code run; and while the entry takes its pieces `rebuildAll` turns nothing", async () => {
         /*
@@ -49105,6 +49134,51 @@ const INVARIANTS = [
             frame5: [Boolean(person?.querySelector(".drpg-seq-portrait .drpg-seq-stamp")), Boolean(person?.querySelector(".drpg-seq-name")), el.querySelectorAll(".drpg-seq-vrow").length, Boolean(el.querySelector(".drpg-seq-sentence"))]
         }), stableJson({ flag: true, fromCard: true, notFromVote: true, frame5: [true, true, 1, true] }),
             "[the card's verdictCut flag; the cut-in hears a GM's new message; the vote's close does not start it; frame 5: the stamp on the portrait, the name, the vote rows, the sentence]");
+    }],
+    ["R3717 - the verdict's cut-in brings every part of its board in with motion, and none under reduced motion (scripts/sequence.mjs `drawVerdictCut`; E61 C5, the owner's review of round 1, 12.11.2026: the window's contents are to arrive with motion and easing, not appear): with motion on, the band, the portrait, the name, the stamp, the count's heading, each vote row, each bar with a vote and the sentence are each animated from another place, scale or opacity, eased (never linear), the rows one after another; under reduced motion nothing is animated and the board stands whole", async () => {
+        /*
+         * E61 C5, 12.11.2026. Red at 6049386: the count's rows came in as one block (`.drpg-seq-votes`, 180 ms) and the
+         * test finds no animation on a row. jsdom has no Web Animations, so `Element.prototype.animate` is stood in for
+         * by a recorder for the run and put back; the board is played through the engine (`playSequence`), as a GM's
+         * card plays it, with the vote's count handed in.
+         */
+        const S = await import("./sequence.mjs");
+        const { cast } = await import("./tests-kit.mjs");
+        const [a, b] = cast(2);
+        const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion"), had = Object.getOwnPropertyDescriptor(Element.prototype, "animate");
+        const seen = [];
+        const board = S.verdictBoard({ author: { isGM: true }, getFlag: (_, k) => ({ verdictAt: 1, verdictCut: { sentenced: [a.id], right: true } })[k] },
+            { accused: [{ id: a.id, n: 3 }, { id: b.id, n: 1 }, { id: "monokuma", n: 0 }], total: 4, majority: 3 });
+        const play = async () => {
+            seen.length = 0;
+            await S.playSequence("verdictCut", `R3717:${Math.random()}`, ctx => S.drawVerdictCut(ctx, board), { on: true });
+            const host = document.getElementById(S.SEQUENCE_HOST_ID);
+            return { host, calls: [...seen] };
+        };
+        const part = (calls, el) => calls.filter(c => c.el === el);
+        const moves = c => c.frames.length >= 2 && stableJson(c.frames[0]) !== stableJson(c.frames.at(-1)) && c.opts.easing && c.opts.easing !== "linear" && c.opts.duration >= 150;
+        const read = {};
+        try {
+            Object.defineProperty(Element.prototype, "animate", { configurable: true, writable: true, value: function (frames, opts) { seen.push({ el: this, frames, opts }); return { cancel() {}, finish() {}, finished: Promise.resolve() }; } });
+            body.classList.remove("drpg-reduced-motion");
+            const { host, calls } = await play();
+            const q = sel => [...(host?.querySelectorAll(sel) ?? [])];
+            const parts = { band: q(".drpg-seq-vband"), portrait: q(".drpg-seq-portrait"), name: q(".drpg-seq-name"), stamp: q(".drpg-seq-stamp"), heading: q(".drpg-seq-votes h4"), rows: q(".drpg-seq-vrow"), bars: q(".drpg-seq-vbar i").filter(el => !/scaleX\(0\)/.test(el.style.transform)), sentence: q(".drpg-seq-sentence") };
+            read.motion = Object.fromEntries(Object.entries(parts).map(([k, els]) => [k, els.length > 0 && els.every(el => part(calls, el).some(moves))]));
+            const rowStarts = parts.rows.map(el => part(calls, el)[0]?.opts.delay ?? null);
+            read.rowsInTurn = rowStarts.length === 3 && rowStarts.every((d, i) => d !== null && (i === 0 || d > rowStarts[i - 1]));
+            S.endSequence("cut");
+            body.classList.add("drpg-reduced-motion");
+            const still = await play();
+            read.still = [still.calls.length, Boolean(still.host?.querySelector(".drpg-seq-sentence")), still.host?.querySelectorAll(".drpg-seq-vrow").length ?? 0];
+        } finally {
+            S.endSequence("cut");
+            if (had) Object.defineProperty(Element.prototype, "animate", had); else delete Element.prototype.animate;
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+        }
+        equal(stableJson(read), stableJson({
+            motion: { band: true, portrait: true, name: true, stamp: true, heading: true, rows: true, bars: true, sentence: true }, rowsInTurn: true, still: [0, true, 3]
+        }), "[with motion: each part moved and eased; the rows one after another; reduced motion: animations, the sentence there, the rows there]");
     }],
     ["R3708 - a transition turns the panes in its own direction (scripts/glass.mjs `paneOrder`; E62 C1, SB-R1, MK-R1/MK-R2): \"top\" takes the topmost pane first and \"bottom\" the lowest, \"centre\" the nearest the screen's middle and \"inward\" the farthest, and \"random\" is a seeded shuffle - the same seed the same order, another seed another - of every pane once", async () => {
         /* E62 C1, 12.11.2026. Red at d03c509: glass.mjs exports no paneOrder. A 6 x 4 grid of square panes at 1600x900. */
@@ -50603,3 +50677,12 @@ async function roomSetupDrawn() {
 }
 
 export { INVARIANTS };
+
+/* R3703, R3716 (E61 C3): a frame of 24 panes around the map's hole, the curtain's shape in small; `jag` alternates the
+   inner corners' depth (0.45 and 0.62 of the half-screen), which gives the hole the reflex corners a cut has */
+function curtainRing(W, H, jag = false) {
+    const cx = W / 2, cy = H / 2;
+    const at = (t, r) => { const a = t * Math.PI * 2, u = Math.cos(a), v = Math.sin(a), m = Math.max(Math.abs(u), Math.abs(v)); return [cx + cx * r * u / m, cy + cy * r * v / m]; };
+    const inner = i => (jag ? (i % 2 ? 0.45 : 0.62) : 0.55);
+    return Array.from({ length: 24 }, (_, i) => ({ poly: [at(i / 24, inner(i)), at((i + 1) / 24, inner(i + 1)), at((i + 1) / 24, 1), at(i / 24, 1)] }));
+}

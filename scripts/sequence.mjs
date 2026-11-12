@@ -39,6 +39,7 @@ import { SETTINGS, getSetting, getClock, isDeceased } from "./settings.mjs";
 import { reducedMotion } from "./motion.mjs";
 import { count } from "./perf-counters.mjs";
 import { esc } from "./utils.mjs";
+import { paintClosing } from "./glass-close.mjs";
 
 export const SEQUENCE_HOST_ID = "drpg-sequence";
 export const SEQUENCE_ATTR = "data-drpg-sequence";
@@ -55,7 +56,7 @@ export const SEQUENCE_TIMES = Object.freeze({
     /* E94 C2, the start-of-day board (MK-R2 #4, #8): the board rises at 300 ms over 600, the cast one by one 140 ms apart
        from 600, the morning line at 1800, held to 4900, gone in 420; still, the board for 5 s; the chime at once. */
     dayStart: Object.freeze({ board: 300, rise: 600, cast: 600, castStep: 140, announce: 1800, hold: 4900, fade: 420, end: 5350, still: 5000, sound: 0 }),
-    verdictCut: Object.freeze({ band: 250, portrait: 250, portraitIn: 420, votes: 900, bars: 980, barsIn: 600, stamp: 1700, stampIn: 200, sentence: 1950, hold: 3500, fade: 180, end: 3700, still: 3000, sound: 1700 })
+    verdictCut: Object.freeze({ band: 250, portrait: 250, portraitIn: 420, votes: 900, rowIn: 320, rowStep: 90, bars: 980, barsIn: 600, stamp: 1700, stampIn: 200, sentence: 1950, sentenceIn: 380, hold: 3500, fade: 180, end: 3700, still: 3000, sound: 1700 })
 });
 
 /* The eases of motion.css (`--drpg-ease-arrive`, `--drpg-ease-leave`), the same four numbers: an animation's easing
@@ -186,7 +187,7 @@ function titleBand(chapter) {
     return band;
 }
 
-/** The pieces of glass as elements: each pane's box, its canvases, the transform `closed` held when `shut`. */
+/** The panes on screen as elements: each pane's box and its canvases, the old look over the new one. */
 function pieceLayer(pieces, cls) {
     const layer = document.createElement("div");
     layer.className = `drpg-seq-glass ${cls}`;
@@ -202,52 +203,97 @@ function pieceLayer(pieces, cls) {
     return { layer, els };
 }
 
+/* the hour's colour leaves a pane in its batch, outer panes first (MK-R2 #2): how far pane batch `b` is at `ms` */
+const FADE_MS = 320, FADE_STEP = 90;
+const fadeAt = (b, ms) => Math.min(1, Math.max(0, (ms - b * FADE_STEP) / FADE_MS));
+const smooth = p => (p <= 0 ? 0 : p >= 1 ? 1 : p * p * (3 - 2 * p));
+
 /**
- * The entry's frames. Under Stained Glass with a curtain painted, the panes on screen are carried to the closed
- * curtain and back (glass.mjs `entryPieces`, the closed plan); otherwise - Monokuma Legacy, a narrow screen, a curtain
- * not cut yet - two lids close from above and below (MK-R1: "two black panels with a red edge"). Both carry the title.
+ * The hole's glass as one canvas at the field's resolution, stretched over the screen: `paint(t, ms)` covers every
+ * cell the fronts have reached at offset `t` (glass-close.mjs `paintClosing`), each in its pane's glass, the old
+ * colour mixed toward the new by the pane's batch at `ms`. Answers the cells covered.
+ */
+function holeCanvas(side) {
+    const { field } = side;
+    const canvas = document.createElement("canvas");
+    canvas.width = field.w; canvas.height = field.h;
+    canvas.className = "drpg-seq-hole";
+    canvas.style.cssText = `position:absolute;left:0;top:0;width:${field.w * field.scale}px;height:${field.h * field.scale}px;`;
+    const g = canvas.getContext("2d"), img = g.createImageData(field.w, field.h), px = [0, 0, 0];
+    let last = -1;
+    const paint = (t, ms = Infinity) => {
+        const mix = side.texOld ? side.batchOf.map(b => fadeAt(b ?? 0, ms)) : null;
+        const tex = side.tex, old = side.texOld, owner = field.owner;
+        const covered = paintClosing(field, img.data, t, k => {
+            const o = k * 3;
+            if (!mix) { px[0] = tex[o]; px[1] = tex[o + 1]; px[2] = tex[o + 2]; return px; }
+            const f = mix[owner[k]] ?? 1;
+            px[0] = old[o] + (tex[o] - old[o]) * f; px[1] = old[o + 1] + (tex[o + 1] - old[o + 1]) * f; px[2] = old[o + 2] + (tex[o + 2] - old[o + 2]) * f;
+            return px;
+        });
+        g.putImageData(img, 0, 0);
+        last = covered;
+        return covered;
+    };
+    return { canvas, paint, get covered() { return last; } };
+}
+
+/**
+ * The entry's frames. Under Stained Glass with a curtain painted, the panes stay where they stand and the hole they
+ * leave closes by their fronts, each edge moving along its own normal (glass.mjs `entryPieces`, glass-close.mjs; the
+ * owner's review of round 1, 12.11.2026); the curtain opens the same way onto the trial's cut. Otherwise - Monokuma
+ * Legacy, a narrow screen, a curtain not cut yet - two lids close from above and below (MK-R1: "two black panels with
+ * a red edge"). Both carry the title.
  */
 function drawTrialEntry(ctx, glass, clock = getClock()) {
-    const { host, still, times: T, anim, at, ARRIVE: IN, LEAVE: OUT } = ctx;
+    const { host, still, times: T, anim, at, ARRIVE: IN } = ctx;
     const chapter = clock?.chapter ?? null;
     host.dataset.drpgSequenceLook = glass ? "glass" : "lids";
     const title = titleBand(chapter);
     if (glass) {
         host.style.setProperty("--drpg-seq-w", `${glass.W}px`);
-        const close = pieceLayer(glass.close, "is-close"), open = pieceLayer(glass.open, "is-open");
-        // the glass's ink under the pieces: where the closed shards leave a seam open, the lead shows, not the page
-        const ink = document.createElement("div");
-        ink.className = "drpg-seq-ink";
-        host.append(ink, close.layer, open.layer);
+        const close = pieceLayer(glass.close.panes, "is-close"), open = pieceLayer(glass.open.panes, "is-open");
+        const shut = holeCanvas(glass.close), wide = holeCanvas(glass.open);
+        close.layer.append(shut.canvas);
+        open.layer.append(wide.canvas);
+        host.append(close.layer, open.layer);
+        host.drpgEntry = { shut, wide, reachClose: glass.close.field.reach, reachOpen: glass.open.field.reach };
         if (still) {
             close.layer.remove();
-            glass.open.forEach((p, i) => { open.els[i].style.transform = p.closed; });
+            wide.paint(glass.open.field.reach);
         } else {
             open.layer.hidden = true;
-            const stagger = p => p.batch * 32;
-            anim(ink, [{ opacity: 0 }, { opacity: 1 }], { duration: T.close, easing: "linear" });
-            at(T.titleOut, () => anim(ink, [{ opacity: 1 }, { opacity: 0 }], { duration: T.open, easing: "linear" }));
-            glass.close.forEach((p, i) => {
-                anim(close.els[i], [{ transform: "none" }, { transform: p.closed }], { duration: T.close, delay: stagger(p) });
-                // the hour's colour goes from the Investigation's blue to the trial's pink in batches, outer panes first
-                anim(p.old, [{ opacity: 1 }, { opacity: 0 }], { duration: 320, delay: p.batch * 90, easing: "linear" });
-            });
+            glass.close.panes.forEach(p => anim(p.old, [{ opacity: 1 }, { opacity: 0 }], { duration: FADE_MS, delay: p.batch * FADE_STEP, easing: "linear" }));
+            const t0 = performance.now();
+            let frame = 0, phase = "close";
+            const step = now => {
+                if (!host.isConnected) return;
+                // a frame's stamp is its start, which can fall before `t0` when the pieces' cut held the thread
+                const ms = Math.max(0, now - t0);
+                if (phase === "close") {
+                    shut.paint(glass.close.field.reach * smooth(Math.min(1, ms / T.close)), ms);
+                } else if (phase === "open") {
+                    const p = Math.min(1, Math.max(0, (ms - T.titleOut) / T.open));
+                    wide.paint(glass.open.field.reach * (1 - smooth(p)));
+                    if (p >= 1) return;
+                }
+                if (phase !== "held") frame = requestAnimationFrame(step);
+            };
+            frame = requestAnimationFrame(step);
+            ctx.undo(() => globalThis.cancelAnimationFrame?.(frame));
+            // closed: the trial's cut takes over under the pulse, covered, and stands until the title goes
             at(T.closed, () => {
+                phase = "held";
+                globalThis.cancelAnimationFrame?.(frame);
                 close.layer.remove();
                 open.layer.hidden = false;
-                glass.open.forEach((p, i) => { open.els[i].style.transform = p.closed; });
+                wide.paint(glass.open.field.reach);
                 const pulse = document.createElement("div");
                 pulse.className = "drpg-seq-pulse";
                 host.append(pulse);
                 anim(pulse, [{ opacity: 0 }, { opacity: 1, offset: 0.3 }, { opacity: 0 }], { duration: 420, easing: "linear" });
             });
-            at(T.titleOut, () => {
-                const last = Math.max(0, ...glass.open.map(p => p.batch));
-                glass.open.forEach((p, i) => {
-                    open.els[i].style.transform = "";
-                    anim(open.els[i], [{ transform: p.closed }, { transform: "none" }], { duration: T.open - (last - p.batch) * 10, delay: (last - p.batch) * 10, easing: OUT });
-                });
-            });
+            at(T.titleOut, () => { phase = "open"; frame = requestAnimationFrame(step); });
         }
     } else {
         const lids = ["top", "bottom"].map(side => {
@@ -258,7 +304,7 @@ function drawTrialEntry(ctx, glass, clock = getClock()) {
         });
         if (!still) {
             lids.forEach((lid, i) => anim(lid, [{ transform: `translateY(${i ? 100 : -100}%)` }, { transform: "translateY(0)" }], { duration: T.close }));
-            at(T.titleOut, () => lids.forEach((lid, i) => anim(lid, [{ transform: "translateY(0)" }, { transform: `translateY(${i ? 100 : -100}%)` }], { duration: T.open, easing: OUT })));
+            at(T.titleOut, () => lids.forEach((lid, i) => anim(lid, [{ transform: "translateY(0)" }, { transform: `translateY(${i ? 100 : -100}%)` }], { duration: T.open, easing: ctx.LEAVE })));
         }
     }
     // the room tile and the voice tile go with their glass, and come back with it (A8)
@@ -352,7 +398,7 @@ export function verdictBoardElement(board) {
     return el;
 }
 
-function drawVerdictCut(ctx, board) {
+export function drawVerdictCut(ctx, board) {
     const { host, still, times: T, anim } = ctx;
     const el = verdictBoardElement(board);
     host.append(el);
@@ -363,9 +409,15 @@ function drawVerdictCut(ctx, board) {
         anim(p.querySelector(".drpg-seq-name"), [{ transform: "translateX(80vw)" }, { transform: "translateX(0)" }], { duration: T.portraitIn, delay: T.portrait + 80 + i * 60 });
         anim(p.querySelector(".drpg-seq-stamp"), [{ opacity: 0, transform: "translateY(-50%) rotate(-14deg) scale(1.6)" }, { opacity: 1, transform: "translateY(-50%) rotate(-14deg) scale(1)" }], { duration: T.stampIn, delay: T.stamp });
     });
-    anim(el.querySelector(".drpg-seq-votes"), [{ opacity: 0, transform: "translateX(-60px)" }, { opacity: 1, transform: "translateX(0)" }], { duration: 180, delay: T.votes });
-    el.querySelectorAll(".drpg-seq-vbar i").forEach(i => anim(i, [{ transform: "scaleX(0)" }, { transform: i.style.transform }], { duration: T.barsIn, delay: T.bars }));
-    anim(el.querySelector(".drpg-seq-sentence"), [{ opacity: 0, transform: "rotate(-4deg) translateY(16px)" }, { opacity: 1, transform: "rotate(-4deg) translateY(0)" }], { duration: 240, delay: board.variant === "nobody" ? T.stamp : T.sentence });
+    /* the count comes in row by row, each row's bar growing after it (the owner's review of round 1, 12.11.2026: the
+       rows had come in as one block in 180 ms, which read as appearing rather than arriving) */
+    anim(el.querySelector(".drpg-seq-votes h4"), [{ opacity: 0, transform: "translateX(-60px)" }, { opacity: 1, transform: "translateX(0)" }], { duration: T.rowIn, delay: T.votes });
+    el.querySelectorAll(".drpg-seq-vrow").forEach((row, k) => {
+        anim(row, [{ opacity: 0, transform: "translateX(-80px)" }, { opacity: 1, transform: "translateX(0)" }], { duration: T.rowIn, delay: T.votes + (k + 1) * T.rowStep });
+        const bar = row.querySelector(".drpg-seq-vbar i");
+        if (bar) anim(bar, [{ transform: "scaleX(0)" }, { transform: bar.style.transform }], { duration: T.barsIn, delay: T.bars + k * T.rowStep });
+    });
+    anim(el.querySelector(".drpg-seq-sentence"), [{ opacity: 0, transform: "rotate(-4deg) translateY(24px)" }, { opacity: 1, transform: "rotate(-4deg) translateY(0)" }], { duration: T.sentenceIn, delay: board.variant === "nobody" ? T.stamp : T.sentence });
     anim(el, [{ opacity: 1 }, { opacity: 0 }], { duration: T.fade, delay: T.hold, easing: ctx.LEAVE, fill: "forwards" });
 }
 
