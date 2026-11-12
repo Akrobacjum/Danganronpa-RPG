@@ -11,7 +11,7 @@
  */
 
 import { MODULE_ID, FLAGS, ACTIONS_RESOURCE, STARTING, STATES } from "./config.mjs";
-import { isDeceased, getClock } from "./settings.mjs";
+import { SETTINGS, isDeceased, getClock } from "./settings.mjs";
 import { isWounded } from "./character.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { debug, plural } from "./utils.mjs";
@@ -491,9 +491,16 @@ export async function resetAllActions({ keepGrants = false } = {}) {
 export async function clearSeasonActions(ctx) {
     await resetAllActions();
     await ctx.everyStudent("actions");
+    // The GM room actions closed this time of day (E93 C1): a list of another mark is none already, so this only
+    // leaves the new season with nothing of the old one's in its world data.
+    if (Object.keys(game.settings.get(MODULE_ID, SETTINGS.facilityClosed) ?? {}).length) await game.settings.set(MODULE_ID, SETTINGS.facilityClosed, {});
+    // Every barricade's public flag (E74 C2): the GMs' rows go with this group's stores, and a flag left standing would
+    // shut its room into the next season.
+    const { allRooms, roomBarricaded, setRoomBarricaded } = await import("./movement.mjs");
+    for (const scene of game.scenes ?? []) for (const room of allRooms(scene)) if (roomBarricaded(scene, room)) await setRoomBarricaded(scene, room, false);
 }
 
-registerSeasonState({ group: "actions", clear: clearSeasonActions });
+registerSeasonState({ group: "actions", clear: clearSeasonActions, settings: [SETTINGS.facilityClosed] });
 
 /**
  * THE GRANTS END AT A BOUNDARY THAT REFILLS NOBODY (E17 fix p2-G2, 26.10.2026; the end review's E17p2-R7 of both

@@ -325,6 +325,8 @@ Cokolwiek, byle opisane szczegółowo. Możesz zaproponować statystykę, opisuj
 
 Okno wycenia oba wobec tego, co masz, i wymienia pokoje, które na każdy pozwalają.
 
+Kafelek nazywa się **Facilities**: jego okno ma oba odpoczynki, a po nich to, co daje pokój, w którym stoisz. Akcja pokoju ustawiona przez GM-a to rzut na statystykę i próg z jej wiersza i kosztuje akcję; gdy ktoś jej użyje o tej porze dnia - także nieudanym rzutem - jest wyszarzona dla wszystkich aż do następnej. Akcja ukończonego projektu nie wymaga rzutu, kosztuje akcję, chyba że GM ustawił, że nic nie kosztuje, zostawia słaby ślad Subtle jak akcja samego pokoju, i masz ją raz na każdą porę dnia; jej wiersz mówi, który projekt ją daje i jak długo działa. Despair overflow może na porę dnia wyłączyć akcje w pokojach (Lockdown, Power cut), podrożyć je (Toll) albo utrudnić (Jitters), albo zabrać Short Rest (Insomnia).
+
 ### Listen - Shadow, 1 akcja
 
 Ustal, kto jest w sąsiednim pokoju. GM niepotrzebny. Pokój wybierasz przed rzutem, a odpowiedź przychodzi jako karta, którą czytasz tylko ty i GMowie.
@@ -337,6 +339,45 @@ Ustal, kto jest w sąsiednim pokoju. GM niepotrzebny. Pokój wybierasz przed rzu
 | krytyk | kto jest w każdym sąsiednim pokoju, z imienia |
 
 Sąsiedni pokój, w którym nigdy nie byłeś, figuruje jako *Nieodkryty pokój 1*, *Nieodkryty pokój 2* i tak dalej, na liście wyboru i w odpowiedzi: Listen mówi ci, kto jest za drzwiami, nie jaki pokój za nimi leży.
+
+Kafelek nazywa się **Infiltrate**: jego okno wymienia akcje jedna pod drugą - najpierw Listen, potem Tail Someone i Dash (kolejne dojdą później). W pokoju bez sąsiedniego pokoju Listen jest wyszarzony z powodem.
+
+### Tail Someone - Shadow, potem Leg albo Shadow, 1 akcja
+
+Idziesz za uczniem, który stoi w twoim pokoju. Proponujesz statystykę drugiego rzutu, Leg albo Shadow, a MG wybiera ją na karcie; nic nie płacisz, póki MG nie odpowie. Potem dwa rzuty: Shadow 15 lub więcej i cel cię nie zauważa - poniżej od razu dostaje twoje imię, a śledzenie trwa mimo to.
+
+Póki śledzenie trwa, za każdym razem, gdy cel przejdzie do innego pokoju i postoi tam około dwóch sekund, dostajesz kartę: *{name} przechodzi do: {room}*. Przy krytyku w drugim rzucie karta mówi też, kto tam jest, poza Eclipse. Karty przychodzą też w każdym Eclipse, same pokoje.
+
+Śledzenie kończy się kartą, gdy nie jesteś ani w pokoju, który cel opuścił, ani w tym, do którego doszedł (zgubiony trop), gdy kończy się dzień, gdy znaleziono ciało albo gdy cel użyje Dash z wynikiem wyższym niż twój drugi rzut (krytyczne śledzenie przerywa tylko krytyczny Dash). Kończy się bez karty, gdy któreś z was zginie albo zacznie się incydent. Jedno śledzenie naraz: nowe zastępuje stare. Śledzenia nie da się zacząć w Eclipse, w śledztwie ani na Class Trial.
+
+### Shut the Door - Body, 1 akcja
+
+Zabarykaduj od środka pokój, w którym stoisz. Działa w pokoju, z którego otwiera się najwyżej dwoje drzwi, we własnej sypialni, ale nie w cudzej. Póki zostajesz w środku, nikt nie wejdzie drzwiami: drzwi nie ustępują. Tajne przejście, wyłom albo tunel wciąż przepuszczają. Barykada znika, gdy wyjdziesz z pokoju, gdy kończy się pora dnia i gdy zaczyna się Eclipse. Pokój pokazuje, że jest zabarykadowany, nigdy przez kogo. Ktoś z zewnątrz może je wyważyć (niżej).
+
+### Force the Door - Body, 1 akcja
+
+Przy drzwiach z twojego pokoju do sąsiedniego: jeden rzut na Body przeciw wszystkiemu, co je trzyma, naraz. Barykada ustępuje rzutowi powyżej swojej siły; zamek (MG albo sypialni) i pieczęć ustępują wynikowi 18 lub więcej; krytyk otwiera wszystko. Wyważony zamek zostaje zepsuty, póki ktoś go nie naprawi, a wyważona pieczęć znika do końca swojej pory dnia. To głośne: pokoje obok jednego i drugiego pokoju słyszą "Łomot z: {room}" bez imienia, a osoby w obu pokojach widzą, kto to był - przy sukcesie i przy pudle z Despair. Właściciel sypialni dostaje wiadomość, że drzwi wyważono. Nie w trakcie Class Trial, nie gdy jesteś Chained.
+
+### Pick the Lock - Shadow, potem Hand, 1 akcja
+
+Przy zamkniętych albo zapieczętowanych drzwiach z twojego pokoju do sąsiedniego (nie przy barykadzie): Hand 15 lub więcej otwiera je tylko dla ciebie: możesz wejść do tego pokoju, tymi drzwiami albo innymi, i zostać w nim, dopóki z niego nie wyjdziesz; dla reszty zamek zostaje zamknięty. Wejście, z którego nie skorzystasz w tej porze dnia, przepada. Najpierw rzut na Shadow: 16 lub więcej i nikt w pokoju za drzwiami nie widzi, kto to był. Właściciel sypialni dostaje wiadomość, że ktoś był przy zamku, gdy otworzysz poniżej 18 albo spudłujesz z Despair; przy 18 lub więcej - nigdy.
+
+### Keep Watch - Body, 1 akcja
+
+Przed Eclipse (nie w trakcie i nie przed nocnym Eclipse): rzut na Body 12 lub więcej i czuwasz przez nadchodzący Eclipse w pokoju, w którym stoisz, gdy się zacznie. Dowiadujesz się wtedy, kto w nim jest, z imienia; przez cały Eclipse - kto wchodzi i kto wychodzi, z imienia, nigdy skąd ani dokąd; a na koniec ile osób weszło i wyszło. Przez cały Eclipse zostajesz na posterunku. Porażka z Despair zdejmuje 1 Sanity. Czuwanie z wynikiem 18 lub więcej albo krytycznym utrudnia zaskoczenie cię: kto otwiera na tobie morderstwo, rzuca na otwarcie z jedną kością utrudnienia, a jego okno nie mówi dlaczego. Kto zgodził się, by jego postać była ofiarą morderstwa, nie używa Keep Watch, by tego uniknąć.
+
+### Dash - Leg, 1 akcja
+
+Bieg: rzut na Leg daje darmowe przejścia do końca pory dnia, wydawane jak Free Move.
+
+| Rzut | Darmowe przejścia |
+|---|---|
+| poniżej 12 | żadne |
+| 12+ | 1 |
+| 18+ | 2 |
+| krytyk | 3 |
+
+Kośćmi rzuca przeglądarka GM-a i to ona daje przejścia; bez GM-a przy stole nic nie jest płacone i nic się nie dzieje.
 
 ### Palm - Hand, 1 akcja
 

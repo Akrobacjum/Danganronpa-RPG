@@ -461,6 +461,47 @@ export const SETTINGS = {
      */
     gmRifles: "gmRifles",
     /**
+     * THE ROOM ACTIONS USED (E93 C1, 12.11.2026; the owner's audit entry E93 (3) and its 05.11 limits): a GM store
+     * (gm-stores.mjs `facilityUseStore`), a row per GM's action (`g:<sceneId>:<room>:<actionId>`, closed for everyone
+     * once used) and per project's action and character (`p:<projectId>:<actorId>`), each `{ mark, actorId, userId,
+     * at, success }` - the time of day of its use (facilities.mjs `facilityMark`). Synced, not backed up; no player
+     * copy: who used what, where, is the GMs'.
+     */
+    gmFacilityUses: "gmFacilityUses",
+    /**
+     * THE TAILS UNDER WAY (E69 C3, 12.11.2026): a GM store (gm-stores.mjs `tailStore`), a row per tailer `{ tailerId,
+     * targetId, total, critical, day, at, userId }`. Synced, not backed up; no player copy: who tails whom is the GMs'.
+     */
+    gmTails: "gmTails",
+    /**
+     * THE BARRICADES STANDING (E74 C2, 12.11.2026): a GM store (gm-stores.mjs `barricadeStore`), a row per barricaded
+     * room `{ sceneId, room, authorId, strength, at, userId }`. Synced, not backed up; no player copy.
+     */
+    gmBarricades: "gmBarricades",
+    /** THE WATCHES KEPT (E74 C6, 12.11.2026): a GM store (gm-stores.mjs `watchStore`), a row per watcher. Synced, not backed up. */
+    gmWatches: "gmWatches",
+    /**
+     * THE PICK'S PASSES (E74, 12.11.2026; DA9 as the plan has it): a GM store (gm-stores.mjs `lockpickStore`), a row per
+     * picker `{ actorId, sceneId, room, mark, entered, at }`, and each owner's copy of their own characters' passes
+     * (`mineLockpicks`, gm-stores.mjs `lockpickCopy`), which their move veto reads. Synced and backed up.
+     */
+    gmLockpicks: "gmLockpicks",
+    mineLockpicks: "mineLockpicks",
+    /**
+     * THE TIMED EFFECTS (the owner's answer to Q-E93-3, 12.11.2026): a GM store (gm-stores.mjs `timedEffectStore`), a row
+     * per effect given `{ actorId, kind, n, trait, label, state, until, mark, day, at }`, and each owner's copy of their own
+     * characters' rows (`mineTimedEffects`, `timedEffectCopy`), which their sheet reads. Synced and backed up.
+     */
+    gmTimedEffects: "gmTimedEffects",
+    mineTimedEffects: "mineTimedEffects",
+    /**
+     * WHICH GM ROOM ACTIONS ARE CLOSED NOW (E93 C1): `{ mark, keys }`, the time of day and the keys of the GM's
+     * actions used in it (`g:<sceneId>:<room>:<actionId>`), written by the primary GM (facilities-gm.mjs
+     * `closeForAll`). A world setting every browser holds, so an honest Facilities window greys a closed action
+     * before its price is paid; it names no character and no user - who used it stays in `gmFacilityUses`.
+     */
+    facilityClosed: "facilityClosed",
+    /**
      * THE LAST CROSSINGS (E17 C3, 26.10.2026; audit S07-16, D18): a GM store (gm-stores.mjs `crossingStore`), a row per
      * character - its newest crossing the primary GM saw or made, what it cost and where the token stood before it -
      * which the Students window's "Refund last crossing" gives back (movement.mjs `refundLastCrossing`). Synced, not
@@ -1030,7 +1071,7 @@ const SEASON_SETTINGS = [
     SETTINGS.murderState, SETTINGS.sealedRooms, SETTINGS.restrictions, SETTINGS.projectMeta, SETTINGS.trialQueue,
     SETTINGS.trialProgress, SETTINGS.bodyFound, SETTINGS.bodiesFound, SETTINGS.discoveredRooms, SETTINGS.searchTokens,
     SETTINGS.motive, SETTINGS.killingGameRules, SETTINGS.pendingGather, SETTINGS.gmAssignments, SETTINGS.despairPools,
-    SETTINGS.overflow, SETTINGS.clock, SETTINGS.readyRound, SETTINGS.chapterEnd
+    SETTINGS.overflow, SETTINGS.clock, SETTINGS.readyRound, SETTINGS.chapterEnd, SETTINGS.facilityClosed
 ];
 /*
  * The campaign's. The remembered exceptions and the scenes' roles, Room Setup's players' regions, the item tables' music
@@ -2101,6 +2142,73 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {}
+    });
+    // The room actions used (E93 C1): no `onChange` - shown nowhere, read by the next use on the GM that serves it
+    // (facilities-gm.mjs `handleFacilityUse`).
+    game.settings.register(MODULE_ID, SETTINGS.gmFacilityUses, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The watches kept (E74 C6): no `onChange` - read by the primary at an Eclipse and a crossing (watch-gm.mjs).
+    game.settings.register(MODULE_ID, SETTINGS.gmWatches, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The timed effects (Q-E93-3): the GMs' store and each owner's copy; the sheets redraw on either, as their line reads it.
+    game.settings.register(MODULE_ID, SETTINGS.gmTimedEffects, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {})
+    });
+    game.settings.register(MODULE_ID, SETTINGS.mineTimedEffects, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {})
+    });
+    // The pick's passes (E74, DA9): the GMs' store and each owner's copy; no `onChange` - read by the move veto and the
+    // GMs' audit when a crossing is judged (movement.mjs `holdsPass`).
+    game.settings.register(MODULE_ID, SETTINGS.gmLockpicks, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.mineLockpicks, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The barricades standing (E74 C2): no `onChange` - the table reads the public flag (doors-gm.mjs).
+    game.settings.register(MODULE_ID, SETTINGS.gmBarricades, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The tails under way (E69 C3): no `onChange` - read by the primary on a settled crossing (tail-gm.mjs).
+    game.settings.register(MODULE_ID, SETTINGS.gmTails, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The GM room actions closed this time of day (E93 C1): every browser's sheets redraw, so the Facilities tile and
+    // its window grey what was used.
+    game.settings.register(MODULE_ID, SETTINGS.facilityClosed, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {})
     });
     // The last crossings (E17 C3): the Students window redraws its Refund buttons on `drpgCrossingsChanged`, on every GM
     // the store reaches.

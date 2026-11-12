@@ -41,6 +41,7 @@ import { spectatorUserIds } from "./spectator.mjs";
 // A leaf (it imports config.mjs alone): the scenes a project's room is on, for `knowsProject` (E12 C5),
 // and the one it stands on, for `projectScene` (E12 fix r1-G3).
 import { placeScenes, roomRegions, sceneOfRoom } from "./rooms.mjs";
+import { facilityOrdinal } from "./facilities.mjs";
 // A leaf (season-exceptions.mjs alone): the registry of season state the reset walks (E42 C3).
 import { registerSeasonState } from "./season-reset.mjs";
 import {
@@ -253,6 +254,34 @@ export async function tellDescription(countdownId) {
     if (!posted) return 0;
     for (const id of readers) told[id] = words;
     await projectSecretStore.patch(countdownId, { descriptionTold: told }, { whole: true });
+    return readers.length;
+}
+
+/**
+ * TELL A SECRET PROJECT'S PLAYERS ITS ROOM ACTION (the owner's DRPG-D1 answer, 12.11.2026: "Dostaja" - a secret project's
+ * insiders get its action). On the primary GM, beside `tellDescription` and by the same road: each player in on the
+ * project (`insidersOf`) whom the GMs' row does not record as told this action is sent one private card, veiled, its meta
+ * carrying the project and the action (facilities.mjs `PROJECT_FACILITY_CARD`), so the words and the action reach their
+ * readers alone (secret.mjs) and no other student's browser holds them. An action taken off is told as none, to those
+ * told one before. Who was told what is the GMs' (`facilityTold`, in their row). Answers how many players were told.
+ */
+export async function tellFacility(countdownId) {
+    if (!isPrimaryGm() || !isSecret(countdownId)) return 0;
+    const { PROJECT_FACILITY_CARD, cleanFacility } = await import("./facilities.mjs");
+    const raw = secretsOf(countdownId).facility ?? null;
+    const facility = raw ? cleanFacility(raw) : null;
+    const key = facility ? JSON.stringify(facility) : "";
+    const told = { ...(secretsOf(countdownId).facilityTold ?? {}) };
+    const readers = insidersOf(countdownId).filter(id => game.users.get(id) && !game.users.get(id).isGM && (told[id] ?? "") !== key);
+    if (!readers.length) return 0;
+    const name = rawCountdown(countdownId)?.name ?? "?";
+    const text = facility ? game.i18n.format("DRPG.Project.facilityTold", { name, action: facility.label })
+        : game.i18n.format("DRPG.Project.facilityGone", { name });
+    const posted = await whisperToGms(`<p>${esc(text)}</p>`,
+        { whisper: [...gmIds(), ...readers], veiled: true, flags: { [MODULE_ID]: { [PROJECT_FACILITY_CARD]: { id: countdownId, facility } } } });
+    if (!posted) return 0;
+    for (const id of readers) told[id] = key;
+    await projectSecretStore.patch(countdownId, { facilityTold: told }, { whole: true });
     return readers.length;
 }
 
@@ -984,6 +1013,50 @@ export const COMPLETION_EFFECTS = [
                 }
             };
         }
+    },
+    {
+        /*
+         * A FINISHED REPAIR THE LOCK MENDS ITS LOCK (E74 C5; DA28, Q-E74-1). Read for a project whose secret half names the
+         * preset, the scene and the lock's room. Crossed: mended on the primary in the step (doors-gm.mjs `repairLockDone`,
+         * which judges again that the lock is broken), the room's owner told, and the project kept for the Reroll as the
+         * owner's three are (`keep`). Uncrossed: the lock broken again (`unrepairLock`). A refusal mends nothing, and the
+         * GMs are told why.
+         */
+        key: "repairsLock",
+        has: meta => meta.target?.preset === "repairLock" && typeof meta.target.lockRoom === "string",
+        onCrossed: ({ id, name, meta }) => {
+            let made = null;
+            return {
+                apply: async () => {
+                    made = await (await import("./doors-gm.mjs")).repairLockDone(id, { sceneId: meta.target.sceneId ?? null, lockRoom: meta.target.lockRoom });
+                    if (made?.mended) await setProjectMeta(id, { target: { ...meta.target, mended: true } });
+                },
+                remove: true,
+                keep: true,
+                after: async () => {
+                    // Something went wrong the GMs must see to: E49's warning card (its own rule), the words as before.
+                    if (made?.refused) await whisperToGms({ tone: "warning", body: `<p>${esc(game.i18n.format("DRPG.Infiltrate.repair.notMended", { name, why: await whyOf(made.refused) }))}</p>` });
+                }
+            };
+        },
+        onUncrossed: ({ id, meta }) => (meta.target?.mended
+            ? { apply: async () => {
+                await (await import("./doors-gm.mjs")).unrepairLock({ sceneId: meta.target.sceneId ?? null, lockRoom: meta.target.lockRoom });
+                await setProjectMeta(id, { target: { ...meta.target, mended: false } });
+            } }
+            : {})
+    },
+    {
+        /*
+         * A FINISHED PROJECT'S ROOM ACTION STARTS ITS LIFETIME (E93 C1, 12.11.2026; the owner's audit entry E93 (4)). A
+         * project a GM gave an action (`facility`, facilities.mjs `cleanFacility`) stamps the time of day it was completed
+         * in (`facilityOrdinal`), which its lifetime is counted from (`facilityLive`); taken back below its target, the
+         * stamp goes, and the action with it, until it is completed again. Read for a project with an action only.
+         */
+        key: "facility",
+        has: meta => Boolean(meta.facility),
+        onCrossed: ({ id }) => ({ meta: { [id]: { completedAt: facilityOrdinal() } } }),
+        onUncrossed: ({ id }) => ({ meta: { [id]: { completedAt: null } } })
     }
 ];
 
@@ -1178,6 +1251,12 @@ export async function applyProjectChange(countdownId, change, { by = null } = {}
             await tellDescription(countdownId);
         } catch (err) {
             error(`Could not tell the players of the project ${countdownId} its description`, err);
+        }
+        // Its room action, by the same road (the owner's DRPG-D1 answer, 12.11.2026: insiders get it).
+        try {
+            await tellFacility(countdownId);
+        } catch (err) {
+            error(`Could not tell the players of the project ${countdownId} its room action`, err);
         }
     }
     return result;
@@ -1656,13 +1735,13 @@ export async function createProject({
 
 /**
  * A preset's target as the GMs keep it (E15 part 2 C2, C5): `{ preset, room }`, and for the owner's three of 15.10 what
- * the approval named - a passage (`passageId`), a breach (`sceneId`, `breachId`), an item of the builder's (`itemId`) -,
- * strings alone; and a Repair an item's size where the GM picked another than its tier's in the approval window
- * (`sizedByGm`, a whole number of progress; E64, D039), which the completion holds instead of the tier's (inventory.mjs
- * `repairItem`, D034). Absent where the window kept the tier's size.
+ * the approval named - a passage (`passageId`), a breach (`sceneId`, `breachId`), an item of the builder's (`itemId`), and
+ * since E74 C5 a lock (`sceneId`, `lockRoom`) -, strings alone; and a Repair an item's size where the GM picked another
+ * than its tier's in the approval window (`sizedByGm`, a whole number of progress; E64, D039), which the completion holds
+ * instead of the tier's (inventory.mjs `repairItem`, D034). Absent where the window kept the tier's size.
  */
 function presetTargetOf(presetTarget) {
-    const ids = Object.fromEntries(["passageId", "sceneId", "breachId", "itemId"]
+    const ids = Object.fromEntries(["passageId", "sceneId", "breachId", "itemId", "lockRoom"]
         .filter(key => typeof presetTarget[key] === "string" && presetTarget[key]).map(key => [key, presetTarget[key]]));
     const size = Number(presetTarget.sizedByGm);
     const sized = presetTarget.preset === "repairItem" && Number.isInteger(size) && size > 0 ? { sizedByGm: size } : {};

@@ -121,8 +121,13 @@ export const PROJECT_SECRET_FIELDS = Object.freeze(["killerId", "by", "condition
  * players in on a secret one read it on a private card made for them (projects.mjs `tellDescription`). A list of its
  * own beside PROJECT_SECRET_FIELDS: world-secrets.mjs holds those out of every projectMeta row (tier 0 holds the two
  * lists equal), and this one out of a secret project's row alone (its rule's `whileSecret`, R190).
+ *
+ * AND ITS ROOM ACTION (E93 C1, 12.11.2026): `facility`, what its completion gives in its room (facilities.mjs
+ * `cleanFacility`) - a GM's words of what the project makes, as much the project's secret as its description. Read on a
+ * GM through `secretsOf`; a player in on a secret project holds it from a GM's private card to its insiders alone
+ * (projects.mjs `tellFacility`, facilities.mjs `toldFacility`; the owner's DRPG-D1 answer, 12.11.2026: "Dostaja").
  */
-export const PROJECT_SECRET_WHILE_SECRET = Object.freeze(["description"]);
+export const PROJECT_SECRET_WHILE_SECRET = Object.freeze(["description", "facility"]);
 
 /**
  * The secret fields of one project: the store's row on a GM, `{}` on anybody else. A player's browser

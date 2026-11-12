@@ -25,6 +25,11 @@ import { registerSheetTweaks } from "./sheet.mjs";
 import { registerAnonymity } from "./anonymity.mjs";
 import { registerBodyMarks, registerBodyFollow } from "./body-tile.mjs";
 import { registerBodyAnnounced } from "./chapter.mjs";
+import { registerTails } from "./tail-gm.mjs";
+import { registerDoors } from "./doors-gm.mjs";
+import { registerWatches } from "./watch-gm.mjs";
+import { registerLockpicks } from "./lockpick-gm.mjs";
+import { registerTimedEffects } from "./timed-effects.mjs";
 import { registerCaseAsk } from "./case-realize.mjs";
 import { registerActionResource } from "./resources.mjs";
 import { registerGmPanel, registerGmChrome, injectLauncher } from "./gm-panel.mjs";
@@ -230,6 +235,14 @@ Hooks.once("init", () => {
     safely("the body with its corpse", registerBodyFollow);
     // The body's announcement, `drpgBodyAnnounced`, on every browser the stamp reaches (E95 C4; chapter.mjs).
     safely("the body's announcement", registerBodyAnnounced);
+    // Tail Someone's cards and ends (E69 C4), on the primary GM: a settled crossing, a body announced, a new day.
+    safely("the tails", registerTails);
+    // Shut the Door's barricades come down (E74 C2), on the primary GM: the author leaving, a new time of day, an Eclipse.
+    safely("the barricades", registerDoors);
+    // Keep Watch's posts, cards and summary (E74 C6), on the primary GM: an Eclipse's start and end, a settled crossing.
+    safely("the watches", registerWatches);
+    safely("the pick's passes", registerLockpicks);
+    safely("the timed effects", registerTimedEffects);
     // E97 C11: the case's question at a body, on the primary GM, once a chapter
     safely("the case's question at a body", registerCaseAsk);
     // AFTER the Remnant rings, so a Remnant token that somehow belongs to a player

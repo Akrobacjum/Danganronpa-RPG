@@ -1035,6 +1035,51 @@ export function overflowBlocksFreeMove() {
     return overflowIs("fog");
 }
 
+/*
+ * THE ROOM ACTIONS' FIVE (E93 C6, 12.11.2026). Each reader comes twice: `...For(drawn)`, pure on the key drawn (the
+ * suite's R3753 reads them so), and the one its callers ask, on `overflowEffect()`.
+ */
+
+/** Which room actions the drawn darkening shuts: `{ lockdown, powercut }` (facilities.mjs `facilityShut`). Pure. */
+export function facilityStatesFor(drawn) {
+    return { lockdown: drawn === "lockdown", powercut: drawn === "powercut" };
+}
+
+/** The actions a room action costs more under the drawn darkening: the Toll's size, else 0. Pure but for `rules`. */
+export function facilityTollFor(drawn, rules = overflowRules()) {
+    return drawn === "toll" ? Math.max(0, Number(rules?.effects?.toll?.by) || 0) : 0;
+}
+
+/** Whether the drawn darkening bars the Short rest (Insomnia). Pure. */
+export function shortRestBarredBy(drawn) {
+    return drawn === "insomnia";
+}
+
+/** The die a GM's room action's roll takes under the drawn darkening: -1 under Jitters, else 0. Pure. */
+export function jittersFor(drawn) {
+    return drawn === "jitters" ? -1 : 0;
+}
+
+/** Lockdown and Power cut now (facilities.mjs, facilities-gm.mjs, action-facilities.mjs). */
+export function overflowFacilityStates() {
+    return facilityStatesFor(overflowEffect());
+}
+
+/** The Toll now: how many actions more a room action costs. */
+export function overflowFacilityToll() {
+    return facilityTollFor(overflowEffect());
+}
+
+/** Insomnia now: no Short rest (rest.mjs `restVariants`, `takeRest`; sheet-audit.mjs `restCovers`). */
+export function overflowBlocksShortRest() {
+    return shortRestBarredBy(overflowEffect());
+}
+
+/** Jitters now: the die a GM's room action's roll takes (roll-draw.mjs `situationReading`, the roller's window). */
+export function overflowFacilityDie() {
+    return jittersFor(overflowEffect());
+}
+
 /** The lowest a number this overflow reduced is allowed to go. */
 export function overflowFloor(key) {
     return overflowRules().effects[key]?.floor ?? 1;

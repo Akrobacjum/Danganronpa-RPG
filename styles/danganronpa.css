@@ -12229,6 +12229,15 @@ body.drpg-theme-stained-glass .application.dialog.drpg-window-body
     margin-top: 0;
 }
 
+/* A room action's timed effect (E93; the owner's asks of 12.11.2026: where the Hope Calls are, a name of one or two words,
+   white). The sheet's white chip with black ink (its header controls' pair, section 4 below), so it reads apart from the
+   Hope Calls' gold and the Despair Calls' red on both themes' grounds. */
+.drpg-pending-timed {
+    color: var(--drpg-ink);
+    border: 1px solid var(--drpg-ink);
+    background: var(--drpg-bone);
+}
+
 /* ==========================================================================
    STAGE 20.6 - THE CAMPAIGN PANELS SHARE ONE GROUND
    --------------------------------------------------------------------------

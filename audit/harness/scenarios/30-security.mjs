@@ -6761,6 +6761,214 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     for (const c of [p1, p3]) await c.eval(`globalThis.__dialogAuto = ${JSON.stringify(readyAuto[c.who])} ?? undefined; if (globalThis.__dialogAuto === undefined) delete globalThis.__dialogAuto; return true;`);
     await settle(500);
 
+    /* FORGERIES OF A ROOM ACTION (E93 C3, 12.11.2026; the owner's audit entry E93 (2)-(5)). `facility.use` from p1's console:
+       Botan's character (not p1's), an action of the Gym while Aiko stands in the Cafeteria, a GM's action named with no roll
+       and with a roll that does not exist - each refused, nothing written: no Hope moved on anyone in the room, no use kept,
+       nothing closed. Then the draw: a Facilities roll naming the Gym's action is not drawn, and one naming the Cafeteria's
+       claimed on Hand is drawn on the Eye the GM set, its record naming that action. The legal road is 33's E93-A. */
+    phase("forgeries of a room action", { flow: "facility" });
+    const facSetup = await gm.eval(`const F = await import("${repoUrl}/scripts/facilities.mjs");
+        const scene = game.scenes.get("${IDS.scene}");
+        await F.setRoomActions(scene, "Cafeteria", [{ id: "SECfac", label: "SEC tea", trait: "eye", dc: 10, effects: [{ kind: "hope", n: 3, scope: "present" }] }]);
+        await F.setRoomActions(scene, "Gym", [{ id: "SECgym", label: "SEC weights", trait: "body", dc: 10, effects: [{ kind: "hope", n: 3 }] }]);
+        return { closed: foundry.utils.deepClone(game.settings.get("${MOD}", "facilityClosed") ?? {}) };`, { timeout: 60000 });
+    await settle(500);
+    const readFac = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return { hope: ["${ids.aiko}", "${ids.botan}"].map(id => game.actors.get(id).system.resources.hope.value),
+            uses: Object.keys(S.facilityUseStore.entries() ?? {}).length, closed: game.settings.get("${MOD}", "facilityClosed") ?? {} };`;
+    const fac = {
+        theirs: await forge("facility.use", { actorId: ids.botan, actionId: "SECfac", total: 30 }, readFac),
+        elsewhere: await forge("facility.use", { actorId: ids.aiko, actionId: "SECgym", total: 30 }, readFac),
+        noRoll: await forge("facility.use", { actorId: ids.aiko, actionId: "SECfac", total: 30, isCritical: true }, readFac),
+        noSuchRoll: await forge("facility.use", { actorId: ids.aiko, actionId: "SECfac", total: 30, rollId: "SECnoSuchRoll000" }, readFac)
+    };
+    const facDraw = {
+        gym: await drawnRoll(p1, ids.aiko, "facility", "body", { hope: 9, fear: 3 }, { context: { facilityId: "SECgym" } }),
+        hand: await drawnRoll(p1, ids.aiko, "facility", "hand", { hope: 9, fear: 3 }, { context: { facilityId: "SECfac" } })
+    };
+    facDraw.record = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const row = Object.values(S.rollStore.entries() ?? {}).find(r => r?.messageId === "${facDraw.hand?.messageId ?? ""}") ?? null;
+        return row ? { facility: row.facility ?? null, trait: row.scored?.trait ?? row.legal?.trait ?? null } : null;`);
+    check("SECURITY: a console's room action is refused for another's character, for an action of another room, and for a GM's action with no roll or a roll that does not exist - no Hope moved, no use kept, nothing closed - and each refusal is logged on the GM and told to p1",
+        Object.values(fac).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
+            && fac.theirs.forOwnership && fac.elsewhere.reasons[0].includes("that action is not in the character's room")
+            && fac.noRoll.reasons[0].includes("no roll the GM drew is named") && fac.noSuchRoll.reasons[0].includes("no roll the GM drew is named"),
+        JSON.stringify(fac).slice(0, 3000), { flow: "facility" });
+    check("SECURITY: the GM draws no Facilities roll for an action not in the character's room, and draws one claimed on Hand on the Eye the GM set, its record naming the action",
+        facDraw.gym?.messageId === null && Boolean(facDraw.hand?.messageId) && facDraw.record?.facility === "SECfac" && facDraw.record?.trait === "eye",
+        JSON.stringify(facDraw), { flow: "facility" });
+    /* A FORGED SINGLE PAYMENT UNDER TOLL (the coordinator's fix of 12.11.2026, from E93's watched gap). Under the Overflow's
+       Toll a GM's room action costs two actions, and the GM draws its roll only on a payment of the whole price, read on the
+       GM (roll-draw.mjs `ticketCovers`, the price facilities.mjs `facilityCost` with the Toll the GM reads). p1's console
+       pays one action and asks the draw: not drawn. The control: p1 pays two in one write, as the Facilities window does,
+       and the roll is drawn. Red at 30ad52a: the one-action payment was drawn. */
+    const tollWas = await gm.eval(`const o = await import("${repoUrl}/scripts/overflow.mjs"); const { getClock } = await import("${repoUrl}/scripts/clock.mjs");
+        const clock = getClock();
+        const stored = foundry.utils.deepClone(game.settings.get("${MOD}", "overflow") ?? {});
+        const rules = foundry.utils.deepClone(game.settings.get("${MOD}", "overflowRules") ?? {});
+        const effects = Object.fromEntries(Object.keys(o.overflowRules().effects).map(key => [key, { on: key === "toll" }]));
+        await game.settings.set("${MOD}", "overflowRules", { ...rules, effects });
+        await game.settings.set("${MOD}", "overflow", { ...stored, active: { session: clock.session, day: clock.day ?? 1, timeOfDay: clock.timeOfDay, effect: "toll" } });
+        return { stored, rules, toll: o.overflowFacilityToll() };`, { timeout: 60000 });
+    await settle(500);
+    const payTwo = `{ const { spendAction, actionsLeft } = await import("${repoUrl}/scripts/actions.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const who = game.actors.get("${ids.aiko}");
+        if (actionsLeft(who) < 2) await trustedWrite(who, { "system.resources.actions.value": 3 }, { reason: "gmRuling" });
+        await new Promise(r => setTimeout(r, 400));
+        await spendAction(who, 2, { quiet: true }); }`;
+    const tollDraw = {
+        toll: tollWas?.toll ?? null,
+        one: await drawnRoll(p1, ids.aiko, "facility", "eye", { hope: 9, fear: 3 }, { context: { facilityId: "SECfac" } }),
+        two: await p1.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+            ${payTwo}
+            globalThis.__forceRoll = { hope: 9, fear: 3 };
+            let out = null;
+            try { out = await A.rollTrait(game.actors.get("${ids.aiko}"), "eye", { actionKey: "facility", remember: false, context: { facilityId: "SECfac" } }); }
+            catch {} finally { delete globalThis.__forceRoll; }
+            return { messageId: out?.raw?.[A.DRAWN_ROLL]?.messageId ?? null };`, { timeout: 60000 })
+    };
+    await gm.eval(`await game.settings.set("${MOD}", "overflowRules", ${JSON.stringify(tollWas?.rules ?? {})});
+        await game.settings.set("${MOD}", "overflow", ${JSON.stringify(tollWas?.stored ?? {})}); return true;`, { timeout: 60000 });
+    await settle(500);
+    check("SECURITY: under Toll the GM draws no roll of a GM's room action on a console's payment of one action, and draws it on a payment of two",
+        tollDraw.toll === 1 && tollDraw.one?.messageId === null && Boolean(tollDraw.two?.messageId),
+        JSON.stringify(tollDraw), { flow: "facility" });
+    /* A ROOM ACTION SHUT BY LOCKDOWN IS NOT DRAWN (the coordinator's check of 12.11.2026: each new state read where a roll
+       is drawn). Its use was refused after the roll (facilities.mjs `facilityShut` in `handleFacilityUse`), but the GM drew
+       the roll a console paid for. Now refused at the draw (roll-draw.mjs `facilityOfDraw`). Red at ca2a649: drawn. */
+    const lockWas = await gm.eval(`const o = await import("${repoUrl}/scripts/overflow.mjs"); const { getClock } = await import("${repoUrl}/scripts/clock.mjs");
+        const clock = getClock();
+        const stored = foundry.utils.deepClone(game.settings.get("${MOD}", "overflow") ?? {});
+        const rules = foundry.utils.deepClone(game.settings.get("${MOD}", "overflowRules") ?? {});
+        const effects = Object.fromEntries(Object.keys(o.overflowRules().effects).map(key => [key, { on: key === "lockdown" }]));
+        await game.settings.set("${MOD}", "overflowRules", { ...rules, effects });
+        await game.settings.set("${MOD}", "overflow", { ...stored, active: { session: clock.session, day: clock.day ?? 1, timeOfDay: clock.timeOfDay, effect: "lockdown" } });
+        return { stored, rules, lockdown: Boolean(o.overflowFacilityStates()?.lockdown) };`, { timeout: 60000 });
+    await settle(500);
+    const lockDraw = { lockdown: lockWas?.lockdown ?? null,
+        shut: await drawnRoll(p1, ids.aiko, "facility", "eye", { hope: 9, fear: 3 }, { context: { facilityId: "SECfac" } }) };
+    await gm.eval(`await game.settings.set("${MOD}", "overflowRules", ${JSON.stringify(lockWas?.rules ?? {})});
+        await game.settings.set("${MOD}", "overflow", ${JSON.stringify(lockWas?.stored ?? {})}); return true;`, { timeout: 60000 });
+    await settle(500);
+    check("SECURITY: under Lockdown the GM draws no roll of a GM's room action, though a console paid for it",
+        lockDraw.lockdown === true && lockDraw.shut?.messageId === null,
+        JSON.stringify(lockDraw), { flow: "facility" });
+    await gm.eval(`const F = await import("${repoUrl}/scripts/facilities.mjs"); const scene = game.scenes.get("${IDS.scene}");
+        await F.setRoomActions(scene, "Cafeteria", []); await F.setRoomActions(scene, "Gym", []);
+        await game.settings.set("${MOD}", "facilityClosed", ${JSON.stringify(facSetup?.closed ?? {})});
+        return true;`, { timeout: 60000 });
+    await settle(500);
+
+    /* FORGERIES OF A DASH (E69 C5, 12.11.2026). `dash.settle` from p1's console: for Botan's character, and for Aiko with
+       no roll named - each refused, no free crossing granted. The legal road is 33's E69-A. */
+    phase("forgeries of a Dash", { flow: "dash" });
+    const readDash = `return ["${ids.aiko}", "${ids.botan}"].map(id => game.actors.get(id).getFlag("${MOD}", "freeMoveGrants") ?? 0);`;
+    const dash = {
+        theirs: await forge("dash.settle", { actorId: ids.botan, total: 30, isCritical: true }, readDash),
+        noRoll: await forge("dash.settle", { actorId: ids.aiko, total: 30, isCritical: true }, readDash)
+    };
+    check("SECURITY: a console's Dash is refused for another's character and with no roll named - no free crossing granted - and each refusal is logged on the GM and told to p1",
+        Object.values(dash).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
+            && dash.theirs.forOwnership && dash.noRoll.reasons[0].includes("no roll the GM drew is named"),
+        JSON.stringify(dash).slice(0, 2000), { flow: "dash" });
+
+    /* FORGERIES OF A TAIL (E69 C3, 12.11.2026). `tail.start` from p1's console: Botan's character tailing Aiko, and Aiko
+       tailing Botan with no roll named - each refused, no tail kept on the GM. The legal road is 33's E69-B. */
+    phase("forgeries of a tail", { flow: "tail" });
+    const readTails = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); return game.user.isGM ? Object.keys(S.tailStore.entries() ?? {}).sort() : [];`;
+    const tail = {
+        theirs: await forge("tail.start", { tailerId: ids.botan, targetId: ids.aiko, total: 30, isCritical: true, unseenTotal: 30 }, readTails),
+        noRoll: await forge("tail.start", { tailerId: ids.aiko, targetId: ids.botan, total: 30, isCritical: true, unseenTotal: 30 }, readTails)
+    };
+    check("SECURITY: a console's tail is refused for another's character and with no roll named - no tail kept - and each refusal is logged on the GM and told to p1",
+        Object.values(tail).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
+            && tail.theirs.forOwnership && tail.noRoll.reasons[0].includes("no roll the GM drew is named"),
+        JSON.stringify(tail).slice(0, 2000), { flow: "tail" });
+
+    /* FORGERIES OF SHUT THE DOOR (E74 C2, 12.11.2026). `door.shut` from p1's console: for Botan's character, and for Aiko
+       with no roll named - each refused, no barricade kept and no flag set. The legal road is 33's E74-A. */
+    phase("forgeries of Shut the Door", { flow: "door-shut" });
+    const readBarricades = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); return game.user.isGM ? Object.keys(S.barricadeStore.entries() ?? {}).sort() : [];`;
+    const shut = {
+        theirs: await forge("door.shut", { actorId: ids.botan, total: 30 }, readBarricades),
+        noRoll: await forge("door.shut", { actorId: ids.aiko, total: 30 }, readBarricades)
+    };
+    check("SECURITY: a console's Shut the Door is refused for another's character and with no roll named - no barricade kept - and each refusal is logged on the GM and told to p1",
+        Object.values(shut).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
+            && shut.theirs.forOwnership && shut.noRoll.reasons[0].includes("no roll the GM drew is named"),
+        JSON.stringify(shut).slice(0, 2000), { flow: "door-shut" });
+
+    /* FORGERIES OF FORCE THE DOOR (E74 C3, 12.11.2026). `door.force` from p1's console at Dorm B: for Botan's character, and
+       for Aiko with no roll named - each refused, nothing broken. The legal road is tier 2's E74-T2. */
+    phase("forgeries of Force the Door", { flow: "door-force" });
+    // The rooms of the scene on screen, each [name, broken]: a list that cannot be empty, so "unchanged" compares something.
+    const readBroken = `const M = await import("${repoUrl}/scripts/movement.mjs"); const scene = canvas.scene; return M.allRooms(scene).map(r => [r, M.roomBroken(scene, r)]);`;
+    const force = {
+        theirs: await forge("door.force", { actorId: ids.botan, room: "Dorm B", total: 30, isCritical: true }, readBroken),
+        noRoll: await forge("door.force", { actorId: ids.aiko, room: "Dorm B", total: 30, isCritical: true }, readBroken)
+    };
+    check("SECURITY: a console's Force the Door is refused for another's character and with no roll named - nothing broken - and each refusal is logged on the GM and told to p1",
+        Object.values(force).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
+            && force.theirs.forOwnership && force.noRoll.reasons[0].includes("no roll the GM drew is named") && force.theirs.before?.length > 0,
+        JSON.stringify(force).slice(0, 2000), { flow: "door-force" });
+
+    /* FORGERIES OF PICK THE LOCK (E74 C4, 12.11.2026). `door.pick` from p1's console at Dorm B: for Botan's character, and for
+       Aiko with no roll named - each refused, nobody walked anywhere. The legal road is tier 2's E74-T3. */
+    phase("forgeries of Pick the Lock", { flow: "door-pick" });
+    const readPlaces = `return ["${ids.aiko}", "${ids.botan}"].map(id => { const t = canvas.scene.tokens.find(t => t.actorId === id); return t ? [t.x, t.y] : null; });`;
+    const pickLock = {
+        theirs: await forge("door.pick", { actorId: ids.botan, room: "Dorm B", total: 30, isCritical: true, coverTotal: 30 }, readPlaces),
+        noRoll: await forge("door.pick", { actorId: ids.aiko, room: "Dorm B", total: 30, isCritical: true, coverTotal: 30 }, readPlaces)
+    };
+    check("SECURITY: a console's Pick the Lock is refused for another's character and with no roll named - nobody walked in - and each refusal is logged on the GM and told to p1",
+        Object.values(pickLock).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
+            && pickLock.theirs.forOwnership && pickLock.noRoll.reasons[0].includes("no roll the GM drew is named")
+            && pickLock.theirs.before?.every(place => Array.isArray(place)),
+        JSON.stringify(pickLock).slice(0, 2000), { flow: "door-pick" });
+
+    /* FORGERIES OF KEEP WATCH (E74 C6, 12.11.2026). `watch.declare` from p1's console: for Botan's character, and for Aiko
+       with no roll named - each refused, no watch kept. The legal road is tier 2's E74-T4. */
+    phase("forgeries of Keep Watch", { flow: "keep-watch" });
+    const readWatches = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); return game.user.isGM ? Object.keys(S.watchStore.entries() ?? {}).sort() : [];`;
+    const watch = {
+        theirs: await forge("watch.declare", { actorId: ids.botan, total: 30, isCritical: true }, readWatches),
+        noRoll: await forge("watch.declare", { actorId: ids.aiko, total: 30, isCritical: true }, readWatches)
+    };
+    check("SECURITY: a console's Keep Watch is refused for another's character and with no roll named - no watch kept - and each refusal is logged on the GM and told to p1",
+        Object.values(watch).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
+            && watch.theirs.forOwnership && watch.noRoll.reasons[0].includes("no roll the GM drew is named"),
+        JSON.stringify(watch).slice(0, 2000), { flow: "keep-watch" });
+
+    /* FORGERIES OF A KNOCK (E74, 12.11.2026). `door.knock` from p1's console: for Botan's character, and for Aiko at Dorm B,
+       which nobody has barricaded - each refused and logged on the GM, nothing told to anyone (a report nobody waits on:
+       `quiet`). The legal road is 33's E74-B. */
+    phase("forgeries of a knock", { flow: "door-knock" });
+    const readCards = `return game.messages.filter(m => m.whisper?.length && ["${ids.aiko}", "${ids.botan}"].includes(m.speaker?.actor)).length;`;
+    const knock = {
+        theirs: await forge("door.knock", { actorId: ids.botan, room: "Dorm A" }, readCards),
+        open: await forge("door.knock", { actorId: ids.aiko, room: "Dorm B" }, readCards)
+    };
+    check("SECURITY: a console's knock is refused for another's character and at a door nobody barricaded - no card - and each refusal is logged on the GM",
+        Object.values(knock).every(f => f.unchanged && f.reasons.length === 1) && knock.theirs.forOwnership
+            && knock.open.reasons[0].includes("the character is not in that room"),
+        JSON.stringify(knock).slice(0, 2000), { flow: "door-knock" });
+
+    /* A FORGED PASS (E74, 12.11.2026; DA9 as the plan has it). The pick's pass reaches its owner as a GM's packet
+       (lockpick-gm.mjs, `lockpick.passes`), which the owner's move veto reads. p2's console sends p1 one, for Aiko into the
+       locked Dorm B, addressed to p1 and stamped far ahead: p1's browser takes a pass only from a GM, so its copy holds
+       nothing and its veto reads no pass. The legal road is 33's E74-C. */
+    phase("a forged pass", { flow: "door-pick" });
+    const forgedPass = await p2.eval(`game.socket.emit("module.${MOD}", { action: "lockpick.passes", userId: "USERP10000000000",
+        passes: { "${ids.aiko}": { sceneId: canvas.scene.id, room: "Dorm B" } }, stamps: { "${ids.aiko}": Date.now() + 86400000 } },
+        { recipients: ["USERP10000000000"] }); return true;`);
+    await settle(800);
+    const passOnP1 = await p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return { copy: Object.keys(S.lockpickCopy.read() ?? {}), holds: M.holdsPass(game.actors.get("${ids.aiko}"), canvas.scene, "Dorm B") };`);
+    check("SECURITY: a pass a player's console sends another player is not taken - the copy holds nothing and the veto reads no pass",
+        forgedPass === true && JSON.stringify(passOnP1) === JSON.stringify({ copy: [], holds: false }),
+        JSON.stringify({ forgedPass, passOnP1 }), { flow: "door-pick" });
+
     /* A PLAYER'S CARD IN THE GM'S NOTICE HISTORY (E81 C7, 12.10.2026). A public card of the module's, posted from p1's
        console with markup in it, is a card the GM's browser draws and keeps (popup.mjs `onCreateChatMessage`, E81 C3).
        The GM then opens the history window, every entry in it, and moves the pointer over every element there: what the

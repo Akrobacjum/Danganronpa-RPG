@@ -21,13 +21,16 @@
  */
 
 import { TRAITS, LEVEL_UP, LEVEL_UP_OPTIONS } from "./config.mjs";
-import { whisperToGms, debug, error, esc } from "./utils.mjs";
+import { whisperToGms, debug, error, esc, serialWrite } from "./utils.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import {
     askHopeCallByCard, askDynamicByCard, askTraitByCard, expiredOnPrimary, receivedOnPrimary, yesOnPrimary,
     dynamicOnPrimary
 } from "./call-gm.mjs";
 import { SOCKET_EVENT, ACTION_ADVANCEMENT_OFFERS, ACTION_SHARE_BULLET, ACTION_DONE } from "./bridge-wire.mjs";
+import { facilityUseStore } from "./gm-stores.mjs";
+import { facilityMark, facilityCost, facilityShut } from "./facilities.mjs";
+import { offerAt, overflowNow, closeForAll, applyEffects, leaveTrace, tellUse } from "./facilities-gm.mjs";
 
 /*
  * THE RUNS (E31, 25.09.2026). Each handler below is the `run` of one
@@ -92,6 +95,186 @@ export async function handleObserveResolve(payload, sender, ctx) {
     // Not a guard: the key is judged inside `resolveObserve`, against the entry
     // it has just read, and for a GM's own resolve as much as for a packet.
     if (result?.refused) return { refused: result.refused };
+}
+
+/**
+ * The bridge's run of `facility.use` (bridge-table.mjs): `{ actorId, actionId, total, isCritical, rollId }`, the total
+ * and the critical the GMs' record of the roll's where `rollId` names one. Answers `{ reply: { success, source,
+ * label, lines } }`, or `{ refused }` - each refusal a reason of bridge-guards.mjs `REASON_PATTERNS`.
+ */
+export async function handleFacilityUse(payload, sender) {
+    const actor = game.actors.get(payload.actorId ?? "");
+    if (!actor) return { refused: "no such character" };
+    const { gmPlaceOf } = await import("./movement.mjs");
+    const place = gmPlaceOf(actor);
+    if (!place?.room) return { refused: "the character is not standing in any room" };
+    const offer = await offerAt(actor, place, payload.actionId, sender);
+    if (!offer) return { refused: "that action is not in the character's room" };
+    const { states, toll } = await overflowNow();
+    if (facilityShut(offer.source, states)) return { refused: "that room action is shut by the overflow" };
+    if (offer.source === "gm" && !sender?.isGM && typeof payload.rollId !== "string") {
+        const { rollDrawState } = await import("./roll-draw.mjs");
+        if (rollDrawState().state === "ok") return { refused: "no roll the GM drew is named" };
+    }
+    await facilityUseStore.whenHydrated();
+    return serialWrite(`facility:${offer.key}`, async () => {
+        const mark = facilityMark();
+        if (facilityUseStore.get(offer.key)?.mark === mark) return { refused: "that room action has been used already this time of day" };
+        if (offer.source === "project") {
+            const cost = facilityCost("project", offer.facility, toll);
+            const { actionsLeft, spendAction } = await import("./actions.mjs");
+            if (cost > 0 && (actionsLeft(actor) < cost || !await spendAction(actor, cost, { quiet: true }))) {
+                return { refused: "the character has not enough actions for that room action" };
+            }
+        }
+        const success = offer.source === "project" || Boolean(payload.isCritical) || Number(payload.total) >= offer.action.dc;
+        await facilityUseStore.patch(offer.key, { mark, actorId: actor.id, userId: sender?.id ?? null, at: Date.now(), success });
+        if (offer.source === "gm") await closeForAll(offer.key, mark);
+        const effects = offer.source === "gm" ? offer.action.effects : offer.facility.effects;
+        const lines = success ? await applyEffects(actor, effects, place, sender) : [];
+        // Every use leaves a faint Subtle trace, a GM's action's and a project's alike (the owner's answer to Q-E93-6,
+        // 12.11.2026: "Akcja projektu tez zostawia slad"); the rests leave none.
+        await leaveTrace(actor, offer.label);
+        await tellUse(actor, offer, success, lines);
+        debug(`${actor.name} used the room action "${offer.label}" in ${place.room} (${offer.source}): ${success ? "success" : "failure"}.`);
+        Hooks.callAll("drpgFacilityUsed", { actor, source: offer.source, key: offer.key, success });
+        if (offer.source === "gm") await factsForReroll(payload.rollId, sender, actor.id, "facility", { facilityKey: offer.key, facilitySuccess: success });
+        return { reply: { success, source: offer.source, label: offer.label, lines } };
+    });
+}
+
+/**
+ * The facts a Reroll's replay reads (infiltrate-reroll.mjs), on the GMs' row of the roll `rollId` names (action-pipeline.mjs
+ * `noteFactOfRoll`, which keeps them only on that sender's roll of that character for `key`). Nothing where no roll is named.
+ */
+async function factsForReroll(rollId, sender, actorId, key, facts) {
+    if (typeof rollId !== "string" || !rollId || !sender?.id) return false;
+    const { noteFactOfRoll } = await import("./action-pipeline.mjs");
+    return noteFactOfRoll(rollId, { by: sender.id, actorId, actions: [key] }, facts);
+}
+
+/**
+ * A DASH, SETTLED ON THE GMS' RECORD OF ITS ROLL (E69 C5, 12.11.2026; config.mjs `INFILTRATE.dash`). The bridge's run of
+ * `dash.settle`: `{ actorId, total, isCritical, rollId }`, the total and the critical the GMs' record's (the declaration
+ * always names a roll). The free crossings the band reached - the highest of `bands` the total meets, `critical.moves` on a
+ * critical, none on a miss - are granted by this GM (actions.mjs `grantFreeMoves`, the reason `infiltrate`, a GM's alone).
+ * Answers `{ reply: { moves } }`.
+ */
+export async function handleDash(payload, sender) {
+    const actor = game.actors.get(payload.actorId ?? "");
+    if (!actor) return { refused: "no such character" };
+    const { INFILTRATE } = await import("./config.mjs");
+    const rule = INFILTRATE.dash;
+    const total = Number(payload.total) || 0;
+    const band = [...rule.bands].sort((a, b) => b.min - a.min).find(b => total >= b.min);
+    const moves = payload.isCritical ? rule.critical.moves : band?.moves ?? 0;
+    if (moves > 0) {
+        const { grantFreeMoves } = await import("./actions.mjs");
+        await grantFreeMoves(actor, moves, { reason: "infiltrate" });
+    }
+    // A tail on the dasher below the Dash's total is lost (E69 C4; tail-gm.mjs `tailsAfterDash`).
+    const { tailsAfterDash } = await import("./tail-gm.mjs");
+    await tailsAfterDash(actor, total, Boolean(payload.isCritical));
+    await factsForReroll(payload.rollId, sender, actor.id, "dash", { dashMoves: moves });
+    debug(`${actor.name} dashed: ${moves} free crossing(s).`);
+    return { reply: { moves } };
+}
+
+/**
+ * SHUT THE DOOR (E74 C2, 12.11.2026; doors-gm.mjs). The room and its rules are judged on this GM (`shutRefusal`); the
+ * strength is the GMs' record of the Body roll (the runner's `onRecord`). Answers `{ reply: { room } }`.
+ */
+export async function handleDoorShut(payload, sender) {
+    const actor = game.actors.get(payload.actorId ?? "");
+    if (!actor) return { refused: "no such character" };
+    const { shutDoor } = await import("./doors-gm.mjs");
+    const out = await shutDoor({ actor, total: payload.total, user: sender });
+    if (out.refused) return { refused: out.refused };
+    const { barricadeKey } = await import("./doors-gm.mjs");
+    const { gmPlaceOf } = await import("./movement.mjs");
+    await factsForReroll(payload.rollId, sender, actor.id, "shut", { barricadeKey: barricadeKey(gmPlaceOf(actor)?.scene?.id ?? "", out.room) });
+    return { reply: { room: out.room } };
+}
+
+/**
+ * FORCE THE DOOR (E74 C3, 12.11.2026; doors-gm.mjs). What holds the door is read on this GM, the roll off the GMs' record of
+ * it. Answers `{ reply: { forced, held } }`.
+ */
+export async function handleDoorForce(payload, sender) {
+    const actor = game.actors.get(payload.actorId ?? "");
+    if (!actor) return { refused: "no such character" };
+    const { forceDoor } = await import("./doors-gm.mjs");
+    const out = await forceDoor({ actor, room: payload.room, total: payload.total, isCritical: payload.isCritical, withHope: payload.withHope });
+    if (out.refused) return { refused: out.refused };
+    await factsForReroll(payload.rollId, sender, actor.id, "force", { forceRoom: payload.room, forced: Boolean(out.forced) });
+    return { reply: { forced: out.forced, held: out.held } };
+}
+
+/** The two rolls of a pick (E74 C4): the Hand and the Shadow cover the two rooms' seeing is read from. */
+export function pickRolls(actor) {
+    return [
+        { field: "rollId", actor, kind: "pick" },
+        { field: "coverRollId", actor, kind: "pickCover", into: { total: "coverTotal", isCritical: "coverCritical" } }
+    ];
+}
+
+/** PICK THE LOCK (E74 C4, 12.11.2026; doors-gm.mjs). Answers `{ reply: { opened, held } }`. */
+export async function handleDoorPick(payload, sender) {
+    const actor = game.actors.get(payload.actorId ?? "");
+    if (!actor) return { refused: "no such character" };
+    const { pickLock } = await import("./doors-gm.mjs");
+    const out = await pickLock({ actor, room: payload.room, total: payload.total, isCritical: payload.isCritical, withHope: payload.withHope,
+        coverTotal: payload.coverTotal, coverCritical: payload.coverCritical });
+    if (out.refused) return { refused: out.refused };
+    await factsForReroll(payload.rollId, sender, actor.id, "pick", { pickRoom: payload.room, opened: Boolean(out.opened),
+        coverTotal: Number(payload.coverTotal) || 0, coverCritical: Boolean(payload.coverCritical) });
+    return { reply: { opened: out.opened, held: out.held } };
+}
+
+/** SOMEONE AT THE DOOR (E74, 12.11.2026; doors-gm.mjs `knockDoor`): a walk in refused at a barricade, told to its author. */
+export async function handleDoorKnock(payload) {
+    const actor = game.actors.get(payload.actorId ?? "");
+    if (!actor) return { refused: "no such character" };
+    const { knockDoor } = await import("./doors-gm.mjs");
+    const out = await knockDoor({ actor, room: payload.room });
+    if (out?.refused) return { refused: out.refused };
+}
+
+/** KEEP WATCH (E74 C6, 12.11.2026; watch-gm.mjs). Answers `{ reply: { kept } }`. */
+export async function handleWatchDeclare(payload, sender) {
+    const actor = game.actors.get(payload.actorId ?? "");
+    if (!actor) return { refused: "no such character" };
+    const { declareWatch } = await import("./watch-gm.mjs");
+    const out = await declareWatch({ actor, total: payload.total, isCritical: payload.isCritical, withHope: payload.withHope !== false,
+        userId: sender?.id ?? null });
+    if (out.refused) return { refused: out.refused };
+    await factsForReroll(payload.rollId, sender, actor.id, "keepWatch", { watchKept: Boolean(out.kept) });
+    return { reply: { kept: out.kept } };
+}
+
+/** The two rolls of a tail, as `rolled` names them (E69 C3): the effect's and the Shadow the target's noticing is read from. */
+export function tailRolls(actor) {
+    return [
+        { field: "rollId", actor, kind: "tail" },
+        { field: "unseenRollId", actor, kind: "tailUnseen", into: { total: "unseenTotal", isCritical: "unseenCritical" } }
+    ];
+}
+
+/**
+ * TAIL SOMEONE BEGUN (E69 C3, 12.11.2026; tail-gm.mjs). The target is judged before anything is kept (`tailRefusal`); the
+ * effect's total and critical and the Shadow's are the GMs' record of each roll (the runner's `onRecord`). Answers
+ * `{ reply: { seen } }`: whether the target was told who follows them.
+ */
+export async function handleTailStart(payload, sender) {
+    const tailer = game.actors.get(payload.tailerId ?? "");
+    const target = game.actors.get(payload.targetId ?? "");
+    if (!tailer || !target) return { refused: "no such character" };
+    const { startTail } = await import("./tail-gm.mjs");
+    const out = await startTail({ tailer, target, total: payload.total, isCritical: payload.isCritical,
+        unseenTotal: payload.unseenTotal, unseenCritical: payload.unseenCritical, userId: sender?.id ?? null });
+    if (out.refused) return { refused: out.refused };
+    await factsForReroll(payload.rollId, sender, tailer.id, "tail", { tailTargetId: target.id });
+    return { reply: { seen: out.seen } };
 }
 
     // Analyze is scored here for the same reason as Observe: the difficulty is

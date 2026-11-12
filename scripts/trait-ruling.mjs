@@ -77,7 +77,7 @@
  * `rulePickTrait`, settled), so the answer, the card's line ("Approved automatically.") and the
  * ruling it keeps (`auto: true`) are the ones a press makes; on a GM's own browser no window opens.
  */
-import { TRAITS, CRISIS_ACTIONS, MURDER_OPENING, CLEANUP, ACTIONS } from "./config.mjs";
+import { TRAITS, CRISIS_ACTIONS, MURDER_OPENING, CLEANUP, ACTIONS, INFILTRATE } from "./config.mjs";
 import { pendingCalls } from "./call-effects.mjs";
 import { allProjects } from "./projects.mjs";
 import { esc, warn } from "./utils.mjs";
@@ -112,6 +112,9 @@ function definitionOf({ kind, key, variant = null, part = null } = {}) {
     if (kind === "cleanup" && Object.hasOwn(CLEANUP.actions ?? {}, key ?? "")) {
         return CLEANUP.actions[key].traits ? CLEANUP.actions[key] : CLEANUP;
     }
+    // Tail Someone's effect (E69 C3; DA8, DA32): Leg or Shadow, the player's proposal, a GM's pick - a row of the Infiltrate
+    // tile, not of ACTIONS, so named here. Its other roll, whether the target notices, is Shadow alone (roll-draw.mjs).
+    if (kind === "generic" && key === "tail") return INFILTRATE.tail;
     if (kind === "generic" && Object.hasOwn(ACTIONS, key ?? "") && !OWN_PERFORMERS.includes(key)) return ACTIONS[key];
     // An action of the table whoever performs it, whole or the part of it that names a statistic of
     // its own (a Palm's `unseen`, its cover): what a drawn roll of it is held to where it lists one
@@ -158,7 +161,9 @@ export function ruledDefinitions() {
         ...["cleanup", ...Object.keys(CLEANUP.actions ?? {})].map(key => ({ kind: "cleanup", key })),
         // Search on six (E68 C6): its own definition, ruled under the kind `action`.
         ...CARD_ACTIONS.map(key => ({ kind: "action", key })),
-        ...Object.keys(ACTIONS).map(key => ({ kind: "generic", key }))
+        ...Object.keys(ACTIONS).map(key => ({ kind: "generic", key })),
+        // Tail Someone's effect (E69 C3), a generic ruling of the Infiltrate tile's row.
+        { kind: "generic", key: "tail" }
     ];
     const defs = new Set([...specs.map(definitionOf), ACTIONS.project, ACTIONS.sabotage]);
     defs.delete(null);
@@ -350,6 +355,7 @@ export function rulingLabel({ kind, key }) {
     if (kind === "opening") return MURDER_OPENING[key]?.label ?? key ?? "";
     if (kind === "cleanup") return key === "cleanup" ? CLEANUP.label ?? key : CLEANUP.actions?.[key]?.label ?? key ?? "";
     if (kind === "project") return allProjects().find(p => p.id === key)?.name ?? key ?? "";
+    if (kind === "generic" && key === "tail") return game.i18n.localize("DRPG.Infiltrate.row.tail.label");
     if (kind === "generic" || kind === "action") return ACTIONS[key]?.label ?? key ?? "";
     return key ?? "";
 }
