@@ -7936,7 +7936,9 @@ body .application.sheet.daggerheart.actor.dh-style.character .character-header-s
 body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name .tier-mark.drpg-stat-mark > i.drpg-stat-glyph {
     margin: 0;
     color: var(--drpg-ink);
-    font-size: 12px;
+    /* 12 px at 100 %, following the Interface scale (R60; a bare 12px until the merge into 1.2.105, 12.11.2026): 16.8 px
+       at 140 %, still inside the 22 px holder */
+    font-size: calc(12px * var(--drpg-legacy-scale, 1));
     line-height: 1;
 }
 body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name .tier-mark.drpg-stat-mark.marked {
