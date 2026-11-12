@@ -20,7 +20,7 @@ Counts are changes, one per plural form; a key changed in two areas counts in bo
 | spelling | 42 | 8 | 2 (GM section 2, a copy of `Season.roomGuide`) | EN1/DB9 (American spelling), glossary `window-room-setup`, PL-i/D33c (`gm-a`), PL-f/DB30 (`safeword`) |
 | naturalness pairs | 0 | 54 | 0 | the 60 pairs of docs/text-style.md section 12, approved by the owner on E65-PILOT-R2 (01.11.2026): 48 that still stood in their key and were not frozen, and 6 plural siblings written in the same shape (PL7) |
 | pilot afters | 28 | 33 | 0 | the 40 strings of docs/dev/text-pilot.json, approved by the owner (verdict "ok", 01.11.2026): every after that had not landed and whose key is neither frozen nor config prose |
-| X12 colons (PL) | 0 | 81 | 0 | X12 (confirmed in the pilot): "w pokoju {room}", "postaci {name}" |
+| X12 colons (PL) | 0 | 88 | 0 | X12 (confirmed in the pilot): "w pokoju {room}", "postaci {name}" |
 | caps and please | 8 | 2 | 0 | X16, X8 (to confirm in E71) |
 | Remnant in sentences | 85 | 119 | 4 (GM section 1's quote of `Vault.descriptionNote`, player section 11's tables note; EN and PL) | EN15/PL-r, DB15 (glossary `remnant`, stage E71), DB4 for the Polish cases |
 | overexplains (T29) | 27 | 25 | 18 (player handbook: starting resources, the Eclipse, Rooms, Voice, Truth Bullets, the messenger's waits and Note, the settings window; EN and PL) | T29, the owner's rule of 12.11.2026, added to docs/text-style.md section 2 |
@@ -46,6 +46,7 @@ rule's shape was found, and no applied text needed an exception.
 | M5 / O5 (no digit typed into prose) | the pilot's approved Polish after of `DRPG.Settings.searchTokensPerRoom.hint` says "od 0 do 10" | Landed as approved; still a digit the code knows (settings.mjs:1300-1308 `range: { min: 0, max: 10 }`), as the pilot recorded. Stays to confirm. |
 | N1, N2 (keys and placeholders stay) | every change | Holds: the edit script refuses a change to the placeholder set; no key was renamed. |
 | T29 (new, the owner's) | 21 lang values and 10 handbook fragments: browsers, clients and "the primary GM's browser" cut from player texts; the reason behind a GM's limit cut, the limit kept | Applied; the examples are in docs/text-style.md. A first pass only: about 270 English values still name a browser, a client, the console or a store, most of them GM diagnostics (Case, Season, DiceLook, Contract, GmStore), where some of it is what a GM needs. |
+| X13 (singular "they" as a Polish plural) | read T5's 6 finds | All six are real plurals (`ich` for two students, for Remnants, for Truth Bullets, for tokens): the detector's candidates, not faults. Nothing changed. |
 | X4 (dash aside), X3 ("X, not Y"), X11 (passive) | not exercised | Out of this pass: 1053, 72 and 86 finds, nearly all style, in keys E71's batches rewrite whole. |
 
 ## For the coordinator
@@ -69,6 +70,7 @@ edited unless the row says so.
 | docs/handbooks/player-handbook.*.md section 5 (frozen by e64, e72) | the Calls paragraph (EN line 397) | Overexplains (T29): "bought on the GM's browser", "read in the code, not measured for a Call", "a roll the GM's browser throws". | Frozen; for the owning line. |
 | lang/en.json, lang/pl.json | `DRPG.Settings.uiScale.hint` | The two languages disagree on a fact: the English says the slider moves "Foundry's own chrome and the character sheet" too; the Polish says "własne okna Foundry nigdy nie są skalowane" (Foundry's own windows are never scaled), and says nothing of Monokuma Legacy. Only the endings were changed here. | Which is true is the code's (ui-kit/settings); M2 says the code wins, and a fact change is not this pass's. |
 | docs/handbooks/gm-handbook.*.md:269 (section 5, frozen by e64), gm-handbook.pl.md:563 (section 9.5, frozen by e72) | T8's three handbook finds | "Dynamic action" / "akcji Dynamic" (glossary dynamic-action: "Dynamic Action") and "kafel powiadomień" (glossary notice-tile: "kafelek powiadomień"). | Frozen; for the owning lines. |
+| docs/handbooks/gm-handbook.en.md and .pl.md, sections 12, 13 and 19 (lines 722, 739, 1104), and section 6.3's line 372 | source-file lists | Several GM handbook sections open with the files and config tables behind them (`scripts/eclipse.mjs`, `ECLIPSE_MOVES` ...). T29 would move them to a part marked for a GM who debugs (M10's appendix). | A structural move of the handbook: E57's, which owns the handbooks' form. |
 | scripts/config.mjs and `DRPG.Config.*` in pl.json | config prose | Not edited in this pass at all (see FROZEN.md); the pilot's config afters and pair N25 (`ACTIONS.palm.description`) wait there. | Four open branches change config.mjs by line. |
 
 ## Test runs
@@ -84,6 +86,7 @@ edited unless the row says so.
 | 12.11, run h | 23ecea60 and the glossary edits | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run i | 190142fc and the X1 refusals | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run j | 721d6170 and the X10 edits | 1230 passed, 0 failed, 16 skipped, 0 red |
+| 12.11, run k | 9e4c7be1 and seven more X12 values | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run f | 0a5ea4d3 and the GM-side T29 cuts (the bridge's refusals, the trial hall, the vote's privacy note) | 1230 passed, 0 failed, 16 skipped, 0 red |
 
 ## Tests whose expected wording changed

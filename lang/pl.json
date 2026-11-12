@@ -1069,8 +1069,8 @@
     "Items": {
       "autoReadied": "{item} od razu trafia do ręki: z grupy {group} schowana może być tylko jedna rzecz.",
       "useGone": "{item} nie jest już w twoich rękach. Niczego nie użyto.",
-      "rulingOpen": "Orzeczenie w sprawie: {item} już trwa. Odpowiedz na tę kartę, gdy się skończy.",
-      "rulingGone": "Zamknął: {name} - przedmiot jest zużyty albo nikt go już nie nosi. Niczego nie dano.",
+      "rulingOpen": "Orzeczenie w sprawie „{item}” już trwa. Odpowiedz na tę kartę, gdy się skończy.",
+      "rulingGone": "Kartę zamyka {name}: przedmiot jest zużyty albo nikt go już nie nosi. Niczego nie dano.",
       "kindFromTables": "Rodzaj z tabel przedmiotów - {item}: {kind}. To on zdecyduje, co przedmiot przywróci.",
       "itemWorks": "Działa - zastosuj efekt",
       "itemNoEffect": "Działa, bez efektu - zużyj",
@@ -1088,7 +1088,7 @@
       "caption": "Daj / zabierz",
       "give": "Daj przedmiot",
       "take": "Zabierz przedmiot",
-      "takeFrom": "Zabierz przedmiot: {actor}",
+      "takeFrom": "Zabierz przedmiot postaci {actor}",
       "takeFromWhom": "Zabierz od",
       "whichItem": "Który przedmiot?",
       "category": "Kategoria",
@@ -3515,10 +3515,10 @@
         "other": "Gasną światła. Ustaw swój token - do {n} połączonych pokoi. Nikt nie widzi nikogo, dopóki Eclipse się nie skończy."
       },
       "yourMoves": {
-        "one": "Jedno przejście między pokojami. Jesteś w: {room}. Przeciągnij token - drzwi i przejścia wciąż obowiązują.",
-        "few": "{n} przejścia między pokojami. Jesteś w: {room}. Przeciągnij token - drzwi i przejścia wciąż obowiązują.",
-        "many": "{n} przejść między pokojami. Jesteś w: {room}. Przeciągnij token - drzwi i przejścia wciąż obowiązują.",
-        "other": "{n} przejść między pokojami. Jesteś w: {room}. Przeciągnij token - drzwi i przejścia wciąż obowiązują."
+        "one": "Jedno przejście między pokojami. Jesteś w pokoju {room}. Przeciągnij token - drzwi i przejścia wciąż obowiązują.",
+        "few": "{n} przejścia między pokojami. Jesteś w pokoju {room}. Przeciągnij token - drzwi i przejścia wciąż obowiązują.",
+        "many": "{n} przejść między pokojami. Jesteś w pokoju {room}. Przeciągnij token - drzwi i przejścia wciąż obowiązują.",
+        "other": "{n} przejść między pokojami. Jesteś w pokoju {room}. Przeciągnij token - drzwi i przejścia wciąż obowiązują."
       },
       "moved": {
         "one": "Jesteś teraz w pokoju {room}. Do końca Eclipse zostało ci {left} przejście.",
