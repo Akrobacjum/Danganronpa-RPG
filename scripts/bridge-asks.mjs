@@ -33,7 +33,7 @@ import {
     ACTION_SHARE_BULLET, ACTION_GIVE_ITEM, ACTION_PASSAGE_SHARE, ACTION_PASSAGE_CROSS, ACTION_PASSAGE_FIND,
     ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT, ACTION_FRISK_UNSEEN,
     ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS, ACTION_OPENING_RESULT, ACTION_CLEANUP,
-    ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_DONE, ACTION_LOOT, ACTION_NOTE_SAVE,
+    ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_DONE, ACTION_LOOT, ACTION_NOTE_SAVE,
     ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM
 } from "./bridge-wire.mjs";
 import { ask } from "./bridge-table.mjs";
@@ -934,6 +934,13 @@ export function requestBetrayal({ actorId, note = "", proposed = null }) {
     // `proposed` (E68 C9): the opening's statistic the betrayer proposes, for the GM's opening window.
     return ask(ACTION_BETRAYAL, { actorId, note, proposed }, {
         local: () => import("./murder.mjs").then(m => m.betrayAsPlayer(actorId, { note, proposed }))
+    });
+}
+
+/** Answer the GMs' invitation to become a Monocub (E72 C6): `accept` true takes the Monocub Rule. */
+export function requestCubAnswer({ actorId, accept }) {
+    return ask(ACTION_CUB_ANSWER, { actorId, accept: Boolean(accept) }, {
+        local: () => import("./monocub.mjs").then(m => m.answerMonocubOffer({ actorId, accept: Boolean(accept) }, game.user))
     });
 }
 

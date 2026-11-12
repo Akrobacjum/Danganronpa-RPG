@@ -149,6 +149,8 @@ export const ACTION_BETRAYAL = "murder.betrayal";
 export const ACTION_PARK_MURDER = "murder.park";
 /** player -> GM: a Monocub uses the ability under `key` (E33 C10) - see monocub.mjs `cubAbilityOnGm`. */
 export const ACTION_CUB_ABILITY = "monocub.ability";
+/** player -> GM: a dead student's player answers the GMs' invitation to become a Monocub (E72 C6) - see monocub.mjs `answerMonocubOffer`. */
+export const ACTION_CUB_ANSWER = "monocub.answer";
 /** GM -> player: a request carried out, with its answer - see `bridgeRequest` in bridge-guards.mjs. */
 export const ACTION_DONE = "bridge.done";
 /** A GM's world has finished loading - see `registerGmBridge`. */

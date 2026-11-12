@@ -213,7 +213,7 @@ export function cubsFor(userId) {
         if (actor.type !== "character" || !actor.testUserPermission?.(user, "OWNER")) continue;
         stamps[actor.id] = cubStore.newest(actor.id);
         const row = cubStore.get(actor.id);
-        if (row) cubs[actor.id] = { witness: row.witness ?? null, redeemDay: row.redeemDay ?? null, askOpen: Boolean(row.askOpen) };
+        if (row) cubs[actor.id] = { witness: row.witness ?? null, redeemDay: row.redeemDay ?? null, askOpen: Boolean(row.askOpen), invited: Boolean(row.invite) };
     }
     return { cubs, stamps };
 }
@@ -262,10 +262,16 @@ export async function receiveCubs(cubs, stamps) {
         if (row && typeof row === "object") {
             const day = row.redeemDay && typeof row.redeemDay === "object" && Number.isInteger(row.redeemDay.day)
                 ? { chapter: row.redeemDay.chapter ?? null, epoch: row.redeemDay.epoch ?? null, day: row.redeemDay.day } : null;
-            mine[actorId] = { witness: witnessShape(row.witness), redeemDay: day, askOpen: row.askOpen === true };
+            mine[actorId] = { witness: witnessShape(row.witness), redeemDay: day, askOpen: row.askOpen === true, invited: row.invited === true };
         }
     }
-    return cubCopy.receive(mine, own);
+    const taken = await cubCopy.receive(mine, own);
+    // An invitation the copy now holds opens its window on the owner's browser (E72 C6), once per invitation here.
+    for (const [actorId, row] of Object.entries(cubCopy.read() ?? {})) {
+        if (row?.invited) openInvitation(game.actors.get(actorId));
+        else invitationsShown.delete(actorId);
+    }
+    return taken;
 }
 
 /** Owner: ask the primary for this user's rows. */
@@ -302,6 +308,104 @@ export function registerCubCopy() {
         askForCubs();
         Hooks.on("drpgPrimaryReady", primary => askForCubs(primary));
     });
+}
+
+/* ==========================================================================
+ * THE INVITATION (E72 C6, 12.11.2026; audit S18-61, the owner's DC17 and DC18)
+ * --------------------------------------------------------------------------
+ * A dead student becomes a Monocub only when its player accepts the Monocub Rule. The GMs invite (`offerMonocub`, the
+ * one road for the Students window's Invite button and its State list); the invitation is the row's `invite` in
+ * `cubStore`, and its owner's copy says `invited`, which opens the window on the player's browser (`openInvitation`) -
+ * now, or at the player's next load. The player's answer is the bridge action `monocub.answer`, judged on the primary
+ * (`answerMonocubOffer`): accepted, the row keeps `acceptedRule` and the student is made a Monocub; declined, the
+ * invitation closes and the GMs are told. A GM may withdraw an open invitation (`cancelMonocubOffer`).
+ * ========================================================================== */
+
+/** The ids whose invitation window this browser opened, so a copy received again does not open a second. */
+const invitationsShown = new Set();
+
+/** GM: invite a dead student to become a Monocub. Answers true when the invitation is open, false when it cannot be. */
+export async function offerMonocub(actor) {
+    if (!game.user?.isGM || !actor) return false;
+    if (!isDeceased(actor)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Monocub.mustBeDead"));
+        return false;
+    }
+    if (isMonocub(actor)) return false;
+    await patchCubRow(actor.id, { invite: { at: serverNow(), by: game.user.id } });
+    ui.notifications.info(game.i18n.format("DRPG.Monocub.invited", { name: actor.name }));
+    log(`${actor.name} is invited to become a Monocub; waiting for their player to accept the Monocub Rule.`);
+    return true;
+}
+
+/** GM: withdraw an open invitation. Answers whether one was open. */
+export async function cancelMonocubOffer(actor) {
+    if (!game.user?.isGM || !actor || !cubRowOf(actor)?.invite) return false;
+    await patchCubRow(actor.id, { invite: null });
+    log(`The invitation of ${actor.name} to become a Monocub was withdrawn.`);
+    return true;
+}
+
+/** Is an invitation open for this student, on this browser (the GMs' row, or the owner's copy)? */
+export function invitationOpen(actor) {
+    const row = cubRowOf(actor);
+    return Boolean(game.user?.isGM ? row?.invite : row?.invited);
+}
+
+/**
+ * Primary GM: a player's answer to an open invitation (`monocub.answer`, or a GM's own for a character no player
+ * owns). Answers `{ accepted }`, or null when no invitation is open for the character - the bridge's refusal. The
+ * Rule is taken only by its player: a GM's answer stands only for a student no player owns.
+ */
+export async function answerMonocubOffer({ actorId, accept } = {}, sender = null) {
+    if (!game.user?.isGM) return null;
+    const actor = game.actors.get(actorId);
+    if (!actor || !cubRowOf(actor)?.invite) return null;
+    if (sender?.isGM && ownerOf(actor) && !ownerOf(actor).isGM) return null;
+    if (!accept) {
+        await patchCubRow(actor.id, { invite: null });
+        const { whisperToGms } = await import("./utils.mjs");
+        await whisperToGms(`<p>${foundry.utils.escapeHTML(game.i18n.format("DRPG.Monocub.inviteDeclined", { name: actor.name }))}</p>`);
+        log(`${actor.name}'s player declined the invitation to become a Monocub.`);
+        return { accepted: false };
+    }
+    await patchCubRow(actor.id, { invite: null, acceptedRule: { at: serverNow(), by: sender?.id ?? null } });
+    await setMonocub(actor, true);
+    return { accepted: true };
+}
+
+/**
+ * The invitation's window, on its player's browser: the Monocub Rule and its three steps, Accept or Not now (E72 C6;
+ * DC17, DC18). Once per invitation on this browser; a GM never sees it.
+ */
+export async function openInvitation(actor) {
+    if (!actor || game.user?.isGM || !actor.isOwner || invitationsShown.has(actor.id)) return null;
+    invitationsShown.add(actor.id);
+    const L = key => foundry.utils.escapeHTML(game.i18n.localize(key));
+    const answer = await drpgWindow({
+        title: game.i18n.localize("DRPG.Monocub.inviteTitle"),
+        classes: ["drpg-panel", "drpg-cub-invite"],
+        body: `<div class="drpg-cub-invite-body">
+            <p>${foundry.utils.escapeHTML(game.i18n.format("DRPG.Monocub.inviteIntro", { name: actor.name }))}</p>
+            <h3>${L("DRPG.Monocub.ruleTitle")}</h3>
+            <p><strong>${L("DRPG.Monocub.rule")}</strong></p>
+            <p>${L("DRPG.Monocub.ruleSteps")}</p>
+            <ol class="drpg-cub-rule-steps"><li>${L("DRPG.Monocub.ruleStep1")}</li><li>${L("DRPG.Monocub.ruleStep2")}</li><li>${L("DRPG.Monocub.ruleStep3")}</li></ol>
+        </div>`,
+        footer: {
+            primary: { action: "accept", label: game.i18n.localize("DRPG.Monocub.inviteAccept"), callback: () => "accept" },
+            secondary: [{ action: "decline", label: game.i18n.localize("DRPG.Monocub.inviteDecline"), callback: () => "decline" }]
+        },
+        rejectClose: false
+    });
+    if (answer !== "accept" && answer !== "decline") {
+        // Closed with no answer: the invitation stays open and the window comes back at the next load.
+        invitationsShown.delete(actor.id);
+        return null;
+    }
+    const { requestCubAnswer } = await import("./gm-bridge.mjs");
+    const res = await requestCubAnswer({ actorId: actor.id, accept: answer === "accept" });
+    return res.ok ? res.value ?? null : null;
 }
 
 /** GM: write fields of a Monocub's row, then tell its owners. `null` for a field clears it. */

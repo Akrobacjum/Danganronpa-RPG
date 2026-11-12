@@ -61,7 +61,7 @@ import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
  * THE TABLE, REBUILDABLE. Everything above is a function of the world now,
  * so this can be called again in place while the window stays open.
  */
-function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, resourceValue, resourceMax, levelUp, offers }) {
+function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invited = () => false, resourceValue, resourceMax, levelUp, offers }) {
     /*
      * THE THREE MONOCUB COLUMNS ARE ALWAYS THERE (E49 A3, 11.11.2026; the owner's "Tak, naprawiamy oba" and the rule of
      * 10.11: a state changes look, never layout). From D-F4 to E49 they appeared the moment somebody accepted the
@@ -131,7 +131,10 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, reso
                 ? `<button type="button" class="drpg-mini-button drpg-gm-route"
                        data-drpg-kill="${a.id}">${L("DRPG.Chapter.deathTitle")}</button>`
                 : state === "dead"
-                    ? `<button type="button" class="drpg-mini-button" data-drpg-cub="${a.id}">${L("DRPG.Monocub.invite")}</button>`
+                    // An open invitation (E72 C6) is said, with its withdrawal; otherwise the Invite button.
+                    ? (invited(a)
+                        ? `<span class="notes">${L("DRPG.Monocub.inviteSent")}</span> <button type="button" class="drpg-mini-button" data-drpg-cub-cancel="${a.id}">${L("DRPG.Monocub.cancelInvite")}</button>`
+                        : `<button type="button" class="drpg-mini-button" data-drpg-cub="${a.id}">${L("DRPG.Monocub.invite")}</button>`)
                     : ""}${refundButton(a)}`
         };
     };
@@ -256,10 +259,10 @@ function refundButton(actor) {
  * until E47-C8) - D-F5-2 settled that one deliberately, its own Close is the
  * one exit - and the Level Up's menu.
  *
- * An action that opens NOTHING has no reason to. `setMonocub` writes a flag;
- * closing and reopening the whole table for it threw away the GM's scroll
- * position to show them a row that `keepLive` was already about to redraw
- * on `updateActor`. So `keepOpen` leaves the window alone and lets the live
+ * An action that opens NOTHING has no reason to. `offerMonocub` writes a row
+ * (`setMonocub`, until E72 C6, a flag); closing and reopening the whole table
+ * for it threw away the GM's scroll position to show them a row that `keepLive`
+ * was already about to redraw (on `updateActor`, or on `drpgCubsChanged`). So `keepOpen` leaves the window alone and lets the live
  * region do what it is for.
  */
 /*
@@ -338,7 +341,7 @@ function wireRoleSelects(dialog, roads) {
  * `onHandOff` carries a row's round trip back to the window (F7) - see the
  * note above `wireAliveRow`.
  */
-function wireAliveTable(dialog, { openDeathDialog, setMonocub, onHandOff, roads, reopen }) {
+function wireAliveTable(dialog, { openDeathDialog, offerMonocub, cancelMonocubOffer, onHandOff, roads, reopen }) {
     // The full death procedure, on the one character the row is about.
     // `openDeathDialog` owns the warning about the inventory and the
     // "keep their things" choice; repeating either here would be a
@@ -357,7 +360,10 @@ function wireAliveTable(dialog, { openDeathDialog, setMonocub, onHandOff, roads,
     wireRoleSelects(dialog, roads);
     // The Silenced head's tooltip (`DRPG.Monocub.silencedNote`) is its column's `tooltip` since E47-KFa (set on the drawn head before).
     // No window of its own, so the table stays where it is (E6).
-    wireAliveRow(dialog, "data-drpg-cub", actor => setMonocub(actor, true),
+    // An invitation, not a Monocub (E72 C6): the student becomes one when its player accepts the Monocub Rule.
+    wireAliveRow(dialog, "data-drpg-cub", actor => offerMonocub(actor),
+        { keepOpen: true, reopen });
+    wireAliveRow(dialog, "data-drpg-cub-cancel", actor => cancelMonocubOffer(actor),
         { keepOpen: true, reopen });
     // Nothing of its own to open either (E17 C3): the store's change redraws the row.
     wireAliveRow(dialog, "data-drpg-refund", actor => import("./gm-bridge.mjs").then(m => m.requestRefundCrossing(actor.id)),
@@ -404,7 +410,7 @@ export async function openWhoIsAliveDialog(options = {}) {
     // `killCharacter`, `reviveCharacter` and `setSilenced` went with the apply loop
     // (F15): `applyAliveStates` below imports what it writes.
     const { isDeceased, isDeadForGm, openDeathDialog } = await import("./chapter.mjs");
-    const { isMonocub, setMonocub, isCrimeSilenced } = await import("./monocub.mjs");
+    const { isMonocub, offerMonocub, cancelMonocubOffer, invitationOpen, isCrimeSilenced } = await import("./monocub.mjs");
     const { monokumas, donorLabel } = await import("./despair.mjs");
     const { resourceValue, resourceMax } = await import("./character.mjs");
     // The sheet's own gate for its Level Up and the GMs' store of offers (E47-C8): read, never copied.
@@ -461,7 +467,7 @@ export async function openWhoIsAliveDialog(options = {}) {
 
     const table = () => {
         const donors = buildDonors();
-        return aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, resourceValue, resourceMax,
+        return aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invited: invitationOpen, resourceValue, resourceMax,
             levelUp: a => Boolean(sheetMode(a, game.user).levelUp), offers: a => standingOffers(a).length });
     };
 
@@ -493,7 +499,7 @@ export async function openWhoIsAliveDialog(options = {}) {
         },
         render: (event, dialog) => {
             const wireAll = () => wireAliveTable(dialog, {
-                openDeathDialog, setMonocub, onHandOff: trip => { roundTrip = trip; }, roads, reopen
+                openDeathDialog, offerMonocub, cancelMonocubOffer, onHandOff: trip => { roundTrip = trip; }, roads, reopen
             });
 
             wireAll();
@@ -553,7 +559,7 @@ export async function applyAliveStates(chosen = {}) {
     if (!game.user.isGM) return 0;
 
     const { isDeceased, isDeadForGm, reviveCharacter, markDeceased, publishDeath, pendingDeath, incidentVictimDied } = await import("./chapter.mjs");
-    const { isMonocub, setMonocub, isCrimeSilenced, setSilenced } = await import("./monocub.mjs");
+    const { isMonocub, setMonocub, offerMonocub, isCrimeSilenced, setSilenced } = await import("./monocub.mjs");
     const { isMonokuma } = await import("./monokuma.mjs");
     const stateOf = a => isMonocub(a) ? "monocub" : isDeceased(a) ? "dead" : isDeadForGm(a) ? "unfound" : "alive";
     /* A death kept by the GMs is published by the GM's hand here (E05 C10; the owner's Q3):
@@ -588,7 +594,9 @@ export async function applyAliveStates(chosen = {}) {
                 continue;
             } else {
                 if (!isDeceased(actor)) died = await makeKnown(actor);
-                await setMonocub(actor, true);
+                /* AN INVITATION, NOT A FLAG (E72 C6, 12.11.2026; audit S18-61, DC17): the repair list made a Monocub with no
+                   acceptance. It sends the invitation the row's button sends; the player's accepting the Rule makes one. */
+                await offerMonocub(actor);
             }
             /* THE ONE THING THE REPAIR DOES THAT IS NOT A FLAG (E32+E07 C13, 03.10.2026; audit
                S10-77, the owner's D13): the running incident's victim dead from this list ties the

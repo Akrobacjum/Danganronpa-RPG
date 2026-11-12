@@ -17431,6 +17431,74 @@ const SCENARIOS = [
             "Ask for Hope did not post one card and keep one ask open, or a GM's Give 1 did not pay and close it ([done, cards, open] for the ask, the second ask, the Give 1: [words, Hope, open])");
     }],
 
+    ["a Monocub is made by its player's acceptance of the Monocub Rule: the State list sends an invitation, a decline closes it, an acceptance makes the Monocub, and an answer to no invitation makes nobody one (E72 C6)", async () => {
+        /*
+         * E72 C6, 12.11.2026; audit S18-61, the owner's DC17 and DC18. The Students window's Invite button and its State
+         * list made a Monocub straight away (`setMonocub`), with no word from the player. Now both send an invitation
+         * (monocub.mjs `offerMonocub`, the GMs' row), and the player's answer is the bridge action `monocub.answer`. A dead
+         * student with a player (the flag alone, as E51-T21 marks one): the State list's Monocub applied (a); the player
+         * declines (b); invited again by the button's road and accepted (c); the same answer sent again (d). Read: a
+         * Monocub, an invitation open, the codes told, the Rule's acceptance kept. Red at f22a7e8's runtime: (a) made a
+         * Monocub at once.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a dead student with a player to answer");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { applyAliveStates } = await import("./gm-panel.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { cubStore } = await import("./gm-stores.mjs");
+        const M = await import("./monocub.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [actor] = livingStudents().filter(player);
+        const names = [FLAGS.deceased, FLAGS.monocub];
+        const flagsWas = Object.fromEntries(names.map(f => [f, foundry.utils.deepClone(actor.getFlag(MODULE_ID, f))]));
+        const tracks = ["hope", "hitPoints", "stress"].filter(k => Number.isFinite(actor.system?.resources?.[k]?.value));
+        const tracksWas = Object.fromEntries(tracks.map(k => [`system.resources.${k}.value`, actor.system.resources[k].value]));
+        const rowWas = foundry.utils.deepClone(cubStore?.get(actor.id) ?? null);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const clock = getClock();
+        const answer = async (accept, requestId) => {
+            const told = [];
+            await G.judge(BRIDGE_ACTIONS, { action: "monocub.answer", requestId, actorId: actor.id, accept },
+                player(actor).id, { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
+            await settle();
+            return told;
+        };
+        const state = () => [M.isMonocub(actor), Boolean(cubStore?.get(actor.id)?.invite)];
+        const read = {};
+        const info = ui.notifications.info;
+        try {
+            await actor.setFlag(MODULE_ID, FLAGS.deceased, { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay });
+            if (cubStore?.has(actor.id)) await cubStore.drop(actor.id);
+            await settle();
+            ui.notifications.info = () => null;
+            await applyAliveStates({ [actor.id]: { state: "monocub" } });
+            await settle();
+            read.a = state();
+            read.b = [await answer(false, "suite-e72-c6-decline"), ...state()];
+            ok(typeof M.offerMonocub === "function", "monocub.mjs has no offerMonocub - the invitation is not built (E72 C6)");
+            await M.offerMonocub(actor);
+            await settle();
+            read.c = [await answer(true, "suite-e72-c6-accept"), ...state(), Boolean(cubStore.get(actor.id)?.acceptedRule)];
+            read.d = [await answer(true, "suite-e72-c6-again"), ...state()];
+        } finally {
+            ui.notifications.info = info;
+            for (const f of names) {
+                if (flagsWas[f] === undefined || flagsWas[f] === null) await actor.unsetFlag(MODULE_ID, f);
+                else await actor.setFlag(MODULE_ID, f, flagsWas[f]);
+            }
+            if (tracks.length) await actor.update(tracksWas);
+            if (cubStore) {
+                if (rowWas) await cubStore.patch(actor.id, rowWas);
+                else if (cubStore.has(actor.id)) await cubStore.drop(actor.id);
+            }
+            await settle();
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) { try { await m.delete(); } catch { /* already gone */ } }
+        }
+        equal(stableJson(read), stableJson({ a: [false, true], b: [[], false, false], c: [[], true, false, true], d: [["refused"], true, false] }),
+            "a Monocub was made without its player's acceptance, or an acceptance did not make one ([a Monocub, an invitation open] after the State list; [codes, ...] after a decline, an acceptance (and the Rule kept), an answer to no invitation)");
+    }],
+
     ["in an Eclipse the picker is shut and the GM refuses Confusion with nothing paid (E72 C1)", async () => {
         /*
          * E33 C10; CALL-16 and the plan's 2.7. The row's locks (`CUB_LOCKS`: the Eclipse, the
@@ -79765,7 +79833,9 @@ const SCENARIOS = [
             await settle();
             for (const m of game.messages.filter(m => !seen.has(m.id))) { try { await m.delete(); } catch { /* already gone */ } }
         }
-        equal(stableJson(read), stableJson([1, true, true, plural("DRPG.Panel.stateSaved", { n: 1 })]),
+        /* CHANGED ON PURPOSE BY E72 C6 (12.11.2026; DC17): the State list's Monocub sends an invitation (`offerMonocub`), so
+           the row is no Monocub yet and has no silence to take; it is still one character changed. */
+        equal(stableJson(read), stableJson([1, false, false, plural("DRPG.Panel.stateSaved", { n: 1 })]),
             "[the count applyAliveStates answered; a Monocub; silenced; the toast's words for that count]");
     }],
     ["E51-T28 - the Projects window shows the select of the picked row alone, in both themes, and reads the hidden one after: Work on project shows \"Which project?\", Sabotage \"Sabotage which project?\", Propose neither, and a Work and a Sabotage each throw for the project picked in their own select (E51 fix FG4; the owner's item of 31.10)", async () => {

@@ -7819,8 +7819,9 @@ const REGRESSIONS = [
 
         const all = Object.assign({}, ...(await bridgeTables()).map(t => t.table));
         must(Object.keys(all).length > 30, `the bridge's tables hold ${Object.keys(all).length} declarations - this would measure nothing`);
-        equal(JSON.stringify(Object.keys(all).filter(action => action.startsWith("monocub.")).sort()), JSON.stringify(["monocub.ability"]),
-            "the bridge's monocub.* declarations are not exactly monocub.ability (monocub.meddle retired by E33 C10)");
+        // E72 C6 adds the invitation's answer, which is no ability: the abilities stay on one declaration.
+        equal(JSON.stringify(Object.keys(all).filter(action => action.startsWith("monocub.")).sort()), JSON.stringify(["monocub.ability", "monocub.answer"]),
+            "the bridge's monocub.* declarations are not exactly monocub.ability and monocub.answer (monocub.meddle retired by E33 C10)");
         const fields = all["monocub.ability"]?.sanitize?.fields ?? {};
         equal(JSON.stringify([fields.key ?? null, fields.choice ?? null, Object.keys(fields).filter(f => ["total", "isCritical", "withHope", "roll", "rollId"].includes(f))]),
             JSON.stringify(["text", "text", []]),

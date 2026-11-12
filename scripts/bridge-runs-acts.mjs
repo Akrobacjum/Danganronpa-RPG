@@ -752,6 +752,18 @@ export async function handleCleanup(payload, sender, ctx, prepared) {
     // row the packet's `key` names (E33 C10, `cubAbilityOnGm`), and the roll goes
     // back for the Monocub's card - none for one it refuses, which throws nothing
     // since fix r2-H7.
+/*
+ * A DEAD STUDENT'S PLAYER ANSWERS THE INVITATION (E72 C6, 12.11.2026; audit S18-61, the owner's DC17 and DC18). The
+ * packet's `accept` is the player's word, which is what an answer is; whether an invitation is open for the character
+ * is the GMs' row (monocub.mjs `answerMonocubOffer`), so a console's answer to no invitation makes nobody a Monocub.
+ */
+export async function handleCubAnswer(payload, sender) {
+    const { answerMonocubOffer } = await import("./monocub.mjs");
+    const out = await answerMonocubOffer({ actorId: payload.actorId, accept: payload.accept }, sender);
+    if (!out) return { refused: "nothing was carried out: no invitation is open for that character" };
+    return { reply: out };
+}
+
 export async function handleCubAbility(payload, sender, ctx) {
     const { cubAbilityOnGm } = await import("./monocub.mjs");
     const out = await cubAbilityOnGm({ actorId: payload.actorId, key: payload.key, targetId: payload.targetId, choice: payload.choice });

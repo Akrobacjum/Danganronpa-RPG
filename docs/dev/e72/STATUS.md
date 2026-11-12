@@ -15,9 +15,11 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
 
 | C5 | Redeem (+1 Hope, one action, once a game day, shut at full Hope and in the darkening) and Ask for Hope (free; the GMs' card in the Monocub's thread, Give 1 / Give 2 / Not now, ruled once through `claimCard` and paid from the clicking GM's Despair by `convertDespairToHope`) as rows of the Monocub's table, with `CUB_BLOCKS` asked on the picker and on the GM before the price; the owner's copy carries `redeemDay` and `askOpen`; `cubStore.log` keeps the last 50 moves for the GMs; their approved glyphs (inventory rows 70, 71) worn under Stained Glass | tier 2 "Redeem gives a Monocub +1 Hope once a game day ..." and "Ask for Hope posts one card in the Monocub's thread ..." (new; red at base); R301, R3333-R3349 green; E15-T6 test drops its target's count per run (C4 changed it on purpose); R472 gains the second notice road |
 
+| C6 | The invitation (S18-61, DC17, DC18): the Students window's Invite button and its State list both send one (`offerMonocub`, the GMs' row `invite`); the owner's copy (`invited`) opens the player's window with the Monocub Rule and its three steps; the answer is a new bridge action `monocub.answer` (knownSender, owns; the run asks the GMs' row, so an answer to no invitation makes nobody a Monocub); accepted, the row keeps `acceptedRule`; declined, the GMs are told; a GM can withdraw it; `whoIsAliveNote` EN/PL | tier 2 "a Monocub is made by its player's acceptance of the Monocub Rule ..." (new; red at base: made at once); E51-T21 and R301 changed on purpose; flow `monocub-invite` (partial: no scenario drives the window yet) |
+
 ## In progress
 
-- C6 the invitation.
+- Shots of C5's card and C6's window; then C7 (the wrong-verdict card).
 
 ## Next
 
@@ -50,6 +52,14 @@ C2-C12 (part A), then C13-C21 (part B), then E91.
   confirm the prices.
 - C5: Monokuma Legacy shows Font Awesome's ticket and praying hands for the two tiles (LEGACY_ICONS "fa:"), as a
   crisis row does: Legacy has no drawing of its own for them.
+
+- C6: the Rule's words and its three steps are this line's reading of DC17/DC18 ("talk, role removed, removed from the
+  game"): "You never tell the living what only the dead know: who killed you, how, or what you see from now on." /
+  "Nigdy nie mówisz żywym tego, co wiedzą tylko zmarli: kto cię zabił, jak, ani co widzisz od teraz." - owner to
+  confirm the wording.
+- C6 not yet done: `openMonocubDialog` removed and `game.drpg.monocubDialog` pointed at the Students window; the
+  revoke function that also hands back a bet, asks, the purse and the mute (those parts come with C8, C14, C18);
+  33-bridge-paths' legal control and 30-security's forgery of `monocub.answer`.
 
 ## Blockers
 

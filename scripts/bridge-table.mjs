@@ -45,7 +45,7 @@ import {
     ACTION_ADVANCEMENT_ASK, ACTION_SHARE_BULLET, ACTION_GIVE_ITEM, ACTION_PASSAGE_SHARE, ACTION_PASSAGE_CROSS,
     ACTION_PASSAGE_FIND, ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT,
     ACTION_FRISK_UNSEEN, ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS,
-    ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_LOOT,
+    ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_CUB_ANSWER, ACTION_LOOT,
     ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM
 } from "./bridge-wire.mjs";
 import {
@@ -54,7 +54,7 @@ import {
     handleRefundCrossing, handlePassageFind, friskRolls, findPassageRoll, notFindPassageRoll, palmRolls, handlePlant,
     handleFindStash, handleSteal, handleFriskUnseen, handleFriskAsk, handleFriskAnswer, handleFriskFollow,
     friskForceRoll, handleVaultSteal, searchTheftOf, handleOpeningResult, handleCrisis, handleParkMurder,
-    handleBetrayal, handleCleanup, handleCubAbility, handleHopeCall, handleCallYes, handleDynamicAnswer,
+    handleBetrayal, handleCleanup, handleCubAbility, handleCubAnswer, handleHopeCall, handleCallYes, handleDynamicAnswer,
     handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling
 } from "./bridge-runs-acts.mjs";
 import {
@@ -423,6 +423,15 @@ export const BRIDGE_ACTIONS = table({
         // The roll it threw goes back, for the Monocub's card.
         answer: "reply",
         claims: { targetId: "judged by the row's CUB_TARGETS rule in cubAbilityOnGm (monocub.mjs) before the GM throws: a living student in the Monocub's room" }
+    },
+    [ACTION_CUB_ANSWER]: {
+        label: "DRPG.Bridge.what.monocub.answer",
+        // E72 C6: the player of a dead student the GMs invited; whether an invitation is open is the GMs' row's (`cubStore`).
+        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, accept: as.bool }),
+        run: handleCubAnswer,
+        // The player's window says what came of it (a Monocub now, or the invitation closed).
+        answer: "reply"
     },
     [ACTION_HOPE_CALL]: {
         label: "DRPG.Bridge.what.call.approve",
