@@ -19,6 +19,7 @@ import { rollTrait, rollInHand, abort, spentAfterRoll, canAfford } from "./actio
 import { locateActor, roomOfActor, neighbouringRooms, roomsKnownToMe } from "./movement.mjs";
 import { listenLabels } from "./action-listen.mjs";
 import { actionWindow } from "./action-menus.mjs";
+import { briefingBlock } from "./action-briefing.mjs";
 
 /** Shut the Door: the action, the Body roll, the ask. Answers `{ room, roll }` or null. */
 export async function performShut(actor, options = {}) {
@@ -64,6 +65,7 @@ export async function performForce(actor, options = {}) {
     const room = options.room ? (doors.includes(options.room) ? options.room : null) : await actionWindow({
         title: label,
         classes: ["drpg-panel"],
+        brief: briefingBlock(actor, "force", { label, cost, description: game.i18n.localize("DRPG.Infiltrate.row.force.hint") }),
         ask: `<form>
             <p>${esc(game.i18n.format("DRPG.Infiltrate.force.prompt", { room: here ?? "-", n: rule.lockDc }))}</p>
             <label>${esc(game.i18n.localize("DRPG.Infiltrate.force.which"))}
@@ -118,6 +120,7 @@ export async function performPick(actor, options = {}) {
     const room = options.room ? (doors.includes(options.room) ? options.room : null) : await actionWindow({
         title: label,
         classes: ["drpg-panel"],
+        brief: briefingBlock(actor, "pick", { label, cost, description: game.i18n.localize("DRPG.Infiltrate.row.pick.hint") }),
         ask: `<form>
             <p>${esc(game.i18n.format("DRPG.Infiltrate.pick.prompt", { room: here ?? "-", n: rule.dc, clean: rule.clean, cover: rule.cover.threshold }))}</p>
             <label>${esc(game.i18n.localize("DRPG.Infiltrate.force.which"))}

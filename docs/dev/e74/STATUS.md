@@ -73,4 +73,9 @@ None.
 
 ## Shots
 
-Not taken for C1+C2 yet: the Infiltrate window's new row (planned with C8, the seven rows).
+Round 1 (12.11, C1-C6): https://claude.ai/artifact/KH6J3QM34VnLosMt9prJpU - the Infiltrate window with its seven rows,
+Force the Door's and Pick the Lock's windows (player), Stained Glass and Monokuma Legacy, EN and PL, 1366x768 at scale 2.
+Headless harness in audit/style-harness.html: not Foundry, no Font Awesome, no window frame; the cards are not drawn.
+Seen there: Shut the Door and Force the Door draw the same door glyph (the module's glyph map, E48's, draws `fa-door-closed`
+and `fa-door-open` alike); the plan asks opposite actions to differ - owner to say, no glyph drawn in this round. Seen and
+fixed: Force's and Pick's windows had an empty left column (no briefing); they have the row's line now.
