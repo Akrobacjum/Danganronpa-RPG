@@ -49806,7 +49806,7 @@ const INVARIANTS = [
         must(sync.length > 2000 && seq.length > 2000 && glass.length > 20000, "a source was not read - the source half reads nothing");
         read.row = /onlyWhen\("phaseHook", "phase"\)/.test(sync) && /Hooks\.callAll\("drpgPhaseChanged"/.test(sync);
         read.heard = /Hooks\.on\("drpgPhaseChanged", onPhaseChanged\)/.test(seq);
-        read.held = /oldLook && !entryHold \? glassTurn\(/.test(bodyOf(glass, "function rebuildAll(", { until: "\nfunction " }));
+        read.held = /oldLook && !entryHold && !curtainHold \? glassTurn\(/.test(bodyOf(glass, "function rebuildAll(", { until: "\nfunction " }));
         equal(stableJson(read), stableJson({ key: true, notTrial: null, first: "motion", look: "lids", lids: 2, again: null, stillPlaying: "trialEntry", out: null, ended: null, row: true, heard: true, held: true }),
             "[the key is the edge's stamp; another phase has none; the first hearing; its look with no curtain; its lids; a second hearing; still playing; another phase; ended; the clock's row fires the hook once a phase moved; the sequences hear it; rebuildAll turns nothing while the entry holds it]");
     }],
@@ -49835,6 +49835,75 @@ const INVARIANTS = [
         }
         equal(stableJson(read), stableJson({ mode: "still", title: game.i18n.localize("DRPG.Sequence.trialTitle"), sub: true, lids: 2, cover: true, endedAlone: true, uncovered: true }),
             "[the entry's mode under reduced motion; the title; the chapter's line in this language; the closed lids; the tiles covered; ended on its own at its hold; the tiles uncovered]");
+    }],
+    ["R3917 - the entry hands over to the live curtain without a blink (scripts/sequence.mjs `drawTrialEntry`, `coverBlocks`; scripts/glass.mjs `holdPulse`, `pulseNow`, `entryPieces`; styles/danganronpa.css; the owner at the table, 12.11.2026: \"calosc blyska, bug pulsu\"): on a stand-in for the curtain's pieces, in motion the live curtain is held at 0 as the copies come in over the sequence's `handIn`, handed back over its last `hand` ms and let go once the host is gone, and no full-screen wash stands over the closed curtain; still, it is held at once and let go at the end; the pulse's clock stands while held and runs on from where it stood; the closed curtain's cover takes the interface's blocks with the tiles", async () => {
+        /*
+         * The entry's hand-over, 12.11.2026. Red at 421f2395: `playTrialEntry` takes no stand-in and drew the lids, so the
+         * pieces were never held, handed back or let go; glass.mjs had no `holdPulse`; the cover named the two tiles alone.
+         * The probe of the seam report read the base's blink in Chromium on the glass harness at 1366x768 (whole frame
+         * -11 at the start, +19 at 900 ms, +7 at the end); its after-numbers are in docs/dev/trial-exit/STATUS.md. jsdom
+         * plays no animation, so what is read here is who is held when, and the stylesheet.
+         */
+        const S = await import("./sequence.mjs"), G = await import("./glass.mjs");
+        const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion");
+        const T = S.SEQUENCE_TIMES.trialEntry, read = {};
+        const stand = () => {
+            const calls = [], t0 = performance.now();
+            const at = () => Math.round(performance.now() - t0);
+            return { calls, W: 40, H: 30, acc: "#ffffff", closed: document.createElement("canvas"), close: { panes: [], fill: [], batchOf: [] }, open: { panes: [], fill: [] },
+                hold: ms => calls.push(["hold", ms, at()]), handBack: ms => calls.push(["handBack", ms, at()]), release: () => calls.push(["release", null, at()]) };
+        };
+        const near = (got, want, slack = 250) => Number.isFinite(got) && got >= want && got <= want + slack;
+        const clock = k => ({ ...getClock(), phase: "classTrial", chapter: 2, timeOfDayStartedAt: `R3917${k}:${Date.now()}` });
+        try {
+            body.classList.remove("drpg-reduced-motion");
+            S.endSequence("cut");
+            const m = stand(), c = clock("m");
+            read.motion = await S.playTrialEntry(c, { pieces: m });
+            read.look = document.getElementById(S.SEQUENCE_HOST_ID)?.dataset.drpgSequenceLook ?? null;
+            read.covered = body.hasAttribute(`${S.SEQUENCE_ATTR}-cover`);
+            await wait(T.closed + 150);
+            read.wash = document.querySelectorAll(`#${S.SEQUENCE_HOST_ID} .drpg-seq-pulse`).length;
+            await until(() => !document.getElementById(S.SEQUENCE_HOST_ID), T.end + 1500);
+            const [hold, back, rel] = ["hold", "handBack", "release"].map(k => m.calls.find(x => x[0] === k));
+            read.calls = m.calls.map(x => x[0]);
+            read.hold = hold?.[1] === T.handIn && hold?.[2] < 100;
+            read.back = back?.[1] === T.hand && near(back?.[2], T.end - T.hand);
+            read.release = near(rel?.[2], T.end);
+            read.again = await S.playTrialEntry(c, { pieces: stand() });
+            S.endSequence("cut");
+            body.classList.add("drpg-reduced-motion");
+            const st = stand();
+            read.still = await S.playTrialEntry(clock("s"), { pieces: st });
+            read.stillHold = st.calls.map(x => x.slice(0, 2));
+            await until(() => !document.getElementById(S.SEQUENCE_HOST_ID), T.still + 1500);
+            read.stillEnd = st.calls.map(x => x[0]);
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+        }
+        // the pulse's clock: stands while held, runs on from the moment it stood
+        if (typeof G.holdPulse === "function") {
+            G.holdPulse(true);
+            const p0 = G.pulseNow();
+            await wait(120);
+            const p1 = G.pulseNow();
+            G.holdPulse(false);
+            const p2 = G.pulseNow();
+            await wait(60);
+            const p3 = G.pulseNow();
+            read.pulse = { stood: p1 === p0, resumed: p2 - p1 >= 0 && p2 - p1 < 40, runs: p3 - p2 >= 40 };
+        } else read.pulse = null;
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
+        const rule = /body\[data-drpg-sequence-cover\] :is\(([^{]*)\) \{\s*opacity: 0;/.exec(css)?.[1] ?? "";
+        read.cover = String(S.COVERED ?? "-").split(",").map(x => x.trim()).filter(sel => !rule.includes(sel));
+        read.coverNames = ["#drpg-hud", "#drpg-despair", "#countdowns", "#drpg-room-tile", "#drpg-voice-tile"].every(x => String(S.COVERED ?? "").includes(x));
+        read.washRule = /drpg-seq-pulse/.test(css);
+        equal(stableJson(read), stableJson({
+            motion: "motion", look: "glass", covered: true, wash: 0, calls: ["hold", "handBack", "release"], hold: true, back: true, release: true, again: null,
+            still: "still", stillHold: [["hold", 0]], stillEnd: ["hold", "release"],
+            pulse: { stood: true, resumed: true, runs: true }, cover: [], coverNames: true, washRule: false
+        }), "[in motion: what played, its look, the cover; a wash at the closed curtain; the stand-in's calls in order; held over handIn at the start; handed back over hand before the end; let go at the end; the same event again; still: what played, held at once, let go at its end; the pulse's clock held, resumed and running; blocks of COVERED the stylesheet's cover leaves out; the cover names the blocks; a wash rule left in the stylesheet]");
     }],
     ["R3706 - the verdict's cut-in reads only the GM's card and the public record (scripts/sequence.mjs `verdictBoard`, `playVerdictCut`; E61 C5, the owner's 05.10 and 05.11, MK-R2 #3): a GM's card naming one sentenced draws that one's name, the stamp of its variant (a right verdict GUILTY, a wrong one NOT GUILTY), the votes from `trialProgress` and the card's sentence; nobody sentenced draws neither portrait nor stamp; a Blackened planted beside them is nowhere in the cut-in; a player's message with the same flags, and a GM's message with no `verdictAt`, start nothing", async () => {
         /*

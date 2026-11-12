@@ -47,13 +47,13 @@ export const SEQUENCE_ATTR = "data-drpg-sequence";
 
 /**
  * Each sequence's frames in ms (the mockups' storyboards), and its still frame's hold. E61-A: the panes close by 900,
- * one pulse of the seams under the closed curtain while the hall changes under it, the title with its impact at 1400,
- * the panes open from 2500 and the hall stands at 3400. E61-B: the band at 0, the portrait at 250, the votes at 900,
+ * the title with its impact at 1400, the panes open from 2500 and the hall stands at 3400; the copies of the curtain
+ * cross over with the live one in the first and the last `hand` ms (250, the seam report's 200-300 ms). E61-B: the band at 0, the portrait at 250, the votes at 900,
  * the stamp's hit at 1700 (MK-R2: earlier than round 1's 2500, so the verdict does not wait), the card's sentence at
  * 1950, frame 5 held to 3500, then a 180 ms fade (MK-R1 #10).
  */
 export const SEQUENCE_TIMES = Object.freeze({
-    trialEntry: Object.freeze({ close: 860, closed: 900, title: 1400, titleIn: 240, titleOut: 2500, open: 820, end: 3400, still: 1500, sound: 1400 }),
+    trialEntry: Object.freeze({ close: 860, closed: 900, title: 1400, titleIn: 240, titleOut: 2500, open: 820, end: 3400, still: 1500, sound: 1400, handIn: 500, hand: 300 }),
     /* E94 C2, the start-of-day board (MK-R2 #4, #8): the board rises at 300 ms over 600, the cast one by one 140 ms apart
        from 600, the morning line at 1800, held to 4900, gone in 420; still, the board for 5 s; the chime at once. */
     dayStart: Object.freeze({ board: 300, rise: 600, cast: 600, castStep: 140, announce: 1800, hold: 4900, fade: 420, end: 5350, still: 5000, sound: 0 }),
@@ -242,6 +242,7 @@ function slideCanvas(fill, W, H, acc) {
     const g = canvas.getContext("2d");
     let shown = 0;
     const draw = offsets => {
+        if (!g) return 0;
         g.clearRect(0, 0, W, H);
         shown = 0;
         offsets.forEach((o, i) => {
@@ -265,8 +266,30 @@ function closedCanvas(look) {
     c.width = look.width; c.height = look.height;
     c.className = "drpg-seq-closed";
     c.style.cssText = `position:absolute;left:0;top:0;width:100%;height:100%;`;
-    c.getContext("2d").drawImage(look, 0, 0);
+    c.getContext("2d")?.drawImage(look, 0, 0);
     return c;
+}
+
+/* What goes under the closed curtain with its glass and comes back as it opens (A8; the entry's hand-over): the room and
+   voice tiles and the interface's blocks - the clock, Despair, the event panel, the status, the tray, the corner's
+   launchers (glass.mjs `LAUNCHERS`). danganronpa.css hides them by the body's `-cover` mark. */
+export const COVERED = "#drpg-room-tile, #drpg-room-art, #drpg-voice-tile, #drpg-voice-art, #drpg-hud, #drpg-despair, #drpg-events, #drpg-player-status, #countdowns, #drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher, [data-drpg-cluster]";
+
+/* The cover, the mark and in motion the fades (the entry's hand-over, 12.11.2026): each block fades out over the
+   sequence's first `hand` ms and back in over `hand` from the opening, by an animation of its own from the opacity it
+   stood at - the mark alone took the HUD away in one frame, and gave it back in one. */
+function coverBlocks(ctx) {
+    const { still, times: T, anim, at } = ctx;
+    const els = still ? [] : [...document.querySelectorAll(COVERED)].map(el => [el, getComputedStyle(el).opacity]);
+    document.body.setAttribute(`${SEQUENCE_ATTR}-cover`, "");
+    ctx.undo(() => document.body.removeAttribute(`${SEQUENCE_ATTR}-cover`));
+    if (still) return;
+    const out = els.map(([el, o]) => anim(el, [{ opacity: o }, { opacity: 0 }], { duration: T.handIn, easing: "linear", fill: "forwards" }));
+    at(T.titleOut, () => {
+        out.forEach(a => a?.cancel());
+        document.body.removeAttribute(`${SEQUENCE_ATTR}-cover`);
+        els.forEach(([el, o]) => anim(el, [{ opacity: 0 }, { opacity: o }], { duration: T.handIn, easing: "linear", fill: "none" }));
+    });
 }
 
 /**
@@ -285,9 +308,20 @@ function drawTrialEntry(ctx, glass, clock = getClock()) {
     if (glass) {
         host.style.setProperty("--drpg-seq-w", `${glass.W}px`);
         const closed = closedCanvas(glass.closed);
+        /* THE HAND-OVER (the owner at the table, 12.11.2026: "calosc blyska"; glass.mjs `holdCurtain`): the live curtain
+           and its glow go to 0 under the copies and come back under them at the end, both ends crossing over in `hand`
+           ms; however the sequence ends, the hold is let go. Still, the closed curtain stands over a curtain at 0. */
+        ctx.undo(() => glass.release?.());
         if (still) {
+            glass.hold?.(0);
             host.append(closed);
         } else {
+            glass.hold?.(T.handIn);
+            anim(host, [{ opacity: 0 }, { opacity: 1 }], { duration: T.handIn, easing: "linear" });
+            at(T.end - T.hand, () => {
+                anim(host, [{ opacity: 1 }, { opacity: 0 }], { duration: T.hand, easing: "linear", fill: "forwards" });
+                glass.handBack?.(T.hand);
+            });
             const close = pieceLayer(glass.close.panes, "is-close"), open = pieceLayer(glass.open.panes, "is-open");
             const growIn = slideCanvas(glass.close.fill, glass.W, glass.H, glass.acc), growOut = slideCanvas(glass.open.fill, glass.W, glass.H, glass.acc);
             close.layer.append(growIn.canvas);
@@ -311,16 +345,14 @@ function drawTrialEntry(ctx, glass, clock = getClock()) {
             };
             frame = requestAnimationFrame(step);
             ctx.undo(() => globalThis.cancelAnimationFrame?.(frame));
-            // closed: the curtain's own paint of the whole cut, under the pulse, until the title goes
+            /* closed: the curtain's own paint of the whole cut until the title goes. No wash over it: the pulse of 420 ms
+               laid 10 % Bone over the whole screen above the closed curtain, and the probe read it as a flash of +19 on
+               the whole frame (the seam report, 12.11.2026); the curtain's own pulse is in its paint. */
             at(T.closed, () => {
                 phase = "held";
                 globalThis.cancelAnimationFrame?.(frame);
                 close.layer.remove();
                 closed.hidden = false;
-                const pulse = document.createElement("div");
-                pulse.className = "drpg-seq-pulse";
-                host.append(pulse);
-                anim(pulse, [{ opacity: 0 }, { opacity: 1, offset: 0.3 }, { opacity: 0 }], { duration: 420, easing: "linear" });
             });
             at(T.titleOut, () => {
                 closed.remove();
@@ -342,10 +374,7 @@ function drawTrialEntry(ctx, glass, clock = getClock()) {
             at(T.titleOut, () => lids.forEach((lid, i) => anim(lid, [{ transform: "translateY(0)" }, { transform: `translateY(${i ? 100 : -100}%)` }], { duration: T.open, easing: ctx.LEAVE })));
         }
     }
-    // the room tile and the voice tile go with their glass, and come back with it (A8)
-    document.body.setAttribute(`${SEQUENCE_ATTR}-cover`, "");
-    ctx.undo(() => document.body.removeAttribute(`${SEQUENCE_ATTR}-cover`));
-    if (!still) at(T.titleOut, () => document.body.removeAttribute(`${SEQUENCE_ATTR}-cover`));
+    coverBlocks(ctx);
     if (still) { host.append(title); return; }
     at(T.title, () => {
         host.append(title);
@@ -359,16 +388,19 @@ function drawTrialEntry(ctx, glass, clock = getClock()) {
  * curtain's pieces (glass.mjs `entryPieces`), asked here and not by the hook's caller: the glass is only moved when the
  * sequence is drawn, so the table's switch off and a second hearing of the event leave the curtain's own turn alone.
  */
-export async function playTrialEntry(clock = getClock()) {
+export async function playTrialEntry(clock = getClock(), { pieces = undefined } = {}) {
     const key = trialEntryKey(clock);
     if (!key || sequenceStarted("trialEntry", key) || !ready) return null;
-    let glass = null;
-    if (sequencesOn() && document.body.classList.contains("drpg-theme-stained-glass")) {
+    let glass = pieces ?? null;
+    if (pieces === undefined && sequencesOn() && document.body.classList.contains("drpg-theme-stained-glass")) {
         // the attribute the HUD writes from the same clock row; written here too, so the curtain reads the trial's colour
         document.body.dataset.drpgPhase = "classTrial";
         try { glass = (await import("./glass.mjs")).entryPieces?.() ?? null; } catch { glass = null; }
     }
-    return playSequence("trialEntry", key, ctx => drawTrialEntry(ctx, glass, clock), { sound: () => playSound("trialStart") });
+    // `pieces`: the suite's stand-in for the curtain's (R3917); a start that plays nothing lets the curtain's hold go
+    const played = playSequence("trialEntry", key, ctx => drawTrialEntry(ctx, glass, clock), { sound: () => playSound("trialStart") });
+    if (played === null || played === "off") glass?.release?.();
+    return played;
 }
 
 /* ========================================================================== *

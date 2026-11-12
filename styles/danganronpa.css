@@ -18127,15 +18127,17 @@ body:not(.drpg-theme-stained-glass) > #drpg-voice-tile[data-place="tray"] {
 }
 body[data-drpg-sequence] #drpg-popups { z-index: 99990; }
 body[data-drpg-sequence] .drpg-foundry-window { visibility: hidden; }
-/* the room tile and the voice tile go with their glass under the closed curtain, and come back as it opens (A8) */
-body[data-drpg-sequence-cover] :is(#drpg-room-tile, #drpg-room-art, #drpg-voice-tile, #drpg-voice-art) {
+/* the room tile and the voice tile go with their glass under the closed curtain, and come back as it opens (A8); and the
+   blocks of the interface with them - the clock, Despair, the event panel, the status, the tray and the corner's
+   launchers (the entry's hand-over, 12.11.2026: the seam report's probe read the HUD 20 darker in the host's first frame
+   and back in its last). The rule is the still frame's; in motion sequence.mjs `coverBlocks` fades each out as the
+   curtain closes and back in as it opens, by its own animation: a transition here lost the cascade to the theme's own
+   `transition` on the same blocks (stained-glass.css turns their rotation), and the HUD went in one frame. */
+body[data-drpg-sequence-cover] :is(#drpg-room-tile, #drpg-room-art, #drpg-voice-tile, #drpg-voice-art, #drpg-hud, #drpg-despair, #drpg-events, #drpg-player-status, #countdowns, #drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher, [data-drpg-cluster]) {
     opacity: 0;
-    transition: opacity var(--drpg-t-beat) var(--drpg-ease-leave);
 }
-#drpg-sequence .drpg-seq-glass,
-#drpg-sequence .drpg-seq-pulse { position: absolute; inset: 0; }
+#drpg-sequence .drpg-seq-glass { position: absolute; inset: 0; }
 #drpg-sequence .drpg-seq-piece { position: absolute; }
-#drpg-sequence .drpg-seq-pulse { background: color-mix(in srgb, var(--drpg-seq-light) 10%, transparent); opacity: 0; }
 #drpg-sequence .drpg-seq-lid { position: absolute; left: 0; width: 100%; height: 50%; background: var(--drpg-seq-dark); }
 #drpg-sequence .drpg-seq-lid.is-top { top: 0; border-bottom: calc(6 * var(--drpg-seq-u)) solid var(--drpg-eye); }
 #drpg-sequence .drpg-seq-lid.is-bottom { top: 50%; border-top: calc(6 * var(--drpg-seq-u)) solid var(--drpg-eye); }
