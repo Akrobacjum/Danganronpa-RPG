@@ -822,12 +822,25 @@ function judgeSave(data, sender, world) {
     if (!token?.actor?.testUserPermission?.(sender, "OWNER")) {
         return refuseAs(sub, "refused", "a save for a token the sender does not play");
     }
-    // A save whose dialog was closed: Daggerheart sends the packet anyway, with
-    // no roll in it (`rollSave` returned nothing; chatMessage.mjs). Nothing to mark.
-    const total = numberOf(inner.result?.roll?.total);
-    if (inner.result?.roll?.total === undefined || inner.result?.roll?.total === null || !Number.isFinite(total)) {
+    // Two shapes (E76 C2, 12.11.2026; R3600). Up to 2.12.4 the total came as
+    // `result.roll.total`; from 2.12.5 as `saveTotal` and `isCritical` beside the
+    // message (chatMessage.mjs `onRollSave`, 2.12.8:274-290), and socket.mjs's case
+    // reads those two. A packet with a `saveTotal` key is read as 2.12.5's alone,
+    // whatever else it carries: a null there is dropped, as that build's
+    // `updateSaveMessage` marks nothing for it. A save whose dialog was closed: up
+    // to 2.12.4 Daggerheart sent the packet anyway, with no roll in it (`rollSave`
+    // returned nothing); nothing to mark.
+    const modern = Object.hasOwn(inner, "saveTotal");
+    const claimed = modern ? inner.saveTotal : inner.result?.roll?.total;
+    const total = numberOf(claimed);
+    if (claimed === undefined || claimed === null || !Number.isFinite(total)) {
         return dropAs(sub, "a save with no roll in it");
     }
+    const isCritical = Boolean(modern ? inner.isCritical : inner.result?.roll?.isCritical);
+    // Forwarded in both shapes with the one judged total: the case that reads them
+    // is in Daggerheart's `EVENT_HANDLERS`, which the listener this file wraps only
+    // reaches through a hook, so which build runs is not read off its text, and each
+    // build's handler reads its own fields and none of the other's.
     return forwardTo(sub, {
         action: GM_UPDATE,
         data: {
@@ -835,7 +848,8 @@ function judgeSave(data, sender, world) {
             data: {
                 action: typeof inner.action === "string" ? inner.action : null,
                 message: message.id, token: textOf(inner.token),
-                result: { roll: { total: Math.round(total), isCritical: Boolean(inner.result.roll.isCritical) } }
+                saveTotal: Math.round(total), isCritical,
+                result: { roll: { total: Math.round(total), isCritical } }
             }
         }
     });
