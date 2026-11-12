@@ -62,7 +62,7 @@ Największy z trzech przycisków w prawym dolnym rogu, ten na górze, otwiera **
 W lewym dolnym rogu arkusza: słowo twojego stołu, wypisane na przycisku (**Safe Word** w nowym świecie; świat grany przed 1.1.39 zachował MISIUBOMBO; GM może je zmienić).
 
 > [!CAUTION]
-> Wciśnij, a scena staje, GMowie się dowiadują, wszyscy widzą kartę. Bez powodu, ani teraz, ani później.
+> Wciśnij, a scena staje, GM-owie się dowiadują, wszyscy widzą kartę. Bez powodu, ani teraz, ani później.
 
 ## Gdy idzie źle
 

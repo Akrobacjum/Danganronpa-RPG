@@ -13488,7 +13488,7 @@ const REGRESSIONS = [
                     order: [/Piętra są uporządkowane według wysokości \(elevation\), od najniższego\./],
                     stairs: [/Wejście albo zejście po schodach z jednego pokoju do innego kosztuje jedno przejście, dokładnie jak drzwi\. Pokój narysowany na dwóch piętrach, klatka schodowa, to jeden pokój, a zmiana piętra w nim jest darmowa\./],
                     noStairs: [/zmiana piętra między dwoma pokojami, których schody nie łączą, jest odrzucana, a odmowa wymienia tylko pokój, w którym stoisz/],
-                    offer: [/proponuje graczowi piętra, na których stoją jego tokeny, i każde piętro z pokojem, który odkrył, od najniższego, a GMowi i Mastermindowi każde piętro; pojawia się tylko na scenie o co najmniej dwóch piętrach/],
+                    offer: [/proponuje graczowi piętra, na których stoją jego tokeny, i każde piętro z pokojem, który odkrył, od najniższego, a GM-owi i Mastermindowi każde piętro; pojawia się tylko na scenie o co najmniej dwóch piętrach/],
                     sameRule: [/Gracz widzi pokoje odkryte przez swoją postać na każdym piętrze dokładnie tak jak na własnym: za zasłoną, bez cudzych tokenów\. Pokój, w którym nigdy nie był, zostaje pod pełną mgłą na każdym piętrze\./],
                     regionCheck: [/\| `checkRegions\(\)` \| sprawdza pokoje sceny na ekranie i wypisuje, od najpoważniejszych: pokój, którego kształtu nie da się odczytać, dwa nachodzące na siebie pokoje, granicę odchodzącą od ścian, pokój bez wyjścia, region bez nazwy, pokój z nazwą nadaną przez Foundry, pokój, którego części różnią się brakiem prywatności, właścicielem albo wysokością, nazwany region, który nie jest pokojem \(i dlaczego\), oraz narożniki poza siatką samej mapy;/],
                     floorColumn: [/`checkRegions\(\)` sprawdza każde piętro osobno i podaje je w kolumnie `floor`/,
@@ -14915,8 +14915,8 @@ const REGRESSIONS = [
                     public: ["**Ujawnij**, obok Zamknij, daje przejście od razu każdemu uczniowi", "**Utajnij** oddaje je z powrotem tylko uczniom wymienionym w jego wierszu"],
                     columns: ["w kolumnach Pokoje, Rodzaj, Kształt, Pochodzenie, Kto zna, Na start sezonu i Stan"],
                     secretDoors: ["| Brak sekretnych drzwi Foundry (zalecane) |", "**Zamień na przejścia** robi z każdych zwykłą, zamkniętą ścianę",
-                        "przeglądarka głównego GMa ustawia sekretne drzwi, które zmienił gracz, z powrotem tak, jak GM ostatnio je zostawił (to pamiętają same drzwi; drzwi, których żaden GM jeszcze nie zmieniał, tak, jak stały, kiedy przeglądarka GMa pierwszy raz je zastała)",
-                        "a te zmienione, kiedy nie był połączony żaden GM, zaraz po połączeniu się GMa, wymieniając ich scenę na ekranie GMa"],
+                        "przeglądarka głównego GM-a ustawia sekretne drzwi, które zmienił gracz, z powrotem tak, jak GM ostatnio je zostawił (to pamiętają same drzwi; drzwi, których żaden GM jeszcze nie zmieniał, tak, jak stały, kiedy przeglądarka GM-a pierwszy raz je zastała)",
+                        "a te zmienione, kiedy nie był połączony żaden GM, zaraz po połączeniu się GM-a, wymieniając ich scenę na ekranie GM-a"],
                     rulers: ["| Linijka ruchu graczy jest ukryta (opcjonalnie) |", "**Ukryj** zabiera linijkę ruchu rolom Gracz i Zaufany gracz, a **Pokaż** ją oddaje"]
                 },
                 player: {
@@ -14931,7 +14931,7 @@ const REGRESSIONS = [
                     findPassage: ["Find Stash (16+) albo Find Passage (16+)"]
                 },
                 stale: ["Trzy rzeczy za jednym kafelkiem", "gdziekolwiek uczeń stoi w tej chwili", "Find Stash tylko wtedy, gdy wciąż tam stoisz", "Tajne przejście to odcinek zwykłej ściany między dwoma pokojami jednego piętra:",
-                    "sekretne drzwi otwarte przez gracza przeglądarka głównego GMa zamyka z powrotem"]
+                    "sekretne drzwi otwarte przez gracza przeglądarka głównego GM-a zamyka z powrotem"]
             }
         };
         const BOOKS = { gm: "gm-handbook", player: "player-handbook", brochure: "player-brochure" };

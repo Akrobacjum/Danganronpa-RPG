@@ -47784,7 +47784,8 @@ const INVARIANTS = [
             en: [/crime/i, /secret project/i, /left behind/i, /GM/, /GM/],
             pl: [/zbrodni/i, /tajny projekt/i, /zosta/i, /GM/, /GM/]
         };
-        const SWEEP = { en: [/total/i, /sweep/i, null, /sweep/i, /trace/i], pl: [/wynik/i, /rozgl[aą]dani/i, null, /rozgl[aą]dani/i, /[sś]lad/i] };
+        // The texts line, 12.11.2026: "trace"/"ślad" became "Remnant" in sentences (DB15, glossary remnant), anythingHint included.
+        const SWEEP = { en: [/total/i, /sweep/i, null, /sweep/i, /Remnant/], pl: [/wynik/i, /rozgl[aą]dani/i, null, /rozgl[aą]dani/i, /Remnant/] };
         const read = {}, want = {};
         for (const [code, file] of [["en", en], ["pl", pl]]) {
             read[code] = KEYS.map((key, i) => {

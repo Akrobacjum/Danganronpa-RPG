@@ -19,7 +19,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | e97-98 | 1b8d19af | 7fa07aee |
 | e73 | 6a914d02 | fa73b601 |
 | e92 | 7d907a7e | fa73b601 |
-| e93 | 15843942 | f22a7e87 |
+| e93 | db683702 | f22a7e87 |
 | e72 | 587de41e | f22a7e87 |
 | e64 | 951cd1fd | fa73b601 |
 | gaps-a | 2338c823 | fa73b601 |
@@ -117,7 +117,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | player-handbook.pl.md | ### Sypialnie, klucze, skrytki | e64 |
 | player-handbook.pl.md | ### Tamper - Shadow, 1 akcja | e64 |
 
-## Lang keys (344 paths; a path that is an object freezes its opening line only, its leaves are listed one by one)
+## Lang keys (350 paths; a path that is an object freezes its opening line only, its leaves are listed one by one)
 
 | Key | Branches |
 | --- | --- |
@@ -373,10 +373,16 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.Price.nothingLeft.tamper` | e64 |
 | `DRPG.Price.nothingLeft.tamperSkippedAction` | e64 |
 | `DRPG.Project.closeBreachSummary` | e93 |
+| `DRPG.Project.descriptionTold` | e93 |
 | `DRPG.Project.kindOwn` | e93 |
 | `DRPG.Project.preset.closeBreach` | e93 |
 | `DRPG.Project.preset.repairItem` | e93 |
 | `DRPG.Project.preset.sealPassage` | e93 |
+| `DRPG.Project.proposalNotSent` | e93 |
+| `DRPG.Project.proposalPlaceholder` | e93 |
+| `DRPG.Project.proposalPrompt` | e93 |
+| `DRPG.Project.proposalSent` | e93 |
+| `DRPG.Project.proposerKnows` | e93 |
 | `DRPG.Project.repairBroken` | e93 |
 | `DRPG.Project.repairItemSummary` | e93 |
 | `DRPG.Project.repairLabel` | e93 |

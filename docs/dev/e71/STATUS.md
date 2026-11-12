@@ -22,7 +22,9 @@ Counts are changes, one per plural form; a key changed in two areas counts in bo
 | pilot afters | 28 | 33 | 0 | the 40 strings of docs/dev/text-pilot.json, approved by the owner (verdict "ok", 01.11.2026): every after that had not landed and whose key is neither frozen nor config prose |
 | X12 colons (PL) | 0 | 81 | 0 | X12 (confirmed in the pilot): "w pokoju {room}", "postaci {name}" |
 | caps and please | 8 | 2 | 0 | X16, X8 (to confirm in E71) |
-| Remnant in sentences | 85 | 119 | 0 | EN15/PL-r, DB15 (glossary `remnant`, stage E71), DB4 for the Polish cases |
+| Remnant in sentences | 85 | 119 | 2 (GM section 1, EN and PL: the quote of `Vault.descriptionNote`) | EN15/PL-r, DB15 (glossary `remnant`, stage E71), DB4 for the Polish cases |
+| overexplains (T29) | 11 | 10 | 10 (player handbook: the Eclipse, Rooms, the messenger's Note, the settings window; EN and PL) | T29, the owner's rule of 12.11.2026, added to docs/text-style.md section 2 |
+| handbooks: GM-a | 0 | 0 | 67 (Polish handbooks, unfrozen sections) | PL-i/D33c (glossary `gm-a`, scope handbooks) |
 
 ## Text rules exercised ("to confirm in E71"), and the outcome
 
@@ -38,6 +40,7 @@ rule's shape was found, and no applied text needed an exception.
 | O8 (a refusal says what the reader keeps) | through the pilot's approved afters: `DRPG.Action.noRoom` ("you keep your action" / "akcji nie tracisz"), `DRPG.SearchTokens.exhausted` | Applied as the owner approved them. The pilot's EN reviewer note (O8 reads wrong on a dimmed tile's reason, `SearchTokens.exhausted`, and before any price, `Actions.notEnough`) is still the owner's: the owner approved both afters with "ok", so they landed as written. |
 | M5 / O5 (no digit typed into prose) | the pilot's approved Polish after of `DRPG.Settings.searchTokensPerRoom.hint` says "od 0 do 10" | Landed as approved; still a digit the code knows (settings.mjs:1300-1308 `range: { min: 0, max: 10 }`), as the pilot recorded. Stays to confirm. |
 | N1, N2 (keys and placeholders stay) | every change | Holds: the edit script refuses a change to the placeholder set; no key was renamed. |
+| T29 (new, the owner's) | 21 lang values and 10 handbook fragments: browsers, clients and "the primary GM's browser" cut from player texts; the reason behind a GM's limit cut, the limit kept | Applied; the examples are in docs/text-style.md. A first pass only: about 270 English values still name a browser, a client, the console or a store, most of them GM diagnostics (Case, Season, DiceLook, Contract, GmStore), where some of it is what a GM needs. |
 | X4 (dash aside), X3 ("X, not Y"), X11 (passive) | not exercised | Out of this pass: 1053, 72 and 86 finds, nearly all style, in keys E71's batches rewrite whole. |
 
 ## For the coordinator
@@ -55,6 +58,10 @@ edited unless the row says so.
 | lang/pl.json (130 places) | "Remnants" | Polish sentences use both the inflected "Remnanty"/"Remnantów" (DB4) and the English plural "Remnants" (e.g. "Faint Remnants", "Remnants na mapie"). This pass wrote the inflected forms where it replaced "ślad", and left the existing "Remnants". | Which plural a Polish sentence takes is DB4's question for the owner; many of the places are frozen. |
 | lang/pl.json `DRPG.Remnant.projectNote`, `projectNoteUncovered` | "rzut {total} na zatarcie Remnantów" | The English says "rolled {total} to cover their tracks", an idiom; the Polish now names the mechanic (Remnants) instead of the idiom "zatarcie śladów". | Changed (DB15 forbids "ślad"); the owner may prefer another phrase. |
 | lang/pl.json (two values) | U+2212 | Two minus signs remain in `lang/pl.json` (T6's baseline rows, E25 C2's own work: the rows' `empties` say E25). | Not touched: the baseline change belongs with E25 C2. |
+| lang/en.json, lang/pl.json (frozen keys) | `DRPG.Trial.presentByButton` (e73 and others) | Overexplains (T29) to a player: "the GM's browser posts its card". | Frozen; for the owning line. |
+| lang/en.json, lang/pl.json (frozen) | `DRPG.Observe.resolveLostOwner` | Overexplains (T29) to a player: "the GM's browser has no record of what you were looking at". | Frozen; for the owning line. |
+| lang/en.json, lang/pl.json (frozen) | `DRPG.Settings.highContrast.hint`, `reducedMotion.hint` (e61-62, e92) | End "This client only." / "Tylko ten klient." where EN14/PL-o say "Only affects this browser." / "Dotyczy tylko tej przeglądarki."; the hint also explains the Interface scale's split. | Frozen; for the owning line. |
+| docs/handbooks/player-handbook.*.md section 5 (frozen by e64, e72) | the Calls paragraph (EN line 397) | Overexplains (T29): "bought on the GM's browser", "read in the code, not measured for a Call", "a roll the GM's browser throws". | Frozen; for the owning line. |
 | scripts/config.mjs and `DRPG.Config.*` in pl.json | config prose | Not edited in this pass at all (see FROZEN.md); the pilot's config afters and pair N25 (`ACTIONS.palm.description`) wait there. | Four open branches change config.mjs by line. |
 
 ## Tests whose expected wording changed
@@ -67,4 +74,7 @@ then given the new wording.
 | R1158 | scripts/tests-tier0.mjs | `DRPG.Calls.armedForYou` en and pl | the pilot's approved afters |
 | R902 | scripts/tests-tier1.mjs | `DRPG.Passage.tab.wayOnly` pl "Tylko z: {from}, do: {to}" | "Tylko z pokoju {from} do pokoju {to}" |
 | R904 | scripts/tests-tier1.mjs | `DRPG.Passage.list.oneWay` pl | pair N15's after |
+| R3136 | scripts/tests-tier1.mjs | `DRPG.Observe.anythingHint` read for /trace/ and /ślad/ | /Remnant/ in both (red first: failed in the tier 1 run) |
+| R518 | (no test change) | the GM handbook's quote of `DRPG.Vault.descriptionNote` (section 1, line 88) | the quote was updated with the key (red first) |
+| R387, R603 | scripts/tests-tier0.mjs (lines 13491, 14918, 14919, 14934) | Polish handbook sentences read with "GMowi", "GMa" | the same sentences with "GM-owi", "GM-a" (red first: both failed in the tier 1 run) |
 | R431 | (no test change) | the GM handbook's copy of `DRPG.Season.roomGuide` (section 2, line 136) | the handbook line was updated with the key |
