@@ -6046,12 +6046,9 @@
       "notNow": "Not now"
     },
     "CaseTrial": {
-      "open": "Case schema",
       "title": "Case schema",
-      "intro": "Tick a deduction, counter or solution when the class reaches it. Only ticked ones go into the players' summary. A hint means the presented evidence would carry it.",
       "empty": "This chapter has no case schema yet. Build it on the Map in the Investigation panel.",
       "floorOpen": "A floor is open. Close it before you start another mode.",
-      "noTrial": "No Class Trial is running. Start it before you start a mode.",
       "tickLabel": "Ticked: {name}",
       "startLabel": "Start {mode} from {name}",
       "hint": "Hint: the presented evidence carries this",

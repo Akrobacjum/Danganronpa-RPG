@@ -8542,10 +8542,15 @@ const INVARIANTS = [
         must(src.length > 100, "case-hints.mjs read as nothing - this would measure nothing");
         equal(JSON.stringify(["setCaseTick", "caseTickStore", "setFlag", "update("].filter(w => src.includes(w))), "[]", "words of a write in case-hints.mjs");
     }],
-    ["R3676 - the trial's Case schema window, drawn (E99 C5; Q-E99-1, the plan's C5 census): case-trial.mjs `trialSchemaHtml` draws the graph read-only, a tick box on each deduction, counter and solution (none on evidence), each ticked one checked; every node whose trial mode has a start in trial-floor.mjs MODE_STARTS a start button with the mode's name, greyed with the console's reason while a floor is open or no Class Trial runs (E99 C5 placed); a mode raised by a player no button; the presented evidence and the hinted conclusions marked, and the cards with no Remnant said", async () => {
-        /* E99 C5, 12.11.2026. A planted state. Red at 9290ce0: no case-trial.mjs. */
-        const T = await import("./case-trial.mjs").catch(() => null);
-        must(T && typeof T.trialSchemaHtml === "function", "there is no case-trial.mjs trialSchemaHtml - the trial has no schema");
+    ["R3913 - the trial's case schema in the console, drawn, and nothing for a player (E99 C5; the owner's 12.11 ~12:00 and 13:15: no ticks before the trial, the tick a button on the tile, the schema in the console's slot and no window of its own): case-trial.mjs `trialSchemaHtml` draws the Map's graph read-only with its camera; while a Class Trial runs each deduction, counter and solution (no evidence) a tick button on its tile, pressed when ticked, and each whose trial mode has a start in trial-floor.mjs MODE_STARTS that start on its tile, named, greyed with the console's reason while a floor is open; a mode a player raises no start; before a trial no tick and no start; the presented evidence and the hinted conclusions marked, the cards with no Remnant said; no tick box anywhere. The console's footer has no Case schema button and TRIAL_ACTIONS no `caseSchema`; case-trial.mjs opens no window. A player's tick and start write and start nothing", async () => {
+        /*
+         * E99 C5, 12.11.2026. A planted state, and the sources read. It takes the place of R3676 (the window, drawn) and
+         * R3677 (the window's button and a player's open), removed with the window (the owner's 13:15). Red at fd3c07d:
+         * the footer's `caseSchema`, TRIAL_ACTIONS' and case-trial.mjs `openTrialSchema` stood, and the drawing without
+         * `inConsole` was the window's list of tick boxes.
+         */
+        const T = await import("./case-trial.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
         const { MODE_STARTS } = await import("./trial-floor.mjs");
         const { layoutCase } = await import("./case-layout.mjs");
         const node = (id, kind, extra = {}) => ({ id, kind, evidence: kind === "trace", name: id.toUpperCase(), label: id.toUpperCase(), ...extra });
@@ -8554,11 +8559,14 @@ const INVARIANTS = [
         const draw = (floorOpen, noTrial = false) => {
             const box = document.createElement("div");
             box.innerHTML = T.trialSchemaHtml({ graph, layout: layoutCase(graph), ticks: { d1: true }, presented: ["e1"], hints: ["s"], unknown: 2, floorOpen, noTrial });
-            const starts = [...box.querySelectorAll("[data-drpg-case-start]")];
+            const canvas = box.querySelector(".drpg-case-graph > .drpg-case-canvas");
+            const starts = [...box.querySelectorAll("button[data-drpg-case-start]")];
             return {
-                ticks: [...box.querySelectorAll("input[data-drpg-case-tick]")].map(i => `${i.dataset.drpgCaseTick}:${i.checked}`),
-                starts: starts.map(b => `${b.dataset.drpgNode}:${b.dataset.drpgCaseStart}:${b.disabled}:${b.textContent.includes(game.i18n.localize(`DRPG.Floor.mode.${b.dataset.drpgMode}`))}`),
-                reasons: starts.filter(b => b.disabled).map(b => Boolean(b.title)),
+                camera: Boolean(box.querySelector(".drpg-case-graph > .drpg-case-camera")),
+                ticks: [...box.querySelectorAll("button[data-drpg-case-tick]")].map(b => `${b.dataset.drpgCaseTick}:${b.getAttribute("aria-pressed")}:${b.parentElement === canvas}`),
+                starts: starts.map(b => `${b.dataset.drpgCaseStartNode}:${b.dataset.drpgCaseStart}:${b.disabled}:${b.parentElement === canvas}:${(b.getAttribute("aria-label") || "").includes(game.i18n.localize(`DRPG.Floor.mode.${b.dataset.drpgMode}`))}`),
+                reasons: starts.filter(b => b.disabled).map(b => (b.title || "").includes(game.i18n.localize("DRPG.CaseTrial.floorOpen"))),
+                boxes: box.querySelectorAll("input[type=checkbox], .drpg-case-trial-rows").length,
                 presented: [...box.querySelectorAll(".drpg-case-node.is-presented")].map(b => b.dataset.drpgNode),
                 hinted: [...box.querySelectorAll(".drpg-case-node.is-hinted")].map(b => b.dataset.drpgNode),
                 unknown: box.querySelectorAll("[data-drpg-case-unknown]").length
@@ -8566,30 +8574,33 @@ const INVARIANTS = [
         };
         const wanted = Object.entries(MODE_STARTS).filter(([, r]) => r.action).map(([m]) => m);
         must(wanted.includes("testimony") && wanted.includes("closing") && !wanted.includes("objection"), "MODE_STARTS has changed under this test - its plant reads no start");
-        equal(JSON.stringify([draw(false), draw(true), draw(false, true)]), JSON.stringify([
-            { ticks: ["d1:true", "c1:false", "s:false"], starts: ["d1:startTestimony:false:true", "s:startClosing:false:true"], reasons: [], presented: ["e1"], hinted: ["s"], unknown: 1 },
-            { ticks: ["d1:true", "c1:false", "s:false"], starts: ["d1:startTestimony:true:true", "s:startClosing:true:true"], reasons: [true, true], presented: ["e1"], hinted: ["s"], unknown: 1 },
-            { ticks: ["d1:true", "c1:false", "s:false"], starts: ["d1:startTestimony:true:true", "s:startClosing:true:true"], reasons: [true, true], presented: ["e1"], hinted: ["s"], unknown: 1 }
-        ]), "[no floor open, a floor open, no Class Trial running]: tick boxes, start buttons (node:action:greyed:named), reasons on the greyed, marks, the unknown cards' line");
-    }],
-    ["R3677 - Case schema from the console, and nothing for a player (E99 C5): the console's trialButtons offers `caseSchema` while a trial runs and after it, and TRIAL_ACTIONS opens case-trial.mjs `openTrialSchema`; a player's `openTrialSchema` and `tickFromSchema` open and write nothing; trial-floor-ui.mjs `startTrialMode` starts only what MODE_STARTS names", async () => {
-        /* E99 C5, 12.11.2026. Read off the source and called on a planted player. Red at 9290ce0: no case-trial.mjs. */
-        const T = await import("./case-trial.mjs").catch(() => null);
-        must(T && typeof T.openTrialSchema === "function" && typeof T.tickFromSchema === "function", "there is no case-trial.mjs openTrialSchema / tickFromSchema");
+        const marks = { presented: ["e1"], hinted: ["s"], unknown: 1 };
+        const ticks = ["d1:true:true", "c1:false:true", "s:false:true"];
+        equal(stableJson([draw(false), draw(true), draw(false, true)]), stableJson([
+            { camera: true, ticks, starts: ["d1:startTestimony:false:true:true", "s:startClosing:false:true:true"], reasons: [], boxes: 0, ...marks },
+            { camera: true, ticks, starts: ["d1:startTestimony:true:true:true", "s:startClosing:true:true:true"], reasons: [true, true], boxes: 0, ...marks },
+            { camera: true, ticks: [], starts: [], reasons: [], boxes: 0, ...marks }
+        ]), "[no floor open, a floor open, no Class Trial running]: the camera, tick buttons (node:pressed:on the canvas), starts (node:action:greyed:on the canvas:named), the greyed ones' reason, tick boxes or a list, marks, the unknown cards' line");
+        /* The window and its button, gone: read off the source (comments out) and the module's exports. */
         const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/trial-floor-ui.mjs`).then(r => (r.ok ? lfText(r) : "")));
         must(src.length > 1000, "trial-floor-ui.mjs read as nothing - this would measure nothing");
-        const buttons = fnSource(src, "trialButtons");
-        const UI = await import("./trial-floor-ui.mjs");
-        const counts = [];
+        const own = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/case-trial.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        must(own.length > 500, "case-trial.mjs read as nothing - this would measure nothing");
+        const footer = UI.trialFooter({ floor: null, running: true, restrictive: false, finalNow: false,
+            progress: { voteClosed: true, verdictApplied: true, closing: null, againAfterOverrule: null, debateAgain: false, findings: [] },
+            pending: null, bar: null, afterwards: true, stopped: null, register: 0, deathThisChapter: false, next: "chapterEnd",
+            runner: null, table: null, rows: [], left: 0, isDefault: () => false });
+        const actions = [...(footer.secondary ?? []), ...(footer.destructive ?? []), ...(footer.primary ? [footer.primary] : [])].map(b => b.action);
+        const players = [];
         Object.defineProperty(game.user, "isGM", { value: false, configurable: true });
         try {
-            counts.push(await T.openTrialSchema(), await T.tickFromSchema(1, "d1", true), await UI.startTrialMode("startTestimony"));
+            players.push(await T.tickFromSchema(1, "d1", true), await UI.startTrialMode("startTestimony"), T.mountTrialSchema({ element: document.createElement("div") }));
         } finally { delete game.user.isGM; }
-        equal(JSON.stringify({
-            button: /action: "caseSchema"/.test(buttons), action: /caseSchema: async \(\) => \(await import\("\.\/case-trial\.mjs"\)\)\.openTrialSchema\(\)/.test(src),
-            player: counts, refused: await UI.startTrialMode("end")
-        }), JSON.stringify({ button: true, action: true, player: [null, null, null], refused: null }),
-        "{the console's button; its action; a player's open, tick and start; a start of what is no mode's}");
+        equal(stableJson({
+            summary: actions.includes("caseSummary"), schema: actions.includes("caseSchema"), action: /\bcaseSchema\s*:/.test(src),
+            window: "openTrialSchema" in T || /drpgWindow|drpg-window-case-trial/.test(own), player: players, refused: await UI.startTrialMode("end")
+        }), stableJson({ summary: true, schema: false, action: false, window: false, player: [null, null, null], refused: null }),
+        "{the footer's Case summary after the verdict (the control), its Case schema, TRIAL_ACTIONS' caseSchema, a window in case-trial.mjs; a player's tick, start and mount; a start of what is no mode's}");
     }],
     ["R3900 - the hall's zones as shapes (E73 C1; TR20 = 1, Q-E73-4): zone-geometry.mjs `zoneAt` names the zone a point is in - a region's `testPoint` with the elevation first, its polygon tree or box only where it cannot be asked, a hole asked answering no, a point both hold on the line; `zoneCoverage` finds a gap and an overlap by the grid's squares and says a gridless hall past its budget was not checked; `zoneWarnings` names none picked, one, the same region twice, a region gone, an overlap and a gap, and nothing for two zones that tile the hall", async () => {
         /*
@@ -36314,8 +36325,11 @@ const INVARIANTS = [
         const OPENERS = {
             "gm-panel.mjs": { cls: "drpg-window-panel", open: () => import("./gm-panel.mjs").then(m => m.openGmPanel()) },
             "sound-panel.mjs": { cls: "drpg-window-sound", open: () => import("./sound-panel.mjs").then(m => m.openSoundDialog()) },
-            // E99 C5: the trial's Case schema window, which redraws on the floor's key (a GM's window; tier 1 runs on one)
-            "case-trial.mjs": { cls: "drpg-window-case-trial", open: () => import("./case-trial.mjs").then(m => m.openTrialSchema()) }
+            // E99 C5: the trial's case schema, which redraws on the floor's key, in the Class Trial console's slot (a GM's
+            // window; tier 1 runs on one). Its own window went with the owner's 13:15 (12.11.2026); the console mounts the
+            // schema after its render, so its region is waited for (`settled`)
+            "case-trial.mjs": { cls: "drpg-window-trial", open: () => import("./trial-floor-ui.mjs").then(m => m.manageClassTrial()),
+                settled: app => app.element?.querySelector("[data-drpg-trial-schema] > .drpg-case-trial-live") }
         };
         /* NOT OPENED HERE, and why: each stands only while the world holds what it is about, which is a world write tier 1
            may not make. The readiness round's GM window (boundary.mjs `roundWindow`) while a round is open; its build reads
@@ -36333,11 +36347,11 @@ const INVARIANTS = [
         const appOf = cls => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes(cls));
         const reads = {}, declared = {};
         let readAny = 0;
-        for (const [file, { cls, open }] of Object.entries(OPENERS)) {
+        for (const [file, { cls, open, settled = () => true }] of Object.entries(OPENERS)) {
             const was = appOf(cls);
             const opening = was ? null : Promise.resolve().then(open).catch(() => null);
             try {
-                must(await until(() => appOf(cls), 6000), `${file}'s window did not open`);
+                must(await until(() => appOf(cls) && settled(appOf(cls)), 6000), `${file}'s window did not open`);
                 const regions = L.liveRegions(appOf(cls)).filter(r => Array.isArray(r.watch?.settings));
                 declared[file] = regions.length;
                 const get = game.settings.get;
@@ -38721,12 +38735,12 @@ const INVARIANTS = [
             footers: {
                 none: [["start", "primary", true], ["close", "close", false], ["toggleFinal", "destructive", false]],
                 running: [["openDebate", "primary", true], ["close", "close", false],
-                    ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false], ["caseSchema", "secondary", false],
+                    ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false],
                     ["chapterEnd", "destructive", false], ["end", "destructive", false], ["toggleFinal", "destructive", false]],
-                chapterNext: [["close", "close", true], ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false], ["caseSchema", "secondary", false],
+                chapterNext: [["close", "close", true], ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false],
                     ["start", "secondary", false], ["chapterEnd", "destructive", false], ["toggleFinal", "destructive", false]],
                 final: [["openDebate", "primary", true], ["close", "close", false],
-                    ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false], ["caseSchema", "secondary", false],
+                    ["vote", "secondary", false], ["verdict", "secondary", false], ["caseSummary", "secondary", false],
                     ["toggleFinal", "secondary", false], ["chapterEnd", "destructive", false], ["end", "destructive", false]]
             },
             ended: null,

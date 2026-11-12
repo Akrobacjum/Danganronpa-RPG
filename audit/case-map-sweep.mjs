@@ -97,7 +97,7 @@ async function readMap(page, { plantBox = false, staleLayout = false } = {}) {
         if (plantBox) {
             const s = document.createElement("style");
             // the node rule's own selector (components.css), so the plant wins by coming later
-            s.textContent = "body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node] { height: 54px; overflow: hidden; }";
+            s.textContent = "body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node] { height: 54px; overflow: hidden; }";
             document.head.appendChild(s);
         }
         const canvas = document.querySelector(".drpg-case-canvas");

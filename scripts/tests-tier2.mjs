@@ -27255,51 +27255,9 @@ const SCENARIOS = [
         equal(JSON.stringify(counts), JSON.stringify([0, 1, 0]), "[question windows after a rehearsal, after the first body, after a second]");
     }],
 
-    ["E99 C5: a tick box in the trial's Case schema writes the GMs' ticks, and a Present changes no tick", async () => {
-        /*
-         * E99 C5, C4; 12.11.2026. A deduction in this chapter's case; the Case schema window opened on this GM; its tick
-         * box clicked on, then off, each read back off case-schema.mjs `caseTicks`; then a planted presentation read by
-         * case-hints.mjs, which leaves the ticks as they were. Red at 9290ce0: no case-trial.mjs.
-         */
-        const T = await import("./case-trial.mjs").catch(() => null);
-        must(T && typeof T.openTrialSchema === "function", "there is no case-trial.mjs openTrialSchema");
-        const S = await import("./case-schema.mjs");
-        const H = await import("./case-hints.mjs");
-        needs(env.dialogs(), "the tick box is clicked in the drawn window");
-        const chapter = getClock().chapter;
-        const id = "deduction-suitee99c5";
-        const windows = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case-trial"));
-        const seen = [];
-        try {
-            await S.setCaseNode(chapter, id, { kind: "deduction", label: "SUITE E99 C5" });
-            await gmStoresIdle();
-            T.openTrialSchema();
-            await until(() => windows().length > 0, 3000);
-            const box = () => windows()[0].element.querySelector(`input[data-drpg-case-tick="${id}"]`);
-            must(box(), "the window drew no tick box for the planted deduction");
-            seen.push(Boolean(S.caseTicks(chapter)[id]));
-            box().click();
-            await until(() => S.caseTicks(chapter)[id] === true, 3000).catch(() => {});
-            seen.push(Boolean(S.caseTicks(chapter)[id]));
-            await until(() => box()?.checked === true, 3000).catch(() => {});
-            box().click();
-            await until(() => !S.caseTicks(chapter)[id], 3000).catch(() => {});
-            seen.push(Boolean(S.caseTicks(chapter)[id]));
-            const before = JSON.stringify(S.caseTicks(chapter));
-            H.presentationHints(S.caseGraph(chapter), [{ nodeId: "nowhere", actorId: "x" }], { ticks: S.caseTicks(chapter) });
-            H.casePresentations(chapter);
-            seen.push(JSON.stringify(S.caseTicks(chapter)) === before);
-        } finally {
-            for (const w of windows()) await w.close().catch(() => {});
-            await S.setCaseTick(chapter, id, false).catch(() => {});
-            await S.dropCaseNode(chapter, id).catch(() => {});
-        }
-        equal(JSON.stringify(seen), JSON.stringify([false, true, false, true]), "[ticked before, after a click, after a second click, the ticks unchanged by a presentation's read]");
-    }],
-
     ["E99 C4: a Present card of a copy of a Remnant on the schema marks it presented and hints the deduction it carries, without a tick", async () => {
         /*
-         * E99 C4 and C8's open item (12.11.2026): the presentation read end to end, as the Case schema window reads it
+         * E99 C4 and C8's open item (12.11.2026): the presentation read end to end, as the console's case schema reads it
          * (case-trial.mjs `trialSchemaState`), from a card shaped as trial.mjs `presentBullet` posts it (speaker, item,
          * chapter) over a real copy and its answer key. The trace is placed in this chapter (traceCopies' trace carries
          * none, so it is on no chapter's schema). A deduction resting on that Remnant alone is hinted (one of one), and
