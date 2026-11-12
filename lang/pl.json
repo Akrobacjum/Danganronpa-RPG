@@ -1164,6 +1164,7 @@
     },
     "Monocub": {
       "meddleRefused": "Confusion ich nie dosięga. Nie tracisz akcji ani Hope.",
+      "free": "Za darmo",
       "wrongVerdictTitle": "Werdykt był błędny",
       "wrongVerdictCard": "Sprawca chodzi wolno. Do następnej rozprawy nie używaj swoich ruchów na korzyść ani na szkodę tej osoby, jej projektów, Bribe ani Ghost Bet.",
       "wrongVerdictTold": "Wiedzą, że werdykt puścił sprawcę: {names}.",
@@ -1258,7 +1259,7 @@
       "silencedBadge": "Milczenie o zbrodni",
       "silencedTooltip": "Jesteś świadkiem: nie możesz mówić o zbrodni do końca tego rozdziału; Confusion wciąż działa.",
       "invite": "Zaproś jako Monocuba",
-      "onlyTwoActions": "Monocub ma dwie rzeczy do zrobienia: przejście do innego pokoju i Confusion. Reszta panelu akcji należy do żywych.",
+      "onlyTwoActions": "Monocub przechodzi między pokojami i używa swoich kafelków: Confusion, Redeem i Ask for Hope. Reszta panelu akcji należy do żywych.",
       "giveAtLeast": "Wpisz, ile Despair zamienić w Hope - co najmniej {n}."
     },
     "Mastermind": {

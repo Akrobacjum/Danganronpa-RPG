@@ -17550,6 +17550,54 @@ const SCENARIOS = [
             "a wrong verdict did not tell exactly the case's dead and the chapter's witnesses among the Monocubs ([who was told, the summary's lines])");
     }],
 
+    ["the Monocub's tiles say why they are shut: Redeem used today, the Hope full, an Ask for Hope open; none when free to use (E72 C9)", async () => {
+        /*
+         * E72 C9, 12.11.2026; audit S18-62, DC22. The sheet's Monocub tiles dimmed only on the price (actions, Hope), so
+         * Redeem used today and an open Ask for Hope looked pressable until the GM refused them. The tile asks the row's
+         * blocks this browser can answer (monocub.mjs `cubBlockSaid`, read by sheet.mjs `abilityButton`). A Monocub with
+         * two Hope and nothing used (a); Redeem used today (b); an Ask for Hope open (c); the Hope full (d). Read: each
+         * tile's sentence for Redeem and Ask for Hope (that the tile reads it is R3803's). Red at f22a7e8's runtime: no
+         * cubBlockSaid.
+         */
+        const [cub] = cast(1);
+        const M = await import("./monocub.mjs");
+        const { MONOCUB } = await import("./config.mjs");
+        const { cubStore } = await import("./gm-stores.mjs");
+        const { resourceMax } = await import("./character.mjs");
+        const was = cub.system.resources.hope.value;
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const read = {};
+        try {
+            ok(typeof M.cubBlockSaid === "function", "monocub.mjs has no cubBlockSaid - the tiles do not say why they are shut (E72 C9)");
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await cub.update({ "system.resources.hope.value": 2 });
+            if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            await settle();
+            const say = () => [M.cubBlockSaid(cub, MONOCUB.abilities.redeem), M.cubBlockSaid(cub, MONOCUB.abilities.askHope)];
+            read.a = say();
+            const clock = getClock();
+            await cubStore.patch(cub.id, { redeemDay: { chapter: clock.chapter, epoch: seasonEpoch(), day: clock.day } });
+            read.b = say();
+            await cubStore.patch(cub.id, { redeemDay: null, askOpen: true });
+            read.c = say();
+            await cubStore.patch(cub.id, { askOpen: null });
+            await cub.update({ "system.resources.hope.value": resourceMax(cub, "hope") });
+            await settle();
+            read.d = say();
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await cub.update({ "system.resources.hope.value": was });
+            if (cubStore) {
+                if (rowWas) await cubStore.patch(cub.id, rowWas);
+                else if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ a: [null, null], b: ["DRPG.Monocub.redeemUsed", null], c: [null, "DRPG.Monocub.askStillOpen"],
+            d: ["DRPG.Monocub.hopeFull", "DRPG.Monocub.hopeFull"] }),
+            "a Monocub's tile does not say why it is shut ([Redeem's, Ask for Hope's sentence] free, Redeem used, an ask open, the Hope full)");
+    }],
+
     ["in an Eclipse the picker is shut and the GM refuses Confusion with nothing paid (E72 C1)", async () => {
         /*
          * E33 C10; CALL-16 and the plan's 2.7. The row's locks (`CUB_LOCKS`: the Eclipse, the

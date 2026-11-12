@@ -42,7 +42,7 @@ import { murderState, sideOf, betrayalTarget, isTheirTurn, crisisTileLabel } fro
 // the Despair Call "Silence" on a living student (no Hope Calls until the time of
 // day ends). Until then both arrived under one bare name and were renamed at this door,
 // which is how a reader of this file took one for the other.
-import { isMonocub, isCrimeSilenced } from "./monocub.mjs";
+import { isMonocub, isCrimeSilenced, cubBlockSaid } from "./monocub.mjs";
 import { isCallSilenced, isChained, pendingGather, armedCallsShown, alreadyArmed } from "./call-effects.mjs";
 import { isDeceased, isDeadForGm } from "./chapter.mjs";
 
@@ -4725,21 +4725,28 @@ function monocubTiles(actor) {
 function abilityButton(actor, key, def) {
     const held = hopeHeld(actor);
     const affordable = actionsLeft(actor) >= def.cost && held >= def.hopeCost;
+    /* SHUT, AND WHY (E72 C9, 12.11.2026; audit S18-62, DC22): a row's blocks this browser can read - Redeem used today,
+       the Hope full, an Ask for Hope still open (monocub.mjs `cubBlockSaid`, the owner's copy of the GMs' row) - grey
+       the tile with the block's own sentence. The GM asks them again before the price; this is the courtesy. */
+    const shut = cubBlockSaid(actor, def);
+    const free = def.cost === 0 && def.hopeCost === 0;
 
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `drpg-action-button${affordable ? "" : " unaffordable"}`;
+    button.className = `drpg-action-button${affordable && !shut ? "" : " unaffordable"}`;
     // Counted on the actions (E66 C2; S18-36): Hope agrees with nothing in either language.
-    button.dataset.tooltip = `${plural("DRPG.Monocub.meddleCost", {
+    const price = free ? game.i18n.localize("DRPG.Monocub.free") : plural("DRPG.Monocub.meddleCost", {
         actions: def.cost, hope: def.hopeCost
-    }, "actions")}${affordable ? "" : `<br><em>${game.i18n.localize("DRPG.Monocub.cannotMeddle")}</em>`}`;
+    }, "actions");
+    const why = shut ? game.i18n.localize(shut) : affordable ? "" : game.i18n.localize("DRPG.Monocub.cannotMeddle");
+    button.dataset.tooltip = `${foundry.utils.escapeHTML(price)}${why ? `<br><em>${foundry.utils.escapeHTML(why)}</em>` : ""}`;
     // "1 · 1◆" was unreadable without already knowing which number was which.
     // Confusion is the only action in the game that costs two different things,
     // so the tile spells both out in the same order the tooltip does.
     button.innerHTML = `
         <i class="fa-solid ${def.icon} drpg-action-icon" inert></i>
         <span class="drpg-action-name">${softWrap(foundry.utils.escapeHTML(def.label))}</span>
-        <span class="drpg-action-cost">${plural("DRPG.Monocub.meddleCostShort", {
+        <span class="drpg-action-cost">${free ? game.i18n.localize("DRPG.Monocub.free") : plural("DRPG.Monocub.meddleCostShort", {
             actions: def.cost, hope: def.hopeCost
         }, "actions")}</span>`;
 

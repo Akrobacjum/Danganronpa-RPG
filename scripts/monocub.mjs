@@ -642,6 +642,19 @@ export const CUB_BLOCKS = Object.freeze({
     }
 });
 
+/**
+ * The sentence of the first of the row's blocks this browser can answer at once, or null (E72 C9: the sheet's tile).
+ * Synchronous, so the darkening, which needs overflow.mjs, is left to the click and the GM.
+ */
+export function cubBlockSaid(actor, row) {
+    for (const key of row?.blocks ?? []) {
+        if (key === "darkened") continue;
+        const block = CUB_BLOCKS[key];
+        if (block && block.refuses(actor)) return block.say;
+    }
+    return null;
+}
+
 /** The first of the row's blocks that holds, or null: `{ key, why }`. A block the table does not know holds. */
 async function blockOf(row, actor) {
     for (const key of row.blocks ?? []) {
