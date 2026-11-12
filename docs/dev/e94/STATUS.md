@@ -38,6 +38,34 @@ Scenarios that read the changed files, each `--only NN` (84 left out): 00, 10, 1
 88 green; 00, 40 and 72 again after the world-secrets row. `npm run quick` green (lint, check 17/17, the gate's
 self-test 37/37). No tier-2 test of this line's.
 
+## The owner's change of 12.11.2026 (after e1154c1)
+
+The owner, on the review page, through the coordinator (verbatim): "Chowamy hope i despair w podsumowaniu; pokazujemy
+tylko nastroj szkoly liczony z proporcji cale hope uczniow vs hope monocubow + despair monokumow + despair overflow.
+Matma tajna, jedynie widoczny nastroj." (It revoked an earlier word of the same hour that would have shown Hope,
+Despair and the Overflow on the board; nothing of that one was built.)
+
+- The end-of-day board shows no Hope and no Despair: the day's rows, what the school saw and the mood (R3722, red at
+  b07dec9). The counting-up and its styles are gone.
+- The mood is one share: the living students' Hope over that Hope plus the Monocubs' Hope, the Monokumas' Despair (each
+  Monokuma's pool, `getDespair`) and the Overflow count; calm from 0.6, uneasy from 0.4, close to spilling below;
+  nothing dark at all is calm (`moodBand`, `moodInputs`; the bars are config.mjs `MOOD_SHARES`). R3723 rewritten, red
+  at b07dec9. The GM handbook says it in one line; the player handbook names only the three words.
+- Published as the word alone: the clock's world-secrets row keeps the Overflow's names out, and a new tier-2 test
+  ("E94 C4: the school's mood reaches the world as its word alone") writes the mood the GM works out from this world
+  through `setClock` and reads the stored clock - the setting every player's browser is sent - for the word, nothing
+  added beside it and no hit of the rule; red at b07dec9 (no `moodInputs`), green now. What a player's console could
+  read beyond world data is 72-canary's (green).
+- Monocubs: the sheet's Hope; E72's purse is not on this branch.
+- Shots: the review page's new first section (https://claude.ai/artifact/2P85CshwTa2cNyQz4GW7UP, version 2), both
+  themes, EN and PL, 1366x768, player, still; the Despair bar above the board is the harness's HUD under it.
+
+Defaults taken, owner to confirm (added): the bars 0.6 and 0.4; a student dead by the published flag leaves the count,
+a death only the GMs know does not (so the mood never moves on an unfound body); the mood is worked out on the GM who
+advances the clock, not only the primary - every GM holds the same inputs (Hope and Despair are world data, the
+Overflow count is in the GMs' shared store), and routing it to the primary would need a new bridge request for no
+other gain.
+
 ## Not done
 
 - C5's Spectator case: main has no Spectator role yet (E92 builds it on its own branch). Against main, an account with
@@ -52,7 +80,7 @@ self-test 37/37). No tier-2 test of this line's.
 
 - Q-E94-2: "the GM starts the day" is the Night-to-Morning advance; no new button.
 - Q-E94-4: a client that loads after the day began gets no board (the engine's rule: nothing plays from before ready).
-- Q-E94-3: the mood is three words; a player never gets a number.
+- Q-E94-3: the mood is three words; a player never gets a number (and since the owner's word of 12.11, the end board shows no Hope or Despair either).
 - Q-E94-5: the Night's own summary folds into the end board while the switch is on (one card, not two); with the switch
   off the summary shows as before. A Night Eclipse's summary at its start is unchanged.
 - The morning line is a client draft of the GM who types it; with two GMs the line of the GM who advances the clock is

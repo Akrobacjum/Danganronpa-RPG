@@ -100,9 +100,10 @@ export const WORLD_SECRET_RULES = Object.freeze({
            clock.lastAdvance.snapshot.actions on p1 and p2 at f7ac1e9d. A GM store since (gm-stores.mjs
            `takeBackStore`); a null one is found too, as a field the clock should not have. */
         /* E94 C4 (12.11.2026): the school's mood rides in the clock as a word alone (sequence.mjs `MOOD_BANDS`, written by
-           the primary GM's advance, clock.mjs `advanceTimeOfDay`); the Overflow's count and threshold it is read from stay
-           the GMs' (the `overflow` row above). Read by name: these are the names a write of the numbers beside the word
-           would take (overflow.mjs `overflowCount`, `overflowThreshold`); the word itself is held to the three by R3723. */
+           a GM's advance, clock.mjs `advanceTimeOfDay`); the numbers it is worked out from - the students' and the
+           Monocubs' Hope, the Monokumas' Despair, the Overflow count (`moodInputs`) - are never written (the owner's word of
+           12.11: "Matma tajna"). Read by name: the Overflow's two names a write of its numbers beside the word would take;
+           the word itself is held to the three by R3723, and the clock a GM writes by tier 2's "E94 C4" test. */
         clock: Object.freeze({
             fields: Object.freeze(["lastAdvance", "overflowCount", "overflowThreshold"]),
             since: "E17 fix ci-2; the mood's numbers since E94 C4", why: "what the last boundary changed, to take back: every character's budget, keyed by actor id (S10-42); and the Despair overflow's count and threshold the school's mood is read from (S01-60)"

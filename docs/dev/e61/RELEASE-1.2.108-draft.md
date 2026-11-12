@@ -64,11 +64,11 @@ for 3 s).
 At the Night-to-Morning roll-over every connected browser shows two boards, one after the other (e1154c1 for C1, C3, C4):
 
 - **The end-of-day board** (about 6 s): this browser's own actions of the day (a player's own student's; a GM's the
-  table's), the module's public cards of the day (no whisper, no blind roll), the viewer's own student's Hope, Despair
-  as the HUD shows it, and **the school's mood** - Calm / Spokój, Uneasy / Niepokój, Close to spilling / Na krawędzi -
-  read on the GM who advances the clock from the Overflow's count against its threshold (below a third, below two
-  thirds, from there) and published as the word alone; the world-secrets rule keeps the numbers out of the clock. It
-  stays as one card in the notice history and stands in for the Night's own summary.
+  table's), the module's public cards of the day (no whisper, no blind roll), and **the school's mood** - Calm /
+  Spokój, Uneasy / Niepokój, Close to spilling / Na krawędzi. No Hope or Despair numbers (the owner, 12.11). The mood
+  weighs the living students' Hope against the Monocubs' Hope, the Monokumas' Despair and the Overflow, on the GM who
+  advances the clock, and only the word is published; the inputs and the bars (config.mjs `MOOD_SHARES`) stay the
+  GMs'. It stays as one card in the notice history and stands in for the Night's own summary.
 - **The start-of-day board** (about 5 s): the day, the chapter, the hour, the cast in its order with the dead by the
   published flag alone, and the GM's **morning line**, typed in Edit campaign's new field **Next morning's line** /
   **Zdanie na następny poranek**: it stays in that GM's browser until the advance puts it in the clock, and an empty

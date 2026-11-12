@@ -340,14 +340,15 @@ export async function advanceTimeOfDay({
     //
     // Where it goes is `clockAfter`'s, below.
     /* THE MORNING LINE AND THE SCHOOL'S MOOD (E94 C1, C4): at the roll-over, the GM's line - kept on this GM's browser
-       until now (`morningLineDraft`), so it is in no world data before the day starts - and the mood's word, read from
-       the Overflow count only a GM holds, go into this one write; any other move clears them (sequence.mjs
-       `dayStartPatch`). The line is taken from the draft once it is in. */
+       until now (`morningLineDraft`), so it is in no world data before the day starts - and the mood's word, worked out
+       here from the students' Hope, the Monocubs' Hope, the Monokumas' Despair and the Overflow count only a GM holds
+       (sequence.mjs `moodInputs`, `moodBand`), go into this one write; any other move clears them (`dayStartPatch`). The
+       line is taken from the draft once it is in. */
     const seq = await import("./sequence.mjs");
     let draft = "", mood = null;
     if (rolledOver) {
         try { draft = String(game.settings.get(MODULE_ID, SETTINGS.morningLineDraft) ?? ""); } catch { draft = ""; }
-        try { const o = await import("./overflow.mjs"); mood = seq.moodBand(o.overflowCount(), o.overflowThreshold()); } catch { mood = null; }
+        try { mood = seq.moodBand(await seq.moodInputs()); } catch { mood = null; }
     }
     const dayPatch = seq.dayStartPatch({ rolledOver, draft, mood, before });
     const next = await setClock({ ...also, ...dayPatch, timeOfDay, session, day,
