@@ -22194,7 +22194,7 @@ const REGRESSIONS = [
             "anonymity.mjs": {"card": 2}, "bridge-runs-acts.mjs": {"card": 1},
             "bridge-runs-records.mjs": {"action": 1, "message": 1},
             "call-effects.mjs": {"action": 1, "card": 1, "message": 1}, "call-gm.mjs": {"built": 1},
-            "call-world.mjs": {"message": 3}, "calls.mjs": {"heading": 1, "message": 1},
+            "call-world.mjs": {"message": 3}, "calls.mjs": {"heading": 1, "message": 1}, "case-summary.mjs": {"message": 1},
             "chapter.mjs": {"card": 4, "heading": 1, "message": 1},
             "cleanup.mjs": {"action": 5, "built": 1, "card": 4, "heading": 2, "line": 7, "message": 1},
             "clock.mjs": {"built": 1, "line": 1, "message": 1}, "despair.mjs": {"line": 1, "message": 1},
@@ -22220,7 +22220,7 @@ const REGRESSIONS = [
             "states.mjs": {"line": 1}, "tables-editor.mjs": {"card": 1}, "traps.mjs": {"line": 1},
             "trial-floor-ui.mjs": {"message": 4}, "trial-floor.mjs": {"message": 1},
             "trial-modes.mjs": {"heading": 1, "message": 1}, "trial-progress.mjs": {"line": 2, "message": 1},
-            "trial-scene.mjs": {"built": 1, "line": 10}, "trial.mjs": {"line": 9, "message": 4},
+            "trial-scene.mjs": {"built": 1, "line": 10}, "trial-zones.mjs": {"message": 1}, "trial.mjs": {"line": 9, "message": 4},
             "truth-bullets.mjs": {"card": 1, "heading": 2}, "use-items.mjs": {"card": 1, "line": 6},
             "user-match.mjs": {"line": 1}, "utils.mjs": {"built": 1}, "vault-store.mjs": {"card": 1, "line": 2},
             "verdict.mjs": {"built": 3, "message": 1}, "voice.mjs": {"card": 1, "line": 1}, "vote.mjs": {"message": 2}
