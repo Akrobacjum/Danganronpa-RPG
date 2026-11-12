@@ -415,7 +415,7 @@
       "gameNote": "These are the whole table's settings: a change here changes the game for everybody.",
       "liveNote": "The volumes and the voice settings apply as you move them; the rest waits for Save.",
       "sections": {
-        "audio": "Music and voice",
+        "audio": "Voice",
         "foundry": "Foundry and the system",
         "look": "Look",
         "effects": "Effects and accessibility",

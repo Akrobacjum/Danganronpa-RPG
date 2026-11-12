@@ -18500,7 +18500,7 @@ const INVARIANTS = [
             "{one markup for a GM and a player; world rows; each of the Look window's settings' rows; the volume sliders; [the scale's line, the list's foot, the volumes' line]; "
             + "[the gear opens openLookDialog, which opens the settings window, and so does the menu]}");
     }],
-    ["R3531 - the game's settings are a window of their own, for a user who may modify settings (E49 A1d; the owner on A1's shots and on the panel, 11.11.2026): settings-window.mjs `gameSettingsColumns` draws every world setting of the 35 and Vary the sounds, each once, and Give back, no client row; nothing for a user who may not; one section pane shown at first and the section list switches it; `openGameSettingsWindow` is the kit's wide window with Save and Cancel, class `drpg-window-game-settings`, refusing a user who may not", async () => {
+    ["R3531 - the game's settings are a window of their own, for a user who may modify settings (E49 A1d; the owner on A1's shots and on the panel, 11.11.2026): settings-window.mjs `gameSettingsColumns` draws every world setting of the 35 but the two the Sound window draws since E101 (R4050), each once, and Give back, no client row; nothing for a user who may not; one section pane shown at first and the section list switches it; `openGameSettingsWindow` is the kit's wide window with Save and Cancel, class `drpg-window-game-settings`, refusing a user who may not", async () => {
         /*
          * E49 A1d, 11.11.2026. The owner: "To co powstalo w podgladzie jest fajne, ale nadaje sie jako zakladka do gm panel
          * skoro jest ustawieniami calej gry", then "W wolne miejsce wejda nowe ustawienia gma jako "Settings"": the GM
@@ -18537,6 +18537,39 @@ const INVARIANTS = [
         } finally {
             box.remove();
         }
+    }],
+    ["R4050 - the music's switch is on the Sound window's Music tab and the sounds' variation on its Effects tab, not in the game's settings (E101 item 7; the owner's yes of 12.11.2026 to the GM screens' review, #8): settings-window.mjs `GAME_SECTIONS` names neither `musicEnabled` nor `sfxVary` and `SOUND_WINDOW_SETTINGS` names both; sound-panel.mjs `soundPlaylistsPane` draws one switch `musicEnabled` above the table, as the setting stands, and its Effects tab (`soundEffectsPane` over sfx.mjs `soundEffectsHtml`) one switch `sfxVary` before the table, as it stands; each with its setting's name; `wireSoundDialog` writes the switch through `setSetting`", async () => {
+        /*
+         * E101 item 7, 12.11.2026. The review (artifact T8eePyz1, Sound and Game settings): a GM mapped playlists in the
+         * Sound window and switched them on in another; the "varies" chip was explained on the Effects tab and switched in
+         * the game's settings. No setting is lost: both stay registered as they were (world, Boolean), only drawn where
+         * their table is. The switches read on detached markup, with the settings as this world holds them; the write read
+         * in source (tier 2 "E101-T7" flips it in the window). Red at 4dfac3a: both in the audio section, no switch in
+         * either tab, no `SOUND_WINDOW_SETTINGS`.
+         */
+        const W = await import("./settings-window.mjs");
+        const P = await import("./sound-panel.mjs");
+        const S = await import("./sfx.mjs");
+        const inSections = W.GAME_SECTIONS.flatMap(s => s.keys).filter(k => k === "musicEnabled" || k === "sfxVary");
+        const box = document.createElement("div");
+        const switchOf = (html, key) => {
+            box.innerHTML = html;
+            const sw = [...box.querySelectorAll(`[data-drpg-sound-setting="${key}"] input[role="switch"]`)];
+            const table = box.querySelector("table");
+            const before = sw[0] && table ? Boolean(sw[0].compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING) : false;
+            return [sw.length, sw[0]?.checked === (getSetting(SETTINGS[key]) === true), sw[0]?.closest("label")?.textContent.trim()
+                === game.i18n.localize(game.settings.settings.get(`${MODULE_ID}.${SETTINGS[key]}`)?.name ?? "-"), before];
+        };
+        const wire = fnSource(stripComments(new Map(await moduleSources()).get("sound-panel.mjs") ?? ""), "wireSoundDialog");
+        const read = {
+            sections: inSections,
+            listed: Array.isArray(W.SOUND_WINDOW_SETTINGS) ? [...W.SOUND_WINDOW_SETTINGS].sort() : null,
+            music: switchOf(P.soundPlaylistsPane([]), "musicEnabled"),
+            vary: switchOf(P.soundEffectsPane(S.soundEffectsHtml), "sfxVary"),
+            writes: /data-drpg-sound-setting[\s\S]{0,400}setSetting\(/.test(wire)
+        };
+        equal(JSON.stringify(read), JSON.stringify({ sections: [], listed: ["musicEnabled", "sfxVary"], music: [1, true, true, true], vary: [1, true, true, true], writes: true }),
+            "{the two keys in the game's sections; SOUND_WINDOW_SETTINGS; [switches, as the setting stands, its name, before the table] on the Music tab; the same on the Effects tab; wireSoundDialog writes a switch}");
     }],
     ["R3532 - Reset the season is Season setup's, and Settings takes its tile (E49 A1d; the owner, 11.11.2026): in gm-panel.mjs `PANEL_SECTIONS` no tile `seasonReset`, a tile `settings` last in Between sessions that opens settings-window.mjs `openGameSettingsWindow` and is disabled for a user who may not modify settings; season-setup.mjs `openSeasonSetup`'s footer has a destructive `reset` named by `DRPG.Season.resetTitle`, and its answer runs season-wipe.mjs `resetSeason`; the window and its tile are Season setup / Ustawienia sezonu, the new tile Settings / Ustawienia gry", async () => {
         /*

@@ -74,7 +74,7 @@ import { volumeSliders, wireVolumeSliders } from "./sfx.mjs";
  * `place` "client" (this browser's window) or "game" (the game's window), `keys` its settings by SETTINGS name, in the
  * order drawn. A client section names client settings alone and a game section world ones alone (R3420); A1's Sound and
  * Technical held both, so each is two sections now: Sound (the messenger's sounds, with the volumes and the voice) and
- * Music and voice (the table's switches, and Vary the sounds), Technical (the debug log) and Foundry and the system (the
+ * Voice (the table's voice switches; the music's switch and Vary the sounds are the Sound window's since E101), Technical (the debug log) and Foundry and the system (the
  * two welcomes, and Give back). The icons are among those pixel-icons.css redraws as pixels under the glass.
  */
 const section = (place, key, icon, keys) => Object.freeze({ key, icon, place, keys: Object.freeze(keys) });
@@ -85,13 +85,18 @@ export const CLIENT_SECTIONS = Object.freeze([
     section("client", "tech", "fa-screwdriver-wrench", ["debug"])
 ]);
 export const GAME_SECTIONS = Object.freeze([
-    section("game", "audio", "fa-headset", ["musicEnabled", "voiceEnabled", "voiceTile", "liveKitInFoundry", "sfxVary"]),
+    section("game", "audio", "fa-headset", ["voiceEnabled", "voiceTile", "liveKitInFoundry"]),
     section("game", "rules", "fa-scale-balanced", ["searchTokensPerRoom", "despairFromRolls", "chargeMovement", "friskForce", "autoApproveTraits", "moveAudit", "hideSystemFear"]),
     section("game", "privacy", "fa-user-secret", ["forcePrivateRolls", "forceDiceLook", "lockRollDialog", "enforceAnonymity", "roomVisibility", "lockPlayerResources"]),
     section("game", "gm", "fa-map-location-dot", ["regionFog", "foundryToolWindows", "enforcePlayerFiles", "isoTokenShield"]),
     section("game", "foundry", "fa-plug", ["enforceIsoWelcome", "enforceDhWelcome"])
 ]);
 export const SETTINGS_SECTIONS = Object.freeze([...CLIENT_SECTIONS, ...GAME_SECTIONS]);
+
+/* The two world switches drawn in the Sound window instead (E101 item 7, the owner's yes of 12.11.2026 to the GM screens'
+   review, #8): Music follows the game state over the Music tab's map, Vary the sounds by the Effects tab's legend
+   (sound-panel.mjs `soundSettingSwitch`). Until E101 they were rows of the audio section above. */
+export const SOUND_WINDOW_SETTINGS = Object.freeze(["musicEnabled", "sfxVary"]);
 
 /* A sentence ends at ".", "!" or "?" followed by a space or the end: "game.drpg.publicRoll" and "1.2" stay whole. */
 const SENTENCE = /^(.+?[.!?])(?=\s|$)/s;

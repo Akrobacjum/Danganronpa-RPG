@@ -22892,7 +22892,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({ rollCards: [false, false, false], notice: [true, true, true, true, 2], slot: ["Critical", true, "Krytyk", true] }),
             "{rollCards: private-rolls.mjs plays, clips, cuts; notice: the tone's flag, the call under it, still under reduced motion, a clip-path wipe, cutCritical's mentions (its declaration and one call); slot: the English label, its hint names the cut, the Polish label, its hint}");
     }],
-    ["R3420 - every setting Foundry's list showed is in exactly one place, this browser's or the game's (E49 A1, A1d; the owner's [11], [16], Q3, Q4, and his word on A1's shots of 11.11): each of the 35 keys registered with `config: true` at 20218b05 (a frozen list) is in exactly one of settings-window.mjs's `SETTINGS_SECTIONS` - four client sections, the gear's window, naming client settings alone, and five game sections, the game's settings window (the GM panel's Settings tile), naming world ones alone - which name no other key but Vary the sounds; no setting of the module is `config: true`; the module's one menu is DRPG Settings, not restricted, and Give back's is gone; each key's `.name` and `.hint` are in lang/en.json and lang/pl.json and its hint's `firstSentence` is not empty in either; the nine sections' names in both", async () => {
+    ["R3420 - every setting Foundry's list showed is in exactly one place, this browser's or the game's (E49 A1, A1d; the owner's [11], [16], Q3, Q4, and his word on A1's shots of 11.11): each of the 35 keys registered with `config: true` at 20218b05 (a frozen list) is in exactly one of settings-window.mjs's `SETTINGS_SECTIONS` or the Sound window's two switches (`SOUND_WINDOW_SETTINGS`, E101) - four client sections, the gear's window, naming client settings alone, and five game sections, the game's settings window (the GM panel's Settings tile), naming world ones alone - which name no other key but Vary the sounds; no setting of the module is `config: true`; the module's one menu is DRPG Settings, not restricted, and Give back's is gone; each key's `.name` and `.hint` are in lang/en.json and lang/pl.json and its hint's `firstSentence` is not empty in either; the nine sections' names in both", async () => {
         /*
          * E49 A1, 11.11.2026. The frozen list is 20218b05's (STAGE E49 "What HEAD does": 35 distinct `config: true`, 23
          * world, 12 client; glassPulse's block carried the flag twice, design-notes.md), read by a script over settings.mjs's
@@ -22912,7 +22912,10 @@ const REGRESSIONS = [
         let W = null;
         try { W = await import("./settings-window.mjs"); } catch (err) { W = { failed: String(err?.message ?? err) }; }
         const sections = Array.isArray(W?.SETTINGS_SECTIONS) ? W.SETTINGS_SECTIONS : [];
-        const seen = FROZEN.map(k => sections.filter(s => s.keys.includes(SETTINGS[k] ?? k)).length);
+        /* E101 item 7 (12.11.2026): the music's switch and Vary the sounds are drawn in the Sound window
+           (settings-window.mjs `SOUND_WINDOW_SETTINGS`, R4050), a place as the sections are; changed on purpose. */
+        const soundWindow = Array.isArray(W?.SOUND_WINDOW_SETTINGS) ? W.SOUND_WINDOW_SETTINGS : [];
+        const seen = FROZEN.map(k => sections.filter(s => s.keys.includes(SETTINGS[k] ?? k)).length + (soundWindow.includes(k) ? 1 : 0));
         const named = sections.flatMap(s => s.keys);
         const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
         const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
@@ -22934,7 +22937,7 @@ const REGRESSIONS = [
             loaded: W?.failed ?? true,
             sections: sections.map(s => [s.key, s.place, s.keys.length, typeof s.icon === "string" && s.icon.startsWith("fa-")]),
             once: FROZEN.filter((k, i) => seen[i] !== 1),
-            others: named.filter(k => !FROZEN.includes(k)),
+            others: [...named, ...soundWindow].filter(k => !FROZEN.includes(k)),
             mixed: sections.flatMap(s => s.keys.filter(k => scopeOf(k) !== (s.place === "client" ? "client" : "world")).map(k => `${s.key}:${k}`)),
             configTrue: shown,
             menuCalls,
@@ -22946,7 +22949,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({
             loaded: true,
             sections: [["look", "client", 5, true], ["effects", "client", 5, true], ["sound", "client", 1, true], ["tech", "client", 1, true],
-                ["audio", "game", 5, true], ["rules", "game", 7, true], ["privacy", "game", 6, true], ["gm", "game", 4, true], ["foundry", "game", 2, true]],
+                ["audio", "game", 3, true], ["rules", "game", 7, true], ["privacy", "game", 6, true], ["gm", "game", 4, true], ["foundry", "game", 2, true]],
             once: [], others: ["sfxVary"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
             menus: read.menus === "not modelled" ? "not modelled" : [[`${MODULE_ID}.drpgSettings`, false]],
             words: [], sectionWords: [true, true, true, true, true, true, true, true, true]

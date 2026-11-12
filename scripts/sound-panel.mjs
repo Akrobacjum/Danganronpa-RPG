@@ -24,10 +24,11 @@
  * imports music.mjs by no road (the facade rule, .claude/rules/code.md).
  */
 
-import { SITUATIONAL_PLAYLIST } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
-import { error } from "./utils.mjs";
-import { emptyOption, box, dataTable } from "./ui-kit.mjs";
+import { SITUATIONAL_PLAYLIST, MODULE_ID } from "./config.mjs";
+import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
+import { error, esc } from "./utils.mjs";
+import { emptyOption, box, dataTable, toggle } from "./ui-kit.mjs";
+import { firstSentence } from "./settings-window.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { MUSIC_STATES, musicMap, isCuePlaylist, saveMusicKey } from "./music-states.mjs";
 import { situationalPlaylist, playTrack, resetMusic } from "./music-play.mjs";
@@ -191,6 +192,7 @@ export function soundPlaylistsPane(playlists) {
     const offered = playlists.filter(p => !isCuePlaylist(p));
     return `
             <p>${game.i18n.localize("DRPG.Music.intro")}</p>
+            ${soundSettingSwitch("musicEnabled")}
             ${offered.length ? "" : box("info", `<p class="notes">${
                 game.i18n.localize("DRPG.Music.noPlaylists")}</p>`)}
             <details class="drpg-sound-order">
@@ -201,6 +203,27 @@ export function soundPlaylistsPane(playlists) {
                 <p class="drpg-help">${game.i18n.localize("DRPG.Music.fadeNote")}</p>
             </details>
             ${musicMapTable(playlists).outerHTML}`;
+}
+
+/**
+ * A world switch drawn beside the table it governs (E101 item 7; the owner's yes of 12.11.2026 to the GM screens' review,
+ * #8): `musicEnabled` over the Music tab's map and `sfxVary` by the Effects tab's "varies" legend. Until E101 both were
+ * rows of the game's settings (settings-window.mjs `GAME_SECTIONS`), and a GM mapped playlists here and switched them on
+ * there. The setting is the same registration (world, Boolean); the switch saves as it is touched, as the rest of this
+ * window does (`wireSoundDialog`). Its name, and its hint's first sentence under it. "" for a key not registered.
+ */
+export function soundSettingSwitch(key) {
+    const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS[key] ?? key}`);
+    if (!reg) return "";
+    const hint = firstSentence(game.i18n.localize(reg.hint ?? ""));
+    return `<div class="drpg-sound-setting" data-drpg-sound-setting="${esc(key)}">${
+        toggle({ name: `setting:${key}`, checked: getSetting(SETTINGS[key] ?? key) === true, label: game.i18n.localize(reg.name) })}${
+        hint ? `<p class="drpg-help">${esc(hint)}</p>` : ""}</div>`;
+}
+
+/** The Effects tab: sfx.mjs `soundEffectsHtml`, handed in (it is reached by `import()`), with Vary the sounds before its table. */
+export function soundEffectsPane(soundEffectsHtml) {
+    return soundEffectsHtml({ lead: soundSettingSwitch("sfxVary") });
 }
 
 /** A row's marker: its state as a data attribute and as words a screen reader is told. */
@@ -313,6 +336,16 @@ function wireSoundDialog(root, { wireKitTabs, wireSoundPanel, dialog = null }) {
     wireSoundPanel(root);
     wireSoundPlay(root);
     wireMusicMap(root, root);
+    // The two world switches (E101 item 7): written as they are touched, like the map's rows; a refusal puts the switch back.
+    for (const input of root.querySelectorAll("[data-drpg-sound-setting] input[role='switch']")) {
+        const key = input.closest("[data-drpg-sound-setting]").dataset.drpgSoundSetting;
+        input.addEventListener("change", () => {
+            setSetting(SETTINGS[key] ?? key, input.checked).catch(err => {
+                input.checked = getSetting(SETTINGS[key] ?? key) === true;
+                error(`Sound window: ${key} was not saved`, err);
+            });
+        });
+    }
 }
 
 export async function openSoundDialog() {
@@ -371,7 +404,7 @@ export async function openSoundDialog() {
                 { key: "play", label: game.i18n.localize("DRPG.Sound.tabPlay"), html: soundPlayPane() },
                 { key: "music", label: game.i18n.localize("DRPG.Sound.tabMusic"), html: playlistsPane },
                 { key: "effects", label: game.i18n.localize("DRPG.Sound.tabEffects"),
-                  html: soundEffectsHtml() }
+                  html: soundEffectsPane(soundEffectsHtml) }
             ])}
         </form>`,
         // D45's one Close: every tab acts or saves as it is touched (E21-16).

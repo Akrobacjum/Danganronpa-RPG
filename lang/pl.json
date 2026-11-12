@@ -415,7 +415,7 @@
       "gameNote": "To ustawienia całego stołu: zmiana tutaj zmienia grę dla wszystkich.",
       "liveNote": "Głośność i ustawienia głosu działają od razu; reszta czeka na Zapisz.",
       "sections": {
-        "audio": "Muzyka i głos",
+        "audio": "Głos",
         "foundry": "Foundry i system",
         "look": "Wygląd",
         "effects": "Efekty i dostępność",

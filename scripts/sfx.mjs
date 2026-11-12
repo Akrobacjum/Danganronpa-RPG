@@ -573,7 +573,7 @@ export function soundSlidersHtml() {
  * floor (R2027). The chooseHint, testHint and clearHint tooltips went with the owner's "Test and Clear as buttons whose
  * words are in aria-label and the tooltip"; the file box keeps its title (`DRPG.Sound.severalHint`). GM only.
  */
-export function soundEffectsHtml() {
+export function soundEffectsHtml({ lead = "" } = {}) {
     const L = key => game.i18n.localize(key);
     const keys = Object.keys(SFX_EVENTS);
     const groups = Object.entries(SFX_CATEGORIES).map(([category, meta]) => ({ group: meta.label, count: groupCountLine(category), category, hint: meta.hint }));
@@ -600,6 +600,7 @@ export function soundEffectsHtml() {
         <p class="drpg-help">${L("DRPG.Sound.autosave")}</p>
         <p class="drpg-help" data-drpg-sfx-count>${countLine()}</p>
         ${legend}
+        ${lead}
         ${markGroups(table, groups)}`;
 }
 

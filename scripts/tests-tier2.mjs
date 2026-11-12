@@ -78621,6 +78621,49 @@ const SCENARIOS = [
             + "the same window]; [the key written meanwhile kept by the next change, that row's marker]; [two changes in one tick both stored and saved]; "
             + "[the window not rebuilt]; [Close closes]; [the toasts while it was open]; [the map after]; [the map after the test's own restore]");
     }],
+    ["E101-T7 - the Sound window's two switches save as they are flipped: Music follows the game state on the Music tab and Vary the sounds on the Effects tab write their world settings with no Apply, and the window stays open (E101 item 7; R4050)", async () => {
+        /*
+         * E101 item 7, 12.11.2026 (the owner's yes to the GM screens' review, #8). As the GM: the Sound window opened, each
+         * switch flipped from what it is and the setting read, then flipped back and read; Close. Both settings are put
+         * back whatever happened. Red at 4dfac3a: no switch in the window.
+         */
+        needs(env.dialogs(), "the Sound window is drawn and its switches flipped");
+        must(game.user.isGM, "the Sound window's switches are a GM's");
+        const M = await import("./music.mjs");
+        const { setSetting } = await import("./settings.mjs");
+        must(!document.querySelector(".drpg-window-sound"), "a Sound window is open - close it: this test opens its own");
+        const was = { musicEnabled: getSetting(SETTINGS.musicEnabled), sfxVary: getSetting(SETTINGS.sfxVary) };
+        const read = {};
+        let answer = null;
+        const root = () => document.querySelector(".drpg-window-sound");
+        try {
+            answer = Promise.resolve().then(() => M.openSoundDialog()).catch(err => `threw: ${err.message}`);
+            must(await until(() => root()?.querySelector("[data-drpg-sound-setting]"), 6000), "the Sound window did not open with its switches");
+            const drawn = root();
+            for (const [tab, key] of [["music", "musicEnabled"], ["effects", "sfxVary"]]) {
+                root().querySelector(`nav.drpg-tabs [data-drpg-tab-key="${tab}"]`)?.click();
+                const input = root().querySelector(`[data-drpg-sound-setting="${key}"] input[role="switch"]`);
+                const flip = async to => {
+                    input.checked = to;
+                    input.dispatchEvent(new Event("change", { bubbles: true }));
+                    return Boolean(await until(() => getSetting(SETTINGS[key]) === to, 3000));
+                };
+                read[key] = input ? [input.checked === (was[key] === true), await flip(!(was[key] === true)), await flip(was[key] === true)] : "no switch";
+            }
+            read.sameWindow = root() === drawn;
+            read.save = root().querySelectorAll('[data-action="save"]').length;
+            root().querySelector('footer.form-footer button[data-action="close"]')?.click();
+            const done = await Promise.race([answer, wait(3000).then(() => "still open")]);
+            read.closed = done !== "still open" && Boolean(await until(() => !root(), 2000));
+        } finally {
+            for (const app of [...foundry.applications.instances.values()].filter(a => a.element?.classList?.contains("drpg-window-sound"))) await app.close();
+            if (answer) await Promise.race([answer, wait(3000)]);
+            for (const key of ["musicEnabled", "sfxVary"]) if (getSetting(SETTINGS[key]) !== was[key]) await setSetting(SETTINGS[key], was[key]);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ musicEnabled: [true, true, true], sfxVary: [true, true, true], sameWindow: true, save: 0, closed: true }),
+            "{each switch: [drawn as the setting stood, flipped and stored, flipped back and stored]; the same window; Apply buttons; Close closes}");
+    }],
     ["E50-T2 - the primary follows a mapping change from any GM: musicMap's write is followed MAP_SETTLE_MS (1500 ms) and the settle after it by one apply, three writes in 200 ms give one, and a change that leaves the current state's playlist as it is restarts nothing (E50 C3; S11-34, E50-22, Q-E50-3)", async () => {
         /*
          * E50 C3, 30.10.2026; audit S11-34. `registerMusic`'s `updateSetting` listener answered a `musicMap` write with
