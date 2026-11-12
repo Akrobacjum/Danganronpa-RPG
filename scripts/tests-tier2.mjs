@@ -8186,8 +8186,10 @@ const SCENARIOS = [
          * right. The suite is the GM's browser, whose rolls are not drawn: the player's half is played
          * here on the draw's answer - the packet's roll as the configured one, the answer's roll played
          * back (`rollerCopyOf`) on a config marked drawn (`DRAWN_ROLL`, so the harness's scripted
-         * faces stand aside). A Search whose packet names Leg and adds 5. Read: the copy's total, `config.roll`'s
-         * total, statistic and modifiers' values, and the record's total. Scenario 12 plays the same
+         * faces stand aside). A Search whose packet names Leg and adds 5. Read: the copy's total, the config's
+         * total (Daggerheart 2.12's evaluated Roll on `config.evaluated`, whose `buildEvaluate` writes no total into
+         * `config.roll`, dhRoll.mjs:98-106, 2.12.8; up to 2.10 `config.roll.total`), `config.roll`'s statistic and
+         * modifiers' values, and the record's total. Scenario 12 plays the same
          * on a real player's browser. At C9's runtime there is no copy to read, and the record's total
          * held the packet's numbers, the 5 among them (by reading: a Search is held to Eye, so the
          * Leg is flagged there, and the packet's numbers carry Eye's value).
@@ -8204,7 +8206,7 @@ const SCENARIOS = [
             const config = { roll: { trait: "instinct" }, [DRAWN_ROLL]: { rollId: F.value.rollId, messageId: F.value.messageId } };
             const copy = typeof D.rollerCopyOf === "function" ? await D.rollerCopyOf(cls, configured, config, {}, F.value) : null;
             const mod = Number(theirs.system?.traits?.instinct?.value) || 0;
-            equal(stableJson([copy?.total ?? null, config.roll?.total ?? null, config.roll?.trait ?? null, (config.roll?.modifiers ?? []).map(m => m?.value), F.record.total]),
+            equal(stableJson([copy?.total ?? null, config.evaluated?.total ?? config.roll?.total ?? null, config.roll?.trait ?? null, (config.roll?.modifiers ?? []).map(m => m?.value), F.record.total]),
                 stableJson([9 + 4 + mod, 9 + 4 + mod, "instinct", [mod], 9 + 4 + mod]),
                 "the roller's copy of a drawn roll read the window's claim, not the GM's roll (the copy's total; config.roll's total, statistic and modifiers; the record's total)");
         } finally {
@@ -9564,6 +9566,12 @@ const SCENARIOS = [
          * roll rebuilt from its JSON, and rebuilt from that JSON with the fifth term written as a plain
          * die, which `fromData` must name again. Until C2a the harness's roll was a model of
          * Daggerheart's (`DualityRollMock`): its config named no advantage die, its dice no letter.
+         * ON 2.12 (E76b's release fix, 12.11.2026): `fromData` still names that term by `options.roll.advantage.type`
+         * (dualityRoll.mjs:122-129, 2.12.8, as in 2.10.5), and 2.12's throw no longer writes that object - the kind stays
+         * the window's number there (dhRoll.mjs:98-106) - so a fifth term written as a plain die is not named again on
+         * 2.12, on Daggerheart's own rolls as on the GM's; one written with its class is (the rebuilt term). Which
+         * Daggerheart threw is read off the throw itself: from 2.12 it leaves the Roll on the config (`evaluated`).
+         * Until this fix the JSON of the GM's roll was circular on 2.12 and this test threw before its reading.
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
         const { player, theirs } = playerAndCharacters();
@@ -9588,7 +9596,12 @@ const SCENARIOS = [
             F = await drawnForPlayer(player, theirs, { faces: { hope: 7, fear: 4, advantage: 5 }, edit: p => withDie({ ...p, calls: [nonce] }),
                 ready: () => Object.defineProperty(cls, "buildEvaluate", { ...own, value: async function (roll, config, message) {
                     const out = await own.value.call(this, roll, config, message);
-                    seen ??= { roll, advantage: foundry.utils.deepClone(config?.roll?.advantage ?? null) };
+                    // The advantage as the throw left it: up to 2.10 all of it on `config.roll.advantage` (d20Roll.mjs:167-171,
+                    // 2.10.5), from 2.12 the kind there and the die on the evaluated Roll (`config.evaluated`'s `dAdvantage`).
+                    const die = config?.evaluated?.dAdvantage;
+                    seen ??= { roll, v212: Boolean(config?.evaluated), advantage: config?.evaluated
+                        ? { type: config.roll?.advantage?.type ?? config.roll?.advantage ?? null, dice: die?.denomination, value: die?.total }
+                        : foundry.utils.deepClone(config?.roll?.advantage ?? null) };
                     return out;
                 } }) });
         } finally {
@@ -9606,8 +9619,53 @@ const SCENARIOS = [
         equal(stableJson([[term instanceof AdvantageDie, Boolean(term) && thrown.dAdvantage === term, (term?.modifiers ?? []).includes("a")],
             [seen.advantage?.type ?? null, Boolean(term) && seen.advantage?.dice === term.denomination, Boolean(term) && seen.advantage?.value === term.total],
             [back.terms[4] instanceof AdvantageDie, named.terms[4] instanceof AdvantageDie, Boolean(named.terms[4]) && named.dAdvantage === named.terms[4]]]),
-        stableJson([[true, true, true], [1, true, true], [true, true, true]]),
+        stableJson([[true, true, true], [1, true, true], seen.v212 ? [true, false, false] : [true, true, true]]),
         "the GM's roll lost its advantage die's class or its letter, its config did not name that die and its face, or its JSON did not rebuild it as one (the thrown term, the config's advantage, the rebuilt and the renamed term)");
+    }],
+
+    ["a roll the GM drew is written on its message as JSON that rebuilds it", async () => {
+        /*
+         * E76b's release fix, 12.11.2026 (the 1.2.109 release's CI run 43287328954, suite shard 3). From Daggerheart
+         * 2.12 `buildEvaluate` hangs the thrown Roll on the config it is handed (`config.evaluated`, dhRoll.mjs:98-106,
+         * 2.12.8), and the GM's draw handed it the roll's own options (roll-draw.mjs `throwDrawn`): the roll's options
+         * held the roll, and the roll's JSON - which Foundry writes onto the message, `rolls: [roll]` (dhRoll.mjs:197) -
+         * was circular. A Search drawn for p1's character, its thrown roll caught as the test above catches it. Read:
+         * whether the thrown roll's options hold an `evaluated`; whether its JSON is written (the error's start if not),
+         * and the total `fromData` rebuilds from it; the thrown total; whether the draw wrote its message, how many rolls
+         * it keeps and the first one's total; the record's total; and whether the config the GM's steps read after it
+         * still holds the Roll where 2.12 put it (the resource step reads the Hope there, dualityRoll.mjs
+         * `addDualityResourceUpdates`), or none, as up to 2.10.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const cls = game.system.api.dice.DualityRoll;
+        const own = Object.getOwnPropertyDescriptor(cls, "buildEvaluate");
+        must(typeof own?.value === "function", "the duality roll has no buildEvaluate of its own to watch - this would measure nothing");
+        let seen = null, F = null, read = null;
+        try {
+            F = await drawnForPlayer(player, theirs, { faces: { hope: 9, fear: 4 },
+                ready: () => Object.defineProperty(cls, "buildEvaluate", { ...own, value: async function (roll, config, message) {
+                    const out = await own.value.call(this, roll, config, message);
+                    seen ??= { roll, config };
+                    return out;
+                } }) });
+        } finally {
+            Object.defineProperty(cls, "buildEvaluate", own);
+        }
+        try {
+            must(seen, "the GM threw no roll for the draw - this would measure nothing");
+            let json = null, failed = null;
+            try { json = JSON.parse(JSON.stringify(seen.roll.toJSON())); } catch (err) { failed = String(err?.message ?? err).slice(0, 40); }
+            const back = json ? cls.fromData(json) : null;
+            const rolls = F?.message?.rolls ?? [];
+            read = [Object.hasOwn(seen.roll.options ?? {}, "evaluated"), failed, back?.total ?? null, seen.roll.total ?? null,
+                Boolean(F?.message), rolls.length, rolls[0]?.total ?? null, F?.record?.total ?? null, (seen.config?.evaluated ?? seen.roll) === seen.roll];
+        } finally {
+            await F?.putBack();
+        }
+        const total = seen.roll.total;
+        equal(stableJson(read), stableJson([false, null, total, total, true, 1, total, total, true]),
+            "the GM's drawn roll holds itself in its options, its JSON was not written or did not rebuild it, its message was not written with it, or the config lost the Roll (options' evaluated; the JSON's error; rebuilt and thrown totals; message, its rolls, the first's total; the record's total; the config's Roll)");
     }],
 
     ["a player's update of a GM's message is refused", async () => {
@@ -9816,7 +9874,9 @@ const SCENARIOS = [
          * sheet, which no module action throws (`throwDice` spends its own). A student's list emptied, a
          * Support armed (`armCall`) and Instinct rolled as the sheet rolls it, its advantage die's face
          * scripted. Read: the advantage Daggerheart's throw wrote on the config - its kind, its die and
-         * its face - and the Calls armed once the close has settled. Until C2b the harness's window was pressed at once: no
+         * its face; from 2.12 the kind on `config.roll` and the die on the evaluated Roll (`config.evaluated`'s
+         * `dAdvantage`), up to 2.10 all three on `config.roll.advantage` (d20Roll.mjs:167-171, 2.10.5) - and the Calls
+         * armed once the close has settled. Until C2b the harness's window was pressed at once: no
          * die, and the Support stayed armed.
          */
         const [who] = cast(1);
@@ -9832,7 +9892,9 @@ const SCENARIOS = [
             globalThis.__forceRoll = { hope: 9, fear: 4, advantage: 3 };
             result = await who.rollTrait("instinct", {});
             await settle();
-            const thrown = result?.roll?.advantage ?? {};
+            const die = result?.evaluated?.dAdvantage;
+            const thrown = result?.evaluated ? { type: result.roll?.advantage?.type ?? result.roll?.advantage, dice: die?.denomination, value: die?.total }
+                : result?.roll?.advantage ?? {};
             read = [thrown.type ?? null, thrown.dice ?? null, thrown.value ?? null, C.pendingCalls(who).map(e => e.key)];
         } finally {
             if (hadForce) globalThis.__forceRoll = force;
@@ -47540,7 +47602,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
          * the roll's evaluate with one that scripts Foundry's randomiser to a 7 and a 2. Read: the
          * hooks in order, the roll as the hook saw it (a DualityRoll, not thrown) and after it
          * (thrown, with those faces), the shadow's one call, the faces and total of the result
-         * and of its message, and the roll rebuilt from its JSON (`fromData`, which the GM's draw
+         * (from 2.12 its evaluated Roll, `config.evaluated`; up to 2.10 `config.roll`'s Hope, Fear and total) and of its message, and the roll rebuilt from its JSON (`fromData`, which the GM's draw
          * will rebuild a roll with). Until C10 the harness wrote the roll without building it,
          * and no hook fired.
          */
@@ -47589,7 +47651,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         // `fromData` threw on them ("Cannot read properties of undefined (reading 'advantage')").
         const back = handed ? DR.fromData(JSON.parse(JSON.stringify({ ...handed.toJSON(), options: { data: {}, source: {}, roll: handed.options?.roll ?? {} } }))) : null;
         equal(stableJson([heard, seen, shadowed, handed && [handed._evaluated, handed.dHope?.total, handed.dFear?.total],
-            [result?.roll?.hope?.value, result?.roll?.fear?.value, result?.roll?.total], [card?.dHope?.total, card?.dFear?.total, card?.total],
+            result?.evaluated ? [result.evaluated.dHope?.total, result.evaluated.dFear?.total, result.evaluated.total]
+                : [result?.roll?.hope?.value, result?.roll?.fear?.value, result?.roll?.total], [card?.dHope?.total, card?.dFear?.total, card?.total],
             back && [back instanceof DR, back._evaluated, back.dHope?.total, back.dFear?.total, back.total]]),
         stableJson([names, { duality: true, thrown: false, trait: "instinct" }, 1, [true, 7, 2], [7, 2, total], [7, 2, total], [true, true, 7, 2, total]]),
         "the hooks did not fire in Daggerheart's order, the configuration hook was not handed the roll before its throw, the dice were not the ones its shadowed evaluate threw, or its JSON does not rebuild it (hooks, the roll as handed, shadow calls, the roll after, the result, the message, the rebuilt roll)");
@@ -83628,6 +83691,12 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             await settle();
             const T1 = Date.now() + 5;
             listener({ ...getClock(), timeOfDay: "noon", timeOfDayStartedAt: T1 });
+            /* THE SUMMARY WAITS FOR THE CLOCK'S TURN (E62 C5; E94 fix ci-1, 12.11.2026, CI run 43287328954 on b30f9444,
+               suite 2/8): `sumUp` puts it up `summaryDelay` after the move - 1150 ms for an hour's turn with the table's
+               switch on - so read straight after the call the GM had none, and the GM's card landed inside the
+               bystander's read below ({gm: [], bystander: 1}). Waited for here as E37-T4 waits for its own; the
+               bystander's read waits out the same delay before it counts none. */
+            await until(() => summaries().length > 0, 8000);
             await settle();
             read.gm = summaries().map(card => [...card.querySelectorAll(".drpg-sum-row")].length);
             dismiss();
@@ -83643,6 +83712,8 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             } finally {
                 delete game.user.isGM;
             }
+            await new Promise(resolve => setTimeout(resolve, D.summaryDelay({ ...getClock(), timeOfDay: "noon" },
+                { ...getClock(), timeOfDay: "afternoon" }) + 400));
             await settle();
             read.bystander = summaries().length;
         } finally {
