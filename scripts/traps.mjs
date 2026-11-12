@@ -66,7 +66,7 @@ import { isPrimaryGm, debug, log, warn, error, esc, pause, placeRoomOptions, ser
 import { drpgWindow } from "./ui-kit.mjs";
 import { trapLedgerStore, trapPlantStore } from "./gm-stores.mjs";
 // Statically: the leaf imports config.mjs and utils.mjs only, so this edge closes no cycle (E31).
-import { ownsActor, guardRelayOwner, guardRelayActor, guardRelayRoom, guardRelayTeller, judge, table, pick, as, knownSender, bridgeRequest } from "./bridge-guards.mjs";
+import { ownsActor, guardRelayOwner, guardRelayActor, guardRelayRoom, guardRelayTeller, judge, table, pick, as, knownSender, notSpectator, bridgeRequest } from "./bridge-guards.mjs";
 // Statically, because `trapProjects` has to answer synchronously. The
 // dependency only goes this way at load time - projects.mjs reaches back
 // into this file through dynamic imports, which is not a cycle.
@@ -848,7 +848,7 @@ export function registerTraps() {
 export const TRAP_ACTIONS = table({
     [TRAP_EVENT]: {
         label: "DRPG.Bridge.what.trap.event",
-        guards: [knownSender, guardRelayTeller, guardRelayOwner, guardRelayActor, guardRelayRoom],
+        guards: [knownSender, notSpectator("actorId"), guardRelayTeller, guardRelayOwner, guardRelayActor, guardRelayRoom],
         sanitize: pick({ kind: as.oneOf("crossing", "action", "rest", "stash"), actorId: as.id, to: as.maybeText,
             room: as.maybeText, actionKey: as.text, hit: as.bool, projectId: as.id, sceneId: as.id }),
         run: handleTrapEvent,

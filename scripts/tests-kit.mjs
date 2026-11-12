@@ -1659,7 +1659,7 @@ function bridgeTableProblems(tables, { en, pl, guards, reasons = [], told = [] }
     let actions = 0, withIds = 0, byGuardClaim = 0, inWords = 0;
     const source = fn => String(fn ?? "");
     const exported = new Set(Object.values(guards).filter(value => typeof value === "function"));
-    const FACTORIES = ["owns", "ownsActorAt", "gmOnly", "playersOnly", "canSeeProject", "inRange"];
+    const FACTORIES = ["owns", "ownsActorAt", "notSpectator", "gmOnly", "playersOnly", "canSeeProject", "inRange"];
     // Past the parameter list: every guard takes `sender`, and only a body can be said to read it.
     const readsSender = fn => /\bsender\b/.test(source(fn).replace(/^[^)]*\)/, ""));
     const readsField = (fn, field) => new RegExp(`\\bpayload\\??\\.${field}\\b`).test(source(fn));

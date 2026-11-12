@@ -1982,6 +1982,33 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     check("SECURITY: the Spectator's flag a student's console writes on its own character is put back by the GMs",
         flagLeft === null, JSON.stringify({ flagLeft }));
 
+    /* 7e1b. A Spectator's student actions (E92 Q-E92-7, 12.11.2026; the owner's "zgadzam sie, zlecaj"). The GM makes
+       Aiko, p1's, a Spectator by its own road (monokuma.mjs `setSpectator`, not under test). p1's console then asks the
+       primary for four things a student does, on Aiko: an Eclipse move, Work on a Project, a body's loot and a ballot
+       (the ballot is the account's). Each is refused on the GM by the Spectator's guard (bridge-guards.mjs
+       `notSpectator`, `senderNotSpectator`), nothing of Aiko's changes, and the GM's record names why; then the GM gives
+       Aiko back to the class. */
+    phase("a Spectator's student actions");
+    await gm.eval(`const M = await import("${repoUrl}/scripts/monokuma.mjs"); await M.setSpectator(game.actors.get("${ids.aiko}"), true); return true;`);
+    await settle(1200);
+    const readAiko = `const a = game.actors.get("${ids.aiko}"), t = canvas.scene.tokens.find(x => x.actorId === a.id);
+        return { system: a.system?.toObject?.() ?? a.system, flags: a.flags?.["${MOD}"] ?? null, x: t?.x ?? null, y: t?.y ?? null, items: a.items.size };`;
+    const watcherAsks = {};
+    try {
+        watcherAsks.move = await forge("eclipse.move", { actorId: ids.aiko, sceneId, x: 2300, y: 1300 }, readAiko);
+        watcherAsks.work = await forge("project.progress", { actorId: ids.aiko, countdownId: "SPECTATORWORK000", amount: 1 }, readAiko);
+        watcherAsks.loot = await forge("body.loot", { takerId: ids.aiko, bodyId: ids.botan, itemId: "SPECTATORLOOT000" }, readAiko);
+        watcherAsks.vote = await forge("vote.cast", { round: 1, choice: ids.botan }, readAiko);
+    } finally {
+        await gm.eval(`const M = await import("${repoUrl}/scripts/monokuma.mjs"); await M.setSpectator(game.actors.get("${ids.aiko}"), false); return true;`);
+        await settle(1200);
+    }
+    const watcherBrief = Object.fromEntries(Object.entries(watcherAsks).map(([k, v]) => [k, { unchanged: v.unchanged, reasons: v.reasons }]));
+    check("SECURITY: a Spectator's console asks for an Eclipse move, Work on a Project, a loot and a ballot on its own character, and the GM refuses each as a Spectator's, nothing written",
+        ["move", "work", "loot"].every(k => watcherAsks[k]?.unchanged && watcherAsks[k].reasons.some(r => /that character is a Spectator/.test(r)))
+        && watcherAsks.vote?.unchanged && watcherAsks.vote.reasons.some(r => /the sender plays a Spectator/.test(r)),
+        JSON.stringify(watcherBrief));
+
     /* 7e2. passage.cross (E80 C2, 18.10.2026): 'Go through' carried out on the primary GM. The GM makes a tunnel from
        Dorm A to the Gym, grants it to Botan alone and stands Botan and Aiko at its Dorm A end (the GM's API, not under
        test). p1 forges the request for Botan, who is p2's, and then for its own Aiko, who does not know the tunnel:

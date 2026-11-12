@@ -3780,6 +3780,7 @@
         "refused": "The GM's client refused it.",
         "noGm": "No GM is connected.",
         "noAnswer": "The GM's client did not answer in time.",
+        "spectator": "A Spectator watches and takes no action.",
         "answerKeyMissing": "The GM's browser does not hold this bullet's answer key. The GM has been told.",
         "keysNotOpen": "The GM's browser has not opened the answer keys yet. The GM has been told.",
         "rollUnknown": "The GM's client holds no roll of yours that it could be scored on.",

@@ -17223,9 +17223,10 @@ const INVARIANTS = [
         J([1, 1, 1, 1, 1, true, "shown"]),
         "[distinct answers, cards to the one shown it, the GMs' cards, distinct asker's cards, log rows added, the earlier rows kept, the cell] after 201 shows");
 
-        // The bridge's row: two guards, the sender first, then the giver's owner, and three ids through the whitelist.
+        // The bridge's row: the sender first, the Spectator's guard on the giver since E92 Q-E92-7 (R3865), then the giver's
+        // owner, and three ids through the whitelist.
         const decl = BRIDGE_ACTIONS["passage.share"];
-        equal(J([decl?.guards?.[0] === knownSender, decl?.guards?.[1]?.factory, decl?.guards?.[1]?.covers, decl?.answer,
+        equal(J([decl?.guards?.[0] === knownSender && decl?.guards?.[1]?.factory === "notSpectator", decl?.guards?.[2]?.factory, decl?.guards?.[2]?.covers, decl?.answer,
             decl?.sanitize?.({ actorId: "R562A1", targetId: "R562B", passageId: P1, passageSeg: { x1: 1 }, rooms: [CAF], how: "gm", userId: "R562U" })]),
         J([true, "owns", ["actorId"], "ack", { actorId: "R562A1", targetId: "R562B", passageId: P1 }]),
         "[the first guard, the second's kind, the field it judges, the answer, what the run is handed] - a field beyond the three ids reached the run");
@@ -19384,10 +19385,11 @@ const INVARIANTS = [
         equal(J([told({ findPassage: true, passageId: TUN, sides: [CAF, KIT] }), told({ findPassage: "yes" }), told({})]), J([{ findPassage: true }, {}, {}]),
             "[a Find Passage's context with a passage and its rooms, one whose flag is no boolean, none] as the GM is sent it - the GM cannot tell a Find Passage's roll, or is sent more");
 
-        // The bridge's row: the sender's own character, four fields, and the roll an Analyze thrown as a Find Passage.
+        // The bridge's row: the sender's own character, four fields, and the roll an Analyze thrown as a Find Passage; three
+        // guards since E92 Q-E92-7 (the sender, the Spectator's guard, the owner: R3865).
         const clean = row.sanitize({ actorId: "R598A", total: "16", isCritical: 1, rollId: "R598ROLL1", undo: true, passageId: TUN, room: CAF });
         equal(J([row.answer, row.guards.length, row.guards[0] === B.knownSender, row.rolled?.field, row.rolled?.actor, row.rolled?.kind, clean]),
-            J(["reply", 2, true, "rollId", "actorId", "analyze", { actorId: "R598A", total: 16, isCritical: true, rollId: "R598ROLL1" }]),
+            J(["reply", 3, true, "rollId", "actorId", "analyze", { actorId: "R598A", total: 16, isCritical: true, rollId: "R598ROLL1" }]),
             "[the answer, the guards, the first the known sender, the roll's field, its character, its action, the packet as the GM reads it] - the row takes a passage, a room or an undo from the packet, or no roll");
         const sender = { id: "R598U", isGM: false }, packet = { actorId: "R598A", rollId: "R598ROLL1" };
         const record = over => ({ rollId: "R598ROLL1", actorId: "R598A", userId: "R598U", actionKey: "analyze", at: Date.now(), superseded: null, resolved: [], ...over });

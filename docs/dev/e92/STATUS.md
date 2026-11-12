@@ -90,13 +90,47 @@ once per release, on the train's PR head; every push carries "[skip ci]" from no
 in its place.
 
 Defaults taken, owner to confirm:
-- Q-E92-9 (new): with the GM's `voiceTile` switch off, Foundry's own dock is shown and the module draws no switch there:
+- Q-E92-9: answered 12.11 ("tak"), written in the handbooks as a known limit: with the GM's `voiceTile` switch off, Foundry's own dock is shown and the module draws no switch there:
   a Spectator has no way to talk with the Spectators then. Putting a button into Foundry's dock would read v14's dock
   markup, not read here.
 
 Measured in Chromium (glass-harness.html, the button added to its tile as `paintSpectatorTalk` draws it): inside the
 tile at 1366x768 and 1920x1080 in both themes; under Legacy it touches nothing; under the glass its box meets the
 speaker's by 6 px², as the microphone's meets the speaker's (6.24 px², the slanted column), the hexagons apart.
+
+## The owner's verdicts of 12.11 (13:25) and Q-E92-7
+
+Round 3: "AKCEPT", as built at 3f47b45. Q-E92-9: "tak" - no talk button with the voice tile off; both GM handbooks and
+both player handbooks say so as a known limit. Q-E92-7: "zgadzam sie, zlecaj" - built:
+
+- bridge-guards.mjs: `notSpectator(field | locate, covers)` (a factory, as `owns`) refuses "that character is a
+  Spectator" when the character the packet names is one as the GMs hold its flags (sheet-audit.mjs `flagsHeldNow`);
+  `senderNotSpectator` refuses "the sender plays a Spectator" when the sender's account plays a Spectator and no student
+  (voice.mjs `spectatorAccount` on the same held flags). A GM is never refused. Both map to a new code of the closed
+  list, "spectator", said as DRPG.Bridge.why.spectator ("A Spectator watches and takes no action." / "Widz ogląda i nie
+  wykonuje żadnych akcji.").
+- Every player row of the four tables (BRIDGE_ACTIONS, TRAP_ACTIONS, SEARCH_ACTIONS, ROLL_ACTIONS) names one, right after `knownSender`: the character's on each row with an owner
+  question (`owns`, `ownsActorAt`, the trap report's and the Search's actorId), the account's on the ballot, the vote's
+  ask, the Level Up's ask, the readiness answer, a card, a project shared and a tied trace. Six rows need none, each with
+  its reason in R3865: note.save, ruling.expired, ruling.received, action.friskAnswer, searchTokens.returnPlant,
+  searchTokens.returnToken. A GM's row (gmOnly first) needs none.
+- Red first: scenario 30's phase "a Spectator's student actions" (p1's console asks for an Eclipse move, Work on a
+  Project, a loot on its Spectator Aiko and a ballot; each refused as a Spectator's, nothing of Aiko's changed) was red
+  on 3f47b45 - each refused for another reason, none as a Spectator's - and is green now. R3865 (tier 0): the census, with a
+  planted fixture of three faults.
+- Census (R3865, read off the tables at run time): 46 rows guard the character, 7 the account, 29 are a GM's, 6 need
+  none - 88 rows in the four tables.
+- Three tests that pin a row's guards by position moved with the new second guard: R313 (vote.cast), R562
+  (passage.share), R598 (passage.find), each with the reason in a comment.
+- Results before the push: tiers 0-1 whole 1273 ran, 1258 passed, 0 failed, 16 skipped; own tier 2 (the Spectator's
+  microphone, E17-T6) 8 passed; scenarios 30 (275/276, the one expected red the secret door's, as before), 33, 93, 10,
+  11, 12, 13, 15, 17, 20, 40, 61, 62, 63, 66, 67, 71, 72, 73, 76, 81, 83, 87 green - every scenario `git grep` finds
+  naming a changed file, 01 and 84 aside; the quick gate green. The red run of 30 on 3f47b45 (a worktree, DRPG_REPO) failed
+  the new check, and also the secret door's check, which on this tree reads as its expected red; why that one counted as
+  failed in the worktree run was not looked into.
+- What it does not cover, as before: a Spectator's console's own writes on its sheet are the audit's (sheet-audit.mjs,
+  which holds its resources, statistics and module flags as for any player's character), and Daggerheart's relay
+  (relay-guard.mjs) is judged by its own table; neither is a bridge action.
 
 ## Review shots
 
@@ -121,7 +155,7 @@ the picker cut short under Legacy (b50184f). Open: under the glass the picker's 
 - Q-E92-4: the chat log is hidden on the Spectator's browser only; messages still arrive (the GM handbook says so).
 - Q-E92-5: a Spectator may become a student again (and back) in the Students window; its own rows are kept, the class's are unticked for it.
 - Q-E92-6 (new): a Spectator sees every character's token in an Eclipse too (the plan's "see all characters"). It also sees public projects in the rooms the class found (its map is the class's).
-- Q-E92-7 (new): a Spectator's console can still ask the bridge for a student's action on its own character (the guards check ownership, not the role); only the sheet hides the grid. A guard "not a Spectator" on every action road is a larger change; not done.
+- Q-E92-7: answered 12.11 ("zgadzam sie, zlecaj"), built: the Spectator guard on every player row of the bridge (above).
 - Q-E92-8 (new): the "Spectator talk" switch is honoured on the Spectator's document flag in the voice pass (a forged spectator flag on a student, with the switch, sends that student to the Spectators' room, where it is heard); the microphone block itself reads the flag as the GMs hold it.
 - Owner's 04.11 plan line "token hidden": done as display (`tokenShownTo`), not Foundry's `hidden`, so the owner can still see and drag it.
 

@@ -253,6 +253,75 @@ const REGRESSIONS = [
             [...missing].map(([k, w]) => `${k} (${w})`).join(", ")}`);
     }],
 
+    ["R3865 - no student's action reaches the primary for a Spectator (E92 Q-E92-7; the owner's 12.11.2026 \"zgadzam sie, zlecaj\"): in the four tables (BRIDGE_ACTIONS, TRAP_ACTIONS, SEARCH_ACTIONS, ROLL_ACTIONS) every row a player may send names bridge-guards.mjs's Spectator guard right after knownSender - `notSpectator` on the character its owner question asks about (the same field, or a locate of its own) where it asks one, `senderNotSpectator` where it acts for the account - or stands in this test's list of rows that need none, with the reason; a GM's row (gmOnly first) needs none; the list names no row that is gone or that holds the guard; both refusals map to the closed list's \"spectator\", said in both languages", async () => {
+        /*
+         * E92 Q-E92-7, 12.11.2026. The tables are the module's own objects (tests-kit.mjs `bridgeTables`); a guard is known
+         * by its factory's tag (`made`) or by being the exported function. A census over a fixture first: three rows, two
+         * of them wrong, so a reader that finds nothing is not read as a clean table. Red at 3f47b45: no guard.
+         */
+        const G = await import("./bridge-guards.mjs");
+        must(typeof G.notSpectator === "function" && typeof G.senderNotSpectator === "function",
+            "bridge-guards.mjs has no notSpectator or senderNotSpectator - the census has nothing to look for");
+        /* The rows that need no Spectator guard, each with why: none of them acts for a student's character. */
+        const NEEDS_NONE = {
+            "note.save": "the player's own notebook (a User flag), which a Spectator may keep: no character acts, nothing of the game moves",
+            "ruling.expired": "a card's bookkeeping on the primary: the asker's own ruling card ends, no character acts",
+            "ruling.received": "a card's bookkeeping on the primary: the asker's own ruling card is marked seen, no character acts",
+            "action.friskAnswer": "the answer to a Frisk aimed at the sender's character; a Spectator is no Frisk's target (movement.mjs `othersInRoom` leaves it out), and the Frisk itself is guarded",
+            "searchTokens.returnPlant": "gives back what a guarded take handed out (`guardPlantReturn` holds it to the same user), nothing new",
+            "searchTokens.returnToken": "gives back a token a guarded spend took (`guardTokenReturn` holds it to the same user), nothing new"
+        };
+        const census = tables => {
+            const odd = [], rows = new Set();
+            let guarded = 0, account = 0, gms = 0, exempt = 0;
+            for (const { file, table } of tables) {
+                for (const [action, decl] of Object.entries(table)) {
+                    rows.add(action);
+                    const list = decl.guards ?? [];
+                    if (list[0]?.factory === "gmOnly") { gms++; continue; }
+                    const at = list.indexOf(G.knownSender);
+                    const spect = list.filter(g => g?.factory === "notSpectator" || g === G.senderNotSpectator);
+                    const owner = list.find(g => g?.factory === "owns" || g?.factory === "ownsActorAt");
+                    if (Object.hasOwn(NEEDS_NONE, action)) {
+                        exempt++;
+                        if (spect.length) odd.push(`${file} ${action}: listed as needing no guard, and holds one`);
+                        continue;
+                    }
+                    if (spect.length !== 1) { odd.push(`${file} ${action}: ${spect.length} Spectator guards, not one`); continue; }
+                    const [guard] = spect;
+                    if (at < 0 || list[at + 1] !== guard) odd.push(`${file} ${action}: its Spectator guard is not right after knownSender`);
+                    if (owner) {
+                        if (guard.factory !== "notSpectator") odd.push(`${file} ${action}: asks an owner question but guards the account, not the character`);
+                        else if (owner.factory === "owns" && owner.covers.length && JSON.stringify(owner.covers) !== JSON.stringify(guard.covers)) {
+                            odd.push(`${file} ${action}: the owner question reads ${owner.covers.join()}, the Spectator guard ${guard.covers.join()}`);
+                        }
+                        guarded++;
+                    } else if (guard === G.senderNotSpectator) account++;
+                    else guarded++; // a character a guard of the row's own reads (a trap's, a Search's), named to notSpectator
+                }
+            }
+            for (const action of Object.keys(NEEDS_NONE)) if (!rows.has(action)) odd.push(`${action}: listed as needing no guard, and no table has it`);
+            return { odd, guarded, account, gms, exempt };
+        };
+        const fixture = census([{ file: "fixture.mjs", table: {
+            "fixture.right": { guards: [G.knownSender, G.notSpectator("actorId"), G.owns("actorId", "not theirs")] },
+            "fixture.bare": { guards: [G.knownSender, G.owns("actorId", "not theirs")] },
+            "fixture.late": { guards: [G.knownSender, G.owns("actorId", "not theirs"), G.notSpectator("otherId")] }
+        } }]);
+        equal(JSON.stringify(fixture.odd.filter(line => line.startsWith("fixture.mjs"))), JSON.stringify([
+            "fixture.mjs fixture.bare: 0 Spectator guards, not one",
+            "fixture.mjs fixture.late: its Spectator guard is not right after knownSender",
+            "fixture.mjs fixture.late: the owner question reads actorId, the Spectator guard otherId"
+        ]), "the census does not find exactly the three faults planted in its fixture - it would misread the tables too");
+        const tables = await bridgeTables();
+        const read = census(tables);
+        must(read.guarded >= 40 && read.gms >= 20, `only ${read.guarded} guarded and ${read.gms} GM rows were read - the tables are not where this looks`);
+        log(`R3865: ${read.guarded} rows guard the character, ${read.account} the account, ${read.gms} are a GM's, ${read.exempt} need none`);
+        const codes = ["that character is a Spectator", "the sender plays a Spectator"].map(why => G.reasonOf(why));
+        equal(JSON.stringify({ odd: read.odd, codes, said: [game.i18n.has("DRPG.Bridge.why.spectator")] }),
+            JSON.stringify({ odd: [], codes: ["spectator", "spectator"], said: [true] }),
+            "[the rows whose Spectator guard is missing, misplaced or reads another field; the codes of its two refusals; the code's words]");
+    }],
     ["R1b - no socket handler takes a character on somebody's word", async () => {
         /*
          * THE ONE INVARIANT THAT DECIDES WHETHER A PLAYER CAN ACT AS ANOTHER
@@ -12183,7 +12252,8 @@ const REGRESSIONS = [
         const G = await import("./bridge-guards.mjs");
         const cast = BRIDGE_ACTIONS["vote.cast"], asked = BRIDGE_ACTIONS["vote.ask"];
         ok(cast && asked, "the bridge has no `vote.cast` or no `vote.ask` - a ballot has no road to the primary but a raw packet");
-        const shape = decl => [decl.guards?.[0] === G.knownSender, decl.guards?.[1]?.factory ?? null, decl.sanitize?.fields ?? null,
+        // The Spectator's guard stands second since E92 Q-E92-7 (R3865: a Spectator's account casts no ballot); the third is the players' own.
+        const shape = decl => [decl.guards?.[0] === G.knownSender && decl.guards?.[1] === G.senderNotSpectator, decl.guards?.[2]?.factory ?? null, decl.sanitize?.fields ?? null,
             decl.answer, Boolean(decl.patient), Boolean(decl.resend), Boolean(decl.quiet)];
         equal(JSON.stringify(shape(cast)), JSON.stringify([true, "playersOnly", { round: "num", choice: "raw" }, "reply", true, true, false]),
             "vote.cast is not a known player's alone, a round and a list, answered by the primary and asked again when a primary arrives");
