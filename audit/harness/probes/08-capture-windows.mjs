@@ -179,6 +179,13 @@ const RUN_TRIAL = `globalThis.__probe08trial = { clock: foundry.utils.deepClone(
 const OBJECT = `const F = await import(\`\${repoUrl}/scripts/trial-floor.mjs\`);
     const two = game.actors.filter(a => a.type === "character" && a.hasPlayerOwner).slice(0, 2);
     if (two.length === 2) await F.openObjection(two[0].id, two[1].id);`;
+/* E99 round 7 (the owner, 12.11.2026: the verdict and the chapter's end as steps of the flow): a running trial with no floor
+   at the vote's last stages - the count, the verdict given, the summary sent - each a patch of the trial's record. */
+const STAGE_TRIAL = patch => `globalThis.__probe08trial = { clock: foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "clock")),
+        queue: foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "trialQueue") ?? {}),
+        progress: foundry.utils.deepClone(game.settings.get("danganronpa-rpg", "trialProgress") ?? {}) };
+    await game.drpg.setClock({ phase: "classTrial" });
+    await (await import(\`\${repoUrl}/scripts/vote.mjs\`)).setTrialProgress(${patch});`;
 const STOP_TRIAL = `const F = await import(\`\${repoUrl}/scripts/trial-floor.mjs\`);
     await F.endFloor().catch(() => {});
     const t = globalThis.__probe08trial;
@@ -274,6 +281,9 @@ export const WINDOWS = [
     { id: "class-trial--case", module: "trial-floor-ui.mjs", before: SEED_TRIAL, after: DROP_TRIAL, call: "m.manageClassTrial()" },
     { id: "class-trial--case-debate", module: "trial-floor-ui.mjs", before: SEED_TRIAL + "\n    " + RUN_TRIAL, after: STOP_TRIAL + DROP_TRIAL, call: "m.manageClassTrial()" },
     { id: "class-trial--case-objection", module: "trial-floor-ui.mjs", before: SEED_TRIAL + "\n    " + RUN_TRIAL + "\n    " + OBJECT, after: STOP_TRIAL + DROP_TRIAL, call: "m.manageClassTrial()" },
+    { id: "class-trial--counted", module: "trial-floor-ui.mjs", before: SEED_TRIAL + "\n    " + STAGE_TRIAL("{ voteClosed: true, total: 3 }"), after: STOP_TRIAL + DROP_TRIAL, call: "m.manageClassTrial()" },
+    { id: "class-trial--verdict-given", module: "trial-floor-ui.mjs", before: SEED_TRIAL + "\n    " + STAGE_TRIAL("{ voteClosed: true, verdictApplied: true, verdict: { correct: true }, summaryShown: null }"), after: STOP_TRIAL + DROP_TRIAL, call: "m.manageClassTrial()" },
+    { id: "class-trial--summary-sent", module: "trial-floor-ui.mjs", before: SEED_TRIAL + "\n    " + STAGE_TRIAL("{ voteClosed: true, verdictApplied: true, verdict: { correct: true }, summaryShown: 1700000000000 }"), after: STOP_TRIAL + DROP_TRIAL, call: "m.manageClassTrial()" },
     // E73 C7: the zone modes' windows - the console while a Straw Poll runs, the picker, a Logic Dive set's editor, the
     // Findings, and Room setup's Scenes tab with the zones picked.
     { id: "class-trial--straw", module: "trial-floor-ui.mjs", before: SEED_STRAW, after: DROP_HALL, perTab: false, call: "m.manageClassTrial()" },

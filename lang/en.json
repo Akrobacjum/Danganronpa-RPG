@@ -1511,6 +1511,7 @@
         "finishElsewhere": "The verdict stopped before every step was done. Only {name} can finish it.",
         "verdictElsewhere": "{name} is giving the verdict. End the chapter once it is done.",
         "chapterEnd": "The verdict is in. End the chapter.",
+        "caseSummary": "The verdict is in. Show the case summary.",
         "endZone": "A zone mode holds the floor. It counts on its own; End this mode ends it.",
         "scrum": "The Straw Poll split the class. Open a Scrum Debate from Hall zones, or open the debate."
       },
@@ -1566,6 +1567,7 @@
         "finishElsewhere": "The verdict stopped before every step was done. Only {name} can finish it, so that each of its steps is done once: ask {name}, then end the chapter.",
         "verdictElsewhere": "{name} is giving the verdict. If their browser was reloaded inside it, Finish the verdict is on their console; end the chapter once the verdict is done.",
         "chapterEnd": "The verdict is in. End the chapter for the reveal and the next chapter.",
+        "caseSummary": "The verdict is in. Show the players the case summary, then end the chapter.",
         "sentenceWaits": "The trial goes on: the sentence is carried out when it ends.",
         "round": "A round holds the floor: each speaker in turn. Skip moves to the next speaker; End this mode ends the round.",
         "closing": "The Closing Argument holds the floor: confirm or pick its speaker, and after an Objection decide who continues. End the Closing Argument ends it; the vote is the next step.",
@@ -6255,6 +6257,7 @@
     },
     "CaseSummary": {
       "show": "Show summary",
+      "shown": "Summary sent",
       "previewTitle": "The case's summary",
       "intro": "Players get only this: what they found, the ticked deductions and counters, and the solution if they voted right.",
       "send": "Send to everyone",

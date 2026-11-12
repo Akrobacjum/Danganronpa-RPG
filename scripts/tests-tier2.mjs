@@ -28724,6 +28724,39 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         equal(JSON.stringify(counts), JSON.stringify([0, 1, 0]), "[question windows after a rehearsal, after the first body, after a second]");
     }],
 
+    ["E99 next: the case's ticks are a trial's - a second Class Trial in the chapter starts with none, and the first trial's ticks are not read in it", async () => {
+        /*
+         * E99 next, 12.11.2026 (the coordinator: "the ticks per trial, not per chapter ... like summaryShown"). A deduction
+         * of this chapter ticked under one trial's stamp (the record's `trialStartedAt`, which every trial's entry writes
+         * afresh); then the record names a second trial: the tick is not read, and a tick under the second is (one row per
+         * node: the second trial's tick is the row's now). The record is put back raw. Red at 9ca7fcc: the ticks were the chapter's,
+         * so the second trial read the first trial's tick.
+         */
+        const S = await import("./case-schema.mjs");
+        const { trialProgress } = await import("./vote.mjs");
+        const chapter = getClock().chapter;
+        const id = "deduction-suitee99next";
+        const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const at = stamp => game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...trialProgress(), chapter, trialStartedAt: stamp });
+        const seen = [];
+        try {
+            await at(1700000000000);
+            await S.setCaseNode(chapter, id, { kind: "deduction", label: "SUITE E99 next" });
+            await S.setCaseTick(chapter, id, true);
+            seen.push(S.caseTicks(chapter)[id] === true);
+            await at(1700000100000);
+            seen.push(S.caseTicks(chapter)[id] === true);
+            await S.setCaseTick(chapter, id, true);
+            seen.push(S.caseTicks(chapter)[id] === true);
+        } finally {
+            await at(1700000000000).catch(() => {});
+            await S.setCaseTick(chapter, id, false).catch(() => {});
+            await S.dropCaseNode(chapter, id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
+        }
+        equal(JSON.stringify(seen), JSON.stringify([true, false, true]), "[ticked in the first trial, read in the second, ticked in the second]");
+    }],
+
     ["E99 C4: a Present card of a copy of a Remnant on the schema marks it presented and hints the deduction it carries, without a tick", async () => {
         /*
          * E99 C4 and C8's open item (12.11.2026): the presentation read end to end, as the console's case schema reads it
@@ -41890,12 +41923,15 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             readings.ballotsOut = await read();
             await record({ vote: vote(false), voteClosed: true });
             readings.counted = await read();
-            await record({ vote: vote(false), voteClosed: true, verdictApplied: true, verdict: { stage: "done" } });
+            // E99 next (12.11.2026): after the verdict the case summary is the next step until it is out, then the chapter's end.
+            await record({ vote: vote(false), voteClosed: true, verdictApplied: true, verdict: { stage: "done" }, summaryShown: null });
+            readings.summaryNext = await read();
+            await record({ vote: vote(false), voteClosed: true, verdictApplied: true, verdict: { stage: "done" }, summaryShown: 1700000000000 });
             readings.verdictIn = await read();
             readings.endAfterVerdict = await endAsks();
             readings.hallAfterVerdict = await endAsks(true);
             await phase("dailyLife");
-            await record({ vote: vote(false), voteClosed: true, verdictApplied: true, verdict: { stage: "done" } });
+            await record({ vote: vote(false), voteClosed: true, verdictApplied: true, verdict: { stage: "done" }, summaryShown: 1700000000000 });
             readings.ended = await read();
         } finally {
             if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
@@ -41917,6 +41953,7 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             debate: [["closeDebate"], "open", lead("closeDebate"), 3, 2],
             ballotsOut: [["vote"], "open", lead("vote"), 3, 3],
             counted: [["verdict"], "open", lead("verdict"), 3, 0],
+            summaryNext: [["caseSummary"], "open", lead("caseSummary"), 3, 0],
             verdictIn: [["close"], "open", lead("chapterEnd"), 3, 0],
             endAfterVerdict: ["wait", true],
             hallAfterVerdict: ["wait", true],
@@ -56783,7 +56820,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
         D.wait = async cfg => {
             if ((cfg?.classes ?? []).includes("drpg-window-trial")) {
                 const button = (cfg.buttons ?? []).find(b => b.action === "verdict");
-                consoles.push({ label: button?.label ?? null, closed: button?.disabled === true });
+                // Closed: greyed, or - since E99 round 7 (the owner, 12.11.2026) - not offered at all once the verdict is
+                // applied, the Verdict being a step of the flow; either way no second verdict from the console.
+                consoles.push({ label: button?.label ?? null, closed: !button || button.disabled === true });
                 opened.push("console");
                 return consoles.length === 1 ? "verdict" : null;
             }
@@ -88527,7 +88566,9 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             if (fresh.length) await ChatMessage.deleteDocuments(fresh);
             await settle();
         }
-        const zone = ["chapterEnd", "end", "toggleFinal"];
+        // An ordinary trial runs in each state: End of chapter only at its step and no Start the Final Trial (the owner,
+        // 12.11.2026; E99 round 7, R3918), so the destructive zone is End the trial alone.
+        const zone = ["end"];
         const ended = read.ended?.step ?? "?";
         equal(stableJson(read), stableJson({
             discussion: { step: "openDebate", right: ["openDebate"], close: "close", zone, enter: false, panel: true, lead: "openDebate" },

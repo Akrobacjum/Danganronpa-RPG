@@ -352,12 +352,12 @@ R3659-R3662 take the 1.2.107 line's tests. Every mention in this file was moved 
 | Q-E99-6 | a GM's public chat card, no notice | as proposed; the animated board is E61's and not in this tree |
 | Q-E99-7 | its own Sound slot "Case summary", played with the board | built in round 6: `SFX_EVENTS.caseSummary` (incident; EN and PL), carried by the card (`sfx`), so every client plays it with the card (R3916) |
 | Q-E99-8 | every GM ticks and sends | as proposed (R3672; 63 S: gm2 and gm3) |
-| Q-E99-9 | once per trial; the button reads as done; a GM may replay the board on their own browser | once per trial built in round 6: the trial's record `summaryShown` (a time, nothing of the content; the entry blanks it, so a second trial has its own) replaces the ticks store's per-chapter row; a second press, by any GM, says "Already sent for this trial." and sends nothing (R3916, R1257; 63 S). Not built: the button does not change its look once sent (it stays pressable and answers that line), and there is no board to replay (E61) |
+| Q-E99-9 | once per trial; the button reads as done; a GM may replay the board on their own browser | once per trial built in round 6: the trial's record `summaryShown` (a time, nothing of the content; the entry blanks it, so a second trial has its own) replaces the ticks store's per-chapter row; a second press, by any GM, says "Already sent for this trial." and sends nothing (R3916, R1257; 63 S). E99 next (below) adds the rest but the board: the button reads "Summary sent", greyed, on every GM's console, and the ticks are the trial's too; there is no board to replay (E61) |
 | Q-E99-10 | objection and rebuttal listed with no start; the Reveal where it is | as proposed (R3670) |
 | Q-E99-11 | three-digit stage ids in E99 | not done: tools/stages.mjs is the coordinator's |
 | Q-E99-12 | no count of what was not found | as proposed (R3671) |
 | Q-E99-13 | a hint after presentations by E98's rule | as proposed (R3674, R3675) |
-| C7 | a `showSummary` next step before the chapter's end, and a `summaryShown` record row | the record row built (above). The next step not built: it changes the one table three readers share (trial-floor.mjs `TRIAL_NEXT_STEPS`: R2050's 31 views and its step count, R2051's panel line, R1364's footer primary, the console's leads, two texts) and needs a Final Trial flag `trialStepView` does not carry - not small. After the verdict the next step stays End of chapter; Show summary is a secondary button beside it. Left for the owner or a later stage |
+| C7 | a `showSummary` next step before the chapter's end, and a `summaryShown` record row | the record row built (above); the next step built in E99 next (below). Round 6's reason for leaving it, kept as the record: it changes the one table three readers share (trial-floor.mjs `TRIAL_NEXT_STEPS`: R2050's 31 views and its step count, R2051's panel line, R1364's footer primary, the console's leads, two texts) and needs a Final Trial flag `trialStepView` does not carry - not small. After the verdict the next step stays End of chapter; Show summary is a secondary button beside it. Left for the owner or a later stage |
 
 ## Round 6's local checks (aa4a8f6, 61d9d9c, a3e77af)
 
@@ -368,3 +368,52 @@ R3659-R3662 take the 1.2.107 line's tests. Every mention in this file was moved 
 - Scenarios, 0 failed in each: 63 75/75 (the summary once a trial, the record's time), 72 132/136 with its 4 expected
   red, 41 51/51, 50 44/44, 62 51/51, 67 45/46 with 1 expected red (TR30 until E72), 68 20/20, 86 104/104, 88 26/26.
 - The sweep: 48 pages, 0 failing (the 1366x768 numbers in round 6's table).
+
+## E99 next (12.11.2026; the coordinator, the owner approved; local branch claude/e99-next from 9ca7fcc)
+
+- **Show summary is the next step after the verdict**: trial-floor.mjs `TRIAL_NEXT_STEPS` answers `caseSummary` before
+  End of chapter while the trial's record says the summary is not out (`summaryShown` null, as the record's blank and
+  every entry write it) and no Final Trial runs; `trialStepView` carries `finalNow` from the clock. The step is named
+  after the footer's own action, so the console's primary is Show summary at that step, the GM panel's line says
+  `DRPG.Floor.next.caseSummary` and its Do it opens the console. A view with no record of the summary (R2050's 31 and
+  R2051's views) reads as before: they are unchanged and green. Texts: `DRPG.Floor.next.caseSummary`,
+  `DRPG.Floor.lead.caseSummary`, EN and PL.
+- **The button once sent**: greyed and reading "Summary sent" / "Podsumowanie wysłane" (`DRPG.CaseSummary.shown`) on
+  every GM's console - the record is a world setting, and the console's footer redraws on it.
+- **The ticks are a trial's**: case-schema.mjs stamps each tick row with the trial's `trialStartedAt` (the record's,
+  written afresh at every trial's entry) and reads only the current trial's rows. A second Class Trial in the chapter
+  starts with none; nothing is deleted and nothing new is written on the primary or on a player (the store stays the
+  GMs'). One row per node: a tick in a later trial is the row's from then on.
+- **Red first**: R3917 (tier 1: the step for six views, the view's Final Trial flag, the texts, the footer before and
+  after) and tier 2 "E99 next: the case's ticks are a trial's" (measured [true, true, true] at 9ca7fcc - the second
+  trial read the first's tick) - both red at 9ca7fcc, green here. Scenario 63 S: after `resetTrialProgress`, gm2 reads
+  none of the first trial's ticks and the summary is unsent.
+- GM handbook section 15 (EN, PL): one sentence each on the next step and "Summary sent", and that ticks belong to the
+  current trial.
+
+## Round 7: the verdict and the chapter's end as steps of the flow (12.11.2026; the owner through the coordinator)
+
+The owner: "czy werdykt nie powinien byc usunietym przyciskiem z konsoli trial? Zamiast tego byc kolejnym etapem
+glosowania? Tak samo end the chapter. A start final trial w ogole tez nie powinno byc w trakcie trwania zwyklego class
+triala opcja". **Defaults taken, owner to confirm:**
+
+1. **The Verdict** leaves the console's footer as a standing button: it stands there only while it is the trial's next
+   step (the vote counted, no floor open), as the primary; the console's first line, the GM panel's Next line and the
+   vote window's lead already name it then. Not in the vote window as a button of its own (the vote's footer is
+   unchanged).
+2. **End the chapter** likewise: only while it is the next step - after the verdict and, in an ordinary trial, the case
+   summary. Still the destructive role, never the Enter default (Close is). A chapter that ends without a verdict ends,
+   as since E49 A2, from the part at the bottom of Edit campaign.
+3. **Start the Final Trial** is not drawn while an ordinary Class Trial runs (hidden, not greyed); with no trial it is
+   where it was (greyed with its reason when no Mastermind is set), and during a Final Trial End the Final Trial stays.
+
+Every road that writes the verdict or ends the chapter is unchanged (`TRIAL_ACTIONS.verdict`, the verdict's window and
+its runner on the primary; `TRIAL_ACTIONS.chapterEnd`, the chapter-end window): only where the GM reaches them moved.
+
+- **Red first**: R3918 (tier 1), the footer's census over eleven states (the next step, a Verdict, an End of chapter, the
+  Final Trial switch, the Enter default) - red at a5844ac (all three in every state). R1364's four footers, R2052's
+  zone and set, and tier 2 E47-T1's zone follow the owner's change, each with the reason written beside it.
+- GM handbook section 15 (EN, PL): one paragraph, "The footer follows the trial", naming the buttons as drawn.
+- Probe 08: three new captures - the count, the verdict given, the summary sent - each a patch of the trial's record.
+- The sweep over the console's five captures (40 pages, 0 failing): glass at 1366x768 during a trial 12.6 px after
+  Fit, Legacy as it was; at 1920x1080 the slot grew 664 -> 707 px (the footer holds fewer buttons).
