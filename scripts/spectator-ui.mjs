@@ -91,7 +91,8 @@ export async function paintSpectatorLine() {
         line.querySelector("select")?.addEventListener("change", async event => {
             const room = event.target.value;
             event.target.value = "";
-            if (!room) return;
+            // A GM is no Spectator: its own request would talk to itself down the socket (R6).
+            if (!room || game.user.isGM) return;
             const spot = await middleOf(scene, room, token);
             if (!spot) return;
             const { requestSpectatorMove } = await import("./bridge-asks.mjs");

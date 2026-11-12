@@ -581,6 +581,9 @@ export const CAMERA_READERS = Object.freeze({
     "rooms.mjs#viewedLevel": "definition",
 
     "call-world.mjs#panToGathered": "draw",
+    // E92 C5: the Spectator's line under the clock - its token and the rooms of the scene on screen, for its own browser.
+    "spectator-ui.mjs#ownToken": "draw",
+    "spectator-ui.mjs#paintSpectatorLine": "draw",
     "fog-doorways.mjs#doorwayEdges": "draw",
     "fog.mjs#visionForDrawnScene": "draw",
     "fog.mjs#rememberMine": "draw",

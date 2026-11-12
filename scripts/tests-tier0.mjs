@@ -8137,6 +8137,10 @@ const REGRESSIONS = [
             // The trace's token through its ref since E60 C1b (remnants.mjs `remnantById`), `scene.tokens.get()` until then.
             ["cleanup.mjs", "undoLastCleanup", "remnantById().document", "the trace token a clean-up left behind"],
             ["gm-bridge.mjs", "handleSendback", "token", "a token sent back out of a locked room"],
+            // E92 C3: run on the primary from `spectator.move`, for a character the GMs hold as a Spectator (no student's).
+            ["gm-bridge.mjs", "handleSpectatorMove", "token", "a Spectator's token moved through any wall (E92 C3)"],
+            // E92 C6: the player's own User document, its "Spectator talk" switch.
+            ["spectator-ui.mjs", "paintSpectatorLine", "game.user", "the player's own Spectator talk switch, a flag on its own User (E92 C6)"],
             ["incident-store.mjs", "retireOpeningNotices", "game.messages.get()", "the GMs' opening notices"],
             ["migrate.mjs", "CLAUSES", "table", "a pool table's results, given their roles"],
             ["monocub.mjs", "postCubRoll", "ChatMessage", "the Monocub ability roll's chat card (E33 C10; postMeddleRoll until 1.2.68)"],
@@ -9259,6 +9263,7 @@ const REGRESSIONS = [
             ["HOOK visibility.mjs#registerVisibility#deleteRegionBehavior:inline", "out of scope as a judge: on a player's browser, a whole visibility pass in a microtask when the change is on the scene on screen (`roomsChangedOn` -> `wholePassSoon`), since the change can move which room a viewer's character reads as standing in with no token moving (E89 fix FG2, SEC-1; scenario 86, its fix FG2 SEC-1 check); it draws this client's tokens and decides no rule (a Teleport taken off makes one)"],
             ["HOOK visibility.mjs#registerVisibility#updateScene:inline", "out of scope as a judge: on a player's browser, a whole visibility pass in a microtask when the change is on the scene on screen (`roomsChangedOn` -> `wholePassSoon`), since the change can move which room a viewer's character reads as standing in with no token moving (E89 fix FG2, SEC-1; scenario 86, its fix FG2 SEC-1 check); it draws this client's tokens and decides no rule (only a scene update carrying `changes.regions`)"],
             ["HOOK visibility.mjs#registerVisibility#updateToken:inline", "out of scope as a judge: re-applies who is shown on every client; gates on `isMoveChange` since E12 C9 (a `level`-only move is seen, scenario 66 G2 and G3) [1b.1 a token's floor]"],
+            ["HOOK spectator-ui.mjs#registerSpectatorUi#updateToken:inline", "out of scope as a judge: redraws the Spectator's own line under the clock when its own token moves, on its own browser (E92 C5); a display"],
             ["HOOK visibility.mjs#registerVisibility#createToken:inline", "out of scope: a token dropped re-applies visibility on every client; since E12 C11 it draws through visibility.mjs `tokenShownTo`, one rule on every floor (E12 C11)"],
             ["HOOK voice.mjs#registerVoice#updateToken:inline", "out of scope as a judge: schedules the voice reconcile, which places by `locateActor` on the primary; gates on `isMoveChange` since E12 C9 (a `level`-only move is seen, scenario 66 G2 and G3) [1b.1 a token's floor]"],
             ["HOOK voice.mjs#registerVoice#createToken:inline", "out of scope: a token dropped reconciles voice rooms on every client"],
@@ -9450,6 +9455,7 @@ const REGRESSIONS = [
             ["SHEET voice.mjs#deadForTrial", "held (E70 C5; E70 fix p1-G1): on the primary in the record's step, after its deaths store has hydrated and every student's writes are judged (`judgedFor`) - `isDeadForGm` and the Monocub flag read through `flagsHeldNow`, so a dead player's console that unsets its death or sets the Monocub flag leaves the list as it was; an open incident's victim only once the GMs hold the death (no living victim, the review's SEC-1) [1b.2]"],
             ["SHEET voice.mjs#trialVoiceLine", "out of scope as a judgement (E70 fix p1-G3): the viewer's own line of who may speak in the trial, on its own client, where no voice tile is drawn - its voice character as `accountRow` ranks it (the trial's list first) and the Monocub flag from the document, as `micHold` reads them; it moves nothing and judges nobody"],
             ["SHEET voice.mjs#accountRow", "out of scope: `isMonokuma` from the document, as `voiceTargets` reads it, to rank one account's characters by `voiceClaim` with nobody located (E78 C2)"],
+            ["SHEET voice.mjs#spectatorAccount", "held (E92 C2): on the primary's settle the Spectator's flag is read through `flagsHeldNow`, after every character's writes are judged (`settleTrialVoices`); elsewhere a display, each client's own microphone line"],
             ["SHEET voice.mjs#keepRoomsThroughGaps", "out of scope as a judgement: `isMonokuma` from the document, as `placeVoices` reads it, so that a Monokuma's token (a GM's voice) keeps no voice room through a gap (E88 fix G1); it moves nothing and writes nothing, and in the trial `voiceClaim` locates nobody, so it is not asked"],
             ["SHEET use-items.mjs#equippedIn", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
             ["SHEET use-items.mjs#tierOf", "out of scope: a pure reader of the item it is handed (use-items.mjs:110); on a GM the swing hands it the held item. C8 reads the tier through it (E13 C8)"],
@@ -9474,9 +9480,11 @@ const REGRESSIONS = [
             ["SHEET monocub.mjs#isMonocub", "out of scope as a judgement: reads the flag of the actor it is handed; since E13 C3b the gather's filter and `leftBehind` hand it the held flags on the return from the trial (`flagsHeldNow`, after `judgedFor`), and the body's gather and every other reader hand the document, as before (the owner's item 6 of 10.10). C2 reads no Monocub flag: under Q-E13-1 (a) a Monocub a player owns is shown as any student a player owns (`readCast` reads only `monokuma`, held) [1b.2]"],
             ["HOOK despair.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK fog.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
+            ["HOOK spectator-ui.mjs#canvasReady#arrow1", "out of scope: draws the Spectator's line for this client only (E92 C5) [1b.1 which scene a client views]"],
             ["HOOK sheet.mjs#preUpdateToken#noteStepStart", "out of scope: notes where this browser's own move starts (H81-13); the courtroom holds no tunnel, and the crossing is the primary's (`crossTunnel`)"],
             ["HOOK body-tile.mjs#updateToken#arrow1", "judged: the body follows its corpse's token (E63 C1, `followBody`) on the GM browser that wrote the move alone; a token on another scene than its tile moves nothing, so a hall token in the trial moves no school body, and the trial's end takes every body tile (E63 C2)"],
             ["HOOK anonymity.mjs#updateToken#arrow1", "out of scope: a display - an open body's loot window reads the one gate again on a token write of its taker or its body (E14 fix e1-G6); writes nothing; in the hall the Class Trial refuses every loot (`cannotNow`)"],
+            ["HOOK spectator-ui.mjs#updateToken#arrow1", "out of scope: a display - the Spectator's own line redrawn on its own browser when its own token moves (E92 C5); writes nothing"],
             ["HOOK sheet.mjs#updateToken#arrow1", "out of scope: a move onto a tunnel's end asks the primary as 'Go through' does (H81-13); the courtroom holds no tunnel, and the Class Trial refuses one there (`trialLocked`)"],
             ["HOOK fog.mjs#updateToken#onUpdateToken", "judged on the primary: a move records discovery through rooms; the hall holds none after C1, so a hall move records nothing (41 b: 0 fog writes). E12 C2b/C10 change the readers"],
             ["HOOK fog.mjs#createToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one create, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
@@ -10633,6 +10641,8 @@ const REGRESSIONS = [
             ["IGN movement.mjs#sendBack -> write", "the one road of a refusal's put-back, the audit's included: back to where the token stood, so a wall between the two does not stop it (R559)"],
             ["IGN movement.mjs#refundLastCrossing -> write", "a GM's 'Refund last crossing' (E17 C3), on the primary in a step of the character's key: the token stood again on the spot the GMs' record holds from before the crossing (`crossingStore`'s `back`, the primary's own sighting or a tunnel's entry), so a wall between the two does not stop it, as `sendBack`'s"],
             ["IGN gm-bridge.mjs#handleSendback -> write", "the lawful send-back, written on the GM after `guardSendbackPlace` (R559; 76 D)"],
+            ["IGN gm-bridge.mjs#handleSpectatorMove -> write", "a Spectator's ghost move, written on the primary through any wall for a character the GMs hold as a Spectator (E92 C3; 30 and 33 drive it): no passage, no crossing, no lock is the Spectator's"],
+            ["HOOK spectator-ui.mjs#registerSpectatorUi#updateToken/inline -> judge", "a display on the Spectator's own browser (E92 C5); E92 adds no passage road through it"],
             ["ACT movement-audit.mjs#auditMove#move.sentBack -> screen", "the primary GM's word to the mover alone (`recipients`), a code and the token's ids, no geometry; sent once the put-back has landed (R559, R560; 76 D)"],
             ["ACT movement-audit.mjs#onSentBack#move.sentBack -> screen", "CLAIM: refused unless addressed to this user by the primary GM with a known code (`sentBackRefusal`); plays the refusal's sound and shows the veto's line (R559; 76 D)"],
             ["SET settings.mjs#moveAudit#gm -> mode", "a world setting, GM only, \"log\" by default (the plan's AM-1): a row in the Debug log, or \"sendBack\" (R559; 76 D)"],
@@ -20276,7 +20286,9 @@ const REGRESSIONS = [
             "call-world.mjs#panToGathered", "dice-sync.mjs#putBackToken", "gm-stores.mjs#remnantStore", "movement-audit.mjs#onSentBack",
             "movement.mjs#refundLastCrossing", "private-rolls.mjs#rollSubjectNow", "projects-map.mjs#projectTokenOf",
             "projects-map.mjs#removeProjectToken", "projects-map.mjs#sweepOnce", "relay-guard.mjs#tokenFor", "trial-scene.mjs#stageHall",
-            "trial-scene.mjs#standingTwice", "trial-scene.mjs#scenesReportOf"
+            "trial-scene.mjs#standingTwice", "trial-scene.mjs#scenesReportOf",
+            // E92 C3: a Spectator's token by the ids `spectator.move` names - a character's, never a trace's.
+            "bridge-runs-acts.mjs#handleSpectatorMove"
         ]);
         const DECL = /^(?:export\s+)?(?:async\s+)?function\*?\s*([\w$]+)|^(?:export\s+)?(?:const|let)\s+([\w$]+)\s*=/gm;
         const READER = "(?:[\\w$]+\\.)?(?:remnantsOn|remnantsInRoom|remnantById|findRemnantToken)\\(";
