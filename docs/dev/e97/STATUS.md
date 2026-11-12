@@ -23,8 +23,7 @@ wider than its head under Legacy. Before C2: 1241 px wide at 1366x768, the size 
 
 ## In progress
 
-- Pre-push batch on d2839d8 (tiers 0-1 whole and the 30 scenarios that read the changed files). fd66831 and d2839d8 are
-  pushed only when it is green.
+- (none: fd66831 and d2839d8 pushed after the batch below)
 
 ## Next
 
@@ -70,8 +69,15 @@ None.
 
 - Tiers 0-1 with the patch applied (f22a7e8 + C1/C3/C4): 1165 passed, 0 failed, 16 skipped, 1 red.
 - Tiers 0-1 at fde1c64 (C5): 1166 passed, **2 failed (R1357, R1358)**, 16 skipped, 2 red - fixed in 5b124a4.
-- Pre-push batch on 5b124a4: running (tiers 0-1 and the 29 scenarios that read the changed files; 84-viewports
-  excluded).
+- Pre-push batch on 5b124a4: tiers 0-1 1167 passed, 1 failed (R1336, fixed in a7146dd), 2 red; 29 scenarios green.
+  On a7146dd: tiers 0-1 1168 passed, 0 failed, 16 skipped, 2 red (R3339 E48's, R3653 as promised); tier 2 by name
+  ("dashboard", "Investigation", ...) 39 tests green. Pushed.
+- Tiers 0-1 on fd66831: 1170 passed, 4 failed (R1322, R304, R1157, R1318 - fixed in d2839d8).
+- Pre-push batch on d2839d8: tiers 0-1 1174 passed, 0 failed, 16 skipped, 1 red (R3339, E48's); the "E97 C" tier-2
+  tests 24 passed; 30 scenarios (00, 10, 12-15, 17, 19, 30, 33, 40, 41, 50, 60-63, 65-67, 71, 72, 74-76, 81, 83,
+  86-88): 29 green, 61-gmstore-case 112/113 (F9, the murder opening's pick kept on the primary and re-asked by a second
+  GM) while three scenarios ran on four cores - alone on the same commit 113/113 green. Not touched by this stage's
+  files as far as read; recorded as seen once under load, not explained.
 
 ## Screenshot pages
 
