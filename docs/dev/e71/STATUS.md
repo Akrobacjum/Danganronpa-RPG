@@ -22,9 +22,10 @@ Counts are changes, one per plural form; a key changed in two areas counts in bo
 | pilot afters | 28 | 33 | 0 | the 40 strings of docs/dev/text-pilot.json, approved by the owner (verdict "ok", 01.11.2026): every after that had not landed and whose key is neither frozen nor config prose |
 | X12 colons (PL) | 0 | 81 | 0 | X12 (confirmed in the pilot): "w pokoju {room}", "postaci {name}" |
 | caps and please | 8 | 2 | 0 | X16, X8 (to confirm in E71) |
-| Remnant in sentences | 85 | 119 | 2 (GM section 1, EN and PL: the quote of `Vault.descriptionNote`) | EN15/PL-r, DB15 (glossary `remnant`, stage E71), DB4 for the Polish cases |
-| overexplains (T29) | 11 | 10 | 10 (player handbook: the Eclipse, Rooms, the messenger's Note, the settings window; EN and PL) | T29, the owner's rule of 12.11.2026, added to docs/text-style.md section 2 |
+| Remnant in sentences | 85 | 119 | 4 (GM section 1's quote of `Vault.descriptionNote`, player section 11's tables note; EN and PL) | EN15/PL-r, DB15 (glossary `remnant`, stage E71), DB4 for the Polish cases |
+| overexplains (T29) | 14 | 13 | 18 (player handbook: starting resources, the Eclipse, Rooms, Voice, Truth Bullets, the messenger's waits and Note, the settings window; EN and PL) | T29, the owner's rule of 12.11.2026, added to docs/text-style.md section 2 |
 | handbooks: GM-a | 0 | 0 | 67 (Polish handbooks, unfrozen sections) | PL-i/D33c (glossary `gm-a`, scope handbooks) |
+| Polish grammar | 0 | 4 | 0 | no bracketed gender endings ("zgłosił(a)"): the sentence is built so no form needs the student's gender |
 
 ## Text rules exercised ("to confirm in E71"), and the outcome
 
@@ -63,6 +64,15 @@ edited unless the row says so.
 | lang/en.json, lang/pl.json (frozen) | `DRPG.Settings.highContrast.hint`, `reducedMotion.hint` (e61-62, e92) | End "This client only." / "Tylko ten klient." where EN14/PL-o say "Only affects this browser." / "Dotyczy tylko tej przeglądarki."; the hint also explains the Interface scale's split. | Frozen; for the owning line. |
 | docs/handbooks/player-handbook.*.md section 5 (frozen by e64, e72) | the Calls paragraph (EN line 397) | Overexplains (T29): "bought on the GM's browser", "read in the code, not measured for a Call", "a roll the GM's browser throws". | Frozen; for the owning line. |
 | scripts/config.mjs and `DRPG.Config.*` in pl.json | config prose | Not edited in this pass at all (see FROZEN.md); the pilot's config afters and pair N25 (`ACTIONS.palm.description`) wait there. | Four open branches change config.mjs by line. |
+
+## Test runs
+
+| When | Tree | Result |
+| --- | --- | --- |
+| 12.11, run a | b7ecc32b and edits in progress | 1226 passed, 4 failed (R431, R902, R904, R1563: wording this pass changed), 16 skipped |
+| 12.11, run b | 2dbf3c88 | 1228 passed, 2 failed (R518, R3136), 16 skipped; both fixed and run green alone |
+| 12.11, run c | ffddd0ee and the T29/GM-a edits | 1228 passed, 2 failed (R387, R603), 16 skipped; both fixed and run green alone |
+| 12.11, run d | the commit after 11133b75 | 1230 passed, 0 failed, 16 skipped, 0 red (`node run-tests.mjs --tier 1`, 384 s) |
 
 ## Tests whose expected wording changed
 

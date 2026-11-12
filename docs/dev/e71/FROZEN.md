@@ -14,11 +14,11 @@ Read at origin/main 235c3210 on 12.11.2026.
 
 | Branch | Head | Merge base |
 | --- | --- | --- |
-| e61-62 | 7bbbd3cd | fa73b601 |
+| e61-62 | b07dec9e | fa73b601 |
 | e76-106 | 1d62225e | 14619ce2 |
 | e97-98 | 1b8d19af | 7fa07aee |
 | e73 | 6a914d02 | fa73b601 |
-| e92 | 7d907a7e | fa73b601 |
+| e92 | 16ab04b3 | fa73b601 |
 | e93 | db683702 | f22a7e87 |
 | e72 | 587de41e | f22a7e87 |
 | e64 | 951cd1fd | fa73b601 |
@@ -35,7 +35,8 @@ Read at origin/main 235c3210 on 12.11.2026.
 | gm-handbook.en.md | ## 16. End of chapter and season reset | e61-62, e73, e97-98, gaps-a |
 | gm-handbook.en.md | ## 20. Troubleshooting | gaps-a |
 | gm-handbook.en.md | ## 3. The GM panel | e72 |
-| gm-handbook.en.md | ## 5. Actions and budgets | e64 |
+| gm-handbook.en.md | ## 4. The clock | e61-62 |
+| gm-handbook.en.md | ## 5. Actions and budgets | e61-62, e64 |
 | gm-handbook.en.md | ## 7. Despair pools, assignments and overflow | e93 |
 | gm-handbook.en.md | ## 8. Monokuma, Monocubs and the Mastermind | e72, e92 |
 | gm-handbook.en.md | ### 13.2 The incident (Stage 5) | e64 |
@@ -54,7 +55,8 @@ Read at origin/main 235c3210 on 12.11.2026.
 | gm-handbook.pl.md | ## 16. Koniec rozdziału i reset sezonu | e61-62, e73, e97-98, gaps-a |
 | gm-handbook.pl.md | ## 20. Rozwiązywanie problemów | gaps-a |
 | gm-handbook.pl.md | ## 3. Panel GMa | e72 |
-| gm-handbook.pl.md | ## 5. Akcje i budżety | e64 |
+| gm-handbook.pl.md | ## 4. Zegar | e61-62 |
+| gm-handbook.pl.md | ## 5. Akcje i budżety | e61-62, e64 |
 | gm-handbook.pl.md | ## 7. Pule Despair, przydziały i overflow | e93 |
 | gm-handbook.pl.md | ## 8. Monokuma, Monocuby i Mastermind | e72, e92 |
 | gm-handbook.pl.md | ### 13.2 Incydent (Stage 5) | e64 |
@@ -73,6 +75,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | player-handbook.en.md | ## 12. The Class Trial | e72 |
 | player-handbook.en.md | ## 13. Death, and after | e72 |
 | player-handbook.en.md | ## 2. Time | e92 |
+| player-handbook.en.md | ## 3. Moving and seeing | e61-62 |
 | player-handbook.en.md | ## 4. Actions | e64 |
 | player-handbook.en.md | ## 5. Hope and the Hope Calls | e64, e72 |
 | player-handbook.en.md | ### Bedrooms, keys, stashes | e64 |
@@ -88,6 +91,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | player-handbook.en.md | ### Rest - no roll, 1 or 2 actions | e93 |
 | player-handbook.en.md | ### Rolling | e92 |
 | player-handbook.en.md | ### Tamper - Shadow, 1 action | e64 |
+| player-handbook.en.md | ### The Eclipse | e61-62 |
 | player-handbook.en.md | ### The Final Trial | e73, e97-98 |
 | player-handbook.en.md | ### The morning after | e72 |
 | player-handbook.en.md | ### The overflow | e72 |
@@ -96,10 +100,12 @@ Read at origin/main 235c3210 on 12.11.2026.
 | player-handbook.pl.md | ## 12. Class Trial | e72 |
 | player-handbook.pl.md | ## 13. Śmierć i to, co po niej | e72 |
 | player-handbook.pl.md | ## 2. Czas | e92 |
+| player-handbook.pl.md | ## 3. Ruch i widzenie | e61-62 |
 | player-handbook.pl.md | ## 4. Akcje | e64 |
 | player-handbook.pl.md | ## 5. Hope i Hope Calls | e64, e72 |
 | player-handbook.pl.md | ### Despair Calls - co Monokuma może ci zrobić | e72 |
 | player-handbook.pl.md | ### Dwa stany, których nie chcesz | e64 |
+| player-handbook.pl.md | ### Eclipse | e61-62 |
 | player-handbook.pl.md | ### Final Trial | e73, e97-98 |
 | player-handbook.pl.md | ### Gra Monocubem | e64, e72 |
 | player-handbook.pl.md | ### Głosowanie | e72 |
@@ -117,7 +123,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | player-handbook.pl.md | ### Sypialnie, klucze, skrytki | e64 |
 | player-handbook.pl.md | ### Tamper - Shadow, 1 akcja | e64 |
 
-## Lang keys (350 paths; a path that is an object freezes its opening line only, its leaves are listed one by one)
+## Lang keys (356 paths; a path that is an object freezes its opening line only, its leaves are listed one by one)
 
 | Key | Branches |
 | --- | --- |
@@ -196,6 +202,12 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.Cleanup.moveIntro` | e64 |
 | `DRPG.Cleanup.moveWhere` | e64 |
 | `DRPG.Cleanup.toolsBroken` | e64 |
+| `DRPG.Clock.chapterCorrectTitle` | e61-62 |
+| `DRPG.Clock.endChapterAsk` | e61-62 |
+| `DRPG.Clock.endChapterNote` | e61-62 |
+| `DRPG.Clock.phase` | e61-62 |
+| `DRPG.Clock.session` | e61-62 |
+| `DRPG.Clock.timeOfDay` | e61-62 |
 | `DRPG.Config.ACTIONS.listen` | e93 |
 | `DRPG.Config.ACTIONS.listen.description` | e93 |
 | `DRPG.Config.ACTIONS.listen.hint` | e93 |
@@ -481,3 +493,15 @@ Read at origin/main 235c3210 on 12.11.2026.
 - e93: 1653-1658; 1656-1660; 1672-1677; 1675-1679; 1679-1683; 2081-2086; 2409-2414; 5028-5033
 - e72: 2299-2304; 2647-2652; 3194-3198; 3195-3200; 3199-3204; 3225-3230
 - e64: 1792-1797; 3094-3098; 3118-3123; 3129-3134; 3207-3212; 3209-3213; 3383-3388; 3509-3514; 3565-3570; 3583-3588; 3623-3628; 3646-3651; 3657-3662; 3668-3673; 3750-3755; 4031-4036; 4048-4053; 4050-4054; 4324-4331; 5043-5048
+
+## Sections frozen after this line edited them
+
+Re-read at the fourth commit (12.11.2026): e61-62 (head b07dec9e) now inserts lines into three sections this line had
+already edited in 11133b75. The edits do not touch the same lines, so the merge has no overlapping hunk:
+
+| File | Section | This line's edit | e61-62's hunk (its merge base) |
+| --- | --- | --- | --- |
+| player-handbook.en.md, .pl.md | The Eclipse / Eclipse | lines 101-102 (T29 cuts) | insertion after line 110 |
+| gm-handbook.pl.md | 4. Zegar | line 214 (GM-a) | insertion after line 231 |
+
+No further edit goes into these sections.
