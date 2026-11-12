@@ -3134,7 +3134,8 @@
       "marked": "{name} is now a Spectator.",
       "unmarked": "{name} is no longer a Spectator.",
       "talk": "Talk with the Spectators",
-      "talkBack": "Go back to your room"
+      "talkBack": "Go back to your room",
+      "noChat": "A Spectator has no chat."
     },
     "Class": {
       "notInClass": "Not in the class",

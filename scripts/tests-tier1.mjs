@@ -49602,6 +49602,22 @@ const INVARIANTS = [
             count: 1, gone: null, painter: true }),
             "[the switch off, a click, the switch on, how many buttons, the browser no longer watching; paintControls paints it]");
     }],
+    ["R3866 - a Spectator's token on a GM's canvas is barely visible (E92, the owner's DRPG-D1 of 12.11.2026: \"Gm widzi zeton widza, ale zeton widza jest transparentny/ledwie widoczny, by nie mylil sie z graczami\"): visibility.mjs `dressSpectator` draws its sprite at 0.28 of the token's own alpha (in the owner's 25-30 %), its outline as faint, and gives a token whose actor is no Spectator any more its own alpha back", async () => {
+        /*
+         * E92, 12.11.2026. A stand-in token (no canvas headless: the real map's look is LIVE-E92-04); its actor answers the
+         * flag as handed. Red at 7d907a7: the sprite at 0.6.
+         */
+        const { dressSpectator } = await import("./visibility.mjs");
+        let watching = true;
+        const token = { actor: { getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.spectator ? watching : undefined) },
+            mesh: { tint: 0xffffff, alpha: 1 }, document: { alpha: 0.9 }, children: [], w: 100, h: 100 };
+        const drawn = dressSpectator(token);
+        const faint = Math.round(token.mesh.alpha * 1000) / 1000;
+        watching = false;
+        dressSpectator(token);
+        equal(stableJson({ drawn, faint, back: token.mesh.alpha }), stableJson({ drawn: true, faint: Math.round(0.28 * 0.9 * 1000) / 1000, back: 0.9 }),
+            "[dressed; its sprite's alpha for a token of alpha 0.9; the alpha given back]");
+    }],
     ["R3858 - the census of `type === \"character\"` holds (E92 C0; the plan's risk R1): every line in scripts/ outside the suite that reads an actor's type as \"character\" is one docs/dev/e92/CENSUS.md classified - a new one fails here until it is classified there and counted here", async () => {
         /*
          * E92 C0, 12.11.2026. Counted per file, comments and strings left in (a census line is a line of code; the two

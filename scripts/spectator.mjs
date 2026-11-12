@@ -56,3 +56,35 @@ export function watcherOf(user = game.user, actors = game.actors) {
     return [...(actors ?? [])].filter(a => a?.type === "character" && flaggedSpectator(a) && a.testUserPermission?.(user, "OWNER"))
         .sort((a, b) => String(a.id).localeCompare(String(b.id)))[0] ?? null;
 }
+
+/*
+ * WHO IS A SPECTATOR, AS THE GMS HOLD IT (E92, the owner's DRPG-D1 of 12.11.2026). The GMs' roads that give a Spectator
+ * more than a student - every project in sight (projects-secrecy.mjs `ownershipMap`) - read the flag as the GMs hold
+ * it, not as the document stands: a student's console that writes the flag on its own character has it put back by the
+ * audit, and must not be shown a secret project meanwhile. sheet-audit.mjs hands its reader here when it registers
+ * (`readSpectatorsWith(flagsHeldNow)`); a player's browser keeps the document's, which is all it holds.
+ */
+let heldFlags = actor => actor;
+
+/** sheet-audit.mjs's reader of the flags the GMs hold for a character (`flagsHeldNow`). */
+export function readSpectatorsWith(reader) {
+    if (typeof reader === "function") heldFlags = reader;
+}
+
+/** The users who play a Spectator and no student, by `spectatorViewer`'s rule on the flags as held here. */
+export function spectatorUserIds(users = game.users, actors = game.actors) {
+    const out = new Set();
+    for (const user of users ?? []) {
+        if (!user || user.isGM) continue;
+        let watching = 0, student = false;
+        for (const actor of actors ?? []) {
+            if (actor?.type !== "character" || !actor.testUserPermission?.(user, "OWNER")) continue;
+            const flags = heldFlags(actor) ?? actor;
+            if (flags?.getFlag?.(MODULE_ID, FLAGS.monokuma)) continue;
+            if (flags?.getFlag?.(MODULE_ID, FLAGS.spectator)) watching += 1;
+            else student = true;
+        }
+        if (watching && !student) out.add(user.id);
+    }
+    return out;
+}

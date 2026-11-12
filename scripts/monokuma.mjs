@@ -243,9 +243,14 @@ export async function setSpectator(actor, value = true) {
     if (!game.user.isGM || !actor) return null;
     // The class's map leaves a Spectator made a student again (E92 C4): its own rows stay, the fold's are unticked first.
     if (!value && isSpectator(actor)) await (await import("./fog.mjs")).forgetSpectatorMap(actor);
+    const { spectatorUserIds } = await import("./spectator.mjs");
+    const before = spectatorUserIds();
     if (value) await actor.setFlag(MODULE_ID, FLAGS.spectator, true);
     else await actor.unsetFlag(MODULE_ID, FLAGS.spectator);
     log(`${actor.name} is ${value ? "now" : "no longer"} a Spectator.`);
+    // Every project in a Spectator's sight, and out of it again (E92 DRPG-D1; projects.mjs `seeAsSpectators`).
+    const now = spectatorUserIds();
+    await (await import("./projects.mjs")).seeAsSpectators([...before].filter(id => !now.has(id)));
     ui.notifications.info(game.i18n.format(value ? "DRPG.Spectator.marked" : "DRPG.Spectator.unmarked", { name: actor.name }));
     actor.sheet?.render(false);
     return actor;

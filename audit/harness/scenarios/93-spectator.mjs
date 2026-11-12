@@ -50,6 +50,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         fixture?.aiko === true && fixture?.botan === true && fixture?.mastermind === IDS.botan, JSON.stringify(fixture));
     await settle(800);
 
+    const projects = { pub: null, sec: null };
     try {
         phase("role");
         const role = await gm.eval(`const GS = ${imp("gm-students.mjs")}, M = ${imp("monokuma.mjs")}, TS = ${imp("trial-scene.mjs")};
@@ -66,6 +67,27 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
             return V.tokenShownTo(canvas.scene.tokens.get("TOKCHIE000000000"), V.viewerHere());`);
         check("role: p3's browser watches, hides its chat and leaves Aiko's token to Foundry; p1's hides Chie's",
             watching?.viewer === true && watching.chatHidden === true && watching.sees === null && hidden === "hide", JSON.stringify({ watching, hidden }));
+
+        phase("chat");
+        /* Q-E92-4 (the owner's DRPG-D1, 12.11: "Zablokowac; postac widza nie ma swojego czatu"). p3's console posts to the
+           chat twice: once as a page would (its own browser's hook refuses it), and once with that hook taken off, as a
+           console can. Nothing may stay for the table: no such message on the GM's, p1's or p3's browser after the GMs
+           have had it, and none drawn on p1's. */
+        const SAID = "E92 SPECTATOR SAYS";
+        const posted = await p3.eval(`const out = {};
+            try { out.page = Boolean(await ChatMessage.create({ content: "${SAID} 1" })); } catch (err) { out.page = "threw"; }
+            const kept = Hooks.events.preCreateChatMessage ? [...Hooks.events.preCreateChatMessage] : [];
+            if (Hooks.events.preCreateChatMessage) Hooks.events.preCreateChatMessage.length = 0;
+            try { out.console = Boolean(await ChatMessage.create({ content: "${SAID} 2" })); } catch (err) { out.console = "threw"; }
+            if (Hooks.events.preCreateChatMessage) Hooks.events.preCreateChatMessage.push(...kept);
+            return out;`);
+        await settle(2000);
+        const heard = c => c.eval(`return { messages: game.messages.contents.filter(m => String(m.content ?? "").includes("${SAID}")).length,
+            drawn: document.body.innerHTML.includes("${SAID}") };`);
+        const chatSeen = { gm: await heard(gm), p1: await heard(p1), p3: await heard(p3) };
+        check("chat: a Spectator's message reaches nobody - refused on its own browser, and one its console forces past that is gone from every browser",
+            posted?.page === false && ["gm", "p1", "p3"].every(k => chatSeen[k]?.messages === 0 && chatSeen[k].drawn === false),
+            JSON.stringify({ posted, chatSeen }));
 
         phase("voice");
         await settle(1200);
@@ -88,6 +110,34 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
             map?.rooms?.includes("Cafeteria") && !map.rooms.includes("Hall") && map.keys.length >= 1 && map.keys.every(k => k.endsWith(`/${IDS.chie}`)),
             JSON.stringify(map));
         await canary.worldScan({ who: ["p3"], ids: [IDS.botan] });
+
+        phase("projects");
+        /* Q-E92-6 (DRPG-D1: "Widzi wszystkie projekty w tym prywatne"). The GM makes a public project in the Gym, a room
+           nobody here found, and a secret one there with words of its own, shared with nobody. p3 (the Spectator) knows
+           both and holds the secret one's words; p1 (a student) knows neither and holds no words; the countdown's
+           ownership names p3 an observer and p1 not. */
+        const made = await gm.eval(`const P = ${imp("projects.mjs")};
+            const pub = await P.createProject({ name: "E92 public work", target: 6, room: "Gym", secret: false });
+            const sec = await P.createProject({ name: "E92 secret work", target: 6, room: "Gym", secret: true, description: "E92 secret words" });
+            return { pub: pub?.id ?? null, sec: sec?.id ?? null };`, { timeout: 60000 });
+        projects.pub = made?.pub ?? null;
+        projects.sec = made?.sec ?? null;
+        await settle(2500);
+        // A card's words travel veiled, apart from its document (secret.mjs), so both are read, as 30 reads them.
+        const knows = c => c.eval(`const P = ${imp("projects.mjs")}, S = ${imp("secret.mjs")};
+            return { pub: P.knowsProject("${made?.pub}"), sec: P.knowsProject("${made?.sec}"), seeSec: P.canSee("${made?.sec}"),
+                words: game.messages.contents.some(m => JSON.stringify(m.toObject()).includes("E92 secret words")
+                    || String(S.secretHtml(m) ?? "").includes("E92 secret words")) };`);
+        const own = await gm.eval(`const S = ${imp("projects-secrecy.mjs")};
+            const o = S.rawCountdown("${made?.sec}")?.ownership ?? {};
+            return { p3: o["${p3User}"] ?? null, p1: o["${IDS.p1}"] ?? null };`);
+        const sight = { p3: await knows(p3), p1: await knows(p1), own };
+        check("projects: the Spectator knows every project, the secret one and its words too, in a room nobody found; a student knows neither",
+            sight.p3?.pub === true && sight.p3.sec === true && sight.p3.seeSec === true && sight.p3.words === true
+            && sight.p1?.pub === false && sight.p1.sec === false && sight.p1.seeSec === false && sight.p1.words === false
+            && own?.p3 === 2 && own.p1 === 0, JSON.stringify(sight));
+        // And a student's browser holds nothing more for it: p1's world data read against world-secrets.mjs.
+        await canary.worldScan({ who: ["p1"], ids: [IDS.botan] });
 
         phase("talk");
         /* The switch in the voice tile (E92 round 3): on p3's tile, after its microphone and speaker; on p1's none. A press
@@ -149,17 +199,21 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         const after = await gm.eval(`const u = game.users.get("${p3User}"), own = (u._source ?? u).permissions ?? {};
             const S = ${imp("gm-stores.mjs")};
             return { perm: [Object.hasOwn(own, "BROADCAST_AUDIO"), own.BROADCAST_AUDIO ?? null], row: S.trialMuteStore.has(u.id) };`);
-        const p3After = await p3.eval(`const F = ${imp("fog.mjs")}, S = ${imp("spectator.mjs")};
+        const p3After = await p3.eval(`const F = ${imp("fog.mjs")}, S = ${imp("spectator.mjs")}, P = ${imp("projects.mjs")};
             return { viewer: S.spectatorViewer(), chatHidden: document.body.classList.contains("drpg-spectator"),
-                rooms: [...F.myDiscoveredRooms(canvas.scene)].sort() };`);
-        check("back: Chie is a student again, p3's microphone as it was found, the class's rooms off her map, p3's browser no Spectator's",
+                rooms: [...F.myDiscoveredRooms(canvas.scene)].sort(), secret: P.canSee("${projects.sec}") };`);
+        check("back: Chie is a student again, p3's microphone as it was found, the class's rooms off her map and the secret project out of her sight, p3's browser no Spectator's",
             back?.moved === true && back.spectator === false && back.roster === true && JSON.stringify(after?.perm) === JSON.stringify([true, true])
-            && after.row === false && p3After?.viewer === false && p3After.chatHidden === false && !p3After.rooms.includes("Cafeteria"),
+            && after.row === false && p3After?.viewer === false && p3After.chatHidden === false && !p3After.rooms.includes("Cafeteria")
+            && p3After.secret === false,
             JSON.stringify({ back, after, p3After }));
     } finally {
         for (const c of [p3, p1]) {
             await c.eval(`if (globalThis.__liveKit?.installed === true) { __liveKit.uninstall(); (${imp("voice-tile.mjs")}).refreshVoiceTile(); } return true;`).catch(() => null);
         }
+        await gm.eval(`const P = ${imp("projects.mjs")};
+            for (const id of ${JSON.stringify([projects.pub, projects.sec].filter(Boolean))}) await P.deleteProject(id);
+            return true;`, { timeout: 60000 }).catch(() => null);
         await gm.eval(`const GS = ${imp("gm-students.mjs")}, M = ${imp("monokuma.mjs")}, F = ${imp("fog.mjs")}, MM = ${imp("mastermind.mjs")};
             const { forcedDeletion } = ${imp("utils.mjs")};
             const chie = game.actors.get("${IDS.chie}"), scene = canvas.scene, u = game.users.get("${p3User}");

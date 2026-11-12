@@ -132,6 +132,45 @@ both player handbooks say so as a known limit. Q-E92-7: "zgadzam sie, zlecaj" - 
   which holds its resources, statistics and module flags as for any player's character), and Daggerheart's relay
   (relay-guard.mjs) is judged by its own table; neither is a bridge action.
 
+## The owner's answers on DRPG-D1 (12.11)
+
+Approved: Q-E92-1, 2, 3, 5 and 8. Changed, three items, built (red first each):
+
+- Q-E92-4, the chat - "Zablokowac; postac widza nie ma swojego czatu". spectator-ui.mjs: the Spectator's own browser
+  refuses its message and says "A Spectator has no chat." / "Widz nie ma czatu." (`preCreateChatMessage`, a courtesy);
+  every browser leaves a Spectator's message undrawn (`renderChatMessageHTML`); the primary GM removes one (`createChatMessage`)
+  by the bridge's own account rule (bridge-guards.mjs `senderNotSpectator`, the flags as the GMs hold them). The chat log
+  stays hidden on its browser (components.css). Red at 7d907a7 in scenario 93's "chat": p3's console posted twice, once with
+  its own hook taken off, and both messages stayed on the GM's, p1's and p3's browsers; green now: none on any.
+  Known limits (GM handbook EN and PL): Foundry broadcasts a created message to every browser before the primary removes it,
+  so a console listening at that moment reads it; every public message, Foundry's and the module's, still reaches the
+  Spectator's browser, where the log is not drawn. Not done: turning the module's public cards into whispers past the
+  Spectators - every reader of a card that takes "no whisper" for public would change with it, a fragile change across
+  the module, which the brief says not to build ("Do not build a fragile workaround").
+- Q-E92-6, the projects - "Widzi wszystkie projekty w tym prywatne". projects-secrecy.mjs `ownershipMap` makes every
+  Spectator's account an observer of every secret project (Daggerheart draws the tray from it), `viewersOf` and
+  `sharedIds` leave Spectators out (no share, seal or card counts them in), `canSee` and projects.mjs `knowsProject`
+  answer yes for a Spectator in every room, and `tellDescription` whispers a secret project's words to the Spectators
+  too. Who is a Spectator is read as the GMs hold the flag (scripts/spectator.mjs `spectatorUserIds`, with sheet-audit.mjs's
+  `flagsHeldNow` handed in at registration), so a student's console that writes the flag on itself is shown nothing.
+  A role change (monokuma.mjs `setSpectator`) runs projects.mjs `seeAsSpectators`: the users who stopped being Spectators
+  are taken off every secret project they do not build, then every secret project is resealed and its words told. Red at
+  7d907a7 in scenario 93's "projects" (the Spectator did not see the secret project, its words or its ownership); green
+  now, and p1 (a student) knows neither project, holds no words and is NONE in the map; p1's world data is scanned against
+  world-secrets.mjs after it. What a student's browser learns: which account is an observer of a secret countdown, the same
+  as it learns today of any viewer (the ownership map is a world setting); who is a Spectator is no secret.
+  Limit (GM handbook): a Spectator made a student again loses the secret projects it was let in on before it watched
+  (its observer entry is not told from a share), and keeps those it builds.
+- The token - "transparentny/ledwie widoczny". visibility.mjs `dressSpectator`: the sprite at 0.28 of the token's own
+  alpha (`SPECTATOR_ALPHA`, in the owner's 25-30 %), grey tint as before, its outline at 0.3 where it was 0.95. R3866 (red
+  at 7d907a7: 0.54 for a token of alpha 0.9; green: 0.252). The shot sent to the coordinator is a reconstruction: the repo's
+  own GM screenshot (docs/img/02-gm-view.webp) with a student's token copied beside itself at the module's numbers, not a
+  Foundry render (LIVE-E92-04, rewritten for 0.28).
+
+Results before the push: tiers 0-1 whole 1274 ran, 1259 passed, 0 failed, 16 skipped; tier 2 by name (the Spectator's
+microphone, E36-T*) 17 passed; scenario 93 15/15; scenarios 30 (275/276, the expected secret-door red), 61, 33, 10, 11, 12,
+13, 15, 17, 20, 40, 62, 63, 65, 66, 71, 72, 73, 75, 76, 81, 83, 86, 87 green; the quick gate green.
+
 ## Review shots
 
 Round 3 (the switch on the voice tile): https://claude.ai/artifact/DHpNXnsctFWBkw1xeTNJVt - both themes, EN and PL, 1366
@@ -152,9 +191,9 @@ the picker cut short under Legacy (b50184f). Open: under the glass the picker's 
 - Q-E92-1: built on today's code; E72's spec should get a row "the Spectator in each new state".
 - Q-E92-2: Polish "Widz" (glossary entry; "Obserwator" is Foundry's OBSERVER level - not a forbidden variant, since lang/pl.json uses it for sheet sharing).
 - Q-E92-3: one character actor flagged `spectator`, owned by the player.
-- Q-E92-4: the chat log is hidden on the Spectator's browser only; messages still arrive (the GM handbook says so).
+- Q-E92-4: changed by the owner (DRPG-D1): the chat is blocked, not only hidden (above).
 - Q-E92-5: a Spectator may become a student again (and back) in the Students window; its own rows are kept, the class's are unticked for it.
-- Q-E92-6 (new): a Spectator sees every character's token in an Eclipse too (the plan's "see all characters"). It also sees public projects in the rooms the class found (its map is the class's).
+- Q-E92-6: changed by the owner (DRPG-D1): every token in an Eclipse, and every project, secret ones included, in every room (above).
 - Q-E92-7: answered 12.11 ("zgadzam sie, zlecaj"), built: the Spectator guard on every player row of the bridge (above).
 - Q-E92-8 (new): the "Spectator talk" switch is honoured on the Spectator's document flag in the voice pass (a forged spectator flag on a student, with the switch, sends that student to the Spectators' room, where it is heard); the microphone block itself reads the flag as the GMs hold it.
 - Owner's 04.11 plan line "token hidden": done as display (`tokenShownTo`), not Foundry's `hidden`, so the owner can still see and drag it.

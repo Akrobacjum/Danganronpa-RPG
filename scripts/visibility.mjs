@@ -704,13 +704,15 @@ function inTheIncident() {
 
 /*
  * A SPECTATOR'S TOKEN ON A GM'S CANVAS (E92 C3, 12.11.2026; the owner's 04.11 amend: "the GM sees the Spectator's token,
- * slightly greyed and with a darker outline"). Its sprite at 0.6 of its own alpha, tinted grey, and a dark outline
- * round its square, drawn as a child of the token named `SPECTATOR_OUTLINE`, once per refresh; a token whose actor is
+ * slightly greyed and with a darker outline"; DRPG-D1 the same day: "transparentny/ledwie widoczny, by nie mylil sie z
+ * graczami"). Its sprite at 0.28 of its own alpha (`SPECTATOR_ALPHA`, in the owner's 25-30 %), tinted grey, and a dark
+ * outline as faint (0.3) round its square, drawn as a child of the token named `SPECTATOR_OUTLINE`, once per refresh; a token whose actor is
  * no Spectator any more is given back its tint and alpha and loses the outline. On a GM's browser only (`applyToToken`):
  * every other player's is hidden (`tokenShownTo`), and its owner sees it as Foundry draws it. Display only.
  * Whether it reads on a real map in both themes is LIVE-E92-04.
  */
 const SPECTATOR_OUTLINE = "drpg-spectator-outline";
+const SPECTATOR_ALPHA = 0.28;
 const dressedSpectators = new WeakSet();
 export function dressSpectator(token) {
     const watching = Boolean(token?.actor?.getFlag?.(MODULE_ID, FLAGS.spectator));
@@ -725,12 +727,12 @@ export function dressSpectator(token) {
         return false;
     }
     dressedSpectators.add(token);
-    if (mesh) { mesh.tint = 0x8c8c8c; mesh.alpha = 0.6 * (token.document?.alpha ?? 1); }
+    if (mesh) { mesh.tint = 0x8c8c8c; mesh.alpha = SPECTATOR_ALPHA * (token.document?.alpha ?? 1); }
     if (!old && globalThis.PIXI?.Graphics && typeof token.addChild === "function") {
         const w = token.w ?? token.width ?? 0, h = token.h ?? token.height ?? 0;
         const line = new globalThis.PIXI.Graphics();
         line.name = SPECTATOR_OUTLINE;
-        line.lineStyle(Math.max(2, Math.round(Math.min(w, h) * 0.05)), 0x161616, 0.95).drawRoundedRect(0, 0, w, h, Math.min(w, h) * 0.12);
+        line.lineStyle(Math.max(2, Math.round(Math.min(w, h) * 0.05)), 0x161616, 0.3).drawRoundedRect(0, 0, w, h, Math.min(w, h) * 0.12);
         token.addChild(line);
     }
     return true;

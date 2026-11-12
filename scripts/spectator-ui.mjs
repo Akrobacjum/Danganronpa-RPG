@@ -4,9 +4,8 @@
  * The owner's E92 goal (5) and the 04.11 amend: "sheet and HUD in a spectator mode", and "the Spectator does NOT read
  * the chat". On the Spectator's browser alone (scripts/spectator.mjs `spectatorViewer`):
  *
- *   - THE CHAT, HIDDEN: the body class `drpg-spectator` (components.css hides the chat log, its notifications and the
- *     box a message is typed in). A display only: every message Foundry sends still reaches the browser, and a console
- *     reads it (the plan's Q-E92-4, default taken; the GM handbook says so).
+ *   - THE CHAT, BLOCKED (the owner's DRPG-D1 of 12.11.2026, below): the body class `drpg-spectator` (components.css hides
+ *     the chat log, its notifications and the box a message is typed in), its own messages refused and removed.
  *   - THE "TALK WITH THE SPECTATORS" SWITCH, in the voice tile among its buttons (voice-tile.mjs `paintSpectatorTalk`,
  *     the owner's 12.11.2026: "dajemy w panelu livekit po prawej stronie ekranu, tam gdzie reszta przyciskow"). Its
  *     write is here (`toggleSpectatorTalk`); the tile repaints it with its other buttons, on the player's own User's
@@ -21,8 +20,8 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { spectatorViewer, talkSwitchOn, SPECTATOR_TALK_FLAG } from "./spectator.mjs";
-import { error } from "./utils.mjs";
+import { spectatorViewer, spectatorUserIds, talkSwitchOn, SPECTATOR_TALK_FLAG } from "./spectator.mjs";
+import { error, log, isPrimaryGm } from "./utils.mjs";
 
 export const SPECTATOR_BODY_CLASS = "drpg-spectator";
 
@@ -52,8 +51,52 @@ export function paintSpectatorUi() {
     import("./voice-tile.mjs").then(m => m.paintControls()).catch(err => error("Could not draw the voice tile's buttons", err));
 }
 
-/** The hooks that repaint it: a role changed (an actor's flags). The player's own User is the voice tile's hook. */
+/*
+ * A SPECTATOR HAS NO CHAT (E92, the owner's DRPG-D1 of 12.11.2026: "Zablokowac; postac widza nie ma swojego czatu"; the
+ * plan's Q-E92-4 changed from hidden to blocked). Three parts, each on the browser that can do it:
+ *   - its own browser refuses its message before it is sent (`preCreateChatMessage`), and says why - a courtesy, as
+ *     every guard on the writer's own browser is (the trust model): a console takes the hook off;
+ *   - every browser leaves a Spectator's message undrawn (`renderChatMessageHTML`), on the flags it holds;
+ *   - the primary GM removes it (`createChatMessage`), by the bridge's own rule for the account (bridge-guards.mjs
+ *     `senderNotSpectator`: the flags as the GMs hold them), so nothing of it stays in the log.
+ * What the module does not control: Foundry broadcasts a created message to every browser before the primary removes it,
+ * so a console listening for it reads it for that moment, and every public message - Foundry's own and the module's -
+ * still reaches a Spectator's browser, where the chat log is not drawn (components.css). A known limit (STATUS, the GM
+ * handbook); making the module's public cards whispers past the Spectators would change what every reader of a card
+ * takes for public, and is not done.
+ */
+function spectatorAuthor(message) {
+    const author = message?.author ?? null;
+    return Boolean(author && !author.isGM && spectatorUserIds().has(author.id));
+}
+
+function refuseOwnMessage(message, data, options, userId) {
+    if (userId !== game.user?.id || !spectatorViewer()) return true;
+    ui.notifications?.warn?.(game.i18n.localize("DRPG.Spectator.noChat"));
+    return false;
+}
+
+function hideSpectatorMessage(message, element) {
+    if (spectatorAuthor(message)) element?.remove?.();
+}
+
+async function dropSpectatorMessage(message) {
+    try {
+        if (!isPrimaryGm() || !message?.author || message.author.isGM) return;
+        const { senderNotSpectator } = await import("./bridge-guards.mjs");
+        if (!(await senderNotSpectator(message.author))) return;
+        log(`Removed a chat message ${message.author.name} posted as a Spectator.`);
+        await message.delete();
+    } catch (err) {
+        error("Could not remove a Spectator's chat message", err);
+    }
+}
+
+/** The hooks: a role changed (an actor's flags) repaints; the chat's three parts. The player's own User is the voice tile's hook. */
 export function registerSpectatorUi() {
     Hooks.on("updateActor", (actor, changes) => { if (changes?.flags) paintSpectatorUi(); });
+    Hooks.on("preCreateChatMessage", refuseOwnMessage);
+    Hooks.on("renderChatMessageHTML", hideSpectatorMessage);
+    Hooks.on("createChatMessage", message => void dropSpectatorMessage(message));
     paintSpectatorUi();
 }

@@ -150,6 +150,7 @@ import { forgedFlagsOf, gmOnlyFlagsIn } from "./private-rolls.mjs";
 import { spentByGm } from "./call-effects.mjs";
 import { WARN_EVERY_MS, TRACE_PATHS } from "./relay-guard.mjs";
 import { box, roleButton } from "./ui-kit.mjs";
+import { readSpectatorsWith } from "./spectator.mjs";
 
 /**
  * The module flags only a GM writes (the plan's 2.4), held in the mark and put back. `levelUpExperiences` since
@@ -3303,6 +3304,9 @@ function primaryLeft(user, connected) {
 
 /** On every browser; each hook stands aside unless this is the primary GM. At `init`, so the hydration below is not missed. */
 export function registerSheetAudit() {
+    /* Who is a Spectator, as the GMs hold it, for the roads that give one more than a student (E92 DRPG-D1, scripts/spectator.mjs).
+       Registered at init, before a user is known: on a player's browser `flagsHeldNow` finds no mark and reads the document. */
+    readSpectatorsWith(flagsHeldNow);
     Hooks.on("updateActor", (actor, changes, options, userId) => { onSheetWrite("updateActor", actor, changes, options, userId); });
     Hooks.on("createActiveEffect", (effect, options, userId) => { onSheetWrite("createActiveEffect", effect, {}, options, userId); });
     Hooks.on("updateActiveEffect", (effect, changes, options, userId) => { onSheetWrite("updateActiveEffect", effect, changes, options, userId); });
