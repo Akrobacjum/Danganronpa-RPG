@@ -1321,7 +1321,7 @@ export const keyPlanStore = defineGmStore({
  * `${chapter}:meta` `{ sort, manual, run, askedAt }` (case-schema.mjs, its only reader and writer). The case worked
  * out ahead of the trial, so the GMs' alone (R3374); any GM writes it, an Assistant too (Q8). Backed up and synced like
  * the Key Remnant plan it is built beside, and cut with it (`resetGroup` "keyPlan"); no `exists`, as a node names no
- * document. No old key: nothing held it before 1.2.106.
+ * document. No old key: nothing held it before 1.2.107.
  */
 export const caseSchemaStore = defineGmStore({
     name: "caseSchema", key: SETTINGS.gmCaseSchema,

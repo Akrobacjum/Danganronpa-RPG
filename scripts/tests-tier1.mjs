@@ -8126,7 +8126,7 @@ const INVARIANTS = [
          * (C5-C7) shows who left each Remnant beside who holds it, and E99 reads the bullet's author once the trace is
          * gone, so the bullet's answer key (`bulletStore`, GM-only) carries it: off the trace's row at the find, off the
          * giver's key at a hand-over (the trace may be gone by then). A row with no author - every trace a GM placed
-         * before 1.2.106, Q6 - reads null and nothing is written for it: no migration, so the reading is held to leave
+         * before 1.2.107, Q6 - reads null and nothing is written for it: no migration, so the reading is held to leave
          * each trace's newest stamp as it was. Pure and a read of the source; the world's traces are read, not written.
          * Red at b97028e1: no `leftByOf`, and neither road names the author.
          */

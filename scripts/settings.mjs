@@ -598,7 +598,7 @@ export const SETTINGS = {
      */
     gmKeyPlan: "gmKeyPlan",
     legacyKeyRemnantPlan: "keyRemnantPlan",
-    /** THE CASE SCHEMA (E97 C3, 1.2.106): a GM store (gm-stores.mjs `caseSchemaStore`), a row per chapter and node. */
+    /** THE CASE SCHEMA (E97 C3, 1.2.107): a GM store (gm-stores.mjs `caseSchemaStore`), a row per chapter and node. */
     gmCaseSchema: "gmCaseSchema",
     /**
      * WHICH OF THE TRIAL HALL'S TOKENS THE TRIAL SHOWS (E13 C2, 1.2.74; audit S06-57, decision D7):

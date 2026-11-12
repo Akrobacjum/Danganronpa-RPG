@@ -754,7 +754,7 @@ export async function createTruthBullet(actor, {
     const season = epoch !== undefined ? epoch : realType === "autopsy" && foundIn === undefined ? seasonEpoch() : undefined;
     /* Who left its trace (E97 C1): the caller's word where it gives one - a copy hands on its giver's key
        (handover.mjs `mintCopy`) - else the trace's row, read now. Written only when there is an author: a bullet of a
-       trace nobody is named for, or of none, keeps a row without the two fields, as every bullet before 1.2.106. */
+       trace nobody is named for, or of none, keeps a row without the two fields, as every bullet before 1.2.107. */
     const author = leftBy !== undefined
         ? { leftBy: leftBy || null, leftByName: leftBy ? (leftByName ?? "") : "" }
         : leftByOf(sceneId && remnantId ? await import("./remnants.mjs").then(m => m.remnantData(m.remnantById(sceneId, remnantId))).catch(() => null) : null);
