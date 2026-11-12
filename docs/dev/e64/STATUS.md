@@ -234,6 +234,19 @@ commit messages, release notes and branch names, not the game's own text: the tw
 
 ## Test results
 
+Before the push of the DA39 migration and S02-75's three changes (12.11.2026, this container, 4 cores; head 99a27d2 and
+this file):
+
+- lint 302 files 0 problems; `node tools/check.mjs` 17 parts green.
+- tiers 0-1 whole: first run 6 failed (the DA39 migration's new code and texts missing from five censuses and the card
+  count; fixed in 7916475), then **1244 passed, 0 failed, 16 skipped, 0 red** (1259 ran, 326 s).
+- tier 2 by name, 10 pieces (every "E64" test, Level Up, Sabotage, Palm, the opening at Night, E51-T6, repair, Refund
+  last crossing, one gate in transferItem, E16-T35): 131 passed, 0 failed.
+- scenarios 00, 10, 12, 13, 14, 17, 30, 33, 40, 50, 61, 62, 63, 65, 66, 71, 72, 73, 74, 75, 76, 83, 86, 87, 88: 23 green
+  at first; 40 (a simple repair read as 3) and 65 V2 (the load's promise answered the DA39 step, not the data pass's
+  report - a real fault of 7242cce) red, both fixed in 99a27d2 and green after (40 88/88, 65 57/59 with its 2 expected
+  red). 84-viewports not run (the brief).
+
 Before the push of 585bc09 (12.11.2026, this container, 4 cores; the code as pushed, the commit messages reworded after):
 
 - lint (302 files, 0 problems), `node tools/check.mjs` 17 parts green, the gate's self-test 37/37.
