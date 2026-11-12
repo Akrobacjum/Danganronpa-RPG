@@ -126,7 +126,9 @@ export default class D20RollDialog extends HandlebarsApplicationMixin(Applicatio
         if (this.roll) {
             context.roll = this.roll;
             context.rollType = this.roll?.constructor.name;
-            const experiences = this.config.data?.system?.experiences || {};
+            // 2.12 reads the experiences off the roll data MoveContext picks (`config.data.experiences`, 2.12.8's
+            // d20RollDialog.mjs:110; E76 C3c), 2.10.5 off its `system` (:113): the first that has them.
+            const experiences = this.config.data?.experiences ?? this.config.data?.system?.experiences ?? {};
             context.experiences = Object.keys(experiences).map(id => ({ id, ...experiences[id] }));
             context.selectedExperiences = this.config.experiences;
             context.advantage = this.config.roll?.advantage;
@@ -239,7 +241,7 @@ export default class D20RollDialog extends HandlebarsApplicationMixin(Applicatio
                         extKey: button.dataset.key,
                         key: this.config?.data?.parent?.isNPC ? 'fear' : 'hope',
                         value: 1,
-                        name: this.config.data?.system.experiences?.[button.dataset.key]?.name
+                        name: (this.config.data?.experiences ?? this.config.data?.system?.experiences)?.[button.dataset.key]?.name
                     }
                 ];
         this.render();

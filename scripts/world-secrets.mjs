@@ -31,7 +31,8 @@ export const WORLD_SECRET_MODULE = "danganronpa-rpg";
 /**
  * A module world setting with no row of its own here holds nothing the rule
  * keeps out, and `everySetting` reads it still: `documentLanguage` (E66 C1) holds a
- * language code alone; `readyRound` (E37 C3) holds a readiness round's user ids, the
+ * language code alone; `sequences` (E61 C1) a boolean alone, the table's switch for the
+ * full-screen sequences; `readyRound` (E37 C3) holds a readiness round's user ids, the
  * GM who pressed and each player's Done or One moment - what the GM's window lists -
  * nothing a player may not see. `chapterEnd` (E42 C2) and `seasonReset` (E42 C4) hold
  * nothing a player may not see either, and have a row since E42 fix FG4 (the end
@@ -98,9 +99,14 @@ export const WORLD_SECRET_RULES = Object.freeze({
            character's budget keyed by actor id - 72-canary found the killer's id at
            clock.lastAdvance.snapshot.actions on p1 and p2 at f7ac1e9d. A GM store since (gm-stores.mjs
            `takeBackStore`); a null one is found too, as a field the clock should not have. */
+        /* E94 C4 (12.11.2026): the school's mood rides in the clock as a word alone (sequence.mjs `MOOD_BANDS`, written by
+           a GM's advance, clock.mjs `advanceTimeOfDay`); the numbers it is worked out from - the students' and the
+           Monocubs' Hope, the Monokumas' Despair, the Overflow count (`moodInputs`) - are never written (the owner's word of
+           12.11: "Matma tajna"). Read by name: the Overflow's two names a write of its numbers beside the word would take;
+           the word itself is held to the three by R3723, and the clock a GM writes by tier 2's "E94 C4" test. */
         clock: Object.freeze({
-            fields: Object.freeze(["lastAdvance"]),
-            since: "E17 fix ci-2", why: "what the last boundary changed, to take back: every character's budget, keyed by actor id (S10-42)"
+            fields: Object.freeze(["lastAdvance", "overflowCount", "overflowThreshold"]),
+            since: "E17 fix ci-2; the mood's numbers since E94 C4", why: "what the last boundary changed, to take back: every character's budget, keyed by actor id (S10-42); and the Despair overflow's count and threshold the school's mood is read from (S01-60)"
         }),
         /* The trial's list of the dead (E70 C5; settings.mjs `isMutedDead`) names a death nobody has found: public on purpose
            while the Class Trial runs (the owner's TR30 = 2, "Tak, ona też wyciszona" - the silence tells the table), and

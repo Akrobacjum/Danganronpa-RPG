@@ -57,6 +57,7 @@ import { answerKeysOpen, rollStore, sheetMarkStore } from "./gm-stores.mjs";
 import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf, readHere, awaitDrawn, isDrawnRoll, forgedFlagsOf, isReadableHere,
     rollNonceOf, gmsInRoomOf } from "./private-rolls.mjs";
 import { LOADED_DIE, loadDie, loadedAtOf, standAsideFor } from "./forced-roll.mjs";
+import { adoptMarks } from "./roll-marks.mjs";
 import { DRPG_ACTION_ROLL, DRAWN_ROLL, searchOdds, stashStepFor } from "./action-rolls.mjs";
 import { actionsLeft, freeActionsLeft } from "./actions.mjs";
 import { armedCallsShown, situationalAdvantage, spendCallsByNonce } from "./call-effects.mjs";
@@ -131,32 +132,37 @@ export function rollDrawState() {
  * "changed", with the review's reason. Split out in fix r2-H6 (05.10.2026; review m3) so R217
  * reads the decision on a build that is not the reviewed one, not only the review.
  */
-export function seamFor(cls, { rollTrait = CONFIG.Actor?.documentClass?.prototype?.rollTrait } = {}) {
+export function seamFor(cls, { rollTrait = CONFIG.Actor?.documentClass?.prototype?.rollTrait,
+    MoveContext = game.system?.api?.data?.actions?.MoveContext ?? null } = {}) {
     const review = reviewBuild(cls);
     if (!review.ok) return { state: "changed", why: review.why };
-    const road = reviewTraitRoad(rollTrait);
+    const road = reviewTraitRoad(rollTrait, MoveContext);
     return road.ok ? { state: "ok", why: "" } : { state: "changed", why: road.why };
 }
 
 /**
- * THE ROAD AN ACTION'S OPTIONS TAKE TO THE BUILD (E76 C3, 12.11.2026; R3602). The draw reads the
- * module's marks off the config `build` is handed - `drpgActionRoll` decides an action from a statistic
- * on the sheet (`drawOrThrow`), the nonce the claim - and they reach it only if Daggerheart's
- * `rollTrait` hands its options on. Up to 2.10.x it does. From 2.12 (read in 2.12.8: actor.mjs
- * `rollTrait` :727-743, move-context.mjs's constructor) it builds a `MoveContext`, which copies only
- * the properties it names, so every module mark is gone and an action would be drawn as a statistic
- * from the sheet. A `rollTrait` that names a MoveContext, or whose source cannot be read (a bound or
- * native function), is a road this draw was not written for: "changed", the roll thrown on the
- * player's browser and the GM told once per version. Not having one (no Actor class here) is not
- * judged: the build's review decides alone. Carrying the marks through a MoveContext is the 2.12
- * rework the plan splits off (Q-E76-5).
+ * THE ROAD AN ACTION'S OPTIONS TAKE TO THE BUILD (E76 C3, 12.11.2026; R3602; narrowed in E76b). The draw
+ * reads the module's marks off the config `build` is handed - `drpgActionRoll` decides an action from a
+ * statistic on the sheet (`drawOrThrow`), the nonce the claim - and up to 2.10.x Daggerheart's
+ * `rollTrait` hands its options on. From 2.12 (read in 2.12.8: actor.mjs `rollTrait` :727-743,
+ * move-context.mjs's constructor) it builds a `MoveContext`, which copies only the properties it names:
+ * every module mark is gone, but the caller's own event is kept (`this.event ??= data.event`), and the
+ * module carries its marks on that (roll-marks.mjs; `drawnBuild` and the `daggerheart.preRollDuality`
+ * hook put them back). So a `rollTrait` that names a MoveContext is a road this draw was written for only
+ * where the MoveContext this Daggerheart offers (game.system.api.data.actions) keeps the event, read off
+ * its constructor's text; where it keeps none, where none is offered, or where `rollTrait`'s source cannot
+ * be read (a bound or native function), the build is "changed": the roll thrown on the player's browser
+ * and the GM told once per version. Not having one (no Actor class here) is not judged: the build's
+ * review decides alone.
  */
-function reviewTraitRoad(rollTrait) {
+function reviewTraitRoad(rollTrait, MoveContext) {
     if (typeof rollTrait !== "function") return { ok: true, why: "" };
     const text = Function.prototype.toString.call(rollTrait);
     if (/\{\s*\[native code\]\s*\}/.test(text)) return { ok: false, why: "the actor's rollTrait cannot be read" };
-    if (/\bMoveContext\b/.test(text)) return { ok: false, why: "the actor's rollTrait builds a MoveContext, which keeps none of the module's roll marks" };
-    return { ok: true, why: "" };
+    if (!/\bMoveContext\b/.test(text)) return { ok: true, why: "" };
+    const made = typeof MoveContext === "function" ? Function.prototype.toString.call(MoveContext) : "";
+    if (/this\.event\s*(?:\?\?=|=)\s*data\.event\b/.test(made)) return { ok: true, why: "" };
+    return { ok: false, why: "the actor's rollTrait builds a MoveContext that keeps no event to carry the module's roll marks" };
 }
 
 /**
@@ -181,6 +187,9 @@ export function registerRollDraw() {
     Hooks.once("ready", () => { for (const actor of game.actors ?? []) notePayments(actor); });
     Hooks.on("createActor", actor => notePayments(actor));
     Hooks.on("updateActor", notePayments);
+    // On any build, drawn or not (E76b): Daggerheart's `buildConfigure` calls this before the window opens and the
+    // roll is made, so the window, the roll's options and the claim's nonce read the marks a 2.12 MoveContext dropped.
+    Hooks.on(`${CONFIG.DH?.id ?? "daggerheart"}.preRollDuality`, config => { adoptMarks(config); });
     const decided = seamFor(cls);
     if (decided.state !== "ok") {
         seam = decided;
@@ -189,6 +198,8 @@ export function registerRollDraw() {
     }
     const original = cls.build;
     async function drawnBuild(config = {}, message = {}) {
+        // The module's marks back on a 2.12 MoveContext before the draw reads them (roll-marks.mjs, E76b).
+        adoptMarks(config);
         return drawOrThrow(this, original, config, message);
     }
     drawnBuild[SEAM] = true;
@@ -1573,6 +1584,7 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     const loads = expected.read.loadedDie;
     if (loads) loadDie(roll, loaded);
     await cls.buildEvaluate(roll, config, {});
+    detachOptions(roll, config);
     // The dice on this screen as the roller's, now, at the throw (H82 C6, `throwOnThisScreen`); the relay sends them on.
     // Only where this GM sees a player's dice (E60 C5e): rolls not forced private, or its Monokuma in the roller's room.
     const shown = seesPlayersDice(actor) ? throwOnThisScreen(roll, sender) : false;
@@ -2327,6 +2339,34 @@ function throwOnThisScreen(roll, user) {
 }
 
 /*
+ * THE ROLL'S OPTIONS, NO LONGER THE CONFIG ONCE IT IS THROWN (E76b's release fix, 12.11.2026). The GM's draw hands
+ * Daggerheart's `buildEvaluate` the roll's own options as its config (`throwDrawn`), as Daggerheart builds a roll
+ * (dhRoll.mjs:16, 2.12.8: the constructor's `mergeObject` keeps the options object it is given). From 2.12 that step
+ * hangs the thrown Roll on the config (`config.evaluated = roll`, dhRoll.mjs:98-106), so the roll's options held the
+ * roll and its JSON was circular - the JSON Foundry writes onto the message (`rolls: [roll]`, :197). Daggerheart's own
+ * roll is spared it: its options are a MoveContext, whose `toJSON` leaves `evaluated` out (move-context.mjs:237-241);
+ * the GM's are the plain JSON the roll was rebuilt from. So from here the roll's options are a copy of the config
+ * without `evaluated`, and the config keeps the Roll where 2.12's readers look for it - the resource step and the
+ * countdowns (dualityRoll.mjs:224-270), critical.mjs - as an ordinary key, so a clone of the config keeps it. Hiding
+ * `evaluated` from JSON by making it non-enumerable was the other road, not taken: a spread drops such a key (2.12.8's
+ * own `{ ...config }`, damageField.mjs:48), and so does a `deepClone` that walks a plain object's own keys, as the
+ * harness's does (lib/futil.mjs) and Foundry's is remembered to - not read here: its typings (14.369) say only that it
+ * copies plain objects, arrays, dates and primitives and hands anything else back. The copy is shallow and taken
+ * after the throw, so the message's roll writes what it wrote before 2.12, the throw's summary of 2.10 on
+ * `options.roll` included; what the config gains after it (the resource step's map) is the config's alone, as no
+ * reader takes it off the roll. Up to 2.10 there is no `evaluated` and the roll keeps the config itself. Red before
+ * it: tier 2's "a roll the GM drew is written on its message as JSON that rebuilds it" (the JSON threw, the message
+ * was not written once the harness wrote a roll as Foundry does) and "the GM's legal roll keeps its advantage die's
+ * class through fromData" (the 1.2.109 release's CI run 43287328954).
+ */
+function detachOptions(roll, config) {
+    if (!config || roll?.options !== config || !Object.hasOwn(config, "evaluated")) return;
+    const options = { ...config };
+    delete options.evaluated;
+    roll.options = options;
+}
+
+/*
  * THE MESSAGE, AS DAGGERHEART'S `toMessage` SHAPES IT, WRITTEN BY THE GM. Inside a claim of
  * the roller's nonce (private-rolls.mjs `supersedingRoll`), so the module's rule for a roll it
  * threw applies as it is created: claimed, emptied of its character, whispered to the GMs where
@@ -2739,9 +2779,15 @@ async function grantRolls(rows) {
     for (const { message, actor, outcome, reaction } of rows) {
         if (reaction) continue;
         if (!maps.has(actor.id)) maps.set(actor.id, new DrawnResources(actor));
+        // The roll's outcome in both of Daggerheart's shapes (E76b's release fix, 12.11.2026): up to 2.10 the resource
+        // step reads `config.roll` (dualityRoll.mjs `addDualityResourceUpdates`, 2.10.5), from 2.12 the evaluated Roll
+        // on `config.evaluated` - its `isCritical`, `withHope` and `withFear` (2.12.8:237-262; the module's other reader
+        // there, critical.mjs, the same). With `roll` alone a Grant on 2.12 moved no Hope, Stress or Fear: the suite's
+        // three Grant tests read Hope 0 (the 1.2.109 release's CI run 43287328954). 2.6.5's step is not read here.
         const config = {
             source: { actor: actor.uuid }, actionType: message.rolls?.[0]?.options?.actionType ?? "action", skips: {},
             roll: { isCritical: outcome.isCritical, result: { duality: outcome.withHope ? 1 : outcome.withFear ? -1 : 0 } },
+            evaluated: { isCritical: outcome.isCritical === true, withHope: outcome.withHope === true, withFear: outcome.withFear === true },
             resourceUpdates: maps.get(actor.id)
         };
         if (typeof cls?.addDualityResourceUpdates === "function") await cls.addDualityResourceUpdates(config);

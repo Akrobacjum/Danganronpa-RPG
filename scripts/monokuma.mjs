@@ -46,6 +46,14 @@ export function isNotInClass(actor) {
 }
 
 /**
+ * A Spectator (E92 C1; config.mjs `FLAGS.spectator`): a player who watches, no student. Read as `isNotInClass` is - on
+ * the actor handed, which a GM's road hands as the GMs hold it (`studentActors`'s `held`).
+ */
+export function isSpectator(actor) {
+    return Boolean(actor?.getFlag?.(MODULE_ID, FLAGS.spectator));
+}
+
+/**
  * Every student - a character that is neither a Monokuma nor marked not in the class.
  *
  * THE NPC LEAVES WITH THE MONOKUMA (E24 C3a, 08.11.2026; audit S03-36, E24-19). Every `character` was a student, so an
@@ -69,7 +77,8 @@ export function studentActors({ held = null } = {}) {
     return game.actors.filter(a => {
         if (a.type !== "character") return false;
         const flags = held ? held(a) : a;
-        return !isMonokuma(flags) && !isNotInClass(flags);
+        // A Spectator leaves with the NPC (E92 C1): no student, so every reader of the one roster leaves it out.
+        return !isMonokuma(flags) && !isNotInClass(flags) && !isSpectator(flags);
     });
 }
 
@@ -90,7 +99,7 @@ export function characterIds() {
  * rooms-per-student line divides by. `actors` is the suite's to hand (R1500); otherwise the world's.
  */
 export function studentCensus(actors = studentActors()) {
-    const all = [...actors].filter(a => !isMonokuma(a) && !isNotInClass(a));
+    const all = [...actors].filter(a => !isMonokuma(a) && !isNotInClass(a) && !isSpectator(a));
     const living = all.filter(a => !isDeadForGm(a));
     return { all, living, count: living.length };
 }
@@ -120,15 +129,29 @@ export function actingStudents({ dead = isDeadForGm, held = null } = {}) {
  */
 export function ownStudent() {
     const assigned = game.user.character;
-    if (assigned && !isMonokuma(assigned)) return assigned;
+    // A Spectator's account has no student view either (E92 C1): its own view is a watcher's (`ownSpectator`).
+    if (assigned && !isMonokuma(assigned) && !isSpectator(assigned)) return assigned;
     if (assigned) return null;
-    const owned = game.actors.filter(a => a.type === "character" && a.isOwner && !isMonokuma(a));
+    const owned = game.actors.filter(a => a.type === "character" && a.isOwner && !isMonokuma(a) && !isSpectator(a));
     return owned.length === 1 ? owned[0] : null;
 }
 
-/** The students this account owns: characters, no Monokuma (a GM owns every one of them). */
+/** The students this account owns: characters, no Monokuma and no Spectator (a GM owns every one of them). */
 export function ownedStudents() {
-    return game.actors.filter(a => a.type === "character" && a.isOwner && !isMonokuma(a));
+    return game.actors.filter(a => a.type === "character" && a.isOwner && !isMonokuma(a) && !isSpectator(a));
+}
+
+/**
+ * The Spectator this account plays, or null (E92 C1): its assigned character when that is one, else the one Spectator
+ * it owns while it owns no student. A GM, who owns every actor, plays none.
+ */
+export function ownSpectator(user = game.user, actors = game.actors) {
+    if (!user || user.isGM) return null;
+    const assigned = user.character ?? null;
+    if (assigned) return isSpectator(assigned) ? assigned : null;
+    const mine = [...(actors ?? [])].filter(a => a?.type === "character" && a.testUserPermission?.(user, "OWNER"));
+    const watching = mine.filter(isSpectator);
+    return watching.length === 1 && watching.length === mine.filter(a => !isMonokuma(a)).length ? watching[0] : null;
 }
 
 /**
@@ -146,8 +169,8 @@ export function ownedStudents() {
  * @returns {Actor|null}
  */
 export function chooseOwnStudent(list = [], { assigned = null, controlled = [] } = {}) {
-    if (assigned) return isMonokuma(assigned) ? null : assigned;
-    const owned = [...list].filter(a => a?.type === "character" && !isMonokuma(a));
+    if (assigned) return isMonokuma(assigned) || isSpectator(assigned) ? null : assigned;
+    const owned = [...list].filter(a => a?.type === "character" && !isMonokuma(a) && !isSpectator(a));
     if (owned.length <= 1) return owned[0] ?? null;
     const held = [...controlled].find(a => a && owned.some(o => o.id === a.id));
     if (held) return owned.find(o => o.id === held.id);
@@ -161,7 +184,7 @@ export function chooseOwnStudent(list = [], { assigned = null, controlled = [] }
  */
 export function viewerNeedsAssigning(list = ownedStudents(), assigned = game.user?.character ?? null) {
     if (assigned) return false;
-    return [...list].filter(a => a?.type === "character" && !isMonokuma(a)).length > 1;
+    return [...list].filter(a => a?.type === "character" && !isMonokuma(a) && !isSpectator(a)).length > 1;
 }
 
 /**
@@ -212,12 +235,34 @@ export async function setNotInClass(actor, value = true) {
 }
 
 /**
+ * Mark or unmark an actor as a Spectator (E92 C1; `FLAGS.spectator`). GM only, as `setNotInClass`: the flag holds no
+ * resource, and a player's write of it is put back by the GMs' audit. Nothing on the sheet is cleared: a Spectator made
+ * a student again has what it held. The primary GM holds its account's microphone from the flag (voice.mjs, E92 C2).
+ */
+export async function setSpectator(actor, value = true) {
+    if (!game.user.isGM || !actor) return null;
+    // The class's map leaves a Spectator made a student again (E92 C4): its own rows stay, the fold's are unticked first.
+    if (!value && isSpectator(actor)) await (await import("./fog.mjs")).forgetSpectatorMap(actor);
+    const { spectatorUserIds } = await import("./spectator.mjs");
+    const before = spectatorUserIds();
+    if (value) await actor.setFlag(MODULE_ID, FLAGS.spectator, true);
+    else await actor.unsetFlag(MODULE_ID, FLAGS.spectator);
+    log(`${actor.name} is ${value ? "now" : "no longer"} a Spectator.`);
+    // Every project in a Spectator's sight, and out of it again (E92 DRPG-D1; projects.mjs `seeAsSpectators`).
+    const now = spectatorUserIds();
+    await (await import("./projects.mjs")).seeAsSpectators([...before].filter(id => !now.has(id)));
+    ui.notifications.info(game.i18n.format(value ? "DRPG.Spectator.marked" : "DRPG.Spectator.unmarked", { name: actor.name }));
+    actor.sheet?.render(false);
+    return actor;
+}
+
+/**
  * The characters Pre-season's checks name as NPCs to mark (E24 C3a; the owner's Q-E24-5: "the characters no player
  * owns as candidates"): students - not a Monokuma, not already out of the class - that no user who is no GM owns.
  * Nothing is marked by itself; the GM decides on each sheet. `actors` and `users` are the suite's to hand (R1453).
  */
 export function classCandidates({ actors = game.actors, users = game.users } = {}) {
-    return [...actors].filter(a => a?.type === "character" && !isMonokuma(a) && !isNotInClass(a)
+    return [...actors].filter(a => a?.type === "character" && !isMonokuma(a) && !isNotInClass(a) && !isSpectator(a)
         && ![...users].some(u => !u.isGM && a.testUserPermission?.(u, "OWNER")));
 }
 

@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.108, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.109, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z twojego krzesła: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co kliknąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje".
 
@@ -76,6 +76,11 @@ Okno rzutu jest dla graczy zablokowane: kości, statystyka, przewaga, doświadcz
 
 **Gdy nie jest połączony żaden GM**, akcja czeka: po jej wciśnięciu dowiadujesz się, że rzut akcji czeka na GMa, i nic nie płacisz. Każdy inny rzut - statystyka z arkusza, która liczy się wtedy jako reakcja, albo reakcja - nadal się wykonuje, a jego karta mówi, że rzucono go bez połączonego GMa i że GM go zobaczy. Nie rusza Hope, Sanity ani Despair, dopóki GM, gdy wróci do stołu, go nie przyzna, a reakcja - statystyka też - nie rusza niczego nawet wtedy.
 
+### Jeśli jesteś Widzem
+
+GM może zrobić z twojej postaci **Widza**: oglądasz i nie grasz. Nie masz akcji, Hope, Calli ani Level Upów i nikt cię nigdzie nie liczy. Inni gracze nie widzą twojego żetonu. Twój mikrofon jest wyłączony; **Porozmawiaj z Widzami** na twoim kafelku głosu pozwala rozmawiać z innymi Widzami, a **Wróć do swojego pokoju** cię cofa. Jeśli GM wyłączył kafelek głosu, tego przycisku nie ma. Przeciągaj żeton, by się ruszać, bez kosztu; czy ściany cię zatrzymają, nie sprawdzono jeszcze przy stole. Widzisz każdy pokój, który klasa odkryła, żetony wszystkich i każdy projekt, także tajny. Na koniec dnia widzisz tylko koniec dnia i nastrój szkoły. Nie masz czatu.
+
+
 ---
 
 ## 2. Czas
@@ -101,14 +106,24 @@ Przed każdą porą dnia gasną światła. To okno ustawiania to **Eclipse**:
 - Niczyj ekran nie pokazuje cudzego tokenu, w żadnym pokoju. Żaden gracz nie jest w głosie: nikogo nie słyszysz i nikt nie słyszy ciebie, dopóki nie wrócą światła. (Ciemność jest ekranów: to, gdzie stoi każdy token, i tak dociera do każdej przeglądarki, bo tak wysyła to Foundry.)
 - Ustawiasz swój token: do **2 przejść między połączonymi pokojami**, drzwi i przejścia wciąż obowiązują. Wyjątkiem jest **Eclipse przed Nocą** - wybierasz **dowolny pokój na mapie**. Przeglądarka GMa liczy twoje przejścia, gdy je widzi: przejście ponad limit wraca, a gdy żaden GM nie jest połączony, przejście jest odrzucane.
 - Twoje akcje są już odnowione, gdy Eclipse się otwiera, ale nic ich nie wydaje poza **Direct Murder**. Żadnych Calli, dopóki nie zapali się światło.
-- Otwiera ci się karta z podsumowaniem pory dnia, która właśnie się skończyła - co znalazłeś, co zostawiłeś. Ta sama karta otwiera się, gdy pora dnia kończy się bez Eclipse, kiedy GM przesuwa zegar dalej; dla każdej pory dnia otwiera się raz.
+- Otwiera ci się karta z podsumowaniem pory dnia, która właśnie się skończyła - co znalazłeś, co zostawiłeś. Ta sama karta otwiera się, gdy pora dnia kończy się bez Eclipse, kiedy GM przesuwa zegar dalej; dla każdej pory dnia otwiera się raz, na środku ekranu, gdy zegar się obróci.
 - Eclipse to jedyny moment pełnej osłony w grze i zwykle tu zaczyna się morderstwo. Nie jest częścią dnia: zegar nie rusza, dopóki GM go nie zakończy.
 
 **Zanim zegar się przesunie**, GM może zapytać, czy już kończysz: okno mówi, co GM chce zrobić - zacząć Eclipse, zakończyć Eclipse albo zakończyć tę porę dnia - i ma przyciski **Gotowe** i **Jeszcze chwila**. „Jeszcze chwila” mówi GM-owi, że potrzebujesz trochę więcej czasu, a okno zostaje z samym „Gotowe”. Gdy wszyscy gracze odpowiedzą „Gotowe”, gra rusza dalej sama; GM może też ruszyć wcześniej. Okno zamyka się, gdy GM rusza dalej albo postanawia jeszcze chwilę poczekać. Jeśli zamkniesz je sam, na ekranie zostaje karta, dopóki GM czeka; kliknij ją, by odpowiedzieć.
 
 Zaciemniona pora dnia (overflow, rozdział 6) może odjąć przejść albo zabrać dowolne ustawianie.
 
----
+### Chwile na cały ekran
+
+Kilka chwil wypełnia na kilka sekund każdy ekran (od 1.2.109). Esc pomija jedną; przy ograniczonym ruchu widzisz nieruchomą klatkę; GM może je wyłączyć.
+
+- **Wejście do Class Trial.** Ekran zamyka się na **CLASS TRIAL** i otwiera na rozprawę.
+- **Werdykt.** Portret skazanego, głosy i pieczątka: **WINNY**, gdy klasa trafiła, **NIEWINNY**, gdy nie.
+- **Obroty zegara.** Kurtyna obraca się, gdy zmienia się pora dnia. Investigation zaczyna się błyskami szyb; ogłoszenie ciała sprawia, że kurtyna migocze.
+- **Koniec dnia.** Co zrobiłeś tego dnia, co widziała szkoła i **nastrój szkoły**: Spokój, Niepokój albo Na krawędzi. Zostaje w twojej historii powiadomień.
+- **Początek dnia.** Dzień, wszyscy na swoich miejscach - zmarli wyszarzeni, „pamiętamy” - i **zdanie na poranek** GM-a, jeśli jest.
+
+Jeśli dołączysz po takiej chwili, ominie cię.
 
 ## 3. Ruch i widzenie
 
