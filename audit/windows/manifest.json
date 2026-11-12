@@ -818,6 +818,98 @@
       "file": "investigation--final.html"
     },
     {
+      "id": "case-realize",
+      "client": "gm",
+      "opener": "case-realize.mjs m.openRealization()",
+      "captured": true,
+      "title": "Realization of the case, chapter 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-case-realize",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Close",
+          "default": true
+        },
+        {
+          "action": "run",
+          "label": "Run realization",
+          "default": false
+        }
+      ],
+      "file": "case-realize.html"
+    },
+    {
+      "id": "case-realize--made",
+      "client": "gm",
+      "opener": "case-realize.mjs m.openRealization()",
+      "captured": true,
+      "title": "Realization of the case, chapter 1",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-case-realize",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "close",
+          "label": "Close",
+          "default": true
+        },
+        {
+          "action": "run",
+          "label": "Run realization",
+          "default": false
+        },
+        {
+          "action": "undo",
+          "label": "Undo realization",
+          "default": false
+        }
+      ],
+      "file": "case-realize--made.html"
+    },
+    {
+      "id": "new-trace",
+      "client": "gm",
+      "opener": "investigation.mjs m.openNewTrace({ room: \"Library\" })",
+      "captured": true,
+      "title": "New Remnant",
+      "classes": [
+        "application",
+        "dialog",
+        "drpg-panel",
+        "drpg-window-newtrace",
+        "drpg-ui"
+      ],
+      "tag": "dialog",
+      "width": 400,
+      "buttons": [
+        {
+          "action": "ok",
+          "label": "Create on the map",
+          "default": true
+        },
+        {
+          "action": "cancel",
+          "label": "Cancel",
+          "default": false
+        }
+      ],
+      "file": "new-trace.html"
+    },
+    {
       "id": "chapter-end",
       "client": "gm",
       "opener": "chapter.mjs m.openChapterEndDialog()",

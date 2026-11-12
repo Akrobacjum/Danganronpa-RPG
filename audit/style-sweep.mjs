@@ -99,7 +99,10 @@ const FIT_PHONE = [390, 844];
 const STILL = ["action-observe", "action-search", "action-analyze", "action-tamper", "action-rest", "action-project", "action-dynamic",
     /* E64-inv (12.11.2026; the owner's pick of the Investigation review): End the chapter shows its clock options and the
        case's backup without a scroll. Red at 235c321: its body scrolled at 1366x768 in both themes. */
-    "chapter-end"];
+    "chapter-end",
+    /* E64-inv's second round (12.11.2026): New Remnant (61 px under the glass at 1366x768) and the realization preview
+       after a run (its footer on two rows in Polish under the glass, 12 px). */
+    "new-trace", "case-realize--made"];
 /* From E21 C6 on, a page not on the kit fails; before it, it is E21's list (STAGE.md "The measure"). */
 const OUTSIDE_FAILS = false;
 
