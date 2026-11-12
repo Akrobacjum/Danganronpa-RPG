@@ -226,6 +226,7 @@ export async function performDash(actor, options = {}) {
         rollId: rollInHand(actor)?.messageId ?? null });
     if (!res.ok) return null;
     const moves = Number(res.value?.moves) || 0;
-    await whisperToOwner(actor, `<p>${plural("DRPG.Infiltrate.dashResult", { n: moves })}</p>`);
+    // The roller's result: E49's card under the Infiltrate tile's glyph (the coordinator's rule of 12.11.2026), its words as before.
+    await whisperToOwner(actor, { glyph: "ACTIONS.listen", body: `<p>${plural("DRPG.Infiltrate.dashResult", { n: moves })}</p>` });
     return { roll, moves };
 }

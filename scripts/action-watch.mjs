@@ -45,6 +45,7 @@ export async function performWatch(actor, options = {}) {
         withHope: Boolean(roll.withHope), rollId: rollInHand(actor)?.messageId ?? null });
     if (!res.ok || res.value?.refused) return null;
     const kept = res.value?.kept === true;
-    await whisperToOwner(actor, `<p>${esc(game.i18n.localize(kept ? "DRPG.Infiltrate.watch.kept" : "DRPG.Infiltrate.watch.notKept"))}</p>`);
+    // The roller's result: E49's card under the Infiltrate tile's glyph (the coordinator's rule of 12.11.2026), its words as before.
+    await whisperToOwner(actor, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.localize(kept ? "DRPG.Infiltrate.watch.kept" : "DRPG.Infiltrate.watch.notKept"))}</p>` });
     return { kept, roll };
 }

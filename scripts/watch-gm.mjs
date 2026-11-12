@@ -141,8 +141,10 @@ export async function endWatches() {
     for (const [actorId, row] of watches()) {
         const watcher = game.actors.get(actorId);
         if (row.post && watcher && !isDeadForGm(watcher)) {
-            await whisperToOwnerOnly(watcher, `<p>${esc(game.i18n.format("DRPG.Infiltrate.watch.summary",
-                { room: row.post, entered: Number(row.entered) || 0, left: Number(row.left) || 0 }))}</p>`);
+            // The watch's result at the Eclipse's end: E49's card (the coordinator's rule of 12.11.2026); the start and the
+            // live sightings stay lines, running reports.
+            await whisperToOwnerOnly(watcher, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.format("DRPG.Infiltrate.watch.summary",
+                { room: row.post, entered: Number(row.entered) || 0, left: Number(row.left) || 0 }))}</p>` });
             n++;
         }
         await watchStore.drop(actorId);

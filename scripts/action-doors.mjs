@@ -39,7 +39,8 @@ export async function performShut(actor, options = {}) {
     const res = await requestDoorShut({ actorId: actor.id, total: roll.total, rollId: rollInHand(actor)?.messageId ?? null });
     if (!res.ok || res.value?.refused) return null;
     const room = res.value?.room ?? "";
-    await whisperToOwner(actor, `<p>${esc(game.i18n.format("DRPG.Infiltrate.shut.done", { room }))}</p>`);
+    // The roller's result: E49's card under the Infiltrate tile's glyph (the coordinator's rule of 12.11.2026), its words as before.
+    await whisperToOwner(actor, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.format("DRPG.Infiltrate.shut.done", { room }))}</p>` });
     return { room, roll };
 }
 
@@ -91,7 +92,7 @@ export async function performForce(actor, options = {}) {
     const held = Array.isArray(res.value?.held) ? res.value.held : [];
     const shown = labelOf.get(room) ?? room;
     const key = forced ? "forced" : held.length ? "held" : "open";
-    await whisperToOwner(actor, `<p>${esc(game.i18n.format(`DRPG.Infiltrate.force.${key}`, { room: shown }))}</p>`);
+    await whisperToOwner(actor, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.format(`DRPG.Infiltrate.force.${key}`, { room: shown }))}</p>` });
     return { forced, held, room, roll };
 }
 
@@ -152,6 +153,6 @@ export async function performPick(actor, options = {}) {
     const held = Array.isArray(res.value?.held) ? res.value.held : [];
     const shown = labelOf.get(room) ?? room;
     const key = opened ? "opened" : held.length ? "held" : "open";
-    await whisperToOwner(actor, `<p>${esc(game.i18n.format(`DRPG.Infiltrate.pick.${key}`, { room: shown }))}</p>`);
+    await whisperToOwner(actor, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.format(`DRPG.Infiltrate.pick.${key}`, { room: shown }))}</p>` });
     return { opened, held, room, roll };
 }

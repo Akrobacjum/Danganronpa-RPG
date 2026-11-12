@@ -995,7 +995,8 @@ export const COMPLETION_EFFECTS = [
                 remove: true,
                 keep: true,
                 after: async () => {
-                    if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Infiltrate.repair.notMended", { name, why: await whyOf(made.refused) }))}</p>`);
+                    // Something went wrong the GMs must see to: E49's warning card (its own rule), the words as before.
+                    if (made?.refused) await whisperToGms({ tone: "warning", body: `<p>${esc(game.i18n.format("DRPG.Infiltrate.repair.notMended", { name, why: await whyOf(made.refused) }))}</p>` });
                 }
             };
         },

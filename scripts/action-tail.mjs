@@ -90,7 +90,8 @@ export async function performTail(actor, options = {}) {
     });
     if (!res.ok || res.value?.refused) return null;
     const seen = res.value?.seen === true;
-    await whisperToOwner(actor, `<p>${esc(game.i18n.format(seen ? "DRPG.Infiltrate.tail.startedSeen" : "DRPG.Infiltrate.tail.started", { name: target.name }))}</p>`);
+    // The roller's result: E49's card under the Infiltrate tile's glyph (the coordinator's rule of 12.11.2026), its words as before.
+    await whisperToOwner(actor, { glyph: "ACTIONS.listen", body: `<p>${esc(game.i18n.format(seen ? "DRPG.Infiltrate.tail.startedSeen" : "DRPG.Infiltrate.tail.started", { name: target.name }))}</p>` });
     Hooks.callAll("drpgActionResolved", { actor, actionKey: "tail", roll, outcome: { success: true, seen, target: target.name } });
     return { seen, target: target.name, roll };
 }
