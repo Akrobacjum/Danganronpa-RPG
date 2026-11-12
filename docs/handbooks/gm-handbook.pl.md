@@ -459,7 +459,7 @@ Jego **pokój** (kryjówka) to region: <ins>stojąc w nim</ins> widzi każdy tok
 |---|---|---|
 | Jeden **Final Truth Remnant** na rozdział | stawiany z zakładki **Final Truth Remnants** na pulpicie Investigation | wzmocniony przez typ, więc nikt go nie usunie - ekran końca rozdziału przypomina, jeśli żadnego nie postawiono |
 | Flaga **Final Trial** | przełączana z konsoli Class Trial | ogłaszana stołowi |
-| Werdykt finału | wydawany przyciskiem **Werdykt Final Trial** w oknie Masterminda albo w konsoli Class Trial | trafnie - Mastermind stracony, gdy rozprawa się kończy, i killing game się kończy; błędnie albo Mastermind już nie żyje - nikt nowy nie ginie, a stół widzi prawdę |
+| Werdykt finału | wydawany przyciskiem werdyktu w konsoli Class Trial, który w Final Trial otwiera **Werdykt Final Trial** | trafnie - Mastermind stracony, gdy rozprawa się kończy, i killing game się kończy; błędnie albo Mastermind już nie żyje - nikt nowy nie ginie, a stół widzi prawdę |
 
 ---
 

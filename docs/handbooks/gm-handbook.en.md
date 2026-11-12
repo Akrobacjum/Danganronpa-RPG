@@ -459,7 +459,7 @@ Their **lair** is a room: <ins>while standing in it</ins> they see every token o
 |---|---|---|
 | One **Final Truth Remnant** per chapter | placed from the Investigation dashboard's **Final Truth Remnants** tab | reinforced by type, so nobody can remove it - the chapter-end screen reminds you if none was placed |
 | The **Final Trial** flag | toggled from the trial console | announced to the table |
-| A final verdict | given from the Mastermind window's or the trial console's **Final Trial verdict** | correct, the Mastermind is executed when the trial ends and the killing game ends; wrong, or the Mastermind already dead, nobody new dies and the table is shown the truth |
+| A final verdict | given from the trial console's verdict button, which opens **Final Trial verdict** in a Final Trial | correct, the Mastermind is executed when the trial ends and the killing game ends; wrong, or the Mastermind already dead, nobody new dies and the table is shown the truth |
 
 ---
 

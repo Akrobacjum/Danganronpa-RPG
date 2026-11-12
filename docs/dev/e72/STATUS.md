@@ -167,6 +167,17 @@ where that line leaves the rule open the default is written here (default, owner
 | C8 (dedc76d) | D064, D068, D090 | D064: already one road since E37 C2 (R1194), no code. D068: migration step `chapterRestStamps` (1.2.117): a chapterless stamp of the window now gets the clock's chapter, any other is dropped (R3814, new; default, owner may revise). D090: under quiet the planted Gear stays stowed and the victim's other working stowed piece is readied without a word or redraw (default, owner may revise: which piece is readied); E35-T7 changed on purpose |
 | C4/C5 | D038 (1) the Mastermind's room as a keyed room; (2) a road to seal the passage at their door | built (the owner's "Budujemy", 12.11; see "D038" below). R3819, R3820 new; tier 2 "D038 lair lock", "D038 lair seal"; 33 A22, 30 "forged asks at the Mastermind's door". Shots: round 8 |
 
+## The Mastermind window loses its Final Trial verdict (12.11.2026; the GM screen review, owner-approved, relayed)
+
+- The body's "Give the final verdict" / "Wydaj werdykt Final Trial" and its two notes are gone from mastermind.mjs
+  `openMastermindDialog` (keys Mastermind.verdictOpen, verdictBodyNote, verdictNobody deleted in EN and PL): the Class
+  Trial console's Verdict opens the same window in a Final Trial (trial-floor-ui.mjs; tier 0's `finalConsole` holds it).
+  No other reader of the button (grep of scripts, tests, scenarios, handbooks). GM handbook EN/PL section 8's row says
+  the console's button. R1362 changed on purpose (`verdict: null`), red at bf09855.
+- Checks: quick gate green; tier 1 `--only` R1362, R1236, Mastermind (32 ran) 33 passed, 0 failed; tier 2 `--only`
+  Mastermind, Final Trial, final verdict (63 ran) 67 passed, 0 failed, 0 skipped; scenario 88 26/26 (it presses the
+  console's Verdict). Shots: round 9, https://claude.ai/artifact/CF9uZEKwTuFqJLVn1nr8Rr (before and after).
+
 ## Merged with main 1.2.108 (4dfac3a, 12.11.2026; the coordinator's request)
 
 - Merge 5f46d98, conflicts kept from both sides (its message lists them). Then two censuses counted again on purpose:

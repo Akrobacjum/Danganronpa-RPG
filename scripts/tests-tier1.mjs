@@ -39010,6 +39010,9 @@ const INVARIANTS = [
          * question and before `setFinalTrial`, and the answer a return. The select: `verdictCandidates` with the Final
          * Trial's `final` and no accused opens on "Nobody named" (id ""); since E41 C10b, before this stage - not red here,
          * read so the row stays true. Red on C3a's tree: `finalVerdict` in the footer, no body button, no refusal.
+         * SINCE 12.11.2026 NO VERDICT IN THIS WINDOW AT ALL (the GM screen review, approved by the owner, relayed by the
+         * coordinator): the Class Trial console's Verdict opens the same window in a Final Trial (trial-floor-ui.mjs; tier 0
+         * holds that road, `finalConsole`), so the body's button went. `verdict` is null; red at bf09855.
          */
         needs(world.atLeast("livingStudents", 2), "the accused select lists the students");
         const MM = await import("./mastermind.mjs");
@@ -39033,7 +39036,7 @@ const INVARIANTS = [
             verdict: button ? [button.closest("footer") === null, Boolean(button.closest("fieldset")?.querySelector(".notes")), button.disabled === !MM.mastermindActor()] : null,
             refusal: [at(/!mastermindActor\(\)/) > 0, at(/!mastermindActor\(\)/) < at(/drpgConfirm\(/), at(/!mastermindActor\(\)/) < at(/setFinalTrial\(/)],
             opens: [opens, opens === students[0]?.id]
-        }), stableJson({ footer: ["save", "cancel"], verdict: [true, true, true], refusal: [true, true, true], opens: ["", false] }),
+        }), stableJson({ footer: ["save", "cancel"], verdict: null, refusal: [true, true, true], opens: ["", false] }),
             "[the footer's buttons; the verdict (out of the footer, with its note, disabled exactly when nobody is set); the refusal before the question and the write; the accused select's first choice and whether it is the first student]");
     }],
     ["R1363 - the incident tracker and Mark as Monokuma (E22 C3b; S03-34): murder-ui.mjs `incidentButtons` makes Close the default with no primary, Pass the turn and the ask-again ways on beside it, End the murder destructive and last, apart from Close, and no Pass in the resolution; `openIncidentTracker` refuses a Pass within PASS_COOLDOWN_MS (1500) of the last on this client; End the murder's label is its own; and the sheet's header offers a GM Mark as Monokuma for a student and Unmark for a Monokuma (the Actors directory's menu until E24 C3a), a mark of a player's character asked first with a destructive yes", async () => {
