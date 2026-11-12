@@ -3715,6 +3715,31 @@ async function putBackActorDice(found) {
     }
 }
 
+/**
+ * A DARKENING FOR THIS TIME OF DAY (E93 C6), as overflow.mjs stamps one: the GM's rules with `effect` alone ticked, the
+ * stamp of the clock's session, day and time of day naming it. Answers the road that puts the rules and the stamp back
+ * as they were, once (a second call does nothing).
+ */
+async function e93Darkening(effect) {
+    const o = await import("./overflow.mjs");
+    const clock = getClock();
+    const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {});
+    const rules = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflowRules) ?? {});
+    const effects = Object.fromEntries(Object.keys(o.overflowRules().effects).map(key => [key, { on: key === effect }]));
+    await game.settings.set(MODULE_ID, SETTINGS.overflowRules, { ...rules, effects });
+    await game.settings.set(MODULE_ID, SETTINGS.overflow, { ...stored,
+        active: { session: clock.session, day: clock.day ?? 1, timeOfDay: clock.timeOfDay, effect } });
+    must(o.overflowEffect() === effect, `the darkening ${effect} could not be set for this time of day - this would measure nothing`);
+    let done = false;
+    return async () => {
+        if (done) return;
+        done = true;
+        await game.settings.set(MODULE_ID, SETTINGS.overflowRules, rules);
+        await game.settings.set(MODULE_ID, SETTINGS.overflow, stored);
+        await settle();
+    };
+}
+
 const SCENARIOS = [
     ["a document keeps a given id only with keepId", async () => {
         /*
@@ -87823,6 +87848,36 @@ const SCENARIOS = [
             fx.destroy();
             if (was?.fx && !was.fx.destroyed && was.region) FR.flashOutline(was.fx, was.region, was.rect, was.level, { actor: was.actor ?? null, elevation: was.elevation ?? null, quiet: true });
         }
+    }],
+    ["E93-T1 - Insomnia bars the Short rest on the roller's browser and the GMs cover none (scripts/rest.mjs `restVariants`, `takeRest`, sheet-audit.mjs `restCovers`, overflow.mjs `overflowBlocksShortRest`; E93 C6, the owner's audit entry E93 (6)): with Insomnia drawn for this time of day the Rest window's Short row is greyed with the Insomnia line and `takeRest` refuses a Short rest before anything is asked or paid; the Long row is judged as before; with the darkening gone the Short row is what it was", async () => {
+        /*
+         * E93 C6, 12.11.2026. The darkening is written as overflow.mjs stamps it (the time of day's session, day and time
+         * of day, its key) with Insomnia alone ticked, and put back after. Red at f22a7e87: no Insomnia exists, the row
+         * is the room's and the allowance's alone.
+         */
+        const R = await import("./rest.mjs");
+        const { actor } = await playerInRoom();
+        const clock = getClock();
+        must(!clock.eclipse, "an Eclipse is running: its darkening reads another stamp, and this test reads a time of day's");
+        const back = await e93Darkening("insomnia");
+        const read = {};
+        const warned = [];
+        const warn = ui.notifications.warn;
+        try {
+            const short = () => R.restVariants(actor).find(row => row.value === "short");
+            const long = () => R.restVariants(actor).find(row => row.value === "long");
+            read.under = [short()?.disabled, short()?.why === game.i18n.localize("DRPG.Rest.insomnia"), long()?.why === game.i18n.localize("DRPG.Rest.insomnia")];
+            ui.notifications.warn = text => { warned.push(text); };
+            read.take = [await R.takeRest(actor, "short", { quiet: true }), warned.includes(game.i18n.localize("DRPG.Rest.insomnia"))];
+            ui.notifications.warn = warn;
+            await back();
+            read.after = short()?.why === game.i18n.localize("DRPG.Rest.insomnia");
+        } finally {
+            ui.notifications.warn = warn;
+            await back();
+        }
+        equal(stableJson(read), stableJson({ under: [true, true, false], take: [null, true], after: false }),
+            "{under: [Short greyed, its why the Insomnia line, the Long's why it]; take: [takeRest's answer, the Insomnia warning]; after: the Short's why with the darkening gone} - Insomnia must bar the Short rest and nothing else");
     }],
 ];
 

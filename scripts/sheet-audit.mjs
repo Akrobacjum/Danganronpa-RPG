@@ -1791,6 +1791,8 @@ async function restCovers(actor, mark, credit, gains, moves, ref, seen) {
     if (!relief) {
         kind = moved[0];
         if (!REST[kind] || now[kind] !== restStamp(kind, getClock())) return null;
+        // Insomnia (E93 C6): no Short rest this time of day, so none is covered.
+        if (kind === "short" && (await import("./overflow.mjs")).overflowBlocksShortRest()) return null;
         const { locateActor } = await import("./movement.mjs");
         const place = locateActor(actor);
         if (!roomAllows(place?.room ?? null, kind, place?.scene)) return null;

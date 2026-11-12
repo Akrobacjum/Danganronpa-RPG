@@ -3192,7 +3192,8 @@
       "manageIntro": "Zaznacz, które pokoje pozwalają na Short Rest, a które na Long Rest. Per scena, więc mapa każdego sezonu może się różnić.",
       "shortColumn": "Short Rest",
       "longColumn": "Long Rest",
-      "noRegions": "Ta scena nie ma regionów pokoi. Najpierw narysuj je na warstwie regionów."
+      "noRegions": "Ta scena nie ma regionów pokoi. Najpierw narysuj je na warstwie regionów.",
+      "insomnia": "Insomnia: o tej porze dnia nie ma Short Rest."
     },
     "Calls": {
       "resolveNext": "Następny rzut zapyta, której statystyki użyć.",
@@ -3436,7 +3437,12 @@
         "silence": "Silence",
         "fog": "Fog",
         "rot": "Rot",
-        "earthquake": "Earthquake"
+        "earthquake": "Earthquake",
+        "lockdown": "Lockdown",
+        "insomnia": "Insomnia",
+        "toll": "Toll",
+        "jitters": "Jitters",
+        "powercut": "Power cut"
       },
       "what": {
         "darkness": {
@@ -3461,7 +3467,12 @@
         "silence": "Żadnych Hope Calls. Ani jednego, u nikogo.",
         "fog": "Nie znajdujesz drogi za darmo: brak Free Move. Przejścia wciąż kosztują akcje jak zwykle.",
         "rot": "Wszystko, co ma szkoła, psuje się naraz: o {n} wytrzymałości mniej na każdym przedmiocie, który jakąś ma; nic nie łamie się do końca.",
-        "earthquake": "Budynek się trzęsie i praca idzie na marne: każdy projekt w toku traci {n} postępu."
+        "earthquake": "Budynek się trzęsie i praca idzie na marne: każdy projekt w toku traci {n} postępu.",
+        "lockdown": "Pokoje są zamknięte: żadnych akcji w pokojach o tej porze dnia. Odpoczynki działają.",
+        "insomnia": "Nikt nie może zasnąć: żadnego Short Rest o tej porze dnia. Long Rest działa.",
+        "toll": { "one": "Wszystko kosztuje więcej: każda akcja w pokoju kosztuje o {n} akcję więcej, także ta, która nic nie kosztowała.", "few": "Wszystko kosztuje więcej: każda akcja w pokoju kosztuje o {n} akcje więcej, także ta, która nic nie kosztowała.", "many": "Wszystko kosztuje więcej: każda akcja w pokoju kosztuje o {n} akcji więcej, także ta, która nic nie kosztowała.", "other": "Wszystko kosztuje więcej: każda akcja w pokoju kosztuje o {n} akcji więcej, także ta, która nic nie kosztowała." },
+        "jitters": "Ręce się trzęsą: rzuty na akcje GM-a w pokojach są z utrudnieniem.",
+        "powercut": "Nie ma prądu: żadnych akcji z ukończonych projektów o tej porze dnia. Akcje GM-a w pokojach działają."
       },
       "rulesChanged": "Overflow przestrojony. Odpala teraz przy {n}.",
       "explainTitle": "Czym jest Despair overflow",

@@ -2930,7 +2930,8 @@
       "manageIntro": "Mark which rooms allow a Short Rest and which allow a Long Rest. Per scene, so every season's map can differ.",
       "shortColumn": "Short Rest",
       "longColumn": "Long Rest",
-      "noRegions": "This scene has no room regions. Draw them on the Regions layer first."
+      "noRegions": "This scene has no room regions. Draw them on the Regions layer first.",
+      "insomnia": "Insomnia: no Short Rest this time of day."
     },
     "Calls": {
       "resolveNext": "Your next roll will ask you which statistic to use.",
@@ -3154,7 +3155,12 @@
         "silence": "Silence",
         "fog": "Fog",
         "rot": "Rot",
-        "earthquake": "Earthquake"
+        "earthquake": "Earthquake",
+        "lockdown": "Lockdown",
+        "insomnia": "Insomnia",
+        "toll": "Toll",
+        "jitters": "Jitters",
+        "powercut": "Power cut"
       },
       "what": {
         "darkness": { "one": "The lights go further down: {n} fewer crossing in the Eclipse, and an Eclipse that would have let you start anywhere is pulled back to two rooms.", "other": "The lights go further down: {n} fewer crossings in the Eclipse, and an Eclipse that would have let you start anywhere is pulled back to two rooms." },
@@ -3164,7 +3170,12 @@
         "silence": "No Hope Calls. Not one, by anybody.",
         "fog": "You cannot find your way for free: no Free Move. Crossings still cost actions as usual.",
         "rot": "Everything the school owns gets worse at once: {n} durability off every item with more than one point left. Nothing breaks.",
-        "earthquake": "The building shakes and work is undone: every project still under way loses {n} progress."
+        "earthquake": "The building shakes and work is undone: every project still under way loses {n} progress.",
+        "lockdown": "The rooms are locked down: no room actions this time of day. Rests still work.",
+        "insomnia": "Nobody can sleep: no Short Rest this time of day. A Long Rest still works.",
+        "toll": { "one": "Everything costs more: every room action costs {n} more action, also one that cost none.", "other": "Everything costs more: every room action costs {n} more actions, also one that cost none." },
+        "jitters": "Hands shake: the rolls of the GM's room actions are at disadvantage.",
+        "powercut": "The power is out: no actions from completed projects this time of day. The GM's room actions still work."
       },
       "rulesChanged": "The overflow has been retuned. It now fires at {n}.",
       "explainTitle": "What is despair overflow",

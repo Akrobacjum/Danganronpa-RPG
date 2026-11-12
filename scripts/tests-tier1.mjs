@@ -621,7 +621,8 @@ const INVARIANTS = [
             // of those needs one: a subtraction with no floor reaches zero, and
             // zero actions or zero search tokens is a different game rather
             // than a harder one.
-            if (rule.kind === "state" && rule.by !== undefined) {
+            // A state whose size raises a price (`adds`, E93 C6's Toll: room actions cost more) takes nothing down.
+            if (rule.kind === "state" && rule.by !== undefined && !rule.adds) {
                 ok(Number.isFinite(rule.floor) && rule.floor >= 1,
                     `${key} subtracts ${rule.by} with no floor under it`);
             }
@@ -46952,6 +46953,31 @@ const INVARIANTS = [
             cost: [FACILITIES.gmCost, FACILITIES.gmCost + 1, FACILITIES.projectCost, 0, 1],
             shut: [null, "lockdown", "lockdown", null, "powercut"], keys: ["g:S1:Kitchen:a1", "p:P1:A1"]
         }), "{store: [kind, reset group, synced, backed up]; setting: the closed keys' scope; row: [no action, an action, the crossed patch, the uncrossed stamp null]; cost; shut; keys} - a room action's uses, its closing, its price and its shutting");
+    }],
+    ["R3753 - the Despair Overflow has the five room-action states (scripts/config.mjs OVERFLOW.effects, overflow.mjs `facilityStatesFor`, `facilityTollFor`, `shortRestBarredBy`, `jittersFor`; E93 C6, the owner's audit entry E93 (6)): Lockdown, Insomnia, Toll, Jitters and Power cut are states, out of the hat until a GM ticks them (the owner to confirm), Toll the only one with a size; each reader answers for its own drawn key alone - Lockdown and Power cut shut room actions, Toll adds its size, Insomnia bars the Short rest, Jitters a die of disadvantage - and each has its name and its line in both languages", async () => {
+        /*
+         * E93 C6, 12.11.2026. Read on the drawn key, not on the world's stamp, so the readers are measured without
+         * writing a darkening (tier 1 writes nothing); overflow.mjs's `overflowFacility*` ask them with `overflowEffect()`.
+         */
+        const O = await import("./overflow.mjs");
+        const five = ["lockdown", "insomnia", "toll", "jitters", "powercut"];
+        const rules = { effects: { toll: { by: 2 } } };
+        const lang = await Promise.all(["en", "pl"].map(l => fetch(`/modules/${MODULE_ID}/lang/${l}.json`).then(r => r.json())));
+        const said = l => five.every(k => typeof l?.DRPG?.Overflow?.name?.[k] === "string" && l.DRPG.Overflow.what?.[k] !== undefined);
+        const read = {
+            catalogue: five.map(k => [OVERFLOW.effects[k]?.kind ?? null, OVERFLOW.effects[k]?.on ?? null, OVERFLOW.effects[k]?.by ?? null]),
+            states: [...five, "fog", null].map(k => JSON.stringify(O.facilityStatesFor?.(k) ?? null)),
+            toll: [O.facilityTollFor?.("toll", rules), O.facilityTollFor?.("toll", { effects: { toll: { by: 0 } } }), O.facilityTollFor?.("jitters", rules)],
+            rest: ["insomnia", "lockdown", null].map(k => O.shortRestBarredBy?.(k) ?? null),
+            jitters: ["jitters", "toll", null].map(k => O.jittersFor?.(k) ?? null),
+            said: lang.map(said)
+        };
+        equal(stableJson(read), stableJson({
+            catalogue: [["state", false, null], ["state", false, null], ["state", false, 1], ["state", false, null], ["state", false, null]],
+            states: ['{"lockdown":true,"powercut":false}', '{"lockdown":false,"powercut":false}', '{"lockdown":false,"powercut":false}',
+                '{"lockdown":false,"powercut":false}', '{"lockdown":false,"powercut":true}', '{"lockdown":false,"powercut":false}', '{"lockdown":false,"powercut":false}'],
+            toll: [2, 0, 0], rest: [true, false, false], jitters: [-1, 0, 0], said: [true, true]
+        }), "{catalogue: [kind, on, by] per state; states: the shut per drawn key; toll; rest: Short rest barred; jitters: the die; said: EN, PL names and lines} - the five Overflow states and their readers");
     }],
 ];
 
