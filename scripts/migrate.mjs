@@ -1638,8 +1638,10 @@ export function runMigrationOnLoad() {
         /* THEN THE DA39 MIGRATION, ONCE PER WORLD (E64; the owner's DRPG-D1 of 12.11.2026): the plan read, and with
            nothing to do the world marked done, inside this load's pass, so the suite's wait covers the write; with
            something to do, the GM's window opens and is not waited on (level-up.mjs `startDa39Migration`). */
-        .then(() => import("./level-up.mjs")).then(m => m.startDa39Migration())
-        .catch(err => error("The DA39 migration could not run", err));
+        .then(report => import("./level-up.mjs").then(m => m.startDa39Migration())
+            .catch(err => error("The DA39 migration could not run", err))
+            // The pass's own report is what this load's promise answers (`migrationOnLoad`; scenario 65 V2 reads it).
+            .then(() => report));
 }
 
 /** The pass this load started - the primary GM's - or nothing to wait for. */
