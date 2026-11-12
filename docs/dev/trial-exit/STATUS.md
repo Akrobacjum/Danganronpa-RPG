@@ -16,20 +16,22 @@ What changed:
 - glass.mjs: `holdPulse` / `pulseNow` stop the pulse's clock from the moment the pieces are taken to the sequence's end;
   `holdCurtain` takes the live curtain and its glow to 0 under the copies and brings them back; `snapshotLook` bakes the
   glow into the sequence's looks; `rebuildAll` paints a recut without turning while the curtain is held.
-- sequence.mjs: the copies rise over `handIn` (500 ms) as the live curtain falls, and fall over `hand` (300 ms) at the
+- sequence.mjs: the copies rise over `handIn` (500 ms) as the live curtain falls, and fall over `hand` (400 ms) at the
   end as it rises; `coverBlocks` fades the clock, Despair, the event panel, the status, the tray and the launchers out
   with the tiles over `handIn` and back in over `handIn` from the opening, each by its own animation (a CSS transition
   lost the cascade to stained-glass.css's `transition` on the same blocks and went in one frame).
 
-The probe (scratchpad seam/probe.mjs, unchanged but for its port), whole-frame mean luma, the steps between consecutive
-frames (about 100-120 ms apart), two runs each:
+The probe (the seam report's probe.mjs, unchanged but for its port), whole-frame mean luma, the largest step between
+consecutive frames (about 100-160 ms apart; "a frame" below) in each window, and that step per 100 ms; base one run, after
+two runs (1366x768, deviceScaleFactor 1, GM):
 
-| | start | 900 ms | title in (1400) | opening (2500-2800) | end |
-| --- | --- | --- | --- | --- | --- |
-| base 421f2395 | -11.3, -3.9 | +13.5, +3.5, -7.9, -7.1 (the wash) | +7.7 | -8.0 | +6.1 / +7.1, pane +9.3 |
-| after | -1.9, -3.1..-3.8 a frame over 500 ms (the curtain closing and the blocks fading) | -0.8 | +7.2..+7.5 | -3.0..-4.4 (the title's band leaving) | +1.8..+2.1 a frame |
+| | start (host in to +700 ms) | at 900 ms | title in / out | end (from +3200 ms to the host gone +400) |
+| --- | --- | --- | --- | --- |
+| base 421f2395 | -11.3 in one frame | +13.5 then -7.9, -7.1 (the wash) | +7.7 / -8.0 | +6.1 / +7.1 |
+| after | -3.8 / -4.6 a frame, 3.4 per 100 ms (the curtain closing and the blocks fading over 500 ms) | +0.9 | +7.2 / -3.2..-3.8 | +1.8 a frame, 1.5 per 100 ms |
 
-The plain-glass region (x30-250, y470-640): base -8.7 at the start and +9.3 at the end; after, no step over 1.4 at the
-start, 0.0 at the end, +2.3/+2.7 once at 900 ms (the closing panes' copy giving way to the closed curtain's paint).
-What stays over 3 is the sequence's own content: the title arriving (+7) and leaving (-3 to -4). Not measured: a real
-Foundry table (LIVE-E61-01), deviceScaleFactor 2, a player's browser.
+The plain glass (x30-250, y470-640): base -8.7 in the first frame and +9.3 in the last; after, at most 1.4 at the start
+and 1.9 at the end. The hand-back took 300 ms first (the seam report's 200-300): the exit's last frames read +3.1 and
++4.4 apart; at 400 ms at most +2.9 in six runs. What stays over 3 is the sequence's own content: the title arriving
+(+7) and leaving (-3 to -4). Curve: scratchpad trialexit/shots/0-curve-after-entry-exit-harness.png (not in the
+repository). Not measured: a real Foundry table (LIVE-E61-01), deviceScaleFactor 2, a player's browser.

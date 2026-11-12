@@ -48,12 +48,14 @@ export const SEQUENCE_ATTR = "data-drpg-sequence";
 /**
  * Each sequence's frames in ms (the mockups' storyboards), and its still frame's hold. E61-A: the panes close by 900,
  * the title with its impact at 1400, the panes open from 2500 and the hall stands at 3400; the copies of the curtain
- * cross over with the live one in the first and the last `hand` ms (250, the seam report's 200-300 ms). E61-B: the band at 0, the portrait at 250, the votes at 900,
+ * cross over with the live one in the first `handIn` ms (500) and the last `hand` ms (400: at 300, the seam report's
+ * 200-300, the probe read the exit's last frames +4.4 apart, at 400 at most +2.9). E61-B: the band at 0, the portrait
+ * at 250, the votes at 900,
  * the stamp's hit at 1700 (MK-R2: earlier than round 1's 2500, so the verdict does not wait), the card's sentence at
  * 1950, frame 5 held to 3500, then a 180 ms fade (MK-R1 #10).
  */
 export const SEQUENCE_TIMES = Object.freeze({
-    trialEntry: Object.freeze({ close: 860, closed: 900, title: 1400, titleIn: 240, titleOut: 2500, open: 820, end: 3400, still: 1500, sound: 1400, handIn: 500, hand: 300 }),
+    trialEntry: Object.freeze({ close: 860, closed: 900, title: 1400, titleIn: 240, titleOut: 2500, open: 820, end: 3400, still: 1500, sound: 1400, handIn: 500, hand: 400 }),
     /* E94 C2, the start-of-day board (MK-R2 #4, #8): the board rises at 300 ms over 600, the cast one by one 140 ms apart
        from 600, the morning line at 1800, held to 4900, gone in 420; still, the board for 5 s; the chime at once. */
     dayStart: Object.freeze({ board: 300, rise: 600, cast: 600, castStep: 140, announce: 1800, hold: 4900, fade: 420, end: 5350, still: 5000, sound: 0 }),
@@ -276,7 +278,7 @@ function closedCanvas(look) {
 export const COVERED = "#drpg-room-tile, #drpg-room-art, #drpg-voice-tile, #drpg-voice-art, #drpg-hud, #drpg-despair, #drpg-events, #drpg-player-status, #countdowns, #drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher, [data-drpg-cluster]";
 
 /* The cover, the mark and in motion the fades (the entry's hand-over, 12.11.2026): each block fades out over the
-   sequence's first `hand` ms and back in over `hand` from the opening, by an animation of its own from the opacity it
+   sequence's first `handIn` ms and back in over `handIn` from the opening, by an animation of its own from the opacity it
    stood at - the mark alone took the HUD away in one frame, and gave it back in one. */
 function coverBlocks(ctx) {
     const { still, times: T, anim, at } = ctx;
