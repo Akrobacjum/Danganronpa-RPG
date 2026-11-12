@@ -2916,6 +2916,7 @@
     },
     "Infiltrate": {
       "notBuilt": "Not built yet.",
+      "dashResult": {"one": "Dash: {n} free crossing until the time of day ends.", "other": "Dash: {n} free crossings until the time of day ends."},
       "row": {
         "listen": {
           "label": "Listen",
@@ -3716,6 +3717,7 @@
         "observe.resolve": "Observe",
         "analyze.resolve": "Analyze",
         "facility.use": "Room action",
+        "dash.settle": "Dash",
         "handover.bullet": "Share a Truth Bullet",
         "handover.item": "Hand over an item",
         "passage.share": "Show a secret passage",

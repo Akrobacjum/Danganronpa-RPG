@@ -78,6 +78,9 @@ export const FLOWS = Object.freeze([
     // p2's Experience on his own character and his Support on Aiko, and reads the rolls that spend them clean.
     { id: "call-arm", what: "A Call armed on a character: a player's - for somebody else or their own - paid and armed by the GM",
         entry: { bridge: ["call.arm"] }, scenarios: ["30-security", "40-flow", "33-bridge-paths", "83-roll-integrity"], status: "partial", stage: "E39" },
+    // E69 C5 (12.11.2026): 33 dashes from p1's page (E69-A); 30 forges the packet.
+    { id: "dash", what: "A Dash: the Leg roll drawn on the GM, the free crossings its band earns granted by the GM",
+        entry: { bridge: ["dash.settle"] }, scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E69" },
     // E93 C3 (12.11.2026): 33 uses a GM's room action and a completed project's from p1's page (E93-A); 30 forges the packet.
     { id: "facility", what: "A room action of the Facilities tile: a GM's rolled and drawn on the GM, a completed project's paid by the GM, each limited there",
         entry: { bridge: ["facility.use"] }, scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E93" },

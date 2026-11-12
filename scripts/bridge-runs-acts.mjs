@@ -140,6 +140,29 @@ export async function handleFacilityUse(payload, sender) {
     });
 }
 
+/**
+ * A DASH, SETTLED ON THE GMS' RECORD OF ITS ROLL (E69 C5, 12.11.2026; config.mjs `INFILTRATE.dash`). The bridge's run of
+ * `dash.settle`: `{ actorId, total, isCritical, rollId }`, the total and the critical the GMs' record's (the declaration
+ * always names a roll). The free crossings the band reached - the highest of `bands` the total meets, `critical.moves` on a
+ * critical, none on a miss - are granted by this GM (actions.mjs `grantFreeMoves`, the reason `infiltrate`, a GM's alone).
+ * Answers `{ reply: { moves } }`.
+ */
+export async function handleDash(payload) {
+    const actor = game.actors.get(payload.actorId ?? "");
+    if (!actor) return { refused: "no such character" };
+    const { INFILTRATE } = await import("./config.mjs");
+    const rule = INFILTRATE.dash;
+    const total = Number(payload.total) || 0;
+    const band = [...rule.bands].sort((a, b) => b.min - a.min).find(b => total >= b.min);
+    const moves = payload.isCritical ? rule.critical.moves : band?.moves ?? 0;
+    if (moves > 0) {
+        const { grantFreeMoves } = await import("./actions.mjs");
+        await grantFreeMoves(actor, moves, { reason: "infiltrate" });
+    }
+    debug(`${actor.name} dashed: ${moves} free crossing(s).`);
+    return { reply: { moves } };
+}
+
     // Analyze is scored here for the same reason as Observe: the difficulty is
     // read from what the bullet really is, which is the answer being bought.
 export async function handleAnalyzeResolve(payload, sender, ctx) {

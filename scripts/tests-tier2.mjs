@@ -88065,6 +88065,61 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ one: [[true, true, "tunnel", null]], run: [["E69-T2 start", true]], putBack: 0, recorded: true }),
             "{one: [from, to, via, eclipse] of a crossing; run: [from, to] of two in a row; putBack: events for a token not in the room; recorded: the GMs' record schedules one} - a crossing settles once");
     }],
+    ["E69-T3 - a Dash gives the free crossings its Leg roll earns, on the GMs' record of that roll (scripts/bridge-runs-acts.mjs `handleDash`, bridge-table.mjs `dash.settle`, config.mjs INFILTRATE.dash; E69 C5): a player's Dash with a roll of their own character at 5, 12 and 18 gives 0, 1 and 2 free crossings and a critical 3, whatever total its packet claims; the same roll twice is refused rollUsed; a packet naming no roll rollUnknown; another player's character notYours; and a roll of another action rollOtherAction", async () => {
+        /*
+         * E69 C5, 12.11.2026. Judged as the primary judges the player's packet (`G.judge`), each roll a message of the character's
+         * with the GMs' record of it (`recordFor`). The grants are read off the character's flag and put back. Red at 5d2e2ab:
+         * no `dash.settle` in the table.
+         */
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { freeMovesLeft } = await import("./actions.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { player, actor } = await playerInRoom();
+        const other = game.actors.find(a => a.type === "character" && a.id !== actor.id && !a.testUserPermission(player, "OWNER"));
+        must(other, "no character the player does not own - this would measure nothing");
+        const grantsBefore = freeMovesLeft(actor);
+        const made = [], told = [];
+        const ask = async packet => {
+            const from = told.length;
+            await G.judge(BRIDGE_ACTIONS, { action: "dash.settle", requestId: `E69T3${foundry.utils.randomID(8)}`, actorId: actor.id, ...packet },
+                player.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.slice(from).find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            return reply?.action === "bridge.refused" ? reply.reason : reply?.value?.moves ?? null;
+        };
+        const rollOf = async (total, isCritical = false, key = "dash") => {
+            const { message } = await neutralRoll(actor, { faces: { hope: 6, fear: 3 } });
+            must(message, "no roll was thrown - this would measure nothing");
+            await message.update({ author: player.id });
+            const kept = await recordFor(message, player, actor, key, { total, isCritical });
+            made.push({ message, kept });
+            return message.id;
+        };
+        const zero = () => trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: 0 }, { reason: "gmRuling" });
+        const read = {};
+        try {
+            read.bands = [];
+            for (const [total, crit] of [[5, false], [12, false], [18, false], [3, true]]) {
+                await zero();
+                const moves = await ask({ total: 30, isCritical: false, rollId: await rollOf(total, crit) });
+                read.bands.push([moves, freeMovesLeft(actor)]);
+            }
+            const id = await rollOf(12);
+            read.again = [await ask({ rollId: id }), await ask({ rollId: id })];
+            read.noRoll = await ask({ total: 30 });
+            read.theirs = await ask({ actorId: other.id, rollId: await rollOf(18) });
+            read.otherAction = await ask({ rollId: await rollOf(18, false, "search") });
+        } finally {
+            for (const { message, kept } of made) { await kept.putBack(); await game.messages.get(message.id)?.delete(); }
+            await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: grantsBefore }, { reason: "gmRuling" });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ bands: [[0, 0], [1, 1], [2, 2], [3, 3]], again: [1, "rollUsed"], noRoll: "rollUnknown", theirs: "notYours",
+            otherAction: "rollOtherAction" }),
+            "{bands: [moves answered, free crossings held] at 5, 12, 18 and a critical; again: the same roll twice; noRoll; theirs; otherAction} - a Dash on the GMs' record of its roll");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

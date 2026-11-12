@@ -44,7 +44,7 @@ export function listenLabels(neighbours, known) {
 /** Each row's icon in the Infiltrate window. */
 const ROW_ICONS = Object.freeze({ listen: "fa-ear-listen", tail: "fa-shoe-prints", dash: "fa-person-running" });
 /** The rows whose action is built on this branch; the rest stand greyed with "Not built yet" (docs/dev/e69/SPEC.md). */
-const BUILT = new Set(["listen"]);
+const BUILT = new Set(["listen", "dash"]);
 
 /**
  * THE INFILTRATE WINDOW'S ROWS (E69 C1, 12.11.2026; DA28: one list, no groups). One row a key of `ACTIONS.listen.variants`
@@ -85,6 +85,7 @@ export async function performListen(actor, def, options) {
     const variant = options.variant ?? (await chooseVariant({
         actor, title: def.label, intro: briefingBlock(actor, "listen", def), options: infiltrateRows(actor), showShut: true
     }))?.value ?? null;
+    if (variant === "dash") return performDash(actor, options);
     if (variant !== "listen") return null;
     const cost = options.free ? 0 : def.cost;
     if (!canAfford(actor, cost)) return null;
@@ -189,4 +190,35 @@ export async function performListen(actor, def, options) {
 
     Hooks.callAll("drpgActionResolved", { actor, actionKey: "listen", roll, outcome });
     return outcome;
+}
+
+/**
+ * DASH (E69 C5, 12.11.2026; config.mjs `INFILTRATE.dash`). One action paid here, a Leg roll the primary GM draws (its
+ * statistic the GM's config's, `actionKey` "dash"), then `dash.settle`: the GM reads the total off its own record of the
+ * roll and grants the free crossings its band earns (bridge-runs-acts.mjs `handleDash`). With no GM connected nothing is
+ * paid. The card says how many came.
+ */
+export async function performDash(actor, options = {}) {
+    const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
+    if (!gmOnline()) {
+        sayNotDone("dash.settle", "noGm", { nothingSpent: true });
+        return null;
+    }
+    const cost = options.free ? 0 : INFILTRATE.dash.cost;
+    if (!canAfford(actor, cost)) return null;
+    const paid = cost > 0 ? await spendAction(actor, cost) : null;
+    if (cost > 0 && !paid) return null;
+    const roll = await rollTrait(actor, INFILTRATE.dash.traits[0], {
+        actionKey: "dash", title: game.i18n.localize("DRPG.Infiltrate.row.dash.label"),
+        dc: INFILTRATE.dash.bands.map(b => b.min).join(" / ")
+    });
+    if (!roll) return abort(actor, paid);
+    const { requestDash } = await import("./bridge-asks.mjs");
+    const { rollInHand } = await import("./action-pipeline.mjs");
+    const res = await requestDash({ actorId: actor.id, total: roll.total, isCritical: Boolean(roll.isCritical),
+        rollId: rollInHand(actor)?.messageId ?? null });
+    if (!res.ok) return null;
+    const moves = Number(res.value?.moves) || 0;
+    await whisperToOwner(actor, `<p>${plural("DRPG.Infiltrate.dashResult", { n: moves })}</p>`);
+    return { roll, moves };
 }

@@ -3178,6 +3178,7 @@
     },
     "Infiltrate": {
       "notBuilt": "Jeszcze niezrobione.",
+      "dashResult": {"one": "Dash: {n} darmowe przejście do końca pory dnia.", "few": "Dash: {n} darmowe przejścia do końca pory dnia.", "many": "Dash: {n} darmowych przejść do końca pory dnia.", "other": "Dash: {n} darmowego przejścia do końca pory dnia."},
       "row": {
         "listen": {
           "label": "Listen",
@@ -4045,6 +4046,7 @@
         "observe.resolve": "Observe",
         "analyze.resolve": "Analyze",
         "facility.use": "Akcja w pokoju",
+        "dash.settle": "Dash",
         "handover.bullet": "Przekazanie Truth Bulleta",
         "handover.item": "Przekazanie przedmiotu",
         "passage.share": "Pokazanie tajnego przejścia",

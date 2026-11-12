@@ -259,12 +259,13 @@ function prune(node) {
  * A ROOM ACTION'S EFFECT (E93 C3, 12.11.2026). `facility` is a GM's write alone: the primary GM carries out a room action's
  * effects in its run of `facility.use` (facilities-gm.mjs `applyEffects`), after it judged the room, the limit and the
  * roll itself. Not in `JUDGED`, so it never leaves a player's browser as evidence: a player's write naming it is judged
- * as a write with no reason.
+ * as a write with no reason. `infiltrate` (E69 C5) likewise: a Dash's free crossings, granted by the primary GM in its run of
+ * `dash.settle` off the GMs' record of the roll.
  */
 export const WRITE_REASONS = Object.freeze([
     "spend", "refund", "price", "call", "rest", "itemUse", "itemWear", "stash", "retrieve", "discard",
     "searchFind", "concealment", "meddle", "setup", "levelUp", "incident", "reroll", "gmRuling",
-    "auditPutBack", "auditUndo", "equip", "ultimate", "sheetText", "sheetReserve", "facility"
+    "auditPutBack", "auditUndo", "equip", "ultimate", "sheetText", "sheetReserve", "facility", "infiltrate"
 ]);
 
 /** The option a module write carries where its reason goes with it (`stampOf`): `{ reason, ref }`. */

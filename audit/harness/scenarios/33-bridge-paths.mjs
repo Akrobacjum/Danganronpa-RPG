@@ -1638,6 +1638,35 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
             && e93a.back?.rows === 2 && e93a.back?.placed === 1,
         JSON.stringify(e93a), { flow: "facility" });
 
+    /* E69-A. A DASH FROM p1'S OWN PAGE (E69 C5, 12.11.2026). The legal control of `dash.settle`: p1 dashes as the Infiltrate
+       window does (action-listen.mjs `performDash`): an action paid, a Leg roll the GM draws, the free crossings the GM
+       reads off its record of it. Read: the answer, Aiko's actions and free crossings before and after, and the GM's log of
+       refusals (none). Put back: Aiko's actions and free crossings. */
+    phase("a Dash", { flow: "dash" });
+    const e69a = { before: await gm.eval(`const a = game.actors.get("${IDS.aiko}"); const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const was = { actions: a.system.resources.actions.value, free: a.getFlag("${MOD}", "freeMoveGrants") ?? 0 };
+        await trustedWrite(a, { "system.resources.actions.value": 3, "flags.${MOD}.freeMoveGrants": 0 }, { reason: "gmRuling" });
+        return was;`, { timeout: 30000 }) };
+    await settle(500);
+    await clearFailures(gm);
+    e69a.p1 = await p1.eval(`const L = await import("${repoUrl}/scripts/action-listen.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        globalThis.__forceRoll = { hope: 9, fear: 3 };
+        let out = null;
+        try { out = await L.performDash(aiko); } finally { delete globalThis.__forceRoll; }
+        await new Promise(r => setTimeout(r, 600));
+        return { moves: out?.moves ?? null, total: out?.roll?.total ?? null, actions: aiko.system.resources.actions.value, free: aiko.getFlag("${MOD}", "freeMoveGrants") ?? 0 };`, { timeout: 60000 });
+    e69a.logged = await refusalsLogged(gm, "dash.settle");
+    await gm.eval(`const a = game.actors.get("${IDS.aiko}"); const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        await trustedWrite(a, { "system.resources.actions.value": ${JSON.stringify(e69a.before?.actions ?? 3)}, "flags.${MOD}.freeMoveGrants": ${JSON.stringify(e69a.before?.free ?? 0)} }, { reason: "gmRuling" });
+        return true;`, { timeout: 30000 });
+    await settle(500);
+    const e69Band = t => (t >= 18 ? 2 : t >= 12 ? 1 : 0);
+    check("E69-A: p1's Dash is paid with one action, its Leg roll drawn on the GM, and the free crossings it earns are granted by the GM - none refused",
+        typeof e69a.p1?.total === "number" && e69a.p1.moves === e69Band(e69a.p1.total) && e69a.p1.actions === 2 && e69a.p1.free === e69a.p1.moves
+            && e69a.logged.length === 0,
+        JSON.stringify(e69a), { flow: "dash" });
+
     /* ------------------------------------------- A. the Assistant as the primary */
 
     phase("the Assistant as the primary", { flow: "give-take-stash" });

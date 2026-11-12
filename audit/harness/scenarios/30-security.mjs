@@ -6592,6 +6592,19 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         return true;`, { timeout: 60000 });
     await settle(500);
 
+    /* FORGERIES OF A DASH (E69 C5, 12.11.2026). `dash.settle` from p1's console: for Botan's character, and for Aiko with
+       no roll named - each refused, no free crossing granted. The legal road is 33's E69-A. */
+    phase("forgeries of a Dash", { flow: "dash" });
+    const readDash = `return ["${ids.aiko}", "${ids.botan}"].map(id => game.actors.get(id).getFlag("${MOD}", "freeMoveGrants") ?? 0);`;
+    const dash = {
+        theirs: await forge("dash.settle", { actorId: ids.botan, total: 30, isCritical: true }, readDash),
+        noRoll: await forge("dash.settle", { actorId: ids.aiko, total: 30, isCritical: true }, readDash)
+    };
+    check("SECURITY: a console's Dash is refused for another's character and with no roll named - no free crossing granted - and each refusal is logged on the GM and told to p1",
+        Object.values(dash).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
+            && dash.theirs.forOwnership && dash.noRoll.reasons[0].includes("no roll the GM drew is named"),
+        JSON.stringify(dash).slice(0, 2000), { flow: "dash" });
+
     /* A PLAYER'S CARD IN THE GM'S NOTICE HISTORY (E81 C7, 12.10.2026). A public card of the module's, posted from p1's
        console with markup in it, is a card the GM's browser draws and keeps (popup.mjs `onCreateChatMessage`, E81 C3).
        The GM then opens the history window, every entry in it, and moves the pointer over every element there: what the
