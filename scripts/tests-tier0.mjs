@@ -718,7 +718,39 @@ const REGRESSIONS = [
         const { gaps, glyphs } = await glyphMapInputs();
         must(glyphs.length >= 240, `${glyphs.length} glyph(s) read`);
         equal(JSON.stringify(gaps.offGrid), "[]", "drawings Stained Glass wears off the 24 grid with no `glass` row of the name on 24");
-    }, expectedRed("E48", "66 drawings Stained Glass wears are on 8 or 12 (pix diamond, diamond-empty, dot, dot-empty, skull, query and 60 chrome masks); the rounds drew no 24 version of them")],
+        /* Green since E48 batch 5 (12.11.2026): the 66 drawings it listed until then (legacy diamond, diamond-empty, dot,
+           dot-empty, skull and query on 8; 60 chrome masks on 12) each have a glass row on 24 - the six small marks by
+           name, declared under the theme's body (tests-glyphs.mjs SHEET_MARKS), the chrome masks by name or by the
+           chrome row's key (`glassChromeOf`), which R3596 holds the chrome section to wear under Stained Glass. */
+    }],
+
+    ["R3596 - Foundry's chrome wears each theme's own drawing: in danganronpa.css's chrome section every chrome mask on 12, on every selector it lands on (the scene-controls rail, the sidebar tabs, the window header's close and controls), is its chrome row's 12 drawing as written and, under Stained Glass's body, its glass row's 24 drawing, decoded pixel for pixel; the section less its glass part is byte for byte what tools/chrome-icons.mjs writes with no glass row; a planted swap and a planted Legacy change are each seen (E48 batch 5; Q11, the owner 10.11)", async () => {
+        /*
+         * E48 batch 5, 12.11.2026. R3339 asks whether a 24 drawing exists; this asks whether the chrome wears it, theme by
+         * theme, off the served sheet's text (tests-glyphs.mjs `chromeThemeProblems`): the masks sit on ::before, which a
+         * computed style headless does not read. Red on 17aceda8's rows and sheet: 66 problems - no glass row for the 60
+         * chrome masks R3339 listed, and the 6 selectors of eye-slash and music, whose glass rows of that name were drawn
+         * for the module's own markup, not worn under the theme's body (none of the 180 was). THE CONTROLS: the
+         * first glass mask in the section swapped for its Legacy drawing, and one Legacy mask's first path cell moved.
+         */
+        needs(env.tools(), "tools/glyphs.json and its generator are read from the repository's tools/ (an installed module's zip leaves it out)");
+        const G = await import("./tests-glyphs.mjs");
+        const text = async file => fetch(`/modules/${MODULE_ID}/${file}`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
+        const glyphs = G.parseGlyphs(await text("tools/glyphs.json")).glyphs;
+        const css = await text("styles/danganronpa.css");
+        must(glyphs.filter(g => g.family === "chrome").length >= 60 && css.length > 100000, `${glyphs.length} glyph row(s), ${css.length} character(s) of danganronpa.css read`);
+        const { problems, read } = G.chromeThemeProblems(glyphs, css);
+        must(read >= 180, `${read} selector(s) of the chrome section held - the check would hold little`);
+        equal(JSON.stringify(problems.slice(0, 6)), "[]", `${problems.length} problem(s) between the chrome section and each theme's rows`);
+        // a glass icon's rule opens on its mask (the glass part's first block, the box, has none); a Legacy mask is on 12
+        const glassMask = /body\.drpg-theme-stained-glass #scene-controls [^{}]*\{\s*-webkit-mask-image: (url\("data:image\/svg\+xml,[^"]*"\))/.exec(css)?.[1];
+        const legacyMask = /mask-image: (url\("data:image\/svg\+xml,[^"]*viewBox='0 0 12 12'[^"]*"\))/.exec(css);
+        must(glassMask && legacyMask, "no glass rule or no Legacy mask in the chrome section to plant in");
+        const swapped = css.split(glassMask).join(legacyMask[1]);
+        ok(G.chromeThemeProblems(glyphs, swapped).problems.some(p => p.includes("(Stained Glass)")), "a glass mask swapped for Legacy's 12 drawing is not seen");
+        const moved = css.split(legacyMask[1]).join(legacyMask[1].replace(/d='M(\d+) /, (m, x) => `d='M${Number(x) === 0 ? 1 : 0} `));
+        ok(G.chromeThemeProblems(glyphs, moved).problems.some(p => p.includes("Legacy")), "a Legacy mask with one cell moved is not seen");
+    }],
 
     ["R3349 - one glyph prefix: no stylesheet of module.json, nor a script that writes or names a glyph, holds the retired px, g or r prefix, and every --drpg-pix- glyph they read (a sheet's var(), the kit's pixelGlyph and launcher names, config.mjs PROJECT_GLYPHS) is a legacy row of tools/glyphs.json, declared on :root for both themes (E48 G4)", async () => {
         /*
