@@ -80,6 +80,21 @@ Head, CI and the full local runs: see "Runs" at the end.
 - Not measured: a screen reader announcing the first card into the standing region (LIVE-E48-06 still stands);
   the real Foundry layout around `#ui-top`.
 
+### G5 - scenario 61 part D5 (the coordinator's item of 12.11)
+
+- Reading confirmed. Measured here: two runs of 61 in parallel 2 of 2 green; three in parallel 3 of 3 red, then with
+  the store name in the packet log 3 of 3 red again - 6 of 6 red, every section D5 counted `clockBeat` (222 bytes,
+  from gm and gm2 to gma, and gma's own back). The window at risk is from D's copy of the primary's storage to the
+  returning browser's hello (about 11 s alone); the beat is every 60 s (hud-elapsed.mjs `CLOCK_BEAT_MS`), so a slow
+  run puts a beat inside it and the copy is honestly one beat behind.
+- Fix (harness only): cluster.mjs's packet log records the `store` a packet names; D5 counts a `gms.state` to or from
+  the returning browser as a failure unless its store's world-A section in the primary's storage now differs from the
+  copy taken before world B. Any other section, or one the log cannot name, still fails D5.
+- Control (a scratch copy of the scenario, not committed): the returning browser's world-A `gmRemnants` section
+  deleted before it comes back - D5 FAILS, `unexplained` naming `remnants` (gm, gm2 -> gma, 1148 bytes).
+- After the fix: three in parallel 3 of 3 green (113/113 each; the last one's D5 detail `movedOn ["clockBeat"]`,
+  4 states, 0 unexplained); alone three times 3 of 3 green (113/113 each, D5 with no section sent: `states 0`, no beat in the window).
+
 ### Not touched
 
 tools/stages.json (the registry rows read "E97" as their stage, from the current stage list - the coordinator

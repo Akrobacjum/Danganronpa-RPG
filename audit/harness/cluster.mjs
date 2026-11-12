@@ -548,7 +548,10 @@ function onClientMessage(who, entry, msg) {
             const recipients = Array.isArray(msg.args?.[1]?.recipients) ? new Set(msg.args[1].recipients) : null;
             socketTraffic.push({
                 from: who, channel: msg.channel, size: JSON.stringify(msg.args ?? []).length,
-                action: msg.args?.[0]?.action ?? null, to: recipients ? [...recipients] : "all"
+                action: msg.args?.[0]?.action ?? null, to: recipients ? [...recipients] : "all",
+                /* which GM store a `gms.*` packet carries (gaps G5, 12.11.2026): 61 D5 tells a section a GM had to send
+                   from one the GMs' store moved on since the copy, and a packet log without it could not say which */
+                ...(typeof msg.args?.[0]?.store === "string" ? { store: msg.args[0].store } : {})
             });
             for (const [other, target] of clients) {
                 if (other === who || target.gone) continue;
