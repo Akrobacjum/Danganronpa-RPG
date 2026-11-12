@@ -30012,7 +30012,7 @@ const INVARIANTS = [
             "the run's ok, failed and unknown lists do not count its rows");
         equal(stableJson(mod.contractState()), before, "a run on rows handed in replaced this load's contract, which the report reads");
 
-        // Unknown is a warning: one console line naming each such row, and no notice (a notice is a failed row's).
+        // Unknown is not a failure: no warning naming it, and no notice (a notice is a failed row's).
         const notices = [];
         const log = watchLog();
         try {
@@ -30021,8 +30021,9 @@ const INVARIANTS = [
         } finally {
             log.stop();
         }
-        equal(stableJson([log.count(/R1540 cannot-tell/), log.count(/R1540 hook/), notices.length]), stableJson([1, 1, 0]),
-            "a row that cannot be read is not one warning line each, or it raised a notice [cannot tell | hook | notices]");
+        // Since E91 C1 (the owner's note of 09.11) an unread row is no warning: one info line counts them (R3810).
+        equal(stableJson([log.count(/R1540 cannot-tell/), log.count(/R1540 hook/), notices.length]), stableJson([0, 0, 0]),
+            "a row that cannot be read is a warning line, or it raised a notice [cannot tell | hook | notices]");
 
         // At ready: after the requirements, on the primary GM only, from the ready hook that runs once.
         const src = (await moduleSources()).get("module.mjs") ?? "";
@@ -30030,6 +30031,57 @@ const INVARIANTS = [
         const gate = ready.indexOf("requirementsMet()"), run = ready.indexOf("announceAtReady(");
         ok(gate >= 0 && run > gate, "module.mjs's ready does not run the contract after it checked the requirements");
         ok(run >= 0 && /isPrimaryGm\(\)/.test(lineAround(ready, run)), "module.mjs's ready runs the contract on a client that is not the primary GM");
+    }],
+
+    ["R3810 - the contract's console at load: a warning only for a failed row; the rows not read yet are one info line with their count and where to read them; a row only a table can check is not in the console at all (E91 C1)", async () => {
+        /*
+         * E91 C1, 12.11.2026; the owner's note of 09.11 ("put the error I sent off to E91"). Until C1 every load
+         * warned "The contract: N row(s) could not be read here" with each row's note - a warning on a load where
+         * nothing failed, read at the table as an error. Now: failed rows warn as before; the rows a probe could not
+         * read yet (a hook not fired, a sheet not rendered) are one console.info line with a count and the call that
+         * lists them; the rows only a table check reads (`table`, B-E52-2 and B-E52-3) are left out of the console.
+         * Stand-in rows here. Red before C1: the unknown rows were a warning naming each.
+         */
+        const mod = await import("./patches.mjs");
+        const row = (id, probe, extra = {}) => ({
+            id, kind: "override", target: `R3810 ${id}`, owner: "foundry", file: "fog.mjs", symbol: "registerDoorControls",
+            why: "R3810", when: "always", fallback: `R3810 ${id}: what the table gets`, probe, ...extra
+        });
+        const rows = [
+            row("holds", () => ({ present: true, ours: true })),
+            row("blind", () => ({ present: null, ours: null })),
+            row("unfired", () => ({ present: true, ours: null }), { kind: "hook" }),
+            row("table", () => ({ present: null, ours: null, note: "a probe cannot read it" }), { kind: "call", table: "B-E52-2" })
+        ];
+        const lines = { warn: [], info: [], log: [] }, kept = { warn: console.warn, info: console.info, log: console.log };
+        for (const level of Object.keys(kept)) console[level] = (...args) => { lines[level].push(args.map(String).join(" ")); };
+        const notices = [];
+        let contract;
+        try {
+            contract = mod.announceContract({ rows, told: new Set(), notify: text => notices.push(text) });
+        } finally {
+            Object.assign(console, kept);
+        }
+        const all = [...lines.warn, ...lines.info, ...lines.log];
+        equal(stableJson([contract.unknown.length, contract.failed.length]), stableJson([3, 0]), "the stand-in rows are not read as three unknown and none failed");
+        equal(stableJson(lines.warn.filter(l => /R3810|contract/i.test(l))), "[]", "a load with no failed row still warns about the contract");
+        const info = [...lines.info, ...lines.log].filter(l => /contract/i.test(l));
+        equal(info.length, 1, "the rows not read yet are not one info line");
+        ok(/\b2\b/.test(info[0] ?? "") && /diagnosePatches\(\)/.test(info[0] ?? ""),
+            `the info line does not give the count of rows not read (2, the table row left out) and where to see them: ${info[0]}`);
+        equal(all.filter(l => l.includes("R3810 table")).length, 0, "a row only a table can check is named in the console at load");
+        equal(notices.length, 0, "an unread row raised a GM notice");
+
+        // A failed row still warns, once, and the info line stays one.
+        lines.warn.length = 0; lines.info.length = 0; lines.log.length = 0;
+        for (const level of Object.keys(kept)) console[level] = (...args) => { lines[level].push(args.map(String).join(" ")); };
+        try {
+            mod.announceContract({ rows: [...rows, row("gone", () => ({ present: false, ours: null }))], told: new Set(), notify: text => notices.push(text) });
+        } finally {
+            Object.assign(console, kept);
+        }
+        equal(stableJson([lines.warn.filter(l => l.includes("R3810 gone")).length, notices.length]), stableJson([1, 1]),
+            "a failed row is not one warning and one notice");
     }],
 
     ["R1541 - a failed row of the contract: one permanent GM notice a load naming its target, file:symbol and fallback, and the same rows on Pre-season's checks; every row's file:symbol is a function of that file", async () => {
