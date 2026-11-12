@@ -81828,6 +81828,12 @@ const SCENARIOS = [
             await settle();
             const T1 = Date.now() + 5;
             listener({ ...getClock(), timeOfDay: "noon", timeOfDayStartedAt: T1 });
+            /* THE SUMMARY WAITS FOR THE CLOCK'S TURN (E62 C5; E94 fix ci-1, 12.11.2026, CI run 43287328954 on b30f9444,
+               suite 2/8): `sumUp` puts it up `summaryDelay` after the move - 1150 ms for an hour's turn with the table's
+               switch on - so read straight after the call the GM had none, and the GM's card landed inside the
+               bystander's read below ({gm: [], bystander: 1}). Waited for here as E37-T4 waits for its own; the
+               bystander's read waits out the same delay before it counts none. */
+            await until(() => summaries().length > 0, 8000);
             await settle();
             read.gm = summaries().map(card => [...card.querySelectorAll(".drpg-sum-row")].length);
             dismiss();
@@ -81843,6 +81849,8 @@ const SCENARIOS = [
             } finally {
                 delete game.user.isGM;
             }
+            await new Promise(resolve => setTimeout(resolve, D.summaryDelay({ ...getClock(), timeOfDay: "noon" },
+                { ...getClock(), timeOfDay: "afternoon" }) + 400));
             await settle();
             read.bystander = summaries().length;
         } finally {
