@@ -11,16 +11,20 @@ origin/claude/plan-130.
 | C6 | five Overflow states: Lockdown, Insomnia, Toll, Jitters, Power cut (config.mjs OVERFLOW.effects, overflow.mjs readers); Insomnia read by rest.mjs and sheet-audit.mjs `restCovers` | R3753 (tier 1), E93-T1 (tier 2) |
 | C3 | the bridge road `facility.use`: bridge-wire, bridge-table row (`rolled` kind `facility`, named by the action), run bridge-runs-acts.mjs `handleFacilityUse` with facilities-gm.mjs's helpers (offer in the GMs' room, limit, cost, effects, trace, card); roll-draw.mjs: the statistic from the GMs' copy of the action, the record names it, Jitters' die, no draw for an action not in the room; the ask `requestFacilityUse`; the window (action-rest.mjs, action-facilities.mjs); `facility` a write reason (GM's alone) | E93-T2 (tier 2), the GMs' roll-list fixture `situation: "facility"`, scenario 33 E93-A (legal), scenario 30 "forgeries of a room action" (2 checks), flow `facility` |
 
-## In progress
+| C2+C4 | Room Setup's Facilities tab and the two editors (facility-editor.mjs), the tile named Facilities, the Projects window's line, the handbooks (EN, PL), LIVE-E93-01..03 | R3754 (tier 1), E93-T3 (tier 2) |
 
-- C2 + C4 (one commit): Room Setup's Facilities tab and the room editor, the project editor (project manager's row),
-  the tile's label Facilities, the Projects window's line for a completed project's action, the handbooks (C7's text).
-  R3754 (tier 1), E93-T3 (tier 2); red at the C3 commit, green on the tree.
+## State
 
-## Next
+E93 is done as far as this round goes (pushed: afdc430 C1-C3 and c0ad643 C2+C4). Not built, and said below: the
+timed and item effects of goal (5), and a scenario of its own for the stage (scenario 33's E93-A, 30's forgeries and
+the tier-2 tests cover the roads). Next on this branch: E69, then E74.
 
-C4 the tile renamed Facilities and its window's look, the Projects window's lifetime line; C7 the scenario and the
-handbooks; screenshots. Then E69, E74.
+## Mutants (12.11, on a worktree of c0ad643)
+
+Nine, each one line, each run against the test named for it: the limit dropped, a GM's action with no roll let
+through, the roll's `named` binding dropped, Lockdown ignored, the difficulty ignored (E93-T2); a lifetime read as
+for good, Power cut ignored (E93-T3); Insomnia ignored (E93-T1); Jitters' die dropped (the roll-list fixture test).
+All nine killed. Not run as mutants: the draw's room check in roll-draw.mjs (scenario 30 measures it, 7 min a run).
 
 ## What a console can still do (watched, not caught)
 
@@ -35,6 +39,11 @@ handbooks; screenshots. Then E69, E74.
 | --- | --- | --- |
 | 12.11, C1 | R3750-R3752 on a worktree of f22a7e87 with only tests-tier1.mjs copied in (the red reading) | 3 failed: the module does not exist |
 | 12.11, C1 | R3750-R3752 on the tree | 3 passed (after two of my test mistakes were fixed: the cap of 8 actions, `null ?? "kept"`) |
+| 12.11, C6 | R3753, E93-T1 red before the code; green after | the 26 overflow tests of tiers 0-1 and 83 rest tests of tier 2 green |
+| 12.11, C3 | tiers 0-1 at afdc430 | 1161 passed, 0 failed (after five tests of mine and R1448 were fixed), 16 skipped, 1 red (older) |
+| 12.11, C3 | scenarios at afdc430 | 30, 33 and the 27 others that name a changed file (10-88, without 01 and 84) all green |
+| 12.11, C2+C4 | tiers 0-1 at b271ae1 | 1163 passed, 0 failed, 16 skipped, 1 red (older); own tier 2: 8 passed |
+| 12.11, C2+C4 | scenarios at b271ae1 | 30, 33, 40, 41, 50, 66, 74, 76 green |
 
 ## Defaults taken, owner to confirm
 
@@ -67,6 +76,10 @@ extend (`git grep -i "temporary\|expire" scripts/call-effects.mjs`: nothing at f
 ## Blockers
 
 None.
+
+## Tokens so far
+
+Not measured: this session has no reading of its own token count.
 
 ## Shots
 
