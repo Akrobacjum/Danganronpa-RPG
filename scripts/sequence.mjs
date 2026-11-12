@@ -358,7 +358,7 @@ function drawVerdictCut(ctx, board) {
     el.querySelectorAll(".drpg-seq-person").forEach((p, i) => {
         anim(p.querySelector(".drpg-seq-portrait"), [{ transform: "translateX(70vw) rotate(3deg)" }, { transform: "translateX(0) rotate(3deg)" }], { duration: T.portraitIn, delay: T.portrait + i * 60 });
         anim(p.querySelector(".drpg-seq-name"), [{ transform: "translateX(80vw)" }, { transform: "translateX(0)" }], { duration: T.portraitIn, delay: T.portrait + 80 + i * 60 });
-        anim(p.querySelector(".drpg-seq-stamp"), [{ opacity: 0, transform: "rotate(-14deg) scale(1.6)" }, { opacity: 1, transform: "rotate(-14deg) scale(1)" }], { duration: T.stampIn, delay: T.stamp });
+        anim(p.querySelector(".drpg-seq-stamp"), [{ opacity: 0, transform: "translateY(-50%) rotate(-14deg) scale(1.6)" }, { opacity: 1, transform: "translateY(-50%) rotate(-14deg) scale(1)" }], { duration: T.stampIn, delay: T.stamp });
     });
     anim(el.querySelector(".drpg-seq-votes"), [{ opacity: 0, transform: "translateX(-60px)" }, { opacity: 1, transform: "translateX(0)" }], { duration: 180, delay: T.votes });
     el.querySelectorAll(".drpg-seq-vbar i").forEach(i => anim(i, [{ transform: "scaleX(0)" }, { transform: i.style.transform }], { duration: T.barsIn, delay: T.bars }));
