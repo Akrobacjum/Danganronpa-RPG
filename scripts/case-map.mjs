@@ -23,11 +23,11 @@ import { esc, plural } from "./utils.mjs";
 import { REMNANT_TYPES } from "./config.mjs";
 import { caseRows, caseNodeOf } from "./case-schema.mjs";
 import { remnantById } from "./remnants.mjs";
-import { MAP_GEOMETRY, mapPlace, edgePath, relayoutCaseMap, wireCaseCamera, CAMERA_LIMITS } from "./case-view.mjs";
+import { MAP_GEOMETRY, mapPlace, edgePath, relayoutCaseMap, wireCaseCamera, CAMERA_LIMITS, TILE_GUTTER, placeTileControls } from "./case-view.mjs";
 
 /* THE GEOMETRY, MEASURED (E97 fix): `MAP_GEOMETRY`, `mapPlace` and `edgePath` live in case-view.mjs, the leaf that also
    places the drawn nodes at their measured size and moves the camera; read here, and by E99, under these names. */
-export { MAP_GEOMETRY, mapPlace, edgePath } from "./case-view.mjs";
+export { MAP_GEOMETRY, mapPlace, edgePath, TILE_GUTTER, placeTileControls } from "./case-view.mjs";
 /**
  * A node's state for the map: evidence "planned" (a Key slot with no Remnant yet), "held" (a student holds a copy:
  * `finders` names one), "onMap" (placed, nobody has it); a schema node "schema". Pure.
@@ -87,17 +87,20 @@ function reachOf(node, reach) {
     return !node.evidence && reach && Number.isInteger(reach.of) && reach.of > 0 ? reach : null;
 }
 
-function nodeButton(node, p, { state, selected, loose, author, reach = null, warn = false }) {
+/** The trial's marks on a node (E99 C5; case-trial.mjs): a class each, and its words in the node's label. */
+const MARK_KEYS = Object.freeze({ presented: "DRPG.CaseTrial.presented", hinted: "DRPG.CaseTrial.hint", ticked: "DRPG.CaseTrial.ticked" });
+
+function nodeButton(node, p, { state, selected, loose, author, reach = null, warn = false, marks = [], controlled = false }) {
     const kind = kindLabel(node);
     const name = nameOf(node);
     const stateText = STATE_KEYS[state] ? L(STATE_KEYS[state]) : "";
     const r = reachOf(node, reach);
     const reachText = r ? F(r.reachable ? "DRPG.CaseMap.reachYes" : "DRPG.CaseMap.reachNo", { held: r.held, of: r.of }) : "";
     const text = String(node.text ?? "").trim();
-    const said = [kind, name, stateText, reachText, author ? F("DRPG.CaseMap.leftBy", { name: author }) : "", warn ? L("DRPG.CaseMap.hasProblem") : "", text]
-        .filter(Boolean).join(", ");
+    const said = [kind, name, stateText, reachText, author ? F("DRPG.CaseMap.leftBy", { name: author }) : "", warn ? L("DRPG.CaseMap.hasProblem") : "", text,
+        ...marks.filter(m => MARK_KEYS[m]).map(m => L(MARK_KEYS[m]))].filter(Boolean).join(", ");
     const cls = ["drpg-case-node", `drpg-case-node--${node.kind}`, `is-${state}`, ...(loose ? ["is-loose"] : []),
-        ...(selected ? ["is-selected"] : []), ...(warn ? ["has-warn"] : []), ...(node.evidence && node.type ? [`drpg-case-type--${node.type}`] : [])];
+        ...(selected ? ["is-selected"] : []), ...(warn ? ["has-warn"] : []), ...marks.filter(m => MARK_KEYS[m]).map(m => `is-${m}`), ...(controlled ? ["has-controls"] : []), ...(node.evidence && node.type ? [`drpg-case-type--${node.type}`] : [])];
     const mode = !node.evidence && node.mode ? `<span class="drpg-case-node-mode">${esc(modeLabel(node.mode))}</span>` : "";
     /* THE WHOLE CONTENT, ALWAYS (E97 fix; the owner's "zawsze wyswietlaly cala swoja zawartosc"): the head's parts wrap
        onto a second line rather than cut the kind, the name is whole, and the node's own words (a schema node's note, a
@@ -117,11 +120,12 @@ function nodeButton(node, p, { state, selected, loose, author, reach = null, war
  * `finders` a Map of token id to the names holding a copy, `authors` a Map of node id to who left it (GMs only),
  * `selected` the open node's id, `fold` true to fold the unrelated evidence (its nodes and their space left out, the head
  * kept). `editors` (the Map's, optional) a Map of node id to the markup of its fields: each node's fields drawn in the
- * canvas under it (`nodeEditHtml`), the open node's shown and the rest `hidden`. The canvas carries what case-view.mjs
- * `relayoutCaseMap` needs to place the nodes again at their measured size (`data-drpg-place`); the viewport
+ * canvas under it (`nodeEditHtml`), the open node's shown and the rest `hidden`. `marks` the trial's marks by node id
+ * (E99 C5: "presented", "hinted", "ticked"), `controls` the trial's controls by node id (E99 C5). The canvas carries what
+ * case-view.mjs `relayoutCaseMap` needs to place the nodes again at their measured size (`data-drpg-place`); the viewport
  * (`.drpg-case-graph`) is the container's to size.
  */
-export function caseGraphHtml({ graph, layout, finders = null, authors = null, selected = null, fold = false, label = "", reach = null, problems = [], editors = null } = {}) {
+export function caseGraphHtml({ graph, layout, finders = null, authors = null, selected = null, fold = false, label = "", reach = null, problems = [], editors = null, marks = {}, controls = null } = {}) {
     const warned = new Set((problems ?? []).map(p => p.node).filter(Boolean));
     const nodes = new Map((graph?.nodes ?? []).map(n => [n.id, n]));
     const unrelated = new Set(layout?.unrelated ?? []);
@@ -147,16 +151,42 @@ export function caseGraphHtml({ graph, layout, finders = null, authors = null, s
         if (!node) continue;
         const state = nodeState(node, finders);
         buttons.push(nodeButton(node, p, { state, selected: id === selected, loose: unrelated.has(id), author: authors?.get?.(id) ?? null,
-            reach: reach?.[id] ?? null, warn: warned.has(id) }));
+            reach: reach?.[id] ?? null, warn: warned.has(id), marks: marks?.[id] ?? [], controlled: Boolean(controls?.[id]) }));
         if (editors) fields.push(nodeEditHtml({ graph, node, p, open: id === selected, state, finders, authors, reach, problems, html: editors.get?.(id) ?? "" }));
+    }
+    /* THE TRIAL'S CONTROLS ON THE TILE (E99 C5, round 4; the owner's 12:00: "jako przycisk na kaflu"): `controls` by node
+       id - `{ tick: bool, start: { action, mode, label, disabled, reason } }`. Each is a sibling of the node's button (a
+       button inside a button is not valid markup) drawn inside the tile's box, in the right-hand gutter the tile keeps
+       for them (`has-controls`), so no word of the node is covered: the tick, pressed or not, named by the node, at the
+       top; the start, named by its mode, under it. Placed again on the measured tile by `placeTileControls`. Neither
+       carries `data-drpg-node`: case-view.mjs `relayoutCaseMap` measures every child button that does as a node. */
+    const controlled = [];
+    for (const [id, c] of Object.entries(controls ?? {})) {
+        const p = place.at[id];
+        const node = nodes.get(id);
+        if (!p || !node || !c) continue;
+        const x = p.x + (p.w ?? MAP_GEOMETRY.nodeW) - TILE_GUTTER;
+        const name = nameOf(node);
+        if (c.tick !== undefined && c.tick !== null) {
+            const said = F("DRPG.CaseTrial.tickLabel", { name });
+            controlled.push(`<button type="button" class="drpg-case-node-tick" data-drpg-case-tick="${esc(id)}" aria-pressed="${c.tick ? "true" : "false"}"`
+                + ` style="left: ${x}px; top: ${p.y + 4}px" aria-label="${esc(said)}" title="${esc(said)}">&#10003;</button>`);
+        }
+        if (c.start?.action) {
+            const said = F("DRPG.CaseTrial.startLabel", { mode: c.start.label, name });
+            controlled.push(`<button type="button" class="drpg-case-node-start" data-drpg-case-start-node="${esc(id)}" data-drpg-case-start="${esc(c.start.action)}"`
+                + ` data-drpg-mode="${esc(c.start.mode)}" style="left: ${x}px; top: ${p.y + 28}px" aria-label="${esc(said)}"`
+                + ` title="${esc(c.start.disabled ? c.start.reason || said : said)}"${c.start.disabled ? " disabled" : ""}>&#9656;</button>`);
+        }
     }
     const gap = place.gapY === null ? "" : `<div class="drpg-case-gap" style="top: ${place.gapY}px; width: ${MAP_GEOMETRY.nodeW}px; left: ${MAP_GEOMETRY.pad}px">`
         + `<button type="button" class="drpg-case-fold" data-drpg-case-fold aria-expanded="${fold ? "false" : "true"}">${esc(F("DRPG.CaseMap.unrelated", { n: unrelated.size }))}</button></div>`;
     const data = JSON.stringify({ positions: shown?.positions ?? {}, gapAt: shown?.gapAt ?? null, unrelated: [...unrelated], fold: Boolean(fold && unrelated.size) });
-    return `<div class="drpg-case-canvas" style="width: ${place.width}px; height: ${place.height}px" role="group" aria-label="${esc(label)}" data-drpg-place="${esc(data)}">`
+    const width = place.width;
+    return `<div class="drpg-case-canvas" style="width: ${width}px; height: ${place.height}px" role="group" aria-label="${esc(label)}" data-drpg-place="${esc(data)}">`
         + heads.join("")
-        + `<svg class="drpg-case-edges" width="${place.width}" height="${place.height}" aria-hidden="true" focusable="false">${edges.join("")}</svg>`
-        + gap + buttons.join("") + fields.join("") + `</div>`;
+        + `<svg class="drpg-case-edges" width="${width}" height="${place.height}" aria-hidden="true" focusable="false">${edges.join("")}</svg>`
+        + gap + buttons.join("") + fields.join("") + controlled.join("") + `</div>`;
 }
 
 /** One line of a node's facts: a label and its value, both text. */
@@ -252,7 +282,7 @@ export function caseMapHtml({ graph, layout, finders = null, authors = null, rea
     return `<div class="drpg-case-map">${tools}`
         + caseOverviewHtml({ graph, finders, problems, open: Boolean(reading.overview), summary })
         + `<div class="drpg-case-graph" tabindex="-1">${caseGraphHtml({ graph, layout, finders, authors, selected: picked?.id ?? null, fold: Boolean(reading.fold), label, reach, problems,
-            editors: editors ?? new Map() })}${cameraHtml(reading.camera?.z ?? 1)}</div>`
+            editors: editors ?? new Map() })}</div>${cameraHtml(reading.camera?.z ?? 1)}`
         + `</div>`;
 }
 
@@ -336,7 +366,7 @@ function motionStill() {
 }
 
 /**
- * Wire the map inside `root`. The tools: `onAdd(kind)`, `onSort(sort)`; the camera's buttons, in the graph. The overview: its Check
+ * Wire the map inside `root`. The tools: `onAdd(kind)`, `onSort(sort)`; the camera's buttons, in their strip under the graph. The overview: its Check
  * consistency (`onCheck`), its fold (`onOverview(open)`). The graph: a node's face opens or shuts its fields (`onPick(id)`),
  * Escape on an open node or a click on empty space shuts them (`onClose(id)`; a drag is no click), the fold folds
  * (`onFold`), the arrows walk the nodes; an open node's buttons - up and down its column (`onMove(id, step)`), Remove
@@ -366,19 +396,24 @@ export function wireCaseMap(root, { onPick = () => {}, onClose = () => {}, onFol
         overview.addEventListener("click", event => { if (event.target?.closest?.("[data-drpg-case-check]")) onCheck(); });
         overview.addEventListener("toggle", () => onOverview(Boolean(overview.open)));
     }
+    /* THE CAMERA'S BAR IN A STRIP OF ITS OWN, under the graph and outside its viewport (E99 round 5, 12.11.2026: over the
+       graph's corner it lay over a node - the owner's round-4 shot, "- 100% + / Dopasuj do widoku" over "Wniosek / Nonstop
+       Debate" at 1366x768 - and Fit to view fills the viewport edge to edge, so no place inside it is free of nodes). */
+    const bar = graph?.nextElementSibling?.matches?.(".drpg-case-camera") ? graph.nextElementSibling : null;
+    if (bar && !bar.dataset.drpgWired) {
+        bar.dataset.drpgWired = "1";
+        bar.addEventListener("click", event => {
+            const cam = event.target?.closest?.("[data-drpg-case-camera]")?.dataset.drpgCaseCamera;
+            if (cam === "in") camera.zoomBy(CAMERA_LIMITS.step, undefined, undefined, { ease: true });
+            else if (cam === "out") camera.zoomBy(1 / CAMERA_LIMITS.step, undefined, undefined, { ease: true });
+            else if (cam === "fit") camera.fit();
+        });
+    }
     const openId = () => graph?.querySelector?.(":scope > .drpg-case-canvas > .drpg-case-edit[data-drpg-edit]:not([hidden])")?.dataset.drpgEdit ?? null;
     if (graph && !graph.dataset.drpgWired) {
         graph.dataset.drpgWired = "1";
         graph.addEventListener("click", event => {
             const t = event.target;
-            const cam = t?.closest?.("[data-drpg-case-camera]")?.dataset.drpgCaseCamera;
-            if (cam) {
-                if (cam === "in") camera.zoomBy(CAMERA_LIMITS.step, undefined, undefined, { ease: true });
-                else if (cam === "out") camera.zoomBy(1 / CAMERA_LIMITS.step, undefined, undefined, { ease: true });
-                else if (cam === "fit") camera.fit();
-                return;
-            }
-            if (t?.closest?.(".drpg-case-camera")) return;
             if (t?.closest?.("[data-drpg-case-fold]")) { onFold(); return; }
             const edit = t?.closest?.(".drpg-case-edit[data-drpg-edit]");
             if (edit) {

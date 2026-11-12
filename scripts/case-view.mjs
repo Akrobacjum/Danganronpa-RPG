@@ -42,10 +42,12 @@ function sizeOf(sizes, id, g) {
 /**
  * Where each node of `layout` stands, in pixels: `{ at: { id: { x, y, w, h } }, cols: [{ x, w }], width, height, gapY }` -
  * `gapY` the middle of the empty row before the unrelated evidence (null without any). Each column a stack of its nodes
- * in row order, `pitch - nodeH` apart; an empty row (the gap before the unrelated evidence) takes one `pitch`. `sizes`
- * (optional) the measured `{ w, h }` of each node. Pure.
+ * in row order, `pitch - nodeH` apart; an empty row (the gap before the unrelated evidence) takes one `pitch`, or in
+ * the first column, where the gap's line and fold stand from its middle down, as much as the gap's measured height
+ * `gapH` needs (E99 round 5: under glass the fold took two lines, 60 px, of the 39 the row left under the line, and lay
+ * over the first unrelated Remnant). `sizes` (optional) the measured `{ w, h }` of each node. Pure.
  */
-export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null) {
+export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null, { gapH = 0 } = {}) {
     const at = {};
     const rowGap = g.pitch - g.nodeH;
     const byCol = [];
@@ -69,7 +71,11 @@ export function mapPlace(layout, g = MAP_GEOMETRY, sizes = null) {
         let y = top, row = 0;
         const skipTo = target => {
             for (; row < target; row++) {
-                if (c === 0 && row === gapRow) gapY = y + Math.round(g.nodeH / 2);
+                if (c === 0 && row === gapRow) {
+                    gapY = y + Math.round(g.nodeH / 2);
+                    y += Math.max(g.pitch, Math.round(g.nodeH / 2) + (Number(gapH) > 0 ? Math.ceil(gapH) : 0) + rowGap);
+                    continue;
+                }
                 y += g.pitch;
             }
         };
@@ -201,8 +207,9 @@ export function relayoutCaseMap(canvas, g = MAP_GEOMETRY) {
         const f = edits.get(id);
         sizes.set(id, { w: Math.max(b.offsetWidth || 0, f?.offsetWidth || 0), h: (b.offsetHeight || 0) + (f ? f.offsetHeight || 0 : 0) });
     }
-    const place = mapPlace({ positions: data.positions ?? {}, gapAt: data.gapAt ?? null, unrelated: data.unrelated ?? [] }, g, sizes);
-    if (data.fold && place.gapY !== null) place.height = Math.max(place.height, place.gapY + g.pitch);
+    const gap = canvas.querySelector(":scope > .drpg-case-gap");
+    const place = mapPlace({ positions: data.positions ?? {}, gapAt: data.gapAt ?? null, unrelated: data.unrelated ?? [] }, g, sizes, { gapH: gap?.offsetHeight || 0 });
+    if (data.fold && place.gapY !== null) place.height = Math.max(place.height, place.gapY + Math.max(g.pitch, (gap?.offsetHeight || 0) + g.pad));
     for (const [id, b] of buttons) {
         const p = place.at[id];
         if (!p) continue;
@@ -218,7 +225,6 @@ export function relayoutCaseMap(canvas, g = MAP_GEOMETRY) {
         const col = place.cols[Number(head.dataset.drpgColHead)];
         if (col) head.style.left = `${col.x}px`;
     }
-    const gap = canvas.querySelector(":scope > .drpg-case-gap");
     if (gap && place.gapY !== null) { gap.style.top = `${place.gapY}px`; gap.style.width = `${place.cols[0]?.w ?? g.nodeW}px`; }
     canvas.style.width = `${place.width}px`;
     canvas.style.height = `${place.height}px`;
@@ -338,4 +344,23 @@ export function wireCaseCamera(graph, { get = () => null, set = () => {}, still 
     /* THE FOCUS IS NEVER OFF SCREEN: a node the arrows reach, or a field Tab reaches in an open node, is brought into view. */
     graph.addEventListener("focusin", event => reveal(event.target));
     return { apply, zoomBy, fit, reveal };
+}
+
+/** The right-hand gutter a tile keeps for its trial controls (E99 round 4), in px: the controls' width and their margin. */
+export const TILE_GUTTER = 30;
+
+/**
+ * The trial's controls placed on their tiles as drawn now (E99 round 4): after `relayoutCaseMap` has moved
+ * and sized the nodes, each tick and start goes to its tile's right-hand gutter - the tick at the top, the start under
+ * it. In jsdom a tile measures 0 wide and the drawn width (`MAP_GEOMETRY.nodeW`) stands.
+ */
+export function placeTileControls(canvas) {
+    for (const el of canvas?.querySelectorAll?.(":scope > [data-drpg-case-tick], :scope > [data-drpg-case-start-node]") ?? []) {
+        const id = el.dataset.drpgCaseTick ?? el.dataset.drpgCaseStartNode;
+        const tile = canvas.querySelector(`:scope > button[data-drpg-node="${CSS.escape(id)}"]`);
+        if (!tile) continue;
+        const x = (parseFloat(tile.style.left) || 0) + (tile.offsetWidth || MAP_GEOMETRY.nodeW) - TILE_GUTTER;
+        el.style.left = `${x}px`;
+        el.style.top = `${(parseFloat(tile.style.top) || 0) + (el.dataset.drpgCaseTick !== undefined ? 4 : 28)}px`;
+    }
 }

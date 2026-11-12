@@ -2358,9 +2358,17 @@ function caseReach(graph) {
             holders.get(id).add(actor.id);
         }
     }
-    const culprits = [...new Set([...blackenedIds(graph.chapter), ...killerIds()])];
+    const culprits = caseCulprits(graph.chapter);
     for (const set of holders.values()) for (const c of culprits.slice(1)) set.delete(c);
     return reachability(graph, holders, { culpritId: culprits[0] ?? null, living: livingStudentsForGm().map(a => a.id) });
+}
+
+/** The chapter's culprits the reach leaves out (the Blackened, then the incident's killers), and the first of them (E99 C4). */
+function caseCulprits(chapter) {
+    return [...new Set([...blackenedIds(chapter), ...killerIds()])];
+}
+export function caseCulprit(chapter) {
+    return caseCulprits(chapter)[0] ?? null;
 }
 
 /**

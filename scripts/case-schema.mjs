@@ -19,7 +19,7 @@
  */
 
 import { MODES } from "./floor-machine.mjs";
-import { caseSchemaStore, keyPlanStore } from "./gm-stores.mjs";
+import { caseSchemaStore, keyPlanStore, caseTickStore } from "./gm-stores.mjs";
 import { remnantsOn, remnantData, keyOf } from "./remnants.mjs";
 import { getClock } from "./clock.mjs";
 import { sameSeason } from "./settings.mjs";
@@ -112,8 +112,8 @@ export function graphOf({ chapter = null, rows = {}, meta = null, traces = [], s
             id: t.key, kind: t.type === "final" ? "final" : (t.type === "key" || s ? "key" : "trace"), evidence: true, planned: false,
             slot: s ? s.slot : null, trace: t.key, type: t.type ?? null, label: t.name || t.label || "", tied: t.tiedToCrime === true,
             faint: Boolean(t.faint), room: t.room ?? null, chapter: t.chapter ?? null, foundAt: t.foundAt ?? null,
-            // its description (the player's words), drawn whole on its node since the E97 fix
-            text: typeof t.text === "string" ? t.text : ""
+            // its description (the player's words): drawn whole on its node since the E97 fix, and E99 C6's summary words
+            text: typeof t.text === "string" ? t.text : typeof t.playerText === "string" ? t.playerText : ""
         });
     }
     for (const s of slots ?? []) {
@@ -343,4 +343,23 @@ export function checkCase(graph, { reach = {}, cycle = [], modes = caseModes(), 
     const keys = nodes.filter(n => n.evidence && n.kind === "key").length;
     if (keys > keyMax) out.push({ code: "tooManyKeys", node: null, ref: String(keys) });
     return out;
+}
+
+/** The chapter's ticks at its trial (E99 C3): node id -> true, on a GM; empty on any other browser. */
+export function caseTicks(chapter) {
+    if (!game.user?.isGM) return {};
+    const prefix = `${chapter}:`;
+    const out = {};
+    for (const [key, row] of Object.entries(caseTickStore.entries() ?? {})) {
+        if (key.startsWith(prefix) && row?.ticked === true) out[key.slice(prefix.length)] = true;
+    }
+    return out;
+}
+
+/** Tick or untick one node at the trial, on a GM (E99 C3): `{ ticked, by, at }`. Answers the row, or null. */
+export async function setCaseTick(chapter, nodeId, ticked) {
+    if (!game.user?.isGM || !Number.isInteger(chapter) || !validNodeId(nodeId)) return null;
+    const key = caseKeyOf(chapter, nodeId);
+    await caseTickStore.patch(key, { ticked: Boolean(ticked), by: game.user.id, at: Date.now() });
+    return caseTickStore.get(key) ?? null;
 }

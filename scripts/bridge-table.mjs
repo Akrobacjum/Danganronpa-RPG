@@ -37,7 +37,7 @@ import {
     ACTION_OVERFLOW_ADD, ACTION_OVERFLOW_CLEAR, ACTION_DESPAIR_SET, ACTION_DESPAIR_ALL, ACTION_DESPAIR_ROSTER,
     ACTION_OVERFLOW_TAKE, ACTION_OVERFLOW_CHECK, ACTION_DIFFICULTY, ACTION_AUDIT_DECIDE, ACTION_KEYS_CHARGE,
     ACTION_VOTE_RUN, ACTION_VOTE_CAST, ACTION_VOTE_ASK, ACTION_FLOOR_NOW, ACTION_TRIAL_OBJECT, ACTION_TRIAL_EVIDENCE,
-    ACTION_TRIAL_WITHDRAW, ACTION_FLOOR_REPOINT, ACTION_TRIAL_GM, ACTION_TRIAL_TURN, ACTION_TRIAL_CLAIM,
+    ACTION_TRIAL_WITHDRAW, ACTION_FLOOR_REPOINT, ACTION_TRIAL_GM, ACTION_TRIAL_TURN, ACTION_TRIAL_CLAIM, ACTION_TRIAL_SIDE, ACTION_TRIAL_KEYWORD,
     ACTION_TRIAL_PRESENT, ACTION_READY_OPEN, ACTION_READY_ANSWER, ACTION_READY_END, ACTION_TRIAL_ENTER,
     ACTION_TRIAL_RECORD, ACTION_RESHAPE_RULING, ACTION_TRAIT_RULING, ACTION_HOPE_CALL, ACTION_CALL_YES,
     ACTION_RULING_EXPIRED, ACTION_RULING_RECEIVED, ACTION_DYNAMIC_ANSWER, ACTION_OBSERVE_TARGET, ACTION_OBSERVE_RESOLVE,
@@ -64,7 +64,7 @@ import {
     handleOverflowTake, handleOverflowCheck, handleDespair, handleEclipseMove, handleNoteSave, handleRollBookmark,
     handleReroll, handleAuditDecide, handleKeysCharge, handleTrialRecord, handleTrialEnter, handleVoteRun, handleBallot,
     handleBallotAsk, handleFloorNow, handleTrialObject, handleTrialEvidence, handleTrialWithdraw, handleFloorRepoint,
-    handleTrialGm, handleTrialTurn, handleTrialClaim, handleReadyOpen, handleReadyAnswer, handleReadyEnd,
+    handleTrialGm, handleTrialTurn, handleTrialClaim, handleTrialSide, handleTrialKeyword, handleReadyOpen, handleReadyAnswer, handleReadyEnd,
     handleTrialPresent, handleReshapeRuling, handleObservePick, handleCardClaim, handleCardPost
 } from "./bridge-runs-records.mjs";
 
@@ -1154,10 +1154,13 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({
             op: as.oneOf("start", "objection", "rebuttal", "fill", "withdraw", "repoint", "back", "extend", "end",
                 "adjust", "endMode", "overrule", "testimony", "panic", "closing", "closingConfirm", "closingPick", "closingContinue",
-                "closingResume", "reveal"),
+                "closingResume", "reveal", "straw", "dive", "scrum", "zoneCount", "zoneSkipQuestion"),
             seconds: as.num, actorId: as.id, targetId: as.id, messageId: as.id, text: as.text, order: as.text,
             // Monokuma's Reveal (E70 C9): the row of missingKeys() a GM reveals, and past the fee's count when confirmed.
-            slot: as.text, beyondPaid: as.bool
+            slot: as.text, beyondPaid: as.bool,
+            // The zone modes (E73): the two answers and a Scrum's thesis (the question is `text`), a Logic Dive's set and
+            // the question it starts at (-1 where it stopped).
+            a: as.text, b: as.text, thesis: as.text, set: as.text, from: as.num
         }),
         run: handleTrialGm,
         answer: "reply",
@@ -1201,6 +1204,32 @@ export const BRIDGE_ACTIONS = table({
         guards: [knownSender, notSpectator("actorId"), owns("actorId", "sender does not own the character volunteering")],
         sanitize: pick({ actorId: as.id }),
         run: handleTrialClaim,
+        answer: "reply"
+    },
+    /*
+     * A SIDE PICKED FROM THE WINDOW (E73 C2, 12.11.2026; the plan's "a participant with no token in the hall gets a
+     * side-pick window"). The owner of a student taking part, with no token of theirs in the hall, stands in Zone A or
+     * Zone B by a pick (trial-zones.mjs `sideOnPrimary`): a zone mode on the floor, the character taking part, no hall
+     * token; the pick kept on the floor (`zone.picks`), where every browser's count reads it. "reply": the window says
+     * the side is taken.
+     */
+    [ACTION_TRIAL_SIDE]: {
+        label: "DRPG.Bridge.what.trial.side",
+        guards: [knownSender, owns("actorId", "sender does not own the character picking a side")],
+        sanitize: pick({ actorId: as.id, side: as.oneOf("a", "b") }),
+        run: handleTrialSide,
+        answer: "reply"
+    },
+    /*
+     * A SCRUM SPEAKER'S THESIS (E73 C5; the audit's `trialKeyword`): the speaker of the running turn posts a short thesis
+     * of their camp, judged on the primary (trial-zones.mjs `thesisOnPrimary`): Scrum Debate's turn, the character its
+     * speaker, the text cut to `TRIAL.modes.zones.scrum.thesisLength`; posted as the mode's card by the primary.
+     */
+    [ACTION_TRIAL_KEYWORD]: {
+        label: "DRPG.Bridge.what.trial.keyword",
+        guards: [knownSender, owns("actorId", "sender does not own the speaking character")],
+        sanitize: pick({ actorId: as.id, text: as.text }),
+        run: handleTrialKeyword,
         answer: "reply"
     },
     /*

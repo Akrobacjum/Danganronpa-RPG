@@ -604,6 +604,9 @@ export const SETTINGS = {
     legacyKeyRemnantPlan: "keyRemnantPlan",
     /** THE CASE SCHEMA (E97 C3, 1.2.107): a GM store (gm-stores.mjs `caseSchemaStore`), a row per chapter and node. */
     gmCaseSchema: "gmCaseSchema",
+    gmCaseTicks: "gmCaseTicks",
+    /** LOGIC DIVE'S SETS (E73 C4): a GM store (gm-stores.mjs `diveSetStore`), a row per set, the truth of each question in it. */
+    gmDiveSets: "gmDiveSets",
     /**
      * WHICH OF THE TRIAL HALL'S TOKENS THE TRIAL SHOWS (E13 C2, 1.2.74; audit S06-57, decision D7):
      * a GM store (gm-stores.mjs `trialCastStore`), never a token's flag, which its owner writes.
@@ -2296,6 +2299,22 @@ export function registerSettings() {
         type: Object,
         default: {}
     });
+    // The case's ticks at a trial (E99 C3): a GM store (`caseTickStore`), a row per chapter and node. No `onChange`: the
+    // trial's case window reads it at each redraw.
+    game.settings.register(MODULE_ID, SETTINGS.gmCaseTicks, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // Logic Dive's sets (E73 C4): a GM store (`diveSetStore`), a row per set with each question's truth. No `onChange`:
+    // the set editor and the console read it at each redraw, and the primary at each question.
+    game.settings.register(MODULE_ID, SETTINGS.gmDiveSets, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
     // Which of the trial hall's tokens the trial shows: a GM store since it exists (E13 C2,
     // `trialCastStore`), a row per token. No `onChange`: it is read when the trial opens and
     // closes (trial-scene.mjs `applyTrialCast`), and nothing draws it.
@@ -3853,7 +3872,15 @@ export function pixelFontOn() {
  * separate number from the one above because a wide short window - 1600 x 600 -
  * has no collisions to fix and keeps the desk layout it always had.
  */
-export const BREAKPOINTS = { narrow: 1224, short: 620 };
+/*
+ * LOW IS THE CLASS TRIAL CONSOLE'S (E99 round 6, 12.11.2026; the owner: "Zgadzam sie na zmiany w oknach class trial").
+ * The console stands the screen's height, and while a trial runs the case schema's slot takes what its header, status,
+ * bar and footer leave: at 1366 x 768 under glass that was 352 px, and the case's smallest words after Fit to view read
+ * 10.3 px (audit/case-map-sweep.mjs). Under 800 px of height the console's header and footer are drawn compact
+ * (components.css, `body.drpg-low`), which gives the schema the height for 11 px; above it, 1920 x 1080 among them, the
+ * console stays as it was.
+ */
+export const BREAKPOINTS = { narrow: 1224, short: 620, low: 800 };
 
 /* A measurement of zero is a window that has not been laid out yet - a hidden
    iframe, a client mid-boot - and it must not read as "tiny": nothing stacks,
@@ -3911,6 +3938,11 @@ export function narrowScreen(w = innerWidth) {
 export function shortScreen(h = layoutHeight()) {
     return measured(h) < BREAKPOINTS.short;
 }
+/** True when the Class Trial console draws its header and footer compact (BREAKPOINTS.low, above): the layout height, as
+    `shortScreen`. */
+export function lowScreen(h = layoutHeight()) {
+    return measured(h) < BREAKPOINTS.low;
+}
 /**
  * The screen's own factor under the slider.
  *
@@ -3966,7 +3998,7 @@ let screenWatched = false, screenTimer = 0, screenFactor = 0, screenShape = "";
    restacks the module and crossing 620 px of height puts the glass to sleep, and
    both can happen without the factor moving a hundredth (it is at its floor on every
    screen under 1792 x 1008 anyway). One key covers all three. */
-const shapeKey = () => (narrowScreen() ? "n" : "-") + (shortScreen() ? "s" : "-");
+const shapeKey = () => (narrowScreen() ? "n" : "-") + (shortScreen() ? "s" : "-") + (lowScreen() ? "l" : "-");
 function watchScreen() {
     screenFactor = autoScale();
     screenShape = shapeKey();
@@ -4067,9 +4099,11 @@ export function applyTheme() {
        place to change them and no chance of the sheet and the curtain disagreeing
        about where a screen stops being a desk. One class for "the blocks stack"
        and one for "and there is no height either", which is the only distinction
-       styles/narrow.css needs to draw. */
+       styles/narrow.css needs to draw; a third, `drpg-low`, is the trial console's alone. */
     document.body.classList.toggle("drpg-stacked", narrowScreen());
     document.body.classList.toggle("drpg-short", shortScreen());
+    // the Class Trial console's compact frame (BREAKPOINTS.low; components.css)
+    document.body.classList.toggle("drpg-low", lowScreen());
     // On the body, where the theme's own rules live: a value on <html> was shadowed by
     // the sheet's default on body (v1.2.15), so the scale never applied.
     const total = String(effectiveScale());

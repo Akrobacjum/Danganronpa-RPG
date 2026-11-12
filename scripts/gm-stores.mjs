@@ -1331,6 +1331,34 @@ export const caseSchemaStore = defineGmStore({
 });
 
 /**
+ * THE CASE'S TICKS AT A TRIAL (E99 C3; the owner's goal for E99: "a box to tick on every conclusion, counter and
+ * solution ... the module only hints, the GM decides"; Q-E99-8: every GM, an Assistant too). A row per chapter and
+ * schema node, `${chapter}:${nodeId}` - `{ ticked, by, at }`: ticked at the trial or not, by which GM, when. A GM store,
+ * so no player holds it (the ticks are the trial's reading of the solution); two GMs ticking two nodes both keep theirs,
+ * one node ticked and unticked by two at once keeps the later stamp. Not in the case's backup (the trial's state, as
+ * the floor's), cut with the trial's group.
+ */
+export const caseTickStore = defineGmStore({
+    name: "caseTicks", key: SETTINGS.gmCaseTicks,
+    kind: "ledger", resetGroup: "trialProgress", backup: false, sync: true
+});
+
+/**
+ * LOGIC DIVE'S SETS (E73 C4, 12.11.2026; the owner's TR3 = 2, TR4 = 2, TR9 = 1, TR32 = 2). A row per set, keyed by its
+ * id: `{ name, chapter, questions: [{ question, a, b, truth }], conclusion, usedAt, endedAt, stoppedAt, outcome,
+ * made, by }` - 1 to 5 questions, each with its two answers and the side that is true ("a" or "b"); the Finding a solved
+ * set gives (`conclusion`, optional); when it was last played (`usedAt`), how and where it ended (`endedAt`, `outcome`,
+ * `stoppedAt` the question it stopped at). The truth is the GMs' alone: the floor carries a question and its answers,
+ * never which is true (world-secrets.mjs, `trialQueue`'s `truth`), so a set is a GM store, backed up with the case it
+ * belongs to and cut with it (`resetGroup` "keyPlan"). Any GM writes it, an Assistant too; the primary reads it at
+ * each judgement (trial-zones.mjs). No old key: nothing held it before E73.
+ */
+export const diveSetStore = defineGmStore({
+    name: "diveSets", key: SETTINGS.gmDiveSets,
+    kind: "ledger", resetGroup: "keyPlan", backup: true, sync: true
+});
+
+/**
  * WHICH OF THE HALL'S TOKENS THE TRIAL SHOWS (E13 C2, 12.10.2026; plan-E13 3.3, decision D7, audit
  * S06-57). A row per actor of the linked trial hall's cast the GMs chose for, keyed `sceneId.actorId`
  * since E81 DZ6 (12.10.2026; `sceneId.tokenId` until then, moved by trial-scene.mjs `tidyTrialHall`,

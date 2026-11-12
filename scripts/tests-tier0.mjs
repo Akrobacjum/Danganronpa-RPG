@@ -6398,6 +6398,8 @@ const REGRESSIONS = [
             turnOnPrimary: "refused",
             // E70 C8: a volunteer for the Closing Argument, judged on the primary (trial-modes.mjs).
             volunteerOnPrimary: "refused",
+            // E73 C2, C5: a side picked from the window and a Scrum speaker's thesis, judged on the primary (trial-zones.mjs).
+            sideOnPrimary: "refused", thesisOnPrimary: "refused",
             // E70 C10: a Present posted by the primary with its copies (trial.mjs).
             presentOnPrimary: "refused",
             // E80 C2: 'Go through' a tunnel, carried out on the primary (passages-gm.mjs), its reasons by code.
@@ -8674,8 +8676,8 @@ const REGRESSIONS = [
          * document, was a place with no row and is one now (red on 86aa7ac1 with the pattern alone: the one place
          * without a row). It reads them as the GMs hold them (`flagsHeldNow` after `judgedFor`), and a row that
          * says "held" is read against the places that read through the mark (`held`): the old read planted back on a
-         * scratch copy is red here. HELD counts a `judgedFor(` alone, so the document read after the audit with the mark
-         * taken out still reads as held (measured on a scratch copy: green).
+         * scratch copy is red here. Until E73 C7 HELD counted a `judgedFor(` alone, so the document read after the audit with the
+         * mark taken out still read as held (measured on a scratch copy: green); E73 C7 tightened it (at HELD, below).
          */
         const TRIAL_CENSUS = [
             ["PACKET gm-bridge.mjs#advancement.apply#actorId", "judged: knownSender + owns(actorId) (E28) [F7]"],
@@ -8730,6 +8732,16 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#trial.turn#actorId", "judged (E70 C7): knownSender + owns(actorId); trial-modes.mjs `turnOnPrimary` holds it to the round's order on the floor the primary holds, and Done or Pass to its speaker (floor-machine.mjs `nextFloor`)"],
             ["PACKET gm-bridge.mjs#trial.turn#kind", "judged (E70 C7): `as.oneOf` done, pass, over; a step over is believed only once the turn has run out on the primary's clock (a second's grace), one per sender and step (`turnOnPrimary`)"],
             ["PACKET gm-bridge.mjs#trial.claim#actorId", "judged (E70 C8): knownSender + owns(actorId); trial-modes.mjs `volunteerOnPrimary` holds it, in one step of the floor's key, to the trial's participants as the primary holds them (`trialParticipants`), in the Closing's volunteers' window, once; the name goes to the GMs' store `closingClaimStore`, only the count to the floor"],
+            // E73: the zone modes' fields of the GMs' row, a participant's side and a Scrum speaker's thesis.
+            ["PACKET gm-bridge.mjs#trial.gm#a", "judged (E73 C3): gmOnly; `as.text`, Zone A's answer of a Straw Poll or a Scrum, cut by zone-machine.mjs `zoneText` to `answerLength`; shown escaped"],
+            ["PACKET gm-bridge.mjs#trial.gm#b", "judged (E73 C3): gmOnly; `as.text`, Zone B's answer, as `a`"],
+            ["PACKET gm-bridge.mjs#trial.gm#thesis", "judged (E73 C5): gmOnly; `as.text`, a Scrum's opening thesis, cut by `zoneText` to `thesisLength`; shown escaped"],
+            ["PACKET gm-bridge.mjs#trial.gm#set", "judged (E73 C4): gmOnly; `as.text`, a Logic Dive set's key in the GMs' store, read by trial-zones.mjs `diveStartEvent`; a key of no set starts nothing"],
+            ["PACKET gm-bridge.mjs#trial.gm#from", "judged (E73 C4): gmOnly; `as.num`, the question a Logic Dive starts at (its number from 1, 0 where it stopped), held to the set's questions by `diveStartEvent`"],
+            ["PACKET gm-bridge.mjs#trial.side#actorId", "judged (E73 C2): knownSender + owns(actorId); trial-zones.mjs `sideOnPrimary` holds it, in one step of the floor's key, to a participant as the primary holds them (`trialParticipants`) with no token in the hall"],
+            ["PACKET gm-bridge.mjs#trial.side#side", "judged (E73 C2): `as.oneOf` a, b; kept on the floor's `zone.picks` by zone-machine.mjs `pick`, read only for a participant with no hall token"],
+            ["PACKET gm-bridge.mjs#trial.keyword#actorId", "judged (E73 C5): knownSender + owns(actorId); zone-machine.mjs `thesis` holds it to the speaker of the running Scrum turn on the floor the primary holds"],
+            ["PACKET gm-bridge.mjs#trial.keyword#text", "judged (E73 C5): `as.text`, cut by `zoneText` to `thesisLength`, posted escaped on the mode's card"],
             // E70 C9's two fields of the GMs' row (no row was written with them), and E70 C10's Present.
             ["PACKET gm-bridge.mjs#trial.gm#slot", "judged (E70 C9): gmOnly; `as.text`, the row of `missingKeys()` a GM reveals, held by trial-modes.mjs `revealInStep` to a row of this chapter's plan nobody found, once"],
             ["PACKET gm-bridge.mjs#trial.gm#beyondPaid", "judged (E70 C9): gmOnly; `as.bool`, a Reveal past the fee's count only when the GM confirmed it; within the count it changes nothing"],
@@ -8789,7 +8801,12 @@ const REGRESSIONS = [
         const BRIDGE_TOPS = /^(?:BRIDGE_ACTIONS|ACTION_\w*|registerGmBridge|replyForMe)$/;
         const SHEET = [/\bisDeceased\(|\bisDeadForGm\(|\blivingStudents\(|\bdeceased\b/, /\badvances\b/, /system\.traits\b|\bTRAITS\b/,
             /system\.experiences\b|\bexperiences?(?:New|Up)\b/, /system\.resources\b|\bresourceMax\(|hitPoints|stress\.max/];
-        const HELD = /\b(?:judgedFor|flagsAsHeld|flagsHeldNow|actorHeldNow|actorAsHeld|numberHeld|meansWrite|gmMeansWrite|itemAsHeld|meansHeld|heldMark)\s*\(/;
+        /* TIGHTENED (E73 C7, 12.11.2026; the owner's 03.11, mutant e42fix-m13): `judgedFor(` alone no longer makes a place
+           held - it waits for the audit, and the read after it can still be the document's. A place is held when it reads
+           through the mark. Measured on a scratch copy of 2faedcb with level-up.mjs `givenCounts` reading
+           `actor.getFlag(..., FLAGS.advances)` after its `judgedFor`: red here ("SHEET level-up.mjs#givenCounts"), green
+           with the old pattern; the tree as it is green with both. */
+        const HELD = /\b(?:flagsAsHeld|flagsHeldNow|actorHeldNow|actorAsHeld|numberHeld|meansWrite|gmMeansWrite|itemAsHeld|meansHeld|heldMark)\s*\(/;
         const RAW = /\b(?:isDeceased|isDeadForGm|livingStudents|resourceMax)\s*\(|\bactor\.system\b|\.system\.(?:traits|experiences|resources|levelData)\b|getFlag(?:\?\.)?\(\s*MODULE_ID\s*,\s*FLAGS\.(?:deceased|advances)/;
         const CHAT = /\b(?:m|msg|message|chatMessage)\??\.getFlag\(\s*MODULE_ID\s*,|\b(?:m|msg|message)\??\.speaker\??\.actor\b/;
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
@@ -9370,6 +9387,7 @@ const REGRESSIONS = [
             ["HOOK remnant-ring.mjs#registerRemnantRings#updateToken:inline", "out of scope: repaints a ring on a flag change only (remnant-ring.mjs:110-114), not on a move; not one of the plan's movement listeners"],
             // E13 C2: the trial hall's cast (R432 judges the same two for the trial).
             ["HOOK trial-scene.mjs#registerTrialScene#updateToken:watchCast", "put back on the primary: a non-GM's change to a hall cast token's `hidden` is put back to the `hidden` a GM last wrote, only when the token holds another, and told to the GMs (`castPutBack`, `castHeld`, R434; E13 fix r1-F2); every GM's client notes a GM's write; it reads no position, so a move in the hall is not its"],
+            ["HOOK trial-floor.mjs#registerTrialFloor#updateToken:watchZoneEntry", "reads, writes nothing (E73 C2): a hall token's move during a zone mode plays its zone's outline and `zoneEntered` on the owner's browser (trial-zones-ui.mjs `onZoneEntered`); the hall holds no room, so no room or scene road runs from it"],
             ["HOOK trial-scene.mjs#registerTrialScene#createToken:watchCastCreated", "hidden and told, not deleted: every GM's client notes a cast token a non-GM makes in the hall as hidden, and the primary hides it if it was made shown and whispers the GMs (D7: since E81 DZ6 the module deletes in the hall only the tokens its record names, and a player's is not one; E13 fix r1-F2, 41 a5); its first position is `registerMovement`'s createToken row's"],
             ["HOOK visibility.mjs#registerVisibility#createRegion:inline", "out of scope as a judge: on a player's browser, a whole visibility pass in a microtask when the change is on the scene on screen (`roomsChangedOn` -> `wholePassSoon`), since the change can move which room a viewer's character reads as standing in with no token moving (E89 fix FG2, SEC-1; scenario 86, its fix FG2 SEC-1 check); it draws this client's tokens and decides no rule"],
             ["HOOK visibility.mjs#registerVisibility#updateRegion:inline", "out of scope as a judge: on a player's browser, a whole visibility pass in a microtask when the change is on the scene on screen (`roomsChangedOn` -> `wholePassSoon`), since the change can move which room a viewer's character reads as standing in with no token moving (E89 fix FG2, SEC-1; scenario 86, its fix FG2 SEC-1 check); it draws this client's tokens and decides no rule"],
@@ -9630,6 +9648,7 @@ const REGRESSIONS = [
             ["HOOK trial-scene.mjs#canvasReady#selfRepair", "out of scope as a judgement: a player's own view, put right once on its first `canvasReady` after a load (`viewRepair`, R435; Q-E13-1 c): a `CAMERA_READERS` draw row, decides no rule; a GM's browser is never moved (41 f) [1b.1 which scene a client views]"],
             ["HOOK trial-floor.mjs#canvasReady#renderTrialFloor", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK trial-scene.mjs#updateToken#watchCast", "put back: on the primary, a non-GM `userId`'s change to a hall cast token's `hidden` is put back to what a GM last wrote (`castHeld`, fed on every GM's client by a GM `userId`'s write), only when the token holds another, and told to the GMs; the `trialCast` option exempts nothing (a writer's claim); a GM's change stands (R434, 41 a4; LIVE-E13-08)"],
+            ["HOOK trial-floor.mjs#updateToken#watchZoneEntry", "reads, writes nothing (E73 C2): the owner's own browser marks a zone entered - an outline's pulse and a sound; creates and deletes nothing in the hall"],
             ["HOOK trial-scene.mjs#createToken#watchCastCreated", "hidden, not deleted: on the primary, a cast token a non-GM `userId` creates in the hall is hidden if it was made shown and whispered to the GMs (D7: since E81 DZ6 the module deletes in the hall only the tokens its record names, `trialSeats`, and a player's is not one; E13 fix r1-F2, 41 a5); it joins the cast as a token the GMs placed would, and the next entry names a second token of one actor"],
             ["HOOK trial-scene.mjs#deleteToken#watchCastDeleted", "told, not made again at once: on the primary, a hall cast token a non-GM `userId` deleted is whispered to the GMs (E13 fix r2-H2, review r2 sec S2-4, 41 a7); a token the module made is made again by the next entry's stage, one the GMs placed is not (E81 DZ6); it reads no position"],
             ["HOOK visibility.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
@@ -9893,6 +9912,8 @@ const REGRESSIONS = [
             ["NOTDONE frisk.mjs#performFriskOpenly", "composed on this client from closed lists (`sayNotDone`: the action a literal here, `action.friskFollow`, and the reason a literal, `cannotNow`): a GM's own Frisk force the gate stopped or voided before the primary judged it, said as a player's refused draw is (E80 fix r2-G3, the review's r2fix-2); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE gm-bridge.mjs#requestFriskUnseen", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 C2)"],
             ["NOTDONE gm-bridge.mjs#requestClaim", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry"],
+            ["NOTDONE gm-bridge.mjs#requestTrialSide", "composed on this client from closed lists (`sayNotDone`: the action's label and the reason's code, E73 C2), as requestClaim's"],
+            ["NOTDONE gm-bridge.mjs#requestTrialKeyword", "composed on this client from closed lists (`sayNotDone`: the action's label and the reason's code, E73 C5), as requestClaim's"],
             ["NOTDONE gm-bridge.mjs#requestPresent", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E70 C10)"],
             ["NOTDONE gm-bridge.mjs#requestTurn", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter, a step over's not at all); kept as a notDone entry: read, these words and no others (R297; E70 C7)"],
             ["NOTDONE gm-bridge.mjs#requestFriskAsk", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 part 2 C3)"],
@@ -10728,6 +10749,7 @@ const REGRESSIONS = [
             ["HOOK projects-map.mjs#registerProjectsMap#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
             ["HOOK remnant-ring.mjs#registerRemnantRings#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
             ["HOOK trial-scene.mjs#registerTrialScene#updateToken/watchCast -> judge", "this file's own: the courtroom's cast, where no passage stands; E79 adds no road through it"],
+            ["HOOK trial-floor.mjs#registerTrialFloor#updateToken/watchZoneEntry -> judge", "this file's own (E73 C2): a zone entered in the hall marked on the owner's browser, where no passage stands; no road through it"],
             ["HOOK trial-scene.mjs#registerTrialScene#createToken/watchCastCreated -> judge", "this file's own; E79 adds no road through it"],
             ["HOOK visibility.mjs#registerVisibility#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
             ["HOOK visibility.mjs#registerVisibility#createToken/inline -> judge", "this file's own; E79 adds no road through it"],
@@ -17136,7 +17158,8 @@ const REGRESSIONS = [
         const clock = code("clock.mjs"), floorUi = code("trial-floor-ui.mjs"), config = code("config.mjs"), voice = code("voice.mjs");
         const next = fnSource(machine, "nextFloor"), reconcile = fnSource(clock, "reconcilePhase");
         const facts = {
-            barOrder: /export const BAR_OPS = Object\.freeze\(\["skip", "minus", "plus", "overrule", "endMode", "back", "repoint"\]\);/.test(floorCode)
+            // E73 C6: the zone modes' Count now and Skip question after them, drawn only in a zone mode.
+            barOrder: /export const BAR_OPS = Object\.freeze\(\["skip", "minus", "plus", "overrule", "endMode", "back", "repoint", "count", "skipQuestion"\]\);/.test(floorCode)
                 && /if \(!running\) return "DRPG\.Floor\.bar\.notTrial";/.test(fnSource(floorCode, "barRefusal")),
             skipNoTurn: /case "skip":\s*if \(floor\.mode === MODES\.debate\) return \{ refused: "DRPG\.Floor\.bar\.noTurn" \};/.test(next),
             minusSkips: /if \(seconds < 0 && floor\.mode === MODES\.debate && left <= 0\) return \{ refused: "DRPG\.Floor\.bar\.noTime" \};/.test(next)
@@ -18866,7 +18889,11 @@ const REGRESSIONS = [
                 // E66 C4: the trial's seconds read off `TRIAL` where "30 s" stood.
                 "Floor.bar.minus", "Floor.bar.plus", "Floor.closing.opened",
                 // E66 fix r1 F9: the Closing's early Pass and the console's footnote, "30 s" and "half a minute" before.
-                "Trial.turn.closingPassEarly", "Floor.modeNote"
+                "Trial.turn.closingPassEarly", "Floor.modeNote",
+                // E73: the zone modes' seconds, read off `TRIAL.modes.zones` and the floor's clock.
+                "Zones.straw.opened", "Zones.straw.openedBare", "Zones.dive.opened", "Zones.dive.openedBare", "Zones.scrum.opened",
+                "Zones.scrum.openedBare", "Zones.scrum.begins", "Zones.panel.straw.vote", "Zones.panel.dive.vote", "Zones.panel.dive.pause",
+                "Zones.panel.scrum.setup", "Zones.panel.scrum.speak"
             ].map(key => [key, "S"]),
             ...[
                 "Action.searchTokensLeft", "Events.overflowMetaGm", "Explain.room.tokens",
@@ -18897,7 +18924,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 52, S: 25, R: 26, D: 1, P: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 52, S: 37, R: 26, D: 1, P: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");
@@ -20283,7 +20310,11 @@ const REGRESSIONS = [
         equal(JSON.stringify(P.trialRecordProblems(T)), "[]", "a field of the trial's record has no lifetime or no writer, or the entry writes a chapter's field or leaves a trial's");
         const BLANK = ["chapter", "seconds", "voteClosed", "verdictApplied", "keysCharged", "tied", "majority", "noMajority", "vote", "accused", "total",
             "accusedIds", "verdict", "objections", "trialStartedAt", "againAfterOverrule", "topic", "debateAgain", "voteOpenedAt", "trialSize",
-            "lastVerdictAt", "executedAt", "execution", "closing"];
+            "lastVerdictAt", "executedAt", "execution", "closing",
+            // E73 (12.11.2026): the zone modes' Findings and the last Straw Poll's count, the trial's, a GM's to edit.
+            "findings", "strawPoll",
+            // E99 (12.11.2026, Q-E99-9): when the trial's case summary went out, the trial's.
+            "summaryShown"];
         const KEPT = ["chapter", "mutedDead", "objections", "closing"];
         const blank = P.trialProgress(0);
         const patch = P.entryPatch({ ...blank, vote: { ...blank.vote, round: 3 } }, { seconds: 120 });
@@ -20296,12 +20327,12 @@ const REGRESSIONS = [
             blank: { chapter: 0, seconds: SECONDS, voteClosed: false, verdictApplied: false, keysCharged: false, tied: false, majority: 0,
                 noMajority: false, vote: { open: false, round: 0, picks: 1, issued: [], openedAt: null, closedAt: null }, accused: [], total: 0,
                 accusedIds: [], verdict: null, objections: {}, trialStartedAt: null, againAfterOverrule: null, topic: null, debateAgain: false,
-                voteOpenedAt: null, trialSize: 0, lastVerdictAt: null, executedAt: null, execution: null, closing: null },
+                voteOpenedAt: null, trialSize: 0, lastVerdictAt: null, executedAt: null, execution: null, closing: null, findings: [], strawPoll: null, summaryShown: null },
             keys: BLANK, fields: BLANK.filter(key => !KEPT.includes(key)),
             entry: { seconds: 120, voteClosed: false, verdictApplied: false, tied: false, majority: 0, noMajority: false,
                 vote: { open: false, round: 3, picks: 1, issued: [], openedAt: null, closedAt: null }, accused: [], total: 0, accusedIds: [], verdict: null,
                 trialStartedAt: "number", againAfterOverrule: null, topic: null, debateAgain: false, voteOpenedAt: null, trialSize: "number",
-                executedAt: null, execution: null, closing: null },
+                executedAt: null, execution: null, closing: null, findings: [], strawPoll: null, summaryShown: null },
             chapter: ["chapter", "keysCharged", "objections", "lastVerdictAt"], trial: ["mutedDead"]
         }), "the blank, the entry's patch or the whitelist of another GM's patch is not 1.2.96's, or the chapter's fields are not the chapter, the Key fee, the receipts "
             + "and the last verdict's stamp, or a trial's field in no blank is more than the trial's list of the dead (read: blank, its keys, RECORD_FIELDS, the entry's patch, the chapter's, the trial's outside the blank)");
@@ -22243,6 +22274,8 @@ const REGRESSIONS = [
             "bridge-runs-records.mjs": {"action": 1, "message": 1},
             "call-effects.mjs": {"action": 1, "card": 1, "message": 1}, "call-gm.mjs": {"built": 1},
             "call-world.mjs": {"message": 3}, "calls.mjs": {"heading": 1, "message": 1},
+            // E99 C7: the case summary's one public card, built through chatCard with its flag (case-summary.mjs `showCaseSummary`)
+            "case-summary.mjs": {"message": 1},
             "chapter.mjs": {"card": 4, "heading": 1, "message": 1},
             "cleanup.mjs": {"action": 5, "built": 1, "card": 4, "heading": 2, "line": 7, "message": 1},
             "clock.mjs": {"built": 1, "line": 1, "message": 1}, "despair.mjs": {"line": 1, "message": 1},
@@ -22268,7 +22301,7 @@ const REGRESSIONS = [
             "states.mjs": {"line": 1}, "tables-editor.mjs": {"card": 1}, "traps.mjs": {"line": 1},
             "trial-floor-ui.mjs": {"message": 4}, "trial-floor.mjs": {"message": 1},
             "trial-modes.mjs": {"heading": 1, "message": 1}, "trial-progress.mjs": {"line": 2, "message": 1},
-            "trial-scene.mjs": {"built": 1, "line": 10}, "trial.mjs": {"line": 9, "message": 4},
+            "trial-scene.mjs": {"built": 1, "line": 10}, "trial-zones.mjs": {"message": 1}, "trial.mjs": {"line": 9, "message": 4},
             "truth-bullets.mjs": {"card": 1, "heading": 2}, "use-items.mjs": {"card": 1, "line": 6},
             "user-match.mjs": {"line": 1}, "utils.mjs": {"built": 1}, "vault-store.mjs": {"card": 1, "line": 2},
             "verdict.mjs": {"built": 3, "message": 1}, "voice.mjs": {"card": 1, "line": 1}, "vote.mjs": {"message": 2}
@@ -23305,6 +23338,64 @@ const REGRESSIONS = [
             placed: [[["S.T9", "trace", true, false, "incident-a"], ["deduction-x", "deduction", false, false, null]], [{ from: "S.T9", to: "deduction-x", kind: "input" }]]
         }), "{lines: each slot's line under a limit of 3; unlimited: with none; planned, placed: the graph's nodes [id, kind, evidence, planned, incident row] and edges, before and after the Remnant is on the map}");
     }],
+    ["R3671 - the players' case summary holds only what was discovered (E99 C6; the owner's goal for E99, Q-E99-2, -3, -4, -12): case-summary.mjs `composeCaseSummary` keeps each piece of evidence on the schema a student found, by its public name and words, each deduction and counter ticked at the trial by name, and the solution only on a right vote; it carries no node id, no author, nothing of an unfound Remnant, an untied one, a planned slot, an unticked deduction, and with a wrong vote no solution", async () => {
+        /*
+         * E99 C6, 12.11.2026. Pure: a fixture graph with a marker in every place that must not cross (an unfound tied
+         * Remnant, an untied found one, a planned slot, an unticked deduction, the solution, an author, every node id),
+         * composed with a wrong and with a right vote, the payload read as JSON. Red at 1e1c61c: no case-summary.mjs.
+         */
+        let C = null;
+        try { C = await import("./case-summary.mjs"); } catch { C = null; }
+        must(C && typeof C.composeCaseSummary === "function", "there is no case-summary.mjs with composeCaseSummary - the players have no summary");
+        const S = await import("./case-schema.mjs");
+        const traces = [
+            { key: "SX.FOUND1", type: "key", name: "ok-found-name", playerText: "ok-found-words", tiedToCrime: true, sourceName: "MARK-author" },
+            { key: "SX.UNFOUND1", type: "prep", name: "MARK-unfound", playerText: "MARK-unfound-words", tiedToCrime: true },
+            { key: "SX.LOOSE1", type: "neutral", name: "MARK-untied", tiedToCrime: false }
+        ];
+        const rows = {
+            "deduction-ok1": { kind: "deduction", label: "ok-ticked", text: "MARK-gm-note", inputs: ["SX.FOUND1", "SX.UNFOUND1"] },
+            "deduction-no1": { kind: "deduction", label: "MARK-unticked", inputs: ["SX.FOUND1"] },
+            "counter-ok1": { kind: "counter", label: "ok-counter", refutes: ["deduction-ok1"] },
+            "solution-z1": { kind: "solution", label: "SOL-name", text: "SOL-words", inputs: ["deduction-ok1"] }
+        };
+        const graph = S.graphOf({ chapter: 4, traces, rows, slots: [{ slot: 0, name: "MARK-planned" }] });
+        const ticks = { "deduction-ok1": true, "counter-ok1": true };
+        const found = ["SX.FOUND1", "SX.LOOSE1"];
+        const wrong = C.composeCaseSummary({ graph, ticks, found, correct: false });
+        const right = C.composeCaseSummary({ graph, ticks, found, correct: true });
+        const text = JSON.stringify(wrong), textRight = JSON.stringify(right);
+        equal(JSON.stringify({
+            marks: /MARK|SOL-/.test(text), ids: /SX\.|deduction-|counter-|solution-|key:/.test(text + textRight), markRight: /MARK/.test(textRight),
+            wrong, right: [right.nodes.map(n => [n.role, n.name]), right.links]
+        }), JSON.stringify({
+            marks: false, ids: false, markRight: false,
+            wrong: { chapter: 4, correct: false, nodes: [{ role: "evidence", name: "ok-found-name", text: "ok-found-words" }, { role: "deduction", name: "ok-ticked", text: "" },
+                { role: "counter", name: "ok-counter", text: "" }], links: [{ from: 0, to: 1, kind: "input" }, { from: 2, to: 1, kind: "refutes" }] },
+            right: [[["evidence", "ok-found-name"], ["deduction", "ok-ticked"], ["counter", "ok-counter"], ["solution", "SOL-name"]],
+                [{ from: 0, to: 1, kind: "input" }, { from: 2, to: 1, kind: "refutes" }, { from: 1, to: 3, kind: "input" }]]
+        }), "{marks: a marker of what must not cross, in the wrong vote's payload; ids: a node id in either; markRight: a marker in the right vote's; wrong: its payload; right: its nodes and links}");
+    }],
+    ["R3673 - the case summary's card draws its payload and nothing more (E99 C7; case-summary.mjs `caseSummaryHtml`): one column per role present, in the payload's order, each entry its name and words escaped, the links in words, and with a wrong vote the line that the solution stays closed", async () => {
+        /*
+         * E99 C7, 12.11.2026. Pure: a payload with a tag in a name. Red at c53849d's parent: no caseSummaryHtml.
+         */
+        const C = await import("./case-summary.mjs");
+        must(typeof C.caseSummaryHtml === "function", "case-summary.mjs has no caseSummaryHtml - the summary has no card");
+        const payload = { chapter: 3, correct: false, nodes: [{ role: "evidence", name: "a <b>clock</b>", text: "stopped" }, { role: "deduction", name: "before 23:40", text: "" }],
+            links: [{ from: 0, to: 1, kind: "input" }] };
+        const d = document.createElement("div");
+        d.innerHTML = C.caseSummaryHtml(payload, { L: k => k });
+        equal(JSON.stringify({
+            heads: [...d.querySelectorAll(".drpg-case-summary-col h4")].map(h => h.textContent),
+            entries: [...d.querySelectorAll(".drpg-case-summary-col li strong")].map(x => x.textContent),
+            bold: d.querySelectorAll("b").length, links: [...d.querySelectorAll(".drpg-case-summary-links li")].map(li => li.textContent),
+            note: d.querySelector(".drpg-case-summary-note")?.textContent ?? null
+        }), JSON.stringify({
+            heads: ["DRPG.CaseSummary.role.evidence", "DRPG.CaseSummary.role.deduction"], entries: ["a <b>clock</b>", "before 23:40"], bold: 0,
+            links: ["a <b>clock</b> → before 23:40"], note: "DRPG.CaseSummary.noSolution"
+        }), "{heads: the columns; entries: their names; bold: a tag drawn; links: in words; note: the closed solution's line}");
+    }],
     ["R3660 - every node of the case map is sized to its whole content (E97 fix; the owner's review of 12.11.2026, \"opisy sa poucinane\"): `mapPlace` given each node's measured size stacks a column with no two nodes overlapping, keeps the gap's row and widens a column to its widest node; `edgePath` meets each node's measured middle; `relayoutCaseMap` places the drawn nodes and redraws the edges at the sizes it reads; a node draws its whole name and words; and no rule of the module's sheets cuts a node's text (a fixed height, a line clamp, an ellipsis, nowrap or overflow hidden)", async () => {
         /*
          * E97 fix, 12.11.2026. Pure geometry, the drawing read back, and the stylesheets' text; the look itself is
@@ -23379,7 +23470,7 @@ const REGRESSIONS = [
             placed: [[true, true], [true, true], [true, true], [true, true], [true, true]], path: true, measured: "1", cuts: []
         }), "{overlaps: pairs of measured nodes that overlap; heights: as measured; stack: the gap between two nodes of a column; colX, colW: the open node's column's gap and width; gap: the unrelated evidence's row below the tall nodes; edge: a path's ends at measured middles; drawn: a node's whole name and words, no title standing in for a cut; laid, placed: the relayout's places; path: the edge redrawn; measured: the canvas marked; cuts: the sheets' rules that cut a node's text}");
     }],
-    ["R3661 - a node is edited on itself, and the Map has no side panel (E97 fix; the owner's \"edycja niech nie odbywa sie po prawej stronie ekranu (usuwamy panel), tylko na samych modulach\"): the open node's fields stand in the canvas under it at its place and the rest are hidden; the chapter's own fields and problems are in the overview over the graph; the tools are one row over it and the camera's buttons in its corner; its face opens and shuts the fields, Escape and a click on empty space shut them (Escape goes no further), its arrows and Remove act on it; the Map holds no field the editors did not hand it, and every control of it has a name to be read out", async () => {
+    ["R3661 - a node is edited on itself, and the Map has no side panel (E97 fix; the owner's \"edycja niech nie odbywa sie po prawej stronie ekranu (usuwamy panel), tylko na samych modulach\"): the open node's fields stand in the canvas under it at its place and the rest are hidden; the chapter's own fields and problems are in the overview over the graph; the tools are one row over it and the camera's buttons in a strip under it (E99 round 5: in its corner they lay over a node); its face opens and shuts the fields, Escape and a click on empty space shut them (Escape goes no further), its arrows and Remove act on it; the Map holds no field the editors did not hand it, and every control of it has a name to be read out", async () => {
         /*
          * E97 fix, 12.11.2026. The drawing read back and `wireCaseMap` driven on a detached copy (jsdom and Foundry
          * alike); what Save then writes is tier 2's (the "E97 C6" tests, which open a node and save its fields). Red at
@@ -23422,7 +23513,7 @@ const REGRESSIONS = [
             overview: [Boolean(d.querySelector('.drpg-case-overview [name="keyOverride"]')), d.querySelectorAll(".drpg-case-overview .drpg-case-problems li").length,
                 Boolean(d.querySelector(".drpg-case-overview [data-drpg-case-check]"))],
             tools: [d.querySelector(".drpg-case-map > .drpg-case-tools") !== null, d.querySelectorAll(".drpg-case-tools [data-drpg-case-add]").length,
-                ["in", "out", "fit"].map(k => Boolean(d.querySelector(`.drpg-case-graph > .drpg-case-camera [data-drpg-case-camera="${k}"]`)))],
+                ["in", "out", "fit"].map(k => Boolean(d.querySelector(`.drpg-case-map > .drpg-case-graph + .drpg-case-camera [data-drpg-case-camera="${k}"]`)))],
             names, nameless
         };
         must(shownEdit && !drawn.aside, `the open node draws no fields on itself - they stand in a side panel: ${JSON.stringify({ aside: drawn.aside, open: drawn.open })}`);
