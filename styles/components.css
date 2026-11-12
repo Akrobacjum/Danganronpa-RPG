@@ -3160,6 +3160,8 @@ body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-data-tab
 /* E64-inv: the bullets and the items by name, one row a student (investigation.mjs `caseStudentTable`). */
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-breakdown { width: 31%; }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-items { width: 23%; }
+/* A long name wraps in its own cell (under Legacy a cell kept to one line ran into the Items column, Chromium 1366x768). */
+body .application.drpg-window-case table.drpg-data-table td:is(.drpg-data-col-case-breakdown, .drpg-data-col-case-items) { white-space: normal; overflow-wrap: anywhere; }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-trace-name { width: 12%; }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-text { width: 13%; }
 .application.drpg-window-case table.drpg-data-table .drpg-data-col-case-pick { width: 9%; }
