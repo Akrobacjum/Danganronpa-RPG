@@ -9,9 +9,10 @@ the row says so.
 
 What it is not: a run. Nothing here was measured on a Foundry with 2.12.8 installed. The local gate's record for
 1.2.108 (`audit/gate/local-gate.json`) has `sandbox.reachable: false` and `system: null`, so no part of the module has
-been run against any real Daggerheart for that release; and the harness throws Daggerheart's dice from copies of
-**2.10.5** (`audit/harness/lib/dh-dice/`) and relays through a copy of **2.10.11** (`dh-relay.mjs`). Every "same" below
-is a reading of source text, not a behaviour seen.
+been run against any real Daggerheart for that release; and on main the harness throws Daggerheart's dice from copies
+of **2.10.5** (`audit/harness/lib/dh-dice/`) and relays through a copy of **2.10.11** (`dh-relay.mjs`). The 1.2.109
+branch re-copies both from 2.12.8 (E76 C3b 0674ac33, with `move-context.mjs` and two helper files; E76 C1b ec6b04c3;
+headers read on that branch, 12.11.2026). Every "same" below is a reading of source text, not a behaviour seen.
 
 Where the list comes from: the contract register (`scripts/patches.mjs` `PATCHES`, the 16 rows whose `owner` is
 `"daggerheart"`, with `SHEET_ANCHORS`), `scripts/enforced.mjs` (`ENFORCED`'s `dhWelcome`, `FOUNDRY_WRITES`' `automation`),
@@ -41,7 +42,7 @@ different in a way the module's code meets), **gone**.
 | 13 | `hook-countdowns-render` (:741) - `renderDhCountdowns` | projects-ui.mjs, hud.mjs | class `DhCountdowns` (countdowns.mjs:12) | **same** | - |
 | 14 | Countdowns data and config - not in the register | gm-stores.mjs:642, calls.mjs:813 (`Countdowns` setting `.countdowns[id]`), reroll.mjs:220 (`countdownProgressionTypes.fear.id`), projects-tray.mjs:86-88 (`countdownAppMode`, `FLAGS.userFlags.countdownMode`) | data/countdowns.mjs byte-identical; generalConfig.mjs:761 `countdownProgressionTypes`, :858 `countdownAppMode`; flagsConfig.mjs:25 `countdownMode: 'countdown-mode'` | **same** | generalConfig.mjs changed elsewhere (range `short` became an i18n key, `shortKey` beside it; two icons gained `fa-solid`); the module reads neither |
 | 15 | `actions-resource` (:627) - `CONFIG.DH.RESOURCE.character.custom / all` | resources.mjs:38 | config/resourceConfig.mjs:97-98 `custom: {}, // module stuff goes here` / `all: {...characterBaseResources}` | **same** (byte-identical) | - |
-| 16 | `relay-guard` (:667) - the system's socket `system.daggerheart` | relay-guard.mjs `REVIEWED_CASES` :105, `fingerprintOf` :277 | socket.mjs:3-38: the same eight cases and the same `default: EVENT_HANDLERS[data.action]?.(data.data);`; `socketEvent` and `GMUpdateEvent` the same names. One handler changed: `UpdateSaveMessage` (:100-109) now reads `data.data.saveTotal, data.data.isCritical` (2.10.11 `data.data.result`) | **same** (the fingerprint) / **changed** (the save packet) | The fingerprint reads "ok". The save packet's new shape is handled already: relay-guard.mjs:826-851 reads `saveTotal` as 2.12.5's. The files that send through the relay are the same files with the same number of calls (14 files, counted in both tags). The harness's copy is still 2.10.11's (section 3, item 6) |
+| 16 | `relay-guard` (:667) - the system's socket `system.daggerheart` | relay-guard.mjs `REVIEWED_CASES` :105, `fingerprintOf` :277 | socket.mjs:3-38: the same eight cases and the same `default: EVENT_HANDLERS[data.action]?.(data.data);`; `socketEvent` and `GMUpdateEvent` the same names. One handler changed: `UpdateSaveMessage` (:100-109) now reads `data.data.saveTotal, data.data.isCritical` (2.10.11 `data.data.result`) | **same** (the fingerprint) / **changed** (the save packet) | The fingerprint reads "ok". The save packet's new shape is handled already: relay-guard.mjs:826-851 reads `saveTotal` as 2.12.5's. The files that send through the relay are the same files with the same number of calls (14 files, counted in both tags). On main the harness's copy is still 2.10.11's; the 1.2.109 branch re-copies it from 2.12.8 (ec6b04c3) |
 | 17 | `hook-character-sheet-render` / `-close` (:718, :730) | sheet.mjs `registerSheetTweaks` | sheets/actors/character-sheet.mjs:18 `export default class CharacterSheet` | **same** (the class name) | The sheet gained a Versatile weapon toggle (character-sheet.mjs:919-927) that writes `flags.daggerheart.versatileActive` on an item from the player's browser. Not a module item; sheet-audit.mjs's census has not been read against it |
 | 18 | `sheet-anchors` (:1049) - `SHEET_ANCHORS` (patches.mjs:237-258) | sheet.mjs `onRenderCharacterSheet` | every class and `data-action` of the 20 selectors is in 2.12.8's character templates (counted file by file: the same counts as 2.10.11); header.hbs byte-identical; sidebar.hbs: `equipment-section`, `loadout-section`, `experience-section` are `<section>` where they were `<div>` (sidebar.hbs:92, :113, :128) | **same** (for the selectors) | All selectors are by class, so the element change does not move them. sheet.mjs:2221 `closest(".loadout-section, section, fieldset")` finds the same element. Daggerheart's own CSS for `section` was not compared |
 | 19 | `hook-party-sheet-render` (:1186) - `renderPartySheet` | sheet.mjs | party-sheet.mjs:15 `export default class PartySheet` | **same** | Seven changed lines: comments and two `if (!item) continue;` |
@@ -71,13 +72,12 @@ Summary: of the 16 register rows owned by Daggerheart, 14 read **same**; **criti
 ## 3. What must change for an honest "verified 2.12.8", by risk
 
 1. **Ship 1.2.109's roll road and see it green on 2.12.8 dice** (rows 1-4). High: a wrong number on every action roll
-   (outcome, critical, the GM's draw) is what the module is for. Today the evidence is the harness on 2.10.5's dice
-   plus glue; 1.2.109's `fillRollFacts` and `adoptMarks` were written from 2.12.8's source, not run on it.
-2. **Re-copy the harness's Daggerheart from 2.12.8** - `lib/dh-dice/` (dice, the roll window, `baseAction`'s
-   `ResourceUpdateMap`) and `lib/dh-relay.mjs`, verbatim, as their headers ask - and add `move-context.mjs`, which the
-   2.12 road now runs through. High: until then scenario 83 and every roll test measure 2.10.5's `buildEvaluate`, which
-   writes the outcome to `config.roll`, so they cannot see rows 1 and 4. The copies are not this line's to edit
-   (house rule); it is the owner's or the coordinator's call who re-copies.
+   (outcome, critical, the GM's draw) is what the module is for. The evidence for it is 1.2.109's CI on the harness's
+   2.12.8 copies (item 2), not a table.
+2. **The harness's Daggerheart from 2.12.8 reaches main with 1.2.109** - done on its branch: `lib/dh-dice/` with
+   `move-context.mjs` (E76 C3b, 0674ac33) and `lib/dh-relay.mjs` (E76 C1b, ec6b04c3). On main they are still 2.10.5's
+   and 2.10.11's, whose `buildEvaluate` writes the outcome to `config.roll`, so a run on main cannot see rows 1 and 4.
+   Nothing more to re-copy for the files this report reads; check again at the next Daggerheart tag.
 3. **One run on a real Foundry 14.365 with Daggerheart 2.12.8** - the local gate (`npm run gate:local`), and
    LIVE-E33-01 (scenario 83 on a real table). High for the claim: no part of 1.2.108 has run against a real
    Daggerheart (`local-gate.json`: `sandbox.reachable: false`).
