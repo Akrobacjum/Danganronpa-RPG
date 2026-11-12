@@ -7128,7 +7128,7 @@ const INVARIANTS = [
             // sound alone - the payload, its node ids or who ticked them would be a fact a player's browser holds.
             ...["speaker.actor", "speaker.token"].map(f => [`message caseSummary: ${f}`,
                 s => { s.messages.push({ id: "R190MESSAGE00007", flags: { [MOD]: { caseSummary: true, sfx: "caseSummary" } },
-                    speaker: { alias: "Case summary", actor: null, token: null, [f.split(".")[1]]: f === "speaker.actor" ? KILLER : "R190TOKEN0000001" } }); },
+                    speaker: { alias: "Case summary", actor: null, token: null, ...(f === "speaker.actor" ? { actor: KILLER } : { token: "R190TOKEN0000001" }) } }); },
                 h => h.kind === "messageField" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00007" && h.path === f]),
             ["message caseSummary: only caseSummary, sfx",
                 s => { s.messages.push({ id: "R190MESSAGE00008", flags: { [MOD]: { caseSummary: true, sfx: "caseSummary", nodes: ["R190NODE"] } } }); },
