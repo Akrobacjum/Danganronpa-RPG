@@ -9,8 +9,8 @@
  * later is not a new script somebody forgets to call. Each part prints its own
  * numbers - what it read as well as what it found, because a part that read
  * nothing has proved nothing - and the exit code is 1 when any part is red.
- * Only `names`, `moves` and `text` need `npm ci` in audit/harness (they parse
- * with espree; `text` since E65 C10, for the screen map); the rest are bare
+ * Only `names`, `moves`, `text` and `comments` need `npm ci` in audit/harness (they
+ * parse with espree; `text` since E65 C10, for the screen map); the rest are bare
  * Node, so release.yml runs `stamps notes` before installing anything.
  *
  * Parts:
@@ -184,6 +184,16 @@
  *             held to tools/css-budget.json: red above a budget, and red below
  *             it until the budget is lowered in the same commit
  *             (`node tools/css-lint.mjs --write`). Bare Node.
+ *   comments  the comments lint (the E56 foundation, 12.11.2026; tools/comments-lint.mjs,
+ *             whose header says what it reads): its self-check on a planted
+ *             fixture and the budget's ratchet first, then every module file of
+ *             scripts/ counted - backticked names in comments that no code,
+ *             language key or stylesheet holds, and two JSDoc blocks over one
+ *             declaration - and held to tools/comment-budget.json: red above a
+ *             row, and red below it until the row is lowered in the same commit
+ *             (`node tools/comments-lint.mjs --write`), so the count only falls.
+ *             Needs espree (`npm ci` in audit/harness). Measured 12.11.2026 on
+ *             4dfac3a9: 206 files, 175 names, 63 doubled blocks, about 3 s.
  *   contrast  the themes' text by WCAG 2 (E44 C1c; tools/contrast.mjs, whose
  *             header says what it reads): its self-check, then every pair of
  *             tools/contrast-pairs.json in its theme from the tokens the sheets
@@ -1171,6 +1181,16 @@ async function css() {
     return problems;
 }
 
+/* -------------------------------- comments -------------------------------- */
+
+/* THE COMMENTS LINT (the E56 foundation, 12.11.2026): tools/comments-lint.mjs reads the files and holds the budget. */
+async function comments() {
+    const { commentsLint } = await import(url.pathToFileURL(path.join(REPO, "tools", "comments-lint.mjs")).href);
+    const { problems, summary } = await commentsLint(REPO);
+    console.log(summary);
+    return problems;
+}
+
 /* -------------------------------- contrast -------------------------------- */
 
 /* THE CONTRAST (E44 C1c, 04.11.2026; D29 = 2): the arithmetic is tests-css.mjs's, which R1312 runs on the served files. */
@@ -1210,7 +1230,7 @@ async function glyphs() {
     return [...misses, ...problems, ...structure];
 }
 
-const PARTS = { stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode, live, text, css, contrast, glyphs };
+const PARTS = { stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode, live, text, css, comments, contrast, glyphs };
 
 const asked = argv.filter((a, i) => !a.startsWith("--") && !(releaseAt >= 0 && i === releaseAt + 1) && !(langAt >= 0 && i === langAt + 1));
 if (RELEASE === "" || (RELEASE !== null && !/^v\d+\.\d+\.\d+$/.test(RELEASE))) {
