@@ -347,7 +347,7 @@
       },
       "theme": {
         "name": "Theme",
-        "hint": "How the module looks on this browser. Stained Glass is the current identity: black broken glass along the screen edges, colour in the seams. Monokuma Legacy is the look before it.",
+        "hint": "How the module looks on this browser. Stained Glass is the current identity: black broken glass along the screen edges, color in the seams. Monokuma Legacy is the look before it.",
         "stainedGlass": "Stained Glass",
         "monokumaLegacy": "Monokuma Legacy"
       },
@@ -476,9 +476,9 @@
       "itemLocked": "Only a GM edits an item's name, picture or description. What a thing is is part of the evidence."
     },
     "Listen": {
-      "prompt": "You are in {room}. Which neighbouring room?",
+      "prompt": "You are in {room}. Which neighboring room?",
       "which": "Room",
-      "noNeighbours": "No neighbouring rooms from here.",
+      "noNeighbours": "No neighboring rooms from here.",
       "anonymous": {
         "one": "{n} person in {room}. You cannot tell who.",
         "other": "{n} people in {room}. You cannot tell who."
@@ -501,7 +501,7 @@
       "pipReadOnly": { "one": "{left} of {max} action this time of day. Spent by acting.", "other": "{left} of {max} actions this time of day. Spent by acting." },
       "freeMoveAvailable": "Free Move still available this time of day.",
       "freeMoveSpent": "Free Move used. The next crossing costs an action.",
-      "moveLegend": "Solid: yours to take. Outlined: spent. The second foot, in the Eclipse's colour, is the Eclipse's second crossing: dimmed outside an Eclipse.",
+      "moveLegend": "Solid: yours to take. Outlined: spent. The second foot, in the Eclipse's color, is the Eclipse's second crossing: dimmed outside an Eclipse.",
       "allSpent": "No actions left. They come back when the next Eclipse begins.",
       "leftOf": { "one": "{left} of {max} action", "other": "{left} of {max} actions" },
       "burstBanked": {
@@ -1161,7 +1161,7 @@
       "unopted": "{name} is no longer a Monocub.",
       "nobodyDead": "Nobody has died yet.",
       "manageTitle": "Monocubs",
-      "dialogIntro": "A dead player may join the GMs as a Monocub once their own trial has ended. Tick to opt them in - the timing is your judgement, not the module's.",
+      "dialogIntro": "A dead player may join the GMs as a Monocub once their own trial has ended. Tick to opt them in - the timing is your judgment, not the module's.",
       "isOne": "Monocub",
       "hope": "Hope",
       "giveHope": "Turn a Monokuma's Despair into Hope",
@@ -1404,7 +1404,7 @@
       "gateVote": "The verdict opens once the vote has been counted.",
       "startTrialNote": "The time of day's stopwatch on the HUD starts again from zero when the trial starts, and again when it ends.",
       "startTrialHall": "Every browser goes to {hall}; the students ticked below get a token there, and it is taken away when the trial ends.",
-      "startTrialNoHall": "No trial hall is linked, so the table stays on the scene it is on. Room Setup's Scenes tab links one.",
+      "startTrialNoHall": "No trial hall is linked, so the table stays on the scene it is on. Room setup's Scenes tab links one.",
       "tableRuleDead": "The table's rule: the dead listen but do not speak in the trial.",
       "tableRuleVoices": "The dead's microphones are off until the trial ends, a death nobody has found too. A Monocub speaks only while no mode runs and listens from the vote on. The convicted die when the trial ends.",
       "openDebateIntro": "How long is this debate worth? Each one in a trial gets its own budget, and the last number you used is offered.",
@@ -2177,7 +2177,7 @@
       "ranOutTwoKillersNote": "End it now and the incident moves to the clean-up. Keep going and the turn order carries on - nobody loses a turn they were owed, and you can end it from the tracker whenever you like.",
       "ranOutEndNow": "End the incident",
       "crowdedTitle": "Too many people",
-      "crowded": "{name} walked in on top of {third}. Four people in one room is not a murder anybody can carry out - the incident is cancelled.",
+      "crowded": "{name} walked in on top of {third}. Four people in one room is not a murder anybody can carry out - the incident is canceled.",
       "crowdedNote": "Nobody dies. What the fight already did stands: the wounds, the Sanity, and anything it left on the floor.",
       "freeResolution": "You stopped them cold. Take Survive or Role Reversal this turn - no roll, it simply works.",
       "castMissingHere": "This browser holds no cast for the running incident, so its turn cannot be worked out here. Enter the cast by hand (the case's health check), or let the GM whose browser holds it act.",
@@ -2229,7 +2229,7 @@
       "student": "Student",
       "bullets": "Bullets",
       "keysHeld": "Key",
-      "unidentified": "Not analysed",
+      "unidentified": "Not analyzed",
       "breakdown": "Really",
       "breakdownTooltip": "What each student's Truth Bullets really are, kind by kind, by the GMs' answer key - not what their holders were shown.",
       "createHere": "Create on the map",
@@ -2323,7 +2323,7 @@
       "manageTitle": "Room setup",
       "manageTitleOn": "Room setup - {scene}",
       "manageIntro": "Everything a room is, one kind of fact per tab. Apply saves every tab at once, whichever one is showing.",
-      "manageNote": "A favoured category gives advantage to anyone searching here for it; a bad one gives disadvantage, and a category can never be both. A room with no table of its own falls through to the global pool, so half-finished setup is fine.",
+      "manageNote": "A favored category gives advantage to anyone searching here for it; a bad one gives disadvantage, and a category can never be both. A room with no table of its own falls through to the global pool, so half-finished setup is fine.",
       "bedroomsIntro": "Whose bedroom each room is. One student, one bedroom. Whether a stash is hidden is set on the Stashes tab.",
       "doorsIntro": "Which doors are locked right now, and which start a season locked. A season reset puts every door back to its start column.",
       "roomRatio": "{rooms}. Living students: {living} ({per} rooms each). This season was built on {target} per student, so this cast wants {want}.",
@@ -2419,10 +2419,10 @@
       "notSharedColumn": "No privacy",
       "notSharedHint": "Leave this region out of the rooms-per-player count. Changes no rule.",
       "notSharedNote": "“No privacy” is for corridors, stairwells and anywhere nobody can talk privately. It changes only the room count - the ratio line above, the same row in Season setup and Pre-season checks; movement, searching, rests and fog are unaffected. Bedrooms are already excluded, by having an owner.",
-      "neighboursColumn": "Neighbours",
+      "neighboursColumn": "Neighbors",
       "neighboursHint": "The rooms this one has a door to, separated by commas. Blank: its walls decide (the greyed names).",
-      "neighboursNote": "“Neighbours” is where a door overrules the map: list the rooms this one opens into, separated by commas. Two rooms are connected when either lists the other, both ways. A room with a list is connected to nothing else, and a room beside it cannot walk in unless one of the two lists the other. Left blank, a room's neighbours are the rooms without a list whose walls share an edge with its own (a corner is not enough), and every room that lists it. A room the lists and the walls leave with no neighbour has no door out. A room that has no list, is in no list and touches no other room, not even at a corner, is not checked: a crossing from it may go to any room.",
-      "neighboursUnknown": "{room}: no room on this scene is named {names}. Kept in its Neighbours, where it connects nothing.",
+      "neighboursNote": "“Neighbors” is where a door overrules the map: list the rooms this one opens into, separated by commas. Two rooms are connected when either lists the other, both ways. A room with a list is connected to nothing else, and a room beside it cannot walk in unless one of the two lists the other. Left blank, a room's neighbors are the rooms without a list whose walls share an edge with its own (a corner is not enough), and every room that lists it. A room the lists and the walls leave with no neighbor has no door out. A room that has no list, is in no list and touches no other room, not even at a corner, is not checked: a crossing from it may go to any room.",
+      "neighboursUnknown": "{room}: no room on this scene is named {names}. Kept in its Neighbors, where it connects nothing.",
       "imageLarge": "This picture is large and slow to load for every player: {size}.",
       "imageBroken": "This picture does not load - pick the file again."
     },
@@ -2489,7 +2489,7 @@
       "endTitle": "End the chapter",
       "endIntro": "Chapter {chapter} is wrapping up. Tick what should happen.",
       "optReveal": "Reveal what the Truth Bullets really are, with their readings ({n} to reveal)",
-      "revealKeeps": "Faint Truth Bullets are not revealed, except that every Final, Faint or not, shows its kind without its reading: both stay with their holders, still to be analysed, in the next chapter too.",
+      "revealKeeps": "Faint Truth Bullets are not revealed, except that every Final, Faint or not, shows its kind without its reading: both stay with their holders, still to be analyzed, in the next chapter too.",
       "endNote": "Revealing the types is permanent, and so are the three clean-ups above. Nothing else here deletes anything.",
       "endButton": "End chapter {n}",
       "doneReveal": {
@@ -2502,8 +2502,8 @@
       "optNextMorning": "Open the next chapter on the morning of day {day}, with actions and search tokens refilled",
       "moved": "The clock now reads chapter {chapter}, session {session}.",
       "typeless": {
-        "one": "1 Truth Bullet not analysed has no real type recorded, so revealing cannot touch it - {who} holds it. Take it, and give one with its type from Give / take items.",
-        "other": "{n} Truth Bullets not analysed have no real type recorded, so revealing cannot touch them - held by {who}. Take them, and give ones with their types from Give / take items."
+        "one": "1 Truth Bullet not analyzed has no real type recorded, so revealing cannot touch it - {who} holds it. Take it, and give one with its type from Give / take items.",
+        "other": "{n} Truth Bullets not analyzed have no real type recorded, so revealing cannot touch them - held by {who}. Take them, and give ones with their types from Give / take items."
       },
       "optSweep": "Collect the Truth Bullets ({n} would go, Faint and Final stay)",
       "optFaint": "Clear the Faint Remnants ({n} would go)",
@@ -2589,7 +2589,7 @@
       "hallHasRooms": "This scene has regions marked as rooms: {names}. In the trial hall they are not rooms - is this the school's map? Regions not marked as rooms are fine here.",
       "duplicateInHall": "More than one token in the hall stands for the same character, and a trial shows only the first. The others: {names}.",
       "unlinkedToken": "Tokens in the hall not linked to their character: {names}. The dead overlay and the player's control are read off the character, so link each to its character.",
-      "hallDark": "The trial hall still has Foundry's token vision on, its global light off or its exploration fog on. For everybody to see the whole hall, tick \"Prepare the hall\" in Room Setup's Scenes tab and press Apply.",
+      "hallDark": "The trial hall still has Foundry's token vision on, its global light off or its exploration fog on. For everybody to see the whole hall, tick \"Prepare the hall\" in Room setup's Scenes tab and press Apply.",
       "prepare": "Prepare the hall on Apply: Foundry's exploration fog off, token vision off, global light on - everybody sees the whole hall.",
       "preparePlaylist": "Also clear the hall's playlist",
       "prepareVoice": "Also switch Proximity Voice Chat off in the hall (in the trial everybody is in one voice room)",
@@ -2597,7 +2597,7 @@
       "tableOn": "The table is on {scene}.",
       "showHall": "Show the hall",
       "backToSchool": "Back to school",
-      "noWayBack": "No school is linked and the scene the trial opened from is gone, so the table stays in the trial hall. Link a school in Room Setup's Scenes tab.",
+      "noWayBack": "No school is linked and the scene the trial opened from is gone, so the table stays in the trial hall. Link a school in Room setup's Scenes tab.",
       "phaseSwitchesScene": "It also takes every browser to the trial hall, {hall}, and places the tokens of the students chosen for it.",
       "castPickHeading": "Who takes part in this trial",
       "notPlaced": {
@@ -3396,7 +3396,7 @@
       },
       "glyphLabel": "Tray icon",
       "glyphDefault": "Default (hourglass)",
-      "glyphNote": "Under the Stained Glass theme the Projects tray draws this instead of the image, in the interface's colour. The image is used everywhere else.",
+      "glyphNote": "Under the Stained Glass theme the Projects tray draws this instead of the image, in the interface's color. The image is used everywhere else.",
       "glyph": {
         "checklist": "Checklist",
         "gear": "Gear",
@@ -3537,7 +3537,7 @@
         },
         "browser": "This browser",
         "preset": "Daggerheart's Hope and Despair dice on this browser",
-        "presetNone": "none (Daggerheart 2.10 and later colour them by Dice So Nice roles)",
+        "presetNone": "none (Daggerheart 2.10 and later color them by Dice So Nice roles)",
         "dsnOff": "off",
         "noPreset": "no preset",
         "roll": "The roll read",
@@ -3566,11 +3566,11 @@
           "presetMissingLaid": "{duality} of the roll read carries no Daggerheart preset of its own; with One dice look for the table on, this browser draws it in the table's Hope and Despair look.",
           "presetDiffersLaid": "{duality} of the roll read carries another preset than the table's Hope and Despair look; with One dice look for the table on, this browser draws it in the table's look over its own.",
           "missingSystem": "Dice So Nice on this browser has no dice system \"{name}\", so dice that use it are drawn as standard dice here.",
-          "missingColorset": "Dice So Nice on this browser has no colorset \"{name}\", so dice that use it are drawn in a custom colour here.",
+          "missingColorset": "Dice So Nice on this browser has no colorset \"{name}\", so dice that use it are drawn in a custom color here.",
           "missingTexture": "Dice So Nice on this browser has no texture \"{name}\", so dice that use it are drawn with no texture here.",
           "missingMaterial": "Dice So Nice on this browser has no material \"{name}\", so dice that use it are drawn in the automatic material here.",
-          "dsnApiMoved": "Dice So Nice {version} on this browser has no ALL_CUSTOMIZATION, so the forced look copies the GM's saved look only, and each thrower fills what it lacks with their own colour.",
-          "rolesUnforced": "Daggerheart {version} colours its Hope and Despair dice by Dice So Nice roles, which the table's forced look does not set.",
+          "dsnApiMoved": "Dice So Nice {version} on this browser has no ALL_CUSTOMIZATION, so the forced look copies the GM's saved look only, and each thrower fills what it lacks with their own color.",
+          "rolesUnforced": "Daggerheart {version} colors its Hope and Despair dice by Dice So Nice roles, which the table's forced look does not set.",
           "otherBrowser": "{name}'s browser is not read here. Ask them to run game.drpg.diagnoseDiceLook() and send you its text."
         }
       }
@@ -3721,7 +3721,7 @@
         "gmOnly": "Only a GM can ask for that.",
         "cannotSee": "You cannot see that project.",
         "missing": "What it names is not there any more.",
-        "badRequest": "The GM's client did not recognise the request.",
+        "badRequest": "The GM's client did not recognize the request.",
         "outOfRange": "A number in it is out of range.",
         "busy": "It is already being written. Wait a moment and look again.",
         "notOffered": "No Level Up is on offer for that character.",
@@ -3882,13 +3882,13 @@
       "changeIcon": "Change this item's icon",
       "newPool": "New room table",
       "newPoolPlaceholder": "e.g. Kitchen",
-      "newPoolNote": "A room table is what a room stocks - point a room at it in Room Setup's “Draws from”. Tier tables answer dice rolls and cannot be assigned to rooms. A room's own tables answer a Search there before the tier pools do, and one named “«Room» - Tier N” answers that roll first.",
+      "newPoolNote": "A room table is what a room stocks - point a room at it in Room setup's “Draws from”. Tier tables answer dice rolls and cannot be assigned to rooms. A room's own tables answer a Search there before the tier pools do, and one named “«Room» - Tier N” answers that roll first.",
       "newPoolTierName": "That name matches the tier-table pattern (“DRPG … - Tier N”) - a room table needs its own name.",
       "newPoolExists": "A table called “{name}” already exists.",
-      "presetRoomNoTable": "{room} draws from no table of its own. Point it at one in Room Setup to keep finds like this there.",
+      "presetRoomNoTable": "{room} draws from no table of its own. Point it at one in Room setup to keep finds like this there.",
       "presetRoomTier": "{room} has no table for this tier yet: make “{name}” on the Room pools tab to keep finds of this tier there.",
-      "tierPoolCreated": "\"{name}\" is ready, and the module recognised it: items in it are filed by its category and tier, so a usable drawn from it knows what it does.",
-      "poolCreated": "Room table “{name}” created. Point a room at it in Room Setup.",
+      "tierPoolCreated": "\"{name}\" is ready, and the module recognized it: items in it are filed by its category and tier, so a usable drawn from it knows what it does.",
+      "poolCreated": "Room table “{name}” created. Point a room at it in Room setup.",
       "renameTable": "Rename table",
       "deleteTable": "Delete table",
       "col": {
@@ -4045,7 +4045,7 @@
       "checksAvOff": "Audio/Video is off in this world, so there is no voice tile: turn it on in Configure Settings, Core, Audio/Video, or switch the voice tile off in the module's settings.",
       "checksAvVideoOnly": "This world is set to video only: nobody sends sound. Set the A/V mode to audio only.",
       "checksImages": "Room pictures",
-      "checksImagesMissing": "These room pictures do not load - pick the file again in Room Setup: {rooms}",
+      "checksImagesMissing": "These room pictures do not load - pick the file again in Room setup: {rooms}",
       "checksImagesLarge": "These room pictures are large and slow to load for every player - make them at most {side} px on a side and {mb} MB: {rooms}",
       "checksImagesUnknown": "The file size of these room pictures could not be read: {rooms}",
       "checksImagesLate": { "one": "These room pictures did not finish loading within {s} second, so their size in pixels was not checked - nothing says they are missing; run the checks again on a faster connection: {rooms}", "other": "These room pictures did not finish loading within {s} seconds, so their size in pixels was not checked - nothing says they are missing; run the checks again on a faster connection: {rooms}" },
@@ -4847,7 +4847,7 @@
       "hideTraces": "Hide the Traces"
     },
     "Diagnostics": {
-      "pageTinted": "{name} is repainting this page in colours that are not this module's. Foundry is already dark - turn the extension off for this site.",
+      "pageTinted": "{name} is repainting this page in colors that are not this module's. Foundry is already dark - turn the extension off for this site.",
       "cssMissing": "This module's stylesheet did not load on this page, so the interface is unstyled. Reload; if it persists, run game.drpg.diagnoseStyles().",
       "tracing": { "one": "Watching clicks for {seconds} second. Click the control that misbehaves.", "other": "Watching clicks for {seconds} seconds. Click the control that misbehaves." },
       "cast": {
@@ -4958,11 +4958,11 @@
       "step.sound": "Sound files",
       "hint.sound": "This module ships no audio and assigns none - the files are yours, the same bargain the playlists make. Map what you want in the Sound panel; anything left blank stays silent by choice, not by fault.",
       "step.rooms": "The map has rooms",
-      "hint.rooms": "Rooms are Scene Regions a GM ticked “This is a room” in Room Setup. Movement, Search, Listen and every incident are answered in terms of them.",
+      "hint.rooms": "Rooms are Scene Regions a GM ticked “This is a room” in Room setup. Movement, Search, Listen and every incident are answered in terms of them.",
       "step.roomsMarked": "Every named region is decided: a room or not",
-      "hint.roomsMarked": "A region is a room only when a GM ticks “This is a room” in Room Setup (the Doors tab). These named regions have not been decided yet.",
+      "hint.roomsMarked": "A region is a room only when a GM ticks “This is a room” in Room setup (the Doors tab). These named regions have not been decided yet.",
       "step.scenes": "The school and the trial hall are linked",
-      "hint.scenes": "Room Setup's Scenes tab links the scene the season is played on and the scene the Class Trial is held in. Optional: with none linked the trial is held wherever the table is.",
+      "hint.scenes": "Room setup's Scenes tab links the scene the season is played on and the scene the Class Trial is held in. Optional: with none linked the trial is held wherever the table is.",
       "step.cursor": "The GM's pointer is private (recommended)",
       "hint.cursor": "Foundry shows every cursor to the table with a name on it - a live feed of what you are looking at. This turns it off for the two GM roles and leaves the players' pointers alone.",
       "step.secretDoors": "No Foundry secret doors (recommended)",
@@ -4974,7 +4974,7 @@
       "step.foundryHeld": "The module holds Foundry's settings (optional)",
       "hint.foundryHeld": "After Give back Foundry's settings the module holds none of them - Daggerheart's automations, the file permissions, the players' held settings - also after it was switched off and on again. Open the window and press Hold them again, unless your table wants them given back.",
       "step.hallTokens": "The trial hall and its tokens (optional)",
-      "hint.hallTokens": "A trial hall linked on Room Setup's Scenes tab, holding nothing that tab warns of: a student the module makes no token for, a second or an unlinked token, a room, a dark hall. Optional: a table may hold its trial on the school's map.",
+      "hint.hallTokens": "A trial hall linked on Room setup's Scenes tab, holding nothing that tab warns of: a student the module makes no token for, a second or an unlinked token, a room, a dark hall. Optional: a table may hold its trial on the school's map.",
       "step.diceSoNice": "Dice So Nice (optional)",
       "hint.diceSoNice": "The module draws every player's throw on the GM's browser and keeps each player's dice look for Dice So Nice. Without it the rolls are the same and nobody sees the dice. The button opens Foundry's module list, where it is switched on.",
       "resetTitle": "Reset the season",
@@ -5040,7 +5040,7 @@
       "resetCastTitle": "Where the cast's tokens go",
       "resetCastNote": "A token moves only on the map its room is drawn on. A student with no bedroom, or with no token on the map of the room they are sent to, stays where they are, and the report names them. A body stays where it fell. Not remembered: every reset starts from the first choice.",
       "resetCastStay": "They stay where they stand",
-      "resetCastBedroom": "Each student to their own bedroom, as Room Setup assigns it",
+      "resetCastBedroom": "Each student to their own bedroom, as Room setup assigns it",
       "resetCastPoint": "Everyone to one room:",
       "resetCastNoRooms": "No map has a named room yet",
       "resetRemembered": {
@@ -5118,7 +5118,7 @@
       "resetButton": "Reset the season",
       "resetMistyped": "Not reset - you have to type {word} exactly.",
       "resetDone": "The season has been reset. The cast and the maps are untouched.",
-      "roomGuide": "Walls first, then a Region for each room, drawn to them with snapping on; a room may be drawn as several regions of one name. A region is a room only once a GM ticks “This is a room” for it in Room Setup (the Doors tab): a region nobody ticked, a passage (a region that teleports a token or changes its level) and a region a player drew are no rooms and never count as neighbours. Neighbours touch along a shared edge and never overlap. A doorway is just a gap in the walls, of any width. Two zones means two rooms. The check below reports overlaps, borders drawn off their walls and corners off the grid; it never edits your map.",
+      "roomGuide": "Walls first, then a Region for each room, drawn to them with snapping on; a room may be drawn as several regions of one name. A region is a room only once a GM ticks “This is a room” for it in Room setup (the Doors tab): a region nobody ticked, a passage (a region that teleports a token or changes its level) and a region a player drew are no rooms and never count as neighbors. Neighbors touch along a shared edge and never overlap. A doorway is just a gap in the walls, of any width. Two zones means two rooms. The check below reports overlaps, borders drawn off their walls and corners off the grid; it never edits your map.",
       "checkRooms": "Check the rooms on this scene",
       "checkClean": "Nothing to report - the rooms on this scene are clean.",
       "step.roomCount": "Enough rooms for the cast",
@@ -5254,7 +5254,7 @@
       },
       "checkNoRooms": {
         "problem": "No rooms on this scene",
-        "detail": "Tick “This is a room” for its regions in Room Setup (the Doors tab), then check again."
+        "detail": "Tick “This is a room” for its regions in Room setup (the Doors tab), then check again."
       },
       "secretDoor": {
         "problem": "A Foundry secret door",
@@ -5262,9 +5262,9 @@
       },
       "notRoom": {
         "problem": "Named, but not a room",
-        "passage": "It carries a {type} behaviour: a passage.",
+        "passage": "It carries a {type} behavior: a passage.",
         "player": "A player drew it.",
-        "unmarked": "Not marked as a room (Room Setup, the Doors tab, “This is a room”).",
+        "unmarked": "Not marked as a room (Room setup, the Doors tab, “This is a room”).",
         "why": "The fog draws no outline or reveal for a region that is not a room, and no doorway leads into it."
       },
       "uncoveredShare": "{pct}% of the map belongs to no room",
@@ -5275,16 +5275,16 @@
         "unnamed": {
           "room": "(no name)",
           "problem": "Region with no name",
-          "why": "Rooms are matched by name, so a region with none is not a room: it never counts as a neighbour, which is one quiet way to get a doorway that leads nowhere."
+          "why": "Rooms are matched by name, so a region with none is not a room: it never counts as a neighbor, which is one quiet way to get a doorway that leads nowhere."
         },
         "defaultName": {
           "problem": "Room still has the name Foundry gave it",
-          "why": "A room is its name: players read it on the map, and keys, stashes and Room Setup all name it. Give it the room's own name before play."
+          "why": "A room is its name: players read it on the map, and keys, stashes and Room setup all name it. Give it the room's own name before play."
         },
         "piecesDiffer": {
           "problem": "Pieces of this room are set up differently",
           "fact": "Differs between pieces: {what}",
-          "why": "A room drawn in several pieces reads each setting from the first piece that has it, so another piece's setting is not the room's. In Room Setup change the room's setting, Apply, then set it back and Apply: that gives every piece the same. Set the height in each piece's region settings.",
+          "why": "A room drawn in several pieces reads each setting from the first piece that has it, so another piece's setting is not the room's. In Room setup change the room's setting, Apply, then set it back and Apply: that gives every piece the same. Set the height in each piece's region settings.",
           "field": {
             "notShared": "No privacy",
             "owner": "whose bedroom",
@@ -5328,26 +5328,26 @@
     },
     "Rooms": {
       "reportTitle": "Rooms marked",
-      "reportNote": "From this version a region is a room only when a GM has marked it one: the “This is a room” column in Room Setup's Doors tab. The named regions below were marked once, so the map keeps its rooms; untick any that is not one. A region drawn from now on is yours to mark.",
+      "reportNote": "From this version a region is a room only when a GM has marked it one: the “This is a room” column in Room setup's Doors tab. The named regions below were marked once, so the map keeps its rooms; untick any that is not one. A region drawn from now on is yours to mark.",
       "migrated": {
         "one": "{n} room marked: {names}.",
         "other": "{n} rooms marked: {names}."
       },
       "stashesTitle": "Bedroom stashes given",
-      "stashesNote": "Each bedroom below had no stash for its owner, so its owner was given an open one. If you had removed one on purpose, remove it again on Room Setup's Stashes tab.",
+      "stashesNote": "Each bedroom below had no stash for its owner, so its owner was given an open one. If you had removed one on purpose, remove it again on Room setup's Stashes tab.",
       "stashesGiven": {
         "one": "{n} bedroom: {names}.",
         "other": "{n} bedrooms: {names}."
       },
-      "skippedBehaviours": "Left for you to decide in Room Setup, because they carry behaviours: {names}.",
+      "skippedBehaviours": "Left for you to decide in Room setup, because they carry behaviors: {names}.",
       "skippedPlayer": "Never rooms, because a player drew them: {names}.",
       "skippedNoName": {
         "one": "{n} region without a name was left alone: a room needs a name.",
         "other": "{n} regions without a name were left alone: a room needs a name."
       },
       "flagKept": "{user} changed whether “{region}” on {scene} is a room. A room is what a GM marks, so the mark stays as a GM left it.",
-      "renamed": "“{from}” on {scene} is now “{to}”, and what pointed at the room by its old name points at the new one - keys: {keys}, stashed items: {items}, notes of a stash found: {found}, characters who had discovered it: {cells}, projects: {projects}, things left behind for a trap: {plants}, other rooms' Neighbours lists: {lists}, the Mastermind's room: {lair}, a called assembly: {gather}, the seal of a Despair Call: {sealed}, bodies found there: {bodies}.",
-      "flagUnjudged": "{user} changed whether “{region}” on {scene} is a room, and this GM had no record of the mark before the change, so nothing was put back. Check the region in Room Setup (the Doors tab).",
+      "renamed": "“{from}” on {scene} is now “{to}”, and what pointed at the room by its old name points at the new one - keys: {keys}, stashed items: {items}, notes of a stash found: {found}, characters who had discovered it: {cells}, projects: {projects}, things left behind for a trap: {plants}, other rooms' Neighbors lists: {lists}, the Mastermind's room: {lair}, a called assembly: {gather}, the seal of a Despair Call: {sealed}, bodies found there: {bodies}.",
+      "flagUnjudged": "{user} changed whether “{region}” on {scene} is a room, and this GM had no record of the mark before the change, so nothing was put back. Check the region in Room setup (the Doors tab).",
       "renameJoined": "“{room}” on {scene} was renamed “{name}”, the name of a room that was already there, so it is now one more piece of that room. Nothing that named “{room}” was carried: its keys, stashed items, notes of a stash found and discovery still name “{room}”. Taken off the region, so that it adds nothing to “{name}”: {carried}.",
       "carriedNothing": "nothing",
       "pieceSplit": "The region “{name}” on {scene} was one of several pieces of the room {room} until it was renamed. What it carried for that room ({carried}) was taken off it: the other pieces of {room} keep it, and “{name}” starts with none of it."
@@ -5453,7 +5453,7 @@
         "countdown-row-menu": "a project row's menu is Daggerheart's: Reveal and Hide are shown, and Delete removes only the countdown",
         "countdown-update": "Daggerheart's own tick of the countdowns runs outside the projects' queue, and a project's change made in the same moment can be lost",
         "door-controls": "every door control is shown as Foundry shows it",
-        "token-ruler": "a token's ruler keeps the colour that Foundry or another module gives it",
+        "token-ruler": "a token's ruler keeps the color that Foundry or another module gives it",
         "actions-resource": "a character has no Actions resource",
         "sidebar-calls": "Foundry's own calls neither show nor place the Foundry tools window",
         "relay-guard": "requests from a player's Daggerheart that the module has not reviewed are refused on the GM's browser, and the GMs are told once per version; where the guard cannot stand at all, the relay is not guarded and the GMs are told at every load",
@@ -5464,7 +5464,7 @@
         "hook-character-sheet-close": "a closed sheet's observer keeps watching a detached element until the page is reloaded",
         "hook-countdowns-render": "the countdown tray is drawn as Daggerheart draws it, and the HUD is not redrawn with it",
         "hook-dice-so-nice-ready": "the dice looks are not swept",
-        "hook-dice-so-nice-message": "Dice So Nice throws such a roll on every screen, in the GM's colours",
+        "hook-dice-so-nice-message": "Dice So Nice throws such a roll on every screen, in the GM's colors",
         "hook-dice-so-nice-roll-start": "every Hope and Despair die is drawn in the look its thrower's Daggerheart gave it, and the dice look's report names no throw seen on this browser",
         "hook-livekit-initialized": "the voice rooms, the voice tile and the trial's speakers do not follow the voice client",
         "hook-image-popout-header": "a room picture's window shows Foundry's share control and any a module adds",
