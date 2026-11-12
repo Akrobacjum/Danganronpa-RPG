@@ -20,7 +20,7 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | e73 | 6a914d02 | 6a914d02 |
 | e92 | ce1ffadb | fa73b601 |
 | e93 | d7f129b7 | f22a7e87 |
-| e72 | bf09855e | 4dfac3a9 |
+| e72 | f05fe96a | 4dfac3a9 |
 | e64 | 7aa02555 | fa73b601 |
 | gaps-a | 2338c823 | fa73b601 |
 
@@ -127,7 +127,7 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | player-handbook.pl.md | ### Sypialnie, klucze, skrytki | e64 |
 | player-handbook.pl.md | ### Tamper - Shadow, 1 akcja | e64 |
 
-## Lang keys (353 paths; a path that is an object freezes its opening line only, its leaves are listed one by one)
+## Lang keys (360 paths; a path that is an object freezes its opening line only, its leaves are listed one by one)
 
 | Key | Branches |
 | --- | --- |
@@ -289,9 +289,16 @@ Read at origin/main 4dfac3a9 on 12.11.2026.
 | `DRPG.Floor.next.verdictElsewhere` | e97-98 |
 | `DRPG.Floor.pickerLabel` | e72 |
 | `DRPG.Mastermind` | e72 |
+| `DRPG.Mastermind.alreadyDeadNote` | e72 |
 | `DRPG.Mastermind.dialogTitle` | e72 |
+| `DRPG.Mastermind.finalTruthReminder` | e72 |
 | `DRPG.Mastermind.lairLabel` | e72 |
 | `DRPG.Mastermind.noLair` | e72 |
+| `DRPG.Mastermind.verdictBodyNote` | e72 |
+| `DRPG.Mastermind.verdictIntro` | e72 |
+| `DRPG.Mastermind.verdictNobody` | e72 |
+| `DRPG.Mastermind.verdictOpen` | e72 |
+| `DRPG.Mastermind.verdictTitle` | e72 |
 | `DRPG.Monocub` | e72 |
 | `DRPG.Monocub.cannotMeddle` | e72 |
 | `DRPG.Monocub.critHelpNothing` | e72 |

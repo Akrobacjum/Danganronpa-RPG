@@ -37,6 +37,7 @@ Counts are changes, one per plural form; a key changed in two areas counts in bo
 | M7 reserve | 1 | 0 | 2 (player handbook's Usables row, EN and PL) | M7/D5 (S13-40): Sanity is restored, not "cleared"; the Polish lang key already had pair N48 |
 | fact fixes | 1 | 1 | 0 | S06-51: `DRPG.Panel.gmOnly` refuses 47 GM-only steps, not only opening the panel |
 | third person (P2) | 4 | 6 | 0 | P2/P1 (DB19): the Eclipse's announcement and the assembly's note, cards the whole table reads, in the third person; T16 found 18, now 11 |
+| item quotes | 53 | 49 | 0 | EN17/PL-g (DB31): an item's name in quotes; T23 found 110 (quotedByCode 0), now 10 (bold names, frozen keys) |
 | handbooks: GM-a | 0 | 0 | 67 (Polish handbooks, unfrozen sections) | PL-i/D33c (glossary `gm-a`, scope handbooks) |
 | Polish grammar | 2 | 23 | 10 (Polish handbooks, unfrozen sections: "Class Trialu" -> "Class Trial", three neuter Eclipse/Overflow) | no bracketed gender endings ("zgłosił(a)"); PL-a/DB4 (Class Trial indeclinable); PL-b/DB28 (Eclipse neuter); X13, PL7, P2 on single values (`Move.dead`, `Vote.reminded.few`, `Vote.opened`) |
 
@@ -120,6 +121,7 @@ edited unless the row says so.
 | 12.11, run u | 5c5cdc23 and the brochure | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run v | d5e4bfc0 and the M7 and gmOnly edits | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run x | 626dcb7e and the P2 edits | 1230 passed, 0 failed, 16 skipped, 0 red |
+| 12.11, run y | ce42324a and the item quotes | 1230 passed, 0 failed, 16 skipped, 0 red; scenario 40-flow 88/88 |
 | 12.11, run f | 0a5ea4d3 and the GM-side T29 cuts (the bridge's refusals, the trial hall, the vote's privacy note) | 1230 passed, 0 failed, 16 skipped, 0 red |
 
 ## Tests whose expected wording changed
