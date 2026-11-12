@@ -126,6 +126,10 @@ export async function applyEffects(actor, effects, place, sender = null) {
             } else if (effect.kind === "text") {
                 await whisperToOwner(target, `<p>${esc(effect.text)}</p>`);
                 lines.push(t("text", { name }));
+            } else if (effect.kind === "durability") {
+                const { mendWear } = await import("./inventory.mjs");
+                const mended = await mendWear(target, effect.n);
+                lines.push(mended ? t("durability", { name, item: mended.name, n: mended.back }) : t("durabilityNone", { name }));
             } else if (effect.kind === "advantage") {
                 // A Call of advantage the GM arms on the character (the owner's answer to Q-E93-3): the roll window counts it,
                 // the GM's draw applies it off the list the GMs hold, the roll spends it, the sheet lists it.

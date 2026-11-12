@@ -2192,7 +2192,10 @@ export const FACILITIES = Object.freeze({
         despairShield: Object.freeze({ amount: 1, untils: Object.freeze(["timeOfDay", "day"]) }),
         // X more crossings for this character in the next Eclipse (or the one running), ended by that Eclipse's end
         // (eclipse.mjs `eclipseAllowanceFor`, movement.mjs's two judges of an Eclipse crossing).
-        eclipseCrossing: Object.freeze({ amount: 2, untils: Object.freeze(["eclipse"]) })
+        eclipseCrossing: Object.freeze({ amount: 2, untils: Object.freeze(["eclipse"]) }),
+        // X points of durability back on the character's most worn thing that is not broken (inventory.mjs `mendWear`): at
+        // once, keeps no row. A broken thing stays a Repair project's work (the stage's default, docs/dev/e93/STATUS.md).
+        durability: Object.freeze({ amount: 3 })
     }),
     /** When a timed effect ends (timed-effects.mjs): the time of day's end, the day's end, the next roll the GM draws, the next Eclipse's end. */
     timedUntil: Object.freeze(["timeOfDay", "day", "nextRoll", "eclipse"]),

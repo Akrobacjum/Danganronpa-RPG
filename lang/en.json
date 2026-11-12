@@ -3093,7 +3093,9 @@
         "freeMove": "{name}: +{n} Free Move",
         "text": "{name}: the GM's words were sent",
         "searchToken": "{room}: +{n} search token",
-        "overflowDown": "Despair overflow: -{n}"
+        "overflowDown": "Despair overflow: -{n}",
+        "durability": { "one": "{name}: {item}, +{n} durability", "other": "{name}: {item}, +{n} durability" },
+        "durabilityNone": "{name}: nothing worn to mend"
       },
       "effect": {
         "traitBonus": "Statistic, raised for a while",
@@ -3101,6 +3103,7 @@
         "advantage": "Advantage on the next roll",
         "despairShield": "Protection from Despair on a roll",
         "eclipseCrossing": "Crossings in the next Eclipse",
+        "durability": "Durability back on the most worn thing",
         "health": "Health",
         "sanity": "Sanity",
         "hope": "Hope",

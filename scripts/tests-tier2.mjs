@@ -88304,6 +88304,52 @@ const SCENARIOS = [
             given: [1, 0, 1, null, 1], ended: [0, 0] }),
             "{clean; given: [the character's allowance over the Eclipse's, another's, crossings left, a free Eclipse's, sheet lines]; ended: after an Eclipse's end} - one more crossing in an Eclipse");
     }],
+    ["E93-T10 - a room action's mending gives X points of durability back to the character's most worn thing (scripts/facilities-gm.mjs `applyEffects`, inventory.mjs `mendWear`; the owner's answer to Q-E93-3, 12.11.2026): two points back take a tool worn 2 to 0 and leave one worn 1 as it was; a broken thing stays broken (a Repair project's work); the card names the thing and the points; a character with nothing worn is told so", async () => {
+        /*
+         * E93, 12.11.2026. Given as a use of a room action gives it (`applyEffects`), on this GM; three tier-3 tools handed to
+         * the character and taken away after. Red at c17dd14: no kind "durability".
+         */
+        const F = await import("./facilities.mjs");
+        const INV = await import("./inventory.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { applyEffects } = await import("./facilities-gm.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const NAME = "Suite E93-T10", WEAR = `flags.${MODULE_ID}.${INV.ITEM_FLAGS.wear}`, BROKEN = `flags.${MODULE_ID}.${INV.ITEM_FLAGS.broken}`;
+        const made = [];
+        const read = {};
+        try {
+            const effect = F.cleanEffect({ kind: "durability", n: 2 });
+            must(effect, "no durability effect - this would measure nothing past the cleaning");
+            read.clean = effect;
+            const tool = async name => {
+                const item = await INV.grantItem(actor, { name: `${NAME} ${name}`, category: "tool", tier: 3, override: true, quiet: true });
+                must(item && INV.durabilityLeft(item) === 3, `${actor.name} could not be handed a tier-3 Tool - this would measure nothing`);
+                made.push(item);
+                return item;
+            };
+            const worn = await tool("worn"), less = await tool("less"), broken = await tool("broken");
+            await worn.update({ [WEAR]: 2 });
+            await less.update({ [WEAR]: 1 });
+            await broken.update({ [BROKEN]: { at: Date.now() } });
+            await sheetAuditIdle();
+            const lines = await applyEffects(actor, [effect], where, player);
+            await settle();
+            await sheetAuditIdle();
+            read.after = [INV.wearOf(worn), INV.wearOf(less), INV.isBroken(broken)];
+            read.line = lines.some(line => line.includes(worn.name) && line.includes("2"));
+            await less.update({ [WEAR]: 0 });
+            for (const item of [broken]) await item.delete();
+            made.splice(made.indexOf(broken), 1);
+            const none = await applyEffects(actor, [effect], where, player);
+            read.none = none.length === 1 && !none[0].includes(NAME);
+        } finally {
+            for (const item of made) if (actor.items.get(item.id)) await item.delete();
+            for (const m of game.messages.filter(m => m.speaker?.actor === actor.id && m.whisper?.length && Date.now() - (m.timestamp ?? 0) < 60000)) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ clean: { kind: "durability", n: 2, scope: "self" }, after: [0, 1, true], line: true, none: true }),
+            "{clean; after: [the most worn's wear, the other's, the broken one still broken]; line: the card names it; none: a line for nothing worn} - X points of durability back");
+    }],
     ["E69-T2 - a crossing settles once, on the primary, where the token still stands (scripts/crossing-settle.mjs `scheduleSettle`, movement.mjs `recordCrossingInStep`; E69 C2, S18-28, A10): a crossing into the room the token stands in fires drpgCrossingSettled once with its actor, rooms, way and Eclipse after the wait; two crossings in a row fire one event from the first room to the last; a crossing into a room the token is not in when the wait ends (put back) fires none; and the GMs' record of a crossing schedules one", async () => {
         /*
          * E69 C2, 12.11.2026. The wait is the test's own (`ms`), so nothing waits 2 s; the token is not moved: the room it
