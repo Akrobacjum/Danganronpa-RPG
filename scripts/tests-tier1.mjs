@@ -18571,6 +18571,40 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify({ sections: [], listed: ["musicEnabled", "sfxVary"], music: [1, true, true, true], vary: [1, true, true, true], writes: true }),
             "{the two keys in the game's sections; SOUND_WINDOW_SETTINGS; [switches, as the setting stands, its name, before the table] on the Music tab; the same on the Effects tab; wireSoundDialog writes a switch}");
     }],
+    ["R4051 - Despair Flow with one GM opens on Overflow with Pools, Monokumas and Students folded away, and its Monokumas tab picks only the pool (E101 item 6; the owner's yes of 12.11.2026 to the GM screens' review, #7): gm-team-dialog.mjs `despairFlowLayout` answers Overflow open and the three folded for one pool holder with no Assistant GM to grant or revoke, Pools open and nothing folded otherwise; `despairFlowMarkup` draws the folded tabs' buttons hidden and one Show button on the Overflow pane, no Monokuma box anywhere (the Students window's Role sets the role), and a pool select for each Monokuma of the world and for no one else; `saveGmTeam` calls no `setMonokuma`", async () => {
+        /*
+         * E101 item 6, 12.11.2026. The review (artifact T8eePyz1, Despair Flow): with one GM the first three tabs held
+         * nothing to choose, and the Monokumas tab's box did what the Students window's Role list does. Before removing
+         * the box: its readers at 4dfac3a were this file's draft (`readTeamDraft`, `paintTeamDraft`), the live pool
+         * select (`wireMonokumaLive`), Save (`saveGmTeam` -> `setMonokuma`), the assignments' skip (`readAssignmentForm`)
+         * and tier 2's E15-T8; nothing outside this window. Pure on stand-in users; the markup on this world's actors,
+         * detached. Red at 4dfac3a: no `despairFlowLayout`, no `despairFlowMarkup`.
+         */
+        const T = await import("./gm-team-dialog.mjs");
+        const { isMonokuma } = await import("./monokuma.mjs");
+        must(typeof T.despairFlowLayout === "function" && typeof T.despairFlowMarkup === "function", "gm-team-dialog.mjs exports no despairFlowLayout or despairFlowMarkup");
+        needs(world.atLeast("livingStudents", 1), "the Monokumas tab is read over the world's characters");
+        const a = { id: "a" }, b = { id: "b" };
+        const lay = (gms, candidates, removable) => { const l = T.despairFlowLayout({ gms, candidates, removable }); return [l.open, l.folded]; };
+        const box = document.createElement("div");
+        box.append(T.despairFlowMarkup({ single: true }));
+        const tabHidden = key => box.querySelector(`nav.drpg-tabs [data-drpg-tab-key="${key}"]`)?.hidden ?? "none";
+        const monokumaIds = game.actors.filter(x => x.type === "character" && isMonokuma(x)).map(x => x.id).sort();
+        const save = fnSource(stripComments(new Map(await moduleSources()).get("gm-team-dialog.mjs") ?? ""), "saveGmTeam");
+        const read = {
+            layouts: [lay([a], [], []), lay([a, b], [], []), lay([a], [b], []), lay([a, b], [], [b])],
+            folded: ["pools", "monokumas", "students", "overflow"].map(tabHidden),
+            open: box.querySelector('nav.drpg-tabs [aria-selected="true"]')?.dataset.drpgTabKey ?? null,
+            show: box.querySelectorAll('[data-drpg-pane="overflow"] [data-drpg-flow-unfold]').length,
+            boxes: box.querySelectorAll("[data-drpg-mk], input[name^='mk.']").length,
+            pools: [...box.querySelectorAll("select[name^='pool.']")].map(s => s.name.slice(5)).sort(),
+            setsRole: /setMonokuma\(/.test(save)
+        };
+        equal(JSON.stringify(read), JSON.stringify({
+            layouts: [["overflow", ["pools", "monokumas", "students"]], ["pools", []], ["pools", []], ["pools", []]],
+            folded: [true, true, read.folded[2] === "none" ? "none" : true, false], open: "overflow", show: 1, boxes: 0, pools: monokumaIds, setsRole: false
+        }), "{layouts: [one GM; two; one and an Assistant to grant; two with one to revoke]; the tab buttons hidden (pools, monokumas, students, overflow); the tab open; the Show button; Monokuma boxes; the pool selects' actors; Save sets a role}");
+    }],
     ["R3532 - Reset the season is Season setup's, and Settings takes its tile (E49 A1d; the owner, 11.11.2026): in gm-panel.mjs `PANEL_SECTIONS` no tile `seasonReset`, a tile `settings` last in Between sessions that opens settings-window.mjs `openGameSettingsWindow` and is disabled for a user who may not modify settings; season-setup.mjs `openSeasonSetup`'s footer has a destructive `reset` named by `DRPG.Season.resetTitle`, and its answer runs season-wipe.mjs `resetSeason`; the window and its tile are Season setup / Ustawienia sezonu, the new tile Settings / Ustawienia gry", async () => {
         /*
          * E49 A1d, 11.11.2026. The owner: "Chcialbym wrzucic season reset w set the season up, a calosc przemianowac na

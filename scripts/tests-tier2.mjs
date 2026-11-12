@@ -74137,7 +74137,7 @@ const SCENARIOS = [
             + "(the draws that broke the rule as [named, Hope, Fear]; the pool's move after a plain 2d12, a duality roll's JSON, one with its dice getters)");
     }],
 
-    ["Despair Flow writes only the rows the GM changed and marks what it shows (E15-T8): a pool renamed and a student ticked a Monokuma leave two fallbacks fallbacks and give the new Monokuma no row; the fallback is named in its select, Split evenly sits on the students' tab alone", async () => {
+    ["Despair Flow writes only the rows the GM changed and marks what it shows (E15-T8): a pool renamed and a student moved to nobody leave two fallbacks fallbacks (no Monokuma box since E101); the fallback is named in its select, Split evenly sits on the students' tab alone", async () => {
         /*
          * E15 C6, 25.10.2026; E15-27 to E15-29, audit S10-47, S10-62, S13-11. Despair Flow opened as a GM
          * opens it (`openGmTeamDialog`, the harness's drawn DialogV2), over four students: one assigned to
@@ -74178,13 +74178,16 @@ const SCENARIOS = [
             must(root, "Despair Flow did not open - this would measure nothing");
             const shown = () => [...root.querySelectorAll("footer.form-footer button[data-action]")].filter(b => !b.hidden).map(b => b.dataset.action);
             const tab = key => root.querySelector(`nav.drpg-tabs [data-drpg-tab-key="${key}"]`)?.click();
+            // With one GM the three tabs are folded behind Show (E101 item 6, R4051): shown first, as a GM would.
+            read.unfold = root.querySelectorAll("[data-drpg-flow-unfold]").length <= 1;
+            root.querySelector("[data-drpg-flow-unfold]")?.click();
             tab("pools");
             read.footer = { pools: shown() };
             tab("students");
             read.footer.students = shown();
             read.account = root.querySelector('[data-drpg-pane="pools"] thead th')?.textContent?.trim() ?? null;
-            const mkRow = root.querySelector(`[name="mk.${CSS.escape(ticked.id)}"]`)?.closest("tr");
-            read.notMonokuma = [mkRow?.querySelector("[data-drpg-pool-none]")?.hidden ?? null, mkRow?.querySelector("[data-drpg-pool]")?.hidden ?? null];
+            // No Monokuma box since E101 item 6: the role is the Students window's, and this tab lists Monokumas alone.
+            read.notMonokuma = [root.querySelectorAll("input[name^='mk.']").length, Boolean(root.querySelector(`[name="pool.${CSS.escape(ticked.id)}"]`))];
             const select = actor => root.querySelector(`[name="assign.${CSS.escape(actor.id)}"]`);
             read.rows = [explicit, nobody, implicit].map(actor => {
                 const s = select(actor);
@@ -74196,9 +74199,6 @@ const SCENARIOS = [
             const name = root.querySelector(`[name="poolName.${CSS.escape(gm.id)}"]`);
             must(name, "the pool's name field is not drawn - this would measure nothing");
             name.value = "SUITE E15 C6 pool";
-            const mk = root.querySelector(`[name="mk.${CSS.escape(ticked.id)}"]`);
-            mk.checked = true;
-            mk.dispatchEvent(new Event("change", { bubbles: true }));
             const moved = select(ticked);
             moved.value = NO_MONOKUMA;
             moved.dispatchEvent(new Event("change", { bubbles: true }));
@@ -74213,6 +74213,7 @@ const SCENARIOS = [
             await until(() => open()[0]?.element, 6000);
             const again = open()[0]?.element;
             must(again, "Despair Flow did not open again - this would measure nothing");
+            again.querySelector("[data-drpg-flow-unfold]")?.click();
             again.querySelector('nav.drpg-tabs [data-drpg-tab-key="students"]')?.click();
             const pin = again.querySelector(`[name="assign.${CSS.escape(implicit.id)}"]`);
             must(pin, "the never-assigned student's select is not drawn - this would measure nothing");
@@ -74240,15 +74241,16 @@ const SCENARIOS = [
             // In the kit's tree order since E21 C2a: the primary, then the closing word, then the secondary ones (ui-kit.mjs).
             footer: { pools: ["save", "cancel"], students: ["save", "cancel", "auto"] },
             account: game.i18n.localize("DRPG.Despair.account"),
-            notMonokuma: [false, true],
+            unfold: true,
+            notMonokuma: [0, false],
             rows: [[false, label], [false, game.i18n.localize("DRPG.Assign.nobody")], [true, game.i18n.format("DRPG.Assign.fallbackOption", { name: label })]],
             asterisks: 0,
             outside: true,
-            saved: { [explicit.id]: gm.id, [nobody.id]: NO_MONOKUMA },
+            saved: { [explicit.id]: gm.id, [nobody.id]: NO_MONOKUMA, [ticked.id]: NO_MONOKUMA },
             pin: [true, false, true],
             pinned: true
         }), "Despair Flow wrote a row the GM did not change, or its marks are not the rule's [the footer on the pools' and the students' tab; "
-            + "the pools' first header; a student not ticked: its \"-\" hidden, its select hidden; per student (assigned, nobody, never): the "
+            + "the pools' first header; [Monokuma boxes, a pool select for a student] (E101 item 6); per student (assigned, nobody, never): the "
             + "fallback's class, the option shown; asterisks; \"Outside every pool: 1\"; the assignments after a rename and a student ticked; "
             + "the never-assigned student's pool picked: the option shown is its plain name, still dim, the pool counted; saved: their row names the pool]");
     }],
