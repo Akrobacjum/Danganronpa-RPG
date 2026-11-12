@@ -17354,6 +17354,11 @@ body:not(.drpg-theme-stained-glass) > #drpg-voice-tile[data-place="tray"] {
     --drpg-seq-font: var(--drpg-font-ui);
     --drpg-seq-weight: 800;
     --drpg-seq-case: uppercase;
+    /* Legacy's face is wide (Bahnschrift, its fallbacks wider): its title and stamp stand smaller than the glass's */
+    --drpg-seq-title-size: 88;
+    --drpg-seq-stamp-size: 58;
+    --drpg-seq-stamp-long: 34;
+    --drpg-seq-text-size: 20;
     position: fixed;
     inset: 0;
     z-index: 99980;
@@ -17391,10 +17396,11 @@ body[data-drpg-sequence-cover] :is(#drpg-room-tile, #drpg-room-art, #drpg-voice-
     background: var(--drpg-seq-band);
     clip-path: var(--drpg-seq-band-cut, none);
     padding: calc(34 * var(--drpg-seq-u)) 0 calc(30 * var(--drpg-seq-u));
-    font: var(--drpg-seq-weight) calc(116 * var(--drpg-seq-u)) / 1 var(--drpg-seq-font);
+    font: var(--drpg-seq-weight) calc(var(--drpg-seq-title-size) * var(--drpg-seq-u)) / 1 var(--drpg-seq-font);
     text-transform: var(--drpg-seq-case);
     color: var(--drpg-seq-band-ink);
     letter-spacing: 0.05em;
+    white-space: nowrap;
 }
 #drpg-sequence .drpg-seq-title-sub {
     margin-top: calc(18 * var(--drpg-seq-u));
@@ -17453,13 +17459,14 @@ body[data-drpg-sequence-cover] :is(#drpg-room-tile, #drpg-room-art, #drpg-voice-
     border: calc(10 * var(--drpg-seq-u)) solid var(--drpg-seq-mark);
     color: var(--drpg-seq-mark);
     background: color-mix(in srgb, var(--drpg-seq-dark) 92%, transparent);
-    font: var(--drpg-seq-weight) calc(84 * var(--drpg-seq-u)) / 1.15 var(--drpg-seq-font);
+    font: var(--drpg-seq-weight) calc(var(--drpg-seq-stamp-size) * var(--drpg-seq-u)) / 1.15 var(--drpg-seq-font);
     text-transform: var(--drpg-seq-case);
-    letter-spacing: 0.06em;
+    letter-spacing: 0.04em;
     padding: calc(40 * var(--drpg-seq-u)) 0;
-    overflow-wrap: anywhere;
+    white-space: nowrap;
 }
-#drpg-sequence .drpg-seq-verdict.is-innocent .drpg-seq-stamp { font-size: calc(60 * var(--drpg-seq-u)); }
+#drpg-sequence .drpg-seq-verdict.is-innocent .drpg-seq-stamp { font-size: calc(var(--drpg-seq-stamp-long) * var(--drpg-seq-u)); }
+#drpg-sequence .drpg-seq-people:has(> .drpg-seq-person + .drpg-seq-person) .drpg-seq-stamp { font-size: calc(var(--drpg-seq-stamp-long) * var(--drpg-seq-u)); }
 #drpg-sequence .drpg-seq-name {
     position: relative;
     margin: calc(-30 * var(--drpg-seq-u)) 0 0 calc(-100 * var(--drpg-seq-u));
@@ -17468,10 +17475,16 @@ body[data-drpg-sequence-cover] :is(#drpg-room-tile, #drpg-room-art, #drpg-voice-
     padding: calc(8 * var(--drpg-seq-u)) calc(18 * var(--drpg-seq-u));
     background: var(--drpg-seq-dark);
     color: var(--drpg-seq-light);
-    font: calc(30 * var(--drpg-seq-u)) var(--drpg-seq-font);
+    font: calc((var(--drpg-seq-text-size) + 6) * var(--drpg-seq-u)) var(--drpg-seq-font);
     letter-spacing: 0.06em;
     text-transform: uppercase;
     overflow-wrap: anywhere;
+}
+#drpg-sequence .drpg-seq-name.is-long { font-size: calc(var(--drpg-seq-text-size) * var(--drpg-seq-u)); }
+#drpg-sequence .drpg-seq-people:has(> .drpg-seq-person + .drpg-seq-person) .drpg-seq-name {
+    margin-left: 0;
+    max-width: 100%;
+    font-size: calc(var(--drpg-seq-text-size) * var(--drpg-seq-u));
 }
 #drpg-sequence .drpg-seq-votes {
     position: absolute;
@@ -17495,10 +17508,10 @@ body[data-drpg-sequence-cover] :is(#drpg-room-tile, #drpg-room-art, #drpg-voice-
     padding: 0 calc(14 * var(--drpg-seq-u));
     background: var(--drpg-seq-dark);
     color: var(--drpg-seq-light);
-    font: calc(24 * var(--drpg-seq-u)) var(--drpg-seq-font);
+    font: calc(var(--drpg-seq-text-size) * var(--drpg-seq-u)) var(--drpg-seq-font);
 }
-#drpg-sequence .drpg-seq-vname { width: calc(190 * var(--drpg-seq-u)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#drpg-sequence .drpg-seq-vbar { flex: 1; height: calc(18 * var(--drpg-seq-u)); position: relative; }
+#drpg-sequence .drpg-seq-vname { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#drpg-sequence .drpg-seq-vbar { flex: 0 0 calc(200 * var(--drpg-seq-u)); height: calc(18 * var(--drpg-seq-u)); position: relative; }
 #drpg-sequence .drpg-seq-vbar i { position: absolute; inset: 0; background: var(--drpg-seq-light); transform-origin: 0 50%; }
 #drpg-sequence .drpg-seq-vbar b { position: absolute; top: calc(-10 * var(--drpg-seq-u)); bottom: calc(-10 * var(--drpg-seq-u)); width: calc(4 * var(--drpg-seq-u)); background: var(--drpg-seq-mark); }
 #drpg-sequence .drpg-seq-vrow em { font-style: normal; color: var(--drpg-seq-mark); width: calc(30 * var(--drpg-seq-u)); text-align: right; }
@@ -17510,6 +17523,6 @@ body[data-drpg-sequence-cover] :is(#drpg-room-tile, #drpg-room-art, #drpg-voice-
     padding: calc(6 * var(--drpg-seq-u)) calc(18 * var(--drpg-seq-u));
     background: var(--drpg-seq-dark);
     color: var(--drpg-seq-mark);
-    font: calc(30 * var(--drpg-seq-u)) var(--drpg-seq-font);
+    font: calc((var(--drpg-seq-text-size) + 6) * var(--drpg-seq-u)) var(--drpg-seq-font);
 }
 #drpg-sequence .drpg-seq-verdict:not(.is-guilty) { --drpg-seq-mark: var(--drpg-seq-light); }

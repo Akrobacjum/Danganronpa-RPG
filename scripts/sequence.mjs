@@ -337,7 +337,7 @@ export function verdictBoardElement(board) {
     const people = board.sentenced.map(s => `<div class="drpg-seq-person">
             <div class="drpg-seq-portrait">${s.img ? `<img src="${esc(s.img)}" alt="">` : `<span class="drpg-seq-initial">${esc((s.name ?? "?").slice(0, 1))}</span>`}
                 <div class="drpg-seq-stamp">${esc(stamp)}</div></div>
-            <div class="drpg-seq-name">${esc(s.name)}</div>
+            <div class="drpg-seq-name${String(s.name ?? "").length > 18 ? " is-long" : ""}">${esc(s.name)}</div>
         </div>`).join("");
     el.innerHTML = `<div class="drpg-seq-vband"></div>
         ${people ? `<div class="drpg-seq-people">${people}</div>` : ""}
