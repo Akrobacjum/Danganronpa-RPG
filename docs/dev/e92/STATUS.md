@@ -1,6 +1,6 @@
 # E92 - status (work line claude/e92)
 
-Updated 12.11.2026. The plan is `docs/dev/plans/E92.md` on `claude/plan-130` (read whole). Base: claude/e61-62 at 59d1935
+Updated 12.11.2026. Final: all seven commits in, tested, pushed. The plan is `docs/dev/plans/E92.md` on `claude/plan-130` (read whole). Base: claude/e61-62 at 59d1935
 (E61, E62 and E94). The census of what a Spectator would be counted in: `docs/dev/e92/CENSUS.md`.
 
 ## Done
@@ -15,6 +15,7 @@ Updated 12.11.2026. The plan is `docs/dev/plans/E92.md` on `claude/plan-130` (re
 | C5 | `sheetMode` "spectator"; scripts/spectator-ui.mjs: the line under the clock (its room, "Watch a room" picker through `spectator.move`) and the hidden chat (`drpg-spectator`, components.css) | afc58ba, 91cfc3d |
 | C6 | The Spectators' voice room (`SPECTATOR_ROOM`) behind "Talk with the Spectators" (the player's own User flag, honoured for a Spectator's account alone); the microphone opens there only | 348efde |
 | C7 | Scenario 92-spectator (ci); R3861 (E61's entry and cut-in, E62's transitions, E94's board as a Spectator sees them); GM and player handbooks EN and PL | 0cf830a |
+| fixes | The module's own censuses given the new roads' rows (R6, R220, R379, R432, R553, R382, R1281 - found by the full tiers 0-1 run at C7); 33's ghost check moved before the phases that take the GMs away | c15e378, 9055074 |
 
 New files: scripts/spectator.mjs, scripts/spectator-ui.mjs, audit/harness/scenarios/92-spectator.mjs. Their rows in
 `.claude/rules/code.md`'s table are not written (that file is not this line's to touch): for the coordinator.
@@ -27,7 +28,13 @@ and in it ..."; flow `spectator-move` (partial until its release); scenario chec
 - Tiers 0-1 whole at C1 (81601e2+edits): 1199 ran, 1178 passed, 0 failed, 16 skipped, 6 red (5 E92 markers, 1 E94).
 - Scenarios at C1's tree: 30, 33, 10, 12, 13, 11, 15, 17, 19, 20, 40, 41, 60 green; the run was stopped there, as C2-C6 changed more files.
 - Scenario 92 at C7: 10/10 (run-all, 15 s).
-- The full pre-push run at C7 (0cf830a): see below once it ends.
+- The pre-push run at C7 (0cf830a), on a worktree: tiers 0-1 1179 passed, 7 failed (the seven censuses above, fixed in
+  c15e378), 16 skipped, 1 red; own tier 2 (the Spectator's microphone, "the dead are muted for the trial ...", "Back up
+  the case ...") 7 passed, 0 failed; scenarios 92, 30, 00, 10, 11, 12, 13, 14, 15, 17, 19, 20, 40, 41, 50, 60, 61, 62,
+  63, 65, 66, 67, 71, 72, 73, 74, 75, 76, 81, 83, 86, 87, 88, 89 green; 33 red ("gm has disconnected": my check after
+  its no-GM phases), fixed in 9055074 and green (141 s). These are every scenario `git grep` finds naming a changed
+  file, but 01 (the whole suite) and 84 (hangs headless).
+- At c15e378: tiers 0-1 whole 1202 ran, 1186 passed, 0 failed, 16 skipped, 1 red (E94's). At 9055074: 33 and 92 green.
 
 ## Review shots
 
