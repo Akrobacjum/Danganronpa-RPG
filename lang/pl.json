@@ -1562,6 +1562,8 @@
       "endClosing": "Zakończ Closing Argument"
     },
     "Events": {
+      "redeemTitle": "Redeem czeka",
+      "redeemMeta": "1 akcja za +1 Hope, raz dziennie.",
       "overflowMetaGm": "{count} z {max} w kapeluszu",
       "bodyTitle": "Znaleziono ciało",
       "bodySubRoom": "{victim}, w: {room}",
@@ -1581,7 +1583,8 @@
         "body": "Znaleziono ciało",
         "trial": "Class Trial",
         "assembly": "Zgromadzenie",
-        "motive": "Motive"
+        "motive": "Motive",
+        "redeemHope": "Redeem"
       },
       "incidentTitle": "Zabójstwo w ciemności",
       "incidentTitleDirect": "Twarzą w twarz",

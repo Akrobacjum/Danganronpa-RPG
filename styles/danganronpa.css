@@ -9867,6 +9867,8 @@ body[data-drpg-phase="eclipse"] .drpg-hud-phase-glyph { --drpg-glyph: var(--drpg
 .drpg-event[data-kind="assembly"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-horn); }
 .drpg-event[data-kind="trial"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-gavel); }
 .drpg-event[data-kind="overflow"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-heartcrack); }
+/* E72 C9: a Monocub's Redeem, waiting - the ticket its tile wears. */
+.drpg-event[data-kind="redeemHope"] .drpg-event-glyph { --drpg-glyph: var(--drpg-pix-redeem); }
 
 /* --- the Event panel, in both themes --------------------------------------
    `.drpg-hud-motive` and `.drpg-hud-assembly` were here: two rows of the clock
@@ -10039,6 +10041,8 @@ body.drpg-reduced-motion .drpg-event.mine .drpg-event-meta { animation: none; }
 .drpg-event[data-kind="assembly"] { --acc: var(--drpg-gold-antique); }
 .drpg-event[data-kind="trial"] { --acc: var(--drpg-crimson); }
 .drpg-event[data-kind="overflow"] { --acc: var(--drpg-crimson); }
+/* Redeem gives back Hope, and Hope's colour means Hope alone (E48 K1). */
+.drpg-event[data-kind="redeemHope"] { --acc: var(--drpg-gold); }
 
 /* ==========================================================================
    STAGE 5, THIRD TRANCHE - THE FOURTEEN CRISIS ACTIONS

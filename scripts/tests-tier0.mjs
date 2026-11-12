@@ -7960,6 +7960,34 @@ const REGRESSIONS = [
             "a Monocub is made somewhere but the invitation's acceptance, the old window stands, or monocubDialog opens something else ([the calls that set the flag on, the old window, the API's door])");
     }],
 
+    ["R3805 - the Event panel says Redeem is waiting to a Monocub's own player: a card of its own in renderEvents' list, redrawn when the Monocubs' copy or a Hope changes, with its glyph and its words in both languages (E72 C9; S18-62, DC35)", async () => {
+        /*
+         * E72 C9, 12.11.2026; audit S18-62, the plan's C9 ("Redeem waiting" in Events for the owner). A Monocub's Redeem
+         * comes back once a day, and nothing outside the sheet's tile said so. Read off the source: events.mjs builds a
+         * `redeemCard` and renderEvents' list draws it; hud.mjs redraws the panel on `drpgCubsChanged` (the owner's copy
+         * of the Monocubs' record, where Redeem's day is) and on a Hope of a Monocub changing; danganronpa.css gives the
+         * card the Redeem glyph; lang/en.json and lang/pl.json hold its title, its line and its ticker word. What the card
+         * says, and to whom, is tier 2's. Red at f837c2f: none of it.
+         */
+        const sources = new Map(await otherSources());
+        const events = stripComments(sources.get("events.mjs") ?? "");
+        const hud = stripComments(sources.get("hud.mjs") ?? "");
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => (r.ok ? lfText(r) : "")).catch(() => ""));
+        must(events.length > 5000 && hud.length > 5000 && css.length > 5000, "events.mjs, hud.mjs or danganronpa.css not read - this would measure nothing");
+        const render = bodyOf(events, "export function renderEvents(", { until: "\n}\n" });
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const keys = ["redeemTitle", "redeemMeta"].map(k => [en.DRPG?.Events?.[k], pl.DRPG?.Events?.[k]])
+            .concat([[en.DRPG?.Events?.ticker?.redeemHope, pl.DRPG?.Events?.ticker?.redeemHope]]);
+        const read = [/export function redeemCard\(/.test(events), /\bredeemCard\(\)/.test(render),
+            /Hooks\.on\("drpgCubsChanged",[^;]*renderEvents\(\)/.test(hud),
+            /\.drpg-event\[data-kind="redeemHope"\] \.drpg-event-glyph \{ --drpg-glyph: var\(--drpg-pix-redeem\); \}/.test(css)
+                && /\.drpg-event\[data-kind="redeemHope"\] \{ --acc:/.test(css),
+            keys.every(pair => pair.every(v => typeof v === "string" && v.length > 0))];
+        equal(JSON.stringify(read), JSON.stringify([true, true, true, true, true]),
+            "the Event panel has no Redeem card, does not draw it, is not redrawn for it, has no glyph for it, or lacks its words ([builder, drawn, redrawn, glyph and accent, words])");
+    }],
+
     ["R302 - a private roll's whisper is written first and in its own try, its mode after and apart, and CONST.DICE_ROLL_MODES and core.rollMode are used nowhere (S02-68)", async () => {
         /*
          * E33 C11 (audit S02-68; the plan's V7). Until 1.2.69 private-rolls.mjs wrote a roll's

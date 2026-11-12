@@ -23,7 +23,7 @@
  * exported before, so an importer of the HUD imports this file as before.
  */
 
-import { MODULE_ID, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT, ECLIPSE_MOVES } from "./config.mjs";
+import { MODULE_ID, FLAGS, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT, ECLIPSE_MOVES } from "./config.mjs";
 // A leaf (config, settings, utils): the Eclipse allowance under a darkening, for the tooltip.
 import { overflowCrossings } from "./overflow.mjs";
 import { getClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay } from "./clock.mjs";
@@ -239,6 +239,19 @@ export function registerHud() {
     // one, which the room tile under the clock says and repaints for after this
     // render (`drpgHudRendered`, room-tile.mjs).
     Hooks.on("renderDhCountdowns", () => renderHud());
+
+    /* THE REDEEM CARD'S TWO SOURCES (E72 C9, 12.11.2026): whether a Monocub's Redeem is free is read off the owner's
+       copy of the Monocubs' record, which says when it arrives (`drpgCubsChanged`, settings.mjs), and off the Monocub's
+       own Hope and flag, which a write of the player's own student changes. Only the panel: nothing else here reads
+       either, and only a player's own student, whose card it is. */
+    Hooks.on("drpgCubsChanged", () => renderEvents());
+    Hooks.on("updateActor", (actor, changes) => {
+        if (game.user?.isGM || !actor?.isOwner) return;
+        // The flag's key as written, or with the prefix an unset puts before it.
+        const flag = Object.keys(changes?.flags?.[MODULE_ID] ?? {}).some(k => k.endsWith(FLAGS.monocub));
+        if (changes?.system?.resources?.hope === undefined && !flag) return;
+        renderEvents();
+    });
 
     // Foundry's token HUD, not this one: a student's bars are display-only for a player (E29 C7).
     Hooks.on("renderTokenHUD", stillTokenBars);

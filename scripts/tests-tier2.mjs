@@ -17598,6 +17598,52 @@ const SCENARIOS = [
             "a Monocub's tile does not say why it is shut ([Redeem's, Ask for Hope's sentence] free, Redeem used, an ask open, the Hope full)");
     }],
 
+    ["the Event panel says Redeem is waiting to a Monocub's own player alone, and not once it is used today or the Hope is full (E72 C9)", async () => {
+        /*
+         * E72 C9, 12.11.2026; audit S18-62, the plan's C9 ("Redeem waiting" in Events for the owner). events.mjs
+         * `redeemCard(user)` answers the card for the Monocubs `user` owns whose Redeem is free to use (monocub.mjs
+         * `cubBlockSaid`, the tile's own reading), or null. A Monocub with two Hope and nothing used, read for its player
+         * (a) and for a GM (b); Redeem used today (c); the Hope full (d). Read: the card's kind and its line naming the
+         * Monocub, or null. Red at f837c2f's runtime: no redeemCard.
+         */
+        const [cub] = cast(1);
+        needs(world.ownedByPlayer(cub), "a player who owns the Monocub, whose screen the card is for");
+        const EV = await import("./events.mjs");
+        const { cubStore } = await import("./gm-stores.mjs");
+        const { resourceMax } = await import("./character.mjs");
+        const player = game.users.find(u => !u.isGM && cub.testUserPermission(u, "OWNER"));
+        const was = cub.system.resources.hope.value;
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const read = {};
+        try {
+            ok(typeof EV.redeemCard === "function", "events.mjs has no redeemCard - the Event panel does not say Redeem is waiting (E72 C9)");
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await cub.update({ "system.resources.hope.value": 2 });
+            if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            await settle();
+            const card = user => { const c = EV.redeemCard(user); return c ? [c.kind, c.sub === cub.name] : null; };
+            read.a = card(player);
+            read.b = card(game.user);
+            const clock = getClock();
+            await cubStore.patch(cub.id, { redeemDay: { chapter: clock.chapter, epoch: seasonEpoch(), day: clock.day } });
+            read.c = card(player);
+            await cubStore.patch(cub.id, { redeemDay: null });
+            await cub.update({ "system.resources.hope.value": resourceMax(cub, "hope") });
+            await settle();
+            read.d = card(player);
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await cub.update({ "system.resources.hope.value": was });
+            if (cubStore) {
+                if (rowWas) await cubStore.patch(cub.id, rowWas);
+                else if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ a: ["redeemHope", true], b: null, c: null, d: null }),
+            "the Redeem card is not drawn for the Monocub's player alone while Redeem is free ([kind, names the Monocub] for its player, a GM, used today, the Hope full)");
+    }],
+
     ["a Monocub crosses to a connected room with no Move and no action, and the room of a running murder refuses it on the GM in a Seal's code and words (E72 C10)", async () => {
         /*
          * E72 C10, 12.11.2026; the owner's amendments of 28.10, 04.11 and 06.11; Q-E72-5's default. A Monocub paid for a
