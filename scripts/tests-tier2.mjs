@@ -8989,6 +8989,50 @@ const SCENARIOS = [
         ok(boundAt >= 1900 && boundAt < 3000, `with no card the reading answered after ${boundAt} ms; the wait's bound is PICK_WAIT_MS (2000)`);
     }],
 
+    ["a payment that lands while the GM waits for it is taken as it lands, not at the next poll, and with none the wait still ends at its bound (DH212 2)", async () => {
+        /*
+         * DH212 2, 12.11.2026 (docs/dev/DH212/WAITS.md). A draw, a claimed ask and a Hope Call's progress wait on the GM for
+         * the roller's payment to reach it (roll-draw.mjs `drawRefusal`, `claimTicket`, `takeCallPayment`): a ticket
+         * `notePayments` writes on the payment's `updateActor`. Until DH212 each read the tickets every 100 ms for up to
+         * `PAY_WAIT_MS`, so a payment that landed was taken up to 100 ms late. Driven on this GM through `takeCallPayment`
+         * (the one of the three exported): the wait started, and 130-290 ms later one Hope written down as the player's
+         * browser writes it (`PAID_AS_PLAYER`), five times; read: what each wait answered and how long after the write.
+         * Then the control, no payment: false, at the bound and not before.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the payment is a player's write to their own character");
+        const { theirs } = playerAndCharacters();
+        const D = await import("./roll-draw.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const HOPE = "system.resources.hope.value";
+        const hope = Number(theirs.system.resources.hope?.value) || 0;
+        const asPlayer = { [D.PAID_AS_PLAYER]: true };
+        const lags = [], taken = [];
+        let boundAt = null, unpaid = null;
+        try {
+            D.forgetPayments(theirs.id);
+            for (const wait of [130, 170, 210, 250, 290]) {
+                await trustedWrite(theirs, { [HOPE]: 2 }, { reason: "gmRuling" });
+                const waiting = D.takeCallPayment(theirs.id, 1).then(value => ({ value, at: performance.now() }));
+                await new Promise(resolve => setTimeout(resolve, wait));
+                await trustedWrite(theirs, { [HOPE]: 1 }, { reason: "gmRuling", ...asPlayer });
+                const paidAt = performance.now();
+                const { value, at } = await waiting;
+                taken.push(value);
+                lags.push(Math.round(at - paidAt));
+            }
+            const started = performance.now();
+            unpaid = await D.takeCallPayment(theirs.id, 1);
+            boundAt = Math.round(performance.now() - started);
+        } finally {
+            D.forgetPayments(theirs.id);
+            if ((Number(theirs.system.resources.hope?.value) || 0) !== hope) await trustedWrite(theirs, { [HOPE]: hope }, { reason: "gmRuling" });
+        }
+        equal(stableJson(taken), stableJson(Array(5).fill(true)), "a payment that landed during the wait was not taken");
+        ok(lags.length === 5 && lags.every(lag => lag < 25), `the wait answered ${stableJson(lags)} ms after each payment was written; a payment is taken as it lands (each under 25 ms), not at a poll`);
+        equal(unpaid, false, "with no payment the wait did not answer false");
+        ok(boundAt >= 1400 && boundAt < 2500, `with no payment the wait answered after ${boundAt} ms; its bound is PAY_WAIT_MS (1500)`);
+    }],
+
     ["a pass after a GM's \"Change to\" voids that card's ruling: a later roll is held to no pick, a Search to Eye, and a pass for another definition voids nothing (E68 review R3)", async () => {
         /*
          * E68 review R3, 10.11.2026; DA46. A player's pass after "Change to" (trait-ruling.mjs `rollChanged`) wrote a line

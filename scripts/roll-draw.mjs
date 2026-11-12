@@ -187,6 +187,8 @@ export function registerRollDraw() {
     Hooks.once("ready", () => { for (const actor of game.actors ?? []) notePayments(actor); });
     Hooks.on("createActor", actor => notePayments(actor));
     Hooks.on("updateActor", notePayments);
+    // After `notePayments`, whose listener runs first on the same hook: the waits read the tickets it wrote (DH212 2).
+    Hooks.on("updateActor", wakePayments);
     // On any build, drawn or not (E76b): Daggerheart's `buildConfigure` calls this before the window opens and the
     // roll is made, so the window, the roll's options and the claim's nonce read the marks a 2.12 MoveContext dropped.
     Hooks.on(`${CONFIG.DH?.id ?? "daggerheart"}.preRollDuality`, config => { adoptMarks(config); });
@@ -928,6 +930,39 @@ function ticketsOf(actorId) {
     return kept;
 }
 
+/*
+ * A PAYMENT IS TAKEN AS IT LANDS (DH212 2, 12.11.2026; docs/dev/DH212/WAITS.md). A draw, a claimed ask and a Hope Call's
+ * progress wait for the roller's payment to reach this GM (`drawRefusal`, `claimTicket`, `takeCallPayment`). Until DH212
+ * each read the tickets every 100 ms for up to `PAY_WAIT_MS`, so a payment that landed was taken up to 100 ms late
+ * (tier 2's "a payment that lands while the GM waits for it ...", at 13513d3a: [68,27,87,47,12] ms after five writes).
+ * Now every wait is woken on `updateActor` once `notePayments` has written (`wakePayments`), and reads again then; it
+ * still reads every 100 ms between wakes, since a ticket a riding part takes can also come from another GM's record
+ * (`handedOver`), which no `updateActor` here says. The bound and the answer are the poll's.
+ */
+const paymentWaiters = new Set();
+
+/** What `find` answers once it answers, read at each payment noted here and every 100 ms, until `ms` is over. */
+async function untilPaid(find, ms = PAY_WAIT_MS) {
+    for (const end = Date.now() + ms; !find() && Date.now() < end;) {
+        await new Promise(resolve => {
+            let timer = null;
+            const wake = () => {
+                clearTimeout(timer);
+                paymentWaiters.delete(wake);
+                resolve();
+            };
+            paymentWaiters.add(wake);
+            timer = setTimeout(wake, Math.max(0, Math.min(100, end - Date.now())));
+        });
+    }
+    return find();
+}
+
+/** Every wait above, woken: on `updateActor`, registered after `notePayments`, so each reads the tickets it wrote. */
+function wakePayments() {
+    for (const wake of [...paymentWaiters]) wake();
+}
+
 /**
  * On `updateActor` (and `createActor`, and at `ready` for every character), on every GM: what a
  * player's own write took down is a payment, what it put back takes back as many undrawn tickets
@@ -1057,10 +1092,7 @@ async function drawRefusal(actor, key, context) {
        of each for a taker and a body since their last Take of it is the one their next Take reads (`lootDrawRefusal` below, the
        loot bind); the GM's run asks the one gate before anything moves (handover.mjs `lootBody`). */
     if (PAID_BY_NOTHING.includes(key)) return lootDrawRefusal(actor, context);
-    for (const end = Date.now() + PAY_WAIT_MS; !ticketFor(actor.id, key) && Date.now() < end;) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    const ticket = ticketFor(actor.id, key);
+    const ticket = await untilPaid(() => ticketFor(actor.id, key));
     if (!ticket) return "no payment of that character's stands for that roll";
     // An undrawn ticket a riding part takes is one a GM before this one drew its partner on (`handedOver`): both are stamped.
     const handed = !ticket.kinds.length && RIDES_ONLY.includes(key) ? handedOver(actor.id, key) : null;
@@ -1103,10 +1135,7 @@ function lootDrawRefusal(actor, context) {
 export async function claimTicket(actorId, kind) {
     const pays = paysFor(kind);
     const find = () => ticketsOf(actorId).find(ticket => !ticket.kinds.length && pays.includes(ticket.pay)) ?? null;
-    for (const end = Date.now() + PAY_WAIT_MS; !find() && Date.now() < end;) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    const ticket = find();
+    const ticket = await untilPaid(find);
     if (!ticket) return false;
     ticket.kinds.push(kind);
     return true;
@@ -1152,10 +1181,7 @@ export function forgetPayments(actorId) {
  */
 export async function takeCallPayment(actorId, cost) {
     const find = () => ticketsOf(actorId).find(ticket => ticket.pay === "hope" && !ticket.kinds.length && ticket.size >= cost);
-    for (const end = Date.now() + PAY_WAIT_MS; !find() && Date.now() < end;) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    const ticket = find();
+    const ticket = await untilPaid(find);
     if (!ticket) return false;
     ticket.kinds.push("call");
     return true;
