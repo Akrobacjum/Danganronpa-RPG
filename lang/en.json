@@ -257,7 +257,7 @@
       },
       "enforceAnonymity": {
         "name": "Keep character sheets anonymous",
-        "hint": "Another player's sheet opens redacted: name, portrait, Health and what they are holding. Statistics, Sanity, Hope, actions, inventory and Truth Bullets are hidden. Each player still owns their own sheet in full."
+        "hint": "Another player's sheet opens redacted: name, portrait, Health, and what they are holding. Statistics, Sanity, Hope, actions, inventory and Truth Bullets are hidden. Each player still owns their own sheet in full."
       },
       "searchTokensPerRoom": {
         "name": "Search Tokens per room",
@@ -265,11 +265,11 @@
       },
       "lockRollDialog": {
         "name": "Lock the roll window for players",
-        "hint": "Players cannot touch the dice, the statistic, advantage, experiences or the bonus - those come from the action, a Hope Call or the GM. Spending an experience is the Experience Hope Call. GMs are unaffected."
+        "hint": "Players cannot touch the dice, the statistic, advantage, experiences, or the bonus - those come from the action, a Hope Call or the GM. Spending an experience is the Experience Hope Call. GMs are unaffected."
       },
       "roomVisibility": {
         "name": "Players only see who is in their room",
-        "hint": "Hides other characters unless they stand in the same room. Walls and vision get most of the way there; this closes the gaps left by doorways, archways and maps built without walls. GMs see everything."
+        "hint": "Hides other characters unless they stand in the same room. Walls and vision get most of the way there; this closes the gaps left by doorways, archways, and maps built without walls. GMs see everything."
       },
       "isoTokenShield": {
         "name": "Guard token editing from Isometric Perspective",
@@ -280,12 +280,12 @@
         "hint": "Lights the whole map and lets the module's room fog hide things: the room you are in is clear, rooms you have visited show through a veil, the rest is fogged. Off, Foundry's own vision applies. GMs see everything."
       },
       "lockPlayerResources": {
-        "name": "Players cannot edit Actions, Hope, Health, Sanity or statistics",
+        "name": "Players cannot edit Actions, Hope, Health, Sanity, or statistics",
         "hint": "Those move through play - spend an action, take a rest, earn a Level Up. On, a player's own edits of them are put back or flagged to the GMs, and their pips are display-only for players; off, they are only listed for the GMs. Items and effects are judged either way, and so is what changed while no GM was connected, when one returns. GMs are unaffected."
       },
       "autoApproveTraits": {
         "name": "Approve statistic proposals in Daily Life automatically",
-        "hint": "On, a player's proposed statistic for a Search or a project without a statistic is approved without a GM's press, and the card in their thread says so. Fights, openings and Dynamic actions always ask a GM; Resolve asks nobody."
+        "hint": "On, a player's proposed statistic for a Search or a project without a statistic is approved without a GM's press, and the card in their thread says so. Fights, openings, and Dynamic actions always ask a GM; Resolve asks nobody."
       },
       "friskForce": {
         "name": "Frisk: forcing after a refusal",
@@ -321,11 +321,11 @@
       },
       "pixelFont": {
         "name": "Pixel font",
-        "hint": "Monokuma Legacy only, and on by default there: Press Start 2P on interface chrome - HUD, Despair, character name, statistic labels, tabs. Journals, chat and editable fields keep the normal face so long text stays readable. The Stained Glass theme has its own two faces and ignores this."
+        "hint": "Monokuma Legacy only, and on by default there: Press Start 2P on interface chrome - HUD, Despair, character name, statistic labels, tabs. Journals, chat, and editable fields keep the normal face so long text stays readable. The Stained Glass theme has its own two faces and ignores this."
       },
       "wideProjectWindows": {
         "name": "Wide project windows",
-        "hint": "Create a project, Edit project and Propose a project open wider on this screen. Off, they open at the width they always had."
+        "hint": "Create a project, Edit project, and Propose a project open wider on this screen. Off, they open at the width they always had."
       },
       "language": {
         "name": "Language",
@@ -337,7 +337,7 @@
       },
       "moveAudit": {
         "name": "A player's token moved through a wall",
-        "hint": "What happens when a player's token is moved through a wall its character could not pass: a line in the Debug log, or the token put back where it stood, its player told and the GMs warned.",
+        "hint": "What happens when a player's token is moved through a wall its character could not pass: a line in the Debug log, or the token put back where it stood, its player told, and the GMs warned.",
         "log": "Note it in the Debug log",
         "sendBack": "Send the token back"
       },
@@ -381,7 +381,7 @@
       },
       "uiScale": {
         "name": "Interface scale",
-        "hint": "One factor on the interface, 80% to 140%. Under Stained Glass the screen's own factor rides under it - 2560 x 1440 is 100%, and a smaller screen draws smaller, down to 70%. Under Monokuma Legacy the slider is the whole factor. It moves this module's type, its panels and its window boxes, and with them Foundry's own chrome and the character sheet; the map is never scaled, and the smallest type stops at 10px. Only affects this browser."
+        "hint": "One factor on the interface, 80% to 140%. Under Stained Glass the screen's own factor rides under it - 2560 x 1440 is 100%, and a smaller screen draws smaller, down to 70%. Under Monokuma Legacy the slider is the whole factor. It moves this module's type, its panels, and its window boxes, and with them Foundry's own chrome and the character sheet; the map is never scaled, and the smallest type stops at 10px. Only affects this browser."
       },
       "debug": {
         "name": "Verbose console logging",
@@ -389,11 +389,11 @@
       },
       "musicEnabled": {
         "name": "Music follows the game state",
-        "hint": "Swaps the playlist when the Eclipse opens, a trial or investigation begins, the time of day turns, or the game goes on hold. Map the playlists first: GM panel, Sound, Music. The murder row is separate: it plays only for the people in the incident and the GMs, whatever this says."
+        "hint": "Swaps the playlist when the Eclipse opens, a trial, or investigation begins, the time of day turns, or the game goes on hold. Map the playlists first: GM panel, Sound, Music. The murder row is separate: it plays only for the people in the incident and the GMs, whatever this says."
       },
       "voiceEnabled": {
         "name": "Regional voice (needs LiveKit AVClient)",
-        "hint": "Every mapped room becomes its own LiveKit channel - you hear only whoever stands in the room with you. Needs avclient-livekit installed, active and pointed at a working server. Off by default."
+        "hint": "Every mapped room becomes its own LiveKit channel - you hear only whoever stands in the room with you. Needs avclient-livekit installed, active, and pointed at a working server. Off by default."
       },
       "voiceTile": {
         "name": "Voice tile instead of the camera dock",
@@ -449,7 +449,7 @@
       "equipped": "Equipped",
       "groupUsables": "Usables",
       "groupGear": "Gear",
-      "sharedSlots": "Murder Weapons, Cleaning Tools and Tools share these {n} slots between them.",
+      "sharedSlots": "Murder Weapons, Cleaning Tools, and Tools share these {n} slots between them.",
       "groupTruthBullets": "Truth Bullets",
       "bulletSortLabel": "Group by",
       "bulletsByChapter": "Chapter",
@@ -470,10 +470,10 @@
       "biographyChanged": "Someone else changed this character's Background meanwhile. Your text is still in the field, not saved: leave the field again and it replaces theirs."
     },
     "Guard": {
-      "blocked": "Only the GM changes that. Actions, Hope and statistics move through play.",
+      "blocked": "Only the GM changes that. Actions, Hope, and statistics move through play.",
       "nameLocked": "Only a GM can rename an item. What a thing is called is part of the evidence.",
       "descriptionLocked": "Only a GM edits what an item says. What a thing is is part of the evidence.",
-      "itemLocked": "Only a GM edits an item's name, picture or description. What a thing is is part of the evidence."
+      "itemLocked": "Only a GM edits an item's name, picture, or description. What a thing is is part of the evidence."
     },
     "Listen": {
       "prompt": "You are in {room}. Which neighboring room?",
@@ -539,7 +539,7 @@
         "free": "This costs nothing."
       },
       "nothingLeft": {
-        "objection": "No action, no Hope and no Sanity left, so you cannot object.",
+        "objection": "No action, no Hope, and no Sanity left, so you cannot object.",
         "analyze": "No action, no Hope and no Sanity left, so there is nothing to pay for Analyze with.",
         "analyzeOneStep": "No action left, so there is nothing to pay for Analyze with.",
         "tamper": "No action left, and no Sanity to give instead.",
@@ -886,7 +886,7 @@
         "despairDie": "Despair die",
         "modifier": "Modifier",
         "statistic": "Statistic modifier",
-        "bonus": "Advantage, disadvantage and experience"
+        "bonus": "Advantage, disadvantage, and experience"
       },
       "costActions": { "one": "{n} action", "other": "{n} actions" },
       "costFree": "free",
@@ -948,7 +948,7 @@
       "gmPrompt": "{action} - what are you trying to do? The GM sees this with your roll.",
       "placeholder": {
         "analyze": "e.g. Analyzing the torn cloth from the hallway.",
-        "directMurder": "Who, where and how - as agreed beforehand."
+        "directMurder": "Who, where, and how - as agreed beforehand."
       },
       "analyzeGm": "Score this against the Analyze table for that Truth Bullet. A failure locks it for them until the chapter ends.",
       "murderNobody": "Nobody here to kill. The attempt is spent; try again another time of day.",
@@ -1210,7 +1210,7 @@
       "noLair": "- no room -",
       "dialogTitle": "The Mastermind",
       "lairLabel": "The Mastermind's room",
-      "lairNote": "From inside this room they see every token on the map, the way you do; step out and it is gone. Locked doors, seals, other bedrooms and hidden stashes already open for them everywhere - the room is where the cameras are.",
+      "lairNote": "From inside this room they see every token on the map, the way you do; step out and it is gone. Locked doors, seals, other bedrooms, and hidden stashes already open for them everywhere - the room is where the cameras are.",
       "finalRunningNote": "This trial is the Final Trial.",
       "privacyWarning": "This screen names the Mastermind. Do not share your view while it is open.",
       "whoIs": "Who is the Mastermind?",
@@ -2373,7 +2373,7 @@
       "imageColumn": "Picture",
       "imagePick": "Choose a picture",
       "imageClear": "Remove the picture",
-      "imageRefused": "{room}: the picture was not saved. Pick a jpg, png, webp or avif from this game's files, or on The Forge from your Assets Library.",
+      "imageRefused": "{room}: the picture was not saved. Pick a jpg, png, webp, or avif from this game's files, or on The Forge from your Assets Library.",
       "tabFog": "Fog",
       "tabScenes": "Scenes",
       "fogIntro": "Which rooms each character has already discovered on this scene. The room they are standing in is always clear; this is only about rooms they have been to before, which show as a dim veil rather than full fog.",
@@ -2418,7 +2418,7 @@
       "isRoomHint": "Whether this region is a room. A region with a Teleport or level-change behaviour, or one a player drew, cannot be one.",
       "notSharedColumn": "No privacy",
       "notSharedHint": "Leave this region out of the rooms-per-player count. Changes no rule.",
-      "notSharedNote": "“No privacy” is for corridors, stairwells and anywhere nobody can talk privately. It changes only the room count - the ratio line above, the same row in Season setup and Pre-season checks; movement, searching, rests and fog are unaffected. Bedrooms are already excluded, by having an owner.",
+      "notSharedNote": "“No privacy” is for corridors, stairwells and anywhere nobody can talk privately. It changes only the room count - the ratio line above, the same row in Season setup and Pre-season checks; movement, searching, rests, and fog are unaffected. Bedrooms are already excluded, by having an owner.",
       "neighboursColumn": "Neighbours",
       "neighboursHint": "The rooms this one has a door to, separated by commas. Blank: its walls decide (the greyed names).",
       "neighboursNote": "“Neighbours” is where a door overrules the map: list the rooms this one opens into, separated by commas. Two rooms are connected when either lists the other, both ways. A room with a list is connected to nothing else, and a room beside it cannot walk in unless one of the two lists the other. Left blank, a room's neighbours are the rooms without a list whose walls share an edge with its own (a corner is not enough), and every room that lists it. A room the lists and the walls leave with no neighbour has no door out. A room that has no list, is in no list and touches no other room, not even at a corner, is not checked: a crossing from it may go to any room.",
@@ -2519,7 +2519,7 @@
       "doneEndTrial": "Closed the trial; the campaign is back in Daily Life.",
       "doneNextMorning": "The next chapter opens on the morning of day {day}, with actions and Search Tokens refilled.",
       "doneInvestigationOver": "The Investigation is over; the campaign is back in Daily Life.",
-      "endTwice": "This End of chapter window was opened on chapter {chapter}, session {session}, day {day}, and the clock's chapter, session or day has moved since - by another End of chapter, by Edit campaign, or by the time of day turning into a new day. Nothing was done: open End of chapter again to choose against the clock as it stands now.",
+      "endTwice": "This End of chapter window was opened on chapter {chapter}, session {session}, day {day}, and the clock's chapter, session, or day has moved since - by another End of chapter, by Edit campaign, or by the time of day turning into a new day. Nothing was done: open End of chapter again to choose against the clock as it stands now.",
       "endPhaseMoved": "This End of chapter window was opened in {opened}, and the clock has read {now} since - the phase changed after the window was drawn, so what it offered to close is not what is sitting now. Nothing was done: open End of chapter again to choose against the clock as it stands now.",
       "endPrimaryOnly": "Only the primary GM, {name}, can end the chapter. Ask {name}, or end it when you are the only GM connected.",
       "endFailed": "The end of the chapter stopped at: {steps}. Finish the chapter's end does the rest.",
@@ -2727,8 +2727,8 @@
         "plant": "{from} planted “{name}” on {to}, but it could not be taken off {from}'s sheet. There is one too many now - remove it from {from}'s sheet."
       },
       "keyAlreadyHeld": "You already have a key to {room}. You still hold only one.",
-      "changedMidway": "“{name}” changed on {from}'s sheet while it was on its way to {to} - used, broken or gone. Nothing changed hands.",
-      "changedMidwayKept": "“{name}” changed on {from}'s sheet while it was on its way to {to} - used, broken or gone - and the copy could not be taken back. There is one too many now - remove it from {to}'s sheet.",
+      "changedMidway": "“{name}” changed on {from}'s sheet while it was on its way to {to} - used, broken, or gone. Nothing changed hands.",
+      "changedMidwayKept": "“{name}” changed on {from}'s sheet while it was on its way to {to} - used, broken, or gone - and the copy could not be taken back. There is one too many now - remove it from {to}'s sheet.",
       "alreadyHasIt": "Nothing changed hands.",
       "shared": "{who} now has a copy of {name}.",
       "gave": "{name} is now {who}'s.",
@@ -2851,8 +2851,8 @@
       },
       "migratedTitle": "Truth Bullets brought up to date",
       "migrated": {
-        "one": "{n} Truth Bullet made before this version now carries a type, a visibility and a chapter. Its real type could not be recovered, so it is recorded as Neutral - correct it from Give / take items if it matters.",
-        "other": "{n} Truth Bullets made before this version now carry a type, a visibility and a chapter. Their real type could not be recovered, so each is recorded as Neutral - correct the ones that matter from Give / take items."
+        "one": "{n} Truth Bullet made before this version now carries a type, a visibility, and a chapter. Its real type could not be recovered, so it is recorded as Neutral - correct it from Give / take items if it matters.",
+        "other": "{n} Truth Bullets made before this version now carry a type, a visibility, and a chapter. Their real type could not be recovered, so each is recorded as Neutral - correct the ones that matter from Give / take items."
       },
       "editReverted": "{player} changed their Truth Bullet “{bullet}” - what it says or what it is. The change was put back: only a GM writes on evidence.",
       "editUnrestored": "{player} changed the Truth Bullet “{bullet}”, and there was no record of it to put it back from. The change stayed on that one copy and went no further. Check it by hand."
@@ -2890,7 +2890,7 @@
       "authorLabel": "Left by (GMs only)",
       "authorUnknown": "- unknown -",
       "authorReplaceTitle": "Who left this Remnant",
-      "authorReplace": "This Remnant names {was} as the one who left it. Name {now} instead? It counts as theirs from now on, as a Remnant a player left would: Observe, an incident's tie and Tamper read it.",
+      "authorReplace": "This Remnant names {was} as the one who left it. Name {now} instead? It counts as theirs from now on, as a Remnant a player left would: Observe, an incident's tie, and Tamper read it.",
       "authorReplaceYes": "Replace",
       "revealWarning": "Remnants are your notes. Revealing this puts it on the map for everyone.",
       "dynamicNote": "{actor} did something in {room} (roll {total}): {what}",
@@ -3116,9 +3116,9 @@
       "notInClass": "Not in the class",
       "outTooltip": "Mark as not in the class: an NPC, with no actions, ballots or Level Ups.",
       "inTooltip": "Not in the class. Press to make them a student again.",
-      "markedOut": "{name} is not in the class: no actions, ballots or Level Ups.",
+      "markedOut": "{name} is not in the class: no actions, ballots, or Level Ups.",
       "markedIn": "{name} is a student again.",
-      "npcLine": "Not in the class: no actions, ballots or Level Ups.",
+      "npcLine": "Not in the class: no actions, ballots, or Level Ups.",
       "candidates": "No player owns {names}. If one is an NPC, mark it Not in the class on its sheet.",
       "deathMark": "Dead",
       "deadStill": "Outside the Class Trial you still speak at the table. In it your microphone is off and you hold no ballot."
@@ -3323,7 +3323,7 @@
       "choosePrompt": "Start something new, or push a project that already exists?",
       "startNew": "Propose a project",
       "workOn": "Work on project",
-      "agreedWarning": "Fill this in as your side of the agreement. The GM reads it, may change the scale, the room or the wording, and only then does the project exist.",
+      "agreedWarning": "Fill this in as your side of the agreement. The GM reads it, may change the scale, the room, or the wording, and only then does the project exist.",
       "startNote": "Nothing is created yet. This goes to the GM as a proposal - they approve it, adjust it, or turn it down.",
       "indirectMine": "Indirect murder - kept secret, so only you and the GMs see it",
       "trait": "Required work",
@@ -3856,7 +3856,7 @@
       "placeTooltip": "Which pools hold this item",
       "placeTitle": "Where does {name} live?",
       "placeIntro": "Tick every pool this item should be in. Ticking a new one copies it there, unticking one takes it out, and unticking the pool you are looking at moves it.",
-      "placeRolesNote": "The description, the picture and the roles travel with it. A tier pool below Tier 2 takes no roles, and no pool takes a role that is its own category.",
+      "placeRolesNote": "The description, the picture, and the roles travel with it. A tier pool below Tier 2 takes no roles, and no pool takes a role that is its own category.",
       "placeSave": "Save",
       "placeNone": "An item has to live in at least one pool. Use the row's ✕ to delete it outright.",
       "placeUnchanged": "{name} is already in exactly those pools.",
@@ -3909,7 +3909,7 @@
       "summaryUnder": "Chapter {chapter} · Day {day} · Session {session}",
       "summaryEclipse": "{summary} · ECLIPSE",
       "rewindDuringEclipse": "An Eclipse is running, so the clock has not moved yet and there is nothing to step back to. End the Eclipse from the GM panel - it can end without advancing.",
-      "takenBack": "Taken back: the actions, the Free Moves, the Search Tokens and the seals are as they were before this time of day began.",
+      "takenBack": "Taken back: the actions, the Free Moves, the Search Tokens, and the seals are as they were before this time of day began.",
       "eclipseStillOn": "The clock moved, but the Eclipse is still running. End it from the clock's chevron when you are ready - until then tokens place freely and murders are refused.",
       "campaignName": "Campaign name",
       "chapter": "Chapter",
@@ -3976,7 +3976,7 @@
       "nextSeasonSetup": "The season is not set up yet. Next in the Season checklist: {step}.",
       "nextSeasonSetupAside": "The Season checklist still waits on: {step}.",
       "advance": "Next time of day",
-      "advanceTooltip": "Move the clock on without an Eclipse: refills actions, Free Moves and Search Tokens. At Night this also starts the next day and session.",
+      "advanceTooltip": "Move the clock on without an Eclipse: refills actions, Free Moves, and Search Tokens. At Night this also starts the next day and session.",
       "advanceOffEclipse": "The Eclipse is running: its end moves the clock on.",
       "advanceOffTrial": "A Class Trial is running: the chapter's end moves the clock on.",
       "advanceDuringEclipse": "An Eclipse is running - end it from the clock's chevron; its end moves the clock.",
@@ -3991,7 +3991,7 @@
       "close": "Close",
       "apply": "Apply",
       "alsoReset": "Also refill actions and Search Tokens",
-      "refilled": "Actions and Search Tokens refilled. The motive, the seals and the overflow were left alone, and no time-of-day card was posted.",
+      "refilled": "Actions and Search Tokens refilled. The motive, the seals, and the overflow were left alone, and no time-of-day card was posted.",
       "character": "Character",
       "freeMove": "Free Move",
       "noCharacters": "No characters in this world yet.",
@@ -4078,7 +4078,7 @@
       "notACharacter": "That only works on a character.",
       "initTitle": "Starting resources",
       "initTooltip": "Not set up yet. Give them {hp} Health, {stress} Sanity, {hope} Hope.",
-      "initConfirm": "Give {actor} their starting resources: {hp} Health, {stress} Sanity and {hope} Hope?",
+      "initConfirm": "Give {actor} their starting resources: {hp} Health, {stress} Sanity, and {hope} Hope?",
       "initNote": "Until this is done the character counts as Wounded and in Breakdown: one action instead of two, and disadvantage on every roll.",
       "startingItemNote": "Agreed at character creation, tied to {ultimate}.",
       "startingItemMissing": "No starting item named. Every student begins with one Tier 2 item tied to their Ultimate."
@@ -4186,7 +4186,7 @@
       "menuLabel": "Give back Foundry's settings",
       "menuHint": "What this module changes in Foundry and Daggerheart, and the button that puts it back. Press it before you switch the module off.",
       "title": "Give back Foundry's settings",
-      "intro": "While it runs, this module changes these settings of Foundry, Daggerheart and the modules it needs:",
+      "intro": "While it runs, this module changes these settings of Foundry, Daggerheart, and the modules it needs:",
       "what": {
         "automation": "Daggerheart's Vulnerable and Defeated automations are off: Breakdown and Wounded take their place.",
         "playerFiles": "Players and Trusted Players cannot browse or upload files ('Keep players out of the file browser').",
@@ -4194,7 +4194,7 @@
         "dhWelcome": "Daggerheart's welcome journal does not open for anyone.",
         "liveKitInFoundry": "LiveKit's voice stays inside the Foundry window for everyone.",
         "rtcDock": "Foundry's camera dock is folded while the voice tile is on, and no camera pops out.",
-        "sceneVision": "On scenes with rooms, the rooms take over Foundry's own vision, fog and global light: turning 'Rooms decide what players can see' off gives them back.",
+        "sceneVision": "On scenes with rooms, the rooms take over Foundry's own vision, fog, and global light: turning 'Rooms decide what players can see' off gives them back.",
         "diceLook": "While 'One dice look for the table' is on, every player and Assistant GM throws Dice So Nice dice in one full Gamemaster's look. Give back does not change this, and nobody's own earlier look comes back: the module never kept it."
       },
       "givenBackState": "Given back: the module leaves these settings alone until you hold them again.",
@@ -4214,7 +4214,7 @@
       },
       "failed": "Foundry's settings could not be given back or held. The console says why.",
       "preSeason": "Foundry's settings are given back: the module holds none of them - Daggerheart's automations, the file permissions, the players' held settings. To hold them again, open Give back Foundry's settings (Season setup, or this module's settings) and press Hold them again.",
-      "heldNothing": "Foundry's settings were given back, so the module holds none of them now: Daggerheart's Vulnerable and Defeated automations, the file permissions and the players' held settings stay as they are. Hold them again so the module plays as it should, or leave them given back."
+      "heldNothing": "Foundry's settings were given back, so the module holds none of them now: Daggerheart's Vulnerable and Defeated automations, the file permissions, and the players' held settings stay as they are. Hold them again so the module plays as it should, or leave them given back."
     },
     "Enforced": {
       "filesPutBack": "Player accounts cannot browse or upload files while 'Keep players out of the file browser' is on: the change to those permissions was put back.",
@@ -4236,7 +4236,7 @@
       }
     },
     "Anonymity": {
-      "aboveLimited": "Shared as Owner to everyone, so the redaction never runs and any player reads the whole sheet, inventory and Truth Bullets included: {actors}. Set them back to Observer unless that is what you want.",
+      "aboveLimited": "Shared as Owner to everyone, so the redaction never runs and any player reads the whole sheet, inventory, and Truth Bullets included: {actors}. Set them back to Observer unless that is what you want.",
       "blocked": "Blocked: every player would own “{actor}”, and an owner is never redacted. Give Owner to their one player only.",
       "audit": {
         "title": "Sheet Anonymity Audit",
@@ -4295,7 +4295,7 @@
       "understood": "Understood",
       "playerNotice": "Danganronpa RPG is not running: it needs {modules}. Ask your GM to enable what is missing.",
       "newerSystemTitle": "{system} is newer than this module has been measured on",
-      "newerSystemIntro": "This world runs {system} {found}. Danganronpa RPG was verified on {verified}. It loads anyway, and most of it will not notice - but the roll window, the character sheet, Hope and Despair and the rules the module lays over the system's own lean on how {system} is built inside, and a newer version can change that without a word. If something misbehaves, this is the first thing to mention when you report it.",
+      "newerSystemIntro": "This world runs {system} {found}. Danganronpa RPG was verified on {verified}. It loads anyway, and most of it will not notice - but the roll window, the character sheet, Hope and Despair, and the rules the module lays over the system's own lean on how {system} is built inside, and a newer version can change that without a word. If something misbehaves, this is the first thing to mention when you report it.",
       "newerSystemPatches": "These places in the system that the module changes or relies on were not found where they used to be, so what the module does there is not happening:",
       "newerSystemAllPatches": "Every place in the system that the module changes or relies on was found where it expected it. That is a good sign, not a guarantee.",
       "newerSystemSilence": "Do not mention {found} again on this computer",
@@ -4437,7 +4437,7 @@
       "replayFailed": "The dice were rerolled, but the action could not be replayed. Tell the GM what the first roll had already done.",
       "observeReplayed": "The same trace goes back to the GM with the new roll. They will say what you find this time.",
       "analyzeReplayed": "The same Truth Bullet is analyzed again with the new roll. Any lock the first attempt left is lifted first.",
-      "crisisReplayed": "The crisis action is taken back and made again with the new roll - the damage, the Remnant and any hindrance go with it. The turn is not spent twice.",
+      "crisisReplayed": "The crisis action is taken back and made again with the new roll - the damage, the Remnant, and any hindrance go with it. The turn is not spent twice.",
       "deathStands": "A crisis action that killed cannot be taken back: the death stands.",
       "busy": "A Reroll of this character is already being made. Wait for it to finish.",
       "messageGone": "The roll is no longer in the chat, so there is nothing to throw again. You keep your Hope.",
@@ -4481,7 +4481,7 @@
     },
     "Audit": {
       "putBack": "{player} changed {name}'s sheet by hand; the GM's client put it back:",
-      "listTitle": "Writes on a student's sheet the GMs put back, flagged or listed: {n}",
+      "listTitle": "Writes on a student's sheet the GMs put back, flagged, or listed: {n}",
       "field": {
         "traits": "Statistics",
         "experience": "Experiences",
@@ -5034,7 +5034,7 @@
         "other": "{n} pre-session notes the GMs wrote"
       },
       "resetPools": "every Despair pool to zero ({n} not empty), and every Hope back to {hope}",
-      "resetKeeps": "This stays: the cast with their names, portraits and Ultimates, the maps, the rooms and who owns them, who watches whom, the Monokuma team, and the campaign name.",
+      "resetKeeps": "This stays: the cast with their names, portraits, and Ultimates, the maps, the rooms and who owns them, who watches whom, the Monokuma team, and the campaign name.",
       "resetGroupsTitle": "What goes, and what stays",
       "resetGroupsNote": "Untick anything this reset should leave alone. The choice is remembered for the next reset, and comes back unticked - tick it again and it goes.",
       "resetCastTitle": "Where the cast's tokens go",
@@ -5079,7 +5079,7 @@
         "world": "The world"
       },
       "state": {
-        "noticeHistory": "Each player's notice history - kept on their own browser, it starts again when the reset clears the clock, the incident or the chat"
+        "noticeHistory": "Each player's notice history - kept on their own browser, it starts again when the reset clears the clock, the incident, or the chat"
       },
       "group": {
         "remnants": "Remnants on the maps, and what each one really was",
@@ -5097,7 +5097,7 @@
         "actions": "The action budget refilled, and each student's rests cleared",
         "preNotes": "The GMs' pre-session notes",
         "stashesFound": "The stashes each student has already found, and every hidden stash open again",
-        "projects": "Projects, repairs and their countdowns",
+        "projects": "Projects, repairs, and their countdowns",
         "mastermind": "The Mastermind",
         "passages": "Who knows each secret passage, the passages projects made and their breaches (the GMs' passages stay, and whoever knew one at season start knows it again)",
         "seals": "Despair Calls still in force, and every Call armed for a roll",
@@ -5178,7 +5178,7 @@
         "noPools": "No Monokuma has a pool yet."
       },
       "status": {
-        "window": "Actions, Move and Hope",
+        "window": "Actions, Move, and Hope",
         "actionsTitle": "Actions",
         "actionsWhat": "{actions} each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs {short}, a Long Rest {long}.",
         "actionsWounded": "With no Health left you get {wounded} instead of {actions}, until somebody patches you up.",
@@ -5279,7 +5279,7 @@
         },
         "defaultName": {
           "problem": "Room still has the name Foundry gave it",
-          "why": "A room is its name: players read it on the map, and keys, stashes and Room setup all name it. Give it the room's own name before play."
+          "why": "A room is its name: players read it on the map, and keys, stashes, and Room setup all name it. Give it the room's own name before play."
         },
         "piecesDiffer": {
           "problem": "Pieces of this room are set up differently",
@@ -5518,7 +5518,7 @@
       "unguarded": "The guard on Daggerheart's GM relay could not be put in place on Daggerheart {version}. This session, changes a player's Daggerheart asks your browser to make are not checked. Tell the module's author.",
       "unreviewed": "Daggerheart {version} sends {cases}, which this module has not reviewed. Your browser refuses it for players. If a Daggerheart feature stops working for a player, that is why.",
       "unreadable": "cases this module cannot read",
-      "unknownSender": "Daggerheart asked your browser to make a change for a sender Foundry did not name, and it was refused. If players' Hope, Stress or Fear stop changing when they roll, this is why - tell the module's author.",
+      "unknownSender": "Daggerheart asked your browser to make a change for a sender Foundry did not name, and it was refused. If players' Hope, Stress, or Fear stop changing when they roll, this is why - tell the module's author.",
       "busyFear": { "one": "Daggerheart moved Fear {steps} time in ten seconds for {name}. Every step was made; have a look at the chat if that seems like more rolls than there were.", "other": "Daggerheart moved Fear {steps} times in ten seconds for {name}. Every step was made; have a look at the chat if that seems like more rolls than there were." },
       "backstop": "The guard on Daggerheart's GM relay could not take Daggerheart {version}'s own listener off the channel, so a fallback checks each change in front of it instead. Players' requests are still checked. Tell the module's author."
     },
@@ -5637,7 +5637,7 @@
         "eclipseMoves": "Who has crossed how often in the Eclipse",
         "keyPlan": "The Key Remnant plan, chapter by chapter",
         "trialCast": "Which of the trial hall's tokens the trial shows",
-        "caseSchema": "The case map: each chapter's deductions, counters and solution",
+        "caseSchema": "The case map: each chapter's deductions, counters, and solution",
         "notes": "The players' pre-session notes",
         "deaths": "The deaths nobody has found yet",
         "deferredOffers": "The Reinforced Level Ups waiting for the class",
@@ -5657,7 +5657,7 @@
         "rolls": "The players' rolls the GM threw, with their dice and totals, for the resolutions and Rerolls that read them",
         "usedTools": "The Cleaning Tools each clean-up used, broken when the body is found",
         "sheetMarks": "What each character's sheet held when the GMs last judged a write on it",
-        "sheetWrites": "The writes on a student's sheet the GMs put back, flagged or listed, kept a day",
+        "sheetWrites": "The writes on a student's sheet the GMs put back, flagged, or listed, kept a day",
         "diceLooks": "Each character's dice look as the GMs set it, which a player's change of it goes back to",
         "ballots": "The ballots of the Class Trial's vote, kept by the GMs",
         "verdict": "The Blackened the last verdict was given with, kept by the GMs for its Finish",

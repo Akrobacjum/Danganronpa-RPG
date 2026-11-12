@@ -14,12 +14,12 @@ Read at origin/main 235c3210 on 12.11.2026.
 
 | Branch | Head | Merge base |
 | --- | --- | --- |
-| e61-62 | 62309451 | fa73b601 |
+| e61-62 | 8675f81e | fa73b601 |
 | e76-106 | 1d62225e | 14619ce2 |
-| e97-98 | 9ca7fcc1 | 7fa07aee |
+| e97-98 | a5844ac0 | 7fa07aee |
 | e73 | 6a914d02 | fa73b601 |
 | e92 | ce1ffadb | fa73b601 |
-| e93 | b4285f02 | f22a7e87 |
+| e93 | 0cb1723a | f22a7e87 |
 | e72 | 478a8e71 | f22a7e87 |
 | e64 | 7aa02555 | fa73b601 |
 | gaps-a | 2338c823 | fa73b601 |
@@ -127,7 +127,7 @@ Read at origin/main 235c3210 on 12.11.2026.
 | player-handbook.pl.md | ### Sypialnie, klucze, skrytki | e64 |
 | player-handbook.pl.md | ### Tamper - Shadow, 1 akcja | e64 |
 
-## Lang keys (374 paths; a path that is an object freezes its opening line only, its leaves are listed one by one)
+## Lang keys (377 paths; a path that is an object freezes its opening line only, its leaves are listed one by one)
 
 | Key | Branches |
 | --- | --- |
@@ -293,9 +293,12 @@ Read at origin/main 235c3210 on 12.11.2026.
 | `DRPG.Floor.discussionNote` | e73, e97-98 |
 | `DRPG.Floor.endClosing` | e72, e73, e97-98, gaps-a |
 | `DRPG.Floor.gmStepTitle` | e73, e97-98 |
+| `DRPG.Floor.lead.chapterEnd` | e97-98 |
 | `DRPG.Floor.lead.closing` | e73, e97-98 |
+| `DRPG.Floor.lead.finishElsewhere` | e97-98 |
 | `DRPG.Floor.lead.round` | e73, e97-98 |
 | `DRPG.Floor.lead.sentenceWaits` | e73, e97-98 |
+| `DRPG.Floor.lead.verdictElsewhere` | e97-98 |
 | `DRPG.Floor.mode.closing` | e73, e97-98 |
 | `DRPG.Floor.mode.panic` | e73, e97-98 |
 | `DRPG.Floor.mode.testimony` | e73, e97-98 |

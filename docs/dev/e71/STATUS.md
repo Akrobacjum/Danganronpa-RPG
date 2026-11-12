@@ -28,6 +28,7 @@ Counts are changes, one per plural form; a key changed in two areas counts in bo
 | glossary | 22 | 2 | 0 | EN7/DB17 "Search Token" capitalized (glossary search-token); glossary refuse: "Odmów" on two GM buttons |
 | X1 refusals | 7 | 5 | 0 | X1 (confirmed in the pilot) and O8: "You keep your action/Hope" instead of "Nothing was spent"; pairs N28-N30 the model |
 | X10 fillers | 7 | 5 | 2 (GM section 2's copy of `Season.roomGuide`, EN and PL) | X10 (confirmed in the pilot): "simply", "actually", "just" as a filler, „po prostu”, „naprawdę” as a filler; "just" meaning "a moment ago" and "actually" setting truth against appearance (`TruthBullet.reallyTooltip`) stay |
+| Oxford comma | 49 | 0 | 3 (the setting's name where the GM and player handbooks quote it) | EN2/DB35: the comma before the last "and"/"or" of a list; T17's candidates read one by one, 18 left as not a list ("folded or open", "kill and revive") or as a sentence a frozen handbook section copies (`Contract.*`) |
 | handbooks: GM-a | 0 | 0 | 67 (Polish handbooks, unfrozen sections) | PL-i/D33c (glossary `gm-a`, scope handbooks) |
 | Polish grammar | 2 | 23 | 7 (Polish handbooks, unfrozen sections: "Class Trialu" -> "Class Trial") | no bracketed gender endings ("zgłosił(a)"); PL-a/DB4 (Class Trial indeclinable); PL-b/DB28 (Eclipse neuter); X13, PL7, P2 on single values (`Move.dead`, `Vote.reminded.few`, `Vote.opened`) |
 
@@ -71,6 +72,8 @@ edited unless the row says so.
 | lang/en.json, lang/pl.json | `DRPG.Settings.uiScale.hint` | The two languages disagree on a fact: the English says the slider moves "Foundry's own chrome and the character sheet" too; the Polish says "własne okna Foundry nigdy nie są skalowane" (Foundry's own windows are never scaled), and says nothing of Monokuma Legacy. Only the endings were changed here. | Which is true is the code's (ui-kit/settings); M2 says the code wins, and a fact change is not this pass's. |
 | docs/handbooks/gm-handbook.*.md:269 (section 5, frozen by e64), gm-handbook.pl.md:563 (section 9.5, frozen by e72) | T8's three handbook finds | "Dynamic action" / "akcji Dynamic" (glossary dynamic-action: "Dynamic Action") and "kafel powiadomień" (glossary notice-tile: "kafelek powiadomień"). | Frozen; for the owning lines. |
 | docs/handbooks/gm-handbook.en.md and .pl.md, sections 12, 13 and 19 (lines 722, 739, 1104), and section 6.3's line 372 | source-file lists | Several GM handbook sections open with the files and config tables behind them (`scripts/eclipse.mjs`, `ECLIPSE_MOVES` ...). T29 would move them to a part marked for a GM who debugs (M10's appendix). | A structural move of the handbook: E57's, which owns the handbooks' form. |
+| lang/pl.json (frozen keys) | `DRPG.Monocub.meddledOn` (N14), `Cleanup.moveIntro` (N17), `Observe.critPrompt` (N47), `Overflow.rulesChanged` (N52) | Four of the owner's approved naturalness pairs (docs/text-style.md section 12) wait in frozen keys; T27 lists them. | For the owning lines, or this line after their merge. |
+| docs/handbooks/gm-handbook.pl.md:956 (section 15, frozen) | "przeglądarki MG" | "MG" for GM (PL-i, glossary gm-a). | Frozen. |
 | scripts/config.mjs and `DRPG.Config.*` in pl.json | config prose | Not edited in this pass at all (see FROZEN.md); the pilot's config afters and pair N25 (`ACTIONS.palm.description`) wait there. | Four open branches change config.mjs by line. |
 
 ## Test runs
@@ -88,6 +91,7 @@ edited unless the row says so.
 | 12.11, run j | 721d6170 and the X10 edits | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run k | 9e4c7be1 and seven more X12 values | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run l | 7f2a51eb and the Vote, Calls and MG edits | 1230 passed, 0 failed, 16 skipped, 0 red |
+| 12.11, run n | 3883b5ce and the Oxford commas | 1230 passed, 0 failed, 16 skipped, 0 red |
 | 12.11, run f | 0a5ea4d3 and the GM-side T29 cuts (the bridge's refusals, the trial hall, the vote's privacy note) | 1230 passed, 0 failed, 16 skipped, 0 red |
 
 ## Tests whose expected wording changed
