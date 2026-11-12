@@ -21,16 +21,12 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
 
 | C9 (part) | The Monocub's tiles say why they are shut (S18-62, DC22): `cubBlockSaid` (the row's blocks from the owner's copy) dims a tile and says its sentence; a row with no Hope says its price in the grid's own words (`DRPG.Action.costActions`, `costFree`); `onlyTwoActions` names the three moves | R3803 (new), tier 2 "the Monocub's tiles say why they are shut ..." (new); both red at base |
 
-| C10 (part) | A Monocub's crossing (28.10, 04.11, 06.11): no Move, no action and no Eclipse count, the Eclipse too (`crossingVerdict`, `chargeRoute`), the connected rooms still holding it; the room of a running incident refused to it on a GM judging a player's step with the Seal's code and words (`roomSealed`, `DRPG.Calls.sealedBlocked`), a GM's own move and a Monocub already inside not refused | tier 2 "a Monocub crosses to a connected room with no Move and no action, and the room of a running murder refuses it ..." (new; red at base: noBudget, the murder room let through); R558 changed on purpose |
+| C10 | A Monocub sees every room the class found (gm-stores.mjs `fogSectionFor`, `cubFogSection`): its owner is sent, under the Monocub's own row, the rooms every student found, the Mastermind's row out, the rows joined so nobody's finds are named; tier 2 "a Monocub's owner is sent every room the class found ..." (new; red at base). And a Monocub's crossing (28.10, 04.11, 06.11): no Move, no action and no Eclipse count, the Eclipse too (`crossingVerdict`, `chargeRoute`), the connected rooms still holding it; the room of a running incident refused to it on a GM judging a player's step with the Seal's code and words (`roomSealed`, `DRPG.Calls.sealedBlocked`), a GM's own move and a Monocub already inside not refused | tier 2 "a Monocub crosses to a connected room with no Move and no action, and the room of a running murder refuses it ..." (new; red at base: noBudget, the murder room let through); R558 changed on purpose |
 
 ## In progress
 
 - C8 is open, with a question for the owner (below, "C8 needs a decision").
-- C10's sight half (a Monocub sees every room the class found, without the Mastermind's row): not started. Read so far:
-  a player's browser holds only its own characters' cells of the discovery store (fog.mjs `rowsFor`, `fogSectionFor`,
-  `sendStoreTo`); the union for a Monocub's owner has to be built there on the GM (`ledgerRooms` less the Mastermind)
-  and sent as that player's section without naming who found which room - the cells are per character, so the union
-  goes under the Monocub's own key with the newest stamp of the cells it joins.
+- C10 done (both halves). Next: the rest of C6 and C9.
 
 ## Next, in order
 
@@ -45,7 +41,27 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
   66-rooms 76/76, 14-quiet 7/7, 74-room-tile 44/44 green, 76-passages 117/118 (U, a tunnel crossing seen - the same at
   f22a7e8 here, and green in CI at c595854).
 
+## Decisions received (the coordinator, 12.11.2026, for the owner's free hand until Fri 13.11 18:00)
+
+- C8: the default. The microphone permission is blocked in the trial only; the ordinary dead outside the trial get a
+  voice channel of their own, with no write to the user record.
+- The TR30 README paragraph: README left alone; the proposed text stays below under "For the coordinator".
+- `liftCubWitness`'s `since`: 1.2.117 kept (stages.json plans E72 there); the coordinator re-checks at merge.
+- Defaults, each "default, owner may revise": the Polish refusal wording (Q-E72-8), the per-target caps (C4), Redeem's
+  and Ask for Hope's prices (C5), the Monocub Rule's wording (C6), Q-E72-3 (C3), Q-E72-5 (C10).
+
+## For the coordinator
+
+- known-leaks.json TR30, `closes: "E72"` to `foundryLimit`, with a root README paragraph marked `<!-- leak:TR30 -->`:
+  "In a Class Trial every ordinary dead student's microphone is off, a death nobody has found among them, and the
+  trial's list of them is world data every browser holds while the trial runs (the owner's TR30 = 2). <!-- leak:TR30 -->"
+  and the row's field: "Foundry v14 keeps a user's permissions, BROADCAST_AUDIO among them, in the user document every
+  connected client holds; the owner chose that the trial mutes every ordinary dead student, a death nobody has found
+  among them (TR30 = 2)." Until then the row's check fails once E72 is registered as shipped.
+
 ## CI
+
+- Run 43157335032 at daedc00: green (every job).
 
 - Run 43151316668 at c595854: every job green but "suite 7/8": the tier-2 test "Back up the case, then Restore, brings
   every store back" had no fixture for the two new stores (cubs, cubTargets). Fixed in a4cd1ed (green alone).
@@ -76,27 +92,26 @@ two new walkers of the cast to list).
 
 C2-C12 (part A), then C13-C21 (part B), then E91.
 
-## Deviations from the plan, and defaults taken (owner to confirm)
+## Deviations from the plan, and defaults taken (default, owner may revise)
 
 - C1: the plan's "config rows gain phases, blocks, caps, visibility, executionCost (a slot, no logic)" is not done as
   empty slots: each field is added in the commit that gives it logic, so no row carries a field nothing reads.
 - Q-E72-8 (`meddleRefused` wording): EN takes the audit's sentence "Confusion doesn't reach them. You keep your action
   and Hope."; PL takes text-style O8's shape "Nie tracisz akcji ani Hope." instead of the plan's "akcja i Hope wróciły"
-  (nothing was taken, so nothing comes back; R1143 also refuses a Polish refusal that promises a return). Default
-  taken, owner to confirm.
+  (nothing was taken, so nothing comes back; R1143 also refuses a Polish refusal that promises a return). Default, owner may revise.
 
 - C2: `liftCubWitness`'s `since` is "1.2.117" (the plan's reading of the release order). It must be the version E72
   ships in, or a world that wrote the flag in between skips the lift: coordinator to set at release.
 - C2: the mark is read as a per-chapter fact on the GMs' row (as the flag was); the "manual switch" of the plan is the
   Students window's existing Crime witness box.
 - C3: Q-E72-3 default taken (read `bodyPlaceOf`); measured off the source (R3802) and through the loot tests, not by a
-  tier-2 walk onto a tile whose token has left. Owner to confirm.
+  tier-2 walk onto a tile whose token has left. default, owner may revise.
 - C3: DC7 is applied to the body's discovery only; who sees what one student does to another (frisk.mjs, A11-12)
-  still counts a Monocub (`monocubs: true`). Owner to confirm.
+  still counts a Monocub (`monocubs: true`). default, owner may revise.
 
 - C4: "one attempt per student" read as per target student, over every Monocub (the store is named `cubTargetStore` in
   the plan). A row of another time of day or day counts nothing, so nothing clears it at the clock's turn: the same
-  behaviour as clearing, with no write. Owner to confirm the reading.
+  behaviour as clearing, with no write. Default, owner may revise.
 
 - C5: Redeem's price (one action, no Hope) and Ask for Hope's (free, one open at a time) are defaults; the plan names
   neither. The Students window's Monocub columns for them (the plan's C5) are left to C9/C19 with the panel. Owner to
@@ -128,7 +143,7 @@ C2-C12 (part A), then C13-C21 (part B), then E91.
 - C10: the murder room's refusal is judged where the incident's room is known: on a GM's browser judging a player's
   step. The Monocub's own browser does not know where a murder runs, so its veto lets the step through and the GM's
   judge sends it back - the refusal it is told is the Seal's either way. Q-E72-5 default (no action, no crossing limit,
-  Eclipse too) taken; the connected rooms' rule kept (the amendments name the budget, not the walls) - owner to confirm.
+  Eclipse too) taken; the connected rooms' rule kept (the amendments name the budget, not the walls) - default, owner may revise.
 
 ## Blockers
 

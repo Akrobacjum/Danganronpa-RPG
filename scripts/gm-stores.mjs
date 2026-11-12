@@ -1502,7 +1502,42 @@ export function fogSectionFor(user) {
     const all = discoveryStore.section();
     const mine = key => Boolean(game.actors?.get(String(key).split("/")[1] ?? "")?.testUserPermission?.(user, "OWNER"));
     const pickOwn = part => Object.fromEntries(Object.entries(all[part] ?? {}).filter(([key]) => mine(key)));
-    return { e: pickOwn("e"), t: pickOwn("t"), d: pickOwn("d"), cleared: all.cleared ?? 0 };
+    const own = { e: pickOwn("e"), t: pickOwn("t"), d: pickOwn("d"), cleared: all.cleared ?? 0 };
+    const cubs = (game.actors?.contents ?? []).filter(actor => actor.type === "character"
+        && actor.getFlag?.(MODULE_ID, FLAGS.monocub) && actor.testUserPermission?.(user, "OWNER"));
+    if (!cubs.length) return own;
+    return mergeSections(own, cubFogSection(all, cubs), discoveryStore.spec);
+}
+
+/*
+ * A MONOCUB SEES WHAT THE CLASS FOUND (E72 C10, 12.11.2026; the owner's amendments of 28.10 and 04.11). A Monocub's owner is
+ * sent, under each Monocub's own row of each scene, every room any student's row holds found - the Mastermind's row left
+ * out, since the Mastermind knows every room (fog.mjs `ledgerRooms`, the GM's view) - each cell at the newest stamp of the
+ * cells it joins, so a room found later arrives as newer. Who found which room is not sent: the rows are joined before
+ * they leave. Only rooms found (true): a room unticked for one student is not unticked for the Monocub.
+ */
+function cubFogSection(all, cubs) {
+    const mastermindId = mastermindStore.get(RECORD)?.actorId ?? null;
+    const union = new Map();                                        // sceneId -> Map(room -> stamp)
+    for (const [key, cells] of Object.entries(all.e ?? {})) {
+        const [sceneId, actorId] = String(key).split("/");
+        if (!sceneId || !actorId || actorId === mastermindId || !cells || typeof cells !== "object") continue;
+        const stamps = all.t?.[key];
+        const stampOf = room => (typeof stamps === "number" ? stamps : Number(stamps?.[room] ?? stamps?.[""] ?? 0));
+        const rooms = union.get(sceneId) ?? new Map();
+        for (const [room, found] of Object.entries(cells)) {
+            if (found !== true) continue;
+            rooms.set(room, Math.max(rooms.get(room) ?? 0, stampOf(room)));
+        }
+        union.set(sceneId, rooms);
+    }
+    const out = { e: {}, t: {}, d: {}, cleared: all.cleared ?? 0 };
+    for (const cub of cubs) {
+        for (const [sceneId, rooms] of union) {
+            for (const [room, stamp] of rooms) writeFields(out, `${sceneId}/${cub.id}`, { [room]: true }, stamp || 1, discoveryStore.spec);
+        }
+    }
+    return out;
 }
 
 /** Whether a store's old key changed since this browser claimed it (a 1.2.x session wrote it since: the design's H1). */

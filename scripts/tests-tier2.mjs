@@ -17656,6 +17656,57 @@ const SCENARIOS = [
             "a Monocub paid for a crossing, or walked into a murder's room, or was told something a Seal does not say, or a GM's move was refused ([free step, the murder room's code and words, a GM's move])");
     }],
 
+    ["a Monocub's owner is sent every room the class found under the Monocub's own row, not who found which, and not the Mastermind's (E72 C10)", async () => {
+        /*
+         * E72 C10, 12.11.2026; the owner's amendments of 28.10 and 04.11. A Monocub's player saw only the rooms its own
+         * character had found. The section a GM sends a player (gm-stores.mjs `fogSectionFor`) now joins every student's
+         * found rooms under each Monocub's own row, the Mastermind's left out. Three students of the cast: A found two
+         * rooms of the suite's, the Mastermind (picked for the test) a third, and the Monocub none; read the section the
+         * Monocub's player would be sent: the Monocub's row's rooms, whether any key names A or the Mastermind, and a
+         * living student's player's section (A's player: no row of the Monocub). Red at f22a7e8's runtime: the Monocub's
+         * row empty.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a Monocub and a student, each with a player");
+        const S = await import("./gm-stores.mjs");
+        const { RECORD } = await import("./gm-store.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const withPlayers = livingStudents().filter(player);
+        const [cub, finder] = withPlayers;
+        const lead = livingStudents().find(a => a.id !== cub.id && a.id !== finder.id && player(a)?.id !== player(cub)?.id);
+        must(lead && player(finder)?.id !== player(cub)?.id, "no third student, or the Monocub and the finder share a player - this would measure nothing");
+        const scene = canvas.scene;
+        const keys = [`${scene.id}/${finder.id}`, `${scene.id}/${lead.id}`, `${scene.id}/${cub.id}`];
+        const was = keys.map(k => [k, foundry.utils.deepClone(S.discoveryStore.get(k) ?? null)]);
+        const pickWas = foundry.utils.deepClone(S.mastermindStore.get(RECORD) ?? null);
+        let read = null;
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            for (const k of keys) if (S.discoveryStore.has(k)) await S.discoveryStore.drop(k);
+            await S.discoveryStore.patch(keys[0], { "SUITE E72 Den": true, "SUITE E72 Loft": true });
+            await S.discoveryStore.patch(keys[1], { "SUITE E72 Lair": true });
+            await S.mastermindStore.patch(RECORD, { actorId: lead.id });
+            const cubSection = S.fogSectionFor(player(cub));
+            const finderSection = S.fogSectionFor(player(finder));
+            read = {
+                rooms: Object.keys(cubSection.e?.[keys[2]] ?? {}).filter(r => r.startsWith("SUITE E72")).sort(),
+                names: Object.keys(cubSection.e ?? {}).some(k => k === keys[0] || k === keys[1]),
+                finderSeesCub: Object.hasOwn(finderSection.e ?? {}, keys[2])
+            };
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            for (const [k, row] of was) {
+                if (row) await S.discoveryStore.patch(k, row);
+                else if (S.discoveryStore.has(k)) await S.discoveryStore.drop(k);
+            }
+            if (pickWas) await S.mastermindStore.patch(RECORD, pickWas);
+            else await S.mastermindStore.patch(RECORD, { actorId: null });
+            await gmStoresIdle();
+        }
+        equal(stableJson(read), stableJson({ rooms: ["SUITE E72 Den", "SUITE E72 Loft"], names: false, finderSeesCub: false }),
+            "a Monocub's owner is not sent the class's rooms under the Monocub's row, or is told who found them, or the Mastermind's ([the Monocub's rooms, another student's row sent, a living player sent the Monocub's row])");
+    }],
+
     ["in an Eclipse the picker is shut and the GM refuses Confusion with nothing paid (E72 C1)", async () => {
         /*
          * E33 C10; CALL-16 and the plan's 2.7. The row's locks (`CUB_LOCKS`: the Eclipse, the
