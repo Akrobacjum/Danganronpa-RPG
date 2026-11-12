@@ -36,3 +36,9 @@ Red first: R3659-R3662 red at 1e1c61c (no MODE_STARTS, no caseTickStore, no case
 
 Q-E99-2..-10 and -12 as the plan proposes (above where used). The card is posted under the speaker "Case summary",
 public, with the flag `caseSummary`; its content is the payload's words and nothing else.
+
+## Test results
+
+- 9290ce0: tiers 0-1 1176 passed, 2 failed (R1322: the summary card's font-sizes not kit tokens; R173: no name for the
+  store caseTicks) - fixed in the next commit; tier 2 by name 125 passed; 14 scenarios green (docs/dev/e97/STATUS.md).
+- The fix: tiers 0-1 1178 passed, 0 failed, 16 skipped, 1 red (R3339, E48's); 50-lang green. Pushed.
