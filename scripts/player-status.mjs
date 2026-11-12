@@ -20,7 +20,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS, getClock } from "./settings.mjs";
+import { SETTINGS } from "./settings.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";   // hasFreeMove: player view only
 import { isEclipse, movesLeft as eclipseMovesLeft, movesUsed as eclipseMovesUsed, eclipseAllowance } from "./eclipse.mjs";
 import { hopeHeld } from "./calls.mjs";
@@ -578,9 +578,14 @@ function field(className, label, value, tooltipKey, spent) {
  * "Still to act 3 / 3", and fell to "2 / 2" at an execution, a count that moved for something that was not running,
  * beside the incident's turns the GM was there to follow. `quietActions` says when it is left out; the clock and the
  * incident's state are both settings the strip already redraws for (`STRIP_SETTINGS`). R1392.
+ *
+ * THE CLASS TRIAL TOOK IT BACK (E100, 12.11.2026). With the row gone the GM's strip had no row left outside an Eclipse,
+ * so the whole box above the Projects tray went for the trial - the owner, at a table: "W trialu usunięto tackę
+ * actions/move/hope, która jest nad projects. Przywróćmy ją." The trial no longer quiets the row; a running incident
+ * still does (Q-E23-3 for that half stands).
  */
 function quietActions() {
-    return getClock().phase === "classTrial" || game.settings.get(MODULE_ID, SETTINGS.murderState)?.active === true;
+    return game.settings.get(MODULE_ID, SETTINGS.murderState)?.active === true;
 }
 
 function buildTableView() {

@@ -33381,6 +33381,8 @@ const INVARIANTS = [
          * of both, put back in `finally`): Daily Life with no incident, where the strip is the table's, and a Class Trial
          * and an incident, where it is none - each with no character and with the student assigned. Red on a planted
          * `buildTableView` that answers null: Daily Life reads null.
+         * E100 (12.11.2026, the owner): a Class Trial keeps the row again, so the strip there is the table's; an incident
+         * still leaves it out (R1392). With this commit's player-status.mjs the old expectation failed: classTrial read the table's.
          */
         needs(world.atLeast("livingStudents"));
         const PS = await import("./player-status.mjs");
@@ -33431,7 +33433,7 @@ const INVARIANTS = [
             drawn();
         }
         equal(JSON.stringify({ views, gmActor, playerActor }), JSON.stringify({
-            views: { dailyLife: ["table", "table"], classTrial: [null, null], incident: [null, null] }, gmActor: null, playerActor: student.id
+            views: { dailyLife: ["table", "table"], classTrial: ["table", "table"], incident: [null, null] }, gmActor: null, playerActor: student.id
         }), `{views: the GM's strip in Daily Life, a Class Trial and an incident (each read as the test's own) [with no character, with ${student.name} assigned]; `
             + `whose numbers a GM's strip is; a player's with ${student.name} assigned}`);
     }],
@@ -39936,7 +39938,7 @@ const INVARIANTS = [
             cap: "calc(360px * var(--drpg-legacy-scale, 1))" }),
             "under Monokuma Legacy: {content: [display, flex-direction, align-items]; name: [flex, min-width, white-space, text-overflow]; tools: flex; cap: the tray's max-width}");
     }],
-    ["R1392 - the status strip (E23 C3a, E23-17; S10-63, S12-54): under the glass a Hope slot is 12-16 px, an empty one the star's outline in Bone Dim at 40 %, a held one the solid star; the table's strip leaves \"Still to act\" out in a Class Trial and while an incident runs, and keeps it in Daily Life", async () => {
+    ["R1392 - the status strip (E23 C3a, E23-17; S10-63, S12-54): under the glass a Hope slot is 12-16 px, an empty one the star's outline in Bone Dim at 40 %, a held one the solid star; the table's strip leaves \"Still to act\" out while an incident runs, and keeps it in Daily Life and, since E100, in a Class Trial", async () => {
         /*
          * E23 C3a, 07.11.2026. S10-63: the slots were 0.72rem (11.5 px), the contained star drew at 7-8 px, an empty one the
          * same star at the slot's 0.45 over bone at 0.3. S12-54 (the owner's Q-E23-3, hidden): the GM's strip read "Still
@@ -39946,6 +39948,9 @@ const INVARIANTS = [
          * reads), with the clock read as Daily Life, as a Class Trial, and as Daily Life with an incident running
          * (`game.settings.get` of the clock and of the incident's state), both put back in `finally` and the strip drawn
          * again from the world. Nothing is written. Red at 2b866dde: the row "Still to act" in a Class Trial and an incident.
+         * E100 (12.11.2026, the owner at a table: "W trialu usunięto tackę actions/move/hope, która jest nad projects.
+         * Przywróćmy ją."): the row, and with it the GM's whole strip, comes back in a Class Trial; an incident still leaves
+         * it out. Red at 69520df9: classTrial null.
          */
         needs(world.atLeast("playerAccounts", 2), "two player accounts to own the stand-ins");
         const C = await styleCascade();
@@ -40001,7 +40006,7 @@ const INVARIANTS = [
         equal(stableJson({ look, strip: read }), stableJson({
             look: { held: { slot: ["12-16", "12-16"], mask: true },
                 empty: { slot: ["12-16", "12-16"], mask: true, colour: "var(--drpg-sg-bone-dim)", opacity: "0.4", slotOpacity: "1" } },
-            strip: { dailyLife: "1 / 2", classTrial: null, incident: null }
+            strip: { dailyLife: "1 / 2", classTrial: "1 / 2", incident: null }
         }), "{look: a held and an empty Hope slot under Stained Glass - its width and height band, its mark; the empty one's colour and "
             + "opacity, and its slot's; strip: the table's \"Still to act\" in Daily Life, in a Class Trial, in Daily Life with an incident running (null: no row)}");
     }],
