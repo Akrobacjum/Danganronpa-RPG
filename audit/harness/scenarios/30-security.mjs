@@ -6623,6 +6623,26 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     check("SECURITY: under Toll the GM draws no roll of a GM's room action on a console's payment of one action, and draws it on a payment of two",
         tollDraw.toll === 1 && tollDraw.one?.messageId === null && Boolean(tollDraw.two?.messageId),
         JSON.stringify(tollDraw), { flow: "facility" });
+    /* A ROOM ACTION SHUT BY LOCKDOWN IS NOT DRAWN (the coordinator's check of 12.11.2026: each new state read where a roll
+       is drawn). Its use was refused after the roll (facilities.mjs `facilityShut` in `handleFacilityUse`), but the GM drew
+       the roll a console paid for. Now refused at the draw (roll-draw.mjs `facilityOfDraw`). Red at ca2a649: drawn. */
+    const lockWas = await gm.eval(`const o = await import("${repoUrl}/scripts/overflow.mjs"); const { getClock } = await import("${repoUrl}/scripts/clock.mjs");
+        const clock = getClock();
+        const stored = foundry.utils.deepClone(game.settings.get("${MOD}", "overflow") ?? {});
+        const rules = foundry.utils.deepClone(game.settings.get("${MOD}", "overflowRules") ?? {});
+        const effects = Object.fromEntries(Object.keys(o.overflowRules().effects).map(key => [key, { on: key === "lockdown" }]));
+        await game.settings.set("${MOD}", "overflowRules", { ...rules, effects });
+        await game.settings.set("${MOD}", "overflow", { ...stored, active: { session: clock.session, day: clock.day ?? 1, timeOfDay: clock.timeOfDay, effect: "lockdown" } });
+        return { stored, rules, lockdown: Boolean(o.overflowFacilityStates()?.lockdown) };`, { timeout: 60000 });
+    await settle(500);
+    const lockDraw = { lockdown: lockWas?.lockdown ?? null,
+        shut: await drawnRoll(p1, ids.aiko, "facility", "eye", { hope: 9, fear: 3 }, { context: { facilityId: "SECfac" } }) };
+    await gm.eval(`await game.settings.set("${MOD}", "overflowRules", ${JSON.stringify(lockWas?.rules ?? {})});
+        await game.settings.set("${MOD}", "overflow", ${JSON.stringify(lockWas?.stored ?? {})}); return true;`, { timeout: 60000 });
+    await settle(500);
+    check("SECURITY: under Lockdown the GM draws no roll of a GM's room action, though a console paid for it",
+        lockDraw.lockdown === true && lockDraw.shut?.messageId === null,
+        JSON.stringify(lockDraw), { flow: "facility" });
     await gm.eval(`const F = await import("${repoUrl}/scripts/facilities.mjs"); const scene = game.scenes.get("${IDS.scene}");
         await F.setRoomActions(scene, "Cafeteria", []); await F.setRoomActions(scene, "Gym", []);
         await game.settings.set("${MOD}", "facilityClosed", ${JSON.stringify(facSetup?.closed ?? {})});

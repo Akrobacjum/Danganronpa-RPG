@@ -59,7 +59,7 @@ import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf, r
 import { LOADED_DIE, loadDie, loadedAtOf, standAsideFor } from "./forced-roll.mjs";
 import { DRPG_ACTION_ROLL, DRAWN_ROLL, searchOdds, stashStepFor } from "./action-rolls.mjs";
 import { actionsLeft, freeActionsLeft } from "./actions.mjs";
-import { overflowFacilityDie, overflowFacilityToll } from "./overflow.mjs";
+import { overflowFacilityDie, overflowFacilityToll, overflowFacilityStates } from "./overflow.mjs";
 import { armedCallsShown, situationalAdvantage, spendCallsByNonce } from "./call-effects.mjs";
 import { isBrokenDown } from "./character.mjs";
 import { isMonokuma } from "./monokuma.mjs";
@@ -1045,8 +1045,8 @@ async function drawRefusal(actor, key, context) {
        of each for a taker and a body since their last Take of it is the one their next Take reads (`lootDrawRefusal` below, the
        loot bind); the GM's run asks the one gate before anything moves (handover.mjs `lootBody`). */
     if (PAID_BY_NOTHING.includes(key)) return lootDrawRefusal(actor, context);
-    // A GM's room action is drawn only for one the room the GMs hold the character in has, and that no use closed this time
-    // of day (E93 C3): else a console draws rolls of a statistic it chose for an action that is not there.
+    // A GM's room action is drawn only for one the room the GMs hold the character in has, that no use closed this time
+    // of day (E93 C3) and that Lockdown does not shut: else a console draws rolls of a statistic it chose for an action that is not there.
     if (key === "facility" && !await facilityOfDraw(actor, context, { open: true })) return "that cannot be done now";
     // Its whole price, as this GM reads it (the coordinator's fix of 12.11.2026): a GM's room action costs one action and
     // the Toll's more (facilities.mjs `facilityCost`), and a payment of less draws nothing (`ticketCovers`).
@@ -1867,6 +1867,9 @@ async function facilityOfDraw(actor, context, { open = false } = {}) {
     const place = gmPlaceOf(actor);
     const action = place?.room ? F.roomActions(place.scene, place.room).find(row => row.id === id) ?? null : null;
     if (!action || !open) return action;
+    // Shut by the Overflow (Lockdown; the coordinator's check of 12.11.2026): its use is refused after the roll, so the roll
+    // is not drawn either (scenario 30). Power cut shuts only a project's actions, which are not rolled.
+    if (F.facilityShut("gm", overflowFacilityStates())) return null;
     const { facilityUseStore } = await import("./gm-stores.mjs");
     return facilityUseStore.get(F.gmActionKey(place.scene.id, place.room, id))?.mark === F.facilityMark() ? null : action;
 }
