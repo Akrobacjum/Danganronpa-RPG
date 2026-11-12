@@ -4885,6 +4885,14 @@ export const SFX_EVENTS = {
         hint: "Heard by the student who ran it. The bullet is locked until the next chapter, the longest-lasting consequence any failed roll in this game has.",
         category: "incident"
     },
+    /* E62 C2: one flash of the Investigation's entry (MK-R1 #11, MK-R3): played at each of its six onsets, its pitch
+       varied so the six do not sound alike; none under reduced motion or with the table's sequences off. */
+    paneFlash: {
+        label: "Pane flash",
+        hint: "Each pane flash as the Investigation begins, six in about three seconds. Heard by the whole table.",
+        category: "incident",
+        vary: true
+    },
     /* E61 C2: the Class Trial's entry sequence, at its title's frame (MK-R1 #9: one slot, the title's impact, nothing at
        frame 1); played on each browser from the phase's own event by sequence.mjs, not from a card. */
     trialStart: {

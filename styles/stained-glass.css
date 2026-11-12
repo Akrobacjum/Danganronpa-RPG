@@ -5118,3 +5118,10 @@ body.drpg-theme-stained-glass #drpg-sequence {
     --drpg-seq-text-size: 26;
 }
 body.drpg-theme-stained-glass #drpg-sequence :is(.drpg-seq-title-sub, .drpg-seq-name, .drpg-seq-vrow, .drpg-seq-votes h4, .drpg-seq-sentence) { font-family: var(--drpg-font-chrome); }
+
+
+/* THE FLICKER (E62 C2, C4; transitions.mjs `flicker`): for one flash of the Investigation's entry or the body's
+   discovery, the curtain's seams and pulse dim for a moment and come back - the edges and the pulse, never the whole
+   screen (the owner's 10.10), at most three times a second (transitions.mjs `flashRate`). Opacity only: the canvases are
+   already layers. The class is never set under reduced motion. */
+body.drpg-flicker #drpg-curtain > :is(canvas.seamline, canvas.pulse) { opacity: 0.3; }

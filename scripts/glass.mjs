@@ -3783,6 +3783,40 @@ const boxOf = (polys, pad) => {
   return { x0: Math.floor(x0 - pad), y0: Math.floor(y0 - pad), x1: Math.ceil(x1 + pad), y1: Math.ceil(y1 + pad) };
 };
 /**
+ * THE DIRECTION OF A TRANSITION (E62 C1, 12.11.2026; the owner's storyboard SB-R1 and MK-R1/MK-R2 of 05.11): the panes'
+ * indices in the order their batches turn. "centre" from the screen's centre outward (every turn until E62; the
+ * Eclipse's entry, E62-4), "inward" its mirror (the Eclipse's end), "top" by the pane's centre from the top down
+ * (evening to night, E62-1, and every hour forward), "bottom" from the bottom up (night to morning, E62-2, and a
+ * rewind), "random" a seeded shuffle with no direction (Investigation's entry, E62-3: "random panels, no direction").
+ * Pure; ties by index.
+ */
+export function paneOrder(panes, W, H, how = "centre", seed = 1) {
+  const idx = panes.map((_, i) => i);
+  if (how === "random") {
+    let x = (seed >>> 0) || 1;
+    const rnd = () => { x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; };
+    const keys = idx.map(() => rnd());
+    return idx.sort((a, b) => keys[a] - keys[b] || a - b);
+  }
+  if (how === "top" || how === "bottom") {
+    const y = panes.map(p => meanOf(p.poly)[1]);
+    return idx.sort((a, b) => (how === "top" ? y[a] - y[b] : y[b] - y[a]) || a - b);
+  }
+  const { dist } = centreOrder(panes, W, H);
+  return idx.sort((a, b) => (how === "inward" ? dist[b] - dist[a] : dist[a] - dist[b]) || a - b);
+}
+/* THE NEXT TURN'S DIRECTION (E62 C1). The curtain hears the body's attributes, not the clock (`onStateChange`), so the
+   clock's hooks (transitions.mjs) hand it the direction of the change they heard; the turn the attributes start takes
+   it if it came within `TURN_HINT_MS`, and a turn with none runs from the centre as before. */
+const TURN_HINT_MS = 1500;
+let turnHint = null;
+/** The next turn's `{ how, seed, groups, delays, dur }` (E62 C1), or null to drop one given. */
+export function hintTurn(hint) { turnHint = hint ? { ...hint, at: performance.now() } : null; }
+/** The direction the next turn will take, or null (for the suite: R3712). */
+export function pendingTurnHint() { return turnHint && performance.now() - turnHint.at < TURN_HINT_MS ? { ...turnHint } : null; }
+/** End the turn running on this browser where it stands: its end state is already painted underneath (E62 C8, Esc). */
+export function skipTurn() { let ended = false; for (const j of curtains) if (j.turn) { j.turn.cancel(); ended = true; } return ended; }
+/**
  * The plan of a turn, pure (E23 C1b; exported for R1377-R1379): the panes `from` (what stood) and `to` (what stands
  * now), each `{ poly, content, tone }`, the frame and the two accents in; keyframes out. Each new pane is matched to the
  * old one it comes from as `morph` matched them (the same `content`, the nearest centre, 200 px against a tone that
@@ -3792,16 +3826,21 @@ const boxOf = (polys, pad) => {
  * when the accent changed. `none` when there is nothing to turn - reduced motion, nothing painted before, the same
  * colour and under TURN_WORTH of the panes moving.
  */
-export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 1200, move = TURN_MOVE, curve = ARRIVE, flash = true, reduced = false } = {}) {
+export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 1200, move = TURN_MOVE, curve = ARRIVE, flash = true, reduced = false, how = null, seed = 1, groups = TURN_BATCHES, delays = null } = {}) {
   const none = { none: true, recolour: false, recut: false, dur, move: { ms: move, curve }, order: [], batchOf: [], delayOf: [], gap: 0, moves: [], batches: [], flashes: [], frost: null, glow: null };
   if (reduced || !from?.length || !to?.length) return none;
   const recolour = Boolean(fromAcc && acc && fromAcc !== acc);
-  const { dist, order } = centreOrder(to, W, H);
-  const per = Math.ceil(order.length / TURN_BATCHES);
+  const { dist } = centreOrder(to, W, H);
+  // E62 C1: the direction of a transition (`how`, `paneOrder`), its number of batches and their onsets (`delays`);
+  // with none of them, the centre outward in eight batches `gap` apart, as every turn ran until E62
+  const order = paneOrder(to, W, H, how ?? "centre", seed);
+  const nb = Math.max(1, Math.min(order.length, groups | 0 || TURN_BATCHES));
+  const per = Math.ceil(order.length / nb);
   const batchOf = [];
   order.forEach((i, k) => { batchOf[i] = Math.floor(k / per); });
-  const gap = Math.min(120, Math.max(70, Math.floor((dur - FLASH.ms) / (TURN_BATCHES - 1))));
-  const delayOf = batchOf.map(b => b * gap);
+  const gap = Math.min(120, Math.max(70, Math.floor((dur - FLASH.ms) / Math.max(1, nb - 1))));
+  const at = b => (Array.isArray(delays) && Number.isFinite(delays[b]) ? delays[b] : b * gap);
+  const delayOf = batchOf.map(at);
   const ease = curveOf(curve);
   const used = new Set(), moves = [], items = [], statics = [], holes = [];
   to.forEach((p, i) => {
@@ -3889,7 +3928,7 @@ export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 120
   const batches = [];
   for (const it of items) {
     let b = batches.find(x => x.k === it.batch);
-    if (!b) { b = { k: it.batch, delay: it.batch * gap, ms: TURN_FADE, easing: cssCurve(curve), panes: [], box: null, frames: [{ offset: 0, opacity: 1 }, { offset: 1, opacity: 0 }] }; batches.push(b); }
+    if (!b) { b = { k: it.batch, delay: at(it.batch), ms: TURN_FADE, easing: cssCurve(curve), panes: [], box: null, frames: [{ offset: 0, opacity: 1 }, { offset: 1, opacity: 0 }] }; batches.push(b); }
     if (!b.panes.includes(it.from)) b.panes.push(it.from);
   }
   batches.sort((p, q) => p.k - q.k);
@@ -4106,7 +4145,10 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
   if (!job || !to) return null;
   look = lookOnScreen(job, look);
   job.turn?.cancel();
-  const plan = turnPlan(from, to, { W: job.W, H: job.H, fromAcc, acc, dur, move, curve, flash, reduced: REDUCED() });
+  const hint = turnHint && performance.now() - turnHint.at < TURN_HINT_MS ? turnHint : null;
+  if (hint) { turnHint = null; count("glass.turn.hinted"); if (hint.dur) dur = hint.dur; }
+  const plan = turnPlan(from, to, { W: job.W, H: job.H, fromAcc, acc, dur, move, curve, flash, reduced: REDUCED(),
+    how: hint?.how ?? null, seed: hint?.seed ?? 1, groups: hint?.groups ?? TURN_BATCHES, delays: hint?.delays ?? null });
   if (plan.none || !look) return null;
   /* THE PULSE IS IN THE NEW LOOK (E23 fix G1, 08.11.2026; the end review's correctness M1). `curtainPaint` has just set
      the pulse layer's size again, which clears it (`layerAfter`), and the loop draws it on its next frame - after this

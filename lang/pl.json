@@ -6963,6 +6963,10 @@
           "label": "Analiza nie udaje się",
           "hint": "Słyszy uczeń, który ją wykonał. Bullet zablokowany do następnego rozdziału - najdłużej trwająca konsekwencja jakiegokolwiek nieudanego rzutu w tej grze."
         },
+        "paneFlash": {
+          "label": "Błysk szyby",
+          "hint": "Każdy błysk szyb na początku Investigation, sześć w około trzy sekundy. Słyszy cały stół."
+        },
         "trialStart": {
           "label": "Start rozprawy",
           "hint": "Wbija się tytuł wejścia do Class Trial. Słyszy cały stół, także przy wyłączonych sekwencjach."

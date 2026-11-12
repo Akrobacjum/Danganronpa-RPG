@@ -387,11 +387,24 @@ function playSound(key) {
     import("./sfx-play.mjs").then(m => m.playSfx(key)).catch(() => null);
 }
 
+/* A transition the curtain plays (transitions.mjs, E62 C8) that Escape may end: `{ until, skip }`, for its length. */
+let held = null;
+
+/** Let Escape end something for the next `ms` (E62 C8): `skip` is called once, on the first Escape, and the key is taken. */
+export function holdEscape(ms, skip) {
+    held = typeof skip === "function" ? { until: performance.now() + Math.max(0, ms), skip } : null;
+}
+
 function onEscape(event) {
-    if (!running || event.key !== "Escape" || event.defaultPrevented) return;
+    if (event.key !== "Escape" || event.defaultPrevented) return;
+    const transition = !running && held && performance.now() < held.until ? held : null;
+    if (!running && !transition) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    endSequence("skipped");
+    if (running) { endSequence("skipped"); return; }
+    held = null;
+    count("sequence.transitionSkipped");
+    try { transition.skip(); } catch { /* the transition's own clean-up */ }
 }
 
 /** The phase moved on this browser (sync.mjs's clock row): a running sequence ends - the entry itself excepted, when

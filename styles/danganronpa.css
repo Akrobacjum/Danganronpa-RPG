@@ -17526,3 +17526,8 @@ body[data-drpg-sequence-cover] :is(#drpg-room-tile, #drpg-room-art, #drpg-voice-
     font: calc((var(--drpg-seq-text-size) + 6) * var(--drpg-seq-u)) var(--drpg-seq-font);
 }
 #drpg-sequence .drpg-seq-verdict:not(.is-guilty) { --drpg-seq-mark: var(--drpg-seq-light); }
+
+
+/* THE FLICKER UNDER MONOKUMA LEGACY (E62 C2, C4; transitions.mjs `flicker`): no curtain, so the four frames MK-R3 names
+   light instead - the clock, the status, Despair's bar and the notice tile. */
+body.drpg-flicker:not(.drpg-theme-stained-glass) :is(#drpg-hud, #drpg-status, #drpg-despair, #drpg-notices-corner) { filter: brightness(1.7); }

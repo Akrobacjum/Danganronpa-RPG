@@ -47120,6 +47120,114 @@ const INVARIANTS = [
         }), stableJson({ flag: true, fromCard: true, notFromVote: true, frame5: [true, true, 1, true] }),
             "[the card's verdictCut flag; the cut-in hears a GM's new message; the vote's close does not start it; frame 5: the stamp on the portrait, the name, the vote rows, the sentence]");
     }],
+    ["R3708 - a transition turns the panes in its own direction (scripts/glass.mjs `paneOrder`; E62 C1, SB-R1, MK-R1/MK-R2): \"top\" takes the topmost pane first and \"bottom\" the lowest, \"centre\" the nearest the screen's middle and \"inward\" the farthest, and \"random\" is a seeded shuffle - the same seed the same order, another seed another - of every pane once", async () => {
+        /* E62 C1, 12.11.2026. Red at d03c509: glass.mjs exports no paneOrder. A 6 x 4 grid of square panes at 1600x900. */
+        const G = await import("./glass.mjs");
+        ok(typeof G.paneOrder === "function", "glass.mjs exports no paneOrder");
+        if (typeof G.paneOrder !== "function") return;
+        const W = 1600, H = 900, panes = [];
+        for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) panes.push({ poly: [[c * 267, r * 225], [(c + 1) * 267, r * 225], [(c + 1) * 267, (r + 1) * 225], [c * 267, (r + 1) * 225]] });
+        const row = i => Math.floor(i / 6);
+        const o = how => G.paneOrder(panes, W, H, how, 7);
+        const mid = i => Math.hypot((i % 6) * 267 + 133 - 800, row(i) * 225 + 112 - 450);
+        const r1 = o("random"), r2 = G.paneOrder(panes, W, H, "random", 7), r3 = G.paneOrder(panes, W, H, "random", 8);
+        equal(stableJson({
+            top: [row(o("top")[0]), row(o("top").at(-1))], bottom: [row(o("bottom")[0]), row(o("bottom").at(-1))],
+            centre: mid(o("centre")[0]) <= Math.min(...panes.map((_, i) => mid(i))) + 1, inward: mid(o("inward")[0]) >= Math.max(...panes.map((_, i) => mid(i))) - 1,
+            randomOnce: [...r1].sort((a, b) => a - b).join() === panes.map((_, i) => i).join(), sameSeed: r1.join() === r2.join(), otherSeed: r1.join() !== r3.join()
+        }), stableJson({ top: [0, 3], bottom: [3, 0], centre: true, inward: true, randomOnce: true, sameSeed: true, otherSeed: true }),
+            "[top: first and last row; bottom: the same; centre's first is the middle's nearest; inward's first the farthest; random: every pane once, the same seed the same order, another seed another]");
+    }],
+    ["R3709 - each change of the clock has its transition (scripts/transitions.mjs `transitionFor`; E62 C1, SB-R1 of 05.11, the plan's Q5 default): evening to night from the top, night to a new morning from the bottom, an hour taken back from the bottom, the Eclipse in from the centre and out inward (1.4 s), the Investigation's entry six random groups at MK-R3's onsets, the Class Trial's entry E61's and nothing here, its exit from the centre, and a clock that did not move none", async () => {
+        /* E62 C1, 12.11.2026. Red at d03c509: transitions.mjs does not exist. */
+        const T = await import("./transitions.mjs");
+        const c = (timeOfDay, phase = "dailyLife", extra = {}) => ({ day: 3, timeOfDay, phase, eclipse: false, ...extra });
+        const k = (a, b) => { const t = T.transitionFor(a, b); return t ? [t.kind, t.how ?? t.owner] : null; };
+        equal(stableJson({
+            evening: k(c("evening"), c("night")), morning: k(c("night"), c("morning", "dailyLife", { day: 4 })), back: k(c("noon"), c("morning")),
+            forward: k(c("morning"), c("noon")), eclipseIn: k(c("afternoon"), c("evening", "dailyLife", { eclipse: true })), eclipseOut: k(c("evening", "dailyLife", { eclipse: true }), c("evening")),
+            investigation: k(c("noon"), c("noon", "investigation")), onsets: T.transitionFor(c("noon"), c("noon", "investigation"))?.delays,
+            trial: k(c("noon", "investigation"), c("noon", "classTrial")), exit: k(c("noon", "classTrial"), c("noon")), same: k(c("noon"), c("noon")), first: T.transitionFor(null, c("noon"))
+        }), stableJson({
+            evening: ["hour", "top"], morning: ["newDay", "bottom"], back: ["hourBack", "bottom"], forward: ["hour", "top"], eclipseIn: ["eclipseIn", "centre"], eclipseOut: ["eclipseOut", "inward"],
+            investigation: ["investigation", "random"], onsets: [0, 360, 900, 1320, 1930, 2400], trial: ["trialEntry", "E61"], exit: ["trialExit", "centre"], same: null, first: null
+        }), "[each pair's kind and direction (the owner for the trial's entry); the Investigation's onsets; no change; no clock seen before]");
+    }],
+    ["R3710 - no transition flashes more than three times a second (scripts/transitions.mjs `flashRate`; E62 C2, C4, the owner's 10.10 and MK-R3, WCAG 2.3.1's count): the Investigation's six onsets and the discovery's four read at most 3 in any second, and a planted table of four in 900 ms reads 4", async () => {
+        /* E62 C2, C4, 12.11.2026. Red at d03c509: transitions.mjs does not exist. */
+        const T = await import("./transitions.mjs");
+        equal(stableJson([T.flashRate(T.INVESTIGATION_ONSETS), T.flashRate(T.DISCOVERY_ONSETS), T.flashRate([0, 300, 600, 900])]), stableJson([3, 3, 4]),
+            "[the Investigation's most onsets in a second; the discovery's; a planted four in 900 ms]");
+    }],
+    ["R3711 - a turn takes its direction, groups and onsets, and with none turns as before (scripts/glass.mjs `turnPlan`; E62 C1, C2): planned \"top\" on a recolour its first batch holds the top row's panes; six groups at given onsets flash each pane at its group's onset; with no option the batches still run from the centre outward, eight of them, 70-120 ms apart", async () => {
+        /* E62 C1, C2, 12.11.2026. Red at d03c509: turnPlan takes no `how`. A 6 x 4 grid, a recolour (two accents). */
+        const G = await import("./glass.mjs");
+        const W = 1600, H = 900, panes = [];
+        for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) panes.push({ poly: [[c * 267, r * 225], [(c + 1) * 267, r * 225], [(c + 1) * 267, (r + 1) * 225], [c * 267, (r + 1) * 225]], content: null, tone: null });
+        const base = { W, H, fromAcc: "#111111", acc: "#222222", dur: 1200 };
+        const top = G.turnPlan(panes, panes, { ...base, how: "top" });
+        const six = G.turnPlan(panes, panes, { ...base, how: "random", seed: 3, groups: 6, delays: [0, 360, 900, 1320, 1930, 2400] });
+        const plain = G.turnPlan(panes, panes, base);
+        const rows = plan => plan.order.filter(i => plan.batchOf[i] === 0).map(i => Math.floor(i / 6));
+        equal(stableJson({
+            top: [...new Set(rows(top))], six: [...new Set(six.flashes.map(f => f.delay))].sort((a, b) => a - b),
+            plain: { batches: Math.max(...plain.batchOf) + 1, gapOk: plain.gap >= 70 && plain.gap <= 120, firstNearest: plain.order[0] === G.paneOrder(panes, W, H, "centre")[0] }
+        }), stableJson({ top: [0], six: [0, 360, 900, 1320, 1930, 2400], plain: { batches: 8, gapOk: true, firstNearest: true } }),
+            "[top: the first batch's rows; six groups: the flashes' onsets; with no option: batches, the gap, the centre first]");
+    }],
+    ["R3712 - a transition is the curtain's and nothing else's (scripts/transitions.mjs `onClockHeard`; E62 C1, C8): heard, it writes no setting and no document and hands the curtain its direction; under reduced motion or with the table's switch off it hands none and schedules no flash; the Class Trial's entry is left to E61; and a second hearing of the same clock plays nothing", async () => {
+        /* E62 C1, C8, 12.11.2026. Red at d03c509: transitions.mjs does not exist. */
+        const T = await import("./transitions.mjs");
+        const G = await import("./glass.mjs");
+        const { watchWrites } = await import("./tests-kit.mjs");
+        const w = watchWrites(() => "R3712");
+        const c = (timeOfDay, phase = "dailyLife") => ({ day: 3, timeOfDay, phase, eclipse: false });
+        const read = {};
+        try {
+            G.hintTurn(null);
+            T.onClockHeard(c("evening"), { on: true, still: false });
+            read.moved = T.onClockHeard(c("night"), { on: true, still: false })?.kind ?? null;
+            await settle();
+            read.hint = G.pendingTurnHint()?.how ?? null;
+            G.hintTurn(null);
+            read.again = T.onClockHeard(c("night"), { on: true, still: false });
+            T.onClockHeard(c("morning"), { on: true, still: true }); await settle();
+            read.still = G.pendingTurnHint();
+            T.onClockHeard(c("noon"), { on: false, still: false }); await settle();
+            read.off = G.pendingTurnHint();
+            read.trial = T.onClockHeard(c("noon", "classTrial"), { on: true, still: false })?.owner ?? null; await settle();
+            read.trialHint = G.pendingTurnHint();
+            T.onClockHeard(c("noon"), { on: false, still: true });
+        } finally { w.stop(); G.hintTurn(null); }
+        read.writes = w.seen.filter(s => s.includes("R3712"));
+        equal(stableJson(read), stableJson({ moved: "hour", hint: "top", again: null, still: null, off: null, trial: "E61", trialHint: null, writes: [] }),
+            "[evening to night heard; the direction handed; the same clock again; reduced motion; the switch off; the trial's entry's owner; no direction for it; the world written]");
+    }],
+    ["R3713 - Escape ends a transition here, and the body's flicker plays from the announcement alone (scripts/sequence.mjs `holdEscape`, scripts/transitions.mjs `onBodyAnnounced`; E62 C4, C8, the owner's 10.10 and its 14:10 answer, E95 fix RV-12): while a transition is held Escape is taken and its skip runs once, the next Escape is not taken; the announcement lights the flicker on this page and puts it out, a rehearsal's payload and reduced motion play none; and the Sound window has the row \"Pane flash\", varied, in both languages", async () => {
+        /* E62 C2, C4, C8, 12.11.2026. Red at d03c509: sequence.mjs exports no holdEscape, transitions.mjs does not exist. */
+        const S = await import("./sequence.mjs");
+        const T = await import("./transitions.mjs");
+        let skipped = 0;
+        S.holdEscape(5000, () => skipped++);
+        const e1 = new KeyboardEvent("keydown", { key: "Escape", cancelable: true, bubbles: true });
+        window.dispatchEvent(e1);
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", cancelable: true, bubbles: true }));
+        const hadOwn = skipped !== 1;
+        S.holdEscape(0, null);
+        const body = document.body;
+        const played = T.onBodyAnnounced({ at: 1, victimIds: [] }, { on: true, still: false });
+        await wait(60);
+        const lit = body.classList.contains("drpg-flicker");
+        await wait(T.DISCOVERY_ONSETS.at(-1) + 400);
+        const out = !body.classList.contains("drpg-flicker");
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        equal(stableJson({
+            taken: e1.defaultPrevented, skipped, notHeld: !hadOwn, played: played?.length ?? null, lit, out,
+            rehearsal: T.onBodyAnnounced({ rehearsal: true }, { on: true, still: false }), still: T.onBodyAnnounced({ at: 2 }, { on: true, still: true }),
+            row: [SFX_EVENTS.paneFlash?.category ?? null, SFX_EVENTS.paneFlash?.vary === true, typeof pl.DRPG?.Config?.SFX_EVENTS?.paneFlash?.label === "string"]
+        }), stableJson({ taken: true, skipped: 1, notHeld: true, played: 4, lit: true, out: true, rehearsal: null, still: null, row: ["incident", true, true] }),
+            "[Escape taken while held; the skip run once; the next not taken; the announcement's onsets; lit; put out; a rehearsal; reduced motion; the Sound row]");
+    }],
 ];
 
 /**
