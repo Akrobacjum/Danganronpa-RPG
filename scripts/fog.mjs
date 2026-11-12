@@ -65,7 +65,7 @@ import { roomPieces, roomRegions, roomNames, sceneHoldsRooms, scenesWithRooms, n
     viewedLevel, onLevel, isMoveChange, floorsOf, isPlaceScene, levelOf, joinsAnotherRoom, RENAMED_FROM, placeScenes,
     regionPatches } from "./rooms.mjs";
 import { isMastermind, mastermindActor, mastermindLair, setMastermindLair } from "./mastermind.mjs";
-import { isMonokuma, poolUserFor } from "./monokuma.mjs";
+import { isMonokuma, isSpectator, poolUserFor } from "./monokuma.mjs";
 import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural, whisperToGms, esc, serialWrite, markLanguage } from "./utils.mjs";
 import { ENTER, reducedMotion, glassOn } from "./motion.mjs";
 import { playSfx } from "./sfx.mjs";
@@ -1538,6 +1538,10 @@ async function recordDiscovery(scene, actor, room) {
        room as known for a GM, so their map is unchanged; what changes is that
        it stops being changed BY them. */
     if (isMonokuma(actor)) return false;
+
+    /* NOR A SPECTATOR (E92 C3; the owner's E92 goal (3): "its movement reveals no rooms"). It watches the map the class
+       has found (its copy, gm-stores.mjs `spectatorFogSection`); a room it walks into is found by nobody. */
+    if (isSpectator(actor)) return false;
 
     if (discoveredFor(scene.id, actor.id).includes(room)) return false;
 

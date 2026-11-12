@@ -221,6 +221,8 @@ export const REASON_PATTERNS = Object.freeze([
     // Two patterns, not one with an optional group: R22 reads `range(` in a regex literal as a call.
     ["outOfRange", /^(?:amount|difficulty|delta) .+ is out of range$/],
     ["outOfRange", /^difficulty .+ is out of range \(.*\)$/],
+    // E92 C3: a ghost's move to a spot off its token's scene.
+    ["outOfRange", /^the spot is off the scene$/],
     ["busy", /^a Level Up for that character is already being written$/],
     // E08+E28 C4a: the Reroll the GM makes (reroll.mjs `rerollOnGm`).
     ["busy", /^a Reroll of that character is already being made$/],
@@ -438,6 +440,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["movedOn", /^the round has moved on since that turn$/],
     ["cannotNow", /^that turn has not run out yet$/],
     ["notEligible", /^that character takes no part in the round$/],
+    // E92 C3: a ghost's move asked for a character the GMs do not hold as a Spectator.
+    ["notEligible", /^that character is not a Spectator$/],
     ["alreadyDone", /^that player has already called that turn over$/],
     // E70 C8: a volunteer for the Closing Argument ("trial.claim", trial-modes.mjs `volunteerOnPrimary`).
     ["cannotNow", /^nobody is volunteering for the Closing Argument now$/],

@@ -804,3 +804,21 @@ export async function handleDifficulty(payload, sender, ctx) {
 export async function handleTraitRuling(payload, sender, ctx) {
     return askTraitByCard(payload, ctx);
 }
+
+/**
+ * The run of `spectator.move` (E92 C3): the Spectator's token written where the packet names, walls ignored, on the
+ * primary. Refused for a character the GMs do not hold as a Spectator (sheet-audit.mjs `flagsHeldNow`: the primary's
+ * mark, never the document a console may have written) and for a spot off the token's scene.
+ */
+export async function handleSpectatorMove(payload) {
+    const scene = game.scenes.get(payload.sceneId);
+    const token = scene?.tokens?.get(payload.tokenId);
+    const actor = token?.actor ?? null;
+    if (!actor) return { refused: "no such character" };
+    const [{ flagsHeldNow }, { isSpectator }] = await Promise.all([import("./sheet-audit.mjs"), import("./monokuma.mjs")]);
+    if (!isSpectator(flagsHeldNow(actor))) return { refused: "that character is not a Spectator" };
+    const x = Number(payload.x), y = Number(payload.y);
+    const width = Number(scene.dimensions?.width ?? scene.width ?? Infinity), height = Number(scene.dimensions?.height ?? scene.height ?? Infinity);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0 || x > width || y > height) return { refused: "the spot is off the scene" };
+    await token.update({ x: Math.round(x), y: Math.round(y) }, { animate: false, constrainOptions: { ignoreWalls: true } });
+}

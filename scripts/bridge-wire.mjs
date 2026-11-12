@@ -126,6 +126,8 @@ export const ACTION_PASSAGE_CROSS = "passage.cross";
 export const ACTION_PASSAGE_FIND = "passage.find";
 /** GM -> primary GM: give back a character's last crossing, its price and its token (E17 C3) - see movement.mjs `refundLastCrossing`. */
 export const ACTION_REFUND_CROSSING = "token.refundCrossing";
+/** player -> GM: my Spectator's token goes to this spot, through any wall (E92 C3) - see bridge-runs-acts.mjs `handleSpectatorMove`. */
+export const ACTION_SPECTATOR_MOVE = "spectator.move";
 export const ACTION_VAULT_STEAL = "vault.steal";
 export const ACTION_STEAL = "action.steal";
 export const ACTION_FIND_STASH = "vault.findStash";

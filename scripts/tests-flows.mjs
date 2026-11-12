@@ -126,6 +126,11 @@ export const FLOWS = Object.freeze([
     // GMs' record of the crossing; tier 2 E17-T6 judges the row as a player's ask and as a GM's. No scenario drives it yet.
     { id: "crossing-fee-refund", what: "A token sent back to where it stood, and the crossing it paid for handed back",
         entry: { bridge: ["token.sendBack", "token.refundCrossing"] }, scenarios: ["30-security", "33-bridge-paths", "88-flow-length"], status: "partial", stage: "E39" },
+    // E92 C3 (12.11.2026): a Spectator's ghost move (`spectator.move`), written on the primary through any wall. 33 drives
+    // the legal road, 30 a student's forgery of it (another's token, its own, its own with a forged flag); partial until its
+    // release names it (covered names the release it arrived in).
+    { id: "spectator-move", what: "A Spectator's token moved where its player asks, through any wall, at no price, finding no room",
+        entry: { bridge: ["spectator.move"] }, scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E92" },
     // E08+E28 C8 (03.10.2026): a player's road is gone - a Reroll's point is the GM's own (C4b), and a
     // player's `despair.adjust` is refused (`undoIsTheGms`; 30 and 33 send one). 33's A7 drives the GM road.
     // E17 C5 (26.10.2026): another GM's overflow added on the primary (`overflow.add`, gmOnly); tier 2 E17-T8 judges a

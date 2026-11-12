@@ -25,7 +25,7 @@
  * `myIncidentTrace` reads the cast that stands. The listeners below are for what is no clock and no incident.
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, FLAGS } from "./config.mjs";
 import { SETTINGS, isEclipse, incidentParticipants, incidentCast } from "./settings.mjs";
 import { roomOfToken, roomAt, whenAtRest } from "./movement.mjs";
 import { isMoveChange } from "./rooms.mjs";
@@ -459,6 +459,7 @@ function applyToToken(token) {
         }
 
         if (!token?.actor || token.actor.type !== "character") return;
+        if (game.user?.isGM) dressSpectator(token);
         // The rule is `tokenShownTo`'s (E12 C11); this only carries its answer to the sprite.
         const verdict = tokenShownTo(token.document, viewerHere(() => Boolean(token.isOwner)));
         if (verdict === "show") show(token);
@@ -688,6 +689,40 @@ function inTheIncident() {
         // A trace nobody can classify is a trace nobody special gets to see.
         return false;
     }
+}
+
+/*
+ * A SPECTATOR'S TOKEN ON A GM'S CANVAS (E92 C3, 12.11.2026; the owner's 04.11 amend: "the GM sees the Spectator's token,
+ * slightly greyed and with a darker outline"). Its sprite at 0.6 of its own alpha, tinted grey, and a dark outline
+ * round its square, drawn as a child of the token named `SPECTATOR_OUTLINE`, once per refresh; a token whose actor is
+ * no Spectator any more is given back its tint and alpha and loses the outline. On a GM's browser only (`applyToToken`):
+ * every other player's is hidden (`tokenShownTo`), and its owner sees it as Foundry draws it. Display only.
+ * Whether it reads on a real map in both themes is LIVE-E92-04.
+ */
+const SPECTATOR_OUTLINE = "drpg-spectator-outline";
+const dressedSpectators = new WeakSet();
+export function dressSpectator(token) {
+    const watching = Boolean(token?.actor?.getFlag?.(MODULE_ID, FLAGS.spectator));
+    const mesh = token?.mesh;
+    const old = token?.children?.find?.(c => c?.name === SPECTATOR_OUTLINE) ?? null;
+    if (!watching) {
+        if (dressedSpectators.has(token)) {
+            dressedSpectators.delete(token);
+            if (mesh) { mesh.tint = 0xffffff; mesh.alpha = token.document?.alpha ?? 1; }
+            old?.destroy?.();
+        }
+        return false;
+    }
+    dressedSpectators.add(token);
+    if (mesh) { mesh.tint = 0x8c8c8c; mesh.alpha = 0.6 * (token.document?.alpha ?? 1); }
+    if (!old && globalThis.PIXI?.Graphics && typeof token.addChild === "function") {
+        const w = token.w ?? token.width ?? 0, h = token.h ?? token.height ?? 0;
+        const line = new globalThis.PIXI.Graphics();
+        line.name = SPECTATOR_OUTLINE;
+        line.lineStyle(Math.max(2, Math.round(Math.min(w, h) * 0.05)), 0x161616, 0.95).drawRoundedRect(0, 0, w, h, Math.min(w, h) * 0.12);
+        token.addChild(line);
+    }
+    return true;
 }
 
 function hide(token) {

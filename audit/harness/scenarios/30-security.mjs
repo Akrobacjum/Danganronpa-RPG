@@ -1971,6 +1971,24 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     check("control: a send-back to where the token stood a moment ago puts it there",
         back.x === start.x && back.y === start.y, JSON.stringify({ start, back }));
 
+    /* 7e1. spectator.move (E92 C3, 12.11.2026): a Spectator's ghost move, which the primary writes through any wall. p1
+       forges it for Botan, who is p2's, and for its own Aiko, who is no Spectator; then p1's console writes the flag on
+       Aiko's document - the GMs' audit puts it back (sheet-audit.mjs GM_FLAGS) - and asks again at once: the run reads
+       the flag as the GMs hold it, so neither token moves and the GM's record names why. 33 drives the legal road. */
+    phase("a ghost's move by a student", { flow: "spectator-move" });
+    const ghostAt = { sceneId, x: 2300, y: 1300 };
+    const ghostOther = await forge("spectator.move", { ...ghostAt, tokenId: "TOKBOTAN00000000" },
+        `const t = canvas.scene.tokens.get("TOKBOTAN00000000"); return { x: t.x, y: t.y };`);
+    const ghostOwn = await forge("spectator.move", { ...ghostAt, tokenId: "TOKAIKO000000000" }, readToken);
+    await p1.eval(`try { await game.actors.get("${ids.aiko}").setFlag("${MOD}", "spectator", true); } catch {} return true;`);
+    const ghostForged = await forge("spectator.move", { ...ghostAt, tokenId: "TOKAIKO000000000" }, readToken);
+    await settle(1500);
+    const flagLeft = await gm.eval(`return game.actors.get("${ids.aiko}").getFlag("${MOD}", "spectator") ?? null;`);
+    check("SECURITY: a ghost's move asked for another player's token, for the sender's own student, and with the flag the sender's console wrote moves nothing, and the flag is put back",
+        ghostOther.unchanged && ghostOther.forOwnership && ghostOwn.unchanged && ghostOwn.reasons.some(r => /not a Spectator/.test(r))
+        && ghostForged.unchanged && ghostForged.reasons.some(r => /not a Spectator/.test(r)) && flagLeft === null,
+        JSON.stringify({ ghostOther, ghostOwn, ghostForged, flagLeft }), { flow: "spectator-move" });
+
     /* 7e2. passage.cross (E80 C2, 18.10.2026): 'Go through' carried out on the primary GM. The GM makes a tunnel from
        Dorm A to the Gym, grants it to Botan alone and stands Botan and Aiko at its Dorm A end (the GM's API, not under
        test). p1 forges the request for Botan, who is p2's, and then for its own Aiko, who does not know the tunnel:

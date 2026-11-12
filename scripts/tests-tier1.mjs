@@ -47395,7 +47395,7 @@ const INVARIANTS = [
                 accounts: { watcher: true, mixed: false, none: false, gm: false, held: false }, gmView: { reason: "spectator", held: true }, settle: true }),
             "[micHold for the Spectator's account in Daily Life and the trial; a student's account; spectatorAccount; the GMs' view; the settle blocks it as the GMs hold the flag]");
     }],
-    ["R3854 - a Spectator walks as a ghost (E92 C3; the owner's E92 goal (3)): movement.mjs `crossingVerdict` lets it through as a Monokuma, before the trial's and the incident's locks; fog.mjs `recordDiscovery` writes nothing for it; movement.mjs `judgeMove` charges it nothing; movement-audit.mjs `auditMove` exempts it; the bridge has `spectator.move`, guarded by `knownSender` and `owns`", async () => {
+    ["R3854 - a Spectator walks as a ghost (E92 C3; the owner's E92 goal (3)): movement.mjs `crossingVerdict` lets it through as a Monokuma, before the trial's and the incident's locks; fog.mjs `recordDiscovery` writes nothing for it; movement.mjs `judgeMove` charges it nothing; movement-audit.mjs `auditMove` exempts it; the bridge has `spectator.move`, guarded by `knownSender` and `ownsActorAt` of the token", async () => {
         /*
          * E92 C0, 12.11.2026. The clock is answered in the Class Trial while the verdicts are read (`game.settings.get`
          * stood in, the setting untouched); the rest is read in the source. Red on C0's tree: the trial's lock.
@@ -47416,10 +47416,10 @@ const INVARIANTS = [
         const names = cut("fog.mjs", "recordDiscovery").includes("isSpectator(") && cut("movement.mjs", "judgeMove").includes("isSpectator(")
             && cut("movement-audit.mjs", "auditMove").includes("isSpectator(");
         const wire = /ACTION_SPECTATOR_MOVE\s*=\s*"spectator\.move"/.test(src.get("bridge-wire.mjs") ?? "");
-        const row = /\[ACTION_SPECTATOR_MOVE\]:\s*\{[^}]*guards:\s*\[knownSender,\s*owns\(/s.test(stripComments(src.get("bridge-table.mjs") ?? ""));
+        const row = /\[ACTION_SPECTATOR_MOVE\]:\s*\{[^}]*guards:\s*\[knownSender,\s*ownsActorAt\(tokenActorOf,/s.test(stripComments(src.get("bridge-table.mjs") ?? ""));
         equal(stableJson({ verdicts, names, wire, row }), stableJson({ verdicts: { watcher: true, student: false }, names: true, wire: true, row: true }),
             "[a crossing in the Class Trial for a Spectator and a student; the ledger, the charge and the audit pass it over; the bridge's road]");
-    }, expectedRed("E92", "C3 writes the ghost's movement")],
+    }],
     ["R3855 - who sees a Spectator's token, and what a Spectator sees (E92 C4; the owner's E92 goal (1), (4)): visibility.mjs `tokenShownTo` hides a Spectator's token from every other player whatever the room, the Eclipse or the setting, shows it to its owner, and leaves the GM's to Foundry; to a Spectator's browser every character's token is left to Foundry (seen whatever the room), its own as well", async () => {
         /*
          * E92 C0, 12.11.2026. `tokenShownTo` takes its viewer whole (`viewerHere`'s shape, `spectator` added); the token
