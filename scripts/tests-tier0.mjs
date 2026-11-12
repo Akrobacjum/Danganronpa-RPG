@@ -3655,7 +3655,9 @@ const REGRESSIONS = [
         ok(!bad.length, `these sizes do not follow the Interface scale: ${bad.join(", ")}`);
         // Counted as well, so nobody satisfies the sweep by deleting the token.
         ok(factored >= 22, `only ${factored} stated sizes carry the factor`);
-        equal(clamped, 2, "the pause caption is no longer the only size with a viewport container");
+        // 2 the pause caption's; 4 since E61 C4-C5 (12.11.2026): the sequences' stamp, name and vote sizes, whose host is
+        // the whole screen (danganronpa.css THE SEQUENCES)
+        equal(clamped, 6, "the pause caption and the sequences are no longer the only sizes with a viewport container");
         ok(rungs >= 140, `only ${rungs} declarations read a rung - 164 of them did, so some have been unwired`);
     }],
 
@@ -20169,9 +20171,10 @@ const REGRESSIONS = [
                 "motive", "murderState", "overflow", "pendingGather", "projectMeta", "readyRound", "restrictions", "sealedRooms", "searchTokens",
                 "trialProgress", "trialQueue"],
             // 35 table settings since E60 C5d: `diceDualityLook`, the table's Hope and Despair dice, outlives a season;
-            // 36 since E68 C2: `autoApproveTraits`, the valve, a rule of play the GM switches.
-            counts: [19, 11, 36], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
-        }), "the season's settings are not the nineteen the reset clears, the lifetimes do not count 19, 11 and 36, the clock's entry does not "
+            // 36 since E68 C2: `autoApproveTraits`, the valve, a rule of play the GM switches;
+            // 37 since E61 C1: `sequences`, the table's switch for the full-screen sequences.
+            counts: [19, 11, 37], clock: ["chapterEnd", "clock", "readyRound"], assignments: ["gmAssignments"], record: "campaign"
+        }), "the season's settings are not the nineteen the reset clears, the lifetimes do not count 19, 11 and 37, the clock's entry does not "
             + "name the readiness round and the End of chapter's record, the assignments' entry does not name gmAssignments, or the reset's own record is not kept as the campaign's");
     }],
 
@@ -22913,8 +22916,9 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({
             loaded: true,
             sections: [["look", "client", 5, true], ["effects", "client", 5, true], ["sound", "client", 1, true], ["tech", "client", 1, true],
-                ["audio", "game", 5, true], ["rules", "game", 7, true], ["privacy", "game", 6, true], ["gm", "game", 4, true], ["foundry", "game", 2, true]],
-            once: [], others: ["sfxVary"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
+                ["audio", "game", 5, true], ["rules", "game", 7, true], ["privacy", "game", 6, true], ["gm", "game", 5, true], ["foundry", "game", 2, true]],
+            // E61 C1 (12.11.2026): `sequences`, the table's switch for the sequences, a world setting born in this window
+            once: [], others: ["sfxVary", "sequences"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
             menus: read.menus === "not modelled" ? "not modelled" : [[`${MODULE_ID}.drpgSettings`, false]],
             words: [], sectionWords: [true, true, true, true, true, true, true, true, true]
         }), "[the module loads; its sections (key, place, size, an icon); keys not in exactly one; keys no frozen one; keys of the other scope than their place; settings still config: true; "

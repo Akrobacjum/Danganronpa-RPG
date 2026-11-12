@@ -48859,6 +48859,581 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ first: { fits: true, top: 126 }, foot: 126, later: null, none: null }),
             "{foot: the band's foot; first: the first render's top and height; later: a later render's top; none: the foot with no band} - a sheet must open below the band");
     }],
+    ["R3700 - a sequence plays from one event and changes nothing (scripts/sequence.mjs `playSequence`; E61 C1, the A7 rule of 11.10, SB-R1 of 05.11): the same event heard twice starts one; Escape ends it here and is taken from the windows behind it, the next Escape is not; it writes no setting and no document; the notice stack and the tile stand where they stood; the host and the body's mark go with it; and the module asks Escape of the sequences before Foundry's windows", async () => {
+        /*
+         * E61 C1, 12.11.2026. Red at f22a7e87: scripts/sequence.mjs does not exist and the import throws. jsdom has no
+         * `Element.animate`, so the frames are not played here; what is read is the engine's contract around them.
+         */
+        const S = await import("./sequence.mjs");
+        const { watchWrites } = await import("./tests-kit.mjs");
+        const C = await import("./perf-counters.mjs");
+        const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion");
+        const popups = document.getElementById("drpg-popups"), corner = document.getElementById("drpg-notices-corner");
+        const stood = { popups: popups?.childElementCount ?? null, corner: corner?.parentElement?.id ?? null };
+        const key = `R3700:${Date.now()}`, read = {};
+        const w = watchWrites(() => "R3700");
+        const before = C.snapshot();
+        try {
+            body.classList.remove("drpg-reduced-motion");
+            read.first = S.playSequence("trialEntry", key, ctx => { const d = document.createElement("div"); d.className = "drpg-seq-r3700"; ctx.host.append(d); }, { on: true });
+            read.again = S.playSequence("trialEntry", key, () => {}, { on: true });
+            read.playing = S.sequenceNow()?.kind ?? null;
+            read.host = Boolean(document.querySelector(`#${S.SEQUENCE_HOST_ID} .drpg-seq-r3700`));
+            read.mark = body.getAttribute(S.SEQUENCE_ATTR);
+            const esc1 = new KeyboardEvent("keydown", { key: "Escape", cancelable: true, bubbles: true });
+            window.dispatchEvent(esc1);
+            read.escTaken = esc1.defaultPrevented;
+            read.after = { playing: S.sequenceNow(), host: Boolean(document.getElementById(S.SEQUENCE_HOST_ID)), mark: body.hasAttribute(S.SEQUENCE_ATTR) };
+            const skipped = C.snapshot()["sequence.skipped"] ?? 0;
+            window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", cancelable: true, bubbles: true }));
+            read.secondEscSkipsNothing = (C.snapshot()["sequence.skipped"] ?? 0) === skipped;
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+            w.stop();
+        }
+        read.writes = w.seen.filter(s => s.includes("R3700"));
+        read.counted = ["sequence.started", "sequence.skipped"].map(k => (C.snapshot()[k] ?? 0) - (before[k] ?? 0));
+        read.stack = { popups: popups?.childElementCount ?? null, corner: corner?.parentElement?.id ?? null };
+        const src = stripComments((await moduleSources()).get("sequence.mjs") ?? "");
+        const mod = stripComments((await moduleSources()).get("module.mjs") ?? "");
+        must(src.length > 2000 && mod.length > 2000, "sequence.mjs or module.mjs was not read - the source half reads nothing");
+        read.noNotices = !/recordNotice|showPopup|notice-history\.mjs|popup\.mjs/.test(src);
+        read.noToggle = !/toggleFoundryTools/.test(src);
+        const seq = mod.indexOf('safely("the sequences", registerSequences)'), win = mod.indexOf('safely("Foundry\'s windows", registerFoundryWindows)');
+        read.escapeFirst = seq > 0 && win > seq;
+        equal(stableJson(read), stableJson({
+            first: "motion", again: null, playing: "trialEntry", host: true, mark: "trialEntry", escTaken: true,
+            after: { playing: null, host: false, mark: false }, secondEscSkipsNothing: true,
+            writes: [], counted: [1, 1], stack: stood, noNotices: true, noToggle: true, escapeFirst: true
+        }), "[the first start; the same event again; what plays; its host; the body's mark; Escape taken; after Escape; the next Escape skips nothing; the world written during the run; started and skipped counted; the notice stack after; sequence.mjs names no notice road; nor the sidebar's collapse; registered before Foundry's windows]");
+    }],
+    ["R3701 - a sequence is still under reduced motion and drawn nowhere with the table's switch off, and its sound plays once either way (scripts/sequence.mjs; E61 C1, C2, MK-R1 #3, #4, the plan's Q-E61-2 default): reduced motion draws the still frame (`data-drpg-sequence-mode` \"still\") and plays the sound at once; the switch off draws no host and plays the sound; in motion the sound waits for its frame (the title's, the stamp's) and plays once", async () => {
+        /* E61 C1, C2, 12.11.2026. Red at f22a7e87: sequence.mjs does not exist. */
+        const S = await import("./sequence.mjs");
+        const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion");
+        const stamp = Date.now(), heard = { still: 0, off: 0, motion: 0 }, read = {};
+        try {
+            body.classList.add("drpg-reduced-motion");
+            read.still = S.playSequence("verdictCut", `R3701s:${stamp}`, () => {}, { on: true, sound: () => heard.still++ });
+            read.stillMode = document.getElementById(S.SEQUENCE_HOST_ID)?.dataset.drpgSequenceMode ?? null;
+            read.stillHeard = heard.still;
+            S.endSequence("cut");
+            body.classList.remove("drpg-reduced-motion");
+            read.off = S.playSequence("verdictCut", `R3701o:${stamp}`, () => { throw new Error("drawn with the switch off"); }, { on: false, sound: () => heard.off++ });
+            read.offHost = Boolean(document.getElementById(S.SEQUENCE_HOST_ID));
+            read.offHeard = heard.off;
+            read.motion = S.playSequence("verdictCut", `R3701m:${stamp}`, () => {}, { on: true, sound: () => heard.motion++ });
+            read.motionAtOnce = heard.motion;
+            await wait(S.SEQUENCE_TIMES.verdictCut.sound + 150);
+            read.motionAtFrame = heard.motion;
+            read.switchDefault = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.sequences}`)?.default ?? null;
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+        }
+        equal(stableJson(read), stableJson({ still: "still", stillMode: "still", stillHeard: 1, off: "off", offHost: false, offHeard: 1, motion: "motion", motionAtOnce: 0, motionAtFrame: 1, switchDefault: true }),
+            "[reduced motion: what it played, the host's mode, the sound at once; switch off: what it played, a host, the sound; in motion: what it played, the sound at once, the sound at its frame; the switch's default]");
+    }],
+    ["R3702 - the two sound slots and the table's switch are rows a GM can see (scripts/config.mjs `SFX_EVENTS`, scripts/settings.mjs, scripts/settings-window.mjs; E61 C1, C2, MK-R1 #9, #10, the plan's Q-E61-7 default): `trialStart` and `verdictCut` are incident rows with a label and a hint in English and Polish; the vote's count's row `verdict` is labelled as the vote's result; the switch `sequences` is a world Boolean, on by default, of the table's lifetime, in the window's game section (its GM list, since the 1.2.107 line's merge), named in both languages", async () => {
+        /* E61 C1, C2, 12.11.2026. Red at f22a7e87: no row `trialStart` or `verdictCut`, no setting `sequences`. */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const at = (tree, key) => key.split(".").reduce((o, part) => (o && typeof o === "object" ? o[part] : undefined), tree);
+        const row = key => SFX_EVENTS[key] ? [SFX_EVENTS[key].category, Boolean(SFX_EVENTS[key].label && SFX_EVENTS[key].hint),
+            typeof at(pl, `DRPG.Config.SFX_EVENTS.${key}.label`) === "string" && typeof at(pl, `DRPG.Config.SFX_EVENTS.${key}.hint`) === "string"] : null;
+        const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.sequences}`);
+        const { WORLD_LIFETIMES } = await import("./settings.mjs");
+        const W = await import("./settings-window.mjs");
+        const read = {
+            trialStart: row("trialStart"), verdictCut: row("verdictCut"),
+            verdictLabel: [SFX_EVENTS.verdict?.label ?? null, at(pl, "DRPG.Config.SFX_EVENTS.verdict.label") ?? null],
+            setting: reg ? [reg.scope, reg.type === Boolean, reg.default, reg.config] : null,
+            lifetime: WORLD_LIFETIMES[SETTINGS.sequences] ?? null,
+            section: W.SETTINGS_SECTIONS.filter(s => s.keys.includes("sequences")).map(s => s.key),
+            words: ["name", "hint"].map(k => [en, pl].every(t => typeof at(t, `DRPG.Settings.sequences.${k}`) === "string"))
+        };
+        equal(stableJson(read), stableJson({
+            trialStart: ["incident", true, true], verdictCut: ["incident", true, true], verdictLabel: ["The vote's result", "Wynik głosowania"],
+            setting: ["world", true, true, false], lifetime: "table", section: ["gm"], words: [true, true]
+        }), "[the trial's start row; the cut-in's row; the vote's row's labels; the switch's scope, type, default, shown by Foundry; its lifetime; its section; its words in both]");
+    }],
+    ["R3703 - the entry's closed curtain is a tiling of panes of the curtain's kind (scripts/glass-close.mjs `fillHole`, `tilingReading`, `paneRange`; scripts/glass.mjs `entryPieces`; E61 C3 round 3, the owner's review of round 2, 12.11.2026): on three cuts the curtain's generator made (a GM at 1600x900, 1366x768 and 1440x900, read on the glass harness), the standing panes keep their place and the new panes fill what is left: every point of a 6 px grid lies in exactly one pane; every new pane is convex, has as many corners as the standing panes have (least to most), an area between the standing panes' least and most, no corner sharper than theirs, no width under theirs and no greater length for its width; the new panes' middle area is within half and twice the standing panes'", async () => {
+        /*
+         * E61 C3 round 3, 12.11.2026. Red at 8937575: glass-close.mjs exports no fillHole (round 2 flooded the hole
+         * from the standing panes' fronts, which the owner turned down: the new glass matched the old in neither size,
+         * look nor shape). The cuts are the generator's own (`E61_CUTS`); a ring of like panes was tried first and
+         * read nothing useful: its panes' range is a few thousand px² wide, a curtain's tens of thousands. Every
+         * size and both roles are read in Chromium on the glass harness (STATUS, round 3).
+         */
+        const C = await import("./glass-close.mjs"), G = await import("./glass.mjs");
+        ok(typeof G.entryPieces === "function" && typeof C.fillHole === "function", "glass.mjs exports no entryPieces, or glass-close.mjs no fillHole");
+        if (typeof C.fillHole !== "function") return;
+        const read = [];
+        for (const [key, polys] of Object.entries(E61_CUTS)) {
+            const [W, H] = key.match(/(\d+)x(\d+)/).slice(1).map(Number), standing = polys.map(poly => ({ poly }));
+            let sd = 11; const rnd = () => { sd = (sd * 1664525 + 1013904223) % 4294967296; return sd / 4294967296; };
+            const fresh = C.fillHole(standing, W, H, rnd), r = C.tilingReading(standing, fresh, W, H, 6);
+            read.push({
+                key, many: fresh.length >= 10, gaps: r.gaps, doubles: r.doubles, outOfRange: r.outOfRange,
+                convex: fresh.every(p => C.hull(p.poly).length === p.poly.length),
+                middle: r.fresh ? r.fresh.area[1] >= r.standing.area[1] / 2 && r.fresh.area[1] <= r.standing.area[1] * 2 : null
+            });
+        }
+        // above 1366x768 (round 5) the fill is cut on a grid and lifted to 1366x768's share of the screen; on the
+        // 1600x900 cut one chip, 630 px² in a notch between two standing panes and two new ones, is left smaller than
+        // the smallest standing pane - no cut through its neighbours' corners or edges leaves two panes in range (read
+        // 12.11.2026). It is allowed here, and named in STATUS; 1366x768 (round 4's fill, as accepted) and 1440x900 hold none
+        const allowed = { "gm-1600x900": 1 };
+        read.forEach(r => { r.outOfRange = r.outOfRange <= (allowed[r.key] ?? 0) ? 0 : r.outOfRange; });
+        const want = key => ({ key, many: true, gaps: 0, doubles: 0, outOfRange: 0, convex: true, middle: true });
+        equal(stableJson(read), stableJson(Object.keys(E61_CUTS).map(want)),
+            "[per cut: ten new panes or more, grid points in no pane, in two, new panes out of the standing range, every new pane convex, the new panes' middle area near the standing panes']");
+    }],
+    ["R3716 - the entry's panes never overlap at any frame of the closing or the opening (scripts/glass-close.mjs `slidePlan`, `slideAt`, `visibleAt`, `overlapsIn`; E61 C3 rounds 3 and 4, the owner's reviews of 12.11.2026: \"Kafle kurtyny nigdy nie powinny na siebie nachodzić\"): on both rings and on three cuts the generator made, at every 20 ms of the closing and of the opening, no two panes on screen overlap - the standing ones and what is seen of each new one, its moved copy cut to its own place; what is seen of a new pane lies within its place; the new panes start one after another; at the closing's end every new pane stands whole in its place, and at the opening's end none is seen; the reading catches a planted pane drawn uncut past its place and a planted pane laid over a standing one", async () => {
+        /*
+         * E61 C3, 12.11.2026. Round 3 read a pane's inset growing (`growPolys`); round 4's panes slide, so the frames
+         * are `slideAt`'s offsets, each pane seen only inside its own place (`visibleAt`), as sequence.mjs
+         * `slideCanvas` clips it; a corner is outside its place when it is more than a hundredth of a pixel past an edge (a
+         * clip puts corners on the edges, to float precision). Red at 8937575: glass-close.mjs had neither.
+         */
+        const C = await import("./glass-close.mjs"), S = await import("./sequence.mjs");
+        if (typeof C.slideAt !== "function" || typeof C.visibleAt !== "function") { ok(false, "glass-close.mjs exports no slideAt or visibleAt"); return; }
+        const T = S.SEQUENCE_TIMES.trialEntry, read = [];
+        const inside = (P, x, y) => { let sg = 0; for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length]; const cr = ((b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0])) / (Math.hypot(b[0] - a[0], b[1] - a[1]) || 1); if (Math.abs(cr) < 0.01) continue; if (sg && Math.sign(cr) !== sg) return false; sg = Math.sign(cr); } return true; };
+        const cases = [...[[1600, 900], [1366, 768]].flatMap(([W, H]) => [false, true].map(jag => [`ring-${W}x${H}${jag ? "-jag" : ""}`, W, H, curtainRing(W, H, jag)])),
+            ...Object.entries(E61_CUTS).map(([key, polys]) => { const [W, H] = key.match(/(\d+)x(\d+)/).slice(1).map(Number); return [key, W, H, polys.map(poly => ({ poly }))]; })];
+        for (const [key, W, H, standing] of cases) {
+            let sd = 11; const rnd = () => { sd = (sd * 1664525 + 1013904223) % 4294967296; return sd / 4294967296; };
+            const plan = C.slidePlan(standing, C.fillHole(standing, W, H, rnd), W, H);
+            let overlaps = 0, outside = 0, frames = 0;
+            for (const open of [false, true]) for (let ms = 0; ms <= T.close + 40; ms += 20) {
+                const seen = C.slideAt(plan, ms, { open }).map((o, i) => (o ? C.visibleAt(plan[i].poly, o) : null));
+                frames++;
+                overlaps += C.overlapsIn([...standing.map(p => p.poly), ...seen.filter(Boolean)]);
+                seen.forEach((q, i) => { if (q && !q.every(([x, y]) => inside(plan[i].poly, x, y))) outside++; });
+            }
+            const end = C.slideAt(plan, T.close + 40), gone = C.slideAt(plan, T.close + 40, { open: true });
+            // plant 1: one new pane drawn uncut, 40 px back along its normal; plant 2: one laid over a standing pane
+            const p0 = plan[0], uncut = p0.poly.map(([x, y]) => [x - p0.nx * 40, y - p0.ny * 40]);
+            const drawnUncut = C.overlapsIn([...standing.map(p => p.poly), ...plan.slice(1).map(p => p.poly), uncut]);
+            const laidOver = C.overlapsIn([...standing.map(p => p.poly), standing[0].poly.map(([x, y]) => [x + 3, y + 3])]);
+            read.push({ key, frames: frames > 80, overlaps, outside, staggered: new Set(plan.map(p => p.delay)).size > 2,
+                whole: end.every(o => o && Math.hypot(o[0], o[1]) < 1e-9), gone: gone.every(o => o === null), plants: [drawnUncut > 0, laidOver > 0] });
+        }
+        const want = key => ({ key, frames: true, overlaps: 0, outside: 0, staggered: true, whole: true, gone: true, plants: [true, true] });
+        equal(stableJson(read), stableJson(cases.map(([key]) => want(key))),
+            "[per ring or cut: frames read, overlapping pairs over all frames, corners seen outside their pane's place, starts spread, whole at the close, gone at the open's end, the two plants seen]");
+    }],
+    ["R3704 - every road into the Class Trial plays the entry from the phase's one event, and the curtain's own turn stands aside for it (scripts/sequence.mjs `onPhaseChanged`, `playTrialEntry`; scripts/glass.mjs `entryPieces`, `rebuildAll`; E61 C3, C4): the clock's row fires `drpgPhaseChanged` once a phase moved, which the sequences hear; the entry's key is the trial's edge stamp, so a second hearing starts nothing; a phase change ends a running sequence; with no curtain the entry closes two lids (Monokuma Legacy's look), with no glass code run; and while the entry takes its pieces `rebuildAll` turns nothing", async () => {
+        /*
+         * E61 C3, C4, 12.11.2026. Red at f22a7e87: sequence.mjs does not exist. Every road in - Start the Class Trial,
+         * `setPhase` (a debate opened outside a trial among its callers), Edit campaign, `setClock` - writes the clock,
+         * and the clock's row is the one place `drpgPhaseChanged` is fired (sync.mjs `phaseHook`), so the roads are read
+         * as the one event here. The theme's class is taken off for the run so the entry draws the lids.
+         */
+        const S = await import("./sequence.mjs");
+        const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), phase = body.dataset.drpgPhase;
+        const clock = { ...getClock(), phase: "classTrial", timeOfDayStartedAt: `R3704:${Date.now()}` }, read = {};
+        try {
+            body.classList.remove("drpg-theme-stained-glass");
+            read.key = S.trialEntryKey(clock) === `classTrial:${clock.timeOfDayStartedAt}`;
+            read.notTrial = S.trialEntryKey({ ...clock, phase: "investigation" });
+            read.first = await S.onPhaseChanged("classTrial", clock);
+            read.look = document.getElementById(S.SEQUENCE_HOST_ID)?.dataset.drpgSequenceLook ?? null;
+            read.lids = document.querySelectorAll(`#${S.SEQUENCE_HOST_ID} .drpg-seq-lid`).length;
+            read.again = await S.onPhaseChanged("classTrial", clock);
+            read.stillPlaying = S.sequenceNow()?.kind ?? null;
+            read.out = await S.onPhaseChanged("investigation", clock);
+            read.ended = S.sequenceNow();
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-theme-stained-glass", hadGlass);
+            if (phase === undefined) delete body.dataset.drpgPhase; else body.dataset.drpgPhase = phase;
+        }
+        const sources = await moduleSources();
+        const sync = stripComments(sources.get("sync.mjs") ?? ""), seq = stripComments(sources.get("sequence.mjs") ?? ""), glass = stripComments(sources.get("glass.mjs") ?? "");
+        must(sync.length > 2000 && seq.length > 2000 && glass.length > 20000, "a source was not read - the source half reads nothing");
+        read.row = /onlyWhen\("phaseHook", "phase"\)/.test(sync) && /Hooks\.callAll\("drpgPhaseChanged"/.test(sync);
+        read.heard = /Hooks\.on\("drpgPhaseChanged", onPhaseChanged\)/.test(seq);
+        read.held = /oldLook && !entryHold \? glassTurn\(/.test(bodyOf(glass, "function rebuildAll(", { until: "\nfunction " }));
+        equal(stableJson(read), stableJson({ key: true, notTrial: null, first: "motion", look: "lids", lids: 2, again: null, stillPlaying: "trialEntry", out: null, ended: null, row: true, heard: true, held: true }),
+            "[the key is the edge's stamp; another phase has none; the first hearing; its look with no curtain; its lids; a second hearing; still playing; another phase; ended; the clock's row fires the hook once a phase moved; the sequences hear it; rebuildAll turns nothing while the entry holds it]");
+    }],
+    ["R3705 - the entry's still frame is the title on the closed curtain, and the tiles come back with it (scripts/sequence.mjs `drawTrialEntry`; E61 C3, C4, MK-R1 #3: \"reduced motion: a still board with the title for 1.5 s\"; A8): under reduced motion the entry's host holds the title in this language - CLASS TRIAL and the chapter's line - and the closed lids, and the room and voice tiles are covered (`data-drpg-sequence-cover`) while it stands and uncovered after; it ends on its own at 1.5 s", async () => {
+        /* E61 C3, C4, 12.11.2026. Red at f22a7e87: sequence.mjs does not exist. */
+        const S = await import("./sequence.mjs");
+        const body = document.body, hadGlass = body.classList.contains("drpg-theme-stained-glass"), wasReduced = body.classList.contains("drpg-reduced-motion"), phase = body.dataset.drpgPhase;
+        const clock = { ...getClock(), phase: "classTrial", chapter: 3, timeOfDayStartedAt: `R3705:${Date.now()}` }, read = {};
+        try {
+            body.classList.remove("drpg-theme-stained-glass");
+            body.classList.add("drpg-reduced-motion");
+            read.mode = await S.onPhaseChanged("classTrial", clock);
+            const host = document.getElementById(S.SEQUENCE_HOST_ID);
+            read.title = host?.querySelector(".drpg-seq-title-band")?.textContent ?? null;
+            read.sub = host?.querySelector(".drpg-seq-title-sub")?.textContent === game.i18n.format("DRPG.Sequence.trialSubtitle", { chapter: 3 });
+            read.lids = host?.querySelectorAll(".drpg-seq-lid").length ?? 0;
+            read.cover = body.hasAttribute(`${S.SEQUENCE_ATTR}-cover`);
+            await wait(S.SEQUENCE_TIMES.trialEntry.still + 200);
+            read.endedAlone = !document.getElementById(S.SEQUENCE_HOST_ID) && S.sequenceNow() === null;
+            read.uncovered = !body.hasAttribute(`${S.SEQUENCE_ATTR}-cover`);
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-theme-stained-glass", hadGlass);
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+            if (phase === undefined) delete body.dataset.drpgPhase; else body.dataset.drpgPhase = phase;
+        }
+        equal(stableJson(read), stableJson({ mode: "still", title: game.i18n.localize("DRPG.Sequence.trialTitle"), sub: true, lids: 2, cover: true, endedAlone: true, uncovered: true }),
+            "[the entry's mode under reduced motion; the title; the chapter's line in this language; the closed lids; the tiles covered; ended on its own at its hold; the tiles uncovered]");
+    }],
+    ["R3706 - the verdict's cut-in reads only the GM's card and the public record (scripts/sequence.mjs `verdictBoard`, `playVerdictCut`; E61 C5, the owner's 05.10 and 05.11, MK-R2 #3): a GM's card naming one sentenced draws that one's name, the stamp of its variant (a right verdict GUILTY, a wrong one NOT GUILTY), the votes from `trialProgress` and the card's sentence; nobody sentenced draws neither portrait nor stamp; a Blackened planted beside them is nowhere in the cut-in; a player's message with the same flags, and a GM's message with no `verdictAt`, start nothing", async () => {
+        /*
+         * E61 C5, 12.11.2026. Red at f22a7e87: sequence.mjs does not exist. The messages are stand-ins with `author` and
+         * `getFlag` (the two the cut-in reads), the record a stand-in of `trialProgress`'s public count; the planted
+         * Blackened is a third student, named in no flag and no count, as a wrong verdict leaves the real one.
+         */
+        const S = await import("./sequence.mjs");
+        const { cast } = await import("./tests-kit.mjs");
+        const [a, b, blackened] = cast(3);
+        const msg = (flags, isGM = true) => ({ author: { isGM }, getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const progress = { accused: [{ id: a.id, n: 3 }, { id: b.id, n: 1 }], total: 4, majority: 3 };
+        const draw = (sentenced, right) => {
+            const board = S.verdictBoard(msg({ verdictAt: 1, verdictCut: { sentenced, right } }), progress);
+            const el = board ? S.verdictBoardElement(board) : null;
+            return { board, el, text: el?.textContent ?? "", html: el?.outerHTML ?? "" };
+        };
+        const right = draw([a.id], true), wrong = draw([a.id], false), nobody = draw([], false);
+        const clean = d => !d.text.includes(blackened.name) && !d.html.includes(blackened.id);
+        const read = {
+            variants: [right.board?.variant, wrong.board?.variant, nobody.board?.variant],
+            stamps: [right, wrong, nobody].map(d => d.el?.querySelector(".drpg-seq-stamp")?.textContent ?? null),
+            name: right.el?.querySelector(".drpg-seq-name")?.textContent === a.name,
+            portraits: [right, nobody].map(d => d.el?.querySelectorAll(".drpg-seq-portrait").length ?? null),
+            votes: [...(right.el?.querySelectorAll(".drpg-seq-vrow em") ?? [])].map(e => e.textContent),
+            sentences: [right, wrong, nobody].map(d => d.el?.querySelector(".drpg-seq-sentence")?.textContent ?? null),
+            blackenedNowhere: [right, wrong, nobody].every(clean),
+            player: S.playVerdictCut(msg({ verdictAt: `R3706:${Date.now()}`, verdictCut: { sentenced: [a.id], right: true } }, false)),
+            noAt: S.playVerdictCut(msg({ verdictCut: { sentenced: [a.id], right: true } })),
+            noFlag: S.verdictBoard(msg({ verdictAt: 2 }))
+        };
+        S.endSequence("cut");
+        const L = k => game.i18n.localize(k);
+        equal(stableJson(read), stableJson({
+            variants: ["guilty", "innocent", "nobody"], stamps: [L("DRPG.Sequence.stampGuilty"), L("DRPG.Sequence.stampInnocent"), null], name: true,
+            portraits: [1, 0], votes: ["3", "1"], sentences: [L("DRPG.Vote.verdictRight"), L("DRPG.Vote.verdictWrong"), L("DRPG.Vote.nobodyExecuted")],
+            blackenedNowhere: true, player: null, noAt: null, noFlag: null
+        }), "[the variants: right, wrong, nobody; their stamps; the sentenced's name; portraits with one and with nobody; the votes; the card's sentences; the Blackened in none; a player's message; a GM's with no verdictAt; a card with no verdictCut]");
+    }],
+    ["R3707 - the verdict's card carries what the cut-in draws, and nothing the card does not say (scripts/verdict.mjs `postVerdictCard`; E61 C5): its flags hold `verdictCut` with the sentenced's ids and whether the class got it right, beside `verdictCard` and `verdictAt`; the cut-in plays from a GM's new chat message, never from the vote's close; and its frame 5 is the board as it stands, its stamp over the portrait and the name and votes kept (MK-R1 #4)", async () => {
+        /* E61 C5, 12.11.2026. Red at f22a7e87: the card's flags hold no `verdictCut`, and sequence.mjs does not exist. */
+        const sources = await moduleSources();
+        const verdict = stripComments(sources.get("verdict.mjs") ?? ""), seq = stripComments(sources.get("sequence.mjs") ?? ""), vote = stripComments(sources.get("vote.mjs") ?? "");
+        must(verdict.length > 5000 && seq.length > 2000 && vote.length > 5000, "a source was not read - this reads nothing");
+        const card = bodyOf(verdict, "export async function postVerdictCard(", { until: "\nexport function " });
+        const S = await import("./sequence.mjs");
+        const { cast } = await import("./tests-kit.mjs");
+        const [a] = cast(1);
+        const el = S.verdictBoardElement({ variant: "guilty", sentenced: [{ id: a.id, name: a.name, img: null }], votes: [{ name: a.name, n: 2 }], total: 3, majority: 2, sentence: "s" });
+        const person = el.querySelector(".drpg-seq-person");
+        equal(stableJson({
+            flag: /verdictCut:\s*\{\s*sentenced:\s*executed\.map\(actor => actor\.id\),\s*right:\s*record\?\.correct === true\s*\}/.test(card) && /verdictAt:/.test(card),
+            fromCard: /Hooks\.on\("createChatMessage"/.test(seq) && /message\?\.author\?\.isGM/.test(seq),
+            notFromVote: !/sequence\.mjs/.test(vote),
+            frame5: [Boolean(person?.querySelector(".drpg-seq-portrait .drpg-seq-stamp")), Boolean(person?.querySelector(".drpg-seq-name")), el.querySelectorAll(".drpg-seq-vrow").length, Boolean(el.querySelector(".drpg-seq-sentence"))]
+        }), stableJson({ flag: true, fromCard: true, notFromVote: true, frame5: [true, true, 1, true] }),
+            "[the card's verdictCut flag; the cut-in hears a GM's new message; the vote's close does not start it; frame 5: the stamp on the portrait, the name, the vote rows, the sentence]");
+    }],
+    ["R3718 - a new pane of the entry slides out from behind the curtain's edge at its own size, never grows (scripts/glass-close.mjs `slidePlan`, `slideAt`; scripts/sequence.mjs `drawTrialEntry`; E61 C3 round 4, the owner's note on round 3, 12.11.2026: \"powinny się wysuwać ... ruchem zza krawędzi kurtyny, a nie przez skalowanie w górę\"): on three cuts the generator made, at every 10 ms of the closing and of the opening, every new pane on screen is its own place moved along its edge's normal - each edge as long as in its place (scale 1); at its start it lies behind its edge (no corner more than 1 px past it); its edge is one it shares with a standing pane or with a new pane that started before it; and the sequence draws each pane from this slide, clipped to its own place, and no longer from a grown inset", async () => {
+        /*
+         * E61 C3 round 4, 12.11.2026. Red at 8ab5124: glass-close.mjs exports no slidePlan or slideAt, and
+         * `drawTrialEntry` draws `growPolys`, a pane's inset from 0.65 of its inradius to none - a pane born small and
+         * grown. The frames are the ones the sequence asks for, read at a fixed step.
+         */
+        const C = await import("./glass-close.mjs"), S = await import("./sequence.mjs");
+        const sources = await moduleSources();
+        const draw = fnSource(stripComments(sources.get("sequence.mjs") ?? ""), "drawTrialEntry");
+        must(draw.length > 500, "drawTrialEntry was not read - this reads nothing");
+        const read = { drawsSlide: /slideAt\(/.test(draw) && !/growPolys\(/.test(draw) };
+        if (typeof C.slidePlan !== "function" || typeof C.slideAt !== "function") { read.api = false; equal(stableJson(read), stableJson({ drawsSlide: true }), "[the sequence draws the slide; glass-close.mjs has slidePlan and slideAt]"); return; }
+        const T = S.SEQUENCE_TIMES.trialEntry, len = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+        read.cuts = [];
+        for (const [key, polys] of Object.entries(E61_CUTS)) {
+            const [W, H] = key.match(/(\d+)x(\d+)/).slice(1).map(Number), standing = polys.map(poly => ({ poly }));
+            let sd = 11; const rnd = () => { sd = (sd * 1664525 + 1013904223) % 4294967296; return sd / 4294967296; };
+            const plan = C.slidePlan(standing, C.fillHole(standing, W, H, rnd), W, H);
+            let scaled = 0, offNormal = 0, frames = 0;
+            for (const open of [false, true]) for (let ms = 0; ms <= T.close + 20; ms += 10) {
+                frames++;
+                C.slideAt(plan, ms, { open }).forEach((o, i) => {
+                    if (!o) return;
+                    const p = plan[i], moved = p.poly.map(([x, y]) => [x + o[0], y + o[1]]);
+                    if (moved.some((q, k) => Math.abs(len(q, moved[(k + 1) % moved.length]) - len(p.poly[k], p.poly[(k + 1) % p.poly.length])) > 1e-6)) scaled++;
+                    if (Math.abs(o[0] * p.ny - o[1] * p.nx) > 1e-6 || o[0] * p.nx + o[1] * p.ny > 1e-6) offNormal++;
+                });
+            }
+            // each pane at its start (a tenth of a millisecond in: the slide eases out, so it moves fastest there)
+            const behind = plan.every((p, i) => {
+                const o = C.slideAt(plan, p.delay + 0.1)[i];
+                if (!o) return false;
+                const [a] = p.edge;
+                return Math.max(...p.poly.map(([x, y]) => (x + o[0] - a[0]) * p.nx + (y + o[1] - a[1]) * p.ny)) <= 1;
+            });
+            const shares = (A, B) => A.some((a, k) => { const b = A[(k + 1) % A.length]; return B.some((c, j) => { const d = B[(j + 1) % B.length]; return [c, d].every(q => Math.abs((q[0] - a[0]) * (b[1] - a[1]) - (q[1] - a[1]) * (b[0] - a[0])) / (len(a, b) || 1) <= 0.75); }); });
+            const fromGlass = plan.every(p => p.rank === 0
+                ? standing.some(s => shares(p.edge.concat(), s.poly) || shares(s.poly, p.edge))
+                : plan.some(q => q !== p && q.rank < p.rank && q.delay < p.delay && shares(q.poly, p.edge)));
+            const outside = C.slideAt(plan, -1).every(o => o === null) && C.slideAt(plan, T.close + 20, { open: true }).every(o => o === null);
+            const placed = C.slideAt(plan, T.close + 20).every(o => o && Math.hypot(o[0], o[1]) < 1e-9);
+            read.cuts.push({ key, frames: frames > 150, scaled, offNormal, behind, fromGlass, outside, placed });
+        }
+        // the clip is the drawing helper's (`slideCanvas`), on the pane's own place before the moved glass is drawn
+        const paint = fnSource(stripComments(sources.get("sequence.mjs") ?? ""), "slideCanvas");
+        read.clipped = /slideCanvas\(/.test(draw) && /p\.poly\.forEach[^;]*;\s*g\.closePath\(\);\s*g\.clip\(\);\s*g\.drawImage\(p\.canvas, p\.box\.x0 \+ o\[0\]/.test(paint);
+        const want = key => ({ key, frames: true, scaled: 0, offNormal: 0, behind: true, fromGlass: true, outside: true, placed: true });
+        equal(stableJson(read), stableJson({ drawsSlide: true, cuts: Object.keys(E61_CUTS).map(want), clipped: true }),
+            "[the sequence draws the slide, not the growth; per cut: frames read, panes drawn at another size, offsets off the edge's normal, every pane behind its edge at its first frame, every edge on glass already there, none before the start or after the opening, all in place at the close; the drawing clipped to the pane's place]");
+    }],
+    ["R3719 - at 1920x1080 the entry's new panes keep 1366x768's proportions (scripts/glass-close.mjs `fillHole`; E61 C3 round 5, the owner's note on round 4, 12.11.2026: \"w fhd kafelki animacji są trochę małe i zbyt wąskie\"): on a GM's cut at 1920x1080 the new panes' median area, as a share of the screen and a mean over eight seeds, is within a tenth of what it is on the GM's cut at 1366x768, and their median aspect (narrowest width over longest span) is no narrower than at 1366x768; at 1366x768 the fill is the one the owner accepted (round 4's median area and count for the same seed)", async () => {
+        /*
+         * E61 C3 round 5, 12.11.2026. Red at 1db3f62: `fillHole` aimed each new pane at the standing panes' median area
+         * in pixels, and the standing cut is built of fixed pixel sizes (glass.mjs `cutSectors`: a step of 230-290 px),
+         * so its median is about the same at every size (23,805 px² at 1366x768, 24,635 at 1920x1080): the new panes
+         * took 1.33 % of the screen at 1920x1080 against 2.19 % at 1366x768.
+         */
+        const C = await import("./glass-close.mjs");
+        const area = P => Math.abs(P.reduce((t, q, i) => { const r = P[(i + 1) % P.length]; return t + q[0] * r[1] - r[0] * q[1]; }, 0)) / 2;
+        const median = a => { const v = [...a].sort((x, y) => x - y); return v[Math.floor(v.length / 2)]; };
+        // eight seeds a size: one fill's median swings by a tenth with its seed (2.19 % to 2.45 % at 1366x768)
+        const fill = (polys, W, H, seed) => { let sd = seed; const rnd = () => { sd = (sd * 1664525 + 1013904223) % 4294967296; return sd / 4294967296; }; return C.fillHole(polys.map(poly => ({ poly })), W, H, rnd).map(p => p.poly); };
+        const seeds = [1, 2, 3, 4, 5, 6, 7, 8].map(k => k * 7919);
+        const mean = (polys, W, H, f) => seeds.reduce((t, sd) => t + f(fill(polys, W, H, sd)), 0) / seeds.length;
+        const share = (W, H) => ps => median(ps.map(P => area(P) / (W * H))), aspect = ps => median(ps.map(P => 1 / C.slender(P)));
+        const r = mean(E61_CUT_FHD, 1920, 1080, share(1920, 1080)) / mean(E61_CUTS["gm-1366x768"], 1366, 768, share(1366, 768));
+        const aF = mean(E61_CUT_FHD, 1920, 1080, aspect), aR = mean(E61_CUTS["gm-1366x768"], 1366, 768, aspect);
+        const ref = fill(E61_CUTS["gm-1366x768"], 1366, 768, 11);
+        equal(stableJson({ shareRatio: r >= 0.9 && r <= 1.1, aspect: aF >= aR - 1e-9, at1366: [Math.round(median(ref.map(area))), ref.length] }),
+            stableJson({ shareRatio: true, aspect: true, at1366: AT_1366_ROUND4 }),
+            `[the 1920x1080 median share over 1366x768's, a mean over eight seeds, within 0.9-1.1 (read ${r.toFixed(3)}); the 1920x1080 median aspect no narrower (read ${aF.toFixed(3)} against ${aR.toFixed(3)}); 1366x768's median area and count for seed 11 as round 4 made them]`);
+    }],
+    ["R3717 - the verdict's cut-in brings every part of its board in with motion, and none under reduced motion (scripts/sequence.mjs `drawVerdictCut`; E61 C5, the owner's review of round 1, 12.11.2026: the window's contents are to arrive with motion and easing, not appear): with motion on, the band, the portrait, the name, the stamp, the count's heading, each vote row, each bar with a vote and the sentence are each animated from another place, scale or opacity, eased (never linear), the rows one after another; under reduced motion nothing is animated and the board stands whole", async () => {
+        /*
+         * E61 C5, 12.11.2026. Red at 6049386: the count's rows came in as one block (`.drpg-seq-votes`, 180 ms) and the
+         * test finds no animation on a row. jsdom has no Web Animations, so `Element.prototype.animate` is stood in for
+         * by a recorder for the run and put back; the board is played through the engine (`playSequence`), as a GM's
+         * card plays it, with the vote's count handed in.
+         */
+        const S = await import("./sequence.mjs");
+        const { cast } = await import("./tests-kit.mjs");
+        const [a, b] = cast(2);
+        const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion"), had = Object.getOwnPropertyDescriptor(Element.prototype, "animate");
+        const seen = [];
+        const board = S.verdictBoard({ author: { isGM: true }, getFlag: (_, k) => ({ verdictAt: 1, verdictCut: { sentenced: [a.id], right: true } })[k] },
+            { accused: [{ id: a.id, n: 3 }, { id: b.id, n: 1 }, { id: "monokuma", n: 0 }], total: 4, majority: 3 });
+        const play = async () => {
+            seen.length = 0;
+            await S.playSequence("verdictCut", `R3717:${Math.random()}`, ctx => S.drawVerdictCut(ctx, board), { on: true });
+            const host = document.getElementById(S.SEQUENCE_HOST_ID);
+            return { host, calls: [...seen] };
+        };
+        const part = (calls, el) => calls.filter(c => c.el === el);
+        const moves = c => c.frames.length >= 2 && stableJson(c.frames[0]) !== stableJson(c.frames.at(-1)) && c.opts.easing && c.opts.easing !== "linear" && c.opts.duration >= 150;
+        const read = {};
+        try {
+            Object.defineProperty(Element.prototype, "animate", { configurable: true, writable: true, value: function (frames, opts) { seen.push({ el: this, frames, opts }); return { cancel() {}, finish() {}, finished: Promise.resolve() }; } });
+            body.classList.remove("drpg-reduced-motion");
+            const { host, calls } = await play();
+            const q = sel => [...(host?.querySelectorAll(sel) ?? [])];
+            const parts = { band: q(".drpg-seq-vband"), portrait: q(".drpg-seq-portrait"), name: q(".drpg-seq-name"), stamp: q(".drpg-seq-stamp"), heading: q(".drpg-seq-votes h4"), rows: q(".drpg-seq-vrow"), bars: q(".drpg-seq-vbar i").filter(el => !/scaleX\(0\)/.test(el.style.transform)), sentence: q(".drpg-seq-sentence") };
+            read.motion = Object.fromEntries(Object.entries(parts).map(([k, els]) => [k, els.length > 0 && els.every(el => part(calls, el).some(moves))]));
+            const rowStarts = parts.rows.map(el => part(calls, el)[0]?.opts.delay ?? null);
+            read.rowsInTurn = rowStarts.length === 3 && rowStarts.every((d, i) => d !== null && (i === 0 || d > rowStarts[i - 1]));
+            S.endSequence("cut");
+            body.classList.add("drpg-reduced-motion");
+            const still = await play();
+            read.still = [still.calls.length, Boolean(still.host?.querySelector(".drpg-seq-sentence")), still.host?.querySelectorAll(".drpg-seq-vrow").length ?? 0];
+        } finally {
+            S.endSequence("cut");
+            if (had) Object.defineProperty(Element.prototype, "animate", had); else delete Element.prototype.animate;
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+        }
+        equal(stableJson(read), stableJson({
+            motion: { band: true, portrait: true, name: true, stamp: true, heading: true, rows: true, bars: true, sentence: true }, rowsInTurn: true, still: [0, true, 3]
+        }), "[with motion: each part moved and eased; the rows one after another; reduced motion: animations, the sentence there, the rows there]");
+    }],
+    ["R3708 - a transition turns the panes in its own direction (scripts/glass.mjs `paneOrder`; E62 C1, SB-R1, MK-R1/MK-R2): \"top\" takes the topmost pane first and \"bottom\" the lowest, \"centre\" the nearest the screen's middle and \"inward\" the farthest, and \"random\" is a seeded shuffle - the same seed the same order, another seed another - of every pane once", async () => {
+        /* E62 C1, 12.11.2026. Red at d03c509: glass.mjs exports no paneOrder. A 6 x 4 grid of square panes at 1600x900. */
+        const G = await import("./glass.mjs");
+        ok(typeof G.paneOrder === "function", "glass.mjs exports no paneOrder");
+        if (typeof G.paneOrder !== "function") return;
+        const W = 1600, H = 900, panes = [];
+        for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) panes.push({ poly: [[c * 267, r * 225], [(c + 1) * 267, r * 225], [(c + 1) * 267, (r + 1) * 225], [c * 267, (r + 1) * 225]] });
+        const row = i => Math.floor(i / 6);
+        const o = how => G.paneOrder(panes, W, H, how, 7);
+        const mid = i => Math.hypot((i % 6) * 267 + 133 - 800, row(i) * 225 + 112 - 450);
+        const r1 = o("random"), r2 = G.paneOrder(panes, W, H, "random", 7), r3 = G.paneOrder(panes, W, H, "random", 8);
+        equal(stableJson({
+            top: [row(o("top")[0]), row(o("top").at(-1))], bottom: [row(o("bottom")[0]), row(o("bottom").at(-1))],
+            centre: mid(o("centre")[0]) <= Math.min(...panes.map((_, i) => mid(i))) + 1, inward: mid(o("inward")[0]) >= Math.max(...panes.map((_, i) => mid(i))) - 1,
+            randomOnce: [...r1].sort((a, b) => a - b).join() === panes.map((_, i) => i).join(), sameSeed: r1.join() === r2.join(), otherSeed: r1.join() !== r3.join()
+        }), stableJson({ top: [0, 3], bottom: [3, 0], centre: true, inward: true, randomOnce: true, sameSeed: true, otherSeed: true }),
+            "[top: first and last row; bottom: the same; centre's first is the middle's nearest; inward's first the farthest; random: every pane once, the same seed the same order, another seed another]");
+    }],
+    ["R3709 - each change of the clock has its transition (scripts/transitions.mjs `transitionFor`; E62 C1, SB-R1 of 05.11, the plan's Q5 default): evening to night from the top, night to a new morning from the bottom, an hour taken back from the bottom, the Eclipse in from the centre and out inward (1.4 s), the Investigation's entry six random groups at MK-R3's onsets, the Class Trial's entry E61's and nothing here, its exit from the centre, and a clock that did not move none", async () => {
+        /* E62 C1, 12.11.2026. Red at d03c509: transitions.mjs does not exist. */
+        const T = await import("./transitions.mjs");
+        const c = (timeOfDay, phase = "dailyLife", extra = {}) => ({ day: 3, timeOfDay, phase, eclipse: false, ...extra });
+        const k = (a, b) => { const t = T.transitionFor(a, b); return t ? [t.kind, t.how ?? t.owner] : null; };
+        equal(stableJson({
+            evening: k(c("evening"), c("night")), morning: k(c("night"), c("morning", "dailyLife", { day: 4 })), back: k(c("noon"), c("morning")),
+            forward: k(c("morning"), c("noon")), eclipseIn: k(c("afternoon"), c("evening", "dailyLife", { eclipse: true })), eclipseOut: k(c("evening", "dailyLife", { eclipse: true }), c("evening")),
+            investigation: k(c("noon"), c("noon", "investigation")), onsets: T.transitionFor(c("noon"), c("noon", "investigation"))?.delays,
+            trial: k(c("noon", "investigation"), c("noon", "classTrial")), exit: k(c("noon", "classTrial"), c("noon")), same: k(c("noon"), c("noon")), first: T.transitionFor(null, c("noon"))
+        }), stableJson({
+            evening: ["hour", "top"], morning: ["newDay", "bottom"], back: ["hourBack", "bottom"], forward: ["hour", "top"], eclipseIn: ["eclipseIn", "centre"], eclipseOut: ["eclipseOut", "inward"],
+            investigation: ["investigation", "random"], onsets: [0, 360, 900, 1320, 1930, 2400], trial: ["trialEntry", "E61"], exit: ["trialExit", "centre"], same: null, first: null
+        }), "[each pair's kind and direction (the owner for the trial's entry); the Investigation's onsets; no change; no clock seen before]");
+    }],
+    ["R3710 - no transition flashes more than three times a second (scripts/transitions.mjs `flashRate`; E62 C2, C4, the owner's 10.10 and MK-R3, WCAG 2.3.1's count): the Investigation's six onsets and the discovery's four read at most 3 in any second, and a planted table of four in 900 ms reads 4", async () => {
+        /* E62 C2, C4, 12.11.2026. Red at d03c509: transitions.mjs does not exist. */
+        const T = await import("./transitions.mjs");
+        equal(stableJson([T.flashRate(T.INVESTIGATION_ONSETS), T.flashRate(T.DISCOVERY_ONSETS), T.flashRate([0, 300, 600, 900])]), stableJson([3, 3, 4]),
+            "[the Investigation's most onsets in a second; the discovery's; a planted four in 900 ms]");
+    }],
+    ["R3711 - a turn takes its direction, groups and onsets, and with none turns as before (scripts/glass.mjs `turnPlan`; E62 C1, C2): planned \"top\" on a recolour its first batch holds the top row's panes; six groups at given onsets flash each pane at its group's onset; with no option the batches still run from the centre outward, eight of them, 70-120 ms apart", async () => {
+        /* E62 C1, C2, 12.11.2026. Red at d03c509: turnPlan takes no `how`. A 6 x 4 grid, a recolour (two accents). */
+        const G = await import("./glass.mjs");
+        const W = 1600, H = 900, panes = [];
+        for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) panes.push({ poly: [[c * 267, r * 225], [(c + 1) * 267, r * 225], [(c + 1) * 267, (r + 1) * 225], [c * 267, (r + 1) * 225]], content: null, tone: null });
+        const base = { W, H, fromAcc: "#111111", acc: "#222222", dur: 1200 };
+        const top = G.turnPlan(panes, panes, { ...base, how: "top" });
+        const six = G.turnPlan(panes, panes, { ...base, how: "random", seed: 3, groups: 6, delays: [0, 360, 900, 1320, 1930, 2400] });
+        const plain = G.turnPlan(panes, panes, base);
+        const rows = plan => plan.order.filter(i => plan.batchOf[i] === 0).map(i => Math.floor(i / 6));
+        /* the turn's layers take each batch's onset from the plan, not `gap` apart: read against a uniform gap they asked
+           Chromium for a negative duration at the Investigation's onsets (recorded on the glass harness, 12.11.2026) */
+        const src = stripComments((await moduleSources()).get("glass.mjs") ?? "");
+        must(src.length > 20000, "glass.mjs was not read");
+        const turnSrc = bodyOf(src, "export function glassTurn(", { until: "\nfunction " });
+        equal(stableJson({
+            batchDelay: six.batchDelay, layersRead: /plan\.batchDelay\?\.\[k\]/.test(turnSrc),
+            top: [...new Set(rows(top))], six: [...new Set(six.flashes.map(f => f.delay))].sort((a, b) => a - b),
+            plain: { batches: Math.max(...plain.batchOf) + 1, gapOk: plain.gap >= 70 && plain.gap <= 120, firstNearest: plain.order[0] === G.paneOrder(panes, W, H, "centre")[0] }
+        }), stableJson({ batchDelay: [0, 360, 900, 1320, 1930, 2400], layersRead: true, top: [0], six: [0, 360, 900, 1320, 1930, 2400], plain: { batches: 8, gapOk: true, firstNearest: true } }),
+            "[the plan's batch onsets; the turn's layers read them; top: the first batch's rows; six groups: the flashes' onsets; with no option: batches, the gap, the centre first]");
+    }],
+    ["R3712 - a transition is the curtain's and nothing else's (scripts/transitions.mjs `onClockHeard`; E62 C1, C8): heard, it writes no setting and no document and hands the curtain its direction; under reduced motion or with the table's switch off it hands none and schedules no flash; the Class Trial's entry is left to E61; and a second hearing of the same clock plays nothing", async () => {
+        /* E62 C1, C8, 12.11.2026. Red at d03c509: transitions.mjs does not exist. */
+        const T = await import("./transitions.mjs");
+        const G = await import("./glass.mjs");
+        const { watchWrites } = await import("./tests-kit.mjs");
+        const w = watchWrites(() => "R3712");
+        const c = (timeOfDay, phase = "dailyLife") => ({ day: 3, timeOfDay, phase, eclipse: false });
+        const read = {};
+        try {
+            G.hintTurn(null);
+            // the clock this module last saw is primed with the switch off, so no change before the test's own plays
+            T.onClockHeard(c("evening"), { on: false, still: true });
+            read.moved = T.onClockHeard(c("night"), { on: true, still: false })?.kind ?? null;
+            await settle();
+            read.hint = G.pendingTurnHint()?.how ?? null;
+            G.hintTurn(null);
+            read.again = T.onClockHeard(c("night"), { on: true, still: false });
+            T.onClockHeard(c("morning"), { on: true, still: true }); await settle();
+            read.still = G.pendingTurnHint();
+            T.onClockHeard(c("noon"), { on: false, still: false }); await settle();
+            read.off = G.pendingTurnHint();
+            read.trial = T.onClockHeard(c("noon", "classTrial"), { on: true, still: false })?.owner ?? null; await settle();
+            read.trialHint = G.pendingTurnHint();
+            T.onClockHeard(c("noon"), { on: false, still: true });
+        } finally { w.stop(); G.hintTurn(null); }
+        read.writes = w.seen.filter(s => s.includes("R3712"));
+        equal(stableJson(read), stableJson({ moved: "hour", hint: "top", again: null, still: null, off: null, trial: "E61", trialHint: null, writes: [] }),
+            "[evening to night heard; the direction handed; the same clock again; reduced motion; the switch off; the trial's entry's owner; no direction for it; the world written]");
+    }],
+    ["R3713 - Escape ends a transition here, and the body's flicker plays from the announcement alone (scripts/sequence.mjs `holdEscape`, scripts/transitions.mjs `onBodyAnnounced`; E62 C4, C8, the owner's 10.10 and its 14:10 answer, E95 fix RV-12): while a transition is held Escape is taken and its skip runs once, the next Escape is not taken; the announcement lights the flicker on this page and puts it out, a rehearsal's payload and reduced motion play none; and the Sound window has the row \"Pane flash\", varied, in both languages", async () => {
+        /* E62 C2, C4, C8, 12.11.2026. Red at d03c509: sequence.mjs exports no holdEscape, transitions.mjs does not exist. */
+        const S = await import("./sequence.mjs");
+        const T = await import("./transitions.mjs");
+        let skipped = 0;
+        S.holdEscape(5000, () => skipped++);
+        const e1 = new KeyboardEvent("keydown", { key: "Escape", cancelable: true, bubbles: true });
+        window.dispatchEvent(e1);
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", cancelable: true, bubbles: true }));
+        const hadOwn = skipped !== 1;
+        S.holdEscape(0, null);
+        const body = document.body;
+        const played = T.onBodyAnnounced({ at: 1, victimIds: [] }, { on: true, still: false });
+        await wait(60);
+        const lit = body.classList.contains("drpg-flicker");
+        await wait(T.DISCOVERY_ONSETS.at(-1) + 400);
+        const out = !body.classList.contains("drpg-flicker");
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        equal(stableJson({
+            taken: e1.defaultPrevented, skipped, notHeld: !hadOwn, played: played?.length ?? null, lit, out,
+            rehearsal: T.onBodyAnnounced({ rehearsal: true }, { on: true, still: false }), still: T.onBodyAnnounced({ at: 2 }, { on: true, still: true }),
+            row: [SFX_EVENTS.paneFlash?.category ?? null, SFX_EVENTS.paneFlash?.vary === true, typeof pl.DRPG?.Config?.SFX_EVENTS?.paneFlash?.label === "string"]
+        }), stableJson({ taken: true, skipped: 1, notHeld: true, played: 4, lit: true, out: true, rehearsal: null, still: null, row: ["incident", true, true] }),
+            "[Escape taken while held; the skip run once; the next not taken; the announcement's onsets; lit; put out; a rehearsal; reduced motion; the Sound row]");
+    }],
+    ["R3714 - the start-of-day board names the cast as the table knows it (scripts/sequence.mjs `dayStartBoard`, `dayStartElement`; E94 C2, MK-R2 #4, #9, #10): the day, the chapter and the time of day in this language; every student in their place, the dead by the published flag alone - greyed, with their name and \"we remember\", never struck through - and a death the GMs keep not shown as one; the alive count; an empty morning line not drawn", async () => {
+        /*
+         * E94 C2, 12.11.2026. Red at 3c36fcb: sequence.mjs exports no dayStartBoard. The students are stand-ins with
+         * `getFlag` (the one read `isDeceased` makes): one published dead, one alive whose death only the GMs would keep
+         * (no flag), one alive.
+         */
+        const S = await import("./sequence.mjs");
+        const st = (id, name, dead) => ({ id, name, img: null, getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.deceased ? dead : undefined) });
+        const cast = [st("a", "Aiko Hoshino", false), st("b", "Mio Tsukishiro", true), st("c", "Ren Kisaragi", false)];
+        const board = S.dayStartBoard({ day: 4, chapter: 2, timeOfDay: "morning" }, cast, "");
+        const el = S.dayStartElement(board);
+        const whos = [...el.querySelectorAll(".drpg-seq-who")];
+        const css = stripComments(await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
+        equal(stableJson({
+            title: el.querySelector(".drpg-seq-day-title")?.textContent === game.i18n.format("DRPG.Sequence.dayTitle", { day: 4 }),
+            order: whos.map(w => w.querySelector("b")?.textContent), dead: whos.map(w => w.classList.contains("is-dead")),
+            remember: whos.map(w => w.querySelector("i")?.textContent ?? null), alive: [board.alive, board.total],
+            noLine: !el.querySelector(".drpg-seq-announce"), noStrike: !/drpg-seq-who[^{]*\{[^}]*line-through/.test(css),
+            /* the board is centred by its rule's transform, and its rise must carry it: recorded on the glass harness
+               (12.11.2026) the rise's own transform put the board half a screen off centre */
+            centred: /\.drpg-seq-day \{[^}]*transform: translate\(-50%, -50%\)/.test(css)
+                && /anim\(el, \[\{ opacity: 0, transform: "translate\(-50%, -50%\) translateY\(40px\)" \}/.test(stripComments((await moduleSources()).get("sequence.mjs") ?? ""))
+        }), stableJson({
+            title: true, order: ["Aiko Hoshino", "Mio Tsukishiro", "Ren Kisaragi"], dead: [false, true, false],
+            remember: [null, game.i18n.localize("DRPG.Sequence.weRemember"), null], alive: [2, 3], noLine: true, noStrike: true, centred: true
+        }), "[the day's title; the cast in its order; who is drawn dead; their words; alive of total; no empty morning line; no rule strikes a name; the rise keeps the board centred]");
+    }],
+    ["R3715 - a new day plays its board once on every browser that hears it, and nowhere else (scripts/transitions.mjs `onClockHeard`, scripts/sequence.mjs `playDayStart`; E94 C2, MK-R2 #8): night to a new morning starts the board, still under reduced motion, nothing with the table's switch off; the same day heard again starts nothing; an hour that is not a new day plays no board; the board lets the table's clicks through; the Sound window has the row \"Start of the day\" in both languages", async () => {
+        /* E94 C2, 12.11.2026. Red at 3c36fcb: sequence.mjs exports no playDayStart. */
+        const S = await import("./sequence.mjs");
+        const T = await import("./transitions.mjs");
+        const body = document.body, wasReduced = body.classList.contains("drpg-reduced-motion");
+        const day = 900 + (Date.now() % 1000), read = {};
+        const c = (d, timeOfDay) => ({ season: "R3715", session: d, day: d, timeOfDay, phase: "dailyLife", eclipse: false });
+        try {
+            body.classList.add("drpg-reduced-motion");
+            S.endSequence("cut");
+            // primed with the switch off: the jump from the clock this module saw last plays nothing
+            T.onClockHeard(c(day, "night"), { on: false, still: true });
+            T.onClockHeard(c(day + 1, "morning"), { on: true, still: true });
+            await until(() => S.sequenceNow()?.key === `day:R3715:${day + 1}:${day + 1}`, 3000);
+            read.started = S.sequenceNow();
+            read.through = getComputedStyle(document.getElementById(S.SEQUENCE_HOST_ID) ?? body).pointerEvents;
+            S.endSequence("cut");
+            read.again = await S.playDayStart(c(day + 1, "morning"), { on: true });
+            T.onClockHeard(c(day + 1, "noon"), { on: true, still: true }); await settle();
+            read.hour = S.sequenceNow();
+            T.onClockHeard(c(day + 1, "night"), { on: false, still: true });
+            T.onClockHeard(c(day + 2, "morning"), { on: false, still: true }); await settle();
+            read.off = S.sequenceNow();
+        } finally {
+            S.endSequence("cut");
+            body.classList.toggle("drpg-reduced-motion", wasReduced);
+        }
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        read.row = [SFX_EVENTS.dayStart?.category ?? null, typeof pl.DRPG?.Config?.SFX_EVENTS?.dayStart?.label === "string"];
+        equal(stableJson(read), stableJson({ started: { kind: "dayStart", key: `day:R3715:${day + 1}:${day + 1}`, mode: "still" }, through: "none", again: null, hour: null, off: null, row: ["incident", true] }),
+            "[a new day's board; its host lets clicks through; the same day again; an hour; the switch off; the Sound row]");
+    }],
     ["R3550 - the wrench's window hides exactly the statistics the module does not use (dh-settings.mjs `dressCharacterSettings`, `SETTINGS_FIELDS`; E49, the owner's 11.11.2026 on Daggerheart's character settings window): on Daggerheart 2.6.5's Details and Experiences drawn as Foundry frames them (tests-kit.mjs `dhSettingsStandIn`), Scars, Proficiency and Max Evasion Increase stand in a hidden cell and nothing else does - the six statistics, Max Health, Max Sanity and each experience's name, value and description shown; the hidden three are `UNUSED_FIELDS`, and outside dh-settings.mjs no module code names proficiency or evasion, and scars only sheet-audit.mjs, which holds them for Hope's maximum, while each shown field is read", async () => {
         /*
          * E49, 11.11.2026. The owner: "sa tam statystyki nieuzywane przez modul" - the window the character sheet's wrench
@@ -50182,3 +50757,30 @@ async function roomSetupDrawn() {
 }
 
 export { INVARIANTS };
+
+/* R3703, R3716 (E61 C3 round 3): three cuts of the curtain as its generator made them, read off the glass harness in
+   headless Chromium on 12.11.2026 (a GM at 1600x900, 1366x768 and 1440x900, `entryPieces().close.panes`, at full precision:
+   rounded to a hundredth, the standing panes no longer met and the grid found gaps between them): the standing panes the hole is filled beside. jsdom has no layout to cut them from. */
+const E61_CUTS = {"gm-1600x900":[[[290.21353250677083,0],[324.252015179061,242.19638900231325],[0,287.76703786951094],[0,0]],[[324.252015179061,242.19638900231325],[364.32734451645234,527.3471739841632],[0,578.5500430874112],[0,287.76703786951094]],[[1003.2109375,0],[1003.2109375,145.078125],[596.7890625,145.078125],[596.7890625,0]],[[1233.0335637577543,62.960387212440764],[1241.8820691297765,0],[1600,0],[1600,114.53415646968791]],[[1212.7251639160972,207.4621605558396],[1233.0335637577543,62.960387212440764],[1600,114.53415646968791],[1600,261.89008927830315]],[[1600,608.0716039823419],[1364.0587670602806,574.9122261642824],[1408.7072375120315,257.22185136112734],[1600,284.1062958737127]],[[0,615.5955577017103],[352.2921324063819,665.1069880491887],[319.28007244105606,900],[0,900]],[[1451.2756113063313,731.3774339174706],[1600,710.4755841898595],[1600,900],[1474.973967493229,900]],[[1408.7072375120315,257.22185136112734],[1411.769045733153,235.4359538488128],[1600,261.89008927830315],[1600,284.1062958737127]],[[319.280072441056,900],[528.6144908095819,900],[538.8436422225054,754.0027299788331],[350.44035910979693,678.2830396964284]],[[528.6144908095819,900],[848.9521032071252,900],[847.5432407893908,864.9580608969554],[538.8436422225054,754.0027299788331]],[[921.1757914341551,900],[955.3461921467942,900],[955.6220544498826,869.6832559798297],[919.4107449389768,786.5129785519093]],[[848.9521032071252,900],[921.1757914341551,900],[920.7042796956741,869.6832559798297],[847.5432407893908,864.9580608969554]],[[955.3461921467942,900],[1239.1124905005065,900],[1225.8674993606983,798.1483386902174],[955.6220544498826,869.6832559798297]],[[1239.1124905005065,900],[1474.973967493229,900],[1452.6993588213716,741.5079238783078],[1225.8674993606983,798.1483386902174]],[[290.21353250677083,0],[596.7890625,0],[596.7890625,145.28898139018565],[487.1184134433409,233.12409199114293],[320.05599297290274,212.34013964216265]],[[487.1184134433409,233.12409199114293],[339.5833839472942,351.28474613850625],[320.05599297290274,212.34013964216265]],[[1003.2109375,0],[1241.8820691297765,0],[1222.895703422732,135.095011690019],[1094.4522955958732,153.57431497621258],[1003.2109375,141.17343762423843]],[[1222.895703422732,135.095011690019],[1217.9398327313909,170.35786395523817],[1094.4522955958732,153.57431497621258]],[[142.22282558624983,558.561928465787],[74.91510772974506,626.1241894738682],[0,615.5955577017103],[0,578.5500430874112]],[[1444.229187028663,586.1794439050801],[1523.8516206381166,721.1775409866129],[1600,710.4755841898595],[1600,608.0716039823419]]],"gm-1366x768":[[[290.21353250677083,0],[324.25853891816854,242.24280781803552],[0,287.81437353697277],[0,0]],[[886.2109375,0],[886.2109375,145.078125],[479.7890625,145.078125],[479.7890625,0]],[[999.0335637577545,62.960387212440764],[1007.8820691297766,0],[1366,0],[1366,114.5341564696879]],[[978.7251639160974,207.46216055583955],[999.0335637577545,62.960387212440764],[1366,114.5341564696879],[1366,261.8900892783031]],[[1366,541.422984196113],[1136.2733875174201,509.13701432445845],[1174.7982415269282,235.0184345459325],[1366,261.8900892783031]],[[0,388.87373139946396],[365.346569276436,440.2198432012294],[319.28007244105606,768],[0,768]],[[389.24410314393424,566.0440475410345],[712.4637191386231,600.0157981030219],[694.8078680615263,768],[368.01767720338336,768]],[[1217.2756113063313,599.3774339174706],[1366,578.4755841898595],[1366,768],[1240.973967493229,768]],[[319.280072441056,768],[368.01767720338336,768],[389.1878915307584,566.5788653153489],[346.99266731692256,570.8146414915594]],[[694.8078680615262,768],[949.2362595831764,768],[947.2671046022372,732.9580608969554],[711.156031722049,612.4576127765089]],[[949.2362595831764,768],[976.7802108840806,768],[970.9302203250772,607.1479964368045],[947.2671046022372,732.9580608969554]],[[976.7802108840806,768],[991.3227072803802,768],[990.824331813535,737.8745144591667],[975.5057784344939,732.9580608969554]],[[991.3227072803802,768],[1240.973967493229,768],[1219.1826652545838,612.9468278398198],[990.824331813535,737.8745144591667]],[[290.21353250677083,0],[479.7890625,0],[479.7890625,145.28898139018565],[432.1087069145095,155.60864178098055],[309.5612413525536,137.666101718788]],[[432.1087069145095,155.60864178098055],[315.6260522905656,180.81947383910287],[309.5612413525536,137.666101718788]],[[886.2109375,0],[1007.8820691297766,0],[989.2372220477528,132.6649804059154],[924.831062090129,142.35699447550144],[886.2109375,141.17343762423843]],[[989.2372220477528,132.6649804059154],[987.6047301758533,144.28076364326736],[924.831062090129,142.35699447550144]],[[134.87281331502433,292.51271866849754],[69.56009844715564,398.6497656972077],[0,388.87373139946396],[0,306]],[[150.80624926734555,266.6199373866031],[134.87281331502433,292.51271866849754],[0,306],[0,287.81437353697277]],[[1217.6788181676056,520.5778014973432],[1292.2962322662852,588.833973227867],[1366,578.4755841898595],[1366,541.4229841961131]]],"gm-1440x900":[[[290.21353250677083,0],[324.252015179061,242.19638900231325],[0,287.76703786951094],[0,0]],[[324.252015179061,242.19638900231325],[364.32734451645234,527.3471739841632],[0,578.5500430874112],[0,287.76703786951094]],[[923.2109375,0],[923.2109375,145.078125],[516.7890625,145.078125],[516.7890625,0]],[[1073.0335637577543,62.960387212440764],[1081.8820691297765,0],[1440,0],[1440,114.53415646968791]],[[1052.7251639160972,207.4621605558396],[1073.0335637577543,62.960387212440764],[1440,114.53415646968791],[1440,261.89008927830315]],[[1440,608.0716039823419],[1204.0587670602806,574.9122261642824],[1248.7072375120315,257.22185136112734],[1440,284.1062958737127]],[[0,615.5955577017103],[352.2921324063819,665.1069880491887],[319.28007244105606,900],[0,900]],[[1291.2756113063313,731.3774339174706],[1440,710.4755841898595],[1440,900],[1314.973967493229,900]],[[1248.7072375120315,257.22185136112734],[1251.769045733153,235.4359538488128],[1440,261.89008927830315],[1440,284.1062958737127]],[[319.280072441056,900],[528.6144908095819,900],[536.8536870152501,766.8577351166919],[350.18131107932993,680.1262622090568]],[[528.6144908095819,900],[776.9521032071252,900],[775.5300798972892,864.9580608969554],[536.8536870152501,766.8577351166919]],[[833.1757914341551,900],[867.3461921467942,900],[867.6218180402325,869.6526048502811],[831.3884699348278,786.5129785519093]],[[776.9521032071252,900],[833.1757914341551,900],[832.6978464576497,869.6526048502811],[775.5300798972892,864.9580608969554]],[[867.3461921467942,900],[1079.1124905005065,900],[1067.9974342611215,808.0061353867186],[867.6218180402325,869.6526048502811]],[[1079.1124905005065,900],[1314.973967493229,900],[1292.8292301342833,742.4320062860058],[1067.9974342611215,808.0061353867186]],[[290.21353250677083,0],[516.7890625,0],[516.7890625,145.28898139018565],[429.5854140989768,225.9665091337895],[320.05599297290274,212.34013964216265]],[[429.5854140989768,225.9665091337895],[334.35341261407274,314.07156646516506],[320.05599297290274,212.34013964216265]],[[923.2109375,0],[1081.8820691297765,0],[1062.8957034227317,135.09501169001902],[979.4461846554601,147.10099154120803],[923.2109375,141.17343762423843]],[[1062.8957034227317,135.09501169001902],[1060.0148369666454,155.59344164588865],[979.4461846554601,147.10099154120803]],[[142.22282558624983,558.561928465787],[74.91510772974506,626.1241894738682],[0,615.5955577017103],[0,578.5500430874112]],[[1284.229187028663,586.1794439050801],[1363.8516206381166,721.1775409866129],[1440,710.4755841898595],[1440,608.0716039823419]]]};
+
+/* R3719 (E61 C3 round 5): a GM's cut at 1920x1080, read off the glass harness as E61_CUTS were (12.11.2026, full
+   precision). Kept apart from E61_CUTS: its fill holds the two panes the standing cut forces out of range (a crack and
+   a wedge, STATUS round 3), which R3703 holds to none. */
+/* R3719: round 4's fill of E61_CUTS' 1366x768 cut for the test's seed - the median area in px² and the count, read at 1db3f62 */
+const AT_1366_ROUND4 = [25668, 19];
+const E61_CUT_FHD = [[[290.21353250677083,0],[324.252015179061,242.19638900231323],[0,287.76703786951094],[0,0]],[[324.252015179061,242.19638900231323],[377.6879622086186,622.4129085833539],[0,675.4934900491985],[0,287.76703786951094]],[[1163.2109375,0],[1163.2109375,145.078125],[756.7890625,145.078125],[756.7890625,0]],[[1553.0335637577543,62.960387212440764],[1561.8820691297765,0],[1920,0],[1920,114.53415646968789]],[[1532.7251639160972,207.46216055583955],[1553.0335637577543,62.960387212440764],[1920,114.53415646968789],[1920,261.8900892783031]],[[1920,709.0543612342037],[1669.1511888955324,673.7998599374793],[1716.4439482655246,337.29439182823444],[1920,365.9023292477208]],[[0,713.3011117968645],[384.02831398199464,767.2727715932463],[340.07736826754405,1080],[0,1080]],[[1771.2756113063313,911.3774339174706],[1920,890.4755841898595],[1920,1080],[1794.973967493229,1080]],[[1716.4439482655246,337.29439182823444],[1730.7787776644113,235.29678074785267],[1920,261.8900892783031],[1920,365.9023292477208]],[[504.344375256651,0],[547.2517867834182,0],[551.0425131290056,32.34180220074007],[505.46557160273414,21.089602707419544]],[[547.2517867834182,0],[756.7890625,0],[756.7890625,148.7711356766522],[551.0425131290056,32.34180220074007]],[[340.0773682675441,1080],[607.9753647439298,1080],[633.1688402740657,897.9508813000169],[381.4567121917143,785.5706691098366]],[[804.2807774084737,1080],[831.9375569882919,1080],[838.4805704787667,986.628959396064],[816.5293889841439,962.4868898931891]],[[607.9753647439298,1080],[804.2807774084737,1080],[814.0130158602875,986.628959396064],[633.1688402740657,897.9508813000169]],[[831.9375569882919,1080],[991.8597959098455,1080],[993.1690588915312,1054.2771792807928],[838.4805704787667,986.628959396064]],[[991.8597959098455,1080],[1137.5413991565852,1080],[1136.026982870185,1052.5802401071414],[993.1690588915312,1054.2771792807928]],[[1137.5413991565852,1080],[1308.4892180037652,1080],[1304.0275517261898,1022.3137347472712],[1136.026982870185,1052.5802401071414]],[[1308.4892180037652,1080],[1337.293744423144,1080],[1328.9876602735055,933.975425218232],[1304.0275517261898,1022.3137347472712]],[[1337.293744423144,1080],[1530.4993691446227,1080],[1526.4853059846791,969.7816058799178],[1334.0124681435616,1022.3137347472712]],[[1530.4993691446227,1080],[1794.973967493229,1080],[1772.3542076347935,919.0520455756852],[1526.4853059846791,969.7816058799178]],[[290.21353250677083,0],[504.344375256651,0],[505.46557160273414,21.089602707419544],[403.7645226654647,306.98566389717365],[331.401195651659,293.0654512768973]],[[403.7645226654647,306.98566389717365],[353.29647892687564,448.8584869563989],[331.401195651659,293.0654512768973]],[[1163.2109375,0],[1561.8820691297765,0],[1543.0975553752387,133.65876041874805],[1319.3252173337312,162.13566673290143],[1163.2109375,144.54330722568557]],[[1543.0975553752387,133.65876041874805],[1535.669062357632,186.5152347191703],[1319.3252173337312,162.13566673290143]],[[164.23264271844673,652.4120973561684],[78.30070035074846,724.3055575819405],[0,713.3011117968645],[0,675.4934900491985]],[[1754.1656886680075,685.7478686973093],[1850.638394083013,900.2237221817312],[1920,890.4755841898595],[1920,709.0543612342037]]];
+
+/* R3716: a convex pane moved out along its edges' normals by `d` (the reverse of glass-close.mjs `insetPoly`) */
+function outset(P, d) {
+    const n = P.length, cx = P.reduce((t, q) => t + q[0], 0) / n, cy = P.reduce((t, q) => t + q[1], 0) / n;
+    return P.map(([x, y]) => { const l = Math.hypot(x - cx, y - cy) || 1; return [x + (x - cx) / l * d * 1.5, y + (y - cy) / l * d * 1.5]; });
+}
+
+/* R3703, R3716 (E61 C3): a frame of 24 panes around the map's hole, the curtain's shape in small; `jag` alternates the
+   inner corners' depth (0.45 and 0.62 of the half-screen), which gives the hole the reflex corners a cut has */
+function curtainRing(W, H, jag = false) {
+    const cx = W / 2, cy = H / 2;
+    const at = (t, r) => { const a = t * Math.PI * 2, u = Math.cos(a), v = Math.sin(a), m = Math.max(Math.abs(u), Math.abs(v)); return [cx + cx * r * u / m, cy + cy * r * v / m]; };
+    const inner = i => (jag ? (i % 2 ? 0.45 : 0.62) : 0.55);
+    return Array.from({ length: 24 }, (_, i) => ({ poly: [at(i / 24, inner(i)), at((i + 1) / 24, inner(i + 1)), at((i + 1) / 24, 1), at(i / 24, 1)] }));
+}

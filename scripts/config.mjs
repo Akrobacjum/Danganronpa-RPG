@@ -4885,6 +4885,27 @@ export const SFX_EVENTS = {
         hint: "Heard by the student who ran it. The bullet is locked until the next chapter, the longest-lasting consequence any failed roll in this game has.",
         category: "incident"
     },
+    /* E94 C2: the start-of-day board's chime (MK-R2 #4), played once as the board rises on each browser. */
+    dayStart: {
+        label: "Start of the day",
+        hint: "The start-of-day board rises when a new day begins. Heard by the whole table.",
+        category: "incident"
+    },
+    /* E62 C2: one flash of the Investigation's entry (MK-R1 #11, MK-R3): played at each of its six onsets, its pitch
+       varied so the six do not sound alike; none under reduced motion or with the table's sequences off. */
+    paneFlash: {
+        label: "Pane flash",
+        hint: "Each pane flash as the Investigation begins, six in about three seconds. Heard by the whole table.",
+        category: "incident",
+        vary: true
+    },
+    /* E61 C2: the Class Trial's entry sequence, at its title's frame (MK-R1 #9: one slot, the title's impact, nothing at
+       frame 1); played on each browser from the phase's own event by sequence.mjs, not from a card. */
+    trialStart: {
+        label: "The Class Trial starts",
+        hint: "The title of the trial's entry lands. Heard by the whole table, also with the sequences switched off.",
+        category: "incident"
+    },
     debateOpen: {
         label: "Nonstop Debate opens",
         hint: "Heard by the whole table. It changes what everyone's Truth Bullet button does.",
@@ -4925,9 +4946,17 @@ export const SFX_EVENTS = {
         hint: "Heard by the whole table.",
         category: "incident"
     },
+    /* The vote's count's card plays it (vote.mjs `closeRound`), not the verdict's: the label said "The verdict" until
+       E61 C2, beside the cut-in's own slot below (the plan's Q-E61-7 default; the key stays, so a saved map keeps its file). */
     verdict: {
-        label: "The verdict",
-        hint: "Heard by the whole table. The most ceremonial moment of a chapter, and the last one that should be silent.",
+        label: "The vote's result",
+        hint: "Heard by the whole table when the vote is counted. The most ceremonial moment of a chapter, and the last one that should be silent.",
+        category: "incident"
+    },
+    /* E61 C2: the verdict's cut-in, the stamp's hit (MK-R1 #10: one slot, the stamp part of it), from the GM's verdict card. */
+    verdictCut: {
+        label: "Verdict cut-in",
+        hint: "The verdict's stamp lands on the portrait. Heard by the whole table, also with the sequences switched off.",
         category: "incident"
     },
     execution: {

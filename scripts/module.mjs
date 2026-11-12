@@ -101,6 +101,8 @@ import { ensureRoomTile, registerRoomTile } from "./room-tile.mjs";
 import { registerVoiceTile, registerVoiceKeybinding } from "./voice-tile.mjs";
 import { registerTrialSpeakers } from "./trial-speakers.mjs";
 import { registerFoundryWindows } from "./foundry-windows.mjs";
+import { registerSequences } from "./sequence.mjs";
+import { registerTransitions } from "./transitions.mjs";
 import { registerA11y } from "./a11y.mjs";
 import { registerChrome } from "./chrome.mjs";
 import { registerDhSettings } from "./dh-settings.mjs";
@@ -415,6 +417,10 @@ Hooks.once("ready", () => {
     // would otherwise cut the corner without it (the design's P9 lesson); gm-panel's own ready
     // hook runs after this one.
     safely("the GM panel's button", injectLauncher);
+    // The sequences (E61 C1): before Foundry's windows, so a sequence's Escape is heard before theirs.
+    safely("the sequences", registerSequences);
+    // The phase transitions (E62): after the sequences, whose Escape and switch they use.
+    safely("the phase transitions", () => registerTransitions().catch(err => error("Could not register the phase transitions", err)));
     safely("Foundry's windows", registerFoundryWindows);
     // The voice tile instead of the camera dock (E78 C3): before the narrow layout and the glass,
     // so that they find it once E78 C6 makes it one of their blocks; until then neither measures it.

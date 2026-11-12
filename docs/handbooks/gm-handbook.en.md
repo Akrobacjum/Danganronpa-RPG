@@ -999,6 +999,17 @@ Inside a running trial the console says which scene the table is on and offers o
 
 Not yet tried at a table: whether Foundry v14 lets a player change whether their own token is hidden, where a browser that was loading during the activation lands, how the hall draws with Isometric Perspective, whether Foundry v14 makes a token from a character's prototype as the module asks, and what making and deleting the cast's tokens costs at a table - live checks.
 
+### 15.2 The entry and the verdict's cut-in
+
+`scripts/sequence.mjs`, `glass.mjs`, `glass-close.mjs`. Every screen at the table plays two short full-screen sequences (since 1.2.108):
+
+- **The entry.** When the phase becomes the Class Trial, by any road (section 15.1), the screen closes for about a second and the title stands on it: **CLASS TRIAL** with the chapter's line. Under Stained Glass the curtain closes with new panes of its own kind: each slides out at its own size from behind the edge of the glass beside it, the outer ones first, and the closed curtain is one cut of the curtain; it opens the same way onto the trial's cut. Under Monokuma Legacy two black lids with a red edge close and open. 3.4 seconds in all.
+- **The verdict's cut-in.** Your verdict card (section 15, step 4) plays it: the sentenced student's portrait and name, the votes as they were counted, the stamp (**GUILTY** when the class got it right, **NOT GUILTY** when not) and the card's sentence; nobody sentenced, no portrait and no stamp. 3.7 seconds.
+
+Esc skips the one playing, on that screen only. With reduced motion a still frame stands instead (the closed curtain and the title for 1.5 s; the verdict's last frame for 3 s). The game's settings (the GM panel's **Settings** tile) have **Full-screen sequences**, on by default: off, nothing plays on any screen, and the two sounds still do (section 17). A client that loads after the event plays nothing.
+
+Not yet tried at a table: the entry's motion and cost on a real Foundry at 1366x768 and 1920x1080 in both themes, as GM and as player (measured in headless Chromium on the glass harness: LIVE-E61-01), and the microphone's keybinding while a sequence covers the voice tile (LIVE-E61-08).
+
 ---
 
 ## 16. End of chapter and season reset
