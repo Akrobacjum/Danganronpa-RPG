@@ -251,12 +251,50 @@ export function focusIntoWindow(el) {
     }
 }
 
-/** Every control the sweep met and could not name, for the GM's diagnostics. */
+/*
+ * DETAILS, LISTED AS A READER MEETS IT (gaps G3, 12.11.2026; the 1.2.105 notes' Known gaps). An action window's Details
+ * (action-menus.mjs `detailsHtml`, E49 A8) is a button named by its own text, so the sweep marks it "own" and the
+ * report, which lists only what has no name, said nothing of it. What a reader is told of a disclosure is two things,
+ * its name and whether it is open (`aria-expanded`), and its box must agree: reachable while open, `inert` while shut.
+ * So the report reads every toggle drawn in the module's windows at the moment it is asked (not the sweep's map: a
+ * Details is drawn and closed with its window), and names one whose box disagrees, or that controls no box, as out
+ * of step. English, like the rest of this console report.
+ */
+const DETAILS_TOGGLE = ".drpg-action-details-toggle";
+
+/** Each Details toggle drawn in the module's windows: `{ name, where, open, outOfStep }`. */
+export function detailsRows(root = document) {
+    const rows = [];
+    for (const toggle of root.querySelectorAll?.(DETAILS_TOGGLE) ?? []) {
+        const host = toggle.closest(SURFACES.join(","));
+        if (!host) continue;
+        const open = toggle.getAttribute("aria-expanded") === "true";
+        const id = toggle.getAttribute("aria-controls");
+        const box = id ? toggle.ownerDocument.getElementById(id) : null;
+        const windowEl = toggle.closest(".application, .drpg-panel") ?? host;
+        const title = windowEl.querySelector(".window-title")?.textContent?.replace(/\s+/g, " ").trim();
+        rows.push({
+            name: accessibleName(toggle),
+            where: title || host.id || kindOf(host),
+            open,
+            outOfStep: !box ? "it controls no box" : open === box.hasAttribute("inert")
+                ? (open ? "it says open and its box is inert" : "it says shut and its box can be reached") : ""
+        });
+    }
+    return rows;
+}
+
+/** Every control the sweep met and could not name, and every Details drawn with its state, for the GM's diagnostics. */
 export function a11yReport() {
     const rows = [...unnamed.entries()].map(([kind, info]) => `  ${kind} in ${info.where}\n    ${info.html}`);
-    return rows.length
+    const names = rows.length
         ? `${rows.length} control kinds carry no name a screen reader can read:\n${rows.join("\n")}`
         : "every control in the module's own chrome has a name";
+    const details = detailsRows();
+    if (!details.length) return names;
+    const lines = details.map(d => `  "${d.name}" in ${d.where}: ${d.open ? "open" : "shut"}`
+        + (d.outOfStep ? ` - out of step: ${d.outOfStep}` : ""));
+    return `${names}\n${details.length} Details ${details.length === 1 ? "toggle is" : "toggles are"} drawn, each read as a button that opens and shuts its box:\n${lines.join("\n")}`;
 }
 
 /** Called once at ready. */

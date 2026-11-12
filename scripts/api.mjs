@@ -1442,7 +1442,9 @@ export const DrpgApi = {
     checkRegions,
     /** What a screen reader cannot read: every kind of control in the module's own
      *  chrome that carries no name, after the sweep in a11y.mjs has done what it
-     *  can. `game.drpg.a11y()` - empty is the answer to want. */
+     *  can, and every action window's Details drawn, with its name and whether it
+     *  is open (gaps G3). `game.drpg.a11y()` - no nameless control and no Details
+     *  out of step is the answer to want. */
     a11y: a11yReport,
     /** The guard on Daggerheart's GM relay (relay-guard.mjs): whether it found
      *  Daggerheart's listener, which cases that listener handles, and how many

@@ -17981,6 +17981,48 @@ const INVARIANTS = [
         equal(JSON.stringify(read), JSON.stringify({ window: [true, true, "Ustawienia sezonu"], between: [false, false, false], placeholders: [true, true] }),
             "{window: [en names Season setup, pl names Ustawieniach sezonu, the pl title]; between: [en names Between sessions, pl names it in English, pl names Między sesjami]; placeholders: [en, pl]}");
     }],
+    ["R3661 - game.drpg.a11y() lists an action window's Details (gaps G3): a11y.mjs `a11yReport` names each Details toggle drawn in the module's windows by the name a screen reader reads, its window and its state - open or shut - and says when the toggle and its box disagree (the toggle open and its box inert, or shut and its box reachable, or no box at all); a window with no Details adds nothing", async () => {
+        /*
+         * Gaps G3, 12.11.2026 (the 1.2.105 release notes' Known gaps: "`game.drpg.a11y()` does not list Details yet").
+         * E49 A8's Details is a button (action-menus.mjs `detailsHtml`) whose `aria-expanded` says open or shut and whose
+         * box is `inert` while shut; the sweep finds its name in its own text, so the report, which listed only what has
+         * no name, never said a word about it. Drawn here with the module's own `detailsHtml` in a stand-in window
+         * (a `.drpg-panel` with a title, appended to the page and removed), one shut, one opened as `wireDetails` opens
+         * it, and one put out of step by hand. Red at 45bc8a0d: the report named no Details.
+         */
+        const { a11yReport } = await import("./a11y.mjs");
+        const { detailsHtml } = await import("./action-menus.mjs");
+        const name = game.i18n.localize("DRPG.Kit.details");
+        const host = document.createElement("div");
+        host.className = "drpg-panel drpg-r3661";
+        host.innerHTML = `<header class="window-header"><h1 class="window-title">R3661 window</h1></header>
+            <section class="window-content">${detailsHtml("<p>one</p>")}${detailsHtml("<p>two</p>")}${detailsHtml("<p>three</p>")}</section>`;
+        const before = a11yReport();
+        document.body.append(host);
+        let report = "";
+        try {
+            const toggles = [...host.querySelectorAll(".drpg-action-details-toggle")];
+            must(toggles.length === 3, "detailsHtml drew no toggle - this would measure nothing");
+            const boxOf = t => host.querySelector(`[id="${t.getAttribute("aria-controls")}"]`);
+            const set = (t, open, inert) => { t.setAttribute("aria-expanded", String(open)); boxOf(t).toggleAttribute("inert", inert); };
+            set(toggles[0], false, true);
+            set(toggles[1], true, false);
+            set(toggles[2], true, true);
+            report = a11yReport();
+        } finally { host.remove(); }
+        const lines = report.split("\n").filter(l => l.includes("R3661 window"));
+        const read = {
+            listed: lines.length,
+            names: lines.every(l => l.includes(`"${name}"`)),
+            states: lines.map(l => /: open\b/.test(l) ? "open" : /: shut\b/.test(l) ? "shut" : "?"),
+            outOfStep: lines.map(l => /out of step/.test(l)),
+            gone: !a11yReport().includes("R3661 window"),
+            before: !before.includes("R3661 window")
+        };
+        equal(JSON.stringify(read), JSON.stringify({ listed: 3, names: true, states: ["shut", "open", "open"],
+            outOfStep: [false, false, true], gone: true, before: true }),
+            `{listed: the Details lines of the stand-in window; names: each says the toggle's name; states; outOfStep; gone: none once the window is removed; before: none before it was drawn} - the report: ${report}`);
+    }],
     ["R3533 - Season setup's footer stands in one row on a 1366x768 screen (E49 A1d; the owner's approval of 11.11.2026): season-setup.mjs `openSeasonSetup` states the kit's `tables` width, at least the widest four buttons measured (780 px), and its footer is Save, Reset the season (destructive) and Cancel, Pre-season checks gone from it to the row of windows (E49 A1e, R3580); The Mastermind, right before Season setup in Between sessions until E49 A1e, is no tile there (R3582)", async () => {
         /*
          * E49 A1d, 11.11.2026. The owner: "zamieniamy miejscami the mastermind z ustawienia sezonu", and Season setup at
