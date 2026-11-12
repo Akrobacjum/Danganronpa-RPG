@@ -8042,7 +8042,9 @@ const REGRESSIONS = [
         equal(JSON.stringify([[...readers].sort(), /resourceValue\([^)]*"hope"\)|resources\.hope\b/.test(blocks)]),
             // setMonocub writes the sheet's Hope to 0 at the start (a Monocub starts clean, E15 C4), a write and no threshold.
             // offerBribeOnGm and answerBribeOnGm read the payer's Hope, a living student's (E72 C15), and no Monocub's.
-            JSON.stringify([["answerBribeOnGm", "cubHopeTotal", "offerBribeOnGm", "redeemHope", "refundCubHope", "setMonocub", "spendCubHope"], false]),
+            // CHANGED ON PURPOSE BY THE E72 FIX ROUND (12.11.2026, review #3): the price and the refund read under the
+            // purse's lock, in spendCubHopeNow and refundCubHopeNow, which spendCubHope and refundCubHope run.
+            JSON.stringify([["answerBribeOnGm", "cubHopeTotal", "offerBribeOnGm", "redeemHope", "refundCubHopeNow", "setMonocub", "spendCubHopeNow"], false]),
             "a Monocub threshold reads the sheet's Hope alone ([the functions of monocub.mjs that read it, CUB_BLOCKS reads it])");
     }],
 

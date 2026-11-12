@@ -51,7 +51,7 @@ import { getClock } from "./clock.mjs";
 import { seasonEpoch, sameSeason, deathRecord, getSetting, SETTINGS, bodyFoundSinceTrial } from "./settings.mjs";
 import { resolveThreshold, whisperToOwner, log, warn, error, plural, isPrimaryGm, primaryGmId, wholeNumber, serialWrite, ownerOf, serverNow } from "./utils.mjs";
 import { cubStore, cubCopy, cubTargetStore, bountyStore } from "./gm-stores.mjs";
-import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
+import { gmStoresQuiet, newestIn, whenGmStoresAudible } from "./gm-store.mjs";
 import { senderOf, replyForMe } from "./bridge-guards.mjs";
 import { blackenedIds as blackenedIdsNow } from "./incident-store.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
@@ -213,7 +213,9 @@ export function cubsFor(userId) {
     if (!game.user?.isGM || !user || user.isGM) return { cubs, stamps };
     for (const actor of game.actors ?? []) {
         if (actor.type !== "character" || !actor.testUserPermission?.(user, "OWNER")) continue;
-        stamps[actor.id] = cubStore.newest(actor.id);
+        // A Monocub's copy carries the open Bounties, so its stamp is the newer of its row's and the Bounties' (E72 fix
+        // round, review #2): the owner's combine takes only a newer answer, and a post or a lapse touches no row.
+        stamps[actor.id] = isMonocub(actor) ? Math.max(cubStore.newest(actor.id), newestIn(bountyStore.section())) : cubStore.newest(actor.id);
         const row = cubStore.get(actor.id) ?? (isMonocub(actor) ? {} : null);
         if (row) cubs[actor.id] = { witness: row.witness ?? null, redeemDay: row.redeemDay ?? null, askOpen: Boolean(row.askOpen), invited: Boolean(row.invite),
             purse: Math.max(0, Math.trunc(Number(row.purse) || 0)),
@@ -420,6 +422,13 @@ export async function answerMonocubOffer({ actorId, accept } = {}, sender = null
         await whisperToGms(`<p>${foundry.utils.escapeHTML(game.i18n.format("DRPG.Monocub.inviteDeclined", { name: actor.name }))}</p>`);
         log(`${actor.name}'s player declined the invitation to become a Monocub.`);
         return { accepted: false };
+    }
+    // A student alive again since the invitation (E72 fix round, review #6): the invitation closes and nothing is
+    // carried out - the row kept the Rule and the player was told "accepted" while setMonocub refused.
+    if (!isDeceased(actor)) {
+        await patchCubRow(actor.id, { invite: null });
+        warn(`Closed ${actor.name}'s invitation to become a Monocub unanswered: the student is not dead.`);
+        return null;
     }
     await patchCubRow(actor.id, { invite: null, acceptedRule: { at: serverNow(), by: sender?.id ?? null } });
     await setMonocub(actor, true);
@@ -692,8 +701,19 @@ export function cubHopeTotal(actor) {
     return resourceValue(actor, "hope") + purseOf(actor);
 }
 
+/*
+ * One lock a Monocub for every write of its purse (E72 fix round, review #3): each writer reads the purse and writes it
+ * after an await (patchCubRow waits for the store), so two in step - a price and a Bribe, two Bets - each wrote its
+ * own sum over the other's. Innermost always: nothing inside it takes another lock.
+ */
+const purseWrite = (actorId, step) => serialWrite(`drpg-purse:${actorId}`, step);
+
 /** GM: take `n` Hope, the purse first. Answers `{ purse, sheet }`, how much came from each. */
-export async function spendCubHope(actor, n) {
+export function spendCubHope(actor, n) {
+    return purseWrite(actor.id, () => spendCubHopeNow(actor, n));
+}
+
+async function spendCubHopeNow(actor, n) {
     const purse = purseOf(actor);
     const fromPurse = Math.min(purse, Math.max(0, n));
     const fromSheet = Math.max(0, n - fromPurse);
@@ -703,19 +723,30 @@ export async function spendCubHope(actor, n) {
 }
 
 /** GM: give back what `spendCubHope` answered it took, each point where it came from. */
-export async function refundCubHope(actor, paid) {
+export function refundCubHope(actor, paid) {
+    return purseWrite(actor.id, () => refundCubHopeNow(actor, paid));
+}
+
+async function refundCubHopeNow(actor, paid) {
     const purse = Math.max(0, Math.trunc(Number(paid?.purse) || 0)), sheet = Math.max(0, Math.trunc(Number(paid?.sheet) || 0));
     if (purse) await patchCubRow(actor.id, { purse: purseOf(actor) + purse });
-    if (sheet) await trustedWrite(actor, { "system.resources.hope.value": resourceValue(actor, "hope") + sheet }, { reason: "refund" });
+    if (sheet) {
+        await trustedWrite(actor, { "system.resources.hope.value": Math.min(resourceMax(actor, "hope"), resourceValue(actor, "hope") + sheet) },
+            { reason: "refund" });
+    }
 }
 
 /** GM: put `n` Hope in the purse, held to the limit and to nothing in the darkening. Answers how many went in. */
 export async function addToPurse(actor, n) {
     if (!game.user?.isGM || !actor || !(n > 0)) return 0;
+    return purseWrite(actor.id, () => addToPurseNow(actor, n));
+}
+
+/* `also`: fields of the row written in the same patch as the purse (a settled bet's `bet: null`), whatever goes in. */
+async function addToPurseNow(actor, n, also = null) {
     const { overflowBlocksHope } = await import("./overflow.mjs");
-    if (overflowBlocksHope()) return 0;
-    const take = Math.min(Math.trunc(n), Math.max(0, resourceMax(actor, "hope") - cubHopeTotal(actor)));
-    if (take > 0) await patchCubRow(actor.id, { purse: purseOf(actor) + take });
+    const take = overflowBlocksHope() || !(n > 0) ? 0 : Math.min(Math.trunc(n), Math.max(0, resourceMax(actor, "hope") - cubHopeTotal(actor)));
+    if (take > 0 || also) await patchCubRow(actor.id, { ...(also ?? {}), ...(take > 0 ? { purse: purseOf(actor) + take } : {}) });
     return Math.max(0, take);
 }
 
@@ -1177,18 +1208,26 @@ export async function cubAbilityOnGm({ actorId, key, targetId, choice } = {}) {
             }
             return null;
         }
-        // The student's share (E72 C4): told to the asker with its code, and nothing paid.
-        const capped = cubCapRefusal(row, target);
-        if (capped) {
-            warn(`Refused a Monocub's "${key}" by ${actor.name}: ${target.name} has had its share this ${capped === "time" ? "time of day" : "day"}.`);
-            return { capped };
-        }
-        // The price, after every condition: quiet (the toast and the pip sound would be the GM's), as an Objection's is.
-        // A move to order costs the row's `executionCost` and uses the order up (E72 C17).
-        const price = priceOf(actor, row);
-        if (price.cost > 0 && !await spendAction(actor, price.cost, { quiet: true })) return null;
-        if (price.toOrder) await patchCubRow(actor.id, { order: null });
-        await noteCubMove(row, target);
+        // The student's share (E72 C4), the price and the note in one lock a target (E72 fix round, review #4): two
+        // Monocubs on one student in step both passed one share, the note coming after the price's awaits.
+        const gate = await serialWrite(`drpg-cub-target:${target?.id ?? ""}`, async () => {
+            // The share: told to the asker with its code, and nothing paid.
+            const capped = cubCapRefusal(row, target);
+            if (capped) {
+                warn(`Refused a Monocub's "${key}" by ${actor.name}: ${target.name} has had its share this ${capped === "time" ? "time of day" : "day"}.`);
+                return { capped };
+            }
+            // The price, after every condition: quiet (the toast and the pip sound would be the GM's), as an Objection's is.
+            // A move to order costs the row's `executionCost` and uses the order up (E72 C17).
+            const price = priceOf(actor, row);
+            if (price.cost > 0 && !await spendAction(actor, price.cost, { quiet: true })) return { unpaid: true };
+            if (price.toOrder) await patchCubRow(actor.id, { order: null });
+            await noteCubMove(row, target);
+            return { price };
+        });
+        if (gate.capped) return { capped: gate.capped };
+        if (gate.unpaid) return null;
+        const { price } = gate;
         // The purse first, then the sheet (E72 C14); where each point came from is kept for a refund (Tinker's double).
         const paid = price.hopeCost > 0 ? await spendCubHope(actor, price.hopeCost) : null;
         const { roll, total, isCritical } = await CUB_ROLLS[row.roll]();
@@ -1373,8 +1412,9 @@ async function scoreTinker(actor, target, choice, total, isCritical, row, paid =
     } else {
         said = game.i18n.localize("DRPG.Monocub.meddleFailed");
     }
-    if (isCritical && row.hopeCost > 0) {
-        await refundCubHope(actor, paid ?? { purse: 0, sheet: row.hopeCost });
+    // Only what this move paid comes back (E72 fix round, review #1): a move to order paid no Hope and gets none.
+    if (isCritical && (paid?.purse > 0 || paid?.sheet > 0)) {
+        await refundCubHope(actor, paid);
         said += ` ${game.i18n.localize("DRPG.Monocub.tinkerHopeBack")}`;
     }
     await whisperToOwner(actor, `<p>${said}</p>`, { veiled: true });
@@ -1553,18 +1593,29 @@ export async function answerBribeOnGm({ cubId, bribeId, accept } = {}, sender = 
             return { accepted: false };
         }
         const { overflowBlocksHope } = await import("./overflow.mjs");
-        const room = resourceMax(cub, "hope") - cubHopeTotal(cub);
-        const unpaid = !payer || isDeadForGm(payer) ? "the payer is gone"
-            : resourceValue(payer, "hope") < offer.cost ? "the payer has not the Hope for it"
-                : overflowBlocksHope() ? "the darkening blocks Hope" : room < offer.cost ? "the Monocub's Hope is full" : null;
+        // The payer's check and payment in one lock a payer (E72 fix round, review #3): two Monocubs answering one
+        // payer's offers in step each read the same Hope and each wrote it less one. A student no longer a Monocub is
+        // paid nothing (review #6).
+        const unpaid = await serialWrite(`drpg-bribe-payer:${offer.from}`, async () => {
+            const room = resourceMax(cub, "hope") - cubHopeTotal(cub);
+            const why = !isMonocub(cub) ? "the Monocub is not one now" : !payer || isDeadForGm(payer) ? "the payer is gone"
+                : resourceValue(payer, "hope") < offer.cost ? "the payer has not the Hope for it"
+                    : overflowBlocksHope() ? "the darkening blocks Hope" : room < offer.cost ? "the Monocub's Hope is full" : null;
+            if (why) return why;
+            await trustedWrite(payer, { "system.resources.hope.value": resourceValue(payer, "hope") - offer.cost }, { reason: "call" });
+            const took = await addToPurse(cub, offer.cost);
+            // What the purse could not hold goes back to the payer (the limit read again under the purse's lock).
+            if (took < offer.cost) {
+                await trustedWrite(payer, { "system.resources.hope.value": resourceValue(payer, "hope") + offer.cost - took }, { reason: "refund" });
+            }
+            return took > 0 ? null : "the Monocub's Hope is full";
+        });
         if (unpaid) {
             warn(`A Bribe of ${offer.fromName} to ${cub.name} was closed unpaid: ${unpaid}.`);
             await tell("bribeUnpaid");
             await whisperToOwner(cub, `<p>${esc(game.i18n.format("DRPG.Monocub.bribeUnpaidCub", { name: offer.fromName }))}</p>`, { veiled: true });
             return { accepted: false };
         }
-        await trustedWrite(payer, { "system.resources.hope.value": resourceValue(payer, "hope") - offer.cost }, { reason: "call" });
-        await addToPurse(cub, offer.cost);
         // The move it orders this time of day (E72 C17), and the pair's count this chapter (E72 C19).
         const pairs = { ...(cubRowOf(cub)?.pairs ?? {}) };
         const held = pairs[payer.id];
@@ -1746,10 +1797,14 @@ export async function settleBets(context) {
         const bet = row?.bet;
         if (!bet) continue;
         const actor = game.actors.get(actorId);
-        await patchCubRow(actorId, { bet: null });
-        if (!actor) continue;
+        if (!actor) {
+            await patchCubRow(actorId, { bet: null });
+            continue;
+        }
         const wins = Boolean(record.correct) && sentenced.has(bet.targetId);
-        const got = wins ? await addToPurse(actor, Math.max(0, Math.trunc(Number(bet.value) || 0))) : 0;
+        // The bet cleared in the patch that pays it, under the purse's lock (E72 fix round, review #6): cleared first, a
+        // throw before the payment lost the bet with nothing paid, and the step run again found nothing to pay.
+        const got = await purseWrite(actorId, () => addToPurseNow(actor, wins ? Math.max(0, Math.trunc(Number(bet.value) || 0)) : 0, { bet: null }));
         if (wins) paid += 1;
         await whisperToOwner(actor, `<p>${foundry.utils.escapeHTML(wins ? game.i18n.format("DRPG.Monocub.betPaid", { n: got })
             : game.i18n.localize("DRPG.Monocub.betLost"))}</p>`, { veiled: true });

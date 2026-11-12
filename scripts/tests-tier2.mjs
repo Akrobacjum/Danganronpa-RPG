@@ -17481,6 +17481,14 @@ const SCENARIOS = [
             await settle();
             read.c = [await answer(true, "suite-e72-c6-accept"), ...state(), Boolean(cubStore.get(actor.id)?.acceptedRule)];
             read.d = [await answer(true, "suite-e72-c6-again"), ...state()];
+            // (e) The E72 fix round (review #6): an invitation still open when its student lives again. The acceptance is
+            // refused and closes it, and no Rule is kept; before, the row kept the Rule and the player was told "accepted".
+            await actor.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await actor.unsetFlag(MODULE_ID, FLAGS.deceased);
+            if (cubStore.has(actor.id)) await cubStore.drop(actor.id);
+            await cubStore.patch(actor.id, { invite: { at: Date.now(), by: game.user.id } });
+            await settle();
+            read.e = [await answer(true, "suite-e72-c6-revived"), ...state(), Boolean(cubStore.get(actor.id)?.acceptedRule)];
         } finally {
             ui.notifications.info = info;
             for (const f of names) {
@@ -17495,7 +17503,8 @@ const SCENARIOS = [
             await settle();
             for (const m of game.messages.contents.filter(m => !had.has(m.id))) { try { await m.delete(); } catch { /* already gone */ } }
         }
-        equal(stableJson(read), stableJson({ a: [false, true], b: [[], false, false], c: [[], true, false, true], d: [["refused"], true, false] }),
+        equal(stableJson(read), stableJson({ a: [false, true], b: [[], false, false], c: [[], true, false, true], d: [["refused"], true, false],
+            e: [["refused"], false, false, false] }),
             "a Monocub was made without its player's acceptance, or an acceptance did not make one ([a Monocub, an invitation open] after the State list; [codes, ...] after a decline, an acceptance (and the Rule kept), an answer to no invitation)");
     }],
 
@@ -17892,13 +17901,20 @@ const SCENARIOS = [
                 await settle();
                 return [M.purseOf(cub), open()];
             };
+            // The copy's stamp moves with the Bounties (E72 fix round, review #2): the owner's combine takes only a newer answer.
+            const stampNow = () => M.cubsFor(cubUser.id).stamps[cub.id] ?? 0;
+            const stamps = [stampNow()];
             read.posted = [Boolean(await M.postBounty(game.user.id, target)), D.getDespair(game.user.id), D.owedOf(game.user.id), open(),
                 (M.copyRowOf(M.cubsFor(cubUser.id).cubs[cub.id])?.bounties ?? []).map(b => b.targetName === target.name)];
+            stamps.push(stampNow());
             read.again = Boolean(await M.postBounty(game.user.id, target));
             read.help = await confusion("help", [6, 7]);
             read.hinder = await confusion("hinder", [6, 7]);
             await M.postBounty(game.user.id, target);
+            stamps.push(stampNow());
             read.lapsed = [await M.lapseBounties(), open()];
+            stamps.push(stampNow());
+            read.stampsRise = [stamps[1] > stamps[0], stamps[3] > stamps[2]];
             read.onCub = Boolean(await M.postBounty(game.user.id, cub));
             await D.setDespair(game.user.id, D.owedOf(game.user.id));
             read.broke = Boolean(await M.postBounty(game.user.id, target));
@@ -17920,9 +17936,176 @@ const SCENARIOS = [
             await settle();
         }
         equal(stableJson(read), stableJson({
-            posted: [true, 3, 1, 1, [true]], again: false, help: [0, 1], hinder: [1, 0], lapsed: [1, 0], onCub: false, broke: false
+            posted: [true, 3, 1, 1, [true]], again: false, help: [0, 1], hinder: [1, 0], lapsed: [1, 0], stampsRise: [true, true], onCub: false, broke: false
         }), "a Bounty is not posted, owed, claimed or lapsed as DC27/DC40 ask ({the post: [answer, pool, owed, open, the copy names the student]; "
+            + "the copy's stamp newer after a post and after a lapse; "
             + "a second on the same student; after a landing Help and a landing Hinder: [purse, open]; the lapse: [lapsed, open]; on a Monocub; with nothing to spend})");
+    }],
+
+    ["Hope given from Despair to a Monocub counts its purse toward the limit: an Ask for Hope or Fuel fills the sheet only up to the limit less the purse (E72 fix round)", async () => {
+        /*
+         * E72 fix round, 12.11.2026; the end review's #5 and the owner's DC37 (a Monocub's Hope is its sheet's and its
+         * purse's, 6 at most). despair.mjs `creditHopeFromDespair`, the one road of an Ask for Hope's answer and of Fuel a
+         * Monocub, held only the sheet to its maximum: a purse of 2 and a sheet of 3 took 3 more. A Monocub with a purse
+         * of 2 and a sheet of 3; this GM's pool with 5. Read: what 5 asked grants, and the sum after. Red before the fix:
+         * the maximum less 3 granted.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a Monocub");
+        const [cub] = cast(1);
+        const M = await import("./monocub.mjs");
+        const D = await import("./despair.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { resourceMax } = await import("./character.mjs");
+        const pool = D.getDespair(game.user.id);
+        const owedRows = foundry.utils.deepClone(S.despairOwedStore?.entries?.() ?? {});
+        const hope = cub.system.resources.hope.value;
+        const rowWas = foundry.utils.deepClone(S.cubStore?.get(cub.id) ?? null);
+        const read = {};
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            await trustedWrite(cub, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            await settle();
+            must(await M.addToPurse(cub, 2) === 2, "the purse could not take 2 - this would measure nothing");
+            await trustedWrite(cub, { "system.resources.hope.value": 3 }, { reason: "gmRuling" });
+            await D.setDespair(game.user.id, 5);
+            await settle();
+            const max = resourceMax(cub, "hope");
+            must(max >= 5, `the Monocub's Hope maximum is ${max} - this would measure nothing`);
+            read.granted = await D.convertDespairToHope(game.user.id, cub, 5);
+            await settle();
+            read.total = M.cubHopeTotal(cub);
+            read.want = { granted: max - 5, total: max };
+        } finally {
+            const nowRows = Object.keys(S.despairOwedStore?.entries?.() ?? {}).filter(k => !Object.hasOwn(owedRows, k));
+            if (nowRows.length) await S.despairOwedStore.dropMany(nowRows);
+            await D.setDespair(game.user.id, pool);
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await trustedWrite(cub, { "system.resources.hope.value": hope }, { reason: "gmRuling" });
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            if (rowWas) await S.cubStore.patch(cub.id, rowWas);
+            await settle();
+        }
+        equal(stableJson([read.granted, read.total]), stableJson([read.want?.granted, read.want?.total]),
+            "a Despair grant to a Monocub took the sheet to its maximum with the purse beside it ([granted, sheet and purse])");
+    }],
+
+    ["two Monocubs' Confusions on one student at once take one share of its time of day: the second is capped and pays nothing (E72 fix round)", async () => {
+        /*
+         * E72 fix round, 12.11.2026; the end review's #4. The student's share (E72 C4, `cubCapRefusal`) was read under a
+         * lock a Monocub, and noted (`noteCubMove`) after the price's awaits: two Monocubs on one student in step both
+         * passed one share a time of day. Now the share's check, the price and the note take one lock a target. Two
+         * Monocubs with 2 actions and 2 Hope and a student in one room. Read: the two answers ([done, capped]) and the
+         * actions both have left. Red before the fix: both done.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 3), "two Monocubs and a student stood in one room by their tokens");
+        const [a, b, target] = cast(3);
+        const M = await import("./monocub.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { positionIn } = await import("./movement.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const had = [a, b].map(x => ({ actions: x.system.resources.actions.value, hope: x.system.resources.hope.value }));
+        const rows = [a, b].map(x => foundry.utils.deepClone(S.cubStore?.get(x.id) ?? null));
+        const capWas = foundry.utils.deepClone(S.cubTargetStore?.get(target.id) ?? null);
+        const tokenB = canvas.scene.tokens.find(t => t.actorId === b.id);
+        const wasB = tokenB ? { x: tokenB.x, y: tokenB.y } : null;
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const real = CONFIG.Dice.randomUniform;
+        let back = null;
+        const read = {};
+        try {
+            let room;
+            ({ room, back } = await aloneTogether(a, target));
+            must(tokenB, "the second Monocub has no token - this would measure nothing");
+            await tokenB.update(positionIn(room, tokenB), PLACE);
+            for (const x of [a, b]) {
+                await x.setFlag(MODULE_ID, FLAGS.monocub, true);
+                if (S.cubStore.has(x.id)) await S.cubStore.drop(x.id);
+                await trustedWrite(x, { "system.resources.actions.value": 2, "system.resources.hope.value": 2 }, { reason: "gmRuling" });
+            }
+            if (S.cubTargetStore.has(target.id)) await S.cubTargetStore.drop(target.id);
+            await settle();
+            let i = 0;
+            CONFIG.Dice.randomUniform = () => 1 - (((i++ % 2) ? 7 : 6) - 0.5) / 12;
+            const outs = await Promise.all([a, b].map(x => M.cubAbilityOnGm({ actorId: x.id, key: "meddle", targetId: target.id, choice: "help" })));
+            CONFIG.Dice.randomUniform = real;
+            await settle();
+            read.answers = outs.map(o => (o?.done ? "done" : o?.capped ? "capped" : "other")).sort();
+            read.actions = [a, b].map(x => x.system.resources.actions.value).sort();
+        } finally {
+            CONFIG.Dice.randomUniform = real;
+            for (const [i, x] of [a, b].entries()) {
+                await x.unsetFlag(MODULE_ID, FLAGS.monocub);
+                await trustedWrite(x, { "system.resources.actions.value": had[i].actions, "system.resources.hope.value": had[i].hope }, { reason: "gmRuling" });
+                if (S.cubStore.has(x.id)) await S.cubStore.drop(x.id);
+                if (rows[i]) await S.cubStore.patch(x.id, rows[i]);
+            }
+            const { confusionStore } = S;
+            if (confusionStore?.has?.(target.id)) await confusionStore.drop(target.id);
+            if (S.cubTargetStore.has(target.id)) await S.cubTargetStore.drop(target.id);
+            if (capWas) await S.cubTargetStore.patch(target.id, capWas);
+            if (tokenB && wasB && canvas.scene.tokens.has(tokenB.id)) await tokenB.update(wasB, PLACE);
+            if (back) await back();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ answers: ["capped", "done"], actions: [1, 2] }),
+            "two Confusions at once on one student both took its share ({the answers; the actions left})");
+    }],
+
+    ["two Bribes one payer cannot pay from one Hope, a purse's writes in step take nothing from each other, and a Bribe answered once the role is gone pays nothing (E72 fix round)", async () => {
+        /*
+         * E72 fix round, 12.11.2026; the end review's #3 and #6. A Bribe's yes was serialised per Monocub only: two
+         * Monocubs answering one payer's offers together each read the payer's 1 Hope and each wrote 0, so 2 Hope went
+         * into purses for 1 paid; and the purse's writers (the price, a Bribe, a refund) each read the purse before an
+         * await. Now the payer's check and payment take one lock a payer, and every purse write one lock a Monocub. A
+         * payer with 1 Hope; two Monocubs with nothing. Read: [the payer's Hope, both purses] after both yeses at once;
+         * then the purse after three additions at once; then a yes from a student no longer a Monocub. Red before the
+         * fix: [0, 1, 1]; the additions lost; the third yes paid.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 3), "a payer and two Monocubs");
+        const [payer, a, b] = cast(3);
+        const M = await import("./monocub.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const had = [payer, a, b].map(x => x.system.resources.hope.value);
+        const rows = [a, b].map(x => foundry.utils.deepClone(S.cubStore?.get(x.id) ?? null));
+        const read = {};
+        try {
+            for (const x of [a, b]) {
+                await x.setFlag(MODULE_ID, FLAGS.monocub, true);
+                if (S.cubStore.has(x.id)) await S.cubStore.drop(x.id);
+                await trustedWrite(x, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
+            }
+            await trustedWrite(payer, { "system.resources.hope.value": 1 }, { reason: "gmRuling" });
+            await settle();
+            const offers = [await M.offerBribeOnGm({ actorId: payer.id, cubId: a.id }), await M.offerBribeOnGm({ actorId: payer.id, cubId: b.id })];
+            must(offers.every(o => o?.bribeId), "the two offers were refused - this would measure nothing");
+            await Promise.all([a, b].map((x, i) => M.answerBribeOnGm({ cubId: x.id, bribeId: offers[i].bribeId, accept: true })));
+            await settle();
+            read.both = [payer.system.resources.hope.value, M.purseOf(a), M.purseOf(b)];
+            if (S.cubStore.has(a.id)) await S.cubStore.drop(a.id);
+            await Promise.all([1, 1, 1].map(n => M.addToPurse(a, n)));
+            read.added = M.purseOf(a);
+            await trustedWrite(payer, { "system.resources.hope.value": 1 }, { reason: "gmRuling" });
+            if (S.cubStore.has(b.id)) await S.cubStore.drop(b.id);
+            const late = await M.offerBribeOnGm({ actorId: payer.id, cubId: b.id });
+            await b.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await settle();
+            const answer = await M.answerBribeOnGm({ cubId: b.id, bribeId: late?.bribeId, accept: true });
+            read.gone = [Boolean(answer?.accepted), payer.system.resources.hope.value, M.purseOf(b)];
+        } finally {
+            for (const [i, x] of [a, b].entries()) {
+                await x.unsetFlag(MODULE_ID, FLAGS.monocub);
+                if (S.cubStore.has(x.id)) await S.cubStore.drop(x.id);
+                if (rows[i]) await S.cubStore.patch(x.id, rows[i]);
+            }
+            for (const [i, x] of [payer, a, b].entries()) await trustedWrite(x, { "system.resources.hope.value": had[i] }, { reason: "gmRuling" });
+            await settle();
+        }
+ok(read.both?.[0] === 0 && read.both[1] + read.both[2] === 1, `two Bribes paid from one Hope put more than it into the purses: ${stableJson(read.both)}`);
+equal(read.added, 3, "three additions to a purse at once lost one");
+        equal(stableJson(read.gone), stableJson([false, 1, 0]), "a Bribe answered after the role was gone was paid ([accepted, payer's Hope, purse])");
     }],
 
     ["a Bribe is offered to a Monocub and paid only on its yes, from the payer's Hope into the Monocub's purse, one open offer a pair, refused offers and lapsed ones costing nothing (E72 C15)", async () => {
@@ -18155,6 +18338,12 @@ const SCENARIOS = [
             read.secret = await tinker(ids.secret, "help", [6, 7]);
             read.idle = await tinker(ids.idle, "help", [6, 7]);
             read.unknown = await tinker("SUITEE72C13NONE0", "help", [6, 7]);
+            // A double on a move to order, which paid no Hope, gives none back (E72 fix round, review #1).
+            const clock = getClock() ?? {};
+            await S.cubStore.patch(cub.id, { order: { chapter: clock.chapter ?? null, epoch: seasonEpoch(), day: clock.day ?? null,
+                timeOfDay: clock.timeOfDay ?? null } });
+            await settle();
+            read.ordered = await tinker(ids.public, "help", [5, 5]);
         } finally {
             CONFIG.Dice.randomUniform = real;
             for (const id of made) await P.deleteProject(id).catch(() => {});
@@ -18172,7 +18361,8 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({
             listed: ["edge", "idle", "public"],
             help: [[13, false], 2, 1, 4, 3], double: [[10, true], 2, 1, 3, 3], hinder: [[13, false], 1, 1, 2, 2],
-            edge: [[13, false], 1, 1, 1, 1], secret: [null, 1, 1, 1, 1], idle: [null, 1, 1, 1, 1], unknown: [null, 1, 1, 1, 1]
+            edge: [[13, false], 1, 1, 1, 1], secret: [null, 1, 1, 1, 1], idle: [null, 1, 1, 1, 1], unknown: [null, 1, 1, 1, 1],
+            ordered: [[10, true], 1, 1, 0, 1]
         }), "Tinker's list or a move is not as DC23/DC24 ask ({the list; each move: [total, double] or refused, then [public's progress, "
             + "edge's progress, actions, Hope]})");
     }],

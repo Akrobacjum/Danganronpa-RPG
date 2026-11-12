@@ -829,8 +829,12 @@ export async function creditHopeFromDespair(actor, amount, { payer = null, owes 
         return { granted: 0, blocked: "darkening" };
     }
     const { meansWrite } = await import("./sheet-audit.mjs");
+    // A Monocub's purse counts toward its limit (E72 fix round, review #5; the owner's DC37): the sheet takes only the
+    // maximum less the purse.
+    const { isMonocub, purseOf } = await import("./monocub.mjs");
+    const purse = isMonocub(actor) ? purseOf(actor) : 0;
     const { held, granted } = await meansWrite(actor, async ({ hope }, maxOf) => {
-        const room = Math.min(amount, (maxOf("hope") || STARTING.hopeMax) - hope);
+        const room = Math.min(amount, (maxOf("hope") || STARTING.hopeMax) - purse - hope);
         if (room <= 0) return { held: hope, granted: 0 };
         if (owes) await recordOwed(owes, room);
         // A reason of the closed list, a literal each (tests-tier0.mjs R220): the Call's, or a GM's ruling.
