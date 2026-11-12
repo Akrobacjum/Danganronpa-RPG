@@ -8901,21 +8901,33 @@ const INVARIANTS = [
            console's 44rem with none; the console's window asks it. */
         const widths = typeof UI.consoleWidth === "function" ? [UI.consoleWidth(view(straw)), UI.consoleWidth({ ...view(null), running: false })] : null;
         const widthAsked = /width:\s*consoleWidth\(view\)/.test(manage);
+        /* WITH NO TRIAL THE SCHEMA SHOWS TOO (the owner, 12.11 ~12:00, via the coordinator: "W oknie otwierajacym class
+           trial ... nie chcemy zaznaczania wnioskow, tylko sam schemat"): the body drawn with no trial still holds the
+           slot outside the console, and no rule of the module's sheets hides the slot (`display: none` on a rule whose
+           subject is the slot). jsdom lays nothing out; round 4's Chromium measure is the layout's (STATUS). */
+        const idle = document.createElement("div");
+        idle.innerHTML = typeof UI.trialBodyHtml === "function" ? UI.trialBodyHtml({ ...view(null), running: false, afterwards: false }) : "";
+        const hides = [...(await moduleStyles()).replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+            .filter(m => /\bdisplay\s*:\s*none\b/.test(m[2]))
+            .flatMap(m => m[1].split(/,(?![^(]*\))/).map(x => x.trim()))
+            .filter(sel => /(?:\.drpg-trial-schema|\[data-drpg-trial-schema\])(?![\w-])[^\s>+~]*$/.test(sel));
+        const idleSlot = { slot: idle.querySelectorAll("[data-drpg-trial-schema]").length, outside: !idle.querySelector(".drpg-trial-console [data-drpg-trial-schema]"), hides };
         const footer = UI.trialFooter({ ...view(null), isDefault: () => false });
         const footActions = [...(footer.secondary ?? []), ...(footer.destructive ?? []), ...(footer.primary ? [footer.primary] : [])].map(b => b.action);
         equal(stableJson({
             regions: open.regions, status: open.status, middle: open.middle, manage: open.manage,
             picks: open.picks.map(p => [p[0], p[1]]), named: open.picks.every(p => p[4]),
             busyGreyed: busy.picks.filter(p => p[1] !== "straw").every(p => p[2] && p[3]), busyMiddle: busy.middle, slot,
-            pinned: open.pinned, busyPinned: busy.pinned, widths, widthAsked,
+            pinned: open.pinned, busyPinned: busy.pinned, widths, widthAsked, idleSlot,
             footerStarts: footActions.filter(a => ["startTestimony", "startPanic", "startClosing", "zones"].includes(a))
         }), stableJson({
             regions: ["status", "mode", "manage", "bar"], status: [true, true], middle: [true, true], manage: true,
             picks: starts, named: true,
             busyGreyed: true, busyMiddle: [true, true],
-            pinned: [true, true, true, true, true], busyPinned: [true, true, true, true, true], widths: [1280, "console"], widthAsked: true,
+            pinned: [true, true, true, true, true], busyPinned: [true, true, true, true, true], widths: [1280, 1280], widthAsked: true,
+            idleSlot: { slot: 1, outside: true, hides: [] },
             slot: { count: 1, outside: true, empty: true, sibling: true, notInConsole: true, region: true, bodyUsed: true }, footerStarts: []
-        }), "{regions in order; status: [lead, picker]; middle: [log, Findings]; manage: the vote; pinned: [the bar in the bar region, the bar region last, the mode and the management in the read-out column, neither the status nor the bar in it]; widths: running, none; slot: the schema's one empty slot, right after the console and outside it, the console still the redrawn region and the body built with the slot; picks: each MODE_STARTS start in the picker [action, mode]; named; busyGreyed: every other start greyed with a reason while a Straw Poll runs; footerStarts: mode starts left in the footer}");
+        }), "{regions in order; status: [lead, picker]; middle: [log, Findings]; manage: the vote; pinned: [the bar in the bar region, the bar region last, the mode and the management in the read-out column, neither the status nor the bar in it]; widths: running, none; idleSlot: the slot drawn with no trial, outside the console, and the rules that hide it; slot: the schema's one empty slot, right after the console and outside it, the console still the redrawn region and the body built with the slot; picks: each MODE_STARTS start in the picker [action, mode]; named; busyGreyed: every other start greyed with a reason while a Straw Poll runs; footerStarts: mode starts left in the footer}");
     }],
     ["R3661 - the case's ticks at a trial are a GM store no player holds (E99 C3; Q-E99-8): gm-stores.mjs `caseTickStore` is the ledger `caseTicks` under `gmCaseTicks`, a client setting, not in the backup, synced, cut with the trial's group; on a player's engine its write is refused and nothing stored; case-schema.mjs `setCaseTick` asks for a GM", async () => {
         /*
@@ -46765,12 +46777,15 @@ const INVARIANTS = [
             "{live: the console's live region redraws its footer by liveFooter; opensWith: it opens with the same footer; signature: the trial's start and the floor's family alone}");
     }],
 
-    ["R2053 - the console's text full width (E47 C1; S12-51): drawn, the trial console states `width: \"console\"` (ui-kit.mjs WINDOW_WIDTHS, drpg-kit-width-console) and its lines and headings take no 74ch cap under either theme (the glass's prose rung, stained-glass.css), read by the sheets' cascade", async () => {
+    ["R2053 - the console's text full width (E47 C1; S12-51): drawn, the trial console states its width - 1280 px since E73's mockup B (trial-floor-ui.mjs `consoleWidth`; `width: \"console\"`, drpg-kit-width-console, until then) and its lines and headings take no 74ch cap under either theme (the glass's prose rung, stained-glass.css), read by the sheets' cascade", async () => {
         /*
          * E47 C1, 09.11.2026. The audit read the console's text column 140 px short of its body (S12-51): the glass's prose
          * rung caps every paragraph of a module window at 74ch. The console is opened on this GM (it writes nothing) and its
          * root's classes read; the cascade (`styleCascade`) is read on a stand-in of its tree under each theme's body class.
-         * Red first on f7266b28: no width class, max-width 74ch under Stained Glass.
+         * Red first on f7266b28: no width class, max-width 74ch under Stained Glass. E73 (12.11.2026, changed on purpose):
+         * the console states 1280 px in both states (the coordinator's layout for mockup B; the owner: the case schema
+         * the window's main region with no trial), so the width read is the kit's mark of a stated width in pixels
+         * (`drpg-kit-width`, `data-drpg-width` "1280"); no rule of the sheets read `drpg-kit-width-console` (grep, 12.11).
          */
         needs(env.dialogs(), "the window is drawn");
         must(game.user.isGM, "the console is a GM's - this would measure nothing");
@@ -46779,11 +46794,12 @@ const INVARIANTS = [
         closeOpen("drpg-window-trial");
         await until(() => !document.querySelector(".drpg-window-trial"), 5000);
         const consoles = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-trial"));
-        let classes = null;
+        let classes = null, stated = null;
         try {
             UI.manageClassTrial().catch(() => {});
             await until(() => consoles()[0]?.element, 6000);
             classes = [...(consoles()[0]?.element?.classList ?? [])];
+            stated = consoles()[0]?.element?.dataset?.drpgWidth ?? null;
         } finally {
             closeOpen("drpg-window-trial");
             await until(() => !document.querySelector(".drpg-window-trial"), 5000);
@@ -46794,7 +46810,7 @@ const INVARIANTS = [
             const body = document.createElement("body");
             body.className = theme;
             const win = body.appendChild(document.createElement("div"));
-            win.className = "application drpg-ui drpg-panel drpg-window-trial drpg-kit-width drpg-kit-width-console";
+            win.className = "application drpg-ui drpg-panel drpg-window-trial drpg-kit-width";
             const kit = win.appendChild(document.createElement("div"));
             kit.className = "window-content";
             const live = kit.appendChild(document.createElement("div"));
@@ -46810,7 +46826,7 @@ const INVARIANTS = [
             win.className = "application drpg-ui drpg-panel";
             return C.winner(win.appendChild(document.createElement("p")), ["max-width"])?.value ?? "none";
         })();
-        equal(stableJson({ width: ["drpg-kit-width", "drpg-kit-width-console"].every(c => classes.includes(c)), control,
+        equal(stableJson({ width: classes.includes("drpg-kit-width") && stated === "1280", control,
             glass: [cap("drpg-theme-stained-glass", "p"), cap("drpg-theme-stained-glass", "h4")], legacy: [cap("drpg-theme-monokuma-legacy", "p"), cap("drpg-theme-monokuma-legacy", "h4")] }),
             stableJson({ width: true, control: "74ch", glass: ["none", "none"], legacy: ["none", "none"] }),
             "{width: the console states the console width; control: another window's paragraph under the glass; glass, legacy: [a line's, a heading's max-width]}");

@@ -1325,13 +1325,14 @@ export function trialConsoleHtml(view) {
 
 /**
  * THE CONSOLE'S WIDTH (E73, 12.11.2026; the coordinator's layout for mockup B: "the window may be wider than 704 px for
- * this: use the viewport, clamped to what fits at 1366 wide"). While a trial runs, 1280 px: the read-out and the
- * schema's slot side by side, the kit holding it to the screen less 8 px a side (ui-kit.mjs `kitWidth`), so 1280 at
- * 1366 and at 1920; with no trial the console's 44rem (E47 C1), one line and the footer. Read when the window opens,
- * and the window opens again when a trial starts or ends (`trialSignature`).
+ * this: use the viewport, clamped to what fits at 1366 wide"). 1280 px, the kit holding it to the screen less 8 px a
+ * side (ui-kit.mjs `kitWidth`), so 1280 at 1366 and at 1920: while a trial runs the read-out and the schema's slot stand
+ * side by side, and with none the case schema is the window's main region (the owner, 12.11 ~12:00: "W oknie
+ * otwierajacym class trial ... nie chcemy zaznaczania wnioskow, tylko sam schemat"), so both states take the width. Until
+ * then the console with no trial stood 44rem (E47 C1). Asked with the view, so a later state can answer another width.
  */
-export function consoleWidth(view) {
-    return view?.running ? 1280 : "console";
+export function consoleWidth() {
+    return 1280;
 }
 
 /**
@@ -1602,11 +1603,11 @@ export async function manageClassTrial() {
     // The frame only (M6; E21 C4): the console's layout is E47's; its footer by roles (`trialFooter`).
     const action = await drpgWindow({
         classes: ["drpg-panel", "drpg-window-trial"],
-        // A fixed width (E47 C1; S12-51, S04-38: it jumped with its content): the console's 44rem with no trial, 1280 px
-        // while one runs (`consoleWidth`, E73's mockup B). A running console stands the screen's height (components.css),
-        // so it opens at the top, 8 px down, the edge the kit holds every window to (ui-kit.mjs `keepInScreen`).
+        // A fixed width (E47 C1; S12-51, S04-38: it jumped with its content): 1280 px (`consoleWidth`, E73's mockup B).
+        // The console stands the screen's height (components.css), so it opens at the top, 8 px down, the edge the kit
+        // holds every window to (ui-kit.mjs `keepInScreen`).
         width: consoleWidth(view),
-        ...(view.running ? { position: { top: 8 } } : {}),
+        position: { top: 8 },
         title: game.i18n.localize("DRPG.Floor.manageTrial"),
         body: trialBodyHtml(view),
         footer: consoleFooter(view),

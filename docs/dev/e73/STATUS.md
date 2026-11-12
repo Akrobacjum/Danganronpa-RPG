@@ -62,7 +62,15 @@ on the vote's opening card; the GM edits, deletes and marks "Monokuma confirms" 
   scroll, kept across the redraw by keepLive; the schema's slot on the right, filling the height; the bar
   (`data-drpg-trial-region="bar"`) pinned under both; the footer's buttons under it. The window's body has nothing to
   scroll (`overflow: hidden`; its `scrollHeight` is 1 px over under Stained Glass, a rounding). Under 44rem of body the
-  columns stack and the frame scrolls. With no trial: the console's 44rem, one line and the footer, no slot.
+  columns stack and the frame scrolls.
+- **With no trial, the schema too (the owner, 12.11 ~12:00, via the coordinator: "W oknie otwierajacym class trial
+  (pierwsze po kliknieciu przycisku class trial w gm panel) nie chcemy zaznaczania wnioskow, tylko sam schemat"):** the
+  same 1280 px, full-height window (`consoleWidth` answers 1280 in both states; the console's 44rem until then); the
+  console's lines at the top, the slot - the read-only schema E99 draws there, without ticks - filling the rest, the
+  footer's Close, Start the Final Trial and Start the Class Trial under it. Measured as below: the console's lines, the
+  footer and the slot inside the window in all 8 cases; the slot 424 px tall at 1366x768 under the glass, 521 under
+  Legacy, 736 and 833 at 1920x1080. R2053 changed on purpose: the console states 1280 px (`data-drpg-width`), not the
+  `console` width; its 74ch checks unchanged.
 - **Measured in Chromium** (style harness: the module's sheets, no Foundry CSS and no Foundry header; the harness places
   the window 24 px down, not 8, so its last 8 px pass a 768 px screen there), 12.11, fc05a9d + this round: at 1366x768
   and 1920x1080, Stained Glass and Monokuma Legacy, EN and PL, a Nonstop Debate, an Objection and a Straw Poll (24
@@ -97,6 +105,7 @@ for the reason named in the commit; green on the commit.
 | fc05a9d | The case schema's slot moved out of the redrawn console: `data-drpg-trial-schema` after `.drpg-trial-console` (`trialBodyHtml`), placed in the middle by the frame's CSS, its height reserved while a trial runs | R3911 red before (no `trialBodyHtml`, the slot inside the console), green after; tiers 0-1 1246 passed, 0 failed, 16 skipped, 0 red; scenarios 41, 63, 68, 86, 88 green |
 
 | c6e723d | The running console on the coordinator's layout: 1280 px and the screen's height, status at the top, the read-out scrolling beside the schema's slot, the bar pinned at the bottom; probe 08 rows `class-trial--debate`, `class-trial--objection`; the greyed picker under the glass | R3911 red before (regions without "bar", no read-out column, no `consoleWidth`), green after; R1357 red on the first try (a rule on the window's own frame), green after; tiers 0-1 1246 passed, 0 failed, 16 skipped, 0 red; tier 2 by name (E73, E70-T, E99, Testimony, Closing Argument, Objection) 86 green; scenarios 41, 63, 68, 72, 86, 88 green on this round's markup (CSS changed after them, not run again) |
+| (this) | With no trial the window is the same 1280 px, full height, the case schema's slot its main region (the owner's 12:00 answer) | R3911 red before (a rule hid the slot; the no-trial width "console"), green after; R2053 changed on purpose; tiers 0-1 1245 passed, 1 failed (R2053, before its change), 16 skipped, then R2053 and R3911 green by name; tier 2 by name 86 green; scenarios 41, 63, 68, 86, 88 green |
 
 ## Test results
 
@@ -130,9 +139,10 @@ for the reason named in the commit; green on the commit.
   (`data-drpg-trial-schema`) outside the redrawn console, between the mode and the management, its height reserved;
   a Straw Poll at the window's top and scrolled to the end, and no trial, both themes, EN and PL. Not Foundry: the
   style harness at 1366 x 1500; the slot is empty (E99 mounts into it).
-- Round 4 (12.11.2026): https://claude.ai/artifact/Gdp7aJnmjstqbSGfdk9TCz - c6e723d: the running console on the
-  coordinator's layout at 1366x768 and 1920x1080, a Nonstop Debate and an Objection (and a Straw Poll and no trial at
-  1366x768), both themes, EN and PL, with the measurements' table. Not Foundry: the style harness, a stand-in window
+- Round 4 (12.11.2026): https://claude.ai/artifact/Gdp7aJnmjstqbSGfdk9TCz - the running console on the coordinator's
+  layout and the window with no trial (the schema's slot its main region) at 1366x768 and 1920x1080, a Nonstop Debate
+  and an Objection (and a Straw Poll at 1366x768), both themes, EN and PL, with the measurements' table; republished
+  for the no-trial change. Not Foundry: the style harness, a stand-in window
   header, the window 24 px down where Foundry puts it 8; the slot empty.
 
 ## Open questions for the owner

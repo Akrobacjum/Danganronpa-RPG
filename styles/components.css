@@ -4361,28 +4361,36 @@ body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drp
    While a trial runs: the status at the top, the bar pinned at the bottom, and between them the read-out (the mode and
    the management, `[data-drpg-trial-read]`, scrolling by itself) beside the case schema's slot (`[data-drpg-trial-schema]`,
    E99's), which fills the rest of the height; the footer's buttons under it all. The owner (via the coordinator, 12.11):
-   the schema visible in the running console without scrolling, where the modes, Overrule and Objection are run. The slot
-   is the console's sibling, outside the region redrawn every second, so the running console is `display: contents` and
-   its regions and the slot are items of one grid. The window stands the screen's height and 1280 px wide (trial-floor-ui.mjs
-   `consoleWidth`): the body asks for the screen's height (`flex-basis: 100dvh`), so the window grows to the kit frame's
-   own ceiling (the screen less 8 px a side) and the body shrinks into what the header and the footer leave - no rule of
-   the window's own frame (R1357), so a `height` Foundry writes inline undoes nothing. The body is a flex column the grid
-   fills (`flex: 1 1 0`), so the grid is exactly its height and the
-   body has nothing to scroll; the read-out scrolls. Measured in Chromium, 12.11: the frame at `100cqh` under a size
-   container read 0 px, at `100%` the content's 1007 px (the body's height is not definite for a percentage); the
-   flex item is definite. The body is `overflow: hidden` while a trial runs: the grid fills it to a fraction of a pixel
-   (524.09 of 524.09 at 1366x768), which `scrollHeight` rounds up to a 1 px scroll. Under 44rem of body the two columns
-   stack and the frame scrolls instead of the body. Under
-   44rem of body (a narrow screen) the two columns stack. With no trial the console is one
-   line and the slot is not drawn. Measured in Chromium (style harness): round 4's numbers in docs/dev/e73/STATUS.md; at a
-   table: LIVE-E73-05. The picker's starts wrap as the bar's ops do; a greyed start keeps its title (its reason). */
+   the schema visible in the running console without scrolling, where the modes, Overrule and Objection are run. With no
+   trial (the owner, 12.11 ~12:00: "nie chcemy zaznaczania wnioskow, tylko sam schemat") the same window: the console's
+   lines at the top and the slot - the read-only schema E99 draws there - filling the rest, the footer's Start the Class
+   Trial under it. The slot is the console's sibling, outside the region redrawn every second, so the running console is
+   `display: contents` and its regions and the slot are items of one grid.
+   The window stands the screen's height and 1280 px wide (trial-floor-ui.mjs `consoleWidth`): the body asks for the
+   screen's height (`flex-basis: 100dvh`), so the window grows to the kit frame's own ceiling (the screen less 8 px a
+   side) and the body shrinks into what the header and the footer leave - no rule of the window's own frame (R1357), so a
+   `height` Foundry writes inline undoes nothing. The body is a flex column the grid fills (`flex: 1 1 0`), so the grid
+   is exactly its height. Measured in Chromium, 12.11: the frame at `100cqh` under a size container read 0 px, at `100%`
+   the content's 1007 px (the body's height is not definite for a percentage); the flex item is definite. The body is
+   `overflow: hidden`: the grid fills it to a fraction of a pixel (524.09 of 524.09 at 1366x768), which `scrollHeight`
+   rounds up to a 1 px scroll. Under 44rem of body (a narrow screen) the columns stack and the frame scrolls instead of
+   the body. Round 4's measurements: docs/dev/e73/STATUS.md; at a table: LIVE-E73-05. The picker's starts wrap as the
+   bar's ops do; a greyed start keeps its title (its reason). */
 .drpg-trial-frame {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+    display: grid;
+    flex: 1 1 0;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: "status" "schema";
+    gap: 8px 16px;
 }
 
-.application.drpg-ui.drpg-panel.drpg-window-trial:has(.drpg-trial-console[data-drpg-trial-running]) .drpg-kit-body {
+.drpg-trial-frame > .drpg-trial-console:not([data-drpg-trial-running]) {
+    grid-area: status;
+}
+
+.application.drpg-ui.drpg-panel.drpg-window-trial .drpg-kit-body:has(> .drpg-trial-frame) {
     container-type: inline-size;
     display: flex;
     flex-direction: column;
@@ -4391,13 +4399,9 @@ body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drp
 }
 
 .drpg-trial-frame:has(> .drpg-trial-console[data-drpg-trial-running]) {
-    display: grid;
-    flex: 1 1 0;
-    min-height: 0;
     grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
     grid-template-rows: auto minmax(0, 1fr) auto;
     grid-template-areas: "status status" "read schema" "bar bar";
-    gap: 8px 16px;
 }
 
 .drpg-trial-frame > .drpg-trial-console[data-drpg-trial-running] {
@@ -4448,12 +4452,7 @@ body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drp
 
 .drpg-trial-frame > .drpg-trial-schema {
     grid-area: schema;
-    display: none;
     min-height: 0;
-}
-
-.drpg-trial-frame:has(> .drpg-trial-console[data-drpg-trial-running]) > .drpg-trial-schema {
-    display: block;
     overflow: auto;
     border: 1px dashed color-mix(in srgb, var(--drpg-bone) 35%, transparent);
 }
@@ -4465,9 +4464,13 @@ body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drp
 }
 
 @container (max-width: 44rem) {
-    .drpg-trial-frame:has(> .drpg-trial-console[data-drpg-trial-running]) {
+    .drpg-trial-frame {
         overflow-y: auto;
         overscroll-behavior: contain;
+        grid-template-rows: auto clamp(12rem, 30vh, 24rem);
+    }
+
+    .drpg-trial-frame:has(> .drpg-trial-console[data-drpg-trial-running]) {
         grid-template-columns: minmax(0, 1fr);
         grid-template-rows: auto auto clamp(12rem, 30vh, 24rem) auto;
         grid-template-areas: "status" "read" "schema" "bar";
