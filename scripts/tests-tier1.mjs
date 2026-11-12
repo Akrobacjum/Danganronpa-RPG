@@ -47252,11 +47252,15 @@ const INVARIANTS = [
             title: el.querySelector(".drpg-seq-day-title")?.textContent === game.i18n.format("DRPG.Sequence.dayTitle", { day: 4 }),
             order: whos.map(w => w.querySelector("b")?.textContent), dead: whos.map(w => w.classList.contains("is-dead")),
             remember: whos.map(w => w.querySelector("i")?.textContent ?? null), alive: [board.alive, board.total],
-            noLine: !el.querySelector(".drpg-seq-announce"), noStrike: !/drpg-seq-who[^{]*\{[^}]*line-through/.test(css)
+            noLine: !el.querySelector(".drpg-seq-announce"), noStrike: !/drpg-seq-who[^{]*\{[^}]*line-through/.test(css),
+            /* the board is centred by its rule's transform, and its rise must carry it: recorded on the glass harness
+               (12.11.2026) the rise's own transform put the board half a screen off centre */
+            centred: /\.drpg-seq-day \{[^}]*transform: translate\(-50%, -50%\)/.test(css)
+                && /anim\(el, \[\{ opacity: 0, transform: "translate\(-50%, -50%\) translateY\(40px\)" \}/.test(stripComments((await moduleSources()).get("sequence.mjs") ?? ""))
         }), stableJson({
             title: true, order: ["Aiko Hoshino", "Mio Tsukishiro", "Ren Kisaragi"], dead: [false, true, false],
-            remember: [null, game.i18n.localize("DRPG.Sequence.weRemember"), null], alive: [2, 3], noLine: true, noStrike: true
-        }), "[the day's title; the cast in its order; who is drawn dead; their words; alive of total; no empty morning line; no rule strikes a name]");
+            remember: [null, game.i18n.localize("DRPG.Sequence.weRemember"), null], alive: [2, 3], noLine: true, noStrike: true, centred: true
+        }), "[the day's title; the cast in its order; who is drawn dead; their words; alive of total; no empty morning line; no rule strikes a name; the rise keeps the board centred]");
     }],
     ["R3715 - a new day plays its board once on every browser that hears it, and nowhere else (scripts/transitions.mjs `onClockHeard`, scripts/sequence.mjs `playDayStart`; E94 C2, MK-R2 #8): night to a new morning starts the board, still under reduced motion, nothing with the table's switch off; the same day heard again starts nothing; an hour that is not a new day plays no board; the board lets the table's clicks through; the Sound window has the row \"Start of the day\" in both languages", async () => {
         /* E94 C2, 12.11.2026. Red at 3c36fcb: sequence.mjs exports no playDayStart. */
