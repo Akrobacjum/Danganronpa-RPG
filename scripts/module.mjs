@@ -25,6 +25,7 @@ import { registerSheetTweaks } from "./sheet.mjs";
 import { registerAnonymity } from "./anonymity.mjs";
 import { registerBodyMarks, registerBodyFollow } from "./body-tile.mjs";
 import { registerBodyAnnounced } from "./chapter.mjs";
+import { registerTails } from "./tail-gm.mjs";
 import { registerActionResource } from "./resources.mjs";
 import { registerGmPanel, registerGmChrome, injectLauncher } from "./gm-panel.mjs";
 import { offerStartHere } from "./season-setup.mjs";
@@ -221,6 +222,8 @@ Hooks.once("init", () => {
     safely("the body with its corpse", registerBodyFollow);
     // The body's announcement, `drpgBodyAnnounced`, on every browser the stamp reaches (E95 C4; chapter.mjs).
     safely("the body's announcement", registerBodyAnnounced);
+    // Tail Someone's cards and ends (E69 C4), on the primary GM: a settled crossing, a body announced, a new day.
+    safely("the tails", registerTails);
     // AFTER the Remnant rings, so a Remnant token that somehow belongs to a player
     // is drawn as evidence first and as theirs second (W-6).
     safely("the own-token ring", registerOwnRing);

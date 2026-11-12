@@ -46,7 +46,8 @@ import {
     ACTION_PASSAGE_FIND, ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT,
     ACTION_FRISK_UNSEEN, ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS,
     ACTION_OPENING_RESULT, ACTION_CLEANUP, ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_LOOT,
-    ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_FACILITY_USE, ACTION_DASH
+    ACTION_NOTE_SAVE, ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_FACILITY_USE, ACTION_DASH,
+    ACTION_TAIL_START
 } from "./bridge-wire.mjs";
 import {
     handleObserveTarget, handleCleanupTraces, handleObserveResolve, handleAnalyzeResolve, handleAdvancement,
@@ -55,7 +56,8 @@ import {
     handleFindStash, handleSteal, handleFriskUnseen, handleFriskAsk, handleFriskAnswer, handleFriskFollow,
     friskForceRoll, handleVaultSteal, searchTheftOf, handleOpeningResult, handleCrisis, handleParkMurder,
     handleBetrayal, handleCleanup, handleCubAbility, handleHopeCall, handleCallYes, handleDynamicAnswer,
-    handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling, handleFacilityUse, handleDash
+    handleRulingExpired, handleRulingReceived, handleDifficulty, handleTraitRuling, handleFacilityUse, handleDash,
+    handleTailStart, tailRolls
 } from "./bridge-runs-acts.mjs";
 import {
     handleProgress, handleShare, TRACE_OF_ROLL, handleRemnant, traceBandOf, progressOf, repairOf, handleTieTrace,
@@ -167,6 +169,23 @@ export const BRIDGE_ACTIONS = table({
            character, the sender's, settled once (bridge-guards.mjs `rollRefusal`); with no roll named it is refused. */
         rolled: { field: "rollId", actor: "actorId", kind: "dash" },
         claims: { rollId: "the roll the free crossings are read from (bridge-guards.mjs rollRefusal): the sender's own drawn Dash roll of that character, settling one Dash" }
+    },
+    [ACTION_TAIL_START]: {
+        label: "DRPG.Bridge.what.tail.start",
+        guards: [knownSender, guardUndoIsTheGms, owns("tailerId", "sender does not own that character")],
+        sanitize: pick({ tailerId: as.id, targetId: as.id, total: as.num, isCritical: as.bool, unseenTotal: as.num,
+            unseenCritical: as.bool, rollId: as.id, unseenRollId: as.id }),
+        run: handleTailStart,
+        // The asker's card says the tail began, and whether the target noticed (`performTail`).
+        answer: "reply",
+        // Both rolls on the GMs' record of each (Palm's `palmRolls` the model): the effect, thrown as "tail", and the
+        // Shadow the target's noticing is read from, thrown as "tailUnseen". Always both: a packet naming none is refused.
+        rolled: tailRolls("tailerId"),
+        claims: {
+            targetId: "judged by startTail (tail-gm.mjs `tailRefusal`), before the rolls are read: the one gate of a person's action (frisk.mjs personActionRefusal) - a student in the tailer's room as the GMs read both, not the tailer, no Monocub, Monokuma or hidden token, outside an Eclipse, a Class Trial and the tailer's own incident - a target the GMs hold alive, outside an investigation",
+            rollId: "the effect's roll the result is read from (bridge-guards.mjs rollRefusal): the sender's own drawn Tail Someone roll of that character",
+            unseenRollId: "the Shadow roll the target's noticing is read from (bridge-guards.mjs rollRefusal): the sender's own drawn roll of that character, thrown as tailUnseen"
+        }
     },
     [ACTION_ADVANCEMENT]: {
         label: "DRPG.Bridge.what.advancement.apply",

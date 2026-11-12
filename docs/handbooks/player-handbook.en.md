@@ -327,6 +327,14 @@ A neighbouring room you have never been in is listed as *Unexplored room 1*, *Un
 
 The tile is called **Infiltrate**: its window lists its actions one under another - Listen first, then Tail Someone and Dash (more come later). In a room with no neighbouring room Listen is greyed with the reason.
 
+### Tail Someone - Shadow, then Leg or Shadow, 1 action
+
+Follow a student standing in your room. You propose the statistic of the second roll, Leg or Shadow, and a GM picks it on a card; nothing is paid until the GM answers. Then two rolls: Shadow 15 or more and they do not notice you - below it they are told your name at once, and the tail goes on all the same.
+
+While the tail lasts, each time they cross into another room and stay about two seconds, you get a card: *{name} moves to {room}*. On a critical second roll the card also says who is there, outside an Eclipse. Cards come in every Eclipse too, rooms only.
+
+The tail ends with a card when you are neither in the room they left nor in the one they reached (you lost track), when the day ends, when a body is found, or when they Dash higher than your second roll (a critical tail falls only to a critical Dash). It ends without a card when either of you dies or an incident begins. One tail at a time: a new one replaces it. A tail cannot be begun in an Eclipse, an investigation or a Class Trial.
+
 ### Dash - Leg, 1 action
 
 Run: a Leg roll gives free crossings until the time of day ends, spent like a Free Move.

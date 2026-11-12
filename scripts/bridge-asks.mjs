@@ -34,7 +34,7 @@ import {
     ACTION_REFUND_CROSSING, ACTION_VAULT_STEAL, ACTION_STEAL, ACTION_FIND_STASH, ACTION_PLANT, ACTION_FRISK_UNSEEN,
     ACTION_FRISK_ASK, ACTION_FRISK_ANSWER, ACTION_FRISK_FOLLOW, ACTION_CRISIS, ACTION_OPENING_RESULT, ACTION_CLEANUP,
     ACTION_BETRAYAL, ACTION_PARK_MURDER, ACTION_CUB_ABILITY, ACTION_DONE, ACTION_LOOT, ACTION_NOTE_SAVE,
-    ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_FACILITY_USE, ACTION_DASH
+    ACTION_ROLL_BOOKMARK, ACTION_REROLL, ACTION_CARD, ACTION_CARD_CLAIM, ACTION_FACILITY_USE, ACTION_DASH, ACTION_TAIL_START
 } from "./bridge-wire.mjs";
 import { ask } from "./bridge-table.mjs";
 
@@ -61,6 +61,15 @@ export function requestFacilityUse({ actorId, actionId, total = 0, isCritical = 
 }
 
 /** Settle a Dash's Leg roll into free crossings on the primary (E69 C5; bridge-runs-acts.mjs `handleDash`). */
+/** Begin a tail (E69 C3): the two rolls named by their messages; answers `{ seen }` as `.value`. */
+export function requestTailStart({ tailerId, targetId, total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false,
+    rollId = null, unseenRollId = null }) {
+    const packet = { tailerId, targetId, total, isCritical, unseenTotal, unseenCritical, rollId, unseenRollId };
+    return ask(ACTION_TAIL_START, packet, {
+        local: () => import("./bridge-runs-acts.mjs").then(m => m.handleTailStart(packet, game.user))
+    });
+}
+
 export function requestDash({ actorId, total = 0, isCritical = false, rollId = null }) {
     return ask(ACTION_DASH, { actorId, total, isCritical, rollId }, {
         local: () => import("./bridge-runs-acts.mjs").then(m => m.handleDash({ actorId, total, isCritical, rollId }, game.user))

@@ -955,6 +955,21 @@ export const facilityUseStore = defineGmStore({
 });
 
 /**
+ * THE TAILS UNDER WAY (E69 C3, 12.11.2026; the owner's audit entry E69, DA8, DA19-DA21, DA26). A row per tailer, keyed by
+ * the tailer's actor id - one tail a tailer (DA26), a new one replaces it: `{ tailerId, targetId, total, critical, day,
+ * at, userId }`, `total` and `critical` the effect roll's off the GMs' record of it (a Dash loses a tail below its total,
+ * a critical one only to a critical), `day` the clock's day it began (the tail ends with the day). Written, read and
+ * dropped by the primary alone (tail-gm.mjs); synced, so that a GM who becomes the primary sends the next card; not
+ * backed up: a row is worth one day. Cut by the reset's "actions" group. No player copy - who tails whom is the GMs' -
+ * and no old key.
+ */
+export const tailStore = defineGmStore({
+    name: "tails", key: SETTINGS.gmTails,
+    kind: "ledger", resetGroup: "actions", backup: false, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
  * THE LAST CROSSING OF EACH CHARACTER (E17 C3, 26.10.2026; audit S07-16, D18: "the charge on the drop stays, and the GM
  * gets Refund last crossing"). A row per character, its newest crossing from one room to another: `{ id, tokenId, sceneId,
  * from, to, back, kind, eclipse, via, mark, at, refunded }` - `back` the spot the token stood on before it (x, y,

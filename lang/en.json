@@ -2915,6 +2915,23 @@
       "discardNote": "{actor} threw away {item} in {room} (rolled {total})."
     },
     "Infiltrate": {
+      "tail": {
+        "nobody": "Nobody else stands in this room to tail.",
+        "prompt": "Pick whom to follow. Shadow {n} or more and they do not notice you; below it they learn who follows them.",
+        "who": "Whom",
+        "unseenTitle": "Tail Someone - do they notice?",
+        "started": "You are tailing {name}. You hear where they go until the day ends.",
+        "startedSeen": "You are tailing {name}, but they noticed you.",
+        "noticed": "{name} is following you.",
+        "moved": "{name} moves to {room}.",
+        "movedWith": "{name} moves to {room}. There: {who}.",
+        "end": {
+          "lost": "You lost track of {name}.",
+          "day": "Your tail on {name} ends with the day.",
+          "body": "Your tail on {name} ends: a body has been found.",
+          "dash": "{name} dashed away. You lost the tail."
+        }
+      },
       "notBuilt": "Not built yet.",
       "dashResult": {"one": "Dash: {n} free crossing until the time of day ends.", "other": "Dash: {n} free crossings until the time of day ends."},
       "row": {
@@ -3718,6 +3735,7 @@
         "analyze.resolve": "Analyze",
         "facility.use": "Room action",
         "dash.settle": "Dash",
+        "tail.start": "Tail Someone",
         "handover.bullet": "Share a Truth Bullet",
         "handover.item": "Hand over an item",
         "passage.share": "Show a secret passage",
@@ -5731,6 +5749,7 @@
         "lootRolls": "The first Hand and Shadow roll each taker made for their next Take from each body",
         "rifles": "Which stash each character has gone through, and in which time of day",
         "facilityUses": "Which room actions each character used, and in which time of day",
+        "tails": "Who is tailing whom today, and how well",
         "clockBeat": "When the primary GM was last at the table, so the gap between two sessions is no time of day",
         "takeBack": "What the last start of a time of day gave, for five minutes, so a misclick can be taken back",
         "crossings": "Each character's last crossing between rooms, what it cost, and whether a GM gave it back",

@@ -44,7 +44,7 @@ export function listenLabels(neighbours, known) {
 /** Each row's icon in the Infiltrate window. */
 const ROW_ICONS = Object.freeze({ listen: "fa-ear-listen", tail: "fa-shoe-prints", dash: "fa-person-running" });
 /** The rows whose action is built on this branch; the rest stand greyed with "Not built yet" (docs/dev/e69/SPEC.md). */
-const BUILT = new Set(["listen", "dash"]);
+const BUILT = new Set(["listen", "tail", "dash"]);
 
 /**
  * THE INFILTRATE WINDOW'S ROWS (E69 C1, 12.11.2026; DA28: one list, no groups). One row a key of `ACTIONS.listen.variants`
@@ -86,6 +86,7 @@ export async function performListen(actor, def, options) {
         actor, title: def.label, intro: briefingBlock(actor, "listen", def), options: infiltrateRows(actor), showShut: true
     }))?.value ?? null;
     if (variant === "dash") return performDash(actor, options);
+    if (variant === "tail") return (await import("./action-tail.mjs")).performTail(actor, options);
     if (variant !== "listen") return null;
     const cost = options.free ? 0 : def.cost;
     if (!canAfford(actor, cost)) return null;

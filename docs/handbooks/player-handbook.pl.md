@@ -327,6 +327,14 @@ Sąsiedni pokój, w którym nigdy nie byłeś, figuruje jako *Nieodkryty pokój 
 
 Kafelek nazywa się **Infiltrate**: jego okno wymienia akcje jedna pod drugą - najpierw Listen, potem Tail Someone i Dash (kolejne dojdą później). W pokoju bez sąsiedniego pokoju Listen jest wyszarzony z powodem.
 
+### Tail Someone - Shadow, potem Leg albo Shadow, 1 akcja
+
+Idziesz za uczniem, który stoi w twoim pokoju. Proponujesz statystykę drugiego rzutu, Leg albo Shadow, a MG wybiera ją na karcie; nic nie płacisz, póki MG nie odpowie. Potem dwa rzuty: Shadow 15 lub więcej i cel cię nie zauważa - poniżej od razu dostaje twoje imię, a śledzenie trwa mimo to.
+
+Póki śledzenie trwa, za każdym razem, gdy cel przejdzie do innego pokoju i postoi tam około dwóch sekund, dostajesz kartę: *{name} przechodzi do: {room}*. Przy krytyku w drugim rzucie karta mówi też, kto tam jest, poza Eclipse. Karty przychodzą też w każdym Eclipse, same pokoje.
+
+Śledzenie kończy się kartą, gdy nie jesteś ani w pokoju, który cel opuścił, ani w tym, do którego doszedł (zgubiony trop), gdy kończy się dzień, gdy znaleziono ciało albo gdy cel użyje Dash z wynikiem wyższym niż twój drugi rzut (krytyczne śledzenie przerywa tylko krytyczny Dash). Kończy się bez karty, gdy któreś z was zginie albo zacznie się incydent. Jedno śledzenie naraz: nowe zastępuje stare. Śledzenia nie da się zacząć w Eclipse, w śledztwie ani na Class Trial.
+
 ### Dash - Leg, 1 akcja
 
 Bieg: rzut na Leg daje darmowe przejścia do końca pory dnia, wydawane jak Free Move.

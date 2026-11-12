@@ -1667,6 +1667,46 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
             && e69a.logged.length === 0,
         JSON.stringify(e69a), { flow: "dash" });
 
+    /* E69-B. A TAIL FROM p1'S OWN PAGE (E69 C3, 12.11.2026). The legal control of `tail.start`: Botan is stood in Aiko's
+       room, and p1 tails him as the Infiltrate window does (action-tail.mjs `performTail`, the target and the proposal
+       handed in for the window): the effect's statistic asked of the GMs on E68's card (the harness presses its first,
+       Leg), one action paid, the Shadow and the effect drawn on the GM, the tail kept by the GM. Read: the answer, Aiko's
+       actions, the GMs' row of the tail, and the GM's log of refusals (none). Put back: Botan's token, Aiko's actions, the
+       tail. */
+    phase("a tail", { flow: "tail" });
+    const e69b = { before: await gm.eval(`const a = game.actors.get("${IDS.aiko}"); const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const M = await import("${repoUrl}/scripts/movement.mjs");
+        const botan = canvas.scene.tokens.get("TOKBOTAN00000000"), room = M.roomOfActor(a);
+        const was = { actions: a.system.resources.actions.value, botan: { x: botan.x, y: botan.y }, room };
+        await botan.update(M.positionIn(room, botan), { teleport: true, movementAction: "displace", animate: false });
+        await trustedWrite(a, { "system.resources.actions.value": 3 }, { reason: "gmRuling" });
+        return was;`, { timeout: 30000 }) };
+    await settle(800);
+    await clearFailures(gm);
+    e69b.p1 = await p1.eval(`const T = await import("${repoUrl}/scripts/action-tail.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        const targets = T.tailTargets(aiko).map(a => a.id);
+        globalThis.__forceRoll = { hope: 9, fear: 3 };
+        let out = null;
+        try { out = await T.performTail(aiko, { target: "${IDS.botan}", proposed: "leg" }); } finally { delete globalThis.__forceRoll; }
+        await new Promise(r => setTimeout(r, 600));
+        return { targets, seen: out?.seen ?? null, target: out?.target ?? null, actions: aiko.system.resources.actions.value };`, { timeout: 90000 });
+    e69b.logged = await refusalsLogged(gm, "tail.start");
+    e69b.row = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const r = S.tailStore.get("${IDS.aiko}");
+        return r ? [r.targetId, typeof r.total === "number", r.critical] : null;`);
+    await gm.eval(`const a = game.actors.get("${IDS.aiko}"); const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        if (S.tailStore.get("${IDS.aiko}")) await S.tailStore.drop("${IDS.aiko}");
+        const was = ${JSON.stringify(e69b.before ?? {})};
+        if (was.botan) await canvas.scene.tokens.get("TOKBOTAN00000000").update(was.botan, { teleport: true, movementAction: "displace", animate: false });
+        await trustedWrite(a, { "system.resources.actions.value": was.actions ?? 3 }, { reason: "gmRuling" });
+        return true;`, { timeout: 30000 });
+    await settle(800);
+    check("E69-B: p1's tail on Botan in Aiko's room is paid with one action, its Shadow and effect drawn on the GM, and the GM keeps the tail - none refused",
+        Boolean(e69b.p1?.targets?.includes(IDS.botan)) && e69b.p1?.target === "Botan" && typeof e69b.p1?.seen === "boolean"
+            && e69b.p1?.actions === 2 && JSON.stringify(e69b.row?.slice(0, 2)) === JSON.stringify([IDS.botan, true]) && e69b.logged.length === 0,
+        JSON.stringify(e69b), { flow: "tail" });
+
     /* ------------------------------------------- A. the Assistant as the primary */
 
     phase("the Assistant as the primary", { flow: "give-take-stash" });

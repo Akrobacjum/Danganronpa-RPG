@@ -828,9 +828,11 @@ const PAY_WAIT_MS = 1500;
  * cover and its hand; an open Frisk's ask, which the primary claims (`claimTicket`), and its force. Two sets for the
  * cover, not one: one set of three would let a Take's hand and a Frisk's ride the same payment (the A11 design, step 10).
  */
-const ROLLED_TOGETHER = Object.freeze([Object.freeze(["palm", "steal"]), Object.freeze(["palm", "rummage"]), Object.freeze(["friskAsk", "frisk"])]);
+const ROLLED_TOGETHER = Object.freeze([Object.freeze(["palm", "steal"]), Object.freeze(["palm", "rummage"]), Object.freeze(["friskAsk", "frisk"]),
+    // Tail Someone (E69 C3): whether the target notices, then the effect, on one action (action-tail.mjs `performTail`).
+    Object.freeze(["tailUnseen", "tail"])]);
 /** The parts that only ride a ticket their partner was drawn or claimed on, and are paid by nothing of their own (`paysFor`). */
-const RIDES_ONLY = Object.freeze(["rummage", "frisk"]);
+const RIDES_ONLY = Object.freeze(["rummage", "frisk", "tail"]);
 /** The parts only the GM claims (`claimTicket`), never drawn: a draw named so would make a second ask's ticket a force could ride. */
 const CLAIMED_ONLY = Object.freeze(["friskAsk"]);
 /** The rolls of an act that costs no action, drawn on no ticket (`drawRefusal`): a Take's Hand and its cover's Shadow (E68 C10). */
@@ -1794,6 +1796,10 @@ async function listedFor(actor, key, context) {
     if (key === "cleanup") return listedTraits({ kind: "cleanup", key: cleanupStepOf(context) });
     // A Dash (E69 C5): Leg, from this GM's config (INFILTRATE.dash), whatever the packet claims.
     if (key === "dash") return [...INFILTRATE.dash.traits];
+    // Tail Someone (E69 C3): whether the target notices is Shadow alone (`unseen`); the effect is Leg or Shadow, a GM's
+    // pick on E68's card (trait-ruling.mjs's generic `tail`, read by the `gm` source as any several are).
+    if (key === "tailUnseen") return [INFILTRATE.tail.unseen.trait];
+    if (key === "tail") return [...INFILTRATE.tail.traits];
     // A GM's room action (E93 C3): the statistic the GM set on it, read on this GM's copy of the room the character
     // stands in (`facilityOfDraw`), never the packet's; none where the room holds no such action (the draw is refused).
     if (key === "facility") {

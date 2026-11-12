@@ -2104,17 +2104,17 @@ export const REST = {
  * lang keys (`DRPG.Infiltrate.row.<key>`); nothing here is prose.
  *
  *   listen  the Listen of `ACTIONS.listen` (its thresholds, critical, failure); a room with no neighbour greys the row.
- *   tail    Tail Someone (DA8, DA19, DA32): two rolls - the effect on Leg or Shadow (its `traits` come in C3 with the GM's
- *           ruling E68's card asks, as R213 holds every list of several), and whether the target notices on Shadow against
- *           `unseen.threshold` (DA21: 15, as Palm).
- *           `perDay` null: no daily limit, one active tail per tailer (DA26).
+ *   tail    Tail Someone (DA8, DA19, DA32): two rolls - the effect on Leg or Shadow (`traits`: the player proposes one on
+ *           E68's card and a GM picks, trait-ruling.mjs `definitionOf`'s generic `tail`, as R213 holds every list of
+ *           several), and whether the target notices on Shadow against `unseen.threshold` (DA21: 15, as Palm).
+ *           `perDay` null: no daily limit, one active tail per tailer (DA26). What a tail does is tail-gm.mjs's.
  *   dash    Dash: Leg, free crossings by band (`bands`: the highest reached; `critical`), granted through actions.mjs
  *           `grantFreeMoves`. The plan names "0-3 by band" and no numbers: a miss 0, 12+ 1, 18+ 2, a critical 3 - a
  *           default taken (docs/dev/e69/SPEC.md).
  */
 export const INFILTRATE = Object.freeze({
     listen: Object.freeze({ traits: Object.freeze(["shadow"]), cost: 1 }),
-    tail: Object.freeze({ cost: 1, perDay: null,
+    tail: Object.freeze({ traits: Object.freeze(["leg", "shadow"]), cost: 1, perDay: null,
         unseen: Object.freeze({ trait: "shadow", threshold: 15 }) }),
     dash: Object.freeze({ traits: Object.freeze(["leg"]), cost: 1,
         bands: Object.freeze([Object.freeze({ min: 12, moves: 1 }), Object.freeze({ min: 18, moves: 2 })]),

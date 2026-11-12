@@ -1286,7 +1286,9 @@ const BRIDGE_TABLE_FILES = Object.freeze([
     ["bridge-table.mjs", "BRIDGE_ACTIONS", [
         "call-gm.mjs", "bridge-wire.mjs", "bridge-runs-acts.mjs", "bridge-runs-records.mjs", "bridge-asks.mjs",
         // E93 C3: what the Facilities' run (`facility.use`, bridge-runs-acts.mjs `handleFacilityUse`) reaches into.
-        "facilities-gm.mjs"
+        "facilities-gm.mjs",
+        // E69 C3: Tail Someone's GM half, whose `startTail` answers the refusals `tail.start`'s run hands back.
+        "tail-gm.mjs"
     ]],
     ["traps.mjs", "TRAP_ACTIONS", []], ["search-tokens.mjs", "SEARCH_ACTIONS", []], ["private-rolls.mjs", "ROLL_ACTIONS", []]
 ]);

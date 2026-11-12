@@ -3177,6 +3177,23 @@
       "cardUnread": "Jeszcze nie przeanalizowane. Użyj Analyze, by odczytać resztę."
     },
     "Infiltrate": {
+      "tail": {
+        "nobody": "Nikt inny nie stoi w tym pokoju, by go śledzić.",
+        "prompt": "Wybierz, kogo śledzić. Shadow {n} lub więcej: bez zauważenia; poniżej cel dowie się, kto go śledzi.",
+        "who": "Kogo",
+        "unseenTitle": "Tail Someone - czy zauważy?",
+        "started": "Śledzisz: {name}. Dowiadujesz się, dokąd idzie, do końca dnia.",
+        "startedSeen": "Śledzisz: {name}, ale cię zauważono.",
+        "noticed": "{name} idzie za tobą.",
+        "moved": "{name} przechodzi do: {room}.",
+        "movedWith": "{name} przechodzi do: {room}. Tam: {who}.",
+        "end": {
+          "lost": "Zgubiono trop: {name}.",
+          "day": "Śledzenie ({name}) kończy się z dniem.",
+          "body": "Śledzenie ({name}) się kończy: znaleziono ciało.",
+          "dash": "{name} ucieka Dashem. Zgubiono trop."
+        }
+      },
       "notBuilt": "Jeszcze niezrobione.",
       "dashResult": {"one": "Dash: {n} darmowe przejście do końca pory dnia.", "few": "Dash: {n} darmowe przejścia do końca pory dnia.", "many": "Dash: {n} darmowych przejść do końca pory dnia.", "other": "Dash: {n} darmowego przejścia do końca pory dnia."},
       "row": {
@@ -4047,6 +4064,7 @@
         "analyze.resolve": "Analyze",
         "facility.use": "Akcja w pokoju",
         "dash.settle": "Dash",
+        "tail.start": "Tail Someone",
         "handover.bullet": "Przekazanie Truth Bulleta",
         "handover.item": "Przekazanie przedmiotu",
         "passage.share": "Pokazanie tajnego przejścia",
@@ -7459,6 +7477,7 @@
         "lootRolls": "Pierwszy rzut na Hand i Shadow każdej osoby do jej następnego zabrania z każdego ciała",
         "rifles": "Którą skrytkę każda postać przetrząsnęła, i o jakiej porze dnia",
         "facilityUses": "Których akcji w pokojach użyła każda postać, i o jakiej porze dnia",
+        "tails": "Kto dziś śledzi kogo, i jak dobrze",
         "clockBeat": "Kiedy główny GM był ostatnio przy stole, żeby przerwa między sesjami nie liczyła się do pory dnia",
         "takeBack": "Co dał ostatni początek pory dnia, przez pięć minut, żeby pomyłkę dało się cofnąć",
         "crossings": "Ostatnie przejście każdej postaci między pokojami, jego koszt i czy GM je zwrócił",

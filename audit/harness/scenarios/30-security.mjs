@@ -6605,6 +6605,19 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && dash.theirs.forOwnership && dash.noRoll.reasons[0].includes("no roll the GM drew is named"),
         JSON.stringify(dash).slice(0, 2000), { flow: "dash" });
 
+    /* FORGERIES OF A TAIL (E69 C3, 12.11.2026). `tail.start` from p1's console: Botan's character tailing Aiko, and Aiko
+       tailing Botan with no roll named - each refused, no tail kept on the GM. The legal road is 33's E69-B. */
+    phase("forgeries of a tail", { flow: "tail" });
+    const readTails = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); return game.user.isGM ? Object.keys(S.tailStore.entries() ?? {}).sort() : [];`;
+    const tail = {
+        theirs: await forge("tail.start", { tailerId: ids.botan, targetId: ids.aiko, total: 30, isCritical: true, unseenTotal: 30 }, readTails),
+        noRoll: await forge("tail.start", { tailerId: ids.aiko, targetId: ids.botan, total: 30, isCritical: true, unseenTotal: 30 }, readTails)
+    };
+    check("SECURITY: a console's tail is refused for another's character and with no roll named - no tail kept - and each refusal is logged on the GM and told to p1",
+        Object.values(tail).every(f => f.unchanged && f.reasons.length === 1 && f.told.length === 1)
+            && tail.theirs.forOwnership && tail.noRoll.reasons[0].includes("no roll the GM drew is named"),
+        JSON.stringify(tail).slice(0, 2000), { flow: "tail" });
+
     /* A PLAYER'S CARD IN THE GM'S NOTICE HISTORY (E81 C7, 12.10.2026). A public card of the module's, posted from p1's
        console with markup in it, is a card the GM's browser draws and keeps (popup.mjs `onCreateChatMessage`, E81 C3).
        The GM then opens the history window, every entry in it, and moves the pointer over every element there: what the

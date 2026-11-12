@@ -159,8 +159,35 @@ export async function handleDash(payload) {
         const { grantFreeMoves } = await import("./actions.mjs");
         await grantFreeMoves(actor, moves, { reason: "infiltrate" });
     }
+    // A tail on the dasher below the Dash's total is lost (E69 C4; tail-gm.mjs `tailsAfterDash`).
+    const { tailsAfterDash } = await import("./tail-gm.mjs");
+    await tailsAfterDash(actor, total, Boolean(payload.isCritical));
     debug(`${actor.name} dashed: ${moves} free crossing(s).`);
     return { reply: { moves } };
+}
+
+/** The two rolls of a tail, as `rolled` names them (E69 C3): the effect's and the Shadow the target's noticing is read from. */
+export function tailRolls(actor) {
+    return [
+        { field: "rollId", actor, kind: "tail" },
+        { field: "unseenRollId", actor, kind: "tailUnseen", into: { total: "unseenTotal", isCritical: "unseenCritical" } }
+    ];
+}
+
+/**
+ * TAIL SOMEONE BEGUN (E69 C3, 12.11.2026; tail-gm.mjs). The target is judged before anything is kept (`tailRefusal`); the
+ * effect's total and critical and the Shadow's are the GMs' record of each roll (the runner's `onRecord`). Answers
+ * `{ reply: { seen } }`: whether the target was told who follows them.
+ */
+export async function handleTailStart(payload, sender) {
+    const tailer = game.actors.get(payload.tailerId ?? "");
+    const target = game.actors.get(payload.targetId ?? "");
+    if (!tailer || !target) return { refused: "no such character" };
+    const { startTail } = await import("./tail-gm.mjs");
+    const out = await startTail({ tailer, target, total: payload.total, isCritical: payload.isCritical,
+        unseenTotal: payload.unseenTotal, unseenCritical: payload.unseenCritical, userId: sender?.id ?? null });
+    if (out.refused) return { refused: out.refused };
+    return { reply: { seen: out.seen } };
 }
 
     // Analyze is scored here for the same reason as Observe: the difficulty is

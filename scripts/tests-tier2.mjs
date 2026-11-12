@@ -88120,6 +88120,74 @@ const SCENARIOS = [
             otherAction: "rollOtherAction" }),
             "{bands: [moves answered, free crossings held] at 5, 12, 18 and a critical; again: the same roll twice; noRoll; theirs; otherAction} - a Dash on the GMs' record of its roll");
     }],
+    ["E69-T4 - Tail Someone begins on the GMs' record of its two rolls and sends its cards from a settled crossing (scripts/tail-gm.mjs, bridge-runs-acts.mjs `handleTailStart`, bridge-table.mjs `tail.start`, config.mjs INFILTRATE.tail; E69 C3, C4; DA8, DA20, DA21, DA26): a player's tail on a student in the room with Shadow 16 is unseen and kept with the effect's total; with Shadow 10 the target's owners are told the tailer's name; the tailer itself, another player's character and a packet naming no rolls are refused; the target's settled crossing sends the tailer one card naming the room, and one the tailer is not in or beside ends the tail lost; a Dash above the effect's total ends it, one below does not; a critical tail falls only to a critical Dash", async () => {
+        /*
+         * E69 C3 and C4, 12.11.2026. Judged as the primary judges the player's packet (`G.judge`), each roll a message of the
+         * tailer's with the GMs' record of it (`recordFor`). The tailer and the target are stood alone in one room
+         * (`aloneTogether`); the crossing is handed to the listener as crossing-settle.mjs would hand it (`onTailCrossing`).
+         * Put back: the records, the messages, the tails, the tokens. Red at 33e5379: no `tail.start` in the table.
+         */
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { player, actor } = await playerInRoom();
+        const target = game.actors.find(a => a.type === "character" && a.id !== actor.id && !a.getFlag(MODULE_ID, FLAGS.monocub)
+            && !a.getFlag(MODULE_ID, FLAGS.monokuma) && canvas?.scene?.tokens?.some(t => t.actorId === a.id));
+        must(target, "no second student with a token on the scene on screen - this would measure nothing");
+        const other = game.actors.find(a => a.type === "character" && a.id !== actor.id && !a.testUserPermission(player, "OWNER"));
+        must(other, "no character the player does not own - this would measure nothing");
+        const T = await import("./tail-gm.mjs");
+        const stood = await aloneTogether(actor, target);
+        const made = [], told = [];
+        const ask = async packet => {
+            const from = told.length;
+            await G.judge(BRIDGE_ACTIONS, { action: "tail.start", requestId: `E69T4${foundry.utils.randomID(8)}`, tailerId: actor.id, targetId: target.id, ...packet },
+                player.id, { send: (to, reply) => told.push(reply) });
+            await settle();
+            const reply = told.slice(from).find(r => r?.action === "bridge.done" || r?.action === "bridge.refused") ?? null;
+            return reply?.action === "bridge.refused" ? reply.reason : reply?.value ?? null;
+        };
+        const rollOf = async (key, total, isCritical = false) => {
+            const { message } = await neutralRoll(actor, { faces: { hope: 6, fear: 3 } });
+            must(message, "no roll was thrown - this would measure nothing");
+            await message.update({ author: player.id });
+            const kept = await recordFor(message, player, actor, key, { total, isCritical });
+            made.push({ message, kept });
+            return message.id;
+        };
+        const rolls = async (effect, unseen, crit = false) => ({ rollId: await rollOf("tail", effect, crit), unseenRollId: await rollOf("tailUnseen", unseen) });
+        // A private card's words are kept beside it for its readers alone (secret.mjs), so a card is counted by whom it speaks
+        // as: the target's owners are told as the target, the tailer's as the tailer, each a card new since `seenIds`.
+        const seenIds = new Set(game.messages.map(m => m.id));
+        const whispers = who => game.messages.filter(m => !seenIds.has(m.id) && m.speaker?.actor === who.id && m.whisper?.length).length;
+        const crossing = async event => { const n = await T.onTailCrossing(event); await settle(); return n; };
+        const row = () => { const r = S.tailStore.get(actor.id); return r ? [r.targetId === target.id, r.total, r.critical] : null; };
+        const read = {};
+        try {
+            read.unseen = [await ask({ total: 30, unseenTotal: 1, ...(await rolls(14, 16)) }), row(), whispers(target)];
+            read.seen = [await ask(await rolls(13, 10)), row(), whispers(target)];
+            read.self = await ask({ targetId: actor.id, ...(await rolls(14, 16)) });
+            read.theirs = await ask({ tailerId: other.id, ...(await rolls(14, 16)) });
+            read.noRoll = await ask({ total: 20, unseenTotal: 20 });
+            read.card = [await crossing({ actorId: target.id, from: stood.room, to: "E69T4 hall" }), whispers(actor), row() !== null];
+            read.lost = [await crossing({ actorId: target.id, from: "E69T4 elsewhere", to: "E69T4 hall" }), whispers(actor), row()];
+            await ask(await rolls(15, 16));
+            read.dashBelow = [await T.tailsAfterDash(target, 12, false), row() !== null];
+            read.dashAbove = [await T.tailsAfterDash(target, 16, false), row()];
+            await ask(await rolls(15, 16, true));
+            read.critTail = [await T.tailsAfterDash(target, 30, false), await T.tailsAfterDash(target, 5, true), row()];
+        } finally {
+            for (const { message, kept } of made) { await kept.putBack(); await game.messages.get(message.id)?.delete(); }
+            if (S.tailStore.get(actor.id)) await S.tailStore.drop(actor.id);
+            for (const m of game.messages.filter(m => !seenIds.has(m.id) && [actor.id, target.id].includes(m.speaker?.actor) && m.whisper?.length)) await m.delete();
+            await stood.back();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ unseen: [{ seen: false }, [true, 14, false], 0], seen: [{ seen: true }, [true, 13, false], 1],
+            self: "cannotNow", theirs: "notYours", noRoll: "rollUnknown", card: [1, 1, true], lost: [0, 2, null],
+            dashBelow: [0, true], dashAbove: [1, null], critTail: [0, 1, null] }),
+            "{unseen, seen: [answer, the tail kept, cards to the target so far]; self; theirs; noRoll; card: [cards, cards to the tailer so far, the tail kept]; lost: [cards, cards to the tailer so far (the move, the end), the tail]; dashBelow, dashAbove: [tails lost, kept]; critTail: [an ordinary Dash, a critical Dash, kept]} - a tail on the GMs' record of its rolls");
+    }],
 ];
 
 // `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).

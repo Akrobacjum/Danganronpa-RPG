@@ -112,6 +112,8 @@ export const ACTION_ANALYZE_RESOLVE = "analyze.resolve";
 export const ACTION_FACILITY_USE = "facility.use";
 /** player -> primary GM: a Dash's Leg roll settled into free crossings (E69 C5; bridge-runs-acts.mjs `handleDash`). */
 export const ACTION_DASH = "dash.settle";
+/** player -> primary GM: a tail begun, its two rolls on the GMs' record (E69 C3; tail-gm.mjs `startTail`). */
+export const ACTION_TAIL_START = "tail.start";
 /* N-2: the player picked their own Level Up and the GM's client writes it. */
 export const ACTION_ADVANCEMENT = "advancement.apply";
 /* ...and where the offer itself lives: a GM asks the primary to record or withdraw

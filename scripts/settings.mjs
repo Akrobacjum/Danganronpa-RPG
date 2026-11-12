@@ -448,6 +448,11 @@ export const SETTINGS = {
      */
     gmFacilityUses: "gmFacilityUses",
     /**
+     * THE TAILS UNDER WAY (E69 C3, 12.11.2026): a GM store (gm-stores.mjs `tailStore`), a row per tailer `{ tailerId,
+     * targetId, total, critical, day, at, userId }`. Synced, not backed up; no player copy: who tails whom is the GMs'.
+     */
+    gmTails: "gmTails",
+    /**
      * WHICH GM ROOM ACTIONS ARE CLOSED NOW (E93 C1): `{ mark, keys }`, the time of day and the keys of the GM's
      * actions used in it (`g:<sceneId>:<room>:<actionId>`), written by the primary GM (facilities-gm.mjs
      * `closeForAll`). A world setting every browser holds, so an honest Facilities window greys a closed action
@@ -2032,6 +2037,13 @@ export function registerSettings() {
     // The room actions used (E93 C1): no `onChange` - shown nowhere, read by the next use on the GM that serves it
     // (facilities-gm.mjs `handleFacilityUse`).
     game.settings.register(MODULE_ID, SETTINGS.gmFacilityUses, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The tails under way (E69 C3): no `onChange` - read by the primary on a settled crossing (tail-gm.mjs).
+    game.settings.register(MODULE_ID, SETTINGS.gmTails, {
         scope: "client",
         config: false,
         type: Object,
