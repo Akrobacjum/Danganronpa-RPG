@@ -5,7 +5,7 @@
  * tests.mjs; the tools are in tests-kit.mjs.
  */
 
-import { MODULE_ID, moduleVersion, CRISIS_ACTIONS, ACTIONS, SFX_EVENTS, CRITICAL, CLEANUP, MURDER_OPENING, KEY_REMNANTS, OBSERVE_DC, ANALYZE_DC, REMNANT_TYPES, OBSERVE_TYPE_ALIAS } from "./config.mjs";
+import { MODULE_ID, moduleVersion, CRISIS_ACTIONS, ACTIONS, SFX_EVENTS, CRITICAL, CLEANUP, MURDER_OPENING, KEY_REMNANTS, OBSERVE_DC, ANALYZE_DC, REMNANT_TYPES, OBSERVE_TYPE_ALIAS, INFILTRATE } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { log } from "./utils.mjs";
@@ -7460,7 +7460,9 @@ const REGRESSIONS = [
         const FIRSTS = {
             "palm.mjs palmHand": ACTIONS.palm,
             "palm.mjs performPalm": ACTIONS.palm,
-            "cleanup.mjs cleanupTrait": ACTIONS.tamper
+            "cleanup.mjs cleanupTrait": ACTIONS.tamper,
+            // E69 C5: a Dash rolls Dash's one statistic (config.mjs INFILTRATE.dash, Leg); the GM's draw reads the same list.
+            "action-listen.mjs performDash": INFILTRATE.dash
         };
         const sites = [];
         for (const [file, text] of await otherSources()) for (const fn of firstsIn(text)) sites.push(`${file} ${fn}`);
