@@ -3998,11 +3998,32 @@ body.drpg-theme-stained-glass .application.sheet.actor .drpg-safeword-button {
     font-weight: 400;
 }
 
-/* NO TIER MARKS ON THE TRAITS. Daggerheart puts a disc beside every trait name; the audit
-   page's trait plate is the label and the value, nothing else. Squaring them off (1.2.41)
-   only made them louder - the mockup has none at all. */
-body.drpg-theme-stained-glass .character-header-sheet .character-traits .tier-mark {
-    display: none;
+/* THE TRAITS' MARKS HOLD THE STATISTICS' GLYPHS (E49, the owner's answer of 12.11.2026). Until then a rule here meant to
+   hide Daggerheart's disc beside every trait name ("NO TIER MARKS": the audit page's plate is the label and the value) -
+   `display: none` on `.character-header-sheet .character-traits .tier-mark`, (0,4,1), which lost to Daggerheart's own
+   `display: flex` at (0,11,0), so the marks showed as the white squares the owner saw (the stand-in in Chromium, E105
+   round 1). Its intent is replaced by the owner's: the mark is shown and holds the glyph (danganronpa.css, "THE MARK HOLDS
+   THE STATISTIC'S GLYPH"), so the rule is removed rather than mended. Under the glass the holder is 28 px, square (the
+   rule above), for the 24 px drawing on its grid. */
+body.drpg-theme-stained-glass .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name.drpg-stat-named {
+    --drpg-stat-mark-size: 28px;
+}
+body.drpg-theme-stained-glass .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name .tier-mark.drpg-stat-mark > i.drpg-stat-glyph {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
+}
+
+/* EACH STATISTIC'S NAME PLATE HOLDS ITS MARK (E49, 11.11.2026 night; 12.11.2026). Daggerheart's plate is 1rem high
+   (header.hbs's `.trait-name`, height and line-height 1rem), and the glass's mark is 28 px with its glyph: it would stand
+   6 px out of the plate above and below (the stand-in in Chromium). The plate grows to 1.5rem, 2 px short of the mark either
+   side, instead of the drawing shrinking off its grid; the name stays centred on the plate's middle. Daggerheart's own
+   selector with the theme's body before it: one class and an element above its (0,10,0), so no `!important`. */
+body.drpg-theme-stained-glass .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name {
+    height: auto;
+    min-height: 1.5rem;
+    line-height: 1.5rem;
 }
 
 /* A GM TILE IS A RED PLATE, not a dark tile wearing a badge. On the audit page "Dynamic" and

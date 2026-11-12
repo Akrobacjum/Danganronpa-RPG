@@ -47608,6 +47608,515 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ first: { fits: true, top: 126 }, foot: 126, later: null, none: null }),
             "{foot: the band's foot; first: the first render's top and height; later: a later render's top; none: the foot with no band} - a sheet must open below the band");
     }],
+    ["R3550 - the wrench's window hides exactly the statistics the module does not use (dh-settings.mjs `dressCharacterSettings`, `SETTINGS_FIELDS`; E49, the owner's 11.11.2026 on Daggerheart's character settings window): on Daggerheart 2.6.5's Details and Experiences drawn as Foundry frames them (tests-kit.mjs `dhSettingsStandIn`), Scars, Proficiency and Max Evasion Increase stand in a hidden cell and nothing else does - the six statistics, Max Health, Max Sanity and each experience's name, value and description shown; the hidden three are `UNUSED_FIELDS`, and outside dh-settings.mjs no module code names proficiency or evasion, and scars only sheet-audit.mjs, which holds them for Hope's maximum, while each shown field is read", async () => {
+        /*
+         * E49, 11.11.2026. The owner: "sa tam statystyki nieuzywane przez modul" - the window the character sheet's wrench
+         * opens (Daggerheart's DHCharacterSettings) shows statistics the module does not use. Which are "used" is read off
+         * the module's code (comments stripped, the suite's own files left out): Scars, Proficiency and Max Evasion Increase
+         * are named by no rule of the game. Red at 54493dbf: no dh-settings.mjs, so nothing was hidden.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs has no `dressCharacterSettings` - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const source = {
+            traits: { agility: { value: 1 }, strength: { value: 0 }, finesse: { value: 1 }, instinct: { value: 2 }, presence: { value: 1 }, knowledge: { value: -1 } },
+            resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 2, proficiency: 3, evasion: 1,
+            experiences: { r3550a: { name: "R3550 one", value: 2, description: "d" }, r3550b: { name: "R3550 two", value: 2, description: "" } }
+        };
+        const win = K.dhSettingsStandIn(source, { name: "R3550" });
+        const said = D.dressCharacterSettings(win);
+        const fields = [...win.querySelectorAll("[name]")];
+        must(fields.length === 17, `${fields.length} named field(s) in the stand-in, and Daggerheart 2.6.5 draws 17 with two experiences - this would measure nothing`);
+        const sorted = list => [...list].sort();
+        const read = {
+            hidden: sorted(fields.filter(el => el.closest("[hidden]")).map(el => el.name)),
+            said: sorted(said),
+            unused: sorted(D.UNUSED_FIELDS),
+            shown: fields.filter(el => !el.closest("[hidden]")).length
+        };
+        const code = new Map((await otherSources()).map(([file, text]) => [file, stripComments(text)]));
+        must(code.has("dh-settings.mjs") && code.has("character.mjs"), "the module's sources were not read - this would measure nothing");
+        const readers = word => [...code].filter(([file, text]) => file !== "dh-settings.mjs" && text.includes(word)).map(([file]) => file).sort();
+        read.code = {
+            proficiency: readers("proficiency"), evasion: readers("evasion"), scars: readers("scars"),
+            read: ["system.traits", "system.resources.hitPoints.max", "system.resources.stress.max", "system.experiences"].filter(path => readers(path).length === 0)
+        };
+        const three = ["system.evasion", "system.proficiency", "system.scars"];
+        equal(stableJson(read), stableJson({ hidden: three, said: three, unused: three, shown: 14,
+            code: { proficiency: [], evasion: [], scars: ["sheet-audit.mjs"], read: [] } }),
+            "hidden: the named fields in a hidden cell; said: what the dressing answered; unused: UNUSED_FIELDS; shown: the fields not hidden (six statistics, two maxima, two experiences' three each); "
+            + "code: the module files that name each unused word, and the shown paths no file reads");
+    }],
+    ["R3551 - the wrench's window is dressed through Foundry's render, on the kit, and no other window is (dh-settings.mjs `registerDhSettings`, `isCharacterSettings`, `settingsWidth`; module.mjs; E49): a window drawn by ApplicationV2's render with Daggerheart's classes `daggerheart dh-style dialog character-settings` over a character carries `drpg-ui`, `drpg-panel`, the window's `drpg-window-dh-settings` and the kit's `drpg-kit-width`, its three unused cells hidden, and opens at `settingsWidth()`; Daggerheart's adversary settings and a `character-settings` window of another package carry none of them", async () => {
+        /*
+         * E49, 11.11.2026. The hook is Foundry's `renderApplicationV2`, registered in module.mjs's init; the windows here are
+         * ApplicationV2s of the suite's own whose `_renderHTML` hands over Daggerheart's markup (tests-kit.mjs
+         * `dhSettingsMarkup`) - Daggerheart's own class is not drawn by the harness. The width: Daggerheart opens it at 455 px,
+         * the kit at the module's popup width (`settingsWidth`). Red at 54493dbf: no hook dressed it.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.settingsWidth === "function", "dh-settings.mjs has no `settingsWidth` - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const { ApplicationV2 } = foundry.applications.api;
+        const source = { traits: { instinct: { value: 1 } }, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 1, evasion: 0, experiences: {} };
+        const markup = K.dhSettingsMarkup(source, { name: "R3551" });
+        const windowOf = classes => class DHCharacterSettings extends ApplicationV2 {
+            static DEFAULT_OPTIONS = { tag: "form", classes, position: { width: 455 }, window: { title: "R3551" } };
+            async _renderHTML() { return markup; }
+            _replaceHTML(html, target) { target.innerHTML = html; }
+        };
+        const OURS = ["drpg-ui", "drpg-panel", "drpg-window-dh-settings", "drpg-kit-width"];
+        const cases = {
+            character: [["daggerheart", "dh-style", "dialog", "character-settings"], { documentName: "Actor", type: "character" }],
+            adversary: [["daggerheart", "dh-style", "dialog", "adversary-settings"], { documentName: "Actor", type: "adversary" }],
+            elsewhere: [["dialog", "character-settings"], { documentName: "Actor", type: "character" }]
+        };
+        const read = {};
+        for (const [key, [classes, doc]] of Object.entries(cases)) {
+            const app = new (windowOf(classes))({ id: `r3551-${key}-${Date.now().toString(36)}` });
+            app.document = doc;
+            try {
+                await app.render({ force: true });
+                const el = app.element;
+                must(el?.querySelector?.('[name="system.scars"]'), `the ${key} window drew no fields - this would measure nothing`);
+                read[key] = { classes: OURS.filter(name => el.classList.contains(name)), hidden: el.querySelectorAll("[hidden]").length,
+                    width: key === "character" ? app.position?.width === D.settingsWidth() : null };
+            } finally {
+                await app.close();
+            }
+        }
+        equal(stableJson(read), stableJson({ character: { classes: OURS, hidden: 3, width: true },
+            adversary: { classes: [], hidden: 0, width: null }, elsewhere: { classes: [], hidden: 0, width: null } }),
+            "per window: the module's classes it carries, its hidden cells, and (the character's) whether it opened at settingsWidth()");
+    }],
+    ["R3552 - a hidden field goes with every save at the value it holds (dh-settings.mjs; E49; the owner's rule: hidden, never deleted): the dressed window's form read as Foundry reads a sheet's form on submit (`FormDataExtended` where Foundry has it, else each named field by its type) holds Scars 2, Proficiency 3 and Max Evasion Increase 1 as the actor holds them, beside a statistic just changed in the window", async () => {
+        /*
+         * E49, 11.11.2026. Daggerheart's window submits the whole form on every change (`form.submitOnChange`), and a
+         * submit's data is the update - so a hidden field must stand in the form at its stored value, never be emptied or
+         * taken out (the save itself, on a character of the suite's own, is tier 2's "the character settings window keeps
+         * a hidden field's value through a save"). The harness has no FormDataExtended; there each named field is read as it
+         * reads one: a number field or `data-dtype="Number"` as a number. Red at 54493dbf: no dh-settings.mjs.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs has no `dressCharacterSettings` - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const source = { traits: { instinct: { value: 0 }, knowledge: { value: 1 } }, resources: { hitPoints: { max: 6 }, stress: { max: 5 } },
+            scars: 2, proficiency: 3, evasion: 1, experiences: { r3552: { name: "R3552", value: 2, description: "" } } };
+        const win = K.dhSettingsStandIn(source, { name: "R3552" });
+        D.dressCharacterSettings(win);
+        must(win.querySelectorAll("[hidden]").length === 3, "the dressing hid no cell - this would measure nothing");
+        win.querySelector('[name="system.traits.instinct.value"]').value = "2";
+        const FDE = foundry.applications?.ux?.FormDataExtended ?? globalThis.FormDataExtended;
+        const flat = FDE ? new FDE(win).object : Object.fromEntries([...win.querySelectorAll("[name]")].map(el =>
+            [el.name, el.type === "number" || el.dataset.dtype === "Number" ? (el.value === "" ? null : Number(el.value)) : el.value]));
+        const data = foundry.utils.expandObject(flat);
+        equal(stableJson({ scars: data.system?.scars, proficiency: data.system?.proficiency, evasion: data.system?.evasion,
+            instinct: data.system?.traits?.instinct?.value, health: data.system?.resources?.hitPoints?.max }),
+            stableJson({ scars: 2, proficiency: 3, evasion: 1, instinct: 2, health: 6 }),
+            "the submit's data: the three hidden fields, the statistic changed in the window, Max Health");
+    }],
+    ["R3553 - the wrench's window is the kit's in both themes (styles/components.css, the block of `drpg-window-dh-settings`; E49): read through the suite's cascade (tests-kit.mjs `styleCascade`, the module's sheets as module.json loads them) on the dressed stand-in under Monokuma Legacy and under Stained Glass, every declaration the block states for a part wins there, and each part - the name, the tabs (the selected one and the other), each group and its heading, a statistic's cell, name and field, Max Health's label and field, New, an experience's box, its fields and its bin, the description, the window's body - takes its colour, ground, edge and type from a rule of the module; the hidden cells are `display: none` and a number field shows no spinner", async () => {
+        /*
+         * E49, 11.11.2026. What the cascade reads is the module's sheets alone: Daggerheart's and Foundry's are not loaded
+         * here, so "from a rule of the module" is the module stating the property, and a rule of theirs that would outrank
+         * it is not seen (the block is written one class above Daggerheart's selectors, read off its compiled 2.6.5 sheet,
+         * which no test reads). Red at 54493dbf: no block, and no class to hang one on.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs has no `dressCharacterSettings` - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const C = await styleCascade();
+        const block = C.rules.filter(rule => rule.file === "styles/components.css" && rule.selector.includes("drpg-window-dh-settings"));
+        must(block.length > 20, `${block.length} rule(s) of components.css name the window - the block was not read`);
+        const LONG = { background: ["background-color", "background-image"], border: ["border-color", "border-width", "border-style", "border-top", "border-bottom", "border-left", "border-right", "border-bottom-width"],
+            font: ["font-size", "font-family", "font-weight"] };
+        const names = prop => [prop, ...(LONG[prop] ?? [])];
+        const source = { traits: { instinct: { value: 1 } }, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 1, evasion: 0,
+            experiences: { r3553: { name: "R3553", value: 2, description: "" } } };
+        const PARTS = {
+            name: [".dialog-header h1", ["color", "font-size"]],
+            tab: ["nav.sheet-tabs > a:not(.active)", ["color", "background", "border", "font-size"]],
+            tabOn: ["nav.sheet-tabs > a.active", ["color", "background", "border"]],
+            group: ["fieldset", ["border", "background"]],
+            heading: ["fieldset > legend", ["color", "font-size"]],
+            cell: [".trait-container", ["background", "border"]],
+            cellName: [".trait-container span", ["color", "font-size"]],
+            cellField: [".trait-container input", ["color", "background", "border", "font-size"]],
+            label: [".two-columns .form-group:not([hidden]) > label", ["color", "font-size"]],
+            field: [".two-columns .form-group:not([hidden]) input", ["color", "background", "border", "font-size"]],
+            add: [".add-experience-btn", ["color", "background"]],
+            entry: [".experience-item", ["border"]],
+            entryField: [".experience-item input.name", ["color", "background", "border", "font-size"]],
+            bin: [".experience-item a[data-action='removeExperience']", ["color"]],
+            description: [".experience-item textarea", ["color", "background", "border", "font-size"]],
+            body: [":scope > .window-content", ["scrollbar-color"]]
+        };
+        const problems = {};
+        let checked = 0;
+        for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-player`;
+            html.append(body);
+            const lost = [];
+            for (const tab of ["details", "experiences"]) {
+                const win = K.dhSettingsStandIn(source, { name: "R3553", tab });
+                body.append(win);
+                D.dressCharacterSettings(win);
+                for (const el of [win, ...win.querySelectorAll("*")]) {
+                    const onEl = C.on(el);
+                    for (const rule of block) {
+                        if (!rule.selector.split(/,(?![^(]*\))/).some(sel => { try { return el.matches(sel.trim()); } catch { return false; } })) continue;
+                        for (const d of rule.decls) {
+                            checked++;
+                            const w = onEl(names(d.property));
+                            if (w?.file !== "styles/components.css") lost.push(`${tab} ${el.localName}.${[...el.classList].join(".")} ${d.property}: ${w ? `${w.file} ${w.selector}` : "nobody"}`);
+                        }
+                    }
+                }
+                for (const [part, [selector, props]] of Object.entries(PARTS)) {
+                    const els = selector.startsWith(":scope") ? [win.querySelector(selector)] : [...win.querySelectorAll(selector)];
+                    if (!els.length || !els[0]) { lost.push(`${tab} ${part}: not drawn`); continue; }
+                    for (const prop of props) { checked++; if (!C.winner(els[0], names(prop))) lost.push(`${tab} ${part} ${prop}: no rule of the module`); }
+                }
+                const unused = [...win.querySelectorAll(".drpg-dh-unused")].map(el => C.winner(el, ["display"])?.value ?? "none stated");
+                const spin = C.winner(win.querySelector('input[type="number"]'), ["appearance"])?.value ?? "none stated";
+                if (stableJson(unused) !== stableJson(["none", "none", "none"]) || spin !== "textfield") lost.push(`${tab} hidden cells ${stableJson(unused)}, number field appearance ${spin}`);
+                win.remove();
+            }
+            if (lost.length) problems[theme] = lost;
+        }
+        ok(checked > 200, `${checked} reading(s) - the stand-in's parts were not read`);
+        equal(stableJson(problems), "{}", "per theme: a declaration of the block won by another rule, or a part of the window no rule of the module dresses");
+    }],
+    ["R3554 - under Monokuma Legacy the wrench's window's selected tab is the kit's selected tab (styles/components.css, the block of `drpg-window-dh-settings`; E48 Q13, the owner's \"Tak\" of 11.11.2026 to the comparison: its active tab was still red-filled): read through the suite's cascade on the dressed stand-in, the selected tab's ink, ground and edge are the three selected-tab tokens and it wears their 2 px inset bar along its foot, as every Legacy kit tab bar does; the tab not selected wears no bar; the tokens name no Eye", async () => {
+        /*
+         * E49, 11.11.2026, after the merge of e49pan (E48 Q13: Bone on Ink with the attention edge, components.css's three
+         * `--drpg-kit-tab-on-*` tokens and the kit tab's inset bar). The window's tabs are Daggerheart's links, not the
+         * kit's buttons, so the bar is stated for them in the window's block. Red at b6f00ad6: the selected link took no
+         * bar (`box-shadow: none`), and on 1.2.104's tokens its ground was the Eye's red.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs has no `dressCharacterSettings` - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const C = await styleCascade();
+        const tokens = C.rules.filter(rule => rule.file === "styles/components.css" && rule.selector === "body").flatMap(rule => rule.decls)
+            .filter(d => /^--drpg-kit-tab-(on-(bg|edge|ink)|selected-edge)$/.test(d.property)).map(d => `${d.property}: ${d.value}`);
+        must(tokens.length >= 3, `${tokens.length} selected-tab token(s) read under Legacy - the token block was not read`);
+        const html = document.createElement("html"), body = document.createElement("body");
+        body.className = "drpg-theme-monokuma-legacy drpg-player";
+        html.append(body);
+        const win = K.dhSettingsStandIn({ traits: {}, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 0, evasion: 0, experiences: {} }, { name: "R3554" });
+        body.append(win);
+        D.dressCharacterSettings(win);
+        const on = win.querySelector("nav.sheet-tabs > a.active"), off = win.querySelector("nav.sheet-tabs > a:not(.active)");
+        must(on && off, "the stand-in drew no tabs - this would measure nothing");
+        const v = (el, props) => C.winner(el, props)?.value ?? null;
+        const read = {
+            on: { color: v(on, ["color"]), background: v(on, ["background", "background-color"]), edge: v(on, ["border-color", "border"]), bar: v(on, ["box-shadow"]) },
+            off: { bar: v(off, ["box-shadow"]) },
+            eye: tokens.filter(line => /eye/i.test(line))
+        };
+        equal(stableJson(read), stableJson({
+            on: { color: "var(--drpg-kit-tab-on-ink)", background: "var(--drpg-kit-tab-on-bg)", edge: "var(--drpg-kit-tab-on-edge)", bar: "inset 0 -2px 0 var(--drpg-kit-tab-on-edge)" },
+            off: { bar: "none" }, eye: [] }), "the selected tab's [ink, ground, edge, bar], the other's bar, and the selected-tab tokens that name an Eye");
+    }],
+    ["R3555 - the wrench's window speaks the module's words, in English and in Polish, and Daggerheart's own keys are left alone (dh-settings.mjs `WINDOW_WORDS`, `dressCharacterSettings`; lang/en.json and lang/pl.json `DRPG.DhSettings`; E49, the owner's \"Tak\" of 11.11.2026: Polish labels for this window only): on the dressed stand-in the title, both tabs, both headings, Max Health, Max Sanity and New read this client's `DRPG.DhSettings.*`, each bin's tooltip and each experience field's name too; the Polish file says Ustawienia postaci, Szczegóły, Doświadczenia, Statystyki, Health i Sanity, Health (maks.), Sanity (maks.), Nowe doświadczenie and Usuń, every key has its English twin, and neither file writes a Daggerheart key the window drew", async () => {
+        /*
+         * E49, 11.11.2026. Daggerheart has no Polish file and its keys are shared with its other windows, so the words are
+         * replaced in the drawn window from the module's own keys. Red at b6f00ad6: the window kept Daggerheart's English.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(Array.isArray(D?.WINDOW_WORDS), "dh-settings.mjs has no `WINDOW_WORDS` - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const win = K.dhSettingsStandIn({ traits: { instinct: { value: 1 } }, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 0, evasion: 0,
+            experiences: { r3555: { name: "R3555", value: 2, description: "" } } }, { name: "R3555" });
+        D.dressCharacterSettings(win);
+        const word = key => game.i18n.localize(`DRPG.DhSettings.${key}`);
+        const drawn = D.WINDOW_WORDS.map(({ selector, field, key }) => {
+            const el = field ? win.querySelector(`[name="${field}"]`)?.closest(".form-group")?.querySelector(":scope > label") : win.querySelector(selector);
+            return el ? (el.textContent === word(key) ? "ours" : `"${el.textContent}"`) : "not drawn";
+        });
+        const item = win.querySelector(".experience-item");
+        const extras = [item?.querySelector("span[data-tooltip]")?.dataset.tooltip === word("delete"),
+            ["input.name", "input.modifier", "textarea"].map(sel => item?.querySelector(sel)?.getAttribute("aria-label")).join("|") === ["name", "value", "description"].map(word).join("|")];
+        const files = {};
+        for (const code of ["en", "pl"]) files[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const PL = { title: "Ustawienia postaci", details: "Szczegóły", experiences: "Doświadczenia", statistics: "Statystyki", reserves: "Health i Sanity",
+            maxHealth: "Health (maks.)", maxSanity: "Sanity (maks.)", newExperience: "Nowe doświadczenie", delete: "Usuń" };
+        const en = files.en.DRPG?.DhSettings ?? {}, pl = files.pl.DRPG?.DhSettings ?? {};
+        const DH_KEYS = ["Tabs.settings", "Tabs.details", "Tabs.experiences", "basics", "maxWithThing", "experience"];
+        const read = {
+            drawn: [...new Set(drawn)], extras,
+            pl: Object.keys(PL).filter(key => pl[key] !== PL[key]),
+            twins: [...Object.keys(en).filter(key => !(key in pl)), ...Object.keys(pl).filter(key => !(key in en))],
+            dh: ["en", "pl"].flatMap(code => DH_KEYS.filter(path => foundry.utils.getProperty(files[code], `DAGGERHEART.GENERAL.${path}`) !== undefined).map(path => `${code} ${path}`))
+        };
+        equal(stableJson(read), stableJson({ drawn: ["ours"], extras: [true, true], pl: [], twins: [], dh: [] }),
+            "drawn: each worded part (ours, or the text it kept); extras: [the bin's tooltip, the experience fields' names]; pl: the Polish words that differ; twins: a key without its twin; dh: a Daggerheart key of the window the module's files write");
+    }],
+    ["R3556 - under Stained Glass Max Health and Max Sanity fill their columns and the bin is the help line's size (styles/components.css, the block of `drpg-window-dh-settings`; E49, the owner's \"Tak\" of 11.11.2026 to the comparison: the two fields stood narrower than their columns and the bin at the glass's 21 px floor): read through the suite's cascade on the dressed stand-in under the glass, the two fields' grid is as wide as its group, each field's cell a flex row as wide as its column with the field growing into it, and the bin's glyph takes `--drpg-kit-help-size` from the window's block", async () => {
+        /*
+         * E49, 11.11.2026. Measured in Chromium on the stand-in before the change (S/stages/E49/dh-shots): under the glass
+         * the two fields were about 140 px in columns of about 230, Foundry's `.form-fields` not loaded there, and the bin
+         * inherited the glass's floor from its span. Layout is not read here (jsdom has none): the rules that set it are.
+         * Red at b6f00ad6: no rule on the field's cell or the glyph.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs has no `dressCharacterSettings` - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const C = await styleCascade();
+        const html = document.createElement("html"), body = document.createElement("body");
+        body.className = "drpg-theme-stained-glass drpg-player";
+        html.append(body);
+        const win = K.dhSettingsStandIn({ traits: {}, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 0, evasion: 0,
+            experiences: { r3556: { name: "R3556", value: 2, description: "" } } }, { name: "R3556", tab: "experiences" });
+        body.append(win);
+        D.dressCharacterSettings(win);
+        const cells = ["system.resources.hitPoints.max", "system.resources.stress.max"].map(name => win.querySelector(`[name="${name}"]`));
+        const glyph = win.querySelector('.experience-item a[data-action="removeExperience"] > i');
+        must(cells.every(Boolean) && glyph, "the stand-in drew no Health, Sanity or bin - this would measure nothing");
+        const at = (el, props) => { const w = C.winner(el, props); return w ? `${w.value} (${w.file})` : null; };
+        const read = cells.map(input => ({ cell: [at(input.parentElement, ["display"]), at(input.parentElement, ["width"])], field: [at(input, ["width"]), at(input, ["flex", "flex-grow"])] }));
+        read.push({ grid: at(win.querySelector(".tab.details .two-columns"), ["width"]), bin: at(glyph, ["font-size"]) });
+        const S = "(styles/components.css)";
+        const each = { cell: [`flex ${S}`, `100% ${S}`], field: [`100% ${S}`, `1 1 auto ${S}`] };
+        equal(stableJson(read), stableJson([each, each, { grid: `100% ${S}`, bin: `var(--drpg-kit-help-size) ${S}` }]),
+            "Max Health, Max Sanity: their cell's [display, width] and the field's [width, flex]; the two fields' grid's width; the bin's glyph's size - each with the sheet it came from");
+    }],
+    ["R3590 - each of the six statistics in the wrench's window wears its glyph before its name, in both themes (stat-glyphs.mjs `markStatName`, dh-settings.mjs `dressCharacterSettings`; E49, the owner's ask of 11.11.2026 night): on the dressed stand-in each field's name holds first an `i.drpg-stat-glyph` keyed by the statistic, aria-hidden and inert, with stat-glyphs.mjs STAT_ICONS's Font Awesome class; the name's text, the fields' names and values are as Daggerheart drew them, and a second dressing adds no second glyph; on the page Stained Glass masks it with --drpg-pix-stat-<statistic> and Monokuma Legacy draws its Font Awesome icon", async () => {
+        /*
+         * E49, 11.11.2026 night. The glyph is one element for both themes: Legacy keeps Font Awesome (the owner's rule), Stained
+         * Glass keys its drawing on data-drpg-stat (the generated glass section, tests-glyphs.mjs STAT_GLYPHS). Read with
+         * tests-glyphs.mjs `glyphReading`, as R3347 and R3348 read every other glyph. Red at 8c8ece5c: no glyph is drawn.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        const SG = await import("./stat-glyphs.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function" && SG?.STAT_ICONS, "dh-settings.mjs or stat-glyphs.mjs is not there - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const G = await import("./tests-glyphs.mjs");
+        const C = await import("./config.mjs");
+        equal(stableJson(SG.STAT_ICONS), stableJson({ eye: "fa-eye", head: "fa-brain", body: "fa-person", leg: "fa-shoe-prints", hand: "fa-hand", shadow: "fa-user-secret" }),
+            "stat-glyphs.mjs STAT_ICONS: Legacy's Font Awesome class of each statistic, as proposed to the owner");
+        const traits = Object.fromEntries(Object.values(C.TRAITS).map((t, n) => [t.dh, { value: n - 1 }]));
+        const win = K.dhSettingsStandIn({ traits, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 0, evasion: 0, experiences: {} }, { name: "R3590" });
+        const fields = () => [...win.querySelectorAll('.traits-inner-container .trait-container input[name^="system.traits."]')].map(input => `${input.name}=${input.value}`);
+        const before = { fields: fields(), names: [...win.querySelectorAll(".traits-inner-container .trait-container > span")].map(s => s.textContent) };
+        must(before.fields.length === 6, `the stand-in drew ${before.fields.length} statistic field(s) - this would measure nothing`);
+        D.dressCharacterSettings(win);
+        D.dressCharacterSettings(win);
+        const read = [...win.querySelectorAll(".traits-inner-container .trait-container")].map(cell => {
+            const name = cell.querySelector(":scope > span"), dh = /^system\.traits\.([a-z]+)\.value$/.exec(cell.querySelector("input")?.name ?? "")?.[1];
+            const stat = C.TRAIT_BY_DH[dh], glyphs = name?.querySelectorAll(":scope > i.drpg-stat-glyph") ?? [];
+            const i = glyphs[0];
+            return { stat, count: glyphs.length, first: name?.firstChild === i,
+                key: i?.dataset.drpgStat ?? null, fa: i?.classList.contains(SG.STAT_ICONS[stat]) ?? false,
+                hidden: i?.getAttribute("aria-hidden") ?? null, inert: i?.hasAttribute("inert") ?? false };
+        });
+        const after = { fields: fields(), names: [...win.querySelectorAll(".traits-inner-container .trait-container > span")].map(s => s.textContent) };
+        const body = document.body, CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], classWas = CLASSES.map(n => body.classList.contains(n));
+        const themes = {};
+        win.style.cssText = "position: absolute; left: -10000px; top: 0;";
+        try {
+            body.append(win);
+            for (const [theme, on] of [["glass", 0], ["legacy", 1]]) {
+                body.classList.add(CLASSES[on]);
+                body.classList.remove(CLASSES[1 - on]);
+                const tokens = G.glyphTokens(body, window, Object.keys(SG.STAT_ICONS).map(k => ({ name: `stat-${k}` })));
+                themes[theme] = Object.fromEntries([...win.querySelectorAll("i.drpg-stat-glyph")].map(i => [i.dataset.drpgStat, G.glyphReading(i, window, tokens)]));
+            }
+        } finally {
+            win.remove();
+            CLASSES.forEach((n, i) => body.classList.toggle(n, classWas[i]));
+        }
+        const keys = Object.keys(C.TRAITS);
+        equal(stableJson({ read, kept: stableJson(before) === stableJson(after), themes }), stableJson({
+            read: read.map(r => ({ stat: r.stat, count: 1, first: true, key: r.stat, fa: true, hidden: "true", inert: true })), kept: true,
+            themes: { glass: Object.fromEntries(keys.map(k => [k, `--drpg-pix-stat-${k}`])), legacy: Object.fromEntries(keys.map(k => [k, `fa:${SG.STAT_ICONS[k]}`])) } }),
+            "each field's name: [the statistic, its glyphs, the glyph first, its key, its FA class, aria-hidden, inert]; the names, fields and values kept; what each glyph wears under Stained Glass and Monokuma Legacy");
+    }],
+    ["R3591 - each of the six statistics on the character sheet wears its glyph inside Daggerheart's mark at the left of its name, in both themes, and the mark still shows its state (stat-glyphs.mjs `markStatName`, sheet.mjs SHEET_STEPS `markTraitGlyphs`; E49, the owner's ask of 11.11.2026 night and his answer of 12.11.2026: the glyph in the enlarged mark, not before the name): on a stand-in of Daggerheart's header (`.character-traits`) the step puts in each `.trait-name > .tier-mark` an `i.drpg-stat-glyph` keyed by the statistic Daggerheart's `data-attribute` names, aria-hidden and inert, the mark marked `drpg-stat-mark` and its plate `drpg-stat-named`; the mark's `marked` class is left as drawn (one trait marked, five not); the name's span holds no glyph and its text, the trait's data-attribute and data-value and its value are as drawn; a second run adds nothing; a trait drawn with no mark gets its glyph first in its name instead; Stained Glass masks the glyph with --drpg-pix-stat-<statistic> and Monokuma Legacy draws its Font Awesome icon", async () => {
+        /*
+         * E49, 12.11.2026. The mark is Daggerheart 2.6.5's `.tier-mark` (header.hbs:111): it shows `system.traits.<key>.tierMarked`
+         * - set only by Daggerheart's own level-up automation (character.mjs prepareBaseData), which the module never feeds - as
+         * the class `marked`, and it has no action of its own (a click on it is the trait's `rollAttribute`). The glyph goes in
+         * it and the class stays, so the state is still drawn (R3594 reads how). The header is tests-kit.mjs `dhTraitsStandIn`.
+         * Red at 982322f4: the glyph stood first in the name.
+         */
+        const SH = await import("./sheet.mjs");
+        const SG = await import("./stat-glyphs.mjs").catch(() => null);
+        const step = SH.SHEET_STEPS?.find(([name]) => name === "markTraitGlyphs")?.[1];
+        must(SG?.STAT_ICONS && step, "stat-glyphs.mjs or the sheet step is not there - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const G = await import("./tests-glyphs.mjs");
+        const C = await import("./config.mjs");
+        const traits = Object.fromEntries(Object.values(C.TRAITS).map((t, n) => [t.dh, { value: n - 2, tierMarked: t.dh === "instinct" }]));
+        const root = K.dhTraitsStandIn(traits);
+        const state = () => [...root.querySelectorAll(".character-traits .trait")].map(t => [t.dataset.attribute, t.dataset.value, t.querySelector(".trait-name > span")?.textContent,
+            t.querySelector(".trait-value")?.textContent, t.querySelector(".tier-mark")?.classList.contains("marked") ?? null]);
+        const before = state();
+        must(before.length === 6, `the stand-in drew ${before.length} statistic(s) - this would measure nothing`);
+        const steps = SH.SHEET_STEPS.map(([name]) => name);
+        for (let n = 0; n < 2; n++) step({ element: root });
+        const read = [...root.querySelectorAll(".character-traits .trait")].map(trait => {
+            const stat = C.TRAIT_BY_DH[trait.dataset.attribute], mark = trait.querySelector(".trait-name > .tier-mark");
+            const glyphs = trait.querySelectorAll("i.drpg-stat-glyph"), i = glyphs[0];
+            return { stat, count: glyphs.length, inMark: Boolean(mark) && i?.parentElement === mark, holder: mark?.classList.contains("drpg-stat-mark") ?? false,
+                plate: trait.querySelector(".trait-name")?.classList.contains("drpg-stat-named") ?? false, inName: trait.querySelectorAll(".trait-name > span i").length,
+                key: i?.dataset.drpgStat ?? null, fa: i?.classList.contains(SG.STAT_ICONS[stat]) ?? false, hidden: i?.getAttribute("aria-hidden") ?? null, inert: i?.hasAttribute("inert") ?? false };
+        });
+        const kept = stableJson(state()) === stableJson(before);
+        const bare = K.dhTraitsStandIn(traits, { noMark: ["presence"] });
+        step({ element: bare });
+        const fallback = (() => { const span = bare.querySelector('.trait[data-attribute="presence"] .trait-name > span'); return span?.firstChild?.dataset?.drpgStat ?? null; })();
+        const body = document.body, CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], classWas = CLASSES.map(n => body.classList.contains(n));
+        const themes = {};
+        root.style.cssText = "position: absolute; left: -10000px; top: 0;";
+        try {
+            body.append(root);
+            for (const [theme, on] of [["glass", 0], ["legacy", 1]]) {
+                body.classList.add(CLASSES[on]);
+                body.classList.remove(CLASSES[1 - on]);
+                const tokens = G.glyphTokens(body, window, Object.keys(SG.STAT_ICONS).map(k => ({ name: `stat-${k}` })));
+                themes[theme] = Object.fromEntries([...root.querySelectorAll("i.drpg-stat-glyph")].map(i => [i.dataset.drpgStat, G.glyphReading(i, window, tokens)]));
+            }
+        } finally {
+            root.remove();
+            CLASSES.forEach((n, i) => body.classList.toggle(n, classWas[i]));
+        }
+        const keys = Object.keys(C.TRAITS);
+        equal(stableJson({ step: steps.indexOf("markTraitGlyphs") > steps.indexOf("frameTraits"), read, kept, fallback, themes }), stableJson({ step: true,
+            read: read.map(r => ({ stat: r.stat, count: 1, inMark: true, holder: true, plate: true, inName: 0, key: r.stat, fa: true, hidden: "true", inert: true })), kept: true, fallback: "shadow",
+            themes: { glass: Object.fromEntries(keys.map(k => [k, `--drpg-pix-stat-${k}`])), legacy: Object.fromEntries(keys.map(k => [k, `fa:${SG.STAT_ICONS[k]}`])) } }),
+            "[the step after frameTraits]; each statistic: [its key, its glyphs, the glyph in the mark, the mark a holder, the plate marked, glyphs left in the name, its data- key, its FA class, aria-hidden, inert]; the names, data-attribute, data-value, values and each mark's `marked` kept; the glyph of a trait with no mark (first in its name); what each glyph wears under Stained Glass and Monokuma Legacy");
+    }],
+    ["R3592 - the six statistics' drawings come through the glyph pipeline (tools/glyphs.json, tools/glyph-map.mjs, tests-glyphs.mjs STAT_GLYPHS; E49, the owner's ask of 11.11.2026 night): STAT_GLYPHS, stat-glyphs.mjs STAT_ICONS and config.mjs TRAITS name the same six statistics; each one's drawing is a glass row `stat-<statistic>` on the 24 grid, the six one contiguous block at the end of glyphs.json, no row's faults (dataProblems: no two rows the same pixels); the glass section keys each on `i.drpg-stat-glyph[data-drpg-stat]` and the served pixel-icons.css and sprite are what the generator writes from the served glyphs.json", async () => {
+        /*
+         * E49, 11.11.2026 night. The block at the end of glyphs.json is the owner's: another branch adds glyphs too, and a
+         * contiguous block keeps the merge simple. R3333 holds the generated files whole; this holds the six to their place.
+         * Red at 8c8ece5c: no STAT_GLYPHS, no row.
+         */
+        needs(env.tools(), "the drawings are read from tools/glyphs.json (an installed module's zip leaves tools/ out)");
+        const G = await import("./tests-glyphs.mjs");
+        const SG = await import("./stat-glyphs.mjs").catch(() => null);
+        const C = await import("./config.mjs");
+        const text = async file => fetch(`/modules/${MODULE_ID}/${file}`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
+        const glyphs = G.parseGlyphs(await text("tools/glyphs.json")).glyphs;
+        must(glyphs.length >= 400, `${glyphs.length} glyph row(s) read - glyphs.json was not read`);
+        const keys = Object.keys(C.TRAITS), table = G.STAT_GLYPHS ?? {};
+        const tail = glyphs.slice(-keys.length).map(g => `${g.family}:${g.name}:${g.grid}`);
+        const rules = G.glassRules().filter(([id]) => id.startsWith("stat.")).map(([id, sel, glyph, how]) => `${id} ${sel} ${glyph} ${how}`);
+        const problems = G.dataProblems(glyphs).filter(p => /stat-/.test(p));
+        const served = { css: await text(G.PIXEL_CSS), sprite: await text(G.SPRITE) };
+        const read = {
+            keys: [Object.keys(table), Object.keys(SG?.STAT_ICONS ?? {})].map(list => stableJson(list) === stableJson(keys)),
+            glyphs: keys.map(k => table[k]),
+            tail, problems, rules,
+            generated: [served.css === G.pixelCssOf(glyphs), served.sprite === G.spriteOf(glyphs)],
+            worn: keys.map(k => served.css.includes(`--drpg-pix-stat-${k}: url(`))
+        };
+        equal(stableJson(read), stableJson({
+            keys: [true, true], glyphs: keys.map(k => `stat-${k}`), tail: keys.map(k => `glass:stat-${k}:24`), problems: [],
+            rules: keys.map(k => `stat.${k} i.drpg-stat-glyph[data-drpg-stat="${k}"] stat-${k} box`),
+            generated: [true, true], worn: keys.map(() => true) }),
+            "[STAT_GLYPHS and STAT_ICONS name TRAITS's keys]; each statistic's glyph; the last rows of glyphs.json; a stat row's faults; the glass rules; [pixel-icons.css, the sprite] as generated; each drawing declared under Stained Glass");
+    }],
+    ["R3593 - a statistic's glyph in the wrench's window keeps a space from its name under Stained Glass and stands over it under Monokuma Legacy (styles/components.css `i.drpg-stat-glyph` and the window's block; E49, the owner's ask of 11.11.2026 night, and his answer of 12.11.2026 to round 1's question 3: the icon over the name stays): read through the suite's cascade on the dressed stand-in, under Stained Glass the glyph's inline end margin is a quarter of its name's size and it stays on the name's line; under Monokuma Legacy it is a block of its own, centred, the space below it", async () => {
+        /*
+         * E49, 11.11.2026 night. Measured in Chromium on the stand-in (S/stages/E105/e49stat): with no margin the glass drawing
+         * touched the name ("Shadow"); under Legacy the window's "Shadow" is 79 px in a 74 px cell, and its icon beside it ran into
+         * Head's. Layout is not read here (jsdom has none): the rules that set it are. Since 12.11.2026 the sheet's glyph sits in
+         * Daggerheart's mark, not beside the name (R3591, R3594), so this reads the window alone.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs is not there - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const C = await styleCascade();
+        const at = (el, props) => { const w = C.winner(el, props); return w ? `${w.value} (${w.file})` : null; };
+        const read = {};
+        for (const [theme, cls] of [["glass", "drpg-theme-stained-glass"], ["legacy", "drpg-theme-monokuma-legacy"]]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${cls} drpg-player`;
+            html.append(body);
+            const win = K.dhSettingsStandIn({ traits: { instinct: { value: 1 } }, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 0, evasion: 0, experiences: {} }, { name: "R3593" });
+            body.append(win);
+            D.dressCharacterSettings(win);
+            const glyph = win.querySelector('i.drpg-stat-glyph[data-drpg-stat="eye"]');
+            must(glyph, "no glyph was drawn - this would measure nothing");
+            read[theme] = { gap: at(glyph, ["margin-inline-end", "margin-right", "margin"]), line: at(glyph, ["display"]), align: at(glyph, ["text-align"]) };
+        }
+        const P = "(styles/components.css)";
+        equal(stableJson(read), stableJson({ glass: { gap: `0.25em ${P}`, line: "inline-block (styles/pixel-icons.css)", align: null },
+            legacy: { gap: `0 0 2px ${P}`, line: `block ${P}`, align: `center ${P}` } }),
+            "per theme: the window's glyph's [end margin, display, text-align] - each with the sheet it came from");
+    }],
+    ["R3594 - on the character sheet Daggerheart's mark at the left of each statistic's name is the glyph's holder in both themes, larger, and still shows whether it is marked (styles/danganronpa.css and stained-glass.css, `.tier-mark.drpg-stat-mark`; E49, the owner's answer of 12.11.2026: enlarge the marks and put the glyph inside them): read through the suite's cascade on the stand-in run through `markTraitGlyphs`, the holder is drawn in both themes (Stained Glass's old rule that hid the marks is gone), 22 px under Monokuma Legacy and 28 px under Stained Glass, its plate padded by the holder's width less its overhang; unmarked it is Bone with the glyph in Ink, marked Ink with the glyph in Bone and a Bone edge, and Daggerheart's dot is not drawn over the glyph; under Stained Glass the drawing is 24 px, on its grid; no margin beside the glyph in the holder", async () => {
+        /*
+         * E49, 12.11.2026. Daggerheart draws the mark 1rem round (header.less :254), half outside the plate's left end, and
+         * a gold dot inside it when `marked` (`::before`). The module painted it Bone (danganronpa.css "the system's gold
+         * furniture") and squared it under the glass, where a rule meant to hide it ("NO TIER MARKS") lost to Daggerheart's
+         * own on weight, so the white squares showed (S/stages/E105/e49stat round 1). That rule's intent is replaced by the
+         * owner's: the mark is shown in both themes and holds the glyph. Red at 982322f4: no holder rule; the glass rule hid it.
+         */
+        const SH = await import("./sheet.mjs");
+        const step = SH.SHEET_STEPS?.find(([name]) => name === "markTraitGlyphs")?.[1];
+        must(step, "sheet.mjs has no markTraitGlyphs step - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const C = await styleCascade();
+        const at = (el, props, pseudo = null) => { const w = C.winner(el, props, pseudo); return w ? `${w.value} (${w.file.replace("styles/", "")})` : null; };
+        const read = {};
+        for (const [theme, cls] of [["glass", "drpg-theme-stained-glass"], ["legacy", "drpg-theme-monokuma-legacy"]]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${cls} drpg-player`;
+            html.append(body);
+            const sheet = K.dhTraitsStandIn({ instinct: { value: 1, tierMarked: true }, knowledge: { value: 0 } });
+            body.append(sheet);
+            step({ element: sheet });
+            const mark = dh => sheet.querySelector(`.trait[data-attribute="${dh}"] .tier-mark`);
+            const on = mark("instinct"), off = mark("knowledge"), plate = off?.parentElement;
+            must(on?.classList.contains("marked") && off && !off.classList.contains("marked"), "the stand-in drew no marked and unmarked mark - this would measure nothing");
+            const glyph = el => el.querySelector("i.drpg-stat-glyph");
+            read[theme] = {
+                shown: at(off, ["display"]), size: [at(off, ["width"]), at(off, ["height"])], var: at(plate, ["--drpg-stat-mark-size"]), pad: at(plate, ["padding-inline-start", "padding-left"]),
+                off: [at(off, ["background", "background-color"]), at(glyph(off), ["color"])],
+                on: [at(on, ["background", "background-color"]), at(glyph(on), ["color"]), at(on, ["box-shadow"]), at(on, ["content"], "::before")],
+                glyph: [at(glyph(off), ["margin", "margin-inline-end"]), theme === "glass" ? at(glyph(off), ["width"]) : null]
+            };
+        }
+        const D = "danganronpa.css", SG = "stained-glass.css";
+        const common = { shown: `flex (${D})`, size: [`var(--drpg-stat-mark-size) (${D})`, `var(--drpg-stat-mark-size) (${D})`], pad: `calc(var(--drpg-stat-mark-size) - 4px) (${D})`,
+            off: [`var(--drpg-bone) (${D})`, `var(--drpg-ink) (${D})`], on: [`var(--drpg-ink) (${D})`, `var(--drpg-bone) (${D})`, `inset 0 0 0 2px var(--drpg-bone) (${D})`, `none (${D})`] };
+        equal(stableJson(read), stableJson({
+            glass: { ...common, var: `28px (${SG})`, glyph: [`0 (${D})`, `24px (${SG})`] },
+            legacy: { ...common, var: `22px (${D})`, glyph: [`0 (${D})`, null] } }),
+            "per theme: the unmarked mark's display, [width, height], the plate's holder size and start padding; unmarked [the mark's ground, the glyph's ink]; marked [ground, ink, edge, Daggerheart's dot]; the glyph's [margin, width under the glass] - each with the sheet it came from");
+    }],
+    ["R3595 - in the wrench's window each statistic's cell is at least as wide as its name (styles/components.css, the window's block; E49, the owner's answer of 12.11.2026: \"Shadow\" was clipped under Monokuma Legacy, 79 px in a 74 px cell): read through the suite's cascade on the dressed stand-in in both themes, the six cells' grid gives each column at least its content's width and shares the rest equally (`minmax(min-content, 1fr)`), and a name does not wrap", async () => {
+        /*
+         * E49, 12.11.2026. Measured in Chromium on the stand-in at 1366x768 (S/stages/E105/e49stat): under Legacy the pixel face
+         * sets "Shadow" 79 px wide in cells of 74 (six equal columns, `minmax(0, 1fr)`), so its last letter was cut by the cell's
+         * edge (at 8c8ece5c already); the five other names are at most 50. Layout is not read here (jsdom has none): the rule is.
+         * Red at 982322f4: `repeat(6, minmax(0, 1fr))`.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs is not there - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        const C = await styleCascade();
+        const at = (el, props) => { const w = C.winner(el, props); return w ? `${w.value} (${w.file})` : null; };
+        const read = {};
+        for (const [theme, cls] of [["glass", "drpg-theme-stained-glass"], ["legacy", "drpg-theme-monokuma-legacy"]]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${cls} drpg-player`;
+            html.append(body);
+            const win = K.dhSettingsStandIn({ traits: { presence: { value: 1 } }, resources: { hitPoints: { max: 6 }, stress: { max: 6 } }, scars: 0, proficiency: 0, evasion: 0, experiences: {} }, { name: "R3595" });
+            body.append(win);
+            D.dressCharacterSettings(win);
+            const grid = win.querySelector(".traits-inner-container"), name = win.querySelector(".trait-container > span");
+            must(grid && name, "the stand-in drew no statistics - this would measure nothing");
+            read[theme] = [at(grid, ["grid-template-columns"]), at(name, ["white-space"])];
+        }
+        const P = "(styles/components.css)", want = [`repeat(6, minmax(min-content, 1fr)) ${P}`, `nowrap ${P}`];
+        equal(stableJson(read), stableJson({ glass: want, legacy: want }), "per theme: [the cells' grid columns, a name's white-space] - each with the sheet it came from");
+    }],
 ];
 
 /**

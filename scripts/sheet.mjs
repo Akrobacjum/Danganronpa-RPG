@@ -76,6 +76,7 @@ import { safeword } from "./safeword.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 import { debug, error, plural, proseOf, markLanguage, GM_ROUTE_CLASS, markFired } from "./utils.mjs";
 import { drpgConfirm } from "./ui-kit.mjs";
+import { markStatName, statOfTrait } from "./stat-glyphs.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { announceSheetSteps } from "./requirements.mjs";
 import { overflowBlocksCalls, overflowBlocksFreeMove } from "./overflow.mjs";
@@ -993,6 +994,7 @@ export const SHEET_STEPS = [
     ["removeSystemCreators", ({ app, element, mode }) => removeSystemCreators(app, element, mode)],
     ["leaveLoadoutTab", ({ app, element }) => leaveLoadoutTab(app, element)],
     ["frameTraits", ({ element }) => frameTraits(element)],
+    ["markTraitGlyphs", ({ element }) => markTraitGlyphs(element)],
     ["injectUltimate", ({ app, element, mode }) => injectUltimate(app, element, mode)],
     ["markSheetState", ({ app, element, mode }) => markSheetState(app, element, mode)],
     ["injectInitButton", ({ app, element, mode }) => injectInitButton(app, element, mode)],
@@ -1467,6 +1469,32 @@ function frameTraits(element) {
     const values = element.querySelectorAll(".character-traits .trait-value, .trait .trait-value");
     for (const value of values) {
         (value.closest(".trait") ?? value.parentElement ?? value).classList.add("drpg-trait-frame");
+    }
+}
+
+/*
+ * EACH STATISTIC'S GLYPH IN ITS MARK (E49, the owner's ask of 11.11.2026 night and his answer of 12.11.2026; stat-glyphs.mjs).
+ * Daggerheart 2.6.5's header (header.hbs:107) draws `.character-traits > .trait[data-attribute="<its key>"]`, and in each
+ * `.trait-name` a `.tier-mark` before the name's span: a disc half outside the plate's left end that shows
+ * `system.traits.<key>.tierMarked` as the class `marked` (a gold dot) - set only by Daggerheart's own level-up automation
+ * (character.mjs `prepareBaseData`), which the module never feeds, and with no action of its own (a click on it is the
+ * trait's `rollAttribute`). The owner: enlarge the marks and put the glyph inside them. So the glyph goes in the mark, the
+ * mark is marked `drpg-stat-mark` and its plate `drpg-stat-named` (danganronpa.css and stained-glass.css size and paint them
+ * by those, the plate padded clear of the larger mark), and `marked` is left as Daggerheart drew it, so the state still
+ * shows: marked, the holder is drawn in reverse (R3594). A sheet whose trait has no mark gets the glyph first in its name
+ * instead. The statistic is read off `data-attribute`, not off the label (a translation). Every render draws the header
+ * anew, and `markStatName` keeps a glyph already there, so a step that runs again adds nothing.
+ */
+function markTraitGlyphs(element) {
+    for (const trait of element.querySelectorAll(".character-traits .trait[data-attribute]")) {
+        const plate = trait.querySelector(".trait-name"), mark = plate?.querySelector(":scope > .tier-mark");
+        const key = statOfTrait(trait.dataset.attribute);
+        if (!key || !plate) continue;
+        if (mark) {
+            mark.classList.add("drpg-stat-mark");
+            plate.classList.add("drpg-stat-named");
+        }
+        markStatName(mark ?? plate.querySelector(":scope > span"), key);
     }
 }
 

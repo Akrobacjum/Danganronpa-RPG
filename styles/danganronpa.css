@@ -7902,8 +7902,51 @@ html body {
    advancement, which this module replaces outright and never sets - so the dot
    is permanently in its unmarked state. Painting it is the smaller change;
    hiding it is the other honest option. */
-.application.sheet.actor .trait-name .tier-mark {
+.application.sheet.actor .trait-name .tier-mark:not(.drpg-stat-mark) {
     background: var(--drpg-bone) !important;
+}
+
+/* THE MARK HOLDS THE STATISTIC'S GLYPH (E49, the owner's answer of 12.11.2026: "enlarge those and put the stat's glyph inside
+   them"; sheet.mjs `markTraitGlyphs` puts it there and names the mark `drpg-stat-mark`, its plate `drpg-stat-named`). Both
+   themes: the mark is shown (Stained Glass's rule that meant to hide it is gone, stained-glass.css says where), larger -
+   `--drpg-stat-mark-size`, 22 px here for Font Awesome's 12 px icon, 28 px under the glass for its 24 px drawing - and it
+   still stands half outside the plate's left end as Daggerheart drew it, 9 px out as its 1rem disc stood, the plate's start
+   padded so the name clears it. ITS STATE STAYS: Daggerheart shows `tierMarked` as the class `marked` with a gold dot inside
+   (`::before`), which would lie on the glyph; marked, the holder is drawn in reverse instead - Ink with the glyph in Bone and
+   a Bone edge - and unmarked it is Bone with the glyph in Ink, as the bare disc was (the rule above, which keeps its
+   `!important` for any other mark). Daggerheart's own selector with the module's class and `body`: (0,12,1) over its
+   (0,11,0), no `!important`; the group rule's `color: ... !important` on every `.tier-mark` is the mark's, and the glyph
+   states its own. Read in Chromium on the stand-in (S/stages/E105/e49stat, 12.11.2026). */
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name.drpg-stat-named {
+    --drpg-stat-mark-size: 22px;
+    padding-inline-start: calc(var(--drpg-stat-mark-size) - 4px);
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name .tier-mark.drpg-stat-mark {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--drpg-stat-mark-size);
+    height: var(--drpg-stat-mark-size);
+    right: calc(100% - var(--drpg-stat-mark-size) + 9px);
+    box-sizing: border-box;
+    background: var(--drpg-bone);
+    z-index: 1;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name .tier-mark.drpg-stat-mark > i.drpg-stat-glyph {
+    margin: 0;
+    color: var(--drpg-ink);
+    font-size: 12px;
+    line-height: 1;
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name .tier-mark.drpg-stat-mark.marked {
+    background: var(--drpg-ink);
+    box-shadow: inset 0 0 0 2px var(--drpg-bone);
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name .tier-mark.drpg-stat-mark.marked > i.drpg-stat-glyph {
+    color: var(--drpg-bone);
+}
+body .application.sheet.daggerheart.actor.dh-style.character .character-header-sheet .character-traits .trait .trait-name .tier-mark.drpg-stat-mark.marked::before {
+    content: none;
 }
 
 .application.sheet.actor .glassy,

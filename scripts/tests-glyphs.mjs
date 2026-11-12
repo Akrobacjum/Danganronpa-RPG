@@ -622,6 +622,15 @@ export const STATE_RULES = [
     ["the GM's manual mic lock (F5)", ".drpg-voice-mic.is-gm-blocked > .drpg-pxi:first-child", "mic-lock", ".drpg-voice-mic.is-gm-blocked > .drpg-voice-mic-lock"]
 ];
 
+/** The six statistics (config.mjs TRAITS) -> the glyph Stained Glass wears before each one's name (E49, the owner's ask of
+ *  11.11.2026 night): stat-glyphs.mjs draws one `<i class="fa-solid fa-<its FA> drpg-stat-glyph" data-drpg-stat="<key>">`
+ *  in the wrench's window and on the sheet; Monokuma Legacy draws its Font Awesome icon (option A), Stained Glass masks it
+ *  with this drawing, keyed on the statistic. Kept here as well as in stat-glyphs.mjs because this file imports nothing;
+ *  R3592 holds the two and TRAITS to the same keys. The rule's selector names the element (`i`) beside its class and key,
+ *  so it equals FACES's `[class*="drpg-"] i.fa-<name>` in specificity (0,3,2 with the theme's body) and wins it by coming
+ *  later in the file: an `fa-eye` here is the Eye statistic's, not Observe's. */
+export const STAT_GLYPHS = { eye: "stat-eye", head: "stat-head", body: "stat-body", leg: "stat-leg", hand: "stat-hand", shadow: "stat-shadow" };
+
 /** Every rule the glass section writes: [id, selector, glyph, how] - how "box" (the FA box, the slot set), "image" (an
  *  element that is a mask box already: only its image), "before" (a text button given a glyph before its label). */
 export function glassRules() {
@@ -633,6 +642,7 @@ export function glassRules() {
     for (const [what, sel, glyph] of FACE_RULES) out.push([`rule.${glyph}`, sel, glyph, "box"]);
     for (const [act, glyph] of Object.entries(REMNANT_ACTS)) out.push([`remnant.${act}`, `.drpg-remnant-glyph[data-drpg-act="${act}"]`, glyph, "image"]);
     for (const [, sel, glyph] of STATE_RULES) out.push([`state.${glyph}`, sel, glyph, "image"]);
+    for (const [stat, glyph] of Object.entries(STAT_GLYPHS)) out.push([`stat.${stat}`, `i.drpg-stat-glyph[data-drpg-stat="${stat}"]`, glyph, "box"]);
     /* No rule for the GM launcher: its glass glyph is today's eye pixel for pixel (glass:gm same g:monokuma-eye, the owner
        11.11), so the chrome rule that draws it already draws the glass set's; a rule here would only move the winner of
        its mask (R1333's hexagon prints) for the same picture. */

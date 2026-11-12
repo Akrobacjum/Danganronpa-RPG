@@ -3755,3 +3755,297 @@ span.drpg-chat-kit-warn { padding: 0 0.3rem; }
     color: inherit;
     font: inherit;
 }
+
+/* ---- Daggerheart's character settings window (E49, 1.2.105; scripts/dh-settings.mjs; the owner's 11.11.2026: the
+   wrench's window "nieruszane w obu motywach"). Daggerheart 2.6.5 draws it (templates/sheets-settings/
+   character-settings/) and styles it in its own sheet; dh-settings.mjs puts `drpg-ui drpg-panel` and this window's class
+   on the root and hides the fields the module does not use. Every rule here is written as Daggerheart's own selector
+   for the part (`.application.daggerheart.dh-style.dialog ...`, read off its compiled 2.6.5 sheet: its deepest, the
+   trait's input, 0,8,1) with `body` and the window's class added, so it wins by one class and one element and needs
+   no `!important`; what both themes' panel rules already give it (the frame, the window's header and its band, the
+   fields' faces in .drpg-panel, the glass's button brush) is not stated again. The look is the kit's: the tabs the
+   kit bar's (equal widths, the selected one lit), a group a box under a heading with a rule, the six statistics one row
+   of equal cells, each label on its field. Read in Chromium against Daggerheart's compiled sheet on a stand-in of the
+   window (S/stages/E49/dh-shots), not in Foundry: Foundry's own sheet was not loaded there. ---- */
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings:not(.minimized) > .window-content {
+    overflow-y: auto;
+    gap: var(--drpg-kit-gap);
+    padding: 8px 12px 12px;
+    scrollbar-color: var(--drpg-kit-scroll-shade) transparent;
+    color: var(--drpg-kit-ink);
+}
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .window-content .dialog-header { padding: 0; }
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .window-content .dialog-header h1 {
+    margin: 0;
+    font-size: var(--drpg-kit-brief-size);
+    text-align: start;
+    color: var(--drpg-kit-ink);
+}
+/* the tabs: Daggerheart's two links drawn as the kit's bar (ui-kit.mjs `kitTabs`): one row of equal widths, its lines gone */
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navigation line-div { display: none; }
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navigation :is(.navigation-container, .navigation-inner-container) {
+    display: block;
+    width: 100%;
+    margin: 0;
+}
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navigation nav.sheet-tabs.tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2px;
+    padding: 3px;
+    margin: 0;
+    border: 0;
+    background: var(--drpg-kit-tab-bar);
+}
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navigation nav.sheet-tabs.tabs > a {
+    display: block;
+    min-width: 0;
+    padding: 4px var(--drpg-kit-tab-pad);
+    line-height: 1.3;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: var(--drpg-kit-tab-ls);
+    white-space: nowrap;
+    color: var(--drpg-kit-tab-ink);
+    background: var(--drpg-kit-tab-bg);
+    border: 1px solid var(--drpg-kit-line-strong);
+    text-shadow: none;
+    box-shadow: none;
+}
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navigation nav.sheet-tabs.tabs > a span { color: inherit; text-shadow: none; }
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navigation nav.sheet-tabs.tabs > a:hover:not(.active) { background: var(--drpg-kit-tab-hover); }
+/* E48 Q13 under Legacy (merged from e49pan): the selected tab Bone on Ink with the attention edge's 2 px inset bar along its
+   foot, as the kit's selected tab (this sheet, `.drpg-tabs ... [aria-selected="true"]`); its three colours are the tokens below */
+body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navigation nav.sheet-tabs.tabs > a.active {
+    box-shadow: inset 0 -2px 0 var(--drpg-kit-tab-on-edge);
+}
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navigation nav.sheet-tabs.tabs > a.active {
+    color: var(--drpg-kit-tab-on-ink);
+    background: var(--drpg-kit-tab-on-bg);
+    border-color: var(--drpg-kit-tab-on-edge);
+}
+/* under the glass the kit's tab is the brush (stained-glass.css, a `.drpg-panel button`), which a link does not wear:
+   its two faces in the glass's own tokens - a tab not selected the ink with the bone, the selected one the bone lit */
+body.drpg-theme-stained-glass .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navigation nav.sheet-tabs.tabs {
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+body.drpg-theme-stained-glass .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navigation nav.sheet-tabs.tabs > a {
+    color: var(--drpg-sg-bone);
+    background: var(--drpg-ink);
+    border-color: var(--drpg-kit-line);
+}
+body.drpg-theme-stained-glass .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navigation nav.sheet-tabs.tabs > a.active {
+    color: var(--drpg-sg-ink);
+    background: var(--drpg-sg-bone);
+    border-color: var(--drpg-sg-bone);
+}
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navigation nav.sheet-tabs.tabs > a:focus-visible,
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.experiences .experience-item .experience-inner-item span a:focus-visible {
+    outline: 2px solid var(--drpg-attention);
+    outline-offset: -2px;
+}
+/* under the glass the bar's words and a group's heading at the glass's floor, as its tabs' brush draws them (the kit's tab
+   size, 13 px there, stood under the 21 px floor of the fields beside it: Chromium, the stand-in, 1366x768) */
+body.drpg-theme-stained-glass .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navigation nav.sheet-tabs.tabs > a,
+body.drpg-theme-stained-glass .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab fieldset > legend { font-size: var(--drpg-kit-tab-floor); }
+/* a group: a box under its heading, the heading the panel's (uppercase, spaced, a rule under it) */
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.details.active,
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.experiences.active {
+    display: flex;
+    flex-direction: column;
+    gap: var(--drpg-kit-gap);
+}
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab fieldset {
+    min-width: 0;
+    margin: 0;
+    padding: 6px 8px 8px;
+    border: 1px solid var(--drpg-kit-line);
+    background: var(--drpg-kit-info-bg);
+    box-shadow: none;
+}
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab fieldset > legend {
+    padding: 0 4px;
+    line-height: 1.3;
+    text-transform: uppercase;
+    letter-spacing: var(--drpg-kit-tab-ls);
+    color: var(--drpg-kit-ink);
+    background: none;
+    border: 0;
+}
+body.drpg-theme-stained-glass .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab fieldset > legend { color: var(--drpg-glass-accent); }
+/* the six statistics: one row of cells, the name over its field, no shield. Each column at least as wide as its name and
+   the rest shared equally (E49, the owner's answer of 12.11.2026): with six equal columns (`minmax(0, 1fr)`) Legacy's pixel
+   face set "Shadow" 79 px wide in a cell of 74 and cut its last letter (the stand-in in Chromium, 1366x768, at 8c8ece5c
+   already); the other five names are at most 50, so the cells stay near equal. */
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.details .nest-inputs { display: block; width: 100%; }
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.details .traits-inner-container {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(min-content, 1fr));
+    gap: 4px;
+    width: 100%;
+}
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.details .traits-inner-container .trait-container {
+    width: auto;
+    height: auto;
+    min-width: 0;
+    padding: 4px 2px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    background: none;
+    border: 1px solid var(--drpg-kit-line);
+}
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.details .traits-inner-container .trait-container span {
+    text-align: center;
+    color: var(--drpg-kit-ink);
+    white-space: nowrap;
+}
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.details .traits-inner-container .trait-container input {
+    position: static;
+    width: 100%;
+    height: auto;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 2px 0;
+    text-align: center;
+    font-size: var(--drpg-kit-brief-size);
+}
+/* Health and Sanity: two columns, each label on its field */
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.details .two-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 12px;
+    /* the group's whole width: its fieldset lays it out as a flex item, which took its content's 378 of 518 px under the
+       glass (Chromium, the stand-in, 11.11.2026) - the second half of the two fields' short columns */
+    width: 100%;
+}
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.details .two-columns .form-group {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    margin: 0;
+}
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.details .two-columns .form-group > label {
+    flex: none;
+    margin: 0;
+    padding: 0;
+    line-height: 1.3;
+    color: var(--drpg-kit-ink);
+}
+/* a field's cell a flex row as wide as its column, the field growing into it (E49, the owner's "Tak" of 11.11.2026: under
+   the glass Max Health and Max Sanity stood about 140 px wide, in a grid of 378 px in a group of 518 - Chromium, the
+   stand-in, 1366x768; with the grid's width above, 244 each in both themes) */
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.details .two-columns .form-group > .form-fields {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+}
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.details .two-columns .form-group > .form-fields > input { flex: 1 1 auto; }
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings :is(.form-fields, .experience-inner-item) > input {
+    width: 100%;
+    font-size: var(--drpg-kit-brief-size);
+    min-width: 0;
+    box-sizing: border-box;
+}
+/* no browser spinner on a number field in either theme (the glass's panel field rule takes it off under the glass) */
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings input[type="number"] { appearance: textfield; }
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings input[type="number"]::-webkit-inner-spin-button,
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings input[type="number"]::-webkit-outer-spin-button { appearance: none; margin: 0; }
+/* Experiences: New the kit's secondary button, each experience a box: its name, its value, the bin, its description */
+body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.experiences .add-experience-btn {
+    color: var(--drpg-kit-btn-ink);
+    background: var(--drpg-kit-btn-bg);
+    border: 1px solid var(--drpg-kit-btn-edge);
+    box-shadow: none;
+}
+body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.experiences .add-experience-btn:hover {
+    background: var(--drpg-kit-hover-bg);
+    border-color: var(--drpg-kit-hover-edge);
+}
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.experiences .add-experience-btn {
+    width: 100%;
+    line-height: 1.3;
+    height: auto;
+    min-height: 32px;
+    margin: 0;
+}
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.experiences .add-experience-btn span { color: inherit; }
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.experiences .experience-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.experiences .experience-item {
+    gap: 4px;
+    padding: 6px;
+    border: 1px solid var(--drpg-kit-line);
+}
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.experiences .experience-item .experience-inner-item {
+    grid-template-columns: minmax(0, 1fr) 4rem 28px;
+    gap: 6px;
+}
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.experiences .experience-item .experience-inner-item input.modifier { text-align: center; }
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.experiences .experience-item .experience-inner-item span a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    color: var(--drpg-kit-help-ink);
+}
+/* the bin's glyph at the help line's size: its span took the glass's 21 px floor (`!important` on a span), which a glyph
+   of its own does not wear (the owner's "Tak" of 11.11.2026: "the delete icon at a sensible size") */
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.experiences .experience-item .experience-inner-item span a > i { font-size: var(--drpg-kit-help-size); }
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.experiences .experience-item .experience-inner-item span a:hover:not(.disabled) {
+    color: var(--drpg-kit-ink);
+    background: var(--drpg-kit-hover-bg);
+}
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.experiences .experience-item textarea {
+    width: 100%;
+    font-size: var(--drpg-kit-brief-size);
+    min-height: 3.2em;
+    box-sizing: border-box;
+    resize: vertical;
+}
+/* THE TYPE AND THE CORNERS UNDER LEGACY ALONE, as the kit states what the glass draws its own way (this sheet's head):
+   under Stained Glass the glass's sweeps (`!important`, stained-glass.css) give the faces and weights, a span's, a
+   label's and a button's size, and every corner, and R3553 read each of these losing to them there (11.11.2026). Under
+   Legacy Daggerheart's own would show: its title face on the name and the headings, its corners. A tab's size under
+   Legacy is the theme's sheet-tab rule's (danganronpa.css, `.tab-navigation nav.sheet-tabs a`), which R3553 read winning. */
+body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drpg-window-dh-settings :is(.window-content .dialog-header h1, .tab fieldset > legend, .tab.experiences .add-experience-btn, .tab.experiences .add-experience-btn span) {
+    font-family: inherit;
+}
+body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .window-content .dialog-header h1 { font-weight: 700; }
+body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab fieldset > legend { font-size: var(--drpg-kit-tab-size); font-weight: 400; }
+body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.details .traits-inner-container .trait-container span { font-size: var(--drpg-kit-tab-size); }
+body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.details .two-columns .form-group > label { font-size: var(--drpg-kit-help-size); }
+body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.experiences .add-experience-btn { font-size: var(--drpg-kit-brief-size); }
+body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drpg-window-dh-settings :is(.tab fieldset, .tab.details .traits-inner-container .trait-container, .tab.experiences .add-experience-btn, .tab.experiences .experience-item, .tab.experiences .experience-item .experience-inner-item span a) {
+    border-radius: var(--drpg-kit-btn-radius);
+}
+body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab-navigation nav.sheet-tabs.tabs > a { border-radius: var(--drpg-kit-tab-radius); }
+/* a hidden field's cell out of the layout (dh-settings.mjs `dressCharacterSettings`: `hidden` and the class): one class and
+   one attribute above the form group rule of this block (0,9,1), which drew Scars and Proficiency again while it stood
+   above it at the same weight (Chromium, the stand-in, 11.11.2026) */
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.details .two-columns > .drpg-dh-unused[hidden],
+body .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .drpg-dh-unused[hidden] { display: none; }
+/* EACH STATISTIC'S GLYPH BEFORE ITS NAME (E49, the owner's ask of 11.11.2026 night; stat-glyphs.mjs): in this window's
+   Details, a quarter of the name's own size between the glyph and the name (on the sheet the glyph sits in Daggerheart's
+   mark since 12.11.2026, where danganronpa.css takes the margin off). The glyph's face is Font Awesome's under Monokuma Legacy, the theme's drawing under Stained Glass
+   (pixel-icons.css, keyed on data-drpg-stat); this sets only the space. Read in Chromium on the stand-ins (S/stages/E105/
+   e49stat, 11.11.2026): with none the glass drawing touched the name's first letter ("Shadow"). */
+i.drpg-stat-glyph[data-drpg-stat] { margin-inline-end: 0.25em; }
+/* Under Monokuma Legacy the wrench's window sets each name in the pixel face at the kit's tab size, six to a row: measured
+   on the stand-in in Chromium (1366x768, 11.11.2026), each name's cell is 74 px wide and "Shadow" alone 79, so its Font
+   Awesome icon beside it ran 14 px into Head's cell. The icon stands on its own line over the name there, centred, the
+   space below it and none beside; Stained Glass keeps it on the name's line, where its names fit (the glass face). */
+body:not(.drpg-theme-stained-glass) .application.daggerheart.dh-style.dialog.drpg-window-dh-settings .tab.details .traits-inner-container .trait-container span > i.drpg-stat-glyph {
+    display: block;
+    margin: 0 0 2px;
+    text-align: center;
+}

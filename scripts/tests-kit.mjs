@@ -2533,7 +2533,87 @@ function kitQuestions(wait0) {
     };
 }
 
+/*
+ * DAGGERHEART'S CHARACTER SETTINGS WINDOW, AS FOUNDRY WOULD FRAME IT (E49, 11.11.2026; dh-settings.mjs). The wrench's window
+ * (DHCharacterSettings) is Daggerheart's: neither the harness nor this suite draws it, so the tests that read what the module
+ * does to it build its markup here - the four parts of Daggerheart 2.6.5 (templates/sheets-settings/character-settings/
+ * header.hbs, details.hbs, experiences.hbs and templates/sheets/global/tabs/tab-navigation.hbs, read at the tag 2.6.5),
+ * Foundry's `formGroup` as v13 draws a number field (div.form-group > label + div.form-fields > input), the frame (a form
+ * with `daggerheart dh-style dialog character-settings`, a header, `section.window-content`). Its words through this
+ * browser's i18n as the templates name them. `source` is an actor's system as `document._source.system` holds it; the
+ * parts alone (`parts: true`) for an ApplicationV2's `_renderHTML`. A model: what Foundry's frame adds beyond these, and
+ * Daggerheart's own listeners, are not here.
+ */
+function dhSettingsMarkup(source, { name = "Stand-in", tab = "details" } = {}) {
+    const t = key => game.i18n.localize(key);
+    const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]));
+    const group = (label, path, value) => `<div class="form-group"><label>${esc(label)}</label><div class="form-fields">`
+        + `<input type="number" name="${path}" value="${esc(value)}" step="1"></div></div>`;
+    const max = key => game.i18n.format("DAGGERHEART.GENERAL.maxWithThing", { thing: t(key === "hitPoints" ? "DAGGERHEART.GENERAL.HitPoints.plural" : "DAGGERHEART.GENERAL.stress") });
+    const traits = Object.entries(source.traits ?? {}).map(([key, trait]) => `<div class="trait-container"><span>${esc(t(`DAGGERHEART.CONFIG.Traits.${key}.name`))}</span>`
+        + `<input type="text" data-dtype="Number" name="system.traits.${key}.value" value="${esc(trait?.value)}" /></div>`).join("");
+    const resources = ["hitPoints", "stress"].map(key => `<span${key === "hitPoints" ? ` data-tooltip-text="${esc(t("DAGGERHEART.UI.Tooltip.maxHPClassBound"))}"` : ""}>`
+        + `${group(max(key), `system.resources.${key}.max`, source.resources?.[key]?.max)}</span>`).join("");
+    const tabs = [["details", "DAGGERHEART.GENERAL.Tabs.details"], ["experiences", "DAGGERHEART.GENERAL.Tabs.experiences"]];
+    const nav = `<section class="tab-navigation" data-application-part="tabs"><div class="navigation-container"><div class="navigation-inner-container"><line-div></line-div>`
+        + `<nav class="feature-tab sheet-tabs tabs" data-group="primary">${tabs.map(([id, label]) => `<a class="${id}${id === tab ? " active" : ""}" data-action="tab" data-group="primary" data-tab="${id}"><span>${esc(t(label))}</span></a>`).join("")}</nav>`
+        + `<line-div></line-div></div></div></section>`;
+    const details = `<section class="tab${tab === "details" ? " active" : ""} details" data-tab="details" data-group="primary" data-application-part="details">`
+        + `<fieldset class="one-column"><legend>${esc(t("DAGGERHEART.GENERAL.Trait.plural"))}</legend><div class="nest-inputs"><div class="traits-inner-container">${traits}</div></div></fieldset>`
+        + `<fieldset class="one-column"><legend>${esc(t("DAGGERHEART.GENERAL.basics"))}</legend><div class="two-columns even">${resources}`
+        + group(t("DAGGERHEART.GENERAL.scars"), "system.scars", source.scars)
+        + group(t("DAGGERHEART.GENERAL.proficiency"), "system.proficiency", source.proficiency)
+        + `<span data-tooltip-text="${esc(t("DAGGERHEART.UI.Tooltip.maxEvasionClassBound"))}">${group(t("DAGGERHEART.ACTORS.Character.maxEvasionBonus"), "system.evasion", source.evasion)}</span>`
+        + `</div></fieldset></section>`;
+    const items = Object.entries(source.experiences ?? {}).map(([key, e]) => `<li class="experience-item"><div class="experience-inner-item">`
+        + `<input class="name" type="text" name="system.experiences.${key}.name" value="${esc(e?.name)}" />`
+        + `<input class="modifier" type="text" name="system.experiences.${key}.value" value="${esc(e?.value)}" data-dtype="Number" />`
+        + `<span data-tooltip="${esc(t("CONTROLS.CommonDelete"))}"><a data-action="removeExperience" data-experience="${key}" class=""><i class="fa-solid fa-trash"></i></a></span>`
+        + `</div><textarea name="system.experiences.${key}.description">${esc(e?.description)}</textarea></li>`).join("");
+    const experiences = `<section class="tab${tab === "experiences" ? " active" : ""} experiences" data-tab="experiences" data-group="primary" data-application-part="experiences">`
+        + `<button type="button" class="add-experience-btn" data-action="addExperience"><span>${esc(game.i18n.format("DOCUMENT.New", { type: t("DAGGERHEART.GENERAL.experience.single") }))}</span></button>`
+        + `<fieldset><legend>${esc(t("DAGGERHEART.GENERAL.Tabs.experiences"))}</legend><ul class="experience-list">${items}</ul></fieldset></section>`;
+    return `<header class="dialog-header" data-application-part="header"><h1>${esc(name)}</h1></header>${nav}${details}${experiences}`;
+}
+
+/** The whole window, framed: a detached `form.application`, put into `doc` (this page's document unless another is given). */
+function dhSettingsStandIn(source, { name, tab, doc = document } = {}) {
+    const form = doc.createElement("form");
+    form.className = "application daggerheart dh-style dialog character-settings";
+    form.innerHTML = `<header class="window-header"><i class="window-icon fa-fw fa-solid fa-wrench"></i><h1 class="window-title">`
+        + `${game.i18n.localize("DAGGERHEART.GENERAL.Tabs.settings")}</h1><button type="button" class="header-control icon fa-solid fa-xmark" data-action="close"></button></header>`
+        + `<section class="window-content">${dhSettingsMarkup(source, { name, tab })}</section>`;
+    return form;
+}
+
+/*
+ * THE CHARACTER SHEET'S STATISTICS, AS DAGGERHEART DRAWS THEM (E49, 11.11.2026; stat-glyphs.mjs, sheet.mjs `markTraitGlyphs`).
+ * Daggerheart 2.6.5 templates/sheets/actors/character/header.hbs:107-133, read at the tag: `.character-traits`, one
+ * `.trait` per trait in the system's order with `data-attribute` (Daggerheart's key), its `.trait-name` (the tier mark and
+ * a span with the label) and its `.trait-value-area` (the crest's svg and the value). Inside the sheet's root as the
+ * system's classes name it (`application sheet daggerheart actor dh-style character`), the header part
+ * `.character-header-sheet` around it. The labels through this browser's i18n (the module's lang files override
+ * `DAGGERHEART.CONFIG.Traits.*`). A trait's `tierMarked` draws its mark `marked`, as the template does; `noMark` names the
+ * traits drawn with no mark at all (a Daggerheart that moved it). A model: the rest of the header and Daggerheart's
+ * listeners are not here.
+ */
+function dhTraitsStandIn(traits = {}, { doc = document, noMark = [] } = {}) {
+    const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]));
+    const root = doc.createElement("div");
+    root.className = "application sheet daggerheart actor dh-style character";
+    const keys = ["agility", "strength", "finesse", "instinct", "presence", "knowledge"];
+    const one = key => {
+        const value = Number(traits[key]?.value ?? 0);
+        return `<div class="trait" data-tooltip="${esc(game.i18n.localize(`DAGGERHEART.CONFIG.Traits.${key}.name`))}" data-action="rollAttribute" data-attribute="${key}" data-value="${value}">`
+            + `<div class="trait-name">${noMark.includes(key) ? "" : `<div class="tier-mark${traits[key]?.tierMarked ? " marked" : ""}"></div>`}<span>${esc(game.i18n.localize(`DAGGERHEART.CONFIG.Traits.${key}.name`))}</span></div>`
+            + `<div class="trait-value-area"><svg width="52" height="46" viewBox="0 0 52 46"></svg><div class="trait-value"><span>${value > 0 ? `+${value}` : value}</span></div></div></div>`;
+    };
+    root.innerHTML = `<section class="window-content"><div class="character-header-sheet"><div class="character-traits">${keys.map(one).join("")}</div></div></section>`;
+    return root;
+}
+
 export {
+    dhSettingsMarkup, dhSettingsStandIn, dhTraitsStandIn,
     Failure, Precondition, ContractBreach, Skipped, ok, needs, equal, must, describe, expectedRed, compareVersions, stageLedger, markerProblem,
     apiKind, apiSurfaceProblems,
     runOne, registerSuite, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE, UNTIL_FIXTURE, untilProblem, env, world, worldCensus,

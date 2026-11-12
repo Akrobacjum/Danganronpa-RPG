@@ -102,6 +102,7 @@ import { registerTrialSpeakers } from "./trial-speakers.mjs";
 import { registerFoundryWindows } from "./foundry-windows.mjs";
 import { registerA11y } from "./a11y.mjs";
 import { registerChrome } from "./chrome.mjs";
+import { registerDhSettings } from "./dh-settings.mjs";
 import { registerApi } from "./api.mjs";
 import { registerEnforced, offerHoldAgain } from "./enforced.mjs";
 import { registerUserMatch } from "./user-match.mjs";
@@ -181,6 +182,9 @@ Hooks.once("init", () => {
 
     // A paint-path workaround, not decoration - see the note on the function.
     safely("the select picker skin", injectSelectPickerSkin);
+    // Daggerheart's character settings window on the kit, its unused fields hidden (E49; dh-settings.mjs): before the
+    // theme's own controls, so they and every later listener of the same hook see its `.drpg-panel` on the first render.
+    safely("the character settings window", registerDhSettings);
     safely("the theme's own controls", registerChrome);
     // Every window, not a list of them - see `guardTextFields`.
     safely("the text field guard", registerTextGuard);
