@@ -51286,6 +51286,39 @@ const INVARIANTS = [
         equal(stableJson({ legacy: read("drpg-theme-monokuma-legacy"), glass: read("drpg-theme-stained-glass") }), stableJson({ legacy: want, glass: want }),
             "[each theme: a module window wins an edge and a shadow; each board's [edge, shadow] the window's; a board's edge in the band's colour; the trial's band and the spilling word in it]");
     }],
+    ["R4403 - End the chapter's flag stands beside its word, not on the brush (styles/pixel-icons.css; scripts/gm-campaign.mjs `endChapterPart`; the owner's report at a real table on 1.2.109: in Season setup and Edit campaign, Stained Glass, the flag covered the \"E\"): read through the module's cascade, the button as `roleButton` draws it in a module window under the glass keeps its own ::before for the brush (absolute, no glyph's mask), draws the flag on its ::after first in a row (inline-flex, `order: -1`), and no glyph rule of pixel-icons.css puts a pixel glyph on the ::before of a button or of an attribute alone - the brush's pseudo-element on every button of a module window", async () => {
+        /* 12.11.2026. Red at 1ff4bc77: the flag was `[data-drpg-end-chapter]::before`, which the brush's rule (0,5,3 against
+           0,2,2) turned into a 22 px absolute box over the first letter. The cascade is the text's (tests-kit.mjs
+           `styleCascade`), not a layout; the picture is the harness's (scratchpad endbtn, before and after). */
+        const C = await styleCascade();
+        const K = await import("./ui-kit.mjs");
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+        must(css.length > 20000, "pixel-icons.css was not read - this reads nothing");
+        const body = document.createElement("body");
+        body.className = "drpg-theme-stained-glass";
+        const win = body.appendChild(Object.assign(document.createElement("div"), { className: "application dialog drpg-ui drpg-panel" }));
+        win.innerHTML = K.roleButton({ role: "destructive", label: "End the chapter", attrs: { "data-drpg-end-chapter": "1" } });
+        const btn = win.querySelector("button");
+        must(btn, "roleButton drew no button - this reads nothing");
+        const v = (names, pseudo) => C.winner(btn, names, pseudo)?.value ?? null;
+        const glyph = /--drpg-pix-/;
+        /* every glyph rule on a ::before whose subject - the compound before it - is a button or an attribute selector alone */
+        const onButton = [];
+        for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+            if (!glyph.test(m[2])) continue;
+            for (const sel of m[1].split(",").map(x => x.trim()).filter(x => x.endsWith("::before"))) {
+                const subject = sel.slice(0, -"::before".length).trim().split(/[\s>+~]+/).pop();
+                if (/^(?:button\b|\[)/.test(subject)) onButton.push(sel);
+            }
+        }
+        equal(stableJson({
+            before: [v(["position"], "::before"), glyph.test(v(["mask-image", "-webkit-mask-image", "mask"], "::before") ?? "")],
+            after: [/--drpg-pix-end-chapter/.test(v(["mask-image"], "::after") ?? ""), v(["order"], "::after"), v(["content"], "::after")],
+            row: v(["display"]),
+            onButton
+        }), stableJson({ before: ["absolute", false], after: [true, "-1", "\"\""], row: "inline-flex", onButton: [] }),
+            "[the button's ::before: [position, a glyph's mask]; its ::after: [the flag's mask, its order, its content]; the button's display; pixel-icons.css's glyph rules on a button's or an attribute's ::before]");
+    }],
     ["R3726 - no file the module serves holds a merge's conflict marker (scripts, styles, lang): a line that is seven <, = or > alone or before a space is none of the module's own; one found 12.11.2026 in styles/danganronpa.css, left by the merge of the 1.2.107 line, dropped the rule after it (Monokuma Legacy's notifications)", async () => {
         /* 12.11.2026. Red at 7bbbd3c: styles/danganronpa.css line 18324 was "=======". */
         const sources = await moduleSources(), css = String(await moduleStyles() ?? "");
