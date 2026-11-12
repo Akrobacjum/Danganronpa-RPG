@@ -72852,7 +72852,10 @@ const SCENARIOS = [
             // finding E15p1-END-2): config's X and Earthquake's size changed for the read, put back. The GM's Panic size 3
             // and Fog unticked are kept; the old Apply's X 20 and Earthquake 1 follow the new defaults. At c93be060 both were kept.
             const moved = { threshold: OVERFLOW.threshold, quake: OVERFLOW.effects.earthquake.by };
-            const snapshot = { threshold: 20, effects: Object.fromEntries(Object.entries(OVERFLOW.effects).map(([key, base]) =>
+            // Only the states 1.2.84 had: E93 C6 (12.11.2026) added five that start unticked, and a copy of 1.2.84's holds none
+            // of them - built from today's table with every state ticked, they read as five overrides 1.2.84 never wrote.
+            const since84 = new Set(["lockdown", "insomnia", "toll", "jitters", "powercut"]);
+            const snapshot = { threshold: 20, effects: Object.fromEntries(Object.entries(OVERFLOW.effects).filter(([key]) => !since84.has(key)).map(([key, base]) =>
                 [key, { ...base, ...(base.by === undefined ? {} : { by: 1 }), on: key !== "fog", ...(key === "panic" ? { by: 3 } : {}) }])) };
             try {
                 OVERFLOW.threshold = 16;
