@@ -7860,9 +7860,10 @@ const REGRESSIONS = [
         const at = text => run.indexOf(text);
         const read = {
             executorPays: /\bspendAction\(|\btrustedWrite\(/.test(executor),
-            refusalFirst: at("cubAbilityRefusalOnGm(") > -1 && at("cubAbilityRefusalOnGm(") < at("spendAction(") && at("spendAction(") < at("trustedWrite("),
-            priceBeforeDice: at("trustedWrite(") > -1 && at("trustedWrite(") < at("CUB_ROLLS["),
-            priceAsked: /actionsLeft\(actor\)\s*<\s*row\.cost/.test(onGm) && /resourceValue\(actor,\s*"hope"\)\s*<\s*row\.hopeCost/.test(onGm),
+            // Since E72 C14 the Hope is taken by `spendCubHope` (the purse first) and asked of `cubHopeTotal`: changed on purpose.
+            refusalFirst: at("cubAbilityRefusalOnGm(") > -1 && at("cubAbilityRefusalOnGm(") < at("spendAction(") && at("spendAction(") < at("spendCubHope("),
+            priceBeforeDice: at("spendCubHope(") > -1 && at("spendCubHope(") < at("CUB_ROLLS["),
+            priceAsked: /actionsLeft\(actor\)\s*<\s*row\.cost/.test(onGm) && /cubHopeTotal\(actor\)\s*<\s*row\.hopeCost/.test(onGm),
             serial: /serialWrite\(`drpg-cub-ability:\$\{actorId\}`/.test(run)
         };
         equal(JSON.stringify(read), JSON.stringify({ executorPays: false, refusalFirst: true, priceBeforeDice: true, priceAsked: true, serial: true }),
@@ -8016,6 +8017,31 @@ const REGRESSIONS = [
         }
         equal(JSON.stringify(read), JSON.stringify({ en: [true, true, true], pl: [true, true, true] }),
             "a text tells the Monocub as before E72 ({language: [the player handbook quotes the Rule and names the four tiles, the brochure names the Rule and the tiles, the GM handbook names the invitation's button, quotes the Rule and says the price comes after the checks]})");
+    }],
+
+    ["R3808 - a Monocub's Hope is its sheet's and its purse's together: no function of monocub.mjs reads the sheet's Hope alone but the purse's own four (cubHopeTotal, spendCubHope, refundCubHope, redeemHope) and setMonocub's clean start (E72 C14; DC37)", async () => {
+        /*
+         * E72 C14, 12.11.2026; the owner's DC37 ("a purse in the GM store, spent before the sheet; the 6-Hope limit counts the
+         * sum"). The Hope a Bribe or a Bounty pays a Monocub goes to its purse (`cubStore`'s `purse`), and every threshold
+         * of a Monocub - the price, the full Hope that shuts Redeem and Ask for Hope - counts the sum (`cubHopeTotal`). Read
+         * off monocub.mjs, comments blanked: every top-level function that reads the sheet's Hope (`resourceValue(...,
+         * "hope")` or `resources.hope`) is one of the purse's four. Red at 51df7b4: the hopeFull block, the price's
+         * check, the payment, the Tinker refund and the picker's check read the sheet alone.
+         */
+        const src = stripComments(new Map(await otherSources()).get("monocub.mjs") ?? "");
+        must(src.length > 20000, "monocub.mjs was not read - this would measure nothing");
+        const tops = [...src.matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)\s*\(/gm)].map(m => ({ at: m.index, name: m[1] }));
+        const readers = new Set();
+        for (const m of src.matchAll(/resourceValue\([^)]*"hope"\)|resources\.hope\b|resources\?\.hope\b/g)) {
+            const fn = tops.filter(t => t.at <= m.index).at(-1)?.name ?? "(top)";
+            readers.add(fn);
+        }
+        // A read inside a table entry (CUB_BLOCKS) sits after the last function before it, so the table is read by name too.
+        const blocks = bodyOf(src, "export const CUB_BLOCKS", { until: "\n});\n" });
+        equal(JSON.stringify([[...readers].sort(), /resourceValue\([^)]*"hope"\)|resources\.hope\b/.test(blocks)]),
+            // setMonocub writes the sheet's Hope to 0 at the start (a Monocub starts clean, E15 C4), a write and no threshold.
+            JSON.stringify([["cubHopeTotal", "redeemHope", "refundCubHope", "setMonocub", "spendCubHope"], false]),
+            "a Monocub threshold reads the sheet's Hope alone ([the functions of monocub.mjs that read it, CUB_BLOCKS reads it])");
     }],
 
     ["R302 - a private roll's whisper is written first and in its own try, its mode after and apart, and CONST.DICE_ROLL_MODES and core.rollMode are used nowhere (S02-68)", async () => {
@@ -18927,7 +18953,9 @@ const REGRESSIONS = [
                 "Cleanup.freeTonight", "Config.CRISIS_ACTIONS.roleReversal.failure", "Config.CRISIS_ACTIONS.selfDefence.failure",
                 "Config.CRISIS_ACTIONS.strike.failure", "Config.CRISIS_ACTIONS.strike.hint", "Config.CRISIS_ACTIONS.survive.failure",
                 // E72 C5: Ask for Hope's Give and its settled line, a count before Hope.
-                "Monocub.askGive", "Monocub.askGiven"
+                "Monocub.askGive", "Monocub.askGiven",
+                // E72 C14: the purse's line and its tooltip, a count before Hope.
+                "Monocub.purseLine", "Monocub.purseTip"
             ].map(key => [key, "U"]),
             ...[
                 "Floor.bar.minusSeconds", "Floor.bar.plusSeconds", "Floor.closing.gmVolunteers", "Floor.gmNoteAdjust",
@@ -18970,7 +18998,7 @@ const REGRESSIONS = [
         const reasons = {};
         for (const why of ALLOW.values()) reasons[why] = (reasons[why] ?? 0) + 1;
         equal(JSON.stringify({ read: found.length > 0, flat: found.filter(k => !ALLOW.has(k)), stale: [...ALLOW.keys()].filter(k => !found.includes(k)), fixture, reasons }),
-            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 54, S: 25, R: 26, D: 1, P: 1 } }),
+            JSON.stringify({ read: true, flat: [], stale: [], fixture: ["DRPG.Fx.a", "DRPG.Fx.d", "DRPG.Fx.e"], reasons: { U: 56, S: 25, R: 26, D: 1, P: 1 } }),
             "[the census read something; the values it finds that are no family and not in the allow table; the allow rows it no longer finds; "
             + "what it finds on its planted case (a flat English counter, a Polish predicate before a unit and before a noun; not a family, not a name); "
             + "the allow rows by reason]");

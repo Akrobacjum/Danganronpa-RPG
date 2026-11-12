@@ -17644,6 +17644,64 @@ const SCENARIOS = [
             "the Redeem card is not drawn for the Monocub's player alone while Redeem is free ([kind, names the Monocub] for its player, a GM, used today, the Hope full)");
     }],
 
+    ["a Monocub's purse is spent before its sheet, counts toward the Hope limit, is given back where it was paid from and is sent to its owner (E72 C14)", async () => {
+        /*
+         * E72 C14, 12.11.2026; the owner's DC37. A Monocub's Hope is its sheet's and its purse's (the GMs' row, `cubStore`'s
+         * `purse`), the Hope a Bribe or a Bounty pays it (C15, C16). A Monocub with 1 Hope on the sheet and 2 in the purse:
+         * the total (`cubHopeTotal`); a price of 1, then of 2 (`spendCubHope`: the purse first), each answer and the two
+         * places after it; the second given back (`refundCubHope`), whence it came; 3 more into the purse with the sheet at
+         * 4 of 6 (`addToPurse`, held to the limit: 2 go in); the full Hope's sentence then (`cubBlockSaid`, Redeem's row);
+         * the owner's copy's purse (`cubsFor`). Red at 51df7b4: no purse.
+         */
+        const [cub] = cast(1);
+        needs(world.ownedByPlayer(cub), "a player who owns the Monocub, whose copy is read");
+        const M = await import("./monocub.mjs");
+        const { MONOCUB } = await import("./config.mjs");
+        const { cubStore } = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { resourceMax } = await import("./character.mjs");
+        const player = game.users.find(u => !u.isGM && cub.testUserPermission(u, "OWNER"));
+        const was = cub.system.resources.hope.value;
+        const rowWas = foundry.utils.deepClone(cubStore?.get(cub.id) ?? null);
+        const read = {};
+        let max = null;
+        try {
+            const fns = ["cubHopeTotal", "spendCubHope", "refundCubHope", "addToPurse"];
+            ok(fns.every(f => typeof M[f] === "function"), `monocub.mjs has no ${fns.filter(f => typeof M[f] !== "function").join(", ")} - a Monocub has no purse (E72 C14)`);
+            if (!fns.every(f => typeof M[f] === "function")) return;
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await trustedWrite(cub, { "system.resources.hope.value": 1 }, { reason: "gmRuling" });
+            if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            await cubStore.patch(cub.id, { purse: 2 });
+            await settle();
+            const where = () => [cub.system.resources.hope.value, M.purseOf(cub)];
+            read.total = M.cubHopeTotal(cub);
+            read.one = [await M.spendCubHope(cub, 1), ...where()];
+            const two = await M.spendCubHope(cub, 2);
+            read.two = [two, ...where()];
+            await M.refundCubHope(cub, two);
+            read.back = where();
+            max = resourceMax(cub, "hope");
+            await trustedWrite(cub, { "system.resources.hope.value": max - 2 }, { reason: "gmRuling" });
+            await cubStore.patch(cub.id, { purse: 0 });
+            read.added = [await M.addToPurse(cub, 3), ...where(), M.cubHopeTotal(cub) === max];
+            read.full = M.cubBlockSaid(cub, MONOCUB.abilities.redeem);
+            read.copy = M.cubsFor(player.id).cubs[cub.id]?.purse ?? null;
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await trustedWrite(cub, { "system.resources.hope.value": was }, { reason: "gmRuling" });
+            if (cubStore.has(cub.id)) await cubStore.drop(cub.id);
+            if (rowWas) await cubStore.patch(cub.id, rowWas);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            total: 3,
+            one: [{ purse: 1, sheet: 0 }, 1, 1], two: [{ purse: 1, sheet: 1 }, 0, 0], back: [1, 1],
+            added: [2, max - 2, 2, true], full: "DRPG.Monocub.hopeFull", copy: 2
+        }), "the purse is not spent first, does not count toward the limit, is not given back where it came from or not sent to the owner "
+            + "({total; each price: what it took from where, then [sheet, purse]; after the refund; 3 into the purse at the limit less 2: how many went in, [sheet, purse], the total at the limit; Redeem's sentence; the owner's copy's purse})");
+    }],
+
     ["who worked on a project this time of day is the GMs' row, written for a player's, a Call's and a Reroll's progress and not for a GM's own, a Monocub's or a step back (E72 C13)", async () => {
         /*
          * E72 C13, 12.11.2026; the owner's DC23 ("a living worker this time of day"). gm-stores.mjs `projectWorkStore` is

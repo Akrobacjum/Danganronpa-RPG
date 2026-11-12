@@ -1179,6 +1179,8 @@
       "tinkerStill": "Tinker: {name} doesn't move.",
       "tinkerHeld": "Tinker: {name} holds one step short of done. Somebody living has to finish it.",
       "tinkerHopeBack": "Critical: your Hope comes back.",
+      "purseLine": "Purse: {n} Hope, kept by the GMs and spent before your sheet's.",
+      "purseTip": "{n} of it in the purse",
       "meddleFailed": "Nothing comes of it.",
       "critHelpNothing": "The player had every action left: there was none to give back.",
       "critHelpNothingTarget": "A moment's luck, but no action of yours was spent: nothing comes back.",

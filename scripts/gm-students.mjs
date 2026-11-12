@@ -61,7 +61,8 @@ import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
  * THE TABLE, REBUILDABLE. Everything above is a function of the world now,
  * so this can be called again in place while the window stays open.
  */
-function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invited = () => false, resourceValue, resourceMax, levelUp, offers }) {
+function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invited = () => false, resourceValue, resourceMax, levelUp, offers,
+    purseOf = () => 0, cubHopeTotal = a => resourceValue(a, "hope") }) {
     /*
      * THE THREE MONOCUB COLUMNS ARE ALWAYS THERE (E49 A3, 11.11.2026; the owner's "Tak, naprawiamy oba" and the rule of
      * 10.11: a state changes look, never layout). From D-F4 to E49 they appeared the moment somebody accepted the
@@ -90,7 +91,10 @@ function aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invi
          */
         const none = `<span class="drpg-alive-none" aria-label="${esc(L("DRPG.Monocub.notCub"))}" data-tooltip="${esc(L("DRPG.Monocub.notCub"))}">-</span>`;
         const cubCells = {
-            hope: cub ? `${resourceValue(a, "hope")} / ${resourceMax(a, "hope")}` : none,
+            // The sheet's and the purse's (E72 C14; DC37), the purse named in the tooltip when it holds any.
+            hope: cub ? (purseOf(a)
+                ? `<span data-tooltip="${esc(game.i18n.format("DRPG.Monocub.purseTip", { n: purseOf(a) }))}">${cubHopeTotal(a)} / ${resourceMax(a, "hope")}</span>`
+                : `${resourceValue(a, "hope")} / ${resourceMax(a, "hope")}`) : none,
             give: !cub ? none : donors ? `
                 <select name="donor:${a.id}">${donors}</select>
                 ${stepper({ name: `amount:${a.id}`, value: 1, min: 1, compact: true })}
@@ -410,7 +414,7 @@ export async function openWhoIsAliveDialog(options = {}) {
     // `killCharacter`, `reviveCharacter` and `setSilenced` went with the apply loop
     // (F15): `applyAliveStates` below imports what it writes.
     const { isDeceased, isDeadForGm, openDeathDialog } = await import("./chapter.mjs");
-    const { isMonocub, offerMonocub, cancelMonocubOffer, invitationOpen, isCrimeSilenced } = await import("./monocub.mjs");
+    const { isMonocub, offerMonocub, cancelMonocubOffer, invitationOpen, isCrimeSilenced, purseOf, cubHopeTotal } = await import("./monocub.mjs");
     const { monokumas, donorLabel } = await import("./despair.mjs");
     const { resourceValue, resourceMax } = await import("./character.mjs");
     // The sheet's own gate for its Level Up and the GMs' store of offers (E47-C8): read, never copied.
@@ -467,7 +471,7 @@ export async function openWhoIsAliveDialog(options = {}) {
 
     const table = () => {
         const donors = buildDonors();
-        return aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invited: invitationOpen, resourceValue, resourceMax,
+        return aliveTableHtml({ roster, others, stateOf, donors, isCrimeSilenced, invited: invitationOpen, resourceValue, resourceMax, purseOf, cubHopeTotal,
             levelUp: a => Boolean(sheetMode(a, game.user).levelUp), offers: a => standingOffers(a).length });
     };
 

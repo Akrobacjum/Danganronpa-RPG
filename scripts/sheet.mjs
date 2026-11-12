@@ -42,7 +42,7 @@ import { murderState, sideOf, betrayalTarget, isTheirTurn, crisisTileLabel } fro
 // the Despair Call "Silence" on a living student (no Hope Calls until the time of
 // day ends). Until then both arrived under one bare name and were renamed at this door,
 // which is how a reader of this file took one for the other.
-import { isMonocub, isCrimeSilenced, cubBlockSaid } from "./monocub.mjs";
+import { isMonocub, isCrimeSilenced, cubBlockSaid, purseOf } from "./monocub.mjs";
 import { isCallSilenced, isChained, pendingGather, armedCallsShown, alreadyArmed } from "./call-effects.mjs";
 import { isDeceased, isDeadForGm } from "./chapter.mjs";
 
@@ -4705,6 +4705,15 @@ function injectMonocubPanel(tab, actor) {
     grid.append(...monocubTiles(actor));
     panel.append(grid);
 
+    // THE PURSE (E72 C14; DC37): Hope a Bribe or a Bounty paid, kept by the GMs beside the sheet's and spent first.
+    const purse = purseOf(actor);
+    if (purse > 0) {
+        const line = document.createElement("p");
+        line.className = "notes drpg-monocub-purse";
+        line.textContent = game.i18n.format("DRPG.Monocub.purseLine", { n: purse });
+        panel.append(line);
+    }
+
     if (isCrimeSilenced(actor)) {
         const note = document.createElement("p");
         note.className = "notes drpg-monocub-silenced";
@@ -4723,7 +4732,8 @@ function monocubTiles(actor) {
 }
 
 function abilityButton(actor, key, def) {
-    const held = hopeHeld(actor);
+    // The sheet's Hope and the purse's (E72 C14; DC37): a price may be paid from either.
+    const held = hopeHeld(actor) + purseOf(actor);
     const affordable = actionsLeft(actor) >= def.cost && held >= def.hopeCost;
     /* SHUT, AND WHY (E72 C9, 12.11.2026; audit S18-62, DC22): a row's blocks this browser can read - Redeem used today,
        the Hope full, an Ask for Hope still open (monocub.mjs `cubBlockSaid`, the owner's copy of the GMs' row) - grey

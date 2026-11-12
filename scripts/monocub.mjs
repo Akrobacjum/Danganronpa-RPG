@@ -141,6 +141,8 @@ export async function setMonocub(actor, value = true, { quiet = false } = {}) {
             "system.resources.hitPoints.value": 0,
             "system.resources.stress.value": 0
         }, { reason: "setup" });
+        // The purse too (E72 C14): a purse left from an earlier time as a Monocub is not this one's.
+        if (purseOf(actor)) await patchCubRow(actor.id, { purse: null });
     }
     await actor.setFlag(MODULE_ID, FLAGS.monocub, Boolean(value));
 
@@ -212,7 +214,8 @@ export function cubsFor(userId) {
         if (actor.type !== "character" || !actor.testUserPermission?.(user, "OWNER")) continue;
         stamps[actor.id] = cubStore.newest(actor.id);
         const row = cubStore.get(actor.id);
-        if (row) cubs[actor.id] = { witness: row.witness ?? null, redeemDay: row.redeemDay ?? null, askOpen: Boolean(row.askOpen), invited: Boolean(row.invite) };
+        if (row) cubs[actor.id] = { witness: row.witness ?? null, redeemDay: row.redeemDay ?? null, askOpen: Boolean(row.askOpen), invited: Boolean(row.invite),
+            purse: Math.max(0, Math.trunc(Number(row.purse) || 0)) };
     }
     return { cubs, stamps };
 }
@@ -616,6 +619,54 @@ function isToday(mark, today = gameDayNow()) {
     return Boolean(mark) && mark.chapter === today.chapter && mark.epoch === today.epoch && mark.day === today.day;
 }
 
+/*
+ * THE PURSE (E72 C14, 12.11.2026; the owner's DC37: "a purse in the GM store, spent before the sheet; the 6-Hope limit
+ * counts the sum"). The Hope a Bribe or a Bounty pays a Monocub (C15, C16) is kept in the GMs' row (`cubStore`'s
+ * `purse`), not on the sheet, and its owner is sent it with the row (`cubsFor`). A Monocub's Hope is the two together
+ * (`cubHopeTotal`): the price a move asks, the full Hope that shuts Redeem and Ask for Hope. A price is taken from the
+ * purse first (`spendCubHope`), and what it took from where is kept, so a refund gives each point back where it came
+ * from (`refundCubHope`). Nothing goes into the purse while the darkening blocks Hope, as nothing goes onto a sheet
+ * (overflow.mjs's hook guards the sheet alone), nor past the limit (`addToPurse`). R3808 holds that no other function
+ * of this file reads the sheet's Hope alone.
+ */
+
+/** The Monocub's purse, as this browser holds the row (the GMs' row, or the owner's copy): a whole number, 0 for none. */
+export function purseOf(actor) {
+    return Math.max(0, Math.trunc(Number(cubRowOf(actor)?.purse) || 0));
+}
+
+/** A Monocub's Hope: its sheet's and its purse's. */
+export function cubHopeTotal(actor) {
+    return resourceValue(actor, "hope") + purseOf(actor);
+}
+
+/** GM: take `n` Hope, the purse first. Answers `{ purse, sheet }`, how much came from each. */
+export async function spendCubHope(actor, n) {
+    const purse = purseOf(actor);
+    const fromPurse = Math.min(purse, Math.max(0, n));
+    const fromSheet = Math.max(0, n - fromPurse);
+    if (fromPurse) await patchCubRow(actor.id, { purse: purse - fromPurse });
+    if (fromSheet) await trustedWrite(actor, { "system.resources.hope.value": resourceValue(actor, "hope") - fromSheet }, { reason: "price" });
+    return { purse: fromPurse, sheet: fromSheet };
+}
+
+/** GM: give back what `spendCubHope` answered it took, each point where it came from. */
+export async function refundCubHope(actor, paid) {
+    const purse = Math.max(0, Math.trunc(Number(paid?.purse) || 0)), sheet = Math.max(0, Math.trunc(Number(paid?.sheet) || 0));
+    if (purse) await patchCubRow(actor.id, { purse: purseOf(actor) + purse });
+    if (sheet) await trustedWrite(actor, { "system.resources.hope.value": resourceValue(actor, "hope") + sheet }, { reason: "refund" });
+}
+
+/** GM: put `n` Hope in the purse, held to the limit and to nothing in the darkening. Answers how many went in. */
+export async function addToPurse(actor, n) {
+    if (!game.user?.isGM || !actor || !(n > 0)) return 0;
+    const { overflowBlocksHope } = await import("./overflow.mjs");
+    if (overflowBlocksHope()) return 0;
+    const take = Math.min(Math.trunc(n), Math.max(0, resourceMax(actor, "hope") - cubHopeTotal(actor)));
+    if (take > 0) await patchCubRow(actor.id, { purse: purseOf(actor) + take });
+    return Math.max(0, take);
+}
+
 /**
  * WHAT SHUTS A MOVE FOR THIS MONOCUB (E72 C5, 12.11.2026; audit S18-60, the owner's DC22), by the key a row's `blocks`
  * names: `refuses(actor)` answers an English reason for the GM's log, or null, read off the Monocub's row as this
@@ -628,7 +679,8 @@ export const CUB_BLOCKS = Object.freeze({
         say: "DRPG.Monocub.redeemUsed"
     },
     hopeFull: {
-        refuses: actor => (resourceValue(actor, "hope") >= resourceMax(actor, "hope") ? "the Monocub's Hope is full" : null),
+        // The sheet's and the purse's together (E72 C14; DC37).
+        refuses: actor => (cubHopeTotal(actor) >= resourceMax(actor, "hope") ? "the Monocub's Hope is full" : null),
         say: "DRPG.Monocub.hopeFull"
     },
     darkened: {
@@ -900,7 +952,7 @@ export async function performCubAbility(actor, key, { targetId, choice } = {}) {
         }, "left"));
         return null;
     }
-    if (resourceValue(actor, "hope") < row.hopeCost) {
+    if (cubHopeTotal(actor) < row.hopeCost) {
         ui.notifications.warn(game.i18n.localize("DRPG.Monocub.needHope"));
         return null;
     }
@@ -957,7 +1009,7 @@ export async function cubAbilityRefusalOnGm(actor, row, key, target, choice) {
     const blocked = await blockOf(row, actor);
     if (blocked) return blocked.why;
     if (actionsLeft(actor) < row.cost) return "the Monocub has no action left for it";
-    if (resourceValue(actor, "hope") < row.hopeCost) return "the Monocub has not the Hope for it";
+    if (cubHopeTotal(actor) < row.hopeCost) return "the Monocub has not the Hope for it";
     return CUB_TARGETS[row.target].refuses(actor, target);
 }
 
@@ -1036,11 +1088,10 @@ export async function cubAbilityOnGm({ actorId, key, targetId, choice } = {}) {
         // The price, after every condition: quiet (the toast and the pip sound would be the GM's), as an Objection's is.
         if (row.cost > 0 && !await spendAction(actor, row.cost, { quiet: true })) return null;
         await noteCubMove(row, target);
-        if (row.hopeCost > 0) {
-            await trustedWrite(actor, { "system.resources.hope.value": resourceValue(actor, "hope") - row.hopeCost }, { reason: "price" });
-        }
+        // The purse first, then the sheet (E72 C14); where each point came from is kept for a refund (Tinker's double).
+        const paid = row.hopeCost > 0 ? await spendCubHope(actor, row.hopeCost) : null;
         const { roll, total, isCritical } = await CUB_ROLLS[row.roll]();
-        await CUB_RESOLVERS[row.resolve](actor, target, choice, total, isCritical, row);
+        await CUB_RESOLVERS[row.resolve](actor, target, choice, total, isCritical, row, paid);
         await logCubMove(actor, key, choice, target);
         return { roll: roll ? roll.toJSON() : null, total, isCritical, done: true };
     });
@@ -1199,7 +1250,7 @@ export const CUB_RESOLVERS = Object.freeze({ meddle: scoreMeddle, redeem: redeem
  * armed). A double gives the row's Hope back. The Monocub is told on a veiled card what moved, by the project's name
  * (it is public, and in the Monocub's room); the room saw the roll and its direction, never the project.
  */
-async function scoreTinker(actor, target, choice, total, isCritical, row) {
+async function scoreTinker(actor, target, choice, total, isCritical, row, paid = null) {
     const help = choice === "help";
     const esc = foundry.utils.escapeHTML;
     const P = await import("./projects.mjs");
@@ -1219,7 +1270,7 @@ async function scoreTinker(actor, target, choice, total, isCritical, row) {
         said = game.i18n.localize("DRPG.Monocub.meddleFailed");
     }
     if (isCritical && row.hopeCost > 0) {
-        await trustedWrite(actor, { "system.resources.hope.value": resourceValue(actor, "hope") + row.hopeCost }, { reason: "refund" });
+        await refundCubHope(actor, paid ?? { purse: 0, sheet: row.hopeCost });
         said += ` ${game.i18n.localize("DRPG.Monocub.tinkerHopeBack")}`;
     }
     await whisperToOwner(actor, `<p>${said}</p>`, { veiled: true });
@@ -1233,7 +1284,8 @@ async function scoreTinker(actor, target, choice, total, isCritical, row) {
  * (`redeemDay`), its owner told on a veiled card.
  */
 async function redeemHope(actor) {
-    await trustedWrite(actor, { "system.resources.hope.value": Math.min(resourceMax(actor, "hope"), resourceValue(actor, "hope") + 1) },
+    // Held to the limit with the purse counted (E72 C14; DC37): the sheet takes it, up to the limit less the purse.
+    await trustedWrite(actor, { "system.resources.hope.value": Math.min(resourceMax(actor, "hope") - purseOf(actor), resourceValue(actor, "hope") + 1) },
         { reason: "gmRuling" });
     await patchCubRow(actor.id, { redeemDay: gameDayNow() });
     await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Monocub.redeemDone")}</p>`, { veiled: true });
