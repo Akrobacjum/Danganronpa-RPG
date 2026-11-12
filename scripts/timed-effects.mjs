@@ -54,6 +54,22 @@ const KINDS = Object.freeze({
             await trustedWrite(actor, { [`system.traits.${TRAITS[row.trait].dh}.value`]: traitValue(actor, row.trait) - row.n }, { reason: "facility" });
         },
         line: row => game.i18n.format("DRPG.Facility.timed.traitBonus", { n: row.n, trait: TRAITS[row.trait]?.label ?? row.trait })
+    }),
+    // An Experience of the GM's name and value X, added to the sheet under an id of its own kept on the row (`ref`), and
+    // deleted by that id at the end - never one the character had.
+    experience: Object.freeze({
+        give: async (actor, row) => {
+            const { trustedWrite } = await import("./resource-guard.mjs");
+            row.ref = foundry.utils.randomID(16);
+            await trustedWrite(actor, { [`system.experiences.${row.ref}`]: { name: row.label, value: row.n } }, { reason: "facility" });
+        },
+        take: async (actor, row) => {
+            if (!row.ref || !actor.system?.experiences?.[row.ref]) return;
+            const { trustedWrite } = await import("./resource-guard.mjs");
+            const { forcedDeletion } = await import("./utils.mjs");
+            await trustedWrite(actor, { [`system.experiences.${row.ref}`]: forcedDeletion() ?? null }, { reason: "facility" });
+        },
+        line: row => game.i18n.format("DRPG.Facility.timed.experience", { n: row.n, label: row.label ?? "" })
     })
 });
 
@@ -93,6 +109,7 @@ export async function giveTimed(actor, effect, clock = getClock()) {
     const row = { id, kind: effect.kind, n: Number(effect.n) || 1, until: effect.until ?? "timeOfDay",
         mark: facilityMark(clock), day: dayMark(clock), at: Date.now() };
     if (effect.trait) row.trait = effect.trait;
+    if (effect.label) row.label = effect.label;
     await kind.give(actor, row);
     await writeList(actor.id, [...timedEffectsOf(actor.id), row]);
     tellOwners(actor);
@@ -157,7 +174,7 @@ export function timedEffectsFor(userId) {
         if (actor.type !== "character" || !actor.testUserPermission?.(user, "OWNER")) continue;
         const rows = timedEffectsOf(actor.id);
         stamps[actor.id] = timedEffectStore.newest(actor.id);
-        if (rows.length) effects[actor.id] = rows.map(({ kind, n, trait, until }) => ({ kind, n, trait: trait ?? null, until }));
+        if (rows.length) effects[actor.id] = rows.map(({ kind, n, trait, label, until }) => ({ kind, n, trait: trait ?? null, label: label ?? null, until }));
     }
     return { effects, stamps };
 }
@@ -196,7 +213,8 @@ export async function receiveTimedEffects(effects, stamps) {
         own[actorId] = Number(s) || 0;
         const list = Array.isArray(effects?.[actorId]) ? effects[actorId] : [];
         const rows = list.filter(row => KINDS[row?.kind] && typeof row.until === "string")
-            .map(row => ({ kind: row.kind, n: Number(row.n) || 1, trait: typeof row.trait === "string" ? row.trait : null, until: row.until }));
+            .map(row => ({ kind: row.kind, n: Number(row.n) || 1, trait: typeof row.trait === "string" ? row.trait : null,
+                label: typeof row.label === "string" ? row.label.slice(0, 60) : null, until: row.until }));
         if (rows.length) mine[actorId] = rows;
     }
     return timedEffectCopy.receive(mine, own);

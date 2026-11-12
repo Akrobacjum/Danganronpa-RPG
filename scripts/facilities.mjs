@@ -61,6 +61,12 @@ export function cleanEffect(raw) {
         return text ? { kind, text, scope } : null;
     }
     const out = { kind, n: whole(raw.n ?? 1, 1, rule.amount) ?? 1, scope };
+    // A named effect (an Experience): its name from the line's text box, none and it is no effect.
+    if (rule.label) {
+        const label = clip(raw.label ?? raw.text, FACILITIES.maxLabel);
+        if (!label) return null;
+        out.label = label;
+    }
     // A timed effect's fields (timed-effects.mjs): the statistic it names, and its end among those its kind allows.
     if (rule.trait) out.trait = typeof raw.trait === "string" && Object.hasOwn(TRAITS, raw.trait) ? raw.trait : Object.keys(TRAITS)[0];
     if (rule.untils) out.until = rule.untils.includes(raw.until) ? raw.until : rule.untils[0];

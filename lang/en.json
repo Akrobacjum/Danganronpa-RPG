@@ -3018,7 +3018,8 @@
     "Facility": {
       "timedBadge": "An effect from a room action",
       "timed": {
-        "traitBonus": "+{n} {trait}"
+        "traitBonus": "+{n} {trait}",
+        "experience": "Experience {label} +{n}"
       },
       "until": {
         "timeOfDay": "until the time of day ends",
@@ -3093,6 +3094,7 @@
       },
       "effect": {
         "traitBonus": "Statistic, raised for a while",
+        "experience": "Experience, for a while",
         "health": "Health",
         "sanity": "Sanity",
         "hope": "Hope",

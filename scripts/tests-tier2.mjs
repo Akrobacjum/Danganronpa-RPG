@@ -88140,6 +88140,43 @@ const SCENARIOS = [
             ended: [0, 0], day: [1, 1], dayEnded: [0, 0] }),
             "{clean; given: [Body's rise, rows]; copy: [whose rows the owner's copy holds, another player's]; line: the sheet's; ended: after the next time of day; day: an effect until the day's end after the next time of day; dayEnded: after the next day} - a timed +X to a trait");
     }],
+    ["E93-T6 - a room action's temporary Experience is on the sheet until its end and gone after (scripts/timed-effects.mjs `KINDS.experience`, facilities.mjs `cleanEffect`; the owner's answer to Q-E93-3, 12.11.2026): an Experience named by the GM, +2 until the time of day ends, is added to the character's Experiences with that name and value, its row names it, the sheet's line reads it, and the next time of day deletes it; one with no name is no effect", async () => {
+        /*
+         * E93, 12.11.2026. Given as a use of a room action gives it (`applyEffects`), on this GM; the time passing handed to
+         * the primary's reader as another time of day (`endTimedEffects`). Put back: the rows, the Experience. Red at
+         * e59d373: no kind "experience" (`cleanEffect` answered null).
+         */
+        const T = await import("./timed-effects.mjs");
+        const F = await import("./facilities.mjs");
+        const { applyEffects } = await import("./facilities-gm.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const named = () => Object.entries(actor.system.experiences ?? {}).filter(([, e]) => e?.name === "SUITE E93-T6 steady hands").map(([, e]) => [e.name, e.value]);
+        const clock = getClock();
+        const nextTime = { ...clock, timeOfDay: TIMES_OF_DAY[TIMES_OF_DAY.indexOf(clock.timeOfDay) + 1] ?? TIMES_OF_DAY[0] };
+        const read = {};
+        try {
+            const effect = F.cleanEffect({ kind: "experience", text: "SUITE E93-T6 steady hands", n: 2, until: "timeOfDay" });
+            read.clean = [effect, F.cleanEffect({ kind: "experience", text: "", n: 2 })];
+            must(effect, "no experience effect - this would measure nothing past the cleaning");
+            await applyEffects(actor, [effect], where, player);
+            await settle();
+            read.given = [named(), T.timedEffectsOf(actor.id).map(r => [r.kind, r.label, r.n, r.until]), T.effectLines(actor)];
+            await T.endTimedEffects({ clock: nextTime });
+            await settle();
+            read.ended = [named(), T.timedEffectsOf(actor.id).length];
+        } finally {
+            for (const row of T.timedEffectsOf(actor.id)) await T.endTimedEffect(row.id);
+            for (const m of game.messages.filter(m => m.speaker?.actor === actor.id && m.whisper?.length && /SUITE E93-T6/.test(m.content ?? ""))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            clean: [{ kind: "experience", label: "SUITE E93-T6 steady hands", n: 2, scope: "self", until: "timeOfDay" }, null],
+            given: [[["SUITE E93-T6 steady hands", 2]], [["experience", "SUITE E93-T6 steady hands", 2, "timeOfDay"]],
+                [game.i18n.format("DRPG.Facility.timed.experience", { n: 2, label: "SUITE E93-T6 steady hands" }) + " - " + game.i18n.localize("DRPG.Facility.until.timeOfDay")]],
+            ended: [[], 0] }),
+            "{clean: [the effect, one with no name]; given: [the Experiences of that name, rows, the sheet's line]; ended: after the next time of day} - a temporary Experience");
+    }],
     ["E69-T2 - a crossing settles once, on the primary, where the token still stands (scripts/crossing-settle.mjs `scheduleSettle`, movement.mjs `recordCrossingInStep`; E69 C2, S18-28, A10): a crossing into the room the token stands in fires drpgCrossingSettled once with its actor, rooms, way and Eclipse after the wait; two crossings in a row fire one event from the first room to the last; a crossing into a room the token is not in when the wait ends (put back) fires none; and the GMs' record of a crossing schedules one", async () => {
         /*
          * E69 C2, 12.11.2026. The wait is the test's own (`ms`), so nothing waits 2 s; the token is not moved: the room it

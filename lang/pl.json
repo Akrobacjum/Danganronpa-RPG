@@ -3280,7 +3280,8 @@
     "Facility": {
       "timedBadge": "Efekt akcji w pokoju",
       "timed": {
-        "traitBonus": "+{n} {trait}"
+        "traitBonus": "+{n} {trait}",
+        "experience": "Experience {label} +{n}"
       },
       "until": {
         "timeOfDay": "do końca pory dnia",
@@ -3357,6 +3358,7 @@
       },
       "effect": {
         "traitBonus": "Statystyka, podniesiona na jakiś czas",
+        "experience": "Experience na jakiś czas",
         "health": "Health",
         "sanity": "Sanity",
         "hope": "Hope",
