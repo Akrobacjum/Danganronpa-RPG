@@ -64440,6 +64440,68 @@ equal(read.added, 3, "three additions to a purse at once lost one");
             ["found, then a jump", { searched: true, found: true }, "found", { lost: true }, null], ["being put back", "notThere", null]], [false, false, true], 1]),
             "[each step as what, the answer, Hana's cell (Botan's for the show); the judge's standing after each jump; the cards] - a search or a show read the room of the token's document where the GMs do not read her, or a jump kept a find its Reroll took back");
     }],
+    ["a Find Passage the primary GM refuses after its price was taken gives the price back (E91 C2, D053)", async () => {
+        /*
+         * E91 C2, 12.11.2026; the owner's deferred item D053. action-analyze.mjs `locatePassage` gave the price back only
+         * when no GM was online: the answer of `requestPassageFind` was not read, so a search the primary refused kept it.
+         * A Find Stash beside it gives it back on any refusal (E16 fix e1-G2). The road: a student in daily life with 2
+         * actions picks Find Passage in the Analyze window (Foundry's DialogV2.wait handed in, as A10-7 does); the Class
+         * Trial opens as the "walls gone over" card is made - after the price, before the primary judges - so the
+         * primary refuses ("the Class Trial is in session"). Read: [actions, Hope, Sanity's stress] before and after.
+         * Red before C2: one action short.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        const [student] = cast(1);
+        const rolls = await import("./action-rolls.mjs");
+        const ACT = await import("./actions.mjs");
+        const clock = foundry.utils.deepClone(getClock() ?? {});
+        const purse = () => [ACT.actionsLeft(student), student.system.resources.hope?.value ?? null, student.system.resources.stress?.value ?? null];
+        const kept = { actions: ACT.actionsLeft(student) };
+        const api = foundry.applications.api.DialogV2, own = Object.getOwnPropertyDescriptor(api, "wait");
+        const warn = ui.notifications.warn;
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+        let opened = null, hook = null;
+        const read = {};
+        try {
+            api.wait = async () => ({ value: "passage", form: document.createElement("form"), trait: null });
+            ui.notifications.warn = () => null;
+            if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            await ACT.setActions(student, 2);
+            await settle();
+            // The roll's own message, which comes after the price (the card that follows is veiled: its words are not in it).
+            read.seen = [];
+            hook = Hooks.on("preCreateChatMessage", doc => {
+                read.seen.push(String(doc?.content ?? "").slice(0, 160));
+                if (!opened && String(doc?.content ?? "").includes("dice-roll")) {
+                    read.atRoll = purse();
+                    opened = student.setFlag(MODULE_ID, FLAGS.monocub, true);
+                }
+            });
+            const before = purse();
+            await rolls.performAction(student, "analyze");
+            if (opened) await opened;
+            await settle();
+            read.refusalSet = Boolean(opened);
+            read.purse = [before, purse()];
+            read.backWhole = read.purse[1][0] === before[0] && read.atRoll?.[0] === before[0] - 1;
+        } finally {
+            if (hook !== null) Hooks.off("preCreateChatMessage", hook);
+            if (own) Object.defineProperty(api, "wait", own); else delete api.wait;
+            ui.notifications.warn = warn;
+            if (opened) await opened.catch(() => {});
+            await student.unsetFlag(MODULE_ID, FLAGS.monocub);
+            if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: clock.phase, eclipse: Boolean(clock.eclipse) });
+            await ACT.setActions(student, kept.actions);
+            await settle();
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) { try { await m.delete(); } catch { /* already gone */ } }
+            if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+        }
+        must(read.refusalSet, `the refusal was not set up between the price and the search - this would measure nothing: ${stableJson(read.seen)}`);
+        ok(read.backWhole, `a Find Passage refused on the primary kept its price ([before, after]: ${stableJson(read.purse)}; at the roll ${stableJson(read.atRoll)})`);
+    }],
+
     ["A10-7 stash - a Find Stash's Reroll replays its search on the GM: 12 to 17 opens one hidden stash, 17 to 12 the find stands, and 12 to 17 again opens no second one", async () => {
         /*
          * E80 C4 (S16-19; P1-16). The harm: a student who misses a Find Stash and buys a Reroll that beats 16 pays 3 Hope
