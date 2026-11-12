@@ -1664,11 +1664,7 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
 
     // A Monocub pays nothing and counts no Eclipse crossing (E72 C10): only the connected rooms hold it, as a free
     // placement holds nobody.
-    if (isMonocubActor(actor)) {
-        if (eclipse && allowance === null) return true;
-        const refusedCub = passage ? false : crossingRefused(scene, from, to, floors);
-        return refusedCub ? refusal(keyed, "cannotNow", refusedCub) : true;
-    }
+    if (isMonocubActor(actor)) return cubStep(scene, from, to, floors, { free: eclipse && allowance === null, passage, keyed });
 
     if (eclipse) {
         // A free-placement Eclipse skips both limits but must STILL return here.
@@ -1836,6 +1832,17 @@ export function roomsKnownToMe(scene = null) {
     } catch {
         return new Set();
     }
+}
+
+/**
+ * A Monocub's step (E72 C10): the connected rooms' rule alone (`crossingRefused`, a known passage joining two rooms as a
+ * door does), none in a free-placement Eclipse. Its own function, so the verdict keeps its two readings of the rule
+ * where R387, R431 and R558 read them.
+ */
+function cubStep(scene, from, to, floors, { free = false, passage = false, keyed = false } = {}) {
+    if (free) return true;
+    const refused = passage ? false : crossingRefused(scene, from, to, floors);
+    return refused ? refusal(keyed, "cannotNow", refused) : true;
 }
 
 /** A Monocub, by its flag (the veto is synchronous: no import of monocub.mjs here). */

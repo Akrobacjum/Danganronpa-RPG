@@ -25,8 +25,25 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
 
 ## In progress
 
-- C8 is open, with a question for the owner (below, "C8 needs a decision"). C10's sight half (the ledger's rooms for a
-  Monocub, fog.mjs) next.
+- C8 is open, with a question for the owner (below, "C8 needs a decision").
+- C10's sight half (a Monocub sees every room the class found, without the Mastermind's row): not started. Read so far:
+  a player's browser holds only its own characters' cells of the discovery store (fog.mjs `rowsFor`, `fogSectionFor`,
+  `sendStoreTo`); the union for a Monocub's owner has to be built there on the GM (`ledgerRooms` less the Mastermind)
+  and sent as that player's section without naming who found which room - the cells are per character, so the union
+  goes under the Monocub's own key with the newest stamp of the cells it joins.
+
+## Next, in order
+
+1. C10's sight half; C6's rest (`openMonocubDialog` removed, `game.drpg.monocubDialog` to the Students window, 33's and
+   30's controls for `monocub.answer`); C9's rest (Events' "Redeem waiting").
+2. C11 (D101, D102, D114 - the audit text only, Q-E72-7), C12 (part A's texts: both handbooks, the brochure, the Rule).
+3. Part B: C13-C21 (Tinker, the purse, Bribe, Bounty, a move to order, Ghost Bet, the panel, texts, end review).
+4. E91.
+
+## CI
+
+- Run 43151316668 at c595854: every job green but "suite 7/8": the tier-2 test "Back up the case, then Restore, brings
+  every store back" had no fixture for the two new stores (cubs, cubTargets). Fixed in a4cd1ed (green alone).
 
 ## Pushed
 
@@ -125,6 +142,8 @@ None.
   "0 Hope, 1 action" - now the grid's own "1 action", and "free" for Ask for Hope.
 
 ## Test results
+
+- Tokens so far: not measured by this line (no counter is available to it here).
 
 - Scenarios run from a worktree of the commit (DRPG_REPO): at 1d41165 (C1) 40-flow green, 83-roll-integrity green,
   30-security 273/274 (FAIL "a Foundry secret door is seen and opened from a player's console" - not a Monocub road;
