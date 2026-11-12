@@ -39667,6 +39667,57 @@ const INVARIANTS = [
             fields: [["select", "R3462 pick", "swept"], ["textarea", "R3462 note", "swept"]]
         }), "{panel: the Event panel after a change of its cards - the same element, its role, aria-live, the sweep's mark, a new first card, its cards; fields: [tag, aria-label, data-drpg-named]}");
     }],
+    ["R3663 - the Event panel with nothing to say stays one steady, empty, labelled region (gaps G4; E48 K4's half not done): events.mjs `renderEvents` keeps the panel it drew when its last card goes - emptied in place, the same element, `role=\"status\"`, `aria-live` polite once swept, named by DRPG.Events.region in each language - and the first card after that is drawn into the same element; the stylesheet gives an empty panel no margin and no height, so the region takes no room until it says something", async () => {
+        /*
+         * Gaps G4, 12.11.2026 (the 1.2.105 release notes' Known gaps: "The Event panel, empty, is still removed rather
+         * than kept as a steady empty region (E48 K4: not done)"). A polite live region announces changes to a region
+         * already in the page (WAI-ARIA, read in the specification - LIVE-E48-06 is the reader at a table); removed when
+         * empty, the panel came back with its first card already in it, so the first card after a quiet spell was the one
+         * a screen reader could miss. Driven as R3462 drives it: a trial's card through a clock read as a Class Trial,
+         * then the clock as it is (the harness's world, no card), then the trial again. The CSS half off the base
+         * sheet: `#drpg-events:empty` with margin 0 (the panel's 8 px would otherwise stand as an empty band; its
+         * height is its cards', E49 A6, so an empty one has none). Measured in Chromium in the commit, not here.
+         * Red at 3f885f86: the panel was removed with its last card (empty: null).
+         */
+        const E = await import("./events.mjs");
+        const A = await import("./a11y.mjs");
+        must(game.user.isGM, "the trial's card is drawn here for a GM - this would read nothing");
+        const ownGet = Object.getOwnPropertyDescriptor(game.settings, "get"), get = game.settings.get;
+        let phase = "classTrial";
+        const read = {};
+        const lang = async code => fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json());
+        const en = await lang("en"), pl = await lang("pl");
+        try {
+            game.settings.get = function (scope, key, ...rest) {
+                const value = get.call(this, scope, key, ...rest);
+                return scope === MODULE_ID && key === SETTINGS.clock && phase ? { ...value, phase, eclipse: false } : value;
+            };
+            E.renderEvents();
+            const first = document.getElementById("drpg-events");
+            must(first?.isConnected && first.children.length, "the Event panel was not drawn with the trial's card - this would read nothing");
+            phase = null;
+            E.renderEvents();
+            const empty = document.getElementById("drpg-events");
+            must(!empty?.children.length, "the harness's world drew a card of its own - the empty panel cannot be read");
+            if (empty) A.nameControls(empty.parentElement ?? document);
+            read.empty = empty ? { same: empty === first, connected: empty.isConnected, cards: empty.children.length, role: empty.getAttribute("role"),
+                live: empty.getAttribute("aria-live"), label: empty.getAttribute("aria-label") === game.i18n.localize("DRPG.Events.region") } : null;
+            phase = "classTrial";
+            E.renderEvents();
+            const again = document.getElementById("drpg-events");
+            read.again = { same: again === first, cards: again?.children.length > 0 };
+        } finally {
+            if (ownGet) Object.defineProperty(game.settings, "get", ownGet); else delete game.settings.get;
+            E.renderEvents();
+        }
+        read.words = [en.DRPG?.Events?.region, pl.DRPG?.Events?.region];
+        const css = stripComments(await moduleStyles());
+        read.css = /(^|\})\s*[^{}]*#drpg-events[^{},]*:empty\s*\{[^}]*\bmargin:\s*0[;\s}]/.test(css);
+        equal(stableJson(read), stableJson({
+            empty: { same: true, connected: true, cards: 0, role: "status", live: "polite", label: true },
+            again: { same: true, cards: true }, words: ["Event panel", "Panel zdarzeń"], css: true
+        }), "{empty: the panel once its last card went - the same element, in the page, its cards, role, aria-live, its label DRPG.Events.region; again: the next card in the same element; words: en, pl; css: #drpg-events:empty takes no margin}");
+    }],
     ["R3465 - Hope on the status strip is the player's alone (E48 K7; the owner's 11.11 remark): on a GM's page the strip is the table's (\"Still to act\") with no Hope row and the GM's Monokuma draws no strip; a living student's strip and a Monocub's carry the Hope row; and the glass harness's stand-in strip, which the owner's review shots show, draws Hope on a player's page alone", async () => {
         /*
          * E48 K7, 11.11.2026. The owner: "Panel zasobów gracza u GM-a - nie potrzeba pokazywać tam hope. Hope powinien

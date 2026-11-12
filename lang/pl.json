@@ -1551,6 +1551,7 @@
       "endClosing": "Zakończ Closing Argument"
     },
     "Events": {
+      "region": "Panel zdarzeń",
       "overflowMetaGm": "{count} z {max} w kapeluszu",
       "bodyTitle": "Znaleziono ciało",
       "bodySubRoom": "{victim}, w: {room}",

@@ -1481,6 +1481,7 @@
       "endClosing": "End the Closing Argument"
     },
     "Events": {
+      "region": "Event panel",
       "overflowMetaGm": "{count} of {max} in the hat",
       "bodyTitle": "A body is discovered",
       "bodySubRoom": "{victim}, in the {room}",

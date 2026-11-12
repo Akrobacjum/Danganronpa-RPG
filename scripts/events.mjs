@@ -856,7 +856,7 @@ function watchEventsBox(panel) {
     for (const card of panel.children) eventsBoxWatch.observe(card);
 }
 
-/** Build or rebuild the panel. Safe to call repeatedly; removes itself when there is nothing to say. */
+/** Build or rebuild the panel. Safe to call repeatedly; with nothing to say it stays, empty (gaps G4, below). */
 export function renderEvents() {
     try {
         const existing = document.getElementById(WIDGET_ID);
@@ -867,7 +867,15 @@ export function renderEvents() {
            is stopped, nothing else on this panel is happening. */
         const cards = [safewordCard(clock), trialCard(clock), openingCard(), incidentCard(),
             bodyCard(clock), overflowCard(), assemblyCard(), motiveCard()].filter(Boolean);
-        if (!cards.length) { existing?.remove(); return; }
+        /* NOTHING TO SAY IS AN EMPTY REGION, NOT NO REGION (gaps G4, 12.11.2026; E48 K4's half left open in 1.2.105).
+           Until this the panel was removed with its last card and built again with the next one already in it, and a
+           polite live region announces changes to a region already in the page (WAI-ARIA, read in the specification;
+           LIVE-E48-06 is a reader at a table), so the first card after a quiet spell was the one a screen reader could
+           miss. Now the panel stands while the Event window is shown: emptied in place (the signature of no card), the
+           same element, its role and its name. The stylesheet gives an empty panel no margin, and its height is its
+           cards' (E49 A6), so it takes no room and the glass, which cuts for a block with a box (glass.mjs, BLOCKS'
+           measure), cuts nothing for it; it moves nothing and animates nothing, so reduced motion has nothing to stop.
+           R3663; read in Chromium in the commit that wrote this. */
 
         // Redraw only when something changed: the panel is on the curtain, and
         // every rebuild of it is a recut of the glass around it.
@@ -887,6 +895,7 @@ export function renderEvents() {
         const panel = existing ?? Object.assign(document.createElement("div"), { id: WIDGET_ID, className: "drpg-events" });
         panel.dataset.signature = signature;
         panel.setAttribute("role", "status");
+        panel.setAttribute("aria-label", game.i18n.localize("DRPG.Events.region"));
         panel.replaceChildren(...cards.map(cardElement));
         if (rail ? panel.previousElementSibling !== rail : panel.parentElement !== host) {
             if (rail) rail.after(panel); else host.append(panel);

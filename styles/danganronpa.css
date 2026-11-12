@@ -10046,6 +10046,15 @@ body[data-drpg-phase="eclipse"] .drpg-hud-phase-glyph { --drpg-glyph: var(--drpg
     pointer-events: none;
 }
 #drpg-events[data-drpg-scrolls] { pointer-events: auto; }
+/* EMPTY, IT TAKES NO ROOM (gaps G4, 12.11.2026). With nothing to say the panel stays in the page as an empty live region
+   (events.mjs `renderEvents`) and its height is its cards' (E49 A6), so the 8 px above it are all that would stand: an
+   empty band in the rail's column or the stack. No margin while it is empty, in both themes (the glass's own rule,
+   stained-glass.css `#drpg-events`, is 1,1,1 and this is 1,2,1), and out of the flow: in the stack's column (narrow.css)
+   an item of no height still took the column's gap, and on a GM's stacked page the right column under it stood 14 px
+   lower under the glass and 4 under Legacy (the glass harness at 393x852 and 1024x768). Absolute with no offsets, it
+   stays where it stood, in the page and in the accessibility tree, and the page lays out as it did when the panel was
+   removed; the glass cuts no pane for a block with no box. Read in Chromium on the glass harness (the commit's message). */
+body #drpg-events.drpg-events:empty { margin: 0; position: absolute; }
 
 .drpg-event {
     --acc: var(--drpg-gold-antique);
@@ -17583,7 +17592,7 @@ body.drpg-reduced-motion .drpg-hud-track > span { animation: none; }
     #drpg-despair,
     #drpg-player-status,
     #countdowns,
-    #drpg-events,
+    #drpg-events:not(:empty),
     #drpg-popups .drpg-popup,
     #drpg-evidence .drpg-popup,
     .drpg-panel {
