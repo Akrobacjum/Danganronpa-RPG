@@ -26,4 +26,4 @@ Tests: R3714, R3715 (tier 1).
 
 ## Review shots
 
-See the line's STATUS pages; the board's shots are on the E62/E94 review page (round 2) when published.
+Round 1: https://claude.ai/artifact/HqY4QnLaPzDwoDGQa8Qpkp - the board still in both themes, EN and PL, and recorded in motion in both themes. Found by the recording and fixed: the rise's transform replaced the board's centring rule (4987f71). The glass harness in headless Chromium, not Foundry.
