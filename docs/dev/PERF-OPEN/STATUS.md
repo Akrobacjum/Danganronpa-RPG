@@ -96,7 +96,28 @@ G, the glass band: 1.2-3.9 ms a paint at every width, the first of a width no de
 
 ## After
 
-(filled in below once measured)
+Probe 09 again, 12.11.2026, on the 1.2.108 checkout (before) and this branch (after), one run each, 12 s after the boot
+(the warming starts 4 s after ready). Headless, so the only first-open cost this line removes that the harness can see
+is the `import()` of a lazy file from disk; at a table each of those is a round trip to the server instead.
+
+| Window | Client | the opener's file imported, 1st open (before -> after) | opener to render, 1st / 2nd / 3rd (before -> after) |
+| --- | --- | --- | --- |
+| Class Trial console | GM | 4.9 -> 0.2 ms | 57 / 46 / 47 -> 51 / 56 / 41 |
+| Notices | GM | 2.2 -> 0.2 ms | 47 / 32 / 34 -> 40 / 42 / 33 |
+| Notices | p1 | 1.8 -> 0.3 ms | 47 / 41 / 40 -> 53 / 50 / 39 |
+| Look (and the Settings window it opens) | GM | 0.8 -> 0.2 ms | 89 / 84 / 72 -> 105 / 75 / 77 |
+| Look | p1 | 0.7 -> 0.2 ms | 120 / 100 / 99 -> 115 / 98 / 90 |
+| Give, Give a Truth Bullet | GM | (static) | 55 / 56 / 84 and 52 / 54 / 54 -> 70 / 56 / 56 and 52 / 54 / 54 |
+| every other window | both | 0.1-0.3 ms both runs (in the boot's graph) | within the run-to-run spread of the before table above |
+
+The roll road (the dh-212 line's a5, b5 and b10; probe 09's `rollImports`): its 30 files reached by `import()` from the roll
+files (action-pipeline.mjs, roll-draw.mjs, private-rolls.mjs, forced-roll.mjs, the dice files, bridge-guards.mjs) answered
+in 0.28 ms at most on p1 and 0.21 ms on the GM before, 0.21 and 0.21 after. All but one are in the boot's static graph, so
+the first roll fetches nothing for them at a table either; the one that is not, frisk.mjs, is warmed. No change in the roll
+files.
+
+What this line cannot show here: the fetch's time at a table, Daggerheart's templates (the harness has none:
+`templates.skipped`), and the fonts (jsdom has no `document.fonts`: `fonts.skipped`). LIVE-PERF-OPEN-01 below.
 
 ## What is open
 
@@ -106,3 +127,11 @@ G, the glass band: 1.2-3.9 ms a paint at every width, the first of a width no de
 - Whether Daggerheart 2.12.8 preloads its sheet templates (then the template step costs nothing and gains nothing).
 - What the warming costs a player's connection: about 330 KB of module files (380 KB on a GM), 156 KB of fonts at most, the templates'
   size unknown here; once a session, at idle.
+
+## Runs before the push (12.11.2026, this container, 4 cores)
+
+- `npm run quick`: green (lint, the 17 checks, the gate's self-test).
+- `node run-tests.mjs --tier 1`: 1270 tests, 1254 passed, 1 failed, 16 skipped, 409.7 s wall. The failure was R1560
+  (`openTimes` not yet in tools/api-surface.json); with its row added, R1560 and R4200-R4202 run again by name: 5 passed,
+  0 failed. The whole of tiers 0-1 was not run again after that one row.
+- `node cluster.mjs scenarios/00-boot.mjs`: 33/33. `node cluster.mjs scenarios/86-frame-work.mjs`: 104/104, 173 s.
