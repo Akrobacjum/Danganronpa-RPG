@@ -144,6 +144,10 @@ export default [
         "audit/handoff/**",                // a temporary hand-over folder, deleted in the 1.2.61 release commit
         "audit/harness/lib/dh-relay.mjs",  // Daggerheart's relay, copied verbatim and never edited (CLAUDE.md)
         "audit/harness/lib/dh-dice/dice/**", // Daggerheart's dice, copied verbatim and never edited (audit/harness/README.md)
+        // Two more of Daggerheart's files, copied verbatim from 2.12.8 beside the glue (E76 C3b): 2.12's roll config and
+        // the helpers it imports. They read Daggerheart's globals (`_loc`) as the dice do.
+        "audit/harness/lib/dh-dice/data/action/move-context.mjs",
+        "audit/harness/lib/dh-dice/helpers/functional.mjs",
         "audit/harness/lint-fixtures/**"]  // planted violations, linted by run-all's lint part as a file of scripts/
     },
     { files: ["scripts/**/*.mjs"], languageOptions: { ...LANG, globals: { ...BROWSER, ...FOUNDRY } },
