@@ -816,7 +816,13 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
     const shownS = await gm2.eval(`${V} return V.trialProgress().summaryShown;`);
     verdict("the summary goes out once a trial: the record holds its time, gm3's second press sends nothing, p1 holds one card (Q-E99-9)",
         againS === null && onceS === 1 && Number.isFinite(shownS), J({ againS, onceS, shownS }));
-    await gm2.eval(`${V} await V.setTrialProgress({ summaryShown: null }); return true;`, { timeout: 30000 });
+    /* A second Class Trial in the chapter starts with no ticks and an unsent summary (E99 next): the entry's own reset of the
+       record (`resetTrialProgress`, as Start the Class Trial runs it) gives the trial a new stamp, so the first trial's
+       ticks are not read and `summaryShown` is blank again. */
+    const secondS = await gm2.eval(`${V} ${CS} await V.resetTrialProgress();
+        const t = CS.caseTicks(ch); return { ticks: ["s63-d1", "s63-d2"].filter(id => t[id] === true).length, shown: V.trialProgress().summaryShown };`, { timeout: 30000 });
+    verdict("a second trial in the chapter starts with none of the first trial's ticks and its summary not sent (E99 next)",
+        secondS?.ticks === 0 && secondS?.shown === null, J(secondS));
     await gm2.eval(`${CS} for (const id of ["s63-d1", "s63-d2", "s63-s1"]) { await CS.setCaseTick(ch, id, false); await CS.dropCaseNode(ch, id); } return true;`, { timeout: 30000 });
     await disconnect("gm3");
     check("S0: phase S measured something", (counts.S ?? 0) > 0, J(counts));

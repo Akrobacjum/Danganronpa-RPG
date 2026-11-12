@@ -27255,6 +27255,39 @@ const SCENARIOS = [
         equal(JSON.stringify(counts), JSON.stringify([0, 1, 0]), "[question windows after a rehearsal, after the first body, after a second]");
     }],
 
+    ["E99 next: the case's ticks are a trial's - a second Class Trial in the chapter starts with none, and the first trial's ticks are not read in it", async () => {
+        /*
+         * E99 next, 12.11.2026 (the coordinator: "the ticks per trial, not per chapter ... like summaryShown"). A deduction
+         * of this chapter ticked under one trial's stamp (the record's `trialStartedAt`, which every trial's entry writes
+         * afresh); then the record names a second trial: the tick is not read, and a tick under the second is (one row per
+         * node: the second trial's tick is the row's now). The record is put back raw. Red at 9ca7fcc: the ticks were the chapter's,
+         * so the second trial read the first trial's tick.
+         */
+        const S = await import("./case-schema.mjs");
+        const { trialProgress } = await import("./vote.mjs");
+        const chapter = getClock().chapter;
+        const id = "deduction-suitee99next";
+        const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const at = stamp => game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...trialProgress(), chapter, trialStartedAt: stamp });
+        const seen = [];
+        try {
+            await at(1700000000000);
+            await S.setCaseNode(chapter, id, { kind: "deduction", label: "SUITE E99 next" });
+            await S.setCaseTick(chapter, id, true);
+            seen.push(S.caseTicks(chapter)[id] === true);
+            await at(1700000100000);
+            seen.push(S.caseTicks(chapter)[id] === true);
+            await S.setCaseTick(chapter, id, true);
+            seen.push(S.caseTicks(chapter)[id] === true);
+        } finally {
+            await at(1700000000000).catch(() => {});
+            await S.setCaseTick(chapter, id, false).catch(() => {});
+            await S.dropCaseNode(chapter, id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
+        }
+        equal(JSON.stringify(seen), JSON.stringify([true, false, true]), "[ticked in the first trial, read in the second, ticked in the second]");
+    }],
+
     ["E99 C4: a Present card of a copy of a Remnant on the schema marks it presented and hints the deduction it carries, without a tick", async () => {
         /*
          * E99 C4 and C8's open item (12.11.2026): the presentation read end to end, as the console's case schema reads it

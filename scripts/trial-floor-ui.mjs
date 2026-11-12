@@ -834,7 +834,9 @@ const TRIAL_LEADS = {
     finishVerdict: "DRPG.Floor.lead.finishVerdict",
     finishElsewhere: "DRPG.Floor.lead.finishElsewhere",
     verdictElsewhere: "DRPG.Floor.lead.verdictElsewhere",
-    chapterEnd: "DRPG.Floor.lead.chapterEnd"
+    chapterEnd: "DRPG.Floor.lead.chapterEnd",
+    // E99: the case summary before the chapter's end (trial-floor.mjs `TRIAL_NEXT_STEPS`).
+    caseSummary: "DRPG.Floor.lead.caseSummary"
 };
 
 /*
@@ -1438,7 +1440,9 @@ function trialButtons({ floor, running, finalNow, progress, afterwards, stopped,
                         default: isDefault("finishVerdict") }]
                     : []),
                 // The case's summary for the players (E99 C7): after the verdict, not in a Final Trial (Q-E99-5)
-                { action: "caseSummary", label: game.i18n.localize("DRPG.CaseSummary.show"), disabled: !progress.verdictApplied || Boolean(finalNow) },
+                // Greyed and named as sent once this trial's summary is out (the record's `summaryShown`), on every GM's console
+                { action: "caseSummary", label: game.i18n.localize(progress.summaryShown ? "DRPG.CaseSummary.shown" : "DRPG.CaseSummary.show"),
+                  disabled: !progress.verdictApplied || Boolean(finalNow) || Boolean(progress.summaryShown), default: isDefault("caseSummary") },
                 // Reachable before the verdict (a chapter can end without
                 // one). Never the default since E22 C4: it cannot be undone (the destructive role, `trialFooter`), so
                 // after the verdict, when it is the next step, the lead names it and Enter presses Close.

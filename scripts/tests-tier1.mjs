@@ -8662,6 +8662,32 @@ const INVARIANTS = [
         "{the record's row [lives, blank, at entry]; in the blank; in another GM's whitelist; showCaseSummary reads it, writes it, names no store row; the card's sound; SFX_EVENTS.caseSummary}");
         ok(plRow && typeof plRow.label === "string" && plRow.label.length > 3, "the sound's Polish label (config.mjs prose in lang/pl.json) is missing");
     }],
+    ["R3917 - Show summary is the trial's next step after the verdict, and reads as sent once it is (E99 next, 12.11.2026; the plan's C7 row, the owner's go-ahead through the coordinator): trial-floor.mjs `TRIAL_NEXT_STEPS` answers `caseSummary` after the verdict while the trial's record says the summary is not out (`summaryShown` null) and no Final Trial runs, and End of chapter once it is out, in a Final Trial, or with a view that carries no record of it (R2050's views); `trialStepView` carries the Final Trial flag; the step has its text and the console its lead in both languages; the console's footer makes Show summary its primary at that step, and once the summary is out the button is greyed and says so", async () => {
+        /* Red at 9ca7fcc: no such row, no `finalNow` on the step's view, no texts, the button the same before and after. */
+        const F = await import("./trial-floor.mjs");
+        const UI = await import("./trial-floor-ui.mjs");
+        const given = (p = {}, over = {}) => ({ floor: null, running: true, afterwards: true, stopped: null, runner: null, finalNow: false, ...over,
+            progress: { voteClosed: true, verdictApplied: true, debateAgain: false, againAfterOverrule: null, vote: { open: false }, ...p } });
+        const steps = [given({ summaryShown: null }), given({ summaryShown: 1700000000000 }), given({ summaryShown: null }, { finalNow: true }), given({}),
+            given({ summaryShown: null }, { running: false }), given({ summaryShown: null }, { runner: "otherGM000000000" })].map(v => F.trialNextStep(v));
+        const lang = {};
+        for (const code of ["en", "pl"]) lang[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG?.Floor ?? {});
+        const texts = ["en", "pl"].map(code => [typeof lang[code].next?.caseSummary === "string", typeof lang[code].lead?.caseSummary === "string"]);
+        const footer = sent => {
+            const v = { ...given({ summaryShown: sent ? 1700000000000 : null }), restrictive: false, pending: null, bar: null, register: 0, deathThisChapter: false,
+                table: null, rows: [], left: 0, next: sent ? "chapterEnd" : "caseSummary" };
+            const f = UI.consoleFooter(v);
+            const all = [...(f.secondary ?? []), ...(f.destructive ?? []), ...(f.primary ? [f.primary] : [])];
+            const b = all.find(x => x.action === "caseSummary");
+            return { primary: f.primary?.action ?? null, disabled: Boolean(b?.disabled), label: b?.label ?? null };
+        };
+        const before = footer(false), after = footer(true);
+        const view = typeof F.trialStepView === "function" ? F.trialStepView({ clock: { ...getClock(), phase: "classTrial", finalTrial: true }, progress: given().progress }) : {};
+        equal(stableJson({ steps, final: view.finalNow ?? null, texts, before: [before.primary, before.disabled], after: [after.primary === "caseSummary", after.disabled, after.label !== before.label] }),
+            stableJson({ steps: ["caseSummary", "chapterEnd", "chapterEnd", "chapterEnd", "caseSummary", "verdictElsewhere"], final: true,
+                texts: [[true, true], [true, true]], before: ["caseSummary", false], after: [false, true, true] }),
+            "{the step for [not sent, sent, a Final Trial, no record of it, the trial ended, another GM's verdict]; the step view's Final Trial flag; [EN, PL] the step's text and lead; the footer before [its primary, the button greyed]; after [Show summary still primary, greyed, its label changed]}");
+    }],
     ["R3900 - the hall's zones as shapes (E73 C1; TR20 = 1, Q-E73-4): zone-geometry.mjs `zoneAt` names the zone a point is in - a region's `testPoint` with the elevation first, its polygon tree or box only where it cannot be asked, a hole asked answering no, a point both hold on the line; `zoneCoverage` finds a gap and an overlap by the grid's squares and says a gridless hall past its budget was not checked; `zoneWarnings` names none picked, one, the same region twice, a region gone, an overlap and a gap, and nothing for two zones that tile the hall", async () => {
         /*
          * E73 C1, 12.11.2026. Planted regions and halls, no world. Red at 4077664: no zone-geometry.mjs.
