@@ -39897,6 +39897,34 @@ const INVARIANTS = [
             "{first: the first mark (rows 100 px in a list of 120); watched: what the live ResizeObservers watch after two marks of the same list; "
             + "grown / shrunk: the attribute after the observer fires with the rows 200 px in 120, then 110 in 120}");
     }],
+    ["R3983 - one project never fades as if more stood below it (gaps, the owner's table on 1.2.108): projects-tray.mjs `markTrayMore` marks `data-drpg-more` only when what overflows the list is at least half a row (the first row's own height), so a list of one row that overflows by a few pixels of something that is no row is not marked, and a list with a row standing below still is", async () => {
+        /*
+         * Gaps, 12.11.2026 (the owner, at a table on 1.2.108 with Daggerheart 2.12.8: "with one project the name looks
+         * darker and fades out"). The fade is the list's foot (`data-drpg-more`, both themes), and it fades the last row -
+         * with one project, the only one. The mark read `scrollHeight - clientHeight - scrollTop > 1`: any overflow past 1 px.
+         * MEASURED on the glass harness (Daggerheart 2.10.11's rows, the harness's): one project's list overflows by 1 px
+         * under the glass on a GM's page (scroll 27, client 26) and by 0 elsewhere, at 1280x720 to 2560x1440 and device
+         * scales 1-1.5 - never marked; with 4 px planted under the row, marked, and the row faded (the commit's shots). What
+         * overflows at the owner's table under 2.12.8 is not read here: its rows are not in this harness. Here, as R1431
+         * stands in, the heights are the test's own (jsdom lays nothing out): one row 27 px in a list 26 px tall that
+         * scrolls 30 px (3 px past, no row) - and a control, a list whose second row stands wholly below (scroll 57). Red at
+         * 7c0d1af9: the one row marked.
+         */
+        const PT = await import("./projects-tray.mjs");
+        must(typeof PT.markTrayMore === "function", "projects-tray.mjs has no markTrayMore - nothing marks the list's foot");
+        const stand = (rows, scroll, client) => {
+            const root = document.createElement("div");
+            root.innerHTML = `<div class="countdowns-container"><div class="countdown-category-container">${Array.from({ length: rows }, (_, i) => `<div class="countdown-container" data-countdown="r3983-${i}"></div>`).join("")}</div></div>`;
+            const list = root.querySelector(".countdowns-container");
+            Object.defineProperty(list, "scrollHeight", { value: scroll, configurable: true });
+            Object.defineProperty(list, "clientHeight", { value: client, configurable: true });
+            for (const row of root.querySelectorAll(".countdown-container")) Object.defineProperty(row, "offsetHeight", { value: 27, configurable: true });
+            return root;
+        };
+        const read = { one: PT.markTrayMore(stand(1, 30, 26)), below: PT.markTrayMore(stand(2, 57, 26)) };
+        equal(stableJson(read), stableJson({ one: false, below: true }),
+            "{one: one row of 27 px, the list 26 tall scrolling 30 - marked?; below: two rows, the second wholly below (scroll 57 of 26) - marked?}");
+    }],
     ["R1433 - the Projects tray reads in rows under Monokuma Legacy too (E23 fix G3, E23-16; the end review's screens M1): a row's name and count stand on one line - the content a row, its items on the baseline - the name taking the row's room and giving way with its ellipsis, the count and the controls after it at their own width; the tray no wider than 360 px a scale, as the glass's, so the longer row does not drag the column", async () => {
         /*
          * E23 fix G3, 08.11.2026; the end review's screens M1. E23-16's "each row's name and count on one baseline" and
