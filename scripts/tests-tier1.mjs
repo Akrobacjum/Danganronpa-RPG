@@ -8866,6 +8866,53 @@ const INVARIANTS = [
             final: ["openDebate", false, false, true, "openDebate"], finalGiven: ["chapterEnd", false, true, true, "close"]
         }), "{state: [the next step, a Verdict button, an End of chapter button, the Final Trial's switch, the Enter default]}");
     }],
+    ["R3919 - an open node is its editor, nothing above it (the owner at a real table, 12.11.2026, through the coordinator: on a click the editing part replaces the node entirely, no read-only part with the dashed line above it): case-map.mjs draws the open node's face marked `is-editing`, which the module's sheets hide, and its fields at the face's own place; the fields hold the Table's cells, the arrows and a Close, and no read-only rows (state, room, who left it); a node's own warnings stay; a node with no fields of its own still shows its facts; Close asks to close the node", async () => {
+        /* Red at f0b4f9b: the face stood above the fields (dashed, read-only), the fields under it opened with the node's facts. */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const graph = S.graphOf({ chapter: 4, traces: [{ key: "S.T1", type: "prep", name: "R3919 knife", tiedToCrime: true },
+            { key: "S.T2", type: "prep", name: "R3919 rope", tiedToCrime: true }],
+            rows: { "d-a": { kind: "deduction", label: "R3919 a", inputs: ["S.T1", "S.T2"] }, "d-b": { kind: "deduction", label: "R3919 b" } } });
+        const layout = layoutCase(graph);
+        const problems = S.checkCase(graph, {});
+        const editors = new Map([["S.T1", M.editRow("Name", `<input type="text" name="name.S__T1" value="R3919 knife" />`)],
+            ["d-b", M.editRow("Name", `<input type="text" name="case:4:d-b:label" value="R3919 b" />`)]]);
+        const draw = node => {
+            const d = document.createElement("div");
+            d.innerHTML = M.caseMapHtml({ graph, layout, reading: { node }, editors, problems });
+            return d;
+        };
+        const read = (d, id) => {
+            const face = d.querySelector(`.drpg-case-canvas > button[data-drpg-node="${id}"]`);
+            const edit = d.querySelector(`.drpg-case-canvas > .drpg-case-edit[data-drpg-edit="${id}"]`);
+            return { editing: face?.classList.contains("is-editing") ?? null, top: edit && face ? edit.style.top === face.style.top : null,
+                rows: (edit?.querySelectorAll(".drpg-case-info-row").length ?? 0) > 0, warns: edit?.querySelectorAll(".drpg-case-info-warn").length ?? null,
+                close: Boolean(edit?.querySelector("[data-drpg-case-close]")), cells: Boolean(edit?.querySelector("[name]")) };
+        };
+        // S.T1 has fields and, today, read-only rows (its state, who left it); S.T2 no fields of its own; d-b its own warning.
+        const open = draw("S.T1"), bare = draw("S.T2"), warned = draw("d-b"), shut = draw(null);
+        const C = await styleCascade();
+        const sheet = (() => {
+            const body = document.createElement("body");
+            body.className = "drpg-theme-stained-glass";
+            const app = body.appendChild(document.createElement("div"));
+            app.className = "application drpg-ui drpg-panel drpg-window-case";
+            app.innerHTML = open.innerHTML;
+            const face = app.querySelector('.drpg-case-canvas > button[data-drpg-node="S.T1"]');
+            return face ? C.winner(face, ["display"])?.value ?? null : null;
+        })();
+        const said = [];
+        const w = draw("d-b");
+        M.wireCaseMap(w, { onClose: id => said.push(["close", id]) });
+        w.querySelector('.drpg-case-edit[data-drpg-edit="d-b"] [data-drpg-case-close]')?.click();
+        const warn = read(warned, "d-b");
+        equal(stableJson({ open: read(open, "S.T1"), bare: read(bare, "S.T2"), warned: [warn.rows, warn.warns, warn.cells], shut: read(shut, "S.T1").editing, sheet, said }), stableJson({
+            open: { editing: true, top: true, rows: false, warns: 0, close: true, cells: true },
+            bare: { editing: true, top: true, rows: true, warns: 0, close: true, cells: false },
+            warned: [false, 1, true], shut: false, sheet: "none", said: [["close", "d-b"]]
+        }), "{the open Remnant with fields [face editing, fields at its top, any read-only row, warnings, a Close, its cells]; a Remnant with no fields of its own; a deduction with its own warning [rows, warnings, cells]; a node not open; the sheets' display for the editing face; Close's call}");
+    }],
     ["R3900 - the hall's zones as shapes (E73 C1; TR20 = 1, Q-E73-4): zone-geometry.mjs `zoneAt` names the zone a point is in - a region's `testPoint` with the elevation first, its polygon tree or box only where it cannot be asked, a hole asked answering no, a point both hold on the line; `zoneCoverage` finds a gap and an overlap by the grid's squares and says a gridless hall past its budget was not checked; `zoneWarnings` names none picked, one, the same region twice, a region gone, an overlap and a gap, and nothing for two zones that tile the hall", async () => {
         /*
          * E73 C1, 12.11.2026. Planted regions and halls, no world. Red at 4077664: no zone-geometry.mjs.

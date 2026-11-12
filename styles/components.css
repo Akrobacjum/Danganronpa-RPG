@@ -3450,6 +3450,10 @@ body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) .
     height: auto;
     line-height: 1.25;
 }
+/* THE OPEN NODE IS ITS EDITOR (the owner at a real table, 12.11.2026): its face is not drawn while its fields stand in its
+   place (case-map.mjs `is-editing`; the fields' top is the face's, case-view.mjs `relayoutCaseMap`). At the node rule's
+   weight and one class more. */
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-editing { display: none; }
 /* AN OPEN NODE'S FIELDS (E97 fix; in the side panel until it): one box under its face, at its width, joined to it -
    what the node says, then the Table's own cells one under another. A node not open keeps its fields in the form,
    out of sight. Its box grows with its fields as the face grows with its words; the camera brings it into view. */
