@@ -60,6 +60,27 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
 2. If time allows: C8's "Silence now"; 30-security forgeries and 33 legal controls for bribe.offer/answer; C19's HUD,
    Events and Students columns for part B.
 
+## The owner's decisions of 12.11 (DRPG-D1, relayed by the coordinator), built
+
+| Commit | What | Red / green |
+| --- | --- | --- |
+| b1a7b40 | E91 reverted (choice (b)); the diff --stat is in the E91 section | - |
+| 587de41 | Redeem free (no action) | the Redeem test red at f991974 (one action taken), green |
+| f5ec657 | the Final Trial's verdict settles the Ghost Bets (step `finalBets`, `finalBetsRecord`) | R3815 red before; R1252 and E42-T2 changed on purpose |
+| a32bf95 | the purse's weak signal: known leak `foundry-cub-purse`, the root README's paragraph (written on the coordinator's word; the brief's README rule lifted for it), 33's A21b | A21b red as known (p3's Botan Hope 0 before and after the purse paid 1) |
+| 961c16e | Bounty chosen in Fuel a Monocub's tile; no Bounty tile | R3816 red before |
+| d22adcf | Talent: Experience and Ultimate as one Hope Call tile; ten Hope Call tiles with Bribe | R3817 red before; 88's Hope Call flow one click and one window longer (baseline raised) |
+
+**Old keys `experience` and `ultimate`.** Nothing is migrated, because nothing changes underneath: the two rows of
+`HOPE_CALLS` stay, with their keys, prices, `needsGm`, grants and guards (the GM's yes kept on the primary, the Hope paid
+on it, one at a time, the trial's rules); they lose only their tiles (`inside: "talent"`). An Experience or an Ultimate
+armed before the update (the armed Calls' store, keyed by the Call's key) resolves as it did; a card waiting on a GM's
+yes for one of them is answered as before. Talent's tile only asks which of the two (`callChoice`), then runs the chosen
+row's own road.
+
+**R numbers.** E91 used R3810-R3814, which come back when E91 reverts this branch's revert; E72's tests since take
+R3815 on.
+
 ## Fix round (C21's end review, 12.11.2026)
 
 A read-only review of f22a7e8..8367f80 (security first). Each finding below was read again in the code; each fix has a
@@ -78,9 +99,7 @@ tier-2 test red before it (run against the old monocub.mjs by hand for the three
 | 6c | a settled bet cleared before its payment | read in the code | cleared in the patch that pays it; the throw not planted |
 | 7 | GM handbook: "its execution posts no card" (Final Trial) | confirmed, EN and PL | follows D102 |
 
-Open, default taken (owner may revise): the Final Trial's verdict has no "bets" step, so a Ghost Bet placed before the
-Final stays unpaid in its Monocub's row until a season reset that clears the deaths (the `cubs` store's group; read
-in the code). Not built.
+The Final Trial's bets: built at f5ec657 (the coordinator called it a bug), see the table above.
 
 ## E91 (leftovers from stage notes) - REVERTED on this branch (the coordinator's choice (b), 12.11)
 
@@ -275,7 +294,8 @@ None.
 
 ## Shots
 
-- Round 5 (E91 C4, the Fog tab's Mastermind column): https://claude.ai/artifact/SUdMFCxFkXva7ByUSMyWex
+- Round 5 (E91 C4, the Fog tab's Mastermind column; E91 since reverted): https://claude.ai/artifact/SUdMFCxFkXva7ByUSMyWex
+- Round 6 (Talent's and Fuel a Monocub's choice windows): https://claude.ai/artifact/Pgavfbd965pUWnsrLp55a6
 
 - Round 1 (12.11.2026): https://claude.ai/artifact/BZqYRZA6foPGz62DRg85vD - C6's invitation window (player) and the
   Students window's rows with an open invitation (GM), Stained Glass and Monokuma Legacy, EN and PL, 1366x768 at
