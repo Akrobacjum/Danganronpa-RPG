@@ -15496,7 +15496,8 @@ body.drpg-theme-monokuma-legacy .drpg-window-tables fieldset.drpg-tables-new > .
     .drpg-summary-dialog, .drpg-safeword-dialog
 ),
 .application.drpg-messenger,
-#chat-popout {
+#chat-popout,
+#drpg-sequence .drpg-seq-day {
     border: 1px solid var(--drpg-window-edge);
     box-shadow: 0 8px 28px rgba(var(--drpg-shadow-rgb), 0.55);
 }
@@ -18351,7 +18352,13 @@ body.drpg-flicker:not(.drpg-theme-stained-glass) :is(#drpg-hud, #drpg-status, #d
 
 /* THE START-OF-DAY BOARD (E94 C2; sequence.mjs `dayStartElement`; MK-R2 #4): a panel in the middle of the screen over the
    curtain's turn, the cast in a row of portraits, the dead greyed in their place with their name and "we remember",
-   never crossed out. The host lets the table's clicks through: the board stands about 5 s and goes by itself. */
+   never crossed out. The host lets the table's clicks through: the board stands about 5 s and goes by itself.
+   ITS FRAME IS A WINDOW'S (12.11.2026; the owner's report at a real table on 1.2.109: the frame was pink). The edge was
+   three units of `--drpg-seq-band`, the trial's band colour - Despair's pink under the glass, red here - on a panel
+   that is no part of the trial. It takes the module's ordinary window frame now: its selector stands in the list of
+   the module's windows above (the one-pixel `--drpg-window-edge` and the drop shadow), and in stained-glass.css's
+   rule of the windows' glass (6. LIQUID GLASS ON THE WINDOWS) - the same declarations, no copy of them;
+   `--drpg-seq-band` stays the trial's band and the "spilling" mood word's. R4402 reads both themes. */
 #drpg-sequence.drpg-sequence-dayStart { pointer-events: none; }
 #drpg-sequence .drpg-seq-day {
     position: absolute;
@@ -18363,7 +18370,6 @@ body.drpg-flicker:not(.drpg-theme-stained-glass) :is(#drpg-hud, #drpg-status, #d
     gap: calc(14 * var(--drpg-seq-u));
     padding: calc(28 * var(--drpg-seq-u)) calc(36 * var(--drpg-seq-u));
     background: color-mix(in srgb, var(--drpg-seq-dark) 94%, transparent);
-    border: calc(3 * var(--drpg-seq-u)) solid var(--drpg-seq-band);
     color: var(--drpg-seq-light);
     text-align: center;
 }

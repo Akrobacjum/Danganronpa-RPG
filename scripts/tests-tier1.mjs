@@ -51257,6 +51257,35 @@ const INVARIANTS = [
         }), stableJson({ rollOver: 7, other: false, advance: true, chapterEnd: true, cleared: true, campaign: false, defaults: null }),
             "[the roll-over's stamp; another move's patch names none; the advance hands its day in; the chapter end stamps its morning; setClock clears it on an unstamped day move; Edit campaign names none; the default]");
     }],
+    ["R4402 - the day's boards wear the frame of the module's ordinary windows, in both themes (styles/danganronpa.css, styles/stained-glass.css; the owner's report at a real table on 1.2.109: the boards' frame was pink): read through the module's cascade, the end-of-day and start-of-day boards win the same edge and the same shadow as a module window - Monokuma Legacy's one-pixel window edge and its drop shadow, Stained Glass's window glass (the inset highlights, the accent's glow, the drop shadow); the trial's band and the \"spilling\" mood word keep the sequences' band colour", async () => {
+        /* 12.11.2026. Red at 1ff4bc77: the boards' edge was three units of `--drpg-seq-band` (Stained Glass's Despair pink,
+           Legacy's red) and they had no shadow. The cascade is the text's (tests-kit.mjs `styleCascade`), not a layout. */
+        const C = await styleCascade();
+        const read = theme => {
+            const body = document.createElement("body");
+            body.className = theme;
+            const host = body.appendChild(document.createElement("div"));
+            host.id = "drpg-sequence";
+            const board = kind => host.appendChild(Object.assign(document.createElement("div"), { className: `drpg-seq-day drpg-seq-${kind}` }));
+            const win = body.appendChild(Object.assign(document.createElement("div"), { className: "application dialog drpg-ui drpg-panel" }));
+            const band = host.appendChild(Object.assign(document.createElement("div"), { className: "drpg-seq-title-band" }));
+            const mood = host.appendChild(Object.assign(document.createElement("div"), { className: "drpg-seq-mood" }));
+            mood.dataset.drpgMood = "spilling";
+            const v = (el, names) => C.winner(el, names)?.value ?? null;
+            const edge = ["border", "border-color", "border-width", "border-style"];
+            const w = { edge: v(win, edge), shadow: v(win, ["box-shadow"]) };
+            return {
+                window: [Boolean(w.edge), Boolean(w.shadow)],
+                boards: ["daystart", "dayend"].map(k => [v(board(k), edge) === w.edge, v(board(k), ["box-shadow"]) === w.shadow]),
+                pink: ["daystart", "dayend"].some(k => /--drpg-seq-band/.test(v(board(k), edge) ?? "")),
+                band: /--drpg-seq-band/.test(v(band, ["background", "background-color"]) ?? ""),
+                spilling: /--drpg-seq-band/.test(v(mood, ["color"]) ?? "")
+            };
+        };
+        const want = { window: [true, true], boards: [[true, true], [true, true]], pink: false, band: true, spilling: true };
+        equal(stableJson({ legacy: read("drpg-theme-monokuma-legacy"), glass: read("drpg-theme-stained-glass") }), stableJson({ legacy: want, glass: want }),
+            "[each theme: a module window wins an edge and a shadow; each board's [edge, shadow] the window's; a board's edge in the band's colour; the trial's band and the spilling word in it]");
+    }],
     ["R3726 - no file the module serves holds a merge's conflict marker (scripts, styles, lang): a line that is seven <, = or > alone or before a space is none of the module's own; one found 12.11.2026 in styles/danganronpa.css, left by the merge of the 1.2.107 line, dropped the rule after it (Monokuma Legacy's notifications)", async () => {
         /* 12.11.2026. Red at 7bbbd3c: styles/danganronpa.css line 18324 was "=======". */
         const sources = await moduleSources(), css = String(await moduleStyles() ?? "");
