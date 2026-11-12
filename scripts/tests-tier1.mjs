@@ -47169,11 +47169,17 @@ const INVARIANTS = [
         const six = G.turnPlan(panes, panes, { ...base, how: "random", seed: 3, groups: 6, delays: [0, 360, 900, 1320, 1930, 2400] });
         const plain = G.turnPlan(panes, panes, base);
         const rows = plan => plan.order.filter(i => plan.batchOf[i] === 0).map(i => Math.floor(i / 6));
+        /* the turn's layers take each batch's onset from the plan, not `gap` apart: read against a uniform gap they asked
+           Chromium for a negative duration at the Investigation's onsets (recorded on the glass harness, 12.11.2026) */
+        const src = stripComments((await moduleSources()).get("glass.mjs") ?? "");
+        must(src.length > 20000, "glass.mjs was not read");
+        const turnSrc = bodyOf(src, "export function glassTurn(", { until: "\nfunction " });
         equal(stableJson({
+            batchDelay: six.batchDelay, layersRead: /plan\.batchDelay\?\.\[k\]/.test(turnSrc),
             top: [...new Set(rows(top))], six: [...new Set(six.flashes.map(f => f.delay))].sort((a, b) => a - b),
             plain: { batches: Math.max(...plain.batchOf) + 1, gapOk: plain.gap >= 70 && plain.gap <= 120, firstNearest: plain.order[0] === G.paneOrder(panes, W, H, "centre")[0] }
-        }), stableJson({ top: [0], six: [0, 360, 900, 1320, 1930, 2400], plain: { batches: 8, gapOk: true, firstNearest: true } }),
-            "[top: the first batch's rows; six groups: the flashes' onsets; with no option: batches, the gap, the centre first]");
+        }), stableJson({ batchDelay: [0, 360, 900, 1320, 1930, 2400], layersRead: true, top: [0], six: [0, 360, 900, 1320, 1930, 2400], plain: { batches: 8, gapOk: true, firstNearest: true } }),
+            "[the plan's batch onsets; the turn's layers read them; top: the first batch's rows; six groups: the flashes' onsets; with no option: batches, the gap, the centre first]");
     }],
     ["R3712 - a transition is the curtain's and nothing else's (scripts/transitions.mjs `onClockHeard`; E62 C1, C8): heard, it writes no setting and no document and hands the curtain its direction; under reduced motion or with the table's switch off it hands none and schedules no flash; the Class Trial's entry is left to E61; and a second hearing of the same clock plays nothing", async () => {
         /* E62 C1, C8, 12.11.2026. Red at d03c509: transitions.mjs does not exist. */

@@ -3944,6 +3944,8 @@ export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 120
        from corners that are not its own. */
     carry: recolour ? "old" : hold ? "both" : "old", hold, snap, holes: recolour ? holes : [],
     none: false, recolour, recut: moves.length > 0, dur, move: { ms: move, curve }, order, batchOf, delayOf, gap, moves, batches, flashes,
+    // each batch's onset (E62 C2: a transition's own `delays`, else `gap` apart), which the turn's layers read
+    batchDelay: Array.from({ length: nb }, (_, b) => at(b)),
     frost: moves.length ? { out: FROST_OUT, in: FROST_IN } : null,
     glow: { ms: Math.max(moves.length ? move : 0, fadeEnd) || move }
   };
@@ -4210,7 +4212,7 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
   let pairs = 0;
   if (fresh) {
     const moved = new Set(plan.moves.map(m => m.to));
-    const delayOf = k => k * plan.gap, easing = plan.batches[0].easing;
+    const delayOf = k => plan.batchDelay?.[k] ?? k * plan.gap, easing = plan.batches[0].easing;
     const ks = [...new Set([...plan.batches.map(b => b.k), ...[...moved].map(i => plan.batchOf[i])])];
     const span = Math.max(plan.moves.length ? plan.move.ms : 0, ...ks.map(k => delayOf(k) + TURN_FADE));
     // the layer is shown only by its animation: at 0 before its delay, at 1 from its fade's end to the span's
