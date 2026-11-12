@@ -96,7 +96,7 @@ for the reason named in the commit; green on the commit.
 | 781b4b9 | The tier-2 "Back up the case, then Restore" test gains its `diveSets` fixture: CI on ec0775f (run 43164287414) and 38654b1 (run 43164772167) failed there, shard 7, the one failure of each | that test by name, red in CI, green here |
 | fc05a9d | The case schema's slot moved out of the redrawn console: `data-drpg-trial-schema` after `.drpg-trial-console` (`trialBodyHtml`), placed in the middle by the frame's CSS, its height reserved while a trial runs | R3911 red before (no `trialBodyHtml`, the slot inside the console), green after; tiers 0-1 1246 passed, 0 failed, 16 skipped, 0 red; scenarios 41, 63, 68, 86, 88 green |
 
-| (this) | The running console on the coordinator's layout: 1280 px and the screen's height, status at the top, the read-out scrolling beside the schema's slot, the bar pinned at the bottom; probe 08 rows `class-trial--debate`, `class-trial--objection`; the greyed picker under the glass | R3911 red before (regions without "bar", no read-out column, no `consoleWidth`), green after; R1357 red on the first try (a rule on the window's own frame), green after; tiers 0-1 1246 passed, 0 failed, 16 skipped, 0 red; tier 2 by name (E73, E70-T, E99, Testimony, Closing Argument, Objection) 86 green; scenarios 41, 63, 68, 72, 86, 88 green on this round's markup (CSS changed after them, not run again) |
+| c6e723d | The running console on the coordinator's layout: 1280 px and the screen's height, status at the top, the read-out scrolling beside the schema's slot, the bar pinned at the bottom; probe 08 rows `class-trial--debate`, `class-trial--objection`; the greyed picker under the glass | R3911 red before (regions without "bar", no read-out column, no `consoleWidth`), green after; R1357 red on the first try (a rule on the window's own frame), green after; tiers 0-1 1246 passed, 0 failed, 16 skipped, 0 red; tier 2 by name (E73, E70-T, E99, Testimony, Closing Argument, Objection) 86 green; scenarios 41, 63, 68, 72, 86, 88 green on this round's markup (CSS changed after them, not run again) |
 
 ## Test results
 
@@ -130,6 +130,10 @@ for the reason named in the commit; green on the commit.
   (`data-drpg-trial-schema`) outside the redrawn console, between the mode and the management, its height reserved;
   a Straw Poll at the window's top and scrolled to the end, and no trial, both themes, EN and PL. Not Foundry: the
   style harness at 1366 x 1500; the slot is empty (E99 mounts into it).
+- Round 4 (12.11.2026): https://claude.ai/artifact/Gdp7aJnmjstqbSGfdk9TCz - c6e723d: the running console on the
+  coordinator's layout at 1366x768 and 1920x1080, a Nonstop Debate and an Objection (and a Straw Poll and no trial at
+  1366x768), both themes, EN and PL, with the measurements' table. Not Foundry: the style harness, a stand-in window
+  header, the window 24 px down where Foundry puts it 8; the slot empty.
 
 ## Open questions for the owner
 
