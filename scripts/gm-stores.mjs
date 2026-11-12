@@ -1316,6 +1316,19 @@ export const keyPlanStore = defineGmStore({
 });
 
 /**
+ * THE CASE SCHEMA (E97 C3, 11.11.2026): what a GM builds on a chapter's evidence in the Investigation panel's Map - a
+ * row per node, `${chapter}:${nodeId}`: `{ kind, label, text, inputs, refutes, mode, order, made }`, and one
+ * `${chapter}:meta` `{ sort, manual, run, askedAt }` (case-schema.mjs, its only reader and writer). The case worked
+ * out ahead of the trial, so the GMs' alone (R3374); any GM writes it, an Assistant too (Q8). Backed up and synced like
+ * the Key Remnant plan it is built beside, and cut with it (`resetGroup` "keyPlan"); no `exists`, as a node names no
+ * document. No old key: nothing held it before 1.2.107.
+ */
+export const caseSchemaStore = defineGmStore({
+    name: "caseSchema", key: SETTINGS.gmCaseSchema,
+    kind: "ledger", resetGroup: "keyPlan", backup: true, sync: true
+});
+
+/**
  * WHICH OF THE HALL'S TOKENS THE TRIAL SHOWS (E13 C2, 12.10.2026; plan-E13 3.3, decision D7, audit
  * S06-57). A row per actor of the linked trial hall's cast the GMs chose for, keyed `sceneId.actorId`
  * since E81 DZ6 (12.10.2026; `sceneId.tokenId` until then, moved by trial-scene.mjs `tidyTrialHall`,

@@ -75,7 +75,7 @@ const OUT = process.env.DRPG_CAPTURE_OUT ? path.resolve(process.env.DRPG_CAPTURE
 const STUDENT = "const student = (await import(`${repoUrl}/scripts/monokuma.mjs`)).studentActors()[0];";
 
 /*
- * The windows, each `{ id, client, module, call, press }`: the opener's module under scripts/ and the call made on it
+ * The windows, each `{ id, client, module, call, press, click }`: the opener's module under scripts/ and the call made on it
  * (`m` is the module), on the GM unless `client` names a player; with `press`, the window the opener drew is a step on
  * the way, and the one its footer's button of that action opens is captured (Pre-season checks, from the Season checklist). The list is E44's mockup set as far as an opener
  * opens it with no state built first; a window that needs one (a trial running, a vote, a roll drawn with no GM) is
@@ -130,6 +130,37 @@ const VOICE_OFF = `const v = globalThis.__probe08voice ?? {};
     if (v.rtc) Object.defineProperty(game, "webrtc", v.rtc); else delete game.webrtc;
     if (v.keys) Object.defineProperty(game, "keybindings", v.keys); else delete game.keybindings;
     delete globalThis.__probe08voice;`;
+/* E97 C5: the Investigation panel's Map view, with a small case seeded in the GMs' store (two deductions on the
+   chapter's evidence, a counter, the solution) and dropped after; the view is the GM's own User flag, stubbed for the
+   capture (`getFlag` answers "map" for it) rather than written, so the world dump is the same before and after. */
+const SEED_CASE = `const CS = await import(\`\${repoUrl}/scripts/case-schema.mjs\`);
+    const ch = (await import(\`\${repoUrl}/scripts/clock.mjs\`)).getClock().chapter;
+    const ev = CS.caseGraph(ch).nodes.filter(n => n.evidence).map(n => n.id);
+    const real = game.user.getFlag;
+    /* E97 fix (12.11.2026): one Remnant with a long name and description, so a node's whole content is what the Map
+       captures are measured on (audit/case-map-sweep.mjs); dropped with the case. */
+    const R = await import(\`\${repoUrl}/scripts/remnants.mjs\`);
+    const long = await R.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene: canvas.scene, chapter: ch, note: "probe 08 - a long Remnant" });
+    if (long) await R.setRemnantPublic(long, { name: "The torn page of the library's lending ledger, with the last borrower's name scratched out",
+        playerText: "A page torn from the ledger by the library desk. The last line is scratched out with a pen pressed hard enough to tear the paper, and the date beside it reads the night of the murder." });
+    globalThis.__probe08case = { ch, real, long, ids: ["probe08-d1", "probe08-d2", "probe08-c1", "probe08-s1", "incident-probe08a"] };
+    game.user.getFlag = function (scope, key) { return key === "investigationView" ? "map" : real.call(this, scope, key); };
+    await CS.setCaseNode(ch, "probe08-d1", { kind: "deduction", label: "The killing was before 23:40, while the library was still lit and the desk lamp on", inputs: ev.slice(0, 2), mode: "debate",
+        text: "The clock stopped at 23:40 when it fell, and the lamp's bulb was still warm when the body was found: whoever did it left before the night patrol." });
+    await CS.setCaseNode(ch, "probe08-d2", { kind: "deduction", label: "The culprit came in with a key", inputs: ev.slice(1, 3) });
+    await CS.setCaseNode(ch, "probe08-c1", { kind: "counter", label: "The clock could have stopped by itself", refutes: ["probe08-d1"] });
+    await CS.setCaseNode(ch, "probe08-s1", { kind: "solution", label: "It was done in the library", inputs: ["probe08-d1", "probe08-d2"] });
+    await CS.setCaseNode(ch, "incident-probe08a", { kind: "incident", label: "The broken display case", room: "Library" });
+    await CS.setCaseMeta(ch, { askedAt: null, run: null });`;
+const DROP_CASE = `const CS = await import(\`\${repoUrl}/scripts/case-schema.mjs\`);
+    const c = globalThis.__probe08case;
+    if (c) {
+        for (const id of c.ids) await CS.dropCaseNode(c.ch, id);
+        await CS.setCaseMeta(c.ch, { askedAt: null });
+        game.user.getFlag = c.real;
+        if (c.long) { const R = await import(\`\${repoUrl}/scripts/remnants.mjs\`); await R.dropRemnantSecret(c.long).catch(() => {}); await c.long.delete().catch(() => {}); }
+    }
+    delete globalThis.__probe08case;`;
 export const WINDOWS = [
     ...ROOM_TABS.map(tab => ({ id: `rooms-${tab}`, module: "room-setup.mjs", call: `m.openRoomSetupDialog({ tab: ${JSON.stringify(tab)} })`, perTab: false })),
     // E49 A5: Passages with four rows seeded (the header's SEEDED).
@@ -140,7 +171,13 @@ export const WINDOWS = [
     // The Season checklist, Season setup's lower half until E49 A1e, and Pre-season checks from its footer since.
     { id: "season-checklist", module: "season-setup.mjs", call: "m.openSeasonChecklist()" },
     { id: "pre-season-checks", module: "season-setup.mjs", call: "m.openSeasonChecklist()", press: "checks" },
-    { id: "investigation", module: "investigation.mjs", call: "m.openInvestigationDashboard()" },
+    { id: "investigation", module: "investigation.mjs", call: "m.openInvestigationDashboard({ view: \"table\" })" },
+    { id: "investigation--map", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, call: "m.openInvestigationDashboard()" },
+    { id: "investigation--map-node", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, click: ".drpg-case-node--deduction", call: "m.openInvestigationDashboard()" },
+    { id: "investigation--map-trace", module: "investigation.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, click: ".drpg-case-node--trace", call: "m.openInvestigationDashboard()" },
+    { id: "case-realize", module: "case-realize.mjs", before: SEED_CASE, after: DROP_CASE, call: "m.openRealization()" },
+    { id: "case-body-ask", module: "case-realize.mjs", before: SEED_CASE, after: DROP_CASE, call: "m.askAtBody(globalThis.__probe08case.ch)" },
+    { id: "gm-panel--case-asks", module: "gm-panel.mjs", before: SEED_CASE, after: DROP_CASE, perTab: false, call: "m.openGmPanel()" },
     { id: "class-trial", module: "trial-floor-ui.mjs", call: "m.manageClassTrial()" },
     // E21 C4: the trial's questions a GM opens with no world state (M13's Reveal with a row of its own, End the trial with
     // no hall, the vote window before a vote); Your turn and I volunteer open only on a round's speaker's own browser.
@@ -203,6 +240,12 @@ const capture = (repoUrl, w) => `
     if (app && open) {
         app.element.querySelector(\`nav.drpg-tabs > button[data-drpg-tab-key="\${open}"]\`)?.click();
         await new Promise(r => setTimeout(r, 150));
+    }
+    /* A node of the drawn window clicked before it is kept (E97 C5: a node of the case map picked). */
+    const click = ${JSON.stringify(w.click ?? null)};
+    if (app && click) {
+        app.element.querySelector(click)?.click();
+        await new Promise(r => setTimeout(r, 300));
     }
     const press = ${JSON.stringify(w.press ?? null)};
     if (app && press) {

@@ -8416,6 +8416,7 @@ const REGRESSIONS = [
             ["ITEM investigation.mjs#missingKeyRows", "a display (E70 C9): the console's Missing Key Remnants on a GM, from keyPlanStatus and findersByRemnant (the living holders, as the fee's) and the GMs' Key plan; writes nothing - the Reveal judges each row again on the primary (trial-modes.mjs revealRefusal in revealInStep)"],
             ["ITEM investigation.mjs#keyFeeOf", "judged: one await judgedFor, then itemsHeldNow per student in one synchronous pass (H3); the marks on the primary, the documents on another GM, as every itemsHeldNow road there; a trial's opening asks it on the primary since fix r1-G3 (askToChargeForUnfoundKeys), and a copy whose trace is gone is dated by its answer key, not its stamp"],
             ["ITEM investigation.mjs#evidenceByStudent", "out of scope: 'Who has what', a GM's display (plan 1b); C7 shares livingStudents with it"],
+            ["ITEM investigation.mjs#studentsListHtml", "out of scope: 'Who has what' by name (E97 C7, E98 C4), a GM's display of the same students and items; writes nothing"],
             ["ITEM observe.mjs#mintFindCopy", "out of scope as a reader (E70 C12, moved out of createFind with its H84 step): `copiedRemnants` asks only whether a copy of this trace is held, in the character's `serialWrite` step, for Observe's find (createFind) and a successful Tamper's copy for its author (cleanup.mjs authorsCopy, on the GM after resolveStageSix scored the roll); the fields it names are the trace's, from the GMs' row"],
             ["ITEM observe.mjs#createFind", "out of scope as a reader (H84): `copiedRemnants` - the character's bullets on the GM's documents with the GMs' answer key (secretOf) - asks only whether a copy of this trace is held, before the GM's describe window and again in the character's `serialWrite` step; a bullet a player's browser deleted reads as none held, as `observeCandidates` reads it; the fields it names are the trace's, from the GMs' row"],
             ["ITEM reroll.mjs#settleSearch", "judged: itemsAsHeld (E29)"],
@@ -20800,7 +20801,8 @@ const REGRESSIONS = [
         const roles = [...table.matchAll(/^\s+(\w+): Object\.freeze\(/gm)].map(m => m[1]);
         must(roles.length >= 6, `BUTTON_ROLES reads ${roles.length} role(s) - the table was not found`);
         equal(JSON.stringify(roles), JSON.stringify(["primary", "gmRoute", "close", "cancel", "secondary", "destructive"]), "[BUTTON_ROLES's roles]");
-        const slots = new Set(["primary", "gmRoute", "close", "secondary", "destructive", "default"]);
+        // and `rows`, the footer's layout, no button (E97 C2: ui-kit.mjs `footer.rows: 2`)
+        const slots = new Set(["primary", "gmRoute", "close", "secondary", "destructive", "default", "rows"]);
         const SITE = /\bDialogV2\s*\.\s*(wait|confirm|prompt|query|input)\s*\(|\bnew\s+(?:[\w$]+\.)*DialogV2\s*\(/g;
         const KIT = /\b(?:(?:footerMarkup|footerButtons)\s*\(\s*|footer\s*:\s*)\{/g;
         const keysOf = (blank, open) => {
@@ -22917,6 +22919,555 @@ const REGRESSIONS = [
             words: [], sectionWords: [true, true, true, true, true, true, true, true, true]
         }), "[the module loads; its sections (key, place, size, an icon); keys not in exactly one; keys no frozen one; keys of the other scope than their place; settings still config: true; "
             + "the menus registered in settings.mjs; DRPG Settings not restricted; the menus Foundry holds; keys missing a name, a hint or a first sentence in en or pl; the sections' names in both]");
+    }],
+    ["R3373 - the case schema's shapes (E97 C3): case-schema.mjs keys a node `${chapter}:${nodeId}` and the chapter's meta `${chapter}:meta`; `caseNodeOf` keeps a deduction, a counter or a solution with its label, text, inputs, refutes, mode, order and made, and nothing of another kind; `caseMetaOf` reads sort, manual, run and askedAt with \"kind\" for a sort it does not know; `graphOf` joins the chapter's rows to its traces, Key slots and Final Truth by key, a placed slot standing for its trace; `caseModes` is floor-machine.mjs's MODES", async () => {
+        /*
+         * E97 C3, 11.11.2026; STAGE C3 "tier 0 shapes" (E99 reads them). The case map's own rows are what a GM builds
+         * on top of the evidence: deductions, counters and the solution, each `{ kind, label, text, inputs, refutes,
+         * mode, order, made }`, and one meta row per chapter `{ sort, manual, run, askedAt }`. Evidence is not a row:
+         * a trace is a node under its ledger key, a Key slot under `key:<slot>` while it is planned and as its trace
+         * once placed (its `key:<slot>` read as the trace's), the Final Truth as the trace it is. A reference to a node
+         * that is not there is kept and named (`missing`; C8 reads it). Pure; nothing is read from the world. Red at
+         * 37409aee: there is no case-schema.mjs.
+         */
+        let S = null;
+        try { S = await import("./case-schema.mjs"); } catch { S = null; }
+        must(S && typeof S.graphOf === "function", "there is no case-schema.mjs with graphOf - the case schema has no shape to read");
+        const { MODES } = await import("./floor-machine.mjs");
+        const rows = {
+            "deduction-a": { kind: "deduction", label: "R3373 who", text: "", inputs: ["S1.T1", "key:1", "S1.T1", 7], mode: "debate", order: 2 },
+            "counter-b": { kind: "counter", label: "R3373 no", refutes: ["deduction-a"] },
+            "solution-c": { kind: "solution", label: "R3373 it was", inputs: ["deduction-a", "gone-node"] },
+            "other-d": { kind: "item", label: "R3373 not a node" }
+        };
+        const traces = [
+            { key: "S1.T1", type: "prep", name: "R3373 knife", tiedToCrime: true, room: "Gym" },
+            { key: "S1.T2", type: "key", name: "R3373 key one", tiedToCrime: true, room: "Hall" },
+            { key: "S1.T3", type: "final", name: "R3373 final", tiedToCrime: true, room: "Hall" },
+            { key: "S1.T4", type: "neutral", name: "R3373 laundry", tiedToCrime: null, room: "Pool" }
+        ];
+        const slots = [{ slot: 0, name: "R3373 planned", tokenId: null, sceneId: null }, { slot: 1, name: "R3373 key one", tokenId: "T2", sceneId: "S1" }];
+        const g = S.graphOf({ chapter: 2, rows, meta: { sort: "nonsense", manual: { "S1.T1": 1, bad: "x" } }, traces, slots });
+        const brief = n => [n.id, n.kind, n.evidence, n.planned ?? false, n.slot ?? null];
+        equal(JSON.stringify({
+            keys: [S.caseKeyOf(2, "deduction-a"), S.caseMetaKey(2), S.validNodeId("meta"), S.validNodeId("a:b"), S.validNodeId("deduction-x1")],
+            node: S.caseNodeOf(rows["deduction-a"]), other: S.caseNodeOf(rows["other-d"]), empty: S.caseNodeOf({ kind: "counter" }),
+            meta: [S.caseMetaOf({ sort: "nonsense", manual: { a: 1, b: "x" }, run: 5, askedAt: "x" }), S.caseMetaOf({ sort: "room", run: "R1", askedAt: 9 })],
+            sorts: S.CASE_SORTS, kinds: S.CASE_KINDS,
+            nodes: g.nodes.map(brief), edges: g.edges, missing: g.missing, gmeta: g.meta.sort,
+            modes: JSON.stringify(S.caseModes()) === JSON.stringify(Object.values(MODES))
+        }), JSON.stringify({
+            keys: ["2:deduction-a", "2:meta", false, false, true],
+            node: { kind: "deduction", label: "R3373 who", text: "", inputs: ["S1.T1", "key:1"], refutes: [], mode: "debate", order: 2, made: null, room: null, trace: null },
+            other: null, empty: { kind: "counter", label: "", text: "", inputs: [], refutes: [], mode: null, order: null, made: null, room: null, trace: null },
+            meta: [{ sort: "kind", manual: { a: 1 }, run: null, askedAt: null, made: {} }, { sort: "room", manual: {}, run: "R1", askedAt: 9, made: {} }],
+            sorts: ["manual", "kind", "room", "state", "uncrossed"], kinds: ["deduction", "counter", "solution", "incident"],
+            nodes: [["S1.T1", "trace", true, false, null], ["S1.T2", "key", true, false, 1], ["S1.T3", "final", true, false, null], ["S1.T4", "trace", true, false, null],
+                ["key:0", "key", true, true, 0], ["deduction-a", "deduction", false, false, null], ["counter-b", "counter", false, false, null], ["solution-c", "solution", false, false, null]],
+            edges: [{ from: "S1.T1", to: "deduction-a", kind: "input" }, { from: "S1.T2", to: "deduction-a", kind: "input" },
+                { from: "counter-b", to: "deduction-a", kind: "refutes" }, { from: "deduction-a", to: "solution-c", kind: "input" }],
+            missing: [{ node: "solution-c", ref: "gone-node" }], gmeta: "kind", modes: true
+        }), "[the keys and which node ids are refused; a deduction's row, a row of no kind of the schema's, a counter with nothing; the meta read; the sorts and kinds; the graph's nodes (evidence first, a placed slot as its trace), its edges (a slot's alias read as its trace), what it names that is not there, its sort; the modes are MODES]");
+    }],
+    ["R3375 - the case map's layout (E97 C4): case-layout.mjs `layoutCase` puts evidence in the first column, each deduction and counter one past its deepest input (a counter with none beside what it refutes) and the solution last; evidence not tied to the murder and named by nothing below the rest after a one-row gap; the five orders by the GM's arrows, by kind, by room, by state, and with the fewest crossings, which lays the proposal's case with none (`crossings`); a cycle of inputs is refused", async () => {
+        /*
+         * E97 C4, 11.11.2026; STAGE C4 (E99 reads it). Pure: a graph of case-schema.mjs `graphOf` in, columns and rows
+         * out; C5 draws the nodes where this puts them and the edges between. The proposal's case (proposal/index.html
+         * v2, gen2.py `map_svg` and `base_edges`, 09.11.2026): seven traces tied to the murder and three not, W1 from the
+         * clock and the autopsy, K1 from the caretaker's note refuting W1, W2 from the key and the broken case, W3 from
+         * the paint and the wiped prints, W4 from W2 and W3, K2 refuting W4, the Final Truth from W1 and W4 - handed in
+         * shuffled, laid out "uncrossed" with no crossing, and in the order the proposal drew it ("manual") with none
+         * either; four traces and two deductions drawn crossed by kind order (3 crossings) and uncrossed (0). Red at
+         * df01bc77: there is no case-layout.mjs.
+         */
+        let L = null;
+        try { L = await import("./case-layout.mjs"); } catch { L = null; }
+        must(L && typeof L.layoutCase === "function" && typeof L.crossings === "function", "there is no case-layout.mjs with layoutCase and crossings - the map has no layout to read");
+        const { graphOf } = await import("./case-schema.mjs");
+        const ev = (key, type, name, tied, room = null, foundAt = null) => ({ key, type, name, tiedToCrime: tied ? true : null, room, foundAt });
+        const traces = [
+            ev("S.slady", "prep", "Starte slady butow", true, "Pracownia"), ev("S.u2", "faint", "Odcisk na klamce", false, "Hol", 5),
+            ev("S.zegar", "key", "Zatrzymany zegar", true, "Biblioteka", 3), ev("S.farba", "prep", "Farba na rekawiczce", true, "Pracownia"),
+            ev("S.u1", "neutral", "Kurz na regale", false, "Biblioteka"), ev("S.autopsja", "prep", "Cios w tyl glowy", true, null, 2),
+            ev("S.klucz", "key", "Klucz do archiwum", true, "Archiwum", 4), ev("S.gablota", "prep", "Rozbita gablota", true, "Hol"),
+            ev("S.notatka", "neutral", "Notatka konserwatora", true, "Biblioteka", 1), ev("S.u3", "neutral", "Mokry parasol", false, "Hol")
+        ];
+        const rows = {
+            s: { kind: "solution", label: "Final Truth", inputs: ["w1", "w4"] },
+            w4: { kind: "deduction", label: "W4", inputs: ["w2", "w3"] }, k2: { kind: "counter", label: "K2", refutes: ["w4"] },
+            w3: { kind: "deduction", label: "W3", inputs: ["S.farba", "S.slady"] }, w2: { kind: "deduction", label: "W2", inputs: ["S.klucz", "S.gablota"] },
+            k1: { kind: "counter", label: "K1", inputs: ["S.notatka"], refutes: ["w1"] }, w1: { kind: "deduction", label: "W1", inputs: ["S.zegar", "S.autopsja"] }
+        };
+        const drawn = ["S.zegar", "S.autopsja", "S.notatka", "S.klucz", "S.gablota", "S.farba", "S.slady", "w1", "k1", "w2", "w3", "w4", "k2", "s"];
+        const g = graphOf({ chapter: 1, rows, traces, slots: [] });
+        const lay = opts => L.layoutCase(g, opts);
+        const un = lay({ sort: "uncrossed" });
+        const manual = lay({ sort: "manual", manual: Object.fromEntries(drawn.map((id, i) => [id, i])) });
+        const col = (layout, i) => layout.columns[i];
+        const small = graphOf({ chapter: 1, traces: ["a", "b", "c", "d"].map(k => ev(`S.${k}`, "prep", k, true)),
+            rows: { x: { kind: "deduction", label: "x", inputs: ["S.b", "S.d"] }, y: { kind: "deduction", label: "y", inputs: ["S.a", "S.c"] } } });
+        const smallKind = L.layoutCase(small, { sort: "kind" }), smallUn = L.layoutCase(small, { sort: "uncrossed" });
+        const cyc = L.layoutCase(graphOf({ chapter: 1, rows: { a: { kind: "deduction", inputs: ["b"] }, b: { kind: "deduction", inputs: ["a"] }, c: { kind: "solution", inputs: ["a"] } } }), { sort: "kind" });
+        equal(JSON.stringify({
+            columns: un.columns.map(c => [...c].sort()), unrelated: un.unrelated, gapAt: un.gapAt,
+            unrelatedRows: un.unrelated.map(id => un.positions[id].row),
+            crossings: [L.crossings(un, g.edges), L.crossings(manual, g.edges)], manualOrder: manual.columns.map(c => c.filter(id => !un.unrelated.includes(id))),
+            kind: [col(lay({ sort: "kind" }), 0).slice(0, 7), col(lay({ sort: "kind" }), 1)],
+            room: col(lay({ sort: "room" }), 0).slice(0, 7), state: col(lay({ sort: "state" }), 0).slice(0, 7),
+            small: [L.crossings(smallKind, small.edges), L.crossings(smallUn, small.edges)],
+            cycle: [cyc.cycle, cyc.columns], sorts: L.LAYOUT_SORTS
+        }), JSON.stringify({
+            columns: [["S.autopsja", "S.farba", "S.gablota", "S.klucz", "S.notatka", "S.slady", "S.u1", "S.u2", "S.u3", "S.zegar"], ["k1", "w1", "w2", "w3"], ["k2", "w4"], ["s"]],
+            unrelated: ["S.u1", "S.u3", "S.u2"], gapAt: 7, unrelatedRows: [8, 9, 10],
+            crossings: [0, 0], manualOrder: [drawn.slice(0, 7), ["w1", "k1", "w2", "w3"], ["w4", "k2"], ["s"]],
+            kind: [["S.klucz", "S.zegar", "S.autopsja", "S.farba", "S.notatka", "S.gablota", "S.slady"], ["w1", "w2", "w3", "k1"]],
+            room: ["S.klucz", "S.zegar", "S.notatka", "S.gablota", "S.farba", "S.slady", "S.autopsja"],
+            state: ["S.notatka", "S.autopsja", "S.zegar", "S.klucz", "S.farba", "S.gablota", "S.slady"],
+            small: [3, 0], cycle: [["a", "b"], []], sorts: ["manual", "kind", "room", "state", "uncrossed"]
+        }), "[each column's nodes; the unrelated traces, the row the gap takes and theirs; crossings uncrossed and in the proposal's order; that order kept; by kind (Key Remnants first, then by name; deductions, then counters); by room, then by kind, a trace in no room last; by state, found first and earliest; the small case crossed by kind and not uncrossed; the cycle refused; the sorts]");
+    }],
+    ["R3376 - a deduction is reachable past half (E97 C4; the owner's A and B of 09.11): case-schema.mjs `reachability` counts an evidence input held when a living student other than the culprit holds a bullet of it and a schema input when it is reachable or ticked, and a node is reachable when it holds strictly more than half its inputs - 1, 2, 2, 3 and 3 of 1 to 5 - a bullet only the culprit holds counting for nothing", async () => {
+        /*
+         * E97 C4, 11.11.2026; STAGE C4, DECISIONS A ("strictly more than half (2 inputs = both, 4 = three)") and B ("a
+         * bullet held only by the culprit does not count"). Pure: a graph of `graphOf`, the holders of each evidence node
+         * (actor ids, as truth-bullets.mjs's bullets name them), the culprit (`castStore` `killerId` at C7) and the
+         * living, and E99's ticks (empty until then). Five deductions of one to five inputs, each held at one less than
+         * it needs and at what it needs; an input the culprit alone holds, then the culprit and another; a dead holder;
+         * a deduction of a deduction, reachable and ticked. Red at df01bc77: no `reachability`.
+         */
+        const S = await import("./case-schema.mjs");
+        must(typeof S.reachability === "function", "case-schema.mjs exports no reachability - the map has no count to show");
+        const E = ["e1", "e2", "e3", "e4", "e5"].map(k => `S.${k}`);
+        const traces = [...E, "S.c"].map(key => ({ key, type: "prep", name: key, tiedToCrime: true }));
+        const rows = Object.fromEntries([1, 2, 3, 4, 5].map(n => [`d${n}`, { kind: "deduction", label: `d${n}`, inputs: E.slice(0, n) }]));
+        Object.assign(rows, { cul: { kind: "deduction", inputs: ["S.c"] }, up: { kind: "deduction", inputs: ["d2"] }, tick: { kind: "deduction", inputs: ["cul"] },
+            none: { kind: "counter", inputs: [] } });
+        const g = S.graphOf({ chapter: 1, rows, traces });
+        const hold = k => Object.fromEntries(E.slice(0, k).map(id => [id, ["A"]]));
+        const at = (holders, opts = {}) => S.reachability(g, holders, { culpritId: "K", living: ["A", "B", "K"], ...opts });
+        const needed = [1, 2, 3, 4, 5].map(n => at({})[`d${n}`].needed);
+        const under = [1, 2, 3, 4, 5].map(n => at(hold(needed[n - 1] - 1))[`d${n}`].reachable);
+        const met = [1, 2, 3, 4, 5].map(n => at(hold(needed[n - 1]))[`d${n}`]);
+        const culprit = [at({ "S.c": ["K"] }).cul, at({ "S.c": ["K", "B"] }).cul, at({ "S.c": ["D"] }).cul.reachable];
+        const deep = [at(hold(2)).up.reachable, at(hold(1)).up.reachable, at({}, { ticks: { cul: true } }).tick.reachable, at({}).tick.reachable];
+        const evidence = [at({ "S.c": ["K"] })["S.c"], at({ "S.c": ["K", "B", "B"] })["S.c"]];
+        equal(JSON.stringify({ needed, under, met: met.map(r => [r.held, r.of, r.reachable]), culprit, deep, evidence, none: at({}).none }), JSON.stringify({
+            needed: [1, 2, 2, 3, 3], under: [false, false, false, false, false],
+            met: [[1, 1, true], [2, 2, true], [2, 3, true], [3, 4, true], [3, 5, true]],
+            culprit: [{ held: 0, of: 1, needed: 1, reachable: false }, { held: 1, of: 1, needed: 1, reachable: true }, false],
+            deep: [true, false, true, false],
+            evidence: [{ held: false, holders: [], culpritOnly: true }, { held: true, holders: ["B"], culpritOnly: false }],
+            none: { held: 0, of: 0, needed: 1, reachable: false }
+        }), "[what 1 to 5 inputs need; each at one less; each at what it needs (held, of, reachable); the culprit's bullet alone, with another's, a dead holder's; a deduction of a reachable deduction, of an unreachable one, ticked, unticked; an evidence node held by the culprit alone and by another; a node with no inputs]");
+    }],
+    ["R3651 - the case map's drawing (E97 C5; case-map.mjs): `mapPlace` puts a node at its column and row in MAP_GEOMETRY's pixels with the gap's middle; `edgePath` curves from a node's right edge to the next column's left and brackets two nodes of one column on their left; `nodeState` reads planned, held (a student's copy, by the key's token id) and on the map; `caseGraphHtml` draws one button per placed node with its kind, name, state and author in its label, the name escaped, the picked node current, one path per edge, and a fold that leaves the unrelated evidence out and keeps its head; `neighbourOf` walks to the nearest node an arrow points at", async () => {
+        /*
+         * E97 C5, 12.11.2026; STAGE C5 "HTML node buttons over one SVG edge layer". Pure: a graph of case-schema.mjs
+         * `graphOf` laid out by case-layout.mjs `layoutCase`, drawn as markup and read back. jsdom lays nothing out, so
+         * positions are the numbers the drawing states; how it looks is the commit's Chromium reading. Red at e320102:
+         * there is no case-map.mjs.
+         */
+        let M = null;
+        try { M = await import("./case-map.mjs"); } catch { M = null; }
+        must(M && typeof M.caseGraphHtml === "function", "there is no case-map.mjs with caseGraphHtml - the case has no map");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const g = M.MAP_GEOMETRY;
+        const graph = S.graphOf({
+            chapter: 3,
+            rows: { "d-a": { kind: "deduction", label: "R3651 <b>who</b>", inputs: ["S.T1"] }, "c-b": { kind: "counter", label: "R3651 no", refutes: ["d-a"] } },
+            traces: [{ key: "S.T1", type: "prep", name: "R3651 knife", tiedToCrime: true }, { key: "S.T2", type: "neutral", name: "R3651 dust", tiedToCrime: false }],
+            slots: [{ slot: 0, name: "" }]
+        });
+        const layout = layoutCase(graph, { sort: "kind" });
+        const place = M.mapPlace(layout);
+        const finders = new Map([["T1", new Set(["R3651 Aiko"])]]);
+        const authors = new Map([["S.T1", "R3651 Botan"]]);
+        const read = html => {
+            const d = document.createElement("div");
+            d.innerHTML = html;
+            return {
+                buttons: [...d.querySelectorAll("button[data-drpg-node]")].map(b => [b.dataset.drpgNode, b.getAttribute("aria-label"), b.getAttribute("aria-current"),
+                    b.style.left, b.style.top]),
+                paths: [...d.querySelectorAll("path[data-drpg-edge]")].map(p => p.dataset.drpgEdge),
+                bold: d.querySelectorAll("b").length, fold: d.querySelector("[data-drpg-case-fold]")?.getAttribute("aria-expanded") ?? null
+            };
+        };
+        const L = k => game.i18n.localize(k);
+        const open = read(M.caseGraphHtml({ graph, layout, finders, authors, selected: "d-a" }));
+        const folded = read(M.caseGraphHtml({ graph, layout, finders, authors, fold: true }));
+        // a place's x and y (its measured w and h are R3660's, E97 fix)
+        const xy = p => (p ? { x: p.x, y: p.y } : null);
+        const pts = [{ id: "a", x: 0, y: 0 }, { id: "b", x: 0, y: 66 }, { id: "c", x: 244, y: 0 }, { id: "d", x: 244, y: 66 }];
+        equal(JSON.stringify({
+            at: [xy(place.at["key:0"]), xy(place.at["d-a"]), place.gapY],
+            edges: [M.edgePath({ x: 0, y: 0 }, { x: 244, y: 66 }), M.edgePath({ x: 244, y: 132 }, { x: 244, y: 66 })],
+            states: graph.nodes.map(n => [n.id, M.nodeState(n, finders)]),
+            open, folded: [folded.buttons.map(b => b[0]), folded.fold],
+            arrows: [M.neighbourOf(pts, "a", "ArrowRight"), M.neighbourOf(pts, "a", "ArrowDown"), M.neighbourOf(pts, "d", "ArrowUp"), M.neighbourOf(pts, "a", "ArrowLeft")]
+        }), JSON.stringify({
+            at: [{ x: g.pad, y: g.head + g.pad }, { x: g.pad + g.nodeW + g.colGap, y: g.head + g.pad }, g.head + g.pad + layout.gapAt * g.pitch + Math.round(g.nodeH / 2)],
+            // a node's least width is MAP_GEOMETRY's (196 at C5, 240 since the E97 fix): the curve's start and middle follow it
+            edges: [`M${g.nodeW} 27 C${Math.round((g.nodeW + 244) / 2)} 27 ${Math.round((g.nodeW + 244) / 2)} 93 244 93`, `M244 159 H232 V93 H244`],
+            states: [["S.T1", "held"], ["S.T2", "onMap"], ["key:0", "planned"], ["d-a", "schema"], ["c-b", "schema"]],
+            open: {
+                buttons: layout.columns.flat().map(id => {
+                    const n = graph.nodes.find(x => x.id === id), p = place.at[id];
+                    const label = {
+                        "S.T1": `Prep Remnant, R3651 knife, ${L("DRPG.CaseMap.state.held")}, ${game.i18n.format("DRPG.CaseMap.leftBy", { name: "R3651 Botan" })}`,
+                        "S.T2": `Neutral Remnant, R3651 dust, ${L("DRPG.CaseMap.state.onMap")}`,
+                        "key:0": `${L("DRPG.CaseMap.kind.slot")}, ${game.i18n.format("DRPG.CaseMap.slotNumber", { n: 1 })}, ${L("DRPG.CaseMap.state.planned")}`,
+                        "d-a": `${L("DRPG.CaseMap.kind.deduction")}, R3651 <b>who</b>`,
+                        "c-b": `${L("DRPG.CaseMap.kind.counter")}, R3651 no`
+                    }[n.id];
+                    return [id, label, id === "d-a" ? "true" : null, `${p.x}px`, `${p.y}px`];
+                }),
+                paths: ["S.T1>d-a", "c-b>d-a"], bold: 0, fold: "true"
+            },
+            folded: [layout.columns.flat().filter(id => !layout.unrelated.includes(id)), "false"],
+            arrows: ["c", "b", "c", null]
+        }), "{at: a node's place and the gap's middle; edges: across a column and within one; states: each node's; open: the drawn graph [each button's id, label, current, left, top; the edges; a bold tag escaped; the fold open]; folded: the buttons left and the fold shut; arrows: right, down, up, left from a corner}");
+    }],
+    ["R3654 - the case's consistency (E97 C8; case-schema.mjs `checkCase`, Q-E97-7's default): a clean case reads no problem; each fault reads its code on its node - a deduction resting on nothing, a node on a cycle, a reference to a node that is gone, a counter refuting nothing, deductions with no solution, a second solution, a solution whose every input is gone, a mode the trial lacks, an input only the culprit holds, more Key Remnants than a chapter prepares", async () => {
+        /*
+         * E97 C8, 12.11.2026. Pure: graphs of `graphOf` with one fault each, `reach` of `reachability` with a culprit.
+         * Red at a7146dd: case-schema.mjs exports no checkCase.
+         */
+        const S = await import("./case-schema.mjs");
+        must(typeof S.checkCase === "function", "case-schema.mjs exports no checkCase - the case has no consistency check");
+        const traces = [{ key: "S.T1", type: "prep", name: "a", tiedToCrime: true }, { key: "S.T2", type: "key", name: "b", tiedToCrime: true }];
+        const g = rows => S.graphOf({ chapter: 1, rows, traces });
+        const codes = (rows, opts = {}) => S.checkCase(g(rows), opts).map(p => [p.code, p.node, p.ref ?? null]);
+        const clean = { "d1": { kind: "deduction", label: "d", inputs: ["S.T1", "S.T2"], mode: "debate" }, "c1": { kind: "counter", label: "c", refutes: ["d1"] },
+            "s1": { kind: "solution", label: "s", inputs: ["d1"] } };
+        const culprit = S.reachability(g(clean), { "S.T1": ["K"], "S.T2": ["A"] }, { culpritId: "K" });
+        equal(JSON.stringify({
+            clean: codes(clean),
+            noInputs: codes({ ...clean, d2: { kind: "deduction", label: "e" } }),
+            cycle: S.checkCase(g(clean), { cycle: ["d1"] }).map(p => p.code),
+            missing: codes({ ...clean, s1: { kind: "solution", label: "s", inputs: ["d1", "gone"] } }),
+            noTarget: codes({ ...clean, c1: { kind: "counter", label: "c" } }),
+            noSolution: codes({ d1: clean.d1 }),
+            twoSolutions: codes({ ...clean, s2: { kind: "solution", label: "t", inputs: ["d1"] } }),
+            unreached: codes({ ...clean, s1: { kind: "solution", label: "s", inputs: ["gone"] } }),
+            badMode: codes({ ...clean, d1: { ...clean.d1, mode: "rapGame" } }),
+            culpritOnly: S.checkCase(g(clean), { reach: culprit }).map(p => [p.code, p.node, p.ref]),
+            keys: S.checkCase(g(clean), { keyMax: 0 }).map(p => [p.code, p.ref])
+        }), JSON.stringify({
+            clean: [],
+            noInputs: [["noInputs", "d2", null]],
+            cycle: ["cycle"],
+            missing: [["missing", "s1", "gone"]],
+            noTarget: [["noTarget", "c1", null]],
+            noSolution: [["noSolution", null, null]],
+            twoSolutions: [["twoSolutions", "s2", null]],
+            unreached: [["missing", "s1", "gone"], ["solutionUnreached", "s1", null]],
+            badMode: [["badMode", "d1", "rapGame"]],
+            culpritOnly: [["culpritOnly", "d1", "S.T1"]],
+            keys: [["tooManyKeys", "1"]]
+        }), "{each case: what checkCase names [code, node, what it names]}");
+    }],
+    ["R3655 - what the Map draws of a node's reach and problems (E97 C7, C8; case-map.mjs): a deduction past half reads \"x/y\" marked reachable, one short of it unmarked, evidence none; a node with a problem is marked and says so in its label; the overview (the side panel's summary until the E97 fix) lists every problem in words and carries the Check consistency button, and the open node lists its own on itself", async () => {
+        /*
+         * E97 C7, C8, 12.11.2026; the owner's A of 09.11 ("strictly more than half"). Pure drawing of a fixture graph.
+         * Red at a7146dd: no reach and no problems drawn.
+         */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        must(typeof S.checkCase === "function", "case-schema.mjs exports no checkCase - nothing to draw");
+        const traces = [{ key: "S.T1", type: "prep", name: "a", tiedToCrime: true }, { key: "S.T2", type: "key", name: "b", tiedToCrime: true }];
+        const graph = S.graphOf({ chapter: 1, traces, rows: {
+            "d-one": { kind: "deduction", label: "one", inputs: ["S.T1"] }, "d-two": { kind: "deduction", label: "two", inputs: ["S.T1", "S.T2"] },
+            "d-none": { kind: "deduction", label: "none" } } });
+        const layout = layoutCase(graph);
+        const reach = S.reachability(graph, { "S.T1": ["A"] });
+        const problems = S.checkCase(graph, { reach });
+        const d = document.createElement("div");
+        d.innerHTML = M.caseMapHtml({ graph, layout, reach, problems, reading: {} });
+        const btn = id => d.querySelector(`[data-drpg-node="${id}"]`);
+        const reachOf = id => { const r = btn(id)?.querySelector(".drpg-case-node-reach"); return r ? [r.textContent, r.classList.contains("is-reachable")] : null; };
+        const d2 = document.createElement("div");
+        d2.innerHTML = M.caseMapHtml({ graph, layout, reach, problems, reading: { node: "d-none" } });
+        equal(JSON.stringify({
+            reach: ["d-one", "d-two", "S.T1"].map(reachOf),
+            warn: ["d-none", "d-one"].map(id => [btn(id)?.classList.contains("has-warn"), (btn(id)?.getAttribute("aria-label") ?? "").includes(game.i18n.localize("DRPG.CaseMap.hasProblem"))]),
+            list: [...d.querySelectorAll(".drpg-case-problems li")].map(li => li.textContent),
+            check: Boolean(d.querySelector("[data-drpg-case-check]")),
+            picked: [...d2.querySelectorAll('.drpg-case-edit[data-drpg-edit="d-none"]:not([hidden]) .drpg-case-info-warn')].map(p => p.textContent)
+        }), JSON.stringify({
+            reach: [["1/1", true], ["1/2", false], null],
+            warn: [[true, true], [false, false]],
+            list: [game.i18n.format("DRPG.CaseMap.problem.noInputs", { node: "none", ref: "" }), game.i18n.localize("DRPG.CaseMap.problem.noSolution")],
+            check: true,
+            picked: [game.i18n.format("DRPG.CaseMap.problem.noInputs", { node: "none", ref: "" })]
+        }), "{reach: the x/y and its mark on a deduction past half, one at half, and evidence; warn: a node with a problem and one without [marked, said]; list: the summary's problems; check: its button; picked: the picked node's own problems}");
+    }],
+    ["R3657 - what a realization would do, and a planned Incident Remnant (E97 C10, C12): case-realize.mjs `realizationLines` reads each Key plan slot as \"create\" (not on the map, within the limit), \"placed\" or \"overLimit\"; case-schema.mjs `graphOf` draws an incident row as planned evidence in the first column until its Remnant is on the map, then as that Remnant, an input naming the row read as the Remnant's", async () => {
+        /*
+         * E97 C10, C12, 12.11.2026. Pure. Red at df8be16's parent (a860754): no case-realize.mjs, no incident kind.
+         */
+        let R = null;
+        try { R = await import("./case-realize.mjs"); } catch { R = null; }
+        must(R && typeof R.realizationLines === "function", "there is no case-realize.mjs with realizationLines - the case cannot be realized");
+        const S = await import("./case-schema.mjs");
+        const plan = { chapter: 2, entries: [{ name: "a", tokenId: "T1", sceneId: "S" }, { name: "b" }, { name: "c" }, { name: "d" }] };
+        const status = { entries: [{ placed: true }, { placed: false }, { placed: false }, { placed: false }] };
+        const lines = R.realizationLines({ plan, status, limit: 3 }).map(l => [l.action, l.slot]);
+        const unlimited = R.realizationLines({ plan, status, limit: null }).map(l => l.action);
+        const traces = [{ key: "S.T9", type: "incident", name: "glass", tiedToCrime: true }];
+        const rows = { "incident-a": { kind: "incident", label: "broken case", room: "Library" }, "deduction-x": { kind: "deduction", label: "x", inputs: ["incident-a"] } };
+        const planned = S.graphOf({ chapter: 2, traces: [], rows });
+        const placed = S.graphOf({ chapter: 2, traces, rows: { ...rows, "incident-a": { ...rows["incident-a"], trace: "S.T9" } } });
+        const brief = g => g.nodes.map(n => [n.id, n.kind, n.evidence, n.planned, n.incident ?? null]);
+        equal(JSON.stringify({ lines, unlimited, planned: [brief(planned), planned.edges], placed: [brief(placed), placed.edges] }), JSON.stringify({
+            lines: [["placed", 0], ["create", 1], ["create", 2], ["overLimit", 3]],
+            unlimited: ["placed", "create", "create", "create"],
+            planned: [[["incident-a", "incident", true, true, "incident-a"], ["deduction-x", "deduction", false, false, null]], [{ from: "incident-a", to: "deduction-x", kind: "input" }]],
+            placed: [[["S.T9", "trace", true, false, "incident-a"], ["deduction-x", "deduction", false, false, null]], [{ from: "S.T9", to: "deduction-x", kind: "input" }]]
+        }), "{lines: each slot's line under a limit of 3; unlimited: with none; planned, placed: the graph's nodes [id, kind, evidence, planned, incident row] and edges, before and after the Remnant is on the map}");
+    }],
+    ["R3660 - every node of the case map is sized to its whole content (E97 fix; the owner's review of 12.11.2026, \"opisy sa poucinane\"): `mapPlace` given each node's measured size stacks a column with no two nodes overlapping, keeps the gap's row and widens a column to its widest node; `edgePath` meets each node's measured middle; `relayoutCaseMap` places the drawn nodes and redraws the edges at the sizes it reads; a node draws its whole name and words; and no rule of the module's sheets cuts a node's text (a fixed height, a line clamp, an ellipsis, nowrap or overflow hidden)", async () => {
+        /*
+         * E97 fix, 12.11.2026. Pure geometry, the drawing read back, and the stylesheets' text; the look itself is
+         * measured in Chromium (audit/case-map-sweep.mjs, STATUS-FIX.md). The DOM step runs on a detached canvas whose
+         * nodes are given their sizes by hand (offsetWidth and offsetHeight defined on each), so it reads the same in
+         * jsdom and in Foundry. Red at fa73b601: there is no case-view.mjs.
+         */
+        let V = null;
+        try { V = await import("./case-view.mjs"); } catch { V = null; }
+        must(V && typeof V.relayoutCaseMap === "function", "there is no case-view.mjs with relayoutCaseMap - a node keeps the fixed box that cuts its text");
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const g = V.MAP_GEOMETRY;
+        const long = "R3660 ".repeat(40).trim();
+        const graph = S.graphOf({
+            chapter: 3,
+            rows: { "d-a": { kind: "deduction", label: long, text: `R3660 note ${long}`, inputs: ["S.T1", "S.T2"], mode: "debate" },
+                "d-b": { kind: "deduction", label: "R3660 b", inputs: ["S.T2"] }, "s-c": { kind: "solution", label: "R3660 c", inputs: ["d-a", "d-b"] } },
+            traces: [{ key: "S.T1", type: "prep", name: "R3660 knife", text: "R3660 words of the knife", tiedToCrime: true },
+                { key: "S.T2", type: "neutral", name: "R3660 dust", tiedToCrime: true }, { key: "S.T3", type: "neutral", name: "R3660 loose", tiedToCrime: false }]
+        });
+        const layout = layoutCase(graph, { sort: "kind" });
+        const sizes = new Map([["S.T1", { w: 196, h: 140 }], ["S.T2", { w: 196, h: 90 }], ["d-a", { w: 352, h: 400 }], ["d-b", { w: 196, h: 54 }], ["s-c", { w: 196, h: 60 }]]);
+        const place = V.mapPlace(layout, g, sizes);
+        const boxes = Object.entries(place.at);
+        const overlaps = [];
+        for (const [a, p] of boxes) for (const [b, q] of boxes) {
+            if (a < b && p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h) overlaps.push(`${a}/${b}`);
+        }
+        const colOf = id => layout.positions[id].col;
+        const dCol = colOf("d-a");
+        // the drawing: the whole name and words on the node, and the place data the relayout reads
+        const host = document.createElement("div");
+        host.innerHTML = M.caseGraphHtml({ graph, layout, editors: new Map() });
+        const canvas = host.querySelector(".drpg-case-canvas");
+        const btn = id => canvas?.querySelector(`button[data-drpg-node="${CSS.escape(id)}"]`);
+        const drawn = { name: btn("d-a")?.querySelector(".drpg-case-node-name")?.textContent ?? null, text: btn("d-a")?.querySelector(".drpg-case-node-text")?.textContent ?? null,
+            trace: btn("S.T1")?.querySelector(".drpg-case-node-text")?.textContent ?? null, title: btn("d-a")?.hasAttribute("title") ?? null };
+        // the relayout at the sizes each node reads
+        for (const [id, s] of sizes) {
+            const b = btn(id);
+            if (!b) continue;
+            Object.defineProperty(b, "offsetWidth", { configurable: true, get: () => s.w });
+            Object.defineProperty(b, "offsetHeight", { configurable: true, get: () => s.h });
+        }
+        const laid = canvas ? V.relayoutCaseMap(canvas) : null;
+        const at = id => ({ x: parseFloat(btn(id)?.style.left), y: parseFloat(btn(id)?.style.top) });
+        const path = canvas?.querySelector('path[data-drpg-edge="S.T1>d-a"]')?.getAttribute("d") ?? null;
+        let rules = "";
+        try { rules = await moduleStyles(); } catch { rules = ""; }
+        must(rules.length > 2000, `the module's stylesheets read ${rules.length} characters - this test would read nothing`);
+        const cuts = [];
+        for (const m of rules.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+            const sel = m[1].trim(), body = m[2];
+            if (!/drpg-case-node(?!--)|drpg-case-node-(?:head|kind|name|text|mode|state)/.test(sel)) continue;
+            for (const [what, re] of [["line-clamp", /line-clamp\s*:/], ["ellipsis", /text-overflow\s*:\s*ellipsis/], ["nowrap", /white-space\s*:\s*nowrap/],
+                ["overflow hidden", /(?:^|;|\s)overflow(?:-[xy])?\s*:\s*hidden/], ["a fixed height", /(?:^|;|\s)(?:max-)?height\s*:\s*\d/]]) if (re.test(body)) cuts.push(`${sel}: ${what}`);
+        }
+        equal(JSON.stringify({
+            overlaps, heights: ["S.T1", "S.T2", "d-a"].map(id => place.at[id]?.h),
+            stack: place.at["S.T2"] && place.at["S.T1"] ? Math.abs(place.at["S.T2"].y - place.at["S.T1"].y) - (layout.positions["S.T2"].row > layout.positions["S.T1"].row ? 140 : 90) : null,
+            colX: place.cols[dCol].x - (place.cols[dCol - 1].x + place.cols[dCol - 1].w), colW: place.cols[dCol].w,
+            gap: place.gapY !== null && place.gapY > Math.max(place.at["S.T1"].y + 140, place.at["S.T2"].y + 90) && place.gapY < place.at["S.T3"].y,
+            edge: V.edgePath({ x: 0, y: 0, w: 196, h: 140 }, { x: 244, y: 10, w: 352, h: 400 }),
+            drawn, laid: Boolean(laid), placed: ["S.T1", "S.T2", "d-a", "d-b", "s-c"].map(id => [at(id).x === place.at[id].x, at(id).y === place.at[id].y]),
+            path: path === V.edgePath(place.at["S.T1"], place.at["d-a"]), measured: canvas?.dataset.drpgMeasured ?? null, cuts
+        }), JSON.stringify({
+            overlaps: [], heights: [140, 90, 400], stack: g.pitch - g.nodeH, colX: g.colGap, colW: 352, gap: true,
+            edge: "M196 70 C220 70 220 210 244 210",
+            drawn: { name: long, text: `R3660 note ${long}`, trace: "R3660 words of the knife", title: false }, laid: true,
+            placed: [[true, true], [true, true], [true, true], [true, true], [true, true]], path: true, measured: "1", cuts: []
+        }), "{overlaps: pairs of measured nodes that overlap; heights: as measured; stack: the gap between two nodes of a column; colX, colW: the open node's column's gap and width; gap: the unrelated evidence's row below the tall nodes; edge: a path's ends at measured middles; drawn: a node's whole name and words, no title standing in for a cut; laid, placed: the relayout's places; path: the edge redrawn; measured: the canvas marked; cuts: the sheets' rules that cut a node's text}");
+    }],
+    ["R3661 - a node is edited on itself, and the Map has no side panel (E97 fix; the owner's \"edycja niech nie odbywa sie po prawej stronie ekranu (usuwamy panel), tylko na samych modulach\"): the open node's fields stand in the canvas under it at its place and the rest are hidden; the chapter's own fields and problems are in the overview over the graph; the tools are one row over it and the camera's buttons in its corner; its face opens and shuts the fields, Escape and a click on empty space shut them (Escape goes no further), its arrows and Remove act on it; the Map holds no field the editors did not hand it, and every control of it has a name to be read out", async () => {
+        /*
+         * E97 fix, 12.11.2026. The drawing read back and `wireCaseMap` driven on a detached copy (jsdom and Foundry
+         * alike); what Save then writes is tier 2's (the "E97 C6" tests, which open a node and save its fields). Red at
+         * fa73b601: the fields stand in an aside beside the graph.
+         */
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { CONTROLS } = await import("./a11y.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const graph = S.graphOf({ chapter: 4, traces: [{ key: "S.T1", type: "prep", name: "R3661 knife", tiedToCrime: true }],
+            rows: { "d-a": { kind: "deduction", label: "R3661 a", inputs: ["S.T1"] }, "d-b": { kind: "deduction", label: "R3661 b" } } });
+        const layout = layoutCase(graph);
+        const problems = S.checkCase(graph, {});
+        const editors = new Map([
+            ["S.T1", M.editRow("Name", `<input type="text" name="name.S__T1" value="R3661 knife" />`)],
+            ["d-a", M.editRow("Name", `<input type="text" name="case:4:d-a:label" value="R3661 a" />`) + `<div class="drpg-case-edit-actions"><button type="button" data-drpg-case-drop="d-a">Remove</button></div>`],
+            ["d-b", M.editRow("Name", `<input type="text" name="case:4:d-b:label" value="R3661 b" />`)]
+        ]);
+        const summary = `<label><input type="checkbox" name="keyOverride" /> R3661 override</label>`;
+        const draw = reading => {
+            const d = document.createElement("div");
+            d.innerHTML = M.caseMapHtml({ graph, layout, reading, editors, summary, problems, tools: M.caseToolsHtml({ sort: "kind", sorts: ["kind", "manual"] }) });
+            return d;
+        };
+        const d = draw({ node: "d-a" });
+        const canvas = d.querySelector(".drpg-case-canvas");
+        const shownEdit = canvas?.querySelector('.drpg-case-edit[data-drpg-edit="d-a"]');
+        const face = canvas?.querySelector('button[data-drpg-node="d-a"]');
+        const bWarn = [...draw({ node: "d-b" }).querySelectorAll('.drpg-case-edit[data-drpg-edit="d-b"]:not([hidden]) .drpg-case-info-warn')].map(p => p.textContent);
+        const names = [...d.querySelectorAll("[name]")].map(el => el.getAttribute("name")).sort();
+        const nameless = [...d.querySelectorAll(CONTROLS)].filter(el => !(el.getAttribute("aria-label")?.trim()
+            || (!el.matches("input, select, textarea") && el.textContent.trim()) || el.closest("label"))).map(el => el.outerHTML.slice(0, 80));
+        const drawn = {
+            aside: d.querySelectorAll("aside, .drpg-case-panel").length,
+            open: shownEdit ? [shownEdit.hidden, Boolean(shownEdit.querySelector('[name="case:4:d-a:label"]')), shownEdit.style.left === face?.style.left,
+                parseFloat(shownEdit.style.top) > parseFloat(face?.style.top), Boolean(shownEdit.querySelector("[data-drpg-case-move]")),
+                [...shownEdit.querySelectorAll(".drpg-case-info-warn")].length] : null, bWarn,
+            others: [...canvas.querySelectorAll(".drpg-case-edit[data-drpg-edit]")].filter(f => f.dataset.drpgEdit !== "d-a").map(f => [f.dataset.drpgEdit, f.hidden]),
+            face: [face?.getAttribute("type"), face?.getAttribute("aria-expanded")],
+            overview: [Boolean(d.querySelector('.drpg-case-overview [name="keyOverride"]')), d.querySelectorAll(".drpg-case-overview .drpg-case-problems li").length,
+                Boolean(d.querySelector(".drpg-case-overview [data-drpg-case-check]"))],
+            tools: [d.querySelector(".drpg-case-map > .drpg-case-tools") !== null, d.querySelectorAll(".drpg-case-tools [data-drpg-case-add]").length,
+                ["in", "out", "fit"].map(k => Boolean(d.querySelector(`.drpg-case-graph > .drpg-case-camera [data-drpg-case-camera="${k}"]`)))],
+            names, nameless
+        };
+        must(shownEdit && !drawn.aside, `the open node draws no fields on itself - they stand in a side panel: ${JSON.stringify({ aside: drawn.aside, open: drawn.open })}`);
+        // the wiring, driven
+        const said = [];
+        const w = draw({ node: "d-a" });
+        let outside = 0;
+        w.addEventListener("keydown", () => { outside++; });
+        M.wireCaseMap(w, { onPick: id => said.push(["pick", id]), onClose: id => said.push(["close", id]), onMove: (id, step) => said.push(["move", id, step]),
+            onDrop: id => said.push(["drop", id]), onCheck: () => said.push(["check"]), onAdd: k => said.push(["add", k]) });
+        const wc = w.querySelector(".drpg-case-canvas");
+        wc.querySelector('button[data-drpg-node="d-b"]').click();
+        wc.querySelector('.drpg-case-edit[data-drpg-edit="d-a"] [data-drpg-case-move="-1"]').click();
+        wc.querySelector('.drpg-case-edit[data-drpg-edit="d-a"] [data-drpg-case-drop]').click();
+        const esc = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+        wc.querySelector('[name="case:4:d-a:label"]').dispatchEvent(esc);
+        wc.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        w.querySelector("[data-drpg-case-check]").click();
+        w.querySelector('[data-drpg-case-add="counter"]').click();
+        equal(JSON.stringify({ drawn, said, escape: [esc.defaultPrevented, outside] }), JSON.stringify({
+            drawn: {
+                aside: 0, open: [false, true, true, true, true, 0], bWarn: [game.i18n.format("DRPG.CaseMap.problem.noInputs", { node: "R3661 b", ref: "" })],
+                others: [["S.T1", true], ["d-b", true]], face: ["button", "true"],
+                overview: [true, 2, true], tools: [true, 4, [true, true, true]],
+                names: ["case:4:d-a:label", "case:4:d-b:label", "keyOverride", "name.S__T1"], nameless: []
+            },
+            said: [["pick", "d-b"], ["move", "d-a", -1], ["drop", "d-a"], ["close", "d-a"], ["close", "d-a"], ["check"], ["add", "counter"]],
+            escape: [true, 0]
+        }), "{drawn: [asides; the open node's fields (hidden, its field, at its left, under it, its arrows, its problems: none); bWarn: an open node's own problem; the others' (hidden); its face (a button, expanded); the overview (the chapter's field, its problems, the check); the tools (over the graph, the adds; the camera in the graph's corner)]; names: every field of the Map; nameless: controls with no name to be read out; said: what a click on another node, the arrows, Remove, Escape, a click on empty space, the check and an add asked; escape: Escape's default stopped and it reached nothing outside the map}");
+    }],
+    ["R3662 - the case map's camera (E97 fix; the owner's \"ruch i oddalanie i przyblizanie 'kamery' na schemacie\"): the zoom is clamped; a zoom about a point keeps that point of the graph under it and a zoom at a limit moves nothing; fit shows the whole case centred and never enlarges a small one; the pan keeps a margin of the graph in view; a node is brought into view; and on a drawn map the wheel zooms about the pointer, a drag on empty space pans and one on a node does not, + - 0 zoom and fit, the tools' buttons zoom and say the zoom, and the buttons' zoom eases unless motion is reduced", async () => {
+        /*
+         * E97 fix, 12.11.2026. Pure functions, then `wireCaseMap` driven on a detached copy whose viewport is given a size
+         * by hand (clientWidth, clientHeight), so it reads the same in jsdom and in Foundry; how it feels is the commit's
+         * Chromium reading. Red at fa73b601: there is no case-view.mjs and the graph's box scrolls.
+         */
+        let V = null;
+        try { V = await import("./case-view.mjs"); } catch { V = null; }
+        must(V && typeof V.zoomAt === "function", "there is no case-view.mjs with zoomAt - the schema has no camera");
+        const M = await import("./case-map.mjs");
+        const S = await import("./case-schema.mjs");
+        const { layoutCase } = await import("./case-layout.mjs");
+        const lim = V.CAMERA_LIMITS;
+        const under = (cam, px) => (px - cam.x) / cam.z;
+        const z1 = V.zoomAt({ x: 10, y: 20, z: 1 }, 1.5, 300, 200);
+        const atMax = V.zoomAt({ x: 10, y: 20, z: lim.max }, 2, 300, 200);
+        const pure = {
+            clamp: [V.clampZoom(0.01), V.clampZoom(99), V.clampZoom("x"), V.clampZoom(1.1)],
+            keeps: [Math.round(under({ x: 10, y: 20, z: 1 }, 300) * 1000) === Math.round(under(z1, 300) * 1000), z1.z],
+            atMax: [atMax.x, atMax.y, atMax.z],
+            fit: [V.fitCamera({ w: 2000, h: 1000 }, { w: 1000, h: 400 }), V.fitCamera({ w: 200, h: 100 }, { w: 1000, h: 400 })],
+            held: V.clampCamera({ x: 5000, y: -5000, z: 1 }, { w: 800, h: 600 }, { w: 1000, h: 400 }),
+            reveal: V.revealCamera({ x: 0, y: 0, z: 1 }, { x: 1200, y: 500, w: 200, h: 100 }, { w: 1000, h: 400 })
+        };
+        const graph = S.graphOf({ chapter: 5, traces: [{ key: "S.T1", type: "prep", name: "R3662 knife", tiedToCrime: true }],
+            rows: { "d-a": { kind: "deduction", label: "R3662 a", inputs: ["S.T1"] } } });
+        const d = document.createElement("div");
+        const reading = {};
+        d.innerHTML = M.caseMapHtml({ graph, layout: layoutCase(graph), reading, tools: M.caseToolsHtml({ sort: "kind", sorts: ["kind"] }) });
+        const view = d.querySelector(".drpg-case-graph");
+        must(view, "the Map drew no graph viewport");
+        Object.defineProperty(view, "clientWidth", { configurable: true, get: () => 1000 });
+        Object.defineProperty(view, "clientHeight", { configurable: true, get: () => 400 });
+        let cam = null;
+        const wasStill = document.body.classList.contains("drpg-reduced-motion");
+        document.body.classList.remove("drpg-reduced-motion");
+        let reads;
+        try {
+            M.wireCaseMap(d, { camera: { get: () => cam, set: c => { cam = c; } } });
+            const canvas = view.querySelector(".drpg-case-canvas");
+            const t0 = canvas.style.transform;
+            const pointer = (type, x, y, target = view) => {
+                const e = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 });
+                Object.defineProperty(e, "pointerId", { value: 1 });
+                target.dispatchEvent(e);
+            };
+            // a wheel event as the browser sends one (jsdom has no WheelEvent: a MouseEvent carrying its two fields)
+            const wheel = new MouseEvent("wheel", { bubbles: true, cancelable: true, clientX: 400, clientY: 100 });
+            Object.defineProperty(wheel, "deltaY", { value: -200 });
+            Object.defineProperty(wheel, "deltaMode", { value: 0 });
+            view.dispatchEvent(wheel);
+            const afterWheel = { ...cam };
+            pointer("pointerdown", 100, 100); pointer("pointermove", 160, 130); pointer("pointerup", 160, 130);
+            const afterDrag = { ...cam };
+            const node = view.querySelector("button[data-drpg-node]");
+            pointer("pointerdown", 100, 100, node); pointer("pointermove", 200, 200, node); pointer("pointerup", 200, 200, node);
+            const afterNodeDrag = { ...cam };
+            view.dispatchEvent(new KeyboardEvent("keydown", { key: "+", bubbles: true, cancelable: true }));
+            const plus = cam.z;
+            const eased = canvas.classList.contains("is-easing");
+            view.dispatchEvent(new KeyboardEvent("keydown", { key: "-", bubbles: true, cancelable: true }));
+            const minus = cam.z;
+            d.querySelector('[data-drpg-case-camera="out"]').click();
+            const out = [cam.z, d.querySelector("[data-drpg-case-zoom-level]")?.textContent];
+            document.body.classList.add("drpg-reduced-motion");
+            d.querySelector('[data-drpg-case-camera="in"]').click();
+            const still = canvas.classList.contains("is-easing");
+            view.dispatchEvent(new KeyboardEvent("keydown", { key: "0", bubbles: true, cancelable: true }));
+            const fitted = { ...cam };
+            reads = {
+                start: t0, wheel: [afterWheel.z > 1, Math.round((400 - afterWheel.x) / afterWheel.z) === 400],
+                drag: [afterDrag.x - afterWheel.x, afterDrag.y - afterWheel.y], nodeDrag: [afterNodeDrag.x === afterDrag.x, afterNodeDrag.y === afterDrag.y],
+                keys: [Math.round(plus / afterNodeDrag.z * 100) / 100, Math.round(minus * 100) / 100 === Math.round(afterNodeDrag.z * 100) / 100], eased,
+                out: [Math.round(out[0] * 1000) === Math.round(afterWheel.z / lim.step * 1000), out[1] === `${Math.round(out[0] * 100)}%`],
+                still, fitted: fitted.z, transform: canvas.style.transform === V.cameraTransform(fitted), clip: view.scrollLeft
+            };
+        } finally {
+            document.body.classList.toggle("drpg-reduced-motion", wasStill);
+        }
+        let rules = "";
+        try { rules = await moduleStyles(); } catch { rules = ""; }
+        equal(JSON.stringify({ pure, reads, css: [/\.drpg-case-graph\s*\{[^}]*overflow:\s*clip/.test(rules), /body\.drpg-reduced-motion[^{]*\.drpg-case-canvas\s*\{[^}]*transition:\s*none/.test(rules)] }), JSON.stringify({
+            pure: {
+                clamp: [lim.min, lim.max, 1, 1.1], keeps: [true, 1.5], atMax: [10, 20, lim.max],
+                fit: [{ x: 100, y: 0, z: 0.4 }, { x: 400, y: 150, z: 1 }], held: { x: 1000 - lim.margin, y: lim.margin - 600, z: 1 },
+                reveal: { x: -408, y: -208, z: 1 }
+            },
+            reads: {
+                start: "translate(0px, 0px) scale(1)", wheel: [true, true], drag: [60, 30], nodeDrag: [true, true],
+                keys: [lim.step, true], eased: true, out: [true, true], still: false, fitted: 1, transform: true, clip: 0
+            },
+            css: [true, true]
+        }), "{pure: clamp, a zoom about a point, a zoom at the limit, fit, the pan held, a node revealed; reads: the drawn map's camera [start; the wheel about the pointer; a drag on empty space; a drag on a node; + then -; eased; the tools' zoom out and its readout; still under reduced motion; 0 fits; the transform; the viewport never scrolled]; css: the viewport clips, reduced motion stops the ease}");
     }],
 ];
 

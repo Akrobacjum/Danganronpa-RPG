@@ -7061,7 +7061,8 @@ const INVARIANTS = [
                 s => { s.settings.projectMeta.R190PROJECT00001[f] = "R190 the plan, in the killer's words"; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             // E05 C5 added the last four: the Key Remnant plan held all of them.
-            ...["sourceActor", "realType", "pointsAt", "dc", "tiedToCrime", "analysis", "analyzedText", "note", "tokenId"].map(f => [`every setting: ${f}`,
+            // E97 C1: and `leftBy`, the author a Truth Bullet's answer key names (truth-bullets.mjs `leftByOf`).
+            ...["sourceActor", "realType", "pointsAt", "dc", "tiedToCrime", "analysis", "analyzedText", "note", "tokenId", "leftBy"].map(f => [`every setting: ${f}`,
                 s => { s.settings.clock.deep = { [f]: 1 }; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "clock" && h.path === `deep.${f}`]),
             // E05 C3: the declarations' old world key holds nothing - an entry under any key is found.
@@ -7146,6 +7147,10 @@ const INVARIANTS = [
             ["Item flag remnantRef",
                 s => { s.items[0].flags[MOD].remnantRef = null; },
                 h => h.kind === "flag" && h.doc === "Item" && h.id === "R190BYSTANDER001.items.R190ITEM00000001" && h.path === `flags.${MOD}.remnantRef`],
+            // E97 C1: who left the trace a bullet came from is its answer key's, never the item's.
+            ...["leftBy", "leftByName"].map(f => [`Item flag ${f}`,
+                s => { s.items[0].flags[MOD][f] = "R190"; },
+                h => h.kind === "flag" && h.doc === "Item" && h.id === "R190BYSTANDER001.items.R190ITEM00000001" && h.path === `flags.${MOD}.${f}`]),
             // E70 C5: the trial's list of the dead outside the trial - an empty one is found as well; in it, nothing (below).
             ["trialProgress.mutedDead",
                 s => { s.settings.trialProgress = { chapter: 2, mutedDead: [] }; s.settings.clock.phase = "dailyLife"; },
@@ -8076,6 +8081,421 @@ const INVARIANTS = [
         equal(JSON.stringify([listGuard > -1 && answered > listGuard, /proposed:\s*as\.maybeText/.test(row) && /note:\s*as\.maybeText/.test(row)]),
         JSON.stringify([true, true]),
             "a road that holds the proposal is missing (rulePickTrait holds the trait to the list before it answers, the bridge's row passes proposed and note)");
+    }],
+    ["R3370 - who left a trace is the GMs' alone (E97 C1; Q1): remnants.mjs `setRemnantAuthor` writes `sourceActor` and `sourceName` together, as `authorPatch` words them, on the trace's ledger row and nowhere else, on a GM only; the world-secrets rule finds `leftBy` in any setting and `leftBy`, `leftByName` on an item, and the token's answer-key list keeps both of the trace's fields", async () => {
+        /*
+         * E97 C1, 11.11.2026. The owner's Q1: "Nigdy i bez opcji analyze. To tylko info dla gma" - who left a trace is
+         * information for the GMs, never revealed by play. The author already lives in the ledger for a player's trace
+         * (`dropRemnant`, `narrowPlayerRemnant`); C1 gives a GM the write, and a bullet the copy (R3371). This holds the
+         * write to one patch of both fields, through the ledger (`setRemnantSecret`, which amends a live row only), and
+         * the rule a player's browser is read against (world-secrets.mjs; R9, R190, 72-canary) to the two names the
+         * bullet's answer key uses, so a later road that put them on an item or a setting is found. Pure, and a read of
+         * the source; nothing is written. Red at b97028e1: no `setRemnantAuthor`, no `authorPatch`, and the rule does
+         * not name `leftBy`.
+         */
+        const R = await import("./remnants.mjs");
+        const W = await import("./world-secrets.mjs");
+        const MOD = W.WORLD_SECRET_MODULE;
+        must(typeof R.authorPatch === "function" && typeof R.setRemnantAuthor === "function",
+            "remnants.mjs exports no authorPatch or setRemnantAuthor - there is no GM's write of a trace's author to read");
+        const someone = { id: "R3370STUDENT0001", name: "R3370 Student" };
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/remnants.mjs`).then(lfText));
+        const write = fnSource(src, "setRemnantAuthor");
+        const plant = (where) => {
+            const s = { settings: { clock: { chapter: 1 } }, items: [{ id: "R3370ACTOR000001.items.R3370ITEM0000001", flags: { [MOD]: { isTruthBullet: true } } }] };
+            if (where === "setting") s.settings.clock.deep = { leftBy: someone.id };
+            else s.items[0].flags[MOD][where] = where === "leftBy" ? someone.id : someone.name;
+            return W.findWorldSecrets(s).map(h => `${h.kind}:${h.doc}:${h.path}`);
+        };
+        equal(JSON.stringify({
+            patch: [R.authorPatch(someone), R.authorPatch(null)],
+            write: [/game\.user\??\.isGM/.test(write), /setRemnantSecret\([^;]*authorPatch\(/.test(write), /ifLive:\s*true/.test(write),
+                /\.(?:setFlag|update|updateEmbeddedDocuments|createEmbeddedDocuments)\(/.test(write)],
+            found: [plant("setting"), plant("leftBy"), plant("leftByName")],
+            token: ["sourceActor", "sourceName"].map(f => R.ANSWER_KEY_FLAGS.includes(f))
+        }), JSON.stringify({
+            patch: [{ sourceActor: someone.id, sourceName: someone.name }, { sourceActor: null, sourceName: "" }],
+            write: [true, true, true, false],
+            found: [["field:setting:deep.leftBy"], [`flag:Item:flags.${MOD}.leftBy`], [`flag:Item:flags.${MOD}.leftByName`]],
+            token: [true, true]
+        }), "[the patch for a student and for nobody; setRemnantAuthor: asks for a GM, writes authorPatch through setRemnantSecret, amends a live row only, writes a document; the rule's hits for leftBy in a setting and leftBy, leftByName on an item; the token's answer-key list names sourceActor, sourceName]");
+    }],
+    ["R3371 - a Truth Bullet's answer key names who left its trace (E97 C1): truth-bullets.mjs `leftByOf` reads `leftBy`, `leftByName` off a trace's row and null off a row with none; `createTruthBullet` writes them into the bullet's row only when there is an author, and a copy (handover.mjs `mintCopy`) hands on its giver's; reading the author of every trace on the map writes no stamp", async () => {
+        /*
+         * E97 C1, 11.11.2026; STAGE C1 "bullet carries leftBy; an old row reads null, stamp unchanged". The case map
+         * (C5-C7) shows who left each Remnant beside who holds it, and E99 reads the bullet's author once the trace is
+         * gone, so the bullet's answer key (`bulletStore`, GM-only) carries it: off the trace's row at the find, off the
+         * giver's key at a hand-over (the trace may be gone by then). A row with no author - every trace a GM placed
+         * before 1.2.107, Q6 - reads null and nothing is written for it: no migration, so the reading is held to leave
+         * each trace's newest stamp as it was. Pure and a read of the source; the world's traces are read, not written.
+         * Red at b97028e1: no `leftByOf`, and neither road names the author.
+         */
+        needs(world.atLeast("remnantTokens", 1), "the stamp half reads the traces on the map");
+        const T = await import("./truth-bullets.mjs");
+        const R = await import("./remnants.mjs");
+        const { remnantStore } = await import("./gm-stores.mjs");
+        must(typeof T.leftByOf === "function", "truth-bullets.mjs exports no leftByOf - a bullet's answer key names nobody who left its trace");
+        const strip = file => fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText).then(stripComments);
+        const create = fnSource(await strip("truth-bullets.mjs"), "createTruthBullet");
+        const mint = fnSource(await strip("handover.mjs"), "mintCopy");
+        const traces = [...game.scenes].flatMap(scene => R.remnantsOn(scene));
+        const before = traces.map(t => remnantStore.stampOf(R.keyOf(t)) ?? null);
+        const read = traces.map(t => T.leftByOf(R.remnantData(t)));
+        const after = traces.map(t => remnantStore.stampOf(R.keyOf(t)) ?? null);
+        equal(JSON.stringify({
+            rows: [T.leftByOf({ sourceActor: "R3371A", sourceName: "R3371 Ann" }), T.leftByOf({ sourceActor: null, sourceName: "" }), T.leftByOf({}), T.leftByOf(null)],
+            create: [/leftByOf\(/.test(create), /\.\.\.\(\s*author\.leftBy\s*\?\s*author\s*:\s*\{\}\s*\)/.test(create)],
+            mint: [/leftBy:\s*secret\.leftBy\b/.test(mint), /leftByName:\s*secret\.leftByName\b/.test(mint)],
+            read: read.every(r => r && Object.keys(r).join() === "leftBy,leftByName"),
+            stamps: JSON.stringify(after) === JSON.stringify(before)
+        }), JSON.stringify({
+            rows: [{ leftBy: "R3371A", leftByName: "R3371 Ann" }, { leftBy: null, leftByName: "" }, { leftBy: null, leftByName: "" }, { leftBy: null, leftByName: "" }],
+            create: [true, true], mint: [true, true], read: true, stamps: true
+        }), "[leftByOf of a row with an author, with nobody, of an empty row, of none; createTruthBullet reads leftByOf and writes the author only when there is one; mintCopy hands on the giver's leftBy, leftByName; every trace's author read; no stamp moved by the reading]");
+    }],
+    ["R3372 - the GMs' author select (E97 C1; Q2, Q6): remnants.mjs `authorOptions` draws \"- unknown -\" first, chosen for a trace with none, then every student living and dead by name, the trace's own chosen; New trace, Create Key Remnant here, the Final Truth form and the GM's card of a trace draw it and hand the choice to the placement or to `setRemnantAuthor`, the card asking first when an author is replaced; a player's card draws no author", async () => {
+        /*
+         * E97 C1, 11.11.2026. The GM's roads that place a trace - New trace (investigation.mjs `openNewTrace`), a Key
+         * Remnant from an Observe card (`openKeyRemnantHere`, through `createKeyRemnant`), the Final Truth form
+         * (`caseFinalPanel`, placed by mastermind.mjs `placeFinalRemnant`) - named nobody, and the GM's card of a trace
+         * (remnant-ring.mjs `gmRemnantCard`) printed the author without a way to change it. Q6: "- nieznany -" first,
+         * old traces stay without one. Q2: an author a GM sets acts as a player's (Observe, an incident's tie, Tamper
+         * read it), so the card asks before it replaces one. The options are drawn here for the world's students and
+         * read; the windows' bodies are read in the source. Nothing is opened or written. Red at b97028e1: no
+         * `authorOptions`, and none of the four draws an author select.
+         */
+        needs(world.atLeast("livingStudents", 1), "the options are read for the world's students");
+        const R = await import("./remnants.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        must(typeof R.authorOptions === "function", "remnants.mjs exports no authorOptions - no window draws an author to choose");
+        const students = studentActors();
+        const opts = html => {
+            const t = document.createElement("template");
+            t.innerHTML = `<select>${html}</select>`;
+            return [...t.content.querySelectorAll("option")].map(o => [o.value, o.textContent.trim(), o.selected]);
+        };
+        const none = opts(R.authorOptions(null, students));
+        const chosen = opts(R.authorOptions(students[0].id, students));
+        const inv = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/investigation.mjs`).then(lfText));
+        const mm = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/mastermind.mjs`).then(lfText));
+        const ring = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/remnant-ring.mjs`).then(lfText));
+        const { caseFinalPanel } = await import("./investigation.mjs");
+        const final = caseFinalPanel({ roomOptions: "", visOptions: "", finalRemnants: () => [], finalTruthPlacedThisChapter: () => true });
+        const wire = fnSource(ring, "wireCardEditing");
+        equal(JSON.stringify({
+            first: none[0], firstChosen: chosen[0][2], rest: none.slice(1).map(([id, name, sel]) => [id, name, sel]), chosen: chosen.filter(o => o[2]).map(o => o[0]),
+            newTrace: [/authorOptions\(/.test(fnSource(inv, "openNewTrace")), /sourceActor:\s*author\b/.test(fnSource(inv, "openNewTrace"))],
+            keyHere: [/authorOptions\(/.test(fnSource(inv, "openKeyRemnantHere")), /sourceActor:\s*row\.author\b/.test(fnSource(inv, "createKeyRemnant"))],
+            final: [/name="finalAuthor"/.test(final), /author:\s*action\.finalAuthor\b/.test(fnSource(inv, "placeFinalFromDashboard")), /sourceActor:\s*author\b/.test(fnSource(mm, "placeFinalRemnant"))],
+            card: [/data-drpg-author/.test(fnSource(ring, "gmRemnantCard")) && /authorOptions\(/.test(fnSource(ring, "gmRemnantCard")),
+                /drpgConfirm\(/.test(wire), /setRemnantAuthor\(/.test(wire)],
+            player: /author|sourceName|sourceActor/i.test(fnSource(ring, "playerRemnantCard"))
+        }), JSON.stringify({
+            first: ["", game.i18n.localize("DRPG.Remnant.authorUnknown"), true], firstChosen: false,
+            rest: students.map(a => [a.id, a.name, false]), chosen: [students[0].id],
+            newTrace: [true, true], keyHere: [true, true], final: [true, true, true], card: [true, true, true], player: false
+        }), "[the first option, unchosen once a student is; every student by id and name; the student chosen; New trace draws it and places with it; Create Key Remnant here draws it and createKeyRemnant places with it; the Final form draws finalAuthor, its Save hands it on, the placement writes it; the GM's card draws it, asks first, writes through setRemnantAuthor; a player's card names no author]");
+    }],
+    ["R3374 - the case schema is a GM store no player holds (E97 C3; Q8): gm-stores.mjs `caseSchemaStore` is the ledger `caseSchema` under `gmCaseSchema`, a client setting, backed up, synced, cut with the Key Remnant plan; on a player's engine its write is refused and nothing stored, a packet of it is refused from a player and on a player's browser, and case-schema.mjs's writers ask for a GM", async () => {
+        /*
+         * E97 C3, 11.11.2026; STAGE C3 "tier 1 no caseSchema on a player's client, writes and packets refused there".
+         * The schema is the case's solution worked out ahead of the trial, so it lives where the answer key does
+         * (gm-store.mjs: a section in each GM's browser, synced between the GMs, any GM including an Assistant, Q8). Read:
+         * the real store's spec and its setting's registration; then the store's spec defined on an engine whose user is
+         * no GM, which refuses the patch and writes nothing to its storage; the receive gate on a delta of the store from
+         * a player and on a player's browser; and the three writers' source. Nothing of the world is written. Red at
+         * 37409aee: no `caseSchemaStore`, no setting.
+         */
+        const G = await import("./gm-store.mjs");
+        const stores = await import("./gm-stores.mjs");
+        must(stores.caseSchemaStore?.spec, "gm-stores.mjs has no caseSchemaStore - the case schema has no store");
+        const spec = stores.caseSchemaStore.spec;
+        const stored = new Map();
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R3374P", isGM: () => false, isFullGM: () => false, isPrimary: () => false, worldId: () => "R3374WORLD",
+            activeGmIds: () => [], primaryGmId: () => null, senderIsGM: () => false, senderIsFullGM: () => false, userName: u => u,
+            send: () => {}, storage: { read: k => stored.get(k) ?? null, write: async (k, v) => { stored.set(k, JSON.stringify(v)); } },
+            readLegacy: () => undefined, now: () => 1000, timers: { set: (fn, ms) => setTimeout(fn, ms), clear: h => clearTimeout(h) },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const handle = eng.define({ ...spec, key: "r3374CaseSchema" });
+        await eng.open();
+        await handle.patch("2:deduction-r3374", { kind: "deduction", label: "R3374" });
+        const delta = { action: "gms.delta", world: "R3374WORLD", store: "caseSchema", delta: { e: { "2:x": { kind: { v: "deduction" } } }, t: { "2:x": 5 }, d: {}, cleared: 0 } };
+        const ctx = { amGM: true, senderIsGM: true, senderIsFullGM: true, senderId: "R3374B", selfId: "R3374A", worldId: "R3374WORLD", stores: new Map([["caseSchema", { sync: true }]]) };
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/case-schema.mjs`).then(r => (r.ok ? lfText(r) : "")));
+        const asks = ["setCaseNode", "setCaseMeta", "dropCaseNode"].map(fn => /game\.user\??\.isGM/.test(fnSource(src, fn)));
+        const setting = game.settings.settings.get(`${MODULE_ID}.${spec.key}`);
+        equal(JSON.stringify({
+            spec: [spec.name, spec.key, spec.kind, spec.resetGroup, spec.backup, spec.sync, spec.fullGmOnly ?? false],
+            setting: [setting?.scope ?? null, setting?.config ?? null],
+            player: [handle.get("2:deduction-r3374") ?? null, stored.has("r3374CaseSchema") && stored.get("r3374CaseSchema").includes("R3374")],
+            gate: [typeof G.gmsRefusal(delta, { ...ctx, senderIsGM: false }) === "string", typeof G.gmsRefusal(delta, { ...ctx, amGM: false }) === "string", G.gmsRefusal(delta, ctx)],
+            asks
+        }), JSON.stringify({
+            spec: ["caseSchema", "gmCaseSchema", "ledger", "keyPlan", true, true, false],
+            setting: ["client", false],
+            player: [null, false],
+            gate: [true, true, null],
+            asks: [true, true, true]
+        }), "[the store's name, key, kind, reset group, backup, sync and that any GM may write it; its setting's scope and config; on a player's engine the row and what was stored; the gate from a player, on a player's browser, from a GM; each writer asks for a GM]");
+    }],
+    ["R3650 - the Investigation panel's fixed frame (E97 C2; the owner's Q-C and Q-D, 11.11.2026): the window states WIDE's width and is no `fit` window; its body is a toolbar (the view switch's slot and the controls' slot, a said line in the controls') and the view's box, the live region itself; components.css states the view's height from the screen's and lets it alone scroll, the toolbar's height, the body no scroll of its own, and the footer one grid of four columns in two rows; under Legacy no Traces or Key head breaks inside a word, the Traces table wider than its box and scrolled there", async () => {
+        /*
+         * E97 C2, 12.11.2026. The panel was a `fit` window, as wide as its widest table, so its frame followed what it
+         * held; the Map beside the Table (C5) would have moved it at every switch, which the owner's fixed-layout rule
+         * forbids (Q-D: "one fixed size for both views; a wide table scrolls in its own box"; Q-C: "the footer ALWAYS
+         * two rows at every size"). jsdom lays nothing out, so this reads the drawn markup and the cascade (`styleCascade`:
+         * which declaration wins, from which file); the sizes Chromium draws are the commit's reading (STATUS: the frame
+         * 1120 x 710 under the glass and 1120 x 684 under Legacy at 1366x768 on every tab, the view the one box that
+         * scrolls, the footer two rows; no head word wider than its head, English and Polish). Red at 9b572a1: the window
+         * is `fit`, no toolbar, no view box, no rule.
+         */
+        const I = await import("./investigation.mjs");
+        const { WIDE } = await import("./ui-columns.mjs");
+        const { kitWidth } = await import("./ui-kit.mjs");
+        const C = await styleCascade();
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
+        must(open().length === 0, "a dashboard stands open already - nothing here would be read cleanly");
+        const drawn = async said => {
+            const answer = Promise.resolve().then(() => I.openInvestigationDashboard({ said, view: "table" })).catch(e => `threw: ${e?.message ?? e}`);
+            try {
+                await until(() => open().some(a => a.element?.querySelector(".drpg-kit-body")), 6000);
+                const app = open()[0], root = app.element, body = root.querySelector(".drpg-kit-body");
+                const kids = [...body.children].map(el => [...el.classList].join(" "));
+                const bar = body.querySelector(":scope > .drpg-case-toolbar");
+                return {
+                    fit: root.classList.contains("drpg-kit-fit"), width: root.classList.contains("drpg-kit-width"), asked: app.options?.position?.width ?? null,
+                    kids,
+                    slots: bar ? [...bar.children].map(el => el.dataset.drpgSlot ?? null) : null,
+                    said: bar?.querySelector('[data-drpg-slot="controls"] > .drpg-case-result')?.textContent ?? null,
+                    view: body.querySelector(":scope > .drpg-case-live")?.classList.contains("drpg-case-view") ?? null,
+                    rows: root.querySelector("footer.form-footer")?.classList.contains("drpg-kit-footer-rows") ?? null
+                };
+            } finally {
+                for (const a of open()) await a.close().catch(() => {});
+                await Promise.race([answer, wait(3000)]);
+            }
+        };
+        const plain = await drawn(null);
+        const told = await drawn("SUITE R3650 said");
+        const read = {};
+        for (const theme of ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass"]) {
+            const html = document.createElement("html"), body = document.createElement("body");
+            body.className = `${theme} drpg-gm`;
+            html.append(body);
+            body.innerHTML = `<div class="application dialog drpg-panel drpg-projects drpg-window-case drpg-ui drpg-kit-width"><section class="window-content">`
+                + `<form class="dialog-form standard-form"><div class="dialog-content standard-form"><div class="drpg-kit-body">`
+                + `<div class="drpg-case-toolbar"><div class="drpg-case-switch"></div><div class="drpg-case-controls"><p class="drpg-case-result">x</p></div></div>`
+                + `<div class="drpg-case-live drpg-case-view"><form><section class="drpg-tab-pane" data-drpg-pane="traces"><div class="drpg-data-table-box"><table class="drpg-data-table"><thead><tr><th>Visibility</th></tr></thead></table></div></section>`
+                + `<section class="drpg-tab-pane" data-drpg-pane="key"><div class="drpg-data-table-box"><table class="drpg-data-table"><colgroup><col class="drpg-data-col-case-scale"><col class="drpg-data-col-case-key-name"></colgroup><thead><tr><th>Difficulty</th><th>Name</th></tr></thead></table></div></section>`
+                + `</form></div></div></div><footer class="form-footer drpg-kit-footer drpg-kit-footer-rows"><div class="drpg-kit-right"><button class="drpg-role-primary">S</button></div><div class="drpg-kit-left"><button class="drpg-role-cancel">C</button></div></footer></form></section></div>`;
+            const q = sel => body.querySelector(sel);
+            const from = (el, prop) => { const w = el ? C.winner(el, prop) : null; return w ? `${w.value.trim()} (${String(w.file).split("/").pop()})` : null; };
+            const view = q(".drpg-case-view"), foot = q("footer");
+            read[theme] = {
+                view: [/100vh/.test(from(view, "height") ?? "") && /components\.css/.test(from(view, "height")), from(view, "overflow")],
+                body: from(q(".drpg-kit-body"), "overflow"), bar: from(q(".drpg-case-toolbar"), "height"),
+                foot: [from(foot, "display"), from(foot, "grid-template-columns"), from(foot, "grid-template-rows"), from(q(".drpg-kit-left"), "display"), from(q(".drpg-kit-right"), "display"), from(q(".drpg-role-primary"), "order")],
+                said: from(q(".drpg-case-result"), "white-space"),
+                heads: [from(q('[data-drpg-pane="traces"] th'), "overflow-wrap"), from(q('[data-drpg-pane="key"] th'), "overflow-wrap")],
+                traces: [from(q('[data-drpg-pane="traces"] table'), "min-width"), from(q('[data-drpg-pane="traces"] .drpg-data-table-box'), "overflow-x")],
+                keyShares: [from(q("col.drpg-data-col-case-scale"), "width"), from(q("col.drpg-data-col-case-key-name"), "width")]
+            };
+        }
+        const both = { view: [true, "auto (components.css)"], body: "hidden (components.css)", bar: "2.25rem (components.css)",
+            foot: ["grid (components.css)", "repeat(4, minmax(0, 1fr)) (components.css)", "repeat(2, auto) (components.css)", "contents (components.css)", "contents (components.css)", "3 (components.css)"],
+            said: "nowrap (components.css)" };
+        equal(stableJson({ plain, told: told.said, read }), stableJson({
+            plain: { fit: false, width: true, asked: kitWidth(WIDE.width), kids: ["drpg-case-toolbar", "drpg-case-live drpg-case-view"], slots: ["switch", "controls"], said: null, view: true, rows: true },
+            told: "SUITE R3650 said",
+            read: {
+                "drpg-theme-monokuma-legacy": { ...both, heads: ["normal (components.css)", "normal (components.css)"], traces: ["130% (components.css)", "auto (components.css)"], keyShares: ["13% (components.css)", "15% (components.css)"] },
+                "drpg-theme-stained-glass": { ...both, heads: ["anywhere (components.css)", "anywhere (components.css)"], traces: ["0 (components.css)", "auto (components.css)"], keyShares: ["11% (components.css)", "17% (components.css)"] }
+            }
+        }), "{plain: the drawn window [a fit window; one that states its width; the width it asked (WIDE's, held to this screen by the kit); the body's children; the toolbar's slots; a said line; the live region is the view's box; the footer the kit's two rows (\`footer.rows: 2\`)]; told: the said line in the controls' slot; read: per theme, the winning declaration [the view's height from the screen's and its overflow; the body's overflow; the toolbar's height; the footer's display, columns, rows, its two sides' display and Save's order; the said line's wrap; the Traces and Key heads' overflow-wrap; the Traces table's min-width and its box's overflow-x; the Key planner's Difficulty and Name shares]}");
+    }],
+    ["R3652 - the Map / Table switch (E97 C5, C9; the owner's Q-B, Q-D and E): a GM with no view flag opens on the Map (C9; on the Table until then); the toolbar's Map button draws the Map in the same live region and its Table button the Table again, each remembered on this GM's own User (`setFlag` on game.user, nothing else), with no GM store written, and the window's body, toolbar and footer the same nodes throughout (the harness draws no header); the Map draws every node of the chapter's graph - each Remnant of the chapter the Table's filter names, each Key slot, each schema node", async () => {
+        /*
+         * E97 C5, 12.11.2026; STAGE C5 "tier 1 switching writes nothing and keeps the frame's box equal; every trace of
+         * the world is a node". jsdom lays nothing out, so "the frame's box equal" is read as the frame's own nodes kept
+         * (a switch redraws the live region alone; the boxes Chromium draws are the commit's reading: 1120 x 714 under
+         * the glass, 1120 x 688 under Legacy, at 1366x768, in both views). The flag write is caught on this user and not
+         * made, so the world is not touched (tier 1). Red at e320102: no switch.
+         */
+        needs(world.atLeast("remnantTokens"), "the Map's nodes are read against the world's Remnants");
+        const I = await import("./investigation.mjs");
+        const S = await import("./case-schema.mjs");
+        const { caseSchemaStore, remnantStore, keyPlanStore } = await import("./gm-stores.mjs");
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
+        must(open().length === 0, "a dashboard stands open already - nothing here would be read cleanly");
+        must(!game.user.getFlag(MODULE_ID, "investigationView"), "this GM has a view flag already - the default would not be read");
+        const stores = () => JSON.stringify([caseSchemaStore, remnantStore, keyPlanStore].map(st => st.entries?.() ?? null));
+        const before = stores();
+        const flagged = [];
+        const realSet = game.user.setFlag;
+        game.user.setFlag = async (scope, key, value) => { flagged.push([game.user.id, scope, key, value]); return game.user; };
+        const answer = Promise.resolve().then(() => I.openInvestigationDashboard()).catch(e => `threw: ${e?.message ?? e}`);
+        let seen = null;
+        try {
+            await until(() => open().some(a => a.element?.querySelector(".drpg-case-live")), 6000);
+            const root = open()[0].element;
+            const frame = () => [root.querySelector(".drpg-kit-body"), root.querySelector(".drpg-case-toolbar"), root.querySelector("footer.form-footer")];
+            const first = frame();
+            const view = () => root.querySelector(".drpg-case-live")?.dataset.drpgView ?? null;
+            const opened = view();
+            // Opened on the Map since C9: to the Table first for its chapter filter, then the Map again
+            root.querySelector('.drpg-case-switch [data-drpg-mode="table"]')?.click();
+            await until(() => view() === "table", 3000).catch(() => {});
+            const chapterPicked = root.querySelector('[name="traceChapter"]')?.value ?? null;
+            root.querySelector('.drpg-case-switch [data-drpg-mode="map"]')?.click();
+            await until(() => view() === "map", 3000).catch(() => {});
+            const onMap = view();
+            const drawn = [...root.querySelectorAll(".drpg-case-live [data-drpg-node]")].map(b => b.dataset.drpgNode).sort();
+            const n = Number(chapterPicked);
+            // every slot of the Key plan as the planner reads it, as the Map draws them (E97 C6)
+            const plan = I.keyPlan();
+            const ch = chapterPicked && Number.isInteger(n) ? n : getClock().chapter;
+            const slots = ch === plan.chapter ? plan.entries.map((e, slot) => ({ ...e, slot })) : null;
+            const graph = S.caseGraph(ch, { chapters: chapterPicked && Number.isInteger(n) ? "this" : chapterPicked === "" ? "all" : "this", slots });
+            const kept = frame().map((el, i) => Boolean(el) && el === first[i]);
+            root.querySelector('.drpg-case-switch [data-drpg-mode="table"]')?.click();
+            await until(() => view() === "table", 3000).catch(() => {});
+            seen = { opened, onMap, back: view(), kept: [kept, frame().map((el, i) => Boolean(el) && el === first[i])], nodes: drawn.length > 0 && JSON.stringify(drawn) === JSON.stringify(graph.nodes.map(x => x.id).sort()),
+                traces: graph.nodes.filter(x => x.evidence && !x.planned).length > 0 };
+        } finally {
+            for (const a of open()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(3000)]);
+            game.user.setFlag = realSet;
+        }
+        equal(JSON.stringify({ ...seen, flagged, stores: stores() === before }), JSON.stringify({
+            opened: "map", onMap: "map", back: "table", kept: [[true, true, true], [true, true, true]], nodes: true, traces: true,
+            flagged: [[game.user.id, MODULE_ID, "investigationView", "table"], [game.user.id, MODULE_ID, "investigationView", "map"], [game.user.id, MODULE_ID, "investigationView", "table"]], stores: true
+        }), "[the view it opened on; after Map; after Table; body, toolbar and footer the same nodes, after Map and after Table; the Map's nodes are the chapter graph's, and it holds Remnants; the flag written on this user, each switch; no GM store changed]");
+    }],
+    ["R3653 - the parity test (E97 C5-C9; STAGE C5, the owner's 09.11 \"remnants editable from the map (same write path as the table)\" and Q-E): every form field and every action button the Table draws - each Remnant row's, each Key slot's, the Final Truth form's - has its place in the Map, by the same name, so the Table's one Save reads the Map's edits unchanged", async () => {
+        /*
+         * E97 C5, 12.11.2026. Read off the drawn markup, not written out: the names of every control in the Table's live
+         * region (`[name]`, the three tabs together) and its action buttons (`data-drpg-key-place`, `data-drpg-trace-
+         * delete`), then the same of the Map's. A field the Table gains and the Map lacks fails this. Red (expectedRed "E97")
+         * from C5 until the Map's side panel carried the Table's fields (C6, green since); the Map becomes the default
+         * only once it passes (C9, Q-E).
+         */
+        const I = await import("./investigation.mjs");
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
+        must(open().length === 0, "a dashboard stands open already - nothing here would be read cleanly");
+        const realSet = game.user.setFlag;
+        game.user.setFlag = async () => game.user;
+        const answer = Promise.resolve().then(() => I.openInvestigationDashboard({ view: "table" })).catch(e => `threw: ${e?.message ?? e}`);
+        let table = null, map = null;
+        const controls = root => {
+            const region = root.querySelector(".drpg-case-live");
+            const names = new Set([...region.querySelectorAll("[name]")].map(el => el.getAttribute("name")).filter(n => !/^trace(Order|Player|Room|Chapter)$/.test(n)));
+            const actions = new Set([...region.querySelectorAll("[data-drpg-key-place], [data-drpg-trace-delete]")].map(b => b.dataset.drpgKeyPlace !== undefined ? `place:${b.dataset.drpgKeyPlace}` : `delete:${b.dataset.drpgTraceDelete}`));
+            return { names, actions };
+        };
+        try {
+            await until(() => open().some(a => a.element?.querySelector(".drpg-case-live")), 6000);
+            const root = open()[0].element;
+            const chapter = root.querySelector('[name="traceChapter"]');
+            if (chapter && chapter.value !== "") { chapter.value = ""; chapter.dispatchEvent(new Event("change", { bubbles: true })); await wait(400); }
+            table = controls(root);
+            root.querySelector('.drpg-case-switch [data-drpg-mode="map"]')?.click();
+            await until(() => root.querySelector(".drpg-case-live")?.dataset.drpgView === "map", 3000).catch(() => {});
+            map = { ...controls(root), view: root.querySelector(".drpg-case-live")?.dataset.drpgView ?? null };
+        } finally {
+            for (const a of open()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(3000)]);
+            game.user.setFlag = realSet;
+        }
+        must(table.names.size > 0, "the Table drew no field - this would measure nothing");
+        const missing = kind => [...table[kind]].filter(x => !map[kind].has(x)).sort();
+        equal(JSON.stringify({ view: map.view, names: missing("names"), actions: missing("actions") }), JSON.stringify({ view: "map", names: [], actions: [] }),
+            "{view: the region drawn after the Map button; names: the Table's fields the Map lacks; actions: its row buttons the Map lacks}");
+    }],
+    ["R3656 - who has what, by name, on the Map (E97 C7; the owner's Q-A of 11.11 and E47-21): with no node picked the side panel lists each living student by name, under each their Truth Bullets by name and what each really is, then their other items by name; a dead student is not listed", async () => {
+        /*
+         * E97 C7, 12.11.2026. Read off the drawn window (opened on the Map) against the world:
+         * `livingStudentsForGm`, each one's bullets (truth-bullets.mjs `bulletsOf`) and the rest of their items. Red at
+         * 5b124a4: no students list on the Map.
+         */
+        needs(world.atLeast("livingStudents"), "the list is read against the living students");
+        const I = await import("./investigation.mjs");
+        const { livingStudentsForGm } = await import("./chapter.mjs");
+        const { bulletsOf, isTruthBullet } = await import("./truth-bullets.mjs");
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
+        must(open().length === 0, "a dashboard stands open already - nothing here would be read cleanly");
+        const answer = Promise.resolve().then(() => I.openInvestigationDashboard({ view: "map" })).catch(e => `threw: ${e?.message ?? e}`);
+        let drawn = null;
+        try {
+            await until(() => open().some(a => a.element?.querySelector(".drpg-case-students")), 6000).catch(() => {});
+            const list = open()[0]?.element?.querySelector(".drpg-case-students");
+            drawn = list ? [...list.querySelectorAll(".drpg-case-student")].map(el => ({
+                name: el.querySelector("strong")?.textContent ?? null,
+                parts: [...el.querySelectorAll(".drpg-case-student-part")].map(part => [...part.querySelectorAll("li")].map(li => li.firstChild?.textContent ?? ""))
+            })) : null;
+        } finally {
+            for (const a of open()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(3000)]);
+        }
+        const want = livingStudentsForGm().map(actor => ({ name: actor.name, parts: [bulletsOf(actor).map(i => i.name),
+            [...actor.items].filter(i => !isTruthBullet(i)).map(i => i.name)] }));
+        equal(JSON.stringify(drawn), JSON.stringify(want), "[each student listed: the name, the Truth Bullets' names, the other items' names]");
+    }],
+    ["R3658 - Who has what is a tab of its own in the Table view (E98 C4; the owner's comparison 2, E47-21; Q-E98-5's default): the Table's tabs are Remnants, Key Remnants, Final Truth Remnants and Who has what; nothing stands above the tabs; the Who has what pane holds the counts table and, under it, each living student by name with their Truth Bullets and items by name", async () => {
+        /*
+         * E98 C4, 12.11.2026. Read off the drawn window on the Table view. Red at ae538b7: the counts above the tabs, no
+         * fourth tab.
+         */
+        needs(world.atLeast("livingStudents"), "the list is read against the living students");
+        const I = await import("./investigation.mjs");
+        const { livingStudentsForGm } = await import("./chapter.mjs");
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
+        must(open().length === 0, "a dashboard stands open already - nothing here would be read cleanly");
+        const answer = Promise.resolve().then(() => I.openInvestigationDashboard({ view: "table" })).catch(e => `threw: ${e?.message ?? e}`);
+        let read = null;
+        try {
+            await until(() => open().some(a => a.element?.querySelector(".drpg-case-live nav")), 6000).catch(() => {});
+            // the region itself: its own <form> is dropped where the window's form holds it (a form in a form)
+            const form = open()[0]?.element?.querySelector(".drpg-case-live");
+            const pane = form?.querySelector('[data-drpg-pane="who"]');
+            read = {
+                tabs: [...(form?.querySelectorAll("nav.drpg-tabs [data-drpg-tab-key]") ?? [])].map(b => b.dataset.drpgTabKey),
+                first: form?.firstElementChild?.tagName?.toLowerCase() ?? null,
+                pane: pane ? [Boolean(pane.querySelector("table.drpg-data-table")), [...pane.querySelectorAll(".drpg-case-student strong")].map(el => el.textContent)] : null
+            };
+        } finally {
+            for (const a of open()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(3000)]);
+        }
+        equal(JSON.stringify(read), JSON.stringify({ tabs: ["traces", "key", "final", "who"], first: "nav", pane: [true, livingStudentsForGm().map(a => a.name)] }),
+            "{tabs: the Table's tab keys; first: what stands first in its live region; pane: Who has what [its counts table, the students listed by name]}");
+    }],
+    ["R3659 - a field of the case schema's editor is read out by its row's name (E97; CI run 43144994202, suite 3/8): editRow names the one field of its cell with the row's label, and leaves a field that already has a name, and a cell of a checkbox's own label, as they are", async () => {
+        /*
+         * 12.11.2026. Tier 2's "every control in the module's own chrome has a name to be read out" reads whatever is
+         * on screen when it runs; in CI's suite shard 3/8 on 1e1c61c9 a Map left open by an earlier test held the
+         * schema editor, and the sweep reported "3 control kinds carry no name a screen reader can read" (the Name
+         * field `case:1:deduction-...:label`, the Note textarea, the Trial mode select). editRow put its label in a
+         * <span> beside the cell, which names nothing. This test draws the rows itself, so it does not hang on which
+         * window another test left open.
+         */
+        const { editRow } = await import("./case-map.mjs");
+        const { nameControls } = await import("./a11y.mjs");
+        const host = document.createElement("div");
+        host.className = "drpg-panel";
+        host.innerHTML = editRow("Name", `<input type="text" name="case:1:x:label" value="" />`)
+            + editRow("Note", `<textarea name="case:1:x:text" rows="3"></textarea>`)
+            + editRow("Trial mode", `<select name="case:1:x:mode"><option value="">-</option></select>`)
+            + editRow("Kept", `<input type="text" name="kept" aria-label="Its own" />`)
+            + editRow("Links", `<label class="drpg-case-check"><input type="checkbox" name="l:a" /> A</label>`);
+        document.body.append(host);
+        try {
+            nameControls(host);
+            const read = [...host.querySelectorAll("input, select, textarea")].map(el => el.getAttribute("aria-label") ?? (el.labels?.length ? "label" : null));
+            equal(JSON.stringify(read), JSON.stringify(["Name", "Note", "Trial mode", "Its own", "label"]),
+                "the aria-label of each field (null: none; \"label\": a checkbox named by its own label)");
+        } finally { host.remove(); }
     }],
     ["R3332 - a statistic card under the kind action is asked only for an action a card is read for: Search, and no other", async () => {
         /*
@@ -37169,7 +37589,8 @@ const INVARIANTS = [
         for (const [file, fn] of SOURCE) {
             const body = fnSource(stripComments(sources.get(file) ?? ""), fn);
             // Fit, or a width the window states (E47-C2: the tracker's `width: "tracker"`, the kit's fixed width in place of the fit).
-            source[`${file} ${fn}`] = !body ? "gone" : [/\bdrpgWindow\(\{/.test(body), /\bfit: true\b|\bwidth: "[a-z]+"/.test(body), /\bfooter\b/.test(body), /\bbuttons:\s*\[/.test(body)];
+            // or a width in pixels (E97 C2: the Investigation panel's `width: WIDE.width`, ui-columns.mjs's 1120 px)
+            source[`${file} ${fn}`] = !body ? "gone" : [/\bdrpgWindow\(\{/.test(body), /\bfit: true\b|\bwidth: (?:"[a-z]+"|WIDE\.width\b)/.test(body), /\bfooter\b/.test(body), /\bbuttons:\s*\[/.test(body)];
         }
         /* Each opener with its window's class, the role per footer action, and the actions it must show. Give back's
            and Hold them again's windows share a class; Despair Flow's pool buttons depend on the world's accounts. */
@@ -37180,8 +37601,8 @@ const INVARIANTS = [
             ["./gm-students.mjs", "openWhoIsAliveDialog", undefined, "drpg-window-alive", { save: "primary", cancel: "cancel" }, ["save", "cancel"]],
             ["./gm-team-dialog.mjs", "openGmTeamDialog", undefined, "drpg-window-gmteam", { save: "primary", addPool: "secondary", removePool: "secondary", auto: "secondary", cancel: "cancel" }, ["save", "cancel"]],
             ["./investigation.mjs", "openInvestigationDashboard", undefined, "drpg-window-case",
-                { save: "primary", newTrace: "secondary", autopsy: "secondary", log: "secondary", bodyFound: "secondary", clearFaint: "destructive", sweepBullets: "destructive", close: "cancel" },
-                ["save", "newTrace", "autopsy", "log", "bodyFound", "clearFaint", "sweepBullets", "close"]],
+                { save: "primary", newTrace: "secondary", autopsy: "secondary", log: "secondary", bodyFound: "secondary", realize: "secondary", clearFaint: "destructive", sweepBullets: "destructive", unrealize: "destructive", close: "cancel" },
+                ["save", "newTrace", "autopsy", "log", "bodyFound", "realize", "clearFaint", "sweepBullets", "unrealize", "close"]],
             /* The Look window's row left with the window (E49 A1d): the gear opens the settings window (settings-window.mjs,
                the kit's wide window at a stated width, not fit), whose Save and Cancel the tier-2 test "the DRPG Settings
                window saves as Foundry's form did" presses. */
@@ -37212,7 +37633,8 @@ const INVARIANTS = [
             const problems = [];
             if (!cfg.classes?.includes(cls)) problems.push(`not ${cls}: ${(cfg.classes ?? []).join(" ")}`);
             if (!cfg.classes?.includes("drpg-ui")) problems.push("no drpg-ui root");
-            if (!cfg.classes?.includes(K.FIT_CLASS)) problems.push("not fit");
+            // fit, or a stated width (WIDTH_CLASS: E47-C2's tracker, E97 C2's Investigation panel)
+            if (!cfg.classes?.includes(K.FIT_CLASS) && !cfg.classes?.includes(K.WIDTH_CLASS)) problems.push("not fit");
             for (const b of cfg.buttons ?? []) {
                 const role = roleOf(b);
                 if (!role) problems.push(`${b.action}: no role`);
@@ -43434,7 +43856,7 @@ const INVARIANTS = [
         const of = cls => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes(cls));
         const cases = () => of("drpg-window-case");
         must(cases().length === 0 && of("drpg-window-newtrace").length === 0, "a dashboard or a New trace window stands open already - nothing here would be read cleanly");
-        const opened = () => Promise.resolve().then(() => I.openInvestigationDashboard()).catch(e => `threw: ${e?.message ?? e}`);
+        const opened = () => Promise.resolve().then(() => I.openInvestigationDashboard({ view: "table" })).catch(e => `threw: ${e?.message ?? e}`);
         const answered = (answer, ms) => Promise.race([answer, wait(ms).then(() => "still waiting")]);
         const pending = [];
         const got = {};
@@ -46125,11 +46547,12 @@ const INVARIANTS = [
         const names = root => [...(root?.querySelectorAll("[name]") ?? [])].map(el => el.getAttribute("name").replace(KEY, "K"));
         const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
         must(open().length === 0, "a dashboard stands open already - nothing here would be read cleanly");
-        const answer = Promise.resolve().then(() => I.openInvestigationDashboard()).catch(e => `threw: ${e?.message ?? e}`);
+        const answer = Promise.resolve().then(() => I.openInvestigationDashboard({ view: "table" })).catch(e => `threw: ${e?.message ?? e}`);
         let who = null;
         try {
             await until(() => open().some(a => a.element), 6000);
-            const table = open()[0]?.element?.querySelector(".drpg-case-live table") ?? null;
+            // its own tab since E98 C4 (the pane `who`), the first table there
+            const table = open()[0]?.element?.querySelector('.drpg-case-live [data-drpg-pane="who"] table') ?? null;
             must(table, "the dashboard drew no WHO HAS WHAT");
             const box = table.closest(".drpg-data-table-box") ?? table.parentElement;
             const ths = [...table.querySelectorAll("thead th")];

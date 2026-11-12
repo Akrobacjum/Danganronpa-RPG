@@ -598,6 +598,8 @@ export const SETTINGS = {
      */
     gmKeyPlan: "gmKeyPlan",
     legacyKeyRemnantPlan: "keyRemnantPlan",
+    /** THE CASE SCHEMA (E97 C3, 1.2.107): a GM store (gm-stores.mjs `caseSchemaStore`), a row per chapter and node. */
+    gmCaseSchema: "gmCaseSchema",
     /**
      * WHICH OF THE TRIAL HALL'S TOKENS THE TRIAL SHOWS (E13 C2, 1.2.74; audit S06-57, decision D7):
      * a GM store (gm-stores.mjs `trialCastStore`), never a token's flag, which its owner writes.
@@ -2256,6 +2258,14 @@ export function registerSettings() {
     // (live.mjs `keepLive`) - so another GM's edit reaches an open dashboard at its next
     // one, and not the moment it merges (read, not measured at a table).
     game.settings.register(MODULE_ID, SETTINGS.gmKeyPlan, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The case schema (E97 C3): a GM store since it exists (`caseSchemaStore`), a row per chapter and node. No `onChange`:
+    // the Investigation panel reads it at each redraw (live.mjs `keepLive`), as it reads the Key plan.
+    game.settings.register(MODULE_ID, SETTINGS.gmCaseSchema, {
         scope: "client",
         config: false,
         type: Object,
