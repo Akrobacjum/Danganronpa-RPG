@@ -772,7 +772,8 @@ function readTrial({ inFinalTrial, mastermindActor, pendingVoters, voteBar, tria
            console does not reopen at every Objection, E70-06); the lead says what the floor waits for. */
         // The Closing's choice and decision are the GM's row, not the bar's Skip (E70 C8).
         view.barNext = running && view.restrictive && !(view.floor?.mode === FLOOR_MODES.closing && barRefusal("skip", view.floor)) ? "skip" : null;
-        view.lead = view.barNext && view.next !== "endRound" && view.next !== "endClosing" ? "now" : view.next;
+        // A zone mode's lead is its own (E73): no Objection or rebuttal holds that floor.
+        view.lead = view.barNext && !["endRound", "endClosing", "endZone"].includes(view.next) ? "now" : view.next;
         return view;
 }
 

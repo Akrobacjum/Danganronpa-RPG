@@ -57,4 +57,61 @@ on the vote's opening card; the GM edits, deletes and marks "Monokuma confirms" 
 
 ## Progress
 
-- C0: this file.
+| Commit | What | Tests |
+| --- | --- | --- |
+| 6002ca8 | C0 (this file's spec), C1: zone-geometry.mjs; the Scenes tab's Zone A / Zone B; the zone warnings in the tab, the Scenes report and the Pre-season hall row; rooms.mjs `isZoneRegion`; LIVE-E73-01..04 | R3900-R3902, tier 2 "E73 C1"; R2018 follows the filled row |
+| 5101742 | C2-C5: trial-zones.mjs (sides, stands, starts, "trial.side", "trial.keyword"), zone-machine.mjs (Straw Poll, Logic Dive, Scrum Debate rows), trial-zones-ui.mjs (panel contract `ZONE_PANELS`, picker, set editor, side-pick window, drawing), `diveSetStore`, world-secrets `truth`, record rows, the bar's Count now / Skip question, music, four SFX rows, game.drpg rows | R3903-R3908, tier 2 "E73 C3, C4"; older tests changed on purpose listed in the commit |
+| 2faedcb | C6: Findings - add, edit, delete, "Monokuma confirms", each a public card; the console's Findings button; the vote's opening card | R3909, tier 2 "E73 C6" |
+| ec0775f | C7: R311's HELD pattern tightened (red on the mutant, green on the tree); scenario 68-trial-zones; handbooks GM 15.2, player 12 (EN, PL); probe 08 rows for the zone windows; the E13 C5 tier-2 test follows the zones on the tab | 68 |
+
+Red first: each commit's new tests were run on a worktree at 4077664 with the new test files copied in, and failed
+for the reason named in the commit; green on the commit.
+
+| (this) | The console's lead in a zone mode says the zone mode's line, not "An objection or a rebuttal holds the floor" (seen on the screenshots) | R1364, R1124, R2050, R2051, "E73" by name |
+
+## Test results
+
+- 5101742: tiers 0-1 1191 passed, 0 failed, 16 skipped, 1 red (R3339, E48's).
+- ec0775f (pre-push): tiers 0-1 1192 passed, 0 failed, 16 skipped, 1 red; lint, check (17 parts), gate green; prose
+  525/525; tier 2 by name (E73, E70-T, E99, trial hall, Scenes tab, Testimony, Closing Argument) 65 green after the
+  E13 C5 test's fix; scenarios 10, 30, 33, 41, 62, 63, 65, 67, 68, 72, 81, 88 green. 30 read red once on a worktree
+  (cluster.mjs gives no known-leak verdicts outside its own tree): its one red is the known leak foundry-secret-door-type.
+  65, 67, 72 on the own tree: green with their expected reds (2, 1, 4).
+- Scenarios found by `git grep` on the changed names (sceneRoles, trialProgress, trial-floor, trialParticipants,
+  trialQueue, BAR_OPS, MODE_STARTS, floorStep, trial-floor-ui, scenesTab, vote.mjs): 10, 30, 33, 41, 62, 63, 65, 67,
+  72, 81, 88 (all run above); 68 is new.
+- Mutants: R311's tightened pattern red on the givenCounts mutant (above). The plan's planted faults of C7 (truth in
+  trialQueue, a tie revealing, a double count, a Monocub or dead token counted, a gap unwarned) are held by R3904,
+  R3907, R3903, R3900 and the world-secrets fixture; they were not each planted and run as mutants on a copy.
+
+## Screenshot pages
+
+- Round 1 (12.11.2026): https://claude.ai/artifact/Sxp7TS8iJJ8VbscmfnjWfb - the console in a Straw Poll, the zone
+  picker, the Logic Dive editor, Findings, the Scenes tab's zones, both themes, EN and PL (GM windows); and C0b's two
+  console mock-ups at 1366x768 and 1920x1080. Not Foundry: the style harness. Not on the page: the side-pick window
+  (a player's), the zones on the canvas. Seen and fixed: the console's lead in a zone mode.
+
+## Open questions for the owner
+
+- Q-E73-2: which console frame (mock-up A or B), and the rebuild in its own stage after E61? Default taken: not in E73.
+- Q-E73-1, -3, -4, -5: defaults taken (above), owner to confirm.
+- A wrong Logic Dive majority shows no truth, as a tie does (the set stays replayable): default taken, owner to confirm.
+- The Pre-season check's hall row now counts "no zones" as not done (optional row): owner to confirm it should.
+
+Tokens so far: not measured by this line.
+
+## Waits for other lines
+
+- **E72** (Monocub, inactive Confusions, bribes, rewards): in a zone mode they are not wired; the zone modes count no
+  Monocub (vote.mjs `trialParticipants` leaves them out already).
+- **E61** (trial entry, cut-in): no cut-in in a zone mode yet.
+- **E74**: nothing of E74 is read here.
+- **The console rebuild** (Q-E73-2): waits for the owner's pick of the mock-ups (C0b, the review page) and E61's merge.
+
+## Not done (named for the next round)
+
+- Scenario 68 does not drive: a latecomer mid-question, a GM reload mid-question (LIVE-E73-04 instead), the export
+  and import of a case with a set.
+- The side-pick window is not on the screenshots (it opens on a player's browser only, with a floor the probe does not seed there).
+- The zones' drawing and the entry's animation are not measured headless (no canvas; LIVE-E73-03).
+
