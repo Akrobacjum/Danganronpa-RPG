@@ -216,8 +216,9 @@ harness draws icons as underscores and the Role and State selects overlap, as on
 
 Round 1: https://claude.ai/artifact/Hp4fmi4bm5u8gCA2EcnX3S - the Students window with the Spectator's Role (both themes,
 EN and PL, 1920 and 1280) and the Spectator's line under the clock (both themes, EN and PL, the switch off and on). Drawn
-by the harnesses in headless Chromium, not Foundry. Not shot: the GM's grey token (no canvas; LIVE-E92-04), the sheet's
-spectator mode (the style harness does not model it), the hidden chat (no Foundry sidebar). Found by the shots and fixed:
+by the harnesses in headless Chromium, not Foundry. Not shot: the GM's faint token (0.3 of its alpha, no tint and no
+outline since ce1ffadb, R3866; no canvas; LIVE-E92-04), the sheet's spectator mode (the style harness does not model it),
+the hidden chat (no Foundry sidebar). Found by the shots and fixed:
 the picker cut short under Legacy (b50184f). Open: under the glass the picker's arrow stands above its box in the harness.
 
 ## Defaults taken, owner to confirm
