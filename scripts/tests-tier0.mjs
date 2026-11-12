@@ -7863,7 +7863,8 @@ const REGRESSIONS = [
             // Since E72 C14 the Hope is taken by `spendCubHope` (the purse first) and asked of `cubHopeTotal`: changed on purpose.
             refusalFirst: at("cubAbilityRefusalOnGm(") > -1 && at("cubAbilityRefusalOnGm(") < at("spendAction(") && at("spendAction(") < at("spendCubHope("),
             priceBeforeDice: at("spendCubHope(") > -1 && at("spendCubHope(") < at("CUB_ROLLS["),
-            priceAsked: /actionsLeft\(actor\)\s*<\s*row\.cost/.test(onGm) && /cubHopeTotal\(actor\)\s*<\s*row\.hopeCost/.test(onGm),
+            // Since E72 C17 the price is `priceOf`'s (a move to order costs its `executionCost`): changed on purpose.
+            priceAsked: /const price = priceOf\(actor, row\)/.test(onGm) && /actionsLeft\(actor\)\s*<\s*price\.cost/.test(onGm) && /cubHopeTotal\(actor\)\s*<\s*price\.hopeCost/.test(onGm),
             serial: /serialWrite\(`drpg-cub-ability:\$\{actorId\}`/.test(run)
         };
         equal(JSON.stringify(read), JSON.stringify({ executorPays: false, refusalFirst: true, priceBeforeDice: true, priceAsked: true, serial: true }),

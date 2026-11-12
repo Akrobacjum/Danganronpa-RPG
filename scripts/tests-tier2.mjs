@@ -17644,6 +17644,74 @@ const SCENARIOS = [
             "the Redeem card is not drawn for the Monocub's player alone while Redeem is free ([kind, names the Monocub] for its player, a GM, used today, the Hope full)");
     }],
 
+    ["a move to order costs only its action: the Monocub's next Confusion after it accepted a Bribe this time of day takes no Hope, the one after it does, and an order lapses at the turn (E72 C17)", async () => {
+        /*
+         * E72 C17, 12.11.2026; the owner's DC34 ("a move done to order costs only the action"); defaults, owner may revise:
+         * an accepted Bribe orders one move of that Monocub this time of day (`cubStore`'s `order`), the row's
+         * `executionCost` is what that move costs (config.mjs MONOCUB.abilities: Confusion and Tinker, one action and no
+         * Hope), and `settleBribes` lapses an order unused at the turn. A payer with Hope, a Monocub with 3 actions and 2
+         * Hope, alone with a student. Read: [actions, Hope] after a Confusion with no order; after the Bribe's yes, a
+         * Confusion; a second; then an order left to lapse. Red at c33e556: every Confusion took a Hope.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 3), "a Monocub, its target and a payer stood by their tokens");
+        const [cub, target, payer] = cast(3);
+        needs(world.ownedByPlayer(cub), "the Monocub's player");
+        needs(world.ownedByPlayer(payer), "the payer's player");
+        const M = await import("./monocub.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { MONOCUB } = await import("./config.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const owner = a => game.users.find(u => !u.isGM && a.testUserPermission(u, "OWNER"));
+        const had = [cub, payer].map(a => ({ actions: a.system.resources.actions.value, hope: a.system.resources.hope.value }));
+        const rowWas = foundry.utils.deepClone(S.cubStore?.get(cub.id) ?? null);
+        const capWas = foundry.utils.deepClone(S.cubTargetStore?.get(target.id) ?? null);
+        const real = CONFIG.Dice.randomUniform;
+        let back = null;
+        const read = {};
+        try {
+            ok(Boolean(MONOCUB.abilities.meddle?.executionCost), "config.mjs MONOCUB.abilities.meddle has no executionCost - a move to order costs its Hope (E72 C17)");
+            ({ back } = await aloneTogether(cub, target));
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await trustedWrite(cub, { "system.resources.actions.value": 4, "system.resources.hope.value": 2 }, { reason: "gmRuling" });
+            await trustedWrite(payer, { "system.resources.hope.value": 3 }, { reason: "gmRuling" });
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            await settle();
+            const state = () => [cub.system.resources.actions.value, M.cubHopeTotal(cub)];
+            const confusion = async () => {
+                if (S.cubTargetStore.has(target.id)) await S.cubTargetStore.drop(target.id);
+                const script = [2, 3].map(face => 1 - (face - 0.5) / 12);
+                CONFIG.Dice.randomUniform = () => (script.length ? script.shift() : real());
+                try { await M.cubAbilityOnGm({ actorId: cub.id, key: "meddle", targetId: target.id, choice: "help" }); } finally { CONFIG.Dice.randomUniform = real; }
+                await settle();
+                return state();
+            };
+            read.plain = await confusion();
+            const offer = await M.offerBribeOnGm({ actorId: payer.id, cubId: cub.id }, owner(payer));
+            await M.answerBribeOnGm({ cubId: cub.id, bribeId: offer?.bribeId, accept: true }, owner(cub));
+            read.accepted = state();
+            read.ordered = await confusion();
+            read.after = await confusion();
+            const again = await M.offerBribeOnGm({ actorId: payer.id, cubId: cub.id }, owner(payer));
+            await M.answerBribeOnGm({ cubId: cub.id, bribeId: again?.bribeId, accept: true }, owner(cub));
+            await M.settleBribes();
+            read.lapsed = Boolean(S.cubStore.get(cub.id)?.order);
+        } finally {
+            CONFIG.Dice.randomUniform = real;
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            for (const [i, a] of [cub, payer].entries()) {
+                await trustedWrite(a, { "system.resources.actions.value": had[i].actions, "system.resources.hope.value": had[i].hope }, { reason: "gmRuling" });
+            }
+            if (S.cubStore.has(cub.id)) await S.cubStore.drop(cub.id);
+            if (rowWas) await S.cubStore.patch(cub.id, rowWas);
+            if (S.cubTargetStore.has(target.id)) await S.cubTargetStore.drop(target.id);
+            if (capWas) await S.cubTargetStore.patch(target.id, capWas);
+            if (back) await back();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ plain: [3, 1], accepted: [3, 2], ordered: [2, 2], after: [1, 1], lapsed: false }),
+            "a move to order is not priced as DC34 asks ({[actions, Hope] after a plain Confusion, the Bribe's yes, the ordered one, the next; an unused order after the turn})");
+    }],
+
     ["a Bounty is the GMs' and the Monocubs' alone: its Despair owed to the next time of day, claimed by the first Monocub whose Confusion hinders the student, its Hope into that Monocub's purse, lapsing unclaimed (E72 C16)", async () => {
         /*
          * E72 C16, 12.11.2026; the owner's DC27 = 2, DC40 ("Bounty the one exception: secret, for Monocubs and GMs, 1 Despair

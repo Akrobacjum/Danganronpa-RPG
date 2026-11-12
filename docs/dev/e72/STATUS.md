@@ -39,11 +39,13 @@ R range reserved for this line: R3800-R3849. Updated 12.11.2026.
 
 | C16 | Bounty (DC27 = 2, DC40): `DESPAIR_CALLS.bounty` (inventory row 75; the one Call that is not public); its price owed through the debt buffer (despair.mjs `oweDespair`, the wrapper of `recordOwed`), paid at the next time of day; one open Bounty a student in the GMs' `bountyStore`, every Monocub's owner's copy carries them, each Monocub's player and the GMs told on a veiled card; claimed by the first Monocub whose Confusion hinders the student and lands (`claimBounty`, from `scoreMeddle`), its reward into that purse; `lapseBounties` at each time of day. Defaults, owner may revise: the claim by a landing Hinder, the reward 1 Hope, the lapse at the next time of day | tier 2 "a Bounty is the GMs' and the Monocubs' alone ..." (new; red at fd831cf); the Back-up fixture; R1157, R1159 and the Call tables' test changed on purpose |
 
+| C17 | A move to order (DC34): the rows' `executionCost` (Confusion and Tinker: one action, no Hope), priced by `priceOf` on the GM; defaults, owner may revise: an accepted Bribe orders one move of that Monocub this time of day (`cubStore`'s `order`), used up by the next such move, lapsing at the turn with the open offers | tier 2 "a move to order costs only its action ..." (new; red at c33e556); R3800 changed on purpose |
+
 | C10 | A Monocub sees every room the class found (gm-stores.mjs `fogSectionFor`, `cubFogSection`): its owner is sent, under the Monocub's own row, the rooms every student found, the Mastermind's row out, the rows joined so nobody's finds are named; tier 2 "a Monocub's owner is sent every room the class found ..." (new; red at base). And a Monocub's crossing (28.10, 04.11, 06.11): no Move, no action and no Eclipse count, the Eclipse too (`crossingVerdict`, `chargeRoute`), the connected rooms still holding it; the room of a running incident refused to it on a GM judging a player's step with the Seal's code and words (`roomSealed`, `DRPG.Calls.sealedBlocked`), a GM's own move and a Monocub already inside not refused | tier 2 "a Monocub crosses to a connected room with no Move and no action, and the room of a running murder refuses it ..." (new; red at base: noBudget, the murder room let through); R558 changed on purpose |
 
 ## In progress
 
-- Part A done but C8's "Silence now" and D101 (see below). Part B: C13-C16 done. Next: C17, C18 (Ghost Bet), C19-C21, then E91.
+- Part A done but C8's "Silence now" and D101 (see below). Part B: C13-C17 done. Next: C18 (Ghost Bet), C19-C21, then E91.
 
 ## Next, in order
 

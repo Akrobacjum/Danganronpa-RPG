@@ -1030,9 +1030,29 @@ export async function cubAbilityRefusalOnGm(actor, row, key, target, choice) {
     }
     const blocked = await blockOf(row, actor);
     if (blocked) return blocked.why;
-    if (actionsLeft(actor) < row.cost) return "the Monocub has no action left for it";
-    if (cubHopeTotal(actor) < row.hopeCost) return "the Monocub has not the Hope for it";
+    const price = priceOf(actor, row);
+    if (actionsLeft(actor) < price.cost) return "the Monocub has no action left for it";
+    if (cubHopeTotal(actor) < price.hopeCost) return "the Monocub has not the Hope for it";
     return CUB_TARGETS[row.target].refuses(actor, target);
+}
+
+/*
+ * A MOVE DONE TO ORDER (E72 C17, 12.11.2026; the owner's DC34: "a move done to order costs only the action"). Defaults,
+ * owner may revise: a Bribe the Monocub accepts orders one move of it this time of day (`cubStore`'s `order`, written by
+ * `answerBribeOnGm`); the next move whose row has an `executionCost` costs that (Confusion and Tinker: the action, no
+ * Hope) and uses the order up; an order unused lapses at the turn (`settleBribes`).
+ */
+function orderOpen(actor) {
+    const order = cubRowOf(actor)?.order;
+    const slot = moveSlotNow();
+    return Boolean(order && ["chapter", "epoch", "day", "timeOfDay"].every(key => order[key] === slot[key]));
+}
+
+/** What `row` costs `actor` now: `{ cost, hopeCost, toOrder }`, the row's `executionCost` for a move to order. */
+export function priceOf(actor, row) {
+    const exec = row?.executionCost;
+    if (exec && orderOpen(actor)) return { cost: Number(exec.cost) || 0, hopeCost: Number(exec.hopeCost) || 0, toOrder: true };
+    return { cost: row?.cost ?? 0, hopeCost: row?.hopeCost ?? 0, toOrder: false };
 }
 
 /** The time of day a move is counted under: the clock's chapter, season, day and time of day. */
@@ -1108,10 +1128,13 @@ export async function cubAbilityOnGm({ actorId, key, targetId, choice } = {}) {
             return { capped };
         }
         // The price, after every condition: quiet (the toast and the pip sound would be the GM's), as an Objection's is.
-        if (row.cost > 0 && !await spendAction(actor, row.cost, { quiet: true })) return null;
+        // A move to order costs the row's `executionCost` and uses the order up (E72 C17).
+        const price = priceOf(actor, row);
+        if (price.cost > 0 && !await spendAction(actor, price.cost, { quiet: true })) return null;
+        if (price.toOrder) await patchCubRow(actor.id, { order: null });
         await noteCubMove(row, target);
         // The purse first, then the sheet (E72 C14); where each point came from is kept for a refund (Tinker's double).
-        const paid = row.hopeCost > 0 ? await spendCubHope(actor, row.hopeCost) : null;
+        const paid = price.hopeCost > 0 ? await spendCubHope(actor, price.hopeCost) : null;
         const { roll, total, isCritical } = await CUB_ROLLS[row.roll]();
         await CUB_RESOLVERS[row.resolve](actor, target, choice, total, isCritical, row, paid);
         await logCubMove(actor, key, choice, target);
@@ -1486,6 +1509,8 @@ export async function answerBribeOnGm({ cubId, bribeId, accept } = {}, sender = 
         }
         await trustedWrite(payer, { "system.resources.hope.value": resourceValue(payer, "hope") - offer.cost }, { reason: "call" });
         await addToPurse(cub, offer.cost);
+        // The move it orders this time of day (E72 C17).
+        await patchCubRow(cub.id, { order: { from: payer.id, ...moveSlotNow() } });
         await tell("bribeAccepted");
         await whisperToOwner(cub, `<p>${esc(game.i18n.format("DRPG.Monocub.bribeAcceptedCub", { name: payer.name, cost: offer.cost }))}</p>`, { veiled: true });
         log(`The Monocub ${cub.name} accepted ${payer.name}'s Bribe: ${offer.cost} Hope into its purse.`);
@@ -1498,6 +1523,8 @@ export async function settleBribes() {
     if (!game.user?.isGM) return 0;
     let lapsed = 0;
     for (const [cubId, row] of Object.entries(cubStore.entries() ?? {})) {
+        // An order not used this time of day lapses with the offers (E72 C17).
+        if (row?.order) await patchCubRow(cubId, { order: null });
         if (!Object.keys(row?.bribes ?? {}).length) continue;
         await serialWrite(`drpg-bribe:${cubId}`, async () => {
             const now = cubStore.get(cubId)?.bribes ?? {};

@@ -3224,6 +3224,8 @@ export const MONOCUB = {
              * the GM before the price (monocub.mjs `cubCapRefusal`). null for a row with no target student.
              */
             caps: { perTimeOfDay: 1, perDay: 2 },
+            /** A move done to order costs only its action (E72 C17; DC34): monocub.mjs `priceOf`. */
+            executionCost: { cost: 1, hopeCost: 0 },
             /** "Stat: -": the flat 2d12 the GM throws (CUB_ROLLS). */
             roll: "flat2d12",
             /** Scored on the GM's own throw by `scoreMeddle` (CUB_RESOLVERS). */
@@ -3316,6 +3318,7 @@ export const MONOCUB = {
             refusedSay: "DRPG.Monocub.tinkerRefused",
             intro: "DRPG.Monocub.tinkerIntro",
             caps: null,
+            executionCost: { cost: 1, hopeCost: 0 },
             thresholds: [{ min: 12, grants: "step" }]
         }
     }
