@@ -175,3 +175,39 @@ waits for E61. Open from C8: a hint after a Present in 63. E98's 60-Remnant meas
 E99's tests R3659-R3666 are R3670-R3677 (each +11, in order), because the 1.2.107 line took R3659 (3a288fa) and the
 E97 fix R3660-R3662. The registry keeps the old rows marked "(renumbered to R367x in E99)" until the merge, where
 R3659-R3662 take the 1.2.107 line's tests. Every mention in this file was moved too.
+
+## Round 4 (12.11; the owner's 11:50 and 12:00 through the coordinator; E97 fix merged at 70b345b)
+
+- **Merged the E97 fix** (claude/e97-fix at 1cb13422) as the coordinator asked, without waiting for its CI: 70b345b.
+  Conflicts and the two rules of main that met E99 there (R3510's census row and chatCard; R3660's no fixed height)
+  in the merge's message. On the merge: tiers 0-1 1238 passed, 0 failed, 16 skipped, 0 red; scenarios 41, 50, 62, 63,
+  67, 72, 86, 88 green; 61-gmstore-case red once under that load (D5, "the same browser back in world A ...") and
+  113/113 alone on the same commit - recorded, not explained (F9 before it was the same kind).
+- **The trial's schema is the Map's** (case-map.mjs `caseGraphHtml`, `cameraHtml`, `wireCaseMap` with no editors and
+  no callbacks: read only; case-view.mjs `relayoutCaseMap`, `wireCaseCamera`): whole nodes and the camera, in the
+  console and in the separate window. The Map's graph rules in components.css also serve the trial's two contexts
+  (`:is(...)` inside the selector, the same weight).
+- **Before a trial** (the console the GM panel's Class Trial tile opens): the schema alone - no tick, no start.
+- **While a trial runs**: each deduction's, counter's and solution's tick is a button on its tile (`aria-pressed`,
+  "Ticked: <name>"), the mode's start under it, both in the tile's right-hand gutter (case-view.mjs `TILE_GUTTER`,
+  `placeTileControls`, placed again after each measure); neither carries `data-drpg-node` (the relayout measures
+  every child button that does).
+- **The mount fills the slot's box and never grows it**: the live region stands absolutely in the slot; the slot gets
+  `position: relative` and, for today's console, B's reserved min-height; display and order stay B's.
+- **A bug found by the sweep and fixed**: keepLive replaces the region with what `build` returns, which returned the
+  schema without `.drpg-case-trial-live`; after the first redraw the region was lost and nothing was wired (seen in a
+  debate's capture: viewport 668x0, no camera). Present since afeeb68. The console test now holds the region and its
+  wiring after the tick's own redraw (red before the fix: `rewired: false`).
+- **Tests**: tier 2 - the console test (tick on the tile, inside its box; the camera; after the redraw), the eight
+  floor states (the tick button in each), and a new pre-trial test (no tick, no start, the camera) - red at 70b345b,
+  green here; "E99 C" 17 passed with R1317, R3676, R3677 and the a11y sweep (20). A slip of mine on the way: a
+  replace in the test file hit the window test's line instead of the console test's and made it race; seen, put back,
+  and 70b345b's own window test passes unchanged (2 of 2).
+- **Measured in Chromium** (audit/case-map-sweep.mjs with `--ids "^class-trial--case"`, new `--scale` and a shot of
+  the console scrolled to the slot; the tick and start checked inside their tile and over no word of it): 24 pages
+  (before the trial, a debate, an Objection; both themes, 1366x768 and 1920x1080, EN and PL), 0 cut, 0 overlaps,
+  7 controls a page during the trial and 0 before; controls read (the C5 box 30 cuts, the stale layout 3 overlaps).
+- Shots: https://claude.ai/artifact/XwXm4DyQ9xWQtUohqxUrvC (round 4 on top).
+- Open: in today's console the schema is below the read-out (B's layout places it); at 1366x768 the slot is 228 px
+  tall and the camera's buttons stand over the graph's lower right (as on the Map); the fold of unrelated evidence
+  does not unfold in the trial (no callback; a read-only view).

@@ -3282,7 +3282,7 @@ body .application.drpg-window-case .drpg-case-view td.drpg-data-col-case-key-sta
 .application.drpg-ui.drpg-window-case .drpg-case-view[data-drpg-view="map"] { overflow: hidden; }
 .application.drpg-window-case .drpg-case-form { height: 100%; margin: 0; }
 .application.drpg-window-case .drpg-case-map { display: flex; flex-direction: column; gap: var(--drpg-kit-gap); height: 100%; min-height: 0; }
-.application.drpg-window-case .drpg-case-graph {
+.application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) .drpg-case-graph {
     position: relative;
     flex: 1 1 auto;
     min-width: 0;
@@ -3293,14 +3293,14 @@ body .application.drpg-window-case .drpg-case-view td.drpg-data-col-case-key-sta
     cursor: grab;
     border: 1px solid var(--drpg-kit-line);
 }
-.application.drpg-window-case .drpg-case-graph.is-panning { cursor: grabbing; }
-.application.drpg-window-case .drpg-case-canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
-.application.drpg-window-case .drpg-case-canvas.is-easing { transition: transform 160ms ease-out; }
-body.drpg-reduced-motion .application.drpg-window-case .drpg-case-canvas { transition: none; }
-.application.drpg-window-case .drpg-case-edges { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
-.application.drpg-window-case .drpg-case-edge { fill: none; stroke: var(--drpg-kit-line-strong); stroke-width: 1.6; }
-.application.drpg-window-case .drpg-case-edge--refutes { stroke: var(--drpg-kit-check-done); stroke-dasharray: 5 4; }
-.application.drpg-window-case .drpg-case-col-head {
+.application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) .drpg-case-graph.is-panning { cursor: grabbing; }
+.application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) .drpg-case-canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) .drpg-case-canvas.is-easing { transition: transform 160ms ease-out; }
+body.drpg-reduced-motion .application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) .drpg-case-canvas { transition: none; }
+.application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) .drpg-case-edges { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+.application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) .drpg-case-edge { fill: none; stroke: var(--drpg-kit-line-strong); stroke-width: 1.6; }
+.application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) .drpg-case-edge--refutes { stroke: var(--drpg-kit-check-done); stroke-dasharray: 5 4; }
+.application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) .drpg-case-col-head {
     position: absolute;
     top: 0.25rem;
     font-size: var(--drpg-text-xs);
@@ -3312,7 +3312,7 @@ body.drpg-reduced-motion .application.drpg-window-case .drpg-case-canvas { trans
 /* THE NODE RULE OUTRANKS THE GLASS'S BUTTON RULE (stained-glass.css section 7: `.drpg-panel button:not(...)` x4, 7 classes,
    `white-space: nowrap` and 14 px sides): at C5's weight (5 classes) a node under the glass kept its name on one line,
    cut at the node's edge (Chromium, 1366x768, the E97 fix's sweep: "The culprit came in wi"). Eight classes here. */
-body .application.drpg-ui.drpg-panel.drpg-window-case .drpg-case-map .drpg-case-canvas > button.drpg-case-node[data-drpg-node] {
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node] {
     position: absolute;
     box-sizing: border-box;
     width: 240px;
@@ -3337,47 +3337,47 @@ body .application.drpg-ui.drpg-panel.drpg-window-case .drpg-case-map .drpg-case-
     border-radius: var(--drpg-kit-btn-radius);
     cursor: pointer;
 }
-body .application.drpg-ui.drpg-panel.drpg-window-case .drpg-case-map .drpg-case-canvas > button.drpg-case-node[data-drpg-node]:hover { background: var(--drpg-kit-hover-bg); border-color: var(--drpg-kit-hover-edge); }
-body .application.drpg-ui.drpg-panel.drpg-window-case .drpg-case-map .drpg-case-canvas > button.drpg-case-node[data-drpg-node]:focus-visible { outline: 2px solid var(--drpg-kit-ring); outline-offset: 2px; }
-body .application.drpg-ui.drpg-panel.drpg-window-case .drpg-case-map .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-selected {
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node]:hover { background: var(--drpg-kit-hover-bg); border-color: var(--drpg-kit-hover-edge); }
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node]:focus-visible { outline: 2px solid var(--drpg-kit-ring); outline-offset: 2px; }
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-selected {
     width: 352px;
     background: var(--drpg-kit-row-highlight);
     border: 2px solid var(--drpg-kit-btn-on-edge);
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
 }
-body .application.drpg-ui.drpg-panel.drpg-window-case .drpg-case-map .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-held { background: var(--drpg-kit-info-bg); border-color: var(--drpg-kit-info-edge); }
-body .application.drpg-ui.drpg-panel.drpg-window-case .drpg-case-map .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-planned,
-body .application.drpg-ui.drpg-panel.drpg-window-case .drpg-case-map .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-loose { border-style: dashed; }
-body .application.drpg-ui.drpg-panel.drpg-window-case .drpg-case-map .drpg-case-canvas > button.drpg-case-node[data-drpg-node].drpg-case-node--counter { border-color: var(--drpg-kit-warn-edge); }
-body .application.drpg-ui.drpg-panel.drpg-window-case .drpg-case-map .drpg-case-canvas > button.drpg-case-node[data-drpg-node].drpg-case-node--solution { border-color: var(--drpg-kit-primary-edge); border-width: 2px; }
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-held { background: var(--drpg-kit-info-bg); border-color: var(--drpg-kit-info-edge); }
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-planned,
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-loose { border-style: dashed; }
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node].drpg-case-node--counter { border-color: var(--drpg-kit-warn-edge); }
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node].drpg-case-node--solution { border-color: var(--drpg-kit-primary-edge); border-width: 2px; }
 /* The states above take the node rule's own selector: at C5 they were written lighter than it (four classes against five)
    and none of hover, held, planned, unrelated, counter or solution reached a node (the E97 fix's reading of the cascade). */
 /* the head's parts wrap to a second line rather than cut the kind (a node's trial-mode pill hid its kind until the fix) */
-.application.drpg-window-case .drpg-case-node-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.125rem 0.375rem; min-width: 0; font-size: var(--drpg-text-xs); }
-.application.drpg-window-case .drpg-case-node-kind {
+.application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) .drpg-case-node-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.125rem 0.375rem; min-width: 0; font-size: var(--drpg-text-xs); }
+.application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) .drpg-case-node-kind {
     flex: 1 1 auto;
     min-width: 0;
     overflow-wrap: anywhere;
     font-weight: 700;
     color: var(--drpg-kit-help-ink);
 }
-.application.drpg-window-case .drpg-case-node-mode { flex: 0 0 auto; padding: 0 0.375rem; border: 1px solid var(--drpg-kit-chip-edge); border-radius: 999px; }
-.application.drpg-window-case .drpg-case-node-state { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 0.25rem; color: var(--drpg-kit-help-ink); }
-.application.drpg-window-case .is-held .drpg-case-node-state { color: var(--drpg-kit-check-done); }
-.application.drpg-window-case .drpg-case-node-reach { flex: 0 0 auto; font-weight: 700; color: var(--drpg-kit-help-ink); }
-.application.drpg-window-case .drpg-case-node-warn { flex: 0 0 auto; font-weight: 700; color: var(--drpg-kit-ink); padding: 0 0.25rem; border: 1px solid var(--drpg-kit-warn-edge); border-radius: 999px; }
-body .application.drpg-ui.drpg-panel.drpg-window-case .drpg-case-map .drpg-case-canvas > button.drpg-case-node[data-drpg-node].has-warn { border-color: var(--drpg-kit-warn-edge); }
-.application.drpg-window-case .drpg-case-node-reach.is-reachable { color: var(--drpg-kit-check-done); }
-.application.drpg-window-case .drpg-case-node-name { min-width: 0; overflow-wrap: anywhere; font-size: var(--drpg-text-sm); }
-.application.drpg-window-case .drpg-case-node-text { min-width: 0; overflow-wrap: anywhere; white-space: pre-line; font-size: var(--drpg-text-xs); color: var(--drpg-kit-help-ink); }
-.application.drpg-window-case .drpg-case-gap {
+.application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) .drpg-case-node-mode { flex: 0 0 auto; padding: 0 0.375rem; border: 1px solid var(--drpg-kit-chip-edge); border-radius: 999px; }
+.application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) .drpg-case-node-state { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 0.25rem; color: var(--drpg-kit-help-ink); }
+.application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) .is-held .drpg-case-node-state { color: var(--drpg-kit-check-done); }
+.application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) .drpg-case-node-reach { flex: 0 0 auto; font-weight: 700; color: var(--drpg-kit-help-ink); }
+.application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) .drpg-case-node-warn { flex: 0 0 auto; font-weight: 700; color: var(--drpg-kit-ink); padding: 0 0.25rem; border: 1px solid var(--drpg-kit-warn-edge); border-radius: 999px; }
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node].has-warn { border-color: var(--drpg-kit-warn-edge); }
+.application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) .drpg-case-node-reach.is-reachable { color: var(--drpg-kit-check-done); }
+.application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) .drpg-case-node-name { min-width: 0; overflow-wrap: anywhere; font-size: var(--drpg-text-sm); }
+.application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) .drpg-case-node-text { min-width: 0; overflow-wrap: anywhere; white-space: pre-line; font-size: var(--drpg-text-xs); color: var(--drpg-kit-help-ink); }
+.application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) .drpg-case-gap {
     position: absolute;
     display: flex;
     align-items: center;
     border-top: 1px dashed var(--drpg-kit-line-strong);
 }
-body .application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) button.drpg-case-fold {
+body .application:is(:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial), .drpg-window-case-trial, .drpg-window-trial) button.drpg-case-fold {
     min-width: 0;
     width: 100%;
     margin: 0.25rem 0 0;
@@ -3436,7 +3436,7 @@ body .application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-tr
 body .application.drpg-window-case .drpg-case-tools button { flex: 0 0 auto; min-width: 0; margin: 0; padding: 2px 6px; font-size: var(--drpg-text-xs); }
 .application.drpg-window-case select.drpg-case-sort { flex: 0 1 auto; min-width: 0; font-size: var(--drpg-text-xs); }
 /* THE CAMERA'S BUTTONS over the graph's bottom right corner (above the canvas, which the camera moves under them) */
-.application.drpg-window-case .drpg-case-camera {
+.application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) .drpg-case-camera {
     position: absolute;
     right: 0.5rem;
     bottom: 0.5rem;
@@ -3450,8 +3450,8 @@ body .application.drpg-window-case .drpg-case-tools button { flex: 0 0 auto; min
     border: 1px solid var(--drpg-kit-line);
     border-radius: var(--drpg-kit-btn-radius);
 }
-body .application.drpg-window-case .drpg-case-camera > button.drpg-case-cam { flex: 0 0 auto; min-width: 1.75rem; margin: 0; padding: 2px 6px; font-size: var(--drpg-text-xs); font-weight: 700; }
-.application.drpg-window-case .drpg-case-zoom { min-width: 3rem; text-align: center; font-size: var(--drpg-text-xs); font-variant-numeric: tabular-nums; color: var(--drpg-kit-help-ink); }
+body .application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) .drpg-case-camera > button.drpg-case-cam { flex: 0 0 auto; min-width: 1.75rem; margin: 0; padding: 2px 6px; font-size: var(--drpg-text-xs); font-weight: 700; }
+.application:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) .drpg-case-zoom { min-width: 3rem; text-align: center; font-size: var(--drpg-text-xs); font-variant-numeric: tabular-nums; color: var(--drpg-kit-help-ink); }
 /* THE CHAPTER'S OVERVIEW, one line folded: the chapter, its counts, its problems; open, the check, the list, the
    chapter's own fields, scrolling in their own box so the graph keeps the most of the view. */
 .application.drpg-window-case .drpg-case-overview { flex: 0 0 auto; min-width: 0; border: 1px solid var(--drpg-kit-line); color: var(--drpg-kit-ink); }
@@ -3491,20 +3491,39 @@ body .application.drpg-window-case .drpg-case-check-head > button { flex: 0 0 au
 .application:is(.drpg-window-case-trial, .drpg-window-trial) .drpg-case-trial-name { min-width: 0; overflow-wrap: anywhere; }
 .application:is(.drpg-window-case-trial, .drpg-window-trial) .drpg-case-trial-hint { flex: 1 1 100%; font-size: var(--drpg-text-xs); color: var(--drpg-kit-check-done); }
 body .application:is(.drpg-window-case-trial, .drpg-window-trial) button.drpg-case-trial-start { flex: 0 0 auto; margin: 0; padding: 2px 8px; font-size: var(--drpg-text-xs); white-space: normal; }
-body .application.drpg-ui:is(.drpg-window-case-trial, .drpg-window-trial) .drpg-case-canvas > button.drpg-case-node.is-presented { border-color: var(--drpg-kit-info-edge); border-style: solid; }
-body .application.drpg-ui:is(.drpg-window-case-trial, .drpg-window-trial) .drpg-case-canvas > button.drpg-case-node.is-hinted { outline: 2px dashed var(--drpg-kit-check-done); outline-offset: 1px; }
-body .application.drpg-ui:is(.drpg-window-case-trial, .drpg-window-trial) .drpg-case-canvas > button.drpg-case-node.is-ticked { background: var(--drpg-kit-info-bg); border-color: var(--drpg-kit-check-done); }
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case-trial, .drpg-window-trial) .drpg-case-trial .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-presented { border-color: var(--drpg-kit-info-edge); border-style: solid; }
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case-trial, .drpg-window-trial) .drpg-case-trial .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-hinted { outline: 2px dashed var(--drpg-kit-check-done); outline-offset: 1px; }
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case-trial, .drpg-window-trial) .drpg-case-trial .drpg-case-canvas > button.drpg-case-node[data-drpg-node].is-ticked { background: var(--drpg-kit-info-bg); border-color: var(--drpg-kit-check-done); }
 /* IN THE TRIAL CONSOLE (E99 C5 placed): the console's column is narrower than the schema's window, so the graph takes the
    width at a stated height and the ticks follow under it; the slot sits between the read-out and the footer. */
-/* E73's mockup B reserves the graph's height for the slot and no more (its frame's `.drpg-trial-schema` keeps its own
-   display and order): the console's variant is the graph alone at that height, its boxes and starts inside it. */
-.application.drpg-window-trial .drpg-trial-schema { margin-top: var(--drpg-kit-gap); }
-.application.drpg-window-trial .drpg-case-trial.is-console { height: clamp(12rem, 30vh, 24rem); }
-.application.drpg-window-trial .drpg-case-trial.is-console > .drpg-case-graph { flex: 1 1 auto; height: 100%; }
-.application.drpg-window-trial .drpg-case-trial.is-console [data-drpg-case-unknown] { margin: 0.25rem 0.5rem; }
-/* The graph's own controls (case-map.mjs `controls`), in the column gap right of their node. */
-.application:is(.drpg-window-case-trial, .drpg-window-trial) .drpg-case-canvas > input.drpg-case-node-tick { position: absolute; margin: 0; width: 18px; }
-body .application.drpg-ui:is(.drpg-window-case-trial, .drpg-window-trial) .drpg-case-canvas > button.drpg-case-node-start { position: absolute; width: 24px; max-width: 24px; min-width: 0; min-height: 0; margin: 0; padding: 0; line-height: 1; font-size: var(--drpg-text-sm); }
+/* THE SCHEMA FILLS THE SLOT'S BOX AND NEVER GROWS IT (round 4; E73's mockup B gives the slot its size, its display
+   and its order): the live region stands absolutely inside the slot, the graph takes what the unknown line leaves, and
+   the camera moves the case inside it. The slot gets only a containing block and, for today's console where nothing
+   sizes it, the height B reserves (clamp(12rem, 30vh, 24rem)). */
+.application.drpg-window-trial .drpg-trial-schema { position: relative; min-height: clamp(12rem, 30vh, 24rem); margin-top: var(--drpg-kit-gap); }
+.application.drpg-window-trial .drpg-trial-schema > .drpg-case-trial-live { position: absolute; inset: 0; }
+.application.drpg-window-trial .drpg-case-trial.is-console { display: flex; flex-direction: column; height: 100%; }
+.application.drpg-window-trial .drpg-case-trial.is-console > .drpg-case-graph { flex: 1 1 auto; min-height: 0; height: auto; }
+.application.drpg-window-trial .drpg-case-trial.is-console > [data-drpg-case-unknown] { flex: 0 0 auto; margin: 0 0 0.25rem; }
+/* THE TICK ON THE TILE (round 4; the owner's "przycisk na kaflu"): the tile keeps a right-hand gutter (case-map.mjs
+   TILE_GUTTER, 30 px) so no word runs under its controls; the tick, pressed or not, and the start stand in it. */
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node].has-controls { padding-right: 34px; }
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case-trial, .drpg-window-trial) .drpg-case-trial .drpg-case-canvas > button:is(.drpg-case-node-tick, .drpg-case-node-start) {
+    position: absolute;
+    box-sizing: border-box;
+    width: 24px;
+    min-width: 0;
+    min-height: 22px;
+    margin: 0;
+    padding: 0;
+    line-height: 1;
+    font-size: var(--drpg-text-sm);
+    text-transform: none;
+    letter-spacing: 0;
+    white-space: normal;
+}
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case-trial, .drpg-window-trial) .drpg-case-trial .drpg-case-canvas > button.drpg-case-node-tick[aria-pressed="false"] { color: transparent; }
+body .application.drpg-ui.drpg-panel:is(.drpg-window-case-trial, .drpg-window-trial) .drpg-case-trial .drpg-case-canvas > button.drpg-case-node-tick[aria-pressed="true"] { color: var(--drpg-kit-btn-on-ink); background: var(--drpg-kit-btn-on-bg); border-color: var(--drpg-kit-btn-on-edge); }
 
 /* ---- The project windows (E47-C6, 09.11.2026; cards M16-M19 of E47-M, approved by the owner on 09.11 with O1a, O2b, O3b
    and O4 as a setting; D31): the manager's `dataTable` and the create, edit and propose forms on `formGrid`. The rules

@@ -19,7 +19,7 @@ import { esc, error, plural } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 import { alreadyOpen, keepLive, RAISED } from "./live.mjs";
 import { getClock } from "./clock.mjs";
-import { caseGraphHtml, kindLabel, modeLabel } from "./case-map.mjs";
+import { caseGraphHtml, kindLabel, modeLabel, cameraHtml, wireCaseMap, placeTileControls } from "./case-map.mjs";
 import { layoutCase } from "./case-layout.mjs";
 import { caseGraph, caseTicks, setCaseTick } from "./case-schema.mjs";
 import { presentationHints, casePresentations } from "./case-hints.mjs";
@@ -51,7 +51,7 @@ function tickRow(node, { ticked, hinted, floorOpen, noTrial = false }) {
  * Pure over its state: `{ graph, layout, ticks, presented, hints, unknown, floorOpen }` (`trialSchemaState`). The
  * graph, then the rows; the unknown cards' line when any card named no Remnant of the schema.
  */
-export function trialSchemaHtml({ graph, layout, ticks = {}, presented = [], hints = [], unknown = 0, floorOpen = false, noTrial = false, inConsole = false } = {}) {
+export function trialSchemaHtml({ graph, layout, ticks = {}, presented = [], hints = [], unknown = 0, floorOpen = false, noTrial = false, inConsole = false, camera = null } = {}) {
     const nodes = graph?.nodes ?? [];
     if (!nodes.length) return `<p class="notes">${esc(L("DRPG.CaseTrial.empty"))}</p>`;
     const hinted = new Set(hints);
@@ -60,23 +60,25 @@ export function trialSchemaHtml({ graph, layout, ticks = {}, presented = [], hin
     for (const id of hints) marks[id] = [...(marks[id] ?? []), "hinted"];
     for (const [id, on] of Object.entries(ticks ?? {})) if (on === true) marks[id] = [...(marks[id] ?? []), "ticked"];
     const unknownLine = unknown > 0 ? `<p class="notes" data-drpg-case-unknown>${esc(plural("DRPG.CaseTrial.unknown", { n: unknown }))}</p>` : "";
-    /* IN THE CONSOLE (E73's mockup B gives the schema the graph's height and no more): the boxes and the starts are the
-       graph's own controls beside each node, and nothing is drawn under the graph; the unknown cards' line stands above
-       it, inside the same box. The window keeps the list. */
+    /* IN THE CONSOLE (E73's mockup B gives the schema the slot's box and no more; round 4, the owner's 12:00): the Map's
+       graph, its nodes whole and its camera (case-map.mjs, case-view.mjs), read only, filling the box; while a Class
+       Trial runs each deduction, counter and solution carries its tick - a button on its tile - and its mode's start;
+       before a trial, the schema alone. Nothing is drawn under the graph; the unknown cards' line stands over it. The
+       window keeps the list. `camera` the mount's kept view, for the zoom's readout. */
     if (inConsole) {
-        const controls = {};
-        for (const n of nodes.filter(n => !n.evidence)) {
+        const controls = noTrial ? null : {};
+        for (const n of noTrial ? [] : nodes.filter(n => !n.evidence)) {
             const start = n.mode ? MODE_STARTS[n.mode] : null;
             controls[n.id] = { tick: ticks?.[n.id] === true,
-                start: start?.action ? { action: start.action, mode: n.mode, label: modeLabel(n.mode), disabled: noTrial || floorOpen,
-                    reason: noTrial ? L("DRPG.CaseTrial.noTrial") : floorOpen ? L("DRPG.CaseTrial.floorOpen") : "" } : null };
+                start: start?.action ? { action: start.action, mode: n.mode, label: modeLabel(n.mode), disabled: floorOpen,
+                    reason: floorOpen ? L("DRPG.CaseTrial.floorOpen") : "" } : null };
         }
-        return `<div class="drpg-case-trial is-console"><div class="drpg-case-graph">${unknownLine}`
-            + `${caseGraphHtml({ graph, layout, fold: true, marks, controls, label: L("DRPG.CaseTrial.title") })}</div></div>`;
+        return `<div class="drpg-case-trial is-console">${unknownLine}<div class="drpg-case-graph" tabindex="-1">`
+            + `${caseGraphHtml({ graph, layout, fold: true, marks, controls, label: L("DRPG.CaseTrial.title") })}${cameraHtml(camera?.z ?? 1)}</div></div>`;
     }
     const rows = nodes.filter(n => !n.evidence).map(n => tickRow(n, { ticked: ticks?.[n.id] === true, hinted: hinted.has(n.id), floorOpen, noTrial })).join("");
     return `<div class="drpg-case-trial">`
-        + `<div class="drpg-case-graph">${caseGraphHtml({ graph, layout, fold: true, marks, label: L("DRPG.CaseTrial.title") })}</div>`
+        + `<div class="drpg-case-graph" tabindex="-1">${caseGraphHtml({ graph, layout, fold: true, marks, label: L("DRPG.CaseTrial.title") })}${cameraHtml(camera?.z ?? 1)}</div>`
         + `<div class="drpg-case-trial-side"><p class="notes">${esc(L("DRPG.CaseTrial.intro"))}</p>`
         + unknownLine
         + `<ul class="drpg-case-trial-rows">${rows}</ul></div></div>`;
@@ -109,17 +111,39 @@ export async function tickFromSchema(chapter, nodeId, ticked) {
  */
 export const TRIAL_SCHEMA_SLOT = "[data-drpg-trial-schema]";
 
-/* The schema's region in `dialog` kept live on its own watches, its boxes and starts wired; answers the stop. */
+/*
+ * The schema's region in `dialog` kept live on its own watches, answering the stop. Its graph is wired read only by the
+ * Map's own code (case-map.mjs `wireCaseMap` with no editors and no callbacks: nodes measured whole, the camera; a click
+ * on a node opens nothing), the trial's controls placed on their tiles after each measure, a tick button toggling the
+ * GMs' tick and a start starting its mode. The camera is the mount's, kept across redraws.
+ */
 function liveSchema(dialog, chapter, { inConsole = false } = {}) {
     const regionOf = () => dialog.element?.querySelector(".drpg-case-trial-live");
+    let camera = null;
     const wire = () => {
         const region = regionOf();
-        for (const box of region?.querySelectorAll("input[data-drpg-case-tick]") ?? []) {
+        if (!region) return;
+        wireCaseMap(region, { camera: { get: () => camera, set: cam => { camera = cam; } } });
+        const canvas = region.querySelector(".drpg-case-canvas");
+        const place = () => { if (canvas?.isConnected) placeTileControls(canvas); };
+        place();
+        document.fonts?.ready?.then?.(place, () => {});
+        if (canvas && typeof ResizeObserver === "function") {
+            const watch = new ResizeObserver(() => { if (!canvas.isConnected) { watch.disconnect(); return; } requestAnimationFrame(place); });
+            for (const el of canvas.querySelectorAll(":scope > button[data-drpg-node]")) watch.observe(el);
+        }
+        for (const box of region.querySelectorAll("input[data-drpg-case-tick]")) {
             box.addEventListener("change", () => {
                 tickFromSchema(chapter, box.dataset.drpgCaseTick, box.checked).catch(err => error("The tick was not written", err));
             });
         }
-        for (const button of region?.querySelectorAll("[data-drpg-case-start]") ?? []) {
+        for (const button of region.querySelectorAll("button[data-drpg-case-tick]")) {
+            button.addEventListener("click", () => {
+                const next = button.getAttribute("aria-pressed") !== "true";
+                tickFromSchema(chapter, button.dataset.drpgCaseTick, next).catch(err => error("The tick was not written", err));
+            });
+        }
+        for (const button of region.querySelectorAll("[data-drpg-case-start]")) {
             button.addEventListener("click", async () => {
                 const { startTrialMode } = await import("./trial-floor-ui.mjs");
                 await startTrialMode(button.dataset.drpgCaseStart).catch(err => error("The trial mode did not start", err));
@@ -129,7 +153,9 @@ function liveSchema(dialog, chapter, { inConsole = false } = {}) {
     wire();
     return keepLive(dialog, {
         region: ".drpg-case-trial-live",
-        build: () => trialSchemaHtml({ ...trialSchemaState(chapter), inConsole }),
+        // live.mjs replaces the region with what `build` returns, so it returns the region's own element: without it the
+        // first redraw dropped `.drpg-case-trial-live`, and no later redraw found it (found by the round-4 sweep)
+        build: () => `<div class="drpg-case-trial-live">${trialSchemaHtml({ ...trialSchemaState(chapter), inConsole, camera })}</div>`,
         watch: { items: true, settings: [SETTINGS.trialQueue, SETTINGS.clock, SETTINGS.murderState], stores: [caseTickStore, caseSchemaStore, keyPlanStore, blackenedStore], hooks: ["createChatMessage", "updateChatMessage", "deleteChatMessage"] },
         after: wire
     });

@@ -39738,6 +39738,7 @@ const SCENARIOS = [
         const ui2 = await import("./trial-floor-ui.mjs");
         const S = await import("./case-schema.mjs");
         const { closeOpen } = await import("./live.mjs");
+        const MAP_W = (await import("./case-view.mjs")).MAP_GEOMETRY.nodeW;
         needs(env.dialogs(), "the console is read in its drawn window");
         const clock = foundry.utils.deepClone(getClock());
         const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
@@ -39757,22 +39758,37 @@ const SCENARIOS = [
             must(app?.element, "the trial console did not open");
             const slot = () => app.element.querySelector("[data-drpg-trial-schema]");
             must(slot(), "the console has no case schema slot ([data-drpg-trial-schema])");
-            // In the console the boxes and starts are the graph's own (E73's mockup B reserves the graph's height alone)
-            const box = () => slot()?.querySelector(`.drpg-case-canvas input[data-drpg-case-tick="${id}"]`);
+            // Round 4 (the owner's 12:00): the tick is a button on the node's tile, pressed or not; the camera is the Map's
+            const box = () => slot()?.querySelector(`.drpg-case-canvas > button[data-drpg-case-tick="${id}"]`);
             await until(() => box(), 4000);
             const first = box();
             const secondsOf = () => Number(app.element.querySelector(".drpg-trial-console")?.textContent.match(/(\d+)\s*s/)?.[1] ?? NaN);
             const t0 = secondsOf();
             await until(() => secondsOf() < t0, 4000);
-            const start = slot()?.querySelector(`.drpg-case-canvas [data-drpg-case-start][data-drpg-node="${id}"]`);
+            const start = slot()?.querySelector(`.drpg-case-canvas [data-drpg-case-start][data-drpg-case-start-node="${id}"]`);
             const listed = Boolean(slot()?.querySelector(".drpg-case-trial-rows"));
+            const tile = slot()?.querySelector(`.drpg-case-canvas > button.drpg-case-node[data-drpg-node="${id}"]`);
+            const px = el => [parseFloat(el?.style.left), parseFloat(el?.style.top)];
+            const [nx, ny] = px(tile), [tx, ty] = px(first);
+            const onTile = Boolean(tile?.classList.contains("has-controls")) && tx > nx && tx < nx + MAP_W && ty >= ny && ty < ny + 54;
+            const camera = Boolean(slot()?.querySelector(".drpg-case-graph[data-drpg-camera] .drpg-case-camera [data-drpg-case-camera='fit']"))
+                && /scale\(/.test(slot()?.querySelector(".drpg-case-canvas")?.style.transform ?? "");
+            const pressed = first?.getAttribute("aria-pressed");
             const kept = Boolean(first) && first === box() && first.isConnected;
             box()?.click();
             await until(() => S.caseTicks(chapter)[id] === true, 3000).catch(() => {});
-            equal(JSON.stringify({ outside: !slot().closest(".drpg-trial-console"), box: Boolean(first), ticked: secondsOf() < t0, kept,
-                startGreyed: Boolean(start?.disabled), listed, stored: S.caseTicks(chapter)[id] === true }),
-            JSON.stringify({ outside: true, box: true, ticked: true, kept: true, startGreyed: true, listed: false, stored: true }),
-            "{the slot outside the read-out; the deduction's tick box in the graph; the clock moved; the same box after it; the graph's start greyed under the open floor; no list under the graph; the click stored}");
+            /* THE REGION SURVIVES ITS OWN REDRAW (round 4, found by the Chromium sweep: a debate's capture held the schema
+               with no `.drpg-case-trial-live` and no camera - keepLive replaces the region with what `build` returns, which
+               must carry the region's class): the tick's write redraws the schema; after it the region is there, wired,
+               and the tile's button pressed. */
+            await until(() => box()?.getAttribute("aria-pressed") === "true", 4000).catch(() => {});
+            const rewired = Boolean(slot()?.querySelector(":scope > .drpg-case-trial-live > .drpg-case-trial .drpg-case-graph[data-drpg-camera]"));
+            const pressedAfter = box()?.getAttribute("aria-pressed") ?? null;
+            equal(JSON.stringify({ outside: !slot().closest(".drpg-trial-console"), box: Boolean(first), pressed, onTile, camera, ticked: secondsOf() < t0, kept,
+                startGreyed: Boolean(start?.disabled), listed, stored: S.caseTicks(chapter)[id] === true, rewired, pressedAfter }),
+            JSON.stringify({ outside: true, box: true, pressed: "false", onTile: true, camera: true, ticked: true, kept: true, startGreyed: true, listed: false, stored: true,
+                rewired: true, pressedAfter: "true" }),
+            "{the slot outside the read-out; the deduction's tick button on the graph; not pressed; inside its tile's box; the Map's camera wired; the clock moved; the same button after it; the start greyed under the open floor; no list; the click stored; after the redraw the region there and wired; the button pressed}");
         } finally {
             closeOpen("drpg-window-trial");
             await floorMod.endFloor();
@@ -39782,6 +39798,40 @@ const SCENARIOS = [
             await S.dropCaseNode(chapter, id).catch(() => {});
             await settle();
         }
+    }],
+
+    ["E99 C5 round 4: before a Class Trial runs, the console's schema is the schema alone - whole nodes and the camera, no tick and no mode start", async () => {
+        /*
+         * The owner's 12:00 (relayed): "W oknie otwierajacym class trial ... nie chcemy zaznaczania wnioskow, tylko sam
+         * schemat." The console the GM panel's Class Trial tile opens, with no trial running: the slot holds the graph and
+         * the camera, no tick and no start. Red at 70b345b: the starts were drawn (greyed) before the trial.
+         */
+        const ui2 = await import("./trial-floor-ui.mjs");
+        const S = await import("./case-schema.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        needs(env.dialogs(), "the console is read in its drawn window");
+        const clock = foundry.utils.deepClone(getClock());
+        const chapter = clock.chapter;
+        const id = "deduction-suitee99before";
+        const consoleApp = () => [...foundry.applications.instances.values()].find(app => app.rendered && app.options?.classes?.includes("drpg-window-trial"));
+        let read = null;
+        try {
+            await S.setCaseNode(chapter, id, { kind: "deduction", label: "SUITE E99 BEFORE", mode: "testimony" });
+            await gmStoresIdle();
+            await setClock({ ...clock, phase: "dailyLife" });
+            ui2.manageClassTrial().catch(() => {});
+            await until(() => consoleApp()?.element?.querySelector(`[data-drpg-trial-schema] [data-drpg-node="${id}"]`), 6000).catch(() => {});
+            const slot = consoleApp()?.element?.querySelector("[data-drpg-trial-schema]");
+            read = { node: Boolean(slot?.querySelector(`.drpg-case-canvas > button[data-drpg-node="${id}"]`)),
+                camera: Boolean(slot?.querySelector(".drpg-case-graph[data-drpg-camera] [data-drpg-case-camera='fit']")),
+                ticks: slot?.querySelectorAll("[data-drpg-case-tick]").length ?? -1, starts: slot?.querySelectorAll("[data-drpg-case-start]").length ?? -1 };
+        } finally {
+            closeOpen("drpg-window-trial");
+            await setClock(clock);
+            await S.dropCaseNode(chapter, id).catch(() => {});
+            await settle();
+        }
+        equal(JSON.stringify(read), JSON.stringify({ node: true, camera: true, ticks: 0, starts: 0 }), "{the node drawn; the camera; tick controls; mode starts} before the trial");
     }],
 
     ["E99 C5: the case schema stays in the trial console in every floor state the bar has - a debate, an Objection and its rebuttal, a round, the closing, after the vote and after the verdict", async () => {
@@ -39809,11 +39859,11 @@ const SCENARIOS = [
             .find(app => app.rendered && app.options?.classes?.includes("drpg-window-trial"));
         const read = async () => {
             await settle();
-            await until(() => consoleApp()?.element?.querySelector(`[data-drpg-trial-schema] input[data-drpg-case-tick="${id}"]`), 4000).catch(() => {});
+            await until(() => consoleApp()?.element?.querySelector(`[data-drpg-trial-schema] button[data-drpg-case-tick="${id}"]`), 4000).catch(() => {});
             const el = consoleApp()?.element;
             const slot = el?.querySelector("[data-drpg-trial-schema]");
             return { open: Boolean(el), slot: Boolean(slot), outside: Boolean(slot) && !slot.closest(".drpg-trial-console"),
-                box: Boolean(slot?.querySelector(`.drpg-case-canvas input[data-drpg-case-tick="${id}"]`)), bar: Boolean(el?.querySelector(".drpg-trial-console [data-drpg-bar], .drpg-trial-console .drpg-trial-bar")) };
+                box: Boolean(slot?.querySelector(`.drpg-case-canvas > button[data-drpg-case-tick="${id}"]`)), bar: Boolean(el?.querySelector(".drpg-trial-console [data-drpg-bar], .drpg-trial-console .drpg-trial-bar")) };
         };
         const seen = {}, notReached = [];
         try {

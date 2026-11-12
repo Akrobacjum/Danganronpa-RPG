@@ -23,11 +23,11 @@ import { esc, plural } from "./utils.mjs";
 import { REMNANT_TYPES } from "./config.mjs";
 import { caseRows, caseNodeOf } from "./case-schema.mjs";
 import { remnantById } from "./remnants.mjs";
-import { MAP_GEOMETRY, mapPlace, edgePath, relayoutCaseMap, wireCaseCamera, CAMERA_LIMITS } from "./case-view.mjs";
+import { MAP_GEOMETRY, mapPlace, edgePath, relayoutCaseMap, wireCaseCamera, CAMERA_LIMITS, TILE_GUTTER, placeTileControls } from "./case-view.mjs";
 
 /* THE GEOMETRY, MEASURED (E97 fix): `MAP_GEOMETRY`, `mapPlace` and `edgePath` live in case-view.mjs, the leaf that also
    places the drawn nodes at their measured size and moves the camera; read here, and by E99, under these names. */
-export { MAP_GEOMETRY, mapPlace, edgePath } from "./case-view.mjs";
+export { MAP_GEOMETRY, mapPlace, edgePath, TILE_GUTTER, placeTileControls } from "./case-view.mjs";
 /**
  * A node's state for the map: evidence "planned" (a Key slot with no Remnant yet), "held" (a student holds a copy:
  * `finders` names one), "onMap" (placed, nobody has it); a schema node "schema". Pure.
@@ -90,7 +90,7 @@ function reachOf(node, reach) {
 /** The trial's marks on a node (E99 C5; case-trial.mjs): a class each, and its words in the node's label. */
 const MARK_KEYS = Object.freeze({ presented: "DRPG.CaseTrial.presented", hinted: "DRPG.CaseTrial.hint", ticked: "DRPG.CaseTrial.ticked" });
 
-function nodeButton(node, p, { state, selected, loose, author, reach = null, warn = false, marks = [] }) {
+function nodeButton(node, p, { state, selected, loose, author, reach = null, warn = false, marks = [], controlled = false }) {
     const kind = kindLabel(node);
     const name = nameOf(node);
     const stateText = STATE_KEYS[state] ? L(STATE_KEYS[state]) : "";
@@ -100,7 +100,7 @@ function nodeButton(node, p, { state, selected, loose, author, reach = null, war
     const said = [kind, name, stateText, reachText, author ? F("DRPG.CaseMap.leftBy", { name: author }) : "", warn ? L("DRPG.CaseMap.hasProblem") : "", text,
         ...marks.filter(m => MARK_KEYS[m]).map(m => L(MARK_KEYS[m]))].filter(Boolean).join(", ");
     const cls = ["drpg-case-node", `drpg-case-node--${node.kind}`, `is-${state}`, ...(loose ? ["is-loose"] : []),
-        ...(selected ? ["is-selected"] : []), ...(warn ? ["has-warn"] : []), ...marks.filter(m => MARK_KEYS[m]).map(m => `is-${m}`), ...(node.evidence && node.type ? [`drpg-case-type--${node.type}`] : [])];
+        ...(selected ? ["is-selected"] : []), ...(warn ? ["has-warn"] : []), ...marks.filter(m => MARK_KEYS[m]).map(m => `is-${m}`), ...(controlled ? ["has-controls"] : []), ...(node.evidence && node.type ? [`drpg-case-type--${node.type}`] : [])];
     const mode = !node.evidence && node.mode ? `<span class="drpg-case-node-mode">${esc(modeLabel(node.mode))}</span>` : "";
     /* THE WHOLE CONTENT, ALWAYS (E97 fix; the owner's "zawsze wyswietlaly cala swoja zawartosc"): the head's parts wrap
        onto a second line rather than cut the kind, the name is whole, and the node's own words (a schema node's note, a
@@ -151,26 +151,30 @@ export function caseGraphHtml({ graph, layout, finders = null, authors = null, s
         if (!node) continue;
         const state = nodeState(node, finders);
         buttons.push(nodeButton(node, p, { state, selected: id === selected, loose: unrelated.has(id), author: authors?.get?.(id) ?? null,
-            reach: reach?.[id] ?? null, warn: warned.has(id), marks: marks?.[id] ?? [] }));
+            reach: reach?.[id] ?? null, warn: warned.has(id), marks: marks?.[id] ?? [], controlled: Boolean(controls?.[id]) }));
         if (editors) fields.push(nodeEditHtml({ graph, node, p, open: id === selected, state, finders, authors, reach, problems, html: editors.get?.(id) ?? "" }));
     }
-    /* THE TRIAL'S CONTROLS (E99 C5 in the console): `controls` by node id - `{ tick: bool, start: { action, mode, label,
-       disabled, reason } }` - each drawn right of its node, a sibling of the node's button, the box named by the node,
-       the start by its mode. */
+    /* THE TRIAL'S CONTROLS ON THE TILE (E99 C5, round 4; the owner's 12:00: "jako przycisk na kaflu"): `controls` by node
+       id - `{ tick: bool, start: { action, mode, label, disabled, reason } }`. Each is a sibling of the node's button (a
+       button inside a button is not valid markup) drawn inside the tile's box, in the right-hand gutter the tile keeps
+       for them (`has-controls`), so no word of the node is covered: the tick, pressed or not, named by the node, at the
+       top; the start, named by its mode, under it. Placed again on the measured tile by `placeTileControls`. Neither
+       carries `data-drpg-node`: case-view.mjs `relayoutCaseMap` measures every child button that does as a node. */
     const controlled = [];
     for (const [id, c] of Object.entries(controls ?? {})) {
         const p = place.at[id];
         const node = nodes.get(id);
         if (!p || !node || !c) continue;
-        const x = p.x + (p.w ?? MAP_GEOMETRY.nodeW) + 6;
+        const x = p.x + (p.w ?? MAP_GEOMETRY.nodeW) - TILE_GUTTER;
         const name = nameOf(node);
         if (c.tick !== undefined && c.tick !== null) {
-            controlled.push(`<input type="checkbox" class="drpg-case-node-tick" data-drpg-case-tick="${esc(id)}" style="left: ${x}px; top: ${p.y + 4}px"`
-                + `${c.tick ? " checked" : ""} aria-label="${esc(F("DRPG.CaseTrial.tickLabel", { name }))}" title="${esc(F("DRPG.CaseTrial.tickLabel", { name }))}">`);
+            const said = F("DRPG.CaseTrial.tickLabel", { name });
+            controlled.push(`<button type="button" class="drpg-case-node-tick" data-drpg-case-tick="${esc(id)}" aria-pressed="${c.tick ? "true" : "false"}"`
+                + ` style="left: ${x}px; top: ${p.y + 4}px" aria-label="${esc(said)}" title="${esc(said)}">&#10003;</button>`);
         }
         if (c.start?.action) {
             const said = F("DRPG.CaseTrial.startLabel", { mode: c.start.label, name });
-            controlled.push(`<button type="button" class="drpg-case-node-start" data-drpg-node="${esc(id)}" data-drpg-case-start="${esc(c.start.action)}"`
+            controlled.push(`<button type="button" class="drpg-case-node-start" data-drpg-case-start-node="${esc(id)}" data-drpg-case-start="${esc(c.start.action)}"`
                 + ` data-drpg-mode="${esc(c.start.mode)}" style="left: ${x}px; top: ${p.y + 28}px" aria-label="${esc(said)}"`
                 + ` title="${esc(c.start.disabled ? c.start.reason || said : said)}"${c.start.disabled ? " disabled" : ""}>&#9656;</button>`);
         }
@@ -178,7 +182,7 @@ export function caseGraphHtml({ graph, layout, finders = null, authors = null, s
     const gap = place.gapY === null ? "" : `<div class="drpg-case-gap" style="top: ${place.gapY}px; width: ${MAP_GEOMETRY.nodeW}px; left: ${MAP_GEOMETRY.pad}px">`
         + `<button type="button" class="drpg-case-fold" data-drpg-case-fold aria-expanded="${fold ? "false" : "true"}">${esc(F("DRPG.CaseMap.unrelated", { n: unrelated.size }))}</button></div>`;
     const data = JSON.stringify({ positions: shown?.positions ?? {}, gapAt: shown?.gapAt ?? null, unrelated: [...unrelated], fold: Boolean(fold && unrelated.size) });
-    const width = place.width + (controlled.length ? MAP_GEOMETRY.colGap : 0);
+    const width = place.width;
     return `<div class="drpg-case-canvas" style="width: ${width}px; height: ${place.height}px" role="group" aria-label="${esc(label)}" data-drpg-place="${esc(data)}">`
         + heads.join("")
         + `<svg class="drpg-case-edges" width="${width}" height="${place.height}" aria-hidden="true" focusable="false">${edges.join("")}</svg>`

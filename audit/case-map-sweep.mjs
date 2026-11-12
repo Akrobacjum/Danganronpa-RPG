@@ -5,7 +5,7 @@
  *   cd audit/harness && npm ci                 (once: Playwright comes from there; it downloads no browser)
  *   DRPG_CAPTURE_ONLY=investigation--map,investigation--map-node,investigation--map-trace DRPG_CAPTURE_OUT=<dir-en> \
  *       node cluster.mjs probes/08-capture-windows.mjs           (from audit/harness; and with DRPG_CAPTURE_LANG=pl into <dir-pl>)
- *   node audit/case-map-sweep.mjs <dir-en> <dir-pl> [--shots <dir>] [--chromium <executable>]   (from the repository's root)
+ *   node audit/case-map-sweep.mjs <dir-en> <dir-pl> [--shots <dir>] [--chromium <executable>] [--ids <regexp>]   (from the repository's root)
  *
  * For every capture of each directory (probe 08's Map windows: nothing open, a deduction open, a Remnant open), at
  * 1366x768 and 1920x1080, under Stained Glass and Monokuma Legacy (with its pixel font): the window inside the module's
@@ -37,7 +37,14 @@ const REPO = path.resolve(HERE, "..");
 const args = process.argv.slice(2);
 const shotsAt = args.indexOf("--shots");
 const SHOTS = shotsAt >= 0 ? path.resolve(args[shotsAt + 1]) : null;
-const DIRS = args.filter((a, i) => !a.startsWith("--") && !["--shots", "--chromium"].includes(args[i - 1])).map(d => path.resolve(d));
+const DIRS = args.filter((a, i) => !a.startsWith("--") && !["--shots", "--chromium", "--ids", "--scale"].includes(args[i - 1])).map(d => path.resolve(d));
+/* `--scale <n>` (E99 round 4): the screenshots' device scale (1 by default; 2 for shots a person reads). */
+const scaleAt = args.indexOf("--scale");
+const SCALE = scaleAt >= 0 ? Number(args[scaleAt + 1]) || 1 : 1;
+/* `--ids <regexp>` (E99 round 4): which captures of the manifests are swept - the Map's by default, the trial console's
+   (`class-trial--case`) with the schema in its middle when E99 asks. */
+const idsAt = args.indexOf("--ids");
+const IDS = new RegExp(idsAt >= 0 ? args[idsAt + 1] : "^investigation--map");
 const SIZES = [[1366, 768], [1920, 1080]];
 const THEMES = ["glass", "legacy"];
 const { chromium } = createRequire(path.join(REPO, "audit", "harness", "package.json"))("playwright");
@@ -90,12 +97,12 @@ async function readMap(page, { plantBox = false, staleLayout = false } = {}) {
         if (plantBox) {
             const s = document.createElement("style");
             // the node rule's own selector (components.css), so the plant wins by coming later
-            s.textContent = "body .application.drpg-ui.drpg-panel.drpg-window-case .drpg-case-map .drpg-case-canvas > button.drpg-case-node[data-drpg-node] { height: 54px; overflow: hidden; }";
+            s.textContent = "body .application.drpg-ui.drpg-panel:is(.drpg-window-case, .drpg-window-case-trial, .drpg-window-trial) :is(.drpg-case-map, .drpg-case-trial) .drpg-case-canvas > button.drpg-case-node[data-drpg-node] { height: 54px; overflow: hidden; }";
             document.head.appendChild(s);
         }
         const canvas = document.querySelector(".drpg-case-canvas");
         if (!canvas) return { error: "no canvas" };
-        if (!staleLayout) V.relayoutCaseMap(canvas);
+        if (!staleLayout) { V.relayoutCaseMap(canvas); V.placeTileControls?.(canvas); }
         const nodes = [...canvas.querySelectorAll(":scope > button[data-drpg-node]")];
         const open = new Map([...canvas.querySelectorAll(":scope > .drpg-case-edit:not([hidden])")].map(f => [f.dataset.drpgEdit, f]));
         const cut = [];
@@ -130,6 +137,19 @@ async function readMap(page, { plantBox = false, staleLayout = false } = {}) {
             }
             boxes.push(box);
         }
+        /* THE TRIAL'S CONTROLS ON THEIR TILE (E99 round 4): each tick and start inside its tile's box, over none of the tile's
+           words (kind, mode, state, name, text, reach, warning). */
+        for (const c of canvas.querySelectorAll(":scope > [data-drpg-case-tick], :scope > [data-drpg-case-start-node]")) {
+            const id = c.dataset.drpgCaseTick ?? c.dataset.drpgCaseStartNode;
+            const tile = canvas.querySelector(`:scope > button[data-drpg-node="${CSS.escape(id)}"]`);
+            if (!tile) { cut.push(`${id} control: no tile`); continue; }
+            const t = tile.getBoundingClientRect(), k = c.getBoundingClientRect();
+            if (k.left < t.left - 0.5 || k.right > t.right + 0.5 || k.top < t.top - 0.5 || k.bottom > t.bottom + 0.5) cut.push(`${id} ${c.className}: off its tile`);
+            for (const part of tile.querySelectorAll(".drpg-case-node-kind, .drpg-case-node-mode, .drpg-case-node-state, .drpg-case-node-name, .drpg-case-node-text, .drpg-case-node-reach, .drpg-case-node-warn")) {
+                const p = part.getBoundingClientRect();
+                if (p.width && p.height && k.left < p.right - 0.5 && p.left < k.right - 0.5 && k.top < p.bottom - 0.5 && p.top < k.bottom - 0.5) cut.push(`${id} ${c.className}: over ${part.className}`);
+            }
+        }
         const overlaps = [];
         for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
             const a = boxes[i], c = boxes[j];
@@ -150,7 +170,7 @@ async function readMap(page, { plantBox = false, staleLayout = false } = {}) {
             revealed = f.top >= g.top - 0.5 && f.top < g.bottom && f.left >= g.left - 0.5 && f.right <= g.right + 0.5;
             if (!revealed) cut.push(`${id}: not brought into view (face at ${Math.round(f.left - g.left)},${Math.round(f.top - g.top)} in ${Math.round(g.width)}x${Math.round(g.height)})`);
         }
-        return { nodes: nodes.length, revealed, open: [...open.keys()], tallest: Math.max(...boxes.map(b => Math.round(b.bottom - b.top))),
+        return { nodes: nodes.length, controls: canvas.querySelectorAll(":scope > [data-drpg-case-tick], :scope > [data-drpg-case-start-node]").length, revealed, open: [...open.keys()], tallest: Math.max(...boxes.map(b => Math.round(b.bottom - b.top))),
             viewport: graph ? [graph.clientWidth, graph.clientHeight] : null, canvas: [parseFloat(canvas.style.width), parseFloat(canvas.style.height)],
             measured: canvas.dataset.drpgMeasured ?? null, cut, overlaps };
     }, { plantBox, staleLayout });
@@ -169,10 +189,10 @@ try {
     for (const [di, dir] of DIRS.entries()) {
         const manifest = JSON.parse(fs.readFileSync(path.join(dir, "manifest.json"), "utf8"));
         const lang = manifest.windows.find(w => w.lang)?.lang ?? "en";
-        for (const w of manifest.windows.filter(x => x.captured && /^investigation--map/.test(x.id))) {
+        for (const w of manifest.windows.filter(x => x.captured && IDS.test(x.id))) {
             const html = fs.readFileSync(path.join(dir, w.file), "utf8");
             for (const theme of THEMES) for (const [vw, vh] of SIZES) {
-                const page = await browser.newPage({ viewport: { width: vw, height: vh }, deviceScaleFactor: 1 });
+                const page = await browser.newPage({ viewport: { width: vw, height: vh }, deviceScaleFactor: SHOTS ? SCALE : 1 });
                 const load = async () => {
                     await page.route("**/case-map-sweep-page", r => r.fulfill({ contentType: "text/html", body: pageHtml(styles, html, w.title, w.width ?? 1120, theme) }));
                     await page.goto(`${base}/case-map-sweep-page`);
@@ -193,13 +213,16 @@ try {
                 const r = await readMap(page);
                 const bad = (r.cut?.length ?? 1) + (r.overlaps?.length ?? 0) + (r.error ? 1 : 0);
                 if (bad) failed++;
-                const line = `${bad ? "FAIL" : "ok  "} ${lang} ${theme.padEnd(6)} ${vw}x${vh} ${w.id.padEnd(25)} nodes ${r.nodes} open [${(r.open ?? []).join(",")}] tallest ${r.tallest} px, viewport ${r.viewport?.join("x")}, canvas ${r.canvas?.join("x")}, measured ${r.measured}${r.revealed === null ? "" : `, revealed ${r.revealed}`}; cut ${r.cut?.length ?? "-"}, overlaps ${r.overlaps?.length ?? "-"}${r.error ? `; ${r.error}` : ""}`;
+                const line = `${bad ? "FAIL" : "ok  "} ${lang} ${theme.padEnd(6)} ${vw}x${vh} ${w.id.padEnd(25)} nodes ${r.nodes} controls ${r.controls ?? 0} open [${(r.open ?? []).join(",")}] tallest ${r.tallest} px, viewport ${r.viewport?.join("x")}, canvas ${r.canvas?.join("x")}, measured ${r.measured}${r.revealed === null ? "" : `, revealed ${r.revealed}`}; cut ${r.cut?.length ?? "-"}, overlaps ${r.overlaps?.length ?? "-"}${r.error ? `; ${r.error}` : ""}`;
                 console.log(line);
                 for (const c of [...(r.cut ?? []), ...(r.overlaps ?? []).map(o => `overlap ${o}`)]) console.log(`       ${c}`);
                 rows.push({ lang, theme, size: `${vw}x${vh}`, id: w.id, ...r });
                 if (SHOTS) {
                     // as the GM sees it (the camera at rest), then the whole canvas unclipped
                     await page.screenshot({ path: path.join(SHOTS, `${lang}-${theme}-${vw}x${vh}-${w.id}-view.png`) });
+                    // the trial console's schema (E99): its slot scrolled into view, the camera at rest
+                    if (await page.evaluate(() => { const slot = document.querySelector("[data-drpg-trial-schema]"); slot?.scrollIntoView({ block: "end" }); return Boolean(slot); }))
+                        await page.screenshot({ path: path.join(SHOTS, `${lang}-${theme}-${vw}x${vh}-${w.id}-schema.png`) });
                     await page.evaluate(() => { const g = document.querySelector(".drpg-case-graph"); if (g) { g.style.overflow = "visible"; g.style.height = `${parseFloat(document.querySelector(".drpg-case-canvas").style.height) + 4}px`; g.style.flex = "none"; } const v = document.querySelector(".drpg-case-view"); if (v) { v.style.height = "auto"; v.style.overflow = "visible"; } });
                     await page.screenshot({ path: path.join(SHOTS, `${lang}-${theme}-${vw}x${vh}-${w.id}.png`), fullPage: true });
                 }

@@ -339,3 +339,22 @@ export function wireCaseCamera(graph, { get = () => null, set = () => {}, still 
     graph.addEventListener("focusin", event => reveal(event.target));
     return { apply, zoomBy, fit, reveal };
 }
+
+/** The right-hand gutter a tile keeps for its trial controls (E99 round 4), in px: the controls' width and their margin. */
+export const TILE_GUTTER = 30;
+
+/**
+ * The trial's controls placed on their tiles as drawn now (E99 round 4): after `relayoutCaseMap` has moved
+ * and sized the nodes, each tick and start goes to its tile's right-hand gutter - the tick at the top, the start under
+ * it. In jsdom a tile measures 0 wide and the drawn width (`MAP_GEOMETRY.nodeW`) stands.
+ */
+export function placeTileControls(canvas) {
+    for (const el of canvas?.querySelectorAll?.(":scope > [data-drpg-case-tick], :scope > [data-drpg-case-start-node]") ?? []) {
+        const id = el.dataset.drpgCaseTick ?? el.dataset.drpgCaseStartNode;
+        const tile = canvas.querySelector(`:scope > button[data-drpg-node="${CSS.escape(id)}"]`);
+        if (!tile) continue;
+        const x = (parseFloat(tile.style.left) || 0) + (tile.offsetWidth || MAP_GEOMETRY.nodeW) - TILE_GUTTER;
+        el.style.left = `${x}px`;
+        el.style.top = `${(parseFloat(tile.style.top) || 0) + (el.dataset.drpgCaseTick !== undefined ? 4 : 28)}px`;
+    }
+}
