@@ -42516,7 +42516,7 @@ const INVARIANTS = [
         needs(env.dialogs(), "the windows are drawn and their rows picked");
         needs(world.atLeast("livingStudents", 1), "a briefing is built for a living student");
         const { chooseVariant } = await import("./action-menus.mjs");
-        const { briefingBlock, briefing } = await import("./action-briefing.mjs");
+        const { briefingBlock } = await import("./action-briefing.mjs");
         const murder = await import("./action-murder.mjs");
         const { livingStudents } = await import("./chapter.mjs");
         const actor = livingStudents()[0];
@@ -42558,7 +42558,7 @@ const INVARIANTS = [
                     options: values.map(v => ({ value: v, label: `R3382 ${v}`, hint: v })) }), values);
                 read[key] = { ...r, layers: r.layers >= whens.length };
             }
-            read.move = await look(ACTIONS.move?.label, () => briefing(actor, "move", ACTIONS.move), []);
+            // Move's window is gone since E100 item 1 (R3917): nothing of it to read here.
             const rows = Object.entries(CRISIS_ACTIONS).slice(0, 3);
             const values = rows.map(([key]) => key);
             const crisis = await look("R3382 crisis", () => chooseVariant({ actor, title: "R3382 crisis",
@@ -42569,11 +42569,10 @@ const INVARIANTS = [
             read.crisis = { ...crisis, layers: crisis.layers > 0 };
         } finally {
             for (const app of [...foundry.applications.instances.values()]) if (String(app?.options?.window?.title ?? "").startsWith("R3382")) await app.close();
-            if (drawn(ACTIONS.move?.label)) await drawn(ACTIONS.move?.label).close();
             await settle();
         }
         const yes = { drawn: true, one: [1, 1], bad: [], layers: true };
-        equal(JSON.stringify(read), JSON.stringify(Object.fromEntries(Object.keys(read).map(k => [k, k === "move" ? { drawn: true, one: [1, 1], bad: [], layers: 0 } : yes]))),
+        equal(JSON.stringify(read), JSON.stringify(Object.fromEntries(Object.keys(read).map(k => [k, yes]))),
             "[per window: drawn; Details and left-column toggles; at each pick the layers shut, unlit or lit wrongly, or outside a stack; the layers there]");
     }],
     ["R3384 - the right column holds its place at every pick (action-menus.mjs `chooseVariant`, `holdFields`, `syncDetails`; the stylesheet's E49 A8 block; E49 A8.3, the owner's answer 4 of 11.11 and the rule of 10.11): in a drawn action window the fields a row shows (`data-drpg-when` after the rows: Observe's and Search's request box, Tamper's selects, Palm's plant) stand in one stack per run of them, the unbound ones in their order outside it; at every pick the picked row's are lit and the others `drpg-unpicked`, none `hidden` or `display: none`; a row's own field in the statistic's slot likewise; the stylesheet lays a stack and the slot's fields in one grid cell", async () => {
@@ -50002,6 +50001,48 @@ const INVARIANTS = [
         }
         const P = "(styles/components.css)", want = [`repeat(6, minmax(min-content, 1fr)) ${P}`, `nowrap ${P}`];
         equal(stableJson(read), stableJson({ glass: want, legacy: want }), "per theme: [the cells' grid columns, a name's white-space] - each with the sheet it came from");
+    }],
+
+    /* ======================================================================
+     * E100 - THE PLAYER SCREENS' CLEANUP (the owner's six items of 12.11.2026, review page YH2SiTx2Rbv2s38YQgs8H3)
+     * ==================================================================== */
+    ["R3917 - Move opens no window (E100 item 1; the owner's 12.11.2026, the player-screens review's #2): `performAction(actor, \"move\")` draws nothing and answers null; action-briefing.mjs has no Move window (`briefing`) and its Got it is gone from both languages; a Monocub's Move tile is a still tile - not a button, no `data-drpg-action` the sheet's delegate would press - that says on its face what to do (`DRPG.Move.dragShort`) under its price; the HUD's Move row says it first in its tooltip (`DRPG.Move.drag`)", async () => {
+        /*
+         * E100 item 1, 12.11.2026. The review's Move window had one button, Got it, and said "drag your token": the
+         * sentence goes on the tile and on the HUD's Move line, and the window goes. In real code a student has no Move
+         * tile (ACTIONS.move is `kind: "panel"`); the Monocub panel draws one (sheet.mjs `monocubTiles`). Red at
+         * 4dfac3a9: the window opened with Got it, the tile was a button the delegate pressed, no `DRPG.Move.drag*`.
+         */
+        const { livingStudents } = await import("./chapter.mjs");
+        const actor = livingStudents()[0];
+        must(actor, "no living student to read the Move with - this would measure nothing");
+        const B = await import("./action-briefing.mjs"), R = await import("./action-rolls.mjs"), S = await import("./sheet.mjs"), P = await import("./player-status.mjs");
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const before = new Set(foundry.applications.instances.keys());
+        const D = foundry.applications.api.DialogV2, own = Object.getOwnPropertyDescriptor(D, "wait");
+        let asked = 0;
+        D.wait = async () => { asked += 1; return null; };
+        let answer;
+        try { answer = await R.performAction(actor, "move"); } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+        await settle();
+        const opened = [...foundry.applications.instances.keys()].filter(k => !before.has(k)).length;
+        const tile = S.actionButton(actor, "move", ACTIONS.move);
+        const row = P.buildPlayerView(actor)?.querySelector?.(".is-move") ?? null;
+        const drag = game.i18n.localize("DRPG.Move.drag"), short = game.i18n.localize("DRPG.Move.dragShort");
+        const read = {
+            answer, asked, opened,
+            briefing: Object.keys(B).includes("briefing") ? "exported" : "undefined",
+            gotIt: [en?.DRPG?.Action?.gotIt ?? null, pl?.DRPG?.Action?.gotIt ?? null],
+            tile: [tile?.tagName ?? null, tile?.dataset?.drpgAction ?? null, tile?.dataset?.drpgTile ?? null,
+                [...(tile?.querySelectorAll?.(".drpg-action-cost") ?? [])].map(n => n.textContent.trim()).includes(short)],
+            hud: [Boolean(row), String(row?.dataset?.tooltip ?? "").startsWith(drag)],
+            words: [en?.DRPG?.Move?.drag, en?.DRPG?.Move?.dragShort, pl?.DRPG?.Move?.drag, pl?.DRPG?.Move?.dragShort].every(w => typeof w === "string" && w.length > 3)
+        };
+        equal(stableJson(read), stableJson({ answer: null, asked: 0, opened: 0, briefing: "undefined", gotIt: [null, null],
+            tile: ["DIV", null, "move", true], hud: [true, true], words: true }),
+            "{performAction's answer; DialogV2 waits asked; windows opened; action-briefing.mjs `briefing`; Got it in en, pl; "
+            + "the Monocub's Move tile [tag, data-drpg-action, data-drpg-tile, the drag line on its face]; the HUD's Move row [drawn, its tooltip opens with the drag sentence]; the words in both}");
     }],
 ];
 

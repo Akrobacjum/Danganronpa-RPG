@@ -5691,7 +5691,28 @@ export function actionButton(actor, key, def) {
         fightTile ? "" : `
         <span class="drpg-action-cost">${costLabel}</span>`}${gmMark}`;
 
-    return button;
+    return key === "move" ? stillMoveTile(button) : button;
+}
+
+/*
+ * THE MOVE TILE OPENS NOTHING (E100 item 1, 12.11.2026; the owner on the player-screens review, #2: the Move window had
+ * one button, Got it, and only said "drag your token"). The tile a Monocub's panel draws keeps its price and its
+ * tooltip, and says on its face what to do (`DRPG.Move.dragShort`); it is a `div`, not a button, with no
+ * `data-drpg-action`, so the delegate (`attachActionDelegate`) has nothing to press and the stylesheets' hover, which
+ * reads `:not(.drpg-action-still)`, does not light it as if it could be pressed. R3917.
+ */
+function stillMoveTile(button) {
+    const tile = document.createElement("div");
+    tile.className = button.className;
+    tile.classList.add("drpg-action-still");
+    for (const [k, v] of Object.entries(button.dataset)) if (k !== "drpgAction") tile.dataset[k] = v;
+    tile.dataset.drpgTile = "move";
+    tile.innerHTML = button.innerHTML;
+    const line = document.createElement("span");
+    line.className = "drpg-action-cost";
+    line.textContent = game.i18n.localize("DRPG.Move.dragShort");
+    tile.append(line);
+    return tile;
 }
 
 /**

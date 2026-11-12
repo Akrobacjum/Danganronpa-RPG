@@ -508,7 +508,8 @@ export function buildPlayerView(actor = statusActor(), options = {}) {
             const row = marks("is-move", game.i18n.localize("DRPG.Move.title"), foot,
                 free ? "DRPG.Actions.freeMoveAvailable" : "DRPG.Actions.freeMoveSpent",
                 !free);
-            row.dataset.tooltip = `${row.dataset.tooltip} ${moveLegend()}`;
+            // What to do first (E100 item 1: the Move window that said it is gone), then the state and the feet.
+            row.dataset.tooltip = `${game.i18n.localize("DRPG.Move.drag")} ${row.dataset.tooltip} ${moveLegend()}`;
             return row;
         }),
 

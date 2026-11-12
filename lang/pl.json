@@ -959,7 +959,6 @@
       "dynamicDescription": "Opisujesz, co robisz, a GM wybiera próg trudności i statystykę albo odrzuca pomysł. Trafienie zostawia Remnant, tym widoczniejszy, im łatwiejsze zadanie, a pudło nie zostawia nic.",
       "difficulty": "Trudność",
       "proceed": "Zrób to",
-      "gotIt": "Jasne",
       "willCost": {
         "one": "Koszt: {n} akcja. Masz {left}.",
         "few": "Koszt: {n} akcje. Masz {left}.",
@@ -3706,6 +3705,8 @@
       "notConnectedShort": "{to} nie łączy się z {from}.",
       "cannotReach": "Stąd ({from}) nie da się tam dojść.",
       "title": "Move",
+      "drag": "Żeby przejść do innego pokoju, przeciągnij tam swój token.",
+      "dragShort": "Przeciągnij token",
       "freeAvailable": "Twój Free Move na tę porę dnia wciąż jest.",
       "freeSpent": "Free Move zużyty - następny pokój kosztuje akcję. Masz {left}.",
       "nextSprint": "Free Move zużyty. Następny pokój zabierze Sprint, a akcje zostaną.",

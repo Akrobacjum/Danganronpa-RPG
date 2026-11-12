@@ -1348,7 +1348,7 @@ body.drpg-theme-stained-glass .drpg-call-button::before {
     clip-path: none;
     transition: opacity var(--drpg-t-snap, 120ms);
 }
-body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):hover:not(:disabled):not(.unaffordable) {
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):hover:not(:disabled):not(.drpg-action-still):not(.unaffordable) {
     /* full, like every other hover in the theme since 07.09 - and with a whole stroke under
        it the label has to turn to Ink, exactly as it does when the tile is selected. Left
        bone, it was pale text on its own colour. */
@@ -1357,7 +1357,7 @@ body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):hover:
     border-color: var(--brush) !important;
     color: var(--drpg-sg-ink);
 }
-body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):hover:not(:disabled):not(.unaffordable) :is(.drpg-action-icon, .drpg-action-name, .drpg-action-cost, .drpg-action-gm) {
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):hover:not(:disabled):not(.drpg-action-still):not(.unaffordable) :is(.drpg-action-icon, .drpg-action-name, .drpg-action-cost, .drpg-action-gm) {
     color: var(--drpg-sg-ink);
 }
 body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):is(.active, .selected, [aria-pressed="true"]) {
@@ -3200,7 +3200,7 @@ body.drpg-theme-stained-glass #countdowns .countdown-tool-controls a {
    showed through the band as well. And paintBand lit the seams with an additive glow the
    curtain does not have (glass.mjs). Under the band there is now exactly what is under the
    curtain: the same 2 % white, the same backdrop filter, and nothing else. */
-body.drpg-theme-stained-glass .application.dialog:is(.drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+body.drpg-theme-stained-glass .application.dialog:is(.drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog, .drpg-despair-dialog, .drpg-monokuma-panel,
     .drpg-gm-panel-window, .drpg-summary-dialog, .drpg-safeword-dialog) .window-header,
 body.drpg-theme-stained-glass .application.drpg-panel .window-header,
@@ -3292,7 +3292,7 @@ body.drpg-theme-stained-glass #drpg-hud .drpg-hud-time-slot:not(:has(.drpg-hud-t
    The base sheet sets every module dialog's title in 11 px uppercase chrome with `!important`,
    at a specificity the theme's title rule (Special Elite, 21 px, as the audit page's `.wtitle`)
    never reached - so every dialog opened under the theme wore a caption for a title. */
-body.drpg-theme-stained-glass .application.dialog:is(.drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+body.drpg-theme-stained-glass .application.dialog:is(.drpg-panel, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog, .drpg-despair-dialog, .drpg-monokuma-panel,
     .drpg-gm-panel-window, .drpg-summary-dialog, .drpg-safeword-dialog) .window-header .window-title,
 body.drpg-theme-stained-glass .application.drpg-panel .window-header .window-title {
@@ -4857,7 +4857,7 @@ body.drpg-theme-stained-glass .drpg-panel button:is(.active, .default, [aria-pre
     border-color: var(--brush) !important;
     box-shadow: 0 0 10px color-mix(in srgb, var(--brush) 34%, transparent);
 }
-body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):hover:not(:disabled):not(.unaffordable):not(.active):not(.selected) {
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):hover:not(:disabled):not(.drpg-action-still):not(.unaffordable):not(.active):not(.selected) {
     border-width: 1px !important;
     box-shadow: none;
 }

@@ -4,18 +4,17 @@
  * What an action says before it is committed to: the block at the top of the
  * action's own window (`briefingBlock`) and its facts (`briefingFacts`) - the
  * price, the Move's line (`moveLine`), the ladders and thresholds the rules
- * hold (`ladderRows`, `thresholdFacts`), who is watching - the one action that
- * still opens a briefing window of its own, Move (`briefing`), and Tamper's
- * erase ladder for the character (`tamperThresholdFacts`).
+ * hold (`ladderRows`, `thresholdFacts`), who is watching - and Tamper's
+ * erase ladder for the character (`tamperThresholdFacts`). Move's own window
+ * (`briefing`) is gone since E100 item 1.
  *
  * WHERE IT SITS. Moved out of action-rolls.mjs by E41 C3 (1.2.97), a pure move
  * that `node tools/moved-only.mjs` proves line by line. action-rolls.mjs
  * re-exports `briefingBlock` and `moveLine`, the two names here it exported
  * before, and nothing here imports it back (the facade rule,
- * .claude/rules/code.md). `briefing` and `tamperThresholdFacts` are exported
- * now because `performAction` and Tamper (action-tamper.mjs since E41 C4)
- * call them;
- * action-rolls.mjs does not re-export them. cleanup.mjs is imported statically
+ * .claude/rules/code.md). `tamperThresholdFacts` is exported because Tamper
+ * (action-tamper.mjs since E41 C4) calls it; action-rolls.mjs does not
+ * re-export it. cleanup.mjs is imported statically
  * because `briefingFacts` is synchronous (R8 renders it for every action);
  * cleanup.mjs reaches the action family only through `import()` of
  * action-rolls.mjs. Of the action family it reads action-pipeline.mjs alone
@@ -35,7 +34,7 @@ import { projectsAvailableIn, isIndirectMurder } from "./projects.mjs";
 import { error, plural, esc } from "./utils.mjs";
 import { equippedFor, tierOf } from "./use-items.mjs";
 import { toolRelief } from "./action-pipeline.mjs";
-import { actionWindow, detailsHtml, detailsStack, factsList } from "./action-menus.mjs";
+import { detailsHtml, detailsStack, factsList } from "./action-menus.mjs";
 
 /* ==========================================================================
  * BRIEFING
@@ -306,28 +305,9 @@ function thresholdFacts(actor, actionKey, def) {
     return facts;
 }
 
-/**
- * What this action does, before committing to it. Move only ever shows the
- * briefing - there is nothing to confirm, you just drag your token.
- */
-export async function briefing(actor, actionKey, def) {
-    // On the kit's frame (E21 C5a): Move's briefing answers nothing - its one word is the primary "Got it" -, every
-    // other action's goes on through its primary or is withdrawn with Cancel.
-    const footer = actionKey === "move"
-        ? { primary: { action: "ok", label: game.i18n.localize("DRPG.Action.gotIt") } }
-        : { primary: { action: "go", label: game.i18n.localize("DRPG.Action.proceed") }, close: "cancel" };
-
-    // An action's window (E68 C12, action-menus.mjs `actionWindow`): Move asks nothing, so it is the left column alone.
-    const result = await actionWindow({
-        title: def.label,
-        classes: ["drpg-panel", "drpg-briefing"],
-        brief: briefingBlock(actor, actionKey, def),
-        footer,
-        rejectClose: false
-    });
-
-    return result === "go";
-}
+/* MOVE'S WINDOW IS GONE (E100 item 1, 12.11.2026; the owner on the player-screens review, #2). `briefing` drew it: one
+   button, Got it, over "drag your token". The sentence is on the Monocub's Move tile (sheet.mjs `actionButton`) and in
+   the HUD's Move row (player-status.mjs); `moveLine` above still prices the next crossing for both. R3917. */
 
 // The erase ladder for THIS character: the cleaning tool's tier and the
 // fresh scene come off the table's numbers (D1). Computed here, beside
