@@ -113,6 +113,10 @@ for the reason named in the commit; green on the commit.
   (a player's), the zones on the canvas. Seen and fixed: the console's lead in a zone mode.
 - Round 2 (12.11.2026): https://claude.ai/artifact/MZ5j81TzpNU59Pgp6cH8Bh - the mockup B console at 5fc377d in a Straw
   Poll and with no trial, both themes, EN and PL. Not Foundry: the style harness; the schema slot is empty (E99).
+- Round 3 (12.11.2026): https://claude.ai/artifact/Pdw1e1ZQAQoJfBwDagYymb - fc05a9d: the schema's slot
+  (`data-drpg-trial-schema`) outside the redrawn console, between the mode and the management, its height reserved;
+  a Straw Poll at the window's top and scrolled to the end, and no trial, both themes, EN and PL. Not Foundry: the
+  style harness at 1366 x 1500; the slot is empty (E99 mounts into it).
 
 ## Open questions for the owner
 
