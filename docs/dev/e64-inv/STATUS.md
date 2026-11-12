@@ -109,5 +109,8 @@ field's content box, both themes, both languages, 1366x768 and 1920x1080, on fre
 - After: 0 of 24 pickers past their field (every option's longest word), no head of the Remnants table wider than its
   cell under Legacy, the other three tabs 0 of 20; the fit pass on the dashboard 32 of 32 in both languages.
 
-Not changed: the Delete button's word stands 5 px past its own box under Glass (its width is its content's, 70 px in a
-116 px cell; the letters' spacing), as before this round.
+Corrected after a second measure (12.11.2026): the Delete button's word does not stand past its box. Every shown button
+of the dashboard (every tab, both themes, both languages, 1366x768 and 1920x1080; 464 readings) holds its words inside
+its inner edges (a Range over the button's contents; "Delete" ends 15 px inside). The 5 px read first was the button's
+`scrollWidth`, which every Glass button carries: the theme's frame, `::before` at `inset: -4px -5px`, stands 5 px past
+each side. Nothing changed for it.
