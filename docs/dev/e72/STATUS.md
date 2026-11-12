@@ -201,6 +201,12 @@ None.
   by the shot's script from lang, not by `redeemCard`). Looked at: under Legacy the glyph was a gold square (the
   drawing was Stained Glass's alone) - fixed in bbbcb73, the published shots are after the fix.
 
+- Round 4 (12.11.2026): https://claude.ai/artifact/WZAdh81Nf1P6NNvQ3nwrhi - the Monocub's panel after part B (six tiles;
+  the purse, a Bribe waiting with Accept / Refuse, a Bounty, the Ghost Bet), both themes, EN and PL, drawn by
+  audit/style-harness.html with the tiles and lines written by the shot's script on sheet.mjs's markup. Looked at: the
+  lines were dark on dark under Stained Glass and very large under Legacy - given their own colour, size and line height
+  (danganronpa.css), the published shots are after the fix.
+
 ## Test results
 
 - Tokens so far: not measured by this line (no counter is available to it here).

@@ -4284,6 +4284,18 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     color: var(--drpg-crimson);
 }
 
+/* Part B under the tiles (E72 C14, C19): the purse, a Bribe waiting, a Bounty, the Monocub's own Ghost Bet - words in
+   the sheet's bone, at the module's small size, as the silenced note beside them sets its own. */
+.drpg-monocub-purse,
+.drpg-monocub-offer,
+.drpg-monocub-bounty,
+.drpg-monocub-bet {
+    margin-top: 6px;
+    font-size: var(--drpg-text-xs);
+    line-height: 1.35;
+    color: var(--drpg-bone);
+}
+
 /* THE DEAD'S AND AN NPC'S SHEET (E24 C3a, 08.11.2026; E24-18, E24-20). sheet.mjs `markSheetState` puts the
    state on the sheet's root. Still: the header's Hope, Actions pips and free Move greyed and dimmed, nothing
    flashes (the script marks no spend there) and no budget's tooltip is drawn. Dead: the portrait desaturated
