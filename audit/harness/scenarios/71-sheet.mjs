@@ -686,7 +686,7 @@ export async function run({ gm, p1, p2, check, note, phase, settle, repoUrl, IDS
             const stress = root?.querySelector('[data-drpg-reserve="stress"]') ?? null;
             const hope = root?.querySelector(".character-header-sheet .hope-section") ?? null;
             const numbered = el => (el ? [el, ...el.querySelectorAll("*")] : []).flatMap(node => [...node.attributes]
-                .filter(at => /\d/.test(at.value) && !["style", "min", "data-value"].includes(at.name)).map(at => `${at.name}=${at.value}`));
+                .filter(at => /\d/.test(at.value) && !["style", "min"].includes(at.name)).map(at => `${at.name}=${at.value}`));
             const attrs = [];
             for (const el of root?.querySelectorAll("[data-tooltip], [aria-label], [title]") ?? []) {
                 for (const name of ["data-tooltip", "aria-label", "title"]) if (el.hasAttribute(name)) attrs.push(el.getAttribute(name));
@@ -694,7 +694,7 @@ export async function run({ gm, p1, p2, check, note, phase, settle, repoUrl, IDS
             return { calls: app?.calls ?? null, redacted: Boolean(root?.classList.contains("drpg-redacted-sheet")),
                 row: globalThis.__s71.rowText(stress?.querySelector(".drpg-reserve-row")), stressText: stress?.textContent ?? null, stressAttrs: numbered(stress),
                 stressClasses: stress ? [...stress.querySelectorAll(".filled, .drpg-pip-full, .drpg-spent, .drpg-gained")].length : null,
-                hopeText: hope?.textContent ?? null, hopeAttrs: numbered(hope),
+                hopeText: hope?.textContent ?? null, hopeAttrs: numbered(hope), hopeSlots: hope ? hope.querySelectorAll(".hope-value").length : null,
                 hopeClasses: hope ? [...hope.querySelectorAll("i.fa-solid, i.fa-regular, .drpg-spent, .drpg-gained")].length : null,
                 hopeMarked: hope ? hope.querySelectorAll(".drpg-spent, .drpg-gained").length : null,
                 tips: attrs.filter(a => /sanity|stress|poczytalno|hope|nadziej/i.test(a) && /\d/.test(a)),
@@ -705,9 +705,11 @@ export async function run({ gm, p1, p2, check, note, phase, settle, repoUrl, IDS
         verdict("p1's own writes landed and p1's sheet shows them: the new Sanity in its row, two diamonds held, the spent one marked",
             typedJ[0] !== null && hopeJ === 2 && j2.p1.row?.includes(String(j2.p1.sanityLeft)) && j2.p1Hope.held === 2 && j2.p1Hope.marked > 0,
             { typedJ, hopeJ, p1: j2.p1, p1Hope: j2.p1Hope });
-        verdict("p2's redacted sheet repainted for both writes (calls 0) and holds no Sanity or Hope number: none in the text, attributes or classes of either block, nor in a tooltip, label or title",
+        // E49 B2 (the owner's Q1, 10.11.2026: a request - Hope's maximum reads "?" too): Hope is ONE "?", no diamond a
+        // maximum could be counted from, and no `data-value` on it (read as a number since; it was let through before).
+        verdict("p2's redacted sheet repainted for both writes (calls 0) and holds no Sanity or Hope number: none in the text, attributes or classes of either block, nor in a tooltip, label or title; Hope one \"?\" in one slot",
             j2.p2.redacted && j2.p2.calls === 0 && !/\d/.test(j2.p2.stressText ?? "x1") && j2.p2.stressAttrs.length === 0 && j2.p2.stressClasses === 0
-                && !/\d/.test(j2.p2.hopeText ?? "x1") && j2.p2.hopeAttrs.length === 0 && j2.p2.hopeClasses === 0 && j2.p2.tips.length === 0, j2.p2);
+                && j2.p2.hopeText === "?" && j2.p2.hopeSlots === 1 && j2.p2.hopeAttrs.length === 0 && j2.p2.hopeClasses === 0 && j2.p2.tips.length === 0, j2.p2);
 
         // A Hope maximum written alone (n1): the diamonds follow it on every sheet holding it.
         for (const c of [gm, p1]) await on(c, open, IDS.aiko, {});

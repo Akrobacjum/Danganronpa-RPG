@@ -538,7 +538,27 @@ function redactValues(root, sanity = sanityBlocks(root)) {
     }
     // Hope keeps its colour. A hidden Hope is still Hope, and the gold is how
     // this module says so everywhere else.
-    for (const pip of root.querySelectorAll(".hope-value")) mark(pip, "?", "drpg-redacted-hope");
+    //
+    // ONE "?" FOR HOPE, NOT ONE A DIAMOND (E49 B2, 10.11.2026; the owner's Q1, "prośba": on another player's sheet the
+    // maximum of Hope reads "?" as Sanity's does). The header draws one diamond per point of the maximum, each carrying
+    // its point in `data-value`, so a "?" a diamond still counted the maximum out - six "?" for six (71 J3 read
+    // "??????") - and the page kept 1..max. Each row of diamonds keeps its first slot, emptied, its `data-value` taken
+    // off, as the one "?", and loses the rest; whatever the maximum, the viewer reads the same single mark (the owner's
+    // rule of the same day: a state changes look, never layout). Sanity's block below already reads one "?" with no
+    // maximum (character.mjs `reserveRow`), and is emptied as before.
+    const hopeRows = new Map();
+    for (const pip of root.querySelectorAll(".hope-value")) {
+        const row = hopeRows.get(pip.parentElement) ?? [];
+        row.push(pip);
+        hopeRows.set(pip.parentElement, row);
+    }
+    for (const [holder, [first, ...rest]] of hopeRows) {
+        for (const pip of rest) pip.remove();
+        first.removeAttribute("data-value");
+        mark(first, "?", "drpg-redacted-hope");
+        holder?.removeAttribute?.("data-tooltip");
+        holder?.removeAttribute?.("aria-label");
+    }
 
     // The free Move is a drawn mark rather than a number, so it is replaced
     // rather than overwritten: whether somebody still has their step is as much
@@ -694,9 +714,9 @@ async function lowerOwnership(actor, { closedHere = false } = {}) {
         try {
             const updated = await actor.update({ "ownership.default": OBSERVER });
             if (!updated) return;   // somebody else's write got there first
-            await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Anonymity.reverted", {
+            await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Anonymity.reverted", {
                 actor: foundry.utils.escapeHTML(actor.name)
-            })}</p>`);
+            })}</p>` });
             debug(`Lowered the default ownership of "${actor.name}" back to OBSERVER.`);
         } finally {
             lowering.delete(actor.id);

@@ -231,6 +231,21 @@
     }
   },
   "DRPG": {
+    "DhSettings": {
+      "title": "Ustawienia postaci",
+      "details": "Szczegóły",
+      "experiences": "Doświadczenia",
+      "statistics": "Statystyki",
+      "reserves": "Health i Sanity",
+      "maxHealth": "Health (maks.)",
+      "maxSanity": "Sanity (maks.)",
+      "newExperience": "Nowe doświadczenie",
+      "delete": "Usuń",
+      "coreExperience": "To doświadczenie dał Level Up; nie da się go tu usunąć.",
+      "name": "Nazwa",
+      "value": "Wartość",
+      "description": "Opis"
+    },
     "Settings": {
       "forceDiceLook": {
         "name": "Jeden wygląd kości przy stole",
@@ -385,6 +400,32 @@
         "hint": "Jaśniejszy drobny tekst, pełne cienkie linie, nieprzezroczyste panele i żadnego rozmycia za elementami interfejsu. Rozmiar tekstu ustawia Skala interfejsu, nie ten przełącznik, a mapy to nie dotyczy. Włącza się sam, gdy twój system prosi o większy kontrast. Tylko ten klient."
       }
     },
+    "SettingsWindow": {
+      "menuName": "Ustawienia DRPG",
+      "menuLabel": "Otwórz ustawienia DRPG",
+      "title": "Ustawienia DRPG",
+      "sectionsLabel": "Sekcje",
+      "save": "Zapisz zmiany",
+      "scopeClient": "Tylko ta przeglądarka",
+      "scopeWorld": "Cały stół",
+      "glassOnly": "Tylko Stained Glass: wybierz ten motyw, by to zmienić.",
+      "legacyOnly": "Tylko Monokuma Legacy: wybierz ten motyw, by to zmienić.",
+      "gameTitle": "Ustawienia gry",
+      "mayNot": "Ustawienia gry otworzy tylko użytkownik, któremu Foundry pozwala zmieniać ustawienia świata.",
+      "gameNote": "To ustawienia całego stołu: zmiana tutaj zmienia grę dla wszystkich.",
+      "liveNote": "Głośność i ustawienia głosu działają od razu; reszta czeka na Zapisz.",
+      "sections": {
+        "audio": "Muzyka i głos",
+        "foundry": "Foundry i system",
+        "look": "Wygląd",
+        "effects": "Efekty i dostępność",
+        "sound": "Dźwięk i głos",
+        "rules": "Zasady przy stole",
+        "privacy": "Rzuty i prywatność",
+        "gm": "Narzędzia GM-a i mapa",
+        "tech": "Techniczne"
+      }
+    },
     "SearchTokens": {
       "title": "Search Tokens",
       "allFull": {
@@ -474,6 +515,7 @@
       },
       "freeMoveAvailable": "Free Move wciąż dostępny o tej porze dnia.",
       "freeMoveSpent": "Free Move zużyty. Następne przejście kosztuje akcję.",
+      "moveLegend": "Pełna: do wzięcia. Obrys: zużyta. Druga stopa, w kolorze Eclipse, to drugie przejście Eclipse: przygaszona poza Eclipse.",
       "allSpent": "Brak akcji. Wracają, gdy zacznie się następny Eclipse.",
       "leftOf": {
         "one": "{left} z {max} akcji",
@@ -694,6 +736,8 @@
         "stateSecret": "Otwarte",
         "stateClosed": "Zamknięte",
         "stateBroken": "Ściana się przesunęła - wskaż tajne przejście jeszcze raz",
+        "repickHeld": "Ponownie wskazuje się tylko tajne przejście, którego ściana się przesunęła.",
+        "toggleHeld": "Ściana się przesunęła: wskaż tajne przejście jeszcze raz, zanim je zamkniesz albo otworzysz.",
         "pending": "Jeszcze nie dostarczone: {names}",
         "shared": "{players} grają postacią {student} i każdy z nich poznaje to tajne przejście.",
         "show": "Pokaż",
@@ -1041,6 +1085,7 @@
       "manage": "Daj / zabierz przedmioty",
       "hubButton": "Przedmioty",
       "buttonTooltip": "Daj albo zabierz przedmiot",
+      "caption": "Daj / zabierz",
       "give": "Daj przedmiot",
       "take": "Zabierz przedmiot",
       "takeFrom": "Zabierz przedmiot: {actor}",
@@ -1135,7 +1180,7 @@
       "setCategoryTier": "Tabele nie mówią, czym jest ten przedmiot: wybierz jego kategorię i Tier, by go dać."
     },
     "Body": {
-      "noToken": "GMowie nie mogą umieścić tokenu postaci {name} na scenie z pokojami (nie ma go albo jego cofnięcie jest jeszcze w drodze), więc na mapie nie zostało ciało. Odznacz Monocuba i zaznacz go znowu, gdy token stanie.",
+      "noToken": "GMowie nie mogą umieścić tokenu postaci {name} na scenie z pokojami (nie ma go albo jego cofnięcie jest jeszcze w drodze), więc na mapie nie zostało ciało; to, co miała przy sobie, przeszukuje się obok jej tokenu.",
       "tile": "Ciało: {name}"
     },
     "Monocub": {
@@ -1163,6 +1208,7 @@
       "give": "Daj",
       "silenced": "Uciszony",
       "silencedNote": "Zaznacz, jeśli ten Monocub natknął się na miejsce zbrodni. Nie może o nim mówić do końca rozdziału, ale Confusion wciąż działa.",
+      "notCub": "Nie jest Monocubem",
       "needHope": "Confusion kosztuje Hope, a nie masz żadnego. Poproś GM-a o zamianę Despair.",
       "nobodyHere": "Nie ma tu nikogo, na kim dałoby się użyć Confusion.",
       "meddleIntro": "Podkręć czyjś następny rzut z boku. Wszyscy w twoim pokoju widzą, że rzucasz, więc mogą się domyślić, że to ty.",
@@ -1585,7 +1631,8 @@
       "cancel": "Anuluj",
       "tableEmpty": "Na razie nie ma tu nic do pokazania.",
       "scrollMore": "Niżej jest więcej. Przewiń, żeby zobaczyć.",
-      "allThresholds": "Wszystkie progi",
+      "details": "Szczegóły",
+      "thresholds": "Progi",
       "check": {
         "done": "Gotowe",
         "blocking": "Wymagane, jeszcze nie zrobione",
@@ -4133,6 +4180,7 @@
       "tableEmpty": "W tej tabeli nie ma jeszcze nic.",
       "removeItem": "Usuń z tej tabeli",
       "roomTotal": "Wszystko",
+      "roomFilter": "Pokaż",
       "roomBreakdown": "Posortowane według tego, czym pule Tier nazywają każdą rzecz. Płaska tabela pokoju wciąż odpowiada na dowolną kategorię, o którą pyta Search - nazwij tabelę „Pokój - Narzędzia zbrodni”, by decydowało się to tutaj.",
       "unfiled": "W żadnej puli Tier",
       "unfiledNote": "Żadna pula Tier nie zawiera tych nazw, więc moduł nie umie powiedzieć, czym są ani jak są dobre. W płaskiej tabeli pokoju mogą wypaść dla dowolnej kategorii. Strzałkami w wierszu włóż którąś do puli Tier.",
@@ -4206,7 +4254,9 @@
       "session": "Sesja",
       "timeOfDay": "Pora dnia",
       "chapterCorrectTitle": "Popraw numer rozdziału",
-      "chapterCorrect": "To poprawia tylko numer rozdziału - bez ujawniania, bez zbierania Truth Bullets, bez Blackened. Rozdział kończy przycisk Zakończ rozdział. Anuluj zostawia rozdział i zapisuje resztę.",
+      "endChapterNote": "Zakończ rozdział ujawnia, sprząta i wskazuje Blackened - wszystko, czego nie robi pole rozdziału wyżej. Najpierw pyta, a nic wpisanego wyżej nie zostaje zapisane.",
+      "endChapterAsk": "Zakończyć rozdział teraz? Edytuj kampanię zamknie się bez zapisu i otworzy się koniec rozdziału: pokaże, co ujawni, sprzątnie i wskaże, zanim cokolwiek zrobi.",
+      "chapterCorrect": "To poprawia tylko numer rozdziału - bez ujawniania, bez zbierania Truth Bullets, bez Blackened. Rozdział kończy przycisk Zakończ rozdział, na dole okna Edytuj kampanię. Anuluj zostawia rozdział i zapisuje resztę.",
       "trialFromEditTitle": "Otwórz Class Trial",
       "trialFromEdit": "To otwiera budżet Class Trialu i pobiera opłatę za nieznalezione Key Remnants. Anuluj zostawia fazę i zapisuje resztę.",
       "unknownTime": "Nieznana pora dnia: {key}.",
@@ -4223,6 +4273,7 @@
       "takenBack": "Cofnięte: akcje, Free Move, Search Tokens i pieczęcie są takie, jak przed początkiem tej pory dnia."
     },
     "Panel": {
+      "settings": "Ustawienia gry",
       "nextStartTrial": "Wszystkie zaplanowane Key Remnants zostały znalezione. Rozpocznij Class Trial z konsoli trialu.",
       "title": "Danganronpa - panel GM-a",
       "launcher": "Otwórz panel GM-a",
@@ -4246,7 +4297,7 @@
       "goStartInvestigationButton": "Rozpocznij Investigation",
       "goAutopsyButton": "Wydaj sekcję zwłok",
       "goBodyButton": "Ogłoś ciało",
-      "goSeasonSetupButton": "Ustaw sezon",
+      "goSeasonChecklistButton": "Lista kontrolna sezonu",
       "nextIncident": "Trwa incydent. Doprowadź go do końca, zanim zrobisz cokolwiek innego.",
       "nextEclipse": "Eclipse trwa. Zamknij go, gdy wszyscy się ustawią.",
       "nextBodyFound": "Znaleziono ciało. Rozpocznij Investigation, gdy sala będzie gotowa.",
@@ -4268,10 +4319,12 @@
         "other": "{n} uczniów ma jeszcze akcje do wydania."
       },
       "nextAllDone": "Wszyscy wydali akcje. Zacznij Eclipse: jego otwarcie odnawia wszystkim akcje, a zamknięcie przesuwa zegar.",
-      "nextSeasonSetup": "Sezon nie jest jeszcze ustawiony. Następne w oknie Ustaw sezon: {step}.",
-      "nextSeasonSetupAside": "Okno Ustaw sezon wciąż czeka na: {step}.",
+      "nextSeasonSetup": "Sezon nie jest jeszcze ustawiony. Następne na Liście kontrolnej sezonu: {step}.",
+      "nextSeasonSetupAside": "Lista kontrolna sezonu wciąż czeka na: {step}.",
       "advance": "Następna pora dnia",
       "advanceTooltip": "Przesuń zegar bez Eclipse: odnawia akcje, Free Moves i Search Tokens. Nocą zaczyna też następny dzień i sesję.",
+      "advanceOffEclipse": "Trwa Eclipse: jego koniec przesuwa zegar.",
+      "advanceOffTrial": "Trwa Class Trial: koniec rozdziału przesuwa zegar.",
       "advanceDuringEclipse": "Trwa Eclipse - zakończ go strzałką przy zegarze; jego koniec przesuwa zegar.",
       "jump": "Edytuj kampanię",
       "resetHint": "Zostaw wyłączone, gdy tylko poprawiasz literówkę - odnowienie daje wszystkim świeży zestaw akcji.",
@@ -4312,6 +4365,12 @@
         "other": "Wyczyszczono {n} Faint Remnants."
       },
       "voiceReset": "Wyślij wszystkim ponownie ich pokój głosowy",
+      "studentsLeft": {
+        "one": "{n} uczeń ma jeszcze akcje",
+        "few": "{n} uczniowie mają jeszcze akcje",
+        "many": "{n} uczniów ma jeszcze akcje",
+        "other": "{n} ucznia ma jeszcze akcje"
+      },
       "publicRoll": {
         "gmOnly": "Tylko GM może wykonać rzut publiczny.",
         "badFormula": "\"{formula}\" to nie jest formuła rzutu."
@@ -4400,6 +4459,7 @@
         "withClass": "Reinforced Level Up za wyjście z błędnego głosowania czekał na ten i przychodzi razem z nim."
       },
       "buttonTooltip": "Level Up",
+      "caption": "Level Up",
       "whichKind": "Jaki Level Up zdobył(a) <strong>{actor}</strong>?",
       "kind": {
         "standard": "Level Up (wybierz {picks})",
@@ -4530,7 +4590,7 @@
         "permissions": "uprawnień do plików"
       },
       "failed": "Nie udało się oddać ani przejąć ustawień Foundry. Konsola mówi dlaczego.",
-      "preSeason": "Ustawienia Foundry są oddane: moduł nie trzyma żadnego z nich - automatyk Daggerheart, uprawnień do plików ani pilnowanych ustawień graczy. Żeby znów je trzymał, otwórz „Oddaj ustawienia Foundry” (Ustaw sezon albo ustawienia tego modułu) i naciśnij „Przejmij je znowu”.",
+      "preSeason": "Ustawienia Foundry są oddane: moduł nie trzyma żadnego z nich - automatyk Daggerheart, uprawnień do plików ani pilnowanych ustawień graczy. Żeby znów je trzymał, otwórz „Oddaj ustawienia Foundry” (Ustawienia sezonu albo ustawienia tego modułu) i naciśnij „Przejmij je znowu”.",
       "heldNothing": "Ustawienia Foundry zostały oddane, więc moduł nie trzyma teraz żadnego z nich: automatyki Vulnerable i Defeated z Daggerheart, uprawnienia do plików i pilnowane ustawienia graczy zostają takie, jakie są. Przejmij je znowu, żeby moduł grał tak, jak powinien, albo zostaw je oddane."
     },
     "Enforced": {
@@ -5044,6 +5104,7 @@
     },
     "Rules": {
       "tab": "Zasady",
+      "sheetTitle": "Zasady Monokumy",
       "sheetIntro": "Stałe zasady Monokumy. Dotyczą wszystkich, cały czas, dopóki nie powie inaczej.",
       "none": "Nie ogłoszono jeszcze zasad.",
       "rule": "Zasada",
@@ -5282,12 +5343,9 @@
     "Season": {
       "missingPool": "jeszcze nie ma puli Despair (ma ją każde pełne konto Gamemastera)",
       "missingMonokumaActor": "żadna postać nie jest oznaczona jako Monokuma (Despair Flow albo menu pod prawym przyciskiem na liście Actors)",
-      "title": "Ustaw sezon",
+      "title": "Ustawienia sezonu",
       "introOutstanding": "Jeszcze {n} do zrobienia. Sezon może ruszyć bez nich; każdy brak ujawni się w chwili, gdy zacznie mieć znaczenie.",
       "introReady": "Każdy wiersz, którego ta lista wymaga, jest zrobiony. Kontrola przed sezonem sprawdza więcej niż ta lista - obrazy pokoi, głos, kto może otworzyć karty - więc uruchom ją przed pierwszą sesją.",
-      "campaignName": "Nazwa kampanii",
-      "campaignPlaceholder": "Hope's Peak: Utopione lato",
-      "chapter": "Rozdział",
       "note": "Każdy wiersz to coś, czego sezon potrzebuje, w kolejności, w jakiej sezon naprawdę się buduje.",
       "resourcesButton": "Nadaj zasoby startowe",
       "cursorButton": "Ukryj kursor GM-ów",
@@ -5464,9 +5522,10 @@
       "firstSessionNote": "Ustawiane raz, przed pierwszą sesją: gdzie odbywa się rozprawa, co moduł trzyma z Foundry i kości.",
       "safeword": "Safeword",
       "safewordNote": "Słowo, które zatrzymuje scenę, wydrukowane na każdym arkuszu postaci. Wybierz coś, czego stół nie pomyli z niczym innym. Zostaw puste, by użyć domyślnego.",
-      "campaignBlock": "Ta kampania",
+      "windows": "Okna sezonu",
+      "checklistTitle": "Lista kontrolna sezonu",
       "startHereTitle": "Od czego zacząć",
-      "startHereText": "Zacznij tutaj: panel GM-a > Ustaw sezon. Jego lista prowadzi przez sezon w kolejności, w jakiej się go buduje, a linia Dalej w panelu GM-a podaje pierwszą rzecz, która została do zrobienia.",
+      "startHereText": "Zacznij tutaj: panel GM-a > Ustawienia sezonu. Jego Lista kontrolna sezonu prowadzi przez sezon w kolejności, w jakiej się go buduje, a linia Dalej w panelu GM-a podaje pierwszą rzecz, która została do zrobienia.",
       "fixedCursor": {
         "one": "Wyłączono udostępnianie kursora dla {n} roli.",
         "few": "Wyłączono udostępnianie kursora dla {n} ról.",
@@ -5837,6 +5896,9 @@
         "few": "Czekają jeszcze {n} powiadomienia. Kliknij, żeby zamknąć wszystkie karty poza kartami do przeczytania.",
         "many": "Czeka jeszcze {n} powiadomień. Kliknij, żeby zamknąć wszystkie karty poza kartami do przeczytania.",
         "other": "Czeka jeszcze {n} powiadomień. Kliknij, żeby zamknąć wszystkie karty poza kartami do przeczytania."
+      },
+      "critical": {
+        "result": "Sukces krytyczny"
       },
       "kind": {
         "info": "Uwaga",
@@ -6822,8 +6884,8 @@
           "hint": "Pasek się zapełnił. Słyszy ten, kto go zaproponował, i GM-owie, nigdy publicznie, bo projekt może być tajny - naprawa i uzbrojona pułapka mają własne, głośniejsze ogłoszenia."
         },
         "critical": {
-          "label": "Rzut krytyczny",
-          "hint": "Słyszy ten, kto go wyrzucił. Jedyny moment rzutu, na który czeka cały stół, a dotąd jedyny z kolorem karty i bez dźwięku."
+          "label": "Krytyk",
+          "hint": "Gra przy krytyku, gdy powiadomienie wjeżdża cięciem. Słyszy ten, kto go wyrzucił."
         },
         "searchNothing": {
           "label": "Przeszukanie nic nie znajduje",

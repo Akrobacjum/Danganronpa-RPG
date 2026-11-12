@@ -759,7 +759,7 @@ item names an unshipped stage with a row in `tools/stages.json`; a stage number 
   allowance written beside the helpers in `scripts/tests-text.mjs` (requirements.mjs `requirementsContent`); T4's FAIL on
   the window surfaces by reader and the readers of the screens SCREENS does not name - E71 (67); T13's file set,
   its own or the screen map's - E71, when it turns T13 to FAIL (69); whether a Polish handbook whose ids, kinds or
-  lines differ from the English one is red - E57 (row 1.2.125), which owns the handbook facts (85); whether T4's FAIL
+  lines differ from the English one is red - E57 (row 1.2.124), which owns the handbook facts (85); whether T4's FAIL
   needs a floor on how many strings a surface rule places (`node tools/check.mjs text` prints "T4 classified ...":
   2712 of 10242 on 01.11.2026) - E71, when it turns T4 to FAIL; the Frisk row's Polish form „Zobacz, co ktoś nosi”
   (`see-what-they-carry`) - E71, with R620's pinned form; since E66 C7 the Polish Palm hint says it (B01a) and R620 reads
@@ -787,7 +787,7 @@ item names an unshipped stage with a row in `tools/stages.json`; a stage number 
   "behaviour", "recognise", "favour", "cancelled", "catalogue" (D33e and the rest of DB9; the glossary's entries
   `neighbor`, `behavior`, `recognize`, `favor`, `canceled` and `catalog`, stage E71; T8 lists their 50 places as not
   yet due, 01.11.2026).
-- **What E66 handed to E57** (row 1.2.125, which owns the documents and the handbook facts; the goal review's m3 and
+- **What E66 handed to E57** (row 1.2.124, which owns the documents and the handbook facts; the goal review's m3 and
   the correctness review's n3, 01.11.2026): the nine tier sentences (`TIER_EFFECTS.usable.1-3`,
   `USABLE_KIND_EFFECTS.healing/stress.1-3`) keep their digits - the amount is `USABLE_EFFECTS[tier].amount`, a sibling
   table, and the sentences are written into world documents (E66 STATUS Open 21); utils.mjs `worldLocalize` formats a

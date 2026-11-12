@@ -1,16 +1,31 @@
 /* ==========================================================================
-   Danganronpa RPG - the messenger
+   Danganronpa RPG - the base: what both themes stand on, loaded first
    --------------------------------------------------------------------------
-   Three pieces:
+   BEFORE THE THEMES, ON PURPOSE (E49 B3, 11.11.2026; the plan's E49 and its
+   amend [2]). This sheet was messenger.css, loaded after danganronpa.css and
+   stained-glass.css, and a rule of it won a tie against either theme by being
+   later - which is how the bubbles were gold and violet until E18 C6 took their
+   look out of here. It now loads first (module.json), so a theme states a look
+   at the same weight and wins by order: what is here is where a thing stands
+   and how it runs, and how it looks is the themes'. The move changed nothing on
+   the screen but the four S11-48 lines below: every computed property of every
+   messenger element (the button and its badge, the GM's roster, a window with a
+   ruling card, your bubble and a player's, the Note tab with Save) read the same
+   before and after in Chromium on the glass harness, both themes, 1366x768 and
+   1920x1080, with the theme's two dead lines that the later sheet had hidden
+   taken out (danganronpa.css, the launcher's colour and the send button's).
+
+   THE MESSENGER. Three pieces:
      #drpg-messenger-launcher   fixed button, the top of the bottom-right corner's
                                 three (the grid's tokens: danganronpa.css), always on screen
      #drpg-messenger-roster     the GM's popover picker, anchored above it
      .drpg-messenger            the conversation window itself (ApplicationV2)
 
    Reuses the theme tokens from danganronpa.css (--drpg-eye / --drpg-gold /
-   --drpg-crimson) rather than declaring its own palette.
+   --drpg-crimson) rather than declaring its own palette; a custom property
+   resolves where it is read, so the order of the sheets does not matter to it.
 
-   THE BUBBLES' LOOK IS THE THEMES' (E18 C6; audit S12-28). This sheet loads
+   THE BUBBLES' LOOK IS THE THEMES' (E18 C6; audit S12-28). messenger.css loaded
    after danganronpa.css and stated each bubble's ground, rule, corners and type
    at the same weight, so it won: the GM's bubbles gold, yours violet, a ruling
    card crimson, and under Stained Glass a gold ground in a red rule, the type
@@ -194,6 +209,11 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    /* THE FIRST CARD FADES UNDER THE TABS, IT IS NOT CUT (S11-48, E49 B3). The log scrolls to its newest card,
+       so the card above it met the tab bar on a hard line and read as cut off. A mask on the scroller's own box
+       (it stays put while the cards move) fades the top 0.6rem - the log's padding, so at the top of a thread
+       the first card stands clear of it - and draws nothing, moves nothing: a look, not a layout. */
+    mask-image: linear-gradient(to bottom, transparent 0, #000 0.6rem);
 }
 
 .drpg-messenger-empty {
@@ -232,6 +252,12 @@
     margin-bottom: 0.15rem;
     font-weight: 600;
     opacity: 0.75;
+}
+
+/* S11-48 (E49 B3): a card's lines at 1.35, not the bubble's 1.5 - a ruling card of four lines read as
+   double-spaced. Its paragraphs keep their margins. */
+.drpg-messenger-text {
+    line-height: 1.35;
 }
 
 .drpg-messenger-text p:first-child {

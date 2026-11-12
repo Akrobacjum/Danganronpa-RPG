@@ -18,11 +18,13 @@
  * imports nothing of the action family.
  */
 
-import { TRAITS } from "./config.mjs";
+import { MODULE_ID, TRAITS } from "./config.mjs";
+import { SETTINGS } from "./settings.mjs";
 import { esc } from "./utils.mjs";
 import { drpgWindow } from "./ui-kit.mjs";
 import { WIDE, choiceRowHtml, wideWindow } from "./ui-columns.mjs";
 import { PROPOSAL_NOTE_MAX } from "./trait-ruling.mjs";
+import { holdRowLines } from "./ui-hold.mjs";
 
 /**
  * The "which statistic?" field, as HTML to drop into somebody else's form.
@@ -182,17 +184,27 @@ export async function chooseVariant({
     // briefing, one block a row and the picked row's alone shown (`syncDetails`): measured on round M's page with C12's
     // markup, the crisis menu's two facts under its first row made the right column 140 px taller under the glass at
     // 1366x768 (body 808 px of 571; 668 with them on the left; S/stages/E68/STATUS.md E68-C12).
+    // E49 A8.1: in the columns the blocks are stacked in one place and the unpicked ones only unlit (`UNPICKED`), never
+    // `hidden`: the left column is as tall as its tallest block, whatever is picked (the rule of 10.11).
     const detailsOf = o => (o.details && !o.disabled
-        ? `<div class="drpg-choice-details" data-drpg-for="${esc(o.value)}"${columns && o.value !== first ? " hidden" : ""}>${o.details}</div>` : "");
+        ? `<div class="drpg-choice-details${columns && o.value !== first ? ` ${UNPICKED}` : ""}" data-drpg-for="${esc(o.value)}">${o.details}</div>` : "");
     const rows = options.map(o => `${choiceRowHtml(o, { checked: o.value === first })}${columns ? "" : detailsOf(o)}`).join("");
     const beside = columns ? options.map(detailsOf).join("") : "";
+    // A row's fact lines (`facts`: the crisis menu's, `crisisDetails`) go into the window's Details (E49 A8.1), one layer
+    // a row in one stack: into the briefing's own box where the intro drew one (`DETAILS_ROWS`), else a Details of their own.
+    const rowFacts = columns ? detailsStack(options.filter(o => o.facts?.length && !o.disabled)
+        .map(o => ({ when: o.value, html: factsList(o.facts) }))) : "";
+    const lead = `${intro}${beside ? `<div class="drpg-variant-details">${beside}</div>` : ""}`;
+    const brief = !rowFacts ? lead
+        : lead.includes(DETAILS_ROWS) ? lead.replace(DETAILS_ROWS, () => rowFacts) : `${lead}${detailsHtml(rowFacts)}`;
     // A row's own statistic field (`field`: the crisis menu's proposal, E68 C4) stands in the right column's slot, not
-    // with its details on the left: the owner's Q3 of round M keeps the field under the rows. One block a row, the
-    // picked row's alone shown (`syncDetails`); no class of its own, so the hidden attribute alone shuts it.
+    // with its details on the left: the owner's Q3 of round M keeps the field under the rows. One block a row, stacked
+    // in one place and the picked row's alone lit (`syncDetails`; E49 A8.3: `hidden` until then, which made the slot as
+    // tall as the picked row's field).
     // Whatever a caller reads back off the answer's `form` goes here, never in `details`: the left column is outside
     // the <form>. A Frisk's ways stood there from C12 to E68 fix CI 77d3e66a and were read as Openly every time.
     const fields = options.map(o => (o.field && !o.disabled
-        ? `<div data-drpg-field="${esc(o.value)}"${o.value !== first ? " hidden" : ""}>${o.field}</div>` : "")).join("");
+        ? `<div data-drpg-field="${esc(o.value)}"${o.value !== first ? ` class="${UNPICKED}"` : ""}>${o.field}</div>` : "")).join("");
 
     const fallback = confirm ?? game.i18n.localize("DRPG.Action.proceed");
     // A row's `confirm` is its label, or a function of the drawn window that reads the row's own fields (a Frisk's mode).
@@ -222,11 +234,17 @@ export async function chooseVariant({
            on - Analyze, the crisis menu, Observe, a project, Rest, Search, Tamper, Palm and Level Up's two questions - so
            the menu asks for it itself; R1404 holds that list of callers, and a new one is judged there. */
         prompt: true,
-        ...(columns ? { brief: `${intro}${beside ? `<div class="drpg-variant-details">${beside}</div>` : ""}`, ask: form }
+        ...(columns ? { brief, ask: form }
             : { body: `${intro}${form}` }),
         render: (event, dialog) => {
             if (options.some(o => o.confirm)) followConfirmLabel(dialog, confirmFor);
-            if (beside || fields) syncDetails(dialog);
+            if (columns) {
+                holdFields(dialog);
+                syncDetails(dialog, first);
+                // The rows' floor (E49 A8.4), read once drawn and again once the fonts are in (a line's height is the font's).
+                holdRowLines(dialog.element);
+                globalThis.document?.fonts?.ready?.then(() => holdRowLines(dialog.element)).catch(() => {});
+            }
             atTop(dialog);
         },
         footer: !usable.length ? { close: "close" } : {
@@ -278,32 +296,164 @@ const TRAIT_SLOT = "drpg-action-trait";
 /**
  * An action's window: `brief` (markup, the left column) and `ask` (markup, the right), every other key ui-kit.mjs
  * `drpgWindow`'s (`title`, `classes`, `footer`, `render`, `prompt`, ...). `drpg-action-window` names it for the
- * stylesheet; its width is `WIDE.width` unless the caller states one.
+ * stylesheet; its width is `WIDE.width` unless the caller states one. Its Details (E49 A8.1, `detailsHtml`) are wired
+ * on every render (`wireDetails`), before the caller's own `render`.
  */
-export function actionWindow({ brief = "", ask = "", classes = [], ...rest } = {}) {
+export function actionWindow({ brief = "", ask = "", classes = [], render = null, ...rest } = {}) {
     // A window that asks nothing (Move's briefing) is its left column alone, at half the width: an empty right column
     // would be 540 px of nothing.
     return wideWindow({
         ...(ask ? {} : { width: WIDE.width / 2 }),
         ...rest,
+        render: (event, dialog) => { wireDetails(dialog); return render?.(event, dialog); },
         classes: [...new Set(["drpg-panel", ...classes, "drpg-action-window"])],
         columns: [{ cls: "drpg-variant-brief", html: brief }, ...(ask ? [{ cls: "drpg-variant-ask", html: ask }] : [])]
     });
 }
 
-/** The left column's details follow the picked row (E68 C12): the block of the row picked shown, the others hidden. */
-function syncDetails(dialog) {
+/* ==========================================================================
+ * DETAILS (E49 A8, 11.11.2026; the owner's of the same day: "Proponuję wrzucić też szczegóły (koszt akcji, statystyka,
+ * lokacja, itd., teksty mniejsze) razem z thresholdami do wspólnej rozwijanej zakładki 'Details'")
+ * --------------------------------------------------------------------------
+ * Every fact line of an action's briefing - the price, the statistic, the room, the searches left, a miss's cost, every
+ * threshold, the GM's note - stands in one box under the lead (action-briefing.mjs `briefingBlock`), and a button opens
+ * and shuts it. "All thresholds", the <details> it replaces, grew Observe's window by 193 px under the glass and 148
+ * under Legacy at 1366x768 when opened (measured in Chromium on probe 08's captures: S/stages/E49/A8-details.md 1).
+ *
+ * THE BOX IS IN THE FLOW SHUT AS OPEN. Shut it is only invisible (the stylesheet's `visibility`, on the toggle's
+ * `aria-expanded`) and `inert` (neither Tab nor a screen reader enters lines nobody sees), never `hidden` or
+ * `display: none`, so it holds its place and the window has one size, open or shut (the rule of 10.11: a state changes
+ * look, never layout). Not a <details>: a shut one renders nothing of its content, so it cannot hold its place.
+ *
+ * A LINE BOUND TO A ROW (`data-drpg-when`, Analyze's hint and stash, Tamper's ladder and trail, a crisis row's list)
+ * is a layer of one stack (`detailsStack`): every row's layer stands in the same place, the picked row's lit and the
+ * others `UNPICKED` (`syncDetails`), so the box is as tall as its tallest row and a pick changes no size.
+ *
+ * REMEMBERED (the owner's Q2): one client setting, settings.mjs `actionDetailsOpen`, per player and browser, one value
+ * for every action window, shut at first. `detailsHtml` draws the state it reads; a press writes it (`wireDetails`).
+ * ========================================================================== */
+
+/** Where a menu's row-bound facts go inside a briefing's box (`chooseVariant`): a comment, so an unused one draws nothing. */
+const DETAILS_ROWS = "<!--drpg-details-rows-->";
+/** A block or layer of a row not picked: drawn in its place, unlit (the stylesheet's `visibility`), never `hidden`. */
+const UNPICKED = "drpg-unpicked";
+let detailsDrawn = 0;
+
+/** Whether this browser's player left Details open (settings.mjs `actionDetailsOpen`); shut where it cannot be read. */
+function detailsOpen() {
+    try { return game.settings.get(MODULE_ID, SETTINGS.actionDetailsOpen) === true; } catch { return false; }
+}
+
+/** The toggle and its box, `inner` (markup, already escaped) inside; open or shut as this browser last left them. */
+export function detailsHtml(inner) {
+    const id = `drpg-details-${++detailsDrawn}`;
+    const open = detailsOpen();
+    return `<div class="drpg-action-details">
+        <button type="button" class="drpg-action-details-toggle" id="${id}-toggle" aria-expanded="${open}" aria-controls="${id}"><span class="drpg-action-details-mark" aria-hidden="true"></span><span>${esc(game.i18n.localize("DRPG.Kit.details"))}</span></button>
+        <div class="drpg-action-details-box" id="${id}" role="region" aria-labelledby="${id}-toggle"${open ? "" : " inert"}>${inner}${DETAILS_ROWS}</div>
+    </div>`;
+}
+
+/** Fact lines (markup each, already escaped) as the briefing's list, or "" for none. */
+export function factsList(lines = []) {
+    return lines.length ? `<ul class="drpg-briefing-facts">${lines.map(line => `<li>${line}</li>`).join("")}</ul>` : "";
+}
+
+/** `{ when, html }` layers in one place: the rows' lines over one another, each named by its row(s), or "" for none. */
+export function detailsStack(layers = []) {
+    const shown = layers.filter(layer => layer?.html);
+    return shown.length ? `<div class="drpg-details-stack">${shown.map(layer =>
+        `<div class="drpg-details-layer" data-drpg-when="${esc(layer.when)}">${layer.html}</div>`).join("")}</div>` : "";
+}
+
+/** The toggle opens and shuts its box and writes the setting; Enter on it does what a click does (the kit's form takes no part). */
+function wireDetails(dialog) {
     const root = dialog?.element;
     if (!root) return;
-    root.addEventListener("change", event => {
-        if (event.target?.name !== "variant") return;
+    for (const toggle of root.querySelectorAll(".drpg-action-details-toggle")) {
+        const box = root.querySelector(`[id="${toggle.getAttribute("aria-controls")}"]`);
+        if (!box || toggle.dataset.drpgWired) continue;
+        toggle.dataset.drpgWired = "1";
+        const show = open => {
+            toggle.setAttribute("aria-expanded", String(open));
+            box.toggleAttribute("inert", !open);
+            // A box past its cap scrolls in itself, and a keyboard can scroll it only if it can take the focus.
+            if (open && box.scrollHeight > box.clientHeight) box.tabIndex = 0;
+            else box.removeAttribute("tabindex");
+        };
+        const flip = () => {
+            const open = toggle.getAttribute("aria-expanded") !== "true";
+            show(open);
+            game.settings.set(MODULE_ID, SETTINGS.actionDetailsOpen, open).catch(() => {});
+        };
+        toggle.addEventListener("click", flip);
+        // Enter's default on a button is its click; taken here, so the window's own Enter (its primary) never sees it.
+        toggle.addEventListener("keydown", event => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            event.stopPropagation();
+            flip();
+        });
+        show(toggle.getAttribute("aria-expanded") === "true");
+    }
+}
+
+/**
+ * The window follows the picked row (E68 C12; E49 A8.1, A8.3): in the left column the picked row's block and Details
+ * layers lit, in the right the fields that row shows (`holdFields`' stacks) and its own field in the statistic's slot;
+ * every other one `UNPICKED` in its place, never `hidden`.
+ */
+function syncDetails(dialog, first = null) {
+    const root = dialog?.element;
+    if (!root) return;
+    const pick = value => {
         for (const block of root.querySelectorAll(".drpg-variant-details > .drpg-choice-details")) {
-            block.hidden = block.dataset.drpgFor !== event.target.value;
+            block.classList.toggle(UNPICKED, block.dataset.drpgFor !== value);
+        }
+        for (const layer of root.querySelectorAll(".drpg-action-details-box .drpg-details-layer")) {
+            layer.classList.toggle(UNPICKED, !String(layer.dataset.drpgWhen ?? "").split(/\s+/).includes(value));
+        }
+        for (const field of root.querySelectorAll(`.${HELD} > [data-drpg-when]`)) {
+            field.classList.toggle(UNPICKED, !String(field.dataset.drpgWhen ?? "").split(/\s+/).includes(value));
         }
         for (const block of root.querySelectorAll(`.${TRAIT_SLOT} > [data-drpg-field]`)) {
-            block.hidden = block.dataset.drpgField !== event.target.value;
+            block.classList.toggle(UNPICKED, block.dataset.drpgField !== value);
         }
+    };
+    pick(root.querySelector('input[name="variant"]:checked')?.value ?? first);
+    root.addEventListener("change", event => {
+        if (event.target?.name === "variant") pick(event.target.value);
     });
+}
+
+/** A run of the right column's row-bound fields, held in one place (`holdFields`). */
+const HELD = "drpg-held-stack";
+
+/**
+ * THE RIGHT COLUMN HOLDS ITS PLACE TOO (E49 A8.3, 11.11.2026; the owner's answer 4: "tak"). A field a row shows - the
+ * request box of Observe's two rows and of Search's Something specific, Analyze's hint box, Tamper's three selects,
+ * Palm's plant, a project's two - carries `data-drpg-when` after the rows, and the stylesheet's sibling rules showed it
+ * (`display`) with its row alone: measured at A8.2 under the glass at 1366x768 (style-sweep `--details --every-pick`),
+ * Observe 584.4 to 612.1 px, Search 621.7 to 692.8, Analyze 486.1 to 543.6 by the pick. Each run of such fields is put
+ * in one stack when the window is drawn (the callers write them as markup in `extra`, so the run is found in the tree,
+ * not in the string), all of it in one grid cell, the picked row's lit and the others `UNPICKED` (`syncDetails`): the
+ * column is as tall as its tallest field. A field that shows with every row stays where it was, outside the stack.
+ */
+function holdFields(dialog) {
+    const root = dialog?.element;
+    // The right column's own <form>, or the column itself where the window's form swallowed it (a nested form is dropped).
+    const holder = root?.querySelector(".drpg-variant-ask > form") ?? root?.querySelector(".drpg-variant-ask");
+    if (!holder) return;
+    let stack = null;
+    for (const child of [...holder.children]) {
+        if (!child.matches("[data-drpg-when]")) { stack = null; continue; }
+        if (!stack) {
+            stack = document.createElement("div");
+            stack.className = HELD;
+            child.before(stack);
+        }
+        stack.append(child);
+    }
 }
 
 /**

@@ -507,7 +507,14 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.window?.title === askTitle);
         const before = V.trialProgress();
         globalThis.__dialogAnswers.push(true);
+        // E63 C2: the body tiles of Botan laid and taken while the trial ends (the createTile and deleteTile hooks).
+        const isBotan = t => t?.getFlag?.("${MOD}", "bodyOf")?.actorId === "${IDS.botan}";
+        const botanTiles = { created: 0, deleted: 0 };
+        const onMade = Hooks.on("createTile", t => { if (isBotan(t)) botanTiles.created++; });
+        const onGone = Hooks.on("deleteTile", t => { if (isBotan(t)) botanTiles.deleted++; });
         const ended = await UI.endClassTrial();
+        await new Promise(r => setTimeout(r, 300));
+        Hooks.off("createTile", onMade); Hooks.off("deleteTile", onGone);
         // E70 C4: End the trial carries G's sentence out - Botan dies now, of the execution, with its one card.
         const botan = game.actors.get("${IDS.botan}");
         const executed = { dead: game.drpg.isDeadForGm(botan), cause: botan.getFlag("${MOD}", "deceased")?.cause ?? null,
@@ -534,7 +541,7 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
         let enter = null, yes = null;
         try { enter = await start("enter"); yes = await start("ok"); } finally { globalThis.__dialogWindows = was; }
         const after = V.trialProgress();
-        return { ended, executed, enter, yes, startTitle: ${text("DRPG.Floor.startTrial")}, askTitle, before: [before.verdictApplied, before.keysCharged],
+        return { ended, executed, botanTiles, enter, yes, startTitle: ${text("DRPG.Floor.startTrial")}, askTitle, before: [before.verdictApplied, before.keysCharged],
             round: before.vote?.round ?? null, cleared: { vote: after.vote ?? null, voteClosed: after.voteClosed, tied: after.tied,
                 accused: after.accused ?? null, accusedIds: after.accusedIds ?? null, total: after.total ?? null } };`, { timeout: 60000 });
     verdict("the second Start asks first: the confirmation's first submit button, which Enter presses, is Cancel, the only default; Enter keeps Daily Life and the verdict (C11)",
@@ -548,6 +555,15 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
     verdict("the second trial clears the vote, its count and the tie, and carries the round number on (C1, D17)",
         again.round === 1 && fresh.vote?.open === false && fresh.vote.round === 1 && J(fresh.vote.issued) === J([]) && fresh.voteClosed === false
             && fresh.tied === false && J(fresh.accused) === J([]) && J(fresh.accusedIds) === J([]) && fresh.total === 0, J(again));
+    /* E63 C2 (the owner's 11.11.2026 on E95 Q2 and Q8; QUESTIONS E63 Q2): End the trial took every body tile off the map on
+       every client - the hall's scenes and the school's - and Botan's, laid by the sentence, went in the same press. Read
+       on each client after the end: the body tiles of every scene it holds. Red at 236c48d8: Botan's tile stayed. */
+    const bodiesLeft = {};
+    for (const [who, c] of Object.entries({ gm2, p1, p2, p3, p4 })) bodiesLeft[who] = await c.eval(`return game.scenes.contents
+        .flatMap(s => s.tiles.contents.filter(t => t.getFlag("${MOD}", "bodyOf")).map(t => s.name + ":" + t.getFlag("${MOD}", "bodyOf").actorId));`);
+    verdict("End the trial leaves no body tile on any scene of any client, and Botan's, laid by his sentence, was taken in the same press (E63 C2)",
+        Object.values(bodiesLeft).every(list => Array.isArray(list) && list.length === 0) && again.botanTiles?.created >= 1
+            && again.botanTiles.created === again.botanTiles.deleted, J({ bodiesLeft, botanTiles: again.botanTiles }));
     verdict("End the trial carries out G's sentence: Botan dies of the execution, with one execution card, and the record is stamped (E70 C4)",
         again.ended === true && again.executed?.dead === true && again.executed.cause === "executed" && again.executed.cards === 1
             && again.executed.stamped === true, J(again.executed));

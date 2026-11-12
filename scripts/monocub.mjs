@@ -44,7 +44,6 @@
 import { MODULE_ID, FLAGS, MONOCUB, ACTIONS_RESOURCE } from "./config.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { isDeceased, isDeadForGm } from "./chapter.mjs";
-import { leaveBody } from "./body-tile.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
@@ -75,10 +74,19 @@ export function isMonocub(actor) {
  */
 export function ownCaseOpen(actor, { clock = getClock(), record, epoch = seasonEpoch() } = {}) {
     if (!isMonocub(actor)) return false;
-    const death = deathRecord(actor);
+    const stored = record === undefined ? (getSetting(SETTINGS.trialProgress) ?? {}) : (record ?? {});
+    return caseOpen(deathRecord(actor), clock, stored, epoch);
+}
+
+/**
+ * Whether the case of the death `death` is open (pure; cut out of `ownCaseOpen` by E63 C3, 11.11.2026, which reads it
+ * without the Monocub gate for a 1.2.104 world's bodies, migrate.mjs `bodiesToLay`): a death in the clock's chapter and
+ * the season `epoch`, not by an execution, whose chapter has no verdict in the stored trial record `record` after it.
+ */
+export function caseOpen(death, clock, record, epoch) {
     if (!death || death.cause === "executed" || death.chapter !== clock?.chapter) return false;
     if (death.epoch !== undefined && death.epoch !== null && death.epoch !== epoch) return false;
-    const stored = record === undefined ? (getSetting(SETTINGS.trialProgress) ?? {}) : (record ?? {});
+    const stored = record ?? {};
     const verdict = stored.chapter === clock.chapter ? (stored.lastVerdictAt ?? null) : null;
     // A death that names the verdict before it (E70 fix p1-G3, chapter.mjs `verdictBefore`): open while no later verdict
     // came; an older record, written before the field, as before - open only in a chapter with no verdict yet.
@@ -134,21 +142,9 @@ export async function setMonocub(actor, value = true, { quiet = false } = {}) {
     }
     await actor.setFlag(MODULE_ID, FLAGS.monocub, Boolean(value));
 
-    /*
-     * THE BODY STAYS WHERE IT FELL (E95 C2, 10.11.2026; DC6; QUESTIONS Q3 (a)). On the way in, false to true, on this
-     * GM's browser: body-tile.mjs `leaveBody` lays the body as a tile where the token stands, for a death that is no
-     * execution, unless this death's tile is there already - so the Monocub walks away on the token and the body is
-     * searched where it lies (frisk.mjs `personActionRefusal` reads `bodyPlaceOf`). Here and not on a hook of the
-     * flag: the suite writes the flag by hand, and a hook would act on a write before the GMs' audit judged it. The way
-     * out keeps the tile (Q8): an unticked Monocub is still dead. A tile that cannot be laid does not undo the Monocub.
-     */
-    if (value && !was) {
-        try {
-            await leaveBody(actor);
-        } catch (err) {
-            warn(`Could not leave ${actor.name}'s body on the map`, err);
-        }
-    }
+    /* THE BODY (E63 C0, 11.11.2026; the owner on E95 Q3: "Nie gdy zostaje Monocubem"): becoming a Monocub lays nothing.
+       The death laid it (chapter.mjs `markDeceased`), and the Monocub walks away from it on the token; ticked, unticked
+       or ticked again, the tile stays, and it goes at the trial's end, a revive or the reset. */
     // Unconditional on purpose: clearing the flag is also the repair for a
     // silence left behind by a cub who is no longer one.
     if (!value) await actor.unsetFlag(MODULE_ID, FLAGS.silencedChapter);

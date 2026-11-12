@@ -215,11 +215,11 @@ export function showTrayToPlayer(root, user = game.user) {
  * sees and therefore what the bar must agree with; when the tag says something
  * else, the project's own record.
  *
- * The glyph is a REFERENCE, `var(--drpg-px-key)`, not the sprite itself: the
+ * The glyph is a REFERENCE, `var(--drpg-pix-key)`, not the sprite itself: the
  * tokens sit on the body under Stained Glass and a row inherits them, so one
  * copy of each sprite serves every row. A row whose project has no glyph has
  * the property REMOVED rather than set to the hourglass - the rule's own
- * `var(..., var(--drpg-px-hourglass))` fallback is the single place the
+ * `var(..., var(--drpg-pix-hourglass))` fallback is the single place the
  * default is named.
  *
  * `allProjects()` is read once per render and only when there is something to
@@ -248,7 +248,7 @@ export function paintProgress(root) {
         // i.e. a solid block of the state colour on the row.
         if (isProjectGlyph(project?.glyph)) {
             row.style.setProperty("--drpg-project-glyph",
-                `var(--drpg-px-${project.glyph}, var(--drpg-px-hourglass))`);
+                `var(--drpg-pix-${project.glyph}, var(--drpg-pix-hourglass))`);
         } else {
             row.style.removeProperty("--drpg-project-glyph");
         }

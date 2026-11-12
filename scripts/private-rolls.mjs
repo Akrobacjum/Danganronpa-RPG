@@ -52,7 +52,6 @@ import { locateActor, occupantsOf } from "./movement.mjs";
 import { monokumaActors, poolOwnerOf } from "./monokuma.mjs";
 import { gmIds, ownerIdsOf, error, warn, debug, isPrimaryGm, MESSAGE_FLAG, markFired } from "./utils.mjs";
 import { judge, table, pick, as, knownSender, owns, gmOnly, guardRollAuthor, guardDrawnRoll, guardDrawnCosts, bridgeRequest } from "./bridge-guards.mjs";
-import { play, ENTER, ARRIVE } from "./motion.mjs";
 // Who is in the incident, read on the primary GM for the incident's dice (E06 C6). Static
 // and safe: nothing in murder.mjs's own import closure leads back to this file (R161).
 import { murderState, incidentAudienceIds } from "./murder.mjs";
@@ -94,10 +93,6 @@ export function registerPrivateRolls() {
     // A statistic the GM drew is headed by its roller's character, not by the GM (`signAsRoller`).
     Hooks.on("renderChatMessageHTML", signAsRoller);
 
-    // Everything already in the log is history. Registered here rather than at
-    // module scope because `game.messages` does not exist until the world is
-    // ready, and `ready` fires before the chat log has rendered a single card.
-    Hooks.once("ready", rememberExistingMessages);
     // The roller's own drawn rolls, readable again after a reload (fix r2-H7, `refillReadable`).
     Hooks.once("ready", refillReadable);
 
@@ -143,87 +138,14 @@ const OUTCOME_TOKEN = {
     hope: "--drpg-gold"
 };
 
-/**
- * Every message that was already in the log when this client finished loading.
- *
- * `renderChatMessageHTML` fires for every card in the log, not only for new ones
- * - opening the tab, reloading, scrolling back far enough - so "is this new"
- * has to be answered somehow, and the obvious answer is wrong. Comparing
- * `message.timestamp` against `Date.now()` compares a stamp written by the
- * SERVER against a reading taken from the CLIENT's clock, and on a hosted world
- * those two disagree by however far the two machines have drifted apart. A
- * server a few seconds behind makes every new roll look like history, which is
- * exactly the symptom: no animation, ever, on the newest card in the log.
- *
- * Identity instead of time. Everything present at `ready` is history by
- * definition; everything that turns up afterwards is new, and gets marked as it
- * is handled so a re-render cannot slash the same card twice. No clocks
- * involved, so nothing to drift.
+/*
+ * NO SLASH ON THE REACTION CARDS (E48 K7, 11.11.2026; Q8, decision 6). Every new roll card with a duality outcome was
+ * cut into the chat log here (`cutIn`: a diagonal clip-path wipe over the enter time, once per card new since `ready`,
+ * started when the card was on the page). S02-73's complaint was that the least important roll had the strongest
+ * entrance; the cut is the critical's alone now, on its notice (popup.mjs `cutCritical`), and these cards keep their
+ * plain entry with their outcome frame (`markOutcome`). The memory of which cards were new went with the cut: nothing
+ * else read it.
  */
-const alreadySeen = new Set();
-
-let historyLoaded = false;
-
-function rememberExistingMessages() {
-    for (const message of game.messages ?? []) alreadySeen.add(message.id);
-    historyLoaded = true;
-}
-
-/**
- * The outcome frame arrives on a cut.
- *
- * A roll's result is the only thing in the chat log that is an EVENT rather
- * than a record - everything else there is something you go and read, and this
- * is something that just happened to you. It used to appear the way a log entry
- * appears, which is to say not at all: the card was simply the next thing down
- * the column.
- *
- * A diagonal wipe, left to right, over the enter time. Not a fade - a fade is
- * the grammar of something settling into place, and the whole visual language
- * this game is built on is hard cuts. One slash, and the frame is there.
- *
- * `clip-path` and nothing else: no layout is read, no layout is written, and
- * the Web Animations API leaves no clip behind when it finishes, so a card that
- * has been cut in is afterwards an entirely ordinary card.
- */
-/**
- * Wait until a chat card is actually on the page, then do something with it.
- *
- * `renderChatMessageHTML` fires while the message is still being assembled - it
- * has not been appended to the log yet. An animation started at that moment
- * runs to completion on a detached node, perfectly, without one frame of it
- * ever being composited, which is why the cut was invisible for a release.
- *
- * A handful of frames of patience, then the element as the reader sees it - or
- * nothing, if it never lands, which is the correct answer for a card that was
- * thrown away before it was shown.
- */
-function whenOnScreen(html, then) {
-    let frames = 6;
-    const check = () => {
-        if (html.isConnected) return void then();
-        if (frames-- > 0) requestAnimationFrame(check);
-    };
-    requestAnimationFrame(check);
-}
-
-function cutIn(html) {
-    play(html, [
-        { clipPath: "polygon(0% 0%, 0% 0%, -20% 100%, -20% 100%)" },
-        { clipPath: "polygon(0% 0%, 120% 0%, 100% 100%, 0% 100%)" }
-    ], ENTER(), ARRIVE());
-}
-
-/** New means "not in the log when this client loaded", and only once. */
-function isNew(message) {
-    // The chat log renders its history BEFORE `ready` fires, so until the set
-    // above has been filled, nothing can be judged - and judging it wrong here
-    // means the whole log slashes itself in and raises a card per roll on load.
-    if (!historyLoaded) return false;
-    if (!message?.id || alreadySeen.has(message.id)) return false;
-    alreadySeen.add(message.id);
-    return true;
-}
 
 /**
  * Which of the three outcomes this card carries - asked of the DOCUMENT.
@@ -282,6 +204,13 @@ function paintChatCard(message, element) {
             html.classList.add("drpg-chat-card");
             markReplaced(message, html);
 
+            /* A CARD OF THE KIT (E49 B5a, chat-card.mjs `chatCard`) says its tone on the message too, so the log's edge
+             * is the card's: `data-drpg-tone` on the message, read by components.css's chat section. A private card's
+             * words land after the stub (secret.mjs); this hook runs again then, and reads them. */
+            const kit = html.querySelector?.(".drpg-chat-kit[data-drpg-tone]");
+            if (kit) html.dataset.drpgTone = kit.dataset.drpgTone;
+            else delete html.dataset.drpgTone;
+
             /* AND WHICH WAY ITS ROLL WENT.
              *
              * The module's own result card knew its outcome - `popupTone` has
@@ -305,7 +234,6 @@ function paintChatCard(message, element) {
             const outcome = dualityOutcome(message, html);
             if (outcome) {
                 markOutcome(html, outcome);
-                if (isNew(message)) whenOnScreen(html, () => cutIn(html));
                 return;
             }
         }

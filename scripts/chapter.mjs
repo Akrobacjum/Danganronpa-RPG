@@ -30,6 +30,7 @@
  */
 
 import { MODULE_ID, FLAGS, REMNANT_TYPES, CHAPTERS_PER_SEASON } from "./config.mjs";
+import { cardWarn } from "./chat-card.mjs";
 import { getClock, phaseLabel } from "./clock.mjs";
 import {
     bodyDiscovery, setBodyDiscovery, clearBodyDiscovery, isDeceased, isDeadForGm, deathRecord, deathRecordFor, pendingDeath,
@@ -51,7 +52,7 @@ import { registerSeasonState, everyPart } from "./season-reset.mjs";
 import { caseMark, deathStore, deferredOfferStore, lootTraceStore } from "./gm-stores.mjs";
 // A leaf (config.mjs alone): the scenes of the discovery window and a discovery handed no scene (E12 C5).
 import { placeScenes, roomNames, sceneOfRoom } from "./rooms.mjs";
-import { removeBodyTiles } from "./body-tile.mjs";
+import { leaveBody, removeBodyTiles } from "./body-tile.mjs";
 
 /* ==========================================================================
  * DEATH
@@ -171,6 +172,17 @@ export async function markDeceased(actor, { record: when = null, phase = null, c
         await actor.toggleStatusEffect("dead", { active: true, overlay: true });
     } catch (err) {
         log(`Could not apply the "dead" status to ${actor.name}; the flag is set regardless.`);
+    }
+
+    /* THE BODY, WHERE THE TOKEN LIES (E63 C0, 11.11.2026; the owner on E95 Q3: "gdy postac umiera ... Nie gdy zostaje
+       Monocubem"). Here, the one function every public death passes - a death public at once, a kept death made the
+       table's (`publishDeath`), the Players window's "dead" - so no road lays a second. Handed the record just written,
+       not the GMs' mark, which may not hold it yet (body-tile.mjs `leaveBody`). Tried on its own: a tile that cannot be
+       laid does not undo the death. */
+    try {
+        await leaveBody(actor, { record });
+    } catch (err) {
+        error(`Could not leave ${actor.name}'s body on the map`, err);
     }
 
     return record;
@@ -677,7 +689,7 @@ export async function clearSeasonDeaths(ctx) {
         await ctx.everyStudent("deaths");
         if (isPrimaryGm()) await deathStore.clear();
         else await deathStore.dropMany(Object.keys(deathStore.entries()));
-    }, () => (typeof ctx?.removeBodyTiles === "function" ? ctx.removeBodyTiles() : removeBodyTiles()));
+    }, () => (typeof ctx?.removeBodyTiles === "function" ? ctx.removeBodyTiles() : removeBodyTiles(null, { held: false })));
 }
 
 /** What the reset window counts of the deaths: the students dead for the GMs (season-setup.mjs `resetTally` until E42 C3). */
@@ -1048,8 +1060,8 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {
     const named = victim && victims.includes(victim.id) ? victim : null;
     for (const id of unpublished) {
         const body = game.actors.get(id);
-        await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Chapter.bodyNotPublished", {
-            name: foundry.utils.escapeHTML(body?.name ?? id) })}</p>`);
+        await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format("DRPG.Chapter.bodyNotPublished", {
+            name: foundry.utils.escapeHTML(body?.name ?? id) })}</p>` });
     }
 
     /* AND THE DISCOVERY IS STAMPED, ONCE, UNDER ITS CHAPTER AND SEASON (E11 C1, 1.2.73; audit
@@ -2515,7 +2527,7 @@ async function endChapterNow(choices) {
         const words = moved.some(key => key !== "phase")
             ? game.i18n.format("DRPG.Chapter.endTwice", opened)
             : game.i18n.format("DRPG.Chapter.endPhaseMoved", { opened: phaseLabel(opened.phase), now: phaseLabel(now.phase) });
-        await whisperToGms(`<p class="drpg-warning">${words}</p>`);
+        await whisperToGms({ tone: "warning", body: `<p>${words}</p>` });
         return null;
     }
 
@@ -2627,8 +2639,10 @@ async function runChapterEnd(record) {
     if (report.toast.level === "error" && report.toast.text) ui.notifications.error(report.toast.text);
     if (!result.lines.length && !report.notes.length) return null;
 
-    await whisperToGms(`<h3>${game.i18n.localize("DRPG.Chapter.endTitle")}</h3>
-        <ul>${result.lines.map(line => `<li>${line}</li>`).join("")}</ul>${report.notes.map(note => `<p class="drpg-warning">${esc(note)}</p>`).join("")}`);
+    await whisperToGms({
+        title: game.i18n.localize("DRPG.Chapter.endTitle"), tone: report.notes.length ? "warning" : "info",
+        body: `<ul>${result.lines.map(line => `<li>${line}</li>`).join("")}</ul>${report.notes.map(note => cardWarn(esc(note))).join("")}`
+    });
     return result.lines.length ? result.lines : null;
 }
 
@@ -2665,7 +2679,7 @@ async function finishEndNow({ drop }) {
             return null;
         }
         ui.notifications.warn(text);
-        await whisperToGms(`<h3>${game.i18n.localize("DRPG.Chapter.endTitle")}</h3><p class="drpg-warning">${esc(text)}</p>`);
+        await whisperToGms({ tone: "warning", title: game.i18n.localize("DRPG.Chapter.endTitle"), body: `<p>${esc(text)}</p>` });
         return undone;
     }
     const clock = getClock();

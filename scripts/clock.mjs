@@ -853,6 +853,18 @@ async function reconcilePhase(from, to) {
         } catch (err) {
             error("Could not carry out the trial's sentence after the phase changed", err);
         }
+        /* EVERY BODY OFF THE MAP (E63 C2, 11.11.2026; the owner on E95 Q2 "kafel smierci po trialu znika" and Q8 "Kafle
+           ciala sa usuwane ... na koniec class trial"). After the sentence, so the executed's tile, laid by it, goes in
+           the same click (QUESTIONS E63 Q2). On the browser that wrote the phase; a second GM's sentence is asked of the
+           primary and waits for its reply, which comes after the kill (trial-progress.mjs `askRecord`, settle "reply";
+           a primary that does not answer in the bridge's `rulingMs` is the one case it could come first: STATUS E63).
+           Tier 2's fence leaves the table's bodies (body-tile.mjs `holdBodyTiles`). */
+        try {
+            const { removeBodyTiles } = await import("./body-tile.mjs");
+            await removeBodyTiles(null);
+        } catch (err) {
+            error("Could not take the bodies off the map after the trial", err);
+        }
     }
 
     /* A SENTENCE THAT COULD NOT BE CARRIED OUT, ASKED AGAIN (E70 fix p1-G2; the review's BEH-2) at every change of phase
@@ -862,7 +874,13 @@ async function reconcilePhase(from, to) {
         try {
             const { executeAtExit, trialProgressChapter, trialProgress } = await import("./vote.mjs");
             const chapter = trialProgressChapter();
-            if (chapter !== null && trialProgress(chapter).execution?.failed?.length) await executeAtExit({ chapter });
+            const out = chapter !== null && trialProgress(chapter).execution?.failed?.length ? await executeAtExit({ chapter }) : null;
+            /* The trial is over, so the bodies it left are gone already: the students this retry executed leave none
+               either (E63 C2), and no other body is touched - a new chapter's stays. */
+            if (Array.isArray(out?.executed) && out.executed.length) {
+                const { removeBodyTiles } = await import("./body-tile.mjs");
+                for (const id of out.executed) await removeBodyTiles(id);
+            }
         } catch (err) {
             error("Could not carry out a sentence that waited", err);
         }

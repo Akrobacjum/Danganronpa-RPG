@@ -18,6 +18,10 @@
  *   3. tests-css.mjs `budgetProblems`: per sheet `important`, `colourLiterals`, `duplicates` and `deadClasses` against
  *      its row, red above (a rule was added) and below (lower the budget in the same commit: `--write`); a stray
  *      comment end is red with no budget; a sheet with no row, or a row with no sheet, is red.
+ *   4. tests-css.mjs `meaningReads` (E48 K1, 11.11.2026): a meaning token read by a rule that does not name its
+ *      meaning - gold outside Hope's selectors, `--drpg-attention` outside focus and selection - one problem each,
+ *      after `meaningSelfCheck` on its fixture. The stage's word was "warns"; it is red here because the count is 0 and
+ *      the suite's R3410 holds it to 0 anyway, and a warning nobody has to read is the colour nobody looks at.
  * The last line: "css: N sheet(s) ...; P problem(s)". Measured 04.11.2026 on c4210b4d's sheets: 6 sheets, 958
  * `!important`, 445 declarations with a colour literal, 0 rules written twice, 0 stray comment ends, 653 classes
  * named and none dead; well under a second.
@@ -62,7 +66,7 @@ export function servedSheets(repo) {
 export async function cssLint(repo = DEFAULT_REPO, { write = false } = {}) {
     const T = await import(url.pathToFileURL(path.join(repo, "scripts", "tests-css.mjs")).href);
     const { stripComments } = await import(url.pathToFileURL(path.join(repo, "scripts", "tests-lint.mjs")).href);
-    const problems = T.selfCheck().map(p => `self-check: ${p}`);
+    const problems = [...T.selfCheck(), ...T.meaningSelfCheck()].map(p => `self-check: ${p}`);
     const sheets = servedSheets(repo);
     const sources = crawlScripts(repo).map(([file, text]) => [file, stripComments(text)]);
     if (!sheets.length) problems.push("module.json serves no sheet - nothing was read");
@@ -81,12 +85,15 @@ export async function cssLint(repo = DEFAULT_REPO, { write = false } = {}) {
         budget = { about: budget?.about ?? "", sheets: rows };
         fs.writeFileSync(budgetPath, `${JSON.stringify(budget, null, 2)}\n`);
     }
+    const meaning = T.meaningReads(sheets);
+    if (!meaning.read) problems.push("meaning: no meaning token read in any sheet - the check would vouch for nothing");
+    for (const found of meaning.found) problems.push(`meaning: ${found}`);
     if (!budget) problems.push(`${BUDGET_FILE} is missing or not JSON`);
     else problems.push(...T.budgetProblems(counts, budget));
     const sum = field => Object.values(counts).reduce((n, c) => n + c[field], 0);
     const summary = `css: ${sheets.length} sheet(s), ${sources.length} script(s); self-check ${problems.some(p => p.startsWith("self-check: ")) ? "red" : "held"}; `
         + `!important ${sum("important")}, colour literals ${sum("colourLiterals")}, duplicate rules ${sum("duplicates")}, stray comment ends ${sum("strayCommentEnds")}, `
-        + `dead classes ${sum("deadClasses")} of ${dead.inSheet} named; ${write ? `budget written to ${BUDGET_FILE}; ` : ""}${problems.length} problem(s)`;
+        + `dead classes ${sum("deadClasses")} of ${dead.inSheet} named, meaning tokens read ${meaning.read} (${meaning.found.length} outside their selectors); ${write ? `budget written to ${BUDGET_FILE}; ` : ""}${problems.length} problem(s)`;
     return { problems, summary, counts };
 }
 

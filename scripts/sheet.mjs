@@ -37,6 +37,7 @@ import { restShutReason } from "./rest.mjs";
 // `availableCrisisActions` and `isTheirTurn` went to the Direct Murder tile's
 // menu with the crisis grid - see `openCrisisMenu` in action-murder.mjs.
 import { murderState, sideOf, betrayalTarget, isTheirTurn, crisisTileLabel } from "./murder.mjs";
+import { incidentTurnText, actingActor } from "./events.mjs";
 // Two different rules, each under its own name since 1.2.69 (E33 C9, D39): the
 // crime-witness marker on a Monocub (information only - it refuses nothing) and
 // the Despair Call "Silence" on a living student (no Hope Calls until the time of
@@ -75,6 +76,7 @@ import { safeword } from "./safeword.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 import { debug, error, plural, proseOf, markLanguage, GM_ROUTE_CLASS, markFired } from "./utils.mjs";
 import { drpgConfirm } from "./ui-kit.mjs";
+import { markStatName, statOfTrait } from "./stat-glyphs.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { announceSheetSteps } from "./requirements.mjs";
 import { overflowBlocksCalls, overflowBlocksFreeMove } from "./overflow.mjs";
@@ -141,6 +143,8 @@ export function sheetMode(actor, user = game.user, { app = null, editable, facts
         header, actions, rows,
         calls: actions === "grid" || actions === "calls",
         levelUp: !npc, offers: owner, init: gm && !monokuma, itemButton: gm && !monokuma, classControls: gm,
+        // The Stop is a player's (E49 B2, S03-31): a Monokuma's sheet, a GM's character, draws none.
+        safeword: !monokuma,
         pipEdit: gm, realBullets: gm, otherRemove: gm && canEdit, creators: gm,
         // A Monokuma's sheet is no student's (S03-33): no student groups, no Equipped or Experience, no biography.
         groups: !monokuma, equipped: !monokuma, experience: !monokuma, biography: !monokuma, inventory: !monokuma,
@@ -990,6 +994,7 @@ export const SHEET_STEPS = [
     ["removeSystemCreators", ({ app, element, mode }) => removeSystemCreators(app, element, mode)],
     ["leaveLoadoutTab", ({ app, element }) => leaveLoadoutTab(app, element)],
     ["frameTraits", ({ element }) => frameTraits(element)],
+    ["markTraitGlyphs", ({ element }) => markTraitGlyphs(element)],
     ["injectUltimate", ({ app, element, mode }) => injectUltimate(app, element, mode)],
     ["markSheetState", ({ app, element, mode }) => markSheetState(app, element, mode)],
     ["injectInitButton", ({ app, element, mode }) => injectInitButton(app, element, mode)],
@@ -1008,7 +1013,7 @@ export const SHEET_STEPS = [
     ["injectEquippedTools", ({ app, element, mode }) => injectEquippedTools(app, element, mode)],
     ["noteEmptyExperience", ({ app, element, mode }) => noteEmptyExperience(app, element, mode)],
     ["injectKnownPassages", ({ app, element, mode }) => injectKnownPassages(app, element, mode)],
-    ["injectSafeword", ({ app, element }) => injectSafeword(app, element)],
+    ["injectSafeword", ({ app, element, mode }) => injectSafeword(app, element, mode)],
     ["tidyBiography", ({ app, element, mode }) => tidyBiography(app, element, mode)],
     ["groupInventory", ({ app, element, mode }) => groupInventory(app, element, mode)],
     ["tidyInventoryTab", ({ app, element, mode }) => tidyInventoryTab(app, element, mode)],
@@ -1467,6 +1472,32 @@ function frameTraits(element) {
     }
 }
 
+/*
+ * EACH STATISTIC'S GLYPH IN ITS MARK (E49, the owner's ask of 11.11.2026 night and his answer of 12.11.2026; stat-glyphs.mjs).
+ * Daggerheart 2.6.5's header (header.hbs:107) draws `.character-traits > .trait[data-attribute="<its key>"]`, and in each
+ * `.trait-name` a `.tier-mark` before the name's span: a disc half outside the plate's left end that shows
+ * `system.traits.<key>.tierMarked` as the class `marked` (a gold dot) - set only by Daggerheart's own level-up automation
+ * (character.mjs `prepareBaseData`), which the module never feeds, and with no action of its own (a click on it is the
+ * trait's `rollAttribute`). The owner: enlarge the marks and put the glyph inside them. So the glyph goes in the mark, the
+ * mark is marked `drpg-stat-mark` and its plate `drpg-stat-named` (danganronpa.css and stained-glass.css size and paint them
+ * by those, the plate padded clear of the larger mark), and `marked` is left as Daggerheart drew it, so the state still
+ * shows: marked, the holder is drawn in reverse (R3594). A sheet whose trait has no mark gets the glyph first in its name
+ * instead. The statistic is read off `data-attribute`, not off the label (a translation). Every render draws the header
+ * anew, and `markStatName` keeps a glyph already there, so a step that runs again adds nothing.
+ */
+function markTraitGlyphs(element) {
+    for (const trait of element.querySelectorAll(".character-traits .trait[data-attribute]")) {
+        const plate = trait.querySelector(".trait-name"), mark = plate?.querySelector(":scope > .tier-mark");
+        const key = statOfTrait(trait.dataset.attribute);
+        if (!key || !plate) continue;
+        if (mark) {
+            mark.classList.add("drpg-stat-mark");
+            plate.classList.add("drpg-stat-named");
+        }
+        markStatName(mark ?? plate.querySelector(":scope > span"), key);
+    }
+}
+
 /* ==========================================================================
  * ACTION BAR + TIME OF DAY
  * --------------------------------------------------------------------------
@@ -1610,6 +1641,38 @@ function actionPips(actor, { left, max, spentActions, fresh, viewer = false, sti
 }
 
 /* ---- free move ---- */
+
+/**
+ * THE MOVE IS TWO FEET, ALWAYS (E49 B2; the owner, 10.11.2026: "dwie stópki: jedna taka jak teraz, druga w kolorze
+ * eclipse, by było wiadomo czemu gracz ma 2 sloty ruchu w porze dnia, ale tylko 1 dostępny ... zależy nam na stałych
+ * layoutach"). Until B2 the sheet drew one foot from `hasFreeMove` and read nothing of the Eclipse, while the HUD strip
+ * drew one foot per crossing LEFT (none left: one outlined) - a row that changed its length with the Eclipse and with
+ * every crossing. Now both draw these two slots in the same places: the first the time of day's free Move, the second
+ * the Eclipse's own colour. Outside an Eclipse the second is `off` (drawn, dimmed: the slot exists and is not yours
+ * now); in one the two are its crossings, the first lit while one is left and the second while two are (eclipse.mjs
+ * `movesLeft`; a Call that grants a third shows two lit and says the number in the tooltip), and a free placement
+ * (`null`, D197) is `anywhere` on both. Nothing appears, vanishes or moves when the Eclipse starts or ends.
+ *
+ * @param {{eclipse?: boolean, moves?: number|null, free?: boolean, fog?: boolean}} state
+ * @returns {{slot: "free"|"eclipse", state: "available"|"spent"|"fogged"|"off"|"anywhere"}[]}
+ */
+export function moveSlots({ eclipse = false, moves = null, free = false, fog = false } = {}) {
+    if (!eclipse) return [{ slot: "free", state: free ? "available" : fog ? "fogged" : "spent" }, { slot: "eclipse", state: "off" }];
+    if (moves === null) return [{ slot: "free", state: "anywhere" }, { slot: "eclipse", state: "anywhere" }];
+    const n = Math.max(0, Number(moves) || 0);
+    return [{ slot: "free", state: n >= 1 ? "available" : "spent" }, { slot: "eclipse", state: n >= 2 ? "available" : "spent" }];
+}
+
+/** The two feet's markup: solid while a slot can be taken, outlined otherwise (the action pips' pair). */
+export function moveFeetHtml(slots) {
+    return slots.map(({ slot, state }) => `<i class="fa-${state === "available" || state === "anywhere" ? "solid" : "regular"} fa-shoe-prints drpg-move-slot" data-drpg-slot="${slot}" data-drpg-state="${state}" inert></i>`).join("");
+}
+
+/** What the two feet mean, said once beside the row's own sentence (S03-31's legend). */
+export function moveLegend() {
+    return game.i18n.localize("DRPG.Actions.moveLegend");
+}
+
 function freeMovePip(actor, { spentMove, fresh, viewer = false, still = false }) {
     const move = document.createElement("span");
     const freeMove = hasFreeMove(actor);
@@ -1617,18 +1680,23 @@ function freeMovePip(actor, { spentMove, fresh, viewer = false, still = false })
        Fog, and the pip said "Free Move used" of a Move nobody spent. Drawn as a spent one (it is not there to take),
        with `drpg-fogged` and Fog's reason in the tooltip. */
     const fog = !freeMove && overflowBlocksFreeMove();
-    move.className = `drpg-free-move${freeMove ? " available" : " spent"}${fog ? " drpg-fogged" : ""}`;
+    const eclipse = isEclipse();
+    const moves = eclipse ? eclipseMovesLeft(actor) : null;
+    const slots = moveSlots({ eclipse, moves, free: freeMove, fog: fog && !eclipse });
+    const lit = slots.some(({ state }) => state === "available" || state === "anywhere");
+    move.className = `drpg-free-move${lit ? " available" : " spent"}${fog && !eclipse ? " drpg-fogged" : ""}`;
     markSpent(move, fresh || still ? null : spentMove);
     if (!viewer && !still) {
-        move.dataset.tooltip = game.i18n.localize(
-            freeMove ? "DRPG.Actions.freeMoveAvailable" : fog ? "DRPG.SheetNotes.fogFreeMove" : "DRPG.Actions.freeMoveSpent"
-        );
+        const says = eclipse
+            ? `${moves === null ? game.i18n.localize("DRPG.Actions.eclipseFreePlacement") : plural("DRPG.Actions.eclipseMovesLeft", { n: moves })}.`
+            : game.i18n.localize(freeMove ? "DRPG.Actions.freeMoveAvailable" : fog ? "DRPG.SheetNotes.fogFreeMove" : "DRPG.Actions.freeMoveSpent");
+        move.dataset.tooltip = `${says} ${moveLegend()}`;
     }
     // Solid while it is there, OUTLINED once it is gone - the same pair the
     // action pips use (`fa-solid fa-circle` / `fa-regular fa-circle`), so a
     // spent Move and a spent action say the same thing in the same way. Foundry
     // ships Font Awesome Pro, which carries every icon in both weights.
-    move.innerHTML = `<i class="fa-${freeMove ? "solid" : "regular"} fa-shoe-prints" inert></i>`;
+    move.innerHTML = moveFeetHtml(slots);
     return move;
 }
 
@@ -1830,13 +1898,7 @@ function injectInitButton(app, element, mode = modeOf(app)) {
         hp: STARTING.hp, stress: STARTING.stress, hope: STARTING.hope
     });
 
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "drpg-advance-button drpg-init-button";
-    button.dataset.drpgInit = "";
-    button.dataset.tooltip = tip;
-    button.setAttribute("aria-label", tip);
-    button.innerHTML = `<i class="fa-solid fa-wand-sparkles" inert></i>`;
+    const button = headerButton({ cls: "drpg-init-button", data: { drpgInit: "" }, icon: "fa-wand-sparkles", tip });
 
     button.addEventListener("click", async () => {
         // A question on the kit's frame (E21 C5a).
@@ -1922,14 +1984,8 @@ function injectAdvanceButton(app, element, mode = modeOf(app)) {
         return;
     }
 
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "drpg-advance-button";
+    const button = headerButton({ data: { drpgAdvance: "" }, icon: "fa-angles-up", tip, caption: game.i18n.localize("DRPG.Advance.caption") });
     if (offer) button.classList.add("is-offered");
-    button.dataset.drpgAdvance = "";
-    button.dataset.tooltip = tip;
-    button.setAttribute("aria-label", tip);
-    button.innerHTML = `<i class="fa-solid fa-angles-up" inert></i>`;
 
     button.addEventListener("click", async () => {
         const { openAdvancementFor, openAdvancement } = await import("./level-up.mjs");
@@ -1987,14 +2043,8 @@ function injectClassControls(app, element, mode = modeOf(app)) {
     const actor = app.document;
     const { npc: out, monokuma } = mode;
     const control = (kind, icon, tip, run, pressed = null) => {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "drpg-advance-button drpg-class-control";
-        button.dataset.drpgClassControl = kind;
-        button.dataset.tooltip = tip;
-        button.setAttribute("aria-label", tip);
+        const button = headerButton({ cls: "drpg-class-control", data: { drpgClassControl: kind }, icon, tip });
         if (pressed !== null) button.setAttribute("aria-pressed", String(pressed));
-        button.innerHTML = `<i class="fa-solid ${icon}" inert></i>`;
         button.addEventListener("click", async () => {
             button.disabled = true;
             try {
@@ -2037,13 +2087,8 @@ function injectItemButton(app, element, mode = modeOf(app)) {
     const nameRow = element.querySelector(".character-header-sheet .name-row");
     if (!nameRow || nameRow.querySelector("[data-drpg-items]")) return;
 
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "drpg-advance-button drpg-items-button";
-    button.dataset.drpgItems = "";
-    button.dataset.tooltip = game.i18n.localize("DRPG.Items.buttonTooltip");
-    button.setAttribute("aria-label", game.i18n.localize("DRPG.Items.buttonTooltip"));
-    button.innerHTML = `<i class="fa-solid fa-box-open" inert></i>`;
+    const button = headerButton({ cls: "drpg-items-button", data: { drpgItems: "" }, icon: "fa-box-open",
+        tip: game.i18n.localize("DRPG.Items.buttonTooltip"), caption: game.i18n.localize("DRPG.Items.caption") });
 
     button.addEventListener("click", async () => {
         const { openItemManager } = await import("./gm-items.mjs");
@@ -2051,6 +2096,24 @@ function injectItemButton(app, element, mode = modeOf(app)) {
     });
 
     nameRow.append(button);
+}
+
+/**
+ * ONE BUILDER FOR THE NAME ROW'S BUTTONS (E49 B2, S03-31: "buttons without captions: Level Up and Give/Take are bare
+ * glyphs"). Initialise, Level Up, the class controls and Give / take were four copies of the same eight lines, each
+ * an icon with its words in the tooltip alone. `caption` draws the words beside the icon as well, for the two a player
+ * or a GM meets on every sheet (Level Up, Give / take); the GM's one-off controls keep the icon and the tooltip.
+ */
+function headerButton({ cls = "", data = {}, icon, tip, caption = "" }) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `drpg-advance-button${cls ? ` ${cls}` : ""}`;
+    for (const [key, value] of Object.entries(data)) button.dataset[key] = value;
+    button.dataset.tooltip = tip;
+    button.setAttribute("aria-label", tip);
+    button.innerHTML = `<i class="fa-solid ${icon}" inert></i>`
+        + (caption ? `<span class="drpg-header-caption">${foundry.utils.escapeHTML(caption)}</span>` : "");
+    return button;
 }
 
 /* ==========================================================================
@@ -2938,12 +3001,14 @@ function redrawPassageSheets() {
  * Anchored to the window content, so it does not depend on Daggerheart's
  * internal layout holding still.
  */
-function injectSafeword(app, element) {
+function injectSafeword(app, element, mode = modeOf(app)) {
     const root = element instanceof HTMLElement ? element : element?.[0];
     const host = root?.querySelector(".window-content") ?? root;
     if (!host) return;
 
     host.querySelector(".drpg-safeword-button")?.remove();
+    // A Monokuma's sheet is the GM's, and the Stop is the players' (E49 B2, S03-31).
+    if (mode && !mode.safeword) return;
 
     const button = document.createElement("button");
     button.type = "button";
@@ -2964,8 +3029,11 @@ function injectSafeword(app, element) {
      * every open sheet - otherwise the button would keep offering the old word
      * to everyone who has not reopened their character since it changed.
      */
+    // The table's word, and above it what the button is (E49 B2, S03-31: "the safeword shows the table's word alone" -
+    // a word nobody has met reads as a name, not as the Stop).
     button.innerHTML = `<i class="fa-solid fa-hand" inert></i>
-        <span>${foundry.utils.escapeHTML(safeword())}</span>`;
+        <span class="drpg-safeword-caption">${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Safeword.title"))}</span>
+        <span class="drpg-safeword-word">${foundry.utils.escapeHTML(safeword())}</span>`;
 
     button.addEventListener("click", async event => {
         event.preventDefault();
@@ -4423,9 +4491,10 @@ function buildRulesPanel(app) {
     const panel = document.createElement("div");
     panel.className = "drpg-rules-panel";
 
+    // "Monokuma's rules", not the tab's "Rules" again (E49 B2, S03-39 and S12-67).
     const title = document.createElement("h3");
     title.className = "drpg-keep";
-    title.textContent = game.i18n.localize("DRPG.Rules.tab");
+    title.textContent = game.i18n.localize("DRPG.Rules.sheetTitle");
     panel.append(title);
 
     const intro = document.createElement("p");
@@ -4595,12 +4664,12 @@ function injectActionPanel(app, element, mode = modeOf(app)) {
     const panel = document.createElement("div");
     panel.className = "drpg-action-panel";
 
-    const title = document.createElement("h3");
-    // `drpg-keep` exempts it from the rule that hides Daggerheart's own section
-    // headings from players - see styles/danganronpa.css.
-    title.className = "drpg-keep";
-    title.textContent = game.i18n.localize("DRPG.Action.panelTitle");
-    panel.append(title);
+    // THE BUDGET IS THE PANEL'S FIRST ROW (E49 B2, S03-38: "the ACTIONS bar repeats the open tab and pushes the Hope
+    // Calls under the sheet's edge"). The panel's own "Actions" heading stood under a tab of the same name; the line
+    // that says what is left ("2 of 2 actions - Free Move unused") is the row it keeps, and the heading's word is the
+    // panel's name for a screen reader.
+    panel.setAttribute("role", "region");
+    panel.setAttribute("aria-label", game.i18n.localize("DRPG.Action.panelTitle"));
     panel.append(budgetLine(actor));
 
     const grid = document.createElement("div");
@@ -4725,9 +4794,27 @@ function abilityButton(actor, key, def) {
  * and a player who does not know they still have it will pay an action for a
  * door they could have walked through.
  */
-function budgetLine(actor) {
+export function budgetLine(actor, state = murderState()) {
     const line = document.createElement("p");
     line.className = "notes drpg-keep drpg-budget-line";
+
+    /*
+     * IN A FIGHT THIS ROW SAYS WHOSE TURN IT IS (E49 B2's turn line; audit S03-30, "the victim, at the start of their
+     * turn, sees only the sheet and nothing says 'your turn'"; its fix: "in an incident, the turn's banner in the sheet
+     * itself"). The same row, not a new one: the owner's rule of 10.11 is that a state changes the look and never the
+     * layout, and in an incident the budget has nothing to say - every tile but the fight's is shut and a crisis action
+     * spends no action (`costOf`). The words are the incident card's (events.mjs `incidentTurnText`), so the card and
+     * the sheet cannot disagree; the light is `isTheirTurn`'s, the predicate that dims the fight's tile under it. Every
+     * seat `sideOf` names (a third party who walked in too: their tiles are shut as well) reads it; anyone outside the
+     * incident reads the budget as before.
+     */
+    if (state?.stage === "incident" && sideOf(actor, state)) {
+        const mine = isTheirTurn(actor, state);
+        line.textContent = incidentTurnText({ state, mine: actor.id, myTurn: mine, acting: actingActor(state) });
+        line.classList.add("drpg-budget-turn");
+        if (mine) line.classList.add("drpg-budget-mine");
+        return line;
+    }
 
     const left = actionsLeft(actor);
     const parts = [plural("DRPG.Actions.leftOf", {

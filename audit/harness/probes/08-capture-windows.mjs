@@ -44,6 +44,16 @@
  * Give existing tab is `give--existing`), Give a Truth Bullet (`giveTruthBulletDialog`, per tab), the Students window
  * (gm-students.mjs `openWhoIsAliveDialog`) and the project manager (projects-ui.mjs `openProjectManager`).
  *
+ * SEEDED (E49 A4, A5; 11.11.2026). Two windows are kept with the state their fault needs, built by the row's `before`
+ * and taken away by its `after` (run once the window is closed, whatever the capture did): `item-tables--rooms`, Item
+ * tables on its Room pools tab (`open`, the tab pressed before the capture) with a room pool of 41 names - 7 Murder
+ * Weapons, 7 Cleaning Tools, 7 Tools, 9 Healing, 9 Sanity Relief from the module's own lists and 2 no tier pool holds,
+ * the owner's screenshot of 10.11 ("Everything 39") and the unfiled pair - made as a RollTable and deleted after; and
+ * `rooms-passages--rows`, Room setup's Passages tab with four rows on the working scene written into the GMs' passage
+ * stores (passages-gm.mjs `PASSAGE_STORES`) and dropped after: a tunnel with its way picker and a student who knows it,
+ * a public passage, a broken one and a closed one. Both names keep the window's `--` form with no `of` (a row of its
+ * own, not a tab of another). The world dump around the run says what, if anything, the drop leaves behind.
+ *
  * Read by audit/style-harness.html (one window a page, inside the module's sheets) and by E44's mockup round, whose
  * "today" is these captures. WHAT A CAPTURE IS NOT: the harness's DialogV2 draws its form and footer with no window
  * header (audit/harness/lib/shim.mjs `_renderHTML`), Foundry's own stylesheet is absent, and the content is the
@@ -67,7 +77,7 @@ const STUDENT = "const student = (await import(`${repoUrl}/scripts/monokuma.mjs`
 /*
  * The windows, each `{ id, client, module, call, press }`: the opener's module under scripts/ and the call made on it
  * (`m` is the module), on the GM unless `client` names a player; with `press`, the window the opener drew is a step on
- * the way, and the one its footer's button of that action opens is captured (Pre-season checks, from Season setup). The list is E44's mockup set as far as an opener
+ * the way, and the one its footer's button of that action opens is captured (Pre-season checks, from the Season checklist). The list is E44's mockup set as far as an opener
  * opens it with no state built first; a window that needs one (a trial running, a vote, a roll drawn with no GM) is
  * the mockup round's to build, not this probe's.
  */
@@ -77,12 +87,59 @@ const MINE = "game.actors.find(a => a.type === \"character\" && a.isOwner)";
 const ACTION_WINDOWS = ["observe", "search", "analyze", "tamper", "rest", "project", "palm", "dynamic"];
 /* 250 notices recorded on p1 before its history is opened (E21 C1c, the 11.10 amend A7): its own browser's history. */
 const NOTICES_250 = "const h = await import(`${repoUrl}/scripts/notice-history.mjs`); for (let i = 1; i <= 250; i++) h.recordNotice({ kind: \"info\", source: \"mine\", state: i > 240 ? \"unread\" : \"read\", title: `Probe notice ${i}`, text: `The probe's notice number ${i}, one of 250.` });";
+/* The seeds of the header's SEEDED (E49 A4, A5): each `before` keeps what it made on `globalThis.__probe08seed` for its
+   `after`. */
+const SEED_ROOM_POOL = `const P = await import(\`\${repoUrl}/scripts/tables-pools.mjs\`);
+    const flat = tiers => [...new Set(Object.values(tiers).flat())];
+    const names = [...new Set([...flat(P.ITEM_POOLS.crimeTool).slice(0, 7), ...flat(P.ITEM_POOLS.cleaningTool).slice(0, 7), ...flat(P.ITEM_POOLS.tool).slice(0, 7),
+        ...flat(P.USABLE_GOALS.healing.pool).slice(0, 9), ...flat(P.USABLE_GOALS.stress.pool).slice(0, 9), "Probe brass key", "Probe odd sock"])];
+    const table = await RollTable.create({ name: "Probe Furniture Shop", flags: { "danganronpa-rpg": { roomPool: true } },
+        results: names.map((name, i) => ({ type: "text", name, text: name, description: name, range: [i + 1, i + 1], weight: 1 })) });
+    globalThis.__probe08seed = { table: table.id };`;
+const DROP_ROOM_POOL = "await game.tables.get(globalThis.__probe08seed?.table)?.delete(); delete globalThis.__probe08seed;";
+const SEED_PASSAGES = `const PG = await import(\`\${repoUrl}/scripts/passages-gm.mjs\`);
+    const U = await import(\`\${repoUrl}/scripts/utils.mjs\`);
+    const [A, B] = (await import(\`\${repoUrl}/scripts/monokuma.mjs\`)).studentActors();
+    const scene = U.workingScene(), st = PG.PASSAGE_STORES;
+    const id = n => \`\${scene.id}.probe08p\${n}\`;
+    const row = (n, rooms, extra = {}) => ({ sceneId: scene.id, level: null, shape: "wall", passageWallId: \`PROBE08WALL\${n}\`,
+        passageSeg: { x1: 100 * n, y1: 400, x2: 100 * n + 66, y2: 400 }, rooms, state: "secret", startAccess: [], ...extra });
+    await st.map.patchMany({
+        [id(1)]: row(1, ["Jeweler's Shop", "Dorm"], { shape: "tunnel", ends: [{ x: 100, y: 400 }, { x: 900, y: 400 }], startAccess: B ? [B.id] : [] }),
+        [id(2)]: row(2, ["Dorm", "Lab"], { public: true }),
+        [id(3)]: row(3, ["Kitchen", "Dining Hall"], { state: "broken" }),
+        [id(4)]: row(4, ["Library", "Art Room"], { state: "closed" })
+    });
+    const access = A ? { [\`\${id(1)}/\${A.id}\`]: { how: "gm", at: 1, by: { [game.user.id]: 1 } } } : {};
+    await st.access.patchMany(access);
+    globalThis.__probe08seed = { rows: [1, 2, 3, 4].map(id), access: Object.keys(access) };`;
+const DROP_PASSAGES = `const st = (await import(\`\${repoUrl}/scripts/passages-gm.mjs\`)).PASSAGE_STORES;
+    await st.access.dropMany(globalThis.__probe08seed?.access ?? []); await st.map.dropMany(globalThis.__probe08seed?.rows ?? []);
+    delete globalThis.__probe08seed;`;
+const VOICE_ON = `const AVM = "avclient-livekit", mod = game.modules.get(AVM);
+    globalThis.__probe08voice = { mod, active: mod?.active, rtc: Object.getOwnPropertyDescriptor(game, "webrtc"), keys: Object.getOwnPropertyDescriptor(game, "keybindings") };
+    if (mod) mod.active = true; else game.modules.set(AVM, { id: AVM, active: true, __probe08: true });
+    const keys = game.keybindings;
+    Object.defineProperty(game, "webrtc", { configurable: true, writable: true, value: { mode: 1,
+        settings: { client: { audioSrc: "mic1", audioSink: "out1", voice: { mode: "ptt" } }, world: { mode: 1 }, set: async () => {} },
+        client: { getAudioSources: async () => ({ mic1: "USB microphone (Blue Yeti)", mic2: "Built-in microphone" }),
+            getAudioSinks: async () => ({ out1: "Headphones (USB)", out2: "Speakers" }) } } });
+    Object.defineProperty(game, "keybindings", { configurable: true, writable: true, value: { get: (ns, k) => (ns === "core" && k === "pushToTalk" ? [{ key: "Backquote" }] : keys?.get?.(ns, k)) } });`;
+const VOICE_OFF = `const v = globalThis.__probe08voice ?? {};
+    if (v.mod) v.mod.active = v.active; else if (game.modules.get("avclient-livekit")?.__probe08) game.modules.delete("avclient-livekit");
+    if (v.rtc) Object.defineProperty(game, "webrtc", v.rtc); else delete game.webrtc;
+    if (v.keys) Object.defineProperty(game, "keybindings", v.keys); else delete game.keybindings;
+    delete globalThis.__probe08voice;`;
 export const WINDOWS = [
     ...ROOM_TABS.map(tab => ({ id: `rooms-${tab}`, module: "room-setup.mjs", call: `m.openRoomSetupDialog({ tab: ${JSON.stringify(tab)} })`, perTab: false })),
+    // E49 A5: Passages with four rows seeded (the header's SEEDED).
+    { id: "rooms-passages--rows", module: "room-setup.mjs", before: SEED_PASSAGES, after: DROP_PASSAGES, perTab: false, call: "m.openRoomSetupDialog({ tab: \"passages\" })" },
     { id: "sound", module: "sound-panel.mjs", call: "m.openSoundDialog()" },
     { id: "despair-flow", module: "gm-team-dialog.mjs", call: "m.openGmTeamDialog()" },
     { id: "season-setup", module: "season-setup.mjs", call: "m.openSeasonSetup()" },
-    { id: "pre-season-checks", module: "season-setup.mjs", call: "m.openSeasonSetup()", press: "checks" },
+    // The Season checklist, Season setup's lower half until E49 A1e, and Pre-season checks from its footer since.
+    { id: "season-checklist", module: "season-setup.mjs", call: "m.openSeasonChecklist()" },
+    { id: "pre-season-checks", module: "season-setup.mjs", call: "m.openSeasonChecklist()", press: "checks" },
     { id: "investigation", module: "investigation.mjs", call: "m.openInvestigationDashboard()" },
     { id: "class-trial", module: "trial-floor-ui.mjs", call: "m.manageClassTrial()" },
     // E21 C4: the trial's questions a GM opens with no world state (M13's Reveal with a row of its own, End the trial with
@@ -96,7 +153,16 @@ export const WINDOWS = [
     { id: "level-up", module: "level-up.mjs", call: "m.openAdvancementFor(game.actors.find(a => a.type === \"character\"))" },
     { id: "item-manager", module: "gm-items.mjs", call: "m.openItemManager()" },
     { id: "item-tables", module: "tables-editor.mjs", call: "m.openItemTables()" },
+    // E49 A4: Room pools with a room pool seeded (the header's SEEDED).
+    { id: "item-tables--rooms", module: "tables-editor.mjs", before: SEED_ROOM_POOL, after: DROP_ROOM_POOL, open: "editRooms", perTab: false, call: "m.openItemTables()" },
     { id: "look-gm", module: "look.mjs", call: "m.openLookDialog()" },
+    // E49 A1: the DRPG Settings window, every section drawn (one shown), as a GM and as a player - the same window since
+    // A1d (this browser's settings; look-gm and look-player open it too, through the gear's `openLookDialog`). The game's
+    // settings are a window of their own (`game-settings`), the GM panel's Settings tile. `drpg-settings-player-voice`:
+    // p1's window with a voice to set (VOICE_ON: avclient-livekit active, an audio world, two named devices of each kind,
+    // push to talk on a key), every stand-in put back after; the harness has no voice of its own outside 75-voice-tile.
+    { id: "drpg-settings", module: "settings-window.mjs", call: "m.openSettingsWindow()" },
+    { id: "game-settings", module: "settings-window.mjs", call: "m.openGameSettingsWindow()" },
     { id: "notices-gm", module: "notice-history-app.mjs", call: "m.openNotices()" },
     { id: "gm-panel", module: "gm-panel.mjs", call: "m.openGmPanel()" },
     // E46 C0: the four GM windows E46 and E47 change that open with no state built.
@@ -106,6 +172,8 @@ export const WINDOWS = [
     { id: "projects", module: "projects-ui.mjs", call: "m.openProjectManager()" },
     { id: "sound-player", client: "p1", module: "sound-panel.mjs", call: "m.openSoundDialog()" },
     { id: "look-player", client: "p1", module: "look.mjs", call: "m.openLookDialog()" },
+    { id: "drpg-settings-player", client: "p1", module: "settings-window.mjs", call: "m.openSettingsWindow()" },
+    { id: "drpg-settings-player-voice", client: "p1", module: "settings-window.mjs", before: VOICE_ON, after: VOICE_OFF, call: "m.openSettingsWindow()" },
     { id: "notices-player", client: "p1", module: "notice-history-app.mjs", call: "m.openNotices()" },
     ...ACTION_WINDOWS.map(key => ({ id: `action-${key}`, client: "p1", module: "action-rolls.mjs", call: `m.performAction(${MINE}, ${JSON.stringify(key)})` })),
     { id: "notices-player-250", client: "p1", module: "notice-history-app.mjs", before: NOTICES_250, call: "m.openNotices()" },
@@ -130,6 +198,12 @@ const capture = (repoUrl, w) => `
         app = [...foundry.applications.instances.values()].find(a => !before.has(a.id) && a.element?.isConnected) ?? null;
     }
     await new Promise(r => setTimeout(r, 150));
+    /* A seeded row's tab (E49 A4): pressed in the drawn window through the module's wiring before it is kept. */
+    const open = ${JSON.stringify(w.open ?? null)};
+    if (app && open) {
+        app.element.querySelector(\`nav.drpg-tabs > button[data-drpg-tab-key="\${open}"]\`)?.click();
+        await new Promise(r => setTimeout(r, 150));
+    }
     const press = ${JSON.stringify(w.press ?? null)};
     if (app && press) {
         const step = new Set(foundry.applications.instances.keys());
@@ -173,6 +247,7 @@ const capture = (repoUrl, w) => `
     } : { captured: false, answered, threw };
     for (const a of [...foundry.applications.instances.values()]) if (!before.has(a.id)) { try { await a.close(); } catch {} }
     await new Promise(r => setTimeout(r, 100));
+    try { ${w.after ?? ""} } catch (err) { out.afterThrew = String(err?.message ?? err).slice(0, 200); }
     globalThis.__dialogWindows = keep.windows;
     globalThis.__dialogAnswers.length = 0; globalThis.__dialogAnswers.push(...keep.answers);
     return out;
@@ -234,7 +309,7 @@ export async function run({ gm, p1, note, settle, repoUrl }) {
             Object.assign(row, { captured: true, title: got.title, classes: got.classes, tag: got.tag, width: got.width, buttons: got.buttons, file: `${w.id}.html` });
         } else Object.assign(row, { captured: false, answered: got?.answered ?? null, threw: got?.threw ?? null });
         manifest.push(row);
-        note(w.id, row.captured ? `captured: "${row.title}", ${row.buttons.length} button(s)${got.tabs?.length ? `, ${got.tabs.length + 1} tab(s)` : ""}` : `not captured (${row.threw ?? `the opener answered ${row.answered}`})`);
+        note(w.id, `${row.captured ? `captured: "${row.title}", ${row.buttons.length} button(s)${got.tabs?.length ? `, ${got.tabs.length + 1} tab(s)` : ""}` : `not captured (${row.threw ?? `the opener answered ${row.answered}`})`}${got?.afterThrew ? `; its after threw: ${got.afterThrew}` : ""}`);
         for (const t of got?.tabs ?? []) {
             const id = `${w.id}--${t.key}`;
             keep(id, t.html);

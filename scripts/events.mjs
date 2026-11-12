@@ -217,13 +217,12 @@ function incidentCard() {
     const killer = game.actors.get(state.killerId);
     if (!victim) return null;
 
-    const killers = [state.killerId, state.thirdSide === "killer" ? state.thirdId : null].filter(Boolean);
-    const killerActing = killers.length > 1 ? (state.killerTurnId ?? killers[0]) : state.killerId;
+    const killerActing = killerActingId(state);
     const myTurn = involved && (
         (state.turnSide === "victim" && mine === state.victimId)
         || (state.turnSide === "killer" && mine === killerActing));
 
-    const acting = game.actors.get(state.turnSide === "victim" ? state.victimId : killerActing) ?? null;
+    const acting = actingActor(state);
     const { turn, left } = incidentLines({ state, mine, myTurn, victim, acting });
 
     let room = null;
@@ -250,9 +249,20 @@ function incidentCard() {
  * (`incidentWitness`), `acting` the actor whose turn it is. Exported for R1446 and E24-T1, which read it by seat.
  */
 export function incidentLines({ state, mine, myTurn, victim, acting, user = game.user }) {
+    const turn = incidentTurnText({ state, mine, myTurn, acting });
+    const seat = user?.isGM ? "gm" : (mine && mine === state.victimId ? "you" : "other");
+    return { turn, left: reserveLine(victim, seat, user) };
+}
+
+/**
+ * WHOSE TURN, AS ONE SEAT READS IT: the incident card's first line, and since E49 (B2's turn line, S03-30's "in an
+ * incident, the turn's banner in the sheet itself") the sheet's budget row in a fight - one sentence, so the card and
+ * the sheet cannot come to word the same turn two ways. `mine` is the seat's actor id (none: the tracker's state line).
+ */
+export function incidentTurnText({ state, mine, myTurn, acting }) {
     const killerSide = Boolean(mine) && mine !== state.victimId
         && [state.killerId, state.thirdSide === "killer" ? state.thirdId : null].includes(mine);
-    const turn = !mine
+    return !mine
         ? game.i18n.format("DRPG.Murder.trackerState", {
             stage: game.i18n.localize(`DRPG.Murder.stage.${state.stage}`),
             turn: state.turn ?? 1,
@@ -261,8 +271,17 @@ export function incidentLines({ state, mine, myTurn, victim, acting, user = game
         : myTurn ? game.i18n.localize("DRPG.Murder.yourTurn")
         : killerSide ? game.i18n.format("DRPG.Events.waitingFor", { name: acting?.name ?? "?" })
         : game.i18n.localize("DRPG.Murder.theirTurn");
-    const seat = user?.isGM ? "gm" : (mine && mine === state.victimId ? "you" : "other");
-    return { turn, left: reserveLine(victim, seat, user) };
+}
+
+/** The killers' side's actor this turn: the one `killerTurnId` names when two share it (murder-rules.mjs `passTurn`). */
+export function killerActingId(state) {
+    const killers = [state.killerId, state.thirdSide === "killer" ? state.thirdId : null].filter(Boolean);
+    return killers.length > 1 ? (state.killerTurnId ?? killers[0]) : state.killerId;
+}
+
+/** The actor whose turn it is, or null: the victim, or the killers' side's acting one. */
+export function actingActor(state) {
+    return game.actors.get(state.turnSide === "victim" ? state.victimId : killerActingId(state)) ?? null;
 }
 
 /**
@@ -813,7 +832,8 @@ function startTrialClock() {
 
 /**
  * WHETHER THE PANEL HOLDS MORE THAN ITS BOX, READ WHENEVER EITHER CHANGES (E23 fix G3, 08.11.2026; the end review's
- * correctness m2). The box is one size a layout and theme (the stylesheets' `--drpg-events-h`, C3b), the panel takes
+ * correctness m2). The box's cap is one size a layout and theme (the stylesheets' `--drpg-events-h`, C3b; under it the
+ * panel is as tall as its cards since E49 A6), the panel takes
  * no clicks, and `data-drpg-scrolls` gives it the wheel while what it holds is taller than the box. Read once a redraw
  * until this fix - once a change of what the cards say - so a theme switch (whose render finds the same cards), a desk
  * turned into a stack and the scale slider (no render at all) left a panel that came to overflow its new box without
@@ -854,20 +874,25 @@ export function renderEvents() {
         const signature = JSON.stringify(cards.map(c => [c.kind, c.title, c.sub, c.meta, c.note, c.due, c.mine, c.clock]));
         if (existing && existing.dataset.signature === signature) { markEventsScrolls(existing); return; }
 
-        const panel = document.createElement("div");
-        panel.id = WIDGET_ID;
-        panel.className = "drpg-events";
-        panel.dataset.signature = signature;
-        panel.setAttribute("role", "status");
-        for (const card of cards) panel.append(cardElement(card));
-
         const rail = document.getElementById("drpg-despair");
         // the card follows the rail wherever it stands, including into the narrow stack
         const host = rail?.parentElement ?? narrowColumn() ?? document.querySelector("#ui-top") ?? document.querySelector("#ui-middle");
         if (!host) return;
-        existing?.remove();
-        if (rail) rail.after(panel); else host.append(panel);
-        /* The box is one size whatever it holds (E23 C3b; the stylesheets' `--drpg-events-h`), so what is taller than it
+        /* ONE REGION, REWRITTEN IN PLACE (E48 K4, 11.11.2026). The panel is a polite live region (`role="status"`, and
+           a11y.mjs `liveRegions` gives it `aria-live`), and until K4 every change of its cards built a new panel and
+           removed the old one: a region that is born with its words in it is one a screen reader may say nothing of
+           (WAI-ARIA's live regions announce changes to a region already in the page; read in the specification, not
+           measured with a reader - LIVE-E48-06). Now the panel standing is kept, its cards replaced inside it, and it is
+           moved only when the rail moved; a new panel is built only where none stands. R3462. */
+        const panel = existing ?? Object.assign(document.createElement("div"), { id: WIDGET_ID, className: "drpg-events" });
+        panel.dataset.signature = signature;
+        panel.setAttribute("role", "status");
+        panel.replaceChildren(...cards.map(cardElement));
+        if (rail ? panel.previousElementSibling !== rail : panel.parentElement !== host) {
+            if (rail) rail.after(panel); else host.append(panel);
+        }
+        /* The box has one cap whatever it holds (E23 C3b; the stylesheets' `--drpg-events-h`, a `max-height` since E49
+           A6, under which the panel is as tall as its cards), so what is taller than it
            scrolls inside it, and a panel that takes no clicks cannot be scrolled: it takes the wheel only while it
            holds more than its box. Read now, on a render of the same cards, and whenever the panel or a card changes
            size (`watchEventsBox`, above). */

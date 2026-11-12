@@ -424,11 +424,55 @@ const flatSoon = () => { clearTimeout(flatTimer); flatTimer = setTimeout(placeFl
 export function placeFlatRoomTile() {
   if (document.body.classList.contains("drpg-theme-stained-glass")) return;
   placeRoomTile(innerWidth, innerHeight);
-  const nodes = ["#drpg-hud", "#drpg-floors", "#players", "#drpg-popups", "#ui-right-column-1"].map(q => document.querySelector(q)).filter(Boolean);
+  placeFlatVoiceTile();
+  const nodes = ["#drpg-hud", "#drpg-floors", "#players", "#drpg-popups", "#ui-right-column-1", "#countdowns"].map(q => document.querySelector(q)).filter(Boolean);
   if (typeof ResizeObserver !== "function" || (flatWatch && nodes.length === flatWatch.nodes.length && nodes.every((n, i) => n === flatWatch.nodes[i]))) return;
   flatWatch?.ro.disconnect();
   flatWatch = { nodes, ro: new ResizeObserver(flatSoon) };
   nodes.forEach(n => flatWatch.ro.observe(n));
+}
+/* THE VOICE TILE RIGHT UNDER THE PROJECTS TRAY UNDER MONOKUMA LEGACY TOO (E48 K6, 11.11.2026; S12-98, the owner's
+   game of 02.11: "kafel głosu tuż pod tacą Projects"). Under Stained Glass the curtain's pass cuts it a pane under the
+   tray (`seatVoiceTile`, `data-place="wall"`); under this theme no pass runs and the tile stood at the base sheet's
+   interim corner over the launchers - in the glass harness at 1366x768, a player, its top 199 px under the tray's
+   bottom (Chromium, 11.11.2026; after: 8). So the same anchor without a curtain: the tray's bottom plus VOICE_UNDER_TRAY,
+   its right edge on the tray's. Null with no tray drawn, on a stacked screen (narrow.mjs puts the tile in the tiles'
+   row) and inside a window of Foundry's, and the tile keeps the base sheet's corner. Placed by the same watch as the
+   room tile, which since this also watches the tray (its height is its projects'). */
+const VOICE_UNDER_TRAY = 8;
+export function flatVoicePlacement(W = innerWidth) {
+  const tray = document.getElementById("countdowns");
+  if (!tray || !(tray.offsetWidth > 0) || inFoundryWindow(tray)) return null;
+  const r = tray.getBoundingClientRect(), y = Math.round(r.bottom + VOICE_UNDER_TRAY);
+  let right = Math.max(0, Math.round(W - r.right));
+  /* AND CLEAR OF THE CORNER'S LAUNCHERS (E105, 12.11.2026; the glass sweep's Legacy voice check). Under the tray the tile
+     ran 188 px down; on a short screen that reached the launchers' column: the glass harness, the GM, 1366x560, the tile
+     1181-1344 x 204-392 over the GM launcher and Foundry tools (the cluster's top 383). There is no room for it above
+     them either (187 px between the tray's foot and the cluster's top, the tile 188 and two gaps of 8), so it keeps its
+     place under the tray and steps left until it stands VOICE_UNDER_TRAY clear of every launcher it would meet: at
+     1366x560 its right edge at 1242 (the cluster's left 1250 less 8), its top still 8 px under the tray. Where nothing
+     is in its way - every desk size of the harness taller than 600 - nothing moves. */
+  const tile = document.getElementById("drpg-voice-tile"), w = tile?.offsetWidth || 0, h = tile?.offsetHeight || 0;
+  if (w && h) {
+    const x1 = W - right, x0 = x1 - w;
+    const hit = [...document.querySelectorAll(LAUNCHERS)].map(e => e.getBoundingClientRect())
+      .filter(b => b.width > 1 && b.height > 1 && b.left < x1 && b.right > x0 && b.top < y + h + VOICE_UNDER_TRAY && b.bottom > y);
+    if (hit.length) right = Math.max(0, Math.round(W - (Math.min(...hit.map(b => b.left)) - VOICE_UNDER_TRAY)));
+  }
+  return { place: "tray", y, right };
+}
+function placeFlatVoiceTile() {
+  const tile = document.getElementById("drpg-voice-tile"), body = document.body;
+  if (!tile) return;
+  const p = narrowLayout() ? null : flatVoicePlacement(innerWidth);
+  if (!p) {
+    body.style.removeProperty("--drpg-voice-right");
+    if (tile.dataset.place === "tray") delete tile.dataset.place;
+    return;
+  }
+  body.style.setProperty("--drpg-voice-y", p.y + "px");
+  body.style.setProperty("--drpg-voice-right", p.right + "px");
+  if (tile.dataset.place !== "tray") tile.dataset.place = "tray";
 }
 /* ONCE A PASS, BEFORE THE RAIL IS PLACED: the rail is pushed down under whatever ends the clock's
    column, and in the 'clock' place that is the tile. In 'notes' the tile goes to the body, as the
@@ -586,6 +630,24 @@ const VOICE_WIDE = 0.6, VOICE_TALL = 1.45, VOICE_SEAM = 24, VOICE_WALL = 6, VOIC
 const VOICE_FULL = 114, VOICE_MIN = 42;
 /** Named areas of the last cut that no pane may cover, `{ name, poly }`: read by the self-check (`openFails`). */
 export const OPEN_AREAS = [];
+
+/* AN EMPTY PANE LETS THE MAP THROUGH (E49 B1, S12-64; the owner's amend [1]). A pane cut for a block that is not
+   there - the notice tile between notices, a GM's bar on a player's screen, any block measured as absent - was painted
+   as the filler around it: 0.58 black, a tint, 0.30 black over that and the pulse's 0.72 at its darkest, so on a desk
+   the bottom left pane alone hid a fifth of the map behind glass with nothing on it (365x379 px at 1366x768 in the glass
+   harness, 11.11.2026). It is lighter now, never coloured, and its pulse shallower; a card on the tile still sits on
+   its own plate (`seatNoteFrame`, E79 C13), so the tile with a notice reads as before. Never a room's, a voice's or the
+   narrow row's pane: those are `solid` or measured, never `empty` (amend [1]), and `voice-left` is no pane at all.
+   One table, read by `paintGlass` and `pulseJob` alike: `base` the black under the tint, `tint` the stain's alpha (null
+   for the filler's own hashed one), `black` the black over it, `pulse` the darkest the pulse takes it. Exported for
+   R3482 and the glass harness's `drpgHudCheck`. */
+export function paneShade(p, { stained = false, lum = 0.5 } = {}) {
+  const content = Boolean(p?.content) && !p?.empty;
+  if (content) return { kind: "content", base: 0.55 + (lum - 0.5) * 0.08, tint: 0, black: 0.12, pulse: 0.42 };
+  if (p?.empty) return { kind: "empty", base: 0.16 + (lum - 0.5) * 0.04, tint: 0.04, black: 0.06, pulse: 0.22 };
+  if (stained) return { kind: "stained", base: 0.30 + (lum - 0.5) * 0.08, tint: 0.60, black: 0.16, pulse: 0.62 };
+  return { kind: "filler", base: 0.58 + (lum - 0.5) * 0.08, tint: 0.05 + lum * 0.07, black: 0.30, pulse: 0.72 };
+}
 /* The tray at five rows, wherever it stands now: its own top to the header's foot, and the list's
    `max-height` (border-box, so its paddings are in it). A tray with no list - folded, or the
    fallback box - is its box. */
@@ -2929,21 +2991,23 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
          between notices, the GM bar on a player's screen) keeps its place in the partition
          but is painted like the filler around it - never a dark plate with nothing on it. */
       const content = p.content && !p.empty;
-      const stained = !content && !p.plain && hsh > 0.72;   // the same share of coloured panes on a window band as on the curtain
+      // the same share of coloured panes on a window band as on the curtain; an empty pane never (E49 B1, `paneShade`)
+      const stained = !content && !p.empty && !p.plain && hsh > 0.72;
       ctx.save(); path(ctx, p.poly); ctx.clip();
       // black glass first, then a little colour: a panel keeps its tone, most filler a faint tint, one in five stained
       const lum = hash((bb.x0 + bb.x1) / 2 + 17, (bb.y0 + bb.y1) / 2 - 31);
-      ctx.globalAlpha = (content ? 0.55 : stained ? 0.30 : 0.58) + (lum - 0.5) * 0.08;
+      const shade = paneShade(p, { stained, lum });
+      ctx.globalAlpha = shade.base;
       ctx.fillStyle = content ? (k ? TONE[k] : "#0d0b16") : (lum > 0.5 ? "#0c0a14" : "#0a0810");
       ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       if (!content) {
-        ctx.globalAlpha = stained ? 0.60 : 0.05 + lum * 0.07;
+        ctx.globalAlpha = shade.tint;
         ctx.fillStyle = STAIN[Math.floor(hsh * 1000) % STAIN.length];
         ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       }
       // the black over the colour: full weight on filler, half of it over content, where the
       // pane already carries the darkest tone and the text carries its own shadow
-      ctx.globalAlpha = 1; ctx.fillStyle = content ? "rgba(0,0,0,0.12)" : stained ? "rgba(0,0,0,0.16)" : "rgba(0,0,0,0.30)"; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
+      ctx.globalAlpha = 1; ctx.fillStyle = `rgba(0,0,0,${shade.black})`; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       const down = (bb.y0 + bb.y1) / 2 < H / 2;
       const g = ctx.createLinearGradient(0, down ? bb.y0 : bb.y1, 0, down ? bb.y1 : bb.y0);
       g.addColorStop(0, "rgba(255,255,255,0.08)"); g.addColorStop(0.55, "rgba(255,255,255,0.01)"); g.addColorStop(1, "rgba(0,0,0,0.20)");
@@ -3343,7 +3407,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
         if (k > 0) v = v + (0.5 - 0.5 * Math.cos(t / 1000 * (2 * Math.PI / 1.6) + p.phase) - v) * k;
         else p.urgentUntil = 0;
       }
-      const dark = (p.content && !p.empty ? 0.42 : p.stained ? 0.62 : 0.72) * Math.pow(v, p.stained ? 2.2 : 1.6);
+      const dark = paneShade(p, { stained: p.stained }).pulse * Math.pow(v, p.stained ? 2.2 : 1.6);
       const lit = Math.pow(1 - v, 3);
       const light = (p.stained ? 0.16 : 0.05) * lit;
       // the texture of coloured glass shows only while the pane is lit
@@ -3743,7 +3807,7 @@ const boxOf = (polys, pad) => {
  * when the accent changed. `none` when there is nothing to turn - reduced motion, nothing painted before, the same
  * colour and under TURN_WORTH of the panes moving.
  */
-export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 1200, move = TURN_MOVE, curve = ARRIVE, flash = true, reduced = false } = {}) {
+export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 1200, move = TURN_MOVE, curve = ARRIVE, flash = true, reduced = false, force = false } = {}) {
   const none = { none: true, recolour: false, recut: false, dur, move: { ms: move, curve }, order: [], batchOf: [], delayOf: [], gap: 0, moves: [], batches: [], flashes: [], frost: null, glow: null };
   if (reduced || !from?.length || !to?.length) return none;
   const recolour = Boolean(fromAcc && acc && fromAcc !== acc);
@@ -3809,7 +3873,11 @@ export function turnPlan(from, to, { W, H, fromAcc = null, acc = null, dur = 120
     for (const i of order) if (Math.abs(dist[i] - d) < nd) { nd = Math.abs(dist[i] - d); near = i; }
     items.push({ from: k, batch: batchOf[near] });
   });
-  if (!recolour && moves.length < to.length * TURN_WORTH) return none;
+  /* `force` (E105 follow-up, 11.11.2026): a recut a person asked for with one click turns however few panes it moves -
+     the Projects tray folded or unfolded (`watchTrayFold`). Without it the fold cut a corner, under TURN_WORTH, and the
+     glass jumped to the new cut a debounce after the tray had jumped (the owner: "projects przy zwijaniu i rozwijaniu
+     nie animuje kurtyny"). Reduced motion still turns nothing (above). */
+  if (!recolour && !force && moves.length < to.length * TURN_WORTH) return none;
   /* THE CURTAIN STANDS ASIDE WHILE THE NEW LOOK TRAVELS (E23 C1b fix, 07.11.2026). With the new cut painted beneath, a
      travelling pane is translucent glass over its own destination: the two pictures, a few pixels apart, averaged each
      other's streaks away - the harness's layout turn at 1600x900 read the squares the move crosses at 45-55 % of
@@ -4051,11 +4119,11 @@ function lookOnScreen(job, look) {
  * default). A turn running is ended first. Answers the turn - its `plan`, its `layers`, `cancel()` - or null
  * when there is nothing to turn, which leaves the end state standing.
  */
-export function glassTurn({ job = curtains[0], from = null, look = null, glow = null, to = job?.panes, fromAcc = null, acc = job?.acc, move = TURN_MOVE, flash = true, dur = TURN(), curve = ARRIVE, frame = undefined } = {}) {
+export function glassTurn({ job = curtains[0], from = null, look = null, glow = null, to = job?.panes, fromAcc = null, acc = job?.acc, move = TURN_MOVE, flash = true, dur = TURN(), curve = ARRIVE, frame = undefined, force = false } = {}) {
   if (!job || !to) return null;
   look = lookOnScreen(job, look);
   job.turn?.cancel();
-  const plan = turnPlan(from, to, { W: job.W, H: job.H, fromAcc, acc, dur, move, curve, flash, reduced: REDUCED() });
+  const plan = turnPlan(from, to, { W: job.W, H: job.H, fromAcc, acc, dur, move, curve, flash, reduced: REDUCED(), force });
   if (plan.none || !look) return null;
   /* THE PULSE IS IN THE NEW LOOK (E23 fix G1, 08.11.2026; the end review's correctness M1). `curtainPaint` has just set
      the pulse layer's size again, which clears it (`layerAfter`), and the loop draws it on its next frame - after this
@@ -4223,7 +4291,7 @@ function rebuild() {
 }
 function rebuildAll() {
   for (const j of curtains) {
-    const wasPainted = j.painted, oldAcc = j.acc;
+    const wasPainted = j.painted, oldAcc = j.acc, fold = j.foldTurn === true;
     const oldPanes = wasPainted ? snapshotPanes(j) : null;
     CHECKS.length = 0;
     if (curtainGeometry(j)) {
@@ -4264,7 +4332,7 @@ function rebuildAll() {
            and bakes it before the next frame and lets the browser run it; a turn that moves glass
            clips the frost to the new cut once its moves are over, and a new cut with no such turn
            (reduced motion, nothing painted before, a corner not worth a turn) clips it here. */
-        const turn = oldLook ? glassTurn({ job: j, from: oldPanes, look: oldLook, glow: oldGlow, fromAcc: oldAcc }) : null;
+        const turn = oldLook ? glassTurn({ job: j, from: oldPanes, look: oldLook, glow: oldGlow, fromAcc: oldAcc, force: j.foldTurn === true, flash: j.foldTurn !== true }) : null;
         if (!turn?.plan.frost) clipToCut(frostOf(j), j.pathD);
         /* A NEW CUT, AND ONLY A NEW CUT, IS ANNOUNCED (E77 C4). The room tile's picture follows
            its pane here, and `drpgGlassCut` is what a test counts to say that a new description,
@@ -4278,6 +4346,7 @@ function rebuildAll() {
         }
       } else { j.painted = true; document.body.classList.toggle("drpg-curtain-on", true); }
     }
+    if (fold) j.foldTurn = false;
   }
   freeTheBoard();
   const c = CHECKS[0];
@@ -4579,6 +4648,38 @@ function observe() {
     }
     observers.push(rr);
   }
+  watchTrayFold();
+}
+/* THE PROJECTS TRAY FOLDS AND THE GLASS TURNS WITH IT (E105 follow-up, 11.11.2026; the owner: "projects przy zwijaniu i
+   rozwijaniu nie animuje kurtyny"). The fold is projects-tray.mjs's class on the tray (`drpg-projects-collapsed`, its
+   list `display: none`): the tray jumps in one frame. The glass heard it through the ResizeObserver above, 150 ms
+   later (`schedule`), and its recut moved a corner - under TURN_WORTH, so no turn: the cut jumped too, a debounce
+   behind the tray. Measured in Chromium on the glass harness, 1366x768, GM, motion on (fix2/fold.mjs): folding, the
+   tray 142 -> 78 px in the frame of the click and the tray's pane 262 -> 229 px at its foot 172 ms later, in one frame,
+   no turn layer running; unfolding the same, 180 ms. Now the class's change is heard as it is written, the recut runs
+   in the next animation frame, and it turns (`force`): the panes the fold moves travel to the new cut over the turn's
+   700 ms, without the flash - a fold is not a change of mood. Reduced motion recuts in the next frame and turns
+   nothing. The glass harness's `drpgTrayFold` (the sweep's "fold" clause) reads it: at 1b0ebb73 the recut 3-7 frames
+   after the toggle and 0 frames of a turn, folding and unfolding; now the recut in the second frame read and 14-15
+   frames of turn layers running (Chromium, 1366x768, on a machine running other suites: frames of 60-160 ms).
+   The tray's whole column is watched, not the tray, because Daggerheart may draw the tray's root again. */
+let trayFolded = null;
+function watchTrayFold() {
+  const host = document.getElementById("ui-right-column-1") || document.getElementById("countdowns")?.parentElement;
+  if (!host || typeof MutationObserver !== "function") return;
+  trayFolded = document.getElementById("countdowns")?.classList.contains("drpg-projects-collapsed") ?? null;
+  const mo = new MutationObserver(() => {
+    const now = document.getElementById("countdowns")?.classList.contains("drpg-projects-collapsed") ?? null;
+    if (now === trayFolded) return;
+    const was = trayFolded;
+    trayFolded = now;
+    if (was === null || now === null || !curtains.length || keyboardUp()) return;
+    for (const j of curtains) j.foldTurn = true;
+    clearTimeout(timer);
+    requestAnimationFrame(() => { try { refreshGlass(); } finally { for (const j of curtains) j.foldTurn = false; } });
+  });
+  mo.observe(host, { attributes: true, attributeFilter: ["class"], subtree: true });
+  observers.push(mo);
 }
 /* WHAT THE GLASS IS CUT FOR, AS IT STANDS NOW.
    The rectangles of every block and the wall, rounded, in the pixels they are drawn in (so

@@ -63,6 +63,7 @@ import {
     settleElapsedPause, CLOCK_BEAT_MS, settleClockAtReady, beatClock, clockForDisplay, buildElapsed, stopElapsed,
     showsStopwatch
 } from "./hud-elapsed.mjs";
+import { markLoneInitials } from "./chrome.mjs";
 export {
     unpausePatch, CLOCK_BEAT_MS, readyPatch, settleClockAtReady, beatClock, shownClock, clockForDisplay, elapsedOf,
     showsStopwatch
@@ -344,6 +345,7 @@ export function hudHeader(clock) {
     const nameLength = (campaignName(clock) ?? "").length;
     if (nameLength > 32) campaign.classList.add("is-very-long");
     else if (nameLength > 22) campaign.classList.add("is-long");
+    markLoneInitials(campaign);   // "A ..." keeps one colour under the glass (E49 B1, S12-65)
     /* A PAUSE IS STAMPED ON THE CLOCK (E23 C2b, 07.11.2026; audit S12-22; the owner's Q-E23-2, yes, 07.11). Foundry
        says a pause in the middle of the screen, and a window centred there - the GM panel, a roll - hid the only sign
        that the game was on hold. The clock says it too now, in Foundry's own word (`GAME.Paused`, which the module's
@@ -1459,7 +1461,7 @@ export function objectionControl(actor = viewerActor(), given = {}) {
     if (given.unless && given.unless === key) return false;
     const name = game.i18n.localize("DRPG.Trial.objection");
     /* THE TILE'S HEXAGON (E70 C11): the voice tile's controls are the corner's 30 px mini buttons with a pixel glyph
-       (the kit's mini launcher since E44 C6, as voice-tile.mjs `miniButton`'s; 'hand' is 'palm' in pixel-icons.py's map),
+       (the kit's mini launcher since E44 C6, as voice-tile.mjs `miniButton`'s; 'hand' is 'palm' in glyph-map.mjs's map),
        and Foundry's tooltip there is `data-tooltip-text`, as the tile's other two set it. The row keeps the Font Awesome
        hand it has had since E79. */
     let button;

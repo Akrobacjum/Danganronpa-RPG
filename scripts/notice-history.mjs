@@ -233,24 +233,29 @@ const CELL_SPAN = /^[1-9]\d{0,2}$/;
  * 74 at E68 C7: the proposal's one container (`drpg-trait-proposal`); 76 once the two lines met (E68 C13's merge);
  * 77 at E68 C9's merge (10.11.2026): the statistic's slot written as a class in the betrayal's confirmation
  * (action-murder.mjs `performBetrayal`, `drpg-action-trait`; action-menus.mjs writes it by name, `TRAIT_SLOT`);
+ * E49 A8.1 (11.11.2026): an action's Details (action-menus.mjs `detailsHtml`, `detailsStack`: `drpg-action-details`, its
+ * toggle, mark and box, `drpg-details-stack`, `drpg-details-layer`; action-briefing.mjs `briefingBlock`: the sub-heading
+ * `drpg-action-details-sub` and Tamper's watchers on top, `drpg-briefing-watched`), and "All thresholds" gone
+ * (`drpg-briefing-all`);
+ * E49 B5a (11.11.2026): the module's chat card (chat-card.mjs `chatCard`: `drpg-chat-kit` and its head, glyph, title,
+ * body and foot) and a warning line inside another card (`cardWarn`, `drpg-chat-kit-warn`);
  * R294 runs the same grep and fails on a difference, so a class a card body gains is either added here or
  * drawn bare in the window.
  */
 export const NOTICE_CLASSES = Object.freeze([
-    "chapter", "drpg-action-trait", "drpg-briefing-all", "drpg-briefing-block", "drpg-briefing-facts", "drpg-briefing-instruction", "drpg-check", "drpg-checkbox",
-    "drpg-choice", "drpg-choice-details", "drpg-choice-list", "drpg-choice-text", "drpg-day-summary",
-    "drpg-duality", "drpg-duality-badge", "drpg-duality-die", "drpg-duality-formula", "drpg-duality-mod",
-    "drpg-duality-op", "drpg-duality-result", "drpg-duality-stat", "drpg-duality-total",
-    "drpg-evidence-card", "drpg-evidence-comment", "drpg-evidence-hint", "drpg-evidence-name",
-    "drpg-evidence-text", "drpg-evidence-topic", "drpg-evidence-who", "drpg-frisk-mode", "drpg-frisk-modes", "drpg-gm-reference",
-    "drpg-gm-route", "drpg-item-effect",
-    "drpg-objection-banner", "drpg-objection-decision", "drpg-objection-live", "drpg-objection-log", "drpg-objection-log-topic", "drpg-overruled-stamp",
-    "drpg-row-denied", "drpg-safeword-heading", "drpg-specific-note",
-    "drpg-sum-action", "drpg-sum-crit", "drpg-sum-found", "drpg-sum-head", "drpg-sum-lede", "drpg-sum-left",
-    "drpg-sum-list", "drpg-sum-room", "drpg-sum-row", "drpg-sum-sep", "drpg-sum-tail", "drpg-sum-total",
-    "drpg-sum-totals", "drpg-sum-who", "drpg-tb-badge", "drpg-tb-badges", "drpg-trait-field", "drpg-trait-how", "drpg-trait-proposal", "drpg-variant-details", "drpg-wide-col", "drpg-wide-head", "drpg-wide-section", "drpg-warning",
-    "faint", "is-complete", "is-despair", "is-hope", "notes", "objection", "room", "type", "unavailable",
-    "visibility"
+    "chapter", "drpg-action-details", "drpg-action-details-box", "drpg-action-details-mark", "drpg-action-details-sub", "drpg-action-details-toggle",
+    "drpg-action-trait", "drpg-briefing-block", "drpg-briefing-facts", "drpg-briefing-instruction", "drpg-briefing-watched", "drpg-chat-kit", "drpg-chat-kit-body",
+    "drpg-chat-kit-foot", "drpg-chat-kit-glyph", "drpg-chat-kit-head", "drpg-chat-kit-title", "drpg-chat-kit-warn", "drpg-check",
+    "drpg-checkbox", "drpg-choice", "drpg-choice-details", "drpg-choice-list", "drpg-choice-text", "drpg-day-summary", "drpg-details-layer",
+    "drpg-details-stack", "drpg-duality", "drpg-duality-badge", "drpg-duality-die", "drpg-duality-formula", "drpg-duality-mod", "drpg-duality-op",
+    "drpg-duality-result", "drpg-duality-stat", "drpg-duality-total", "drpg-evidence-card", "drpg-evidence-comment", "drpg-evidence-hint",
+    "drpg-evidence-name", "drpg-evidence-text", "drpg-evidence-topic", "drpg-evidence-who", "drpg-frisk-mode", "drpg-frisk-modes",
+    "drpg-gm-reference", "drpg-gm-route", "drpg-item-effect", "drpg-objection-banner", "drpg-objection-decision", "drpg-objection-live",
+    "drpg-objection-log", "drpg-objection-log-topic", "drpg-overruled-stamp", "drpg-row-denied", "drpg-safeword-heading", "drpg-specific-note",
+    "drpg-sum-action", "drpg-sum-crit", "drpg-sum-found", "drpg-sum-head", "drpg-sum-lede", "drpg-sum-left", "drpg-sum-list", "drpg-sum-room",
+    "drpg-sum-row", "drpg-sum-sep", "drpg-sum-tail", "drpg-sum-total", "drpg-sum-totals", "drpg-sum-who", "drpg-tb-badge", "drpg-tb-badges",
+    "drpg-trait-field", "drpg-trait-how", "drpg-trait-proposal", "drpg-variant-details", "drpg-warning", "drpg-wide-col", "drpg-wide-head",
+    "drpg-wide-section", "faint", "is-complete", "is-despair", "is-hope", "notes", "objection", "room", "type", "unavailable", "visibility"
 ]);
 const KEEP_CLASS = new Set(NOTICE_CLASSES);
 

@@ -1,7 +1,10 @@
 /**
  * Danganronpa RPG - Edit campaign.
  * ---------------------------------------------------------------------------
- * The GM's window for correcting the clock and the campaign (`openClockDialog`),
+ * The GM's window for correcting the clock and the campaign (`openClockDialog`), with End the chapter apart at its
+ * foot (`endChapterPart`, `endTheChapter`; E49 A2), its fields (`campaignRows`) and what its Apply writes
+ * (`applyCampaignForm`) - which Season setup draws at its top and runs on its Save since E49 A1e (season-setup.mjs
+ * `openSeasonSetup`),
  * the question it asks before a field that does more than correct
  * (`confirmCorrection`), what its Apply reads (`readClockForm`), and whether a change of the time of day or the session
  * is a correction rather than the hour passing, so that an assembly called for
@@ -20,7 +23,7 @@ import { getClock, setClock } from "./clock.mjs";
 import { resetAllActions } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { error, esc, wholeNumber } from "./utils.mjs";
-import { stepper, stepperId, drpgWindow, formGrid, helpText } from "./ui-kit.mjs";
+import { stepper, stepperId, drpgWindow, drpgConfirm, formGrid, helpText, box, roleButton } from "./ui-kit.mjs";
 import { alreadyOpen, RAISED } from "./live.mjs";
 import { trialScene } from "./rooms.mjs";
 
@@ -87,21 +90,47 @@ export function readClockForm(dialog) {
     };
 }
 
-export async function openClockDialog() {
-    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
-    // window each read the world when they opened and neither knows about the
-    // other, so the older one goes on looking authoritative while showing
-    // something that stopped being true. Raised rather than refused: pressing
-    // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-clock")) return RAISED;
+/*
+ * END THE CHAPTER, APART (E49 A2, 10.11.2026; the owner's [12] "End the chapter wrzucmy do edit campaign" and [16] "tak"
+ * to its confirm and warning frame). The panel's tile went; its door is the last part of this window, under the form, in
+ * the kit's warning box, with a destructive button of its own: what it starts reveals, sweeps and names the Blackened,
+ * which is everything the chapter field above says it does not do. The button closes this window WITHOUT its Apply - an
+ * end and a correction in one press would write the clock twice, and the end reads the clock as it stands - then asks
+ * once more (`endTheChapter`, Cancel the default), and only a yes opens chapter.mjs `openChapterEndDialog`, which asks
+ * its own questions and runs the end once. Cancel at either step writes nothing. The part is drawn in every state of
+ * the clock (the owner's rule: a state changes look, never layout); `openChapterEndDialog` refuses what it refuses.
+ */
+export function endChapterPart() {
+    const L = key => game.i18n.localize(key);
+    return box("warning", `<p>${esc(L("DRPG.Clock.endChapterNote"))}</p>`, {
+        action: roleButton({ role: "destructive", label: L("DRPG.Chapter.endTitle"), attrs: { "data-drpg-end-chapter": "1" } })
+    });
+}
 
-    if (!game.user.isGM) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
-        return;
-    }
+/* The question between the button and the chapter's end (see above): the yes destructive, Cancel the default. `run` is
+   chapter.mjs `openChapterEndDialog`, or the suite's stand-in (`roads.endChapter`). The part and the question exported
+   since E49 A1e: Season setup draws the same part under the same fields and asks the same question. */
+export async function endTheChapter(run) {
+    const yes = await drpgConfirm({
+        title: game.i18n.localize("DRPG.Chapter.endTitle"),
+        classes: ["drpg-panel", "drpg-narrow", "drpg-window-chapter-end-ask"],
+        body: `<p>${esc(game.i18n.localize("DRPG.Clock.endChapterAsk"))}</p>`,
+        yes: { role: "destructive", label: game.i18n.localize("DRPG.Chapter.endTitle") },
+        rejectClose: false
+    });
+    if (yes !== true) return null;
+    return run();
+}
 
-    const clock = getClock();
-
+/**
+ * EDIT CAMPAIGN'S FIELDS (E49 A1e, 11.11.2026; the owner: "Season setup becomes the one place for setting up the season",
+ * with Edit campaign's content at its top and each field once). The kit form grid's rows as `openClockDialog` drew them
+ * inline until this commit, moved here unchanged: the six fields in their order, then the refill box and its fine print.
+ * Season setup draws the same rows (season-setup.mjs `campaignFieldsHtml`) with its own after the six (`extra`: the
+ * safeword, which only it has) and the name field's `autofocus` (S01-19); Edit campaign passes neither, so its markup is
+ * what it was. What both windows read back is `readClockForm`, and what both write is `applyCampaignForm`.
+ */
+export function campaignRows(clock, { extra = [], autofocus = false } = {}) {
     const times = TIMES_OF_DAY
         .map(t => `<option value="${t}"${t === clock.timeOfDay ? " selected" : ""}>${TIME_OF_DAY_LABELS[t]}</option>`)
         .join("");
@@ -131,27 +160,54 @@ export async function openClockDialog() {
      */
     const ids = { name: stepperId(), chapter: stepperId(), phase: stepperId(), day: stepperId(), session: stepperId(), time: stepperId() };
     const L = key => game.i18n.localize(key);
+    return [
+        { label: L("DRPG.Clock.campaignName"), id: ids.name,
+          field: `<input type="text" name="campaignName" id="${ids.name}"${autofocus ? " autofocus" : ""}
+                       value="${foundry.utils.escapeHTML(clock.campaignName ?? "")}"
+                       placeholder="${foundry.utils.escapeHTML(game.world?.title ?? "")}" />` },
+        { label: L("DRPG.Clock.chapter"), id: ids.chapter,
+          field: stepper({ name: "chapter", value: now, min: 1, max: Math.max(CHAPTERS_PER_SEASON, now), step: 1, id: ids.chapter }) },
+        { label: L("DRPG.Clock.phase"), id: ids.phase, field: `<select name="phase" id="${ids.phase}">${phases}</select>` },
+        { label: L("DRPG.Clock.day"), id: ids.day, field: stepper({ name: "day", value: clock.day ?? 1, min: 1, step: 1, id: ids.day }) },
+        { label: L("DRPG.Clock.session"), id: ids.session, field: stepper({ name: "session", value: clock.session, min: 1, step: 1, id: ids.session }) },
+        { label: L("DRPG.Clock.timeOfDay"), id: ids.time, field: `<select name="timeOfDay" id="${ids.time}">${times}</select>` },
+        ...extra,
+        { full: "<hr />" },
+        { full: `<label class="drpg-checkbox">
+                    <input type="checkbox" name="reset" />
+                    ${L("DRPG.Panel.alsoReset")}
+                </label>` },
+        { full: helpText("DRPG.Panel.resetHint") }
+    ];
+}
+
+/** Edit campaign. `roads.endChapter` stands in for chapter.mjs `openChapterEndDialog` (the suite's; E49 A2). */
+export async function openClockDialog({ roads = {} } = {}) {
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-clock")) return RAISED;
+
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return;
+    }
+
+    const clock = getClock();
+    let endAsked = false;
     const result = await drpgWindow({
         title: game.i18n.localize("DRPG.Panel.jump"),
         classes: ["drpg-panel", "drpg-window-clock"],
-        body: `<form>${formGrid([
-            { label: L("DRPG.Clock.campaignName"), id: ids.name,
-              field: `<input type="text" name="campaignName" id="${ids.name}"
-                           value="${foundry.utils.escapeHTML(clock.campaignName ?? "")}"
-                           placeholder="${foundry.utils.escapeHTML(game.world?.title ?? "")}" />` },
-            { label: L("DRPG.Clock.chapter"), id: ids.chapter,
-              field: stepper({ name: "chapter", value: now, min: 1, max: Math.max(CHAPTERS_PER_SEASON, now), step: 1, id: ids.chapter }) },
-            { label: L("DRPG.Clock.phase"), id: ids.phase, field: `<select name="phase" id="${ids.phase}">${phases}</select>` },
-            { label: L("DRPG.Clock.day"), id: ids.day, field: stepper({ name: "day", value: clock.day ?? 1, min: 1, step: 1, id: ids.day }) },
-            { label: L("DRPG.Clock.session"), id: ids.session, field: stepper({ name: "session", value: clock.session, min: 1, step: 1, id: ids.session }) },
-            { label: L("DRPG.Clock.timeOfDay"), id: ids.time, field: `<select name="timeOfDay" id="${ids.time}">${times}</select>` },
-            { full: "<hr />" },
-            { full: `<label class="drpg-checkbox">
-                        <input type="checkbox" name="reset" />
-                        ${L("DRPG.Panel.alsoReset")}
-                    </label>` },
-            { full: helpText("DRPG.Panel.resetHint") }
-        ])}</form>`,
+        body: `<form>${formGrid(campaignRows(clock))}</form>${endChapterPart()}`,
+        render: (event, dialog) => {
+            dialog.element.querySelector("[data-drpg-end-chapter]")?.addEventListener("click", ev => {
+                ev.preventDefault();
+                endAsked = true;
+                dialog.close();
+            });
+        },
         // Apply still to answer: Cancel (E21 rule 3), the answer "cancel" as before.
         footer: {
             primary: {
@@ -164,8 +220,18 @@ export async function openClockDialog() {
         rejectClose: false
     });
 
+    if (endAsked) return endTheChapter(roads.endChapter ?? (() => import("./chapter.mjs").then(m => m.openChapterEndDialog())));
     if (!result || result === "cancel") return;
+    return applyCampaignForm(result);
+}
 
+/**
+ * WHAT EDIT CAMPAIGN'S APPLY WRITES, AND THE QUESTIONS BEFORE IT (E49 A1e: moved here from `openClockDialog`'s tail
+ * unchanged, so Season setup's Save runs the same writes with the same questions; season-setup.mjs `openSeasonSetup`).
+ * `result` is `readClockForm`'s. Answers nothing; every write is `setClock`'s, `resetAllActions`' and the search tokens'
+ * reset, as Edit campaign's were.
+ */
+export async function applyCampaignForm(result) {
     /*
      * MOVING THE CLOCK DOES NOT END AN ECLIPSE, and until E17 nothing said so.
      *

@@ -545,7 +545,8 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     await settle(1500);
     const putBack = { thrown, rewrite, gm: await gm.eval(totalOf), p1: await p1.eval(totalOf), p2: await p2.eval(totalOf),
         warned: await gm.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
-            return game.messages.contents.slice(${warnedBefore}).filter(m => S.contentOf(m).includes("drpg-warning")).length;`) };
+            // A warning is chat-card.mjs's card in the warning tone since E49 B5a (a p.drpg-warning before).
+            return game.messages.contents.slice(${warnedBefore}).filter(m => S.contentOf(m).includes('data-drpg-tone="warning"')).length;`) };
     check("A10: p1 rewriting the rolls of its neutral roll is refused (the GM wrote it) or put back on every browser, and a put-back is told to the GMs",
         typeof thrown === "number" && thrown !== 99 && putBack.gm === thrown && putBack.p1 === thrown && putBack.p2 === thrown
         && (rewrite.refused ? /permission/i.test(rewrite.refused) : putBack.warned >= 1), JSON.stringify(putBack), { flow: "reroll" });

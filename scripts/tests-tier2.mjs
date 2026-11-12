@@ -136,7 +136,7 @@ async function snapshot(cast) {
         }, [])),
         messages: new Set(game.messages.map(m => m.id)),
         /* EVERY SCENE'S TILES, by scene (E95 C2 fix, 10.11.2026; CI run 42748964937, suite 2/8). From E95 C2 a
-           Monocub's false-to-true edge lays a body tile (body-tile.mjs `leaveBody`), as a trace's roll drops a token,
+           Monocub's false-to-true edge laid a body tile (body-tile.mjs `leaveBody`; from E63 every death made public does, chapter.mjs `markDeceased`), as a trace's roll drops a token,
            and a test that marks a death by its flag alone and takes the flag back after ("E51-T21") leaves the tile:
            no revive runs, and the revive is what takes a body off the map. The restore removed the embedded documents
            that appeared only as traces' tokens, so the dump read "restore left: Scene ... tiles.<id> appeared". Recorded
@@ -2335,7 +2335,12 @@ async function pressCrisisTile(actor, { choose = () => null, pick = offered => o
             rows: [...root.querySelectorAll('input[name="variant"]')].map(input => ({
                 value: input.value, disabled: input.disabled,
                 hint: text(input.closest("label")?.querySelector("small")),
-                details: text(root.querySelector(`.drpg-choice-details[data-drpg-for="${input.value}"]`))
+                // The row's block under the lead and, since E49 A8.1, its facts in the window's Details (the row's layer).
+                details: [root.querySelector(`.drpg-choice-details[data-drpg-for="${input.value}"]`),
+                    root.querySelector(`.drpg-action-details-box .drpg-details-layer[data-drpg-when="${input.value}"]`)]
+                    .map(text).filter(Boolean).join(" ") || null,
+                lead: text(root.querySelector(`.drpg-choice-details[data-drpg-for="${input.value}"]`)),
+                inDetails: text(root.querySelector(`.drpg-action-details-box .drpg-details-layer[data-drpg-when="${input.value}"]`))
             }))
         };
         const value = choose(menu.rows);
@@ -2574,7 +2579,11 @@ async function withBodyTile(run) {
             const data = B.bodyTileSpec({ tokenDoc: { x: spot.x, y: spot.y, width: bodyToken.width, height: bodyToken.height,
                 elevation: bodyToken.elevation, texture: { src: bodyToken.texture?.src ?? null }, parent: scene },
             actorId: body.id, record: deathRecord(body), level: levelOf(bodyToken), at: Date.now() });
-            [tile] = await scene.createEmbeddedDocuments("Tile", [data]);
+            /* E63 C0 (11.11.2026): the death lays its own tile at the token (chapter.mjs `markDeceased`); it is moved into the
+               other room as a GM would, and laid by the suite only where the death laid none. */
+            const own = B.bodyTileOf(body)?.doc ?? null;
+            if (own) { await own.update({ x: data.x, y: data.y }); tile = own; }
+            else [tile] = await scene.createEmbeddedDocuments("Tile", [data]);
             await settle();
             must(tile && B.bodyRoomOf(body) === tileRoom && Mv.roomOfToken(bodyToken) === fixture.room,
                 `the body's tile could not be laid in ${tileRoom} with its token in ${fixture.room} - this would measure nothing`);
@@ -35412,7 +35421,9 @@ const SCENARIOS = [
         const src = stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/events.mjs`).then(lfText));
 
-        const body = fnSource(src, "incidentCard");
+        // The acting killer's id is read by `killerActingId`, which the card calls on the merged state (E49: the
+        // sheet's turn line words the same turn through it), so the card's reading is its body and that helper's.
+        const body = fnSource(src, "incidentCard") + fnSource(src, "killerActingId");
 
         ok(/incidentCast\(\)/.test(body),
             "the incident card no longer merges the cast, so every id it reads is "
@@ -39199,7 +39210,7 @@ const SCENARIOS = [
             await settle();
             app = [...foundry.applications.instances.values()]
                 .find(a => a.element?.matches?.('.application.dialog[class*="drpg-"]'));
-            ok(app, "the Look window did not open, so nothing could be measured");
+            ok(app, "the gear's settings window did not open, so nothing could be measured");
 
             for (const instance of foundry.applications.instances.values()) {
                 const el = instance.element;
@@ -42505,7 +42516,9 @@ const SCENARIOS = [
         const said = async () => {
             const { menu } = await pressCrisisTile(killer);
             const row = menu?.rows.find(r => r.value === "weaponAttack");
-            return row?.details?.includes(game.i18n.localize("DRPG.Murder.breakdownDisadvantage")) ?? null;
+            // Under the lead, outside Details (E49 A8 fix: shut by default, Details hid it before the choice).
+            const words = game.i18n.localize("DRPG.Murder.breakdownDisadvantage");
+            return row ? Boolean(row.lead?.includes(words)) && !row.inDetails?.includes(words) : null;
         };
         try {
             await killer.update({ "system.resources.stress.value": 0 });
@@ -43067,6 +43080,249 @@ const SCENARIOS = [
             settings.applyTheme();
             await settle();
         }
+    }],
+
+    ["E48-K6 - the character sheet scrolls to its last row in both themes: a sheet's frame in the page with Daggerheart's `overflow: hidden` on its tab, under Stained Glass and under Monokuma Legacy, computes the active tab `overflow-y: auto`, so a tab taller than its box can be scrolled to its end", async () => {
+        /*
+         * E48 K6, 11.11.2026 (STAGE, tier 2; S12-99, the owner's game of 02.11: "under Monokuma Legacy the sheet does
+         * not scroll"). No Daggerheart sheet renders headless (tests-kit.mjs `systemSheetsAvailable`), so the frame is
+         * the module's selectors' own: `.application.sheet.actor` holding a `section.tab.active` under a style element
+         * that says what Daggerheart's sheet says (`overflow: hidden`, written as its longhand: jsdom's cascade does not
+         * expand the shorthand - the first run read the control `visible`). jsdom lays nothing out, so this reads the cascade's
+         * answer, not a scroll; Chromium's scroll is the stage's probe (the style harness's sheet parts, both themes:
+         * the tab's scrollTop reached its scrollHeight less its height). THE CONTROL: a tab outside a sheet under the same planted rule reads
+         * `hidden` - the cascade is read, not a default. The body's classes are put back in `finally`.
+         */
+        const body = document.body, was = body.className;
+        const style = Object.assign(document.createElement("style"), { textContent: ".application.sheet.actor section.tab, .drpg-suite-k6-control section.tab { overflow-y: hidden; }" });
+        const app = document.createElement("div");
+        app.className = "application sheet actor character drpg-suite-k6";
+        app.innerHTML = `<section class="window-content"><section class="tab active" data-tab="features"><p>row</p></section></section>`;
+        const read = {};
+        try {
+            document.head.append(style);
+            body.append(app);
+            const tab = app.querySelector("section.tab");
+            for (const [name, on] of [["glass", "drpg-theme-stained-glass"], ["legacy", "drpg-theme-monokuma-legacy"]]) {
+                body.classList.remove("drpg-theme-stained-glass", "drpg-theme-monokuma-legacy");
+                body.classList.add(on);
+                read[name] = getComputedStyle(tab).overflowY;
+            }
+            body.classList.remove("drpg-theme-stained-glass", "drpg-theme-monokuma-legacy");
+            body.classList.add("drpg-theme-stained-glass");
+            const scoped = document.createElement("div");
+            scoped.className = "drpg-suite-k6-control";
+            scoped.innerHTML = `<section class="tab active">row</section>`;
+            body.append(scoped);
+            read.control = getComputedStyle(scoped.querySelector("section.tab")).overflowY;
+            scoped.remove();
+        } finally {
+            app.remove(); style.remove();
+            body.className = was;
+        }
+        equal(stableJson(read), stableJson({ glass: "auto", legacy: "auto", control: "hidden" }),
+            "{glass, legacy: the sheet's active tab's overflow-y under each theme with Daggerheart's hidden planted; control: a tab outside a sheet, the planted rule} - the sheet must scroll in both themes");
+    }],
+    ["E48-K5 - switching theme there and back leaves no curtain, observer or frame loop: under Monokuma Legacy the curtain, its observers, its loop's frame, its colour probe, its rotation sheet, the windows' bands and the turn's layers are gone, and back under Stained Glass the curtain stands as it stood before the switch - as many curtains and observers, a loop - not one more", async () => {
+        /*
+         * E48 K5, 11.11.2026 (STAGE, tier 2). R1380 reads `unmount` called by hand and R1420 the race with the fonts, each
+         * through stand-ins; neither switches the theme the way a player does. Here the client setting is written
+         * (`game.settings.set`, its onChange `applyTheme`, which imports glass.mjs and calls `refreshGlass`), Stained
+         * Glass -> Monokuma Legacy -> Stained Glass, the fonts and a beat awaited after each, and glass.mjs
+         * `glassLifecycle` read with the page's curtain nodes (#drpg-curtain, its frost, turn and flash layers, the
+         * glow, the rotation sheet) and the body's `drpg-curtain-on`. THE CONTROL: the first reading, under Stained
+         * Glass, has a curtain, observers and the loop - a reader that answered nothing would be red there. The
+         * setting is put back in `finally`.
+         */
+        const settings = await import("./settings.mjs");
+        const G = await import("./glass.mjs");
+        must(typeof G.glassLifecycle === "function", "glass.mjs's reading of the curtain's lifecycle (`glassLifecycle`)");
+        const was = getSetting(SETTINGS.theme);
+        const read = () => {
+            const l = G.glassLifecycle();
+            return { curtains: l.curtains, observers: l.observers, loop: l.loop > 0, probe: l.probe, sheet: l.sheet, bands: l.windows.length,
+                nodes: document.querySelectorAll("#drpg-curtain, #drpg-curtain-frost, #drpg-curtain-turn, #drpg-curtain-flash, .curtain-glow, #drpg-glass-rotation").length,
+                on: document.body.classList.contains("drpg-curtain-on") };
+        };
+        const to = async theme => {
+            await game.settings.set(MODULE_ID, SETTINGS.theme, theme);
+            settings.applyTheme();
+            await settle();
+            await (document.fonts?.ready ?? Promise.resolve());
+            await wait(400);
+        };
+        let before = null, legacy = null, after = null;
+        try {
+            await to("stainedGlass");
+            before = read();
+            await to("monokumaLegacy");
+            legacy = read();
+            await to("stainedGlass");
+            after = read();
+        } finally {
+            await to(was ?? "stainedGlass");
+        }
+        ok(before.curtains > 0 && before.observers > 0 && before.loop, `the control, Stained Glass before the switch: ${stableJson(before)} - no curtain, observer or loop to take down`);
+        equal(stableJson(legacy), stableJson({ curtains: 0, observers: 0, loop: false, probe: false, sheet: false, bands: 0, nodes: 0, on: false }),
+            "Monokuma Legacy after the switch: [curtains, observers, the loop, the probe, the rotation sheet, the windows' bands, the curtain's nodes, drpg-curtain-on]");
+        /* The colour probe is the bands' and the panes' (glass.mjs `resolveAcc` makes it the first time an accent is asked,
+           a window band's paint above all), not the curtain's: after the switch back it stands again only once a band
+           has painted. In CI's shard 2 (11.11.2026, d70d8569) the tests before this one left windows open, so `before`
+           read `probe: true` and `after`, with no band painted yet, `probe: false` - reproduced locally on that shard,
+           while the test alone passed. So the probe is set aside here with the bands; under Legacy it is still held
+           to gone (above). */
+        equal(stableJson({ ...after, bands: null, probe: null }), stableJson({ ...before, bands: null, probe: null }), "Stained Glass again: the curtain as it stood before the switch, the windows' bands and the colour probe (theirs) aside");
+    }],
+
+    ["E48-K4 - the a11y observer sees a host born after ready and no chat keystroke starts a sweep: a module window's body drawn after ready has its nameless button named from its tooltip within a frame or two, as does a button added to it later, while a keystroke's change in the chat starts no sweep", async () => {
+        /*
+         * E48 K4, 11.11.2026 (STAGE, tier 2). a11y.mjs watched five columns found at ready, subtree and all: Foundry's
+         * right column holds the chat, so each keystroke of v14's chat editor and each message was a sweep of the whole
+         * module, and a host drawn after ready outside those columns was not watched at all. Read here through a11y.mjs
+         * `a11yWatch` (the sweeps its watch asked for, the hosts adopted): a `.drpg-panel` of the test's own appended to
+         * the body after ready, with a button carrying only `data-tooltip`; a second such button appended to it a beat
+         * later; then the chat's input written as a keystroke writes it (`#chat-message`'s value and an `input` event, or
+         * a paragraph added to the chat's editor, else to `#chat`), the sweeps counted before and after. THE CONTROL: the
+         * same paragraph added inside the host does start a sweep. Headless the chat is a body child, not in a column; on
+         * v14 it is in `#ui-right-column-1`, which the old watch held - there the chat half reads the old cost.
+         */
+        const A = await import("./a11y.mjs");
+        must(typeof A.a11yWatch === "function", "a11y.mjs's reading of its watch (`a11yWatch`)");
+        must(A.a11yWatch().births, "the a11y watch of hosts born after ready is not running");
+        const frames = async () => { await wait(120); };
+        const host = document.createElement("section");
+        host.className = "drpg-panel drpg-k4-host";
+        host.innerHTML = `<button type="button" class="drpg-k4-a" data-tooltip="E48-K4 first"><i class="fa-solid fa-eye" aria-hidden="true"></i></button>`;
+        const read = {};
+        try {
+            const hostsBefore = A.a11yWatch().hosts;
+            document.body.append(host);
+            await frames();
+            read.first = host.querySelector(".drpg-k4-a").getAttribute("aria-label");
+            read.adopted = A.a11yWatch().hosts - hostsBefore;
+            const later = document.createElement("button");
+            later.type = "button";
+            later.className = "drpg-k4-b";
+            later.dataset.tooltip = "E48-K4 later";
+            host.append(later);
+            await frames();
+            read.later = later.getAttribute("aria-label");
+            const chat = document.querySelector("#chat-message") ?? null;
+            const editor = document.querySelector("#chat [contenteditable], #chat .ProseMirror, #chat-controls, #chat");
+            must(chat || editor, "no chat on this page - the keystroke half would read nothing");
+            const sweepsBefore = A.a11yWatch().sweeps;
+            const typed = document.createElement("p");
+            typed.textContent = "e";
+            if (chat && "value" in chat) {
+                const was = chat.value;
+                chat.value = `${was}e`;
+                chat.dispatchEvent(new Event("input", { bubbles: true }));
+                chat.value = was;
+            }
+            editor?.append(typed);
+            await frames();
+            typed.remove();
+            await frames();
+            read.chatSweeps = A.a11yWatch().sweeps - sweepsBefore;
+            const controlBefore = A.a11yWatch().sweeps;
+            const inside = document.createElement("p");
+            host.append(inside);
+            await frames();
+            read.hostSweeps = A.a11yWatch().sweeps - controlBefore;
+        } finally {
+            host.remove();
+        }
+        equal(stableJson(read), stableJson({ first: "E48-K4 first", adopted: 1, later: "E48-K4 later", chatSweeps: 0, hostSweeps: 1 }),
+            "{first: the born host's button's aria-label; adopted: hosts the watch took on; later: a button added to it; chatSweeps: sweeps a chat keystroke started; hostSweeps: the control, a change in the host}");
+    }],
+
+    ["E48-K7 - a critical action result's notice cuts in and no other does: the card of a critical (`popupTone` \"critical\", as action-report.mjs `rollTone` writes it) lands on one clip-path wipe of about 700 ms and reads data-drpg-cut \"cut\"; a Hope result's card none; under reduced motion the critical's card stands still (\"still\", no wipe)", async () => {
+        /*
+         * E48 K7, 11.11.2026 (STAGE, tier 2; amend [14], decision 6, Q8). On the GM's page, three cards posted as an
+         * action's card is posted (`whisperToOwner`, its title and tone in the flags) and forced onto the GM's screen
+         * (`popupForce`, a GM's: without it the GM, copied on a player's card, is shown no notice - popup.mjs's rule): a
+         * critical, a Hope result, and a critical with `drpg-reduced-motion` on the body (the Look window's switch). Each
+         * notice is found by its title and read: `data-drpg-cut` and the animations started on it. `Element#animate` is
+         * wrapped for the test (and stood in for where the page has none, as jsdom has none), so what is counted is
+         * the cut's call, not what a browser paints of it. Who sees the notice at all is the card's whisper (owner and
+         * GMs; a GM none): read by a two-client probe, not here (STATUS K7). Red before K7: no card was cut, so the
+         * critical read [null, 0].
+         */
+        const [actor] = cast(1);
+        must(actor, "no student - this would measure nothing");
+        const { whisperToOwner } = await import("./utils.mjs");
+        const proto = Element.prototype, own = Object.prototype.hasOwnProperty.call(proto, "animate"), animate = proto.animate;
+        const cuts = [];
+        proto.animate = function (keyframes, options) {
+            if (this.classList?.contains("drpg-popup")) cuts.push({ seq: this.dataset.drpgSeq ?? null, clip: (keyframes ?? []).some(k => "clipPath" in k), ms: options?.duration ?? null });
+            if (typeof animate === "function") return animate.call(this, keyframes, options);
+            return { cancel() {}, finish() {}, finished: Promise.resolve(), addEventListener() {} };
+        };
+        const messages = [];
+        const still = document.body.classList.contains("drpg-reduced-motion");
+        const STAMP = Date.now() % 100000;
+        const post = async (title, tone) => {
+            const message = await whisperToOwner(actor, `<p>Suite: ${title}</p>`, { flags: { [MODULE_ID]: { popupTitle: title, popupTone: tone, popupForce: true } } });
+            must(message, "the card was not posted - this would measure nothing");
+            messages.push(message);
+            const card = () => [...document.querySelectorAll(".drpg-popup")].find(c => c.querySelector(".drpg-popup-title")?.textContent?.includes(title)) ?? null;
+            await until(() => card(), 4000);
+            const el = card();
+            return [el?.dataset.drpgCut ?? null, cuts.filter(c => c.seq === (el?.dataset.drpgSeq ?? "none") && c.clip && c.ms >= 500 && c.ms <= 900).length];
+        };
+        const read = {};
+        try {
+            document.body.classList.remove("drpg-reduced-motion");
+            read.critical = await post(`K7 critical ${STAMP}`, "critical");
+            read.hope = await post(`K7 hope ${STAMP}`, "hope");
+            document.body.classList.add("drpg-reduced-motion");
+            read.still = await post(`K7 still ${STAMP}`, "critical");
+        } finally {
+            if (own) proto.animate = animate; else delete proto.animate;
+            document.body.classList.toggle("drpg-reduced-motion", still);
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            for (const message of messages) await message.delete();
+        }
+        equal(stableJson(read), stableJson({ critical: ["cut", 1], hope: [null, 0], still: ["still", 0] }),
+            "{each card: [its data-drpg-cut, the clip-path wipes of 500-900 ms started on it]}");
+    }],
+
+    ["E48-K7 - a critical's notice says what happened: it opens with one line - the critical's glyph (fa-burst), \"Critical success\" and, on a client that owns the character or is a GM, who rolled - and a Hope result's notice has no such line", async () => {
+        /*
+         * E48 K7, 11.11.2026 (the owner's "okno powiadomienia krytyka - jest po prostu puste i brzydkie"). On the GM's
+         * page, a critical and a Hope card posted as an action's card is (`whisperToOwner`, title and tone in the flags,
+         * `popupForce` so the GM is shown it) and each notice read in its DOM: the line's glyph class, its result's words
+         * (this client's language), the name it gives, the bar's title, and that the line is the body's first child. The
+         * look (one row, the critical's light red, the duality's "critical" gone from under it) is read in Chromium:
+         * E48 STATUS K7's shots. Red on 2c229e38: the critical read [false, null, null, "K7 line ...", false].
+         */
+        const [actor] = cast(1);
+        must(actor, "no student - this would measure nothing");
+        const { whisperToOwner } = await import("./utils.mjs");
+        const STAMP = Date.now() % 100000;
+        const messages = [];
+        const post = async (title, tone) => {
+            const message = await whisperToOwner(actor, `<p>Suite: ${title}</p>`, { flags: { [MODULE_ID]: { popupTitle: title, popupTone: tone, popupForce: true } } });
+            must(message, "the card was not posted - this would measure nothing");
+            messages.push(message);
+            const card = () => [...document.querySelectorAll(".drpg-popup")].find(c => c.querySelector(".drpg-popup-title")?.textContent?.includes(title)) ?? null;
+            await until(() => card(), 4000);
+            const el = card(), line = el?.querySelector(".drpg-crit-line");
+            return [Boolean(line?.querySelector("i.fa-burst.drpg-crit-glyph")), line?.querySelector(".drpg-crit-result")?.textContent ?? null,
+                line?.querySelector(".drpg-crit-who")?.textContent ?? null, el?.querySelector(".drpg-popup-title")?.firstChild?.textContent ?? null,
+                el?.querySelector(".drpg-popup-body")?.firstElementChild === line && Boolean(line)];
+        };
+        const read = {};
+        try {
+            read.critical = await post(`K7 line ${STAMP}`, "critical");
+            read.hope = await post(`K7 hope line ${STAMP}`, "hope");
+        } finally {
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            for (const message of messages) await message.delete();
+        }
+        equal(stableJson(read), stableJson({ critical: [true, game.i18n.localize("DRPG.Popup.critical.result"), actor.name, `K7 line ${STAMP}`, true],
+            hope: [false, null, null, `K7 hope line ${STAMP}`, false] }),
+            "{each card: [the line's glyph, its result, the name it gives, the bar's title, the line first in the body]}");
     }],
 
     ["a window still answers for one tick after it was answered", async () => {
@@ -48329,7 +48585,8 @@ const SCENARIOS = [
         const S = await import("./gm-stores.mjs");
         const M = await import("./mastermind.mjs");
         const A = await import("./assignments.mjs");
-        const { openSeasonSetup } = await import("./season-setup.mjs");
+        // The Season checklist's rows since E49 A1e (12.11.2026: Season setup's lower half, a window of its own).
+        const { openSeasonChecklist } = await import("./season-setup.mjs");
         const [student] = cast(1);
         const before = foundry.utils.deepClone(A.assignments());
         const title = game.i18n.localize("DRPG.Season.step.nobodyPublic");
@@ -48347,7 +48604,7 @@ const SCENARIOS = [
                 }));
                 return null;
             };
-            await openSeasonSetup();
+            await openSeasonChecklist();
             const health = (await S.gmStoreHealth())?.rows ?? [];
             return { unpooled: M.mastermindUnpooled(), rows, health: health.filter(r => r.id === "nobodyPublic").map(r => r.level) };
         };
@@ -59696,9 +59953,9 @@ const SCENARIOS = [
          * region decided" read the scene on the GM's screen, so a GM viewing one floor saw it done
          * while regions drawn on another since the migration were nobody's rooms. Here a scene of the
          * suite's own holds one named region nobody marked, and the camera stays where it is; the
-         * checklist is opened and its row read. Red on 8eb3801: the row named nothing.
+         * checklist is opened and its row read. Red on 8eb3801: the row named nothing. The Season checklist since E49 A1e.
          */
-        const { openSeasonSetup } = await import("./season-setup.mjs");
+        const { openSeasonChecklist } = await import("./season-setup.mjs");
         const UNDECIDED = "SUITE E12 fix r1-G2 a region drawn since";
         const title = game.i18n.localize("DRPG.Season.step.roomsMarked");
         const home = canvas?.scene ?? null;
@@ -59708,7 +59965,7 @@ const SCENARIOS = [
             await floor.createEmbeddedDocuments("Region", [{ name: UNDECIDED, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }], behaviors: [] }]);
             await settle();
             must(canvas?.scene === home && home !== floor, "the scene on screen moved - this would measure nothing");
-            const drawn = await withFormAnswered(() => false, () => openSeasonSetup());
+            const drawn = await withFormAnswered(() => false, () => openSeasonChecklist());
             const row = [...(drawn[0]?.querySelectorAll("li.drpg-check-row") ?? [])].find(li => li.querySelector(".drpg-check-title")?.textContent === title);
             must(row, "the checklist drew no row for the named regions - this would measure nothing");
             reading = [(row.querySelector(".drpg-setup-missing")?.textContent ?? "").includes(UNDECIDED)];
@@ -59719,6 +59976,70 @@ const SCENARIOS = [
         equal(stableJson(reading), stableJson([true]), `Season setup's row "${title}" with a region nobody decided on a scene not on screen ([whether the row names it])`);
     }],
 
+    ["E49-A1e - Season setup's Save writes what Edit campaign's Apply writes: from one clock, the same name, day and session typed in each window, and the chapter moved one on with its question answered Cancel, then OK - the same questions asked, the same clock left behind (gm-campaign.mjs `applyCampaignForm`; season-setup.mjs `openSeasonSetup`)", async () => {
+        /*
+         * E49 A1e, 11.11.2026. The owner merged Edit campaign into the top of Season setup on one condition: Edit
+         * campaign's data writes stay exactly as they are (the same store, the same writer, the same rules). Both windows
+         * now hand their form to `applyCampaignForm` (R3583 holds it in source); this runs them. Each window is answered
+         * on its own content (`answerWindows`): its fields typed as a GM types them and its default button pressed through
+         * its own callback, so the form is read by the window's reader; the chapter's question ("this is a correction")
+         * answered Cancel in the first round and OK in the second, every other window closed. Before each window the clock
+         * is put back to where the test found it (the phase Daily Life, no Eclipse); after each, the clock's fields that
+         * Edit campaign writes are read. Season setup's safeword is left as drawn, so it writes no safeword. The clock and
+         * the safeword are put back after. Red at ecba3f21: Season setup asked nothing, kept the day and the session and
+         * moved the chapter unasked.
+         */
+        const { openClockDialog } = await import("./gm-campaign.mjs");
+        const { openSeasonSetup } = await import("./season-setup.mjs");
+        const L = key => game.i18n.localize(key);
+        const titles = { clock: L("DRPG.Panel.jump"), season: L("DRPG.Season.title"), chapter: L("DRPG.Clock.chapterCorrectTitle") };
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const wordBefore = getSetting(SETTINGS.safeword);
+        const start = { ...clockBefore, phase: "dailyLife", eclipse: false };
+        const chapter = Number(clockBefore.chapter) || 1;
+        const FIELDS = ["campaignName", "chapter", "phase", "day", "session", "timeOfDay"];
+        let answer = "cancel";
+        const asked = [];
+        const windows = answerWindows((cfg, root) => {
+            const title = cfg?.window?.title ?? "";
+            const kind = Object.keys(titles).find(k => titles[k] === title) ?? "other";
+            asked.push(kind);
+            if (kind === "chapter") return answer;
+            if (kind !== "clock" && kind !== "season") return "close";
+            const set = (name, value) => { const field = root.querySelector(`form [name="${name}"]`); if (field) field.value = String(value); };
+            set("campaignName", `SUITE E49-A1e ${answer}`);
+            set("day", Number(start.day ?? 1) + 1);
+            set("session", Number(start.session ?? 1) + 1);
+            set("chapter", chapter + 1);
+            return press(cfg, root);
+        });
+        const read = {};
+        try {
+            for (const round of ["cancel", "ok"]) {
+                answer = round;
+                for (const [kind, open] of [["clock", openClockDialog], ["season", openSeasonSetup]]) {
+                    await game.settings.set(MODULE_ID, SETTINGS.clock, start);
+                    await settle();
+                    asked.length = 0;
+                    await open();
+                    await settle();
+                    const c = getClock();
+                    read[`${round} ${kind}`] = { asked: [...asked], clock: Object.fromEntries(FIELDS.map(f => [f, c[f]])) };
+                }
+            }
+        } finally {
+            windows.restore();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockBefore);
+            if (getSetting(SETTINGS.safeword) !== wordBefore) await game.settings.set(MODULE_ID, SETTINGS.safeword, wordBefore);
+            await settle();
+        }
+        const expect = round => ({ campaignName: `SUITE E49-A1e ${round}`, chapter: round === "ok" ? chapter + 1 : chapter, phase: "dailyLife",
+            day: Number(start.day ?? 1) + 1, session: Number(start.session ?? 1) + 1, timeOfDay: start.timeOfDay });
+        equal(stableJson(read), stableJson({
+            "cancel clock": { asked: ["clock", "chapter"], clock: expect("cancel") }, "cancel season": { asked: ["season", "chapter"], clock: expect("cancel") },
+            "ok clock": { asked: ["clock", "chapter"], clock: expect("ok") }, "ok season": { asked: ["season", "chapter"], clock: expect("ok") }
+        }), "{per round (the chapter's question answered cancel, then ok) and window (Edit campaign, Season setup): the windows asked, the clock's fields after}");
+    }],
     ["the Mastermind window applied with another scene on screen keeps the lair it did not show", async () => {
         /*
          * E12 fix r1-G2, 11.10.2026; review round 1 CR1-5 and CR1-6. The lair select listed the rooms
@@ -60893,9 +61214,10 @@ const SCENARIOS = [
         const box = x => [{ type: "rectangle", x, y: 100, width: 400, height: 400 }];
         const room = owner => ({ [MODULE_ID]: { [R.ROOM_FLAG]: true, [V.VAULT_FLAGS.owner]: owner.id, [V.VAULT_FLAGS.stashes]: owner === aiko ? [{ actorId: aiko.id, concealed: true }] : [] } });
         const messagesBefore = new Set(game.messages.contents.map(m => m.id));
-        // The join's whisper is the one with a warning's class that names both rooms (vault-store.mjs `clearSplitPiece`).
+        // The join's whisper is the one in a warning's tone that names both rooms (vault-store.mjs `clearSplitPiece`; a card
+        // in the warning tone since E49 B5a, a `drpg-warning` line before).
         const told = () => game.messages.contents.filter(m => !messagesBefore.has(m.id))
-            .filter(m => /drpg-warning/.test(String(contentOf(m) ?? "")) && String(contentOf(m) ?? "").includes(DORM_A) && String(contentOf(m) ?? "").includes(DORM_B)).length;
+            .filter(m => /data-drpg-tone="warning"/.test(String(contentOf(m) ?? "")) && String(contentOf(m) ?? "").includes(DORM_A) && String(contentOf(m) ?? "").includes(DORM_B)).length;
         let scene = null, key = null, item = null, read = null;
         try {
             scene = await Scene.create({ name: "SUITE E12 H4 two bedrooms", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
@@ -71012,7 +71334,7 @@ const SCENARIOS = [
             + "frozen, gone, cards; the lowered target: crossed, cards; the kept project: there after its crossing, gone once the bookmark moved on]");
     }],
 
-    ["the GMs' roads change a project through the one entry (E36-T4): each of create, edit, portrait, secrecy, share, revoke, reveal, reseal, a Rearm, a dragged token, the manager's Save and Delete waits for the queue and writes once; the manager's unchanged row writes nothing; the tray's -/+ on a project row is one change of 1 or -1 and its Delete deleteProject, with no Reveal or Hide on it", async () => {
+    ["the GMs' roads change a project through the one entry (E36-T4): each of create, edit, portrait, secrecy, share, revoke, reveal, reseal, a Rearm, a dragged token, the manager's Save and Delete waits for the queue and writes once; the manager draws no portrait and its Save writes none; the manager's unchanged row writes nothing; the tray's -/+ on a project row is one change of 1 or -1 and its Delete deleteProject, with no Reveal or Hide on it", async () => {
         /*
          * E36 C2, 25.10.2026; E36-09 to E36-11, audit S17-18, S09-36. Each GM's road read the Countdowns setting and wrote
          * it whole outside any queue, and a manager row wrote the image, the meta and the secrecy as three writes, so a
@@ -71021,7 +71343,10 @@ const SCENARIOS = [
          * `COUNTDOWNS_KEY` open: what it changed while held (nothing, if it waits in the queue), what it changed once let
          * go, and how many times it wrote the Countdowns setting and projectMeta (a counter on `game.settings.set`, this
          * browser's own writes). The manager is driven through DialogV2.wait as E12 C5's test drives it: one row given a
-         * portrait and sealed, every other row left as it was. The tray is a planted root in Daggerheart 2.10.5's markup
+         * sealed, every other row left as it was; since E49 FT batch 3 (90c32902, the owner's second round: no countdown
+         * picture in the project windows) the manager draws no portrait cell and no `img.<id>` field, so the row's Save
+         * must find none and leave the project's picture as it was (a portrait field coming back is red here; the
+         * project's own picture is still set by `setProjectImage`, the road above). The tray is a planted root in Daggerheart 2.10.5's markup
          * (`.countdown-container[data-countdown]`, `[data-action="increaseCountdown"]`), with a bubbling listener standing
          * in for its ApplicationV2 action handler, and its menu entries in 2.10.5's shape (`label`, `visible`, `onClick`);
          * whether v14 draws them so is a real table's (LIVE-E36-02), not this test's. At d0ede27a every road but the Rearm writes while the
@@ -71122,24 +71447,26 @@ const SCENARIOS = [
                 () => P.roomOf(placed));
             seen.drag = { held: drag.held.read, after: drag.after, meta: drag.meta };
 
-            // The manager's Save: one row given a portrait and sealed, every other row as the window drew it.
+            // The manager's Save: one row sealed, every other row as the window drew it; no portrait field drawn (90c32902).
             const rows = P.allProjects().length;
+            const imgBefore = project(placed)?.img ?? null;
+            let portraitField = null;
             D.wait = async cfg => {
                 const element = document.createElement("div"), form = document.createElement("form");
                 if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
                 else if (cfg?.content) form.append(cfg.content.cloneNode(true));
                 element.append(form);
                 const field = name => form.querySelector(`[name="${name}.${CSS.escape(placed)}"]`);
-                must(field("img") && field("secret"), "the manager drew no portrait or Secret for this test's row - the answer would change nothing");
-                field("img").value = "icons/svg/d20.svg";
+                must(field("secret"), "the manager drew no Secret for this test's row - the answer would change nothing");
+                portraitField = Boolean(field("img") || form.querySelector(`[data-project="${CSS.escape(placed)}"] img`));
                 field("secret").checked = true;
                 const save = (cfg.buttons ?? []).find(b => b.action === "save");
                 return save.callback(new Event("click"), save, { element });
             };
-            const manager = await road(() => UI.openProjectManager(), () => [project(placed)?.img, P.isSecret(placed)]);
+            const manager = await road(() => UI.openProjectManager(), () => [(project(placed)?.img ?? null) === imgBefore, P.isSecret(placed)]);
             if (ownWait) Object.defineProperty(D, "wait", ownWait);
             else delete D.wait;
-            seen.manager = { rows: rows > 1, held: manager.held.wrote, after: manager.after, cd: manager.cd, meta: manager.meta };
+            seen.manager = { rows: rows > 1, portraitField, held: manager.held.wrote, after: manager.after, cd: manager.cd, meta: manager.meta };
 
             // The tray: -/+ on a project row and on a row that is no project, and its menu.
             root = document.createElement("div");
@@ -71192,13 +71519,13 @@ const SCENARIOS = [
             reseal: { held: 0, resealed: true, cd: 1, meta: 0 },
             rearm: { held: false, after: true },
             drag: { held: room, after: elsewhere, meta: 1 },
-            manager: { rows: true, held: 0, after: ["icons/svg/d20.svg", true], cd: 1, meta: 1 },
+            manager: { rows: true, portraitField: false, held: 0, after: [true, true], cd: 1, meta: 1 },
             tray: { tray: true, plus: [0, 1, 1], minus: [1, 0, 1], reached: [["suiteE36T4NoProject", "increaseCountdown"]] },
             menu: { menu: true, shown: [[false, true], [false, true], [true, true]], clicked: ["CONTROLS.CommonDelete"], held: true, after: false },
             remove: { held: true, after: false, cd: 1, meta: 1 }
         }), "a GM's road does not change a project through the one entry [each road: what it changed while the queue was held, after, "
             + "its Countdowns and projectMeta writes; the reseal; the Rearm's armed while held and after; the dragged token's room; the manager's "
-            + "Save (more than one row, the sealed row's portrait and secrecy); the tray's + and - (the bar while held, after, its writes) and what "
+            + "Save (more than one row, no portrait drawn on the row, its picture unchanged and its secrecy); the tray's + and - (the bar while held, after, its writes) and what "
             + "reached the system's handler; the menu (Reveal, Hide, Delete shown on the project row and on the other), what the system's "
             + "Delete did, the project's Delete; deleteProject]");
     }],
@@ -78743,6 +79070,9 @@ const SCENARIOS = [
         const stamp = foundry.utils.deepClone(ann.getFlag(MODULE_ID, FLAGS.sheetAtStart));
         const move = { by: 0 };
         const windows = answerWindows((cfg, root) => {
+            // E49 A1e: Season setup's Save is Edit campaign's Apply (gm-campaign.mjs `applyCampaignForm`), which asks before
+            // it moves the chapter; answered yes, as Edit campaign's own tests answer it.
+            if (cfg?.window?.title === game.i18n.localize("DRPG.Clock.chapterCorrectTitle")) return "ok";
             const field = root.querySelector("form [name=chapter]");
             if (!field || cfg?.window?.title !== game.i18n.localize("DRPG.Season.title")) return "close";
             field.value = String(Number(field.value) + move.by);
@@ -86104,114 +86434,461 @@ const SCENARIOS = [
                     const why = await gate();
                     const second = await B.leaveBody(body);
                     if (second) laid.push(second);
-                    read.during = [onSheet, why, second ? (second.getFlag(MODULE_ID, FLAGS.bodyOf)?.deathId ?? null) : null];
+                    // E63 C0: chapter.mjs `markDeceased` hands `leaveBody` the record it wrote - the GMs' (RV-6 by construction).
+                    const { flagsHeldNow } = await import("./sheet-audit.mjs");
+                    const { deathRecord } = await import("./settings.mjs");
+                    const handed = await B.leaveBody(body, { record: deathRecord(flagsHeldNow(body)) });
+                    if (handed) laid.push(handed);
+                    const idOf = t => (t ? (t.getFlag(MODULE_ID, FLAGS.bodyOf)?.deathId ?? null) : null);
+                    read.during = [onSheet, why, idOf(second), idOf(handed)];
                 });
             } finally {
                 for (const t of laid) if (t.parent?.tiles?.has(t.id)) await t.delete();
                 await settle();
             }
-            equal(stableJson(read), stableJson({ before: "ok", during: [true, "ok", null] }),
-                "the loot gate beside the tile [before; in the forged write's window: the forged id on the sheet, the gate, the id on a tile leaveBody laid]");
+            equal(stableJson(read), stableJson({ before: "ok", during: [true, "ok", null, null] }),
+                "the loot gate beside the tile [before; in the forged write's window: the forged id on the sheet, the gate, the id on a tile leaveBody laid "
+                + "reading the record itself, and handed the GMs' record as markDeceased hands its own]");
         });
     }],
 
-    ["a Monocub leaves their body where their token stood (E95 C2; DC6, Q3): `setMonocub` lays one tile of the body at the token's corner, its size in pixels, its picture and floor, flagged with the death; made again it lays none, unticked it keeps the tile, ticked again it lays no second; an execution leaves none, and a student with no token on a scene with rooms leaves none and the GM is told", async () => {
+    ["every death leaves its body where its token lies (E63 C0; the owner's 11.11.2026 on E95 Q2, Q3; QUESTIONS E63 Q5, Q7): a public death (chapter.mjs `killCharacter`) lays one tile at the token's corner, its size in pixels, its picture and floor, flagged with the death; a second `markDeceased` of the same death lays none; the Players window's \"dead\" lays one; an execution lays one; a student with no token on a scene with rooms leaves none and the GM is told, except for a death in the Class Trial", async () => {
         /*
-         * E95 C2, 10.11.2026; DC6 ("Ciało zostaje na miejscu śmierci jako kafel"), QUESTIONS Q2 (a), Q3 (a), Q8. On this
-         * GM: a student with a token on the scene on screen, killed in public (chapter.mjs `killCharacter`), made a
-         * Monocub (monocub.mjs `setMonocub`). Read: the student's body tiles (body-tile.mjs `bodyTilesOf`) - their
-         * count, and the one's scene, corner, size against the token's squares on the scene's grid, picture, hidden and
-         * flag (the death's `deathId`, the token's floor); after `setMonocub` again, unticked, and ticked once more, the
-         * count. Then the same student killed by an execution (`cause: "executed"`, `phase: "classTrial"`) and made a
-         * Monocub: no tile. Then a student made by the suite with no token anywhere: no tile, and one warning naming
-         * them. Red at E95 C1: `setMonocub` laid no tile. The tiles this test laid are deleted after, by their flag, and
-         * the student's resources and Monocub flag put back (a Monocub starts clean: E15 C4).
+         * E63 C0, 11.11.2026; STAGE E63 items 1, 2 and 4. On this GM: a student with a token on the scene on screen,
+         * killed in public; their body tiles (body-tile.mjs `bodyTilesOf`) read - the count, and the one's scene, corner,
+         * size against the token's squares on the scene's grid, picture, hidden, the death's `deathId`, the token's floor
+         * and the room the body is read in; then chapter.mjs `markDeceased` again with the record it wrote (the count);
+         * revived, and made dead through gm-students.mjs `applyAliveStates` (the Players window's "dead", the F16 repair:
+         * Q7); revived, and executed (`cause: "executed"`, phase classTrial). Then two students made by the suite with no
+         * token anywhere, one killed in Daily Life's phase as the clock has it and one in the trial's: the tiles, and the
+         * GM's warnings naming each. Red at 7b5b4da9: no death laid a tile (the Monocub's tick did). Put back: the
+         * student revived (which removes their tiles), the suite's two deleted.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student with a token on the scene on screen, whose body is laid");
+        const B = await import("./body-tile.mjs");
+        const C = await import("./chapter.mjs");
+        const { applyAliveStates } = await import("./gm-students.mjs");
+        const { levelOf } = await import("./rooms.mjs");
+        const { deathRecord } = await import("./settings.mjs");
+        const Mv = await import("./movement.mjs");
+        const scene = canvas.scene;
+        const who = C.livingStudents().find(a => scene?.tokens?.some(t => t.actorId === a.id));
+        const token = scene?.tokens?.find(t => t.actorId === who?.id);
+        must(who && token, "no living student with a token on the scene on screen - this would measure nothing");
+        const grid = scene.grid?.size ?? 100;
+        const count = id => B.bodyTilesOf(id).length;
+        const warned = [], warn = ui.notifications.warn;
+        const made = [];
+        const read = {};
+        try {
+            must(await C.killCharacter(who, { secret: false, keepBullets: true }), `${who.name}'s death could not be published - this would measure nothing`);
+            await settle();
+            const deathId = deathRecord(who)?.deathId ?? null;
+            const laid = B.bodyTilesOf(who.id), one = laid[0];
+            read.killed = one ? [laid.length, one.scene.id === scene.id, one.doc.x === token.x, one.doc.y === token.y,
+                one.doc.width === token.width * grid, one.doc.height === token.height * grid, one.doc.texture?.src === (token.texture?.src ?? null),
+                Boolean(one.doc.hidden), Boolean(deathId) && one.mark.deathId === deathId, one.mark.level === (levelOf(token)?.id ?? levelOf(token) ?? null),
+                B.bodyRoomOf(who) === Mv.roomOfToken(token)] : [laid.length];
+            await C.markDeceased(who, { record: deathRecord(who) });
+            await settle();
+            read.again = count(who.id);
+            await C.reviveCharacter(who, { quiet: true });
+            await settle();
+            read.revived = count(who.id);
+            must(await applyAliveStates({ [who.id]: { state: "dead" } }), `${who.name}'s death from the Players window was not recorded - this would measure nothing`);
+            await settle();
+            read.window = [count(who.id), C.isDeceased(who)];
+            await C.reviveCharacter(who, { quiet: true });
+            await settle();
+            must(await C.killCharacter(who, { secret: false, keepBullets: true, cause: "executed", phase: "classTrial" }),
+                `${who.name}'s execution could not be published - this would measure nothing`);
+            await settle();
+            read.executed = [count(who.id), deathRecord(who)?.cause ?? null];
+            await C.reviveCharacter(who, { quiet: true });
+            await settle();
+            ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return warn.call(ui.notifications, message, ...rest); };
+            for (const phase of [null, "classTrial"]) {
+                const nobody = await Actor.create({ name: `SUITE E63 C0 no token ${phase ?? "now"}`, type: "character" });
+                made.push(nobody);
+                must(await C.killCharacter(nobody, { secret: false, keepBullets: true, ...(phase ? { phase } : {}) }),
+                    `the suite's student with no token could not be killed (${phase ?? "now"}) - this would measure nothing`);
+                await settle();
+            }
+            ui.notifications.warn = warn;
+            const told = made.map(a => warned.filter(w => w === game.i18n.format("DRPG.Body.noToken", { name: a.name })).length);
+            read.noToken = [made.map(a => count(a.id)), told, game.i18n.format("DRPG.Body.noToken", { name: "x" }) !== "DRPG.Body.noToken"];
+        } finally {
+            ui.notifications.warn = warn;
+            if (C.isDeadForGm(who)) await C.reviveCharacter(who, { quiet: true });
+            for (const a of made) { await B.removeBodyTiles(a.id); await a.delete(); }
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            killed: [1, true, true, true, true, true, true, false, true, true, true],
+            again: 1, revived: 0, window: [1, true], executed: [1, "executed"], noToken: [[0, 0], [1, 0], true]
+        }), "the body tiles a death leaves [killed: count, on the token's scene, at its x, y, its width and height in pixels, its picture, hidden, "
+            + "the death's id, the token's floor, its room the token's; again: count after a second markDeceased; revived: count; window: count, deceased; "
+            + "executed: count, cause; noToken: [counts, warnings naming each] for a death now and in the trial, the words a key's]");
+    }],
+
+    ["a kept death leaves no body until it is the table's (E63 C0; QUESTIONS E63 Q1): a death the GMs keep lays no tile on any scene; its token moved to another room as Stage 6's Move the body would, its publication (chapter.mjs `publishDeath`) lays one at the token's new place", async () => {
+        /*
+         * E63 C0, 11.11.2026; STAGE E63 item 3. On this GM: a student with a token on the scene on screen killed with the
+         * death kept (`secret: true`: chapter.mjs `recordSecretDeath`, a deathStore row); the body tiles of that student
+         * on every scene this GM holds (a player's browser holds no more: the harness sends every tile to every client);
+         * the token moved into another room by the GM, with the death still kept (cleanup.mjs `applyMoveBody` teleports the
+         * same way); then `publishDeath`: the tiles, and whether the one lies at the token's new corner and in its new
+         * room. Red at 7b5b4da9: no tile after the publication. Put back: the student revived (their tiles with it), the
+         * token where it stood.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student with a token on the scene on screen, whose body is laid");
+        needs(world.atLeast("namedRooms", 2), "a room for the token and another to move the body into");
+        const B = await import("./body-tile.mjs");
+        const C = await import("./chapter.mjs");
+        const Mv = await import("./movement.mjs");
+        const { deathStore } = await import("./gm-stores.mjs");
+        const scene = canvas.scene, PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const who = C.livingStudents().find(a => scene?.tokens?.some(t => t.actorId === a.id));
+        const token = scene?.tokens?.find(t => t.actorId === who?.id);
+        must(who && token, "no living student with a token on the scene on screen - this would measure nothing");
+        const was = { x: token.x, y: token.y };
+        const other = Mv.allRooms(scene).find(r => r !== Mv.roomOfToken(token));
+        must(other, "the scene on screen has one room - the body has nowhere to be moved to");
+        const read = {};
+        try {
+            must(await C.killCharacter(who, { secret: true, keepBullets: true }), `${who.name}'s kept death could not be recorded - this would measure nothing`);
+            await settle();
+            must(deathStore.has(who.id) && !C.isDeceased(who), `${who.name}'s death was not kept - this would measure nothing`);
+            read.kept = B.bodyTilesOf(who.id).length;
+            await token.update(Mv.positionIn(other, token), PLACE);
+            await settle();
+            must(Mv.roomOfToken(token) === other, `${who.name}'s token could not be moved into ${other} - this would measure nothing`);
+            read.moved = B.bodyTilesOf(who.id).length;
+            must(await C.publishDeath(who), `${who.name}'s death could not be made the table's - this would measure nothing`);
+            await settle();
+            const laid = B.bodyTilesOf(who.id);
+            read.published = [laid.length, laid[0]?.doc.x === token.x && laid[0]?.doc.y === token.y, B.bodyRoomOf(who) === other];
+        } finally {
+            if (C.isDeadForGm(who)) await C.reviveCharacter(who, { quiet: true });
+            await token.update(was, PLACE);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ kept: 0, moved: 0, published: [1, true, true] }),
+            "the student's body tiles [kept; kept with the token moved; published: count, at the token's new corner, in its new room]");
+    }],
+
+    ["becoming a Monocub lays no body (E63 C0; the owner's 11.11.2026 on E95 Q3: \"Nie gdy zostaje Monocubem\"): `setMonocub` on a death whose tile is gone lays none; with the death's tile, the tile stays through tick, untick and tick, one tile", async () => {
+        /*
+         * E63 C0, 11.11.2026; STAGE E63 item 5 (and RV-2 closed with it: a tile the GM deleted stays deleted). On this GM:
+         * a student with a token on the scene on screen killed in public (their death lays the tile), the tile deleted
+         * as a GM would, and monocub.mjs `setMonocub` ticked and unticked: the count. Killed again after a revive, the
+         * new death's tile there: ticked, unticked, ticked - the count each time. Red at 7b5b4da9: the tick laid a tile
+         * where the GM had deleted one, and the kill laid none. Put back: the Monocub flag and the resources a Monocub
+         * starts with (E15 C4), the student revived (their tiles with it).
          */
         needs(world.atLeast("studentTokensOnScreen", 1), "a student with a token on the scene on screen, whose body is laid");
         const M = await import("./monocub.mjs");
         const B = await import("./body-tile.mjs");
-        const { killCharacter, reviveCharacter, livingStudents, isDeadForGm } = await import("./chapter.mjs");
-        const { levelOf } = await import("./rooms.mjs");
-        const { deathRecord } = await import("./settings.mjs");
+        const C = await import("./chapter.mjs");
         const scene = canvas.scene;
-        const who = livingStudents().find(a => scene?.tokens?.some(t => t.actorId === a.id));
-        const token = scene?.tokens?.find(t => t.actorId === who?.id);
-        must(who && token, "no living student with a token on the scene on screen - this would measure nothing");
+        const who = C.livingStudents().find(a => scene?.tokens?.some(t => t.actorId === a.id));
+        must(who, "no living student with a token on the scene on screen - this would measure nothing");
         const R = "system.resources", keys = ["hope", "hitPoints", "stress"];
         const was = Object.fromEntries(keys.map(k => [k, foundry.utils.deepClone(foundry.utils.getProperty(who._source, `${R}.${k}`) ?? null)]));
         const monoWas = who._source.flags?.[MODULE_ID]?.[FLAGS.monocub];
-        const grid = scene.grid?.size ?? 100;
-        const mine = id => B.bodyTilesOf(id);
-        const sweep = async () => {
-            for (const s of game.scenes) {
-                const ids = s.tiles.filter(t => t.getFlag(MODULE_ID, FLAGS.bodyOf)?.actorId && [who.id, nobody?.id].includes(t.getFlag(MODULE_ID, FLAGS.bodyOf).actorId)).map(t => t.id);
-                if (ids.length) await s.deleteEmbeddedDocuments("Tile", ids);
-            }
-        };
-        const warned = [], warn = ui.notifications.warn;
-        let nobody = null;
+        const count = () => B.bodyTilesOf(who.id).length;
         const read = {};
         try {
-            must(await killCharacter(who, { secret: false, keepBullets: true }), `${who.name}'s death could not be published - this would measure nothing`);
+            must(await C.killCharacter(who, { secret: false, keepBullets: true }), `${who.name}'s death could not be published - this would measure nothing`);
             await settle();
-            const deathId = deathRecord(who)?.deathId ?? null;
+            for (const { doc } of B.bodyTilesOf(who.id)) await doc.delete();
+            await settle();
             await M.setMonocub(who, true, { quiet: true });
             await settle();
-            const laid = mine(who.id);
-            const one = laid[0];
-            read.laid = one ? [laid.length, one.scene.id === scene.id, one.doc.x === token.x, one.doc.y === token.y,
-                one.doc.width === token.width * grid, one.doc.height === token.height * grid, one.doc.texture?.src === (token.texture?.src ?? null),
-                Boolean(one.doc.hidden), one.mark.deathId === deathId, one.mark.level === (levelOf(token)?.id ?? levelOf(token) ?? null),
-                B.bodyRoomOf(who) === (await import("./movement.mjs")).roomOfToken(token)] : [laid.length];
-            await M.setMonocub(who, true, { quiet: true });
-            await settle();
-            read.again = mine(who.id).length;
+            read.deleted = [count(), M.isMonocub(who)];
             await M.setMonocub(who, false, { quiet: true });
+            await C.reviveCharacter(who, { quiet: true });
             await settle();
-            read.unticked = [mine(who.id).length, M.isMonocub(who)];
-            await M.setMonocub(who, true, { quiet: true });
+            must(await C.killCharacter(who, { secret: false, keepBullets: true }), `${who.name}'s second death could not be published - this would measure nothing`);
             await settle();
-            read.tickedAgain = mine(who.id).length;
-            await M.setMonocub(who, false, { quiet: true });
-            await reviveCharacter(who, { quiet: true });
-            await sweep();
-            await settle();
-            must(!mine(who.id).length && !isDeadForGm(who), `${who.name} could not be stood alive with no body tile again - the execution would measure nothing`);
-            must(await killCharacter(who, { secret: false, keepBullets: true, cause: "executed", phase: "classTrial" }),
-                `${who.name}'s execution could not be published - this would measure nothing`);
-            await settle();
-            await M.setMonocub(who, true, { quiet: true });
-            await settle();
-            read.executed = [mine(who.id).length, M.isMonocub(who)];
-            await M.setMonocub(who, false, { quiet: true });
-            await reviveCharacter(who, { quiet: true });
-            await settle();
-            nobody = await Actor.create({ name: "SUITE E95 C2 no token", type: "character" });
-            must(await killCharacter(nobody, { secret: false, keepBullets: true }), "the suite's student with no token could not be killed - this would measure nothing");
-            await settle();
-            ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return warn.call(ui.notifications, message, ...rest); };
-            await M.setMonocub(nobody, true, { quiet: true });
-            await settle();
-            ui.notifications.warn = warn;
-            const told = game.i18n.format("DRPG.Body.noToken", { name: nobody.name });
-            read.noToken = [mine(nobody.id).length, M.isMonocub(nobody), warned.filter(w => w === told).length, told !== "DRPG.Body.noToken"];
+            read.dead = count();
+            const steps = [];
+            for (const value of [true, false, true]) {
+                await M.setMonocub(who, value, { quiet: true });
+                await settle();
+                steps.push(count());
+            }
+            read.ticks = steps;
         } finally {
-            ui.notifications.warn = warn;
             if (M.isMonocub(who)) await M.setMonocub(who, false, { quiet: true });
-            if (isDeadForGm(who)) await reviveCharacter(who, { quiet: true });
-            await sweep();
-            if (nobody) await nobody.delete();
+            if (C.isDeadForGm(who)) await C.reviveCharacter(who, { quiet: true });
             if (monoWas === undefined) await who.unsetFlag(MODULE_ID, FLAGS.monocub);
             else await who.setFlag(MODULE_ID, FLAGS.monocub, monoWas);
             await who.update(Object.fromEntries(keys.filter(k => was[k] !== null).map(k => [`${R}.${k}`, was[k]])));
             await settle();
         }
+        equal(stableJson(read), stableJson({ deleted: [0, true], dead: 1, ticks: [1, 1, 1] }),
+            "the student's body tiles [the death's tile deleted, then made a Monocub: count, a Monocub; dead again: count; ticked, unticked, ticked: counts]");
+    }],
+
+    ["the Class Trial's end takes every body off the map (E63 C2; the owner's 11.11.2026 on E95 Q2 and Q8; QUESTIONS E63 Q2): with a murdered student's tile, a Monocub's tile, a plain tile and a sentence of a third student, the phase moved out of the trial (clock.mjs `setClock`, the write End the trial and Edit campaign make) takes every body tile - the executed's laid by the sentence and taken in the same write - and keeps the plain one; a sentence retried in Daily Life takes the executed's tile alone, and a body of the new death stays", async () => {
+        /*
+         * E63 C2, 11.11.2026; STAGE E63 item 7. On the primary GM, three living students with tokens on the scene on screen:
+         * A killed in public, B killed and made a Monocub (their deaths lay the tiles, E63 C0), a tile with no body flag,
+         * the clock moved into the trial by its raw setting and a correct verdict sentencing C (vote.mjs `applyVerdict`);
+         * then `setClock({ phase: "dailyLife" })`, which runs `reconcilePhase` out of the trial (`endFloor`, the voices, the
+         * sentence, the bodies). Read: each student's body tiles, the plain tile, C dead of the execution, and C's tile
+         * created and deleted (the createTile and deleteTile hooks). Then, revived, a sentence of C that failed (the record
+         * `execution.failed` holding C), A killed again, and the phase moved within Daily Life's side
+         * (`setClock({ phase: "investigation" })`, the retry branch): A's tile kept, C dead and C's tile laid and gone. The
+         * fence tests.mjs holds the table's tiles with is not in the way: these tiles were laid inside tier 2. Red at C1:
+         * every tile kept. Put back: the clock, the queue and the trial's record, the students revived, B's Monocub flag
+         * and resources, the plain tile.
+         */
+        needs(env.primaryGm(), "the sentence and the reconcile run on the primary GM");
+        needs(world.atLeast("studentTokensOnScreen", 3), "three students with tokens on the scene on screen: the murdered, the Monocub, the sentenced");
+        const B = await import("./body-tile.mjs");
+        const V = await import("./vote.mjs");
+        const C = await import("./chapter.mjs");
+        const M = await import("./monocub.mjs");
+        const { deathRecord } = await import("./settings.mjs");
+        const { deferredOfferStore, offerStore } = await import("./gm-stores.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const scene = canvas.scene;
+        const [a, b, c] = C.livingStudents().filter(x => scene?.tokens?.some(t => t.actorId === x.id));
+        must(a && b && c, "no three living students with tokens on the scene on screen - this would measure nothing");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const progress = foundry.utils.deepClone(getSetting(SETTINGS.trialProgress) ?? {});
+        const R = "system.resources", keys = ["hope", "hitPoints", "stress"];
+        const res = Object.fromEntries(keys.map(k => [k, foundry.utils.deepClone(foundry.utils.getProperty(b._source, `${R}.${k}`) ?? null)]));
+        const monoWas = b._source.flags?.[MODULE_ID]?.[FLAGS.monocub];
+        const rawClock = patch => game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), ...patch });
+        const count = x => B.bodyTilesOf(x.id).length;
+        const ofC = { created: 0, deleted: 0 };
+        const isC = tile => tile?.getFlag?.(MODULE_ID, FLAGS.bodyOf)?.actorId === c.id;
+        const onCreate = Hooks.on("createTile", tile => { if (isC(tile)) ofC.created++; });
+        const onDelete = Hooks.on("deleteTile", tile => { if (isC(tile)) ofC.deleted++; });
+        let plain = null;
+        const read = {};
+        try {
+            const chapter = clock.chapter;
+            for (const x of [a, b]) must(await C.killCharacter(x, { secret: false, keepBullets: true }), `${x.name}'s death could not be published - this would measure nothing`);
+            await M.setMonocub(b, true, { quiet: true });
+            [plain] = await scene.createEmbeddedDocuments("Tile", [{ x: 0, y: 0, width: 100, height: 100, texture: { src: null } }]);
+            await settle();
+            must(count(a) === 1 && count(b) === 1 && plain, "the murdered's, the Monocub's or the plain tile is not there - this would measure nothing");
+            await rawClock({ phase: "classTrial" });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter, verdictApplied: false, verdict: null, executedAt: null, execution: null });
+            await withAdvanceWindows(() => null, () => V.applyVerdict({ correct: true, executedIds: [c.id], blackenedIds: [c.id] }));
+            await settle();
+            must(!C.isDeadForGm(c), `${c.name} died at the verdict, not at the trial's end - this would measure nothing`);
+            await setClock({ phase: "dailyLife" });
+            await settle();
+            read.ended = [count(a), count(b), count(c), scene.tiles.has(plain.id), C.isDeceased(c), deathRecord(c)?.cause ?? null, ofC.created, ofC.deleted];
+            await M.setMonocub(b, false, { quiet: true });
+            for (const x of [a, b, c]) if (C.isDeadForGm(x)) await C.reviveCharacter(x, { quiet: true });
+            await settle();
+            ofC.created = 0; ofC.deleted = 0;
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(chapter), chapter, verdictApplied: true,
+                verdict: { stage: "done", correct: true, executedIds: [c.id], sentenced: [c.id], by: game.user.id, at: Date.now(), done: ["sentence", "card"], failed: [] },
+                executedAt: null, execution: { done: [], failed: [c.id] } });
+            must(await C.killCharacter(a, { secret: false, keepBullets: true }), `${a.name}'s second death could not be published - this would measure nothing`);
+            await settle();
+            await setClock({ phase: "investigation" });
+            await settle();
+            read.retried = [count(a), count(c), C.isDeceased(c), ofC.created, ofC.deleted];
+        } finally {
+            Hooks.off("createTile", onCreate);
+            Hooks.off("deleteTile", onDelete);
+            if (M.isMonocub(b)) await M.setMonocub(b, false, { quiet: true });
+            for (const x of [a, b, c]) if (C.isDeadForGm(x)) await C.reviveCharacter(x, { quiet: true });
+            if (monoWas === undefined) await b.unsetFlag(MODULE_ID, FLAGS.monocub);
+            else await b.setFlag(MODULE_ID, FLAGS.monocub, monoWas);
+            await b.update(Object.fromEntries(keys.filter(k => res[k] !== null).map(k => [`${R}.${k}`, res[k]])));
+            if (plain && scene.tiles.has(plain.id)) await plain.delete();
+            for (const x of studentActors()) {
+                if (offerStore.has(x.id)) await offerStore.drop(x.id);
+                if (deferredOfferStore.has(x.id)) await deferredOfferStore.drop(x.id);
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, progress);
+            await gmStoresIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ ended: [0, 0, 0, true, true, "executed", 1, 1], retried: [1, 0, true, 1, 1] }),
+            "the bodies [ended: A's, B's, C's tiles, the plain tile kept, C dead, of what, C's tile created, deleted; retried: A's, C's tiles, C dead, C's tile created, deleted]");
+    }],
+
+    ["a suite's trial end leaves the table's bodies (E63 C2; the lesson of E95 fix RV-1): tier 2 holds every body tile the world held before it (body-tile.mjs `holdBodyTiles`), and a trial ended inside tier 2 takes the test's own body tiles and leaves a held one", async () => {
+        /*
+         * E63 C2, 11.11.2026; STAGE E63 item 7's fence. tests.mjs hands `holdBodyTiles` the body tiles the world holds
+         * before tier 2. Here: whether a fence is up (`heldBodyTiles`), a stand-in for the table's body (a body tile of a
+         * student who is not in the world) laid and added to the fence as tests.mjs would have, a student killed in public
+         * (the test's own tile), the clock moved into the trial by its raw setting and out of it by `setClock`. Read: the
+         * stand-in, the student's tiles; and the fence after (the test's own set put back as it found it). Red at C1:
+         * there was no fence, and the trial's end took no tile at all.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student with a token on the scene on screen, whose body is the test's own");
+        const B = await import("./body-tile.mjs");
+        const C = await import("./chapter.mjs");
+        const { levelOf } = await import("./rooms.mjs");
+        const scene = canvas.scene;
+        const who = C.livingStudents().find(x => scene?.tokens?.some(t => t.actorId === x.id));
+        const token = scene?.tokens?.find(t => t.actorId === who?.id);
+        must(who && token, "no living student with a token on the scene on screen - this would measure nothing");
+        const clock = foundry.utils.deepClone(getClock());
+        const fence = typeof B.heldBodyTiles === "function" ? B.heldBodyTiles() : null;
+        let standIn = null;
+        const read = { fenced: Array.isArray(fence) };
+        try {
+            [standIn] = await scene.createEmbeddedDocuments("Tile", [B.bodyTileSpec({ tokenDoc: token, actorId: "SUITEE63C2TABLE0", record: null, level: levelOf(token), at: Date.now() })]);
+            must(standIn, "the stand-in for the table's body could not be laid - this would measure nothing");
+            if (typeof B.holdBodyTiles === "function") B.holdBodyTiles([...(fence ?? []), standIn.id]);
+            must(await C.killCharacter(who, { secret: false, keepBullets: true }), `${who.name}'s death could not be published - this would measure nothing`);
+            await settle();
+            const own = B.bodyTilesOf(who.id).length;
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...getClock(), phase: "classTrial" });
+            await setClock({ phase: "dailyLife" });
+            await settle();
+            read.ended = [own, B.bodyTilesOf(who.id).length, scene.tiles.has(standIn.id)];
+        } finally {
+            if (typeof B.holdBodyTiles === "function") B.holdBodyTiles(fence);
+            if (C.isDeadForGm(who)) await C.reviveCharacter(who, { quiet: true });
+            if (standIn && scene.tiles.has(standIn.id)) await standIn.delete();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await settle();
+        }
+        read.after = typeof B.heldBodyTiles === "function" ? stableJson(B.heldBodyTiles()) === stableJson(fence) : null;
+        equal(stableJson(read), stableJson({ fenced: true, ended: [1, 0, true], after: true }),
+            "{fenced: tier 2 holds a fence; ended: [the student's tiles before, after the trial's end, the table's stand-in still there]; after: the fence as found}");
+    }],
+
+    ["a 1.2.104 world gets the open case's bodies once (E63 C3; QUESTIONS E63 Q6): the clause `openCaseBodies` lays one tile at the token of each student dead and public, not a Monocub, of the open case with no tile of the death; run again it lays none; a world stamped 1.2.105 skips it; a 1.2.104 Monocub's tile is kept; `migrationStatus` names it", async () => {
+        /*
+         * E63 C3, 11.11.2026; STAGE E63 item 8. On the primary GM, two living students with tokens on the scene on screen,
+         * each made dead in public as 1.2.104 left them: their `deceased` flag and the dead status written by hand
+         * (chapter.mjs `markDeceased` would lay the tile now), with the clock's chapter and epoch; the second also a
+         * Monocub, with a 1.2.104 tile laid by the suite at their token (body-tile.mjs `bodyTileSpec`). Then migrate.mjs
+         * `layOpenCaseBodies` (the clause's pass): the report and each one's tiles; again: the report; then the stamp
+         * set to 1.2.105 and `migrate1_2_0({ only: ["openCaseBodies"] })`: whether it skipped it, and the tiles. Red at
+         * 2e0f8331: no clause and no pass. Put back: the stamp, the students revived (their tiles with it), the Monocub flag.
+         */
+        needs(env.primaryGm(), "the clause runs on the primary GM");
+        needs(world.atLeast("studentTokensOnScreen", 2), "two students with tokens on the scene on screen, whose bodies are laid");
+        const Mi = await import("./migrate.mjs");
+        const B = await import("./body-tile.mjs");
+        const C = await import("./chapter.mjs");
+        const { levelOf } = await import("./rooms.mjs");
+        const scene = canvas.scene;
+        const [a, b] = C.livingStudents().filter(x => scene?.tokens?.some(t => t.actorId === x.id));
+        must(a && b, "no two living students with tokens on the scene on screen - this would measure nothing");
+        const tokenOf = x => scene.tokens.find(t => t.actorId === x.id);
+        const stamp = getSetting(SETTINGS.migratedVersion);
+        const monoWas = b._source.flags?.[MODULE_ID]?.[FLAGS.monocub];
+        const clock = getClock(), trial = getSetting(SETTINGS.trialProgress) ?? {};
+        // As chapter.mjs `verdictBefore` writes it: the chapter's last verdict, or null.
+        const death = () => ({ chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay, phase: clock.phase, epoch: seasonEpoch(),
+            deathId: foundry.utils.randomID(), sinceVerdict: trial?.chapter === clock.chapter ? (trial.lastVerdictAt ?? null) : null });
+        const at = x => B.bodyTilesOf(x.id).map(({ doc }) => doc.x === tokenOf(x).x && doc.y === tokenOf(x).y);
+        const read = {};
+        try {
+            for (const x of [a, b]) {
+                await x.setFlag(MODULE_ID, FLAGS.deceased, death());
+                await x.toggleStatusEffect("dead", { active: true, overlay: true });
+            }
+            await b.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await scene.createEmbeddedDocuments("Tile", [B.bodyTileSpec({ tokenDoc: tokenOf(b), actorId: b.id, record: b.getFlag(MODULE_ID, FLAGS.deceased),
+                level: levelOf(tokenOf(b)), at: Date.now() })]);
+            await settle();
+            must(C.isDeceased(a) && C.isDeceased(b) && !at(a).length && at(b).length === 1, "the 1.2.104 world could not be stood up - this would measure nothing");
+            const first = typeof Mi.layOpenCaseBodies === "function" ? await Mi.layOpenCaseBodies() : "no pass";
+            await settle();
+            read.first = [first, at(a), at(b)];
+            read.again = typeof Mi.layOpenCaseBodies === "function" ? await Mi.layOpenCaseBodies() : "no pass";
+            await game.settings.set(MODULE_ID, SETTINGS.migratedVersion, "1.2.105");
+            const report = await Mi.migrate1_2_0({ only: ["openCaseBodies"], quiet: true });
+            await settle();
+            /* "Skipped" is either answer migrate1_2_0 gives a world stamped 1.2.105: with the module past it, a report that
+               lists the clause as skipped; with the module at 1.2.105 itself, no pass at all (`null`, "already at"). The
+               test was written with the module at 1.2.104 and read only the first, so the release commit's bump turned it
+               red (CI on ca2b5cc9, suite 6/8: stamped [null, 1, 1]); the tiles left as they were hold the rest. */
+            read.stamped = [report === null || (report?.skipped?.includes("openCaseBodies") ?? false), at(a).length, at(b).length];
+            read.status = Mi.migrationStatus().clauses.some(c => c.key === "openCaseBodies" && c.since === "1.2.105");
+        } finally {
+            for (const x of [a, b]) if (C.isDeadForGm(x)) await C.reviveCharacter(x, { quiet: true });
+            if (monoWas === undefined) await b.unsetFlag(MODULE_ID, FLAGS.monocub);
+            else await b.setFlag(MODULE_ID, FLAGS.monocub, monoWas);
+            await game.settings.set(MODULE_ID, SETTINGS.migratedVersion, stamp);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ first: [{ laid: [a.name], none: [] }, [true], [true]], again: null, stamped: [true, 1, 1], status: true }),
+            "{first: [the pass's report, A's tiles at the token, the Monocub's]; again: the report; stamped: [1.2.105 skipped it, A's, the Monocub's tiles]; status: migrationStatus names it}");
+    }],
+
+    ["the body follows its corpse token, not its Monocub (E63 C1; QUESTIONS E63 Q3): a GM's drag of a dead student's token into another room takes their tile there and the body is read in that room; a teleport as Stage 6's Move the body makes takes it back; a move another user wrote moves nothing on this browser; made a Monocub, their token walks and the tile stays", async () => {
+        /*
+         * E63 C1, 11.11.2026; STAGE E63 item 6. On this GM: a student with a token on the scene on screen killed in public
+         * (the death lays the tile at the token, E63 C0). Read each time: whether the tile's corner is the token's, and the
+         * body's room (body-tile.mjs `bodyRoomOf`, which the loot gate reads) against the token's - after the GM's plain
+         * update of the token into another room (a drag); after the token's teleport back (the options cleanup.mjs
+         * `applyMoveBody`'s `teleportTokens` writes with; the harness's regions hold no teleport of their own, so Stage 6
+         * itself is LIVE-E63-04's); after body-tile.mjs `followBody` handed the move as another user's (that user's
+         * browser writes it, not this one); and after the student is made a Monocub and their token moved again. Red at
+         * C0: the tile stayed where the death laid it. Put back: the Monocub flag and the resources a Monocub starts
+         * with, the student revived (their tiles with it), the token where it stood.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student with a token on the scene on screen, whose body is laid");
+        needs(world.atLeast("namedRooms", 2), "a room for the token and another to drag the body into");
+        const B = await import("./body-tile.mjs");
+        const C = await import("./chapter.mjs");
+        const M = await import("./monocub.mjs");
+        const Mv = await import("./movement.mjs");
+        const scene = canvas.scene, PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const who = C.livingStudents().find(a => scene?.tokens?.some(t => t.actorId === a.id));
+        const token = scene?.tokens?.find(t => t.actorId === who?.id);
+        must(who && token, "no living student with a token on the scene on screen - this would measure nothing");
+        const was = { x: token.x, y: token.y };
+        const home = Mv.roomOfToken(token);
+        const other = Mv.allRooms(scene).find(r => r !== home);
+        must(home && other, "the student's token stands in no room, or the scene has one - the body has nowhere to be dragged");
+        const R = "system.resources", keys = ["hope", "hitPoints", "stress"];
+        const res = Object.fromEntries(keys.map(k => [k, foundry.utils.deepClone(foundry.utils.getProperty(who._source, `${R}.${k}`) ?? null)]));
+        const monoWas = who._source.flags?.[MODULE_ID]?.[FLAGS.monocub];
+        const someoneElse = game.users.find(u => u.id !== game.user.id) ?? null;
+        const where = () => { const t = B.bodyTileOf(who)?.doc; return [t ? t.x === token.x && t.y === token.y : null, B.bodyRoomOf(who), B.bodyTilesOf(who.id).length]; };
+        const read = {};
+        try {
+            must(await C.killCharacter(who, { secret: false, keepBullets: true }), `${who.name}'s death could not be published - this would measure nothing`);
+            await settle();
+            read.dead = where();
+            await token.update(Mv.positionIn(other, token));
+            await settle();
+            must(Mv.roomOfToken(token) === other, `${who.name}'s body could not be dragged into ${other} - this would measure nothing`);
+            read.dragged = where();
+            await token.update(Mv.positionIn(home, token), PLACE);
+            await settle();
+            read.teleported = where();
+            read.anotherUser = typeof B.followBody !== "function" ? "no followBody" : someoneElse ? await B.followBody(token, { x: token.x + 1 }, {}, someoneElse.id) : "no other user";
+            await M.setMonocub(who, true, { quiet: true });
+            await settle();
+            await token.update(Mv.positionIn(other, token), PLACE);
+            await settle();
+            read.monocub = [...where(), Mv.roomOfToken(token)];
+        } finally {
+            if (M.isMonocub(who)) await M.setMonocub(who, false, { quiet: true });
+            if (C.isDeadForGm(who)) await C.reviveCharacter(who, { quiet: true });
+            if (monoWas === undefined) await who.unsetFlag(MODULE_ID, FLAGS.monocub);
+            else await who.setFlag(MODULE_ID, FLAGS.monocub, monoWas);
+            await who.update(Object.fromEntries(keys.filter(k => res[k] !== null).map(k => [`${R}.${k}`, res[k]])));
+            await token.update(was, PLACE);
+            await settle();
+        }
         equal(stableJson(read), stableJson({
-            laid: [1, true, true, true, true, true, true, false, true, true, true],
-            again: 1, unticked: [1, false], tickedAgain: 1, executed: [0, true], noToken: [0, true, 1, true]
-        }), "the body tiles a Monocub leaves [made: count, on the token's scene, at its x, y, its width and height in pixels, its picture, hidden, "
-            + "the death's id, the token's floor, its room the token's; made again; unticked: count, a Monocub; ticked again; an execution: count, "
-            + "a Monocub; no token: count, a Monocub, the GM told once, the words a key's]");
+            dead: [true, home, 1], dragged: [true, other, 1], teleported: [true, home, 1], anotherUser: null, monocub: [false, home, 1, other]
+        }), "the body [at the token's corner, its room, its tiles] when [killed; dragged by the GM; teleported back; a move another user wrote: followBody's write; "
+            + "a Monocub's token moved: and the token's room]");
     }],
 
     ["a body tile goes with the death (E95 C2; Q7 \"deaths\", Q8): a revive removes the student's body tiles, and the season reset's deaths group removes every body tile on every scene - an orphan's included - and no other tile", async () => {
@@ -86267,7 +86944,8 @@ const SCENARIOS = [
             tableBodies.push(`${scene.id}.${bystander.id}`);
             must(await C.killCharacter(who, { secret: false, keepBullets: true }), `${who.name}'s death could not be published - this would measure nothing`);
             await settle();
-            for (const tile of [await lay(who.id, deathRecord(who)), await lay(ORPHAN, null),
+            // E63 C0: the death lays its own tile now; the suite lays one only where it did not (body-tile.mjs `bodyTileOf`).
+            for (const tile of [B.bodyTileOf(who)?.doc ?? await lay(who.id, deathRecord(who)), await lay(ORPHAN, null),
                 (await scene.createEmbeddedDocuments("Tile", [{ x: token.x, y: token.y, width: 100, height: 100, texture: { src: null } }]))[0]]) made.add(tile?.id);
             await settle();
             must(made.size === 3 && !made.has(undefined) && B.bodyTilesOf(who.id).length === 1, "the three tiles could not be laid - this would measure nothing");
@@ -86277,7 +86955,7 @@ const SCENARIOS = [
             read.revived = [left(), C.isDeadForGm(who)];
             must(await C.killCharacter(who, { secret: false, keepBullets: true }), `${who.name}'s second death could not be published - this would measure nothing`);
             await settle();
-            const again = await lay(who.id, deathRecord(who));
+            const again = B.bodyTileOf(who)?.doc ?? await lay(who.id, deathRecord(who));
             made.add(again?.id);
             await settle();
             must(B.bodyTilesOf(who.id).length >= 1, "the second body tile could not be laid - this would measure nothing");
@@ -86874,6 +87552,461 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ drawn: true, calls: [[true, true], [true, true]], stays: 1, others: 0, windows: true }),
             "{drawn: the row's sheet button; calls: each press's [the actor's own sheet, forced]; stays: Students windows open after both; "
             + "others: renders asked of any other actor's sheet; windows: at most one rendered window of the actor's sheet}");
+    }],
+    ["Students shows each acting student's actions and Free Move (scripts/gm-students.mjs `aliveTableHtml`, gm-panel.mjs `studentsLeftHtml`; E49 A2; the owner's Q6: two columns of each row): sixteen students seeded with 0, 1 and 2 actions left and the free Move spent on every other one - each row's Actions reads actions.mjs's left / maximum and its Free Move the footprint's state, and the panel's line counts the ones with an action left", async () => {
+        /*
+         * E49 A2, 10.11.2026. The GM panel's table went for one line, and its two figures are columns of Students (Q6's
+         * default, the mockup's). Sixteen students made for the test (the plan's "16 seeded"), so the reading does not lean
+         * on the world's cast: student k has k % 3 actions left and, for an odd k, the free Move spent (the flag the
+         * crossing writes, set here by the GM). Read: each seeded row's two cells beside what actions.mjs answers for
+         * that actor, the set of readings (a column that drew one value for all sixteen would read one), and the panel's
+         * line built over the same sixteen. The actors are deleted in a finally. Red on b84d1170: no such columns.
+         */
+        needs(env.dialogs(), "the Students window is read drawn");
+        const ACT = await import("./actions.mjs");
+        const GP = await import("./gm-panel.mjs");
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-alive"));
+        must(of().length === 0, "a Students window stands open already");
+        const made = [];
+        let read = null;
+        try {
+            for (let k = 0; k < 16; k++) made.push(await Actor.create({ name: `SUITE E49 A2 student ${String(k + 1).padStart(2, "0")}`, type: "character" }));
+            must(made.length === 16 && made.every(Boolean), "the sixteen students were not made - this would measure nothing");
+            for (const [k, actor] of made.entries()) {
+                await ACT.setActions(actor, k % 3);
+                if (k % 2) await actor.setFlag(MODULE_ID, FLAGS.freeMoveUsed, true);
+            }
+            await settle();
+            const answer = Promise.resolve().then(() => GP.openWhoIsAliveDialog()).catch(err => err);
+            await until(() => made.every(a => of()[0]?.element?.querySelector(`tr[data-actor="${CSS.escape(a.id)}"]`)), 8000);
+            const root = of()[0]?.element ?? null;
+            must(root, "the Students window was not drawn - this would measure nothing");
+            const heads = [...root.querySelectorAll(".drpg-alive-live thead th")].map(th => th.textContent.trim());
+            const col = name => heads.indexOf(game.i18n.localize(name));
+            const cell = (a, at) => root.querySelector(`tr[data-actor="${CSS.escape(a.id)}"]`)?.children?.[at] ?? null;
+            const rows = made.map(a => [cell(a, col("DRPG.Actions.label"))?.textContent.trim() ?? null,
+                cell(a, col("DRPG.Panel.freeMove"))?.querySelector("[data-drpg-free-move]")?.dataset.drpgFreeMove ?? null]);
+            const box = document.createElement("div");
+            box.innerHTML = GP.studentsLeftHtml(made);
+            read = { rows, kinds: new Set(rows.map(r => r.join(" "))).size, line: [box.querySelector("[data-drpg-students-left]")?.dataset.drpgStudentsLeft ?? null,
+                box.querySelector('button[data-drpg-run="whoIsAlive"]') ? true : false] };
+            for (const a of of()) await a.close().catch(() => {});
+            await Promise.race([answer, wait(1000)]);
+        } finally {
+            for (const a of of()) await a.close().catch(() => {});
+            for (const a of made) await a?.delete?.().catch(() => {});
+            await settle();
+        }
+        const rows = made.map(a => [`${ACT.actionsLeft(a)} / ${ACT.actionsMax(a)}`, ACT.hasFreeMove(a) ? "yes" : "no"]);
+        equal(stableJson(read), stableJson({ rows, kinds: new Set(rows.map(r => r.join(" "))).size,
+            line: [String(made.filter(a => ACT.actionsLeft(a) > 0).length), true] }),
+        "{rows: each seeded student's [Actions cell, Free Move's state]; kinds: the distinct readings; line: [the panel's count over the sixteen, its door to Students]}");
+    }],
+    ["End the chapter from Edit campaign runs the chapter's end once after its confirm, and Cancel at the question writes nothing (scripts/gm-campaign.mjs `openClockDialog`, `endTheChapter`; E49 A2; the owner's 10.11 [12] and [16])", async () => {
+        /*
+         * E49 A2, 10.11.2026. End the chapter left the panel for the foot of Edit campaign: a warning box apart from the
+         * form, a destructive button, a question (Cancel the default), then the chapter's end. Edit campaign is drawn by
+         * DialogV2's own wait; the question is answered by a stand-in for every other window (no, then yes) and the
+         * chapter's end is the window's `roads.endChapter`, counting its runs, so nothing of a real end is written. A
+         * campaign name typed before the press shows the press does not apply the form. Red on b84d1170: no end part.
+         */
+        needs(env.dialogs(), "Edit campaign is answered drawn");
+        const GC = await import("./gm-campaign.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const realWait = D.wait;
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-clock"));
+        must(of().length === 0, "an Edit campaign window stands open already");
+        const asked = [], runs = [];
+        let answer = false;
+        const clockWas = stableJson(getClock());
+        const round = async yes => {
+            answer = yes;
+            const before = runs.length;
+            const done = Promise.resolve().then(() => GC.openClockDialog({ roads: { endChapter: async () => { runs.push(true); return "ended"; } } }))
+                .catch(err => `threw: ${err?.message}`);
+            await until(() => of()[0]?.element?.querySelector("[data-drpg-end-chapter]"), 6000);
+            const root = of()[0]?.element ?? null;
+            const button = root?.querySelector("[data-drpg-end-chapter]") ?? null;
+            const name = root?.querySelector('input[name="campaignName"]');
+            if (name) name.value = "SUITE E49 A2 never applied";
+            const at = { frame: button?.closest("[data-drpg-box]")?.dataset.drpgBox ?? null, fields: button?.closest("[data-drpg-box]")?.querySelectorAll("input, select, textarea").length ?? null, role: button?.dataset.drpgRole ?? null };
+            button?.click();
+            const got = await Promise.race([done, wait(6000).then(() => "timeout")]);
+            return { ...at, got, runs: runs.length - before, open: of().length, clock: stableJson(getClock()) === clockWas };
+        };
+        const read = {};
+        try {
+            D.wait = function (cfg) {
+                if ((cfg?.classes ?? []).includes("drpg-window-clock")) return realWait.call(this, cfg);
+                asked.push((cfg?.buttons ?? []).map(b => [b.action, b.default === true, /\bdrpg-role-destructive\b/.test(b.class ?? "")]));
+                return Promise.resolve(answer);
+            };
+            read.cancel = await round(false);
+            read.yes = await round(true);
+        } finally {
+            D.wait = realWait;
+            for (const a of of()) await a.close().catch(() => {});
+            await settle();
+        }
+        read.asked = asked;
+        const part = { frame: "warning", fields: 0, role: "destructive", open: 0, clock: true };
+        const question = [["cancel", true, false], ["yes", false, true]];
+        equal(stableJson(read), stableJson({ cancel: { ...part, got: null, runs: 0 }, yes: { ...part, got: "ended", runs: 1 }, asked: [question, question] }),
+            "{cancel, yes: the question answered no, then yes - [the button's box, the fields inside that box (none: it stands apart from the form), its role, what the window answered, the chapter's end runs, Edit campaign windows open after, the clock as before]; "
+            + "asked: each question's buttons [action, the default, destructive]}");
+    }],
+    ["E49-A8-T1 - Details opens without moving the window (E49 A8.2; LIVE-E49-A8-01)", async () => {
+        /*
+         * E49 A8.2, 11.11.2026. On a real Foundry (layout): Observe's and Search's windows, as their menus open them
+         * (`chooseVariant` with the action's briefing, two rows of the suite's own), Details shut and then open by the
+         * toggle's click: the window's outer rect and `position.height` equal (0.5 px), every line's rect inside the box
+         * horizontally, the box's `scrollWidth <= clientWidth`. In this client's theme; the local gate runs tier 2 in
+         * both. The setting is put back as this browser stored it. Headless it skips (no layout): LIVE-E49-A8-01 until the
+         * local gate runs it.
+         */
+        needs(env.layout(), "a window's size is read from the layout");
+        needs(env.dialogs(), "the windows are drawn and their toggle pressed");
+        needs(world.atLeast("livingStudents", 1), "a briefing is built for a living student");
+        const { ACTIONS } = await import("./config.mjs");
+        const { chooseVariant } = await import("./action-menus.mjs");
+        const { briefingBlock } = await import("./action-briefing.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { clientStored, putBackStored } = await import("./tests-kit.mjs");
+        const actor = livingStudents()[0];
+        const asStored = clientStored();
+        const drawn = title => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.window?.title === title) ?? null;
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, "actionDetailsOpen", false);
+            for (const key of ["observe", "search"]) {
+                const title = `E49-A8-T1 ${key}`;
+                const run = chooseVariant({ actor, title, intro: briefingBlock(actor, key, ACTIONS[key]),
+                    options: [{ value: "a8t1a", label: "a", hint: "a" }, { value: "a8t1b", label: "b", hint: "b" }] }).catch(() => null);
+                if (!await until(() => Boolean(drawn(title)), 6000)) { read[key] = "not drawn"; continue; }
+                const app = drawn(title), el = app.element;
+                await wait(300);
+                const size = () => { const r = el.getBoundingClientRect(); return [r.width, r.height, app.position?.height]; };
+                const shut = size();
+                el.querySelector(".drpg-action-details-toggle")?.click();
+                await wait(300);
+                const open = size();
+                const box = el.querySelector(".drpg-action-details-box"), bb = box?.getBoundingClientRect();
+                const outside = box ? [...box.querySelectorAll("li")].filter(li => { const r = li.getBoundingClientRect(); return r.left < bb.left - 0.5 || r.right > bb.right + 0.5; }).length : -1;
+                read[key] = { same: shut.every((v, i) => typeof v !== "number" || Math.abs(v - open[i]) <= 0.5), outside, sideways: box ? box.scrollWidth <= box.clientWidth : false };
+                if (!read[key].same) read[key].sizes = [shut, open];
+                await app.close();
+                await run;
+            }
+        } finally {
+            for (const key of ["observe", "search"]) if (drawn(`E49-A8-T1 ${key}`)) await drawn(`E49-A8-T1 ${key}`).close();
+            putBackStored(asStored);
+            await settle();
+        }
+        const yes = { same: true, outside: 0, sideways: true };
+        equal(JSON.stringify(read), JSON.stringify({ observe: yes, search: yes }), "[per window: its outer size and position.height alike shut and open, lines past the box's sides, the box not scrolling sideways]");
+    }],
+    ["the panel's tiles in a row are one height and each icon and label reads in every state (scripts/gm-panel.mjs `buildSections`, styles/components.css E49 A3; LIVE-E49-01)", async () => {
+        /*
+         * E49 A3, 11.11.2026; the owner's [7] "przyciski maja nierowna wysokosc w gm panel" and [8] "Ikona przy aktywnym
+         * morderstwie niewidoczna". On a real Foundry (layout, Foundry's own stylesheet - where the photos came from): the GM
+         * panel as `openGmPanel` draws it in this client's theme, every section opened, every tile put at once at rest,
+         * current (`is-current`, `aria-current`) and disabled (`drpg-disabled`, `disabled`): per state the largest height
+         * difference inside a grid row (1 px at most), every tile's rectangle the same as at rest (0.5 px), and the lowest
+         * label (4.5:1) and icon (3:1) contrast on the tile's ground - the icon's paint its `background-color` where it is a
+         * mask, else its `color`, times the opacities; the ground the tile's `background-color` over its window's, or the
+         * glass's lit brush (`::before`) where it covers the tile; the hazard raster's stops counted as grounds too. As
+         * style-sweep `--panel` reads it headless, where both themes read 0 px and, before A3, the icons 1.04:1 on the
+         * glass's lit brush. Headless it skips (no layout): LIVE-E49-01 until the local gate runs it (in both themes).
+         */
+        needs(env.layout(), "a tile's height and paint are read from the layout");
+        needs(env.dialogs(), "the panel is drawn");
+        const { openGmPanel } = await import("./gm-panel.mjs");
+        const panelApp = () => [...foundry.applications.instances.values()].find(a => a?.rendered && a.element?.isConnected && a.options?.classes?.includes("drpg-window-panel")) ?? null;
+        for (const app of [...foundry.applications.instances.values()]) if (app?.options?.classes?.includes("drpg-window-panel")) await app.close();
+        const parse = c => {
+            const m = String(c).match(/^rgba?\(([^)]+)\)$/), n = String(c).match(/^color\(srgb ([^)]+)\)$/);
+            if (m) { const q = m[1].split(/[\s,/]+/).filter(Boolean).map(Number); return [q[0], q[1], q[2], q[3] ?? 1]; }
+            if (n) { const q = n[1].split(/[\s/]+/).filter(Boolean).map(Number); return [q[0] * 255, q[1] * 255, q[2] * 255, q[3] ?? 1]; }
+            return [0, 0, 0, 0];
+        };
+        const over = (top, under, alpha = 1) => { const a = top[3] * alpha; return [0, 1, 2].map(i => top[i] * a + under[i] * (1 - a)).concat(1); };
+        const lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+        const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return Math.round((x + 0.05) / (y + 0.05) * 100) / 100; };
+        const cs = (el, pseudo) => getComputedStyle(el, pseudo);
+        const groundUnder = el => {
+            const chain = [];
+            for (let e = el; e; e = e.parentElement) { chain.push(parse(cs(e).backgroundColor)); if (chain.at(-1)[3] >= 1) break; }
+            let g = chain.at(-1)[3] >= 1 ? chain.pop() : [0, 0, 0, 1];
+            while (chain.length) g = over(chain.pop(), g);
+            return g;
+        };
+        const grounds = tile => {
+            const base = groundUnder(tile), out = [base];
+            for (const stop of String(cs(tile).backgroundImage).match(/rgba?\([^)]+\)/g) ?? []) out.push(over(parse(stop), base));
+            const b = cs(tile, "::before"), paint = parse(b.backgroundColor), alpha = Number(b.opacity) * paint[3];
+            if (b.content !== "none" && b.display !== "none" && alpha > 0.05) {
+                const lit = over(paint, base, Number(b.opacity));
+                return String(b.inset).split(/\s+/).every(v => parseFloat(v) <= 0) && alpha >= 0.9 ? [lit] : [...out, lit];
+            }
+            return out;
+        };
+        const ink = (el, tile) => {
+            if (!el) return null;
+            const s = cs(el), masked = (s.maskImage && s.maskImage !== "none") || (s.webkitMaskImage && s.webkitMaskImage !== "none");
+            return { colour: parse(masked ? s.backgroundColor : s.color), alpha: Number(s.opacity) * Number(cs(tile).opacity) };
+        };
+        const read = {};
+        const running = openGmPanel().catch(() => null);
+        try {
+            must(await until(() => Boolean(panelApp()), 6000), "the GM panel was not drawn");
+            const root = panelApp().element;
+            for (const d of root.querySelectorAll("details.drpg-gmp-section")) d.open = true;
+            const tiles = [...root.querySelectorAll(".drpg-gmp-grid > .drpg-gmp-button")];
+            must(tiles.length > 0, "the panel drew no tile - this would measure nothing");
+            const box = () => root.querySelector(".drpg-gmp-sections").getBoundingClientRect();
+            let rest = null;
+            for (const state of ["rest", "current", "disabled"]) {
+                for (const t of tiles) {
+                    t.classList.toggle("is-current", state === "current");
+                    t.toggleAttribute("aria-current", state === "current");
+                    t.classList.toggle("drpg-disabled", state === "disabled");
+                    t.disabled = state === "disabled";
+                }
+                await wait(300);
+                const b = box();
+                const rects = tiles.map(t => { const r = t.getBoundingClientRect(); return [r.left - b.left, r.top - b.top, r.width, r.height]; });
+                rest ??= rects;
+                const rows = new Map();
+                for (const r of rects) rows.set(Math.round(r[1]), [...(rows.get(Math.round(r[1])) ?? []), r[3]]);
+                const spread = Math.max(0, ...[...rows.values()].map(hs => Math.max(...hs) - Math.min(...hs)));
+                const worst = (p, g) => (p ? Math.min(...g.map(ground => ratio(over(p.colour, ground, p.alpha), ground))) : 99);
+                const lows = tiles.map(t => { const g = grounds(t); return [worst(ink(t.querySelector(":scope > span"), t), g), worst(ink(t.querySelector(":scope > i"), t), g)]; });
+                read[state] = { rowsEqual: spread <= 1, sameRects: rects.every((r, i) => r.every((v, k) => Math.abs(v - rest[i][k]) <= 0.5)),
+                    label: Math.min(...lows.map(x => x[0])) >= 4.5, icon: Math.min(...lows.map(x => x[1])) >= 3 };
+                if (!read[state].rowsEqual || !read[state].label || !read[state].icon) read[state].measured = { spread, label: Math.min(...lows.map(x => x[0])), icon: Math.min(...lows.map(x => x[1])) };
+            }
+        } finally {
+            await panelApp()?.close();
+            await running;
+            await settle();
+        }
+        const yes = { rowsEqual: true, sameRects: true, label: true, icon: true };
+        equal(JSON.stringify(read), JSON.stringify({ rest: yes, current: yes, disabled: yes }),
+            "[per state: every grid row's tiles within 1 px of one height, every tile where it stood at rest, the lowest label at 4.5:1 or more, the lowest icon at 3:1 or more]");
+    }],
+    ["the DRPG Settings window saves as Foundry's form did: a Boolean, a range and the language of this browser, each read back as saved, each `onChange` once, the reload asked once for the language's `requiresReload`; Save with nothing changed and Cancel write nothing (scripts/settings-window.mjs `saveSettings`, `openSettingsWindow`; E49 A1, A1d; STAGE E49 Risks 2)", async () => {
+        /*
+         * E49 A1, 11.11.2026. Foundry's Configure Settings wrote a changed setting by `game.settings.set` (its `onChange`
+         * then runs) and none it left as it was, and asked `SettingsConfig.reloadConfirm({ world })` once after the last
+         * write when one of them had `requiresReload` (v13's `#onSubmit`, read as text). The window drawn by its own wait on
+         * this GM, three fields changed - messengerSound (a switch), uiScale (a stepper with a range), the language
+         * (`requiresReload`), all three this browser's since E49 A1d moved the world rows to the GM panel's tab (the tier-2
+         * test "the GM panel's Game settings tab saves"; despairFromRolls was this test's switch until then) - then Save
+         * pressed; each setting's `onChange` wrapped to count its runs (the language and messengerSound have none: Foundry
+         * would call one if there were); `reloadConfirm` stood in for
+         * Foundry's, counting (no reload). Then Save with nothing changed, and Cancel after a change: nothing written, no
+         * reload. Every value put back after. Red on 13531607: settings-window.mjs does not exist.
+         */
+        needs(env.dialogs(), "the window is drawn and its buttons pressed");
+        const W = await import("./settings-window.mjs");
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-settings"));
+        must(of().length === 0, "a DRPG Settings window stands open already");
+        const keys = ["messengerSound", "uiScale", "language"];
+        const get = k => game.settings.get(MODULE_ID, k);
+        const was = Object.fromEntries(keys.map(k => [k, get(k)]));
+        const want = { messengerSound: !was.messengerSound, uiScale: was.uiScale === 1.1 ? 1 : 1.1, language: was.language === "pl" ? "en" : "pl" };
+        const asStored = clientStored();
+        const defs = Object.fromEntries(keys.map(k => [k, game.settings.settings.get(`${MODULE_ID}.${k}`)]));
+        const own = Object.fromEntries(keys.map(k => [k, Object.hasOwn(defs[k], "onChange") ? defs[k].onChange : undefined]));
+        const runs = Object.fromEntries(keys.map(k => [k, 0]));
+        const reloads = [];
+        const apps = foundry.applications;
+        const hadSettings = Object.hasOwn(apps, "settings");
+        const SC = apps.settings?.SettingsConfig;
+        const realConfirm = SC?.reloadConfirm;
+        const round = async ({ change, press }) => {
+            const done = Promise.resolve().then(() => W.openSettingsWindow()).catch(err => `threw: ${err?.message}`);
+            await until(() => of()[0]?.element?.querySelector('[name="messengerSound"]'), 6000);
+            const root = of()[0]?.element ?? null;
+            if (change) {
+                const box = root?.querySelector('[name="messengerSound"]');
+                if (box) box.checked = want.messengerSound;
+                const scale = root?.querySelector('[name="uiScale"]');
+                if (scale) scale.value = String(want.uiScale);
+                const lang = root?.querySelector('[name="language"]');
+                if (lang) lang.value = want.language;
+            }
+            root?.querySelector(`footer button[data-action="${press}"]`)?.click();
+            const got = await Promise.race([done, wait(6000).then(() => "timeout")]);
+            await settle();
+            return { got: typeof got === "string" ? got : stableJson(got), values: keys.map(get), runs: keys.map(k => runs[k]), reloads: reloads.length, open: of().length };
+        };
+        const read = {};
+        try {
+            for (const k of keys) defs[k].onChange = (...args) => { runs[k] += 1; return own[k]?.(...args); };
+            const confirm = async options => { reloads.push(stableJson(options ?? null)); return false; };
+            if (SC) SC.reloadConfirm = confirm;
+            else apps.settings = { SettingsConfig: { reloadConfirm: confirm } };
+            read.saved = await round({ change: true, press: "save" });
+            await until(() => keys.every(k => get(k) === want[k]), 4000);
+            read.saved.values = keys.map(get);
+            read.asked = [...reloads];
+            read.unchanged = await round({ change: false, press: "save" });
+            read.cancelled = await round({ change: true, press: "cancel" });
+        } finally {
+            for (const a of of()) await a.close().catch(() => {});
+            for (const k of keys) {
+                if (own[k] === undefined) delete defs[k].onChange;
+                else defs[k].onChange = own[k];
+            }
+            if (SC) SC.reloadConfirm = realConfirm;
+            else if (!hadSettings) delete apps.settings;
+            putBackStored(asStored);
+            await settle();
+        }
+        const after = keys.map(k => want[k]);
+        equal(stableJson(read), stableJson({
+            saved: { got: "save", values: after, runs: [1, 1, 1], reloads: 1, open: 0 },
+            asked: [stableJson({ world: false })],
+            unchanged: { got: "save", values: after, runs: [1, 1, 1], reloads: 1, open: 0 },
+            cancelled: { got: "cancel", values: after, runs: [1, 1, 1], reloads: 1, open: 0 }
+        }), "{saved, unchanged, cancelled: [what the window answered, the three values after, each onChange's runs so far, reloads asked so far, windows open]; asked: the reload's options}");
+    }],
+    ["the game's settings window saves as this browser's does: a world Boolean and a world choice, each read back as saved, each `onChange` once, no reload asked; Save with nothing changed and Cancel write nothing (scripts/settings-window.mjs `openGameSettingsWindow`, `saveSettings`; the GM panel's Settings tile; E49 A1d)", async () => {
+        /*
+         * E49 A1d, 11.11.2026 (the owner: the game's settings a GM panel's own, "W wolne miejsce wejda nowe ustawienia gma
+         * jako "Settings""). The window drawn by its own wait on this GM, two world fields changed - despairFromRolls (a
+         * switch) and moveAudit (a select) - then Save pressed; each setting's `onChange` wrapped to count its runs;
+         * `reloadConfirm` stood in for Foundry's, counting (neither asks a reload). Then Save with nothing changed, and
+         * Cancel after a change. Every value put back after. Red at 54493dbf: no `openGameSettingsWindow`.
+         */
+        needs(env.dialogs(), "the window is drawn and its buttons pressed");
+        const W = await import("./settings-window.mjs");
+        const of = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-game-settings"));
+        must(of().length === 0, "a game settings window stands open already");
+        const keys = ["despairFromRolls", "moveAudit"];
+        const get = k => game.settings.get(MODULE_ID, k);
+        const was = Object.fromEntries(keys.map(k => [k, get(k)]));
+        const defs = Object.fromEntries(keys.map(k => [k, game.settings.settings.get(`${MODULE_ID}.${k}`)]));
+        const audits = Object.keys(defs.moveAudit?.choices ?? {});
+        must(audits.length > 1, "moveAudit has no second choice to pick");
+        const want = { despairFromRolls: !was.despairFromRolls, moveAudit: audits.find(v => v !== was.moveAudit) };
+        const own = Object.fromEntries(keys.map(k => [k, Object.hasOwn(defs[k], "onChange") ? defs[k].onChange : undefined]));
+        const runs = Object.fromEntries(keys.map(k => [k, 0]));
+        const reloads = [];
+        const apps = foundry.applications;
+        const hadSettings = Object.hasOwn(apps, "settings");
+        const SC = apps.settings?.SettingsConfig;
+        const realConfirm = SC?.reloadConfirm;
+        const round = async ({ change, press }) => {
+            const done = Promise.resolve().then(() => W.openGameSettingsWindow()).catch(err => `threw: ${err?.message}`);
+            await until(() => of()[0]?.element?.querySelector('[name="despairFromRolls"]'), 6000);
+            const root = of()[0]?.element ?? null;
+            if (change) {
+                const box = root?.querySelector('[name="despairFromRolls"]');
+                if (box) box.checked = want.despairFromRolls;
+                const audit = root?.querySelector('[name="moveAudit"]');
+                if (audit) audit.value = want.moveAudit;
+            }
+            root?.querySelector(`footer button[data-action="${press}"]`)?.click();
+            const got = await Promise.race([done, wait(6000).then(() => "timeout")]);
+            await settle();
+            return { got: typeof got === "string" ? got : stableJson(got), values: keys.map(get), runs: keys.map(k => runs[k]), reloads: reloads.length, open: of().length };
+        };
+        const read = {};
+        try {
+            for (const k of keys) defs[k].onChange = (...args) => { runs[k] += 1; return own[k]?.(...args); };
+            const confirm = async options => { reloads.push(stableJson(options ?? null)); return false; };
+            if (SC) SC.reloadConfirm = confirm;
+            else apps.settings = { SettingsConfig: { reloadConfirm: confirm } };
+            read.saved = await round({ change: true, press: "save" });
+            read.unchanged = await round({ change: false, press: "save" });
+            read.cancelled = await round({ change: true, press: "cancel" });
+        } finally {
+            for (const a of of()) await a.close().catch(() => {});
+            for (const k of keys) {
+                if (own[k] === undefined) delete defs[k].onChange;
+                else defs[k].onChange = own[k];
+            }
+            if (SC) SC.reloadConfirm = realConfirm;
+            else if (!hadSettings) delete apps.settings;
+            for (const k of keys) if (get(k) !== was[k]) await game.settings.set(MODULE_ID, k, was[k]);
+            await settle();
+        }
+        const after = keys.map(k => want[k]);
+        equal(stableJson(read), stableJson({
+            saved: { got: "save", values: after, runs: [1, 1], reloads: 0, open: 0 },
+            unchanged: { got: "save", values: after, runs: [1, 1], reloads: 0, open: 0 },
+            cancelled: { got: "cancel", values: after, runs: [1, 1], reloads: 0, open: 0 }
+        }), "{saved, unchanged, cancelled: [what the window answered, the two values after, each onChange's runs so far, reloads asked, windows open]}");
+    }],
+    ["the standing outline's light is drawn again when the hour turns, on a real canvas (E49 B4; S07-34, LIVE-E49-04)", async () => {
+        /*
+         * E49 B4 (11.11.2026; audit S07-34). R3430 reads the light's strokes on the harness's stand-in; here the light is
+         * baked by the real renderer (fog-reveal.mjs `bakeOutlineHalo`), and a turn of the hour must draw that picture
+         * again rather than leave the old hour's. A stand-in room drawn into a container of the suite's own, never added
+         * to the stage; the theme's class on the body for the draw when it was not there; the real standing outline, if
+         * any, drawn again quietly after. Nothing of the world is read or written. Red at d8fa9304: the recolour keeps the
+         * baked picture it had. How it looks at zoom 0.3, 1 and 3 is LIVE-E49-04.
+         */
+        needs(env.canvas(), "the outline's light is baked by PIXI's renderer");
+        const FR = await import("./fog-reveal.mjs");
+        const body = document.body.classList, hadGlass = body.contains("drpg-theme-stained-glass");
+        const was = FR.roomOutline;
+        const fx = new PIXI.Container();
+        try {
+            if (!hadGlass) body.add("drpg-theme-stained-glass");
+            FR.flashOutline(fx, { name: "E49-B4 Room", parent: null, shapes: [{ x: 200, y: 200, width: 400, height: 300 }] }, { x: 0, y: 0 });
+            const s = FR.roomOutline;
+            const baked = () => s?.group?.children?.find(c => c?.name === FR.HALO_NAMES.outlineBaked[0]) ?? null;
+            const before = baked()?.drpgOwnedTexture ?? null;
+            ok(before, "the light was not baked on this canvas - this would measure nothing");
+            FR.recolourRoomOutline({ standing: s, colourNow: () => (s.colour ^ 0x2468ac) & 0xffffff, glassNow: () => true });
+            const after = baked()?.drpgOwnedTexture ?? null;
+            equal(JSON.stringify([Boolean(after), after !== before, Boolean(before?.destroyed)]), JSON.stringify([true, true, true]),
+                "[a picture after the turn, a new one, the old one freed] - the light keeps the old hour's picture");
+        } finally {
+            if (!hadGlass) body.remove("drpg-theme-stained-glass");
+            if (FR.roomOutline?.fx === fx) FR.fadeRoomOutline({ now: true });
+            for (const c of [...fx.children]) if (!c.destroyed) c.destroy({ children: true });
+            fx.destroy();
+            if (was?.fx && !was.fx.destroyed && was.region) FR.flashOutline(was.fx, was.region, was.rect, was.level, { actor: was.actor ?? null, elevation: was.elevation ?? null, quiet: true });
+        }
+    }],
+    ["the character settings window keeps a hidden field's value through a save (E49; dh-settings.mjs, R3550-R3552; the owner's rule: hidden, never deleted): on a character of the suite's own holding Scars 2, Proficiency 3 and Max Evasion Increase 1, Daggerheart's window drawn from its source and dressed, a statistic changed in it and the form saved as the window saves it (its data the actor's update) leaves the three as they were and the statistic changed", async () => {
+        /*
+         * E49, 11.11.2026. Daggerheart's window submits the whole form on every change; its data goes to `actor.update`
+         * (DocumentSheetV2's `_processSubmitData`). The form is read as R3552 reads it - Foundry's FormDataExtended where it
+         * is, else each named field by its type - and the character is the suite's own, made and deleted here. Red at
+         * 54493dbf: no dh-settings.mjs to dress the window.
+         */
+        const D = await import("./dh-settings.mjs").catch(() => null);
+        must(typeof D?.dressCharacterSettings === "function", "dh-settings.mjs has no `dressCharacterSettings` - this would measure nothing");
+        const K = await import("./tests-kit.mjs");
+        let actor = null;
+        let read = null;
+        try {
+            actor = await Actor.create({ name: "SUITE E49 settings", type: "character", ownership: { default: 0 }, system: {
+                traits: { instinct: { value: 0 }, knowledge: { value: 1 } }, resources: { hitPoints: { value: 0, max: 6 }, stress: { value: 0, max: 6 } },
+                scars: 2, proficiency: 3, evasion: 1, experiences: { e49save: { name: "E49 save", value: 2, description: "" } } } });
+            must(actor, "the suite's character was not made - this would measure nothing");
+            const win = K.dhSettingsStandIn(foundry.utils.deepClone(actor._source.system), { name: actor.name });
+            D.dressCharacterSettings(win);
+            must(win.querySelectorAll("[hidden]").length === 3, "the dressing hid no cell - this would measure nothing");
+            win.querySelector('[name="system.traits.instinct.value"]').value = "2";
+            const FDE = foundry.applications?.ux?.FormDataExtended ?? globalThis.FormDataExtended;
+            const flat = FDE ? new FDE(win).object : Object.fromEntries([...win.querySelectorAll("[name]")].map(el =>
+                [el.name, el.type === "number" || el.dataset.dtype === "Number" ? (el.value === "" ? null : Number(el.value)) : el.value]));
+            await actor.update(foundry.utils.expandObject(flat));
+            await settle();
+            const s = game.actors.get(actor.id)?._source?.system ?? {};
+            read = { scars: s.scars, proficiency: s.proficiency, evasion: s.evasion, instinct: s.traits?.instinct?.value, experience: s.experiences?.e49save?.name };
+        } finally {
+            await actor?.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ scars: 2, proficiency: 3, evasion: 1, instinct: 2, experience: "E49 save" }),
+            "the character after the save: the three hidden fields, the statistic changed in the window, the experience");
     }],
 ];
 

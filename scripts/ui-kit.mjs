@@ -1022,11 +1022,11 @@ export function tile({ id = null, className, label, data = {} } = {}) {
     return madeBy(el, "tile");
 }
 
-/** One of the module's pixel glyphs (tools/pixel-icons.py), masked in the current colour and never read aloud. */
+/** One of the module's pixel glyphs (tools/glyphs.json), masked in the current colour and never read aloud. */
 export function pixelGlyph(name) {
     const icon = document.createElement("i");
     icon.className = "drpg-pxi";
-    icon.style.setProperty("--drpg-px-mask", `var(--drpg-px-${name})`);
+    icon.style.setProperty("--drpg-glyph", `var(--drpg-pix-${name})`);
     icon.setAttribute("aria-hidden", "true");
     icon.inert = true;
     return madeBy(icon, "glyph");
@@ -1168,15 +1168,18 @@ export const PROMPT_CLASS = "drpg-prompt";
  * window states: a name of WINDOW_WIDTHS or a number of pixels (`kitWidth`, below), the window's opening width and,
  * without `fit`, its width; with `fit` the measure wins and the width is where it starts (E21 W1). No stylesheet states
  * a kit window's width (R1376): a window without either takes the module's popup width rules. `prompt` puts PROMPT_CLASS
- * on a window the game waits on (above).
+ * on a window the game waits on (above). `pinned` (E49 A1e, 12.11.2026; the owner: Season setup's row of windows "always
+ * at the bottom, always visible") is markup drawn under the body that scrolls, in `div.drpg-kit-pinned`, which keeps its
+ * height as the tab bar and the footer do; a window that names none draws what it drew before, byte for byte.
  */
-export function drpgWindow({ id = null, classes = [], title = "", body = "", tabs = null, footer = {}, live = null, render = null, modal = false, onMode = null, fit = false, width = null, prompt = false, ...rest } = {}) {
+export function drpgWindow({ id = null, classes = [], title = "", body = "", tabs = null, footer = {}, live = null, render = null, modal = false, onMode = null, fit = false, width = null, prompt = false, pinned = null, ...rest } = {}) {
     const DialogV2 = foundry.applications.api.DialogV2;
     const sized = width === null ? null : widthSpec(width);
     const list = footerButtons(footer);
     const open = tabs ? openKey(tabs.sections, tabs.active) : null;
     const markup = (tabs ? tabNav(tabs.sections, open) : "")
-        + `<div class="drpg-kit-body">${body}${tabs ? tabPanes(tabs.sections, open) : ""}</div>`;
+        + `<div class="drpg-kit-body">${body}${tabs ? tabPanes(tabs.sections, open) : ""}</div>`
+        + (pinned ? `<div class="drpg-kit-pinned">${pinned}</div>` : "");
     const config = {
         ...rest,
         classes: [...classes, ...KIT_CLASSES, ...(prompt ? [PROMPT_CLASS] : []), ...(fit ? [FIT_CLASS] : []), ...(sized ? sized.classes : [])],
@@ -1242,7 +1245,11 @@ export const WINDOW_WIDTHS = Object.freeze({
     // E46-C1 (09.11.2026), for E47: the murder tracker's 520 px at the root's 16 px (E47-C2), and the trial console's
     // fixed width (E47-C1; S12-51 and S04-38: it jumped with its content). Each window that states one loses `fit`.
     tracker: Object.freeze({ cls: "drpg-kit-width-tracker", rem: 32.5, legacy: true }),
-    console: Object.freeze({ cls: "drpg-kit-width-console", rem: 44, legacy: true })
+    console: Object.freeze({ cls: "drpg-kit-width-console", rem: 44, legacy: true }),
+    // E49 B2 (11.11.2026; S12-90): a Call's window, Hope's or Despair's, at 580 px at the root's 16 px. Under Stained
+    // Glass the popup rule is `fit-content` from 544 px, so two Calls opened 544 and 578 px wide (the finding; 544 and
+    // 678 read on two bodies in Chromium at 1366x768) and the footer's buttons moved between them.
+    call: Object.freeze({ cls: "drpg-kit-width-call", rem: 36.25, legacy: true })
 });
 
 /** The class of every kit window that states its width (`width`), beside its name's `cls`: the popup width rules leave

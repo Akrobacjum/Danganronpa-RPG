@@ -47,7 +47,7 @@
  */
 
 import { MODULE_ID, TIME_OF_DAY_LABELS, moduleVersion } from "./config.mjs";
-import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
+import { SETTINGS, getSetting, setSetting, deathRecord, seasonEpoch } from "./settings.mjs";
 import { log, error, esc, isPrimaryGm, plural, whisperToGms, gmReport, gmIds, forcedDeletion, MESSAGE_FLAG } from "./utils.mjs";
 import { ROOM_FLAG, ROOMS_MARKED_FLAG, hasBehaviours, playerRegionIds, roomDecided } from "./rooms.mjs";
 
@@ -527,10 +527,10 @@ const CLAUSES = [
             }
 
             if (wideOpen.length) {
-                await whisperToGms(`<p class="drpg-warning">${game.i18n.format(
+                await whisperToGms({ tone: "warning", body: `<p>${game.i18n.format(
                     "DRPG.Anonymity.aboveLimited", {
                         actors: foundry.utils.escapeHTML(wideOpen.join(", "))
-                    })}</p>`);
+                    })}</p>` });
             }
 
             return opened.length || wideOpen.length ? { opened, wideOpen } : null;
@@ -1036,8 +1036,63 @@ const CLAUSES = [
             if (!rows.length) return null;
             return { scenes: rows.length, seeded: rows.reduce((n, row) => n + row.rooms.length, 0) };
         }
+    },
+    {
+        key: "openCaseBodies",
+        since: "1.2.105",
+        /*
+         * THE OPEN CASE'S BODIES, ONCE (E63 C3, 11.11.2026; QUESTIONS E63 Q6, the owner's "yes"). 1.2.104 laid a body tile
+         * only when a dead student became a Monocub; from 1.2.105 every death made the table's lays one (chapter.mjs
+         * `markDeceased`) and becoming a Monocub lays none, so a student who died before the update and becomes a Monocub
+         * after it would walk away with their body until the trial. Once, on the primary: every student dead and public,
+         * not a Monocub, whose case is open (monocub.mjs `caseOpen`) and with no tile of this death (`bodiesToLay`) gets
+         * one at their token (body-tile.mjs `leaveBody`, which reads the death as the GMs hold it; a corpse's token has not
+         * moved). Nothing is removed: 1.2.104's tiles are this shape already and go at the next trial's end. Reported by
+         * name; a world with none says nothing; a second run, forced, lays none.
+         */
+        run: async () => {
+            if (!isPrimaryGm()) return { notPrimary: true };      // a body on the map: the primary's, once a world
+            return await layOpenCaseBodies();
+        }
     }
 ];
+
+/**
+ * The students a 1.2.104 world owes a body (pure; E63 C3, tier 1 R3405): of `actors`, each dead and public
+ * (`dead`, chapter.mjs `isDeceased`: R192 holds the flag's name to the predicates), not a Monocub (`monocub`), whose death (`deathOf`, the record as the GMs hold it) is of the open case
+ * (`open(death)`) and has no tile of its `deathId` (`tilesOf`, body-tile.mjs `bodyTilesOf`'s rows).
+ */
+export function bodiesToLay(actors, { dead, monocub, deathOf, open, tilesOf }) {
+    return [...(actors ?? [])].filter(actor => {
+        if (!dead(actor) || monocub(actor)) return false;
+        const death = deathOf(actor);
+        if (!death || !open(death)) return false;
+        const id = death.deathId ?? null;
+        return !tilesOf(actor.id).some(({ mark }) => (mark?.deathId ?? null) === id);
+    });
+}
+
+/**
+ * The clause `openCaseBodies`'s pass (E63 C3), exported for the suite: lays each body `bodiesToLay` names on this
+ * world's students, and answers `{ laid, none }` by name (a student whose token the GMs read on no scene with rooms is
+ * in `none`, as `leaveBody` warns of), or null when there was none to lay. GM only (`leaveBody`'s gate).
+ */
+export async function layOpenCaseBodies() {
+    if (!game.user?.isGM) return null;
+    const { isDeceased } = await import("./chapter.mjs");
+    const { isMonocub, caseOpen } = await import("./monocub.mjs");
+    const { bodyTilesOf, leaveBody } = await import("./body-tile.mjs");
+    const { flagsHeldNow } = await import("./sheet-audit.mjs");
+    const { studentActors } = await import("./monokuma.mjs");
+    const { getClock } = await import("./clock.mjs");
+    const clock = getClock(), record = getSetting(SETTINGS.trialProgress) ?? {}, epoch = seasonEpoch();
+    const owed = bodiesToLay(studentActors(), { dead: isDeceased, monocub: isMonocub, deathOf: actor => deathRecord(flagsHeldNow(actor)),
+        open: death => caseOpen(death, clock, record, epoch), tilesOf: bodyTilesOf });
+    if (!owed.length) return null;
+    const laid = [], none = [];
+    for (const actor of owed) (await leaveBody(actor) ? laid : none).push(actor.name);
+    return { laid, none };
+}
 
 /**
  * The room-marking pass of the clause `markRooms` over `scenes` (E12 C1). Exported for the suite,

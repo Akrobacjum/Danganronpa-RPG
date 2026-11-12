@@ -1,6 +1,6 @@
 # Danganronpa RPG - Student Brochure
 
-*One page. Module 1.2.104 on Daggerheart. The names stay English: Hope, Despair, Sanity, Truth Bullet, Remnant, Blackened, Class Trial, Daily Life, Eclipse, Monokuma.*
+*One page. Module 1.2.105 on Daggerheart. The names stay English: Hope, Despair, Sanity, Truth Bullet, Remnant, Blackened, Class Trial, Daily Life, Eclipse, Monokuma.*
 
 **You are:** an Ultimate. Leg, Body, Hand, Eye, Shadow, Head. **Health 4, Sanity 6, Hope 2 (max 6)**. Sanity at zero = **Breakdown** (disadvantage on every roll). Health at zero = **Wounded** (one action fewer). Rolls with Hope give you 1 Hope; rolls with Despair feed Monokuma; a critical gives 2 Hope.
 
@@ -71,7 +71,7 @@ Bottom-left of your sheet: your table's word, shown on the button (**Safe Word**
 - **Class Trial.** It opens with a fresh set of actions, and nobody leaves the room; only Analyze stays open, plus Hope Calls and items. Open discussion; Present Truth Bullets from your inventory, free. Present shows a Truth Bullet with your Analyze result or without it, and everyone else gets a copy as shown; there is no Share in a trial. When the GM opens the Nonstop Debate, **OBJECTION!** on your voice tile interrupts whoever is speaking (or spoke last); then you have 30 s to choose your Truth Bullet, or it is withdrawn and the price is not given back. Then 60 s only you, then a 120 s rebuttal with the person it was aimed at. An Objection, like Analyze in a trial, costs 1 action, else 1 Hope, else 1 Sanity. In Testimony and a Panic Round everyone speaks in turn (Done, Pass); in the Closing Argument the GM confirms one volunteer for 300 s; in these only the speaker presents, and a Panic Round has no Objection. Then the secret vote - <ins>more than half of the ballots</ins> convicts, a tie counts as wrong. Right: the Blackened is executed when the trial ends, survivors Level Up. Wrong: the accused dies when the trial ends, the Blackened stays with a Reinforced Level Up, which waits for the class's next Level Up.
 - **Death.** Your Truth Bullets die with you once your death is known, the rest stays on the body. Until somebody finds you, only the GMs and whoever was there know, and once the incident is over you talk only with the other dead. After your trial you may join the GMs as a Monocub: Move and Confusion.
 
-**Settings gear**, bottom-right: Language (English / Polski, this browser only), theme, scale, sounds, reduced motion, high contrast.
+**Settings gear**, bottom-right: Language (English / Polski, this browser only), theme, scale, sounds and voice (microphone, output, push to talk), reduced motion, high contrast.
 
 **Book button**, bottom-right under the messenger, right of the gear: this brochure and the Player Handbook, in the language you picked for the module.
 

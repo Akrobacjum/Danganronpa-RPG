@@ -226,7 +226,7 @@
  *        node audit/glass-sweep.mjs --roster [--themes ...] [--roles ...] [--sizes ..., 1366x768,1920x1080] [--no-control]   (E50 C2: below)
  *        node audit/glass-sweep.mjs --track [--track-kinds fill,hour-empty,hour-full,hour-swap,hour-notice] [--themes ...] [--roles ...] [--sizes ...] [--no-control]   (E23 C2a: below)
  *        node audit/glass-sweep.mjs --tray [--themes ..., stained,legacy] [--roles ...] [--sizes ..., 1920x1080,1366x768,1280x800,1024x768] [--no-control]   (E23 C3a: below)
- *        node audit/glass-sweep.mjs --events [--themes ...] [--roles ...] [--sizes ..., 1366x768,1920x1080,1024x768,820x1180] [--no-control]   (E23 C3b: below)
+ *        node audit/glass-sweep.mjs --events [--themes ...] [--roles ...] [--sizes ..., 1366x768,1280x720,1920x1080,1024x768,820x1180] [--no-control]   (E23 C3b: below)
  *        node audit/glass-sweep.mjs --board [--themes ...] [--roles ...] [--sizes ..., 1024x768,820x1180,393x852,1200x800,844x390,640x360] [--no-control]   (E23 C4a: below)
  *        node audit/glass-sweep.mjs --turn [--kinds phase-recut,phase,hour,layout] [--sizes ..., 1600x900,1366x768] [--roles ...]
  *          [--themes ..., stained] [--turn-ms <n>, 3000] [--runs <n>, 1] [--json <file>] [--against <json>] [--no-control]   (E23 C1a: below)
@@ -251,6 +251,13 @@ const shots = opt("--shots"), corner = args.includes("--corner"), control = !arg
 const roles = (opt("--roles") ?? "gm,player").split(",").filter(Boolean), rooms = !args.includes("--no-room");
 const windows = !args.includes("--no-windows"), voices = !args.includes("--no-voice"), objections = !args.includes("--no-objection"), docks = !args.includes("--no-dock");
 const tracks = !args.includes("--no-track");
+/* THE HOUR'S ARROWS AND THE EMPTY PANES (E49 B1, 11.11.2026; S12-69, S12-64). At every size the page's `drpgHudCheck`
+   fails a Stained Glass size whose clock arrow glyph is not 14 px x the glass scale (pixel-icons.css's 22 px floor drew
+   them 22 px) or whose empty pane - one cut for a block that is not there - reads over 0.40 alpha on the curtain's canvas
+   (0.76 at 1366x768 before). Its controls, at the first size that reads glass: the 22 px floor put back, and the filler
+   panes read as the empty ones; each must read not ok. `--no-hud` leaves it out. */
+const huds = !args.includes("--no-hud");
+let hudControlled = false;
 const scheme = opt("--scheme");
 if (scheme && scheme !== "light") { console.log(`glass-sweep: --scheme takes "light" (got ${scheme})`); process.exit(2); }
 const idleS = Number(opt("--idle") ?? 5);
@@ -391,6 +398,25 @@ if (!base) {
 let browser;
 try { browser = await chromium.launch(opt("--chromium") ? { executablePath: opt("--chromium") } : {}); }
 catch (err) { srv?.kill(); console.log(`glass-sweep: Chromium did not launch (--chromium <executable> names one): ${err.message.split("\n")[0]}`); process.exit(2); }
+/* A PAGE THAT CRASHES ENDS THE SWEEP, RED, AT ONCE (E105, 11.11.2026). Three sweeps that day sat 61 minutes at 0 % CPU
+   holding the harness lock, at the room check's third pass (glass-harness `drpgRoomCheck`, `readCuts`): Chromium's
+   renderer had crashed ("Target crashed" when the page was driven by hand) and the evaluate waiting on it never
+   returned. The cause was the machine's: `/` held 456 MB, and headless Chromium keeps its shared memory in files
+   under TMPDIR (`--disable-dev-shm-usage`), which the curtain's turn layers outgrew at 1920x1080 - the same page with
+   TMPDIR on a tmpfs read the check ok in 4 s, at 7d59dcfe and at 957ee3bd (9.11) alike. Every page is watched now:
+   its crash prints why and where TMPDIR is, and the sweep exits 1. */
+{
+    const newPage = browser.newPage.bind(browser);
+    browser.newPage = async (...a) => {
+        const p = await newPage(...a);
+        p.on("crash", () => {
+            console.log(`FAIL: the page crashed (Chromium's renderer) - the sweep stops here. Its shared memory is in files under ${process.env.TMPDIR || "/tmp"}: is that disk full?`);
+            srv?.kill();
+            process.exit(1);
+        });
+        return p;
+    };
+}
 
 /* THE CURTAIN'S PRICE (E88 C0, 27.10.2026; E88-04): `--frame-cost` runs this instead of the sweep. At each size (by
    default 1920x1080 and 1366x768) in each theme, the page is loaded once and the mean ms per frame over `--frames`
@@ -836,19 +862,20 @@ if (args.includes("--tray")) {
     process.exit(bad ? 1 : 0);
 }
 
-/* THE EVENT PANEL'S BOX (E23 C3b, 07.11.2026; E23-18, the owner's 04.10 "the events panel has a fixed size whatever the
-   event and phase, always a similar layout, everything fits", S10-35, S12-30). `--events` runs this instead of the
-   sweep, at each size (by default 1366x768, 1920x1080, 1024x768 and 820x1180), role and theme: the page's
+/* THE EVENT PANEL'S BOX (E23 C3b, 07.11.2026; E23-18, S10-35, S12-30; E49 A6, 11.11.2026, the owner's 10.11 amend
+   [14](1): the panel's height from what it says, no empty band under the last line). `--events` runs this instead of
+   the sweep, at each size (by default 1366x768, 1280x720, 1920x1080, 1024x768 and 820x1180), role and theme: the page's
    `drpgEventCheck()` lays the panel out with events.mjs's own card for an incident, a trial with E70's speaker, the
-   debate's clock and "GM: +30 s", and a safeword, each from the longest texts of lang, alone and all three, and the
-   size fails where the panel's box is not the same for the four, a text is wider than its line, a card clips its
-   words, a panel taller than its box does not scroll, the incident's meta is not two lines, or the ticker runs under a
-   word or is drawn on a stacked screen. Its CONTROLS, once a run, on the first desk page under Stained Glass: `grow`
-   (the panel's height following its cards, as before this commit) must read a box that changes, `ticker` (the ticker
-   back at the card's middle) must read it under words. The line prints the four boxes and the tickers' bands. */
+   debate's clock and "GM: +30 s", and a safeword, each from the longest texts of lang, the owner's incident of 10.11 in
+   English and in Polish, each alone, and three together, and the size fails where a panel whose cards fit leaves more
+   than 8 px under its last line or stands taller than its cap, a panel whose cards do not fit is not its cap tall or
+   does not scroll, a text is wider than its line, a card clips its words, the incident's meta is not two lines, or the
+   ticker runs under a word or is drawn on a stacked screen. Its CONTROLS, once a run, on the first desk page under
+   Stained Glass: `fixed` (the panel held at its cap, E23 C3b's road before A6) must read a band, `ticker` (the ticker
+   back at the card's middle) must read it under words. The line prints each layout's box and band and the tickers'. */
 if (args.includes("--events")) {
     let bad = 0, planted = 0;
-    const esizes = (opt("--sizes") ?? "1366x768,1920x1080,1024x768,820x1180").split(",");
+    const esizes = (opt("--sizes") ?? "1366x768,1280x720,1920x1080,1024x768,820x1180").split(",");
     const boxes = r => Object.entries(r.boxes).map(([k, v]) => `${k} ${v}`).join(", ");
     try {
         for (const theme of themes) for (const role of roles) for (const size of esizes) {
@@ -866,7 +893,7 @@ if (args.includes("--events")) {
             if (!r.ok) bad++;
             const stacked = await page.evaluate(() => document.body.classList.contains("drpg-stacked"));
             if (control && !planted && theme === "stained" && !stacked) {
-                for (const plant of ["grow", "ticker"]) {
+                for (const plant of ["fixed", "ticker"]) {
                     const p = await page.evaluate(plant => window.drpgEventCheck({ plant }), plant);
                     planted++;
                     console.log(`${tag} control ${plant}: ${p.ok ? "MISSES IT" : "sees it"} - ${p.ok ? boxes(p) : p.why.slice(0, 140)}`);
@@ -1475,10 +1502,10 @@ async function plantVoice() {
         res.short = { ok: r.ok, why: r.why, pass: !r.ok && /outside the tile/.test(r.why) };
     }
     {   // bare
-        const i = tile.querySelector(".drpg-voice-speaker > .drpg-pxi"), was = i?.style.getPropertyValue("--drpg-px-mask") ?? "";
-        i?.style.removeProperty("--drpg-px-mask");
+        const i = tile.querySelector(".drpg-voice-speaker > .drpg-pxi"), was = i?.style.getPropertyValue("--drpg-glyph") ?? "";
+        i?.style.removeProperty("--drpg-glyph");
         const r = await window.drpgVoiceCheck({ cuts: false });
-        if (was) i.style.setProperty("--drpg-px-mask", was);
+        if (was) i.style.setProperty("--drpg-glyph", was);
         res.bare = { ok: r.ok, why: r.why, pass: !r.ok && /no glyph/.test(r.why) };
     }
     {   // inward (E78 fix r2-H3): the buttons side by side where 60741cf stood them, 69 px under the pane's top
@@ -1522,10 +1549,12 @@ async function plantVoice() {
    (E78 fix r2-H2); and (H81 fix r1, the review's H81C2-02) the still word stood where dc35104 stood it, in the 69 px
    left of the buttons, must fail on its band. */
 async function plantVoiceNone() {
-    const tile = document.getElementById("drpg-voice-tile"), was = tile.style.getPropertyValue("bottom"), res = {};
-    tile.style.setProperty("bottom", "-150px");
+    /* moved by `translate`, not `bottom` (E105, 12.11.2026): since E48 K6 the tile stands under the tray by its top
+       (`data-place="tray"`, --drpg-voice-y), and a `bottom` moved nothing - "voice control off reads as a pass" */
+    const tile = document.getElementById("drpg-voice-tile"), was = tile.style.getPropertyValue("translate"), res = {};
+    tile.style.setProperty("translate", `0 ${innerHeight}px`);
     const r = await window.drpgVoiceCheck({ cuts: false });
-    if (was) tile.style.setProperty("bottom", was); else tile.style.removeProperty("bottom");
+    if (was) tile.style.setProperty("translate", was); else tile.style.removeProperty("translate");
     res.off = { ok: r.ok, why: r.why, pass: !r.ok && /on a screen/.test(r.why) };
     const style = document.createElement("style");
     style.textContent = "body.drpg-no-ticker #drpg-voice-tile .drpg-voice-tile-state { top: 6px !important; right: 76px !important; }";
@@ -1682,7 +1711,7 @@ function deskAgain() {
     return { ok, why: JSON.stringify(got), pass: ok };
 }
 
-const trayControlled = new Set();
+const trayControlled = new Set(), foldRead = new Set();
 let trackControlled = false, schemeControlled = false;
 let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, paneControlled = false, stackedRead = false, placesControlled = false, placesRead = false, voiceRead = false, voiceControlled = false, voiceNoneControlled = false, voiceRowControlled = false, idleRead = false, fillControlled = false, objectionControlled = false, dockControlled = false;
 try {
@@ -1766,6 +1795,23 @@ try {
                         fillControlled = true;
                         const ctl = await page.evaluate(plantFill);
                         for (const [k, v] of Object.entries(ctl)) if (!v.pass) fails.push(`fill control ${k} reads as a pass (${v.why || "ok"})`);
+                    }
+                }
+            }
+            if (huds) {
+                const h = await page.evaluate(() => window.drpgHudCheck?.() ?? null);
+                if (!h) fails.push("the page defines no drpgHudCheck");
+                else {
+                    line += ` | hud ${h.ok ? "ok" : "NOT ok"}` + (h.arrows ? ` arrows ${h.arrows.map(a => a.join("x")).join(",")}/${h.want}` : "")
+                        + (h.empty ? ` empty ${h.empty.join(",") || "-"} filler>=${h.filler?.length ? Math.min(...h.filler) : "-"}` : "");
+                    if (!h.ok) fails.push("hud: " + h.why.join("; "));
+                    if (control && !hudControlled && h.glass && h.empty?.length) {
+                        hudControlled = true;
+                        for (const plant of ["arrows", "empty"]) {
+                            const c = await page.evaluate(k => window.drpgHudCheck({ plant: k }), plant);
+                            console.log(`  hud control ${plant.padEnd(6)} ${c.ok ? "MISSES IT" : "sees it"}: ${c.why.join("; ").slice(0, 120)}`);
+                            if (c.ok) fails.push(`hud control ${plant} reads as a pass`);
+                        }
                     }
                 }
             }
@@ -1922,6 +1968,25 @@ try {
                         const pass = ctl.why.some(w => /not Font Awesome/.test(w));
                         console.log(`  tray control chrome ${pass ? "sees it" : "MISSES IT"}: ${ctl.why.join("; ").slice(0, 110)}`);
                         if (!pass) fails.push("tray control chrome reads as a pass");
+                    }
+                }
+            }
+            /* THE GLASS TURNS WITH THE TRAY'S FOLD (E105 follow-up, 11.11.2026): once a theme with a curtain, the first size
+               it is up at, the page's `drpgTrayFold` - the tray folded and unfolded by its class, each must recut the glass
+               and turn it (motion on). Its control, once: the same reading with reduced motion planted, which must read
+               "turned nothing". Monokuma Legacy has no curtain: not read. The line prints `fold ok <frames turned>`. */
+            if (theme === "stained" && !foldRead.has(theme) && await page.evaluate(() => Boolean(document.getElementById("drpg-curtain")))) {
+                foldRead.add(theme);
+                const tf = await page.evaluate(() => window.drpgTrayFold?.() ?? null);
+                if (!tf) fails.push("the page defines no drpgTrayFold");
+                else {
+                    line += ` | fold ${tf.why.length ? "NOT ok" : "ok"} ${(tf.read ?? []).map(r => `${r.recut?.ms ?? "-"}ms/${r.turned}`).join(",")}`;
+                    if (tf.why.length) fails.push("fold: " + tf.why.join("; "));
+                    if (control) {
+                        const ctl = await page.evaluate(() => window.drpgTrayFold({ plant: true }));
+                        const pass = ctl.why.some(w => /turned nothing/.test(w));
+                        console.log(`  fold control reduced motion ${pass ? "sees it" : "MISSES IT"}: ${ctl.why.join("; ").slice(0, 110)}`);
+                        if (!pass) fails.push("fold control reads as a pass");
                     }
                 }
             }
@@ -2125,6 +2190,7 @@ if (control && !controlled) {
     if (lines && themeOff === lines) console.log(`  launchers' controls: not applicable - ${lines} line(s), every one Monokuma Legacy's with no curtain mounted ("theme off"); each counted its launchers found and none hidden`);
     else { bad++; console.log("FAIL: the controls never ran (no size drew glass)"); }
 }
+if (control && huds && themes.includes("stained") && !hudControlled) { bad++; console.log("FAIL: the hud controls never ran (no Stained Glass size drew an empty pane)"); }
 if (control && rooms && !roomControlled.size) { bad++; console.log("FAIL: the room controls never ran (no size placed the tile)"); }
 if (control && rooms && themes.includes("legacy") && !roomControlled.has("flat")) { bad++; console.log("FAIL: the Legacy room controls never ran (no Legacy desk placed the tile)"); }
 if (rooms && !opt("--sizes") && unpinned) { bad++; console.log(`FAIL: ${unpinned} line(s) of the default sizes have no pin in PINS`); }

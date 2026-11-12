@@ -231,6 +231,21 @@
     }
   },
   "DRPG": {
+    "DhSettings": {
+      "title": "Character settings",
+      "details": "Details",
+      "experiences": "Experiences",
+      "statistics": "Statistics",
+      "reserves": "Health and Sanity",
+      "maxHealth": "Max Health",
+      "maxSanity": "Max Sanity",
+      "newExperience": "New Experience",
+      "delete": "Delete",
+      "coreExperience": "A Level Up gave this experience; it cannot be removed here.",
+      "name": "Name",
+      "value": "Value",
+      "description": "Description"
+    },
     "Settings": {
       "forceDiceLook": {
         "name": "One dice look for the table",
@@ -385,6 +400,32 @@
         "hint": "On, the camera dock leaves every screen and the number on the voice tile's speaker shows how many others are in your channel, speaking or not. Foundry's dock is also kept folded, and no camera opens in a window of its own. Off brings Foundry's camera dock back for everyone, folded or open as each browser had it before the tile hid it."
       }
     },
+    "SettingsWindow": {
+      "menuName": "DRPG Settings",
+      "menuLabel": "Open DRPG Settings",
+      "title": "DRPG Settings",
+      "sectionsLabel": "Sections",
+      "save": "Save changes",
+      "scopeClient": "This browser only",
+      "scopeWorld": "The whole table",
+      "glassOnly": "Stained Glass only: pick that theme to change it.",
+      "legacyOnly": "Monokuma Legacy only: pick that theme to change it.",
+      "gameTitle": "Game settings",
+      "mayNot": "Only a user Foundry lets change the world's settings can open the game's settings.",
+      "gameNote": "These are the whole table's settings: a change here changes the game for everybody.",
+      "liveNote": "The volumes and the voice settings apply as you move them; the rest waits for Save.",
+      "sections": {
+        "audio": "Music and voice",
+        "foundry": "Foundry and the system",
+        "look": "Look",
+        "effects": "Effects and accessibility",
+        "sound": "Sound and voice",
+        "rules": "Rules at the table",
+        "privacy": "Rolls and privacy",
+        "gm": "GM tools and map",
+        "tech": "Technical"
+      }
+    },
     "SearchTokens": {
       "title": "Search Tokens",
       "allFull": { "one": "Every room still holds its {max} token.", "other": "Every room still holds all {max} tokens." },
@@ -460,6 +501,7 @@
       "pipReadOnly": { "one": "{left} of {max} action this time of day. Spent by acting.", "other": "{left} of {max} actions this time of day. Spent by acting." },
       "freeMoveAvailable": "Free Move still available this time of day.",
       "freeMoveSpent": "Free Move used. The next crossing costs an action.",
+      "moveLegend": "Solid: yours to take. Outlined: spent. The second foot, in the Eclipse's colour, is the Eclipse's second crossing: dimmed outside an Eclipse.",
       "allSpent": "No actions left. They come back when the next Eclipse begins.",
       "leftOf": { "one": "{left} of {max} action", "other": "{left} of {max} actions" },
       "burstBanked": {
@@ -683,6 +725,8 @@
         "stateSecret": "Open",
         "stateClosed": "Closed",
         "stateBroken": "The wall moved - pick it again",
+        "repickHeld": "Only a passage whose wall moved is picked again.",
+        "toggleHeld": "The wall moved: pick the passage again before you close or open it.",
         "pending": "Not yet delivered: {names}",
         "shared": "{players} all play {student}, and each of them learns this passage.",
         "show": "Show",
@@ -1007,6 +1051,7 @@
       "manage": "Give / take items",
       "hubButton": "Items",
       "buttonTooltip": "Give or take an item",
+      "caption": "Give / take",
       "give": "Give an item",
       "take": "Take an item away",
       "takeFrom": "Take an item from {actor}",
@@ -1101,7 +1146,7 @@
       "setCategoryTier": "The tables do not say what this item is: choose its category and tier to give it."
     },
     "Body": {
-      "noToken": "The GMs cannot place {name}'s token on a scene with rooms (there is none, or a put-back of it is still on its way), so no body was left on the map. Untick Monocub and tick it again once the token stands.",
+      "noToken": "The GMs cannot place {name}'s token on a scene with rooms (there is none, or a put-back of it is still on its way), so no body was left on the map; what they carried is searched beside their token.",
       "tile": "{name}'s body"
     },
     "Monocub": {
@@ -1125,6 +1170,7 @@
       "give": "Give",
       "silenced": "Silenced",
       "silencedNote": "Tick if this Monocub stumbled onto the crime scene. They cannot discuss it until the chapter ends, but Confusion still works.",
+      "notCub": "Not a Monocub",
       "needHope": "Confusion costs Hope and you have none. Ask a GM to convert some Despair.",
       "nobodyHere": "Nobody in this room to use Confusion on.",
       "meddleIntro": "Nudge somebody's next roll from the sidelines. Everyone in your room sees you roll, so they may work out it was you.",
@@ -1500,7 +1546,8 @@
       "cancel": "Cancel",
       "tableEmpty": "Nothing to show yet.",
       "scrollMore": "There is more below. Scroll to see it.",
-      "allThresholds": "All thresholds",
+      "details": "Details",
+      "thresholds": "Thresholds",
       "check": {
         "done": "Done",
         "blocking": "Required, not done yet",
@@ -3797,6 +3844,7 @@
       "tableEmpty": "Nothing in this table yet.",
       "removeItem": "Remove from this table",
       "roomTotal": "Everything",
+      "roomFilter": "Show",
       "roomBreakdown": "Sorted by what the tier pools say each name is. A flat room table still answers whatever category a Search asks for - name a table \"Room - Murder Weapons\" to have that decided here instead.",
       "unfiled": "Not in any tier pool",
       "unfiledNote": "No tier pool holds these names, so the module cannot say what they are or how good they are. In a flat room table they can come up for any category. Use the arrows on a row to put one in a tier pool.",
@@ -3865,7 +3913,9 @@
       "session": "Session",
       "timeOfDay": "Time of day",
       "chapterCorrectTitle": "Correct the chapter number",
-      "chapterCorrect": "This corrects the chapter number only - no reveal, no sweep, no Blackened. End a chapter with End the chapter. Cancel keeps the chapter and applies the rest.",
+      "endChapterNote": "End the chapter reveals, sweeps and names the Blackened - everything the chapter field above does not. It asks first, and nothing typed above is applied.",
+      "endChapterAsk": "End the chapter now? Edit campaign closes without applying, and the chapter's end opens: it lists what it will reveal, sweep and name before anything is done.",
+      "chapterCorrect": "This corrects the chapter number only - no reveal, no sweep, no Blackened. A chapter ends with End the chapter, at the bottom of Edit campaign. Cancel keeps the chapter and applies the rest.",
       "trialFromEditTitle": "Open the Class Trial",
       "trialFromEdit": "This opens the trial's budget and charges for unfound Key Remnants. Cancel keeps the phase and applies the rest.",
       "unknownTime": "Unknown time of day: {key}.",
@@ -3878,6 +3928,7 @@
       "woundedNote": "Down to one action this time of day, no Health left: {names}."
     },
     "Panel": {
+      "settings": "Settings",
       "nextStartTrial": "Every planned Key Remnant has been found. Start the Class Trial from the trial console.",
       "title": "Danganronpa - GM Panel",
       "launcher": "Open the GM panel",
@@ -3899,7 +3950,7 @@
       "goStartInvestigationButton": "Start the Investigation",
       "goAutopsyButton": "Issue the autopsy",
       "goBodyButton": "Announce the body",
-      "goSeasonSetupButton": "Set the season up",
+      "goSeasonChecklistButton": "Season checklist",
       "nextIncident": "An incident is running. Take it to the end before anything else.",
       "nextEclipse": "The Eclipse is open. Close it once everyone has placed.",
       "nextBodyFound": "A body has been found. Start the Investigation when the room is ready.",
@@ -3917,10 +3968,12 @@
         "other": "{n} students still have actions to spend."
       },
       "nextAllDone": "Everyone has spent their actions. Start the Eclipse: opening it refills everyone, and closing it moves the clock.",
-      "nextSeasonSetup": "The season is not set up yet. Next in Set the season up: {step}.",
-      "nextSeasonSetupAside": "Set the season up still waits on: {step}.",
+      "nextSeasonSetup": "The season is not set up yet. Next in the Season checklist: {step}.",
+      "nextSeasonSetupAside": "The Season checklist still waits on: {step}.",
       "advance": "Next time of day",
       "advanceTooltip": "Move the clock on without an Eclipse: refills actions, Free Moves and search tokens. At Night this also starts the next day and session.",
+      "advanceOffEclipse": "The Eclipse is running: its end moves the clock on.",
+      "advanceOffTrial": "A Class Trial is running: the chapter's end moves the clock on.",
       "advanceDuringEclipse": "An Eclipse is running - end it from the clock's chevron; its end moves the clock.",
       "jump": "Edit campaign",
       "resetHint": "Leave this off when you are only correcting a typo - refilling hands everyone a fresh set of actions.",
@@ -3956,6 +4009,10 @@
         "other": "{n} Faint Remnants cleared."
       },
       "voiceReset": "Re-send everybody's voice room",
+      "studentsLeft": {
+        "one": "{n} student still has actions",
+        "other": "{n} students still have actions"
+      },
       "publicRoll": {
         "gmOnly": "Only a GM can make a public roll.",
         "badFormula": "\"{formula}\" is not a roll formula."
@@ -4035,6 +4092,7 @@
         "withClass": "The Reinforced Level Up earned by walking out of a wrong vote waited for this one, and comes with it."
       },
       "buttonTooltip": "Level Up",
+      "caption": "Level Up",
       "whoPicks": "Who chooses what {actor} takes?",
       "who": {
         "gm": "I will pick",
@@ -4150,7 +4208,7 @@
         "permissions": "the file permissions"
       },
       "failed": "Foundry's settings could not be given back or held. The console says why.",
-      "preSeason": "Foundry's settings are given back: the module holds none of them - Daggerheart's automations, the file permissions, the players' held settings. To hold them again, open Give back Foundry's settings (Set the season up, or this module's settings) and press Hold them again.",
+      "preSeason": "Foundry's settings are given back: the module holds none of them - Daggerheart's automations, the file permissions, the players' held settings. To hold them again, open Give back Foundry's settings (Season setup, or this module's settings) and press Hold them again.",
       "heldNothing": "Foundry's settings were given back, so the module holds none of them now: Daggerheart's Vulnerable and Defeated automations, the file permissions and the players' held settings stay as they are. Hold them again so the module plays as it should, or leave them given back."
     },
     "Enforced": {
@@ -4630,6 +4688,7 @@
     },
     "Rules": {
       "tab": "Rules",
+      "sheetTitle": "Monokuma's rules",
       "sheetIntro": "Monokuma's standing rules. They apply to everyone, all the time, until he says otherwise.",
       "none": "No rules announced yet.",
       "rule": "Rule",
@@ -4829,12 +4888,9 @@
     "Season": {
       "missingPool": "no Despair pool yet (every full Gamemaster account holds one)",
       "missingMonokumaActor": "no character is marked as Monokuma (Despair Flow, or the Actors list's right-click menu)",
-      "title": "Set the season up",
+      "title": "Season setup",
       "introOutstanding": "{n} still to do. A season can start without them; each missing piece shows up the moment it matters.",
       "introReady": "Every row this list needs is done. Pre-season checks look at more than this list - room pictures, voice, who can open the sheets - so run them before the first session.",
-      "campaignName": "Campaign name",
-      "campaignPlaceholder": "Hope's Peak: Drowned Summer",
-      "chapter": "Chapter",
       "note": "Every row is something a season needs, in the order a season is actually built.",
       "resourcesButton": "Give the starting resources",
       "cursorButton": "Hide the GMs' cursor",
@@ -5080,9 +5136,10 @@
       "firstSessionNote": "Set once, before the first session: where the trial is held, what the module holds of Foundry, and the dice.",
       "safeword": "Safeword",
       "safewordNote": "The word that stops the scene, printed on every character sheet. Pick something your table will not mistake for anything else. Leave it blank to use the default.",
-      "campaignBlock": "This campaign",
+      "windows": "The season's windows",
+      "checklistTitle": "Season checklist",
       "startHereTitle": "Where to start",
-      "startHereText": "Start here: GM panel > Set the season up. Its list walks you through a season in the order it is built, and the GM panel's Next line names the first thing still to do."
+      "startHereText": "Start here: GM panel > Season setup. Its Season checklist walks you through a season in the order it is built, and the GM panel's Next line names the first thing still to do."
     },
     "Explain": {
       "state": {
@@ -5307,6 +5364,9 @@
       "moreCloseAll": {
         "one": "{n} more notice waits. Click to close every card except the ones to read.",
         "other": "{n} more notices wait. Click to close every card except the ones to read."
+      },
+      "critical": {
+        "result": "Critical success"
       },
       "kind": {
         "info": "Notice",

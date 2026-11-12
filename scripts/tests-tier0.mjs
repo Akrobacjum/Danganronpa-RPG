@@ -18,7 +18,7 @@ import {
     bridgeTables, bridgeLookup, bridgeCrawl, bridgeCrawlSources, bridgeFamily, bridgeFn, bridgeText, censusFile, ACTION_FAMILY, actionText, VAULT_FAMILY, vaultText, PANEL_FAMILY, panelText, HUD_FAMILY, hudText, TABLES_FAMILY, tablesText, MUSIC_FAMILY, musicText, SFX_FAMILY, sfxText, VOTE_FAMILY, voteText, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed,
     apiKind, apiSurfaceProblems, flatLang, TEXT_DETECTORS, TEXT_MODES, TEXT_FIXTURES, textSelfCheck, textItem,
     TEXT_BASELINES, textAgainstBaseline, textStaleRow, textTableWords, textLegacyLists, cssDeadClasses, cssLintCounts, cssBudgetProblems, CSS_DETECTORS,
-    cssKitSheetProblems
+    cssKitSheetProblems, cssMeaningReads, cssMeaningSelfCheck, cssHourKept, cssForcedBlockProblems, CSS_FORCED_STATES, cssThemeTokens, cssHourDistances, cssDeltaE00Check
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -516,6 +516,266 @@ const REGRESSIONS = [
         must(dead.inSheet > 200, `${dead.inSheet} classes read in the sheets - the dead-class count would read nothing`);
         must(Object.values(counts).reduce((n, c) => n + c.important, 0) > 0, "no `!important` counted in any sheet - the counts read nothing");
         equal(JSON.stringify(cssBudgetProblems(counts, budget, { atMost: true })), "[]", "a served sheet is above its budget, or the budget and module.json disagree");
+    }],
+
+    ["R3410 - gold means Hope alone: no served sheet reads a gold token (`--drpg-gold`, its light, deep, shadow and -rgb, `--drpg-sg-hope`) in a rule whose selector names no Hope word, nor holds a meaning token's own value under another name, nor `--drpg-attention` outside focus and selection, nor `--drpg-critical` outside a critical; the check finds the three faults planted in its fixture and one planted in a served sheet and a planted copy of gold's value; `--drpg-attention` is Bone in both themes and the clock's Daily Life reads it, and `--drpg-critical` is the critical's light red, read by the flat roll's critical line (E48 K1, K2b; Q6)", async () => {
+        /*
+         * E48 K1, 11.11.2026 (the plan's "złoto zostaje wyłącznie dla Hope"; S12-61). tests-css.mjs `meaningReads`, the
+         * function `node tools/check.mjs css` runs, on the files Foundry serves. Red before K1: "54 read(s) of a meaning
+         * token outside its selectors", first "styles/danganronpa.css: .drpg-action-button:focus-visible, ... { outline }
+         * reads --drpg-gold" - the focus ring, the chosen crisis row, the Frisk mode, the card's default result,
+         * `.drpg-sum-found`, the messenger's dot and the rest of 42 rules. `--drpg-gold-antique` is Evidence's
+         * (`var(--drpg-evidence)`) and is not a gold token here.
+         * E48 K2b, 11.11.2026 (the owner's defaults on K1's and K2's opens). Red before K2b: "2 read(s) of a meaning token
+         * outside its selectors: styles/danganronpa.css: :root { --drpg-phase-daily } holds #ffd23f, the value of
+         * --drpg-gold (hope: ...)" and its -rgb twin - Hope's gold under the clock's name, which the check could not see
+         * while it read only `var()`. Then (its own commit) "--drpg-critical is undefined" for the critical's row: K1 sent
+         * `.drpg-flat-crit` to the critical's light red, a fifth destination; K2b names it the critical's own.
+         */
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const sheets = [];
+        for (const file of manifest.styles ?? []) sheets.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)]);
+        must(sheets.length >= 6, `module.json serves ${sheets.length} sheet(s) - this test would hold nothing`);
+        equal(JSON.stringify(cssMeaningSelfCheck()), "[]", "the meaning check does not read its own fixture as written");
+        const all = cssMeaningReads(sheets), read = all.read;
+        const found = all.found.filter(f => / \((?:hope|attention|critical): /.test(f)); // the hour's row is R3412's (E48 K2)
+        must(read >= 40, `${read} read(s) of a meaning token in the served sheets - the sheets did not load, or the check reads nothing`);
+        ok(!found.length, `${found.length} read(s) of a meaning token outside its selectors: ${found.slice(0, 6).join(" | ")}`);
+        const planted = sheets.map(([file, text], i) => [file, i ? text : `${text}\n.drpg-planted-control:focus-visible { outline: 2px solid var(--drpg-gold); }\n`]);
+        equal(cssMeaningReads(planted).found.length, all.found.length + 1, "a gold focus ring planted in a served sheet is not seen");
+        const tokens = cssThemeTokens(sheets);
+        for (const theme of ["monokuma-legacy", "stained-glass"]) {
+            equal(tokens[theme].get("--drpg-attention"), "var(--drpg-bone)", `${theme}: --drpg-attention is not the theme's Bone`);
+            equal(tokens[theme].get("--drpg-attention-rgb"), "var(--drpg-bone-rgb)", `${theme}: --drpg-attention-rgb is not the theme's Bone`);
+            equal(tokens[theme].get("--drpg-phase-daily"), "var(--drpg-attention)", `${theme}: the clock's Daily Life is not the attention colour`);
+            equal(tokens[theme].get("--drpg-critical") ?? `${theme}: --drpg-critical is undefined`, "var(--drpg-crimson-light)", `${theme}: --drpg-critical is not the critical's light red`);
+        }
+        const copied = sheets.map(([file, text], i) => [file, i ? text : `${text}\n.drpg-planted-clock { --drpg-planted-day: #FFD23F; }\n`]);
+        equal(cssMeaningReads(copied).found.length, all.found.length + 1, "Hope's gold copied as a literal under another name is not seen");
+        const crit = sheets.find(([file]) => file.endsWith("danganronpa.css"));
+        ok(/\.drpg-flat-crit\s*\{[^}]*color:\s*var\(--drpg-critical\)/.test(crit?.[1] ?? ""), "the flat roll's critical line does not read --drpg-critical");
+    }],
+
+    ["R3411 - no hour reads as a state: each of Stained Glass's five hour tokens is at least tools/contrast-pairs.json's threshold (CIEDE2000 15, Q7) from each meaning colour - Investigation, Hope, the GM's red and light, Eclipse, Despair, Evidence, Health, Sanity - every token resolves, and CIEDE2000 reads Sharma, Wu and Dalal's test pairs as published (E48 K2; D30 = 2)", async () => {
+        /*
+         * E48 K2, 11.11.2026. tests-css.mjs `hourDistances`, the arithmetic `node tools/check.mjs contrast` prints, on the
+         * files Foundry serves. Red before K2: "hours: --drpg-sg-afternoon is 10.92 from Hope (--drpg-sg-hope), under 15",
+         * evening 11.66 from Health, night 10.39 from Eclipse; noon, the designer's guess (16.5 from Investigation), was not
+         * under it. The threshold is chosen, not measured: the tool prints all 45 pairs.
+         */
+        needs(env.tools(), "tools/contrast-pairs.json is read from the repository's tools/ (an installed module's zip leaves it out)");
+        equal(JSON.stringify(cssDeltaE00Check()), "[]", "CIEDE2000 does not read its published test pairs");
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const sheets = [];
+        for (const file of manifest.styles ?? []) sheets.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)]);
+        let spec = null;
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/tools/contrast-pairs.json`, { cache: "no-cache" });
+            if (res.ok) spec = (await res.json()).hours ?? null;
+        } catch { /* the assertion below says it is missing */ }
+        ok(spec && spec.threshold > 0, "tools/contrast-pairs.json has no `hours` with a threshold");
+        if (!spec) return;
+        const { rows, problems } = cssHourDistances(spec, cssThemeTokens(sheets));
+        must(rows.length >= 40 && rows.every(r => r.de !== null), `${rows.length} pair(s) read, ${rows.filter(r => r.de === null).length} unresolved - the hours would vouch for nothing`);
+        equal(JSON.stringify(problems), "[]", "an hour is under the threshold from a meaning colour, or a token does not resolve");
+        const planted = cssHourDistances({ ...spec, hours: [...spec.hours, spec.meanings.Hope] }, cssThemeTokens(sheets));
+        ok(planted.problems.some(p => p.includes("0.00 from Hope")), "Hope's own colour planted as an hour is not read as Hope's");
+    }],
+
+    ["R3412 - the hour colours the panes and never a card, a bar or a button: no served sheet reads `--drpg-glass-accent` or an hour token in a rule outside tests-css.mjs HOUR_KEPT (each family with its reason, each still read), nor in the Event panel's cards, the action and Call tiles, the panel's and sheet's buttons and tabs, the state bars, a field's or checkbox's focus, the HUD's buttons or the GM panel's section bars at all; the windows' headers, the tables and the countdown tray keep it as decoration; and each planted control is seen (E48 K2, K2b; D30)", async () => {
+        /*
+         * E48 K2, 11.11.2026. tests-css.mjs `meaningReads`, MEANING's `hour` row (its comment lists the families). Red
+         * before K2: "16 read(s) of the hour outside its list", first "styles/danganronpa.css: .drpg-project-card-bar > span
+         * { background } reads --drpg-glass-accent", then the Event panel's card, the panel's buttons, the action and Call
+         * tiles, the sheet's tabs, the picking rows' `--kind`, the resource bars and fills, the status bars and the two
+         * badges that took an hour's hue.
+         * E48 K2b, 11.11.2026 (the owner's default on K2's open: the controls lose the hour, the decorations keep it).
+         * Red before K2b: "14 read(s) of the hour outside its list", first "styles/stained-glass.css: ... .drpg-panel
+         * :is(input[type="text"], ...):focus-visible { border-color } reads --drpg-glass-accent", then the other fields'
+         * and the messenger's focus, the biography's, the checkbox's focus ring, the GM panel's section bar `--kind` and
+         * the HUD button's edge and hover.
+         */
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const sheets = [];
+        for (const file of manifest.styles ?? []) sheets.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)]);
+        must(sheets.length >= 6, `module.json serves ${sheets.length} sheet(s) - this test would hold nothing`);
+        const hourOf = list => list.filter(f => / \(hour: /.test(f));
+        const { found } = cssMeaningReads(sheets);
+        const glass = sheets.find(([file]) => file.endsWith("stained-glass.css"));
+        must(glass && (glass[1].match(/var\(--drpg-glass-accent\)/g) ?? []).length >= 50, "stained-glass.css reads the accent fewer than 50 times - the sheet did not load");
+        ok(!hourOf(found).length, `${hourOf(found).length} read(s) of the hour outside its list: ${hourOf(found).slice(0, 6).join(" | ")}`);
+        const planted = sheets.map(([file, text]) => [file, file === glass[0] ? `${text}\nbody.drpg-theme-stained-glass .drpg-call-button:hover { --brush: var(--drpg-glass-accent); }\n` : text]);
+        equal(hourOf(cssMeaningReads(planted).found).length, hourOf(found).length + 1, "the hour planted on a Call tile is not seen");
+        for (const control of ["#drpg-hud .drpg-hud-button:hover { border-color", ".drpg-gm-panel .drpg-gmp-section > summary { --kind", ".drpg-panel textarea:focus-visible { caret-color", "input[type=\"checkbox\"]:focus-visible { outline"]) {
+            const one = sheets.map(([file, text]) => [file, file === glass[0] ? `${text}\nbody.drpg-theme-stained-glass ${control}: var(--drpg-glass-accent); }\n` : text]);
+            equal(hourOf(cssMeaningReads(one).found).length, hourOf(found).length + 1, `the hour planted on a control (${control.split(" {")[0]}) is not seen`);
+        }
+        const kept = cssHourKept(cssMeaningReads(sheets).allowed);
+        for (const family of kept) ok(family.reads > 0, `HOUR_KEPT's "${family.name}" (${family.why}) allows no read of the hour - a stale line`);
+        for (const decoration of ["window headers", "tables", "countdown tray"]) {
+            const family = kept.find(k => k.name === decoration);
+            ok(family?.reads > 0, `the ${decoration} lost the hour - the owner's default keeps it there (${family?.why ?? "no such line"})`);
+        }
+    }],
+
+    ["R3440 - forced colours keep every state: the served sheets' `@media (forced-colors: active)` block names each state element of tests-css.mjs FORCED_STATES - the action, despair and player-status pips, Hope's pips and stars, the pixel glyphs, the checkbox's tick, the selected brush, the Event ticker, the microphone's and the voice list's muted stroke and the mic's lock, the notice history's button and window - and a state planted in the list with no rule is seen (E48 K3)", async () => {
+        /*
+         * E48 K3, 11.11.2026. tests-css.mjs `forcedBlockProblems`. What the rules then draw is audit/forced-sweep.mjs's, in
+         * Chromium (a spent pip and a free pip differ, neither blank, both themes); Windows' own contrast themes are a
+         * check at a real table, not made here. Red before K3: "the forced-colours block names nothing for the action pips
+         * (`.drpg-action-pip::before`)" and 13 more of the 15 rows (the despair pips' rule was there).
+         */
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const sheets = [];
+        for (const file of manifest.styles ?? []) sheets.push([file, await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)]);
+        must(sheets.length >= 6 && CSS_FORCED_STATES.length >= 12, `${sheets.length} sheet(s), ${CSS_FORCED_STATES.length} state(s) - this test would hold nothing`);
+        const problems = cssForcedBlockProblems(sheets);
+        equal(JSON.stringify(problems), "[]", `${problems.length} state element(s) with no forced-colours rule`);
+        const planted = cssForcedBlockProblems(sheets, [...CSS_FORCED_STATES, { name: "a planted state", selector: ".drpg-planted-state" }]);
+        equal(planted.length, problems.length + 1, "a state with no forced-colours rule planted in the list is not seen");
+    }],
+
+    ["R3333 - the pixel glyphs come from one source: each row of tools/glyphs.json `grid` cells wide and tall, no two drawing the same pixels unless one says `same`, the sprite, pixel-icons.css and the audit page's symbols what tools/glyph-map.mjs writes from them, every SVG data URI of danganronpa.css and stained-glass.css its row's drawing pixel for pixel, the chrome section what tools/chrome-icons.mjs writes, and each planted drift seen (E48 G1)", async () => {
+        /*
+         * E48 G1, 10.11.2026. The drawings lived in six places (tools/pixel-icons.py and its base file, chrome-icons.mjs's
+         * art, the stylesheets' custom properties and masks); they are rows of one file now, and this is glyph-map.mjs's
+         * `--check` (tests-glyphs.mjs `glyphProblems`, `selfCheck`) on the files Foundry serves, the same functions `node tools/check.mjs
+         * glyphs` runs. A drawing the sheets still hold by hand (until G4 generates them) is held to its row by its pixels,
+         * not its text: the sheets spell one rectangle three ways. Red before G1: no tools/glyphs.json; red on a planted
+         * drift (one pixel of a row of the generated set flipped: "icons/pixel-sprite.svg is not what tools/glyph-map.mjs
+         * writes (line 2 differs)"), and `selfCheck` plants nine kinds of drift in copies and wants each named.
+         */
+        needs(env.tools(), "tools/glyphs.json and its generator are read from the repository's tools/ (an installed module's zip leaves it out)");
+        const files = {};
+        for (const file of ["tools/glyphs.json", "icons/pixel-sprite.svg", "styles/pixel-icons.css", "docs/design/identity-audit-v13.html", "styles/danganronpa.css", "styles/stained-glass.css"]) {
+            try {
+                const res = await fetch(`/modules/${MODULE_ID}/${file}`, { cache: "no-cache" });
+                files[file] = res.ok ? await lfText(res) : null;
+            } catch { files[file] = null; /* the assertions below name what is missing */ }
+        }
+        ok(files["tools/glyphs.json"] != null, "tools/glyphs.json is missing: the glyphs have no one source");
+        if (files["tools/glyphs.json"] == null) return;
+        const G = await import("./tests-glyphs.mjs");
+        equal(JSON.stringify(G.GLYPH_FILES.filter(f => !(f in files))), "[]", "glyph-map.mjs reads a file this test does not fetch");
+        const { problems, counts } = G.glyphProblems(files);
+        /* 154 sheet rows until E48 G4, which made the 89 hand-drawn declarations generated rows (family legacy): the 63
+           chrome masks are the sheet rows left. */
+        must(counts && counts.glyphs >= 400 && counts.sheetRows >= 60 && (counts.families?.legacy ?? 0) >= 100, `glyphs.json read ${JSON.stringify(counts)} - the check would hold nothing`);
+        equal(JSON.stringify(problems.slice(0, 6)), "[]", `${problems.length} problem(s) between tools/glyphs.json and the files it draws`);
+        equal(counts.chrome, "current", "danganronpa.css's chrome section was not compared with tools/chrome-icons.mjs's");
+        const { misses, plants } = G.selfCheck(files);
+        must(plants >= 9, `${plants} plant(s) - the self-check would prove little`);
+        equal(JSON.stringify(misses), "[]", "a planted drift went unseen");
+    }],
+
+    /*
+     * E48 G2, 10.11.2026: the map (tests-glyphs.mjs ELEMENTS, FUTURE, SAME, OPPOSITES, THEMES) and the gaps it measures.
+     * Each is red on its own list until the drawing rounds (STAGE M) and G3/G4 empty it, so each goes green on its own;
+     * the structure (every keyed element in ELEMENTS, no stale row, SAME and OPPOSITES naming elements) is red in `node
+     * tools/check.mjs glyphs` now. Measured at G2: 8 keyed elements undrawn, 2 dead tiles, 3 opposite pairs alike, 67
+     * FUTURE glyph names undrawn, 14 shared drawings SAME does not join (19 shared, 5 joined), 69 drawings Stained Glass
+     * wears off the 24 grid. The merge into the 1.2.105 line (11.11.2026): E49 A2 took the End the chapter tile out of
+     * the panel (into Edit campaign, a text button), so ELEMENTS lost gm.chapterEndTile and 7 keyed elements are undrawn;
+     * FUTURE's row 13 (end-chapter) stays.
+     */
+    ["R3334 - every keyed element (config.mjs's ACTIONS, HOPE_CALLS, DESPAIR_CALLS, CRISIS_ACTIONS, MONOCUB, TRAP_TRIGGERS, CLEANUP and gm-panel.mjs's tiles) has a row in tests-glyphs.mjs ELEMENTS and its glyph is drawn for Stained Glass (E48 G2)", async () => {
+        const { G, gaps, keyed, structure } = await glyphMapInputs();
+        // 70, not 80, since E49 A1e: four GM tiles left the panel for Season setup (78 keyed elements read on 11.11.2026).
+        must(keyed.length >= 70, `${keyed.length} keyed element(s) read - config.mjs or gm-panel.mjs was not read`);
+        equal(JSON.stringify(structure), "[]", "the map's structure");
+        equal(JSON.stringify(gaps.keyedUndrawn), "[]", `keyed elements whose glyph no row draws (of ${Object.keys(G.ELEMENTS).length})`);
+    }],
+
+    ["R3335 - no stylesheet glyph rule names a GM panel tile that gm-panel.mjs no longer has (data-drpg-run, E48 G2; S12-62)", async () => {
+        const { gaps, keyed } = await glyphMapInputs();
+        must(keyed.some(([k]) => k.startsWith("gm.")), "no GM tile read from gm-panel.mjs");
+        equal(JSON.stringify(gaps.deadTiles), "[]", "danganronpa.css draws these tiles, which the panel no longer has");
+        /* Green since E48 G4 (11.11.2026): the items and music tiles' rules and drawings went with the hand masks. */
+    }],
+
+    ["R3336 - each OPPOSITES pair draws apart: Sabotage and Contribution, Analyze and Paranoia, Palm and the Monocub's meddle, and the future pairs once drawn (E48 G2; S02-73)", async () => {
+        const { G, gaps } = await glyphMapInputs();
+        must(G.OPPOSITES.length >= 3, "no opposite pairs to hold");
+        equal(JSON.stringify(gaps.opposites), "[]", "opposite elements wearing one drawing");
+    }],
+
+    ["R3337 - every FUTURE row of the glyph inventory (82, the later stages' controls) has its glyph drawn (E48 G2; amend [13])", async () => {
+        const { G, gaps } = await glyphMapInputs();
+        /* 82 the inventory's rows; E48 G3 (11.11.2026) appended batch 4's 16 past it (E97's design notes, E69's two marks). */
+        must(G.FUTURE.length >= 82, `${G.FUTURE.length} FUTURE row(s): fewer than the inventory's 82`);
+        equal(JSON.stringify(gaps.futureUndrawn), "[]", "FUTURE glyph names no row draws");
+        /* Green since E48 mic-lock (11.11.2026): batch 5's drawing, approved, is the glass row mic-lock (F5, the GM's manual
+           mic lock), the one FUTURE glyph G3 left undrawn; R3460 holds the voice tile's locked mic wearing it. */
+    }],
+
+    ["R3338 - no two elements, keyed or FUTURE, wear one drawing unless tests-glyphs.mjs SAME says they are one function in two places (E48 G2; the owner, 10.11)", async () => {
+        const { G, gaps } = await glyphMapInputs();
+        must(G.SAME.every(([ids, why]) => ids.length > 1 && why), "a SAME row without its ids or its reason");
+        equal(JSON.stringify(gaps.shared), "[]", "drawings worn by elements SAME does not join");
+    }],
+
+    ["R3339 - every drawing Stained Glass wears is on the 24 grid; Monokuma Legacy keeps its 12- and 8-grid ones (E48 G2; Q11, the owner, 10.11)", async () => {
+        const { gaps, glyphs } = await glyphMapInputs();
+        must(glyphs.length >= 240, `${glyphs.length} glyph(s) read`);
+        equal(JSON.stringify(gaps.offGrid), "[]", "drawings Stained Glass wears off the 24 grid with no `glass` row of the name on 24");
+        /* Green since E48 batch 5 (12.11.2026): the 66 drawings it listed until then (legacy diamond, diamond-empty, dot,
+           dot-empty, skull and query on 8; 60 chrome masks on 12) each have a glass row on 24 - the six small marks by
+           name, declared under the theme's body (tests-glyphs.mjs SHEET_MARKS), the chrome masks by name or by the
+           chrome row's key (`glassChromeOf`), which R3596 holds the chrome section to wear under Stained Glass. */
+    }],
+
+    ["R3596 - Foundry's chrome wears each theme's own drawing: in danganronpa.css's chrome section every chrome mask on 12, on every selector it lands on (the scene-controls rail, the sidebar tabs, the window header's close and controls), is its chrome row's 12 drawing as written and, under Stained Glass's body, its glass row's 24 drawing, decoded pixel for pixel; the section less its glass part is byte for byte what tools/chrome-icons.mjs writes with no glass row; a planted swap and a planted Legacy change are each seen (E48 batch 5; Q11, the owner 10.11)", async () => {
+        /*
+         * E48 batch 5, 12.11.2026. R3339 asks whether a 24 drawing exists; this asks whether the chrome wears it, theme by
+         * theme, off the served sheet's text (tests-glyphs.mjs `chromeThemeProblems`): the masks sit on ::before, which a
+         * computed style headless does not read. Red on 17aceda8's rows and sheet: 66 problems - no glass row for the 60
+         * chrome masks R3339 listed, and the 6 selectors of eye-slash and music, whose glass rows of that name were drawn
+         * for the module's own markup, not worn under the theme's body (none of the 180 was). THE CONTROLS: the
+         * first glass mask in the section swapped for its Legacy drawing, and one Legacy mask's first path cell moved.
+         */
+        needs(env.tools(), "tools/glyphs.json and its generator are read from the repository's tools/ (an installed module's zip leaves it out)");
+        const G = await import("./tests-glyphs.mjs");
+        const text = async file => fetch(`/modules/${MODULE_ID}/${file}`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
+        const glyphs = G.parseGlyphs(await text("tools/glyphs.json")).glyphs;
+        const css = await text("styles/danganronpa.css");
+        must(glyphs.filter(g => g.family === "chrome").length >= 60 && css.length > 100000, `${glyphs.length} glyph row(s), ${css.length} character(s) of danganronpa.css read`);
+        const { problems, read } = G.chromeThemeProblems(glyphs, css);
+        must(read >= 180, `${read} selector(s) of the chrome section held - the check would hold little`);
+        equal(JSON.stringify(problems.slice(0, 6)), "[]", `${problems.length} problem(s) between the chrome section and each theme's rows`);
+        // a glass icon's rule opens on its mask (the glass part's first block, the box, has none); a Legacy mask is on 12
+        const glassMask = /body\.drpg-theme-stained-glass #scene-controls [^{}]*\{\s*-webkit-mask-image: (url\("data:image\/svg\+xml,[^"]*"\))/.exec(css)?.[1];
+        const legacyMask = /mask-image: (url\("data:image\/svg\+xml,[^"]*viewBox='0 0 12 12'[^"]*"\))/.exec(css);
+        must(glassMask && legacyMask, "no glass rule or no Legacy mask in the chrome section to plant in");
+        const swapped = css.split(glassMask).join(legacyMask[1]);
+        ok(G.chromeThemeProblems(glyphs, swapped).problems.some(p => p.includes("(Stained Glass)")), "a glass mask swapped for Legacy's 12 drawing is not seen");
+        const moved = css.split(legacyMask[1]).join(legacyMask[1].replace(/d='M(\d+) /, (m, x) => `d='M${Number(x) === 0 ? 1 : 0} `));
+        ok(G.chromeThemeProblems(glyphs, moved).problems.some(p => p.includes("Legacy")), "a Legacy mask with one cell moved is not seen");
+    }],
+
+    ["R3349 - one glyph prefix: no stylesheet of module.json, nor a script that writes or names a glyph, holds the retired px, g or r prefix, and every --drpg-pix- glyph they read (a sheet's var(), the kit's pixelGlyph and launcher names, config.mjs PROJECT_GLYPHS) is a legacy row of tools/glyphs.json, declared on :root for both themes (E48 G4)", async () => {
+        /*
+         * E48 G4, 11.11.2026 (STAGE G4: the px and g prefixes "gone (grep 0)"). Legacy's drawings are declared once, by
+         * the generator, as --drpg-pix-<name> on :root; Stained Glass declares its own set over the same names. A read
+         * of a name no legacy row holds resolves to nothing under Monokuma Legacy - an icon element with an undefined mask
+         * is a solid square of its colour (pixel-icons.css's 1.2.47 note) - so each read is held to a legacy row, and the
+         * names scripts build at run time are read off their calls (tests-glyphs.mjs namedGlyphReads) and PROJECT_GLYPHS.
+         * THE CONTROL: the same check on the files with one read renamed to a name no row has, and one old prefix planted
+         * in a comment, must name both.
+         */
+        const { G, glyphs } = await glyphMapInputs();
+        const C = await import("./config.mjs");
+        const text = async file => fetch(`/modules/${MODULE_ID}/${file}`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : null));
+        const styles = JSON.parse(await text("module.json") ?? "{}").styles ?? [];
+        must(styles.length >= 5, `module.json names ${styles.length} stylesheet(s)`);
+        const texts = {};
+        for (const f of [...styles, ...G.GLYPH_READERS]) texts[f] = await text(f);
+        const names = [...G.namedGlyphReads(texts), ...Object.keys(C.PROJECT_GLYPHS ?? {})];
+        must(names.length >= 20 && ["mic", "lock", "hourglass"].every(n => names.includes(n)), `${names.length} glyph name(s) read off the scripts: ${names.join(", ")}`);
+        const problems = G.prefixProblems(glyphs, texts, names);
+        const planted = { ...texts, "styles/danganronpa.css": `${texts["styles/danganronpa.css"]}\n/* --drpg-` + `g-plant */ .x { mask-image: var(--drpg-pix-no-such-glyph); }` };
+        const seen = G.prefixProblems(glyphs, planted, names);
+        equal(JSON.stringify(["g-plant", "no-such-glyph"].filter(w => !seen.some(p => p.includes(w)))), "[]", "the control's two plants not seen");
+        equal(JSON.stringify(problems.slice(0, 40)), "[]", `the one prefix (${problems.length} problem(s), ${Object.keys(texts).length} file(s), ${names.length} named glyph(s))`);
     }],
 
     ["R1313 - CONTRIBUTING.md's \"The CSS contract\" names each detector of the CSS lint (importantCount, colourLiterals, strayCommentEnds, duplicateRules, deadClasses), the floor (21 px scaled under Stained Glass, 10 px a rung under Monokuma Legacy), the 390 px rule and the three commands - node tools/check.mjs css, node tools/check.mjs contrast, node audit/style-sweep.mjs (E44 C1c; E44-04)", async () => {
@@ -3037,9 +3297,10 @@ const REGRESSIONS = [
             "the system's own contrast preference is no longer read");
         ok(/toggle\("drpg-high-contrast", highContrastOn\(\)\)/.test(settings),
             "applyTheme no longer puts the class on the body");
-        const look = stripComments(new Map(await otherSources()).get("look.mjs") ?? "");
-        ok(look.includes("SETTINGS.highContrast"),
-            "the Look window lost the switch, so only Foundry's settings page has it");
+        // The gear's window is settings-window.mjs's since E49 A1d (the Look window's rows moved there).
+        const look = stripComments(new Map(await otherSources()).get("settings-window.mjs") ?? "");
+        ok(/CLIENT_SECTIONS\s*=[\s\S]*?"highContrast"[\s\S]*?GAME_SECTIONS\s*=/.test(look),
+            "the gear's settings window lost the switch, so no window of a player's has it");
     }],
 
     ["R53 - the Tamper tile's late answer does not eat the reason it is locked", async () => {
@@ -3358,7 +3619,7 @@ const REGRESSIONS = [
          * pause caption, whose container is the viewport), and a literal inside a
          * `calc()` that carries the factor.
          */
-        const sheets = ["danganronpa.css", "messenger.css"];
+        const sheets = ["danganronpa.css", "base.css"];
         const bad = [];
         let factored = 0;
         let clamped = 0;
@@ -3474,7 +3735,7 @@ const REGRESSIONS = [
             ok(apply.includes(token), `${token} stopped being published - three factors, three writes`);
         }
 
-        for (const sheet of ["danganronpa.css", "messenger.css"]) {
+        for (const sheet of ["danganronpa.css", "base.css"]) {
             const css = await fetch(`/modules/${MODULE_ID}/styles/${sheet}`).then(lfText);
             ok(!css.includes("var(--drpg-type-scale"),
                 `${sheet} reads the screen-term factor, which has no business in a sheet drawn at one size`);
@@ -3729,8 +3990,9 @@ const REGRESSIONS = [
         const sources = new Map(await otherSources());
         // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
         const panel = stripComments(panelText(sources));
-        const clockWin = bodyOf(panel, "export async function openClockDialog");
-        const list = bodyOf(clockWin, "const stated", { until: "const result" });
+        // E49 A1e: the fields left the window's body for `campaignRows`, which Edit campaign and Season setup both draw.
+        const clockWin = bodyOf(panel, "export function campaignRows");
+        const list = bodyOf(clockWin, "const stated", { until: "return [" });
         ok(list.length > 80, "the chapter list has moved or gone");
         ok(/Math\.max\(CHAPTERS_PER_SEASON/.test(clockWin),
             "the chapter list is six long whatever the clock says, so a campaign past "
@@ -3746,10 +4008,11 @@ const REGRESSIONS = [
         // AND THE RULE REACHES THE OTHER WINDOW WITH THE SAME CAP. A number input
         // whose value is out of range fails constraint validation, so Apply there
         // submitted nothing at all. E44 C4b (04.11.2026): the field is ui-kit.mjs's `stepper`, its cap the `max` it passes.
+        // E49 A1e: Season setup draws Edit campaign's own rows, so its chapter is the field read above.
         const season = stripComments(sources.get("season-setup.mjs") ?? "");
-        const field = bodyOf(season, 'stepper({ name: "chapter"', { length: 240 });
-        ok(/\bmax:\s*Math\.max\(CHAPTERS_PER_SEASON/.test(field),
-            "the Season setup window still caps its chapter field at six");
+        const fields = bodyOf(season, "export function campaignFieldsHtml(", { until: "export function seasonTilesHtml(" });
+        ok(/\bcampaignRows\(/.test(fields) && !/stepper\(\{ name: "chapter"/.test(season),
+            "the Season setup window draws a chapter field of its own again, which this cap does not reach");
     }],
 
     ["R69 - the Eclipse warning fires on a clock that moved", async () => {
@@ -3763,7 +4026,8 @@ const REGRESSIONS = [
          */
         // E41 C7a (1.2.97): the Students window and Edit campaign left gm-panel.mjs; the panel's family's text (the kit's `panelText`).
         const panel = stripComments(panelText(await otherSources()));
-        const win = bodyOf(panel, "export async function openClockDialog");
+        // E49 A1e: Apply's writes left the window for `applyCampaignForm`, which Edit campaign and Season setup both run.
+        const win = bodyOf(panel, "export async function applyCampaignForm");
         ok(!/result\.timeOfDay\s*!==\s*undefined/.test(win),
             "the Eclipse warning is gated on a field the form always fills");
         ok(/before\.timeOfDay/.test(win),
@@ -3953,9 +4217,17 @@ const REGRESSIONS = [
         ok(/paintDraft\(dialog\.element, draft\)/.test(season),
             "a carried draft is never painted back");
 
-        const rows = bodyOf(season, "function wireSetupSteps(", { until: "export async function openSeasonSetup(" });
-        ok(/handOff\(dialog, \(\) => openSeasonSetup\(\{ draft(, [^}]*)? \}\)\)/.test(rows),
+        // E49 A1e (12.11.2026): the rows are the Season checklist's, and the row reopens the window it stands in (`reopen`),
+        // which the checklist hands as itself; Season setup's tiles make the same round trip back to Season setup.
+        ok(/openSeasonChecklist\(\{ draft = null(, [^}]*)? \} = \{\}\)/.test(season),
+            "the checklist's opener cannot be handed a draft");
+        const rows = bodyOf(season, "function wireSetupSteps(", { until: "function wireSeasonTiles(" });
+        ok(/handOff\(dialog, \(\) => reopen\(\{ draft(, [^}]*)? \}\)\)/.test(rows)
+            && /wireSetupSteps\(dialog, trip => \{ roundTrip = trip; \}, openSeasonChecklist\)/.test(season),
             "the row still closes and reopens on its own, so the close answers the caller");
+        const tiles = bodyOf(season, "function wireSeasonTiles(", { until: "export async function openSeasonSetup(" });
+        ok(/handOff\(dialog, \(\) => openSeasonSetup\(\{ draft(, [^}]*)? \}\)\)/.test(tiles) && !/await dialog\.close\(\)/.test(tiles),
+            "a tile of Season setup's row closes and reopens on its own, so the close answers the caller");
         ok(!/await dialog\.close\(\)/.test(rows),
             "the row awaits the close itself, which is what resolves the opener early");
         ok(/step\.fixedKey \?\? "DRPG\.Season\.fixed"/.test(rows),
@@ -3965,10 +4237,12 @@ const REGRESSIONS = [
         ok(/!\(step\.fix \|\| step\.open\)/.test(builder),
             "a row with nothing to fix and nothing to open still offers a button");
 
-        const opener = bodyOf(season, "export async function openSeasonSetup(");
-        const tail = bodyOf(opener, "rejectClose: false");
-        ok(/if \(roundTrip\) return roundTrip;/.test(tail),
-            "the round trip is not returned, so the GM panel reopens itself over it");
+        for (const name of ["openSeasonSetup", "openSeasonChecklist"]) {
+            const opener = bodyOf(season, `export async function ${name}(`);
+            const tail = bodyOf(opener, "rejectClose: false");
+            ok(/if \(roundTrip\) return roundTrip;/.test(tail),
+                `${name}: the round trip is not returned, so the GM panel reopens itself over it`);
+        }
     }],
 
     ["R75 - revoking a Despair pool is asked first, and the form survives it", async () => {
@@ -8995,6 +9269,7 @@ const REGRESSIONS = [
             ["HOOK movement.mjs#registerMovement#preUpdateToken:onPreUpdateToken", "a claim, judged again: the veto runs on the mover's browser (a GM returns early); since E12 C9 it sees a `level`-only move (`isMoveChange`), reads each end on its own floor (`roomAt` per level) and links floors by the stairs alone where a scene has them (`stairLinks`); since E12 C12 the primary judges every arrival again from the last lawful room (`judgeArrival`), and one it refuses is no witness and no third party until it stands somewhere lawful (Q3 a); scenario 66 I [1b.1 a token's room / floor] MARKED"],
             ["HOOK movement.mjs#registerMovement#updateToken:onUpdateToken", "the charge on one client (`settleRoute`: the owning player's, else the primary's) - a player's own budget; since E12 C9 it gates on `isMoveChange` and prices a step by `crossingCost`: the stairs a door, a stairwell's floors free (Q1 a) [1b.1 a token's floor]"],
             ["HOOK sheet.mjs#registerSheetTweaks#preUpdateToken:noteStepStart", "out of scope as a judge: notes where this browser's own move of a token starts, for the step onto a tunnel's end (H81-13); vetoes nothing and writes nothing"],
+            ["HOOK body-tile.mjs#registerBodyFollow#updateToken:inline", "judged: a GM's own write followed (E63 C1, `followBody`): on the GM browser that wrote the token's move alone, for a corpse, the body's tile on the token's own scene takes the token's corner, height, floor and hidden; a player's move of a corpse is vetoed before it writes (movement.mjs `isCorpse`)"],
             ["HOOK anonymity.mjs#registerAnonymity#updateToken:inline", "out of scope as a judge: a display - an open body's loot window reads the one gate again on this browser when its taker's or its body's token is written (`regreyOpenLoot`, E14 fix e1-G6); writes nothing, and the GMs judge the loot again"],
             ["HOOK sheet.mjs#registerSheetTweaks#updateToken:inline", "a claim, judged again: the mover's browser reads its own move at rest (movement.mjs `tunnelStepTarget`) and asks the primary as 'Go through' does (`passage.cross`, passages-gm.mjs `crossTunnel`, H81-13); writes nothing"],
             ["HOOK movement.mjs#registerMovement#updateToken:noteGmPosition", "judged: the record of positions `sendBackRefusal` compares against, `level` in it (`positionOf`), kept on every GM and primed by each at ready since E12 fix r2-H3 (before, the primary's alone); since E12 C12 the primary judges the arrival first (`judgeArrival`, the hook's `userId`), the last lawful room kept beside the record (`standings`, 3.4)"],
@@ -9245,6 +9520,7 @@ const REGRESSIONS = [
             ["HOOK despair.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK fog.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK sheet.mjs#preUpdateToken#noteStepStart", "out of scope: notes where this browser's own move starts (H81-13); the courtroom holds no tunnel, and the crossing is the primary's (`crossTunnel`)"],
+            ["HOOK body-tile.mjs#updateToken#arrow1", "judged: the body follows its corpse's token (E63 C1, `followBody`) on the GM browser that wrote the move alone; a token on another scene than its tile moves nothing, so a hall token in the trial moves no school body, and the trial's end takes every body tile (E63 C2)"],
             ["HOOK anonymity.mjs#updateToken#arrow1", "out of scope: a display - an open body's loot window reads the one gate again on a token write of its taker or its body (E14 fix e1-G6); writes nothing; in the hall the Class Trial refuses every loot (`cannotNow`)"],
             ["HOOK sheet.mjs#updateToken#arrow1", "out of scope: a move onto a tunnel's end asks the primary as 'Go through' does (H81-13); the courtroom holds no tunnel, and the Class Trial refuses one there (`trialLocked`)"],
             ["HOOK fog.mjs#updateToken#onUpdateToken", "judged on the primary: a move records discovery through rooms; the hall holds none after C1, so a hall move records nothing (41 b: 0 fog writes). E12 C2b/C10 change the readers"],
@@ -9957,15 +10233,15 @@ const REGRESSIONS = [
         /*
          * E78 fix r2-H1, 14.10.2026. The orchestrator on G3's glass harness shots (14.10): the tile's two buttons drew as
          * plain white squares. There the harness's copy of the tile wore no mask, and `.drpg-pxi` with no mask is a
-         * square of its own colour (danganronpa.css). voice-tile.mjs `glyph` writes `--drpg-px-<name>` on each glyph it
+         * square of its own colour (danganronpa.css). voice-tile.mjs `glyph` writes `--drpg-pix-<name>` on each glyph it
          * builds, so a name with no sprite is the same square at a table: this reads each literal name the tile's
-         * builders are given against the sprites the generated sheet states (tools/pixel-icons.py). The drawn mask is
+         * builders are given against the sprites the generated sheet states (tools/glyph-map.mjs). The drawn mask is
          * the glass harness's `drpgVoiceParts`, in Chromium. THE CONTROL: a name with no sprite is found missing.
          */
         const src = stripComments(new Map(await otherSources()).get("voice-tile.mjs") ?? "");
         const css = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
         const names = [...src.matchAll(/\b(?:miniButton|rowButton)\(\s*"[^"]*",\s*"([\w-]+)"|\bglyph\(\s*"([\w-]+)"\s*\)/g)].map(m => m[1] ?? m[2]);
-        const missing = list => list.filter(n => !new RegExp(`--drpg-px-${n}:\\s*url\\(`).test(css));
+        const missing = list => list.filter(n => !new RegExp(`--drpg-pix-${n}:\\s*url\\(`).test(css));
         equal(JSON.stringify([[...new Set(names)].sort(), missing(names), missing(["no-such-sprite"])]), JSON.stringify([["lock", "mic", "sound"], [], ["no-such-sprite"]]),
             "[the glyph names voice-tile.mjs draws, those with no sprite in pixel-icons.css, the control's]");
     }],
@@ -10371,6 +10647,7 @@ const REGRESSIONS = [
             ["HOOK movement.mjs#registerMovement#createToken/inline -> judge", "this file's own: `noteGmCreated`, the GM's first sighting of a token; E79 adds no road through it"],
             ["HOOK fog.mjs#registerFog#updateToken/onUpdateToken -> judge", "this file's own: this browser's discovery and outline; E79 adds no road through it (the gap's redraw hangs on its own event, not on this hook)"],
             ["HOOK fog.mjs#registerFog#createToken/inline -> judge", "this file's own: this browser's discovery mirror; E79 adds no road through it; since E51 C3 also the arrival of a token of this viewer's placed in a room (`ownArrival`), on this browser's screen alone"],
+            ["HOOK body-tile.mjs#registerBodyFollow#updateToken/inline -> judge", "this file's own (E63 C1: the body follows its corpse on the mover's GM browser); E79 adds no road through it"],
             ["HOOK murder-rules.mjs#registerMurder#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
             ["HOOK projects-map.mjs#registerProjectsMap#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
             ["HOOK remnant-ring.mjs#registerRemnantRings#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
@@ -14098,10 +14375,11 @@ const REGRESSIONS = [
             ?? await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText));
         must(css.length > 10000 && css.includes(BASE), "stained-glass.css or its dice rule is not among the module's sources - this would measure nothing");
         const planted = (from, to) => { must(css.includes(from), `the sheet has no "${from}"`); return css.replace(from, to); };
-        const base = bodyOf(css, `${BASE} {`, { until: "}" });
-        const plate = /background:\s*[^;]+;/.exec(base)?.[0] ?? "";
-        must(plate.length > 0, "the dice rule states no background");
-        const accent = reading(css.replace(base, base.replace(plate, "background: var(--drpg-glass-accent);")));
+        // E48 K1: the Hope plate stands on its own `.is-hope` rule (gold is read only by a rule naming Hope), so the plant
+        // puts the accent back there, where the base rule held it before.
+        const hopeRule = `${BASE}.is-hope { background: var(--drpg-sg-hope); }`;
+        must(css.includes(hopeRule), "the Hope die's plate rule states no background");
+        const accent = reading(css.replace(hopeRule, `${BASE}.is-hope { background: var(--drpg-glass-accent); }`));
         const critical = reading(planted(`${BASE} {`,
             `body.drpg-theme-stained-glass .drpg-duality[data-side="critical"] .drpg-duality-die { background: var(--drpg-sg-hope); }\n${BASE} {`));
         equal(J([accent[0], critical[2]]), J([["var(--drpg-glass-accent)"], ['body.drpg-theme-stained-glass .drpg-duality[data-side="critical"] .drpg-duality-die']]),
@@ -14333,7 +14611,7 @@ const REGRESSIONS = [
         ok(!/repaintPresentButtons/.test(stripComments(src("sync.mjs"))), "sync.mjs repaints no Present button");
     }],
 
-    ["R606 - the Passages tab fits Room Setup at 1366x768 (P1-22): its columns, as the stylesheet gives them at scale 1, sum to no more than the window leaves its table on that screen, and the buttons' cell wraps its buttons inside its width", async () => {
+    ["R606 - the Passages tab fits Room Setup at 1280x720 (P1-22; E49 A5): its columns, as the stylesheet gives them at scale 1, sum to no more than the window leaves its table on that screen, and the buttons' cell lays its buttons out in a grid inside its width", async () => {
         /*
          * E80 fix r1-G2, 19.10.2026 (the review's E80-C6-2). The table is laid out fixed and 1 px wide
          * (`.drpg-room-setup-table`), so it is as wide as its columns, and C6's eight summed to 1540 px - wider than the
@@ -14351,6 +14629,12 @@ const REGRESSIONS = [
          * class="drpg-col-...">` and danganronpa.css's `.drpg-room-setup-table .drpg-col-...` stood. The sum is the one
          * E80 fix r1-G5 chose, 1240 px; the window fits its widest tab (the kit's `fit`), under the same cap, and was
          * 1124 px at 1366x768 on the room tabs alone (E46-C2a's Chromium reading, 09.11.2026).
+         *
+         * E49 A5 (11.11.2026; the owner's [14] (3), a window 1117 px wide with the buttons' column cut): the screen read is
+         * 1280 wide, the smallest desk the module supports (D32 as [17] narrowed it), where Room Setup leaves the table
+         * 1169 px: 1240 stood 71 px past it (style-sweep `--tables` at 1280x720: every actions cell past the window's
+         * body), and the buttons' cell is a grid of two columns whose buttons wrap their words (Q5: inside the cell).
+         * Red at 18358978: 1240 > 1169, and the cell a flex row.
          */
         const sources = await moduleSources();
         const T = await import("./passages-tab.mjs");
@@ -14359,8 +14643,11 @@ const REGRESSIONS = [
         ok(/\bdataTable\(\{\s*columns: PASSAGE_COLUMNS\b/.test(stripComments(fnSource(sources.get("passages-tab.mjs") ?? "", "passagesTabBody"))),
             "passagesTabBody draws its table from PASSAGE_COLUMNS");
         const css = await moduleStyles();
+        /* A width the Passages tab gives a column of its own (E49 A5: the Rooms column, `[data-drpg-passages]`) before the
+           room tabs' shared one. */
         const widthOf = cls => {
-            const m = css.match(new RegExp(`\\.drpg-window-rooms\\s+table\\.drpg-data-table\\s+col\\.${cls}\\s*\\{\\s*width:\\s*calc\\((\\d+)px\\s*\\*\\s*var\\(--drpg-legacy-scale,\\s*1\\)\\)`));
+            const at = scope => css.match(new RegExp(`\\.drpg-window-rooms\\s+${scope}table\\.drpg-data-table\\s+col\\.${cls}\\s*\\{\\s*width:\\s*calc\\((\\d+)px\\s*\\*\\s*var\\(--drpg-legacy-scale,\\s*1\\)\\)`));
+            const m = at("\\[data-drpg-passages\\]\\s+") ?? at("");
             return m ? Number(m[1]) : null;
         };
         const widths = cols.map(widthOf);
@@ -14368,12 +14655,12 @@ const REGRESSIONS = [
             `a width for each of ${cols.join(", ")} - a column with none takes nothing in a fixed table of 1 px`);
         const cap = Number(css.match(/:root\s*\{[^}]*--drpg-window-max:\s*(\d+)px/)?.[1]);
         ok(Number.isFinite(cap), "the stylesheet's --drpg-window-max was not read");
-        const room = Math.floor(Math.min(1366 * 0.94, cap)) - 34;
+        const room = Math.floor(Math.min(1280 * 0.94, cap)) - 34;
         const sum = widths.reduce((a, b) => a + b, 0);
-        ok(sum <= room, `the Passages table is ${sum} px at scale 1 (${cols.map((c, i) => `${c.slice(14)} ${widths[i]}`).join(", ")}) and Room Setup leaves it ${room} px at 1366x768 - its last columns are out of view`);
+        ok(sum <= room, `the Passages table is ${sum} px at scale 1 (${cols.map((c, i) => `${c.slice(14)} ${widths[i]}`).join(", ")}) and Room Setup leaves it ${room} px at 1280x720 - its last columns are out of view`);
         const actions = css.match(/\.drpg-passage-actions\s*\{([^}]*)\}/)?.[1] ?? "";
-        ok(/flex-wrap:\s*wrap\b/.test(actions) && /display:\s*flex\b/.test(actions),
-            `the buttons' cell (.drpg-passage-actions { ${actions.trim()} }) does not wrap inside its column - four buttons on one line run past it`);
+        ok(/display:\s*grid\b/.test(actions) && /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/.test(actions),
+            `the buttons' cell (.drpg-passage-actions { ${actions.trim()} }) is not a grid of two columns inside its width - five buttons on one line run past it`);
     }],
     ["R909 - every region teleport of the module is made inside movement.mjs `whilePlacing`, and the sheet's step onto a tunnel's end skips a token this browser is placing (H81 fix C3): the gather, the cast's placing and a Clean-up's body land a knower on a tunnel's end without taking it through", async () => {
         /*
@@ -17783,6 +18070,8 @@ const REGRESSIONS = [
          * shorthand `name` is the template's `${name}`), and the readers are the same lines as before. Comments blanked.
          * Red at C7's parent: no `wholeNumber` in utils.mjs and no reader asks it; at C4b's parent, the twelve bare inputs.
          * E47-C2, 09.11.2026: Edit campaign's Chapter is a stepper (the owner's Q-E47-1), read in `readClockForm`.
+         * E49 A1e, 11.11.2026: Season setup draws Edit campaign's rows and reads them through `readClockForm`, so its own
+         * chapter field and reader (`f.chapter.value`) are gone; `readDraft` still carries the typed values as strings.
          */
         const src = new Map((await otherSources()).map(([file, raw]) => [file, stripComments(raw)]));
         must(src.size > 50, "the module's sources were not read - this would measure nothing");
@@ -17798,7 +18087,9 @@ const REGRESSIONS = [
             ["monocub.mjs", "amount:${a.id}", /\[name="amount:\$\{id\}"\]`\)\?\.value/g],
             ["overflow.mjs", "ovf-${key}-by", /\bby\.value\b/g],
             ["overflow.mjs", "ovf-threshold", /\[name="ovf-threshold"\]'\)\?\.value/g],
-            ["season-setup.mjs", "chapter", /\bf\.chapter\.value\b/g],
+            // E49 A1e: Season setup's own chapter field went; it draws and reads Edit campaign's (`campaignRows`, `readClockForm`).
+            // E49 A1: the DRPG Settings window's two number settings (Search Tokens per room, Interface scale), by the setting's key.
+            ["settings-window.mjs", "${name}", /\bNumber\(field\.value\)/g],
             ["trial-floor-ui.mjs", "seconds", /\("form"\)\.seconds\.value\b/g],
             ["trial-floor-ui.mjs", "seconds", /\[name=seconds\]"\)\?\.value/g]
         ];
@@ -20106,7 +20397,7 @@ const REGRESSIONS = [
          * The queue is this browser's memory (`serialWrite`), so it holds one GM's browser to one copy (E60's fix round,
          * FG6; the end review's C-m8, S-m4): Observe's find, a hand-over, a Present and Monokuma's Reveal run on the
          * primary, and Give a Truth Bullet on whichever GM opened it - a give on a second GM's browser beside the
-         * primary's find of the same trace for the same receiver can still make two copies, and is E38's (row 1.2.128,
+         * primary's find of the same trace for the same receiver can still make two copies, and is E38's (row 1.2.126,
          * the stage of two GMs; STATUS Open 50).
          */
         const sources = await moduleSources();
@@ -21610,6 +21901,9 @@ const REGRESSIONS = [
          * (`projectManagerBody`), the edit window from a project made up here, the proposal for a character standing where
          * it offers no preset (a preset's rows, where the world offers one, are taken out before the compare). Red on
          * f4a5083a: no `projectManagerBody` (the manager drew only from the world, and with no project there opened Create).
+         * E49 FT batch 3 (the owner, 11.11.2026, "usunmy [...] ikonke countdown foundry"): Foundry's countdown picture is
+         * neither drawn nor offered - DRPG.Project.changeImage left the manager's rows and the create and edit windows, and
+         * the manager's `img.<id>` field with it; the windows keep `img` as a hidden field (what Save stores is unchanged).
          */
         const UI = await import("./projects-ui.mjs");
         const AP = await import("./action-project.mjs");
@@ -21652,17 +21946,17 @@ const REGRESSIONS = [
         got.propose.fields = got.propose.fields.filter(f => !["preset", "to", "seal", "unbreach", "mend"].includes(f));
         const want = {
             manager: {
-                keys: ["DRPG.Project.manageIntro", "DRPG.Project.visibleTo", "DRPG.Project.title", "DRPG.Project.room", "DRPG.Project.indirect", "DRPG.Project.secret", "DRPG.Project.edit", "DRPG.Project.delete", "DRPG.Project.anyRoom", "DRPG.Project.changeImage", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.indirect", "DRPG.Project.secret", "DRPG.Project.editTitle", "DRPG.Project.delete", "DRPG.Project.everyone", "DRPG.Project.changeImage", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.indirect", "DRPG.Project.secret", "DRPG.Project.editTitle", "DRPG.Project.delete", "DRPG.Project.everyone", "DRPG.Kit.scrollMore", "DRPG.Project.secretNote", "DRPG.Project.deleteNote"],
-                fields: ["img.<id>", "room.<id>", "murder.<id>", "secret.<id>", "viewers.<id>", "img.<id>", "room.<id>", "murder.<id>", "secret.<id>", "viewers.<id>"],
+                keys: ["DRPG.Project.manageIntro", "DRPG.Project.visibleTo", "DRPG.Project.title", "DRPG.Project.room", "DRPG.Project.indirect", "DRPG.Project.secret", "DRPG.Project.edit", "DRPG.Project.delete", "DRPG.Project.anyRoom", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.indirect", "DRPG.Project.secret", "DRPG.Project.editTitle", "DRPG.Project.delete", "DRPG.Project.everyone", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.indirect", "DRPG.Project.secret", "DRPG.Project.editTitle", "DRPG.Project.delete", "DRPG.Project.everyone", "DRPG.Kit.scrollMore", "DRPG.Project.secretNote", "DRPG.Project.deleteNote"],
+                fields: ["room.<id>", "murder.<id>", "secret.<id>", "viewers.<id>", "room.<id>", "murder.<id>", "secret.<id>", "viewers.<id>"],
                 footer: []
             },
             create: {
-                keys: ["DRPG.Project.changeImage", "DRPG.Project.name", "DRPG.Project.namePlaceholder", "DRPG.Project.description", "DRPG.Project.descriptionPlaceholder", "DRPG.Project.descriptionNote", "DRPG.Project.glyphLabel", "DRPG.Project.glyphDefault", "DRPG.Project.glyph.checklist", "DRPG.Project.glyph.gear", "DRPG.Project.glyph.tamper", "DRPG.Project.glyph.broom", "DRPG.Project.glyph.wand", "DRPG.Project.glyph.key", "DRPG.Project.glyph.lock", "DRPG.Project.glyph.door", "DRPG.Project.glyph.box", "DRPG.Project.glyph.gift", "DRPG.Project.glyph.envelope", "DRPG.Project.glyph.note", "DRPG.Project.glyph.calendar", "DRPG.Project.glyph.table", "DRPG.Project.glyph.scale", "DRPG.Project.glyph.barrier", "DRPG.Project.glyph.chain", "DRPG.Project.glyph.bug", "DRPG.Project.glyph.brain", "DRPG.Project.glyph.murder", "DRPG.Project.glyphNote", "DRPG.Project.scale", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.trait", "DRPG.Project.pickTrait", "DRPG.Project.indirect", "DRPG.Trap.watchFor", "DRPG.Trap.trigger.alone", "DRPG.Trap.trigger.enters", "DRPG.Trap.trigger.search", "DRPG.Trap.trigger.rest", "DRPG.Trap.trigger.item", "DRPG.Trap.trigger.project", "DRPG.Trap.trigger.sabotage", "DRPG.Trap.trigger.stash", "DRPG.Trap.trigger.passage", "DRPG.Trap.trigger.manual", "DRPG.Trap.watchNote", "DRPG.Trap.whichProject", "DRPG.Trap.noProject", "DRPG.Trap.afterDark", "DRPG.Trap.notBuilder", "DRPG.Project.condition", "DRPG.Project.conditionPlaceholder", "DRPG.Project.conditionNote", "DRPG.Project.secret", "DRPG.Project.visibleTo", "DRPG.Project.visibleToNote", "DRPG.Project.createNote"],
+                keys: ["DRPG.Project.name", "DRPG.Project.namePlaceholder", "DRPG.Project.description", "DRPG.Project.descriptionPlaceholder", "DRPG.Project.descriptionNote", "DRPG.Project.glyphLabel", "DRPG.Project.glyphDefault", "DRPG.Project.glyph.checklist", "DRPG.Project.glyph.gear", "DRPG.Project.glyph.tamper", "DRPG.Project.glyph.broom", "DRPG.Project.glyph.wand", "DRPG.Project.glyph.key", "DRPG.Project.glyph.lock", "DRPG.Project.glyph.door", "DRPG.Project.glyph.box", "DRPG.Project.glyph.gift", "DRPG.Project.glyph.envelope", "DRPG.Project.glyph.note", "DRPG.Project.glyph.calendar", "DRPG.Project.glyph.table", "DRPG.Project.glyph.scale", "DRPG.Project.glyph.barrier", "DRPG.Project.glyph.chain", "DRPG.Project.glyph.bug", "DRPG.Project.glyph.brain", "DRPG.Project.glyph.murder", "DRPG.Project.glyphNote", "DRPG.Project.scale", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.trait", "DRPG.Project.pickTrait", "DRPG.Project.indirect", "DRPG.Trap.watchFor", "DRPG.Trap.trigger.alone", "DRPG.Trap.trigger.enters", "DRPG.Trap.trigger.search", "DRPG.Trap.trigger.rest", "DRPG.Trap.trigger.item", "DRPG.Trap.trigger.project", "DRPG.Trap.trigger.sabotage", "DRPG.Trap.trigger.stash", "DRPG.Trap.trigger.passage", "DRPG.Trap.trigger.manual", "DRPG.Trap.watchNote", "DRPG.Trap.whichProject", "DRPG.Trap.noProject", "DRPG.Trap.afterDark", "DRPG.Trap.notBuilder", "DRPG.Project.condition", "DRPG.Project.conditionPlaceholder", "DRPG.Project.conditionNote", "DRPG.Project.secret", "DRPG.Project.visibleTo", "DRPG.Project.visibleToNote", "DRPG.Project.createNote"],
                 fields: ["img", "name", "description", "glyph", "target", "room", "trait", "murder", "trigger", "triggerTarget", "afterDark", "notBuilder", "condition", "secret", "viewers"],
                 footer: ["save", "cancel"]
             },
             edit: {
-                keys: ["DRPG.Project.changeImage", "DRPG.Project.name", "DRPG.Project.namePlaceholder", "DRPG.Project.description", "DRPG.Project.descriptionPlaceholder", "DRPG.Project.descriptionNote", "DRPG.Project.glyphLabel", "DRPG.Project.glyphDefault", "DRPG.Project.glyph.checklist", "DRPG.Project.glyph.gear", "DRPG.Project.glyph.tamper", "DRPG.Project.glyph.broom", "DRPG.Project.glyph.wand", "DRPG.Project.glyph.key", "DRPG.Project.glyph.lock", "DRPG.Project.glyph.door", "DRPG.Project.glyph.box", "DRPG.Project.glyph.gift", "DRPG.Project.glyph.envelope", "DRPG.Project.glyph.note", "DRPG.Project.glyph.calendar", "DRPG.Project.glyph.table", "DRPG.Project.glyph.scale", "DRPG.Project.glyph.barrier", "DRPG.Project.glyph.chain", "DRPG.Project.glyph.bug", "DRPG.Project.glyph.brain", "DRPG.Project.glyph.murder", "DRPG.Project.glyphNote", "DRPG.Project.scale", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.trait", "DRPG.Project.pickTrait", "DRPG.Project.indirect", "DRPG.Trap.watchFor", "DRPG.Trap.trigger.alone", "DRPG.Trap.trigger.enters", "DRPG.Trap.trigger.search", "DRPG.Trap.trigger.rest", "DRPG.Trap.trigger.item", "DRPG.Trap.trigger.project", "DRPG.Trap.trigger.sabotage", "DRPG.Trap.trigger.stash", "DRPG.Trap.trigger.passage", "DRPG.Trap.trigger.manual", "DRPG.Trap.watchNote", "DRPG.Trap.whichProject", "DRPG.Trap.noProject", "DRPG.Trap.afterDark", "DRPG.Trap.notBuilder", "DRPG.Project.condition", "DRPG.Project.conditionPlaceholder", "DRPG.Project.conditionNote", "DRPG.Project.secret", "DRPG.Project.visibleTo", "DRPG.Project.everyone", "DRPG.Project.editProgressNote", "DRPG.Project.createNote"],
+                keys: ["DRPG.Project.name", "DRPG.Project.namePlaceholder", "DRPG.Project.description", "DRPG.Project.descriptionPlaceholder", "DRPG.Project.descriptionNote", "DRPG.Project.glyphLabel", "DRPG.Project.glyphDefault", "DRPG.Project.glyph.checklist", "DRPG.Project.glyph.gear", "DRPG.Project.glyph.tamper", "DRPG.Project.glyph.broom", "DRPG.Project.glyph.wand", "DRPG.Project.glyph.key", "DRPG.Project.glyph.lock", "DRPG.Project.glyph.door", "DRPG.Project.glyph.box", "DRPG.Project.glyph.gift", "DRPG.Project.glyph.envelope", "DRPG.Project.glyph.note", "DRPG.Project.glyph.calendar", "DRPG.Project.glyph.table", "DRPG.Project.glyph.scale", "DRPG.Project.glyph.barrier", "DRPG.Project.glyph.chain", "DRPG.Project.glyph.bug", "DRPG.Project.glyph.brain", "DRPG.Project.glyph.murder", "DRPG.Project.glyphNote", "DRPG.Project.scale", "DRPG.Project.room", "DRPG.Project.anyRoom", "DRPG.Project.trait", "DRPG.Project.pickTrait", "DRPG.Project.indirect", "DRPG.Trap.watchFor", "DRPG.Trap.trigger.alone", "DRPG.Trap.trigger.enters", "DRPG.Trap.trigger.search", "DRPG.Trap.trigger.rest", "DRPG.Trap.trigger.item", "DRPG.Trap.trigger.project", "DRPG.Trap.trigger.sabotage", "DRPG.Trap.trigger.stash", "DRPG.Trap.trigger.passage", "DRPG.Trap.trigger.manual", "DRPG.Trap.watchNote", "DRPG.Trap.whichProject", "DRPG.Trap.noProject", "DRPG.Trap.afterDark", "DRPG.Trap.notBuilder", "DRPG.Project.condition", "DRPG.Project.conditionPlaceholder", "DRPG.Project.conditionNote", "DRPG.Project.secret", "DRPG.Project.visibleTo", "DRPG.Project.everyone", "DRPG.Project.editProgressNote", "DRPG.Project.createNote"],
                 fields: ["img", "name", "description", "glyph", "target", "room", "trait", "murder", "trigger", "triggerTarget", "afterDark", "notBuilder", "condition", "secret", "viewers"],
                 footer: ["save", "cancel", "delete"]
             },
@@ -21768,7 +22062,7 @@ const REGRESSIONS = [
     }],
     /* ---- E46 C6 (09.11.2026) ---- */
 
-    ["R2035 - the warning sites E21 homed are in their final state for E46 and E47 (E46-C6, E47-C7; E46-20, E47-18; STAGE E46 \"The carried warning sites\", E21 STATUS fix G2 item 10): each function of E46's and E47's windows draws its warnings with box(\"warning\") and its information lines with box(\"info\") and keeps no drpg-warning; each whispered chat card E47-C5's surfaces did not take keeps its drpg-warning, carried to E48, as do Item tables' install receipt and the verdict's summary; the window sites no E47 group took are named, left open", async () => {
+    ["R2035 - the warning sites E21 homed are in their final state for E46 and E47 (E46-C6, E47-C7; E46-20, E47-18; STAGE E46 \"The carried warning sites\", E21 STATUS fix G2 item 10): each function of E46's and E47's windows draws its warnings with box(\"warning\") and its information lines with box(\"info\") and keeps no drpg-warning; each whispered chat card E47-C5's surfaces did not take, carried to E49 (E49 A0) with Item tables' install receipt and the verdict's summary, is in its final state since E49 B5a: the module's chat card (chat-card.mjs) in the warning tone or a card's warning line, no drpg-warning; the window sites no E47 group took are named, left open", async () => {
         /*
          * E46-C6, 09.11.2026; the E47 rows E47-C7, 09.11.2026. E21's list (fix G2 item 10) homed 112 `drpg-warning` sites
          * by window at 3c952c67 (W 87, I 25): E46's windows 19, E47's windows 36, the whispered chat cards 57 (46 W, 11 I).
@@ -21776,11 +22070,15 @@ const REGRESSIONS = [
          * the function's source with comments blanked: `box("warning", ` and gm-items.mjs's `kindNote("...")` (one such
          * box, its own row) as warnings, `box("info", ` as information. Stage E46 and E47: the window's group converted
          * them, no `drpg-warning` left (room-setup.mjs's second info box is the room count's line, E21 C5, R1373; the case's
-         * health is a checkList since E47-C3, so no box). Stage E48: a chat card - a whisper to the GMs or a card the table
+         * health is a checkList since E47-C3, so no box). Stage E49 (E48 until E49 A0, 11.11.2026: the chat cards are E49 B5's, E48 Q9): a chat card - a whisper to the GMs or a card the table
          * reads - which no E46 or E47 group rebuilt (E47-C5 took four: sheet-audit.mjs `awayCard` and `flaggedCard`,
          * roll-draw.mjs `announceRollDraw` and `onRenderUnwitnessed`, now `rollStatus`), its sites counted as they stand
          * and carried to the stage that rebuilds its card; Item tables' install receipt (E46-C6 Open 1) and the verdict's
-         * summary (E47-C1 Open 2) are such whispers. migrate.mjs's site stands in its `CLAUSES` table, read as the whole
+         * summary (E47-C1 Open 2) are such whispers. Final since E49 B5a (11.11.2026): each is a chat-card.mjs card in the
+         * warning tone (`tone: "warning"`, through `chatCard` or a posting helper that takes the card) or, inside a card
+         * another builder draws, a warning line (`cardWarn(`), counted in the first column with the boxes; 52 such
+         * readings for the 55 old sites (eclipse.mjs `judgePendingMurders`'s four refusals share one `say` that draws
+         * `cardWarn`). Red first on 15f44581: the 46 rows read [0, 0, n] - the 55 still `drpg-warning`. migrate.mjs's site stands in its `CLAUSES` table, read as the whole
          * file ("*"). Stage "open": a site of a window E21 homed in E47 that no E47 group rebuilt, named in E47-C7's STATUS
          * Open for the orchestrator. Red first: on db40a379 chapter.mjs `chapterEndForm` [0,0,3], `askStoppedEnd` [0,0,1],
          * season-wipe.mjs `resetSeason` [0,0,2]; the E47 and E48 rows on 9aafad79 by two planted mutants (the panel's
@@ -21803,22 +22101,22 @@ const REGRESSIONS = [
             ["mastermind.mjs", "openMastermindDialog", "open", 0, 0, 1], ["reroll.mjs", "settleGmRuling", "open", 0, 0, 1],
             ["roll-dialog.mjs", "announceFreeCritical", "open", 0, 0, 1], ["trial.mjs", "pickObjectionEvidence", "open", 0, 0, 1],
             ["use-items.mjs", "confirmUse", "open", 0, 0, 1],
-            ["tables-editor.mjs", "installTables", "E48", 0, 0, 1], ["verdict.mjs", "verdictSummaryContent", "E48", 0, 0, 1],
-            ["analyze.mjs", "tellGmsKeyMissing", "E48", 0, 0, 1], ["anonymity.mjs", "lowerOwnership", "E48", 0, 0, 1],
-            ["bridge-runs-acts.mjs", "handleAdvancement", "E48", 0, 0, 1], ["call-effects.mjs", "tell", "E48", 0, 0, 1], ["call-gm.mjs", "callCardHtml", "E48", 0, 0, 1],
-            ["chapter.mjs", "runDiscovery", "E48", 0, 0, 1], ["chapter.mjs", "endChapterNow", "E48", 0, 0, 1], ["chapter.mjs", "runChapterEnd", "E48", 0, 0, 1],
-            ["chapter.mjs", "finishEndNow", "E48", 0, 0, 1], ["cleanup.mjs", "reshapeCardParts", "E48", 0, 0, 1], ["cleanup.mjs", "proposeReshape", "E48", 0, 0, 1],
-            ["cleanup.mjs", "undoLastCleanup", "E48", 0, 0, 2], ["cleanup.mjs", "paidBack", "E48", 0, 0, 1], ["eclipse.mjs", "ruleOnParkedMurder", "E48", 0, 0, 1],
-            ["eclipse.mjs", "judgePendingMurders", "E48", 0, 0, 4], ["inventory.mjs", "transferItem", "E48", 0, 0, 2], ["investigation.mjs", "chargeForUnfoundKeys", "E48", 0, 0, 1],
-            ["migrate.mjs", "*", "E48", 0, 0, 1], ["movement-audit.mjs", "auditMove", "E48", 0, 0, 2], ["movement.mjs", "keepRoomFlag", "E48", 0, 0, 1],
-            ["movement.mjs", "removeDrop", "E48", 0, 0, 1], ["movement.mjs", "tellUnlawful", "E48", 0, 0, 1], ["movement.mjs", "tellDropped", "E48", 0, 0, 1],
-            ["murder-rules.mjs", "resolveVictimOpening", "E48", 0, 0, 1], ["murder-rules.mjs", "applyCrisisAction", "E48", 0, 0, 1], ["murder-rules.mjs", "swapRoles", "E48", 0, 0, 1],
-            ["murder-rules.mjs", "refuseBetrayal", "E48", 0, 0, 1], ["murder-rules.mjs", "throwOpeningRoll", "E48", 0, 0, 1], ["observe.mjs", "resolveObserve", "E48", 0, 0, 2],
-            ["relay-guard.mjs", "reportRefusal", "E48", 0, 0, 1], ["relay-guard.mjs", "unknownSender", "E48", 0, 0, 1], ["relay-guard.mjs", "shapeWarning", "E48", 0, 0, 1],
-            ["relay-guard.mjs", "announce", "E48", 0, 0, 3], ["remnants.mjs", "dropRemnant", "E48", 0, 0, 1], ["reroll-receipts.mjs", "warnGms", "E48", 0, 0, 1],
-            ["roll-draw.mjs", "tellUnexpected", "E48", 0, 0, 1], ["rules.mjs", "setMotive", "E48", 0, 0, 1], ["rules.mjs", "dueCard", "E48", 0, 0, 1],
-            ["sheet-audit.mjs", "record", "E48", 0, 0, 1], ["sheet-audit.mjs", "onForgedCard", "E48", 0, 0, 1], ["steps.mjs", "stepsReport", "E48", 0, 0, 1],
-            ["truth-bullets.mjs", "revertPlayerBulletEdit", "E48", 0, 0, 1], ["use-items.mjs", "discardBroken", "E48", 0, 0, 1], ["vault-store.mjs", "clearSplitPiece", "E48", 0, 0, 1]
+            ["tables-editor.mjs", "installTables", "E49", 1, 0, 0], ["verdict.mjs", "verdictSummaryContent", "E49", 1, 0, 0],
+            ["analyze.mjs", "tellGmsKeyMissing", "E49", 1, 0, 0], ["anonymity.mjs", "lowerOwnership", "E49", 1, 0, 0],
+            ["bridge-runs-acts.mjs", "handleAdvancement", "E49", 1, 0, 0], ["call-effects.mjs", "tell", "E49", 1, 0, 0], ["call-gm.mjs", "callCardHtml", "E49", 1, 0, 0],
+            ["chapter.mjs", "runDiscovery", "E49", 1, 0, 0], ["chapter.mjs", "endChapterNow", "E49", 1, 0, 0], ["chapter.mjs", "runChapterEnd", "E49", 1, 0, 0],
+            ["chapter.mjs", "finishEndNow", "E49", 1, 0, 0], ["cleanup.mjs", "reshapeCardParts", "E49", 1, 0, 0], ["cleanup.mjs", "proposeReshape", "E49", 1, 0, 0],
+            ["cleanup.mjs", "undoLastCleanup", "E49", 2, 0, 0], ["cleanup.mjs", "paidBack", "E49", 1, 0, 0], ["eclipse.mjs", "ruleOnParkedMurder", "E49", 1, 0, 0],
+            ["eclipse.mjs", "judgePendingMurders", "E49", 1, 0, 0], ["inventory.mjs", "transferItem", "E49", 2, 0, 0], ["investigation.mjs", "chargeForUnfoundKeys", "E49", 1, 0, 0],
+            ["migrate.mjs", "*", "E49", 1, 0, 0], ["movement-audit.mjs", "auditMove", "E49", 2, 0, 0], ["movement.mjs", "keepRoomFlag", "E49", 1, 0, 0],
+            ["movement.mjs", "removeDrop", "E49", 1, 0, 0], ["movement.mjs", "tellUnlawful", "E49", 1, 0, 0], ["movement.mjs", "tellDropped", "E49", 1, 0, 0],
+            ["murder-rules.mjs", "resolveVictimOpening", "E49", 1, 0, 0], ["murder-rules.mjs", "applyCrisisAction", "E49", 1, 0, 0], ["murder-rules.mjs", "swapRoles", "E49", 1, 0, 0],
+            ["murder-rules.mjs", "refuseBetrayal", "E49", 1, 0, 0], ["murder-rules.mjs", "throwOpeningRoll", "E49", 1, 0, 0], ["observe.mjs", "resolveObserve", "E49", 2, 0, 0],
+            ["relay-guard.mjs", "reportRefusal", "E49", 1, 0, 0], ["relay-guard.mjs", "unknownSender", "E49", 1, 0, 0], ["relay-guard.mjs", "shapeWarning", "E49", 1, 0, 0],
+            ["relay-guard.mjs", "announce", "E49", 3, 0, 0], ["remnants.mjs", "dropRemnant", "E49", 1, 0, 0], ["reroll-receipts.mjs", "warnGms", "E49", 1, 0, 0],
+            ["roll-draw.mjs", "tellUnexpected", "E49", 1, 0, 0], ["rules.mjs", "setMotive", "E49", 1, 0, 0], ["rules.mjs", "dueCard", "E49", 1, 0, 0],
+            ["sheet-audit.mjs", "record", "E49", 1, 0, 0], ["sheet-audit.mjs", "onForgedCard", "E49", 1, 0, 0], ["steps.mjs", "stepsReport", "E49", 1, 0, 0],
+            ["truth-bullets.mjs", "revertPlayerBulletEdit", "E49", 1, 0, 0], ["use-items.mjs", "discardBroken", "E49", 1, 0, 0], ["vault-store.mjs", "clearSplitPiece", "E49", 1, 0, 0]
         ];
         const files = {};
         for (const file of new Set(SITES.map(([file]) => file))) files[file] = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
@@ -21827,14 +22125,132 @@ const REGRESSIONS = [
         for (const [file, fn, stage, w, i, d] of SITES) {
             const body = fn === "*" ? files[file] : (topLevelFunction(files[file], fn) ?? "");
             const name = `${file}:${fn} (${stage})`;
-            got[name] = body.length > 40 ? [count(body, /\bbox\("warning",/g) + count(body, /\bkindNote\("/g), count(body, /\bbox\("info",/g), count(body, /drpg-warning/g)] : "not read";
+            got[name] = body.length > 40 ? [count(body, /\bbox\("warning",/g) + count(body, /\bkindNote\("/g) + count(body, /\btone: "warning"/g) + count(body, /\bcardWarn\(/g),
+                count(body, /\bbox\("info",/g), count(body, /drpg-warning/g)] : "not read";
             want[name] = [w, i, d];
             by[stage] = (by[stage] ?? 0) + d;
         }
         // The carried sites, as E47-C7 counted them on 9aafad79 (STATUS E47-C7): 53 chat card sites (43 W, 10 I) and the
-        // two whispers, 55; 7 window sites left open.
-        equal(JSON.stringify({ E48: by.E48, open: by.open }), JSON.stringify({ E48: 55, open: 7 }), "{drpg-warning sites carried to E48, left open}");
+        // two whispers, 55; 7 window sites left open. Carried to E49 by E49 A0 (the same 55), rebuilt by E49 B5a: none left.
+        equal(JSON.stringify({ E49: by.E49, open: by.open }), JSON.stringify({ E49: 0, open: 7 }), "{drpg-warning sites left in E49's rows, left open}");
         equal(JSON.stringify(got), JSON.stringify(want), "{file:function (stage): [warning boxes, info boxes, drpg-warning left]}");
+    }],
+
+    ["R3510 - every card-producing site builds through chatCard or names why (E49 B5a; amend [6], STAGE E49 B5 test (d)): chat-card.mjs `chatCard` draws a header with the glyph by element key and no close button, every face it can draw is one Stained Glass wears (tests-glyphs.mjs FACES); utils.mjs's five posting helpers take a card; and each call of a poster (announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, gmReport, ChatMessage.create) in the module's scripts is a card, or a form named with its reason - per file, as counted", async () => {
+        /*
+         * E49 B5a, 11.11.2026. A poster's site is read by the form of what it hands the poster (the content; the actor
+         * before it skipped): `card` - a card's spec (`{ tone|glyph|title|body|foot: ... }`), a `chatCard(...)`, or
+         * gmReport (its helper draws the card) - or one of the forms below, each with the reason it is not a card. The
+         * counts are per file of the module (every file module.mjs imports, the suite's aside), read on this tree: a new
+         * site moves a count, a new file adds a row, and either is red until it is a card or its form's reason holds.
+         * The forms are read off the first characters of the argument, not off what the site posts at run time; a poster
+         * reached through an expression (movement-audit.mjs's `(ctx.whisper ?? whisperToGms)(...)`, both cards) is not
+         * matched by the grep and is not counted.
+         * Red first on 15f44581: chat-card.mjs absent, no helper takes a card, 0 card sites.
+         */
+        const WHY = {
+            action: "the action card: its own header (action-report.mjs cardHead) and outcome, painted by private-rolls.mjs paintChatCard",
+            message: "a message's whole data (speaker, flags, sound, rolls) as its builder made it; its content is that builder's",
+            heading: "a narration card: a heading the notice lifts into its bar, then the table's words; its look is the log's (B5b)",
+            line: "one line of narration, or one sentence whispered to its reader: a message in the log's look (B5b), not a card",
+            built: "markup a builder of its own returns (a variable or a call), read where it is built"
+        };
+        const PINNED = {
+            "action-analyze.mjs": {"line": 4}, "action-dynamic.mjs": {"line": 2}, "action-listen.mjs": {"line": 1},
+            "action-murder.mjs": {"action": 2}, "action-observe.mjs": {"line": 1},
+            "action-pipeline.mjs": {"action": 1}, "action-project.mjs": {"action": 1, "line": 1, "message": 3},
+            "action-report.mjs": {"built": 1}, "analyze.mjs": {"card": 1, "heading": 1, "line": 2},
+            "anonymity.mjs": {"card": 2}, "bridge-runs-acts.mjs": {"card": 1},
+            "bridge-runs-records.mjs": {"action": 1, "message": 1},
+            "call-effects.mjs": {"action": 1, "card": 1, "message": 1}, "call-gm.mjs": {"built": 1},
+            "call-world.mjs": {"message": 3}, "calls.mjs": {"heading": 1, "message": 1},
+            "chapter.mjs": {"card": 4, "heading": 1, "message": 1},
+            "cleanup.mjs": {"action": 5, "built": 1, "card": 4, "heading": 2, "line": 7, "message": 1},
+            "clock.mjs": {"built": 1, "line": 1, "message": 1}, "despair.mjs": {"line": 1, "message": 1},
+            "diagnostics.mjs": {"card": 1}, "eclipse.mjs": {"action": 3, "heading": 1, "line": 3, "message": 2},
+            "enforced.mjs": {"line": 2}, "fog.mjs": {"line": 1}, "frisk.mjs": {"built": 6, "message": 1},
+            "gm-items.mjs": {"action": 1, "heading": 2},
+            "handover.mjs": {"built": 1, "heading": 2, "line": 13, "message": 1},
+            "inventory.mjs": {"card": 2, "line": 3}, "investigation.mjs": {"card": 1, "line": 2},
+            "level-up.mjs": {"heading": 1, "line": 2}, "mastermind.mjs": {"message": 1},
+            "messenger-app.mjs": {"built": 1}, "migrate.mjs": {"card": 3, "line": 2},
+            "monocub.mjs": {"line": 5, "message": 1}, "movement.mjs": {"action": 3, "card": 4},
+            "murder-rules.mjs": {"action": 1, "card": 5, "heading": 3, "line": 9, "message": 6},
+            "music.mjs": {"card": 1}, "observe.mjs": {"card": 2, "heading": 1, "line": 3},
+            "overflow.mjs": {"message": 2}, "palm.mjs": {"built": 2, "line": 2}, "passages-gm.mjs": {"line": 5},
+            "price.mjs": {"line": 2}, "private-rolls.mjs": {"message": 1}, "projects-map.mjs": {"line": 1},
+            "projects.mjs": {"built": 3, "line": 8, "message": 2}, "relay-guard.mjs": {"built": 1, "card": 6},
+            "remnants.mjs": {"built": 1, "card": 1, "heading": 2, "line": 1}, "requirements.mjs": {"built": 1},
+            "reroll-receipts.mjs": {"card": 1}, "reroll.mjs": {"heading": 3, "line": 3}, "rest.mjs": {"action": 1},
+            "roll-draw.mjs": {"built": 2, "card": 1, "message": 1}, "room-setup.mjs": {"message": 1},
+            "rules.mjs": {"built": 3, "message": 3}, "safeword.mjs": {"built": 3},
+            "search-tokens.mjs": {"heading": 1, "line": 1}, "season-wipe.mjs": {"heading": 1},
+            "secret.mjs": {"message": 1}, "sheet-audit.mjs": {"built": 2, "card": 2}, "stash-reach.mjs": {"line": 9},
+            "states.mjs": {"line": 1}, "tables-editor.mjs": {"card": 1}, "traps.mjs": {"line": 1},
+            "trial-floor-ui.mjs": {"message": 4}, "trial-floor.mjs": {"message": 1},
+            "trial-modes.mjs": {"heading": 1, "message": 1}, "trial-progress.mjs": {"line": 2, "message": 1},
+            "trial-scene.mjs": {"built": 1, "line": 10}, "trial.mjs": {"line": 9, "message": 4},
+            "truth-bullets.mjs": {"card": 1, "heading": 2}, "use-items.mjs": {"card": 1, "line": 6},
+            "user-match.mjs": {"line": 1}, "utils.mjs": {"built": 1}, "vault-store.mjs": {"card": 1, "line": 2},
+            "verdict.mjs": {"built": 3, "message": 1}, "voice.mjs": {"card": 1, "line": 1}, "vote.mjs": {"message": 2}
+        };
+        const card = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/chat-card.mjs`).then(r => r.ok ? lfText(r) : ""));
+        const { FACES } = await import("./tests-glyphs.mjs");
+        let faces = [], drawn = null;
+        try {
+            const C = await import("./chat-card.mjs");
+            faces = [...C.CARD_FACES, ...Object.values(C.TONE_FACES), ...["ACTIONS.observe", "HOPE_CALLS.support", "DESPAIR_CALLS.motive"].map(C.cardFace)];
+            const el = document.createElement("div");
+            el.innerHTML = C.chatCard({ glyph: "ACTIONS.observe", title: "T<b>", body: "<p>B</p>", foot: "F", tone: "warning" });
+            const root = el.firstElementChild;
+            drawn = [root?.dataset.drpgTone, Boolean(root?.querySelector(":scope > header > i.fa-eye.drpg-chat-kit-glyph")),
+                root?.querySelector("h3.drpg-chat-kit-title")?.textContent, root?.querySelectorAll("button").length,
+                root?.querySelector(".drpg-chat-kit-body")?.innerHTML, root?.querySelector("footer")?.textContent];
+        } catch (err) {
+            drawn = `not drawn: ${err.message}`;
+        }
+        const utils = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/utils.mjs`).then(lfText));
+        const helpers = ["announce", "whisperToOwnerOnly", "whisperToOwner", "whisperToGms", "gmReport"]
+            .filter(name => !/\bcardMarkup\(|\bchatCard\(/.test(topLevelFunction(utils, name) ?? ""));
+        const POSTER = /(?<![\w.$])(announce|whisperToOwnerOnly|whisperToOwner|whisperToGms|gmReport)\(|\bChatMessage\.create\(/g;
+        const skipArg = text => {
+            let depth = 0;
+            for (let i = 0; i < text.length; i++) {
+                const ch = text[i];
+                if ("([{".includes(ch)) depth++;
+                else if (")]}".includes(ch)) depth--;
+                else if (ch === "," && depth === 0) return text.slice(i + 1);
+            }
+            return "";
+        };
+        const formOf = (name, rest) => {
+            if (name === "gmReport") return "card";
+            const arg = (name === "whisperToOwner" || name === "whisperToOwnerOnly" ? skipArg(rest) : rest).trimStart().slice(0, 200);
+            if (/^\{\s*(?:tone|glyph|title|body|foot)\s*:/.test(arg) || /^chatCard\(/.test(arg)) return "card";
+            if (/cardHead\(/.test(arg.slice(0, 80))) return "action";
+            if (arg.startsWith("{")) return "message";
+            if (arg.startsWith("`")) return /^`\s*<h\d/.test(arg) ? "heading" : "line";
+            return "built";
+        };
+        const got = {};
+        for (const [file, raw] of (await otherSources()).sort(([a], [b]) => a.localeCompare(b))) {
+            const text = stripComments(raw);
+            const forms = {};
+            for (const m of text.matchAll(POSTER)) {
+                if (/function\s*$/.test(text.slice(Math.max(0, m.index - 12), m.index))) continue;
+                const form = formOf(m[1] ?? "ChatMessage.create", text.slice(m.index + m[0].length));
+                forms[form] = (forms[form] ?? 0) + 1;
+            }
+            if (Object.keys(forms).length) got[file] = Object.fromEntries(Object.entries(forms).sort());
+        }
+        const unnamed = [...new Set(Object.values(got).flatMap(f => Object.keys(f)))].filter(form => form !== "card" && !WHY[form]);
+        const cards = Object.values(got).reduce((n, f) => n + (f.card ?? 0), 0);
+        const notWorn = faces.filter(face => !Object.hasOwn(FACES, face));
+        equal(JSON.stringify({ drawn, notWorn, helpers, unnamed }),
+            JSON.stringify({ drawn: ["warning", true, "T<b>", 0, "<p>B</p>", "F"], notWorn: [], helpers: [], unnamed: [] }),
+            "{chatCard's card: [tone, the glyph in the header, the title as text, buttons, body, foot]; faces Stained Glass does not wear; helpers that take no card; forms with no reason}");
+        must(card.length > 400 && cards > 0, "chat-card.mjs or the card sites were not read - this would measure nothing");
+        equal(JSON.stringify(got), JSON.stringify(PINNED), "{file: {form: sites}} - a site that is no card names its form's reason (WHY)");
     }],
 
     ["R2036 - the GM handbook names E46's new labels in both languages (E46-C6; E46-21): the checklist's red and \"!\" states and the uneven split, Room setup's picture warnings and the hall's cast columns, Item tables' columns, Give existing's empty choice, Overflow's rules table, Sound's Effects column and a Test's reason, and Music's folded order - each read from lang/ and found in docs/handbooks/gm-handbook.<lang>.md, a label in bold, a sentence the window says in italics", async () => {
@@ -22188,7 +22604,338 @@ const REGRESSIONS = [
             + "actionWindow; a block ui-columns.mjs does not export; what it imports; an opener that opens a window of its own or builds none; who asks columns: false; "
             + "Dynamic: askForRequest opens actionWindow on columns, performDynamic asks columns]");
     }],
+    ["R3345 - the GM panel's four moves (scripts/gm-panel.mjs `PANEL_SECTIONS`, `studentsLeftHtml`; gm-students.mjs `aliveTableHtml`; gm-campaign.mjs `openClockDialog`; E49 A2; the owner's 10.11 [12], [16] and Q6): every tile key in exactly one section; Killing game rules in Between sessions, Re-send everybody's voice room in Diagnostics, no End the chapter tile; the standing block one students line and no table; Students' Actions and Free Move columns; End the chapter apart at the foot of Edit campaign, asked before chapter.mjs's end", async () => {
+        /*
+         * E49 A2, 10.11.2026. The owner's [12]: "tabela uczniow [...] do zakladki students [...] Re-send everybody's voice
+         * room wrzucmy do diagnostics. Killing game rules wrzucmy do between sessions. End the chapter wrzucmy do edit
+         * campaign"; [16] "tak" to the students line and to End the chapter apart with its confirm and warning frame; Q6
+         * "tak" to two columns. Read from the source: `PANEL_SECTIONS` walked in order (a section is a `key` with no
+         * `icon` after it, a tile one with), the standing block's builder, the students line, the Students table's
+         * columns and Edit campaign's end part. Red on b84d1170: rules in Right now, the voice reset in Between sessions,
+         * the End the chapter tile there, a table in the standing block and no students line, no Actions or Free Move
+         * column in Students, no end part in Edit campaign.
+         */
+        const sources = await moduleSources();
+        const panel = blankComments(sources.get("gm-panel.mjs") ?? "");
+        const campaign = blankComments(sources.get("gm-campaign.mjs") ?? "");
+        const students = blankComments(sources.get("gm-students.mjs") ?? "");
+        must(panel.length && campaign.length && students.length, "gm-panel.mjs, gm-campaign.mjs or gm-students.mjs is not among the module's sources - this would measure nothing");
+        const list = panel.match(/^const PANEL_SECTIONS = \[[\s\S]*?^\];/m)?.[0] ?? "";
+        must(list, "gm-panel.mjs has no PANEL_SECTIONS - this would measure nothing");
+        const sections = [];
+        for (const m of list.matchAll(/\bkey:\s*"(\w+)"\s*,\s*(icon:)?/g)) {
+            if (m[2]) sections.at(-1)?.[1].push(m[1]);
+            else sections.push([m[1], []]);
+        }
+        must(sections.length === 4 && sections.every(([, tiles]) => tiles.length), `PANEL_SECTIONS read as ${JSON.stringify(sections)} - this would measure nothing`);
+        const keys = sections.flatMap(([, tiles]) => tiles);
+        const where = key => sections.filter(([, tiles]) => tiles.includes(key)).map(([section]) => section);
+        const fn = (src, name) => topLevelFunction(src, name) ?? "";
+        const standing = fn(panel, "buildPanelContent"), line = fn(panel, "studentsLeftHtml"), table = fn(students, "aliveTableHtml");
+        const clock = fn(campaign, "openClockDialog"), part = fn(campaign, "endChapterPart"), ask = fn(campaign, "endTheChapter");
+        equal(JSON.stringify({
+            twice: keys.filter((k, i) => keys.indexOf(k) !== i),
+            moved: { rules: where("rules"), voiceReset: where("voiceReset"), chapterEndTile: where("chapterEndTile") },
+            standing: [/<table/.test(standing), /\$\{studentsLeftHtml\(\)\}/.test(standing)],
+            line: [/plural\("DRPG\.Panel\.studentsLeft"/.test(line), /data-drpg-run="whoIsAlive"/.test(line), /actingStudents\(\)/.test(line), /actionsLeft\(a\) > 0/.test(line)],
+            columns: [/key: "actions", label: L\("DRPG\.Actions\.label"\)/.test(table), /key: "freeMove", label: L\("DRPG\.Panel\.freeMove"\)/.test(table),
+                /actionsLeft\(a\)/.test(table) && /actionsMax\(a\)/.test(table) && /hasFreeMove\(a\)/.test(table)],
+            end: [/\$\{endChapterPart\(\)\}/.test(clock), /box\("warning"/.test(part) && /role: "destructive"/.test(part), /if \(endAsked\) return endTheChapter\(/.test(clock),
+                /drpgConfirm\(/.test(ask) && /role: "destructive"/.test(ask) && /if \(yes !== true\) return null;/.test(ask), /openChapterEndDialog\(\)/.test(clock)]
+        }), JSON.stringify({
+            // E49 A1e: Killing game rules left Between sessions for Season setup's row of windows (R3582).
+            twice: [], moved: { rules: [], voiceReset: ["fixes"], chapterEndTile: [] },
+            standing: [false, true], line: [true, true, true, true], columns: [true, true, true], end: [true, true, true, true, true]
+        }), "{twice: tile keys in more than one place; moved: the sections holding each of the four; standing: [a table in the standing block, the students line in it]; "
+            + "line: [plural's words, the door to Students, the acting cast, counted by actions left]; columns: [Actions, Free Move, read from actions.mjs]; "
+            + "end: [the part in Edit campaign, a warning box with a destructive button, the press goes to the question, the question destructive with Cancel writing nothing, the chapter's end after it]}");
+    }],
+    ["R3400 - the death lays the body, and nothing else does (E63 C0; the owner's 11.11.2026, E95 Q3: \"gdy postać umiera ... Nie gdy zostaje Monocubem\"): body-tile.mjs `leaveBody` is called from chapter.mjs `markDeceased`, the one function every public death passes, handed the record it just wrote, and from migrate.mjs's pass for a 1.2.104 world (E63 C3) alone; monocub.mjs imports nothing from body-tile.mjs; `recordSecretDeath` names no export of body-tile.mjs", async () => {
+        /*
+         * E63 C0, 11.11.2026; STAGE E63 items 1, 3 and 5. Read off the served sources with their comments taken out:
+         * every `leaveBody(` call outside body-tile.mjs's own definition, as [file, the top-level function it stands in],
+         * whether `markDeceased`'s call hands the record it wrote, monocub.mjs's static imports, and the export names of
+         * body-tile.mjs that `recordSecretDeath`'s body names (a kept death lays no tile until it is the table's: QUESTIONS
+         * Q1). The reader of calls is shown a planted text first. What the call does is tier 2's ("every death leaves its
+         * body where its token lies"). Red at 7b5b4da9: the one call was monocub.mjs `setMonocub`'s, and monocub.mjs
+         * imported body-tile.mjs.
+         */
+        const CALL = /(?<!function\s+)\bleaveBody\s*\(/g;
+        const sites = (file, text) => [...text.matchAll(CALL)].map(m => {
+            const before = text.slice(0, m.index);
+            const fn = [...before.matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].at(-1)?.[1] ?? null;
+            return [file, fn];
+        });
+        equal(JSON.stringify(sites("x.mjs", "function a() {}\nasync function b() { leaveBody (x); }\nexport function c() { leaveBodyX(y); B.leaveBody(z); }\nexport async function leaveBody(q) {}")),
+            JSON.stringify([["x.mjs", "b"], ["x.mjs", "c"]]), "the reader of leaveBody calls does not find exactly the two planted for it, in b and c");
+        const sources = await moduleSources();
+        must(["chapter.mjs", "monocub.mjs", "body-tile.mjs"].every(f => sources.has(f)), "chapter.mjs, monocub.mjs or body-tile.mjs is not served - this would measure nothing");
+        const code = file => stripComments(sources.get(file));
+        const found = [];
+        for (const [file] of sources) {
+            if (/^tests/.test(file)) continue;
+            const text = code(file);
+            found.push(...sites(file, text));
+        }
+        const exported = [...code("body-tile.mjs").matchAll(/^export (?:async )?(?:function|const) (\w+)/gm)].map(m => m[1]);
+        must(exported.includes("leaveBody") && exported.includes("removeBodyTiles"), `body-tile.mjs exports ${JSON.stringify(exported)} - this would measure nothing`);
+        const secret = topLevelFunction(code("chapter.mjs"), "recordSecretDeath") ?? "";
+        must(secret.length > 40, "chapter.mjs has no recordSecretDeath - this would measure nothing");
+        const mark = topLevelFunction(code("chapter.mjs"), "markDeceased") ?? "";
+        equal(JSON.stringify({
+            calls: found.sort(),
+            handsRecord: /\bleaveBody\(actor,\s*\{\s*record\s*\}\)/.test(mark),
+            monocubImports: staticImports(code("monocub.mjs")).includes("body-tile.mjs"),
+            secretNames: exported.filter(name => new RegExp(`\\b${name}\\b`).test(secret))
+        }), JSON.stringify({ calls: [["chapter.mjs", "markDeceased"], ["migrate.mjs", "layOpenCaseBodies"]], handsRecord: true, monocubImports: false, secretNames: [] }),
+            "{calls: every leaveBody call as [file, function]; handsRecord: markDeceased's call hands its record; monocubImports: monocub.mjs imports body-tile.mjs; secretNames: body-tile.mjs's exports recordSecretDeath names}");
+    }],
+    ["R3402 - the body follows its corpse after the write, on the mover's GM browser alone (E63 C1; QUESTIONS E63 Q3): body-tile.mjs `followBody` is registered on `updateToken` and never `preUpdateToken`, tests `game.user.isGM` and `userId === game.user.id` before its one write, asks movement.mjs `isCorpse`; module.mjs registers it", async () => {
+        /*
+         * E63 C1, 11.11.2026; STAGE E63 item 6 and its write roads. Read off the served sources with their comments
+         * taken out: body-tile.mjs's hooks (every `Hooks.on("<name>"` in the file), `followBody`'s offsets of its GM and
+         * mover tests, its `isCorpse(` and its Tile write, `isCorpse` exported by movement.mjs, and module.mjs's
+         * registration. What the follow does is tier 2's ("the body follows its corpse token, not its Monocub"). Red at
+         * C0: there is no `followBody`.
+         */
+        const sources = await moduleSources();
+        must(["body-tile.mjs", "movement.mjs", "module.mjs"].every(f => sources.has(f)), "body-tile.mjs, movement.mjs or module.mjs is not served - this would measure nothing");
+        const code = file => stripComments(sources.get(file));
+        const tile = code("body-tile.mjs");
+        const follow = topLevelFunction(tile, "followBody") ?? "";
+        const at = re => { const m = follow.search(re); return m; };
+        const write = at(/updateEmbeddedDocuments\("Tile"/);
+        equal(JSON.stringify({
+            hooks: [...tile.matchAll(/Hooks\.on\("(\w+)"/g)].map(m => m[1]).sort(),
+            registered: /Hooks\.on\("updateToken",[^]*?followBody\(tokenDoc, changes, options, userId\)/.test(topLevelFunction(tile, "registerBodyFollow") ?? ""),
+            guards: follow ? [at(/!game\.user\?\.isGM/) >= 0 && at(/!game\.user\?\.isGM/) < write, at(/userId !== game\.user\.id/) >= 0 && at(/userId !== game\.user\.id/) < write,
+                at(/isCorpse\(actor\)/) >= 0 && at(/isCorpse\(actor\)/) < write, write > 0] : null,
+            exported: /^export function isCorpse\(/m.test(code("movement.mjs")),
+            module: /safely\("[^"]+", registerBodyFollow\)/.test(code("module.mjs"))
+        }), JSON.stringify({ hooks: ["drawTile", "refreshTile", "updateToken"], registered: true, guards: [true, true, true, true], exported: true, module: true }),
+        "{hooks: body-tile.mjs's hook names; registered: updateToken hands followBody its four; guards: [the GM test, the mover test, isCorpse, each before the Tile write; a write]; exported: movement.mjs exports isCorpse; module: module.mjs registers it}");
+    }],
+    ["R3404 - the Class Trial's end takes the bodies, after its sentence, and nothing else takes them all (E63 C2; the owner's 11.11.2026 on E95 Q2 and Q8): clock.mjs `reconcilePhase`'s branch out of the trial calls body-tile.mjs `removeBodyTiles(null)` after `executeAtExit`, and its retry of a failed sentence removes the executed's by id alone; every other removal of every body is the season reset's, with `held: false`", async () => {
+        /*
+         * E63 C2, 11.11.2026; STAGE E63 item 7. Read off the served sources with their comments taken out: the offsets in
+         * `reconcilePhase` of the trial branch's `executeAtExit()`, its `removeBodyTiles(null)`, and the retry branch's
+         * start; the retry's removal; and every `removeBodyTiles(` call outside tests and its own definition, as [file,
+         * function, its arguments]. The reader of calls is shown a planted text first. What the removal does is tier 2's
+         * ("the Class Trial's end takes every body off the map"). Red at C1: the trial's end called no removal, and the
+         * reset's had no `held: false`.
+         */
+        // A member call (`ctx.removeBodyTiles()`, the reset's tier-2 stand-in) is not the module's removal; a plain one is.
+        const CALL = /(?<!function\s+)(?<![\w.$])removeBodyTiles\s*\(([^()]*)\)/g;
+        const sites = (file, text) => [...text.matchAll(CALL)].map(m => {
+            const fn = [...text.slice(0, m.index).matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].at(-1)?.[1] ?? null;
+            return [file, fn, m[1].trim()];
+        });
+        equal(JSON.stringify(sites("x.mjs", "async function a() { await removeBodyTiles(null); }\nexport async function removeBodyTiles(id = null) {}\nfunction b() { ctx.removeBodyTiles(); removeBodyTiles(id); removeBodyTilesX(); }")),
+            JSON.stringify([["x.mjs", "a", "null"], ["x.mjs", "b", "id"]]), "the reader of removeBodyTiles calls does not find exactly the two planted for it (a member call and a longer name aside)");
+        const sources = await moduleSources();
+        must(["clock.mjs", "chapter.mjs", "body-tile.mjs"].every(f => sources.has(f)), "clock.mjs, chapter.mjs or body-tile.mjs is not served - this would measure nothing");
+        const code = file => stripComments(sources.get(file));
+        const phase = topLevelFunction(code("clock.mjs"), "reconcilePhase") ?? "";
+        const at = re => phase.search(re);
+        const marks = { exit: at(/await executeAtExit\(\);/), remove: at(/removeBodyTiles\(null\)/), retry: at(/if \(from !== "classTrial" && to !== "classTrial"\)/) };
+        must(phase && marks.exit > 0 && marks.retry > 0, `reconcilePhase reads as ${JSON.stringify(marks)} - this would measure nothing`);
+        const found = [];
+        for (const [file] of sources) if (!/^tests/.test(file)) found.push(...sites(file, code(file)));
+        equal(JSON.stringify({
+            order: marks.exit < marks.remove && marks.remove < marks.retry,
+            retry: /for \(const id of out\.executed\) await removeBodyTiles\(id\);/.test(phase.slice(marks.retry)),
+            calls: found.sort()
+        }), JSON.stringify({ order: true, retry: true, calls: [
+            ["chapter.mjs", "clearSeasonDeaths", "null, { held: false }"], ["chapter.mjs", "reviveCharacter", "actor.id"],
+            ["clock.mjs", "reconcilePhase", "id"], ["clock.mjs", "reconcilePhase", "null"]
+        ] }), "{order: the sentence, then every body, both before the retry branch; retry: the retry removes the executed's by id; calls: every removeBodyTiles call as [file, function, arguments]}");
+    }],
+    ["R3380 - every fact line of an action's briefing stands in its one Details (action-briefing.mjs `briefingBlock`; action-menus.mjs `detailsHtml`; E49 A8.1, the owner's 11.11 on the action windows and his answers of the same day): for each action the block draws, every fact `<li>` is inside `.drpg-action-details-box` and none elsewhere; no \"All thresholds\" (`drpg-briefing-all`, `DRPG.Kit.allThresholds`) and no `<details>`; one toggle, a `button[type=button]` with `aria-expanded` and `aria-controls` naming the box, the box `role=region` labelled by the toggle and `inert` while shut; Observe's four ladders under the sub-heading \"Thresholds\" (`DRPG.Kit.thresholds`) inside the box; a line bound to a row in a stacked layer (`drpg-details-layer`), never `hidden`; Tamper's \"watched\" line outside Details (the owner's Q3)", async () => {
+        /*
+         * E49 A8.1, 11.11.2026. The owner: "All thresholds" opened as if it would grow the window, and it did (Observe
+         * +193 px under the glass at 1366x768, measured in Chromium on the captures: S/stages/E49/A8-details.md 1) - so
+         * every fact goes into one "Details" box under the lead. Read here: each action's briefing as `briefingBlock`
+         * builds it for the first student (pure HTML, nothing drawn), Tamper with its own facts and a watcher planted
+         * through the facts' `extraFacts`-free road (the watched line is `briefingFacts`'s, read off its source).
+         * Red at 7b5b4da9: the facts' <ul> stands in the block, Observe's ladders under a <details>.
+         */
+        const { briefingBlock, tamperThresholdFacts } = await import("./action-briefing.mjs");
+        const cleanup = await import("./cleanup.mjs");
+        const actor = studentActors()[0];
+        must(actor, "no student to build a briefing for");
+        const box = html => { const d = document.createElement("div"); d.innerHTML = html; return d; };
+        const keys = ["observe", "search", "analyze", "tamper", "rest", "project", "dynamic", "palm", "listen", "move", "sabotage", "directMurder"].filter(k => ACTIONS[k]);
+        const read = {};
+        for (const key of keys) {
+            const extraFacts = key === "tamper" ? tamperThresholdFacts(actor, cleanup) : [];
+            const d = box(briefingBlock(actor, key, ACTIONS[key], { extraFacts }));
+            const toggles = [...d.querySelectorAll("button.drpg-action-details-toggle")];
+            const boxes = [...d.querySelectorAll(".drpg-action-details-box")];
+            const t = toggles[0], b = boxes[0];
+            const lis = [...d.querySelectorAll("li")];
+            read[key] = {
+                one: toggles.length === 1 && boxes.length === 1,
+                outside: lis.filter(li => !li.closest(".drpg-action-details-box")).length,
+                inside: lis.length > 0,
+                all: d.querySelectorAll(".drpg-briefing-all, details").length,
+                aria: Boolean(t && b && t.type === "button" && ["true", "false"].includes(t.getAttribute("aria-expanded"))
+                    && t.getAttribute("aria-controls") === b.id && b.id && b.getAttribute("role") === "region"
+                    && b.getAttribute("aria-labelledby") === t.id && t.id
+                    && b.hasAttribute("inert") === (t.getAttribute("aria-expanded") === "false")),
+                hidden: b ? b.querySelectorAll("[hidden]").length : -1
+            };
+        }
+        const obs = box(briefingBlock(actor, "observe", ACTIONS.observe));
+        const sub = obs.querySelector(".drpg-action-details-box .drpg-action-details-sub");
+        read.observeSub = [sub?.textContent.trim() === game.i18n.localize("DRPG.Kit.thresholds"),
+            [...obs.querySelectorAll(".drpg-action-details-box li")].filter(li => / · /.test(li.textContent)).length];
+        const ana = box(briefingBlock(actor, "analyze", ACTIONS.analyze));
+        read.analyzeLayers = [...ana.querySelectorAll(".drpg-action-details-box .drpg-details-stack > .drpg-details-layer[data-drpg-when]")].map(l => l.dataset.drpgWhen).sort();
+        read.boundLi = ana.querySelectorAll("li[data-drpg-when]").length;
+        const code = stripComments(actionText(await moduleSources()));
+        const facts = fnSource(code, "briefingFacts") ?? "", block = fnSource(code, "briefingBlock") ?? "";
+        read.watched = [/DRPG\.Tamper\.watched[\s\S]{0,120}\btop\s*:\s*true/.test(facts), /drpg-briefing-watched/.test(block)];
+        read.lang = ["DRPG.Kit.details", "DRPG.Kit.thresholds"].map(k => game.i18n.localize(k) !== k).concat(game.i18n.localize("DRPG.Kit.allThresholds") === "DRPG.Kit.allThresholds");
+        const yes = { one: true, outside: 0, inside: true, all: 0, aria: true, hidden: 0 };
+        equal(JSON.stringify(read), JSON.stringify({ ...Object.fromEntries(keys.map(k => [k, yes])),
+            observeSub: [true, 4], analyzeLayers: ["bullet", "hint", "passage", "stash"], boundLi: 0, watched: [true, true], lang: [true, true, true] }),
+            "[per action: one toggle and one box, fact lines outside the box, any inside, All thresholds or <details>, the toggle's and box's ARIA, a hidden line in the box; "
+            + "Observe's sub-heading and its ladders in the box; Analyze's stacked layers; a bound <li>; Tamper's watched line kept on top; the keys]");
+    }],
+    ["R3383 - Details holds its place in the stylesheets (styles/danganronpa.css and components.css, E49 A8's blocks; E49 A8.2, the rule of 10.11): the shut box is hidden by `visibility` alone and nothing hides the box, a layer or an unpicked block by `display: none`; the box is capped by `--drpg-details-cap`, set on the action window, and scrolls in itself; a row's layers share one grid cell; the left column is a flex column stretched to the row; the lines and the sub-heading at `--drpg-text-sm` in `--drpg-kit-brief-ink`; no rule left for E21's bound `<li>` (`.drpg-briefing-facts > li[data-drpg-when]`)", async () => {
+        /*
+         * E49 A8.2, 11.11.2026. What the sizes rest on, read off the module's sheets as text (comments stripped); what
+         * Chromium makes of it is style-sweep `--details`'s reading, and a real v14's LIVE-E49-A8-01. Red at A8.1: no rule.
+         */
+        const css = (await moduleStyles()).replace(/\/\*[\s\S]*?\*\//g, "");
+        const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ sel: m[1].trim(), body: m[2] }));
+        const where = (sel, prop) => rules.filter(r => r.sel.split(",").some(s => s.trim() === sel) && new RegExp(`(^|;)\\s*${prop}\\s*:`).test(r.body));
+        const value = (sel, prop) => where(sel, prop).map(r => new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`).exec(r.body)?.[1].trim());
+        const hidesByDisplay = rules.filter(r => /drpg-action-details-box|drpg-details-layer|drpg-details-stack|drpg-unpicked|drpg-action-details-toggle/.test(r.sel)
+            && /(^|;)\s*display\s*:\s*none/.test(r.body)).map(r => r.sel);
+        const read = {
+            shut: value('.drpg-action-details-toggle[aria-expanded="false"] + .drpg-action-details-box', "visibility"),
+            byDisplay: hidesByDisplay,
+            cap: [value(".drpg-action-details-box", "max-height"), value(".drpg-action-window", "--drpg-details-cap"), value(".drpg-action-details-box", "overflow-y")],
+            stack: [value(".drpg-details-stack", "display"), value(".drpg-details-stack > .drpg-details-layer", "grid-area"), value(".drpg-action-window .drpg-unpicked", "visibility")],
+            column: [value(".drpg-action-window .drpg-variant-columns", "align-items"), value(".drpg-action-window .drpg-variant-brief", "flex-direction")],
+            lines: [value(".application.drpg-ui .drpg-action-details-box .drpg-briefing-facts", "font-size"), value(".application.drpg-ui .drpg-action-details-box .drpg-briefing-facts", "color"),
+                value(".application.drpg-ui .drpg-action-details-box > .drpg-action-details-sub", "font-size")],
+            oldBound: rules.filter(r => /\.drpg-briefing-facts\s*>\s*li\[data-drpg-when/.test(r.sel)).length
+        };
+        equal(JSON.stringify(read), JSON.stringify({ shut: ["hidden"], byDisplay: [], cap: [["var(--drpg-details-cap, 15rem)"], ["15rem"], ["auto"]],
+            stack: [["grid"], ["1 / 1"], ["hidden"]], column: [["stretch"], ["column"]],
+            lines: [["var(--drpg-text-sm)"], ["var(--drpg-kit-brief-ink)"], ["var(--drpg-text-sm)"]], oldBound: 0 }),
+            "[the shut box's visibility; rules hiding Details' parts by display: none; the cap, its value and the box's scroll; the stack's grid, its layers' cell and an unpicked one; "
+            + "the columns stretched and the left one a column; the lines' size and ink and the sub-heading's size; E21's bound-li rules left]");
+    }],
+    ["R3464 - the cut is the critical's alone and its slot says so in both languages (E48 K7; Q8, amend [14]): private-rolls.mjs starts no animation on a chat card (no call of motion.mjs `play`, no clip-path, no `cutIn`); popup.mjs cuts a card only when its tone is \"critical\" (`cutCritical`), with a clip-path wipe and still under `reducedMotion()`; config.mjs `SFX_EVENTS.critical` reads \"Critical\" and its hint the notice's cut, and lang/pl.json's twin \"Krytyk\"", async () => {
+        /*
+         * E48 K7, 11.11.2026. Read as text (comments stripped): the module's sources as module.mjs loads them, and
+         * lang/pl.json. The slot is the key the Sound window always had (a file mapped to it stays mapped); config.mjs
+         * is read as source, not as `SFX_EVENTS`, because a Polish client has swapped its words for pl.json's at
+         * `i18nInit`. What the cut does on a page: tier 2's E48-K7. Red before K7: the reaction cards' `cutIn`, no
+         * `cutCritical`, and the slot "A critical roll" / "Rzut krytyczny".
+         */
+        const sources = await moduleSources();
+        const rolls = stripComments(sources.get("private-rolls.mjs") ?? "");
+        const popup = stripComments(sources.get("popup.mjs") ?? "");
+        const config = stripComments(sources.get("config.mjs") ?? "");
+        must(rolls.length > 10000 && popup.length > 10000 && config.length > 10000, "private-rolls.mjs, popup.mjs or config.mjs read nothing - this would measure nothing");
+        const res = await fetch(`/modules/${MODULE_ID}/lang/pl.json`);
+        must(res.ok, `pl.json: HTTP ${res.status}`);
+        const pl = await res.json();
+        const cut = /\bfunction cutCritical\(/.test(popup) ? fnSource(popup, "cutCritical") : "";
+        const slot = /\n {4}critical: \{\s*label: "([^"]*)",\s*hint: "([^"]*)"/.exec(config);
+        const read = {
+            rollCards: [/(^|[^.\w])play\(/.test(rolls), /clipPath|clip-path/.test(rolls), /\bcutIn\b/.test(rolls)],
+            notice: [/const critical = tone === "critical";/.test(popup), /if \(critical\) cutCritical\(card\);/.test(popup),
+                /reducedMotion\(\)/.test(cut), /clipPath/.test(cut), (popup.match(/cutCritical\(/g) ?? []).length],
+            slot: [slot?.[1] ?? null, /notice cuts in/.test(slot?.[2] ?? ""), pl?.DRPG?.Config?.SFX_EVENTS?.critical?.label ?? null,
+                /powiadomienie wjeżdża cięciem/.test(pl?.DRPG?.Config?.SFX_EVENTS?.critical?.hint ?? "")]
+        };
+        equal(JSON.stringify(read), JSON.stringify({ rollCards: [false, false, false], notice: [true, true, true, true, 2], slot: ["Critical", true, "Krytyk", true] }),
+            "{rollCards: private-rolls.mjs plays, clips, cuts; notice: the tone's flag, the call under it, still under reduced motion, a clip-path wipe, cutCritical's mentions (its declaration and one call); slot: the English label, its hint names the cut, the Polish label, its hint}");
+    }],
+    ["R3420 - every setting Foundry's list showed is in exactly one place, this browser's or the game's (E49 A1, A1d; the owner's [11], [16], Q3, Q4, and his word on A1's shots of 11.11): each of the 35 keys registered with `config: true` at 20218b05 (a frozen list) is in exactly one of settings-window.mjs's `SETTINGS_SECTIONS` - four client sections, the gear's window, naming client settings alone, and five game sections, the game's settings window (the GM panel's Settings tile), naming world ones alone - which name no other key but Vary the sounds; no setting of the module is `config: true`; the module's one menu is DRPG Settings, not restricted, and Give back's is gone; each key's `.name` and `.hint` are in lang/en.json and lang/pl.json and its hint's `firstSentence` is not empty in either; the nine sections' names in both", async () => {
+        /*
+         * E49 A1, 11.11.2026. The frozen list is 20218b05's (STAGE E49 "What HEAD does": 35 distinct `config: true`, 23
+         * world, 12 client; glassPulse's block carried the flag twice, design-notes.md), read by a script over settings.mjs's
+         * `register(MODULE_ID, SETTINGS.x, {` blocks. Red on 13531607: settings-window.mjs does not exist (the import
+         * throws) and the 35 are `config: true`. What a GM and a player see on v14: LIVE-E49-02.
+         * E49 A1d, 11.11.2026 (the owner: the gear's window the same for a GM and a player, the game's settings a tab of
+         * the GM panel): the seven sections split by scope - the 12 client keys in look, effects, sound and tech, the 23
+         * world keys in audio, rules, privacy, gm and foundry - and sfxVary, a GM's switch the Look window carried among the
+         * volumes, a row of audio (its name and hint registered since). Red at 54493dbf: seven sections, Sound and
+         * Technical holding both scopes, sfxVary in none.
+         */
+        const FROZEN = ["forcePrivateRolls", "forceDiceLook", "enforceAnonymity", "searchTokensPerRoom", "enforceIsoWelcome", "enforceDhWelcome",
+            "enforcePlayerFiles", "liveKitInFoundry", "hideSystemFear", "pixelFont", "wideProjectWindows", "language", "theme", "glassPulse", "glassBlur",
+            "reducedMotion", "highContrast", "hudTicker", "messengerSound", "uiScale", "debug", "voiceEnabled", "voiceTile", "musicEnabled", "moveAudit",
+            "foundryToolWindows", "isoTokenShield", "regionFog", "despairFromRolls", "lockRollDialog", "roomVisibility", "lockPlayerResources",
+            "autoApproveTraits", "friskForce", "chargeMovement"];
+        let W = null;
+        try { W = await import("./settings-window.mjs"); } catch (err) { W = { failed: String(err?.message ?? err) }; }
+        const sections = Array.isArray(W?.SETTINGS_SECTIONS) ? W.SETTINGS_SECTIONS : [];
+        const seen = FROZEN.map(k => sections.filter(s => s.keys.includes(SETTINGS[k] ?? k)).length);
+        const named = sections.flatMap(s => s.keys);
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const at = (tree, key) => key.split(".").reduce((o, part) => (o && typeof o === "object" ? o[part] : undefined), tree);
+        const first = typeof W?.firstSentence === "function" ? W.firstSentence : () => "";
+        const ADDED = ["sfxVary"];
+        const scopeOf = k => game.settings.settings.get(`${MODULE_ID}.${SETTINGS[k] ?? k}`)?.scope ?? null;
+        const words = [...FROZEN, ...ADDED].filter(k => {
+            const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS[k] ?? k}`);
+            return !reg || [reg.name, reg.hint].some(key => typeof key !== "string" || typeof at(en, key) !== "string" || typeof at(pl, key) !== "string")
+                || !first(at(en, reg.hint)) || !first(at(pl, reg.hint));
+        });
+        const shown = [...game.settings.settings.entries()].filter(([full, r]) => full.startsWith(`${MODULE_ID}.`) && r?.config === true).map(([full]) => full);
+        const menus = [...(game.settings.menus?.entries?.() ?? [])].filter(([key]) => key.startsWith(`${MODULE_ID}.`));
+        const src = stripComments((await moduleSources()).get("settings.mjs") ?? "");
+        must(src.length > 10000, "settings.mjs was not read - this reads nothing of its registrations");
+        const menuCalls = [...src.matchAll(/registerMenu\??\.?\(\s*MODULE_ID\s*,\s*(\w+)/g)].map(m => m[1]);
+        const read = {
+            loaded: W?.failed ?? true,
+            sections: sections.map(s => [s.key, s.place, s.keys.length, typeof s.icon === "string" && s.icon.startsWith("fa-")]),
+            once: FROZEN.filter((k, i) => seen[i] !== 1),
+            others: named.filter(k => !FROZEN.includes(k)),
+            mixed: sections.flatMap(s => s.keys.filter(k => scopeOf(k) !== (s.place === "client" ? "client" : "world")).map(k => `${s.key}:${k}`)),
+            configTrue: shown,
+            menuCalls,
+            menuRestricted: /registerMenu\??\.?\(\s*MODULE_ID\s*,\s*SETTINGS_MENU\s*,\s*\{[^}]*restricted:\s*false/.test(src),
+            menus: menus.length ? menus.map(([key, m]) => [key, m.restricted ?? null]) : "not modelled",
+            words,
+            sectionWords: sections.map(s => [en, pl].every(t => typeof at(t, `DRPG.SettingsWindow.sections.${s.key}`) === "string"))
+        };
+        equal(JSON.stringify(read), JSON.stringify({
+            loaded: true,
+            sections: [["look", "client", 5, true], ["effects", "client", 5, true], ["sound", "client", 1, true], ["tech", "client", 1, true],
+                ["audio", "game", 5, true], ["rules", "game", 7, true], ["privacy", "game", 6, true], ["gm", "game", 4, true], ["foundry", "game", 2, true]],
+            once: [], others: ["sfxVary"], mixed: [], configTrue: [], menuCalls: ["SETTINGS_MENU"], menuRestricted: true,
+            menus: read.menus === "not modelled" ? "not modelled" : [[`${MODULE_ID}.drpgSettings`, false]],
+            words: [], sectionWords: [true, true, true, true, true, true, true, true, true]
+        }), "[the module loads; its sections (key, place, size, an icon); keys not in exactly one; keys no frozen one; keys of the other scope than their place; settings still config: true; "
+            + "the menus registered in settings.mjs; DRPG Settings not restricted; the menus Foundry holds; keys missing a name, a hint or a first sentence in en or pl; the sections' names in both]");
+    }],
 ];
 
 
 export { REGRESSIONS };
+
+/** The map's inputs, read once a run (E48 G2): tests-glyphs.mjs, tools/glyphs.json, config.mjs's namespace and
+ *  gm-panel.mjs's and danganronpa.css's text, as Foundry serves them. */
+let glyphMapRead = null;
+async function glyphMapInputs() {
+    needs(env.tools(), "tools/glyphs.json is read from the repository's tools/ (an installed module's zip leaves it out)");
+    glyphMapRead ??= (async () => {
+        const G = await import("./tests-glyphs.mjs");
+        const C = await import("./config.mjs");
+        const text = async file => fetch(`/modules/${MODULE_ID}/${file}`, { cache: "no-cache" }).then(r => (r.ok ? lfText(r) : ""));
+        const parsed = G.parseGlyphs(await text("tools/glyphs.json"));
+        const keyed = G.keyedElements(C, await text("scripts/gm-panel.mjs"));
+        const gaps = G.mapGaps(parsed.glyphs, { keyed, danganronpaCss: await text("styles/danganronpa.css") });
+        return { G, glyphs: parsed.glyphs, keyed, gaps, structure: [...parsed.problems, ...G.mapProblems(keyed)] };
+    })();
+    return glyphMapRead;
+}

@@ -2781,12 +2781,12 @@ export const PROJECT_SCALE = {
  * So the GM chooses one. Each entry names a FONT AWESOME icon and not a
  * sprite, because that is the module's one way of drawing an icon: the base
  * sheet draws the Font Awesome glyph, and Stained Glass masks that same
- * element to the pixel sprite (tools/pixel-icons.py's FA table, emitted as the
+ * element to the pixel sprite (tools/glyph-map.mjs's FA table, emitted as the
  * rules in pixel-icons.css). Naming the FA icon therefore gets both looks for
  * free and makes it impossible for the picker's swatch and the tray's row to
  * draw different pictures. `key` is the sprite name the tray's mask needs.
  *
- * Adding one: the FA name must be in tools/pixel-icons.py's `FA` map, or the
+ * Adding one: the FA name must be in tools/glyph-map.mjs's `FA` map, or the
  * swatch stays Font Awesome under a theme where everything else is pixels.
  * That is why `vault`, `bag` and `trap` are not offered although their sprites
  * exist - add them to `FA`, regenerate, and they can be.
@@ -4769,9 +4769,11 @@ export const SFX_EVENTS = {
         hint: "The bar filled. Heard by whoever proposed it and by the GMs, never publicly, because a project can be secret - a repair and an armed trap have louder announcements of their own.",
         category: "world"
     },
+    /* The owner's "Krytyk" slot (E48 K7; amend [14], 10.11): the key it always had, so a file mapped to it stays mapped; its
+       words say when it plays now that the critical's notice cuts in (popup.mjs `cutCritical`). */
     critical: {
-        label: "A critical roll",
-        hint: "Heard by whoever rolled it. The one moment at a roll that the whole table waits for, and until now the only one with a card colour and no sound.",
+        label: "Critical",
+        hint: "Plays when a roll is a critical, as its notice cuts in. Heard by whoever rolled it.",
         category: "world"
     },
     searchNothing: {

@@ -1570,7 +1570,7 @@ export async function createProject({
                (`createInStep`): where the name goes, the words go, under the same secrecy (E44 C9, Q-C9-1). */
             ...(words ? { description: words } : {}),
             // Gated on the way IN, not on the way out: a name the sprite set does
-            // not have would reach the tray as `var(--drpg-px-nonsense)`, which is
+            // not have would reach the tray as `var(--drpg-pix-nonsense)`, which is
             // an invalid mask and therefore NO glyph at all - not the hourglass.
             glyph: isProjectGlyph(glyph) ? glyph : null,
             by: by ?? null,

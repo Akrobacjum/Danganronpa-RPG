@@ -89,7 +89,7 @@
      danganronpa.css's `[class*="drpg-"] *` (the frame's class) and its Font Awesome rule (Chromium, 13.10.2026). */
   #sidebar,#scene-controls{font-family:Signika,sans-serif}
   /* THE CORNER'S BUTTONS AND THE NOTICE TILE ARE PLACED BY THE MODULE'S OWN SHEETS (E81 C14),
-     loaded above in the manifest's order, messenger.css among them (it places the chat button).
+     loaded above in the manifest's order, base.css among them (it places the chat button; messenger.css until E49 B3).
      From 1.2.50 to 1.2.74 the harness pinned the chat and settings buttons here itself (66 and
      52 px round, 22 px off the wall, bottoms 82 and 22) and drew no handbooks button, so after
      C12 put the three on the owner's grid it was measuring a corner the module no longer draws.
@@ -118,7 +118,7 @@
   <div id="drpg-hud"><div class="drpg-hud-ticker" aria-hidden="true"><span>Daily Life · Daily Life · Daily Life · </span><span>Daily Life · Daily Life · Daily Life · </span></div>
     <div class="drpg-hud-campaign is-long">DanganRPG: Safe Havens Bleed</div><div class="drpg-hud-chapter">Chapter 1 · Day 3</div>
     <div class="drpg-hud-phase"><span class="drpg-hud-phase-glyph drpg-pxi"></span>Daily Life</div>
-    <div class="drpg-hud-time-row"><button class="drpg-hud-button">&lt;</button><div class="drpg-hud-time-slot" style="min-width:118px"><div class="drpg-hud-time">Afternoon</div></div><button class="drpg-hud-button">&gt;</button></div>
+    <div class="drpg-hud-time-row"><button type="button" class="drpg-hud-button" aria-label="Rewind"><i class="fa-solid fa-chevron-left" inert></i></button><div class="drpg-hud-time-slot" style="min-width:118px"><div class="drpg-hud-time">Afternoon</div></div><button type="button" class="drpg-hud-button" aria-label="Advance"><i class="fa-solid fa-chevron-right" inert></i></button></div>
     <div class="drpg-hud-elapsed">43 min in</div><div class="drpg-hud-track is-empty" aria-hidden="true"></div></div>
   <section id="drpg-room-tile" class="drpg-room-tile" role="region" aria-label="Room" data-state="room"><div class="drpg-room-tile-art" style="background-image:linear-gradient(160deg,#6d86a8,#2f4a35 55%,#7a4a2c)"></div><button type="button" class="drpg-room-tile-open" aria-label="Show the picture"></button><h3 class="drpg-room-tile-name">Dorm</h3><div class="drpg-hud-room-tokens"><span class="drpg-hud-pip"></span><span class="drpg-hud-pip"></span><span class="drpg-hud-room-tokens-label" aria-hidden="true">0/2 searches</span></div><div class="drpg-hud-room-project">You can work a project here</div><button type="button" class="drpg-room-tile-more" aria-controls="drpg-room-tile-prose" aria-expanded="false"><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button><p class="drpg-room-tile-prose" id="drpg-room-tile-prose" tabindex="0" hidden>Two bunks under a high window.
 
@@ -132,7 +132,7 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
   <div class="drpg-despair-overflow">Despair overflow · 0/20</div></div></div>
 <div id="ui-right">
   <div id="ui-right-column-1">
-    <div id="drpg-player-status"><div class="drpg-status-field"><span class="drpg-status-label">Still to act</span><span class="drpg-status-value">4 / 4</span></div><div class="drpg-status-field"><span class="drpg-status-label">Hope</span><span class="drpg-status-value">3</span></div></div>
+    <div id="drpg-player-status"><div class="drpg-status-field"><span class="drpg-status-label">Still to act</span><span class="drpg-status-value">4 / 4</span></div></div>
     <div id="countdowns"><div class="countdowns-header"><i class="fa-solid fa-clock"></i><span class="window-title">Projects</span><button class="drpg-projects-gear" aria-label="Manage projects"><i class="fa-solid fa-gear" inert></i></button></div>
       <div class="countdowns-container"><div class="countdown-category-container">
         <div class="countdown-container" data-countdown="a"><div class="countdown-main-container"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt=""><div class="countdown-content"><header>Rig the dumbwaiter</header><div class="countdown-tools"><div class="countdown-tool-controls"><a data-action="decreaseCountdown"><i class="fa-solid fa-minus"></i></a><div class="progress-tag">2/4</div><a data-action="increaseCountdown"><i class="fa-solid fa-plus"></i></a></div><div class="countdown-tool-icons"></div></div></div></div></div>
@@ -161,11 +161,11 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
      caption and the name, and since E78 C6 the microphone and speaker buttons (C4's) in its corner. The
      curtain cuts it a pane at the right wall under the tray (glass.mjs `voice-block`, C6); on a stacked
      screen narrow.mjs moves it into the tiles' row. `drpgVoiceCheck` below reads both. The glyphs wear the mask
-     voice-tile.mjs `glyph` writes on them (`--drpg-px-mask`, the mic and the sound): until E78 fix r2-H1 they wore none
+     voice-tile.mjs `glyph` writes on them (`--drpg-glyph`, the mic and the sound): until E78 fix r2-H1 they wore none
      here, and `.drpg-pxi` with no mask is a square of its own colour - the white squares on the C6 and HF4 shots. At a
      table `glyph` writes the mask on every glyph it builds and pixel-icons.css states both sprites on the body, so the
      glyphs are drawn there (read in the code, 14.10.2026; not seen at a table). -->
-<section id="drpg-voice-tile" class="drpg-voice-tile" role="region" aria-label="Voice" data-state="speaking" data-in-channel="3"><div class="drpg-voice-tile-face"><div class="drpg-voice-tile-art" aria-hidden="true" style="background-image:linear-gradient(170deg,#c9a27e,#5b3a5e 60%,#1d1a2b)"></div><div class="drpg-voice-tile-plate"><span class="drpg-voice-tile-speaking">Speaking</span><span class="drpg-voice-tile-name">Aiko Hoshino</span><span class="drpg-voice-tile-more" hidden></span></div></div><div class="drpg-voice-tile-state" aria-hidden="true" hidden></div><span class="drpg-voice-tile-nobody" hidden>Nobody is speaking</span><div class="drpg-voice-tile-controls"><button type="button" class="drpg-launch-mini drpg-voice-mic" aria-label="Mute your microphone" aria-pressed="false"><i class="drpg-pxi" style="--drpg-px-mask: var(--drpg-px-mic)" aria-hidden="true" inert></i></button><button type="button" class="drpg-launch-mini drpg-voice-speaker" aria-label="Who you hear" aria-haspopup="dialog" aria-expanded="false"><i class="drpg-pxi" style="--drpg-px-mask: var(--drpg-px-sound)" aria-hidden="true" inert></i></button></div></section>
+<section id="drpg-voice-tile" class="drpg-voice-tile" role="region" aria-label="Voice" data-state="speaking" data-in-channel="3"><div class="drpg-voice-tile-face"><div class="drpg-voice-tile-art" aria-hidden="true" style="background-image:linear-gradient(170deg,#c9a27e,#5b3a5e 60%,#1d1a2b)"></div><div class="drpg-voice-tile-plate"><span class="drpg-voice-tile-speaking">Speaking</span><span class="drpg-voice-tile-name">Aiko Hoshino</span><span class="drpg-voice-tile-more" hidden></span></div></div><div class="drpg-voice-tile-state" aria-hidden="true" hidden></div><span class="drpg-voice-tile-nobody" hidden>Nobody is speaking</span><div class="drpg-voice-tile-controls"><button type="button" class="drpg-launch-mini drpg-voice-mic" aria-label="Mute your microphone" aria-pressed="false"><i class="drpg-pxi" style="--drpg-glyph: var(--drpg-pix-mic)" aria-hidden="true" inert></i></button><button type="button" class="drpg-launch-mini drpg-voice-speaker" aria-label="Who you hear" aria-haspopup="dialog" aria-expanded="false"><i class="drpg-pxi" style="--drpg-glyph: var(--drpg-pix-sound)" aria-hidden="true" inert></i></button></div></section>
 <div class="application dialog drpg-panel"><header class="window-header"><h1 class="window-title">Danganronpa - Advance the clock</h1><button class="header-control" data-action="close">x</button></header>
   <section class="window-content"><p>The afternoon ends. Everyone is placed for the Evening Eclipse.</p><footer class="form-footer"><button type="button" class="default">Advance the clock</button><button type="button">Not yet</button><button type="button" disabled>Rewind</button></footer></section></div>
 <script id="drpg-launch-check">
@@ -280,7 +280,14 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     for (const e of document.querySelectorAll(sel)) {
       if (!drawn(e)) continue;
       const { cs, m, det, w, h, cx, cy } = shape(e);
-      const pts = corners(cs.clipPath, w, h);
+      /* THE MESSENGER'S HEX IS ITS ::before (stained-glass.css since 7820aff1, E49 S11-49: the button clips nothing, so its
+         badge is drawn whole, and its ::before - `inset: -2px`, the border box - carries the polygon). Read as the button's
+         own clip-path, `none`, it was the whole square: its corners stand nearer the neighbours than the hex does, and
+         every pair with the messenger read 2.31 px against the others' 6.00 (E105, 11.11.2026, at 7d59dcfe and after;
+         the sweep's "gaps unequal"). The ::before's polygon on the border box is what is drawn. */
+      const before = getComputedStyle(e, "::before");
+      const clip = (!cs.clipPath || cs.clipPath === "none") && before.content !== "none" && before.clipPath && before.clipPath !== "none" ? before.clipPath : cs.clipPath;
+      const pts = corners(clip, w, h);
       if ([cs.rotate, cs.translate, cs.scale].some(v => v && v !== "none") || Math.abs(det) < 1e-6 || !pts) { out.unmeasured.push(e.id || e.className); continue; }
       out.buttons++;
       const hex = pts.map(([x, y]) => { const dx = x - w / 2, dy = y - h / 2; return [cx - at.left + m.a * dx + m.c * dy, cy - at.top + m.b * dx + m.d * dy]; });
@@ -346,6 +353,49 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
      All of it with the tile's turn taken off, as R299 (b) and glass.mjs measure, and in client coordinates, so the
      containing block's offset under Stained Glass (P23; glass.mjs, `LAUNCH_CLEAR`) is the same for both boxes of a
      comparison. The cards are closed and the turn, the dock and the badge put back before it answers. */
+  /* THE HOUR'S ARROWS AND THE EMPTY PANES (E49 B1, 11.11.2026; S12-69, S12-64). Since then the time row carries hud.mjs
+     `control`'s markup, a Font Awesome chevron that pixel-icons.css paints (it carried "<" and ">" as text, which no
+     glyph rule reached, so the 22 px the finding names could not be seen here). Under Stained Glass: each arrow's glyph
+     14 px x the glass scale within 0.6 px; and each pane the curtain cut for a block that is not there (`empty` in
+     LAST.panes) at most 0.40 alpha on the curtain's own canvas at its centre - the filler around it reads 0.7 and more.
+     `plant`: "arrows" puts pixel-icons.css's 22 px floor back on the glyph, "empty" reads the filler panes as if they
+     were the empty ones; each must read not ok (glass-sweep.mjs runs both once). Monokuma Legacy draws no curtain and
+     the arrows are Foundry's font there: nothing to read, ok. */
+  window.drpgHudCheck = ({ plant = null } = {}) => {
+    const body = document.body, glassOn = body.classList.contains("drpg-theme-stained-glass"), why = [];
+    const out = { ok: false, why, glass: glassOn, arrows: null, want: null, empty: null, filler: null };
+    const style = plant === "arrows" ? document.createElement("style") : null;
+    if (style) { style.textContent = "body #drpg-hud .drpg-hud-button > i { min-width: 22px !important; min-height: 22px !important; }"; document.head.append(style); }
+    try {
+      const icons = [...document.querySelectorAll("#drpg-hud .drpg-hud-time-row .drpg-hud-button > i")];
+      if (icons.length !== 2) why.push(`${icons.length} arrow glyphs in the clock's time row, not 2`);
+      if (glassOn) {
+        const scale = Number.parseFloat(getComputedStyle(document.getElementById("drpg-hud")).getPropertyValue("--drpg-sg-scale")) || 1;
+        const want = 14 * scale;
+        out.want = Math.round(want * 10) / 10;
+        // the used size, not the box on screen: the clock's pane is turned (`blockTurns`), and a turned glyph's
+        // bounding box reads 1.13 x its side at the clock's 7 degrees
+        out.arrows = icons.map(i => { const c = getComputedStyle(i); return [Math.round(parseFloat(c.width) * 10) / 10, Math.round(parseFloat(c.height) * 10) / 10]; });
+        const off = out.arrows.find(([w, h]) => Math.abs(w - want) > 0.6 || Math.abs(h - want) > 0.6);
+        if (off) why.push(`an arrow's glyph ${off.join("x")} px, not ${out.want}`);
+        const cv = document.querySelector("#drpg-curtain canvas.sg"), panes = window.__glass?.LAST?.panes ?? [];
+        const stacked = body.classList.contains("drpg-stacked");
+        if (cv && cv.width && panes.length) {
+          const box = cv.getBoundingClientRect(), kx = cv.width / box.width, ky = cv.height / box.height, ctx = cv.getContext("2d", { willReadFrequently: true });
+          const alpha = p => { const n = p.poly.length, cx = p.poly.reduce((a, q) => a + q[0], 0) / n, cy = p.poly.reduce((a, q) => a + q[1], 0) / n;
+            const px = Math.round((cx - box.left) * kx), py = Math.round((cy - box.top) * ky);
+            return Math.round(ctx.getImageData(px, py, 1, 1).data[3] / 255 * 100) / 100; };
+          const empties = panes.filter(p => p.empty), fillers = panes.filter(p => p.kind !== "section" && !p.empty && p.poly.length >= 3 && (p.x1 - p.x0) > 24 && (p.y1 - p.y0) > 24);
+          out.empty = empties.map(alpha); out.filler = fillers.map(alpha);
+          const read = plant === "empty" ? out.filler : out.empty;
+          const dark = read.filter(a => a > 0.40);
+          if (dark.length) why.push(`${dark.length} of ${read.length} empty panes darker than 0.40 (${dark.slice(0, 4).join(", ")})`);
+        } else if (!stacked) why.push("no curtain canvas or no panes to read");
+      }
+    } finally { style?.remove(); }
+    out.ok = !why.length;
+    return out;
+  };
   window.drpgNoticeCheck = async () => {
     const host = document.getElementById("drpg-popups"), button = document.getElementById("drpg-notices-corner");
     const body = document.body, stacked = body.classList.contains("drpg-stacked");
@@ -1069,7 +1119,51 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
      that rule put back on the page for the reading, which must fail under Stained Glass. Under Monokuma Legacy it
      matches nothing, and a planted `#countdowns *` would not show either: with the pixel face the base sheet's
      `body.drpg-pixel-font #interface i[class*="fa-"]` restores Font Awesome at a higher specificity (read here,
-     27.10.2026), so the sweep runs the control under Stained Glass alone. Answers { read, why }. */
+     27.10.2026), so the sweep runs the control under Stained Glass alone. Since E105 FT-14 (11.11.2026) Stained Glass draws
+     the minus, the plus and the eye-slash as the module's pixel masks (pixel-icons.css HOST_FACES), Font Awesome's ::before
+     off (the loop's too, the owner's follow-up of the same day); the masks set no face, so this reading and its control read
+     as before. Answers
+     { read, why }. */
+  /* THE GLASS TURNS WITH THE PROJECTS TRAY'S FOLD (E105 follow-up, 11.11.2026; the owner: "projects przy zwijaniu i
+     rozwijaniu nie animuje kurtyny"). projects-tray.mjs folds the tray with a class (`drpg-projects-collapsed`, its list
+     `display: none`); glass.mjs heard it 150 ms later through a ResizeObserver, and its recut moved a corner - too few
+     panes for a turn - so the glass jumped a debounce behind the tray. `drpgTrayFold()` folds the tray, then unfolds
+     it, by that class, and reads each for 40 frames: the frame and the milliseconds after the toggle at which the
+     curtain's clip path changed (the recut), and how many of those frames a layer of the turn (`#drpg-curtain-turn`)
+     was running. Each must recut, and with motion on each must turn; under reduced motion none may turn. At 1b0ebb73
+     both read a recut and 0 frames of a turn. `{ plant: true }` is the control: the page's reduced-motion class put on
+     for the reading only, while the reading still expects motion - it must read not ok. The tray is left as found.
+     Answers { read, why } (async). */
+  window.drpgTrayFold = async ({ plant = false } = {}) => {
+    const tray = document.getElementById("countdowns"), cur = document.getElementById("drpg-curtain");
+    if (!tray || !cur) return { read: null, why: ["no Projects tray or no curtain on this page"] };
+    const reduced = document.body.classList.contains("drpg-reduced-motion"), was = tray.classList.contains("drpg-projects-collapsed");
+    const frame = () => new Promise(r => requestAnimationFrame(() => r()));
+    const read = [], why = [];
+    if (plant && !reduced) document.body.classList.add("drpg-reduced-motion");
+    try {
+      for (const fold of [!was, was]) {
+        const clip0 = cur.style.clipPath, t0 = performance.now();
+        tray.classList.toggle("drpg-projects-collapsed", fold);
+        let recut = null, turned = 0;
+        for (let n = 1; n <= 40; n++) {
+          await frame();
+          if (!recut && cur.style.clipPath !== clip0) recut = { frame: n, ms: Math.round(performance.now() - t0) };
+          if (document.getAnimations().some(a => a.playState === "running" && a.effect?.target?.closest?.("#drpg-curtain-turn"))) turned++;
+        }
+        const what = fold ? "folding" : "unfolding";
+        read.push({ fold, recut, turned });
+        if (!recut) why.push(`${what} the tray did not recut the glass in 40 frames`);
+        if (!reduced && !turned) why.push(`${what} the tray turned nothing: the glass jumped`);
+        if (reduced && turned) why.push(`${what} the tray turned the glass under reduced motion (${turned} frames)`);
+        await new Promise(r => setTimeout(r, 1200));
+      }
+    } finally {
+      if (plant && !reduced) document.body.classList.remove("drpg-reduced-motion");
+      tray.classList.toggle("drpg-projects-collapsed", was);
+    }
+    return { read, why };
+  };
   window.drpgTrayIcons = ({ plant = false } = {}) => {
     const why = [], icons = [...document.querySelectorAll('#countdowns i[class*="fa-"]')];
     const stand = document.createElement("style");
@@ -1251,7 +1345,16 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       return done();
     }
     if (out.expect === "none") {
-      if (tile.dataset.place || loose || !own) out.why.push(`without a curtain the tile is stamped ${tile.dataset.place ?? "-"} and its portrait ${own ? "inside" : "moved"}`);
+      /* UNDER THE PROJECTS TRAY SINCE E48 K6 (S12-98, the owner's "kafel głosu tuż pod tacą Projects"): without a curtain
+         glass.mjs `flatVoicePlacement` stamps the tile `tray` and stands it 8 px under the tray, right edge on the tray's
+         (or, E105 12.11.2026, stepped left clear of the corner's launchers on a short screen); with no tray drawn, no
+         place. This read "no place stamped" until 12.11 - stale since f22a7e87, every Legacy desk size red. So: the place
+         the placement gives, and the tile at its box (a pixel of slack). */
+      const fp = typeof g?.flatVoicePlacement === "function" ? g.flatVoicePlacement(W) : null;
+      const tb = tile.getBoundingClientRect();
+      out.place = tile.dataset.place ?? null;
+      if ((tile.dataset.place ?? null) !== (fp ? "tray" : null) || loose || !own) out.why.push(`without a curtain the tile is stamped ${tile.dataset.place ?? "-"} where its placement says ${fp ? "tray" : "-"}, and its portrait ${own ? "inside" : "moved"}`);
+      else if (fp && (!near(tb.top, fp.y) || !near(tb.right, W - fp.right))) out.why.push(`the tile stands at top ${Math.round(tb.top)}, right ${Math.round(tb.right)}; its placement says ${fp.y}, ${W - fp.right}`);
       /* WHERE NO CURTAIN IS CUT (E78 fix r2-H2, 14.10.2026): under Monokuma Legacy every desk line read "voice ok none"
          and nothing of the tile was measured - its box (163x188 at the right wall over the corner's foot, the base
          sheet's) and what it holds. Now: inside the screen, whole (`drpgVoiceParts`), and over none of the module's
@@ -1264,7 +1367,7 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       out.parts = parts.read; out.why.push(...parts.why);
       const meet = (p, q) => p.left < q.right - 1 && q.left < p.right - 1 && p.top < q.bottom - 1 && q.top < p.bottom - 1;
       const over = ["drpg-room-tile", "drpg-notices-corner", "drpg-hud", "drpg-player-status", "drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher",
-        "drpg-gm-launcher", "drpg-foundry-tools"].filter(id => { const e = document.getElementById(id), b = e?.getBoundingClientRect(); return b && b.width > 1 && b.height > 1 && meet(t, b); });
+        "drpg-gm-launcher", "drpg-foundry-tools", "countdowns"].filter(id => { const e = document.getElementById(id), b = e?.getBoundingClientRect(); return b && b.width > 1 && b.height > 1 && meet(t, b); });
       if (over.length) out.why.push(`the tile lies over ${over.join(", ")}`);
       /* and standing still - the ticker off - its band holds its widest word (H81 fix r1): read with the switch's class
          on the body for the reading alone (no curtain is cut here to recut), and put back */
@@ -2176,22 +2279,26 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
   };
 </script>
 <script id="drpg-event-check">
-  /* drpgEventCheck (E23 C3b, 07.11.2026; E23-18, the owner's 04.10 "the events panel has a fixed size whatever the event
-     and phase, always a similar layout, everything fits", S10-35, S12-30): the Event panel laid out in Chromium with the
-     module's own card (events.mjs `cardElement`, imported here with Foundry's globals lent while it loads, as
-     drpgTrayRows lends them for projects-tray.mjs) for three cards built from the longest texts of lang/en.json and
-     lang/pl.json, each key's longer one: an incident (the trap's or the fight's title, the room's line with three long
+  /* drpgEventCheck (E23 C3b, 07.11.2026; E23-18, S10-35, S12-30; E49 A6, 11.11.2026): the Event panel laid out in
+     Chromium with the module's own card (events.mjs `cardElement`, imported here with Foundry's globals lent while it
+     loads, as drpgTrayRows lends them for projects-tray.mjs) for three cards built from the longest texts of lang/en.json
+     and lang/pl.json, each key's longer one: an incident (the trap's or the fight's title, the room's line with three long
      names, the meta's two parts - whose turn and the victim's marks), a trial (the longest mode, a speaker, "Next:" or
      the floor's line, the GM's note and the debate's clock: E70's speaker and "GM: +30 s") and a safeword (the GM's
-     meta or the table's). The panel is put where events.mjs `renderEvents` puts it (after `#drpg-despair`), with each
-     card alone and then all three, the glass recut, and read: the panel's box (`offsetWidth` x `offsetHeight`, its own
-     frame: the turn the pane gives it does not count), which must be the same for the four within 1 px; nothing cut -
-     no text wider than its line (`scrollWidth`), no card clipping its own content, and a panel whose content is taller
-     than it scrolls (`overflow-y` auto or scroll); the incident's meta two lines; and the ticker never under words: its
-     band (offsetTop, offsetHeight in the card) meets no title, sub, clock, meta or note by more than 1 px, and on a
-     stacked screen it is not drawn. `plant` is the sweep's control: "grow" lets the panel's height follow its content
-     again (the base sheet's road before this commit), and must read a box that changes; "ticker" puts the ticker back
-     at the card's middle, and must read it under words. Everything added is taken away before it answers.
+     meta or the table's); and, since E49 A6, the owner's own incident of 10.11 (owner-1011/event-panel.png: "Face to
+     face", two short names and a room, the tracker's line and the victim's reserves as a GM reads them) in English and in
+     Polish, each in its own language. The panel is put where events.mjs `renderEvents` puts it (after `#drpg-despair`),
+     with each card alone and then three together, the glass recut, and read: the panel's box (`offsetWidth` x
+     `offsetHeight`, its own frame: the turn the pane gives it does not count) and its cap (the computed `max-height`).
+     HEIGHT FROM WHAT IT SAYS (E49 A6; the owner's 10.11, amend [14](1): "za dużo pustego miejsca na dole - wysokość z
+     treści, bez pustego pasa pod ostatnią linią"), which replaces E23 C3b's one box for every card (the owner's 04.10): a
+     panel whose cards fit leaves at most 8 px between the bottom of its last line of text and its own bottom edge (the
+     band), and is never taller than its cap; one whose cards do not fit is its cap tall and scrolls (`overflow-y` auto or
+     scroll). Nothing cut - no text wider than its line (`scrollWidth`), no card clipping its own content; the incident's
+     meta two lines; and the ticker never under words: its band (offsetTop, offsetHeight in the card) meets no title,
+     sub, clock, meta or note by more than 1 px, and on a stacked screen it is not drawn. `plant` is the sweep's control:
+     "fixed" holds the panel at its cap again (E23 C3b's road before E49 A6), and must read a band; "ticker" puts the
+     ticker back at the card's middle, and must read it under words. Everything added is taken away before it answers.
      Answers { ok, why, boxes, read }. */
   window.drpgEventCheck = async ({ plant = null } = {}) => {
     const out = { ok: false, why: [], boxes: {}, read: {} };
@@ -2222,7 +2329,7 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     const CARDS = {
       incident: { kind: "incident", mine: true, title: longest(["DRPG.Events.incidentTitle", "DRPG.Events.incidentTitleDirect"]),
         sub: longest(["DRPG.Events.incidentSubRoom"], NAMES),
-        meta: [longest(["DRPG.Murder.yourTurn", "DRPG.Murder.theirTurn"]), longest(["DRPG.Murder.victimMarks"], { hp: 10, stress: 10 })] },
+        meta: [longest(["DRPG.Murder.yourTurn", "DRPG.Murder.theirTurn"]), longest(["DRPG.Events.reserveYou", "DRPG.Events.reserveVictim", "DRPG.Events.reserveOf"], { hp: 10, hpMax: 10, sanity: 10, sanityMax: 10, name: NAMES.victim })] },
       trial: { kind: "trial", title: longest(MODES), sub: NAMES.who, clock: true,
         meta: longest(["DRPG.Events.trialNext", "DRPG.Events.trialLastTurn", "DRPG.Events.trialObjectionFloor", "DRPG.Hud.trialVersus",
           "DRPG.Events.trialDebateMeta", "DRPG.Events.trialDiscussionMeta"], NAMES),
@@ -2230,18 +2337,26 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       safeword: { kind: "safeword", due: true, title: longest(["DRPG.Events.safewordTitle"]), sub: longest(["DRPG.Events.safewordSub"]),
         meta: longest(["DRPG.Events.safewordMeta", "DRPG.Events.safewordMetaGm"]) }
     };
+    /* the owner's incident (10.11), each language's own words: a GM's seat, turn 1, the victim to act, 4 of 4 and 6 of 6 */
+    const own = (l, key, data = {}) => fill(key.split(".").reduce((o, p) => o?.[p], langs[l === "pl" ? 1 : 0]) ?? key, data);
+    const SHORT = { killer: "Geon Pi", victim: "Jacobs", room: "Dorm" };
+    for (const l of ["en", "pl"]) CARDS[`short-${l}`] = { kind: "incident", title: own(l, "DRPG.Events.incidentTitleDirect"),
+      sub: own(l, "DRPG.Events.incidentSubRoom", SHORT),
+      meta: [own(l, "DRPG.Murder.trackerState", { stage: own(l, "DRPG.Murder.stage.incident"), turn: 1, side: own(l, "DRPG.Murder.side.victim") }),
+        own(l, "DRPG.Events.reserveVictim", { hp: 4, hpMax: 4, sanity: 6, sanityMax: 6 })] };
     out.read.texts = Object.fromEntries(Object.entries(CARDS).map(([k, c]) => [k, [c.title, c.sub, c.meta, c.note].flat().filter(Boolean).join(" | ")]));
     /* the ticker's word as lang/en.json says it: the page's own `localize` answers a key's last segment */
     const i18n = game.i18n, word = key => pick(key)[0] ?? key.split(".").pop();
     const style = document.createElement("style");
-    if (plant === "grow") style.textContent = "body #drpg-events { height: auto !important; min-height: 0 !important; max-height: none !important; }";
+    if (plant === "fixed") style.textContent = "body #drpg-events { height: var(--drpg-events-h) !important; }";
     if (plant === "ticker") style.textContent = "body .drpg-event-ticker { top: 50% !important; height: auto !important; transform: translateY(-50%) !important; }";
     document.head.append(style);
     const stacked = document.body.classList.contains("drpg-stacked");
     const TEXT = ".drpg-event-title, .drpg-event-sub, .drpg-event-clock, .drpg-event-meta, .drpg-event-meta-line, .drpg-event-note";
     let panel = null;
     try {
-      for (const [name, list] of [["incident", ["incident"]], ["trial", ["trial"]], ["safeword", ["safeword"]], ["all", ["safeword", "trial", "incident"]]]) {
+      for (const [name, list] of [["incident", ["incident"]], ["trial", ["trial"]], ["safeword", ["safeword"]], ["short-en", ["short-en"]],
+        ["short-pl", ["short-pl"]], ["all", ["safeword", "trial", "incident"]]]) {
         panel?.remove();
         panel = document.createElement("div");
         panel.id = "drpg-events";
@@ -2257,8 +2372,16 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
         await frame();
         for (const c of panel.querySelectorAll(".drpg-event-clock")) c.textContent = "2:37";
         const pcs = getComputedStyle(panel);
-        const box = { w: panel.offsetWidth, h: panel.offsetHeight, content: panel.scrollHeight, overflow: pcs.overflowY };
-        out.boxes[name] = `${box.w}x${box.h}`;
+        const box = { w: panel.offsetWidth, h: panel.offsetHeight, content: panel.scrollHeight, overflow: pcs.overflowY, cap: parseFloat(pcs.maxHeight) || null };
+        /* the band: the panel's inner bottom less the lowest bottom of a line of text in it, read while the cards fit */
+        const fits = panel.scrollHeight <= panel.clientHeight + 1;
+        const lows = [...panel.querySelectorAll(TEXT)].filter(e => e.getClientRects().length).map(e => e.getBoundingClientRect().bottom);
+        box.band = fits && lows.length ? Math.round((panel.getBoundingClientRect().bottom - (parseFloat(pcs.borderBottomWidth) || 0) - Math.max(...lows)) * 10) / 10 : null;
+        out.boxes[name] = `${box.w}x${box.h}${box.band === null ? " scrolls" : ` band ${box.band}`}`;
+        if (box.band !== null && box.band > 8) out.why.push(`${name}: ${box.band} px of empty band under the last line (8 at most)`);
+        if (box.cap === null) out.why.push(`${name}: the panel has no cap (max-height ${pcs.maxHeight})`);
+        else if (box.h > box.cap + 1) out.why.push(`${name}: the panel is ${box.h} px tall, past its cap of ${box.cap}`);
+        else if (!fits && Math.abs(box.h - box.cap) > 1) out.why.push(`${name}: its cards do not fit and the panel is ${box.h} px, not its cap of ${box.cap}`);
         const read = { box, cut: [], under: [], meta: null, ticker: [] };
         if (box.content > panel.clientHeight + 1 && !/auto|scroll/.test(box.overflow)) out.why.push(`${name}: the panel's content is ${box.content} px in a box of ${panel.clientHeight} that does not scroll`);
         for (const card of panel.querySelectorAll(".drpg-event")) {
@@ -2290,9 +2413,6 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
         if (read.under.length) out.why.push(`${name}: the ticker runs under ${read.under.join(", ")}`);
         out.read[name] = read;
       }
-      const sizes = new Set(Object.values(out.boxes));
-      const [w, h] = Object.values(out.boxes).map(b => b.split("x").map(Number)).reduce(([w0, h0], [w1, h1]) => [Math.max(w0, Math.abs(w1 - (out.read.incident?.box.w ?? w1))), Math.max(h0, Math.abs(h1 - (out.read.incident?.box.h ?? h1)))], [0, 0]);
-      if (sizes.size > 1 && (w > 1 || h > 1)) out.why.push(`the panel's box changes with its cards: ${JSON.stringify(out.boxes)}`);
     } finally {
       panel?.remove();
       style.remove();
@@ -2458,6 +2578,12 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     callAll(name, ...a) { for (const fn of hooks.get(name) ?? []) fn(...a); return true; } };
   const player = q.get("role") === "player";
   if (player) { document.getElementById("drpg-gm-launcher")?.remove(); document.body.classList.replace("drpg-gm", "drpg-player"); }
+  /* THE STRIP AS THE MODULE DRAWS IT FOR EACH (E48 K7, 11.11.2026; the owner: "Hope powinien widzieć tam tylko gracz").
+     A GM's is the table's, "Still to act" alone (player-status.mjs `buildTableView`); a player's is Actions, Move and
+     Hope (`buildPlayerView`). Until K7 both pages drew "Still to act" over "Hope", a strip the module draws for nobody,
+     and the owner's review shots showed Hope on the GM's. Labels and values only, as the stand-in was. */
+  const PLAYER_STRIP = `<div class="drpg-status-field is-actions"><span class="drpg-status-label">Actions</span><span class="drpg-status-value">2 / 3</span></div><div class="drpg-status-field is-move"><span class="drpg-status-label">Move</span><span class="drpg-status-value">1</span></div><div class="drpg-status-field is-hope"><span class="drpg-status-label">Hope</span><span class="drpg-status-value">3</span></div>`;
+  if (player) document.getElementById("drpg-player-status").innerHTML = PLAYER_STRIP;
   /* A player's rows as countdowns.hbs draws them where the countdown is not theirs (`countdown.editable` false, E23 C3a): no
      minus and no plus, the count alone in the controls' box. */
   if (player) for (const a of document.querySelectorAll('#countdowns [data-action$="Countdown"]')) a.remove();

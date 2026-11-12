@@ -101,7 +101,7 @@ function onRollStart(messageId, context) {
  * the table's look forced each throw this browser draws - a roll the GM drew, a Reroll's, Daggerheart's own, one thrown
  * with no GM - is handed a copy whose Hope, Fear and advantage dice carry the world's copy of the source's preset. The
  * roll itself, the message's, is never touched: display only. Not on Daggerheart 2.10 and later (roles): forcing those is
- * E76's (row 1.2.123, compatibility with newer Daggerheart and Foundry), with Dice So Nice 6.3's missing
+ * E76's (row 1.2.106, compatibility with newer Daggerheart and Foundry), with Dice So Nice 6.3's missing
  * `ALL_CUSTOMIZATION`, 6.4's `DEFAULT_SFX` and Daggerheart 2.12's `MoveContext` (E60's fix round, FG5).
  */
 function layOnThrow(context) {

@@ -524,20 +524,21 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, repoUrl, 
         await daichi.update({ "system.resources.hitPoints.value": r().hitPoints.max });
         await pause(400);
         const body = { published: game.drpg.isDeceased(daichi), hp: [r().hitPoints.value, r().hitPoints.max], conditions: conditions() };
-        await M.setMonocub(daichi, true);
-        await pause(400);
-        const made = { cub: M.isMonocub(daichi), hope: r().hope.value, hp: r().hitPoints.value, stress: r().stress.value, conditions: conditions() };
-        // E95 C2: the body left where Daichi's token stands - its tiles (body-tile.mjs \`bodyTilesOf\`) and whether the first is at the token.
+        // E63 C0: the body is laid by the death's publication, before any Monocub (body-tile.mjs \`bodyTilesOf\`, at Daichi's token).
         const B = await import("${repoUrl}/scripts/body-tile.mjs");
         const token = game.scenes.find(s => s.tokens.some(t => t.actorId === daichi.id))?.tokens.find(t => t.actorId === daichi.id);
         const tiles = () => B.bodyTilesOf(daichi.id).map(({ doc }) => [doc.x === token?.x && doc.y === token?.y, doc.parent?.id === token?.parent?.id]);
+        const published = tiles();
+        await M.setMonocub(daichi, true);
+        await pause(400);
+        const made = { cub: M.isMonocub(daichi), hope: r().hope.value, hp: r().hitPoints.value, stress: r().stress.value, conditions: conditions() };
         const laid = tiles();
         const refill = await A.resetActionsFor(daichi);
         const budget = { total: refill?.total ?? null, wounded: refill?.wounded ?? null, unwounded: A.actionBudget(daichi, { wounded: false }).total };
         await M.setMonocub(daichi, false);
         await daichi.update({ "system.resources.actions.value": actionsWas.value, "system.resources.actions.max": actionsWas.max });
         await pause(200);
-        return { body, made, budget, after: M.isMonocub(daichi), laid, kept: tiles() };`, { timeout: 60000 });
+        return { body, made, budget, after: M.isMonocub(daichi), published, laid, kept: tiles() };`, { timeout: 60000 });
     check("gm: a body that bled out carries neither condition, and made a Monocub it holds no Hope and no marks and is refilled with 2 actions, as an unwounded student",
         cubFromBody.body.published === true && cubFromBody.body.hp[0] === cubFromBody.body.hp[1] && cubFromBody.body.hp[1] > 0
             && JSON.stringify(cubFromBody.body.conditions) === "[false,false]"
@@ -545,12 +546,14 @@ export async function run({ gm, gm2, p1, p2, p3, check, phase, settle, repoUrl, 
             && JSON.stringify(cubFromBody.made.conditions) === "[false,false]"
             && cubFromBody.budget.total === 2 && cubFromBody.budget.wounded === false && cubFromBody.budget.unwounded === 2 && cubFromBody.after === false,
         JSON.stringify(cubFromBody), { flow: "monocub-meddle" });
-    /* E95 C2 (DC6; QUESTIONS Q3, Q8): the same Monocub leaves its body on the map as one tile at its token, on its scene,
-       and the tile stays when it is unticked - Daichi is still dead, and the tile stays for the rest of this run. Red at E95
-       C1: no tile. */
-    check("gm: made a Monocub, the murdered Daichi leaves one body tile where his token stands, kept when he is unticked (E95 C2)",
-        JSON.stringify(cubFromBody.laid) === "[[true,true]]" && JSON.stringify(cubFromBody.kept) === "[[true,true]]",
-        JSON.stringify({ laid: cubFromBody.laid, kept: cubFromBody.kept }), { flow: "monocub-meddle" });
+    /* E63 C0 (the owner's 11.11.2026 on E95 Q3, "gdy postac umiera ... Nie gdy zostaje Monocubem"): the discovery's
+       publication of Daichi's death laid his body as one tile at his token, on its scene; made a Monocub he lays no second,
+       and unticked the tile stays - Daichi is still dead, and the tile stays for the rest of this run. Red at 7b5b4da9: no
+       tile before the tick (E95 C2 laid it there). */
+    check("gm: the murdered Daichi's published death leaves one body tile where his token stands, one through his Monocub tick and untick (E63 C0)",
+        JSON.stringify(cubFromBody.published) === "[[true,true]]" && JSON.stringify(cubFromBody.laid) === "[[true,true]]"
+            && JSON.stringify(cubFromBody.kept) === "[[true,true]]",
+        JSON.stringify({ published: cubFromBody.published, laid: cubFromBody.laid, kept: cubFromBody.kept }), { flow: "monocub-meddle" });
 
     // -- 5. traces: place a Remnant, observe it into a Truth Bullet ----------
     phase("traces", { flow: "trace-remnant" });

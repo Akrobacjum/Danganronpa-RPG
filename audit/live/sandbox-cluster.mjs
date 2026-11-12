@@ -31,8 +31,12 @@ export function missingFrom(source) {
     return missing;
 }
 
+/* `viewport(width, height)` (E49 B7, 11.11.2026): the page's CSS viewport, for 84-viewports, which lays the module out at
+   each supported screen and zoom. Playwright's `setViewportSize`; not in cluster.mjs's clients, so a scenario that asks
+   for it carries the local-gate layer alone. */
 function client(page) {
     return {
+        viewport: (width, height) => page.setViewportSize({ width, height }),
         eval: (code, { timeout = 60_000 } = {}) => Promise.race([
             page.evaluate(async body => {
                 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
