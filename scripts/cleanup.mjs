@@ -68,7 +68,7 @@ import { MODULE_ID, CLEANUP, RESOLUTION_STRESS_COST, REMNANT_VISIBILITY, REMNANT
 import { getClock } from "./clock.mjs";
 import { bodyDiscovery, seasonEpoch } from "./settings.mjs";
 import { murderState, killerIds, blackenedIds, refOf, swungWeaponOf, spendFreeCleanup } from "./murder.mjs";
-import { usedToolStore, blackenedStore, cleanupAttemptStore, caseMark, deathStore } from "./gm-stores.mjs";
+import { usedToolStore, blackenedStore, cleanupAttemptStore, caseMark, deathStore, tamperAttemptStore } from "./gm-stores.mjs";
 import { readMine } from "./gm-store.mjs";
 import {
     remnantsInRoom, remnantData, removeRemnant, dropRemnant, setRemnantPublic, tieState, remnantPublic,
@@ -1453,6 +1453,32 @@ async function cleanupRefusal(actor, token, data, viaAction, price = null, grant
 }
 
 /**
+ * TWO TAMPERS A TIME OF DAY (E64 C1d, 12.11.2026; audit S02-58, Q-E64-3; default taken, owner to confirm). Asked on the
+ * primary GM of an attempt through the Tamper tile (`viaAction`), once its other refusals have passed: a character who
+ * has had `CLEANUP.tamperPerTimeOfDay` attempts scored this time of day (the GMs' `tamperAttemptStore`) is refused,
+ * told, and given back what the attempt paid (`refundRefused`); otherwise the attempt's roll is counted. A roll counted
+ * already is no new attempt (a replay of it); a Reroll's undo is not asked. The killer's own Stage 6 is not Tamper's.
+ * Answers the refusal, or null. Exported for tier 2 R3958.
+ */
+export async function tamperOverLimit(actor, { viaAction = false, undo = false, rollId = null, price = null, grant = false, by = null } = {}) {
+    const limit = Math.floor(Number(CLEANUP.tamperPerTimeOfDay) || 0);
+    if (!viaAction || undo || limit <= 0) return null;
+    await tamperAttemptStore.whenHydrated();
+    const clock = getClock() ?? {};
+    const at = `${seasonEpoch() ?? 0}/${clock.chapter ?? 1}/${clock.day ?? 1}/${clock.timeOfDay ?? ""}`;
+    const row = tamperAttemptStore.get(actor.id);
+    const rolls = row?.at === at && Array.isArray(row.rolls) ? row.rolls : [];
+    if (rollId && rolls.includes(rollId)) return null;
+    if (rolls.length >= limit) {
+        log(`Refused a Tamper by ${actor.name}: ${rolls.length} attempt(s) this time of day already, of ${limit}.`);
+        await whisperToOwner(actor, `<p>${plural("DRPG.Tamper.limitReached", { n: limit })}</p>${await refundRefused(actor, price, grant, by)}`);
+        return { removed: false, limit: true };
+    }
+    await tamperAttemptStore.patch(actor.id, { at, rolls: [...rolls, rollId ?? `unrolled-${foundry.utils.randomID(8)}`] });
+    return null;
+}
+
+/**
  * Score the attempt: the threshold after every relief, the band, and the outcome row the table gives it. `held` is
  * the character as the GMs hold its items (E29 fix r2-H20, `resolveCleanup`'s note): its readied tool's tier.
  */
@@ -1808,7 +1834,8 @@ export async function resolveCleanup({
      * its Sanity - and scored the new number on top. With no row, the Reroll is not replayed
      * and the GMs are told (`undoLastCleanup`).
      */
-    const refused = await cleanupRefusal(actor, token, data, viaAction, price, grant, by);
+    const refused = await cleanupRefusal(actor, token, data, viaAction, price, grant, by)
+        ?? await tamperOverLimit(actor, { viaAction, undo, rollId, price, grant, by });
     if (refused) {
         await forgetAttempt(actorId);
         return refused;
@@ -2426,6 +2453,9 @@ export async function resolveStageSix({
         await refundStageSix(actor, "notThere", price, grant, by);
         return { refused: "the body is not in the killer's room" };
     }
+    // Two a time of day through the tile (E64 C1d): said and given back as the refusals above; not the bridge's to tell.
+    const limited = await tamperOverLimit(actor, { viaAction, rollId, price, grant, by });
+    if (limited) return limited;
     // The tool written down and the tier of its relief, as the GMs hold them (`resolveCleanup`'s note, fix r2-H20).
     const { actorAsHeld } = await import("./sheet-audit.mjs");
     const held = await actorAsHeld(actor);

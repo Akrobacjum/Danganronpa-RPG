@@ -4061,6 +4061,14 @@ export const CLEANUP = {
     minDc: 8,
 
     /**
+     * TAMPER ATTEMPTS PER TIME OF DAY (E64 C1d, 12.11.2026; audit S02-58, Q-E64-3; default taken, owner to confirm):
+     * at most this many attempts through the Tamper tile, per character, each time of day - an erase, a reshape or a
+     * Misleading Trail, scored or not. The killer's own Stage 6 is not counted. A third is refused on the GM and what it
+     * paid given back (cleanup.mjs `tamperOverLimit`). Before: no limit.
+     */
+    tamperPerTimeOfDay: 2,
+
+    /**
      * THE SCENE IS STILL WARM (Z5): −3 while nobody has found the body.
      *
      * The season run measured Stage 6 erasing about ONE trace in six chapters.

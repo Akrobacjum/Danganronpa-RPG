@@ -618,6 +618,23 @@ async function inConsoleWindow(student, player, { honest = {}, forged, paths, du
  */
 const LEVEL_UP_POINTS = ["system.traits.strength.value", "system.traits.knowledge.value"];
 
+/*
+ * PAST TAMPER'S LIMIT, FOR A TEST OF SOMETHING ELSE (E64 C1d, 12.11.2026). Two tests drive one student's Tamper three
+ * and four times in one time of day to read the price each attempt pays and hands back; since E64 a third attempt is
+ * refused (`CLEANUP.tamperPerTimeOfDay`, held by E64-T1), which those tests do not measure. `run` with the limit lifted
+ * (0, no limit), put back after.
+ */
+async function beyondTamperLimit(run) {
+    const { CLEANUP } = await import("./config.mjs");
+    const was = CLEANUP.tamperPerTimeOfDay;
+    CLEANUP.tamperPerTimeOfDay = 0;
+    try {
+        return await run();
+    } finally {
+        CLEANUP.tamperPerTimeOfDay = was;
+    }
+}
+
 function sheetAsFound(actor, paths) {
     const was = Object.fromEntries(paths.map(path => [path, foundry.utils.getProperty(actor._source, path)]));
     return async () => {
@@ -38741,7 +38758,7 @@ const SCENARIOS = [
         }
     }],
 
-    ["a critical Tamper hands back the step that paid, and a forged packet still pays", async () => {
+    ["a critical Tamper hands back the step that paid, and a forged packet still pays", () => beyondTamperLimit(async () => {
         /*
          * T-1's refund, driven through the resolver the way the socket drives it -
          * which is also the only way to test the bound on a claim that crossed it.
@@ -38880,9 +38897,9 @@ const SCENARIOS = [
             });
             await settle();
         }
-    }],
+    })],
 
-    ["a reshaped trace does not change until the GM says so", async () => {
+    ["a reshaped trace does not change until the GM says so", () => beyondTamperLimit(async () => {
         /*
          * N-3, driven through the resolver the way the socket drives it.
          *
@@ -39047,7 +39064,7 @@ const SCENARIOS = [
             }
             await settle();
         }
-    }],
+    })],
 
     ["a reading lost from a bullet's secret is asked of the trace, and a Reroll takes it back", async () => {
         /*
@@ -88007,6 +88024,45 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson({ scars: 2, proficiency: 3, evasion: 1, instinct: 2, experience: "E49 save" }),
             "the character after the save: the three hidden fields, the statistic changed in the window, the experience");
+    }],
+    ["E64-T1 - two Tamper attempts a time of day: the third is refused on the GM and told, a roll counted is not counted again, the killer's own Stage 6 and a Reroll's undo are not asked, and another time of day starts again (E64 C1d; audit S02-58, Q-E64-3; default taken, owner to confirm)", async () => {
+        /*
+         * E64 C1d, 12.11.2026. Red at 810c51a: cleanup.mjs had no `tamperOverLimit`, no `CLEANUP.tamperPerTimeOfDay`
+         * and no `tamperAttemptStore` - a character tampered as often as their actions and Sanity paid for. Driven on this
+         * GM, the primary, on a living student: four attempts through the tile with rolls A, B, C and B again, one of the
+         * killer's own (no tile), one under a Reroll's undo, then a row stamped with another time of day. Price null, so
+         * nothing is given back; the refusal's whisper is read off the chat and deleted. The row is dropped after.
+         */
+        needs(world.atLeast("livingStudents"), "a living student who tampers");
+        const Cl = await import("./cleanup.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        const S = await import("./gm-stores.mjs");
+        must(typeof Cl.tamperOverLimit === "function" && S.tamperAttemptStore, "cleanup.mjs exports no tamperOverLimit, or there is no tamperAttemptStore - nothing limits a Tamper");
+        const { livingStudents } = await import("./chapter.mjs");
+        const [student] = livingStudents();
+        await S.tamperAttemptStore.whenHydrated();
+        must(!S.tamperAttemptStore.has(student.id), `${student.name} has a Tamper row already - this would read it, not the one made here`);
+        const from = new Set(game.messages.map(m => m.id));
+        const ask = (rollId, extra = {}) => Cl.tamperOverLimit(student, { viaAction: true, rollId, ...extra }).then(r => r ? "refused" : "counted");
+        let read = null;
+        try {
+            const runs = [await ask("E64T1A"), await ask("E64T1B"), await ask("E64T1C"), await ask("E64T1B"),
+                await Cl.tamperOverLimit(student, { viaAction: false, rollId: "E64T1D" }).then(r => r ? "refused" : "not asked"),
+                await ask("E64T1E", { undo: true })];
+            const row = S.tamperAttemptStore.get(student.id);
+            // The refusal's whisper is veiled (cleanup.mjs `whisperToOwner`): counted as a card, its words not read.
+            const told = game.messages.filter(m => !from.has(m.id)).length;
+            await S.tamperAttemptStore.patch(student.id, { at: "0/0/0/elsewhen", rolls: ["x", "y"] });
+            const another = await ask("E64T1F");
+            read = { limit: CLEANUP.tamperPerTimeOfDay, runs, rolls: row?.rolls ?? null, told, another, after: S.tamperAttemptStore.get(student.id)?.rolls ?? null };
+        } finally {
+            if (S.tamperAttemptStore.has(student.id)) await S.tamperAttemptStore.drop(student.id);
+            for (const m of game.messages.filter(m => !from.has(m.id))) await m.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ limit: 2, runs: ["counted", "counted", "refused", "counted", "not asked", "counted"],
+            rolls: ["E64T1A", "E64T1B"], told: 1, another: "counted", after: ["E64T1F"] }),
+            "the limit; attempts A, B, C, B again, the killer's own, a Reroll's undo; the rolls counted; the refusals told; another time of day's first attempt and the row after it");
     }],
 ];
 
