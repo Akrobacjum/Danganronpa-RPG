@@ -4267,6 +4267,90 @@ export function glassTurn({ job = curtains[0], from = null, look = null, glow = 
   job.turn = h;
   return frame ? startTurn(h, frame) : startTurn(h);
 }
+/* ---- THE CLOSED CURTAIN (E61 C3, 12.11.2026; the owner's 05.11, MK-R1 #3 and #13, MK-R2 #2) ----
+   The Class Trial's entry closes the curtain over the school by moving the panes that stand, never by drawing new
+   ones: each pane is carried toward the centre by the mockup's radial map (`closedPoint`: a point at the hole's edge
+   goes to the centre, the screen's edge stays) and grown about its new centre until the panes, overlapping, leave no
+   point of the screen uncovered - the owner's "overlapping shards, scaled to the real cut, no gaps" (MK-R1 #13).
+   `closedPlan` is pure and answers, per pane, the affine map `A` (least squares on its corners, `fitAffine`), its CSS
+   matrix at the pane's box, its batch (outer panes first, MK-R2 #2), and the plan's `gaps`: the share of a 48 x 27
+   grid of the screen's points no closed pane covers, which R3704 holds at 0. `grow` starts at 1.08 and rises in steps of
+   0.04 to 1.6 until the grid is covered; a cut it cannot cover answers its last `gaps`, never a rounded 0. */
+const CLOSED_GRID = [48, 27], CLOSED_GROW = [1.08, 0.04, 1.6];
+export function closedPoint([x, y], W, H, r0) {
+  const cx = W / 2, cy = H / 2, u = (x - cx) / cx, v = (y - cy) / cy, r = Math.max(Math.abs(u), Math.abs(v));
+  if (r < 1e-6) return [cx, cy];
+  const k = Math.max(0, (r - r0) / Math.max(1e-6, 1 - r0)) / r;
+  return [cx + u * k * cx, cy + v * k * cy];
+}
+const insidePoly = (poly, x, y) => {
+  let ins = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i], [xj, yj] = poly[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) ins = !ins;
+  }
+  return ins;
+};
+export function closedPlan(panes, W, H) {
+  if (!panes?.length || !(W > 0) || !(H > 0)) return null;
+  const cx = W / 2, cy = H / 2;
+  const rOf = ([x, y]) => Math.max(Math.abs((x - cx) / cx), Math.abs((y - cy) / cy));
+  // the hole's nearest edge: the smallest reach of any corner, so the innermost corners meet at the centre
+  const r0 = Math.min(0.95, Math.max(0, Math.min(...panes.flatMap(p => p.poly.map(rOf)))));
+  const mapped = panes.map(p => p.poly.map(q => closedPoint(q, W, H, r0)));
+  const [gx, gy] = CLOSED_GRID, [g0, gs, g1] = CLOSED_GROW;
+  let grow = g0, polys = null, gaps = 1;
+  for (; grow <= g1 + 1e-9; grow += gs) {
+    polys = mapped.map(m => { const c = meanOf(m); return m.map(([x, y]) => [c[0] + (x - c[0]) * grow, c[1] + (y - c[1]) * grow]); });
+    // the affine fit, not the polygon itself, is what the screen shows: the coverage is read on the fitted shapes
+    polys = panes.map((p, i) => { const A = fitAffine(p.poly, polys[i]); return { A, poly: p.poly.map(([x, y]) => [A[0] * x + A[1] * y + A[2], A[3] * x + A[4] * y + A[5]]) }; });
+    let miss = 0;
+    for (let a = 0; a < gx; a++) for (let b = 0; b < gy; b++) {
+      const x = (a + 0.5) * W / gx, y = (b + 0.5) * H / gy;
+      if (!polys.some(q => insidePoly(q.poly, x, y))) miss++;
+    }
+    gaps = miss / (gx * gy);
+    if (!miss) break;
+  }
+  const { dist } = centreOrder(panes, W, H);
+  const order = panes.map((_, i) => i).sort((a, b) => dist[b] - dist[a] || a - b);
+  const per = Math.ceil(order.length / TURN_BATCHES), batchOf = [];
+  order.forEach((i, k) => { batchOf[i] = Math.floor(k / per); });
+  return {
+    r0: +r0.toFixed(3), grow: +Math.min(grow, g1).toFixed(2), gaps: +gaps.toFixed(4), batches: TURN_BATCHES,
+    panes: panes.map((p, i) => { const box = boxOf([p.poly], 1); return { box, A: polys[i].A, poly: polys[i].poly, batch: batchOf[i], closed: matrixAt(polys[i].A, [box.x0, box.y0]) }; })
+  };
+}
+/* THE ENTRY'S PIECES (E61 C3). What the sequence moves: the panes on screen cut from the look as it stands (`from`,
+   Investigation's colour), then the same cut painted at once in the new phase's colour with no turn of its own
+   (`entryHold`: the entry owns this edge, so `rebuildAll` paints and does not turn; its own recolour would run under
+   the closing curtain), cut again (`to`). Each piece is the pane's box, its two canvases and its closed plan. Null with
+   no curtain painted (a narrow screen, Legacy, the curtain not cut yet): the sequence then draws no glass. Writes no
+   setting and no document; the curtain is left painted in the new colour, as the turn would have left it. */
+let entryHold = false;
+export function entryPieces() {
+  const j = curtains[0];
+  if (!j?.panes || !j.painted || !glassRoom()) return null;
+  j.turn?.cancel();
+  pulseJob(j, performance.now());
+  const oldPanes = snapshotPanes(j), oldLook = snapshotLook(j);
+  if (!oldLook) return null;
+  clearTimeout(stateTimer);
+  entryHold = true;
+  try { rebuildAll(); } finally { entryHold = false; }
+  pulseJob(j, performance.now());
+  const newLook = snapshotLook(j, true) ?? oldLook;
+  const fromPlan = closedPlan(oldPanes, j.W, j.H), toPlan = closedPlan(j.panes, j.W, j.H);
+  if (!fromPlan || !toPlan) return null;
+  count("sequence.glassPieces", oldPanes.length + j.panes.length);
+  const cut = (panes, plan, look) => panes.map((p, i) => ({ ...plan.panes[i], canvas: cutLook(look, [p.poly], plan.panes[i].box, "drpg-seq-pane") }));
+  return {
+    W: j.W, H: j.H, gaps: Math.max(fromPlan.gaps, toPlan.gaps), grow: [fromPlan.grow, toPlan.grow],
+    // the closing pieces carry both colours, the old one fading in its batch; the opening ones the new colour alone
+    close: oldPanes.map((p, i) => ({ ...fromPlan.panes[i], old: cutLook(oldLook, [p.poly], fromPlan.panes[i].box, "drpg-seq-pane"), canvas: cutLook(newLook, [p.poly], fromPlan.panes[i].box, "drpg-seq-pane") })),
+    open: cut(j.panes, toPlan, newLook)
+  };
+}
 function rebuild() {
   try { rebuildAll(); } finally { if (document.body.hasAttribute("data-drpg-measuring")) measuring(false); }
 }
@@ -4313,7 +4397,7 @@ function rebuildAll() {
            and bakes it before the next frame and lets the browser run it; a turn that moves glass
            clips the frost to the new cut once its moves are over, and a new cut with no such turn
            (reduced motion, nothing painted before, a corner not worth a turn) clips it here. */
-        const turn = oldLook ? glassTurn({ job: j, from: oldPanes, look: oldLook, glow: oldGlow, fromAcc: oldAcc }) : null;
+        const turn = oldLook && !entryHold ? glassTurn({ job: j, from: oldPanes, look: oldLook, glow: oldGlow, fromAcc: oldAcc }) : null;
         if (!turn?.plan.frost) clipToCut(frostOf(j), j.pathD);
         /* A NEW CUT, AND ONLY A NEW CUT, IS ANNOUNCED (E77 C4). The room tile's picture follows
            its pane here, and `drpgGlassCut` is what a test counts to say that a new description,

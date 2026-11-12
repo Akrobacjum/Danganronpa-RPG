@@ -51,7 +51,7 @@ import { themeOnlyKeys } from "./look.mjs";
  */
 export const SETTINGS_SECTIONS = Object.freeze([
     Object.freeze({ key: "look", icon: "fa-image", keys: Object.freeze(["language", "theme", "uiScale", "hudTicker", "wideProjectWindows"]) }),
-    Object.freeze({ key: "effects", icon: "fa-wand-magic-sparkles", keys: Object.freeze(["pixelFont", "glassPulse", "glassBlur", "reducedMotion", "highContrast"]) }),
+    Object.freeze({ key: "effects", icon: "fa-wand-magic-sparkles", keys: Object.freeze(["pixelFont", "glassPulse", "glassBlur", "reducedMotion", "sequences", "highContrast"]) }),
     Object.freeze({ key: "sound", icon: "fa-volume-high", keys: Object.freeze(["messengerSound", "musicEnabled", "voiceEnabled", "voiceTile", "liveKitInFoundry"]) }),
     Object.freeze({ key: "rules", icon: "fa-scale-balanced", keys: Object.freeze(["searchTokensPerRoom", "despairFromRolls", "chargeMovement", "friskForce", "autoApproveTraits", "moveAudit", "hideSystemFear"]) }),
     Object.freeze({ key: "privacy", icon: "fa-user-secret", keys: Object.freeze(["forcePrivateRolls", "forceDiceLook", "lockRollDialog", "enforceAnonymity", "roomVisibility", "lockPlayerResources"]) }),

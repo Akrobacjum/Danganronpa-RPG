@@ -163,6 +163,8 @@ export const SETTINGS = {
     uiScale: "uiScale",
     /** This browser's own "reduced motion", independent of what the system says. */
     reducedMotion: "reducedMotion",
+    /** The table's switch for the full-screen sequences (E61 C1, sequence.mjs): the trial's entry, the verdict's cut-in, and the later stages' boards. */
+    sequences: "sequences",
     /** This client's own high contrast, on top of whatever `prefers-contrast` says. */
     highContrast: "highContrast",
     /** The state's name running as an outline behind the clock. */
@@ -1029,7 +1031,7 @@ const TABLE_SETTINGS = [
     SETTINGS.foundryBefore, SETTINGS.foundryGivenBack, SETTINGS.musicEnabled, SETTINGS.sfxVary, SETTINGS.safeword,
     SETTINGS.migratedVersion, SETTINGS.caseMark, SETTINGS.moveAudit, SETTINGS.foundryToolWindows, SETTINGS.isoTokenShield,
     SETTINGS.regionFog, SETTINGS.despairFromRolls, SETTINGS.lockRollDialog, SETTINGS.roomVisibility, SETTINGS.lockPlayerResources,
-    SETTINGS.friskForce, SETTINGS.autoApproveTraits, SETTINGS.chargeMovement, SETTINGS.legacyKeyRemnantPlan, SETTINGS.legacyPendingMurders, SETTINGS.legacyEclipseMoves
+    SETTINGS.friskForce, SETTINGS.autoApproveTraits, SETTINGS.chargeMovement, SETTINGS.sequences, SETTINGS.legacyKeyRemnantPlan, SETTINGS.legacyPendingMurders, SETTINGS.legacyEclipseMoves
 ];
 /** Every world setting the module registers, by its key -> "season", "campaign" or "table" (above). */
 export const WORLD_LIFETIMES = Object.freeze(Object.fromEntries([
@@ -1554,6 +1556,17 @@ export function registerSettings() {
         type: Boolean,
         default: true,
         onChange: () => applyTheme()
+    });
+
+    /* The table's switch for the sequences (E61 C1; SB-R1 of 05.11: "a world setting lets the GM switch the sequences off
+       for the whole table, on by default"). Read by sequence.mjs at each event, so a change holds from the next one. */
+    game.settings.register(MODULE_ID, SETTINGS.sequences, {
+        name: "DRPG.Settings.sequences.name",
+        hint: "DRPG.Settings.sequences.hint",
+        scope: "world",
+        config: false,
+        type: Boolean,
+        default: true
     });
 
     game.settings.register(MODULE_ID, SETTINGS.reducedMotion, {

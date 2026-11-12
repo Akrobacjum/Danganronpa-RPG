@@ -5096,3 +5096,21 @@ body.drpg-theme-stained-glass #drpg-notices-corner::before {
     background: var(--drpg-glass-accent);
     clip-path: polygon(50% 0, 100% 28%, 100% 72%, 50% 100%, 0 72%, 0 28%);
 }
+
+
+/* THE SEQUENCES (E61 C3-C5; danganronpa.css THE SEQUENCES holds the rules): the glass's tokens. The title and the
+   verdict's band are the trial's pink glass with a cut edge (MK-R1 #3, #4), the type the glass's own. The stamp and the
+   majority's mark are bone in every variant: the mockup drew a right verdict's stamp in Hope's gold, and since E48 K1
+   gold means Hope and nothing else (R3410, the lint's meaning reads), so the variant is told by its word alone. */
+body.drpg-theme-stained-glass #drpg-sequence {
+    --drpg-seq-band: color-mix(in srgb, var(--drpg-sg-despair) 90%, transparent);
+    --drpg-seq-band-cut: polygon(1% 10%, 100% 0, 99% 88%, 0 100%);
+    --drpg-seq-dark: var(--drpg-sg-ink);
+    --drpg-seq-light: var(--drpg-sg-bone);
+    --drpg-seq-mark: var(--drpg-sg-bone);
+    --drpg-seq-band-ink: var(--drpg-sg-ink);
+    --drpg-seq-font: var(--drpg-font-title);
+    --drpg-seq-weight: 400;
+    --drpg-seq-case: none;
+}
+body.drpg-theme-stained-glass #drpg-sequence :is(.drpg-seq-title-sub, .drpg-seq-name, .drpg-seq-vrow, .drpg-seq-votes h4, .drpg-seq-sentence) { font-family: var(--drpg-font-chrome); }
