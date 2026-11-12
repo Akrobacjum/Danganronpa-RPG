@@ -120,11 +120,13 @@ they answer a row; the rest stay defaults.
 | 12.11, DA44 and DA9 | tiers 0-1 | 1161 passed, 4 failed (R160: the new socket's flow; R220 and R553: the pick's token write gone; R603: `restrictedFrom`'s first line read by shape), all intended, then 1165 passed, 0 failed, 16 skipped, 1 red (older) |
 | 12.11, DA44 and DA9 | own tier 2 by name ("opening", "roll window", "E74-T", "E69-T", "E93-T", "every legal modifier", "Reroll") | 203 ran: 205 passed, 0 failed, 2 skipped, 0 red |
 | 12.11, DA44 and DA9 | scenario 33 with E74-C | 79/79 |
+| 12.11, DA44 and DA9 | every scenario but 01 and 84, at 4780019's tree (two streams, 61 alone after) | all 34 green; 61 113/113; only the expected reds each names |
+| 12.11 | CI at 4780019 (run 43211351923) | cancelled while queued, by the owner's decision of 12.11 (through the coordinator): every push carries "[skip ci]", CI runs once on the release's head; the local checks above stand in for it |
 | 12.11, mutants | the watch's term dropped from the GM's draw; the invitation's `hindrance` dropped; the owner's veto not reading its copy | killed by E74-T10 and the fixture test; by E74-T10; by scenario 33 E74-C (78/79) |
 
 ## Pushed
 
-To 32b4c1a (C1-C6 and the fixes); the STATUS commits after it.
+To 4780019 (C1-C7, item 3, the owner's answers of 12.11: DA44 and DA9) and the STATUS and notes commits after it.
 
 ## Blockers
 
