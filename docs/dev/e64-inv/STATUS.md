@@ -67,3 +67,28 @@ placeholder's text.
   Key plan, Create a Key Remnant here, Observe's describe window, the give window and the ring read them too, so they
   are shorter there as well.
 - After: 0 of 32 cut (New Remnant, Create a Key Remnant here and both states of the preview).
+
+## Round 4 (12.11.2026): one scroller a tab in the Investigation dashboard
+
+The committed `audit/windows/investigation*.html` were E46's (957ee3b: the old footer, no Map switch, no Who has what
+tab), so the fit pass read a window that no longer existed. Captured again (44732a2) it read 24 of 32 failed, "a second
+scroller" on every tab: under Legacy `div.drpg-data-table-box` at every size, under Glass `div.drpg-case-live` at
+1366x768 and 1024x768. Clean main 4dfac3a, captured the same way: 28 of 32.
+
+Read in Chromium: under Glass only the view scrolled (14 px down at 1366x768) - the frame's one scroller by E97's design
+(components.css "THE CASE PANEL'S FIXED FRAME", the owner's Q-C and Q-D: the body does not scroll, the view does), which
+the sweep counted as a second only because it is not the kit's body. Under Legacy the Remnants table scrolled sideways
+in its own box (130 % of the view, so no head word breaks), inside the view that scrolls down: two scrollers.
+
+Built:
+- The table's box lets its table out (`overflow-x: visible`); the view scrolls both ways. Under Legacy the Remnants
+  pane is the table's width (130cqw, the view a size container) and the tabs, the filters and the note stand sticky at
+  the view's left edge at its width, so only the table moves sideways (read in Chromium, scrolled to the right end, both
+  languages).
+- `audit/style-sweep.mjs` counts the view as the Investigation window's one scroller (`OWN_SCROLLER`), anything else
+  that scrolls beside it still a second. Checked: with the old box rule put back for one run, the new sweep read the
+  16 Legacy readings red again.
+- R3650 reads the box's `overflow-x: visible` and, under Legacy, the pane's `130cqw` and the table's `min-width: 100%`.
+
+After: 32 of 32 in English and 32 of 32 in Polish. Not changed: under Legacy two pickers of the Remnants table still
+draw over the next cell (the kind's and the tie's), as before this round.

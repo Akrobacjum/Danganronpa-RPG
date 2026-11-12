@@ -8253,7 +8253,7 @@ const INVARIANTS = [
             asks: [true, true, true]
         }), "[the store's name, key, kind, reset group, backup, sync and that any GM may write it; its setting's scope and config; on a player's engine the row and what was stored; the gate from a player, on a player's browser, from a GM; each writer asks for a GM]");
     }],
-    ["R3650 - the Investigation panel's fixed frame (E97 C2; the owner's Q-C and Q-D, 11.11.2026): the window states WIDE's width and is no `fit` window; its body is a toolbar (the view switch's slot and the controls' slot, a said line in the controls') and the view's box, the live region itself; components.css states the view's height from the screen's and lets it alone scroll, the toolbar's height, the body no scroll of its own, and the footer one grid of four columns in two rows; under Legacy no Traces or Key head breaks inside a word, the Traces table wider than its box and scrolled there", async () => {
+    ["R3650 - the Investigation panel's fixed frame (E97 C2; the owner's Q-C and Q-D, 11.11.2026): the window states WIDE's width and is no `fit` window; its body is a toolbar (the view switch's slot and the controls' slot, a said line in the controls') and the view's box, the live region itself; components.css states the view's height from the screen's and lets it alone scroll, the toolbar's height, the body no scroll of its own, and the footer one grid of four columns in two rows; under Legacy no Traces or Key head breaks inside a word, the Traces table wider than its box and scrolled in the view, the box letting it out (E64-inv: one scroller a tab)", async () => {
         /*
          * E97 C2, 12.11.2026. The panel was a `fit` window, as wide as its widest table, so its frame followed what it
          * held; the Map beside the Table (C5) would have moved it at every switch, which the owner's fixed-layout rule
@@ -8312,7 +8312,8 @@ const INVARIANTS = [
                 foot: [from(foot, "display"), from(foot, "grid-template-columns"), from(foot, "grid-template-rows"), from(q(".drpg-kit-left"), "display"), from(q(".drpg-kit-right"), "display"), from(q(".drpg-role-primary"), "order")],
                 said: from(q(".drpg-case-result"), "white-space"),
                 heads: [from(q('[data-drpg-pane="traces"] th'), "overflow-wrap"), from(q('[data-drpg-pane="key"] th'), "overflow-wrap")],
-                traces: [from(q('[data-drpg-pane="traces"] table'), "min-width"), from(q('[data-drpg-pane="traces"] .drpg-data-table-box'), "overflow-x")],
+                // E64-inv: under Legacy the pane is the table's width (130 % of the view) and the table fills it; the view scrolls
+                traces: [from(q('[data-drpg-pane="traces"] table'), "min-width"), from(q('[data-drpg-pane="traces"] .drpg-data-table-box'), "overflow-x"), from(q('[data-drpg-pane="traces"]'), "width")],
                 keyShares: [from(q("col.drpg-data-col-case-scale"), "width"), from(q("col.drpg-data-col-case-key-name"), "width")]
             };
         }
@@ -8323,8 +8324,8 @@ const INVARIANTS = [
             plain: { fit: false, width: true, asked: kitWidth(WIDE.width), kids: ["drpg-case-toolbar", "drpg-case-live drpg-case-view"], slots: ["switch", "controls"], said: null, view: true, rows: true },
             told: "SUITE R3650 said",
             read: {
-                "drpg-theme-monokuma-legacy": { ...both, heads: ["normal (components.css)", "normal (components.css)"], traces: ["130% (components.css)", "auto (components.css)"], keyShares: ["13% (components.css)", "15% (components.css)"] },
-                "drpg-theme-stained-glass": { ...both, heads: ["anywhere (components.css)", "anywhere (components.css)"], traces: ["0 (components.css)", "auto (components.css)"], keyShares: ["11% (components.css)", "17% (components.css)"] }
+                "drpg-theme-monokuma-legacy": { ...both, heads: ["normal (components.css)", "normal (components.css)"], traces: ["100% (components.css)", "visible (components.css)", "130cqw (components.css)"], keyShares: ["13% (components.css)", "15% (components.css)"] },
+                "drpg-theme-stained-glass": { ...both, heads: ["anywhere (components.css)", "anywhere (components.css)"], traces: ["0 (components.css)", "visible (components.css)", null], keyShares: ["11% (components.css)", "17% (components.css)"] }
             }
         }), "{plain: the drawn window [a fit window; one that states its width; the width it asked (WIDE's, held to this screen by the kit); the body's children; the toolbar's slots; a said line; the live region is the view's box; the footer the kit's two rows (\`footer.rows: 2\`)]; told: the said line in the controls' slot; read: per theme, the winning declaration [the view's height from the screen's and its overflow; the body's overflow; the toolbar's height; the footer's display, columns, rows, its two sides' display and Save's order; the said line's wrap; the Traces and Key heads' overflow-wrap; the Traces table's min-width and its box's overflow-x; the Key planner's Difficulty and Name shares]}");
     }],

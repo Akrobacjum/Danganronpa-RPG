@@ -231,6 +231,13 @@ function fitPages() {
    own: on that card the box is the demo's, not a second region of a window, and it read "a second scroller" at every
    desk size. Skipped there only, by the card's id and the box's name; every other window still fails on it. */
 const DEMO_SCROLLERS = { "kit-table-scroll": ["div.drpg-data-table-box"] };
+/* A WINDOW WHOSE ONE SCROLLER IS NOT THE KIT'S BODY (E64-inv, 12.11.2026). The Investigation dashboard's frame is fixed
+   (components.css, "THE CASE PANEL'S FIXED FRAME", E97 C2, the owner's Q-C and Q-D of 11.11.2026): its body does not
+   scroll (`overflow: hidden`) and holds a toolbar of a stated height over the view's box (`.drpg-case-view`), the one box
+   that scrolls, both ways. So in that window the view takes the body's place: counted as its one scroller, and anything
+   else that scrolls beside it - the body included - is still a second one (until E64-inv the Legacy table's own box was:
+   44732a2 reads it). */
+const OWN_SCROLLER = { investigation: "div.drpg-case-live.drpg-case-view" };
 
 /** What is wrong with one window's state, as words; [] when it fits. */
 function misfits(win, state, still) {
@@ -242,7 +249,8 @@ function misfits(win, state, still) {
     if (state.labelsOff?.length) out.push(`label off its field: ${state.labelsOff.join(", ")}`);
     if (state.tabs === false) out.push("tab bar out");
     const demo = DEMO_SCROLLERS[win?.window] ?? [];
-    const others = state.scrollers.filter(s => s !== "kit-body" && !demo.includes(s));
+    const own = OWN_SCROLLER[win?.window];
+    const others = state.scrollers.filter(s => (own ? s !== own : s !== "kit-body") && !demo.includes(s));
     if (others.length) out.push(`a second scroller: ${others.join(", ")}`);
     if (state.cut) out.push("content cut: the body is taller than its box and nothing scrolls it");
     // E47-FB: a body or footer wider than its box, cut sideways (the 1.2.102 clip) or scrolled (style-harness.html `wide`)

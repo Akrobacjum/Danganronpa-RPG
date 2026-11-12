@@ -3261,11 +3261,28 @@ body .application.drpg-window-case table.drpg-data-table td.drpg-data-col-case-k
    Faint 78, crime 78 / Powiązany 130, Reinforced 143, Found 78 / Znalazł 104, Delete 91 / Usuń 65: 1157 px at the
    least, more than the 1086 px view holds. So under Legacy the Traces table keeps its shares at 130 % of its box
    (1412 px; at 122 %, 1325 px, Visibility, Reinforced, Widoczność, Powiązany and naprawdę still stood 2-4 px over
-   their heads' room) and scrolls sideways in its own box (Q-D), the view and the window never; the Key planner's Difficulty (130 / Trudność 117) takes 13 % from the name's
+   their heads' room) and scrolls sideways in the view (Q-D), the window never; the Key planner's Difficulty (130 / Trudność 117) takes 13 % from the name's
    17 %, and fits. A head breaks between its words only. The glass keeps its shares, all of whose words fit at 1120 px
-   (the same reading). */
-.application.drpg-window-case .drpg-case-view .drpg-data-table-box { overflow-x: auto; }
-body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-case-view [data-drpg-pane="traces"] .drpg-data-table-box > table.drpg-data-table { min-width: 130%; }
+   (the same reading).
+   ONE SCROLLER A TAB (E64-inv, 12.11.2026). The table's box scrolled sideways on its own until E64-inv, inside the view
+   that scrolls up and down: two scrollers on every tab under Legacy (audit/style-sweep.mjs `--fit`, 16 of 16 Legacy
+   readings, 44732a2). The box lets its table out now, and the view, the frame's one box that scrolls, scrolls both ways. */
+.application.drpg-window-case .drpg-case-view .drpg-data-table-box { overflow-x: visible; }
+/* What stands over the table stays where it is while the view scrolls sideways, so only the table moves: the tabs and the
+   Remnants pane's other parts (the filters, the count, the note) are held at the view's left edge at the view's width.
+   A sticky box moves only inside its own block, so under Legacy that pane is as wide as its table, 130 % of the view as
+   before (`cqw`, the view a size container), and the table fills it. */
+body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-case-view[data-drpg-view="table"] { container-type: inline-size; }
+body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-case-view [data-drpg-pane="traces"] { width: 130cqw; }
+body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-case-view [data-drpg-pane="traces"] .drpg-data-table-box > table.drpg-data-table { min-width: 100%; }
+body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-case-view :is(nav.drpg-tabs, [data-drpg-pane="traces"] > :not(.drpg-data-table-box)) {
+    position: sticky;
+    left: 0;
+    box-sizing: border-box;
+    width: 100cqw;
+    max-width: none;
+    margin-inline: 0;
+}
 body:not(.drpg-theme-stained-glass) .application.drpg-window-case table.drpg-data-table col.drpg-data-col-case-scale { width: 13%; }
 body:not(.drpg-theme-stained-glass) .application.drpg-window-case table.drpg-data-table col.drpg-data-col-case-key-name { width: 15%; }
 body:not(.drpg-theme-stained-glass) .application.drpg-window-case .drpg-case-view table.drpg-data-table > thead th { overflow-wrap: normal; word-break: normal; hyphens: manual; }
