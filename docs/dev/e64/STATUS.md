@@ -35,8 +35,10 @@ One row per rule. "State" is "default taken, owner to confirm" for every row tha
 | DA6/DA23 crisis defence (C5) | `crisisThreshold` reads `def.threshold` only | +1 to the threshold of eight rows aimed at the other side when that side's statistic is 1 or more (`DEFENSE.cap: 1`; the table below); never on an opening (the killer's opening roll, a trap victim's opening) | f058147 | R3961; 88 crisis tier-2 tests | owner confirmed 12.11 ("never on the opening"); the eight rows a default the owner may revise |
 | DA39 Level Up (C6) | options +1 Health, +1 Sanity, +1 statistic, +1 experience, new experience | +1 statistic, +1 experience, new experience; a point in Head +1 Sanity maximum, in Body or Leg +1 Health maximum (`LEVEL_UP_TRAIT_RESOURCES`); past picks kept (Q-E64-4) | 2031ebd | R3956; 15 tier-2 tests and scenarios 61, 63, 72, 83 moved to Body/Head picks | approved, owner 12.11 (DRPG-D1), with the migration of past picks (Q-E64-4) |
 | moveBody two rooms (C4) | `rooms.critical: 2` read by nothing; only connected rooms offered | the rooms two away are offered under their own heading; a critical carries the body there, any other hit to the room between; never through a bedroom (`bodyReach`, `bodyLanding`) | 4535acc | R3957, LIVE-E64-01 | approved, owner 12.11 (Q-E64-10: the room between, kept) |
-| S02-75 sabotage lever, trap, Palm (Q-E64-5) | unchanged | unchanged before 1.3.0; logged for sessions 0 | - | - | owner 12.11 (DRPG-D1): changes before 1.3.0; in progress |
-| S02-57 Hope's armour on Role reversal (Q-E64-7) | unchanged | unchanged: the rebuilt incident model is outside the repository (Q-E64-6) | - | - | owner 12.11 (DRPG-D1): explanation asked; no code change yet |
+| S02-75 sabotage (Q-E64-5) | a hit at 12 made a repair of 3: 3.11 Work actions per Sabotage attempt (0/0), 4.2-4.9 given a hit | a hit at 12 makes a repair of 2 (`ACTIONS.sabotage.simpleRepair`): 2.68 per attempt; 18 (6) and the critical (8) unchanged | efafd03 | R3964, R1232 | owner 12.11: "Zgoda na zmiany z kolumny opcje", "Zostaje to co wdrazamy i tylko to" |
+| S02-75 trap at night (Q-E64-5) | the victim's notice (Eye/Head 20) with disadvantage at Night: 10.0 / 11.3 / 13.4% at 0 / +1 / +2 | no Night disadvantage (`MURDER_OPENING.victim.nightDisadvantage: false`): 16.7 / 20.8 / 25.0%, the day's | 67026f5 | R3965 | as above |
+| S02-75 Palm steal (Q-E64-5) | Hand 10: 77.8 / 83.3 / 87.5% | Hand 12, as Search's Tier 1 (`ACTIONS.palm.threshold`): 65.3 / 72.2 / 77.8%; cover, Plant and Frisk unchanged | e804924 | R3966, R1104 | as above |
+| S02-57 Hope's armour on Role reversal (Q-E64-7) | unchanged | unchanged (the owner: "Nic nie robimy"); three things to watch in session 0's data, below | - | - | owner 12.11: nothing changes |
 | DA11 trait ceiling | - | closed with no code (the owner's DA11) | - | - | owner's decision |
 | D193 (orphan) | movement-audit.mjs and the moveAudit setting promised the default to E82, not a stage | comments say no stage holds it; "log" stays | 88b26ab | none (comments) | closed |
 | D052 (orphan) | a Loaded Die that did not hold (a dice method that draws no uniform sample) was spent: 6 Hope for an ordinary roll | its Call is armed again for the next roll under a new nonce, its `by` kept, the owner whispered "loadedDieBack"; on a GM's own roll and on a player's roll the GM drew (`giveBackLoadedDie`) | 6abe17d | tier 2 "E64 D052" (measured, the GM's road); R3962 (the drawn road, read off the source) | owner confirmed 12.11 (default accepted) |
@@ -46,7 +48,7 @@ One row per rule. "State" is "default taken, owner to confirm" for every row tha
 | D003 (orphan) | a Tier 0 Use an item in a crisis answered `{ pending: true }` and the receipt counted the item used | the GM reads the item as held (`usedCreatively`): no item used on the receipt, no Hope read, the card says the use waits ("useItemAsked"); the GM's ruling uses it up | 95a15b0 | tier 2 "E64 D003"; the bookmark test's bandage made Tier 1 | owner confirmed 12.11 (fix) |
 | D039 (orphan) | the approval window's size for a Repair an item was not recorded when the GM picked another than the tier's | recorded in the GMs' half (`target.sizedByGm`) | 56c9762 | tier 2 "E64 D039 and D034" | owner confirmed 12.11 (fix; the detail a default) |
 | D034 (orphan) | a repair's size was the item's tier at the approval; a tier raised since asked nothing more | at the completion a project smaller than the item's tier asks then mends nothing and the GMs are told why ("repairTooSmall") - unless the GM picked the size (D039) | 56c9762 | tier 2 "E64 D039 and D034"; E15-T15, E15-T17 | owner confirmed 12.11 (fix; the detail a default) |
-| DA39 migration (Q-E64-4) | past +1 Health / +1 Sanity picks kept; past Head/Body/Leg points raised nothing | once per world, on the primary GM's load, a window lists each stamped student's change: old picks read as the maxima above 4 Health and 6 Sanity (less what DA39 gave, `da39Rises`), taken back, and handed out as statistic points on an offer limited to statistics (`only: "trait"`); points since the season's stamp get their DA39 rise; Apply writes and tells the owner and the GMs, Cancel asks again; the world is marked done (`levelUpsMigrated`) | 7242cce | R3963; tier 2 "E64 DA39 migration" | owner 12.11 (DRPG-D1): "Trzeba to jakos zmigrowac", "Rekompensujemy by lvl upy byly spojne", "Akceptuje nowe E64" |
+| DA39 migration (Q-E64-4) | past +1 Health / +1 Sanity picks kept; past Head/Body/Leg points raised nothing | once per world, on the primary GM's load, a window lists each stamped student's change, one box each, the GM ticking what to apply (4f41bf9): old picks read as the maxima above 4 Health and 6 Sanity (less what DA39 gave, `da39Rises`), taken back, and handed out as statistic points on an offer limited to statistics (`only: "trait"`); points since the season's stamp get their DA39 rise; Apply writes and tells the owner and the GMs, Cancel asks again; the world is marked done (`levelUpsMigrated`) | 7242cce, 4f41bf9 | R3963; tier 2 "E64 DA39 migration" | owner 12.11 (DRPG-D1): "Trzeba to jakos zmigrowac", "Rekompensujemy by lvl upy byly spojne", "Akceptuje nowe E64", "A) i B), oba wymagajace potwierdzenia gma do kazdego przypadku" |
 | D057 (orphan) | - | **not built here**: it belongs to E39 (the owner's word of 12.11) | - | - | left to E39 |
 
 ## The review (C7) - no number changed
@@ -201,6 +203,13 @@ and whether the roles flipped. My own note, not S02-57: a Hope hit on Role Rever
 | a trap at night kills about 87-90% | the opening, yes | the victim's notice (Eye/Head 20, night disadvantage) 10.0 / 11.3 / 13.4% at 0 / +1 / +2; by day 16.7 / 20.8 / 25.0%; the incident after a miss not modelled |
 | Palm steals 75-87%, surer than Search Tier 1 | yes | steal (Hand 10) 77.8 / 83.3 / 87.5%; Search Tier 1 (12) 65.3 / 72.2 / 77.8%; unseen (Shadow 15) 43.1 / 50.0 / 58.3% |
 
+**The owner chose (12.11):** "Co do balansu 1. Nic nie robimy 2. Zgoda na zmiany z kolumny opcje", then "Zostaje to
+co wdrazamy i tylko to" - for S02-57 nothing; for S02-75 the first option of each lever and nothing else (the rows in
+"Before and after" above).
+
+**S02-57, to watch in session 0's data** (the balance notes; no code): per incident, (1) whether the victim had a readied
+weapon, (2) the victim's Hope and whether they bought a Loaded Die, (3) whether the roles flipped.
+
 Options sent (each keep, or): sabotage - a hit at 12 makes 2 (2.68 per attempt) or a critical makes 6 (2.94); trap -
 no night disadvantage (16.7-25.0%) or 18 at night (13.4 / 16.2 / 19.7%); Palm - 12 (65.3 / 72.2 / 77.8%) or 11 (72.2
 / 77.8 / 83.3%). E64 changes none of the three numbers. Nothing built until the owner picks.
@@ -212,8 +221,8 @@ sheet never stamped has no known start.
 
 ## In progress
 
-Nothing built is open. Waiting on the owner: S02-57 and S02-75 are measured, with options sent (no code until the owner
-picks).
+Nothing. The text rule of 12.11 ("im krotsze teksty, tym lepiej, przy zachowaniu naturalnosci jezyka codziennego")
+applied to this stage's texts in 26559c6.
 
 ## A note on the history
 
