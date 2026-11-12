@@ -50,7 +50,7 @@ import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { getClock } from "./clock.mjs";
 import { seasonEpoch, sameSeason, deathRecord, getSetting, SETTINGS } from "./settings.mjs";
 import { resolveThreshold, whisperToOwner, log, warn, error, plural, isPrimaryGm, primaryGmId, wholeNumber, serialWrite } from "./utils.mjs";
-import { cubStore, cubCopy } from "./gm-stores.mjs";
+import { cubStore, cubCopy, cubTargetStore } from "./gm-stores.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { senderOf, replyForMe } from "./bridge-guards.mjs";
 import { stepper, drpgWindow } from "./ui-kit.mjs";
@@ -700,6 +700,12 @@ export async function performCubAbility(actor, key, { targetId, choice } = {}) {
     const { requestCubAbility } = await import("./gm-bridge.mjs");
     const res = await requestCubAbility({ actorId: actor.id, key, targetId, choice });
     const thrown = res.ok ? res.value : null;
+    // A GM's own ask is run here (`local`), so a student's share refused (E72 C4) is said here as the bridge says it.
+    if (thrown?.capped && game.user.isGM) {
+        const { sayNotDone } = await import("./bridge-guards.mjs");
+        sayNotDone("monocub.ability", thrown.capped === "time" ? "capReached" : "capDay");
+        return null;
+    }
     if (!thrown?.roll) return null;
     const roll = Roll.fromData(thrown.roll);
     const total = Number(thrown.total) || 0;
@@ -723,6 +729,40 @@ export async function cubAbilityRefusalOnGm(actor, row, key, target, choice) {
     if (actionsLeft(actor) < row.cost) return "the Monocub has no action left for it";
     if (resourceValue(actor, "hope") < row.hopeCost) return "the Monocub has not the Hope for it";
     return CUB_TARGETS[row.target].refuses(actor, target);
+}
+
+/** The time of day a move is counted under: the clock's chapter, season, day and time of day. */
+function moveSlotNow() {
+    const clock = getClock() ?? {};
+    return { chapter: clock.chapter ?? null, epoch: seasonEpoch(), day: clock.day ?? null, timeOfDay: clock.timeOfDay ?? null };
+}
+
+/**
+ * WHY THIS STUDENT MAY NOT BE THE TARGET NOW, or null (E72 C4, 12.11.2026; audit S18-59, the owner's DC32 = 2): the row's
+ * `caps`, counted per target student over every Monocub (`cubTargetStore`) - `perTimeOfDay` moves this time of day and
+ * `perDay` this game day. A row of another day counts nothing; one of this day but another time of day counts toward the
+ * day only. GM-side; answers "time" or "day", which the bridge's run says as `capReached` and `capDay`
+ * (bridge-runs-acts.mjs `handleCubAbility`).
+ */
+export function cubCapRefusal(row, target, slot = moveSlotNow()) {
+    if (!row?.caps || !target) return null;
+    const held = cubTargetStore.get(target.id);
+    const sameDay = held && held.chapter === slot.chapter && held.epoch === slot.epoch && held.day === slot.day;
+    if (!sameDay) return null;
+    const now = held.timeOfDay === slot.timeOfDay ? Number(held.slot) || 0 : 0;
+    if (Number.isInteger(row.caps.perTimeOfDay) && now >= row.caps.perTimeOfDay) return "time";
+    if (Number.isInteger(row.caps.perDay) && (Number(held.today) || 0) >= row.caps.perDay) return "day";
+    return null;
+}
+
+/** GM: count a move on `target` this time of day (E72 C4), once its conditions held and its price was taken. */
+async function noteCubMove(row, target, slot = moveSlotNow()) {
+    if (!row?.caps || !target) return;
+    const held = cubTargetStore.get(target.id);
+    const sameDay = held && held.chapter === slot.chapter && held.epoch === slot.epoch && held.day === slot.day;
+    const sameTime = sameDay && held.timeOfDay === slot.timeOfDay;
+    await cubTargetStore.patch(target.id, { ...slot, slot: (sameTime ? Number(held.slot) || 0 : 0) + 1,
+        today: (sameDay ? Number(held.today) || 0 : 0) + 1 });
 }
 
 /**
@@ -755,8 +795,15 @@ export async function cubAbilityOnGm({ actorId, key, targetId, choice } = {}) {
             }
             return null;
         }
+        // The student's share (E72 C4): told to the asker with its code, and nothing paid.
+        const capped = cubCapRefusal(row, target);
+        if (capped) {
+            warn(`Refused a Monocub's "${key}" by ${actor.name}: ${target.name} has had its share this ${capped === "time" ? "time of day" : "day"}.`);
+            return { capped };
+        }
         // The price, after every condition: quiet (the toast and the pip sound would be the GM's), as an Objection's is.
         if (row.cost > 0 && !await spendAction(actor, row.cost, { quiet: true })) return null;
+        await noteCubMove(row, target);
         if (row.hopeCost > 0) {
             await trustedWrite(actor, { "system.resources.hope.value": resourceValue(actor, "hope") - row.hopeCost }, { reason: "price" });
         }

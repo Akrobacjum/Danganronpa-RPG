@@ -754,7 +754,11 @@ export async function handleCleanup(payload, sender, ctx, prepared) {
     // since fix r2-H7.
 export async function handleCubAbility(payload, sender, ctx) {
     const { cubAbilityOnGm } = await import("./monocub.mjs");
-    return { reply: await cubAbilityOnGm({ actorId: payload.actorId, key: payload.key, targetId: payload.targetId, choice: payload.choice }) };
+    const out = await cubAbilityOnGm({ actorId: payload.actorId, key: payload.key, targetId: payload.targetId, choice: payload.choice });
+    // A student who has had its share (E72 C4): refused with its code, so the asker is told why and that nothing was paid.
+    if (out?.capped === "time") return { refused: "that student has had a Monocub's move this time of day" };
+    if (out?.capped === "day") return { refused: "that student has had two Monocub moves today" };
+    return { reply: out };
 }
 
 /*

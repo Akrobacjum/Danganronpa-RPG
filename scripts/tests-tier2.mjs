@@ -17242,6 +17242,88 @@ const SCENARIOS = [
             "a Monocub in the murder's room was not marked a crime witness at the opening or when it walked in, or one elsewhere was, or it took a seat");
     }],
 
+    ["a student takes one Monocub move per time of day and two per game day, a failed one counted, the rest refused with their code and nothing paid (E72 C4)", async () => {
+        /*
+         * E72 C4, 12.11.2026; audit S18-59, the owner's DC32 = 2. Nothing held how often one student could be a Monocub's
+         * target: a Monocub with the Hope could Hinder the same student every action. The row's `caps` are counted per
+         * target on the GM (`cubTargetStore`, monocub.mjs `cubCapRefusal`). A Monocub with five actions and five Hope,
+         * alone with a target; the GM's dice scripted to 2 and 3 (a 5, a failed move). Through the bridge's runner as the
+         * Monocub's player sent it: (a) a move - carried out and failed, its price taken; (b) a second this time of day -
+         * refused, told `capReached`, nothing taken. Then the rule asked of another time of day of this day (none), and the
+         * row written as two moves today in another time of day: (c) a move now - refused, told `capDay`; and the rule of
+         * another day (none). Read: the codes told, a roll answered, the price each took. Red at f22a7e8's runtime: (b)
+         * and (c) carried out.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a Monocub with a player");
+        needs(world.atLeast("livingStudents", 2), "a Monocub and a target");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { confusionStore, cubTargetStore } = await import("./gm-stores.mjs");
+        const M = await import("./monocub.mjs");
+        const { MONOCUB } = await import("./config.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub] = livingStudents().filter(player);
+        const [target] = livingStudents().filter(a => a.id !== cub.id);
+        const { back } = await aloneTogether(cub, target);
+        const was = [cub.system.resources.actions.value, cub.system.resources.hope.value];
+        const confusionWas = foundry.utils.deepClone(confusionStore?.get(target.id) ?? null);
+        const capWas = foundry.utils.deepClone(cubTargetStore?.get(target.id) ?? null);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const real = CONFIG.Dice.randomUniform;
+        const clock = getClock() ?? {};
+        const others = ["morning", "noon", "afternoon", "evening", "night"].filter(t => t !== clock.timeOfDay);
+        const send = async (requestId) => {
+            const told = [];
+            let answer = null;
+            const before = [cub.system.resources.actions.value, cub.system.resources.hope.value];
+            const script = [2, 3].map(face => 1 - (face - 0.5) / 12);
+            CONFIG.Dice.randomUniform = () => (script.length ? script.shift() : real());
+            try {
+                await G.judge(BRIDGE_ACTIONS, { action: "monocub.ability", requestId, actorId: cub.id, key: "meddle", targetId: target.id, choice: "hinder" },
+                    player(cub).id, { send: (to, reply) => {
+                        if (reply?.action === "bridge.refused") told.push(reply.reason);
+                        if (reply?.action === "bridge.done") answer = reply.value ?? null;
+                    } });
+            } finally { CONFIG.Dice.randomUniform = real; }
+            await settle();
+            return [told, Boolean(answer?.roll), before[0] - cub.system.resources.actions.value, before[1] - cub.system.resources.hope.value];
+        };
+        const read = {};
+        try {
+            ok(typeof M.cubCapRefusal === "function" && cubTargetStore, "monocub.mjs has no cubCapRefusal or gm-stores.mjs no cubTargetStore - the caps are not built (E72 C4)");
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await cub.update({ "system.resources.actions.value": 5, "system.resources.hope.value": 5 });
+            if (cubTargetStore.has(target.id)) await cubTargetStore.drop(target.id);
+            await settle();
+            read.first = await send("suite-e72-c4-first");
+            read.second = await send("suite-e72-c4-second");
+            const row = MONOCUB.abilities.meddle;
+            const slot = { chapter: clock.chapter, epoch: seasonEpoch(), day: clock.day, timeOfDay: others[0] };
+            read.laterToday = M.cubCapRefusal(row, target, slot);
+            await cubTargetStore.patch(target.id, { ...slot, slot: 1, today: 2 });
+            read.third = await send("suite-e72-c4-third");
+            read.tomorrow = M.cubCapRefusal(row, target, { ...slot, day: (Number(clock.day) || 0) + 1, timeOfDay: clock.timeOfDay });
+        } finally {
+            CONFIG.Dice.randomUniform = real;
+            await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await cub.update({ "system.resources.actions.value": was[0], "system.resources.hope.value": was[1] });
+            if (cubTargetStore) {
+                if (capWas) await cubTargetStore.patch(target.id, capWas);
+                else if (cubTargetStore.has(target.id)) await cubTargetStore.drop(target.id);
+            }
+            if (confusionStore) {
+                if (confusionWas) await confusionStore.patch(target.id, { calls: confusionWas.calls ?? [] });
+                else if (confusionStore.has(target.id)) await confusionStore.drop(target.id);
+            }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+            await back();
+        }
+        equal(stableJson(read), stableJson({ first: [[], true, 1, 1], second: [["capReached"], false, 0, 0], laterToday: null,
+            third: [["capDay"], false, 0, 0], tomorrow: null }),
+            "a student's share of Monocub moves is not held: [codes told, a roll answered, actions taken, Hope taken] for a first move, a second this time of day and a third today; the rule later today and tomorrow");
+    }],
+
     ["in an Eclipse the picker is shut and the GM refuses Confusion with nothing paid (E72 C1)", async () => {
         /*
          * E33 C10; CALL-16 and the plan's 2.7. The row's locks (`CUB_LOCKS`: the Eclipse, the

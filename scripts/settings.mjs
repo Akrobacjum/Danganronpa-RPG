@@ -96,6 +96,8 @@ export const SETTINGS = {
      */
     gmCubs: "gmCubs",
     mineCubs: "mineCubs",
+    /** The Monocubs' moves on each student this day (E72 C4): a GM store (gm-stores.mjs `cubTargetStore`), no copy. */
+    gmCubTargets: "gmCubTargets",
     /**
      * THE DEATHS NOBODY HAS FOUND (E05 C10, 1.2.64; audit S06-11): a GM store
      * (gm-stores.mjs `deathStore`), a row per body `{ chapter, day, timeOfDay, at,
@@ -2805,6 +2807,13 @@ export function registerSettings() {
         type: Object,
         default: {},
         onChange: onCubsChange
+    });
+    // The Monocubs' moves on each student this day (E72 C4): the GMs' store alone; nothing redraws from it.
+    game.settings.register(MODULE_ID, SETTINGS.gmCubTargets, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
     });
     // The deaths nobody has found (E05 C10): the GMs' store and a player's copy. A body
     // kept secret redraws what a death redraws - the sheets, the HUD, the map - and is

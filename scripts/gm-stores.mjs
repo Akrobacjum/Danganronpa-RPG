@@ -1121,6 +1121,20 @@ export const cubStore = defineGmStore({
 });
 
 /**
+ * THE MONOCUBS' MOVES ON EACH STUDENT (E72 C4, 12.11.2026; audit S18-59, the owner's DC32 = 2). A row per target
+ * student: `{ chapter, epoch, day, timeOfDay, slot, today }` - the game day and the time of day of its last move, how
+ * many moves it took that time of day (`slot`) and that day (`today`). A move counts once its conditions held and its
+ * price was taken, whether it landed or not. Read and written on the GM by monocub.mjs `cubCapRefusal` and
+ * `noteCubMove`; a row of another day or time of day counts nothing, so nothing has to clear it at the clock's turn.
+ * Cut by the reset's "actions" group, beside the action budgets. No copy: no player reads it.
+ */
+export const cubTargetStore = defineGmStore({
+    name: "cubTargets", key: SETTINGS.gmCubTargets,
+    kind: "ledger", resetGroup: "actions", backup: true, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
  * AN OWNER'S MONOCUB ROWS (E72 C2): `{ actorId: { witness } }` for the characters this user owns, as a GM sent them,
  * a stamp per character - taken by the offers' rule (`offersCombine`). Read by the owner's sheet (`cubRowOf`).
  */

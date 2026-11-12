@@ -3193,8 +3193,14 @@ export const MONOCUB = {
             target: "roomStudent",
             /** Help or Hinder: the picker's two buttons, the first the default. */
             choices: ["help", "hinder"],
-            /** Shut in an Eclipse and a Class Trial (CUB_LOCKS; CALL-16, T-1) - on the picker and before paying only. */
+            /** Shut in an Eclipse and a Class Trial (CUB_LOCKS; CALL-16, T-1) - on the picker, and on the GM before the price (E72 C1). */
             locks: ["eclipse", "classTrial"],
+            /**
+             * How often a student may be its target (E72 C4; audit S18-59, the owner's DC32 = 2): once per time of day
+             * and twice per game day, counted per target student over every Monocub, a failed move counted; asked on
+             * the GM before the price (monocub.mjs `cubCapRefusal`). null for a row with no target student.
+             */
+            caps: { perTimeOfDay: 1, perDay: 2 },
             /** "Stat: -": the flat 2d12 the GM throws (CUB_ROLLS). */
             roll: "flat2d12",
             /** Scored on the GM's own throw by `scoreMeddle` (CUB_RESOLVERS). */
