@@ -680,7 +680,7 @@
         "nothingBack": "there is nothing to put back. Cut the breach again by hand if it should stand.",
         "itemBack": "there was nothing to put back on the item.",
         "brokenSince": "the item was broken or worn again since, and is left as it is.",
-        "repairTooSmall": "the item's tier is higher than when this repair was approved, and it asks a bigger repair: nothing was mended. Approve a new repair at the size it asks, or pick the size yourself in the window.",
+        "repairTooSmall": "the item's tier went up since this repair was approved, so nothing was mended. Approve a new repair of the right size.",
         "unknown": "the module could not say why; the reason is in the GM's console."
       },
       "engineOff": "Secret passages cannot open here: every token stops at their walls. Check for an update of Danganronpa RPG, or turn off the modules that change how tokens move.",
@@ -2063,7 +2063,7 @@
       "useItemGone": "That is not on you any more - nothing to use.",
       "useItemWorked": "The item goes in.",
       "useItemFumbled": "It stays in your pocket, and somebody saw you reaching for it.",
-      "useItemAsked": "It is the GM's to rule whether this works; until then the item is not used up.",
+      "useItemAsked": "The GM decides if it works. Until then the item is not used up.",
       "notYourTurn": "It is not your turn.",
       "actionBlocked": "They have shut this one down for now.",
       "actionHindered": "They have made this harder - you roll at disadvantage.",
@@ -3040,7 +3040,7 @@
       "sealedBlocked": "{room} is sealed for this time of day. Nobody gets in.",
       "freeCritTitle": "Loaded Die",
       "freeCritUsed": "{name} takes the action with one die already set to 12 and throws the other.",
-      "loadedDieBack": "{name}'s Loaded Die did not hold: the dice showed their own faces. The Call is armed again for the next roll.",
+      "loadedDieBack": "{name}'s Loaded Die did not work. It is ready again for the next roll.",
       "grants": {
         "advantage": "advantage",
         "disadvantage": "disadvantage",
@@ -4141,12 +4141,12 @@
       "raisesSanity": "also +1 to the Sanity maximum",
       "da39": {
         "title": "Level Ups under the new rule",
-        "intro": "Level Ups no longer offer +1 Health or +1 Sanity: a point in Head raises the Sanity maximum, a point in Body or Leg the Health maximum. These students' sheets were read for the old picks - the maxima above the starting 4 Health and 6 Sanity - and for points in Head, Body and Leg that raised nothing. Tick each change you confirm. A pick taken back gives the student one statistic point to place on their sheet. A change left unticked stays as it is.",
+        "intro": "Level Ups no longer give +1 Health or +1 Sanity: a point in Head raises Sanity max, a point in Body or Leg raises Health max. Tick each change to make on these students. A pick taken back gives one statistic point to place. Anything left unticked stays as it is.",
         "takeHealth": "Take back a +1 Health pick: Health max -1, one statistic point to place",
         "takeSanity": "Take back a +1 Sanity pick: Sanity max -1, one statistic point to place",
         "riseHealth": "A point in {trait} since the season began: Health max +1",
         "riseSanity": "A point in {trait} since the season began: Sanity max +1",
-        "handNote": "A maximum you raised by hand reads like an old pick. Check the list before you apply; Cancel changes nothing and asks again at the next load.",
+        "handNote": "A maximum you raised by hand looks like an old pick here. Cancel changes nothing; you will be asked again next time.",
         "apply": "Apply",
         "health": "{n} Health max",
         "sanity": "{n} Sanity max",
@@ -4156,8 +4156,8 @@
         },
         "noPlayer": "no player owns this student, so give the points with your own Level Up",
         "toPlayer": {
-          "one": "Level Ups follow the new rule now: your +1 Health or +1 Sanity pick was taken back. You have {n} statistic point to place - press the button beside your name on your sheet.",
-          "other": "Level Ups follow the new rule now: your +1 Health and +1 Sanity picks were taken back. You have {n} statistic points to place - press the button beside your name on your sheet."
+          "one": "Under the new Level Up rule your +1 Health or +1 Sanity pick was taken back. You have {n} statistic point to place: press the button beside your name.",
+          "other": "Under the new Level Up rule your +1 Health and +1 Sanity picks were taken back. You have {n} statistic points to place: press the button beside your name."
         }
       },
       "whichExperience": "Which experience?",

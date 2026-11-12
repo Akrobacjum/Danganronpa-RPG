@@ -691,7 +691,7 @@
         "nothingBack": "nie ma czego przywrócić. Jeśli wyłom ma zostać, zrób go ponownie ręcznie.",
         "itemBack": "na przedmiocie nie było czego przywrócić.",
         "brokenSince": "przedmiot w międzyczasie znów się zepsuł albo zużył i zostaje taki, jaki jest.",
-        "repairTooSmall": "tier przedmiotu jest wyższy niż przy zatwierdzeniu tej naprawy i wymaga większej naprawy: niczego nie naprawiono. Zatwierdź nową naprawę w rozmiarze, którego wymaga, albo sam wybierz rozmiar w oknie.",
+        "repairTooSmall": "tier przedmiotu wzrósł od zatwierdzenia tej naprawy, więc niczego nie naprawiono. Zatwierdź nową naprawę właściwej wielkości.",
         "unknown": "moduł nie umie powiedzieć dlaczego; powód jest w konsoli GM-a."
       },
       "engineOff": "Tajne przejścia nie mogą się tu otworzyć: każdy token zatrzyma się na ich ścianach. Sprawdź, czy jest aktualizacja Danganronpa RPG, albo wyłącz moduły, które zmieniają ruch tokenów.",
@@ -2210,7 +2210,7 @@
       "useItemGone": "Tego już przy tobie nie ma - nie ma czego użyć.",
       "useItemWorked": "Przedmiot idzie w ruch.",
       "useItemFumbled": "Zostaje w kieszeni, a ktoś widział, jak po niego sięgasz.",
-      "useItemAsked": "To GM rozstrzyga, czy to zadziała; do tego czasu przedmiot nie jest zużyty.",
+      "useItemAsked": "GM decyduje, czy to zadziała. Do tego czasu przedmiot nie jest zużyty.",
       "notYourTurn": "To nie twoja tura.",
       "actionBlocked": "Na razie masz to zablokowane.",
       "actionHindered": "To jest teraz trudniejsze - rzucasz z utrudnieniem.",
@@ -3302,7 +3302,7 @@
       "sealedBlocked": "{room} zapieczętowany na tę porę dnia. Nikt nie wchodzi.",
       "freeCritTitle": "Loaded Die",
       "freeCritUsed": "{name} wykonuje akcję z jedną kością już ustawioną na 12 i rzuca drugą.",
-      "loadedDieBack": "Loaded Die postaci {name} nie zadziałał: kości pokazały własne ścianki. Call jest znów uzbrojony na następny rzut.",
+      "loadedDieBack": "Loaded Die postaci {name} nie zadziałał. Jest gotowy znowu na następny rzut.",
       "grants": {
         "advantage": "przewagę",
         "disadvantage": "utrudnienie",
@@ -4494,12 +4494,12 @@
       "raisesSanity": "także +1 do maksimum Sanity",
       "da39": {
         "title": "Level Upy według nowej zasady",
-        "intro": "Level Upy nie dają już +1 Health ani +1 Sanity: punkt w Head podnosi maksimum Sanity, punkt w Body albo Leg maksimum Health. Odczytano karty tych uczniów: stare wybory - maksima ponad startowe 4 Health i 6 Sanity - oraz punkty w Head, Body i Leg, które niczego nie podniosły. Zaznacz każdą zmianę, którą potwierdzasz. Cofnięty wybór daje uczniowi jeden punkt statystyki do rozdania na karcie. Zmiana niezaznaczona zostaje taka, jaka jest.",
+        "intro": "Level Upy nie dają już +1 Health ani +1 Sanity: punkt w Head podnosi maksimum Sanity, punkt w Body albo Leg maksimum Health. Zaznacz każdą zmianę, którą chcesz wprowadzić u tych uczniów. Cofnięty wybór daje jeden punkt statystyki do rozdania. Niezaznaczone zostaje bez zmian.",
         "takeHealth": "Cofnij wybór +1 Health: maksimum Health -1, jeden punkt statystyki do rozdania",
         "takeSanity": "Cofnij wybór +1 Sanity: maksimum Sanity -1, jeden punkt statystyki do rozdania",
         "riseHealth": "Punkt w {trait} od początku sezonu: maksimum Health +1",
         "riseSanity": "Punkt w {trait} od początku sezonu: maksimum Sanity +1",
-        "handNote": "Maksimum podniesione przez ciebie ręcznie wygląda jak stary wybór. Sprawdź listę przed zastosowaniem; Anuluj niczego nie zmienia i zapyta znowu przy następnym wczytaniu.",
+        "handNote": "Maksimum podniesione przez ciebie ręcznie wygląda tu jak stary wybór. Anuluj niczego nie zmienia; zapytamy znowu następnym razem.",
         "apply": "Zastosuj",
         "health": "{n} do maksimum Health",
         "sanity": "{n} do maksimum Sanity",
@@ -4511,10 +4511,10 @@
         },
         "noPlayer": "tego ucznia nie prowadzi żaden gracz, więc daj punkty własnym Level Upem",
         "toPlayer": {
-          "one": "Level Upy działają teraz według nowej zasady: twój wybór +1 Health albo +1 Sanity został cofnięty. Masz {n} punkt statystyki do rozdania - naciśnij przycisk obok swojego imienia na karcie.",
-          "few": "Level Upy działają teraz według nowej zasady: twoje wybory +1 Health i +1 Sanity zostały cofnięte. Masz {n} punkty statystyki do rozdania - naciśnij przycisk obok swojego imienia na karcie.",
-          "many": "Level Upy działają teraz według nowej zasady: twoje wybory +1 Health i +1 Sanity zostały cofnięte. Masz {n} punktów statystyki do rozdania - naciśnij przycisk obok swojego imienia na karcie.",
-          "other": "Level Upy działają teraz według nowej zasady: twoje wybory +1 Health i +1 Sanity zostały cofnięte. Masz {n} punktu statystyki do rozdania - naciśnij przycisk obok swojego imienia na karcie."
+          "one": "Według nowej zasady Level Upów twój wybór +1 Health albo +1 Sanity został cofnięty. Masz {n} punkt statystyki do rozdania: naciśnij przycisk obok swojego imienia.",
+          "few": "Według nowej zasady Level Upów twoje wybory +1 Health i +1 Sanity zostały cofnięte. Masz {n} punkty statystyki do rozdania: naciśnij przycisk obok swojego imienia.",
+          "many": "Według nowej zasady Level Upów twoje wybory +1 Health i +1 Sanity zostały cofnięte. Masz {n} punktów statystyki do rozdania: naciśnij przycisk obok swojego imienia.",
+          "other": "Według nowej zasady Level Upów twoje wybory +1 Health i +1 Sanity zostały cofnięte. Masz {n} punktu statystyki do rozdania: naciśnij przycisk obok swojego imienia."
         }
       },
       "whichExperience": "Które doświadczenie?",
