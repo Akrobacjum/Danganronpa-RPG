@@ -542,8 +542,9 @@ export const MORNING_LINE_MAX = 200;
 /**
  * What a move of the clock folds into its one write for the morning line and the mood (E94 C1, C4; clock.mjs
  * `advanceTimeOfDay`): at the day's roll-over the GM's line (`draft`, kept on that GM's browser until then, so it is in
- * no world data before the day starts) and the mood's word; at any other move both cleared, so neither outlives the
- * morning they were written for. Pure.
+ * no world data before the day starts) and the mood's word; at any other move only the morning line is cleared (when
+ * one stands), so it does not outlive the morning it was written for, and the mood is left as it is until the next
+ * roll-over writes it again. Pure.
  */
 export function dayStartPatch({ rolledOver = false, draft = "", mood = null, before = {} } = {}) {
     if (rolledOver) return { morningLine: morningLineOf(draft), mood: MOOD_BANDS.includes(mood) ? mood : null };
