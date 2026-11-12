@@ -169,3 +169,14 @@ read, so C1's and C2's counts and the surface tables are re-read at the base.
 | Q-E55-4 | The "300 lines of dead rules" are ~355 proven lines of other kinds (section 2); the css-lint finds none. Is that the set meant? | Yes, and C1/C2 make the lint find them from now on. |
 | Q-E55-5 | The brush's two insets (-3 px panel buttons, -5 px the sheet): keep both as role tokens, or one value chosen on screenshots? | Keep both (today's winning values). |
 | Q-E55-6 | A target for the `!important` budget per sheet at the stage's end? | None stated: the ratchet records what the deletions free (36 proven at the base, more from step 3). |
+
+### The owner's answers
+
+The owner accepted every default of the table above (through the coordinator, 12.11.2026; the review page of the same day):
+
+- Q-E55-1: owner: default, 12.11.2026
+- Q-E55-2: owner: default, 12.11.2026
+- Q-E55-3: owner: default, 12.11.2026
+- Q-E55-4: owner: default, 12.11.2026
+- Q-E55-5: owner: default, 12.11.2026
+- Q-E55-6: owner: default, 12.11.2026

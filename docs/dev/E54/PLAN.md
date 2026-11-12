@@ -217,6 +217,19 @@ review.
 | Q-E54-7 | The sheet's own height (`holdActionsTab`, `growForCalls`): computed in windows.mjs too, so the done line's "one place" holds for the sheet? | Yes: the height arithmetic as a windows.mjs function, the DOM wiring stays in sheet-fit.mjs (a behaviour commit after S3, with W6's test). |
 | Q-E54-8 | code.md's table needs a row per new file, and the agent rules directory is closed to the work lines. Who writes the rows? | The coordinator or the owner, from the stage's end report. |
 
+### The owner's answers
+
+The owner accepted every default of the table above (through the coordinator, 12.11.2026; the review page of the same day):
+
+- Q-E54-1: owner: default, 12.11.2026
+- Q-E54-2: owner: default, 12.11.2026
+- Q-E54-3: owner: default, 12.11.2026
+- Q-E54-4: owner: default, 12.11.2026
+- Q-E54-5: owner: default, 12.11.2026
+- Q-E54-6: owner: default, 12.11.2026
+- Q-E54-7: owner: default, 12.11.2026
+- Q-E54-8: owner: default, 12.11.2026
+
 ## Appendix B - code.md rows (coordinator to apply)
 
 Drafts for code.md's "Where the code lives" table, in its form (`File | What lives there | Its facade`), as the

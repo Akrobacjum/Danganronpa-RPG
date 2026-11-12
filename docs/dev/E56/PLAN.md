@@ -111,3 +111,14 @@ measurement: two working sessions, plus a third if Q-E56-2 asks for the behaviou
 | Q-E56-4 | code.md's 16 stale counts: date them, drop them, or have a check part compute them? | Drop the counts that a check does not hold. Written by whoever may edit the agent rules directory. |
 | Q-E56-5 | `requestTrialKeyword` (an ask with a bridge row and no window that calls it) and `openMonocubDialog` (console only): keep? | Keep both; record why. |
 | Q-E56-6 | The 78 test-only names (1.6): which are leftovers? | Only the ten named in 1.6 are read; the seams stay. |
+
+### The owner's answers
+
+The owner accepted every default of the table above (through the coordinator, 12.11.2026; the review page of the same day):
+
+- Q-E56-1: owner: default, 12.11.2026
+- Q-E56-2: owner: default, 12.11.2026
+- Q-E56-3: owner: default, 12.11.2026
+- Q-E56-4: owner: default, 12.11.2026
+- Q-E56-5: owner: default, 12.11.2026
+- Q-E56-6: owner: default, 12.11.2026
