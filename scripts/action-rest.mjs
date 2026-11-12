@@ -30,8 +30,6 @@ export async function performRest(actor) {
         actor,
         title: ACTIONS.rest.label,
         intro: briefingBlock(actor, "rest", ACTIONS.rest),
-        // The rest is taken in the next window, its picks (rest.mjs `choosePicks`, Rest) - E100 item 6, R3922.
-        confirm: game.i18n.localize("DRPG.Action.next"),
         options: restVariants(actor),
         showShut: true
     });

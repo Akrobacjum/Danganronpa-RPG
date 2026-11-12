@@ -110,7 +110,7 @@ export async function performProject(actor, def, options) {
         title: def.label,
         intro: briefingBlock(actor, "project", def),
         prompt: game.i18n.localize("DRPG.Project.choosePrompt"),
-        // Work and Sabotage roll; Propose leads to the proposal's window, whose button sends it (E100 item 6, R3922).
+        // Work and Sabotage roll; Propose leads to the proposal's window, whose button sends it (E100 item 6, R4105).
         confirm: game.i18n.localize("DRPG.Action.roll"),
         options: [
             {

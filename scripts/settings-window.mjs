@@ -132,7 +132,7 @@ export function mayModifyWorld(user = game.user) {
  * (`scope: "client"`), drawn for a GM alone; a player's window has no Technical section left. No road from a GM's
  * browser writes another browser's client setting (read on 12.11.2026: utils.mjs `debug` is its one reader, no socket
  * or bridge row names it), so none was kept: when a GM asks a player for the log, the GM handbook's recipe gives the
- * console line. This is the one place the gear's window differs between a GM and a player (R3530, R3919).
+ * console line. This is the one place the gear's window differs between a GM and a player (R3530, R4102).
  */
 const GM_ONLY_CLIENT_KEYS = Object.freeze(["debug"]);
 
@@ -220,7 +220,7 @@ function extrasOf(key, { voice = false } = {}) {
            player-screens review, #3: Dźwięk, Muzyka and Dźwięki komunikatora stood here and in the Sound window). Here a
            line and one button that opens it (`data-drpg-open-sound`, wired in `openSettingsWindow`'s render); the Voice
            section stays (devices and push to talk are in no other window), and the line that its fields apply at once
-           with it. R3918. */
+           with it. R4101. */
         const open = `<div class="drpg-settings-row" data-drpg-sound-door>`
             + `<div class="drpg-settings-control"><button type="button" data-drpg-open-sound>`
             + `<i class="fa-solid fa-volume-high" inert></i> ${esc(localize("DRPG.SettingsWindow.soundOpen"))}</button></div>`

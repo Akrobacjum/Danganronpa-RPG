@@ -65,7 +65,7 @@ export function traitFieldHtml(actor, traits, { note = "", propose = false, how 
     /* FOLDED AWAY WHERE ANOTHER STATISTIC IS A RARE ASK (E100 item 5, 12.11.2026; the owner on the player-screens review,
        #8: Search asked "Which statistic do you propose?" with six choices every time, and Search rolls Eye). With `fold`
        the proposal stands in a closed `details` under "Another statistic"; its first choice is the list's first, Eye
-       for Search, and a window read unopened proposes it - which asks nobody (action-search.mjs `searchTrait`). R3921. */
+       for Search, and a window read unopened proposes it - which asks nobody (action-search.mjs `searchTrait`). R4104. */
     if (propose && fold) {
         return `<details class="drpg-trait-other"><summary>${game.i18n.localize("DRPG.TraitRuling.otherTrait")}</summary>`
             + `<div class="drpg-trait-proposal">${field}${words}</div></details>`;

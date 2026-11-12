@@ -970,7 +970,7 @@ const REGRESSIONS = [
         read.frame = [/\bclass NoticeHistoryApp extends DrpgApp\(\)/.test(src), /scrollRegion:\s*"\.drpg-notices-list"/.test(src)];
         read.foot = footer === null ? null : [/destructive:\s*\[\{\s*action:\s*"clear"/.test(footer), /close:\s*\{\s*role:\s*"close",\s*side:\s*"right"\s*\}/.test(footer),
             /\bdefault\s*:/.test(footer), /\bprimary\s*:/.test(footer)];
-        // The chips are the three on top since E100 item 4 (R3920: the other four are a menu), still through the kit.
+        // The chips are the three on top since E100 item 4 (R4103: the other four are a menu), still through the kit.
         read.chips = /\bchips\(ON_TOP\.map\(/.test(render);
         read.empty = (src.match(/\bemptyState\("DRPG\.Notices\.(empty|noMatch)"\)/g) ?? []).length;
         read.live = [(src.match(/\bkeepLive\(/g) ?? []).length, /\bkeepLive\(this,\s*\{\s*region:\s*"\.drpg-notices-list",\s*build:/.test(src),
@@ -22893,7 +22893,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(read), JSON.stringify({ rollCards: [false, false, false], notice: [true, true, true, true, 2], slot: ["Critical", true, "Krytyk", true] }),
             "{rollCards: private-rolls.mjs plays, clips, cuts; notice: the tone's flag, the call under it, still under reduced motion, a clip-path wipe, cutCritical's mentions (its declaration and one call); slot: the English label, its hint names the cut, the Polish label, its hint}");
     }],
-    ["R3420 - every setting Foundry's list showed is in exactly one place, this browser's or the game's (E49 A1, A1d; the owner's [11], [16], Q3, Q4, and his word on A1's shots of 11.11): each of the 35 keys registered with `config: true` at 20218b05 (a frozen list) is in exactly one of settings-window.mjs's `SETTINGS_SECTIONS` (Messenger sounds, in none: the Sound window's since E100 item 2, R3918) - four client sections, the gear's window, naming client settings alone, and five game sections, the game's settings window (the GM panel's Settings tile), naming world ones alone - which name no other key but Vary the sounds; no setting of the module is `config: true`; the module's one menu is DRPG Settings, not restricted, and Give back's is gone; each key's `.name` and `.hint` are in lang/en.json and lang/pl.json and its hint's `firstSentence` is not empty in either; the nine sections' names in both", async () => {
+    ["R3420 - every setting Foundry's list showed is in exactly one place, this browser's or the game's (E49 A1, A1d; the owner's [11], [16], Q3, Q4, and his word on A1's shots of 11.11): each of the 35 keys registered with `config: true` at 20218b05 (a frozen list) is in exactly one of settings-window.mjs's `SETTINGS_SECTIONS` (Messenger sounds, in none: the Sound window's since E100 item 2, R4101) - four client sections, the gear's window, naming client settings alone, and five game sections, the game's settings window (the GM panel's Settings tile), naming world ones alone - which name no other key but Vary the sounds; no setting of the module is `config: true`; the module's one menu is DRPG Settings, not restricted, and Give back's is gone; each key's `.name` and `.hint` are in lang/en.json and lang/pl.json and its hint's `firstSentence` is not empty in either; the nine sections' names in both", async () => {
         /*
          * E49 A1, 11.11.2026. The frozen list is 20218b05's (STAGE E49 "What HEAD does": 35 distinct `config: true`, 23
          * world, 12 client; glassPulse's block carried the flag twice, design-notes.md), read by a script over settings.mjs's
@@ -22934,7 +22934,7 @@ const REGRESSIONS = [
         const read = {
             loaded: W?.failed ?? true,
             sections: sections.map(s => [s.key, s.place, s.keys.length, typeof s.icon === "string" && s.icon.startsWith("fa-")]),
-            // Messenger sounds is the Sound window's since E100 item 2 (R3918), in no section; the other 34 in one each.
+            // Messenger sounds is the Sound window's since E100 item 2 (R4101), in no section; the other 34 in one each.
             once: FROZEN.filter((k, i) => seen[i] !== (k === "messengerSound" ? 0 : 1)),
             others: named.filter(k => !FROZEN.includes(k)),
             mixed: sections.flatMap(s => s.keys.filter(k => scopeOf(k) !== (s.place === "client" ? "client" : "world")).map(k => `${s.key}:${k}`)),

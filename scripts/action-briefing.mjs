@@ -307,7 +307,7 @@ function thresholdFacts(actor, actionKey, def) {
 
 /* MOVE'S WINDOW IS GONE (E100 item 1, 12.11.2026; the owner on the player-screens review, #2). `briefing` drew it: one
    button, Got it, over "drag your token". The sentence is on the Monocub's Move tile (sheet.mjs `actionButton`) and in
-   the HUD's Move row (player-status.mjs); `moveLine` above still prices the next crossing for both. R3917. */
+   the HUD's Move row (player-status.mjs); `moveLine` above still prices the next crossing for both. R4100. */
 
 // The erase ladder for THIS character: the cleaning tool's tier and the
 // fresh scene come off the table's numbers (D1). Computed here, beside

@@ -5699,7 +5699,7 @@ export function actionButton(actor, key, def) {
  * one button, Got it, and only said "drag your token"). The tile a Monocub's panel draws keeps its price and its
  * tooltip, and says on its face what to do (`DRPG.Move.dragShort`); it is a `div`, not a button, with no
  * `data-drpg-action`, so the delegate (`attachActionDelegate`) has nothing to press and the stylesheets' hover, which
- * reads `:not(.drpg-action-still)`, does not light it as if it could be pressed. R3917.
+ * reads `:not(.drpg-action-still)`, does not light it as if it could be pressed. R4100.
  */
 function stillMoveTile(button) {
     const tile = document.createElement("div");

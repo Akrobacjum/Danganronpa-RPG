@@ -555,7 +555,7 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             if (!panel()) return out;
             out.names = [...new Set([...panel().querySelectorAll("[name]")].map(el => el.name))];
             // E79 C12 (N9), E49 A1d: in the Sound section, after every volume slider; since E100 item 2 after the
-            // button that opens the Sound window, which holds the volumes now (R3918)
+            // button that opens the Sound window, which holds the volumes now (R4101)
             const sound = form().querySelector('[data-drpg-settings-pane="sound"]');
             const sliders = [...(sound?.querySelectorAll("[data-drpg-open-sound]") ?? [])];
             out.between = sliders.length > 0 && sound.contains(panel()) && sliders.every(s => Boolean(s.compareDocumentPosition(panel()) & Node.DOCUMENT_POSITION_FOLLOWING));

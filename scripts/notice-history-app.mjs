@@ -61,7 +61,7 @@ const FILTERS = Object.freeze([
  * buttons over an empty list). The chips are `ON_TOP`, in this order; the other four are the options of one select
  * (`.drpg-notices-more`), after an empty first choice. A menu pick presses no chip; a chip puts the menu back to its
  * empty choice. A filter that falls to 0 is disabled in either place and moves the window back to All (`syncChrome`).
- * R3920.
+ * R4103.
  */
 const ON_TOP = Object.freeze(["all", "forYou", "notDone"]);
 const IN_MENU = Object.freeze(FILTERS.filter(f => !ON_TOP.includes(f.id)).map(f => f.id));

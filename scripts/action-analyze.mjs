@@ -436,7 +436,7 @@ async function askWhatToAnalyze(actor, def, bullets) {
         actor,
         title: def.label,
         intro: briefingBlock(actor, "analyze", def),
-        // Every row rolls (E100 item 6, R3922: one word per kind of button; "Do it" until then).
+        // Every row rolls (E100 item 6, R4105: one word per kind of button; "Do it" until then).
         confirm: game.i18n.localize("DRPG.Action.roll"),
         options: [
             {

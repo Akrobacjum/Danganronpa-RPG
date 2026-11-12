@@ -13092,7 +13092,7 @@ const INVARIANTS = [
             const entryIn = id => root2.querySelector(`details.drpg-notice-entry[data-drpg-key="${CSS.escape(id)}"]`);
             const pressed = () => root2.querySelector('[data-drpg-chip][aria-pressed="true"]')?.dataset.drpgChip ?? (root2.querySelector("select.drpg-notices-more")?.value || null);
             const box = root2.querySelector(".drpg-notices-search input");
-            /* Messenger is a choice of the filter menu since E100 item 4 (R3920), not a chip. */
+            /* Messenger is a choice of the filter menu since E100 item 4 (R4103), not a chip. */
             const pickMenu = id => { const menu = root2.querySelector("select.drpg-notices-more"); if (!menu) return; menu.value = id; menu.dispatchEvent(new Event("change", { bubbles: true })); };
             const gmId = game.users.find(user => user.isGM)?.id ?? null;
             const withdraw = messageId => NH.noticeCardDeleted({ id: messageId }, { [MODULE_ID]: { withdraw: true } }, gmId);
@@ -18463,7 +18463,7 @@ const INVARIANTS = [
             none.remove();
         }
     }],
-    ["R3530 - the gear's window is the same for a GM and a player but for the verbose log, a GM's row since E100 item 3 (R3919), and holds every row the Look window held (E49 A1d; the owner on A1's shots, 11.11.2026): settings-window.mjs's client columns are one markup for a user who may modify settings and one who may not, with no world row; they hold the language, the theme, the scale and its line, the pixel face, the pulse, the ticker, the blur, reduced motion, high contrast and the list's foot, each once, and the button to the Sound window (which holds the messenger's sounds and both volumes since E100 item 2, R3918); the gear (sfx.mjs) opens look.mjs `openLookDialog`, which opens `openSettingsWindow`; Configure Settings' menu opens the same", async () => {
+    ["R3530 - the gear's window is the same for a GM and a player but for the verbose log, a GM's row since E100 item 3 (R4102), and holds every row the Look window held (E49 A1d; the owner on A1's shots, 11.11.2026): settings-window.mjs's client columns are one markup for a user who may modify settings and one who may not, with no world row; they hold the language, the theme, the scale and its line, the pixel face, the pulse, the ticker, the blur, reduced motion, high contrast and the list's foot, each once, and the button to the Sound window (which holds the messenger's sounds and both volumes since E100 item 2, R4101); the gear (sfx.mjs) opens look.mjs `openLookDialog`, which opens `openSettingsWindow`; Configure Settings' menu opens the same", async () => {
         /*
          * E49 A1d, 11.11.2026. The owner: "Gm pod przyciskiem zebatki nie powinien miec innych ustawien niz gracz" and
          * "zniknela czesc ustawien np push to talk, urzadzenia wejsciowe i wyjsciowe". The Look window's rows read off
@@ -18483,12 +18483,12 @@ const INVARIANTS = [
         const box = document.createElement("div");
         box.innerHTML = html(player);
         const rows = name => box.querySelectorAll(`[data-drpg-setting="${name}"]`).length;
-        /* Messenger sounds and the volumes are the Sound window's since E100 item 2 (R3918): the Sound section holds its button. */
+        /* Messenger sounds and the volumes are the Sound window's since E100 item 2 (R4101): the Sound section holds its button. */
         const LOOK = ["language", "theme", "uiScale", "pixelFont", "glassPulse", "hudTicker", "glassBlur", "reducedMotion", "highContrast"];
         const sources = new Map(await moduleSources());
         const src = file => stripComments(sources.get(file) ?? "");
         const read = {
-            /* Who may modify settings changes nothing; being a GM adds the verbose log alone (E100 item 3, R3919). */
+            /* Who may modify settings changes nothing; being a GM adds the verbose log alone (E100 item 3, R4102). */
             same: html({ isGM: false, can: () => true }) === html(player) && html(gm).length > 1000,
             gmOnly: [/data-drpg-setting="debug"/.test(html(gm)), /data-drpg-setting="debug"/.test(html(player))],
             world: box.querySelectorAll('[data-drpg-scope="world"]').length,
@@ -21278,7 +21278,7 @@ const INVARIANTS = [
         const [first, moved, askOnly] = choosePalm ? drawn.map(read) : [{ html: "" }, {}, {}];
         const hint = (unseen, hand) => game.i18n.format("DRPG.Frisk.unseenHint", { unseen, hand });
         const open = force => game.i18n.format("DRPG.Frisk.openHint", { force });
-        // An open Frisk asks the person: Ask them since E100 item 6 (R3922), Do it until then.
+        // An open Frisk asks the person: Ask them since E100 item 6 (R4105), Do it until then.
         const roll = game.i18n.localize("DRPG.Action.roll"), proceed = game.i18n.localize("DRPG.Action.askThem");
         equal(stableJson([first.rows, first.frisk, first.modes, moved.modes, askOnly.modes, first.labels]), stableJson([
             ["steal", "plant", "frisk"],
@@ -42564,7 +42564,7 @@ const INVARIANTS = [
                     options: values.map(v => ({ value: v, label: `R3382 ${v}`, hint: v })) }), values);
                 read[key] = { ...r, layers: r.layers >= whens.length };
             }
-            // Move's window is gone since E100 item 1 (R3917): nothing of it to read here.
+            // Move's window is gone since E100 item 1 (R4100): nothing of it to read here.
             const rows = Object.entries(CRISIS_ACTIONS).slice(0, 3);
             const values = rows.map(([key]) => key);
             const crisis = await look("R3382 crisis", () => chooseVariant({ actor, title: "R3382 crisis",
@@ -48587,7 +48587,7 @@ const INVARIANTS = [
         const want = [["textarea", "100%", "border-box"], ["select", "100%", "border-box"], ["input", "100%", "border-box"]];
         equal(stableJson(read), stableJson({ glass: want, legacy: want }), "{each theme: [the control, its width, its box-sizing]}");
     }],
-    ["R3140 - the volumes hold to a phone (components.css, the E47-FD section, carried to THE SETTINGS WINDOW by E49 A1d and to the Sound window by E100 item 2; the owner's default on comparison 3, q-cuts; E47-FB Open 2): a volume's range in the Sound window has `min-width: 0` and stands in the middle column of its row's grid (`5.5em 1fr 3.2em`) under both themes - the Look window's fieldset held the promise until A1, the settings window's Sound section until E100 item 2 moved the volumes out of it (R3918)", async () => {
+    ["R3140 - the volumes hold to a phone (components.css, the E47-FD section, carried to THE SETTINGS WINDOW by E49 A1d and to the Sound window by E100 item 2; the owner's default on comparison 3, q-cuts; E47-FB Open 2): a volume's range in the Sound window has `min-width: 0` and stands in the middle column of its row's grid (`5.5em 1fr 3.2em`) under both themes - the Look window's fieldset held the promise until A1, the settings window's Sound section until E100 item 2 moved the volumes out of it (R4101)", async () => {
         /*
          * E47-FD, 10.11.2026. A fieldset is at least as wide as its content's least width, and the Interface scale
          * row's least was the slider's own 129 px beside the name column and the percentage: at 390x844 the Look
@@ -48609,6 +48609,243 @@ const INVARIANTS = [
             return [dress, [C.winner(range, "min-width")?.value ?? null, C.winner(row, "grid-template-columns")?.value ?? null]];
         }));
         equal(stableJson(read), stableJson({ glass: ["0", "5.5em 1fr 3.2em"], legacy: ["0", "5.5em 1fr 3.2em"] }), "{each theme: [a volume's range's min-width, its row's grid columns]}");
+    }],
+
+    /* ======================================================================
+     * E100 - THE PLAYER SCREENS' CLEANUP (the owner's six items of 12.11.2026, review page YH2SiTx2Rbv2s38YQgs8H3)
+     * ==================================================================== */
+    ["R4100 - Move opens no window (E100 item 1; the owner's 12.11.2026, the player-screens review's #2): `performAction(actor, \"move\")` draws nothing and answers null; action-briefing.mjs has no Move window (`briefing`) and its Got it is gone from both languages; a Monocub's Move tile is a still tile - not a button, no `data-drpg-action` the sheet's delegate would press - that says on its face what to do (`DRPG.Move.dragShort`) under its price; the HUD's Move row says it first in its tooltip (`DRPG.Move.drag`)", async () => {
+        /*
+         * E100 item 1, 12.11.2026. The review's Move window had one button, Got it, and said "drag your token": the
+         * sentence goes on the tile and on the HUD's Move line, and the window goes. In real code a student has no Move
+         * tile (ACTIONS.move is `kind: "panel"`); the Monocub panel draws one (sheet.mjs `monocubTiles`). Red at
+         * 4dfac3a9: the window opened with Got it, the tile was a button the delegate pressed, no `DRPG.Move.drag*`.
+         */
+        const { livingStudents } = await import("./chapter.mjs");
+        const actor = livingStudents()[0];
+        must(actor, "no living student to read the Move with - this would measure nothing");
+        const B = await import("./action-briefing.mjs"), R = await import("./action-rolls.mjs"), S = await import("./sheet.mjs"), P = await import("./player-status.mjs");
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const before = new Set(foundry.applications.instances.keys());
+        const D = foundry.applications.api.DialogV2, own = Object.getOwnPropertyDescriptor(D, "wait");
+        let asked = 0;
+        D.wait = async () => { asked += 1; return null; };
+        let answer;
+        try { answer = await R.performAction(actor, "move"); } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+        await settle();
+        const opened = [...foundry.applications.instances.keys()].filter(k => !before.has(k)).length;
+        const tile = S.actionButton(actor, "move", ACTIONS.move);
+        const row = P.buildPlayerView(actor)?.querySelector?.(".is-move") ?? null;
+        const drag = game.i18n.localize("DRPG.Move.drag"), short = game.i18n.localize("DRPG.Move.dragShort");
+        const read = {
+            answer, asked, opened,
+            briefing: Object.keys(B).includes("briefing") ? "exported" : "undefined",
+            gotIt: [en?.DRPG?.Action?.gotIt ?? null, pl?.DRPG?.Action?.gotIt ?? null],
+            tile: [tile?.tagName ?? null, tile?.dataset?.drpgAction ?? null, tile?.dataset?.drpgTile ?? null,
+                [...(tile?.querySelectorAll?.(".drpg-action-cost") ?? [])].map(n => n.textContent.trim()).includes(short)],
+            hud: [Boolean(row), String(row?.dataset?.tooltip ?? "").startsWith(drag)],
+            words: [en?.DRPG?.Move?.drag, en?.DRPG?.Move?.dragShort, pl?.DRPG?.Move?.drag, pl?.DRPG?.Move?.dragShort].every(w => typeof w === "string" && w.length > 3)
+        };
+        equal(stableJson(read), stableJson({ answer: null, asked: 0, opened: 0, briefing: "undefined", gotIt: [null, null],
+            tile: ["DIV", null, "move", true], hud: [true, true], words: true }),
+            "{performAction's answer; DialogV2 waits asked; windows opened; action-briefing.mjs `briefing`; Got it in en, pl; "
+            + "the Monocub's Move tile [tag, data-drpg-action, data-drpg-tile, the drag line on its face]; the HUD's Move row [drawn, its tooltip opens with the drag sentence]; the words in both}");
+    }],
+    ["R4101 - the volumes and the messenger's sounds are in one place, the Sound window (E100 item 2; the owner's 12.11.2026, the player-screens review's #3): the gear's Sound section draws no volume slider and no Messenger sounds row, and in their place one button that opens the Sound window (`data-drpg-open-sound`, wired to music.mjs `openSoundDialog`); the Sound window holds Sound, Music and the messenger's sounds for a player and, in both themes, for a GM; no setting is lost - every one of the 35 is in a section of the two settings windows or, Messenger sounds alone, in the Sound window", async () => {
+        /*
+         * E100 item 2, 12.11.2026. The review: "Ustawienia gracza i okno Dźwięk dublują się" - Dźwięk, Muzyka and
+         * Dźwięki komunikatora in both. The owner: keep them in the Sound window. A GM's Sound window drew the sliders
+         * under Monokuma Legacy alone (glass had them in the gear's window), so with the gear's gone they are drawn in
+         * both themes. Red at 0dead12b: the gear's Sound section held two sliders and the messenger's row, no button,
+         * and a GM's Sound window under the glass no slider.
+         */
+        const W = await import("./settings-window.mjs"), F = await import("./sfx.mjs");
+        const player = { isGM: false, can: () => false };
+        const box = document.createElement("div");
+        box.innerHTML = W.settingsWindowColumns(player, { voice: false }).map(c => c.html).join("");
+        const pane = box.querySelector('[data-drpg-settings-pane="sound"]');
+        const sound = document.createElement("div");
+        sound.innerHTML = F.soundSlidersHtml();
+        const names = root => [...root.querySelectorAll("input[name]")].map(i => i.name).sort();
+        /* A GM's Sound window, drawn with DialogV2.wait stood in for, under each theme. */
+        const D = foundry.applications.api.DialogV2, own = Object.getOwnPropertyDescriptor(D, "wait");
+        const M = await import("./music.mjs");
+        const gmWindow = {};
+        const was = document.body.className;
+        must(game.user.isGM, "this reads a GM's Sound window and runs on a GM");
+        try {
+            for (const [theme, cls] of [["glass", "drpg-theme-stained-glass"], ["legacy", "drpg-theme-monokuma-legacy"]]) {
+                document.body.classList.remove("drpg-theme-stained-glass", "drpg-theme-monokuma-legacy");
+                document.body.classList.add(cls);
+                let content = null;
+                D.wait = async config => { content = config?.content; return null; };
+                await M.openSoundDialog();
+                const el = document.createElement("div");
+                if (typeof content === "string") el.innerHTML = content; else if (content) el.append(content.cloneNode?.(true) ?? content);
+                gmWindow[theme] = names(el).filter(n => n.startsWith("vol:") || n === "messengerSound");
+            }
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            document.body.className = was;
+        }
+        const src = stripComments((await moduleSources()).get("settings-window.mjs") ?? "");
+        must(src.length > 1000, "settings-window.mjs was not read");
+        const read = {
+            pane: Boolean(pane),
+            sliders: pane?.querySelectorAll("[data-drpg-slider], input[type=\"range\"]").length ?? null,
+            messengerRow: pane?.querySelectorAll('[data-drpg-setting="messengerSound"]').length ?? null,
+            button: pane?.querySelectorAll("button[data-drpg-open-sound]").length ?? null,
+            wired: /data-drpg-open-sound[\s\S]{0,400}openSoundDialog\(\)/.test(src),
+            playerWindow: names(sound).filter(n => n.startsWith("vol:") || n === "messengerSound"),
+            gmWindow,
+            sectionKeys: W.SETTINGS_SECTIONS.flatMap(s => s.keys).includes("messengerSound")
+        };
+        const three = ["messengerSound", "vol:music", "vol:sound"];
+        equal(stableJson(read), stableJson({ pane: true, sliders: 0, messengerRow: 0, button: 1, wired: true, playerWindow: three,
+            gmWindow: { glass: three, legacy: three }, sectionKeys: false }),
+            "{the gear's Sound pane drawn; its sliders; its Messenger sounds rows; its buttons that open the Sound window; the button wired to openSoundDialog; "
+            + "the player's Sound window's fields of the three; a GM's Sound window's, per theme; Messenger sounds still a row of a settings section}");
+    }],
+    ["R4102 - the verbose console log is a GM's row (E100 item 3; the owner's 12.11.2026, the player-screens review's #4): the gear's window draws `debug` (Verbose console logging) for a GM and not for a player, whose window has no Technical section left; the setting stays this browser's (`scope: \"client\"`), so the one road to it on a player's browser is the console line the GM handbook gives - there is no road from a GM's browser to another browser's client setting, and none is added", async () => {
+        /*
+         * E100 item 3, 12.11.2026. The review: "Szczegółowe logi w konsoli" is diagnostic, a player turns it on only when
+         * a GM asks (the GM handbook's voice recipe). The owner: hide it from players; if a GM can switch it on for a
+         * player's browser today, keep that road, else keep it GM-only and say so. Read on 0dead12b: `debug` is a client
+         * setting read by utils.mjs `debug` alone, no socket or bridge row writes it, so there is no such road. Red at
+         * dbf260d3: the player's window drew the row and the Technical section.
+         */
+        const W = await import("./settings-window.mjs");
+        const gm = { isGM: true, can: () => true }, player = { isGM: false, can: () => false };
+        const draw = user => {
+            const box = document.createElement("div");
+            box.innerHTML = W.settingsWindowColumns(user, { voice: false }).map(c => c.html).join("");
+            return box;
+        };
+        const g = draw(gm), p = draw(player);
+        const sections = box => [...box.querySelectorAll("[data-drpg-section]")].map(b => b.dataset.drpgSection);
+        const sources = new Map(await moduleSources());
+        const writes = [...sources].filter(([file, text]) => !file.startsWith("tests") && /SETTINGS\.debug\b/.test(stripComments(text))).map(([file]) => file).sort();
+        const read = {
+            gm: [g.querySelectorAll('[data-drpg-setting="debug"]').length, sections(g)],
+            player: [p.querySelectorAll('[data-drpg-setting="debug"]').length, sections(p)],
+            scope: game.settings.settings.get(`${MODULE_ID}.${SETTINGS.debug}`)?.scope ?? null,
+            readers: writes
+        };
+        equal(stableJson(read), stableJson({ gm: [1, ["look", "effects", "sound", "tech"]], player: [0, ["look", "effects", "sound"]], scope: "client",
+            readers: ["settings.mjs", "utils.mjs"] }),
+            "{[debug rows, sections] for a GM; for a player; the setting's scope; the module files that name SETTINGS.debug (its registration and its one reader)}");
+    }],
+    ["R4103 - the notice history keeps three filters on top and the rest in one menu (E100 item 4; the owner's 12.11.2026, the player-screens review's #5): the window's chips are All, For you and Not done, in that order; one select (`.drpg-notices-more`, named for a screen reader) offers Announcements, From players, Evidence and Messenger after an empty first choice; each of the seven filters is offered once; picking a menu filter presses no chip, and a chip pressed puts the menu back to its empty choice", async () => {
+        /*
+         * E100 item 4, 12.11.2026. The review: "Siedem przycisków nad pustą listą; proponuję trzy na wierzchu" - Wszystkie,
+         * Dla ciebie, Niewykonane - and the rest in one menu. Read in the window as it opens on this browser, under the
+         * suite's hold (`holdNoticeHistory`: nothing reaches the setting) with one Evidence entry and one For you entry
+         * recorded, so both choices are live; the pick read through the window's own handlers. Red at a5dc2ba7: seven
+         * chips and no menu.
+         */
+        const A = await import("./notice-history-app.mjs"), NH = await import("./notice-history.mjs");
+        const of = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-notices")) ?? null;
+        must(!of(), "a notice history window stands open already");
+        await NH.holdNoticeHistory(true);
+        let app = null;
+        const read = {};
+        try {
+            NH.recordNotice({ source: "evidence", kind: "info", title: "R4103 evidence", text: "R4103 evidence", html: "" });
+            NH.recordNotice({ source: "mine", kind: "info", title: "R4103 mine", text: "R4103 mine", html: "" });
+            await A.openNotices();
+            app = await until(() => of(), 3000) ? of() : null;
+            must(app, "the notice history did not open - nothing to read");
+            const root = app.element;
+            const chips = () => [...root.querySelectorAll("[data-drpg-chip]")];
+            const menu = root.querySelector("select.drpg-notices-more");
+            read.chips = chips().map(c => c.dataset.drpgChip);
+            read.menu = menu ? [[...menu.options].map(o => o.value), Boolean(menu.getAttribute("aria-label"))] : null;
+            read.once = [...read.chips, ...(read.menu?.[0] ?? []).filter(Boolean)].sort();
+            if (menu) {
+                menu.value = "evidence";
+                menu.dispatchEvent(new Event("change", { bubbles: true }));
+                read.picked = [app.filter, chips().filter(c => c.getAttribute("aria-pressed") === "true").map(c => c.dataset.drpgChip)];
+                chips().find(c => c.dataset.drpgChip === "forYou")?.click();
+                read.back = [app.filter, menu.value];
+            }
+        } finally {
+            await app?.close();
+            NH.holdNoticeHistory(false);
+        }
+        equal(stableJson(read), stableJson({ chips: ["all", "forYou", "notDone"], menu: [["", "announcements", "players", "evidence", "messenger"], true],
+            once: ["all", "announcements", "evidence", "forYou", "messenger", "notDone", "players"], picked: ["evidence", []], back: ["forYou", ""] }),
+            "{the chips; the menu [its values, named]; the seven filters, each offered once; a menu pick [the filter, the chips pressed]; a chip pressed after [the filter, the menu's value]}");
+    }],
+    ["R4104 - Search's statistic is folded away under Another statistic, Eye the default (E100 item 5; the owner's 12.11.2026, the player-screens review's #8): action-menus.mjs `traitFieldHtml` with `fold` draws the proposal - the statistic and the words of how - inside a closed `details.drpg-trait-other` whose summary is `DRPG.TraitRuling.otherTrait`, the statistic's first choice and the one picked Eye; read back unopened it proposes Eye, which asks nobody (action-search.mjs `searchTrait`); Search's window asks it with `fold`, and the Dynamic action, whose statistic is the point, does not", async () => {
+        /*
+         * E100 item 5, 12.11.2026. The review: "Pole 'Którą statystykę proponujesz?' z sześcioma opcjami stoi w każdym
+         * Search, choć Search rzuca Eye" - fold it under "Inna statystyka". Read on markup in a detached box; the windows'
+         * calls in source. Red at the item 4 commit: no fold, the field drawn open.
+         */
+        const M = await import("./action-menus.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const actor = livingStudents()[0];
+        must(actor, "no living student to draw the field for - this would measure nothing");
+        const box = document.createElement("div");
+        box.innerHTML = M.traitFieldHtml(actor, ACTIONS.search.traits, { propose: true, howLabel: "DRPG.TraitRuling.howSearch", fold: true });
+        const fold = box.querySelector("details.drpg-trait-other");
+        const plain = document.createElement("div");
+        plain.innerHTML = M.traitFieldHtml(actor, ACTIONS.search.traits, { propose: true, how: false });
+        const sources = new Map(await moduleSources());
+        const call = (file, fn) => fnSource(stripComments(sources.get(file) ?? ""), fn);
+        const read = {
+            fold: fold ? [fold.open, fold.querySelector(":scope > summary")?.textContent.trim() === game.i18n.localize("DRPG.TraitRuling.otherTrait"),
+                Boolean(fold.querySelector("select[name=proposed]")), Boolean(fold.querySelector("input[name=note]"))] : null,
+            first: box.querySelector("select[name=proposed]")?.options?.[0]?.value ?? null,
+            value: box.querySelector("select[name=proposed]")?.value ?? null,
+            unopened: M.readProposal(box, ACTIONS.search.traits).proposed,
+            plain: plain.querySelectorAll("details").length,
+            search: /traitFieldHtml\([^)]*fold: true/.test(call("action-search.mjs", "chooseSearchCategory")),
+            dynamic: /fold: true/.test(call("action-dynamic.mjs", "performDynamic")),
+            words: game.i18n.localize("DRPG.TraitRuling.otherTrait") !== "DRPG.TraitRuling.otherTrait"
+        };
+        equal(stableJson(read), stableJson({ fold: [false, true, true, true], first: "eye", value: "eye", unopened: "eye", plain: 0, search: true, dynamic: false, words: true }),
+            "{the fold [open, its summary's words, the statistic inside, the words of how inside]; the statistic's first choice; the one picked; read back unopened; "
+            + "folds without `fold`; Search asks with fold; the Dynamic action asks with fold; the summary's key}");
+    }],
+    ["R4105 - one word per kind of button (E100 item 6; the owner's 12.11.2026, the player-screens review's #10): a button that rolls says Roll / Rzuć (Observe, Search, Tamper, Listen, Palm, Analyze, a project's work and sabotage and the project picker; the crisis roll), one whose words go to a GM to decide says Send to the GM / Wyślij do GM-a (the Dynamic action, a project's proposal), one that only leads to the next window says Next / Dalej (Propose a project, both Level Up menus), Rest's picks say Rest / Odpocznij and an open Frisk Ask them / Poproś; Do it is left to `chooseVariant`'s fallback alone, which Rest's first window still reaches (E93 turns it into Facilities, whose rows do more than lead on: its word is E93's), and Got it is gone", async () => {
+        /*
+         * E100 item 6, 12.11.2026. The review: Observe, Search and Tamper ended on "Rzut", Analyze and Projects on "Zrób to",
+         * Dynamic on "Wyślij do GM-a", Move on "Jasne", Level Up on "Zrób to". Each window's button read off its opener's
+         * source (the key it localizes), and the words off both files. Red at the item 5 commit: Rzut, Do it in five
+         * openers, "Send to GM", "Send it to the GM", "Roll it".
+         */
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
+        const at = (tree, key) => key.split(".").reduce((o, part) => (o && typeof o === "object" ? o[part] : undefined), tree);
+        const words = key => [at(en, key) ?? null, at(pl, key) ?? null];
+        const sources = new Map(await moduleSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        const keysIn = (file, fn) => [...new Set([...fnSource(src(file), fn).matchAll(/"DRPG\.(Action\.(?:roll|proceed|next|restNow|askThem)|Murder\.brief\w+|Bridge\.send|Project\.proposeButton)"/g)].map(m => m[1]))].sort();
+        const proceedUsers = [...sources].filter(([file, text]) => !file.startsWith("tests") && /"DRPG\.Action\.proceed"/.test(stripComments(text))).map(([file]) => file);
+        const read = {
+            words: {
+                roll: words("DRPG.Action.roll"), next: words("DRPG.Action.next"), restNow: words("DRPG.Action.restNow"), askThem: words("DRPG.Action.askThem"),
+                send: words("DRPG.Bridge.send"), propose: words("DRPG.Project.proposeButton"), crisis: words("DRPG.Murder.briefRoll"), gotIt: words("DRPG.Action.gotIt")
+            },
+            openers: {
+                observe: keysIn("action-observe.mjs", "askDeclaration"), search: keysIn("action-search.mjs", "chooseSearchCategory"),
+                tamper: keysIn("action-tamper.mjs", "chooseTamper"), listen: keysIn("action-listen.mjs", "performListen"), palm: keysIn("palm.mjs", "choosePalm"),
+                analyze: keysIn("action-analyze.mjs", "askWhatToAnalyze"), project: keysIn("action-project.mjs", "performProject"),
+                picker: keysIn("action-project.mjs", "chooseProject"), rest: keysIn("action-rest.mjs", "performRest"), picks: keysIn("rest.mjs", "choosePicks"),
+                levelUp: keysIn("level-up.mjs", "openAdvancementFor"), dynamic: keysIn("call-gm.mjs", "askForRequest"), proposal: keysIn("action-project.mjs", "startProject")
+            },
+            proceed: proceedUsers
+        };
+        equal(stableJson(read), stableJson({
+            words: { roll: ["Roll", "Rzuć"], next: ["Next", "Dalej"], restNow: ["Rest", "Odpocznij"], askThem: ["Ask them", "Poproś"],
+                send: ["Send to the GM", "Wyślij do GM-a"], propose: ["Send to the GM", "Wyślij do GM-a"], crisis: ["Roll", "Rzuć"], gotIt: [null, null] },
+            openers: { observe: ["Action.roll"], search: ["Action.roll"], tamper: ["Action.roll"], listen: ["Action.roll"], palm: ["Action.askThem", "Action.roll"],
+                analyze: ["Action.roll"], project: ["Action.next", "Action.roll"], picker: ["Action.roll"], rest: [], picks: ["Action.restNow"],
+                levelUp: ["Action.next"], dynamic: ["Bridge.send"], proposal: ["Project.proposeButton"] },
+            proceed: ["action-menus.mjs"]
+        }), "{the words [en, pl] of each button kind; the button keys each window's opener localizes; the module files that still name Do it}");
     }],
 
     ["R3141 - a body lies where its tile is, and where its token is when it has none (body-tile.mjs `bodyPlaceOf`, E95 C0): the current death's earliest tile, measured by its centre on the floor it stores, its `hidden` the tile's; an older death's tile, another student's and none fall back to the token", async () => {
@@ -50007,243 +50244,6 @@ const INVARIANTS = [
         }
         const P = "(styles/components.css)", want = [`repeat(6, minmax(min-content, 1fr)) ${P}`, `nowrap ${P}`];
         equal(stableJson(read), stableJson({ glass: want, legacy: want }), "per theme: [the cells' grid columns, a name's white-space] - each with the sheet it came from");
-    }],
-
-    /* ======================================================================
-     * E100 - THE PLAYER SCREENS' CLEANUP (the owner's six items of 12.11.2026, review page YH2SiTx2Rbv2s38YQgs8H3)
-     * ==================================================================== */
-    ["R3917 - Move opens no window (E100 item 1; the owner's 12.11.2026, the player-screens review's #2): `performAction(actor, \"move\")` draws nothing and answers null; action-briefing.mjs has no Move window (`briefing`) and its Got it is gone from both languages; a Monocub's Move tile is a still tile - not a button, no `data-drpg-action` the sheet's delegate would press - that says on its face what to do (`DRPG.Move.dragShort`) under its price; the HUD's Move row says it first in its tooltip (`DRPG.Move.drag`)", async () => {
-        /*
-         * E100 item 1, 12.11.2026. The review's Move window had one button, Got it, and said "drag your token": the
-         * sentence goes on the tile and on the HUD's Move line, and the window goes. In real code a student has no Move
-         * tile (ACTIONS.move is `kind: "panel"`); the Monocub panel draws one (sheet.mjs `monocubTiles`). Red at
-         * 4dfac3a9: the window opened with Got it, the tile was a button the delegate pressed, no `DRPG.Move.drag*`.
-         */
-        const { livingStudents } = await import("./chapter.mjs");
-        const actor = livingStudents()[0];
-        must(actor, "no living student to read the Move with - this would measure nothing");
-        const B = await import("./action-briefing.mjs"), R = await import("./action-rolls.mjs"), S = await import("./sheet.mjs"), P = await import("./player-status.mjs");
-        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
-        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
-        const before = new Set(foundry.applications.instances.keys());
-        const D = foundry.applications.api.DialogV2, own = Object.getOwnPropertyDescriptor(D, "wait");
-        let asked = 0;
-        D.wait = async () => { asked += 1; return null; };
-        let answer;
-        try { answer = await R.performAction(actor, "move"); } finally { if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
-        await settle();
-        const opened = [...foundry.applications.instances.keys()].filter(k => !before.has(k)).length;
-        const tile = S.actionButton(actor, "move", ACTIONS.move);
-        const row = P.buildPlayerView(actor)?.querySelector?.(".is-move") ?? null;
-        const drag = game.i18n.localize("DRPG.Move.drag"), short = game.i18n.localize("DRPG.Move.dragShort");
-        const read = {
-            answer, asked, opened,
-            briefing: Object.keys(B).includes("briefing") ? "exported" : "undefined",
-            gotIt: [en?.DRPG?.Action?.gotIt ?? null, pl?.DRPG?.Action?.gotIt ?? null],
-            tile: [tile?.tagName ?? null, tile?.dataset?.drpgAction ?? null, tile?.dataset?.drpgTile ?? null,
-                [...(tile?.querySelectorAll?.(".drpg-action-cost") ?? [])].map(n => n.textContent.trim()).includes(short)],
-            hud: [Boolean(row), String(row?.dataset?.tooltip ?? "").startsWith(drag)],
-            words: [en?.DRPG?.Move?.drag, en?.DRPG?.Move?.dragShort, pl?.DRPG?.Move?.drag, pl?.DRPG?.Move?.dragShort].every(w => typeof w === "string" && w.length > 3)
-        };
-        equal(stableJson(read), stableJson({ answer: null, asked: 0, opened: 0, briefing: "undefined", gotIt: [null, null],
-            tile: ["DIV", null, "move", true], hud: [true, true], words: true }),
-            "{performAction's answer; DialogV2 waits asked; windows opened; action-briefing.mjs `briefing`; Got it in en, pl; "
-            + "the Monocub's Move tile [tag, data-drpg-action, data-drpg-tile, the drag line on its face]; the HUD's Move row [drawn, its tooltip opens with the drag sentence]; the words in both}");
-    }],
-    ["R3918 - the volumes and the messenger's sounds are in one place, the Sound window (E100 item 2; the owner's 12.11.2026, the player-screens review's #3): the gear's Sound section draws no volume slider and no Messenger sounds row, and in their place one button that opens the Sound window (`data-drpg-open-sound`, wired to music.mjs `openSoundDialog`); the Sound window holds Sound, Music and the messenger's sounds for a player and, in both themes, for a GM; no setting is lost - every one of the 35 is in a section of the two settings windows or, Messenger sounds alone, in the Sound window", async () => {
-        /*
-         * E100 item 2, 12.11.2026. The review: "Ustawienia gracza i okno Dźwięk dublują się" - Dźwięk, Muzyka and
-         * Dźwięki komunikatora in both. The owner: keep them in the Sound window. A GM's Sound window drew the sliders
-         * under Monokuma Legacy alone (glass had them in the gear's window), so with the gear's gone they are drawn in
-         * both themes. Red at 0dead12b: the gear's Sound section held two sliders and the messenger's row, no button,
-         * and a GM's Sound window under the glass no slider.
-         */
-        const W = await import("./settings-window.mjs"), F = await import("./sfx.mjs");
-        const player = { isGM: false, can: () => false };
-        const box = document.createElement("div");
-        box.innerHTML = W.settingsWindowColumns(player, { voice: false }).map(c => c.html).join("");
-        const pane = box.querySelector('[data-drpg-settings-pane="sound"]');
-        const sound = document.createElement("div");
-        sound.innerHTML = F.soundSlidersHtml();
-        const names = root => [...root.querySelectorAll("input[name]")].map(i => i.name).sort();
-        /* A GM's Sound window, drawn with DialogV2.wait stood in for, under each theme. */
-        const D = foundry.applications.api.DialogV2, own = Object.getOwnPropertyDescriptor(D, "wait");
-        const M = await import("./music.mjs");
-        const gmWindow = {};
-        const was = document.body.className;
-        must(game.user.isGM, "this reads a GM's Sound window and runs on a GM");
-        try {
-            for (const [theme, cls] of [["glass", "drpg-theme-stained-glass"], ["legacy", "drpg-theme-monokuma-legacy"]]) {
-                document.body.classList.remove("drpg-theme-stained-glass", "drpg-theme-monokuma-legacy");
-                document.body.classList.add(cls);
-                let content = null;
-                D.wait = async config => { content = config?.content; return null; };
-                await M.openSoundDialog();
-                const el = document.createElement("div");
-                if (typeof content === "string") el.innerHTML = content; else if (content) el.append(content.cloneNode?.(true) ?? content);
-                gmWindow[theme] = names(el).filter(n => n.startsWith("vol:") || n === "messengerSound");
-            }
-        } finally {
-            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
-            document.body.className = was;
-        }
-        const src = stripComments((await moduleSources()).get("settings-window.mjs") ?? "");
-        must(src.length > 1000, "settings-window.mjs was not read");
-        const read = {
-            pane: Boolean(pane),
-            sliders: pane?.querySelectorAll("[data-drpg-slider], input[type=\"range\"]").length ?? null,
-            messengerRow: pane?.querySelectorAll('[data-drpg-setting="messengerSound"]').length ?? null,
-            button: pane?.querySelectorAll("button[data-drpg-open-sound]").length ?? null,
-            wired: /data-drpg-open-sound[\s\S]{0,400}openSoundDialog\(\)/.test(src),
-            playerWindow: names(sound).filter(n => n.startsWith("vol:") || n === "messengerSound"),
-            gmWindow,
-            sectionKeys: W.SETTINGS_SECTIONS.flatMap(s => s.keys).includes("messengerSound")
-        };
-        const three = ["messengerSound", "vol:music", "vol:sound"];
-        equal(stableJson(read), stableJson({ pane: true, sliders: 0, messengerRow: 0, button: 1, wired: true, playerWindow: three,
-            gmWindow: { glass: three, legacy: three }, sectionKeys: false }),
-            "{the gear's Sound pane drawn; its sliders; its Messenger sounds rows; its buttons that open the Sound window; the button wired to openSoundDialog; "
-            + "the player's Sound window's fields of the three; a GM's Sound window's, per theme; Messenger sounds still a row of a settings section}");
-    }],
-    ["R3919 - the verbose console log is a GM's row (E100 item 3; the owner's 12.11.2026, the player-screens review's #4): the gear's window draws `debug` (Verbose console logging) for a GM and not for a player, whose window has no Technical section left; the setting stays this browser's (`scope: \"client\"`), so the one road to it on a player's browser is the console line the GM handbook gives - there is no road from a GM's browser to another browser's client setting, and none is added", async () => {
-        /*
-         * E100 item 3, 12.11.2026. The review: "Szczegółowe logi w konsoli" is diagnostic, a player turns it on only when
-         * a GM asks (the GM handbook's voice recipe). The owner: hide it from players; if a GM can switch it on for a
-         * player's browser today, keep that road, else keep it GM-only and say so. Read on 0dead12b: `debug` is a client
-         * setting read by utils.mjs `debug` alone, no socket or bridge row writes it, so there is no such road. Red at
-         * dbf260d3: the player's window drew the row and the Technical section.
-         */
-        const W = await import("./settings-window.mjs");
-        const gm = { isGM: true, can: () => true }, player = { isGM: false, can: () => false };
-        const draw = user => {
-            const box = document.createElement("div");
-            box.innerHTML = W.settingsWindowColumns(user, { voice: false }).map(c => c.html).join("");
-            return box;
-        };
-        const g = draw(gm), p = draw(player);
-        const sections = box => [...box.querySelectorAll("[data-drpg-section]")].map(b => b.dataset.drpgSection);
-        const sources = new Map(await moduleSources());
-        const writes = [...sources].filter(([file, text]) => !file.startsWith("tests") && /SETTINGS\.debug\b/.test(stripComments(text))).map(([file]) => file).sort();
-        const read = {
-            gm: [g.querySelectorAll('[data-drpg-setting="debug"]').length, sections(g)],
-            player: [p.querySelectorAll('[data-drpg-setting="debug"]').length, sections(p)],
-            scope: game.settings.settings.get(`${MODULE_ID}.${SETTINGS.debug}`)?.scope ?? null,
-            readers: writes
-        };
-        equal(stableJson(read), stableJson({ gm: [1, ["look", "effects", "sound", "tech"]], player: [0, ["look", "effects", "sound"]], scope: "client",
-            readers: ["settings.mjs", "utils.mjs"] }),
-            "{[debug rows, sections] for a GM; for a player; the setting's scope; the module files that name SETTINGS.debug (its registration and its one reader)}");
-    }],
-    ["R3920 - the notice history keeps three filters on top and the rest in one menu (E100 item 4; the owner's 12.11.2026, the player-screens review's #5): the window's chips are All, For you and Not done, in that order; one select (`.drpg-notices-more`, named for a screen reader) offers Announcements, From players, Evidence and Messenger after an empty first choice; each of the seven filters is offered once; picking a menu filter presses no chip, and a chip pressed puts the menu back to its empty choice", async () => {
-        /*
-         * E100 item 4, 12.11.2026. The review: "Siedem przycisków nad pustą listą; proponuję trzy na wierzchu" - Wszystkie,
-         * Dla ciebie, Niewykonane - and the rest in one menu. Read in the window as it opens on this browser, under the
-         * suite's hold (`holdNoticeHistory`: nothing reaches the setting) with one Evidence entry and one For you entry
-         * recorded, so both choices are live; the pick read through the window's own handlers. Red at a5dc2ba7: seven
-         * chips and no menu.
-         */
-        const A = await import("./notice-history-app.mjs"), NH = await import("./notice-history.mjs");
-        const of = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-notices")) ?? null;
-        must(!of(), "a notice history window stands open already");
-        await NH.holdNoticeHistory(true);
-        let app = null;
-        const read = {};
-        try {
-            NH.recordNotice({ source: "evidence", kind: "info", title: "R3920 evidence", text: "R3920 evidence", html: "" });
-            NH.recordNotice({ source: "mine", kind: "info", title: "R3920 mine", text: "R3920 mine", html: "" });
-            await A.openNotices();
-            app = await until(() => of(), 3000) ? of() : null;
-            must(app, "the notice history did not open - nothing to read");
-            const root = app.element;
-            const chips = () => [...root.querySelectorAll("[data-drpg-chip]")];
-            const menu = root.querySelector("select.drpg-notices-more");
-            read.chips = chips().map(c => c.dataset.drpgChip);
-            read.menu = menu ? [[...menu.options].map(o => o.value), Boolean(menu.getAttribute("aria-label"))] : null;
-            read.once = [...read.chips, ...(read.menu?.[0] ?? []).filter(Boolean)].sort();
-            if (menu) {
-                menu.value = "evidence";
-                menu.dispatchEvent(new Event("change", { bubbles: true }));
-                read.picked = [app.filter, chips().filter(c => c.getAttribute("aria-pressed") === "true").map(c => c.dataset.drpgChip)];
-                chips().find(c => c.dataset.drpgChip === "forYou")?.click();
-                read.back = [app.filter, menu.value];
-            }
-        } finally {
-            await app?.close();
-            NH.holdNoticeHistory(false);
-        }
-        equal(stableJson(read), stableJson({ chips: ["all", "forYou", "notDone"], menu: [["", "announcements", "players", "evidence", "messenger"], true],
-            once: ["all", "announcements", "evidence", "forYou", "messenger", "notDone", "players"], picked: ["evidence", []], back: ["forYou", ""] }),
-            "{the chips; the menu [its values, named]; the seven filters, each offered once; a menu pick [the filter, the chips pressed]; a chip pressed after [the filter, the menu's value]}");
-    }],
-    ["R3921 - Search's statistic is folded away under Another statistic, Eye the default (E100 item 5; the owner's 12.11.2026, the player-screens review's #8): action-menus.mjs `traitFieldHtml` with `fold` draws the proposal - the statistic and the words of how - inside a closed `details.drpg-trait-other` whose summary is `DRPG.TraitRuling.otherTrait`, the statistic's first choice and the one picked Eye; read back unopened it proposes Eye, which asks nobody (action-search.mjs `searchTrait`); Search's window asks it with `fold`, and the Dynamic action, whose statistic is the point, does not", async () => {
-        /*
-         * E100 item 5, 12.11.2026. The review: "Pole 'Którą statystykę proponujesz?' z sześcioma opcjami stoi w każdym
-         * Search, choć Search rzuca Eye" - fold it under "Inna statystyka". Read on markup in a detached box; the windows'
-         * calls in source. Red at the item 4 commit: no fold, the field drawn open.
-         */
-        const M = await import("./action-menus.mjs");
-        const { livingStudents } = await import("./chapter.mjs");
-        const actor = livingStudents()[0];
-        must(actor, "no living student to draw the field for - this would measure nothing");
-        const box = document.createElement("div");
-        box.innerHTML = M.traitFieldHtml(actor, ACTIONS.search.traits, { propose: true, howLabel: "DRPG.TraitRuling.howSearch", fold: true });
-        const fold = box.querySelector("details.drpg-trait-other");
-        const plain = document.createElement("div");
-        plain.innerHTML = M.traitFieldHtml(actor, ACTIONS.search.traits, { propose: true, how: false });
-        const sources = new Map(await moduleSources());
-        const call = (file, fn) => fnSource(stripComments(sources.get(file) ?? ""), fn);
-        const read = {
-            fold: fold ? [fold.open, fold.querySelector(":scope > summary")?.textContent.trim() === game.i18n.localize("DRPG.TraitRuling.otherTrait"),
-                Boolean(fold.querySelector("select[name=proposed]")), Boolean(fold.querySelector("input[name=note]"))] : null,
-            first: box.querySelector("select[name=proposed]")?.options?.[0]?.value ?? null,
-            value: box.querySelector("select[name=proposed]")?.value ?? null,
-            unopened: M.readProposal(box, ACTIONS.search.traits).proposed,
-            plain: plain.querySelectorAll("details").length,
-            search: /traitFieldHtml\([^)]*fold: true/.test(call("action-search.mjs", "chooseSearchCategory")),
-            dynamic: /fold: true/.test(call("action-dynamic.mjs", "performDynamic")),
-            words: game.i18n.localize("DRPG.TraitRuling.otherTrait") !== "DRPG.TraitRuling.otherTrait"
-        };
-        equal(stableJson(read), stableJson({ fold: [false, true, true, true], first: "eye", value: "eye", unopened: "eye", plain: 0, search: true, dynamic: false, words: true }),
-            "{the fold [open, its summary's words, the statistic inside, the words of how inside]; the statistic's first choice; the one picked; read back unopened; "
-            + "folds without `fold`; Search asks with fold; the Dynamic action asks with fold; the summary's key}");
-    }],
-    ["R3922 - one word per kind of button (E100 item 6; the owner's 12.11.2026, the player-screens review's #10): a button that rolls says Roll / Rzuć (Observe, Search, Tamper, Listen, Palm, Analyze, a project's work and sabotage and the project picker; the crisis roll), one whose words go to a GM to decide says Send to the GM / Wyślij do GM-a (the Dynamic action, a project's proposal), one that only leads to the next window says Next / Dalej (Rest's choice, Propose a project, both Level Up menus), Rest's picks say Rest / Odpocznij and an open Frisk Ask them / Poproś; Do it is left to `chooseVariant`'s fallback alone, which no action window reaches, and Got it is gone", async () => {
-        /*
-         * E100 item 6, 12.11.2026. The review: Observe, Search and Tamper ended on "Rzut", Analyze and Projects on "Zrób to",
-         * Dynamic on "Wyślij do GM-a", Move on "Jasne", Level Up on "Zrób to". Each window's button read off its opener's
-         * source (the key it localizes), and the words off both files. Red at the item 5 commit: Rzut, Do it in five
-         * openers, "Send to GM", "Send it to the GM", "Roll it".
-         */
-        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`).then(r => r.json());
-        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`).then(r => r.json());
-        const at = (tree, key) => key.split(".").reduce((o, part) => (o && typeof o === "object" ? o[part] : undefined), tree);
-        const words = key => [at(en, key) ?? null, at(pl, key) ?? null];
-        const sources = new Map(await moduleSources());
-        const src = file => stripComments(sources.get(file) ?? "");
-        const keysIn = (file, fn) => [...new Set([...fnSource(src(file), fn).matchAll(/"DRPG\.(Action\.(?:roll|proceed|next|restNow|askThem)|Murder\.brief\w+|Bridge\.send|Project\.proposeButton)"/g)].map(m => m[1]))].sort();
-        const proceedUsers = [...sources].filter(([file, text]) => !file.startsWith("tests") && /"DRPG\.Action\.proceed"/.test(stripComments(text))).map(([file]) => file);
-        const read = {
-            words: {
-                roll: words("DRPG.Action.roll"), next: words("DRPG.Action.next"), restNow: words("DRPG.Action.restNow"), askThem: words("DRPG.Action.askThem"),
-                send: words("DRPG.Bridge.send"), propose: words("DRPG.Project.proposeButton"), crisis: words("DRPG.Murder.briefRoll"), gotIt: words("DRPG.Action.gotIt")
-            },
-            openers: {
-                observe: keysIn("action-observe.mjs", "askDeclaration"), search: keysIn("action-search.mjs", "chooseSearchCategory"),
-                tamper: keysIn("action-tamper.mjs", "chooseTamper"), listen: keysIn("action-listen.mjs", "performListen"), palm: keysIn("palm.mjs", "choosePalm"),
-                analyze: keysIn("action-analyze.mjs", "askWhatToAnalyze"), project: keysIn("action-project.mjs", "performProject"),
-                picker: keysIn("action-project.mjs", "chooseProject"), rest: keysIn("action-rest.mjs", "performRest"), picks: keysIn("rest.mjs", "choosePicks"),
-                levelUp: keysIn("level-up.mjs", "openAdvancementFor"), dynamic: keysIn("call-gm.mjs", "askForRequest"), proposal: keysIn("action-project.mjs", "startProject")
-            },
-            proceed: proceedUsers
-        };
-        equal(stableJson(read), stableJson({
-            words: { roll: ["Roll", "Rzuć"], next: ["Next", "Dalej"], restNow: ["Rest", "Odpocznij"], askThem: ["Ask them", "Poproś"],
-                send: ["Send to the GM", "Wyślij do GM-a"], propose: ["Send to the GM", "Wyślij do GM-a"], crisis: ["Roll", "Rzuć"], gotIt: [null, null] },
-            openers: { observe: ["Action.roll"], search: ["Action.roll"], tamper: ["Action.roll"], listen: ["Action.roll"], palm: ["Action.askThem", "Action.roll"],
-                analyze: ["Action.roll"], project: ["Action.next", "Action.roll"], picker: ["Action.roll"], rest: ["Action.next"], picks: ["Action.restNow"],
-                levelUp: ["Action.next"], dynamic: ["Bridge.send"], proposal: ["Project.proposeButton"] },
-            proceed: ["action-menus.mjs"]
-        }), "{the words [en, pl] of each button kind; the button keys each window's opener localizes; the module files that still name Do it}");
     }],
 ];
 

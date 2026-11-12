@@ -88496,7 +88496,7 @@ const SCENARIOS = [
          * E49 A1, 11.11.2026. Foundry's Configure Settings wrote a changed setting by `game.settings.set` (its `onChange`
          * then runs) and none it left as it was, and asked `SettingsConfig.reloadConfirm({ world })` once after the last
          * write when one of them had `requiresReload` (v13's `#onSubmit`, read as text). The window drawn by its own wait on
-         * this GM, three fields changed - hudTicker (a switch; messengerSound until E100 item 2 moved it to the Sound window, R3918), uiScale (a stepper with a range), the language
+         * this GM, three fields changed - hudTicker (a switch; messengerSound until E100 item 2 moved it to the Sound window, R4101), uiScale (a stepper with a range), the language
          * (`requiresReload`), all three this browser's since E49 A1d moved the world rows to the GM panel's tab (the tier-2
          * test "the GM panel's Game settings tab saves"; despairFromRolls was this test's switch until then) - then Save
          * pressed; each setting's `onChange` wrapped to count its runs (the language has none: Foundry

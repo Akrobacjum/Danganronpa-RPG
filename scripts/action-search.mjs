@@ -920,7 +920,7 @@ async function chooseSearchCategory(actor, def = ACTIONS.search) {
         confirm: game.i18n.localize("DRPG.Action.roll"),
         // NO PICK OF THE ROLLER'S OWN HERE (Dawid, 29.08): since E68 C6 (DA2) the statistic is the
         // player's proposal, Eye checked, in `extra` below - Eye asks nobody (DA49), another a GM. Folded
-        // under "Another statistic" since E100 item 5 (R3921): most Searches never open it.
+        // under "Another statistic" since E100 item 5 (R4104): most Searches never open it.
         traits: null,
         options: options.map(o => ({
             value: o.value,

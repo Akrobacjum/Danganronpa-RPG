@@ -366,7 +366,7 @@ export async function openSoundDialog() {
         // about effects, they are about this browser - and putting them in a
         // tab would leave a player looking at a tab bar with one tab in it.
         // In both themes since E100 item 2: the gear's window no longer draws them under the glass, so this window is
-        // the one place a GM sets the volumes and the messenger's sounds, as a player's is (R3918).
+        // the one place a GM sets the volumes and the messenger's sounds, as a player's is (R4101).
         body: `<form>
             ${soundSlidersHtml()}
             ${kitTabs([
